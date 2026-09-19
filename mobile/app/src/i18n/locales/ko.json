@@ -790,7 +790,8 @@
     "siteOfPlot": "조사구 {{plotid}}의 범위",
     "jumpToPlot": "이 조사구 열기",
     "redrawRange": "이 범위 다시 그리기",
-    "featureAction": "작업"
+    "featureAction": "작업",
+    "basemapRudy": "Rudy Map (오프라인)"
   },
   "keys": {
     "modeDichotomous": "이분법",
@@ -1903,5 +1904,31 @@
     "backupMeta": "{{size}} · App {{appVersion}}",
     "downloading": "내려받는 중 {{pct}}%",
     "tooNewShort": "앱 업데이트 필요"
+  },
+  "rudymap": {
+    "title": "오프라인 지도",
+    "heading": "Rudy Map Taiwan TOPO",
+    "description": "등고선, 등산로, 산장과 수원을 포함한 대만 전역 지형도. 내려받으면 신호가 없어도 사용할 수 있습니다.",
+    "notInstalled": "내려받지 않음",
+    "incomplete": "{{done}} / {{total}}개 내려받음",
+    "installedAt": "{{date}} 설치됨",
+    "version": "버전 {{version}}",
+    "downloadSize": "내려받기 용량 약 {{size}}",
+    "download": "오프라인 지도 내려받기",
+    "resume": "내려받기 이어서",
+    "cancel": "내려받기 취소",
+    "remove": "오프라인 지도 삭제",
+    "removeConfirm": "삭제하면 온라인 지도로 돌아갑니다. 다시 쓰려면 {{size}}를 다시 내려받아야 합니다.",
+    "newVersion": "새 버전 {{version}}이 있습니다. 전체를 다시 내려받아야 합니다",
+    "wifiHint": "Wi-Fi 연결에서 내려받기를 권장합니다.",
+    "progressManifest": "목록 가져오는 중…",
+    "progressDownloading": "내려받는 중 {{chunk}} / {{count}}　{{received}} / {{total}}",
+    "progressVerifying": "검증 중 {{chunk}} / {{count}}",
+    "progressExtracting": "압축 푸는 중 {{chunk}} / {{count}}　{{done}} / {{total}}장",
+    "progressCleanup": "마무리 중…",
+    "installDone": "오프라인 지도를 설치했습니다",
+    "installError": "오프라인 지도 실패: {{msg}}",
+    "notEnoughSpace": "저장 공간 부족: {{need}} 필요, {{free}} 사용 가능",
+    "sourceTitle": "출처 및 라이선스"
   }
 }

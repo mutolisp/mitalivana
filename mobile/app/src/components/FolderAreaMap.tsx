@@ -62,7 +62,9 @@ export function FolderAreaMap({
   const insets = useSafeAreaInsets();
   const storedBasemap = useSettings((s) => s.map_view.basemap);
   const [basemap, setBasemap] = useState<MapBasemap>(
-    storedBasemap === 'terrain' ? 'standard' : storedBasemap,
+    // rudy 與 terrain 都不在 BASEMAP_CYCLE 裡：用它當初始值會讓 nextBasemap
+    // 從索引 0 重新開始。小地圖看的是單一點位或單一多邊形，等高線幫不上忙。
+    storedBasemap === 'terrain' || storedBasemap === 'rudy' ? 'standard' : storedBasemap,
   );
   const [fullscreen, setFullscreen] = useState(false);
 

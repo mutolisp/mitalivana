@@ -882,7 +882,8 @@
     "siteOfPlot": "Límite de la parcela {{plotid}}",
     "jumpToPlot": "Abrir esta parcela",
     "redrawRange": "Volver a dibujar este límite",
-    "featureAction": "Acciones"
+    "featureAction": "Acciones",
+    "basemapRudy": "Rudy Map (sin conexión)"
   },
   "keys": {
     "modeDichotomous": "Dicotómica",
@@ -2133,5 +2134,31 @@
     "backupMeta": "{{size}} · App {{appVersion}}",
     "downloading": "Descargando {{pct}} %",
     "tooNewShort": "Actualiza la app"
+  },
+  "rudymap": {
+    "title": "Mapa sin conexión",
+    "heading": "Rudy Map Taiwan TOPO",
+    "description": "Mapa topográfico de Taiwán con curvas de nivel, senderos, refugios y fuentes de agua. Funciona sin cobertura una vez descargado.",
+    "notInstalled": "No descargado",
+    "incomplete": "{{done}} / {{total}} partes descargadas",
+    "installedAt": "Instalado el {{date}}",
+    "version": "Versión {{version}}",
+    "downloadSize": "Unos {{size}} para descargar",
+    "download": "Descargar mapa sin conexión",
+    "resume": "Reanudar la descarga",
+    "cancel": "Cancelar la descarga",
+    "remove": "Eliminar el mapa sin conexión",
+    "removeConfirm": "El mapa volverá a los fondos en línea. Volver a usarlo exigirá descargar {{size}} otra vez.",
+    "newVersion": "Hay una versión {{version}}; hay que descargar el paquete entero de nuevo",
+    "wifiHint": "Conviene descargarlo por Wi-Fi.",
+    "progressManifest": "Obteniendo el manifiesto…",
+    "progressDownloading": "Descargando {{chunk}} / {{count}}　{{received}} / {{total}}",
+    "progressVerifying": "Verificando {{chunk}} / {{count}}",
+    "progressExtracting": "Extrayendo {{chunk}} / {{count}}　{{done}} / {{total}} teselas",
+    "progressCleanup": "Finalizando…",
+    "installDone": "Mapa sin conexión instalado",
+    "installError": "Error del mapa sin conexión: {{msg}}",
+    "notEnoughSpace": "Espacio insuficiente: se necesitan {{need}}, hay {{free}}",
+    "sourceTitle": "Fuentes y licencia"
   }
 }

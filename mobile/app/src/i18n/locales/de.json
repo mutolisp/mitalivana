@@ -836,7 +836,8 @@
     "siteOfPlot": "Grenze von Probefläche {{plotid}}",
     "jumpToPlot": "Diese Probefläche öffnen",
     "redrawRange": "Diese Grenze neu zeichnen",
-    "featureAction": "Aktionen"
+    "featureAction": "Aktionen",
+    "basemapRudy": "Rudy Map (offline)"
   },
   "keys": {
     "modeDichotomous": "Dichotom",
@@ -2018,5 +2019,31 @@
     "backupMeta": "{{size}} · App {{appVersion}}",
     "downloading": "Wird heruntergeladen {{pct}} %",
     "tooNewShort": "App aktualisieren"
+  },
+  "rudymap": {
+    "title": "Offline-Karte",
+    "heading": "Rudy Map Taiwan TOPO",
+    "description": "Topografische Karte von Taiwan mit Höhenlinien, Wegen, Hütten und Wasserstellen. Nach dem Herunterladen auch ohne Empfang nutzbar.",
+    "notInstalled": "Nicht heruntergeladen",
+    "incomplete": "{{done}} / {{total}} Teile heruntergeladen",
+    "installedAt": "Installiert am {{date}}",
+    "version": "Version {{version}}",
+    "downloadSize": "Etwa {{size}} zum Herunterladen",
+    "download": "Offline-Karte herunterladen",
+    "resume": "Download fortsetzen",
+    "cancel": "Download abbrechen",
+    "remove": "Offline-Karte löschen",
+    "removeConfirm": "Die Karte fällt auf Online-Grundkarten zurück. Für eine erneute Nutzung müssen {{size}} noch einmal geladen werden.",
+    "newVersion": "Version {{version}} ist verfügbar; das gesamte Paket muss erneut geladen werden",
+    "wifiHint": "Download am besten über WLAN.",
+    "progressManifest": "Manifest wird geladen…",
+    "progressDownloading": "Lädt {{chunk}} / {{count}}　{{received}} / {{total}}",
+    "progressVerifying": "Prüft {{chunk}} / {{count}}",
+    "progressExtracting": "Entpackt {{chunk}} / {{count}}　{{done}} / {{total}} Kacheln",
+    "progressCleanup": "Wird abgeschlossen…",
+    "installDone": "Offline-Karte installiert",
+    "installError": "Offline-Karte fehlgeschlagen: {{msg}}",
+    "notEnoughSpace": "Zu wenig Speicher: {{need}} nötig, {{free}} frei",
+    "sourceTitle": "Quellen und Lizenz"
   }
 }

@@ -836,7 +836,8 @@
     "siteOfPlot": "Boundary of plot {{plotid}}",
     "jumpToPlot": "Open this plot",
     "redrawRange": "Redraw this boundary",
-    "featureAction": "Actions"
+    "featureAction": "Actions",
+    "basemapRudy": "Rudy Map (offline)"
   },
   "keys": {
     "modeDichotomous": "Dichotomous",
@@ -2018,5 +2019,31 @@
     "backupMeta": "{{size}} · App {{appVersion}}",
     "downloading": "Downloading {{pct}}%",
     "tooNewShort": "Update app"
+  },
+  "rudymap": {
+    "title": "Offline map",
+    "heading": "Rudy Map Taiwan TOPO",
+    "description": "Topographic map of Taiwan with contour lines, trails, huts and water sources. Works with no signal once downloaded.",
+    "notInstalled": "Not downloaded",
+    "incomplete": "{{done}} / {{total}} parts downloaded",
+    "installedAt": "Installed {{date}}",
+    "version": "Version {{version}}",
+    "downloadSize": "About {{size}} to download",
+    "download": "Download offline map",
+    "resume": "Resume download",
+    "cancel": "Cancel download",
+    "remove": "Delete offline map",
+    "removeConfirm": "The map will fall back to online basemaps. Using it again means downloading {{size}} once more.",
+    "newVersion": "Version {{version}} is available; the whole pack must be downloaded again",
+    "wifiHint": "Best downloaded over Wi-Fi.",
+    "progressManifest": "Fetching manifest…",
+    "progressDownloading": "Downloading {{chunk}} / {{count}}　{{received}} / {{total}}",
+    "progressVerifying": "Verifying {{chunk}} / {{count}}",
+    "progressExtracting": "Extracting {{chunk}} / {{count}}　{{done}} / {{total}} tiles",
+    "progressCleanup": "Finishing…",
+    "installDone": "Offline map installed",
+    "installError": "Offline map failed: {{msg}}",
+    "notEnoughSpace": "Not enough storage: {{need}} needed, {{free}} free",
+    "sourceTitle": "Sources and licence"
   }
 }

@@ -66,7 +66,9 @@ export function RecordLocationMap({ lat, lng, accuracy = null, onChange, referen
   const mapView = useSettings((s) => s.map_view);
   const undoSeconds = useSettings((s) => s.undo_duration);
   const [basemap, setBasemap] = useState<MapBasemap>(
-    mapView.basemap === 'terrain' ? 'standard' : mapView.basemap,
+    // rudy 與 terrain 都不在 BASEMAP_CYCLE 裡：用它當初始值會讓 nextBasemap
+    // 從索引 0 重新開始。小地圖看的是單一點位或單一多邊形，等高線幫不上忙。
+    mapView.basemap === 'terrain' || mapView.basemap === 'rudy' ? 'standard' : mapView.basemap,
   );
   const [fullscreen, setFullscreen] = useState(false);
   /**

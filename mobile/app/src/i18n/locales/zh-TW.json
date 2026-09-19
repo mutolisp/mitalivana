@@ -790,7 +790,8 @@
     "siteOfPlot": "樣區 {{plotid}} 的範圍",
     "jumpToPlot": "跳回此樣區",
     "redrawRange": "重新繪製此範圍",
-    "featureAction": "操作"
+    "featureAction": "操作",
+    "basemapRudy": "魯地圖（離線）"
   },
   "keys": {
     "modeDichotomous": "對偶",
@@ -1903,5 +1904,31 @@
     "backupMeta": "{{size}} · App {{appVersion}}",
     "downloading": "下載中 {{pct}}%",
     "tooNewShort": "需更新 app"
+  },
+  "rudymap": {
+    "title": "離線地圖",
+    "heading": "魯地圖 Taiwan TOPO",
+    "description": "全臺灣地形圖，含等高線、山徑與山屋水源。下載後沒有訊號也能用。",
+    "notInstalled": "尚未下載",
+    "incomplete": "已下載 {{done}} / {{total}} 塊",
+    "installedAt": "安裝於 {{date}}",
+    "version": "版本 {{version}}",
+    "downloadSize": "下載大小約 {{size}}",
+    "download": "下載離線地圖",
+    "resume": "繼續下載",
+    "cancel": "取消下載",
+    "remove": "刪除離線地圖",
+    "removeConfirm": "刪除後地圖會改回線上底圖，要重新使用得再下載一次 {{size}}。",
+    "newVersion": "有新版本 {{version}}，需重新下載整包",
+    "wifiHint": "建議連上 Wi-Fi 再下載。",
+    "progressManifest": "取得清單…",
+    "progressDownloading": "下載中 {{chunk}} / {{count}}　{{received}} / {{total}}",
+    "progressVerifying": "校驗中 {{chunk}} / {{count}}",
+    "progressExtracting": "解壓中 {{chunk}} / {{count}}　{{done}} / {{total}} 張",
+    "progressCleanup": "收尾…",
+    "installDone": "離線地圖安裝完成",
+    "installError": "離線地圖安裝失敗：{{msg}}",
+    "notEnoughSpace": "儲存空間不足：需要 {{need}}，目前可用 {{free}}",
+    "sourceTitle": "資料來源與授權"
   }
 }

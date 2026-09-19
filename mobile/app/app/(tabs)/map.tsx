@@ -75,6 +75,9 @@ import {
   type PointCluster,
 } from '~/lib/mapCluster';
 import { SITE_TYPE_LABEL } from '~/lib/siteLabels';
+import { rudyAttribution, rudyTileCachePath } from '~/lib/rudymap';
+import { useRudyInstall } from '~/lib/rudymapInstall';
+import { useTabBarInset } from '~/lib/tabBarLayout';
 import { useSettings, type MapBasemap } from '~/stores/settings';
 import { useToast } from '~/stores/toast';
 import { ACTION_FILL } from '~/lib/colors';
@@ -105,7 +108,19 @@ const BASEMAP_OPTIONS: Array<{
     icon: 'trail-sign-outline',
     mapType: 'terrain',
   },
+  // 魯地圖離線圖磚。mapType 是 standard 而不是 none：圖磚包不含海域與 z7 以下，
+  // 那些地方要露出原生底圖。只有圖磚包裝好時才會出現在選單裡。
+  {
+    value: 'rudy',
+    labelKey: 'map.basemapRudy',
+    icon: 'navigate-outline',
+    mapType: 'standard',
+  },
 ];
+
+/** 10 年。等同「永不過期」，但不是 0 —— 0 會走 AIRMapUrlTileCachedOverlay.m:133
+ *  那條每讀一張磚就改檔案 mtime 的路徑，對幾 GB 的唯讀圖磚包是白費 I/O。 */
+const RUDY_TILE_CACHE_MAX_AGE = 315_360_000;
 
 const SINICA_TILE_URL =
   'https://gis.sinica.edu.tw/tileserver/file-exists.php?img={LAYER}-png-{z}-{x}-{y}';
@@ -288,7 +303,7 @@ function basemapMeta(b: MapBasemap): (typeof BASEMAP_OPTIONS)[number] {
 }
 
 export default function MapScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const initial = useSettings((s) => s.map_view);
   const setSetting = useSettings((s) => s.set);
   const settingsLoaded = useSettings((s) => s.loaded);
@@ -323,6 +338,13 @@ export default function MapScreen() {
   const [sinicaOpacity, setSinicaOpacity] = useState<number>(initial.sinica_opacity);
   const [nlscLayer, setNlscLayer] = useState<string>(initial.nlsc_layer);
   const [nlscOpacity, setNlscOpacity] = useState<number>(initial.nlsc_opacity);
+
+  const tabBarInset = useTabBarInset();
+  const rudyInstalled = useRudyInstall((s) => s.installed);
+  const rudyReady = useRudyInstall((s) => s.ready);
+  // 圖磚包被刪掉時**故意不**把 currentBasemap 改寫回 standard：使用者重新安裝後
+  // 會自動回到他原本選的魯地圖，而不是被我們悄悄改掉設定。
+  const rudyOn = currentBasemap === 'rudy' && rudyReady;
 
   // Drawing UI only produces simple types; Multi* arrive via import (KML/GPX).
   const [drawMode, setDrawMode] = useState<'Point' | 'LineString' | 'Polygon' | null>(null);
@@ -699,11 +721,12 @@ export default function MapScreen() {
 
   const handlePickBasemap = async () => {
     setToolsOpen(false);
+    const options = BASEMAP_OPTIONS.filter((o) => o.value !== 'rudy' || rudyReady);
     const idx = await showActionSheet({
       title: t('map.pickBasemap'),
-      options: BASEMAP_OPTIONS.map((o) => ({ label: t(o.labelKey) })),
+      options: options.map((o) => ({ label: t(o.labelKey) })),
     });
-    if (idx >= 0 && idx < BASEMAP_OPTIONS.length) setCurrentBasemap(BASEMAP_OPTIONS[idx].value);
+    if (idx >= 0 && idx < options.length) setCurrentBasemap(options[idx].value);
   };
 
   const handleOpenLayers = () => {
@@ -1362,19 +1385,46 @@ export default function MapScreen() {
         onRegionChangeComplete={handleRegionChangeComplete}
         onPress={handleMapPress}
       >
+        {/* 魯地圖離線底圖。必須排在兩個 WMTS 疊圖之前 —— iOS 沒有 zIndex，靠加入
+            順序決定先後，而 AIRMapUrlTile.m 的 update 會把重新掛載的 UrlTile 加到
+            最上層；魯地圖的 props 全是常數，不會自己觸發 update 去搶最上層。
+
+            用 <UrlTile tileCachePath offlineMode> 而不是 <LocalTile>，是讀過 native
+            原始碼後的決定：LocalTile 沒有 maximumNativeZ（超過 z15 就一片空白，而野外
+            一定會放大到 z17-19 看自己的點位），而且它把 canReplaceMapContent 寫死成
+            YES，會在全球範圍關掉原生底圖 —— 我們刻意不 render 的海域會變成空白。 */}
+        {rudyOn && rudyInstalled ? (
+          <UrlTile
+            // offlineMode 下永遠不會連出去，但 native 端仍要求這個 prop 有值。
+            urlTemplate="https://offline.invalid/{z}/{x}/{y}.png"
+            tileCachePath={rudyTileCachePath()}
+            offlineMode
+            tileCacheMaxAge={RUDY_TILE_CACHE_MAX_AGE}
+            minimumZ={rudyInstalled.manifest.minZoom}
+            maximumNativeZ={rudyInstalled.manifest.maxZoom}
+            maximumZ={20}
+            shouldReplaceMapContent={false}
+            tileSize={rudyInstalled.manifest.tileSize}
+            zIndex={0}
+          />
+        ) : null}
         {nlscLayer ? (
           <UrlTile
+            // key 綁 currentBasemap：切底圖時強制重新掛載，讓這兩層重新加到
+            // 魯地圖之上（iOS 的先後順序只看加入順序）。
+            key={`nlsc-${currentBasemap}`}
             urlTemplate={NLSC_TILE_URL.replace('{LAYER}', nlscLayer)}
             opacity={nlscOpacity}
-            zIndex={0}
+            zIndex={1}
             maximumZ={20}
           />
         ) : null}
         {sinicaLayer ? (
           <UrlTile
+            key={`sinica-${currentBasemap}`}
             urlTemplate={SINICA_TILE_URL.replace('{LAYER}', sinicaLayer)}
             opacity={sinicaOpacity}
-            zIndex={1}
+            zIndex={2}
             maximumZ={19}
           />
         ) : null}
@@ -1647,6 +1697,22 @@ export default function MapScreen() {
           />
         ) : null}
       </MapView>
+
+      {/* 版權標示。ODbL 與魯地圖的授權都要求標示來源，所以這一行在魯地圖底圖
+          啟用時是必要的，不是裝飾。文字讀自 installed.json 的 manifest —— 換一版
+          圖磚包若換了資料來源，不必發 app 版本就會跟著更新。
+          置左下並讓開原生的比例尺與浮動 tab bar。 */}
+      {rudyOn ? (
+        <Pressable
+          onPress={() => router.push('/settings/rudymap' as Href)}
+          style={{ bottom: tabBarInset + 6 }}
+          className="absolute left-2 rounded bg-white/75 px-1.5 py-0.5 dark:bg-black/60"
+        >
+          <Text className="text-[9px] leading-3 text-gray-700 dark:text-gray-300">
+            {rudyAttribution(rudyInstalled, i18n.language)}
+          </Text>
+        </Pressable>
+      ) : null}
 
       {/* Loading overlay — shown until MapView fires onMapReady (or 4s fallback) */}
       {!mapReady ? (

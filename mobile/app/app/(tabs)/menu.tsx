@@ -24,6 +24,7 @@ import {
 } from '~/stores/settings';
 import { checkIntegrity, clearAllUserData, clearSearchHistory } from '~/db';
 import { useDriveState } from '~/lib/driveState';
+import { useRudyInstall } from '~/lib/rudymapInstall';
 import { clearGoogleTokens } from '~/lib/googleAuth';
 import { clearInatTokens } from '~/lib/inatAuth';
 import { useToast } from '~/stores/toast';
@@ -48,6 +49,8 @@ export default function MenuScreen() {
   const recordTypeDefault = useSettings((s) => s.record_type_default);
   const fabSide = useSettings((s) => s.fab_side);
   const inatLogin = useSettings((s) => s.inat_login);
+  const rudyInstalled = useRudyInstall((x) => x.installed);
+  const rudyReady = useRudyInstall((x) => x.ready);
   const gdriveAccount = useSettings((s) => s.gdrive_account);
   const lastUploadAtMs = useDriveState((s) => s.lastUploadAtMs);
   const loadDriveState = useDriveState((s) => s.load);
@@ -233,6 +236,23 @@ export default function MenuScreen() {
           label={t('settings.regionPacks')}
           description={t('settings.regionPacksDesc')}
           onPress={() => router.push('/regionpacks' as Href)}
+        />
+        <LinkRow
+          label={t('rudymap.title')}
+          // 描述欄直接顯示安裝狀態：比一句靜態說明有用，也不必多開 i18n key
+          description={
+            rudyReady
+              ? t('rudymap.installedAt', {
+                  date: new Date(rudyInstalled?.installedAt ?? 0).toLocaleDateString(),
+                })
+              : rudyInstalled
+                ? t('rudymap.incomplete', {
+                    done: rudyInstalled.doneChunks.length,
+                    total: rudyInstalled.manifest.chunks.length,
+                  })
+                : t('rudymap.notInstalled')
+          }
+          onPress={() => router.push('/settings/rudymap' as Href)}
         />
         <LinkRow
           label={t('settings.inaturalist')}

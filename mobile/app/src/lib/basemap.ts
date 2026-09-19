@@ -15,12 +15,23 @@ export function basemapToMapType(b: MapBasemap): MapType {
       return 'hybrid';
     case 'terrain':
       return 'terrain';
+    // rudy 不是原生 mapType：魯地圖圖磚是不透明疊圖，底下留 standard 當海域與
+    // z7 以下的墊底（圖磚包不含那些範圍）。
+    case 'rudy':
+      return 'standard';
     default:
       return 'standard';
   }
 }
 
-/** Cycle order for the inline location editor's basemap toggle (no terrain). */
+/**
+ * Cycle order for the inline location editor's basemap toggle (no terrain).
+ *
+ * `rudy` is deliberately excluded: a cycle whose length depends on whether the
+ * tile pack happens to be installed would make `nextBasemap` impure — the same
+ * button would behave differently on two phones. The small maps also show a
+ * single point or polygon, where contour lines add nothing.
+ */
 export const BASEMAP_CYCLE: MapBasemap[] = ['standard', 'satellite', 'hybrid'];
 
 export function nextBasemap(b: MapBasemap): MapBasemap {
@@ -34,6 +45,7 @@ export const BASEMAP_LABEL_KEY: Record<MapBasemap, string> = {
   satellite: 'map.basemapSatellite',
   hybrid: 'map.basemapHybrid',
   terrain: 'map.basemapTerrain',
+  rudy: 'map.basemapRudy',
 };
 
 /**

@@ -13,7 +13,8 @@ UNAME_S := $(shell uname -s)
 
 all: backend frontend
 
-.PHONY: all backend frontend run dev pkg pkg-dmg pkg-win test taicol icon clean mobile-db help
+.PHONY: all backend frontend run dev pkg pkg-dmg pkg-win test taicol icon clean mobile-db help \
+	rudymap-config rudymap-serve rudymap-render rudymap-qa rudymap-optimize rudymap-pack rudymap-verify rudymap-verify-published rudymap-upload
 
 help:
 	@echo "Usage:"
@@ -28,6 +29,7 @@ help:
 	@echo "  make test          Run regression tests (pytest)"
 	@echo "  make taicol        Import TaiCOL CSV (auto-find latest or CSV=path)"
 	@echo "  make mobile-db     Refresh mobile bundle DB + rebuild fuzzy index"
+	@echo "  make rudymap-*     Rudy map offline tile pipeline (see backend/scripts/rudymap/README.md)"
 	@echo "  make icon         Generate .ico/.icns from icons/checklister-ng_icons.png"
 	@echo "  make clean        Remove build artifacts"
 
@@ -114,6 +116,68 @@ mobile-db: backend
 	$(BACKEND_VENV)/bin/python -m backend.scripts.build_mobile_fuzzy_index $(MOBILE_DB)
 	@echo "==> Filling pinyin column (pinyin-pro, for voice homophone matching)"
 	NODE_NO_WARNINGS=1 node mobile/app/scripts/build_pinyin_index.mjs $(MOBILE_DB)
+
+# ─── Rudy map offline tiles ───────────────────────────────
+# 完整流程與前置需求見 backend/scripts/rudymap/README.md
+RUDY_DIR     := build/rudymap
+RUDY_SRC     := $(RUDY_DIR)/src
+RUDY_TILES   := $(RUDY_DIR)/tiles
+RUDY_PACK    := $(RUDY_DIR)/pack
+RUDY_PORT    := 8088
+ZMIN         := 7
+ZMAX         := 15
+QUALITY      := 90-100
+
+# text/symbol/line scale 放大是刻意的：圖磚是 256px，在 3× DPR 手機上會被放大算繪，
+# scale=1.0 的地名在野外單手操作時太小。實測體積只差 0.3%。
+rudymap-config:
+	@test -d $(RUDY_SRC)/map   || { echo "缺 $(RUDY_SRC)/map，見 README 前置步驟 3"; exit 1; }
+	@test -d $(RUDY_SRC)/style || { echo "缺 $(RUDY_SRC)/style，見 README 前置步驟 3"; exit 1; }
+	@test -d $(RUDY_SRC)/dem   || { echo "缺 $(RUDY_SRC)/dem，見 README 前置步驟 3"; exit 1; }
+	@mkdir -p $(RUDY_DIR)/config/tasks
+	@printf 'terminate=true\nhost=127.0.0.1\nport=$(RUDY_PORT)\ncache-control=0\nrequestlog-format=\n' \
+		> $(RUDY_DIR)/config/server.properties
+	@printf 'mapfiles=%s/map\nworldmap=false\nlanguage=zh\nthemefile=%s/style/MOI_OSM.xml\nstyle=elmt-hiking\ndemfolder=%s/dem\nhillshading-algorithm=simple(0.4,1)\nhillshading-magnitude=2\ndevice-scale=1\nuser-scale=1\ntext-scale=1.25\nsymbol-scale=1.15\nline-scale=1.15\n' \
+		"$(abspath $(RUDY_SRC))" "$(abspath $(RUDY_SRC))" "$(abspath $(RUDY_SRC))" \
+		> $(RUDY_DIR)/config/tasks/rudy.properties
+	@echo "==> 設定已產生於 $(RUDY_DIR)/config"
+
+rudymap-serve:
+	java -Xmx4g -jar $(RUDY_SRC)/mapsforgesrv-fatjar.jar -c $(RUDY_DIR)/config
+
+rudymap-render: backend
+	$(BACKEND_VENV)/bin/python -m backend.scripts.rudymap.render_tiles \
+		--out $(RUDY_TILES) --srv http://127.0.0.1:$(RUDY_PORT) --task rudy --zmin $(ZMIN) --zmax $(ZMAX)
+
+rudymap-qa: backend
+	$(BACKEND_VENV)/bin/python -m backend.scripts.rudymap.compare_quality \
+		--tiles $(RUDY_TILES) --out build/rudymap-qa
+
+rudymap-optimize: backend
+	$(BACKEND_VENV)/bin/python -m backend.scripts.rudymap.optimize_tiles \
+		--tiles $(RUDY_TILES) --out $(RUDY_DIR)/tiles-opt --quality $(QUALITY)
+
+# make rudymap-pack VERSION=2026-09 BASE_URL=https://<r2-host>/rudymap/2026-09
+rudymap-pack: backend
+	@test -n "$(BASE_URL)" || { echo "需要 BASE_URL=..."; exit 1; }
+	$(BACKEND_VENV)/bin/python -m backend.scripts.rudymap.pack_tiles \
+		--tiles $(RUDY_TILES) --out $(RUDY_PACK) --version $(VERSION) --base-url $(BASE_URL)
+
+rudymap-verify: backend
+	$(BACKEND_VENV)/bin/python -m backend.scripts.rudymap.verify_pack --pack $(RUDY_PACK)
+
+# 驗證線上實況（每次發新版都跑）
+rudymap-verify-published: backend
+	$(BACKEND_VENV)/bin/python -m backend.scripts.rudymap.verify_published
+
+# make rudymap-upload R2_BUCKET=<bucket> R2_BASE_URL=https://<host>/rudymap [DRY=1]
+# 需要 wrangler 已登入（npx wrangler login）或設好 CLOUDFLARE_API_TOKEN。
+rudymap-upload: backend
+	@test -n "$(R2_BUCKET)"   || { echo "需要 R2_BUCKET=..."; exit 1; }
+	@test -n "$(R2_BASE_URL)" || { echo "需要 R2_BASE_URL=..."; exit 1; }
+	$(BACKEND_VENV)/bin/python -m backend.scripts.rudymap.upload_pack \
+		--pack $(RUDY_PACK) --bucket $(R2_BUCKET) --base-url $(R2_BASE_URL) \
+		$(if $(DRY),--dry-run,)
 
 # ─── Icon ─────────────────────────────────────────────────
 icon:

@@ -249,19 +249,45 @@
 
 #### Phase 2.1：完全離線基底地圖（魯地圖整合）
 
-技術選型決定（2026-05-11）：
-- 走「路線 A」：將魯地圖 `taiwan-topo.map` 透過 desktop pipeline 預先 render 成 raster MBTiles
-- 預載全臺灣，sizes 不限制（zoom 0-15 估 3-5GB）
-- 走 react-native-maps 的 `<UrlTile>` + 自製 local MBTiles loader
-- 已聯繫 alpha-rudy 取得使用授權
+技術選型（2026-05-11 決定，2026-09-19 實作時依原始碼核對修正）：
+- desktop 用 MapsforgeSrv（GPLv3，僅 build-time）把魯地圖 `.map` + 風格主題 + DEM
+  render 成 raster XYZ 圖磚 → pngquant → 切塊 zip → R2
+- **修正**：原本寫「App 端 MBTiles loader（local HTTP server 或 native bridge）」——
+  不需要。`react-native-maps@1.27.2` 的 `<UrlTile tileCachePath offlineMode>` 直接讀
+  檔案系統，零 native code。也**不採用 mbtiles**（那反而要倒退回寫 local server）。
+- **不用 `<LocalTile>`**：它沒有 `maximumNativeZ`（超過 z15 一片空白，而野外一定會
+  放大到 z17-19 看點位），且 `AIRMapLocalTile.m:37` 把 `canReplaceMapContent` 寫死
+  成 YES，會在全球範圍關掉原生底圖 —— 我們刻意不 render 的海域會變空白。
+- 已取得 alpha-rudy 明確授權。
 
-待辦：
-- [ ] Desktop pipeline：Mapsforge `.map` → raster tiles → `.mbtiles`（建議用 docker 包）
-- [ ] App 端 MBTiles loader（local HTTP server 或 native bridge）
-- [ ] 「下載地圖區域」UI：分區下載 + 進度 + 容量管理
-- [ ] 預設打包北中南東四區供首次選擇
-- [ ] 切換 online / offline 基底（自動偵測網路 + manual override）
-- [ ] 離線地圖更新機制（version 檢查 + diff 下載 if practical）
+實測（2026-09-19，圖資 2026-09-17 版）：z7–15 共 45,847 張、原始 4.09 GB、
+pngquant q90-100 後 **1.89 GB**、33 塊、render 3.2 分鐘。詳見
+`backend/scripts/rudymap/README.md`。
+
+進度：
+- [x] Desktop pipeline（`backend/scripts/rudymap/`，6 支 + README，`make rudymap-*`）
+- [x] App 端安裝器（`src/lib/rudymap.ts` + `rudymapInstall.ts`，fflate 串流解壓，
+      實測 63 MiB 的塊 heap 峰值 6 MiB）
+- [x] 偏好設定畫面 `app/settings/rudymap.tsx` + 主選單入口 + 7 語系
+- [x] 地圖整合（第五種底圖、疊圖 z-order、版權標示）
+- [x] 備份排除（Android config plugin 已驗證；iOS 原生模組已寫，待 dev client 重建驗證）
+- [ ] **實機驗證**（見 README 與下方清單）—— 這一段完全沒跑過，是唯一剩下的關卡
+- [x] 圖磚包上傳 R2：bucket `mitalivana`、自訂網域 `map.mitalivana.org`（min TLS 1.2）、
+      `MANIFEST_URL` = `https://map.mitalivana.org/rudymap/latest/manifest.json`。
+      上傳腳本 `upload_pack.py` / `make rudymap-upload`：latest 最後才傳（半套包不會被
+      app 看到）、版本目錄不覆寫（舊版可續傳）、baseUrl 上傳時才寫入（換 hosting 不必重壓）
+- [ ] 離線地圖更新機制（目前偵測到 packVersion 不同就要求整包重下，不做差異更新）
+
+實機必驗（都還沒做）：
+1. 飛航模式下 iOS + Android 都讀得到圖磚
+2. `maximumNativeZ=15` 的 z16–19 超縮放真的有內容（不過就沒有 z16+）
+3. 海域顯示原生底圖（`shouldReplaceMapContent={false}` 生效）
+4. 反覆切 NLSC 圖層，魯地圖不得跑到疊圖之上（iOS 沒有 zIndex，靠加入順序）
+5. iOS 每讀一張磚有 2–3 行 `NSLog`（`AIRMapUrlTileCachedOverlay.m:140-144`，
+   **沒有包在 `#if DEBUG` 裡**）對平移流暢度的實際影響
+6. iOS 設定 → iCloud → 管理儲存空間，確認備份**不含**圖磚
+7. 43k 個檔案的寫入吞吐與刪除耗時
+8. Android 低階機（2 GB RAM）安裝不 OOM
 
 #### Phase 2.x：其他
 

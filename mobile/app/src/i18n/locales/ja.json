@@ -790,7 +790,8 @@
     "siteOfPlot": "調査区 {{plotid}} の範囲",
     "jumpToPlot": "この調査区を開く",
     "redrawRange": "この範囲を描き直す",
-    "featureAction": "操作"
+    "featureAction": "操作",
+    "basemapRudy": "Rudy Map（オフライン）"
   },
   "keys": {
     "modeDichotomous": "二分岐",
@@ -1903,5 +1904,31 @@
     "backupMeta": "{{size}} · App {{appVersion}}",
     "downloading": "ダウンロード中 {{pct}}%",
     "tooNewShort": "要アップデート"
+  },
+  "rudymap": {
+    "title": "オフライン地図",
+    "heading": "Rudy Map Taiwan TOPO",
+    "description": "等高線・登山道・山小屋・水場を含む台湾全土の地形図。ダウンロード後は圏外でも使えます。",
+    "notInstalled": "未ダウンロード",
+    "incomplete": "{{done}} / {{total}} 個をダウンロード済み",
+    "installedAt": "{{date}} にインストール",
+    "version": "バージョン {{version}}",
+    "downloadSize": "ダウンロード容量 約 {{size}}",
+    "download": "オフライン地図をダウンロード",
+    "resume": "ダウンロードを再開",
+    "cancel": "ダウンロードを中止",
+    "remove": "オフライン地図を削除",
+    "removeConfirm": "削除するとオンライン地図に戻ります。再び使うには {{size}} を再ダウンロードする必要があります。",
+    "newVersion": "新しいバージョン {{version}} があります。全体を再ダウンロードします",
+    "wifiHint": "Wi-Fi 接続でのダウンロードを推奨します。",
+    "progressManifest": "マニフェストを取得中…",
+    "progressDownloading": "ダウンロード中 {{chunk}} / {{count}}　{{received}} / {{total}}",
+    "progressVerifying": "検証中 {{chunk}} / {{count}}",
+    "progressExtracting": "展開中 {{chunk}} / {{count}}　{{done}} / {{total}} タイル",
+    "progressCleanup": "仕上げ中…",
+    "installDone": "オフライン地図をインストールしました",
+    "installError": "オフライン地図の処理に失敗しました：{{msg}}",
+    "notEnoughSpace": "空き容量が不足しています：{{need}} 必要、{{free}} 利用可能",
+    "sourceTitle": "出典とライセンス"
   }
 }

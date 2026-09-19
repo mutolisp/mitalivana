@@ -882,7 +882,8 @@
     "siteOfPlot": "Limite de la placette {{plotid}}",
     "jumpToPlot": "Ouvrir cette placette",
     "redrawRange": "Retracer cette limite",
-    "featureAction": "Actions"
+    "featureAction": "Actions",
+    "basemapRudy": "Rudy Map (hors ligne)"
   },
   "keys": {
     "modeDichotomous": "Dichotomique",
@@ -2133,5 +2134,31 @@
     "backupMeta": "{{size}} · App {{appVersion}}",
     "downloading": "Téléchargement {{pct}} %",
     "tooNewShort": "Mettre à jour"
+  },
+  "rudymap": {
+    "title": "Carte hors ligne",
+    "heading": "Rudy Map Taiwan TOPO",
+    "description": "Carte topographique de Taïwan avec courbes de niveau, sentiers, refuges et points d'eau. Utilisable sans réseau une fois téléchargée.",
+    "notInstalled": "Non téléchargée",
+    "incomplete": "{{done}} / {{total}} parties téléchargées",
+    "installedAt": "Installée le {{date}}",
+    "version": "Version {{version}}",
+    "downloadSize": "Environ {{size}} à télécharger",
+    "download": "Télécharger la carte hors ligne",
+    "resume": "Reprendre le téléchargement",
+    "cancel": "Annuler le téléchargement",
+    "remove": "Supprimer la carte hors ligne",
+    "removeConfirm": "La carte reviendra aux fonds en ligne. La réutiliser demandera de retélécharger {{size}}.",
+    "newVersion": "La version {{version}} est disponible ; tout le paquet doit être retéléchargé",
+    "wifiHint": "Téléchargement recommandé en Wi-Fi.",
+    "progressManifest": "Récupération du manifeste…",
+    "progressDownloading": "Téléchargement {{chunk}} / {{count}}　{{received}} / {{total}}",
+    "progressVerifying": "Vérification {{chunk}} / {{count}}",
+    "progressExtracting": "Extraction {{chunk}} / {{count}}　{{done}} / {{total}} tuiles",
+    "progressCleanup": "Finalisation…",
+    "installDone": "Carte hors ligne installée",
+    "installError": "Échec de la carte hors ligne : {{msg}}",
+    "notEnoughSpace": "Espace insuffisant : {{need}} requis, {{free}} disponible",
+    "sourceTitle": "Sources et licence"
   }
 }

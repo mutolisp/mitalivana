@@ -45,7 +45,10 @@ export type RecordSort = 'observed' | 'cname' | 'name' | 'family';
 export type CollectionSort = 'collected' | 'number' | 'family' | 'name';
 export type SortDirection = 'asc' | 'desc';
 export type FontScale = 'small' | 'normal' | 'large' | 'xlarge';
-export type MapBasemap = 'standard' | 'satellite' | 'hybrid' | 'terrain';
+/** `rudy` 是離線的魯地圖圖磚包，只有在圖磚包裝好時才選得到（見
+ *  src/lib/rudymapInstall.ts）。它不是 react-native-maps 的原生 mapType —— 底下
+ *  仍然是 standard，魯地圖圖磚以不透明疊圖蓋在上面，海域與 z7 以下就露出原生底圖。 */
+export type MapBasemap = 'standard' | 'satellite' | 'hybrid' | 'terrain' | 'rudy';
 export type PlotTab = 'env' | 'species';
 /** Which tab of the plot detail screen was last open, and for which plot.
  *  Scoped to one plot on purpose: a brand-new survey must still open on 環境,
