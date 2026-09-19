@@ -18,10 +18,16 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import sqlite3
 import zipfile
 from pathlib import Path
 
 CHUNK_TARGET_BYTES = 64 * 1024 * 1024
+
+# 圖磚用 STORED（PNG 壓過了），但 POI 是 SQLite，DEFLATE 能從 237 MB 壓到約 61 MB，
+# 所以這一個檔案例外用壓縮。app 端因此只有它需要做 inflate。
+POI_ZIP_NAME = "rudypoi.zip"
+POI_INSTALL_NAME = "rudypoi.db"
 GROUP_ZOOM = 12
 CHUNK0_MAX_ZOOM = GROUP_ZOOM - 1
 
@@ -96,8 +102,39 @@ def write_chunk(out_dir: Path, index: int,
     }
 
 
+def pack_poi(poi_src: Path, out_dir: Path) -> dict:
+    """把魯地圖的 `.poi`（SQLite）壓進 pack。
+
+    刻意**不做任何篩選或轉檔**：上游那份是完整的 766,737 筆，app 端在查詢時
+    以分類排除路徑／水系節點即可（實測桌面端一個視窗查詢 1–17 ms）。轉檔會
+    多一層要維護的東西，而它換來的體積在綁進離線包的前提下不值得。
+    """
+    dest = out_dir / POI_ZIP_NAME
+    with zipfile.ZipFile(dest, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=6) as zf:
+        zf.write(poi_src, arcname=POI_INSTALL_NAME)
+
+    con = sqlite3.connect(f"file:{poi_src}?mode=ro", uri=True)
+    try:
+        count = con.execute("SELECT count(*) FROM poi_index").fetchone()[0]
+        meta = dict(con.execute("SELECT name, value FROM metadata").fetchall())
+    finally:
+        con.close()
+
+    raw = dest.read_bytes()
+    return {
+        "name": POI_ZIP_NAME,
+        "installName": POI_INSTALL_NAME,
+        "bytes": len(raw),
+        "uncompressedBytes": poi_src.stat().st_size,
+        "poiCount": count,
+        "sourceComment": meta.get("comment", ""),
+        "md5": hashlib.md5(raw).hexdigest(),
+        "sha256": hashlib.sha256(raw).hexdigest(),
+    }
+
+
 def pack(tiles_dir: Path, out_dir: Path, pack_version: str, base_url: str,
-         target_bytes: int = CHUNK_TARGET_BYTES) -> dict:
+         target_bytes: int = CHUNK_TARGET_BYTES, poi_src: Path | None = None) -> dict:
     out_dir.mkdir(parents=True, exist_ok=True)
     found = scan(tiles_dir)
     if not found:
@@ -136,6 +173,12 @@ def pack(tiles_dir: Path, out_dir: Path, pack_version: str, base_url: str,
         print(f"chunk {index:03d}  z{meta['zoomRange'][0]}-{meta['zoomRange'][1]}  "
               f"{meta['tiles']:>7,} 磚  {meta['bytes'] / 1048576:>7.1f} MiB")
 
+    poi = None
+    if poi_src is not None:
+        print(f"\n打包 POI：{poi_src.name} ({poi_src.stat().st_size / 1048576:.0f} MB) …", flush=True)
+        poi = pack_poi(poi_src, out_dir)
+        print(f"  {poi['poiCount']:,} 筆 → {poi['name']}  {poi['bytes'] / 1048576:.0f} MB")
+
     zooms = sorted(found)
     manifest = {
         "kind": "rudymap-tile-pack",
@@ -149,6 +192,7 @@ def pack(tiles_dir: Path, out_dir: Path, pack_version: str, base_url: str,
         "totalBytes": sum(c["bytes"] for c in chunks),
         "baseUrl": base_url.rstrip("/") + "/",
         "chunks": chunks,
+        **({"poi": poi} if poi else {}),
         "attribution": ATTRIBUTION,
     }
     (out_dir / "manifest.json").write_text(
@@ -165,11 +209,16 @@ def main() -> None:
     ap.add_argument("--base-url", required=True,
                     help="例如 https://<r2-host>/rudymap/2026-09")
     ap.add_argument("--chunk-bytes", type=int, default=CHUNK_TARGET_BYTES)
+    ap.add_argument("--poi", type=Path,
+                    help="魯地圖 .poi（SQLite）路徑；給了就一併打包進 manifest")
     args = ap.parse_args()
 
-    m = pack(args.tiles, args.out, args.version, args.base_url, args.chunk_bytes)
+    m = pack(args.tiles, args.out, args.version, args.base_url, args.chunk_bytes, args.poi)
+    extra = ""
+    if "poi" in m:
+        extra = f"，POI {m['poi']['poiCount']:,} 筆（{m['poi']['bytes'] / 1048576:.0f} MB）"
     print(f"\n完成：{len(m['chunks'])} 塊，{m['tileCount']:,} 磚，"
-          f"{m['totalBytes'] / 1024 ** 3:.2f} GB  → {args.out}/manifest.json")
+          f"{m['totalBytes'] / 1024 ** 3:.2f} GB{extra}  → {args.out}/manifest.json")
 
 
 if __name__ == "__main__":

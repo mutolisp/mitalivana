@@ -1,7 +1,7 @@
 /**
  * Full-screen modal that previews a transect track's MultiLineString segments.
  *
- * Uses react-native-maps; fits bounds around all points; draws each segment
+ * Uses the engine-neutral <MapCanvas>; fits bounds around all points; draws each segment
  * as its own polyline so paused-then-resumed segments are visually distinct.
  */
 import { Ionicons } from '@expo/vector-icons';
@@ -9,7 +9,8 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Modal, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import MapView, { Marker, Polyline, type LatLng, type Region } from 'react-native-maps';
+import { MapCanvas } from '~/components/map/MapCanvas';
+import type { LatLng, Region } from '~/components/map/types';
 import { trackLengthMeters, type TrackSegment } from '~/db';
 
 type Props = {
@@ -96,20 +97,51 @@ export function TrackPreviewModal({ visible, segments, title, onClose }: Props) 
         </View>
         <View className="flex-1">
           {region ? (
-            <MapView style={{ flex: 1 }} initialRegion={region} showsUserLocation>
-              {segments.map((seg, i) =>
-                seg.length >= 2 ? (
-                  <Polyline
-                    key={`seg-${i}`}
-                    coordinates={seg.map(([lng, lat]) => ({ latitude: lat, longitude: lng }))}
-                    strokeColor={SEGMENT_COLORS[i % SEGMENT_COLORS.length]}
-                    strokeWidth={4}
-                  />
-                ) : null,
-              )}
-              {startPt ? <Marker coordinate={startPt} pinColor="green" title={t('track.startPoint')} /> : null}
-              {endPt ? <Marker coordinate={endPt} pinColor="red" title={t('track.endPoint')} /> : null}
-            </MapView>
+            <MapCanvas
+              style={{ flex: 1 }}
+              initialRegion={region}
+              mapType="standard"
+              showsUserLocation
+              features={[
+                ...segments.flatMap((seg, i) =>
+                  seg.length >= 2
+                    ? [
+                        {
+                          kind: 'line' as const,
+                          id: `seg-${i}`,
+                          coords: seg.map(([lng, lat]) => ({ latitude: lat, longitude: lng })),
+                          color: SEGMENT_COLORS[i % SEGMENT_COLORS.length]!,
+                          width: 4,
+                        },
+                      ]
+                    : [],
+                ),
+                ...(startPt
+                  ? [
+                      {
+                        kind: 'marker' as const,
+                        id: 'start',
+                        lat: startPt.latitude,
+                        lng: startPt.longitude,
+                        color: 'green',
+                        title: t('track.startPoint'),
+                      },
+                    ]
+                  : []),
+                ...(endPt
+                  ? [
+                      {
+                        kind: 'marker' as const,
+                        id: 'end',
+                        lat: endPt.latitude,
+                        lng: endPt.longitude,
+                        color: 'red',
+                        title: t('track.endPoint'),
+                      },
+                    ]
+                  : []),
+              ]}
+            />
           ) : (
             <View className="flex-1 items-center justify-center">
               <Text className="text-sm text-gray-300">{t('track.noData')}</Text>

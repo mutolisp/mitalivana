@@ -675,9 +675,11 @@
     "includePacks": "백업에 「국가별 목록 팩」 포함"
   },
   "about": {
-    "subtitle": "차세대 종 목록 생성기",
+    "subtitle": "생태 야장",
     "openSource": "이 앱은 오픈 소스입니다. 종 데이터는 TaiCOL 라이선스를 따릅니다.",
-    "partners": "협력 기관"
+    "partners": "협력 기관",
+    "mapData": "지도 데이터",
+    "mapLicense": "Rudy Map은 OpenStreetMap과 대만 공공데이터의 파생 저작물입니다. 이 앱의 벡터 버전은 수정본이며 구분을 위해 다른 이름을 사용합니다."
   },
   "plots": {
     "newPlot": "새 조사구",
@@ -791,7 +793,8 @@
     "jumpToPlot": "이 조사구 열기",
     "redrawRange": "이 범위 다시 그리기",
     "featureAction": "작업",
-    "basemapRudy": "Rudy Map (오프라인)"
+    "basemapRudyVector": "Rudy Map",
+    "basemapRudyVectorOffline": "Rudy Map (오프라인)"
   },
   "keys": {
     "modeDichotomous": "이분법",
@@ -1905,30 +1908,52 @@
     "downloading": "내려받는 중 {{pct}}%",
     "tooNewShort": "앱 업데이트 필요"
   },
-  "rudymap": {
+  "poi": {
+    "title": "산악 지점",
+    "groupPeaks": "봉우리",
+    "groupMarks": "삼각점",
+    "groupSigns": "등산 표지",
+    "groupHuts": "산장・대피소",
+    "groupWater": "수원",
+    "groupScenic": "보호구역・전망대",
+    "groupTrees": "대만 거목",
+    "none": "오프라인 지도가 없어 지점 데이터가 없습니다",
+    "count": "지점 {{count}}개 표시",
+    "zoomIn": "확대하면 지점이 표시됩니다",
+    "source": "데이터: Rudy Map POI (OpenStreetMap 기여자)"
+  },
+  "vectormap": {
+    "heading": "Rudy Map",
+    "notInstalled": "내려받지 않음 (온라인 모드)",
+    "installedAt": "{{date}}에 내려받음",
+    "version": "버전",
+    "size": "크기",
+    "download": "오프라인용으로 내려받기 ({{size}})",
+    "downloadingTiles": "타일 내려받는 중 {{received}} / {{total}}",
+    "downloadingHillshade": "음영기복 내려받는 중 {{received}} / {{total}}",
+    "downloadingAssets": "글꼴과 아이콘 내려받는 중 {{done}} / {{total}}",
+    "cancel": "취소",
+    "remove": "오프라인 Rudy Map 삭제",
+    "removeConfirm": "{{size}}를 확보합니다. 온라인 모드로 돌아갑니다.",
+    "onlineNote": "온라인 모드는 원격 지도 파일을 직접 읽어 보고 있는 범위만 가져옵니다.",
+    "error": "내려받기 실패: {{message}}",
+    "newVersion": "새 버전 {{version}}이(가) 있습니다. 지도 전체를 다시 내려받아야 합니다",
+    "update": "오프라인 지도 업데이트 ({{size}})"
+  },
+  "offlinemap": {
     "title": "오프라인 지도",
-    "heading": "Rudy Map Taiwan TOPO",
-    "description": "등고선, 등산로, 산장과 수원을 포함한 대만 전역 지형도. 내려받으면 신호가 없어도 사용할 수 있습니다.",
-    "notInstalled": "내려받지 않음",
-    "incomplete": "{{done}} / {{total}}개 내려받음",
-    "installedAt": "{{date}} 설치됨",
-    "version": "버전 {{version}}",
-    "downloadSize": "내려받기 용량 약 {{size}}",
-    "download": "오프라인 지도 내려받기",
-    "resume": "내려받기 이어서",
-    "cancel": "내려받기 취소",
-    "remove": "오프라인 지도 삭제",
-    "removeConfirm": "삭제하면 온라인 지도로 돌아갑니다. 다시 쓰려면 {{size}}를 다시 내려받아야 합니다.",
-    "newVersion": "새 버전 {{version}}이 있습니다. 전체를 다시 내려받아야 합니다",
-    "wifiHint": "Wi-Fi 연결에서 내려받기를 권장합니다.",
-    "progressManifest": "목록 가져오는 중…",
-    "progressDownloading": "내려받는 중 {{chunk}} / {{count}}　{{received}} / {{total}}",
-    "progressVerifying": "검증 중 {{chunk}} / {{count}}",
-    "progressExtracting": "압축 푸는 중 {{chunk}} / {{count}}　{{done}} / {{total}}장",
-    "progressCleanup": "마무리 중…",
-    "installDone": "오프라인 지도를 설치했습니다",
-    "installError": "오프라인 지도 실패: {{msg}}",
-    "notEnoughSpace": "저장 공간 부족: {{need}} 필요, {{free}} 사용 가능",
-    "sourceTitle": "출처 및 라이선스"
+    "sourceTitle": "데이터 출처",
+    "poiHeading": "산악 지형지물",
+    "poiDescription": "정상·삼각점·등산 표지·산장·수원 등 {{count}}개 지점. 배경지도와 무관하게 모든 지도에 표시됩니다.",
+    "poiNotInstalled": "내려받지 않음",
+    "poiInstalledAt": "{{date}}에 내려받음 ({{count}}개)",
+    "poiDownload": "지형지물 내려받기 ({{size}})",
+    "poiDownloading": "내려받는 중 {{received}} / {{total}}",
+    "poiExtracting": "압축 푸는 중 {{written}} / {{total}}",
+    "poiRemove": "지형지물 삭제",
+    "poiRemoveConfirm": "{{size}}를 확보합니다. 지도에 지형지물이 표시되지 않습니다.",
+    "poiError": "내려받기 실패: {{message}}",
+    "wifiHint": "Wi-Fi 환경을 권장합니다.",
+    "statusBoth": "지도와 지형지물"
   }
 }

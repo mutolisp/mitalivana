@@ -25,6 +25,7 @@
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
+    "@maplibre/maplibre-react-native": "^11.3.10",
     "@op-engineering/op-sqlite": "^15.2.12",
     "@react-native-community/datetimepicker": "8.4.4",
     "@react-native-community/slider": "5.0.1",

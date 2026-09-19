@@ -103,7 +103,11 @@ def main() -> None:
     print(f"bucket   : {args.bucket}")
     print(f"版本     : {version}")
     print(f"baseUrl  : {manifest['baseUrl']}")
-    print(f"內容     : {len(chunks)} 塊 + manifest，{total_bytes / 1024 ** 3:.2f} GB")
+    poi_note = ""
+    if manifest.get("poi"):
+        total_bytes += manifest["poi"]["bytes"]
+        poi_note = f" + POI {manifest['poi']['bytes'] / 1048576:.0f} MB"
+    print(f"內容     : {len(chunks)} 塊{poi_note} + manifest，{total_bytes / 1024 ** 3:.2f} GB")
     if done:
         print(f"續傳     : 已完成 {len(done)} 個物件，會跳過")
     print()
@@ -125,6 +129,23 @@ def main() -> None:
             done.add(key)
             save_state(args.pack, done)
         sent += chunk["bytes"]
+
+    poi = manifest.get("poi")
+    if poi:
+        key = f"{version_dir}/{poi['name']}"
+        if key in done:
+            print(f"\nPOI {poi['name']}  已上傳，跳過")
+        else:
+            local = args.pack / poi["name"]
+            if not local.exists():
+                raise SystemExit(f"缺少 {local}")
+            print(f"\nPOI {poi['name']}  {poi['bytes'] / 1048576:>6.1f} MiB "
+                  f"（{poi['poiCount']:,} 筆）…", flush=True)
+            run_put(args.bucket, key, local, "application/zip", CHUNK_CACHE, args.dry_run)
+            if not args.dry_run:
+                done.add(key)
+                save_state(args.pack, done)
+            sent += poi["bytes"]
 
     # 改寫過 baseUrl 的 manifest 寫到暫存檔再上傳，不動 build 產物。
     staged = args.pack / f".manifest-{version}.json"

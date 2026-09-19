@@ -1,4 +1,6 @@
 PODS:
+  - BackupExclusion (1.0.0):
+    - ExpoModulesCore
   - EXConstants (18.0.13):
     - ExpoModulesCore
   - EXImageLoader (6.0.0):
@@ -294,6 +296,28 @@ PODS:
   - libwebp/sharpyuv (1.5.0)
   - libwebp/webp (1.5.0):
     - libwebp/sharpyuv
+  - MapLibreReactNative (11.3.10):
+    - hermes-engine
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-Core-prebuilt
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - Yoga
   - op-sqlite (15.2.12):
     - hermes-engine
     - RCTRequired
@@ -2490,6 +2514,7 @@ PODS:
   - Yoga (0.0.0)
 
 DEPENDENCIES:
+  - BackupExclusion (from `../modules/backup-exclusion/ios`)
   - EXConstants (from `../node_modules/expo-constants/ios`)
   - EXImageLoader (from `../node_modules/expo-image-loader/ios`)
   - EXJSONUtils (from `../node_modules/expo-json-utils/ios`)
@@ -2522,6 +2547,7 @@ DEPENDENCIES:
   - EXUpdatesInterface (from `../node_modules/expo-updates-interface/ios`)
   - FBLazyVector (from `../node_modules/react-native/Libraries/FBLazyVector`)
   - hermes-engine (from `../node_modules/react-native/sdks/hermes-engine/hermes-engine.podspec`)
+  - "MapLibreReactNative (from `../node_modules/@maplibre/maplibre-react-native`)"
   - "op-sqlite (from `../node_modules/@op-engineering/op-sqlite`)"
   - RCTDeprecation (from `../node_modules/react-native/ReactApple/Libraries/RCTFoundation/RCTDeprecation`)
   - RCTRequired (from `../node_modules/react-native/Libraries/Required`)
@@ -2613,6 +2639,8 @@ SPEC REPOS:
     - SDWebImageWebPCoder
 
 EXTERNAL SOURCES:
+  BackupExclusion:
+    :path: "../modules/backup-exclusion/ios"
   EXConstants:
     :path: "../node_modules/expo-constants/ios"
   EXImageLoader:
@@ -2678,6 +2706,8 @@ EXTERNAL SOURCES:
   hermes-engine:
     :podspec: "../node_modules/react-native/sdks/hermes-engine/hermes-engine.podspec"
     :tag: hermes-2025-07-07-RNv0.81.0-e0fc67142ec0763c6b6153ca2bf96df815539782
+  MapLibreReactNative:
+    :path: "../node_modules/@maplibre/maplibre-react-native"
   op-sqlite:
     :path: "../node_modules/@op-engineering/op-sqlite"
   RCTDeprecation:
@@ -2836,6 +2866,7 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native/ReactCommon/yoga"
 
 SPEC CHECKSUMS:
+  BackupExclusion: 56c929db8c804331b89c791d0c32e50fd572d5e3
   EXConstants: fce59a631a06c4151602843667f7cfe35f81e271
   EXImageLoader: 189e3476581efe3ad4d1d3fb4735b7179eb26f05
   EXJSONUtils: 1d3e4590438c3ee593684186007028a14b3686cd
@@ -2871,6 +2902,7 @@ SPEC CHECKSUMS:
   libavif: 5f8e715bea24debec477006f21ef9e95432e254d
   libdav1d: 23581a4d8ec811ff171ed5e2e05cd27bad64c39f
   libwebp: 02b23773aedb6ff1fd38cec7a77b81414c6842a8
+  MapLibreReactNative: 25d13b198d877104bb9368581fd1342ba1566ff2
   op-sqlite: 8b2f79a8dd9422c96b6f3ae7421702adbf443728
   RCTDeprecation: 943572d4be82d480a48f4884f670135ae30bf990
   RCTRequired: 8f3cfc90cc25cf6e420ddb3e7caaaabc57df6043
@@ -2954,6 +2986,6 @@ SPEC CHECKSUMS:
   SDWebImageWebPCoder: e38c0a70396191361d60c092933e22c20d5b1380
   Yoga: 5934998fbeaef7845dbf698f698518695ab4cd1a
 
-PODFILE CHECKSUM: 244cccbdd28734d504159bddf200f45117c0cf60
+PODFILE CHECKSUM: 4e19bb6f4f6c9f10f8402c3c602e0353740ddc7d
 
 COCOAPODS: 1.16.2

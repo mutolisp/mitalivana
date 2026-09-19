@@ -747,9 +747,11 @@
     "includePacks": "Inclure les « packs de liste nationale » dans la sauvegarde"
   },
   "about": {
-    "subtitle": "Générateur de listes d'espèces nouvelle génération",
+    "subtitle": "Carnet de terrain écologique",
     "openSource": "Cette app est un projet open source. Les données d'espèces sont soumises à la licence TaiCOL.",
-    "partners": "Partenaires"
+    "partners": "Partenaires",
+    "mapData": "Données cartographiques",
+    "mapLicense": "Rudy Map est une œuvre dérivée d'OpenStreetMap et des données publiques ouvertes de Taïwan. La version vectorielle de cette application est une version modifiée et porte un nom différent pour la distinguer."
   },
   "plots": {
     "newPlot": "Nouvelle placette",
@@ -883,7 +885,8 @@
     "jumpToPlot": "Ouvrir cette placette",
     "redrawRange": "Retracer cette limite",
     "featureAction": "Actions",
-    "basemapRudy": "Rudy Map (hors ligne)"
+    "basemapRudyVector": "Rudy Map",
+    "basemapRudyVectorOffline": "Rudy Map (hors ligne)"
   },
   "keys": {
     "modeDichotomous": "Dichotomique",
@@ -2135,30 +2138,52 @@
     "downloading": "Téléchargement {{pct}} %",
     "tooNewShort": "Mettre à jour"
   },
-  "rudymap": {
-    "title": "Carte hors ligne",
-    "heading": "Rudy Map Taiwan TOPO",
-    "description": "Carte topographique de Taïwan avec courbes de niveau, sentiers, refuges et points d'eau. Utilisable sans réseau une fois téléchargée.",
-    "notInstalled": "Non téléchargée",
-    "incomplete": "{{done}} / {{total}} parties téléchargées",
-    "installedAt": "Installée le {{date}}",
-    "version": "Version {{version}}",
-    "downloadSize": "Environ {{size}} à télécharger",
-    "download": "Télécharger la carte hors ligne",
-    "resume": "Reprendre le téléchargement",
-    "cancel": "Annuler le téléchargement",
-    "remove": "Supprimer la carte hors ligne",
-    "removeConfirm": "La carte reviendra aux fonds en ligne. La réutiliser demandera de retélécharger {{size}}.",
-    "newVersion": "La version {{version}} est disponible ; tout le paquet doit être retéléchargé",
-    "wifiHint": "Téléchargement recommandé en Wi-Fi.",
-    "progressManifest": "Récupération du manifeste…",
-    "progressDownloading": "Téléchargement {{chunk}} / {{count}}　{{received}} / {{total}}",
-    "progressVerifying": "Vérification {{chunk}} / {{count}}",
-    "progressExtracting": "Extraction {{chunk}} / {{count}}　{{done}} / {{total}} tuiles",
-    "progressCleanup": "Finalisation…",
-    "installDone": "Carte hors ligne installée",
-    "installError": "Échec de la carte hors ligne : {{msg}}",
-    "notEnoughSpace": "Espace insuffisant : {{need}} requis, {{free}} disponible",
-    "sourceTitle": "Sources et licence"
+  "poi": {
+    "title": "Points de montagne",
+    "groupPeaks": "Sommets",
+    "groupMarks": "Repères géodésiques",
+    "groupSigns": "Panneaux de sentier",
+    "groupHuts": "Refuges et abris",
+    "groupWater": "Points d'eau",
+    "groupScenic": "Réserves et points de vue",
+    "groupTrees": "Arbres géants",
+    "none": "Aucune carte hors ligne installée, donc aucune donnée de lieux",
+    "count": "{{count}} lieux affichés",
+    "zoomIn": "Zoomez pour afficher les lieux",
+    "source": "Données : Rudy Map POI (contributeurs OpenStreetMap)"
+  },
+  "vectormap": {
+    "heading": "Rudy Map",
+    "notInstalled": "Non téléchargée (mode en ligne)",
+    "installedAt": "Téléchargée le {{date}}",
+    "version": "Version",
+    "size": "Taille",
+    "download": "Télécharger pour hors ligne ({{size}})",
+    "downloadingTiles": "Téléchargement des tuiles {{received}} / {{total}}",
+    "downloadingHillshade": "Téléchargement de l'ombrage {{received}} / {{total}}",
+    "downloadingAssets": "Téléchargement des polices et icônes {{done}} / {{total}}",
+    "cancel": "Annuler",
+    "remove": "Supprimer la Rudy Map hors ligne",
+    "removeConfirm": "Libère {{size}}. La carte repassera en mode en ligne.",
+    "onlineNote": "Le mode en ligne lit directement le fichier distant et ne récupère que la zone affichée.",
+    "error": "Échec du téléchargement : {{message}}",
+    "newVersion": "La version {{version}} est disponible ; la carte entière doit être retéléchargée",
+    "update": "Mettre à jour la carte hors ligne ({{size}})"
+  },
+  "offlinemap": {
+    "title": "Cartes hors ligne",
+    "sourceTitle": "Sources des données",
+    "poiHeading": "Repères de montagne",
+    "poiDescription": "{{count}} points : sommets, bornes, balises, refuges et points d'eau. Indépendants du fond de carte, affichés sur tous.",
+    "poiNotInstalled": "Non téléchargés",
+    "poiInstalledAt": "Téléchargés le {{date}} ({{count}} points)",
+    "poiDownload": "Télécharger les repères ({{size}})",
+    "poiDownloading": "Téléchargement {{received}} / {{total}}",
+    "poiExtracting": "Décompression {{written}} / {{total}}",
+    "poiRemove": "Supprimer les repères",
+    "poiRemoveConfirm": "Libère {{size}}. Les repères n'apparaîtront plus sur la carte.",
+    "poiError": "Échec du téléchargement : {{message}}",
+    "wifiHint": "De préférence en Wi-Fi.",
+    "statusBoth": "Carte et repères"
   }
 }

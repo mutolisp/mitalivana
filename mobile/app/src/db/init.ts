@@ -1,5 +1,7 @@
 import { Asset } from 'expo-asset';
 import i18n from '~/i18n';
+import { migrateFromRasterPack } from '~/lib/poi';
+import { repairLocalStyle } from '~/lib/vectormapInstall';
 import { File, Paths } from 'expo-file-system';
 import { open, type DB } from '@op-engineering/op-sqlite';
 import { runUserMigrations } from './migrations';
@@ -104,6 +106,15 @@ export async function initDb(
   // Idempotent: mops up any leftover multi-active records from older builds.
   enforceSingleActiveOnStartup();
   purgeOrphanRows();
+  // Moves the landmark DB out of the old raster tile pack's directory and drops
+  // that directory (up to 1.46 GB of tiles for a feature that no longer exists,
+  // with no UI left to remove it). Idempotent; no-op once the dir is gone.
+  migrateFromRasterPack();
+  // Rewrites the offline map style's absolute file:// paths to the current app
+  // container and moves glyphs under their fontstack directory. Purely local and
+  // idempotent; without it a reinstall leaves a style pointing at a dead UUID and
+  // the map renders blank.
+  repairLocalStyle();
 
   userDb.executeSync('PRAGMA foreign_keys = ON;');
   if (__DEV__) {

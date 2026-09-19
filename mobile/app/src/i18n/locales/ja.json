@@ -675,9 +675,11 @@
     "includePacks": "バックアップに「国別リストパック」を含める"
   },
   "about": {
-    "subtitle": "次世代種リスト作成ツール",
+    "subtitle": "生態フィールドノート",
     "openSource": "本アプリはオープンソースです。種データは TaiCOL のライセンスに従います。",
-    "partners": "協力機関"
+    "partners": "協力機関",
+    "mapData": "地図データ",
+    "mapLicense": "魯地圖は OpenStreetMap と台湾のオープンガバメントデータの派生物です。本アプリのベクター版は改変版であり、区別のため別の名称を用いています。"
   },
   "plots": {
     "newPlot": "新規調査区",
@@ -791,7 +793,8 @@
     "jumpToPlot": "この調査区を開く",
     "redrawRange": "この範囲を描き直す",
     "featureAction": "操作",
-    "basemapRudy": "Rudy Map（オフライン）"
+    "basemapRudyVector": "Rudy Map",
+    "basemapRudyVectorOffline": "Rudy Map（オフライン）"
   },
   "keys": {
     "modeDichotomous": "二分岐",
@@ -1905,30 +1908,52 @@
     "downloading": "ダウンロード中 {{pct}}%",
     "tooNewShort": "要アップデート"
   },
-  "rudymap": {
+  "poi": {
+    "title": "山岳地点",
+    "groupPeaks": "山頂",
+    "groupMarks": "三角点",
+    "groupSigns": "登山標識",
+    "groupHuts": "山小屋・避難小屋",
+    "groupWater": "水場",
+    "groupScenic": "保護区・展望地",
+    "groupTrees": "台湾巨木",
+    "none": "オフライン地図が未インストールのため地点データがありません",
+    "count": "{{count}} 件の地点を表示",
+    "zoomIn": "拡大すると地点が表示されます",
+    "source": "データ：Rudy Map POI（OpenStreetMap 貢献者）"
+  },
+  "vectormap": {
+    "heading": "Rudy Map",
+    "notInstalled": "未ダウンロード（オンラインモード）",
+    "installedAt": "{{date}} にダウンロード",
+    "version": "バージョン",
+    "size": "サイズ",
+    "download": "オフライン用にダウンロード（{{size}}）",
+    "downloadingTiles": "タイルをダウンロード中 {{received}} / {{total}}",
+    "downloadingHillshade": "陰影起伏をダウンロード中 {{received}} / {{total}}",
+    "downloadingAssets": "フォントとアイコンをダウンロード中 {{done}} / {{total}}",
+    "cancel": "キャンセル",
+    "remove": "オフライン Rudy Map を削除",
+    "removeConfirm": "{{size}} を解放します。オンラインモードに戻ります。",
+    "onlineNote": "オンラインモードでは遠隔の地図ファイルを直接読み、表示範囲だけを取得します。",
+    "error": "ダウンロード失敗：{{message}}",
+    "newVersion": "新しいバージョン {{version}} があります。地図全体を再ダウンロードする必要があります",
+    "update": "オフライン地図を更新（{{size}}）"
+  },
+  "offlinemap": {
     "title": "オフライン地図",
-    "heading": "Rudy Map Taiwan TOPO",
-    "description": "等高線・登山道・山小屋・水場を含む台湾全土の地形図。ダウンロード後は圏外でも使えます。",
-    "notInstalled": "未ダウンロード",
-    "incomplete": "{{done}} / {{total}} 個をダウンロード済み",
-    "installedAt": "{{date}} にインストール",
-    "version": "バージョン {{version}}",
-    "downloadSize": "ダウンロード容量 約 {{size}}",
-    "download": "オフライン地図をダウンロード",
-    "resume": "ダウンロードを再開",
-    "cancel": "ダウンロードを中止",
-    "remove": "オフライン地図を削除",
-    "removeConfirm": "削除するとオンライン地図に戻ります。再び使うには {{size}} を再ダウンロードする必要があります。",
-    "newVersion": "新しいバージョン {{version}} があります。全体を再ダウンロードします",
-    "wifiHint": "Wi-Fi 接続でのダウンロードを推奨します。",
-    "progressManifest": "マニフェストを取得中…",
-    "progressDownloading": "ダウンロード中 {{chunk}} / {{count}}　{{received}} / {{total}}",
-    "progressVerifying": "検証中 {{chunk}} / {{count}}",
-    "progressExtracting": "展開中 {{chunk}} / {{count}}　{{done}} / {{total}} タイル",
-    "progressCleanup": "仕上げ中…",
-    "installDone": "オフライン地図をインストールしました",
-    "installError": "オフライン地図の処理に失敗しました：{{msg}}",
-    "notEnoughSpace": "空き容量が不足しています：{{need}} 必要、{{free}} 利用可能",
-    "sourceTitle": "出典とライセンス"
+    "sourceTitle": "データ出典",
+    "poiHeading": "山岳ランドマーク",
+    "poiDescription": "山頂・基準点・登山標識・山小屋・水場など {{count}} 件。ベースマップに依存せず、どの地図でも表示されます。",
+    "poiNotInstalled": "未ダウンロード",
+    "poiInstalledAt": "{{date}} にダウンロード（{{count}} 件）",
+    "poiDownload": "ランドマークをダウンロード（{{size}}）",
+    "poiDownloading": "ダウンロード中 {{received}} / {{total}}",
+    "poiExtracting": "展開中 {{written}} / {{total}}",
+    "poiRemove": "ランドマークを削除",
+    "poiRemoveConfirm": "{{size}} を解放します。地図にランドマークは表示されなくなります。",
+    "poiError": "ダウンロード失敗：{{message}}",
+    "wifiHint": "Wi-Fi 環境での実行を推奨します。",
+    "statusBoth": "地図とランドマーク"
   }
 }

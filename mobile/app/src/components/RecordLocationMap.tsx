@@ -22,13 +22,8 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Modal, Pressable, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import MapView, {
-  Circle,
-  Marker,
-  type MapPressEvent,
-  type MarkerDragStartEndEvent,
-  type Region,
-} from 'react-native-maps';
+import { MapCanvas } from '~/components/map/MapCanvas';
+import type { LatLng, MapCamera, MapFeature, Region } from '~/components/map/types';
 import { useSettings, type MapBasemap } from '~/stores/settings';
 import { basemapToMapType, nextBasemap } from '~/lib/basemap';
 import {
@@ -66,9 +61,9 @@ export function RecordLocationMap({ lat, lng, accuracy = null, onChange, referen
   const mapView = useSettings((s) => s.map_view);
   const undoSeconds = useSettings((s) => s.undo_duration);
   const [basemap, setBasemap] = useState<MapBasemap>(
-    // rudy 與 terrain 都不在 BASEMAP_CYCLE 裡：用它當初始值會讓 nextBasemap
+    // vector 與 terrain 都不在 BASEMAP_CYCLE 裡：用它當初始值會讓 nextBasemap
     // 從索引 0 重新開始。小地圖看的是單一點位或單一多邊形，等高線幫不上忙。
-    mapView.basemap === 'terrain' || mapView.basemap === 'rudy' ? 'standard' : mapView.basemap,
+    mapView.basemap === 'terrain' || mapView.basemap === 'vector' ? 'standard' : mapView.basemap,
   );
   const [fullscreen, setFullscreen] = useState(false);
   /**
@@ -359,7 +354,7 @@ function EditableMap({
   onExpand?: () => void;
 }) {
   const { t } = useTranslation();
-  const mapRef = useRef<MapView>(null);
+  const mapRef = useRef<MapCamera>(null);
   const regionRef = useRef<Region>(initialRegion);
   // Last coordinate this map itself committed — lets us tell our own tap/drag
   // (don't recenter) apart from an external set (GPS row → recenter).
@@ -385,8 +380,7 @@ function EditableMap({
   const handleLocate = () =>
     locateMe(mapRef, regionRef, () => Alert.alert(t('gps.permTitle'), t('gps.permMsg')));
 
-  const place = (e: MapPressEvent | MarkerDragStartEndEvent) => {
-    const c = e.nativeEvent.coordinate;
+  const place = (c: LatLng) => {
     lastCommittedRef.current = `${c.latitude},${c.longitude}`;
     onChange(c.latitude, c.longitude);
   };
@@ -402,7 +396,7 @@ function EditableMap({
       }
       style={rounded ? { height: INLINE_HEIGHT } : undefined}
     >
-      <MapView
+      <MapCanvas
         ref={mapRef}
         style={{ flex: 1 }}
         initialRegion={initialRegion}
@@ -414,36 +408,50 @@ function EditableMap({
         showsUserLocation
         showsMyLocationButton={false}
         toolbarEnabled={false}
-      >
-        {reference?.center ? (
-          <>
-            {reference.radiusM ? (
-              <Circle
-                center={{ latitude: reference.center.lat, longitude: reference.center.lng }}
-                radius={reference.radiusM}
-                strokeColor="#2563eb"
-                fillColor="rgba(37,99,235,0.10)"
-                strokeWidth={1}
-              />
-            ) : null}
-            <Marker
-              coordinate={{ latitude: reference.center.lat, longitude: reference.center.lng }}
-              pinColor="blue"
-              opacity={0.55}
-              tappable={false}
-            />
-          </>
-        ) : null}
-        {hasPoint ? (
-          <Marker
-            coordinate={{ latitude: lat, longitude: lng }}
-            draggable
-            onDragEnd={place}
-            pinColor="red"
-            anchor={{ x: 0.5, y: 1 }}
-          />
-        ) : null}
-      </MapView>
+        features={[
+          ...(reference?.center && reference.radiusM
+            ? [
+                {
+                  kind: 'circle' as const,
+                  id: 'ref-radius',
+                  lat: reference.center.lat,
+                  lng: reference.center.lng,
+                  radiusM: reference.radiusM,
+                  stroke: '#2563eb',
+                  fill: 'rgba(37,99,235,0.10)',
+                  width: 1,
+                },
+              ]
+            : []),
+          ...(reference?.center
+            ? [
+                {
+                  kind: 'marker' as const,
+                  id: 'ref-center',
+                  lat: reference.center.lat,
+                  lng: reference.center.lng,
+                  color: 'blue',
+                  opacity: 0.55,
+                  tappable: false,
+                },
+              ]
+            : []),
+          ...(hasPoint
+            ? [
+                {
+                  kind: 'marker' as const,
+                  id: 'point',
+                  lat: lat as number,
+                  lng: lng as number,
+                  color: 'red',
+                  anchor: { x: 0.5, y: 1 },
+                  draggable: true,
+                  onDragEnd: place,
+                },
+              ]
+            : []),
+        ] satisfies MapFeature[]}
+      />
 
       {/* Basemap toggle (top-left) */}
       <View className="absolute left-1.5 top-1.5">

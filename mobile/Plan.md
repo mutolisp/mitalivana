@@ -271,6 +271,10 @@ pngquant q90-100 後 **1.89 GB**、33 塊、render 3.2 分鐘。詳見
 - [x] 偏好設定畫面 `app/settings/rudymap.tsx` + 主選單入口 + 7 語系
 - [x] 地圖整合（第五種底圖、疊圖 z-order、版權標示）
 - [x] 備份排除（Android config plugin 已驗證；iOS 原生模組已寫，待 dev client 重建驗證）
+- [x] **POI（山域地標）**：上游 `.poi` 是 SQLite，整包（766,737 筆 / 237 MB → zip 66 MB）
+      隨離線包安裝。`src/db/rudypoi.ts` 以 `POI_GROUPS` 分群查詢（山頭・標石・登山標誌・
+      山屋避難亭・水源・保護區・巨木），`PoiGroupSheet` 多選開關，選擇存 `map_view.poi_groups`。
+      **查詢一定要帶分類條件** —— 上游 36% 是 way 被索引成的節點（步道 16.5 萬、水系 11.2 萬）
 - [ ] **實機驗證**（見 README 與下方清單）—— 這一段完全沒跑過，是唯一剩下的關卡
 - [x] 圖磚包上傳 R2：bucket `mitalivana`、自訂網域 `map.mitalivana.org`（min TLS 1.2）、
       `MANIFEST_URL` = `https://map.mitalivana.org/rudymap/latest/manifest.json`。
@@ -3646,3 +3650,135 @@ pod install
 **診斷訣竅**：`expo run:ios` 會吃掉 linker 細節。要看符號就直接跑
 `xcodebuild -workspace Checklister.xcworkspace -scheme Checklister -configuration Debug -sdk iphonesimulator -derivedDataPath build -destination 'generic/platform=iOS Simulator' build > /tmp/xcb.log 2>&1`
 —— **不要管進 `tail`**（輸出會緩衝到結束），**一定要給 `-derivedDataPath`**（否則完整重建）。
+
+## 2026-09-19 — 向量離線地圖：MapLibre 雙引擎（Stage 1–4）
+
+現有的離線魯地圖是 raster：desktop 預先 render 成 XYZ 圖磚，**1.46 GB / z7–15**。
+問題是 256px 圖磚在高 DPI 手機上被拉伸，等高線與地名偏軟。向量版同樣一份圖資
+**438 MB 涵蓋 z0–15**，而且 z16 以上還能 overzoom 保持銳利。
+
+兩個引擎並行，不是取代：`react-native-maps`（Apple/Google 底圖 + WMTS 疊圖 +
+raster 魯地圖）與 MapLibre（向量，線上離線皆可）。兩者是不同的原生 view，
+不能在同一畫面混用，所以是整個 canvas 二選一（`MapCanvas` 依 `engine` 分派）。
+
+### 最重要的一個查證：MapLibre Native 原生支援 pmtiles
+
+原本計畫離線要用 `OfflineManager.createPack()`。查 MapLibre Native 原始碼後
+發現 `include/mbgl/util/constants.hpp` 有：
+
+```cpp
+constexpr const char* MBTILES_PROTOCOL = "mbtiles://";
+constexpr const char* PMTILES_PROTOCOL = "pmtiles://";
+```
+
+`PMTilesFileSource` 把圖磚請求帶著 `dataRange` 委派給 ResourceLoader，所以
+`pmtiles://` 後面接 `https://` 走網路範圍請求、接 `file://` 走
+`util::readFile(path, dataRange)`。**iOS 6.26.0 與 Android 13.2.0**（就是
+maplibre-react-native 11.3.10 綁的兩個版本）都有。
+
+這把離線從「逐張下載 370,899 個圖磚」變成「下載一個 383 MB 檔案」，線上線下
+共用同一份 style 只換 source URL。也因此 `OfflineManager` 完全沒用到。
+
+### CJK glyph：不必自架（原計畫的風險 #2 解除）
+
+`@maplibre/maplibre-react-native` 970 個檔案沒有任何 `ideograph` 字樣，但不重要
+—— **兩個平台預設就開著本地算繪**：
+
+- iOS `MLNRendererConfiguration.m`：plist 沒設 `MLNIdeographicFontFamilyName`
+  時 fallback 到 `[UIFont systemFontOfSize:0 weight:Regular].familyName`
+- Android `MapLibreMapOptions`：`localIdeographFontFamilyEnabled` 預設 true，
+  沒給 XML 屬性時用 `DEFAULT_FONT = "sans-serif"`
+
+所以不必自架 30–60 MB 的 CJK glyph。**但標點、注音、全形英數不在本地算繪範圍**
+（U+3000–30FF、U+FF00–FFEF），臺灣地名很常用，一定要自己產 —— 實測全臺資料
+需要 17 段、共 1,067 KB。
+
+### 兩個會安靜出錯的坑
+
+**缺一個 glyph range，整張圖不畫。** 自架 glyph 後只產拉丁那幾段，結果玉山那張
+只剩下緣一條帶子有內容、其餘全白；console 只報 glyph 404，沒有任何算繪錯誤，
+圖磚也全部 HTTP 200 正常送達。所以 range 清單由 `glyph_ranges.py` 從實際資料
+反推，字型覆蓋不到的段也照樣寫出空 PBF 當保險。離線安裝時 17 段全抓。
+
+**Worker 忽略 Range header。** 自架的 PMTiles→XYZ Worker 攔截 `/vector/*`，
+物件直通那段沒轉發 `Range`，回 200 + 全檔。`pmtiles://` 每取一張圖磚會下載
+整個 383 MB —— 功能上「地圖有出來」，只有流量會爆，野外用行動網路等於災難。
+
+### 線上架構
+
+```
+map.mitalivana.org/vector/latest/style.json     → 穩定入口
+                  /<版本>/rudy.pmtiles          383 MB（單檔，z0–15）
+                  /<版本>/hillshade.pmtiles      83 MB（z9–13）
+                  /<版本>/sprite* + fonts/*       2 MB
+```
+
+單檔 383 MB 超過 `wrangler r2 object put` 的 300 MiB 上限，所以上傳走 boto3
+的 S3 multipart（`upload_vector.py --s3`，憑證讀 `~/.mitalivana-r2.env`）。
+沒有憑證時退回 wrangler 並改傳依 zoom 切開的兩份，但**切檔版沒辦法離線**
+（一個 style source 只能指一個 .pmtiles）。
+
+`mitalivana-tiles` Worker 仍保留：桌面預覽與任何只認 XYZ 的用戶端用得到，
+已驗證且不花成本。但 app 不需要它。
+
+### app 端
+
+| 檔案 | 作用 |
+|---|---|
+| `src/components/map/types.ts` | 中性介面，加了 `vectorStyle` |
+| `src/components/map/MapCanvas.tsx` | 依 `engine` 分派；沒有 `vectorStyle` 就退回 native |
+| `src/components/map/engines/MapLibreCanvas.tsx` | MapLibre 實作（322 行）|
+| `src/components/map/geodesicCircle.ts` | 公尺半徑 → 測地線多邊形 |
+| `src/lib/vectormap.ts` / `vectormapInstall.ts` | 離線單檔下載與樣式本機化 |
+
+MapLibre 實作與 native 引擎刻意不同的四點：圖徵走 GeoJSON 圖層而非逐個原生
+view（POI 上限 300，掛 300 個 view annotation 會很慢）、一般 marker 畫成圓點
+而非 pin（MapLibre 沒有內建 pin）、`circle` 要自己算成測地線多邊形（MapLibre
+的 `circle-radius` 是螢幕像素）、`zIndex` 用圖層順序表達。
+
+**不要開 MapLibre 內建的 scaleBar** —— `MapScaleBar` 是 canvas 的兄弟節點、
+兩個引擎都會畫，開了會變成兩條。
+
+### 建置：config plugin 在 `ios/` 進版控的專案不會自己生效
+
+第一次 `npx expo run:ios` 失敗，4 個錯誤都是 `'MapLibre/MapLibre.h' file not found`。
+
+原因：MapLibre 的 iOS 依賴走 **SPM**（`maplibre-gl-native-distribution`），
+podspec 只定義了 `$MLRN.post_install(installer)`，要由 app 的 Podfile 呼叫才會
+把 SPM 套件加進 Pods 專案。那一行本來是 config plugin 的
+`withPodfilePostInstall` 負責插入的，但 **plugin 只在 `expo prebuild` 時跑**，
+而本專案的 `ios/` 是進版控、手動維護的，所以永遠不會跑到。
+
+修法是直接呼叫 plugin 自己的函式產生內容，而不是手寫那一行：
+
+```bash
+node -e "
+const { applyPodfilePostInstall } = require('./node_modules/@maplibre/maplibre-react-native/lib/commonjs/plugin/ios.js');
+const fs = require('fs');
+fs.writeFileSync('ios/Podfile', applyPodfilePostInstall(fs.readFileSync('ios/Podfile','utf8')));
+"
+cd ios && pod install
+```
+
+這樣產出的 `# @generated begin @maplibre/maplibre-react-native:post-install`
+標記與 prebuild 一致，將來真的跑 prebuild 也不會重複加。
+
+**任何 `ios/` 進版控的專案加帶 config plugin 的原生套件都要注意這件事** ——
+Android 那邊同理（`plugin/android.ts`）。
+
+### 待實機驗證
+
+1. `pmtiles://https://…` 在 Native 上真的做範圍請求而不是整檔下載
+2. 離線的 `pmtiles://file:///…` 讀得到
+3. 300 個 POI 走 GeoJSON 圖層的效能與耗電
+4. marker 從 pin 變圓點、polygon 的洞會出現（`geometryToPrimitives` 原本丟掉洞）
+
+### 資料管線的四個 bug（都在 `backend/scripts/rudymap/README.md` 有完整記錄）
+
+1. **多邊形繞向相反** —— 99.1% 外環是順時針，tippecanoe 依繞向判斷外環/內環，
+   照抄的話森林呈棋盤狀缺色
+2. **`.map` 的 zoom interval 分界也要差一級** —— MapLibre z11 拿到 baseZoom 10
+   的資料，等高線只有 `elevation_major` 3,771 條（baseZoom 14 有 225,230 條）
+3. **tippecanoe 會自己猜 base zoom 然後稀釋點** —— 玉山山頂標示就這樣消失，
+   而且小範圍子集重現不出來，要全量資料才觸發
+4. **`hashWay` 只取首尾兩點判重複** —— 誤刪 1,182 個圖徵（已修但尚未進圖磚）

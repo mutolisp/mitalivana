@@ -747,9 +747,11 @@
     "includePacks": "Incluir los «paquetes de lista nacional» en la copia de seguridad"
   },
   "about": {
-    "subtitle": "Generador de listas de especies de nueva generación",
+    "subtitle": "Cuaderno de campo ecológico",
     "openSource": "Esta app es de código abierto. Los datos de especies se distribuyen bajo la licencia de TaiCOL.",
-    "partners": "Entidades colaboradoras"
+    "partners": "Entidades colaboradoras",
+    "mapData": "Datos cartográficos",
+    "mapLicense": "Rudy Map es una obra derivada de OpenStreetMap y de los datos abiertos del gobierno de Taiwán. La versión vectorial de esta app es una versión modificada y lleva otro nombre para distinguirla."
   },
   "plots": {
     "newPlot": "Nueva parcela",
@@ -883,7 +885,8 @@
     "jumpToPlot": "Abrir esta parcela",
     "redrawRange": "Volver a dibujar este límite",
     "featureAction": "Acciones",
-    "basemapRudy": "Rudy Map (sin conexión)"
+    "basemapRudyVector": "Rudy Map",
+    "basemapRudyVectorOffline": "Rudy Map (sin conexión)"
   },
   "keys": {
     "modeDichotomous": "Dicotómica",
@@ -2135,30 +2138,52 @@
     "downloading": "Descargando {{pct}} %",
     "tooNewShort": "Actualiza la app"
   },
-  "rudymap": {
-    "title": "Mapa sin conexión",
-    "heading": "Rudy Map Taiwan TOPO",
-    "description": "Mapa topográfico de Taiwán con curvas de nivel, senderos, refugios y fuentes de agua. Funciona sin cobertura una vez descargado.",
-    "notInstalled": "No descargado",
-    "incomplete": "{{done}} / {{total}} partes descargadas",
-    "installedAt": "Instalado el {{date}}",
-    "version": "Versión {{version}}",
-    "downloadSize": "Unos {{size}} para descargar",
-    "download": "Descargar mapa sin conexión",
-    "resume": "Reanudar la descarga",
-    "cancel": "Cancelar la descarga",
-    "remove": "Eliminar el mapa sin conexión",
-    "removeConfirm": "El mapa volverá a los fondos en línea. Volver a usarlo exigirá descargar {{size}} otra vez.",
-    "newVersion": "Hay una versión {{version}}; hay que descargar el paquete entero de nuevo",
-    "wifiHint": "Conviene descargarlo por Wi-Fi.",
-    "progressManifest": "Obteniendo el manifiesto…",
-    "progressDownloading": "Descargando {{chunk}} / {{count}}　{{received}} / {{total}}",
-    "progressVerifying": "Verificando {{chunk}} / {{count}}",
-    "progressExtracting": "Extrayendo {{chunk}} / {{count}}　{{done}} / {{total}} teselas",
-    "progressCleanup": "Finalizando…",
-    "installDone": "Mapa sin conexión instalado",
-    "installError": "Error del mapa sin conexión: {{msg}}",
-    "notEnoughSpace": "Espacio insuficiente: se necesitan {{need}}, hay {{free}}",
-    "sourceTitle": "Fuentes y licencia"
+  "poi": {
+    "title": "Puntos de montaña",
+    "groupPeaks": "Cumbres",
+    "groupMarks": "Vértices geodésicos",
+    "groupSigns": "Señales de sendero",
+    "groupHuts": "Refugios",
+    "groupWater": "Fuentes de agua",
+    "groupScenic": "Reservas y miradores",
+    "groupTrees": "Árboles gigantes",
+    "none": "No hay mapa sin conexión instalado, así que no hay datos de lugares",
+    "count": "{{count}} lugares mostrados",
+    "zoomIn": "Amplía para ver los lugares",
+    "source": "Datos: Rudy Map POI (colaboradores de OpenStreetMap)"
+  },
+  "vectormap": {
+    "heading": "Rudy Map",
+    "notInstalled": "No descargado (modo en línea)",
+    "installedAt": "Descargado el {{date}}",
+    "version": "Versión",
+    "size": "Tamaño",
+    "download": "Descargar para uso sin conexión ({{size}})",
+    "downloadingTiles": "Descargando teselas {{received}} / {{total}}",
+    "downloadingHillshade": "Descargando sombreado {{received}} / {{total}}",
+    "downloadingAssets": "Descargando fuentes e iconos {{done}} / {{total}}",
+    "cancel": "Cancelar",
+    "remove": "Eliminar Rudy Map sin conexión",
+    "removeConfirm": "Libera {{size}}. El mapa volverá al modo en línea.",
+    "onlineNote": "El modo en línea lee el archivo remoto directamente y solo obtiene la zona visible.",
+    "error": "Error de descarga: {{message}}",
+    "newVersion": "La versión {{version}} está disponible; hay que descargar el mapa completo de nuevo",
+    "update": "Actualizar el mapa sin conexión ({{size}})"
+  },
+  "offlinemap": {
+    "title": "Mapas sin conexión",
+    "sourceTitle": "Fuentes de datos",
+    "poiHeading": "Referencias de montaña",
+    "poiDescription": "{{count}} puntos: cumbres, vértices, señales, refugios y fuentes de agua. Independientes del mapa base, se muestran en todos.",
+    "poiNotInstalled": "No descargadas",
+    "poiInstalledAt": "Descargadas el {{date}} ({{count}} puntos)",
+    "poiDownload": "Descargar referencias ({{size}})",
+    "poiDownloading": "Descargando {{received}} / {{total}}",
+    "poiExtracting": "Descomprimiendo {{written}} / {{total}}",
+    "poiRemove": "Eliminar referencias",
+    "poiRemoveConfirm": "Libera {{size}}. Las referencias ya no aparecerán en el mapa.",
+    "poiError": "Error de descarga: {{message}}",
+    "wifiHint": "Preferiblemente con Wi-Fi.",
+    "statusBoth": "Mapa y referencias"
   }
 }

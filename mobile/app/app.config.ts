@@ -46,6 +46,10 @@ const config: ExpoConfig = {
       // App uses only standard HTTPS encryption (exempt). Declaring this
       // skips the export-compliance prompt on every App Store Connect upload.
       ITSAppUsesNonExemptEncryption: false,
+      // MapLibre Native 用裝置字型算繪中日韓字，不必自架 30-60 MB 的 CJK glyph。
+      // 沒設這個鍵它會 fallback 到系統字型（MLNRendererConfiguration.m），指定
+      // PingFang TC 只是讓字形更貼近繁中排版。Android 對應的預設是 sans-serif。
+      MLNIdeographicFontFamilyName: ['PingFang TC', 'Heiti TC', 'sans-serif'],
     },
   },
   android: {
@@ -67,6 +71,8 @@ const config: ExpoConfig = {
   },
   plugins: [
     './plugins/withBackupExclusions',
+    // 向量地圖引擎。加了它就必須重建 dev client（不能用 Expo Go）。
+    '@maplibre/maplibre-react-native',
     'expo-router',
     'react-native-edge-to-edge',
     [

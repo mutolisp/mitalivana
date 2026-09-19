@@ -675,9 +675,11 @@
     "includePacks": "備份包含「國家名錄包」"
   },
   "about": {
-    "subtitle": "次世代名錄產生器",
+    "subtitle": "生態野帳",
     "openSource": "本 app 為開源專案。物種資料採用 TaiCOL 授權條款。",
-    "partners": "協力單位"
+    "partners": "協力單位",
+    "mapData": "地圖圖資",
+    "mapLicense": "魯地圖為 OpenStreetMap 與政府開放資料的衍生作品；本 app 的向量版為修改版本，另取名稱以示區別。"
   },
   "plots": {
     "newPlot": "新樣區",
@@ -791,7 +793,8 @@
     "jumpToPlot": "跳回此樣區",
     "redrawRange": "重新繪製此範圍",
     "featureAction": "操作",
-    "basemapRudy": "魯地圖（離線）"
+    "basemapRudyVector": "魯地圖",
+    "basemapRudyVectorOffline": "魯地圖（離線）"
   },
   "keys": {
     "modeDichotomous": "對偶",
@@ -1905,30 +1908,52 @@
     "downloading": "下載中 {{pct}}%",
     "tooNewShort": "需更新 app"
   },
-  "rudymap": {
+  "poi": {
+    "title": "山域地標",
+    "groupPeaks": "山頭・百岳",
+    "groupMarks": "標石・基點",
+    "groupSigns": "登山標誌",
+    "groupHuts": "山屋・避難亭",
+    "groupWater": "水源",
+    "groupScenic": "保護區・景點",
+    "groupTrees": "台灣巨木",
+    "none": "未安裝離線地圖，無山域地標資料",
+    "count": "顯示 {{count}} 個地標",
+    "zoomIn": "放大地圖以顯示地標",
+    "source": "資料：魯地圖 POI（OpenStreetMap 貢獻者）"
+  },
+  "vectormap": {
+    "heading": "魯地圖",
+    "notInstalled": "尚未下載（目前使用線上模式）",
+    "installedAt": "下載於 {{date}}",
+    "version": "版本",
+    "size": "大小",
+    "download": "下載離線魯地圖（{{size}}）",
+    "downloadingTiles": "下載圖磚 {{received}} / {{total}}",
+    "downloadingHillshade": "下載山體陰影 {{received}} / {{total}}",
+    "downloadingAssets": "下載字型與圖示 {{done}} / {{total}}",
+    "cancel": "取消",
+    "remove": "刪除離線魯地圖",
+    "removeConfirm": "將刪除 {{size}}，之後改用線上模式。",
+    "onlineNote": "線上模式直接讀取遠端地圖檔，只下載看到的範圍。",
+    "error": "下載失敗：{{message}}",
+    "newVersion": "有新版本 {{version}}，需重新下載整份地圖",
+    "update": "更新離線魯地圖（{{size}}）"
+  },
+  "offlinemap": {
     "title": "離線地圖",
-    "heading": "魯地圖 Taiwan TOPO",
-    "description": "全臺灣地形圖，含等高線、山徑與山屋水源。下載後沒有訊號也能用。",
-    "notInstalled": "尚未下載",
-    "incomplete": "已下載 {{done}} / {{total}} 塊",
-    "installedAt": "安裝於 {{date}}",
-    "version": "版本 {{version}}",
-    "downloadSize": "下載大小約 {{size}}",
-    "download": "下載離線地圖",
-    "resume": "繼續下載",
-    "cancel": "取消下載",
-    "remove": "刪除離線地圖",
-    "removeConfirm": "刪除後地圖會改回線上底圖，要重新使用得再下載一次 {{size}}。",
-    "newVersion": "有新版本 {{version}}，需重新下載整包",
-    "wifiHint": "建議連上 Wi-Fi 再下載。",
-    "progressManifest": "取得清單…",
-    "progressDownloading": "下載中 {{chunk}} / {{count}}　{{received}} / {{total}}",
-    "progressVerifying": "校驗中 {{chunk}} / {{count}}",
-    "progressExtracting": "解壓中 {{chunk}} / {{count}}　{{done}} / {{total}} 張",
-    "progressCleanup": "收尾…",
-    "installDone": "離線地圖安裝完成",
-    "installError": "離線地圖安裝失敗：{{msg}}",
-    "notEnoughSpace": "儲存空間不足：需要 {{need}}，目前可用 {{free}}",
-    "sourceTitle": "資料來源與授權"
+    "sourceTitle": "圖資來源",
+    "poiHeading": "山域地標",
+    "poiDescription": "山頭、基點、登山標誌、山屋、水源等 {{count}} 筆點位，與底圖無關，任何底圖都會顯示。",
+    "poiNotInstalled": "尚未下載",
+    "poiInstalledAt": "下載於 {{date}}（{{count}} 筆）",
+    "poiDownload": "下載山域地標（{{size}}）",
+    "poiDownloading": "下載中 {{received}} / {{total}}",
+    "poiExtracting": "解壓縮 {{written}} / {{total}}",
+    "poiRemove": "刪除山域地標",
+    "poiRemoveConfirm": "將刪除 {{size}}，地圖上不再顯示山域地標。",
+    "poiError": "下載失敗：{{message}}",
+    "wifiHint": "建議在 Wi-Fi 下進行。",
+    "statusBoth": "地圖與地標"
   }
 }

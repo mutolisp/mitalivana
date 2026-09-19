@@ -4,7 +4,8 @@
  *  - createBackup(): snapshot user.db (VACUUM INTO → consistent copy regardless
  *    of journal mode) + manifest → zip. TaiCOL bundle DB is read-only / re-
  *    derived from the app asset, so it is NOT backed up. The same reasoning
- *    excludes the Rudy map offline tile pack (`rudymap/`, GBs): read-only data
+ *    excludes the offline vector map and landmark data (`vectormap/`, `poi/`):
+ *    read-only data
  *    the app can fetch again, and the entries here are listed one by one rather
  *    than swept from a directory, so nothing new can fall in by accident.
  *  - restoreBackup(): replace user.db with the one inside a backup zip, then

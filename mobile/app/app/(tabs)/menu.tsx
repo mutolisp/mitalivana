@@ -24,7 +24,8 @@ import {
 } from '~/stores/settings';
 import { checkIntegrity, clearAllUserData, clearSearchHistory } from '~/db';
 import { useDriveState } from '~/lib/driveState';
-import { useRudyInstall } from '~/lib/rudymapInstall';
+import { usePoiInstall } from '~/lib/poiInstall';
+import { useVectorInstall } from '~/lib/vectormapInstall';
 import { clearGoogleTokens } from '~/lib/googleAuth';
 import { clearInatTokens } from '~/lib/inatAuth';
 import { useToast } from '~/stores/toast';
@@ -49,8 +50,8 @@ export default function MenuScreen() {
   const recordTypeDefault = useSettings((s) => s.record_type_default);
   const fabSide = useSettings((s) => s.fab_side);
   const inatLogin = useSettings((s) => s.inat_login);
-  const rudyInstalled = useRudyInstall((x) => x.installed);
-  const rudyReady = useRudyInstall((x) => x.ready);
+  const vectorReady = useVectorInstall((x) => x.ready);
+  const poiReady = usePoiInstall((x) => x.ready);
   const gdriveAccount = useSettings((s) => s.gdrive_account);
   const lastUploadAtMs = useDriveState((s) => s.lastUploadAtMs);
   const loadDriveState = useDriveState((s) => s.load);
@@ -238,21 +239,18 @@ export default function MenuScreen() {
           onPress={() => router.push('/regionpacks' as Href)}
         />
         <LinkRow
-          label={t('rudymap.title')}
-          // 描述欄直接顯示安裝狀態：比一句靜態說明有用，也不必多開 i18n key
-          description={
-            rudyReady
-              ? t('rudymap.installedAt', {
-                  date: new Date(rudyInstalled?.installedAt ?? 0).toLocaleDateString(),
-                })
-              : rudyInstalled
-                ? t('rudymap.incomplete', {
-                    done: rudyInstalled.doneChunks.length,
-                    total: rudyInstalled.manifest.chunks.length,
-                  })
-                : t('rudymap.notInstalled')
+          label={t('offlinemap.title')}
+          value={
+            // 兩份資料各自獨立，所以狀態是「都有／各缺一半／都沒有」。
+            vectorReady && poiReady
+              ? t('offlinemap.statusBoth')
+              : vectorReady
+                ? t('vectormap.heading')
+                : poiReady
+                  ? t('offlinemap.poiHeading')
+                  : t('vectormap.notInstalled')
           }
-          onPress={() => router.push('/settings/rudymap' as Href)}
+          onPress={() => router.push('/settings/offlinemap' as Href)}
         />
         <LinkRow
           label={t('settings.inaturalist')}

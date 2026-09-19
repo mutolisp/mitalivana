@@ -45,10 +45,16 @@ export type RecordSort = 'observed' | 'cname' | 'name' | 'family';
 export type CollectionSort = 'collected' | 'number' | 'family' | 'name';
 export type SortDirection = 'asc' | 'desc';
 export type FontScale = 'small' | 'normal' | 'large' | 'xlarge';
-/** `rudy` 是離線的魯地圖圖磚包，只有在圖磚包裝好時才選得到（見
- *  src/lib/rudymapInstall.ts）。它不是 react-native-maps 的原生 mapType —— 底下
+/** `vector` 是魯地圖的向量版，走 MapLibre 引擎（見 src/lib/vectormap.ts）。
+ *  它不是 react-native-maps 的原生 mapType —— 底下
  *  仍然是 standard，魯地圖圖磚以不透明疊圖蓋在上面，海域與 z7 以下就露出原生底圖。 */
-export type MapBasemap = 'standard' | 'satellite' | 'hybrid' | 'terrain' | 'rudy';
+/** 預設打開的地標群組：水源與山屋是野外最需要的，山頭給定位用。
+ *  定義在這裡而不是 db 層，避免 settings 反向依賴 db。 */
+export const DEFAULT_POI_GROUPS = ['peaks', 'huts', 'water', 'trees'];
+
+// 'vector' 是 MapLibre 向量引擎（線上直接讀遠端 pmtiles，離線讀本機單檔），
+// 與其餘原生底圖是不同的 view，所以整個 canvas 二選一、不能疊。
+export type MapBasemap = 'standard' | 'satellite' | 'hybrid' | 'terrain' | 'vector';
 export type PlotTab = 'env' | 'species';
 /** Which tab of the plot detail screen was last open, and for which plot.
  *  Scoped to one plot on purpose: a brand-new survey must still open on 環境,
@@ -79,6 +85,8 @@ export type MapViewState = {
   nlsc_layer: string;
   /** NLSC overlay opacity 0..1 */
   nlsc_opacity: number;
+  /** 開啟的山域地標群組 key（見 src/db/rudypoi.ts 的 POI_GROUPS）。 */
+  poi_groups: string[];
 };
 
 const DEFAULT_MAP_VIEW: MapViewState = {
@@ -92,6 +100,7 @@ const DEFAULT_MAP_VIEW: MapViewState = {
   sinica_opacity: 0.7,
   nlsc_layer: '',
   nlsc_opacity: 0.7,
+  poi_groups: DEFAULT_POI_GROUPS,
 };
 
 export const FONT_SCALE_VALUE: Record<FontScale, number> = {

@@ -90,6 +90,25 @@ def main() -> None:
             problems.append(f"{c['name']}: 缺 immutable 快取標頭（cache-control={cache!r}）")
     print(f"  缺少 {missing} 塊")
 
+    poi = manifest.get("poi")
+    if poi:
+        url = f"{base}{poi['name']}"
+        print(f"\n檢查 POI {poi['name']}（{poi['poiCount']:,} 筆，"
+              f"{poi['bytes'] / 1048576:.0f} MB）…")
+        try:
+            with fetch(url, head=True) as r:
+                length = int(r.headers.get("content-length", -1))
+                cache = r.headers.get("cache-control", "")
+            if length != poi["bytes"]:
+                problems.append(f"{poi['name']}: 大小 {length} != manifest {poi['bytes']}")
+            if "immutable" not in cache:
+                problems.append(f"{poi['name']}: 缺 immutable 快取標頭")
+            print(f"  ok（{length / 1048576:.0f} MB）")
+        except urllib.error.HTTPError as e:
+            problems.append(f"{poi['name']}: HTTP {e.code}")
+    else:
+        print("\n（此版沒有 POI）")
+
     targets = chunks if args.all else random.sample(chunks, min(args.sample, len(chunks)))
     if targets:
         print(f"\n完整下載並比對 md5（{len(targets)} 塊）…")

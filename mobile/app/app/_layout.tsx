@@ -115,7 +115,7 @@ function ThemedShell() {
             <Stack.Screen name="favorites" options={{ title: t('nav.favorites') }} />
             <Stack.Screen name="backup" options={{ title: t('nav.backup') }} />
             <Stack.Screen name="regionpacks" options={{ title: t('nav.regionPacks') }} />
-            <Stack.Screen name="settings/rudymap" options={{ title: t('rudymap.title') }} />
+            <Stack.Screen name="settings/offlinemap" options={{ title: t('offlinemap.title') }} />
             <Stack.Screen name="inaturalist" options={{ title: t('nav.inaturalist') }} />
             <Stack.Screen name="gdrive" options={{ title: t('nav.gdrive') }} />
             <Stack.Screen name="inat-upload" options={{ title: t('nav.inatUpload') }} />

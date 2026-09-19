@@ -16,13 +16,8 @@ import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { Alert, Modal, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import MapView, {
-  Marker,
-  Polygon,
-  Polyline,
-  PROVIDER_DEFAULT,
-  type Region,
-} from 'react-native-maps';
+import { MapCanvas } from '~/components/map/MapCanvas';
+import type { MapCamera, Region } from '~/components/map/types';
 import { geometryBounds, geometryToPrimitives, type GeoJSONGeometry, type RenderPrimitive } from '~/db';
 import { basemapToMapType, nextBasemap } from '~/lib/basemap';
 import { useSettings, type MapBasemap } from '~/stores/settings';
@@ -62,9 +57,9 @@ export function FolderAreaMap({
   const insets = useSafeAreaInsets();
   const storedBasemap = useSettings((s) => s.map_view.basemap);
   const [basemap, setBasemap] = useState<MapBasemap>(
-    // rudy 與 terrain 都不在 BASEMAP_CYCLE 裡：用它當初始值會讓 nextBasemap
+    // vector 與 terrain 都不在 BASEMAP_CYCLE 裡：用它當初始值會讓 nextBasemap
     // 從索引 0 重新開始。小地圖看的是單一點位或單一多邊形，等高線幫不上忙。
-    storedBasemap === 'terrain' || storedBasemap === 'rudy' ? 'standard' : storedBasemap,
+    storedBasemap === 'terrain' || storedBasemap === 'vector' ? 'standard' : storedBasemap,
   );
   const [fullscreen, setFullscreen] = useState(false);
 
@@ -134,7 +129,7 @@ export function FolderAreaMap({
               <Text className="text-base font-semibold text-blue-400">{t('common.done')}</Text>
             </Pressable>
           </View>
-          {/* Mounted only while open. A MapView that is not on screen still
+          {/* Mounted only while open. A map view that is not on screen still
               holds MapKit resources, and this component lives inside a
               scrolling list where several can exist at once. */}
           {fullscreen ? (
@@ -168,14 +163,13 @@ function AreaMap({
   onExpand?: () => void;
 }) {
   const { t } = useTranslation();
-  const mapRef = useRef<MapView>(null);
+  const mapRef = useRef<MapCamera>(null);
   const regionRef = useRef<Region>(region);
 
   return (
     <View style={height != null ? { height } : { flex: 1 }}>
-      <MapView
+      <MapCanvas
         ref={mapRef}
-        provider={PROVIDER_DEFAULT}
         style={{ flex: 1 }}
         initialRegion={region}
         mapType={basemapToMapType(basemap)}
@@ -185,33 +179,33 @@ function AreaMap({
         showsUserLocation
         showsMyLocationButton={false}
         toolbarEnabled={false}
-      >
-        {prims.map((prim, i) => {
-          if (prim.kind === 'point') {
-            return (
-              <Marker
-                key={i}
-                coordinate={{ latitude: prim.latitude, longitude: prim.longitude }}
-                pinColor="#059669"
-              />
-            );
-          }
-          if (prim.kind === 'line') {
-            return (
-              <Polyline key={i} coordinates={prim.coords} strokeColor="#059669" strokeWidth={3} />
-            );
-          }
-          return (
-            <Polygon
-              key={i}
-              coordinates={prim.coords}
-              strokeColor="#059669"
-              fillColor="rgba(5,150,105,0.12)"
-              strokeWidth={2}
-            />
-          );
-        })}
-      </MapView>
+        features={prims.map((prim, i) =>
+          prim.kind === 'point'
+            ? {
+                kind: 'marker' as const,
+                id: String(i),
+                lat: prim.latitude,
+                lng: prim.longitude,
+                color: '#059669',
+              }
+            : prim.kind === 'line'
+              ? {
+                  kind: 'line' as const,
+                  id: String(i),
+                  coords: prim.coords,
+                  color: '#059669',
+                  width: 3,
+                }
+              : {
+                  kind: 'polygon' as const,
+                  id: String(i),
+                  coords: prim.coords,
+                  stroke: '#059669',
+                  fill: 'rgba(5,150,105,0.12)',
+                  width: 2,
+                },
+        )}
+      />
 
       <View className="absolute left-1.5 top-1.5">
         <BasemapToggle basemap={basemap} onPress={onCycleBasemap} />

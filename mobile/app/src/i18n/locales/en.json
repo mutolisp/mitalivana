@@ -711,9 +711,11 @@
     "includePacks": "Include country packs in backup"
   },
   "about": {
-    "subtitle": "Next-gen checklist generator",
+    "subtitle": "Ecological field notes",
     "openSource": "This app is open source. Species data is under the TaiCOL license.",
-    "partners": "Partners"
+    "partners": "Partners",
+    "mapData": "Map data",
+    "mapLicense": "Rudy Map is derived from OpenStreetMap and Taiwanese open government data. The vector edition in this app is a modified version and carries a different name to distinguish it."
   },
   "plots": {
     "newPlot": "New plot",
@@ -837,7 +839,8 @@
     "jumpToPlot": "Open this plot",
     "redrawRange": "Redraw this boundary",
     "featureAction": "Actions",
-    "basemapRudy": "Rudy Map (offline)"
+    "basemapRudyVector": "Rudy Map",
+    "basemapRudyVectorOffline": "Rudy Map (offline)"
   },
   "keys": {
     "modeDichotomous": "Dichotomous",
@@ -2020,30 +2023,52 @@
     "downloading": "Downloading {{pct}}%",
     "tooNewShort": "Update app"
   },
-  "rudymap": {
-    "title": "Offline map",
-    "heading": "Rudy Map Taiwan TOPO",
-    "description": "Topographic map of Taiwan with contour lines, trails, huts and water sources. Works with no signal once downloaded.",
-    "notInstalled": "Not downloaded",
-    "incomplete": "{{done}} / {{total}} parts downloaded",
-    "installedAt": "Installed {{date}}",
-    "version": "Version {{version}}",
-    "downloadSize": "About {{size}} to download",
-    "download": "Download offline map",
-    "resume": "Resume download",
-    "cancel": "Cancel download",
-    "remove": "Delete offline map",
-    "removeConfirm": "The map will fall back to online basemaps. Using it again means downloading {{size}} once more.",
-    "newVersion": "Version {{version}} is available; the whole pack must be downloaded again",
-    "wifiHint": "Best downloaded over Wi-Fi.",
-    "progressManifest": "Fetching manifest…",
-    "progressDownloading": "Downloading {{chunk}} / {{count}}　{{received}} / {{total}}",
-    "progressVerifying": "Verifying {{chunk}} / {{count}}",
-    "progressExtracting": "Extracting {{chunk}} / {{count}}　{{done}} / {{total}} tiles",
-    "progressCleanup": "Finishing…",
-    "installDone": "Offline map installed",
-    "installError": "Offline map failed: {{msg}}",
-    "notEnoughSpace": "Not enough storage: {{need}} needed, {{free}} free",
-    "sourceTitle": "Sources and licence"
+  "poi": {
+    "title": "Mountain places",
+    "groupPeaks": "Peaks",
+    "groupMarks": "Survey marks",
+    "groupSigns": "Trail signs",
+    "groupHuts": "Huts & shelters",
+    "groupWater": "Water sources",
+    "groupScenic": "Reserves & viewpoints",
+    "groupTrees": "Giant trees",
+    "none": "No offline map installed, so no place data",
+    "count": "{{count}} places shown",
+    "zoomIn": "Zoom in to show places",
+    "source": "Data: Rudy Map POI (OpenStreetMap contributors)"
+  },
+  "vectormap": {
+    "heading": "Rudy Map",
+    "notInstalled": "Not downloaded (using online mode)",
+    "installedAt": "Downloaded {{date}}",
+    "version": "Version",
+    "size": "Size",
+    "download": "Download for offline use ({{size}})",
+    "downloadingTiles": "Downloading tiles {{received}} / {{total}}",
+    "downloadingHillshade": "Downloading hillshade {{received}} / {{total}}",
+    "downloadingAssets": "Downloading fonts and icons {{done}} / {{total}}",
+    "cancel": "Cancel",
+    "remove": "Delete offline Rudy Map",
+    "removeConfirm": "This frees {{size}}. The map will switch back to online mode.",
+    "onlineNote": "Online mode reads the remote map file directly and only fetches what you look at.",
+    "error": "Download failed: {{message}}",
+    "newVersion": "Version {{version}} is available; the whole map must be downloaded again",
+    "update": "Update offline map ({{size}})"
+  },
+  "offlinemap": {
+    "title": "Offline maps",
+    "sourceTitle": "Data sources",
+    "poiHeading": "Mountain landmarks",
+    "poiDescription": "{{count}} points — peaks, survey marks, trail signs, huts and water sources. Independent of the basemap, shown on all of them.",
+    "poiNotInstalled": "Not downloaded",
+    "poiInstalledAt": "Downloaded {{date}} ({{count}} points)",
+    "poiDownload": "Download landmarks ({{size}})",
+    "poiDownloading": "Downloading {{received}} / {{total}}",
+    "poiExtracting": "Extracting {{written}} / {{total}}",
+    "poiRemove": "Delete landmarks",
+    "poiRemoveConfirm": "This frees {{size}}. Landmarks will no longer appear on the map.",
+    "poiError": "Download failed: {{message}}",
+    "wifiHint": "Best done on Wi-Fi.",
+    "statusBoth": "Map and landmarks"
   }
 }

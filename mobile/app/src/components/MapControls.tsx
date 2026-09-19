@@ -13,18 +13,20 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { useTranslation } from 'react-i18next';
+
+import { useThemeColors } from '~/hooks/useThemeColors';
 import { Pressable, Text } from 'react-native';
-import type MapView from 'react-native-maps';
-import type { Region } from 'react-native-maps';
 import { BASEMAP_LABEL_KEY } from '~/lib/basemap';
 import type { MapBasemap } from '~/stores/settings';
 
 /** One zoom step. */
+import type { MapCamera, Region } from '~/components/map/types';
+
 export const ZOOM_FACTOR = 1.8;
 /** Floor on the region deltas, so zooming in cannot collapse the view. */
 export const MIN_DELTA = 0.0006;
 
-type MapRef = React.RefObject<MapView | null>;
+type MapRef = React.RefObject<MapCamera | null>;
 type RegionRef = React.MutableRefObject<Region>;
 
 export function animateTo(map: MapRef, region: Region, patch: Partial<Region>, ms = 300): void {
@@ -79,6 +81,7 @@ export function CtrlButton({
   onPress: () => void;
   label: string;
 }) {
+  const { overlayIcon } = useThemeColors();
   return (
     <Pressable
       onPress={onPress}
@@ -87,7 +90,7 @@ export function CtrlButton({
       accessibilityLabel={label}
       className="h-8 w-8 items-center justify-center rounded-md bg-white/90 active:bg-white dark:bg-gray-900/90"
     >
-      <Ionicons name={icon} size={18} color="#374151" />
+      <Ionicons name={icon} size={18} color={overlayIcon} />
     </Pressable>
   );
 }
@@ -95,13 +98,14 @@ export function CtrlButton({
 /** Cycles standard → satellite → hybrid; the label names the CURRENT one. */
 export function BasemapToggle({ basemap, onPress }: { basemap: MapBasemap; onPress: () => void }) {
   const { t } = useTranslation();
+  const { overlayAccent } = useThemeColors();
   return (
     <Pressable
       onPress={onPress}
       className="flex-row items-center rounded-md bg-white/90 px-2 py-1 dark:bg-gray-900/90"
       accessibilityRole="button"
     >
-      <Ionicons name="layers-outline" size={13} color="#2563eb" />
+      <Ionicons name="layers-outline" size={13} color={overlayAccent} />
       <Text className="ml-1 text-[11px] font-medium text-gray-700 dark:text-gray-200">
         {t(BASEMAP_LABEL_KEY[basemap])}
       </Text>

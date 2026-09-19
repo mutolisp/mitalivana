@@ -148,7 +148,13 @@ rudymap-config:
 	@printf 'mapfiles=%s/map\nworldmap=false\nlanguage=zh\nthemefile=%s/style/MOI_OSM.xml\nstyle=elmt-hiking\ndemfolder=%s/dem\nhillshading-algorithm=simple(0.4,1)\nhillshading-magnitude=1\nhillshading-zoom-max=13\ndevice-scale=1\nuser-scale=1\ntext-scale=1.25\nsymbol-scale=1.15\nline-scale=1.15\n' \
 		"$(abspath $(RUDY_SRC))" "$(abspath $(RUDY_SRC))" "$(abspath $(RUDY_SRC))" \
 		> $(RUDY_DIR)/config/tasks/rudy.properties
-	@echo "==> 設定已產生於 $(RUDY_DIR)/config"
+	@mkdir -p $(RUDY_SRC)/style-hs
+	@test -f $(RUDY_SRC)/style-hs/hillshade_only.xml || \
+		cp backend/scripts/rudymap/hillshade_only.xml $(RUDY_SRC)/style-hs/hillshade_only.xml
+	@printf 'mapfiles=%s/map\nworldmap=false\nlanguage=zh\nthemefile=%s/style-hs/hillshade_only.xml\ndemfolder=%s/dem\nhillshading-algorithm=simple(0.4,1)\nhillshading-magnitude=1\nhillshading-zoom-max=13\ndevice-scale=1\nuser-scale=1\n' \
+		"$(abspath $(RUDY_SRC))" "$(abspath $(RUDY_SRC))" "$(abspath $(RUDY_SRC))" \
+		> $(RUDY_DIR)/config/tasks/hillshade.properties
+	@echo "==> 設定已產生於 $(RUDY_DIR)/config（含 rudy 與 hillshade 兩個 task）"
 
 rudymap-serve:
 	java -Xmx4g -jar $(RUDY_SRC)/mapsforgesrv-fatjar.jar -c $(RUDY_DIR)/config
@@ -169,7 +175,8 @@ rudymap-optimize: backend
 rudymap-pack: backend
 	@test -n "$(BASE_URL)" || { echo "需要 BASE_URL=..."; exit 1; }
 	$(BACKEND_VENV)/bin/python -m backend.scripts.rudymap.pack_tiles \
-		--tiles $(RUDY_TILES) --out $(RUDY_PACK) --version $(VERSION) --base-url $(BASE_URL)
+		--tiles $(RUDY_TILES) --out $(RUDY_PACK) --version $(VERSION) --base-url $(BASE_URL) \
+		$(if $(wildcard $(RUDY_SRC)/map/*.poi),--poi $(firstword $(wildcard $(RUDY_SRC)/map/*.poi)),)
 
 rudymap-verify: backend
 	$(BACKEND_VENV)/bin/python -m backend.scripts.rudymap.verify_pack --pack $(RUDY_PACK)

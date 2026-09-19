@@ -16,17 +16,6 @@ import {
   View,
 } from 'react-native';
 import { showActionSheet } from '~/components/ActionSheet';
-import MapView, {
-  Circle,
-  Marker,
-  Polygon,
-  Polyline,
-  PROVIDER_DEFAULT,
-  UrlTile,
-  type LatLng,
-  type MapType,
-  type Region,
-} from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LayerSheet } from '~/components/LayerSheet';
 import { SINICA_LAYERS } from '~/lib/sinicaLayers';
@@ -75,10 +64,22 @@ import {
   type PointCluster,
 } from '~/lib/mapCluster';
 import { SITE_TYPE_LABEL } from '~/lib/siteLabels';
+import { basemapToMapType } from '~/lib/basemap';
+import { MapCanvas } from '~/components/map/MapCanvas';
+import type { LatLng, MapCamera, MapFeature, Region } from '~/components/map/types';
 import { MapScaleBar } from '~/components/MapScaleBar';
-import { rudyTileCachePath } from '~/lib/rudymap';
-import { useRudyInstall } from '~/lib/rudymapInstall';
+import { PoiGroupSheet } from '~/components/PoiGroupSheet';
+import {
+  getPoiDb,
+  parsePoiTags,
+  poiDisplayName,
+  queryPoisInBounds,
+  type RudyPoi,
+} from '~/db/rudypoi';
+import { describeVectorInstall, vectorStyleUri } from '~/lib/vectormap';
+import { useVectorInstall } from '~/lib/vectormapInstall';
 import { useTabBarInset } from '~/lib/tabBarLayout';
+import { useThemeColors } from '~/hooks/useThemeColors';
 import { useSettings, type MapBasemap } from '~/stores/settings';
 import { useToast } from '~/stores/toast';
 import { ACTION_FILL } from '~/lib/colors';
@@ -89,39 +90,28 @@ type ClusterFeature =
   | { kind: 'session'; session: SessionWithStats }
   | { kind: 'site'; site: SiteWithProject };
 
-const BASEMAP_OPTIONS: Array<{
-  value: MapBasemap;
-  labelKey: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  mapType: MapType;
-}> = [
-  { value: 'standard', labelKey: 'map.basemapStandard', icon: 'map-outline', mapType: 'standard' },
-  {
-    value: 'satellite',
-    labelKey: 'map.basemapSatellite',
-    icon: 'globe-outline',
-    mapType: 'satellite',
-  },
-  { value: 'hybrid', labelKey: 'map.basemapHybrid', icon: 'layers-outline', mapType: 'hybrid' },
-  {
-    value: 'terrain',
-    labelKey: 'map.basemapTerrain',
-    icon: 'trail-sign-outline',
-    mapType: 'terrain',
-  },
-  // 魯地圖離線圖磚。mapType 是 standard 而不是 none：圖磚包不含海域與 z7 以下，
-  // 那些地方要露出原生底圖。只有圖磚包裝好時才會出現在選單裡。
-  {
-    value: 'rudy',
-    labelKey: 'map.basemapRudy',
-    icon: 'navigate-outline',
-    mapType: 'standard',
-  },
+/**
+ * 底圖選單。**不含 mapType** —— 那個對應統一在 `src/lib/basemap.ts` 的
+ * `basemapToMapType()`，這裡曾經有過第二份實作，是重複的來源。
+ */
+const BASEMAP_OPTIONS: { value: MapBasemap; labelKey: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { value: 'standard', labelKey: 'map.basemapStandard', icon: 'map-outline' },
+  { value: 'satellite', labelKey: 'map.basemapSatellite', icon: 'globe-outline' },
+  { value: 'hybrid', labelKey: 'map.basemapHybrid', icon: 'layers-outline' },
+  { value: 'terrain', labelKey: 'map.basemapTerrain', icon: 'trail-sign-outline' },
+  // 向量版魯地圖。線上永遠可用（直接讀遠端 pmtiles），裝好離線包後改讀本機單檔。
+  // 標籤隨離線狀態變動，見 basemapLabelKey()。
+  { value: 'vector', labelKey: 'map.basemapRudyVector', icon: 'triangle-outline' },
 ];
 
-/** 10 年。等同「永不過期」，但不是 0 —— 0 會走 AIRMapUrlTileCachedOverlay.m:133
- *  那條每讀一張磚就改檔案 mtime 的路徑，對幾 GB 的唯讀圖磚包是白費 I/O。 */
-const RUDY_TILE_CACHE_MAX_AGE = 315_360_000;
+/** 地標只在夠近時查。`LIKE` 的 tag 篩選不吃索引，視窗一大候選集就爆
+ *  （實測全臺範圍要 3.6 秒）。0.15 度約等於 z12。 */
+const POI_MAX_DELTA = 0.15;
+/** 單次查詢上限。台北一個 z14 視窗光原始 POI 就有 4 萬筆。 */
+const POI_LIMIT = 300;
+
+/** 線上向量樣式。離線包裝好後會換成本機的 file:// 路徑。 */
+const VECTOR_STYLE_URL = 'https://map.mitalivana.org/vector/latest/style.json';
 
 const SINICA_TILE_URL =
   'https://gis.sinica.edu.tw/tileserver/file-exists.php?img={LAYER}-png-{z}-{x}-{y}';
@@ -268,7 +258,7 @@ function bboxOfRegion(r: Region): BBox {
   };
 }
 
-/** bbox → the four corners react-native-maps needs to draw it. */
+/** bbox → 畫成多邊形需要的四個角。 */
 function bboxCorners(b: BBox): LatLng[] {
   return [
     { latitude: b.swLat, longitude: b.swLng },
@@ -295,16 +285,27 @@ const PLOT_TYPE_LABEL: Record<string, string> = {
   point_count: 'map.plotPointCount',
 };
 
-function basemapToMapType(b: MapBasemap): MapType {
-  return BASEMAP_OPTIONS.find((o) => o.value === b)?.mapType ?? 'standard';
-}
-
 function basemapMeta(b: MapBasemap): (typeof BASEMAP_OPTIONS)[number] {
   return BASEMAP_OPTIONS.find((o) => o.value === b) ?? BASEMAP_OPTIONS[0];
 }
 
+/**
+ * 底圖的顯示標籤。
+ *
+ * 只有向量版是動態的：線上模式叫「魯地圖」，裝好離線包之後叫「魯地圖（離線）」
+ * —— 使用者關心的是「這份地圖現在需不需要網路」，不是它的算繪技術。
+ */
+function basemapLabelKey(
+  o: (typeof BASEMAP_OPTIONS)[number],
+  vectorReady: boolean,
+): string {
+  if (o.value === 'vector' && vectorReady) return 'map.basemapRudyVectorOffline';
+  return o.labelKey;
+}
+
 export default function MapScreen() {
   const { t } = useTranslation();
+  const { overlayIcon, overlayAccent, muted } = useThemeColors();
   const initial = useSettings((s) => s.map_view);
   const setSetting = useSettings((s) => s.set);
   const settingsLoaded = useSettings((s) => s.loaded);
@@ -339,13 +340,34 @@ export default function MapScreen() {
   const [sinicaOpacity, setSinicaOpacity] = useState<number>(initial.sinica_opacity);
   const [nlscLayer, setNlscLayer] = useState<string>(initial.nlsc_layer);
   const [nlscOpacity, setNlscOpacity] = useState<number>(initial.nlsc_opacity);
+  const [poiGroups, setPoiGroups] = useState<string[]>(initial.poi_groups);
+  const [poiSheetOpen, setPoiSheetOpen] = useState(false);
+  const [pois, setPois] = useState<RudyPoi[]>([]);
+
 
   const tabBarInset = useTabBarInset();
-  const rudyInstalled = useRudyInstall((s) => s.installed);
-  const rudyReady = useRudyInstall((s) => s.ready);
+  const vectorInstalled = useVectorInstall((s) => s.installed);
+  const vectorReady = useVectorInstall((s) => s.ready);
+  const vectorStyleRev = useVectorInstall((s) => s.styleRev);
   // 圖磚包被刪掉時**故意不**把 currentBasemap 改寫回 standard：使用者重新安裝後
   // 會自動回到他原本選的魯地圖，而不是被我們悄悄改掉設定。
-  const rudyOn = currentBasemap === 'rudy' && rudyReady;
+  const vectorOn = currentBasemap === 'vector';
+  /**
+   * 裝好離線包就讀本機那份（source 指向 pmtiles://file://…），否則走遠端。
+   *
+   * 路徑現算而不是用 `installed.styleUri`：那是安裝當下的絕對路徑，iOS 的 app
+   * container UUID 在重裝後會變，舊路徑就指向不存在的檔案。
+   */
+  const vectorStyle = vectorOn
+    ? (vectorReady && vectorInstalled ? vectorStyleUri() : VECTOR_STYLE_URL)
+    : undefined;
+
+  useEffect(() => {
+    if (!vectorStyle) return;
+    // 地圖載不起來時，MapLibre 只會丟一句沒有原因的 "loading style failed"，
+    // 所以這裡把判斷得出來的部分先印出來。
+    console.log('[vectormap] style', vectorStyle, JSON.stringify(describeVectorInstall()));
+  }, [vectorStyle, vectorStyleRev]);
 
   // Drawing UI only produces simple types; Multi* arrive via import (KML/GPX).
   const [drawMode, setDrawMode] = useState<'Point' | 'LineString' | 'Polygon' | null>(null);
@@ -391,10 +413,39 @@ export default function MapScreen() {
     latitudeDelta: initial.latitudeDelta,
     longitudeDelta: initial.longitudeDelta,
   });
+
+  // 地標查詢綁 viewRegion（一次手勢一次），與點位聚合同一個 granularity。
+  // 太遠就不查：tag 的 LIKE 篩選不吃索引，視窗一大就慢。
+  useEffect(() => {
+    if (poiGroups.length === 0 || viewRegion.longitudeDelta > POI_MAX_DELTA) {
+      setPois((prev) => (prev.length ? [] : prev));
+      return;
+    }
+    if (!getPoiDb()) return;
+    try {
+      setPois(
+        queryPoisInBounds(
+          {
+            minLat: viewRegion.latitude - viewRegion.latitudeDelta / 2,
+            maxLat: viewRegion.latitude + viewRegion.latitudeDelta / 2,
+            minLon: viewRegion.longitude - viewRegion.longitudeDelta / 2,
+            maxLon: viewRegion.longitude + viewRegion.longitudeDelta / 2,
+          },
+          poiGroups,
+          POI_LIMIT,
+        ),
+      );
+    } catch (e) {
+      // 圖磚包剛被刪、或 DB 還沒裝好都會走到這裡。地標是加值資訊，
+      // 查不到就不顯示，不該讓整個地圖畫面壞掉。
+      if (__DEV__) console.warn('[poi] query failed', e);
+      setPois([]);
+    }
+  }, [viewRegion, poiGroups]);
   /** The tapped feature's details; 「操作」 on the card opens the action sheet. */
   const [info, setInfo] = useState<MapFeatureInfo | null>(null);
 
-  const mapRef = useRef<MapView>(null);
+  const mapRef = useRef<MapCamera>(null);
   /** Mirror of `editPlot` for the focus effect — see the comment there. */
   const editPlotRef = useRef<PlotSurveyWithMeta | null>(null);
   /** A camera move requested before the map was ready (cold start), replayed below. */
@@ -558,8 +609,9 @@ export default function MapScreen() {
       sinica_opacity: sinicaOpacity,
       nlsc_layer: nlscLayer,
       nlsc_opacity: nlscOpacity,
+      poi_groups: poiGroups,
     });
-  }, [currentBasemap, sinicaLayer, sinicaOpacity, nlscLayer, nlscOpacity, setSetting]);
+  }, [currentBasemap, sinicaLayer, sinicaOpacity, nlscLayer, nlscOpacity, poiGroups, setSetting]);
 
   // Precompute transect track projection once per plots load (not per render /
   // map pan) — JSON parse + lng/lat swap is the costly part with many plots.
@@ -693,6 +745,7 @@ export default function MapScreen() {
         sinica_opacity: sinicaOpacity,
         nlsc_layer: nlscLayer,
         nlsc_opacity: nlscOpacity,
+        poi_groups: poiGroups,
       });
     }, 600);
   };
@@ -722,7 +775,7 @@ export default function MapScreen() {
 
   const handlePickBasemap = async () => {
     setToolsOpen(false);
-    const options = BASEMAP_OPTIONS.filter((o) => o.value !== 'rudy' || rudyReady);
+    const options = BASEMAP_OPTIONS;
     const idx = await showActionSheet({
       title: t('map.pickBasemap'),
       options: options.map((o) => ({ label: t(o.labelKey) })),
@@ -799,12 +852,11 @@ export default function MapScreen() {
     setPlotHandoff(null);
   };
 
-  const handleMapPress = (e: { nativeEvent: { coordinate: LatLng } }) => {
+  const handleMapPress = (coord: LatLng) => {
     // Tapping bare map dismisses the feature card — the same gesture that
     // opened it should be able to put it away.
     if (info) setInfo(null);
     if (!drawMode) return;
-    const coord = e.nativeEvent.coordinate;
     if (drawMode === 'Point') {
       setDrawPoints([coord]);
       setSaveSiteOpen(true);
@@ -1365,11 +1417,309 @@ export default function MapScreen() {
     Keyboard.dismiss();
   };
 
+  /**
+   * 所有要畫在地圖上的圖徵，攤平成引擎中性的陣列。
+   *
+   * **陣列順序就是掛載順序**，而 iOS 的疊圖先後只看掛載順序（zIndex 在
+   * react-native-maps 的 tile overlay 上無效）。所以這裡的排列必須與重構前的
+   * JSX 順序逐項相同，不要「順手」重排。
+   *
+   * zIndex「未指定」也有語意 —— site 與所有繪製中的圖徵本來就沒有指定，
+   * 補一個預設值會改變層序。
+   */
+  const mapFeatures: MapFeature[] = [
+    // 山域地標（魯地圖 POI）。zIndex 最低 —— 它是背景參考資訊，不該蓋住使用者的記錄。
+    ...pois.map((poi) => {
+      const tags = parsePoiTags(poi.data);
+      const name = poiDisplayName(tags);
+      const ele = tags.ele ? `${Math.round(Number(tags.ele))} m` : undefined;
+      return {
+        kind: 'marker' as const,
+        id: `poi-${poi.id}`,
+        lat: poi.lat,
+        lng: poi.lon,
+        title: name ?? t('poi.title'),
+        description: [ele, tags.description].filter(Boolean).join('  ') || undefined,
+        color: '#0ea5e9',
+        opacity: 0.9,
+        zIndex: 1,
+      };
+    }),
+
+    // 名錄 session：軌跡 + 起點。進行中的那筆是綠色；它的逐筆物種點另外畫。
+    ...sessionRenderItems.flatMap(({ session, segments }) => {
+      if (hiddenKeys.has(`sess-${session.id}`)) return [];
+      const isActive = activeSession?.id === session.id;
+      const color = isActive ? SESSION_ACTIVE_COLOR : SESSION_COLOR;
+      const out: MapFeature[] = segments
+        .filter((seg) => seg.length >= 2)
+        .map((seg, i) => ({
+          kind: 'line' as const,
+          id: `sess-${session.id}-${i}`,
+          coords: seg,
+          color,
+          width: 4,
+          zIndex: 2,
+          onPress: () => openSessionInfo(session),
+        }));
+      if (session.start_lat !== null && session.start_lng !== null) {
+        out.push({
+          kind: 'marker',
+          id: `sess-m-${session.id}`,
+          lat: session.start_lat,
+          lng: session.start_lng,
+          title: session.name || t('map.sessionMarkerTitle', { id: session.id }),
+          description: t('map.sessionDesc', { count: session.record_count }),
+          color,
+          zIndex: 3,
+          onPress: () => openSessionInfo(session),
+        });
+      }
+      return out;
+    }),
+
+    ...activeRecords
+      .filter((r) => r.lat !== null && r.lng !== null)
+      .map((r) => ({
+        kind: 'marker' as const,
+        id: `rec-${r.id}`,
+        lat: r.lat as number,
+        lng: r.lng as number,
+        title: r.common_name_c || r.simple_name,
+        description: r.family_c,
+        color: '#f59e0b',
+        zIndex: 4,
+      })),
+
+    // 既有地理樣區 —— Multi* geometry 會展開成多個 primitive
+    ...siteRenderItems.flatMap(({ site: s, primitives }) => {
+      // 綁在樣區上的 site 就是那個樣區的邊界，所以穿樣區的顏色 —— 否則藍色形狀
+      // 圍著紫色圖釘，卻沒有任何東西說它們是同一筆記錄。
+      const owner = plotBySiteId.get(s.id);
+      // 邊界跟著它的擁有者一起聚合，因為兩者代表的是同一筆記錄。
+      if (hiddenKeys.has(owner ? `plot-${owner.id}` : `site-${s.id}`)) return [];
+      const stroke = owner
+        ? owner.status === 'active'
+          ? PLOT_ACTIVE_COLOR
+          : PLOT_COLOR
+        : SITE_COLOR;
+      const fill = owner ? PLOT_FILL : SITE_FILL;
+      return primitives.map((prim, i): MapFeature => {
+        const id = `s-${s.id}-${i}`;
+        if (prim.kind === 'point') {
+          return {
+            kind: 'marker',
+            id,
+            lat: prim.latitude,
+            lng: prim.longitude,
+            title: s.name,
+            description: s.project_name,
+            color: stroke,
+            onPress: () => openSiteInfo(s),
+          };
+        }
+        if (prim.kind === 'line') {
+          return {
+            kind: 'line',
+            id,
+            coords: prim.coords,
+            color: stroke,
+            width: 3,
+            onPress: () => openSiteInfo(s),
+          };
+        }
+        return {
+          kind: 'polygon',
+          id,
+          coords: prim.coords,
+          stroke,
+          fill,
+          width: 2,
+          onPress: () => openSiteInfo(s),
+        };
+      });
+    }),
+
+    // 既有樣區 —— fixed/point_count 圖釘（+ 半徑圓）、穿越線軌跡。
+    // 編輯中的那個樣區在這裡隱藏，由下面可拖曳的圖釘接手。
+    ...plotRenderItems.flatMap(({ plot, segments }): MapFeature[] => {
+      if (editPlot && editPlot.id === plot.id) return [];
+      if (hiddenKeys.has(`plot-${plot.id}`)) return [];
+      const color = plot.status === 'active' ? PLOT_ACTIVE_COLOR : PLOT_COLOR;
+      if (usesTrack(plot)) {
+        const drawable = segments.filter((seg) => seg.length >= 2);
+        // 軌跡還沒開始、只有一個定位點、或被清掉的穿越線在這裡沒東西可畫 ——
+        // 而提早 return 會讓整個樣區從地圖上消失，即使它有中心點。這很常見不是
+        // 邊界情況：recorder 會把第一個定位寫進 decimal_latitude/longitude，
+        // 所以剛開始的穿越線一定有中心點和一個單點 segment。往下走到圖釘。
+        if (drawable.length > 0) {
+          return drawable.map((seg, i) => ({
+            kind: 'line' as const,
+            id: `plot-${plot.id}-${i}`,
+            coords: seg,
+            color,
+            width: 4,
+            zIndex: 5,
+            onPress: () => openPlotInfo(plot),
+          }));
+        }
+      }
+      if (plot.decimal_latitude === null || plot.decimal_longitude === null) return [];
+      const out: MapFeature[] = [];
+      if (plot.plot_type === 'point_count' && plot.point_radius_m && plot.point_radius_m > 0) {
+        out.push({
+          kind: 'circle',
+          id: `plot-c-${plot.id}`,
+          lat: plot.decimal_latitude,
+          lng: plot.decimal_longitude,
+          radiusM: plot.point_radius_m,
+          stroke: color,
+          fill: PLOT_FILL,
+          width: 2,
+          zIndex: 4,
+        });
+      }
+      out.push({
+        kind: 'marker',
+        id: `plot-m-${plot.id}`,
+        lat: plot.decimal_latitude,
+        lng: plot.decimal_longitude,
+        color,
+        title: plot.plotid || t('map.plotMenuTitle', { id: plot.id }),
+        description:
+          t('map.plotDesc', {
+            type: PLOT_TYPE_LABEL[plot.plot_type]
+              ? t(PLOT_TYPE_LABEL[plot.plot_type])
+              : plot.plot_type,
+            count: plot.species_count,
+          }) + (usesTrack(plot) ? ` · ${t('map.trackNotYet')}` : ''),
+        zIndex: 5,
+        onPress: () => openPlotInfo(plot),
+      });
+      return out;
+    }),
+
+    // 每個擁擠格子一個泡泡；它代表的圖徵在上面被跳過。
+    //
+    // 聚合在所有模式下都保持開啟。繪製或編輯時關掉它，等於一次 session 內把整組
+    // marker 換掉兩次 —— 每個被聚合的記錄進入時各自掛載成一個 annotation、離開時
+    // 再全部卸載 —— 那是一次點擊要付的大量原生工作。只拿掉 press handler，讓點擊
+    // 穿透到地圖去放頂點。
+    ...clusters.map((c): MapFeature => ({
+      kind: 'marker',
+      id: c.key,
+      lat: c.latitude,
+      lng: c.longitude,
+      anchor: { x: 0.5, y: 0.5 },
+      zIndex: 6,
+      renderKey: c.memberKeys.length,
+      render: () => <ClusterBubble count={c.memberKeys.length} />,
+      onPress:
+        drawMode || editMode
+          ? undefined
+          : () => {
+              const target = clusterRegion(c);
+              if (
+                clusterSplits(c, { ...target, width: windowWidth, height: windowHeight })
+              ) {
+                mapRef.current?.animateToRegion(target, 350);
+              } else {
+                void openClusterMembers(c);
+              }
+            },
+    })),
+
+    // 繪製中 —— 頂點可拖曳；點一下刪除
+    ...((drawMode || editMode) && drawPoints.length > 0
+      ? drawPoints.map((pt, i): MapFeature => ({
+          kind: 'marker',
+          id: `d-${i}`,
+          lat: pt.latitude,
+          lng: pt.longitude,
+          color: DRAW_COLOR,
+          anchor: { x: 0.5, y: 0.5 },
+          draggable: true,
+          onDragEnd: (coord) => {
+            const next = [...drawPoints];
+            next[i] = coord;
+            setDrawPoints(next);
+          },
+          onPress: () => {
+            // 編輯樣區的單一點位：只能拖，不能刪。
+            if (editMode === 'point') return;
+            Alert.alert(t('map.editPointTitle'), t('map.pointN', { n: i + 1 }), [
+              { text: t('common.cancel'), style: 'cancel' },
+              {
+                text: t('map.deletePoint'),
+                style: 'destructive',
+                onPress: () => setDrawPoints(drawPoints.filter((_, idx) => idx !== i)),
+              },
+            ]);
+          },
+        }))
+      : []),
+
+    ...((drawMode === 'LineString' || editMode === 'track') && drawPoints.length >= 2
+      ? [
+          {
+            kind: 'line' as const,
+            id: 'draw-line',
+            coords: drawPoints,
+            color: DRAW_COLOR,
+            width: 3,
+          },
+        ]
+      : []),
+
+    ...(drawMode === 'Polygon' && drawPurpose === 'site' && drawPoints.length >= 3
+      ? [
+          {
+            kind: 'polygon' as const,
+            id: 'draw-poly',
+            coords: drawPoints,
+            stroke: DRAW_COLOR,
+            fill: DRAW_FILL,
+            width: 2,
+          },
+        ]
+      : []),
+
+    // 物種查詢：兩種形狀都要畫，因為兩個來源用的不一樣 —— 填色的框是問
+    // iNaturalist 的範圍，外框線是問 GBIF 的範圍。只畫一個會誤導使用者
+    // 之後選了哪個來源。
+    ...(drawPurpose === 'species' && drawPoints.length >= 2
+      ? [
+          {
+            kind: 'polygon' as const,
+            id: 'area-bbox',
+            coords: bboxCorners(bboxOf(drawPoints)),
+            stroke: AREA_COLOR,
+            fill: AREA_FILL,
+            width: 1,
+          },
+        ]
+      : []),
+
+    ...((drawPurpose === 'species' || drawPurpose === 'favoriteArea') && drawPoints.length >= 3
+      ? [
+          {
+            kind: 'polygon' as const,
+            id: 'area-outline',
+            coords: drawPoints,
+            stroke: AREA_COLOR,
+            fill: 'transparent',
+            width: 3,
+          },
+        ]
+      : []),
+  ];
+
   return (
     <View className="flex-1 bg-gray-100 dark:bg-gray-800">
-      <MapView
+      <MapCanvas
+        // 樣式只在掛載時讀一次，換版後要重掛才看得到（styleUri 字串不變）。
+        key={`map-${vectorStyleRev}`}
         ref={mapRef}
-        provider={PROVIDER_DEFAULT}
         style={StyleSheet.absoluteFill}
         initialRegion={{
           latitude: initial.latitude,
@@ -1377,6 +1727,8 @@ export default function MapScreen() {
           latitudeDelta: initial.latitudeDelta,
           longitudeDelta: initial.longitudeDelta,
         }}
+        engine={vectorOn ? 'vector' : 'native'}
+        vectorStyle={vectorStyle}
         mapType={basemapToMapType(currentBasemap)}
         showsCompass
         showsScale
@@ -1385,319 +1737,47 @@ export default function MapScreen() {
         onMapReady={() => setMapReady(true)}
         onRegionChangeComplete={handleRegionChangeComplete}
         onPress={handleMapPress}
-      >
-        {/* 魯地圖離線底圖。必須排在兩個 WMTS 疊圖之前 —— iOS 沒有 zIndex，靠加入
-            順序決定先後，而 AIRMapUrlTile.m 的 update 會把重新掛載的 UrlTile 加到
-            最上層；魯地圖的 props 全是常數，不會自己觸發 update 去搶最上層。
+        features={mapFeatures}
+        rasterOverlays={[
+          ...(nlscLayer
+            ? [
+                {
+                  id: 'nlsc',
+                  urlTemplate: NLSC_TILE_URL.replace('{LAYER}', nlscLayer),
+                  opacity: nlscOpacity,
+                  zIndex: 1,
+                  maxZoom: 20,
+                },
+              ]
+            : []),
+          ...(sinicaLayer
+            ? [
+                {
+                  id: 'sinica',
+                  urlTemplate: SINICA_TILE_URL.replace('{LAYER}', sinicaLayer),
+                  opacity: sinicaOpacity,
+                  zIndex: 2,
+                  maxZoom: 19,
+                },
+              ]
+            : []),
+        ]}
+        // 切底圖時強制疊圖重新掛載，讓它們重新加到離線圖磚之上
+        // （iOS 的疊圖先後只看掛載順序）。
+        overlayGeneration={currentBasemap}
+      />
 
-            用 <UrlTile tileCachePath offlineMode> 而不是 <LocalTile>，是讀過 native
-            原始碼後的決定：LocalTile 沒有 maximumNativeZ（超過 z15 就一片空白，而野外
-            一定會放大到 z17-19 看自己的點位），而且它把 canReplaceMapContent 寫死成
-            YES，會在全球範圍關掉原生底圖 —— 我們刻意不 render 的海域會變成空白。 */}
-        {rudyOn && rudyInstalled ? (
-          <UrlTile
-            // offlineMode 下永遠不會連出去，但 native 端仍要求這個 prop 有值。
-            urlTemplate="https://offline.invalid/{z}/{x}/{y}.png"
-            tileCachePath={rudyTileCachePath()}
-            offlineMode
-            tileCacheMaxAge={RUDY_TILE_CACHE_MAX_AGE}
-            minimumZ={rudyInstalled.manifest.minZoom}
-            maximumNativeZ={rudyInstalled.manifest.maxZoom}
-            maximumZ={20}
-            shouldReplaceMapContent={false}
-            tileSize={rudyInstalled.manifest.tileSize}
-            zIndex={0}
-          />
-        ) : null}
-        {nlscLayer ? (
-          <UrlTile
-            // key 綁 currentBasemap：切底圖時強制重新掛載，讓這兩層重新加到
-            // 魯地圖之上（iOS 的先後順序只看加入順序）。
-            key={`nlsc-${currentBasemap}`}
-            urlTemplate={NLSC_TILE_URL.replace('{LAYER}', nlscLayer)}
-            opacity={nlscOpacity}
-            zIndex={1}
-            maximumZ={20}
-          />
-        ) : null}
-        {sinicaLayer ? (
-          <UrlTile
-            key={`sinica-${currentBasemap}`}
-            urlTemplate={SINICA_TILE_URL.replace('{LAYER}', sinicaLayer)}
-            opacity={sinicaOpacity}
-            zIndex={2}
-            maximumZ={19}
-          />
-        ) : null}
-
-        {/* All sessions (名錄): start-point marker + track. The active session is
-            colored green; its per-record species points are drawn separately
-            below. Tap → info / jump to the record. */}
-        {sessionRenderItems.flatMap(({ session, segments }) => {
-          if (hiddenKeys.has(`sess-${session.id}`)) return [];
-          const isActive = activeSession?.id === session.id;
-          const color = isActive ? SESSION_ACTIVE_COLOR : SESSION_COLOR;
-          const els = segments
-            .filter((seg) => seg.length >= 2)
-            .map((seg, i) => (
-              <Polyline
-                key={`sess-${session.id}-${i}`}
-                coordinates={seg}
-                strokeColor={color}
-                strokeWidth={4}
-                zIndex={2}
-                tappable
-                onPress={() => openSessionInfo(session)}
-              />
-            ));
-          if (session.start_lat !== null && session.start_lng !== null) {
-            els.push(
-              <Marker
-                key={`sess-m-${session.id}`}
-                coordinate={{ latitude: session.start_lat, longitude: session.start_lng }}
-                title={session.name || t('map.sessionMarkerTitle', { id: session.id })}
-                description={t('map.sessionDesc', { count: session.record_count })}
-                pinColor={color}
-                zIndex={3}
-                onPress={() => openSessionInfo(session)}
-              />,
-            );
-          }
-          return els;
-        })}
-        {activeRecords
-          .filter((r) => r.lat !== null && r.lng !== null)
-          .map((r) => (
-            <Marker
-              key={`rec-${r.id}`}
-              coordinate={{ latitude: r.lat as number, longitude: r.lng as number }}
-              title={r.common_name_c || r.simple_name}
-              description={r.family_c}
-              pinColor="#f59e0b"
-              zIndex={4}
-            />
-          ))}
-
-        {/* Existing sites — Multi* geometries expand to multiple primitives */}
-        {siteRenderItems.flatMap(({ site: s, primitives }) => {
-          // A site bound to a 樣區 is that plot's boundary, so it wears the plot
-          // colours — otherwise a blue shape sits around a purple pin with
-          // nothing saying they are the same record.
-          const owner = plotBySiteId.get(s.id);
-          // A boundary is clustered under its owner's key, since the plot is
-          // the record both of them stand for.
-          if (hiddenKeys.has(owner ? `plot-${owner.id}` : `site-${s.id}`)) return [];
-          const stroke = owner
-            ? owner.status === 'active'
-              ? PLOT_ACTIVE_COLOR
-              : PLOT_COLOR
-            : SITE_COLOR;
-          const fill = owner ? PLOT_FILL : SITE_FILL;
-          return primitives.map((prim, i) => {
-            const key = `s-${s.id}-${i}`;
-            if (prim.kind === 'point') {
-              return (
-                <Marker
-                  key={key}
-                  coordinate={{ latitude: prim.latitude, longitude: prim.longitude }}
-                  title={s.name}
-                  description={s.project_name}
-                  pinColor={stroke}
-                  onPress={() => openSiteInfo(s)}
-                />
-              );
-            }
-            if (prim.kind === 'line') {
-              return (
-                <Polyline
-                  key={key}
-                  coordinates={prim.coords}
-                  strokeColor={stroke}
-                  strokeWidth={3}
-                  tappable
-                  onPress={() => openSiteInfo(s)}
-                />
-              );
-            }
-            return (
-              <Polygon
-                key={key}
-                coordinates={prim.coords}
-                strokeColor={stroke}
-                fillColor={fill}
-                strokeWidth={2}
-                tappable
-                onPress={() => openSiteInfo(s)}
-              />
-            );
-          });
-        })}
-
-        {/* Existing plot surveys — fixed/point_count markers (+ radius circle),
-            transect tracks. The plot under edit is hidden here; the draggable
-            marker below takes over. */}
-        {plotRenderItems.flatMap(({ plot, segments }) => {
-          if (editPlot && editPlot.id === plot.id) return [];
-          if (hiddenKeys.has(`plot-${plot.id}`)) return [];
-          const color = plot.status === 'active' ? PLOT_ACTIVE_COLOR : PLOT_COLOR;
-          if (usesTrack(plot)) {
-            const drawable = segments.filter((seg) => seg.length >= 2);
-            // A transect whose track is not started yet, holds a single fix, or
-            // was cleared has nothing to draw here — and returning early made
-            // the whole plot disappear from the map even though it has a centre
-            // point. Common, not an edge case: the recorder writes the first fix
-            // into decimal_latitude/longitude, so a just-started transect always
-            // has a centre and a one-point segment. Fall through to the marker.
-            if (drawable.length > 0) {
-              return drawable.map((seg, i) => (
-                <Polyline
-                  key={`plot-${plot.id}-${i}`}
-                  coordinates={seg}
-                  strokeColor={color}
-                  strokeWidth={4}
-                  zIndex={5}
-                  tappable
-                  onPress={() => openPlotInfo(plot)}
-                />
-              ));
-            }
-          }
-          if (plot.decimal_latitude === null || plot.decimal_longitude === null) return [];
-          const center = { latitude: plot.decimal_latitude, longitude: plot.decimal_longitude };
-          const circle =
-            plot.plot_type === 'point_count' && plot.point_radius_m && plot.point_radius_m > 0 ? (
-              <Circle
-                key={`plot-c-${plot.id}`}
-                center={center}
-                radius={plot.point_radius_m}
-                strokeColor={color}
-                fillColor={PLOT_FILL}
-                strokeWidth={2}
-                zIndex={4}
-              />
-            ) : null;
-          return [
-            circle,
-            <Marker
-              key={`plot-m-${plot.id}`}
-              coordinate={center}
-              pinColor={color}
-              title={plot.plotid || t('map.plotMenuTitle', { id: plot.id })}
-              description={
-                t('map.plotDesc', {
-                  type: PLOT_TYPE_LABEL[plot.plot_type]
-                    ? t(PLOT_TYPE_LABEL[plot.plot_type])
-                    : plot.plot_type,
-                  count: plot.species_count,
-                }) + (usesTrack(plot) ? ` · ${t('map.trackNotYet')}` : '')
-              }
-              zIndex={5}
-              onPress={() => openPlotInfo(plot)}
-            />,
-          ];
-        })}
-
-        {/* One bubble per crowded grid cell; the features it stands for are
-            skipped above. Tapping zooms to its members, which is what breaks
-            it apart. Hidden while drawing so it cannot eat a vertex tap. */}
-        {/* Clustering stays on in every mode. Turning it off while drawing or
-            editing swapped the whole marker set twice per session — every
-            clustered record mounted as its own annotation on entry and unmounted
-            again on exit — which is a lot of native work on one tap. Only the
-            press handler is dropped, so a tap falls through to the map and
-            places a vertex instead of zooming. */}
-        {clusters.map((c) => (
-          <ClusterMarker
-            key={c.key}
-            latitude={c.latitude}
-            longitude={c.longitude}
-            count={c.memberKeys.length}
-            onPress={
-              drawMode || editMode
-                ? undefined
-                : () => {
-                    const target = clusterRegion(c);
-                    if (
-                      clusterSplits(c, {
-                        ...target,
-                        width: windowWidth,
-                        height: windowHeight,
-                      })
-                    ) {
-                      mapRef.current?.animateToRegion(target, 350);
-                    } else {
-                      void openClusterMembers(c);
-                    }
-                  }
-            }
-          />
-        ))}
-
-        {/* In-progress drawing — markers are draggable; tap a marker to remove it */}
-        {(drawMode || editMode) && drawPoints.length > 0
-          ? drawPoints.map((p, i) => (
-              <Marker
-                key={`d-${i}`}
-                identifier={`d-${i}`}
-                coordinate={p}
-                pinColor={DRAW_COLOR}
-                anchor={{ x: 0.5, y: 0.5 }}
-                draggable
-                onDragEnd={(e) => {
-                  const next = [...drawPoints];
-                  next[i] = e.nativeEvent.coordinate;
-                  setDrawPoints(next);
-                }}
-                onPress={() => {
-                  // Editing a plot's single point: drag only, never delete.
-                  if (editMode === 'point') return;
-                  Alert.alert(t('map.editPointTitle'), t('map.pointN', { n: i + 1 }), [
-                    { text: t('common.cancel'), style: 'cancel' },
-                    {
-                      text: t('map.deletePoint'),
-                      style: 'destructive',
-                      onPress: () => {
-                        const next = drawPoints.filter((_, idx) => idx !== i);
-                        setDrawPoints(next);
-                      },
-                    },
-                  ]);
-                }}
-              />
-            ))
-          : null}
-        {(drawMode === 'LineString' || editMode === 'track') && drawPoints.length >= 2 ? (
-          <Polyline coordinates={drawPoints} strokeColor={DRAW_COLOR} strokeWidth={3} />
-        ) : null}
-        {drawMode === 'Polygon' && drawPurpose === 'site' && drawPoints.length >= 3 ? (
-          <Polygon
-            coordinates={drawPoints}
-            strokeColor={DRAW_COLOR}
-            fillColor={DRAW_FILL}
-            strokeWidth={2}
-          />
-        ) : null}
-        {/* Species query: draw BOTH shapes, because the two sources use
-            different ones — the filled box is what iNaturalist is asked about,
-            the outline is what GBIF is asked about. Showing only one of them
-            would misrepresent whichever source the user then picks. */}
-        {drawPurpose === 'species' && drawPoints.length >= 2 ? (
-          <Polygon
-            coordinates={bboxCorners(bboxOf(drawPoints))}
-            strokeColor={AREA_COLOR}
-            fillColor={AREA_FILL}
-            strokeWidth={1}
-          />
-        ) : null}
-        {(drawPurpose === 'species' || drawPurpose === 'favoriteArea') && drawPoints.length >= 3 ? (
-          <Polygon
-            coordinates={drawPoints}
-            strokeColor={AREA_COLOR}
-            fillColor="transparent"
-            strokeWidth={3}
-          />
-        ) : null}
-      </MapView>
+      <PoiGroupSheet
+        visible={poiSheetOpen}
+        enabled={poiGroups}
+        available={getPoiDb() != null}
+        onToggle={(key) =>
+          setPoiGroups((prev) =>
+            prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key],
+          )
+        }
+        onClose={() => setPoiSheetOpen(false)}
+      />
 
       {/* 比例尺。不用 <MapView showsScale>：那是 iOS Apple Maps 專用、Android
           不支援，而且只在縮放手勢期間短暫出現。野外判讀距離要常駐。 */}
@@ -1710,7 +1790,7 @@ export default function MapScreen() {
           style={StyleSheet.absoluteFill}
           className="items-center justify-center bg-gray-100 dark:bg-gray-800/85"
         >
-          <ActivityIndicator size="large" color="#2563eb" />
+          <ActivityIndicator size="large" color={overlayAccent} />
           <Text className="mt-3 text-sm text-gray-700 dark:text-gray-300">
             {t('map.loadingMap')}
           </Text>
@@ -1728,7 +1808,7 @@ export default function MapScreen() {
         {searchOpen ? (
           <View className="flex-row items-center rounded-full bg-white px-3 py-2 shadow-md dark:bg-gray-900/95">
             <Pressable onPress={closeSearch} hitSlop={8}>
-              <Ionicons name="arrow-back" size={18} color="#374151" />
+              <Ionicons name="arrow-back" size={18} color={overlayIcon} />
             </Pressable>
             <TextInput
               ref={searchInputRef}
@@ -1744,7 +1824,7 @@ export default function MapScreen() {
             />
             {searchQuery ? (
               <Pressable onPress={() => setSearchQuery('')} hitSlop={6}>
-                <Ionicons name="close-circle" size={18} color="#9ca3af" />
+                <Ionicons name="close-circle" size={18} color={muted} />
               </Pressable>
             ) : null}
           </View>
@@ -1766,7 +1846,7 @@ export default function MapScreen() {
             <View className="mt-2 items-end">
               <FabRow
                 icon={basemapMeta(currentBasemap).icon}
-                label={t(basemapMeta(currentBasemap).labelKey)}
+                label={t(basemapLabelKey(basemapMeta(currentBasemap), vectorReady))}
                 onPress={handlePickBasemap}
               />
               <FabRow icon="locate" label={t('map.locate')} onPress={handleLocateMe} accent />
@@ -1775,6 +1855,15 @@ export default function MapScreen() {
                 label={sinicaLayer || nlscLayer ? t('map.layersOverlaid') : t('map.layers')}
                 onPress={handleOpenLayers}
                 accent={!!sinicaLayer || !!nlscLayer}
+              />
+              <FabRow
+                icon="navigate-circle-outline"
+                label={t('poi.title')}
+                onPress={() => {
+                  setToolsOpen(false);
+                  setPoiSheetOpen(true);
+                }}
+                accent={pois.length > 0}
               />
               <FabRow
                 icon="create-outline"
@@ -1821,7 +1910,7 @@ export default function MapScreen() {
             </Text>
             {drawPoints.length > 0 ? (
               <Pressable onPress={undoLastPoint} hitSlop={8} className="px-2">
-                <Ionicons name="arrow-undo" size={16} color="#6b7280" />
+                <Ionicons name="arrow-undo" size={16} color={overlayIcon} />
               </Pressable>
             ) : null}
             {drawMode !== 'Point' ? (
@@ -1965,59 +2054,26 @@ export default function MapScreen() {
 }
 
 /**
- * Count bubble for a cluster.
+ * Cluster 的數字泡泡（只有視覺）。
  *
- * `tracksViewChanges` starts true so the custom view is captured once it has
- * laid out (leaving it false from the start renders a blank marker), then goes
- * off again as soon as the view reports a layout. A timer was used here first,
- * and a quarter of a second of per-frame re-capture — times every bubble that
- * mounts at once when an edit is cancelled — is long enough to look like the
- * app has locked up.
- *
- * It comes back on when the number or position changes, because the cluster
- * key is the grid cell alone: the marker stays mounted across pans (that is
- * the point), so a changed count has to be re-captured, not remounted.
+ * 原本這裡還管著 `tracksViewChanges` 的 true→false 生命週期，那是
+ * react-native-maps 專屬的 —— 已經移進 `engines/RNMapsCanvas.tsx`，由引擎依
+ * feature 的 `renderKey` 決定何時重新擷取。
  */
-function ClusterMarker({
-  latitude,
-  longitude,
-  count,
-  onPress,
-}: {
-  latitude: number;
-  longitude: number;
-  count: number;
-  /** Omitted while drawing or editing, so the tap reaches the map. */
-  onPress?: () => void;
-}) {
-  const [tracks, setTracks] = useState(true);
-  useEffect(() => {
-    setTracks(true);
-  }, [count, latitude, longitude]);
+function ClusterBubble({ count }: { count: number }) {
   return (
-    <Marker
-      coordinate={{ latitude, longitude }}
-      anchor={{ x: 0.5, y: 0.5 }}
-      tracksViewChanges={tracks}
-      zIndex={6}
-      onPress={onPress}
+    <View
+      className="items-center justify-center rounded-full border-2 border-white shadow"
+      style={{
+        // 數量越多泡泡略大，讓大群一眼看得出來，但有上限 ——
+        // 300 筆的泡泡不能把地圖蓋住。
+        width: count >= 100 ? 46 : count >= 10 ? 40 : 34,
+        height: count >= 100 ? 46 : count >= 10 ? 40 : 34,
+        backgroundColor: CLUSTER_COLOR,
+      }}
     >
-      <View
-        // One frame after layout, not a fixed delay: the capture is done by
-        // then, and waiting longer only burns frames.
-        onLayout={() => requestAnimationFrame(() => setTracks(false))}
-        className="items-center justify-center rounded-full border-2 border-white shadow"
-        style={{
-          // Grows a little with the count so a big cluster reads as big, but
-          // capped — a 300-record bubble must not cover the map.
-          width: count >= 100 ? 46 : count >= 10 ? 40 : 34,
-          height: count >= 100 ? 46 : count >= 10 ? 40 : 34,
-          backgroundColor: CLUSTER_COLOR,
-        }}
-      >
-        <Text className="text-xs font-bold text-white">{count}</Text>
-      </View>
-    </Marker>
+      <Text className="text-xs font-bold text-white">{count}</Text>
+    </View>
   );
 }
 
@@ -2030,12 +2086,13 @@ function FabButton({
   onPress: () => void;
   accent?: boolean;
 }) {
+  const { overlayIcon, overlayAccent } = useThemeColors();
   return (
     <Pressable
       onPress={onPress}
       className="h-11 w-11 items-center justify-center rounded-full bg-white shadow-md active:bg-gray-100 dark:bg-gray-900/95 dark:active:bg-gray-700"
     >
-      <Ionicons name={icon} size={20} color={accent ? '#2563eb' : '#374151'} />
+      <Ionicons name={icon} size={20} color={accent ? overlayAccent : overlayIcon} />
     </Pressable>
   );
 }
@@ -2051,6 +2108,7 @@ function FabRow({
   onPress: () => void;
   accent?: boolean;
 }) {
+  const { overlayIcon, overlayAccent } = useThemeColors();
   return (
     <Pressable
       onPress={onPress}
@@ -2061,7 +2119,7 @@ function FabRow({
       >
         {label}
       </Text>
-      <Ionicons name={icon} size={18} color={accent ? '#2563eb' : '#374151'} />
+      <Ionicons name={icon} size={18} color={accent ? overlayAccent : overlayIcon} />
     </Pressable>
   );
 }

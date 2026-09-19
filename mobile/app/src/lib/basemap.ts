@@ -4,10 +4,10 @@
  * inline record-location editor, whose basemap toggle cycles only
  * standard → satellite → hybrid (terrain rarely useful for a single point).
  */
-import type { MapType } from 'react-native-maps';
+import type { BaseMapType } from '~/components/map/types';
 import type { MapBasemap } from '~/stores/settings';
 
-export function basemapToMapType(b: MapBasemap): MapType {
+export function basemapToMapType(b: MapBasemap): BaseMapType {
   switch (b) {
     case 'satellite':
       return 'satellite';
@@ -15,9 +15,8 @@ export function basemapToMapType(b: MapBasemap): MapType {
       return 'hybrid';
     case 'terrain':
       return 'terrain';
-    // rudy 不是原生 mapType：魯地圖圖磚是不透明疊圖，底下留 standard 當海域與
-    // z7 以下的墊底（圖磚包不含那些範圍）。
-    case 'rudy':
+    // vector 走 MapLibre，原生 mapType 用不到；回 standard 只是讓型別完整。
+    case 'vector':
       return 'standard';
     default:
       return 'standard';
@@ -27,10 +26,9 @@ export function basemapToMapType(b: MapBasemap): MapType {
 /**
  * Cycle order for the inline location editor's basemap toggle (no terrain).
  *
- * `rudy` is deliberately excluded: a cycle whose length depends on whether the
- * tile pack happens to be installed would make `nextBasemap` impure — the same
- * button would behave differently on two phones. The small maps also show a
- * single point or polygon, where contour lines add nothing.
+ * `vector` is deliberately excluded: the small maps show a single point or
+ * polygon, where contour lines add nothing, and swapping the whole canvas to a
+ * different native view just to toggle a basemap is not worth it here.
  */
 export const BASEMAP_CYCLE: MapBasemap[] = ['standard', 'satellite', 'hybrid'];
 
@@ -45,7 +43,7 @@ export const BASEMAP_LABEL_KEY: Record<MapBasemap, string> = {
   satellite: 'map.basemapSatellite',
   hybrid: 'map.basemapHybrid',
   terrain: 'map.basemapTerrain',
-  rudy: 'map.basemapRudy',
+  vector: 'map.basemapRudyVector',
 };
 
 /**
