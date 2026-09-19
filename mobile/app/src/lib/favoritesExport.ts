@@ -12,7 +12,7 @@
  */
 import { convertToDwc } from './dwcMapper';
 import { markdownToDocx } from './docx';
-import { generateMarkdown } from './markdown';
+import { generateMarkdown, type ConservationField } from './markdown';
 import { checklistT, mapAlienToSource, taxonToMarkdownItem } from './bundleExport';
 import { resolveTaxa, EMPTY_TAXON_FIELDS, type FavoriteItem, type TaxonFields } from '~/db';
 
@@ -46,15 +46,24 @@ function taxonSort(a: Resolved, b: Resolved): number {
   return 0;
 }
 
+export type FavoritesDocxOptions = {
+  lang?: string;
+  /** 匯出設定的保育欄位選擇。省略 = 只顯示臺灣紅皮書（generateMarkdown 的預設）。 */
+  conservationFields?: ConservationField[];
+  /** 匯出設定的「排除 LC」。 */
+  hideLowConcern?: boolean;
+};
+
 export function buildFavoritesDocx(
   folderName: string,
   items: FavoriteItem[],
-  lang?: string,
+  opts: FavoritesDocxOptions = {},
 ): Uint8Array {
   const md = generateMarkdown(
     resolve(items).map((r) => taxonToMarkdownItem(r.taxon_id, r.fields)),
-    checklistT(lang),
+    checklistT(opts.lang),
     { project: folderName },
+    { conservationFields: opts.conservationFields, hideLowConcern: opts.hideLowConcern },
   );
   return markdownToDocx(md);
 }

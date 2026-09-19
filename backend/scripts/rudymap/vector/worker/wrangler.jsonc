@@ -1,0 +1,17 @@
+{
+  // 把 R2 上的 PMTiles 轉譯成一般 XYZ 圖磚 URL 的 Worker。
+  // MapLibre Native 不認 pmtiles:// 協定，所以需要這一層。
+  "name": "mitalivana-tiles",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-01",
+  "observability": { "enabled": true },
+  "r2_buckets": [
+    { "binding": "BUCKET", "bucket_name": "mitalivana" }
+  ],
+  // Cloudflare 的路由樣式只允許「主機名開頭」與「路徑結尾」有萬用字元，
+  // 所以不能寫 /vector/*/tiles/*。改成整個 /vector/ 都進 Worker，
+  // 非圖磚的路徑（style.json / sprite / glyph）由它直接回 R2 物件。
+  "routes": [
+    { "pattern": "map.mitalivana.org/vector/*", "zone_name": "mitalivana.org" }
+  ]
+}

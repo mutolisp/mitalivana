@@ -1013,6 +1013,8 @@
     "consFields": "保全状況の項目",
     "consRedlist": "台湾レッドリスト",
     "consProtected": "保護種 / 希少植物",
+    "consHideLc": "軽度懸念（LC）を表示しない",
+    "consHideLcHint": "種名の後ろに LC / NLC / NE / NA を付けず、絶滅危惧カテゴリのみ表示します。冒頭の保全統計には影響しません。",
     "report": "研究レポート",
     "includeReport": "研究レポートを含める",
     "includeReportHint": "プロジェクトの書き出しに report/ フォルダを追加し、多様度指数・調査努力量・グラフを収録します。現在の表示言語で生成されます。"
@@ -1052,6 +1054,8 @@
     "doneMsg": "{{added}}、{{skipped}}（重複または taxon_id なし）",
     "title": "一括インポート",
     "preview": "プレビュー",
+    "matching": "種名を照合中…",
+    "adding": "追加中…",
     "add": "追加",
     "paste": "貼り付け",
     "voice": "音声",

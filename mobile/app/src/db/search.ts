@@ -251,6 +251,67 @@ export const SEARCH_COLUMNS = [
   'rank',
 ].join(', ');
 
+/**
+ * 名稱完全相等的接受名查詢 —— 批次匯入的快路徑。
+ *
+ * `searchSpecies` 的 `LIKE '%q%'` 是 27 萬列全表掃描（Mac 上量到 ~95ms/次），
+ * 加上結果列各自再打一次 `markSensuLato` 的 LIKE（~17ms/列）；貼 100 種按
+ * 「預覽」時這些成本要付 100 遍，實機上就是使用者說的「蠻慢的」。可是批次匯入
+ * 的常態是「名字本來就打對」，那種情況走 idx_taicol_common_name /
+ * idx_taicol_simple_name 的等值查詢只要 ~0.03ms（實測 300 個俗名裡 279 個
+ * 直接命中，再算進下面的原名亞種去重是 297 個）。
+ *
+ * 只在**唯一一列**完全相等時才給答案：0 列（打錯字、同義名）或 2 列以上
+ * （同俗名的不同分類群、種與其原名亞種）都回空陣列，讓呼叫端照原本的完整
+ * 搜尋走，模糊比對、同義名解析、多筆候選挑選的行為一律不變。
+ */
+export function lookupExactAccepted(q: string): SearchResult[] {
+  const trimmed = q.trim();
+  if (!trimmed) return [];
+  const db = getTaicolDb();
+  const variants = normalizeTw(trimmed);
+  const pairs = variants.map(() => '(common_name_c = ? OR simple_name = ?)').join(' OR ');
+  const params: string[] = [];
+  for (const v of variants) params.push(v, v);
+  // `+usage_status` 的加號不是筆誤：直接寫 `usage_status = 'accepted'` 會讓
+  // SQLite 改走 idx_taicol_usage_status —— 幾乎整張表都是同一個值的低選擇性
+  // 索引，實測 0.02ms 變 20ms，快路徑等於白做。SQLite 的一元 `+` 會讓該條件
+  // 不參與索引選擇，查詢計畫就留在 MULTI-INDEX OR（idx_taicol_common_name /
+  // idx_taicol_simple_name），接受名仍然由 SQL 自己濾（LIMIT 才不會被
+  // 「馬鈴薯」這種有三百多列同名的俗名截掉）。
+  const res = db.executeSync(
+    `SELECT ${SEARCH_COLUMNS} FROM taicol_names WHERE (${pairs}) ` +
+      `AND +usage_status = 'accepted' AND is_in_taiwan LIKE '%true%' LIMIT 5`,
+    params,
+  );
+  const rows = (res.rows ?? []) as unknown as TaicolRow[];
+  const seen = new Set<string | number>();
+  const unique: TaicolRow[] = [];
+  for (const row of rows) {
+    const key = row.taxon_id || row.name_id;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push(row);
+  }
+  // 與 `searchSpecies` 相同的「同俗名的種 + 原名亞種」去重。少了這一步，像
+  // 「豬殃殃」（Galium spurium 與 G. spurium fo. vaillantii 共用俗名）這種
+  // 常見組合會被當成多筆而白白退回全表掃描 —— 抽樣 300 個俗名裡有 6% 是這種。
+  const cnameSpecies = new Map<string, string>();
+  for (const row of unique) {
+    if (row.common_name_c && row.rank === 'Species') {
+      cnameSpecies.set(row.common_name_c, row.simple_name ?? '');
+    }
+  }
+  const kept = unique.filter((row) => {
+    const cn = row.common_name_c ?? '';
+    if (cn && ['Form', 'Variety', 'Subspecies'].includes(row.rank ?? '') && cnameSpecies.has(cn)) {
+      if ((row.simple_name ?? '').startsWith(cnameSpecies.get(cn)!)) return false;
+    }
+    return true;
+  });
+  return kept.map((row) => rowToResult(row));
+}
+
 export function searchSpecies({ q, groups, advanced = {}, limit = 30 }: SearchOptions): SearchResult[] {
   const trimmed = q.trim();
   if (!trimmed) return [];

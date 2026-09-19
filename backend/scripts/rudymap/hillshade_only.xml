@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  只畫山體陰影的主題。
+
+  向量版從 .map 抽不到 hillshading —— mapsforge 的陰影是算繪時用另外的 DEM
+  （src/dem 的 HGT）即時算的，不在圖資裡。與其自己用 gdaldem 調一組近似值，
+  不如讓同一個 MapsforgeSrv、同一份 DEM、同一組參數跑一次「只有陰影」的主題，
+  出來的東西就會和現有 raster 的陰影逐像素一致。
+
+  <hillshading /> 不帶屬性，與 MOI_OSM.xml 裡那一行完全相同；實際強度由
+  config/tasks/hillshade.properties 的 hillshading-* 決定。
+
+  map-background 用全透明，配合請求的 transparent=true 才會留下 alpha。
+-->
+<rendertheme xmlns="http://mapsforge.org/renderTheme"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xsi:schemaLocation="http://mapsforge.org/renderTheme https://raw.githubusercontent.com/mapsforge/mapsforge/dev/resources/renderTheme-v4.xsd"
+             version="4" map-background-outside="#FFFFFFFF" map-background="#FFFFFFFF">
+  <hillshading />
+</rendertheme>

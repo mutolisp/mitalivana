@@ -42,6 +42,7 @@ import { showActionSheet } from '~/components/ActionSheet';
 import { promptText } from '~/components/TextPromptModal';
 import { useAddToActiveRecord } from '~/lib/useAddToActiveRecord';
 import { useFavorites } from '~/stores/favorites';
+import { useSettings } from '~/stores/settings';
 import { useToast } from '~/stores/toast';
 import { FolderAreaMap } from '~/components/FolderAreaMap';
 import { HeaderIconButton } from '~/components/HeaderIconButton';
@@ -64,6 +65,10 @@ export default function FavoritesScreen() {
   // 參考，元件就不會因為 items 改變而重新 render —— 加入物種後清單不更新，
   // 要切出目錄再切回來才看得到。
   const allItems = useFavorites((s) => s.items);
+  // 常用名錄的 docx 走的是同一條名錄渲染鏈，保育欄位與「排除 LC」自然跟著
+  // 匯出設定走，不再自成一格。
+  const conservationFields = useSettings((s) => s.export_conservation_fields);
+  const hideLowConcern = useSettings((s) => s.export_conservation_hide_lc);
   const add = useFavorites((s) => s.add);
   const remove = useFavorites((s) => s.remove);
   const createFolder = useFavorites((s) => s.createFolder);
@@ -361,7 +366,11 @@ export default function FavoritesScreen() {
       const lang = docx ? await pickExportLanguage(t, 'export.language') : null;
       if (docx && !lang) return;
       const bytes = docx
-        ? buildFavoritesDocx(folderLabel(f), rows, lang ?? undefined)
+        ? buildFavoritesDocx(folderLabel(f), rows, {
+            lang: lang ?? undefined,
+            conservationFields,
+            hideLowConcern,
+          })
         : strToU8(buildFavoritesCsv(rows));
       // Date + count basename: the existing filename sanitiser strips CJK, so a
       // Chinese list name would become a row of underscores.

@@ -318,7 +318,7 @@ console.log('check:roundtrip');
   eq('record.leaf_phenology', r0.leaf_phenology, '["deciduous"]');
   eq('record.degree_of_establishment', r0.degree_of_establishment, 'wild');
 
-  // The yml and the _sp.csv share one item builder but answer to different
+  // The yml and the _occurrence_dwc.csv share one item builder but answer to different
   // masters: the yml round-trips back into the app and must keep 'wild', while
   // the CSV is a DwC deliverable and must not emit a value TDWG never defined.
   // These two assertions are what stop the split from silently collapsing.
@@ -421,7 +421,7 @@ checklist:
 
   const zip = zipSync({
     [`${BASE}/${BASE}.yml`]: strToU8(sessionYml),
-    [`${BASE}/名錄_sp.csv`]: strToU8('taxonID\nt0455\n'),
+    [`${BASE}/名錄_occurrence_dwc.csv`]: strToU8('taxonID\nt0455\n'),
     [`${BASE}/${BASE}.md`]: strToU8('# 名錄\n'),
     [`${BASE}/photos/t0455_大葉雀榕_1.jpg`]: new Uint8Array([1, 2, 3]),
     [`${BASE}/manifest.json`]: strToU8(JSON.stringify({ app: 'checklister-ng-mobile', kind: 'session' })),

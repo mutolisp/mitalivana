@@ -55,6 +55,7 @@ export function ExportPreferenceOptions() {
   const reportFormat = useSettings((s) => s.export_report_format);
   const levels = useSettings((s) => s.export_levels);
   const conservationFields = useSettings((s) => s.export_conservation_fields);
+  const hideLowConcern = useSettings((s) => s.export_conservation_hide_lc);
   const setSetting = useSettings((s) => s.set);
 
   const toggleFormat = (f: GeoFormat) => {
@@ -231,6 +232,20 @@ export function ExportPreferenceOptions() {
             </Pressable>
           );
         })}
+      </View>
+      <View className="mb-4 flex-row items-center justify-between border-b border-gray-100 dark:border-gray-800 py-3">
+        <View className="flex-1 pr-3">
+          <Text className="text-sm font-medium text-gray-900 dark:text-gray-100">
+            {t('exportPref.consHideLc')}
+          </Text>
+          <Text className="text-xs text-gray-500 dark:text-gray-400">
+            {t('exportPref.consHideLcHint')}
+          </Text>
+        </View>
+        <Switch
+          value={hideLowConcern}
+          onValueChange={(v) => setSetting('export_conservation_hide_lc', v)}
+        />
       </View>
 
         <View className="mb-3 border-t border-gray-200 dark:border-gray-700 pt-3">

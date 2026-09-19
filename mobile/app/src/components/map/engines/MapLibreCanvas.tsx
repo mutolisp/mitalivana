@@ -59,6 +59,7 @@ export const MapLibreCanvas = forwardRef<MapCamera, MapCanvasProps>(function Map
     vectorStyle,
     showsUserLocation,
     showsCompass,
+    compassInset,
     onMapReady,
     onRegionChangeComplete,
     onPress,
@@ -197,6 +198,10 @@ export const MapLibreCanvas = forwardRef<MapCamera, MapCanvasProps>(function Map
       style={style}
       mapStyle={vectorStyle ?? ''}
       compass={showsCompass}
+      // 野外需要隨時看得到北方，所以朝北時也不要淡出（MapLibre 預設會藏起來，
+      // 和 Apple/Google 的行為一樣，但那是給市區導航用的）。點一下會轉回正北。
+      compassHiddenFacingNorth={false}
+      compassPosition={compassInset ?? { top: 8, right: 8 }}
       // MapLibre 有內建比例尺，但**不要開** —— app 的 MapScaleBar 是 canvas 的
       // 兄弟節點、兩個引擎都會畫（map.tsx），開了會變成兩條。showsScale 在
       // native 引擎是 iOS 縮放時才短暫出現的那條，語意本來就不同。

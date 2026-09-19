@@ -1,0 +1,14 @@
+{
+  "name": "mitalivana-tiles-worker",
+  "private": true,
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260918.1",
+    "typescript": "^5.6.0",
+    "wrangler": "^4"
+  }
+}

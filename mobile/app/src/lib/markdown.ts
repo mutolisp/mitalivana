@@ -61,9 +61,20 @@ export type MarkdownMetadata = {
 export type MarkdownOptions = {
   levelsOverride?: string[];
   conservationFields?: ConservationField[];
+  /** 排除 LC：物種行不再印出無危等級（見 LOW_CONCERN_CATS）。統計不受影響
+   *  —— 統計本來就跳過同一組等級，所以這個開關只是把兩邊對齊。 */
+  hideLowConcern?: boolean;
 };
 
 export type ConservationField = 'redlist' | 'iucn_category' | 'cites' | 'protected';
+
+/** 「安全」等級碼：LC 無危、NLC 不列入、NE 未評估、NA 不適用。名錄開頭的保育
+ *  統計一向跳過這組（見 generateMarkdown 的 skipCats），`hideLowConcern` 則讓
+ *  物種行也跳過同一組。DD（資料不足）不在此列，仍會標示。 */
+const LOW_CONCERN_CATS = new Set(['LC', 'NLC', 'NE', 'NA']);
+
+/** 保育狀態的渲染設定：要印哪幾欄 + 是否排除無危等級。 */
+type ConservationRender = { fields: ConservationField[]; hideLowConcern: boolean };
 
 const DEFAULT_HIERARCHIES: Record<string, string[]> = {
   Tracheophyta: ['pt_name', 'family'],
@@ -284,7 +295,7 @@ function renderGroup(
   depth: number,
   state: RenderState,
   singleGroup: boolean,
-  conservationFields: ConservationField[],
+  cons: ConservationRender,
   t: Translate,
 ): void {
   if (depth >= levels.length) {
@@ -322,11 +333,15 @@ function renderGroup(
       else if (item.source === '栽培') parts.push('†');
 
       const statusParts: string[] = [];
-      if (conservationFields.includes('redlist') && item.redlist) statusParts.push(item.redlist);
-      if (conservationFields.includes('iucn_category') && item.iucn_category)
+      // 排除 LC 只作用在有「無危」概念的兩欄（臺灣紅皮書 / IUCN）；CITES 附錄
+      // 與保育類等級沒有對應的安全值，維持原樣。
+      const showCat = (v: string): boolean =>
+        !!v && !(cons.hideLowConcern && LOW_CONCERN_CATS.has(v));
+      if (cons.fields.includes('redlist') && showCat(item.redlist)) statusParts.push(item.redlist);
+      if (cons.fields.includes('iucn_category') && showCat(item.iucn_category))
         statusParts.push(`IUCN:${item.iucn_category}`);
-      if (conservationFields.includes('cites') && item.cites) statusParts.push(`CITES:${item.cites}`);
-      if (conservationFields.includes('protected') && item.protected) {
+      if (cons.fields.includes('cites') && item.cites) statusParts.push(`CITES:${item.cites}`);
+      if (cons.fields.includes('protected') && item.protected) {
         // `item.protected` is the DB code (I / II / III / 1) and stays verbatim;
         // only the word in front of it is translated.
         const p = item.protected;
@@ -374,15 +389,15 @@ function renderGroup(
     if (depth === 0 && !isLastGroupLevel) {
       const heading = singleGroup ? `## ${display}` : `### ${display}`;
       lines.push('', heading, '');
-      renderGroup(lines, groupItems, levels, depth + 1, state, singleGroup, conservationFields, t);
+      renderGroup(lines, groupItems, levels, depth + 1, state, singleGroup, cons, t);
     } else if (isLastGroupLevel || (depth > 0 && depth === levels.length - 1)) {
       lines.push('', `**${state.counter}. ${display}** (${speciesCount})`, '');
       state.counter += 1;
-      renderGroup(lines, groupItems, levels, depth + 1, state, singleGroup, conservationFields, t);
+      renderGroup(lines, groupItems, levels, depth + 1, state, singleGroup, cons, t);
     } else {
       const hashes = '#'.repeat(Math.min(depth + 2, 4));
       lines.push('', `${hashes} ${display}`, '');
-      renderGroup(lines, groupItems, levels, depth + 1, state, singleGroup, conservationFields, t);
+      renderGroup(lines, groupItems, levels, depth + 1, state, singleGroup, cons, t);
     }
   }
 }
@@ -406,6 +421,10 @@ export function generateMarkdown(
   const listSep = t('checklistDoc.listSep');
   const statSep = t('checklistDoc.statSep');
   const conservationFields = options.conservationFields ?? ['redlist'];
+  const cons: ConservationRender = {
+    fields: conservationFields,
+    hideLowConcern: options.hideLowConcern ?? false,
+  };
 
   const groups = new Map<string, MarkdownItem[]>();
   for (const item of checklist) {
@@ -467,7 +486,7 @@ export function generateMarkdown(
     lines.push(t('checklistDoc.attributes', { stats: statParts.join(listSep) }));
   }
 
-  const skipCats = new Set(['LC', 'NLC', 'NE', 'NA', '']);
+  const skipCats = new Set([...LOW_CONCERN_CATS, '']);
   const conservationStats: string[] = [];
   if (redlistCounts.size > 0) {
     const parts = [...redlistCounts.entries()]
@@ -544,7 +563,7 @@ export function generateMarkdown(
     }
 
     renderGroup(
-      lines, groupItems, levels, 0, state, sortedGroups.length === 1, conservationFields, t,
+      lines, groupItems, levels, 0, state, sortedGroups.length === 1, cons, t,
     );
   }
 

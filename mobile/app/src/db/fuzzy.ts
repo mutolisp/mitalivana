@@ -108,6 +108,27 @@ function loadCnameIndex(): CnameEntry[] | null {
   }
 }
 
+/**
+ * 索引一次掃完，取距離 ≤1；只有在 ≤1 太稀疏時才放寬到 ≤2 —— 與原本「先掃一次
+ * ≤1，不夠再整個重掃一次 ≤2」完全同義，但索引只走一趟。
+ *
+ * `Math.abs(長度差) > 2` 直接跳過不算 Levenshtein：編輯距離至少等於長度差，
+ * 所以這些項目不可能 ≤2，是純剪枝不改結果。6.3 萬筆索引實測 8.2ms → 2.5ms
+ * （Mac；實機再放大數倍），批次匯入每個沒打中的名字都要付一次這個成本。
+ */
+function sweep<T extends { cname: string }>(index: T[], q: string): Array<{ entry: T; dist: number }> {
+  const near: Array<{ entry: T; dist: number }> = [];
+  const wider: Array<{ entry: T; dist: number }> = [];
+  for (const entry of index) {
+    if (Math.abs(entry.cname.length - q.length) > 2) continue;
+    const dist = distance(q, entry.cname);
+    if (dist <= 1) near.push({ entry, dist });
+    else if (dist === 2) wider.push({ entry, dist });
+  }
+  if (near.length >= 3 || q.length < 3) return near;
+  return [...near, ...wider];
+}
+
 export function fuzzySearch({
   q,
   groups,
@@ -120,15 +141,7 @@ export function fuzzySearch({
   const index = loadCnameIndex();
   if (!index) return [];
 
-  let matches = index
-    .map((entry) => ({ entry, dist: distance(q, entry.cname) }))
-    .filter((m) => m.dist <= 1);
-
-  if (matches.length < 3 && q.length >= 3) {
-    matches = index
-      .map((entry) => ({ entry, dist: distance(q, entry.cname) }))
-      .filter((m) => m.dist <= 2);
-  }
+  let matches = sweep(index, q);
 
   // Phonetic (toneless pinyin) fallback for homophone garbles from voice
   // dictation, e.g. 台灣時力 / 臺灣實例 → 臺灣石櫟 (all "tai wan shi li").
@@ -283,10 +296,7 @@ export function fuzzySearchJp({ q, groups, excludeIds, limit = 10 }: FuzzyOption
   const index = loadJpCnameIndex();
   if (!index) return [];
 
-  let matches = index.map((entry) => ({ entry, dist: distance(q, entry.cname) })).filter((m) => m.dist <= 1);
-  if (matches.length < 3 && q.length >= 3) {
-    matches = index.map((entry) => ({ entry, dist: distance(q, entry.cname) })).filter((m) => m.dist <= 2);
-  }
+  let matches = sweep(index, q);
   if (matches.length === 0) return [];
 
   matches.sort((a, b) => {

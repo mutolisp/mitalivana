@@ -1013,6 +1013,8 @@
     "consFields": "보전 상태 항목",
     "consRedlist": "대만 적색목록",
     "consProtected": "보호종 / 희귀식물",
+    "consHideLc": "관심대상(LC) 숨기기",
+    "consHideLcHint": "종 뒤에 LC / NLC / NE / NA를 표시하지 않고 위협 등급만 남깁니다. 목록 앞의 보전 통계는 그대로입니다.",
     "report": "연구 보고서",
     "includeReport": "연구 보고서 포함",
     "includeReportHint": "프로젝트 내보내기에 report/ 폴더를 추가하여 다양도 지수, 조사 노력량, 차트를 담습니다. 현재 인터페이스 언어로 생성됩니다."
@@ -1052,6 +1054,8 @@
     "doneMsg": "{{added}}, {{skipped}} (중복 또는 taxon_id 없음)",
     "title": "일괄 가져오기",
     "preview": "미리보기",
+    "matching": "종 대조 중…",
+    "adding": "추가 중…",
     "add": "추가",
     "paste": "붙여넣기",
     "voice": "음성",

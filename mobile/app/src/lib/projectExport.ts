@@ -22,9 +22,6 @@ import {
   listSitesByProject,
   listSpecimens,
   listSubplots,
-  type CollectionTripWithStats,
-  type PlotSurvey,
-  type SessionWithStats,
 } from '~/db';
 import {
   buildCollectionEntries,
@@ -43,9 +40,9 @@ import {
   type BundleOptions,
   type ExportFile,
 } from './bundleExport';
-import { csvEscape, localIso, multiToPipe } from './bundleYaml';
-import { establishmentDwcValue } from './dwcAttributes';
+import { csvEscape, localIso } from './bundleYaml';
 import { convertToDwc } from './dwcMapper';
+import { buildRecordsDwca } from './dwcRows';
 import { markdownToDocx } from './docx';
 import { generateMarkdown, type MarkdownItem } from './markdown';
 import {
@@ -66,7 +63,6 @@ import {
   type SpeciesCol,
 } from './vegMatrix';
 import { buildJuiceHeader, buildJuiceSpeciesList, buildJuiceTable } from './juiceExport';
-import { buildDwcArchive, type DwcRow } from './dwcArchive';
 import { collectProjectReportInput } from './reportData';
 import { buildProjectReport, type Translate } from './reportModel';
 import { buildReportHtml } from './reportHtml';
@@ -133,9 +129,12 @@ export async function bundleProject(
     }
   };
 
-  for (const p of plots) await addRecord('plot', p.id, p.uuid, () => buildPlotEntries(p.id, opts, ctx));
-  for (const s of sessions) await addRecord('session', s.id, s.uuid, () => buildSessionEntries(s.id, opts, ctx));
-  for (const c of trips) await addRecord('collection', c.id, c.uuid, () => buildCollectionEntries(c.id, opts, ctx));
+  // 逐筆記錄不再各自產一份 DwC-A：整包最後會有一份涵蓋所有記錄的
+  // `dwca/`（同一組 row builder），每個 records/ 子資料夾再放一份只是重複。
+  const recordOpts = { ...opts, includeDwca: false };
+  for (const p of plots) await addRecord('plot', p.id, p.uuid, () => buildPlotEntries(p.id, recordOpts, ctx));
+  for (const s of sessions) await addRecord('session', s.id, s.uuid, () => buildSessionEntries(s.id, recordOpts, ctx));
+  for (const c of trips) await addRecord('collection', c.id, c.uuid, () => buildCollectionEntries(c.id, recordOpts, ctx));
 
   // ── Merged checklist across every record in the project ─────────────────
   // records/ already carries one checklist per record; this is their union,
@@ -179,6 +178,7 @@ export async function bundleProject(
       {
         levelsOverride: opts.levels.length ? orderLevels(opts.levels) : undefined,
         conservationFields: opts.conservationFields,
+        hideLowConcern: opts.conservationHideLowConcern,
       },
     );
     entries.push({ name: 'checklist/checklist.md', bytes: strToU8(checklistMd) });
@@ -249,7 +249,14 @@ export async function bundleProject(
   // ── Darwin Core Archive (all three record kinds) ─────────────────────────
   if (wantDwca && totalRecords > 0) {
     opts.onProgress?.({ label: '產生 Darwin Core Archive…' });
-    const dwca = buildProjectDwca(project.name, project.abstract ?? '', plots, sessions, trips);
+    const dwca = buildRecordsDwca({
+      title: project.name,
+      abstract: project.abstract ?? '',
+      packageId: `checklister-ng-${safeName}-${new Date().toISOString().slice(0, 10)}`,
+      plots,
+      sessions,
+      trips,
+    });
     entries.push({
       name: `dwca/${safeName}_dwca.zip`,
       bytes: dwca,
@@ -354,209 +361,6 @@ export async function bundleProject(
   return finalizeZip(entries, `${safeName}_${ymdStr}`);
 }
 
-// ── DwC-A assembly ──────────────────────────────────────────────────────────
-
-function eventDateOf(start: number | null, end: number | null): string {
-  if (start == null) return '';
-  const s = localIso(start);
-  return end != null ? `${s}/${localIso(end)}` : s;
-}
-
-function buildProjectDwca(
-  title: string,
-  abstract: string,
-  plots: PlotSurvey[],
-  sessions: SessionWithStats[],
-  trips: CollectionTripWithStats[],
-): Uint8Array {
-  const events: DwcRow[] = [];
-  const occurrences: DwcRow[] = [];
-  const humboldt: DwcRow[] = [];
-  const usedIds = new Set<string>();
-  const creators = new Set<string>();
-
-  // DwC eventIDs must be unique; plotid / session names carry no such
-  // guarantee in the schema, so collide → suffix _2, _3…
-  const uniqueEventId = (base: string): string => {
-    let id = base || 'event';
-    for (let n = 2; usedIds.has(id); n++) id = `${base}_${n}`;
-    usedIds.add(id);
-    return id;
-  };
-
-  for (const p of plots) {
-    const eventID = uniqueEventId(p.plotid);
-    if (p.recorded_by) creators.add(p.recorded_by);
-    events.push({
-      eventID,
-      eventDate: eventDateOf(p.start_ts, p.stop_ts),
-      samplingProtocol: p.sampling_protocol,
-      sampleSizeValue: p.sample_size_value,
-      sampleSizeUnit: p.sample_size_unit,
-      locality: p.locality,
-      decimalLatitude: p.decimal_latitude,
-      decimalLongitude: p.decimal_longitude,
-      coordinateUncertaintyInMeters: p.coord_uncertainty_m,
-      minimumElevationInMeters: p.elevation_m,
-      recordedBy: p.recorded_by,
-      eventRemarks: p.field_note,
-    });
-    const subplots = listSubplots(p.id);
-    const subplotEventById = new Map<number, string>();
-    for (const sp of subplots) {
-      const childId = uniqueEventId(`${eventID}-${sp.label}`);
-      subplotEventById.set(sp.id, childId);
-      events.push({
-        eventID: childId,
-        parentEventID: eventID,
-        eventDate: eventDateOf(p.start_ts, p.stop_ts),
-        sampleSizeValue: sp.width_m != null && sp.length_m != null ? sp.width_m * sp.length_m : null,
-        sampleSizeUnit: sp.width_m != null && sp.length_m != null ? 'm²' : null,
-        recordedBy: p.recorded_by,
-      });
-    }
-    const durationMin =
-      p.start_ts != null && p.stop_ts != null
-        ? Math.round((p.stop_ts - p.start_ts) / 60000)
-        : null;
-    humboldt.push({
-      coreEventID: eventID,
-      siteCount: subplots.length > 0 ? subplots.length : null,
-      siteNestingDescription:
-        subplots.length > 0 ? `${subplots.length} subplots (${subplots.map((s) => s.label).join(', ')})` : null,
-      totalAreaSampledValue: p.sample_size_value,
-      totalAreaSampledUnit: p.sample_size_unit,
-      eventDurationValue: durationMin,
-      eventDurationUnit: durationMin != null ? 'minutes' : null,
-      protocolNames: p.sampling_protocol,
-      samplingPerformedBy: p.recorded_by,
-      isAbundanceReported: true,
-      isVegetationCoverReported: p.plot_type === 'fixed',
-      isAbsenceReported: false,
-    });
-    for (const r of listPlotSpecies(p.id)) {
-      occurrences.push({
-        coreEventID: (r.subplot_id != null ? subplotEventById.get(r.subplot_id) : null) ?? eventID,
-        occurrenceID: r.occurrence_id,
-        basisOfRecord: 'HumanObservation',
-        taxonID: r.taxon_id,
-        scientificName: r.used_scientific_name || r.simple_name,
-        scientificNameAuthorship: r.name_author,
-        vernacularName: r.common_name_c,
-        family: r.family,
-        kingdom: r.kingdom,
-        organismQuantity: r.organism_quantity,
-        organismQuantityType: r.organism_quantity_type,
-        sex: multiToPipe(r.sex),
-        lifeStage: r.life_stage,
-        reproductiveCondition: multiToPipe(r.reproductive_condition),
-        degreeOfEstablishment: establishmentDwcValue(r.degree_of_establishment),
-        eventDate: r.observed_at != null ? localIso(r.observed_at) : '',
-        decimalLatitude: r.lat,
-        decimalLongitude: r.lng,
-        coordinateUncertaintyInMeters: r.accuracy,
-        occurrenceRemarks: r.notes,
-      });
-    }
-  }
-
-  for (const s of sessions) {
-    const eventID = uniqueEventId(s.name);
-    if (s.recorded_by) creators.add(s.recorded_by);
-    events.push({
-      eventID,
-      eventDate: eventDateOf(s.started_at, s.ended_at),
-      decimalLatitude: s.start_lat,
-      decimalLongitude: s.start_lng,
-      recordedBy: s.recorded_by,
-      eventRemarks: s.notes,
-    });
-    const durationMin =
-      s.ended_at != null ? Math.round((s.ended_at - s.started_at) / 60000) : null;
-    humboldt.push({
-      coreEventID: eventID,
-      eventDurationValue: durationMin,
-      eventDurationUnit: durationMin != null ? 'minutes' : null,
-      samplingPerformedBy: s.recorded_by,
-      isAbundanceReported: false,
-      isVegetationCoverReported: false,
-      isAbsenceReported: false,
-    });
-    for (const r of listSessionRecords(s.id)) {
-      occurrences.push({
-        coreEventID: eventID,
-        occurrenceID: r.occurrence_id,
-        basisOfRecord: 'HumanObservation',
-        taxonID: r.taxon_id,
-        scientificName: r.used_scientific_name || r.simple_name,
-        scientificNameAuthorship: r.name_author,
-        vernacularName: r.common_name_c,
-        family: r.family,
-        kingdom: r.kingdom,
-        organismQuantity: r.organism_quantity,
-        organismQuantityType: r.organism_quantity_type,
-        sex: multiToPipe(r.sex),
-        lifeStage: r.life_stage,
-        reproductiveCondition: multiToPipe(r.reproductive_condition),
-        degreeOfEstablishment: establishmentDwcValue(r.degree_of_establishment),
-        eventDate: localIso(r.observed_at),
-        decimalLatitude: r.lat,
-        decimalLongitude: r.lng,
-        coordinateUncertaintyInMeters: r.accuracy,
-        occurrenceRemarks: r.notes,
-      });
-    }
-  }
-
-  for (const c of trips) {
-    const eventID = uniqueEventId(c.name);
-    if (c.recorded_by) creators.add(c.recorded_by);
-    events.push({
-      eventID,
-      eventDate: eventDateOf(c.started_at, c.ended_at),
-      locality: c.locality,
-      recordedBy: c.recorded_by,
-      eventRemarks: c.notes,
-    });
-    for (const sp of listSpecimens(c.id)) {
-      occurrences.push({
-        coreEventID: eventID,
-        occurrenceID: sp.occurrence_id,
-        basisOfRecord: 'PreservedSpecimen',
-        taxonID: sp.taxon_id,
-        scientificName: sp.used_scientific_name || sp.simple_name,
-        scientificNameAuthorship: sp.name_author,
-        vernacularName: sp.common_name_c,
-        family: sp.family,
-        kingdom: sp.kingdom,
-        sex: multiToPipe(sp.sex),
-        lifeStage: sp.life_stage,
-        reproductiveCondition: multiToPipe(sp.reproductive_condition),
-        degreeOfEstablishment: establishmentDwcValue(sp.degree_of_establishment),
-        eventDate: sp.collected_at != null ? localIso(sp.collected_at) : '',
-        decimalLatitude: sp.lat,
-        decimalLongitude: sp.lng,
-        coordinateUncertaintyInMeters: sp.accuracy,
-        occurrenceRemarks: sp.notes,
-      });
-    }
-  }
-
-  const now = new Date();
-  return buildDwcArchive({
-    meta: {
-      title,
-      abstract,
-      creator: [...creators].join(', '),
-      pubDate: now.toISOString().slice(0, 10),
-      packageId: `checklister-ng-${sanitizeFilename(title)}-${now.toISOString().slice(0, 10)}`,
-    },
-    events,
-    occurrences,
-    humboldt,
-  });
-}
-
 // ── README ──────────────────────────────────────────────────────────────────
 
 function buildReadme(
@@ -582,7 +386,8 @@ function buildReadme(
     '',
     '## 內容結構',
     '',
-    '- `records/` — 逐筆記錄的完整匯出（yml / csv / md / geo / 照片），與單筆匯出格式相同，可個別重新匯入 app',
+    '- `records/` — 逐筆記錄的完整匯出（yml / csv / md / geo / 照片），與單筆匯出格式相同，可個別重新匯入 app'
+      + '；DwC-A 只在本包最外層的 `dwca/` 出一份（涵蓋全部記錄），逐筆資料夾內不重複產生',
     '- `checklist/` — **全專案合併物種名錄**（md / docx / csv）：樣區、名錄、採集三種記錄的物種聯集去重，'
       + '不含各筆記錄的豐度與備註（同一種可能在多個樣區有不同值）',
     '- `analysis/` — 跨樣區分析資料表（樣方 × 物種矩陣、環境表；**只涵蓋樣區**，名錄與採集不進矩陣）',
@@ -653,7 +458,8 @@ function buildReadme(
  * Columns are the union of every row's keys, so a list where only some species
  * carry a CITES appendix still gets that column. UTF-8 BOM because Excel on
  * Windows reads a BOM-less UTF-8 CSV as the local codepage and mangles every
- * CJK name. Rows are ordered taxonomically, matching the per-record `_sp.csv`.
+ * CJK name. Rows are ordered taxonomically, matching the per-record
+ * `_occurrence_dwc.csv`.
  *
  * Unlike the Markdown twin this is never localized: DwC terms are a controlled
  * vocabulary and a translated header would not be readable by GBIF or R.

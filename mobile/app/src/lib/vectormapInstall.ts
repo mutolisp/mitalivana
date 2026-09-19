@@ -185,10 +185,19 @@ export function cancelVectorInstall(): void {
   cancelled = true;
 }
 
+/**
+ * 下載到 dest，並在知道預期大小時**核對位元組數**。
+ *
+ * HTTP 狀態碼是 200 不代表檔案完整：連線中斷、空間不足、系統把背景下載收掉，
+ * 都可能留下一個截短的檔。.pmtiles 被截短特別難查 —— 標頭與根目錄都在檔案開頭
+ * 讀得到，所以樣式載得起來，只是圖磚一張都拿不到，畫面上就是「山體陰影有、
+ * 向量地圖整片空白」。寧可當場失敗，也不要留一個看起來裝好的壞檔。
+ */
 async function downloadTo(
   url: string,
   dest: File,
   onProgress?: (received: number, total: number) => void,
+  expectBytes?: number,
 ): Promise<void> {
   if (dest.exists) dest.delete();
   const dl = createDownloadResumable(
@@ -201,6 +210,13 @@ async function downloadTo(
   if (!res || res.status < 200 || res.status >= 300) {
     if (dest.exists) dest.delete();
     throw new Error(`HTTP ${res?.status ?? '?'} ${url}`);
+  }
+  if (expectBytes != null && expectBytes > 0) {
+    const got = dest.size ?? 0;
+    if (got !== expectBytes) {
+      if (dest.exists) dest.delete();
+      throw new Error(`下載不完整：${dest.name} 收到 ${got} / 應為 ${expectBytes} 位元組`);
+    }
   }
 }
 
@@ -330,14 +346,18 @@ export async function startVectorInstall(manifest: VectorManifest): Promise<void
 
     ensureVectorRoot();
 
-    await downloadTo(tilesUrl, vectorTilesFile(), (received, total) =>
-      useVectorInstall.setState({
-        progress: {
-          phase: 'tiles',
-          receivedBytes: received,
-          totalBytes: total > 0 ? total : (manifest.tileBytes ?? manifest.bytes),
-        },
-      }),
+    await downloadTo(
+      tilesUrl,
+      vectorTilesFile(),
+      (received, total) =>
+        useVectorInstall.setState({
+          progress: {
+            phase: 'tiles',
+            receivedBytes: received,
+            totalBytes: total > 0 ? total : (manifest.tileBytes ?? manifest.bytes),
+          },
+        }),
+      manifest.tileBytes,
     );
     if (cancelled) throw new Error('cancelled');
 
@@ -374,6 +394,7 @@ export async function startVectorInstall(manifest: VectorManifest): Promise<void
       bytes: manifest.bytes,
       installedAt: Date.now(),
       spriteUrl: String(remoteStyle.sprite ?? ''),
+      tileBytes: vectorTilesFile().size ?? undefined,
     };
     writeVectorInstalled(state);
     useVectorInstall.setState({

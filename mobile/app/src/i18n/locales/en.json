@@ -1068,6 +1068,8 @@
     "consFields": "Conservation status columns",
     "consRedlist": "Taiwan Red List",
     "consProtected": "Protected / rare plant",
+    "consHideLc": "Hide least-concern codes",
+    "consHideLcHint": "Species lines drop LC / NLC / NE / NA and keep only threatened categories. The conservation summary is unaffected.",
     "report": "Research report",
     "includeReport": "Include research report",
     "includeReportHint": "Adds a report/ folder to the project bundle with diversity indices, sampling effort and charts. Generated in the current interface language."
@@ -1111,6 +1113,8 @@
     "doneMsg": "{{added}}, {{skipped}} (duplicate or missing taxon_id)",
     "title": "Batch import",
     "preview": "Preview",
+    "matching": "Matching species…",
+    "adding": "Adding…",
     "add": "Add",
     "paste": "Paste",
     "voice": "Voice",

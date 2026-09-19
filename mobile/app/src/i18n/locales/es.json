@@ -1123,6 +1123,8 @@
     "consFields": "Columnas de estado de conservación",
     "consRedlist": "Lista roja de Taiwán",
     "consProtected": "Protegida / planta rara",
+    "consHideLc": "Ocultar categorías LC",
+    "consHideLcHint": "Las líneas de especies omiten LC / NLC / NE / NA y solo muestran categorías amenazadas. Las estadísticas de conservación no cambian.",
     "report": "Informe de investigación",
     "includeReport": "Incluir informe de investigación",
     "includeReportHint": "Añade una carpeta report/ a la exportación del proyecto, con índices de diversidad, esfuerzo de muestreo y gráficos. Se genera en el idioma actual de la interfaz."
@@ -1170,6 +1172,8 @@
     "doneMsg": "{{added}}, {{skipped}} (duplicados o sin taxon_id)",
     "title": "Importación por lotes",
     "preview": "Vista previa",
+    "matching": "Cotejando especies…",
+    "adding": "Añadiendo…",
     "add": "Añadir",
     "paste": "Pegar",
     "voice": "Voz",

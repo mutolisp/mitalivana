@@ -217,6 +217,9 @@ type SettingsValues = {
   export_levels: string[];
   /** Conservation-status columns to include in the exported checklist. */
   export_conservation_fields: ConservationField[];
+  /** 排除 LC：匯出的名錄不在物種後面標註無危等級（LC / NLC / NE / NA）。
+   *  名錄開頭的保育統計本來就跳過同一組等級，所以只影響版面，不影響統計。 */
+  export_conservation_hide_lc: boolean;
   /** Enabled regional name databases. Always contains 'TW'; 'JP' is opt-in.
    *  When only ['TW'] the app behaves byte-identically to before this feature. */
   enabled_regions: RegionCode[];
@@ -267,6 +270,8 @@ const DEFAULTS: SettingsValues = {
   export_report_format: 'html',
   export_levels: [],
   export_conservation_fields: ['redlist'],
+  // 預設開啟（使用者決定）：LC/NLC 佔掉每一行的尾巴，版面太亂。
+  export_conservation_hide_lc: true,
   enabled_regions: ['TW'],
   language: 'system',
 };
@@ -410,6 +415,10 @@ function readAll(): SettingsValues {
     export_report_format: parseReportFormat(map.get('export_report_format')),
     export_levels: parseLevels(map.get('export_levels')),
     export_conservation_fields: parseConservationFields(map.get('export_conservation_fields')),
+    export_conservation_hide_lc:
+      map.get('export_conservation_hide_lc') == null
+        ? DEFAULTS.export_conservation_hide_lc
+        : map.get('export_conservation_hide_lc') === 'true',
     enabled_regions: parseRegions(map.get('enabled_regions')),
     language: parseLanguage(map.get('language')),
   };

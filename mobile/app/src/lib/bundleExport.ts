@@ -62,6 +62,7 @@ import i18n from '~/i18n';
 import { generateMarkdown, type ConservationField } from './markdown';
 import type { Translate } from './reportTypes';
 import { markdownToDocx } from './docx';
+import { buildRecordsDwca, type DwcaInput } from './dwcRows';
 import { geoJsonToGpx, geoJsonToKml } from './geoSerializers';
 
 
@@ -83,6 +84,11 @@ export type BundleOptions = {
   levels: string[];
   /** Conservation-status columns to include in the checklist. */
   conservationFields: ConservationField[];
+  /** 排除 LC：名錄的物種行不印無危等級（LC/NLC/NE/NA）。統計不受影響。 */
+  conservationHideLowConcern: boolean;
+  /** Emit a Darwin Core Archive (dwca/…zip) for this record. Mirrors the
+   *  project export's 'dwca' analysis-format checkbox. */
+  includeDwca: boolean;
   /** Language for the checklist's prose and group headings. Omitted =
    *  current UI language. Species names, DwC terms and conservation codes
    *  are data and never follow it. */
@@ -364,6 +370,77 @@ export function plotSpeciesToMarkdownItem(
 
 
 
+/**
+ * DwC occurrence rows → CSV text.
+ *
+ * Header is the union of the rows' own keys, so a field only some records
+ * carry (a determination note, an adopted name) still gets its column. It used
+ * to be derived from the *yml* items while the values came from the DwC rows —
+ * the two key sets happened to match, but nothing enforced it.
+ *
+ * UTF-8 BOM: Excel on Windows reads a BOM-less UTF-8 CSV as the local codepage
+ * and mangles every Chinese name.
+ */
+/**
+ * 單筆記錄 zip 的 README。
+ *
+ * 從實際產出的 entries 反推檔案清單，不是寫死的說明 —— 勾不勾照片、有沒有
+ * 樣區小區、DwC-A 開不開，每次的檔案組合都不同，寫死的清單一定會跟產出漂移。
+ * 內容固定用正體中文，與專案匯出的 README 一致（匯出文件的語言選擇只作用在
+ * 名錄本身）。
+ */
+const README_RULES: Array<{ match: (name: string) => boolean; desc: string }> = [
+  { match: (n) => n.endsWith('.yml'), desc: '本 app 的完整格式（可從「匯入記錄」原樣讀回，含照片檔名對應）' },
+  {
+    match: (n) => n.endsWith('_occurrence_dwc.csv'),
+    desc: 'Darwin Core occurrence 表：一列一筆物種記錄，欄名為 DwC 詞彙（basisOfRecord / eventID / taxonID / scientificName…），可直接給 Excel、R、GBIF 對照',
+  },
+  { match: (n) => n.endsWith('_env.csv'), desc: '事件層（Event）中繼資料與環境值，tall 格式（term,value）' },
+  { match: (n) => n.endsWith('_subplots.csv'), desc: '小區尺寸與各層覆蓋度／高度' },
+  {
+    match: (n) => n.includes('/dwca/'),
+    desc: 'Darwin Core Archive：event.txt（Event core）+ occurrence.txt + humboldt.txt + meta.xml + eml.xml，可直接上傳 GBIF IPT',
+  },
+  { match: (n) => n.endsWith('.md'), desc: '物種名錄文件（Markdown）' },
+  { match: (n) => n.endsWith('.docx'), desc: '物種名錄文件（Word）' },
+  { match: (n) => n.includes('/photos/'), desc: '記錄的照片（檔名對應 yml 的 photo_files）' },
+  { match: (n) => /\/(points|track|site)\.(geojson|gpx|kml)$/.test(n), desc: '地理檔（GIS／GPS 軟體用）' },
+  { match: (n) => n.endsWith('manifest.json'), desc: '匯出中繼資料（記錄種類、筆數、產生時間）' },
+];
+
+function buildRecordReadme(title: string, entries: BuiltZipEntry[]): string {
+  const lines = [`# ${title}`, '', '本資料夾的檔案：', ''];
+  const used = new Set<string>();
+  for (const e of entries) {
+    const rule = README_RULES.find((r) => r.match(e.name));
+    if (!rule || used.has(rule.desc)) continue;
+    used.add(rule.desc);
+    const shown = e.name.includes('/photos/')
+      ? 'photos/'
+      : e.name.includes('/dwca/')
+        ? 'dwca/*.zip'
+        : e.name.slice(e.name.indexOf('/') + 1);
+    lines.push(`- \`${shown}\` — ${rule.desc}`);
+  }
+  lines.push('', '由 Checklister-NG mobile 匯出。');
+  return lines.join('\n');
+}
+
+function buildOccurrenceCsv(rows: Array<Record<string, unknown>>): string {
+  const keys: string[] = [];
+  const seen = new Set<string>();
+  for (const row of rows) {
+    for (const k of Object.keys(row)) {
+      if (seen.has(k)) continue;
+      seen.add(k);
+      keys.push(k);
+    }
+  }
+  const lines = [keys.join(',')];
+  for (const row of rows) lines.push(keys.map((k) => csvEscape(row[k])).join(','));
+  return '﻿' + lines.join('\n');
+}
+
 /** Build the species CSV body for a plot. Columns are DwC terms — only
  *  `verbatimVegetationLayer` is non-standard because there's no DwC term for
  *  a within-event vegetation stratum. */
@@ -372,6 +449,8 @@ function buildPlotSpeciesCsv(
   plotType: PlotType,
   plotid: string,
   subplotLabelById: Map<number, string>,
+  datasetName: string,
+  recordedBy: string,
 ): string {
   // verbatimVegetationLayer only carries meaning for fixed plots (E1-E6).
   // Transect ('T') and point_count have no vegetation stratum, so the column
@@ -386,6 +465,12 @@ function buildPlotSpeciesCsv(
     r.subplot_id != null ? `${plotid}-${subplotLabelById.get(r.subplot_id) ?? r.subplot_id}` : plotid;
   const cols: Array<{ h: string; v: (r: PlotSpeciesRecordWithTaxon) => unknown }> = [
     { h: 'occurrenceID', v: (r) => r.occurrence_id },
+    // 這張表被拆出 zip 單獨開啟時也要能被當成 DwC occurrence 讀：basisOfRecord
+    // 是 GBIF 的必填欄，datasetName / recordedBy 則是事件層的資訊，不補進來就
+    // 只剩 env.csv 知道。
+    { h: 'basisOfRecord', v: () => 'HumanObservation' },
+    { h: 'datasetName', v: () => datasetName },
+    { h: 'recordedBy', v: () => recordedBy },
     { h: 'eventID', v: eventIdOf },
     ...(hasSubplots
       ? [{ h: 'parentEventID', v: (r: PlotSpeciesRecordWithTaxon) => (r.subplot_id != null ? plotid : '') }]
@@ -509,6 +594,30 @@ function buildPlotPoints(records: PlotSpeciesRecordWithTaxon[]): { type: 'Featur
 
 export type BuiltZipEntry = { name: string; bytes: Uint8Array; zipOpts?: ZipOptions };
 
+/**
+ * 單筆記錄的 Darwin Core Archive。
+ *
+ * 與專案匯出走同一組 row builder（`buildRecordsDwca`），差別只在餵進去的是一筆
+ * 記錄而不是整個專案 —— 這樣「快速名錄自己的 DwC-A」與「專案裡同一筆記錄的
+ * DwC-A」不會變成兩份各自漂移的實作。DwC-A 本身已是 deflate 流，放進外層 zip
+ * 時用 level 0 存放，不再壓一次。
+ */
+function addDwcaEntry(
+  entries: BuiltZipEntry[],
+  base: string,
+  title: string,
+  abstract: string,
+  records: Pick<DwcaInput, 'plots' | 'sessions' | 'trips'>,
+): void {
+  const bytes = buildRecordsDwca({
+    ...records,
+    title,
+    abstract,
+    packageId: `checklister-ng-${base}-${new Date().toISOString().slice(0, 10)}`,
+  });
+  entries.push({ name: `${base}/dwca/${base}_dwca.zip`, bytes, zipOpts: { level: 0 } });
+}
+
 export async function buildSessionEntries(
   sessionId: number,
   opts: BundleOptions,
@@ -559,7 +668,6 @@ export async function buildSessionEntries(
     site: siteForYaml,
     photoNames,
   });
-  const dwcItems = (yamlData.checklist ?? []) as Record<string, unknown>[];
   entries.push({ name: `${base}/${base}.yml`, bytes: strToU8(yaml.dump(yamlData, { lineWidth: -1, noRefs: true })) });
 
   // ${session.name}_env.csv — tall (term,value) format, mirrors plot env.
@@ -585,21 +693,26 @@ export async function buildSessionEntries(
     bytes: strToU8(envCsv),
   });
 
-  // ${session.name}_sp.csv — DwC species records (was the old `${base}.csv`).
-  // CSV rows are ordered taxonomically (kingdom→…→genus→species); the yml
-  // checklist above stays in observation order.
+  // ${session.name}_occurrence_dwc.csv — DwC occurrence table (was `_sp.csv`).
+  // Rows ordered taxonomically (kingdom→…→genus→species); the yml checklist
+  // above stays in observation order.
+  //
+  // basisOfRecord / eventID / datasetName / recordedBy are added HERE and not
+  // in the yml: the yml is the round-trip format and already carries them in
+  // its `event:` block, while this CSV is a deliverable that has to stand on
+  // its own once it is opened away from the bundle.
   const csvItems = [...records]
     .sort(taxonSortCompare)
-    .map((r) => toDwcCsvRow(recordToYamlItem(r, photoNames)));
-  const allKeys = new Set<string>();
-  for (const row of dwcItems) for (const k of Object.keys(row)) allKeys.add(k);
-  const keys = Array.from(allKeys);
-  const csvLines = [keys.join(',')];
-  for (const row of csvItems) csvLines.push(keys.map((k) => csvEscape(row[k])).join(','));
-  const csv = '﻿' + csvLines.join('\n');
+    .map((r) => ({
+      basisOfRecord: 'HumanObservation',
+      eventID: eventMeta.eventID,
+      datasetName: eventMeta.datasetName,
+      recordedBy: session.recorded_by ?? '',
+      ...toDwcCsvRow(recordToYamlItem(r, photoNames)),
+    }));
   entries.push({
-    name: `${base}/${sanitizeFilename(session.name)}_sp.csv`,
-    bytes: strToU8(csv),
+    name: `${base}/${sanitizeFilename(session.name)}_occurrence_dwc.csv`,
+    bytes: strToU8(buildOccurrenceCsv(csvItems)),
   });
 
   // Markdown
@@ -610,6 +723,7 @@ export async function buildSessionEntries(
     {
       levelsOverride: opts.levels.length ? orderLevels(opts.levels) : undefined,
       conservationFields: opts.conservationFields,
+      hideLowConcern: opts.conservationHideLowConcern,
     },
   );
   entries.push({ name: `${base}/${base}.md`, bytes: strToU8(md) });
@@ -643,6 +757,15 @@ export async function buildSessionEntries(
     }
   }
 
+  // Darwin Core Archive — GBIF-publishable packaging of this one session.
+  if (opts.includeDwca) {
+    addDwcaEntry(entries, base, session.name, project?.name ?? '', {
+      plots: [],
+      sessions: [session],
+      trips: [],
+    });
+  }
+
   // Manifest
   const manifest = buildManifest({
     kind: 'session',
@@ -656,6 +779,11 @@ export async function buildSessionEntries(
     geoFormats: opts.geoFormats,
   });
   entries.push({ name: `${base}/manifest.json`, bytes: strToU8(JSON.stringify(manifest, null, 2)) });
+  // README 排在最後：清單是從實際產出的 entries 反推的，manifest 也要算進去。
+  entries.push({
+    name: `${base}/README.md`,
+    bytes: strToU8(buildRecordReadme(session.name, entries)),
+  });
 
   return { entries, folderName: base };
 }
@@ -742,6 +870,7 @@ export async function buildPlotEntries(
     {
       levelsOverride: opts.levels.length ? orderLevels(opts.levels) : undefined,
       conservationFields: opts.conservationFields,
+      hideLowConcern: opts.conservationHideLowConcern,
     },
   );
   entries.push({ name: `${base}/${plot.plotid}_checklist.md`, bytes: strToU8(checklistMd) });
@@ -763,7 +892,7 @@ export async function buildPlotEntries(
     entries.push({ name: `${base}/${plot.plotid}_env.csv`, bytes: strToU8(envCsv) });
   }
 
-  // ${plotid}_sp.csv — species records under DwC terms (scientificName,
+  // ${plotid}_occurrence_dwc.csv — species records under DwC terms (scientificName,
   // vernacularName, organismQuantity, organismQuantityType, family, taxonID).
   // Layer kept as a non-standard column since there is no DwC term for a
   // vegetation stratum within an event.
@@ -774,8 +903,10 @@ export async function buildPlotEntries(
     plot.plot_type,
     plot.plotid,
     subplotLabelById,
+    project?.name ?? '',
+    plot.recorded_by ?? '',
   );
-  entries.push({ name: `${base}/${plot.plotid}_sp.csv`, bytes: strToU8(spCsv) });
+  entries.push({ name: `${base}/${plot.plotid}_occurrence_dwc.csv`, bytes: strToU8(spCsv) });
 
   // ${plotid}_subplots.csv — per-subplot dimensions + per-layer cover/height
   // (only when the plot is split into subplots). Layer method/unit are shared.
@@ -846,6 +977,15 @@ export async function buildPlotEntries(
     }
   }
 
+  // Darwin Core Archive — same builder as the project export, one plot in.
+  if (opts.includeDwca) {
+    addDwcaEntry(entries, base, plot.plotid, project?.name ?? '', {
+      plots: [plot],
+      sessions: [],
+      trips: [],
+    });
+  }
+
   // Manifest
   const manifest = buildManifest({
     kind: 'plot',
@@ -861,6 +1001,11 @@ export async function buildPlotEntries(
     geoFormats: opts.geoFormats,
   });
   entries.push({ name: `${base}/manifest.json`, bytes: strToU8(JSON.stringify(manifest, null, 2)) });
+  // README 排在最後：清單是從實際產出的 entries 反推的，manifest 也要算進去。
+  entries.push({
+    name: `${base}/README.md`,
+    bytes: strToU8(buildRecordReadme(plot.plotid, entries)),
+  });
 
   return { entries, folderName: base };
 }
@@ -926,17 +1071,19 @@ export async function buildCollectionEntries(
     ['term,value', ...envRows.map((r) => `${csvEscape(r.term)},${csvEscape(r.value)}`)].join('\n');
   entries.push({ name: `${base}/${sanitizeFilename(trip.name)}_env.csv`, bytes: strToU8(envCsv) });
 
-  // _sp.csv — DwC occurrence rows, ordered taxonomically (the yml above keeps
-  // collection order, same split as sessions).
-  const csvItems = [...specimens].sort(taxonSortCompare).map((sp) => toDwcCsvRow(specimenToYamlItem(sp)));
-  const allKeys = new Set<string>();
-  for (const row of dwcItems) for (const k of Object.keys(row)) allKeys.add(k);
-  const keys = Array.from(allKeys);
-  const csvLines = [keys.join(',')];
-  for (const row of csvItems) csvLines.push(keys.map((k) => csvEscape(row[k])).join(','));
+  // _occurrence_dwc.csv — DwC occurrence rows, ordered taxonomically (the yml
+  // above keeps collection order, same split as sessions). Event-level columns
+  // added here for the same reason as the session table.
+  const csvItems = [...specimens].sort(taxonSortCompare).map((sp) => ({
+    basisOfRecord: 'PreservedSpecimen',
+    eventID: trip.name,
+    datasetName: project?.name ?? '',
+    recordedBy: trip.recorded_by ?? '',
+    ...toDwcCsvRow(specimenToYamlItem(sp)),
+  }));
   entries.push({
-    name: `${base}/${sanitizeFilename(trip.name)}_sp.csv`,
-    bytes: strToU8('﻿' + csvLines.join('\n')),
+    name: `${base}/${sanitizeFilename(trip.name)}_occurrence_dwc.csv`,
+    bytes: strToU8(buildOccurrenceCsv(csvItems)),
   });
 
   // Markdown checklist — dedupe by taxon (a trip may hold several duplicates of
@@ -955,6 +1102,7 @@ export async function buildCollectionEntries(
     {
       levelsOverride: opts.levels.length ? orderLevels(opts.levels) : undefined,
       conservationFields: opts.conservationFields,
+      hideLowConcern: opts.conservationHideLowConcern,
     },
   );
   entries.push({ name: `${base}/${base}.md`, bytes: strToU8(md) });
@@ -974,6 +1122,15 @@ export async function buildCollectionEntries(
     );
   }
 
+  // Darwin Core Archive — specimens land as basisOfRecord=PreservedSpecimen.
+  if (opts.includeDwca) {
+    addDwcaEntry(entries, base, trip.name, project?.name ?? '', {
+      plots: [],
+      sessions: [],
+      trips: [trip],
+    });
+  }
+
   const manifest = buildManifest({
     kind: 'collection',
     id: tripId,
@@ -985,6 +1142,11 @@ export async function buildCollectionEntries(
     geoFormats: opts.geoFormats,
   });
   entries.push({ name: `${base}/manifest.json`, bytes: strToU8(JSON.stringify(manifest, null, 2)) });
+  // README 排在最後：清單是從實際產出的 entries 反推的，manifest 也要算進去。
+  entries.push({
+    name: `${base}/README.md`,
+    bytes: strToU8(buildRecordReadme(trip.name, entries)),
+  });
 
   return { entries, folderName: base };
 }
@@ -1165,7 +1327,7 @@ function restamped(b64: string, fileUri: string, ctx: PhotoSpeciesContext | null
 /**
  * A yml item reshaped for a DwC-named CSV.
  *
- * The `.yml` and the `_sp.csv` share one item builder, but they answer to
+ * The `.yml` and the `_occurrence_dwc.csv` share one item builder, but they answer to
  * different masters: the yml is this app's own round-trip format (it also
  * carries eventUUID / gpsMode / startedAt, none of them DwC) and `sessionImport`
  * reads `degreeOfEstablishment` straight back, so it must keep every value the

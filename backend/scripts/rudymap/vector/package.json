@@ -1,0 +1,11 @@
+{
+  "name": "rudymap-vector-tools",
+  "private": true,
+  "description": "向量圖磚管線的 Node 工具（目前只有 glyph 產生器）",
+  "scripts": {
+    "glyphs": "node build_glyphs.js"
+  },
+  "dependencies": {
+    "fontnik": "^0.7.7"
+  }
+}

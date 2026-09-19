@@ -1013,6 +1013,8 @@
     "consFields": "保育狀態欄位",
     "consRedlist": "臺灣紅皮書",
     "consProtected": "保育類 / 珍稀植物",
+    "consHideLc": "排除 LC（無危等級）",
+    "consHideLcHint": "開啟後物種後面不再標註 LC / NLC / NE / NA，只留受威脅等級；名錄開頭的保育統計不受影響。",
     "report": "研究報表",
     "includeReport": "隨附研究分析報表",
     "includeReportHint": "在專案匯出包中加入 report/ 資料夾，含多樣性指標、取樣努力量與圖表。以目前介面語言產生。"
@@ -1052,6 +1054,8 @@
     "doneMsg": "{{added}}，{{skipped}}（重複或缺 taxon_id）",
     "title": "批次匯入",
     "preview": "預覽",
+    "matching": "比對物種中…",
+    "adding": "加入名錄中…",
     "add": "加入",
     "paste": "貼上",
     "voice": "語音",

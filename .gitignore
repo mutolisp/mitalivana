@@ -7,6 +7,8 @@ __pycache__/
 
 # Node dependencies
 frontend/node_modules/
+backend/scripts/rudymap/vector/node_modules/
+backend/scripts/rudymap/vector/worker/node_modules/
 
 # SvelteKit build outputs
 frontend/.svelte-kit/

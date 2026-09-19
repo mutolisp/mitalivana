@@ -352,6 +352,7 @@ export default function RecordsListScreen() {
   const includeDocx = useSettings((s) => s.export_include_docx);
   const levels = useSettings((s) => s.export_levels);
   const conservationFields = useSettings((s) => s.export_conservation_fields);
+  const conservationHideLowConcern = useSettings((s) => s.export_conservation_hide_lc);
   const matrixValue = useSettings((s) => s.export_matrix_value);
   const analysisFormats = useSettings((s) => s.export_analysis_formats);
   const matrixByLayer = useSettings((s) => s.export_matrix_by_layer);
@@ -444,6 +445,8 @@ export default function RecordsListScreen() {
       includeDocx,
       levels,
       conservationFields,
+      conservationHideLowConcern,
+      includeDwca: analysisFormats.includes('dwca'),
       lang,
       onProgress,
     };
@@ -483,6 +486,8 @@ export default function RecordsListScreen() {
         includeDocx,
         levels,
         conservationFields,
+        conservationHideLowConcern,
+        includeDwca: analysisFormats.includes('dwca'),
         lang,
         matrixValue,
         analysisFormats,
@@ -526,6 +531,8 @@ export default function RecordsListScreen() {
         includeDocx,
         levels,
         conservationFields,
+        conservationHideLowConcern,
+        includeDwca: analysisFormats.includes('dwca'),
         lang,
         onProgress,
       }),

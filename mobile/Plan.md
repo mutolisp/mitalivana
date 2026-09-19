@@ -3782,3 +3782,95 @@ Android 那邊同理（`plugin/android.ts`）。
 3. **tippecanoe 會自己猜 base zoom 然後稀釋點** —— 玉山山頂標示就這樣消失，
    而且小範圍子集重現不出來，要全量資料才觸發
 4. **`hashWay` 只取首尾兩點判重複** —— 誤刪 1,182 個圖徵（已修但尚未進圖磚）
+
+## 2026-09-19 — 匯出設定「排除 LC」＋ 批次匯入效能／進度 ＋ 單筆 Darwin Core
+
+三件使用者提的事，共用同一條匯出／名錄管線。
+
+### 1. 匯出設定：排除 LC（預設開啟）
+
+物種行被 `LC` / `NLC` 塞滿，版面很吵；但名錄開頭的保育統計本來就跳過
+`skipCats = {LC, NLC, NE, NA}`。所以這不是新規則，而是把**物種行對齊統計已有的
+定義**：新設定 `export_conservation_hide_lc` 打開時，`markdown.ts` 的物種行不印
+這四個碼（紅皮書與 IUCN 兩欄；CITES 附錄與保育類等級沒有「安全值」的概念，不
+受影響），`DD`（資料不足）不算安全等級，照印。統計行一個字都不會變。
+
+實作上把原本寫死在統計區的那組碼抽成 `LOW_CONCERN_CATS`，兩邊共用，以免將來
+一邊改一邊沒改。選項沿 `BundleOptions.conservationHideLowConcern` 往下傳（**必填**
+而非選填，這樣漏接的呼叫端由 tsc 抓，不會靜默沿用舊行為）。
+
+順手補上：**常用名錄（favorites）的 docx 匯出本來完全不吃匯出設定**，保育欄位
+固定只有臺灣紅皮書。現在 `buildFavoritesDocx` 收 `{ lang, conservationFields,
+hideLowConcern }`，與其他名錄匯出同一套。
+
+### 2. 批次匯入「預覽」慢：瓶頸在哪
+
+貼 100 種按預覽要等很久。實測（Mac，bundle DB 26.9 萬列；實機再放大數倍）：
+
+| 每個名字要付的成本 | 量到 |
+|---|---|
+| `searchSpecies` 的 `LIKE '%q%'`（10 個條件、全表掃描） | ~95 ms |
+| `markSensuLato` 每個雙名結果再打一次 `LIKE 'Genus sp %'` | ~17 ms × 結果數 |
+| 模糊比對（6.3 萬筆索引，原本掃兩趟） | ~8 ms |
+| **等值查詢**（`idx_taicol_common_name` / `idx_taicol_simple_name`） | **~0.02 ms** |
+
+也就是說，批次匯入把「為了模糊比對而設計的搜尋」套在「名字本來就打對」的常態
+上，每筆都付全表掃描。100 筆 ≈ 9.5 秒（Mac）。
+
+修法三層：
+
+1. **快路徑** `lookupExactAccepted()`：等值查全表比對接受名，唯一命中才算數，
+   0 筆或 2 筆以上一律退回原本的完整搜尋 —— 同義名解析、模糊比對、多筆候選
+   挑選的行為完全不變。抽樣 300 個俗名有 279 個直接命中；再補上與
+   `searchSpecies` 相同的「同俗名的種 + 原名亞種」去重後是 297 個（`豬殃殃` =
+   *Galium spurium* 與 *G. spurium* fo. *vaillantii* 這種組合佔 6%）。
+2. **`+usage_status` 的加號不是筆誤**：`AND usage_status = 'accepted'` 會讓
+   SQLite 改走 `idx_taicol_usage_status`（幾乎整張表同一個值），實測 0.02 ms
+   變 **20 ms**，快路徑等於白做。SQLite 的一元 `+` 讓該條件不參與索引選擇，
+   計畫就留在 MULTI-INDEX OR。**這個地雷對任何「索引欄 = 值 + 低選擇性欄 = 值」
+   的查詢都成立。**
+3. **模糊比對只掃一趟**：原本「先掃一次 ≤1，不夠再整個重掃一次 ≤2」改成單趟
+   收集，並先用 `|長度差| > 2` 剪枝（編輯距離下界，純剪枝不改結果）。
+   586 筆查詢比對新舊輸出**逐筆、逐順序相同**，8.2 ms → 2.0 ms。
+
+驗證：以 python 重放兩條路徑（LIKE 查詢 → 接受名解析 → 去重 → 排序 → 前 5 筆
+→ 歸類），728 筆查詢（俗名／學名／同義名／錯字／台臺異體字）歸類與選中的
+taxon_id **完全一致**。唯一一次差異是 `台灣畫眉`：快路徑靠 `normalizeTw` 收斂
+成唯一接受名（`臺灣畫眉`，該分類群的別名本來就收了 `台灣畫眉`），舊路徑因為
+「完全相同」比對用的是原字串而判成「需確認」，要使用者從它與一個雜交組合之間
+挑。這個方向是好的，但**確實是行為改變**，記在這裡。
+
+### 3. 進度條
+
+`resolveBatchProgressive()` 用時間切片（連續解析滿 80 ms 就 `await` 一次）回報
+`done/total`；加入名錄那段每 20 筆讓一次。進度覆蓋層刻意做成**同一個 Modal 內的
+絕對定位 View**，不是再開一層 Modal —— iOS 不允許在既有 Modal 之上再 present
+Modal（`DateTimeField` 的註解記著同一個坑）。
+
+### 4. 單筆記錄的 Darwin Core
+
+原本只有專案匯出會產 DwC-A，單筆記錄（快速名錄／樣區／採集）沒有。做法是把
+`projectExport.ts` 裡的 row builder 整段搬到新的 `src/lib/dwcRows.ts`
+（`buildRecordsDwca`），**逐行相同，只有簽名與 `packageId` 改成參數** ——
+`projectExport` 已經 import `bundleExport`，放在原處會變成循環相依。
+
+- 三種單筆匯出各多一個 `dwca/<base>_dwca.zip`，開關沿用匯出設定既有的
+  「Darwin Core Archive」勾選（`export_analysis_formats`）。
+- 專案匯出的 `records/` 逐筆**不再**各自產一份（整包最後那份已經涵蓋全部）。
+- `_sp.csv` → **`_occurrence_dwc.csv`**，並補上 `basisOfRecord` /
+  `eventID` / `datasetName` / `recordedBy`：這張表被拆出 zip 單獨開啟時也要能
+  當 DwC occurrence 讀。這些欄位只加在 CSV，不進 yml（yml 是往返格式，
+  `event:` 區本來就有）。
+- 順手修掉一個沒爆但站不住的寫法：CSV 表頭原本取自 **yml items** 的 key，值卻
+  取自 DwC 轉換後的 row，兩組 key 剛好一致但沒有任何東西保證它一致。改成
+  `buildOccurrenceCsv()` 由 row 自己的 key 取聯集。
+- 每個單筆 zip 多一份 `README.md`，**從實際產出的 entries 反推**檔案清單
+  （勾不勾照片、有沒有小區、DwC-A 開不開，組合每次都不同，寫死一定漂移）。
+
+### 待實機驗證
+
+1. 貼 100 種俗名按「預覽」的實際秒數與進度條動態（Mac 量到 9.5 s → 0.02 s 級，
+   實機比例應相近）
+2. 匯出一筆快速名錄，解壓確認 `dwca/*.zip`（event/occurrence/humboldt/meta/eml）、
+   `_occurrence_dwc.csv` 欄位、`README.md`
+3. 匯出設定關掉「Darwin Core Archive」後，單筆匯出不再有 `dwca/`

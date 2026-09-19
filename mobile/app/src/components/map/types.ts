@@ -120,6 +120,13 @@ export type MapCanvasProps = {
   vectorStyle?: VectorStyle;
   showsUserLocation?: boolean;
   showsCompass?: boolean;
+  /**
+   * 指北針要離右下角多遠（點）。
+   *
+   * 畫面右下角以外的地方都被別的東西佔著：左上是返回／搜尋、右上是工具、
+   * 左下是比例尺。native 引擎沒有對應設定，會忽略這個值。
+   */
+  compassInset?: { bottom: number; right: number };
   /** iOS Apple Maps 專用，且只在縮放手勢期間短暫出現；Android 不支援。
    *  常駐的比例尺是 `MapScaleBar` 自己畫的。 */
   showsScale?: boolean;

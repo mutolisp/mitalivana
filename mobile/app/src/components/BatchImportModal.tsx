@@ -3,6 +3,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
+  ActivityIndicator,
   Alert,
   Modal,
   Platform,
@@ -23,7 +24,7 @@ import {
 } from '~/db';
 import {
   parseInput,
-  resolveBatch,
+  resolveBatchProgressive,
   type CategorizedImport,
   type ParsedEntry,
 } from '~/lib/batchImport';
@@ -86,6 +87,10 @@ export function BatchImportModal({ visible, target, onClose, onCommitted }: Prop
   const [skipExact, setSkipExact] = useState<Set<number>>(new Set());
   // For ambiguous entries: track which match was picked (or null for skip)
   const [ambiguousPicks, setAmbiguousPicks] = useState<Map<number, SearchResult | null>>(new Map());
+  // 比對 / 加入的進度。null = 沒有在跑，覆蓋層不顯示。
+  const [progress, setProgress] = useState<{ label: string; done: number; total: number } | null>(
+    null,
+  );
 
   // A picked file replaces the typed text; voice mode never uses it.
   const usingFile = inputMode === 'paste' && pickedFile !== null;
@@ -98,6 +103,7 @@ export function BatchImportModal({ visible, target, onClose, onCommitted }: Prop
     setResolved(null);
     setSkipExact(new Set());
     setAmbiguousPicks(new Map());
+    setProgress(null);
   };
 
   const handleClose = () => {
@@ -129,7 +135,8 @@ export function BatchImportModal({ visible, target, onClose, onCommitted }: Prop
     }
   };
 
-  const handlePreview = () => {
+  const handlePreview = async () => {
+    if (progress) return;
     const voice = inputMode === 'voice';
     const names: (string | ParsedEntry)[] = usingFile
       ? pickedFile!.entries
@@ -143,15 +150,28 @@ export function BatchImportModal({ visible, target, onClose, onCommitted }: Prop
       );
       return;
     }
-    // Voice dictation garbles uncommon names into homophones; enable the
-    // toneless-pinyin fallback so they still resolve.
-    const r = resolveBatch(names, { phonetic: voice });
-    setResolved(r);
-    setSkipExact(new Set());
-    const picks = new Map<number, SearchResult | null>();
-    for (let i = 0; i < r.ambiguous.length; i++) picks.set(i, r.ambiguous[i].matches[0] ?? null);
-    setAmbiguousPicks(picks);
-    setStep('preview');
+    // 貼一份上百種的名錄時，比對要逐筆查名錄資料庫；沒有進度回饋的話畫面就
+    // 是整個卡住。`resolveBatchProgressive` 會定時把控制權交還 UI thread。
+    setProgress({ label: t('batchImport.matching'), done: 0, total: names.length });
+    try {
+      // Voice dictation garbles uncommon names into homophones; enable the
+      // toneless-pinyin fallback so they still resolve.
+      const r = await resolveBatchProgressive(names, { phonetic: voice }, (done, total) =>
+        setProgress({ label: t('batchImport.matching'), done, total }),
+      );
+      setResolved(r);
+      setSkipExact(new Set());
+      const picks = new Map<number, SearchResult | null>();
+      for (let i = 0; i < r.ambiguous.length; i++) picks.set(i, r.ambiguous[i].matches[0] ?? null);
+      setAmbiguousPicks(picks);
+      setStep('preview');
+    } catch (e) {
+      // 比對整段是資料庫查詢，失敗就讓使用者看到原因（與讀檔那條路徑一致），
+      // 不要變成沒有人接的 promise rejection。
+      Alert.alert(t('batchImport.readFail'), importErrorMessage(e));
+    } finally {
+      setProgress(null);
+    }
   };
 
   /** 找不到 row → GBIF. On success the name moves into 精確匹配, so the user
@@ -171,8 +191,8 @@ export function BatchImportModal({ visible, target, onClose, onCommitted }: Prop
     );
   };
 
-  const handleCommit = () => {
-    if (!resolved) return;
+  const handleCommit = async () => {
+    if (!resolved || progress) return;
     const toAdd: Array<{ m: SearchResult; adopted?: AdoptionInput }> = [];
     resolved.exact.forEach((e, idx) => {
       if (!skipExact.has(idx) && e.matches[0]) toAdd.push({ m: e.matches[0], adopted: e.adopted });
@@ -184,18 +204,23 @@ export function BatchImportModal({ visible, target, onClose, onCommitted }: Prop
 
     let added = 0;
     let skipped = 0;
-    for (const { m, adopted } of toAdd) {
-      if (!m.taxon_id) {
+    setProgress({ label: t('batchImport.adding'), done: 0, total: toAdd.length });
+    for (let i = 0; i < toAdd.length; i++) {
+      const { m, adopted } = toAdd[i];
+      if (!m.taxon_id || targetHas(target, m.taxon_id)) {
         skipped++;
-        continue;
+      } else {
+        targetAdd(target, m, adopted);
+        added++;
       }
-      if (targetHas(target, m.taxon_id)) {
-        skipped++;
-        continue;
+      // 每 20 筆讓一次，寫入才不會整段把畫面鎖住（插入本身是毫秒級，所以
+      // 不必像比對那樣時間切片）。
+      if ((i + 1) % 20 === 0 || i === toAdd.length - 1) {
+        setProgress({ label: t('batchImport.adding'), done: i + 1, total: toAdd.length });
+        await new Promise((r) => setTimeout(r, 0));
       }
-      targetAdd(target, m, adopted);
-      added++;
     }
+    setProgress(null);
     onCommitted(added);
     if (skipped > 0) {
       Alert.alert(
@@ -220,20 +245,32 @@ export function BatchImportModal({ visible, target, onClose, onCommitted }: Prop
         style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
       >
         <View className="flex-row items-center justify-between border-b border-gray-200 dark:border-gray-700 px-4 py-3">
-          <Pressable onPress={handleClose} hitSlop={8}>
-            <Text className="text-base text-gray-700 dark:text-gray-300">{t('common.cancel')}</Text>
+          <Pressable onPress={handleClose} hitSlop={8} disabled={progress !== null}>
+            <Text
+              className={`text-base ${progress ? 'text-gray-300' : 'text-gray-700 dark:text-gray-300'}`}
+            >
+              {t('common.cancel')}
+            </Text>
           </Pressable>
           <Text className="text-base font-semibold text-gray-900 dark:text-gray-100">
             {step === 'input' ? t('batchImport.title') : t('batchImport.previewTitle', { count: totalSelected })}
           </Text>
           {step === 'input' ? (
-            <Pressable onPress={handlePreview} hitSlop={8}>
-              <Text className="text-base font-semibold text-blue-600 dark:text-blue-400">{t('batchImport.preview')}</Text>
+            <Pressable onPress={handlePreview} hitSlop={8} disabled={progress !== null}>
+              <Text
+                className={`text-base font-semibold ${progress ? 'text-gray-300' : 'text-blue-600 dark:text-blue-400'}`}
+              >
+                {t('batchImport.preview')}
+              </Text>
             </Pressable>
           ) : (
-            <Pressable onPress={handleCommit} hitSlop={8} disabled={totalSelected === 0}>
+            <Pressable
+              onPress={handleCommit}
+              hitSlop={8}
+              disabled={totalSelected === 0 || progress !== null}
+            >
               <Text
-                className={`text-base font-semibold ${totalSelected === 0 ? 'text-gray-300' : 'text-blue-600 dark:text-blue-400'}`}
+                className={`text-base font-semibold ${totalSelected === 0 || progress ? 'text-gray-300' : 'text-blue-600 dark:text-blue-400'}`}
               >
                 {t('batchImport.add')}
               </Text>
@@ -455,6 +492,31 @@ export function BatchImportModal({ visible, target, onClose, onCommitted }: Prop
             ) : null}
           </ScrollView>
         )}
+
+        {/* 進度覆蓋層。刻意做成同一個 Modal 裡的絕對定位 View，而不是再開一層
+            Modal —— iOS 不允許在既有 Modal 之上再 present 一個 Modal，那樣會
+            靜默不顯示（DateTimeField 的註解記著同一個坑）。 */}
+        {progress ? (
+          <View className="absolute bottom-0 left-0 right-0 top-0 items-center justify-center bg-black/40 px-10">
+            <View className="w-full max-w-xs rounded-2xl bg-white dark:bg-gray-900 px-6 py-6">
+              <ActivityIndicator size="large" color="#3b82f6" />
+              <Text className="mt-4 text-center text-base font-medium text-gray-900 dark:text-gray-100">
+                {progress.label}
+              </Text>
+              <View className="mt-4 h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+                <View
+                  className="h-2 rounded-full bg-blue-500"
+                  style={{
+                    width: `${progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0}%`,
+                  }}
+                />
+              </View>
+              <Text className="mt-2 text-center text-xs text-gray-500 dark:text-gray-400">
+                {progress.done} / {progress.total}
+              </Text>
+            </View>
+          </View>
+        ) : null}
       </View>
     </Modal>
   );

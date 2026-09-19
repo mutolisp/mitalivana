@@ -7,7 +7,6 @@ import {
   ActivityIndicator,
   Alert,
   Keyboard,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -1731,6 +1730,8 @@ export default function MapScreen() {
         vectorStyle={vectorStyle}
         mapType={basemapToMapType(currentBasemap)}
         showsCompass
+        // 右下角是唯一沒被佔用的角落（左上返回／搜尋、右上工具、左下比例尺）
+        compassInset={{ bottom: tabBarInset + 12, right: 12 }}
         showsScale
         showsUserLocation
         showsMyLocationButton={false}

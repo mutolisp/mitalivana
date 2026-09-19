@@ -52,6 +52,8 @@ export type VectorInstalled = {
    * 不值得為它叫使用者重抓整份地圖。
    */
   spriteUrl?: string;
+  /** 圖磚檔應有的位元組數，用來認出下載被截短的安裝。 */
+  tileBytes?: number;
 };
 
 export function vectorRoot(): Directory {
@@ -115,13 +117,20 @@ export function describeVectorInstall(): Record<string, unknown> {
   const style = vectorStyleFile();
   const fonts = vectorFontsDir();
   const stackDir = new Directory(fonts, VECTOR_FONT_STACK);
+  const tiles = vectorTilesFile();
+  const hs = vectorHillshadeFile();
   const out: Record<string, unknown> = {
     root: vectorRoot().uri,
     styleExists: style.exists,
-    tilesExists: vectorTilesFile().exists,
-    hillshadeExists: vectorHillshadeFile().exists,
+    // 位元組數是關鍵：截短的 .pmtiles 標頭讀得到、圖磚拿不到，症狀是整片空白。
+    tileBytes: tiles.exists ? tiles.size : 0,
+    hillshadeBytes: hs.exists ? hs.size : 0,
+    spriteBytes: new File(vectorRoot(), 'sprite.json').exists
+      ? new File(vectorRoot(), 'sprite.json').size
+      : 0,
     fontsFlat: fonts.exists ? fonts.list().filter((f) => f instanceof File).length : 0,
     fontsInStack: stackDir.exists ? stackDir.list().length : 0,
+    stackDirUri: stackDir.uri,
   };
   if (style.exists) {
     out.styleBytes = style.size;
@@ -185,9 +194,20 @@ export function writeVectorInstalled(state: VectorInstalled): void {
   new File(vectorRoot(), STATE_FILE).write(JSON.stringify(state));
 }
 
-/** 檔案真的都在才算裝好 —— 狀態檔存在但圖磚被清掉的情況要擋下來。 */
+/**
+ * 檔案真的都在、而且**大小對得上**才算裝好。
+ *
+ * 只看存不存在是不夠的：截短的 .pmtiles 標頭與根目錄都在檔案開頭，樣式載得起來、
+ * 圖磚卻一張也拿不到，畫面上是「山體陰影有、向量地圖整片空白」。大小不符就當成
+ * 沒裝，app 會退回線上模式（那是能用的），設定頁也會重新出現下載按鈕 —— 比留著
+ * 一份看起來正常的壞檔好。
+ */
 export function isVectorReady(state: VectorInstalled | null): boolean {
-  return state != null && vectorTilesFile().exists && vectorStyleFile().exists;
+  if (state == null || !vectorTilesFile().exists || !vectorStyleFile().exists) return false;
+  if (state.tileBytes != null && state.tileBytes > 0) {
+    return (vectorTilesFile().size ?? 0) === state.tileBytes;
+  }
+  return true;
 }
 
 export function deleteVectorMap(): void {
