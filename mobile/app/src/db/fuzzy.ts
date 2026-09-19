@@ -1,6 +1,6 @@
 import { distance } from 'fastest-levenshtein';
 import { pinyin } from 'pinyin-pro';
-import { getTaicolDb } from './init';
+import { getDatasetDb, getSpec, onDatasetsChanged, type DatasetId } from './datasets';
 import { SEARCH_COLUMNS, searchSpecies, searchSpeciesJp, groupFilterClause, markJpAlias } from './search';
 import { getEnabledRegions, crossRegionVernacular, normalizeSci } from './regions';
 import { searchExternalTaxa } from './externalTaxa';
@@ -20,14 +20,10 @@ type FuzzyOptions = {
 
 type CnameEntry = { cname: string; nameIds: number[]; pinyin: string };
 
-let cnameIndex: CnameEntry[] | null = null;
-let cnameIndexMissing = false;
-
-// Japan (YList 和名) fuzzy index — built into cname_fuzzy_index_jp. No pinyin
-// column (pinyin is Mandarin-only); katakana matches via plain Levenshtein.
-type JpCnameEntry = { cname: string; nameIds: number[] };
-let jpCnameIndex: JpCnameEntry[] | null = null;
-let jpCnameIndexMissing = false;
+// 每個名錄模組一份索引。JP 那份沒有 pinyin 欄（拼音是華語專用），載入時填 ''
+// 讓兩邊共用同一個型別；`fuzzySearchJp` 也不走拼音路徑。
+const indexes = new Map<DatasetId, CnameEntry[]>();
+const indexMissing = new Set<DatasetId>();
 
 /** Convert a query string to a list of toneless pinyin syllables. Non-Han
  *  output (latin letters from scientific names, punctuation) is dropped so it
@@ -62,10 +58,22 @@ function seqDistance(a: string[], b: string[]): number {
   return prev[n];
 }
 
-function loadCnameIndex(): CnameEntry[] | null {
-  if (cnameIndex) return cnameIndex;
-  if (cnameIndexMissing) return null;
-  const db = getTaicolDb();
+/**
+ * 載入某個名錄模組的模糊比對索引（整份進 JS heap，之後每次查詢掃它）。
+ *
+ * 缺表、缺 pinyin 欄都不是致命錯誤：模組可能是舊版管線建的。在搜尋 debounce 的
+ * setTimeout 裡丟出未捕捉的例外曾被觀察到會弄垮 Hermes runtime，所以這裡一律
+ * 降級而不是 throw。
+ */
+function loadFuzzyIndex(datasetId: DatasetId): CnameEntry[] | null {
+  const cached = indexes.get(datasetId);
+  if (cached) return cached;
+  if (indexMissing.has(datasetId)) return null;
+  const spec = getSpec(datasetId);
+  if (spec.tables.kind !== 'names' || !spec.tables.fuzzyIndex) return null;
+  const table = spec.tables.fuzzyIndex;
+  const db = getDatasetDb(datasetId);
+  if (!db) return null;
   // The fuzzy index is built by `backend/scripts/build_mobile_fuzzy_index.py`
   // before the asset DB is bundled. Older bundles (or bundles built without
   // that step) won't have it — fail gracefully instead of throwing on every
@@ -73,37 +81,37 @@ function loadCnameIndex(): CnameEntry[] | null {
   // been observed to destabilize the Hermes runtime).
   try {
     const exists = db.executeSync(
-      `SELECT name FROM sqlite_master WHERE type='table' AND name='cname_fuzzy_index' LIMIT 1`,
+      `SELECT name FROM sqlite_master WHERE type='table' AND name='${table}' LIMIT 1`,
     );
     if (!((exists.rows ?? []) as unknown[]).length) {
-      cnameIndexMissing = true;
+      indexMissing.add(datasetId);
       // eslint-disable-next-line no-console
-      console.warn('[fuzzy] cname_fuzzy_index missing — fuzzy fallback disabled');
+      console.warn(`[fuzzy] ${table} missing — fuzzy fallback disabled for ${datasetId}`);
       return null;
     }
     // `pinyin` is filled by `scripts/build_pinyin_index.mjs` after the python
-    // index build. Older bundles may lack the column — degrade to hanzi-only
-    // fuzzy (pinyin = '') instead of throwing, which would disable fuzzy
-    // entirely.
-    const cols = db.executeSync(`PRAGMA table_info(cname_fuzzy_index)`);
+    // index build. 舊模組可能沒有這一欄 —— 降級成只比對漢字（pinyin = ''），
+    // 而不是整個關掉模糊比對。
+    const cols = db.executeSync(`PRAGMA table_info(${table})`);
     const hasPinyin = ((cols.rows ?? []) as Array<Record<string, unknown>>).some(
       (c) => c.name === 'pinyin',
     );
     const res = db.executeSync(
       hasPinyin
-        ? `SELECT cname, name_ids, pinyin FROM cname_fuzzy_index`
-        : `SELECT cname, name_ids FROM cname_fuzzy_index`,
+        ? `SELECT cname, name_ids, pinyin FROM ${table}`
+        : `SELECT cname, name_ids FROM ${table}`,
     );
-    cnameIndex = ((res.rows ?? []) as Array<Record<string, unknown>>).map((row) => ({
+    const loaded = ((res.rows ?? []) as Array<Record<string, unknown>>).map((row) => ({
       cname: row.cname as string,
       nameIds: (row.name_ids as string).split(',').map((s) => parseInt(s, 10)),
       pinyin: (row.pinyin as string) ?? '',
     }));
-    return cnameIndex;
+    indexes.set(datasetId, loaded);
+    return loaded;
   } catch (e) {
-    cnameIndexMissing = true;
+    indexMissing.add(datasetId);
     // eslint-disable-next-line no-console
-    console.warn('[fuzzy] failed to load cname_fuzzy_index, disabling fuzzy:', e);
+    console.warn(`[fuzzy] failed to load ${table}, disabling fuzzy for ${datasetId}:`, e);
     return null;
   }
 }
@@ -138,7 +146,7 @@ export function fuzzySearch({
 }: FuzzyOptions): SearchResult[] {
   if (!q || q.length < 2) return [];
 
-  const index = loadCnameIndex();
+  const index = loadFuzzyIndex('tw-taicol');
   if (!index) return [];
 
   let matches = sweep(index, q);
@@ -184,7 +192,8 @@ export function fuzzySearch({
 
   if (matchedNameIds.length === 0) return [];
 
-  const db = getTaicolDb();
+  const db = getDatasetDb('tw-taicol');
+  if (!db) return [];
   const placeholders = matchedNameIds.map(() => '?').join(',');
   // Honor the user's taxon-group filter — without this the fuzzy index sweeps
   // across all 62k cnames and returns matches from any kingdom, so picking
@@ -263,37 +272,11 @@ function buildFuzzyResult(
   };
 }
 
-function loadJpCnameIndex(): JpCnameEntry[] | null {
-  if (jpCnameIndex) return jpCnameIndex;
-  if (jpCnameIndexMissing) return null;
-  const db = getTaicolDb();
-  try {
-    const exists = db.executeSync(
-      `SELECT name FROM sqlite_master WHERE type='table' AND name='cname_fuzzy_index_jp' LIMIT 1`,
-    );
-    if (!((exists.rows ?? []) as unknown[]).length) {
-      jpCnameIndexMissing = true;
-      return null;
-    }
-    const res = db.executeSync(`SELECT cname, name_ids FROM cname_fuzzy_index_jp`);
-    jpCnameIndex = ((res.rows ?? []) as Array<Record<string, unknown>>).map((row) => ({
-      cname: row.cname as string,
-      nameIds: (row.name_ids as string).split(',').map((s) => parseInt(s, 10)),
-    }));
-    return jpCnameIndex;
-  } catch (e) {
-    jpCnameIndexMissing = true;
-    // eslint-disable-next-line no-console
-    console.warn('[fuzzy] failed to load cname_fuzzy_index_jp, disabling JP fuzzy:', e);
-    return null;
-  }
-}
-
 /** Fuzzy-match 和名 (katakana) against the Japan dataset (接受和名 + 別名). Mirrors `fuzzySearch`
  *  but over `cname_fuzzy_index_jp` → `jp_names`; no pinyin path. */
 export function fuzzySearchJp({ q, groups, excludeIds, limit = 10 }: FuzzyOptions): SearchResult[] {
   if (!q || q.length < 2) return [];
-  const index = loadJpCnameIndex();
+  const index = loadFuzzyIndex('jp-ylist');
   if (!index) return [];
 
   let matches = sweep(index, q);
@@ -317,7 +300,8 @@ export function fuzzySearchJp({ q, groups, excludeIds, limit = 10 }: FuzzyOption
   }
   if (matchedNameIds.length === 0) return [];
 
-  const db = getTaicolDb();
+  const db = getDatasetDb('jp-ylist');
+  if (!db) return [];
   const placeholders = matchedNameIds.map(() => '?').join(',');
   let sql = `SELECT ${SEARCH_COLUMNS} FROM jp_names WHERE name_id IN (${placeholders})`;
   const params: (string | number)[] = [...matchedNameIds];
@@ -509,10 +493,13 @@ function searchBundledChecklists(opts: {
   return combined;
 }
 
+/** 模組安裝 / 更新 / 刪除後清掉所有模組的索引**與 missing 旗標**——少清旗標，
+ *  剛裝好的模組會被當成「這台裝置沒有模糊比對」直到下次重開 app。 */
 export function clearFuzzyIndexCache(): void {
-  cnameIndex = null;
-  cnameIndexMissing = false;
+  indexes.clear();
+  indexMissing.clear();
 }
+onDatasetsChanged(clearFuzzyIndexCache);
 
 /**
  * Force-load the 62k cname fuzzy index into JS heap. Call this off the
@@ -520,5 +507,7 @@ export function clearFuzzyIndexCache(): void {
  * so the *first* user query doesn't pay the ~200-500ms cold-load cost.
  */
 export function prewarmFuzzyIndex(): void {
-  loadCnameIndex();
+  // 只暖臺灣那份。**不要**「順手」改成迴圈掃所有已安裝模組：日本索引有 3 萬筆，
+  // 對從不開日本名錄的人是白佔 heap，它在第一次日文查詢時才載入就好。
+  loadFuzzyIndex('tw-taicol');
 }

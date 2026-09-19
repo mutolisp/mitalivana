@@ -28,9 +28,14 @@ function resolve(items: FavoriteItem[]): Resolved[] {
   }));
 }
 
+/** `TaxonFields` 裡值為字串的欄位。`unresolved` 是布林旗標，排序不該碰到它。 */
+type TaxonTextField = {
+  [K in keyof TaxonFields]-?: TaxonFields[K] extends string | undefined ? K : never;
+}[keyof TaxonFields];
+
 /** Taxonomic order, matching what the record exports put in their CSV. */
 function taxonSort(a: Resolved, b: Resolved): number {
-  const keys: (keyof TaxonFields)[] = [
+  const keys: TaxonTextField[] = [
     'kingdom',
     'phylum',
     'class',

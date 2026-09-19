@@ -54,7 +54,22 @@ import {
   updatePack,
   type RegionPack,
 } from '~/db/regionpacks';
+import { allSpecs, type DatasetId } from '~/db';
 import { clearTaxonomyCache } from '~/db';
+import {
+  cancelDatasetInstall,
+  fetchDatasetManifest,
+  hasUpdate,
+  isDatasetInstallRunning,
+  missingRequirements,
+  previewDatasetRemoval,
+  removeDatasetSafely,
+  startDatasetInstall,
+  useDatasetInstall,
+  useInstalledDatasets,
+  type DatasetManifestEntry,
+} from '~/lib/datasetInstall';
+import { formatBytes } from '~/lib/exportSize';
 import { clearSearchResultCache } from '~/components/SearchBox';
 import { ACTION_FILL } from '~/lib/colors';
 
@@ -67,6 +82,32 @@ export default function RegionPacksScreen() {
   // Live progress comes from the module-level driver (survives navigation);
   // subscribing here is what re-renders the rows while a download runs.
   const progress = usePackDownloads((st) => st.progress);
+
+  // ── 名錄模組（可下載 / 更新 / 刪除）──────────────────────────────────
+  // 安裝狀態訂閱 registry 的快照 store，所以下載完成、刪除都會立刻重繪。
+  const installs = useInstalledDatasets((st) => st.installs);
+  const dsActive = useDatasetInstall((st) => st.activeId);
+  const dsProgress = useDatasetInstall((st) => st.progress);
+  const dsError = useDatasetInstall((st) => st.error);
+  const [remote, setRemote] = useState<DatasetManifestEntry[]>([]);
+  const [remoteState, setRemoteState] = useState<'idle' | 'loading' | 'failed' | 'stale-app'>(
+    'idle',
+  );
+
+  const refreshRemote = useCallback(async () => {
+    setRemoteState('loading');
+    try {
+      const { entries, needsAppUpdate } = await fetchDatasetManifest();
+      setRemote(entries);
+      setRemoteState(needsAppUpdate ? 'stale-app' : 'idle');
+    } catch {
+      // 離線是常態（這是野外用的 app）：安靜地退回已安裝清單就好。
+      setRemoteState('failed');
+    }
+  }, []);
+  useEffect(() => {
+    void refreshRemote();
+  }, [refreshRemote]);
 
   const reload = useCallback(() => {
     try {
@@ -90,10 +131,15 @@ export default function RegionPacksScreen() {
     clearTaxonomyCache();
     clearSearchResultCache();
   }, []);
-  // "At least one source stays enabled" — counted across built-ins AND ready
-  // packs, enforced here (the DB layer deliberately allows any combination).
+  // 「至少留一個來源」——名錄模組要**已安裝且已啟用**才算數（只是勾了 TW 但還沒
+  // 下載並不構成一個可查詢的來源），再加上 ready 的 pack。DB 層仍然允許任何組合，
+  // 這條規則只存在於 UI。
+  const installedRegionCodes = installs
+    .map((rec) => allSpecs().find((sp) => sp.id === rec.id)?.region)
+    .filter((r): r is RegionCode => r === 'TW' || r === 'JP');
   const enabledSourceCount =
-    enabledRegions.length + packs.filter((pk) => pk.enabled && pk.status === 'ready').length;
+    enabledRegions.filter((r) => installedRegionCodes.includes(r)).length +
+    packs.filter((pk) => pk.enabled && pk.status === 'ready').length;
   const toggleBuiltin = useCallback(
     (code: RegionCode, on: boolean) => {
       const next: RegionCode[] = on
@@ -106,10 +152,9 @@ export default function RegionPacksScreen() {
     },
     [afterScopeChange, enabledRegions, setSetting],
   );
-  type RegionRow = { kind: 'builtin'; code: RegionCode } | { kind: 'pack'; pack: RegionPack };
+  type RegionRow = { kind: 'dataset'; id: DatasetId } | { kind: 'pack'; pack: RegionPack };
   const rows: RegionRow[] = [
-    { kind: 'builtin', code: 'TW' },
-    { kind: 'builtin', code: 'JP' },
+    ...allSpecs().map((spec) => ({ kind: 'dataset' as const, id: spec.id })),
     ...packs.map((pack) => ({ kind: 'pack' as const, pack })),
   ];
 
@@ -350,28 +395,151 @@ export default function RegionPacksScreen() {
       ? t('regionPacks.allGroups')
       : pack.groups.map((g) => t(`areaSpecies.iconic.${g}`)).join('、');
 
-  const renderBuiltin = (code: RegionCode) => {
-    const on = enabledRegions.includes(code);
-    const isLast = on && enabledSourceCount <= 1;
+  /** 模組名稱：優先用 manifest 的在地化標題，離線時退回內建字串。 */
+  const datasetName = (id: DatasetId): string => {
+    const entry = remote.find((e) => e.id === id);
+    const fromManifest = entry?.title?.[i18n.language] ?? entry?.title?.['zh-TW'];
+    if (fromManifest) return fromManifest;
+    if (id === 'tw-taicol') return t('regionPacks.builtinTwName');
+    if (id === 'jp-ylist') return t('regionPacks.builtinJpName');
+    return t('datasets.keysName');
+  };
+
+  const handleDatasetRemove = (id: DatasetId) => {
+    // 先把記錄用到的名稱抄進 user.db（必須在檔案還在時做），再讓使用者確認。
+    const impact = previewDatasetRemoval(id);
+    const name = datasetName(id);
+    Alert.alert(
+      t('datasets.removeTitle', { name }),
+      impact.missing > 0
+        ? t('datasets.removeMsg', { cached: impact.cached, missing: impact.missing })
+        : t('datasets.removeMsgClean', { cached: impact.cached }),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('common.delete'),
+          style: 'destructive',
+          onPress: () => {
+            removeDatasetSafely(id);
+            afterScopeChange();
+            toast(t('datasets.removed', { name }));
+          },
+        },
+      ],
+    );
+  };
+
+  const renderDataset = (id: DatasetId) => {
+    const spec = allSpecs().find((sp) => sp.id === id);
+    if (!spec) return null;
+    const rec = installs.find((r) => r.id === id) ?? null;
+    const entry = remote.find((e) => e.id === id) ?? null;
+    const busy = dsActive === id;
+    const updatable = entry !== null && rec !== null && hasUpdate(entry);
+    const blockedBy = entry ? missingRequirements(entry) : [];
+    const code = spec.region;
+    const on = code ? enabledRegions.includes(code) : false;
+    // 只有「已安裝且已啟用」的模組才算來源，所以最後一個來源不能被關掉。
+    const isLast = !!code && on && rec !== null && enabledSourceCount <= 1;
+
+    const pct = (a: number, b: number) => (b > 0 ? Math.min(100, Math.round((a / b) * 100)) : 0);
+    let statusLine: string;
+    if (busy && dsProgress?.phase === 'download') {
+      statusLine = t('datasets.downloading', {
+        percent: pct(dsProgress.receivedBytes, dsProgress.totalBytes),
+      });
+    } else if (busy && dsProgress?.phase === 'extract') {
+      statusLine = t('datasets.extracting', {
+        percent: pct(dsProgress.writtenBytes, dsProgress.totalBytes),
+      });
+    } else if (busy) {
+      statusLine = t('datasets.installing');
+    } else if (rec) {
+      statusLine = t('datasets.installed', {
+        version: rec.version.replace(/^legacy:.*/, t('regionPacks.builtinTag')),
+        size: formatBytes(rec.bytes),
+      });
+    } else if (blockedBy.length > 0) {
+      statusLine = t('datasets.needsRequirement', { name: datasetName(blockedBy[0]) });
+    } else {
+      statusLine = t('datasets.notInstalled');
+    }
+
+    const actionLabel = updatable
+      ? t('datasets.update', { size: formatBytes(entry?.bytes ?? 0) })
+      : t('datasets.download', { size: formatBytes(entry?.bytes ?? 0) });
+    const canAct = entry !== null && !busy && !isDatasetInstallRunning() && blockedBy.length === 0;
+
     return (
-      <View className="flex-row items-center border-b border-gray-100 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
-        <View className="flex-1">
-          <Text className="text-base font-medium text-gray-900 dark:text-gray-100">
-            {t(code === 'TW' ? 'regionPacks.builtinTwName' : 'regionPacks.builtinJpName')}
-            <Text className="text-xs text-gray-400"> {t('regionPacks.builtinTag')}</Text>
-          </Text>
-          <Text className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-            {t(code === 'TW' ? 'regionPacks.builtinTwSub' : 'regionPacks.builtinJpSub')}
-          </Text>
+      <View className="border-b border-gray-100 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
+        <View className="flex-row items-center">
+          <View className="flex-1 pr-3">
+            <Text className="text-base font-medium text-gray-900 dark:text-gray-100">
+              {datasetName(id)}
+              {updatable ? (
+                <Text className="text-xs text-blue-600 dark:text-blue-400">
+                  {' '}
+                  {t('datasets.updateAvailable')}
+                </Text>
+              ) : null}
+            </Text>
+            <Text className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{statusLine}</Text>
+          </View>
+          {/* 區域開關只對有 region 的名錄模組有意義；檢索表跟著臺灣名錄走。 */}
+          {code ? (
+            <Switch
+              value={on}
+              disabled={isLast || rec === null}
+              onValueChange={(v) => {
+                if (!v && isLast) return;
+                toggleBuiltin(code, v);
+              }}
+            />
+          ) : null}
         </View>
-        <Switch
-          value={on}
-          disabled={isLast}
-          onValueChange={(v) => {
-            if (!v && isLast) return;
-            toggleBuiltin(code, v);
-          }}
-        />
+
+        {busy && dsProgress ? (
+          <View className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+            <View
+              className="h-1.5 rounded-full bg-blue-500"
+              style={{
+                width: `${
+                  dsProgress.phase === 'download'
+                    ? pct(dsProgress.receivedBytes, dsProgress.totalBytes)
+                    : dsProgress.phase === 'extract'
+                      ? pct(dsProgress.writtenBytes, dsProgress.totalBytes)
+                      : 100
+                }%`,
+              }}
+            />
+          </View>
+        ) : null}
+
+        <View className="mt-2 flex-row items-center gap-3">
+          {busy ? (
+            <Pressable onPress={cancelDatasetInstall} hitSlop={8}>
+              <Text className="text-sm text-gray-600 dark:text-gray-400">{t('common.cancel')}</Text>
+            </Pressable>
+          ) : (rec === null || updatable) && canAct ? (
+            <Pressable onPress={() => void startDatasetInstall(entry!)} hitSlop={8}>
+              <Text className="text-sm font-medium text-blue-600 dark:text-blue-400">
+                {actionLabel}
+              </Text>
+            </Pressable>
+          ) : null}
+          {rec !== null && !busy ? (
+            <Pressable onPress={() => handleDatasetRemove(id)} hitSlop={8}>
+              <Text className="text-sm text-red-600 dark:text-red-400">{t('common.delete')}</Text>
+            </Pressable>
+          ) : null}
+        </View>
+        {busy === false && dsError && dsActive === null && rec === null ? (
+          <Text className="mt-1 text-xs text-red-600 dark:text-red-400">
+            {dsError === 'no-space'
+              ? t('datasets.errorNoSpace')
+              : t('datasets.errorFailed', { error: dsError })}
+          </Text>
+        ) : null}
       </View>
     );
   };
@@ -460,13 +628,31 @@ export default function RegionPacksScreen() {
     <SettingsPage>
       <FlatList
         data={rows}
-        keyExtractor={(r) => (r.kind === 'builtin' ? `builtin-${r.code}` : `pack-${r.pack.id}`)}
+        keyExtractor={(r) => (r.kind === 'dataset' ? `dataset-${r.id}` : `pack-${r.pack.id}`)}
         renderItem={({ item }) =>
-          item.kind === 'builtin' ? renderBuiltin(item.code) : renderPack({ item: item.pack })
+          item.kind === 'dataset' ? renderDataset(item.id) : renderPack({ item: item.pack })
         }
         ListHeaderComponent={
           <View className="px-4 py-3">
-            <Text className="text-xs text-gray-500 dark:text-gray-400">
+            {/* 名錄模組的狀態列：檢查中 / 抓不到清單（離線是常態）/ 需要更新 app */}
+            <Text className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+              {t('datasets.section')}
+            </Text>
+            <Text className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {t('datasets.offlineHint')}
+            </Text>
+            {remoteState === 'loading' ? (
+              <Text className="mt-1 text-xs text-gray-400">{t('datasets.checking')}</Text>
+            ) : remoteState === 'failed' ? (
+              <Text className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                {t('datasets.checkFailed')}
+              </Text>
+            ) : remoteState === 'stale-app' ? (
+              <Text className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                {t('datasets.needsAppUpdate')}
+              </Text>
+            ) : null}
+            <Text className="mt-3 text-xs text-gray-500 dark:text-gray-400">
               {t('regionPacks.intro')}
               <Text
                 // Nested-Text link: opens GBIF's login/register page in the

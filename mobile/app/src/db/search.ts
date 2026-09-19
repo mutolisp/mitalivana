@@ -1,4 +1,4 @@
-import { getTaicolDb } from './init';
+import { datasetForTaxonId, getDatasetDb } from './datasets';
 import i18n from '~/i18n';
 import { isJpTaxonId, sourceOfTaxonId } from './regions';
 import { externalToSearchResult, getExternalTaxon } from './externalTaxa';
@@ -129,7 +129,7 @@ function rowToResult(
     rank: row.rank ?? '',
     is_autonym: isAutonym(row.simple_name ?? '', row.rank ?? ''),
     is_sensu_lato: false,
-    region: (row.taxon_id ?? '').charAt(0) === 'y' ? 'JP' : 'TW',
+    region: datasetForTaxonId(row.taxon_id ?? '')?.region ?? 'TW',
   };
 
   if (matchedRow && matchedRow.usage_status !== 'accepted') {
@@ -151,7 +151,9 @@ function rowToResult(
 }
 
 function markSensuLato(results: SearchResult[]): SearchResult[] {
-  const db = getTaicolDb();
+  const db = getDatasetDb('tw-taicol');
+  // 模組不在就不標 s.l.——沒有資料可判斷，原樣回傳比猜好。
+  if (!db) return results;
   const speciesNames = results
     .filter((r) => r.usage_status === 'accepted' && !r.is_autonym && r.name && r.name.split(' ').length === 2)
     .map((r) => r.name);
@@ -190,11 +192,16 @@ export function searchByTaxonId(taxonId: string): SearchResult | null {
     const ext = getExternalTaxon(taxonId);
     return ext ? externalToSearchResult(ext) : null;
   }
-  const db = getTaicolDb();
-  // Query the dataset's real table directly by 't…'/'y…' prefix (no UNION
-  // view). Prefer the accepted row; fall back to any row so synonyms still
-  // surface basic metadata.
-  const table = isJpTaxonId(taxonId) ? 'jp_names' : 'taicol_names';
+  // 前綴 → 模組由 registry 決定（不再寫死 jp_names / taicol_names）。模組沒安裝
+  // 就回 null——這本來就是「解析不到」的既有契約，每個呼叫端都處理過。
+  const spec = datasetForTaxonId(taxonId);
+  if (!spec || spec.tables.kind !== 'names') return null;
+  const db = getDatasetDb(spec.id);
+  if (!db) return null;
+  // Query the dataset's real table directly (no UNION view). Prefer the
+  // accepted row; fall back to any row so synonyms still surface basic
+  // metadata.
+  const table = spec.tables.names;
   let res = db.executeSync(
     `SELECT ${SEARCH_COLUMNS} FROM ${table} WHERE taxon_id = ? AND usage_status = 'accepted' LIMIT 1`,
     [taxonId],
@@ -268,11 +275,14 @@ export const SEARCH_COLUMNS = [
 export function lookupExactAccepted(q: string): SearchResult[] {
   const trimmed = q.trim();
   if (!trimmed) return [];
-  const db = getTaicolDb();
+  const db = getDatasetDb('tw-taicol');
+  if (!db) return [];
   const variants = normalizeTw(trimmed);
   const pairs = variants.map(() => '(common_name_c = ? OR simple_name = ?)').join(' OR ');
   const params: string[] = [];
   for (const v of variants) params.push(v, v);
+  // 本函式在名錄模組化時只換了 handle，**SQL 一個字都沒動**——下面這段是量出來的。
+  //
   // `+usage_status` 的加號不是筆誤：直接寫 `usage_status = 'accepted'` 會讓
   // SQLite 改走 idx_taicol_usage_status —— 幾乎整張表都是同一個值的低選擇性
   // 索引，實測 0.02ms 變 20ms，快路徑等於白做。SQLite 的一元 `+` 會讓該條件
@@ -316,7 +326,8 @@ export function searchSpecies({ q, groups, advanced = {}, limit = 30 }: SearchOp
   const trimmed = q.trim();
   if (!trimmed) return [];
 
-  const db = getTaicolDb();
+  const db = getDatasetDb('tw-taicol');
+  if (!db) return [];
   const variants = normalizeTw(trimmed);
 
   const likePatterns: string[] = [];
@@ -566,7 +577,8 @@ export function searchSpeciesJp({ q, groups, advanced = {}, limit = 30 }: Search
   const trimmed = q.trim();
   if (!trimmed) return [];
 
-  const db = getTaicolDb();
+  const db = getDatasetDb('jp-ylist');
+  if (!db) return [];
   const pattern = `%${escapeLike(trimmed)}%`;
   const params: (string | number)[] = [pattern, pattern, pattern, pattern, pattern];
 

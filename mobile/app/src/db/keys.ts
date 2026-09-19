@@ -1,12 +1,15 @@
 /**
  * Identification keys read-only query layer (mobile).
  *
- * Keys / couplets live in the TaiCOL bundle DB alongside `taicol_names`, so
- * the mobile app can run dichotomous keys completely offline. Server-side
- * additions become available after a `cp backend/twnamelist.db mobile/app/assets/db/`
- * + rebuild. Online sync from `/api/keys` is deferred to Step 5-4.
+ * 檢索表住在自己的模組（`tw-keys`），與臺灣名錄（`tw-taicol`）是兩個獨立的
+ * SQLite 檔。這個 app 從不 ATTACH，所以**本檔不直接查名錄**：需要學名或 rank
+ * 時一律經過 `taxonNameRow` / `taxonAltNames` 這兩支縫，由它們去拿名錄模組的
+ * handle。模組不在就回空值，檢索表 UI 本來就有「找不到就不顯示」的行為。
+ *
+ * 模組更新（新的檢索表版本）只要重下 ~0.3 MB 的 tw-keys，不必重發 app，也不必
+ * 重下名錄。
  */
-import { getTaicolDb } from './init';
+import { getDatasetDb, onDatasetsChanged } from './datasets';
 
 export type IdentificationKey = {
   id: number;
@@ -97,7 +100,8 @@ export type KeyTaxonInfo = {
 const KEY_SELECT_SQL = `SELECT k.* FROM identification_keys k`;
 
 export function listIdentificationKeys(): IdentificationKey[] {
-  const db = getTaicolDb();
+  const db = getDatasetDb('tw-keys');
+  if (!db) return [];
   // Order by mode so two rows sharing the same (scope_rank, scope_name) —
   // one dichotomous, one multi_access — appear in a consistent order
   // (dichotomous first, then multi_access, then any future 'both' merge).
@@ -179,6 +183,13 @@ export function prewarmKeys(): void {
   }
 }
 
+/** 檢索表模組被安裝 / 更新 / 刪除後，整份快取與 scope 索引都不再有效。 */
+export function clearKeysCache(): void {
+  CACHED_KEYS = null;
+  SCOPE_INDEX = null;
+}
+onDatasetsChanged(clearKeysCache);
+
 /** O(1) lookup for taxonomy tree's per-row key chip. Returns the list of
  *  IdentificationKey rows matching this scope (rank + name) — typically
  *  0 (no key for this scope), 1 (dichotomous OR multi-access), or 2 (both).
@@ -190,14 +201,16 @@ export function getKeysForScope(rank: string, name: string): IdentificationKey[]
 }
 
 export function getIdentificationKey(id: number): IdentificationKey | null {
-  const db = getTaicolDb();
+  const db = getDatasetDb('tw-keys');
+  if (!db) return null;
   const res = db.executeSync(`${KEY_SELECT_SQL} WHERE k.id = ?`, [id]);
   const rows = (res.rows ?? []) as unknown as IdentificationKey[];
   return rows[0] ?? null;
 }
 
 export function listKeyCouplets(keyId: number): KeyCouplet[] {
-  const db = getTaicolDb();
+  const db = getDatasetDb('tw-keys');
+  if (!db) return [];
   const res = db.executeSync(
     `SELECT * FROM key_couplets WHERE key_id = ? ORDER BY number ASC`,
     [keyId],
@@ -207,7 +220,8 @@ export function listKeyCouplets(keyId: number): KeyCouplet[] {
 
 /** Features for a multi-access key, ordered by header column position. */
 export function listKeyFeatures(keyId: number): KeyFeature[] {
-  const db = getTaicolDb();
+  const db = getDatasetDb('tw-keys');
+  if (!db) return [];
   const res = db.executeSync(
     `SELECT id, key_id, name, type, values_json, category, sort_order
        FROM key_features
@@ -223,7 +237,8 @@ export function listKeyFeatures(keyId: number): KeyFeature[] {
  *  (≤ ~100 taxa × ~20 features × multi-value ≈ a few thousand rows) fits
  *  comfortably in JS memory. */
 export function listKeyTaxonFeatures(keyId: number): KeyTaxonFeatureRow[] {
-  const db = getTaicolDb();
+  const db = getDatasetDb('tw-keys');
+  if (!db) return [];
   const res = db.executeSync(
     `SELECT id, key_id, taxon_id, feature_id, value
        FROM key_taxon_features
@@ -274,23 +289,45 @@ const RANK_TO_SCOPE: Record<string, string> = {
   Subgenus: 'subgenus',
 };
 
-export function findSubkeyForTaxon(taxonId: string): IdentificationKey | null {
-  if (!taxonId) return null;
-  const db = getTaicolDb();
-  // Prefer the accepted-name row for rank + simple_name.
-  let res = db.executeSync(
-    `SELECT simple_name, rank FROM taicol_names
-      WHERE taxon_id = ? AND usage_status = 'accepted' LIMIT 1`,
-    [taxonId],
-  );
-  let row = (res.rows ?? [])[0] as { simple_name: string; rank: string } | undefined;
-  if (!row) {
-    res = db.executeSync(
-      `SELECT simple_name, rank FROM taicol_names WHERE taxon_id = ? LIMIT 1`,
+// ── 名錄側的查詢：唯一的縫 ───────────────────────────────────────────────────
+//
+// 檢索表與名錄是兩個獨立模組（兩個 SQLite 檔），這個 app 從不 ATTACH，所以
+// 檢索表的程式**不能**直接查 taicol_names。所有需要名錄的地方都經過下面兩支，
+// 它們自己去拿臺灣名錄模組的 handle，拿不到就回空——檢索表 UI 本來就有
+// 「找不到就不顯示」的行為。
+
+/** taxon_id → 接受名的 {simple_name, rank}；沒有接受名就退而取任一列。 */
+function taxonNameRow(taxonId: string): { simple_name: string; rank: string } | null {
+  const db = getDatasetDb('tw-taicol');
+  if (!db) return null;
+  for (const extra of [` AND usage_status = 'accepted'`, '']) {
+    const res = db.executeSync(
+      `SELECT simple_name, rank FROM taicol_names WHERE taxon_id = ?${extra} LIMIT 1`,
       [taxonId],
     );
-    row = (res.rows ?? [])[0] as { simple_name: string; rank: string } | undefined;
+    const row = (res.rows ?? [])[0] as { simple_name: string; rank: string } | undefined;
+    if (row) return row;
   }
+  return null;
+}
+
+/** 同一個 taxon_id、同 rank 的非接受名（TaiCOL 換屬時的舊屬名來源）。 */
+function taxonAltNames(taxonId: string, rank: string): string[] {
+  const db = getDatasetDb('tw-taicol');
+  if (!db) return [];
+  const res = db.executeSync(
+    `SELECT DISTINCT simple_name FROM taicol_names
+      WHERE taxon_id = ? AND usage_status != 'accepted' AND rank = ?`,
+    [taxonId, rank],
+  );
+  return ((res.rows ?? []) as { simple_name: string }[])
+    .map((r) => (r.simple_name ?? '').trim())
+    .filter(Boolean);
+}
+
+export function findSubkeyForTaxon(taxonId: string): IdentificationKey | null {
+  if (!taxonId) return null;
+  const row = taxonNameRow(taxonId);
   if (!row || !row.simple_name) return null;
   const scope = RANK_TO_SCOPE[row.rank];
   if (!scope) return null;
@@ -311,15 +348,7 @@ export function findSubkeyForTaxon(taxonId: string): IdentificationKey | null {
   //    genus), and try it as a scope_name. Covers Amauropelta beddomei
   //    (accepted) → "Parathelypteris" (non-accepted alias) → Parathelypteris
   //    worksheet.
-  const altRes = db.executeSync(
-    `SELECT DISTINCT simple_name FROM taicol_names
-      WHERE taxon_id = ? AND usage_status != 'accepted' AND rank = ?`,
-    [taxonId, row.rank],
-  );
-  const alts = (altRes.rows ?? []) as { simple_name: string }[];
-  for (const alt of alts) {
-    const sn = (alt.simple_name ?? '').trim();
-    if (!sn) continue;
+  for (const sn of taxonAltNames(taxonId, row.rank)) {
     const firstToken = sn.split(/\s+/)[0];
     if (!firstToken || firstToken === row.simple_name) continue;
     const k = findSubkeyByScopeName(firstToken);
@@ -348,7 +377,8 @@ export function findSubkeyByScopeName(
 ): IdentificationKey | null {
   const t = (token ?? '').trim();
   if (!t) return null;
-  const db = getTaicolDb();
+  const db = getDatasetDb('tw-keys');
+  if (!db) return null;
   // We use a UNION to keep the query plan simple: first try aliases match
   // (rare but explicit), then scope_name match. Order results by:
   //   1. exact scope_rank match when preferredRank given
@@ -393,7 +423,8 @@ export function findSubkeysByScopeName(
 ): IdentificationKey[] {
   const t = (token ?? '').trim();
   if (!t) return [];
-  const db = getTaicolDb();
+  const db = getDatasetDb('tw-keys');
+  if (!db) return [];
   const rankOrder = preferredRank
     ? `CASE WHEN k.scope_rank = ? THEN 0 ELSE 1 END,`
     : '';
@@ -427,20 +458,7 @@ export function findSubkeysByScopeName(
  *  mode) for the taxon's rank-mapped scope. Empty array if none. */
 export function findSubkeysForTaxon(taxonId: string): IdentificationKey[] {
   if (!taxonId) return [];
-  const db = getTaicolDb();
-  let res = db.executeSync(
-    `SELECT simple_name, rank FROM taicol_names
-      WHERE taxon_id = ? AND usage_status = 'accepted' LIMIT 1`,
-    [taxonId],
-  );
-  let row = (res.rows ?? [])[0] as { simple_name: string; rank: string } | undefined;
-  if (!row) {
-    res = db.executeSync(
-      `SELECT simple_name, rank FROM taicol_names WHERE taxon_id = ? LIMIT 1`,
-      [taxonId],
-    );
-    row = (res.rows ?? [])[0] as { simple_name: string; rank: string } | undefined;
-  }
+  const row = taxonNameRow(taxonId);
   if (!row || !row.simple_name) return [];
   const scope = RANK_TO_SCOPE[row.rank];
   return findSubkeysByScopeName(row.simple_name, scope);
@@ -470,7 +488,8 @@ export function findSubkeyFromLeadText(leadText: string): IdentificationKey | nu
  * to any row matching the id (so synonym-only ids still produce sensible UI).
  */
 export function getKeyTaxonInfo(taxonId: string): KeyTaxonInfo | null {
-  const db = getTaicolDb();
+  const db = getDatasetDb('tw-taicol');
+  if (!db) return null;
   // accepted first
   let res = db.executeSync(
     `SELECT taxon_id, simple_name, name_author, common_name_c, alternative_name_c,

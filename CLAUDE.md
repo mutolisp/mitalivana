@@ -337,7 +337,7 @@ npm run check:dock                                   # 底部置底搜尋框結�
 ### Schema 與 DB
 
 - User DB schema 寫在 `src/db/migrations.ts`，**每次改 schema 加新 migration 版本**（不在現有版本內 patch）。
-- TaiCOL bundle DB 體積 **~157MB**（2026-08-26 TaiCOL 版；隨每次名錄更新成長，原為 118MB），首次啟動會從 asset copy 到 `documentDirectory`。**copy 條件是比對 Metro 的 `asset.hash`**（`src/db/init.ts:21-28`），bundle 換版會自動重新 copy，不需手動 bump 版本；但也不要在每次 init 都無條件 re-copy。
+- 名錄資料**不隨 app 出貨**：`tw-taicol`（壓縮後 34 MB，解壓 143 MB）、`jp-ylist`（4 MB）、`tw-keys`（0.3 MB）三個模組從 R2 下載，存在 `Documents/datasets/<id>/`。安裝清單在 `datasets/installed.json`（**不放 user.db**：「清除所有資料」會刪 user.db，備份也會帶著它跨裝置跑）。首次啟動沒有任何模組時由 `DatasetSetupGate` 引導下載；0.5.x 升級上來的裝置會先把記錄用到的名稱備份進 `taxon_name_cache`，再刪掉舊的 160 MB 合併檔（`src/db/legacyBundle.ts`，順序不可調換）。
 - DB 層 helpers 要 enforce business invariant：例如 single-active 限制要在 `createSession` / `reopenSession` / `createPlotSurvey` / `reopenPlotSurvey` 內也寫 safety net，不只靠 UI guard。
 - Startup-once cleanup 寫在 `src/db/cleanup.ts`，掛在 `initDb()` migrations 後執行。
 
@@ -381,23 +381,26 @@ npm run check:dock                                   # 底部置底搜尋框結�
 - Type check：`cd mobile/app && npx tsc --noEmit`（**改完一定要跑**）
 - 實機測試需 EAS Build dev client（`eas build --profile development --platform ios`）+ Apple Developer Program $99/yr
 
-### Bundle DB 更新流程（重要）
+### 名錄模組更新流程（重要）
 
-更新 `mobile/app/assets/db/twnamelist.db` 時**必須一併重 build fuzzy index**，否則中文搜尋會 throw `no such table: cname_fuzzy_index`，未捕獲例外在 SearchBox debounce setTimeout 內反覆觸發後 destabilize Hermes runtime（GC `_newChunkAndPHV` EXC_BAD_ACCESS crash）。
+**名錄不再隨 app 出貨**（0.6 起）。`mobile/app/assets/db/twnamelist.db` 已移除，`make mobile-db` 已退役。名錄、日本名錄、檢索表各自是一個可下載的模組，放在 R2（`data.mitalivana.org`），app 端由 `src/db/datasets.ts`（registry）與 `src/lib/datasetInstall.ts`（下載安裝）管理。
 
-正確流程：
+TaiCOL / 檢索表更新後的正確流程：
 
 ```bash
-# 一鍵：copy backend DB → 重 build fuzzy index
-make mobile-db
+# ① 產出模組（母檔 backend/twnamelist.db 不會被改動）
+make datasets                    # → dist/datasets/{tw-taicol,jp-ylist,tw-keys}.db(.zip) + manifest.json
 
-# 或手動：
-cp backend/twnamelist.db mobile/app/assets/db/twnamelist.db
-backend/venv/bin/python -m backend.scripts.build_mobile_fuzzy_index \
-    mobile/app/assets/db/twnamelist.db
+# ② 等價性驗證（40 項：結構 / 列數 / app 的實際查詢 / fuzzy index / 檢索表 taxon 解析 / 跨區俗名）
+make datasets-verify
+
+# ③ 上傳（版本目錄不覆寫、latest/manifest.json 最後才傳）
+make datasets-upload R2_BUCKET=mitalivana [DRY=1]
 ```
 
-`cname_fuzzy_index` 是 mobile-only table（runtime levenshtein 用的 cache），backend 自己不需要。Cold start 時 `ensureTaicolDb` 用 asset hash 比對，bundle 換了就 re-copy 到 `documentDirectory`。fuzzy.ts 雖然已加 try/catch 缺表時 graceful 退場，但缺 index 等於失去模糊比對能力，仍應補上。
+`build_datasets.py` 內部會替每個模組呼叫 `build_mobile_fuzzy_index`（TW/JP 兩半各自可缺席）與 `build_pinyin_index.mjs`，**所以「換資料就要重建 fuzzy index」這條規則仍然成立**，只是已經自動化。缺 `cname_fuzzy_index` 會讓中文搜尋 throw `no such table`，未捕獲例外在 SearchBox debounce setTimeout 內反覆觸發後會 destabilize Hermes runtime（GC `_newChunkAndPHV` EXC_BAD_ACCESS crash）——`fuzzy.ts` 已加 try/catch graceful 退場，但缺 index 等於失去模糊比對能力。
+
+模組是唯讀內容，開檔時補 `PRAGMA query_only = ON`；**`open()` 對不存在的檔案會靜默建立空 DB**（op-sqlite 用 `SQLITE_OPEN_CREATE`），所以 registry 一律先確認檔案存在才開。
 
 ### Mobile 主要設計文件
 

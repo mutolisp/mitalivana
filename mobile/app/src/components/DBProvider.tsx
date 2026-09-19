@@ -4,7 +4,14 @@ import { ActivityIndicator, Text, View } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Font from 'expo-font';
 import { Ionicons } from '@expo/vector-icons';
-import { initDb, prewarmFuzzyIndex, prewarmKeys, prewarmKingdoms, twEnabled } from '~/db';
+import {
+  hasAnyNamesDataset,
+  initDb,
+  keysAvailable,
+  prewarmFuzzyIndex,
+  prewarmKeys,
+  prewarmKingdoms,
+} from '~/db';
 import { perf } from '~/lib/perf';
 import { useActivePlot } from '~/stores/activePlot';
 import { useActiveSession } from '~/stores/activeSession';
@@ -57,7 +64,9 @@ export function DBProvider({ children }: Props) {
         // moment splash hides (the previous setTimeout(0) variant lost that
         // race when the tap landed before the macrotask fired).
         try {
-          perf.time('app:prewarm-kingdoms', prewarmKingdoms);
+          // 一個名錄模組都沒有時整段跳過——沒有資料可暖，卻會讓首啟多做一輪
+          // 空查詢（下載精靈接手前的常見狀態）。
+          if (hasAnyNamesDataset()) perf.time('app:prewarm-kingdoms', prewarmKingdoms);
         } catch {
           // non-fatal: taxonomy tab falls back to lazy SQL
         }
@@ -82,9 +91,9 @@ export function DBProvider({ children }: Props) {
             // non-fatal: search still works via exact path
           }
           try {
-            // Keys are TaiCOL content; with the Taiwan region off there is
-            // nothing to warm (and no UI that would read the cache).
-            if (twEnabled()) perf.time('app:prewarm-keys', prewarmKeys);
+            // 檢索表現在是自己的模組，而且相依臺灣名錄。`keysAvailable()` 一次
+            // 涵蓋「模組裝了沒 / 名錄在不在 / 臺灣有沒有啟用」三件事。
+            if (keysAvailable()) perf.time('app:prewarm-keys', prewarmKeys);
           } catch {
             // non-fatal: KeyListView falls back to lazy load
           }

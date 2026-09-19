@@ -1060,6 +1060,57 @@ const MIGRATIONS: Migration[] = [
       }
     },
   },
+  {
+    // 名錄模組拆成可下載、可刪除的檔之後，記錄引用的 t…/y… taxon 隨時可能
+    // 「查不到」——模組還沒下載、被使用者刪掉、或跨裝置還原到沒裝該模組的機器。
+    //
+    // 這張表是 `ensureExternalCopy` 那條不變式的雙生子：pack 的 g… taxon 一寫進
+    // 記錄就複製進 external_taxa，同理 t…/y… 一寫進記錄就在這裡留一份名稱。
+    // 差別在 **taxon_id 絕對不能變**（external_taxa 會鑄造新的 g… id，那會拆散
+    // 記錄的統計與匯出），所以不能沿用那張表，得有自己的。
+    //
+    // 欄位刻意逐欄鏡射 `TaxonFields`（taxonLookup.ts），`resolveTaxa` 的退路才
+    // 是一個直接的 row → fields 映射，沒有特例。
+    version: 35,
+    up: (db) => {
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS taxon_name_cache (
+          taxon_id TEXT PRIMARY KEY,
+          dataset_id TEXT NOT NULL,
+          simple_name TEXT NOT NULL DEFAULT '',
+          name_author TEXT NOT NULL DEFAULT '',
+          common_name_c TEXT NOT NULL DEFAULT '',
+          alternative_name_c TEXT NOT NULL DEFAULT '',
+          family TEXT NOT NULL DEFAULT '',
+          family_c TEXT NOT NULL DEFAULT '',
+          rank TEXT NOT NULL DEFAULT '',
+          is_endemic TEXT NOT NULL DEFAULT '',
+          alien_type TEXT NOT NULL DEFAULT '',
+          redlist TEXT NOT NULL DEFAULT '',
+          iucn TEXT NOT NULL DEFAULT '',
+          cites TEXT NOT NULL DEFAULT '',
+          protected TEXT NOT NULL DEFAULT '',
+          is_hybrid TEXT NOT NULL DEFAULT '',
+          kingdom TEXT NOT NULL DEFAULT '',
+          kingdom_c TEXT NOT NULL DEFAULT '',
+          phylum TEXT NOT NULL DEFAULT '',
+          phylum_c TEXT NOT NULL DEFAULT '',
+          class TEXT NOT NULL DEFAULT '',
+          class_c TEXT NOT NULL DEFAULT '',
+          "order" TEXT NOT NULL DEFAULT '',
+          order_c TEXT NOT NULL DEFAULT '',
+          genus TEXT NOT NULL DEFAULT '',
+          genus_c TEXT NOT NULL DEFAULT '',
+          is_terrestrial TEXT NOT NULL DEFAULT '',
+          is_freshwater TEXT NOT NULL DEFAULT '',
+          is_brackish TEXT NOT NULL DEFAULT '',
+          is_marine TEXT NOT NULL DEFAULT '',
+          is_fossil TEXT NOT NULL DEFAULT '',
+          cached_at INTEGER NOT NULL
+        );
+      `);
+    },
+  },
 ];
 
 /** Highest schema version this build knows how to produce. Backup/restore uses

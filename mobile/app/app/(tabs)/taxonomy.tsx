@@ -16,6 +16,7 @@ import {
 import { KeyboardController } from 'react-native-keyboard-controller';
 import { KeyboardStickyView } from '~/components/KeyboardAvoidingView';
 import {
+  keysAvailable,
   taxonomyScopeSig,
   endemicTagLabel,
   addSearchHistory,
@@ -31,6 +32,7 @@ import {
   type TaxonSearchHit,
   type TaxonSpecies,
 } from '~/db';
+import { useInstalledDatasets } from '~/lib/datasetInstall';
 import { showActionSheet } from '~/components/ActionSheet';
 import { ConservationBadge } from '~/components/ConservationBadge';
 import { KeyListView } from '~/components/KeyListView';
@@ -130,9 +132,20 @@ export default function TaxonomyScreen() {
   const persistedExpanded = useSettings((s) => s.taxonomy_expanded);
   const setSetting = useSettings((s) => s.set);
   const settingsLoaded = useSettings((s) => s.loaded);
-  // 檢索表 content is Taiwan-only (identification keys live in the TaiCOL
-  // bundle) — with the Taiwan region off, the whole segment goes away.
-  const twOn = useSettings((s) => s.enabled_regions.includes('TW'));
+  // 檢索表是臺灣名錄的內容：臺灣關掉、或檢索表模組沒裝，整個分頁就消失。
+  // 檢索表能不能用有兩個軸：使用者有沒有開臺灣、模組有沒有安裝。兩個 store 都
+  // 訂閱（settings 管前者、useInstalledDatasets 管後者），實際判斷交給
+  // `keysAvailable()`——它一次涵蓋 模組已裝 ∧ 相依的臺灣名錄在 ∧ TW 已啟用。
+  const twRequested = useSettings((s) => s.enabled_regions.includes('TW'));
+  const datasetInstalls = useInstalledDatasets((s) => s.installs);
+  const twOn = useMemo(
+    () => twRequested && keysAvailable(),
+    // 下面這個 dep 不是被讀取的值，而是**重算的觸發點**：安裝或刪除檢索表模組時
+    // installs 會換成新陣列。判斷本身仍交給 keysAvailable()（單一權威），才不會
+    // 在 UI 裡重寫一次可用性規則。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [twRequested, datasetInstalls],
+  );
   useEffect(() => {
     if (!twOn && segment === 'key') setSegment('tree');
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1038,9 +1051,20 @@ function TaxonRow({
     .join(' · ');
 
   // 0/1/2 matching keys per scope; rank_key is 'kingdom'/'phylum'/.../'genus'.
-  // Keys are TaiCOL content — hidden entirely when the Taiwan region is off
-  // (a JP/pack genus sharing a Latin name must not surface a Taiwan key).
-  const rowTwOn = useSettings((s) => s.enabled_regions.includes('TW'));
+  // 日本 / pack 的同名屬不能冒出臺灣的檢索表，所以這裡也要 gate。
+  // 檢索表能不能用有兩個軸：使用者有沒有開臺灣、模組有沒有安裝。兩個 store 都
+  // 訂閱（settings 管前者、useInstalledDatasets 管後者），實際判斷交給
+  // `keysAvailable()`——它一次涵蓋 模組已裝 ∧ 相依的臺灣名錄在 ∧ TW 已啟用。
+  const rowTwRequested = useSettings((s) => s.enabled_regions.includes('TW'));
+  const rowInstalls = useInstalledDatasets((s) => s.installs);
+  const rowTwOn = useMemo(
+    () => rowTwRequested && keysAvailable(),
+    // 下面這個 dep 不是被讀取的值，而是**重算的觸發點**：安裝或刪除檢索表模組時
+    // installs 會換成新陣列。判斷本身仍交給 keysAvailable()（單一權威），才不會
+    // 在 UI 裡重寫一次可用性規則。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rowTwRequested, rowInstalls],
+  );
   const keys: IdentificationKey[] = rowTwOn ? getKeysForScope(node.rank_key, node.name) : [];
 
   return (

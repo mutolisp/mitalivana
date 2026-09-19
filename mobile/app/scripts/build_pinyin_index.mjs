@@ -10,7 +10,8 @@
 //
 // Usage (from repo root, so MOBILE_DB resolves; pinyin-pro resolved from
 // mobile/app/node_modules relative to this script):
-//   node mobile/app/scripts/build_pinyin_index.mjs mobile/app/assets/db/twnamelist.db
+//   node mobile/app/scripts/build_pinyin_index.mjs dist/datasets/tw-taicol.db
+//   （由 backend/scripts/datasets/build_datasets.py 自動呼叫；名錄已不隨 app 出貨）
 
 import { DatabaseSync } from 'node:sqlite';
 import { pinyin } from 'pinyin-pro';

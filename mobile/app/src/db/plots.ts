@@ -14,7 +14,7 @@ import {
 } from '~/lib/track';
 import { generateUuid } from './uuid';
 import { getUserDb, withTransaction } from './init';
-import { ensureExternalCopy } from './regionpacks';
+import { ensureTaxonSelfSufficient } from './taxonCache';
 import { existingProjectId, resolveProjectIdByName } from './projects';
 import { createSite, deleteSiteIfUnreferenced, type ImportedSite } from './sites';
 import type { DuplicateRecordOptions } from './duplicate';
@@ -828,7 +828,7 @@ export type AddPlotSpeciesInput = {
 };
 
 export function addPlotSpecies(input: AddPlotSpeciesInput): number {
-  ensureExternalCopy(input.taxon_id);
+  ensureTaxonSelfSufficient(input.taxon_id);
   const db = getUserDb();
   const now = Date.now();
   const res = db.executeSync(

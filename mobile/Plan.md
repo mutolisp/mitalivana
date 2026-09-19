@@ -3874,3 +3874,153 @@ Modal（`DateTimeField` 的註解記著同一個坑）。
 2. 匯出一筆快速名錄，解壓確認 `dwca/*.zip`（event/occurrence/humboldt/meta/eml）、
    `_occurrence_dwc.csv` 欄位、`README.md`
 3. 匯出設定關掉「Darwin Core Archive」後，單筆匯出不再有 `dwca/`
+
+## 2026-09-20 — 名錄模組化：步驟 1–4 完成（TW / JP / 檢索表拆包 → R2）
+
+完整計畫在 `~/.claude/plans/squishy-sprouting-acorn.md`。使用者決策：**全部拆出去**
+（安裝檔不內建名錄）、公開自訂網域 `data.mitalivana.org`、整包換不做差分、檢索表
+依區域一包、臺灣名錄不再依界細分、隨包帶索引、**舊安裝要求重新下載**。
+
+### 已完成
+
+**步驟 4 — 建置管線（後端，可完整驗證）**
+
+`backend/scripts/datasets/build_datasets.py` 以 `backend/twnamelist.db` 為母檔
+（母檔一張表都不動），**白名單式**列舉要搬哪些表，ATTACH 後複製、建索引、依
+region 切 `species_xref`、VACUUM、zip、算 md5、寫 manifest。
+
+| 模組 | 解壓後 | 壓縮後 | 內容 |
+|---|---:|---:|---|
+| `tw-taicol` | 142.9 MB | **33.9 MB** | 269,824 列 + 10 索引 + fuzzy index（pinyin 63,178 全填）+ TW 96,677 筆 xref |
+| `jp-ylist` | 16.0 MB | **4.1 MB** | 25,839 列 + 6 索引 + 和名 fuzzy index + JP 25,839 筆 xref |
+| `tw-keys` | 1.0 MB | **0.3 MB** | 896 把檢索表、5,076 couplet |
+
+只用臺灣的人下載 **34.2 MB**（現行內建 160 MB）。`make datasets` /
+`make datasets-verify`；`build_mobile_fuzzy_index.py` 改成 TW/JP 兩半各自可缺席，
+同一支腳本能對單一模組跑，不必複製邏輯。
+
+`verify_datasets.py`（**每次 TaiCOL / 檢索表更新後必跑**）：結構／列數／app 真正
+的搜尋 SQL／fuzzy index 的 name_id 指得到本模組／檢索表 5,800 個 taxon_id 逐一
+解析 0 失敗／跨區俗名兩段式 vs 單檔自我 JOIN。**40/40 通過。**
+
+> 這支驗證第一次跑就抓到建置腳本的 bug：`_table_exists` 查的是新建的空模組而不是
+> ATTACH 進來的母檔，條件永遠為假，`species_xref` 整張沒被複製。這就是它存在的理由。
+
+**步驟 1 — registry（零行為改變）**：`src/db/datasets.ts`。spec（編譯期）/ install
+record（執行期）兩層，**handle 以檔案為鍵**（過渡期三個模組指向同一個 bundle 檔，
+仍然只開一次）。三條寫進檔頭的規則：① `open()` 對不存在的檔會**靜默建空 DB**
+（op-sqlite 用 `SQLITE_OPEN_CREATE`），所以一律先確認檔案存在才開；② 模組唯讀，
+開檔補 `PRAGMA query_only = ON`；③ 原生模組只在函式內碰，否則 Node 下的 check
+script 會在載入期就壞掉（`configureDatasetOpener` / `configureDatasetFs` 是測試縫）。
+
+**步驟 2 — v35 `taxon_name_cache`**：記錄引用的名稱在 user.db 留一份。掛在四個
+insert helper 的 `ensureTaxonSelfSufficient`（`g…` 走既有的 pack 不變式，`t…/y…`
+走新快取）。**taxon_id 絕不改寫**——這是不能沿用 `ensureExternalCopy` 的理由，它會
+鑄造新的 `g…` id，等於拆散記錄的統計與匯出。`resolveTaxa` 加快取退路與
+`unresolved` 旗標（絕不可拿 taxon_id 當名字渲染，會漏進 DwC `scientificName`）。
+
+**步驟 3 — 消費端轉換（11 個檔，整包一起進）**
+
+- `getTaicolDb()` **已刪除**：約 40 個「一定回得來」的呼叫點全部改成可回 null 的
+  `getDatasetDb(id)`，每處寫明沒有資料時的退路。
+- `taxonomy.ts`：`all_names` view 消失（view 不能跨檔），`bundledScope()` →
+  `nameScopes()` 逐模組查 + `mergeScopeNodes` 在 JS 合併。**統計取捨**：子階層計數
+  相加，TW+JP 同時開且有共有屬時略為高估，與 `mergePackNodes` 對 pack 的既有處理
+  一致；單一模組（預設）數字與拆檔前完全相同。快取鍵改含模組版本，換包自動失效。
+- `regions.ts`：新增 requested / installed / **effective = 交集** 三分。還原一份
+  寫著 `['TW','JP']` 的備份到只裝臺灣的裝置時查詢安全、意圖保留。
+  `crossRegionVernacular` 改兩段式跨模組查詢，`AND region = ?` 是過渡期的關鍵防呆。
+- `keys.ts`：檢索表模組**絕不自己查名錄**，需要學名/rank 一律經
+  `taxonNameRow` / `taxonAltNames` 兩支縫。
+- `search.ts` / `fuzzy.ts` / `taxonLookup.ts` / `synonyms.ts` / `cleanup.ts` /
+  `sciMatch.ts` / `adoptName.ts` / `DBProvider.tsx` 全部轉換。
+  `countStaleAdoptions` 缺模組時回 **0** 而不是 N（否則資料檢查頁會把每一筆採用名
+  都報成 stale）。JP 的 fuzzy index 維持 lazy。
+- 近期效能成果全部只換 handle、**SQL 一個字沒動**（`+usage_status` 一元加號、
+  第二道等值查詢、單趟 sweep、TW-only 快路徑、沒有 child_count 的 KEY_SELECT_SQL）。
+- 新增 `npm run check:datasets`：把 `mergeScopeNodes` / `stitchCrossRegion` 抽成
+  無原生相依的 `src/db/mergeScope.ts`，Node 下直接驗合併規則（14 項）。
+
+驗證：`tsc` 0 error、lint 0 error、13 支 check script 全綠。
+
+### 步驟 5 — 下載安裝層 + UI + 上傳（同日完成）
+
+- **`src/lib/datasetInstall.ts`**：與離線地圖 / POI 同一套骨架（module-level
+  zustand + typed phase union + `running`/`cancelled`），下載必須撐過離開畫面。
+  串流解壓（4 MiB 一段 + `await sleep(0)`），因為臺灣名錄解壓後 134 MB。
+  **下載完驗 bytes + md5 才換檔**；失敗或取消一律刪暫存，半成品絕不留下。
+- **刪除保護**：`previewDatasetRemoval()` 先把記錄用到的名稱抄進 user.db 再讓使用者
+  確認（「已保留 N 筆名稱；M 筆將顯示為名稱不可用」），確認後才 `removeDataset()`。
+- **UI**：`app/regionpacks.tsx` 的內建列升級成模組列——版本、大小、下載/更新/刪除、
+  進度條、「有新版」標記、相依提示（檢索表需要臺灣名錄）、離線時安靜退回已安裝清單。
+  「至少留一個來源」改成只數**已安裝且已啟用**的模組（勾了 TW 但沒下載不算來源）。
+- **`src/lib/datasetManifest.ts`**（純模組）：兩條向前相容規則——不認識的 id 略過、
+  `minAppSchema` 太新則略過並提示更新 app；缺 md5/url/version 的條目視為壞資料。
+  `check:datasets` 從 14 項擴充到 **29 項**，涵蓋合併、縫合、manifest、版本、相依、空間。
+- **`backend/scripts/datasets/upload_datasets.py`** + `make datasets-upload`：照抄
+  `upload_vector.py` 的三條規則（版本目錄不覆寫、immutable 快取、
+  `latest/manifest.json` **最後**才傳）。dry-run 實測 4 個物件、順序正確。
+
+### 步驟 6 — 拆掉內建 + 首啟精靈 + 升級路徑（同日完成）
+
+- **內建 asset 移除**：`assets/db/twnamelist.db`（160 MB，LFS 歷史 `10a0387` 可還原）、
+  空掉的 `.gitattributes`、`app.config.ts` 的 expo-asset 條目與 `assetBundlePatterns`
+  的 `assets/db/*.db`、`init.ts` 的 `ensureTaicolDb()` 整段、Makefile 的 `mobile-db`
+  與 `MOBILE_DB`。連帶清掉只服務於 asset 複製的三個 splash 字串（×7 語系）。
+- **`src/db/legacyBundle.ts`**：0.5.x 升級路徑，順序寫死且**可中斷**——
+  ① v35 migration（`initDb` 已跑完）→ ② 趁舊檔還在 `backfillNameCache()` →
+  ③ 寫旗標 → ④ 才刪 `twnamelist.db` + `.version`（回收 160 MB）→ ⑤ 精靈接手。
+  旗標只在 ② 完成後才寫，所以中途被殺掉下次會從 ② 重跑（backfill 冪等）。
+  **刪檔一定在下載之前**：否則尖峰要 160＋34＋143 ≈ 337 MB 可用空間。
+- **`DatasetSetupGate`**：掛在 `DBProvider` 之內、`Stack` 之外（DB 一定開好、
+  不必碰 router）。**保留「稍後再說」是刻意的**——剛換手機的人第一件事往往是還原
+  備份，不該被強迫先下 34 MB；跳過只存在這次啟動，不寫進 settings。
+- 檢索表三個 gate 改成同時訂閱 settings 與 `useInstalledDatasets`，判斷仍交給
+  `keysAvailable()`（單一權威）；dep 是刻意的重算觸發點，已附原因註解。
+- `CLAUDE.md` 的「Bundle DB 更新流程」整段改寫成「名錄模組更新流程」。
+
+### 模擬器驗證（iOS 17 sim + Pixel 3a API 34，同日）
+
+**iOS —— 0.5.x 升級路徑（真的跑過，不是推論）**：
+`[db] legacy bundle retired: cached 9 names, 0 unresolvable, freed 169 MB`。
+之後容器內已無 `twnamelist.db`、有 `datasets/`，user.db 停在 schema 35 且
+`taxon_name_cache` 恰好 9 列、`legacy_bundle_backfilled = 'true'`。冷啟 `db-init 243ms`。
+裝完三個模組後，檢索表畫面把 `t0023097` 解析成「獼猴桃屬 Actinidia Lindl. / 獼猴桃科」
+—— 那個名字來自**另一個檔案** `tw-taicol`，即 §3.2「檢索表絕不自己查名錄，改走
+`resolveTaxa`」的跨模組路徑實際成立。
+
+**Android —— 全新安裝路徑**：APK 內已無任何 `.db`。首啟精靈依 R2 manifest 列出
+32.4 MB / 4.0 MB 兩列（`tw-keys` 因 `requires` 未滿足而正確不列），按下載後
+進度條 → 驗證 → 串流解壓 → `datasets/tw-taicol/tw-taicol.db` **142,917,632 bytes**
+與 manifest 完全一致，門自動讓開。分類樹七個界的各階層計數全部算得出來。
+冷啟（模組已在）：`db-init 69ms` → `prewarm-kingdoms 378ms` → `set-ready 465ms`。
+
+### 兩個 prebuild 產物的坑（§8.9 的清單漏掉的）
+
+拿掉內建 asset **只改了 `app.config.ts`，已經生成的 `ios/` 與 `android/` 不會自己更新**，
+而兩邊的失敗樣態剛好相反：
+
+| | 殘留 | 後果 |
+|---|---|---|
+| iOS | `project.pbxproj` 仍有 `twnamelist.db` 的 PBXBuildFile / PBXFileReference（`path = ../assets/db/twnamelist.db`）| **Xcode build 直接失敗**（檔案不存在）|
+| Android | `android/app/src/main/assets/twnamelist.db` 整份還在 | 不會報錯，**默默把 160 MB 包回 APK** |
+
+會吵的那個反而安全。修法：iOS 刪掉 pbxproj 裡那兩個 UUID 的 4 行（或重跑 prebuild），
+Android 刪掉那個檔。兩個目錄都在 `.gitignore`，所以 EAS 從 git 重新 prebuild 不受影響。
+
+### `withBackupExclusions.js` 的 `EXCLUDED` 一直是壞的
+
+這次才發現本機 `android/` tree **從來沒套過這個 plugin**——沒有
+`android:dataExtractionRules`、沒有 `res/xml/`，而 `allowBackup="true"`。
+清單本身也停在舊版（只有已移除的 `rudymap` 與舊 bundle），少了 `datasets`、
+`vectormap`、`poi`、`regionpacks.db`。Auto Backup 配額 25 MB，超過會讓**整個備份失敗**，
+所以這不是最佳化而是修回歸。已補齊並重跑 prebuild 產生 XML、確認 manifest 掛上、
+`debug.keystore` 未被改動（SHA-1 綁定見 [[project-android-debug-keystore]]）。
+判準寫進註解了：**重新下載得回來的就不進備份**。
+
+### 待辦（全部需要實機）
+
+- 首啟無網路的引導與重試、下載中切背景（會中斷，設計如此）、下載失敗重來。
+- 0.5.x 升級的 backfill 中途殺 app 能否續跑（順序已驗，中斷情境未驗）。
+- 刪模組後既有記錄仍顯示名稱；備份還原後模組不受影響。
+- `unresolved` 旗標目前只有資料層會設，UI 尚未顯示「名稱不可用」的灰字。

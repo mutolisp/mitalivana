@@ -34,6 +34,7 @@ import {
   findSubkeysForTaxon,
   getIdentificationKey,
   getKeyTaxonInfo,
+  keysAvailable,
   indexCoupletsByNumber,
   isTaxonInSession,
   listKeyCouplets,
@@ -60,6 +61,7 @@ import {
 } from '~/stores/settings';
 import { useToast } from '~/stores/toast';
 import { ACTION_FILL } from '~/lib/colors';
+import { useInstalledDatasets } from '~/lib/datasetInstall';
 
 type LeadKey = 'a' | 'b';
 
@@ -307,7 +309,19 @@ export default function KeyRunnerScreen() {
   // Guard against deep links / restored runner state while Taiwan is off:
   // every key resolves taxa against taicol_names, so running one without the
   // TW region would show half-broken leads. Rendered below, before !loaded.
-  const guardTwOn = useSettings((s) => s.enabled_regions.includes('TW'));
+  // 檢索表能不能用有兩個軸：使用者有沒有開臺灣、模組有沒有安裝。兩個 store 都
+  // 訂閱（settings 管前者、useInstalledDatasets 管後者），實際判斷交給
+  // `keysAvailable()`——它一次涵蓋 模組已裝 ∧ 相依的臺灣名錄在 ∧ TW 已啟用。
+  const guardTwRequested = useSettings((s) => s.enabled_regions.includes('TW'));
+  const guardInstalls = useInstalledDatasets((s) => s.installs);
+  const guardTwOn = useMemo(
+    () => guardTwRequested && keysAvailable(),
+    // 下面這個 dep 不是被讀取的值，而是**重算的觸發點**：安裝或刪除檢索表模組時
+    // installs 會換成新陣列。判斷本身仍交給 keysAvailable()（單一權威），才不會
+    // 在 UI 裡重寫一次可用性規則。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [guardTwRequested, guardInstalls],
+  );
   const hydratedRef = useRef(false);
   useEffect(() => {
     if (hydratedRef.current) return;

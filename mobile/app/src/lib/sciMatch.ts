@@ -20,7 +20,8 @@
  * is the worst outcome available: the user would record a different organism
  * and never find out.
  */
-import { getTaicolDb } from '~/db/init';
+import type { DB } from '@op-engineering/op-sqlite';
+import { availableNameDatasets, getDatasetDb } from '~/db/datasets';
 
 export type SciCandidate = {
   taxon_id: string;
@@ -115,9 +116,14 @@ export function nameVariants(name: string): string[] {
 
 const CAND_COLS = `taxon_id, simple_name, name_author, common_name_c, rank, kingdom, family, family_c`;
 
-function queryTable(tbl: string, source: 'taicol' | 'jp', variants: string[]): SciCandidate[] {
+function queryTable(
+  db: DB,
+  tbl: string,
+  source: 'taicol' | 'jp',
+  variants: string[],
+): SciCandidate[] {
   const ph = variants.map(() => '?').join(',');
-  const res = getTaicolDb().executeSync(
+  const res = db.executeSync(
     `SELECT ${CAND_COLS} FROM ${tbl}
       WHERE simple_name IN (${ph}) AND usage_status = 'accepted'
         AND taxon_id IS NOT NULL AND taxon_id != ''`,
@@ -140,11 +146,11 @@ function queryTable(tbl: string, source: 'taicol' | 'jp', variants: string[]): S
  *  forward to the accepted row via their taxon_id. Mirrors what `searchSpecies`
  *  already does for the main search box. */
 function querySynonyms(
+  db: DB,
   tbl: string,
   source: 'taicol' | 'jp',
   variants: string[],
 ): { accepted: SciCandidate; matchedName: string; status: string }[] {
-  const db = getTaicolDb();
   const ph = variants.map(() => '?').join(',');
   const hits = db.executeSync(
     `SELECT taxon_id, simple_name, usage_status FROM ${tbl}
@@ -205,11 +211,15 @@ export function matchScientificName(q: SciQuery): SciMatch {
   const variants = nameVariants(q.name);
   if (variants.length === 0) return { kind: 'unmatched' };
 
-  for (const [tbl, source] of [
-    ['taicol_names', 'taicol'],
-    ['jp_names', 'jp'],
-  ] as const) {
-    let cands = queryTable(tbl, source, variants);
+  // 逐個可用的名錄模組（TaiCOL 優先，見 availableNameDatasets）。以前是寫死的
+  // 兩張表；現在沒安裝的模組根本不會進迴圈，兩者的順序語意不變。
+  for (const spec of availableNameDatasets()) {
+    if (spec.tables.kind !== 'names') continue;
+    const db = getDatasetDb(spec.id);
+    if (!db) continue;
+    const tbl = spec.tables.names;
+    const source: 'taicol' | 'jp' = spec.id === 'jp-ylist' ? 'jp' : 'taicol';
+    let cands = queryTable(db, tbl, source, variants);
 
     // Nothing accepted under this name — try the synonym / misapplied rows and
     // follow their taxon_id to the accepted name. Without this a species the
@@ -218,7 +228,7 @@ export function matchScientificName(q: SciQuery): SciMatch {
     // taxon, breaking the rule that local species keep local ids.
     let via: { name: string; status: string } | undefined;
     if (cands.length === 0) {
-      const syn = querySynonyms(tbl, source, variants);
+      const syn = querySynonyms(db, tbl, source, variants);
       if (syn.length > 0) {
         cands = syn.map((x) => x.accepted);
         via = { name: syn[0].matchedName, status: syn[0].status };

@@ -3,7 +3,13 @@
  * Port of backend/api/taxonomy_api.py — MVP scope skips virus realm handling
  * (defer to iteration after first taxonomy ship).
  */
-import { getTaicolDb } from './init';
+import type { DB } from '@op-engineering/op-sqlite';
+import {
+  availableNameDatasets,
+  datasetScopeSig,
+  getDatasetDb,
+  onDatasetsChanged,
+} from './datasets';
 import { searchWithFuzzyFallback } from './fuzzy';
 import {
   getEnabledRegions,
@@ -21,27 +27,39 @@ import {
   type PackSpeciesRow,
   type PackTreeNodeRow,
 } from './regionpacks';
+import { mergeScopeNodes } from './mergeScope';
 import type { SearchResult } from './types';
 
 /**
- * Scope for the BUNDLED half of tree queries (twnamelist.db). Three states:
- * TW+JP → the `all_names` view (single query, DISTINCT counts stay exact —
- * splitting into two queries would double-count shared genera); TW only →
- * the original taicol_names path, byte-identical to pre-region behavior;
- * JP only → jp_names directly. `null` when neither bundled region is on
- * (packs-only mode) — callers then skip the bundled query entirely.
- * Region packs live in a different DB file and are ALWAYS a separate query
- * merged in JS (this app never ATTACHes).
+ * 每個可用名錄模組的查詢範圍。
+ *
+ * 以前 TW+JP 是查 `all_names` 這個 UNION view，一次查詢讓 `COUNT(DISTINCT …)`
+ * 精確。名錄拆成獨立檔之後 view 不可能跨檔存在，所以改成逐模組查、在 JS 合併
+ * ——與 pack 早就在做的事情同一套（這個 app 從不 ATTACH）。
+ *
+ * **統計的取捨**：合併時子階層計數是相加的，所以 TW 與 JP 同時開啟、又有共有
+ * 屬時會略為高估；這與 `mergePackNodes` 對 pack 既有的處理一致（那裡的註解也
+ * 寫明是 approximation）。只開臺灣（預設）或只開日本時只有一個 scope，數字與
+ * 拆檔前完全相同。葉層的物種清單仍然逐筆去重，不受影響。
+ *
+ * 空陣列 = 一個名錄模組都沒有（只用 pack、或還沒下載），呼叫端直接跳過。
  */
-function bundledScope(): { table: string; taiwanClause: string } | null {
-  const regions = getEnabledRegions();
-  const tw = regions.includes('TW');
-  const jp = regions.includes('JP');
-  if (tw && jp)
-    return { table: 'all_names', taiwanClause: "(is_in_taiwan LIKE '%true%' OR region='JP')" };
-  if (tw) return { table: 'taicol_names', taiwanClause: "is_in_taiwan LIKE '%true%'" };
-  if (jp) return { table: 'jp_names', taiwanClause: "region='JP'" };
-  return null;
+type NameScope = { id: string; db: DB; table: string; taiwanClause: string };
+
+function nameScopes(): NameScope[] {
+  const out: NameScope[] = [];
+  for (const spec of availableNameDatasets()) {
+    if (spec.tables.kind !== 'names') continue;
+    const db = getDatasetDb(spec.id);
+    if (!db) continue;
+    out.push({
+      id: spec.id,
+      db,
+      table: spec.tables.names,
+      taiwanClause: spec.tables.scopeClause,
+    });
+  }
+  return out;
 }
 
 /** Merge pack tree rows into bundled nodes: same-name nodes combine (stats
@@ -196,8 +214,10 @@ let CACHED_KINGDOMS: TaxonNode[] | null = null;
  *  the enabled regions change (JP toggled in settings). */
 let CACHED_KINGDOMS_SCOPE: string | null = null;
 
+/** 快取鍵含每個可用模組的**版本**，所以更新某個模組（整包換檔）會讓分類樹
+ *  自動失效——不必額外呼叫清快取。 */
 function scopeSig(): string {
-  return `${getEnabledRegions().join(',')}|${packScopeSig()}`;
+  return `${datasetScopeSig()}|${packScopeSig()}`;
 }
 
 /** Exposed for the taxonomy screen: it must reset its in-memory tree when the
@@ -228,16 +248,17 @@ export function clearTaxonomyCache(): void {
   CACHED_KINGDOMS = null;
   CACHED_KINGDOMS_SCOPE = null;
 }
+// `scopeSig()` 已含模組版本，本來就會自癒；仍然註冊是為了刪除模組的當下立刻歸零，
+// 而不是等到下一次比對 sig。
+onDatasetsChanged(clearTaxonomyCache);
 
 /**
  * Top-level: non-virus kingdoms.
  * (Virus realm handling deferred from MVP.)
  */
 function computeTopLevel(): TaxonNode[] {
-  const scope = bundledScope();
   let nodes: TaxonNode[] = [];
-  if (scope) {
-    const db = getTaicolDb();
+  for (const scope of nameScopes()) {
     const virusList = [...VIRUS_KINGDOMS].map((k) => `'${k.replace(/'/g, "''")}'`).join(', ');
     const statsCols = buildStatsCols(0);
     const cCol = RANK_C_COL.kingdom;
@@ -252,16 +273,17 @@ function computeTopLevel(): TaxonNode[] {
       HAVING name IS NOT NULL AND name != ''
       ORDER BY name
     `;
-    const res = db.executeSync(sql);
-    nodes = ((res.rows ?? []) as Array<Record<string, unknown>>).map((row) => ({
+    const res = scope.db.executeSync(sql);
+    const scopeNodes = ((res.rows ?? []) as Array<Record<string, unknown>>).map((row) => ({
       name: row.name as string,
       name_c: (row.name_c as string) ?? '',
       rank: 'kingdom',
       rank_key: 'kingdom',
-      child_rank: 'phylum',
+      child_rank: 'phylum' as ChildRank,
       stats: buildStatsDict(row, 0),
       ancestors: {},
     }));
+    nodes = mergeScopeNodes(nodes, scopeNodes);
   }
   // Virus handling is deferred app-wide; GBIF-derived packs use the plain
   // kingdom name 'Viruses', which the bundled exclusion list doesn't carry.
@@ -293,10 +315,8 @@ export function getTaxonChildren(opts: ChildrenOptions): TaxonNode[] {
 
   const childRank: ChildRank = rankIdx + 1 < RANK_ORDER.length ? RANK_ORDER[rankIdx + 1] : 'species';
   const ancestors: Ancestors = opts.ancestors ?? {};
-  const scope = bundledScope();
   let nodes: TaxonNode[] = [];
-  if (scope) {
-    const db = getTaicolDb();
+  for (const scope of nameScopes()) {
     const statsCols = buildStatsCols(rankIdx);
     const cCol = RANK_C_COL[opts.rank];
     const extraCols = cCol ? `, MAX(${cCol}) AS name_c` : '';
@@ -314,8 +334,8 @@ export function getTaxonChildren(opts: ChildrenOptions): TaxonNode[] {
       HAVING name IS NOT NULL AND name != ''
       ORDER BY name
     `;
-    const res = db.executeSync(sql, params);
-    nodes = ((res.rows ?? []) as Array<Record<string, unknown>>).map((row) => ({
+    const res = scope.db.executeSync(sql, params);
+    const scopeNodes = ((res.rows ?? []) as Array<Record<string, unknown>>).map((row) => ({
       name: row.name as string,
       name_c: (row.name_c as string) ?? '',
       rank: opts.rank,
@@ -324,6 +344,7 @@ export function getTaxonChildren(opts: ChildrenOptions): TaxonNode[] {
       stats: buildStatsDict(row, rankIdx),
       ancestors,
     }));
+    nodes = mergeScopeNodes(nodes, scopeNodes);
   }
   return mergePackNodes(nodes, packTreeChildren(opts.rank, opts.ancestors), opts.rank, childRank, ancestors);
 }
@@ -454,19 +475,22 @@ function taxonRowToSpecies(row: Record<string, unknown>): TaxonSpecies {
 
 export function getSpeciesUnder(ancestors?: Ancestors): TaxonSpecies[] {
   const regions = getEnabledRegions();
-  const scope = bundledScope();
+  const scopes = nameScopes();
   let species: TaxonSpecies[] = [];
-  if (scope) {
-    const db = getTaicolDb();
+  for (const scope of scopes) {
     let where = `usage_status='accepted' AND ${scope.taiwanClause} AND rank IN ('Species','Subspecies','Variety','Form')`;
     const params: string[] = [];
     where += buildAncestorWhere(ancestors, params);
     const sql = `SELECT ${TAXON_SPECIES_COLUMNS} FROM ${scope.table} WHERE ${where} ORDER BY simple_name`;
-    const res = db.executeSync(sql, params);
-    species = ((res.rows ?? []) as Array<Record<string, unknown>>).map(taxonRowToSpecies);
+    const res = scope.db.executeSync(sql, params);
+    species = species.concat(
+      ((res.rows ?? []) as Array<Record<string, unknown>>).map(taxonRowToSpecies),
+    );
   }
   const packRows = packSpeciesUnder(ancestors).map(packRowToTaxonSpecies);
-  const multiSource = packRows.length > 0 || (regions.includes('TW') && regions.includes('JP'));
+  // 兩個以上來源就要去重（共有種以 TaiCOL > YList > pack 為準）——來源現在是
+  // 「可用模組數 + pack」，不再是 region 旗標。
+  const multiSource = packRows.length > 0 || scopes.length > 1;
   if (packRows.length > 0) species = species.concat(packRows);
 
   if (multiSource) {
@@ -516,10 +540,9 @@ export function getInfraspeciesOf(
   ancestors?: Ancestors,
 ): TaxonSpecies[] {
   if (!speciesName || speciesName.split(/\s+/).length !== 2) return [];
-  const scope = bundledScope();
+  const scopes = nameScopes();
   let out: TaxonSpecies[] = [];
-  if (scope) {
-    const db = getTaicolDb();
+  for (const scope of scopes) {
     const pattern = `${speciesName.replace(/%/g, '\\%').replace(/_/g, '\\_')} %`;
     const params: string[] = [pattern, speciesName];
     let where = `simple_name LIKE ? ESCAPE '\\'
@@ -529,11 +552,11 @@ export function getInfraspeciesOf(
         AND ${scope.taiwanClause}`;
     where += buildAncestorWhere(ancestors, params);
     const sql = `SELECT ${TAXON_SPECIES_COLUMNS} FROM ${scope.table} WHERE ${where} ORDER BY simple_name`;
-    const res = db.executeSync(sql, params);
-    out = ((res.rows ?? []) as Array<Record<string, unknown>>).map(taxonRowToSpecies);
+    const res = scope.db.executeSync(sql, params);
+    out = out.concat(((res.rows ?? []) as Array<Record<string, unknown>>).map(taxonRowToSpecies));
   }
   const packRows = packInfraspeciesOf(speciesName, ancestors).map(packRowToTaxonSpecies);
-  if (packRows.length > 0) {
+  if (packRows.length > 0 || scopes.length > 1) {
     const byKey = new Map<string, TaxonSpecies>();
     for (const sp of [...out, ...packRows]) {
       const key = normalizeSci(sp.simple_name);
@@ -626,7 +649,6 @@ export function searchTaxonomy(q: string): TaxonSearchHit[] {
   if (trimmed.length < 1) return [];
 
   const variants = normalizeTw(trimmed);
-  const db = getTaicolDb();
 
   const conditions: string[] = [];
   const params: string[] = [];
@@ -639,9 +661,10 @@ export function searchTaxonomy(q: string): TaxonSearchHit[] {
     }
   }
 
-  const scope = bundledScope();
+  // 每個模組各自掃、各自吃 LIMIT 50，再在 JS 併起來（下面既有的 `rank:name`
+  // 去重會把兩邊都有的分類群收斂成一筆）。
   let rows: Array<Record<string, unknown>> = [];
-  if (scope) {
+  for (const scope of nameScopes()) {
     const sql = `
       SELECT DISTINCT simple_name, common_name_c, rank,
              kingdom, kingdom_c, phylum, phylum_c,
@@ -655,8 +678,8 @@ export function searchTaxonomy(q: string): TaxonSearchHit[] {
         AND rank IN ('Species', 'Subspecies', 'Variety', 'Form', 'Genus', 'Family', 'Order', 'Class', 'Phylum')
       LIMIT 50
     `;
-    const res = db.executeSync(sql, params);
-    rows = (res.rows ?? []) as Array<Record<string, unknown>>;
+    const res = scope.db.executeSync(sql, params);
+    rows = rows.concat((res.rows ?? []) as Array<Record<string, unknown>>);
   }
 
   const hits: TaxonSearchHit[] = rows.map((r) => {

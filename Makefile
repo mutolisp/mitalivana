@@ -13,7 +13,8 @@ UNAME_S := $(shell uname -s)
 
 all: backend frontend
 
-.PHONY: all backend frontend run dev pkg pkg-dmg pkg-win test taicol icon clean mobile-db help \
+.PHONY: all backend frontend run dev pkg pkg-dmg pkg-win test taicol icon clean help \
+	datasets datasets-verify datasets-upload \
 	rudymap-config rudymap-serve rudymap-render rudymap-qa rudymap-optimize rudymap-pack rudymap-verify rudymap-verify-published rudymap-upload
 
 help:
@@ -28,7 +29,8 @@ help:
 	@echo "  make pkg-win      Build Windows .exe (run on Windows)"
 	@echo "  make test          Run regression tests (pytest)"
 	@echo "  make taicol        Import TaiCOL CSV (auto-find latest or CSV=path)"
-	@echo "  make mobile-db     Refresh mobile bundle DB + rebuild fuzzy index"
+	@echo "  make datasets      Build downloadable checklist modules (dist/datasets)"
+	@echo "  make datasets-verify  Verify modules answer like the master DB"
 	@echo "  make rudymap-*     Rudy map offline tile pipeline (see backend/scripts/rudymap/README.md)"
 	@echo "  make icon         Generate .ico/.icns from icons/checklister-ng_icons.png"
 	@echo "  make clean        Remove build artifacts"
@@ -102,20 +104,28 @@ taicol: backend
 	@echo "==> Importing TaiCOL from: $(CSV)"
 	$(BACKEND_VENV)/bin/python -m backend.services.taicol_import "$(CSV)"
 
-# ─── Mobile bundle DB ─────────────────────────────────────
-# Copies backend DB into the mobile asset path and rebuilds the fuzzy index
-# the mobile app relies on. Run this after taicol re-import or after any
-# change that touches taicol_names / identification_keys schema, otherwise
-# the bundle ships without `cname_fuzzy_index` and Chinese search crashes
-# Hermes at runtime (see Plan.md row 9.15).
-MOBILE_DB := mobile/app/assets/db/twnamelist.db
-mobile-db: backend
-	@echo "==> Copying backend DB → $(MOBILE_DB)"
-	cp backend/twnamelist.db $(MOBILE_DB)
-	@echo "==> Building mobile fuzzy index"
-	$(BACKEND_VENV)/bin/python -m backend.scripts.build_mobile_fuzzy_index $(MOBILE_DB)
-	@echo "==> Filling pinyin column (pinyin-pro, for voice homophone matching)"
-	NODE_NO_WARNINGS=1 node mobile/app/scripts/build_pinyin_index.mjs $(MOBILE_DB)
+# ─── Dataset modules (R2) ─────────────────────────────────
+# 把 backend/twnamelist.db 拆成可獨立下載的模組（tw-taicol / jp-ylist /
+# tw-keys），產出 + manifest 在 dist/datasets/。母檔本身不會被改動。
+# 每次名錄或檢索表更新後：make datasets && make datasets-verify
+DATASETS_OUT := dist/datasets
+datasets: backend
+	$(BACKEND_VENV)/bin/python -m backend.scripts.datasets.build_datasets \
+		--out $(DATASETS_OUT) $(if $(VERSION),--version $(VERSION),) $(if $(ONLY),--only $(ONLY),)
+
+# 等價性驗證：模組回答必須與母檔一致（結構 / 列數 / 查詢 / 衍生索引 /
+# 檢索表 taxon 解析 / 跨區俗名）。名錄更新後一定要跑。
+datasets-verify: backend
+	$(BACKEND_VENV)/bin/python -m backend.scripts.datasets.verify_datasets --out $(DATASETS_OUT)
+
+# 上傳到 R2。版本目錄不覆寫、latest/manifest.json 最後才傳（半套版本不會被 app 看到）。
+# 需要 ~/.mitalivana-r2.env 的 S3 憑證，或 wrangler 已登入。
+# make datasets-upload R2_BUCKET=mitalivana [ONLY=tw-keys] [DRY=1]
+datasets-upload: backend
+	@test -n "$(R2_BUCKET)" || { echo "需要 R2_BUCKET=..."; exit 1; }
+	$(BACKEND_VENV)/bin/python -m backend.scripts.datasets.upload_datasets \
+		--out $(DATASETS_OUT) --bucket $(R2_BUCKET) \
+		$(if $(BASE_URL),--base-url $(BASE_URL),) $(if $(ONLY),--only $(ONLY),) $(if $(DRY),--dry-run,)
 
 # ─── Rudy map offline tiles ───────────────────────────────
 # 完整流程與前置需求見 backend/scripts/rudymap/README.md

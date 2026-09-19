@@ -6,9 +6,9 @@
  * always keeps its 't…'/'y…' id, or the same organism would end up with two
  * identities and records, exports and statistics would split.
  *
- * Rows live in user.db on purpose: twnamelist.db is rebuilt from the asset
- * whenever the bundle hash changes, so anything written there is destroyed by
- * the next app update.
+ * Rows live in user.db on purpose: a checklist module is replaced wholesale on
+ * every update (and can be deleted outright), so anything written into one
+ * would not survive.
  */
 import { getUserDb } from './init';
 import type { SearchResult } from './types';

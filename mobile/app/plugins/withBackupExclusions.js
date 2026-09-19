@@ -16,8 +16,24 @@ const { AndroidConfig, withAndroidManifest, withDangerousMod } = require('@expo/
 const fs = require('fs');
 const path = require('path');
 
-/** 這些路徑相對於 app 的 filesDir（expo-file-system 的 Paths.document）。 */
-const EXCLUDED = ['rudymap', 'twnamelist.db', 'twnamelist.db.version'];
+/**
+ * 這些路徑相對於 app 的 filesDir（expo-file-system 的 Paths.document）。
+ *
+ * 判準只有一條：**重新下載得回來的就不進備份**。清單要跟著各安裝層的根目錄常數
+ * 走，加了新的可下載內容就要補進來——漏掉一個大目錄不是「備份少一份」，是整個
+ * Auto Backup 超過 25 MB 配額而**全部失敗**。
+ */
+const EXCLUDED = [
+  'datasets', // src/db/datasets.ts DATASETS_DIR — 名錄模組，臺灣一包就 136 MB
+  'vectormap', // src/lib/vectormap.ts ROOT_DIR — 向量圖磚，GB 級
+  'poi', // src/lib/poi.ts ROOT_DIR
+  'rudymap', // src/lib/poi.ts LEGACY_DIR — 舊安裝殘留，poi.ts 會擇機清掉
+  'regionpacks.db', // 國家名錄 pack，可重新下載；in-app 備份 zip 另有收錄
+  'regionpacks.db-wal',
+  'regionpacks.db-shm',
+  'twnamelist.db', // 0.5 以前的合併檔；retireLegacyBundle() 尚未跑到的裝置還有
+  'twnamelist.db.version',
+];
 
 const DATA_EXTRACTION_RULES = `<?xml version="1.0" encoding="utf-8"?>
 <data-extraction-rules>

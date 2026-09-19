@@ -13,11 +13,12 @@
  * six columns the others lacked) — the field set here is their union, which is
  * harmless to callers that ignore the extras.
  */
-import { getTaicolDb, getUserDb } from './init';
+import { availableNameDatasets, datasetForTaxonId, getDatasetDb } from './datasets';
+import { getUserDb } from './init';
+import { readNameCache } from './taxonCache';
 import {
   getEnabledRegions,
   isExternalTaxonId,
-  isJpTaxonId,
   regionOfTaxonId,
   crossRegionVernacular,
   composeVernacular,
@@ -53,6 +54,10 @@ export type TaxonFields = {
   is_brackish: string;
   is_marine: string;
   is_fossil: string;
+  /** 這個 taxon_id 在任何來源（模組 / external_taxa / 名稱快取）都查不到。
+   *  UI 應顯示「名稱不可用」而**不是**拿 taxon_id 當名字——那會漏進 DwC 匯出的
+   *  `scientificName`。預設 false，所以既有欄位的意義完全不變。 */
+  unresolved?: boolean;
 };
 
 const TAXON_COLS = `taxon_id, simple_name, name_author, common_name_c, alternative_name_c,
@@ -82,21 +87,27 @@ export function resolveTaxa(taxonIds: string[]): Map<string, TaxonFields> {
   const ids = Array.from(new Set(taxonIds));
   if (ids.length === 0) return out;
 
-  const taicolDb = getTaicolDb();
   const raw = new Map<string, Record<string, unknown>>();
-  const fillFrom = (tbl: string, subset: string[]) => {
-    if (subset.length === 0) return;
-    const ph = subset.map(() => '?').join(',');
-    const res = taicolDb.executeSync(
-      `SELECT ${TAXON_COLS} FROM ${tbl} WHERE taxon_id IN (${ph}) AND usage_status = 'accepted'`,
-      subset,
-    );
-    for (const row of (res.rows ?? []) as Array<Record<string, unknown>>) {
-      raw.set(row.taxon_id as string, row);
+  // 依「擁有這個前綴的模組」分組 fan-out。模組沒安裝就整組跳過——那些 id 會落到
+  // 下面的名稱快取退路，再不行就是 unresolved。
+  for (const spec of availableNameDatasets()) {
+    if (spec.tables.kind !== 'names') continue;
+    const subset = ids.filter((id) => datasetForTaxonId(id)?.id === spec.id);
+    if (subset.length === 0) continue;
+    const db = getDatasetDb(spec.id);
+    if (!db) continue;
+    for (let i = 0; i < subset.length; i += 500) {
+      const chunk = subset.slice(i, i + 500);
+      const ph = chunk.map(() => '?').join(',');
+      const res = db.executeSync(
+        `SELECT ${TAXON_COLS} FROM ${spec.tables.names} WHERE taxon_id IN (${ph}) AND usage_status = 'accepted'`,
+        chunk,
+      );
+      for (const row of (res.rows ?? []) as Array<Record<string, unknown>>) {
+        raw.set(row.taxon_id as string, row);
+      }
     }
-  };
-  fillFrom('taicol_names', ids.filter((id) => !isJpTaxonId(id) && !isExternalTaxonId(id)));
-  fillFrom('jp_names', ids.filter(isJpTaxonId));
+  }
 
   // External ('g…') taxa live in user.db, a DIFFERENT handle — there is no
   // ATTACH anywhere in this app, so they cannot be part of the query above.
@@ -114,6 +125,14 @@ export function resolveTaxa(taxonIds: string[]): Map<string, TaxonFields> {
     for (const row of (res.rows ?? []) as Record<string, unknown>[]) {
       raw.set(row.taxon_id as string, row);
     }
+  }
+
+  // 退路：模組沒安裝（還沒下載、被刪掉、跨裝置還原）時，名稱從 user.db 的
+  // 快取來。只補「上面沒填到」的 id——模組在就一定以模組為準，所以快取過時
+  // 在正常狀態下完全不可見。
+  const stillMissing = ids.filter((id) => !raw.has(id));
+  if (stillMissing.length > 0) {
+    for (const [id, row] of readNameCache(stillMissing)) raw.set(id, row);
   }
 
   const regions = getEnabledRegions();
@@ -155,6 +174,7 @@ export function resolveTaxa(taxonIds: string[]): Map<string, TaxonFields> {
       is_brackish: str(t, 'is_brackish'),
       is_marine: str(t, 'is_marine'),
       is_fossil: str(t, 'is_fossil'),
+      unresolved: !raw.has(id),
     });
   }
   return out;
@@ -230,8 +250,13 @@ export function resolveAdoptedNames(rows: AdoptionFields[]): Map<number, Adopted
   );
   if (ids.length === 0) return out;
 
+  // `name_id` 只有 TaiCOL 有（YList 自己鑄的 id 每次重匯都會變，不會被寫進記錄）。
+  // 模組不在就回空 map —— `applyAdoptedName` 既有的 `used_stale` 退路會顯示使用者
+  // 當初輸入的那個名字，這正是此時最該顯示的東西。
+  const db = getDatasetDb('tw-taicol');
+  if (!db) return out;
   const ph = ids.map(() => '?').join(',');
-  const res = getTaicolDb().executeSync(
+  const res = db.executeSync(
     `SELECT name_id, simple_name, name_author, usage_status FROM taicol_names WHERE name_id IN (${ph})`,
     ids,
   );

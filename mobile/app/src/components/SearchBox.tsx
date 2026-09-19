@@ -2,7 +2,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { memo, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FlatList, Keyboard, Pressable, Text, TextInput, View } from 'react-native';
-import { prewarmFuzzyIndex, searchWithFuzzyFallback, type SearchResult } from '~/db';
+import {
+  onDatasetsChanged,
+  prewarmFuzzyIndex,
+  searchWithFuzzyFallback,
+  type SearchResult,
+} from '~/db';
 import type { AdoptionInput } from '~/db';
 import type { TaxonGroup } from '~/db/types';
 import { applyChoice, chooseNameUsage } from '~/lib/adoptName';
@@ -68,6 +73,8 @@ function cacheGet(key: string): SearchResult[] | undefined {
 export function clearSearchResultCache(): void {
   resultCache.clear();
 }
+// 換了名錄模組，快取住的搜尋結果就是上一份資料的答案。
+onDatasetsChanged(clearSearchResultCache);
 
 function cacheSet(key: string, value: SearchResult[]): void {
   if (resultCache.has(key)) resultCache.delete(key);

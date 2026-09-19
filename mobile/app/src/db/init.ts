@@ -1,86 +1,29 @@
-import { Asset } from 'expo-asset';
 import i18n from '~/i18n';
 import { migrateFromRasterPack } from '~/lib/poi';
 import { repairLocalStyle } from '~/lib/vectormapInstall';
 import { File, Paths } from 'expo-file-system';
 import { open, type DB } from '@op-engineering/op-sqlite';
+import { adoptLegacyBundle, closeAllDatasetDbs, loadDatasetManifest } from './datasets';
+import { purgeLegacyAssetCache, retireLegacyBundle } from './legacyBundle';
 import { runUserMigrations } from './migrations';
 import { enforceSingleActiveOnStartup, purgeOrphanRows } from './cleanup';
-import { perf } from '~/lib/perf';
 
-let taicolDb: DB | null = null;
 let userDb: DB | null = null;
 
-const TAICOL_DB_NAME = 'twnamelist.db';
-const TAICOL_VERSION_FILE = 'twnamelist.db.version';
 const USER_DB_NAME = 'user.db';
-
-async function ensureTaicolDb(onProgress?: (step: string) => void): Promise<void> {
-  const dest = new File(Paths.document, TAICOL_DB_NAME);
-  const versionFile = new File(Paths.document, TAICOL_VERSION_FILE);
-
-  const asset = Asset.fromModule(require('../../assets/db/twnamelist.db'));
-  // `asset.hash` is set by Metro at build time; if the bundled DB changes
-  // (e.g. we shipped a new keys table), the hash changes too and we re-copy.
-  const bundleHash = asset.hash ?? '';
-
-  let installedHash = '';
-  if (versionFile.exists) {
-    try {
-      const txt = await versionFile.text();
-      installedHash = (txt ?? '').trim();
-    } catch {
-      installedHash = '';
-    }
-  }
-
-  if (dest.exists && installedHash && installedHash === bundleHash) {
-    return; // up-to-date
-  }
-
-  const reason = !dest.exists
-    ? i18n.t('splash.firstInstall')
-    : i18n.t('splash.newDb');
-  onProgress?.(i18n.t('splash.extracting', { reason }));
-
-  // First-install path is the dominant cold-start cost (118MB asset copy).
-  // Time each phase so we can see in perf log whether asset extraction or
-  // file copy dominates, and whether either is worth optimizing.
-  await perf.timeAsync('db:asset-download', () => asset.downloadAsync());
-  if (!asset.localUri) throw new Error('TaiCOL asset localUri unavailable after download');
-
-  // Replace existing copy if any (schema may have new tables).
-  if (dest.exists) {
-    try {
-      dest.delete();
-    } catch {
-      // ignore — File.copy may overwrite
-    }
-  }
-  const src = new File(asset.localUri);
-  perf.time('db:asset-copy', () => src.copy(dest));
-
-  // Record the hash so we skip the copy on subsequent cold starts.
-  try {
-    if (versionFile.exists) versionFile.delete();
-    versionFile.write(bundleHash);
-  } catch {
-    // non-fatal: next start will re-copy if write failed
-  }
-}
 
 export type InitProgressFn = (step: string) => void;
 
-export async function initDb(
-  onProgress?: InitProgressFn,
-): Promise<{ taicol: DB; user: DB }> {
-  if (taicolDb && userDb) return { taicol: taicolDb, user: userDb };
-
-  onProgress?.(i18n.t('splash.preparing'));
-  await ensureTaicolDb(onProgress);
+export async function initDb(onProgress?: InitProgressFn): Promise<{ user: DB }> {
+  // 名錄 handle 不再由這裡持有（見 `datasets.ts`），所以回傳值只剩 user.db。
+  if (userDb) return { user: userDb };
 
   onProgress?.(i18n.t('splash.opening'));
-  taicolDb = open({ name: TAICOL_DB_NAME, location: Paths.document.uri });
+  // 名錄不再隨 app 出貨：安裝清單說了算，沒有就是沒有（下載精靈接手）。
+  // `adoptLegacyBundle()` 仍然留著，讓升級中的裝置在 `retireLegacyBundle()`
+  // 把舊檔退場之前，仍然查得到名字（backfill 就靠它）。
+  loadDatasetManifest();
+  adoptLegacyBundle();
   userDb = open({ name: USER_DB_NAME, location: Paths.document.uri });
 
   // Migrations and the repair passes run with FK enforcement OFF, then it is
@@ -103,6 +46,18 @@ export async function initDb(
   await runUserMigrations(userDb);
 
   onProgress?.(i18n.t('splash.cleanup'));
+  // 升級路徑：舊的 160 MB 合併檔要退場。**一定要在 migrations 之後**（需要
+  // v35 的 `taxon_name_cache`），而且是「先備份名稱 → 再刪檔」——順序倒過來就
+  // 會讓使用者的名錄空白一段時間。第一次升級以外都是 no-op。
+  const retired = retireLegacyBundle();
+  if (retired.retired) {
+    purgeLegacyAssetCache();
+    console.log(
+      `[db] legacy bundle retired: cached ${retired.cached} names, ` +
+        `${retired.missing} unresolvable, freed ${(retired.freedBytes / 1e6).toFixed(0)} MB`,
+    );
+  }
+
   // Idempotent: mops up any leftover multi-active records from older builds.
   enforceSingleActiveOnStartup();
   purgeOrphanRows();
@@ -125,12 +80,7 @@ export async function initDb(
     if (n > 0) console.warn(`[db] ${n} foreign-key violation(s) remain`, bad.rows);
   }
 
-  return { taicol: taicolDb, user: userDb };
-}
-
-export function getTaicolDb(): DB {
-  if (!taicolDb) throw new Error('TaiCOL DB not initialized — call initDb() first');
-  return taicolDb;
+  return { user: userDb };
 }
 
 export function getUserDb(): DB {
@@ -177,9 +127,10 @@ export function withTransaction<T>(fn: () => T): T {
 }
 
 export function closeDbs(): void {
-  taicolDb?.close();
+  // 名錄 handle 由 registry 持有（過渡期可能有多個模組共用同一個檔），
+  // 所以關閉的責任也在那裡。
+  closeAllDatasetDbs();
   userDb?.close();
-  taicolDb = null;
   userDb = null;
 }
 

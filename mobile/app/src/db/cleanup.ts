@@ -7,7 +7,8 @@
  * Both idempotent — running on a clean DB is a no-op.
  */
 import { File, Paths } from 'expo-file-system';
-import { getTaicolDb, getUserDb } from './init';
+import { getDatasetDb } from './datasets';
+import { getUserDb } from './init';
 
 /**
  * Enforce the single-active invariant at app start.
@@ -263,9 +264,14 @@ function countStaleAdoptions(table: string): number {
   }>;
   if (rows.length === 0) return 0;
 
+  // 臺灣名錄模組不在時回 0 而不是 rows.length：模組還沒下載 / 被刪掉時，把每一
+  // 筆採用名都報成 stale 是假警報，使用者會以為資料壞了。
+  const namesDb = getDatasetDb('tw-taicol');
+  if (!namesDb) return 0;
+
   const ids = rows.map((r) => r.used_name_id).filter((v): v is number => typeof v === 'number');
   const ph = ids.map(() => '?').join(',');
-  const namesRes = getTaicolDb().executeSync(
+  const namesRes = namesDb.executeSync(
     `SELECT name_id, simple_name, taxon_id FROM taicol_names WHERE name_id IN (${ph})`,
     ids,
   );

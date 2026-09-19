@@ -12,7 +12,6 @@
 		3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
 		631840EA2CDF0B4ACF5DFEBF /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59B8D65FB19FE8C7351DF9E2 /* ExpoModulesProvider.swift */; };
 		B251B7BA6429611750BBCF45 /* libPods-Checklister.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 6AFE4B14F3D7DFF2C1C57854 /* libPods-Checklister.a */; };
-		B8BAFC9D6F3949CBB9C9E514 /* twnamelist.db in Resources */ = {isa = PBXBuildFile; fileRef = 18086EA1DC97446B8B9AD575 /* twnamelist.db */; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
 		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
 /* End PBXBuildFile section */
@@ -21,7 +20,6 @@
 		13B07F961A680F5B00A75B9A /* Checklister.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Checklister.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = Checklister/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = Checklister/Info.plist; sourceTree = "<group>"; };
-		18086EA1DC97446B8B9AD575 /* twnamelist.db */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = twnamelist.db; path = ../assets/db/twnamelist.db; sourceTree = "<group>"; };
 		59B8D65FB19FE8C7351DF9E2 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-Checklister/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
 		6AFE4B14F3D7DFF2C1C57854 /* libPods-Checklister.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-Checklister.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = Checklister/SplashScreen.storyboard; sourceTree = "<group>"; };
@@ -129,7 +127,6 @@
 		D9C0C95790AD4C0C9314C445 /* Resources */ = {
 			isa = PBXGroup;
 			children = (
-				18086EA1DC97446B8B9AD575 /* twnamelist.db */,
 			);
 			name = Resources;
 			sourceTree = "<group>";
@@ -213,7 +210,6 @@
 				BB2F792D24A3F905000567C9 /* Expo.plist in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */,
-				B8BAFC9D6F3949CBB9C9E514 /* twnamelist.db in Resources */,
 				168925C234D61A4FEA2D2F6E /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

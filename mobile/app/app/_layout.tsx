@@ -15,6 +15,7 @@ import '../global.css';
 import { ActionSheetHost } from '~/components/ActionSheet';
 import { ActiveSessionBar } from '~/components/ActiveSessionBar';
 import { DBProvider } from '~/components/DBProvider';
+import { DatasetSetupGate } from '~/components/DatasetSetupGate';
 import { FontScaleProvider } from '~/components/FontScaleProvider';
 import { StalePlotWatcher } from '~/components/StalePlotWatcher';
 import { StaleSessionWatcher } from '~/components/StaleSessionWatcher';
@@ -46,7 +47,11 @@ export default function RootLayout() {
       <KeyboardProvider>
         <SafeAreaProvider>
           <DBProvider>
-            <ThemedShell />
+            {/* 名錄不隨 app 出貨：一個模組都沒有時先擋在前面引導下載。
+                裝好（或使用者選擇稍後）就讓開，之後完全不參與 render。 */}
+            <DatasetSetupGate>
+              <ThemedShell />
+            </DatasetSetupGate>
           </DBProvider>
         </SafeAreaProvider>
       </KeyboardProvider>

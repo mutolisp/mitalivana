@@ -10,7 +10,7 @@
  * that governs those two.
  */
 import { getUserDb, withTransaction } from './init';
-import { ensureExternalCopy } from './regionpacks';
+import { ensureTaxonSelfSufficient } from './taxonCache';
 import type { DuplicateRecordOptions } from './duplicate';
 import { existingProjectId } from './projects';
 import { generateUuid } from './plots';
@@ -393,7 +393,7 @@ export type AddSpecimenInput = {
 };
 
 export function addSpecimen(input: AddSpecimenInput): number {
-  ensureExternalCopy(input.taxon_id);
+  ensureTaxonSelfSufficient(input.taxon_id);
   const db = getUserDb();
   const now = Date.now();
   const number = input.record_number ?? nextRecordNumber().text;

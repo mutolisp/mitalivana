@@ -6,7 +6,7 @@ import {
   resolveTaxa,
 } from './taxonLookup';
 import { getUserDb } from './init';
-import { ensureExternalCopy } from './regionpacks';
+import { ensureTaxonSelfSufficient } from './taxonCache';
 import { generateUuid } from './plots';
 
 export type ChecklistRecord = {
@@ -100,9 +100,10 @@ export type CreateRecordInput = {
 };
 
 export function addRecord(input: CreateRecordInput): number {
-  // A pack ('g…') taxon must survive its pack being deleted — copy it into
-  // user.db before the record starts referencing it.
-  ensureExternalCopy(input.taxon_id);
+  // 記錄一旦引用某個 taxon，那個名字就必須活得比資料來源久：pack 的 'g…' 複製
+  // 進 external_taxa，名錄模組的 't…'/'y…' 複製進 taxon_name_cache。掛在這裡而
+  // 不是 UI，才沒有任何一條新增路徑能忘記。
+  ensureTaxonSelfSufficient(input.taxon_id);
   const db = getUserDb();
   const res = db.executeSync(
     `INSERT INTO checklist_records

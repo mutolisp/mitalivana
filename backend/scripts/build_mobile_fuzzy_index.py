@@ -11,6 +11,11 @@ Also builds cname_fuzzy_index_jp (YList / Japan 和名) when jp_names exists,
 so the regional-checklist feature can fuzzy-match katakana. Same schema; no
 pinyin column (pinyin is Mandarin-only and N/A for Japanese).
 
+Works on the combined twnamelist.db and equally on a single dataset module
+(tw-taicol.db / jp-ylist.db): each half is skipped when its names table is
+absent, so the module build calls this same script instead of growing a second
+copy of the index logic.
+
 Run from project root:
     python -m backend.scripts.build_mobile_fuzzy_index path/to/twnamelist.db
 """
@@ -30,6 +35,29 @@ def build(db_path: Path) -> None:
 
     conn = sqlite3.connect(db_path)
     cur = conn.cursor()
+
+    tw_count = _build_tw_index(cur)
+    jp_count = _build_jp_index(cur)
+
+    conn.commit()
+    cur.execute("VACUUM;")
+    conn.close()
+
+    if tw_count is not None:
+        print(f"Built cname_fuzzy_index with {tw_count} unique cnames")
+    if jp_count is not None:
+        print(f"Built cname_fuzzy_index_jp with {jp_count} unique 和名")
+    if tw_count is None and jp_count is None:
+        print(f"No names table in {db_path.name}; nothing to index")
+
+
+def _build_tw_index(cur: sqlite3.Cursor) -> int | None:
+    """Build cname_fuzzy_index from taicol_names. Returns None if absent."""
+    exists = cur.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='taicol_names';"
+    ).fetchone()
+    if not exists:
+        return None
 
     cur.execute("DROP TABLE IF EXISTS cname_fuzzy_index;")
     cur.execute(
@@ -64,15 +92,7 @@ def build(db_path: Path) -> None:
     # blowing up keys-tab cold start to multi-second territory on mobile.
     cur.execute("CREATE INDEX IF NOT EXISTS idx_taicol_genus ON taicol_names(genus);")
 
-    jp_count = _build_jp_index(cur)
-
-    conn.commit()
-    cur.execute("VACUUM;")
-    conn.close()
-
-    print(f"Built cname_fuzzy_index with {len(rows)} unique cnames")
-    if jp_count is not None:
-        print(f"Built cname_fuzzy_index_jp with {jp_count} unique 和名")
+    return len(rows)
 
 
 def _build_jp_index(cur: sqlite3.Cursor) -> int | None:

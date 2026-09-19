@@ -10,6 +10,9 @@
  *     missing secret causes the conditional native config to be skipped, which
  *     surfaces as runtime errors (e.g. "API key not found" on map load).
  *
+ * 名錄資料**不隨 app 出貨**（0.6 起改為從 R2 下載，見 src/lib/datasetInstall.ts），
+ * 所以這裡不再有 expo-asset 的 DB 條目；安裝檔因此從 ~170 MB 降到十幾 MB。
+ *
  * Required env vars:
  *   - GOOGLE_MAPS_ANDROID_API_KEY  → injected into AndroidManifest as
  *     com.google.android.geo.API_KEY (only needed for Android; iOS uses
@@ -88,12 +91,6 @@ const config: ExpoConfig = {
       },
     ],
     [
-      'expo-asset',
-      {
-        assets: ['./assets/db/twnamelist.db'],
-      },
-    ],
-    [
       'expo-location',
       {
         locationAlwaysAndWhenInUsePermission:
@@ -126,7 +123,7 @@ const config: ExpoConfig = {
     ],
     'expo-secure-store',
   ],
-  assetBundlePatterns: ['**/*', 'assets/db/*.db'],
+  assetBundlePatterns: ['**/*'],
   experiments: {
     typedRoutes: true,
     reactCompiler: true,

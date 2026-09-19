@@ -20,7 +20,7 @@
  * A misapplied name applied across two concepts (`taxon_id_all`) gets a fourth:
  * file it under the other local concept, which needs no network at all.
  */
-import { getTaicolDb, searchByTaxonId, type SearchResult } from '~/db';
+import { getDatasetDb, searchByTaxonId, type SearchResult } from '~/db';
 import type { AdoptionInput } from '~/db';
 import { showActionSheet } from '~/components/ActionSheet';
 import { lookupGbifName } from '~/components/GbifLookupHost';
@@ -36,7 +36,11 @@ export type AdoptionChoice =
 
 /** The other concepts a (usually misapplied) name has been applied to. */
 export function otherConceptsFor(nameId: number, currentTaxonId: string): string[] {
-  const res = getTaicolDb().executeSync(
+  // `name_id` / `taxon_id_all` 只有 TaiCOL 有。模組不在就回空，採用名 sheet 少
+  // 一個選項而已。
+  const db = getDatasetDb('tw-taicol');
+  if (!db) return [];
+  const res = db.executeSync(
     `SELECT taxon_id_all FROM taicol_names WHERE name_id = ?`,
     [nameId],
   );
