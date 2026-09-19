@@ -25,12 +25,24 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as SelectPrimitive from '@rn-primitives/select';
 import * as React from 'react';
-import { View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const Select = SelectPrimitive.Root;
+
+/**
+ * The backdrop has to be a Pressable, not a View.
+ *
+ * `SelectPrimitive.Overlay` closes the popover from its own `onPress`
+ * (`closeOnPress` defaults to true), and `asChild` hands that prop to whatever
+ * child is given. An `Animated.View` accepts `onPress` and silently ignores it,
+ * so tapping outside did nothing and the only way to dismiss was to re-tap the
+ * open option. Animating a Pressable instead keeps the fade and makes the tap
+ * land on something that listens.
+ */
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 function SelectTrigger({
   className = '',
@@ -80,8 +92,15 @@ function SelectContent({
   const insets = useSafeAreaInsets();
   return (
     <SelectPrimitive.Portal hostName={portalHost}>
-      <SelectPrimitive.Overlay style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} asChild>
-        <Animated.View className="z-50 bg-black/40" entering={FadeIn.duration(120)}>
+      <SelectPrimitive.Overlay style={StyleSheet.absoluteFill} asChild>
+        {/* Styled inline rather than with NativeWind: this is a component built
+            by createAnimatedComponent, and the backdrop silently losing its
+            colour would be a confusing way to find out className did not reach
+            it. Nothing here needs a Tailwind token anyway. */}
+        <AnimatedPressable
+          style={[StyleSheet.absoluteFill, { zIndex: 50, backgroundColor: 'rgba(0,0,0,0.4)' }]}
+          entering={FadeIn.duration(120)}
+        >
           <SelectPrimitive.Content
             insets={{ top: insets.top + 8, bottom: insets.bottom + 8, left: 12, right: 12 }}
             position={position}
@@ -93,7 +112,7 @@ function SelectContent({
               <SelectPrimitive.Viewport className="p-1">{children}</SelectPrimitive.Viewport>
             </ScrollView>
           </SelectPrimitive.Content>
-        </Animated.View>
+        </AnimatedPressable>
       </SelectPrimitive.Overlay>
     </SelectPrimitive.Portal>
   );

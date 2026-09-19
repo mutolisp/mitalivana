@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import { useTabBarInset } from '~/lib/tabBarLayout';
 import { useFocusEffect } from 'expo-router';
 import { useIsFocused } from '@react-navigation/native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -186,13 +186,13 @@ export default function TaxonomyScreen() {
   useEffect(() => {
     checkScope();
   }, [regionsSig, checkScope]);
-  // KeyboardStickyView translates by -keyboard_height from its natural laid-out
-  // position. Inside a Tabs screen the natural bottom = top of tab bar, NOT
-  // screen bottom, so without compensating offset the search box ends up
-  // sitting `tabBarHeight` ABOVE the keyboard's top edge (the ~88-100px gap
-  // user reported). Adding `offset.opened: tabBarHeight` pushes it back down
-  // by that much so the bar sits flush against the keyboard.
-  const tabBarHeight = useBottomTabBarHeight();
+  // The tab bar floats over the scene, so this dock's natural laid-out position
+  // is the SCREEN bottom — behind the pill. It has to be lifted by the bar's
+  // clearance while the keyboard is closed; once the keyboard is open,
+  // KeyboardStickyView's own translation already puts it flush against it.
+  // (Before the bar floated the compensation ran the other way round:
+  // `offset.opened = tabBarHeight`.) See src/lib/tabBarLayout.ts.
+  const tabBarInset = useTabBarInset();
 
   const [segment, setSegment] = useState<'tree' | 'key' | 'search'>('tree');
 
@@ -812,6 +812,8 @@ export default function TaxonomyScreen() {
               className="flex-1"
               data={flatItems}
               keyExtractor={(item) => item.key}
+              // Padding only — getItemLayout stays a pure function of index.
+              contentContainerStyle={{ paddingBottom: tabBarInset }}
               getItemLayout={getItemLayout}
               onScroll={(e) => {
                 // Record last-known offset so we can restore on segment
@@ -951,7 +953,7 @@ export default function TaxonomyScreen() {
                 return <View onLayout={measure}>{row}</View>;
               }}
             />
-            <KeyboardStickyView offset={{ opened: tabBarHeight }}>
+            <KeyboardStickyView offset={{ closed: -tabBarInset }}>
               <TaxonomySearchBox onPick={handleSearchPick} />
             </KeyboardStickyView>
           </View>

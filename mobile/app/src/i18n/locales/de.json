@@ -280,10 +280,11 @@
     "collection": "Aufsammlung",
     "regionPacks": "Regionale Artenlisten",
     "inaturalist": "iNaturalist-Konto",
+    "gdrive": "Google Drive",
     "inatUpload": "Zu iNaturalist hochladen"
   },
   "tab": {
-    "menu": "Menü",
+    "menu": "Einstellungen",
     "map": "Karte",
     "records": "Datensätze",
     "species": "Arten"
@@ -561,7 +562,12 @@
     "coverPartial": "Bodenbedeckung ergibt {{sum}} % ({{filled}}/{{total}} eingetragen; der letzte Wert wird automatisch ergänzt)",
     "coverOk": "Bodenbedeckung ergibt 100 % ✓",
     "coverMismatch": "Bodenbedeckung ergibt {{sum}} %, sollte 100 % sein",
-    "manualCoord": "manuell gesetzt"
+    "manualCoord": "manuell gesetzt",
+    "rangeSection": "Flächengrenze",
+    "rangeTitle": "Flächengrenze",
+    "drawRange": "Flächengrenze zeichnen",
+    "editRange": "Grenze neu zeichnen",
+    "rangeHint": "Umreiße die Probefläche auf der Karte. Die Grenze dient nur der Dokumentation und dem Export und ersetzt nicht das Feld für die Flächengröße."
   },
   "settings": {
     "sectionAppearance": "Darstellung & Bedienung",
@@ -586,6 +592,10 @@
     "languageSearch": "Sprache suchen",
     "languageSystem": "Systemeinstellung folgen",
     "undoDuration": "Undo-Dauer",
+    "fabSide": "Seite der Plus-Taste",
+    "fabSideDesc": "Für Linkshänder nach links; die Tab-Reihenfolge passt sich an",
+    "fabSideRight": "Rechts",
+    "fabSideLeft": "Links",
     "undoSeconds": "{{count}} s",
     "defaultCreate": "Aufnahme-Einstellungen",
     "createAsk": "Jedes Mal fragen",
@@ -641,7 +651,10 @@
     "nRows_other": "{{count}} Zeilen",
     "inaturalist": "iNaturalist-Konto",
     "inaturalistDesc": "Konto verknüpfen, um Einträge mit Fotos oder Aufnahmen als Beobachtungen hochzuladen",
-    "inaturalistLinked": "Verknüpft: {{login}}"
+    "inaturalistLinked": "Verknüpft: {{login}}",
+    "gdrive": "Google Drive",
+    "gdriveDesc": "Sicherungen in dein eigenes Drive hochladen",
+    "gdriveLinked": "Verbunden: {{email}}"
   },
   "taxonomy": {
     "loadingTree": "Taxonomiebaum wird geladen...",
@@ -737,7 +750,8 @@
     "exportTitle_one": "{{count}} geografischen Standort exportieren",
     "exportTitle_other": "{{count}} geografische Standorte exportieren",
     "projectStats_one": "{{count}} geografischer Standort",
-    "projectStats_other": "{{count}} geografische Standorte"
+    "projectStats_other": "{{count}} geografische Standorte",
+    "deleteBoundMsg": "{{name}} wird entfernt. Datensätze, die sie nutzen, verlieren ihre Grenze"
   },
   "map": {
     "basemapStandard": "Standard",
@@ -781,6 +795,7 @@
     "savePosMsg": "Die Koordinaten von „{{label}}“ werden aktualisiert",
     "posUpdated": "Position der Probefläche aktualisiert",
     "sessionMarkerTitle": "Artenliste #{{id}}",
+    "clusterMembersTitle": "{{n}} Aufzeichnungen an diesem Ort",
     "notFound": "„{{q}}“ nicht gefunden",
     "searchFailed": "Suche fehlgeschlagen: {{error}}",
     "editPointTitle": "Punkt bearbeiten",
@@ -812,7 +827,16 @@
     "sessionSubtitle_one": "Artenliste · {{count}} Art · {{project}}",
     "sessionSubtitle_other": "Artenliste · {{count}} Arten · {{project}}",
     "imported_one": "{{count}} geografischer Standort importiert",
-    "imported_other": "{{count}} geografische Standorte importiert"
+    "imported_other": "{{count}} geografische Standorte importiert",
+    "trackNotYet": "noch kein Track",
+    "plotHandoffHint": "Zeichnet die Grenze für Probefläche {{plotid}} — sie wird beim Speichern verknüpft",
+    "saveRangeTitle": "Flächengrenze speichern",
+    "rangeDefaultName": "Grenze von {{plotid}}",
+    "boundPlotSite": "Grenze mit der Probefläche verknüpft",
+    "siteOfPlot": "Grenze von Probefläche {{plotid}}",
+    "jumpToPlot": "Diese Probefläche öffnen",
+    "redrawRange": "Diese Grenze neu zeichnen",
+    "featureAction": "Aktionen"
   },
   "keys": {
     "modeDichotomous": "Dichotom",
@@ -981,6 +1005,8 @@
     "emptyHintStratified": "Schicht wählen, dann unten suchen, um Arten hinzuzufügen",
     "hybridShort": "H",
     "subplotCoverHeight": "Deckung / Höhe je Schicht dieser Teilfläche",
+    "subplot": "Teilfläche",
+    "layer": "Schicht",
     "cover": "Deckung",
     "height": "Höhe",
     "changeTaxon": "Art wechseln",
@@ -1948,5 +1974,49 @@
     "syncAuth": "iNaturalist-Anmeldung abgelaufen – in den Einstellungen neu verknüpfen",
     "syncOffline": "Offline – keine Synchronisierung möglich",
     "busy": "Ein anderer iNaturalist-Upload oder -Abgleich läuft"
+  },
+  "gdrive": {
+    "intro": "Lade Sicherungen in dein eigenes Google Drive hoch, damit du sie auf einem neuen Gerät zurückholen kannst.",
+    "scopeNote": "Die App sieht nur Dateien, die sie selbst erstellt hat. Alles andere in deinem Drive bleibt unlesbar.",
+    "notConnected": "Nicht verbunden",
+    "connect": "Google-Konto verbinden",
+    "connected": "Verbunden",
+    "connectedAs": "Verbunden: {{email}}",
+    "disconnect": "Verbindung trennen",
+    "disconnectConfirmTitle": "Verbindung trennen?",
+    "disconnectConfirmMsg": "Die App kann dann keine Cloud-Sicherungen mehr hochladen oder lesen. Vorhandene Sicherungen in deinem Drive werden nicht gelöscht.",
+    "disconnected": "Verbindung getrennt",
+    "linked": "Verbunden",
+    "linkFailed": "Verbinden fehlgeschlagen: {{msg}}",
+    "notConfigured": "Kein OAuth-Client konfiguriert",
+    "notConfiguredHint": "Dieser Build enthält keinen Google-OAuth-Client, daher ist die Cloud-Sicherung nicht verfügbar.",
+    "codeTitle": "Im Browser autorisieren",
+    "codeHint": "Öffne die Adresse unten, gib diesen Code ein und kehre dann zur App zurück.",
+    "openBrowser": "Seite öffnen",
+    "copyCode": "Code kopieren",
+    "codeCopied": "Code kopiert",
+    "waiting": "Warte auf Autorisierung…",
+    "codeExpiresIn": "Code läuft in {{time}} ab",
+    "codeExpired": "Der Code ist abgelaufen — bitte erneut verbinden",
+    "cloudBackupTitle": "Google-Drive-Sicherung",
+    "cloudBackupDesc": "Lade die Datensicherung in dein eigenes Drive hoch. Ältere werden automatisch ersetzt.",
+    "uploadNow": "In Google Drive hochladen",
+    "uploadingPacking": "Wird gepackt…",
+    "uploadingProgress": "Wird hochgeladen {{pct}} %",
+    "uploadingRotating": "Alte Sicherungen aufräumen…",
+    "uploadDone": "In Google Drive gesichert",
+    "uploadFailed": "Hochladen fehlgeschlagen: {{msg}}",
+    "needLink": "Verbinde zuerst ein Google-Konto",
+    "quotaFull": "Nicht genug Speicherplatz in Google Drive",
+    "lastUpload": "Letzte Cloud-Sicherung: {{date}}",
+    "neverUploaded": "Noch nicht in die Cloud gesichert",
+    "cloudRestoreTitle": "Aus Google Drive wiederherstellen",
+    "cloudRestoreDesc": "Sicherungen in deinem Drive auflisten, eine herunterladen und wiederherstellen. ⚠️ Ersetzt alle aktuellen Daten.",
+    "listBackups": "Cloud-Sicherungen auflisten",
+    "listEmpty": "Noch keine Sicherungen in deinem Drive",
+    "listFailed": "Liste konnte nicht gelesen werden: {{msg}}",
+    "backupMeta": "{{size}} · App {{appVersion}}",
+    "downloading": "Wird heruntergeladen {{pct}} %",
+    "tooNewShort": "App aktualisieren"
   }
 }

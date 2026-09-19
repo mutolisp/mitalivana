@@ -14,6 +14,12 @@
  *   - GOOGLE_MAPS_ANDROID_API_KEY  → injected into AndroidManifest as
  *     com.google.android.geo.API_KEY (only needed for Android; iOS uses
  *     Apple Maps, no key required).
+ *   - GOOGLE_OAUTH_DEVICE_CLIENT_ID / _SECRET → `extra.googleOauth`, read at
+ *     RUNTIME by googleAuth.ts (not native config like the Maps key, hence
+ *     `extra` rather than a plugin). OAuth client type "TVs and Limited Input
+ *     devices". The secret is not a secret in an installed app — see the file
+ *     header of googleAuth.ts — but it still goes through .env / EAS secrets
+ *     so it is not committed.
  *
  * Missing vars don't crash the build, but the corresponding native config is
  * omitted (e.g. Android map tab will be blank if the key is absent).
@@ -21,6 +27,8 @@
 import type { ExpoConfig } from 'expo/config';
 
 const GOOGLE_MAPS_ANDROID_API_KEY = process.env.GOOGLE_MAPS_ANDROID_API_KEY;
+const GOOGLE_OAUTH_DEVICE_CLIENT_ID = process.env.GOOGLE_OAUTH_DEVICE_CLIENT_ID;
+const GOOGLE_OAUTH_DEVICE_CLIENT_SECRET = process.env.GOOGLE_OAUTH_DEVICE_CLIENT_SECRET;
 
 const config: ExpoConfig = {
   name: 'Mitalivana',
@@ -119,6 +127,12 @@ const config: ExpoConfig = {
   extra: {
     eas: {
       projectId: '5841ea3d-e6a9-42d6-805a-962aa55f68fb',
+    },
+    // Empty strings rather than undefined so the account screen can say "not
+    // configured" instead of offering a button that silently does nothing.
+    googleOauth: {
+      clientId: GOOGLE_OAUTH_DEVICE_CLIENT_ID ?? '',
+      clientSecret: GOOGLE_OAUTH_DEVICE_CLIENT_SECRET ?? '',
     },
   },
 };

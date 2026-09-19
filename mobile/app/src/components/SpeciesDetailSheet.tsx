@@ -27,6 +27,7 @@ import {
   type IdentificationKey,
   type RecordWithTaxon,
   type Synonym,
+  sourceOfTaxonId,
 } from '~/db';
 import { buildSpeciesCopyText, copyToClipboard, speciesCopyActions } from '~/lib/clipboard';
 import { alienBadge } from '~/lib/conservationColors';
@@ -145,7 +146,10 @@ export function SpeciesDetailSheet({
   // sheet and pushes the user to the key runner.
   const twOn = useSettings((s) => s.enabled_regions.includes('TW'));
   useEffect(() => {
-    if (!record || !twOn) {
+    // Keys only exist for Taiwan → only for a TaiCOL taxon. JP ('y…') and
+    // external ('g…') species would otherwise inherit their family's
+    // Taiwanese key.
+    if (!record || !twOn || sourceOfTaxonId(record.taxon_id) !== 'taicol') {
       setParentKeys([]);
       return;
     }

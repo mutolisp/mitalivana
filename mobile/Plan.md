@@ -3090,3 +3090,533 @@ Build 21 已經順利 clone，所以那是暫時性的。但底下的風險仍�
 ### 驗證狀態
 - [x] 本機 `pod install` 實跑，pbxproj 比對確認 0 個低於 15.0
 - [ ] **Xcode Cloud 重跑 Build**：三個 deployment target 錯誤消失
+
+---
+
+## 2026-09-17 — Google Drive 備份：認證基礎（Phase A）
+
+`Online_collaboration.md` Phase 1 的第一刀。規劃原本要走 `expo-auth-session` + PKCE + 自訂 URL scheme，查證後整段改寫（見該文 §1.5）。
+
+### 做了什麼
+
+| 檔案 | 內容 |
+|---|---|
+| `src/lib/googleDevice.ts`（新） | 純模組：device flow 回應解析、輪詢錯誤分類、access token 到期判斷、Drive `q` 字串組裝與跳脫、備份 meta 解析。無 Expo import，`check:gdrive` 用 Node 載 |
+| `src/lib/googleAuth.ts`（新） | token 生命週期：`ensureAccessToken({interactive})`、inflight 去重、SecureStore refresh token、記憶體 access token、revoke、`clearGoogleTokens()` |
+| `src/components/GoogleDeviceCodeHost.tsx`（新） | 顯示 user code 的全螢幕 Modal host，掛在 `app/_layout.tsx` |
+| `src/lib/drive.ts`（新） | Drive REST。目前只有 `fetchAccountEmail(accessToken)` |
+| `app/gdrive.tsx`（新） | 帳號頁：連結／解除連結／未設定提示 |
+| `scripts/check-gdrive.mjs`（新） | 42 條 fixture，`npm run check:gdrive` |
+| `src/lib/apiFetch.ts` | `ApiService` union 抽出（原本六處字面量）＋ 新增 `postForm()`；`sendJson` 改為 `sendBody` 的薄包裝 |
+| `src/lib/connectivity.ts` | `CROSS_PROBE` 對照表取代三元運算子 |
+| `src/stores/settings.ts` | `gdrive_account`（顯示用 email） |
+| `app/(tabs)/menu.tsx` | 同步區新增入口；「清除所有資料」補 `clearGoogleTokens()` |
+| `app.config.ts` / `.env.example` | `extra.googleOauth`（執行期值，非原生設定） |
+| 7 個 locale | `gdrive.*` 新 namespace ＋ `nav.gdrive` ＋ `settings.gdrive*` |
+
+### 決策
+
+- **走 device flow**：Google 明文「Custom URI schemes are no longer supported on Android and Chrome apps」，loopback 在行動裝置 DEPRECATED，WebView 被 `disallowed_useragent` 擋。不引入原生模組就只剩這條。allowed scopes 官方清單含 `drive.file`。**不需重建 dev client**。
+- **`connectivity.ts` 的三元運算子是真陷阱**：`e.service === 'inat' ? 'gbif' : 'inat'` 加了第三個 member 之後**碰巧**仍正確（fallback 分支剛好對），tsc 完全不抱怨。改成 `satisfies Record<ApiService, ...>` 的對照表，漏 key 變成編譯錯誤。
+- **gdrive 不給自己的 probe 目標**：Drive 端點對未帶 auth 的 HEAD 一律回 401，`probe()` 看到 `!res.ok` 就 throw → 會把好好的連線判成離線。改探 GBIF，不接觸新 host。
+- **access token 只放記憶體**：活 1 小時，寫 Keychain 換不到東西，重啟只多一次 refresh。refresh token 進 SecureStore 且 `WHEN_UNLOCKED_THIS_DEVICE_ONLY`（不讓 iCloud Keychain 把憑證同步到別台）。
+- **`invalid_grant` 視同解除連結**：production app 的 refresh token 不會例行過期，出現它幾乎必然是使用者主動撤銷。留著死 token 只會每次上傳都先失敗一次才發現。
+- **解除連結要打 revoke**：`drive.file` 讓 app 對「它建立過的每個檔案」保有永久寫入權，只刪本機鑰匙不算解除。
+- **client_secret 打包進 app 是這個 client type 的既定前提**（官方：「it is assumed that the apps cannot keep secrets」）。已寫進 `googleAuth.ts` 檔頭，免得未來 code review 誤判為外洩。
+
+### 刻意不做
+
+- 不裝 `@react-native-google-signin`／`expo-auth-session`／`expo-crypto`（都會強制雙平台重建 dev client）。
+- 不做上傳／還原／自動模式（Phase B–E）。這一刀唯一的 Drive 呼叫是 `about.get`，把「OAuth 能不能在兩平台跑通」跟「Drive REST 對不對」分開驗證。
+- 不動 `backup.ts`。
+
+### ⚠️ 實機驗證前必讀：OAuth app 停在「測試」狀態的影響
+
+2026-09-17 當下 OAuth app 是 **Testing** 發布狀態，靠「測試使用者」名單放行。官方規則：
+
+> "Authorizations by a test user will expire seven days from the time of consent"
+
+所以：
+
+- **「App 完全關掉再開仍已連結」這條只在授權後 7 天內有效。** 超過 7 天出現的靜默續期失敗是**預期行為**，不是 refresh token 邏輯的 bug——`ensureAccessToken` 會收到 `invalid_grant`，照設計清掉憑證並要求重新連結。不要為此去追一個不存在的 bug。
+- 要驗「長期靜默續期」必須先發布到 production。發布需要「品牌」頁填完應用程式首頁與隱私權政策連結，而那兩個網址的網域要先在「授權網域」註冊（GitHub Pages + Search Console 驗證是最省事的路）。這件事與 Play／App Store 上架所需的隱私權政策是同一份工作。
+- Console 另註明「在應用程式通過驗證之前，系統允許的使用者人數上限為 100 位」——公開發行前要把品牌驗證列進前置清單。
+
+### 使用者必須先做（程式碼無法代勞）
+
+新開一個**不綁 billing** 的 GCP 專案（不要用跑 Maps API key 的那個，Drive 不產生費用但同專案的 Maps 會照樣計費）→ 啟用 Drive API → OAuth 同意畫面加 `drive.file` → 建「電視和限制輸入的裝置」用戶端 → `.env` 填 `GOOGLE_OAUTH_DEVICE_CLIENT_ID` / `_SECRET`（EAS 另外 `eas secret:create`）→ **發布到 production**（Testing 狀態的 refresh token 7 天就過期，功能等於廢掉）。
+
+### 驗證狀態
+
+- [x] `npx tsc --noEmit` 0 error
+- [x] `npm run check:gdrive`（新）通過
+- [x] `npm run check:i18n`：1496 個 key 在 7 個語系齊備
+- [x] `npm run check:inat` / `check:gbif` 回歸通過（union 重構動到 `apiFetch.ts` / `connectivity.ts`）
+- [x] `npm run lint` 0 error；新檔 0 warning
+- [x] `grep "\.service ===" src/ app/` 為空
+- [ ] **實機**：連結流程跑通（雙平台）
+- [ ] **實機**：App 完全關閉再開後仍已連結（refresh 靜默路徑）
+- [ ] **實機**：解除連結後 Google「已連結的應用程式」頁上消失
+- [ ] **實機**：「清除所有資料」後 `/gdrive` 顯示尚未連結
+- [ ] **實機**：連結後產生的備份 zip 解壓後 settings 表內無任何 token 欄位
+
+---
+
+## 2026-09-17 — Google Drive 備份：手動上傳（Phase B，同日）
+
+### 做了什麼
+
+| 檔案 | 內容 |
+|---|---|
+| `src/lib/drive.ts` | 擴充：`ensureFolders()`（appProperties 標記 + 記憶體快取）、`uploadFile()`（resumable 兩段）、`listBackups()`、`deleteFile()`、`resetDriveFolderCache()` |
+| `src/lib/driveState.ts`（新） | `lastUploadAtMs` / `lastUploadFileId` / `lastAccount` 的 zustand store + app 私有 JSON 檔 |
+| `src/lib/driveBackup.ts`（新） | `runDriveBackup()`、輪替、`driveErrorMessage()`、`driveProgressLabel()`、`isDriveBackupRunning()` |
+| `app/backup.tsx` | 新增「Google 雲端硬碟備份」Section（上傳按鈕 + 進度 + 上次備份時間） |
+| `app/(tabs)/menu.tsx` | 備份列 description 顯示上次雲端備份日期 |
+| `src/lib/googleAuth.ts` | `clearGoogleTokens()` 一併清資料夾快取與 driveState |
+| 7 個 locale | `gdrive.*` +12 key |
+
+### 決策
+
+- **資料夾 id 完全不持久化**，靠 `appProperties has { key='checklisterRole' … }` 每次 app 啟動查一次。存 id 的話：使用者換帳號 → 404；把資料夾丟進垃圾桶 → 上傳「成功」但檔案在垃圾桶，使用者以為有備份。`appProperties` 使用者看不到也改不到，配上 `trashed=false` 一定找得到正確的那個。
+- **輪替只刪帶 `checklister-backup-` 前綴的檔案**，順帶給使用者一個「釘選」手段：在 Drive 裡改名就不會被輪替掉。保留份數目前是常數 5，Phase D 有 UI 時才變成設定——現在就加一個沒有介面可改的設定只是多一條沒測過的路徑。
+- **先上傳成功才刪舊的**。顛倒過來的話上傳失敗會兩頭空。刪除失敗只記 `__DEV__` warning，不讓它把已經成功的備份判定成失敗。
+- **`runDriveBackup()` 回傳 boolean**：`running` 時回 false。原本寫成靜默 return，呼叫端會照樣跳「已備份」——把沒發生的事報成成功。
+- **上傳完刪掉 cache 裡的 zip**：它只是傳輸緩衝。分享 sheet 那條路留著是因為使用者還要選目的地，這條不用。
+
+### 刻意不做
+
+- **不做斷點續傳**。resumable session 開著一週、`PUT` 配 `Content-Range: bytes */TOTAL` 可查進度，但 `createUploadTask` 一律送整個檔案，要做部分重送得完全繞開它。5–50 MB 重傳只是幾秒。失敗就重開 session 整段重跑。
+- 不做雲端還原（Phase C）、自動模式（Phase D）、照片上傳（Phase E）。
+
+### 驗證狀態
+
+- [x] `tsc --noEmit` 0 error；`check:gdrive` / `check:i18n` / `check:inat` / `check:gbif` / `check:dock` / `check:kav` / `check:roundtrip` / `lint` 全過
+- [ ] **實機**：上傳一次 → Drive 網頁確認 `Mitalivana/backups/checklister-backup-*.zip` 存在且大小合理
+- [ ] **實機**：上傳進度百分比會動（大檔才看得出來）
+- [ ] **實機**：保留份數 5，上傳 6 次 → 只剩 5 個，最舊的被刪、最新的在
+- [ ] **實機**：在 Drive 裡把某一份改名 → 再上傳數次 → 改名那份不會被輪替掉
+- [ ] **實機**：飛航模式按上傳 → 訊息是離線而非「服務暫時無法使用」
+- [ ] **實機**：上傳後 cache 沒有殘留 zip
+- [ ] **實機**：把 `Mitalivana` 資料夾丟到垃圾桶後再上傳 → 會重建新資料夾，不是寫進垃圾桶
+- [ ] **實機**：解除連結後 `/backup` 的上次備份時間歸零
+
+---
+
+## 2026-09-17 — Google Drive 備份：雲端還原（Phase C，同日）
+
+B + C 合起來才是完整的備份還原閉環，建議同版出。
+
+### 做了什麼
+
+| 檔案 | 內容 |
+|---|---|
+| `src/lib/drive.ts` | `downloadFile()`（`createDownloadResumable` + `alt=media` + 進度；失敗刪掉半截檔案） |
+| `src/lib/driveBackup.ts` | `listDriveBackups()`、`backupTooNew()`、`restoreFromDrive()` |
+| `app/backup.tsx` | 「從 Google 雲端硬碟回復」Section：列出、每列顯示時間／大小／app 版本、下載進度、確認後回復 |
+| 7 個 locale | `gdrive.*` +8 key |
+
+### 決策
+
+- **`backupTooNew()` 放 `driveBackup.ts` 不放畫面**：畫面就不必 import `~/db/migrations`。清單層先擋掉版本過新的備份，使用者不用先下載幾十 MB 才發現讀不了——這正是上傳時把 `schemaVersion` 複製進 `appProperties` 的用途。
+- **`restoreBackup()` 內的 manifest 檢查仍是最終權威**。舊版 app 上傳的檔案沒有 `appProperties`，`backupTooNew()` 對它回 false，真正擋下來的是 zip 裡的 manifest。清單層只是提早告知，不是取代。
+- **短標籤而不是 `backup.tooNew` 整句**：那句在 45% 寬的右欄會斷成五行。版本資訊已經在左欄，按下去時 `restoreBackup` 也會再擋一次並給出完整說明。
+- **取 token 就在建立下載任務的前一行**：`createDownloadResumable` 在建立當下就把 Authorization 標頭固定住了。
+- **下載失敗一定刪掉半截檔案**：留著的話對 `restoreBackup()` 來說是一個「看起來像 zip」的東西。
+- `cloud` 狀態用 `null` / `[]` 區分「還沒列出過」與「列出來是空的」。
+
+### 驗證狀態
+
+- [x] `tsc --noEmit` 0 error；七支 `check:*` 與 `lint` 全過
+- [ ] **實機**：列出雲端備份 → 時間／大小／app 版本正確
+- [ ] **實機**：下載進度百分比會動
+- [ ] **實機**：回復後 app 自動重啟，資料與來源機一致
+- [ ] **實機**：`schemaVersion` 比 app 新的那列顯示「需更新 app」且不能按
+- [ ] **實機**：下載中斷（切飛航）→ 錯誤訊息正確，且 cache 沒留下半截 zip
+- [ ] **實機**：完整 end-to-end —— A 機上傳 → B 機全新安裝 → 連結同一帳號 → 列出 → 回復 → A 的資料全在 → **B 的選單備份列顯示「尚未備份到雲端」而不是繼承 A 的時間**
+
+---
+
+## 2026-09-17 — Google Drive 備份：A–C 實機驗證 runbook
+
+Phase A（認證）／B（手動上傳）／C（雲端還原）的程式碼已完成、靜態檢查全過，以下是實機清單。表格右欄標明每條失敗對應哪一層，避免在錯的地方找原因。
+
+### 前置（最常見的假失敗）
+
+```bash
+cd mobile/app
+npx expo start --dev-client --clear
+```
+
+`extra.googleOauth` 是 Expo CLI **啟動 dev server 時**從 `app.config.ts` 讀 `.env` 產生的。在 Metro 已經跑著時才填 `.env`，app 拿到的是空字串，`/gdrive` 會顯示「尚未設定 OAuth 用戶端」——那不是 bug，是沒重啟。**不需要重建 dev client**（本功能零新增原生模組）。
+
+### A 段：認證
+
+| # | 動作 | 預期 | 失敗代表哪一層 |
+|---|---|---|---|
+| A1 | 開 `/gdrive` | 顯示「尚未連結」 | 顯示「尚未設定 OAuth 用戶端」→ `.env` 沒進 bundle，回前置 |
+| A2 | 按「連結 Google 帳號」 | 全螢幕代碼畫面：8 碼 + 倒數 + 轉圈 | 沒跳 → `device/code` 請求失敗，看 Metro console |
+| A3 | 「複製代碼」→「開啟授權頁面」 | 瀏覽器開 google.com/device | |
+| A4 | 貼代碼 → 選帳號 → 同意 → 手動切回 app | 畫面自動關閉，顯示「已連結：email」 | 403 access_denied → 測試使用者沒加成功 |
+| A5 | 在代碼畫面按左上 X | **立刻**關閉，不是等 5 秒 | 拖延 → `cancel` 沒有同時呼叫 `close()` |
+| A6 | 完全關閉 app 再開 → `/gdrive` | 仍顯示已連結 | 變回未連結 → SecureStore 沒寫入 |
+
+### B 段：上傳
+
+| # | 動作 | 預期 | 失敗代表哪一層 |
+|---|---|---|---|
+| B1 | 備份頁 →「上傳至 Google 雲端硬碟」 | **不彈登入**，「正在打包…」→「上傳中 n%」 | 彈了登入 → refresh 靜默路徑沒生效 |
+| B2 | 完成 | toast「已備份到 Google 雲端硬碟」 | |
+| B3 | drive.google.com 檢查 | `Mitalivana/backups/checklister-backup-*.zip`，大小合理 | 找不到／在垃圾桶 → 資料夾解析有問題 |
+| B4 | 回選單 | 備份列副標顯示「上次雲端備份：日期」 | |
+| B5 | 飛航模式按上傳 | 訊息是**離線**，不是「服務暫時無法使用」 | 講錯 → `CROSS_PROBE` 的 gdrive→gbif 沒生效 |
+| B6 | 上傳六次 | Drive 上只剩 5 個，**最舊的被刪、最新的在** | |
+| B7 | 在 Drive 把一份改名去掉 `checklister-backup-` 前綴 → 再上傳兩次 | 改名那份**還在** | 被刪 → 輪替的前綴過濾沒生效 |
+| B8 | 把 `Mitalivana` 資料夾丟垃圾桶 → 再上傳 | 重建新資料夾，檔案不在垃圾桶 | 寫進垃圾桶 → `trashed=false` 沒生效 |
+
+### C 段：還原
+
+| # | 動作 | 預期 |
+|---|---|---|
+| C1 | 「列出雲端備份」 | 顯示 建立時間 · 大小 · App 版本 |
+| C2 | 某份「還原」→ 確認 | 「下載中 n%」→ app 自動重啟 |
+| C3 | 重啟後 | 記錄數／樣區數／採集號與備份當下一致 |
+| C4 | 下載中切飛航 | 錯誤訊息正確，cache 沒留下半截 zip |
+
+### 跨裝置 end-to-end（最關鍵）
+
+1. A 機：名錄／樣區／採集各至少一筆 → 上傳
+2. B 機：全新安裝 → 連結**同一個** Google 帳號
+3. B 機：列出 → 還原 → 重啟 → **A 的資料全在**
+4. B 機：選單備份列必須顯示「**尚未備份到雲端**」而不是繼承 A 的時間
+
+第 4 點在驗 `lastUploadAtMs` 放 app 私有檔案而非 settings 表的決定（`src/lib/driveState.ts` 檔頭）。放錯地方的話，剛還原完的新手機會以為自己剛備份過，接下來整個間隔都不備份——會靜默失去資料。
+
+### 安全性
+
+連結狀態下產生一份**本機**備份，解壓確認：只有 `user.db` + `manifest.json`，且 `settings` 表內**沒有任何 token 欄位**（只有 `gdrive_account` 這個 email）。
+
+### ⚠️ 測試狀態的已知限制（不要為此追不存在的 bug）
+
+OAuth app 目前停在 **Testing**，靠測試使用者名單放行。官方規則：
+
+> "Authorizations by a test user will expire seven days from the time of consent"
+
+所以 **A6 / B1 只在授權後 7 天內有效**；超過 7 天出現的靜默續期失敗是**預期行為**——`ensureAccessToken` 會收到 `invalid_grant`，照設計清掉憑證並要求重新連結。
+
+要驗長期續期必須先發布到 production。發布需要「品牌」頁填完應用程式首頁與隱私權政策連結，而那兩個網址的網域要先在「授權網域」註冊（GitHub Pages + Search Console 驗證是最省事的路）。這件事與 Play／App Store 上架所需的隱私權政策是同一份工作。Console 另註明「在應用程式通過驗證之前，系統允許的使用者人數上限為 100 位」——公開發行前要把品牌驗證列進前置清單。
+
+---
+
+## 2026-09-18 — 地圖：樣區範圍整併 ＋ 三個定位／顯示 bug
+
+起點是「讓地圖顯示樣區記錄」，但探勘發現 `Map.md` 的 Interactions 三項（顯示幾何＋簡要資訊／點選跳回記錄／地圖中編輯幾何）**早就全數落地**，只是沒人勾掉。真正缺的是樣區的 polygon 範圍、地理樣區與樣區幾何的整併，以及三個會讓資料看起來消失的 bug。
+
+### 定案的三個決策
+
+1. **樣區範圍重用 `sites` 表**，透過早已存在的 `plot_surveys.site_id`（`migrations.ts:216`）綁定。**零 migration**，`LATEST_SCHEMA_VERSION` 維持 34；匯出（`bundleExport.ts:831`）、匯入（`plotImport.ts:45`）、刪除保護（`deleteSiteIfUnreferenced`）全部現成。
+2. **繪製交接到主地圖**，存完 `router.replace` 回樣區頁。沿用 session／常用名錄兩個既有 handoff 形狀，**零新繪圖程式碼**——頂點拖曳、復原、環自交檢查直接繼承。政策依據：`FolderAreaMap.tsx` 檔頭「繪製只在主地圖做，因為頂點拉鈕只有那裡有」。
+3. **範圍最小**：不做採集上圖、不做已結束名錄的物種點、不做樣區逐筆物種點、不做圖層開關／視窗過濾／clustering。
+
+### Stage 1 — 定位機制與顯示 bug
+
+| 修了什麼 | 位置 |
+|---|---|
+| **穿越線只有中心點時從地圖上消失** | `map.tsx:1042` 的 `if (usesTrack(plot)) return …` 是無條件 early return，`segments.filter(len>=2)` 空陣列時整筆樣區不見。確定性重現：開始錄 → 收到第 1 個 fix → 暫停（`trackRecorder` 的 `onFirstFix` 必然寫入中心點，但 `BATCH_FLUSH_POINTS = 5` 還沒 flush）。改成有可畫 segment 才 return，否則落到 marker 分支 |
+| 同一形狀的 `plotRegion` | `:686` `segs.length === 0` 直接回 null →「跳到此位置」誤報沒有座標 |
+| `enterPlotEdit` 前後矛盾 | `:734` 無軌跡時 Alert 擋掉，但 marker 已經看得到了。改成退回編輯中心點。順帶修掉潛在陷阱：原本可選到只有 1 點的軌跡段，進去後 `savePlotEdit` 要求 ≥2 點 → 卡住存不了。改用「原索引 + 可編輯過濾」，索引仍對得上 `savePlotEdit` 的回寫 |
+| **列表跳地圖靜默失效** | `sites.tsx:89` 寫 `map_view` 再導航。地圖是 tab screen，掛載後只透過 `initialRegion` 讀過一次，而且自己的平移處理器 600ms 後就覆蓋該值。改成 `?site=<id>` param handoff，地圖端 `focusRegion` + `pendingFocus`（冷啟動時 `mapReady` 才沖出） |
+| 四份重複的幾何型別標籤 | `map.tsx` / `sites.tsx` / `SiteAssignSheet` / `SaveSiteModal`（第四份只有 3 型子集）→ `src/lib/siteLabels.ts`，改用完整 `Record<SiteGeometryType, …>`，新增型別會編譯失敗而非畫面顯示裸 key |
+
+### Stage 2 — 樣區 polygon 範圍
+
+- `FolderAreaMap` 泛化成通用唯讀範圍預覽：`title` / `emptyLabel` / `editLabel` 三個選填 label，`source` 改選填；`ringsOf` 換成 `geometryToPrimitives`。**後者是修 bug 不是重構**：原本只認 Polygon/MultiPolygon，一個 Point 型 site 會被顯示成「尚未設定」。
+- `app/plot/[id].tsx` 新增 `PlotBoundarySection`，位置在「必填」之後（緊鄰 GPS 中心點）。用 `CollapsibleSection` 包住，**無範圍時預設收合 → MapView 根本不掛載**；這一頁已經有中心點小地圖，兩個原生地圖同時掛在一頁正是其他小地圖元件刻意避開的事。
+- `map.tsx`：`?plot=<id>` param、`plotHandoff` state、`handleSaveSite` 的樣區分支、`SaveSiteModal` 預填（名稱「PLOTID 範圍」、專案跟樣區走）、綠色提示橫幅、`cancelDraw` 清理。
+- **`geometry_type` 一定要跟著寫**：舊的 row 可能是 Point，只改 `geometry_geojson` 會留下 type='Point' 配 polygon 座標的爛列，會壞掉標籤、圖示與 KML/GPX 產生器。
+- **`session_id` 絕不寫樣區 id**：那欄是 sessions 的 FK，語意是「這個 site 屬於某個名錄」。
+
+### Stage 3 — 語意收尾
+
+- **`deletePlotSurvey` 不處理 `site_id`**（漏洞）→ 刪樣區留下沒有主人的範圍，永遠留在地圖與地理樣區管理。加上 `deleteSiteIfUnreferenced`；`mergePlotSurveys:1751` 與 `importPlotSurveyTx:1162` 都走這支，一併修好。
+- **複製／合併樣區會讓兩筆共用同一個 site row**（`plots.ts:1608`）→ 直接 `updateSite` 會無聲改掉另一筆樣區的範圍。新增 `countSiteReferences()`（`deleteSiteIfUnreferenced` 改成它的薄包裝），**只有唯一擁有者才就地覆寫，否則另存新 row**。刻意不做確認對話框——自動選安全的那邊，比問一個使用者無從判斷的問題好。
+- 綁定樣區的 site 改穿樣區顏色（active 洋紅／一般紫），獨立 site 維持藍色；`handleSiteTap` 對已綁定的改成「跳回此樣區 / 跳到此位置 / 重新繪製此範圍」，**移除裸的刪除**（範圍要從樣區刪，不是從它底下抽掉）。
+- `sites.tsx` 刪除確認：被記錄引用時改用 `sites.deleteBoundMsg` 明說「使用它的記錄將失去範圍」。
+
+### 刻意不做
+
+- 不新增 migration、不新增原生模組、不新增第三份小地圖、不重寫繪圖邏輯。
+- **不把 polygon 面積餵進 `resolvePlotArea`**（`src/lib/plotArea.ts`）——會改動既有報表的每公頃數字。範圍是記錄與匯出用，不是面積來源，UI 文案已寫明。
+- 不把 `SiteAssignSheet` 接到樣區頁。這是 Stage 3 刪除語意成立的前提：樣區的 site 只可能來自「交接建立／匯入／複製繼承」，都可視為樣區擁有它。**日後若讓樣區指派既有地理樣區，`deletePlotSurvey` 的清理必須重新檢討**，否則會刪掉使用者手繪的獨立樣點。
+
+### 驗證狀態
+
+- [x] `tsc --noEmit` 0 error；`check:i18n`（1530 key × 7 語系）/ `check:dock` / `check:kav` / `check:roundtrip` / `check:names` / `check:report` / `check:gdrive` / `lint` 全過
+- [x] 觸及的檔案無 `Platform.OS === 'ios'` 分支
+
+**⚠️ 實機只能在 iOS 驗**：Android 尚未設定 Google Maps API key（`Android_audit_today.md:78-80`），地圖 tab 整片空白。
+
+**A. 定位回歸**
+- [ ] **先開過地圖 tab**，再從地理樣區管理點任一項 → 地圖要移動（這就是修掉的 bug）
+- [ ] 冷啟動不開地圖 tab，直接從列表點 → 也要移動（`pendingFocus` 路徑）
+- [ ] 連點同一項兩次 → 第二次仍要移動（param 已清除，可重觸發）
+
+**B. 穿越線只有點**
+- [ ] 新建穿越線樣區 → 開始錄 → 第一個座標出現 → 立刻暫停 → 主地圖要看得到紫色 marker，description 顯示「穿越線 · 物種 0 筆 · 尚無軌跡」
+- [ ] 點它 →「跳到此位置」定位到中心點；「編輯位置」進拖曳模式並可儲存
+- [ ] 錄製中點「編輯位置」→ 仍要被「正在錄製中」擋下
+
+**C. 樣區範圍主線**
+- [ ] fixed / point_count / transect 各一筆：樣區頁 → 樣區範圍 → 繪製 → 地圖已居中且在 Polygon 模式、有綠色橫幅 → 畫 4 點 → 完成 → 名稱預填「PLOTID 範圍」、專案預填樣區的 → 儲存 → 回到樣區頁且範圍已顯示
+- [ ] 再次「重新繪製範圍」→ 居中到既有範圍 → 重畫儲存 → **地理樣區管理的筆數沒有增加**（走 `updateSite`）；原本是 Point 型的話，列表標籤要變成「多邊形」
+- [ ] 繪圖中取消 → 樣區未被綁定，再交接一次仍正常
+- [ ] 完全沒有座標的新樣區交接 → 不居中、吐「尚無座標」，但仍可正常畫、正常存
+
+**D. 主地圖呈現**
+- [ ] 綁定樣區的範圍是紫色（active 洋紅），獨立地理樣區仍是藍色
+- [ ] 點該範圍 → 副標「樣區 XXX 的範圍」，選單三項且**沒有刪除**
+- [ ] 樣區中心 marker 的選單維持三項不變
+
+**E. 刪除與完整性**
+- [ ] 刪除有範圍的樣區 → 範圍從地圖與地理樣區管理一併消失
+- [ ] **複製**一筆有範圍的樣區 → 刪掉其中一筆 → 範圍要留著；再刪另一筆 → 才消失
+- [ ] 共用狀態下重畫其中一筆的範圍 → 另一筆的範圍**不變**，地理樣區管理多出一筆
+- [ ] 從地理樣區管理刪除綁定中的 site → 確認文案要說「使用它的記錄將失去範圍」；刪除後樣區頁回到空狀態且不當機
+- [ ] 設定 → 資料檢查 → 無 dangling `site_id`
+
+**F. 既有回歸**
+- [ ] 名錄「建立地理樣區」（`session/[id].tsx:570`）與常用名錄「編輯範圍」（`favorites.tsx:112`）行為完全不變，含回跳目的地
+- [ ] 常用名錄的範圍小地圖外觀與文案不變（`FolderAreaMap` 已泛化）
+- [ ] 匯出樣區 bundle → `site.geojson/kml` 是新的 polygon；同 uuid 覆寫匯入 → 舊 site 被清、新 site 綁上
+
+---
+
+## 2026-09-18 — 地圖：點位聚合 ＋ 點選先看資訊（同日追加）
+
+### 1. 聚合（clustering）
+
+主地圖原本無條件全畫、無視窗過濾，大尺度下點位全部疊在一起。
+
+- **自己寫像素網格，零依賴**（`src/lib/mapCluster.ts`，純模組，`npm run check:cluster` 用 Node 測）。不用 supercluster：這裡的量級是一位使用者的數百筆記錄，不是它設計來對付的數十萬點；網格不需要依賴、不需要重建索引、兩平台行為一致。**沒有用 `react-native-map-clustering`**——它會包掉整個 MapView，與現有的 UrlTile／Polyline／Circle 子元素有衝突風險。
+- **依螢幕像素分組**（64 px 格），不是依度數。這是關鍵：相距一公里的兩點在國家尺度是一個點、在樣區尺度清楚分開，不必為緯度調參數。
+- 聚合對象是**記錄**：樣區中心點（無中心點時退回軌跡第一點）、名錄起點、獨立地理樣區。**有範圍的樣區只算一次**——樣區已經代表那筆記錄，把它的 site 也算進去會讓每個泡泡的數字灌水。
+- 被聚合的成員**整組隱藏**（含穿越線與範圍多邊形），由一個泡泡代表；點泡泡 `animateToRegion` 到成員範圍，這就是拆開它的方式。
+- `viewRegion` 用 state 但**只在 `onRegionChangeComplete` 寫**（一次手勢一次 re-render）；`lastRegion` 仍是 ref，平移過程不 re-render 的既有設計不變。
+- `clusterRegion()` **刻意不重用 `geometryBounds`**：後者的 1.4× padding 與 0.005° 下限是為了框一個形狀，套在緊密的 cluster 上會縮到同一個泡泡再度出現——點了等於沒反應。
+- `ClusterMarker` 的 `tracksViewChanges` 先 true 後 false：一開始就 false 在 iOS 上會畫出空白 marker，一直 true 則是 Android 大量 marker 卡頓的典型原因。安全是因為數字已經烤進 key，數量變了會 remount 而不是原地改。
+
+### 2. 點選先看資訊，再進選單
+
+**`react-native-maps` 1.20.1 的 `Marker` 沒有 `onLongPress`**（已查 `node_modules/react-native-maps/lib/MapMarker.d.ts`：只有 `onPress` / `onSelect` / `onDeselect` / `onCalloutPress`）。`Polyline` / `Polygon` 更只有 `onPress`。只有 `MapView` 有 `onLongPress`，而它回傳的是座標不是圖徵。
+
+所以改成：**點一下 → 底部資訊卡（`src/components/MapFeatureCard.tsx`）→ 卡上「操作」→ 原本那個 ActionSheet**。三種圖徵（樣區／名錄／地理樣區）行為一致，線與面也適用——原生 callout 只有 marker 有，做不到這點。
+
+資訊卡刻意**不是 Modal**，就疊在地圖畫面上，所以「操作」開 ActionSheet（Android 上是 Modal）不會變成 Modal 疊 Modal。繪圖／編輯模式時不顯示，點空白地圖會關掉。
+
+### 3. 順手修到的
+
+`sites` 圖層原本每次 render 都跑 `parseGeometry`（純 `JSON.parse`，**會 throw**）。抽成 `siteRenderItems` memo 並加 try/catch：一筆壞資料原本會讓整個地圖分頁崩掉。
+
+### 驗證狀態
+
+- [x] `tsc --noEmit` 0 error；`check:cluster`（新）/ `check:i18n` / `check:dock` / `check:kav` / `check:roundtrip` / `check:names` / `check:report` / `check:gdrive` / `check:inat` / `lint` 全過
+- [ ] **實機（iOS）**：縮到全臺尺度 → 相近樣區／名錄收成泡泡，數字正確
+- [ ] 點泡泡 → 縮放到成員範圍並拆開
+- [ ] 放大到樣區尺度 → 泡泡消失，個別圖徵與軌跡回來
+- [ ] 兩點完全重疊時點泡泡 → 仍會縮放到可用尺度（不是縮到零）
+- [ ] 有範圍的樣區在泡泡裡只算一次（數字不灌水）
+- [ ] 繪圖模式中泡泡不出現，不會吃掉頂點點擊
+- [ ] 點樣區／名錄／地理樣區／穿越線／範圍多邊形 → 都出資訊卡，內容正確
+- [ ] 資訊卡「操作」→ 原本的選單；點空白地圖 → 卡片關閉
+- [ ] 大量泡泡時捲動地圖不卡（`tracksViewChanges` 的效果，Android 才看得出來——但 Android 現在無法測）
+
+### 追加修正：平移時整張地圖重建（實測回報）
+
+症狀：同一放大尺度下移動地圖，圖徵短暫消失、重算再出現。
+
+根因在 `src/lib/mapCluster.ts` 第一版：格子從**視窗**西/北緣量起
+
+```js
+const west = vp.longitude - vp.longitudeDelta / 2;
+const cx = Math.floor(((p.longitude - west) * pxPerLng) / cellPx);
+```
+
+平移時 `west` 改變 → 每個點的格子索引改變 → cluster key 全變 → 所有泡泡 remount（`tracksViewChanges` 又重跑 250 ms），而被聚合成員的「隱藏／顯示」也跟著翻，所以連個別樣區與軌跡都閃。
+
+兩處修正：
+
+1. **格子錨定世界座標**：`Math.floor(lng / cellLng)`，只跟縮放有關，與相機在哪完全無關。
+2. **格子大小 snap 到 2 的冪**：react-native-maps 每次手勢後回報的 `longitudeDelta` 會有微小差異，不 snap 的話點會在格子邊界無故來回跳。
+3. **cluster key 拿掉數量**（原本是 `c:x,y:count`）。含數量的話成員一變就 remount；改由 `ClusterMarker` 在 `count` / 位置變動時短暫重開 `tracksViewChanges` 重畫，marker 本身保持掛載。
+
+`check:cluster` 新增三條防回歸：平移後 key 不變、平移後分組不變、span 微小變動後 key 不變。
+
+### 追加修正：編輯位置按「取消」會卡住（實測回報）
+
+不是 `cancelPlotEdit` 本身有問題，是它同時觸發三件重活：
+
+1. **`useFocusEffect` 的 callback 把 `editPlot` 放進 deps**（既有寫法），所以 `editPlot` 一變 `null`，react-navigation 就重跑 effect → `listSites` / `listPlotSurveysWithMeta` / `listSessions` / `listSessionRecords` 四個同步 SQLite 查詢 → 新陣列 → **每條軌跡與每個 site 的 GeoJSON 重新 parse** → `clusterInputs` → `clusters` 整條 memo 鏈重算。改成用 `editPlotRef` 讀取、把 `editPlot` 移出 deps；儲存路徑本來就自己呼叫 `reloadPlots()`，取消則什麼都沒改、不需要重載。
+2. **所有 cluster 泡泡同時掛載**，每顆 `tracksViewChanges=true` 燒 250 ms（每幀把自訂 view 重新截成圖）。改成 `onLayout` 後一個 frame 就關掉，一顆只截一次。
+3. 順帶修掉一個我自己種的顯示 bug：繪圖／編輯模式下泡泡不畫，但 `hiddenKeys` 照樣生效 → **附近的樣區與名錄會整個消失**，直到離開編輯模式。改成繪圖／編輯時整個聚合停用（`hiddenKeys` 為空）。
+
+### 追加：原生 crash `AIRMap.m` nil subview（已修）
+
+`Update_log.md` 2026-08-30 那則未能重現的原生 crash，重現步驟＝**地圖 → 編輯位置 → 取消**。根因是 New Architecture 的 interop 層傳 nil 子節點給 `AIRMap.m:138` 的 `insertObject:atIndex:`（`react-native-maps` 1.20.1 無 Fabric 元件，所有 MapView 子節點都走 `RCTLegacyViewManagerInteropComponentView`）。
+
+以 `patch-package` 加三行 nil 防護。**新增的建置相依**：`patch-package` devDependency、`postinstall` script、`patches/react-native-maps+1.20.1.patch`。
+
+- **套用需要重建 dev client**（改的是原生檔案）。EAS build 會在 `npm install` 後自動套用。
+- 產 patch 時務必用 `--exclude '^(?!ios/AirMaps/AIRMap\.m$)'`：node_modules 內殘留著 Android Gradle 產物，不排除的話 patch 會變成 60 KB／102 個檔案。
+- **升級到 react-native-maps 1.29.x 時要移除這個 patch**（該版本起有真正的 Fabric 元件，不再經過 interop）。那是獨立的一刀，會脫離 Expo SDK 54 的 pin。
+
+---
+
+## 待辦評估：Expo SDK 54 → 57（2026-09-18 調查，**結論：現在不升**）
+
+### 版本現況（已查證）
+
+| SDK | 發布 | RN / React |
+|---|---|---|
+| **54（現況）** | 2025-09 | 0.81 / 19.1 |
+| 55 | — | 0.83 / 19.2 |
+| 56 | 2026-05-21 | 0.85 / 19.2 |
+| **57** | 2026-06-30 | 0.86 / 19.2.3 |
+| 58 beta | 2026-09-15 | — |
+
+SDK 57 從 56 升上去很輕鬆（官方稱 RN 0.86「no user-facing breaking changes」）。**但工作量全在跨 55 與 56。**
+
+### ⚠️ 先分清楚：AIRMap crash 不需要靠升 SDK 解決
+
+`codegenConfig.ios.componentProvider` 是 **react-native-maps 1.21.0** 導入的；**1.20.1（SDK 54 的 pin）是最後一個沒有 Fabric 元件、因而必走 interop 層的版本**。peer 只要求 `react-native >= 0.76.0`，現況 0.81.5 完全符合。
+
+也就是說：**升一個 minor（1.20.1 → 1.21.0）就能離開 interop 層**，不必動 SDK。這是成本最低的根治路徑，也是升 SDK 之前就該先試的一刀。（SDK 57 pin 的是 1.27.2，同樣有 Fabric 元件。）
+
+### SDK 56 對本專案的實際衝擊（數字為實際掃描結果）
+
+| 變更 | 本專案受影響範圍 |
+|---|---|
+| **`File.copy()` / `move()` 改 async** | **2 個呼叫點，都在關鍵路徑**：`src/db/init.ts:59` 首次啟動複製 157 MB TaiCOL bundle DB（當成同步用 → 還沒複製完就開 DB → 全新安裝冷啟動失敗）；`src/lib/backup.ts:204` `restoreSafetyBackup`（傳給 `replaceUserDb` 的 callback 型別是同步 `(dest) => void`，Promise 會被靜默丟掉 → 檔案沒寫完就跑 `initDb()`）。**tsc 不一定攔得到**（忽略回傳值是合法的） |
+| **`@expo/vector-icons` → `@react-native-vector-icons/*`** | **76 個檔案**。機械式但量大 |
+| **expo-router 不再相依 react-navigation** | **5 個檔案**：`app/_layout.tsx`（`ThemeProvider`/`DarkTheme`/`DefaultTheme`）、`app/(tabs)/taxonomy.tsx`（`useIsFocused`——分類樹跳轉不變式）、`app/favorites.tsx`、`KeyListView.tsx`、`SpeciesSearchPanel.tsx`（`useBottomTabBarHeight`——`check:dock` 守的那條）。官方有 codemod：`npx expo-codemod sdk-56-expo-router-react-navigation-replace` |
+| **iOS 最低版本 15.1 → 16.4** | **產品決策，非技術決策**。會掉 iPhone 7/7+、6s、SE 一代、iPad mini 4、iPad Air 2。野外使用者的舊機比例要先確認 |
+| `expo/fetch` 成為 `globalThis.fetch` 預設 | `src/lib/apiFetch.ts` 是全 app 唯一 HTTP 入口（HEAD probe、Retry-After、AbortController 超時）。**`check:gbif` / `check:inat` 跑純 Node，抓不到 RN runtime 差異**，只能實機驗 |
+| 最低 Xcode 26.4 / Node ≥ 20.19.4 | Xcode Cloud 已在用 27，應無問題 |
+
+**好消息**：`expo-file-system@57` **仍保留 `./legacy` 子路徑**（已查 exports），那 10 個檔案不必動。
+
+### SDK 55 的重點
+
+Legacy Architecture 不再支援（本專案已是 New Arch ✓）、Android edge-to-edge 變強制且 `edgeToEdgeEnabled` 從 app.json 移除（本專案用 `react-native-edge-to-edge` plugin，要確認）、最低 Xcode 26。
+
+### SDK 57 本身：一個對本專案特別危險的點
+
+**`expo prebuild` 現在預設清空並重新產生 `ios/` 與 `android/`**，要 `--no-clean` 才保留。而本專案 `ios/` 進版控且 `ios/Podfile` 有手加的 `post_install`（把低於 15.1 的 pod deployment target 拉上來，Xcode Cloud 才過）。Plan.md 既有註記「⚠️ 這個修改會被 prebuild 洗掉」在 57 之後風險更高——升級前應先把它做成 local config plugin（`withDangerousMod`）。
+
+### SDK 57 實際 pin 的版本（2026-09-18 查 npm `bundledNativeModules.json`）
+
+```
+react-native                        0.86.0
+react-native-maps                   1.27.2   ← 本專案已在此版
+react-native-screens                4.25.2   （現況 4.16.0）
+react-native-reanimated             4.5.0
+react-native-gesture-handler        ~2.32.0
+react-native-safe-area-context      ~5.7.0
+react-native-keyboard-controller    1.21.9
+react-native-webview                13.16.1
+react-native-svg                    15.15.4
+expo-file-system / secure-store / audio / media-library / image-picker  ~57.0.x
+expo-router                         ~57.0.2
+expo-asset                          ~57.0.2
+```
+
+**`react-native-maps` 的 pin 正好是 1.27.2**，也就是本日已經升到的版本 —— 這條路徑往 57 是相容的，升 SDK 時不用再動 maps。
+
+另查 `react-native-maps@1.29.2` 的 peer 只要求 `react-native >= 0.76.0`，所以就算之後想再往前升 maps，也不必等 SDK。
+
+### 沒被 Expo 背書的風險
+
+**`@op-engineering/op-sqlite` 不是 Expo 模組**，不在 `bundledNativeModules`，`expo install --check` 不會驗。現況 `^15.2.12`，最新 `18.2.3`。跳到 RN 0.86 很可能連它一起要升——**那是整個資料層**。
+
+### 為什麼現在不升
+
+1. Drive 備份 A–C 與地圖的所有改動**一項實機驗證都還沒跑完**。在未驗證的基礎上疊跨三版的 SDK 升級，出事時分不清是誰造成的。
+2. **Android 目前完全無法驗證**（缺 Google Maps API key）。一半平台盲測時不該動 RN 版本。
+3. 唯一的實際痛點（原生 crash）已用 patch 擋住，且有上面那條「升一個 minor」的更便宜路徑。
+
+### 建議順序
+
+- [ ] 跑完 Drive A–C 與地圖的實機驗證清單
+- [ ] 補上 Android Google Maps API key，讓 Android 可測
+- [ ] 把 `ios/Podfile` 的 `post_install` 做成 local config plugin（`withDangerousMod`），否則之後每次 prebuild 都會被洗掉
+- [ ] **單獨升 `react-native-maps` 1.20.1 → 1.21.x**，移除 `patches/react-native-maps+1.20.1.patch`。獨立一刀，壞了只 revert 一個套件
+- [ ] 確認 `@op-engineering/op-sqlite` 在目標 RN 版本的相容性（它是資料層，先查再動）
+- [ ] 決定 iOS 最低版本是否可以抬到 16.4（產品決策）
+- [ ] SDK 升級**一次一版**：54→55→56→57。56 單獨排一個 sprint，重點是上表那五項
+
+### 已完成：react-native-maps 1.20.1 → 1.27.2（2026-09-18）
+
+上面「單獨升 maps」那一刀做掉了，**patch 與 patch-package 一併移除**。
+
+- **1.21.0 起新增真正的 Fabric component view**（`RNMapsMapView` / `RNMapsMarkerView` / `RNMapsGoogleMapView` / `RNMapsGooglePolygonView`），MapView 本身不再靠 legacy interop 掛載。
+- **⚠️ 更正（2026-09-18）**：這裡原本寫「`AIRMap.m` 在上游已不存在／nil crash 從根消失」，**是錯的**。檔案只是改名成 `AIRMap.mm`，`AIRMap.mm:160` 那行無防護的 `insertObject:atIndex:` 還在；`RNMapsMapView` 只是包住 `AIRMap` 再轉呼叫。真正擋住舊 crash 的是 `RNMapsMapView.mm:441` 的 `if (paperView)` nil 檢查；同一方法 `:445` 的 `[fabricMarker marker]` 沒檢查，而 `prepareForRecycle` 會把它設 nil。詳見 `Update_log.md` 2026-09-17 第 6 節。**實機「編輯位置 → 取消」已於 2026-09-18 驗證通過**（不再 hang／crash）。
+- **不是 1.21.0 的原因**：它 `main` 指向 `src/index.ts`（只發佈 TS 原始碼），我們的 `tsc --noEmit` 會連它一起檢查，而它在 `strict` + React 19 型別下有十多個錯誤（`skipLibCheck` 只管 `.d.ts`，無效）。1.27.2 型別已修、`tsc` 乾淨通過，且正好是 Expo SDK 57 的 pin 版本。
+- peer 僅要求 `react-native >= 0.76`（現況 0.81.5）→ **脫離 Expo SDK 54 的 pin 但在相容範圍內**。`expo install --check` 會提醒版本不符，那是預期的。
+- 靜態檢查全過：`tsc` / `check:cluster` / `check:i18n` / `check:dock` / `check:kav` / `check:roundtrip` / `check:gdrive` / `lint`。
+
+**⚠️ 需要重建**：原生檔案清單變了（新增 Fabric 元件、`AIRMap.m` 改名為 `AIRMap.mm`），必須 `cd ios && pod install` 或直接 `npx expo run:ios`。
+
+**實機待驗**（地圖整條路徑都換了原生實作，等於重驗一次）：
+- [ ] 地圖顯示：底圖、NLSC／中研院疊圖、樣區／名錄／地理樣區三個圖層
+- [ ] **編輯位置 → 取消**（原本必崩的那條）
+- [ ] 聚合泡泡：顯示、數字、點擊縮放
+- [ ] 繪製流程：加點、拖曳頂點、復原、完成、儲存
+- [ ] 資訊卡：點圖徵 → 卡片 → ⋯ → 選單
+- [ ] 小地圖三處（記錄點 / 樣區中心 / 常用名錄範圍）與穿越線預覽
+
+### 2026-09-18 — 物種輸入 UI 三項修正
+
+**1. 分類群 chips 只留科、屬**（`PlotSpeciesValueModal.tsx`）
+原本界→門→綱→目→科→屬六個 chip 佔掉兩行，擋在使用者真正要填的欄位上方。上層階級在分類樹裡本來就一鍵可達。
+（`SpeciesDetailSheet` 本來就只顯示科這一個 chip，不需要改。）
+
+**2. 檢索表 chip 只對 TaiCOL 物種顯示**（兩處）
+檢索表資料只有台灣有。區域名錄包（JP，`y…`）與外部來源（GBIF／iNat，`g…`）的物種原本會**繼承科的台灣檢索表**——對一個日本的同屬種來說是錯的。
+判斷用既有的 `sourceOfTaxonId()`（`src/db/regions.ts:70`，回傳 `'taicol' | 'jp' | 'external'`），**不要**自己寫前綴判斷：一開始只擋 `g…` 會漏掉日本的 `y…`。
+`PlotModalHeader` 新增**必填**的 `taxonId`，讓 tsc 強制三個建構點都補上（確實抓到 `PlotSpeciesTab.tsx` 漏的兩處）。
+
+**3. 豐度改成下拉式選單 + 同列數值**（`PlotSpeciesValueModal.tsx`）
+- 五顆換行的單位按鈕（佔兩行）→ 一顆下拉按鈕，下方小字「單位」。
+- **用 `showActionSheet()` 不用 app 既有的 `SelectRow`**：這個畫面本身是 Modal，而 `SelectRow` 的 popover 走根層 `PortalHost`，會被 Modal 蓋住。
+- 覆蓋度／個體數這兩種單一欄位的值，移到下拉選單**同一列右側**（`PercentInput` / `CountInput` 新增 `compact`，隱藏自己的標籤——單位已經由下拉選單標示）。BB／DBH／自定義仍佔整列。
+- 常用值 chips 抽成 `PercentQuickValues`，改成**水平捲動一行**（並補上 100%）。
+
+靜態檢查全過：`tsc` / 八支 `check:*` / `lint`。
+
+**實機待驗**
+- [ ] 三種 plot_type、各單位切換後數值欄位正確重置
+- [ ] 下拉選單在 Modal 內正常開啟（iOS 原生 ActionSheet／Android bottom sheet）
+- [ ] 覆蓋度常用值可左右滑，點選寫入欄位
+- [ ] BB／DBH／自定義仍為整列且輸入正常
+- [ ] 日本區域名錄包的物種**不顯示**檢索表 chip；TaiCOL 物種仍顯示
+- [ ] 分類群 chips 只剩科、屬，點擊仍能跳到分類樹
+
+### 建置坑：`React-Core-prebuilt` 快取損壞（2026-09-18）
+
+`expo run:ios` 連結失敗，缺 `RCTPackagerConnection` / `RCTReconnectingWebSocket` / `facebook::react::Sealable`，引用者是 expo-dev-launcher／expo-dev-menu／ExpoModulesCore／RNSVG——**與當下正在升級的 react-native-maps 無關**。
+
+根因是 CocoaPods 快取裡的 `React-Core-prebuilt` xcframework 壞掉（`Podfile:17-18` 預設走預編譯 React Core）。`pod install` 一跑就會把它重新落地，所以任何觸發 `pod install` 的改動都會「看起來把建置弄壞」。
+
+**修法**
+```bash
+cd mobile/app/ios
+pod cache clean React-Core-prebuilt --all
+rm -rf Pods/React-Core-prebuilt
+pod install
+```
+驗證：`nm -gU Pods/React-Core-prebuilt/React.xcframework/ios-arm64_x86_64-simulator/React.framework/React | grep -c RCTPackagerConnection` 應該 > 0（壞的時候是 0）。
+
+**若重抓仍為 0**：在 `ios/Podfile.properties.json` 加 `"ios.buildReactNativeFromSource": "true"`，改成從原始碼編譯 RN（含 DevSupport），繞過整套預編譯機制。代價是首次建置久很多。
+
+**診斷訣竅**：`expo run:ios` 會吃掉 linker 細節。要看符號就直接跑
+`xcodebuild -workspace Checklister.xcworkspace -scheme Checklister -configuration Debug -sdk iphonesimulator -derivedDataPath build -destination 'generic/platform=iOS Simulator' build > /tmp/xcb.log 2>&1`
+—— **不要管進 `tail`**（輸出會緩衝到結束），**一定要給 `-derivedDataPath`**（否則完整重建）。

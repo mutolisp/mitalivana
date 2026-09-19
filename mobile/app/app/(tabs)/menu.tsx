@@ -10,6 +10,7 @@
  * day-to-day management first, set-once preferences after, destructive last.
  */
 import { useRouter, type Href } from 'expo-router';
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, ScrollView, Text, View } from 'react-native';
 import { LinkRow, Section, SelectRow } from '~/components/settings/rows';
@@ -22,13 +23,17 @@ import {
   type RecordTypeDefault,
 } from '~/stores/settings';
 import { checkIntegrity, clearAllUserData, clearSearchHistory } from '~/db';
+import { useDriveState } from '~/lib/driveState';
+import { clearGoogleTokens } from '~/lib/googleAuth';
 import { clearInatTokens } from '~/lib/inatAuth';
 import { useToast } from '~/stores/toast';
 import { useActivePlot } from '~/stores/activePlot';
 import { useActiveSession } from '~/stores/activeSession';
+import { useTabBarInset } from '~/lib/tabBarLayout';
 
 export default function MenuScreen() {
   const { t } = useTranslation();
+  const tabBarInset = useTabBarInset();
   const router = useRouter();
   const toast = useToast((s) => s.show);
 
@@ -41,7 +46,14 @@ export default function MenuScreen() {
   const fontScale = useSettings((s) => s.font_scale);
   const undoDuration = useSettings((s) => s.undo_duration);
   const recordTypeDefault = useSettings((s) => s.record_type_default);
+  const fabSide = useSettings((s) => s.fab_side);
   const inatLogin = useSettings((s) => s.inat_login);
+  const gdriveAccount = useSettings((s) => s.gdrive_account);
+  const lastUploadAtMs = useDriveState((s) => s.lastUploadAtMs);
+  const loadDriveState = useDriveState((s) => s.load);
+  useEffect(() => {
+    void loadDriveState();
+  }, [loadDriveState]);
   const setSetting = useSettings((s) => s.set);
   const reloadSettings = useSettings((s) => s.load);
 
@@ -137,9 +149,10 @@ export default function MenuScreen() {
                 onPress: async () => {
                   try {
                     await clearAllUserData();
-                    // user.db is gone but the token lives in SecureStore —
+                    // user.db is gone but the tokens live in SecureStore —
                     // same "clear at the call site" rule as gbifCredentials.
                     await clearInatTokens();
+                    await clearGoogleTokens();
                     reloadSettings();
                     // Both active records, not just the session: the whole DB
                     // file is gone, so a live 樣區 would otherwise leave
@@ -163,7 +176,7 @@ export default function MenuScreen() {
   return (
     <ScrollView
       className="flex-1 bg-gray-50 dark:bg-gray-950"
-      contentContainerStyle={{ paddingBottom: 24 }}
+      contentContainerStyle={{ paddingBottom: tabBarInset + 24 }}
     >
       <View className="border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 py-6">
         <Text className="text-2xl font-bold text-gray-900 dark:text-gray-100">{t('tab.menu')}</Text>
@@ -187,7 +200,11 @@ export default function MenuScreen() {
         />
         <LinkRow
           label={t('nav.backup')}
-          description={t('menu.backupDesc')}
+          description={
+            lastUploadAtMs
+              ? t('gdrive.lastUpload', { date: new Date(lastUploadAtMs).toLocaleDateString() })
+              : t('menu.backupDesc')
+          }
           onPress={() => router.push('/backup' as Href)}
         />
       </Section>
@@ -227,6 +244,15 @@ export default function MenuScreen() {
           onPress={() => router.push('/inaturalist' as Href)}
         />
         <LinkRow
+          label={t('settings.gdrive')}
+          description={
+            gdriveAccount
+              ? t('settings.gdriveLinked', { email: gdriveAccount })
+              : t('settings.gdriveDesc')
+          }
+          onPress={() => router.push('/gdrive' as Href)}
+        />
+        <LinkRow
           label={t('exportPref.title')}
           description={t('settings.exportPrefDesc')}
           onPress={() => router.push('/settings/export' as Href)}
@@ -259,6 +285,18 @@ export default function MenuScreen() {
           value={fontScale}
           options={fontScaleOptions}
           onChange={(v) => setSetting('font_scale', v)}
+        />
+        {/* Under 外觀 rather than 調查: it changes where the ＋ lives, which is
+            a reach/handedness preference, not anything about recording. */}
+        <SelectRow
+          label={t('settings.fabSide')}
+          description={t('settings.fabSideDesc')}
+          value={fabSide}
+          options={[
+            { value: 'right' as const, label: t('settings.fabSideRight') },
+            { value: 'left' as const, label: t('settings.fabSideLeft') },
+          ]}
+          onChange={(v) => setSetting('fab_side', v)}
         />
         <SelectRow
           label={t('settings.undoDuration')}

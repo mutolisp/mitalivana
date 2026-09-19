@@ -280,10 +280,11 @@
     "collection": "Collection",
     "regionPacks": "Regional checklists",
     "inaturalist": "iNaturalist account",
+    "gdrive": "Google Drive",
     "inatUpload": "Upload to iNaturalist"
   },
   "tab": {
-    "menu": "Menu",
+    "menu": "Settings",
     "map": "Map",
     "records": "Records",
     "species": "Species"
@@ -561,7 +562,12 @@
     "coverPartial": "Ground cover totals {{sum}}% ({{filled}}/{{total}} entered; the last one is filled in automatically)",
     "coverOk": "Ground cover totals 100% ✓",
     "coverMismatch": "Ground cover totals {{sum}}%, should be 100%",
-    "manualCoord": "placed by hand"
+    "manualCoord": "placed by hand",
+    "rangeSection": "Plot boundary",
+    "rangeTitle": "Plot boundary",
+    "drawRange": "Draw plot boundary",
+    "editRange": "Redraw boundary",
+    "rangeHint": "Outline the plot on the map. The boundary is for records and exports only; it does not replace the plot size field."
   },
   "settings": {
     "sectionAppearance": "Appearance & interaction",
@@ -586,6 +592,10 @@
     "languageSearch": "Search languages",
     "languageSystem": "Follow system",
     "undoDuration": "Undo duration",
+    "fabSide": "Create button side",
+    "fabSideDesc": "Move it to the left for left-handed use; the tab order follows",
+    "fabSideRight": "Right",
+    "fabSideLeft": "Left",
     "undoSeconds": "{{count}} s",
     "defaultCreate": "Survey record settings",
     "createAsk": "Ask each time",
@@ -641,7 +651,10 @@
     "nRows_other": "{{count}} rows",
     "inaturalist": "iNaturalist account",
     "inaturalistDesc": "Link your account to upload records with photos or audio as observations",
-    "inaturalistLinked": "Linked: {{login}}"
+    "inaturalistLinked": "Linked: {{login}}",
+    "gdrive": "Google Drive",
+    "gdriveDesc": "Upload backups to your own Drive",
+    "gdriveLinked": "Linked: {{email}}"
   },
   "taxonomy": {
     "loadingTree": "Loading taxonomy tree...",
@@ -737,7 +750,8 @@
     "exportTitle_one": "Export {{count}} geographic site",
     "exportTitle_other": "Export {{count}} geographic sites",
     "projectStats_one": "{{count}} geographic site",
-    "projectStats_other": "{{count}} geographic sites"
+    "projectStats_other": "{{count}} geographic sites",
+    "deleteBoundMsg": "\"{{name}}\" will be removed. Records using it will lose their boundary"
   },
   "map": {
     "basemapStandard": "Standard",
@@ -781,6 +795,7 @@
     "savePosMsg": "The coordinates for \"{{label}}\" will be updated",
     "posUpdated": "Plot location updated",
     "sessionMarkerTitle": "Checklist #{{id}}",
+    "clusterMembersTitle": "{{n}} records at this spot",
     "notFound": "\"{{q}}\" not found",
     "searchFailed": "Search failed: {{error}}",
     "editPointTitle": "Edit point",
@@ -812,7 +827,16 @@
     "sessionSubtitle_one": "Checklist · {{count}} species · {{project}}",
     "sessionSubtitle_other": "Checklist · {{count}} species · {{project}}",
     "imported_one": "{{count}} geographic site imported",
-    "imported_other": "{{count}} geographic sites imported"
+    "imported_other": "{{count}} geographic sites imported",
+    "trackNotYet": "no track yet",
+    "plotHandoffHint": "Drawing the boundary for plot {{plotid}} — it is linked when you save",
+    "saveRangeTitle": "Save plot boundary",
+    "rangeDefaultName": "{{plotid}} boundary",
+    "boundPlotSite": "Boundary linked to the plot",
+    "siteOfPlot": "Boundary of plot {{plotid}}",
+    "jumpToPlot": "Open this plot",
+    "redrawRange": "Redraw this boundary",
+    "featureAction": "Actions"
   },
   "keys": {
     "modeDichotomous": "Dichotomous",
@@ -981,6 +1005,8 @@
     "emptyHintStratified": "Pick a layer, then search below to add species",
     "hybridShort": "H",
     "subplotCoverHeight": "Per-layer cover / height of this subplot",
+    "subplot": "Subplot",
+    "layer": "Layer",
     "cover": "Cover",
     "height": "Ht",
     "changeTaxon": "Change species",
@@ -1948,5 +1974,49 @@
     "syncAuth": "iNaturalist sign-in expired — re-link in Settings",
     "syncOffline": "Offline — cannot sync",
     "busy": "Another iNaturalist upload or sync is running"
+  },
+  "gdrive": {
+    "intro": "Upload backups to your own Google Drive so you can get them back on a new phone.",
+    "scopeNote": "The app can only see files it created itself. Nothing else in your Drive is readable.",
+    "notConnected": "Not linked",
+    "connect": "Link Google account",
+    "connected": "Linked",
+    "connectedAs": "Linked: {{email}}",
+    "disconnect": "Unlink",
+    "disconnectConfirmTitle": "Unlink?",
+    "disconnectConfirmMsg": "The app will no longer be able to upload or read cloud backups. Backups already in your Drive are not deleted.",
+    "disconnected": "Unlinked",
+    "linked": "Linked",
+    "linkFailed": "Linking failed: {{msg}}",
+    "notConfigured": "No OAuth client configured",
+    "notConfiguredHint": "This build carries no Google OAuth client, so cloud backup is unavailable.",
+    "codeTitle": "Authorize in your browser",
+    "codeHint": "Open the address below, enter this code, then come back to the app.",
+    "openBrowser": "Open page",
+    "copyCode": "Copy code",
+    "codeCopied": "Code copied",
+    "waiting": "Waiting for authorization…",
+    "codeExpiresIn": "Code expires in {{time}}",
+    "codeExpired": "The code expired — please link again",
+    "cloudBackupTitle": "Google Drive backup",
+    "cloudBackupDesc": "Upload the data backup to your own Drive. Older ones are rotated out automatically.",
+    "uploadNow": "Upload to Google Drive",
+    "uploadingPacking": "Packing…",
+    "uploadingProgress": "Uploading {{pct}}%",
+    "uploadingRotating": "Tidying old backups…",
+    "uploadDone": "Backed up to Google Drive",
+    "uploadFailed": "Upload failed: {{msg}}",
+    "needLink": "Link a Google account first",
+    "quotaFull": "Not enough space in Google Drive",
+    "lastUpload": "Last cloud backup: {{date}}",
+    "neverUploaded": "Not backed up to the cloud yet",
+    "cloudRestoreTitle": "Restore from Google Drive",
+    "cloudRestoreDesc": "List the backups in your Drive, then download and restore one. ⚠️ Replaces all current data.",
+    "listBackups": "List cloud backups",
+    "listEmpty": "No backups in your Drive yet",
+    "listFailed": "Could not read the list: {{msg}}",
+    "backupMeta": "{{size}} · App {{appVersion}}",
+    "downloading": "Downloading {{pct}}%",
+    "tooNewShort": "Update app"
   }
 }

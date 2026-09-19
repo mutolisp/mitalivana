@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { FolderAreaMap } from '~/components/FolderAreaMap';
 import { RecordLocationMap } from '~/components/RecordLocationMap';
 import { RecordStepBar } from '~/components/RecordStepBar';
 import { HeaderIconButton } from '~/components/HeaderIconButton';
@@ -23,6 +24,7 @@ import {
   getPlotLayers,
   getPlotSurvey,
   getProject,
+  getSite,
   layerIndexOf,
   layerKeyForIndex,
   listPlotSpecies,
@@ -43,6 +45,7 @@ import {
   type PlotLayer,
   type PlotSurvey,
   type Project,
+  type Site,
   layerLabel,
   MAX_LAYER_COUNT,
 } from '~/db';
@@ -479,6 +482,8 @@ function EnvTab({ plot, onUpdated }: { plot: PlotSurvey; onUpdated: () => void }
         </View>
       </Section>
 
+      <PlotBoundarySection plot={plot} />
+
       <CollapsibleSection title={t('plot.basicInfo')}>
         {/* 穿越線不需要樣區大小 / 單位（其尺度由軌跡長度表示）。 */}
         {plot.plot_type !== 'transect' ? (
@@ -691,6 +696,48 @@ function Section({
 
 /** Section with a tappable header that collapses/expands its body. Matches the
  *  visual style of `Section`; default collapsed to declutter the env tab. */
+/**
+ * 樣區範圍 — the plot's boundary, stored as a linked `sites` row (that table is
+ * the app's one geometry container, and `plot_surveys.site_id` already existed
+ * for it). Read-only here: drawing hands over to the map screen, the only place
+ * with vertex handles, and comes back via `router.replace`.
+ *
+ * Collapsed by default when there is no boundary — `CollapsibleSection` renders
+ * nothing while closed, so the MapView is not mounted. This tab can already
+ * hold the centre-point mini map, and two native maps on one screen is exactly
+ * what the other mini-map components go out of their way to avoid.
+ */
+function PlotBoundarySection({ plot }: { plot: PlotSurvey }) {
+  const { t } = useTranslation();
+  const router = useRouter();
+  const [site, setSite] = useState<Site | null>(null);
+
+  useEffect(() => {
+    setSite(plot.site_id !== null ? (getSite(plot.site_id) ?? null) : null);
+  }, [plot.site_id]);
+
+  return (
+    <CollapsibleSection title={t('plot.rangeSection')} defaultExpanded={plot.site_id !== null}>
+      {/* FolderAreaMap carries its own mx-4; cancel it so the card lines up
+          with the sibling sections instead of sitting 32px in. */}
+      <View className="-mx-4">
+        <SwipeBlockedArea>
+          <FolderAreaMap
+            areaGeoJson={site?.geometry_geojson ?? ''}
+            onEdit={() => router.push(`/(tabs)/map?draw=Polygon&plot=${plot.id}` as Href)}
+            title={t('plot.rangeTitle')}
+            emptyLabel={t('plot.drawRange')}
+            editLabel={t('plot.editRange')}
+          />
+        </SwipeBlockedArea>
+      </View>
+      <Text className="mt-1 text-[11px] text-gray-400 dark:text-gray-500">
+        {t('plot.rangeHint')}
+      </Text>
+    </CollapsibleSection>
+  );
+}
+
 function CollapsibleSection({
   title,
   defaultExpanded = false,

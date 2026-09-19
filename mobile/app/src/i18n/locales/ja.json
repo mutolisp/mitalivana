@@ -253,10 +253,11 @@
     "collection": "採集",
     "regionPacks": "地域別種リスト",
     "inaturalist": "iNaturalist アカウント",
+    "gdrive": "Google ドライブ",
     "inatUpload": "iNaturalist にアップロード"
   },
   "tab": {
-    "menu": "メニュー",
+    "menu": "設定",
     "map": "地図",
     "records": "記録",
     "species": "種"
@@ -531,7 +532,12 @@
     "coverPartial": "地表被度の合計 {{sum}}%（{{filled}}/{{total}} 項目入力済み。最後の1項目は自動で計算されます）",
     "coverOk": "地表被度の合計 100% ✓",
     "coverMismatch": "地表被度の合計 {{sum}}%、100% にしてください",
-    "manualCoord": "手動配置"
+    "manualCoord": "手動配置",
+    "rangeSection": "調査区の範囲",
+    "rangeTitle": "調査区の範囲",
+    "drawRange": "調査区の範囲を描く",
+    "editRange": "範囲を描き直す",
+    "rangeHint": "地図上で調査区の境界を囲みます。この範囲は記録と書き出しのためのもので、調査区の大きさの欄を置き換えるものではありません。"
   },
   "settings": {
     "sectionAppearance": "外観と操作",
@@ -556,6 +562,10 @@
     "languageSearch": "言語を検索",
     "languageSystem": "システム設定に従う",
     "undoDuration": "取り消し可能時間",
+    "fabSide": "作成ボタンの位置",
+    "fabSideDesc": "左利きの方は左側へ。タブの順序も合わせて変わります",
+    "fabSideRight": "右側",
+    "fabSideLeft": "左側",
     "undoSeconds": "{{count}} 秒",
     "defaultCreate": "調査記録の設定",
     "createAsk": "毎回確認",
@@ -605,7 +615,10 @@
     "nRows_other": "計 {{count}} 件",
     "inaturalist": "iNaturalist アカウント",
     "inaturalistDesc": "アカウントを連携すると写真や録音のある記録を観察としてアップロードできます",
-    "inaturalistLinked": "連携済み：{{login}}"
+    "inaturalistLinked": "連携済み：{{login}}",
+    "gdrive": "Google ドライブ",
+    "gdriveDesc": "バックアップを自分のドライブにアップロード",
+    "gdriveLinked": "連携済み：{{email}}"
   },
   "taxonomy": {
     "loadingTree": "分類ツリーを読み込み中...",
@@ -697,7 +710,8 @@
     "emptyHint": "「地図」タブ → ツール ⋮ → サイトを描画 から作成できます",
     "goToMap": "地図へ",
     "exportTitle_other": "サイト {{count}} 件をエクスポート",
-    "projectStats_other": "サイト {{count}} 件"
+    "projectStats_other": "サイト {{count}} 件",
+    "deleteBoundMsg": "「{{name}}」を削除します。これを使っている記録は範囲を失います"
   },
   "map": {
     "basemapStandard": "標準",
@@ -741,6 +755,7 @@
     "savePosMsg": "「{{label}}」の座標を更新します",
     "posUpdated": "調査区の位置を更新しました",
     "sessionMarkerTitle": "種リスト #{{id}}",
+    "clusterMembersTitle": "この地点に {{n}} 件の記録",
     "notFound": "「{{q}}」が見つかりません",
     "searchFailed": "検索に失敗しました：{{error}}",
     "editPointTitle": "ポイントを編集",
@@ -766,7 +781,16 @@
     "sessionDesc_other": "種リスト · 種 {{count}} 件",
     "plotSubtitle_other": "{{type}} · 種 {{count}} 件 · {{project}}",
     "sessionSubtitle_other": "種リスト · 種 {{count}} 件 · {{project}}",
-    "imported_other": "サイト {{count}} 件をインポートしました"
+    "imported_other": "サイト {{count}} 件をインポートしました",
+    "trackNotYet": "軌跡なし",
+    "plotHandoffHint": "調査区 {{plotid}} の範囲を描いています。保存すると自動で紐付きます",
+    "saveRangeTitle": "調査区の範囲を保存",
+    "rangeDefaultName": "{{plotid}} の範囲",
+    "boundPlotSite": "調査区に範囲を紐付けました",
+    "siteOfPlot": "調査区 {{plotid}} の範囲",
+    "jumpToPlot": "この調査区を開く",
+    "redrawRange": "この範囲を描き直す",
+    "featureAction": "操作"
   },
   "keys": {
     "modeDichotomous": "二分岐",
@@ -928,6 +952,8 @@
     "emptyHintStratified": "階層を選んでから、下の検索で種を追加",
     "hybridShort": "雑",
     "subplotCoverHeight": "この小区の階層別 被度 / 高さ",
+    "subplot": "小区",
+    "layer": "階層",
     "cover": "被度",
     "height": "高",
     "changeTaxon": "種を変更",
@@ -1833,5 +1859,49 @@
     "syncAuth": "iNaturalist のログインが無効です。設定から再連携してください",
     "syncOffline": "オフラインのため同期できません",
     "busy": "別の iNaturalist アップロード／同期が実行中です"
+  },
+  "gdrive": {
+    "intro": "バックアップを自分の Google ドライブにアップロードします。機種変更後も取り出せます。",
+    "scopeNote": "アプリが見られるのは自分で作成したファイルだけです。ドライブ内の他のデータは読み取れません。",
+    "notConnected": "未連携",
+    "connect": "Google アカウントを連携",
+    "connected": "連携済み",
+    "connectedAs": "連携済み：{{email}}",
+    "disconnect": "連携を解除",
+    "disconnectConfirmTitle": "連携を解除しますか？",
+    "disconnectConfirmMsg": "クラウドバックアップのアップロードと読み取りができなくなります。ドライブ上の既存のバックアップは削除されません。",
+    "disconnected": "連携を解除しました",
+    "linked": "連携しました",
+    "linkFailed": "連携に失敗しました：{{msg}}",
+    "notConfigured": "OAuth クライアントが未設定です",
+    "notConfiguredHint": "このビルドには Google OAuth クライアント情報が含まれていないため、クラウドバックアップは利用できません。",
+    "codeTitle": "ブラウザーで認証",
+    "codeHint": "下のアドレスを開き、このコードを入力してからアプリに戻ってください。",
+    "openBrowser": "認証ページを開く",
+    "copyCode": "コードをコピー",
+    "codeCopied": "コードをコピーしました",
+    "waiting": "認証を待っています…",
+    "codeExpiresIn": "コードは {{time}} 後に失効します",
+    "codeExpired": "コードの有効期限が切れました。もう一度連携してください",
+    "cloudBackupTitle": "Google ドライブ バックアップ",
+    "cloudBackupDesc": "データバックアップを自分のドライブにアップロードします。古いものは自動で入れ替わります。",
+    "uploadNow": "Google ドライブにアップロード",
+    "uploadingPacking": "パッケージ中…",
+    "uploadingProgress": "アップロード中 {{pct}}%",
+    "uploadingRotating": "古いバックアップを整理中…",
+    "uploadDone": "Google ドライブにバックアップしました",
+    "uploadFailed": "アップロードに失敗しました：{{msg}}",
+    "needLink": "先に Google アカウントを連携してください",
+    "quotaFull": "Google ドライブの空き容量が足りません",
+    "lastUpload": "前回のクラウドバックアップ：{{date}}",
+    "neverUploaded": "まだクラウドにバックアップしていません",
+    "cloudRestoreTitle": "Google ドライブから復元",
+    "cloudRestoreDesc": "ドライブ上のバックアップを一覧表示し、選んでダウンロード・復元します。⚠️ 現在のデータはすべて置き換わります。",
+    "listBackups": "クラウドのバックアップを一覧表示",
+    "listEmpty": "ドライブにはまだバックアップがありません",
+    "listFailed": "読み込みに失敗しました：{{msg}}",
+    "backupMeta": "{{size}} · App {{appVersion}}",
+    "downloading": "ダウンロード中 {{pct}}%",
+    "tooNewShort": "要アップデート"
   }
 }

@@ -5,26 +5,9 @@ import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { listSites, type SiteWithProject } from '~/db';
 import { ACTION_FILL } from '~/lib/colors';
+import { SITE_TYPE_ICON, SITE_TYPE_LABEL, type DrawType } from '~/lib/siteLabels';
 
-const TYPE_LABEL: Record<string, string> = {
-  Point: 'sites.typePoint',
-  LineString: 'sites.typeLineString',
-  Polygon: 'sites.typePolygon',
-  MultiPoint: 'sites.typeMultiPoint',
-  MultiLineString: 'sites.typeMultiLineString',
-  MultiPolygon: 'sites.typeMultiPolygon',
-};
-
-const TYPE_ICON: Record<string, keyof typeof Ionicons.glyphMap> = {
-  Point: 'pin-outline',
-  LineString: 'analytics-outline',
-  Polygon: 'shapes-outline',
-  MultiPoint: 'pin',
-  MultiLineString: 'analytics',
-  MultiPolygon: 'shapes',
-};
-
-export type DrawType = 'Point' | 'LineString' | 'Polygon';
+export type { DrawType } from '~/lib/siteLabels';
 
 type Props = {
   visible: boolean;
@@ -155,7 +138,7 @@ export function SiteAssignSheet({
                     className={`flex-row items-center border-b border-gray-100 px-4 py-3 dark:border-gray-800 ${active ? 'bg-blue-50 dark:bg-blue-950/40' : 'active:bg-gray-50 dark:active:bg-gray-800'}`}
                   >
                     <Ionicons
-                      name={TYPE_ICON[s.geometry_type] ?? 'pin-outline'}
+                      name={SITE_TYPE_ICON[s.geometry_type]}
                       size={20}
                       color={active ? '#2563eb' : '#6b7280'}
                       style={{ marginRight: 12 }}
@@ -168,7 +151,7 @@ export function SiteAssignSheet({
                         {s.name}
                       </Text>
                       <Text className="text-xs text-gray-500 dark:text-gray-400" numberOfLines={1}>
-                        {t(TYPE_LABEL[s.geometry_type] ?? '') || s.geometry_type} · {s.project_name}
+                        {t(SITE_TYPE_LABEL[s.geometry_type])} · {s.project_name}
                       </Text>
                     </View>
                     {active ? <Ionicons name="checkmark" size={20} color="#2563eb" /> : null}

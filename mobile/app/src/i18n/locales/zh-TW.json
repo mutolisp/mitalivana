@@ -253,10 +253,11 @@
     "collection": "採集",
     "regionPacks": "區域名錄",
     "inaturalist": "iNaturalist 帳號",
+    "gdrive": "Google 雲端硬碟",
     "inatUpload": "上傳到 iNaturalist"
   },
   "tab": {
-    "menu": "選單",
+    "menu": "設定",
     "map": "地圖",
     "records": "記錄",
     "species": "物種"
@@ -531,7 +532,12 @@
     "coverPartial": "地表覆蓋合計 {{sum}}%（已填 {{filled}}/{{total}} 項；填到剩最後一項時會自動計算）",
     "coverOk": "地表覆蓋合計 100% ✓",
     "coverMismatch": "地表覆蓋合計 {{sum}}%，應為 100%",
-    "manualCoord": "手動定位"
+    "manualCoord": "手動定位",
+    "rangeSection": "樣區範圍",
+    "rangeTitle": "樣區範圍",
+    "drawRange": "繪製樣區範圍",
+    "editRange": "重新繪製範圍",
+    "rangeHint": "在地圖上框出樣區邊界。此範圍僅供記錄與匯出，不會取代樣區大小欄位。"
   },
   "settings": {
     "sectionAppearance": "外觀與操作",
@@ -556,6 +562,10 @@
     "languageSearch": "搜尋語言",
     "languageSystem": "依據系統設定",
     "undoDuration": "Undo 時間",
+    "fabSide": "建立按鈕位置",
+    "fabSideDesc": "左撇子可改放左側，分頁順序一併調整",
+    "fabSideRight": "右側",
+    "fabSideLeft": "左側",
     "undoSeconds": "{{count}} 秒",
     "defaultCreate": "調查記錄設定",
     "createAsk": "每次詢問",
@@ -605,7 +615,10 @@
     "nRows_other": "共 {{count}} 筆",
     "inaturalist": "iNaturalist 帳號",
     "inaturalistDesc": "連結帳號後可把有照片或錄音的記錄上傳成觀察",
-    "inaturalistLinked": "已連結：{{login}}"
+    "inaturalistLinked": "已連結：{{login}}",
+    "gdrive": "Google 雲端硬碟",
+    "gdriveDesc": "把備份上傳到你自己的雲端硬碟",
+    "gdriveLinked": "已連結：{{email}}"
   },
   "taxonomy": {
     "loadingTree": "載入分類樹...",
@@ -697,7 +710,8 @@
     "emptyHint": "到「地圖」tab → 工具 ⋮ → 繪製地理樣區 開始建立",
     "goToMap": "前往地圖",
     "exportTitle_other": "匯出 {{count}} 個地理樣區",
-    "projectStats_other": "{{count}} 個地理樣區"
+    "projectStats_other": "{{count}} 個地理樣區",
+    "deleteBoundMsg": "「{{name}}」會被移除，使用它的記錄將失去範圍"
   },
   "map": {
     "basemapStandard": "標準",
@@ -741,6 +755,7 @@
     "savePosMsg": "「{{label}}」的座標將被更新",
     "posUpdated": "已更新樣區位置",
     "sessionMarkerTitle": "名錄 #{{id}}",
+    "clusterMembersTitle": "此位置有 {{n}} 筆記錄",
     "notFound": "找不到「{{q}}」",
     "searchFailed": "搜尋失敗：{{error}}",
     "editPointTitle": "編輯點位",
@@ -766,7 +781,16 @@
     "sessionDesc_other": "名錄 · 物種 {{count}} 筆",
     "plotSubtitle_other": "{{type}} · 物種 {{count}} 筆 · {{project}}",
     "sessionSubtitle_other": "名錄 · 物種 {{count}} 筆 · {{project}}",
-    "imported_other": "已匯入 {{count}} 個地理樣區"
+    "imported_other": "已匯入 {{count}} 個地理樣區",
+    "trackNotYet": "尚無軌跡",
+    "plotHandoffHint": "正在為樣區 {{plotid}} 繪製範圍，完成後自動綁定",
+    "saveRangeTitle": "儲存樣區範圍",
+    "rangeDefaultName": "{{plotid}} 範圍",
+    "boundPlotSite": "已綁定範圍到樣區",
+    "siteOfPlot": "樣區 {{plotid}} 的範圍",
+    "jumpToPlot": "跳回此樣區",
+    "redrawRange": "重新繪製此範圍",
+    "featureAction": "操作"
   },
   "keys": {
     "modeDichotomous": "對偶",
@@ -928,6 +952,8 @@
     "emptyHintStratified": "選擇分層後從下方搜尋加入物種",
     "hybridShort": "雜",
     "subplotCoverHeight": "本小區各層覆蓋 / 高度",
+    "subplot": "小區",
+    "layer": "層次",
     "cover": "覆蓋",
     "height": "高",
     "changeTaxon": "更換物種",
@@ -1833,5 +1859,49 @@
     "syncAuth": "iNaturalist 登入已失效，請到設定重新連結",
     "syncOffline": "沒有網路，無法同步",
     "busy": "另一個 iNaturalist 上傳或同步正在進行"
+  },
+  "gdrive": {
+    "intro": "把備份上傳到你自己的 Google 雲端硬碟，換手機時可以直接取回。",
+    "scopeNote": "App 只看得到它自己建立的檔案，讀不到你雲端硬碟裡的其他資料。",
+    "notConnected": "尚未連結",
+    "connect": "連結 Google 帳號",
+    "connected": "已連結",
+    "connectedAs": "已連結：{{email}}",
+    "disconnect": "解除連結",
+    "disconnectConfirmTitle": "解除連結？",
+    "disconnectConfirmMsg": "App 將無法再上傳或讀取雲端備份。雲端硬碟上已有的備份檔不會被刪除。",
+    "disconnected": "已解除連結",
+    "linked": "已連結",
+    "linkFailed": "連結失敗：{{msg}}",
+    "notConfigured": "尚未設定 OAuth 用戶端",
+    "notConfiguredHint": "這個版本沒有帶入 Google OAuth 用戶端資訊，雲端備份無法使用。",
+    "codeTitle": "在瀏覽器完成授權",
+    "codeHint": "開啟下面的網址，輸入這組代碼，然後回到 App。",
+    "openBrowser": "開啟授權頁面",
+    "copyCode": "複製代碼",
+    "codeCopied": "已複製代碼",
+    "waiting": "等待授權中…",
+    "codeExpiresIn": "代碼於 {{time}} 後失效",
+    "codeExpired": "代碼已過期，請重新連結",
+    "cloudBackupTitle": "Google 雲端硬碟備份",
+    "cloudBackupDesc": "把資料備份上傳到你自己的雲端硬碟，舊的會自動輪替。",
+    "uploadNow": "上傳至 Google 雲端硬碟",
+    "uploadingPacking": "正在打包…",
+    "uploadingProgress": "上傳中 {{pct}}%",
+    "uploadingRotating": "整理舊備份…",
+    "uploadDone": "已備份到 Google 雲端硬碟",
+    "uploadFailed": "上傳失敗：{{msg}}",
+    "needLink": "請先連結 Google 帳號",
+    "quotaFull": "Google 雲端硬碟空間不足",
+    "lastUpload": "上次雲端備份：{{date}}",
+    "neverUploaded": "尚未備份到雲端",
+    "cloudRestoreTitle": "從 Google 雲端硬碟回復",
+    "cloudRestoreDesc": "列出雲端硬碟上的備份，選一份下載並回復。⚠️ 會覆蓋目前所有資料。",
+    "listBackups": "列出雲端備份",
+    "listEmpty": "雲端硬碟上還沒有備份",
+    "listFailed": "讀取失敗：{{msg}}",
+    "backupMeta": "{{size}} · App {{appVersion}}",
+    "downloading": "下載中 {{pct}}%",
+    "tooNewShort": "需更新 app"
   }
 }

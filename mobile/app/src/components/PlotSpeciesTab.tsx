@@ -8,7 +8,6 @@ import {
   Keyboard,
   Platform,
   Pressable,
-  ScrollView,
   Text,
   TextInput,
   View,
@@ -63,6 +62,7 @@ import { useFavorites } from '~/stores/favorites';
 import { toastFavoriteAdded } from '~/lib/favoritesToast';
 import { useToast } from '~/stores/toast';
 import { showActionSheet } from './ActionSheet';
+import { SelectRow } from './settings/rows';
 import {
   formatQuantityBadge,
   kindForType,
@@ -613,6 +613,7 @@ export function PlotSpeciesTab({ plot, onChanged }: { plot: PlotSurvey; onChange
         layer: modal.layer,
         title: `${taxon.cname || ''} ${taxon.name}`.trim(),
         header: {
+          taxonId: taxon.taxon_id,
           cname: taxon.cname ?? '',
           name: taxon.name,
           author: taxon.fullname.replace(taxon.name, '').trim(),
@@ -639,6 +640,7 @@ export function PlotSpeciesTab({ plot, onChanged }: { plot: PlotSurvey; onChange
       layer: r.layer as Layer,
       title: `${r.common_name_c || ''} ${r.simple_name}`.trim(),
       header: {
+        taxonId: r.taxon_id,
         cname: r.common_name_c ?? '',
         name: r.simple_name,
         author: r.name_author ?? '',
@@ -686,38 +688,13 @@ export function PlotSpeciesTab({ plot, onChanged }: { plot: PlotSurvey; onChange
           subplotMode ? (subplots.find((sp) => sp.id === activeSubplotId)?.label ?? null) : null
         }
       />
-      {/* Subplot switcher (小區) — scopes the whole species tab to one subplot. */}
-      {subplotMode ? (
-        <View className="border-b border-gray-100 bg-white px-4 py-2 dark:border-gray-800 dark:bg-gray-900">
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ gap: 8, paddingRight: 4 }}
-          >
-            {subplots.map((s) => {
-              const on = s.id === activeSubplotId;
-              const n = subplotCounts.get(s.id) ?? 0;
-              return (
-                <Pressable
-                  key={s.id}
-                  onPress={() => setActiveSubplotId(s.id)}
-                  className={`items-center justify-center rounded-lg px-3 py-1.5 ${on ? 'bg-blue-500' : 'bg-gray-100 dark:bg-gray-800'}`}
-                  style={{ minWidth: 48 }}
-                >
-                  <Text
-                    className={`text-sm font-bold ${on ? 'text-white' : 'text-gray-700 dark:text-gray-300'}`}
-                  >
-                    {s.label}
-                    {n > 0 ? ` (${n})` : ''}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-        </View>
-      ) : null}
+      {/* Scope pickers (小區 / 層次), side by side, plus sort.
 
-      {/* Layer focus chips (fixed plots only) */}
+          Both were horizontal chip strips in their own bordered blocks, which
+          cost four lines above the species list on the screen a surveyor spends
+          the most time in. Two dropdowns on one row carry the same information,
+          and each option now includes its own record count — so the trailing
+          "E2 草本層 · 已記 5 筆" summary line is gone as well. */}
       <View className="border-b border-gray-100 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
         <View className="mb-2 flex-row items-center justify-end">
           <Pressable
@@ -746,41 +723,39 @@ export function PlotSpeciesTab({ plot, onChanged }: { plot: PlotSurvey; onChange
               : ''}
           </Text>
         ) : (
-          <>
-            {/* Compact layer picker: the chips are self-explanatory (E1-E6), so
-                no title row; smaller chips; the selected layer's name + count
-                share one trailing line. ~40% shorter than the old 3-row block —
-                this sits above the species list and was eating survey space. */}
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ gap: 6, paddingRight: 4 }}
-            >
-              {activeLayers.map((l) => {
-                const on = layer === l;
-                return (
-                  <Pressable
-                    key={l}
-                    onPress={() => setLayer(l)}
-                    className={`items-center justify-center rounded-md px-2.5 py-1 ${on ? 'bg-emerald-500' : 'bg-gray-100 dark:bg-gray-800'}`}
-                    style={{ minWidth: 38 }}
-                  >
-                    <Text
-                      className={`text-xs font-bold ${on ? 'text-white' : 'text-gray-700 dark:text-gray-300'}`}
-                    >
-                      {l}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-            <Text className="mt-1 text-[11px] text-gray-500 dark:text-gray-400" numberOfLines={1}>
-              {layerLabel(layer)}
-              {grouped[layer].length > 0
-                ? tr('plotSpecies.recordedCount', { count: grouped[layer].length })
-                : ''}
-            </Text>
-          </>
+          <View className="flex-row items-start" style={{ gap: 8 }}>
+            {/* `subplotMode` implies stratified (subplots are only loaded for
+                stratified plots), so this belongs inside this branch. */}
+            {subplotMode && activeSubplotId !== null ? (
+              <View className="flex-1">
+                <SelectRow
+                  variant="inline"
+                  label={tr('plotSpecies.subplot')}
+                  value={activeSubplotId}
+                  options={subplots.map((sp) => {
+                    const n = subplotCounts.get(sp.id) ?? 0;
+                    return { value: sp.id, label: n > 0 ? `${sp.label} (${n})` : sp.label };
+                  })}
+                  onChange={setActiveSubplotId}
+                />
+              </View>
+            ) : null}
+            <View className="flex-1">
+              <SelectRow
+                variant="inline"
+                label={tr('plotSpecies.layer')}
+                value={layer}
+                options={activeLayers.map((l) => {
+                  const n = grouped[l].length;
+                  return {
+                    value: l as Layer,
+                    label: n > 0 ? `${layerLabel(l)} (${n})` : layerLabel(l),
+                  };
+                })}
+                onChange={setLayer}
+              />
+            </View>
+          </View>
         )}
       </View>
 

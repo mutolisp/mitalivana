@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Stack, useFocusEffect, useRouter } from 'expo-router';
+import { Stack, useFocusEffect, useRouter, type Href } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 import { File, Paths } from 'expo-file-system';
 import { useCallback, useState } from 'react';
@@ -8,9 +8,9 @@ import { isoDateTime } from '~/lib/datetime';
 import { Alert, FlatList, Pressable, Text, View } from 'react-native';
 import { showActionSheet } from '~/components/ActionSheet';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { deleteSite, geometryBounds, listSites, parseGeometry, type SiteWithProject } from '~/db';
+import { countSiteReferences, deleteSite, listSites, type SiteWithProject } from '~/db';
+import { SITE_TYPE_ICON, SITE_TYPE_LABEL } from '~/lib/siteLabels';
 import { sitesToGeoJSON, sitesToGPX, sitesToKML, sitesToWKT } from '~/lib/geoExporters';
-import { useSettings } from '~/stores/settings';
 import { useToast } from '~/stores/toast';
 import { SwipeRow } from '~/components/SwipeRow';
 import { HeaderIconButton } from '~/components/HeaderIconButton';
@@ -38,23 +38,6 @@ function sanitizeFilename(name: string): string {
   return name.replace(/[^\w.-]/g, '_').slice(0, 80) || 'sites';
 }
 
-const TYPE_LABEL: Record<string, string> = {
-  Point: 'sites.typePoint',
-  LineString: 'sites.typeLineString',
-  Polygon: 'sites.typePolygon',
-  MultiPoint: 'sites.typeMultiPoint',
-  MultiLineString: 'sites.typeMultiLineString',
-  MultiPolygon: 'sites.typeMultiPolygon',
-};
-
-const TYPE_ICON: Record<string, keyof typeof import('@expo/vector-icons').Ionicons.glyphMap> = {
-  Point: 'pin-outline',
-  LineString: 'analytics-outline',
-  Polygon: 'shapes-outline',
-  MultiPoint: 'pin',
-  MultiLineString: 'analytics',
-  MultiPolygon: 'shapes',
-};
 
 function formatTime(ts: number): string {
   return isoDateTime(ts);
@@ -63,8 +46,6 @@ function formatTime(ts: number): string {
 export default function SitesScreen() {
   const { t } = useTranslation();
   const router = useRouter();
-  const setSetting = useSettings((s) => s.set);
-  const currentMapView = useSettings((s) => s.map_view);
   const toast = useToast((s) => s.show);
   const [sites, setSites] = useState<SiteWithProject[]>([]);
 
@@ -72,7 +53,13 @@ export default function SitesScreen() {
   useFocusEffect(useCallback(() => reload(), [reload]));
 
   const handleDelete = (s: SiteWithProject) => {
-    Alert.alert(t('sites.deleteTitle'), t('sites.deleteMsg', { name: s.name }), [
+    // A site bound to a 名錄 or 樣區 is that record's geometry; deleting it here
+    // silently strips the boundary off the record, so say so first.
+    const bound = countSiteReferences(s.id) > 0;
+    const msg = bound
+      ? t('sites.deleteBoundMsg', { name: s.name })
+      : t('sites.deleteMsg', { name: s.name });
+    Alert.alert(t('sites.deleteTitle'), msg, [
       { text: t('common.cancel'), style: 'cancel' },
       {
         text: t('common.delete'),
@@ -86,10 +73,13 @@ export default function SitesScreen() {
     ]);
   };
 
+  // Hand the id over and let the map centre itself. Writing `map_view` and
+  // navigating used to look right and do nothing: the map is a tab screen, so
+  // once it has been visited it stays mounted and only ever reads that setting
+  // through `initialRegion` — and its own pan handler overwrites the value
+  // 600 ms later anyway.
   const handleJumpTo = (s: SiteWithProject) => {
-    const region = geometryBounds(parseGeometry(s));
-    setSetting('map_view', { ...currentMapView, ...region });
-    router.push('/(tabs)/map');
+    router.push(`/(tabs)/map?site=${s.id}` as Href);
   };
 
   const exportSites = async (subset: SiteWithProject[], format: ExportFormat, baseName: string) => {
@@ -198,7 +188,7 @@ export default function SitesScreen() {
                     className="flex-row items-center border-b border-gray-100 bg-white px-4 py-3 active:bg-gray-50 dark:border-gray-800 dark:bg-gray-900 dark:active:bg-gray-800"
                   >
                     <Ionicons
-                      name={TYPE_ICON[s.geometry_type] ?? 'pin-outline'}
+                      name={SITE_TYPE_ICON[s.geometry_type]}
                       size={20}
                       color="#2563eb"
                       style={{ marginRight: 12 }}
@@ -208,9 +198,7 @@ export default function SitesScreen() {
                         {s.name}
                       </Text>
                       <Text className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                        {TYPE_LABEL[s.geometry_type]
-                          ? t(TYPE_LABEL[s.geometry_type])
-                          : s.geometry_type}{' '}
+                        {t(SITE_TYPE_LABEL[s.geometry_type])}{' '}
                         · {formatTime(s.updated_at)}
                       </Text>
                       {s.notes ? (

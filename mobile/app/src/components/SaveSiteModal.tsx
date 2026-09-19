@@ -14,23 +14,18 @@ import { KeyboardAvoidingView } from './KeyboardAvoidingView';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { createProject, listProjects, type Project } from '~/db';
 import { promptText } from './TextPromptModal';
+import { SITE_TYPE_LABEL, type DrawType } from '~/lib/siteLabels';
 
 type Props = {
   visible: boolean;
   defaultName?: string;
   defaultProjectId?: number;
   defaultNotes?: string;
-  geometryType: 'Point' | 'LineString' | 'Polygon';
+  geometryType: DrawType;
   vertexCount: number;
   title?: string;
   onCancel: () => void;
   onConfirm: (data: { name: string; project_id: number; notes: string | null }) => void;
-};
-
-const TYPE_LABEL: Record<Props['geometryType'], string> = {
-  Point: 'sites.typePoint',
-  LineString: 'sites.typeLineString',
-  Polygon: 'sites.typePolygon',
 };
 
 export function SaveSiteModal({
@@ -117,7 +112,7 @@ export function SaveSiteModal({
           <ScrollView className="flex-1" keyboardShouldPersistTaps="handled">
             <View className="border-b border-gray-100 dark:border-gray-800 bg-blue-50 dark:bg-blue-950/40 px-4 py-3">
               <Text className="text-sm text-blue-900 dark:text-blue-100">
-                {t('sheets.siteTypeVertices', { type: t(TYPE_LABEL[geometryType]), count: vertexCount })}
+                {t('sheets.siteTypeVertices', { type: t(SITE_TYPE_LABEL[geometryType]), count: vertexCount })}
               </Text>
             </View>
 

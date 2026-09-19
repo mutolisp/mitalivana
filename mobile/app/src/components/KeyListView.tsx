@@ -20,7 +20,7 @@
  *    legitimate.
  */
 import { Ionicons } from '@expo/vector-icons';
-import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import { useTabBarInset } from '~/lib/tabBarLayout';
 import { useRouter, type Href } from 'expo-router';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -112,7 +112,13 @@ export function KeyListView({ initialQuery, prefillNonce }: Props = {}) {
   const recentIds = useSettings((s) => s.key_recent_ids);
   // Used as KeyboardStickyView opened-offset so the bar sits flush against
   // the keyboard (see same comment in taxonomy.tsx tree segment).
-  const tabBarHeight = useBottomTabBarHeight();
+  // The tab bar floats over the scene, so this dock's natural laid-out position
+  // is the SCREEN bottom — behind the pill. It has to be lifted by the bar's
+  // clearance while the keyboard is closed; once the keyboard is open,
+  // KeyboardStickyView's own translation already puts it flush against it.
+  // (Before the bar floated the compensation ran the other way round:
+  // `offset.opened = tabBarHeight`.) See src/lib/tabBarLayout.ts.
+  const tabBarInset = useTabBarInset();
   const [keys, setKeys] = useState<IdentificationKey[]>([]);
   const [query, setQuery] = useState<string>(initialQuery ?? '');
   const [debouncedQuery, setDebouncedQuery] = useState<string>(initialQuery ?? '');
@@ -254,7 +260,7 @@ export function KeyListView({ initialQuery, prefillNonce }: Props = {}) {
 
       {/* Sticky panel: chips (when no query) + search box. Follows the kbd
           top via KeyboardStickyView regardless of accessory-bar changes. */}
-      <KeyboardStickyView offset={{ opened: tabBarHeight }}>
+      <KeyboardStickyView offset={{ closed: -tabBarInset }}>
         <View className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
           {showChips ? (
             <ScrollView

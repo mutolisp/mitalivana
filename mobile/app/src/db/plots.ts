@@ -747,6 +747,12 @@ export function reopenPlotSurvey(id: number): void {
 
 export function deletePlotSurvey(id: number): void {
   const db = getUserDb();
+  // Read the boundary before the row goes: nothing else would know about it
+  // afterwards, and an unreferenced site keeps showing up on the map and in
+  // 地理樣區管理 with no owner. Import and merge both funnel through here, so
+  // they inherit the cleanup.
+  const prev = db.executeSync(`SELECT site_id FROM plot_surveys WHERE id = ?`, [id]);
+  const siteId = (prev.rows?.[0] as { site_id?: number | null } | undefined)?.site_id ?? null;
   // 子列在 schema 裡都宣告了 ON DELETE CASCADE，而 FK 強制已於 initDb() 末尾開啟
   // （src/db/init.ts，per-connection、整個 session 有效），所以那些 cascade 現在確實
   // 會觸發，以下手動刪除在正常路徑上是冗餘的。保留是刻意的 belt-and-braces：delete
@@ -761,6 +767,8 @@ export function deletePlotSurvey(id: number): void {
   db.executeSync(`DELETE FROM plot_species_records WHERE plot_survey_id = ?`, [id]);
   db.executeSync(`DELETE FROM plot_survey_layers WHERE plot_survey_id = ?`, [id]);
   db.executeSync(`DELETE FROM plot_surveys WHERE id = ?`, [id]);
+  // Only when no other record shares it — a copied plot points at the same row.
+  if (siteId !== null) deleteSiteIfUnreferenced(siteId);
 }
 
 /** True iff plot has the hard-required fields filled.

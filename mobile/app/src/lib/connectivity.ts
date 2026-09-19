@@ -12,7 +12,7 @@
  * dependency is introduced. Both unreachable means the device has no working
  * connection; the other one answering means the first is the problem.
  */
-import { ApiError, probe } from './apiFetch';
+import { ApiError, probe, type ApiService } from './apiFetch';
 
 export type FailureCause =
   /** Neither service could be reached. */
@@ -30,6 +30,23 @@ const PROBES = {
   gbif: 'https://api.gbif.org/v1/species/1',
 } as const;
 
+/**
+ * Which service to probe when THIS one failed. Exhaustive over `ApiService`
+ * (`satisfies`), so adding a service without deciding its probe target does
+ * not compile.
+ *
+ * Google Drive has no probe entry of its own on purpose: every Drive endpoint
+ * answers an unauthenticated HEAD with 401, which `probe()` reports as a
+ * failure — it would classify a perfectly good connection as offline. Probing
+ * GBIF instead answers the only question being asked (does this device have a
+ * working connection?) and contacts no host the app does not already use.
+ */
+const CROSS_PROBE = {
+  inat: 'gbif',
+  gbif: 'inat',
+  gdrive: 'gbif',
+} satisfies Record<ApiService, keyof typeof PROBES>;
+
 const PROBE_TIMEOUT_MS = 6000;
 
 /**
@@ -43,7 +60,7 @@ export async function classifyFailure(e: unknown, signal?: AbortSignal): Promise
   // there is nothing to probe: the connection is fine and the service is not.
   if (e.kind === 'http' || e.kind === 'parse') return 'service';
 
-  const other = e.service === 'inat' ? 'gbif' : 'inat';
+  const other = CROSS_PROBE[e.service];
   try {
     await probe(other, PROBES[other], signal, PROBE_TIMEOUT_MS);
     return e.kind === 'timeout' ? 'timeout' : 'service';

@@ -307,10 +307,11 @@
     "collection": "Récolte",
     "regionPacks": "Listes régionales",
     "inaturalist": "Compte iNaturalist",
+    "gdrive": "Google Drive",
     "inatUpload": "Envoyer vers iNaturalist"
   },
   "tab": {
-    "menu": "Menu",
+    "menu": "Réglages",
     "map": "Carte",
     "records": "Enregistrements",
     "species": "Espèces"
@@ -591,7 +592,12 @@
     "coverPartial": "La couverture du sol totalise {{sum}} % ({{filled}}/{{total}} saisis ; la dernière valeur est calculée automatiquement)",
     "coverOk": "La couverture du sol totalise 100 % ✓",
     "coverMismatch": "La couverture du sol totalise {{sum}} %, elle devrait être de 100 %",
-    "manualCoord": "positionné manuellement"
+    "manualCoord": "positionné manuellement",
+    "rangeSection": "Limite de la placette",
+    "rangeTitle": "Limite de la placette",
+    "drawRange": "Tracer la limite",
+    "editRange": "Retracer la limite",
+    "rangeHint": "Tracez le contour de la placette sur la carte. Cette limite sert uniquement aux enregistrements et aux exports ; elle ne remplace pas le champ de taille."
   },
   "settings": {
     "sectionAppearance": "Apparence et interaction",
@@ -616,6 +622,10 @@
     "languageSearch": "Rechercher une langue",
     "languageSystem": "Selon le système",
     "undoDuration": "Durée d'annulation",
+    "fabSide": "Côté du bouton créer",
+    "fabSideDesc": "À gauche pour les gauchers ; l’ordre des onglets suit",
+    "fabSideRight": "Droite",
+    "fabSideLeft": "Gauche",
     "undoSeconds": "{{count}} s",
     "defaultCreate": "Réglages des relevés",
     "createAsk": "Demander à chaque fois",
@@ -677,7 +687,10 @@
     "nRows_other": "{{count}} lignes",
     "inaturalist": "Compte iNaturalist",
     "inaturalistDesc": "Liez votre compte pour envoyer les enregistrements avec photos ou sons comme observations",
-    "inaturalistLinked": "Lié : {{login}}"
+    "inaturalistLinked": "Lié : {{login}}",
+    "gdrive": "Google Drive",
+    "gdriveDesc": "Envoyer les sauvegardes vers votre Drive",
+    "gdriveLinked": "Associé : {{email}}"
   },
   "taxonomy": {
     "loadingTree": "Chargement de l'arbre taxonomique...",
@@ -777,7 +790,8 @@
     "exportTitle_other": "Exporter {{count}} sites géographiques",
     "projectStats_one": "{{count}} site géographique",
     "projectStats_many": "{{count}} sites géographiques",
-    "projectStats_other": "{{count}} sites géographiques"
+    "projectStats_other": "{{count}} sites géographiques",
+    "deleteBoundMsg": "« {{name}} » sera supprimé. Les enregistrements qui l'utilisent perdront leur limite"
   },
   "map": {
     "basemapStandard": "Standard",
@@ -821,6 +835,7 @@
     "savePosMsg": "Les coordonnées de « {{label}} » seront mises à jour",
     "posUpdated": "Emplacement de la placette mis à jour",
     "sessionMarkerTitle": "Liste d'espèces #{{id}}",
+    "clusterMembersTitle": "{{n}} enregistrements à cet endroit",
     "notFound": "« {{q}} » introuvable",
     "searchFailed": "Échec de la recherche : {{error}}",
     "editPointTitle": "Modifier le point",
@@ -858,7 +873,16 @@
     "sessionSubtitle_other": "Liste d'espèces · {{count}} espèces · {{project}}",
     "imported_one": "{{count}} site géographique importé",
     "imported_many": "{{count}} sites géographiques importés",
-    "imported_other": "{{count}} sites géographiques importés"
+    "imported_other": "{{count}} sites géographiques importés",
+    "trackNotYet": "pas encore de trace",
+    "plotHandoffHint": "Tracé de la limite pour la placette {{plotid}} — elle sera associée à l'enregistrement",
+    "saveRangeTitle": "Enregistrer la limite",
+    "rangeDefaultName": "Limite de {{plotid}}",
+    "boundPlotSite": "Limite associée à la placette",
+    "siteOfPlot": "Limite de la placette {{plotid}}",
+    "jumpToPlot": "Ouvrir cette placette",
+    "redrawRange": "Retracer cette limite",
+    "featureAction": "Actions"
   },
   "keys": {
     "modeDichotomous": "Dichotomique",
@@ -1034,6 +1058,8 @@
     "emptyHintStratified": "Choisissez une strate, puis recherchez ci-dessous pour ajouter des espèces",
     "hybridShort": "H",
     "subplotCoverHeight": "Recouvrement / hauteur par strate de cette sous-placette",
+    "subplot": "Sous-placette",
+    "layer": "Strate",
     "cover": "Recouv.",
     "height": "Ht",
     "changeTaxon": "Changer d'espèce",
@@ -2063,5 +2089,49 @@
     "syncAuth": "Connexion iNaturalist expirée – reliez le compte dans les réglages",
     "syncOffline": "Hors ligne – synchronisation impossible",
     "busy": "Un autre envoi ou une autre synchronisation iNaturalist est en cours"
+  },
+  "gdrive": {
+    "intro": "Envoyez vos sauvegardes vers votre propre Google Drive pour les récupérer sur un nouvel appareil.",
+    "scopeNote": "L'application ne voit que les fichiers qu'elle a créés. Le reste de votre Drive reste illisible.",
+    "notConnected": "Non associé",
+    "connect": "Associer un compte Google",
+    "connected": "Associé",
+    "connectedAs": "Associé : {{email}}",
+    "disconnect": "Dissocier",
+    "disconnectConfirmTitle": "Dissocier ?",
+    "disconnectConfirmMsg": "L'application ne pourra plus envoyer ni lire les sauvegardes dans le cloud. Les sauvegardes déjà présentes dans votre Drive ne sont pas supprimées.",
+    "disconnected": "Compte dissocié",
+    "linked": "Compte associé",
+    "linkFailed": "Échec de l'association : {{msg}}",
+    "notConfigured": "Aucun client OAuth configuré",
+    "notConfiguredHint": "Cette version ne contient pas de client OAuth Google ; la sauvegarde dans le cloud est indisponible.",
+    "codeTitle": "Autoriser dans le navigateur",
+    "codeHint": "Ouvrez l'adresse ci-dessous, saisissez ce code, puis revenez dans l'application.",
+    "openBrowser": "Ouvrir la page",
+    "copyCode": "Copier le code",
+    "codeCopied": "Code copié",
+    "waiting": "En attente de l'autorisation…",
+    "codeExpiresIn": "Le code expire dans {{time}}",
+    "codeExpired": "Le code a expiré — veuillez réessayer",
+    "cloudBackupTitle": "Sauvegarde Google Drive",
+    "cloudBackupDesc": "Envoyez la sauvegarde des données vers votre propre Drive. Les anciennes sont remplacées automatiquement.",
+    "uploadNow": "Envoyer vers Google Drive",
+    "uploadingPacking": "Préparation…",
+    "uploadingProgress": "Envoi {{pct}} %",
+    "uploadingRotating": "Nettoyage des anciennes sauvegardes…",
+    "uploadDone": "Sauvegardé sur Google Drive",
+    "uploadFailed": "Échec de l'envoi : {{msg}}",
+    "needLink": "Associez d'abord un compte Google",
+    "quotaFull": "Espace insuffisant dans Google Drive",
+    "lastUpload": "Dernière sauvegarde dans le cloud : {{date}}",
+    "neverUploaded": "Pas encore sauvegardé dans le cloud",
+    "cloudRestoreTitle": "Restaurer depuis Google Drive",
+    "cloudRestoreDesc": "Listez les sauvegardes de votre Drive, puis téléchargez-en une et restaurez-la. ⚠️ Remplace toutes les données actuelles.",
+    "listBackups": "Lister les sauvegardes du cloud",
+    "listEmpty": "Aucune sauvegarde dans votre Drive pour l'instant",
+    "listFailed": "Impossible de lire la liste : {{msg}}",
+    "backupMeta": "{{size}} · App {{appVersion}}",
+    "downloading": "Téléchargement {{pct}} %",
+    "tooNewShort": "Mettre à jour"
   }
 }

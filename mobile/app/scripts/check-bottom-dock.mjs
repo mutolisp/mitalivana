@@ -7,7 +7,17 @@
  * way. Two valid pairings exist in this app:
  *
  *   offset={{ opened: insets.bottom }}  ⟺  screen root is <SafeAreaView edges={['bottom']}>
- *   offset={{ opened: tabBarHeight }}   ⟺  screen is inside the bottom tab navigator
+ *   offset={{ closed: -tabBarInset }}   ⟺  screen is inside the bottom tab navigator
+ *
+ * The tab-screen pairing INVERTED when the tab bar started floating (2026-09-18).
+ * An in-flow bar ends the scene above itself, so the dock sat too high with the
+ * keyboard open and `opened: tabBarHeight` pushed it back down. A floating bar
+ * overlays the scene instead: the dock now rests at the screen bottom, behind
+ * the pill, so it must be lifted while the keyboard is CLOSED and needs nothing
+ * once the keyboard is open. `useBottomTabBarHeight()` is also no longer the
+ * right number — it returns `tabBarStyle.height` verbatim, knowing nothing about
+ * the pill's bottom offset — so `useTabBarInset()` from src/lib/tabBarLayout.ts
+ * is the only correct source and the old spelling is rejected outright.
  *
  * Copy one half without the other and the box is shoved *behind* the keyboard.
  * That has shipped three times now (KeyListView 2026-05-14, favorites 2026-06-07,
@@ -44,7 +54,13 @@ for (const root of ROOTS) {
     if (!/<KeyboardStickyView/.test(src)) continue;
 
     const usesInsets = /offset=\{\{\s*opened:\s*insets\.bottom\s*\}\}/.test(src);
-    const usesTabBar = /offset=\{\{\s*opened:\s*tabBarHeight\s*\}\}/.test(src);
+    const usesTabBar = /offset=\{\{\s*closed:\s*-tabBarInset\s*\}\}/.test(src);
+    // Kept as an explicit rejection rather than just falling into "unrecognised":
+    // this is the exact shape every previous regression had, so it earns a
+    // message that names the replacement.
+    const usesStaleTabBar =
+      /offset=\{\{\s*opened:\s*tabBarHeight\s*\}\}/.test(src) ||
+      /useBottomTabBarHeight/.test(src);
 
     if (usesInsets && !/edges=\{\['bottom'\]\}/.test(src)) {
       problems.push(
@@ -53,15 +69,24 @@ for (const root of ROOTS) {
           `    Fix: make the screen root <SafeAreaView edges={['bottom']}> (see app/session/[id].tsx).`,
       );
     }
-    if (usesTabBar && !/useBottomTabBarHeight/.test(src)) {
+    if (usesStaleTabBar) {
       problems.push(
-        `${rel}\n    offset={{ opened: tabBarHeight }} without useBottomTabBarHeight().`,
+        `${rel}\n    Uses the pre-floating-tab-bar pairing (offset={{ opened: tabBarHeight }}\n` +
+          `    and/or useBottomTabBarHeight()). The bar now floats over the scene, so that\n` +
+          `    offset is both the wrong direction and the wrong magnitude.\n` +
+          `    Fix: const tabBarInset = useTabBarInset()  // ~/lib/tabBarLayout\n` +
+          `         offset={{ closed: -tabBarInset }}`,
       );
     }
-    if (!usesInsets && !usesTabBar) {
+    if (usesTabBar && !/useTabBarInset/.test(src)) {
+      problems.push(
+        `${rel}\n    offset={{ closed: -tabBarInset }} without useTabBarInset().`,
+      );
+    }
+    if (!usesInsets && !usesTabBar && !usesStaleTabBar) {
       problems.push(
         `${rel}\n    <KeyboardStickyView> with an unrecognised offset. The two supported\n` +
-          `    pairings are insets.bottom (+ SafeAreaView edges) and tabBarHeight (+ tab screen).\n` +
+          `    pairings are insets.bottom (+ SafeAreaView edges) and -tabBarInset (+ tab screen).\n` +
           `    If this dock genuinely has no chrome below it, use offset={{ opened: 0 }} and say why.`,
       );
     }

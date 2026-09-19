@@ -35,3 +35,17 @@ export const BASEMAP_LABEL_KEY: Record<MapBasemap, string> = {
   hybrid: 'map.basemapHybrid',
   terrain: 'map.basemapTerrain',
 };
+
+/**
+ * Does this basemap paint a dark surface under the status bar?
+ *
+ * Only the aerial imagery does. `terrain` is a pale relief shading and
+ * `standard` follows the OS theme, so both are left to the app's own light/dark
+ * decision — hard-coding them would make the status bar fight the theme.
+ *
+ * Used where the map runs full-bleed to the top edge and the system clock sits
+ * directly on the tiles.
+ */
+export function basemapIsDark(b: MapBasemap): boolean {
+  return b === 'satellite' || b === 'hybrid';
+}

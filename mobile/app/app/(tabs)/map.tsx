@@ -12,6 +12,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { showActionSheet } from '~/components/ActionSheet';
@@ -39,7 +40,10 @@ import { useFavorites } from '~/stores/favorites';
 import {
   createSite,
   deleteSite,
+  countSiteReferences,
   geometryBounds,
+  getPlotSurvey,
+  getSite,
   geometryToPrimitives,
   listPlotSurveysWithMeta,
   listSessionRecords,
@@ -48,20 +52,38 @@ import {
   parseGeometry,
   parseTrackSegments,
   updatePlotSurvey,
+  updateSite,
   setFavoriteFolderArea,
   updateSession,
   usesTrack,
   writePlotTrack,
+  type PlotSurvey,
   type PlotSurveyWithMeta,
   type RecordWithTaxon,
+  type Site,
   type SessionWithStats,
   type SiteWithProject,
 } from '~/db';
 import { useActiveSession } from '~/stores/activeSession';
 import { isRecordingTarget } from '~/lib/trackRecorder';
+import { MapFeatureCard, type MapFeatureInfo } from '~/components/MapFeatureCard';
+import {
+  clusterPoints,
+  clusterRegion,
+  clusterSplits,
+  type ClusterPoint,
+  type PointCluster,
+} from '~/lib/mapCluster';
+import { SITE_TYPE_LABEL } from '~/lib/siteLabels';
 import { useSettings, type MapBasemap } from '~/stores/settings';
 import { useToast } from '~/stores/toast';
 import { ACTION_FILL } from '~/lib/colors';
+
+/** What a cluster member stands for, so a bubble can list its records. */
+type ClusterFeature =
+  | { kind: 'plot'; plot: PlotSurveyWithMeta }
+  | { kind: 'session'; session: SessionWithStats }
+  | { kind: 'site'; site: SiteWithProject };
 
 const BASEMAP_OPTIONS: Array<{
   value: MapBasemap;
@@ -91,15 +113,10 @@ const SINICA_TILE_URL =
 const NLSC_TILE_URL =
   'https://wmts.nlsc.gov.tw/wmts/{LAYER}/default/GoogleMapsCompatible/{z}/{y}/{x}';
 
-const DRAW_LABEL: Record<string, string> = {
-  Point: 'sites.typePoint',
-  LineString: 'sites.typeLineString',
-  Polygon: 'sites.typePolygon',
-  MultiPoint: 'sites.typeMultiPoint',
-  MultiLineString: 'sites.typeMultiLineString',
-  MultiPolygon: 'sites.typeMultiPolygon',
-};
 
+/** Deliberately not one of the record colours: a bubble is not a 樣區 or a
+ *  名錄, it is a stand-in for several of them. */
+const CLUSTER_COLOR = '#4f46e5';
 const SITE_COLOR = '#2563eb';
 const SITE_FILL = 'rgba(37, 99, 235, 0.18)';
 const DRAW_COLOR = '#dc2626';
@@ -276,11 +293,23 @@ export default function MapScreen() {
   const setSetting = useSettings((s) => s.set);
   const settingsLoaded = useSettings((s) => s.loaded);
   const insets = useSafeAreaInsets();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const toast = useToast((s) => s.show);
   const router = useRouter();
-  const params = useLocalSearchParams<{ draw?: string; session?: string; favoriteArea?: string }>();
+  const params = useLocalSearchParams<{
+    draw?: string;
+    session?: string;
+    favoriteArea?: string;
+    site?: string;
+    plot?: string;
+  }>();
   /** When set, after saving the next drawn site we bind it to this session and bounce back. */
   const handoffSessionId = useRef<number | null>(null);
+  /** Same for a 樣區 boundary: the plot to bind to, plus its current boundary
+   *  (non-null = redrawing an existing one, which updates that row in place). */
+  const [plotHandoff, setPlotHandoff] = useState<{ plot: PlotSurvey; site: Site | null } | null>(
+    null,
+  );
   const activeSession = useActiveSession((s) => s.session);
   const [activeRecords, setActiveRecords] = useState<RecordWithTaxon[]>([]);
 
@@ -327,8 +356,26 @@ export default function MapScreen() {
   /** Which MultiLineString segment is being edited in 'track' mode. */
   const [editSegmentIndex, setEditSegmentIndex] = useState(0);
   const [mapReady, setMapReady] = useState(false);
+  /**
+   * The region clustering is computed against. Separate from `lastRegion`
+   * (a ref, so panning does not re-render): this is written only in
+   * `onRegionChangeComplete`, i.e. once per gesture, which is the granularity
+   * the grid needs anyway.
+   */
+  const [viewRegion, setViewRegion] = useState<Region>({
+    latitude: initial.latitude,
+    longitude: initial.longitude,
+    latitudeDelta: initial.latitudeDelta,
+    longitudeDelta: initial.longitudeDelta,
+  });
+  /** The tapped feature's details; 「操作」 on the card opens the action sheet. */
+  const [info, setInfo] = useState<MapFeatureInfo | null>(null);
 
   const mapRef = useRef<MapView>(null);
+  /** Mirror of `editPlot` for the focus effect — see the comment there. */
+  const editPlotRef = useRef<PlotSurveyWithMeta | null>(null);
+  /** A camera move requested before the map was ready (cold start), replayed below. */
+  const pendingFocus = useRef<Region | null>(null);
   const searchInputRef = useRef<TextInput>(null);
   const persistTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastRegion = useRef<Region>({
@@ -344,8 +391,12 @@ export default function MapScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      // Don't stomp an in-progress geometry edit when the screen re-focuses.
-      if (editPlot) return;
+      // Read through a ref, NOT the state: with `editPlot` in the dependency
+      // list this callback changed identity whenever an edit started or ended,
+      // so react-navigation re-ran it — four synchronous SQLite queries plus a
+      // re-parse of every track and site geometry, on the very tap that
+      // cancels an edit. That was most of the freeze.
+      if (editPlotRef.current) return;
       reloadSites();
       reloadPlots();
       reloadSessions();
@@ -354,7 +405,7 @@ export default function MapScreen() {
       } else {
         setActiveRecords([]);
       }
-    }, [reloadSites, reloadPlots, reloadSessions, activeSession, editPlot]),
+    }, [reloadSites, reloadPlots, reloadSessions, activeSession]),
   );
 
   // Safety: hide the loading overlay after a max wait if onMapReady doesn't fire (rare).
@@ -363,30 +414,118 @@ export default function MapScreen() {
     return () => clearTimeout(t);
   }, []);
 
-  // Handle handoff from session detail: ?draw=Polygon&session=123
+  /**
+   * Move the camera, the only supported way to arrive from another screen.
+   *
+   * Writing `map_view` and navigating here does NOT work: this is a tab screen,
+   * so after the first visit it stays mounted and `initialRegion` is never read
+   * again — the jump silently did nothing. Deferring to `mapReady` covers the
+   * cold start, where the handoff lands before the map exists.
+   */
+  const focusRegion = useCallback(
+    (r: Region) => {
+      if (mapReady) mapRef.current?.animateToRegion(r, 400);
+      else pendingFocus.current = r;
+    },
+    [mapReady],
+  );
+
+  useEffect(() => {
+    editPlotRef.current = editPlot;
+  }, [editPlot]);
+
+  useEffect(() => {
+    if (!mapReady || !pendingFocus.current) return;
+    const r = pendingFocus.current;
+    pendingFocus.current = null;
+    // No animation: this is the initial placement, not a move the user watches.
+    mapRef.current?.animateToRegion(r, 0);
+  }, [mapReady]);
+
+  // Handoffs from other screens: ?draw=Polygon&session=123 (draw a site for a
+  // session), ?draw=Polygon&favoriteArea=4, ?site=7 (just centre on a site).
   useEffect(() => {
     const drawParam = params.draw;
     const sessionParam = params.session;
-    if (typeof drawParam !== 'string') return;
-    if (drawParam !== 'Point' && drawParam !== 'LineString' && drawParam !== 'Polygon') return;
-    if (typeof sessionParam === 'string') {
-      const sid = parseInt(sessionParam, 10);
-      if (!Number.isNaN(sid)) handoffSessionId.current = sid;
-    }
     const favParam = params.favoriteArea;
-    if (typeof favParam === 'string') {
-      const fid = parseInt(favParam, 10);
-      if (!Number.isNaN(fid)) {
-        favoriteAreaId.current = fid;
-        setDrawPurpose('favoriteArea');
-        toast(t('areaSpecies.drawAreaHint'));
+    const siteParam = params.site;
+    const plotParam = params.plot;
+    if (!drawParam && !sessionParam && !favParam && !siteParam && !plotParam) return;
+
+    if (typeof siteParam === 'string') {
+      const sid = parseInt(siteParam, 10);
+      const site = Number.isNaN(sid) ? null : getSite(sid);
+      if (site) {
+        try {
+          focusRegion(geometryBounds(parseGeometry(site)));
+        } catch {
+          // parseGeometry is a bare JSON.parse — one corrupt row must not take
+          // the whole map tab down with it.
+        }
       }
     }
-    setDrawMode(drawParam);
-    setDrawPoints([]);
+
+    // 樣區 boundary handoff: centre on the existing boundary if there is one,
+    // else on the plot itself. No coordinates anywhere is not a refusal — the
+    // user can still pan to where the plot is and draw.
+    let plotTarget: { plot: PlotSurvey; site: Site | null } | null = null;
+    if (typeof plotParam === 'string') {
+      const pid = parseInt(plotParam, 10);
+      const plot = Number.isNaN(pid) ? null : getPlotSurvey(pid);
+      if (plot) {
+        const bound = plot.site_id !== null ? (getSite(plot.site_id) ?? null) : null;
+        plotTarget = { plot, site: bound };
+        let region: Region | null = null;
+        if (bound) {
+          try {
+            region = geometryBounds(parseGeometry(bound));
+          } catch {
+            region = null;
+          }
+        }
+        region = region ?? plotRegion(plot);
+        if (region) focusRegion(region);
+        else toast(t('map.noRecordCoord'));
+      }
+    }
+
+    if (drawParam === 'Point' || drawParam === 'LineString' || drawParam === 'Polygon') {
+      if (plotTarget) setPlotHandoff(plotTarget);
+      if (typeof sessionParam === 'string') {
+        const sid = parseInt(sessionParam, 10);
+        if (!Number.isNaN(sid)) handoffSessionId.current = sid;
+      }
+      if (typeof favParam === 'string') {
+        const fid = parseInt(favParam, 10);
+        if (!Number.isNaN(fid)) {
+          favoriteAreaId.current = fid;
+          setDrawPurpose('favoriteArea');
+          toast(t('areaSpecies.drawAreaHint'));
+        }
+      }
+      setDrawMode(drawParam);
+      setDrawPoints([]);
+    }
+
     // Clear params to prevent re-trigger
-    router.setParams({ draw: undefined, session: undefined, favoriteArea: undefined });
-  }, [params.draw, params.session, params.favoriteArea, router, toast, t]);
+    router.setParams({
+      draw: undefined,
+      session: undefined,
+      favoriteArea: undefined,
+      site: undefined,
+      plot: undefined,
+    });
+  }, [
+    params.draw,
+    params.session,
+    params.favoriteArea,
+    params.site,
+    params.plot,
+    router,
+    toast,
+    t,
+    focusRegion,
+  ]);
 
   useEffect(() => {
     setSetting('map_view', {
@@ -401,6 +540,12 @@ export default function MapScreen() {
 
   // Precompute transect track projection once per plots load (not per render /
   // map pan) — JSON parse + lng/lat swap is the costly part with many plots.
+  /** site id → the 樣區 whose boundary it is, so the map can say so. */
+  const plotBySiteId = useMemo(
+    () => new Map(plots.filter((p) => p.site_id !== null).map((p) => [p.site_id as number, p])),
+    [plots],
+  );
+
   const plotRenderItems = useMemo(
     () =>
       plots.map((p) => ({
@@ -415,6 +560,36 @@ export default function MapScreen() {
   );
 
   // Same precompute for session tracks (LineString or MultiLineString).
+  /**
+   * Parse each site's geometry once per load instead of on every render, and
+   * keep a bad row from taking the tab down — `parseGeometry` is a bare
+   * JSON.parse, and this used to run unguarded inside the render.
+   */
+  const siteRenderItems = useMemo(
+    () =>
+      sites.flatMap((s) => {
+        try {
+          const geometry = parseGeometry(s);
+          const bounds = geometryBounds(geometry);
+          return [
+            {
+              site: s,
+              primitives: geometryToPrimitives(geometry),
+              // Bounds centre, only ever used to place the site in a cluster
+              // cell; the padding geometryBounds adds is symmetric, so the
+              // centre is unaffected by it.
+              latitude: bounds.latitude,
+              longitude: bounds.longitude,
+            },
+          ];
+        } catch {
+          if (__DEV__) console.warn('[map] unreadable site geometry', s.id);
+          return [];
+        }
+      }),
+    [sites],
+  );
+
   const sessionRenderItems = useMemo(
     () =>
       sessions.map((s) => ({
@@ -426,10 +601,66 @@ export default function MapScreen() {
     [sessions],
   );
 
+  /**
+   * One point per record. A 樣區 with a boundary contributes once, not twice:
+   * the plot already stands for that record, and counting its site as well
+   * would inflate every bubble it appears in.
+   */
+  const { clusterInputs, clusterFeatures } = useMemo(() => {
+    const pts: ClusterPoint[] = [];
+    // Built alongside the points so a member key has exactly one definition —
+    // the picker below resolves records through it, and a second copy of these
+    // template strings would silently stop matching the day one of them moved.
+    const byKey = new Map<string, ClusterFeature>();
+    for (const { plot, segments } of plotRenderItems) {
+      const anchor =
+        plot.decimal_latitude !== null && plot.decimal_longitude !== null
+          ? { latitude: plot.decimal_latitude, longitude: plot.decimal_longitude }
+          : segments.find((seg) => seg.length > 0)?.[0];
+      if (!anchor) continue;
+      const key = `plot-${plot.id}`;
+      pts.push({ key, ...anchor });
+      byKey.set(key, { kind: 'plot', plot });
+    }
+    for (const { session, segments } of sessionRenderItems) {
+      const anchor =
+        session.start_lat !== null && session.start_lng !== null
+          ? { latitude: session.start_lat, longitude: session.start_lng }
+          : segments.find((seg) => seg.length > 0)?.[0];
+      if (!anchor) continue;
+      const key = `sess-${session.id}`;
+      pts.push({ key, ...anchor });
+      byKey.set(key, { kind: 'session', session });
+    }
+    for (const item of siteRenderItems) {
+      if (plotBySiteId.has(item.site.id)) continue;
+      const key = `site-${item.site.id}`;
+      pts.push({ key, latitude: item.latitude, longitude: item.longitude });
+      byKey.set(key, { kind: 'site', site: item.site });
+    }
+    return { clusterInputs: pts, clusterFeatures: byKey };
+  }, [plotRenderItems, sessionRenderItems, siteRenderItems, plotBySiteId]);
+
+  const { clusters, hiddenKeys } = useMemo(() => {
+    // Window size rather than a measured layout: the map fills the screen, and
+    // a few points of tab-bar difference only nudges where cell edges fall.
+    const all = clusterPoints(clusterInputs, {
+      ...viewRegion,
+      width: windowWidth,
+      height: windowHeight,
+    });
+    const grouped = all.filter((c) => c.memberKeys.length > 1);
+    return {
+      clusters: grouped,
+      hiddenKeys: new Set(grouped.flatMap((c) => c.memberKeys)),
+    };
+  }, [clusterInputs, viewRegion, windowWidth, windowHeight]);
+
   if (!settingsLoaded) return <View className="flex-1 bg-gray-100 dark:bg-gray-800" />;
 
   const handleRegionChangeComplete = (region: Region) => {
     lastRegion.current = region;
+    setViewRegion(region);
     if (persistTimer.current) clearTimeout(persistTimer.current);
     persistTimer.current = setTimeout(() => {
       setSetting('map_view', {
@@ -541,9 +772,13 @@ export default function MapScreen() {
     setDrawPoints([]);
     handoffSessionId.current = null;
     favoriteAreaId.current = null;
+    setPlotHandoff(null);
   };
 
   const handleMapPress = (e: { nativeEvent: { coordinate: LatLng } }) => {
+    // Tapping bare map dismisses the feature card — the same gesture that
+    // opened it should be able to put it away.
+    if (info) setInfo(null);
     if (!drawMode) return;
     const coord = e.nativeEvent.coordinate;
     if (drawMode === 'Point') {
@@ -635,6 +870,43 @@ export default function MapScreen() {
       if (first[0] !== last[0] || first[1] !== last[1]) ring.push(first);
       geometry = { type: 'Polygon' as const, coordinates: [ring] };
     }
+    // 樣區 boundary: update the bound row in place rather than piling up a new
+    // site per redraw. geometry_type has to be written too — the old row may be
+    // the Point the user drew first, and leaving type='Point' on polygon
+    // coordinates breaks every label, icon and KML/GPX exporter downstream.
+    if (plotHandoff) {
+      const { plot } = plotHandoff;
+      // Re-read: the boundary may have been deleted from 地理樣區管理 while the
+      // user was drawing, which also nulled plot.site_id via ON DELETE SET NULL.
+      const existing = plotHandoff.site ? getSite(plotHandoff.site.id) : null;
+      // Overwrite only when this plot is the sole owner. Copying or merging a
+      // 樣區 leaves two plots pointing at one site row, and redrawing one of
+      // them must not silently move the other's boundary — that case gets its
+      // own row instead.
+      const soleOwner = existing !== null && countSiteReferences(existing.id) <= 1;
+      let siteId: number;
+      if (existing && soleOwner) {
+        updateSite(existing.id, {
+          ...data,
+          geometry_type: geometry.type,
+          geometry_geojson: JSON.stringify(geometry),
+        });
+        siteId = existing.id;
+      } else {
+        // session_id stays null: that column means "this site belongs to a
+        // 名錄", and it is a FK into sessions.
+        siteId = createSite({ ...data, geometry, session_id: null });
+      }
+      updatePlotSurvey(plot.id, { site_id: siteId });
+      cancelDraw();
+      setSaveSiteOpen(false);
+      reloadSites();
+      reloadPlots();
+      toast(t('map.boundPlotSite'));
+      router.replace(`/plot/${plot.id}` as Href);
+      return;
+    }
+
     const handoff = handoffSessionId.current;
     const newSiteId = createSite({
       ...data,
@@ -656,13 +928,39 @@ export default function MapScreen() {
     }
   };
 
-  const handleSiteTap = async (site: SiteWithProject) => {
+  const siteActions = async (site: SiteWithProject) => {
+    const owner = plotBySiteId.get(site.id) ?? null;
     const idx = await showActionSheet({
       title: site.name,
-      message: `${t(DRAW_LABEL[site.geometry_type])} · ${site.project_name}${site.notes ? `\n\n${site.notes}` : ''}`,
+      message:
+        (owner
+          ? t('map.siteOfPlot', { plotid: owner.plotid })
+          : t(SITE_TYPE_LABEL[site.geometry_type])) +
+        ` · ${site.project_name}${site.notes ? `\n\n${site.notes}` : ''}`,
       cancelLabel: t('common.close'),
-      options: [{ label: t('map.jumpToSite') }, { label: t('common.delete'), destructive: true }],
+      options: owner
+        ? // A 樣區 boundary is deleted from the 樣區, not from under it: doing it
+          // here would leave the plot silently without one.
+          [
+            { label: t('map.jumpToPlot') },
+            { label: t('map.jumpToSite') },
+            { label: t('map.redrawRange') },
+          ]
+        : [{ label: t('map.jumpToSite') }, { label: t('common.delete'), destructive: true }],
     });
+    if (owner) {
+      if (idx === 0) {
+        router.push(`/plot/${owner.id}` as Href);
+      } else if (idx === 1) {
+        mapRef.current?.animateToRegion(geometryBounds(parseGeometry(site)), 400);
+      } else if (idx === 2) {
+        setPlotHandoff({ plot: owner, site });
+        setDrawPurpose('site');
+        setDrawMode('Polygon');
+        setDrawPoints([]);
+      }
+      return;
+    }
     if (idx === 0) {
       const region = geometryBounds(parseGeometry(site));
       mapRef.current?.animateToRegion(region, 400);
@@ -684,11 +982,16 @@ export default function MapScreen() {
   };
 
   /** Region that fits a plot's geometry, or null if it has no coordinates. */
-  const plotRegion = (plot: PlotSurveyWithMeta) => {
+  const plotRegion = (plot: PlotSurvey) => {
     if (usesTrack(plot)) {
       const segs = parseTrackSegments(plot.track_geojson);
-      if (segs.length === 0) return null;
-      return geometryBounds({ type: 'MultiLineString', coordinates: segs });
+      // No track yet is NOT "no coordinates": the recorder's onFirstFix writes
+      // the first fix into decimal_latitude/longitude, and the centre can also
+      // be placed by hand on the 樣區 mini map. Fall through to it rather than
+      // telling the user the plot has no location.
+      if (segs.length > 0) {
+        return geometryBounds({ type: 'MultiLineString', coordinates: segs });
+      }
     }
     if (plot.decimal_latitude === null || plot.decimal_longitude === null) return null;
     return geometryBounds({
@@ -697,7 +1000,121 @@ export default function MapScreen() {
     });
   };
 
-  const handlePlotTap = async (plot: PlotSurveyWithMeta) => {
+  /**
+   * Tap shows what the feature is; 「操作」 on the card opens the sheet.
+   *
+   * Long-press would be the obvious way to separate the two, but
+   * react-native-maps has no onLongPress on Marker / Polyline / Polygon —
+   * only MapView does, and it reports a coordinate, not the feature.
+   */
+  const openPlotInfo = (plot: PlotSurveyWithMeta) => {
+    const lines: string[] = [];
+    if (plot.decimal_latitude !== null && plot.decimal_longitude !== null) {
+      lines.push(`${plot.decimal_latitude.toFixed(6)}, ${plot.decimal_longitude.toFixed(6)}`);
+    }
+    if (usesTrack(plot) && parseTrackSegments(plot.track_geojson).every((seg) => seg.length < 2)) {
+      lines.push(t('map.trackNotYet'));
+    }
+    setInfo({
+      title: plot.plotid || t('map.plotMenuTitle', { id: plot.id }),
+      subtitle: t('map.plotSubtitle', {
+        type: PLOT_TYPE_LABEL[plot.plot_type] ? t(PLOT_TYPE_LABEL[plot.plot_type]) : plot.plot_type,
+        count: plot.species_count,
+        project: plot.project_name,
+      }),
+      lines,
+      badge: plot.status === 'active' ? t('map.inProgress') : null,
+      accentColor: plot.status === 'active' ? PLOT_ACTIVE_COLOR : PLOT_COLOR,
+      onAction: () => {
+        setInfo(null);
+        void plotActions(plot);
+      },
+    });
+  };
+
+  const openSessionInfo = (session: SessionWithStats) => {
+    const isActive = activeSession?.id === session.id;
+    const lines: string[] = [];
+    if (session.start_lat !== null && session.start_lng !== null) {
+      lines.push(`${session.start_lat.toFixed(6)}, ${session.start_lng.toFixed(6)}`);
+    }
+    setInfo({
+      title: session.name || t('map.sessionMarkerTitle', { id: session.id }),
+      subtitle: t('map.sessionSubtitle', {
+        count: session.record_count,
+        project: session.project_name,
+      }),
+      lines,
+      badge: isActive ? t('map.inProgress') : null,
+      accentColor: isActive ? SESSION_ACTIVE_COLOR : SESSION_COLOR,
+      onAction: () => {
+        setInfo(null);
+        void sessionActions(session);
+      },
+    });
+  };
+
+  const openSiteInfo = (site: SiteWithProject) => {
+    const owner = plotBySiteId.get(site.id) ?? null;
+    setInfo({
+      title: site.name,
+      subtitle:
+        (owner
+          ? t('map.siteOfPlot', { plotid: owner.plotid })
+          : t(SITE_TYPE_LABEL[site.geometry_type])) + ` · ${site.project_name}`,
+      lines: site.notes ? [site.notes] : [],
+      badge: null,
+      accentColor: owner
+        ? owner.status === 'active'
+          ? PLOT_ACTIVE_COLOR
+          : PLOT_COLOR
+        : SITE_COLOR,
+      onAction: () => {
+        setInfo(null);
+        void siteActions(site);
+      },
+    });
+  };
+
+  /**
+   * Records under a bubble that zooming cannot pull apart.
+   *
+   * Tapping a bubble zooms to its members, which is a dead end when they share
+   * a coordinate — the same grid cell holds them at every zoom, so the bubble
+   * survives and nothing underneath is reachable. `clusterSplits` asks whether
+   * the zoom would actually help; when it would not, the members are listed
+   * instead and picking one opens the card it would have shown.
+   */
+  const openClusterMembers = async (c: PointCluster) => {
+    const found = c.memberKeys.flatMap((k) => {
+      const f = clusterFeatures.get(k);
+      return f ? [f] : [];
+    });
+    if (found.length === 0) return;
+    const label = (f: ClusterFeature) => {
+      if (f.kind === 'plot') {
+        const type = PLOT_TYPE_LABEL[f.plot.plot_type];
+        const name = f.plot.plotid || t('map.plotMenuTitle', { id: f.plot.id });
+        return `${type ? t(type) : f.plot.plot_type} · ${name}`;
+      }
+      if (f.kind === 'session') {
+        return `${t('nav.session')} · ${f.session.name || t('map.sessionMarkerTitle', { id: f.session.id })}`;
+      }
+      return `${t(SITE_TYPE_LABEL[f.site.geometry_type])} · ${f.site.name}`;
+    };
+    const idx = await showActionSheet({
+      title: t('map.clusterMembersTitle', { n: found.length }),
+      cancelLabel: t('common.cancel'),
+      options: found.map((f) => ({ label: label(f) })),
+    });
+    if (idx < 0) return;
+    const pick = found[idx];
+    if (pick.kind === 'plot') openPlotInfo(pick.plot);
+    else if (pick.kind === 'session') openSessionInfo(pick.session);
+    else openSiteInfo(pick.site);
+  };
+
+  const plotActions = async (plot: PlotSurveyWithMeta) => {
     const idx = await showActionSheet({
       title: plot.plotid || t('map.plotMenuTitle', { id: plot.id }),
       message:
@@ -735,21 +1152,40 @@ export default function MapScreen() {
         return;
       }
       const segs = parseTrackSegments(plot.track_geojson);
-      if (segs.length === 0) {
+      // Indices into `segs` — NOT a filtered copy: savePlotEdit re-parses the
+      // original track and writes back at `editSegmentIndex`, so the index has
+      // to survive. A 1-point segment is excluded because the track branch of
+      // savePlotEdit needs >= 2 points, i.e. opening one strands the user with
+      // something they cannot save.
+      const editable = segs.map((_, i) => i).filter((i) => segs[i].length >= 2);
+      if (editable.length === 0) {
+        // Nothing to edit as a track. The plot is on the map as a centre-point
+        // marker now, so refusing outright would contradict what the user just
+        // tapped; edit that point instead when it exists.
+        if (plot.decimal_latitude !== null && plot.decimal_longitude !== null) {
+          setEditPlot(plot);
+          setEditMode('point');
+          setDrawPoints([
+            { latitude: plot.decimal_latitude, longitude: plot.decimal_longitude },
+          ]);
+          toast(t('map.dragMarkerHint'));
+          return;
+        }
         Alert.alert(t('map.noTrack'), t('map.noTrackMsg'));
         return;
       }
-      // Pick a segment when the track has more than one (pause/resume splits).
-      let segIdx = 0;
-      if (segs.length > 1) {
-        segIdx = await showActionSheet({
+      // Pick a segment when more than one is editable (pause/resume splits).
+      let segIdx = editable[0];
+      if (editable.length > 1) {
+        const pick = await showActionSheet({
           title: t('map.pickSegTitle'),
           cancelLabel: t('common.cancel'),
-          options: segs.map((s, i) => ({
-            label: t('map.segLabel', { n: i + 1, count: s.length }),
+          options: editable.map((i) => ({
+            label: t('map.segLabel', { n: i + 1, count: segs[i].length }),
           })),
         });
-        if (segIdx < 0 || segIdx >= segs.length) return; // cancelled
+        if (pick < 0 || pick >= editable.length) return; // cancelled
+        segIdx = editable[pick];
       }
       if (segs[segIdx].length > TRACK_EDIT_WARN_POINTS) {
         const proceed = await new Promise<boolean>((resolve) => {
@@ -849,7 +1285,7 @@ export default function MapScreen() {
     });
   };
 
-  const handleSessionTap = async (s: SessionWithStats) => {
+  const sessionActions = async (s: SessionWithStats) => {
     const isActive = activeSession?.id === s.id;
     const idx = await showActionSheet({
       title: s.name || t('map.sessionMarkerTitle', { id: s.id }),
@@ -947,6 +1383,7 @@ export default function MapScreen() {
             colored green; its per-record species points are drawn separately
             below. Tap → info / jump to the record. */}
         {sessionRenderItems.flatMap(({ session, segments }) => {
+          if (hiddenKeys.has(`sess-${session.id}`)) return [];
           const isActive = activeSession?.id === session.id;
           const color = isActive ? SESSION_ACTIVE_COLOR : SESSION_COLOR;
           const els = segments
@@ -959,7 +1396,7 @@ export default function MapScreen() {
                 strokeWidth={4}
                 zIndex={2}
                 tappable
-                onPress={() => handleSessionTap(session)}
+                onPress={() => openSessionInfo(session)}
               />
             ));
           if (session.start_lat !== null && session.start_lng !== null) {
@@ -971,7 +1408,7 @@ export default function MapScreen() {
                 description={t('map.sessionDesc', { count: session.record_count })}
                 pinColor={color}
                 zIndex={3}
-                onPress={() => handleSessionTap(session)}
+                onPress={() => openSessionInfo(session)}
               />,
             );
           }
@@ -991,8 +1428,20 @@ export default function MapScreen() {
           ))}
 
         {/* Existing sites — Multi* geometries expand to multiple primitives */}
-        {sites.flatMap((s) => {
-          const primitives = geometryToPrimitives(parseGeometry(s));
+        {siteRenderItems.flatMap(({ site: s, primitives }) => {
+          // A site bound to a 樣區 is that plot's boundary, so it wears the plot
+          // colours — otherwise a blue shape sits around a purple pin with
+          // nothing saying they are the same record.
+          const owner = plotBySiteId.get(s.id);
+          // A boundary is clustered under its owner's key, since the plot is
+          // the record both of them stand for.
+          if (hiddenKeys.has(owner ? `plot-${owner.id}` : `site-${s.id}`)) return [];
+          const stroke = owner
+            ? owner.status === 'active'
+              ? PLOT_ACTIVE_COLOR
+              : PLOT_COLOR
+            : SITE_COLOR;
+          const fill = owner ? PLOT_FILL : SITE_FILL;
           return primitives.map((prim, i) => {
             const key = `s-${s.id}-${i}`;
             if (prim.kind === 'point') {
@@ -1002,8 +1451,8 @@ export default function MapScreen() {
                   coordinate={{ latitude: prim.latitude, longitude: prim.longitude }}
                   title={s.name}
                   description={s.project_name}
-                  pinColor={SITE_COLOR}
-                  onPress={() => handleSiteTap(s)}
+                  pinColor={stroke}
+                  onPress={() => openSiteInfo(s)}
                 />
               );
             }
@@ -1012,10 +1461,10 @@ export default function MapScreen() {
                 <Polyline
                   key={key}
                   coordinates={prim.coords}
-                  strokeColor={SITE_COLOR}
+                  strokeColor={stroke}
                   strokeWidth={3}
                   tappable
-                  onPress={() => handleSiteTap(s)}
+                  onPress={() => openSiteInfo(s)}
                 />
               );
             }
@@ -1023,11 +1472,11 @@ export default function MapScreen() {
               <Polygon
                 key={key}
                 coordinates={prim.coords}
-                strokeColor={SITE_COLOR}
-                fillColor={SITE_FILL}
+                strokeColor={stroke}
+                fillColor={fill}
                 strokeWidth={2}
                 tappable
-                onPress={() => handleSiteTap(s)}
+                onPress={() => openSiteInfo(s)}
               />
             );
           });
@@ -1038,11 +1487,18 @@ export default function MapScreen() {
             marker below takes over. */}
         {plotRenderItems.flatMap(({ plot, segments }) => {
           if (editPlot && editPlot.id === plot.id) return [];
+          if (hiddenKeys.has(`plot-${plot.id}`)) return [];
           const color = plot.status === 'active' ? PLOT_ACTIVE_COLOR : PLOT_COLOR;
           if (usesTrack(plot)) {
-            return segments
-              .filter((seg) => seg.length >= 2)
-              .map((seg, i) => (
+            const drawable = segments.filter((seg) => seg.length >= 2);
+            // A transect whose track is not started yet, holds a single fix, or
+            // was cleared has nothing to draw here — and returning early made
+            // the whole plot disappear from the map even though it has a centre
+            // point. Common, not an edge case: the recorder writes the first fix
+            // into decimal_latitude/longitude, so a just-started transect always
+            // has a centre and a one-point segment. Fall through to the marker.
+            if (drawable.length > 0) {
+              return drawable.map((seg, i) => (
                 <Polyline
                   key={`plot-${plot.id}-${i}`}
                   coordinates={seg}
@@ -1050,9 +1506,10 @@ export default function MapScreen() {
                   strokeWidth={4}
                   zIndex={5}
                   tappable
-                  onPress={() => handlePlotTap(plot)}
+                  onPress={() => openPlotInfo(plot)}
                 />
               ));
+            }
           }
           if (plot.decimal_latitude === null || plot.decimal_longitude === null) return [];
           const center = { latitude: plot.decimal_latitude, longitude: plot.decimal_longitude };
@@ -1075,17 +1532,55 @@ export default function MapScreen() {
               coordinate={center}
               pinColor={color}
               title={plot.plotid || t('map.plotMenuTitle', { id: plot.id })}
-              description={t('map.plotDesc', {
-                type: PLOT_TYPE_LABEL[plot.plot_type]
-                  ? t(PLOT_TYPE_LABEL[plot.plot_type])
-                  : plot.plot_type,
-                count: plot.species_count,
-              })}
+              description={
+                t('map.plotDesc', {
+                  type: PLOT_TYPE_LABEL[plot.plot_type]
+                    ? t(PLOT_TYPE_LABEL[plot.plot_type])
+                    : plot.plot_type,
+                  count: plot.species_count,
+                }) + (usesTrack(plot) ? ` · ${t('map.trackNotYet')}` : '')
+              }
               zIndex={5}
-              onPress={() => handlePlotTap(plot)}
+              onPress={() => openPlotInfo(plot)}
             />,
           ];
         })}
+
+        {/* One bubble per crowded grid cell; the features it stands for are
+            skipped above. Tapping zooms to its members, which is what breaks
+            it apart. Hidden while drawing so it cannot eat a vertex tap. */}
+        {/* Clustering stays on in every mode. Turning it off while drawing or
+            editing swapped the whole marker set twice per session — every
+            clustered record mounted as its own annotation on entry and unmounted
+            again on exit — which is a lot of native work on one tap. Only the
+            press handler is dropped, so a tap falls through to the map and
+            places a vertex instead of zooming. */}
+        {clusters.map((c) => (
+          <ClusterMarker
+            key={c.key}
+            latitude={c.latitude}
+            longitude={c.longitude}
+            count={c.memberKeys.length}
+            onPress={
+              drawMode || editMode
+                ? undefined
+                : () => {
+                    const target = clusterRegion(c);
+                    if (
+                      clusterSplits(c, {
+                        ...target,
+                        width: windowWidth,
+                        height: windowHeight,
+                      })
+                    ) {
+                      mapRef.current?.animateToRegion(target, 350);
+                    } else {
+                      void openClusterMembers(c);
+                    }
+                  }
+            }
+          />
+        ))}
 
         {/* In-progress drawing — markers are draggable; tap a marker to remove it */}
         {(drawMode || editMode) && drawPoints.length > 0
@@ -1267,7 +1762,7 @@ export default function MapScreen() {
               </Text>
             </Pressable>
             <Text className="flex-1 text-center text-xs text-gray-700 dark:text-gray-300">
-              {t('map.drawingLabel', { type: t(DRAW_LABEL[drawMode]), count: drawPoints.length })}
+              {t('map.drawingLabel', { type: t(SITE_TYPE_LABEL[drawMode]), count: drawPoints.length })}
             </Text>
             {drawPoints.length > 0 ? (
               <Pressable onPress={undoLastPoint} hitSlop={8} className="px-2">
@@ -1284,6 +1779,13 @@ export default function MapScreen() {
               </Pressable>
             ) : null}
           </View>
+          {plotHandoff ? (
+            <View className="mt-2 rounded-full bg-emerald-500 px-3 py-1.5 shadow-md">
+              <Text className="text-center text-xs font-medium text-white">
+                {t('map.plotHandoffHint', { plotid: plotHandoff.plot.plotid })}
+              </Text>
+            </View>
+          ) : null}
           {handoffSessionId.current !== null ? (
             <View className="mt-2 rounded-full bg-emerald-500 px-3 py-1.5 shadow-md">
               <Text className="text-center text-xs font-medium text-white">
@@ -1315,6 +1817,11 @@ export default function MapScreen() {
             </Pressable>
           </View>
         </View>
+      ) : null}
+
+      {/* Gated on the drawing modes so it never covers the vertex toolbar. */}
+      {info && !drawMode && !editMode ? (
+        <MapFeatureCard info={info} onClose={() => setInfo(null)} />
       ) : null}
 
       <LayerSheet
@@ -1353,6 +1860,15 @@ export default function MapScreen() {
           visible={saveSiteOpen}
           geometryType={drawMode}
           vertexCount={drawPoints.length}
+          title={plotHandoff ? t('map.saveRangeTitle') : undefined}
+          defaultName={
+            plotHandoff
+              ? (plotHandoff.site?.name ??
+                t('map.rangeDefaultName', { plotid: plotHandoff.plot.plotid }))
+              : ''
+          }
+          defaultProjectId={plotHandoff?.plot.project_id ?? 0}
+          defaultNotes={plotHandoff?.site?.notes ?? ''}
           onCancel={() => setSaveSiteOpen(false)}
           onConfirm={handleSaveSite}
         />
@@ -1390,6 +1906,63 @@ export default function MapScreen() {
         }}
       />
     </View>
+  );
+}
+
+/**
+ * Count bubble for a cluster.
+ *
+ * `tracksViewChanges` starts true so the custom view is captured once it has
+ * laid out (leaving it false from the start renders a blank marker), then goes
+ * off again as soon as the view reports a layout. A timer was used here first,
+ * and a quarter of a second of per-frame re-capture — times every bubble that
+ * mounts at once when an edit is cancelled — is long enough to look like the
+ * app has locked up.
+ *
+ * It comes back on when the number or position changes, because the cluster
+ * key is the grid cell alone: the marker stays mounted across pans (that is
+ * the point), so a changed count has to be re-captured, not remounted.
+ */
+function ClusterMarker({
+  latitude,
+  longitude,
+  count,
+  onPress,
+}: {
+  latitude: number;
+  longitude: number;
+  count: number;
+  /** Omitted while drawing or editing, so the tap reaches the map. */
+  onPress?: () => void;
+}) {
+  const [tracks, setTracks] = useState(true);
+  useEffect(() => {
+    setTracks(true);
+  }, [count, latitude, longitude]);
+  return (
+    <Marker
+      coordinate={{ latitude, longitude }}
+      anchor={{ x: 0.5, y: 0.5 }}
+      tracksViewChanges={tracks}
+      zIndex={6}
+      onPress={onPress}
+    >
+      <View
+        // One frame after layout, not a fixed delay: the capture is done by
+        // then, and waiting longer only burns frames.
+        onLayout={() => requestAnimationFrame(() => setTracks(false))}
+        className="items-center justify-center rounded-full border-2 border-white shadow"
+        style={{
+          // Grows a little with the count so a big cluster reads as big, but
+          // capped — a 300-record bubble must not cover the map.
+          width: count >= 100 ? 46 : count >= 10 ? 40 : 34,
+          height: count >= 100 ? 46 : count >= 10 ? 40 : 34,
+          backgroundColor: CLUSTER_COLOR,
+        }}
+      >
+        <Text className="text-xs font-bold text-white">{count}</Text>
+      </View>
+    </Marker>
   );
 }
 

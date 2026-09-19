@@ -9,10 +9,22 @@ import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSettings } from '~/stores/settings';
-import { Alert, Modal, Platform, Pressable, Text, TextInput, View } from 'react-native';
+import {
+  Alert,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import * as Location from 'expo-location';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
+import { PortalHost } from '@rn-primitives/portal';
+
 import { KeyboardAvoidingView } from './KeyboardAvoidingView';
+import { SelectRow } from './settings/rows';
 import { GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import {
   SwipeNavArea,
@@ -27,7 +39,13 @@ import { AudioClipRows, AudioRecordTile } from './AudioClipList';
 import { InatSyncButton, type InatSheetState } from './InatSyncButton';
 import { useColorScheme as useNwColorScheme } from 'nativewind';
 import { useRouter } from 'expo-router';
-import { getKeysForScope, type Layer, type Rank, type IdentificationKey } from '~/db';
+import {
+  getKeysForScope,
+  sourceOfTaxonId,
+  type Layer,
+  type Rank,
+  type IdentificationKey,
+} from '~/db';
 import { ScientificName } from './ScientificName';
 import { RecordLocationMap } from './RecordLocationMap';
 import { TaxonomyJumpChip } from './TaxonomyJumpChip';
@@ -45,6 +63,9 @@ import {
 } from '~/lib/dwcAbundance';
 
 const BB_OPTIONS = ['+', 'r', '1', '2', '3', '4', '5'] as const;
+
+/** Name of the <PortalHost> this modal renders inside, for its own popovers. */
+const VALUE_MODAL_PORTAL = 'plot-species-value-modal';
 
 /** Modal-internal draft. The DB columns are organism_quantity + type. */
 export type PlotValueDraft = {
@@ -88,6 +109,11 @@ function sameDraft(a: PlotValueDraft, b: PlotValueDraft): boolean {
  *  a tappable classification path + identification-key chips (replacing the
  *  bare "分層 T" line for non-stratified plots). Falls back to `title` when absent. */
 export type PlotModalHeader = {
+  /** Needed to tell a TaiCOL taxon from a region-pack / external one, which
+   *  decides whether identification keys apply. Required, not optional, so a
+   *  new construction site fails to compile rather than silently showing keys
+   *  for a species they were never written for. */
+  taxonId: string;
   cname: string;
   name: string;
   author: string;
@@ -213,7 +239,12 @@ export function PlotSpeciesValueModal({
   const [parentKeys, setParentKeys] = useState<IdentificationKey[]>([]);
   const twOn = useSettings((s) => s.enabled_regions.includes('TW'));
   useEffect(() => {
-    if (!visible || !header || !twOn) {
+    // Keys only exist for Taiwan, so they only make sense for a TaiCOL taxon.
+    // Region-pack and external species carry a 'g…' id (GBIF/iNat) and would
+    // otherwise inherit their family's Taiwanese key — wrong for, say, a
+    // Japanese congener. `sourceOfTaxonId` covers the JP 'y…' ids too, which a
+    // bare external-id check would miss.
+    if (!visible || !header || !twOn || sourceOfTaxonId(header.taxonId) !== 'taicol') {
       setParentKeys([]);
       return;
     }
@@ -264,6 +295,29 @@ export function PlotSpeciesValueModal({
   }, [visible, initial, defaultType, kingdom]);
 
   const currentKind = useMemo(() => kindForType(qtyType), [qtyType]);
+  /** Percent and count are a single field, so they sit beside the unit. */
+  const inlineValue = currentKind === 'percent' || currentKind === 'count';
+
+  const unitOptions = useMemo(
+    () =>
+      quantityTypes().filter(
+        (opt) =>
+          opt.value === qtyType || !(hideBbDbh && (opt.kind === 'BB' || opt.kind === 'DBH')),
+      ),
+    [qtyType, hideBbDbh],
+  );
+
+  /** `__custom__` is the sentinel `handleSwitchType` already understood; as a
+   *  Select option it needs to round-trip, so a custom type in progress shows
+   *  as 自訂 rather than falling back to its half-typed name. */
+  const typeOptions = useMemo(
+    () => [
+      ...unitOptions.map((o) => ({ value: o.value, label: o.label })),
+      { value: '__custom__', label: t('plotValue.custom') },
+    ],
+    [unitOptions, t],
+  );
+  const selectedType = currentKind === 'custom' ? '__custom__' : qtyType;
 
   // Reset value fields when the user switches type mid-edit (avoid stale BB
   // carrying over to a numeric type, etc.).
@@ -420,12 +474,12 @@ export function PlotSpeciesValueModal({
                     their vegetation layer below. */}
                     {header ? (
                       <View className="mt-2 flex-row flex-wrap items-center" style={{ gap: 6 }}>
+                        {/* Family and genus only. The full kingdom→genus path
+                            filled two lines above the fields the user actually
+                            came here for, and the upper ranks are one tap away
+                            in the tree anyway. */}
                         {(
                           [
-                            { rank: 'kingdom', name: header.kingdom },
-                            { rank: 'phylum', name: header.phylum },
-                            { rank: 'class', name: header.class_name },
-                            { rank: 'order', name: header.order },
                             { rank: 'family', name: header.family, nameC: header.family_c },
                             { rank: 'genus', name: header.genus },
                           ] as Array<{ rank: Rank; name: string; nameC?: string }>
@@ -486,58 +540,54 @@ export function PlotSpeciesValueModal({
                       </Text>
                     ) : null}
                   </View>
-                  {/* Quantity type picker */}
-                  <Text className="mb-2 text-xs font-medium text-gray-600 dark:text-gray-400">
-                    {t('plotValue.abundanceUnit')}
-                  </Text>
-                  <View className="flex-row flex-wrap gap-1.5">
-                    {quantityTypes()
-                      .filter(
-                        (opt) =>
-                          opt.value === qtyType ||
-                          !(hideBbDbh && (opt.kind === 'BB' || opt.kind === 'DBH')),
-                      )
-                      .map((opt) => {
-                        const active = qtyType === opt.value;
-                        return (
-                          <Pressable
-                            key={opt.value}
-                            onPress={() => handleSwitchType(opt.value)}
-                            className={`rounded-full border px-3 py-1.5 ${active ? 'border-emerald-500 bg-emerald-500' : 'border-gray-300 bg-white dark:border-gray-600 dark:bg-gray-900'}`}
-                          >
-                            <Text
-                              className={`text-xs font-medium ${active ? 'text-white' : 'text-gray-700 dark:text-gray-300'}`}
-                            >
-                              {opt.label}
-                            </Text>
-                          </Pressable>
-                        );
-                      })}
-                    <Pressable
-                      onPress={() => handleSwitchType('__custom__')}
-                      className={`rounded-full border px-3 py-1.5 ${currentKind === 'custom' ? 'border-emerald-500 bg-emerald-500' : 'border-gray-300 bg-white dark:border-gray-600 dark:bg-gray-900'}`}
-                    >
-                      <Text
-                        className={`text-xs font-medium ${currentKind === 'custom' ? 'text-white' : 'text-gray-700 dark:text-gray-300'}`}
-                      >
-                        {t('plotValue.custom')}
-                      </Text>
-                    </Pressable>
+                  {/* Unit + value on one row. Five wrapped pills cost two lines
+                      above the field they describe, on the screen a surveyor
+                      uses most; a dropdown is one line whatever the label
+                      length. Same SelectRow as 偏好設定, popped into the host
+                      below rather than the root one the Modal covers. */}
+                  <View className="flex-row items-start" style={{ gap: 8 }}>
+                    <View className="flex-1">
+                      <SelectRow
+                        variant="inline"
+                        label={t('plotValue.abundanceUnit')}
+                        value={selectedType}
+                        options={typeOptions}
+                        onChange={handleSwitchType}
+                        portalHost={VALUE_MODAL_PORTAL}
+                      />
+                    </View>
+                    {inlineValue ? (
+                      <View className="flex-1">
+                        {/* Matches SelectRow's inline caption so the two fields
+                            line up; the inputs run `compact` because the unit
+                            is already named on the left. */}
+                        <Text className="mb-1 text-xs font-medium text-gray-600 dark:text-gray-400">
+                          {currentKind === 'percent'
+                            ? t('plotValue.coverPct')
+                            : t('plotValue.quantity')}
+                        </Text>
+                        {currentKind === 'percent' ? (
+                          <PercentInput value={numericValue} onChange={setNumericValue} compact />
+                        ) : (
+                          <CountInput
+                            value={numericValue}
+                            onChange={setNumericValue}
+                            suffix={findQuantityType(qtyType)?.suffix ?? ''}
+                            compact
+                          />
+                        )}
+                      </View>
+                    ) : null}
                   </View>
 
-                  {/* Value input switches on kind */}
-                  <View className="mt-4">
+                  {/* Common values, one scrollable line. */}
+                  {currentKind === 'percent' ? (
+                    <PercentQuickValues onPick={setNumericValue} />
+                  ) : null}
+
+                  {/* Kinds that need more than a field get the full width. */}
+                  <View className={inlineValue ? '' : 'mt-3'}>
                     {currentKind === 'BB' ? <BBInput value={bb} onChange={setBb} /> : null}
-                    {currentKind === 'percent' ? (
-                      <PercentInput value={numericValue} onChange={setNumericValue} />
-                    ) : null}
-                    {currentKind === 'count' ? (
-                      <CountInput
-                        value={numericValue}
-                        onChange={setNumericValue}
-                        suffix={findQuantityType(qtyType)?.suffix ?? ''}
-                      />
-                    ) : null}
                     {currentKind === 'DBH' ? (
                       <DBHInput
                         stems={stems}
@@ -763,6 +813,11 @@ export function PlotSpeciesValueModal({
             </SafeAreaView>
           </View>
         </KeyboardAvoidingView>
+        {/* The unit dropdown's popover lands here. It has to be inside the
+            Modal (the root host in app/_layout.tsx is behind it) and the LAST
+            sibling (later siblings paint on top). Renders null while closed,
+            so it costs no layout. */}
+        <PortalHost name={VALUE_MODAL_PORTAL} />
       </GestureHandlerRootView>
 
       <PhotoViewerModal
@@ -803,13 +858,49 @@ function BBInput({ value, onChange }: { value: string | null; onChange: (v: stri
   );
 }
 
-function PercentInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+/** Common cover values on one horizontally scrollable line — a wrapping row of
+ *  six cost a second line for values the user may not even want. */
+function PercentQuickValues({ onPick }: { onPick: (v: string) => void }) {
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+      className="mt-2"
+      contentContainerStyle={{ gap: 8 }}
+    >
+      {[1, 5, 10, 25, 50, 75, 100].map((v) => (
+        <Pressable
+          key={v}
+          onPress={() => onPick(String(v))}
+          className="rounded-full bg-gray-100 px-3 py-1.5 active:bg-gray-200 dark:bg-gray-800 dark:active:bg-gray-700"
+        >
+          <Text className="text-xs text-gray-700 dark:text-gray-300">{v}%</Text>
+        </Pressable>
+      ))}
+    </ScrollView>
+  );
+}
+
+function PercentInput({
+  value,
+  onChange,
+  compact = false,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  /** Beside the unit dropdown: the dropdown already names the unit, and the
+   *  quick values are rendered by the caller below both. */
+  compact?: boolean;
+}) {
   const { t } = useTranslation();
   return (
     <View>
-      <Text className="mb-2 text-xs font-medium text-gray-600 dark:text-gray-400">
-        {t('plotValue.coverPct')}
-      </Text>
+      {compact ? null : (
+        <Text className="mb-2 text-xs font-medium text-gray-600 dark:text-gray-400">
+          {t('plotValue.coverPct')}
+        </Text>
+      )}
       <View className="flex-row items-center rounded-lg border border-gray-200 bg-white px-3 dark:border-gray-700 dark:bg-gray-900">
         <TextInput
           value={value}
@@ -829,17 +920,6 @@ function PercentInput({ value, onChange }: { value: string; onChange: (v: string
         if (Number.isFinite(n) && n > 0 && n <= 100) return null;
         return <Text className="mt-1 text-xs text-red-500">{t('plotValue.coverRange')}</Text>;
       })()}
-      <View className="mt-2 flex-row flex-wrap gap-2">
-        {[1, 5, 10, 25, 50, 75].map((v) => (
-          <Pressable
-            key={v}
-            onPress={() => onChange(String(v))}
-            className="rounded-full bg-gray-100 px-3 py-1 active:bg-gray-200 dark:bg-gray-800 dark:active:bg-gray-700"
-          >
-            <Text className="text-xs text-gray-700 dark:text-gray-300">{v}%</Text>
-          </Pressable>
-        ))}
-      </View>
     </View>
   );
 }
@@ -848,17 +928,22 @@ function CountInput({
   value,
   onChange,
   suffix,
+  compact = false,
 }: {
   value: string;
   onChange: (v: string) => void;
   suffix: string;
+  /** Beside the unit dropdown, which already names the unit. */
+  compact?: boolean;
 }) {
   const { t } = useTranslation();
   return (
     <View>
-      <Text className="mb-2 text-xs font-medium text-gray-600 dark:text-gray-400">
-        {t('plotValue.quantity')}
-      </Text>
+      {compact ? null : (
+        <Text className="mb-2 text-xs font-medium text-gray-600 dark:text-gray-400">
+          {t('plotValue.quantity')}
+        </Text>
+      )}
       <View className="flex-row items-center rounded-lg border border-gray-200 bg-white px-3 dark:border-gray-700 dark:bg-gray-900">
         <TextInput
           value={value}

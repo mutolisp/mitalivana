@@ -22,6 +22,16 @@ export type ApiErrorKind =
   /** The caller aborted. */
   | 'aborted';
 
+/**
+ * Which external service a request belongs to.
+ *
+ * A named type, not a literal union repeated at every signature: adding a
+ * member used to mean finding every spelling by hand, and `connectivity.ts`
+ * picks its cross-probe target from an exhaustive map keyed on this, so a new
+ * member that nobody routed is a compile error rather than a silent fallback.
+ */
+export type ApiService = 'inat' | 'gbif' | 'gdrive';
+
 export class ApiError extends Error {
   kind: ApiErrorKind;
   status?: number;
@@ -35,10 +45,10 @@ export class ApiError extends Error {
    */
   detail?: string;
   /** Which service produced it, for the cross-probe in `connectivity.ts`. */
-  service: 'inat' | 'gbif';
+  service: ApiService;
 
   constructor(
-    service: 'inat' | 'gbif',
+    service: ApiService,
     kind: ApiErrorKind,
     message: string,
     status?: number,
@@ -78,7 +88,7 @@ function rateLimitWaitMs(res: Response, attempt: number): number | null {
 }
 
 export async function getJson(
-  service: 'inat' | 'gbif',
+  service: ApiService,
   url: string,
   signal?: AbortSignal,
   timeoutMs: number = DEFAULT_TIMEOUT_MS,
@@ -149,22 +159,69 @@ export async function getJson(
  * Only fetch, so this file stays loadable under plain Node (check:gbif).
  */
 export async function postJson(
-  service: 'inat' | 'gbif',
+  service: ApiService,
   url: string,
   body: unknown,
   opts: { headers?: Record<string, string>; signal?: AbortSignal; timeoutMs?: number } = {},
   attempt = 0,
 ): Promise<Record<string, unknown>> {
-  return sendJson(service, 'POST', url, body, opts, attempt);
+  return sendBody(
+    service,
+    'POST',
+    url,
+    body === undefined ? undefined : JSON.stringify(body),
+    'application/json',
+    opts,
+    attempt,
+  );
+}
+
+/**
+ * Form-encoded POST — what OAuth 2.0 token endpoints take.
+ *
+ * Google's device-flow endpoints are specified as
+ * `application/x-www-form-urlencoded`; they are not documented to accept JSON,
+ * so they get their own entry point rather than a JSON body that happens to
+ * work today. Same timeout / abort / error vocabulary as the rest.
+ */
+export async function postForm(
+  service: ApiService,
+  url: string,
+  params: Record<string, string>,
+  opts: { headers?: Record<string, string>; signal?: AbortSignal; timeoutMs?: number } = {},
+  attempt = 0,
+): Promise<Record<string, unknown>> {
+  return sendBody(service, 'POST', url, qs(params), 'application/x-www-form-urlencoded', opts, attempt);
 }
 
 /** Same as `postJson` for the other JSON verbs (PUT / DELETE). `body` may be
  *  undefined for a DELETE. */
 export async function sendJson(
-  service: 'inat' | 'gbif',
+  service: ApiService,
   method: 'POST' | 'PUT' | 'DELETE',
   url: string,
   body: unknown,
+  opts: { headers?: Record<string, string>; signal?: AbortSignal; timeoutMs?: number } = {},
+  attempt = 0,
+): Promise<Record<string, unknown>> {
+  return sendBody(
+    service,
+    method,
+    url,
+    body === undefined ? undefined : JSON.stringify(body),
+    'application/json',
+    opts,
+    attempt,
+  );
+}
+
+/** The shared write path. `body` is already encoded; `contentType` describes it. */
+async function sendBody(
+  service: ApiService,
+  method: 'POST' | 'PUT' | 'DELETE',
+  url: string,
+  body: string | undefined,
+  contentType: string,
   opts: { headers?: Record<string, string>; signal?: AbortSignal; timeoutMs?: number } = {},
   attempt = 0,
 ): Promise<Record<string, unknown>> {
@@ -185,11 +242,11 @@ export async function sendJson(
         method,
         headers: {
           Accept: 'application/json',
-          'Content-Type': 'application/json',
+          'Content-Type': contentType,
           'User-Agent': USER_AGENT,
           ...headers,
         },
-        body: body === undefined ? undefined : JSON.stringify(body),
+        body,
         signal: ctrl.signal,
       });
     } catch (e) {
@@ -209,7 +266,7 @@ export async function sendJson(
         if (waitMs !== null) {
           await sleep(waitMs);
           if (signal?.aborted) throw new ApiError(service, 'aborted', 'aborted');
-          return sendJson(service, method, url, body, opts, attempt + 1);
+          return sendBody(service, method, url, body, contentType, opts, attempt + 1);
         }
         throw new ApiError(service, 'rate_limit', `HTTP 429`, 429, detail);
       }
@@ -236,7 +293,7 @@ export async function sendJson(
  * connection. Both APIs were verified to answer HEAD with 200 and 0 bytes.
  */
 export async function probe(
-  service: 'inat' | 'gbif',
+  service: ApiService,
   url: string,
   signal?: AbortSignal,
   timeoutMs: number = DEFAULT_TIMEOUT_MS,

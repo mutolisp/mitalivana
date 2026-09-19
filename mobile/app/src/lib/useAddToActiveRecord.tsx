@@ -49,6 +49,7 @@ type PlotTarget = {
 
 function headerOf(sp: SearchResult): PlotModalHeader {
   return {
+    taxonId: sp.taxon_id,
     cname: sp.cname ?? '',
     name: sp.name,
     author: sp.fullname.replace(sp.name, '').trim(),

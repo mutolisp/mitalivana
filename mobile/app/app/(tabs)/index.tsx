@@ -76,6 +76,7 @@ import { selectionKey, useRecordSelection } from '~/stores/recordSelection';
 import { useSettings, type RecordsLayout } from '~/stores/settings';
 import { useToast } from '~/stores/toast';
 import { ACTION_FILL } from '~/lib/colors';
+import { useTabBarInset } from '~/lib/tabBarLayout';
 
 type Filter = 'all' | RecordKind;
 type ViewMode = 'flat' | 'byProject';
@@ -292,6 +293,7 @@ function buildFlatRows(
 
 export default function RecordsListScreen() {
   const router = useRouter();
+  const tabBarInset = useTabBarInset();
   const { t } = useTranslation();
   const sheetInsets = useSafeAreaInsets();
   const filterLabel: Record<Filter, string> = {
@@ -1155,7 +1157,9 @@ export default function RecordsListScreen() {
           // — "pass a prop that is not === after updates, otherwise your UI
           // may not update on changes").
           extraData={selectionEpoch}
-          contentContainerClassName="pt-2 pb-4"
+          // Bottom padding clears the floating tab bar, which overlays the
+          // scene instead of reserving space below it.
+          contentContainerStyle={{ paddingTop: 8, paddingBottom: tabBarInset + 16 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
           renderItem={({ item: row }) => {
             const showProject = viewMode === 'byProject';

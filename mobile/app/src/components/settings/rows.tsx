@@ -120,6 +120,11 @@ export function LinkRow({
  * The option values stay `T` at the call site — `settings.set('undo_duration')`
  * wants a number — and are converted at the primitive boundary, which only
  * speaks strings.
+ *
+ * `portalHost` names a <PortalHost> to render the popover into. Needed inside
+ * an RN <Modal>: the default host lives in app/_layout.tsx, which a Modal
+ * covers, so the popover would open behind it. Callers there put a named
+ * <PortalHost> inside the Modal and pass its name here.
  */
 export function SelectRow<T extends string | number>({
   label,
@@ -130,6 +135,7 @@ export function SelectRow<T extends string | number>({
   disabled = false,
   divider = true,
   description,
+  portalHost,
 }: {
   label: string;
   value: T;
@@ -139,6 +145,7 @@ export function SelectRow<T extends string | number>({
   disabled?: boolean;
   divider?: boolean;
   description?: string;
+  portalHost?: string;
 }) {
   const current = options.find((o) => o.value === value);
   const selected = current ? { value: String(current.value), label: current.label } : undefined;
@@ -157,7 +164,7 @@ export function SelectRow<T extends string | number>({
       >
         <SelectValue placeholder={String(value)} />
       </SelectTrigger>
-      <SelectContent>
+      <SelectContent portalHost={portalHost}>
         {options.map((o) => (
           <SelectItem key={String(o.value)} value={String(o.value)} label={o.label} />
         ))}

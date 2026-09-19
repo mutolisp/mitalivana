@@ -1,11 +1,12 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack } from 'expo-router';
+import { Stack, usePathname } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useTranslation } from 'react-i18next';
 import { View } from 'react-native';
 import { SystemBars } from 'react-native-edge-to-edge';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { PortalHost } from '@rn-primitives/portal';
+import { basemapIsDark } from '~/lib/basemap';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import 'react-native-reanimated';
@@ -18,6 +19,7 @@ import { FontScaleProvider } from '~/components/FontScaleProvider';
 import { StalePlotWatcher } from '~/components/StalePlotWatcher';
 import { StaleSessionWatcher } from '~/components/StaleSessionWatcher';
 import { GbifLookupHost } from '~/components/GbifLookupHost';
+import { GoogleDeviceCodeHost } from '~/components/GoogleDeviceCodeHost';
 import { InatTokenHost } from '~/components/InatTokenHost';
 import { TextPromptHost } from '~/components/TextPromptModal';
 import { ToastHost } from '~/components/ToastHost';
@@ -25,6 +27,7 @@ import { useThemeSync } from '~/hooks/useThemeSync';
 import { useI18nSync } from '~/hooks/useI18nSync';
 import { useActivePlot } from '~/stores/activePlot';
 import { useActiveSession } from '~/stores/activeSession';
+import { useSettings } from '~/stores/settings';
 
 // Keep the native splash visible until DBProvider signals ready (see below).
 // Done at module-evaluation time so the splash doesn't auto-hide between
@@ -66,6 +69,15 @@ function ThemedShell() {
   const session = useActiveSession((s) => s.session);
   const plot = useActivePlot((s) => s.plot);
   const hasActive = Boolean(session || plot);
+  // The map draws to the top edge. Its overlays already position themselves at
+  // `insets.top + 8`, so the spacer was not just letterboxing the map — it was
+  // pushing those controls down by a second full inset. The 「記錄中」 bar still
+  // wins when it is showing: it is information the surveyor needs, and it
+  // carries its own inset padding.
+  const fullBleedTop = usePathname() === '/map';
+  // Full-bleed puts the system clock straight onto the tiles, so the icon
+  // colour has to follow what is actually underneath rather than the app theme.
+  const mapBasemap = useSettings((s) => s.map_view.basemap);
 
   return (
     <ThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
@@ -76,7 +88,7 @@ function ThemedShell() {
               so the 「記錄中」 indicator never disappears mid-task. When
               no record is active a safe-area spacer fills the notch so
               tab content / stack headers don't sit under the status bar. */}
-          {hasActive ? <ActiveSessionBar /> : <TopSafeAreaSpacer />}
+          {hasActive ? <ActiveSessionBar /> : fullBleedTop ? null : <TopSafeAreaSpacer />}
           {/* Stale watchers run app-wide, not just on tabs, so a 13h
               session left unattended in 檢索表 runner still gets nagged. */}
           <StaleSessionWatcher />
@@ -104,6 +116,7 @@ function ThemedShell() {
             <Stack.Screen name="backup" options={{ title: t('nav.backup') }} />
             <Stack.Screen name="regionpacks" options={{ title: t('nav.regionPacks') }} />
             <Stack.Screen name="inaturalist" options={{ title: t('nav.inaturalist') }} />
+            <Stack.Screen name="gdrive" options={{ title: t('nav.gdrive') }} />
             <Stack.Screen name="inat-upload" options={{ title: t('nav.inatUpload') }} />
             <Stack.Screen name="report/[kind]/[id]" options={{ title: t('report.navTitle') }} />
           </Stack>
@@ -120,14 +133,28 @@ function ThemedShell() {
         <TextPromptHost />
         <GbifLookupHost />
         <InatTokenHost />
+        <GoogleDeviceCodeHost />
         <ActionSheetHost />
       </FontScaleProvider>
       {/* Active record → green ActiveSessionBar covers status bar → need
-          'light' icons. Otherwise follow theme. Edge-to-edge mode makes
-          both status AND nav bars transparent overlays, so we use
-          `<SystemBars>` (from react-native-edge-to-edge) which controls
-          icon colour on BOTH bars at once. */}
-      <SystemBars style={hasActive ? 'light' : isDark ? 'light' : 'dark'} />
+          'light' icons. On the full-bleed map the aerial basemaps put dark
+          imagery there instead, so they force 'light' too — `standard` and
+          `terrain` are pale (or already theme-following) and are left to the
+          theme. Otherwise follow theme. Edge-to-edge mode makes both status
+          AND nav bars transparent overlays, so we use `<SystemBars>` (from
+          react-native-edge-to-edge) which controls icon colour on BOTH bars
+          at once. */}
+      <SystemBars
+        style={
+          hasActive
+            ? 'light'
+            : fullBleedTop && basemapIsDark(mapBasemap)
+              ? 'light'
+              : isDark
+                ? 'light'
+                : 'dark'
+        }
+      />
     </ThemeProvider>
   );
 }

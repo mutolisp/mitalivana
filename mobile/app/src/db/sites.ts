@@ -122,14 +122,14 @@ export function deleteSite(id: number): void {
 }
 
 /**
- * Drop a site only when nothing points at it any more.
+ * How many records point at this site: 名錄 bindings, 樣區 bindings, plus the
+ * site's own `session_id` (meaning "a 名錄 created it").
  *
- * Used by record import: re-importing the same record over itself creates a
- * fresh site row, so the one the previous copy was bound to would pile up on
- * every re-import. It may however be a site the user drew and shares with
- * other records, so check all three references before deleting.
+ * More than one matters for editing, not just deleting: copying or merging a
+ * 樣區 leaves two plots on the same site row, and overwriting its geometry
+ * would silently redraw the other one's boundary too.
  */
-export function deleteSiteIfUnreferenced(id: number): void {
+export function countSiteReferences(id: number): number {
   const db = getUserDb();
   const res = db.executeSync(
     `SELECT
@@ -138,8 +138,19 @@ export function deleteSiteIfUnreferenced(id: number): void {
        (SELECT COUNT(*) FROM sites WHERE id = ? AND session_id IS NOT NULL) AS refs`,
     [id, id, id],
   );
-  const refs = Number((res.rows?.[0] as { refs?: number } | undefined)?.refs ?? 0);
-  if (refs === 0) deleteSite(id);
+  return Number((res.rows?.[0] as { refs?: number } | undefined)?.refs ?? 0);
+}
+
+/**
+ * Drop a site only when nothing points at it any more.
+ *
+ * Used by record import: re-importing the same record over itself creates a
+ * fresh site row, so the one the previous copy was bound to would pile up on
+ * every re-import. It may however be a site the user drew and shares with
+ * other records, so check all three references before deleting.
+ */
+export function deleteSiteIfUnreferenced(id: number): void {
+  if (countSiteReferences(id) === 0) deleteSite(id);
 }
 
 /** A site as carried by an exported record yml (`site:` block). Geometry is a

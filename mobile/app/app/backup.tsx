@@ -17,17 +17,49 @@ import {
 import { listSafetyBackups } from '~/db';
 import type { ExportFile } from '~/lib/bundleExport';
 import { ACTION_FILL } from '~/lib/colors';
+import {
+  backupTooNew,
+  driveErrorMessage,
+  driveProgressLabel,
+  listDriveBackups,
+  restoreFromDrive,
+  runDriveBackup,
+  useDriveBackup,
+  type DriveFile,
+} from '~/lib/driveBackup';
+import { formatBytes } from '~/lib/exportSize';
+import { useDriveState } from '~/lib/driveState';
+import { GoogleAuthCancelled, GoogleCodeExpired } from '~/lib/googleAuth';
+import { useToast } from '~/stores/toast';
 
-type Busy = null | 'backup' | 'photos' | 'restore';
+type Busy = null | 'backup' | 'photos' | 'restore' | 'drive' | 'cloudList' | 'cloudRestore';
+
+/** 雲端備份列的標題：建立時間讀不到才退回檔名。 */
+function cloudLabel(f: DriveFile): string {
+  const ms = f.meta.createdAtMs ?? f.createdAtMs;
+  return ms ? new Date(ms).toLocaleString() : f.name;
+}
 
 export default function BackupScreen() {
   const { t } = useTranslation();
+  const toast = useToast((s) => s.show);
   const [busy, setBusy] = useState<Busy>(null);
   const [progress, setProgress] = useState('');
   // 國家名錄 pack 是可重新下載的 GBIF 資料,預設不進備份;有 pack 才顯示開關。
   const [includePacks, setIncludePacks] = useState(false);
   const [packsExist, setPacksExist] = useState(false);
   useEffect(() => setPacksExist(hasRegionPacks()), []);
+
+  // 雲端備份狀態。lastUploadAtMs 存在 app 私有檔案而非 settings 表,所以從別台
+  // 還原回來的裝置會正確顯示「尚未備份」而不是繼承對方的時間。
+  const driveProgress = useDriveBackup((s) => s.progress);
+  const lastUploadAtMs = useDriveState((s) => s.lastUploadAtMs);
+  const loadDriveState = useDriveState((s) => s.load);
+  // null = 還沒列出過（不是「列出來是空的」,那是 []）。
+  const [cloud, setCloud] = useState<DriveFile[] | null>(null);
+  useEffect(() => {
+    void loadDriveState();
+  }, [loadDriveState]);
 
   // 自動安全備份：cleanup.ts 在執行會改寫既有列的修復前留下的快照。
   // 它們寫在 app 私有目錄，DocumentPicker 看不到，所以必須由這一頁提供入口，
@@ -119,6 +151,66 @@ export default function BackupScreen() {
     }
   };
 
+  const handleDriveUpload = async () => {
+    if (busy) return;
+    try {
+      setBusy('drive');
+      // interactive: the user pressed a button and is watching, so an
+      // unlinked account should open the code sheet rather than fail.
+      const ran = await runDriveBackup({
+        interactive: true,
+        includePacks: packsExist && includePacks,
+      });
+      if (ran) toast(t('gdrive.uploadDone'));
+    } catch (e) {
+      // Backing out of the authorization sheet is a decision, not a failure.
+      if (e instanceof GoogleAuthCancelled) return;
+      const msg =
+        e instanceof GoogleCodeExpired ? t('gdrive.codeExpired') : await driveErrorMessage(e);
+      Alert.alert(t('gdrive.uploadFailed', { msg }));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleListCloud = async () => {
+    if (busy) return;
+    try {
+      setBusy('cloudList');
+      const files = await listDriveBackups({ interactive: true });
+      setCloud(files);
+    } catch (e) {
+      if (e instanceof GoogleAuthCancelled) return;
+      Alert.alert(t('gdrive.listFailed', { msg: await driveErrorMessage(e) }));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleCloudRestore = async (f: DriveFile) => {
+    if (busy) return;
+    const confirm = await showActionSheet({
+      title: t('backup.restoreTitle'),
+      message: t('backup.restoreMsg'),
+      options: [{ label: t('backup.restoreConfirm'), destructive: true }],
+    });
+    if (confirm !== 0) return;
+    try {
+      setBusy('cloudRestore');
+      setProgress('');
+      // On success this reloads the app, so control won't return here.
+      await restoreFromDrive(f, (received, total) =>
+        setProgress(
+          t('gdrive.downloading', { pct: total ? Math.round((received / total) * 100) : 0 }),
+        ),
+      );
+    } catch (e) {
+      setBusy(null);
+      setProgress('');
+      Alert.alert(t('backup.restoreFailed'), await driveErrorMessage(e));
+    }
+  };
+
   const handleRestore = async () => {
     if (busy) return;
     try {
@@ -171,6 +263,26 @@ export default function BackupScreen() {
         </Section>
 
         <Section
+          icon="cloud-outline"
+          title={t('gdrive.cloudBackupTitle')}
+          desc={t('gdrive.cloudBackupDesc')}
+        >
+          <ActionButton
+            label={t('gdrive.uploadNow')}
+            onPress={handleDriveUpload}
+            busy={busy === 'drive'}
+            disabled={busy !== null}
+          />
+          <Text className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+            {busy === 'drive' && driveProgress
+              ? driveProgressLabel(driveProgress)
+              : lastUploadAtMs
+                ? t('gdrive.lastUpload', { date: new Date(lastUploadAtMs).toLocaleString() })
+                : t('gdrive.neverUploaded')}
+          </Text>
+        </Section>
+
+        <Section
           icon="images-outline"
           title={t('backup.photoBackupTitle')}
           desc={t('backup.photoBackupDesc')}
@@ -200,6 +312,67 @@ export default function BackupScreen() {
             disabled={busy !== null}
             destructive
           />
+        </Section>
+
+        <Section
+          icon="cloud-download-outline"
+          title={t('gdrive.cloudRestoreTitle')}
+          desc={t('gdrive.cloudRestoreDesc')}
+        >
+          <ActionButton
+            label={t('gdrive.listBackups')}
+            onPress={handleListCloud}
+            busy={busy === 'cloudList'}
+            disabled={busy !== null}
+          />
+          {busy === 'cloudRestore' && progress ? (
+            <Text className="mt-2 text-xs text-gray-500 dark:text-gray-400">{progress}</Text>
+          ) : null}
+          {cloud?.length === 0 ? (
+            <Text className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+              {t('gdrive.listEmpty')}
+            </Text>
+          ) : null}
+          {cloud?.map((f) => {
+            const tooNew = backupTooNew(f);
+            return (
+              <View
+                key={f.id}
+                className="mt-2 flex-row items-center justify-between rounded-lg border border-gray-200 px-3 py-2 dark:border-gray-700"
+              >
+                <View className="flex-1 pr-2">
+                  <Text className="text-sm text-gray-900 dark:text-gray-100" numberOfLines={1}>
+                    {cloudLabel(f)}
+                  </Text>
+                  <Text className="text-xs text-gray-500 dark:text-gray-400">
+                    {t('gdrive.backupMeta', {
+                      size: f.sizeBytes != null ? formatBytes(f.sizeBytes) : '—',
+                      appVersion: f.meta.appVersion ?? '—',
+                    })}
+                  </Text>
+                </View>
+                {/* 版本比這個 build 新就在清單層擋下,不必先下載幾十 MB 才發現讀不了。 */}
+                {tooNew ? (
+                  // 短標籤,不是 backup.tooNew 那整句 —— 那句在 45% 寬的欄位裡會斷成五行。
+                  // 版本資訊已經在左邊那列,真的按下去時 restoreBackup 也會再擋一次。
+                  <Text className="text-xs font-medium text-amber-600 dark:text-amber-500">
+                    {t('gdrive.tooNewShort')}
+                  </Text>
+                ) : (
+                  <Pressable
+                    onPress={() => handleCloudRestore(f)}
+                    disabled={busy !== null}
+                    hitSlop={8}
+                    className="active:opacity-60"
+                  >
+                    <Text className="text-sm font-medium text-blue-600 dark:text-blue-400">
+                      {t('backup.restore')}
+                    </Text>
+                  </Pressable>
+                )}
+              </View>
+            );
+          })}
         </Section>
 
         {safety.length > 0 ? (

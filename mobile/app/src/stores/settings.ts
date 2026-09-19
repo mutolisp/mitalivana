@@ -52,6 +52,11 @@ export type PlotTab = 'env' | 'species';
  *  because that is the data it has none of yet. `plotId: 0` = nothing stored. */
 export type PlotTabState = { plotId: number; tab: PlotTab };
 export type RecordTypeDefault = 'session' | 'plot' | 'collection' | 'ask';
+
+/** Which side of the floating tab bar the ＋ button sits on. Left-handed users
+ *  reach the left edge with their thumb; the tab order mirrors with it so the
+ *  whole assembly reads outward from the ＋. */
+export type FabSide = 'right' | 'left';
 export type AnalysisFormat = 'vegan' | 'juice' | 'dwca';
 
 /** File format(s) the project bundle's research report is written as. */
@@ -125,6 +130,10 @@ type SettingsValues = {
   inat_login: string;
   /** Default geoprivacy for iNaturalist uploads; the upload page can override per batch. */
   inat_geoprivacy: Geoprivacy;
+  /** Email of the linked Google account, for display only. The refresh token
+   *  itself lives in SecureStore (googleAuth.ts), never here — settings ride
+   *  along into backup zips and a credential must not. */
+  gdrive_account: string;
   /** 樣區物種頁的多樣性統計卡展開狀態。 */
   plot_stats_expanded: boolean;
   /** Heading printed at the top of every herbarium label, e.g. "Flora of
@@ -150,6 +159,7 @@ type SettingsValues = {
    *  user left it rather than back on 環境 every time. */
   plot_last_tab: PlotTabState;
   record_type_default: RecordTypeDefault;
+  fab_side: FabSide;
   /** Collection number (DwC recordNumber) prefix, e.g. 'CTL-'. '' for none. */
   collection_number_prefix: string;
   /** Floor for the collection number series, so an existing career series can
@@ -215,6 +225,7 @@ const DEFAULTS: SettingsValues = {
   gbif_notify_email: '',
   inat_login: '',
   inat_geoprivacy: 'open',
+  gdrive_account: '',
   plot_stats_expanded: false,
   collection_label_title: '',
   collection_label_family: false,
@@ -227,6 +238,7 @@ const DEFAULTS: SettingsValues = {
   map_view: DEFAULT_MAP_VIEW,
   plot_last_tab: { plotId: 0, tab: 'env' },
   record_type_default: 'ask',
+  fab_side: 'right',
   collection_number_prefix: '',
   collection_number_start: 1,
   collection_number_pad: 4,
@@ -329,6 +341,7 @@ function readAll(): SettingsValues {
     gbif_notify_email: map.get('gbif_notify_email') ?? DEFAULTS.gbif_notify_email,
     inat_login: map.get('inat_login') ?? DEFAULTS.inat_login,
     inat_geoprivacy: parseGeoprivacy(map.get('inat_geoprivacy')),
+    gdrive_account: map.get('gdrive_account') ?? DEFAULTS.gdrive_account,
     plot_stats_expanded: map.get('plot_stats_expanded') === 'true',
     collection_label_title: map.get('collection_label_title') ?? DEFAULTS.collection_label_title,
     collection_label_family:
@@ -346,6 +359,7 @@ function readAll(): SettingsValues {
     plot_last_tab: plotLastTab,
     record_type_default:
       (map.get('record_type_default') as RecordTypeDefault) ?? DEFAULTS.record_type_default,
+    fab_side: (map.get('fab_side') as FabSide) ?? DEFAULTS.fab_side,
     collection_number_prefix:
       map.get('collection_number_prefix') ?? DEFAULTS.collection_number_prefix,
     collection_number_start:

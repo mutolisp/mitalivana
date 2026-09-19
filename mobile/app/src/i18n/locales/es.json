@@ -307,10 +307,11 @@
     "collection": "Recolección",
     "regionPacks": "Listas regionales",
     "inaturalist": "Cuenta de iNaturalist",
+    "gdrive": "Google Drive",
     "inatUpload": "Subir a iNaturalist"
   },
   "tab": {
-    "menu": "Menú",
+    "menu": "Ajustes",
     "map": "Mapa",
     "records": "Registros",
     "species": "Especies"
@@ -591,7 +592,12 @@
     "coverPartial": "La cobertura del suelo suma {{sum}}% ({{filled}}/{{total}} introducidos; el último se calcula automáticamente)",
     "coverOk": "La cobertura del suelo suma 100% ✓",
     "coverMismatch": "La cobertura del suelo suma {{sum}}%, debería ser 100%",
-    "manualCoord": "ubicado manualmente"
+    "manualCoord": "ubicado manualmente",
+    "rangeSection": "Límite de la parcela",
+    "rangeTitle": "Límite de la parcela",
+    "drawRange": "Dibujar el límite",
+    "editRange": "Volver a dibujar el límite",
+    "rangeHint": "Dibuja el contorno de la parcela en el mapa. Este límite es solo para los registros y las exportaciones; no sustituye al campo de tamaño."
   },
   "settings": {
     "sectionAppearance": "Apariencia e interacción",
@@ -616,6 +622,10 @@
     "languageSearch": "Buscar idioma",
     "languageSystem": "Según el sistema",
     "undoDuration": "Duración de deshacer",
+    "fabSide": "Lado del botón crear",
+    "fabSideDesc": "Muévelo a la izquierda si eres zurdo; el orden de pestañas se ajusta",
+    "fabSideRight": "Derecha",
+    "fabSideLeft": "Izquierda",
     "undoSeconds": "{{count}} s",
     "defaultCreate": "Ajustes de registro",
     "createAsk": "Preguntar cada vez",
@@ -677,7 +687,10 @@
     "nRows_other": "{{count}} filas",
     "inaturalist": "Cuenta de iNaturalist",
     "inaturalistDesc": "Vincula tu cuenta para subir registros con fotos o audio como observaciones",
-    "inaturalistLinked": "Vinculado: {{login}}"
+    "inaturalistLinked": "Vinculado: {{login}}",
+    "gdrive": "Google Drive",
+    "gdriveDesc": "Subir las copias de seguridad a tu Drive",
+    "gdriveLinked": "Vinculado: {{email}}"
   },
   "taxonomy": {
     "loadingTree": "Cargando el árbol taxonómico...",
@@ -777,7 +790,8 @@
     "exportTitle_other": "Exportar {{count}} sitios geográficos",
     "projectStats_one": "{{count}} sitio geográfico",
     "projectStats_many": "{{count}} sitios geográficos",
-    "projectStats_other": "{{count}} sitios geográficos"
+    "projectStats_other": "{{count}} sitios geográficos",
+    "deleteBoundMsg": "«{{name}}» se eliminará. Los registros que lo usan perderán su límite"
   },
   "map": {
     "basemapStandard": "Estándar",
@@ -821,6 +835,7 @@
     "savePosMsg": "Se actualizarán las coordenadas de «{{label}}»",
     "posUpdated": "Ubicación de la parcela actualizada",
     "sessionMarkerTitle": "Lista n.º {{id}}",
+    "clusterMembersTitle": "{{n}} registros en este punto",
     "notFound": "No se encontró «{{q}}»",
     "searchFailed": "Error en la búsqueda: {{error}}",
     "editPointTitle": "Editar el punto",
@@ -858,7 +873,16 @@
     "sessionSubtitle_other": "Lista de especies · {{count}} especies · {{project}}",
     "imported_one": "{{count}} sitio geográfico importado",
     "imported_many": "{{count}} sitios geográficos importados",
-    "imported_other": "{{count}} sitios geográficos importados"
+    "imported_other": "{{count}} sitios geográficos importados",
+    "trackNotYet": "sin recorrido aún",
+    "plotHandoffHint": "Dibujando el límite de la parcela {{plotid}}; se vinculará al guardar",
+    "saveRangeTitle": "Guardar el límite",
+    "rangeDefaultName": "Límite de {{plotid}}",
+    "boundPlotSite": "Límite vinculado a la parcela",
+    "siteOfPlot": "Límite de la parcela {{plotid}}",
+    "jumpToPlot": "Abrir esta parcela",
+    "redrawRange": "Volver a dibujar este límite",
+    "featureAction": "Acciones"
   },
   "keys": {
     "modeDichotomous": "Dicotómica",
@@ -1034,6 +1058,8 @@
     "emptyHintStratified": "Elija un estrato y después busque abajo para añadir especies",
     "hybridShort": "H",
     "subplotCoverHeight": "Cobertura / altura de cada estrato en esta subparcela",
+    "subplot": "Subparcela",
+    "layer": "Estrato",
     "cover": "Cob.",
     "height": "Alt.",
     "changeTaxon": "Cambiar de especie",
@@ -2063,5 +2089,49 @@
     "syncAuth": "La sesión de iNaturalist caducó; vuelve a vincular en Ajustes",
     "syncOffline": "Sin conexión: no se puede sincronizar",
     "busy": "Otra subida o sincronización de iNaturalist está en curso"
+  },
+  "gdrive": {
+    "intro": "Sube las copias de seguridad a tu propio Google Drive para recuperarlas en un teléfono nuevo.",
+    "scopeNote": "La aplicación solo ve los archivos que ella misma creó. El resto de tu Drive no es legible.",
+    "notConnected": "Sin vincular",
+    "connect": "Vincular cuenta de Google",
+    "connected": "Vinculado",
+    "connectedAs": "Vinculado: {{email}}",
+    "disconnect": "Desvincular",
+    "disconnectConfirmTitle": "¿Desvincular?",
+    "disconnectConfirmMsg": "La aplicación ya no podrá subir ni leer copias de seguridad en la nube. Las copias que ya están en tu Drive no se eliminan.",
+    "disconnected": "Cuenta desvinculada",
+    "linked": "Cuenta vinculada",
+    "linkFailed": "Error al vincular: {{msg}}",
+    "notConfigured": "No hay cliente OAuth configurado",
+    "notConfiguredHint": "Esta versión no incluye un cliente OAuth de Google, así que la copia en la nube no está disponible.",
+    "codeTitle": "Autorizar en el navegador",
+    "codeHint": "Abre la dirección de abajo, escribe este código y vuelve a la aplicación.",
+    "openBrowser": "Abrir página",
+    "copyCode": "Copiar código",
+    "codeCopied": "Código copiado",
+    "waiting": "Esperando la autorización…",
+    "codeExpiresIn": "El código caduca en {{time}}",
+    "codeExpired": "El código ha caducado; vuelve a vincular",
+    "cloudBackupTitle": "Copia en Google Drive",
+    "cloudBackupDesc": "Sube la copia de seguridad de datos a tu propio Drive. Las antiguas se reemplazan automáticamente.",
+    "uploadNow": "Subir a Google Drive",
+    "uploadingPacking": "Preparando…",
+    "uploadingProgress": "Subiendo {{pct}} %",
+    "uploadingRotating": "Ordenando copias antiguas…",
+    "uploadDone": "Copia guardada en Google Drive",
+    "uploadFailed": "Error al subir: {{msg}}",
+    "needLink": "Vincula primero una cuenta de Google",
+    "quotaFull": "No hay espacio suficiente en Google Drive",
+    "lastUpload": "Última copia en la nube: {{date}}",
+    "neverUploaded": "Aún no se ha subido a la nube",
+    "cloudRestoreTitle": "Restaurar desde Google Drive",
+    "cloudRestoreDesc": "Muestra las copias de seguridad de tu Drive, descarga una y restáurala. ⚠️ Reemplaza todos los datos actuales.",
+    "listBackups": "Ver copias en la nube",
+    "listEmpty": "Todavía no hay copias en tu Drive",
+    "listFailed": "No se pudo leer la lista: {{msg}}",
+    "backupMeta": "{{size}} · App {{appVersion}}",
+    "downloading": "Descargando {{pct}} %",
+    "tooNewShort": "Actualiza la app"
   }
 }
