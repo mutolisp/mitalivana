@@ -75,7 +75,8 @@ import {
   type PointCluster,
 } from '~/lib/mapCluster';
 import { SITE_TYPE_LABEL } from '~/lib/siteLabels';
-import { rudyAttribution, rudyTileCachePath } from '~/lib/rudymap';
+import { MapScaleBar } from '~/components/MapScaleBar';
+import { rudyTileCachePath } from '~/lib/rudymap';
 import { useRudyInstall } from '~/lib/rudymapInstall';
 import { useTabBarInset } from '~/lib/tabBarLayout';
 import { useSettings, type MapBasemap } from '~/stores/settings';
@@ -303,7 +304,7 @@ function basemapMeta(b: MapBasemap): (typeof BASEMAP_OPTIONS)[number] {
 }
 
 export default function MapScreen() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const initial = useSettings((s) => s.map_view);
   const setSetting = useSettings((s) => s.set);
   const settingsLoaded = useSettings((s) => s.loaded);
@@ -1698,23 +1699,11 @@ export default function MapScreen() {
         ) : null}
       </MapView>
 
-      {/* 版權標示。ODbL 與魯地圖的授權都要求標示來源，所以這一行在魯地圖底圖
-          啟用時是必要的，不是裝飾。文字讀自 installed.json 的 manifest —— 換一版
-          圖磚包若換了資料來源，不必發 app 版本就會跟著更新。
-          置左下並讓開原生的比例尺與浮動 tab bar。 */}
-      {rudyOn ? (
-        <Pressable
-          onPress={() => router.push('/settings/rudymap' as Href)}
-          style={{ bottom: tabBarInset + 6 }}
-          className="absolute left-2 rounded bg-white/75 px-1.5 py-0.5 dark:bg-black/60"
-        >
-          <Text className="text-[9px] leading-3 text-gray-700 dark:text-gray-300">
-            {rudyAttribution(rudyInstalled, i18n.language)}
-          </Text>
-        </Pressable>
-      ) : null}
+      {/* 比例尺。不用 <MapView showsScale>：那是 iOS Apple Maps 專用、Android
+          不支援，而且只在縮放手勢期間短暫出現。野外判讀距離要常駐。 */}
+      <MapScaleBar region={viewRegion} screenWidth={windowWidth} bottom={tabBarInset + 6} />
 
-      {/* Loading overlay — shown until MapView fires onMapReady (or 4s fallback) */}
+            {/* Loading overlay — shown until MapView fires onMapReady (or 4s fallback) */}
       {!mapReady ? (
         <View
           pointerEvents="none"

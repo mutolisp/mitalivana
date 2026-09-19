@@ -74,10 +74,12 @@ export function rudyTilesDir(): Directory {
  */
 export function ensureRudyRoot(): Directory {
   const root = rudyRoot();
-  if (!root.exists) {
-    root.create({ intermediates: true, idempotent: true });
-    excludeFromBackup(root.uri);
-  }
+  if (!root.exists) root.create({ intermediates: true, idempotent: true });
+  // **每次**都設，不是只在建立時設。原生模組可能在圖磚包裝好之後才隨新的
+  // dev client／app 版本進來（requireOptionalNativeModule 在那之前是靜默 no-op）；
+  // 只在建立時設的話，那些先安裝的使用者就永遠不會被排除，幾 GB 會一直留在
+  // iCloud 備份裡。設這個旗標是冪等的檔案屬性寫入，重複呼叫沒有代價。
+  excludeFromBackup(root.uri);
   return root;
 }
 
@@ -131,6 +133,17 @@ export function rudyAttribution(state: RudyInstalled | null, lang: string): stri
   const a = state?.manifest.attribution;
   if (!a) return '';
   return a[lang] ?? a['zh-TW'] ?? a['en'] ?? '';
+}
+
+/**
+ * 對**已經存在**的圖磚包補設備份排除旗標，不存在就什麼都不做。
+ *
+ * 補救「先裝好圖磚包、之後才升級到帶原生模組的版本」這條路徑：那些使用者
+ * 不會再經過 ensureRudyRoot()，沒有這一支就永遠不會被排除。App 啟動時呼叫一次。
+ */
+export function reapplyBackupExclusion(): void {
+  const root = rudyRoot();
+  if (root.exists) excludeFromBackup(root.uri);
 }
 
 /** 砍掉整包。呼叫端負責在此之後把底圖切回 standard。 */

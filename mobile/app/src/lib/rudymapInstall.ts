@@ -23,6 +23,7 @@ import {
   ensureRudyRoot,
   isPackReady,
   readInstalled,
+  reapplyBackupExclusion,
   rudyTilesDir,
   writeInstalled,
   type RudyChunk,
@@ -58,6 +59,8 @@ type RudyInstallState = {
 
 export const useRudyInstall = create<RudyInstallState>(() => {
   const installed = readInstalled();
+  // 補設備份排除旗標：圖磚包可能是在原生模組進來之前就裝好的。
+  if (installed) reapplyBackupExclusion();
   return { progress: null, installed, ready: isPackReady(installed) };
 });
 

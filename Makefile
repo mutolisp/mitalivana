@@ -130,6 +130,14 @@ QUALITY      := 90-100
 
 # text/symbol/line scale 放大是刻意的：圖磚是 256px，在 3× DPR 手機上會被放大算繪，
 # scale=1.0 的地名在野外單手操作時太小。實測體積只差 0.3%。
+#
+# hillshading-magnitude 是**乘以**主題檔自己的強度，不是絕對值。第一版從
+# MapsforgeSrv 範例抄了 2，等於把陰影加倍，把等高線整片糊掉（與山林日誌並排
+# 一看就知道）。1 = 尊重主題設定。
+#
+# hillshading-zoom-max=13：z14 以上完全不做陰影。那是等高線最需要乾淨的地方，
+# 而且 z14+z15 佔全部圖磚 95%，關掉等於整包少約 25%；縮小看山勢時 z13 以下
+# 仍有立體感。
 rudymap-config:
 	@test -d $(RUDY_SRC)/map   || { echo "缺 $(RUDY_SRC)/map，見 README 前置步驟 3"; exit 1; }
 	@test -d $(RUDY_SRC)/style || { echo "缺 $(RUDY_SRC)/style，見 README 前置步驟 3"; exit 1; }
@@ -137,7 +145,7 @@ rudymap-config:
 	@mkdir -p $(RUDY_DIR)/config/tasks
 	@printf 'terminate=true\nhost=127.0.0.1\nport=$(RUDY_PORT)\ncache-control=0\nrequestlog-format=\n' \
 		> $(RUDY_DIR)/config/server.properties
-	@printf 'mapfiles=%s/map\nworldmap=false\nlanguage=zh\nthemefile=%s/style/MOI_OSM.xml\nstyle=elmt-hiking\ndemfolder=%s/dem\nhillshading-algorithm=simple(0.4,1)\nhillshading-magnitude=2\ndevice-scale=1\nuser-scale=1\ntext-scale=1.25\nsymbol-scale=1.15\nline-scale=1.15\n' \
+	@printf 'mapfiles=%s/map\nworldmap=false\nlanguage=zh\nthemefile=%s/style/MOI_OSM.xml\nstyle=elmt-hiking\ndemfolder=%s/dem\nhillshading-algorithm=simple(0.4,1)\nhillshading-magnitude=1\nhillshading-zoom-max=13\ndevice-scale=1\nuser-scale=1\ntext-scale=1.25\nsymbol-scale=1.15\nline-scale=1.15\n' \
 		"$(abspath $(RUDY_SRC))" "$(abspath $(RUDY_SRC))" "$(abspath $(RUDY_SRC))" \
 		> $(RUDY_DIR)/config/tasks/rudy.properties
 	@echo "==> 設定已產生於 $(RUDY_DIR)/config"
