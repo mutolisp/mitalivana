@@ -202,7 +202,7 @@ def check_queries(
         check(bad_exact == 0, f"{ident}: 等值查詢結果相同", f"{bad_exact} 筆不同")
         check(bad_like == 0, f"{ident}: LIKE 查詢結果相同", f"{bad_like} 筆不同")
 
-        # (c) 分類樹的聚合（bundledScope 的 SQL 形狀）
+        # (c) 分類樹的聚合（nameScopes 逐模組跑的那段 SQL 形狀）
         a = master.execute(
             f"SELECT kingdom, count(DISTINCT genus) FROM {table} WHERE {scope} "
             f"AND usage_status='accepted' GROUP BY kingdom ORDER BY kingdom"

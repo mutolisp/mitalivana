@@ -715,7 +715,7 @@
     "openSource": "This app is open source. Species data is under the TaiCOL license.",
     "partners": "Partners",
     "mapData": "Map data",
-    "mapLicense": "Rudy Map is derived from OpenStreetMap and Taiwanese open government data. The vector edition in this app is a modified version and carries a different name to distinguish it."
+    "mapLicense": "RudyMap is derived from OpenStreetMap and Taiwanese open government data. The vector edition in this app is a modified version and carries a different name to distinguish it."
   },
   "plots": {
     "newPlot": "New plot",
@@ -839,8 +839,8 @@
     "jumpToPlot": "Open this plot",
     "redrawRange": "Redraw this boundary",
     "featureAction": "Actions",
-    "basemapRudyVector": "Rudy Map",
-    "basemapRudyVectorOffline": "Rudy Map (offline)"
+    "basemapRudyVector": "RudyMap",
+    "basemapRudyVectorOffline": "RudyMap (offline)"
   },
   "keys": {
     "modeDichotomous": "Dichotomous",
@@ -1222,6 +1222,16 @@
     "move": "Move",
     "moved": "Coordinate moved",
     "undo": "Undo"
+  },
+  "inatGrid": {
+    "toggle": "iNaturalist observations",
+    "checking": "Checking iNaturalist…",
+    "wild": "{{count}} wild observations on iNaturalist",
+    "captiveOnly": "Captive or cultivated records only ({{count}})",
+    "empty": "No iNaturalist observations for this species yet",
+    "unknown": "This scientific name is not in iNaturalist",
+    "offline": "Offline — the iNaturalist layer cannot load",
+    "attribution": "Observations © iNaturalist contributors; threatened species coordinates are obscured"
   },
   "collection": {
     "title": "Collection",
@@ -2070,10 +2080,10 @@
     "none": "No offline map installed, so no place data",
     "count": "{{count}} places shown",
     "zoomIn": "Zoom in to show places",
-    "source": "Data: Rudy Map POI (OpenStreetMap contributors)"
+    "source": "Data: RudyMap POI (OpenStreetMap contributors)"
   },
   "vectormap": {
-    "heading": "Rudy Map",
+    "heading": "RudyMap (Taiwan only)",
     "notInstalled": "Not downloaded (using online mode)",
     "installedAt": "Downloaded {{date}}",
     "version": "Version",
@@ -2083,7 +2093,7 @@
     "downloadingHillshade": "Downloading hillshade {{received}} / {{total}}",
     "downloadingAssets": "Downloading fonts and icons {{done}} / {{total}}",
     "cancel": "Cancel",
-    "remove": "Delete offline Rudy Map",
+    "remove": "Delete offline RudyMap",
     "removeConfirm": "This frees {{size}}. The map will switch back to online mode.",
     "onlineNote": "Online mode reads the remote map file directly and only fetches what you look at.",
     "error": "Download failed: {{message}}",

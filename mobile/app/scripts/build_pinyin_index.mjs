@@ -8,8 +8,8 @@
 // stay consistent. Uses Node's built-in node:sqlite (Node >= 22.5, stable in
 // Node 24+) so there is no native build dependency.
 //
-// Usage (from repo root, so MOBILE_DB resolves; pinyin-pro resolved from
-// mobile/app/node_modules relative to this script):
+// Usage (from repo root; the DB path is an explicit argument, and pinyin-pro
+// resolves from mobile/app/node_modules relative to this script):
 //   node mobile/app/scripts/build_pinyin_index.mjs dist/datasets/tw-taicol.db
 //   （由 backend/scripts/datasets/build_datasets.py 自動呼叫；名錄已不隨 app 出貨）
 

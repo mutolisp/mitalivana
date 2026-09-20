@@ -715,7 +715,7 @@
     "openSource": "Diese App ist Open Source. Die Artdaten stehen unter der TaiCOL-Lizenz.",
     "partners": "Partner",
     "mapData": "Kartendaten",
-    "mapLicense": "Rudy Map ist ein abgeleitetes Werk aus OpenStreetMap und offenen Behördendaten Taiwans. Die Vektorausgabe in dieser App ist eine bearbeitete Fassung und trägt zur Unterscheidung einen anderen Namen."
+    "mapLicense": "RudyMap ist ein abgeleitetes Werk aus OpenStreetMap und offenen Behördendaten Taiwans. Die Vektorausgabe in dieser App ist eine bearbeitete Fassung und trägt zur Unterscheidung einen anderen Namen."
   },
   "plots": {
     "newPlot": "Neue Probefläche",
@@ -839,8 +839,8 @@
     "jumpToPlot": "Diese Probefläche öffnen",
     "redrawRange": "Diese Grenze neu zeichnen",
     "featureAction": "Aktionen",
-    "basemapRudyVector": "Rudy Map",
-    "basemapRudyVectorOffline": "Rudy Map (offline)"
+    "basemapRudyVector": "RudyMap",
+    "basemapRudyVectorOffline": "RudyMap (offline)"
   },
   "keys": {
     "modeDichotomous": "Dichotom",
@@ -1222,6 +1222,16 @@
     "move": "Verschieben",
     "moved": "Koordinate verschoben",
     "undo": "Rückgängig"
+  },
+  "inatGrid": {
+    "toggle": "iNaturalist-Beobachtungen",
+    "checking": "iNaturalist wird abgefragt …",
+    "wild": "{{count}} Wildbeobachtungen auf iNaturalist",
+    "captiveOnly": "Nur Nachweise aus Haltung oder Kultur ({{count}})",
+    "empty": "Noch keine iNaturalist-Beobachtungen für diese Art",
+    "unknown": "Dieser wissenschaftliche Name fehlt in iNaturalist",
+    "offline": "Offline – die iNaturalist-Ebene kann nicht geladen werden",
+    "attribution": "Beobachtungen © iNaturalist-Mitwirkende; Koordinaten bedrohter Arten werden unscharf dargestellt"
   },
   "collection": {
     "title": "Aufsammlung",
@@ -2070,10 +2080,10 @@
     "none": "Keine Offline-Karte installiert, daher keine Ortsdaten",
     "count": "{{count}} Orte angezeigt",
     "zoomIn": "Hineinzoomen, um Orte zu sehen",
-    "source": "Daten: Rudy Map POI (OpenStreetMap-Mitwirkende)"
+    "source": "Daten: RudyMap POI (OpenStreetMap-Mitwirkende)"
   },
   "vectormap": {
-    "heading": "Rudy Map",
+    "heading": "RudyMap (nur Taiwan)",
     "notInstalled": "Nicht heruntergeladen (Online-Modus)",
     "installedAt": "Heruntergeladen am {{date}}",
     "version": "Version",
@@ -2083,7 +2093,7 @@
     "downloadingHillshade": "Schummerung wird geladen {{received}} / {{total}}",
     "downloadingAssets": "Schriften und Symbole werden geladen {{done}} / {{total}}",
     "cancel": "Abbrechen",
-    "remove": "Offline-Rudy-Map löschen",
+    "remove": "Offline-RudyMap löschen",
     "removeConfirm": "Gibt {{size}} frei. Die Karte wechselt zurück in den Online-Modus.",
     "onlineNote": "Im Online-Modus wird die entfernte Kartendatei direkt gelesen; geladen wird nur der sichtbare Bereich.",
     "error": "Download fehlgeschlagen: {{message}}",

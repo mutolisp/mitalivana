@@ -751,7 +751,7 @@
     "openSource": "Cette app est un projet open source. Les données d'espèces sont soumises à la licence TaiCOL.",
     "partners": "Partenaires",
     "mapData": "Données cartographiques",
-    "mapLicense": "Rudy Map est une œuvre dérivée d'OpenStreetMap et des données publiques ouvertes de Taïwan. La version vectorielle de cette application est une version modifiée et porte un nom différent pour la distinguer."
+    "mapLicense": "RudyMap est une œuvre dérivée d'OpenStreetMap et des données publiques ouvertes de Taïwan. La version vectorielle de cette application est une version modifiée et porte un nom différent pour la distinguer."
   },
   "plots": {
     "newPlot": "Nouvelle placette",
@@ -885,8 +885,8 @@
     "jumpToPlot": "Ouvrir cette placette",
     "redrawRange": "Retracer cette limite",
     "featureAction": "Actions",
-    "basemapRudyVector": "Rudy Map",
-    "basemapRudyVectorOffline": "Rudy Map (hors ligne)"
+    "basemapRudyVector": "RudyMap",
+    "basemapRudyVectorOffline": "RudyMap (hors ligne)"
   },
   "keys": {
     "modeDichotomous": "Dichotomique",
@@ -1290,6 +1290,16 @@
     "move": "Déplacer",
     "moved": "Coordonnée déplacée",
     "undo": "Annuler"
+  },
+  "inatGrid": {
+    "toggle": "Observations iNaturalist",
+    "checking": "Consultation d’iNaturalist…",
+    "wild": "{{count}} observations sauvages sur iNaturalist",
+    "captiveOnly": "Uniquement des données de captivité ou de culture ({{count}})",
+    "empty": "Aucune observation iNaturalist pour cette espèce",
+    "unknown": "Ce nom scientifique est absent d’iNaturalist",
+    "offline": "Hors ligne — impossible de charger la couche iNaturalist",
+    "attribution": "Observations © contributeurs iNaturalist ; les coordonnées des espèces menacées sont floutées"
   },
   "collection": {
     "title": "Enregistrement de récolte",
@@ -2185,10 +2195,10 @@
     "none": "Aucune carte hors ligne installée, donc aucune donnée de lieux",
     "count": "{{count}} lieux affichés",
     "zoomIn": "Zoomez pour afficher les lieux",
-    "source": "Données : Rudy Map POI (contributeurs OpenStreetMap)"
+    "source": "Données : RudyMap POI (contributeurs OpenStreetMap)"
   },
   "vectormap": {
-    "heading": "Rudy Map",
+    "heading": "RudyMap (Taïwan uniquement)",
     "notInstalled": "Non téléchargée (mode en ligne)",
     "installedAt": "Téléchargée le {{date}}",
     "version": "Version",
@@ -2198,7 +2208,7 @@
     "downloadingHillshade": "Téléchargement de l'ombrage {{received}} / {{total}}",
     "downloadingAssets": "Téléchargement des polices et icônes {{done}} / {{total}}",
     "cancel": "Annuler",
-    "remove": "Supprimer la Rudy Map hors ligne",
+    "remove": "Supprimer la RudyMap hors ligne",
     "removeConfirm": "Libère {{size}}. La carte repassera en mode en ligne.",
     "onlineNote": "Le mode en ligne lit directement le fichier distant et ne récupère que la zone affichée.",
     "error": "Échec du téléchargement : {{message}}",

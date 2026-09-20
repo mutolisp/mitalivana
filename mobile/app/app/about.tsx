@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function AboutScreen() {
   const { t } = useTranslation();
-  const version = Constants.expoConfig?.version ?? '0.5.0';
+  const version = Constants.expoConfig?.version ?? '0.5.1';
 
   return (
     <SafeAreaView edges={['bottom']} className="flex-1 bg-gray-50 dark:bg-gray-950">

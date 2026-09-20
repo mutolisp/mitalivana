@@ -11,7 +11,7 @@
  * 下載完一定驗 **bytes + md5** 才換檔：截斷的 SQLite 檔開得起來，要到查詢時才炸
  * 「no such table」，那是最難追的失敗樣態（pmtiles 的註解也警告過同一件事）。
  */
-import { Directory, File, Paths } from 'expo-file-system';
+import { File, Paths } from 'expo-file-system';
 import { createDownloadResumable } from 'expo-file-system/legacy';
 import { Unzip, UnzipInflate } from 'fflate';
 import { create } from 'zustand';
@@ -25,7 +25,6 @@ import {
   type DatasetManifestEntryLike,
 } from '~/lib/datasetManifest';
 import {
-  DATASETS_DIR,
   allSpecs,
   backfillNameCache,
   ensureDatasetsDir,
@@ -283,19 +282,4 @@ export function removeDatasetSafely(id: DatasetId): RemovalImpact {
   const impact = backfillNameCache([id]);
   removeDataset(id);
   return impact;
-}
-
-/** 已安裝模組佔用的總空間（bytes），給設定頁顯示。 */
-export function installedDatasetsBytes(): number {
-  let total = 0;
-  for (const spec of allSpecs()) {
-    const rec = getInstall(spec.id);
-    if (rec) total += rec.bytes;
-  }
-  return total;
-}
-
-/** `Documents/datasets/` 目錄（診斷用；不建立任何東西）。 */
-export function datasetsDirUri(): string {
-  return new Directory(Paths.document, DATASETS_DIR).uri;
 }

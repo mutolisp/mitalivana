@@ -1155,6 +1155,16 @@
     "moved": "已移動座標",
     "undo": "復原"
   },
+  "inatGrid": {
+    "toggle": "iNaturalist 觀察分布",
+    "checking": "查詢 iNaturalist…",
+    "wild": "iNaturalist 野外觀察 {{count}} 筆",
+    "captiveOnly": "僅有圈養或栽培紀錄 {{count}} 筆",
+    "empty": "iNaturalist 尚無這個物種的觀察紀錄",
+    "unknown": "iNaturalist 沒有收錄這個學名",
+    "offline": "離線：無法載入 iNaturalist 圖層",
+    "attribution": "觀察資料 © iNaturalist 貢獻者；受威脅物種座標經模糊化"
+  },
   "collection": {
     "title": "採集記錄",
     "missing": "找不到這筆採集記錄",

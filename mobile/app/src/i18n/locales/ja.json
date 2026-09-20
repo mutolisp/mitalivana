@@ -679,7 +679,7 @@
     "openSource": "本アプリはオープンソースです。種データは TaiCOL のライセンスに従います。",
     "partners": "協力機関",
     "mapData": "地図データ",
-    "mapLicense": "魯地圖は OpenStreetMap と台湾のオープンガバメントデータの派生物です。本アプリのベクター版は改変版であり、区別のため別の名称を用いています。"
+    "mapLicense": "RudyMap は OpenStreetMap と台湾のオープンガバメントデータの派生物です。本アプリのベクター版は改変版であり、区別のため別の名称を用いています。"
   },
   "plots": {
     "newPlot": "新規調査区",
@@ -793,8 +793,8 @@
     "jumpToPlot": "この調査区を開く",
     "redrawRange": "この範囲を描き直す",
     "featureAction": "操作",
-    "basemapRudyVector": "Rudy Map",
-    "basemapRudyVectorOffline": "Rudy Map（オフライン）"
+    "basemapRudyVector": "RudyMap",
+    "basemapRudyVectorOffline": "RudyMap（オフライン）"
   },
   "keys": {
     "modeDichotomous": "二分岐",
@@ -1154,6 +1154,16 @@
     "move": "移動",
     "moved": "座標を移動しました",
     "undo": "元に戻す"
+  },
+  "inatGrid": {
+    "toggle": "iNaturalist の観察分布",
+    "checking": "iNaturalist を照会中…",
+    "wild": "iNaturalist の野生の観察 {{count}} 件",
+    "captiveOnly": "飼育・栽培の記録のみ {{count}} 件",
+    "empty": "iNaturalist にこの種の観察記録はまだありません",
+    "unknown": "この学名は iNaturalist に収録されていません",
+    "offline": "オフライン：iNaturalist のレイヤーを読み込めません",
+    "attribution": "観察データ © iNaturalist 投稿者；絶滅危惧種の座標はぼかされています"
   },
   "collection": {
     "title": "採集記録",
@@ -1955,10 +1965,10 @@
     "none": "オフライン地図が未インストールのため地点データがありません",
     "count": "{{count}} 件の地点を表示",
     "zoomIn": "拡大すると地点が表示されます",
-    "source": "データ：Rudy Map POI（OpenStreetMap 貢献者）"
+    "source": "データ：RudyMap POI（OpenStreetMap 貢献者）"
   },
   "vectormap": {
-    "heading": "Rudy Map",
+    "heading": "RudyMap（台湾のみ）",
     "notInstalled": "未ダウンロード（オンラインモード）",
     "installedAt": "{{date}} にダウンロード",
     "version": "バージョン",
@@ -1968,7 +1978,7 @@
     "downloadingHillshade": "陰影起伏をダウンロード中 {{received}} / {{total}}",
     "downloadingAssets": "フォントとアイコンをダウンロード中 {{done}} / {{total}}",
     "cancel": "キャンセル",
-    "remove": "オフライン Rudy Map を削除",
+    "remove": "オフライン RudyMap を削除",
     "removeConfirm": "{{size}} を解放します。オンラインモードに戻ります。",
     "onlineNote": "オンラインモードでは遠隔の地図ファイルを直接読み、表示範囲だけを取得します。",
     "error": "ダウンロード失敗：{{message}}",

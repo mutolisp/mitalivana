@@ -297,7 +297,7 @@ export function adoptLegacyBundle(): void {
   const present = new Set<string>();
   try {
     const res = db.executeSync(`SELECT name FROM sqlite_master WHERE type IN ('table','view')`);
-    for (const row of (res.rows ?? []) as Array<{ name?: string }>) {
+    for (const row of (res.rows ?? []) as { name?: string }[]) {
       if (row.name) present.add(row.name);
     }
   } catch {
@@ -511,12 +511,6 @@ export function invalidateDatasetCaches(): void {
 }
 
 // ── 安裝 / 更新 / 刪除 ──────────────────────────────────────────────────────
-
-export function markDatasetInstalled(rec: DatasetInstall): void {
-  state().set(rec.id, rec);
-  writeInstalls();
-  invalidateDatasetCaches();
-}
 
 /**
  * 把暫存檔換成某個模組的正式檔。

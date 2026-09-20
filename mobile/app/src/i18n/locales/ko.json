@@ -679,7 +679,7 @@
     "openSource": "이 앱은 오픈 소스입니다. 종 데이터는 TaiCOL 라이선스를 따릅니다.",
     "partners": "협력 기관",
     "mapData": "지도 데이터",
-    "mapLicense": "Rudy Map은 OpenStreetMap과 대만 공공데이터의 파생 저작물입니다. 이 앱의 벡터 버전은 수정본이며 구분을 위해 다른 이름을 사용합니다."
+    "mapLicense": "RudyMap은 OpenStreetMap과 대만 공공데이터의 파생 저작물입니다. 이 앱의 벡터 버전은 수정본이며 구분을 위해 다른 이름을 사용합니다."
   },
   "plots": {
     "newPlot": "새 조사구",
@@ -793,8 +793,8 @@
     "jumpToPlot": "이 조사구 열기",
     "redrawRange": "이 범위 다시 그리기",
     "featureAction": "작업",
-    "basemapRudyVector": "Rudy Map",
-    "basemapRudyVectorOffline": "Rudy Map (오프라인)"
+    "basemapRudyVector": "RudyMap",
+    "basemapRudyVectorOffline": "RudyMap (오프라인)"
   },
   "keys": {
     "modeDichotomous": "이분법",
@@ -1154,6 +1154,16 @@
     "move": "옮기기",
     "moved": "좌표를 옮겼습니다",
     "undo": "실행 취소"
+  },
+  "inatGrid": {
+    "toggle": "iNaturalist 관찰 분포",
+    "checking": "iNaturalist 조회 중…",
+    "wild": "iNaturalist 야생 관찰 {{count}}건",
+    "captiveOnly": "사육·재배 기록만 {{count}}건",
+    "empty": "iNaturalist에 이 종의 관찰 기록이 아직 없습니다",
+    "unknown": "이 학명은 iNaturalist에 없습니다",
+    "offline": "오프라인 — iNaturalist 레이어를 불러올 수 없습니다",
+    "attribution": "관찰 자료 © iNaturalist 기여자; 위협종 좌표는 흐리게 처리됩니다"
   },
   "collection": {
     "title": "채집 기록",
@@ -1955,10 +1965,10 @@
     "none": "오프라인 지도가 없어 지점 데이터가 없습니다",
     "count": "지점 {{count}}개 표시",
     "zoomIn": "확대하면 지점이 표시됩니다",
-    "source": "데이터: Rudy Map POI (OpenStreetMap 기여자)"
+    "source": "데이터: RudyMap POI (OpenStreetMap 기여자)"
   },
   "vectormap": {
-    "heading": "Rudy Map",
+    "heading": "RudyMap (대만 전용)",
     "notInstalled": "내려받지 않음 (온라인 모드)",
     "installedAt": "{{date}}에 내려받음",
     "version": "버전",
@@ -1968,7 +1978,7 @@
     "downloadingHillshade": "음영기복 내려받는 중 {{received}} / {{total}}",
     "downloadingAssets": "글꼴과 아이콘 내려받는 중 {{done}} / {{total}}",
     "cancel": "취소",
-    "remove": "오프라인 Rudy Map 삭제",
+    "remove": "오프라인 RudyMap 삭제",
     "removeConfirm": "{{size}}를 확보합니다. 온라인 모드로 돌아갑니다.",
     "onlineNote": "온라인 모드는 원격 지도 파일을 직접 읽어 보고 있는 범위만 가져옵니다.",
     "error": "내려받기 실패: {{message}}",

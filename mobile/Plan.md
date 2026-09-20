@@ -4024,3 +4024,62 @@ Android 刪掉那個檔。兩個目錄都在 `.gitignore`，所以 EAS 從 git �
 - 0.5.x 升級的 backfill 中途殺 app 能否續跑（順序已驗，中斷情境未驗）。
 - 刪模組後既有記錄仍顯示名稱；備份還原後模組不受影響。
 - `unresolved` 旗標目前只有資料層會設，UI 尚未顯示「名稱不可用」的灰字。
+
+## 2026-09-20 — 物種記錄小地圖疊 iNaturalist 觀察網格圖
+
+回答調查者站在現場的那個問題：**這個物種在這附近本來就有嗎**。`RecordLocationMap`
+（名錄物種調查 / 樣區物種的那張 184px 小地圖）多一個切換鈕，疊上該物種的 iNat 觀察
+網格圖。**預設關閉**——圖磚走行動網路，要不要花由使用者當下決定。
+
+### 決策與實測依據（勿憑記憶改）
+
+| 決策 | 理由 |
+|---|---|
+| 用 `grid` 不用 `heatmap` | 實測單張 2,835 B vs 39,026 B，而且方格聚合在 184px 下比模糊暈染易讀 |
+| 預設 `captive=false` | 野外調查看的是自然分布，植物園／行道樹／寵物的紀錄會誤導 |
+| 野外 0 筆但總數 > 0 → 改畫全部 | 只有栽培紀錄的物種若硬套 `captive=false` 會得到全空的圖，看起來像功能壞掉 |
+| 需要 taxon id 對照表 | 抽樣 30 個 TaiCOL 接受名，**只有 25 個（83%）iNat 有**；失敗的全是隱翅蟲、閻魔蟲、扁蚜等冷門類群。查不到是常態，**負快取是必需品** |
+
+API 事實（來源 `https://api.inaturalist.org/v1/swagger.json` 的 `info.description`）：
+瓦片 `/v1/{grid|heatmap|colored_heatmap|points}/{z}/{x}/{y}.png`，node-mapnik，XYZ；
+`/v1/observations?...&per_page=0` 只回 `total_results` 不回任何一筆；官方要求
+**≤60 req/min、<10,000 req/day**；瓦片不需認證也不需自訂 User-Agent，`Cache-Control: max-age=3600`。
+
+### 實作
+
+- `src/lib/inatHeatmap.ts`（純模組，Node 可測）：`pickHeatmapMode` / `gridTileUrl`。
+  **`{z}/{x}/{y}` 必須原樣留在字串裡**——那是給 `UrlTile` 的樣板，代入數字就是把圖層
+  寫死在一格上，而且不會報錯。`scripts/check-inat-heatmap.mjs` 釘住這件事。
+- `src/lib/inatApi.ts` 加 `fetchObservationCount`；**taxon 解析直接沿用既有的
+  `lookupTaxonId` + `pickTaxonMatch`**，沒有重寫。
+- user.db **v36 `inat_taxon_map`**：`inat_taxon_id IS NULL` 是負快取（查過、沒有），
+  與「還沒查過」（讀不到列）是兩件事。`obs_total IS NULL` 表示沒去問——野外筆數 > 0
+  時不需要，省一次請求。
+- `src/lib/useInatGrid.ts`：快取優先，`gi…` 的本地 id 連 autocomplete 都省掉。
+- UI：切換鈕放**左欄**（底圖切換下面）。右欄已經有五個鈕，184px 下第六個會被裁掉——
+  這是實機截圖才看到的。
+
+### 「不可以假裝在運作」的落點
+
+`src/lib/inat.ts:8` 那條規則在這裡有一個不明顯的陷阱：**快取讓筆數在離線時照樣顯示，
+但瓦片載不到**，螢幕上就是「1130 筆」配一張空地圖——看起來像「這附近沒有這個物種」。
+所以走快取且有東西要畫時，會做一次 HEAD `probe`（60 秒內全 app 共用一次），連不上就
+改顯示「離線：無法載入 iNaturalist 圖層」。**這個 bug 是實機測出來的，不是設計時想到的。**
+
+版權行同時註明 iNat 會模糊化受威脅物種座標——這是保育工具，不講會誤導判讀。
+
+### Android 模擬器驗證（皆有截圖）
+
+| 情境 | 結果 |
+|---|---|
+| 熊鷹 *Nisaetus nipalensis* | 網格圖出現在新竹／宜蘭／苗栗山區（中海拔森林，生態上合理），狀態行「野外觀察 1130 筆」 |
+| 快取 | `inat_taxon_map` 寫入 `(73104, 1130, NULL)`——`obs_total` 為 NULL 證明省請求那條路生效 |
+| *Stenus electrigemmatus* | 「iNaturalist 沒有收錄這個學名」，不掛圖層、不顯示版權；負快取寫入 `(NULL, 0, 0)` |
+| 離線（飛航模式） | 「離線：無法載入 iNaturalist 圖層」，不是空白圖層 |
+
+### 待辦
+
+- `captiveOnly` 分支只有單元測試覆蓋，還沒在實機上看過（要找一個 wild=0 的物種）。
+- 只鑑定到屬的記錄：已直接對 API 驗過屬階層可用（`Abies` id=54262），但沒在 app 裡走過。
+- iNat 與 TaiCOL 的**同義名不對應**：`pickTaxonMatch` 只做拼法正規化與消歧，不處理同義名，
+  所以某些物種的熱區圖會落在「另一個學名」上。已知限制。

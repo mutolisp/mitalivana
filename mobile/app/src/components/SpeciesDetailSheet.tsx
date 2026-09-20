@@ -484,6 +484,11 @@ export function SpeciesDetailSheet({
                               lng={record.lng}
                               accuracy={record.accuracy}
                               onChange={onChangeLocation}
+                              taxon={{
+                                localTaxonId: record.taxon_id,
+                                name: record.simple_name,
+                                kingdom: record.kingdom,
+                              }}
                             />
                           </View>
                         </GestureDetector>

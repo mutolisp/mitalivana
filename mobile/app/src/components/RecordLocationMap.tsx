@@ -17,13 +17,18 @@
  * a toast); manual placement carries no GPS accuracy, hence the `null` third
  * argument. Undo passes the previous accuracy back so restoring a GPS-measured
  * fix returns its uncertainty too, not just its latitude and longitude.
+ *
+ * - `taxon`（選用）開啟 iNaturalist 觀察網格圖：一個切換鈕疊出該物種在 iNat 上的
+ *   觀察分布，回答「這個物種在這附近本來就有嗎」。**預設關閉**，圖磚走行動網路。
+ *   狀態行不可省略——空的網格圖與「這裡沒有這個物種」在螢幕上長得一樣，那是野外
+ *   最不能有的歧義（見 useInatGrid.ts 的檔頭）。
  */
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, Modal, Pressable, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Modal, Pressable, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MapCanvas } from '~/components/map/MapCanvas';
-import type { LatLng, MapCamera, MapFeature, Region } from '~/components/map/types';
+import type { LatLng, MapCamera, MapFeature, RasterOverlay, Region } from '~/components/map/types';
 import { useSettings, type MapBasemap } from '~/stores/settings';
 import { basemapToMapType, nextBasemap } from '~/lib/basemap';
 import {
@@ -35,6 +40,7 @@ import {
   zoomBy,
 } from './MapControls';
 import { formatLatLng, parseLatLng } from '~/lib/coords';
+import { useInatGrid, type InatGridState, type InatGridTaxon } from '~/lib/useInatGrid';
 
 type Reference = { center?: { lat: number; lng: number } | null; radiusM?: number | null };
 
@@ -51,11 +57,17 @@ type Props = {
   onChange: (lat: number, lng: number, accuracy: number | null) => void;
   /** Optional plot context drawn as a faint reference (non-editable). */
   reference?: Reference;
+  /** 這筆記錄的物種。給了才會出現 iNaturalist 觀察網格圖的切換鈕。 */
+  taxon?: InatGridTaxon;
 };
+
+/** iNat 網格圖的圖層參數。zIndex 3 疊在 NLSC(1) / 中研院(2) 之上；grid 本來就依
+ *  zoom 聚合，再放大只換來更多瓦片請求，所以 maxZoom 收在 15。 */
+const INAT_OVERLAY = { id: 'inat-grid', opacity: 0.7, zIndex: 3, maxZoom: 15 } as const;
 
 const INLINE_HEIGHT = 184;
 
-export function RecordLocationMap({ lat, lng, accuracy = null, onChange, reference }: Props) {
+export function RecordLocationMap({ lat, lng, accuracy = null, onChange, reference, taxon }: Props) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const mapView = useSettings((s) => s.map_view);
@@ -206,6 +218,14 @@ export function RecordLocationMap({ lat, lng, accuracy = null, onChange, referen
 
   const cycleBasemap = () => setBasemap((b) => nextBasemap(b));
 
+  // iNat 觀察網格圖。關著的時候 useInatGrid 一個請求都不會送。
+  const gridOn = useSettings((s) => s.inat_grid_overlay);
+  const setSetting = useSettings((s) => s.set);
+  const { state: inatState, tileUrl: inatTileUrl } = useInatGrid(taxon, gridOn);
+  const inatOverlays: RasterOverlay[] | undefined = inatTileUrl
+    ? [{ ...INAT_OVERLAY, urlTemplate: inatTileUrl }]
+    : undefined;
+
   return (
     <View className="mt-2">
       <EditableMap
@@ -219,7 +239,10 @@ export function RecordLocationMap({ lat, lng, accuracy = null, onChange, referen
         onType={openEntry}
         rounded
         onExpand={() => setFullscreen(true)}
+        rasterOverlays={inatOverlays}
+        inat={taxon ? { on: gridOn, toggle: () => setSetting('inat_grid_overlay', !gridOn) } : undefined}
       />
+      {taxon ? <InatStatusLine state={inatState} on={gridOn} /> : null}
       {entryOpen ? (
         <View className="mt-2 rounded-lg border border-gray-300 p-2 dark:border-gray-600">
           <Text className="mb-1 text-[11px] text-gray-500 dark:text-gray-400">
@@ -322,6 +345,12 @@ export function RecordLocationMap({ lat, lng, accuracy = null, onChange, referen
               basemap={basemap}
               onCycleBasemap={cycleBasemap}
               onType={openEntry}
+              rasterOverlays={inatOverlays}
+              inat={
+                taxon
+                  ? { on: gridOn, toggle: () => setSetting('inat_grid_overlay', !gridOn) }
+                  : undefined
+              }
             />
           ) : null}
         </View>
@@ -341,6 +370,8 @@ function EditableMap({
   onType,
   rounded,
   onExpand,
+  rasterOverlays,
+  inat,
 }: {
   lat: number | null;
   lng: number | null;
@@ -352,6 +383,9 @@ function EditableMap({
   onType: () => void;
   rounded?: boolean;
   onExpand?: () => void;
+  rasterOverlays?: RasterOverlay[];
+  /** 給了才畫 iNat 切換鈕。`undefined` = 這張地圖沒有物種脈絡。 */
+  inat?: { on: boolean; toggle: () => void };
 }) {
   const { t } = useTranslation();
   const mapRef = useRef<MapCamera>(null);
@@ -405,6 +439,8 @@ function EditableMap({
           regionRef.current = r;
         }}
         onPress={place}
+        rasterOverlays={rasterOverlays}
+        overlayGeneration={basemap}
         showsUserLocation
         showsMyLocationButton={false}
         toolbarEnabled={false}
@@ -453,9 +489,19 @@ function EditableMap({
         ] satisfies MapFeature[]}
       />
 
-      {/* Basemap toggle (top-left) */}
-      <View className="absolute left-1.5 top-1.5">
+      {/* 圖層控制（左上）。iNat 疊圖放這裡而不是右欄：184px 高的地圖右側已經排了
+          五個鈕，第六個會被裁掉；而且「要顯示什麼」與底圖切換本來就是同一類。 */}
+      <View className="absolute left-1.5 top-1.5 gap-1.5">
         <BasemapToggle basemap={basemap} onPress={onCycleBasemap} />
+        {inat ? (
+          <View className="self-start">
+            <CtrlButton
+              icon={inat.on ? 'grid' : 'grid-outline'}
+              onPress={inat.toggle}
+              label={t('inatGrid.toggle')}
+            />
+          </View>
+        ) : null}
       </View>
 
       {/* Zoom + expand controls (top-right) */}
@@ -468,6 +514,67 @@ function EditableMap({
         <CtrlButton icon="locate" onPress={handleLocate} label={t('locMap.locateMe')} />
         <CtrlButton icon="keypad-outline" onPress={onType} label={t('locMap.enterTitle')} />
       </View>
+    </View>
+  );
+}
+
+/**
+ * iNat 網格圖的狀態行。
+ *
+ * **不可以省略。** 一張沒有資料的網格圖與一張「這個物種在這裡沒有紀錄」的網格圖
+ * 在螢幕上完全一樣，而兩者的意義天差地遠——`src/lib/inat.ts` 的檔頭把這件事寫成
+ * 一條規則：野外 app 絕不可以在沒有運作時看起來像在運作。所以離線、查無此物種、
+ * 沒有觀察，三種都各自明講。
+ *
+ * 版權與「受威脅物種座標經模糊化」一起放在這裡：iNat 會刻意模糊受威脅物種的位置，
+ * 不講的話這張圖對保育類的判讀會產生誤導。
+ */
+function InatStatusLine({ state, on }: { state: InatGridState; on: boolean }) {
+  const { t } = useTranslation();
+  // 關著就不說話——按鈕本身就是它的開關指示，沒必要再佔一行。
+  if (!on || state.kind === 'idle') return null;
+
+  if (state.kind === 'loading') {
+    return (
+      <View className="mt-1 flex-row items-center gap-1.5">
+        <ActivityIndicator size="small" />
+        <Text className="text-[11px] text-gray-400 dark:text-gray-500">
+          {t('inatGrid.checking')}
+        </Text>
+      </View>
+    );
+  }
+
+  const body =
+    state.kind === 'wild'
+      ? t('inatGrid.wild', { count: state.count })
+      : state.kind === 'captiveOnly'
+        ? t('inatGrid.captiveOnly', { count: state.count })
+        : state.kind === 'empty'
+          ? t('inatGrid.empty')
+          : state.kind === 'unknown'
+            ? t('inatGrid.unknown')
+            : state.kind === 'offline'
+              ? t('inatGrid.offline')
+              : state.message;
+  const warn = state.kind !== 'wild' && state.kind !== 'captiveOnly';
+
+  return (
+    <View className="mt-1">
+      <Text
+        className={
+          warn
+            ? 'text-[11px] text-amber-700 dark:text-amber-400'
+            : 'text-[11px] text-gray-500 dark:text-gray-400'
+        }
+      >
+        {body}
+      </Text>
+      {state.kind === 'wild' || state.kind === 'captiveOnly' ? (
+        <Text className="text-[10px] text-gray-400 dark:text-gray-500">
+          {t('inatGrid.attribution')}
+        </Text>
+      ) : null}
     </View>
   );
 }

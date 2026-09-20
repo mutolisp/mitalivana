@@ -741,7 +741,7 @@ if __name__ == "__main__":
         print(
             "建議：到對應 sheet 修正學名後，跑 "
             "`python -m backend.services.key_sheet_import <spreadsheet_id>` "
-            "重新匯入，再 `make mobile-db` 同步。"
+            "重新匯入，再 `make datasets` 重出名錄模組。"
         )
     else:
         print("檢索表 taxon_id 引用全部對應到新版 TaiCOL，無 stale 參照。")

@@ -22,5 +22,6 @@ export * from './keys';
 export * from './favorites';
 export * from './surveyors';
 export * from './externalTaxa';
+export * from './inatTaxonMap';
 export * from './inatSync';
 export * from './merge';

@@ -726,6 +726,15 @@ export function PlotSpeciesValueModal({
                               lng={lng ?? null}
                               accuracy={accuracy ?? null}
                               onChange={onChangeLocation}
+                              taxon={
+                                header
+                                  ? {
+                                      localTaxonId: header.taxonId,
+                                      name: header.name,
+                                      kingdom: header.kingdom,
+                                    }
+                                  : undefined
+                              }
                               reference={
                                 plotGeo && plotGeo.lat != null && plotGeo.lng != null
                                   ? {

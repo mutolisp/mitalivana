@@ -69,16 +69,6 @@ export function getEnabledRegions(): RegionCode[] {
   return requested.filter((r) => installed.includes(r));
 }
 
-export function jpEnabled(): boolean {
-  return isAvailable('jp-ylist');
-}
-
-/** Taiwan (bundled TaiCOL) is toggleable; everything TaiCOL-specific — the
- *  search leg, the taxonomy branch, all 檢索表 entry points — gates on this. */
-export function twEnabled(): boolean {
-  return isAvailable('tw-taicol');
-}
-
 /** 檢索表可用（模組已安裝、臺灣名錄也在、且 TW 已啟用）。所有 檢索表 UI 的
  *  單一守門。 */
 export function keysAvailable(): boolean {
@@ -198,7 +188,7 @@ export function crossRegionVernacular(
             WHERE taxon_id IN (${chunk.map(() => '?').join(',')})`,
           chunk,
         );
-        for (const row of (res.rows ?? []) as Array<{ taxon_id: string; sci_norm: string }>) {
+        for (const row of (res.rows ?? []) as { taxon_id: string; sci_norm: string }[]) {
           if (row.sci_norm) norms.set(row.taxon_id, row.sci_norm);
         }
       }
@@ -220,7 +210,7 @@ export function crossRegionVernacular(
               AND region = ? AND common_name_c IS NOT NULL`,
           [...chunk, spec.region],
         );
-        for (const row of (res.rows ?? []) as Array<{ sci_norm: string; common_name_c: string }>) {
+        for (const row of (res.rows ?? []) as { sci_norm: string; common_name_c: string }[]) {
           if (!row.common_name_c) continue;
           if (!byNorm.has(row.sci_norm)) byNorm.set(row.sci_norm, row.common_name_c);
         }

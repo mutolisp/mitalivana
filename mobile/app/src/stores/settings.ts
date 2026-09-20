@@ -191,6 +191,9 @@ type SettingsValues = {
    *  filter). On = predictions skewed to species likely at this location;
    *  off = vision-only. Default on, per user request. */
   ai_geomodel_filter: boolean;
+  /** 物種記錄小地圖上是否疊 iNaturalist 觀察網格圖。**預設關**：圖磚走行動網路，
+   *  野外的流量與電力都是有限資源，要不要花由使用者當下決定（見 useInatGrid.ts）。 */
+  inat_grid_overlay: boolean;
   /** Geo file formats to include in the export bundle. At least one entry is
    *  required; if the list ends up empty after restore we coerce to KML. */
   export_geo_formats: Array<'geojson' | 'gpx' | 'kml'>;
@@ -260,6 +263,7 @@ const DEFAULTS: SettingsValues = {
   key_recent_ids: [],
   key_runner_states: {},
   ai_geomodel_filter: true,
+  inat_grid_overlay: false,
   export_geo_formats: ['kml'],
   export_include_photos: true,
   export_include_docx: true,
@@ -393,6 +397,10 @@ function readAll(): SettingsValues {
       map.get('ai_geomodel_filter') == null
         ? DEFAULTS.ai_geomodel_filter
         : map.get('ai_geomodel_filter') === 'true',
+    inat_grid_overlay:
+      map.get('inat_grid_overlay') == null
+        ? DEFAULTS.inat_grid_overlay
+        : map.get('inat_grid_overlay') === 'true',
     export_geo_formats: parseGeoFormats(map.get('export_geo_formats')),
     export_include_photos:
       map.get('export_include_photos') == null

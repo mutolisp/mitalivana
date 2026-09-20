@@ -57,6 +57,25 @@ export async function lookupTaxonId(name: string, kingdom: string, signal?: Abor
 }
 
 /**
+ * 某個 taxon 的觀察筆數。未認證。
+ *
+ * `per_page=0` 讓 iNat 只回 `total_results`、`results` 是空陣列——拿一個數字不必
+ * 把任何一筆觀察拉下來（已對 api.inaturalist.org 實測）。`wildOnly` 對應
+ * `captive=false`，也就是排除圈養與栽培。
+ */
+export async function fetchObservationCount(
+  taxonId: number,
+  opts: { wildOnly?: boolean } = {},
+  signal?: AbortSignal,
+): Promise<number> {
+  const params: Record<string, string> = { taxon_id: String(taxonId), per_page: '0' };
+  if (opts.wildOnly) params.captive = 'false';
+  const json = await getJson('inat', `${API_V1}/observations?${qs(params)}`, signal);
+  const n = Number(json.total_results);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+/**
  * POST /v2/observations. `fields` is required to get anything back — v2
  * answers with the uuid alone otherwise. The response shape for creates has
  * not been observed in the wild yet, so both `{ results: [obs] }` and a bare

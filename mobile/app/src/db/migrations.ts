@@ -1111,6 +1111,34 @@ const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    // 物種記錄小地圖上的 iNaturalist 觀察網格圖，需要把學名換成 iNat 的 taxon id。
+    //
+    // 這張表是那次查詢的快取。**負快取（`inat_taxon_id IS NULL`）才是重點**：
+    // 實測 30 個 TaiCOL 接受名裡有 5 個 iNat 完全沒有（隱翅蟲、閻魔蟲、扁蚜這類
+    // backbone 未收的冷門類群），約 17%。沒有負快取的話，每次打開這些物種都會
+    // 白跑一次 autocomplete，而答案永遠是「沒有」。
+    //
+    // 放 user.db 而非名錄模組：它是查詢結果，跟著備份走合理，被「清除所有資料」
+    // 一起清掉也合理。`checked_at` 讓筆數過 30 天後重驗（見 inatHeatmap.ts）。
+    version: 36,
+    up: (db) => {
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS inat_taxon_map (
+          name TEXT NOT NULL,
+          kingdom TEXT NOT NULL DEFAULT '',
+          -- NULL = 查過、iNat 沒有這個名字（負快取），不是「還沒查」
+          inat_taxon_id INTEGER,
+          -- captive=false 的筆數
+          obs_wild INTEGER NOT NULL DEFAULT 0,
+          -- 未過濾的總筆數。NULL = 沒去問（obs_wild > 0 時不需要問，省一次請求）
+          obs_total INTEGER,
+          checked_at INTEGER NOT NULL,
+          PRIMARY KEY (name, kingdom)
+        );
+      `);
+    },
+  },
 ];
 
 /** Highest schema version this build knows how to produce. Backup/restore uses
