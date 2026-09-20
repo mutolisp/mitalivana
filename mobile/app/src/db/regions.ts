@@ -30,13 +30,15 @@ import type { RegionCode } from '~/stores/settings';
  */
 
 /**
- * 使用者「想要」哪些區域 —— 直接讀 settings 表，讓 DB 層不必依賴 React store。
- * 可能是 []（只用 pack）或 ['JP']；TW 是預設值而不是常數（store 的 parser 也
- * 同樣處理，兩邊要保持一致）。讀不到／壞掉 → ['TW']。
+ * Which regions the user *wants* — read straight from the settings table so the
+ * DB layer needs no React store. May be [] (packs only) or ['JP']; TW is a
+ * default rather than a constant (the store's parser does the same, and the two
+ * must agree). Unreadable or corrupt → ['TW'].
  *
- * 這是**意圖**，不是可用集合：名錄模組可以下載、刪除，所以「開了 JP 但還沒
- * 下載日本名錄」是正常狀態。區域設定畫面顯示這個；查詢要用
- * `getEnabledRegions()`。
+ * This is **intent**, not the usable set: checklist modules can be downloaded
+ * and deleted, so "JP enabled but the Japan checklist not downloaded yet" is a
+ * normal state. The region settings screen shows this; queries must use
+ * `getEnabledRegions()`.
  */
 export function getRequestedRegions(): RegionCode[] {
   try {
@@ -57,11 +59,12 @@ export function getRequestedRegions(): RegionCode[] {
 }
 
 /**
- * 實際可以查詢的區域 = 想要 ∩ 已安裝。
+ * The regions actually queryable = wanted ∩ installed.
  *
- * 交集只存在這一個函式裡：把一份寫著 ['TW','JP'] 的備份還原到只裝了臺灣名錄的
- * 裝置時，查詢安全（只會查 TW），而使用者的意圖仍然保留在 settings 裡，區域頁
- * 才能顯示「日本名錄已啟用但尚未下載」。
+ * The intersection lives in this one function: restoring a backup that says
+ * ['TW','JP'] onto a device with only the Taiwan checklist keeps queries safe
+ * (TW only) while the user's intent survives in settings, so the region screen
+ * can still show "Japan checklist enabled but not downloaded".
  */
 export function getEnabledRegions(): RegionCode[] {
   const requested = getRequestedRegions();
@@ -69,14 +72,14 @@ export function getEnabledRegions(): RegionCode[] {
   return requested.filter((r) => installed.includes(r));
 }
 
-/** 檢索表可用（模組已安裝、臺灣名錄也在、且 TW 已啟用）。所有 檢索表 UI 的
- *  單一守門。 */
+/** Identification keys are usable (module installed, Taiwan checklist present,
+ *  and TW enabled). The single gate for all key UI. */
 export function keysAvailable(): boolean {
   return isAvailable('tw-keys');
 }
 
-// registry 需要知道某個 region 是否被使用者要求，但它不能反過來 import 本檔
-// （會形成 cycle），所以在這裡註冊。
+// The registry needs to know whether a region was requested, but it cannot
+// import this file back (that would be a cycle), so it is registered here.
 configureRegionReader((region) => getRequestedRegions().includes(region));
 
 /** Where a taxon_id's data lives. The first character is the whole
@@ -96,8 +99,9 @@ export function isExternalTaxonId(taxonId: string | null | undefined): boolean {
 
 export function sourceOfTaxonId(taxonId: string | null | undefined): TaxonSource {
   if (isExternalTaxonId(taxonId)) return 'external';
-  // registry 是前綴 → 模組的唯一權威；未知前綴保留舊行為（當成 TaiCOL），
-  // 呼叫端拿到的仍是一個它處理得了的值。
+  // The registry is the sole authority for prefix → module; an unknown prefix
+  // keeps the old behaviour (treated as TaiCOL) so the caller still gets a value
+  // it can handle.
   const spec = datasetForTaxonId(taxonId ?? '');
   if (spec?.id === 'jp-ylist') return 'jp';
   return 'taicol';
@@ -116,7 +120,8 @@ export function regionOfTaxonId(taxonId: string | null | undefined): RegionCode 
 }
 
 /** Endemic-status tag text. YList `is_endemic` means *Japan*-endemic, so a 'y…'
- *  taxon must not borrow Taiwan's wording. TaiCOL keeps its existing "特有種". */
+ *  taxon must not borrow Taiwan's wording. TaiCOL keeps its existing
+ *  Taiwan-endemic label (`species.endemic`). */
 export function endemicTagLabel(taxonId: string | null | undefined): string {
   return isJpTaxonId(taxonId) ? i18n.t('species.japanEndemic') : i18n.t('species.endemic');
 }
@@ -127,7 +132,8 @@ export function normalizeSci(name: string | null | undefined): string {
   return (name ?? '').trim().replace(/\s+/g, ' ').toLowerCase().replace(/×/g, 'x');
 }
 
-/** SQLite 的變數上限預設 999；`getSpeciesUnder` 之類的呼叫端可能丟上千個 id。 */
+/** SQLite's variable limit defaults to 999, and callers like `getSpeciesUnder`
+ *  can pass a thousand ids. */
 const IN_CHUNK = 500;
 
 function chunked<T>(items: T[], size = IN_CHUNK): T[][] {
@@ -140,18 +146,23 @@ function chunked<T>(items: T[], size = IN_CHUNK): T[][] {
  * For a set of taxon_ids, look up the accepted vernacular name in each enabled
  * region via the scientific-name crosswalk. Returns taxon_id → { tw?, jp? }.
  *
- * 名錄拆成獨立檔之後，原本的 `species_xref` 同檔自我 JOIN 不可能成立了（不同
- * 模組 = 不同 SQLite 檔，這個 app 從不 ATTACH）。改成兩段：
- *   ① 在**擁有該 id 的模組**裡查 taxon_id → sci_norm（PK 查詢）
- *   ② 拿 sci_norm 去**每個可用模組**查俗名（吃 idx_xref_sci_norm）
- * 兩段都是索引查詢，最多各 2 次。
+ * Once the checklists became separate files the original self-JOIN on
+ * `species_xref` could not work any more (different modules = different SQLite
+ * files, and this app never ATTACHes). It is now two stages:
+ *   1. look up taxon_id → sci_norm **in the module that owns the id** (a PK
+ *      lookup)
+ *   2. take that sci_norm to **every available module** for the vernacular name
+ *      (hits idx_xref_sci_norm)
+ * Both stages are index lookups, at most two each.
  *
- * `AND region = ?` 不是贅字：過渡期（步驟 1–5）三個模組共用同一個合併檔，那個
- * 檔的 `species_xref` 兩區的列都在，少了這個條件就會從「臺灣模組」讀出日本
- * 俗名 —— 而且只在最難測到的過渡窗口出錯。
+ * `AND region = ?` is not redundant: during the transition (steps 1-5) all three
+ * modules shared one merged file whose `species_xref` holds rows for both
+ * regions, and without the condition the "Taiwan module" would return Japanese
+ * vernacular names — failing only inside the hardest window to test.
  *
- * 只有兩個以上名錄模組可用時才有意義；只有臺灣（預設）時直接早退，成本為零，
- * 維持「與 region 功能出現前 byte-identical」的不變式。
+ * Only meaningful with two or more checklist modules available; with Taiwan
+ * alone (the default) it returns early at zero cost, preserving the invariant
+ * that this is byte-identical to the behaviour before regions existed.
  */
 export function crossRegionVernacular(
   taxonIds: string[],
@@ -167,7 +178,7 @@ export function crossRegionVernacular(
   if (datasets.length < 2) return out;
 
   try {
-    // ① id → sci_norm，依擁有的模組分組
+    // 1. id → sci_norm, grouped by the owning module
     const norms = new Map<string, string>();
     const byDataset = new Map<string, string[]>();
     for (const id of ids) {

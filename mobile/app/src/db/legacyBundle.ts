@@ -1,21 +1,26 @@
 /**
- * 舊版合併檔（`Documents/twnamelist.db`，160 MB）的退場。
+ * Retiring the legacy merged file (`Documents/twnamelist.db`, 160 MB).
  *
- * 0.5.0 以前名錄是隨 app 出貨的單一檔案。模組化之後使用者選擇「要求重新下載」
- * 而不是接管舊檔，所以升級時必須把那個檔刪掉——但**順序不能錯**：
+ * Before 0.5.0 the checklist shipped with the app as a single file. After
+ * modularisation the user chose "require a fresh download" over adopting the old
+ * file, so upgrading has to delete it — but **the order cannot change**:
  *
- *   1. user.db migration v35（`taxon_name_cache`）——`initDb` 早已跑完
- *   2. `backfillNameCache()`：趁舊檔**還在**，把所有被記錄引用到的名稱抄進 user.db
- *   3. 寫旗標，確認第 2 步真的完成
- *   4. 才刪 `twnamelist.db` + `.version`（此時回收 160 MB）
- *   5. 下載精靈接手
+ *   1. user.db migration v35 (`taxon_name_cache`) — `initDb` has long since run
+ *   2. `backfillNameCache()`: while the legacy file is **still there**, copy
+ *      every name referenced by a record into user.db
+ *   3. write the flag, confirming step 2 really finished
+ *   4. only then delete `twnamelist.db` + `.version` (reclaiming 160 MB)
+ *   5. the download wizard takes over
  *
- * 少了第 2 步，升級後到下載完成前，使用者的名錄會整片空白——那是這次改動最容易
- * 造成的傷害。**刪檔也一定要在下載之前**：不然尖峰需要 160（舊）＋34（zip）
- * ＋143（解壓）≈ 337 MB 可用空間，裝置滿的人直接失敗。
+ * Without step 2 the user's checklists are blank from the upgrade until the
+ * download finishes — the easiest damage this change could do. **Deleting must
+ * also come before downloading**: otherwise the peak requirement is 160 (old) +
+ * 34 (zip) + 143 (unpacked) ≈ 337 MB free, and anyone with a full device fails
+ * outright.
  *
- * 可中斷：旗標只有在 backfill 完成後才寫，所以跑到一半被殺掉，下次啟動會從第 2
- * 步重跑（backfill 本身冪等，已有快取的直接跳過）。
+ * Interruptible: the flag is only written after the backfill completes, so being
+ * killed halfway means the next launch resumes from step 2 (the backfill is
+ * idempotent and skips anything already cached).
  */
 import { Directory, File, Paths } from 'expo-file-system';
 
@@ -25,11 +30,13 @@ import { backfillNameCache } from './taxonCache';
 
 const LEGACY_FILE = 'twnamelist.db';
 const LEGACY_VERSION_FILE = 'twnamelist.db.version';
-/** 舊檔裡可能住著的模組。檢索表不在此列：它沒有自己的 taxon，記錄不會引用它。 */
+/** Modules that may live inside the legacy file. Keys are not among them: they
+ *  have no taxa of their own, so no record references them. */
 const LEGACY_NAME_DATASETS: DatasetId[] = ['tw-taicol', 'jp-ylist'];
 
-/** 旗標放 user.db 的 settings：跟著備份走，也跟著「清除所有資料」一起消失——
- *  那時舊檔早就不在了，函式會在第一個 early return 就結束。 */
+/** The flag lives in user.db settings: it travels with a backup and disappears
+ *  with "clear all data" — by which point the legacy file is long gone and the
+ *  function returns at its first early exit. */
 const FLAG_KEY = 'legacy_bundle_backfilled';
 
 function legacyFile(): File {
@@ -53,27 +60,31 @@ function writeFlag(): void {
       FLAG_KEY,
     ]);
   } catch {
-    // 寫不進去就當沒做完，下次啟動重跑 backfill（冪等）
+    // If it cannot be written, treat the work as unfinished: the next launch runs
+    // the backfill again (it is idempotent).
   }
 }
 
 export type LegacyRetirement = {
-  /** 這次真的做了退場（第一次升級時才會是 true）。 */
+  /** This run actually retired it (true only on the first upgrade). */
   retired: boolean;
-  /** 抄進 user.db 的名稱數。 */
+  /** Number of names copied into user.db. */
   cached: number;
-  /** 記錄引用、但連舊檔裡都查不到的（TaiCOL 版本更迭後消失的 id）。 */
+  /** Referenced by a record but not found even in the legacy file (ids that
+   *  disappeared across TaiCOL versions). */
   missing: number;
-  /** 回收的空間（bytes）。 */
+  /** Space reclaimed, in bytes. */
   freedBytes: number;
 };
 
 /**
- * 升級路徑：備份名稱 → 刪舊檔。已經沒有舊檔就什麼都不做。
+ * The upgrade path: back up the names, then delete the legacy file. Does nothing
+ * once the legacy file is gone.
  *
- * **必須在 `runUserMigrations()` 之後呼叫**（要有 `taxon_name_cache`），而且要在
- * 任何名錄查詢之前——舊檔此時仍被 registry 當成已安裝，backfill 正是靠它才讀得到
- * 名字。
+ * **Must be called after `runUserMigrations()`** (it needs `taxon_name_cache`)
+ * and before any checklist query — at this point the registry still counts the
+ * legacy file as installed, which is exactly how the backfill can read the names
+ * at all.
  */
 export function retireLegacyBundle(): LegacyRetirement {
   const idle: LegacyRetirement = { retired: false, cached: 0, missing: 0, freedBytes: 0 };
@@ -90,7 +101,8 @@ export function retireLegacyBundle(): LegacyRetirement {
   }
 
   const freedBytes = legacy.size ?? 0;
-  // 先關掉所有名錄 handle：舊檔此刻可能正被開著（registry 把三個模組都指向它）。
+  // Close every checklist handle first: the legacy file may be open right now
+  // (the registry points all three modules at it).
   closeAllDatasetDbs();
   try {
     for (const suffix of ['', '-wal', '-shm', '-journal']) {

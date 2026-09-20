@@ -1,17 +1,19 @@
 /**
- * 向量離線地圖（Mitalivana Topo）的路徑與狀態。
+ * Paths and state for the offline vector map (Mitalivana Topo).
  *
- * 關鍵特性：**整份地圖是一個檔案**（先前的 raster 圖磚包是 25 個 zip、
- * 四萬多張圖磚，已於 2026-09-19 移除）。
+ * The key property: **the whole map is one file** (the earlier raster tile
+ * packs were 25 zips holding 40,000-odd tiles; removed 2026-09-19).
  *
- * MapLibre Native 原生支援 `pmtiles://` 協定（`PMTILES_PROTOCOL`，iOS 6.26.0
- * 與 Android 13.2.0 都有），`PMTilesFileSource` 把圖磚請求帶著 `dataRange`
- * 委派給 ResourceLoader —— 後面接 `https://` 就走網路範圍請求，接 `file://`
- * 就走 `util::readFile(path, dataRange)`。所以離線不必像 raster 版那樣切成
- * 25 個 zip 再解壓出四萬多張檔案，下載一個 .pmtiles 放著就能用。
+ * MapLibre Native supports the `pmtiles://` protocol natively
+ * (`PMTILES_PROTOCOL`, in both iOS 6.26.0 and Android 13.2.0):
+ * `PMTilesFileSource` hands tile requests to the ResourceLoader together with a
+ * `dataRange` — an `https://` URL behind it becomes an HTTP range request, a
+ * `file://` one becomes `util::readFile(path, dataRange)`. So going offline
+ * does not mean splitting into 25 zips and unpacking 40,000 files the way the
+ * raster edition did: download one .pmtiles, leave it there, done.
  *
- * 也因此不使用 MapLibre 的 `OfflineManager`：那是逐張圖磚下載，全臺 z0-15
- * 有 370,899 張，等於 37 萬次 HTTP 請求。
+ * That is also why MapLibre's `OfflineManager` is not used: it downloads tile
+ * by tile, and z0-15 over Taiwan is 370,899 tiles — 370k HTTP requests.
  */
 import { Directory, File, Paths } from 'expo-file-system';
 
@@ -20,39 +22,45 @@ import type { PoiMeta } from '~/lib/poi';
 
 const ROOT_DIR = 'vectormap';
 const STATE_FILE = 'installed.json';
-/** 本機改寫過的樣式檔名。遠端那份的 source 指向 https，這份指向 file://。 */
+/** Filename of the locally rewritten style. The remote copy's sources point at
+ *  https, this one at file://. */
 const LOCAL_STYLE = 'style.json';
 
 export type VectorManifest = {
   version: string;
   styleUrl: string;
-  /** 圖磚檔。可能不只一個（若上游為了大小限制切檔），但離線只支援單檔。 */
+  /** Tile file. There may be more than one (if upstream splits for a size limit),
+ *  but offline only supports a single file. */
   tilesPmtiles: string[];
   hillshadePmtiles?: string;
-  /** 全部資產的位元組數，含 style/sprite/glyph。 */
+  /** Byte count of all assets, style/sprite/glyphs included. */
   bytes: number;
-  /** 只有圖磚檔的位元組數，進度條用這個才準。 */
+  /** Byte count of the tile file alone — only this makes the progress bar
+ *  accurate. */
   tileBytes?: number;
-  /** 山域地標。與地圖引擎無關，但放同一份 manifest 讓 app 只讀一個地方。 */
+  /** Mountain landmarks. Nothing to do with the map engine, but kept in the same
+ *  manifest so the app only has one place to read. */
   poi?: PoiMeta;
   attribution: string;
 };
 
 export type VectorInstalled = {
   version: string;
-  /** 本機 style.json 的 uri，直接餵給 MapLibre 的 mapStyle。 */
+  /** URI of the local style.json, fed straight to MapLibre's mapStyle. */
   styleUri: string;
   bytes: number;
   installedAt: number;
   /**
-   * 本機 sprite 是從哪個遠端網址抓來的。
+   * Which remote URL the local sprite was fetched from.
    *
-   * 用來判斷要不要重抓：sprite 是用 immutable 快取上傳的，所以修正時會換一個
-   * 檔名（sprite → sprite2），遠端樣式指過去之後這裡就對不上了。只有 1 MB，
-   * 不值得為它叫使用者重抓整份地圖。
+   * Used to decide whether to re-fetch: sprites are uploaded with immutable
+   * caching, so a fix ships under a new name (sprite → sprite2), and once the
+   * remote style points there this no longer matches. It is only 1 MB — not
+   * worth making the user re-download the whole map.
    */
   spriteUrl?: string;
-  /** 圖磚檔應有的位元組數，用來認出下載被截短的安裝。 */
+  /** Byte count the tile file should have; how a truncated install is
+ *  recognised. */
   tileBytes?: number;
 };
 
@@ -61,11 +69,12 @@ export function vectorRoot(): Directory {
 }
 
 /**
- * 建立根目錄並在 iOS 標記為不進備份。
+ * Create the root directory and mark it as excluded from backup on iOS.
  *
- * **每次**都設旗標，不是只在建立時：原生模組可能在
- * 地圖裝好之後才隨新的 dev client 進來，只在建立時設會讓先安裝的使用者永遠
- * 被漏掉，383 MB 會一直留在 iCloud 備份裡。
+ * The flag is set **every time**, not only at creation: the native module may
+ * arrive with a newer dev client after the map is already installed, so setting
+ * it once at creation would permanently miss everyone who installed earlier,
+ * leaving 383 MB in their iCloud backup forever.
  */
 export function ensureVectorRoot(): Directory {
   const root = vectorRoot();
@@ -87,12 +96,13 @@ export function vectorStyleFile(): File {
 }
 
 /**
- * 字型堆疊名稱，與 style 裡每個 symbol layer 的 `text-font` 必須一致。
+ * Font stack name; must match the `text-font` of every symbol layer in the style.
  *
- * glyph 要放在 `fonts/<fontstack>/<range>.pbf`，因為樣式規格要求 `glyphs`
- * 樣板一定要含 `{fontstack}`（`validateStyleMin` 會擋）。名字裡的空白不是問題：
- * MapLibre 送出請求前會 percent-encode（`Resource::glyphs`），LocalFileSource
- * 讀檔前又會 percent-decode 回來，兩邊對得上。
+ * Glyphs live at `fonts/<fontstack>/<range>.pbf`, because the style spec
+ * requires the `glyphs` template to contain `{fontstack}` (`validateStyleMin`
+ * rejects it otherwise). The space in the name is not a problem: MapLibre
+ * percent-encodes before sending the request (`Resource::glyphs`) and
+ * LocalFileSource percent-decodes before reading, so the two agree.
  */
 export const VECTOR_FONT_STACK = 'Noto Sans Regular';
 
@@ -101,18 +111,21 @@ export function vectorFontsDir(): Directory {
 }
 
 /**
- * 現在該餵給 MapLibre 的本機樣式位置。
+ * Where the local style is right now, as MapLibre should be told.
  *
- * **不要用 `installed.styleUri`**：那是安裝當下寫死的絕對路徑，而 iOS 的
- * app container UUID 會在重裝或更新後改變，舊路徑就指向不存在的檔案。檔案本身
- * 還在（`isVectorReady` 用目前的 `Paths.document` 檢查得到），於是會變成
- * 「檔案都在、地圖卻是空白」這種很難查的狀態。每次現算就沒有這個問題。
+ * **Do not use `installed.styleUri`**: that is an absolute path frozen at
+ * install time, and the iOS app container UUID changes on reinstall or update,
+ * so the old path points at a file that no longer exists. The file itself is
+ * still there (`isVectorReady` finds it under the current `Paths.document`),
+ * which produces the hard-to-diagnose state "every file is present, yet the map
+ * is blank". Recomputing each time avoids it.
  */
 export function vectorStyleUri(): string {
   return vectorStyleFile().uri;
 }
 
-/** 地圖載不起來時用的現況快照。只讀不寫，資訊都可安全印到 log。 */
+/** Snapshot of the current state, for when the map will not load. Read-only,
+ *  and everything in it is safe to print to a log. */
 export function describeVectorInstall(): Record<string, unknown> {
   const style = vectorStyleFile();
   const fonts = vectorFontsDir();
@@ -122,7 +135,8 @@ export function describeVectorInstall(): Record<string, unknown> {
   const out: Record<string, unknown> = {
     root: vectorRoot().uri,
     styleExists: style.exists,
-    // 位元組數是關鍵：截短的 .pmtiles 標頭讀得到、圖磚拿不到，症狀是整片空白。
+    // The byte count is the crucial part: a truncated .pmtiles still has a readable
+// header but yields no tiles, and the symptom is a blank map.
     tileBytes: tiles.exists ? tiles.size : 0,
     hillshadeBytes: hs.exists ? hs.size : 0,
     spriteBytes: new File(vectorRoot(), 'sprite.json').exists
@@ -150,14 +164,16 @@ export function describeVectorInstall(): Record<string, unknown> {
 }
 
 /**
- * 把遠端樣式改寫成指向本機檔案。
+ * Rewrite the remote style to point at local files.
  *
- * source 的 `url` 由 `pmtiles://https://…` 換成 `pmtiles://file:///…`。
+ * A source's `url` goes from `pmtiles://https://…` to `pmtiles://file:///…`.
  *
- * **glyph 與 sprite 也一定要存本機**（合計約 2 MB）。不能只換圖磚來源就算了 ——
- * 桌面驗證時實測過：少一個 glyph range，MapLibre 會整張圖算不出來，不是只有
- * 標籤消失，而且 console 只報 404、沒有任何算繪錯誤，非常難查。離線時每個
- * range 都取不到，等於整張地圖是白的。
+ * **Glyphs and sprites must be stored locally too** (about 2 MB together).
+ * Swapping only the tile source is not enough — measured while verifying on the
+ * desktop: with a single glyph range missing MapLibre fails to render the whole
+ * map, not just the labels, and the console reports nothing but a 404, no
+ * rendering error at all, which makes it very hard to track down. Offline every
+ * range fails, so the entire map is blank.
  */
 export function localizeStyle(
   style: Record<string, unknown>,
@@ -182,7 +198,7 @@ export function readVectorInstalled(): VectorInstalled | null {
   const f = new File(vectorRoot(), STATE_FILE);
   if (!f.exists) return null;
   try {
-    // textSync：這支會在 render 路徑上被呼叫，不能是 Promise。
+    // textSync: this runs on the render path, so it cannot be a Promise.
     return JSON.parse(f.textSync()) as VectorInstalled;
   } catch {
     return null;
@@ -195,12 +211,14 @@ export function writeVectorInstalled(state: VectorInstalled): void {
 }
 
 /**
- * 檔案真的都在、而且**大小對得上**才算裝好。
+ * Installed means the files are really there **and their sizes match**.
  *
- * 只看存不存在是不夠的：截短的 .pmtiles 標頭與根目錄都在檔案開頭，樣式載得起來、
- * 圖磚卻一張也拿不到，畫面上是「山體陰影有、向量地圖整片空白」。大小不符就當成
- * 沒裝，app 會退回線上模式（那是能用的），設定頁也會重新出現下載按鈕 —— 比留著
- * 一份看起來正常的壞檔好。
+ * Existence alone is not enough: a truncated .pmtiles still has its header and
+ * root directory at the start of the file, so the style loads while not one
+ * tile can be fetched — on screen that reads as "hillshade yes, vector map
+ * blank". A size mismatch counts as not installed, so the app falls back to
+ * online mode (which works) and the settings screen offers the download again.
+ * Better than keeping a broken file that looks fine.
  */
 export function isVectorReady(state: VectorInstalled | null): boolean {
   if (state == null || !vectorTilesFile().exists || !vectorStyleFile().exists) return false;

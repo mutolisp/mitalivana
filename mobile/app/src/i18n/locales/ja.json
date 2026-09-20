@@ -1163,7 +1163,22 @@
     "empty": "iNaturalist にこの種の観察記録はまだありません",
     "unknown": "この学名は iNaturalist に収録されていません",
     "offline": "オフライン：iNaturalist のレイヤーを読み込めません",
-    "attribution": "観察データ © iNaturalist 投稿者；絶滅危惧種の座標はぼかされています"
+    "attribution": "観察データ © iNaturalist 投稿者；絶滅危惧種の座標はぼかされています",
+    "fab": "iNat 観察グリッド",
+    "sheetTitle": "iNaturalist 観察グリッド",
+    "searchHint": "分類群を検索すると、その iNaturalist 観察分布を地図に重ねます。マス目は縮尺に応じて大きさが変わり、色が濃いマスほど観察件数が多いことを表します。",
+    "searchInat": "iNaturalist で検索する",
+    "inatResults": "iNaturalist の分類群",
+    "inatNoMatch": "iNaturalist にも「{{q}}」は見つかりません",
+    "obsCount": "観察 {{count}} 件",
+    "showingNow": "表示中",
+    "stop": "表示をやめる",
+    "synonymAsk": "iNaturalist は「{{asked}}」を {{accepted}} に収録しています。グリッドは後者の観察記録になります。",
+    "synonymUse": "その名称で表示する",
+    "viaSynonym": "iNaturalist では {{name}} として収録。グリッドはその名称の観察記録です",
+    "viaSynonymShort": "検索名：{{name}}",
+    "legendFew": "少",
+    "legendMany": "多"
   },
   "collection": {
     "title": "採集記録",

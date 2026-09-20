@@ -1163,7 +1163,22 @@
     "empty": "iNaturalist에 이 종의 관찰 기록이 아직 없습니다",
     "unknown": "이 학명은 iNaturalist에 없습니다",
     "offline": "오프라인 — iNaturalist 레이어를 불러올 수 없습니다",
-    "attribution": "관찰 자료 © iNaturalist 기여자; 위협종 좌표는 흐리게 처리됩니다"
+    "attribution": "관찰 자료 © iNaturalist 기여자; 위협종 좌표는 흐리게 처리됩니다",
+    "fab": "iNat 관찰 격자",
+    "sheetTitle": "iNaturalist 관찰 격자",
+    "searchHint": "분류군을 검색하면 해당 분류군의 iNaturalist 관찰 분포를 지도에 겹쳐 보여줍니다. 격자 크기는 축척에 따라 달라지며, 색이 진할수록 관찰 건수가 많습니다.",
+    "searchInat": "iNaturalist에서 검색",
+    "inatResults": "iNaturalist 분류군",
+    "inatNoMatch": "iNaturalist에도 \"{{q}}\"이(가) 없습니다",
+    "obsCount": "관찰 {{count}}건",
+    "showingNow": "표시 중",
+    "stop": "표시 중지",
+    "synonymAsk": "iNaturalist는 \"{{asked}}\"을(를) {{accepted}}(으)로 수록합니다. 격자는 후자의 관찰 기록입니다.",
+    "synonymUse": "그 이름으로 표시",
+    "viaSynonym": "iNaturalist에는 {{name}}(으)로 수록되어 있으며, 격자는 그 이름의 관찰 기록입니다",
+    "viaSynonymShort": "검색 이름: {{name}}",
+    "legendFew": "적음",
+    "legendMany": "많음"
   },
   "collection": {
     "title": "채집 기록",

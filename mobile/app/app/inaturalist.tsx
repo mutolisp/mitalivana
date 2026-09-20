@@ -1,9 +1,9 @@
 /**
- * iNaturalist 帳號頁 — link / refresh / unlink the 24 h token, plus the
- * default geoprivacy for uploads.
+ * The iNaturalist account screen — link / refresh / unlink the 24 h token, plus
+ * the default geoprivacy for uploads.
  *
- * Primary path: 「連結」 opens the login WebView (InatTokenHost) and reads
- * the token off /users/api_token. Fallback for accounts that sign in with
+ * Primary path: Link opens the login WebView (InatTokenHost) and reads the
+ * token off /users/api_token. Fallback for accounts that sign in with
  * Google / Apple (blocked inside a WebView): open the same page in the real
  * browser, copy the JSON, paste it here.
  */

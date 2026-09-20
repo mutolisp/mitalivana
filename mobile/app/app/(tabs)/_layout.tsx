@@ -81,11 +81,11 @@ function PlusButton() {
 }
 
 /**
- * Tab order per ＋ side, spelled out for both.
+ * Tab order per + side, spelled out for both.
  *
- * The left-handed arrangement is NOT the right-handed one reversed — 記錄 and
- * 地圖 keep their relative order while 設定 moves to the far end — so deriving
- * one from the other would quietly produce the wrong strip.
+ * The left-handed arrangement is NOT the right-handed one reversed — Records
+ * and Map keep their relative order while Settings moves to the far end — so
+ * deriving one from the other would quietly produce the wrong strip.
  */
 const TAB_ORDER = {
   right: ['menu', 'map', 'index', 'taxonomy', 'plus'],

@@ -16,7 +16,12 @@
  */
 import { FileSystemUploadType, uploadAsync } from 'expo-file-system/legacy';
 import { ApiError, getJson, postJson, qs, sendJson, USER_AGENT } from './apiFetch';
-import { pickTaxonMatch, type AutocompleteHit, type ObservationPayload } from './inatPayload';
+import {
+  pickTaxonMatchDetailed,
+  type AutocompleteHit,
+  type ObservationPayload,
+  type TaxonMatch,
+} from './inatPayload';
 
 const API_V1 = 'https://api.inaturalist.org/v1';
 const API_V2 = 'https://api.inaturalist.org/v2';
@@ -38,22 +43,91 @@ export async function fetchMe(jwt: string, signal?: AbortSignal): Promise<{ logi
   return { login: me.login, id: Number(me.id ?? 0) };
 }
 
-/** Resolve a scientific name to an iNat taxon id, or null when there is no
- *  unambiguous match. Unauthenticated; one request per distinct name. */
-export async function lookupTaxonId(name: string, kingdom: string, signal?: AbortSignal): Promise<number | null> {
+function toAutocompleteHit(r: Record<string, unknown>): AutocompleteHit {
+  return {
+    id: Number(r.id),
+    name: String(r.name ?? ''),
+    rank: typeof r.rank === 'string' ? r.rank : undefined,
+    is_active: typeof r.is_active === 'boolean' ? r.is_active : undefined,
+    iconic_taxon_name: typeof r.iconic_taxon_name === 'string' ? r.iconic_taxon_name : null,
+    matched_term: typeof r.matched_term === 'string' ? r.matched_term : null,
+  };
+}
+
+async function autocomplete(q: string, signal?: AbortSignal): Promise<AutocompleteHit[]> {
+  const json = await getJson('inat', `${API_V1}/taxa/autocomplete?${qs({ q, per_page: '30' })}`, signal);
+  return ((json.results as Record<string, unknown>[] | undefined) ?? []).map(toAutocompleteHit);
+}
+
+/**
+ * Resolve a scientific name to an iNat taxon, saying whether it was found under
+ * that very name or under one of the taxon's synonyms. Null when there is no
+ * unambiguous match. Unauthenticated; one request per distinct name.
+ */
+export async function lookupTaxon(
+  name: string,
+  kingdom: string,
+  signal?: AbortSignal,
+): Promise<TaxonMatch | null> {
   const q = name.trim();
   if (!q) return null;
-  const json = await getJson('inat', `${API_V1}/taxa/autocomplete?${qs({ q, per_page: '30' })}`, signal);
-  const hits = ((json.results as Record<string, unknown>[] | undefined) ?? []).map(
-    (r): AutocompleteHit => ({
+  return pickTaxonMatchDetailed(await autocomplete(q, signal), q, kingdom);
+}
+
+/** Resolve a scientific name to an iNat taxon id, or null when there is no
+ *  unambiguous match under that name. Synonym hits are NOT accepted here; see
+ *  `pickTaxonMatch`. */
+export async function lookupTaxonId(name: string, kingdom: string, signal?: AbortSignal): Promise<number | null> {
+  const m = await lookupTaxon(name, kingdom, signal);
+  return m && m.via === 'name' ? m.id : null;
+}
+
+/** One iNaturalist taxon offered as a search result. */
+export type InatTaxonHit = {
+  id: number;
+  name: string;
+  rank: string;
+  /** iNat's preferred common name for the request locale; '' when it has none. */
+  commonName: string;
+  /** Observations worldwide — the only useful hint of whether a grid will show
+   *  anything at all. */
+  observationCount: number;
+  /** The name string that matched, when it is not the taxon's own name. */
+  matchedTerm: string;
+};
+
+/**
+ * Free-text taxon search against iNaturalist, for names the local checklists do
+ * not carry (a family or an order, a species outside Taiwan and Japan).
+ *
+ * Active taxa only: an inactive one is a superseded name that carries no
+ * observations of its own (measured: taxon 522963 `Cyathea lepifera`, 0
+ * observations, `current_synonymous_taxon_ids: [460690]`), so offering it would
+ * only ever draw an empty grid.
+ */
+export async function searchTaxa(
+  q: string,
+  locale: string,
+  signal?: AbortSignal,
+): Promise<InatTaxonHit[]> {
+  const query = q.trim();
+  if (!query) return [];
+  const json = await getJson(
+    'inat',
+    `${API_V1}/taxa/autocomplete?${qs({ q: query, per_page: '20', locale })}`,
+    signal,
+  );
+  return ((json.results as Record<string, unknown>[] | undefined) ?? [])
+    .filter((r) => r.is_active !== false && Number(r.id) > 0)
+    .map((r) => ({
       id: Number(r.id),
       name: String(r.name ?? ''),
-      rank: typeof r.rank === 'string' ? r.rank : undefined,
-      is_active: typeof r.is_active === 'boolean' ? r.is_active : undefined,
-      iconic_taxon_name: typeof r.iconic_taxon_name === 'string' ? r.iconic_taxon_name : null,
-    }),
-  );
-  return pickTaxonMatch(hits, q, kingdom);
+      rank: typeof r.rank === 'string' ? r.rank : '',
+      commonName:
+        typeof r.preferred_common_name === 'string' ? r.preferred_common_name : '',
+      observationCount: Number(r.observations_count) || 0,
+      matchedTerm: typeof r.matched_term === 'string' ? r.matched_term : '',
+    }));
 }
 
 /**

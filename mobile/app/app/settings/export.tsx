@@ -1,6 +1,6 @@
 /**
- * 匯出設定 —— was a bottom sheet with a 「完成」 button that only dismissed it.
- * Every control writes straight through to settings, so there was nothing to
+ * Export settings — was a bottom sheet with a Done button that only dismissed
+ * it. Every control writes straight through to settings, so there was nothing to
  * confirm and nothing to cancel; as a pushed route the back chevron is the
  * whole interaction.
  */

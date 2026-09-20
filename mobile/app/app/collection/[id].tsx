@@ -1,7 +1,7 @@
 /**
- * Collection trip (採集行程) detail — the specimens gathered on one outing,
- * shown as a list. Structurally the thin sibling of `app/session/[id].tsx`:
- * a metadata row, a list, and a sticky SearchBox at the bottom.
+ * Collection trip detail — the specimens gathered on one outing, shown as a
+ * list. Structurally the thin sibling of `app/session/[id].tsx`: a metadata
+ * row, a list, and a sticky SearchBox at the bottom.
  *
  * Note there is no single-active conflict handling here. A collection trip is
  * not part of the app-wide single-active invariant, so opening or reopening one

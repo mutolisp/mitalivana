@@ -46,7 +46,7 @@ export type PlotAreaInput = {
  *   - bare `m` / `cm` / `ft` — a LENGTH, not an area. This is the exact case
  *     ("10 m" for a 10 × 10 plot) where guessing is worst.
  *   - a lone `a`, even though `are` is accepted: a single letter is far more
- *     likely a stray keystroke than the unit 公畝.
+ *     likely a stray keystroke than the unit are.
  */
 const AREA_UNITS: Array<{ toM2: number; canonical: string; forms: string[] }> = [
   { toM2: 1, canonical: 'm²', forms: ['m2', 'm²', '㎡', 'sqm', 'sqmeter', 'sqmetre', 'squaremeter', 'squaremetre', '平方公尺', '平方米'] },

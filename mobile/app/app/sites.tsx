@@ -53,7 +53,8 @@ export default function SitesScreen() {
   useFocusEffect(useCallback(() => reload(), [reload]));
 
   const handleDelete = (s: SiteWithProject) => {
-    // A site bound to a 名錄 or 樣區 is that record's geometry; deleting it here
+    // A site bound to a checklist or plot survey is that record's geometry;
+      // deleting it here
     // silently strips the boundary off the record, so say so first.
     const bound = countSiteReferences(s.id) > 0;
     const msg = bound

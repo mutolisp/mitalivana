@@ -1,5 +1,5 @@
 /**
- * Export → import round-trip check for 名錄 / 樣區 ymls.
+ * Export → import round-trip check for checklist / plot-survey ymls.
  *
  * The app has no test runner, and the one failure this feature must never have
  * is silent: a field gets added to a record, the exporter writes it, and the

@@ -1,13 +1,15 @@
 /**
- * 山域地標的下載與解壓。
+ * Download and extraction of the mountain landmarks.
  *
- * raster 圖磚包退場時從它的安裝流程抽出來獨立 —— POI 與引擎無關，任何底圖
- * 都要顯示，而且只有 66 MB，跟「圖磚包太大」的顧慮無關。
+ * Pulled out of the raster tile package's install flow when that was retired —
+ * POIs are engine-independent, shown over any basemap, and at 66 MB they have
+ * nothing to do with the "tile packs are too big" concern.
  *
- * 解壓刻意用串流：237 MB 的 `.poi` 不能整個進記憶體。`File.open()` 拿 handle，
- * fflate 的 `ondata` 來一段就 `writeBytes` 一段（兩平台的 writeBytes 都會自動
- * 推進位置：iOS 是 Foundation FileHandle.write、Android 是 FileChannel.write），
- * 記憶體峰值與檔案大小脫鉤。
+ * Extraction is streamed on purpose: a 237 MB `.poi` cannot be held in memory.
+ * `File.open()` takes a handle and fflate's `ondata` writes each chunk with
+ * `writeBytes` as it arrives (writeBytes advances the position itself on both
+ * platforms: Foundation FileHandle.write on iOS, FileChannel.write on Android),
+ * which decouples peak memory from file size.
  */
 import { File, Paths } from 'expo-file-system';
 import { createDownloadResumable } from 'expo-file-system/legacy';
@@ -25,7 +27,8 @@ import {
   type PoiMeta,
 } from '~/lib/poi';
 
-/** 每次從 zip 讀多少。4 MiB 讓記憶體峰值大約落在 10 MiB。 */
+/** How much is read from the zip at a time. 4 MiB keeps peak memory around
+ *  10 MiB. */
 const READ_CHUNK_BYTES = 4 * 1024 * 1024;
 
 export type PoiProgress =

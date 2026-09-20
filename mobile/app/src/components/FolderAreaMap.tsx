@@ -1,10 +1,10 @@
 /**
  * Read-only preview of a stored geometry, with an edit hand-off.
  *
- * Two callers: the area a 常用名錄 was built from (a list of species is hard to
- * trust without knowing where it came from — "why these species?" is otherwise
- * unanswerable a week later), and a 樣區 boundary. The labels are props so the
- * component says the right thing in both places.
+ * Two callers: the area a favourite checklist was built from (a list of species
+ * is hard to trust without knowing where it came from — "why these species?" is
+ * otherwise unanswerable a week later), and a plot boundary. The labels are
+ * props so the component says the right thing in both places.
  *
  * Controls match `RecordLocationMap` (zoom / locate / basemap / expand) and
  * come from the same module, so the mini-maps behave identically. Editing the
@@ -34,14 +34,15 @@ const INLINE_HEIGHT = 160;
 type Props = {
   /** GeoJSON of the stored geometry; empty when there is none yet. */
   areaGeoJson: string;
-  /** 'inat' | 'gbif' | '' — which service produced the list. 常用名錄 only. */
+  /** 'inat' | 'gbif' | '' — which service produced the list. Favourite
+   *  checklists only. */
   source?: string;
   onEdit: () => void;
-  /** Footer caption. Defaults to the 常用名錄 wording. */
+  /** Footer caption. Defaults to the favourite-checklist wording. */
   title?: string;
-  /** Empty-state button. Defaults to the 常用名錄 wording. */
+  /** Empty-state button. Defaults to the favourite-checklist wording. */
   emptyLabel?: string;
-  /** Edit link. Defaults to the 常用名錄 wording. */
+  /** Edit link. Defaults to the favourite-checklist wording. */
   editLabel?: string;
 };
 
@@ -57,8 +58,9 @@ export function FolderAreaMap({
   const insets = useSafeAreaInsets();
   const storedBasemap = useSettings((s) => s.map_view.basemap);
   const [basemap, setBasemap] = useState<MapBasemap>(
-    // vector 與 terrain 都不在 BASEMAP_CYCLE 裡：用它當初始值會讓 nextBasemap
-    // 從索引 0 重新開始。小地圖看的是單一點位或單一多邊形，等高線幫不上忙。
+    // Neither vector nor terrain is in BASEMAP_CYCLE: using one as the initial
+    // value would make nextBasemap restart from index 0. A mini-map shows a single
+    // point or polygon, where contour lines do not help.
     storedBasemap === 'terrain' || storedBasemap === 'vector' ? 'standard' : storedBasemap,
   );
   const [fullscreen, setFullscreen] = useState(false);
@@ -73,7 +75,7 @@ export function FolderAreaMap({
     }
   }, [areaGeoJson]);
 
-  // Every geometry type, not just polygons: a 樣區 boundary may legitimately be
+  // Every geometry type, not just polygons: a plot boundary may legitimately be
   // the Point or LineString the user drew earlier, and treating those as "no
   // geometry" would show the empty state over data that exists.
   const prims = useMemo(() => (parsed ? geometryToPrimitives(parsed) : []), [parsed]);

@@ -1,7 +1,7 @@
 /**
  * App accent, in one place.
  *
- * `#00A2A5` arrived for the 匯出 swipe action and then spread to the header
+ * `#00A2A5` arrived for the export swipe action and then spread to the header
  * icon buttons and the filled primary actions. It was redefined at each of
  * those sites, which is how a palette drifts — so it lives here now.
  *

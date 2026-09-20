@@ -82,7 +82,7 @@ export function TaxonomyJumpChip({
     if (path.length === 0) return;
     // Dismiss the keyboard before navigating so the taxonomy tree's
     // KeyboardStickyView doesn't mount/latch against an open keyboard (which
-    // leaves the 「搜尋分類群」 box floating mid-screen).
+    // leaves the taxon search box floating mid-screen).
     Keyboard.dismiss();
     requestJump(path);
     beforeJump?.();

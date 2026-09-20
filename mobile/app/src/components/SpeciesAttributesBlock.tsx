@@ -1,5 +1,5 @@
 /**
- * Collapsible "進階" block that lets the recorder fill in DwC species
+ * Collapsible "advanced" block that lets the recorder fill in DwC species
  * attributes (sex, lifeStage, reproductiveCondition, leafPhenology). Fields
  * shown depend on the taxon's kingdom + class:
  *
@@ -7,10 +7,10 @@
  *   - Animalia: sex + life_stage (per-class enum from dwcAttributes)
  *   - other   : sex only (covers Fungi / Protozoa where sex still meaningful)
  *
- * degreeOfEstablishment (野生 / 圈養 / 栽培) is shown for every kingdom rather
- * than split by it: a cultivated fungus and a captive-bred plant in a nursery
- * are both real records, and guessing from kingdom would hide the option from
- * exactly those cases.
+ * degreeOfEstablishment (wild / captive / cultivated) is shown for every kingdom
+ * rather than split by it: a cultivated fungus and a captive-bred plant in a
+ * nursery are both real records, and guessing from kingdom would hide the option
+ * from exactly those cases.
  *
  * Used by PlotSpeciesValueModal and the session SpeciesDetailSheet so plot
  * and checklist records have the same input UX.
@@ -31,7 +31,8 @@ import {
 
 /** Attribute values are kept in their normalized in-memory form:
  *    - sex / life_stage  : single value
- *    - reproductive / leaf: array (multi-select; planet can be both 開花 + 結果)
+ *    - reproductive / leaf: array (multi-select; a plant can be both flowering
+ *      and fruiting)
  *
  *  The persistence layer is responsible for (de)serializing the arrays. */
 export type SpeciesAttributesDraft = {
@@ -39,7 +40,7 @@ export type SpeciesAttributesDraft = {
   life_stage: string | null;
   reproductive_condition: string[];
   leaf_phenology: string[];
-  /** '' is not a value — null means 未記錄, which is distinct from 野生. */
+  /** '' is not a value — null means not recorded, which is distinct from wild. */
   degree_of_establishment: string | null;
 };
 
@@ -51,7 +52,7 @@ type Props = {
   /** Default collapsed; auto-expand when any attribute already set. */
   defaultOpen?: boolean;
   /** Override the collapsible header's text. The header stays collapsible
-   *  either way; omit to use 「進階（物種屬性）」. */
+   *  either way; omit to use the default "advanced (species attributes)". */
   headerLabel?: string;
 };
 

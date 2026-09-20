@@ -1,6 +1,6 @@
 /**
- * Shared chrome for every 偏好設定 detail page (匯出設定 / 標本採集 / 語言 /
- * 調查者 / 區域名錄 / iNaturalist).
+ * Shared chrome for every preferences detail page (export settings / specimen
+ * collecting / language / surveyors / regional checklists / iNaturalist).
  *
  * Deliberately no built-in scroller: regionpacks renders a FlatList, surveyors
  * a DraggableFlatList, inaturalist a padded ScrollView. A `scroll` prop three

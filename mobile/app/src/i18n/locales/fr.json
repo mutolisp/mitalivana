@@ -1299,7 +1299,22 @@
     "empty": "Aucune observation iNaturalist pour cette espèce",
     "unknown": "Ce nom scientifique est absent d’iNaturalist",
     "offline": "Hors ligne — impossible de charger la couche iNaturalist",
-    "attribution": "Observations © contributeurs iNaturalist ; les coordonnées des espèces menacées sont floutées"
+    "attribution": "Observations © contributeurs iNaturalist ; les coordonnées des espèces menacées sont floutées",
+    "fab": "Grille d’observations iNat",
+    "sheetTitle": "Grille d’observations iNaturalist",
+    "searchHint": "Cherchez un taxon pour superposer ses observations iNaturalist. La taille des cellules suit le niveau de zoom et plus une cellule est foncée, plus elle contient d’observations.",
+    "searchInat": "Chercher plutôt sur iNaturalist",
+    "inatResults": "Taxons sur iNaturalist",
+    "inatNoMatch": "iNaturalist ne connaît pas non plus « {{q}} »",
+    "obsCount": "{{count}} observations",
+    "showingNow": "Affiché",
+    "stop": "Ne plus afficher",
+    "synonymAsk": "iNaturalist classe « {{asked}} » sous {{accepted}} : la grille montrera les observations de ce dernier nom.",
+    "synonymUse": "Afficher sous ce nom",
+    "viaSynonym": "iNaturalist le classe sous {{name}} ; la grille montre les observations de ce nom",
+    "viaSynonymShort": "recherché comme {{name}}",
+    "legendFew": "peu",
+    "legendMany": "beaucoup"
   },
   "collection": {
     "title": "Enregistrement de récolte",

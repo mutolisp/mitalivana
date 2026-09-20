@@ -2,7 +2,7 @@
  * Audio clips for a record, in two pieces so screens can lay them out:
  *
  *   <AudioRecordTile onAdd />   an 88×88 dashed square, the audio twin of
- *                               PhotoGrid's 「拍照」 tile (mic → red stop + timer
+ *                               PhotoGrid's camera tile (mic → red stop + timer
  *                               while recording)
  *   <AudioClipRows clips onRemove />  one row per clip: play / stop, timer,
  *                               long-press to remove

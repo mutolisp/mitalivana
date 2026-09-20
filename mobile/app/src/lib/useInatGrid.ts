@@ -1,31 +1,43 @@
 /**
- * 物種記錄小地圖上的 iNaturalist 觀察網格圖：解析 → 狀態 → 圖層。
+ * The iNaturalist observation grid overlay on a record's mini-map: resolve →
+ * state → layer.
  *
- * 分工：純邏輯在 `inatHeatmap.ts`（Node 可測），快取在 `src/db/inatTaxonMap.ts`
- * （只碰 sqlite），上網與 UI 狀態在這裡。
+ * Split of duties: pure logic in `inatHeatmap.ts` (testable under Node), the
+ * cache in `src/db/inatTaxonMap.ts` (sqlite only), network and UI state here.
  *
- * **必須遵守 `src/lib/inat.ts:8` 的那條原則**——「a field survey app must never
- * look like it is working when it is not」。所以離線、查不到、沒有觀察這三種情況
- * 都有各自明講的狀態，**絕不會只是讓圖層空白**：一張空的網格圖與一張「這裡沒有這
- * 個物種」的網格圖在螢幕上長得一模一樣，那是野外最不能有的歧義。
+ * **The rule in `src/lib/inat.ts:8` applies** — "a field survey app must never
+ * look like it is working when it is not". So offline, not-found and
+ * no-observations each get their own spelled-out state and **the layer is never
+ * left simply blank**: an empty grid and a grid saying "this species is not
+ * here" look identical on screen, and that is the one ambiguity you cannot
+ * afford in the field.
  *
- * 請求數：`gi…`（從 iNat 匯入的外部物種）省掉 autocomplete；一般物種首次 2 次
- * （autocomplete + 野外筆數），野外筆數為 0 時多 1 次（問總數）。之後全部走快取。
- * iNat 官方要求 ≤60 req/min、<10,000 req/day，這個量遠低於門檻。
+ * Request count: `gi…` (an external taxon imported from iNat) skips the
+ * autocomplete; any other species costs 2 on first sight (autocomplete + wild
+ * count), plus 1 more when the wild count is 0 (asking for the total). After
+ * that everything comes from the cache. iNat asks for ≤60 req/min and <10,000
+ * req/day; this is far below either.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { readInatTaxonCache, writeInatTaxonCache, type InatTaxonInfo } from '~/db/inatTaxonMap';
 import { probe } from './apiFetch';
 import { apiErrorMessage } from './apiErrorMessage';
-import { fetchObservationCount, lookupTaxonId } from './inatApi';
-import { gridTileUrl, isInatCacheStale, pickHeatmapMode, type HeatmapMode } from './inatHeatmap';
-import { inatIdFromLocalTaxonId } from './inatPayload';
+import { fetchObservationCount, lookupTaxon } from './inatApi';
+import {
+  gridPrecisionOffset,
+  gridTileUrl,
+  isInatCacheStale,
+  pickHeatmapMode,
+  type HeatmapMode,
+} from './inatHeatmap';
+import { inatIdFromLocalTaxonId, type TaxonMatchVia } from './inatPayload';
 
 export type InatGridTaxon = {
-  /** 本地 taxon id（`t…` / `y…` / `g…` / `gi…`）。`gi…` 可直接取得 iNat id。 */
+  /** Local taxon id (`t…` / `y…` / `g…` / `gi…`). A `gi…` id already carries the
+ *  iNat id. */
   localTaxonId: string;
-  /** 學名。 */
+  /** Scientific name. */
   name: string;
   kingdom: string;
 };
@@ -33,20 +45,24 @@ export type InatGridTaxon = {
 export type InatGridState =
   | { kind: 'idle' }
   | { kind: 'loading' }
-  /** 有野外觀察，圖層畫的是 `captive=false`。 */
+  /** Wild observations exist; the layer draws `captive=false`. */
   | { kind: 'wild'; count: number }
-  /** 野外 0 筆但總數 > 0：圖層改畫全部，UI 要明講這是圈養／栽培。 */
+  /** Zero wild but a non-zero total: the layer draws everything, and the UI has
+ *  to say these are captive or cultivated. */
   | { kind: 'captiveOnly'; count: number }
-  /** iNat 有這個物種，但一筆觀察都沒有。 */
+  /** iNat has the species but not a single observation. */
   | { kind: 'empty' }
-  /** iNat 根本沒有這個名字（實測約 17%）。 */
+  /** iNat does not have this name at all (measured: about 17%). */
   | { kind: 'unknown' }
   /**
-   * 筆數讀得到（快取裡有），但連不上 iNat，所以**圖層畫不出來**。
+   * The counts are known (they were cached) but iNat is unreachable, so **the
+   * layer cannot draw**.
    *
-   * 這個狀態存在的理由很具體：快取讓「1130 筆」在離線時照樣顯示，但瓦片載不到，
-   * 螢幕上就是一行數字配一張空地圖——看起來像「這附近沒有這個物種」。那正是
-   * inat.ts 檔頭禁止的那種假象，所以要明講是連線問題。
+   * This state exists for a very concrete reason: the cache still shows "1130
+   * observations" while offline, yet no tile loads, so the screen is a number
+   * above an empty map — which reads as "this species is not around here". That
+   * is exactly the illusion the file header of inat.ts forbids, so it has to be
+   * named as a connectivity problem.
    */
   | { kind: 'offline'; count: number | null }
   | { kind: 'error'; message: string };
@@ -66,16 +82,17 @@ function modeFor(state: InatGridState): HeatmapMode {
 }
 
 /**
- * iNat 是否連得上。**只在走快取時才需要問**——真的送了查詢的話，成功或失敗本身
- * 就是答案。
+ * Whether iNat is reachable. **Only worth asking when the answer came from the
+ * cache** — if a query was actually sent, its success or failure is the answer.
  *
- * HEAD 請求（`probe` 回 0 bytes），而且結果在整個 app 共用 60 秒：在記錄之間左右
- * 翻頁時不該每一筆都去敲一次網路。
+ * A HEAD request (`probe` returns 0 bytes), and the result is shared app-wide
+ * for 60 s: paging left and right between records should not poke the network
+ * once per record.
  */
 let reachMemo: { at: number; ok: boolean } | null = null;
 const REACH_TTL_MS = 60_000;
 
-async function tilesReachable(signal: AbortSignal): Promise<boolean> {
+export async function inatTilesReachable(signal: AbortSignal): Promise<boolean> {
   if (reachMemo && Date.now() - reachMemo.at < REACH_TTL_MS) return reachMemo.ok;
   try {
     await probe('inat', 'https://api.inaturalist.org/v1/taxa/1', signal, 6000);
@@ -87,58 +104,93 @@ async function tilesReachable(signal: AbortSignal): Promise<boolean> {
 }
 
 /**
- * 解析一個物種在 iNat 的 id 與觀察筆數，快取優先。
+ * Resolve a species' iNat id and observation counts, cache first.
  *
- * 快取讀得到且沒過期就零請求。`gi…` 的本地 id 連 autocomplete 都省掉——那個 id
- * 本來就是從 iNat 來的。`fromCache` 讓呼叫端知道這一趟完全沒碰網路，因此還不知道
- * 瓦片載不載得到。
+ * A live, unexpired cache entry costs zero requests. A `gi…` local id skips even
+ * the autocomplete — that id came from iNat in the first place. `fromCache`
+ * tells the caller this round never touched the network, and therefore that
+ * whether tiles will load is still unknown.
  */
-async function resolve(
+export async function resolveInatTaxon(
   taxon: InatGridTaxon,
   signal: AbortSignal,
 ): Promise<{ info: InatTaxonInfo; fromCache: boolean }> {
   const cached = readInatTaxonCache(taxon.name, taxon.kingdom);
   if (cached && !isInatCacheStale(cached.checkedAt)) return { info: cached, fromCache: true };
 
+  // A `gi…` id came from iNaturalist to begin with, so it IS the taxon's own
+  // id and there is nothing to match.
   const direct = inatIdFromLocalTaxonId(taxon.localTaxonId);
-  const id = direct ?? (await lookupTaxonId(taxon.name, taxon.kingdom, signal));
+  const match =
+    direct === null
+      ? await lookupTaxon(taxon.name, taxon.kingdom, signal)
+      : { id: direct, name: taxon.name, via: 'name' as const };
 
   let info: InatTaxonInfo;
-  if (id === null) {
-    info = { inatTaxonId: null, obsWild: 0, obsTotal: 0 };
+  if (match === null) {
+    info = { inatTaxonId: null, obsWild: 0, obsTotal: 0, inatName: null, via: null };
   } else {
-    const wild = await fetchObservationCount(id, { wildOnly: true }, signal);
-    // 野外有資料就不必再問總數——省一次請求，而 pickHeatmapMode 此時也用不到它。
-    const total = wild > 0 ? null : await fetchObservationCount(id, {}, signal);
-    info = { inatTaxonId: id, obsWild: wild, obsTotal: total };
+    const wild = await fetchObservationCount(match.id, { wildOnly: true }, signal);
+    // A non-zero wild count makes the total unnecessary — one request saved, and
+  // pickHeatmapMode does not look at it in that case anyway.
+    const total = wild > 0 ? null : await fetchObservationCount(match.id, {}, signal);
+    info = {
+      inatTaxonId: match.id,
+      obsWild: wild,
+      obsTotal: total,
+      inatName: match.name,
+      via: match.via,
+    };
   }
   writeInatTaxonCache(taxon.name, taxon.kingdom, info);
-  // 這一趟真的通了，順手記下來，省掉接下來 60 秒內其他物種的探測
+  // This round really did get through; remember it and save every other species
+  // a probe for the next 60 seconds.
   reachMemo = { at: Date.now(), ok: true };
   return { info, fromCache: false };
 }
 
+/** What the layer is actually drawing, once resolution has succeeded. */
+export type InatGridResolved = {
+  inatTaxonId: number;
+  /** The name iNaturalist files it under — not necessarily the name asked for. */
+  inatName: string;
+  via: TaxonMatchVia;
+};
+
 /**
- * 回傳圖層開關、目前狀態、以及要掛上去的瓦片 URL（沒有就是 null）。
+ * Returns the layer's state and the tile URL to mount (null when there is none).
  *
- * `enabled` 由呼叫端持久化（設定 key `inat_grid_overlay`），所以下次開同一張圖
- * 會沿用；但**解析只在真的開著時才發生**，關著的時候一個請求都不會送。
+ * `enabled` is persisted by the caller (setting key `inat_grid_overlay`), so the
+ * next map opens the same way; but **resolution only happens while it is
+ * actually on** — switched off, not a single request is sent.
+ *
+ * `zoom` (see `tileZoomForRegion`) only decides how coarse the cells are; it is
+ * bucketed by `gridPrecisionOffset` before it reaches the URL, so panning and
+ * pinching do not keep invalidating the loaded tiles.
  */
-export function useInatGrid(taxon: InatGridTaxon | undefined, enabled: boolean) {
+export function useInatGrid(
+  taxon: InatGridTaxon | undefined,
+  enabled: boolean,
+  zoom = 0,
+) {
   const [state, setState] = useState<InatGridState>({ kind: 'idle' });
-  // 解析出來的 id 跟著 state 一起放，不要在 render 期間回頭讀 DB —— 那會變成
-  // 每次 render 一次同步 SQL，正是這個專案一再避免的事。
+  // The resolved id is kept next to the state rather than read back from the DB
+  // during render: that would be one synchronous SQL call per render, which is
+  // exactly what this project keeps avoiding.
   const [inatId, setInatId] = useState<number | null>(null);
+  const [resolved, setResolved] = useState<InatGridResolved | null>(null);
   const [attempt, setAttempt] = useState(0);
   const abortRef = useRef<AbortController | null>(null);
 
-  // 換物種就重來：同一個 sheet 會被左右滑動換成下一筆記錄，舊的解析必須作廢，
-  // 否則前一個物種的筆數會蓋到新物種上。
+  // A different species starts over: this sheet gets swiped sideways to the next
+  // record, so the previous resolution must be discarded or its counts land on
+  // the new species.
   const key = taxon ? `${taxon.localTaxonId}|${taxon.name}|${taxon.kingdom}` : '';
 
   useEffect(() => {
     abortRef.current?.abort();
     setInatId(null);
+    setResolved(null);
     if (!taxon || !enabled) {
       setState({ kind: 'idle' });
       return;
@@ -148,14 +200,25 @@ export function useInatGrid(taxon: InatGridTaxon | undefined, enabled: boolean) 
     setState({ kind: 'loading' });
     void (async () => {
       try {
-        const { info, fromCache } = await resolve(taxon, ctrl.signal);
+        const { info, fromCache } = await resolveInatTaxon(taxon, ctrl.signal);
         if (ctrl.signal.aborted) return;
         setInatId(info.inatTaxonId);
+        setResolved(
+          info.inatTaxonId === null
+            ? null
+            : {
+                inatTaxonId: info.inatTaxonId,
+                // Rows written before v37 carry neither field, and those could
+                // only have been strict matches — see the v37 migration.
+                inatName: info.inatName || taxon.name,
+                via: info.via ?? 'name',
+              },
+        );
         const next = stateFor(info);
         // 快取命中＝這一趟沒碰網路，所以還不知道瓦片載不載得到。有筆數要畫的時候
         // 才值得問——「沒有這個物種」那種狀態本來就不掛圖層，離線與否不影響它。
         if (fromCache && (next.kind === 'wild' || next.kind === 'captiveOnly')) {
-          const ok = await tilesReachable(ctrl.signal);
+          const ok = await inatTilesReachable(ctrl.signal);
           if (ctrl.signal.aborted) return;
           if (!ok) {
             setState({ kind: 'offline', count: next.count });
@@ -179,7 +242,8 @@ export function useInatGrid(taxon: InatGridTaxon | undefined, enabled: boolean) 
 
   const retry = useCallback(() => setAttempt((n) => n + 1), []);
 
-  const tileUrl = inatId === null ? null : gridTileUrl(inatId, modeFor(state));
+  const tileUrl =
+    inatId === null ? null : gridTileUrl(inatId, modeFor(state), gridPrecisionOffset(zoom));
 
-  return { state, tileUrl, retry };
+  return { state, tileUrl, retry, resolved };
 }

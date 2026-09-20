@@ -1,5 +1,5 @@
 /**
- * 語言 — the one settings list that is a screen rather than a dropdown.
+ * Language — the one settings list that is a screen rather than a dropdown.
  *
  * A pill row stopped scaling at 9 languages, and the search box is the way out
  * for a user stranded in a script they cannot read. Neither survives a popover:

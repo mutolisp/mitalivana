@@ -1,9 +1,9 @@
 /**
  * How a site's geometry type is shown — one table, four screens.
  *
- * This existed as four near-copies (the map tab, the 地理樣區 list, the assign
- * sheet and the save modal), one of which silently carried only three of the
- * six types. Keyed on `SiteGeometryType` as a COMPLETE Record, so adding a
+ * This existed as four near-copies (the map tab, the geographic-site list, the
+ * assign sheet and the save modal), one of which silently carried only three of
+ * the six types. Keyed on `SiteGeometryType` as a COMPLETE Record, so adding a
  * geometry type fails to compile here instead of rendering a bare i18n key on
  * screen — which is also why call sites no longer need a `?? fallback`.
  *

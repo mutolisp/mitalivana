@@ -4,7 +4,7 @@
  * Inline use cases (the search panel) render SpeciesDetailPanel directly.
  *
  * Sheet-local state: `currentResult` is seeded from `props.result`, but the
- * 「下級分類群」section can swap it to an infraspecies in-place. The parent's
+ * subordinate-taxa section can swap it to an infraspecies in-place. The parent's
  * `props.result` reset (e.g. set to null on close) re-seeds the local state
  * via the `useEffect` below. No history stack — picking a subordinate
  * replaces the visible taxon; closing the sheet ends the session.
@@ -20,10 +20,12 @@ type Props = {
   result: SearchResult | null;
   onClose: () => void;
   onAddToSession: () => void;
-  /** Override the add-button label (e.g. 「加入目前樣區」 when a plot is active). */
+  /** Override the add-button label (e.g. "add to the current plot" when a plot is
+   *  active). */
   addButtonLabel?: string;
-  /** Long-press on the add button — offers the 採集 destination. Awaited, so
-   *  the caller can close the sheet only after the chooser resolves. */
+  /** Long-press on the add button — offers the specimen-collection destination.
+   *  Awaited, so the caller can close the sheet only after the chooser
+   *  resolves. */
   onAddLongPress?: () => void | Promise<void>;
 };
 

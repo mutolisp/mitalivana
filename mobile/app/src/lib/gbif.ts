@@ -56,10 +56,10 @@ const GROUP_DELAY_MS = 300;
  * while GBIF returns a whole group in ONE faceted request — measured at 5000
  * names in 2.25 s, with no 1000-facet cap on `scientificName` (that cap applies
  * to `speciesKey`). So the limit here is not what the API can give: it is what
- * a 常用名錄 can usefully hold. A single drawn area over Yangmingshan already
- * has more than 5000 species in GBIF, and a list that long is not something
- * anyone reads. The two constants stay equal so switching source does not
- * silently change how much you get.
+ * a favourite checklist can usefully hold. A single drawn area over Yangmingshan
+ * already has more than 5000 species in GBIF, and a list that long is not
+ * something anyone reads. The two constants stay equal so switching source does
+ * not silently change how much you get.
  */
 export const GBIF_MAX_SPECIES = 1000;
 

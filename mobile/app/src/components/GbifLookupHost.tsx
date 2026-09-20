@@ -1,5 +1,6 @@
 /**
- * 到 GBIF 查名 — the way out when neither bundled checklist has the species.
+ * Looking a name up on GBIF — the way out when neither bundled checklist has the
+ * species.
  *
  * Three things happen here, in this order, and the order is the point:
  *   1. ask GBIF what names match what the user typed;
@@ -12,7 +13,7 @@
  *
  * Imperative API + module-level store + a host mounted at the navigation root,
  * exactly like `TextPromptModal` / `ActionSheet` — and for the same reason:
- * one caller (the batch importer's 找不到 list) is itself inside a Modal, and
+ * one caller (the batch importer's not-found list) is itself inside a Modal, and
  * iOS will not present a Modal on top of a Modal. Hoisting the host out of
  * every screen is what makes it work from anywhere.
  *

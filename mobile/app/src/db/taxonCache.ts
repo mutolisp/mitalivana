@@ -1,26 +1,31 @@
 /**
- * 記錄用到的名錄名稱，在 user.db 裡留一份。
+ * Keep a copy in user.db of every checklist name a record uses.
  *
- * 名錄模組（臺灣 / 日本）拆成可下載、可刪除的檔之後，「記錄引用的 taxon 查不
- * 到名字」變成一個正常會發生的狀態：模組還沒下載、使用者刪掉它、或跨裝置還原
- * 到沒裝該模組的機器。沒有這一層，使用者會看到一整片只有數量與備註、沒有物種
- * 名的記錄。
+ * Once the checklist modules (Taiwan / Japan) became downloadable and deletable
+ * files, "the taxon a record references cannot be resolved" became a normal
+ * state: the module is not downloaded yet, the user deleted it, or a backup was
+ * restored onto a device without it. Without this layer the user sees a wall of
+ * records carrying counts and notes but no species names.
  *
- * 這是 `ensureExternalCopy`（regionpacks.ts）那條不變式的雙生子，掛點也一樣
- * ——掛在四個 insert helper 自己身上，所以沒有任何 UI 路徑能忘記。
+ * This is the twin of the `ensureExternalCopy` invariant (regionpacks.ts), with
+ * the same attachment points — hung on the four insert helpers themselves, so no
+ * UI path can forget it.
  *
- * **為什麼不直接沿用 `ensureExternalCopy`**：它會把 pack 的 taxon 轉存成
- * `external_taxa` 並鑄造一個**新的 `g…` id**。對 t…/y… 這樣做等於改寫記錄的
- * taxon_id，會拆散該筆的統計、匯出與彙整。id 絕對不能變，所以要有自己的表。
+ * **Why `ensureExternalCopy` is not reused directly**: it copies a pack taxon
+ * into `external_taxa` and mints a **new `g…` id**. Doing that to a t…/y… id
+ * would rewrite the record's taxon_id and break its statistics, exports and
+ * aggregation apart. The id must never change, so this needs its own table.
  *
- * 優先序：**模組在就一定用模組**。快取只在 `resolveTaxa` / `searchByTaxonId`
- * 落空時才讀，所以「快取過時」在模組存在時完全不可見，不需要任何刷新機制。
+ * Precedence: **the module always wins when it is present**. The cache is only
+ * read when `resolveTaxa` / `searchByTaxonId` come up empty, so a stale cache is
+ * completely invisible while the module exists and needs no refresh mechanism.
  */
 import { getDatasetDb, datasetForTaxonId, type DatasetId } from './datasets';
 import { getUserDb } from './init';
 import { ensureExternalCopy } from './regionpacks';
 
-/** 與 `taxon_name_cache` 的欄位順序一致（taxon_id / dataset_id / cached_at 另計）。 */
+/** Same column order as `taxon_name_cache` (taxon_id / dataset_id / cached_at
+ *  counted separately). */
 const CACHE_FIELDS = [
   'simple_name', 'name_author', 'common_name_c', 'alternative_name_c',
   'family', 'family_c', 'rank', 'is_endemic', 'alien_type',
@@ -30,7 +35,7 @@ const CACHE_FIELDS = [
   'is_terrestrial', 'is_freshwater', 'is_brackish', 'is_marine', 'is_fossil',
 ] as const;
 
-/** `"order"` 是保留字，其餘照抄。 */
+/** `"order"` is a reserved word; the rest are copied as-is. */
 const quoted = (col: string) => (col === 'order' ? '"order"' : col);
 const SELECT_COLS = CACHE_FIELDS.map(quoted).join(', ');
 
@@ -39,8 +44,9 @@ function readFromDataset(taxonId: string): { row: Record<string, unknown>; datas
   if (!spec || spec.tables.kind !== 'names') return null;
   const db = getDatasetDb(spec.id);
   if (!db) return null;
-  // 先找接受名；找不到才退而求其次抓任何一列，讓只以同義名存在的 id 也留得下
-  // 名字（`getKeyTaxonInfo` 早就是這個行為）。
+  // Look for the accepted name first; fall back to any row so an id that only
+  // exists as a synonym still keeps a name (`getKeyTaxonInfo` has always behaved
+  // this way).
   for (const extra of [` AND usage_status = 'accepted'`, '']) {
     const res = db.executeSync(
       `SELECT ${SELECT_COLS} FROM ${spec.tables.names} WHERE taxon_id = ?${extra} LIMIT 1`,

@@ -62,7 +62,7 @@ type Props = {
   /** A finished recording (file:// URI, already persisted). Parent writes the DB. */
   onAddAudio?: (uri: string) => void;
   onRemoveAudio?: (uri: string) => void;
-  /** 上傳／同步 iNat row for this record. */
+  /** Upload / sync to iNat row for this record. */
   inat?: InatSheetState;
   /** Save species attribute changes (sex / lifeStage / reproductive / leaf). */
   onSaveAttributes?: (next: SpeciesAttributesDraft) => void;
@@ -142,7 +142,7 @@ export function SpeciesDetailSheet({
   }, [record?.taxon_id]);
 
   // Surface identification keys defined for the record's genus / family
-  // ("上一階層"). Each key is shown as a tappable chip that closes this
+  // ("one rank up"). Each key is shown as a tappable chip that closes this
   // sheet and pushes the user to the key runner.
   const twOn = useSettings((s) => s.enabled_regions.includes('TW'));
   useEffect(() => {
@@ -247,19 +247,20 @@ export function SpeciesDetailSheet({
                 </View>
 
                 {/* The sheet's only inline text field is RecordLocationMap's
-                coordinate entry. Since the 本筆記錄 block was reordered
+                coordinate entry. Since the this-record block was reordered
                 locate-first it usually sits high enough to clear the keyboard —
-                but the taxonomy sections above it (其他名稱 / 物種狀態 / 保育
-                狀態 / 同物異名) are unbounded, so on a well-annotated taxon it
-                drops right back down. `behavior="padding"` shrinks the
-                ScrollView rather than moving the sheet container, which is what
-                keeps the header from being pushed off the top edge. */}
+                but the taxonomy sections above it (other names / species status /
+                conservation status / synonyms) are unbounded, so on a
+                well-annotated taxon it drops right back down.
+                `behavior="padding"` shrinks the ScrollView rather than moving
+                the sheet container, which is what keeps the header from being
+                pushed off the top edge. */}
                 <KeyboardAvoidingView className="flex-1" behavior="padding">
                   {/* `keyboardShouldPersistTaps="handled"`: the sheet's only inline
-                  TextInput is RecordLocationMap's coordinate entry, whose 取消 /
-                  OK sit directly under it. RN's default 'never' spends the first
-                  tap dismissing the keyboard, so those two buttons needed two
-                  taps — a pre-existing bug the locate-first reorder makes far
+                  TextInput is RecordLocationMap's coordinate entry, whose Cancel
+                  and OK sit directly under it. RN's default 'never' spends the
+                  first tap dismissing the keyboard, so those two buttons needed
+                  two taps — a pre-existing bug the locate-first reorder makes far
                   easier to hit. 'handled' still dismisses on taps no child takes.
                   Both sibling sheets already set it. */}
                   <ScrollView

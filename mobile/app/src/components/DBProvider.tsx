@@ -60,12 +60,13 @@ export function DBProvider({ children }: Props) {
         setProgress(t('splash.loadingTaxa'));
         // Kingdom prewarm moved BEFORE setReady. Cost is ~200ms but the user
         // already sees splash + progress text; the cost is invisible here and
-        // GUARANTEES the 物種 tab opens cached even if the user taps it the
+        // GUARANTEES the species tab opens cached even if the user taps it the
         // moment splash hides (the previous setTimeout(0) variant lost that
         // race when the tap landed before the macrotask fired).
         try {
-          // 一個名錄模組都沒有時整段跳過——沒有資料可暖，卻會讓首啟多做一輪
-          // 空查詢（下載精靈接手前的常見狀態）。
+          // Skipped entirely with no checklist module installed — there is nothing to
+      // warm, and it would only add a round of empty queries to the first launch
+          // (the usual state before the download wizard takes over).
           if (hasAnyNamesDataset()) perf.time('app:prewarm-kingdoms', prewarmKingdoms);
         } catch {
           // non-fatal: taxonomy tab falls back to lazy SQL
@@ -91,8 +92,9 @@ export function DBProvider({ children }: Props) {
             // non-fatal: search still works via exact path
           }
           try {
-            // 檢索表現在是自己的模組，而且相依臺灣名錄。`keysAvailable()` 一次
-            // 涵蓋「模組裝了沒 / 名錄在不在 / 臺灣有沒有啟用」三件事。
+            // The keys are their own module now, and they depend on the Taiwan checklist.
+            // `keysAvailable()` covers all three questions at once: module installed,
+      // checklist present, and TW enabled.
             if (keysAvailable()) perf.time('app:prewarm-keys', prewarmKeys);
           } catch {
             // non-fatal: KeyListView falls back to lazy load

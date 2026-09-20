@@ -10,8 +10,8 @@
  *                                  → if target is "taxon T", show terminal card
  *                                  → if target unresolved (e.g. `:` or `;`
  *                                    misread by PDF parser), show warning row
- *   user taps 上一步             → pop path; current couplet = path tail (or start)
- *   user taps "重來"             → clear path, back to first couplet
+ *   user taps Back              → pop path; current couplet = path tail (or start)
+ *   user taps Start over        → clear path, back to first couplet
  *
  * All DB lookups (key, couplets, taxa) happen once in `useEffect` and feed
  * `useState`. Render-phase DB calls were previously seen to trigger
@@ -80,8 +80,9 @@ type LeadPreview =
   | { kind: 'taxon'; taxon: KeyTaxonInfo }
   | { kind: 'unresolved'; rawText: string };
 
-/** Short label for the subkey scope rank, used in the action-button hint
- *  e.g. "續查屬內檢索表". Falls back to the raw rank for unmapped values. */
+/** Short label for the subkey scope rank, used in the action-button hint, e.g.
+ *  "continue with the genus key". Falls back to the raw rank for unmapped
+ *  values. */
 function subkeyRankLabel(rank: string): string {
   const KEY: Record<string, string> = {
     family: 'rank.family',
@@ -124,12 +125,12 @@ type ReachableTerminal = {
 };
 
 /**
- * DFS-enumerate every terminal taxon reachable from `startCouplet`. Used by
- * the "看候選" peek feature so a user who can't observe the current trait
- * can scan all downstream candidates and pick directly.
+ * DFS-enumerate every terminal taxon reachable from `startCouplet`. Used by the
+ * candidate-peek feature so a user who cannot observe the current trait can scan
+ * all downstream candidates and pick directly.
  *
- * Per-call `visited` prevents infinite loops if the key (rare) has cycles.
- * Real Sheets-authored keys are pure trees, so this is just a safety net.
+ * Per-call `visited` prevents infinite loops if the key (rare) has cycles. Real
+ * Sheets-authored keys are pure trees, so this is just a safety net.
  */
 function enumerateReachableTerminals(
   startCouplet: number,

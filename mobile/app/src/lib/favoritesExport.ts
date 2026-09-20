@@ -1,5 +1,5 @@
 /**
- * Export one 常用名錄 as a document or a spreadsheet.
+ * Export one favourite checklist as a document or a spreadsheet.
  *
  * Reuses the checklist pipeline rather than growing a parallel one:
  * `taxonToMarkdownItem` → `generateMarkdown` → `markdownToDocx` is exactly what
@@ -28,7 +28,8 @@ function resolve(items: FavoriteItem[]): Resolved[] {
   }));
 }
 
-/** `TaxonFields` 裡值為字串的欄位。`unresolved` 是布林旗標，排序不該碰到它。 */
+/** The string-valued fields of `TaxonFields`. `unresolved` is a boolean flag
+ *  and must never be reached by the sort. */
 type TaxonTextField = {
   [K in keyof TaxonFields]-?: TaxonFields[K] extends string | undefined ? K : never;
 }[keyof TaxonFields];
@@ -53,9 +54,10 @@ function taxonSort(a: Resolved, b: Resolved): number {
 
 export type FavoritesDocxOptions = {
   lang?: string;
-  /** 匯出設定的保育欄位選擇。省略 = 只顯示臺灣紅皮書（generateMarkdown 的預設）。 */
+  /** The conservation columns chosen in the export settings. Omitted = show the
+ *  Taiwan red list only (generateMarkdown's default). */
   conservationFields?: ConservationField[];
-  /** 匯出設定的「排除 LC」。 */
+  /** The export setting's "hide least concern". */
   hideLowConcern?: boolean;
 };
 

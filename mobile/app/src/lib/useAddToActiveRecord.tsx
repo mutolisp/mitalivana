@@ -3,8 +3,9 @@
  *
  * Single source of truth for the decision the identification-key runner
  * (`app/key/[id].tsx::addTaxonToActiveRecord`) already makes correctly, so the
- * taxonomy tree / 查詢 entry points stop blindly adding to a session (which,
- * via single-active enforcement, would silently end an active plot survey).
+ * taxonomy tree and search entry points stop blindly adding to a session
+ * (which, via single-active enforcement, would silently end an active plot
+ * survey).
  *
  * Priority: active plot → open PlotSpeciesValueModal (enter abundance) →
  * addPlotSpecies. Otherwise active session (or a freshly started one) →
@@ -101,7 +102,7 @@ export function useAddToActiveRecord(): {
     const activePlot = useActivePlot.getState().plot;
     if (activePlot) {
       // Non-stratified plots (transect / point count) store every row under
-      // 'T'; fixed plots default to E2 (草本層), matching the key runner.
+      // 'T'; fixed plots default to E2 (the herb layer), matching the key runner.
       const layer: Layer = activePlot.plot_type === 'fixed' ? 'E2' : 'T';
       setPlotTarget({ sp, plotId: activePlot.id, plotType: activePlot.plot_type, layer, adopted });
       return;

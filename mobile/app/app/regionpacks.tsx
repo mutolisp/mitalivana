@@ -1,5 +1,5 @@
 /**
- * 國家名錄 pack 管理頁。
+ * Country checklist pack management screen.
  *
  * A pack = one country's GBIF SPECIES_LIST download (optionally narrowed to
  * taxon groups), imported into regionpacks.db so that country's species are
@@ -83,8 +83,9 @@ export default function RegionPacksScreen() {
   // subscribing here is what re-renders the rows while a download runs.
   const progress = usePackDownloads((st) => st.progress);
 
-  // ── 名錄模組（可下載 / 更新 / 刪除）──────────────────────────────────
-  // 安裝狀態訂閱 registry 的快照 store，所以下載完成、刪除都會立刻重繪。
+  // ── Checklist modules (download / update / delete) ─────────────────────
+  // Install state subscribes to the registry's snapshot store, so finishing a
+  // download or a delete repaints immediately.
   const installs = useInstalledDatasets((st) => st.installs);
   const dsActive = useDatasetInstall((st) => st.activeId);
   const dsProgress = useDatasetInstall((st) => st.progress);
@@ -101,7 +102,8 @@ export default function RegionPacksScreen() {
       setRemote(entries);
       setRemoteState(needsAppUpdate ? 'stale-app' : 'idle');
     } catch {
-      // 離線是常態（這是野外用的 app）：安靜地退回已安裝清單就好。
+      // Being offline is normal (this is a field app): fall back quietly to the
+      // installed list.
       setRemoteState('failed');
     }
   }, []);
@@ -131,9 +133,10 @@ export default function RegionPacksScreen() {
     clearTaxonomyCache();
     clearSearchResultCache();
   }, []);
-  // 「至少留一個來源」——名錄模組要**已安裝且已啟用**才算數（只是勾了 TW 但還沒
-  // 下載並不構成一個可查詢的來源），再加上 ready 的 pack。DB 層仍然允許任何組合，
-  // 這條規則只存在於 UI。
+  // "Keep at least one source" — a checklist module only counts when it is
+  // **installed and enabled** (ticking TW without downloading it is not a
+  // queryable source), plus any ready pack. The DB layer still allows any
+  // combination; this rule exists in the UI alone.
   const installedRegionCodes = installs
     .map((rec) => allSpecs().find((sp) => sp.id === rec.id)?.region)
     .filter((r): r is RegionCode => r === 'TW' || r === 'JP');

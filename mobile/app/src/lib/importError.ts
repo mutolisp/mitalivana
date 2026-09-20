@@ -12,7 +12,7 @@ export type ImportErrorCode =
   | 'invalidYml'
   /** record document is missing its identity fields */
   | 'missingFields'
-  /** a 採集 (collection) export — no import support yet */
+  /** a specimen-collection export — no import support yet */
   | 'unsupportedCollection'
   /** a multi-record `bundleMany` zip — ambiguous, refuse rather than guess */
   | 'unsupportedBundle'

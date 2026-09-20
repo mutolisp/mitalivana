@@ -1,9 +1,9 @@
 /**
- * Ask which 常用名錄 a batch of species should land in.
+ * Ask which favourite checklist a batch of species should land in.
  *
  * Shared by every entry point that copies species into a folder from outside
  * the favourites screen (which has an implicit target — the folder you are
- * standing in). Mirrors the 新建 / 既有 chooser in `AreaSpeciesModal`.
+ * standing in). Mirrors the new / existing chooser in `AreaSpeciesModal`.
  */
 import { showActionSheet } from '~/components/ActionSheet';
 import { promptText } from '~/components/TextPromptModal';

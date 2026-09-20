@@ -1,27 +1,27 @@
 /**
  * The single iNaturalist affordance on a record's detail sheet.
  *
- * It used to share the job with an 「已上傳 iNat」 pill in the header, which said
- * the same thing twice: the state is already visible in this row's own label
- * and icon, and the observation id now sits in the record footer. One control
- * that changes wording with the state is easier to read than two.
+ * It used to share the job with an "uploaded to iNat" pill in the header, which
+ * said the same thing twice: the state is already visible in this row's own
+ * label and icon, and the observation id now sits in the record footer. One
+ * control that changes wording with the state is easier to read than two.
  */
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Pressable, Text } from 'react-native';
 
-/** What a detail sheet needs to offer 上傳 / 同步 for its record. Built by
+/** What a detail sheet needs to offer upload / sync for its record. Built by
  *  the screen that owns the record (it knows the unit id). */
 export type InatSheetState = {
   uploaded: boolean;
-  /** Fingerprint differs from the last sync — label says 「有變更」. */
+  /** Fingerprint differs from the last sync — the label says "changed". */
   changed: boolean;
   syncing: boolean;
   onPress: () => void;
 };
 
-/** 上傳 iNaturalist（未上傳）／同步 iNaturalist（已上傳，變更時標示）—
- *  one row, iNaturalist green. */
+/** Upload to iNaturalist (not yet uploaded) / sync with iNaturalist (uploaded,
+ *  marked when changed) — one row, iNaturalist green. */
 export function InatSyncButton({ state }: { state: InatSheetState }) {
   const { t } = useTranslation();
   const label = state.syncing

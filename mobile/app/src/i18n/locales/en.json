@@ -1231,7 +1231,22 @@
     "empty": "No iNaturalist observations for this species yet",
     "unknown": "This scientific name is not in iNaturalist",
     "offline": "Offline — the iNaturalist layer cannot load",
-    "attribution": "Observations © iNaturalist contributors; threatened species coordinates are obscured"
+    "attribution": "Observations © iNaturalist contributors; threatened species coordinates are obscured",
+    "fab": "iNat observation grid",
+    "sheetTitle": "iNaturalist observation grid",
+    "searchHint": "Search for a taxon to overlay its iNaturalist observations. Cells resize with the zoom level, and the darker a cell, the more observations it holds.",
+    "searchInat": "Search iNaturalist instead",
+    "inatResults": "Taxa on iNaturalist",
+    "inatNoMatch": "iNaturalist has nothing for \"{{q}}\" either",
+    "obsCount": "{{count}} observations",
+    "showingNow": "Now showing",
+    "stop": "Stop showing",
+    "synonymAsk": "iNaturalist files \"{{asked}}\" under {{accepted}}, so the grid will draw that name’s observations.",
+    "synonymUse": "Show it under that name",
+    "viaSynonym": "iNaturalist files this under {{name}}; the grid is that name’s observations",
+    "viaSynonymShort": "searched as {{name}}",
+    "legendFew": "Few",
+    "legendMany": "Many"
   },
   "collection": {
     "title": "Collection",

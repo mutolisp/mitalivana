@@ -3,10 +3,10 @@
  * (session record detail), PlotSpeciesValueModal (plot species detail),
  * SpecimenDetailSheet and the plot's environment photos.
  *
- * `PhotoGrid` renders a 88×88 thumbnail per URI plus a trailing 「拍照」 tile
+ * `PhotoGrid` renders a 88×88 thumbnail per URI plus a trailing camera tile
  * that goes straight to the camera (`onAdd`); the library path is the
- * 「從相簿選擇」 link under the grid (`onPickLibrary`) — one layout for every
- * place a photo can be added, no chooser sheet in between.
+ * "choose from album" link under the grid (`onPickLibrary`) — one layout for
+ * every place a photo can be added, no chooser sheet in between.
  * Tap → onView(idx); long-press → confirm-remove.
  * `PhotoViewerModal` is a horizontally pagable full-bleed image viewer.
  */
@@ -25,9 +25,9 @@ export function PhotoGrid({
   onRemove,
 }: {
   photos: string[];
-  /** The 「拍照」 tile — opens the camera directly. */
+  /** The camera tile — opens the camera directly. */
   onAdd: () => void;
-  /** Renders the 「從相簿選擇」 link under the grid when given. */
+  /** Renders the "choose from album" link under the grid when given. */
   onPickLibrary?: () => void;
   onView?: (index: number) => void;
   onRemove?: (uri: string) => void;

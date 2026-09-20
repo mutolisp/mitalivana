@@ -71,9 +71,9 @@ export default function PlotDetailScreen() {
   const plotId = Number(id);
   const [plot, setPlot] = useState<PlotSurvey | null>(null);
   /**
-   * Restore the tab this plot was last left on — a survey is filled in 環境
-   * once and then lived in 物種, so landing back on 環境 after every trip out
-   * to the map or the camera is pure friction.
+   * Restore the tab this plot was last left on — a survey is filled in on the
+   * Environment tab once and then lived in on Species, so landing back on
+   * Environment after every trip out to the map or the camera is pure friction.
    *
    * Read once through `getState()`, not a selector: this is a starting point,
    * not something that should yank the tab out from under the user if the
@@ -106,9 +106,10 @@ export default function PlotDetailScreen() {
 
   const ready = plot ? plotCanAcceptSpecies(plot) : false;
 
-  /** 環境 ↔ 物種 by horizontal swipe, mirroring the two tab buttons exactly —
-   *  including the 物種 tab staying shut until the survey can accept species.
-   *  Declared before the not-found early return so the hook order is stable. */
+  /** Environment ↔ Species by horizontal swipe, mirroring the two tab buttons
+   *  exactly — including the Species tab staying shut until the survey can
+   *  accept species. Declared before the not-found early return so the hook
+   *  order is stable. */
   const tabNav = useSwipeNav({
     onStep: (dir) => selectTab(dir === 1 ? 'species' : 'env'),
     hasPrev: tab === 'species',

@@ -2,16 +2,17 @@
  * What a tapped map feature is, before deciding what to do with it.
  *
  * Tapping used to open the action sheet directly, which meant every stray
- * touch while reading the map presented 跳回記錄 / 跳到此位置 / 編輯位置 and
- * had to be dismissed. Long-press would be the obvious alternative, but
- * `react-native-maps` has no `onLongPress` on Marker, Polyline or Polygon —
- * only MapView has one, and it reports a coordinate rather than the feature.
- * So the split is tap → this card, 「操作」 → the sheet that already existed.
+ * touch while reading the map presented "jump to record" / "go to this
+ * location" / "edit position" and had to be dismissed. Long-press would be the
+ * obvious alternative, but `react-native-maps` has no `onLongPress` on Marker,
+ * Polyline or Polygon — only MapView has one, and it reports a coordinate rather
+ * than the feature. So the split is tap → this card, the action button → the
+ * sheet that already existed.
  *
  * Purely presentational: the caller has already localised every string, which
- * keeps the three feature kinds (樣區 / 名錄 / 地理樣區) from leaking in here.
- * Not a Modal — it sits over the map inside the same screen, so the action
- * sheet (a Modal on Android) can open from it without nesting.
+ * keeps the three feature kinds (plot survey / checklist / geographic site) from
+ * leaking in here. Not a Modal — it sits over the map inside the same screen, so
+ * the action sheet (a Modal on Android) can open from it without nesting.
  */
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -23,7 +24,7 @@ export type MapFeatureInfo = {
   subtitle: string;
   /** Extra detail lines; empty ones are dropped by the caller. */
   lines: string[];
-  /** e.g. 記錄中 — shown as a pill when present. */
+  /** e.g. "recording" — shown as a pill when present. */
   badge: string | null;
   /** Colour of the pill and the accent bar, matching the feature on the map. */
   accentColor: string;

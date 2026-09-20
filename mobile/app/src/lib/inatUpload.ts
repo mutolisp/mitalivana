@@ -149,7 +149,8 @@ function commonAttributes(r: {
 }): InatAttribute[] {
   return [
     // Also sent structurally as `captive_flag`; repeated in the description so
-    // 野生 is visible to a human reader, which a false flag alone is not.
+    // the word "wild" is visible to a human reader, which a false flag alone is
+      // not.
     pair(
       i18n.t('attr.establishmentLabel'),
       r.degree_of_establishment ? establishmentLabel(r.degree_of_establishment) : null,
@@ -550,8 +551,9 @@ function recordInput(rec: EligibleRecord): InatRecordInput {
 }
 
 /** What iNat would receive for this record right now — compared with
- *  `inat_sync_hash` to say 「有變更」. Taxon id is left out on purpose: it is
- *  only known after a network lookup and the name is in the payload anyway. */
+ *  `inat_sync_hash` to decide whether to say "changed". Taxon id is left out on
+ *  purpose: it is only known after a network lookup and the name is in the
+ *  payload anyway. */
 function fingerprintFor(rec: EligibleRecord): string {
   return syncFingerprint({
     payload: buildObservationPayload(recordInput(rec), null, { tags: [], geoprivacy: 'open' }),

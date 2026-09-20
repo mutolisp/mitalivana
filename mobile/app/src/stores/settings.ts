@@ -45,20 +45,24 @@ export type RecordSort = 'observed' | 'cname' | 'name' | 'family';
 export type CollectionSort = 'collected' | 'number' | 'family' | 'name';
 export type SortDirection = 'asc' | 'desc';
 export type FontScale = 'small' | 'normal' | 'large' | 'xlarge';
-/** `vector` 是魯地圖的向量版，走 MapLibre 引擎（見 src/lib/vectormap.ts）。
- *  它不是 react-native-maps 的原生 mapType —— 底下
- *  仍然是 standard，魯地圖圖磚以不透明疊圖蓋在上面，海域與 z7 以下就露出原生底圖。 */
-/** 預設打開的地標群組：水源與山屋是野外最需要的，山頭給定位用。
- *  定義在這裡而不是 db 層，避免 settings 反向依賴 db。 */
+/** `vector` is the vector edition of RudyMap, rendered by MapLibre (see
+ *  src/lib/vectormap.ts). It is not a react-native-maps native mapType — the
+ *  base underneath is still standard, with RudyMap tiles as an opaque overlay on
+ *  top, so the sea and anything below z7 show the native basemap through. */
+/** Landmark groups on by default: water sources and huts are what the field
+ *  needs most, peaks help with orientation. Defined here rather than in the db
+ *  layer so settings does not depend on db in reverse. */
 export const DEFAULT_POI_GROUPS = ['peaks', 'huts', 'water', 'trees'];
 
-// 'vector' 是 MapLibre 向量引擎（線上直接讀遠端 pmtiles，離線讀本機單檔），
-// 與其餘原生底圖是不同的 view，所以整個 canvas 二選一、不能疊。
+// 'vector' is the MapLibre engine (reading the remote pmtiles directly online,
+// one local file offline). It is a different view from the native basemaps, so
+  // the canvas is one or the other and they cannot be stacked.
 export type MapBasemap = 'standard' | 'satellite' | 'hybrid' | 'terrain' | 'vector';
 export type PlotTab = 'env' | 'species';
 /** Which tab of the plot detail screen was last open, and for which plot.
- *  Scoped to one plot on purpose: a brand-new survey must still open on 環境,
- *  because that is the data it has none of yet. `plotId: 0` = nothing stored. */
+ *  Scoped to one plot on purpose: a brand-new survey must still open on the
+ *  Environment tab, because that is the data it has none of yet. `plotId: 0` =
+ *  nothing stored. */
 export type PlotTabState = { plotId: number; tab: PlotTab };
 export type RecordTypeDefault = 'session' | 'plot' | 'collection' | 'ask';
 
@@ -81,16 +85,18 @@ export type MapViewState = {
   sinica_layer: string;
   /** WMTS overlay opacity 0..1 */
   sinica_opacity: number;
-  /** Selected NLSC (國土測繪中心) WMTS layer id, '' for none */
+  /** Selected NLSC (National Land Surveying and Mapping Center) WMTS layer id, ''
+ *  for none */
   nlsc_layer: string;
   /** NLSC overlay opacity 0..1 */
   nlsc_opacity: number;
-  /** 開啟的山域地標群組 key（見 src/db/rudypoi.ts 的 POI_GROUPS）。 */
+  /** Enabled mountain-landmark group keys (see POI_GROUPS in
+ *  src/db/rudypoi.ts). */
   poi_groups: string[];
 };
 
 const DEFAULT_MAP_VIEW: MapViewState = {
-  // 臺灣中心略偏北
+  // Slightly north of the centre of Taiwan
   latitude: 23.7,
   longitude: 121.0,
   latitudeDelta: 4.5,
@@ -146,7 +152,7 @@ type SettingsValues = {
    *  itself lives in SecureStore (googleAuth.ts), never here — settings ride
    *  along into backup zips and a credential must not. */
   gdrive_account: string;
-  /** 樣區物種頁的多樣性統計卡展開狀態。 */
+  /** Whether the diversity card on a plot's species tab is expanded. */
   plot_stats_expanded: boolean;
   /** Heading printed at the top of every herbarium label, e.g. "Flora of
    *  Taiwan". Remembered between exports. */
@@ -162,13 +168,13 @@ type SettingsValues = {
   records_collapsed: number[];
   /** One-shot: the records list already played its swipe-actions teaser. */
   records_swipe_hint_shown: boolean;
-  /** 列表 / 卡片 檢視. Persisted (unlike the byProject⇄timeline axis, which is
+  /** List / card view. Persisted (unlike the byProject⇄timeline axis, which is
    *  a way of reading the data; this one is how the user likes it drawn). */
   records_layout: RecordsLayout;
   font_scale: FontScale;
   map_view: MapViewState;
   /** Last plot detail tab, so returning to a survey in progress lands where the
-   *  user left it rather than back on 環境 every time. */
+   *  user left it rather than back on Environment every time. */
   plot_last_tab: PlotTabState;
   record_type_default: RecordTypeDefault;
   fab_side: FabSide;
@@ -191,8 +197,10 @@ type SettingsValues = {
    *  filter). On = predictions skewed to species likely at this location;
    *  off = vision-only. Default on, per user request. */
   ai_geomodel_filter: boolean;
-  /** 物種記錄小地圖上是否疊 iNaturalist 觀察網格圖。**預設關**：圖磚走行動網路，
-   *  野外的流量與電力都是有限資源，要不要花由使用者當下決定（見 useInatGrid.ts）。 */
+  /** Whether to overlay the iNaturalist observation grid on a record's mini-map.
+   *  **Off by default**: the tiles go over mobile data, and both data and battery
+   *  are scarce in the field, so spending them is the user's call at the time
+   *  (see useInatGrid.ts). */
   inat_grid_overlay: boolean;
   /** Geo file formats to include in the export bundle. At least one entry is
    *  required; if the list ends up empty after restore we coerce to KML. */
@@ -215,13 +223,15 @@ type SettingsValues = {
   /** Which file(s) that report is written as. */
   export_report_format: ReportFormat;
   /** Classification levels to group the exported checklist by. Empty = use each
-   *  taxon group's default (vascular = 高階分類群 + 科, birds = 目 + 科, …).
-   *  Non-empty = global override, applied in LEVEL_ORDER. */
+   *  taxon group's default (vascular = higher plant group + family, birds =
+   *  order + family, …). Non-empty = global override, applied in LEVEL_ORDER. */
   export_levels: string[];
   /** Conservation-status columns to include in the exported checklist. */
   export_conservation_fields: ConservationField[];
-  /** 排除 LC：匯出的名錄不在物種後面標註無危等級（LC / NLC / NE / NA）。
-   *  名錄開頭的保育統計本來就跳過同一組等級，所以只影響版面，不影響統計。 */
+  /** Hide least-concern codes: the exported checklist does not tag species with
+   *  a safe category (LC / NLC / NE / NA). The conservation summary at the top of
+   *  the checklist already skips the same set, so this only affects the layout,
+   *  not the statistics. */
   export_conservation_hide_lc: boolean;
   /** Enabled regional name databases. Always contains 'TW'; 'JP' is opt-in.
    *  When only ['TW'] the app behaves byte-identically to before this feature. */
@@ -274,7 +284,8 @@ const DEFAULTS: SettingsValues = {
   export_report_format: 'html',
   export_levels: [],
   export_conservation_fields: ['redlist'],
-  // 預設開啟（使用者決定）：LC/NLC 佔掉每一行的尾巴，版面太亂。
+  // On by default (the user's decision): LC/NLC take up the end of every line and
+  // make the layout noisy.
   export_conservation_hide_lc: true,
   enabled_regions: ['TW'],
   language: 'system',
@@ -385,7 +396,8 @@ function readAll(): SettingsValues {
       map.get('collection_number_prefix') ?? DEFAULTS.collection_number_prefix,
     collection_number_start:
       Number(map.get('collection_number_start')) || DEFAULTS.collection_number_start,
-    // 0 是合法值（不補零），所以不能用 or-fallback —— 那會把 0 換成預設的 4。
+    // 0 is a legal value (no padding), so an or-fallback is wrong — it would turn 0
+      // into the default of 4.
     collection_number_pad: (() => {
       const raw = map.get('collection_number_pad');
       const n = Math.floor(Number(raw));

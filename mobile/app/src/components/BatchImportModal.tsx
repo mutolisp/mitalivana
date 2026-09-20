@@ -62,7 +62,8 @@ function targetAdd(
   m: SearchResult,
   adopted?: AdoptionInput,
 ): void {
-  // 常用名錄 keys on taxon_id alone and cannot hold two names for one taxon,
+  // Favourite checklists key on taxon_id alone and cannot hold two names for one
+      // taxon,
   // so an adoption is only meaningful on the session path.
   if (target.kind === 'session')
     addRecord({ session_id: target.sessionId, taxon_id: m.taxon_id, adopted });
@@ -87,7 +88,7 @@ export function BatchImportModal({ visible, target, onClose, onCommitted }: Prop
   const [skipExact, setSkipExact] = useState<Set<number>>(new Set());
   // For ambiguous entries: track which match was picked (or null for skip)
   const [ambiguousPicks, setAmbiguousPicks] = useState<Map<number, SearchResult | null>>(new Map());
-  // 比對 / 加入的進度。null = 沒有在跑，覆蓋層不顯示。
+  // Matching / adding progress. null = nothing running, so no overlay.
   const [progress, setProgress] = useState<{ label: string; done: number; total: number } | null>(
     null,
   );
@@ -150,8 +151,9 @@ export function BatchImportModal({ visible, target, onClose, onCommitted }: Prop
       );
       return;
     }
-    // 貼一份上百種的名錄時，比對要逐筆查名錄資料庫；沒有進度回饋的話畫面就
-    // 是整個卡住。`resolveBatchProgressive` 會定時把控制權交還 UI thread。
+    // Pasting a checklist of a hundred species means one DB lookup per row, and
+    // without progress feedback the screen simply appears frozen.
+      // `resolveBatchProgressive` hands control back to the UI thread periodically.
     setProgress({ label: t('batchImport.matching'), done: 0, total: names.length });
     try {
       // Voice dictation garbles uncommon names into homophones; enable the
@@ -166,16 +168,17 @@ export function BatchImportModal({ visible, target, onClose, onCommitted }: Prop
       setAmbiguousPicks(picks);
       setStep('preview');
     } catch (e) {
-      // 比對整段是資料庫查詢，失敗就讓使用者看到原因（與讀檔那條路徑一致），
-      // 不要變成沒有人接的 promise rejection。
+      // The whole matching stage is DB queries; on failure show the user why (same as
+      // the file-reading path) rather than
+      // leaving an unhandled promise rejection.
       Alert.alert(t('batchImport.readFail'), importErrorMessage(e));
     } finally {
       setProgress(null);
     }
   };
 
-  /** 找不到 row → GBIF. On success the name moves into 精確匹配, so the user
-   *  sees it join the import rather than having to start over. */
+  /** No row found → GBIF. On success the name moves into the exact-match list, so
+   *  the user sees it join the import rather than having to start over. */
   const handleLookupGbif = async (raw: string) => {
     const picked = await lookupGbifName(raw);
     if (!picked) return;
@@ -213,8 +216,9 @@ export function BatchImportModal({ visible, target, onClose, onCommitted }: Prop
         targetAdd(target, m, adopted);
         added++;
       }
-      // 每 20 筆讓一次，寫入才不會整段把畫面鎖住（插入本身是毫秒級，所以
-      // 不必像比對那樣時間切片）。
+      // Yield every 20 rows so writing does not lock the screen for the whole batch
+      // (an insert itself is sub-millisecond, so this needs no time slicing the way
+      // matching does).
       if ((i + 1) % 20 === 0 || i === toAdd.length - 1) {
         setProgress({ label: t('batchImport.adding'), done: i + 1, total: toAdd.length });
         await new Promise((r) => setTimeout(r, 0));

@@ -11,7 +11,8 @@ import type { SearchResult } from '~/db/types';
 import type { RecordWithTaxon } from '~/db/records';
 import type { TaxonNode } from '~/db/taxonomy';
 
-/** Write `text` to clipboard and toast「已複製：{label}」. Safe to await or fire-and-forget. */
+/** Write `text` to clipboard and toast a "copied: {label}" confirmation. Safe to
+ *  await or fire-and-forget. */
 export async function copyToClipboard(text: string, label?: string): Promise<void> {
   await Clipboard.setStringAsync(text);
   const toast = useToast.getState().show;

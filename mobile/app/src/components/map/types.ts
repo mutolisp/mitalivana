@@ -1,30 +1,33 @@
 /**
- * 地圖引擎的中性介面。
+ * Engine-neutral map interface.
  *
- * 存在的理由：app 要同時支援兩個算繪引擎 —— `react-native-maps`（Apple/Google
- * 底圖，線上；魯地圖 raster 圖磚，離線）與 MapLibre（向量，線上離線皆可）。
- * 兩者是不同的原生 view，**不能在同一個畫面裡混用**，所以是整個 canvas 二選一。
+ * Why it exists: the app supports two rendering engines — `react-native-maps`
+ * (Apple/Google basemaps online; RudyMap raster tiles offline) and MapLibre
+ * (vector, online or offline). They are different native views and **cannot be
+ * mixed in one screen**, so the choice is per canvas.
  *
- * 座標型別刻意自己定義而不 re-export `react-native-maps` 的 —— 那是引擎專屬的
- * 依賴。這裡的形狀與它結構相同，所以兩邊可以互通，但 adapter 之上的程式碼
- * 不再需要 import 任何引擎。
+ * The coordinate types are defined here rather than re-exported from
+ * `react-native-maps`, which would be an engine-specific dependency. The shapes
+ * are structurally identical, so the two interoperate, while nothing above the
+ * adapter has to import an engine.
  */
 import type { ReactNode } from 'react';
 
 export type LatLng = { latitude: number; longitude: number };
 export type Region = LatLng & { latitudeDelta: number; longitudeDelta: number };
 
-/** 原生底圖類型。`none` 只有 Android 的 Google Maps 真的支援（iOS 的
- *  MKMapType enum 沒有 none，會 fallback 成 standard）。 */
+/** Native basemap type. Only Android's Google Maps really supports `none`
+ *  (iOS's MKMapType enum has no none and falls back to standard). */
 export type BaseMapType = 'standard' | 'satellite' | 'hybrid' | 'terrain' | 'none';
 
 export type MapEngine = 'native' | 'vector';
 
 /**
- * 一個可繪製的圖徵。
+ * One drawable feature.
  *
- * `zIndex` 是**可選的，而且「未指定」有語意** —— 現有程式碼裡 site 與所有繪製
- * 中的圖徵都沒有指定，改成補一個預設值會改變層序。不要擅自補。
+ * `zIndex` is **optional, and "unspecified" carries meaning** — sites and every
+ * in-progress drawing feature in the current code leave it out, and filling in a
+ * default would change the stacking order. Do not add one.
  */
 export type MapFeature =
   | {
@@ -32,7 +35,7 @@ export type MapFeature =
       id: string;
       lat: number;
       lng: number;
-      /** pin 顏色；有 `render` 時忽略。 */
+      /** Pin colour; ignored when `render` is given. */
       color?: string;
       title?: string;
       description?: string;
@@ -43,12 +46,13 @@ export type MapFeature =
       draggable?: boolean;
       onPress?: () => void;
       onDragEnd?: (coord: LatLng) => void;
-      /** 自繪內容（cluster 的數字泡泡）。給了就取代預設 pin。 */
+      /** Custom content (a cluster's count bubble). Replaces the default pin. */
       render?: () => ReactNode;
       /**
-       * `render` 的內容識別。變動時引擎要重新擷取自繪 view——
-       * react-native-maps 的 `tracksViewChanges` 需要這個訊號，因為 cluster
-       * 的 key 只含格子座標，marker 會跨 pan 保持掛載而不是 remount。
+       * Content identity for `render`. When it changes the engine must re-capture
+       * the custom view — react-native-maps' `tracksViewChanges` needs this
+       * signal, because a cluster's key only holds the cell coordinates, so
+       * markers stay mounted across a pan instead of remounting.
        */
       renderKey?: string | number;
     }
@@ -76,7 +80,8 @@ export type MapFeature =
       id: string;
       lat: number;
       lng: number;
-      /** **公尺**，不是螢幕像素。MapLibre 端要自己做測地線 buffer。 */
+      /** **Metres**, not screen pixels. The MapLibre side has to build its own
+ *  geodesic buffer. */
       radiusM: number;
       stroke: string;
       fill: string;
@@ -84,7 +89,7 @@ export type MapFeature =
       zIndex?: number;
     };
 
-/** 線上 WMTS 疊圖（NLSC / 中研院）。 */
+/** Online WMTS overlay (NLSC / Academia Sinica). */
 export type RasterOverlay = {
   id: string;
   urlTemplate: string;
@@ -94,17 +99,19 @@ export type RasterOverlay = {
 };
 
 /**
- * 向量樣式來源。只有 vector 引擎會看。
+ * Vector style source. Only the vector engine looks at it.
  *
- * 可以是遠端 URL（線上）或本機 `file://` 路徑（離線包解出來的 style.json）。
- * MapLibre 的 `mapStyle` 也吃 inline 的 style 物件，但那份 style 有 600 KB，
- * 每次 render 都往 bridge 丟一次不划算，所以介面只收 URL。
+ * Either a remote URL (online) or a local `file://` path (the style.json
+ * unpacked from the offline package). MapLibre's `mapStyle` also accepts an
+ * inline style object, but that style is 600 KB and pushing it across the bridge
+ * on every render is not worth it, so this interface takes URLs only.
  */
 export type VectorStyle = string;
 
 /**
- * 相機。全專案只用到 `animateToRegion` 一個方法（11 處呼叫都是），
- * 所以介面就只有這個 —— 沒有 fitToCoordinates / animateCamera。
+ * Camera. The whole project uses exactly one method, `animateToRegion` (all 11
+ * call sites), so that is all the interface has — no fitToCoordinates, no
+ * animateCamera.
  */
 export type MapCamera = {
   animateToRegion(region: Region, ms: number): void;
@@ -116,23 +123,25 @@ export type MapCanvasProps = {
   mapType: BaseMapType;
   features: MapFeature[];
   rasterOverlays?: RasterOverlay[];
-  /** vector 引擎的樣式來源；`engine="vector"` 時必要。 */
+  /** Style source for the vector engine; required when `engine="vector"`. */
   vectorStyle?: VectorStyle;
   showsUserLocation?: boolean;
   showsCompass?: boolean;
   /**
-   * 指北針要離右下角多遠（點）。
+   * How far the compass sits from the bottom-right corner, in points.
    *
-   * 畫面右下角以外的地方都被別的東西佔著：左上是返回／搜尋、右上是工具、
-   * 左下是比例尺。native 引擎沒有對應設定，會忽略這個值。
+   * Everywhere except the bottom-right is taken: back/search top-left, tools
+   * top-right, the scale bar bottom-left. The native engine has no equivalent
+   * setting and ignores this.
    */
   compassInset?: { bottom: number; right: number };
-  /** iOS Apple Maps 專用，且只在縮放手勢期間短暫出現；Android 不支援。
-   *  常駐的比例尺是 `MapScaleBar` 自己畫的。 */
+  /** iOS Apple Maps only, and only briefly during a zoom gesture; unsupported on
+   *  Android. The permanent scale bar is drawn by `MapScaleBar` itself. */
   showsScale?: boolean;
   showsMyLocationButton?: boolean;
   toolbarEnabled?: boolean;
-  /** 切換底圖時用來強制疊圖重新掛載（iOS 的疊圖先後看掛載順序）。 */
+  /** Forces overlays to remount when the basemap changes (on iOS overlay order
+ *  follows mount order). */
   overlayGeneration?: string;
   onMapReady?: () => void;
   onRegionChangeComplete?: (region: Region) => void;

@@ -1,6 +1,6 @@
 /**
- * Specimen collection (標本採集): a collection trip groups the specimens
- * gathered on one outing, mirroring how `sessions` groups `checklist_records`.
+ * Specimen collecting: a collection trip groups the specimens gathered on one
+ * outing, mirroring how `sessions` groups `checklist_records`.
  *
  * ⚠️ Collections deliberately sit OUTSIDE the app-wide single-active invariant.
  * `status` here is collection-local — it only decides which trip an "add to
@@ -40,7 +40,7 @@ export type CollectionTrip = {
   notes: string | null;
   created_at: number;
   updated_at: number;
-  /** 加星號（v34）：0 / 1. Sorts the record above its peers in the list.
+  /** Starred (v34): 0 / 1. Sorts the record above its peers in the list.
    *  Device-local organisation, deliberately not exported. */
   starred: number;
 };
@@ -75,8 +75,9 @@ export type Specimen = {
   accuracy: number | null;
   locality: string | null;
   /** DwC degreeOfEstablishment (v33): 'wild' | 'captive' | 'cultivated'.
-   *  NULL = 未記錄, which is a different statement from an explicit 'wild'.
-   *  Per-INDIVIDUAL — not to be confused with the taxon-level `alien_type`. */
+   *  NULL = not recorded, which is a different statement from an explicit
+   *  'wild'. Per-INDIVIDUAL — not to be confused with the taxon-level
+   *  `alien_type`. */
   degree_of_establishment: string | null;
   // DwC species attributes (v20 for sex/life_stage, v19 for the phenology
   // pair). Single-valued enums; the two phenology columns are JSON array

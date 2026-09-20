@@ -49,9 +49,10 @@ type FavoritesState = {
   renameFolder: (id: number, name: string) => void;
   deleteFolder: (id: number) => void;
   moveItem: (id: number, toFolderId: number) => void;
-  /** Copy every species of an existing record (名錄 / 樣區 / 採集) into a folder.
-   *  Returns counts so the caller can report what happened — silent partial
-   *  success is exactly the kind of thing users notice later and distrust. */
+  /** Copy every species of an existing record (checklist / plot survey /
+   *  specimen collection) into a folder. Returns counts so the caller can report
+   *  what happened — silent partial success is exactly the kind of thing users
+   *  notice later and distrust. */
   importFromRecord: (
     kind: RecordKind,
     recordId: number,

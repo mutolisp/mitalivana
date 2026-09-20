@@ -1,10 +1,10 @@
 /**
  * Locks down the duplicate-name rule (src/lib/recordName.ts).
  *
- * The increment is a user-visible promise — "JP-EH-12 的複本叫 JP-EH-13" — and
- * its edge cases (zero padding, no digits at all, a candidate that is already
- * taken) are exactly the kind that regress silently. Pure function, so it runs
- * here rather than needing a device.
+ * The increment is a user-visible promise — "the copy of JP-EH-12 is called
+ * JP-EH-13" — and its edge cases (zero padding, no digits at all, a candidate
+ * that is already taken) are exactly the kind that regress silently. Pure
+ * function, so it runs here rather than needing a device.
  *
  * Run: npm run check:names
  */

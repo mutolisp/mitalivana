@@ -22,7 +22,7 @@ export type Session = {
   ended_at: number | null;
   /** Most recent time the session was reopened (status: done → active). Used
    *  by `StaleSessionWatcher` so reopening an old session doesn't immediately
-   *  re-fire the "已開了 N 小時" alert. */
+   *  re-fire the "open for N hours" alert. */
   resumed_at: number | null;
   gps_mode: 'off' | 'single_point' | 'full_track' | null;
   start_lat: number | null;
@@ -31,7 +31,7 @@ export type Session = {
   notes: string | null;
   /** DwC recordedBy — comma-separated surveyor names. NULL = unset. */
   recorded_by: string | null;
-  /** 加星號（v34）：0 / 1. Sorts the record above its peers in the list.
+  /** Starred (v34): 0 / 1. Sorts the record above its peers in the list.
    *  Device-local organisation, deliberately not exported. */
   starred: number;
 };

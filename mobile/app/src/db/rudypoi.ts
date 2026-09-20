@@ -1,17 +1,22 @@
 /**
- * 魯地圖 POI —— 第四個資料庫，隨離線地圖包一起安裝。
+ * RudyMap POIs — the fourth database, installed with the offline map package.
  *
- * 這是**上游原檔**（`MOI_OSM_Taiwan_TOPO_Rudy.poi`，766,737 筆），刻意不在
- * desktop 端做篩選或轉檔：schema 本來就有 lat/lon 索引，實測一個 z14 視窗的
- * 查詢在桌面端是 1–17 ms，篩選放在查詢端就好，少一層要維護的產物。
+ * This is the **upstream source file** (`MOI_OSM_Taiwan_TOPO_Rudy.poi`, 766,737
+ * rows), deliberately neither filtered nor converted on the desktop side: the
+ * schema already has lat/lon indexes, a z14 viewport query measures 1-17 ms on
+ * the desktop, so filtering belongs in the query and there is one fewer artefact
+ * to maintain.
  *
- * **但上游有 36% 不是 POI**：`03 步道/山徑` 164,742 筆裡 118,698 筆是
- * `highway=footway`、`06 溪流/水源/瀑布` 111,602 筆裡 58,342 筆是 `natural=water`
- * —— 那是 way 被索引成點（上游 metadata 寫 `ways = true`），只有 11% 有名字，
- * 畫在地圖上是純雜訊。所以**一定要帶分類條件查**，不要無條件 bbox 查詢。
+ * **But 36% of upstream is not a POI**: of the 164,742 rows under
+ * `03 步道/山徑`, 118,698 are `highway=footway`, and of the 111,602 under
+ * `06 溪流/水源/瀑布`, 58,342 are `natural=water` — ways indexed as points
+ * (upstream metadata says `ways = true`), only 11% of which have a name, and
+ * pure noise on a map. So **always query with a category condition**, never an
+ * unconditional bbox query.
  *
- * 與 `regionpacks.db` 一樣是可丟棄的參考資料：不進 user.db、不進備份、
- * 存在 documents/poi/ 底下，可在「離線地圖」設定頁單獨刪除。
+ * Like `regionpacks.db` this is disposable reference data: it does not go into
+ * user.db, does not go into backups, lives under documents/poi/, and can be
+ * deleted on its own from the offline map settings screen.
  */
 import { open, type DB } from '@op-engineering/op-sqlite';
 
@@ -24,7 +29,8 @@ export type RudyPoi = {
   id: number;
   lat: number;
   lon: number;
-  /** 原始 OSM tags，`key=value` 以 CR 分隔（上游格式，未轉換）。 */
+  /** Raw OSM tags, `key=value` separated by CR (the upstream format,
+   *  unconverted). */
   data: string;
 };
 
@@ -36,19 +42,21 @@ export type PoiBounds = {
 };
 
 /**
- * 顯示群組。分類 id 在每台裝置上都一樣（來自同一份上游檔），但仍以**名稱**
- * 解析，因為上游改版時 id 可能重編而名稱穩定。
+ * Display groups. Category ids are the same on every device (they come from the
+ * same upstream file), but they are still resolved **by name**, because an
+ * upstream revision may renumber ids while names stay stable.
  *
- * `tagAny` 是給「整個分類大多是雜訊、只有少數是真 POI」的情況用的：
- * `06 溪流/水源/瀑布` 有 111,602 筆，其中野外真的能取水的只有 3,714 筆。
+ * `tagAny` is for the case where a whole category is mostly noise and only a few
+ * rows are real POIs: `06 溪流/水源/瀑布` has 111,602 rows, of which only 3,714
+ * are water you could actually collect in the field.
  */
 export type PoiGroup = {
   key: string;
   /** i18n key。 */
   labelKey: string;
-  /** 這些分類（含子分類）底下的 POI。 */
+  /** POIs under these categories, subcategories included. */
   categories: string[];
-  /** 有給的話，還要 tags 命中其中一個才收。 */
+  /** When given, tags must also match one of these for the row to count. */
   tagAny?: string[];
 };
 
@@ -72,7 +80,8 @@ export const POI_GROUPS: PoiGroup[] = [
   { key: 'trees', labelKey: 'poi.groupTrees', categories: ['08 台灣巨木'] },
 ];
 
-/** 圖磚包沒裝、或這一版 pack 沒有 POI 時回 null，呼叫端不該當成錯誤。 */
+/** Returns null when the tile package is not installed, or this pack version has
+ *  no POIs; the caller must not treat that as an error. */
 export function getPoiDb(): DB | null {
   const loc = poiLocation();
   if (!loc) {

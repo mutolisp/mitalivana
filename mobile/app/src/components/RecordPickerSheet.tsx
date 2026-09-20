@@ -1,5 +1,6 @@
 /**
- * Multi-select picker over existing records (名錄 / 樣區 / 標本).
+ * Multi-select picker over existing records (checklists / plot surveys /
+ * specimens).
  *
  * `showActionSheet` can only return one index, so anything multi-select needs
  * its own sheet. Layout mirrors `SurveyorAssignSheet` (the other multi-select

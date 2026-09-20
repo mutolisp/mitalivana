@@ -47,8 +47,10 @@ export default function RootLayout() {
       <KeyboardProvider>
         <SafeAreaProvider>
           <DBProvider>
-            {/* 名錄不隨 app 出貨：一個模組都沒有時先擋在前面引導下載。
-                裝好（或使用者選擇稍後）就讓開，之後完全不參與 render。 */}
+            {/* Checklists do not ship with the app: with no module installed at all,
+                stand in front and guide the download. Once installed (or the
+                user chooses later) it steps aside and takes no further part in
+                render. */}
             <DatasetSetupGate>
               <ThemedShell />
             </DatasetSetupGate>
@@ -76,7 +78,7 @@ function ThemedShell() {
   const hasActive = Boolean(session || plot);
   // The map draws to the top edge. Its overlays already position themselves at
   // `insets.top + 8`, so the spacer was not just letterboxing the map — it was
-  // pushing those controls down by a second full inset. The 「記錄中」 bar still
+  // pushing those controls down by a second full inset. The recording bar still
   // wins when it is showing: it is information the surveyor needs, and it
   // carries its own inset padding.
   const fullBleedTop = usePathname() === '/map';
@@ -89,13 +91,13 @@ function ThemedShell() {
       <FontScaleProvider>
         <View style={{ flex: 1 }}>
           {/* Persistent top chrome — visible across ALL stack screens
-              (tabs / session detail / plot detail / 檢索表 runner / etc.)
-              so the 「記錄中」 indicator never disappears mid-task. When
+              (tabs / session detail / plot detail / key runner / etc.)
+              so the recording indicator never disappears mid-task. When
               no record is active a safe-area spacer fills the notch so
               tab content / stack headers don't sit under the status bar. */}
           {hasActive ? <ActiveSessionBar /> : fullBleedTop ? null : <TopSafeAreaSpacer />}
           {/* Stale watchers run app-wide, not just on tabs, so a 13h
-              session left unattended in 檢索表 runner still gets nagged. */}
+              session left unattended in the key runner still gets nagged. */}
           <StaleSessionWatcher />
           <StalePlotWatcher />
           {/* `minimal` shows the chevron alone. The word cost most of the header's

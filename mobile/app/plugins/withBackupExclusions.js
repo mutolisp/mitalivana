@@ -1,37 +1,44 @@
 /**
- * 把「可重新取得的大檔」排除在系統備份之外（Android 側）。
+ * Keep "large files we can fetch again" out of the system backup (Android side).
  *
- * 為什麼一定要做：Android Auto Backup 每個 app 的配額是 25 MB。魯地圖離線圖磚
- * 包（GB 級）與 TaiCOL bundle DB（157 MB）留在備份範圍內會讓**整個備份失敗** ——
- * 也就是連 user.db 這種真正該備份的資料都一起壞掉。這不是最佳化，是修一個
- * 加了圖磚包就會出現的回歸。
+ * Why this is not optional: Android Auto Backup allows 25 MB per app. Leaving
+ * the RudyMap offline tile packages (gigabytes) or the TaiCOL bundle DB (157 MB)
+ * inside the backup set makes **the whole backup fail** — taking user.db, which
+ * genuinely should be backed up, down with it. This is not an optimisation, it
+ * fixes a regression that appears as soon as a tile package exists.
  *
- * 為什麼是 config plugin 而不是直接改 AndroidManifest.xml：`mobile/app/android`
- * 在根 .gitignore 第 88 行被忽略，是 prebuild 產生物，手改會在下次 prebuild 消失。
+ * Why a config plugin instead of editing AndroidManifest.xml directly:
+ * `mobile/app/android` is ignored by the root .gitignore (line 88) and is a
+ * prebuild artefact, so a hand edit disappears on the next prebuild.
  *
- * iOS 不在這裡：iOS 的排除是 runtime 的 NSURLIsExcludedFromBackupKey 檔案屬性，
- * 不是建置期設定，config plugin 設不了（見 modules/ 底下的原生模組）。
+ * iOS is not here: its exclusion is the runtime NSURLIsExcludedFromBackupKey
+ * file attribute, not a build-time setting, and a config plugin cannot set it
+ * (see the native module under modules/).
  */
 const { AndroidConfig, withAndroidManifest, withDangerousMod } = require('@expo/config-plugins');
 const fs = require('fs');
 const path = require('path');
 
 /**
- * 這些路徑相對於 app 的 filesDir（expo-file-system 的 Paths.document）。
+ * These paths are relative to the app's filesDir (expo-file-system's
+ * Paths.document).
  *
- * 判準只有一條：**重新下載得回來的就不進備份**。清單要跟著各安裝層的根目錄常數
- * 走，加了新的可下載內容就要補進來——漏掉一個大目錄不是「備份少一份」，是整個
- * Auto Backup 超過 25 MB 配額而**全部失敗**。
+ * There is one criterion: **anything re-downloadable stays out of the backup**.
+ * The list has to track the root-directory constant of each install layer, so
+ * new downloadable content must be added here — missing one large directory is
+ * not "one thing less in the backup", it is the whole Auto Backup exceeding the
+ * 25 MB quota and **failing entirely**.
  */
 const EXCLUDED = [
-  'datasets', // src/db/datasets.ts DATASETS_DIR — 名錄模組，臺灣一包就 136 MB
-  'vectormap', // src/lib/vectormap.ts ROOT_DIR — 向量圖磚，GB 級
+  'datasets', // src/db/datasets.ts DATASETS_DIR — checklist modules; Taiwan alone is 136 MB
+  'vectormap', // src/lib/vectormap.ts ROOT_DIR — vector tiles, gigabytes
   'poi', // src/lib/poi.ts ROOT_DIR
-  'rudymap', // src/lib/poi.ts LEGACY_DIR — 舊安裝殘留，poi.ts 會擇機清掉
-  'regionpacks.db', // 國家名錄 pack，可重新下載；in-app 備份 zip 另有收錄
+  'rudymap', // src/lib/poi.ts LEGACY_DIR — leftovers from older installs, cleared by poi.ts
+  'regionpacks.db', // Country checklist pack, re-downloadable; the in-app backup zip carries it
   'regionpacks.db-wal',
   'regionpacks.db-shm',
-  'twnamelist.db', // 0.5 以前的合併檔；retireLegacyBundle() 尚未跑到的裝置還有
+  'twnamelist.db', // The merged file from before 0.5; still present where retireLegacyBundle() has
+  // not run yet
   'twnamelist.db.version',
 ];
 

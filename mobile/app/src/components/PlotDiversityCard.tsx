@@ -1,5 +1,5 @@
 /**
- * 樣區即時多樣性摺疊卡 — species richness / Shannon / Simpson plus the
+ * Live plot diversity card — species richness / Shannon / Simpson plus the
  * sampling-effort estimators (Chao1 for count data, Chao2 across subplots,
  * Good–Turing coverage). Sits at the top of the plot species tab and updates
  * live as records are added.

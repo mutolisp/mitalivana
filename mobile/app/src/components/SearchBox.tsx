@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { memo, useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FlatList, Keyboard, Pressable, Text, TextInput, View } from 'react-native';
 import {
@@ -24,7 +24,7 @@ import { useToast } from '~/stores/toast';
  * 250ms gives the user enough room to finish typing a word before we hit
  * the 242k-row SQLite scan + 62k-row fuzzy index.
  *
- * Single-char queries (芒、櫸、薹、莎、桑…) are valid common names so we
+ * Single-char queries (芒, 櫸, 薹, 莎, 桑…) are valid common names so we
  * don't gate on length — the cache + 250ms debounce + column projection
  * are what we lean on for performance.
  */
@@ -52,6 +52,17 @@ type Props = {
   /** Offer the GBIF lookup when the local checklists have nothing. Default on;
    *  turn it off where adding a brand-new taxon makes no sense. */
   gbifFallback?: boolean;
+  /**
+   * Replaces the GBIF / manual-entry row shown when the local checklists come
+   * back empty, for callers whose answer to "not in the checklist" is something
+   * other than minting a taxon (the iNaturalist grid searches iNaturalist
+   * instead). Receives the trimmed query.
+   *
+   * Set it together with `gbifFallback={false}`: nothing stops both, but two
+   * different offers on one empty result is a choice the user should not have
+   * to make.
+   */
+  renderNoMatch?: (query: string) => ReactNode;
 };
 
 /**
@@ -73,7 +84,8 @@ function cacheGet(key: string): SearchResult[] | undefined {
 export function clearSearchResultCache(): void {
   resultCache.clear();
 }
-// 換了名錄模組，快取住的搜尋結果就是上一份資料的答案。
+// A different checklist module means the cached results answer the previous
+      // dataset.
 onDatasetsChanged(clearSearchResultCache);
 
 function cacheSet(key: string, value: SearchResult[]): void {
@@ -91,6 +103,7 @@ export function SearchBox({
   autoFocus = false,
   afterSelect = 'refocus',
   gbifFallback = true,
+  renderNoMatch,
 }: Props) {
   const { t } = useTranslation();
   const lastGroups = useSettings((s) => s.last_search_groups);
@@ -104,7 +117,7 @@ export function SearchBox({
   const trimmedQuery = query.trim();
   // Only offer the network once the local search has actually run and come
   // back empty — not while the debounce is still pending.
-  const noLocalHit = gbifFallback && trimmedQuery.length > 0 && results.length === 0;
+  const noLocalHit = (gbifFallback || !!renderNoMatch) && trimmedQuery.length > 0 && results.length === 0;
 
   useEffect(() => {
     setGroupsLocal(lastGroups);
@@ -226,6 +239,8 @@ export function SearchBox({
             )}
           />
         </View>
+      ) : noLocalHit && renderNoMatch ? (
+        renderNoMatch(trimmedQuery)
       ) : noLocalHit ? (
         <View className="items-center border-b border-gray-100 dark:border-gray-800 px-4 py-4">
           <Text className="text-center text-xs text-gray-500 dark:text-gray-400">

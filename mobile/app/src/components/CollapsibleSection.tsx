@@ -1,7 +1,7 @@
 /**
  * Tappable header that toggles visibility of its children. Used for sections
- * like 同物異名 / 下級分類群 that can be long and benefit from a default-closed
- * state, sparing the user a wall of text on first open.
+ * like synonyms and subordinate taxa that can be long and benefit from a
+ * default-closed state, sparing the user a wall of text on first open.
  *
  * Also exports `SynonymStatusBadge` since it's paired with this section in
  * every caller (and avoids duplicating the rose / gray / blue colour logic).

@@ -80,12 +80,13 @@ export type ObservationPayload = {
   description?: string;
   tag_list?: string;
   /**
-   * iNaturalist's 「captive / cultivated」 flag (`ObservationsCreate.observation
+   * iNaturalist's captive / cultivated flag (`ObservationsCreate.observation
    * .captive_flag`, boolean, verified against api.inaturalist.org/v2/api-docs).
    * It is a field, NOT a controlled annotation — hence not in INAT_TERMS.
    *
-   * Three-state on our side collapses to boolean-or-absent here: 圈養/栽培 →
-   * true, 野生 → an explicit false, 未記錄 → omitted so iNat keeps its default.
+   * Our three-state value collapses to boolean-or-absent here: captive and
+   * cultivated → true, wild → an explicit false, not recorded → omitted so iNat
+   * keeps its default.
    */
   captive_flag?: boolean;
 };
@@ -204,6 +205,19 @@ export type AutocompleteHit = {
   rank?: string;
   is_active?: boolean;
   iconic_taxon_name?: string | null;
+  /**
+   * The name string that actually matched the query, which iNaturalist returns
+   * alongside the taxon's own `name`.
+   *
+   * It differs from `name` when the query hit one of the taxon's OTHER names —
+   * a synonym or a vernacular name. Verified on api.inaturalist.org on
+   * 2026-09-20: `q=Cyclobalanopsis glauca` returns one hit, taxon 191183
+   * `Quercus glauca`, with `matched_term: "Cyclobalanopsis glauca"`. iNaturalist
+   * keeps no separate taxon for the synonym (the inactive ones carry 0
+   * observations and only a `current_synonymous_taxon_ids` pointer), so this
+   * field is the only way to tell a synonym hit from a miss.
+   */
+  matched_term?: string | null;
 };
 
 const RANK_MARKERS = /\b(?:nothosubsp|nothovar|subsp|ssp|subvar|var|forma|fo|f)\.?\s+/g;
@@ -249,8 +263,43 @@ function iconicConsistent(kingdom: string, iconic: string | null | undefined): b
   return true;
 }
 
+/** How a hit was reached: under the name we asked for, or under one of the
+ *  taxon's other names (a synonym). */
+export type TaxonMatchVia = 'name' | 'synonym';
+
+export type TaxonMatch = {
+  id: number;
+  /** The taxon's own (accepted) name on iNaturalist. Differs from the queried
+   *  name exactly when `via === 'synonym'`. */
+  name: string;
+  via: TaxonMatchVia;
+};
+
+/** One pass of the narrowing rules over whichever name field is being compared. */
+function narrow(
+  hits: AutocompleteHit[],
+  pick: (h: AutocompleteHit) => string | null | undefined,
+  name: string,
+  kingdom: string,
+): AutocompleteHit | null {
+  const want = name.trim().toLowerCase();
+  let cands = hits.filter((h) => (pick(h) ?? '').trim().toLowerCase() === want);
+  if (cands.length === 0) {
+    const norm = normaliseSciName(name);
+    if (!norm) return null;
+    cands = hits.filter((h) => normaliseSciName(pick(h) ?? '') === norm);
+  }
+  if (cands.length === 0) return null;
+  const active = cands.filter((h) => h.is_active !== false);
+  if (active.length > 0) cands = active;
+  if (cands.length === 1) return cands[0];
+  const kept = cands.filter((h) => iconicConsistent(kingdom, h.iconic_taxon_name));
+  if (kept.length === 1) return kept[0];
+  return null;
+}
+
 /**
- * Pick the one iNat taxon for a name, or null.
+ * Pick the one iNat taxon for a name, or null, saying HOW it was reached.
  *
  * Exact (case-insensitive) name first, else the rank-marker-normalised
  * spelling; inactive taxa are dropped when an active one exists; several
@@ -258,23 +307,51 @@ function iconicConsistent(kingdom: string, iconic: string | null | undefined): b
  * bundled checklist are cross-kingdom homonyms). Anything still ambiguous
  * returns null — sending `species_guess` alone and letting iNat's identifiers
  * sort it out beats silently attaching the wrong taxon.
+ *
+ * Only if no hit carries the name itself is `matched_term` consulted, and a hit
+ * found that way is reported as `via: 'synonym'` — the caller decides whether
+ * drawing another name's data needs the user's consent. The order matters: a
+ * taxon whose own name is what we asked for must never lose to one that merely
+ * lists it as a synonym.
+ *
+ * Worth it, measured over 40 random accepted Taiwanese names (2026-09-20):
+ * 24 matched by name, 4 more only through `matched_term`, 12 not in iNaturalist
+ * at all — so the synonym pass turns a 40% "not in iNaturalist" into 30%.
+ *
+ * **And why the caller must ask rather than assume**: of those 4,
+ * `Oncidium papilio` → `Psychopsis papilio` and `Strombus marginatus` →
+ * `Dolomena marginata` are the same taxon under another name, but
+ * `Silene morii` → `Silene aprica` and `Pericampylus formosanus` →
+ * `Pericampylus glaucus` are iNaturalist lumping what TaiCOL keeps apart. The
+ * observations then belong to a WIDER taxon than the one asked about, which is
+ * a fact about the data the user has to see, not a detail to smooth over.
+ */
+export function pickTaxonMatchDetailed(
+  hits: AutocompleteHit[],
+  name: string,
+  kingdom: string,
+): TaxonMatch | null {
+  const want = (name ?? '').trim();
+  if (!want) return null;
+  const byName = narrow(hits, (h) => h.name, want, kingdom);
+  if (byName) return { id: byName.id, name: byName.name, via: 'name' };
+  const bySynonym = narrow(hits, (h) => h.matched_term, want, kingdom);
+  if (bySynonym) return { id: bySynonym.id, name: bySynonym.name, via: 'synonym' };
+  return null;
+}
+
+/**
+ * The taxon id for a name, and only when iNaturalist files it under that very
+ * name.
+ *
+ * The upload path uses this: attaching a taxon id silently swaps the name the
+ * observation is filed under, which is the identifier's call and not something
+ * this app should do on the user's behalf. Callers that can ask the user —
+ * the observation grid — use `pickTaxonMatchDetailed` instead.
  */
 export function pickTaxonMatch(hits: AutocompleteHit[], name: string, kingdom: string): number | null {
-  const want = (name ?? '').trim().toLowerCase();
-  if (!want) return null;
-  let cands = hits.filter((h) => (h.name ?? '').trim().toLowerCase() === want);
-  if (cands.length === 0) {
-    const norm = normaliseSciName(name);
-    if (!norm) return null;
-    cands = hits.filter((h) => normaliseSciName(h.name) === norm);
-  }
-  if (cands.length === 0) return null;
-  const active = cands.filter((h) => h.is_active !== false);
-  if (active.length > 0) cands = active;
-  if (cands.length === 1) return cands[0].id;
-  const kept = cands.filter((h) => iconicConsistent(kingdom, h.iconic_taxon_name));
-  if (kept.length === 1) return kept[0].id;
-  return null;
+  const m = pickTaxonMatchDetailed(hits, name, kingdom);
+  return m && m.via === 'name' ? m.id : null;
 }
 
 // ── geometry ────────────────────────────────────────────────────────────────

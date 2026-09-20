@@ -1,5 +1,5 @@
 /**
- * 複製記錄 — name the copy and choose what travels with it.
+ * Duplicating a record — name the copy and choose what travels with it.
  *
  * Three independent choices rather than one "copy everything" button, because
  * the useful copy is usually partial: the next plot in a series wants the
@@ -19,12 +19,13 @@ export type DuplicateRequest = {
   suggested: string;
   /** Every existing name of this kind, for the collision warning. */
   taken: Set<string>;
-  /** 名錄 / 樣區 / 採集 — used in the title and the switch labels. */
+  /** Checklist / plot survey / specimen — used in the title and the switch
+   *  labels. */
   noun: string;
   /** Identifier-ish names (plotid) shouldn't be auto-capitalised. */
   autoCapitalize?: 'none' | 'sentences';
-  /** 採集: specimens can't be pre-created — each owns a career collection
-   *  number that would be burned for a gathering nobody made. */
+  /** Specimens can't be pre-created — each owns a career collection number that
+   *  would be burned for a gathering nobody made. */
   speciesDisabled?: boolean;
 };
 

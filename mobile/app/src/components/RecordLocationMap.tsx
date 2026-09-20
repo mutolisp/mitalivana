@@ -1,31 +1,41 @@
 /**
  * Inline editable mini-map for a single record's coordinate. Shown under the
- * "定位此物種 / 點選 GPS" row in both the session record sheet
+ * "locate this species / take GPS" row in both the session record sheet
  * (`SpeciesDetailSheet`) and the plot species modal (`PlotSpeciesValueModal`).
  *
  * - Tap the map to place / relocate the point; drag the red marker to fine-tune.
  *   On the INLINE map, relocating an existing coordinate asks first and then
  *   offers an undo — see `guardedCommit`. The fullscreen editor does neither:
- *   you got there by deliberately tapping 「全螢幕」 to do precise work.
+ *   you got there by deliberately tapping Fullscreen to do precise work.
  * - Zoom in/out buttons (animateToRegion by delta) + basemap toggle
  *   (standard / satellite / hybrid).
  * - Expand button opens the same editor full-screen for precise work.
  * - `reference` (plot centre + point-count radius) is drawn as a non-draggable
  *   blue marker + circle for context (used by the plot flow).
+ * - `taxon` (optional) enables the iNaturalist observation grid: one toggle
+ *   overlays where that species has been observed, answering "is this species
+ *   normally found around here?". **Off by default**, because the tiles go over
+ *   mobile data. The status line is not optional — an empty grid and "this
+ *   species is not here" look identical on screen, which is the one ambiguity
+ *   you cannot afford in the field (see the file header of useInatGrid.ts).
  *
  * `onChange` commits the new coordinate immediately (parent persists it without
  * a toast); manual placement carries no GPS accuracy, hence the `null` third
  * argument. Undo passes the previous accuracy back so restoring a GPS-measured
  * fix returns its uncertainty too, not just its latitude and longitude.
- *
- * - `taxon`（選用）開啟 iNaturalist 觀察網格圖：一個切換鈕疊出該物種在 iNat 上的
- *   觀察分布，回答「這個物種在這附近本來就有嗎」。**預設關閉**，圖磚走行動網路。
- *   狀態行不可省略——空的網格圖與「這裡沒有這個物種」在螢幕上長得一樣，那是野外
- *   最不能有的歧義（見 useInatGrid.ts 的檔頭）。
  */
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Alert, Modal, Pressable, Text, TextInput, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Modal,
+  Pressable,
+  Text,
+  TextInput,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MapCanvas } from '~/components/map/MapCanvas';
 import type { LatLng, MapCamera, MapFeature, RasterOverlay, Region } from '~/components/map/types';
@@ -40,7 +50,13 @@ import {
   zoomBy,
 } from './MapControls';
 import { formatLatLng, parseLatLng } from '~/lib/coords';
-import { useInatGrid, type InatGridState, type InatGridTaxon } from '~/lib/useInatGrid';
+import { INAT_GRID_LAYER, tileZoomForRegion } from '~/lib/inatHeatmap';
+import {
+  useInatGrid,
+  type InatGridResolved,
+  type InatGridState,
+  type InatGridTaxon,
+} from '~/lib/useInatGrid';
 
 type Reference = { center?: { lat: number; lng: number } | null; radiusM?: number | null };
 
@@ -57,24 +73,23 @@ type Props = {
   onChange: (lat: number, lng: number, accuracy: number | null) => void;
   /** Optional plot context drawn as a faint reference (non-editable). */
   reference?: Reference;
-  /** 這筆記錄的物種。給了才會出現 iNaturalist 觀察網格圖的切換鈕。 */
+  /** This record's species. Supplying it is what makes the iNaturalist grid
+   *  toggle appear. */
   taxon?: InatGridTaxon;
 };
-
-/** iNat 網格圖的圖層參數。zIndex 3 疊在 NLSC(1) / 中研院(2) 之上；grid 本來就依
- *  zoom 聚合，再放大只換來更多瓦片請求，所以 maxZoom 收在 15。 */
-const INAT_OVERLAY = { id: 'inat-grid', opacity: 0.7, zIndex: 3, maxZoom: 15 } as const;
 
 const INLINE_HEIGHT = 184;
 
 export function RecordLocationMap({ lat, lng, accuracy = null, onChange, reference, taxon }: Props) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
   const mapView = useSettings((s) => s.map_view);
   const undoSeconds = useSettings((s) => s.undo_duration);
   const [basemap, setBasemap] = useState<MapBasemap>(
-    // vector 與 terrain 都不在 BASEMAP_CYCLE 裡：用它當初始值會讓 nextBasemap
-    // 從索引 0 重新開始。小地圖看的是單一點位或單一多邊形，等高線幫不上忙。
+    // Neither vector nor terrain is in BASEMAP_CYCLE: using one as the initial
+    // value would make nextBasemap restart from index 0. A mini-map shows a single
+    // point or polygon, where contour lines do not help.
     mapView.basemap === 'terrain' || mapView.basemap === 'vector' ? 'standard' : mapView.basemap,
   );
   const [fullscreen, setFullscreen] = useState(false);
@@ -221,9 +236,18 @@ export function RecordLocationMap({ lat, lng, accuracy = null, onChange, referen
   // iNat 觀察網格圖。關著的時候 useInatGrid 一個請求都不會送。
   const gridOn = useSettings((s) => s.inat_grid_overlay);
   const setSetting = useSettings((s) => s.set);
-  const { state: inatState, tileUrl: inatTileUrl } = useInatGrid(taxon, gridOn);
+  // Cell size follows the zoom this map opens at. It is not re-read while the
+  // user pinches: the mini-map holds one record's coordinate, so it always sits
+  // deep in the coarsened band anyway (0.006° across a phone is about z16), and
+  // re-deriving it per gesture would only churn the tile URL.
+  const inatZoom = tileZoomForRegion(initialRegion.longitudeDelta, windowWidth);
+  const {
+    state: inatState,
+    tileUrl: inatTileUrl,
+    resolved: inatResolved,
+  } = useInatGrid(taxon, gridOn, inatZoom);
   const inatOverlays: RasterOverlay[] | undefined = inatTileUrl
-    ? [{ ...INAT_OVERLAY, urlTemplate: inatTileUrl }]
+    ? [{ ...INAT_GRID_LAYER, urlTemplate: inatTileUrl }]
     : undefined;
 
   return (
@@ -242,7 +266,9 @@ export function RecordLocationMap({ lat, lng, accuracy = null, onChange, referen
         rasterOverlays={inatOverlays}
         inat={taxon ? { on: gridOn, toggle: () => setSetting('inat_grid_overlay', !gridOn) } : undefined}
       />
-      {taxon ? <InatStatusLine state={inatState} on={gridOn} /> : null}
+      {taxon ? (
+        <InatStatusLine state={inatState} on={gridOn} resolved={inatResolved} asked={taxon.name} />
+      ) : null}
       {entryOpen ? (
         <View className="mt-2 rounded-lg border border-gray-300 p-2 dark:border-gray-600">
           <Text className="mb-1 text-[11px] text-gray-500 dark:text-gray-400">
@@ -529,7 +555,19 @@ function EditableMap({
  * 版權與「受威脅物種座標經模糊化」一起放在這裡：iNat 會刻意模糊受威脅物種的位置，
  * 不講的話這張圖對保育類的判讀會產生誤導。
  */
-function InatStatusLine({ state, on }: { state: InatGridState; on: boolean }) {
+function InatStatusLine({
+  state,
+  on,
+  resolved,
+  asked,
+}: {
+  state: InatGridState;
+  on: boolean;
+  /** What the layer resolved to; null while loading or when nothing matched. */
+  resolved: InatGridResolved | null;
+  /** The name this record is filed under, i.e. what was looked up. */
+  asked: string;
+}) {
   const { t } = useTranslation();
   // 關著就不說話——按鈕本身就是它的開關指示，沒必要再佔一行。
   if (!on || state.kind === 'idle') return null;
@@ -570,6 +608,16 @@ function InatStatusLine({ state, on }: { state: InatGridState; on: boolean }) {
       >
         {body}
       </Text>
+      {/* iNaturalist resolves synonyms itself: asking for Cyathea lepifera
+          answers with Sphaeropteris lepifera. The tiles are then that OTHER
+          name's observations, which the user has to be told — silently drawing
+          one name's data under another name's heading is the same illusion the
+          states above exist to prevent. */}
+      {resolved && resolved.via === 'synonym' && resolved.inatName !== asked ? (
+        <Text className="text-[10px] text-gray-500 dark:text-gray-400">
+          {t('inatGrid.viaSynonym', { name: resolved.inatName })}
+        </Text>
+      ) : null}
       {state.kind === 'wild' || state.kind === 'captiveOnly' ? (
         <Text className="text-[10px] text-gray-400 dark:text-gray-500">
           {t('inatGrid.attribution')}

@@ -1,6 +1,6 @@
 /**
  * Multi-action variant of SwipeRow. Left-swipe reveals 1-N buttons (e.g.
- * `[匯出][刪除]`) on the trailing edge. Each action gets its own background
+ * Export + Delete) on the trailing edge. Each action gets its own background
  * colour and icon. Trailing edge sits on the right side of the row, so the
  * RIGHTMOST action in `actions` is the one closest to the swipe origin —
  * conventionally the destructive "delete" sits last per the user's spec.
@@ -31,9 +31,9 @@ export type SwipeAction = {
    *  safe for NativeWind's JIT scanner.
    *
    *  Both are named for their PURPOSE, not their hue: `export` must not be
-   *  borrowed as a generic teal, or the next recolour of 匯出 silently drags
-   *  an unrelated action along — which is exactly why it could not just reuse
-   *  `blue` (採集's 複製 is blue too). */
+   *  borrowed as a generic teal, or the next recolour of the export action
+   *  silently drags an unrelated action along — which is exactly why it could
+   *  not just reuse `blue` (a specimen's Duplicate action is blue too). */
   color: 'red' | 'blue' | 'emerald' | 'purple' | 'amber' | 'inat' | 'export';
   onPress: () => void;
 };
@@ -62,8 +62,9 @@ type Props = {
 
 export function SwipeRowActions({ children, actions, disabled = false, teaser = false }: Props) {
   const ref = useRef<SwipeableMethods>(null);
-  // When the screen around this row is itself horizontally swipeable (樣區的
-  // 環境／物種 分頁), the row wins: revealing 刪除 must not switch tab.
+  // When the screen around this row is itself horizontally swipeable (a plot's
+  // Environment / Species tabs), the row wins: revealing Delete must not switch
+  // tab.
   const blockedBySwipe = useSwipeBlock();
 
   useEffect(() => {

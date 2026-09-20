@@ -20,8 +20,9 @@ type FuzzyOptions = {
 
 type CnameEntry = { cname: string; nameIds: number[]; pinyin: string };
 
-// 每個名錄模組一份索引。JP 那份沒有 pinyin 欄（拼音是華語專用），載入時填 ''
-// 讓兩邊共用同一個型別；`fuzzySearchJp` 也不走拼音路徑。
+// One index per checklist module. The JP one has no pinyin column (pinyin is
+// Mandarin-specific), so loading fills '' to let both share a type;
+// `fuzzySearchJp` does not take the pinyin path either.
 const indexes = new Map<DatasetId, CnameEntry[]>();
 const indexMissing = new Set<DatasetId>();
 
@@ -59,11 +60,13 @@ function seqDistance(a: string[], b: string[]): number {
 }
 
 /**
- * 載入某個名錄模組的模糊比對索引（整份進 JS heap，之後每次查詢掃它）。
+ * Load one checklist module's fuzzy-match index (the whole thing into the JS
+ * heap, scanned by every later query).
  *
- * 缺表、缺 pinyin 欄都不是致命錯誤：模組可能是舊版管線建的。在搜尋 debounce 的
- * setTimeout 裡丟出未捕捉的例外曾被觀察到會弄垮 Hermes runtime，所以這裡一律
- * 降級而不是 throw。
+ * Neither a missing table nor a missing pinyin column is fatal: the module may
+ * have been built by an older pipeline. Throwing an uncaught exception inside
+ * the search debounce's setTimeout has been observed to take the Hermes runtime
+ * down, so this degrades rather than throws.
  */
 function loadFuzzyIndex(datasetId: DatasetId): CnameEntry[] | null {
   const cached = indexes.get(datasetId);

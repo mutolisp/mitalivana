@@ -1,14 +1,14 @@
 /**
- * 藥丸按鈕 —— the app's in-content / toolbar button.
+ * Pill button — the app's in-content / toolbar button.
  *
  * Distinct from `HeaderIconButton` (the circular disc) on purpose: that one
  * belongs to the navigation header, this one sits in a screen's own toolbar,
  * where a pill can carry a word and does not have to compete with the title.
  *
- * Neutral by default. The colour used to vary per screen — 新增名錄 and 匯入
- * were blue, 排序 grey, the favourites entry amber — which made every toolbar
- * look like it had one important button and some leftovers. Tinting now means
- * something: it is reserved for `amber`, the 常用名錄 colour.
+ * Neutral by default. The colour used to vary per screen — new checklist and
+ * import were blue, sort grey, the favourites entry amber — which made every
+ * toolbar look like it had one important button and some leftovers. Tinting now
+ * means something: it is reserved for `amber`, the favourites colour.
  */
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, Text } from 'react-native';

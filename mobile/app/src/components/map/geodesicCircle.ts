@@ -1,30 +1,36 @@
 /**
- * 把「圓心 + 公尺半徑」轉成測地線多邊形。
+ * Turn "centre + radius in metres" into a geodesic polygon.
  *
- * 為什麼需要：中性介面的 `circle` 是**公尺**（樣區的 `point_radius_m`、
- * `RecordLocationMap` 的 `reference.radiusM`），react-native-maps 的 `<Circle>`
- * 直接吃公尺，但 MapLibre 的 `circle-radius` 是**螢幕像素**，縮放時圓會跟著
- * 變大變小，語意完全不同。所以 MapLibre 端要自己把圓算成多邊形。
+ * Why it is needed: the neutral interface's `circle` is in **metres** (a plot's
+ * `point_radius_m`, `RecordLocationMap`'s `reference.radiusM`), and
+ * react-native-maps' `<Circle>` takes metres directly — but MapLibre's
+ * `circle-radius` is in **screen pixels**, so the circle grows and shrinks with
+ * zoom, which is entirely different semantics. The MapLibre side therefore has
+ * to build the circle as a polygon itself.
  *
- * 用球面模型（地球平均半徑），不是 WGS84 橢球。樣區半徑通常在幾十到幾百公尺，
- * 這個尺度下兩者差異遠小於 GPS 誤差。
+ * Uses a spherical model (mean Earth radius), not the WGS84 ellipsoid. Plot
+ * radii are usually tens to hundreds of metres, and at that scale the difference
+ * is far below GPS error.
  */
 
-/** IUGG 平均地球半徑（公尺）。 */
+/** IUGG mean Earth radius, in metres. */
 const EARTH_RADIUS_M = 6_371_008.8;
 
-/** 預設邊數。72 邊在手機螢幕上看不出稜角，又不會讓幾何肥大。 */
+/** Default number of sides. 72 shows no corners on a phone screen without
+ *  bloating the geometry. */
 const DEFAULT_STEPS = 72;
 
 const toRad = (deg: number) => (deg * Math.PI) / 180;
 const toDeg = (rad: number) => (rad * 180) / Math.PI;
 
 /**
- * 回傳 GeoJSON Polygon 的外環（`[lng, lat]`，首尾相同）。
+ * Returns the outer ring of a GeoJSON Polygon (`[lng, lat]`, first point
+ * repeated last).
  *
- * 用標準的「大圓上給定方位角與距離求終點」公式，所以在高緯度與跨 180 度
- * 經線都成立 —— 單純用 `radiusM / 111320` 換算經緯度在臺灣看起來還行，
- * 但那是把圓畫成橢圓。
+ * Uses the standard "destination point given bearing and distance along a great
+ * circle" formula, so it holds at high latitudes and across the 180th meridian —
+ * simply dividing `radiusM / 111320` into degrees looks fine over Taiwan but
+ * draws the circle as an ellipse.
  */
 export function geodesicCircle(
   lat: number,
@@ -50,7 +56,8 @@ export function geodesicCircle(
         Math.sin(bearing) * sinAng * cosLat1,
         cosAng - sinLat1 * Math.sin(lat2),
       );
-    // 正規化到 -180..180，避免跨經線時產生 190 之類的值
+    // Normalise to -180..180 so crossing the meridian does not yield values like
+    // 190
     ring.push([((toDeg(lng2) + 540) % 360) - 180, toDeg(lat2)]);
   }
   ring.push(ring[0]!);

@@ -31,18 +31,24 @@ import { mergeScopeNodes } from './mergeScope';
 import type { SearchResult } from './types';
 
 /**
- * 每個可用名錄模組的查詢範圍。
+ * The query scope of each available checklist module.
  *
- * 以前 TW+JP 是查 `all_names` 這個 UNION view，一次查詢讓 `COUNT(DISTINCT …)`
- * 精確。名錄拆成獨立檔之後 view 不可能跨檔存在，所以改成逐模組查、在 JS 合併
- * ——與 pack 早就在做的事情同一套（這個 app 從不 ATTACH）。
+ * TW+JP used to be queried through the `all_names` UNION view, where a single
+ * query kept `COUNT(DISTINCT …)` exact. A view cannot span files once the
+ * checklists became separate modules, so this queries per module and merges in
+ * JS — the same thing packs have been doing all along (this app never
+ * ATTACHes).
  *
- * **統計的取捨**：合併時子階層計數是相加的，所以 TW 與 JP 同時開啟、又有共有
- * 屬時會略為高估；這與 `mergePackNodes` 對 pack 既有的處理一致（那裡的註解也
- * 寫明是 approximation）。只開臺灣（預設）或只開日本時只有一個 scope，數字與
- * 拆檔前完全相同。葉層的物種清單仍然逐筆去重，不受影響。
+ * **The statistics trade-off**: child-rank counts are summed on merge, so with
+ * TW and JP both enabled and a genus shared between them the number is slightly
+ * high; that matches what `mergePackNodes` already does for packs (whose comment
+ * also says it is an approximation). With Taiwan alone (the default) or Japan
+ * alone there is a single scope and the numbers are exactly what they were
+ * before the split. The leaf-level species list still de-duplicates row by row
+ * and is unaffected.
  *
- * 空陣列 = 一個名錄模組都沒有（只用 pack、或還沒下載），呼叫端直接跳過。
+ * An empty array = no checklist module at all (packs only, or nothing downloaded
+ * yet), and callers skip straight past.
  */
 type NameScope = { id: string; db: DB; table: string; taiwanClause: string };
 

@@ -1231,7 +1231,22 @@
     "empty": "Noch keine iNaturalist-Beobachtungen für diese Art",
     "unknown": "Dieser wissenschaftliche Name fehlt in iNaturalist",
     "offline": "Offline – die iNaturalist-Ebene kann nicht geladen werden",
-    "attribution": "Beobachtungen © iNaturalist-Mitwirkende; Koordinaten bedrohter Arten werden unscharf dargestellt"
+    "attribution": "Beobachtungen © iNaturalist-Mitwirkende; Koordinaten bedrohter Arten werden unscharf dargestellt",
+    "fab": "iNat-Beobachtungsraster",
+    "sheetTitle": "iNaturalist-Beobachtungsraster",
+    "searchHint": "Suche ein Taxon, um seine iNaturalist-Beobachtungen über die Karte zu legen. Die Zellen passen sich der Zoomstufe an; je dunkler eine Zelle, desto mehr Beobachtungen enthält sie.",
+    "searchInat": "Stattdessen iNaturalist durchsuchen",
+    "inatResults": "Taxa auf iNaturalist",
+    "inatNoMatch": "Auch iNaturalist kennt „{{q}}“ nicht",
+    "obsCount": "{{count}} Beobachtungen",
+    "showingNow": "Wird angezeigt",
+    "stop": "Nicht mehr anzeigen",
+    "synonymAsk": "iNaturalist führt „{{asked}}“ unter {{accepted}}; das Raster zeigt also die Beobachtungen dieses Namens.",
+    "synonymUse": "Unter diesem Namen anzeigen",
+    "viaSynonym": "Bei iNaturalist unter {{name}} geführt; das Raster zeigt dessen Beobachtungen",
+    "viaSynonymShort": "gesucht als {{name}}",
+    "legendFew": "wenige",
+    "legendMany": "viele"
   },
   "collection": {
     "title": "Aufsammlung",

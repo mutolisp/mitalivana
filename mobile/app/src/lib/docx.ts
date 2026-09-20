@@ -17,7 +17,8 @@
  * This intentionally parses only the Markdown subset that `generateMarkdown`
  * (src/lib/markdown.ts) emits:
  *   - `#`..`####` headings
- *   - `**bold**`, `*italic*` inline (a lone `*` — the 歸化 marker — stays literal)
+ *   - `**bold**`, `*italic*` inline (a lone `*`, the naturalised marker, stays
+ *     literal)
  *   - plain paragraphs, blank lines
  *
  * Chosen over the `docx` npm package because that pulls in Node Buffer/stream
@@ -62,8 +63,9 @@ export function parseRuns(text: string, baseBold: boolean): Run[] {
   return runs;
 }
 
-// Latin → Times New Roman, CJK → 標楷體. Both set on every run so mixed
-// "鷹科 (Accipitridae)" text renders CJK in 標楷體 and Latin in Times within
+// Latin → Times New Roman, CJK → DFKai-SB (標楷體). Both are set on every run
+// so mixed text such as "鷹科 (Accipitridae)" renders the CJK in DFKai-SB and
+    // the Latin in Times within
 // the same run (Word picks ascii vs eastAsia per character).
 export const RFONTS = '<w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:eastAsia="標楷體"/>';
 

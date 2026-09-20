@@ -53,13 +53,13 @@ export function useTabBarInset(): number {
 }
 
 /**
- * Horizontal placement of the pill, and which end the ＋ sits at.
+ * Horizontal placement of the pill, and which end the + sits at.
  *
- * `fabOnLeft` mirrors the whole strip rather than only moving the ＋: the point
- * of the setting is that a left-handed thumb reaches the ＋ first, and leaving
- * the tabs in their old order would put 設定 next to it instead of the far end.
- * The mirroring is done by reversing the list, not with a transform — a
- * transform would flip the icons and the label text with it.
+ * `fabOnLeft` mirrors the whole strip rather than only moving the +: the point
+ * of the setting is that a left-handed thumb reaches the + first, and leaving
+ * the tabs in their old order would put Settings next to it instead of at the
+ * far end. The mirroring is done by reversing the list, not with a transform —
+ * a transform would flip the icons and the label text with it.
  */
 export function useTabBarMetrics() {
   const insets = useSafeAreaInsets();

@@ -1,15 +1,16 @@
 /**
- * 上一筆／下一筆調查記錄 —— a slim footer on a record detail screen that steps
- * to the neighbouring record without going back to the list first.
+ * Previous / next survey record — a slim footer on a record detail screen that
+ * steps to the neighbouring record without going back to the list first.
  *
  * Two deliberate choices:
  *
- * - **Neighbours are of the same kind.** 名錄 / 樣區 / 採集 are three different
- *   screens with different chrome; stepping from a 樣區 into a 名錄 would swap
- *   the whole UI under the user's thumb. Order is `listRecords(kind)`'s —
- *   active first, then newest — i.e. what the records tab shows.
+ * - **Neighbours are of the same kind.** Checklists, plot surveys and specimens
+ *   are three different screens with different chrome; stepping from a plot into
+ *   a checklist would swap the whole UI under the user's thumb. Order is
+ *   `listRecords(kind)`'s — active first, then newest — i.e. what the records
+ *   tab shows.
  * - **`router.replace`, not `push`.** Walking ten records must not leave ten
- *   screens on the back stack; 返回 still means "back to the list".
+ *   screens on the back stack; Back still means "back to the list".
  *
  * Placement matters: this bar has to sit ABOVE any `KeyboardStickyView` dock on
  * the screen. Chrome below a dock is exactly what `offset.opened` compensates

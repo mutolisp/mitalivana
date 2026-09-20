@@ -15,13 +15,16 @@ const USER_DB_NAME = 'user.db';
 export type InitProgressFn = (step: string) => void;
 
 export async function initDb(onProgress?: InitProgressFn): Promise<{ user: DB }> {
-  // 名錄 handle 不再由這裡持有（見 `datasets.ts`），所以回傳值只剩 user.db。
+  // Checklist handles are no longer held here (see `datasets.ts`), so the return
+  // value is user.db alone.
   if (userDb) return { user: userDb };
 
   onProgress?.(i18n.t('splash.opening'));
-  // 名錄不再隨 app 出貨：安裝清單說了算，沒有就是沒有（下載精靈接手）。
-  // `adoptLegacyBundle()` 仍然留著，讓升級中的裝置在 `retireLegacyBundle()`
-  // 把舊檔退場之前，仍然查得到名字（backfill 就靠它）。
+  // Checklists no longer ship with the app: the install list is authoritative,
+  // and absent means absent (the download wizard takes over).
+  // `adoptLegacyBundle()` stays so a device mid-upgrade can still resolve names
+  // until `retireLegacyBundle()` removes the legacy file — that is what the
+  // backfill reads from.
   loadDatasetManifest();
   adoptLegacyBundle();
   userDb = open({ name: USER_DB_NAME, location: Paths.document.uri });
@@ -46,9 +49,11 @@ export async function initDb(onProgress?: InitProgressFn): Promise<{ user: DB }>
   await runUserMigrations(userDb);
 
   onProgress?.(i18n.t('splash.cleanup'));
-  // 升級路徑：舊的 160 MB 合併檔要退場。**一定要在 migrations 之後**（需要
-  // v35 的 `taxon_name_cache`），而且是「先備份名稱 → 再刪檔」——順序倒過來就
-  // 會讓使用者的名錄空白一段時間。第一次升級以外都是 no-op。
+  // The upgrade path: the old 160 MB merged file has to go. **Always after the
+  // migrations** (it needs v35's `taxon_name_cache`), and it is "back up the
+  // names first, then delete" — the other order leaves the user's checklists
+  // blank for a while.
+  // A no-op on every launch but the first upgrade.
   const retired = retireLegacyBundle();
   if (retired.retired) {
     purgeLegacyAssetCache();

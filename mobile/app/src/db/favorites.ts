@@ -7,9 +7,10 @@ import type { SearchResult } from './types';
  *  points that have no folder picker land here, so there is always a target. */
 export const DEFAULT_FOLDER_ID = 1;
 
-/** A 常用名錄 folder. `is_default` marks the seeded one — the UI renders its
- *  label via i18n rather than the stored name, so the default is not locked to
- *  one language. The user can still rename it, which clears that behaviour. */
+/** A favourite-checklist folder. `is_default` marks the seeded one — the UI
+ *  renders its label via i18n rather than the stored name, so the default is not
+ *  locked to one language. The user can still rename it, which clears that
+ *  behaviour. */
 export type FavoriteFolder = {
   id: number;
   name: string;
@@ -28,9 +29,9 @@ export type FavoriteFolder = {
   species_count: number;
 };
 
-/** A row of a 常用名錄 folder. Denormalised so the list renders offline without
- *  joining twnamelist.db. For the full species detail / add-to-record flow,
- *  re-fetch via `searchByTaxonId(taxon_id)`. */
+/** A row of a favourite-checklist folder. Denormalised so the list renders
+ *  offline without joining the checklist module. For the full species detail /
+ *  add-to-record flow, re-fetch via `searchByTaxonId(taxon_id)`. */
 export type FavoriteItem = {
   id: number;
   folder_id: number;
@@ -231,7 +232,7 @@ export function listFavorites(folderId?: number): FavoriteItem[] {
  * Fill in Chinese family names that an earlier import left blank.
  *
  * `favorite_taxa` is denormalised so the list renders offline without joining
- * twnamelist.db, which means anything not written at import time is never
+ * the checklist module, which means anything not written at import time is never
  * shown — and the area-import path stored an empty `family_c`, so those rows
  * displayed a bare `Fagaceae` where every other entry point shows 殼斗科.
  *

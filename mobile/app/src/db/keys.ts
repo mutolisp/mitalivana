@@ -1,13 +1,15 @@
 /**
  * Identification keys read-only query layer (mobile).
  *
- * 檢索表住在自己的模組（`tw-keys`），與臺灣名錄（`tw-taicol`）是兩個獨立的
- * SQLite 檔。這個 app 從不 ATTACH，所以**本檔不直接查名錄**：需要學名或 rank
- * 時一律經過 `taxonNameRow` / `taxonAltNames` 這兩支縫，由它們去拿名錄模組的
- * handle。模組不在就回空值，檢索表 UI 本來就有「找不到就不顯示」的行為。
+ * The keys live in their own module (`tw-keys`), a separate SQLite file from the
+ * Taiwan checklist (`tw-taicol`). This app never ATTACHes, so **this file never
+ * queries the checklist directly**: whenever a scientific name or rank is
+ * needed it goes through the `taxonNameRow` / `taxonAltNames` seams, which take
+ * the checklist module's handle themselves. With the module absent they return
+ * empty, and the key UI already behaves as "not found, not shown".
  *
- * 模組更新（新的檢索表版本）只要重下 ~0.3 MB 的 tw-keys，不必重發 app，也不必
- * 重下名錄。
+ * Updating the module (a new key revision) only means re-downloading ~0.3 MB of
+ * tw-keys — no app release, and no re-downloading the checklist.
  */
 import { getDatasetDb, onDatasetsChanged } from './datasets';
 

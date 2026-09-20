@@ -23,9 +23,9 @@ export const TAXON_GROUP_FILTERS: Record<TaxonGroup, Partial<Record<'kingdom' | 
 /**
  * Build an OR-combined taxon-group filter clause for `groups`. Within one
  * group the column conditions (kingdom/phylum/class) are AND-ed; the groups
- * themselves are OR-ed, so picking 「鳥類」+「哺乳類」 returns the union, not
+ * themselves are OR-ed, so picking birds + mammals returns the union, not
  * the (empty) intersection. Bound values are pushed onto `params`. Returns
- * '' when there are no valid groups (i.e. 全部類群). Shared by `searchSpecies`
+ * '' when there are no valid groups (i.e. all groups). Shared by `searchSpecies`
  * and the fuzzy fallback so both honour the same multi-select filter.
  */
 export function groupFilterClause(

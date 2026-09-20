@@ -39,16 +39,18 @@ type Props = {
   onAddToSession: () => void;
   /** Optional close button at top-right. Pass null/omit to hide. */
   onClose?: () => void;
-  /** Override the add button text (e.g. for inline mode you might want
-   *  「加入並繼續搜尋」 someday). Defaults to「加到當前記錄」. */
+  /** Override the add button text (e.g. for inline mode you might one day want
+   *  "add and keep searching"). Defaults to "add to the current record". */
   addButtonLabel?: string;
-  /** Long-press on the add button. Used to offer the alternative destinations
-   *  (採集) without changing what a plain tap does. Omit to disable. */
+  /** Long-press on the add button. Used to offer the alternative destination
+   *  (specimen collection) without changing what a plain tap does. Omit to
+   *  disable. */
   onAddLongPress?: () => void;
-  /** Called when the user taps an infraspecies row in the「下級分類群」section.
-   *  The caller is expected to swap the visible detail to the picked taxon
-   *  (`LookupResultSheet` / `SpeciesSearchPanel` route this to their internal
-   *  `currentResult` state). When omitted, the row is rendered non-tappable. */
+  /** Called when the user taps an infraspecies row in the subordinate-taxa
+   *  section. The caller is expected to swap the visible detail to the picked
+   *  taxon (`LookupResultSheet` / `SpeciesSearchPanel` route this to their
+   *  internal `currentResult` state). When omitted, the row is rendered
+   *  non-tappable. */
   onPickSubordinate?: (sp: TaxonSpecies) => void;
 };
 

@@ -1,21 +1,21 @@
 /**
- * 合併調查記錄 —— fold several records of one kind into a new one.
+ * Merging survey records — fold several records of one kind into a new one.
  *
- * Only 名錄 (session) and 樣區 (plot survey) merge. 採集 is left out on purpose:
- * a specimen carries a collection number from the collector's own career
- * series, and re-issuing those numbers to resolve a clash between two trips
- * would rewrite the label already tied to the physical sheet.
+ * Only checklists (sessions) and plot surveys merge. Specimen records are left
+ * out on purpose: a specimen carries a collection number from the collector's
+ * own career series, and re-issuing those numbers to resolve a clash between two
+ * trips would rewrite the label already tied to the physical sheet.
  *
  * What the merged record inherits, and why:
  *
  * | field              | from                                                |
  * |--------------------|-----------------------------------------------------|
- * | 時間 started/ended | the UNION — earliest start, latest end / observation |
- * | 座標、環境資料     | the PRIMARY record the user picks                   |
- * | 軌跡 track         | the union of every source's segments                |
- * | 調查者 recordedBy  | the union, de-duplicated, primary's order first     |
- * | 專案、樣點 site    | the primary                                         |
- * | 物種記錄           | every source, in the chosen order                   |
+ * | time started/ended | the UNION — earliest start, latest end / observation |
+ * | position, habitat  | the PRIMARY record the user picks                   |
+ * | track              | the union of every source's segments                |
+ * | recordedBy         | the union, de-duplicated, primary's order first     |
+ * | project, site      | the primary                                         |
+ * | species records    | every source, in the chosen order                   |
  *
  * Time is a union because a merged record must still answer "when was this
  * surveyed?" honestly — a range that covers every observation it contains.
@@ -34,9 +34,9 @@ export type MergeRecordOptions = {
   /** Which source supplies the metadata above. Must be one of the merged ids;
    *  it is also first in the merge order, so it wins every de-duplication. */
   primaryId: number;
-  /** Fold rows describing the same taxon (for 樣區, the same taxon in the same
-   *  layer and subplot) into one, keeping the earlier source's row. Off keeps
-   *  every observation, which is the lossless reading of "merge". */
+  /** Fold rows describing the same taxon (for a plot survey, the same taxon in
+   *  the same layer and subplot) into one, keeping the earlier source's row. Off
+   *  keeps every observation, which is the lossless reading of "merge". */
   dedupe: boolean;
   /** Leave the sources in place. When false they are deleted after the merged
    *  record is written — inside the same transaction, so a failure keeps both. */

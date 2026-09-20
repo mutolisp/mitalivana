@@ -4083,3 +4083,87 @@ API 事實（來源 `https://api.inaturalist.org/v1/swagger.json` 的 `info.desc
 - 只鑑定到屬的記錄：已直接對 API 驗過屬階層可用（`Abies` id=54262），但沒在 app 裡走過。
 - iNat 與 TaiCOL 的**同義名不對應**：`pickTaxonMatch` 只做拼法正規化與消歧，不處理同義名，
   所以某些物種的熱區圖會落在「另一個學名」上。已知限制。
+
+## 2026-09-20 — 地圖分頁的 iNaturalist 觀察網格（含同物異名確認）
+
+小地圖那層（上一節）只回答「這筆記錄的物種在這附近有沒有」。這一節把它搬上**地圖分頁
+的滿版地圖**，並且讓使用者自己選要看哪個分類群——工具選單多一列「iNat 觀察網格」。
+
+上一節待辦的第三項（**iNat 與 TaiCOL 同義名不對應，已知限制**）在這裡解掉了。
+
+### 先查證再動手：`grid` 樣式本來就會做這兩件事
+
+需求是「網格隨 zoom 縮放」「愈多觀察顏色愈深」。對照 iNaturalistAPI 原始碼
+（GitHub `inaturalist/iNaturalistAPI`）＋ api.inaturalist.org 實測瓦片逐像素分析，
+兩件都已經內建：
+
+| 事實 | 出處 | 實測 |
+|---|---|---|
+| cell = zoom+5 層級的一張 geotile，即螢幕上恆為 1/32 張瓦片 | `lib/elastic_request.js` `geotileGridPrecision` | 512px 瓦片上量到 14–16px 的色塊；北緯 23.5° 下 z8=4.5km、z10=1.1km、z12=280m、z14=70m |
+| `polygon-fill: #FF4500`，`polygon-opacity` 依 `cellCount` 分 13 階（0.2→1.0） | `lib/inaturalist_map_styles.js` `geotilegrid` | 像素為 `rgb(255,69,0)` + alpha 153/191/229/255，回推 cellCount = 1/2/3/≥6，與公式吻合 |
+| 門檻 = `max(min(1e5, hits)/2^zoom, 3)` × `log10(k)` | 同上 `scaledHitsForGrid` | *Mikania micrantha*（15,912 筆）相異透明度階數：z6=20、z8=14、z10=5、**z12=3** |
+| 未寫進文件的 `precision_offset` 可再調粗細 | `lib/elastic_request.js:175` | production 可用，`-2`～`+3` 實測：cell 邊長 ×2^offset（4/8/16/32/64/128 px） |
+
+**推論（重要，勿憑印象改）**：高 zoom 的色階退化是門檻觸底造成的，`precision_offset`
+救不了——加粗只換到「看得清楚」，換不到「層次變多」。所以不做成使用者開關。
+
+`heatmap` 樣式確實有 230+ 階的連續色帶，但同一張瓦片 78–119 KB vs grid 的 3–9 KB
+（**15–35 倍**）。野外無訊號、電力有限，不划算，不採用。
+
+### 決策（使用者拍板）
+
+| 題目 | 決定 |
+|---|---|
+| 網格粗細 | 純自動、不給 UI 開關：`gridPrecisionOffset(zoom) = zoom >= 11 ? 1 : 0`。z11 以上一格 16pt（原本 8pt，像雜訊），且該處的空間精度本來就細過 iNat 對受威脅物種的模糊化 |
+| 顏色 | 維持 grid 橘色階梯，另外在選擇面板畫一條四階圖例說明「深＝觀察多」 |
+| 名稱來源 | 先本機名錄（`SearchBox`，含模糊比對／中文俗名／≡ 同物異名），查無再問 iNat autocomplete（科、屬、境外物種） |
+| 同物異名 | 提示並讓使用者確認，不自動採用 |
+
+### 同物異名：iNat 自己就會解析，而舊的比對把它丟掉了
+
+`/v1/taxa/autocomplete` 回傳 `matched_term`（實際命中的那個名字）。查
+`Cyclobalanopsis glauca` 會回 taxon 191183 `Quercus glauca` + `matched_term`
+為查詢字串；舊的 `pickTaxonMatch` 要求 `hit.name` 字面相等，**這種命中會被整個丟掉**，
+變成「iNat 沒有收錄這個學名」。
+
+40 個隨機 TaiCOL 接受名實測：字面命中 24、只靠 `matched_term` 命中 4、iNat 真的沒有 12
+——「查無」從 40% 降到 30%。
+
+**但不可以自動採用**：那 4 筆裡 `Oncidium papilio`→`Psychopsis papilio`、
+`Strombus marginatus`→`Dolomena marginata` 是同一分類群換名字，
+而 `Silene morii`→`Silene aprica`、`Pericampylus formosanus`→`Pericampylus glaucus`
+是 **iNat 把 TaiCOL 分開的東西併起來**——觀察紀錄屬於一個更廣的分類群，這是資料事實，
+使用者必須看到。所以面板會停下來問「iNaturalist 把『X』歸入 Y，網格畫的會是後者」。
+
+`pickTaxonMatch`（上傳用）維持嚴格：**幫使用者把觀察掛到另一個名字底下是鑑定者的權責**，
+不是 app 的。新的 `pickTaxonMatchDetailed` 才吃 `matched_term`，兩者共用同一套收斂規則。
+
+### 實作
+
+- `src/lib/inatHeatmap.ts`：`tileZoomForRegion` / `gridPrecisionOffset`／`gridTileUrl`
+  多吃一個 offset（0 不寫進 URL，維持與舊版相同的 CDN 快取鍵）／`INAT_GRID_LAYER`
+  常數改由這裡出，兩張地圖共用。
+- `src/lib/inatPayload.ts`：`AutocompleteHit.matched_term`、`pickTaxonMatchDetailed`。
+- `src/lib/inatApi.ts`：`lookupTaxon`（詳細版）、`searchTaxa`（iNat 全文查分類群，
+  只收 active——inactive 的同物異名 taxon 觀察數是 0，畫出來必定空白）。
+- user.db **v37**：`inat_taxon_map` 加 `inat_name` / `matched_via`，快取命中時也講得出
+  「實際畫的是哪個名字」。舊列留 NULL（它們本來就只可能是字面命中）。
+- `src/components/InatGridSheet.tsx`（新）：全螢幕面板，底部沿用 `SearchBox`
+  （`gbifFallback={false}` + 新的 `renderNoMatch` 插槽改成「改查 iNaturalist」）。
+- `app/(tabs)/map.tsx`：疊圖 + 地圖上常駐說明晶片（名稱／筆數／查詢名）。
+  **選擇不持久化**：每張瓦片都是請求，重開 app 自己默默續傳流量不是該替使用者做的決定。
+
+### 順手修掉的既有缺陷
+
+`MapLibreCanvas` 的 `RasterSource` 只 key 在 `o.id` 上。MapLibre 的 source 只在
+`MLRNSource.addToMap` 呼叫一次 `makeSource()`（node_modules 內 Kotlin 原始碼），
+**之後改 `tiles` prop 不會重建**——所以在向量底圖下換 WMTS 圖層或換物種，畫面會留著
+上一個圖層的瓦片。改成 key 進 URL 的雜湊。原生引擎沒這問題（iOS `setUrlTemplate:`
+會重建 overlay、Android 會 `clearTileCache()`，都讀過原始碼確認）。
+
+### 待辦 / 未驗
+
+- **實機未測**：以上全部只過了 `tsc --noEmit` 與 10 支 check 腳本。
+- `maxZoom: 15` 之上要靠引擎放大 z15 瓦片。小地圖本來就開在 z16 附近而看得到圖層，
+  推測 MapKit 會 upsample，但**沒有親自驗過**，實機請特別看這一段。
+- 套用之後才失去訊號時，晶片仍會顯示筆數（與小地圖同樣的限制，只在解析當下探測）。

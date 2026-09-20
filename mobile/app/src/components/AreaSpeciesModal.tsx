@@ -1,5 +1,5 @@
 /**
- * Map area → species list → a new 常用名錄 folder.
+ * Map area → species list → a new favourite checklist folder.
  *
  * Three steps, each of which the user can back out of: pick a source and
  * filters, wait for the fetch, then review what came back BEFORE anything is

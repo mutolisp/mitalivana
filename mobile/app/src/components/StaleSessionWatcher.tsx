@@ -15,7 +15,7 @@ const STALE_THRESHOLD_MS = 12 * 60 * 60 * 1000; // 12 hours
  *
  * Baseline = MAX(started_at, resumed_at, latest_record_observed_at). Without
  * the resumed_at + activity floors, reopening a 3-day-old session to add one
- * taxon would immediately re-fire "已開了 72 小時" — annoying noise.
+ * taxon would immediately re-fire "open for 72 hours" — annoying noise.
  */
 export function StaleSessionWatcher() {
   const { t } = useTranslation();

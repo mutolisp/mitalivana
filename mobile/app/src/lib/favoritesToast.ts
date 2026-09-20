@@ -1,5 +1,5 @@
 /**
- * "Added to 常用名錄" toasts, with a way to actually get there.
+ * "Added to favourites" toasts, with a way to actually get there.
  *
  * The four places that add a species to a list are all deep inside other
  * screens (taxonomy tree, session detail, plot species tab, map import), and a

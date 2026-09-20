@@ -77,7 +77,7 @@ export function GeoImportModal({ visible, defaultProjectId = 0, onClose, onCommi
       setFormat(detected);
       setImported(parsed);
       setProjects(listProjects());
-      // 預設 prefix 用檔名（去副檔名）
+      // The default prefix is the filename without its extension
       const base = asset.name.replace(/\.[^.]+$/, '');
       setNamePrefix(base);
     } catch (e) {

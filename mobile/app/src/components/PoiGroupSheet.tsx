@@ -1,9 +1,10 @@
 /**
- * 山域地標的分類開關。
+ * Category switches for the mountain landmarks.
  *
- * 刻意**不塞進 `LayerSheet`**：那支是為 220 層 NLSC / 87 層中研院 WMTS 設計的
- * 「單選 + 搜尋 + 透明度」，contract 是 `selectedId: string`。POI 只有 7 個群組
- * 且是多選，硬塞會把兩個呼叫端都弄複雜。
+ * Deliberately **not folded into `LayerSheet`**: that one is built for 220 NLSC
+ * layers and 87 Academia Sinica WMTS layers as "single-select + search +
+ * opacity", with a `selectedId: string` contract. POIs are 7 groups and
+ * multi-select, and forcing them together would complicate both call sites.
  */
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';

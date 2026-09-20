@@ -1172,7 +1172,8 @@ function importPlotSurveyTx(
   }
 
   // Resolve project by name, creating it when unknown — the name is user data
-  // that would otherwise be lost to 未分類 on every cross-device import.
+  // that would otherwise be lost to the uncategorised project on every
+      // cross-device import.
   const projectId = resolveProjectIdByName(data.project_name, { create: true });
 
   const res = db.executeSync(
@@ -1282,8 +1283,9 @@ function importPlotSurveyTx(
       [
         plotId,
         sp.taxon_id,
-        // 另存新檔＝一份新的 occurrence，必須重新配號；沿用來源檔的 id 會讓
-        // 同一個 occurrenceID 出現在兩筆記錄上（DwC 識別碼必須唯一）。
+        // Saving as a new copy means a new occurrence, so it must be renumbered;
+        // reusing the source's id would put the same occurrenceID on two records (a
+      // DwC identifier has to be unique).
         opts.newUuid ? generateUuid() : (sp.occurrence_id ?? generateUuid()),
         subplotId,
         layer,
@@ -1329,7 +1331,7 @@ function importPlotSurveyTx(
   return { plotId, plotid: data.plotid };
 }
 
-// ── 複製樣區 ────────────────────────────────────────────────────────────────
+// ── Duplicating a plot ────────────────────────────────────────────────────
 
 /**
  * Copy a plot survey as the next one in the series.
@@ -1468,7 +1470,8 @@ function duplicatePlotSurveyTx(id: number, opts: DuplicateRecordOptions): number
     }
   }
 
-  // Subplots are part of the plot's structure, so they ride with 環境.
+  // Subplots are part of the plot's structure, so they ride with the
+    // environment data.
   const subplotIdByOldId = new Map<number, number>();
   if (opts.includeEnv) {
     for (const s of listSubplots(id)) {

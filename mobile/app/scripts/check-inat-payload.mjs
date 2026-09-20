@@ -17,6 +17,7 @@ import {
   photoMimeType,
   photoUuidFor,
   pickTaxonMatch,
+  pickTaxonMatchDetailed,
 } from '../src/lib/inatPayload.ts';
 import { decodeJwtPayload, jwtExpiryMs, jwtUsable, parseTokenText } from '../src/lib/inatJwt.ts';
 
@@ -179,6 +180,61 @@ const ok = (label, cond) => {
   ];
   eq('same-kingdom ambiguity → null', pickTaxonMatch(twoPlants, 'Selaginella japonica', 'Plantae'), null);
   eq('missing iconic does not contradict', pickTaxonMatch([{ id: 30, name: 'Ficus', is_active: true }, { id: 31, name: 'Ficus', is_active: true, iconic_taxon_name: 'Insecta' }], 'Ficus', 'Plantae'), 30);
+}
+
+// ── synonym matching (matched_term) ────────────────────────────────────────
+{
+  // Measured on api.inaturalist.org 2026-09-20:
+  //   /v1/taxa/autocomplete?q=Cyclobalanopsis glauca
+  //   → 1 result: 191183 Quercus glauca, matched_term "Cyclobalanopsis glauca"
+  const syn = [
+    {
+      id: 191183,
+      name: 'Quercus glauca',
+      rank: 'species',
+      is_active: true,
+      iconic_taxon_name: 'Plantae',
+      matched_term: 'Cyclobalanopsis glauca',
+    },
+  ];
+  eq('synonym reaches the accepted taxon', pickTaxonMatchDetailed(syn, 'Cyclobalanopsis glauca', 'Plantae'), {
+    id: 191183,
+    name: 'Quercus glauca',
+    via: 'synonym',
+  });
+  eq('the accepted name itself is not a synonym hit', pickTaxonMatchDetailed(syn, 'Quercus glauca', 'Plantae'), {
+    id: 191183,
+    name: 'Quercus glauca',
+    via: 'name',
+  });
+  // The upload path must not start attaching taxa it could not attach before:
+  // filing an observation under another name is the identifier's call.
+  eq('upload matcher still refuses a synonym', pickTaxonMatch(syn, 'Cyclobalanopsis glauca', 'Plantae'), null);
+  eq('upload matcher still takes the plain name', pickTaxonMatch(syn, 'Quercus glauca', 'Plantae'), 191183);
+
+  // A taxon that holds the name outright beats one that merely lists it as a
+  // synonym, whatever order they arrive in.
+  const both = [
+    { id: 1, name: 'Machilus japonica', is_active: true, iconic_taxon_name: 'Plantae', matched_term: 'Persea japonica' },
+    { id: 2, name: 'Persea japonica', is_active: true, iconic_taxon_name: 'Plantae', matched_term: 'Persea japonica' },
+  ];
+  eq('own name wins over synonym', pickTaxonMatchDetailed(both, 'Persea japonica', 'Plantae'), {
+    id: 2,
+    name: 'Persea japonica',
+    via: 'name',
+  });
+
+  // Kingdom still separates cross-kingdom homonyms on the synonym path.
+  const homonym = [
+    { id: 10, name: 'Acmella A', is_active: true, iconic_taxon_name: 'Plantae', matched_term: 'Acmella' },
+    { id: 11, name: 'Acmella B', is_active: true, iconic_taxon_name: 'Insecta', matched_term: 'Acmella' },
+  ];
+  eq('synonym homonym → plant', pickTaxonMatchDetailed(homonym, 'Acmella', 'Plantae')?.id, 10);
+  eq('synonym homonym without kingdom → ambiguous', pickTaxonMatchDetailed(homonym, 'Acmella', ''), null);
+
+  // A hit with no matched_term (an older response shape) must not match the
+  // empty string.
+  eq('no matched_term is not a match', pickTaxonMatchDetailed([{ id: 5, name: 'Ficus', is_active: true }], 'Moraceae', 'Plantae'), null);
 }
 
 // ── geometry ───────────────────────────────────────────────────────────────

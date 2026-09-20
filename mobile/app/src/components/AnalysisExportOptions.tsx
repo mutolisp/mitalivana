@@ -3,8 +3,8 @@
  * sheet (ExportPreferenceSheet) and the project detail's ProjectExportSheet
  * so the two stay identical. All state lives in the persisted settings.
  *
- * Also exports `exportContentItems()` — the numbered "本次將匯出" list both
- * the sheet preview and the swipe-export confirm dialog render.
+ * Also exports `exportContentItems()` — the numbered "what will be exported"
+ * list both the sheet preview and the swipe-export confirm dialog render.
  */
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';

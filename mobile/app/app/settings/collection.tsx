@@ -1,7 +1,8 @@
 /**
- * 標本採集 —— 預設鑑定者、採集號前綴／起始號／補零位數。
+ * Specimen collecting — default identifier, collection-number prefix, start
+ * number and zero padding.
  *
- * Moved out of the 偏好設定 root: it was the longest inline block there, and
+ * Moved out of the preferences root: it was the longest inline block there, and
  * `nextRecordNumber()` is recomputed on every render so the hint reflects the
  * prefix just typed — that cost belongs on this screen, not on the root page.
  */
@@ -26,11 +27,12 @@ export default function CollectionSettingsScreen() {
   const nextNumberPreview = nextRecordNumber().text;
 
   /**
-   * 強制指定下一個採集號。
+   * Force the next collection number.
    *
-   * 底層仍是 collection_number_start（nextRecordNumber 取
-   * max(資料庫最大序號 + 1, start)），所以只能往前跳、不能往回。輸入值若不大於
-   * 目前最大序號，設了也不會生效 —— 這種情況要明講，不能靜默吞掉。
+   * Underneath this is still collection_number_start (nextRecordNumber takes
+   * max(highest number in the database + 1, start)), so it can only jump
+   * forward, never back. A value no greater than the current maximum has no
+   * effect once set — and that case has to be stated, not swallowed silently.
    */
   const handleSetNextNumber = async () => {
     const maxSeq = maxRecordNumberSeq();
@@ -52,7 +54,8 @@ export default function CollectionSettingsScreen() {
       return;
     }
     if (seq <= maxSeq) {
-      // 採集號只會往前：資料庫已經有更大的號了，設下去不會生效。
+      // Collection numbers only move forward: the database already holds a higher
+      // one, so setting this would have no effect.
       Alert.alert(
         t('settings.setNextNumberTooLowTitle'),
         t('settings.setNextNumberTooLowMsg', {
@@ -85,8 +88,10 @@ export default function CollectionSettingsScreen() {
     <SettingsPage>
       <ScrollView>
         <View className="mt-6">
-          {/* 預設鑑定者：新增標本時自動帶入，比照採集者從行程繼承的作法。
-              留空表示不帶入——標籤上寧可沒有這一行，也不要掛一個沒定過名的人。 */}
+          {/* Default identifier: filled in automatically on a new specimen, mirroring how
+              the collector is inherited from the trip. Left empty it fills in
+              nothing — better a label without this line than one crediting
+              someone who never determined it. */}
           <RowInput
             label={t('settings.defaultDeterminer')}
             value={identifiedBy}
@@ -100,8 +105,9 @@ export default function CollectionSettingsScreen() {
             autoCapitalize="characters"
             onCommit={(v) => setSetting('collection_number_prefix', v.trim())}
           />
-          {/* 取代原本會在失焦時靜默寫入的「起始號」輸入框：改號會影響實體標本
-              編號，必須先讓使用者看到目前狀態並確認。底層設定同一個。 */}
+          {/* Replaces the old start-number field that wrote silently on blur: changing
+              the number affects physical specimen labels, so the user has to see
+              the current state and confirm. Same setting underneath. */}
           <LinkRow
             label={t('collection.numberStart')}
             value={nextNumberPreview}
@@ -113,7 +119,7 @@ export default function CollectionSettingsScreen() {
             placeholder="4"
             keyboardType="number-pad"
             onCommit={(v) => {
-              // 0 = 不補零；上限 10 避免打錯字產生荒謬的長號碼。
+              // 0 = no padding; the cap of 10 stops a typo producing an absurdly long number.
               const n = Math.floor(Number(v));
               const clamped = Number.isFinite(n) ? Math.min(Math.max(n, 0), 10) : 4;
               setSetting('collection_number_pad', clamped);

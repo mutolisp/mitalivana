@@ -1,15 +1,16 @@
 /**
- * 向量離線地圖的下載與安裝。
+ * Download and install of the offline vector map.
  *
- * **沒有分塊、沒有解壓**：整份地圖是一個 .pmtiles 檔，MapLibre Native 直接
- * 對它做範圍讀取。先前的 raster 圖磚包要把 25 個 zip 串流解壓成四萬多張
- * 圖磚，複雜度幾乎都在那裡。
+ * **No chunking, no unpacking**: the whole map is one .pmtiles file that
+ * MapLibre Native range-reads directly. The earlier raster tile packs had to
+ * stream-unzip 25 archives into 40,000-odd tiles, which was where nearly all
+ * the complexity lived.
  *
- * 要下載的東西：
- *   rudy.pmtiles        383 MB   圖磚本體
- *   hillshade.pmtiles    83 MB   山體陰影
- *   sprite / glyph        2 MB   4 + 22 個小檔，**一個都不能少**
- *   style.json                   下載後改寫成指向本機檔案
+ * What gets downloaded:
+ *   rudy.pmtiles        383 MB   the tiles themselves
+ *   hillshade.pmtiles    83 MB   hillshade
+ *   sprite / glyphs       2 MB   4 + 22 small files, **not one may be missing**
+ *   style.json                   rewritten after download to point at local files
  */
 import { Directory, File, Paths } from 'expo-file-system';
 import { createDownloadResumable } from 'expo-file-system/legacy';
@@ -34,7 +35,8 @@ import {
 
 const MANIFEST_URL = 'https://map.mitalivana.org/vector/latest/manifest.json';
 
-/** 下載期間額外要保留的空間，避免剛好填滿裝置。 */
+/** Headroom kept free during the download so the device is not filled exactly
+ *  to the brim. */
 const SPACE_HEADROOM = 200 * 1024 * 1024;
 
 export type VectorProgress =
@@ -54,8 +56,10 @@ type State = {
   progress: VectorProgress | null;
   error: string | null;
   /**
-   * 本機樣式換過幾次。MapLibre 只在掛載時讀一次 style，而樣式更新後 styleUri
-   * 這個字串是不變的，React 不會重繪 —— 地圖畫面拿它當 key 才看得到新樣式。
+   * How many times the local style has been replaced. MapLibre reads the style
+   * once at mount, and the styleUri string does not change when the style is
+   * updated, so React would not re-render — the map screen uses this as a key to
+   * pick up the new style.
    */
   styleRev: number;
 };
@@ -78,7 +82,8 @@ export function refreshVectorInstalled(): void {
 
 export async function checkVectorRemote(): Promise<VectorRemoteState> {
   try {
-    // Cloudflare 會用 403 擋掉預設的 UA（raster 管線踩過），所以一定要帶。
+    // Cloudflare 403s the default UA (the raster pipeline hit this), so it must be
+  // sent.
     const res = await fetch(MANIFEST_URL, { headers: { 'User-Agent': USER_AGENT } });
     if (!res.ok) return { kind: 'error', message: `HTTP ${res.status}` };
     return { kind: 'ready', manifest: (await res.json()) as VectorManifest };
@@ -105,7 +110,7 @@ export function repairLocalStyle(): boolean {
   if (!installed || !isVectorReady(installed)) return false;
   try {
     migrateGlyphLayout();
-    // 380 KB，開機路徑上只讀一次。
+    // 380 KB, read once on the startup path.
     const raw = vectorStyleFile().textSync();
     const current = JSON.parse(raw) as Record<string, unknown>;
     const assets = localAssetPaths();
@@ -126,22 +131,26 @@ export function repairLocalStyle(): boolean {
 }
 
 /**
- * 只把 style.json 換新，圖磚留著。
+ * Refresh style.json alone and keep the tiles.
  *
- * 安裝時 `localizeStyle` 是把遠端樣式**複製一份**寫進本機，所以之後每一次樣式
- * 調整（顏色、線寬、山體陰影的 maxzoom…）都到不了已經裝好的使用者手上 —— 為了
- * 幾 KB 的 JSON 叫人重抓 466 MB 顯然不合理。版本號一樣就代表圖磚沒變，樣式可以
- * 單獨更新。
+ * At install time `localizeStyle` writes a **copy** of the remote style locally,
+ * so every later styling change (colours, line widths, the hillshade maxzoom…)
+ * never reaches anyone who already installed — and making them re-download
+ * 466 MB for a few KB of JSON is obviously unreasonable. An unchanged version
+ * means the tiles are unchanged, so the style can be updated on its own.
  *
- * 順帶修掉一個潛在問題：本機樣式裡存的是絕對 file:// 路徑，iOS 的 app container
- * UUID 會在更新後改變，那時舊路徑會全部失效。這支跑過就一併寫回新的路徑。
+ * This also fixes a latent problem: the local style stores absolute file://
+ * paths, and the iOS app container UUID changes after an update, invalidating
+ * all of them. Running this writes the current paths back.
  *
- * 失敗不算錯：野外沒訊號是常態，維持現有樣式即可。
+ * Failure is not an error: no signal in the field is normal, and keeping the
+ * existing style is fine.
  */
 export async function refreshVectorStyle(manifest: VectorManifest): Promise<boolean> {
   const installed = readVectorInstalled();
   if (!installed || !isVectorReady(installed)) return false;
-  // 版本不同代表圖磚本身該換，不是換張樣式能解決的事。
+  // A different version means the tiles themselves need replacing, which a new
+    // style cannot fix.
   if (installed.version !== manifest.version) return false;
 
   try {
@@ -186,12 +195,16 @@ export function cancelVectorInstall(): void {
 }
 
 /**
- * 下載到 dest，並在知道預期大小時**核對位元組數**。
+ * Download to dest, and **verify the byte count** when the expected size is
+ * known.
  *
- * HTTP 狀態碼是 200 不代表檔案完整：連線中斷、空間不足、系統把背景下載收掉，
- * 都可能留下一個截短的檔。.pmtiles 被截短特別難查 —— 標頭與根目錄都在檔案開頭
- * 讀得到，所以樣式載得起來，只是圖磚一張都拿不到，畫面上就是「山體陰影有、
- * 向量地圖整片空白」。寧可當場失敗，也不要留一個看起來裝好的壞檔。
+ * HTTP 200 does not mean the file is complete: a dropped connection, a full
+ * disk, or the system reclaiming a background download can all leave a
+ * truncated file. A truncated .pmtiles is especially hard to diagnose — the
+ * header and root directory sit at the start of the file and read fine, so the
+ * style loads while not a single tile can be fetched, and the screen shows
+ * "hillshade yes, vector map blank". Better to fail here than to keep a broken
+ * file that looks installed.
  */
 async function downloadTo(
   url: string,

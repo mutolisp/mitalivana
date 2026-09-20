@@ -1,15 +1,16 @@
 /**
- * 離線地圖設定。
+ * Offline map settings.
  *
- * 兩個彼此獨立的下載：
+ * Two downloads, independent of each other:
  *
- * - **魯地圖**（466 MB）：不下載也能用，線上模式直接讀遠端的 .pmtiles，
- *   所以按鈕寫的是「下載以便離線使用」而不是「安裝地圖」。
- * - **山域地標**（66 MB）：與底圖無關，任何底圖都會顯示，所以不綁在地圖的
- *   下載流程裡。
+ * - **RudyMap** (466 MB): usable without downloading, since online mode reads
+ *   the remote .pmtiles directly — which is why the button says "download for
+ *   offline use" rather than "install map".
+ * - **Mountain landmarks** (66 MB): unrelated to the basemap and shown over any
+ *   of them, so it is not tied into the map's download flow.
  *
- * 取代了原本的 raster 圖磚包頁面 —— 那份要 1.46 GB 而向量版只要三分之一，
- * 沒有並存的理由。
+ * Replaces the old raster tile-package screen — that one needed 1.46 GB where
+ * the vector edition needs a third of it, so there was no reason to keep both.
  */
 import { Stack } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -36,7 +37,8 @@ import {
   type VectorRemoteState,
 } from '~/lib/vectormapInstall';
 
-/** 圖資還沒下載時 manifest 也還沒有，但版權標示該先看得到。 */
+/** Before the map data is downloaded there is no manifest either, but the
+ *  attribution should already be visible. */
 const DEFAULT_ATTRIBUTION =
   '資料基於魯地圖 Taiwan TOPO・© OpenStreetMap 貢獻者（ODbL）・內政部 20 公尺網格 DTM';
 
@@ -47,8 +49,9 @@ export default function OfflineMapScreen() {
   useEffect(() => {
     void checkVectorRemote().then((state) => {
       setRemote(state);
-      // 樣式只有幾 KB，版本相同就順手換新 —— 否則裝好之後的每一次樣式調整都
-      // 得叫人重抓 466 MB。沒訊號時靜靜失敗即可。
+      // The style is only a few KB, so an unchanged version gets it refreshed in
+      // passing — otherwise every styling change after install would mean asking for
+  // 466 MB again. With no signal it simply fails quietly.
       if (state.kind === 'ready') void refreshVectorStyle(state.manifest);
     });
   }, []);
@@ -85,7 +88,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-/** 標籤在左、數值在右。沿用 raster 版頁面的排法。 */
+/** Label left, value right. Same layout as the raster-era screen. */
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <View className="flex-row items-baseline justify-between py-0.5">

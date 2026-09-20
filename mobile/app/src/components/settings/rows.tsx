@@ -1,9 +1,9 @@
 /**
- * The row vocabulary shared by 偏好設定 and its detail pages.
+ * The row vocabulary shared by the preferences screen and its detail pages.
  *
  * `Section` and `RowInput` moved here verbatim from app/settings.tsx; keeping
- * them private to that file is why the 標本採集 block ended up inlined there in
- * the first place.
+ * them private to that file is why the specimen-collecting block ended up
+ * inlined there in the first place.
  */
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
@@ -15,7 +15,7 @@ const DIVIDER = 'border-b border-gray-100 dark:border-gray-800';
 const PRESSED = 'active:bg-gray-50 dark:active:bg-gray-800';
 
 /** `title` is optional so a trailing block can carry no caption — a caption
- *  promises a group, and the 關於 row at the foot of the menu is one item. */
+ *  promises a group, and the About row at the foot of the menu is one item. */
 export function Section({ title, children }: { title?: string; children: React.ReactNode }) {
   return (
     <View className="mt-6">

@@ -84,7 +84,8 @@ export type BundleOptions = {
   levels: string[];
   /** Conservation-status columns to include in the checklist. */
   conservationFields: ConservationField[];
-  /** 排除 LC：名錄的物種行不印無危等級（LC/NLC/NE/NA）。統計不受影響。 */
+  /** Hide least concern: species lines omit the safe categories (LC/NLC/NE/NA).
+ *  The statistics are unaffected. */
   conservationHideLowConcern: boolean;
   /** Emit a Darwin Core Archive (dwca/…zip) for this record. Mirrors the
    *  project export's 'dwca' analysis-format checkbox. */

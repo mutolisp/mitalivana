@@ -28,11 +28,11 @@ export function getGroupLabel(value: TaxonGroup | ''): string {
 }
 
 /** Above this count we collapse the selected-chips strip into a single
- *  「N 個分類群」 summary to keep the search toolbar compact. */
+ *  "N groups" summary to keep the search toolbar compact. */
 const MAX_INLINE_CHIPS = 5;
 
 type Props = {
-  /** Currently selected groups. Empty = 全部類群 (no restriction). */
+  /** Currently selected groups. Empty = all groups (no restriction). */
   value: TaxonGroup[];
   onChange: (value: TaxonGroup[]) => void;
 };

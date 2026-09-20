@@ -1,5 +1,5 @@
 /**
- * 採用名稱 — let the recorder decide which name a record is filed under.
+ * Adopting a name — let the recorder decide which name a record is filed under.
  *
  * TaiCOL's `taxon_id` is a taxon *concept*; each name hanging off it is a row
  * with its own `name_id`, marked accepted / not-accepted / misapplied. About
@@ -36,8 +36,8 @@ export type AdoptionChoice =
 
 /** The other concepts a (usually misapplied) name has been applied to. */
 export function otherConceptsFor(nameId: number, currentTaxonId: string): string[] {
-  // `name_id` / `taxon_id_all` 只有 TaiCOL 有。模組不在就回空，採用名 sheet 少
-  // 一個選項而已。
+  // Only TaiCOL has `name_id` / `taxon_id_all`. With the module absent this
+  // returns empty, which just means one fewer option on the adopt-name sheet.
   const db = getDatasetDb('tw-taicol');
   if (!db) return [];
   const res = db.executeSync(

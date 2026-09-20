@@ -8,7 +8,7 @@
  * JSON off the api_token page and nothing else (the host only ever injects
  * JS on that exact URL). Its cookies stay in the WebView's own store inside
  * the app sandbox, which is what lets the next day's token be fetched
- * silently. 「解除連結」 logs that session out server-side.
+ * silently. Unlinking logs that session out server-side.
  *
  * Imperative API + module-level zustand store + host component, the same
  * pattern as TextPromptModal / ActionSheet / GbifLookupHost, so the upload
@@ -166,8 +166,8 @@ async function rememberLogin(jwt: string): Promise<void> {
   }
 }
 
-/** Account page 「連結」: always interactive; the WebView is shown straight
- *  away if the session has lapsed. */
+/** The account page's Link action: always interactive; the WebView is shown
+ *  straight away if the session has lapsed. */
 export async function requestInatToken(): Promise<'ok' | 'cancelled'> {
   try {
     await clearJwtOnly();
@@ -191,8 +191,8 @@ export async function discardInatJwt(): Promise<void> {
 
 const clearJwtOnly = discardInatJwt;
 
-/** Fallback path: the user opened the api_token page in a real browser,
- *  copied the JSON, and taps 「從剪貼簿貼上」. */
+/** Fallback path: the user opened the api_token page in a real browser, copied
+ *  the JSON, and taps Paste from clipboard. */
 export async function pasteInatToken(): Promise<'ok' | 'invalid'> {
   let text = '';
   try {
@@ -212,8 +212,8 @@ export async function pasteInatToken(): Promise<'ok' | 'invalid'> {
   return 'ok';
 }
 
-/** 「解除連結」: log the WebView session out on the server (best effort —
- *  offline just skips it), then forget the token. */
+/** Unlink: log the WebView session out on the server (best effort — offline just
+ *  skips it), then forget the token. */
 export async function logoutInat(): Promise<void> {
   try {
     await runFlow('logout', false, 'hidden');

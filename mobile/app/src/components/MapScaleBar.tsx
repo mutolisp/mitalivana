@@ -1,21 +1,25 @@
 /**
- * 地圖比例尺。
+ * Map scale bar.
  *
- * 自己畫而不是用 `<MapView showsScale>`：那個 prop 是 **iOS Apple Maps 專用、
- * Android 完全不支援**（react-native-maps MapView.types.ts:627-628），而且 iOS 的
- * 只在縮放手勢期間短暫出現。野外判讀距離需要常駐、兩平台一致的比例尺。
+ * Drawn by hand rather than via `<MapView showsScale>`: that prop is **iOS Apple
+ * Maps only and entirely unsupported on Android** (react-native-maps
+ * MapView.types.ts:627-628), and even on iOS it appears only briefly during a
+ * zoom gesture. Judging distance in the field needs a permanent scale bar that
+ * is the same on both platforms.
  *
- * 更新時機跟著 `onRegionChangeComplete`（一次手勢一次），與點位聚合同一個
- * granularity。改用 `onRegionChange` 會在拖曳過程中每幀重算，不值得。
+ * It updates with `onRegionChangeComplete` (once per gesture), the same
+ * granularity as point clustering. Using `onRegionChange` would recompute every
+ * frame of a drag, which is not worth it.
  */
 import { useMemo } from 'react';
 import { Text, View } from 'react-native';
 
-/** 赤道上一度經度的公尺數。 */
+/** Metres per degree of longitude at the equator. */
 const METERS_PER_DEGREE = 111_320;
-/** 比例尺的最大像素長度，超過就換下一個較小的整數距離。 */
+/** Maximum pixel length of the bar; beyond it the next smaller round distance
+ *  is used. */
 const MAX_BAR_PX = 110;
-/** 只用這些「好看的」距離，避免出現 137 m 這種刻度。 */
+/** Only these "tidy" distances, so the bar never reads something like 137 m. */
 const NICE_METERS = [
   1, 2, 5, 10, 20, 50, 100, 200, 500,
   1_000, 2_000, 5_000, 10_000, 20_000, 50_000,
@@ -27,19 +31,22 @@ export type ScaleRegion = {
   longitudeDelta: number;
 };
 
-/** 回傳 (距離公尺, 對應的像素寬度)；無法計算時回 null。 */
+/** Returns (distance in metres, matching pixel width), or null when it cannot
+ *  be computed. */
 export function pickScale(
   region: ScaleRegion,
   screenWidthPx: number,
 ): { meters: number; px: number } | null {
   if (!(screenWidthPx > 0) || !(region.longitudeDelta > 0)) return null;
-  // 經線間距隨緯度收斂，臺灣約 23°N → cos ≈ 0.92，不修正會高估 8%。
+  // Meridians converge with latitude; Taiwan is about 23°N → cos ≈ 0.92, so
+  // skipping the correction overestimates by 8%.
   const groundWidth =
     region.longitudeDelta * METERS_PER_DEGREE * Math.cos((region.latitude * Math.PI) / 180);
   if (!(groundWidth > 0)) return null;
   const metersPerPx = groundWidth / screenWidthPx;
 
-  // 由大到小挑第一個畫得下的距離，這樣比例尺會盡量長、讀數比較準。
+  // Take the largest distance that still fits, so the bar is as long as possible
+  // and therefore easier to read accurately.
   for (let i = NICE_METERS.length - 1; i >= 0; i -= 1) {
     const meters = NICE_METERS[i]!;
     const px = meters / metersPerPx;

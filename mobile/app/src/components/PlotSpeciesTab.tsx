@@ -91,7 +91,7 @@ export function PlotSpeciesTab({ plot, onChanged }: { plot: PlotSurvey; onChange
     () => (stratified ? getActiveLayers(plot.layer_count) : []),
     [stratified, plot.layer_count],
   );
-  // Default layer: prefer E2 (草本層) for vegetation surveys — that's the
+  // Default layer: prefer E2 (the herb layer) for vegetation surveys — that's the
   // most commonly entered layer. If layer_count < 2, fall back to E1.
   const defaultLayer: Layer = !stratified
     ? 'T'
@@ -119,7 +119,7 @@ export function PlotSpeciesTab({ plot, onChanged }: { plot: PlotSurvey; onChange
   // keyboard handling — see `npm run check:dock`).
   const [replaceTarget, setReplaceTarget] = useState<PlotSpeciesRecordWithTaxon | null>(null);
 
-  // Subplots (小區, fixed plots only). When ≥1 subplot exists the species tab
+  // Subplots (fixed plots only). When ≥1 subplot exists the species tab
   // is scoped to the active subplot; otherwise it behaves as before (flat plot).
   const [subplots, setSubplots] = useState<Subplot[]>([]);
   useMemo(() => {
@@ -221,7 +221,8 @@ export function PlotSpeciesTab({ plot, onChanged }: { plot: PlotSurvey; onChange
       >((l) => {
         const list = grouped[l];
         if (list.length === 0) return [];
-        // 非分層模式（穿越線 / 定點計數）不顯示 header（單一 'T'，已在 chips 區告知）。
+        // Non-stratified modes (transect / point count) show no header (a single 'T',
+      // already stated in the chips row).
         return [
           ...(stratified ? [{ kind: 'header', layer: l } as const] : []),
           ...list.map((r) => ({ kind: 'row', record: r }) as const),

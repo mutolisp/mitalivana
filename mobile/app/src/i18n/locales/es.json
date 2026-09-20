@@ -1299,7 +1299,22 @@
     "empty": "Todavía no hay observaciones de esta especie en iNaturalist",
     "unknown": "Este nombre científico no está en iNaturalist",
     "offline": "Sin conexión: no se puede cargar la capa de iNaturalist",
-    "attribution": "Observaciones © colaboradores de iNaturalist; las coordenadas de especies amenazadas se ofuscan"
+    "attribution": "Observaciones © colaboradores de iNaturalist; las coordenadas de especies amenazadas se ofuscan",
+    "fab": "Cuadrícula de iNat",
+    "sheetTitle": "Cuadrícula de observaciones de iNaturalist",
+    "searchHint": "Busca un taxón para superponer sus observaciones de iNaturalist. Las celdas cambian de tamaño con el nivel de zoom y cuanto más oscura es una celda, más observaciones contiene.",
+    "searchInat": "Buscar en iNaturalist",
+    "inatResults": "Taxones en iNaturalist",
+    "inatNoMatch": "iNaturalist tampoco encuentra «{{q}}»",
+    "obsCount": "{{count}} observaciones",
+    "showingNow": "Mostrando ahora",
+    "stop": "Dejar de mostrar",
+    "synonymAsk": "iNaturalist registra «{{asked}}» bajo {{accepted}}, así que la cuadrícula mostrará las observaciones de ese nombre.",
+    "synonymUse": "Mostrar con ese nombre",
+    "viaSynonym": "iNaturalist lo registra como {{name}}; la cuadrícula muestra las observaciones de ese nombre",
+    "viaSynonymShort": "buscado como {{name}}",
+    "legendFew": "pocas",
+    "legendMany": "muchas"
   },
   "collection": {
     "title": "Recolección",

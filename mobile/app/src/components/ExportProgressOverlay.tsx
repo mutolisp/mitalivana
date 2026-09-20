@@ -5,7 +5,8 @@ import type { ExportProgress } from '~/lib/bundleExport';
 /**
  * Full-screen, non-dismissable overlay shown while an export bundle is being
  * built + zipped. Replaces the single-line toast so the user sees the current
- * stage (準備中 / 處理照片 / 壓縮中…) and a progress bar when a count is known.
+ * stage (preparing / processing photos / compressing…) and a progress bar when a
+ * count is known.
  */
 export function ExportProgressOverlay({ progress }: { progress: ExportProgress | null }) {
   const { t } = useTranslation();

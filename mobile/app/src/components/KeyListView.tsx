@@ -1,5 +1,5 @@
 /**
- * Identification-key search view (物種 tab → 檢索表 segment).
+ * Identification-key search view (Species tab → Keys segment).
  *
  * Design: search-first. No full list. The user either taps one of ≤5 chips
  * (most-recent merged with the largest families) or types into the search

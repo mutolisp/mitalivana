@@ -57,13 +57,14 @@ export type AlienBadge = {
   shortLabel: string;
   /** Full label for detail sheets. */
   longLabel: string;
-  /** Tailwind text-color class (no bg, follows the bare-text style of 「特」). */
+  /** Tailwind text-color class (no bg, following the bare-text style of the
+ *  endemic badge). */
   textClass: string;
 };
 
 /**
  * Map (alien_type, kingdom) → badge metadata. `native` returns null because
- * native species don't get a badge here; the endemic「特」badge is rendered
+ * native species don't get a badge here; the endemic badge is rendered
  * separately by callers.
  */
 export function alienBadge(

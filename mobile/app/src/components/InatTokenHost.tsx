@@ -19,7 +19,7 @@
  *     sign-in (Google/Apple) will not work in here; the account page offers
  *     the browser + paste fallback for those accounts.
  *   • Not `incognito`: the session cookie must persist in the WebView store
- *     for silent refresh. 「解除連結」 loads /logout to invalidate it.
+ *     for silent refresh. Unlinking loads /logout to invalidate it.
  *
  * Switching hidden → visible remounts the WebView (different parent). That is
  * fine: cookies live in the shared store, and the reload just replays

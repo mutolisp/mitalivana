@@ -22,6 +22,14 @@ import { NLSC_LAYERS } from '~/lib/nlscLayers';
 import { SaveSiteModal } from '~/components/SaveSiteModal';
 import { GeoImportModal } from '~/components/GeoImportModal';
 import { AreaSpeciesModal } from '~/components/AreaSpeciesModal';
+import { InatGridSheet, type InatGridSelection } from '~/components/InatGridSheet';
+import { ScientificName } from '~/components/ScientificName';
+import {
+  INAT_GRID_LAYER,
+  gridPrecisionOffset,
+  gridTileUrl,
+  tileZoomForRegion,
+} from '~/lib/inatHeatmap';
 import type { BBox } from '~/lib/inat';
 import wellknown from 'wellknown';
 import { useFavorites } from '~/stores/favorites';
@@ -90,26 +98,31 @@ type ClusterFeature =
   | { kind: 'site'; site: SiteWithProject };
 
 /**
- * 底圖選單。**不含 mapType** —— 那個對應統一在 `src/lib/basemap.ts` 的
- * `basemapToMapType()`，這裡曾經有過第二份實作，是重複的來源。
+ * Basemap menu. **No mapType here** — that mapping lives once in
+ * `basemapToMapType()` in `src/lib/basemap.ts`; a second copy used to live here
+ * and was a source of duplication.
  */
 const BASEMAP_OPTIONS: { value: MapBasemap; labelKey: string; icon: keyof typeof Ionicons.glyphMap }[] = [
   { value: 'standard', labelKey: 'map.basemapStandard', icon: 'map-outline' },
   { value: 'satellite', labelKey: 'map.basemapSatellite', icon: 'globe-outline' },
   { value: 'hybrid', labelKey: 'map.basemapHybrid', icon: 'layers-outline' },
   { value: 'terrain', labelKey: 'map.basemapTerrain', icon: 'trail-sign-outline' },
-  // 向量版魯地圖。線上永遠可用（直接讀遠端 pmtiles），裝好離線包後改讀本機單檔。
-  // 標籤隨離線狀態變動，見 basemapLabelKey()。
+  // The vector RudyMap. Always available online (reading the remote pmtiles
+  // directly); once the offline package is installed it reads one local file.
+  // The label tracks offline state, see basemapLabelKey().
   { value: 'vector', labelKey: 'map.basemapRudyVector', icon: 'triangle-outline' },
 ];
 
-/** 地標只在夠近時查。`LIKE` 的 tag 篩選不吃索引，視窗一大候選集就爆
- *  （實測全臺範圍要 3.6 秒）。0.15 度約等於 z12。 */
+/** Landmarks are only queried when close enough. The `LIKE` tag filter does not
+ *  use an index, so a wide viewport explodes the candidate set (measured: 3.6 s
+ *  for all of Taiwan). 0.15 degrees is roughly z12. */
 const POI_MAX_DELTA = 0.15;
-/** 單次查詢上限。台北一個 z14 視窗光原始 POI 就有 4 萬筆。 */
+/** Per-query cap. A single z14 viewport over Taipei already holds 40,000 raw
+ *  POIs. */
 const POI_LIMIT = 300;
 
-/** 線上向量樣式。離線包裝好後會換成本機的 file:// 路徑。 */
+/** Online vector style. Swapped for a local file:// path once the offline
+ *  package is installed. */
 const VECTOR_STYLE_URL = 'https://map.mitalivana.org/vector/latest/style.json';
 
 const SINICA_TILE_URL =
@@ -119,8 +132,8 @@ const NLSC_TILE_URL =
   'https://wmts.nlsc.gov.tw/wmts/{LAYER}/default/GoogleMapsCompatible/{z}/{y}/{x}';
 
 
-/** Deliberately not one of the record colours: a bubble is not a 樣區 or a
- *  名錄, it is a stand-in for several of them. */
+/** Deliberately not one of the record colours: a bubble is not a plot survey or
+ *  a checklist, it is a stand-in for several of them. */
 const CLUSTER_COLOR = '#4f46e5';
 const SITE_COLOR = '#2563eb';
 const SITE_FILL = 'rgba(37, 99, 235, 0.18)';
@@ -257,7 +270,7 @@ function bboxOfRegion(r: Region): BBox {
   };
 }
 
-/** bbox → 畫成多邊形需要的四個角。 */
+/** bbox → the four corners needed to draw it as a polygon. */
 function bboxCorners(b: BBox): LatLng[] {
   return [
     { latitude: b.swLat, longitude: b.swLng },
@@ -271,7 +284,7 @@ const DRAW_FILL = 'rgba(220, 38, 38, 0.18)';
 const PLOT_COLOR = '#7c3aed'; // violet — done plots
 const PLOT_ACTIVE_COLOR = '#db2777'; // magenta — the single active plot
 const PLOT_FILL = 'rgba(124, 58, 237, 0.15)'; // point_count radius circle
-// Session (名錄) overlay.
+// Session (checklist) overlay.
 const SESSION_COLOR = '#0891b2'; // cyan — done sessions
 const SESSION_ACTIVE_COLOR = '#10b981'; // green — the active session
 
@@ -289,10 +302,11 @@ function basemapMeta(b: MapBasemap): (typeof BASEMAP_OPTIONS)[number] {
 }
 
 /**
- * 底圖的顯示標籤。
+ * Display label for a basemap.
  *
- * 只有向量版是動態的：線上模式叫「魯地圖」，裝好離線包之後叫「魯地圖（離線）」
- * —— 使用者關心的是「這份地圖現在需不需要網路」，不是它的算繪技術。
+ * Only the vector one is dynamic: "RudyMap" online, "RudyMap (offline)" once the
+ * offline package is installed — what the user cares about is whether this map
+ * needs the network right now, not how it is rendered.
  */
 function basemapLabelKey(
   o: (typeof BASEMAP_OPTIONS)[number],
@@ -321,7 +335,7 @@ export default function MapScreen() {
   }>();
   /** When set, after saving the next drawn site we bind it to this session and bounce back. */
   const handoffSessionId = useRef<number | null>(null);
-  /** Same for a 樣區 boundary: the plot to bind to, plus its current boundary
+  /** Same for a plot boundary: the plot to bind to, plus its current boundary
    *  (non-null = redrawing an existing one, which updates that row in place). */
   const [plotHandoff, setPlotHandoff] = useState<{ plot: PlotSurvey; site: Site | null } | null>(
     null,
@@ -341,6 +355,16 @@ export default function MapScreen() {
   const [nlscOpacity, setNlscOpacity] = useState<number>(initial.nlsc_opacity);
   const [poiGroups, setPoiGroups] = useState<string[]>(initial.poi_groups);
   const [poiSheetOpen, setPoiSheetOpen] = useState(false);
+  /**
+   * The taxon whose iNaturalist observation grid is drawn, and its sheet.
+   *
+   * Deliberately NOT persisted with the rest of the map view: every tile is a
+   * network request, and a layer that silently resumes downloading on the next
+   * launch is not something to decide for a user with one bar of signal. It is
+   * picked when it is wanted.
+   */
+  const [inatGrid, setInatGrid] = useState<InatGridSelection | null>(null);
+  const [inatSheetOpen, setInatSheetOpen] = useState(false);
   const [pois, setPois] = useState<RudyPoi[]>([]);
 
 
@@ -348,14 +372,17 @@ export default function MapScreen() {
   const vectorInstalled = useVectorInstall((s) => s.installed);
   const vectorReady = useVectorInstall((s) => s.ready);
   const vectorStyleRev = useVectorInstall((s) => s.styleRev);
-  // 圖磚包被刪掉時**故意不**把 currentBasemap 改寫回 standard：使用者重新安裝後
-  // 會自動回到他原本選的魯地圖，而不是被我們悄悄改掉設定。
+  // When the tile package is deleted, currentBasemap is **deliberately not**
+  // rewritten back to standard: after reinstalling, the user returns to the
+  // RudyMap they had chosen instead of finding their setting quietly changed.
   const vectorOn = currentBasemap === 'vector';
   /**
-   * 裝好離線包就讀本機那份（source 指向 pmtiles://file://…），否則走遠端。
+   * With the offline package installed, read the local copy (its source points at
+   * pmtiles://file://…); otherwise go remote.
    *
-   * 路徑現算而不是用 `installed.styleUri`：那是安裝當下的絕對路徑，iOS 的 app
-   * container UUID 在重裝後會變，舊路徑就指向不存在的檔案。
+   * The path is recomputed rather than taken from `installed.styleUri`: that is
+   * the absolute path at install time, and the iOS app container UUID changes
+   * after a reinstall, leaving the old path pointing at a file that is not there.
    */
   const vectorStyle = vectorOn
     ? (vectorReady && vectorInstalled ? vectorStyleUri() : VECTOR_STYLE_URL)
@@ -363,19 +390,20 @@ export default function MapScreen() {
 
   useEffect(() => {
     if (!vectorStyle) return;
-    // 地圖載不起來時，MapLibre 只會丟一句沒有原因的 "loading style failed"，
-    // 所以這裡把判斷得出來的部分先印出來。
+    // When the map will not load, MapLibre only throws a reasonless "loading style
+    // failed", so whatever can be determined is printed here first.
     console.log('[vectormap] style', vectorStyle, JSON.stringify(describeVectorInstall()));
   }, [vectorStyle, vectorStyleRev]);
 
   // Drawing UI only produces simple types; Multi* arrive via import (KML/GPX).
   const [drawMode, setDrawMode] = useState<'Point' | 'LineString' | 'Polygon' | null>(null);
   const [drawPoints, setDrawPoints] = useState<LatLng[]>([]);
-  /** What the current drawing is FOR. 'site' saves a 地理樣區; 'species' queries
-   *  iNaturalist for what has been observed inside it. Same gesture, two
+  /** What the current drawing is FOR. 'site' saves a geographic site; 'species'
+   *  queries iNaturalist for what has been observed inside it. Same gesture, two
    *  terminuses — the alternative was a second drawing implementation. */
   const [drawPurpose, setDrawPurpose] = useState<'site' | 'species' | 'favoriteArea'>('site');
-  /** Which 常用名錄's area is being redrawn, when handed off from favourites. */
+  /** Which favourite folder's area is being redrawn, when handed off from
+   *  favourites. */
   const favoriteAreaId = useRef<number | null>(null);
   const [areaOpen, setAreaOpen] = useState(false);
   const [areaQuery, setAreaQuery] = useState<{
@@ -413,8 +441,10 @@ export default function MapScreen() {
     longitudeDelta: initial.longitudeDelta,
   });
 
-  // 地標查詢綁 viewRegion（一次手勢一次），與點位聚合同一個 granularity。
-  // 太遠就不查：tag 的 LIKE 篩選不吃索引，視窗一大就慢。
+  // Landmark queries follow viewRegion (once per gesture), the same granularity
+  // as point clustering.
+  // Too far out and nothing is queried: the tag LIKE filter does not use an
+  // index, so a wide viewport is slow.
   useEffect(() => {
     if (poiGroups.length === 0 || viewRegion.longitudeDelta > POI_MAX_DELTA) {
       setPois((prev) => (prev.length ? [] : prev));
@@ -435,13 +465,15 @@ export default function MapScreen() {
         ),
       );
     } catch (e) {
-      // 圖磚包剛被刪、或 DB 還沒裝好都會走到這裡。地標是加值資訊，
-      // 查不到就不顯示，不該讓整個地圖畫面壞掉。
+      // Reached when the tile package was just deleted, or the DB is not ready yet.
+      // Landmarks are a bonus; failing to find them must not break the whole map
+      // screen.
       if (__DEV__) console.warn('[poi] query failed', e);
       setPois([]);
     }
   }, [viewRegion, poiGroups]);
-  /** The tapped feature's details; 「操作」 on the card opens the action sheet. */
+  /** The tapped feature's details; the action button on the card opens the action
+   *  sheet. */
   const [info, setInfo] = useState<MapFeatureInfo | null>(null);
 
   const mapRef = useRef<MapCamera>(null);
@@ -538,7 +570,7 @@ export default function MapScreen() {
       }
     }
 
-    // 樣區 boundary handoff: centre on the existing boundary if there is one,
+    // Plot boundary handoff: centre on the existing boundary if there is one,
     // else on the plot itself. No coordinates anywhere is not a refusal — the
     // user can still pan to where the plot is and draw.
     let plotTarget: { plot: PlotSurvey; site: Site | null } | null = null;
@@ -614,7 +646,7 @@ export default function MapScreen() {
 
   // Precompute transect track projection once per plots load (not per render /
   // map pan) — JSON parse + lng/lat swap is the costly part with many plots.
-  /** site id → the 樣區 whose boundary it is, so the map can say so. */
+  /** site id → the plot whose boundary it is, so the map can say so. */
   const plotBySiteId = useMemo(
     () => new Map(plots.filter((p) => p.site_id !== null).map((p) => [p.site_id as number, p])),
     [plots],
@@ -676,8 +708,8 @@ export default function MapScreen() {
   );
 
   /**
-   * One point per record. A 樣區 with a boundary contributes once, not twice:
-   * the plot already stands for that record, and counting its site as well
+   * One point per record. A plot survey with a boundary contributes once, not
+   * twice: the plot already stands for that record, and counting its site as well
    * would inflate every bubble it appears in.
    */
   const { clusterInputs, clusterFeatures } = useMemo(() => {
@@ -1014,7 +1046,7 @@ export default function MapScreen() {
         ` · ${site.project_name}${site.notes ? `\n\n${site.notes}` : ''}`,
       cancelLabel: t('common.close'),
       options: owner
-        ? // A 樣區 boundary is deleted from the 樣區, not from under it: doing it
+        ? // A plot boundary is deleted from the plot, not from under it: doing it
           // here would leave the plot silently without one.
           [
             { label: t('map.jumpToPlot') },
@@ -1713,6 +1745,21 @@ export default function MapScreen() {
       : []),
   ];
 
+  /**
+   * iNaturalist grid tiles for the current view.
+   *
+   * The zoom only picks how coarse the cells are, and it is bucketed to two
+   * values (see `gridPrecisionOffset`), so the URL — and with it every loaded
+   * tile — changes at one threshold rather than on every pinch.
+   */
+  const inatTileUrl = inatGrid
+    ? gridTileUrl(
+        inatGrid.inatTaxonId,
+        inatGrid.mode,
+        gridPrecisionOffset(tileZoomForRegion(viewRegion.longitudeDelta, windowWidth)),
+      )
+    : null;
+
   return (
     <View className="flex-1 bg-gray-100 dark:bg-gray-800">
       <MapCanvas
@@ -1762,6 +1809,7 @@ export default function MapScreen() {
                 },
               ]
             : []),
+          ...(inatTileUrl ? [{ ...INAT_GRID_LAYER, urlTemplate: inatTileUrl }] : []),
         ]}
         // 切底圖時強制疊圖重新掛載，讓它們重新加到離線圖磚之上
         // （iOS 的疊圖先後只看掛載順序）。
@@ -1885,6 +1933,15 @@ export default function MapScreen() {
                 }}
               />
               <FabRow
+                icon={inatGrid ? 'grid' : 'grid-outline'}
+                label={t('inatGrid.fab')}
+                onPress={() => {
+                  setToolsOpen(false);
+                  setInatSheetOpen(true);
+                }}
+                accent={!!inatGrid}
+              />
+              <FabRow
                 icon="cloud-upload-outline"
                 label={t('map.import')}
                 onPress={() => {
@@ -1896,6 +1953,63 @@ export default function MapScreen() {
           ) : null}
         </View>
       ) : null}
+
+      {/* What the grid is showing. Not optional: an orange grid with no caption
+          is indistinguishable from "this species is not here", and it may not
+          even be the name the user searched — see InatGridSheet's header. */}
+      {inatGrid && !drawMode && !editMode && !searchOpen ? (
+        <View className="absolute left-3 right-3" style={{ top: insets.top + 60 }}>
+          <View className="flex-row items-center rounded-full bg-white/95 px-3 py-1.5 shadow-md dark:bg-gray-900/95">
+            <View
+              style={{ backgroundColor: '#FF4500', opacity: 0.8, width: 12, height: 12 }}
+              className="rounded-[2px]"
+            />
+            <View className="ml-2 flex-1">
+              <View className="flex-row items-center">
+                {inatGrid.commonName ? (
+                  <Text
+                    numberOfLines={1}
+                    className="mr-1 text-xs font-medium text-gray-900 dark:text-gray-100"
+                  >
+                    {inatGrid.commonName}
+                  </Text>
+                ) : null}
+                <ScientificName
+                  name={inatGrid.inatName}
+                  rank={inatGrid.rank}
+                  numberOfLines={1}
+                  className="text-xs text-gray-700 dark:text-gray-300"
+                />
+              </View>
+              <Text numberOfLines={1} className="text-[10px] text-gray-500 dark:text-gray-400">
+                {inatGrid.mode === 'wild'
+                  ? t('inatGrid.wild', { count: inatGrid.count })
+                  : t('inatGrid.captiveOnly', { count: inatGrid.count })}
+                {inatGrid.askedName
+                  ? ` · ${t('inatGrid.viaSynonymShort', { name: inatGrid.askedName })}`
+                  : ''}
+              </Text>
+            </View>
+            <Pressable onPress={() => setInatGrid(null)} hitSlop={8}>
+              <Ionicons name="close-circle" size={18} color={muted} />
+            </Pressable>
+          </View>
+        </View>
+      ) : null}
+
+      <InatGridSheet
+        visible={inatSheetOpen}
+        current={inatGrid}
+        onApply={(sel) => {
+          setInatGrid(sel);
+          setInatSheetOpen(false);
+        }}
+        onClear={() => {
+          setInatGrid(null);
+          setInatSheetOpen(false);
+        }}
+        onClose={() => setInatSheetOpen(false)}
+      />
 
       {/* Drawing toolbar (below search FAB row) */}
       {drawMode ? (

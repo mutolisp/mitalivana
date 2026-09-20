@@ -1,5 +1,6 @@
 /**
- * Turn a list of species observed in a map area into rows of a 常用名錄 folder.
+ * Turn a list of species observed in a map area into rows of a favourite
+ * checklist folder.
  *
  * This is where the identity rule from `sciMatch` is enforced, so it stays free
  * of UI: the caller fetches (iNaturalist or GBIF), this resolves and writes.

@@ -257,10 +257,11 @@ const MIGRATIONS: Migration[] = [
   },
   {
     // v6: support transect plots alongside fixed (4-layer) plots.
-    //   * plot_surveys.plot_type ('fixed' | 'transect')，預設 'fixed'
-    //   * plot_surveys.track_geojson — transect 軌跡 (LineString GeoJSON)
-    //   * plot_species_records.layer 的 CHECK 擴增 'T'（transect 不分層）。
-    //     SQLite 不支援 ALTER CHECK，因此 rename+create+copy 重建表。
+    //   * plot_surveys.plot_type ('fixed' | 'transect'), defaulting to 'fixed'
+    //   * plot_surveys.track_geojson — the transect track (LineString GeoJSON)
+    //   * plot_species_records.layer's CHECK gains 'T' (a transect has no layers).
+    //     SQLite cannot ALTER a CHECK, so the table is rebuilt by
+  //     rename+create+copy.
     version: 6,
     up: (db) => {
       addColumnIfMissing(
@@ -306,9 +307,11 @@ const MIGRATIONS: Migration[] = [
   },
   {
     // v7: transect track finalization flag.
-    //   * track_finalized = 1 表示軌跡已停止儲存，不可再 append；plot 仍可加物種。
-    //   * track_geojson 格式從 LineString 升級為 MultiLineString（segment 陣列），
-    //     由 code 層處理；DB schema 不變（TEXT GeoJSON）。
+    //   * track_finalized = 1 means the track has been stopped and saved and can no
+  //     longer be appended to; the plot still accepts species.
+    //   * track_geojson goes from LineString to MultiLineString (an array of
+  //     segments), handled in code;
+    //     the DB schema is unchanged (TEXT GeoJSON).
     version: 7,
     up: (db) => {
       addColumnIfMissing(
@@ -321,9 +324,9 @@ const MIGRATIONS: Migration[] = [
     // v8: DwC species attribute columns shared by checklist_records and
     // plot_species_records.
     //   * sex                     DwC sex
-    //   * life_stage              DwC lifeStage (動物，依 class 不同 enum)
-    //   * reproductive_condition  DwC reproductiveCondition (植物花/果)
-    //   * leaf_phenology          dynamicProperties.leafPhenology (植物葉)
+    //   * life_stage              DwC lifeStage (animals; enum varies by class)
+    //   * reproductive_condition  DwC reproductiveCondition (plant flower/fruit)
+    //   * leaf_phenology          dynamicProperties.leafPhenology (plant leaves)
     version: 8,
     up: (db) => {
       for (const tbl of ['checklist_records', 'plot_species_records']) {
@@ -1137,6 +1140,26 @@ const MIGRATIONS: Migration[] = [
           PRIMARY KEY (name, kingdom)
         );
       `);
+    },
+  },
+  {
+    // The name iNaturalist actually files the taxon under, plus how it was
+    // reached.
+    //
+    // v36 stored the id alone, which cannot tell the two answers apart: "iNat
+    // has Sphaeropteris lepifera, which is what you asked for" and "iNat has
+    // Sphaeropteris lepifera, which is where your Cyathea lepifera went". The
+    // grid draws the same tiles either way, so without this the caption would
+    // have to stay silent about a name swap the user never agreed to — the one
+    // thing src/lib/inat.ts's header says this feature must never do.
+    //
+    // Nullable, and the old rows keep their NULLs: they were resolved by the
+    // strict matcher, where the name is by definition the one that was asked
+    // for, so backfilling would only invent a fact the row never recorded.
+    version: 37,
+    up: (db) => {
+      addColumnIfMissing(db, `ALTER TABLE inat_taxon_map ADD COLUMN inat_name TEXT;`);
+      addColumnIfMissing(db, `ALTER TABLE inat_taxon_map ADD COLUMN matched_via TEXT;`);
     },
   },
 ];

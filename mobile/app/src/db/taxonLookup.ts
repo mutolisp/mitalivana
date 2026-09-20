@@ -54,9 +54,11 @@ export type TaxonFields = {
   is_brackish: string;
   is_marine: string;
   is_fossil: string;
-  /** 這個 taxon_id 在任何來源（模組 / external_taxa / 名稱快取）都查不到。
-   *  UI 應顯示「名稱不可用」而**不是**拿 taxon_id 當名字——那會漏進 DwC 匯出的
-   *  `scientificName`。預設 false，所以既有欄位的意義完全不變。 */
+  /** This taxon_id could not be resolved from any source (module / external_taxa
+   *  / name cache). The UI should show "name unavailable" and **must not** use
+   *  the taxon_id as a name — that would leak into the `scientificName` of a DwC
+   *  export. Defaults to false, so the meaning of every existing field is
+   *  unchanged. */
   unresolved?: boolean;
 };
 
@@ -88,8 +90,9 @@ export function resolveTaxa(taxonIds: string[]): Map<string, TaxonFields> {
   if (ids.length === 0) return out;
 
   const raw = new Map<string, Record<string, unknown>>();
-  // 依「擁有這個前綴的模組」分組 fan-out。模組沒安裝就整組跳過——那些 id 會落到
-  // 下面的名稱快取退路，再不行就是 unresolved。
+  // Fan out grouped by "the module that owns this prefix". An uninstalled module
+  // skips the whole group — those ids fall through to the name-cache fallback
+  // below, and failing that they are unresolved.
   for (const spec of availableNameDatasets()) {
     if (spec.tables.kind !== 'names') continue;
     const subset = ids.filter((id) => datasetForTaxonId(id)?.id === spec.id);

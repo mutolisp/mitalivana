@@ -61,12 +61,14 @@ export default function FavoritesScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const folders = useFavorites((s) => s.folders);
-  // 必須訂閱 items 這個「值」。訂閱 store 的 itemsIn 函式會拿到永遠不變的
-  // 參考，元件就不會因為 items 改變而重新 render —— 加入物種後清單不更新，
-  // 要切出目錄再切回來才看得到。
+  // Must subscribe to the `items` VALUE. Subscribing to the store's itemsIn
+  // function yields a reference that never changes, so the component would not
+  // re-render when items change — the list would not update after adding a
+  // species until you switched folders and back.
   const allItems = useFavorites((s) => s.items);
-  // 常用名錄的 docx 走的是同一條名錄渲染鏈，保育欄位與「排除 LC」自然跟著
-  // 匯出設定走，不再自成一格。
+  // A favourite checklist's docx goes through the same checklist rendering chain,
+  // so the conservation columns and "hide least concern" follow the export
+  // settings instead of being their own thing.
   const conservationFields = useSettings((s) => s.export_conservation_fields);
   const hideLowConcern = useSettings((s) => s.export_conservation_hide_lc);
   const add = useFavorites((s) => s.add);

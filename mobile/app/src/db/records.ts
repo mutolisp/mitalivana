@@ -27,10 +27,12 @@ export type ChecklistRecord = {
    *  Maps to DwC `coordinateUncertaintyInMeters` on export. */
   accuracy: number | null;
   /** DwC degreeOfEstablishment (v33): 'wild' | 'captive' | 'cultivated'.
-   *  NULL = 未記錄, which is a different statement from an explicit 'wild'.
-   *  Per-INDIVIDUAL — not to be confused with the taxon-level `alien_type`. */
+   *  NULL = not recorded, which is a different statement from an explicit
+   *  'wild'. Per-INDIVIDUAL — not to be confused with the taxon-level
+   *  `alien_type`. */
   degree_of_establishment: string | null;
-  // DwC species attributes (v8). Persisted as enum strings; UI maps to 中文.
+  // DwC species attributes (v8). Persisted as enum strings; the UI maps them to
+  // localised labels.
   sex: string | null;
   life_stage: string | null;
   reproductive_condition: string | null;
@@ -100,9 +102,10 @@ export type CreateRecordInput = {
 };
 
 export function addRecord(input: CreateRecordInput): number {
-  // 記錄一旦引用某個 taxon，那個名字就必須活得比資料來源久：pack 的 'g…' 複製
-  // 進 external_taxa，名錄模組的 't…'/'y…' 複製進 taxon_name_cache。掛在這裡而
-  // 不是 UI，才沒有任何一條新增路徑能忘記。
+  // Once a record references a taxon, that name has to outlive its data source:
+  // a pack's 'g…' is copied into external_taxa, and a checklist module's 't…' or
+  // 'y…' into taxon_name_cache. Hung here rather than in the UI so no insert
+  // path can forget it.
   ensureTaxonSelfSufficient(input.taxon_id);
   const db = getUserDb();
   const res = db.executeSync(

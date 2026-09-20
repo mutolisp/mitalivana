@@ -1,14 +1,17 @@
 /**
- * 名錄模組 manifest 的解析與判斷規則（純邏輯）。
+ * Parsing and decision rules for the checklist-module manifest (pure logic).
  *
- * 與 `mergeScope.ts` 同樣刻意不相依任何原生模組：`datasetInstall.ts` 會載入
- * expo-file-system / fflate / zustand，在 Node 下跑不起來，而這裡的規則正是最
- * 需要被測到的部分——它們決定「先上架的 manifest 會不會讓舊版 app 壞掉」。
+ * Like `mergeScope.ts` this deliberately depends on no native module:
+ * `datasetInstall.ts` pulls in expo-file-system / fflate / zustand and cannot
+ * run under Node, while the rules here are exactly the part most in need of
+ * testing — they decide whether a manifest published early breaks an older app.
  *
- * 兩條向前相容規則：
- *   1. **不認識的 id 直接略過**，不是錯誤。manifest 可能先列了下一版才有的模組。
- *   2. `minAppSchema` 比本版大的模組也略過，但要回報 `needsAppUpdate`，讓畫面
- *      能說「請先更新 app」而不是安靜地少一列。
+ * Two forward-compatibility rules:
+ *   1. **An unknown id is skipped**, not an error. The manifest may list a
+ *      module that only the next release understands.
+ *   2. A module whose `minAppSchema` exceeds this build is skipped too, but
+ *      reported as `needsAppUpdate` so the screen can say "update the app first"
+ *      instead of quietly showing one row fewer.
  */
 
 export type DatasetManifestEntryLike = {
@@ -29,15 +32,16 @@ export type DatasetManifestEntryLike = {
 
 export type ParsedManifest<T extends DatasetManifestEntryLike = DatasetManifestEntryLike> = {
   entries: T[];
-  /** 有模組因為格式太新而被略過。 */
+  /** Some module was skipped for being too new. */
   needsAppUpdate: boolean;
 };
 
 /**
- * 從 manifest JSON 取出本版 app 用得到的模組。
+ * Pick the modules this build of the app can use out of the manifest JSON.
  *
- * 缺 `url` / `md5` / `version` 的條目視為壞資料而略過——那些欄位少一個，下載就
- * 沒辦法驗證，寧可當它不存在。
+ * An entry missing `url` / `md5` / `version` counts as bad data and is skipped —
+ * without any one of those the download cannot be verified, so it is better to
+ * treat it as absent.
  */
 export function parseDatasetManifest<T extends DatasetManifestEntryLike>(
   json: unknown,
@@ -65,11 +69,13 @@ export function parseDatasetManifest<T extends DatasetManifestEntryLike>(
 }
 
 /**
- * 需要更新嗎？
+ * Does it need updating?
  *
- * 版本字串只做相等比較，不做大小比較：模組版本是資料日期（`2026-08-26`）或上游
- * 版號（`1.10`），沒有共通的排序語意，而且「發現不一樣就重下整包」正是使用者
- * 選定的更新策略。`null` 代表還沒安裝——那是「下載」不是「更新」。
+ * Version strings are compared for equality only, never ordered: a module
+ * version is either a data date (`2026-08-26`) or an upstream number (`1.10`),
+ * which share no ordering semantics — and "anything different means re-download
+ * the whole package" is precisely the update strategy that was chosen. `null`
+ * means not installed yet, which is a download, not an update.
  */
 export function datasetNeedsUpdate(
   installedVersion: string | null,
@@ -78,7 +84,7 @@ export function datasetNeedsUpdate(
   return installedVersion !== null && installedVersion !== remoteVersion;
 }
 
-/** 還沒安裝的相依模組（`tw-keys` 需要 `tw-taicol`）。 */
+/** Required modules that are not installed yet (`tw-keys` needs `tw-taicol`). */
 export function unmetRequirements(
   entry: Pick<DatasetManifestEntryLike, 'requires'>,
   installedIds: readonly string[],
@@ -88,9 +94,11 @@ export function unmetRequirements(
 }
 
 /**
- * 安裝這個模組需要的可用空間：壓縮檔 + 解壓後的檔 + 緩衝。
+ * Free space needed to install this module: the archive + the unpacked file +
+ * headroom.
  *
- * 兩份都要算：解壓完成、`replaceDataset` 換檔之前，zip 與 .db 會同時存在。
+ * Both have to be counted: between the end of extraction and `replaceDataset`
+ * swapping the file in, the zip and the .db exist at the same time.
  */
 export function spaceNeededFor(
   entry: Pick<DatasetManifestEntryLike, 'bytes' | 'uncompressedBytes'>,

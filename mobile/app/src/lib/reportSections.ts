@@ -39,7 +39,8 @@ export function diversitySection(records: ReportRecord[], t: Translate): ReportS
 
   // For woody data the report gives BOTH readings. The app weights a DBH
   // species by its basal area (one large tree really does dominate a stand);
-  // 「植物生態評估技術規範」specifies 木本植物以株數計算. They answer different
+  // 「植物生態評估技術規範」 specifies counting woody plants by stems. They answer
+  // different
   // questions, so neither is silently chosen — the note says which is which.
   const dual = hasDbhRecords(records) ? computeDiversity(asStemCounts(records)) : null;
 

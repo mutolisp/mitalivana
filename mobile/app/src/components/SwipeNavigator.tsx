@@ -1,8 +1,9 @@
 /**
- * 左右滑動切換上／下一筆 —— shared horizontal-swipe stepping.
+ * Shared horizontal-swipe stepping between the previous and next item.
  *
- * Used by the record detail sheets（名錄物種 / 樣區物種 / 採集標本）to walk the
- * species list, and by 樣區「環境 / 物種」to switch tab.
+ * Used by the record detail sheets (checklist species / plot species / specimen)
+ * to walk the species list, and by a plot's Environment / Species tabs to switch
+ * tab.
  *
  * Direction follows a photo carousel: dragging LEFT (finger towards −x) reveals
  * the NEXT item, dragging RIGHT goes BACK to the previous one.
@@ -158,7 +159,7 @@ export function usePagerNav(state: SwipeNavPagerState | undefined): SwipeNav {
  * `SwipeRowActions` is scattered across every list in the app, so instead of
  * threading a gesture prop through each call site the enclosing screen puts its
  * gesture in this context and the rows opt themselves out. Without it, dragging
- * a species row sideways to reveal 刪除 would switch tab instead.
+ * a species row sideways to reveal Delete would switch tab instead.
  */
 const SwipeBlockContext = createContext<SwipeNav | undefined>(undefined);
 

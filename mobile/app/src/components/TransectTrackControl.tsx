@@ -9,9 +9,9 @@
  *   paused    : segments.length>0, finalized=0, recording=false
  *   finalized : (any)            , finalized=1
  *
- * "暫停" stops the GPS watch and persists the current segment as a closed
- * line; "停止並儲存" does the same plus sets track_finalized=1 so the track
- * can no longer be extended. Plot itself stays active for species entry.
+ * Pause stops the GPS watch and persists the current segment as a closed line;
+ * Stop and save does the same plus sets track_finalized=1 so the track can no
+ * longer be extended. The plot itself stays active for species entry.
  */
 import { Ionicons } from '@expo/vector-icons';
 import { Alert, Pressable, Text, View } from 'react-native';

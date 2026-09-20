@@ -12,7 +12,7 @@
  * opaque native handles; storing them in a state container can interact
  * weirdly with shallow equality checks. Plain module refs are simpler.
  *
- * Both record kinds (快速名錄 session / 調查名錄 plot) share the same core
+ * Both record kinds (quick-checklist session / plot survey) share the same core
  * loop. The only per-kind differences — how a batch is persisted, how prior
  * points are loaded for resume, and the plot-only gate-stamping — live in a
  * small `RecorderAdapter` built from the target at startRecording().

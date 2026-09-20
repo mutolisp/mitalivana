@@ -110,7 +110,8 @@ export default function AboutScreen() {
   );
 }
 
-/** 可點擊的外部連結。about 頁有十來個，重複手寫 Pressable 只是雜訊。 */
+/** A tappable external link. The about page has a dozen or so, and hand-writing
+ *  the same Pressable each time is just noise. */
 function Link({ url, label }: { url: string; label?: string }) {
   return (
     <Pressable onPress={() => Linking.openURL(url)} className="mt-1 active:opacity-70">

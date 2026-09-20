@@ -116,18 +116,21 @@ function collectEntries(data: unknown): ParsedEntry[] {
 type ResolveOptions = { phonetic?: boolean };
 
 /**
- * 只有臺灣名錄（預設狀態）能走快路徑。
+ * Only the Taiwan checklist alone (the default state) can take the fast path.
  *
- * 開了日本名錄就得經過 YList 合併與「中文名 / 和名」互補，關掉臺灣就根本不該
- * 查 taicol_names —— 這兩種情況一律回退完整搜尋，行為與快路徑出現前一致。
- * 每筆都重讀設定太浪費（等值查詢本身才 0.1ms），所以一個批次只讀一次。
+ * With the Japan checklist enabled the result has to go through the YList merge
+ * and the vernacular/Japanese-name fill-in, and with Taiwan disabled
+ * taicol_names must not be queried at all — both cases fall back to the full
+ * search, behaving exactly as before the fast path existed. Re-reading the
+ * setting per row is wasteful (the equality lookup itself is only 0.1 ms), so it
+ * is read once per batch.
  */
 function twOnlyRegions(): boolean {
   const regions = getEnabledRegions();
   return regions.length === 1 && regions[0] === 'TW';
 }
 
-/** 解析單筆並歸類到 exact / ambiguous / unmatched。 */
+/** Resolve one entry and file it under exact / ambiguous / unmatched. */
 function resolveInto(
   out: CategorizedImport,
   item: string | ParsedEntry,
@@ -146,8 +149,10 @@ function resolveInto(
     // id not in this bundle's TaiCOL version — fall back to the name below
   }
 
-  // 快路徑：名字本來就打對（貼上既有名錄時的常態）。唯一命中才算數，等同於
-  // 下面完整搜尋會做的「完全相同就自動升為精確匹配」，只是省掉全表掃描。
+  // Fast path: the name was typed correctly to begin with (the norm when pasting
+  // an existing checklist). Only a unique hit counts, which is the same rule as
+    // the full search's "an exact match is promoted automatically", minus the full
+    // table scan.
   if (fastPath) {
     const exact = lookupExactAccepted(raw);
     if (exact.length === 1) {
@@ -173,20 +178,25 @@ function resolveInto(
   }
 }
 
-/** 連續解析多久就讓一次 UI thread（毫秒）。 */
+/** How long to resolve continuously before yielding to the UI thread (ms). */
 const UI_SLICE_MS = 80;
 
 /**
- * 逐筆解析並歸類，每隔一小段就把控制權還給 UI thread，讓進度條動得起來。
+ * Resolve and classify row by row, handing control back to the UI thread every
+ * so often so the progress bar can move.
  *
- * 帶 taxon id 的（名錄 yml）直接用 id 查；名字剛好等於某個接受名的走
- * `lookupExactAccepted` 這條索引快路徑；其餘才進 `searchWithFuzzyFallback`，
- * 錯字與語音同音誤判就靠那裡的模糊比對與（`phonetic` 時的）拼音比對救回來。
+ * Entries carrying a taxon id (a checklist yml) are looked up by id; a name that
+ * happens to equal an accepted name takes the `lookupExactAccepted` index fast
+ * path; everything else goes through `searchWithFuzzyFallback`, where typos and
+ * homophone mistakes from dictation are recovered by fuzzy matching and (when
+ * `phonetic`) pinyin comparison.
  *
- * 逐筆 `await` 會讓 100 個名字多付 100 個 frame（每次 setTimeout 至少一個
- * vsync），所以用時間切片：連續解析到超過 UI_SLICE_MS 才讓一次。全部命中快
- * 路徑時整批幾十毫秒跑完，只讓一兩次；有打錯字要走全表掃描與模糊比對時，讓的
- * 次數自然變多，進度條就跟著跳。
+ * Awaiting per row would cost 100 names 100 extra frames (every setTimeout is at
+ * least one vsync), so this time-slices instead: it only yields after resolving
+ * continuously for more than UI_SLICE_MS. When everything hits the fast path the
+ * whole batch finishes in tens of milliseconds and yields once or twice; with
+ * typos that need a full scan and fuzzy matching it yields far more often, and
+ * the progress bar moves accordingly.
  */
 export async function resolveBatchProgressive(
   items: (string | ParsedEntry)[],

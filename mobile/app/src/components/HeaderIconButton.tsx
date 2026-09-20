@@ -1,5 +1,5 @@
 /**
- * 導覽列圖示按鈕 —— the one shape every header action uses.
+ * Navigation-bar icon button — the one shape every header action uses.
  *
  * Replaces the bare glyph that used to be copy-pasted into each screen
  * (`h-9 w-9 items-center justify-center active:opacity-60` + a hard-coded
@@ -56,8 +56,8 @@ export function HeaderIconButton({
   /** Screen-reader name. The glyph carries no text, so this is the only label. */
   label: string;
   disabled?: boolean;
-  /** 結束記錄 and friends keep a red glyph on the same neutral disc — a red
-   *  disc would shout louder than the action deserves in a header. */
+  /** Finish-recording and friends keep a red glyph on the same neutral disc — a
+   *  red disc would shout louder than the action deserves in a header. */
   tone?: 'default' | 'danger';
   /** `left` pulls the disc back toward the header edge, where the native back
    *  button would sit. Use on `headerLeft`. */

@@ -10,7 +10,7 @@
  * OAuth inside an embedded browser, and the silent path (refresh token) needs
  * no UI at all, so this appears only for the first link on a device.
  *
- * Feedback for 「已複製」 is inline rather than a toast: ToastHost is an
+ * The "copied" feedback is inline rather than a toast: ToastHost is an
  * absolutely-positioned View at the root, and a Modal paints above it, so a
  * toast fired from in here would be invisible.
  */

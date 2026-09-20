@@ -1,5 +1,5 @@
 /**
- * Session (名錄) round-trip import — the yml half.
+ * Session (checklist) round-trip import — the yml half.
  *
  * Reads the document emitted by `buildSessionEntries` (src/lib/bundleExport.ts):
  * an `event:` block in DwC camelCase, a top-level `project` / `site:`, and a

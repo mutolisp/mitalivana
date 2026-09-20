@@ -38,7 +38,7 @@ export type MarkdownItem = {
   genus_c?: string;
   rank: string;
   endemic: 0 | 1;
-  source: string;          // 原生 / 歸化 / 栽培 / 圈養
+  source: string;          // native / naturalised / cultivated / captive
   redlist: string;
   iucn_category: string;
   cites: string;
@@ -61,19 +61,23 @@ export type MarkdownMetadata = {
 export type MarkdownOptions = {
   levelsOverride?: string[];
   conservationFields?: ConservationField[];
-  /** 排除 LC：物種行不再印出無危等級（見 LOW_CONCERN_CATS）。統計不受影響
-   *  —— 統計本來就跳過同一組等級，所以這個開關只是把兩邊對齊。 */
+  /** Hide least-concern codes: species lines no longer print a safe category
+   *  (see LOW_CONCERN_CATS). The statistics are unaffected — they already skip
+   *  the same set, so this switch only lines the two up. */
   hideLowConcern?: boolean;
 };
 
 export type ConservationField = 'redlist' | 'iucn_category' | 'cites' | 'protected';
 
-/** 「安全」等級碼：LC 無危、NLC 不列入、NE 未評估、NA 不適用。名錄開頭的保育
- *  統計一向跳過這組（見 generateMarkdown 的 skipCats），`hideLowConcern` 則讓
- *  物種行也跳過同一組。DD（資料不足）不在此列，仍會標示。 */
+/** The "safe" category codes: LC least concern, NLC not listed, NE not
+ *  evaluated, NA not applicable. The conservation summary at the top of a
+ *  checklist has always skipped this set (see skipCats in generateMarkdown), and
+ *  `hideLowConcern` makes the species lines skip it too. DD (data deficient) is
+ *  not in the set and is still shown. */
 const LOW_CONCERN_CATS = new Set(['LC', 'NLC', 'NE', 'NA']);
 
-/** 保育狀態的渲染設定：要印哪幾欄 + 是否排除無危等級。 */
+/** How conservation status is rendered: which columns to print, and whether to
+ *  drop least-concern codes. */
 type ConservationRender = { fields: ConservationField[]; hideLowConcern: boolean };
 
 const DEFAULT_HIERARCHIES: Record<string, string[]> = {
@@ -101,10 +105,10 @@ const DEFAULT_HIERARCHIES: Record<string, string[]> = {
  * These used to BE the display strings — `PT_NAME_ORDER` was keyed by
  * `'蕨類植物 Monilophytes'` and `getFieldSortKey` returned the rendered label,
  * so the ordering silently depended on the text. Translating the label would
- * therefore have broken the mandated 石松→蕨→裸子→單子葉→姊妹群→真雙子葉
- * sequence without any error: every key would miss and fall to the `?? 99`
- * default. Same shape of bug as the taxonomy tree's baked-in rank labels —
- * keep the key language-neutral, translate only at render time.
+ * therefore have broken the mandated lycophyte → fern → gymnosperm → monocot →
+ * sister-group → eudicot sequence without any error: every key would miss and
+ * fall to the `?? 99` default. Same shape of bug as the taxonomy tree's baked-in
+ * rank labels — keep the key language-neutral, translate only at render time.
  */
 type PlantGroupKey =
   | 'mossesLichens'

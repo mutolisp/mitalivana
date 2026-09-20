@@ -107,7 +107,8 @@ function sameDraft(a: PlotValueDraft, b: PlotValueDraft): boolean {
 
 /** Structured taxon header so the modal can render an italic scientific name +
  *  a tappable classification path + identification-key chips (replacing the
- *  bare "分層 T" line for non-stratified plots). Falls back to `title` when absent. */
+ *  bare "layer T" line for non-stratified plots). Falls back to `title` when
+ *  absent. */
 export type PlotModalHeader = {
   /** Needed to tell a TaiCOL taxon from a region-pack / external one, which
    *  decides whether identification keys apply. Required, not optional, so a
@@ -136,7 +137,8 @@ type Props = {
   className?: string | null;
   /** Plot/layer-suggested default type when starting from blank. */
   defaultType?: string | null;
-  /** Show the 偵測方式 (seen/heard/flying) chips — point count / animal records. */
+  /** Show the detection-method (seen/heard/flying) chips — point count / animal
+   *  records. */
   showDetection?: boolean;
   /** Current per-record GPS (edit mode); displayed by the GPS button. */
   lat?: number | null;
@@ -162,13 +164,14 @@ type Props = {
    *  capture flow + DB write; omit to hide the section (create mode). */
   onAddPhoto?: (mode: 'camera' | 'library') => void;
   onRemovePhoto?: (uri: string) => void;
-  /** iNaturalist state of the record (edit mode only): shows the 「已上傳」 badge. */
+  /** iNaturalist state of the record (edit mode only): shows the uploaded
+   *  badge. */
   /** Identity footer, edit mode only — absent when adding a new record. */
   occurrenceId?: string | null;
   updatedAt?: number | null;
   inatObservationId?: number | null;
   inatUploadedAt?: number | null;
-  /** 上傳／同步 iNat row (edit mode only). */
+  /** Upload / sync to iNat row (edit mode only). */
   inat?: InatSheetState;
   /** Audio clips (edit mode only — create mode has no record to attach to). */
   audioUris?: string[];
@@ -234,8 +237,8 @@ export function PlotSpeciesValueModal({
   const isVascular = (header?.phylum ?? '') === 'Tracheophyta';
   const hideBbDbh = layer === 'T' && !isVascular;
 
-  // Identification keys defined for the taxon's genus / family ("上一階層"),
-  // shown as 鑰匙 chips like the taxonomy tree / SpeciesDetailSheet.
+  // Identification keys defined for the taxon's genus / family (one rank up),
+  // shown as key chips like the taxonomy tree / SpeciesDetailSheet.
   const [parentKeys, setParentKeys] = useState<IdentificationKey[]>([]);
   const twOn = useSettings((s) => s.enabled_regions.includes('TW'));
   useEffect(() => {
@@ -309,7 +312,7 @@ export function PlotSpeciesValueModal({
 
   /** `__custom__` is the sentinel `handleSwitchType` already understood; as a
    *  Select option it needs to round-trip, so a custom type in progress shows
-   *  as 自訂 rather than falling back to its half-typed name. */
+   *  as "custom" rather than falling back to its half-typed name. */
   const typeOptions = useMemo(
     () => [
       ...unitOptions.map((o) => ({ value: o.value, label: o.label })),
@@ -443,7 +446,7 @@ export function PlotSpeciesValueModal({
               <SwipeNavPager state={stepPager} grabber />
               {/* Title region is INSIDE the scroll so when content is long, the
                 user can scroll the title up out of the way. iOS bottom-sheet
-                guidance + the user spec ("做成可以 scroll"). */}
+                guidance + the user's spec ("make it scrollable"). */}
               <SwipeNavArea nav={nav}>
                 <KeyboardAwareScrollView
                   className="flex-1"

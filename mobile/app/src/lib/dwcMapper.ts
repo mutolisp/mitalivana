@@ -31,15 +31,19 @@ export const DWC_FIELD_MAP: Record<string, string> = {
   abundance: 'individualCount',
   source: 'establishmentMeans',
   iucn_category: 'iucnRedListCategory',
-  // 臺灣紅皮書 → Distribution 擴充的 threatStatus（http://iucn.org/terms/
-  // threatStatus，受控值見 rs.gbif.org/vocabulary/iucn/threat_status）。
-  // 全球 IUCN 另一欄保持自訂：兩者在同一筆記錄同時存在，扁平 CSV 放不下兩個
-  // threatStatus，而 Distribution 擴充靠「一列一個分布區 + locationID」區分的
-  // 星狀結構本檔並未採用。iucnRedListCategory 也正好是 GBIF SPECIES_LIST
-  // 下載檔自己的欄名（見 gbifSpeciesList.ts），維持原名對得起來源。
+  // The Taiwan red list → the Distribution extension's threatStatus
+  // (http://iucn.org/terms/threatStatus; controlled values at
+  // rs.gbif.org/vocabulary/iucn/threat_status).
+  // Global IUCN stays a custom column: both exist on the same record, a flat CSV
+  // cannot hold two threatStatus values, and the Distribution extension's star
+  // schema — one row per distribution area keyed by locationID — is not what
+  // this file uses. iucnRedListCategory also happens to be the column name GBIF's
+  // own SPECIES_LIST download uses (see gbifSpeciesList.ts), so keeping it lines
+  // up with the source.
   redlist: 'threatStatus',
-  // GBIF Distribution 擴充的詞彙（rs.gbif.org/terms/1.0/appendixCITES）。
-  // 原本的 'CITES' 全大寫既非 DwC 也不合 camelCase 慣例。
+  // The GBIF Distribution extension's vocabulary
+  // (rs.gbif.org/terms/1.0/appendixCITES).
+  // The original all-caps 'CITES' was neither DwC nor camelCase.
   cites: 'appendixCITES',
   protected: 'protectionStatus',
   endemic: 'endemic',
@@ -95,7 +99,7 @@ export const DWC_FIELD_MAP: Record<string, string> = {
   // Detection method (point count / animal records). No standard DwC term —
   // use a custom camelCase term, consistent with verbatimVegetationLayer etc.
   detection_type: 'detectionType',
-  // Specimen collection (採集). All standard DwC occurrence terms.
+  // Specimen collecting. All standard DwC occurrence terms.
   record_number: 'recordNumber',
   basis_of_record: 'basisOfRecord',
   recorded_by: 'recordedBy',

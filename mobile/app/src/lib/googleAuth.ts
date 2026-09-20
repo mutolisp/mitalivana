@@ -156,9 +156,9 @@ export function discardAccessToken(): void {
 }
 
 /**
- * Forget everything about the linked account. Called by 「解除連結」 and by
- * 「清除所有資料」 — the latter deletes user.db, which cannot reach SecureStore,
- * so the caller has to clear this explicitly (same rule as clearInatTokens).
+ * Forget everything about the linked account. Called by Unlink and by "clear all
+ * data" — the latter deletes user.db, which cannot reach SecureStore, so the
+ * caller has to clear this explicitly (same rule as clearInatTokens).
  */
 export async function clearGoogleTokens(): Promise<void> {
   cached = null;

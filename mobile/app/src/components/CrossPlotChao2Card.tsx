@@ -1,5 +1,6 @@
 /**
- * 跨樣區取樣努力量 — Chao2 with WHOLE PLOTS as the incidence sampling units.
+ * Cross-plot sampling effort — Chao2 with WHOLE PLOTS as the incidence sampling
+ * units.
  *
  * Companion to the in-plot card (PlotDiversityCard, subplots as units): this
  * one answers "how complete is the species pool of the AREA these plots

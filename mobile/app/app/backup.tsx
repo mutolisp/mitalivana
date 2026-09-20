@@ -34,7 +34,8 @@ import { useToast } from '~/stores/toast';
 
 type Busy = null | 'backup' | 'photos' | 'restore' | 'drive' | 'cloudList' | 'cloudRestore';
 
-/** 雲端備份列的標題：建立時間讀不到才退回檔名。 */
+/** Title of a cloud-backup row: falls back to the filename only when the
+ *  creation time cannot be read. */
 function cloudLabel(f: DriveFile): string {
   const ms = f.meta.createdAtMs ?? f.createdAtMs;
   return ms ? new Date(ms).toLocaleString() : f.name;
@@ -45,25 +46,29 @@ export default function BackupScreen() {
   const toast = useToast((s) => s.show);
   const [busy, setBusy] = useState<Busy>(null);
   const [progress, setProgress] = useState('');
-  // 國家名錄 pack 是可重新下載的 GBIF 資料,預設不進備份;有 pack 才顯示開關。
+  // Country checklist packs are re-downloadable GBIF data and stay out of the
+  // backup by default; the switch only appears when a pack exists.
   const [includePacks, setIncludePacks] = useState(false);
   const [packsExist, setPacksExist] = useState(false);
   useEffect(() => setPacksExist(hasRegionPacks()), []);
 
-  // 雲端備份狀態。lastUploadAtMs 存在 app 私有檔案而非 settings 表,所以從別台
-  // 還原回來的裝置會正確顯示「尚未備份」而不是繼承對方的時間。
+  // Cloud backup state. lastUploadAtMs lives in an app-private file rather than
+  // the settings table, so a device restored from another one correctly shows
+  // "not backed up yet" instead of inheriting the other device's timestamp.
   const driveProgress = useDriveBackup((s) => s.progress);
   const lastUploadAtMs = useDriveState((s) => s.lastUploadAtMs);
   const loadDriveState = useDriveState((s) => s.load);
-  // null = 還沒列出過（不是「列出來是空的」,那是 []）。
+  // null = never listed (as opposed to "listed and empty", which is []).
   const [cloud, setCloud] = useState<DriveFile[] | null>(null);
   useEffect(() => {
     void loadDriveState();
   }, [loadDriveState]);
 
-  // 自動安全備份：cleanup.ts 在執行會改寫既有列的修復前留下的快照。
-  // 它們寫在 app 私有目錄，DocumentPicker 看不到，所以必須由這一頁提供入口，
-  // 否則備份存在卻無法還原，等於只做一半。
+  // Automatic safety backups: snapshots cleanup.ts leaves before a repair that
+  // would rewrite existing rows.
+  // They are written to an app-private directory that DocumentPicker cannot see,
+  // so this page has to offer the entry point — otherwise the backup exists but
+  // cannot be restored, which is only half a feature.
   const [safety, setSafety] = useState<{ name: string; uri: string; size: number }[]>([]);
   const refreshSafety = useCallback(() => setSafety(listSafetyBackups()), []);
   useEffect(refreshSafety, [refreshSafety]);
@@ -351,10 +356,13 @@ export default function BackupScreen() {
                     })}
                   </Text>
                 </View>
-                {/* 版本比這個 build 新就在清單層擋下,不必先下載幾十 MB 才發現讀不了。 */}
+                {/* A version newer than this build is blocked at the list level, so nobody
+                   downloads tens of MB before finding out it cannot be read. */}
                 {tooNew ? (
-                  // 短標籤,不是 backup.tooNew 那整句 —— 那句在 45% 寬的欄位裡會斷成五行。
-                  // 版本資訊已經在左邊那列,真的按下去時 restoreBackup 也會再擋一次。
+                  // A short label, not the whole backup.tooNew sentence — that one wraps to five
+            // lines in a column 45% wide.
+                  // The version is already in the row on the left, and restoreBackup blocks it
+            // again if it is actually tapped.
                   <Text className="text-xs font-medium text-amber-600 dark:text-amber-500">
                     {t('gdrive.tooNewShort')}
                   </Text>

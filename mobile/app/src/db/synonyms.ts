@@ -11,9 +11,10 @@ export type Synonym = {
 export function getSynonyms(taxonId: string): Synonym[] {
   if (!taxonId) return [];
 
-  // 同義名是 TaiCOL 的資料結構（一個 taxon_id 多列名字）；YList 把同義和名放在
-  // `alternative_name_c` 欄位，沒有對應的列。所以這裡只查臺灣名錄模組——以前
-  // 靠「查 taicol_names 剛好 0 列」達成的效果，現在寫明白。
+  // Synonyms are a TaiCOL data structure (several name rows per taxon_id); YList
+  // puts synonyms and Japanese names in the `alternative_name_c` column with no
+// rows of their own. So this queries the Taiwan checklist module only — what
+  // used to fall out of "taicol_names happens to return 0 rows" is now explicit.
   const spec = datasetForTaxonId(taxonId);
   if (spec?.id !== 'tw-taicol') return [];
   const db = getDatasetDb('tw-taicol');

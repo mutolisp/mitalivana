@@ -2,13 +2,13 @@
  * Screen-grid clustering for the map's record points — pure, no Expo imports
  * (scripts/check-cluster.mjs loads this under plain Node).
  *
- * A fixed pixel grid rather than supercluster: the counts here are plots,
- * 名錄 and 地理樣區 in one user's database — hundreds, not the hundreds of
- * thousands supercluster exists for — and a grid needs no dependency, no
- * index to rebuild, and behaves identically on both platforms. Bucketing by
- * SCREEN pixels (not degrees) is what makes it feel right: two points a
- * kilometre apart are one dot at country zoom and clearly separate at plot
- * zoom, with no thresholds to tune per latitude.
+ * A fixed pixel grid rather than supercluster: the counts here are plot surveys,
+ * checklists and geographic sites in one user's database — hundreds, not the
+ * hundreds of thousands supercluster exists for — and a grid needs no
+ * dependency, no index to rebuild, and behaves identically on both platforms.
+ * Bucketing by SCREEN pixels (not degrees) is what makes it feel right: two
+ * points a kilometre apart are one dot at country zoom and clearly separate at
+ * plot zoom, with no thresholds to tune per latitude.
  *
  * The projection is deliberately the flat one the viewport already implies
  * (linear in lat/lng across the visible span). Mercator's vertical stretch

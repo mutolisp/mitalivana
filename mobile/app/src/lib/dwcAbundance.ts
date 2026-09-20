@@ -69,7 +69,7 @@ export function defaultQuantityTypeFor(kingdom: string | null | undefined): stri
 
 /**
  * Returns a short, human-readable badge for the record summary line.
- *   '5'         ← count (個體數, no unit suffix)
+ *   '5'         ← count (individuals, no unit suffix)
  *   '25%'       ← percent
  *   'BB: 3'     ← Braun-Blanquet
  *   '2 分枝'    ← DBH

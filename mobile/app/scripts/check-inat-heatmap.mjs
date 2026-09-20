@@ -3,17 +3,22 @@
  * overlay's pure half. No network, no Expo; same contract as
  * check-inat-payload.mjs. Run: npm run check:inat-heatmap
  *
- * 兩件事值得用測試釘住：
- *  1. 「野外 0 筆但總數 > 0 就改畫全部」——這是刻意的產品決策（只有栽培紀錄的
- *     物種套 captive=false 會得到全空的圖，看起來像功能壞掉），不是巧合。
- *  2. `{z}/{x}/{y}` 必須原樣留在字串裡。那是給 UrlTile / RasterSource 的樣板，
- *     任何一次「順手」把它格式化掉，圖層就被寫死在一格上而且不會報錯。
+ * Two things are worth pinning down with a test:
+ *  1. "zero wild but a non-zero total means draw everything" — a deliberate
+ *     product decision (a species with only cultivated records would give a
+ *     completely empty map under captive=false, which looks like a broken
+ *     feature), not a coincidence.
+ *  2. `{z}/{x}/{y}` must stay verbatim in the string. It is a template for
+ *     UrlTile / RasterSource, and any one "tidying" substitution pins the layer
+ *     to a single tile without raising an error.
  */
 import {
   INAT_CACHE_TTL_MS,
+  gridPrecisionOffset,
   gridTileUrl,
   isInatCacheStale,
   pickHeatmapMode,
+  tileZoomForRegion,
 } from '../src/lib/inatHeatmap.ts';
 
 let failures = 0;
@@ -62,6 +67,38 @@ const ok = (label, cond) => {
   eq('negative id', gridTileUrl(-5, 'wild'), null);
   eq('non-integer id', gridTileUrl(1.5, 'wild'), null);
   eq('NaN id', gridTileUrl(Number.NaN, 'wild'), null);
+}
+
+// ── grid cell size ─────────────────────────────────────────────────────────
+{
+  // Web mercator by definition: the whole world across a 256 pt viewport is z0,
+  // and every halving of the visible span is one level.
+  eq('whole world on a 256 pt canvas', tileZoomForRegion(360, 256), 0);
+  eq('half the world', tileZoomForRegion(180, 256), 1);
+  // A 390 pt phone screen spanning 4.5° (the app's default map view) — the
+  // whole of Taiwan, just under z7.
+  ok('default view is just under z7', Math.abs(tileZoomForRegion(4.5, 390) - 6.93) < 0.02);
+  // A 184 px mini-map showing the same span is a LOWER zoom than a full screen.
+  ok(
+    'the mini-map reads lower than the full screen',
+    tileZoomForRegion(0.02, 184) < tileZoomForRegion(0.02, 390),
+  );
+  eq('a collapsed region cannot divide by zero', tileZoomForRegion(0, 390), 0);
+
+  // Two buckets only: the offset is part of the tile URL, so every change
+  // throws the loaded tiles away.
+  eq('island-wide stays fine', gridPrecisionOffset(6), 0);
+  eq('just below the threshold', gridPrecisionOffset(10.9), 0);
+  eq('one valley coarsens', gridPrecisionOffset(11), 1);
+  eq('and stays coarsened', gridPrecisionOffset(16), 1);
+
+  const coarse = gridTileUrl(120846, 'wild', 1);
+  ok('coarse tiles carry the offset', coarse.includes('precision_offset=1'));
+  ok('coarse tiles keep the template', coarse.includes('/{z}/{x}/{y}.png'));
+  // Offset 0 must not appear at all: an extra query parameter is a different
+  // CDN cache key for identical tiles.
+  ok('offset 0 is left out', !gridTileUrl(120846, 'wild', 0).includes('precision_offset'));
+  ok('a fractional offset is ignored', !gridTileUrl(120846, 'wild', 0.5).includes('precision_offset'));
 }
 
 // ── 快取新鮮度 ─────────────────────────────────────────────────────────────

@@ -1,6 +1,6 @@
 /**
- * Unified "records" list combining `sessions` (checklist), `plot_surveys` (樣區)
- * and `collection_trips` (採集).
+ * Unified "records" list combining `sessions` (checklist), `plot_surveys` (plot
+ * survey) and `collection_trips` (specimen collecting).
  *
  * The Records tab displays every kind of field-data entity in one list.
  * Keeping a dedicated helper avoids spreading kind-switching across the UI.
@@ -30,7 +30,7 @@ export type RecordItem = {
   /** Sort key (ms). For sessions = started_at; for plots = start_ts ?? created_at. */
   startedAt: number;
   recordCount: number;
-  /** 加星號（v34）. Starred records sort above unstarred ones. */
+  /** Starred (v34). Starred records sort above unstarred ones. */
   starred: boolean;
   /** `subtitle` minus the project name — for the byProject view, where the
    *  group header already names the project. Built from its own i18n template

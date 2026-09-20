@@ -1,6 +1,6 @@
 /**
- * 上傳到 iNaturalist — one record unit (a session / plot survey / collection
- * trip) at a time.
+ * Uploading to iNaturalist — one record unit (a session / plot survey /
+ * collection trip) at a time.
  *
  * A stack route rather than a bottom sheet: it has a TextInput (tags), and the
  * project rule is that anything with an input is full-screen; it also has to
@@ -8,8 +8,8 @@
  *
  * The page is a pure subscriber of `useInatUpload` — leaving it does not stop
  * the batch, coming back shows the same batch. Rows are re-read from the DB
- * whenever a batch finishes, so status (未上傳 / 未完成 / 已上傳 #id) always
- * reflects what was persisted, not what the UI remembers.
+ * whenever a batch finishes, so the status (not uploaded / incomplete /
+ * uploaded #id) always reflects what was persisted, not what the UI remembers.
  */
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter, type Href } from 'expo-router';

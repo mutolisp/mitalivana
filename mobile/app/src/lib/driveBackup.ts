@@ -29,7 +29,7 @@ import { GoogleLoginRequired, ensureAccessToken } from './googleAuth';
 import { BACKUP_KIND, BACKUP_NAME_PREFIX, KIND_KEY } from './googleDevice';
 
 /**
- * How many backups to keep in Drive. A constant for now; the 偏好設定 control
+ * How many backups to keep in Drive. A constant for now; the preferences control
  * arrives with the automatic mode, and inventing a setting nothing can change
  * yet would just be an untested code path.
  */

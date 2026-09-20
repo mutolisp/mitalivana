@@ -1,20 +1,26 @@
 /**
- * MapLibre 向量引擎。
+ * The MapLibre vector engine.
  *
- * 與 `RNMapsCanvas` 是同一個中性介面的兩個實作，**不能在同一畫面混用** ——
- * 兩者是不同的原生 view，所以整個 canvas 二選一。
+ * One of two implementations of the same neutral interface alongside
+ * `RNMapsCanvas`, and the two **cannot be mixed in one screen** — they are
+ * different native views, so the choice is per canvas.
  *
- * 幾個刻意與 native 引擎不同的地方，都是兩邊模型差異造成的：
+ * A few deliberate differences from the native engine, all of them forced by the
+ * two models:
  *
- * - **圖徵走 GeoJSON 圖層而不是逐個原生 view。** POI 一次最多 300 個
- *   （`POI_LIMIT`），在 MapLibre 上掛 300 個 view annotation 會很慢。只有
- *   cluster 泡泡那種自繪內容才用 `<Marker>`，數量是個位數。
- * - **一般 marker 畫成圓點而不是 pin。** MapLibre 沒有內建 pin 圖示，要 pin
- *   得自己上 sprite。圓點在密集 POI 下反而更好讀，這是有意識的取捨。
- * - **`circle` 是公尺，要自己算成多邊形**（見 `geodesicCircle`）。MapLibre 的
- *   `circle-radius` 是螢幕像素，縮放時會跟著變大，語意不對。
- * - **zIndex 用陣列順序表達。** MapLibre 沒有 per-feature 的 zIndex，圖層順序
- *   就是繪製順序，所以圖徵先照 zIndex 排序再分組。
+ * - **Features are drawn as GeoJSON layers, not one native view each.** POIs cap
+ *   at 300 per query (`POI_LIMIT`), and 300 view annotations on MapLibre are
+ *   slow. `<Marker>` is used only for custom content like cluster bubbles, of
+ *   which there are single digits.
+ * - **Ordinary markers are drawn as dots, not pins.** MapLibre has no built-in
+ *   pin icon; a pin would mean shipping a sprite. Dots also read better among
+ *   dense POIs — a conscious trade.
+ * - **`circle` is in metres and has to be turned into a polygon** (see
+ *   `geodesicCircle`). MapLibre's `circle-radius` is in screen pixels and grows
+ *   with zoom, which is the wrong semantics.
+ * - **zIndex is expressed as array order.** MapLibre has no per-feature zIndex;
+ *   layer order is draw order, so features are sorted by zIndex and then
+ *   grouped.
  */
 import { forwardRef, useImperativeHandle, useMemo, useRef } from 'react';
 import {
@@ -35,17 +41,32 @@ import type { NativeSyntheticEvent } from 'react-native';
 import { geodesicCircle } from '../geodesicCircle';
 import type { MapCamera, MapCanvasProps, MapFeature, Region } from '../types';
 
-/** 這些圖層才參與點擊命中測試。 */
+/** Only these layers take part in tap hit-testing. */
 const HIT_LAYERS = ['feat-marker', 'feat-line', 'feat-polygon-fill', 'feat-circle-fill'];
 
-/** 點擊命中的容錯半徑（螢幕像素）。細線用一個點去打幾乎打不到。 */
+/** Hit-test tolerance in screen pixels. A thin line is nearly impossible to hit
+ *  with a single point. */
 const HIT_SLOP = 12;
 
 type Marker_ = Extract<MapFeature, { kind: 'marker' }>;
 
-/** zIndex 未指定時的排序位置。中性型別刻意讓「未指定」有語意，這裡只在
- *  排序時當成 0，不會寫回圖徵。 */
+/** Sort position for an unspecified zIndex. The neutral type deliberately gives
+ *  "unspecified" a meaning, so this is only treated as 0 while sorting and never
+ *  written back to the feature. */
 const zOf = (f: MapFeature) => f.zIndex ?? 0;
+
+/**
+ * Short, stable token for one tile URL, so a source's React key changes exactly
+ * when its tiles do. A hash rather than the URL itself: the URL carries query
+ * strings and braces, and the token ends up inside MapLibre layer ids.
+ */
+function templateToken(urlTemplate: string): string {
+  let h = 0;
+  for (let i = 0; i < urlTemplate.length; i += 1) {
+    h = (Math.imul(h, 31) + urlTemplate.charCodeAt(i)) | 0;
+  }
+  return (h >>> 0).toString(36);
+}
 
 function featureCollection(features: GeoJSON.Feature[]): GeoJSON.FeatureCollection {
   return { type: 'FeatureCollection', features };
@@ -84,8 +105,8 @@ export const MapLibreCanvas = forwardRef<MapCamera, MapCanvasProps>(function Map
       ),
   }));
 
-  // 依 zIndex 排序後分組。sort 是穩定的，同 zIndex 維持原本的掛載順序 ——
-  // 那正是 native 引擎的行為。
+  // Sorted by zIndex, then grouped. The sort is stable, so equal zIndexes keep
+  // their original mount order — which is exactly what the native engine does.
   const sorted = useMemo(() => [...features].sort((a, b) => zOf(a) - zOf(b)), [features]);
 
   const { markers, custom, lines, polygons, circles, byId } = useMemo(() => {
@@ -131,7 +152,8 @@ export const MapLibreCanvas = forwardRef<MapCamera, MapCanvasProps>(function Map
               coordinates: [
                 (() => {
                   const ring = f.coords.map((c): [number, number] => [c.longitude, c.latitude]);
-                  // GeoJSON 的環必須閉合；中性型別不要求呼叫端補這一點。
+                  // A GeoJSON ring must be closed; the neutral type does not ask callers to do
+    // that.
                   const first = ring[0];
                   const last = ring[ring.length - 1];
                   if (first && last && (first[0] !== last[0] || first[1] !== last[1])) {
@@ -165,19 +187,20 @@ export const MapLibreCanvas = forwardRef<MapCamera, MapCanvasProps>(function Map
   ) => {
     const { lngLat, point } = event.nativeEvent;
     const [px, py] = point;
-    // 先問有沒有打到圖徵；沒有才當成點空白處。這對應 native 引擎「圖徵自己的
-    // onPress 優先於地圖的 onPress」的行為。
+    // Ask whether a feature was hit first, and only then treat it as a tap on empty
+      // space. This matches the native engine, where a feature's own onPress
+    // takes precedence over the map's onPress.
     try {
       const hit = await mapRef.current?.queryRenderedFeatures(
-        // PixelPointBounds 是巢狀的 [[left,top],[right,bottom]]，不是扁平四元組
-        // （套件 JSDoc 的範例寫錯了，型別定義才是對的）。
+        // PixelPointBounds is nested [[left,top],[right,bottom]], not a flat 4-tuple
+        // (the package's JSDoc example is wrong; the type definition is right).
         [
           [px - HIT_SLOP, py - HIT_SLOP],
           [px + HIT_SLOP, py + HIT_SLOP],
         ],
         { layers: HIT_LAYERS },
       );
-      // 由上而下取第一個有 handler 的
+      // Top-down, take the first one with a handler
       for (const g of hit ?? []) {
         const id = g.properties?.id;
         const f = typeof id === 'string' ? byId.get(id) : undefined;
@@ -187,7 +210,8 @@ export const MapLibreCanvas = forwardRef<MapCamera, MapCanvasProps>(function Map
         }
       }
     } catch {
-      // 查詢失敗就退回當成點空白處，不要讓點擊整個失效
+      // If the query fails, fall back to treating it as a tap on empty space rather
+        // than losing the tap entirely
     }
     onPress?.({ latitude: lngLat[1], longitude: lngLat[0] });
   };
@@ -198,13 +222,16 @@ export const MapLibreCanvas = forwardRef<MapCamera, MapCanvasProps>(function Map
       style={style}
       mapStyle={vectorStyle ?? ''}
       compass={showsCompass}
-      // 野外需要隨時看得到北方，所以朝北時也不要淡出（MapLibre 預設會藏起來，
-      // 和 Apple/Google 的行為一樣，但那是給市區導航用的）。點一下會轉回正北。
+      // North must stay visible in the field, so the compass does not fade out when
+        // facing north (MapLibre hides it by default, like Apple and Google, but
+      // that is meant for city navigation). Tapping it turns back to true north.
       compassHiddenFacingNorth={false}
       compassPosition={compassInset ?? { top: 8, right: 8 }}
-      // MapLibre 有內建比例尺，但**不要開** —— app 的 MapScaleBar 是 canvas 的
-      // 兄弟節點、兩個引擎都會畫（map.tsx），開了會變成兩條。showsScale 在
-      // native 引擎是 iOS 縮放時才短暫出現的那條，語意本來就不同。
+      // MapLibre has a built-in scale bar, but **do not enable it** — the app's
+      // MapScaleBar is a sibling of the canvas and is drawn for both engines
+        // (map.tsx), so enabling this would produce two. showsScale on the native
+      // engine is the one iOS shows briefly during a zoom, which is different
+        // semantics anyway.
       scaleBar={false}
       attribution
       logo={false}
@@ -232,23 +259,35 @@ export const MapLibreCanvas = forwardRef<MapCamera, MapCanvasProps>(function Map
         }}
       />
 
-      {/* WMTS 疊圖。MapLibre 有真正的圖層順序，所以不需要 native 端那個
-          靠重新掛載把疊圖推到最上層的 overlayGeneration hack。 */}
-      {(rasterOverlays ?? []).map((o) => (
-        <RasterSource
-          key={o.id}
-          id={`ovl-${o.id}`}
-          tiles={[o.urlTemplate]}
-          tileSize={256}
-          maxzoom={o.maxZoom}
-        >
-          <Layer
-            id={`ovl-${o.id}-layer`}
-            type="raster"
-            paint={{ 'raster-opacity': o.opacity }}
-          />
-        </RasterSource>
-      ))}
+      {/* Raster overlays (WMTS, the iNaturalist grid). MapLibre has real layer
+          ordering, so it does not need the native side's overlayGeneration hack
+          that remounts overlays to push them to the top.
+
+          The URL is part of the key because a MapLibre source is built ONCE:
+          `MLRNSource.addToMap` calls `makeSource()` when the source is added and
+          nothing rebuilds it afterwards, so a later `tiles` prop just sets a
+          field on the view (android .../sources/MLRNSource.kt:83,
+          tilesources/rastersource/MLRNRasterSource.kt). Keying on the id alone
+          therefore leaves the previous layer's tiles on screen — the previous
+          WMTS layer, or another species' observations. */}
+      {(rasterOverlays ?? []).map((o) => {
+        const key = `${o.id}-${templateToken(o.urlTemplate)}`;
+        return (
+          <RasterSource
+            key={key}
+            id={`ovl-${key}`}
+            tiles={[o.urlTemplate]}
+            tileSize={256}
+            maxzoom={o.maxZoom}
+          >
+            <Layer
+              id={`ovl-${key}-layer`}
+              type="raster"
+              paint={{ 'raster-opacity': o.opacity }}
+            />
+          </RasterSource>
+        );
+      })}
 
       {polygons.length > 0 && (
         <GeoJSONSource id="src-polygon" data={featureCollection(polygons)}>

@@ -15,7 +15,8 @@
  * dialog and has to chain two. That difference lives here and nowhere else
  * (same containment rule as `ActionSheet.tsx`).
  *
- *  - iOS: tapping expands a spinner inline; edits stage locally and commit on 完成.
+ *  - iOS: tapping expands a spinner inline; edits stage locally and commit on
+ *    Done.
  *  - Android: tapping opens the platform's own dialog(s). Backing out cancels.
  *
  * `mode` picks which half is edited. 'date' / 'time' edit only that part and
@@ -93,7 +94,7 @@ function openAndroid(value: number, mode: Mode, onChange: (ts: number) => void):
 export function DateTimeField({ value, onChange, mode = 'datetime' }: Props) {
   const { t } = useTranslation();
   // iOS only: the inline spinner reports every intermediate wheel position, so
-  // edits stage here and hit the DB once, on 完成.
+  // edits stage here and hit the DB once, on Done.
   const [draft, setDraft] = useState<number | null>(null);
   const expanded = draft !== null;
 
@@ -127,7 +128,8 @@ export function DateTimeField({ value, onChange, mode = 'datetime' }: Props) {
             display="spinner"
             is24Hour
             onChange={(_e: DateTimePickerEvent, d?: Date) => {
-              // 只把自己負責的那半併回去，另一半沿用原值。
+              // Merge back only the half this field owns; the other half keeps its original
+  // value.
               if (d) setDraft(mode === 'datetime' ? d.getTime() : mergePart(draft, d, mode));
             }}
           />

@@ -1,7 +1,7 @@
 /**
  * Record import — parsing an export `.yml` / `.zip` that is already in memory.
  *
- *   - which kind of record it is (名錄 / 樣區), from the yml itself
+ *   - which kind of record it is (checklist / plot survey), from the yml itself
  *   - the parsed document (`plotImport.ts` / `sessionImport.ts`)
  *   - geometry the yml did not carry, recovered from the zip's `track.*` /
  *     `site.*` sidecars — **only** as a fallback: the yml is authoritative

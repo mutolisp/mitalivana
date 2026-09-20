@@ -11,7 +11,8 @@
 // Usage (from repo root; the DB path is an explicit argument, and pinyin-pro
 // resolves from mobile/app/node_modules relative to this script):
 //   node mobile/app/scripts/build_pinyin_index.mjs dist/datasets/tw-taicol.db
-//   （由 backend/scripts/datasets/build_datasets.py 自動呼叫；名錄已不隨 app 出貨）
+//   (called automatically by backend/scripts/datasets/build_datasets.py; the
+//   checklists no longer ship with the app)
 
 import { DatabaseSync } from 'node:sqlite';
 import { pinyin } from 'pinyin-pro';

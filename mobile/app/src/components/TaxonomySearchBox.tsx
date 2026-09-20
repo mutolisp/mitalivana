@@ -42,11 +42,13 @@ export function TaxonomySearchBox({ onPick }: Props) {
   }, [query]);
 
   const handlePick = (hit: TaxonSearchHit) => {
-    // 先 clear child state（含同步 native input value）並收鍵盤，再把
-    // parent 的展開 + scroll 工作 defer 到下一幀。否則 onPick 會同步觸發
-    // parent 大量 setState（setExpanded / setNodeMap / setChildrenMap /
-    // setSpeciesMap / setSetting 寫 SQLite + 排程 setTimeout），實機上這個
-    // 風暴 batch 後 child 的 setQuery('') / setResults([]) 偶爾視覺上沒生效。
+    // Clear the child state first (including the native input value synchronously)
+    // and dismiss the keyboard, then defer the parent's expand + scroll work to the
+    // next frame. Otherwise onPick synchronously triggers a storm of parent
+    // setState (setExpanded / setNodeMap / setChildrenMap / setSpeciesMap /
+    // setSetting writing to SQLite + a scheduled setTimeout), and on a real device
+    // the child's setQuery('') / setResults([]) occasionally had no visible effect
+    // after that batch.
     setResults([]);
     setQuery('');
     inputRef.current?.clear();

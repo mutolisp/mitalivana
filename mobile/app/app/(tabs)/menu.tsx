@@ -1,10 +1,10 @@
 /**
- * 選單 — the app's only settings surface.
+ * The menu — the app's only settings surface.
  *
  * Was a five-row launcher that pushed `/settings`, which then pushed the detail
- * pages: three levels to reach 區域名錄. Flattening the settings root into this
- * tab makes it two, and lets the single-row sections disappear whose caption
- * only repeated their row's label (區域名錄 → 區域名錄, 標本採集 → 標本採集).
+ * pages: three levels to reach the regional checklists. Flattening the settings
+ * root into this tab makes it two, and lets the single-row sections disappear
+ * whose caption only repeated their row's label.
  *
  * Grouped by what the row is for, not by which screen it used to live on:
  * day-to-day management first, set-once preferences after, destructive last.
@@ -90,8 +90,10 @@ export default function MenuScreen() {
       ? t('settings.languageSystem')
       : (LANGUAGE_CATALOGUE.find((l) => l.value === language)?.native ?? language);
 
-  /** 唯讀盤點。重複的 occurrence_id 刻意不自動清除 —— 那是已發布的 DwC 識別碼，
-   *  重新配號會與交付出去的檔案對不起來，所以只報數字讓使用者自己決定。 */
+  /** Read-only inventory. Duplicate occurrence_ids are deliberately not cleaned
+   *  up automatically — those are published DwC identifiers, and re-issuing them
+   *  would no longer match the files already delivered, so this only reports the
+   *  number and lets the user decide. */
   const handleCheckIntegrity = () => {
     try {
       const r = checkIntegrity();
@@ -159,7 +161,7 @@ export default function MenuScreen() {
                     await clearGoogleTokens();
                     reloadSettings();
                     // Both active records, not just the session: the whole DB
-                    // file is gone, so a live 樣區 would otherwise leave
+                    // file is gone, so a live plot survey would otherwise leave
                     // ActiveSessionBar pointing at a plot that no longer exists.
                     useActiveSession.getState().refresh();
                     useActivePlot.getState().refresh();
@@ -241,7 +243,8 @@ export default function MenuScreen() {
         <LinkRow
           label={t('offlinemap.title')}
           value={
-            // 兩份資料各自獨立，所以狀態是「都有／各缺一半／都沒有」。
+            // The two sets of data are independent, so the state is "both / one missing /
+    // neither".
             vectorReady && poiReady
               ? t('offlinemap.statusBoth')
               : vectorReady
@@ -304,8 +307,9 @@ export default function MenuScreen() {
           options={fontScaleOptions}
           onChange={(v) => setSetting('font_scale', v)}
         />
-        {/* Under 外觀 rather than 調查: it changes where the ＋ lives, which is
-            a reach/handedness preference, not anything about recording. */}
+        {/* Under Appearance rather than Surveying: it changes where the + button
+            lives, which is a reach/handedness preference, not anything about
+            recording. */}
         <SelectRow
           label={t('settings.fabSide')}
           description={t('settings.fabSideDesc')}

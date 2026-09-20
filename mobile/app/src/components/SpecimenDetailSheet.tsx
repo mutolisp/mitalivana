@@ -1,6 +1,6 @@
 /**
- * Specimen detail (標本明細) — the editable form behind a row in a collection
- * trip. Deliberately assembled from the components the plot / session flows
+ * Specimen detail — the editable form behind a row in a collection trip.
+ * Deliberately assembled from the components the plot / session flows
  * already use (RecordLocationMap, PhotoGrid, SpeciesAttributesBlock,
  * SurveyorAssignSheet) so a specimen looks and behaves like every other record.
  */
@@ -57,7 +57,7 @@ type Props = {
   /** A finished recording (file:// URI, already persisted). Parent writes the DB. */
   onAddAudio: (uri: string) => void;
   onRemoveAudio: (uri: string) => void;
-  /** 上傳／同步 iNat row for this specimen. */
+  /** Upload / sync to iNat row for this specimen. */
   inat?: InatSheetState;
   /** Hand off to the trip screen's docked SearchBox to re-identify this
    *  specimen. The sheet closes; the collection number is kept. */

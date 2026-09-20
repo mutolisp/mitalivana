@@ -1,12 +1,12 @@
 /**
- * 合併記錄 — name the merged record, pick which source it inherits from, and
- * decide what happens to the sources.
+ * Merging records — name the merged record, pick which source it inherits from,
+ * and decide what happens to the sources.
  *
- * The primary picker is the load-bearing control: 時間 is the union of every
- * source, but 座標 and 環境資料 can only come from ONE of them (averaging two
- * plot centres would invent a place nobody surveyed), so the user has to say
- * which. The summary line under the picker spells that division out rather
- * than leaving it to be discovered after the fact.
+ * The primary picker is the load-bearing control: time is the union of every
+ * source, but position and habitat data can only come from ONE of them
+ * (averaging two plot centres would invent a place nobody surveyed), so the user
+ * has to say which. The summary line under the picker spells that division out
+ * rather than leaving it to be discovered after the fact.
  *
  * Full-screen, not a floating bottom sheet: it has a TextInput, and a sheet
  * anchored to the bottom gets shoved off the top of a short screen when the
@@ -30,7 +30,7 @@ export type MergeRequest = {
   suggested: string;
   /** Every existing name of this kind, for the collision warning. */
   taken: Set<string>;
-  /** 名錄 / 樣區 — used in the title and labels. */
+  /** Checklist / plot survey — used in the title and labels. */
   noun: string;
 };
 

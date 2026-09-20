@@ -10,16 +10,16 @@
  */
 import { isoDate } from './datetime';
 
-/** Trailing digit group, with whatever follows it (`JP-EH-12`, `A-9 (南)`). */
+/** Trailing digit group, with whatever follows it (`JP-EH-12`, `A-9 (south)`). */
 const TAIL_NUMBER = /^(.*?)(\d+)(\D*)$/;
 
 /**
  * A name ending in a date or a date+time, which must never be "incremented".
  *
- * Two ways in: the default 名錄 / 採集 name is `YYYY-MM-DD HH:MM` (so the tail
- * digits are the minutes — `14:59` would become `14:60`), and this function's
- * own dateless output ends in a date, so duplicating a copy would produce
- * `2026-08-32`. Both get the `(2)` treatment instead.
+ * Two ways in: the default checklist / specimen name is `YYYY-MM-DD HH:MM` (so
+ * the tail digits are the minutes — `14:59` would become `14:60`), and this
+ * function's own dateless output ends in a date, so duplicating a copy would
+ * produce `2026-08-32`. Both get the `(2)` treatment instead.
  */
 const TAIL_DATE = /\d{4}-\d{2}-\d{2}( \d{2}:\d{2}(:\d{2})?)?$/;
 

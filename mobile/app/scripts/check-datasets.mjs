@@ -1,14 +1,16 @@
 #!/usr/bin/env node
 /**
- * 名錄模組化的跨模組合併邏輯檢查。
+ * Checks the cross-module merge logic of the modular checklists.
  *
- * 名錄拆成獨立檔之後，「一個答案」常常是兩個模組各查一次再併起來。SQL 那半由
- * `backend/scripts/datasets/verify_datasets.py` 對真實資料驗證（結構／列數／
- * 查詢等價）；**併起來那半**是純 JS，就在這裡驗。
+ * Once the checklists became separate files, "one answer" is often two modules
+ * queried once each and then combined. The SQL half is verified against real
+ * data by `backend/scripts/datasets/verify_datasets.py` (structure / row counts
+ * / query equivalence); **the combining half** is pure JS and is verified here.
  *
- * 之所以能在 Node 跑，是因為 `src/db/mergeScope.ts` 刻意不相依任何原生模組
- * （`taxonomy.ts` / `regions.ts` 會連帶載入 op-sqlite 與 expo-file-system，在
- * Node 載不起來）。要加新的合併規則，就把它放進那個檔，然後在這裡補測試。
+ * This can run under Node because `src/db/mergeScope.ts` deliberately depends on
+ * no native module (`taxonomy.ts` / `regions.ts` would pull in op-sqlite and
+ * expo-file-system, which will not load there). To add a new merge rule, put it
+ * in that file and add a test here.
  *
  * Usage: npm run check:datasets   (exit 1 on violation)
  */

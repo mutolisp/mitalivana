@@ -35,7 +35,7 @@ export function SpeciesSearchPanel({ autoFocus = false }: Props) {
   // `offset.opened = tabBarHeight`.) See src/lib/tabBarLayout.ts.
   const tabBarInset = useTabBarInset();
   // `active` lives in a module-level store so it survives segment switches
-  // inside the 物種 tab. Without persistence, tapping a rank chip on the
+  // inside the species tab. Without persistence, tapping a rank chip on the
   // inline detail forces the segment to 'tree' (cross-screen jump), which
   // unmounts this panel and wipes the local detail state — coming back to
   // 'search' shows an empty panel. The store keeps the prior detail visible.

@@ -1163,7 +1163,22 @@
     "empty": "iNaturalist 尚無這個物種的觀察紀錄",
     "unknown": "iNaturalist 沒有收錄這個學名",
     "offline": "離線：無法載入 iNaturalist 圖層",
-    "attribution": "觀察資料 © iNaturalist 貢獻者；受威脅物種座標經模糊化"
+    "attribution": "觀察資料 © iNaturalist 貢獻者；受威脅物種座標經模糊化",
+    "fab": "iNat 觀察網格",
+    "sheetTitle": "iNaturalist 觀察網格",
+    "searchHint": "搜尋分類群，在地圖上疊出該分類群在 iNaturalist 的觀察分布。網格會隨縮放調整大小，顏色愈深代表該格觀察筆數愈多。",
+    "searchInat": "改查 iNaturalist",
+    "inatResults": "iNaturalist 的分類群",
+    "inatNoMatch": "iNaturalist 也查不到「{{q}}」",
+    "obsCount": "{{count}} 筆觀察",
+    "showingNow": "目前顯示",
+    "stop": "停止顯示",
+    "synonymAsk": "iNaturalist 把「{{asked}}」歸入 {{accepted}}，網格畫的會是後者的觀察紀錄。",
+    "synonymUse": "就用這個名稱顯示",
+    "viaSynonym": "iNaturalist 以 {{name}} 收錄，網格為該名稱的觀察紀錄",
+    "viaSynonymShort": "查詢名稱：{{name}}",
+    "legendFew": "少",
+    "legendMany": "多"
   },
   "collection": {
     "title": "採集記錄",

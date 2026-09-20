@@ -1,11 +1,14 @@
 /**
- * 山域地標（POI）的路徑與狀態。
+ * Paths and state for mountain landmarks (POIs).
  *
- * 766,737 筆，來自魯地圖的上游原檔 `MOI_OSM_Taiwan_TOPO_Rudy.poi`。
+ * 766,737 of them, from RudyMap's upstream source file
+ * `MOI_OSM_Taiwan_TOPO_Rudy.poi`.
  *
- * **與地圖引擎無關**：山頭、基點、登山標誌、山屋、水源這些點位，不管底圖是
- * Apple/Google 還是向量魯地圖都要顯示。原本掛在 raster 圖磚包的安裝流程裡，
- * raster 退場後抽出來獨立 —— 它只有 66 MB，跟「圖磚包太大」的顧慮無關。
+ * **Independent of the map engine**: peaks, survey markers, trail signs, huts
+ * and water sources have to show whether the basemap is Apple/Google or the
+ * vector RudyMap. This used to hang off the raster tile package's install flow
+ * and was pulled out when raster was retired — at 66 MB it has nothing to do
+ * with the "tile packs are too big" concern.
  */
 import { Directory, File, Paths } from 'expo-file-system';
 
@@ -15,7 +18,8 @@ const ROOT_DIR = 'poi';
 const DB_NAME = 'rudypoi.db';
 const STATE_FILE = 'installed.json';
 
-/** raster 時代 POI 的舊位置。升級時要搬過來，不然使用者得重抓 66 MB。 */
+/** Where POIs lived in the raster era. An upgrade has to move them, or the user
+ *  re-downloads 66 MB. */
 const LEGACY_DIR = 'rudymap';
 
 export type PoiMeta = {
@@ -44,10 +48,11 @@ export function poiDbFile(): File {
 }
 
 /**
- * 建立目錄並在 iOS 標記為不進備份。
+ * Create the directory and mark it as excluded from backup on iOS.
  *
- * 與圖磚包一樣**每次**都設旗標：原生模組可能在資料裝好之後才隨新的 dev client
- * 進來，只在建立時設會讓先安裝的使用者永遠被漏掉。
+ * As with the tile package the flag is set **every time**: the native module may
+ * arrive with a newer dev client after the data is installed, so setting it only
+ * at creation would permanently miss everyone who installed earlier.
  */
 export function ensurePoiRoot(): Directory {
   const root = poiRoot();
@@ -57,9 +62,10 @@ export function ensurePoiRoot(): Directory {
 }
 
 /**
- * 給 op-sqlite 的 `open({ name, location })`。
+ * For op-sqlite's `open({ name, location })`.
  *
- * 沒裝就回 null —— 呼叫端據此決定要不要查，而不是開一個不存在的 DB。
+ * Returns null when nothing is installed — the caller decides whether to query
+ * rather than opening a database that is not there.
  */
 export function poiLocation(): { name: string; location: string } | null {
   const f = poiDbFile();
@@ -92,16 +98,19 @@ export function deletePoi(): void {
 }
 
 /**
- * 從 raster 時代的佈局搬過來，並清掉已經沒有功能對應的圖磚。
+ * Migrate from the raster-era layout and clear out tiles no feature uses any
+ * more.
  *
- * 兩件事一起做，因為都是一次性的升級動作：
+ * Both at once, because both are one-off upgrade actions:
  *
- * 1. `rudymap/rudypoi.db` → `poi/rudypoi.db`。不搬的話使用者要重抓 66 MB。
- * 2. 刪掉整個 `rudymap/`（圖磚包最大 1.46 GB）。raster 功能已移除，UI 上再也
- *    沒有入口可以刪它，留著就是永遠佔著空間。那些是唯讀且可重新取得的資料，
- *    不是使用者產生的內容。
+ * 1. `rudymap/rudypoi.db` → `poi/rudypoi.db`. Without the move the user
+ *    re-downloads 66 MB.
+ * 2. Delete all of `rudymap/` (tile packages reached 1.46 GB). The raster
+ *    feature is gone and no UI entry point can delete it any more, so leaving it
+ *    occupies that space forever. It is read-only, re-obtainable data, not
+ *    user-generated content.
  *
- * 冪等：舊目錄不存在就什麼都不做。
+ * Idempotent: does nothing when the old directory is absent.
  */
 export function migrateFromRasterPack(): void {
   const legacy = new Directory(Paths.document, LEGACY_DIR);
@@ -114,12 +123,13 @@ export function migrateFromRasterPack(): void {
     try {
       oldDb.move(target);
     } catch {
-      // 搬不動就算了，下面照樣刪；使用者重抓 66 MB 比卡在半途好。
+      // If the move fails, carry on and delete anyway; re-downloading 66 MB beats
+    // being stuck halfway.
     }
   }
   try {
     legacy.delete();
   } catch {
-    // 刪不掉不影響功能，下次啟動再試。
+    // Failing to delete costs no functionality; the next launch tries again.
   }
 }

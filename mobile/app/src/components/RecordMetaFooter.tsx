@@ -3,8 +3,8 @@
  * the user last changed it.
  *
  * Sits at the bottom of the scrolling content, above the action buttons, in all
- * three detail sheets (名錄物種 / 樣區物種 / 採集標本) so the same record always
- * exposes the same two facts in the same place.
+ * three detail sheets (checklist species / plot species / specimen) so the same
+ * record always exposes the same two facts in the same place.
  *
  * The uuid is `selectable` rather than a copy button: it is there to be read
  * off or quoted when reconciling against an exported file or an iNaturalist

@@ -71,7 +71,7 @@ const TITLE_FONT = 20; // 10 pt
  * Explicit line heights, in twips, one per font size.
  *
  * This is what makes the sheet hold five labels on ANY machine. With
- * `lineRule="auto"` the line height comes from the FONT, and 標楷體 asks for
+ * `lineRule="auto"` the line height comes from the FONT, and DFKai-SB asks for
  * roughly 1.45 em where a substituted font asks for ~1.2 — which is why a sheet
  * that renders 5 rows here came out 4 rows in Word: every label grew past
  * ROW_H and `atLeast` duly grew the row. Pinning `lineRule="atLeast"` to a

@@ -15,7 +15,8 @@ export function basemapToMapType(b: MapBasemap): BaseMapType {
       return 'hybrid';
     case 'terrain':
       return 'terrain';
-    // vector 走 MapLibre，原生 mapType 用不到；回 standard 只是讓型別完整。
+    // vector goes through MapLibre and has no native mapType; returning standard
+    // only keeps the type total.
     case 'vector':
       return 'standard';
     default:

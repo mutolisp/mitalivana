@@ -1,5 +1,6 @@
 /**
- * 調查記錄的兩種畫法 —— the rounded list row and the 2-up grid card.
+ * The two ways a survey record is drawn — the rounded list row and the 2-up grid
+ * card.
  *
  * Shared by the records tab (`app/(tabs)/index.tsx`) and the project detail
  * screen (`app/project/[id].tsx`) so the two never drift apart; the project
@@ -7,8 +8,8 @@
  *
  * Both draw the SAME `RecordItem`, and both honour `card_density`. The card is
  * not a reduced row — it drops the subtitle and the full diversity line and
- * keeps only what survives at half width: title, time, 種數, and where it
- * belongs.
+ * keeps only what survives at half width: title, time, species count, and where
+ * it belongs.
  *
  * `RowDiversityLine` reads one record's species off the DB, so it is deferred
  * off the mount frame and memoised per record (see the cache note below). The

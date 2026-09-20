@@ -8,7 +8,7 @@
  * reasoning `duplicateSpecimen` (src/db/collections.ts) already follows.
  *
  * A byte-for-byte copy is a different operation and already exists: export the
- * record and re-import it with 另存新副本.
+ * record and re-import it as a new copy.
  */
 export type DuplicateRecordOptions = {
   /** plotid / session name / trip name for the copy. Caller pre-fills it with

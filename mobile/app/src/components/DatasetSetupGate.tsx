@@ -1,16 +1,21 @@
 /**
- * 首次啟動的名錄下載精靈。
+ * First-run checklist download wizard.
  *
- * 名錄不再隨 app 出貨，所以全新安裝（以及剛把舊合併檔退場的升級）會有一段「一個
- * 名錄模組都沒有」的狀態。這時進主畫面只會看到一個搜不到任何東西的搜尋框，所以
- * 先擋在前面把事情講清楚。
+ * Checklists no longer ship with the app, so a fresh install (and an upgrade
+ * that has just retired the legacy merged file) passes through a state with **no
+ * checklist module at all**. Reaching the main screen then shows nothing but a
+ * search box that finds nothing, so this gate goes in front and explains.
  *
- * **保留「稍後再說」是刻意的**：剛換手機的人第一件事往往是還原備份，不該被強迫
- * 先下載 34 MB；沒有名錄時記錄、匯入、還原都還能用，只有物種搜尋不行。跳過只存
- * 在這次啟動（module-level 變數，不寫進 settings），下次開 app 還是會問。
+ * **Keeping "later" is deliberate**: the first thing someone with a new phone
+ * does is usually restore a backup, and they should not be forced to download
+ * 34 MB first; without a checklist, recording, importing and restoring all still
+ * work, and only species search does not. Skipping lasts for this launch only (a
+ * module-level variable, never written to settings), so the next launch asks
+ * again.
  *
- * 掛在 `DBProvider` 之內、`Stack` 之外：DB 一定已經開好，而且不必碰 router，
- * 避免「導向一個還沒掛載的路由」那類時序問題。
+ * Mounted inside `DBProvider` and outside `Stack`: the DB is certainly open by
+ * then, and nothing has to touch the router, which avoids timing problems like
+ * "navigate to a route that is not mounted yet".
  */
 import { useEffect, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -27,12 +32,14 @@ import {
 } from '~/lib/datasetInstall';
 import { formatBytes } from '~/lib/exportSize';
 
-/** 這次啟動已經按過「稍後再說」。不持久化——下次啟動仍然會問。 */
+/** "Later" was tapped this launch. Not persisted — the next launch asks
+ *  again. */
 let skippedThisLaunch = false;
 
 export function DatasetSetupGate({ children }: { children: ReactNode }) {
   const { t, i18n } = useTranslation();
-  // 安裝完成會透過 registry 的變更事件更新這個 store，門就自己讓開。
+  // A finished install updates this store through the registry's change event,
+  // and the gate opens by itself.
   const installs = useInstalledDatasets((s) => s.installs);
   const [skipped, setSkipped] = useState(skippedThisLaunch);
   const [entries, setEntries] = useState<DatasetManifestEntry[] | null>(null);
@@ -63,7 +70,8 @@ export function DatasetSetupGate({ children }: { children: ReactNode }) {
 
   const titleOf = (e: DatasetManifestEntry) =>
     e.title?.[i18n.language] ?? e.title?.['zh-TW'] ?? e.id;
-  // 只列名錄模組；檢索表相依臺灣名錄，裝完名錄後再從「資料來源」頁下載即可。
+  // Only checklist modules are listed; the keys depend on the Taiwan checklist,
+  // so they can be downloaded from the data-sources screen afterwards.
   const offered = (entries ?? []).filter((e) => e.region !== null);
   const pct = (a: number, b: number) => (b > 0 ? Math.min(100, Math.round((a / b) * 100)) : 0);
 
@@ -116,7 +124,8 @@ export function DatasetSetupGate({ children }: { children: ReactNode }) {
                     <View className="flex-1 pr-3">
                       <Text className="text-base font-medium text-gray-900 dark:text-gray-100">
                         {titleOf(e)}
-                        {/* 臺灣名錄是這個 app 的主場，預設就該先裝它 */}
+                        {/* The Taiwan checklist is this app's home ground, so it is the one to install
+                            first */}
                         {e.region === 'TW' ? (
                           <Text className="text-xs text-gray-400">
                             {' '}

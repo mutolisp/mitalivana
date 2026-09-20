@@ -1,9 +1,10 @@
 /**
- * `react-native-maps` 引擎。
+ * The `react-native-maps` engine.
  *
- * 這一層是把原本散在四個畫面裡的 `<MapView>` 用法原封不動搬過來 ——
- * **行為必須與重構前逐項相同**，包含 zIndex 層序、疊圖掛載順序、
- * cluster 泡泡的 `tracksViewChanges` 生命週期。
+ * This layer is the `<MapView>` usage from four screens moved across verbatim —
+ * **behaviour must match the pre-refactor code item for item**, including zIndex
+ * ordering, overlay mount order, and the `tracksViewChanges` lifecycle of
+ * cluster bubbles.
  */
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { View } from 'react-native';
@@ -20,14 +21,17 @@ import MapView, {
 import type { MapCamera, MapCanvasProps, MapFeature } from '../types';
 
 /**
- * Cluster 的自繪 marker。
+ * A cluster's custom-drawn marker.
  *
- * `tracksViewChanges` 起始為 true，等 view 完成 layout 後關掉（一開始就 false
- * 會畫出空白 marker）。原本用計時器，但每個泡泡四分之一秒的逐幀重擷取 ——
- * 乘上取消編輯時同時掛載的所有泡泡 —— 久到看起來像當機。
+ * `tracksViewChanges` starts true and is turned off once the view has laid out
+ * (starting false draws a blank marker). It used to be a timer, but a quarter of
+ * a second of per-frame re-capture per bubble — multiplied by every bubble
+ * mounted at once when a drawing is cancelled — was long enough to look like a
+ * freeze.
  *
- * `renderKey` 變動時要重新打開：cluster 的 key 只含格子座標，marker 會**跨 pan
- * 保持掛載**（那正是重點），所以內容變了要重新擷取而不是 remount。
+ * It must be turned back on when `renderKey` changes: a cluster's key holds only
+ * the cell coordinates, so markers **stay mounted across a pan** (which is the
+ * whole point), and changed content has to be re-captured rather than remounted.
  */
 function CustomMarker({ feature }: { feature: Extract<MapFeature, { kind: 'marker' }> }) {
   const [tracks, setTracks] = useState(true);
@@ -43,7 +47,8 @@ function CustomMarker({ feature }: { feature: Extract<MapFeature, { kind: 'marke
       zIndex={feature.zIndex}
       onPress={feature.onPress}
     >
-      {/* 一幀之後關掉擷取，不是固定延遲：那時擷取已經完成，等更久只是燒幀。 */}
+      {/* Stop capturing after one frame rather than on a fixed delay: by then the
+       capture is done, and waiting longer only burns frames. */}
       <View onLayout={() => requestAnimationFrame(() => setTracks(false))}>
         {feature.render?.()}
       </View>
@@ -156,8 +161,9 @@ export const RNMapsCanvas = forwardRef<MapCamera, MapCanvasProps>(function RNMap
       onPress={onPress ? (e) => onPress(e.nativeEvent.coordinate) : undefined}
     >
       {(rasterOverlays ?? []).map((o) => (
-        // key 綁 overlayGeneration：切底圖時強制重新掛載，讓疊圖重新加到
-        // 離線圖磚之上（iOS 的先後順序只看加入順序）。
+        // The key is tied to overlayGeneration: changing the basemap forces a remount
+        // so overlays are re-added above the offline tiles (on iOS ordering follows
+          // insertion order alone).
         <UrlTile
           key={`${o.id}-${overlayGeneration ?? ''}`}
           urlTemplate={o.urlTemplate}

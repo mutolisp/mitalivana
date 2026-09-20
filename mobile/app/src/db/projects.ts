@@ -57,8 +57,9 @@ export function createProject(input: ProjectInput): number {
  * Resolve a project by name, for importers that only have the exported name.
  *
  * With `create: true` an unknown name becomes a new project instead of
- * silently collapsing into 未分類 (id 0) — the exported `project` field is
- * data the user entered, and dropping it on import loses it for good.
+ * silently collapsing into the uncategorised project (id 0) — the exported
+ * `project` field is data the user entered, and dropping it on import loses it
+ * for good.
  */
 export function resolveProjectIdByName(
   name: string | null | undefined,
@@ -75,7 +76,7 @@ export function resolveProjectIdByName(
 }
 
 /**
- * The source row's project, or 0 (未分類) when that project is gone.
+ * The source row's project, or 0 (uncategorised) when that project is gone.
  *
  * `PRAGMA foreign_keys` is ON at runtime (src/db/init.ts), and dangling
  * project ids are only repaired at cold start, so copying one verbatim would

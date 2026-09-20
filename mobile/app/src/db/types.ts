@@ -86,8 +86,8 @@ export type SearchResult = {
    *  never mistaken for a checklist-verified one. */
   pack_country?: string;
   /** Which external cache minted this row ('gbif' | 'inat' | 'manual') —
-   *  only set by `externalToSearchResult`; 'manual' drives the 自建 badge and
-   *  the edit affordance. */
+   *  only set by `externalToSearchResult`; 'manual' drives the self-created badge
+   *  and the edit affordance. */
   external_source?: string;
   matched_as?: {
     name: string;

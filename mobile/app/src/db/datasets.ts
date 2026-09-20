@@ -1,43 +1,52 @@
 /**
- * 名錄模組登錄表：一個邏輯資料集（臺灣名錄 / 日本名錄 / 臺灣檢索表）對應一個
- * 可獨立下載、更新、刪除的 SQLite 檔。
+ * Registry of checklist modules: one logical dataset (Taiwan checklist / Japan
+ * checklist / Taiwan identification keys) per SQLite file that can be
+ * downloaded, updated and deleted on its own.
  *
- * 分成兩層是刻意的：
- *   - **spec**（編譯期）：這個模組「是什麼」——擁有哪個 taxon_id 前綴、有哪些
- *     表、scope 條件長什麼樣。程式必須認得，所以是 union 而不是純資料。
- *   - **install record**（執行期）：檔案「現在在哪」。過渡期三個邏輯模組可以
- *     同時指向同一個 `twnamelist.db`，所以 handle 快取以**檔案**為鍵而不是以
- *     模組為鍵——那個檔只會被開一次。
+ * The two layers are deliberate:
+ *   - **spec** (compile time): what the module *is* — which taxon_id prefix it
+ *     owns, which tables it has, what its scope clause looks like. The code has
+ *     to know these, so it is a union rather than plain data.
+ *   - **install record** (runtime): where the file *currently is*. During the
+ *     transition all three logical modules can point at the same
+ *     `twnamelist.db`, so the handle cache is keyed by **file**, not by module —
+ *     that file is opened exactly once.
  *
- * ## 三條必須守住的規則
+ * ## Three rules that must hold
  *
- * 1. **`open()` 對不存在的檔案會靜默建立空 DB。** op-sqlite 用
- *    `SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE`（cpp/bridge.cpp:96），所以
- *    「模組沒安裝」不會回錯誤，而是給你一個空資料庫，等到查詢才炸
- *    `no such table`，還留下一個空檔讓下次對帳誤判成已安裝。因此這裡**一律先
- *    確認檔案存在才 open**（`poiLocation()` 用的是同一招）。
- * 2. **模組是唯讀內容**：開檔後補 `PRAGMA query_only = ON`。實測全 repo 沒有
- *    任何一處寫入名錄 DB，這道防呆讓日後誤寫立刻爆，而不是默默改掉一個隨時
- *    會被整包覆蓋的檔。
- * 3. **原生模組只在函式內碰**（`open` / `File` / `Directory` / `Paths` 都走
- *    `nativeXxx()` 惰性取得）。`scripts/check-*.mjs` 會在 Node 下直接 import
- *    TS 模組，那裡沒有 op-sqlite 也沒有 expo-file-system；頂層碰原生等於讓
- *    所有檢查腳本在載入期就壞掉。`configureDatasetOpener()` 是給那些腳本用的
- *    測試縫。
+ * 1. **`open()` silently creates an empty DB for a missing file.** op-sqlite
+ *    uses `SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE` (cpp/bridge.cpp:96), so
+ *    "module not installed" does not come back as an error: you get an empty
+ *    database that only blows up at query time with `no such table`, and it
+ *    leaves an empty file behind for the next reconciliation to mistake for an
+ *    install. So this module **always confirms the file exists before opening**
+ *    (`poiLocation()` uses the same trick).
+ * 2. **Modules are read-only content**: `PRAGMA query_only = ON` right after
+ *    opening. Nothing in the whole repo writes to a checklist DB, and this
+ *    guard makes a future accidental write fail loudly instead of quietly
+ *    editing a file that can be replaced wholesale at any time.
+ * 3. **Native modules are touched inside function bodies only** (`open` /
+ *    `File` / `Directory` / `Paths` all go through lazy `nativeXxx()`).
+ *    `scripts/check-*.mjs` import the TS modules directly under Node, where
+ *    neither op-sqlite nor expo-file-system exists; touching a native module at
+ *    the top level would break every check script at load time.
+ *    `configureDatasetOpener()` is the test seam for those scripts.
  */
 import type { DB } from '@op-engineering/op-sqlite';
 import type { RegionCode } from '~/stores/settings';
 
 export type DatasetId = 'tw-taicol' | 'jp-ylist' | 'tw-keys';
 
-/** 名錄模組提供的表。`scopeClause` 逐字沿用 `taxonomy.ts` 原本的 scope 條件。 */
+/** Tables a checklist module provides. `scopeClause` is the scope condition
+ *  carried over verbatim from `taxonomy.ts`. */
 export type NamesTables = {
   kind: 'names';
   names: string;
   fuzzyIndex: string | null;
-  /** 舊版模組可能沒有 `pinyin` 欄，載入端仍要自己探測（見 fuzzy.ts）。 */
+  /** Older modules may not have the `pinyin` column, so the loader still probes
+ *  for it (see fuzzy.ts). */
   fuzzyHasPinyin: boolean;
-  /** 跨區對照表；模組只帶自己 region 的列。 */
+  /** Cross-region crosswalk; a module only carries rows for its own region. */
   xref: string | null;
   scopeClause: string;
 };
@@ -52,27 +61,32 @@ export type KeysTables = {
 
 export type DatasetSpec = {
   id: DatasetId;
-  /** 這個模組擁有的 taxon_id 前綴；檢索表模組沒有自己的 taxon。 */
+  /** The taxon_id prefix this module owns; the keys module has no taxa of its
+ *  own. */
   idPrefix: 't' | 'y' | null;
-  /** 對應的區域；檢索表跟著 `requires` 的名錄模組走。 */
+  /** The region it belongs to; keys follow the checklist module in `requires`. */
   region: RegionCode | null;
-  /** 必須同時可用的模組。tw-keys 的 lead target 全是 `t…`，單獨存在沒有意義。 */
+  /** Modules that must be available alongside it. Every tw-keys lead target is a
+ *  `t…`, so it is meaningless on its own. */
   requires: DatasetId[];
   defaultFile: string;
   tables: NamesTables | KeysTables;
 };
 
-/** `datasets/installed.json` 的一列。 */
+/** One row of `datasets/installed.json`. */
 export type DatasetInstall = {
   id: DatasetId;
-  /** 'datasets' = 自己的目錄；'documents' = 過渡期共用的舊 bundle 檔。 */
+  /** 'datasets' = its own directory; 'documents' = the shared legacy bundle file
+ *  during the transition. */
   location: 'datasets' | 'documents';
   file: string;
-  /** manifest 版本；過渡期的舊檔記成 `legacy:<asset hash>`。 */
+  /** Manifest version; a legacy file from the transition is recorded as
+ *  `legacy:<asset hash>`. */
   version: string;
   bytes: number;
   installedAt: number;
-  /** 與這一筆共用同一個檔的其他模組（過渡期才會非空）。 */
+  /** Other modules sharing this same file (only non-empty during the
+ *  transition). */
   sharedWith: DatasetId[];
 };
 
@@ -123,12 +137,13 @@ const SPECS: Record<DatasetId, DatasetSpec> = {
   },
 };
 
-/** 名錄模組的顯示順序 = 合併時的優先序（TaiCOL 勝過 YList，與 idPreference 一致）。 */
+/** Display order of the checklist modules = merge precedence (TaiCOL beats
+ *  YList, matching idPreference). */
 const NAME_DATASET_ORDER: DatasetId[] = ['tw-taicol', 'jp-ylist'];
 
 export const DATASETS_DIR = 'datasets';
 const INSTALL_FILE = 'installed.json';
-/** 過渡期的合併檔：三個模組都還住在裡面。 */
+/** The merged legacy file: all three modules still live inside it. */
 const LEGACY_FILE = 'twnamelist.db';
 const LEGACY_VERSION_FILE = 'twnamelist.db.version';
 
@@ -140,12 +155,12 @@ export function allSpecs(): DatasetSpec[] {
   return [SPECS['tw-taicol'], SPECS['jp-ylist'], SPECS['tw-keys']];
 }
 
-// ── 原生模組的惰性取得（見檔頭規則 3） ──────────────────────────────────────
+// ── Lazy access to native modules (see rule 3 in the file header) ──────────
 
 type Opener = (params: { name: string; location: string }) => DB;
 let opener: Opener | null = null;
 
-/** 測試縫：讓 Node 下的檢查腳本塞一個 `node:sqlite` 的 adapter 進來。 */
+/** Test seam: lets a check script under Node inject a `node:sqlite` adapter. */
 export function configureDatasetOpener(fn: Opener | null): void {
   opener = fn;
   closeAllDatasetDbs();
@@ -162,7 +177,8 @@ function nativeOpen(name: string, location: string): DB {
 type FsModule = typeof import('expo-file-system');
 let fsModule: FsModule | null = null;
 
-/** 測試縫，與 `configureDatasetOpener` 成對：Node 下沒有 expo-file-system。 */
+/** Test seam, paired with `configureDatasetOpener`: there is no
+ *  expo-file-system under Node. */
 export function configureDatasetFs(mod: FsModule | null): void {
   fsModule = mod;
   installs = null;
@@ -177,29 +193,31 @@ function fs(): FsModule {
   return fsModule;
 }
 
-// ── 檔案位置 ────────────────────────────────────────────────────────────────
+// ── File locations ────────────────────────────────────────────────────────
 
-/** `Documents/datasets/`。建立時順便標記不進 OS 備份——與 `ensureVectorRoot`
- *  同樣**每次呼叫都標**，否則在原生模組出貨前就安裝的使用者永遠補不到。 */
+/** `Documents/datasets/`. Marked as excluded from OS backup while being
+ *  created — **on every call**, like `ensureVectorRoot`, or anyone who installed
+ *  before the native module shipped would never get the flag. */
 export function ensureDatasetsDir(): InstanceType<FsModule['Directory']> {
   const { Directory, Paths } = fs();
   const dir = new Directory(Paths.document, DATASETS_DIR);
   if (!dir.exists) dir.create({ intermediates: true });
   try {
-    // 惰性 require（規則 3）：這個 wrapper 會 import expo-modules-core，
-    // 頂層 import 會讓 Node 下的檢查腳本在載入期就壞掉。
+    // Lazy require (rule 3): this wrapper imports expo-modules-core, and a
+    // top-level import would break the Node check scripts at load time.
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const mod = require('../../modules/backup-exclusion') as {
       excludeFromBackup?: (uri: string) => boolean;
     };
     mod.excludeFromBackup?.(dir.uri);
   } catch {
-    // 原生模組缺席（Android / 尚未重建的 dev client）時不是錯誤
+    // A missing native module (Android, or a dev client not yet rebuilt) is not an
+    // error.
   }
   return dir;
 }
 
-/** 某一筆安裝紀錄對應的實際檔案。不建立任何東西。 */
+/** The actual file an install record points at. Creates nothing. */
 function installFile(rec: DatasetInstall): InstanceType<FsModule['File']> {
   const { Directory, File, Paths } = fs();
   if (rec.location === 'documents') return new File(Paths.document, rec.file);
@@ -207,7 +225,7 @@ function installFile(rec: DatasetInstall): InstanceType<FsModule['File']> {
   return new File(dir, rec.file);
 }
 
-// ── 安裝清單 ────────────────────────────────────────────────────────────────
+// ── Install list ──────────────────────────────────────────────────────────
 
 let installs: Map<DatasetId, DatasetInstall> | null = null;
 
@@ -226,7 +244,8 @@ function readInstalls(): Map<DatasetId, DatasetInstall> {
     for (const raw of parsed) {
       const rec = raw as DatasetInstall;
       if (!rec || typeof rec.id !== 'string' || !(rec.id in SPECS)) continue;
-      // 對帳：檔案不在就不算安裝（Android 清除資料、iOS 清理、安裝中斷）。
+      // Reconcile: no file means not installed (Android clear-data, iOS cleanup, an
+      // interrupted install).
       if (!installFile(rec).exists) continue;
       out.set(rec.id, {
         ...rec,
@@ -234,7 +253,8 @@ function readInstalls(): Map<DatasetId, DatasetInstall> {
       });
     }
   } catch {
-    // 壞掉的清單等同「什麼都沒裝」，下載頁會重新提供安裝
+    // A corrupt list counts as "nothing installed"; the download screen will offer
+    // to install again.
   }
   return out;
 }
@@ -246,11 +266,11 @@ function writeInstalls(): void {
     if (f.exists) f.delete();
     f.write(JSON.stringify([...(installs ?? new Map()).values()], null, 2));
   } catch {
-    // 寫不進去不該讓查詢失敗；下次啟動會重新對帳
+    // Failing to write must not fail a query; the next launch reconciles again.
   }
 }
 
-/** 讀入（或重讀）安裝清單。`initDb()` 在 migrations 之前呼叫。 */
+/** Load (or reload) the install list. `initDb()` calls this before migrations. */
 export function loadDatasetManifest(): void {
   installs = readInstalls();
 }
@@ -269,12 +289,15 @@ export function isInstalled(id: DatasetId): boolean {
 }
 
 /**
- * 過渡期：把既有的 `Documents/twnamelist.db` 註冊成三個模組共用的一個檔。
+ * Transition: register the existing `Documents/twnamelist.db` as one file shared
+ * by all three modules.
  *
- * 只在還沒有任何安裝紀錄、而舊檔存在時跑一次，並且**只認檔案裡真的有的表**
- * ——沒有 `jp_names` 的舊版（0.4.x）就只會註冊 TW 與檢索表，誠實地落在
- * 「日本名錄未安裝」。這段在 §9 步驟 6 拆掉內建時會被「備份名稱快取 → 刪舊檔
- * → 下載精靈」取代。
+ * Runs once, only when there is no install record yet and the legacy file
+ * exists, and **only counts tables the file actually has** — a 0.4.x file
+ * without `jp_names` registers TW and the keys alone and honestly lands on
+ * "Japan checklist not installed". Step 6 of §9 replaces this with "cache the
+ * names → delete the legacy file → download wizard" when the bundled DB is
+ * removed.
  */
 export function adoptLegacyBundle(): void {
   const current = state();

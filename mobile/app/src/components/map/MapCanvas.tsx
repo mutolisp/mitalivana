@@ -1,13 +1,15 @@
 /**
- * 地圖畫布 —— 依引擎分派到實作。
+ * The map canvas — dispatches to an engine implementation.
  *
- * app 之上的程式碼只認 `src/components/map/types.ts` 的中性型別，不再 import
- * 任何地圖 library。這是為了讓 MapLibre 向量引擎能以**加法**加入，而不是把
- * react-native-maps 換掉：兩者是不同的原生 view，不能在同一畫面混用，但可以
- * 整個 canvas 二選一。
+ * Everything above this only knows the neutral types in
+ * `src/components/map/types.ts` and imports no map library. That is what let
+ * the MapLibre vector engine be **added** rather than swapped in for
+ * react-native-maps: the two are different native views and cannot be mixed in
+ * one screen, but the canvas as a whole can be either.
  *
- * 沒有給 `vectorStyle` 就算指定 `engine="vector"` 也會退回 native —— 向量引擎
- * 沒有樣式就是一片空白，退回去至少還有地圖可看。
+ * Without a `vectorStyle`, even `engine="vector"` falls back to native — the
+ * vector engine with no style is a blank screen, and falling back at least
+ * leaves a map to look at.
  */
 import { forwardRef } from 'react';
 

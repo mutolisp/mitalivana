@@ -1,15 +1,19 @@
 /**
- * 名錄模組的下載、安裝、更新、刪除。
+ * Download, install, update and delete of checklist modules.
  *
- * 與離線地圖 / POI 同一套骨架（module-level zustand store + typed phase union +
- * `running`/`cancelled` 旗標），理由也一樣：下載必須撐過使用者離開畫面，而且
- * 重新進入畫面要看到**同一個**進行中的下載，不是又開一個。
+ * The same skeleton as the offline map and POIs (module-level zustand store +
+ * typed phase union + `running`/`cancelled` flags), for the same reason: a
+ * download must survive the user leaving the screen, and coming back must show
+ * **that same** download in progress rather than starting a second one.
  *
- * 解壓走串流（`File.open()` + fflate 的 `Unzip`，4 MiB 一段），因為臺灣名錄解壓後
- * 有 134 MB，整個進記憶體會直接被系統殺掉。
+ * Extraction is streamed (`File.open()` + fflate's `Unzip`, 4 MiB at a time),
+ * because the Taiwan checklist unpacks to 134 MB and holding that in memory gets
+ * the process killed.
  *
- * 下載完一定驗 **bytes + md5** 才換檔：截斷的 SQLite 檔開得起來，要到查詢時才炸
- * 「no such table」，那是最難追的失敗樣態（pmtiles 的註解也警告過同一件事）。
+ * A finished download is always verified by **bytes + md5** before the file is
+ * swapped in: a truncated SQLite file opens fine and only blows up at query time
+ * with "no such table", which is the hardest failure mode to trace (the pmtiles
+ * comments warn about the same thing).
  */
 import { File, Paths } from 'expo-file-system';
 import { createDownloadResumable } from 'expo-file-system/legacy';
@@ -37,16 +41,19 @@ import {
   type DatasetInstall,
 } from '~/db';
 
-/** 本版 app 讀得懂的模組格式版本。manifest 裡 `minAppSchema` 比這個大的模組會被
- *  跳過並提示更新 app —— 先上架的 manifest 不該讓舊 app 解析失敗。 */
+/** The module format version this build understands. A module whose
+ *  `minAppSchema` exceeds it is skipped with a prompt to update the app — a
+ *  manifest published early must not break parsing in an older app. */
 export const APP_DATASET_SCHEMA = 1;
 
 const MANIFEST_URL = 'https://data.mitalivana.org/checklists/latest/manifest.json';
 
-/** 解壓時每次從 zip 讀多少。與 POI 相同，記憶體峰值約 10 MiB。 */
+/** How much is read from the zip at a time while extracting. Same as POIs;
+ *  peak memory is about 10 MiB. */
 const READ_CHUNK_BYTES = 4 * 1024 * 1024;
 
-/** 下載 + 解壓需要的額外空間緩衝（與離線地圖同一個常數）。 */
+/** Headroom needed for download + extraction (the same constant as the offline
+ *  map). */
 const SPACE_HEADROOM = 200 * 1024 * 1024;
 
 export type DatasetManifestEntry = DatasetManifestEntryLike & {
@@ -60,7 +67,7 @@ export type DatasetProgress =
   | { phase: 'install' };
 
 type InstallState = {
-  /** 正在安裝哪一個模組；null = 沒有進行中的安裝。 */
+  /** Which module is installing; null = nothing in progress. */
   activeId: DatasetId | null;
   progress: DatasetProgress | null;
   error: string | null;
@@ -72,8 +79,9 @@ export const useDatasetInstall = create<InstallState>(() => ({
   error: null,
 }));
 
-/** 已安裝狀態的快照，給畫面訂閱用。registry 本身刻意不依賴 zustand，所以由這裡
- *  訂閱它的變更事件再同步過來。 */
+/** Snapshot of the installed state for screens to subscribe to. The registry
+ *  deliberately does not depend on zustand, so this subscribes to its change
+ *  events and mirrors them here. */
 type InstalledState = { installs: DatasetInstall[] };
 
 export const useInstalledDatasets = create<InstalledState>(() => ({
@@ -96,13 +104,14 @@ onDatasetsChanged(refreshInstalledDatasets);
 const KNOWN_IDS = new Set<string>(allSpecs().map((s) => s.id));
 
 /**
- * 讀取遠端 manifest。
+ * Fetch the remote manifest.
  *
- * **必須帶自訂 User-Agent**：Cloudflare 會 403 掉 React Native 的預設 UA
- * （離線地圖踩過同一個坑，`vectormapInstall.ts:81`）。
+ * **A custom User-Agent is required**: Cloudflare 403s React Native's default UA
+ * (the offline map hit the same trap, `vectormapInstall.ts:81`).
  *
- * 不認識的 id 直接略過而不是報錯——manifest 可能先上了下一版才有的模組。
- * `minAppSchema` 比本版大的也略過，但會標記起來讓畫面能提示「請更新 app」。
+ * An unknown id is skipped rather than raised — the manifest may list a module
+ * that only the next release has. One whose `minAppSchema` exceeds this build is
+ * skipped too, but flagged so the screen can prompt for an app update.
  */
 export async function fetchDatasetManifest(): Promise<{
   entries: DatasetManifestEntry[];
