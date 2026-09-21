@@ -4734,3 +4734,80 @@ i18n：`inatGrid.fab` / `inatGrid.sheetTitle` / `areaSpecies.fab` 三個 key 已
 - [ ] 建立一個界＝病毒的 → 根層出現病毒界且點得進去
 - [ ] 自建物種與名錄同名時 → 樹上只出現名錄那一筆
 - [ ] GBIF／iNat 查詢快取的物種**不會**出現在樹上
+
+## 2026-09-22 — 樣區物種分頁：把 328pt 的固定 chrome 壓到 188pt
+
+回報是「header 佔掉可見畫面 1/3」。實測比這更糟：iPhone 390×844、fixed 樣區＋小區＋有記錄時，
+列表上方固定 chrome **328pt**、下方 172pt，物種列表只剩 ~266pt ≒ **3 列多一點**。
+
+### 四刀，由上而下
+
+| 區塊 | 前 | 後 | 做法 |
+|---|---:|---:|---|
+| `ActiveSessionBar` | 36 | 4 | 在**自己的記錄詳細頁**退化成細線 |
+| tab bar（環境／物種） | 45 | 37 | `py-3` → `py-2` |
+| `PlotDiversityCard` 收合列 | 33 | 0 | 摘要移進導覽列標題 |
+| 排序列＋小區／層次兩個 SelectRow | 111 | 44 | 併成一列 chip |
+
+列表可視高度 266 → **~484pt（約 5.5 列）**。
+
+### ActiveSessionBar 的細線
+
+`pathname === targetPath` 這個判斷第 44 行早就存在（用來讓點擊 no-op），現在同時決定外觀。
+兩個必須注意的點：
+
+- **它仍要自己填滿 `insets.top`**。`app/_layout.tsx:98` 是
+  `hasActive ? <ActiveSessionBar/> : fullBleedTop ? null : <TopSafeAreaSpacer/>`——只要有 active
+  record，spacer 就不會 render。
+- **inset 區必須維持 emerald**。`_layout.tsx:155-165` 的 `<SystemBars style={hasActive ? 'light'…}>`
+  在任何記錄進行中都把狀態列圖示畫成白色。我第一版把它改成白底，淺色模式下時鐘與電量會整個消失
+  ——寫下來免得有人又去「順手改成跟其他畫面一致」。
+
+採集詳細頁不受影響（這條 bar 只認 `useActiveSession` / `useActivePlot`）。兩筆記錄同時進行、
+而 bar 顯示的是**另一筆**時也維持完整——那時它講的確實是別的東西。
+
+### 單列 chip：層次是「記到哪一層」，不是篩選
+
+讀碼後才確認的關鍵事實：`layer` state 只餵給 `setModal({ mode:'create', taxon, layer })`
+（`PlotSpeciesTab.tsx:299`），`listData` 一律列出所有層。chip 化之後外觀和名錄頁的**篩選** chips
+幾乎一樣但語意不同，所以：
+
+- **顏色用 emerald 不用 blue**，這是最便宜的「我不是篩選器」訊號。
+- **沒有記錄的層一定要顯示 chip**。名錄頁把 `count === 0` 的群組藏起來（篩到空群組沒意義），
+  這裡剛好相反——那個空的層正是你下一秒要記進去的。藏了就沒辦法記到新的層。**這條務必留在註解裡**，
+  否則下一個人會「順手對齊名錄頁」把它加回去。
+- 小區是**開 ActionSheet 的按鈕**不是 chip 排：一個樣區可能有 10–20 個小區，排成 chips 會把層次
+  完全擠出視野；而且小區是記完一個才換，層次是在同一小區內來回切。
+- 橫向 ScrollView 必須包 `SwipeBlockedArea`，否則外層環境↔物種的 Pan（`activeOffsetX([-18,18])`）
+  會吃掉捲動。`SwipeBlockedArea` 為此加了 optional `style`（包裝 View 預設是 content-sized，
+  在 `flex-row` 裡會塌掉）。
+
+**沒有新增任何 i18n key**——全部重用既有的。這是刻意的：新 key ×7 locale 是這種版面改動裡最容易
+出錯、最沒價值的成本。副作用是 `plotStats.completenessShort` 變成沒有 caller，留著無害
+（`check-i18n` 不擋未使用的 key）。
+
+### 導覽列標題塞兩行
+
+`P1` 上、`S 42 · H′ 2.31` 下，點一下展開統計卡。兩個決定：
+
+- **字級寫死在 `style`**，不用 `text-sm`/`text-xs`。那些會走 FontScaleProvider，最大字級下兩行
+  會撐破 native header 的固定高度。採集頁的自訂標題為了同樣理由寫死 17px。
+- **完整度不進標題**。`· Vollständigkeit 87%`（de）會超出返回鍵與兩顆 header 按鈕之間的 ~200pt，
+  而 RN 沒有便宜的同步量文字 API，任何「太長就降級」都會變成脆弱的字數魔術數字。完整度留在展開內容裡。
+
+`PlotDiversityCard` 因此變成「只 render 展開內容」，收合時回傳 null。`plot_stats_expanded` 這個
+settings key **語意完全不變**，不必遷移。
+
+順帶一提：tab 標籤的數字是**記錄筆數**，header 的 `S` 是**物種數**（去重），兩者並排且通常不相等
+（`物種 47` vs `S 42`）。這是對的——跨層／跨小區重複記錄本來就會讓兩者有差——但可能被當 bug 回報。
+
+### 刻意不做：隨捲動收合 header
+
+原本同意要做，算完數字後放棄。版面改完，列表上方固定 chrome 是 native header 44 + tab bar 37 +
+chips 44 = 125pt，其中前兩者是導覽結構、scroll-to-hide 動不了，**唯一能藏的只有 chips 那 44pt
+≒ 0.5 列**——而那正好是「層次 1 tap 切換」這個設計目標所在。加上它會是全 repo 第一個此類慣例
+（`useAnimatedScrollHandler` 零命中），落點又是同時帶著 `automaticallyAdjustKeyboardInsets`、
+`KeyboardStickyView` dock、外層 Pan、每列 `SwipeRowActions` 的 FlatList。
+
+**下一刀應該砍列高不是砍 chrome**：每列 `SpeciesRow` ~88pt，而 `card_density` 設定已經存在但只
+接在 `RecordListItem`（`:231,310`）上，樣區的 `SpeciesRow` 沒接。接上去一列可省 ~20pt = 每屏多 1 列。

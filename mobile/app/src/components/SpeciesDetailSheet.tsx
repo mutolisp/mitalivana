@@ -66,6 +66,9 @@ type Props = {
   inat?: InatSheetState;
   /** Save species attribute changes (sex / lifeStage / reproductive / leaf). */
   onSaveAttributes?: (next: SpeciesAttributesDraft) => void;
+  /** Re-identify: hand the docked SearchBox over to replacing this record's
+   *  taxon. Optional — callers without a search box simply omit it. */
+  onReplaceTaxon?: () => void;
   /** Position of this record in the caller's ON-SCREEN order, so the sheet can
    *  step to the neighbouring one by swipe or chevron. Omit to disable. */
   pager?: SwipeNavPagerState;
@@ -122,6 +125,7 @@ export function SpeciesDetailSheet({
   onRemoveAudio,
   inat,
   onSaveAttributes,
+  onReplaceTaxon,
   pager,
 }: Props) {
   const router = useRouter();
@@ -223,6 +227,18 @@ export function SpeciesDetailSheet({
                       className="text-sm text-gray-700 dark:text-gray-300"
                       selectable
                     />
+                    {onReplaceTaxon ? (
+                      <Pressable
+                        onPress={onReplaceTaxon}
+                        hitSlop={6}
+                        className="mt-2 flex-row items-center self-start active:opacity-70"
+                      >
+                        <Ionicons name="swap-horizontal" size={14} color="#2563eb" />
+                        <Text className="ml-1 text-xs font-medium text-blue-700 dark:text-blue-300">
+                          {t('session.changeTaxon')}
+                        </Text>
+                      </Pressable>
+                    ) : null}
                   </View>
                   <Pressable
                     onPress={async () => {

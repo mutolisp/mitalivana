@@ -110,6 +110,9 @@
   "session": {
     "noTaxonId": "この種には taxon_id がないため追加できません",
     "alreadyExists": "すでに追加済み：{{name}}",
+    "changeTaxon": "種を変更",
+    "changeTaxonBanner": "「{{name}}」の種を変更：下の検索から選んでください",
+    "taxonChanged": "{{name}} に変更しました",
     "added": "追加しました：{{name}}",
     "removed": "削除しました：{{name}}",
     "photoSavedLinked": "アルバムに保存して関連付けました",

@@ -15,6 +15,7 @@ import {
 import { generateUuid } from './uuid';
 import { getUserDb, withTransaction } from './init';
 import { ensureTaxonSelfSufficient } from './taxonCache';
+import { retaxonRecord } from './retaxon';
 import { existingProjectId, resolveProjectIdByName } from './projects';
 import { createSite, deleteSiteIfUnreferenced, type ImportedSite } from './sites';
 import type { DuplicateRecordOptions } from './duplicate';
@@ -31,7 +32,24 @@ export type AbundanceMethod = 'BB' | 'percent' | 'DBH';
  *  is determined by `plot.layer_count` (1..6); see `getActiveLayers`. */
 export const LAYERS: FixedLayer[] = ['E1', 'E2', 'E3', 'E4', 'E5', 'E6'];
 export const MAX_LAYER_COUNT = 6;
-export const DEFAULT_LAYER_COUNT = 4;
+/** Layers a new fixed plot starts with: E1–E5. Five, not four, because E5 is
+ *  主林冠層 — a forest plot that does not record its own canopy is not a
+ *  forest plot. Only NEW plots: the column's SQL default stays 4 so plots
+ *  made before this keep the four layers they were surveyed with. */
+export const DEFAULT_LAYER_COUNT = 5;
+
+/**
+ * Abundance unit a layer starts with.
+ *
+ * E4 亞喬木層 and E5 主林冠層 are tree layers, and stem diameter is the standard
+ * measure for a tree — % cover is for the layers you can look down on. The two
+ * creation paths used to disagree (seeding said E4, `getOrCreatePlotLayer` said
+ * '%' for everything), so raising a plot from four layers to five produced a
+ * canopy layer measured differently from one created with five. One rule now.
+ */
+export function defaultMethodForLayer(layerIndex: number): AbundanceMethod {
+  return layerIndex === 4 || layerIndex === 5 ? 'DBH' : 'percent';
+}
 export const TRANSECT_LAYER: Layer = 'T';
 export function layerLabel(layer: Layer): string {
   return i18n.t('layer.' + layer);
@@ -299,18 +317,14 @@ export function createPlotSurvey(input: CreatePlotInput): number {
     ],
   );
   const plotId = res.insertId ?? 0;
-  // Pre-seed `plot_survey_layers` with rows for the default layer count (4 =
-  // E1-E4). Transect plots get no layer rows. Keeping the layer rows in lockstep
-  // with `plot_surveys.layer_count` is enforced by setPlotLayerCount() below.
+  // Pre-seed `plot_survey_layers` with rows for the default layer count
+  // (E1-E5). Transect plots get no layer rows. Keeping the layer rows in
+  // lockstep with `plot_surveys.layer_count` is enforced by setPlotLayerCount().
   if ((input.plot_type ?? 'fixed') === 'fixed' && plotId > 0) {
     for (let i = 1; i <= DEFAULT_LAYER_COUNT; i++) {
-      // % cover is the default unit for new layers. E4 (亞喬木層) keeps DBH —
-      // stem diameter is the standard measure for a tree layer, and that
-      // default predates this change.
-      const defaultMethod: AbundanceMethod = i === 4 ? 'DBH' : 'percent';
       db.executeSync(
         `INSERT INTO plot_survey_layers (plot_survey_id, layer_index, method) VALUES (?, ?, ?)`,
-        [plotId, i, defaultMethod],
+        [plotId, i, defaultMethodForLayer(i)],
       );
     }
   }
@@ -344,8 +358,8 @@ export function getOrCreatePlotLayer(plotId: number, layerIndex: number): PlotLa
   const row = existing.rows?.[0] as unknown as PlotLayer | undefined;
   if (row) return row;
   db.executeSync(
-    `INSERT INTO plot_survey_layers (plot_survey_id, layer_index, method) VALUES (?, ?, 'percent')`,
-    [plotId, layerIndex],
+    `INSERT INTO plot_survey_layers (plot_survey_id, layer_index, method) VALUES (?, ?, ?)`,
+    [plotId, layerIndex, defaultMethodForLayer(layerIndex)],
   );
   const reread = db.executeSync(
     `SELECT * FROM plot_survey_layers WHERE plot_survey_id = ? AND layer_index = ? LIMIT 1`,
@@ -874,16 +888,23 @@ export function deletePlotSpecies(id: number): void {
 }
 
 /** Move a species record to a different vegetation layer (fix mis-entry). */
-/** Re-identify a recorded plant/animal: swap the taxon, keep everything else
- *  (layer, abundance, attributes, photos, coordinates). Mirrors the specimen
- *  re-determination path — the observation is the same, only the name changes. */
-export function updatePlotSpeciesTaxon(id: number, taxonId: string): void {
-  const db = getUserDb();
-  db.executeSync(`UPDATE plot_species_records SET taxon_id = ?, updated_at = ? WHERE id = ?`, [
-    taxonId,
-    Date.now(),
-    id,
-  ]);
+/**
+ * Re-identify a recorded plant/animal: swap the taxon, keep everything else
+ * (layer, abundance, attributes, photos, coordinates). Mirrors the specimen
+ * re-determination path — the observation is the same, only the name changes.
+ *
+ * `occurrence_id` is deliberately untouched: it identifies the observation, not
+ * the determination. The adoption columns ARE rewritten — they record the name
+ * the record was filed under, so after a re-identification the old pair
+ * describes a name no longer on the record. No `adopted` clears them, which is
+ * correct for a plain accepted name.
+ */
+export function updatePlotSpeciesTaxon(
+  id: number,
+  taxonId: string,
+  adopted?: AdoptionInput | null,
+): void {
+  retaxonRecord('plot', id, taxonId, adopted);
 }
 
 export function updatePlotSpeciesLayer(id: number, layer: Layer): void {

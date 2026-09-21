@@ -177,12 +177,20 @@ export function useSwipeBlock(): PanGesture | undefined {
  * its hands off it. A no-op when nothing around it is swipeable, so components
  * shared between swipeable and plain screens can use it unconditionally.
  */
-export function SwipeBlockedArea({ children }: { children: ReactNode }) {
+export function SwipeBlockedArea({
+  children,
+  style,
+}: {
+  children: ReactNode;
+  /** Needed when the blocked child has to flex inside a row: the wrapper View
+   *  is content-sized by default and collapses to nothing. */
+  style?: StyleProp<ViewStyle>;
+}) {
   const nav = useContext(SwipeBlockContext);
   if (!nav) return <>{children}</>;
   return (
     <GestureDetector gesture={nav.blocker}>
-      <View>{children}</View>
+      <View style={style}>{children}</View>
     </GestureDetector>
   );
 }

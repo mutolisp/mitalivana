@@ -12,7 +12,7 @@ import {
 import { Stack, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { BackHeaderLeft } from '~/lib/goBack';
 import * as Location from 'expo-location';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { isoTime } from '~/lib/datetime';
 import { Alert, Platform, Pressable, Text, TextInput, View } from 'react-native';
@@ -43,6 +43,7 @@ import {
   type HeightUnit,
   type FixedLayer,
   type PlotLayer,
+  type PlotSpeciesRecordWithTaxon,
   type PlotSurvey,
   type Project,
   type Site,
@@ -53,6 +54,7 @@ import { PhotoGrid, PhotoViewerModal } from '~/components/PhotoGrid';
 import { useThemeColors } from '~/hooks/useThemeColors';
 import { useToast } from '~/stores/toast';
 import { PlotSpeciesTab } from '~/components/PlotSpeciesTab';
+import { plotStatsSummary } from '~/components/PlotDiversityCard';
 import { ProjectAssignSheet } from '~/components/ProjectAssignSheet';
 import { SurveyorAssignSheet } from '~/components/SurveyorAssignSheet';
 import { TransectTrackControl } from '~/components/TransectTrackControl';
@@ -89,14 +91,17 @@ export default function PlotDetailScreen() {
     setTab(next);
     useSettings.getState().set('plot_last_tab', { plotId, tab: next });
   };
-  const [speciesCount, setSpeciesCount] = useState(0);
+  // The rows themselves, not just their count: the tab label needs the count
+  // and the navigation-bar title needs the diversity summary, and one query
+  // serves both.
+  const [records, setRecords] = useState<PlotSpeciesRecordWithTaxon[]>([]);
   const refreshActivePlot = useActivePlot((s) => s.refresh);
   const refreshActiveSession = useActiveSession((s) => s.refresh);
 
   const reload = useCallback(() => {
     const p = getPlotSurvey(plotId);
     setPlot(p);
-    if (p) setSpeciesCount(listPlotSpecies(p.id).length);
+    setRecords(p ? listPlotSpecies(p.id) : []);
     refreshActivePlot();
   }, [plotId, refreshActivePlot]);
 
@@ -105,6 +110,12 @@ export default function PlotDetailScreen() {
   }, [reload]);
 
   const ready = plot ? plotCanAcceptSpecies(plot) : false;
+
+  // Navigation-bar title state. Declared here, above the not-found early
+  // return, so the hook order stays stable.
+  const statsExpanded = useSettings((s) => s.plot_stats_expanded);
+  const setSetting = useSettings((s) => s.set);
+  const statsLine = useMemo(() => plotStatsSummary(records), [records]);
 
   /** Environment ↔ Species by horizontal swipe, mirroring the two tab buttons
    *  exactly — including the Species tab staying shut until the survey can
@@ -129,7 +140,16 @@ export default function PlotDetailScreen() {
     <SafeAreaView edges={['bottom']} className="flex-1 bg-gray-50 dark:bg-gray-950">
       <Stack.Screen
         options={{
-          title: plot.plotid,
+          headerTitle: () => (
+            <PlotHeaderTitle
+              plotid={plot.plotid || t('nav.plot')}
+              // Only on the Species tab: on Environment the numbers would be
+              // answering a question nobody asked.
+              stats={tab === 'species' ? statsLine : null}
+              expanded={statsExpanded}
+              onToggle={() => setSetting('plot_stats_expanded', !statsExpanded)}
+            />
+          ),
           headerLeft: BackHeaderLeft,
           headerRight: () => (
             <View className="flex-row items-center gap-3">
@@ -176,7 +196,7 @@ export default function PlotDetailScreen() {
       <View className="flex-row border-b border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
         <TabBtn label={t('plot.tabEnv')} active={tab === 'env'} onPress={() => selectTab('env')} />
         <TabBtn
-          label={`${t('plot.tabSpecies')} ${speciesCount > 0 ? speciesCount : ''}`}
+          label={`${t('plot.tabSpecies')} ${records.length > 0 ? records.length : ''}`}
           active={tab === 'species'}
           onPress={() => selectTab('species')}
           disabled={!ready}
@@ -220,7 +240,11 @@ function TabBtn({
   return (
     <Pressable
       onPress={disabled ? undefined : onPress}
-      className={`flex-1 items-center justify-center py-3 ${active ? 'border-b-2 border-emerald-500' : ''}`}
+      // py-2, not py-3: this bar sits on the screen with the least vertical room
+      // in the app. Not tighter than that, though — the row directly beneath it
+      // is also tappable, and a mis-tap here swaps the whole page. 8 + 20 + 8
+      // keeps the target honest while giving back 8pt.
+      className={`flex-1 items-center justify-center py-2 ${active ? 'border-b-2 border-emerald-500' : ''}`}
     >
       <Text
         className={`text-sm font-medium ${
@@ -1295,5 +1319,76 @@ function EnvPhotoSection({ plot, onUpdated }: { plot: PlotSurvey; onUpdated: () 
       />
       <PhotoViewerModal photos={photos} index={viewerIndex} onClose={() => setViewerIndex(null)} />
     </View>
+  );
+}
+
+/**
+ * Two-line navigation-bar title: the plot id over the live diversity one-liner.
+ * Tapping it toggles the expanded stats card in the species list — that card's
+ * own collapsed row used to live above the list and cost 33pt there.
+ *
+ * Sizes are pinned in `style`, not via `text-sm` / `text-xs`: those resolve
+ * through FontScaleProvider, and at the largest font scale two scaled lines
+ * would overflow the native header's fixed height. The collection screen's
+ * custom title pins its size for the same reason. The trade is deliberate —
+ * every number here is also printed at full size one tap away.
+ */
+function PlotHeaderTitle({
+  plotid,
+  stats,
+  expanded,
+  onToggle,
+}: {
+  plotid: string;
+  stats: string | null;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  const { t } = useTranslation();
+
+  if (stats === null) {
+    return (
+      <Text
+        className="font-semibold text-gray-900 dark:text-gray-100"
+        style={{ fontSize: 17, maxWidth: 200 }}
+        numberOfLines={1}
+      >
+        {plotid}
+      </Text>
+    );
+  }
+
+  return (
+    <Pressable
+      onPress={onToggle}
+      hitSlop={8}
+      accessibilityRole="button"
+      accessibilityLabel={t('plotStats.title')}
+      accessibilityState={{ expanded }}
+      className="items-center active:opacity-60"
+    >
+      <Text
+        className="font-semibold text-gray-900 dark:text-gray-100"
+        style={{ fontSize: 15, lineHeight: 18, maxWidth: 200 }}
+        numberOfLines={1}
+      >
+        {plotid}
+      </Text>
+      <View className="flex-row items-center">
+        <Text
+          className="text-emerald-700 dark:text-emerald-300"
+          style={{ fontSize: 11, lineHeight: 14, maxWidth: 184 }}
+          numberOfLines={1}
+        >
+          {stats}
+        </Text>
+        <Ionicons
+          name={expanded ? 'chevron-up' : 'chevron-down'}
+          size={11}
+          color="#059669"
+          style={{ marginLeft: 3 }}
+        />
+      </View>
+    </Pressable>
   );
 }

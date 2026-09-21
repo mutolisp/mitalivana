@@ -126,6 +126,9 @@
   "session": {
     "noTaxonId": "Diese Art hat keine taxon_id und kann nicht hinzugefügt werden",
     "alreadyExists": "Bereits vorhanden: {{name}}",
+    "changeTaxon": "Art wechseln",
+    "changeTaxonBanner": "Art für „{{name}}“ wechseln — unten eine auswählen",
+    "taxonChanged": "Geändert zu {{name}}",
     "added": "Hinzugefügt: {{name}}",
     "removed": "Entfernt: {{name}}",
     "photoSavedLinked": "In Album gespeichert und verknüpft",

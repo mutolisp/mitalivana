@@ -38,6 +38,25 @@ export function ActiveSessionBar() {
   const targetPath = showPlot ? `/plot/${plot!.id}` : `/session/${session!.id}`;
   const href: Href = targetPath as Href;
 
+  // On the record's OWN detail page the full bar is 36pt spent restating what
+  // the screen already says: the title is the record, and the header carries
+  // its stop button. That screen is also the one with the least room to spare
+  // — the species list there was down to about three rows. So it degrades to a
+  // hairline: still a persistent "recording" cue, at a twelfth of the height.
+  //
+  // It keeps filling `insets.top` because nothing else does: _layout.tsx only
+  // renders <TopSafeAreaSpacer> when NOTHING is active. And it must stay
+  // emerald there — `<SystemBars style={hasActive ? 'light' : …}>` in
+  // _layout.tsx paints the status-bar icons white while any record is running,
+  // so a pale inset would hide the clock and battery entirely.
+  if (pathname === targetPath) {
+    return (
+      <View className="bg-emerald-600" style={{ paddingTop: insets.top }}>
+        <View className="h-1" />
+      </View>
+    );
+  }
+
   return (
     <Pressable
       onPress={() => {

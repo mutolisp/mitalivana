@@ -30,6 +30,7 @@ import {
   reopenCollectionTrip,
   updateCollectionTrip,
   updateSpecimen,
+  updateSpecimenTaxon,
   updateSpecimenLocation,
   updateSpecimenPhotos,
   updateSpecimenAudio,
@@ -302,7 +303,9 @@ export default function CollectionTripScreen() {
     if (replaceTarget) {
       const target = replaceTarget;
       setReplaceTarget(null);
-      updateSpecimen(target.id, { taxon_id: result.taxon_id });
+      // Not `updateSpecimen({ taxon_id })`: that leaves the adoption columns
+      // pointing at the previous determination and skips the taxon cache copy.
+      updateSpecimenTaxon(target.id, result.taxon_id, adopted);
       reload();
       toast(
         t('collection.taxonChanged', {
@@ -727,26 +730,6 @@ export default function CollectionTripScreen() {
             </Text>
           </View>
         )}
-        {replaceTarget ? (
-          <View className="flex-row items-center border-b border-amber-200 bg-amber-50 px-4 py-2 dark:border-amber-900 dark:bg-amber-950/40">
-            <Ionicons name="swap-horizontal" size={14} color="#d97706" />
-            <Text
-              className="ml-2 flex-1 text-xs text-amber-800 dark:text-amber-300"
-              numberOfLines={1}
-            >
-              {t('collection.changeTaxonBanner', { number: replaceTarget.record_number })}
-            </Text>
-            <Pressable
-              onPress={() => setReplaceTarget(null)}
-              hitSlop={8}
-              className="active:opacity-70"
-            >
-              <Text className="text-xs font-medium text-amber-800 dark:text-amber-300">
-                {t('common.cancel')}
-              </Text>
-            </Pressable>
-          </View>
-        ) : null}
 
         {specimens.length === 0 ? (
           <View className="flex-1 items-center justify-center px-6">
@@ -799,6 +782,29 @@ export default function CollectionTripScreen() {
       </View>
 
       {/* Above the dock on purpose — see RecordStepBar's header comment. */}
+
+      {/* Directly above the search box it refers to, matching the checklist
+        and plot screens; also puts Cancel in the thumb zone. */}
+      {replaceTarget ? (
+        <View className="flex-row items-center border-t border-amber-200 bg-amber-50 px-4 py-2 dark:border-amber-900 dark:bg-amber-950/40">
+          <Ionicons name="swap-horizontal" size={14} color="#d97706" />
+          <Text
+            className="ml-2 flex-1 text-xs text-amber-800 dark:text-amber-300"
+            numberOfLines={1}
+          >
+            {t('collection.changeTaxonBanner', { number: replaceTarget.record_number })}
+          </Text>
+          <Pressable
+            onPress={() => setReplaceTarget(null)}
+            hitSlop={8}
+            className="active:opacity-70"
+          >
+            <Text className="text-xs font-medium text-amber-800 dark:text-amber-300">
+              {t('common.cancel')}
+            </Text>
+          </Pressable>
+        </View>
+      ) : null}
       <RecordStepBar kind="collection" id={tripId} />
       <LabelExportSheet
         visible={labelSheetOpen}

@@ -110,6 +110,9 @@
   "session": {
     "noTaxonId": "이 종은 taxon_id가 없어 추가할 수 없습니다",
     "alreadyExists": "이미 추가됨: {{name}}",
+    "changeTaxon": "종 변경",
+    "changeTaxonBanner": "「{{name}}」의 종 변경: 아래 검색에서 고르세요",
+    "taxonChanged": "{{name}}(으)로 변경했습니다",
     "added": "추가함: {{name}}",
     "removed": "제거함: {{name}}",
     "photoSavedLinked": "앨범에 저장하고 연결했습니다",

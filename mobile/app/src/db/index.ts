@@ -1,6 +1,7 @@
 export * from './init';
 export * from './datasets';
 export * from './taxonCache';
+export * from './retaxon';
 export * from './types';
 export * from './duplicate';
 export * from './regions';

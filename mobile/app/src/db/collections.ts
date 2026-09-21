@@ -11,6 +11,7 @@
  */
 import { getUserDb, withTransaction } from './init';
 import { ensureTaxonSelfSufficient } from './taxonCache';
+import { retaxonRecord } from './retaxon';
 import type { DuplicateRecordOptions } from './duplicate';
 import { existingProjectId } from './projects';
 import { generateUuid } from './plots';
@@ -432,11 +433,12 @@ export function addSpecimen(input: AddSpecimenInput): number {
   return res.insertId ?? 0;
 }
 
-// `taxon_id` is updatable on purpose: re-identifying a specimen is routine
-// herbarium work, and the collection number identifies the physical gathering,
-// not the determination — so the number stays put while the name changes.
+// `taxon_id` is deliberately NOT here: re-identifying has to write the adoption
+// pair in the same statement and copy the incoming taxon into the local caches,
+// so it goes through `updateSpecimenTaxon`. Leaving it in this whitelist left a
+// trap that carried the previous determination's adopted name onto the new one.
 const SPECIMEN_UPDATABLE_KEYS = new Set([
-  'taxon_id', 'record_number', 'collected_at', 'recorded_by', 'identified_by',
+  'record_number', 'collected_at', 'recorded_by', 'identified_by',
   'lat', 'lng', 'accuracy',
   'locality', 'sex', 'life_stage', 'reproductive_condition', 'leaf_phenology',
   'degree_of_establishment', 'notes',
@@ -460,6 +462,27 @@ export function updateSpecimen(id: number, patch: Partial<Specimen>): void {
   fields.push('updated_at = ?');
   params.push(Date.now(), id);
   db.executeSync(`UPDATE collection_specimens SET ${fields.join(', ')} WHERE id = ?`, params);
+}
+
+/**
+ * Re-determine a specimen: swap the taxon, keep the gathering.
+ *
+ * Separate from `updateSpecimen` even though its whitelist allows `taxon_id`:
+ * a bare patch leaves the adoption columns pointing at the previous name and
+ * never copies the new taxon into external_taxa / taxon_name_cache.
+ *
+ * `occurrence_id` is deliberately untouched: it identifies the observation, not
+ * the determination. The adoption columns ARE rewritten — they record the name
+ * the record was filed under, so after a re-identification the old pair
+ * describes a name no longer on the record. No `adopted` clears them, which is
+ * correct for a plain accepted name.
+ */
+export function updateSpecimenTaxon(
+  id: number,
+  taxonId: string,
+  adopted?: AdoptionInput | null,
+): void {
+  retaxonRecord('collection', id, taxonId, adopted);
 }
 
 export function updateSpecimenLocation(

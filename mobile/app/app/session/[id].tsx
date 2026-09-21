@@ -42,6 +42,7 @@ import {
   updateRecordAttributes,
   updateRecordLocation,
   updateRecordNotes,
+  updateRecordTaxon,
   updateRecordPhotos,
   updateRecordAudio,
   parsePhotoPaths,
@@ -222,9 +223,38 @@ export default function SessionDetailScreen() {
     return map;
   }, [records]);
 
+  // Non-null = the docked SearchBox re-identifies that record instead of adding
+  // a new one. Screen-level state because the search box is screen-level chrome;
+  // putting one inside the detail Modal would need its own keyboard handling
+  // (see `npm run check:dock`).
+  const [replaceTarget, setReplaceTarget] = useState<RecordWithTaxon | null>(null);
+
   const handleAdd = (result: SearchResult, adopted?: AdoptionInput | null) => {
     if (!result.taxon_id) {
       toast(t('session.noTaxonId'));
+      return;
+    }
+    // Re-identification keeps the row — notes, photos, audio, coordinates,
+    // attributes, occurrence_id and the iNat link — and swaps only the name.
+    if (replaceTarget) {
+      const target = replaceTarget;
+      // checklist_records has no UNIQUE(session_id, taxon_id); this is the only
+      // guard. Re-identifying onto a species the list already holds would make
+      // two rows share a taxon, so refuse rather than merge — merging would
+      // have to decide whose notes, photos and occurrence_id survive, and that
+      // occurrence_id may already be published to GBIF or iNaturalist.
+      //
+      // Landing on the SAME taxon is not a collision: that is "same concept,
+      // filed under this synonym instead", which is a legitimate edit.
+      if (result.taxon_id !== target.taxon_id && isTaxonInSession(sessionId, result.taxon_id)) {
+        toast(t('session.alreadyExists', { name: result.cname || result.name }));
+        return; // replaceTarget stays: they are still replacing, just picked wrong
+      }
+      setReplaceTarget(null);
+      Keyboard.dismiss();
+      updateRecordTaxon(target.id, result.taxon_id, adopted);
+      reload();
+      toast(t('session.taxonChanged', { name: result.cname || result.name }));
       return;
     }
     if (isTaxonInSession(sessionId, result.taxon_id)) {
@@ -644,13 +674,15 @@ export default function SessionDetailScreen() {
       title: record.common_name_c || record.simple_name,
       options: [
         { label: t('session.editNotes') },
+        { label: t('session.changeTaxon') },
         { label: fav ? t('favorites.remove') : t('favorites.add') },
         { label: t('session.viewDetails') },
         { label: t('session.removeFromList'), destructive: true },
       ],
     });
     if (idx === 0) setNotesEditing(record);
-    else if (idx === 1) {
+    else if (idx === 1) setReplaceTarget(record);
+    else if (idx === 2) {
       if (fav) {
         useFavorites.getState().remove(record.taxon_id);
         toast(t('favorites.removed'));
@@ -658,8 +690,8 @@ export default function SessionDetailScreen() {
         if (useFavorites.getState().addById(record.taxon_id)) toastFavoriteAdded();
         else toast(t('favorites.addFail'));
       }
-    } else if (idx === 2) setActiveRecord(record);
-    else if (idx === 3) handleSwipeRemove(record);
+    } else if (idx === 3) setActiveRecord(record);
+    else if (idx === 4) handleSwipeRemove(record);
   };
 
   if (!session) {
@@ -893,10 +925,30 @@ export default function SessionDetailScreen() {
           />
         )}
       </View>
+      {/* Sits directly above the search box it is talking about ("pick one
+          below"), which also puts Cancel in the thumb zone. Like RecordStepBar
+          it must stay ABOVE the KeyboardStickyView. */}
+      {replaceTarget ? (
+        <View className="flex-row items-center border-t border-amber-200 bg-amber-50 px-4 py-2 dark:border-amber-900 dark:bg-amber-950/40">
+          <Ionicons name="swap-horizontal" size={14} color="#d97706" />
+          <Text className="ml-2 flex-1 text-xs text-amber-800 dark:text-amber-300" numberOfLines={1}>
+            {t('session.changeTaxonBanner', {
+              name: replaceTarget.common_name_c || replaceTarget.simple_name,
+            })}
+          </Text>
+          <Pressable onPress={() => setReplaceTarget(null)} hitSlop={8} className="active:opacity-70">
+            <Text className="text-xs font-medium text-amber-800 dark:text-amber-300">
+              {t('common.cancel')}
+            </Text>
+          </Pressable>
+        </View>
+      ) : null}
       {/* Above the dock on purpose — chrome BELOW a KeyboardStickyView is what
           its `offset.opened` compensates for. */}
       <RecordStepBar kind="session" id={sessionId} />
-      {isActive ? (
+      {/* `|| replaceTarget`: a finished checklist still needs the box to fix a
+          wrong determination, without reopening the whole record. */}
+      {isActive || replaceTarget ? (
         // Sticks above the keyboard regardless of accessory-bar height
         // changes (e.g. iOS predictive suggestions). Sibling to the content
         // View, not a child, so kbd-driven translation doesn't push the
@@ -917,6 +969,13 @@ export default function SessionDetailScreen() {
       ) : null}
 
       <SpeciesDetailSheet
+        onReplaceTaxon={() => {
+          if (!activeRecord) return;
+          setReplaceTarget(activeRecord);
+          // The sheet is a Modal and the docked SearchBox lives under it, so it
+          // has to close before the hand-off means anything.
+          setActiveRecord(null);
+        }}
         record={activeRecord}
         pager={detailPager}
         onClose={() => setActiveRecord(null)}

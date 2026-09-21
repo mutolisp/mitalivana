@@ -8,6 +8,7 @@ import {
   Keyboard,
   Platform,
   Pressable,
+  ScrollView,
   Text,
   TextInput,
   View,
@@ -62,7 +63,7 @@ import { useFavorites } from '~/stores/favorites';
 import { toastFavoriteAdded } from '~/lib/favoritesToast';
 import { useToast } from '~/stores/toast';
 import { showActionSheet } from './ActionSheet';
-import { SelectRow } from './settings/rows';
+import { SwipeBlockedArea } from './SwipeNavigator';
 import {
   formatQuantityBadge,
   kindForType,
@@ -274,6 +275,25 @@ export function PlotSpeciesTab({ plot, onChanged }: { plot: PlotSurvey; onChange
     }
   };
 
+  /** Subplot switching is low-frequency — you finish one, then move — unlike
+   *  the layer, which changes several times within one subplot. So it gets a
+   *  sheet (bounded width, whatever the subplot count) while the layer gets
+   *  always-visible chips. Same shape as handlePickSort. */
+  const handlePickSubplot = async () => {
+    const idx = await showActionSheet({
+      title: tr('plotSpecies.subplot'),
+      options: subplots.map((sp) => {
+        const n = subplotCounts.get(sp.id) ?? 0;
+        const label = n > 0 ? `${sp.label} (${n})` : sp.label;
+        return {
+          label: sp.id === activeSubplotId ? `${label}${tr('plotSpecies.currentSuffix')}` : label,
+        };
+      }),
+    });
+    if (idx < 0 || idx >= subplots.length) return;
+    setActiveSubplotId(subplots[idx].id);
+  };
+
   const handleToggleSortDir = () => {
     setSetting('last_record_sort_dir', sortDir === 'asc' ? 'desc' : 'asc');
   };
@@ -284,7 +304,10 @@ export function PlotSpeciesTab({ plot, onChanged }: { plot: PlotSurvey; onChange
       const target = replaceTarget;
       setReplaceTarget(null);
       Keyboard.dismiss();
-      updatePlotSpeciesTaxon(target.id, taxon.taxon_id);
+      // `adopted` travels: picking a name the checklist calls non-accepted is
+      // as valid a determination here as it is when adding a record, and
+      // dropping it silently filed the record under the accepted name instead.
+      updatePlotSpeciesTaxon(target.id, taxon.taxon_id, adopted);
       reload();
       onChanged();
       useToast.getState().show(tr('plotSpecies.taxonChanged', { name: taxon.cname || taxon.name }));
@@ -689,18 +712,103 @@ export function PlotSpeciesTab({ plot, onChanged }: { plot: PlotSurvey; onChange
           subplotMode ? (subplots.find((sp) => sp.id === activeSubplotId)?.label ?? null) : null
         }
       />
-      {/* Scope pickers (小區 / 層次), side by side, plus sort.
+      {/* One row: subplot · layer chips · sort.
 
-          Both were horizontal chip strips in their own bordered blocks, which
-          cost four lines above the species list on the screen a surveyor spends
-          the most time in. Two dropdowns on one row carry the same information,
-          and each option now includes its own record count — so the trailing
-          "E2 草本層 · 已記 5 筆" summary line is gone as well. */}
-      <View className="border-b border-gray-100 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
-        <View className="mb-2 flex-row items-center justify-end">
+          Replaces three stacked blocks (a sort row plus two inline SelectRows)
+          that cost ~111pt of fixed chrome above the list, on the screen a
+          surveyor spends the most time in. Layout is the checklist screen's
+          filter row (app/session/[id].tsx): a horizontal ScrollView on the
+          left, a fixed cluster on the right.
+
+          The layer chips are NOT a filter. They pick the layer the next species
+          is recorded INTO; the list still shows every layer, grouped — which is
+          how you see that a species is already recorded in another one, and
+          cross-layer occurrence is normal in a plot. Same meaning the dropdown
+          had; only the tap count changed. */}
+      <View className="flex-row items-center border-b border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-900">
+        {!stratified ? (
+          <Text
+            className="flex-1 px-4 py-3 text-[11px] text-gray-500 dark:text-gray-400"
+            numberOfLines={1}
+          >
+            {isPointCount ? tr('plotSpecies.pointCountRecord') : tr('plotSpecies.transectRecord')}
+            {grouped['T'].length > 0
+              ? tr('plotSpecies.recordedCount', { count: grouped['T'].length })
+              : ''}
+          </Text>
+        ) : (
+          <>
+            {/* `subplotMode` implies stratified (subplots are only loaded for
+                stratified plots), so this belongs inside this branch.
+
+                A button that opens a sheet, not a chip strip of its own: a plot
+                can hold 10-20 subplots, which would push the layer chips clean
+                off screen, and you change subplot once per subplot while the
+                layer changes several times within one. */}
+            {subplotMode && activeSubplotId !== null ? (
+              <Pressable
+                onPress={handlePickSubplot}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel={tr('plotSpecies.subplot')}
+                className="ml-3 flex-row items-center rounded-full bg-gray-100 px-2.5 py-1 active:bg-gray-200 dark:bg-gray-800 dark:active:bg-gray-700"
+              >
+                <Text
+                  className="text-[11px] font-medium text-gray-700 dark:text-gray-300"
+                  numberOfLines={1}
+                  style={{ maxWidth: 72 }}
+                >
+                  {subplots.find((sp) => sp.id === activeSubplotId)?.label ?? ''}
+                </Text>
+                <Ionicons name="chevron-down" size={12} color="#9ca3af" style={{ marginLeft: 2 }} />
+              </Pressable>
+            ) : null}
+            {/* The Environment↔Species swipe activates at 18px of horizontal
+                travel and would swallow this ScrollView's drag. */}
+            <SwipeBlockedArea style={{ flex: 1 }}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{
+                  paddingHorizontal: 8,
+                  paddingVertical: 8,
+                  alignItems: 'center',
+                }}
+              >
+                <Ionicons
+                  name="layers-outline"
+                  size={13}
+                  color="#9ca3af"
+                  style={{ marginRight: 6 }}
+                />
+                {activeLayers.map((l) => (
+                  <LayerChip
+                    key={l}
+                    // The code alone. `E4 亞喬木層` is ~112pt a chip, so three
+                    // full labels already overflow the strip; the full name is
+                    // in the accessibility label, on the Environment tab and in
+                    // the 變更分層 sheet. No count either — the group headers in
+                    // the list below already carry it, and a count that appears
+                    // when the first record lands would reflow the whole strip
+                    // out from under the finger.
+                    label={l}
+                    a11yLabel={`${tr('plotSpecies.layer')} ${layerLabel(l)}`}
+                    active={layer === l}
+                    onPress={() => setLayer(l)}
+                    // The code alone is unreadable until you have learnt the
+                    // scheme; long-press names the layer without spending the
+                    // width that would shrink the strip back down.
+                    onLongPress={() => useToast.getState().show(layerLabel(l))}
+                  />
+                ))}
+              </ScrollView>
+            </SwipeBlockedArea>
+          </>
+        )}
+        <View className="flex-row items-center gap-3 pl-2 pr-3">
           <Pressable
             onPress={handlePickSort}
-            hitSlop={6}
+            hitSlop={8}
             className="flex-row items-center active:opacity-70"
           >
             <Ionicons name="swap-vertical" size={16} color="#6b7280" />
@@ -708,7 +816,7 @@ export function PlotSpeciesTab({ plot, onChanged }: { plot: PlotSurvey; onChange
               {SORT_LABEL[sortOrder]}
             </Text>
           </Pressable>
-          <Pressable onPress={handleToggleSortDir} hitSlop={6} className="ml-0.5 active:opacity-50">
+          <Pressable onPress={handleToggleSortDir} hitSlop={6} className="active:opacity-50">
             <Ionicons
               name={sortDir === 'desc' ? 'arrow-down' : 'arrow-up'}
               size={14}
@@ -716,48 +824,6 @@ export function PlotSpeciesTab({ plot, onChanged }: { plot: PlotSurvey; onChange
             />
           </Pressable>
         </View>
-        {!stratified ? (
-          <Text className="text-[11px] text-gray-500 dark:text-gray-400">
-            {isPointCount ? tr('plotSpecies.pointCountRecord') : tr('plotSpecies.transectRecord')}
-            {grouped['T'].length > 0
-              ? tr('plotSpecies.recordedCount', { count: grouped['T'].length })
-              : ''}
-          </Text>
-        ) : (
-          <View className="flex-row items-start" style={{ gap: 8 }}>
-            {/* `subplotMode` implies stratified (subplots are only loaded for
-                stratified plots), so this belongs inside this branch. */}
-            {subplotMode && activeSubplotId !== null ? (
-              <View className="flex-1">
-                <SelectRow
-                  variant="inline"
-                  label={tr('plotSpecies.subplot')}
-                  value={activeSubplotId}
-                  options={subplots.map((sp) => {
-                    const n = subplotCounts.get(sp.id) ?? 0;
-                    return { value: sp.id, label: n > 0 ? `${sp.label} (${n})` : sp.label };
-                  })}
-                  onChange={setActiveSubplotId}
-                />
-              </View>
-            ) : null}
-            <View className="flex-1">
-              <SelectRow
-                variant="inline"
-                label={tr('plotSpecies.layer')}
-                value={layer}
-                options={activeLayers.map((l) => {
-                  const n = grouped[l].length;
-                  return {
-                    value: l as Layer,
-                    label: n > 0 ? `${layerLabel(l)} (${n})` : layerLabel(l),
-                  };
-                })}
-                onChange={setLayer}
-              />
-            </View>
-          </View>
-        )}
       </View>
 
       {/* Records grouped by layer */}
@@ -1205,5 +1271,53 @@ function SubplotLayerInputs({
           })
         : null}
     </View>
+  );
+}
+
+/**
+ * Layer chip — which layer the next species is recorded into.
+ *
+ * Same shape as the checklist screen's filter Chip, emerald rather than blue:
+ * emerald is this screen's accent, and the colour difference is the cheapest
+ * way to say these are not filters.
+ *
+ * A layer with no records still gets a chip. That is the opposite of the
+ * checklist screen, which hides empty groups because filtering to an empty one
+ * is pointless — here the empty layer is precisely the one you are about to
+ * record into, so hiding it would make the layer unreachable.
+ */
+function LayerChip({
+  label,
+  a11yLabel,
+  active,
+  onPress,
+  onLongPress,
+}: {
+  label: string;
+  a11yLabel: string;
+  active: boolean;
+  onPress: () => void;
+  onLongPress?: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      onLongPress={onLongPress}
+      delayLongPress={300}
+      accessibilityRole="button"
+      accessibilityLabel={a11yLabel}
+      accessibilityState={{ selected: active }}
+      className={`mr-2 rounded-full border px-3 py-1.5 ${
+        active
+          ? 'border-emerald-500 bg-emerald-500'
+          : 'border-gray-300 bg-white dark:border-gray-600 dark:bg-gray-900'
+      }`}
+    >
+      <Text
+        className={`text-xs font-medium ${active ? 'text-white' : 'text-gray-700 dark:text-gray-300'}`}
+      >
+        {label}
+      </Text>
+    </Pressable>
   );
 }

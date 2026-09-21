@@ -7,6 +7,7 @@ import {
 } from './taxonLookup';
 import { getUserDb } from './init';
 import { ensureTaxonSelfSufficient } from './taxonCache';
+import { retaxonRecord } from './retaxon';
 import { generateUuid } from './plots';
 
 export type ChecklistRecord = {
@@ -129,6 +130,15 @@ export function addRecord(input: CreateRecordInput): number {
     ],
   );
   return res.insertId ?? 0;
+}
+
+/** Re-identify a checklist record. See retaxon.ts for what is and is not kept. */
+export function updateRecordTaxon(
+  id: number,
+  taxonId: string,
+  adopted?: AdoptionInput | null,
+): void {
+  retaxonRecord('session', id, taxonId, adopted);
 }
 
 export function updateRecordQuantity(

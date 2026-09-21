@@ -110,6 +110,9 @@
   "session": {
     "noTaxonId": "此物種無 taxon_id，無法加入",
     "alreadyExists": "已存在：{{name}}",
+    "changeTaxon": "更換物種",
+    "changeTaxonBanner": "更換「{{name}}」的物種：用下方搜尋選擇",
+    "taxonChanged": "已改為 {{name}}",
     "added": "已加入：{{name}}",
     "removed": "已移除：{{name}}",
     "photoSavedLinked": "已存入相簿並關聯",

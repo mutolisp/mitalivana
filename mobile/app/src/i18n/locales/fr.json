@@ -142,6 +142,9 @@
   "session": {
     "noTaxonId": "Cette espèce n'a pas de taxon_id, impossible de l'ajouter",
     "alreadyExists": "Déjà présent : {{name}}",
+    "changeTaxon": "Changer d'espèce",
+    "changeTaxonBanner": "Changement d'espèce pour « {{name}} » — choisissez ci-dessous",
+    "taxonChanged": "Remplacé par {{name}}",
     "added": "Ajouté : {{name}}",
     "removed": "Retiré : {{name}}",
     "photoSavedLinked": "Enregistrée dans l'album et liée",

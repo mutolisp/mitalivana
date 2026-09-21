@@ -126,6 +126,9 @@
   "session": {
     "noTaxonId": "This species has no taxon_id and cannot be added",
     "alreadyExists": "Already added: {{name}}",
+    "changeTaxon": "Change species",
+    "changeTaxonBanner": "Changing species for \"{{name}}\" — pick one below",
+    "taxonChanged": "Changed to {{name}}",
     "added": "Added: {{name}}",
     "removed": "Removed: {{name}}",
     "photoSavedLinked": "Saved to album and linked",
