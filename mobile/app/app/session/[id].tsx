@@ -229,7 +229,7 @@ export default function SessionDetailScreen() {
   // (see `npm run check:dock`).
   const [replaceTarget, setReplaceTarget] = useState<RecordWithTaxon | null>(null);
 
-  const handleAdd = (result: SearchResult, adopted?: AdoptionInput | null) => {
+  const handleAdd = async (result: SearchResult, adopted?: AdoptionInput | null) => {
     if (!result.taxon_id) {
       toast(t('session.noTaxonId'));
       return;
@@ -257,9 +257,19 @@ export default function SessionDetailScreen() {
       toast(t('session.taxonChanged', { name: result.cname || result.name }));
       return;
     }
+    // A second row for the same taxon is asked about, not refused. Two rows CAN
+    // be right: an identification that stops at a family or genus gives
+    // `Orchidaceae sp1` and `sp2` the same taxon_id although they are different
+    // morphospecies, and that is ordinary field work. A double tap is still the
+    // commoner case, so it stays one tap away from being undone.
     if (isTaxonInSession(sessionId, result.taxon_id)) {
-      toast(t('session.alreadyExists', { name: result.cname || result.name }));
-      return;
+      const choice = await showActionSheet({
+        title: t('session.alreadyExists', { name: result.cname || result.name }),
+        message: t('session.duplicateHint'),
+        cancelLabel: t('common.cancel'),
+        options: [{ label: t('session.addAnyway') }],
+      });
+      if (choice !== 0) return;
     }
     const recordId = addRecord({ session_id: sessionId, taxon_id: result.taxon_id, adopted });
     reload();
@@ -986,6 +996,14 @@ export default function SessionDetailScreen() {
           }
         }}
         onSaveNotes={handleSaveActiveNotes}
+        onSaveVerbatim={(value) => {
+          if (!activeRecord) return;
+          updateRecordAttributes(activeRecord.id, { verbatim_identification: value });
+          // Patch the open sheet too — `reload()` refreshes the list behind it,
+          // but activeRecord is a snapshot and would keep showing the old label.
+          setActiveRecord({ ...activeRecord, verbatim_identification: value });
+          reload();
+        }}
         onSaveLocation={(lat, lng, accuracy) => {
           if (!activeRecord) return;
           updateRecordLocation(activeRecord.id, lat, lng, accuracy);

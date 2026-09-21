@@ -79,6 +79,9 @@ export const DWC_FIELD_MAP: Record<string, string> = {
   // different claims (this taxon is native to Taiwan vs this individual is
   // cultivated) and must not overwrite each other.
   degree_of_establishment: 'degreeOfEstablishment',
+  // The determination as written in the field — `Orchidaceae sp1` when the
+  // taxon can only be the family. Current DwC term, verified by check:dwc.
+  verbatim_identification: 'verbatimIdentification',
   // Name usage. `taxonID` is the taxon CONCEPT; `scientificName` is whichever
   // name the recorder filed under, which may be one the checklist calls
   // not-accepted. The other three say so explicitly rather than leaving the

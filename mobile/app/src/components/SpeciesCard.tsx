@@ -50,6 +50,15 @@ export function SpeciesCard({ record, onPress, onLongPress }: Props) {
       <View className="flex-1">
         <Text className="font-medium text-gray-900 dark:text-gray-100" numberOfLines={1}>
           {record.common_name_c || t('species.noChineseName')}
+          {/* The field determination, when it is finer than the taxon can be
+              (v39). Two rows sharing a family's taxon_id are two morphospecies
+              and this is the only thing that tells them apart — so it belongs
+              on the name line, not hidden in the notes. */}
+          {record.verbatim_identification ? (
+            <Text className="font-normal text-gray-500 dark:text-gray-400">
+              {` · ${record.verbatim_identification}`}
+            </Text>
+          ) : null}
         </Text>
         <View className="mt-0.5 flex-row items-center">
           <ScientificName

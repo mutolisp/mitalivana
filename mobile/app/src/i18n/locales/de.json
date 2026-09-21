@@ -126,6 +126,8 @@
   "session": {
     "noTaxonId": "Diese Art hat keine taxon_id und kann nicht hinzugefügt werden",
     "alreadyExists": "Bereits vorhanden: {{name}}",
+    "addAnyway": "Trotzdem hinzufügen",
+    "duplicateHint": "Reicht die Bestimmung nur bis Familie oder Gattung, kann ein Taxon mehrere Zeilen haben (sp1, sp2 …).",
     "changeTaxon": "Art wechseln",
     "changeTaxonBanner": "Art für „{{name}}“ wechseln — unten eine auswählen",
     "taxonChanged": "Geändert zu {{name}}",
@@ -399,7 +401,10 @@
     "audioClipN": "Aufnahme {{n}}",
     "removeAudio": "Diese Aufnahme entfernen?",
     "micDenied": "Zum Aufnehmen wird Mikrofonzugriff benötigt",
-    "audioFailTitle": "Aufnahme fehlgeschlagen"
+    "audioFailTitle": "Aufnahme fehlgeschlagen",
+    "verbatimTitle": "Feldbestimmung",
+    "verbatimPlaceholder": "z. B. sp1, sp2",
+    "verbatimAdd": "+ Feldbestimmung"
   },
   "attr": {
     "advanced": "Erweitert (Artmerkmale)",
@@ -566,6 +571,7 @@
     "coverPartial": "Bodenbedeckung ergibt {{sum}} % ({{filled}}/{{total}} eingetragen; der letzte Wert wird automatisch ergänzt)",
     "coverOk": "Bodenbedeckung ergibt 100 % ✓",
     "coverMismatch": "Bodenbedeckung ergibt {{sum}} %, sollte 100 % sein",
+    "coverExceedsSpecies": "Gesamtdeckung {{total}}% übersteigt die Summe der Artdeckungen {{sum}}%. Artdeckungen überlappen, die Summe sollte also mindestens so groß sein — entweder ist der Gesamtwert zu hoch oder eine Art fehlt.",
     "manualCoord": "manuell gesetzt",
     "rangeSection": "Flächengrenze",
     "rangeTitle": "Flächengrenze",
@@ -1101,6 +1107,9 @@
     "photo": "Fotos",
     "includePhotos": "Fotos einschließen",
     "includePhotosHint": "Ausschalten verringert die Dateigröße erheblich; bei großen Datenmengen empfohlen.",
+    "checklistDoc": "Artenlisten-Dokument",
+    "mergeDuplicates": "Wiederholte Arten zusammenfassen",
+    "mergeDuplicatesHint": "Die Word-/Markdown-Artenliste führt jede Art einmal auf. Die Occurrence-CSV und das Darwin Core Archive behalten immer jeden Datensatz.",
     "docFormat": "Dokumentformat",
     "includeDocx": "Word-Artenliste (docx) einschließen",
     "includeDocxHint": "Legt eine Word-Datei mit demselben Inhalt wie .md bei, die sich leicht weiterbearbeiten lässt.",

@@ -231,6 +231,7 @@ const plotSpecies = [
     leaf_phenology: '["evergreen"]', organism_quantity: '3', organism_quantity_type: 'individuals',
     lat: 24.71, lng: 121.51, accuracy: 4, detection_type: 'seen',
     degree_of_establishment: 'cultivated',
+    verbatim_identification: 'Lauraceae sp2',
     used_name_id: 165943, used_scientific_name: 'Lycopodium tamariscinum',
     used_status: 'not-accepted', used_stale: false, used_accepted_name: 'Selaginella tamariscina',
     simple_name: 'Lycopodium tamariscinum', name_author: '(P.Beauv.) Desv.', common_name_c: '小西氏石櫟',
@@ -329,6 +330,9 @@ console.log('check:roundtrip');
   eq('species[0].reproductive_condition', s0.reproductive_condition, '["flowering","fruiting"]');
   eq('species[0].leaf_phenology', s0.leaf_phenology, '["evergreen"]');
   eq('species[0].degree_of_establishment', s0.degree_of_establishment, 'cultivated');
+  // A field determination finer than the taxon (`sp1` under a family) is the
+  // whole reason two rows can share a taxon_id; losing it merges them.
+  eq('species[0].verbatim_identification', s0.verbatim_identification, 'Lauraceae sp2');
   eq('species[0].detection_type', s0.detection_type, 'seen');
   eq('species[0].gps', [s0.lat, s0.lng, s0.accuracy], [24.71, 121.51, 4]);
   eq('species[0].observed_at', s0.observed_at, 1756500100000);
@@ -365,6 +369,7 @@ console.log('check:roundtrip');
       lat: 24.72, lng: 121.52, accuracy: 8, sex: 'female', life_stage: 'adult',
       reproductive_condition: '["flowering"]', leaf_phenology: '["deciduous"]',
       degree_of_establishment: 'wild',
+      verbatim_identification: 'Orchidaceae sp1',
       organism_quantity: '5', organism_quantity_type: 'individuals',
       used_name_id: 166665, used_scientific_name: 'Lycopodium circinale',
       used_status: 'misapplied', used_stale: false, used_accepted_name: 'Ficus caulocarpa',
@@ -413,6 +418,7 @@ console.log('check:roundtrip');
   eq('record.reproductive_condition', r0.reproductive_condition, '["flowering"]');
   eq('record.leaf_phenology', r0.leaf_phenology, '["deciduous"]');
   eq('record.degree_of_establishment', r0.degree_of_establishment, 'wild');
+  eq('record.verbatim_identification', r0.verbatim_identification, 'Orchidaceae sp1');
 
   // The yml and the _occurrence_dwc.csv share one item builder but answer to different
   // masters: the yml round-trips back into the app and must keep 'wild', while
@@ -615,6 +621,7 @@ console.log('✓ round-trip: 名錄 / 樣區 yml survive export → import with 
     // Every optional column carries a value: the item builders emit these
     // conditionally, so a null here would silently skip the assertion.
     degree_of_establishment: 'wild', sex: 'female', life_stage: 'adult',
+    verbatim_identification: 'Fagaceae sp1',
     reproductive_condition: '["flowering"]', leaf_phenology: '["evergreen"]',
     notes: `第 ${n} 份`, photo_paths: '["ph://a"]', audio_paths: '["file:///audio/a.m4a"]',
     used_name_id: 165943, used_scientific_name: 'Lithocarpus konishii',
@@ -645,6 +652,7 @@ console.log('✓ round-trip: 名錄 / 樣區 yml survive export → import with 
   eq('specimen A media', doc.specimens[0].associatedMedia, 't0301_小西氏石櫟_1.jpg');
   eq('specimen B media', doc.specimens[1].associatedMedia, 't0301_小西氏石櫟_2.jpg');
   eq('specimen A audio', doc.specimens[0].audio_files, 't0301_小西氏石櫟_1.m4a');
+  eq('specimen verbatimIdentification', doc.specimens[0].verbatimIdentification, 'Fagaceae sp1');
   eq('specimen B has no audio', doc.specimens[1].audio_files, undefined);
 
   const ymlKeys = new Set(Object.keys(doc.event));

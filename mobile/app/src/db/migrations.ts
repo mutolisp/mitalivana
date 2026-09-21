@@ -1208,6 +1208,31 @@ const MIGRATIONS: Migration[] = [
       }
     },
   },
+  {
+    /**
+     * v39 — `verbatim_identification`: the determination as it was written in
+     * the field.
+     *
+     * A field identification often stops above species: `Orchidaceae sp1` and
+     * `sp2` are two distinct morphospecies that share one taxon_id, because the
+     * only name either can be given is the family's. Same at genus —
+     * `Cinnamomum sp1` / `sp2`. Without somewhere to put "sp1" the two rows are
+     * indistinguishable, and the checklist cannot say there were two of them.
+     *
+     * DwC `verbatimIdentification`, which is exactly "the taxonomic
+     * identification as it appeared in the original record".
+     *
+     * NULL = no morphospecies label, which is the ordinary case and is a
+     * different statement from an empty string. All three record kinds get it:
+     * a plot or a collection meets an unidentifiable individual just as often.
+     */
+    version: 39,
+    up: (db) => {
+      for (const t of ['checklist_records', 'plot_species_records', 'collection_specimens']) {
+        addColumnIfMissing(db, `ALTER TABLE ${t} ADD COLUMN verbatim_identification TEXT;`);
+      }
+    },
+  },
 ];
 
 /** Highest schema version this build knows how to produce. Backup/restore uses

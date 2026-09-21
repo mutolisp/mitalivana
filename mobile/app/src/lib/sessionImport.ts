@@ -64,6 +64,7 @@ export function sessionFromDoc(doc: Record<string, unknown> | null): ImportedSes
       reproductive_condition: pipeToJson(r.reproductiveCondition),
       leaf_phenology: pipeToJson(r.leafPhenology),
       degree_of_establishment: str(r.degreeOfEstablishment),
+      verbatim_identification: str(r.verbatimIdentification),
       photo_files: pipeToList(r.associatedMedia),
       // Kept out of associatedMedia so the clips return to audio_paths
       // rather than being mixed into the photo column.

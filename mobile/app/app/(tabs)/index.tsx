@@ -352,6 +352,7 @@ export default function RecordsListScreen() {
   const selectClear = useRecordSelection((s) => s.clear);
   const geoFormats = useSettings((s) => s.export_geo_formats);
   const includePhotos = useSettings((s) => s.export_include_photos);
+  const mergeDuplicateTaxa = useSettings((s) => s.export_merge_duplicate_taxa);
   const includeDocx = useSettings((s) => s.export_include_docx);
   const levels = useSettings((s) => s.export_levels);
   const conservationFields = useSettings((s) => s.export_conservation_fields);
@@ -445,6 +446,7 @@ export default function RecordsListScreen() {
     const bundleOpts = {
       geoFormats,
       includePhotos,
+      mergeDuplicateTaxa,
       includeDocx,
       levels,
       conservationFields,
@@ -486,6 +488,7 @@ export default function RecordsListScreen() {
       bundleProject(group.projectId, {
         geoFormats,
         includePhotos,
+        mergeDuplicateTaxa,
         includeDocx,
         levels,
         conservationFields,
@@ -531,6 +534,7 @@ export default function RecordsListScreen() {
       bundleMany(bundleItems, {
         geoFormats,
         includePhotos,
+        mergeDuplicateTaxa,
         includeDocx,
         levels,
         conservationFields,

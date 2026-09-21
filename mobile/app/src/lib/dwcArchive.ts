@@ -45,6 +45,7 @@ export const OCCURRENCE_COLS: ColSpec[] = [
   { key: 'taxonID', term: `${DWC}taxonID` },
   { key: 'scientificName', term: `${DWC}scientificName` },
   { key: 'scientificNameAuthorship', term: `${DWC}scientificNameAuthorship` },
+  { key: 'verbatimIdentification', term: `${DWC}verbatimIdentification` },
   { key: 'vernacularName', term: `${DWC}vernacularName` },
   { key: 'family', term: `${DWC}family` },
   { key: 'kingdom', term: `${DWC}kingdom` },

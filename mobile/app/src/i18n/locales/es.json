@@ -142,6 +142,8 @@
   "session": {
     "noTaxonId": "Esta especie no tiene taxon_id y no se puede añadir",
     "alreadyExists": "Ya está en la lista: {{name}}",
+    "addAnyway": "Añadir de todos modos",
+    "duplicateHint": "Si la identificación llega solo a familia o género, un taxón puede tener varias filas (sp1, sp2…).",
     "changeTaxon": "Cambiar de especie",
     "changeTaxonBanner": "Cambiando la especie de «{{name}}»: elija una abajo",
     "taxonChanged": "Cambiada a {{name}}",
@@ -427,7 +429,10 @@
     "audioClipN": "Grabación {{n}}",
     "removeAudio": "¿Quitar esta grabación?",
     "micDenied": "Se necesita acceso al micrófono para grabar",
-    "audioFailTitle": "No se pudo grabar"
+    "audioFailTitle": "No se pudo grabar",
+    "verbatimTitle": "Determinación de campo",
+    "verbatimPlaceholder": "p. ej. sp1, sp2",
+    "verbatimAdd": "+ Determinación de campo"
   },
   "attr": {
     "advanced": "Avanzado (atributos de la especie)",
@@ -596,6 +601,7 @@
     "coverPartial": "La cobertura del suelo suma {{sum}}% ({{filled}}/{{total}} introducidos; el último se calcula automáticamente)",
     "coverOk": "La cobertura del suelo suma 100% ✓",
     "coverMismatch": "La cobertura del suelo suma {{sum}}%, debería ser 100%",
+    "coverExceedsSpecies": "La cobertura vegetal total del {{total}}% supera la suma de coberturas por especie ({{sum}}%). Las coberturas se solapan, así que la suma debería ser igual o mayor — o el total es demasiado alto o falta una especie.",
     "manualCoord": "ubicado manualmente",
     "rangeSection": "Límite de la parcela",
     "rangeTitle": "Límite de la parcela",
@@ -1163,6 +1169,9 @@
     "photo": "Fotos",
     "includePhotos": "Incluir fotos",
     "includePhotosHint": "Desactivarlo reduce mucho el tamaño del archivo; recomendable con conjuntos de datos grandes.",
+    "checklistDoc": "Documento de listado",
+    "mergeDuplicates": "Combinar especies repetidas",
+    "mergeDuplicatesHint": "El listado Word/Markdown cita cada especie una vez. El CSV de ocurrencias y el Darwin Core Archive conservan siempre cada registro.",
     "docFormat": "Formato del documento",
     "includeDocx": "Incluir la lista en Word (docx)",
     "includeDocxHint": "Adjunta un archivo de Word con el mismo contenido que el .md, para editarlo y maquetarlo directamente.",

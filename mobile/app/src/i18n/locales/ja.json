@@ -110,6 +110,8 @@
   "session": {
     "noTaxonId": "この種には taxon_id がないため追加できません",
     "alreadyExists": "すでに追加済み：{{name}}",
+    "addAnyway": "それでも追加",
+    "duplicateHint": "科や属までしか同定できない場合、同じ分類群に複数の記録があり得ます（sp1、sp2 など）。",
     "changeTaxon": "種を変更",
     "changeTaxonBanner": "「{{name}}」の種を変更：下の検索から選んでください",
     "taxonChanged": "{{name}} に変更しました",
@@ -371,7 +373,10 @@
     "audioClipN": "録音 {{n}}",
     "removeAudio": "この録音を削除しますか？",
     "micDenied": "録音にはマイクの許可が必要です",
-    "audioFailTitle": "録音できません"
+    "audioFailTitle": "録音できません",
+    "verbatimTitle": "現場同定ラベル",
+    "verbatimPlaceholder": "例：sp1、sp2",
+    "verbatimAdd": "＋ 現場同定ラベル"
   },
   "attr": {
     "advanced": "詳細（種の属性）",
@@ -536,6 +541,7 @@
     "coverPartial": "地表被度の合計 {{sum}}%（{{filled}}/{{total}} 項目入力済み。最後の1項目は自動で計算されます）",
     "coverOk": "地表被度の合計 100% ✓",
     "coverMismatch": "地表被度の合計 {{sum}}%、100% にしてください",
+    "coverExceedsSpecies": "総植被被度 {{total}}% が各種の被度合計 {{sum}}% を上回っています。被度は重なり合うため合計は総被度以上になるはずです——総値が高すぎるか、未記録の種があります。",
     "manualCoord": "手動配置",
     "rangeSection": "調査区の範囲",
     "rangeTitle": "調査区の範囲",
@@ -1039,6 +1045,9 @@
     "photo": "写真",
     "includePhotos": "写真を含める",
     "includePhotosHint": "オフにするとファイルサイズを大きく減らせます。データ量が多い場合はオフを推奨します。",
+    "checklistDoc": "名録ドキュメント",
+    "mergeDuplicates": "重複する種をまとめる",
+    "mergeDuplicatesHint": "Word／Markdown の名録では各種を 1 回だけ掲載します。出現記録 CSV と Darwin Core Archive は常に全件を保持します。",
     "docFormat": "文書形式",
     "includeDocx": "Word (docx) の種リストを含める",
     "includeDocxHint": ".md と同じ内容の Word ファイルを同梱し、そのまま編集・レイアウトできます。",

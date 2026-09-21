@@ -55,6 +55,7 @@ import { useThemeColors } from '~/hooks/useThemeColors';
 import { useToast } from '~/stores/toast';
 import { PlotSpeciesTab } from '~/components/PlotSpeciesTab';
 import { plotStatsSummary } from '~/components/PlotDiversityCard';
+import { checkPlotCover } from '~/lib/plotCoverCheck';
 import { ProjectAssignSheet } from '~/components/ProjectAssignSheet';
 import { SurveyorAssignSheet } from '~/components/SurveyorAssignSheet';
 import { TransectTrackControl } from '~/components/TransectTrackControl';
@@ -116,6 +117,11 @@ export default function PlotDetailScreen() {
   const statsExpanded = useSettings((s) => s.plot_stats_expanded);
   const setSetting = useSettings((s) => s.set);
   const statsLine = useMemo(() => plotStatsSummary(records), [records]);
+  // Σ species cover ≥ total cover; see plotCoverCheck.ts for when it applies.
+  const coverCheck = useMemo(
+    () => checkPlotCover(plot?.total_cover_pct ?? null, plot ? getPlotLayers(plot.id) : [], records),
+    [plot, records],
+  );
 
   /** Environment ↔ Species by horizontal swipe, mirroring the two tab buttons
    *  exactly — including the Species tab staying shut until the survey can
@@ -175,7 +181,15 @@ export default function PlotDetailScreen() {
                     refreshActiveSession();
                     reload();
                   } else {
-                    Alert.alert(t('plot.endTitle'), t('plot.endMsg'), [
+                    Alert.alert(
+                      t('plot.endTitle'),
+                      coverCheck.kind === 'total-exceeds-species'
+                        ? `${t('plot.endMsg')}\n\n${t('plot.coverExceedsSpecies', {
+                            total: coverCheck.total,
+                            sum: coverCheck.speciesSum,
+                          })}`
+                        : t('plot.endMsg'),
+                      [
                       { text: t('common.cancel'), style: 'cancel' },
                       {
                         text: t('session.end'),
@@ -185,7 +199,8 @@ export default function PlotDetailScreen() {
                           reload();
                         },
                       },
-                    ]);
+                      ],
+                    );
                   }
                 }}
               />
@@ -285,6 +300,10 @@ const COVER_KEYS = [
 type CoverKey = (typeof COVER_KEYS)[number];
 
 function EnvTab({ plot, onUpdated }: { plot: PlotSurvey; onUpdated: () => void }) {
+  const coverCheck = useMemo(
+    () => checkPlotCover(plot.total_cover_pct, getPlotLayers(plot.id), listPlotSpecies(plot.id)),
+    [plot],
+  );
   const { t } = useTranslation();
 
   const [projectSheetOpen, setProjectSheetOpen] = useState(false);
@@ -545,6 +564,17 @@ function EnvTab({ plot, onUpdated }: { plot: PlotSurvey; onUpdated: () => void }
           max={100}
           onSave={(n) => patch({ total_cover_pct: n })}
         />
+        {/* Same place and shape as the ground-cover sum hint above. Only ever a
+            note: a survey in progress legitimately has fewer species recorded
+            than the total cover implies. */}
+        {coverCheck.kind === 'total-exceeds-species' ? (
+          <Text className="mb-3 -mt-1 text-xs text-amber-700 dark:text-amber-400">
+            {t('plot.coverExceedsSpecies', {
+              total: coverCheck.total,
+              sum: coverCheck.speciesSum,
+            })}
+          </Text>
+        ) : null}
         <Field
           label={t('plot.locality')}
           value={plot.locality ?? ''}

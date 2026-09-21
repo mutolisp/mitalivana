@@ -39,6 +39,7 @@ import {
   type BuiltZipEntry,
   type BundleOptions,
   type ExportFile,
+  checklistIdentity,
 } from './bundleExport';
 import { csvEscape, localIso } from './bundleYaml';
 import { convertToDwc } from './dwcMapper';
@@ -150,13 +151,18 @@ export async function bundleProject(
   const checklistItems: MarkdownItem[] = [];
   const seenSpecies = new Set<string>();
   const addSpecies = (
-    r: { taxon_id: string; used_scientific_name: string | null },
+    r: {
+      taxon_id: string;
+      used_scientific_name: string | null;
+      verbatim_identification?: string | null;
+    },
     toItem: () => MarkdownItem,
   ) => {
-    // Same composite identity the rest of the export chain uses (v28): the same
-    // taxon recorded under two names is two deliberate taxonomic opinions.
-    const key = `${r.taxon_id}|${r.used_scientific_name ?? ''}`;
-    if (seenSpecies.has(key)) return;
+    // Same identity the rest of the export chain uses — including the verbatim
+    // field determination (v39), without which `Orchidaceae sp1` and `sp2`
+    // collapse into one line here while staying two everywhere else.
+    const key = checklistIdentity(r);
+    if (opts.mergeDuplicateTaxa && seenSpecies.has(key)) return;
     seenSpecies.add(key);
     checklistItems.push({ ...toItem(), abundance: null, notes: null });
   };

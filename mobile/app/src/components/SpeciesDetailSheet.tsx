@@ -15,6 +15,7 @@ import { InatSyncButton, type InatSheetState } from './InatSyncButton';
 import i18n from '~/i18n';
 import { observationWebUrl } from '~/lib/inatApi';
 import { showActionSheet } from './ActionSheet';
+import { promptText } from './TextPromptModal';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { useSettings } from '~/stores/settings';
@@ -69,6 +70,9 @@ type Props = {
   /** Re-identify: hand the docked SearchBox over to replacing this record's
    *  taxon. Optional — callers without a search box simply omit it. */
   onReplaceTaxon?: () => void;
+  /** Save the verbatim field determination (`sp1` under a family or genus).
+   *  Pass null to clear. Omit to hide the control. */
+  onSaveVerbatim?: (value: string | null) => void;
   /** Position of this record in the caller's ON-SCREEN order, so the sheet can
    *  step to the neighbouring one by swipe or chevron. Omit to disable. */
   pager?: SwipeNavPagerState;
@@ -126,6 +130,7 @@ export function SpeciesDetailSheet({
   inat,
   onSaveAttributes,
   onReplaceTaxon,
+  onSaveVerbatim,
   pager,
 }: Props) {
   const router = useRouter();
@@ -227,6 +232,32 @@ export function SpeciesDetailSheet({
                       className="text-sm text-gray-700 dark:text-gray-300"
                       selectable
                     />
+                    {/* Prompted rather than an inline field: this sheet is a
+                        Modal and an inline TextInput inside one drags the
+                        keyboard-avoidance problem in with it (the coordinate
+                        entry is the one exception, and it earned it).
+                        `promptText` is the cross-platform way. */}
+                    {onSaveVerbatim ? (
+                      <Pressable
+                        onPress={async () => {
+                          const next = await promptText({
+                            title: t('species.verbatimTitle'),
+                            placeholder: t('species.verbatimPlaceholder'),
+                            defaultValue: record.verbatim_identification ?? '',
+                            confirmText: t('common.save'),
+                          });
+                          if (next === null) return;
+                          onSaveVerbatim(next.trim() || null);
+                        }}
+                        hitSlop={6}
+                        className="mt-1 flex-row items-center self-start active:opacity-70"
+                      >
+                        <Ionicons name="pricetag-outline" size={13} color="#6b7280" />
+                        <Text className="ml-1 text-xs text-gray-600 dark:text-gray-400">
+                          {record.verbatim_identification || t('species.verbatimAdd')}
+                        </Text>
+                      </Pressable>
+                    ) : null}
                     {onReplaceTaxon ? (
                       <Pressable
                         onPress={onReplaceTaxon}

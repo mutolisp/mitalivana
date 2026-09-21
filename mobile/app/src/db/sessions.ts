@@ -213,6 +213,7 @@ export type ImportedSessionRecord = {
   /** Clip filenames inside the zip's `audio/` belonging to this record. */
   audio_files?: string[];
   degree_of_establishment?: string | null;
+  verbatim_identification?: string | null;
   /** The name this record was filed under, when not the accepted one (v28). */
   used_name_id?: number | null;
   used_scientific_name?: string | null;
@@ -332,10 +333,10 @@ function importSessionTx(
       `INSERT INTO checklist_records (
          session_id, taxon_id, occurrence_id, observed_at, notes, photo_paths,
          audio_paths, lat, lng, accuracy, sex, life_stage, reproductive_condition,
-         leaf_phenology, degree_of_establishment,
+         leaf_phenology, degree_of_establishment, verbatim_identification,
          organism_quantity, organism_quantity_type, used_name_id, used_scientific_name,
          updated_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         sessionId,
         r.taxon_id,
@@ -355,6 +356,7 @@ function importSessionTx(
         // Parsed since v33 but never written here — the column was missing
         // from the statement, so an imported record lost it silently.
         r.degree_of_establishment ?? null,
+        r.verbatim_identification ?? null,
         r.organism_quantity ?? null,
         r.organism_quantity_type ?? null,
         r.used_name_id ?? null,

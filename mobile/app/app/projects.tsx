@@ -41,6 +41,7 @@ export default function ProjectsScreen() {
   const { busy, progress, onProgress, shareBundle, confirmIfLarge } = useExportShare();
   const geoFormats = useSettings((s) => s.export_geo_formats);
   const includePhotos = useSettings((s) => s.export_include_photos);
+  const mergeDuplicateTaxa = useSettings((s) => s.export_merge_duplicate_taxa);
   const includeDocx = useSettings((s) => s.export_include_docx);
   const levels = useSettings((s) => s.export_levels);
   const conservationFields = useSettings((s) => s.export_conservation_fields);
@@ -78,6 +79,7 @@ export default function ProjectsScreen() {
       bundleProject(project.id, {
         geoFormats,
         includePhotos,
+        mergeDuplicateTaxa,
         includeDocx,
         levels,
         conservationFields,

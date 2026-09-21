@@ -126,6 +126,8 @@
   "session": {
     "noTaxonId": "This species has no taxon_id and cannot be added",
     "alreadyExists": "Already added: {{name}}",
+    "addAnyway": "Add another anyway",
+    "duplicateHint": "One taxon can hold several rows when the identification stops at family or genus (sp1, sp2…).",
     "changeTaxon": "Change species",
     "changeTaxonBanner": "Changing species for \"{{name}}\" — pick one below",
     "taxonChanged": "Changed to {{name}}",
@@ -399,7 +401,10 @@
     "audioClipN": "Clip {{n}}",
     "removeAudio": "Remove this clip?",
     "micDenied": "Microphone access is required to record",
-    "audioFailTitle": "Could not record"
+    "audioFailTitle": "Could not record",
+    "verbatimTitle": "Field determination",
+    "verbatimPlaceholder": "e.g. sp1, sp2",
+    "verbatimAdd": "+ Field determination"
   },
   "attr": {
     "advanced": "Advanced (species attributes)",
@@ -566,6 +571,7 @@
     "coverPartial": "Ground cover totals {{sum}}% ({{filled}}/{{total}} entered; the last one is filled in automatically)",
     "coverOk": "Ground cover totals 100% ✓",
     "coverMismatch": "Ground cover totals {{sum}}%, should be 100%",
+    "coverExceedsSpecies": "Total vegetation cover {{total}}% exceeds the species cover sum {{sum}}%. Species covers overlap, so the sum should be at or above the total — either the total is too high or a species is missing.",
     "manualCoord": "placed by hand",
     "rangeSection": "Plot boundary",
     "rangeTitle": "Plot boundary",
@@ -1101,6 +1107,9 @@
     "photo": "Photos",
     "includePhotos": "Include photos",
     "includePhotosHint": "Turning off greatly reduces file size; recommended for large datasets.",
+    "checklistDoc": "Checklist document",
+    "mergeDuplicates": "Merge repeated species",
+    "mergeDuplicatesHint": "The Word / Markdown checklist lists each species once. The occurrence CSV and the Darwin Core Archive always keep every record.",
     "docFormat": "Document format",
     "includeDocx": "Include Word (docx) checklist",
     "includeDocxHint": "Bundles a Word file with the same content as .md for easy editing.",

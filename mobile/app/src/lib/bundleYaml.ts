@@ -114,6 +114,7 @@ export function recordToYamlItem(
   const leaf = multiToPipe(r.leaf_phenology);
   if (leaf) item.leaf_phenology = leaf;
   if (r.degree_of_establishment) item.degree_of_establishment = r.degree_of_establishment;
+  if (r.verbatim_identification) item.verbatim_identification = r.verbatim_identification;
   // → DwC `associatedMedia`; the filenames inside the zip's photos/.
   const photos = photoField(photoNames, r.occurrence_id);
   if (photos) item.photo_files = photos;
@@ -236,6 +237,7 @@ export function specimenToYamlItem(
   const leaf = multiToPipe(sp.leaf_phenology);
   if (leaf) item.leaf_phenology = leaf;
   if (sp.degree_of_establishment) item.degree_of_establishment = sp.degree_of_establishment;
+  if (sp.verbatim_identification) item.verbatim_identification = sp.verbatim_identification;
   if (sp.notes) item.notes = sp.notes;
   // → DwC `associatedMedia`; the filenames inside the zip's photos/. A trip
   // often holds several duplicates of one species, so without this the photos
@@ -333,6 +335,7 @@ export function buildPlotYamlDoc(input: PlotYamlInput): Record<string, unknown> 
     const leaf = multiToPipe(r.leaf_phenology);
     if (leaf) item.leaf_phenology = leaf;
     if (r.degree_of_establishment) item.degree_of_establishment = r.degree_of_establishment;
+    if (r.verbatim_identification) item.verbatim_identification = r.verbatim_identification;
     if (r.detection_type) item.detection_type = r.detection_type;
     if (r.lat !== null) item.lat = r.lat;
     if (r.lng !== null) item.lng = r.lng;

@@ -195,6 +195,10 @@ export type PlotSpeciesRecord = {
   /** DwC degreeOfEstablishment (v33): 'wild' | 'captive' | 'cultivated'.
    *  NULL = 未記錄, which is a different statement from an explicit 'wild'.
    *  Per-INDIVIDUAL — not to be confused with the taxon-level `alien_type`. */
+  /** DwC verbatimIdentification (v39) — the determination as written in the
+   *  field when it is finer than the taxon can express (`sp1` / `sp2` under a
+   *  family or genus). NULL = none. */
+  verbatim_identification: string | null;
   degree_of_establishment: string | null;
   // DwC species attributes (v8)
   sex: string | null;
@@ -831,6 +835,7 @@ export type AddPlotSpeciesInput = {
   reproductive_condition?: string | null;
   leaf_phenology?: string | null;
   degree_of_establishment?: string | null;
+  verbatim_identification?: string | null;
   /** Per-record GPS (v13). */
   lat?: number | null;
   lng?: number | null;
@@ -933,6 +938,7 @@ export type PlotSpeciesAttributePatch = Partial<{
   reproductive_condition: string | null;
   leaf_phenology: string | null;
   degree_of_establishment: string | null;
+  verbatim_identification: string | null;
   detection_type: string | null;
 }>;
 
@@ -965,6 +971,7 @@ export function updatePlotSpeciesValue(
     'reproductive_condition',
     'leaf_phenology',
     'degree_of_establishment',
+    'verbatim_identification',
     'detection_type',
   ] as const) {
     if (col in patch) {
@@ -1104,6 +1111,7 @@ export type ImportedPlotSpecies = {
   /** Clip filenames inside the zip's `audio/` belonging to this record. */
   audio_files?: string[];
   degree_of_establishment?: string | null;
+  verbatim_identification?: string | null;
   /** The name this record was filed under, when not the accepted one (v28). */
   used_name_id?: number | null;
   used_scientific_name?: string | null;
@@ -1317,10 +1325,10 @@ function importPlotSurveyTx(
          plot_survey_id, taxon_id, occurrence_id, subplot_id, layer,
          organism_quantity, organism_quantity_type, notes, sex, life_stage,
          reproductive_condition, leaf_phenology, degree_of_establishment,
-         lat, lng, accuracy, detection_type,
+         verbatim_identification, lat, lng, accuracy, detection_type,
          photo_paths, audio_paths, used_name_id, used_scientific_name,
          observed_at, created_at, updated_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         plotId,
         sp.taxon_id,
@@ -1340,6 +1348,7 @@ function importPlotSurveyTx(
         // Parsed since v33 but never written here — the column was missing
         // from the statement, so an imported record lost it silently.
         sp.degree_of_establishment ?? null,
+        sp.verbatim_identification ?? null,
         sp.lat ?? null,
         sp.lng ?? null,
         sp.accuracy ?? null,

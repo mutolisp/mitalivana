@@ -87,6 +87,7 @@ export function plotFromDoc(doc: Record<string, unknown> | null): ImportedPlot {
       reproductive_condition: pipeToJson(s.reproductive_condition),
       leaf_phenology: pipeToJson(s.leaf_phenology),
       degree_of_establishment: str(s.degree_of_establishment),
+      verbatim_identification: str(s.verbatim_identification),
       detection_type: str(s.detection_type),
       lat: num(s.lat),
       lng: num(s.lng),

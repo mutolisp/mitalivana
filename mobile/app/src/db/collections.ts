@@ -79,6 +79,10 @@ export type Specimen = {
    *  NULL = not recorded, which is a different statement from an explicit
    *  'wild'. Per-INDIVIDUAL — not to be confused with the taxon-level
    *  `alien_type`. */
+  /** DwC verbatimIdentification (v39) — the determination as written in the
+   *  field when it is finer than the taxon can express (`sp1` / `sp2` under a
+   *  family or genus). NULL = none. */
+  verbatim_identification: string | null;
   degree_of_establishment: string | null;
   // DwC species attributes (v20 for sex/life_stage, v19 for the phenology
   // pair). Single-valued enums; the two phenology columns are JSON array
@@ -108,7 +112,8 @@ export type SpecimenWithTaxon = Specimen & TaxonFields & AdoptionStatus;
 
 const SPECIMEN_COLS = `id, trip_id, occurrence_id, taxon_id, record_number, record_number_seq,
   collected_at, recorded_by, identified_by, lat, lng, accuracy, locality,
-  sex, life_stage, reproductive_condition, leaf_phenology, degree_of_establishment, notes, photo_paths,
+  sex, life_stage, reproductive_condition, leaf_phenology, degree_of_establishment,
+  verbatim_identification, notes, photo_paths,
   used_name_id, used_scientific_name,
   audio_paths, inat_observation_id, inat_media_done, inat_uploaded_at, inat_sync_hash`;
 
@@ -441,7 +446,7 @@ const SPECIMEN_UPDATABLE_KEYS = new Set([
   'record_number', 'collected_at', 'recorded_by', 'identified_by',
   'lat', 'lng', 'accuracy',
   'locality', 'sex', 'life_stage', 'reproductive_condition', 'leaf_phenology',
-  'degree_of_establishment', 'notes',
+  'degree_of_establishment', 'verbatim_identification', 'notes',
 ]);
 
 export function updateSpecimen(id: number, patch: Partial<Specimen>): void {

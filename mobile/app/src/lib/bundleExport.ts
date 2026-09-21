@@ -41,6 +41,8 @@ import {
 } from '~/db';
 import { establishmentDwcValue } from './dwcAttributes';
 import { AUDIO_EXT, parseAudioPaths } from './audioCapture';
+import { checklistIdentity, uniqueByIdentity } from './checklistIdentity';
+export { checklistIdentity, uniqueByIdentity };
 import { convertToDwc } from './dwcMapper';
 import {
   buildContext,
@@ -81,6 +83,9 @@ type ProgressCtx = { done: number; total: number; onProgress?: (p: ExportProgres
 export type BundleOptions = {
   geoFormats: GeoFormat[];
   includePhotos: boolean;
+  /** Collapse repeated species in the checklist DOCUMENTS (md / docx). The
+   *  occurrence CSV and the DwC-A always keep every record. */
+  mergeDuplicateTaxa: boolean;
   /** Emit a Word (.docx) version of the checklist alongside the .md. */
   includeDocx: boolean;
   /** Classification levels override for the checklist; empty = per-group defaults. */
@@ -285,6 +290,7 @@ export function taxonToMarkdownItem(
 export function recordToMarkdownItem(r: RecordWithTaxon): Parameters<typeof generateMarkdown>[0][number] {
   return { ...taxonToMarkdownItem(r.taxon_id, r), notes: r.notes };
 }
+
 
 /** Map a plot species record to a checklist MarkdownItem (mirrors
  *  recordToMarkdownItem). Used for the deduped `_checklist.md` per plot. */
@@ -680,9 +686,10 @@ export async function buildSessionEntries(
     bytes: strToU8(buildOccurrenceCsv(csvItems)),
   });
 
-  // Markdown
+  // Markdown — deduped, like the plot and collection checklists. The species
+  // list is a list of species; the occurrence CSV above keeps every record.
   const md = generateMarkdown(
-    records.map(recordToMarkdownItem),
+    (opts.mergeDuplicateTaxa ? uniqueByIdentity(records) : records).map(recordToMarkdownItem),
     checklistT(opts.lang),
     { project: project?.id !== 0 ? project?.name : '', site: '' },
     {
@@ -832,11 +839,7 @@ export async function buildPlotEntries(
   // Keyed by taxon AND the name it was filed under: a taxon deliberately
   // recorded under two different names is two checklist entries, and collapsing
   // them would silently drop one of the recorder's determinations.
-  const uniqueSpecies = [
-    ...new Map(
-      species.map((s) => [`${s.taxon_id}|${s.used_scientific_name ?? ''}`, s]),
-    ).values(),
-  ];
+  const uniqueSpecies = opts.mergeDuplicateTaxa ? uniqueByIdentity(species) : species;
   const checklistMd = generateMarkdown(
     uniqueSpecies.map(plotSpeciesToMarkdownItem),
     checklistT(opts.lang),
@@ -1074,13 +1077,11 @@ export async function buildCollectionEntries(
 
   // Markdown checklist — dedupe by taxon (a trip may hold several duplicates of
   // the same species, each its own specimen).
-  const seen = new Set<string>();
-  const mdItems = [];
-  for (const sp of specimens) {
-    if (seen.has(sp.taxon_id)) continue;
-    seen.add(sp.taxon_id);
-    mdItems.push(specimenToMarkdownItem(sp));
-  }
+  // Was keyed on taxon_id alone, which merged two determinations of one taxon
+  // and both morphospecies under a family.
+  const mdItems = (opts.mergeDuplicateTaxa ? uniqueByIdentity(specimens) : specimens).map(
+    specimenToMarkdownItem,
+  );
   const md = generateMarkdown(
     mdItems,
     checklistT(opts.lang),

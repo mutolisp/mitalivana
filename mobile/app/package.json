@@ -15,6 +15,8 @@
     "check:kav": "node ./scripts/check-kav.mjs",
     "check:roundtrip": "node --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-roundtrip.mjs",
     "check:dwc": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-dwc-terms.mjs",
+    "check:checklistid": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-checklist-identity.mjs",
+    "check:plotcover": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-plot-cover.mjs",
     "check:names": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-recordname.mjs",
     "check:gbif": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-gbif-parse.mjs",
     "check:vegmatrix": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-vegmatrix.mjs",

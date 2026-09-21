@@ -142,6 +142,8 @@
   "session": {
     "noTaxonId": "Cette espèce n'a pas de taxon_id, impossible de l'ajouter",
     "alreadyExists": "Déjà présent : {{name}}",
+    "addAnyway": "Ajouter quand même",
+    "duplicateHint": "Si l'identification s'arrête à la famille ou au genre, un taxon peut avoir plusieurs lignes (sp1, sp2…).",
     "changeTaxon": "Changer d'espèce",
     "changeTaxonBanner": "Changement d'espèce pour « {{name}} » — choisissez ci-dessous",
     "taxonChanged": "Remplacé par {{name}}",
@@ -427,7 +429,10 @@
     "audioClipN": "Extrait {{n}}",
     "removeAudio": "Retirer cet extrait ?",
     "micDenied": "L'accès au micro est nécessaire pour enregistrer",
-    "audioFailTitle": "Enregistrement impossible"
+    "audioFailTitle": "Enregistrement impossible",
+    "verbatimTitle": "Détermination de terrain",
+    "verbatimPlaceholder": "ex. sp1, sp2",
+    "verbatimAdd": "+ Détermination de terrain"
   },
   "attr": {
     "advanced": "Avancé (attributs de l'espèce)",
@@ -596,6 +601,7 @@
     "coverPartial": "La couverture du sol totalise {{sum}} % ({{filled}}/{{total}} saisis ; la dernière valeur est calculée automatiquement)",
     "coverOk": "La couverture du sol totalise 100 % ✓",
     "coverMismatch": "La couverture du sol totalise {{sum}} %, elle devrait être de 100 %",
+    "coverExceedsSpecies": "Le recouvrement végétal total de {{total}}% dépasse la somme des recouvrements par espèce ({{sum}}%). Les recouvrements se chevauchent, la somme devrait donc être au moins égale au total — soit le total est trop élevé, soit une espèce manque.",
     "manualCoord": "positionné manuellement",
     "rangeSection": "Limite de la placette",
     "rangeTitle": "Limite de la placette",
@@ -1163,6 +1169,9 @@
     "photo": "Photos",
     "includePhotos": "Inclure les photos",
     "includePhotosHint": "Les désactiver réduit fortement la taille du fichier ; recommandé pour les gros volumes de données.",
+    "checklistDoc": "Document de liste",
+    "mergeDuplicates": "Fusionner les espèces répétées",
+    "mergeDuplicatesHint": "La liste Word/Markdown ne cite chaque espèce qu'une fois. Le CSV d'occurrences et l'archive Darwin Core conservent toujours chaque enregistrement.",
     "docFormat": "Format de document",
     "includeDocx": "Inclure la liste d'espèces au format Word (docx)",
     "includeDocxHint": "Joint un fichier Word au contenu identique au .md, pratique pour la mise en page.",

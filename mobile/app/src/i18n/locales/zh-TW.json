@@ -110,6 +110,8 @@
   "session": {
     "noTaxonId": "此物種無 taxon_id，無法加入",
     "alreadyExists": "已存在：{{name}}",
+    "addAnyway": "仍要新增一筆",
+    "duplicateHint": "鑑定只到科或屬時，同一個分類群可以有多筆（如 sp1、sp2）。",
     "changeTaxon": "更換物種",
     "changeTaxonBanner": "更換「{{name}}」的物種：用下方搜尋選擇",
     "taxonChanged": "已改為 {{name}}",
@@ -371,7 +373,10 @@
     "audioClipN": "錄音 {{n}}",
     "removeAudio": "移除這段錄音？",
     "micDenied": "需要麥克風權限才能錄音",
-    "audioFailTitle": "無法錄音"
+    "audioFailTitle": "無法錄音",
+    "verbatimTitle": "形態種標籤",
+    "verbatimPlaceholder": "例如 sp1、sp2",
+    "verbatimAdd": "＋ 形態種標籤"
   },
   "attr": {
     "advanced": "進階（物種屬性）",
@@ -536,6 +541,7 @@
     "coverPartial": "地表覆蓋合計 {{sum}}%（已填 {{filled}}/{{total}} 項；填到剩最後一項時會自動計算）",
     "coverOk": "地表覆蓋合計 100% ✓",
     "coverMismatch": "地表覆蓋合計 {{sum}}%，應為 100%",
+    "coverExceedsSpecies": "總植被覆蓋度 {{total}}% 大於各物種覆蓋度加總 {{sum}}%。物種覆蓋會互相重疊，加總理應大於或等於總覆蓋度——可能是總值偏高，或還有物種未記錄。",
     "manualCoord": "手動定位",
     "rangeSection": "樣區範圍",
     "rangeTitle": "樣區範圍",
@@ -1039,6 +1045,9 @@
     "photo": "照片",
     "includePhotos": "包含照片",
     "includePhotosHint": "關閉可大幅減小檔案大小；資料量大時建議先關閉。",
+    "checklistDoc": "名錄文件",
+    "mergeDuplicates": "合併重複物種",
+    "mergeDuplicatesHint": "名錄的 Word／Markdown 每種只列一次。DwC 出現記錄 CSV 與 Darwin Core Archive 一律保留每一筆。",
     "docFormat": "文件格式",
     "includeDocx": "包含 Word (docx) 名錄",
     "includeDocxHint": "隨附與 .md 同內容的 Word 檔,方便直接編輯排版。",

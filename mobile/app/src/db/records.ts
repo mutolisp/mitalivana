@@ -31,6 +31,10 @@ export type ChecklistRecord = {
    *  NULL = not recorded, which is a different statement from an explicit
    *  'wild'. Per-INDIVIDUAL — not to be confused with the taxon-level
    *  `alien_type`. */
+  /** DwC verbatimIdentification (v39) — the determination as written in the
+   *  field, when it is finer than the taxon can express: `sp1` / `sp2` under a
+   *  family or genus that is as far as the identification got. NULL = none. */
+  verbatim_identification: string | null;
   degree_of_establishment: string | null;
   // DwC species attributes (v8). Persisted as enum strings; the UI maps them to
   // localised labels.
@@ -186,6 +190,7 @@ export type RecordAttributePatch = Partial<{
   reproductive_condition: string | null;
   leaf_phenology: string | null;
   degree_of_establishment: string | null;
+  verbatim_identification: string | null;
 }>;
 
 const ATTR_COLS = [
@@ -194,6 +199,9 @@ const ATTR_COLS = [
   'reproductive_condition',
   'leaf_phenology',
   'degree_of_establishment',
+  // Rides the attribute patch rather than getting its own updater: it is edited
+  // in the same sheet, one field among the others.
+  'verbatim_identification',
 ] as const;
 
 export function updateRecordAttributes(id: number, patch: RecordAttributePatch): void {
@@ -252,6 +260,7 @@ export function listSessionRecords(sessionId: number): RecordWithTaxon[] {
   const recordsRes = userDb.executeSync(
     `SELECT id, session_id, taxon_id, occurrence_id, observed_at, notes, photo_paths, lat, lng, accuracy,
             sex, life_stage, reproductive_condition, leaf_phenology, degree_of_establishment,
+            verbatim_identification,
             organism_quantity, organism_quantity_type,
             used_name_id, used_scientific_name,
             audio_paths, inat_observation_id, inat_media_done, inat_uploaded_at, inat_sync_hash

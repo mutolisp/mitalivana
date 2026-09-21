@@ -50,6 +50,7 @@ export function ExportPreferenceOptions() {
   const { t } = useTranslation();
   const formats = useSettings((s) => s.export_geo_formats);
   const includePhotos = useSettings((s) => s.export_include_photos);
+  const mergeDuplicates = useSettings((s) => s.export_merge_duplicate_taxa);
   const includeDocx = useSettings((s) => s.export_include_docx);
   const includeReport = useSettings((s) => s.export_include_report);
   const reportFormat = useSettings((s) => s.export_report_format);
@@ -123,6 +124,24 @@ export function ExportPreferenceOptions() {
         <Switch
           value={includePhotos}
           onValueChange={(v) => setSetting('export_include_photos', v)}
+        />
+      </View>
+
+      <Text className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+        {t('exportPref.checklistDoc')}
+      </Text>
+      <View className="mb-4 flex-row items-center justify-between border-b border-gray-100 dark:border-gray-800 py-3">
+        <View className="flex-1 pr-3">
+          <Text className="text-sm font-medium text-gray-900 dark:text-gray-100">
+            {t('exportPref.mergeDuplicates')}
+          </Text>
+          <Text className="text-xs text-gray-500 dark:text-gray-400">
+            {t('exportPref.mergeDuplicatesHint')}
+          </Text>
+        </View>
+        <Switch
+          value={mergeDuplicates}
+          onValueChange={(v) => setSetting('export_merge_duplicate_taxa', v)}
         />
       </View>
 

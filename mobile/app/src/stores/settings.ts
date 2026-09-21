@@ -208,6 +208,11 @@ type SettingsValues = {
   /** Whether photos referenced by records get packed into the bundle's
    *  `photos/` folder. Off = text-only export (much smaller, faster). */
   export_include_photos: boolean;
+  /** Collapse repeated species in the checklist DOCUMENTS (md / docx). The
+   *  occurrence CSV and the DwC-A always keep every record — one row per
+   *  record is what an Occurrence is. Off means the document lists a species
+   *  once per record, which is what you want when every row is a point. */
+  export_merge_duplicate_taxa: boolean;
   /** Whether to emit a Word (.docx) version of the checklist alongside .md. */
   export_include_docx: boolean;
   /** How Braun-Blanquet codes are numericised in the project export's vegan
@@ -276,6 +281,7 @@ const DEFAULTS: SettingsValues = {
   inat_grid_overlay: false,
   export_geo_formats: ['kml'],
   export_include_photos: true,
+  export_merge_duplicate_taxa: true,
   export_include_docx: true,
   export_matrix_value: 'cover',
   export_analysis_formats: ['vegan', 'juice', 'dwca'],
@@ -418,6 +424,10 @@ function readAll(): SettingsValues {
       map.get('export_include_photos') == null
         ? DEFAULTS.export_include_photos
         : map.get('export_include_photos') === 'true',
+    export_merge_duplicate_taxa:
+      map.get('export_merge_duplicate_taxa') == null
+        ? DEFAULTS.export_merge_duplicate_taxa
+        : map.get('export_merge_duplicate_taxa') === 'true',
     export_include_docx:
       map.get('export_include_docx') == null
         ? DEFAULTS.export_include_docx
