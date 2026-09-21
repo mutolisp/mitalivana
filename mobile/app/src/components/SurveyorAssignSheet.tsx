@@ -9,7 +9,8 @@ import DraggableFlatList, {
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardAvoidingView } from './KeyboardAvoidingView';
-import { usePeopleStore } from '~/stores/surveyors';
+import { useStore } from 'zustand';
+import { peopleStore } from '~/stores/surveyors';
 import type { PersonKind, Surveyor } from '~/db';
 
 type Props = {
@@ -45,11 +46,11 @@ export function SurveyorAssignSheet({
 }: Props) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const store = usePeopleStore(kind);
-  const items = store((s) => s.items);
-  const add = store((s) => s.add);
-  const reorder = store((s) => s.reorder);
-  const refresh = store((s) => s.refresh);
+  const store = peopleStore(kind);
+  const items = useStore(store, (s) => s.items);
+  const add = useStore(store, (s) => s.add);
+  const reorder = useStore(store, (s) => s.reorder);
+  const refresh = useStore(store, (s) => s.refresh);
 
   // Literal t() calls, not a key built from `kind`: check:i18n can only see the
   // literal ones.

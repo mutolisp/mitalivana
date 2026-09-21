@@ -1,5 +1,18 @@
 /**
- * Picks the taxon whose iNaturalist observation grid the map draws.
+ * The map's species-distribution queries, in one panel with two tabs.
+ *
+ * They are inverse questions over the same iNaturalist data — "where is this
+ * species?" (a grid drawn on the map) and "what species are here?" (a list you
+ * can keep) — so they share an entry point and this shell. They do NOT share a
+ * result: one is a map layer with no list, the other a list with no layer, and
+ * forcing them into one output would make both worse.
+ *
+ * The area tab is only the choice of area. Its filters and the review of what
+ * came back stay in `AreaSpeciesModal`, full screen, because that step has a
+ * text input and can run to hundreds of rows with per-name disambiguation — the
+ * two things a floating panel is worst at.
+ *
+ * ── Tab A: picks the taxon whose iNaturalist observation grid the map draws.
  *
  * Two search paths, in this order:
  *   1. the local checklists, through the app's own `SearchBox` — Chinese
@@ -74,7 +87,14 @@ type Props = {
   onApply: (selection: InatGridSelection) => void;
   onClear: () => void;
   onClose: () => void;
+  /** Area tab: query the species inside the current map viewport. */
+  onPickVisibleArea: () => void;
+  /** Area tab: hand over to the map's polygon drawing, then query that. */
+  onDrawArea: () => void;
 };
+
+/** Which question the panel is asking. */
+type Tab = 'taxon' | 'area';
 
 type Notice = { tone: 'warn' | 'error'; text: string };
 
@@ -111,11 +131,20 @@ function capRank(rank: string): string {
   return rank ? rank.charAt(0).toUpperCase() + rank.slice(1) : '';
 }
 
-export function InatGridSheet({ visible, current, onApply, onClear, onClose }: Props) {
+export function SpeciesDistributionSheet({
+  visible,
+  current,
+  onApply,
+  onClear,
+  onClose,
+  onPickVisibleArea,
+  onDrawArea,
+}: Props) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
 
+  const [tab, setTab] = useState<Tab>('taxon');
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<Notice | null>(null);
   /** A resolution that changed the name, held back for the user to accept. */
@@ -128,6 +157,13 @@ export function InatGridSheet({ visible, current, onApply, onClear, onClose }: P
   const detailAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => () => abortRef.current?.abort(), []);
+
+  // Reopening while a grid is drawn lands on the taxon tab whatever was open
+  // last. The map pill is the usual way back in, and everything it promises —
+  // which taxon, the breakdown, 停止顯示 — lives on that tab.
+  useEffect(() => {
+    if (visible && current) setTab('taxon');
+  }, [visible, current]);
 
   // The breakdown is for the taxon the map is ALREADY drawing, so it is fetched
   // when the panel opens rather than during the pick: at pick time the user is
@@ -308,14 +344,60 @@ export function InatGridSheet({ visible, current, onApply, onClear, onClose }: P
         >
           <View className="flex-row items-center justify-between border-b border-gray-100 px-3 py-2 dark:border-gray-800">
             <Text className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-              {t('inatGrid.sheetTitle')}
+              {t('speciesDist.title')}
             </Text>
             <Pressable onPress={close} hitSlop={8}>
               <Ionicons name="close" size={18} color="#9ca3af" />
             </Pressable>
           </View>
 
-          {current ? (
+          <View className="flex-row border-b border-gray-100 px-3 pt-2 dark:border-gray-800">
+            {(['taxon', 'area'] as const).map((k) => {
+              const active = tab === k;
+              return (
+                <Pressable
+                  key={k}
+                  onPress={() => setTab(k)}
+                  className={`mr-4 border-b-2 pb-1.5 ${
+                    active ? 'border-blue-600 dark:border-blue-400' : 'border-transparent'
+                  }`}
+                >
+                  <Text
+                    className={`text-xs ${
+                      active
+                        ? 'font-semibold text-blue-700 dark:text-blue-300'
+                        : 'text-gray-500 dark:text-gray-400'
+                    }`}
+                  >
+                    {t(k === 'taxon' ? 'speciesDist.tabTaxon' : 'speciesDist.tabArea')}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {tab === 'area' ? (
+            <View className="px-3 py-3">
+              <Text className="mb-3 text-xs text-gray-500 dark:text-gray-400">
+                {t('speciesDist.areaHint')}
+              </Text>
+              <AreaChoice
+                icon="scan-outline"
+                label={t('areaSpecies.sourceVisible')}
+                onPress={onPickVisibleArea}
+              />
+              <AreaChoice
+                icon="create-outline"
+                label={t('areaSpecies.sourceDraw')}
+                onPress={onDrawArea}
+              />
+              <Text className="mt-3 text-[10px] text-gray-400 dark:text-gray-500">
+                {t('areaSpecies.attribution')}
+              </Text>
+            </View>
+          ) : null}
+
+          {tab === 'taxon' && current ? (
             <View className="flex-row items-center border-b border-gray-100 bg-orange-50 px-3 py-1.5 dark:border-gray-800 dark:bg-orange-950/30">
               <View
                 style={{ backgroundColor: GRID_COLOR, opacity: 0.8, width: 10, height: 10 }}
@@ -350,7 +432,7 @@ export function InatGridSheet({ visible, current, onApply, onClear, onClose }: P
           {/* What the grid is made of. Two numbers the map cannot show: how much
               of the species' data the wild-only default is leaving out, and how
               much of what IS drawn carries a confirmed identification. */}
-          {current ? (
+          {tab === 'taxon' && current ? (
             <View className="border-b border-gray-100 px-3 py-1.5 dark:border-gray-800">
               {breakdown ? (
                 <Text className="text-[11px] text-gray-500 dark:text-gray-400">
@@ -376,163 +458,192 @@ export function InatGridSheet({ visible, current, onApply, onClear, onClose }: P
             </View>
           ) : null}
 
-          {/* Input first, suggestions directly under it — the box's own list and
+          {tab === 'taxon' ? (
+            <>
+              {/* Input first, suggestions directly under it — the box's own list and
               the iNaturalist results below are the same column, so a suggestion
               never appears at the far end of the panel from what produced it. */}
-          <SearchBox
-            layout="dropdown"
-            autoFocus
-            onSelect={handleLocalPick}
-            afterSelect="dismiss"
-            // Minting a taxon into the local checklist is not an answer to
-            // "which observations should the map draw" — searching iNaturalist
-            // is.
-            gbifFallback={false}
-            renderNoMatch={(q) => (
-              <View className="flex-row flex-wrap items-center border-t border-gray-100 px-3 py-2 dark:border-gray-800">
-                <Text className="mr-2 flex-1 text-xs text-gray-500 dark:text-gray-400">
-                  {t('search.noLocalMatch', { q })}
-                </Text>
-                <Pressable
-                  onPress={() => void searchInat(q)}
-                  className="flex-row items-center rounded-full bg-emerald-50 px-3 py-1.5 active:bg-emerald-100 dark:bg-emerald-950/40 dark:active:bg-emerald-900/60"
-                >
-                  <Ionicons name="leaf-outline" size={14} color="#047857" />
-                  <Text className="ml-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
-                    {t('inatGrid.searchInat')}
-                  </Text>
-                </Pressable>
-              </View>
-            )}
-          />
+              <SearchBox
+                layout="dropdown"
+                autoFocus
+                onSelect={handleLocalPick}
+                afterSelect="dismiss"
+                // Minting a taxon into the local checklist is not an answer to
+                // "which observations should the map draw" — searching iNaturalist
+                // is.
+                gbifFallback={false}
+                renderNoMatch={(q) => (
+                  <View className="flex-row flex-wrap items-center border-t border-gray-100 px-3 py-2 dark:border-gray-800">
+                    <Text className="mr-2 flex-1 text-xs text-gray-500 dark:text-gray-400">
+                      {t('search.noLocalMatch', { q })}
+                    </Text>
+                    <Pressable
+                      onPress={() => void searchInat(q)}
+                      className="flex-row items-center rounded-full bg-emerald-50 px-3 py-1.5 active:bg-emerald-100 dark:bg-emerald-950/40 dark:active:bg-emerald-900/60"
+                    >
+                      <Ionicons name="leaf-outline" size={14} color="#047857" />
+                      <Text className="ml-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                        {t('inatGrid.searchInat')}
+                      </Text>
+                    </Pressable>
+                  </View>
+                )}
+              />
 
-          {/* Sibling of the suggestion list, never its parent: a FlatList inside
+              {/* Sibling of the suggestion list, never its parent: a FlatList inside
               a ScrollView is the nesting React Native warns about. */}
-          <ScrollView
-            style={{ flexShrink: 1 }}
-            keyboardShouldPersistTaps="handled"
-            contentContainerStyle={{ paddingBottom: 4 }}
-          >
-            {busy ? (
-              <View className="flex-row items-center justify-center gap-2 py-3">
-                <ActivityIndicator size="small" />
-                <Text className="text-xs text-gray-500 dark:text-gray-400">
-                  {t('inatGrid.checking')}
-                </Text>
-              </View>
-            ) : null}
-
-            {/* The name check. iNaturalist answered with a different name than
-                the one asked for, so nothing is drawn until the user says so. */}
-            {confirm ? (
-              <View className="border-t border-blue-200 bg-blue-50 px-3 py-2 dark:border-blue-900 dark:bg-blue-950/30">
-                <Text className="text-xs text-gray-700 dark:text-gray-300">
-                  {t('inatGrid.synonymAsk', {
-                    asked: confirm.askedName,
-                    accepted: confirm.inatName,
-                  })}
-                </Text>
-                <Text className="mt-0.5 text-xs text-gray-600 dark:text-gray-400">
-                  {confirm.mode === 'wild'
-                    ? t('inatGrid.wild', { count: confirm.count })
-                    : t('inatGrid.captiveOnly', { count: confirm.count })}
-                </Text>
-                <View className="mt-2 flex-row gap-2">
-                  <Pressable
-                    onPress={() => apply(confirm)}
-                    className="rounded-full bg-blue-600 px-3 py-1.5 active:bg-blue-700"
-                  >
-                    <Text className="text-xs font-medium text-white">
-                      {t('inatGrid.synonymUse')}
-                    </Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={() => setConfirm(null)}
-                    className="rounded-full border border-gray-300 px-3 py-1.5 dark:border-gray-600"
-                  >
-                    <Text className="text-xs text-gray-700 dark:text-gray-300">
-                      {t('common.cancel')}
-                    </Text>
-                  </Pressable>
-                </View>
-              </View>
-            ) : null}
-
-            {notice ? (
-              <Text
-                className={`px-3 py-2 text-xs ${
-                  notice.tone === 'error'
-                    ? 'text-red-600 dark:text-red-400'
-                    : 'text-amber-700 dark:text-amber-400'
-                }`}
+              <ScrollView
+                style={{ flexShrink: 1 }}
+                keyboardShouldPersistTaps="handled"
+                contentContainerStyle={{ paddingBottom: 4 }}
               >
-                {notice.text}
-              </Text>
-            ) : null}
-
-            {inatHits && inatHits.length > 0 ? (
-              <View>
-                <Text className="border-t border-gray-100 px-3 pb-1 pt-2 text-[11px] text-gray-500 dark:border-gray-800 dark:text-gray-400">
-                  {t('inatGrid.inatResults')}
-                </Text>
-                {inatHits.map((hit) => (
-                  <Pressable
-                    key={hit.id}
-                    onPress={() => handleInatPick(hit)}
-                    className="border-t border-gray-100 px-3 py-2 active:bg-blue-50 dark:border-gray-800 dark:active:bg-blue-900/40"
-                  >
-                    <View className="flex-row flex-wrap items-center">
-                      {hit.commonName ? (
-                        <Text className="mr-1 text-sm font-medium text-gray-900 dark:text-gray-100">
-                          {hit.commonName}
-                        </Text>
-                      ) : null}
-                      <ScientificName
-                        name={hit.name}
-                        rank={capRank(hit.rank)}
-                        className="text-sm text-gray-700 dark:text-gray-300"
-                      />
-                    </View>
-                    <Text className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">
-                      {hit.rank ? `${hit.rank} · ` : ''}
-                      {t('inatGrid.obsCount', { count: hit.observationCount })}
+                {busy ? (
+                  <View className="flex-row items-center justify-center gap-2 py-3">
+                    <ActivityIndicator size="small" />
+                    <Text className="text-xs text-gray-500 dark:text-gray-400">
+                      {t('inatGrid.checking')}
                     </Text>
-                  </Pressable>
-                ))}
-              </View>
-            ) : null}
+                  </View>
+                ) : null}
 
-            {showEmptyHint ? (
-              <Text className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400">
-                {t('inatGrid.searchHint')}
-              </Text>
-            ) : null}
-          </ScrollView>
+                {/* The name check. iNaturalist answered with a different name than
+                the one asked for, so nothing is drawn until the user says so. */}
+                {confirm ? (
+                  <View className="border-t border-blue-200 bg-blue-50 px-3 py-2 dark:border-blue-900 dark:bg-blue-950/30">
+                    <Text className="text-xs text-gray-700 dark:text-gray-300">
+                      {t('inatGrid.synonymAsk', {
+                        asked: confirm.askedName,
+                        accepted: confirm.inatName,
+                      })}
+                    </Text>
+                    <Text className="mt-0.5 text-xs text-gray-600 dark:text-gray-400">
+                      {confirm.mode === 'wild'
+                        ? t('inatGrid.wild', { count: confirm.count })
+                        : t('inatGrid.captiveOnly', { count: confirm.count })}
+                    </Text>
+                    <View className="mt-2 flex-row gap-2">
+                      <Pressable
+                        onPress={() => apply(confirm)}
+                        className="rounded-full bg-blue-600 px-3 py-1.5 active:bg-blue-700"
+                      >
+                        <Text className="text-xs font-medium text-white">
+                          {t('inatGrid.synonymUse')}
+                        </Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={() => setConfirm(null)}
+                        className="rounded-full border border-gray-300 px-3 py-1.5 dark:border-gray-600"
+                      >
+                        <Text className="text-xs text-gray-700 dark:text-gray-300">
+                          {t('common.cancel')}
+                        </Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                ) : null}
 
-          {/* Legend. The grid's darkness is the observation count — saying so is
+                {notice ? (
+                  <Text
+                    className={`px-3 py-2 text-xs ${
+                      notice.tone === 'error'
+                        ? 'text-red-600 dark:text-red-400'
+                        : 'text-amber-700 dark:text-amber-400'
+                    }`}
+                  >
+                    {notice.text}
+                  </Text>
+                ) : null}
+
+                {inatHits && inatHits.length > 0 ? (
+                  <View>
+                    <Text className="border-t border-gray-100 px-3 pb-1 pt-2 text-[11px] text-gray-500 dark:border-gray-800 dark:text-gray-400">
+                      {t('inatGrid.inatResults')}
+                    </Text>
+                    {inatHits.map((hit) => (
+                      <Pressable
+                        key={hit.id}
+                        onPress={() => handleInatPick(hit)}
+                        className="border-t border-gray-100 px-3 py-2 active:bg-blue-50 dark:border-gray-800 dark:active:bg-blue-900/40"
+                      >
+                        <View className="flex-row flex-wrap items-center">
+                          {hit.commonName ? (
+                            <Text className="mr-1 text-sm font-medium text-gray-900 dark:text-gray-100">
+                              {hit.commonName}
+                            </Text>
+                          ) : null}
+                          <ScientificName
+                            name={hit.name}
+                            rank={capRank(hit.rank)}
+                            className="text-sm text-gray-700 dark:text-gray-300"
+                          />
+                        </View>
+                        <Text className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">
+                          {hit.rank ? `${hit.rank} · ` : ''}
+                          {t('inatGrid.obsCount', { count: hit.observationCount })}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                ) : null}
+
+                {showEmptyHint ? (
+                  <Text className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400">
+                    {t('inatGrid.searchHint')}
+                  </Text>
+                ) : null}
+              </ScrollView>
+
+              {/* Legend. The grid's darkness is the observation count — saying so is
               the only thing that makes the shading read as data, not styling. */}
-          <View className="border-t border-gray-100 px-3 py-2 dark:border-gray-800">
-            <View className="flex-row items-center">
-              <Text className="mr-2 text-[11px] text-gray-500 dark:text-gray-400">
-                {t('inatGrid.legendFew')}
-              </Text>
-              {LEGEND_STEPS.map((o) => (
-                <View
-                  key={o}
-                  style={{ backgroundColor: GRID_COLOR, opacity: o, width: 20, height: 10 }}
-                  className="mr-0.5 rounded-[2px]"
-                />
-              ))}
-              <Text className="ml-2 text-[11px] text-gray-500 dark:text-gray-400">
-                {t('inatGrid.legendMany')}
-              </Text>
-            </View>
-            <Text className="mt-1 text-[10px] text-gray-400 dark:text-gray-500">
-              {t('inatGrid.attribution')}
-            </Text>
-          </View>
+              <View className="border-t border-gray-100 px-3 py-2 dark:border-gray-800">
+                <View className="flex-row items-center">
+                  <Text className="mr-2 text-[11px] text-gray-500 dark:text-gray-400">
+                    {t('inatGrid.legendFew')}
+                  </Text>
+                  {LEGEND_STEPS.map((o) => (
+                    <View
+                      key={o}
+                      style={{ backgroundColor: GRID_COLOR, opacity: o, width: 20, height: 10 }}
+                      className="mr-0.5 rounded-[2px]"
+                    />
+                  ))}
+                  <Text className="ml-2 text-[11px] text-gray-500 dark:text-gray-400">
+                    {t('inatGrid.legendMany')}
+                  </Text>
+                </View>
+                <Text className="mt-1 text-[10px] text-gray-400 dark:text-gray-500">
+                  {t('inatGrid.attribution')}
+                </Text>
+              </View>
+            </>
+          ) : null}
         </View>
       </View>
     </Modal>
+  );
+}
+
+/**
+ * One way of choosing the area. A row rather than a chip: the label is a whole
+ * phrase in every language, and two of them side by side wrapped badly.
+ */
+function AreaChoice({
+  icon,
+  label,
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      className="mb-2 flex-row items-center rounded-xl border border-gray-200 px-3 py-2.5 active:bg-gray-50 dark:border-gray-700 dark:active:bg-gray-800"
+    >
+      <Ionicons name={icon} size={18} color="#2563eb" />
+      <Text className="ml-2 flex-1 text-sm text-gray-900 dark:text-gray-100">{label}</Text>
+      <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
+    </Pressable>
   );
 }

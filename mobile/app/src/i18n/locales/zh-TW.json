@@ -632,7 +632,8 @@
     "tree": "分類樹",
     "search": "搜尋",
     "addCurrent": "加入當前記錄",
-    "copyMenu": "複製..."
+    "copyMenu": "複製...",
+    "incompleteBucket": "未完整分類（自建）"
   },
   "surveyors": {
     "addTitle": "新增調查者",
@@ -680,7 +681,7 @@
   },
   "about": {
     "subtitle": "生態野帳",
-    "openSource": "本 app 為開源專案。物種資料採用 TaiCOL 授權條款。",
+    "openSource": "本 app 以 BSD 2-Clause 授權釋出。物種資料採用 TaiCOL 授權條款。",
     "partners": "協力單位",
     "mapData": "地圖圖資",
     "mapLicense": "魯地圖為 OpenStreetMap 與政府開放資料的衍生作品；本 app 的向量版為修改版本，另取名稱以示區別。"
@@ -697,7 +698,13 @@
     "deleteMsg": "「{{name}}」會被刪除。原屬此專案的 {{sessions}}與 {{plots}}會回到「未分類」。",
     "stats": "名錄 {{sessions}} · 樣區 {{plots}}",
     "nChecklists_other": "{{count}} 個名錄",
-    "nPlots_other": "{{count}} 個樣區"
+    "nPlots_other": "{{count}} 個樣區",
+    "selectAll": "全選",
+    "deselectAll": "取消全選",
+    "searchPlaceholder": "搜尋專案名稱或位置",
+    "noMatch": "沒有符合的專案",
+    "selectedCount_other": "已選 {{count}} 個",
+    "deleteSelectedMsg_other": "將刪除 {{count}} 個專案。原屬這些專案的 {{sessions}}與 {{plots}}會回到「未分類」。"
   },
   "sites": {
     "typePoint": "點位",
@@ -717,7 +724,22 @@
     "goToMap": "前往地圖",
     "exportTitle_other": "匯出 {{count}} 個地理樣區",
     "projectStats_other": "{{count}} 個地理樣區",
-    "deleteBoundMsg": "「{{name}}」會被移除，使用它的記錄將失去範圍"
+    "deleteBoundMsg": "「{{name}}」會被移除，使用它的記錄將失去範圍",
+    "fromPlot": "樣區",
+    "duplicateTitle": "複製地理樣區",
+    "duplicateMsg": "以「{{name}}」的形狀建立一份新的地理樣區",
+    "copySuffix": "-副本",
+    "namePlaceholder": "名稱",
+    "selectAll": "全選",
+    "deselectAll": "取消全選",
+    "searchPlaceholder": "搜尋名稱或專案",
+    "noMatch": "沒有符合的地理樣區",
+    "deletePlotOnlyMsg": "選取的都是記錄樣區的座標，請到該筆記錄刪除。",
+    "selectedCount_other": "已選 {{count}} 筆",
+    "deleteSelectedMsg_other": "將刪除 {{count}} 個地理樣區。",
+    "deleteBoundCountMsg_other": "其中 {{count}} 個正被記錄使用，使用它的記錄將失去範圍。",
+    "deleteSkipPlotsMsg_other": "另有 {{count}} 筆來自記錄樣區，不會在此刪除。",
+    "deletedCount_other": "已刪除 {{count}} 筆"
   },
   "map": {
     "basemapStandard": "標準",
@@ -1048,12 +1070,17 @@
     "namePrefixHint": "原始檔內已有名稱會優先使用；多筆幾何會加 #1, #2 ...",
     "geomPreview": "幾何預覽",
     "defaultPrefix": "匯入",
-    "anotherFile": "換另一個檔案",
     "targetProject": "目標專案：",
     "geomSummary_other": "共 {{count}} 個幾何，將建立 {{count}} 個地理樣區",
     "moreNotListed_other": "（另有 {{count}} 筆未列出）",
     "nTotal_other": "共 {{count}} 筆",
-    "nSucceeded_other": "成功 {{count}} 筆"
+    "nSucceeded_other": "成功 {{count}} 筆",
+    "multiFileHint": "可一次選取多個檔案。",
+    "perFileNameHint": "多檔匯入時，每個檔案以自己的檔名作為名稱前綴；檔內已有名稱會優先使用。",
+    "addMoreFiles": "加入更多檔案",
+    "noneUsable": "選取的檔案都沒有可匯入的幾何資料",
+    "nFiles_other": "{{count}} 個檔案",
+    "skipped_other": "已略過 {{count}} 個檔案"
   },
   "batchImport": {
     "readFail": "讀檔失敗",
@@ -1174,8 +1201,6 @@
     "unknown": "iNaturalist 沒有收錄這個學名",
     "offline": "離線：無法載入 iNaturalist 圖層",
     "attribution": "觀察資料 © iNaturalist 貢獻者；受威脅物種座標經模糊化",
-    "fab": "iNat 觀察網格",
-    "sheetTitle": "iNaturalist 觀察網格",
     "searchHint": "搜尋分類群，在地圖上疊出該分類群在 iNaturalist 的觀察分布。網格會隨縮放調整大小，顏色愈深代表該格觀察筆數愈多。",
     "searchInat": "改查 iNaturalist",
     "inatResults": "iNaturalist 的分類群",
@@ -1250,7 +1275,6 @@
     "labelExportCount_other": "匯出 {{count}} 張標籤"
   },
   "areaSpecies": {
-    "fab": "查詢範圍物種",
     "title": "範圍物種查詢",
     "drawHint": "點按地圖框出範圍（至少兩點）",
     "need2": "請至少點兩個點框出範圍",
@@ -1303,7 +1327,6 @@
     "needRefine": "需先執行上方的 GBIF 校正才能取得識別碼。",
     "viaGbif": "GBIF 接受名:{{name}}",
     "errServerDetail": "伺服器回應錯誤({{status}}):{{detail}}",
-    "fabVisible": "查詢畫面範圍物種",
     "targetTitle": "加入到",
     "targetNew": "新增常用名錄",
     "drawAreaHint": "點按地圖重畫此名錄的範圍",
@@ -1322,7 +1345,11 @@
     "nInArea_other": "範圍內共 {{count}} 種",
     "nKeyed_other": "{{count}} 個可建立外部物種",
     "nRescued_other": "{{count}} 個解析回本地名錄",
-    "nUnknownToGbif_other": "{{count}} 個 GBIF 也查無"
+    "nUnknownToGbif_other": "{{count}} 個 GBIF 也查無",
+    "sourceVisible": "目前畫面範圍",
+    "sourceDraw": "自己畫範圍",
+    "areaKm2": "約 {{area}} km²",
+    "areaTooLarge": "範圍超過上限（{{max}} km²），請先放大地圖或把範圍畫小一點。"
   },
   "recordImport": {
     "unsupportedCollection": "採集記錄目前無法匯入，僅支援名錄與樣區。",
@@ -2036,5 +2063,19 @@
     "create": "建立",
     "hint": "標記「預設」(★) 的鑑定者，建立新的標本記錄時會自動帶入鑑定者欄。長按右側 ☰ 可拖曳調整順序。",
     "empty": "尚無鑑定者，點右上角「＋」新增。"
+  },
+  "speciesDist": {
+    "title": "物種分布查詢",
+    "tabTaxon": "看物種分布",
+    "tabArea": "查範圍物種",
+    "areaHint": "選一塊範圍，查出裡面記錄過哪些物種，可存成常用名錄。"
+  },
+  "licenses": {
+    "title": "第三方軟體授權",
+    "intro": "以下是本專案的相依套件清單，含建置期工具，未必全部進入 app。授權全文逐字收錄，未經改寫或摘要。",
+    "searchPlaceholder": "搜尋套件或授權",
+    "noMatch": "沒有符合的套件",
+    "noText": "此套件未附授權全文，僅宣告 {{id}}。",
+    "summary_other": "相依套件 {{count}} 個"
   }
 }

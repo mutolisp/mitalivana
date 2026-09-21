@@ -668,7 +668,8 @@
     "tree": "Baum",
     "search": "Suche",
     "addCurrent": "Zum aktuellen Datensatz hinzufügen",
-    "copyMenu": "Kopieren..."
+    "copyMenu": "Kopieren...",
+    "incompleteBucket": "Unvollständige Einordnung (selbst angelegt)"
   },
   "surveyors": {
     "addTitle": "Erfasser hinzufügen",
@@ -716,7 +717,7 @@
   },
   "about": {
     "subtitle": "Ökologisches Feldbuch",
-    "openSource": "Diese App ist Open Source. Die Artdaten stehen unter der TaiCOL-Lizenz.",
+    "openSource": "Diese App steht unter der BSD-2-Clause-Lizenz. Die Artdaten werden gemäß den TaiCOL-Lizenzbedingungen verwendet.",
     "partners": "Partner",
     "mapData": "Kartendaten",
     "mapLicense": "RudyMap ist ein abgeleitetes Werk aus OpenStreetMap und offenen Behördendaten Taiwans. Die Vektorausgabe in dieser App ist eine bearbeitete Fassung und trägt zur Unterscheidung einen anderen Namen."
@@ -735,7 +736,15 @@
     "nChecklists_one": "{{count}} Artenliste",
     "nChecklists_other": "{{count}} Artenlisten",
     "nPlots_one": "{{count}} Probefläche",
-    "nPlots_other": "{{count}} Probeflächen"
+    "nPlots_other": "{{count}} Probeflächen",
+    "selectAll": "Alle auswählen",
+    "deselectAll": "Auswahl aufheben",
+    "searchPlaceholder": "Projektname oder Ort suchen",
+    "noMatch": "Kein passendes Projekt",
+    "selectedCount_one": "{{count}} ausgewählt",
+    "selectedCount_other": "{{count}} ausgewählt",
+    "deleteSelectedMsg_one": "{{count}} Projekt wird gelöscht. Die zugehörigen {{sessions}} und {{plots}} gehen zurück auf „Nicht zugeordnet“.",
+    "deleteSelectedMsg_other": "{{count}} Projekte werden gelöscht. Die zugehörigen {{sessions}} und {{plots}} gehen zurück auf „Nicht zugeordnet“."
   },
   "sites": {
     "typePoint": "Punkt",
@@ -757,7 +766,27 @@
     "exportTitle_other": "{{count}} geografische Standorte exportieren",
     "projectStats_one": "{{count}} geografischer Standort",
     "projectStats_other": "{{count}} geografische Standorte",
-    "deleteBoundMsg": "{{name}} wird entfernt. Datensätze, die sie nutzen, verlieren ihre Grenze"
+    "deleteBoundMsg": "{{name}} wird entfernt. Datensätze, die sie nutzen, verlieren ihre Grenze",
+    "fromPlot": "Aufnahmefläche",
+    "duplicateTitle": "Standort duplizieren",
+    "duplicateMsg": "Einen neuen geografischen Standort aus der Form von „{{name}}“ anlegen",
+    "copySuffix": "-Kopie",
+    "namePlaceholder": "Name",
+    "selectAll": "Alle auswählen",
+    "deselectAll": "Auswahl aufheben",
+    "searchPlaceholder": "Name oder Projekt suchen",
+    "noMatch": "Kein passender geografischer Standort",
+    "deletePlotOnlyMsg": "Alles Ausgewählte sind die Koordinaten einer Aufnahme selbst — bitte dort löschen.",
+    "selectedCount_one": "{{count}} ausgewählt",
+    "selectedCount_other": "{{count}} ausgewählt",
+    "deleteSelectedMsg_one": "{{count}} geografischer Standort wird gelöscht.",
+    "deleteSelectedMsg_other": "{{count}} geografische Standorte werden gelöscht.",
+    "deleteBoundCountMsg_one": "Davon ist {{count}} in Verwendung; diese Aufnahme verliert ihre Fläche.",
+    "deleteBoundCountMsg_other": "Davon sind {{count}} in Verwendung; diese Aufnahmen verlieren ihre Fläche.",
+    "deleteSkipPlotsMsg_one": "{{count}} weiterer stammt aus einer Aufnahmefläche und bleibt erhalten.",
+    "deleteSkipPlotsMsg_other": "{{count}} weitere stammen aus Aufnahmeflächen und bleiben erhalten.",
+    "deletedCount_one": "{{count}} gelöscht",
+    "deletedCount_other": "{{count}} gelöscht"
   },
   "map": {
     "basemapStandard": "Standard",
@@ -1103,7 +1132,6 @@
     "namePrefixHint": "Bereits in der Datei enthaltene Namen haben Vorrang; bei mehreren Geometrien wird #1, #2 ... angehängt",
     "geomPreview": "Geometrie-Vorschau",
     "defaultPrefix": "Import",
-    "anotherFile": "Andere Datei wählen",
     "targetProject": "Zielprojekt:",
     "geomSummary_one": "{{count}} Geometrie, es wird {{count}} geografischer Standort angelegt",
     "geomSummary_other": "{{count}} Geometrien, es werden {{count}} geografische Standorte angelegt",
@@ -1112,7 +1140,15 @@
     "nTotal_one": "{{count}} insgesamt",
     "nTotal_other": "{{count}} insgesamt",
     "nSucceeded_one": "{{count}} erfolgreich",
-    "nSucceeded_other": "{{count}} erfolgreich"
+    "nSucceeded_other": "{{count}} erfolgreich",
+    "multiFileHint": "Es können mehrere Dateien auf einmal gewählt werden.",
+    "perFileNameHint": "Bei mehreren Dateien dient jeweils der eigene Dateiname als Präfix; in der Datei enthaltene Namen haben Vorrang.",
+    "addMoreFiles": "Weitere Dateien hinzufügen",
+    "noneUsable": "Keine der gewählten Dateien enthält importierbare Geometrien",
+    "nFiles_one": "{{count}} Datei",
+    "nFiles_other": "{{count}} Dateien",
+    "skipped_one": "{{count}} Datei übersprungen",
+    "skipped_other": "{{count}} Dateien übersprungen"
   },
   "batchImport": {
     "readFail": "Lesen fehlgeschlagen",
@@ -1242,8 +1278,6 @@
     "unknown": "Dieser wissenschaftliche Name fehlt in iNaturalist",
     "offline": "Offline – die iNaturalist-Ebene kann nicht geladen werden",
     "attribution": "Beobachtungen © iNaturalist-Mitwirkende; Koordinaten bedrohter Arten werden unscharf dargestellt",
-    "fab": "iNat-Beobachtungsraster",
-    "sheetTitle": "iNaturalist-Beobachtungsraster",
     "searchHint": "Suche ein Taxon, um seine iNaturalist-Beobachtungen über die Karte zu legen. Die Zellen passen sich der Zoomstufe an; je dunkler eine Zelle, desto mehr Beobachtungen enthält sie.",
     "searchInat": "Stattdessen iNaturalist durchsuchen",
     "inatResults": "Taxa auf iNaturalist",
@@ -1321,7 +1355,6 @@
     "labelExportCount_other": "{{count}} Etiketten exportieren"
   },
   "areaSpecies": {
-    "fab": "Arten im Gebiet",
     "title": "Artensuche im Gebiet",
     "drawHint": "Tippen Sie auf die Karte, um ein Gebiet zu umreißen (mindestens zwei Punkte)",
     "need2": "Tippen Sie mindestens zwei Punkte an, um ein Gebiet festzulegen",
@@ -1374,7 +1407,6 @@
     "needRefine": "Führen Sie zuerst den GBIF-Abgleich oben aus, um die Kennungen zu erhalten.",
     "viaGbif": "Von GBIF akzeptierter Name: {{name}}",
     "errServerDetail": "Serverfehler ({{status}}): {{detail}}",
-    "fabVisible": "Arten im Kartenausschnitt",
     "targetTitle": "Hinzufügen zu",
     "targetNew": "Neue Liste",
     "drawAreaHint": "Tippen Sie auf die Karte, um das Gebiet dieser Liste neu zu zeichnen",
@@ -1405,7 +1437,11 @@
     "nRescued_one": "{{count}} wurde der lokalen Artenliste zugeordnet",
     "nRescued_other": "{{count}} wurden der lokalen Artenliste zugeordnet",
     "nUnknownToGbif_one": "{{count}} ist auch GBIF unbekannt",
-    "nUnknownToGbif_other": "{{count}} sind auch GBIF unbekannt"
+    "nUnknownToGbif_other": "{{count}} sind auch GBIF unbekannt",
+    "sourceVisible": "Aktueller Kartenausschnitt",
+    "sourceDraw": "Fläche zeichnen",
+    "areaKm2": "Etwa {{area}} km²",
+    "areaTooLarge": "Über der Grenze von {{max}} km² — bitte erst hineinzoomen oder eine kleinere Fläche zeichnen."
   },
   "recordImport": {
     "unsupportedCollection": "Aufsammlungen lassen sich noch nicht importieren — nur Artenlisten und Probeflächen.",
@@ -2151,5 +2187,20 @@
     "create": "Anlegen",
     "hint": "Mit ★ als Standard markierte Personen werden bei einem neuen Beleg automatisch als Bestimmende eingetragen. ☰ rechts lange drücken zum Umsortieren.",
     "empty": "Noch keine Einträge — oben rechts auf ＋ tippen."
+  },
+  "speciesDist": {
+    "title": "Artverbreitung",
+    "tabTaxon": "Verbreitung einer Art",
+    "tabArea": "Arten in einem Gebiet",
+    "areaHint": "Ein Gebiet wählen, um die dort nachgewiesenen Arten aufzulisten; die Liste lässt sich als Favoritenordner sichern."
+  },
+  "licenses": {
+    "title": "Lizenzen Dritter",
+    "intro": "Unten steht die Abhängigkeitsliste dieses Projekts. Sie enthält auch Build-Werkzeuge, es ist also nicht alles davon in der App enthalten. Jede Lizenz ist wörtlich wiedergegeben, nicht zusammengefasst.",
+    "searchPlaceholder": "Paket oder Lizenz suchen",
+    "noMatch": "Kein passendes Paket",
+    "noText": "Dieses Paket liefert keinen Lizenztext mit; es nennt nur {{id}}.",
+    "summary_one": "{{count}} Abhängigkeit",
+    "summary_other": "{{count}} Abhängigkeiten"
   }
 }

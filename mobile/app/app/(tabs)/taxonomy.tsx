@@ -23,6 +23,7 @@ import {
   getKeysForScope,
   getSpeciesUnder,
   getTaxonChildren,
+  INCOMPLETE_PHYLUM,
   nodeKeyFor,
   type Ancestors,
   type IdentificationKey,
@@ -1065,7 +1066,10 @@ function TaxonRow({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [rowTwRequested, rowInstalls],
   );
-  const keys: IdentificationKey[] = rowTwOn ? getKeysForScope(node.rank_key, node.name) : [];
+  const isIncompleteBucket = node.name === INCOMPLETE_PHYLUM;
+  // The bucket is not a taxon, so it has no identification key to offer.
+  const keys: IdentificationKey[] =
+    rowTwOn && !isIncompleteBucket ? getKeysForScope(node.rank_key, node.name) : [];
 
   return (
     <Pressable
@@ -1083,11 +1087,21 @@ function TaxonRow({
       />
       <View className="flex-1">
         <View className="flex-row items-baseline">
-          {node.name_c ? (
-            <Text className="text-base font-medium text-gray-900 dark:text-gray-100">{node.name_c}</Text>
-          ) : null}
-          <Text className={`${node.name_c ? 'ml-1' : ''} text-sm text-gray-700 dark:text-gray-300`}>{node.name}</Text>
-          {node.rank_key ? (() => {
+          {isIncompleteBucket ? (
+            // The bucket's `name` is a sentinel, not a taxon name — it must
+            // never reach the screen.
+            <Text className="text-base font-medium text-amber-700 dark:text-amber-300">
+              {t('taxonomy.incompleteBucket')}
+            </Text>
+          ) : (
+            <>
+              {node.name_c ? (
+                <Text className="text-base font-medium text-gray-900 dark:text-gray-100">{node.name_c}</Text>
+              ) : null}
+              <Text className={`${node.name_c ? 'ml-1' : ''} text-sm text-gray-700 dark:text-gray-300`}>{node.name}</Text>
+            </>
+          )}
+          {node.rank_key && !isIncompleteBucket ? (() => {
             const c = rankColor(node.rank_key);
             return (
               <View className={`ml-2 rounded px-1.5 py-0.5 ${c.bg}`}>
@@ -1173,6 +1187,13 @@ function SpeciesRow({
         {species.is_endemic === 'true' ? (
           // YList is_endemic means Japan-endemic — the label must follow the id.
           <Text className="text-xs font-medium text-emerald-700 dark:text-emerald-300">{endemicTagLabel(species.taxon_id)}</Text>
+        ) : null}
+        {species.taxon_id.startsWith('gm') ? (
+          // User-created taxon: nothing in it was checked against a checklist,
+          // so the row says where it came from.
+          <Text className="ml-1.5 rounded bg-amber-100 px-1 text-xs font-medium text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">
+            {t('manualTaxon.badge')}
+          </Text>
         ) : null}
         {species.pack_country ? (
           // GBIF-derived country-pack row — same badge treatment as SearchBox.

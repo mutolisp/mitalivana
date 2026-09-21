@@ -28,6 +28,13 @@ import {
   type PackTreeNodeRow,
 } from './regionpacks';
 import { mergeScopeNodes } from './mergeScope';
+import {
+  INCOMPLETE_PHYLUM,
+  manualKingdoms,
+  manualScopeSig,
+  manualSpeciesUnder,
+  manualTreeChildren,
+} from './manualTaxonomy';
 import type { SearchResult } from './types';
 
 /**
@@ -223,7 +230,7 @@ let CACHED_KINGDOMS_SCOPE: string | null = null;
 /** 快取鍵含每個可用模組的**版本**，所以更新某個模組（整包換檔）會讓分類樹
  *  自動失效——不必額外呼叫清快取。 */
 function scopeSig(): string {
-  return `${datasetScopeSig()}|${packScopeSig()}`;
+  return `${datasetScopeSig()}|${packScopeSig()}|${manualScopeSig()}`;
 }
 
 /** Exposed for the taxonomy screen: it must reset its in-memory tree when the
@@ -296,7 +303,17 @@ function computeTopLevel(): TaxonNode[] {
   const packRows = packTreeChildren('kingdom', {}).filter(
     (r) => !VIRUS_KINGDOMS.has(r.name) && r.name !== 'Viruses',
   );
-  return mergePackNodes(nodes, packRows, 'kingdom', 'phylum', {});
+  nodes = mergePackNodes(nodes, packRows, 'kingdom', 'phylum', {});
+  // User-created taxa contribute their kingdom too, or one created in a
+  // kingdom no installed checklist covers would have no node to sit under and
+  // would be unreachable in the tree.
+  //
+  // Viruses are NOT filtered out here, unlike the pack rows above. That filter
+  // exists because the realm hierarchy viruses need is deferred app-wide; a
+  // manual taxon has no realm either way, so it either has a complete
+  // kingdom→genus chain or lands in the incomplete bucket, and both paths work.
+  // Dropping it would only hide a species the user typed in themselves.
+  return mergePackNodes(nodes, manualKingdoms(), 'kingdom', 'phylum', {});
 }
 
 export type ChildrenOptions = {
@@ -352,7 +369,24 @@ export function getTaxonChildren(opts: ChildrenOptions): TaxonNode[] {
     }));
     nodes = mergeScopeNodes(nodes, scopeNodes);
   }
-  return mergePackNodes(nodes, packTreeChildren(opts.rank, opts.ancestors), opts.rank, childRank, ancestors);
+  nodes = mergePackNodes(
+    nodes,
+    packTreeChildren(opts.rank, opts.ancestors),
+    opts.rank,
+    childRank,
+    ancestors,
+  );
+  // User-created taxa, merged the same way — `mergePackNodes` only needs
+  // {name, stats}, and a manual genus under a checklist family is the same
+  // shape of contribution a pack makes.
+  const manual = manualTreeChildren(opts.rank, opts.ancestors);
+  if (manual.length === 0) return nodes;
+  nodes = mergePackNodes(nodes, manual, opts.rank, childRank, ancestors);
+  // The incomplete bucket is a leaf-of-ranks: its children are species, not
+  // the classes a real phylum would hold.
+  return nodes.map((n) =>
+    n.name === INCOMPLETE_PHYLUM ? { ...n, child_rank: 'species' as ChildRank } : n,
+  );
 }
 
 export type TaxonSpecies = {
@@ -493,11 +527,22 @@ export function getSpeciesUnder(ancestors?: Ancestors): TaxonSpecies[] {
       ((res.rows ?? []) as Array<Record<string, unknown>>).map(taxonRowToSpecies),
     );
   }
+  // The incomplete bucket holds only manual taxa; no checklist or pack query
+  // can match its sentinel phylum, so skip straight to them.
+  if (ancestors?.phylum === INCOMPLETE_PHYLUM) return manualSpeciesUnder(ancestors);
+
   const packRows = packSpeciesUnder(ancestors).map(packRowToTaxonSpecies);
   // 兩個以上來源就要去重（共有種以 TaiCOL > YList > pack 為準）——來源現在是
   // 「可用模組數 + pack」，不再是 region 旗標。
-  const multiSource = packRows.length > 0 || scopes.length > 1;
+  const manualRows = manualSpeciesUnder(ancestors);
+  const multiSource = packRows.length > 0 || manualRows.length > 0 || scopes.length > 1;
   if (packRows.length > 0) species = species.concat(packRows);
+  // Appended last on purpose. Manual ids start 'gm…', so `idPreference` scores
+  // them 2 — tied with packs, beaten by TaiCOL/YList. The dedup keeps the
+  // first row at the best score, so appending after packs makes a pack win the
+  // tie. Either way a checklist row wins, which is what matters: a manual
+  // taxon duplicating a checklist name is a mistake to hide, not to show twice.
+  if (manualRows.length > 0) species = species.concat(manualRows);
 
   if (multiSource) {
     // Collapse shared species (same scientific name across sources) to one

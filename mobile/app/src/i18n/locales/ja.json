@@ -632,7 +632,8 @@
     "tree": "分類ツリー",
     "search": "検索",
     "addCurrent": "現在の記録に追加",
-    "copyMenu": "コピー..."
+    "copyMenu": "コピー...",
+    "incompleteBucket": "分類が未完成（自作）"
   },
   "surveyors": {
     "addTitle": "調査者を追加",
@@ -680,7 +681,7 @@
   },
   "about": {
     "subtitle": "生態フィールドノート",
-    "openSource": "本アプリはオープンソースです。種データは TaiCOL のライセンスに従います。",
+    "openSource": "本アプリは BSD 2-Clause ライセンスで公開しています。種データは TaiCOL のライセンス条件に従います。",
     "partners": "協力機関",
     "mapData": "地図データ",
     "mapLicense": "RudyMap は OpenStreetMap と台湾のオープンガバメントデータの派生物です。本アプリのベクター版は改変版であり、区別のため別の名称を用いています。"
@@ -697,7 +698,13 @@
     "deleteMsg": "「{{name}}」を削除します。このプロジェクトに属していた {{sessions}}と {{plots}}は「未分類」に戻ります。",
     "stats": "種リスト {{sessions}} · 調査区 {{plots}}",
     "nChecklists_other": "{{count}} 件の種リスト",
-    "nPlots_other": "{{count}} 件の調査区"
+    "nPlots_other": "{{count}} 件の調査区",
+    "selectAll": "すべて選択",
+    "deselectAll": "選択を解除",
+    "searchPlaceholder": "プロジェクト名または場所を検索",
+    "noMatch": "該当するプロジェクトがありません",
+    "selectedCount_other": "{{count}} 件を選択中",
+    "deleteSelectedMsg_other": "プロジェクトを {{count}} 件削除します。所属していた{{sessions}}と{{plots}}は「未分類」に戻ります。"
   },
   "sites": {
     "typePoint": "ポイント",
@@ -717,7 +724,22 @@
     "goToMap": "地図へ",
     "exportTitle_other": "サイト {{count}} 件をエクスポート",
     "projectStats_other": "サイト {{count}} 件",
-    "deleteBoundMsg": "「{{name}}」を削除します。これを使っている記録は範囲を失います"
+    "deleteBoundMsg": "「{{name}}」を削除します。これを使っている記録は範囲を失います",
+    "fromPlot": "プロット",
+    "duplicateTitle": "地理サイトを複製",
+    "duplicateMsg": "「{{name}}」の形状から新しい地理サイトを作成します",
+    "copySuffix": "-コピー",
+    "namePlaceholder": "名前",
+    "selectAll": "すべて選択",
+    "deselectAll": "選択を解除",
+    "searchPlaceholder": "名前またはプロジェクトを検索",
+    "noMatch": "該当する地理サイトがありません",
+    "deletePlotOnlyMsg": "選択したものはすべて記録自体の座標です。記録側で削除してください。",
+    "selectedCount_other": "{{count}} 件を選択中",
+    "deleteSelectedMsg_other": "地理サイトを {{count}} 件削除します。",
+    "deleteBoundCountMsg_other": "うち {{count}} 件は使用中で、その記録は範囲を失います。",
+    "deleteSkipPlotsMsg_other": "他に {{count}} 件はプロット調査由来のため、ここでは削除しません。",
+    "deletedCount_other": "{{count}} 件を削除しました"
   },
   "map": {
     "basemapStandard": "標準",
@@ -1048,12 +1070,17 @@
     "namePrefixHint": "元ファイルに名前があればそちらを優先します。複数のジオメトリには #1, #2 ... が付きます",
     "geomPreview": "ジオメトリのプレビュー",
     "defaultPrefix": "インポート",
-    "anotherFile": "別のファイルを選ぶ",
     "targetProject": "対象プロジェクト：",
     "geomSummary_other": "ジオメトリ {{count}} 件、サイトを {{count}} 件作成します",
     "moreNotListed_other": "（他に {{count}} 件は未表示）",
     "nTotal_other": "全 {{count}} 件",
-    "nSucceeded_other": "{{count}} 件成功"
+    "nSucceeded_other": "{{count}} 件成功",
+    "multiFileHint": "複数のファイルを一度に選択できます。",
+    "perFileNameHint": "複数ファイルの場合、各ファイルのファイル名が接頭辞になります。ファイル内に名前があればそちらを優先します。",
+    "addMoreFiles": "ファイルを追加",
+    "noneUsable": "選択したファイルにインポートできるジオメトリがありません",
+    "nFiles_other": "ファイル {{count}} 件",
+    "skipped_other": "{{count}} 件のファイルをスキップしました"
   },
   "batchImport": {
     "readFail": "読み込みに失敗しました",
@@ -1174,8 +1201,6 @@
     "unknown": "この学名は iNaturalist に収録されていません",
     "offline": "オフライン：iNaturalist のレイヤーを読み込めません",
     "attribution": "観察データ © iNaturalist 投稿者；絶滅危惧種の座標はぼかされています",
-    "fab": "iNat 観察グリッド",
-    "sheetTitle": "iNaturalist 観察グリッド",
     "searchHint": "分類群を検索すると、その iNaturalist 観察分布を地図に重ねます。マス目は縮尺に応じて大きさが変わり、色が濃いマスほど観察件数が多いことを表します。",
     "searchInat": "iNaturalist で検索する",
     "inatResults": "iNaturalist の分類群",
@@ -1250,7 +1275,6 @@
     "labelExportCount_other": "{{count}} 枚のラベルをエクスポート"
   },
   "areaSpecies": {
-    "fab": "範囲内の種を検索",
     "title": "範囲内の種の検索",
     "drawHint": "地図をタップして範囲を囲みます（2点以上）",
     "need2": "2点以上タップして範囲を指定してください",
@@ -1303,7 +1327,6 @@
     "needRefine": "識別子を得るには、上の GBIF 照合を先に実行してください。",
     "viaGbif": "GBIF の正名：{{name}}",
     "errServerDetail": "サーバーエラー（{{status}}）：{{detail}}",
-    "fabVisible": "表示範囲の種を検索",
     "targetTitle": "追加先",
     "targetNew": "お気に入りを新規作成",
     "drawAreaHint": "地図をタップしてこの種リストの範囲を描き直します",
@@ -1322,7 +1345,11 @@
     "nInArea_other": "範囲内に合計 {{count}} 種",
     "nKeyed_other": "{{count}} 件は外部の種として作成可能",
     "nRescued_other": "{{count}} 件はローカル種リストへ解決",
-    "nUnknownToGbif_other": "{{count}} 件は GBIF でも該当なし"
+    "nUnknownToGbif_other": "{{count}} 件は GBIF でも該当なし",
+    "sourceVisible": "現在の表示範囲",
+    "sourceDraw": "範囲を描く",
+    "areaKm2": "約 {{area}} km²",
+    "areaTooLarge": "範囲が上限（{{max}} km²）を超えています。地図を拡大するか、範囲を小さく描いてください。"
   },
   "recordImport": {
     "unsupportedCollection": "採集記録は現在インポートできません。種リストと調査区のみ対応しています。",
@@ -2036,5 +2063,19 @@
     "create": "作成",
     "hint": "「既定」(★) を付けた同定者は、新しい標本記録の同定者欄に自動で入ります。右の ☰ を長押しで並べ替えできます。",
     "empty": "同定者がまだありません。右上の「＋」から追加してください。"
+  },
+  "speciesDist": {
+    "title": "種の分布検索",
+    "tabTaxon": "種の分布を見る",
+    "tabArea": "範囲内の種を調べる",
+    "areaHint": "範囲を選ぶと、そこで記録された種の一覧が得られます。お気に入り名簿として保存できます。"
+  },
+  "licenses": {
+    "title": "サードパーティのライセンス",
+    "intro": "以下は本プロジェクトの依存パッケージ一覧です。ビルド時のツールも含むため、すべてがアプリに含まれるわけではありません。ライセンス全文は原文のまま収録しています。",
+    "searchPlaceholder": "パッケージまたはライセンスを検索",
+    "noMatch": "該当するパッケージがありません",
+    "noText": "このパッケージはライセンス全文を同梱しておらず、{{id}} の宣言のみです。",
+    "summary_other": "依存パッケージ {{count}} 件"
   }
 }

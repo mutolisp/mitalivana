@@ -155,3 +155,17 @@ export type MapCanvasProps = {
   style?: object;
   children?: ReactNode;
 };
+
+/**
+ * How tall the north pointer is, per engine — what anything stacked ABOVE it
+ * has to clear.
+ *
+ * Two constants because the two engines draw different things: the native
+ * engine draws `NorthArrow` in app code, so its size is exact and shared from
+ * here; MapLibre draws its own native ornament, whose size JS cannot read at
+ * all. The vector figure is therefore a deliberately generous upper bound —
+ * measured only by the symptom it was raised to fix (the locate button covering
+ * the compass in RudyMap). Retune it against a device, not by reasoning.
+ */
+export const NORTH_ARROW_SIZE = 36;
+export const MAPLIBRE_COMPASS_SIZE = 64;

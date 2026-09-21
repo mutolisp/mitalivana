@@ -42,6 +42,40 @@ export type BBox = {
   neLng: number;
 };
 
+/**
+ * Ceiling on the area one query may cover.
+ *
+ * Not a guess at where 1000 species starts — species density varies far too
+ * much by region for that to be knowable without measuring. It marks where the
+ * COST stops being reasonable: at this size the answer is certainly truncated,
+ * and an unfiltered GBIF run is 8 faceted requests before the optional refine
+ * pass, which costs one request per unmatched name.
+ *
+ * Reference points computed from `bboxAreaKm2` at lat 23.5°: a 0.05° view is
+ * 28 km² (one valley), 0.5° is 2,800 km² (county scale), 1° is 11,300 km², and
+ * Taiwan's whole bounding box is 77,000 km². 5,000 km² therefore allows any
+ * working survey area and a good part of a county, and refuses the regional and
+ * national views that are certain to truncate.
+ *
+ * Where exactly the 1000-species ceiling bites is NOT knowable without
+ * measuring against the live API — species density varies far too much by
+ * region. This is one constant on purpose, so field use can retune it.
+ */
+export const MAX_QUERY_AREA_KM2 = 5_000;
+
+/**
+ * Area of a lat/lng rectangle on the sphere, in km².
+ *
+ * Exact for this shape (no projection needed): integrating cos φ over the
+ * latitude band gives R²·Δλ·(sin φ₂ − sin φ₁).
+ */
+export function bboxAreaKm2(b: BBox): number {
+  const R = 6371;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLng = Math.abs(b.neLng - b.swLng);
+  return R * R * toRad(dLng) * Math.abs(Math.sin(toRad(b.neLat)) - Math.sin(toRad(b.swLat)));
+}
+
 /** iNat's coarse top-level groupings, used as the taxon filter. These are
  *  iNat's own vocabulary — not our `taxonGroup` — so they are passed through
  *  verbatim rather than translated. `gbif.ts` maps the same list onto GBIF

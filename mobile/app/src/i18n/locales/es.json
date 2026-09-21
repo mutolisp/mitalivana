@@ -704,7 +704,8 @@
     "tree": "Árbol",
     "search": "Buscar",
     "addCurrent": "Añadir al registro actual",
-    "copyMenu": "Copiar..."
+    "copyMenu": "Copiar...",
+    "incompleteBucket": "Clasificación incompleta (creada por usted)"
   },
   "surveyors": {
     "addTitle": "Añadir observador",
@@ -752,7 +753,7 @@
   },
   "about": {
     "subtitle": "Cuaderno de campo ecológico",
-    "openSource": "Esta app es de código abierto. Los datos de especies se distribuyen bajo la licencia de TaiCOL.",
+    "openSource": "Esta app se publica bajo la licencia BSD 2-Clause. Los datos de especies se usan según los términos de licencia de TaiCOL.",
     "partners": "Entidades colaboradoras",
     "mapData": "Datos cartográficos",
     "mapLicense": "RudyMap es una obra derivada de OpenStreetMap y de los datos abiertos del gobierno de Taiwán. La versión vectorial de esta app es una versión modificada y lleva otro nombre para distinguirla."
@@ -773,7 +774,17 @@
     "nChecklists_other": "{{count}} listas de especies",
     "nPlots_one": "{{count}} parcela",
     "nPlots_many": "{{count}} parcelas",
-    "nPlots_other": "{{count}} parcelas"
+    "nPlots_other": "{{count}} parcelas",
+    "selectAll": "Seleccionar todo",
+    "deselectAll": "Deseleccionar todo",
+    "searchPlaceholder": "Buscar nombre de proyecto o ubicación",
+    "noMatch": "Ningún proyecto coincide",
+    "selectedCount_one": "{{count}} seleccionado",
+    "selectedCount_many": "{{count}} seleccionados",
+    "selectedCount_other": "{{count}} seleccionados",
+    "deleteSelectedMsg_one": "Se eliminará {{count}} proyecto. Sus {{sessions}} y {{plots}} vuelven a «Sin clasificar».",
+    "deleteSelectedMsg_many": "Se eliminarán {{count}} proyectos. Sus {{sessions}} y {{plots}} vuelven a «Sin clasificar».",
+    "deleteSelectedMsg_other": "Se eliminarán {{count}} proyectos. Sus {{sessions}} y {{plots}} vuelven a «Sin clasificar»."
   },
   "sites": {
     "typePoint": "Punto",
@@ -797,7 +808,32 @@
     "projectStats_one": "{{count}} sitio geográfico",
     "projectStats_many": "{{count}} sitios geográficos",
     "projectStats_other": "{{count}} sitios geográficos",
-    "deleteBoundMsg": "«{{name}}» se eliminará. Los registros que lo usan perderán su límite"
+    "deleteBoundMsg": "«{{name}}» se eliminará. Los registros que lo usan perderán su límite",
+    "fromPlot": "Parcela",
+    "duplicateTitle": "Duplicar sitio",
+    "duplicateMsg": "Crear un nuevo sitio geográfico a partir de la forma de «{{name}}»",
+    "copySuffix": "-copia",
+    "namePlaceholder": "Nombre",
+    "selectAll": "Seleccionar todo",
+    "deselectAll": "Deseleccionar todo",
+    "searchPlaceholder": "Buscar nombre o proyecto",
+    "noMatch": "Ningún sitio geográfico coincide",
+    "deletePlotOnlyMsg": "Todo lo seleccionado son las coordenadas de un registro: elimínelas desde el registro.",
+    "selectedCount_one": "{{count}} seleccionado",
+    "selectedCount_many": "{{count}} seleccionados",
+    "selectedCount_other": "{{count}} seleccionados",
+    "deleteSelectedMsg_one": "Se eliminará {{count}} sitio geográfico.",
+    "deleteSelectedMsg_many": "Se eliminarán {{count}} sitios geográficos.",
+    "deleteSelectedMsg_other": "Se eliminarán {{count}} sitios geográficos.",
+    "deleteBoundCountMsg_one": "De ellos {{count}} está en uso; ese registro perderá su área.",
+    "deleteBoundCountMsg_many": "De ellos {{count}} están en uso; esos registros perderán su área.",
+    "deleteBoundCountMsg_other": "De ellos {{count}} están en uso; esos registros perderán su área.",
+    "deleteSkipPlotsMsg_one": "Otro {{count}} proviene de una parcela y no se elimina aquí.",
+    "deleteSkipPlotsMsg_many": "Otros {{count}} provienen de parcelas y no se eliminan aquí.",
+    "deleteSkipPlotsMsg_other": "Otros {{count}} provienen de parcelas y no se eliminan aquí.",
+    "deletedCount_one": "{{count}} eliminado",
+    "deletedCount_many": "{{count}} eliminados",
+    "deletedCount_other": "{{count}} eliminados"
   },
   "map": {
     "basemapStandard": "Estándar",
@@ -1158,7 +1194,6 @@
     "namePrefixHint": "Los nombres que ya vengan en el archivo tienen prioridad; si hay varias geometrías se añade #1, #2 ...",
     "geomPreview": "Vista previa de las geometrías",
     "defaultPrefix": "Importación",
-    "anotherFile": "Elegir otro archivo",
     "targetProject": "Proyecto de destino:",
     "geomSummary_one": "{{count}} geometría; se creará {{count}} sitio geográfico",
     "geomSummary_many": "{{count}} geometrías; se crearán {{count}} sitios geográficos",
@@ -1171,7 +1206,17 @@
     "nTotal_other": "{{count}} en total",
     "nSucceeded_one": "{{count}} correcto",
     "nSucceeded_many": "{{count}} correctos",
-    "nSucceeded_other": "{{count}} correctos"
+    "nSucceeded_other": "{{count}} correctos",
+    "multiFileHint": "Puede elegir varios archivos a la vez.",
+    "perFileNameHint": "Con varios archivos, cada uno usa su propio nombre de archivo como prefijo; los nombres que ya vengan en el archivo tienen prioridad.",
+    "addMoreFiles": "Añadir más archivos",
+    "noneUsable": "Ninguno de los archivos elegidos contiene geometrías importables",
+    "nFiles_one": "{{count}} archivo",
+    "nFiles_many": "{{count}} archivos",
+    "nFiles_other": "{{count}} archivos",
+    "skipped_one": "{{count}} archivo omitido",
+    "skipped_many": "{{count}} archivos omitidos",
+    "skipped_other": "{{count}} archivos omitidos"
   },
   "batchImport": {
     "readFail": "Error al leer el archivo",
@@ -1310,8 +1355,6 @@
     "unknown": "Este nombre científico no está en iNaturalist",
     "offline": "Sin conexión: no se puede cargar la capa de iNaturalist",
     "attribution": "Observaciones © colaboradores de iNaturalist; las coordenadas de especies amenazadas se ofuscan",
-    "fab": "Cuadrícula de iNat",
-    "sheetTitle": "Cuadrícula de observaciones de iNaturalist",
     "searchHint": "Busca un taxón para superponer sus observaciones de iNaturalist. Las celdas cambian de tamaño con el nivel de zoom y cuanto más oscura es una celda, más observaciones contiene.",
     "searchInat": "Buscar en iNaturalist",
     "inatResults": "Taxones en iNaturalist",
@@ -1392,7 +1435,6 @@
     "labelExportCount_other": "Exportar {{count}} etiquetas"
   },
   "areaSpecies": {
-    "fab": "Especies del área",
     "title": "Consulta de especies por área",
     "drawHint": "Toque el mapa para delimitar un área (al menos dos puntos)",
     "need2": "Toque al menos dos puntos para delimitar un área",
@@ -1445,7 +1487,6 @@
     "needRefine": "Ejecute primero el contraste con GBIF de arriba para obtener los identificadores.",
     "viaGbif": "Nombre aceptado en GBIF: {{name}}",
     "errServerDetail": "Error del servidor ({{status}}): {{detail}}",
-    "fabVisible": "Especies de la vista actual",
     "targetTitle": "Añadir a",
     "targetNew": "Nueva lista de favoritos",
     "drawAreaHint": "Toque el mapa para volver a dibujar el área de esta lista",
@@ -1488,7 +1529,11 @@
     "nRescued_other": "{{count}} se resolvieron en la lista local",
     "nUnknownToGbif_one": "{{count}} tampoco aparece en GBIF",
     "nUnknownToGbif_many": "{{count}} tampoco aparecen en GBIF",
-    "nUnknownToGbif_other": "{{count}} tampoco aparecen en GBIF"
+    "nUnknownToGbif_other": "{{count}} tampoco aparecen en GBIF",
+    "sourceVisible": "Vista actual del mapa",
+    "sourceDraw": "Dibujar un área",
+    "areaKm2": "Unos {{area}} km²",
+    "areaTooLarge": "Supera el límite de {{max}} km²: acerque el mapa o dibuje un área más pequeña."
   },
   "recordImport": {
     "unsupportedCollection": "Las recolecciones todavía no se pueden importar; solo listas de especies y parcelas.",
@@ -2266,5 +2311,21 @@
     "create": "Crear",
     "hint": "Los determinadores marcados como predeterminados (★) rellenan automáticamente el campo de determinación de un espécimen nuevo. Mantén pulsado ☰ a la derecha para reordenar.",
     "empty": "Aún no hay determinadores: pulsa ＋ arriba a la derecha."
+  },
+  "speciesDist": {
+    "title": "Distribución de especies",
+    "tabTaxon": "Dónde está una especie",
+    "tabArea": "Especies de un área",
+    "areaHint": "Elija un área para listar las especies registradas en ella; la lista puede guardarse como carpeta de favoritos."
+  },
+  "licenses": {
+    "title": "Licencias de terceros",
+    "intro": "A continuación, la lista de dependencias de este proyecto. Incluye herramientas de compilación, así que no todo se incluye en la app. Cada licencia se reproduce literalmente, nunca resumida.",
+    "searchPlaceholder": "Buscar paquete o licencia",
+    "noMatch": "Ningún paquete coincide",
+    "noText": "Este paquete no incluye texto de licencia; solo declara {{id}}.",
+    "summary_one": "{{count}} dependencia",
+    "summary_many": "{{count}} dependencias",
+    "summary_other": "{{count}} dependencias"
   }
 }

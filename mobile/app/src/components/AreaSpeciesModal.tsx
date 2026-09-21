@@ -32,8 +32,10 @@ import { useThemeColors } from '~/hooks/useThemeColors';
 import { ApiError } from '~/lib/apiFetch';
 import { apiErrorMessage } from '~/lib/apiErrorMessage';
 import {
+  bboxAreaKm2,
   fetchSpeciesInBBox,
   ICONIC_TAXA,
+  MAX_QUERY_AREA_KM2,
   MAX_SPECIES,
   type BBox,
   type IconicTaxon,
@@ -94,6 +96,10 @@ type Props = {
 
 /** ~4 decimal places is ±11 m, far finer than a finger-drawn boundary. */
 const fmt = (n: number) => n.toFixed(4);
+
+/** Area for reading, not for calculating: one decimal while a survey plot is
+ *  still legible as a number, thousands separators once it is a landscape. */
+const fmtArea = (km2: number) => (km2 < 10 ? km2.toFixed(1) : Math.round(km2).toLocaleString());
 
 export function AreaSpeciesModal({
   visible,
@@ -170,6 +176,17 @@ export function AreaSpeciesModal({
 
   // Shared with the search box's GBIF fallback — see src/lib/apiErrorMessage.ts.
   const messageFor = apiErrorMessage;
+
+  /**
+   * How much of the world this query covers, and whether that is too much.
+   *
+   * Measured on the bounding box even for GBIF, whose query is the drawn
+   * polygon: the polygon is always inside its box, so the guard is
+   * conservative rather than permissive, and the box is the honest unit for
+   * iNaturalist, which literally queries it (see `areaSpecies.bboxNote`).
+   */
+  const areaKm2 = bbox ? bboxAreaKm2(bbox) : null;
+  const areaTooLarge = areaKm2 !== null && areaKm2 > MAX_QUERY_AREA_KM2;
 
   const runQuery = async () => {
     const ctrl = new AbortController();
@@ -417,6 +434,16 @@ export function AreaSpeciesModal({
                   {fmt(bbox.swLat)}, {fmt(bbox.swLng)} — {fmt(bbox.neLat)}, {fmt(bbox.neLng)}
                 </Text>
               ) : null}
+              {areaKm2 !== null ? (
+                <Text className="mb-1 text-sm text-gray-700 dark:text-gray-300">
+                  {t('areaSpecies.areaKm2', { area: fmtArea(areaKm2) })}
+                </Text>
+              ) : null}
+              {areaTooLarge ? (
+                <Text className="mb-1 text-xs font-medium text-red-600 dark:text-red-400">
+                  {t('areaSpecies.areaTooLarge', { max: fmtArea(MAX_QUERY_AREA_KM2) })}
+                </Text>
+              ) : null}
               <Text className="mb-4 text-xs text-amber-600 dark:text-amber-400">
                 {t(source === 'inat' ? 'areaSpecies.bboxNote' : 'areaSpecies.polygonNote')}
               </Text>
@@ -483,9 +510,11 @@ export function AreaSpeciesModal({
 
               <Pressable
                 onPress={runQuery}
-                disabled={source === 'gbif' ? !wkt : !bbox}
+                disabled={areaTooLarge || (source === 'gbif' ? !wkt : !bbox)}
                 className={`items-center rounded-xl py-3 ${
-                  (source === 'gbif' ? wkt : bbox) ? ACTION_FILL : 'bg-gray-300 dark:bg-gray-700'
+                  !areaTooLarge && (source === 'gbif' ? wkt : bbox)
+                    ? ACTION_FILL
+                    : 'bg-gray-300 dark:bg-gray-700'
                 }`}
               >
                 <Text className="text-base font-semibold text-white">

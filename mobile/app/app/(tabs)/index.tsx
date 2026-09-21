@@ -193,7 +193,10 @@ function ProjectHeader({
       onPress={selectMode ? onToggleSelect : onToggle}
       onLongPress={selectMode ? undefined : onToggleAll}
       delayLongPress={350}
-      className="border-b border-gray-200 bg-gray-100 px-4 py-2 active:bg-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:active:bg-gray-700"
+      // `mb-2` matches the gap between records. Both layouts render records as
+      // inset rounded cards that carry only a BOTTOM margin, so without this
+      // the first card of a group sits flush against the header bar.
+      className="mb-2 border-b border-gray-200 bg-gray-100 px-4 py-2 active:bg-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:active:bg-gray-700"
     >
       <View className="flex-row items-center">
         {selectMode ? (

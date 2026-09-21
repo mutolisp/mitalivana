@@ -668,7 +668,8 @@
     "tree": "Tree",
     "search": "Search",
     "addCurrent": "Add to current record",
-    "copyMenu": "Copy..."
+    "copyMenu": "Copy...",
+    "incompleteBucket": "Incomplete classification (user-created)"
   },
   "surveyors": {
     "addTitle": "Add surveyor",
@@ -716,7 +717,7 @@
   },
   "about": {
     "subtitle": "Ecological field notes",
-    "openSource": "This app is open source. Species data is under the TaiCOL license.",
+    "openSource": "This app is released under the BSD 2-Clause License. Species data is used under the TaiCOL licence terms.",
     "partners": "Partners",
     "mapData": "Map data",
     "mapLicense": "RudyMap is derived from OpenStreetMap and Taiwanese open government data. The vector edition in this app is a modified version and carries a different name to distinguish it."
@@ -735,7 +736,15 @@
     "nChecklists_one": "{{count}} checklist",
     "nChecklists_other": "{{count}} checklists",
     "nPlots_one": "{{count}} plot",
-    "nPlots_other": "{{count}} plots"
+    "nPlots_other": "{{count}} plots",
+    "selectAll": "Select all",
+    "deselectAll": "Deselect all",
+    "searchPlaceholder": "Search project name or location",
+    "noMatch": "No matching project",
+    "selectedCount_one": "{{count}} selected",
+    "selectedCount_other": "{{count}} selected",
+    "deleteSelectedMsg_one": "{{count}} project will be deleted. Its {{sessions}} and {{plots}} move back to “Unassigned”.",
+    "deleteSelectedMsg_other": "{{count}} projects will be deleted. Their {{sessions}} and {{plots}} move back to “Unassigned”."
   },
   "sites": {
     "typePoint": "Point",
@@ -757,7 +766,27 @@
     "exportTitle_other": "Export {{count}} geographic sites",
     "projectStats_one": "{{count}} geographic site",
     "projectStats_other": "{{count}} geographic sites",
-    "deleteBoundMsg": "\"{{name}}\" will be removed. Records using it will lose their boundary"
+    "deleteBoundMsg": "\"{{name}}\" will be removed. Records using it will lose their boundary",
+    "fromPlot": "Plot",
+    "duplicateTitle": "Duplicate site",
+    "duplicateMsg": "Create a new geographic site from the shape of “{{name}}”",
+    "copySuffix": "-copy",
+    "namePlaceholder": "Name",
+    "selectAll": "Select all",
+    "deselectAll": "Deselect all",
+    "searchPlaceholder": "Search name or project",
+    "noMatch": "No matching geographic site",
+    "deletePlotOnlyMsg": "Everything selected is a record’s own coordinates — delete those from the record itself.",
+    "selectedCount_one": "{{count}} selected",
+    "selectedCount_other": "{{count}} selected",
+    "deleteSelectedMsg_one": "{{count}} geographic site will be deleted.",
+    "deleteSelectedMsg_other": "{{count}} geographic sites will be deleted.",
+    "deleteBoundCountMsg_one": "{{count}} of them is in use; that record will lose its boundary.",
+    "deleteBoundCountMsg_other": "{{count}} of them are in use; those records will lose their boundary.",
+    "deleteSkipPlotsMsg_one": "{{count}} more comes from a plot survey and is not deleted here.",
+    "deleteSkipPlotsMsg_other": "{{count}} more come from plot surveys and are not deleted here.",
+    "deletedCount_one": "{{count}} deleted",
+    "deletedCount_other": "{{count}} deleted"
   },
   "map": {
     "basemapStandard": "Standard",
@@ -1103,7 +1132,6 @@
     "namePrefixHint": "Names already in the file take priority; multiple geometries get #1, #2 ...",
     "geomPreview": "Geometry preview",
     "defaultPrefix": "Import",
-    "anotherFile": "Choose another file",
     "targetProject": "Target project:",
     "geomSummary_one": "{{count}} geometry, will create {{count}} geographic site",
     "geomSummary_other": "{{count}} geometries, will create {{count}} geographic sites",
@@ -1112,7 +1140,15 @@
     "nTotal_one": "{{count}} total",
     "nTotal_other": "{{count}} total",
     "nSucceeded_one": "{{count}} succeeded",
-    "nSucceeded_other": "{{count}} succeeded"
+    "nSucceeded_other": "{{count}} succeeded",
+    "multiFileHint": "You can pick several files at once.",
+    "perFileNameHint": "With several files each one uses its own filename as the prefix; names already in a file take priority.",
+    "addMoreFiles": "Add more files",
+    "noneUsable": "None of the selected files contain importable geometry",
+    "nFiles_one": "{{count}} file",
+    "nFiles_other": "{{count}} files",
+    "skipped_one": "{{count}} file skipped",
+    "skipped_other": "{{count}} files skipped"
   },
   "batchImport": {
     "readFail": "Read failed",
@@ -1242,8 +1278,6 @@
     "unknown": "This scientific name is not in iNaturalist",
     "offline": "Offline — the iNaturalist layer cannot load",
     "attribution": "Observations © iNaturalist contributors; threatened species coordinates are obscured",
-    "fab": "iNat observation grid",
-    "sheetTitle": "iNaturalist observation grid",
     "searchHint": "Search for a taxon to overlay its iNaturalist observations. Cells resize with the zoom level, and the darker a cell, the more observations it holds.",
     "searchInat": "Search iNaturalist instead",
     "inatResults": "Taxa on iNaturalist",
@@ -1321,7 +1355,6 @@
     "labelExportCount_other": "Export {{count}} labels"
   },
   "areaSpecies": {
-    "fab": "Species in area",
     "title": "Species in area",
     "drawHint": "Tap the map to outline an area (at least two points)",
     "need2": "Tap at least two points to define an area",
@@ -1374,7 +1407,6 @@
     "needRefine": "Run the GBIF check above first to obtain ids.",
     "viaGbif": "GBIF accepted name: {{name}}",
     "errServerDetail": "Server error ({{status}}): {{detail}}",
-    "fabVisible": "Species in view",
     "targetTitle": "Add to",
     "targetNew": "New list",
     "drawAreaHint": "Tap the map to redraw this list's area",
@@ -1405,7 +1437,11 @@
     "nRescued_one": "{{count}} resolved to the local checklist",
     "nRescued_other": "{{count}} resolved to the local checklist",
     "nUnknownToGbif_one": "{{count}} unknown to GBIF too",
-    "nUnknownToGbif_other": "{{count}} unknown to GBIF too"
+    "nUnknownToGbif_other": "{{count}} unknown to GBIF too",
+    "sourceVisible": "Current map view",
+    "sourceDraw": "Draw an area",
+    "areaKm2": "About {{area}} km²",
+    "areaTooLarge": "Over the {{max}} km² limit — zoom in or draw a smaller area first."
   },
   "recordImport": {
     "unsupportedCollection": "Collection records can't be imported yet — checklists and plots only.",
@@ -2151,5 +2187,20 @@
     "create": "Create",
     "hint": "Identifiers starred as default fill in a new specimen’s determiner automatically. Long-press ☰ on the right to reorder.",
     "empty": "No identifiers yet — tap ＋ at the top right to add one."
+  },
+  "speciesDist": {
+    "title": "Species distribution",
+    "tabTaxon": "Where is a species",
+    "tabArea": "What is in an area",
+    "areaHint": "Pick an area to list the species recorded in it; the list can be kept as a favourite folder."
+  },
+  "licenses": {
+    "title": "Third-party licences",
+    "intro": "Below is this project’s dependency list. It includes build-time tooling, so not everything here ships inside the app. Each licence is reproduced verbatim, never summarised.",
+    "searchPlaceholder": "Search package or licence",
+    "noMatch": "No matching package",
+    "noText": "This package ships no licence text; it declares {{id}} only.",
+    "summary_one": "{{count}} dependency",
+    "summary_other": "{{count}} dependencies"
   }
 }

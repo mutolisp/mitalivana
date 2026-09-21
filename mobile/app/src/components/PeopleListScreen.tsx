@@ -22,20 +22,23 @@ import DraggableFlatList, {
 import { SettingsPage } from '~/components/settings/SettingsPage';
 import { promptText } from '~/components/TextPromptModal';
 import { SwipeRow } from '~/components/SwipeRow';
-import { usePeopleStore } from '~/stores/surveyors';
+import { useStore } from 'zustand';
+import { peopleStore } from '~/stores/surveyors';
 import { HeaderIconButton } from '~/components/HeaderIconButton';
 import type { PersonKind, Surveyor } from '~/db';
 
 export function PeopleListScreen({ kind }: { kind: PersonKind }) {
   const { t } = useTranslation();
-  const store = usePeopleStore(kind);
-  const items = store((s) => s.items);
-  const refresh = store((s) => s.refresh);
-  const add = store((s) => s.add);
-  const rename = store((s) => s.rename);
-  const remove = store((s) => s.remove);
-  const toggleDefault = store((s) => s.toggleDefault);
-  const reorder = store((s) => s.reorder);
+  // `useStore(api, selector)` rather than calling the bound hook held in a
+  // variable — see peopleStore's docblock for what the indirect form did.
+  const store = peopleStore(kind);
+  const items = useStore(store, (s) => s.items);
+  const refresh = useStore(store, (s) => s.refresh);
+  const add = useStore(store, (s) => s.add);
+  const rename = useStore(store, (s) => s.rename);
+  const remove = useStore(store, (s) => s.remove);
+  const toggleDefault = useStore(store, (s) => s.toggleDefault);
+  const reorder = useStore(store, (s) => s.reorder);
 
   const identifier = kind === 'identifier';
   const labels = identifier

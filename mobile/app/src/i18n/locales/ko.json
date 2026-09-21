@@ -632,7 +632,8 @@
     "tree": "분류 트리",
     "search": "검색",
     "addCurrent": "현재 기록에 추가",
-    "copyMenu": "복사..."
+    "copyMenu": "복사...",
+    "incompleteBucket": "분류 미완성(직접 만든 종)"
   },
   "surveyors": {
     "addTitle": "조사자 추가",
@@ -680,7 +681,7 @@
   },
   "about": {
     "subtitle": "생태 야장",
-    "openSource": "이 앱은 오픈 소스입니다. 종 데이터는 TaiCOL 라이선스를 따릅니다.",
+    "openSource": "이 앱은 BSD 2-Clause 라이선스로 배포됩니다. 종 데이터는 TaiCOL 라이선스 조건을 따릅니다.",
     "partners": "협력 기관",
     "mapData": "지도 데이터",
     "mapLicense": "RudyMap은 OpenStreetMap과 대만 공공데이터의 파생 저작물입니다. 이 앱의 벡터 버전은 수정본이며 구분을 위해 다른 이름을 사용합니다."
@@ -697,7 +698,13 @@
     "deleteMsg": "「{{name}}」이(가) 삭제됩니다. 이 프로젝트에 속했던 {{sessions}}과 {{plots}}은 「미분류」로 돌아갑니다.",
     "stats": "종 목록 {{sessions}} · 조사구 {{plots}}",
     "nChecklists_other": "종 목록 {{count}}건",
-    "nPlots_other": "조사구 {{count}}건"
+    "nPlots_other": "조사구 {{count}}건",
+    "selectAll": "전체 선택",
+    "deselectAll": "선택 해제",
+    "searchPlaceholder": "프로젝트 이름 또는 위치 검색",
+    "noMatch": "일치하는 프로젝트가 없습니다",
+    "selectedCount_other": "{{count}}개 선택됨",
+    "deleteSelectedMsg_other": "프로젝트 {{count}}개를 삭제합니다. 여기에 속한 {{sessions}}와(과) {{plots}}은(는) “미분류”로 돌아갑니다."
   },
   "sites": {
     "typePoint": "점",
@@ -717,7 +724,22 @@
     "goToMap": "지도로 이동",
     "exportTitle_other": "사이트 {{count}}개 내보내기",
     "projectStats_other": "사이트 {{count}}개",
-    "deleteBoundMsg": "'{{name}}'을(를) 삭제합니다. 이를 사용하는 기록은 범위를 잃습니다"
+    "deleteBoundMsg": "'{{name}}'을(를) 삭제합니다. 이를 사용하는 기록은 범위를 잃습니다",
+    "fromPlot": "플롯",
+    "duplicateTitle": "지리 사이트 복제",
+    "duplicateMsg": "“{{name}}”의 형상으로 새 지리 사이트를 만듭니다",
+    "copySuffix": "-사본",
+    "namePlaceholder": "이름",
+    "selectAll": "전체 선택",
+    "deselectAll": "선택 해제",
+    "searchPlaceholder": "이름 또는 프로젝트 검색",
+    "noMatch": "일치하는 지리 사이트가 없습니다",
+    "deletePlotOnlyMsg": "선택한 항목은 모두 기록 자체의 좌표입니다. 해당 기록에서 삭제하세요.",
+    "selectedCount_other": "{{count}}개 선택됨",
+    "deleteSelectedMsg_other": "지리 사이트 {{count}}개를 삭제합니다.",
+    "deleteBoundCountMsg_other": "그중 {{count}}개는 사용 중이며 해당 기록은 범위를 잃습니다.",
+    "deleteSkipPlotsMsg_other": "그 밖에 {{count}}개는 플롯 조사에서 온 것이라 여기서 삭제하지 않습니다.",
+    "deletedCount_other": "{{count}}개를 삭제했습니다"
   },
   "map": {
     "basemapStandard": "표준",
@@ -1048,12 +1070,17 @@
     "namePrefixHint": "원본 파일에 이름이 있으면 그것을 우선 사용하며, 여러 지오메트리에는 #1, #2 ... 가 붙습니다",
     "geomPreview": "지오메트리 미리보기",
     "defaultPrefix": "가져오기",
-    "anotherFile": "다른 파일 선택",
     "targetProject": "대상 프로젝트:",
     "geomSummary_other": "지오메트리 {{count}}개, 사이트 {{count}}개를 만듭니다",
     "moreNotListed_other": "(그 외 {{count}}건은 표시하지 않음)",
     "nTotal_other": "총 {{count}}건",
-    "nSucceeded_other": "{{count}}건 성공"
+    "nSucceeded_other": "{{count}}건 성공",
+    "multiFileHint": "여러 파일을 한 번에 선택할 수 있습니다.",
+    "perFileNameHint": "여러 파일을 가져올 때는 각 파일의 파일명이 접두사가 됩니다. 파일에 이름이 있으면 그것을 우선합니다.",
+    "addMoreFiles": "파일 더 추가",
+    "noneUsable": "선택한 파일에 가져올 수 있는 지오메트리가 없습니다",
+    "nFiles_other": "파일 {{count}}개",
+    "skipped_other": "파일 {{count}}개를 건너뛰었습니다"
   },
   "batchImport": {
     "readFail": "파일을 읽지 못했습니다",
@@ -1174,8 +1201,6 @@
     "unknown": "이 학명은 iNaturalist에 없습니다",
     "offline": "오프라인 — iNaturalist 레이어를 불러올 수 없습니다",
     "attribution": "관찰 자료 © iNaturalist 기여자; 위협종 좌표는 흐리게 처리됩니다",
-    "fab": "iNat 관찰 격자",
-    "sheetTitle": "iNaturalist 관찰 격자",
     "searchHint": "분류군을 검색하면 해당 분류군의 iNaturalist 관찰 분포를 지도에 겹쳐 보여줍니다. 격자 크기는 축척에 따라 달라지며, 색이 진할수록 관찰 건수가 많습니다.",
     "searchInat": "iNaturalist에서 검색",
     "inatResults": "iNaturalist 분류군",
@@ -1250,7 +1275,6 @@
     "labelExportCount_other": "라벨 {{count}}장 내보내기"
   },
   "areaSpecies": {
-    "fab": "범위 내 종 조회",
     "title": "범위 내 종 조회",
     "drawHint": "지도를 탭해 범위를 그리세요 (2점 이상)",
     "need2": "범위를 지정하려면 최소 2점을 찍으세요",
@@ -1303,7 +1327,6 @@
     "needRefine": "식별자를 얻으려면 위의 GBIF 확인을 먼저 실행하세요.",
     "viaGbif": "GBIF 정명: {{name}}",
     "errServerDetail": "서버 오류 ({{status}}): {{detail}}",
-    "fabVisible": "화면 범위 종 조회",
     "targetTitle": "추가할 대상",
     "targetNew": "즐겨찾기 새로 만들기",
     "drawAreaHint": "지도를 탭해 이 목록의 범위를 다시 그리세요",
@@ -1322,7 +1345,11 @@
     "nInArea_other": "범위 내 총 {{count}}종",
     "nKeyed_other": "{{count}}개는 외부 종으로 만들 수 있고",
     "nRescued_other": "{{count}}개는 로컬 종 목록으로 해석되었으며",
-    "nUnknownToGbif_other": "{{count}}개는 GBIF에도 없습니다"
+    "nUnknownToGbif_other": "{{count}}개는 GBIF에도 없습니다",
+    "sourceVisible": "현재 화면 범위",
+    "sourceDraw": "범위 그리기",
+    "areaKm2": "약 {{area}} km²",
+    "areaTooLarge": "범위가 상한({{max}} km²)을 넘었습니다. 지도를 확대하거나 범위를 더 작게 그리세요."
   },
   "recordImport": {
     "unsupportedCollection": "채집 기록은 아직 가져올 수 없습니다. 종 목록과 조사구만 지원합니다.",
@@ -2036,5 +2063,19 @@
     "create": "만들기",
     "hint": "“기본”(★)으로 표시한 동정자는 새 표본 기록의 동정자 항목에 자동으로 입력됩니다. 오른쪽 ☰ 를 길게 눌러 순서를 바꿀 수 있습니다.",
     "empty": "동정자가 없습니다. 오른쪽 위 ＋ 를 눌러 추가하세요."
+  },
+  "speciesDist": {
+    "title": "종 분포 조회",
+    "tabTaxon": "종의 분포 보기",
+    "tabArea": "범위 내 종 조회",
+    "areaHint": "범위를 고르면 그 안에서 기록된 종 목록을 얻습니다. 즐겨찾기 목록으로 저장할 수 있습니다."
+  },
+  "licenses": {
+    "title": "서드파티 라이선스",
+    "intro": "아래는 이 프로젝트의 의존 패키지 목록입니다. 빌드 도구도 포함하므로 모두가 앱에 들어가는 것은 아닙니다. 라이선스 전문은 원문 그대로 수록했습니다.",
+    "searchPlaceholder": "패키지 또는 라이선스 검색",
+    "noMatch": "일치하는 패키지가 없습니다",
+    "noText": "이 패키지는 라이선스 전문을 포함하지 않으며 {{id}}만 선언합니다.",
+    "summary_other": "의존 패키지 {{count}}개"
   }
 }

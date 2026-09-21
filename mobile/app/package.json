@@ -2,6 +2,7 @@
   "name": "app",
   "main": "expo-router/entry",
   "version": "1.0.0",
+  "license": "BSD-2-Clause",
   "scripts": {
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
@@ -12,7 +13,8 @@
     "check:dock": "node ./scripts/check-bottom-dock.mjs",
     "check:i18n": "node ./scripts/check-i18n.mjs",
     "check:kav": "node ./scripts/check-kav.mjs",
-    "check:roundtrip": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-roundtrip.mjs",
+    "check:roundtrip": "node --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-roundtrip.mjs",
+    "check:dwc": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-dwc-terms.mjs",
     "check:names": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-recordname.mjs",
     "check:gbif": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-gbif-parse.mjs",
     "check:vegmatrix": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-vegmatrix.mjs",
@@ -23,7 +25,9 @@
     "check:inat-heatmap": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-inat-heatmap.mjs",
     "check:gdrive": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-gdrive.mjs",
     "check:cluster": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-cluster.mjs",
-    "check:datasets": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-datasets.mjs"
+    "check:datasets": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-datasets.mjs",
+    "licenses": "node ./scripts/gen-licenses.mjs",
+    "check:licenses": "node ./scripts/gen-licenses.mjs --check"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",

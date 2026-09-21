@@ -163,6 +163,9 @@ type SettingsValues = {
   /** Collapsed project ids in the records tab's byProject view. Stale ids
    *  (deleted projects) are harmless — they just never match a group. */
   records_collapsed: number[];
+  /** Collapsed project ids in 地理樣區管理. Same contract as
+   *  `records_collapsed` — a stale id just never matches a group. */
+  sites_collapsed: number[];
   /** One-shot: the records list already played its swipe-actions teaser. */
   records_swipe_hint_shown: boolean;
   /** List / card view. Persisted (unlike the byProject⇄timeline axis, which is
@@ -256,6 +259,7 @@ const DEFAULTS: SettingsValues = {
   last_record_sort_dir: 'desc',
   taxonomy_expanded: [],
   records_collapsed: [],
+  sites_collapsed: [],
   records_swipe_hint_shown: false,
   records_layout: 'list',
   font_scale: 'normal',
@@ -379,6 +383,7 @@ function readAll(): SettingsValues {
       (map.get('last_record_sort_dir') as SortDirection) ?? DEFAULTS.last_record_sort_dir,
     taxonomy_expanded: taxonomyExpanded,
     records_collapsed: parseNumberArray(map.get('records_collapsed')),
+    sites_collapsed: parseNumberArray(map.get('sites_collapsed')),
     records_swipe_hint_shown: map.get('records_swipe_hint_shown') === 'true',
     records_layout: map.get('records_layout') === 'card' ? 'card' : DEFAULTS.records_layout,
     font_scale: (map.get('font_scale') as FontScale) ?? DEFAULTS.font_scale,

@@ -8,19 +8,33 @@
  *
  *     DB-shaped fixture → buildPlotYamlDoc → yaml.dump → parsePlotYaml → compare
  *
- * It also asserts COVERAGE: every column of the fixture must either appear in
- * the yml or be listed in NOT_RESTORABLE below with a reason. Adding a column
- * to plot_surveys / sessions and forgetting the exporter fails this check.
+ * It also asserts COVERAGE against the REAL schema: `schema-columns.mjs` runs
+ * the migrations in memory, and every column that comes out must either appear
+ * in the yml or be listed in NOT_RESTORABLE below with a reason.
+ *
+ * Coverage used to be driven by the hand-written fixtures instead, which meant
+ * a column the fixture never mentioned was invisible to it — `starred`,
+ * `audio_paths` and the four `inat_*` columns were all added to the tables and
+ * never noticed. The whitelist was also one flat key set shared by every
+ * table, so a reason written for `sessions.notes` silently excused
+ * `collection_trips.notes`, which really was missing.
  *
  * Run: npm run check:roundtrip
  */
 import yaml from 'js-yaml';
 import { strToU8, zipSync } from 'fflate';
-import { buildPlotYamlDoc, buildSessionYamlDoc, recordToYamlItem } from '../src/lib/bundleYaml.ts';
+import {
+  buildCollectionYamlDoc,
+  buildPlotYamlDoc,
+  buildSessionYamlDoc,
+  recordToYamlItem,
+  specimenToYamlItem,
+} from '../src/lib/bundleYaml.ts';
 import { convertToDwc } from '../src/lib/dwcMapper.ts';
 import { establishmentDwcValue } from '../src/lib/dwcMultiValue.ts';
 import { parsePlotYaml } from '../src/lib/plotImport.ts';
 import { parseSessionYaml } from '../src/lib/sessionImport.ts';
+import { schemaColumns } from './schema-columns.mjs';
 import {
   readRecordImportFromBytes,
   readRecordYamlTextFromBytes,
@@ -39,66 +53,146 @@ const eq = (label, got, want) => {
 };
 
 // ── Columns that deliberately do not round-trip ───────────────────────────
-const NOT_RESTORABLE = {
-  id: 'device-local row id',
-  project_id: 'exported by name (`project`), re-resolved on import',
-  site_id: 'exported as the `site:` block + site.* sidecars',
-  status: "imported records are always 'done' (single-active invariant)",
-  resumed_at: 'reopen bookkeeping, meaningless for a fresh import',
-  created_at: 'set to import time',
-  updated_at: 'set to import time',
-  env_photos_json: 'exported as `env_photo_files` (filenames, not device URIs)',
-  e0_cover_pct: 'legacy pre-v12 column, superseded by plot_survey_layers',
-  e0_height_cm: 'legacy', e1_cover_pct: 'legacy', e1_height_cm: 'legacy',
-  e2_cover_pct: 'legacy', e2_height_cm: 'legacy', e3_cover_pct: 'legacy',
-  e3_height_cm: 'legacy', e0_method: 'legacy', e1_method: 'legacy',
-  e2_method: 'legacy', e3_method: 'legacy',
-  // Record-level columns that travel under a different key
-  session_id: 'structural — the record lives inside its session in the yml',
-  plot_survey_id: 'structural — the record lives inside its plot in the yml',
-  subplot_id: 'exported as the subplot LABEL (ids are per-device)',
-  observed_at: 'exported as eventDate (ISO)',
-  photo_paths: 'exported as photo_files / associatedMedia (filenames in the zip)',
+// Keyed by table: a reason is an assertion about ONE column of ONE table, and
+// sharing one flat set between tables is how `collection_trips.notes` hid
+// behind the reason written for `sessions.notes`.
+const ROW_ID = 'device-local row id';
+const IMPORT_TIME = 'set to import time';
+const STARRED = 'device-local organisation (v34), deliberately not exported';
+const INAT = {
+  inat_observation_id: 'iNat upload bookkeeping (v30)',
+  inat_media_done: 'iNat upload bookkeeping (v30)',
+  inat_uploaded_at: 'iNat upload bookkeeping (v30)',
+  inat_sync_hash: 'iNat sync fingerprint (v31)',
+};
+const NAME_USAGE = {
   used_scientific_name: 'IS the exported scientificName; recovered from it on import',
-  bb_value: 'legacy pre-v9 abundance, superseded by organism_quantity',
-  percent: 'legacy pre-v9 abundance',
-  dbh_values_json: 'legacy pre-v9 abundance',
-  // sessions
-  uuid: 'exported as event.eventUUID',
-  name: 'exported as event.eventID',
-  type: 'exported as event.eventType',
-  started_at: 'exported as event.startedAt (ISO)',
-  ended_at: 'exported as event.endedAt (ISO)',
-  gps_mode: 'exported as event.gpsMode',
-  start_lat: 'exported as event.decimalLatitude',
-  start_lng: 'exported as event.decimalLongitude',
-  track_geojson: 'exported as event.trackGeoJSON (plot: plot.track_geojson)',
-  notes: 'exported as event.eventRemarks',
-  recorded_by: 'exported as event.recordedBy',
 };
 
-/**
- * Fields a record row carries only because `resolveTaxa` joined them on at read
- * time. They are re-derived from `taxon_id` on import, so they are not the
- * exporter's job — but they must be listed, or they drown the real signal.
- */
-const DERIVED_FROM_TAXON = new Set([
-  'simple_name', 'name_author', 'common_name_c', 'alternative_name_c',
-  'family', 'family_c', 'rank', 'is_endemic', 'alien_type', 'is_hybrid',
-  'kingdom', 'kingdom_c', 'phylum', 'phylum_c', 'class', 'class_c',
-  'order', 'order_c', 'genus', 'genus_c',
-  'redlist', 'iucn', 'cites', 'protected',
-  'is_terrestrial', 'is_freshwater', 'is_brackish', 'is_marine', 'is_fossil',
-  // Derived by applyAdoptedName from the two stored columns + the checklist.
-  'used_status', 'used_stale', 'used_accepted_name',
-]);
+const NOT_RESTORABLE = {
+  sessions: {
+    id: ROW_ID,
+    project_id: 'exported by name (`project`), re-resolved on import',
+    site_id: 'exported as the `site:` block + site.* sidecars',
+    resumed_at: 'reopen bookkeeping, meaningless for a fresh import',
+    starred: STARRED,
+    uuid: 'exported as event.eventUUID',
+    name: 'exported as event.eventID',
+    type: 'exported as event.eventType',
+    started_at: 'exported as event.startedAt (ISO)',
+    ended_at: 'exported as event.endedAt (ISO)',
+    gps_mode: 'exported as event.gpsMode',
+    start_lat: 'exported as event.decimalLatitude',
+    start_lng: 'exported as event.decimalLongitude',
+    track_geojson: 'exported as event.trackGeoJSON',
+    notes: 'exported as event.eventRemarks',
+    recorded_by: 'exported as event.recordedBy',
+  },
+  checklist_records: {
+    id: ROW_ID,
+    session_id: 'structural — the record lives inside its session in the yml',
+    observed_at: 'exported as eventDate (ISO)',
+    photo_paths: 'exported as photo_files / associatedMedia (filenames in the zip)',
+    audio_paths: 'exported as audio_files (filenames in the zip audio/)',
+    updated_at: IMPORT_TIME,
+    ...NAME_USAGE,
+    ...INAT,
+  },
+  plot_surveys: {
+    id: ROW_ID,
+    project_id: 'exported by name (`project`), re-resolved on import',
+    site_id: 'exported as the `site:` block + site.* sidecars',
+    status: "imported records are always 'done' (single-active invariant)",
+    resumed_at: 'reopen bookkeeping, meaningless for a fresh import',
+    starred: STARRED,
+    created_at: IMPORT_TIME,
+    updated_at: IMPORT_TIME,
+    env_photos_json: 'exported as `env_photo_files` (filenames, not device URIs)',
+    e0_cover_pct: 'legacy pre-v12 column, superseded by plot_survey_layers',
+    e0_height_cm: 'legacy', e1_cover_pct: 'legacy', e1_height_cm: 'legacy',
+    e2_cover_pct: 'legacy', e2_height_cm: 'legacy', e3_cover_pct: 'legacy',
+    e3_height_cm: 'legacy', e0_method: 'legacy', e1_method: 'legacy',
+    e2_method: 'legacy', e3_method: 'legacy',
+  },
+  plot_species_records: {
+    id: ROW_ID,
+    plot_survey_id: 'structural — the record lives inside its plot in the yml',
+    subplot_id: 'exported as the subplot LABEL (ids are per-device)',
+    photo_paths: 'exported as photo_files (filenames in the zip)',
+    audio_paths: 'exported as audio_files (filenames in the zip audio/)',
+    created_at: IMPORT_TIME,
+    updated_at: IMPORT_TIME,
+    bb_value: 'legacy pre-v9 abundance, superseded by organism_quantity',
+    percent: 'legacy pre-v9 abundance',
+    dbh_values_json: 'legacy pre-v9 abundance',
+    ...NAME_USAGE,
+    ...INAT,
+  },
+  plot_survey_layers: {
+    id: ROW_ID,
+    plot_survey_id: 'structural — layers live inside their plot in the yml',
+  },
+  plot_subplots: {
+    id: ROW_ID,
+    plot_survey_id: 'structural — subplots live inside their plot in the yml',
+    created_at: IMPORT_TIME,
+  },
+  subplot_layers: {
+    id: ROW_ID,
+    subplot_id: 'structural — nested inside its subplot in the yml',
+  },
+  collection_trips: {
+    id: ROW_ID,
+    project_id: 'exported by name (`project`), re-resolved on import',
+    status: "imported records are always 'done' (single-active invariant)",
+    starred: STARRED,
+    created_at: IMPORT_TIME,
+    updated_at: IMPORT_TIME,
+    uuid: 'exported as event.eventUUID',
+    name: 'exported as event.eventID',
+    started_at: 'exported as event.startedAt (ISO)',
+    ended_at: 'exported as event.endedAt (ISO)',
+    recorded_by: 'exported as event.recordedBy',
+    notes: 'exported as event.eventRemarks',
+  },
+  collection_specimens: {
+    id: ROW_ID,
+    trip_id: 'structural — the specimen lives inside its trip in the yml',
+    collected_at: 'exported as eventDate (ISO)',
+    record_number_seq: 'numeric tail of record_number, re-derived on import',
+    photo_paths: 'exported as photo_files / associatedMedia (filenames in the zip)',
+    audio_paths: 'exported as audio_files (filenames in the zip audio/)',
+    created_at: IMPORT_TIME,
+    updated_at: IMPORT_TIME,
+    ...NAME_USAGE,
+    ...INAT,
+  },
+};
 
-function checkCoverage(label, row, ymlKeys) {
-  for (const k of Object.keys(row)) {
-    if (ymlKeys.has(k)) continue;
-    if (k in NOT_RESTORABLE) continue;
-    if (DERIVED_FROM_TAXON.has(k)) continue;
-    fail(`${label}: column "${k}" is in neither the yml nor NOT_RESTORABLE`);
+const SCHEMA = await schemaColumns();
+
+/**
+ * Every real column of `table` must be in the yml or have a reason.
+ *
+ * Also checks the two directions that keep the list honest: a reason for a
+ * column that no longer exists is stale, and a reason for a column the yml
+ * does carry is a lie.
+ */
+function checkCoverage(table, ymlKeys) {
+  const cols = SCHEMA.get(table);
+  if (!cols) {
+    fail(`${table}: not in the migrated schema — table renamed or dropped?`);
+    return;
+  }
+  const reasons = NOT_RESTORABLE[table] ?? {};
+  for (const col of cols) {
+    if (ymlKeys.has(col)) continue;
+    if (col in reasons) continue;
+    fail(`${table}: column "${col}" is in neither the yml nor NOT_RESTORABLE.${table}`);
+  }
+  for (const col of Object.keys(reasons)) {
+    if (!cols.has(col)) fail(`NOT_RESTORABLE.${table}.${col}: no such column (stale entry)`);
+    else if (ymlKeys.has(col)) fail(`NOT_RESTORABLE.${table}.${col}: the yml does carry it`);
   }
 }
 
@@ -249,10 +343,11 @@ console.log('check:roundtrip');
 
   const ymlKeys = new Set(Object.keys(doc.plot));
   ymlKeys.add('layers').add('subplots').add('species');
-  checkCoverage('plot_surveys', plotRow, ymlKeys);
-  // Record-level columns were never covered — adding one to the table and
-  // forgetting the exporter used to pass this check silently.
-  checkCoverage('plot_species_records', plotSpecies[0], new Set(Object.keys(doc.species[0])));
+  checkCoverage('plot_surveys', ymlKeys);
+  checkCoverage('plot_species_records', new Set(Object.keys(doc.species[0])));
+  checkCoverage('plot_survey_layers', new Set(Object.keys(doc.layers[0])));
+  checkCoverage('plot_subplots', new Set(Object.keys(doc.subplots[0])));
+  checkCoverage('subplot_layers', new Set(Object.keys(doc.subplots[0].layers[0])));
 }
 
 // ── 2. Session ────────────────────────────────────────────────────────────
@@ -339,10 +434,10 @@ console.log('check:roundtrip');
 
   const ymlKeys = new Set(Object.keys(doc.event));
   ymlKeys.add('checklist').add('project').add('site');
-  checkCoverage('sessions', sessionRow, ymlKeys);
+  checkCoverage('sessions', ymlKeys);
   // Against the pre-DwC item: the doc's keys are DwC terms, and matching column
   // names against those would compare two different vocabularies.
-  checkCoverage('checklist_records', records[0], new Set(Object.keys(recordToYamlItem(records[0]))));
+  checkCoverage('checklist_records', new Set(Object.keys(recordToYamlItem(records[0]))));
 }
 
 // ── 3. Backward compatibility: a pre-v27 yml must still import ───────────
@@ -497,3 +592,66 @@ if (failures > 0) {
   process.exit(1);
 }
 console.log('✓ round-trip: 名錄 / 樣區 yml survive export → import with no field lost');
+
+// ── 5. Collection (採集) ──────────────────────────────────────────────────
+// Collection has no importer yet (`recordImportZip` refuses the kind), so this
+// is export coverage only — but that is exactly the half that was missing:
+// the trip's uuid and notes and every specimen's photo binding were absent
+// from the yml and nothing failed, because no fixture reached these tables.
+{
+  const tripRow = {
+    id: 7, uuid: 'trip-uuid-9', name: '2026-09-20 福山採集', project_id: 3, status: 'done',
+    started_at: 1789860000000, ended_at: 1789880000000, recorded_by: '林政道',
+    locality: '宜蘭縣員山鄉福山', notes: '午後雷陣雨，提前結束',
+    created_at: 1789860000000, updated_at: 1789880000000, starred: 0,
+  };
+  // Two specimens of ONE taxon: the shape that made the missing photo binding
+  // unrecoverable, since the zip filenames count per taxon across the export.
+  const specimen = (n, occ) => ({
+    id: n, trip_id: 7, occurrence_id: occ, taxon_id: 't0301',
+    record_number: `CTL-100${n}`, record_number_seq: 1000 + n,
+    collected_at: 1789864200000, recorded_by: '林政道', identified_by: '王小明',
+    lat: 24.76, lng: 121.58, accuracy: 6, locality: '福山植物園',
+    // Every optional column carries a value: the item builders emit these
+    // conditionally, so a null here would silently skip the assertion.
+    degree_of_establishment: 'wild', sex: 'female', life_stage: 'adult',
+    reproductive_condition: '["flowering"]', leaf_phenology: '["evergreen"]',
+    notes: `第 ${n} 份`, photo_paths: '["ph://a"]', audio_paths: '["file:///audio/a.m4a"]',
+    used_name_id: 165943, used_scientific_name: 'Lithocarpus konishii',
+    used_status: 'misapplied', used_accepted_name: 'Lithocarpus amygdalifolius',
+    created_at: 1789864200000, updated_at: 1789864200000,
+    inat_observation_id: null, inat_media_done: 0, inat_uploaded_at: null, inat_sync_hash: null,
+    simple_name: 'Lithocarpus konishii', name_author: 'Hayata', common_name_c: '小西氏石櫟',
+    family: 'Fagaceae', family_c: '殼斗科', kingdom: 'Plantae', phylum: 'Tracheophyta',
+    class: 'Magnoliopsida', order: 'Fagales', genus: 'Lithocarpus',
+    is_endemic: 'true', is_hybrid: 'false', rank: 'species', alien_type: '',
+    iucn: '', redlist: 'NT', cites: '', protected: '',
+  });
+  const specimens = [specimen(1, 'c-occ-A'), specimen(2, 'c-occ-B')];
+  const photoNames = new Map([
+    ['c-occ-A', ['t0301_小西氏石櫟_1.jpg']],
+    ['c-occ-B', ['t0301_小西氏石櫟_2.jpg']],
+  ]);
+  const audioNames = new Map([['c-occ-A', ['t0301_小西氏石櫟_1.m4a']]]);
+
+  const doc = buildCollectionYamlDoc({
+    trip: tripRow, projectName: '福山長期樣區', specimens, photoNames, audioNames,
+  });
+
+  eq('trip.eventUUID', doc.event.eventUUID, 'trip-uuid-9');
+  eq('trip.eventRemarks', doc.event.eventRemarks, '午後雷陣雨，提前結束');
+  // Each specimen keeps its OWN photos: one shared list would make duplicates
+  // of the same species indistinguishable once the zip is opened.
+  eq('specimen A media', doc.specimens[0].associatedMedia, 't0301_小西氏石櫟_1.jpg');
+  eq('specimen B media', doc.specimens[1].associatedMedia, 't0301_小西氏石櫟_2.jpg');
+  eq('specimen A audio', doc.specimens[0].audio_files, 't0301_小西氏石櫟_1.m4a');
+  eq('specimen B has no audio', doc.specimens[1].audio_files, undefined);
+
+  const ymlKeys = new Set(Object.keys(doc.event));
+  ymlKeys.add('specimens').add('project');
+  checkCoverage('collection_trips', ymlKeys);
+  checkCoverage(
+    'collection_specimens',
+    new Set(Object.keys(specimenToYamlItem(specimens[0], photoNames, audioNames))),
+  );
+}

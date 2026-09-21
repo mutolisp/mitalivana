@@ -19,7 +19,7 @@ import MapView, {
   type MapType,
 } from 'react-native-maps';
 
-import type { MapCamera, MapCanvasProps, MapFeature } from '../types';
+import { NORTH_ARROW_SIZE, type MapCamera, type MapCanvasProps, type MapFeature } from '../types';
 
 /**
  * North arrow.
@@ -53,8 +53,15 @@ function NorthArrow({
       accessibilityRole="button"
       accessibilityLabel={t('map.compass')}
       hitSlop={6}
-      style={{ position: 'absolute', right: inset?.right ?? 8, bottom: inset?.bottom ?? 8 }}
-      className="h-9 w-9 items-center justify-center rounded-full bg-white/95 shadow-md dark:bg-gray-900/95"
+      style={{
+        position: 'absolute',
+        right: inset?.right ?? 8,
+        bottom: inset?.bottom ?? 8,
+        // Shared with map.tsx, which stacks the locate button on top of this.
+        width: NORTH_ARROW_SIZE,
+        height: NORTH_ARROW_SIZE,
+      }}
+      className="items-center justify-center rounded-full bg-white/95 shadow-md dark:bg-gray-900/95"
     >
       <View className="items-center" style={{ transform: [{ rotate: `${-heading}deg` }] }}>
         {/* Border triangle: RN has no polygon primitive, and an icon font glyph

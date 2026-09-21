@@ -4278,3 +4278,459 @@ Google 的內建羅盤，而它們**只在地圖被轉離正北時才出現、�
   `style`（圓角、固定高度）完全不動。
 
 `types.ts` 原本寫「native engine 忽略 compassInset」，已更新。
+
+## 2026-09-21 — 匯出資料完整性：採集照片歸屬、錄音、以及兩支新守門
+
+起點是「要讓第三方能證實這份資料就是某人調查的 raw data」。做簽章之前先稽核匯出檔到底完不
+完整、是否真的符合 Darwin Core —— 結果稽核本身就翻出四個缺口，簽章反而該排在後面。
+
+### 稽核結論：DwC 是合格的，問題在資料缺口
+
+把 `dwcArchive.ts` 的欄位常數對官方詞彙逐欄驗證（TDWG `term_versions.csv` 的 362 個現行
+term、GBIF `humboldt_2025-07-10.xml`）：`EVENT_COLS`(13) / `OCCURRENCE_COLS`(19) /
+`HUMBOLDT_COLS`(11) **全部是現行官方詞彙**，`rowType` 也吻合。`dwcArchive.ts:9-11` 那句人工
+註解是準確的。
+
+所以**標準符合度的責任在 `dwca/` 與 `*_dwc.csv`，不在 yml**。yml 是 round-trip 內部格式，
+樣區用 snake_case 不違反任何標準——不要為了「統一詞彙」把 plot yml 改寫成 DwC，那會打爛
+`plotImport.ts` 卻換不到東西。
+
+`DWC_FIELD_MAP` 的 58 個輸出名：38 個現行 DwC/DCTerms、6 個 GBIF 擴充正式 term、14 個純自訂。
+其中 `isBrackish` 值得記下來：speciesprofile 有 `isFreshwater`/`isMarine`/`isTerrestrial`，
+**唯獨沒有 isBrackish**，所以這一個是我們自己的，它的三個兄弟不是。
+
+### 修掉的四個資料缺口
+
+1. **採集照片的歸屬在匯出後完全遺失**。`specimenToYamlItem` 沒有 photo 欄，而照片檔名的流水號
+   是**跨整份匯出**計數的（`createPhotoNamer` 的 docblock 早就寫明），所以同種多份標本的照片
+   打開 zip 後無法回推歸屬——而採集正是「同種多份」最常見的場景。改成先收照片再建 yml
+   （名錄 `:649` 早就是正確示範）。
+2. **採集 yml 缺 trip `uuid` 與 `notes`**。uuid 只在 `manifest.json`、notes 只在 csv。
+3. **錄音（v29）沒有任何離開裝置的管道**：不在匯出包、不在 user.db 備份（`backup.ts` 是白名單，
+   而檔案在 documentDirectory/audio/）、也不在 `createPhotoBackup`（`collectPhotoSources` 只讀
+   `photo_paths` 與 `env_photos_json`）。換機還原後 `audio_paths` 就是一串斷鏈。現在匯出入兩端
+   都走 `audio/`＋yml 的 `audio_files`，跟隨「包含照片」開關以免繞過容量估算。
+4. **`degree_of_establishment` 在匯入時被靜默丟棄**。`sessionImport.ts:66` / `plotImport.ts:89`
+   都解析了它，但兩條匯入 INSERT 的欄位清單裡根本沒有這欄。`check-roundtrip` 只測解析器不測
+   DB 寫入，它那句「yml keeps raw establishment」反而給了錯誤的信心。
+
+另外修了 `restamped()`：它比對 `'.jpg'`，但 `guessExt()` 回傳不含點的 `'jpg'`，條件恆真 ——
+匯出時的 EXIF 補寫**從來沒執行過**，`photoCapture.ts:454-471` 整段設計等於失效。修好後順手補
+上從零建 GPS IFD 時必填的 `GPSVersionID`（正是「快門當下沒座標、事後補」的情境）。
+
+### `audio_files` 為什麼不併進 associatedMedia
+
+DwC 沒有聲音專用 term（只有 `associatedMedia`）。所以延用 `toDwcCsvRow` 既有的分工：**yml 兩者
+分開**（才能各自回到 `photo_paths` / `audio_paths` 兩欄），**DwC 交付物合併**成 associatedMedia。
+
+### 守門：從 fixture 驅動改成 schema 驅動
+
+`check-roundtrip` 的 `checkCoverage` 掃的是 fixture 物件的 key，所以 fixture 沒寫到的欄位它
+**看不見**——`starred`、`audio_paths`、四個 `inat_*` 全是這樣加進表裡而沒人發現的。
+`NOT_RESTORABLE` 又是一份跨表共用的扁平 key 集合，於是為 `sessions.notes` 寫的理由默默赦免了
+`collection_trips.notes`，而那個是真的漏了。
+
+新的 `scripts/schema-columns.mjs` 直接在 Node 裡**跑真正的 migration**：`migrations.ts` 只從
+op-sqlite import 型別，每個 `up()` 只用 `db.executeSync`，所以套一層 `node:sqlite` shim 就能
+跑完 v38，`PRAGMA table_info` 拿到的是 app 真正的 schema，不是對它的描述。`NOT_RESTORABLE`
+改成 `{table: {column: reason}}`，並加了兩個反向檢查：理由對應的欄位不存在（stale）、或 yml
+其實有帶（理由是假的），都會失敗。採集鏈也補上 fixture 與 coverage（採集沒有 parser，所以是
+匯出側覆蓋）。
+
+過程中這三個檢查各抓到一件事：`collection_trips.locality` 的理由是假的；採集 fixture 用 `null`
+讓 `sex` 與 `used_name_id` 這種條件式欄位根本沒被觸發。
+
+### 新增 `npm run check:dwc`
+
+`scripts/check-dwc-terms.mjs` 對 `scripts/vocab/` 的官方詞彙快取（28 KB，含來源 URL 與抓取日期）
+驗證：archive 的每個 term 是現行官方詞彙、`key` 與 term 的 local name 一致、**實際產生的
+meta.xml** 用的是同一批完整 IRI、以及 mapper 的每個輸出名不是 DwC 就是 GBIF 擴充、否則必須列在
+`APP_SPECIFIC` 並附理由（含反向的 stale 檢查）。
+
+既有的 `check-vegmatrix.mjs:331-333` 比對時做了 `.split('/').pop()`，**只比 local name 不比命名
+空間**。實測把 `eventRemarks` 從 DWC 前綴換成 ECO：`check:vegmatrix` 顯示通過，`check:dwc` 抓到。
+
+> 詞彙快取要更新時就從 JSON 裡記的 URL 重抓。若某個 term 上游被 deprecate，這支檢查會開始失敗
+> ——那正是它存在的目的。
+
+### 待辦
+
+- yml 內嵌媒體 sha256（讓 yml 單獨拿出來就能驗照片／錄音位元）
+- 擴充 `OCCURRENCE_COLS`：`associatedMedia` `recordNumber` `identifiedBy` `scientificNameID`
+  `taxonomicStatus` `acceptedNameUsage` `acceptedNameUsageID` `higherClassification`
+  `establishmentMeans` `individualCount` `phylum` `class` `order` `genus` `taxonRank` `modified`
+  ——全部已驗證為現行 DwC term，資料也都有，只是沒帶進 archive
+- 保育狀態（`threatStatus` / `appendixCITES`）屬 GBIF distribution 擴充，要另加一個 extension
+- `updated_at` 在 `src/db/records.ts:243-248` 與 `src/db/collections.ts:108-112` 的 SELECT 清單
+  中缺席，但 `SpeciesDetailSheet.tsx:563` / `SpecimenDetailSheet.tsx:453` 在讀它 —— 詳細頁的
+  「最後更新」目前恆為 undefined
+- 採集仍沒有 importer（`recordImportZip.ts:176` 直接 throw `unsupportedCollection`）
+
+## 2026-09-21 — 修：點「調查者」「預設採集者」「預設鑑定者」就當機
+
+三個入口（設定→調查者、採集標本設定→預設採集者／預設鑑定者）都 `router.push` 到
+`/surveyors` 或 `/identifiers`，兩者都是 `PeopleListScreen`，所以是單一根因。
+
+### 根因：React Compiler 把 zustand 的 hook 呼叫記憶化掉了
+
+`app.config.ts:129` 有 `reactCompiler: true`。原本的寫法是
+
+```tsx
+const store = usePeopleStore(kind);   // 回傳 useSurveyors 或 useIdentifiers
+const items = store((s) => s.items);
+```
+
+編譯器只把「名字看起來像 hook 的**直接**呼叫」當 hook。`store(...)` 是對一個變數的呼叫，
+於是被當成普通函式，依 callee 的 identity 記憶化：
+
+```js
+if ($[0] !== store) { t1 = store(_temp); $[0] = store; $[1] = t1; }
+else { t1 = $[1]; }
+```
+
+`store` 是模組層常數、identity 永不改變，所以**第一次 render 之後 `store(...)` 再也不會執行**，
+zustand 內部的 `useSyncExternalStore` 跟著被跳過 → 前後兩次 render 的 hook 數量不一致 →
+React 丟錯。七個 selector（`SurveyorAssignSheet` 另有四個）全中。
+
+### 為什麼所有現有工具都看不到
+
+- `tsc`：型別完全正確。
+- `eslint react-hooks/rules-of-hooks`：`store` 是小寫，規則不認為那是 hook 呼叫。
+- React Compiler 自己：回報的是 **`CompileSuccess`**，不是 bailout——它認為自己做了合法的最佳化。
+- 16 支 `check:*`：全部是純模組的資料檢查，碰不到 render。
+
+### 修法
+
+`usePeopleStore` → **`peopleStore`**。它從來就不是 hook（只是挑一個 store），而那個 `use`
+前綴正是誘因。呼叫端改用 zustand 具名的 `useStore(api, selector)`，那是編譯器看得見的直接
+hook 呼叫：
+
+```tsx
+const store = peopleStore(kind);
+const items = useStore(store, (s) => s.items);
+```
+
+改動三個檔：`src/stores/surveyors.ts`（改名＋docblock 記下這段）、`PeopleListScreen.tsx`、
+`SurveyorAssignSheet.tsx`。全 repo 已無其他 `store(selector)` 間接呼叫。
+
+### 驗證
+
+實際對兩個元件跑 `babel-plugin-react-compiler`：修正前輸出含 `if ($[0] !== store) { … }`
+包住 `store(_temp)`；修正後 11 個 `useStore(...)` 全部無條件執行，沒有任何 memo cache 守衛。
+
+> **通則**：啟用 React Compiler 後，hook 不可以先存進變數再呼叫。要動態選 store，就用
+> `useStore(api, selector)` 這種 callee 名字固定的形式。
+
+---
+
+## 2026-09-21 — 地理檔案批次匯入 ＋ 地理樣區／專案管理整併
+
+四項需求：地圖匯入要能一次選多檔；地理樣區清單要看得到「記錄樣區」的座標；地理樣區與專案管理要能長按多選（刪除／匯出）；清單長了要有搜尋、往左滑要能複製。
+
+### 定案的決策
+
+1. **記錄樣區是「衍生列」，不寫 DB**。使用者原本設想的是「自動建立一筆 site」，但那會有四個代價：地圖上同一座標會同時畫出樣區 marker 與 site 點、plotid 改名後資料不同步、在清單刪掉後下次編座標又長回來、而且要在四條座標寫入路徑上都掛鉤。改成 `listSites()` ＋ `listPlotSurveysWithMeta()` 在讀取時合併（`src/lib/geoRows.ts`），永遠同步、零 migration。
+2. **有 `site_id` 的樣區不產衍生列**——它的範圍本來就已經是一筆 site（2026-09-18 的樣區範圍功能），再產一列會同一個地方出現兩次。改成在那筆 site 上掛 `ownerPlotid` 徽章，並讓搜尋吃得到 plotid：否則使用者搜 `JP-EH-01` 找得到沒綁範圍的、卻找不到綁了範圍的（那筆叫「JP-EH-01 範圍」）。
+3. **專案管理不做批次匯出**。專案匯出是一整包 zip，每個都要問語言、估容量、跳一次分享視窗；多選 N 個等於連跑 N 次分享流程。多選只做刪除。
+4. **常用名錄不動**。`favorites.tsx` 早就有長按多選＋全選＋批次刪除＋搜尋框，這次只是把同一套模式搬到另外兩個清單。
+
+### 1. 多檔匯入（`src/components/GeoImportModal.tsx`）
+
+- `DocumentPicker.getDocumentAsync({ multiple: true })`，走 `r.assets` 而非 `r.assets[0]`。
+- state 從 `filename/format/imported` 換成 `files: PickedFile[]`（各自帶 `base`／`format`／`geoms`）＋ `skipped: SkippedFile[]`。**命名編號是 per-file**：兩個各含一筆幾何的檔案會得到各自的檔名，而不是 `#1`／`#2`。
+- **單檔路徑維持原樣**：名稱前綴輸入框照舊預填檔名、`countInFile === 1 ? base : base #n` 的規則不變、預覽不加分組標頭。多檔時前綴框換成說明文字（各檔用自己的檔名）。
+- **壞檔逐檔跳過，不再中斷整批**。原本讀不到／認不出格式／解不出幾何都是一個 blocking Alert 直接 return，一個壞檔會毀掉整次挑選。現在收進 `skipped` 用琥珀色區塊列出；只有「整批都沒東西且先前也沒有」才跳 Alert。
+- 「換另一個檔案」改成「加入更多檔案」（append），配一顆 per-file ✕ 補回原本「換掉」的能力。
+
+### 2. 地理樣區（`src/lib/geoRows.ts` 新檔 ＋ `app/sites.tsx`）
+
+`buildGeoRows(sites, plots)` 產出統一的 `GeoRow`：
+
+- 幾何優先序：**transect 且有 ≥2 點的軌跡段 → MultiLineString**，否則 `decimal_*` → Point，都沒有就不產列。軌跡判斷用 `usesTrack(plot)` 收口，與 `map.tsx` 的圖層同一套判準——fixed 樣區的 track 欄位不是它的形狀。
+- `key` 是 kind-qualified（`site-12` / `plot-7`），所以一個 `Set<string>` 就能同時裝兩種列，site id 34 不會和 plot id 34 撞在一起。
+- **`project_name` 兩邊要正規化**：`listSites()` 是 LEFT JOIN（孤兒 project_id 回 null），`listPlotSurveysWithMeta()` 在 SQL 裡 COALESCE 成 `'未指定'`。不統一的話同一個桶會分成兩組，其中一組標頭空白、`keyExtractor` 還會回 null。
+- 衍生列的 `notes` 取 `field_note`——匯出時它就是 KML `<description>` / GPX `<desc>`。
+- `geoRowToSite()` 把任一列投影成 `Site` 形狀餵給既有的四個 writer；**`geoExporters` 從頭到尾不輸出 `id`**（已逐一確認 GeoJSON/KML/GPX/WKT），所以衍生列借一個負 id 是安全的。
+
+畫面行為：衍生列點擊走 `?plot=<id>`（`map.tsx` 早就支援，且沒有 `?draw=` 時不會進繪製模式）、**不給刪除**（座標屬於那筆記錄，要從記錄刪）、可被批次匯出、可被「複製」。複製衍生列是**唯一會寫入 site 的路徑**：使用者要的是一份自己的副本，所以 `createSite` 而**不**回寫 `plot.site_id`——那會把 2026-09-18 的範圍資料默默換掉。
+
+### 3. 多選／搜尋／複製
+
+- 長按進多選，照 `favorites.tsx` 抄：Haptics Medium、`SwipeRowActions disabled={selectMode}`（挑選時不能誤刪）、`BackHandler` 掛在 `useFocusEffect` 且 **deps 為空、透過 ref 讀 `selectMode`**，listener 永遠不會抓到過期的值。
+- **全選＝選「看得見的」**（搜尋過濾後的），與 favorites 一致。地理樣區另外在每個專案標頭放一顆群組全選。
+- 批次刪除會把選取拆成「可刪的 site／被記錄引用的 site／衍生列」三類，訊息逐條列出；衍生列一律跳過。全部都選到衍生列時直接說明不能在這裡刪。
+- 搜尋框 `rows.length > 10` 才出現（門檻吃**未過濾**的總數，不然打到剩 0 筆時搜尋框會自己消失）。比對名稱／專案名／plotid／備註。錨在畫面頂端、不是 `KeyboardStickyView` 底部 dock，所以與 `check:dock` 的 offset 配對無關。
+- 複製用 `promptText()` 預填 `<名稱><sites.copySuffix>`（zh-TW 為 `-副本`），重名再往後加 2、3。**後綴是 UI 文案，走 i18n**，不寫死在程式裡。沿用既有的 `records.duplicate` / `records.duplicated`，不另立 `sites.duplicate*`。
+- 專案管理：`未分類`（id 0）不能長按、不能勾、不會被全選掃到，多選時該列顯示 `remove-circle-outline` 而非 checkbox。
+
+### 刻意不做
+
+- 不新增 migration、不改 `plot_surveys` 任何欄位、不碰 `favorites.tsx`。
+- 不把衍生列接上 `SiteAssignSheet`；2026-09-18 那條「樣區的 site 只可能來自交接建立／匯入／複製繼承」的前提維持不變。
+- 不改 `geoExporters` 的簽章（收 `Site[]`），投影在呼叫端做。
+- 沒有為 `geoRows.ts` 補 node 測試腳本（可比照 `check:cluster` 補上，鎖住幾何優先序）。
+
+### 驗證狀態
+
+- [x] `tsc --noEmit` 0 error；`lint` 0 error；`check:i18n`（1667 key × 7 語系）/ `check:dock` / `check:kav` / `check:names` / `check:roundtrip` 全過
+- [x] 跨平台 audit：無 `Alert.prompt`、無 `ActionSheetIOS`、無新增 `Platform.OS === 'ios'` 分支
+- [ ] **實機**：一次挑 3 個檔（.kml/.geojson/.gpx）→ 三組預覽、各自用自己的檔名命名
+- [ ] 只挑 1 個檔 → 畫面與命名與改版前完全一致
+- [ ] 批次中夾雜壞檔 → 好的照樣匯入、琥珀區塊列出被略過的、**不跳 blocking Alert**
+- [ ] 加入更多檔案會累加；per-file ✕ 可移除單檔
+- [ ] fixed 樣區有 GPS 定位、無範圍 → 地理樣區清單出現一筆同名點樣區
+- [ ] transect 有軌跡 → 出現多段路線列；同時有 `decimal_*` 時形狀仍是軌跡
+- [ ] 替某個衍生列的樣區畫上範圍 → 回到清單時**衍生列消失、只剩那筆 site**（2026-09-18 回歸檢查）
+- [ ] 綁了範圍的 site 顯示樣區徽章＋plotid，搜尋 plotid 找得到
+- [ ] 混合選取批次刪除 → 訊息列出三類數字，刪完衍生列還在、樣區資料未動
+- [ ] 專案管理：未分類長按無反應、全選不含它
+- [ ] Android 實體返回鍵：先退出多選，再離開畫面（兩個清單都要）
+- [ ] 往左滑 → 複製 → 預填 `-副本`，連做兩次得到 `-副本`、`-副本2`
+- [ ] 複製衍生列 → 清單多一筆真的 site，原樣區的 `site_id` 仍是 null
+
+**⚠️ 地圖相關仍只能在 iOS 驗**：Android 尚未設定 Google Maps API key。
+
+### 追加：配色、樣區 symbol、清單位置記憶、card view 留空（同日）
+
+**1. 配色改成「屬於記錄 vs 獨立」兩色**
+
+| 圖徵 | 舊 | 新 |
+|---|---|---|
+| 樣區（done）、樣區綁定的範圍 | `#7c3aed` 紫 | **`#00A2A5`**（`ACCENT`，匯出用的藍綠） |
+| 樣區（active） | `#db2777` 洋紅 | 不變（「正在記錄中」必須還看得出來） |
+| 名錄綁定的範圍 | `#2563eb` 藍 | 跟名錄走 `#10b981` / `#0891b2`（使用者確認保留） |
+| 獨立地理樣區（未綁任何記錄） | `#2563eb` 藍 | **`#74AB00`**（iNat 綠） |
+| 名錄本體、繪製中、cluster、查詢範圍 | — | 全部不變 |
+
+配色的語意從「這是哪種資料表」變成「**這個地方屬不屬於某筆記錄**」。地圖與 `sites.tsx` 用同一組判準，所以清單裡是藍綠的那列，在地圖上也是藍綠。
+
+- 地圖端原本只有 `plotBySiteId` 一張表（樣區綁的範圍穿樣區的顏色）。新增對稱的 `sessionBySiteId`：不補的話，名錄的範圍會落到「獨立」那一色，正好牴觸新配色唯一要表達的事。這一項是超出字面需求主動加的，**已經使用者確認保留**，不要當成順手改的東西回退。`MapFeatureCard` 的 `accentColor` 同步，否則資訊卡的色條會跟它指的形狀不同色。
+- `sites.tsx` 判斷「有沒有主人」不是每列去打 `countSiteReferences()`（那是 per-row query），而是在 `buildGeoRows` 裡用 plots / sessions 兩份清單一次算完 `boundToRecord`，語意與 `countSiteReferences` 的三個來源一致（plot_surveys.site_id、sessions.site_id、sites.session_id）。
+- 清單的 checkbox 與群組分享 icon 留在中性藍 `#2563eb`：它們是 UI chrome，不該跟兩個語意色搶。
+
+**2. 樣區 symbol 用 `grid-outline`**
+
+與 `RecordListItem.tsx:54`（記錄清單的樣區 icon）同一顆。套用範圍是「屬於樣區的列」——衍生列與樣區綁定的範圍都算。幾何型別（點位／路線／範圍）沒有消失，仍在副標題裡，所以換掉主 icon 不會丟資訊。
+
+**3. 地理樣區清單記住捲動位置**
+
+點一列會跳去地圖 tab，再從設定繞回來時畫面是重新掛載的，原本會回到最頂端。用 module-level 的 `lastScrollOffset`（**不是 `useRef`**——ref 隨元件一起被拆掉，正是要解決的問題），`onScroll` 記、`onContentSizeChange` 在內容夠高時還原一次（`restored` ref 擋成 one-shot，之後不再跟使用者搶捲動）。
+
+**4. 記錄 tab：專案標頭下方留空（兩種 layout 都要）**
+
+`ProjectHeader` 直接加 `mb-2`。第一版誤以為只有 card view 有問題而加了 `spacedBelow` prop，實際上 **list view 也一樣**：`renderRow` 的外框是 `mx-3 mb-2 rounded-2xl border`，跟卡片列同樣**只有下邊距**，所以兩種 layout 的第一列都貼著標頭列。條件永遠成立，prop 就拿掉了。**刻意不是給列加 `mt-2`**——那會讓每兩列之間變成 16px。
+
+### 追加項的驗證
+
+- [x] `tsc` / `lint` 0 error；`check:i18n` / `check:dock` / `check:kav` / `check:cluster` 全過（本輪無新 i18n key）
+- [ ] 地圖：樣區與其範圍藍綠、進行中樣區仍洋紅、名錄範圍跟名錄同色、手繪未綁定的點線面淺綠
+- [ ] 點任一圖徵 → 資訊卡左側色條與該形狀同色
+- [ ] point_count 的半徑圓改成藍綠半透明
+- [ ] 地理樣區清單：樣區列是四方格 icon ＋ 藍綠；獨立地理樣區是幾何 icon ＋ 淺綠
+- [ ] 清單捲到一半 → 點一列去地圖 → 設定 → 地理樣區 → **回到原本的位置**
+- [ ] 記錄 tab：list 與 card 兩種 layout，每個專案標頭與第一列之間都有 8px 間距（與列間距一致）
+- [ ] 地理樣區：點標頭收合／展開該專案、長按收合全部；離開畫面再回來收合狀態還在
+
+**5. 地理樣區清單：專案分組可收合**
+
+比照記錄 tab 的 byProject 檢視：標頭列整列可按（chevron 指示收合狀態），長按收合／展開全部（只作用於搜尋過濾後看得見的分組）。收合狀態持久化到新的 `sites_collapsed: number[]` setting，與 `records_collapsed` 同一套契約（stale id 不會對到任何分組，無害）。
+
+- `groupGeoRows` 的 key 從 **專案名稱改成 `project_id`**，回傳 `GeoRowGroup { projectId, projectName, rows }`。收合要存的是 id，而且兩個專案本來就可以同名。
+- 標頭右側原本的分享 icon（多選時是群組全選 checkbox）維持不變，巢狀在可按的標頭列裡，各自有自己的 `onPress`。
+
+### 2026-09-21 — 山域地標限定正體中文
+
+魯地圖 POI 只涵蓋台灣，所以這個功能只提供給正體中文 UI。用 `resolveLanguage(setting)`（`src/i18n/index.ts:118`）判斷——**不是讀原始 setting**，因為 `'system'` 是合法值，裝置語系是 zh-TW 的人仍然要拿得到地標。
+
+改兩處，缺一不可：
+
+1. 工具選單那一列 `FabRow` 隱藏；
+2. **POI 查詢本身跳過**（`map.tsx` 的 `useEffect`，deps 加 `poiAvailable`）。
+
+只藏入口不擋查詢的話，之前開著地標的使用者切語言後會看到滿地圖圖釘卻找不到地方關掉。`poi_groups` 仍然留在 `map_view` 設定裡，切回正體中文時原本的勾選會回來。
+
+- [x] `tsc` / `lint` 0 error
+- [ ] 實機：語系切 English → 工具選單沒有「山域地標」、地圖上的地標圖釘消失
+- [ ] 切回正體中文 → 選單與原本勾選的地標群組都回來
+- [ ] 語系設為「跟隨系統」且裝置是正體中文 → 功能仍在
+
+### 地圖查詢整併 —— 第一階段：兩個範圍查詢合成一個入口（已完成）
+
+「查詢畫面範圍物種」與「查詢範圍物種」是同一支 `AreaSpeciesModal`、同一組篩選，只差範圍從視窗算還是畫出來，卻各佔工具選單一列。合併成一列 `areaSpecies.fab`（查詢範圍物種）→ `handlePickAreaSource()` 用 `showActionSheet` 問範圍來源（`sourceVisible` 目前畫面範圍 / `sourceDraw` 自己畫範圍）。**先問意圖、再問形狀**，順序才符合使用者的想法。
+
+- `searchVisibleArea()` 的 `setToolsOpen(false)` 上移到新的 handler，函式本身不變。
+- **ActionSheet → 自家 RN Modal 這條序列不需要 iOS 的延遲**：`recordCreate.createPlotPromptAndOpen` 早就是 `showActionSheet` → `promptText`（Modal）零等待且正常出貨。要 450ms 的是「關掉自家 Modal 之後才 present 系統 sheet」，方向相反。
+- `areaSpecies.fabVisible` 已無呼叫端，7 個語系一併移除；新增 `sourceVisible` / `sourceDraw`。
+- 工具選單 9 列 → **8 列**（正體中文以外的語系因為山域地標隱藏，是 7 列）。
+
+- [x] `tsc` / `lint` 0 error；`check:i18n`（1668 key）/ `check:dock` / `check:kav` 全過
+- [ ] 實機：工具 ⋮ →「查詢範圍物種」→ 選「目前畫面範圍」→ 直接跳出查詢畫面（**iOS 要確認 modal 真的有跳**）
+- [ ] 同一入口選「自己畫範圍」→ 進 Polygon 繪製 → 畫完照樣進查詢畫面
+- [ ] ActionSheet 取消 → 什麼都不發生
+
+### 地圖查詢整併 —— 第二階段：併入 iNat 觀察網格（已完成）
+
+`InatGridSheet.tsx` → **`SpeciesDistributionSheet.tsx`**（`git mv`，型別 `InatGridSelection` 名字保留，它確實只描述網格那一半）。同一個頂端浮動面板加兩個分頁：
+
+| 分頁 | 問題 | 內容 |
+|---|---|---|
+| `speciesDist.tabTaxon` 看物種分布 | 給物種 → 得範圍 | 原封不動的 iNat 網格流程（搜尋、同名確認、breakdown、圖例） |
+| `speciesDist.tabArea` 查範圍物種 | 給範圍 → 得物種 | **只有範圍來源的選擇**（目前畫面／自己畫） |
+
+**分頁 B 刻意只做到「選範圍」**。`AreaSpeciesModal` 的篩選與結果審閱留在全螢幕：那一步有名錄命名輸入框，還要處理上百筆物種的消歧，是浮動面板最不擅長的兩件事。這也讓 `areaQuery` 的生命週期完全不用動——評估時標為最大風險的那一項就此避開。
+
+必須守住的三個時序細節：
+
+- **「目前畫面範圍」要等 450ms**（`handleAreaFromVisible`）。iOS 不會在另一個 modal 還在 dismiss 時 present 新的，而面板本身就是 modal；不等的話查詢畫面**靜默不出現**。同 `ExportProgressOverlay` → 分享 sheet 的數字。
+- **「自己畫範圍」不用等**：繪製是地圖狀態不是 modal。
+- **面板在有網格時重開一律回到 taxon 分頁**（`useEffect([visible, current])`）。地圖上那顆藥丸是主要的回頭入口，而它承諾的東西（哪個分類群、breakdown、停止顯示）全在那一頁。
+
+i18n：`inatGrid.fab` / `inatGrid.sheetTitle` / `areaSpecies.fab` 三個 key 已無呼叫端，7 語系一併移除；新增 `speciesDist.*` 四個。
+
+### 「定位」獨立成按鈕
+
+從工具選單拿出來，改成右下角、北向指示（原生 compass）**正上方**的單一圓鈕，只有 symbol 沒有文字——底下那顆羅盤也沒有文字。
+
+- 位置 `bottom: tabBarInset + 12 + COMPASS_H + 10`。`COMPASS_H = 40` 是原生 compass 的高度，JS 量不到（那是原生 subview），所以寫成有註解的常數。
+- **圖徵資訊卡出現時隱藏**：卡片是 `left-3 right-3`，會整個蓋住它。
+- `FabButton` 加上 `a11yLabel`。純圖示按鈕對螢幕報讀器等於沒有標籤，`map.locate` 這個 key 正好從選單標籤轉為無障礙標籤留用。
+
+**工具選單 9 列 → 5 列**（正體中文 6 列）：底圖／圖層／山域地標／繪製地理樣區／物種分布查詢／匯入。
+
+- [x] `tsc` / `lint` 0 error；`check:i18n`（1668 key）/ `check:dock` / `check:kav` / `check:cluster` 全過
+- [ ] 實機 iOS：工具 ⋮ →「物種分布查詢」→ 分頁 B →「目前畫面範圍」→ **查詢畫面真的有跳出來**（這是整組改動唯一的原生時序風險）
+- [ ] 分頁 B →「自己畫範圍」→ 進 Polygon 繪製 → 畫完進查詢畫面
+- [ ] 分頁 A 的網格流程與改版前完全一致（含查到同名時的確認步驟）
+- [ ] 畫著網格時點地圖上的藥丸 → 面板開在分頁 A
+- [ ] 切到分頁 B 再關閉、重開 → 沒有網格時停在上次的分頁
+- [ ] 定位鈕在羅盤正上方、點下去會移動到目前位置；點任一圖徵出資訊卡時定位鈕消失
+
+### 未決：第三階段（若要再做）
+
+尚未動工。可考慮的要點：
+
+- **「查詢畫面範圍物種」與「查詢範圍物種」其實是同一個功能**（都走 `AreaSpeciesModal`），只差範圍從視窗算還是畫出來。合併幾乎零成本。
+- **iNat 觀察網格是反方向的查詢**（給物種→得範圍 vs 給範圍→得物種），只共用 iNat API。可以共用入口與外殼，但結果畫面不該統一。
+- 外殼用 `InatGridSheet` 的頂端浮動面板 ＋ 兩個分頁。`AreaSpeciesModal` 的 `filters` 步驟（373–497 行）**沒有 `TextInput`**，搬進浮動面板安全；`result` 步驟有名錄命名輸入框（680 行）＋上百筆物種消歧，**必須留在全螢幕**，否則就是「有輸入框的浮動面板被鍵盤推走」那個已出貨三次的坑。
+- 附帶好處：工具選單 9 列 → 7 列。
+- 最大的改動風險在 `areaQuery` 的生命週期：目前 `AreaSpeciesModal` 的 props 假設「開啟時範圍已決定」，改成面板內才選範圍要重畫這段。
+
+### 2026-09-21 — 範圍查詢面積上限 ＋ 定位鈕淨空
+
+**1. 可行性結論：iNat 觀察網格不用改**
+
+它是 raster tile 圖層（`rasterOverlays` ＋ `gridTileUrl` 的 `{z}/{x}/{y}` 模板），地圖引擎只抓覆蓋視窗的 tile，縮放自動換層級；`gridPrecisionOffset()` 已經在做「zoom out 就變粗」，而且刻意只分兩段（offset 寫在 URL 裡，一改就丟掉全部已載入的 tile）。**使用者要的行為它本來就有。**
+
+**2. 範圍物種查詢：加面積上限（硬擋）**
+
+「限定畫面範圍」本來就是預設，問題是畫面本身可以很大。加 `bboxAreaKm2()` 與 `MAX_QUERY_AREA_KM2 = 5000`（`src/lib/inat.ts`）：篩選步驟顯示「約 X km²」，超過就紅字說明並**把查詢鈕置灰**。
+
+- 門檻的校準參考點（用 `bboxAreaKm2` 在 lat 23.5° 實算）：0.05° 視窗＝28 km²、0.5°＝2,800 km²、1°＝11,300 km²、臺灣外接矩形＝77,000 km²。
+- **1000 種的天花板實際在哪裡是不可知的**（物種密度因地而異，非實測不可），所以門檻是用「成本何時變得不合理」來訂，並寫成單一常數方便日後調。
+- 量的是**外接矩形**，GBIF 查的雖是多邊形但必在矩形之內，所以守得保守而非寬鬆；且矩形正是 iNat 實際查詢的東西（`bboxNote` 已寫明）。
+- 為什麼要硬擋而不是只警告：GBIF 沒選類群時是**每個界一次、共 8 次** faceted 請求，校正步驟更是**每個名稱一次**（最壞 1000 次、光是刻意的間隔就 40 秒）。
+
+**刻意不做**：跟著視窗即時重查。`apiFetch` 沒有節流或請求預算，全靠呼叫端的間隔（iNat 350ms／GBIF 300ms＋並發 2／refine 120ms＋並發 3），而且這個流程的終點是「存成常用名錄」——一份會隨平移變動的清單沒辦法存。此外全專案目前**沒有任何跟著視窗跑的網路查詢**，最接近的先例 `POI_MAX_DELTA` 查的是本地 SQLite。
+
+**3. 定位鈕淨空改成依引擎分開算**
+
+魯地圖（向量）的北向指針被定位鈕蓋住。根因：淨空用單一 `COMPASS_H = 40` 推算，但**兩個引擎畫的是不同的東西**——原生引擎畫的是 app 自己的 `NorthArrow`，向量引擎用的是 MapLibre 內建原生羅盤，後者比較大且 **JS 量不到**。
+
+改成 `map/types.ts` 的兩個常數：`NORTH_ARROW_SIZE = 36`（精確，`NorthArrow` 自己也用它當寬高，不會漂移）與 `MAPLIBRE_COMPASS_SIZE = 64`（刻意寬鬆的上界，註明要對實機調、不要用推的）。`map.tsx` 依 `vectorOn` 取用。
+
+- [x] `tsc` / `lint` 0 error；`check:i18n`（1670 key）/ `check:dock` / `check:kav` / `check:cluster` 全過
+- [ ] 實機：縮到全臺 → 查詢範圍物種 → 顯示約 77,000 km²、紅字、查詢鈕置灰
+- [ ] 放大到一個溪谷 → 面積數字合理、查詢鈕可按
+- [ ] 畫一個大多邊形 → 一樣被擋（量的是外接矩形）
+- [ ] 切到魯地圖底圖 → **北向指針完全沒有被定位鈕蓋到**；切回原生底圖 → 定位鈕與箭頭之間沒有多餘空隙
+
+### 2026-09-21 — 授權：repo LICENSE ＋ app 內第三方授權畫面
+
+起點是一個問題：引用開源軟體是不是也要在設定選單顯示。是，而且**當時一條都沒有**——`about.tsx` 把資料來源（TaiCOL／YList／GBIF-JP／OSM ODbL／內政部／中研院）做得很完整，軟體授權卻只有一句「本 app 為開源專案」，而 repo 連 LICENSE 檔都沒有。
+
+**條款依據**（引 `node_modules` 內的授權原文與 opensource.org/osd，非憑記憶）：
+
+- MIT：「The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.」
+- BSD-2/3 §2：「Redistributions **in binary form** must reproduce the above copyright notice … in the documentation and/or other materials provided with the distribution.」
+- Apache-2.0 §4(d)：NOTICE 的內容可放在「**within a display generated by the Derivative Works, if and wherever such third-party notices normally appear**」——app 內的授權畫面是條文明文承認的位置之一。
+
+**實作**
+
+- `scripts/gen-licenses.mjs` ＋ `npm run licenses` / `npm run check:licenses`。掃 `dependencies` 的閉包（**不含 devDependencies**，那些不會進裝置），收 name/version/SPDX/授權全文與 NOTICE。**全文逐字收錄、完全不改寫**——MIT 與 BSD 要的是通知本身，不是摘要。相同文本以索引去重（位元組相同才算，不做模板化）。產出 `src/generated/licenses.json`：668 套件、295 份唯一文本、503 KB。
+- `check:licenses` 會在相依變動後讓 CI 失敗。手抄 670 個套件必定過期，這條檢查是防腐的部分。
+- `app/licenses.tsx`：搜尋 ＋ 依套件列出 ＋ 點開看全文（`selectable`）。JSON 用 `require()` 而非 `import`，503 KB 只在第一次進這頁時求值。入口在「關於 → License」底下。
+- 91 個套件沒有附授權全文、只宣告 SPDX id，畫面據實顯示「僅宣告 {{id}}」而不是編一份出來。
+
+**repo 授權**
+
+- 新增 `LICENSE`：BSD 2-Clause，版權行為 Cheng-Tao Lin ＋ 臺大森林環資系植群生態與空間資訊研究室。**條文主體逐字比對過** `@tmcw/togeojson/LICENSE`（已安裝的 BSD-2），確認 word-for-word 相同——不是憑記憶打的。
+- `mobile/app/package.json` 補 `"license": "BSD-2-Clause"`。
+- `about.openSource` 從「本 app 為開源專案」改成指名授權（7 語系）。
+
+**未決：臺灣但書**
+
+使用者考慮加「衍生作品或輸出資料不可宣稱臺灣是中國的一部分」。已查證 **OSD §6**：「The license must not restrict anyone from making use of the program in a specific field of endeavor.」——具約束力的但書會讓它**不再符合開源定義**（`license` 欄位要改 `SEE LICENSE IN LICENSE`、GitHub 顯示 Other、「開源」字樣要拿掉）。相依套件全是寬鬆授權，兩種做法都不衝突。
+
+另一個落差：軟體授權管的是軟體，不是使用者產生的資料，對「輸出資料用途」的伸展有限。
+
+**決定：先只放標準 BSD-2，但書之後再想。** 若日後要加，兩種形式是（a）LICENSE 不動、立場寫成 README／關於頁的獨立聲明（仍是開源，聲明無法律拘束力），或（b）寫成第三條授權條件（成為 source-available）。FSF 自由軟體定義未能查證（gnu.org 回 429），不憑記憶轉述。
+
+- [x] `tsc` / `lint` 0 error；`check:i18n`（1676 key）/ `check:licenses` / `check:dock` / `check:kav` 全過
+- [ ] 實機：關於 → License → 第三方軟體授權，列表出得來、搜尋可用、點開看得到全文
+- [x] 確認 `lightningcss`(MPL-2.0) 與 `caniuse-lite`(CC-BY-4.0) **沒有進 binary**（見下）
+
+**查證：兩個都是建置期工具，不進 binary**
+
+`npx expo export --platform ios` 產出 Hermes bytecode（9.95 MB、26,025 條字串）後 `strings` 比對：
+
+| 探針 | 命中 | 判讀 |
+|---|---|---|
+| `css-to-rn` | **0** | lightningcss 的唯一 importer 不在 bundle |
+| `parseDeclaration` | **0** | css-to-rn 內部函式不在 bundle |
+| `cssInterop` | 4 | NativeWind 的 **runtime** 在 bundle |
+
+`lightningcss` / `caniuse` / `browserslist` 各有 1–3 個命中，但逐一比對後**全部來自剛加的 `licenses.json`**（套件名與 repo URL，例如 `https://github.com/parcel-bundler/lightningcss`），沒有一個來自程式碼。佐證：`lightningcss` 是 NAPI 原生附加元件（Rust 編給 Node），Hermes 根本載不了；`@expo/metro-config` 是 `metro.config.js` 在打包機上載入的。
+
+**方法上的兩個坑**（下次要重跑時注意）：
+- `strings "$B"` 若 `$B` 含未展開的 glob 又被引號包住，會全部回 0 而**看起來像通過**。必須放正向對照探針，否則假陰性無法察覺。
+- `strings` 只找 ASCII 序列，中文字串（Hermes 存 UTF-16）一律 0，不能當作「不在 bundle」的證據。
+
+**結論**：MPL-2.0 與 CC-BY-4.0 的散布義務不觸發。`gen-licenses.mjs` 維持掃 `dependencies` 閉包（超集），因為精確集合要靠 `--dump-sourcemap` 交集、會讓 `check:licenses` 需要完整 build。改的是**說明文字**：從「本 app 使用下列開源套件」改成「本專案的**相依套件清單**，含建置期工具，未必全部進入 app」（7 語系），清單就不會言過其實。
+
+### 2026-09-21 — 自建物種進分類樹
+
+**決定**：只收 `source='manual'`（使用者自己打的），GBIF／iNat 的查詢快取不進樹——那是查詢殘留，不是使用者選擇留下的東西。階層「能排就排、不能排送桶」。
+
+**為什麼需要兩種擺法**：建立表單只有**學名與界是必填**（`GbifLookupHost:401`），門／綱／目／科／屬全是選填。而樹的每一層都會對上面所有祖先下 `WHERE`，所以科留白的物種，不管往下點多少層都不會出現。因此：
+
+- **六階全滿**（kingdom…genus）→ 併進真正的位置，與 region pack 走同一條路。
+- **其餘** → 收在該界底下一個 `INCOMPLETE_PHYLUM` 哨兵節點（UI 顯示「未完整分類（自建）」）。找不到的物種比放在明顯是暫置處的抽屜裡更糟。
+
+**實作**：新 `src/db/manualTaxonomy.ts`，回傳 `mergePackNodes` 已經在吃的 `{name, stats}` 形狀，所以三處併入都是既有 pattern：
+
+| 併入點 | 內容 |
+|---|---|
+| `computeTopLevel()` | `manualKingdoms()`——否則自建在「沒有任何名錄涵蓋的界」會連節點都沒有 |
+| `getTaxonChildren()` | `manualTreeChildren()`，rank='phylum' 時附帶哨兵桶 |
+| `getSpeciesUnder()` | `manualSpeciesUnder()`，哨兵 phylum 直接短路（名錄與 pack 都不可能對到它） |
+
+**三個容易錯的地方**
+
+1. **import cycle**：`taxonomy.ts` 要 import 新模組，所以新模組**只能 `import type`**。原本寫成 `import { RANK_ORDER }`（值）會在模組初始化時依載入順序變成 undefined。改成本地常數並標注型別為 `Rank[]`，日後 `Rank` 增加階層會編譯失敗而不是默默漏掉一層。
+2. **快取失效**：`scopeSig()` 只看資料模組與 pack，新增自建物種不會讓它變。加入 `manualScopeSig()`（`COUNT(*)` 抓新增/刪除、`MAX(fetched_at)` 抓編輯——`updateExternalTaxon` 一定會 bump）。畫面本來就用 sig 比對決定要不要重置樹，所以建立完回到分類樹就會看到。
+3. **Viruses 不過濾**：pack 那邊會濾掉病毒界（realm 階層全 app 延後處理），自建**刻意不濾**——自建物種本來就沒有 realm，它要嘛六階全滿、要嘛進桶，兩條路都能走；濾掉只會讓使用者自己打的物種消失。
+
+**去重**：自建 id 是 `gm…`，`idPreference` 給 2（與 pack 同分、輸給 TaiCOL/YList）。在 pack 之後才 concat，所以同名時 pack 贏平手、名錄一定贏——自建物種撞到名錄名稱是要隱藏的錯誤，不是要顯示兩次的資訊。
+
+**UI**：桶節點顯示琥珀色「未完整分類（自建）」且不顯示 rank chip 與檢索表（它不是分類群）；自建物種列加琥珀色「自建」badge（沿用既有的 `manualTaxon.badge`）。點進去走 `searchByTaxonId` 的 external 分支，早就支援 `g…` id。
+
+**SQL 已用真 SQLite 驗過**（`node:sqlite` 造表灌 5 筆）：`NOT (六階全滿)` 對 NULL 與空字串都正確歸類（`IS NOT NULL` 先短路成 false，沒有三值邏輯外洩）、gbif 列不外漏、完整鏈的屬節點出現在正確科底下、每界的未完整計數正確、只有未完整物種的界仍然出現在根層。
+
+- [x] `tsc` / `lint` 0 error；`check:i18n`（1677 key）全過
+- [ ] 實機：建立一個六階全滿的自建物種 → 分類樹一路點下去看得到，帶「自建」badge
+- [ ] 建立一個只填學名＋界的 → 該界底下出現「未完整分類（自建）」，點進去看得到它
+- [ ] 建立後**不重開 app** 直接切到分類樹 → 看得到（scopeSig 失效路徑）
+- [ ] 編輯自建物種把科補齊 → 從桶裡消失、出現在正確位置
+- [ ] 建立一個界＝病毒的 → 根層出現病毒界且點得進去
+- [ ] 自建物種與名錄同名時 → 樹上只出現名錄那一筆
+- [ ] GBIF／iNat 查詢快取的物種**不會**出現在樹上

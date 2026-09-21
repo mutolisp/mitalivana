@@ -28,20 +28,67 @@ const FORMAT_LABEL: Record<GeoFormat, string> = {
   wkt: 'WKT',
 };
 
+/** Geometries listed per file in the preview; the rest are summarised. */
+const PREVIEW_PER_FILE = 20;
+
+/** One picked file that yielded at least one geometry. */
+type PickedFile = {
+  /** Original filename including extension — the preview group header. */
+  filename: string;
+  /** Filename without its extension; the per-file default name prefix. */
+  base: string;
+  format: GeoFormat;
+  geoms: ImportedGeometry[];
+};
+
+/** A picked file that yielded nothing, kept so the user is told which. */
+type SkippedFile = { filename: string; reason: string };
+
+/** A single geometry to create, carrying where it came from. */
+type Entry = {
+  geom: ImportedGeometry;
+  /** Name prefix in force for this geometry's file. */
+  base: string;
+  indexInFile: number;
+  countInFile: number;
+};
+
+/**
+ * The name for a geometry whose source file supplied none.
+ *
+ * Numbering restarts per file, so two files each holding one shape keep their
+ * own names instead of colliding on a shared "#1".
+ */
+function fallbackName(base: string, indexInFile: number, countInFile: number): string {
+  if (!base) return '';
+  return countInFile === 1 ? base : `${base} #${indexInFile + 1}`;
+}
+
 export function GeoImportModal({ visible, defaultProjectId = 0, onClose, onCommitted }: Props) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const [filename, setFilename] = useState('');
-  const [format, setFormat] = useState<GeoFormat | null>(null);
-  const [imported, setImported] = useState<ImportedGeometry[]>([]);
+  const [files, setFiles] = useState<PickedFile[]>([]);
+  const [skipped, setSkipped] = useState<SkippedFile[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectId, setProjectId] = useState<number>(defaultProjectId);
   const [namePrefix, setNamePrefix] = useState('');
 
+  // With one file the editable prefix drives every name, exactly as before the
+  // picker went multi-select. With several, each file names its own shapes —
+  // one shared prefix across files would just reintroduce the collision.
+  const singleFile = files.length === 1;
+  const entries: Entry[] = files.flatMap((f) =>
+    f.geoms.map((geom, i) => ({
+      geom,
+      base: singleFile ? namePrefix : f.base,
+      indexInFile: i,
+      countInFile: f.geoms.length,
+    })),
+  );
+
   const reset = () => {
-    setFilename('');
-    setFormat(null);
-    setImported([]);
+    setFiles([]);
+    setSkipped([]);
     setNamePrefix('');
   };
 
@@ -55,65 +102,88 @@ export function GeoImportModal({ visible, defaultProjectId = 0, onClose, onCommi
       const r = await DocumentPicker.getDocumentAsync({
         type: ['*/*'],
         copyToCacheDirectory: true,
+        multiple: true,
       });
       if (r.canceled) return;
-      const asset = r.assets[0];
-      if (!asset?.uri) return;
+      const assets = r.assets ?? [];
+      if (assets.length === 0) return;
 
-      const file = new File(asset.uri);
-      const text = await file.text();
-      const detected = detectFormat(text, asset.name);
-      if (!detected) {
-        Alert.alert(t('geoImport.badFormat'), t('geoImport.badFormatMsg'));
-        return;
-      }
-      const parsed = parseGeoFile(text, detected);
-      if (parsed.length === 0) {
-        Alert.alert(t('geoImport.parseFail'), t('geoImport.parseFailMsg'));
-        return;
+      const accepted: PickedFile[] = [];
+      const rejected: SkippedFile[] = [];
+      for (const asset of assets) {
+        if (!asset?.uri) continue;
+        try {
+          const text = await new File(asset.uri).text();
+          const detected = detectFormat(text, asset.name);
+          if (!detected) {
+            rejected.push({ filename: asset.name, reason: t('geoImport.badFormat') });
+            continue;
+          }
+          const parsed = parseGeoFile(text, detected);
+          if (parsed.length === 0) {
+            rejected.push({ filename: asset.name, reason: t('geoImport.parseFail') });
+            continue;
+          }
+          accepted.push({
+            filename: asset.name,
+            base: asset.name.replace(/\.[^.]+$/, ''),
+            format: detected,
+            geoms: parsed,
+          });
+        } catch {
+          // One unreadable file must not abort the whole batch.
+          rejected.push({ filename: asset.name, reason: t('geoImport.readFail') });
+        }
       }
 
-      setFilename(asset.name);
-      setFormat(detected);
-      setImported(parsed);
-      setProjects(listProjects());
-      // The default prefix is the filename without its extension
-      const base = asset.name.replace(/\.[^.]+$/, '');
-      setNamePrefix(base);
+      // Append: a batch often has to be gathered from more than one folder,
+      // and every file can be dropped again individually from the preview.
+      const next = [...files, ...accepted];
+      setFiles(next);
+      setSkipped(rejected);
+      if (next.length === 1) setNamePrefix(next[0].base);
+      if (accepted.length > 0) setProjects(listProjects());
+      if (accepted.length === 0 && next.length === 0) {
+        Alert.alert(t('geoImport.parseFail'), t('geoImport.noneUsable'));
+      }
     } catch (e) {
       Alert.alert(t('geoImport.readFail'), e instanceof Error ? e.message : String(e));
     }
   };
 
+  const removeFile = (index: number) => {
+    const next = files.filter((_, i) => i !== index);
+    setFiles(next);
+    if (next.length === 1) setNamePrefix(next[0].base);
+  };
+
   const handleCommit = () => {
-    if (imported.length === 0) return;
+    if (entries.length === 0) return;
     let added = 0;
-    for (let i = 0; i < imported.length; i++) {
-      const item = imported[i];
+    entries.forEach((e, i) => {
       const name =
-        item.name?.trim() ||
-        (imported.length === 1 ? namePrefix : `${namePrefix} #${i + 1}`) ||
+        e.geom.name?.trim() ||
+        fallbackName(e.base, e.indexInFile, e.countInFile) ||
         t('geoImport.importN', { n: i + 1 });
       try {
         createSite({
           project_id: projectId,
           name,
-          geometry: item.geometry,
-          notes: item.notes ?? null,
+          geometry: e.geom.geometry,
+          notes: e.geom.notes ?? null,
         });
         added++;
-      } catch (e) {
+      } catch (err) {
         // skip invalid geometries silently; surface count
-        // eslint-disable-next-line no-console
-        console.warn('skip', name, e);
+        console.warn('skip', name, err);
       }
-    }
+    });
     onCommitted(added);
-    if (added < imported.length) {
+    if (added < entries.length) {
       Alert.alert(
         t('geoImport.partial'),
         t('geoImport.partialMsg', {
-          total: t('geoImport.nTotal', { count: imported.length }),
+          total: t('geoImport.nTotal', { count: entries.length }),
           added: t('geoImport.nSucceeded', { count: added }),
         }),
       );
@@ -136,21 +206,23 @@ export function GeoImportModal({ visible, defaultProjectId = 0, onClose, onCommi
           <Text className="text-base font-semibold text-gray-900 dark:text-gray-100">
             {t('geoImport.title')}
           </Text>
-          <Pressable onPress={handleCommit} hitSlop={8} disabled={imported.length === 0}>
+          <Pressable onPress={handleCommit} hitSlop={8} disabled={entries.length === 0}>
             <Text
-              className={`text-base font-semibold ${imported.length === 0 ? 'text-gray-300' : 'text-blue-600 dark:text-blue-400'}`}
+              className={`text-base font-semibold ${entries.length === 0 ? 'text-gray-300' : 'text-blue-600 dark:text-blue-400'}`}
             >
-              {t('geoImport.create', { n: imported.length || '' })}
+              {t('geoImport.create', { n: entries.length || '' })}
             </Text>
           </Pressable>
         </View>
 
         <ScrollView className="flex-1">
-          {imported.length === 0 ? (
+          {files.length === 0 ? (
             <View className="items-center px-6 py-12">
               <Ionicons name="cloud-upload-outline" size={56} color="#9ca3af" />
               <Text className="mt-4 text-center text-sm text-gray-600 dark:text-gray-400">
                 {t('geoImport.supportHint')}
+                {'\n'}
+                {t('geoImport.multiFileHint')}
                 {'\n'}
                 {t('geoImport.multiHint')}
               </Text>
@@ -163,31 +235,46 @@ export function GeoImportModal({ visible, defaultProjectId = 0, onClose, onCommi
                   {t('geoImport.pickFile')}
                 </Text>
               </Pressable>
+              {skipped.length > 0 ? <SkippedBlock skipped={skipped} /> : null}
             </View>
           ) : (
             <>
               <View className="border-b border-gray-100 bg-blue-50 px-4 py-3 dark:border-gray-800 dark:bg-blue-950/40">
                 <Text className="text-sm text-blue-900 dark:text-blue-100">
-                  <Text className="font-bold">{filename}</Text>
-                  {format ? `（${FORMAT_LABEL[format]}）` : ''}
+                  <Text className="font-bold">
+                    {singleFile
+                      ? files[0].filename
+                      : t('geoImport.nFiles', { count: files.length })}
+                  </Text>
+                  {singleFile ? `（${FORMAT_LABEL[files[0].format]}）` : ''}
                 </Text>
                 <Text className="mt-1 text-xs text-blue-800">
-                  {t('geoImport.geomSummary', { count: imported.length })}
+                  {t('geoImport.geomSummary', { count: entries.length })}
                 </Text>
               </View>
 
-              <Field label={t('geoImport.namePrefix')}>
-                <TextInput
-                  value={namePrefix}
-                  onChangeText={setNamePrefix}
-                  className="rounded border border-gray-300 px-3 py-2 text-base text-gray-900 dark:border-gray-600 dark:text-gray-100"
-                  placeholder={t('geoImport.namePrefixEx')}
-                  placeholderTextColor="#9ca3af"
-                />
-                <Text className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  {t('geoImport.namePrefixHint')}
-                </Text>
-              </Field>
+              {skipped.length > 0 ? <SkippedBlock skipped={skipped} /> : null}
+
+              {singleFile ? (
+                <Field label={t('geoImport.namePrefix')}>
+                  <TextInput
+                    value={namePrefix}
+                    onChangeText={setNamePrefix}
+                    className="rounded border border-gray-300 px-3 py-2 text-base text-gray-900 dark:border-gray-600 dark:text-gray-100"
+                    placeholder={t('geoImport.namePrefixEx')}
+                    placeholderTextColor="#9ca3af"
+                  />
+                  <Text className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    {t('geoImport.namePrefixHint')}
+                  </Text>
+                </Field>
+              ) : (
+                <Field label={t('geoImport.namePrefix')}>
+                  <Text className="text-xs text-gray-500 dark:text-gray-400">
+                    {t('geoImport.perFileNameHint')}
+                  </Text>
+                </Field>
+              )}
 
               <Field label={t('plot.project')}>
                 <View className="flex-row flex-wrap gap-2">
@@ -214,21 +301,48 @@ export function GeoImportModal({ visible, defaultProjectId = 0, onClose, onCommi
                 <Text className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
                   {t('geoImport.geomPreview')}
                 </Text>
-                {imported.slice(0, 20).map((item, i) => (
-                  <View key={i} className="border-b border-gray-100 py-2 dark:border-gray-800">
-                    <Text className="text-sm text-gray-900 dark:text-gray-100">
-                      {item.name || `${namePrefix || t('geoImport.defaultPrefix')} #${i + 1}`}
-                    </Text>
-                    <Text className="text-xs text-gray-500 dark:text-gray-400">
-                      {item.geometry.type}
-                    </Text>
-                  </View>
-                ))}
-                {imported.length > 20 ? (
-                  <Text className="mt-2 text-xs italic text-gray-500 dark:text-gray-400">
-                    {t('geoImport.moreNotListed', { count: imported.length - 20 })}
-                  </Text>
-                ) : null}
+                {files.map((f, fi) => {
+                  const base = singleFile ? namePrefix : f.base;
+                  return (
+                    <View key={`${f.filename}-${fi}`} className="mb-3">
+                      {singleFile ? null : (
+                        <View className="mb-1 flex-row items-center justify-between">
+                          <Text
+                            className="flex-1 text-xs font-semibold text-gray-700 dark:text-gray-300"
+                            numberOfLines={1}
+                          >
+                            {f.filename}（{FORMAT_LABEL[f.format]}·{f.geoms.length}）
+                          </Text>
+                          <Pressable onPress={() => removeFile(fi)} hitSlop={8} className="ml-2">
+                            <Ionicons name="close-circle" size={18} color="#9ca3af" />
+                          </Pressable>
+                        </View>
+                      )}
+                      {f.geoms.slice(0, PREVIEW_PER_FILE).map((item, i) => (
+                        <View
+                          key={i}
+                          className="border-b border-gray-100 py-2 dark:border-gray-800"
+                        >
+                          <Text className="text-sm text-gray-900 dark:text-gray-100">
+                            {item.name ||
+                              fallbackName(base, i, f.geoms.length) ||
+                              `${t('geoImport.defaultPrefix')} #${i + 1}`}
+                          </Text>
+                          <Text className="text-xs text-gray-500 dark:text-gray-400">
+                            {item.geometry.type}
+                          </Text>
+                        </View>
+                      ))}
+                      {f.geoms.length > PREVIEW_PER_FILE ? (
+                        <Text className="mt-2 text-xs italic text-gray-500 dark:text-gray-400">
+                          {t('geoImport.moreNotListed', {
+                            count: f.geoms.length - PREVIEW_PER_FILE,
+                          })}
+                        </Text>
+                      ) : null}
+                    </View>
+                  );
+                })}
               </View>
 
               <View className="px-4 py-3">
@@ -238,7 +352,7 @@ export function GeoImportModal({ visible, defaultProjectId = 0, onClose, onCommi
                 >
                   <Ionicons name="folder-open-outline" size={14} color="#374151" />
                   <Text className="ml-1 text-xs font-medium text-gray-700 dark:text-gray-300">
-                    {t('geoImport.anotherFile')}
+                    {t('geoImport.addMoreFiles')}
                   </Text>
                 </Pressable>
               </View>
@@ -258,6 +372,22 @@ export function GeoImportModal({ visible, defaultProjectId = 0, onClose, onCommi
         ) : null}
       </View>
     </Modal>
+  );
+}
+
+function SkippedBlock({ skipped }: { skipped: SkippedFile[] }) {
+  const { t } = useTranslation();
+  return (
+    <View className="border-b border-amber-100 bg-amber-50 px-4 py-3 dark:border-amber-900 dark:bg-amber-950/40">
+      <Text className="text-xs font-semibold text-amber-900 dark:text-amber-200">
+        {t('geoImport.skipped', { count: skipped.length })}
+      </Text>
+      {skipped.map((s, i) => (
+        <Text key={i} className="mt-1 text-xs text-amber-800 dark:text-amber-300" numberOfLines={2}>
+          {s.filename} — {s.reason}
+        </Text>
+      ))}
+    </View>
   );
 }
 

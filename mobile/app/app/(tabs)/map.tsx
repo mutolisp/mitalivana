@@ -22,7 +22,10 @@ import { NLSC_LAYERS } from '~/lib/nlscLayers';
 import { SaveSiteModal } from '~/components/SaveSiteModal';
 import { GeoImportModal } from '~/components/GeoImportModal';
 import { AreaSpeciesModal } from '~/components/AreaSpeciesModal';
-import { InatGridSheet, type InatGridSelection } from '~/components/InatGridSheet';
+import {
+  SpeciesDistributionSheet,
+  type InatGridSelection,
+} from '~/components/SpeciesDistributionSheet';
 import { ScientificName } from '~/components/ScientificName';
 import {
   INAT_GRID_LAYER,
@@ -73,7 +76,14 @@ import {
 import { SITE_TYPE_LABEL } from '~/lib/siteLabels';
 import { basemapToMapType } from '~/lib/basemap';
 import { MapCanvas } from '~/components/map/MapCanvas';
-import type { LatLng, MapCamera, MapFeature, Region } from '~/components/map/types';
+import {
+  MAPLIBRE_COMPASS_SIZE,
+  NORTH_ARROW_SIZE,
+  type LatLng,
+  type MapCamera,
+  type MapFeature,
+  type Region,
+} from '~/components/map/types';
 import { MapScaleBar } from '~/components/MapScaleBar';
 import { PoiGroupSheet } from '~/components/PoiGroupSheet';
 import {
@@ -87,6 +97,7 @@ import { describeVectorInstall, vectorStyleUri } from '~/lib/vectormap';
 import { useVectorInstall } from '~/lib/vectormapInstall';
 import { useTabBarInset } from '~/lib/tabBarLayout';
 import { useThemeColors } from '~/hooks/useThemeColors';
+import { resolveLanguage } from '~/i18n';
 import { useSettings, type MapBasemap } from '~/stores/settings';
 import { useToast } from '~/stores/toast';
 import { ACTION_FILL } from '~/lib/colors';
@@ -102,7 +113,11 @@ type ClusterFeature =
  * `basemapToMapType()` in `src/lib/basemap.ts`; a second copy used to live here
  * and was a source of duplication.
  */
-const BASEMAP_OPTIONS: { value: MapBasemap; labelKey: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+const BASEMAP_OPTIONS: {
+  value: MapBasemap;
+  labelKey: string;
+  icon: keyof typeof Ionicons.glyphMap;
+}[] = [
   { value: 'standard', labelKey: 'map.basemapStandard', icon: 'map-outline' },
   { value: 'satellite', labelKey: 'map.basemapSatellite', icon: 'globe-outline' },
   { value: 'hybrid', labelKey: 'map.basemapHybrid', icon: 'layers-outline' },
@@ -131,12 +146,15 @@ const SINICA_TILE_URL =
 const NLSC_TILE_URL =
   'https://wmts.nlsc.gov.tw/wmts/{LAYER}/default/GoogleMapsCompatible/{z}/{y}/{x}';
 
-
 /** Deliberately not one of the record colours: a bubble is not a plot survey or
  *  a checklist, it is a stand-in for several of them. */
 const CLUSTER_COLOR = '#4f46e5';
-const SITE_COLOR = '#2563eb';
-const SITE_FILL = 'rgba(37, 99, 235, 0.18)';
+
+// A standalone place — drawn or imported by hand, owned by no record. Records
+// wear the accent teal (PLOT_COLOR / SESSION_COLOR below); this yellow-green is
+// reserved for "nobody's record, just a place".
+const SITE_COLOR = '#74AB00';
+const SITE_FILL = 'rgba(116, 171, 0, 0.18)';
 const DRAW_COLOR = '#dc2626';
 
 /** Species-query overlay, kept visually distinct from the red site-drawing
@@ -280,13 +298,14 @@ function bboxCorners(b: BBox): LatLng[] {
   ];
 }
 const DRAW_FILL = 'rgba(220, 38, 38, 0.18)';
-// Plot survey overlay (distinct from site-blue / draw-red).
-const PLOT_COLOR = '#7c3aed'; // violet — done plots
+// Plot survey overlay. The accent teal, matching 地理樣區管理's 樣區 rows.
+const PLOT_COLOR = '#00A2A5'; // teal — done plots
 const PLOT_ACTIVE_COLOR = '#db2777'; // magenta — the single active plot
-const PLOT_FILL = 'rgba(124, 58, 237, 0.15)'; // point_count radius circle
+const PLOT_FILL = 'rgba(0, 162, 165, 0.15)'; // point_count radius circle
 // Session (checklist) overlay.
 const SESSION_COLOR = '#0891b2'; // cyan — done sessions
 const SESSION_ACTIVE_COLOR = '#10b981'; // green — the active session
+const SESSION_FILL = 'rgba(8, 145, 178, 0.15)'; // a 名錄's boundary polygon
 
 /** Soft cap above which editing a track segment warns about map jank. */
 const TRACK_EDIT_WARN_POINTS = 200;
@@ -308,10 +327,7 @@ function basemapMeta(b: MapBasemap): (typeof BASEMAP_OPTIONS)[number] {
  * offline package is installed — what the user cares about is whether this map
  * needs the network right now, not how it is rendered.
  */
-function basemapLabelKey(
-  o: (typeof BASEMAP_OPTIONS)[number],
-  vectorReady: boolean,
-): string {
+function basemapLabelKey(o: (typeof BASEMAP_OPTIONS)[number], vectorReady: boolean): string {
   if (o.value === 'vector' && vectorReady) return 'map.basemapRudyVectorOffline';
   return o.labelKey;
 }
@@ -354,6 +370,15 @@ export default function MapScreen() {
   const [nlscLayer, setNlscLayer] = useState<string>(initial.nlsc_layer);
   const [nlscOpacity, setNlscOpacity] = useState<number>(initial.nlsc_opacity);
   const [poiGroups, setPoiGroups] = useState<string[]>(initial.poi_groups);
+  /**
+   * Mountain landmarks come from RudyMap, which covers Taiwan only, so the
+   * feature is offered only to the Traditional Chinese UI.
+   *
+   * Resolved, not the raw setting: 'system' is a legitimate value and a device
+   * in zh-TW must still get the landmarks.
+   */
+  const uiLanguage = useSettings((s) => s.language);
+  const poiAvailable = resolveLanguage(uiLanguage) === 'zh-TW';
   const [poiSheetOpen, setPoiSheetOpen] = useState(false);
   /**
    * The taxon whose iNaturalist observation grid is drawn, and its sheet.
@@ -364,9 +389,8 @@ export default function MapScreen() {
    * picked when it is wanted.
    */
   const [inatGrid, setInatGrid] = useState<InatGridSelection | null>(null);
-  const [inatSheetOpen, setInatSheetOpen] = useState(false);
+  const [distSheetOpen, setDistSheetOpen] = useState(false);
   const [pois, setPois] = useState<RudyPoi[]>([]);
-
 
   const tabBarInset = useTabBarInset();
   const vectorInstalled = useVectorInstall((s) => s.installed);
@@ -385,7 +409,9 @@ export default function MapScreen() {
    * after a reinstall, leaving the old path pointing at a file that is not there.
    */
   const vectorStyle = vectorOn
-    ? (vectorReady && vectorInstalled ? vectorStyleUri() : VECTOR_STYLE_URL)
+    ? vectorReady && vectorInstalled
+      ? vectorStyleUri()
+      : VECTOR_STYLE_URL
     : undefined;
 
   useEffect(() => {
@@ -446,7 +472,10 @@ export default function MapScreen() {
   // Too far out and nothing is queried: the tag LIKE filter does not use an
   // index, so a wide viewport is slow.
   useEffect(() => {
-    if (poiGroups.length === 0 || viewRegion.longitudeDelta > POI_MAX_DELTA) {
+    // Gated here too, not just on the menu row: a user who had landmarks on and
+    // then switched language would otherwise be left with pins on the map and
+    // no entry point left to turn them off.
+    if (!poiAvailable || poiGroups.length === 0 || viewRegion.longitudeDelta > POI_MAX_DELTA) {
       setPois((prev) => (prev.length ? [] : prev));
       return;
     }
@@ -471,7 +500,7 @@ export default function MapScreen() {
       if (__DEV__) console.warn('[poi] query failed', e);
       setPois([]);
     }
-  }, [viewRegion, poiGroups]);
+  }, [viewRegion, poiGroups, poiAvailable]);
   /** The tapped feature's details; the action button on the card opens the action
    *  sheet. */
   const [info, setInfo] = useState<MapFeatureInfo | null>(null);
@@ -650,6 +679,18 @@ export default function MapScreen() {
   const plotBySiteId = useMemo(
     () => new Map(plots.filter((p) => p.site_id !== null).map((p) => [p.site_id as number, p])),
     [plots],
+  );
+
+  /**
+   * site id → the 名錄 holding it.
+   *
+   * Same reason as `plotBySiteId`: a record's shape wears its record's colour.
+   * Without this a 名錄's boundary would draw in the standalone yellow-green,
+   * which is the one thing that colour is supposed to rule out.
+   */
+  const sessionBySiteId = useMemo(
+    () => new Map(sessions.filter((x) => x.site_id !== null).map((x) => [x.site_id as number, x])),
+    [sessions],
   );
 
   const plotRenderItems = useMemo(
@@ -853,8 +894,21 @@ export default function MapScreen() {
   };
 
   /** Query the area currently on screen, with no drawing step at all. */
+  /**
+   * Area tab → the full-screen area-species modal.
+   *
+   * The wait is not decoration: iOS will not present a modal while another is
+   * still dismissing, and the panel is a modal. Without it the query screen
+   * silently never appears. 450 ms covers the fade-out — the same figure the
+   * export overlay uses before handing off to the share sheet.
+   */
+  const handleAreaFromVisible = async () => {
+    setDistSheetOpen(false);
+    await new Promise((r) => setTimeout(r, 450));
+    searchVisibleArea();
+  };
+
   const searchVisibleArea = () => {
-    setToolsOpen(false);
     const bbox = bboxOfRegion(lastRegion.current);
     const poly = {
       type: 'Polygon' as const,
@@ -1171,11 +1225,17 @@ export default function MapScreen() {
           : t(SITE_TYPE_LABEL[site.geometry_type])) + ` · ${site.project_name}`,
       lines: site.notes ? [site.notes] : [],
       badge: null,
+      // Matches the stroke the same site is drawn with, so the card reads as
+      // belonging to the shape that was tapped.
       accentColor: owner
         ? owner.status === 'active'
           ? PLOT_ACTIVE_COLOR
           : PLOT_COLOR
-        : SITE_COLOR,
+        : sessionBySiteId.has(site.id)
+          ? sessionBySiteId.get(site.id)?.ended_at === null
+            ? SESSION_ACTIVE_COLOR
+            : SESSION_COLOR
+          : SITE_COLOR,
       onAction: () => {
         setInfo(null);
         void siteActions(site);
@@ -1272,9 +1332,7 @@ export default function MapScreen() {
         if (plot.decimal_latitude !== null && plot.decimal_longitude !== null) {
           setEditPlot(plot);
           setEditMode('point');
-          setDrawPoints([
-            { latitude: plot.decimal_latitude, longitude: plot.decimal_longitude },
-          ]);
+          setDrawPoints([{ latitude: plot.decimal_latitude, longitude: plot.decimal_longitude }]);
           toast(t('map.dragMarkerHint'));
           return;
         }
@@ -1529,12 +1587,17 @@ export default function MapScreen() {
       const owner = plotBySiteId.get(s.id);
       // 邊界跟著它的擁有者一起聚合，因為兩者代表的是同一筆記錄。
       if (hiddenKeys.has(owner ? `plot-${owner.id}` : `site-${s.id}`)) return [];
+      const sessionOwner = owner ? null : sessionBySiteId.get(s.id);
       const stroke = owner
         ? owner.status === 'active'
           ? PLOT_ACTIVE_COLOR
           : PLOT_COLOR
-        : SITE_COLOR;
-      const fill = owner ? PLOT_FILL : SITE_FILL;
+        : sessionOwner
+          ? sessionOwner.ended_at === null
+            ? SESSION_ACTIVE_COLOR
+            : SESSION_COLOR
+          : SITE_COLOR;
+      const fill = owner ? PLOT_FILL : sessionOwner ? SESSION_FILL : SITE_FILL;
       return primitives.map((prim, i): MapFeature => {
         const id = `s-${s.id}-${i}`;
         if (prim.kind === 'point') {
@@ -1636,58 +1699,60 @@ export default function MapScreen() {
     // marker 換掉兩次 —— 每個被聚合的記錄進入時各自掛載成一個 annotation、離開時
     // 再全部卸載 —— 那是一次點擊要付的大量原生工作。只拿掉 press handler，讓點擊
     // 穿透到地圖去放頂點。
-    ...clusters.map((c): MapFeature => ({
-      kind: 'marker',
-      id: c.key,
-      lat: c.latitude,
-      lng: c.longitude,
-      anchor: { x: 0.5, y: 0.5 },
-      zIndex: 6,
-      renderKey: c.memberKeys.length,
-      render: () => <ClusterBubble count={c.memberKeys.length} />,
-      onPress:
-        drawMode || editMode
-          ? undefined
-          : () => {
-              const target = clusterRegion(c);
-              if (
-                clusterSplits(c, { ...target, width: windowWidth, height: windowHeight })
-              ) {
-                mapRef.current?.animateToRegion(target, 350);
-              } else {
-                void openClusterMembers(c);
-              }
-            },
-    })),
+    ...clusters.map(
+      (c): MapFeature => ({
+        kind: 'marker',
+        id: c.key,
+        lat: c.latitude,
+        lng: c.longitude,
+        anchor: { x: 0.5, y: 0.5 },
+        zIndex: 6,
+        renderKey: c.memberKeys.length,
+        render: () => <ClusterBubble count={c.memberKeys.length} />,
+        onPress:
+          drawMode || editMode
+            ? undefined
+            : () => {
+                const target = clusterRegion(c);
+                if (clusterSplits(c, { ...target, width: windowWidth, height: windowHeight })) {
+                  mapRef.current?.animateToRegion(target, 350);
+                } else {
+                  void openClusterMembers(c);
+                }
+              },
+      }),
+    ),
 
     // 繪製中 —— 頂點可拖曳；點一下刪除
     ...((drawMode || editMode) && drawPoints.length > 0
-      ? drawPoints.map((pt, i): MapFeature => ({
-          kind: 'marker',
-          id: `d-${i}`,
-          lat: pt.latitude,
-          lng: pt.longitude,
-          color: DRAW_COLOR,
-          anchor: { x: 0.5, y: 0.5 },
-          draggable: true,
-          onDragEnd: (coord) => {
-            const next = [...drawPoints];
-            next[i] = coord;
-            setDrawPoints(next);
-          },
-          onPress: () => {
-            // 編輯樣區的單一點位：只能拖，不能刪。
-            if (editMode === 'point') return;
-            Alert.alert(t('map.editPointTitle'), t('map.pointN', { n: i + 1 }), [
-              { text: t('common.cancel'), style: 'cancel' },
-              {
-                text: t('map.deletePoint'),
-                style: 'destructive',
-                onPress: () => setDrawPoints(drawPoints.filter((_, idx) => idx !== i)),
-              },
-            ]);
-          },
-        }))
+      ? drawPoints.map(
+          (pt, i): MapFeature => ({
+            kind: 'marker',
+            id: `d-${i}`,
+            lat: pt.latitude,
+            lng: pt.longitude,
+            color: DRAW_COLOR,
+            anchor: { x: 0.5, y: 0.5 },
+            draggable: true,
+            onDragEnd: (coord) => {
+              const next = [...drawPoints];
+              next[i] = coord;
+              setDrawPoints(next);
+            },
+            onPress: () => {
+              // 編輯樣區的單一點位：只能拖，不能刪。
+              if (editMode === 'point') return;
+              Alert.alert(t('map.editPointTitle'), t('map.pointN', { n: i + 1 }), [
+                { text: t('common.cancel'), style: 'cancel' },
+                {
+                  text: t('map.deletePoint'),
+                  style: 'destructive',
+                  onPress: () => setDrawPoints(drawPoints.filter((_, idx) => idx !== i)),
+                },
+              ]);
+            },
+          }),
+        )
       : []),
 
     ...((drawMode === 'LineString' || editMode === 'track') && drawPoints.length >= 2
@@ -1832,7 +1897,25 @@ export default function MapScreen() {
           不支援，而且只在縮放手勢期間短暫出現。野外判讀距離要常駐。 */}
       <MapScaleBar region={viewRegion} screenWidth={windowWidth} bottom={tabBarInset + 6} />
 
-            {/* Loading overlay — shown until MapView fires onMapReady (or 4s fallback) */}
+      {/* Locate, on its own above the compass rather than buried in the tools
+          menu: centring on yourself is the one map action taken mid-stride,
+          and it belongs next to the other orientation affordance. Icon only —
+          the compass beneath it carries no label either.
+          The clearance is per engine: the two draw different north pointers and
+          MapLibre's is the taller one, so one shared figure covered ours and
+          hid RudyMap's. See the constants' note in map/types.ts. */}
+      {info && !drawMode && !editMode ? null : (
+        <View
+          className="absolute right-3"
+          style={{
+            bottom: tabBarInset + 12 + (vectorOn ? MAPLIBRE_COMPASS_SIZE : NORTH_ARROW_SIZE) + 10,
+          }}
+        >
+          <FabButton icon="locate" onPress={handleLocateMe} accent a11yLabel={t('map.locate')} />
+        </View>
+      )}
+
+      {/* Loading overlay — shown until MapView fires onMapReady (or 4s fallback) */}
       {!mapReady ? (
         <View
           pointerEvents="none"
@@ -1878,7 +1961,7 @@ export default function MapScreen() {
             ) : null}
           </View>
         ) : (
-          <FabButton icon="search" onPress={openSearch} />
+          <FabButton icon="search" onPress={openSearch} a11yLabel={t('map.searchPlaceholder')} />
         )}
       </View>
 
@@ -1898,46 +1981,34 @@ export default function MapScreen() {
                 label={t(basemapLabelKey(basemapMeta(currentBasemap), vectorReady))}
                 onPress={handlePickBasemap}
               />
-              <FabRow icon="locate" label={t('map.locate')} onPress={handleLocateMe} accent />
               <FabRow
                 icon="albums-outline"
                 label={sinicaLayer || nlscLayer ? t('map.layersOverlaid') : t('map.layers')}
                 onPress={handleOpenLayers}
                 accent={!!sinicaLayer || !!nlscLayer}
               />
-              <FabRow
-                icon="navigate-circle-outline"
-                label={t('poi.title')}
-                onPress={() => {
-                  setToolsOpen(false);
-                  setPoiSheetOpen(true);
-                }}
-                accent={pois.length > 0}
-              />
+              {poiAvailable ? (
+                <FabRow
+                  icon="navigate-circle-outline"
+                  label={t('poi.title')}
+                  onPress={() => {
+                    setToolsOpen(false);
+                    setPoiSheetOpen(true);
+                  }}
+                  accent={pois.length > 0}
+                />
+              ) : null}
               <FabRow
                 icon="create-outline"
                 label={t('map.drawSite')}
                 onPress={handlePickDrawMode}
               />
               <FabRow
-                icon="scan-outline"
-                label={t('areaSpecies.fabVisible')}
-                onPress={searchVisibleArea}
-              />
-              <FabRow
-                icon="leaf-outline"
-                label={t('areaSpecies.fab')}
+                icon={inatGrid ? 'grid' : 'globe-outline'}
+                label={t('speciesDist.title')}
                 onPress={() => {
                   setToolsOpen(false);
-                  startDraw('Polygon', 'species');
-                }}
-              />
-              <FabRow
-                icon={inatGrid ? 'grid' : 'grid-outline'}
-                label={t('inatGrid.fab')}
-                onPress={() => {
-                  setToolsOpen(false);
-                  setInatSheetOpen(true);
+                  setDistSheetOpen(true);
                 }}
                 accent={!!inatGrid}
               />
@@ -1971,7 +2042,7 @@ export default function MapScreen() {
                 that leads back to what this layer is and to searching again. */}
             <Pressable
               className="shrink flex-row items-center"
-              onPress={() => setInatSheetOpen(true)}
+              onPress={() => setDistSheetOpen(true)}
               accessibilityRole="button"
             >
               <View
@@ -2012,18 +2083,25 @@ export default function MapScreen() {
         </View>
       ) : null}
 
-      <InatGridSheet
-        visible={inatSheetOpen}
+      <SpeciesDistributionSheet
+        visible={distSheetOpen}
         current={inatGrid}
         onApply={(sel) => {
           setInatGrid(sel);
-          setInatSheetOpen(false);
+          setDistSheetOpen(false);
         }}
         onClear={() => {
           setInatGrid(null);
-          setInatSheetOpen(false);
+          setDistSheetOpen(false);
         }}
-        onClose={() => setInatSheetOpen(false)}
+        onClose={() => setDistSheetOpen(false)}
+        onPickVisibleArea={handleAreaFromVisible}
+        onDrawArea={() => {
+          // Drawing is map state, not another modal, so this one can start the
+          // moment the panel is told to close.
+          setDistSheetOpen(false);
+          startDraw('Polygon', 'species');
+        }}
       />
 
       {/* Drawing toolbar (below search FAB row) */}
@@ -2036,7 +2114,10 @@ export default function MapScreen() {
               </Text>
             </Pressable>
             <Text className="flex-1 text-center text-xs text-gray-700 dark:text-gray-300">
-              {t('map.drawingLabel', { type: t(SITE_TYPE_LABEL[drawMode]), count: drawPoints.length })}
+              {t('map.drawingLabel', {
+                type: t(SITE_TYPE_LABEL[drawMode]),
+                count: drawPoints.length,
+              })}
             </Text>
             {drawPoints.length > 0 ? (
               <Pressable onPress={undoLastPoint} hitSlop={8} className="px-2">
@@ -2211,15 +2292,21 @@ function FabButton({
   icon,
   onPress,
   accent = false,
+  a11yLabel,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   onPress: () => void;
   accent?: boolean;
+  /** Required in practice for the icon-only buttons: a glyph alone tells a
+   *  screen reader nothing. */
+  a11yLabel?: string;
 }) {
   const { overlayIcon, overlayAccent } = useThemeColors();
   return (
     <Pressable
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={a11yLabel}
       className="h-11 w-11 items-center justify-center rounded-full bg-white shadow-md active:bg-gray-100 dark:bg-gray-900/95 dark:active:bg-gray-700"
     >
       <Ionicons name={icon} size={20} color={accent ? overlayAccent : overlayIcon} />
