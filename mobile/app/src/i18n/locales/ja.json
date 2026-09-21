@@ -254,7 +254,8 @@
     "regionPacks": "地域別種リスト",
     "inaturalist": "iNaturalist アカウント",
     "gdrive": "Google ドライブ",
-    "inatUpload": "iNaturalist にアップロード"
+    "inatUpload": "iNaturalist にアップロード",
+    "identifiers": "同定者"
   },
   "tab": {
     "menu": "設定",
@@ -604,7 +605,6 @@
     "integrityDup": "{{table}}：{{groups}}（{{rows}}）",
     "integrityFailed": "データ点検に失敗しました：{{error}}",
     "defaultDeterminer": "既定の同定者",
-    "defaultDeterminerPlaceholder": "例：林政道 (Cheng-Tao Lin)",
     "regionPacks": "地域種リスト",
     "regionPacksDesc": "台湾・日本およびダウンロードした国別リストを個別にオン／オフできます",
     "integrityOrphan_other": "{{table}}：孤立データ {{count}} 件",
@@ -618,7 +618,11 @@
     "inaturalistLinked": "連携済み：{{login}}",
     "gdrive": "Google ドライブ",
     "gdriveDesc": "バックアップを自分のドライブにアップロード",
-    "gdriveLinked": "連携済み：{{email}}"
+    "gdriveLinked": "連携済み：{{email}}",
+    "defaultCollector": "既定の採集者",
+    "defaultCollectorDesc": "調査者リストを共用。★ を付けた人が新しい採集に自動で入ります",
+    "defaultDeterminerDesc": "よく使う同定者のリスト。★ を付けた人が新しい標本に自動で入ります",
+    "noDefaultPerson": "未設定"
   },
   "taxonomy": {
     "loadingTree": "分類ツリーを読み込み中...",
@@ -794,7 +798,8 @@
     "redrawRange": "この範囲を描き直す",
     "featureAction": "操作",
     "basemapRudyVector": "RudyMap",
-    "basemapRudyVectorOffline": "RudyMap（オフライン）"
+    "basemapRudyVectorOffline": "RudyMap（オフライン）",
+    "compass": "方位磁針（タップで北向きに戻す）"
   },
   "keys": {
     "modeDichotomous": "二分岐",
@@ -995,7 +1000,12 @@
     "saveSite": "サイトを保存",
     "siteNameEx": "例：サイト A",
     "siteNotesEx": "場所・標高・植生などを記入",
-    "siteTypeVertices_other": "種類：{{type}} · 頂点 {{count}} 個"
+    "siteTypeVertices_other": "種類：{{type}} · 頂点 {{count}} 個",
+    "assignIdentifier": "同定者を指定",
+    "assignIdentifierDesc": "複数選択可；☰ を長押しで並べ替え（設定に同期）",
+    "identifierNamePlaceholder": "同定者の氏名",
+    "addIdentifier": "追加",
+    "emptyIdentifiers": "同定者がまだありません。上の「同定者を追加」から作成してください。"
   },
   "exportPref": {
     "title": "エクスポート設定",
@@ -1171,14 +1181,17 @@
     "inatResults": "iNaturalist の分類群",
     "inatNoMatch": "iNaturalist にも「{{q}}」は見つかりません",
     "obsCount": "観察 {{count}} 件",
-    "showingNow": "表示中",
     "stop": "表示をやめる",
     "synonymAsk": "iNaturalist は「{{asked}}」を {{accepted}} に収録しています。グリッドは後者の観察記録になります。",
     "synonymUse": "その名称で表示する",
     "viaSynonym": "iNaturalist では {{name}} として収録。グリッドはその名称の観察記録です",
     "viaSynonymShort": "検索名：{{name}}",
     "legendFew": "少",
-    "legendMany": "多"
+    "legendMany": "多",
+    "detailWild": "野生 {{count}} 件",
+    "detailCaptive": "飼育・栽培 {{count}} 件",
+    "detailResearch": "研究グレード {{count}} 件（{{pct}}%）",
+    "detailLoading": "詳細を照会中…"
   },
   "collection": {
     "title": "採集記録",
@@ -1451,7 +1464,9 @@
     "builtinJpSub": "JBIF と YList の種リスト・約 2.6 万件",
     "introRegister": "（未登録はこちら）",
     "introEnd": "。",
-    "readyCount_other": "{{count}} 件の種名"
+    "readyCount_other": "{{count}} 件の種名",
+    "filterPlaceholder": "インストール済みの名録を検索",
+    "filterEmpty": "「{{q}}」に一致する名録はありません"
   },
   "datasets": {
     "section": "チェックリストデータ",
@@ -2015,5 +2030,11 @@
     "poiError": "ダウンロード失敗：{{message}}",
     "wifiHint": "Wi-Fi 環境での実行を推奨します。",
     "statusBoth": "地図とランドマーク"
+  },
+  "identifiers": {
+    "addTitle": "同定者を追加",
+    "create": "作成",
+    "hint": "「既定」(★) を付けた同定者は、新しい標本記録の同定者欄に自動で入ります。右の ☰ を長押しで並べ替えできます。",
+    "empty": "同定者がまだありません。右上の「＋」から追加してください。"
   }
 }

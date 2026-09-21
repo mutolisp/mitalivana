@@ -1,30 +1,47 @@
 /**
- * Specimen collecting — default identifier, collection-number prefix, start
- * number and zero padding.
+ * Specimen collecting — default collector and identifier, collection-number
+ * prefix, start number and zero padding.
  *
  * Moved out of the preferences root: it was the longest inline block there, and
  * `nextRecordNumber()` is recomputed on every render so the hint reflects the
  * prefix just typed — that cost belongs on this screen, not on the root page.
  */
 import { useTranslation } from 'react-i18next';
+import { useFocusEffect, useRouter, type Href } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { Alert, ScrollView, Text, View } from 'react-native';
 import { LinkRow, RowInput } from '~/components/settings/rows';
 import { SettingsPage } from '~/components/settings/SettingsPage';
 import { promptText } from '~/components/TextPromptModal';
-import { formatRecordNumber, maxRecordNumberSeq, nextRecordNumber } from '~/db';
+import { formatRecordNumber, getDefaultNames, maxRecordNumberSeq, nextRecordNumber } from '~/db';
 import { useSettings } from '~/stores/settings';
 import { useToast } from '~/stores/toast';
 
 export default function CollectionSettingsScreen() {
   const { t } = useTranslation();
+  const router = useRouter();
   const toast = useToast((s) => s.show);
-  const identifiedBy = useSettings((s) => s.default_identified_by);
   const prefix = useSettings((s) => s.collection_number_prefix);
   const pad = useSettings((s) => s.collection_number_pad);
   const setSetting = useSettings((s) => s.set);
 
   // Recomputed on every render so the hint reflects the prefix/start just typed.
   const nextNumberPreview = nextRecordNumber().text;
+
+  // Both defaults live in their own tables, edited on their own screens, so they
+  // are re-read on focus rather than held in the settings store.
+  const [defaults, setDefaults] = useState<{ collector: string; determiner: string }>({
+    collector: '',
+    determiner: '',
+  });
+  useFocusEffect(
+    useCallback(() => {
+      setDefaults({
+        collector: getDefaultNames('surveyor').join(', '),
+        determiner: getDefaultNames('identifier').join(', '),
+      });
+    }, []),
+  );
 
   /**
    * Force the next collection number.
@@ -88,15 +105,25 @@ export default function CollectionSettingsScreen() {
     <SettingsPage>
       <ScrollView>
         <View className="mt-6">
-          {/* Default identifier: filled in automatically on a new specimen, mirroring how
-              the collector is inherited from the trip. Left empty it fills in
-              nothing — better a label without this line than one crediting
-              someone who never determined it. */}
-          <RowInput
+          {/* Both rows show the starred names and open the list they come from.
+              The collector's list is the surveyors — a specimen IS a record of
+              who was there — while the determiner has its own, because whoever
+              named the specimen is often not whoever collected it.
+
+              Neither default is required. Left unstarred nothing is filled in,
+              which is better than a label crediting someone who was not
+              involved. */}
+          <LinkRow
+            label={t('settings.defaultCollector')}
+            description={t('settings.defaultCollectorDesc')}
+            value={defaults.collector || t('settings.noDefaultPerson')}
+            onPress={() => router.push('/surveyors' as Href)}
+          />
+          <LinkRow
             label={t('settings.defaultDeterminer')}
-            value={identifiedBy}
-            placeholder={t('settings.defaultDeterminerPlaceholder')}
-            onCommit={(v) => setSetting('default_identified_by', v.trim())}
+            description={t('settings.defaultDeterminerDesc')}
+            value={defaults.determiner || t('settings.noDefaultPerson')}
+            onPress={() => router.push('/identifiers' as Href)}
           />
           <RowInput
             label={t('collection.numberPrefix')}

@@ -93,6 +93,7 @@ export function plotFromDoc(doc: Record<string, unknown> | null): ImportedPlot {
       accuracy: num(s.accuracy),
       observed_at: num(s.observed_at),
       photo_files: pipeToList(s.photo_files),
+      audio_files: pipeToList(s.audio_files),
       used_name_id: num(s.used_name_id),
       used_scientific_name: str(s.used_scientific_name) ?? str(s.name),
     }))

@@ -6,8 +6,9 @@
  * ordering, overlay mount order, and the `tracksViewChanges` lifecycle of
  * cluster bubbles.
  */
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
-import { View } from 'react-native';
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import MapView, {
   Circle,
   Marker,
@@ -19,6 +20,62 @@ import MapView, {
 } from 'react-native-maps';
 
 import type { MapCamera, MapCanvasProps, MapFeature } from '../types';
+
+/**
+ * North arrow.
+ *
+ * Drawn here rather than left to `showsCompass`, for the same reason
+ * `MapScaleBar` is drawn by hand: the platform ornament is not the thing the
+ * field needs. Apple's and Google's compasses appear only while the map is
+ * turned away from north and fade out again once it is north-up — sensible for
+ * city navigation, useless for someone orienting a map against the terrain, who
+ * needs to know which way north is BEFORE deciding whether the map is turned.
+ * The MapLibre engine already says so explicitly with
+ * `compassHiddenFacingNorth={false}`; this is the same rule for the native one.
+ *
+ * `heading` is the map's bearing in degrees clockwise from north, so the needle
+ * counter-rotates by it. Tapping turns the map back to true north, which is what
+ * both platform compasses do.
+ */
+function NorthArrow({
+  heading,
+  inset,
+  onPress,
+}: {
+  heading: number;
+  inset?: { bottom: number; right: number };
+  onPress: () => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={t('map.compass')}
+      hitSlop={6}
+      style={{ position: 'absolute', right: inset?.right ?? 8, bottom: inset?.bottom ?? 8 }}
+      className="h-9 w-9 items-center justify-center rounded-full bg-white/95 shadow-md dark:bg-gray-900/95"
+    >
+      <View className="items-center" style={{ transform: [{ rotate: `${-heading}deg` }] }}>
+        {/* Border triangle: RN has no polygon primitive, and an icon font glyph
+            cannot be split into a red north half and a grey south half. */}
+        <View
+          style={{
+            width: 0,
+            height: 0,
+            borderLeftWidth: 5,
+            borderRightWidth: 5,
+            borderBottomWidth: 9,
+            borderLeftColor: 'transparent',
+            borderRightColor: 'transparent',
+            borderBottomColor: '#dc2626',
+          }}
+        />
+        <Text className="mt-0.5 text-[9px] font-bold text-gray-700 dark:text-gray-200">N</Text>
+      </View>
+    </Pressable>
+  );
+}
 
 /**
  * A cluster's custom-drawn marker.
@@ -127,6 +184,7 @@ export const RNMapsCanvas = forwardRef<MapCamera, MapCanvasProps>(function RNMap
     rasterOverlays,
     showsUserLocation,
     showsCompass,
+    compassInset,
     showsScale,
     showsMyLocationButton,
     toolbarEnabled,
@@ -144,20 +202,48 @@ export const RNMapsCanvas = forwardRef<MapCamera, MapCanvasProps>(function RNMap
     animateToRegion: (region, ms) => mapRef.current?.animateToRegion(region, ms),
   }));
 
-  return (
+  const [heading, setHeading] = useState(0);
+
+  /** The bearing is only on the camera, which is an async native read, so it is
+   *  taken once per gesture rather than per frame — the same cadence as the
+   *  scale bar and clustering. */
+  const readHeading = useCallback(() => {
+    mapRef.current
+      ?.getCamera()
+      .then((cam) => {
+        const h = Number(cam?.heading);
+        if (Number.isFinite(h)) setHeading(h);
+      })
+      .catch(() => {
+        // getCamera rejects outside the new architecture. Leaving the needle
+        // where it was is the honest failure: it is still pointing at the north
+        // of the last reading, and the alternative — snapping it to 0 — would
+        // claim the map is north-up when it may not be.
+      });
+  }, []);
+
+  const map = (
     <MapView
       ref={mapRef}
       provider={PROVIDER_DEFAULT}
-      style={style}
+      style={showsCompass ? StyleSheet.absoluteFill : style}
       initialRegion={initialRegion}
       mapType={mapType as MapType}
-      showsCompass={showsCompass}
+      // The platform compass is replaced by NorthArrow, never shown alongside
+      // it: two compasses in two corners is worse than either.
+      showsCompass={false}
       showsScale={showsScale}
       showsUserLocation={showsUserLocation}
       showsMyLocationButton={showsMyLocationButton}
       toolbarEnabled={toolbarEnabled}
-      onMapReady={onMapReady}
-      onRegionChangeComplete={onRegionChangeComplete}
+      onMapReady={() => {
+        if (showsCompass) readHeading();
+        onMapReady?.();
+      }}
+      onRegionChangeComplete={(region) => {
+        if (showsCompass) readHeading();
+        onRegionChangeComplete?.(region);
+      }}
       onPress={onPress ? (e) => onPress(e.nativeEvent.coordinate) : undefined}
     >
       {(rasterOverlays ?? []).map((o) => (
@@ -176,5 +262,25 @@ export const RNMapsCanvas = forwardRef<MapCamera, MapCanvasProps>(function RNMap
       {features.map(renderFeature)}
       {children}
     </MapView>
+  );
+
+  // Wrapped only when there is an arrow to put on top: every other screen keeps
+  // the view tree it had, `style` (rounded corners, fixed heights) included.
+  if (!showsCompass) return map;
+  return (
+    <View style={style}>
+      {map}
+      <NorthArrow
+        heading={heading}
+        inset={compassInset}
+        onPress={() => {
+          mapRef.current?.animateCamera({ heading: 0 }, { duration: 300 });
+          // The camera read fires on the region change the animation causes, but
+          // an animation that changes only the bearing may not report one, so
+          // the needle is put where it was asked to go.
+          setHeading(0);
+        }}
+      />
+    </View>
   );
 });

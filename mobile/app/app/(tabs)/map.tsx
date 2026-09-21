@@ -1957,40 +1957,55 @@ export default function MapScreen() {
       {/* What the grid is showing. Not optional: an orange grid with no caption
           is indistinguishable from "this species is not here", and it may not
           even be the name the user searched — see InatGridSheet's header. */}
-      {inatGrid && !drawMode && !editMode && !searchOpen ? (
-        <View className="absolute left-3 right-3" style={{ top: insets.top + 60 }}>
-          <View className="flex-row items-center rounded-full bg-white/95 px-3 py-1.5 shadow-md dark:bg-gray-900/95">
-            <View
-              style={{ backgroundColor: '#FF4500', opacity: 0.8, width: 12, height: 12 }}
-              className="rounded-[2px]"
-            />
-            <View className="ml-2 flex-1">
-              <View className="flex-row items-center">
-                {inatGrid.commonName ? (
-                  <Text
-                    numberOfLines={1}
-                    className="mr-1 text-xs font-medium text-gray-900 dark:text-gray-100"
-                  >
-                    {inatGrid.commonName}
-                  </Text>
-                ) : null}
-                <ScientificName
-                  name={inatGrid.inatName}
-                  rank={inatGrid.rank}
+      {/* Hidden while the tools menu is open: its rows start at this same
+          height on the right, and a long species name used to run straight
+          under them. The width cap is what is left over — enough for a long
+          binomial, short of the right edge. */}
+      {inatGrid && !toolsOpen && !drawMode && !editMode && !searchOpen ? (
+        <View
+          className="absolute left-3"
+          style={{ top: insets.top + 60, maxWidth: windowWidth * 0.72 }}
+        >
+          <View className="flex-row items-center self-start rounded-full bg-white/95 px-3 py-1.5 shadow-md dark:bg-gray-900/95">
+            {/* Tapping the pill reopens the picker: it is the only affordance
+                that leads back to what this layer is and to searching again. */}
+            <Pressable
+              className="shrink flex-row items-center"
+              onPress={() => setInatSheetOpen(true)}
+              accessibilityRole="button"
+            >
+              <View
+                style={{ backgroundColor: '#FF4500', opacity: 0.8, width: 12, height: 12 }}
+                className="rounded-[2px]"
+              />
+              <View className="ml-2 shrink">
+                {/* Vernacular and scientific name in ONE Text, so the line
+                    ellipsises as a whole ("阿里山山椒魚 Hynobius ari…"). Two
+                    sibling Texts in a row cannot: neither one knows it has run
+                    out of room, so the name just ran on under the ✕. */}
+                <Text
                   numberOfLines={1}
+                  ellipsizeMode="tail"
                   className="text-xs text-gray-700 dark:text-gray-300"
-                />
+                >
+                  {inatGrid.commonName ? (
+                    <Text className="font-medium text-gray-900 dark:text-gray-100">
+                      {inatGrid.commonName}{' '}
+                    </Text>
+                  ) : null}
+                  <ScientificName name={inatGrid.inatName} rank={inatGrid.rank} />
+                </Text>
+                <Text numberOfLines={1} className="text-[10px] text-gray-500 dark:text-gray-400">
+                  {inatGrid.mode === 'wild'
+                    ? t('inatGrid.wild', { count: inatGrid.count })
+                    : t('inatGrid.captiveOnly', { count: inatGrid.count })}
+                  {inatGrid.askedName
+                    ? ` · ${t('inatGrid.viaSynonymShort', { name: inatGrid.askedName })}`
+                    : ''}
+                </Text>
               </View>
-              <Text numberOfLines={1} className="text-[10px] text-gray-500 dark:text-gray-400">
-                {inatGrid.mode === 'wild'
-                  ? t('inatGrid.wild', { count: inatGrid.count })
-                  : t('inatGrid.captiveOnly', { count: inatGrid.count })}
-                {inatGrid.askedName
-                  ? ` · ${t('inatGrid.viaSynonymShort', { name: inatGrid.askedName })}`
-                  : ''}
-              </Text>
-            </View>
-            <Pressable onPress={() => setInatGrid(null)} hitSlop={8}>
+            </Pressable>
+            <Pressable onPress={() => setInatGrid(null)} hitSlop={8} className="ml-1">
               <Ionicons name="close-circle" size={18} color={muted} />
             </Pressable>
           </View>

@@ -464,6 +464,9 @@ export function SpecimenDetailSheet({
       <PhotoViewerModal photos={photos} index={viewerIndex} onClose={() => setViewerIndex(null)} />
       <SurveyorAssignSheet
         visible={assigning !== null}
+        // The determiner is its own list of people: whoever named the specimen
+        // is often not whoever collected it.
+        kind={assigning === 'determiner' ? 'identifier' : 'surveyor'}
         current={(assigning === 'determiner' ? specimen.identified_by : specimen.recorded_by) ?? ''}
         onCancel={() => setAssigning(null)}
         onAssign={(v) => {

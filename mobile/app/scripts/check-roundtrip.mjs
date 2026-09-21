@@ -24,6 +24,7 @@ import { parseSessionYaml } from '../src/lib/sessionImport.ts';
 import {
   readRecordImportFromBytes,
   readRecordYamlTextFromBytes,
+  safeMediaBasename,
 } from '../src/lib/recordImportZip.ts';
 
 let failures = 0;
@@ -415,6 +416,7 @@ checklist:
       }],
       site: null,
       photoNames: new Map([['z-occ-1', ['t0455_大葉雀榕_1.jpg']]]),
+      audioNames: new Map([['z-occ-1', ['t0455_大葉雀榕_1.m4a']]]),
     }),
     { lineWidth: -1, noRefs: true },
   );
@@ -424,6 +426,11 @@ checklist:
     [`${BASE}/名錄_occurrence_dwc.csv`]: strToU8('taxonID\nt0455\n'),
     [`${BASE}/${BASE}.md`]: strToU8('# 名錄\n'),
     [`${BASE}/photos/t0455_大葉雀榕_1.jpg`]: new Uint8Array([1, 2, 3]),
+    [`${BASE}/audio/t0455_大葉雀榕_1.m4a`]: new Uint8Array([4, 5, 6]),
+    // Entry names are attacker-controlled. Both of these must be dropped by
+    // safeMediaBasename rather than written anywhere.
+    [`${BASE}/audio/..%2F..%2Fuser.db`]: new Uint8Array([9]),
+    [`${BASE}/audio/evil.sh`]: new Uint8Array([9]),
     [`${BASE}/manifest.json`]: strToU8(JSON.stringify({ app: 'checklister-ng-mobile', kind: 'session' })),
   });
 
@@ -432,6 +439,14 @@ checklist:
   eq('zip.session.uuid', read.session.uuid, 'zip-session-uuid');
   eq('zip.session.records', read.session.records.length, 1);
   eq('zip.photos', read.photos.map((p) => p.name), ['t0455_大葉雀榕_1.jpg']);
+  // Clips ride in audio/ and come back as their own list — folding them into
+  // associatedMedia would put them in photo_paths on import.
+  eq('zip.audio', read.audio.map((a) => a.name), ['t0455_大葉雀榕_1.m4a']);
+  eq('zip.audio bytes', Array.from(read.audio[0].bytes), [4, 5, 6]);
+  eq('zip.record.audio_files', read.session.records[0].audio_files, ['t0455_大葉雀榕_1.m4a']);
+  eq('traversal + non-media entries dropped', read.audio.length, 1);
+  eq('safeMediaBasename rejects traversal', safeMediaBasename('audio/../../user.db', ['m4a']), null);
+  eq('safeMediaBasename rejects foreign ext', safeMediaBasename('audio/evil.sh', ['m4a']), null);
   // The batch species importer takes this path.
   if (!readRecordYamlTextFromBytes(zip).includes('t0455')) fail('zip → yml text lost the checklist');
   // A bare .yml must still work through the same entry point.

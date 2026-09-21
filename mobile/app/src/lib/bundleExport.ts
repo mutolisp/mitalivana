@@ -40,6 +40,7 @@ import {
   type Site,
 } from '~/db';
 import { establishmentDwcValue } from './dwcAttributes';
+import { AUDIO_EXT, parseAudioPaths } from './audioCapture';
 import { convertToDwc } from './dwcMapper';
 import {
   buildContext,
@@ -49,6 +50,7 @@ import {
   type PhotoSpeciesContext,
 } from './photoCapture';
 import {
+  buildCollectionYamlDoc,
   buildPlotEnvRows,
   buildPlotYamlDoc,
   buildSessionYamlDoc,
@@ -56,6 +58,7 @@ import {
   localIso,
   multiToPipe,
   recordToYamlItem,
+  specimenToYamlItem,
   type PhotoNames,
 } from './bundleYaml';
 import i18n from '~/i18n';
@@ -191,55 +194,6 @@ function taxonSortCompare(a: TaxonSortable, b: TaxonSortable): number {
 /** A specimen is a DwC occurrence with `basisOfRecord: PreservedSpecimen` and a
  *  collector number (`recordNumber`). Kept literal — a DwC controlled-vocabulary
  *  value, so it is never localized (same rule as `sampling_protocol`). */
-function specimenToYamlItem(sp: SpecimenWithTaxon): Record<string, unknown> {
-  const fullname = sp.name_author ? `${sp.simple_name} ${sp.name_author}` : sp.simple_name;
-  const item: Record<string, unknown> = {
-    occurrence_id: sp.occurrence_id,
-    basis_of_record: 'PreservedSpecimen',
-    record_number: sp.record_number,
-    taxon_id: sp.taxon_id,
-    name: sp.simple_name,
-    fullname,
-    name_author: sp.name_author,
-    cname: sp.common_name_c,
-    family: sp.family,
-    family_c: sp.family_c,
-    kingdom: sp.kingdom,
-    phylum: sp.phylum,
-    class_name: sp.class,
-    order: sp.order,
-    iucn_category: sp.iucn,
-    redlist: sp.redlist,
-    cites: sp.cites,
-    protected: sp.protected,
-    endemic: sp.is_endemic === 'true' ? 1 : 0,
-    is_hybrid: sp.is_hybrid,
-    eventDate: localIso(sp.collected_at),
-  };
-  if (sp.recorded_by) item.recorded_by = sp.recorded_by;
-  if (sp.identified_by) item.identified_by = sp.identified_by;
-  if (sp.lat !== null) item.lat = sp.lat;
-  if (sp.lng !== null) item.lng = sp.lng;
-  if (sp.accuracy !== null) item.accuracy = sp.accuracy;
-  if (sp.locality) item.locality = sp.locality;
-  if (sp.sex) item.sex = sp.sex;
-  if (sp.life_stage) item.life_stage = sp.life_stage;
-  const repro = multiToPipe(sp.reproductive_condition);
-  if (repro) item.reproductive_condition = repro;
-  const leaf = multiToPipe(sp.leaf_phenology);
-  if (leaf) item.leaf_phenology = leaf;
-  if (sp.degree_of_establishment) item.degree_of_establishment = sp.degree_of_establishment;
-  if (sp.notes) item.notes = sp.notes;
-  // A specimen determined under a name the checklist calls non-accepted says so
-  // on the label and in the export — the determination is the datum.
-  if (sp.used_name_id != null || sp.used_scientific_name) {
-    if (sp.used_name_id != null) item.used_name_id = sp.used_name_id;
-    if (sp.used_status) item.used_status = sp.used_status;
-    if (sp.used_accepted_name) item.accepted_name = sp.used_accepted_name;
-    item.accepted_taxon_id = sp.taxon_id;
-  }
-  return item;
-}
 
 export function specimenToMarkdownItem(
   sp: SpecimenWithTaxon,
@@ -405,6 +359,7 @@ const README_RULES: Array<{ match: (name: string) => boolean; desc: string }> = 
   { match: (n) => n.endsWith('.md'), desc: '物種名錄文件（Markdown）' },
   { match: (n) => n.endsWith('.docx'), desc: '物種名錄文件（Word）' },
   { match: (n) => n.includes('/photos/'), desc: '記錄的照片（檔名對應 yml 的 photo_files）' },
+  { match: (n) => n.includes('/audio/'), desc: '記錄的錄音（檔名對應 yml 的 audio_files）' },
   { match: (n) => /\/(points|track|site)\.(geojson|gpx|kml)$/.test(n), desc: '地理檔（GIS／GPS 軟體用）' },
   { match: (n) => n.endsWith('manifest.json'), desc: '匯出中繼資料（記錄種類、筆數、產生時間）' },
 ];
@@ -655,6 +610,14 @@ export async function buildSessionEntries(
     entries.push(...collected.entries);
     photoNames = collected.names;
   }
+  // Clips ride the same 「包含照片」 toggle: that is the media switch the
+  // size warning tells users to turn off, so audio must not slip past it.
+  let audioNames: PhotoNames = new Map();
+  if (opts.includePhotos) {
+    const collectedAudio = await collectAudio(records, createPhotoNamer(base, 'audio'));
+    entries.push(...collectedAudio.entries);
+    audioNames = collectedAudio.names;
+  }
 
   // Bound site — carried in the yml (authoritative on import) as well as in
   // the site.* sidecars (for GIS tools).
@@ -668,6 +631,7 @@ export async function buildSessionEntries(
     records,
     site: siteForYaml,
     photoNames,
+    audioNames,
   });
   entries.push({ name: `${base}/${base}.yml`, bytes: strToU8(yaml.dump(yamlData, { lineWidth: -1, noRefs: true })) });
 
@@ -835,6 +799,14 @@ export async function buildPlotEntries(
       envPhotoNames = envCollected.names;
     }
   }
+  // Clips ride the same 「包含照片」 toggle: that is the media switch the
+  // size warning tells users to turn off, so audio must not slip past it.
+  let audioNames: PhotoNames = new Map();
+  if (opts.includePhotos) {
+    const collectedAudio = await collectAudio(species, createPhotoNamer(base, 'audio'));
+    entries.push(...collectedAudio.entries);
+    audioNames = collectedAudio.names;
+  }
 
   const site = plot.site_id !== null ? getSite(plot.site_id) : null;
 
@@ -851,6 +823,7 @@ export async function buildPlotEntries(
     site: site ? siteToImported(site) : null,
     photoNames,
     envPhotoNames,
+    audioNames,
   });
   entries.push({ name: `${base}/${base}.yml`, bytes: strToU8(yaml.dump(yamlData, { lineWidth: -1, noRefs: true })) });
 
@@ -1029,22 +1002,34 @@ export async function buildCollectionEntries(
   const endIso = trip.ended_at !== null ? localIso(trip.ended_at) : null;
   const eventDate = endIso ? `${startIso}/${endIso}` : startIso;
 
+  // Photos first: the yml lists the filenames each specimen's photos landed
+  // under, so the names have to exist before the document is built.
+  const namer = createPhotoNamer(base);
+  let photoNames: PhotoNames = new Map();
+  if (opts.includePhotos) {
+    const collected = await collectPhotos(specimens, namer, progressCtx, buildContextFromSpecimen);
+    entries.push(...collected.entries);
+    photoNames = collected.names;
+  }
+  // Clips ride the same 「包含照片」 toggle: that is the media switch the
+  // size warning tells users to turn off, so audio must not slip past it.
+  let audioNames: PhotoNames = new Map();
+  if (opts.includePhotos) {
+    const collectedAudio = await collectAudio(specimens, createPhotoNamer(base, 'audio'));
+    entries.push(...collectedAudio.entries);
+    audioNames = collectedAudio.names;
+  }
+
   // YAML — event block + specimens array (collection order). Raw
   // `convertToDwc`, not `toDwcCsvRow`: the yml is the round-trip format and
   // must keep every value the user entered (see toDwcCsvRow's docblock).
-  const dwcItems = specimens.map((sp) => convertToDwc(specimenToYamlItem(sp)));
-  const yamlData: Record<string, unknown> = {
-    event: {
-      eventID: trip.name,
-      eventDate,
-      startedAt: startIso,
-      ...(endIso ? { endedAt: endIso } : {}),
-      ...(trip.recorded_by ? { recordedBy: trip.recorded_by } : {}),
-      ...(trip.locality ? { locality: trip.locality } : {}),
-    },
-    specimens: dwcItems,
-  };
-  if (project?.name) yamlData.project = project.name;
+  const yamlData = buildCollectionYamlDoc({
+    trip,
+    projectName: project?.name ?? '',
+    specimens,
+    photoNames,
+    audioNames,
+  });
   entries.push({
     name: `${base}/${base}.yml`,
     bytes: strToU8(yaml.dump(yamlData, { lineWidth: -1, noRefs: true })),
@@ -1080,7 +1065,7 @@ export async function buildCollectionEntries(
     eventID: trip.name,
     datasetName: project?.name ?? '',
     recordedBy: trip.recorded_by ?? '',
-    ...toDwcCsvRow(specimenToYamlItem(sp)),
+    ...toDwcCsvRow(specimenToYamlItem(sp, photoNames)),
   }));
   entries.push({
     name: `${base}/${sanitizeFilename(trip.name)}_occurrence_dwc.csv`,
@@ -1114,14 +1099,6 @@ export async function buildCollectionEntries(
   // Geo: one point per georeferenced specimen.
   const points = buildCollectionPoints(specimens);
   if (points) addGeoEntries(entries, base, 'points', points, opts.geoFormats);
-
-  if (opts.includePhotos) {
-    // 採集 has no round-trip import yet, so the assigned names are unused here.
-    entries.push(
-      ...(await collectPhotos(specimens, createPhotoNamer(base), progressCtx, buildContextFromSpecimen))
-        .entries,
-    );
-  }
 
   // Darwin Core Archive — specimens land as basisOfRecord=PreservedSpecimen.
   if (opts.includeDwca) {
@@ -1231,7 +1208,7 @@ export async function resolveAssetUri(uri: string): Promise<string | null> {
  * dropped. The used-name set is the belt-and-braces guard for anything the
  * counter can't foresee (a hand-set label collision).
  */
-function createPhotoNamer(folder: string) {
+function createPhotoNamer(folder: string, dir: 'photos' | 'audio' = 'photos') {
   const countByTaxon = new Map<string, number>();
   const used = new Set<string>();
   return {
@@ -1240,9 +1217,9 @@ function createPhotoNamer(folder: string) {
       const tid = taxonId || 'unknown';
       const n = (countByTaxon.get(tid) ?? 0) + 1;
       countByTaxon.set(tid, n);
-      let name = `${folder}/photos/${tid}_${label}_${n}.${ext}`;
+      let name = `${folder}/${dir}/${tid}_${label}_${n}.${ext}`;
       for (let dup = 2; used.has(name); dup++) {
-        name = `${folder}/photos/${tid}_${label}_${n}-${dup}.${ext}`;
+        name = `${folder}/${dir}/${tid}_${label}_${n}-${dup}.${ext}`;
       }
       used.add(name);
       return name;
@@ -1320,8 +1297,9 @@ type PhotoBearing = {
  */
 function restamped(b64: string, fileUri: string, ctx: PhotoSpeciesContext | null): string {
   if (!ctx) return b64;
+  // guessExt returns a bare extension with no leading dot ('jpg', not '.jpg').
   const ext = guessExt(fileUri).toLowerCase();
-  if (ext !== '.jpg' && ext !== '.jpeg') return b64;
+  if (ext !== 'jpg' && ext !== 'jpeg') return b64;
   return restampJpegBase64(b64, ctx) ?? b64;
 }
 
@@ -1338,6 +1316,12 @@ function restamped(b64: string, fileUri: string, ctx: PhotoSpeciesContext | null
  */
 function toDwcCsvRow(item: Record<string, unknown>): Record<string, unknown> {
   const row = convertToDwc(item);
+  // DwC has no sound-specific term (only `associatedMedia`), so the deliverable
+  // merges the two lists while the yml keeps them apart for the round trip.
+  if (row.audio_files) {
+    row.associatedMedia = [row.associatedMedia, row.audio_files].filter(Boolean).join('|');
+    delete row.audio_files;
+  }
   if ('degreeOfEstablishment' in row) {
     row.degreeOfEstablishment = establishmentDwcValue(row.degreeOfEstablishment as string | null);
   }
@@ -1373,6 +1357,52 @@ async function collectPhotos<T extends PhotoBearing>(
         }
       } catch {
         // skip unreadable photo
+      }
+    }
+  }
+  return { entries: out, names };
+}
+
+type AudioBearing = {
+  audio_paths: string | null;
+  taxon_id: string;
+  common_name_c: string;
+  simple_name: string;
+  occurrence_id: string | null;
+};
+
+/**
+ * Recorded clips (v29) into `<folder>/audio/`.
+ *
+ * Simpler than photos on every axis: these are app-owned files under
+ * documentDirectory/audio/, so there is no photo-library asset to resolve, no
+ * EXIF to restamp and no permission to elevate. `rebaseAppFileUri` is still
+ * needed because the iOS container id changes between installs.
+ *
+ * Until this existed a clip had no way off the device at all — it rode in
+ * neither the export bundle nor either backup.
+ */
+async function collectAudio<T extends AudioBearing>(
+  records: T[],
+  namer: PhotoNamer,
+): Promise<{ entries: BuiltZipEntry[]; names: PhotoNames }> {
+  const out: BuiltZipEntry[] = [];
+  const names: PhotoNames = new Map();
+  for (const r of records) {
+    for (const uri of parseAudioPaths(r.audio_paths)) {
+      const fileUri = rebaseAppFileUri(uri);
+      try {
+        const b64 = await readAsStringAsync(fileUri, { encoding: 'base64' });
+        const ext = /\.([A-Za-z0-9]+)$/.exec(fileUri)?.[1]?.toLowerCase() ?? AUDIO_EXT;
+        const name = namer.next(r.taxon_id, r.common_name_c, r.simple_name, ext);
+        out.push({ name, bytes: base64ToBytes(b64) });
+        // Same rule as photos: only clips that actually made it into the zip
+        // are listed, so the yml never carries a dangling filename.
+        if (r.occurrence_id) {
+          names.set(r.occurrence_id, [...(names.get(r.occurrence_id) ?? []), photoBasename(name)]);
+        }
+      } catch {
+        // skip unreadable clip
       }
     }
   }

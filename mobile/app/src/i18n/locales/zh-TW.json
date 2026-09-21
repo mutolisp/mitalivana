@@ -254,7 +254,8 @@
     "regionPacks": "區域名錄",
     "inaturalist": "iNaturalist 帳號",
     "gdrive": "Google 雲端硬碟",
-    "inatUpload": "上傳到 iNaturalist"
+    "inatUpload": "上傳到 iNaturalist",
+    "identifiers": "鑑定者"
   },
   "tab": {
     "menu": "設定",
@@ -604,7 +605,6 @@
     "integrityDup": "{{table}}：{{groups}}（{{rows}}）",
     "integrityFailed": "資料檢查失敗：{{error}}",
     "defaultDeterminer": "預設鑑定者",
-    "defaultDeterminerPlaceholder": "例:林政道(Cheng-Tao Lin)",
     "regionPacks": "區域名錄",
     "regionPacksDesc": "臺灣、日本與下載的國家名錄，各自可開關",
     "integrityOrphan_other": "{{table}}：{{count}} 筆孤立資料",
@@ -618,7 +618,11 @@
     "inaturalistLinked": "已連結：{{login}}",
     "gdrive": "Google 雲端硬碟",
     "gdriveDesc": "把備份上傳到你自己的雲端硬碟",
-    "gdriveLinked": "已連結：{{email}}"
+    "gdriveLinked": "已連結：{{email}}",
+    "defaultCollector": "預設採集者",
+    "defaultCollectorDesc": "沿用調查者清單；標記 ★ 者建立新採集時自動帶入",
+    "defaultDeterminerDesc": "常用鑑定者清單，標記 ★ 者建立新標本時自動帶入",
+    "noDefaultPerson": "未設定"
   },
   "taxonomy": {
     "loadingTree": "載入分類樹...",
@@ -794,7 +798,8 @@
     "redrawRange": "重新繪製此範圍",
     "featureAction": "操作",
     "basemapRudyVector": "魯地圖",
-    "basemapRudyVectorOffline": "魯地圖（離線）"
+    "basemapRudyVectorOffline": "魯地圖（離線）",
+    "compass": "指北針（點一下轉回正北）"
   },
   "keys": {
     "modeDichotomous": "對偶",
@@ -995,7 +1000,12 @@
     "saveSite": "儲存地理樣區",
     "siteNameEx": "例：A 地理樣區",
     "siteNotesEx": "描述地點、海拔、植被等",
-    "siteTypeVertices_other": "類型：{{type}} · {{count}} 個頂點"
+    "siteTypeVertices_other": "類型：{{type}} · {{count}} 個頂點",
+    "assignIdentifier": "指派鑑定者",
+    "assignIdentifierDesc": "可多選；長按 ☰ 拖曳調整順序（同步偏好設定）",
+    "identifierNamePlaceholder": "鑑定者姓名",
+    "addIdentifier": "加入",
+    "emptyIdentifiers": "尚無鑑定者，點上方「新增鑑定者」建立。"
   },
   "exportPref": {
     "title": "匯出設定",
@@ -1171,14 +1181,17 @@
     "inatResults": "iNaturalist 的分類群",
     "inatNoMatch": "iNaturalist 也查不到「{{q}}」",
     "obsCount": "{{count}} 筆觀察",
-    "showingNow": "目前顯示",
     "stop": "停止顯示",
     "synonymAsk": "iNaturalist 把「{{asked}}」歸入 {{accepted}}，網格畫的會是後者的觀察紀錄。",
     "synonymUse": "就用這個名稱顯示",
     "viaSynonym": "iNaturalist 以 {{name}} 收錄，網格為該名稱的觀察紀錄",
     "viaSynonymShort": "查詢名稱：{{name}}",
     "legendFew": "少",
-    "legendMany": "多"
+    "legendMany": "多",
+    "detailWild": "野外 {{count}} 筆",
+    "detailCaptive": "圈養或栽培 {{count}} 筆",
+    "detailResearch": "研究等級 {{count}} 筆（{{pct}}%）",
+    "detailLoading": "查詢細節…"
   },
   "collection": {
     "title": "採集記錄",
@@ -1451,7 +1464,9 @@
     "builtinJpSub": "JBIF 與 YList 名錄・約 2.6 萬筆",
     "introRegister": "（未註冊請按此）",
     "introEnd": "。",
-    "readyCount_other": "{{count}} 筆物種名"
+    "readyCount_other": "{{count}} 筆物種名",
+    "filterPlaceholder": "搜尋已下載的名錄",
+    "filterEmpty": "沒有符合「{{q}}」的名錄"
   },
   "datasets": {
     "section": "名錄資料",
@@ -2015,5 +2030,11 @@
     "poiError": "下載失敗：{{message}}",
     "wifiHint": "建議在 Wi-Fi 下進行。",
     "statusBoth": "地圖與地標"
+  },
+  "identifiers": {
+    "addTitle": "新增鑑定者",
+    "create": "建立",
+    "hint": "標記「預設」(★) 的鑑定者，建立新的標本記錄時會自動帶入鑑定者欄。長按右側 ☰ 可拖曳調整順序。",
+    "empty": "尚無鑑定者，點右上角「＋」新增。"
   }
 }

@@ -12,6 +12,7 @@
  * also deletes the file.
  */
 import { requestRecordingPermissionsAsync, setAudioModeAsync } from 'expo-audio';
+import { File } from 'expo-file-system';
 import { deleteAsync, documentDirectory, makeDirectoryAsync, moveAsync } from 'expo-file-system/legacy';
 import { generateUuid } from '~/db';
 import { rebaseAppFileUri } from './appFiles';
@@ -53,6 +54,43 @@ export async function persistRecording(tempUri: string): Promise<string> {
   const target = `${APP_AUDIO_DIR}${generateUuid()}.${AUDIO_EXT}`;
   await moveAsync({ from: tempUri, to: target });
   return target;
+}
+
+/**
+ * Write clips lifted out of an import zip into documentDirectory/audio/.
+ *
+ * Mirrors `persistRecording`: the stored name is a fresh uuid, never the name
+ * from the zip. The zip's basename has already been through
+ * `safeMediaBasename`, but a record's clips have to be unique on this device
+ * anyway — two imports of the same bundle must not collide.
+ *
+ * Returns zip-basename → file:// uri, which `importSession` / `importPlotSurvey`
+ * turn back into `audio_paths`. A clip that cannot be written is left out of
+ * the map, so the record simply has one clip fewer — the same rule photos
+ * follow.
+ */
+export async function importAudioClips(
+  clips: { name: string; bytes: Uint8Array }[],
+): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  if (!APP_AUDIO_DIR || clips.length === 0) return out;
+  try {
+    await makeDirectoryAsync(APP_AUDIO_DIR, { intermediates: true });
+  } catch {
+    // exists
+  }
+  for (const clip of clips) {
+    const ext = /\.([A-Za-z0-9]+)$/.exec(clip.name)?.[1]?.toLowerCase() ?? AUDIO_EXT;
+    try {
+      const file = new File(APP_AUDIO_DIR, `${generateUuid()}.${ext}`);
+      file.create();
+      file.write(clip.bytes);
+      out.set(clip.name, file.uri);
+    } catch {
+      // skip unwritable clip
+    }
+  }
+  return out;
 }
 
 export async function deleteAudioFile(uri: string): Promise<void> {

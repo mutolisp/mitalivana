@@ -308,7 +308,8 @@
     "regionPacks": "Listes régionales",
     "inaturalist": "Compte iNaturalist",
     "gdrive": "Google Drive",
-    "inatUpload": "Envoyer vers iNaturalist"
+    "inatUpload": "Envoyer vers iNaturalist",
+    "identifiers": "Déterminateurs"
   },
   "tab": {
     "menu": "Réglages",
@@ -664,7 +665,6 @@
     "integrityDup": "{{table}} : {{groups}} ({{rows}})",
     "integrityFailed": "Échec de la vérification des données : {{error}}",
     "defaultDeterminer": "Déterminateur par défaut",
-    "defaultDeterminerPlaceholder": "ex. Cheng-Tao Lin",
     "regionPacks": "Listes régionales",
     "regionPacksDesc": "Taïwan, Japon et packs nationaux téléchargés, activables séparément",
     "integrityOrphan_one": "{{table}} : {{count}} ligne orpheline",
@@ -690,7 +690,11 @@
     "inaturalistLinked": "Lié : {{login}}",
     "gdrive": "Google Drive",
     "gdriveDesc": "Envoyer les sauvegardes vers votre Drive",
-    "gdriveLinked": "Associé : {{email}}"
+    "gdriveLinked": "Associé : {{email}}",
+    "defaultCollector": "Collecteur par défaut",
+    "defaultCollectorDesc": "Reprend la liste des observateurs ; les noms marqués ★ remplissent les nouvelles récoltes",
+    "defaultDeterminerDesc": "Liste des déterminateurs favoris ; les noms marqués ★ remplissent les nouveaux spécimens",
+    "noDefaultPerson": "Non défini"
   },
   "taxonomy": {
     "loadingTree": "Chargement de l'arbre taxonomique...",
@@ -886,7 +890,8 @@
     "redrawRange": "Retracer cette limite",
     "featureAction": "Actions",
     "basemapRudyVector": "RudyMap",
-    "basemapRudyVectorOffline": "RudyMap (hors ligne)"
+    "basemapRudyVectorOffline": "RudyMap (hors ligne)",
+    "compass": "Boussole — appuyez pour orienter au nord"
   },
   "keys": {
     "modeDichotomous": "Dichotomique",
@@ -1105,7 +1110,12 @@
     "siteNotesEx": "Décrivez le lieu, l'altitude, la végétation, etc.",
     "siteTypeVertices_one": "Type : {{type}} · {{count}} sommet",
     "siteTypeVertices_many": "Type : {{type}} · {{count}} sommets",
-    "siteTypeVertices_other": "Type : {{type}} · {{count}} sommets"
+    "siteTypeVertices_other": "Type : {{type}} · {{count}} sommets",
+    "assignIdentifier": "Attribuer le déterminateur",
+    "assignIdentifierDesc": "Choix multiple ; appui long sur ☰ pour réordonner (synchronisé avec les préférences)",
+    "identifierNamePlaceholder": "Nom du déterminateur",
+    "addIdentifier": "Ajouter",
+    "emptyIdentifiers": "Aucun déterminateur — appuyez sur « Ajouter un déterminateur » ci-dessus."
   },
   "exportPref": {
     "title": "Réglages d'export",
@@ -1307,14 +1317,17 @@
     "inatResults": "Taxons sur iNaturalist",
     "inatNoMatch": "iNaturalist ne connaît pas non plus « {{q}} »",
     "obsCount": "{{count}} observations",
-    "showingNow": "Affiché",
     "stop": "Ne plus afficher",
     "synonymAsk": "iNaturalist classe « {{asked}} » sous {{accepted}} : la grille montrera les observations de ce dernier nom.",
     "synonymUse": "Afficher sous ce nom",
     "viaSynonym": "iNaturalist le classe sous {{name}} ; la grille montre les observations de ce nom",
     "viaSynonymShort": "recherché comme {{name}}",
     "legendFew": "peu",
-    "legendMany": "beaucoup"
+    "legendMany": "beaucoup",
+    "detailWild": "{{count}} sauvages",
+    "detailCaptive": "{{count}} en captivité ou cultivés",
+    "detailResearch": "{{count}} de qualité recherche ({{pct}} %)",
+    "detailLoading": "Chargement des détails…"
   },
   "collection": {
     "title": "Enregistrement de récolte",
@@ -1635,7 +1648,9 @@
     "introEnd": ".",
     "readyCount_one": "{{count}} nom d'espèce",
     "readyCount_many": "{{count}} noms d'espèces",
-    "readyCount_other": "{{count}} noms d'espèces"
+    "readyCount_other": "{{count}} noms d'espèces",
+    "filterPlaceholder": "Rechercher dans les listes installées",
+    "filterEmpty": "Aucune liste ne correspond à « {{q}} »"
   },
   "datasets": {
     "section": "Données de référentiel",
@@ -2245,5 +2260,11 @@
     "poiError": "Échec du téléchargement : {{message}}",
     "wifiHint": "De préférence en Wi-Fi.",
     "statusBoth": "Carte et repères"
+  },
+  "identifiers": {
+    "addTitle": "Ajouter un déterminateur",
+    "create": "Créer",
+    "hint": "Les déterminateurs marqués par défaut (★) remplissent automatiquement le champ déterminateur d’un nouveau spécimen. Appui long sur ☰ à droite pour réordonner.",
+    "empty": "Aucun déterminateur — appuyez sur ＋ en haut à droite."
   }
 }

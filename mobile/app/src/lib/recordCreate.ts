@@ -33,6 +33,7 @@ import {
 import { parsePhotoUris } from '~/lib/bundleExport';
 import { matchScientificName } from '~/lib/sciMatch';
 import { importPhotosToLibrary } from '~/lib/photoCapture';
+import { importAudioClips } from '~/lib/audioCapture';
 import { ImportError, type ImportErrorCode } from '~/lib/importError';
 import { readRecordImport, type ReadRecordImport } from '~/lib/recordImport';
 import { useToast } from '~/stores/toast';
@@ -423,10 +424,15 @@ async function finishPlotImport(payload: Extract<ReadRecordImport, { kind: 'plot
     skippedPhotos = written.skipped;
   }
 
+  // Clips are app-owned files, so there is no "reuse the existing asset?"
+  // question: they are simply written into documentDirectory/audio/.
+  const audioUriByName = await importAudioClips(payload.audio);
+
   const taxa = remapUnknownTaxa(data.species);
   const { plotId } = importPlotSurvey(data, {
     newUuid,
     photoUriByName: photoUriByName ?? undefined,
+    audioUriByName: audioUriByName.size > 0 ? audioUriByName : undefined,
   });
   // Imported plot is status='done'; refresh stores so lists pick it up.
   useActivePlot.getState().refresh();
@@ -472,10 +478,13 @@ async function finishSessionImport(
     skippedPhotos = written.skipped;
   }
 
+  const audioUriByName = await importAudioClips(payload.audio);
+
   const taxa = remapUnknownTaxa(data.records);
   const { sessionId } = importSession(data, {
     newUuid,
     photoUriByName: photoUriByName ?? undefined,
+    audioUriByName: audioUriByName.size > 0 ? audioUriByName : undefined,
   });
   useActiveSession.getState().refresh();
   summarize(data.records.length, taxa, skippedPhotos);

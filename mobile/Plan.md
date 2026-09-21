@@ -4148,10 +4148,32 @@ API 事實（來源 `https://api.inaturalist.org/v1/swagger.json` 的 `info.desc
   只收 active——inactive 的同物異名 taxon 觀察數是 0，畫出來必定空白）。
 - user.db **v37**：`inat_taxon_map` 加 `inat_name` / `matched_via`，快取命中時也講得出
   「實際畫的是哪個名字」。舊列留 NULL（它們本來就只可能是字面命中）。
-- `src/components/InatGridSheet.tsx`（新）：全螢幕面板，底部沿用 `SearchBox`
-  （`gbifFallback={false}` + 新的 `renderNoMatch` 插槽改成「改查 iNaturalist」）。
+- `src/components/InatGridSheet.tsx`（新）：**頂端錨定的浮動對話框**（非滿版），沿用
+  `SearchBox`（`gbifFallback={false}` + 新的 `renderNoMatch` 插槽改成「改查 iNaturalist」）。
+  `SearchBox` 多一個 `layout="dropdown"`：建議清單改排在輸入框**下面**、高度收短，
+  其餘（debounce／快取／模糊比對／採用名稱）完全共用。
 - `app/(tabs)/map.tsx`：疊圖 + 地圖上常駐說明晶片（名稱／筆數／查詢名）。
   **選擇不持久化**：每張瓦片都是請求，重開 app 自己默默續傳流量不是該替使用者做的決定。
+
+### 為什麼這裡可以不做滿版（與既有規則的例外）
+
+專案規則是「**有輸入框的 Modal 一律做全螢幕**」——因為浮動的 *bottom* sheet 在鍵盤升起時
+會被 KAV 推出上緣，這個錯犯過很多次。這裡**錨在螢幕頂端**，幾何方向相反：鍵盤是往上佔掉
+下半部，面板原地不動，所以完全不需要 keyboard avoidance（也就沒有 `KeyboardStickyView`）。
+面板 `maxHeight` 設在**卡片本身**而不是定位用的外層 View——卡片才是那個 flex column，
+狀態區的 `flexShrink` 要靠它才會讓位。地圖在底下看得見也是重點：使用者正在選「要畫在它上面的東西」。
+
+晶片（pill）**工具選單展開時隱藏**（選單的列就從同一個高度往右排，長學名會直接壓過去），
+寬度上限 72%。名稱截斷要靠**單一 `<Text numberOfLines={1}>`**把俗名與學名包在一起
+（學名用巢狀 `<ScientificName>`，RN 的巢狀 Text 會繼承並一起計算省略）——原本俗名與學名
+是同一列裡的兩個 sibling Text，誰都不知道自己沒空間了，結果學名直接壓到 ✕ 底下。
+
+晶片可點：點了重開選擇面板（否則使用者沒有任何路徑回去看這層是什麼／再查一次）。面板在
+有選定分類群且開啟時，額外查兩個數字當細節列：**圈養或栽培**（總數−野外）與**研究等級**
+筆數與百分比。`quality_grade` 三級（research / needs_id / casual）實測會剛好分割總數
+（taxon 26887：236+1+2=239），但 **casual ≠ 圈養**——它也收沒有日期／地點／媒體的紀錄，
+所以圈養數只能用 `captive` 參數或相減得到。兩個請求都是 `per_page=0`（只回數字），
+並以 taxon id 在元件內快取，重開面板不重打。
 
 ### 順手修掉的既有缺陷
 
@@ -4167,3 +4189,92 @@ API 事實（來源 `https://api.inaturalist.org/v1/swagger.json` 的 `info.desc
 - `maxZoom: 15` 之上要靠引擎放大 z15 瓦片。小地圖本來就開在 z16 附近而看得到圖層，
   推測 MapKit 會 upsample，但**沒有親自驗過**，實機請特別看這一段。
 - 套用之後才失去訊號時，晶片仍會顯示筆數（與小地圖同樣的限制，只在解析當下探測）。
+
+## 2026-09-20 — 設定／區域名錄：刪除改左滑、上方加篩選
+
+- **刪除改左滑**：名錄模組（`renderDataset`）原本在每一列底下放一個紅色「刪除」文字鈕，
+  國家 pack 卻早就用 `SwipeRow`；兩種刪除手勢並存本身就是 bug。改成同一個 `SwipeRow`。
+  **只有「已安裝且不在安裝中」的列可以左滑**——對不存在的檔案、或正在寫入的檔案露出刪除鈕，
+  比沒有左滑更糟。行內動作列只剩下載／更新／取消，而且沒有動作時整列不渲染（原本會留一條空白）。
+- **上方篩選**：`rows.length >= 8`（三個名錄模組 + 5 份以上國家 pack）才出現，比對「當前語言
+  的國家名」與「ISO 代碼」，名錄模組比對顯示名稱。放在 `FlatList` **外面**而不是
+  `ListHeaderComponent`：捲過去之後還在才叫篩選。`keyboardShouldPersistTaps="handled"`
+  是必要的——輸入框在列表外，少了它第一次點列只會收鍵盤。
+
+## 2026-09-20 — 偏好鑑定者名單（v38）＋標本採集設定的兩個預設人員
+
+### 問題
+
+標本的「鑑定者」一直是叫 `SurveyorAssignSheet` 挑**調查者**清單——不是只有預設值沿用，
+連可選名單都共用。但鑑定者常常根本不在這趟調查裡（送去請人鑑定、館員鑑定），
+兩份名單混在一起只會越用越髒。設定頁的「預設鑑定者」也只是一格自由文字。
+
+### 決策：兩張表，不是一張表加 role 欄
+
+`surveyors`（v15）宣告 `name TEXT NOT NULL UNIQUE`，SQLite 不重建表就沒辦法把它放寬成
+`UNIQUE(name, kind)`。共用一張表的話，**新增一個已經在調查者名單裡的鑑定者會被
+`INSERT OR IGNORE` 靜默吃掉**——而「同一個人兩種身分」是常態不是邊case。
+所以 v38 開一張 `identifiers`，結構與 v15 完全一致。
+
+程式碼不重複：`src/db/surveyors.ts` 改成吃 `PersonKind` 的通用函式（表名是兩個字面值之一，
+不是使用者輸入，與 migrations.ts 的 `columnsOf` 同一條規則），舊的 `listSurveyors()` 等
+名稱保留成薄包裝，呼叫端一行都不用改。store 用 factory 產兩份（`useSurveyors` /
+`useIdentifiers`——共用一份 store 會讓其中一邊的 refresh 蓋掉另一邊）；管理畫面抽成
+`PeopleListScreen`，`app/surveyors.tsx` 與新的 `app/identifiers.tsx` 各三行。
+
+**舊的 `default_identified_by` 偏好在 migration 裡被讀出來、拆逗號寫成 `identifiers`
+的預設列**，所以原本設過的人升上來不會掉設定；設定 key 本身從 store 移除，避免兩個真相。
+
+### UI
+
+- 設定／標本採集：兩列 `LinkRow`——**預設採集者**（值＝調查者清單裡標 ★ 的人，點進去到
+  `/surveyors`）與**預設鑑定者**（點進去到新的 `/identifiers`）。兩個值在 `useFocusEffect`
+  重讀，因為它們住在各自的表、由各自的畫面編輯。
+- `SurveyorAssignSheet` 多一個 `kind` prop（預設 `'surveyor'`，所以其他四個呼叫端不動），
+  只有標本的鑑定者傳 `'identifier'`。面板開啟時自己 `refresh()`：鑑定者清單在標本流程裡
+  沒有別的畫面會去載它（調查者是 `DBProvider` 開機載的）。
+- 文案用**字面 `t()`** 分支而不是 `t(\`sheets.assign${kind}\`)`——runtime 組出來的 key 是
+  `check:i18n` 的盲區，之前就有四個 key 這樣漏掉過。
+
+### 版本號
+
+`0.5.0` → `0.5.1`：`app.config.ts`、`android/app/build.gradle` 的 `versionName`、
+iOS `project.pbxproj` 的 `MARKETING_VERSION`（兩處 config）。`Info.plist` 先前已經是
+0.5.1，本來就對不上。
+
+build number 一併 +1：iOS `CURRENT_PROJECT_VERSION`（兩處）與 `CFBundleVersion` 17 → 18、
+Android `versionCode` 1 → 2。兩邊計數器本來就各走各的（iOS 17、Android 1，Android 還沒上架），
+所以是各自 +1，不是對齊成同一個數。
+
+**但 `eas.json` 是 `appVersionSource: "remote"` + production `autoIncrement: true`**——
+EAS production build 的 build number 由 EAS 伺服器端管理並自動遞增，上面這些本機數字
+**不會**是進到 App Store 的那一個；它們只對本機 build（`expo run:ios` / Xcode archive /
+本機 gradle）有效。也因此**不要**把 `ios.buildNumber` / `android.versionCode` 寫進
+`app.config.ts`：那會和 remote 這個來源打架。
+
+## 2026-09-20 — 指北針：兩個引擎都常駐
+
+### 問題出在原生引擎，不是離線地圖
+
+MapLibre（向量／離線）那邊本來就對：`compassHiddenFacingNorth={false}` 有一行註解說明
+「野外需要一直看得到北」。缺的是 **`react-native-maps` 引擎**——`showsCompass` 交給 Apple／
+Google 的內建羅盤，而它們**只在地圖被轉離正北時才出現、轉回正北就淡出**。那是給市區導航用的
+邏輯：對著地形對位的人，是要「先知道北在哪」才判斷地圖有沒有轉，順序剛好相反。
+
+### 做法：自己畫，比照 MapScaleBar
+
+`RNMapsCanvas` 新增 `NorthArrow`（紅色三角 + N，白底圓鈕），`showsCompass={false}` 關掉平台
+羅盤——兩個羅盤分別待在兩個角落比只有一個更糟。位置吃 `compassInset`，和 MapLibre 同一個
+右下角（左上返回／搜尋、右上工具、左下比例尺都被佔了）。點一下 `animateCamera({ heading: 0 })`
+轉回正北，與兩個平台羅盤的行為一致。
+
+- **方位來源**：bearing 只在 camera 上，要非同步讀（`getCamera()` 回 `Camera.heading`，已對
+  `node_modules/react-native-maps/src/MapView.tsx` 確認），所以**每次手勢結束讀一次**
+  （`onRegionChangeComplete`），與比例尺、叢集同一個節奏，不是每幀。
+- `heading` 是相機朝向、由北順時針的度數，所以指針反向轉 `-heading`。
+- `getCamera()` 在舊架構會 reject（本專案 `newArchEnabled: true`，但仍要接）。接住之後
+  **保持上一次的角度**，不歸零——歸零等於宣稱地圖是正北朝上，而那可能是假的。
+- 只有 `showsCompass` 為真時才多包一層 View 放指針；其餘畫面（小地圖等）的 view tree 與
+  `style`（圓角、固定高度）完全不動。
+
+`types.ts` 原本寫「native engine 忽略 compassInset」，已更新。

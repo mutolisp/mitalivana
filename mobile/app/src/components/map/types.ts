@@ -126,13 +126,19 @@ export type MapCanvasProps = {
   /** Style source for the vector engine; required when `engine="vector"`. */
   vectorStyle?: VectorStyle;
   showsUserLocation?: boolean;
+  /**
+   * Draw a north arrow. **Always visible while on**, on both engines — unlike
+   * the platform compasses, which appear only while the map is turned away from
+   * north (see `NorthArrow` in RNMapsCanvas).
+   */
   showsCompass?: boolean;
   /**
    * How far the compass sits from the bottom-right corner, in points.
    *
    * Everywhere except the bottom-right is taken: back/search top-left, tools
-   * top-right, the scale bar bottom-left. The native engine has no equivalent
-   * setting and ignores this.
+   * top-right, the scale bar bottom-left. Honoured by both engines — MapLibre
+   * positions its own ornament, the native engine positions the `NorthArrow` it
+   * draws in place of the platform compass.
    */
   compassInset?: { bottom: number; right: number };
   /** iOS Apple Maps only, and only briefly during a zoom gesture; unsupported on

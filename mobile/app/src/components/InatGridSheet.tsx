@@ -9,6 +9,14 @@
  *      (`renderNoMatch`), for a family, an order, or a species outside Taiwan
  *      and Japan — none of which the bundled checklists carry.
  *
+ * **A floating panel rather than a full-screen modal**, and anchored to the TOP
+ * of the screen. The usual rule here is that a modal with a text input goes
+ * full screen, because a floating BOTTOM sheet gets shoved off the top edge when
+ * the keyboard opens — that has bitten this app repeatedly. A top-anchored panel
+ * has the opposite geometry: the keyboard rises into the space below it and the
+ * panel never moves, so it needs no keyboard avoidance at all. It also keeps the
+ * map visible, which is the point — you are choosing what to draw ON it.
+ *
  * **The name check is the point of the middle step.** iNaturalist resolves
  * synonyms silently: asking for `Cyathea lepifera` answers with taxon 460690
  * `Sphaeropteris lepifera` and a `matched_term` naming what was asked for
@@ -19,16 +27,24 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Modal, Pressable, ScrollView, Text, View } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import {
+  ActivityIndicator,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { SearchResult } from '~/db';
 import i18n from '~/i18n';
 import { apiErrorMessage } from '~/lib/apiErrorMessage';
-import { searchTaxa, type InatTaxonHit } from '~/lib/inatApi';
+import { fetchObservationCount, searchTaxa, type InatTaxonHit } from '~/lib/inatApi';
 import { pickHeatmapMode, type HeatmapMode } from '~/lib/inatHeatmap';
 import { inatTilesReachable, resolveInatTaxon, type InatGridTaxon } from '~/lib/useInatGrid';
-import { KeyboardStickyView } from './KeyboardAvoidingView';
 import { ScientificName } from './ScientificName';
 import { SearchBox } from './SearchBox';
 
@@ -62,6 +78,24 @@ type Props = {
 
 type Notice = { tone: 'warn' | 'error'; text: string };
 
+/**
+ * What the drawn observations are made of, for the taxon currently on the map.
+ *
+ * Only what the grid itself cannot show: how many of the records are captive or
+ * cultivated (the grid's default excludes them, so a large number here means a
+ * lot of the species' data is invisible), and how many carry a community-
+ * confirmed identification. Two requests at most, and `per_page=0` makes each
+ * one a bare number — no observation is transferred (see `fetchObservationCount`).
+ */
+type Breakdown = {
+  /** Unfiltered total. */
+  total: number;
+  /** `captive=false`. */
+  wild: number;
+  /** Research grade, within whatever the layer is drawing. */
+  research: number;
+};
+
 /** The grid's own colour, from iNaturalistAPI `lib/inaturalist_map_styles.js`
  *  (`polygon-fill: #FF4500`), at four of its thirteen opacity steps. */
 const LEGEND_STEPS = [0.3, 0.5, 0.75, 1];
@@ -80,15 +114,61 @@ function capRank(rank: string): string {
 export function InatGridSheet({ visible, current, onApply, onClear, onClose }: Props) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
 
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<Notice | null>(null);
   /** A resolution that changed the name, held back for the user to accept. */
   const [confirm, setConfirm] = useState<InatGridSelection | null>(null);
   const [inatHits, setInatHits] = useState<InatTaxonHit[] | null>(null);
+  const [breakdown, setBreakdown] = useState<Breakdown | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  /** Session-lived, so reopening the panel for the same species is free. */
+  const breakdownCache = useRef<Map<number, Breakdown>>(new Map());
+  const detailAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => () => abortRef.current?.abort(), []);
+
+  // The breakdown is for the taxon the map is ALREADY drawing, so it is fetched
+  // when the panel opens rather than during the pick: at pick time the user is
+  // waiting for the map, and two more round trips would be in their way.
+  useEffect(() => {
+    detailAbortRef.current?.abort();
+    if (!visible || !current) {
+      setBreakdown(null);
+      return;
+    }
+    const cached = breakdownCache.current.get(current.inatTaxonId);
+    if (cached) {
+      setBreakdown(cached);
+      return;
+    }
+    setBreakdown(null);
+    const ctrl = new AbortController();
+    detailAbortRef.current = ctrl;
+    const { inatTaxonId, mode, count } = current;
+    void (async () => {
+      try {
+        // 'all' mode only exists when there are no wild records at all, so both
+        // halves are already known and only the grade costs a request.
+        const total =
+          mode === 'wild' ? await fetchObservationCount(inatTaxonId, {}, ctrl.signal) : count;
+        const research = await fetchObservationCount(
+          inatTaxonId,
+          { wildOnly: mode === 'wild', qualityGrade: 'research' },
+          ctrl.signal,
+        );
+        if (ctrl.signal.aborted) return;
+        const next: Breakdown = { total, wild: mode === 'wild' ? count : 0, research };
+        breakdownCache.current.set(inatTaxonId, next);
+        setBreakdown(next);
+      } catch {
+        // A detail line is not worth an error message: the grid itself is
+        // already drawn and the counts above it are real.
+      }
+    })();
+    return () => ctrl.abort();
+  }, [visible, current]);
 
   const reset = () => {
     abortRef.current?.abort();
@@ -205,183 +285,103 @@ export function InatGridSheet({ visible, current, onApply, onClear, onClose }: P
     }
   };
 
-  return (
-    <Modal visible={visible} animationType="slide" onRequestClose={close}>
-      {/* edges={['bottom']} is what the docked SearchBox below compensates for
-          (see scripts/check-bottom-dock.mjs); the top inset is applied by hand,
-          because a SafeAreaView top edge inside a Modal measures wrong. */}
-      <SafeAreaView
-        edges={['bottom']}
-        className="flex-1 bg-white dark:bg-gray-900"
-        style={{ paddingTop: insets.top }}
-      >
-        <View className="flex-row items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-700">
-          <Pressable onPress={close} hitSlop={8}>
-            <Text className="text-base text-gray-700 dark:text-gray-300">{t('common.close')}</Text>
-          </Pressable>
-          <Text className="text-base font-semibold text-gray-900 dark:text-gray-100">
-            {t('inatGrid.sheetTitle')}
-          </Text>
-          <View style={{ width: 44 }} />
-        </View>
+  const showEmptyHint = !busy && !confirm && !notice && !inatHits;
 
-        <ScrollView className="flex-1" keyboardShouldPersistTaps="handled">
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={close}>
+      <Pressable
+        style={StyleSheet.absoluteFill}
+        className="bg-black/30"
+        onPress={close}
+        accessibilityLabel={t('common.close')}
+      />
+      {/* Anchored under the status bar, the same corner the map's own search
+          sits in. maxHeight keeps it clear of the keyboard; the parts that can
+          grow (the suggestion list, the status area) cap themselves. */}
+      <View className="absolute left-3 right-3" style={{ top: insets.top + 8 }}>
+        {/* maxHeight belongs on the card, not on the positioning wrapper: the
+            card is the flex column, so this is what makes the status area's
+            flexShrink give way instead of the whole thing overflowing. */}
+        <View
+          className="overflow-hidden rounded-2xl bg-white shadow-lg dark:bg-gray-900"
+          style={{ maxHeight: windowHeight * 0.6 }}
+        >
+          <View className="flex-row items-center justify-between border-b border-gray-100 px-3 py-2 dark:border-gray-800">
+            <Text className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+              {t('inatGrid.sheetTitle')}
+            </Text>
+            <Pressable onPress={close} hitSlop={8}>
+              <Ionicons name="close" size={18} color="#9ca3af" />
+            </Pressable>
+          </View>
+
           {current ? (
-            <View className="m-3 rounded-lg border border-orange-200 bg-orange-50 p-3 dark:border-orange-900 dark:bg-orange-950/30">
-              <Text className="text-[11px] text-orange-700 dark:text-orange-300">
-                {t('inatGrid.showingNow')}
-              </Text>
-              <View className="mt-1 flex-row flex-wrap items-center">
+            <View className="flex-row items-center border-b border-gray-100 bg-orange-50 px-3 py-1.5 dark:border-gray-800 dark:bg-orange-950/30">
+              <View
+                style={{ backgroundColor: GRID_COLOR, opacity: 0.8, width: 10, height: 10 }}
+                className="rounded-[2px]"
+              />
+              <View className="ml-2 flex-1 flex-row flex-wrap items-center">
                 {current.commonName ? (
-                  <Text className="mr-1 text-sm font-medium text-gray-900 dark:text-gray-100">
+                  <Text className="mr-1 text-xs font-medium text-gray-900 dark:text-gray-100">
                     {current.commonName}
                   </Text>
                 ) : null}
                 <ScientificName
                   name={current.inatName}
                   rank={current.rank}
-                  className="text-sm text-gray-700 dark:text-gray-300"
+                  className="text-xs text-gray-700 dark:text-gray-300"
                 />
               </View>
-              <Text className="mt-0.5 text-xs text-gray-600 dark:text-gray-400">
-                {current.mode === 'wild'
-                  ? t('inatGrid.wild', { count: current.count })
-                  : t('inatGrid.captiveOnly', { count: current.count })}
-              </Text>
               <Pressable
                 onPress={() => {
                   reset();
                   onClear();
                 }}
-                className="mt-2 flex-row items-center self-start rounded-full bg-white px-3 py-1.5 dark:bg-gray-900"
+                hitSlop={8}
               >
-                <Ionicons name="close-circle-outline" size={14} color="#b45309" />
-                <Text className="ml-1 text-xs font-medium text-amber-700 dark:text-amber-300">
+                <Text className="text-xs font-medium text-amber-700 dark:text-amber-300">
                   {t('inatGrid.stop')}
                 </Text>
               </Pressable>
             </View>
           ) : null}
 
-          {busy ? (
-            <View className="flex-row items-center justify-center gap-2 py-6">
-              <ActivityIndicator size="small" />
-              <Text className="text-xs text-gray-500 dark:text-gray-400">
-                {t('inatGrid.checking')}
-              </Text>
+          {/* What the grid is made of. Two numbers the map cannot show: how much
+              of the species' data the wild-only default is leaving out, and how
+              much of what IS drawn carries a confirmed identification. */}
+          {current ? (
+            <View className="border-b border-gray-100 px-3 py-1.5 dark:border-gray-800">
+              {breakdown ? (
+                <Text className="text-[11px] text-gray-500 dark:text-gray-400">
+                  {t('inatGrid.detailWild', { count: breakdown.wild })}
+                  {' · '}
+                  {t('inatGrid.detailCaptive', {
+                    count: Math.max(0, breakdown.total - breakdown.wild),
+                  })}
+                  {' · '}
+                  {t('inatGrid.detailResearch', {
+                    count: breakdown.research,
+                    pct:
+                      current.count > 0
+                        ? Math.round((breakdown.research / current.count) * 100)
+                        : 0,
+                  })}
+                </Text>
+              ) : (
+                <Text className="text-[11px] text-gray-400 dark:text-gray-500">
+                  {t('inatGrid.detailLoading')}
+                </Text>
+              )}
             </View>
           ) : null}
 
-          {/* The name check. iNaturalist answered with a different name than the
-              one asked for, so nothing is drawn until the user says to. */}
-          {confirm ? (
-            <View className="mx-3 mb-3 rounded-lg border border-blue-300 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-950/30">
-              <Text className="text-xs text-gray-700 dark:text-gray-300">
-                {t('inatGrid.synonymAsk', { asked: confirm.askedName, accepted: confirm.inatName })}
-              </Text>
-              <Text className="mt-1 text-xs text-gray-600 dark:text-gray-400">
-                {confirm.mode === 'wild'
-                  ? t('inatGrid.wild', { count: confirm.count })
-                  : t('inatGrid.captiveOnly', { count: confirm.count })}
-              </Text>
-              <View className="mt-2 flex-row gap-2">
-                <Pressable
-                  onPress={() => apply(confirm)}
-                  className="rounded-full bg-blue-600 px-3 py-1.5 active:bg-blue-700"
-                >
-                  <Text className="text-xs font-medium text-white">
-                    {t('inatGrid.synonymUse')}
-                  </Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => setConfirm(null)}
-                  className="rounded-full border border-gray-300 px-3 py-1.5 dark:border-gray-600"
-                >
-                  <Text className="text-xs text-gray-700 dark:text-gray-300">
-                    {t('common.cancel')}
-                  </Text>
-                </Pressable>
-              </View>
-            </View>
-          ) : null}
-
-          {notice ? (
-            <Text
-              className={`mx-4 mb-3 text-xs ${
-                notice.tone === 'error'
-                  ? 'text-red-600 dark:text-red-400'
-                  : 'text-amber-700 dark:text-amber-400'
-              }`}
-            >
-              {notice.text}
-            </Text>
-          ) : null}
-
-          {inatHits && inatHits.length > 0 ? (
-            <View className="mb-3">
-              <Text className="px-4 pb-1 text-[11px] text-gray-500 dark:text-gray-400">
-                {t('inatGrid.inatResults')}
-              </Text>
-              {inatHits.map((hit) => (
-                <Pressable
-                  key={hit.id}
-                  onPress={() => handleInatPick(hit)}
-                  className="border-b border-gray-100 px-4 py-2.5 active:bg-blue-50 dark:border-gray-800 dark:active:bg-blue-900/40"
-                >
-                  <View className="flex-row flex-wrap items-center">
-                    {hit.commonName ? (
-                      <Text className="mr-1 text-sm font-medium text-gray-900 dark:text-gray-100">
-                        {hit.commonName}
-                      </Text>
-                    ) : null}
-                    <ScientificName
-                      name={hit.name}
-                      rank={capRank(hit.rank)}
-                      className="text-sm text-gray-700 dark:text-gray-300"
-                    />
-                  </View>
-                  <Text className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">
-                    {hit.rank ? `${hit.rank} · ` : ''}
-                    {t('inatGrid.obsCount', { count: hit.observationCount })}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          ) : null}
-
-          {!current && !busy && !confirm && !inatHits ? (
-            <View className="px-6 py-8">
-              <Ionicons name="grid-outline" size={44} color="#9ca3af" style={{ alignSelf: 'center' }} />
-              <Text className="mt-3 text-center text-sm text-gray-600 dark:text-gray-400">
-                {t('inatGrid.searchHint')}
-              </Text>
-            </View>
-          ) : null}
-
-          {/* Legend. The grid's darkness is the observation count — and saying
-              so is the only way the shading reads as data rather than styling. */}
-          <View className="mx-4 mb-6 mt-2 flex-row items-center">
-            <Text className="mr-2 text-[11px] text-gray-500 dark:text-gray-400">
-              {t('inatGrid.legendFew')}
-            </Text>
-            {LEGEND_STEPS.map((o) => (
-              <View
-                key={o}
-                style={{ backgroundColor: GRID_COLOR, opacity: o, width: 22, height: 12 }}
-                className="mr-0.5 rounded-[2px]"
-              />
-            ))}
-            <Text className="ml-2 text-[11px] text-gray-500 dark:text-gray-400">
-              {t('inatGrid.legendMany')}
-            </Text>
-          </View>
-          <Text className="mx-4 mb-6 text-[10px] text-gray-400 dark:text-gray-500">
-            {t('inatGrid.attribution')}
-          </Text>
-        </ScrollView>
-
-        <KeyboardStickyView offset={{ opened: insets.bottom }}>
+          {/* Input first, suggestions directly under it — the box's own list and
+              the iNaturalist results below are the same column, so a suggestion
+              never appears at the far end of the panel from what produced it. */}
           <SearchBox
+            layout="dropdown"
+            autoFocus
             onSelect={handleLocalPick}
             afterSelect="dismiss"
             // Minting a taxon into the local checklist is not an answer to
@@ -389,13 +389,13 @@ export function InatGridSheet({ visible, current, onApply, onClear, onClose }: P
             // is.
             gbifFallback={false}
             renderNoMatch={(q) => (
-              <View className="items-center border-b border-gray-100 px-4 py-4 dark:border-gray-800">
-                <Text className="text-center text-xs text-gray-500 dark:text-gray-400">
+              <View className="flex-row flex-wrap items-center border-t border-gray-100 px-3 py-2 dark:border-gray-800">
+                <Text className="mr-2 flex-1 text-xs text-gray-500 dark:text-gray-400">
                   {t('search.noLocalMatch', { q })}
                 </Text>
                 <Pressable
                   onPress={() => void searchInat(q)}
-                  className="mt-2 flex-row items-center rounded-full bg-emerald-50 px-3 py-1.5 active:bg-emerald-100 dark:bg-emerald-950/40 dark:active:bg-emerald-900/60"
+                  className="flex-row items-center rounded-full bg-emerald-50 px-3 py-1.5 active:bg-emerald-100 dark:bg-emerald-950/40 dark:active:bg-emerald-900/60"
                 >
                   <Ionicons name="leaf-outline" size={14} color="#047857" />
                   <Text className="ml-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
@@ -405,8 +405,134 @@ export function InatGridSheet({ visible, current, onApply, onClear, onClose }: P
               </View>
             )}
           />
-        </KeyboardStickyView>
-      </SafeAreaView>
+
+          {/* Sibling of the suggestion list, never its parent: a FlatList inside
+              a ScrollView is the nesting React Native warns about. */}
+          <ScrollView
+            style={{ flexShrink: 1 }}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={{ paddingBottom: 4 }}
+          >
+            {busy ? (
+              <View className="flex-row items-center justify-center gap-2 py-3">
+                <ActivityIndicator size="small" />
+                <Text className="text-xs text-gray-500 dark:text-gray-400">
+                  {t('inatGrid.checking')}
+                </Text>
+              </View>
+            ) : null}
+
+            {/* The name check. iNaturalist answered with a different name than
+                the one asked for, so nothing is drawn until the user says so. */}
+            {confirm ? (
+              <View className="border-t border-blue-200 bg-blue-50 px-3 py-2 dark:border-blue-900 dark:bg-blue-950/30">
+                <Text className="text-xs text-gray-700 dark:text-gray-300">
+                  {t('inatGrid.synonymAsk', {
+                    asked: confirm.askedName,
+                    accepted: confirm.inatName,
+                  })}
+                </Text>
+                <Text className="mt-0.5 text-xs text-gray-600 dark:text-gray-400">
+                  {confirm.mode === 'wild'
+                    ? t('inatGrid.wild', { count: confirm.count })
+                    : t('inatGrid.captiveOnly', { count: confirm.count })}
+                </Text>
+                <View className="mt-2 flex-row gap-2">
+                  <Pressable
+                    onPress={() => apply(confirm)}
+                    className="rounded-full bg-blue-600 px-3 py-1.5 active:bg-blue-700"
+                  >
+                    <Text className="text-xs font-medium text-white">
+                      {t('inatGrid.synonymUse')}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => setConfirm(null)}
+                    className="rounded-full border border-gray-300 px-3 py-1.5 dark:border-gray-600"
+                  >
+                    <Text className="text-xs text-gray-700 dark:text-gray-300">
+                      {t('common.cancel')}
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
+            ) : null}
+
+            {notice ? (
+              <Text
+                className={`px-3 py-2 text-xs ${
+                  notice.tone === 'error'
+                    ? 'text-red-600 dark:text-red-400'
+                    : 'text-amber-700 dark:text-amber-400'
+                }`}
+              >
+                {notice.text}
+              </Text>
+            ) : null}
+
+            {inatHits && inatHits.length > 0 ? (
+              <View>
+                <Text className="border-t border-gray-100 px-3 pb-1 pt-2 text-[11px] text-gray-500 dark:border-gray-800 dark:text-gray-400">
+                  {t('inatGrid.inatResults')}
+                </Text>
+                {inatHits.map((hit) => (
+                  <Pressable
+                    key={hit.id}
+                    onPress={() => handleInatPick(hit)}
+                    className="border-t border-gray-100 px-3 py-2 active:bg-blue-50 dark:border-gray-800 dark:active:bg-blue-900/40"
+                  >
+                    <View className="flex-row flex-wrap items-center">
+                      {hit.commonName ? (
+                        <Text className="mr-1 text-sm font-medium text-gray-900 dark:text-gray-100">
+                          {hit.commonName}
+                        </Text>
+                      ) : null}
+                      <ScientificName
+                        name={hit.name}
+                        rank={capRank(hit.rank)}
+                        className="text-sm text-gray-700 dark:text-gray-300"
+                      />
+                    </View>
+                    <Text className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">
+                      {hit.rank ? `${hit.rank} · ` : ''}
+                      {t('inatGrid.obsCount', { count: hit.observationCount })}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
+
+            {showEmptyHint ? (
+              <Text className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400">
+                {t('inatGrid.searchHint')}
+              </Text>
+            ) : null}
+          </ScrollView>
+
+          {/* Legend. The grid's darkness is the observation count — saying so is
+              the only thing that makes the shading read as data, not styling. */}
+          <View className="border-t border-gray-100 px-3 py-2 dark:border-gray-800">
+            <View className="flex-row items-center">
+              <Text className="mr-2 text-[11px] text-gray-500 dark:text-gray-400">
+                {t('inatGrid.legendFew')}
+              </Text>
+              {LEGEND_STEPS.map((o) => (
+                <View
+                  key={o}
+                  style={{ backgroundColor: GRID_COLOR, opacity: o, width: 20, height: 10 }}
+                  className="mr-0.5 rounded-[2px]"
+                />
+              ))}
+              <Text className="ml-2 text-[11px] text-gray-500 dark:text-gray-400">
+                {t('inatGrid.legendMany')}
+              </Text>
+            </View>
+            <Text className="mt-1 text-[10px] text-gray-400 dark:text-gray-500">
+              {t('inatGrid.attribution')}
+            </Text>
+          </View>
+        </View>
+      </View>
     </Modal>
   );
 }

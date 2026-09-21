@@ -162,6 +162,17 @@ export default function RegionPacksScreen() {
   ];
 
   /**
+   * Filter box over the installed list.
+   *
+   * Only once the list is long enough to be worth scanning — three checklist
+   * modules and one country do not need a search box above them, and an empty
+   * one on a settings page is just noise. The threshold is the three modules
+   * plus a handful of packs.
+   */
+  const [filter, setFilter] = useState('');
+  const searchable = rows.length >= 8;
+
+  /**
    * Saved credentials first (opt-in file, never inside user.db backups), else
    * prompt. The GBIF API authenticates with the USERNAME only — the website
    * accepts email, the API does not (techdocs, api-downloads) — so an '@' in
@@ -408,6 +419,18 @@ export default function RegionPacksScreen() {
     return t('datasets.keysName');
   };
 
+  const needle = searchable ? filter.trim().toLowerCase() : '';
+  const visibleRows = needle
+    ? rows.filter((r) =>
+        r.kind === 'dataset'
+          ? datasetName(r.id).toLowerCase().includes(needle)
+          : // Country name in the current language, plus the ISO code, which is
+            // what someone who knows it will type.
+            countryName(r.pack.country_code, i18n.language).toLowerCase().includes(needle) ||
+            r.pack.country_code.toLowerCase().includes(needle),
+      )
+    : rows;
+
   const handleDatasetRemove = (id: DatasetId) => {
     // 先把記錄用到的名稱抄進 user.db（必須在檔案還在時做），再讓使用者確認。
     const impact = previewDatasetRemoval(id);
@@ -473,7 +496,7 @@ export default function RegionPacksScreen() {
       : t('datasets.download', { size: formatBytes(entry?.bytes ?? 0) });
     const canAct = entry !== null && !busy && !isDatasetInstallRunning() && blockedBy.length === 0;
 
-    return (
+    const body = (
       <View className="border-b border-gray-100 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
         <View className="flex-row items-center">
           <View className="flex-1 pr-3">
@@ -518,24 +541,26 @@ export default function RegionPacksScreen() {
           </View>
         ) : null}
 
-        <View className="mt-2 flex-row items-center gap-3">
-          {busy ? (
-            <Pressable onPress={cancelDatasetInstall} hitSlop={8}>
-              <Text className="text-sm text-gray-600 dark:text-gray-400">{t('common.cancel')}</Text>
-            </Pressable>
-          ) : (rec === null || updatable) && canAct ? (
-            <Pressable onPress={() => void startDatasetInstall(entry!)} hitSlop={8}>
-              <Text className="text-sm font-medium text-blue-600 dark:text-blue-400">
-                {actionLabel}
-              </Text>
-            </Pressable>
-          ) : null}
-          {rec !== null && !busy ? (
-            <Pressable onPress={() => handleDatasetRemove(id)} hitSlop={8}>
-              <Text className="text-sm text-red-600 dark:text-red-400">{t('common.delete')}</Text>
-            </Pressable>
-          ) : null}
-        </View>
+        {/* Delete moved onto the swipe (below), so this row is only ever the
+            download / update / cancel action — and disappears entirely when
+            there is none, rather than leaving an empty strip. */}
+        {busy || ((rec === null || updatable) && canAct) ? (
+          <View className="mt-2 flex-row items-center gap-3">
+            {busy ? (
+              <Pressable onPress={cancelDatasetInstall} hitSlop={8}>
+                <Text className="text-sm text-gray-600 dark:text-gray-400">
+                  {t('common.cancel')}
+                </Text>
+              </Pressable>
+            ) : (
+              <Pressable onPress={() => void startDatasetInstall(entry!)} hitSlop={8}>
+                <Text className="text-sm font-medium text-blue-600 dark:text-blue-400">
+                  {actionLabel}
+                </Text>
+              </Pressable>
+            )}
+          </View>
+        ) : null}
         {busy === false && dsError && dsActive === null && rec === null ? (
           <Text className="mt-1 text-xs text-red-600 dark:text-red-400">
             {dsError === 'no-space'
@@ -544,6 +569,17 @@ export default function RegionPacksScreen() {
           </Text>
         ) : null}
       </View>
+    );
+
+    // Only a module that is actually on the device, and not mid-install, can be
+    // swiped away: a swipe that reveals a delete for a file that is not there,
+    // or is being written at that moment, is worse than no swipe at all.
+    return rec !== null && !busy ? (
+      <SwipeRow onDelete={() => handleDatasetRemove(id)} label={t('common.delete')}>
+        {body}
+      </SwipeRow>
+    ) : (
+      body
     );
   };
 
@@ -629,11 +665,44 @@ export default function RegionPacksScreen() {
 
   return (
     <SettingsPage>
+      {/* Above the FlatList, not in its header: the point of a filter is that it
+          is still there after you have scrolled past what you were looking for. */}
+      {searchable ? (
+        <View className="border-b border-gray-100 px-4 py-2 dark:border-gray-800">
+          <View className="flex-row items-center rounded-full bg-gray-100 px-3 py-2 dark:bg-gray-800">
+            <Ionicons name="search" size={16} color="#6b7280" />
+            <TextInput
+              value={filter}
+              onChangeText={setFilter}
+              placeholder={t('regionPacks.filterPlaceholder')}
+              placeholderTextColor="#9ca3af"
+              autoCapitalize="none"
+              autoCorrect={false}
+              className="ml-2 flex-1 text-sm text-gray-900 dark:text-gray-100"
+            />
+            {filter ? (
+              <Pressable onPress={() => setFilter('')} hitSlop={8}>
+                <Ionicons name="close-circle" size={16} color="#9ca3af" />
+              </Pressable>
+            ) : null}
+          </View>
+        </View>
+      ) : null}
       <FlatList
-        data={rows}
+        data={visibleRows}
+        // The filter box sits above the list, so without this a tap on a row
+        // while the keyboard is up is swallowed by dismissing the keyboard.
+        keyboardShouldPersistTaps="handled"
         keyExtractor={(r) => (r.kind === 'dataset' ? `dataset-${r.id}` : `pack-${r.pack.id}`)}
         renderItem={({ item }) =>
           item.kind === 'dataset' ? renderDataset(item.id) : renderPack({ item: item.pack })
+        }
+        ListEmptyComponent={
+          needle ? (
+            <Text className="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
+              {t('regionPacks.filterEmpty', { q: filter.trim() })}
+            </Text>
+          ) : null
         }
         ListHeaderComponent={
           <View className="px-4 py-3">

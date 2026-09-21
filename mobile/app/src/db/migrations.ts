@@ -1162,6 +1162,52 @@ const MIGRATIONS: Migration[] = [
       addColumnIfMissing(db, `ALTER TABLE inat_taxon_map ADD COLUMN matched_via TEXT;`);
     },
   },
+  {
+    // Preferred identifiers (DwC identifiedBy), the determiner's counterpart to
+    // v15's `surveyors`.
+    //
+    // A SEPARATE table rather than a `kind` column on `surveyors`: that table
+    // declares `name TEXT NOT NULL UNIQUE`, and SQLite cannot relax a column
+    // constraint without rebuilding the table. Sharing it would make
+    // `INSERT OR IGNORE` silently drop an identifier who is already in the
+    // surveyor list — and being both is the normal case, not an edge one.
+    //
+    // The old free-text `default_identified_by` preference is carried in as
+    // default rows, so a user who had one keeps having it.
+    version: 38,
+    up: (db) => {
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS identifiers (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL UNIQUE,
+          is_default INTEGER NOT NULL DEFAULT 0,
+          sort_order INTEGER NOT NULL DEFAULT 0,
+          created_at INTEGER NOT NULL
+        );
+      `);
+      try {
+        const res = db.executeSync(
+          `SELECT value FROM settings WHERE key = 'default_identified_by' LIMIT 1;`,
+        );
+        const raw = String((res.rows?.[0] as { value?: string } | undefined)?.value ?? '').trim();
+        raw
+          .split(',')
+          .map((n) => n.trim())
+          .filter(Boolean)
+          .forEach((name, i) => {
+            db.executeSync(
+              `INSERT OR IGNORE INTO identifiers (name, is_default, sort_order, created_at)
+               VALUES (?, 1, ?, ?);`,
+              [name, i, Date.now()],
+            );
+          });
+      } catch {
+        // Seeding is a convenience, not the migration's job. A DB without the
+        // settings table (or with an unreadable row) must still end up with the
+        // table this migration exists to create.
+      }
+    },
+  },
 ];
 
 /** Highest schema version this build knows how to produce. Backup/restore uses

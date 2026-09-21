@@ -9,13 +9,22 @@ import DraggableFlatList, {
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardAvoidingView } from './KeyboardAvoidingView';
-import { useSurveyors } from '~/stores/surveyors';
-import type { Surveyor } from '~/db';
+import { usePeopleStore } from '~/stores/surveyors';
+import type { PersonKind, Surveyor } from '~/db';
 
 type Props = {
   visible: boolean;
-  /** Current recorded_by value (comma-separated names). */
+  /** Current recorded_by / identified_by value (comma-separated names). */
   current: string;
+  /**
+   * Which list to pick from. Defaults to the surveyors, which is what every
+   * call site but the specimen's determiner field wants.
+   *
+   * The determiner used to pick from the surveyor list too — the only list there
+   * was. Whoever determined a specimen is often not on the survey at all, so it
+   * has its own list now (see the v38 migration).
+   */
+  kind?: PersonKind;
   onCancel: () => void;
   onAssign: (value: string) => void;
 };
@@ -27,12 +36,41 @@ function parseNames(s: string): string[] {
     .filter(Boolean);
 }
 
-export function SurveyorAssignSheet({ visible, current, onCancel, onAssign }: Props) {
+export function SurveyorAssignSheet({
+  visible,
+  current,
+  kind = 'surveyor',
+  onCancel,
+  onAssign,
+}: Props) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const items = useSurveyors((s) => s.items);
-  const add = useSurveyors((s) => s.add);
-  const reorder = useSurveyors((s) => s.reorder);
+  const store = usePeopleStore(kind);
+  const items = store((s) => s.items);
+  const add = store((s) => s.add);
+  const reorder = store((s) => s.reorder);
+  const refresh = store((s) => s.refresh);
+
+  // Literal t() calls, not a key built from `kind`: check:i18n can only see the
+  // literal ones.
+  const labels =
+    kind === 'identifier'
+      ? {
+          title: t('sheets.assignIdentifier'),
+          desc: t('sheets.assignIdentifierDesc'),
+          placeholder: t('sheets.identifierNamePlaceholder'),
+          addAction: t('sheets.addIdentifier'),
+          addTitle: t('identifiers.addTitle'),
+          empty: t('sheets.emptyIdentifiers'),
+        }
+      : {
+          title: t('sheets.assignSurveyor'),
+          desc: t('sheets.assignSurveyorDesc'),
+          placeholder: t('sheets.surveyorNamePlaceholder'),
+          addAction: t('sheets.addSurveyor'),
+          addTitle: t('surveyors.addTitle'),
+          empty: t('sheets.emptySurveyors'),
+        };
 
   const [selected, setSelected] = useState<string[]>([]);
   const [adding, setAdding] = useState(false);
@@ -40,14 +78,20 @@ export function SurveyorAssignSheet({ visible, current, onCancel, onAssign }: Pr
 
   useEffect(() => {
     if (visible) {
+      // The identifier list has no other screen in the specimen flow that would
+      // have loaded it, so the sheet loads it itself.
+      refresh();
       setSelected(parseNames(current));
       setAdding(false);
       setNewName('');
     }
+    // `refresh` is stable (zustand store action) and is left out so a re-created
+    // reference cannot loop this effect.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, current]);
 
-  // Known surveyors (store, drag-reorderable) + any ad-hoc names already on the
-  // record (free-typed recorded_by from older data) shown read-only on top so
+  // Known names (store, drag-reorderable) + any ad-hoc names already on the
+  // record (free-typed values from older data) shown read-only on top so
   // editing doesn't silently drop them.
   const known = items.map((i) => i.name);
   const extras = parseNames(current).filter((n) => !known.includes(n));
@@ -66,8 +110,8 @@ export function SurveyorAssignSheet({ visible, current, onCancel, onAssign }: Pr
   };
 
   const handleConfirm = () => {
-    // recorded_by order = display order (extras first, then the drag order of
-    // known surveyors); drop names no longer selected.
+    // Stored order = display order (extras first, then the drag order of the
+    // known names); drop names no longer selected.
     const rows = [...extras, ...items.map((i) => i.name)];
     onAssign(rows.filter((n) => selected.includes(n)).join(', '));
   };
@@ -119,9 +163,9 @@ export function SurveyorAssignSheet({ visible, current, onCancel, onAssign }: Pr
               </View>
               <View className="flex-row items-center justify-between border-b border-gray-200 dark:border-gray-700 px-4 py-3">
                 <View className="flex-1">
-                  <Text className="text-base font-semibold text-gray-900 dark:text-gray-100">{t('sheets.assignSurveyor')}</Text>
+                  <Text className="text-base font-semibold text-gray-900 dark:text-gray-100">{labels.title}</Text>
                   <Text className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                    {t('sheets.assignSurveyorDesc')}
+                    {labels.desc}
                   </Text>
                 </View>
                 <Pressable onPress={handleConfirm} hitSlop={8} className="ml-3">
@@ -136,14 +180,14 @@ export function SurveyorAssignSheet({ visible, current, onCancel, onAssign }: Pr
                     className="flex-1 rounded-lg bg-gray-100 dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
                     value={newName}
                     onChangeText={setNewName}
-                    placeholder={t('sheets.surveyorNamePlaceholder')}
+                    placeholder={labels.placeholder}
                     placeholderTextColor="#9ca3af"
                     autoFocus
                     returnKeyType="done"
                     onSubmitEditing={handleAddSubmit}
                   />
                   <Pressable onPress={handleAddSubmit} hitSlop={6} className="px-2 py-1">
-                    <Text className="text-sm font-medium text-blue-600 dark:text-blue-400">{t('sheets.addSurveyor')}</Text>
+                    <Text className="text-sm font-medium text-blue-600 dark:text-blue-400">{labels.addAction}</Text>
                   </Pressable>
                 </View>
               ) : (
@@ -154,7 +198,7 @@ export function SurveyorAssignSheet({ visible, current, onCancel, onAssign }: Pr
                   <View className="mr-3 h-8 w-8 items-center justify-center rounded-full bg-blue-500">
                     <Ionicons name="add" size={20} color="white" />
                   </View>
-                  <Text className="text-base font-semibold text-blue-700 dark:text-blue-300">{t('surveyors.addTitle')}</Text>
+                  <Text className="text-base font-semibold text-blue-700 dark:text-blue-300">{labels.addTitle}</Text>
                 </Pressable>
               )}
 
@@ -180,7 +224,7 @@ export function SurveyorAssignSheet({ visible, current, onCancel, onAssign }: Pr
               {items.length === 0 && extras.length === 0 ? (
                 <View className="px-4 py-8">
                   <Text className="text-center text-sm text-gray-500 dark:text-gray-400">
-                    {t('sheets.emptySurveyors')}
+                    {labels.empty}
                   </Text>
                 </View>
               ) : (

@@ -412,6 +412,9 @@ function composeExif(
   if (typeof ctx.lat === 'number' && typeof ctx.lng === 'number') {
     const latAbs = Math.abs(ctx.lat);
     const lngAbs = Math.abs(ctx.lng);
+    // A camera that recorded no position leaves no GPS IFD, so this block may
+    // be creating one from scratch; GPSVersionID is mandatory in that IFD.
+    dict.GPS![piexif.GPSIFD.GPSVersionID] ??= [2, 3, 0, 0];
     dict.GPS![piexif.GPSIFD.GPSLatitudeRef] = ctx.lat >= 0 ? 'N' : 'S';
     dict.GPS![piexif.GPSIFD.GPSLatitude] = piexif.GPSHelper.degToDmsRational(latAbs);
     dict.GPS![piexif.GPSIFD.GPSLongitudeRef] = ctx.lng >= 0 ? 'E' : 'W';

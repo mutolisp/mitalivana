@@ -281,7 +281,8 @@
     "regionPacks": "Regional checklists",
     "inaturalist": "iNaturalist account",
     "gdrive": "Google Drive",
-    "inatUpload": "Upload to iNaturalist"
+    "inatUpload": "Upload to iNaturalist",
+    "identifiers": "Identifiers"
   },
   "tab": {
     "menu": "Settings",
@@ -634,7 +635,6 @@
     "integrityDup": "{{table}}: {{groups}}, {{rows}}",
     "integrityFailed": "Data check failed: {{error}}",
     "defaultDeterminer": "Default determiner",
-    "defaultDeterminerPlaceholder": "e.g. Cheng-Tao Lin",
     "regionPacks": "Regional checklists",
     "regionPacksDesc": "Taiwan, Japan and downloaded country packs, each toggleable",
     "integrityOrphan_one": "{{table}}: {{count}} orphaned row",
@@ -654,7 +654,11 @@
     "inaturalistLinked": "Linked: {{login}}",
     "gdrive": "Google Drive",
     "gdriveDesc": "Upload backups to your own Drive",
-    "gdriveLinked": "Linked: {{email}}"
+    "gdriveLinked": "Linked: {{email}}",
+    "defaultCollector": "Default collector",
+    "defaultCollectorDesc": "Taken from the surveyor list; starred names fill in new collections",
+    "defaultDeterminerDesc": "Preferred identifiers; starred names fill in new specimens",
+    "noDefaultPerson": "Not set"
   },
   "taxonomy": {
     "loadingTree": "Loading taxonomy tree...",
@@ -840,7 +844,8 @@
     "redrawRange": "Redraw this boundary",
     "featureAction": "Actions",
     "basemapRudyVector": "RudyMap",
-    "basemapRudyVectorOffline": "RudyMap (offline)"
+    "basemapRudyVectorOffline": "RudyMap (offline)",
+    "compass": "Compass — tap to face north"
   },
   "keys": {
     "modeDichotomous": "Dichotomous",
@@ -1050,7 +1055,12 @@
     "siteNameEx": "e.g. Site A",
     "siteNotesEx": "Describe location, elevation, vegetation, etc.",
     "siteTypeVertices_one": "Type: {{type}} · {{count}} vertex",
-    "siteTypeVertices_other": "Type: {{type}} · {{count}} vertices"
+    "siteTypeVertices_other": "Type: {{type}} · {{count}} vertices",
+    "assignIdentifier": "Assign identifier",
+    "assignIdentifierDesc": "Multiple allowed; long-press ☰ to reorder (syncs to preferences)",
+    "identifierNamePlaceholder": "Identifier name",
+    "addIdentifier": "Add",
+    "emptyIdentifiers": "No identifiers yet — tap “Add identifier” above."
   },
   "exportPref": {
     "title": "Export settings",
@@ -1239,14 +1249,17 @@
     "inatResults": "Taxa on iNaturalist",
     "inatNoMatch": "iNaturalist has nothing for \"{{q}}\" either",
     "obsCount": "{{count}} observations",
-    "showingNow": "Now showing",
     "stop": "Stop showing",
     "synonymAsk": "iNaturalist files \"{{asked}}\" under {{accepted}}, so the grid will draw that name’s observations.",
     "synonymUse": "Show it under that name",
     "viaSynonym": "iNaturalist files this under {{name}}; the grid is that name’s observations",
     "viaSynonymShort": "searched as {{name}}",
     "legendFew": "Few",
-    "legendMany": "Many"
+    "legendMany": "Many",
+    "detailWild": "{{count}} wild",
+    "detailCaptive": "{{count}} captive or cultivated",
+    "detailResearch": "{{count}} research grade ({{pct}}%)",
+    "detailLoading": "Loading details…"
   },
   "collection": {
     "title": "Collection",
@@ -1543,7 +1556,9 @@
     "introRegister": " (register here)",
     "introEnd": ".",
     "readyCount_one": "{{count}} species name",
-    "readyCount_other": "{{count}} species names"
+    "readyCount_other": "{{count}} species names",
+    "filterPlaceholder": "Search installed checklists",
+    "filterEmpty": "No checklist matches \"{{q}}\""
   },
   "datasets": {
     "section": "Checklist data",
@@ -2130,5 +2145,11 @@
     "poiError": "Download failed: {{message}}",
     "wifiHint": "Best done on Wi-Fi.",
     "statusBoth": "Map and landmarks"
+  },
+  "identifiers": {
+    "addTitle": "Add identifier",
+    "create": "Create",
+    "hint": "Identifiers starred as default fill in a new specimen’s determiner automatically. Long-press ☰ on the right to reorder.",
+    "empty": "No identifiers yet — tap ＋ at the top right to add one."
   }
 }

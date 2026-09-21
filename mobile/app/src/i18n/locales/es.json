@@ -308,7 +308,8 @@
     "regionPacks": "Listas regionales",
     "inaturalist": "Cuenta de iNaturalist",
     "gdrive": "Google Drive",
-    "inatUpload": "Subir a iNaturalist"
+    "inatUpload": "Subir a iNaturalist",
+    "identifiers": "Determinadores"
   },
   "tab": {
     "menu": "Ajustes",
@@ -664,7 +665,6 @@
     "integrityDup": "{{table}}: {{groups}}, {{rows}}",
     "integrityFailed": "Error en la comprobación de datos: {{error}}",
     "defaultDeterminer": "Determinador predeterminado",
-    "defaultDeterminerPlaceholder": "p. ej. Cheng-Tao Lin",
     "regionPacks": "Listas regionales",
     "regionPacksDesc": "Taiwán, Japón y los paquetes de país descargados, cada uno activable por separado",
     "integrityOrphan_one": "{{table}}: {{count}} fila huérfana",
@@ -690,7 +690,11 @@
     "inaturalistLinked": "Vinculado: {{login}}",
     "gdrive": "Google Drive",
     "gdriveDesc": "Subir las copias de seguridad a tu Drive",
-    "gdriveLinked": "Vinculado: {{email}}"
+    "gdriveLinked": "Vinculado: {{email}}",
+    "defaultCollector": "Colector predeterminado",
+    "defaultCollectorDesc": "Usa la lista de observadores; los nombres con ★ rellenan las nuevas recolecciones",
+    "defaultDeterminerDesc": "Lista de determinadores preferidos; los nombres con ★ rellenan los especímenes nuevos",
+    "noDefaultPerson": "Sin definir"
   },
   "taxonomy": {
     "loadingTree": "Cargando el árbol taxonómico...",
@@ -886,7 +890,8 @@
     "redrawRange": "Volver a dibujar este límite",
     "featureAction": "Acciones",
     "basemapRudyVector": "RudyMap",
-    "basemapRudyVectorOffline": "RudyMap (sin conexión)"
+    "basemapRudyVectorOffline": "RudyMap (sin conexión)",
+    "compass": "Brújula: pulsa para orientar al norte"
   },
   "keys": {
     "modeDichotomous": "Dicotómica",
@@ -1105,7 +1110,12 @@
     "siteNotesEx": "Describa el lugar, la altitud, la vegetación, etc.",
     "siteTypeVertices_one": "Tipo: {{type}} · {{count}} vértice",
     "siteTypeVertices_many": "Tipo: {{type}} · {{count}} vértices",
-    "siteTypeVertices_other": "Tipo: {{type}} · {{count}} vértices"
+    "siteTypeVertices_other": "Tipo: {{type}} · {{count}} vértices",
+    "assignIdentifier": "Asignar determinador",
+    "assignIdentifierDesc": "Se pueden elegir varios; mantén pulsado ☰ para reordenar (se sincroniza con las preferencias)",
+    "identifierNamePlaceholder": "Nombre del determinador",
+    "addIdentifier": "Añadir",
+    "emptyIdentifiers": "Aún no hay determinadores: pulsa «Añadir determinador» arriba."
   },
   "exportPref": {
     "title": "Ajustes de exportación",
@@ -1307,14 +1317,17 @@
     "inatResults": "Taxones en iNaturalist",
     "inatNoMatch": "iNaturalist tampoco encuentra «{{q}}»",
     "obsCount": "{{count}} observaciones",
-    "showingNow": "Mostrando ahora",
     "stop": "Dejar de mostrar",
     "synonymAsk": "iNaturalist registra «{{asked}}» bajo {{accepted}}, así que la cuadrícula mostrará las observaciones de ese nombre.",
     "synonymUse": "Mostrar con ese nombre",
     "viaSynonym": "iNaturalist lo registra como {{name}}; la cuadrícula muestra las observaciones de ese nombre",
     "viaSynonymShort": "buscado como {{name}}",
     "legendFew": "pocas",
-    "legendMany": "muchas"
+    "legendMany": "muchas",
+    "detailWild": "{{count}} silvestres",
+    "detailCaptive": "{{count}} en cautividad o cultivo",
+    "detailResearch": "{{count}} de grado de investigación ({{pct}} %)",
+    "detailLoading": "Cargando detalles…"
   },
   "collection": {
     "title": "Recolección",
@@ -1635,7 +1648,9 @@
     "introEnd": ".",
     "readyCount_one": "{{count}} nombre de especie",
     "readyCount_many": "{{count}} nombres de especies",
-    "readyCount_other": "{{count}} nombres de especies"
+    "readyCount_other": "{{count}} nombres de especies",
+    "filterPlaceholder": "Buscar en las listas instaladas",
+    "filterEmpty": "Ninguna lista coincide con «{{q}}»"
   },
   "datasets": {
     "section": "Datos de listas",
@@ -2245,5 +2260,11 @@
     "poiError": "Error de descarga: {{message}}",
     "wifiHint": "Preferiblemente con Wi-Fi.",
     "statusBoth": "Mapa y referencias"
+  },
+  "identifiers": {
+    "addTitle": "Añadir determinador",
+    "create": "Crear",
+    "hint": "Los determinadores marcados como predeterminados (★) rellenan automáticamente el campo de determinación de un espécimen nuevo. Mantén pulsado ☰ a la derecha para reordenar.",
+    "empty": "Aún no hay determinadores: pulsa ＋ arriba a la derecha."
   }
 }

@@ -136,9 +136,6 @@ type SettingsValues = {
   last_search_groups: TaxonGroup[];
   last_record_sort: RecordSort;
   collection_sort: CollectionSort;
-  /** Pre-filled into a new specimen's `identified_by`, the way a trip's
-   *  collector is inherited. Empty means leave it unset. */
-  default_identified_by: string;
   /** GBIF username, remembered so a pack download only re-asks the password. */
   gbif_username: string;
   /** Email GBIF notifies when a pack download is ready ('' = no email). */
@@ -248,7 +245,6 @@ const DEFAULTS: SettingsValues = {
   last_record_sort: 'observed',
   // Preserves the order the list had before sorting existed.
   collection_sort: 'collected',
-  default_identified_by: '',
   gbif_username: '',
   gbif_notify_email: '',
   inat_login: '',
@@ -368,7 +364,6 @@ function readAll(): SettingsValues {
     last_search_groups: parseSearchGroups(map.get('last_search_groups')),
     last_record_sort: (map.get('last_record_sort') as RecordSort) ?? DEFAULTS.last_record_sort,
     collection_sort: (map.get('collection_sort') as CollectionSort) ?? DEFAULTS.collection_sort,
-    default_identified_by: map.get('default_identified_by') ?? DEFAULTS.default_identified_by,
     gbif_username: map.get('gbif_username') ?? DEFAULTS.gbif_username,
     gbif_notify_email: map.get('gbif_notify_email') ?? DEFAULTS.gbif_notify_email,
     inat_login: map.get('inat_login') ?? DEFAULTS.inat_login,

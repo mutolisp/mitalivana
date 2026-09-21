@@ -15,6 +15,7 @@ export default function AboutScreen() {
         <View className="items-center bg-white dark:bg-gray-900 px-4 py-8">
           <Text className="text-3xl font-bold text-gray-900 dark:text-gray-100">Mitalivana</Text>
           <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">v{version} · {t('about.subtitle')}</Text>
+          <Link url="https://mitalivana.org" />
         </View>
 
         <Section title="Author">

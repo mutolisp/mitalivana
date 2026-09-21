@@ -14,7 +14,7 @@ import { ensureTaxonSelfSufficient } from './taxonCache';
 import type { DuplicateRecordOptions } from './duplicate';
 import { existingProjectId } from './projects';
 import { generateUuid } from './plots';
-import { defaultSurveyorString } from './surveyors';
+import { defaultIdentifierString, defaultSurveyorString } from './surveyors';
 import {
   resolveTaxa,
   EMPTY_TAXON_FIELDS,
@@ -414,10 +414,10 @@ export function addSpecimen(input: AddSpecimenInput): number {
       input.collected_at ?? now,
       input.recorded_by !== undefined ? input.recorded_by : (trip?.recorded_by ?? null),
       // Same shape as the collector above: an explicit value (including null)
-      // wins, otherwise fall back to the preference.
+      // wins, otherwise the starred names from the identifier list.
       input.identified_by !== undefined
         ? input.identified_by
-        : (readSetting('default_identified_by') || null),
+        : defaultIdentifierString(),
       input.lat ?? null,
       input.lng ?? null,
       input.accuracy ?? null,

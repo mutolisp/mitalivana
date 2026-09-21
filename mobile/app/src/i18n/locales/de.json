@@ -281,7 +281,8 @@
     "regionPacks": "Regionale Artenlisten",
     "inaturalist": "iNaturalist-Konto",
     "gdrive": "Google Drive",
-    "inatUpload": "Zu iNaturalist hochladen"
+    "inatUpload": "Zu iNaturalist hochladen",
+    "identifiers": "Bestimmende"
   },
   "tab": {
     "menu": "Einstellungen",
@@ -634,7 +635,6 @@
     "integrityDup": "{{table}}: {{groups}}, {{rows}}",
     "integrityFailed": "Datenprüfung fehlgeschlagen: {{error}}",
     "defaultDeterminer": "Standard-Bestimmer",
-    "defaultDeterminerPlaceholder": "z. B. Cheng-Tao Lin",
     "regionPacks": "Regionale Artenlisten",
     "regionPacksDesc": "Taiwan, Japan und heruntergeladene Länderpakete, jeweils einzeln zuschaltbar",
     "integrityOrphan_one": "{{table}}: {{count}} verwaiste Zeile",
@@ -654,7 +654,11 @@
     "inaturalistLinked": "Verknüpft: {{login}}",
     "gdrive": "Google Drive",
     "gdriveDesc": "Sicherungen in dein eigenes Drive hochladen",
-    "gdriveLinked": "Verbunden: {{email}}"
+    "gdriveLinked": "Verbunden: {{email}}",
+    "defaultCollector": "Standard-Sammler:in",
+    "defaultCollectorDesc": "Nutzt die Liste der Erfassenden; mit ★ markierte Namen füllen neue Aufsammlungen",
+    "defaultDeterminerDesc": "Liste bevorzugter bestimmender Personen; mit ★ markierte füllen neue Belege",
+    "noDefaultPerson": "Nicht gesetzt"
   },
   "taxonomy": {
     "loadingTree": "Taxonomiebaum wird geladen...",
@@ -840,7 +844,8 @@
     "redrawRange": "Diese Grenze neu zeichnen",
     "featureAction": "Aktionen",
     "basemapRudyVector": "RudyMap",
-    "basemapRudyVectorOffline": "RudyMap (offline)"
+    "basemapRudyVectorOffline": "RudyMap (offline)",
+    "compass": "Kompass – tippen, um nach Norden auszurichten"
   },
   "keys": {
     "modeDichotomous": "Dichotom",
@@ -1050,7 +1055,12 @@
     "siteNameEx": "z. B. Standort A",
     "siteNotesEx": "Ort, Höhe, Vegetation usw. beschreiben",
     "siteTypeVertices_one": "Typ: {{type}} · {{count}} Stützpunkt",
-    "siteTypeVertices_other": "Typ: {{type}} · {{count}} Stützpunkte"
+    "siteTypeVertices_other": "Typ: {{type}} · {{count}} Stützpunkte",
+    "assignIdentifier": "Bestimmende zuweisen",
+    "assignIdentifierDesc": "Mehrfachauswahl möglich; ☰ lange drücken zum Umsortieren (wird in den Einstellungen übernommen)",
+    "identifierNamePlaceholder": "Name der bestimmenden Person",
+    "addIdentifier": "Hinzufügen",
+    "emptyIdentifiers": "Noch keine Einträge — oben „Bestimmende Person hinzufügen“ antippen."
   },
   "exportPref": {
     "title": "Exporteinstellungen",
@@ -1239,14 +1249,17 @@
     "inatResults": "Taxa auf iNaturalist",
     "inatNoMatch": "Auch iNaturalist kennt „{{q}}“ nicht",
     "obsCount": "{{count}} Beobachtungen",
-    "showingNow": "Wird angezeigt",
     "stop": "Nicht mehr anzeigen",
     "synonymAsk": "iNaturalist führt „{{asked}}“ unter {{accepted}}; das Raster zeigt also die Beobachtungen dieses Namens.",
     "synonymUse": "Unter diesem Namen anzeigen",
     "viaSynonym": "Bei iNaturalist unter {{name}} geführt; das Raster zeigt dessen Beobachtungen",
     "viaSynonymShort": "gesucht als {{name}}",
     "legendFew": "wenige",
-    "legendMany": "viele"
+    "legendMany": "viele",
+    "detailWild": "{{count}} wild",
+    "detailCaptive": "{{count}} in Haltung oder Kultur",
+    "detailResearch": "{{count}} Forschungsqualität ({{pct}} %)",
+    "detailLoading": "Details werden geladen …"
   },
   "collection": {
     "title": "Aufsammlung",
@@ -1543,7 +1556,9 @@
     "introRegister": " (hier registrieren)",
     "introEnd": ".",
     "readyCount_one": "{{count}} Artname",
-    "readyCount_other": "{{count}} Artnamen"
+    "readyCount_other": "{{count}} Artnamen",
+    "filterPlaceholder": "Installierte Checklisten durchsuchen",
+    "filterEmpty": "Keine Checkliste passt zu „{{q}}“"
   },
   "datasets": {
     "section": "Checklisten-Daten",
@@ -2130,5 +2145,11 @@
     "poiError": "Download fehlgeschlagen: {{message}}",
     "wifiHint": "Am besten über WLAN.",
     "statusBoth": "Karte und Bergmarken"
+  },
+  "identifiers": {
+    "addTitle": "Bestimmende Person hinzufügen",
+    "create": "Anlegen",
+    "hint": "Mit ★ als Standard markierte Personen werden bei einem neuen Beleg automatisch als Bestimmende eingetragen. ☰ rechts lange drücken zum Umsortieren.",
+    "empty": "Noch keine Einträge — oben rechts auf ＋ tippen."
   }
 }

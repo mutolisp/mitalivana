@@ -63,6 +63,20 @@ type Props = {
    * to make.
    */
   renderNoMatch?: (query: string) => ReactNode;
+  /**
+   * Which way round the box is built.
+   *
+   *   - 'dock' (default): suggestions ABOVE the input. Right when the box is
+   *     pinned to the bottom of a screen, where the input sits next to the
+   *     keyboard and the list grows upwards into free space.
+   *   - 'dropdown': suggestions BELOW the input, the way a floating panel
+   *     anchored to the top of the screen has to read. The list is also shorter,
+   *     because that panel has other things under it.
+   *
+   * Only the order and the list's height change; everything else — debounce,
+   * cache, fuzzy fallback, name adoption — is the same box.
+   */
+  layout?: 'dock' | 'dropdown';
 };
 
 /**
@@ -104,6 +118,7 @@ export function SearchBox({
   afterSelect = 'refocus',
   gbifFallback = true,
   renderNoMatch,
+  layout = 'dock',
 }: Props) {
   const { t } = useTranslation();
   const lastGroups = useSettings((s) => s.last_search_groups);
@@ -117,7 +132,8 @@ export function SearchBox({
   const trimmedQuery = query.trim();
   // Only offer the network once the local search has actually run and come
   // back empty — not while the debounce is still pending.
-  const noLocalHit = (gbifFallback || !!renderNoMatch) && trimmedQuery.length > 0 && results.length === 0;
+  const noLocalHit =
+    (gbifFallback || !!renderNoMatch) && trimmedQuery.length > 0 && results.length === 0;
 
   useEffect(() => {
     setGroupsLocal(lastGroups);
@@ -217,87 +233,118 @@ export function SearchBox({
       );
   };
 
+  const dropdown = layout === 'dropdown';
+
+  const suggestions =
+    results.length > 0 ? (
+      <View
+        className={`${dropdown ? 'max-h-56 border-t' : 'max-h-72 border-b'} border-gray-100 dark:border-gray-800`}
+      >
+        <FlatList
+          data={results}
+          keyExtractor={getResultKey}
+          keyboardShouldPersistTaps="handled"
+          initialNumToRender={8}
+          maxToRenderPerBatch={6}
+          windowSize={5}
+          removeClippedSubviews
+          renderItem={({ item }) => (
+            <AutocompleteRow
+              result={item}
+              onPress={() => handleSelect(item)}
+              onLongPress={onLongPressResult ? () => onLongPressResult(item) : undefined}
+              onAdopt={() => handleAdopt(item)}
+            />
+          )}
+        />
+      </View>
+    ) : noLocalHit && renderNoMatch ? (
+      renderNoMatch(trimmedQuery)
+    ) : noLocalHit ? (
+      <View
+        className={`items-center ${dropdown ? 'border-t' : 'border-b'} border-gray-100 px-4 py-4 dark:border-gray-800`}
+      >
+        <Text className="text-center text-xs text-gray-500 dark:text-gray-400">
+          {t('search.noLocalMatch', { q: trimmedQuery })}
+        </Text>
+        <View className="mt-2 flex-row items-center gap-2">
+          <Pressable
+            onPress={async () => {
+              Keyboard.dismiss();
+              applyPicked(await lookupGbifName(trimmedQuery));
+            }}
+            className="flex-row items-center rounded-full bg-blue-50 px-3 py-1.5 active:bg-blue-100 dark:bg-blue-950/40 dark:active:bg-blue-900/60"
+          >
+            <Ionicons name="earth-outline" size={14} color="#2563eb" />
+            <Text className="ml-1 text-xs font-medium text-blue-700 dark:text-blue-300">
+              {t('search.lookupGbif')}
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={async () => {
+              Keyboard.dismiss();
+              applyPicked(await manualTaxonEntry(trimmedQuery));
+            }}
+            className="flex-row items-center rounded-full bg-amber-50 px-3 py-1.5 active:bg-amber-100 dark:bg-amber-950/40 dark:active:bg-amber-900/60"
+          >
+            <Ionicons name="create-outline" size={14} color="#b45309" />
+            <Text className="ml-1 text-xs font-medium text-amber-700 dark:text-amber-300">
+              {t('manualTaxon.createOwn')}
+            </Text>
+          </Pressable>
+        </View>
+      </View>
+    ) : null;
+
+  const picker = (
+    <View
+      className={`flex-row items-center justify-start gap-2 ${dropdown ? 'border-t' : 'border-b'} border-gray-100 px-3 py-2 dark:border-gray-800`}
+    >
+      <TaxonGroupPicker value={groups} onChange={handleGroupChange} />
+    </View>
+  );
+
+  const input = (
+    <View className="flex-row items-center px-2 py-2">
+      <View className="flex-1 flex-row items-center rounded-full bg-gray-100 px-3 py-2 dark:bg-gray-800">
+        <Ionicons name="search" size={18} color="#6b7280" />
+        <TextInput
+          ref={inputRef}
+          className="ml-2 flex-1 text-base text-gray-900 dark:text-gray-100"
+          placeholder={t('search.placeholder')}
+          placeholderTextColor="#9ca3af"
+          value={query}
+          onChangeText={setQuery}
+          autoFocus={autoFocus}
+          autoCorrect={false}
+          returnKeyType="search"
+        />
+        {query ? (
+          <Pressable onPress={() => setQuery('')} hitSlop={8}>
+            <Ionicons name="close-circle" size={18} color="#9ca3af" />
+          </Pressable>
+        ) : null}
+      </View>
+    </View>
+  );
+
   return (
-    <View className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
-      {results.length > 0 ? (
-        <View className="max-h-72 border-b border-gray-100 dark:border-gray-800">
-          <FlatList
-            data={results}
-            keyExtractor={getResultKey}
-            keyboardShouldPersistTaps="handled"
-            initialNumToRender={8}
-            maxToRenderPerBatch={6}
-            windowSize={5}
-            removeClippedSubviews
-            renderItem={({ item }) => (
-              <AutocompleteRow
-                result={item}
-                onPress={() => handleSelect(item)}
-                onLongPress={onLongPressResult ? () => onLongPressResult(item) : undefined}
-                onAdopt={() => handleAdopt(item)}
-              />
-            )}
-          />
-        </View>
-      ) : noLocalHit && renderNoMatch ? (
-        renderNoMatch(trimmedQuery)
-      ) : noLocalHit ? (
-        <View className="items-center border-b border-gray-100 dark:border-gray-800 px-4 py-4">
-          <Text className="text-center text-xs text-gray-500 dark:text-gray-400">
-            {t('search.noLocalMatch', { q: trimmedQuery })}
-          </Text>
-          <View className="mt-2 flex-row items-center gap-2">
-            <Pressable
-              onPress={async () => {
-                Keyboard.dismiss();
-                applyPicked(await lookupGbifName(trimmedQuery));
-              }}
-              className="flex-row items-center rounded-full bg-blue-50 dark:bg-blue-950/40 px-3 py-1.5 active:bg-blue-100 dark:active:bg-blue-900/60"
-            >
-              <Ionicons name="earth-outline" size={14} color="#2563eb" />
-              <Text className="ml-1 text-xs font-medium text-blue-700 dark:text-blue-300">
-                {t('search.lookupGbif')}
-              </Text>
-            </Pressable>
-            <Pressable
-              onPress={async () => {
-                Keyboard.dismiss();
-                applyPicked(await manualTaxonEntry(trimmedQuery));
-              }}
-              className="flex-row items-center rounded-full bg-amber-50 dark:bg-amber-950/40 px-3 py-1.5 active:bg-amber-100 dark:active:bg-amber-900/60"
-            >
-              <Ionicons name="create-outline" size={14} color="#b45309" />
-              <Text className="ml-1 text-xs font-medium text-amber-700 dark:text-amber-300">
-                {t('manualTaxon.createOwn')}
-              </Text>
-            </Pressable>
-          </View>
-        </View>
-      ) : null}
-      <View className="flex-row items-center justify-start gap-2 border-b border-gray-100 dark:border-gray-800 px-3 py-2">
-        <TaxonGroupPicker value={groups} onChange={handleGroupChange} />
-      </View>
-      <View className="flex-row items-center px-2 py-2">
-        <View className="flex-1 flex-row items-center rounded-full bg-gray-100 dark:bg-gray-800 px-3 py-2">
-          <Ionicons name="search" size={18} color="#6b7280" />
-          <TextInput
-            ref={inputRef}
-            className="ml-2 flex-1 text-base text-gray-900 dark:text-gray-100"
-            placeholder={t('search.placeholder')}
-            placeholderTextColor="#9ca3af"
-            value={query}
-            onChangeText={setQuery}
-            autoFocus={autoFocus}
-            autoCorrect={false}
-            returnKeyType="search"
-          />
-          {query ? (
-            <Pressable onPress={() => setQuery('')} hitSlop={8}>
-              <Ionicons name="close-circle" size={18} color="#9ca3af" />
-            </Pressable>
-          ) : null}
-        </View>
-      </View>
+    <View
+      className={`${dropdown ? '' : 'border-t border-gray-200 dark:border-gray-700'} bg-white dark:bg-gray-900`}
+    >
+      {dropdown ? (
+        <>
+          {input}
+          {picker}
+          {suggestions}
+        </>
+      ) : (
+        <>
+          {suggestions}
+          {picker}
+          {input}
+        </>
+      )}
     </View>
   );
 }

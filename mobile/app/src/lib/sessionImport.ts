@@ -65,6 +65,9 @@ export function sessionFromDoc(doc: Record<string, unknown> | null): ImportedSes
       leaf_phenology: pipeToJson(r.leafPhenology),
       degree_of_establishment: str(r.degreeOfEstablishment),
       photo_files: pipeToList(r.associatedMedia),
+      // Kept out of associatedMedia so the clips return to audio_paths
+      // rather than being mixed into the photo column.
+      audio_files: pipeToList(r.audio_files),
       // Name usage: `scientificName` already holds the adopted name, so the id
       // is a hint and the string is the durable half.
       used_name_id: num(r.scientificNameID),

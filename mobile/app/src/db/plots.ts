@@ -1080,6 +1080,9 @@ export type ImportedPlotSpecies = {
   observed_at?: number | null;
   /** Photo filenames inside the zip's `photos/` belonging to this record. */
   photo_files?: string[];
+  /** Clip filenames inside the zip's `audio/` belonging to this record. */
+  audio_files?: string[];
+  degree_of_establishment?: string | null;
   /** The name this record was filed under, when not the accepted one (v28). */
   used_name_id?: number | null;
   used_scientific_name?: string | null;
@@ -1135,7 +1138,11 @@ export function getPlotSurveyByUuid(uuid: string): PlotSurvey | null {
 
 export function importPlotSurvey(
   data: ImportedPlot,
-  opts: { newUuid: boolean; photoUriByName?: Map<string, string> },
+  opts: {
+    newUuid: boolean;
+    photoUriByName?: Map<string, string>;
+    audioUriByName?: Map<string, string>;
+  },
 ): { plotId: number; plotid: string } {
   // One transaction for the whole record: the overwrite path deletes the
   // previous copy first, so a failure halfway through the species loop would
@@ -1145,16 +1152,27 @@ export function importPlotSurvey(
 
 function importPlotSurveyTx(
   data: ImportedPlot,
-  opts: { newUuid: boolean; photoUriByName?: Map<string, string> },
+  opts: {
+    newUuid: boolean;
+    photoUriByName?: Map<string, string>;
+    audioUriByName?: Map<string, string>;
+  },
 ): { plotId: number; plotid: string } {
   const db = getUserDb();
   const now = Date.now();
   const uuid = opts.newUuid ? generateUuid() : data.uuid;
   const photoUri = (name: string) => opts.photoUriByName?.get(name) ?? null;
-  const photoPaths = (files: string[] | undefined): string | null => {
-    const uris = (files ?? []).map(photoUri).filter((u): u is string => u !== null);
+  const resolveMedia = (
+    files: string[] | undefined,
+    byName: Map<string, string> | undefined,
+  ): string | null => {
+    const uris = (files ?? [])
+      .map((f) => byName?.get(f) ?? null)
+      .filter((u): u is string => u !== null);
     return uris.length > 0 ? JSON.stringify(uris) : null;
   };
+  const photoPaths = (files: string[] | undefined) => resolveMedia(files, opts.photoUriByName);
+  const audioPaths = (files: string[] | undefined) => resolveMedia(files, opts.audioUriByName);
 
   // Overwrite mode: drop any existing plot with this uuid first, children and
   // all — otherwise the previous version's species rows survive as orphans
@@ -1277,9 +1295,11 @@ function importPlotSurveyTx(
       `INSERT INTO plot_species_records (
          plot_survey_id, taxon_id, occurrence_id, subplot_id, layer,
          organism_quantity, organism_quantity_type, notes, sex, life_stage,
-         reproductive_condition, leaf_phenology, lat, lng, accuracy, detection_type,
-         photo_paths, used_name_id, used_scientific_name, observed_at, created_at, updated_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         reproductive_condition, leaf_phenology, degree_of_establishment,
+         lat, lng, accuracy, detection_type,
+         photo_paths, audio_paths, used_name_id, used_scientific_name,
+         observed_at, created_at, updated_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         plotId,
         sp.taxon_id,
@@ -1296,11 +1316,15 @@ function importPlotSurveyTx(
         sp.life_stage ?? null,
         sp.reproductive_condition ?? null,
         sp.leaf_phenology ?? null,
+        // Parsed since v33 but never written here — the column was missing
+        // from the statement, so an imported record lost it silently.
+        sp.degree_of_establishment ?? null,
         sp.lat ?? null,
         sp.lng ?? null,
         sp.accuracy ?? null,
         sp.detection_type ?? null,
         photoPaths(sp.photo_files),
+        audioPaths(sp.audio_files),
         sp.used_name_id ?? null,
         sp.used_scientific_name ?? null,
         sp.observed_at ?? now,

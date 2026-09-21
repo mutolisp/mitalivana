@@ -10,11 +10,13 @@
 import { convertToDwc } from './dwcMapper';
 import { parseMultiAttribute } from './dwcMultiValue';
 import type {
+  CollectionTrip,
   PlotLayer,
   PlotSpeciesRecordWithTaxon,
   PlotSurvey,
   RecordWithTaxon,
   Session,
+  SpecimenWithTaxon,
   Subplot,
   SubplotLayer,
   ImportedSite,
@@ -45,9 +47,20 @@ export function localIso(ts: number): string {
 /** Photo filenames assigned by the exporter, keyed by occurrence_id. */
 export type PhotoNames = Map<string, string[]>;
 
-function photoField(names: PhotoNames | undefined, occurrenceId: string | null): string | null {
+/** `photo_files` cell (→ DwC `associatedMedia`): the names the exporter gave
+ *  this record's photos inside the zip. Shared by every record kind. */
+export function photoField(names: PhotoNames | undefined, occurrenceId: string | null): string | null {
   const list = occurrenceId ? names?.get(occurrenceId) : undefined;
   return list && list.length > 0 ? list.join('|') : null;
+}
+
+/** `audio_files` cell: the names this record's recorded clips landed under in
+ *  the zip's audio/. Kept separate from `photo_files` rather than folded into
+ *  associatedMedia, so the round trip restores audio_paths and photo_paths to
+ *  the columns they came from. The DwC deliverables merge the two — see
+ *  bundleExport's toDwcCsvRow. */
+export function audioField(names: PhotoNames | undefined, occurrenceId: string | null): string | null {
+  return photoField(names, occurrenceId);
 }
 
 /** `site:` block — same shape in both files. Geometry stays a real mapping
@@ -62,6 +75,7 @@ function siteBlock(site: ImportedSite | null): Record<string, unknown> | null {
 export function recordToYamlItem(
   r: RecordWithTaxon,
   photoNames?: PhotoNames,
+  audioNames?: PhotoNames,
 ): Record<string, unknown> {
   const fullname = r.name_author ? `${r.simple_name} ${r.name_author}` : r.simple_name;
   const item: Record<string, unknown> = {
@@ -103,6 +117,8 @@ export function recordToYamlItem(
   // → DwC `associatedMedia`; the filenames inside the zip's photos/.
   const photos = photoField(photoNames, r.occurrence_id);
   if (photos) item.photo_files = photos;
+  const audio = audioField(audioNames, r.occurrence_id);
+  if (audio) item.audio_files = audio;
   addNameUsage(item, r);
   return item;
 }
@@ -139,10 +155,11 @@ export type SessionYamlInput = {
   records: RecordWithTaxon[];
   site: ImportedSite | null;
   photoNames?: PhotoNames;
+  audioNames?: PhotoNames;
 };
 
 export function buildSessionYamlDoc(input: SessionYamlInput): Record<string, unknown> {
-  const { session, projectName, records, site, photoNames } = input;
+  const { session, projectName, records, site, photoNames, audioNames } = input;
   const startIso = localIso(session.started_at);
   const endIso = session.ended_at !== null ? localIso(session.ended_at) : null;
 
@@ -167,11 +184,108 @@ export function buildSessionYamlDoc(input: SessionYamlInput): Record<string, unk
 
   const doc: Record<string, unknown> = {
     event,
-    checklist: records.map((r) => convertToDwc(recordToYamlItem(r, photoNames))),
+    checklist: records.map((r) => convertToDwc(recordToYamlItem(r, photoNames, audioNames))),
   };
   if (projectName) doc.project = projectName;
   const sb = siteBlock(site);
   if (sb) doc.site = sb;
+  return doc;
+}
+
+// ── Collection (採集) ──────────────────────────────────────────────────────
+
+export function specimenToYamlItem(
+  sp: SpecimenWithTaxon,
+  photoNames?: PhotoNames,
+  audioNames?: PhotoNames,
+): Record<string, unknown> {
+  const fullname = sp.name_author ? `${sp.simple_name} ${sp.name_author}` : sp.simple_name;
+  const item: Record<string, unknown> = {
+    occurrence_id: sp.occurrence_id,
+    basis_of_record: 'PreservedSpecimen',
+    record_number: sp.record_number,
+    taxon_id: sp.taxon_id,
+    name: sp.simple_name,
+    fullname,
+    name_author: sp.name_author,
+    cname: sp.common_name_c,
+    family: sp.family,
+    family_c: sp.family_c,
+    kingdom: sp.kingdom,
+    phylum: sp.phylum,
+    class_name: sp.class,
+    order: sp.order,
+    iucn_category: sp.iucn,
+    redlist: sp.redlist,
+    cites: sp.cites,
+    protected: sp.protected,
+    endemic: sp.is_endemic === 'true' ? 1 : 0,
+    is_hybrid: sp.is_hybrid,
+    eventDate: localIso(sp.collected_at),
+  };
+  if (sp.recorded_by) item.recorded_by = sp.recorded_by;
+  if (sp.identified_by) item.identified_by = sp.identified_by;
+  if (sp.lat !== null) item.lat = sp.lat;
+  if (sp.lng !== null) item.lng = sp.lng;
+  if (sp.accuracy !== null) item.accuracy = sp.accuracy;
+  if (sp.locality) item.locality = sp.locality;
+  if (sp.sex) item.sex = sp.sex;
+  if (sp.life_stage) item.life_stage = sp.life_stage;
+  const repro = multiToPipe(sp.reproductive_condition);
+  if (repro) item.reproductive_condition = repro;
+  const leaf = multiToPipe(sp.leaf_phenology);
+  if (leaf) item.leaf_phenology = leaf;
+  if (sp.degree_of_establishment) item.degree_of_establishment = sp.degree_of_establishment;
+  if (sp.notes) item.notes = sp.notes;
+  // → DwC `associatedMedia`; the filenames inside the zip's photos/. A trip
+  // often holds several duplicates of one species, so without this the photos
+  // cannot be traced back to the specimen they document.
+  const photos = photoField(photoNames, sp.occurrence_id);
+  if (photos) item.photo_files = photos;
+  const audio = audioField(audioNames, sp.occurrence_id);
+  if (audio) item.audio_files = audio;
+  // A specimen determined under a name the checklist calls non-accepted says so
+  // on the label and in the export — the determination is the datum.
+  if (sp.used_name_id != null || sp.used_scientific_name) {
+    if (sp.used_name_id != null) item.used_name_id = sp.used_name_id;
+    if (sp.used_status) item.used_status = sp.used_status;
+    if (sp.used_accepted_name) item.accepted_name = sp.used_accepted_name;
+    item.accepted_taxon_id = sp.taxon_id;
+  }
+  return item;
+}
+
+export type CollectionYamlInput = {
+  trip: CollectionTrip;
+  projectName: string;
+  specimens: SpecimenWithTaxon[];
+  photoNames?: PhotoNames;
+  audioNames?: PhotoNames;
+};
+
+export function buildCollectionYamlDoc(input: CollectionYamlInput): Record<string, unknown> {
+  const { trip, projectName, specimens, photoNames, audioNames } = input;
+  const startIso = localIso(trip.started_at);
+  const endIso = trip.ended_at !== null ? localIso(trip.ended_at) : null;
+
+  // Same split as the session block: `eventID` is the human-facing trip name
+  // the user can rename, `eventUUID` is what survives that rename.
+  const event: Record<string, unknown> = {
+    eventID: trip.name,
+    eventUUID: trip.uuid,
+    eventDate: endIso ? `${startIso}/${endIso}` : startIso,
+    startedAt: startIso,
+  };
+  if (endIso) event.endedAt = endIso;
+  if (trip.recorded_by) event.recordedBy = trip.recorded_by;
+  if (trip.locality) event.locality = trip.locality;
+  if (trip.notes) event.eventRemarks = trip.notes;
+
+  const doc: Record<string, unknown> = {
+    event,
+    specimens: specimens.map((sp) => convertToDwc(specimenToYamlItem(sp, photoNames, audioNames))),
+  };
+  if (projectName) doc.project = projectName;
   return doc;
 }
 
@@ -186,6 +300,7 @@ export type PlotYamlInput = {
   subplotLabelById: Map<number, string>;
   site: ImportedSite | null;
   photoNames?: PhotoNames;
+  audioNames?: PhotoNames;
   envPhotoNames?: string[];
 };
 
@@ -223,6 +338,8 @@ export function buildPlotYamlDoc(input: PlotYamlInput): Record<string, unknown> 
     if (r.lng !== null) item.lng = r.lng;
     if (r.accuracy !== null) item.accuracy = r.accuracy;
     item.observed_at = r.observed_at;
+    const audio = audioField(input.audioNames, r.occurrence_id);
+    if (audio) item.audio_files = audio;
     const photos = photoField(input.photoNames, r.occurrence_id);
     if (photos) item.photo_files = photos;
     addNameUsage(item, r);

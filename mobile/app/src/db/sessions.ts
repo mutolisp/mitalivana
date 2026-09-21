@@ -210,6 +210,9 @@ export type ImportedSessionRecord = {
   leaf_phenology?: string | null;
   /** Photo filenames inside the zip's `photos/` belonging to this record. */
   photo_files?: string[];
+  /** Clip filenames inside the zip's `audio/` belonging to this record. */
+  audio_files?: string[];
+  degree_of_establishment?: string | null;
   /** The name this record was filed under, when not the accepted one (v28). */
   used_name_id?: number | null;
   used_scientific_name?: string | null;
@@ -239,7 +242,11 @@ export function getSessionByUuid(uuid: string): Session | null {
 
 export function importSession(
   data: ImportedSession,
-  opts: { newUuid: boolean; photoUriByName?: Map<string, string> },
+  opts: {
+    newUuid: boolean;
+    photoUriByName?: Map<string, string>;
+    audioUriByName?: Map<string, string>;
+  },
 ): { sessionId: number; name: string } {
   // Same reasoning as importPlotSurvey: overwrite deletes the previous copy
   // first, so the whole thing has to be atomic.
@@ -248,17 +255,26 @@ export function importSession(
 
 function importSessionTx(
   data: ImportedSession,
-  opts: { newUuid: boolean; photoUriByName?: Map<string, string> },
+  opts: {
+    newUuid: boolean;
+    photoUriByName?: Map<string, string>;
+    audioUriByName?: Map<string, string>;
+  },
 ): { sessionId: number; name: string } {
   const db = getUserDb();
   const now = Date.now();
   const uuid = opts.newUuid ? generateUuid() : data.uuid;
-  const photoPaths = (files: string[] | undefined): string | null => {
+  const resolveMedia = (
+    files: string[] | undefined,
+    byName: Map<string, string> | undefined,
+  ): string | null => {
     const uris = (files ?? [])
-      .map((f) => opts.photoUriByName?.get(f) ?? null)
+      .map((f) => byName?.get(f) ?? null)
       .filter((u): u is string => u !== null);
     return uris.length > 0 ? JSON.stringify(uris) : null;
   };
+  const photoPaths = (files: string[] | undefined) => resolveMedia(files, opts.photoUriByName);
+  const audioPaths = (files: string[] | undefined) => resolveMedia(files, opts.audioUriByName);
 
   // Overwrite mode: drop the previous copy by hand (FK cascades are off).
   let prevSiteId: number | null = null;
@@ -315,10 +331,11 @@ function importSessionTx(
     db.executeSync(
       `INSERT INTO checklist_records (
          session_id, taxon_id, occurrence_id, observed_at, notes, photo_paths,
-         lat, lng, accuracy, sex, life_stage, reproductive_condition, leaf_phenology,
+         audio_paths, lat, lng, accuracy, sex, life_stage, reproductive_condition,
+         leaf_phenology, degree_of_establishment,
          organism_quantity, organism_quantity_type, used_name_id, used_scientific_name,
          updated_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         sessionId,
         r.taxon_id,
@@ -327,6 +344,7 @@ function importSessionTx(
         r.observed_at ?? data.started_at,
         r.notes ?? null,
         photoPaths(r.photo_files),
+        audioPaths(r.audio_files),
         r.lat ?? null,
         r.lng ?? null,
         r.accuracy ?? null,
@@ -334,6 +352,9 @@ function importSessionTx(
         r.life_stage ?? null,
         r.reproductive_condition ?? null,
         r.leaf_phenology ?? null,
+        // Parsed since v33 but never written here — the column was missing
+        // from the statement, so an imported record lost it silently.
+        r.degree_of_establishment ?? null,
         r.organism_quantity ?? null,
         r.organism_quantity_type ?? null,
         r.used_name_id ?? null,

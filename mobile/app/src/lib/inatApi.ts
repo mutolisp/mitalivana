@@ -131,6 +131,17 @@ export async function searchTaxa(
 }
 
 /**
+ * iNaturalist's data quality grades. They partition the observations of a taxon:
+ * measured on taxon 26887 (*Hynobius arisanensis*) on 2026-09-20,
+ * research 236 + needs_id 1 + casual 2 = 239 = the unfiltered total.
+ *
+ * `casual` is not the same as captive: it also catches observations missing a
+ * date, a location or media, so it cannot be used to count cultivated records —
+ * `captive` is a separate filter.
+ */
+export type InatQualityGrade = 'research' | 'needs_id' | 'casual';
+
+/**
  * 某個 taxon 的觀察筆數。未認證。
  *
  * `per_page=0` 讓 iNat 只回 `total_results`、`results` 是空陣列——拿一個數字不必
@@ -139,11 +150,12 @@ export async function searchTaxa(
  */
 export async function fetchObservationCount(
   taxonId: number,
-  opts: { wildOnly?: boolean } = {},
+  opts: { wildOnly?: boolean; qualityGrade?: InatQualityGrade } = {},
   signal?: AbortSignal,
 ): Promise<number> {
   const params: Record<string, string> = { taxon_id: String(taxonId), per_page: '0' };
   if (opts.wildOnly) params.captive = 'false';
+  if (opts.qualityGrade) params.quality_grade = opts.qualityGrade;
   const json = await getJson('inat', `${API_V1}/observations?${qs(params)}`, signal);
   const n = Number(json.total_results);
   return Number.isFinite(n) && n > 0 ? n : 0;

@@ -254,7 +254,8 @@
     "regionPacks": "지역별 종 목록",
     "inaturalist": "iNaturalist 계정",
     "gdrive": "Google 드라이브",
-    "inatUpload": "iNaturalist에 업로드"
+    "inatUpload": "iNaturalist에 업로드",
+    "identifiers": "동정자"
   },
   "tab": {
     "menu": "설정",
@@ -604,7 +605,6 @@
     "integrityDup": "{{table}}: {{groups}}({{rows}})",
     "integrityFailed": "데이터 점검 실패: {{error}}",
     "defaultDeterminer": "기본 동정자",
-    "defaultDeterminerPlaceholder": "예: 林政道(Cheng-Tao Lin)",
     "regionPacks": "지역 종 목록",
     "regionPacksDesc": "대만, 일본 및 내려받은 국가별 목록을 각각 켜고 끌 수 있습니다",
     "integrityOrphan_other": "{{table}}: 고아 데이터 {{count}}행",
@@ -618,7 +618,11 @@
     "inaturalistLinked": "연결됨: {{login}}",
     "gdrive": "Google 드라이브",
     "gdriveDesc": "백업을 내 드라이브에 업로드",
-    "gdriveLinked": "연결됨: {{email}}"
+    "gdriveLinked": "연결됨: {{email}}",
+    "defaultCollector": "기본 채집자",
+    "defaultCollectorDesc": "조사자 목록을 사용하며, ★ 표시한 이름이 새 채집에 자동 입력됩니다",
+    "defaultDeterminerDesc": "자주 쓰는 동정자 목록; ★ 표시한 이름이 새 표본에 자동 입력됩니다",
+    "noDefaultPerson": "설정 안 됨"
   },
   "taxonomy": {
     "loadingTree": "분류 트리 불러오는 중...",
@@ -794,7 +798,8 @@
     "redrawRange": "이 범위 다시 그리기",
     "featureAction": "작업",
     "basemapRudyVector": "RudyMap",
-    "basemapRudyVectorOffline": "RudyMap (오프라인)"
+    "basemapRudyVectorOffline": "RudyMap (오프라인)",
+    "compass": "나침반 — 누르면 북쪽으로 돌아갑니다"
   },
   "keys": {
     "modeDichotomous": "이분법",
@@ -995,7 +1000,12 @@
     "saveSite": "사이트 저장",
     "siteNameEx": "예: 사이트 A",
     "siteNotesEx": "장소, 해발고도, 식생 등을 적으세요",
-    "siteTypeVertices_other": "유형: {{type}} · 꼭짓점 {{count}}개"
+    "siteTypeVertices_other": "유형: {{type}} · 꼭짓점 {{count}}개",
+    "assignIdentifier": "동정자 지정",
+    "assignIdentifierDesc": "다중 선택 가능; ☰ 를 길게 눌러 순서 변경(환경설정과 동기화)",
+    "identifierNamePlaceholder": "동정자 이름",
+    "addIdentifier": "추가",
+    "emptyIdentifiers": "동정자가 없습니다. 위의 “동정자 추가”를 누르세요."
   },
   "exportPref": {
     "title": "내보내기 설정",
@@ -1171,14 +1181,17 @@
     "inatResults": "iNaturalist 분류군",
     "inatNoMatch": "iNaturalist에도 \"{{q}}\"이(가) 없습니다",
     "obsCount": "관찰 {{count}}건",
-    "showingNow": "표시 중",
     "stop": "표시 중지",
     "synonymAsk": "iNaturalist는 \"{{asked}}\"을(를) {{accepted}}(으)로 수록합니다. 격자는 후자의 관찰 기록입니다.",
     "synonymUse": "그 이름으로 표시",
     "viaSynonym": "iNaturalist에는 {{name}}(으)로 수록되어 있으며, 격자는 그 이름의 관찰 기록입니다",
     "viaSynonymShort": "검색 이름: {{name}}",
     "legendFew": "적음",
-    "legendMany": "많음"
+    "legendMany": "많음",
+    "detailWild": "야생 {{count}}건",
+    "detailCaptive": "사육·재배 {{count}}건",
+    "detailResearch": "연구 등급 {{count}}건({{pct}}%)",
+    "detailLoading": "세부 정보 확인 중…"
   },
   "collection": {
     "title": "채집 기록",
@@ -1451,7 +1464,9 @@
     "builtinJpSub": "JBIF·YList 종 목록 · 약 2.6만 건",
     "introRegister": " (가입은 여기)",
     "introEnd": ".",
-    "readyCount_other": "종명 {{count}}건"
+    "readyCount_other": "종명 {{count}}건",
+    "filterPlaceholder": "설치된 목록 검색",
+    "filterEmpty": "\"{{q}}\"과(와) 일치하는 목록이 없습니다"
   },
   "datasets": {
     "section": "목록 데이터",
@@ -2015,5 +2030,11 @@
     "poiError": "내려받기 실패: {{message}}",
     "wifiHint": "Wi-Fi 환경을 권장합니다.",
     "statusBoth": "지도와 지형지물"
+  },
+  "identifiers": {
+    "addTitle": "동정자 추가",
+    "create": "만들기",
+    "hint": "“기본”(★)으로 표시한 동정자는 새 표본 기록의 동정자 항목에 자동으로 입력됩니다. 오른쪽 ☰ 를 길게 눌러 순서를 바꿀 수 있습니다.",
+    "empty": "동정자가 없습니다. 오른쪽 위 ＋ 를 눌러 추가하세요."
   }
 }

@@ -36,7 +36,7 @@ const GOOGLE_OAUTH_DEVICE_CLIENT_SECRET = process.env.GOOGLE_OAUTH_DEVICE_CLIENT
 const config: ExpoConfig = {
   name: 'Mitalivana',
   slug: 'checklister-mobile',
-  version: '0.5.0',
+  version: '0.5.1',
   orientation: 'portrait',
   icon: './assets/images/icon.png',
   scheme: 'checklister',

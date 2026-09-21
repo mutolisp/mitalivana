@@ -26,12 +26,26 @@ import yaml from 'js-yaml';
 export type ImportedPhotoBlob = { name: string; bytes: Uint8Array };
 
 export type ReadRecordImport =
-  | { kind: 'plot'; plot: ImportedPlot; photos: ImportedPhotoBlob[] }
-  | { kind: 'session'; session: ImportedSession; photos: ImportedPhotoBlob[] };
+  | {
+      kind: 'plot';
+      plot: ImportedPlot;
+      photos: ImportedPhotoBlob[];
+      audio: ImportedPhotoBlob[];
+    }
+  | {
+      kind: 'session';
+      session: ImportedSession;
+      photos: ImportedPhotoBlob[];
+      audio: ImportedPhotoBlob[];
+    };
 
 type Entries = Record<string, Uint8Array>;
 
 const PHOTO_EXTS = ['jpg', 'jpeg', 'png', 'heic', 'heif', 'webp'];
+/** What the recorder writes is m4a; the rest are accepted so a clip edited
+ *  outside the app still imports. Anything not on this list is dropped by
+ *  safeMediaBasename, which is the traversal guard — keep it narrow. */
+const AUDIO_EXTS = ['m4a', 'mp3', 'wav', 'aac'];
 const GEO_EXTS = ['geojson', 'gpx', 'kml'] as const;
 
 /**
@@ -42,17 +56,21 @@ const GEO_EXTS = ['geojson', 'gpx', 'kml'] as const;
  * path component, then require a known image extension — a traversal payload
  * survives the first step but never the second.
  */
-export function safePhotoBasename(entryName: string): string | null {
+export function safeMediaBasename(entryName: string, allowed: string[]): string | null {
   const base = entryName.split('/').pop() ?? '';
   const m = base.match(/^(.+)\.([A-Za-z0-9]+)$/);
   if (!m) return null;
   const ext = m[2].toLowerCase();
-  if (!PHOTO_EXTS.includes(ext)) return null;
+  if (!allowed.includes(ext)) return null;
   // Keep letters/digits/._- (the same shape sanitizeFilename emits), collapse
   // anything else — including the '.' and '/' a traversal needs.
   const stem = m[1].replace(/[^\p{L}\p{N}_-]+/gu, '_').replace(/^_+|_+$/g, '');
   if (!stem) return null;
   return `${stem}.${ext}`;
+}
+
+export function safePhotoBasename(entryName: string): string | null {
+  return safeMediaBasename(entryName, PHOTO_EXTS);
 }
 
 function isZip(bytes: Uint8Array): boolean {
@@ -124,12 +142,17 @@ function geometryToSite(geos: ImportedGeometry[], fallbackName: string): Importe
   };
 }
 
-function collectPhotos(entries: Entries, folder: string): ImportedPhotoBlob[] {
-  const prefix = folder ? `${folder}/photos/` : 'photos/';
+function collectMedia(
+  entries: Entries,
+  folder: string,
+  dir: 'photos' | 'audio',
+  allowed: string[],
+): ImportedPhotoBlob[] {
+  const prefix = folder ? `${folder}/${dir}/` : `${dir}/`;
   const out: ImportedPhotoBlob[] = [];
   for (const [name, bytes] of Object.entries(entries)) {
     if (!name.toLowerCase().startsWith(prefix.toLowerCase())) continue;
-    const safe = safePhotoBasename(name);
+    const safe = safeMediaBasename(name, allowed);
     if (!safe) continue;
     out.push({ name: safe, bytes });
   }
@@ -203,8 +226,8 @@ export function readRecordImportFromBytes(raw: Uint8Array): ReadRecordImport {
   if (!isZip(raw)) {
     const doc = yaml.load(strFromU8(raw)) as Record<string, unknown> | null;
     return docKind(doc) === 'plot'
-      ? { kind: 'plot', plot: plotFromDoc(doc), photos: [] }
-      : { kind: 'session', session: sessionFromDoc(doc), photos: [] };
+      ? { kind: 'plot', plot: plotFromDoc(doc), photos: [], audio: [] }
+      : { kind: 'session', session: sessionFromDoc(doc), photos: [], audio: [] };
   }
 
   const meta = metaEntries(raw);
@@ -213,15 +236,16 @@ export function readRecordImportFromBytes(raw: Uint8Array): ReadRecordImport {
   const doc = yaml.load(textOf(meta, ymlName)) as Record<string, unknown> | null;
   const kind = manifestKind === 'plot' || manifestKind === 'session' ? manifestKind : docKind(doc);
 
-  // Pass 2 — the photo bytes, now that the kind is known and accepted.
-  const photoEntries = unzipSync(raw, { filter: (f) => /(^|\/)photos\//i.test(f.name) });
-  const photos = collectPhotos(photoEntries, folder);
+  // Pass 2 — the media bytes, now that the kind is known and accepted.
+  const mediaEntries = unzipSync(raw, { filter: (f) => /(^|\/)(photos|audio)\//i.test(f.name) });
+  const photos = collectMedia(mediaEntries, folder, 'photos', PHOTO_EXTS);
+  const audio = collectMedia(mediaEntries, folder, 'audio', AUDIO_EXTS);
 
   if (kind === 'plot') {
     const plot = plotFromDoc(doc);
     if (!plot.track_geojson) plot.track_geojson = geometriesToTrack(geoSidecar(meta, folder, 'track'));
     if (!plot.site) plot.site = geometryToSite(geoSidecar(meta, folder, 'site'), plot.plotid);
-    return { kind: 'plot', plot, photos };
+    return { kind: 'plot', plot, photos, audio };
   }
 
   const session = sessionFromDoc(doc);
@@ -229,5 +253,5 @@ export function readRecordImportFromBytes(raw: Uint8Array): ReadRecordImport {
     session.track_geojson = geometriesToTrack(geoSidecar(meta, folder, 'track'));
   }
   if (!session.site) session.site = geometryToSite(geoSidecar(meta, folder, 'site'), session.name);
-  return { kind: 'session', session, photos };
+  return { kind: 'session', session, photos, audio };
 }
