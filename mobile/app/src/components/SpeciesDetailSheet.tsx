@@ -15,7 +15,6 @@ import { InatSyncButton, type InatSheetState } from './InatSyncButton';
 import i18n from '~/i18n';
 import { observationWebUrl } from '~/lib/inatApi';
 import { showActionSheet } from './ActionSheet';
-import { promptText } from './TextPromptModal';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { useSettings } from '~/stores/settings';
@@ -40,6 +39,8 @@ import { TaxonomyJumpChip } from './TaxonomyJumpChip';
 import { NotesEditModal } from './NotesEditModal';
 import { KeyboardAvoidingView } from './KeyboardAvoidingView';
 import { RecordLocationMap } from './RecordLocationMap';
+import { firstPhotoFix } from '~/lib/photoMeta';
+import { VerbatimLabelField } from './VerbatimLabelField';
 import { SpeciesAttributesBlock, type SpeciesAttributesDraft } from './SpeciesAttributesBlock';
 import { parseMultiAttribute } from '~/lib/dwcAttributes';
 
@@ -71,7 +72,8 @@ type Props = {
    *  taxon. Optional — callers without a search box simply omit it. */
   onReplaceTaxon?: () => void;
   /** Save the verbatim field determination (`sp1` under a family or genus).
-   *  Pass null to clear. Omit to hide the control. */
+   *  Pass null to clear. Omit to hide the control — `VerbatimLabelField` also
+   *  hides itself on a record already determined to species. */
   onSaveVerbatim?: (value: string | null) => void;
   /** Position of this record in the caller's ON-SCREEN order, so the sheet can
    *  step to the neighbouring one by swipe or chevron. Omit to disable. */
@@ -232,31 +234,13 @@ export function SpeciesDetailSheet({
                       className="text-sm text-gray-700 dark:text-gray-300"
                       selectable
                     />
-                    {/* Prompted rather than an inline field: this sheet is a
-                        Modal and an inline TextInput inside one drags the
-                        keyboard-avoidance problem in with it (the coordinate
-                        entry is the one exception, and it earned it).
-                        `promptText` is the cross-platform way. */}
                     {onSaveVerbatim ? (
-                      <Pressable
-                        onPress={async () => {
-                          const next = await promptText({
-                            title: t('species.verbatimTitle'),
-                            placeholder: t('species.verbatimPlaceholder'),
-                            defaultValue: record.verbatim_identification ?? '',
-                            confirmText: t('common.save'),
-                          });
-                          if (next === null) return;
-                          onSaveVerbatim(next.trim() || null);
-                        }}
-                        hitSlop={6}
-                        className="mt-1 flex-row items-center self-start active:opacity-70"
-                      >
-                        <Ionicons name="pricetag-outline" size={13} color="#6b7280" />
-                        <Text className="ml-1 text-xs text-gray-600 dark:text-gray-400">
-                          {record.verbatim_identification || t('species.verbatimAdd')}
-                        </Text>
-                      </Pressable>
+                      <VerbatimLabelField
+                        key={record.id}
+                        rank={record.rank}
+                        value={record.verbatim_identification}
+                        onCommit={onSaveVerbatim}
+                      />
                     ) : null}
                     {onReplaceTaxon ? (
                       <Pressable
@@ -303,9 +287,9 @@ export function SpeciesDetailSheet({
                 the sheet container, which is what keeps the header from being
                 pushed off the top edge. */}
                 <KeyboardAvoidingView className="flex-1" behavior="padding">
-                  {/* `keyboardShouldPersistTaps="handled"`: the sheet's only inline
-                  TextInput is RecordLocationMap's coordinate entry, whose Cancel
-                  and OK sit directly under it. RN's default 'never' spends the
+                  {/* `keyboardShouldPersistTaps="handled"`: the sheet's inline
+                  TextInputs (RecordLocationMap's coordinate entry, the verbatim
+                  label) both put Cancel and OK directly under the field. RN's default 'never' spends the
                   first tap dismissing the keyboard, so those two buttons needed
                   two taps — a pre-existing bug the locate-first reorder makes far
                   easier to hit. 'handled' still dismisses on taps no child takes.
@@ -519,6 +503,46 @@ export function SpeciesDetailSheet({
                             {record.lat !== null
                               ? t('species.longPressClear')
                               : t('species.tapGps')}
+                          </Text>
+                        </Pressable>
+                      ) : null}
+                      {/* Only when there is a photo and no position: a photo
+                          taken at the plant carries the fix the recorder never
+                          got round to saving, and reading it back beats
+                          stamping wherever they are standing now. Hidden once a
+                          position exists — silently overwriting a measured
+                          coordinate is not something a button should offer. */}
+                      {onSaveLocation && record.lat === null && parsePhotoPaths(record.photo_paths).length > 0 ? (
+                        <Pressable
+                          onPress={async () => {
+                            const out = await firstPhotoFix(parsePhotoPaths(record.photo_paths));
+                            // `Alert`, not the toast store: ToastHost is an
+                            // absolutely-positioned View at the navigation root,
+                            // and iOS gives this Modal its own window — a toast
+                            // fired from in here renders behind the sheet and is
+                            // never seen. Alert is a native UIAlertController and
+                            // does come up on top.
+                            if (out.kind === 'needs-photo-access') {
+                              // Not asked for here: requesting it would present a
+                              // system dialog on a view controller that is already
+                              // presenting this sheet.
+                              Alert.alert(t('species.usePhotoGps'), t('species.photoNeedsAccess'));
+                              return;
+                            }
+                            if (out.kind === 'no-gps') {
+                              Alert.alert(t('species.usePhotoGps'), t('species.photoNoGps'));
+                              return;
+                            }
+                            // No success notice: the coordinate row and the map
+                            // point below update on the spot, which says it better
+                            // than an alert the user has to dismiss.
+                            onSaveLocation(out.fix.lat, out.fix.lng, out.fix.accuracyM);
+                          }}
+                          className="mt-2 flex-row items-center rounded-lg border border-gray-200 px-3 py-2 active:bg-gray-50 dark:border-gray-700 dark:active:bg-gray-800"
+                        >
+                          <Ionicons name="image-outline" size={18} color="#4b5563" />
+                          <Text className="ml-2 flex-1 text-sm text-gray-700 dark:text-gray-300">
+                            {t('species.usePhotoGps')}
                           </Text>
                         </Pressable>
                       ) : null}

@@ -30,6 +30,7 @@ import { ScientificName } from './ScientificName';
 import { KeyboardAvoidingView } from './KeyboardAvoidingView';
 import { SurveyorAssignSheet } from './SurveyorAssignSheet';
 import { SpeciesAttributesBlock, type SpeciesAttributesDraft } from './SpeciesAttributesBlock';
+import { VerbatimLabelField } from './VerbatimLabelField';
 
 export type SpecimenPatch = {
   record_number?: string;
@@ -42,6 +43,7 @@ export type SpecimenPatch = {
   life_stage?: string | null;
   reproductive_condition?: string | null;
   leaf_phenology?: string | null;
+  verbatim_identification?: string | null;
 };
 
 type Props = {
@@ -269,6 +271,15 @@ export function SpecimenDetailSheet({
                         : specimen.family}
                     </Text>
                   ) : null}
+                  {/* Writes straight through rather than waiting for a blur
+                      like the text fields around it: the field owns its own
+                      confirm button, so there is nothing left pending. */}
+                  <VerbatimLabelField
+                    key={specimen.id}
+                    rank={specimen.rank}
+                    value={specimen.verbatim_identification}
+                    onCommit={(v) => onSave({ verbatim_identification: v })}
+                  />
                   <Pressable
                     onPress={onReplaceTaxon}
                     hitSlop={6}

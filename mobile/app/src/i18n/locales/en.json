@@ -404,7 +404,10 @@
     "audioFailTitle": "Could not record",
     "verbatimTitle": "Field determination",
     "verbatimPlaceholder": "e.g. sp1, sp2",
-    "verbatimAdd": "+ Field determination"
+    "verbatimAdd": "+ Field determination",
+    "usePhotoGps": "Use the photo’s GPS",
+    "photoNoGps": "None of this record’s photos carry GPS",
+    "photoNeedsAccess": "Those photos live in the photo library — grant full photo access in Settings to read their coordinates"
   },
   "attr": {
     "advanced": "Advanced (species attributes)",
@@ -2214,5 +2217,22 @@
     "noText": "This package ships no licence text; it declares {{id}} only.",
     "summary_one": "{{count}} dependency",
     "summary_other": "{{count}} dependencies"
+  },
+  "photoImport": {
+    "title": "Import from photos",
+    "add_one": "Add {{count}}",
+    "add_other": "Add {{count}}",
+    "reading": "Reading photo metadata…",
+    "summary": "{{resolved}} identified · {{pending}} to assign",
+    "speciesFor_one": "Species for {{count}} photo",
+    "speciesFor_other": "Species for {{count}} photos",
+    "noCoordCount_one": "{{count}} photo without coordinates",
+    "noCoordCount_other": "{{count}} photos without coordinates",
+    "noCoordTitle": "Photos without coordinates",
+    "noCoordHint": "What to do when a photo carries no GPS. Leaving them empty is safest — by the time you import, you are usually no longer there.",
+    "leaveEmpty": "Leave empty",
+    "useCurrent": "Use my current position",
+    "entry": "Import from photos",
+    "none": "None of the selected photos can become a record"
   }
 }

@@ -244,7 +244,7 @@ export async function bundleProject(
     }
 
     if (wantJuice) {
-      const table = buildJuiceTable(releves, cols, `${project.name} (checklister-ng)`);
+      const table = buildJuiceTable(releves, cols, `${project.name} (mitalivana)`);
       lossyTaxa = table.lossyTaxa;
       entries.push({ name: `juice/${safeName}_table.csv`, bytes: strToU8(table.text) });
       entries.push({ name: `juice/${safeName}_header.csv`, bytes: strToU8(buildJuiceHeader(releves)) });
@@ -258,7 +258,7 @@ export async function bundleProject(
     const dwca = buildRecordsDwca({
       title: project.name,
       abstract: project.abstract ?? '',
-      packageId: `checklister-ng-${safeName}-${new Date().toISOString().slice(0, 10)}`,
+      packageId: `mitalivana-${safeName}-${new Date().toISOString().slice(0, 10)}`,
       plots,
       sessions,
       trips,
@@ -291,7 +291,7 @@ export async function bundleProject(
     taxa: cols.length,
   };
   const projectYml = {
-    app: 'checklister-ng-mobile',
+    app: 'mitalivana',
     type: 'project',
     schema_version: 1,
     created_at: localIso(now.getTime()),
@@ -341,7 +341,7 @@ export async function bundleProject(
     bytes: strToU8(
       JSON.stringify(
         {
-          app: 'checklister-ng-mobile',
+          app: 'mitalivana',
           schema_version: 1,
           type: 'project',
           created_at: now.toISOString(),

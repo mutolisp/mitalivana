@@ -63,6 +63,8 @@ import { ProjectAssignSheet } from '~/components/ProjectAssignSheet';
 import { SurveyorAssignSheet } from '~/components/SurveyorAssignSheet';
 import { SiteAssignSheet } from '~/components/SiteAssignSheet';
 import { BatchImportModal } from '~/components/BatchImportModal';
+import { PhotoImportModal } from '~/components/PhotoImportModal';
+import { pickPhotosWithExif, type PickedPhoto } from '~/lib/photoCapture';
 import { SwipeRowActions } from '~/components/SwipeRowActions';
 import { useSettings, type RecordSort, type SortDirection } from '~/stores/settings';
 import { useToast } from '~/stores/toast';
@@ -228,6 +230,17 @@ export default function SessionDetailScreen() {
   // putting one inside the detail Modal would need its own keyboard handling
   // (see `npm run check:dock`).
   const [replaceTarget, setReplaceTarget] = useState<RecordWithTaxon | null>(null);
+  // Non-null = the picker returned and the import sheet is open over the list.
+  const [pickedPhotos, setPickedPhotos] = useState<PickedPhoto[] | null>(null);
+
+  const handlePickPhotosToImport = async () => {
+    try {
+      const picked = await pickPhotosWithExif();
+      if (picked.length > 0) setPickedPhotos(picked);
+    } catch (e) {
+      Alert.alert(t('gps.posFailTitle'), e instanceof Error ? e.message : String(e));
+    }
+  };
 
   const handleAdd = async (result: SearchResult, adopted?: AdoptionInput | null) => {
     if (!result.taxon_id) {
@@ -895,6 +908,16 @@ export default function SessionDetailScreen() {
                 <Ionicons name="cloud-upload-outline" size={18} color="#2563eb" />
               </Pressable>
             ) : null}
+            {isActive ? (
+              <Pressable
+                onPress={handlePickPhotosToImport}
+                hitSlop={8}
+                accessibilityLabel={t('photoImport.entry')}
+                className="active:opacity-70"
+              >
+                <Ionicons name="images-outline" size={18} color="#2563eb" />
+              </Pressable>
+            ) : null}
           </View>
         </View>
         {filtered.length === 0 ? (
@@ -1106,6 +1129,33 @@ export default function SessionDetailScreen() {
         onAssign={handleAssignSite}
         onCreateNew={handleCreateSiteForSession}
       />
+
+      {pickedPhotos ? (
+        <PhotoImportModal
+          picked={pickedPhotos}
+          onCancel={() => setPickedPhotos(null)}
+          onConfirm={(rows) => {
+            setPickedPhotos(null);
+            if (rows.length === 0) {
+              toast(t('photoImport.none'));
+              return;
+            }
+            for (const r of rows) {
+              addRecord({
+                session_id: sessionId,
+                taxon_id: r.taxon_id,
+                observed_at: r.observed_at,
+                lat: r.lat,
+                lng: r.lng,
+                accuracy: r.accuracy,
+                photo_paths: r.photo_paths,
+              });
+            }
+            reload();
+            toast(t('session.imported', { count: rows.length }));
+          }}
+        />
+      ) : null}
 
       <BatchImportModal
         visible={batchImportOpen}

@@ -26,6 +26,7 @@ import { readAsStringAsync } from 'expo-file-system/legacy';
 import { strFromU8, strToU8, unzipSync } from 'fflate';
 import { closeDbs, getUserDb, initDb, parseEnvPhotos, searchByTaxonId, type SearchResult } from '~/db';
 import { LATEST_SCHEMA_VERSION } from '~/db/migrations';
+import { BACKUP_NAME_PREFIX } from './googleDevice';
 import {
   base64ToBytes,
   ensurePhotosReadAccess,
@@ -51,8 +52,18 @@ function timestamp(): string {
   return new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
 }
 
+/**
+ * What a backup manifest says it is.
+ *
+ * The old value is still accepted and always will be: it is written inside
+ * every backup zip made before the rename, including ones sitting in Drive, and
+ * refusing them would strand exactly the data a backup exists to protect.
+ */
+const BACKUP_MANIFEST_KIND = 'mitalivana-user-backup';
+const ACCEPTED_BACKUP_KINDS = new Set([BACKUP_MANIFEST_KIND, 'checklister-user-backup']);
+
 type BackupManifest = {
-  kind: 'checklister-user-backup';
+  kind: string;
   schemaVersion: number;
   appVersion: string;
   createdAt: number;
@@ -92,7 +103,7 @@ export async function createBackup(opts?: { includePacks?: boolean }): Promise<E
   }
 
   const manifest: BackupManifest = {
-    kind: 'checklister-user-backup',
+    kind: BACKUP_MANIFEST_KIND,
     schemaVersion: LATEST_SCHEMA_VERSION,
     appVersion: Constants.expoConfig?.version ?? 'unknown',
     createdAt: Date.now(),
@@ -104,7 +115,7 @@ export async function createBackup(opts?: { includePacks?: boolean }): Promise<E
     { name: 'manifest.json', bytes: strToU8(JSON.stringify(manifest, null, 2)) },
   ];
   if (packsBytes) entries.push({ name: PACKS_DB_NAME, bytes: packsBytes });
-  return finalizeZip(entries, `checklister-backup-${ts}`);
+  return finalizeZip(entries, `${BACKUP_NAME_PREFIX}${ts}`);
 }
 
 /** Whether any region pack exists — drives the opt-in switch on the screen. */
@@ -137,7 +148,7 @@ export async function restoreBackup(zipUri: string): Promise<void> {
   } catch {
     throw new Error(i18n.t('backup.corrupt'));
   }
-  if (manifest.kind !== 'checklister-user-backup') {
+  if (!ACCEPTED_BACKUP_KINDS.has(manifest.kind)) {
     throw new Error(i18n.t('backup.notChecklister'));
   }
   if (manifest.schemaVersion > LATEST_SCHEMA_VERSION) {
@@ -353,5 +364,5 @@ export async function createPhotoBackup(
 
   // UTF-8 BOM so Excel reads the CJK CSV correctly (matches desktop export).
   entries.push({ name: 'photos.csv', bytes: strToU8(`﻿${csv.join('\n')}`) });
-  return finalizeZip(entries, `checklister-photos-${timestamp()}`);
+  return finalizeZip(entries, `mitalivana-photos-${timestamp()}`);
 }

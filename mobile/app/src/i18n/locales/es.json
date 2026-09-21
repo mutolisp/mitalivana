@@ -432,7 +432,10 @@
     "audioFailTitle": "No se pudo grabar",
     "verbatimTitle": "Determinación de campo",
     "verbatimPlaceholder": "p. ej. sp1, sp2",
-    "verbatimAdd": "+ Determinación de campo"
+    "verbatimAdd": "+ Determinación de campo",
+    "usePhotoGps": "Usar el GPS de la foto",
+    "photoNoGps": "Ninguna foto de este registro lleva GPS",
+    "photoNeedsAccess": "Esas fotos están en la fototeca: conceda acceso completo a Fotos en Ajustes para leer sus coordenadas"
   },
   "attr": {
     "advanced": "Avanzado (atributos de la especie)",
@@ -2339,5 +2342,25 @@
     "summary_one": "{{count}} dependencia",
     "summary_many": "{{count}} dependencias",
     "summary_other": "{{count}} dependencias"
+  },
+  "photoImport": {
+    "title": "Importar desde fotos",
+    "add_one": "Añadir {{count}}",
+    "add_other": "Añadir {{count}}",
+    "add_many": "Añadir {{count}}",
+    "reading": "Leyendo metadatos de las fotos…",
+    "summary": "{{resolved}} identificadas · {{pending}} por asignar",
+    "speciesFor_one": "Especie para {{count}} foto",
+    "speciesFor_other": "Especie para {{count}} fotos",
+    "speciesFor_many": "Especie para {{count}} fotos",
+    "noCoordCount_one": "{{count}} foto sin coordenadas",
+    "noCoordCount_other": "{{count}} fotos sin coordenadas",
+    "noCoordCount_many": "{{count}} fotos sin coordenadas",
+    "noCoordTitle": "Fotos sin coordenadas",
+    "noCoordHint": "Qué hacer cuando una foto no lleva GPS. Dejarlas vacías es lo más seguro: al importar ya no suele estar en el sitio.",
+    "leaveEmpty": "Dejar vacío",
+    "useCurrent": "Usar mi posición actual",
+    "entry": "Importar desde fotos",
+    "none": "Ninguna de las fotos elegidas puede convertirse en un registro"
   }
 }

@@ -62,7 +62,7 @@ function descOf(f: Feature): string {
 // ---- GPX 1.1 ---------------------------------------------------------------
 
 const GPX_HEADER = `<?xml version="1.0" encoding="UTF-8"?>
-<gpx xmlns="http://www.topografix.com/GPX/1/1" version="1.1" creator="Checklister-NG">`;
+<gpx xmlns="http://www.topografix.com/GPX/1/1" version="1.1" creator="Mitalivana">`;
 const GPX_FOOTER = `</gpx>`;
 
 function gpxWpt(lon: number, lat: number, ele: number | undefined, name: string, desc: string): string {

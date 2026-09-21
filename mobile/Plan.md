@@ -4811,3 +4811,354 @@ chips 44 = 125pt，其中前兩者是導覽結構、scroll-to-hide 動不了，*
 
 **下一刀應該砍列高不是砍 chrome**：每列 `SpeciesRow` ~88pt，而 `card_density` 設定已經存在但只
 接在 `RecordListItem`（`:231,310`）上，樣區的 `SpeciesRow` 沒接。接上去一列可省 ~20pt = 每屏多 1 列。
+
+## 2026-09-22 — 更換物種、形態種重複、照片 EXIF 讀取層、Mitalivana 改名
+
+### Phase 1：更換物種（三條線都修）
+
+稽核後發現**採集早就實作了**，真正缺的只有名錄。但三條線共有三個缺陷，而它們之所以存在，
+正是因為各自寫了一份 —— 所以抽成 `src/db/retaxon.ts` 一份實作、三個 wrapper：
+
+1. `used_name_id` / `used_scientific_name`（v28）在換名後**殘留前一個分類群的採用名**。
+2. `ensureTaxonSelfSufficient` 只掛在四條 insert 路徑，re-id 沒有 → 換成 pack 的 `g…` 或模組的
+   `t…`/`y…` 之後，模組一移除名稱就沒了。
+3. `SearchBox` 的 `adopted`（刻意選非接受名）在兩條 re-id 分支都被丟棄 → 靜默退化成接受名。
+
+順帶把 `'taxon_id'` 從 `SPECIMEN_UPDATABLE_KEYS` 移除：留在白名單等於留一個「用
+`updateSpecimen({taxon_id})` 繞過上述三件事」的陷阱。
+
+banner 位置統一成**列表下方、貼著搜尋框、`border-t`**（原本樣區在下、採集在上）。理由是 banner
+文案寫「用下方搜尋選擇」，它得貼著它指的那個東西，取消鍵也才落在拇指區。
+
+### Phase 2：形態種可重複，匯出時去重
+
+野外的實況：`Orchidaceae sp1` / `sp2`，或屬級的 `Cinnamomum sp1` / `sp2` —— **兩個不同的形態種
+共用同一個 taxon_id**，因為只鑑定得到科或屬。
+
+- **v39**：三張記錄表加 `verbatim_identification`（DwC `verbatimIdentification`，`check:dwc` 驗過
+  是現行官方 term）。列表顯示在中文名後，輸入走 `promptText()` —— `SpeciesDetailSheet` 是 Modal，
+  它的註解本來就寫著「唯一的內嵌文字欄是座標輸入」，那是有原因的。
+- **手動新增同 taxon 改成確認而非硬擋**。誤點兩次仍會被攔，刻意建 sp2 的人按一下就過。
+- **匯出去重統一**。原本四處四種寫法：樣區 `taxon_id|used_scientific_name`、採集只有 `taxon_id`、
+  **名錄根本沒有去重**、專案又是第四種。統一成 `checklistIdentity`（三段式，含形態種標籤），
+  加 `export_merge_duplicate_taxa` 開關。**occurrence CSV 與 DwC-A 一律保留每一筆** —— 一筆記錄
+  一列本來就是 Occurrence 的定義。
+
+  > 新寫的 `check:checklistid` 立刻抓到我自己的 bug：`new Map(rows.map(...))` 在鍵重複時留
+  > **最後**一個，跟 docstring 寫的「first occurrence wins」相反。而且原本樣區（Map，留最後）與
+  > 採集（Set，留第一個）本來就不一致。記錄依觀察時間排序，留第一筆才對。
+
+### 總覆蓋度合理性檢查（`check:plotcover`）
+
+Σ 物種覆蓋 ≥ 總植被覆蓋，因為樹冠會互相重疊；總值高於加總在野外不可能發生。純模組
+`plotCoverCheck.ts`，警告出現在環境分頁欄位下方與結束調查的確認訊息。
+
+**只有當所有「有記錄的」層都用 %** 時才檢查。有 DBH 層就跳過 —— DBH 層完全不貢獻覆蓋度，
+它的物種會從加總裡消失，檢查會在每個混合計量的樣區誤報，而**永遠誤報的警告比沒有警告更糟**。
+BB 也排除：級距中點是估計值，估計值沒有資格判定實測資料矛盾。
+
+守門涵蓋幾個容易做錯的邊界：等號不警告、**空的** DBH 層不讓檢查失效（只算真的有記錄的層）、
+穿越線的 `'T'` 層不誤觸、無法解析的值跳過而非當成 0、浮點誤差不算矛盾。
+
+### Phase 3a：照片 EXIF 讀取層
+
+`src/lib/photoExif.ts`（純模組，piexifjs only）＋ `src/lib/photoMeta.ts`（有副作用那半）。
+**writer 一起搬進來**：UserComment 的 JSON 本來 inline 在 `photoCapture.ts` 而沒有任何東西讀回來，
+兩半早就漂移了（JSON 的 `name` ↔ ctx 的 `simple_name`、`coordinate_uncertainty_m` ↔ `accuracy`）。
+現在相隔二十行，`check:photoexif` 逼它們互為反函式。
+
+三件實測確認過的事：
+
+- **`piexif` 在 Node 跑得動**，所以 fixture 在記憶體裡現造（最小 JPEG 需要 SOI/APP0/**SOS**/EOI，
+  少了 SOS 分段器會炸），不必放二進位檔進 repo。
+- **HEIC 一定失敗**：`piexif.js:480-492` 的格式閘門只吃 JPEG（FFD8）／TIFF（II/MM）／裸 Exif blob。
+  iPhone 原生就是 HEIC → 只能靠 picker 的 `asset.exif`（**name→value map，不是 IFD dict**）。
+  所以解析層吃兩種來源並正規化成 `PhotoMeta`；讀不到 bytes 是正常情況，不是錯誤。
+- **座標有三種表示法不是兩種**：piexif 給無號 DMS、iOS 給正的十進位、**Android 給已經帶正負號的
+  十進位**。天真地套 ref 會讓南半球負負得正。`applyRef` 先取絕對值再由 ref 決定符號，三種都對。
+
+**合併順序有理由**：GPS 與時間以 picker 優先（它讀原始 asset，磁碟上那份可能是重新編碼過的）；
+內嵌 JSON 以檔案 bytes 優先（那是我們自己用 `utf8ToLatin1` 寫的，可精確反轉；平台怎麼解碼
+非 ASCII 是它自己的規則）。
+
+UI 先交付最小的一塊：**記錄有照片但沒有座標時**，詳細頁多一顆「用照片的 GPS 定位」。已經有座標
+時就不顯示 —— 靜默覆蓋一個實測座標不是按鈕該提供的功能。
+
+### Mitalivana 改名（匯出面）
+
+給人看的字串、檔名、與**匯入端不驗的識別碼**都改了：EML `organizationName` / `system`、
+`packageId`、manifest 的 `app`（改成單純的 `mitalivana`）、README 頁尾、GPX `creator`、
+JUICE 表標題、各種 zip 檔名。
+
+**兩個會被讀回來的識別碼改成「寫新的、讀時兩者都收」**：
+
+- 備份 manifest 的 `kind`（`restoreBackup` 會驗），舊值是**每一個既有備份 zip 裡都有的**，
+  拒絕它等於棄掉備份存在的意義。
+- 照片 EXIF 的 schema（`checklister.v1`），已經蓋在每一張匯出過的照片上。schema 識別碼是對格式的
+  承諾、不是品牌，舊值永遠保留其意義。
+
+Drive 備份的檔名前綴同樣兩個都認（`isBackupFileName`）：只認新的會讓舊備份在 Drive 裡**既看不到、
+也永遠不會被輪替掉**。
+
+> **`checklisterRole` / `checklisterKind` 這兩個 Drive `appProperties` 鍵刻意不動** —— 它們存在
+> 既有雲端資料夾與檔案上，改了舊備份會整個消失，而且使用者根本看不到它們。
+> `apiFetch.ts` 的 `USER_AGENT` 也沒動：那是對外部服務的識別，不是匯出內容。
+
+### 待辦（Phase 3 其餘）
+
+> 寫於當下。3b 與地圖那兩項後來都做了；現況以文末「**待辦彙整**」為準。
+
+- 3b：相簿批次匯入（每張一筆）。需要 `pickPhotosWithExif()`（**另開函式**，`pickPhotos()` 有四個
+  呼叫端）、`CreateRecordInput` 加 `observed_at?` / `accuracy?`（否則匯入的時間全變成按下匯入那一刻）
+- 3c：檔案 App / iCloud 來源（DocumentPicker）。HEIC 在這條路沒有 picker exif 可用，是最難的一塊
+- `(tabs)/map.tsx:1570-1580` **只畫 active session 的點位**，匯入到已結束的名錄看不到點
+- `exportSize.ts:34` 的 `getAssetInfoAsync(uri)` 沒剝 `ph://`（既有 bug，正確作法見 `bundleExport.ts:1177`）
+
+### Phase 3b：相簿批次匯入（每張一筆）
+
+`pickPhotosWithExif()` 是**另開的函式**而非 `pickPhotos()` 的選項：後者有四個呼叫端只要 URI，
+而 `exif: true` 會讓每次挑照片都多做事。`CreateRecordInput` 加 `observed_at` / `accuracy` /
+`photo_paths`——原本時間寫死 `Date.now()`，不改的話匯入的照片會全部變成「按下匯入那一刻」。
+
+規劃層 `src/lib/photoImport.ts` 是純模組，`check:photoimport` 把幾條「缺席必須維持缺席」的規則釘死：
+
+- 沒有 GPS 的照片不會變成 0,0
+- 使用者補的座標**只填空缺、不覆蓋照片自己的定位**
+- 只有在完全沒有 `DateTimeOriginal` 時才退回匯入時間
+- 沒有內嵌物種、使用者也沒指定的照片**不會變成記錄**
+- 每一列各自保有自己的座標與時間 —— 那是整個功能的重點
+
+`PhotoImportModal` **刻意不是 `BatchImportModal` 的第三種 target**。那支存在的目的是解析**名字**
+（exact/ambiguous/unmatched 三桶、逐列 radio、GBIF fallback）；這裡沒有名字要解析：照片要嘛自己
+說它是什麼（本 app 寫進 EXIF 的 taxon_id），要嘛不說，而不說的那一群共用**一個**使用者選一次的
+物種。兩種狀態、一個答案，塞進一支為了別的問題而寫的 580 行 modal 代價更大。
+
+無座標的處理是**整批預設＋事後逐筆修**，不是每張三選一：預設留空（事後匯入時你通常已經不在
+現場，錯的座標比沒有座標糟），或用現在位置（一併寫入量到的 accuracy，UI 明示那不是照片自己的
+定位）。逐筆微調用既有的 `SpeciesDetailSheet` + `RecordLocationMap`，不蓋第二個地圖編輯器。
+
+### 修：回到名錄頁面當機（expo-audio）
+
+`FunctionCallException: 'getStatus'` → `NativeSharedObjectNotFoundException`。讀
+`node_modules/expo-audio/build/ExpoAudio.js` 確認：`useAudioPlayer` 用 `useReleasingSharedObject`，
+source 改變或 unmount 時**釋放原生 player**；而 `useAudioPlayerStatus` 在 `useMemo` 裡讀
+`player.currentStatus`（就是那個原生 `getStatus`）**在 render 階段**。
+
+`AudioClipList.tsx` 原本是 `useAudioPlayer(playingUri ? {…} : null)` —— 不管有沒有在播 player 都
+存在。停止播放或離開畫面時原生物件被釋放，render 還在讀它。全 app 只有這一處呼叫
+`useAudioPlayerStatus`，所以那條 log 就是這裡。
+
+修法：把 player 移進只有播放中才掛載的 `ClipProgress`。**沒在播就沒有 player 可讀，而 player 的
+存活期間精確等於該元件的掛載期間 —— 不需要加防護判斷，因為不安全的時間窗不存在了。**
+
+### React Compiler 這次又擋下兩件事
+
+1. `ClipProgress` 一開始在 render 階段寫 `finishedRef.current`，編譯器直接 bail out 整個元件。
+   改成在 effect 裡指派。
+2. `PhotoImportModal` 的 `pickPolicy` 在 try/catch 裡放了 `??` 與三元運算式 ——
+   「Support value blocks within a try/catch」bail out（`app/plot/[id].tsx:302` 那個既有 bailout
+   是同一個訊息）。把條件運算式全部移出 try/catch、catch 裡只呼叫一個 `errText(e)` helper。
+
+> **通則**：try/catch 裡不要放 `??`、三元或 optional chaining，否則整個元件失去最佳化。
+> 這個 pattern 在 repo 裡還有 34 處 `e instanceof Error ? e.message : String(e)`，多數在 catch 內。
+
+### 待辦
+
+> 寫於當下；現況以文末「**待辦彙整**」為準。
+
+- 3c：檔案 App / iCloud 來源（DocumentPicker）。HEIC 在那條路**沒有 picker exif 可用**，最難
+- `exportSize.ts:34` 的 `getAssetInfoAsync(uri)` 沒剝 `ph://`（既有 bug）
+
+### 修：地圖只畫進行中名錄的點位
+
+匯入照片到已結束的名錄後，點位不會出現在地圖上 —— `activeRecords` 只從 `activeSession` 載入。
+
+**不能直接畫全部**：物種點位是 per-observation 的個別 marker 且**未聚合**（上游的
+`clusterPoints` 是以「整筆記錄」為單位 —— 一個名錄／樣區／地理樣區各一點），全部畫出來會是數千
+個 pin。這就是它當初被限制在 active session 的原因。
+
+改成**一次顯示一個名錄**：`pointsSessionId ?? activeSession?.id`。null 表示跟著正在記錄的那個
+（調查中的正確預設），**點任何名錄的圖釘就切換過去**，所以剛匯入照片的已結束名錄也看得到。
+
+兩個容易漏掉的點：
+
+- 切換發生在畫面已經 focus 的狀態下，`useFocusEffect` 看不到，所以要另一個 `useEffect` 監看
+  `shownSessionId`。
+- **開始／繼續記錄時要重設回 null**，否則畫面會卡在先前點選的已結束名錄，而正在調查的那個什麼
+  都不畫 —— 正好與預設值的用意相反。
+
+### 修：點「＋未鑑定到種標籤」就當掉（Modal 疊 Modal）
+
+`SpeciesDetailSheet` 本身是 `<Modal>`，而 `promptText` 的 `TextPromptHost` 是掛在
+navigation root 的**另一個** `<Modal>`。從前者裡呼叫後者 = 要求 iOS 在一個已經在 present
+的 view controller 上再 present 一次，直接 crash：
+
+```
+Attempt to present <RCTFabricModalHostViewController: …> on <UIViewController: …>
+which is already presenting <RCTFabricModalHostViewController: …>
+```
+
+兩邊都是 `RCTFabricModalHostViewController`，所以是兩個 RN `<Modal>` 相撞，不是系統權限
+對話框（第一次讀 log 時判錯，白繞一圈）。
+
+規則本來就寫在 `RecordLocationMap.tsx:96-106` —— 座標輸入列當初正是因為同一件事才改成
+inline 的。寫標籤欄位時沒讀到，還在原處留了一段理由相反的註解（「inline TextInput 會把
+keyboard-avoidance 問題帶進來」）。那個顧慮是真的，但排在 crash 後面，而且 sheet 是 85%
+高、身分區塊在最上緣，鍵盤搆不到。
+
+**改法**：標籤改成 inline 展開列（形狀抄 `RecordLocationMap` 的座標輸入列），`verbatimOpen`
+／`verbatimText` 兩個 state，隨 `record?.id` 一起重設。移除 `promptText` import。
+
+順手修掉同一批加進去的三個 `toast()`：它們也在這張 Modal 裡，而 `ToastHost` 是 root 層的
+絕對定位 View —— 在 Modal 之上**看不見**（`RecordLocationMap` 的註解同樣寫過）。兩個失敗
+訊息改用 `Alert.alert`（原生 UIAlertController，會蓋在上面），成功那個直接拿掉：座標列與
+地圖點位當場就更新了，比一個要按掉的 alert 更清楚。`species.photoGpsUsed` 七國語系一併刪。
+
+**同類 API 在 Modal 內的可用性**（判準表在 memory `feedback-root-host-behind-modal`）：
+
+| | Modal 之上 |
+|---|---|
+| `Alert.alert` | ✅ |
+| `showActionSheet`（iOS 走原生） | ✅ |
+| `toast()` / root `PortalHost` | ❌ 被蓋住 |
+| `promptText` 等 root-hosted RN Modal | ❌ **crash** |
+
+掃過其餘呼叫端：`SaveSiteModal:57`、`ProjectAssignSheet:33` 都已經先 `onCancel()` 再
+`await setTimeout(350)` 才 `promptText`，是正確的另一種解法（適合「開完就離開這張 sheet」）。
+`PeopleListScreen` 是整頁不是 Modal。`PhotoImportModal` 由列表工具列開啟，那時 sheet 是關的。
+
+**既有、本輪未動**：`KeyMatrixRunner.tsx:229/234/239` 的三個 toast 在它自己的 Modal（:477）
+裡，同樣看不見。
+
+### 「＋未鑑定到種標籤」只在非 species level 顯示
+
+形態種標籤（`sp1`／`sp2`）只有在鑑定沒走到種的時候才有意義。判斷沿用 `dataQuality.ts`
+既有的 `SPECIES_LEVEL` 集合與 `normaliseRank()`（TaiCOL 給英文、日本名錄給中文，兩邊都得
+先正規化），新增一支導出的 `isSpeciesLevelRank()`，不另造第二張 rank 對照表。
+
+種下階層（亞種／變種／品型）**算 species level** —— 那些記錄本來就鑑定到種了。空白 rank
+不算，它什麼都沒主張。
+
+一個刻意的例外：**已經有標籤的記錄一律顯示**，即使 rank 是 species。否則把某筆 `sp1`
+重新鑑定成真正的種之後，那個標籤就變成看不到也刪不掉，卻還是會跟著匯出。
+
+`check-report.mjs` 補 6 條斷言（英文／中文、屬／科、種下、null）。UI 只有名錄那張 sheet
+有這個入口，樣區與採集尚未接。
+
+### 樣區與採集接上「未鑑定到種標籤」
+
+三張 sheet 現在共用 `src/components/VerbatimLabelField.tsx`：pricetag chip → 原地展開輸入列，
+rank 閘門與「已有標籤一律顯示」的例外都收在元件裡，自帶 open/text state，呼叫端用
+`key={record.id}` 重掛而不是把 reset 串進去。確定鍵寫「確定」不是「儲存」—— 三個呼叫端的
+commit 時機不同（名錄／採集立即寫 DB，樣區折進自己的 Save）。
+
+| | 入口 | 寫入 |
+|---|---|---|
+| 名錄 | `SpeciesDetailSheet` 身分區塊 | `onSaveVerbatim` → `updateRecordAttributes` |
+| 採集 | `SpecimenDetailSheet` 身分卡 | `onSave({ verbatim_identification })` → `updateSpecimen`（白名單本來就有） |
+| 樣區 | `PlotSpeciesValueModal` 學名下方 | 併進 `PlotValueDraft`，由 modal 的 Save 落地 |
+
+DB 層 v39 當初三張表一起加欄位，`updatePlotSpeciesValue` / `AddPlotSpeciesInput` /
+`SPECIMEN_UPDATABLE_KEYS` 也都已經吃這個欄位，所以這輪只動 UI 與型別。
+
+幾個容易漏的：
+
+- `PlotModalHeader` 新增的 `rank` **刻意設成 required**（沿用該型別 `taxonId` 的理由），
+  `tsc` 立刻抓出第三個建構點 `useAddToActiveRecord.tsx:52` —— 那條路徑的 `addPlotSpecies`
+  也漏了新欄位，一併補上。三個 `PlotValueDraft` 消費端（`PlotSpeciesTab` 建立／編輯、
+  `useAddToActiveRecord`）全部 grep 過。
+- **`lastValue` 的 carry-forward 要把標籤清掉**，否則下一個物種會繼承上一筆的 `sp1`。
+- 清單列也要顯示：`PlotSpeciesTab` 的 row 與 `app/collection/[id].tsx` 的 row 比照
+  `SpeciesCard` 在名稱行後面接 ` · sp1`。採集那列原本只在有中文名時才 render，改成
+  「有中文名或有標籤」就 render —— 科層級的 `sp1` 正好常常沒有中文名。
+- 匯出不必改：`bundleExport.ts` 的三條 `.md` 路徑（:692 名錄、:842 樣區、:1082 採集）
+  早就走 `uniqueByIdentity`，而它的 key 含 `verbatim_identification`，所以樣區／採集裡的
+  `sp1` / `sp2` 會各自成行。
+
+
+---
+
+## 待辦彙整（截至 2026-09-22）
+
+前面的條目是按日期記的推導過程，這一節把**還沒做的**集中列出來，免得散在各處。
+每一項都標了「為什麼還沒做」——沒有理由的待辦會變成永遠的待辦。
+
+### 1. 資料出處驗證（數位簽章 ＋ ORCID）— 只完成前置
+
+**目標**（使用者原話收斂後）：讓拿到檔案的人能確認「這是某人實際調查的 raw data」，
+而且那個人**確有其人**，用 ORCID 綁定身分。不是防竄改的法律級簽章，是出處證明。
+
+**已完成的前置**：簽之前得先確定簽的東西是完整的。DwC-A 欄位對官方詞彙表驗過、
+yml 的 round-trip 改成 schema 驅動、採集照片／錄音／trip metadata 的缺口補完
+（見 09-21 條目）。**所以「要簽什麼」現在是確定的。**
+
+**已定的範圍**：
+
+- 只做 mobile
+- 每張照片、每次匯出各自可驗
+- 身分綁 ORCID
+- 驗證端 = CLI ＋ 一段 Python ＋ 一頁單檔 HTML（**不維護伺服器**）
+
+**還沒決定、動手前要先想清楚的**：
+
+- 私鑰放哪、換機怎麼辦、遺失怎麼辦（這是整件事最難的一塊，不是密碼學）
+- 簽的是 canonical 化後的 yml 還是 zip 的 manifest；yml 的 key 順序與浮點格式要先
+  定死，否則同一份資料簽出來會不一樣
+- ORCID 與金鑰怎麼綁：ORCID 本身不簽東西，要嘛把公鑰寫進 ORCID profile 的公開欄位
+  當成「本人宣告」，要嘛另找可信第三方。前者最精簡但信任鏈只到「ORCID 帳號沒被盜」
+- 照片層級要簽的話，EXIF 已經有 `mitalivana.v1` 的 UserComment 可以放，但重新編碼
+  過的照片（LINE、雲端縮圖）簽章一定失效，要不要接受
+
+**為什麼還沒做**：使用者的需求是「證實是某人調查的 raw data」，而金鑰管理沒想清楚
+之前，做出來的東西只會證明「某支手機簽的」。
+
+### 2. Phase 3c：照片來源擴充到檔案 App / iCloud / zip
+
+相簿路徑（3b）已上線，能覆蓋 AirDrop／LINE／雲端下載——那些都會先進相簿。剩下的是
+DocumentPicker 與 zip 解壓（`recordImportZip.ts` 已經會解）。
+
+**為什麼最後做**：那條路的 HEIC **沒有 picker exif 可用**，而 piexif 的格式閘門
+（`piexif.js:480-492`）只收 JPEG／TIFF／裸 Exif blob，HEIC 一定 throw。等於要另外
+找 HEIC 解析方案，是整個 Phase 3 最難的一塊，而它擋不住大多數實際情境。
+
+### 3. `exportSize.ts` 的 `photoBytes()` 沒剝 `ph://`
+
+`getAssetInfoAsync(uri)` 直接吃了完整 URI。**既有 bug，不是這輪造成的**；正確作法
+在 `bundleExport.ts:1177`（memory `feedback-media-library-ph-uri` 也記了這條）。
+影響只有匯出大小預估失準，不會壞資料，所以沒插隊。
+
+### 4. 34 處 `e instanceof Error ? e.message : String(e)` 在 catch 裡
+
+React Compiler 的「Support value blocks within a try/catch」bail out：try/catch 裡只要
+有 `??`、三元或 optional chaining，**整個元件失去最佳化**。本輪新寫的元件已經避開
+（catch 裡只呼叫一個 module 層的 `errText(e)` helper），但 repo 裡還有 34 處。
+
+**為什麼沒一次改完**：純粹是效能，不是正確性；而且散在 34 個檔案，混在功能改動裡
+會讓 diff 失焦。適合單獨一輪。
+
+### 5. `KeyMatrixRunner` 的三個 toast 在自己的 Modal 裡看不見
+
+`KeyMatrixRunner.tsx:229/234/239` 的 `toast()` 由 root 的 `ToastHost` 呈現，而該元件
+本身是 Modal（`:477`）——iOS 把 Modal present 在自己的 window，root 層的絕對定位
+View 被蓋在後面。**不會當，只是使用者看不到回饋。** 本輪發現但沒動，因為與這次的
+改動無關。修法同 `SpeciesDetailSheet`：改 `Alert` 或做成 inline。
+
+### 6. 採集的重新鑑定沒有更新鑑定者，也沒有鑑定日期
+
+`updateSpecimenTaxon` 換了 taxon，但 `identified_by` 留在原地，而 schema 根本沒有
+`date_identified` 欄位（DwC 有 `dateIdentified`）。語意上「換了鑑定結果卻還掛著前一位
+鑑定者」是錯的。
+
+**為什麼沒順手修**：加欄位要 migration，而且「換學名時要不要自動改成目前的預設鑑定
+者、還是要問」是產品決策，不是實作細節。
+
+### 7. 地圖：名錄有記錄但全都沒座標時，畫面是空的
+
+物種點位已改成一次顯示一個名錄。但如果那個名錄的記錄全都沒有座標，地圖就是一片
+空白，使用者無從分辨「沒有資料」與「資料沒有座標」。給一行提示即可。
+
+### 8. `markSensuLato()` 每列一次 LIKE（既有，見 09-19 條目）
+
+對每個雙名結果都發一次 `simple_name LIKE 'Genus species %'`，Mac 上每列約 17 ms
+（LIKE 吃不到索引，落在 `idx_taicol_usage_status`）。搜尋框每次查詢都會付。實機成本
+會比 Mac 高上數倍（memory `feedback-sql-estimate-vs-real-device`）。

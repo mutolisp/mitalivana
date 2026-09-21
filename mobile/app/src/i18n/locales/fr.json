@@ -432,7 +432,10 @@
     "audioFailTitle": "Enregistrement impossible",
     "verbatimTitle": "Détermination de terrain",
     "verbatimPlaceholder": "ex. sp1, sp2",
-    "verbatimAdd": "+ Détermination de terrain"
+    "verbatimAdd": "+ Détermination de terrain",
+    "usePhotoGps": "Utiliser le GPS de la photo",
+    "photoNoGps": "Aucune photo de cet enregistrement ne porte de GPS",
+    "photoNeedsAccess": "Ces photos sont dans la photothèque — autorisez l'accès complet aux photos dans les Réglages pour lire leurs coordonnées"
   },
   "attr": {
     "advanced": "Avancé (attributs de l'espèce)",
@@ -2339,5 +2342,25 @@
     "summary_one": "{{count}} dépendance",
     "summary_many": "{{count}} dépendances",
     "summary_other": "{{count}} dépendances"
+  },
+  "photoImport": {
+    "title": "Importer depuis des photos",
+    "add_one": "Ajouter {{count}}",
+    "add_other": "Ajouter {{count}}",
+    "add_many": "Ajouter {{count}}",
+    "reading": "Lecture des métadonnées…",
+    "summary": "{{resolved}} identifiées · {{pending}} à attribuer",
+    "speciesFor_one": "Espèce pour {{count}} photo",
+    "speciesFor_other": "Espèce pour {{count}} photos",
+    "speciesFor_many": "Espèce pour {{count}} photos",
+    "noCoordCount_one": "{{count}} photo sans coordonnées",
+    "noCoordCount_other": "{{count}} photos sans coordonnées",
+    "noCoordCount_many": "{{count}} photos sans coordonnées",
+    "noCoordTitle": "Photos sans coordonnées",
+    "noCoordHint": "Que faire quand une photo n'a pas de GPS. Laisser vide est le plus sûr — au moment de l'import, vous n'êtes généralement plus sur place.",
+    "leaveEmpty": "Laisser vide",
+    "useCurrent": "Utiliser ma position actuelle",
+    "entry": "Importer depuis des photos",
+    "none": "Aucune des photos choisies ne peut devenir un enregistrement"
   }
 }

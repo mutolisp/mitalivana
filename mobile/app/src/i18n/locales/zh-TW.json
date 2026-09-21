@@ -374,9 +374,12 @@
     "removeAudio": "移除這段錄音？",
     "micDenied": "需要麥克風權限才能錄音",
     "audioFailTitle": "無法錄音",
-    "verbatimTitle": "形態種標籤",
+    "verbatimTitle": "未鑑定到種標籤",
     "verbatimPlaceholder": "例如 sp1、sp2",
-    "verbatimAdd": "＋ 形態種標籤"
+    "verbatimAdd": "＋ 未鑑定到種標籤",
+    "usePhotoGps": "用照片的 GPS 定位",
+    "photoNoGps": "這筆記錄的照片沒有 GPS 座標",
+    "photoNeedsAccess": "照片在相簿裡，需要在系統設定開啟相片存取權限才能讀取座標"
   },
   "attr": {
     "advanced": "進階（物種屬性）",
@@ -2089,5 +2092,19 @@
     "noMatch": "沒有符合的套件",
     "noText": "此套件未附授權全文，僅宣告 {{id}}。",
     "summary_other": "相依套件 {{count}} 個"
+  },
+  "photoImport": {
+    "title": "從照片匯入",
+    "add_other": "加入 {{count}} 筆",
+    "reading": "讀取照片資訊…",
+    "summary": "已辨識 {{resolved}} 張 · 待指定 {{pending}} 張",
+    "speciesFor_other": "這 {{count}} 張照片的物種",
+    "noCoordCount_other": "{{count}} 張沒有座標",
+    "noCoordTitle": "沒有座標的照片",
+    "noCoordHint": "照片沒有 GPS 時要怎麼處理。留空最保險——事後匯入時你通常已經不在現場了。",
+    "leaveEmpty": "留空",
+    "useCurrent": "用現在位置",
+    "entry": "從照片匯入",
+    "none": "選取的照片都無法建立記錄"
   }
 }

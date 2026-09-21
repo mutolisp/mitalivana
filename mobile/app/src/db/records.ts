@@ -104,6 +104,13 @@ export type CreateRecordInput = {
   /** Set only when the user deliberately chose a name the checklist does not
    *  treat as accepted. Omitted = the accepted name, as before. */
   adopted?: AdoptionInput | null;
+  /** When the observation happened. Defaults to now — but a record built from a
+   *  photo happened when the shutter fired, not when the import ran. */
+  observed_at?: number;
+  /** Coordinate uncertainty in metres. Only meaningful alongside lat/lng. */
+  accuracy?: number | null;
+  /** JSON array of photo URIs, as `photo_paths` stores it. */
+  photo_paths?: string | null;
 };
 
 export function addRecord(input: CreateRecordInput): number {
@@ -116,17 +123,20 @@ export function addRecord(input: CreateRecordInput): number {
   const res = db.executeSync(
     `INSERT INTO checklist_records
        (session_id, taxon_id, occurrence_id, observed_at, updated_at, notes, lat, lng,
+        accuracy, photo_paths,
         organism_quantity, organism_quantity_type, used_name_id, used_scientific_name)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       input.session_id,
       input.taxon_id,
       generateUuid(),
-      Date.now(),
+      input.observed_at ?? Date.now(),
       Date.now(),
       input.notes ?? null,
       input.lat ?? null,
       input.lng ?? null,
+      input.accuracy ?? null,
+      input.photo_paths ?? null,
       input.organism_quantity ?? null,
       input.organism_quantity_type ?? null,
       input.adopted?.name_id ?? null,

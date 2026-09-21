@@ -35,7 +35,7 @@ import { parseAreaUnit, resolvePlotArea } from '../src/lib/plotArea.ts';
 import { abundanceText } from '../src/lib/reportFormat.ts';
 import { groupRecords, taxonGroupOf } from '../src/lib/taxonGroup.ts';
 import { compareCells } from '../src/lib/reportSort.ts';
-import { dataQuality, normaliseRank } from '../src/lib/dataQuality.ts';
+import { dataQuality, isSpeciesLevelRank, normaliseRank } from '../src/lib/dataQuality.ts';
 import {
   abundanceRarefaction,
   incidenceRarefaction,
@@ -970,6 +970,17 @@ const speciesB = [
   eq('Chinese rank labels normalise', normaliseRank('種'), 'species');
   eq('and so do English ones', normaliseRank('Species'), 'species');
   eq('genus in Chinese', normaliseRank('屬'), 'genus');
+
+  // The species-level predicate gates the morphospecies label in
+  // SpeciesDetailSheet: `sp1` is offered only where the identification stopped
+  // above species. Infraspecific ranks count as species-level — those records
+  // ARE determined — and a blank rank does not, since it claims nothing.
+  ok('species is species-level', isSpeciesLevelRank('species'));
+  ok('so is an infraspecific rank', isSpeciesLevelRank('variety'));
+  ok('Chinese 亞種 too', isSpeciesLevelRank('亞種'));
+  ok('genus is not', !isSpeciesLevelRank('genus'));
+  ok('Chinese 科 is not', !isSpeciesLevelRank('科'));
+  ok('a blank rank is not', !isSpeciesLevelRank(null));
 
   // Mixed units are a caveat on every index above.
   const mixed = dataQuality([

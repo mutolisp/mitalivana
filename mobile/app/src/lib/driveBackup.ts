@@ -26,7 +26,7 @@ import {
 } from './drive';
 import { useDriveState } from './driveState';
 import { GoogleLoginRequired, ensureAccessToken } from './googleAuth';
-import { BACKUP_KIND, BACKUP_NAME_PREFIX, KIND_KEY } from './googleDevice';
+import { BACKUP_KIND, KIND_KEY, isBackupFileName } from './googleDevice';
 
 /**
  * How many backups to keep in Drive. A constant for now; the preferences control
@@ -147,7 +147,7 @@ export async function runDriveBackup(opts: {
 async function rotate(accessToken: string, backupsId: string): Promise<void> {
   try {
     const files = await listBackups(accessToken, backupsId);
-    const ours = files.filter((f) => f.name.startsWith(BACKUP_NAME_PREFIX));
+    const ours = files.filter((f) => isBackupFileName(f.name));
     for (const f of ours.slice(KEEP_BACKUPS)) {
       await deleteFile(accessToken, f.id);
     }

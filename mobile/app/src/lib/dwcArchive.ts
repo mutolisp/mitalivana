@@ -150,11 +150,11 @@ export type DwcArchiveMeta = {
 function buildEmlXml(meta: DwcArchiveMeta): string {
   const person = meta.creator
     ? `<individualName><surName>${xmlEscape(meta.creator)}</surName></individualName>`
-    : `<organizationName>Checklister-NG</organizationName>`;
+    : `<organizationName>Mitalivana</organizationName>`;
   return `<?xml version="1.0" encoding="UTF-8"?>
 <eml:eml xmlns:eml="eml://ecoinformatics.org/eml-2.1.1"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         packageId="${xmlEscape(meta.packageId)}" system="checklister-ng" scope="system"
+         packageId="${xmlEscape(meta.packageId)}" system="mitalivana" scope="system"
          xml:lang="zh-TW">
   <dataset>
     <title>${xmlEscape(meta.title)}</title>

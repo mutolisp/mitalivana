@@ -47,6 +47,7 @@ import {
   type IdentificationKey,
 } from '~/db';
 import { ScientificName } from './ScientificName';
+import { VerbatimLabelField } from './VerbatimLabelField';
 import { RecordLocationMap } from './RecordLocationMap';
 import { TaxonomyJumpChip } from './TaxonomyJumpChip';
 import { SpeciesAttributesBlock, type SpeciesAttributesDraft } from './SpeciesAttributesBlock';
@@ -74,6 +75,9 @@ export type PlotValueDraft = {
   notes: string | null;
   /** Detection method (v13): 'seen' | 'heard' | 'flying'. */
   detection_type: string | null;
+  /** DwC verbatimIdentification — `sp1` under the family or genus the
+   *  identification reached. Null = none. */
+  verbatim_identification: string | null;
 } & SpeciesAttributesDraft;
 
 const EMPTY: PlotValueDraft = {
@@ -81,6 +85,7 @@ const EMPTY: PlotValueDraft = {
   organism_quantity_type: null,
   notes: null,
   detection_type: null,
+  verbatim_identification: null,
   ...EMPTY_DRAFT,
 };
 
@@ -91,6 +96,7 @@ const SCALAR_DRAFT_KEYS = [
   'organism_quantity_type',
   'notes',
   'detection_type',
+  'verbatim_identification',
   'sex',
   'life_stage',
   'degree_of_establishment',
@@ -125,6 +131,9 @@ export type PlotModalHeader = {
   family: string;
   family_c: string;
   genus: string;
+  /** Decides whether the morphospecies label is offered — see
+   *  `VerbatimLabelField`. English (TaiCOL) or Chinese (YList) both work. */
+  rank: string;
 };
 
 type Props = {
@@ -228,6 +237,7 @@ export function PlotSpeciesValueModal({
   const [customType, setCustomType] = useState<string>('');
   const [notes, setNotes] = useState(initial?.notes ?? '');
   const [detection, setDetection] = useState<string | null>(initial?.detection_type ?? null);
+  const [verbatim, setVerbatim] = useState<string | null>(initial?.verbatim_identification ?? null);
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   const router = useRouter();
 
@@ -279,6 +289,7 @@ export function PlotSpeciesValueModal({
     setQtyType(startType);
     setNotes(initial?.notes ?? '');
     setDetection(initial?.detection_type ?? null);
+    setVerbatim(initial?.verbatim_identification ?? null);
     setAttrs({
       sex: initial?.sex ?? null,
       life_stage: initial?.life_stage ?? null,
@@ -364,7 +375,13 @@ export function PlotSpeciesValueModal({
   })();
 
   const buildDraft = (): PlotValueDraft => {
-    const base = { ...EMPTY, ...attrs, notes: notes || null, detection_type: detection };
+    const base = {
+      ...EMPTY,
+      ...attrs,
+      notes: notes || null,
+      detection_type: detection,
+      verbatim_identification: verbatim,
+    };
     let quantity: string | null = null;
     let type: string | null = qtyType;
     if (currentKind === 'BB') quantity = bb;
@@ -406,6 +423,7 @@ export function PlotSpeciesValueModal({
     attrs,
     notes,
     detection,
+    verbatim,
     qtyType,
     bb,
     numericValue,
@@ -469,6 +487,16 @@ export function PlotSpeciesValueModal({
                         author={header.author}
                         kingdom={header.kingdom}
                         className="text-sm text-gray-700 dark:text-gray-300"
+                      />
+                    ) : null}
+                    {/* Folded into the draft, not written on the spot: this
+                        modal persists everything through its own Save. */}
+                    {header ? (
+                      <VerbatimLabelField
+                        key={`${occurrenceId ?? ''}|${header.taxonId}`}
+                        rank={header.rank}
+                        value={verbatim}
+                        onCommit={setVerbatim}
                       />
                     ) : null}
                     {/* Classification path (each rank tappable → taxonomy tree) +

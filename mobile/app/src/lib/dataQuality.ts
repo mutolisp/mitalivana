@@ -35,6 +35,15 @@ export function normaliseRank(rank: string | null | undefined): string {
   return mapped ?? lower;
 }
 
+/** Did the identification actually reach a species (or an infraspecific taxon
+ *  of one)? False for genus-, family- and higher-level records — and for a
+ *  blank rank, which says nothing either way. Exported because the UI has to
+ *  ask the same question: a morphospecies label (`sp1`) is only meaningful
+ *  where the identification stopped short of a species. */
+export function isSpeciesLevelRank(rank: string | null | undefined): boolean {
+  return SPECIES_LEVEL.has(normaliseRank(rank));
+}
+
 export type QualityIssue =
   | { code: 'no-abundance'; records: number; species: number }
   | { code: 'genus-only'; species: number; examples: string[] }

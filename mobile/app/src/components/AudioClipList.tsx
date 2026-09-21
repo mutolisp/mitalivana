@@ -22,7 +22,7 @@ import {
   useAudioRecorder,
   useAudioRecorderState,
 } from 'expo-audio';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Pressable, Text, View } from 'react-native';
 import { rebaseAppFileUri } from '~/lib/appFiles';
@@ -108,18 +108,6 @@ export function AudioRecordTile({ onAdd }: { onAdd: (uri: string) => void }) {
 export function AudioClipRows({ clips, onRemove }: { clips: string[]; onRemove: (uri: string) => void }) {
   const { t } = useTranslation();
   const [playingUri, setPlayingUri] = useState<string | null>(null);
-  // A new source = a new player (the hook keys on the source), so play() on
-  // change is enough; the previous instance is released by the hook.
-  const player = useAudioPlayer(playingUri ? { uri: rebaseAppFileUri(playingUri) } : null);
-  const status = useAudioPlayerStatus(player);
-
-  useEffect(() => {
-    if (playingUri) player.play();
-  }, [player, playingUri]);
-
-  useEffect(() => {
-    if (status.didJustFinish) setPlayingUri(null);
-  }, [status.didJustFinish]);
 
   if (clips.length === 0) return null;
 
@@ -153,14 +141,58 @@ export function AudioClipRows({ clips, onRemove }: { clips: string[]; onRemove: 
               {t('species.audioClipN', { n: i + 1 })}
             </Text>
             {playing ? (
-              <Text className="text-xs text-gray-500 dark:text-gray-400">
-                {mmss(status.currentTime)} / {mmss(status.duration)}
-              </Text>
+              <ClipProgress uri={uri} onFinished={() => setPlayingUri(null)} />
             ) : null}
           </Pressable>
         );
       })}
     </View>
+  );
+}
+
+/**
+ * Owns the player for exactly as long as one clip is playing.
+ *
+ * The player used to live in AudioClipRows and exist whether or not anything
+ * was playing, with `useAudioPlayer(playing ? {…} : null)`. That crashed:
+ * `useReleasingSharedObject` frees the native player when the source changes or
+ * the component unmounts, while `useAudioPlayerStatus` reads `player.currentStatus`
+ * — a native `getStatus` call — during render. Stop a clip or leave the screen
+ * at the wrong moment and that read lands on a freed object:
+ *
+ *     FunctionCallException: Calling the 'getStatus' function has failed
+ *     → NativeSharedObjectNotFoundException
+ *
+ * Mounting the player with the playback instead of around it means there is no
+ * player to read when nothing is playing, and its lifetime is exactly this
+ * component's. No guard needed, because the unsafe window no longer exists.
+ */
+function ClipProgress({ uri, onFinished }: { uri: string; onFinished: () => void }) {
+  const player = useAudioPlayer({ uri: rebaseAppFileUri(uri) });
+  const status = useAudioPlayerStatus(player);
+
+  // Latest callback without making it an effect dependency — re-running on the
+  // parent's every render would fire `onFinished` repeatedly while
+  // `didJustFinish` stays true. Assigned in an effect, not during render:
+  // mutating a ref while rendering is what makes React Compiler bail out of the
+  // whole component.
+  const finishedRef = useRef(onFinished);
+  useEffect(() => {
+    finishedRef.current = onFinished;
+  }, [onFinished]);
+
+  useEffect(() => {
+    player.play();
+  }, [player]);
+
+  useEffect(() => {
+    if (status.didJustFinish) finishedRef.current();
+  }, [status.didJustFinish]);
+
+  return (
+    <Text className="text-xs text-gray-500 dark:text-gray-400">
+      {mmss(status.currentTime)} / {mmss(status.duration)}
+    </Text>
   );
 }
 

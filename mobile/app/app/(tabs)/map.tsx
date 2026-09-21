@@ -357,6 +357,20 @@ export default function MapScreen() {
     null,
   );
   const activeSession = useActiveSession((s) => s.session);
+  /**
+   * Which session's species points are drawn.
+   *
+   * One session at a time, deliberately. These markers are per OBSERVATION and
+   * are not clustered (the clustering upstream works on whole records — one
+   * point per session / plot / site), so every session at once would be
+   * thousands of pins.
+   *
+   * Null = follow whatever is being recorded, which is the right default while
+   * surveying. Tapping any session marker pins it here instead, so a finished
+   * session — the one you just imported photos into — can be looked at too.
+   */
+  const [pointsSessionId, setPointsSessionId] = useState<number | null>(null);
+  const shownSessionId = pointsSessionId ?? activeSession?.id ?? null;
   const [activeRecords, setActiveRecords] = useState<RecordWithTaxon[]>([]);
 
   const [searchOpen, setSearchOpen] = useState(false);
@@ -534,13 +548,22 @@ export default function MapScreen() {
       reloadSites();
       reloadPlots();
       reloadSessions();
-      if (activeSession) {
-        setActiveRecords(listSessionRecords(activeSession.id));
-      } else {
-        setActiveRecords([]);
-      }
-    }, [reloadSites, reloadPlots, reloadSessions, activeSession]),
+      setActiveRecords(shownSessionId ? listSessionRecords(shownSessionId) : []);
+    }, [reloadSites, reloadPlots, reloadSessions, shownSessionId]),
   );
+
+  // Switching sessions happens while the screen is already focused, so the
+  // focus effect above would not see it.
+  useEffect(() => {
+    setActiveRecords(shownSessionId ? listSessionRecords(shownSessionId) : []);
+  }, [shownSessionId]);
+
+  // Starting or resuming a recording pulls the map back to it. Otherwise a
+  // session tapped earlier would keep the view while the one actually being
+  // surveyed drew nothing — the opposite of what the default is for.
+  useEffect(() => {
+    setPointsSessionId(null);
+  }, [activeSession?.id]);
 
   // Safety: hide the loading overlay after a max wait if onMapReady doesn't fire (rare).
   useEffect(() => {
@@ -1195,6 +1218,8 @@ export default function MapScreen() {
 
   const openSessionInfo = (session: SessionWithStats) => {
     const isActive = activeSession?.id === session.id;
+    // Tapping a session is also how you ask to see its points.
+    setPointsSessionId(session.id);
     const lines: string[] = [];
     if (session.start_lat !== null && session.start_lng !== null) {
       lines.push(`${session.start_lat.toFixed(6)}, ${session.start_lng.toFixed(6)}`);

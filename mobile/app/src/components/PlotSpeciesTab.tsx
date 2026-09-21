@@ -339,6 +339,7 @@ export function PlotSpeciesTab({ plot, onChanged }: { plot: PlotSurvey; onChange
         leaf_phenology: serializeMultiAttribute(v.leaf_phenology),
         degree_of_establishment: v.degree_of_establishment,
         detection_type: v.detection_type,
+        verbatim_identification: v.verbatim_identification,
         adopted: modal.adopted,
       });
       // Attach any photos taken before the record existed.
@@ -361,6 +362,7 @@ export function PlotSpeciesTab({ plot, onChanged }: { plot: PlotSurvey; onChange
           reproductive_condition: [],
           leaf_phenology: [],
           detection_type: null,
+          verbatim_identification: null,
         },
       }));
     } else {
@@ -374,6 +376,7 @@ export function PlotSpeciesTab({ plot, onChanged }: { plot: PlotSurvey; onChange
         leaf_phenology: serializeMultiAttribute(v.leaf_phenology),
         degree_of_establishment: v.degree_of_establishment,
         detection_type: v.detection_type,
+        verbatim_identification: v.verbatim_identification,
       });
     }
     setModal(null);
@@ -648,6 +651,7 @@ export function PlotSpeciesTab({ plot, onChanged }: { plot: PlotSurvey; onChange
           family: taxon.family ?? '',
           family_c: taxon.family_cname ?? '',
           genus: taxon.genus ?? '',
+          rank: taxon.rank ?? '',
         },
         initial,
         kingdom: taxon.kingdom ?? null,
@@ -675,6 +679,7 @@ export function PlotSpeciesTab({ plot, onChanged }: { plot: PlotSurvey; onChange
         family: r.family ?? '',
         family_c: r.family_c ?? '',
         genus: r.genus ?? '',
+        rank: r.rank ?? '',
       },
       initial: {
         organism_quantity: r.organism_quantity,
@@ -686,6 +691,7 @@ export function PlotSpeciesTab({ plot, onChanged }: { plot: PlotSurvey; onChange
         leaf_phenology: parseMultiAttribute(r.leaf_phenology),
         degree_of_establishment: r.degree_of_establishment ?? null,
         detection_type: r.detection_type ?? null,
+        verbatim_identification: r.verbatim_identification ?? null,
       } satisfies PlotValueDraft,
       kingdom: r.kingdom ?? null,
       className: r.class ?? null,
@@ -1010,6 +1016,15 @@ function SpeciesRow({
         <View className="flex-row items-center" style={{ flexWrap: 'wrap' }}>
           <Text className="text-sm font-medium text-gray-900 dark:text-gray-100" numberOfLines={1}>
             {record.common_name_c || tr('species.noChineseName')}
+            {/* The field determination, when it is finer than the taxon can be
+                (v39). Two rows sharing a family's taxon_id are two morphospecies
+                and this is the only thing that tells them apart — so it belongs
+                on the name line. Mirrors SpeciesCard. */}
+            {record.verbatim_identification ? (
+              <Text className="font-normal text-gray-500 dark:text-gray-400">
+                {` · ${record.verbatim_identification}`}
+              </Text>
+            ) : null}
           </Text>
           {record.is_endemic === 'true' ? (
             <Text className="ml-1.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-300">

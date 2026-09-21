@@ -227,7 +227,17 @@ export const KIND_KEY = 'checklisterKind';
 
 /** Prefix `backup.ts` gives every generated zip. Rotation only ever deletes
  *  files that still carry it, so renaming one in Drive pins it. */
-export const BACKUP_NAME_PREFIX = 'checklister-backup-';
+export const BACKUP_NAME_PREFIX = 'mitalivana-backup-';
+
+/** Every prefix a backup of ours may carry. The pre-rename one stays: rotation
+ *  and listing both filter on this, and dropping it would make older backups
+ *  invisible in Drive while quietly never rotating them away either. */
+export const BACKUP_NAME_PREFIXES = [BACKUP_NAME_PREFIX, 'checklister-backup-'];
+
+/** Is this one of ours, whatever it was called when it was written? */
+export function isBackupFileName(name: string): boolean {
+  return BACKUP_NAME_PREFIXES.some((p) => name.startsWith(p));
+}
 
 export type BackupMeta = {
   schemaVersion: number | null;

@@ -99,7 +99,7 @@ export function buildJuiceTable(
 
   const lossy = new Set<string>();
   const lines: string[] = [];
-  lines.push(juiceCell(title) || 'Checklister-NG export');
+  lines.push(juiceCell(title) || 'Mitalivana export');
   lines.push(`Number of relevés: ${releves.length}`);
   lines.push('');
   // Two leading empty cells (species + layer) with a layer column, one without.

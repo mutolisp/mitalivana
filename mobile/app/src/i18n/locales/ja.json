@@ -376,7 +376,10 @@
     "audioFailTitle": "録音できません",
     "verbatimTitle": "現場同定ラベル",
     "verbatimPlaceholder": "例：sp1、sp2",
-    "verbatimAdd": "＋ 現場同定ラベル"
+    "verbatimAdd": "＋ 現場同定ラベル",
+    "usePhotoGps": "写真の GPS を使う",
+    "photoNoGps": "この記録の写真に GPS がありません",
+    "photoNeedsAccess": "写真が写真ライブラリにあります。座標を読むには設定で写真へのフルアクセスを許可してください"
   },
   "attr": {
     "advanced": "詳細（種の属性）",
@@ -2089,5 +2092,19 @@
     "noMatch": "該当するパッケージがありません",
     "noText": "このパッケージはライセンス全文を同梱しておらず、{{id}} の宣言のみです。",
     "summary_other": "依存パッケージ {{count}} 件"
+  },
+  "photoImport": {
+    "title": "写真から取り込み",
+    "add_other": "{{count}} 件を追加",
+    "reading": "写真の情報を読み込み中…",
+    "summary": "判別済み {{resolved}} 枚 · 要指定 {{pending}} 枚",
+    "speciesFor_other": "この {{count}} 枚の種",
+    "noCoordCount_other": "座標のない写真 {{count}} 枚",
+    "noCoordTitle": "座標のない写真",
+    "noCoordHint": "写真に GPS がない場合の扱い。空のままが最も安全です——取り込む頃には現地にいないのが普通です。",
+    "leaveEmpty": "空のまま",
+    "useCurrent": "現在地を使う",
+    "entry": "写真から取り込み",
+    "none": "選んだ写真からは記録を作れません"
   }
 }

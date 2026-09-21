@@ -61,6 +61,7 @@ function headerOf(sp: SearchResult): PlotModalHeader {
     family: sp.family ?? '',
     family_c: sp.family_cname ?? '',
     genus: sp.genus ?? '',
+    rank: sp.rank ?? '',
   };
 }
 
@@ -184,6 +185,7 @@ export function useAddToActiveRecord(): {
       leaf_phenology: serializeMultiAttribute(v.leaf_phenology),
       degree_of_establishment: v.degree_of_establishment,
       detection_type: v.detection_type,
+      verbatim_identification: v.verbatim_identification,
     });
     setPlotTarget(null);
     useActivePlot.getState().refresh();

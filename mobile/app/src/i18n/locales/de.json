@@ -404,7 +404,10 @@
     "audioFailTitle": "Aufnahme fehlgeschlagen",
     "verbatimTitle": "Feldbestimmung",
     "verbatimPlaceholder": "z. B. sp1, sp2",
-    "verbatimAdd": "+ Feldbestimmung"
+    "verbatimAdd": "+ Feldbestimmung",
+    "usePhotoGps": "GPS des Fotos übernehmen",
+    "photoNoGps": "Keines der Fotos dieses Datensatzes hat GPS",
+    "photoNeedsAccess": "Diese Fotos liegen in der Fotomediathek — erlauben Sie in den Einstellungen den vollen Fotozugriff, um ihre Koordinaten zu lesen"
   },
   "attr": {
     "advanced": "Erweitert (Artmerkmale)",
@@ -2214,5 +2217,22 @@
     "noText": "Dieses Paket liefert keinen Lizenztext mit; es nennt nur {{id}}.",
     "summary_one": "{{count}} Abhängigkeit",
     "summary_other": "{{count}} Abhängigkeiten"
+  },
+  "photoImport": {
+    "title": "Aus Fotos importieren",
+    "add_one": "{{count}} hinzufügen",
+    "add_other": "{{count}} hinzufügen",
+    "reading": "Foto-Metadaten werden gelesen…",
+    "summary": "{{resolved}} erkannt · {{pending}} zuzuordnen",
+    "speciesFor_one": "Art für {{count}} Foto",
+    "speciesFor_other": "Art für {{count}} Fotos",
+    "noCoordCount_one": "{{count}} Foto ohne Koordinaten",
+    "noCoordCount_other": "{{count}} Fotos ohne Koordinaten",
+    "noCoordTitle": "Fotos ohne Koordinaten",
+    "noCoordHint": "Was geschehen soll, wenn ein Foto kein GPS hat. Leer lassen ist am sichersten — beim Importieren sind Sie meist nicht mehr vor Ort.",
+    "leaveEmpty": "Leer lassen",
+    "useCurrent": "Aktuelle Position verwenden",
+    "entry": "Aus Fotos importieren",
+    "none": "Aus den gewählten Fotos lässt sich kein Datensatz erstellen"
   }
 }

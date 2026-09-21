@@ -376,7 +376,10 @@
     "audioFailTitle": "녹음할 수 없습니다",
     "verbatimTitle": "현장 동정 표기",
     "verbatimPlaceholder": "예: sp1, sp2",
-    "verbatimAdd": "＋ 현장 동정 표기"
+    "verbatimAdd": "＋ 현장 동정 표기",
+    "usePhotoGps": "사진의 GPS 사용",
+    "photoNoGps": "이 기록의 사진에 GPS가 없습니다",
+    "photoNeedsAccess": "사진이 사진 보관함에 있습니다. 좌표를 읽으려면 설정에서 사진 전체 접근을 허용하세요"
   },
   "attr": {
     "advanced": "고급 (종 속성)",
@@ -2089,5 +2092,19 @@
     "noMatch": "일치하는 패키지가 없습니다",
     "noText": "이 패키지는 라이선스 전문을 포함하지 않으며 {{id}}만 선언합니다.",
     "summary_other": "의존 패키지 {{count}}개"
+  },
+  "photoImport": {
+    "title": "사진에서 가져오기",
+    "add_other": "{{count}}건 추가",
+    "reading": "사진 정보를 읽는 중…",
+    "summary": "식별됨 {{resolved}}장 · 지정 필요 {{pending}}장",
+    "speciesFor_other": "이 {{count}}장의 종",
+    "noCoordCount_other": "좌표 없는 사진 {{count}}장",
+    "noCoordTitle": "좌표가 없는 사진",
+    "noCoordHint": "사진에 GPS가 없을 때의 처리. 비워 두는 편이 가장 안전합니다 — 가져올 때쯤이면 보통 현장에 없습니다.",
+    "leaveEmpty": "비워 두기",
+    "useCurrent": "현재 위치 사용",
+    "entry": "사진에서 가져오기",
+    "none": "선택한 사진으로는 기록을 만들 수 없습니다"
   }
 }

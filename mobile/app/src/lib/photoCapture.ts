@@ -26,6 +26,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import * as MediaLibrary from 'expo-media-library';
 import piexif from 'piexifjs';
+import { buildUserComment, utf8ToLatin1 } from './photoExif';
 import { generateUuid } from '~/db';
 import type { PlotSpeciesRecordWithTaxon, RecordWithTaxon, SpecimenWithTaxon } from '~/db';
 
@@ -181,12 +182,6 @@ function buildCaption(ctx: PhotoSpeciesContext): string {
  * Tools that decode the tag as UTF-8 (Photos.app, exiftool, most viewers) will
  * recover the original characters.
  */
-function utf8ToLatin1(s: string): string {
-  const bytes = new TextEncoder().encode(s);
-  let out = '';
-  for (let i = 0; i < bytes.length; i++) out += String.fromCharCode(bytes[i]);
-  return out;
-}
 
 // ─────────────── Restoring the EXIF expo-image-picker throws away ───────────────
 //
@@ -374,39 +369,9 @@ function composeExif(
   // Latin-1 so piexifjs emits them unchanged.
   dict['0th']![piexif.ImageIFD.ImageDescription] = utf8ToLatin1(caption);
 
-  const userCommentJson = JSON.stringify({
-    schema: 'checklister.v1',
-    taxon_id: ctx.taxon_id,
-    name: ctx.simple_name,
-    observed_at: ctx.observed_at,
-    ...compact({
-      author: ctx.name_author,
-      cname: ctx.common_name_c,
-      family: ctx.family,
-      family_c: ctx.family_c,
-      kingdom: ctx.kingdom,
-      notes: ctx.notes,
-      lat: ctx.lat,
-      lng: ctx.lng,
-      coordinate_uncertainty_m: ctx.accuracy,
-      session_id: ctx.session_id,
-      plot_survey_id: ctx.plot_survey_id,
-      collection_trip_id: ctx.collection_trip_id,
-      record_number: ctx.record_number,
-      // DwC species attributes, English enum values exactly as stored.
-      sex: ctx.sex,
-      life_stage: ctx.life_stage,
-      reproductive_condition: ctx.reproductive_condition,
-      leaf_phenology: ctx.leaf_phenology,
-      degree_of_establishment: ctx.degree_of_establishment,
-      detection_type: ctx.detection_type,
-      organism_quantity: ctx.organism_quantity,
-      organism_quantity_type: ctx.organism_quantity_type,
-    }),
-  });
-  // EXIF UserComment supports a charset prefix. Use ASCII prefix; payload is
-  // valid UTF-8 bytes which exiftool / Photos.app decode correctly.
-  dict.Exif![piexif.ExifIFD.UserComment] = `ASCII\0\0\0${utf8ToLatin1(userCommentJson)}`;
+  // Built by photoExif.ts, beside the parser that has to invert it — see the
+  // note there about the two having drifted while they lived apart.
+  dict.Exif![piexif.ExifIFD.UserComment] = buildUserComment(ctx);
 
   // GPS: if record has explicit lat/lng, override (camera GPS might be wrong if recorded later).
   if (typeof ctx.lat === 'number' && typeof ctx.lng === 'number') {
@@ -628,6 +593,50 @@ export async function captureAndSavePhoto(ctx: PhotoSpeciesContext): Promise<str
  * `documentDirectory/photos/` with a uuid name. The file is then owned by
  * the app and only deleted when the user removes the photo from a record.
  */
+/** A picked photo plus the EXIF the picker read off the ORIGINAL asset. */
+export type PickedPhoto = {
+  /** Persistent app-owned copy, safe to store in a record. */
+  uri: string;
+  /** `asset.exif` — a flat tag-NAME → value map. The only metadata source for a
+   *  HEIC, which piexif cannot parse at all. Null when the picker withheld it. */
+  exif: Record<string, unknown> | null;
+};
+
+/**
+ * Pick photos and keep their EXIF.
+ *
+ * Separate from `pickPhotos` rather than an option on it: that one has four
+ * callers that want a plain list of URIs, and `exif: true` makes the picker do
+ * extra work on every pick. Only the import flow needs this.
+ */
+export async function pickPhotosWithExif(): Promise<PickedPhoto[]> {
+  const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  if (perm.status !== 'granted') {
+    throw new Error('Photo library access required');
+  }
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ['images'],
+    allowsEditing: false,
+    allowsMultipleSelection: true,
+    // quality 1 and no editing: re-encoding is what strips EXIF in the first
+    // place, and this flow exists to read it.
+    quality: 1,
+    exif: true,
+  });
+  if (result.canceled) return [];
+
+  const out: PickedPhoto[] = [];
+  for (const a of result.assets) {
+    const persistent = await persistPickedPhoto(a);
+    if (!persistent) continue;
+    out.push({
+      uri: persistent,
+      exif: (a.exif as Record<string, unknown> | undefined) ?? null,
+    });
+  }
+  return out;
+}
+
 export async function pickPhotos(): Promise<string[]> {
   const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (perm.status !== 'granted') {

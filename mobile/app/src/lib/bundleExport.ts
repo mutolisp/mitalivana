@@ -384,7 +384,7 @@ function buildRecordReadme(title: string, entries: BuiltZipEntry[]): string {
         : e.name.slice(e.name.indexOf('/') + 1);
     lines.push(`- \`${shown}\` — ${rule.desc}`);
   }
-  lines.push('', '由 Checklister-NG mobile 匯出。');
+  lines.push('', '由 Mitalivana 匯出。');
   return lines.join('\n');
 }
 
@@ -575,7 +575,7 @@ function addDwcaEntry(
     ...records,
     title,
     abstract,
-    packageId: `checklister-ng-${base}-${new Date().toISOString().slice(0, 10)}`,
+    packageId: `mitalivana-${base}-${new Date().toISOString().slice(0, 10)}`,
   });
   entries.push({ name: `${base}/dwca/${base}_dwca.zip`, bytes, zipOpts: { level: 0 } });
 }
@@ -1522,7 +1522,7 @@ function buildManifest(meta: {
   items?: BundleItem[];
 }): object {
   return {
-    app: 'checklister-ng-mobile',
+    app: 'mitalivana',
     schema_version: 2,
     created_at: new Date().toISOString(),
     ...meta,
@@ -1647,7 +1647,7 @@ export async function bundleMany(items: BundleItem[], opts: BundleOptions): Prom
   }
 
   const bundleManifest = {
-    app: 'checklister-ng-mobile',
+    app: 'mitalivana',
     schema_version: 1,
     created_at: new Date().toISOString(),
     item_count: items.length,
@@ -1665,7 +1665,7 @@ export async function bundleMany(items: BundleItem[], opts: BundleOptions): Prom
     .replace(/[:.]/g, '-')
     .slice(0, 19);
   await reportZipStage(opts.onProgress);
-  return finalizeZip(allEntries, `checklister_bundle_${ts}`);
+  return finalizeZip(allEntries, `mitalivana_bundle_${ts}`);
 }
 
 export function finalizeZip(entries: BuiltZipEntry[], folderName: string): ExportFile {

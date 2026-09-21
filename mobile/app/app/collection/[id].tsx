@@ -196,12 +196,23 @@ function SpecimenRow({
           {duplicate ? (
             <Ionicons name="warning" size={12} color="#d97706" style={{ marginLeft: 3 }} />
           ) : null}
-          {specimen.common_name_c ? (
+          {specimen.common_name_c || specimen.verbatim_identification ? (
             <Text
               className="ml-2 flex-1 text-base text-gray-900 dark:text-gray-100"
               numberOfLines={1}
             >
               {specimen.common_name_c}
+              {/* The field determination (v39), on the name line for the same
+                  reason SpeciesCard puts it there. Rendered even without a
+                  Chinese name, which is the common case for a `sp1` under a
+                  family. */}
+              {specimen.verbatim_identification ? (
+                <Text className="text-gray-500 dark:text-gray-400">
+                  {specimen.common_name_c
+                    ? ` · ${specimen.verbatim_identification}`
+                    : specimen.verbatim_identification}
+                </Text>
+              ) : null}
             </Text>
           ) : null}
         </View>
