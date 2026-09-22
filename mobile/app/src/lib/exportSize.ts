@@ -11,9 +11,11 @@
  *  - Text artefacts (yml / csv / md / geo): cheap approximation — 1 KB per
  *    record. We never block on these because they're dwarfed by photos.
  */
+import { File } from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
 import { listPlotSpecies, listSessionRecords, listSpecimens } from '~/db';
-import type { BundleItem } from './bundleExport';
+import { mediaAssetTarget, type BundleItem } from './bundleExport';
+import { rebaseAppFileUri } from './appFiles';
 
 const PHOTO_FALLBACK_BYTES = 3 * 1024 * 1024; // 3 MB per photo when size unknown
 const TEXT_BYTES_PER_RECORD = 1024; // 1 KB per record for yml+csv+md combined
@@ -30,14 +32,31 @@ function parsePhotoUris(json: string | null): string[] {
 }
 
 async function photoBytes(uri: string): Promise<number> {
+  // App-owned files are on disk — read the size directly instead of going
+  // through the media library, which doesn't know about them at all.
+  if (uri.startsWith('file://')) {
+    try {
+      const size = new File(rebaseAppFileUri(uri)).size;
+      if (typeof size === 'number' && size > 0) return size;
+    } catch {
+      // fall through to fallback
+    }
+    return PHOTO_FALLBACK_BYTES;
+  }
+
+  // `getAssetInfoAsync` takes a bare localIdentifier / MediaStore id, not the
+  // prefixed URI. This used to pass `uri` straight through, so on iOS every
+  // `ph://` photo threw and the estimate silently became 3 MB × n.
+  const { assetId } = mediaAssetTarget(uri);
+  if (!assetId) return PHOTO_FALLBACK_BYTES;
   try {
-    const info = await MediaLibrary.getAssetInfoAsync(uri);
+    const info = await MediaLibrary.getAssetInfoAsync(assetId);
     // MediaLibrary.AssetInfo doesn't strictly type `fileSize` across platforms
     // but the underlying native module returns it when available.
     const size = (info as unknown as { fileSize?: number }).fileSize;
     if (typeof size === 'number' && size > 0) return size;
-  } catch {
-    // fall through to fallback
+  } catch (e) {
+    if (__DEV__) console.warn('[exportSize] getAssetInfoAsync failed', uri, e);
   }
   return PHOTO_FALLBACK_BYTES;
 }

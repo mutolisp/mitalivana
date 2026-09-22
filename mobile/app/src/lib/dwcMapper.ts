@@ -107,6 +107,7 @@ export const DWC_FIELD_MAP: Record<string, string> = {
   basis_of_record: 'basisOfRecord',
   recorded_by: 'recordedBy',
   identified_by: 'identifiedBy',
+  date_identified: 'dateIdentified',
   locality: 'locality',
 };
 

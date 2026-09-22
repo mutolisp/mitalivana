@@ -886,7 +886,8 @@
     "featureAction": "Actions",
     "basemapRudyVector": "RudyMap",
     "basemapRudyVectorOffline": "RudyMap (offline)",
-    "compass": "Compass — tap to face north"
+    "compass": "Compass — tap to face north",
+    "sessionNoCoords": "No record in “{{name}}” has coordinates, so nothing is plotted"
   },
   "keys": {
     "modeDichotomous": "Dichotomous",

@@ -833,7 +833,8 @@
     "featureAction": "작업",
     "basemapRudyVector": "RudyMap",
     "basemapRudyVectorOffline": "RudyMap (오프라인)",
-    "compass": "나침반 — 누르면 북쪽으로 돌아갑니다"
+    "compass": "나침반 — 누르면 북쪽으로 돌아갑니다",
+    "sessionNoCoords": "‘{{name}}’의 기록에 좌표가 없어 지도에 표시되지 않습니다"
   },
   "keys": {
     "modeDichotomous": "이분법",

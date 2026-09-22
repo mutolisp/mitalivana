@@ -273,7 +273,8 @@ export function listSessionRecords(sessionId: number): RecordWithTaxon[] {
             verbatim_identification,
             organism_quantity, organism_quantity_type,
             used_name_id, used_scientific_name,
-            audio_paths, inat_observation_id, inat_media_done, inat_uploaded_at, inat_sync_hash
+            audio_paths, inat_observation_id, inat_media_done, inat_uploaded_at, inat_sync_hash,
+            updated_at
      FROM checklist_records WHERE session_id = ? ORDER BY observed_at ASC`,
     [sessionId],
   );

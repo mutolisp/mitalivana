@@ -226,6 +226,7 @@ export function specimenToYamlItem(
   };
   if (sp.recorded_by) item.recorded_by = sp.recorded_by;
   if (sp.identified_by) item.identified_by = sp.identified_by;
+  if (sp.date_identified) item.date_identified = sp.date_identified;
   if (sp.lat !== null) item.lat = sp.lat;
   if (sp.lng !== null) item.lng = sp.lng;
   if (sp.accuracy !== null) item.accuracy = sp.accuracy;

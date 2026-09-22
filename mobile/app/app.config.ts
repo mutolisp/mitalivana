@@ -94,31 +94,31 @@ const config: ExpoConfig = {
       'expo-location',
       {
         locationAlwaysAndWhenInUsePermission:
-          'Allow Checklister to record locations of species observations (foreground use is sufficient).',
+          'Allow Mitalivana to record locations of species observations (foreground use is sufficient).',
         locationWhenInUsePermission:
-          'Allow Checklister to record locations of species observations.',
+          'Allow Mitalivana to record locations of species observations.',
       },
     ],
     [
       'expo-image-picker',
       {
-        photosPermission: 'Allow Checklister to attach photos to species records.',
-        cameraPermission: 'Allow Checklister to take photos of observed species.',
+        photosPermission: 'Allow Mitalivana to attach photos to species records.',
+        cameraPermission: 'Allow Mitalivana to take photos of observed species.',
       },
     ],
     [
       'expo-media-library',
       {
-        photosPermission: 'Allow Checklister to attach photos to species records.',
+        photosPermission: 'Allow Mitalivana to attach photos to species records.',
         savePhotosPermission:
-          'Allow Checklister to save captured species photos to your Photos library.',
+          'Allow Mitalivana to save captured species photos to your Photos library.',
         isAccessMediaLocationEnabled: true,
       },
     ],
     [
       'expo-audio',
       {
-        microphonePermission: 'Allow Checklister to record sounds of observed species.',
+        microphonePermission: 'Allow Mitalivana to record sounds of observed species.',
       },
     ],
     'expo-secure-store',

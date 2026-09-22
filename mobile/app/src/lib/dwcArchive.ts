@@ -19,6 +19,7 @@ import { strToU8, zipSync } from 'fflate';
 
 const DWC = 'http://rs.tdwg.org/dwc/terms/';
 const ECO = 'http://rs.tdwg.org/eco/terms/';
+const DCT = 'http://purl.org/dc/terms/';
 
 type ColSpec = { key: string; term: string };
 
@@ -51,15 +52,47 @@ export const OCCURRENCE_COLS: ColSpec[] = [
   { key: 'kingdom', term: `${DWC}kingdom` },
   { key: 'organismQuantity', term: `${DWC}organismQuantity` },
   { key: 'organismQuantityType', term: `${DWC}organismQuantityType` },
+  // Taxonomy. `higherClassification` is the `|`-joined chain and the five
+  // rank columns are the addressable form — GBIF indexes the columns, humans
+  // read the chain, and neither substitutes for the other.
+  { key: 'taxonRank', term: `${DWC}taxonRank` },
+  { key: 'higherClassification', term: `${DWC}higherClassification` },
+  { key: 'phylum', term: `${DWC}phylum` },
+  { key: 'class', term: `${DWC}class` },
+  { key: 'order', term: `${DWC}order` },
+  { key: 'genus', term: `${DWC}genus` },
+  // Set only when the user deliberately filed the record under a name the
+  // checklist does not accept: `scientificName` then holds that name and these
+  // two say what the checklist would have used instead.
+  { key: 'taxonomicStatus', term: `${DWC}taxonomicStatus` },
+  { key: 'acceptedNameUsage', term: `${DWC}acceptedNameUsage` },
+  { key: 'acceptedNameUsageID', term: `${DWC}acceptedNameUsageID` },
   { key: 'sex', term: `${DWC}sex` },
   { key: 'lifeStage', term: `${DWC}lifeStage` },
   { key: 'reproductiveCondition', term: `${DWC}reproductiveCondition` },
+  // NOTE `leafPhenology` deliberately absent: it has no DwC term (see
+  // APP_SPECIFIC in check-dwc-terms.mjs), and every meta.xml field must carry
+  // a real term URI. It stays in the CSV and the yml, where a non-standard
+  // column is allowed to mean what we say it means.
   { key: 'degreeOfEstablishment', term: `${DWC}degreeOfEstablishment` },
+  // Taxon-level ("native to Taiwan"), unlike degreeOfEstablishment above,
+  // which is about this individual. Controlled vocabulary — see
+  // `establishmentMeansDwcValue`.
+  { key: 'establishmentMeans', term: `${DWC}establishmentMeans` },
+  // Only when organismQuantityType really is a count of individuals; cover
+  // classes and DBH lists stay in the organismQuantity pair.
+  { key: 'individualCount', term: `${DWC}individualCount` },
   { key: 'eventDate', term: `${DWC}eventDate` },
   { key: 'decimalLatitude', term: `${DWC}decimalLatitude` },
   { key: 'decimalLongitude', term: `${DWC}decimalLongitude` },
   { key: 'coordinateUncertaintyInMeters', term: `${DWC}coordinateUncertaintyInMeters` },
+  // Specimen-only; blank for observations.
+  { key: 'recordNumber', term: `${DWC}recordNumber` },
+  { key: 'identifiedBy', term: `${DWC}identifiedBy` },
+  { key: 'dateIdentified', term: `${DWC}dateIdentified` },
   { key: 'occurrenceRemarks', term: `${DWC}occurrenceRemarks` },
+  // Dublin Core, not DwC — `modified` has no dwc: term.
+  { key: 'modified', term: `${DCT}modified` },
 ];
 
 export const HUMBOLDT_COLS: ColSpec[] = [

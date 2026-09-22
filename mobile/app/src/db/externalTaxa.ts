@@ -363,3 +363,4 @@ export function searchExternalTaxa(q: string, limit = 10): SearchResult[] {
   );
   return ((res.rows ?? []) as unknown as ExternalTaxon[]).map(externalToSearchResult);
 }
+

@@ -1156,6 +1156,31 @@ function addGeoEntries(
   }
 }
 
+/**
+ * Maps a stored photo/audio URI to the argument `MediaLibrary.getAssetInfoAsync`
+ * actually accepts, plus a fallback URI for when no asset id can be derived.
+ *
+ * iOS `ph://<localIdentifier>`: the bare localIdentifier, NOT the prefixed URI
+ *   — passing the full URI silently throws, which reads as "photo missing".
+ *
+ * Android `content://media/external/images/media/<id>`: the trailing numeric
+ *   MediaStore _id. If it can't be extracted (custom provider URI), callers
+ *   fall back to the URI itself, which the platform ContentResolver can
+ *   usually open.
+ *
+ * Exported because both the exporter and the size estimator need it, and they
+ * drifted once already (`exportSize.ts` passed the full URI, so every iOS photo
+ * silently fell back to a 3 MB guess). See memory `feedback-media-library-ph-uri`.
+ */
+export function mediaAssetTarget(uri: string): { assetId: string | null; fallback: string | null } {
+  if (uri.startsWith('ph://')) return { assetId: uri.slice(5), fallback: null };
+  if (uri.startsWith('content://')) {
+    const m = uri.match(/\/(\d+)(?:\?|$)/);
+    return { assetId: m ? m[1] : null, fallback: uri };
+  }
+  return { assetId: uri, fallback: null };
+}
+
 export async function resolveAssetUri(uri: string): Promise<string | null> {
   // App-owned files: the stored absolute path may point at a previous iOS
   // container (see appFiles.ts) — re-anchor before anyone tries to read it.
@@ -1163,27 +1188,7 @@ export async function resolveAssetUri(uri: string): Promise<string | null> {
 
   // PHAsset (iOS) and Android MediaStore URIs both need an extra hop to get
   // the underlying file path.
-  //
-  // iOS `ph://<localIdentifier>`: getAssetInfoAsync takes the bare
-  //   localIdentifier string, NOT the prefixed URI — passing the full URI
-  //   silently throws (caught here) → photo skipped.
-  //
-  // Android `content://media/external/images/media/<id>`: getAssetInfoAsync
-  //   takes the trailing numeric MediaStore _id. If we can't extract it (e.g.
-  //   custom provider URI), we fall back to the URI itself which
-  //   `expo-file-system::readAsStringAsync` can usually open via the platform
-  //   ContentResolver.
-  let assetId: string | null = null;
-  let fallback: string | null = null;
-  if (uri.startsWith('ph://')) {
-    assetId = uri.slice(5);
-  } else if (uri.startsWith('content://')) {
-    const m = uri.match(/\/(\d+)(?:\?|$)/);
-    if (m) assetId = m[1];
-    fallback = uri;
-  } else {
-    assetId = uri;
-  }
+  const { assetId, fallback } = mediaAssetTarget(uri);
 
   if (assetId) {
     try {

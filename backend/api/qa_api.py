@@ -13,6 +13,7 @@ from fastapi import APIRouter, Query, BackgroundTasks
 from fastapi.responses import JSONResponse, FileResponse, PlainTextResponse
 from sqlmodel import Session, text
 from backend.db import engine
+from backend.utils.ranks import INFRASPECIFIC_SQL, SPECIES_LEVEL_SQL
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/admin/qa")
@@ -40,9 +41,9 @@ def _run_check(session, check_id: str, offset: int = 0, limit: int = 100):
 # ── A1: 缺階層欄位 ──────────────────────────────────────
 
 def _check_a1(session, offset, limit):
-    count_sql = """
+    count_sql = f"""
         SELECT COUNT(*) FROM taicol_names
-        WHERE rank IN ('Species','Subspecies','Variety','Form','Forma')
+        WHERE rank IN ({SPECIES_LEVEL_SQL})
           AND usage_status = 'accepted'
           AND (
             kingdom IS NULL OR kingdom = '' OR
@@ -56,7 +57,7 @@ def _check_a1(session, offset, limit):
     items_sql = f"""
         SELECT name_id, simple_name, rank, kingdom, phylum, [class], "order", family, genus
         FROM taicol_names
-        WHERE rank IN ('Species','Subspecies','Variety','Form','Forma')
+        WHERE rank IN ({SPECIES_LEVEL_SQL})
           AND usage_status = 'accepted'
           AND (
             kingdom IS NULL OR kingdom = '' OR
@@ -273,17 +274,17 @@ def _check_b5(session, offset, limit):
 # ── B6: 空俗名 ──────────────────────────────────
 
 def _check_b6(session, offset, limit):
-    count_sql = """
+    count_sql = f"""
         SELECT COUNT(*) FROM taicol_names
         WHERE usage_status = 'accepted'
-          AND rank IN ('Species','Subspecies','Variety','Form','Forma')
+          AND rank IN ({SPECIES_LEVEL_SQL})
           AND (common_name_c IS NULL OR common_name_c = '')
     """
     items_sql = f"""
         SELECT name_id, simple_name, rank, family, taxon_id
         FROM taicol_names
         WHERE usage_status = 'accepted'
-          AND rank IN ('Species','Subspecies','Variety','Form','Forma')
+          AND rank IN ({SPECIES_LEVEL_SQL})
           AND (common_name_c IS NULL OR common_name_c = '')
         ORDER BY family, simple_name
         LIMIT :lim OFFSET :off

@@ -16,6 +16,7 @@ import type { DuplicateRecordOptions } from './duplicate';
 import { existingProjectId } from './projects';
 import { generateUuid } from './plots';
 import { defaultIdentifierString, defaultSurveyorString } from './surveyors';
+import { isoDate } from '~/lib/datetime';
 import {
   resolveTaxa,
   EMPTY_TAXON_FIELDS,
@@ -70,6 +71,7 @@ export type Specimen = {
   /** DwC identifiedBy — who determined the name, which is often not the
    *  collector. NULL on specimens recorded before v26. */
   identified_by: string | null;
+  date_identified: string | null; // DwC dateIdentified, YYYY-MM-DD
   lat: number | null;
   lng: number | null;
   /** GPS horizontal accuracy in metres → DwC coordinateUncertaintyInMeters. */
@@ -111,11 +113,12 @@ export type Specimen = {
 export type SpecimenWithTaxon = Specimen & TaxonFields & AdoptionStatus;
 
 const SPECIMEN_COLS = `id, trip_id, occurrence_id, taxon_id, record_number, record_number_seq,
-  collected_at, recorded_by, identified_by, lat, lng, accuracy, locality,
+  collected_at, recorded_by, identified_by, date_identified, lat, lng, accuracy, locality,
   sex, life_stage, reproductive_condition, leaf_phenology, degree_of_establishment,
   verbatim_identification, notes, photo_paths,
   used_name_id, used_scientific_name,
-  audio_paths, inat_observation_id, inat_media_done, inat_uploaded_at, inat_sync_hash`;
+  audio_paths, inat_observation_id, inat_media_done, inat_uploaded_at, inat_sync_hash,
+  updated_at`;
 
 function defaultTripName(now: Date = new Date()): string {
   const pad = (n: number) => String(n).padStart(2, '0');
@@ -408,9 +411,10 @@ export function addSpecimen(input: AddSpecimenInput): number {
   const res = db.executeSync(
     `INSERT INTO collection_specimens
        (trip_id, occurrence_id, taxon_id, record_number, record_number_seq,
-        collected_at, recorded_by, identified_by, lat, lng, accuracy, locality, notes,
+        collected_at, recorded_by, identified_by, date_identified,
+        lat, lng, accuracy, locality, notes,
         used_name_id, used_scientific_name, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       input.trip_id,
       generateUuid(),
@@ -424,6 +428,12 @@ export function addSpecimen(input: AddSpecimenInput): number {
       input.identified_by !== undefined
         ? input.identified_by
         : defaultIdentifierString(),
+      // Determination date travels with the determiner — a determiner with no
+      // date says nothing about whether this is the original call or a later
+      // revision. Uses the collection date, not "now": for a specimen entered
+      // in the field they are the same moment, and for one entered afterwards
+      // the field determination is what the label should carry.
+      isoDate(input.collected_at ?? now),
       input.lat ?? null,
       input.lng ?? null,
       input.accuracy ?? null,
@@ -443,7 +453,7 @@ export function addSpecimen(input: AddSpecimenInput): number {
 // so it goes through `updateSpecimenTaxon`. Leaving it in this whitelist left a
 // trap that carried the previous determination's adopted name onto the new one.
 const SPECIMEN_UPDATABLE_KEYS = new Set([
-  'record_number', 'collected_at', 'recorded_by', 'identified_by',
+  'record_number', 'collected_at', 'recorded_by', 'identified_by', 'date_identified',
   'lat', 'lng', 'accuracy',
   'locality', 'sex', 'life_stage', 'reproductive_condition', 'leaf_phenology',
   'degree_of_establishment', 'verbatim_identification', 'notes',
@@ -488,6 +498,23 @@ export function updateSpecimenTaxon(
   adopted?: AdoptionInput | null,
 ): void {
   retaxonRecord('collection', id, taxonId, adopted);
+  // A new determination is a new determiner and a new date. Leaving
+  // `identified_by` on the previous person is not a display glitch — it is a
+  // false attribution that ships in the exported record and on the herbarium
+  // label. So the determination columns move together with the name.
+  //
+  // Automatic, not a prompt: in the field this happens while holding the
+  // specimen, and an extra sheet per re-identification is the kind of friction
+  // that makes people stop correcting names. A wrong determiner is editable on
+  // the detail page; an uncorrected name is not visible at all.
+  //
+  // No default identifier set → NULL, which is honest. It does not inherit the
+  // stale value, because "unknown determiner" is true and "the previous one"
+  // is false.
+  getUserDb().executeSync(
+    `UPDATE collection_specimens SET identified_by = ?, date_identified = ? WHERE id = ?`,
+    [defaultIdentifierString(), isoDate(Date.now()), id],
+  );
 }
 
 export function updateSpecimenLocation(

@@ -18,7 +18,13 @@ import {
   type Session,
 } from '~/db';
 import { localIso, multiToPipe } from './bundleYaml';
+import { publishedTaxonId } from './taxonId';
 import { establishmentDwcValue } from './dwcAttributes';
+import {
+  establishmentMeansDwcValue,
+  higherClassificationOf,
+  individualCountOf,
+} from './dwcMultiValue';
 import { buildDwcArchive, type DwcRow } from './dwcArchive';
 
 function eventDateOf(start: number | null, end: number | null): string {
@@ -124,7 +130,7 @@ export function buildRecordsDwca({
         coreEventID: (r.subplot_id != null ? subplotEventById.get(r.subplot_id) : null) ?? eventID,
         occurrenceID: r.occurrence_id,
         basisOfRecord: 'HumanObservation',
-        taxonID: r.taxon_id,
+        taxonID: publishedTaxonId(r.taxon_id),
         scientificName: r.used_scientific_name || r.simple_name,
         scientificNameAuthorship: r.name_author,
         vernacularName: r.common_name_c,
@@ -136,11 +142,27 @@ export function buildRecordsDwca({
         lifeStage: r.life_stage,
         reproductiveCondition: multiToPipe(r.reproductive_condition),
         degreeOfEstablishment: establishmentDwcValue(r.degree_of_establishment),
+        taxonRank: r.rank,
+        higherClassification: higherClassificationOf(r),
+        phylum: r.phylum,
+        class: r.class,
+        order: r.order,
+        genus: r.genus,
+        // Only meaningful under a deliberate adoption; `used_status` is '' for
+        // a plain accepted name, and then all three stay blank.
+        taxonomicStatus: r.used_status,
+        acceptedNameUsage: r.used_accepted_name,
+        // taxon_id keeps pointing at the ACCEPTED taxon even while
+        // scientificName shows the adopted one, so it is the accepted id.
+        acceptedNameUsageID: r.used_status ? publishedTaxonId(r.taxon_id) : '',
+        establishmentMeans: establishmentMeansDwcValue(r.alien_type, r.is_endemic),
+        individualCount: individualCountOf(r.organism_quantity, r.organism_quantity_type),
         eventDate: r.observed_at != null ? localIso(r.observed_at) : '',
         decimalLatitude: r.lat,
         decimalLongitude: r.lng,
         coordinateUncertaintyInMeters: r.accuracy,
         occurrenceRemarks: r.notes,
+        modified: r.updated_at != null ? localIso(r.updated_at) : '',
       });
     }
   }
@@ -172,7 +194,7 @@ export function buildRecordsDwca({
         coreEventID: eventID,
         occurrenceID: r.occurrence_id,
         basisOfRecord: 'HumanObservation',
-        taxonID: r.taxon_id,
+        taxonID: publishedTaxonId(r.taxon_id),
         scientificName: r.used_scientific_name || r.simple_name,
         scientificNameAuthorship: r.name_author,
         vernacularName: r.common_name_c,
@@ -184,11 +206,27 @@ export function buildRecordsDwca({
         lifeStage: r.life_stage,
         reproductiveCondition: multiToPipe(r.reproductive_condition),
         degreeOfEstablishment: establishmentDwcValue(r.degree_of_establishment),
+        taxonRank: r.rank,
+        higherClassification: higherClassificationOf(r),
+        phylum: r.phylum,
+        class: r.class,
+        order: r.order,
+        genus: r.genus,
+        // Only meaningful under a deliberate adoption; `used_status` is '' for
+        // a plain accepted name, and then all three stay blank.
+        taxonomicStatus: r.used_status,
+        acceptedNameUsage: r.used_accepted_name,
+        // taxon_id keeps pointing at the ACCEPTED taxon even while
+        // scientificName shows the adopted one, so it is the accepted id.
+        acceptedNameUsageID: r.used_status ? publishedTaxonId(r.taxon_id) : '',
+        establishmentMeans: establishmentMeansDwcValue(r.alien_type, r.is_endemic),
+        individualCount: individualCountOf(r.organism_quantity, r.organism_quantity_type),
         eventDate: localIso(r.observed_at),
         decimalLatitude: r.lat,
         decimalLongitude: r.lng,
         coordinateUncertaintyInMeters: r.accuracy,
         occurrenceRemarks: r.notes,
+        modified: r.updated_at != null ? localIso(r.updated_at) : '',
       });
     }
   }
@@ -208,7 +246,7 @@ export function buildRecordsDwca({
         coreEventID: eventID,
         occurrenceID: sp.occurrence_id,
         basisOfRecord: 'PreservedSpecimen',
-        taxonID: sp.taxon_id,
+        taxonID: publishedTaxonId(sp.taxon_id),
         scientificName: sp.used_scientific_name || sp.simple_name,
         scientificNameAuthorship: sp.name_author,
         vernacularName: sp.common_name_c,
@@ -218,11 +256,29 @@ export function buildRecordsDwca({
         lifeStage: sp.life_stage,
         reproductiveCondition: multiToPipe(sp.reproductive_condition),
         degreeOfEstablishment: establishmentDwcValue(sp.degree_of_establishment),
+        taxonRank: sp.rank,
+        higherClassification: higherClassificationOf(sp),
+        phylum: sp.phylum,
+        class: sp.class,
+        order: sp.order,
+        genus: sp.genus,
+        // Only meaningful under a deliberate adoption; `used_status` is '' for
+        // a plain accepted name, and then all three stay blank.
+        taxonomicStatus: sp.used_status,
+        acceptedNameUsage: sp.used_accepted_name,
+        // taxon_id keeps pointing at the ACCEPTED taxon even while
+        // scientificName shows the adopted one, so it is the accepted id.
+        acceptedNameUsageID: sp.used_status ? publishedTaxonId(sp.taxon_id) : '',
+        establishmentMeans: establishmentMeansDwcValue(sp.alien_type, sp.is_endemic),
+        recordNumber: sp.record_number,
+        identifiedBy: sp.identified_by,
+        dateIdentified: sp.date_identified,
         eventDate: sp.collected_at != null ? localIso(sp.collected_at) : '',
         decimalLatitude: sp.lat,
         decimalLongitude: sp.lng,
         coordinateUncertaintyInMeters: sp.accuracy,
         occurrenceRemarks: sp.notes,
+        modified: sp.updated_at != null ? localIso(sp.updated_at) : '',
       });
     }
   }

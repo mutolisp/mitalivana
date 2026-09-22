@@ -833,7 +833,8 @@
     "featureAction": "操作",
     "basemapRudyVector": "RudyMap",
     "basemapRudyVectorOffline": "RudyMap（オフライン）",
-    "compass": "方位磁針（タップで北向きに戻す）"
+    "compass": "方位磁針（タップで北向きに戻す）",
+    "sessionNoCoords": "「{{name}}」の記録には座標がないため、地図に表示されません"
   },
   "keys": {
     "modeDichotomous": "二分岐",

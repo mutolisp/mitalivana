@@ -833,7 +833,8 @@
     "featureAction": "操作",
     "basemapRudyVector": "魯地圖",
     "basemapRudyVectorOffline": "魯地圖（離線）",
-    "compass": "指北針（點一下轉回正北）"
+    "compass": "指北針（點一下轉回正北）",
+    "sessionNoCoords": "「{{name}}」的記錄都沒有座標，所以地圖上沒有點位"
   },
   "keys": {
     "modeDichotomous": "對偶",

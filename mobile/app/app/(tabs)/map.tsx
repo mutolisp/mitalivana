@@ -716,6 +716,21 @@ export default function MapScreen() {
     [sessions],
   );
 
+  /**
+   * A 名錄 whose records all lack coordinates draws nothing, and an empty map
+   * looks exactly like "this 名錄 has no records". Say which one it is.
+   *
+   * Only when there ARE records — zero records genuinely has nothing to say,
+   * and the session list already shows the count.
+   */
+  const shownSessionNoCoords = useMemo(() => {
+    if (shownSessionId == null || activeRecords.length === 0) return null;
+    if (activeRecords.some((r) => r.lat !== null && r.lng !== null)) return null;
+    // No count in the message on purpose: i18next reserves `count` for
+    // pluralisation, and the number adds nothing the record list doesn't show.
+    return { name: sessions.find((s) => s.id === shownSessionId)?.name ?? '' };
+  }, [shownSessionId, activeRecords, sessions]);
+
   const plotRenderItems = useMemo(
     () =>
       plots.map((p) => ({
@@ -2195,6 +2210,19 @@ export default function MapScreen() {
             >
               <Text className="text-xs font-semibold text-white">{t('common.save')}</Text>
             </Pressable>
+          </View>
+        </View>
+      ) : null}
+
+      {/* "This 名錄 has records, they just have no coordinates." Same slot as the
+          two toolbars above, so it is gated on them not being up. */}
+      {shownSessionNoCoords && !drawMode && !editMode && !info ? (
+        <View className="absolute left-3 right-3" style={{ top: insets.top + 60 }} pointerEvents="none">
+          <View className="flex-row items-center rounded-full bg-white px-3 py-2 shadow-md dark:bg-gray-900/95">
+            <Ionicons name="information-circle-outline" size={16} color={overlayIcon} />
+            <Text className="ml-2 flex-1 text-xs text-gray-700 dark:text-gray-300">
+              {t('map.sessionNoCoords', shownSessionNoCoords)}
+            </Text>
           </View>
         </View>
       ) : null}

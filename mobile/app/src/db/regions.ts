@@ -92,10 +92,11 @@ export function isJpTaxonId(taxonId: string | null | undefined): boolean {
 }
 
 /** taxon_id was minted for a species absent from both bundled checklists; its
- *  row lives in user.db's `external_taxa`, not in twnamelist.db. */
-export function isExternalTaxonId(taxonId: string | null | undefined): boolean {
-  return !!taxonId && taxonId.charAt(0) === 'g';
-}
+ *  row lives in user.db's `external_taxa`, not in twnamelist.db.
+ *  Defined in `~/lib/taxonId` (pure, so a check script can exercise it) and
+ *  re-exported here because this is where callers look for it. */
+export { isExternalTaxonId } from '~/lib/taxonId';
+import { isExternalTaxonId } from '~/lib/taxonId';
 
 export function sourceOfTaxonId(taxonId: string | null | undefined): TaxonSource {
   if (isExternalTaxonId(taxonId)) return 'external';

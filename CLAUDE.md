@@ -394,8 +394,8 @@ npm run check:dock                                   # 底部置底搜尋框結�
 
 ### Android 上架前置（尚未完成，僅紀錄）
 
-- **Google Maps API key**：`react-native-maps` 在 Android 用 Google Maps SDK，目前 `app.json` 沒設 → Android 地圖 tab 會空白。要 GCP 啟用 Maps SDK for Android、建 key、限制 package `tw.checklister.mobile` + SHA-1、寫入 `app.json` 的 `android.config.googleMaps.apiKey`。iOS 用 Apple Maps 不影響。
-- 詳細步驟見 `mobile/Plan.md` 的「Android 上架前置」section。
+- **Google Maps API key 已設定**（2026-05-17）：`app.json` 已改成 dynamic config `app.config.ts`，`:68` 讀 `process.env.GOOGLE_MAPS_ANDROID_API_KEY` 注入 `android.config.googleMaps.apiKey`。local dev 走 `.env`、雲端 build 走 EAS secret，**都不進 git**。少了它 Android 地圖 tab 會空白。iOS 用 Apple Maps 不受影響。
+- Play Store 上架清單見 `mobile/Plan.md` 的「待辦 → F. 發布」。
 
 ### Build & Test
 
@@ -427,7 +427,18 @@ make datasets-upload R2_BUCKET=mitalivana [DRY=1]
 
 ### Mobile 主要設計文件
 
-詳細的 sprint 紀錄、架構決策、待辦清單請看 `mobile/Plan.md`（每完成一個段落就更新）。
+文件分工（2026-09-22 整理）：
+
+| 檔案 | 裝什麼 |
+|---|---|
+| `mobile/Plan.md` | 待辦（A 正確性／B 匯出／C 出處驗證／D 技術債／E 功能缺口／F 發布）＋ 現行架構 |
+| `mobile/Update_log.md` | 已 ship 與踩過的坑；附錄 A–E 收了 Plan.md 原本的 sprint 推導過程 |
+| `mobile/Device_test.md` | 實機驗證清單。**驗證項不要寫回 Plan.md** |
+| `mobile/docs/` | 仍代表現況的參考文件（檢索表、樣區、iNat/GBIF、報表、物種詳細頁、地圖、i18n） |
+| `mobile/docs/planned/` | 純規劃未動工（AI 辨識、P2P 協作、雲端協作） |
+| `mobile/archive/` | 已完成或被取代的設計稿與一次性稽核，**不再維護** |
+
+每完成一個段落就更新 `Plan.md` 的待辦與 `Update_log.md`。
 
 ## Key Dependencies
 

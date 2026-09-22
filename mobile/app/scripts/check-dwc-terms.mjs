@@ -21,6 +21,12 @@
 import { readFileSync } from 'node:fs';
 import { strFromU8, unzipSync } from 'fflate';
 import { DWC_FIELD_MAP } from '../src/lib/dwcMapper.ts';
+import { publishedTaxonId } from '../src/lib/taxonId.ts';
+import {
+  establishmentMeansDwcValue,
+  higherClassificationOf,
+  individualCountOf,
+} from '../src/lib/dwcMultiValue.ts';
 import {
   DWCA_INTERNALS,
   EVENT_COLS,
@@ -127,6 +133,95 @@ checkCols('HUMBOLDT_COLS', HUMBOLDT_COLS, new Set(humboldt.terms), 'Humboldt ext
     if (isDwc(name) || isExt(name)) {
       fail(`APP_SPECIFIC."${name}" IS a real vocabulary term — remove it from the list`);
     }
+  }
+}
+
+// ── establishmentMeans must stay inside the controlled vocabulary ─────────
+// Term NAMES are checked above; this checks the VALUES, which GBIF validates
+// separately and which a mapping can silently invent.
+{
+  const vocab = new Set(
+    JSON.parse(readFileSync(new URL('./vocab/establishment-means-values.json', import.meta.url)))
+      .concepts,
+  );
+  const cases = [
+    ['native', 'false', 'native'],
+    ['native', 'true', 'nativeEndemic'],
+    ['naturalized', 'false', 'introduced'],
+    ['invasive', 'false', 'introduced'],
+    // Cultivation is degreeOfEstablishment, not a means of establishment.
+    ['cultured', 'false', ''],
+    // Absent data is not `uncertain` — that would assert we investigated.
+    ['', '', ''],
+    [null, null, ''],
+    ['something-taicol-invented', 'false', ''],
+  ];
+  for (const [alien, endemic, want] of cases) {
+    const got = establishmentMeansDwcValue(alien, endemic);
+    if (got !== want) {
+      fail(`establishmentMeansDwcValue(${alien}, ${endemic}) = "${got}", want "${want}"`);
+    }
+    if (got !== '' && !vocab.has(got)) {
+      fail(`establishmentMeansDwcValue emitted "${got}", which is not in the pinned vocabulary`);
+    }
+  }
+}
+
+// ── individualCount only when the quantity really counts individuals ──────
+{
+  const cases = [
+    ['5', 'individuals', '5'],
+    ['0', 'individuals', '0'],
+    // Cover classes, percentages and DBH arrays are NOT counts.
+    ['3', 'Braun-Blanquet Scale', ''],
+    ['35', '% cover', ''],
+    ['[12.4,18.1]', 'DBH (cm)', ''],
+    ['many', 'individuals', ''],
+    [null, 'individuals', ''],
+    ['5', null, ''],
+  ];
+  for (const [q, t, want] of cases) {
+    const got = individualCountOf(q, t);
+    if (got !== want) fail(`individualCountOf(${q}, ${t}) = "${got}", want "${want}"`);
+  }
+}
+
+// ── higherClassification drops empty ranks rather than leaving holes ──────
+{
+  const full = higherClassificationOf({
+    kingdom: 'Plantae', phylum: 'Tracheophyta', class: 'Magnoliopsida',
+    order: 'Fagales', family: 'Fagaceae',
+  });
+  if (full !== 'Plantae|Tracheophyta|Magnoliopsida|Fagales|Fagaceae') {
+    fail(`higherClassification full chain wrong: "${full}"`);
+  }
+  const gappy = higherClassificationOf({ kingdom: 'Fungi', phylum: '', class: null, family: 'Xylariaceae' });
+  if (gappy !== 'Fungi|Xylariaceae') fail(`higherClassification left a hole: "${gappy}"`);
+  if (higherClassificationOf({}) !== '') fail('higherClassification of nothing must be empty');
+}
+
+// ── taxonID published in the archive must be resolvable, or absent ─────────
+// Locally minted ids ('g…' / 'gi…' / 'gm…') mean nothing outside this app.
+// Publishing one claims an identifier the receiver cannot look up, which is
+// worse than publishing none.
+{
+  const cases = [
+    ['t0301', 't0301', 'TaiCOL id passes through'],
+    ['y12345', 'y12345', 'Japan id passes through'],
+    ['g2492463', 'https://www.gbif.org/species/2492463', 'GBIF numeric key → URI'],
+    ['g5XCJ3', 'https://www.gbif.org/species/5XCJ3', 'ChecklistBank key → URI'],
+    ['gBOLD.AAA1234', 'https://www.gbif.org/species/BOLD.AAA1234', 'BOLD bin → URI'],
+    ['gi58583', 'https://www.inaturalist.org/taxa/58583', 'iNat key → URI'],
+    ['gm3f2a9c', '', 'manual entry has no external identity'],
+  ];
+  for (const [input, want, why] of cases) {
+    const got = publishedTaxonId(input);
+    if (got !== want) fail(`publishedTaxonId(${input}) = "${got}", want "${want}" — ${why}`);
+  }
+  // The whole point: nothing locally minted may survive into the archive.
+  for (const id of ['g1', 'gi1', 'gm0123abcdef']) {
+    const got = publishedTaxonId(id);
+    if (got === id) fail(`publishedTaxonId(${id}) returned the local id verbatim`);
   }
 }
 

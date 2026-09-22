@@ -1,0 +1,14 @@
+{
+ "note": "Controlled VALUES (not term names) for dwc:establishmentMeans. Term names are checked against scripts/vocab/dwc-current-terms.json; this file pins the values GBIF validates against, so a mapping cannot invent one.",
+ "source": "https://api.gbif.org/v1/vocabularies/EstablishmentMeans/concepts",
+ "retrieved": "2026-09-22",
+ "concepts": [
+  "introduced",
+  "introducedAssistedColonisation",
+  "native",
+  "nativeEndemic",
+  "nativeReintroduced",
+  "uncertain",
+  "vagrant"
+ ]
+}

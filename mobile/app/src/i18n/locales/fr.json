@@ -939,7 +939,8 @@
     "featureAction": "Actions",
     "basemapRudyVector": "RudyMap",
     "basemapRudyVectorOffline": "RudyMap (hors ligne)",
-    "compass": "Boussole — appuyez pour orienter au nord"
+    "compass": "Boussole — appuyez pour orienter au nord",
+    "sessionNoCoords": "Aucun relevé de « {{name}} » n’a de coordonnées, rien n’est affiché"
   },
   "keys": {
     "modeDichotomous": "Dichotomique",

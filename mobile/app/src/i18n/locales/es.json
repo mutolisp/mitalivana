@@ -939,7 +939,8 @@
     "featureAction": "Acciones",
     "basemapRudyVector": "RudyMap",
     "basemapRudyVectorOffline": "RudyMap (sin conexión)",
-    "compass": "Brújula: pulsa para orientar al norte"
+    "compass": "Brújula: pulsa para orientar al norte",
+    "sessionNoCoords": "Ningún registro de «{{name}}» tiene coordenadas, no se muestra nada"
   },
   "keys": {
     "modeDichotomous": "Dicotómica",

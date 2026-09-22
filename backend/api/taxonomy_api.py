@@ -4,6 +4,7 @@ from fastapi import APIRouter, Query
 from sqlmodel import Session, text, select
 from backend.db import engine
 from backend.models.schema import TaicolName
+from backend.utils.ranks import INFRASPECIFIC_SQL, SPECIES_LEVEL_SQL
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +67,7 @@ def _build_stats_sql(rank_idx: int) -> list[str]:
         r_col = '"order"' if r == "order" else '"class"' if r == "class" else r
         stats_cols.append(f'COUNT(DISTINCT {r_col}) as {r}_count')
     stats_cols.append("SUM(CASE WHEN rank='Species' THEN 1 ELSE 0 END) as species_count")
-    stats_cols.append("SUM(CASE WHEN rank IN ('Subspecies','Variety','Form') THEN 1 ELSE 0 END) as infraspecific_count")
+    stats_cols.append(f"SUM(CASE WHEN rank IN ({INFRASPECIFIC_SQL}) THEN 1 ELSE 0 END) as infraspecific_count")
     return stats_cols
 
 
@@ -123,7 +124,7 @@ def get_children(
             c_col = RANK_C_COL.get(rank, "")
             extra_cols = f", MAX({c_col}) as name_c" if c_col else ""
 
-            where = "WHERE usage_status='accepted' AND is_in_taiwan LIKE '%true%' AND rank IN ('Species','Subspecies','Variety','Form')"
+            where = f"WHERE usage_status='accepted' AND is_in_taiwan LIKE '%true%' AND rank IN ({SPECIES_LEVEL_SQL})"
             for col, val in parent_filters.items():
                 safe_col = f'"{col}"' if col in ("order", "class") else col
                 where += f" AND {safe_col} = :parent_{col}"
@@ -179,7 +180,7 @@ def _get_top_level(session) -> list:
         SELECT kingdom as name, {', '.join(stats_cols)}, MAX({c_col}) as name_c
         FROM taicol_names
         WHERE usage_status='accepted' AND is_in_taiwan LIKE '%true%'
-        AND rank IN ('Species','Subspecies','Variety','Form')
+        AND rank IN ({SPECIES_LEVEL_SQL})
         AND kingdom NOT IN ({virus_kingdom_list})
         GROUP BY kingdom
         HAVING name IS NOT NULL AND name != ''
@@ -204,7 +205,7 @@ def _get_top_level(session) -> list:
         SELECT {', '.join(stats_cols)}
         FROM taicol_names
         WHERE usage_status='accepted' AND is_in_taiwan LIKE '%true%'
-        AND rank IN ('Species','Subspecies','Variety','Form')
+        AND rank IN ({SPECIES_LEVEL_SQL})
         AND kingdom IN ({virus_kingdom_list})
     """
     vrow = session.exec(text(virus_sql)).first()
@@ -255,7 +256,7 @@ def _get_virus_realms(session) -> list:
                    COUNT(DISTINCT kingdom) as kingdom_count
             FROM taicol_names
             WHERE usage_status='accepted' AND is_in_taiwan LIKE '%true%'
-            AND rank IN ('Species','Subspecies','Variety','Form')
+            AND rank IN ({SPECIES_LEVEL_SQL})
             AND kingdom IN ({k_list})
         """
         row = session.exec(text(sql)).first()
@@ -300,7 +301,7 @@ def _get_virus_kingdoms_in_realm(session, realm_name: str) -> list:
         SELECT kingdom as name, {', '.join(stats_cols)}, MAX({c_col}) as name_c
         FROM taicol_names
         WHERE usage_status='accepted' AND is_in_taiwan LIKE '%true%'
-        AND rank IN ('Species','Subspecies','Variety','Form')
+        AND rank IN ({SPECIES_LEVEL_SQL})
         AND kingdom IN ({k_list})
         GROUP BY kingdom
         HAVING name IS NOT NULL AND name != ''
@@ -423,7 +424,7 @@ def taxonomy_search(q: str = Query(..., max_length=512)):
 
 def _get_species_list(session, parent_filters: dict) -> list:
     """取得物種列表"""
-    where = "WHERE usage_status='accepted' AND is_in_taiwan LIKE '%true%' AND rank IN ('Species','Subspecies','Variety','Form')"
+    where = f"WHERE usage_status='accepted' AND is_in_taiwan LIKE '%true%' AND rank IN ({SPECIES_LEVEL_SQL})"
     params = {}
     for col, val in parent_filters.items():
         safe_col = f'"{col}"' if col in ("order", "class") else col
@@ -500,7 +501,7 @@ def _build_species_filter(rank: str, name: str, endemic: bool, alien_type: str,
     conditions = [
         "usage_status='accepted'",
         "is_in_taiwan LIKE '%true%'",
-        "rank IN ('Species','Subspecies','Variety','Form')",
+        f"rank IN ({SPECIES_LEVEL_SQL})",
         f"{db_col} = :taxon_name",
     ]
     params = {"taxon_name": name}

@@ -1233,6 +1233,23 @@ const MIGRATIONS: Migration[] = [
       }
     },
   },
+  {
+    // DwC `dateIdentified` — when the determination on this specimen was made.
+    //
+    // `identified_by` has existed since v33 but nothing wrote it on
+    // re-identification, so swapping a name left the PREVIOUS determiner
+    // attached to the NEW name. That is not a display glitch, it is a false
+    // attribution in the exported record. The date was missing entirely, so
+    // there was no way to tell an original determination from a later one.
+    //
+    // ISO-8601 date (YYYY-MM-DD), matching DwC and the rest of the export
+    // layer, rather than an epoch — this is a determination date, not an event
+    // timestamp, and day precision is all a herbarium label carries.
+    version: 40,
+    up: (db) => {
+      addColumnIfMissing(db, `ALTER TABLE collection_specimens ADD COLUMN date_identified TEXT;`);
+    },
+  },
 ];
 
 /** Highest schema version this build knows how to produce. Backup/restore uses

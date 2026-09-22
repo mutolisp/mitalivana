@@ -617,6 +617,7 @@ console.log('✓ round-trip: 名錄 / 樣區 yml survive export → import with 
     id: n, trip_id: 7, occurrence_id: occ, taxon_id: 't0301',
     record_number: `CTL-100${n}`, record_number_seq: 1000 + n,
     collected_at: 1789864200000, recorded_by: '林政道', identified_by: '王小明',
+    date_identified: '2026-09-21',
     lat: 24.76, lng: 121.58, accuracy: 6, locality: '福山植物園',
     // Every optional column carries a value: the item builders emit these
     // conditionally, so a null here would silently skip the assertion.

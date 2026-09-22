@@ -886,7 +886,8 @@
     "featureAction": "Aktionen",
     "basemapRudyVector": "RudyMap",
     "basemapRudyVectorOffline": "RudyMap (offline)",
-    "compass": "Kompass – tippen, um nach Norden auszurichten"
+    "compass": "Kompass – tippen, um nach Norden auszurichten",
+    "sessionNoCoords": "Kein Eintrag in „{{name}}“ hat Koordinaten, daher wird nichts angezeigt"
   },
   "keys": {
     "modeDichotomous": "Dichotom",

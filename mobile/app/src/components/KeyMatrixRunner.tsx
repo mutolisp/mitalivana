@@ -31,7 +31,7 @@ import { Stack, useRouter, type Href } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18n from '~/i18n';
-import { Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Alert, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   addRecord,
@@ -47,7 +47,6 @@ import {
   type SearchResult,
 } from '~/db';
 import { useActiveSession } from '~/stores/activeSession';
-import { useToast } from '~/stores/toast';
 import { ConservationBadge } from './ConservationBadge';
 import { LookupResultSheet } from './LookupResultSheet';
 import { ScientificName } from './ScientificName';
@@ -151,7 +150,6 @@ export function KeyMatrixRunner({ keyId, keyData }: Props) {
   const session = useActiveSession((s) => s.session);
   const startActive = useActiveSession((s) => s.start);
   const refreshActive = useActiveSession((s) => s.refresh);
-  const toast = useToast((s) => s.show);
 
   const [features, setFeatures] = useState<KeyFeature[]>([]);
   const [taxa, setTaxa] = useState<TaxonRow[]>([]);
@@ -224,24 +222,34 @@ export function KeyMatrixRunner({ keyId, keyData }: Props) {
     if (r) setActiveDetail(r);
   };
 
+  // Feedback here uses Alert, not toast: this whole component is a <Modal>, and
+  // ToastHost is an absolutely-positioned View at the navigation root — iOS
+  // presents a Modal in its own window, so the toast renders *behind* it and the
+  // user sees nothing. Alert is a native UIAlertController and does show on top.
+  // Same reason as the coordinate row in RecordLocationMap; judgement table is in
+  // memory `feedback-root-host-behind-modal`.
   const handleAddToSession = () => {
     if (!activeDetail?.taxon_id) {
-      toast(t('addToRecord.noTaxonId'));
+      Alert.alert(t('addToRecord.noTaxonId'));
       return;
     }
     const target = session ?? startActive();
     if (isTaxonInSession(target.id, activeDetail.taxon_id)) {
-      toast(t('session.alreadyExists', { name: activeDetail.cname || activeDetail.name }));
+      Alert.alert(t('session.alreadyExists', { name: activeDetail.cname || activeDetail.name }));
       return;
     }
     addRecord({ session_id: target.id, taxon_id: activeDetail.taxon_id });
     refreshActive();
-    toast(t('session.added', { name: activeDetail.cname || activeDetail.name }), {
-      action: {
-        label: t('addToRecord.goTo'),
+    // The success case keeps its "go to record" affordance as an Alert button —
+    // unlike the sheet cases elsewhere, nothing in this Modal visibly changes on
+    // add, so dropping the confirmation entirely would leave no feedback at all.
+    Alert.alert(t('session.added', { name: activeDetail.cname || activeDetail.name }), undefined, [
+      { text: t('common.ok'), style: 'cancel' },
+      {
+        text: t('addToRecord.goTo'),
         onPress: () => router.push(`/session/${target.id}` as Href),
       },
-    });
+    ]);
   };
 
   const headerTitle = keyData.scope_cname

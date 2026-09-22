@@ -134,6 +134,9 @@ function scopeKey(rank: string, name: string): string {
   return `${rank.toLowerCase()}:${name}`;
 }
 
+/** Aliases are indexed under this instead of a real rank — see below. */
+const ALIAS_RANK = '\u0000alias';
+
 function buildScopeIndex(keys: IdentificationKey[]): Map<string, IdentificationKey[]> {
   const m = new Map<string, IdentificationKey[]>();
   for (const k of keys) {
@@ -142,15 +145,25 @@ function buildScopeIndex(keys: IdentificationKey[]): Map<string, IdentificationK
     const arr = m.get(k1) ?? [];
     arr.push(k);
     m.set(k1, arr);
-    // Also index by aliases so e.g. Davalliaceae (family scope) matches a
-    // tree node showing Davallia genus, mirroring findSubkeyByScopeName.
+    // Aliases are indexed WITHOUT a rank, because an alias is precisely the
+    // case where the name's rank differs from the key's own scope_rank.
+    //
+    // The whole point of the Davalliaceae alias `Davallia` is that a genus
+    // node should find a family-scoped key. Indexing it as
+    // `scopeKey(k.scope_rank, alias)` — i.e. `family:Davallia` — stored it
+    // under a coordinate nothing ever looks up: callers ask for
+    // `genus:Davallia`. Every single-genus-family alias was dead.
+    //
+    // `findSubkeyByScopeName`, which the old comment claimed to mirror,
+    // matches aliases with no rank condition at all and only uses rank as an
+    // ORDER BY tiebreaker. This now behaves the same way.
     if (k.aliases) {
       try {
         const aliases = JSON.parse(k.aliases) as unknown;
         if (Array.isArray(aliases)) {
           for (const a of aliases) {
             if (typeof a !== 'string' || !a) continue;
-            const k2 = scopeKey(k.scope_rank, a);
+            const k2 = scopeKey(ALIAS_RANK, a);
             const arr2 = m.get(k2) ?? [];
             arr2.push(k);
             m.set(k2, arr2);
@@ -199,7 +212,14 @@ onDatasetsChanged(clearKeysCache);
  *  open so tree rendering doesn't depend on key cache being ready. */
 export function getKeysForScope(rank: string, name: string): IdentificationKey[] {
   if (!SCOPE_INDEX || !name) return [];
-  return SCOPE_INDEX.get(scopeKey(rank, name)) ?? [];
+  const exact = SCOPE_INDEX.get(scopeKey(rank, name)) ?? [];
+  const byAlias = SCOPE_INDEX.get(scopeKey(ALIAS_RANK, name)) ?? [];
+  if (byAlias.length === 0) return exact;
+  // Exact-rank matches first; aliases are the fallback that lets a genus node
+  // reach its single-genus family's key. Callers dedupe by id across the
+  // genus+family calls anyway, but don't hand them duplicates from one call.
+  const seen = new Set(exact.map((k) => k.id));
+  return [...exact, ...byAlias.filter((k) => !seen.has(k.id))];
 }
 
 export function getIdentificationKey(id: number): IdentificationKey | null {
