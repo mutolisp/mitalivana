@@ -5,6 +5,7 @@
  * custom) and then enters the matching value. Built-in types dispatch to
  * dedicated input widgets; custom types fall through to a free TEXT input.
  */
+import { errText } from '~/lib/errText';
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -49,6 +50,7 @@ import {
 import { ScientificName } from './ScientificName';
 import { VerbatimLabelField } from './VerbatimLabelField';
 import { RecordLocationMap } from './RecordLocationMap';
+import { firstPhotoFix } from '~/lib/photoMeta';
 import { TaxonomyJumpChip } from './TaxonomyJumpChip';
 import { SpeciesAttributesBlock, type SpeciesAttributesDraft } from './SpeciesAttributesBlock';
 import { EMPTY_DRAFT, detectionOptions } from '~/lib/dwcAttributes';
@@ -149,14 +151,15 @@ type Props = {
   /** Show the detection-method (seen/heard/flying) chips — point count / animal
    *  records. */
   showDetection?: boolean;
-  /** Current per-record GPS (edit mode); displayed by the GPS button. */
+  /** Current per-record GNSS (edit mode); displayed by the GNSS button. */
   lat?: number | null;
   lng?: number | null;
   accuracy?: number | null;
-  /** Persist per-record GPS (edit mode only). Omit to hide the GPS button. */
+  /** Persist the record's own coordinate. In create mode the parent buffers
+   *  it and inserts it with the row. Omit to hide the GNSS button. */
   onSaveLocation?: (lat: number | null, lng: number | null, accuracy: number | null) => void;
   /** Live-commit a coordinate edited on the inline map (no toast). A manual
-   *  edit carries no GPS accuracy (null); an undo hands the previous measured
+   *  edit carries no GNSS accuracy (null); an undo hands the previous measured
    *  value back. Pass alongside onSaveLocation to show the map. */
   onChangeLocation?: (lat: number, lng: number, accuracy: number | null) => void;
   /** Plot geographic context for the coordinate map preview (centre / track /
@@ -167,10 +170,12 @@ type Props = {
     trackGeojson: string | null;
     radiusM: number | null;
   } | null;
-  /** Existing photo URIs for the record (edit mode only). */
+  /** Photo URIs: the record's in edit mode, the parent's pending buffer in
+   *  create mode. */
   photoUris?: string[];
   /** Capture / library handlers for the photo section. Parent owns the
-   *  capture flow + DB write; omit to hide the section (create mode). */
+   *  capture flow and the write (a DB update in edit mode, a buffer in create
+   *  mode); omit to hide the section. */
   onAddPhoto?: (mode: 'camera' | 'library') => void;
   onRemovePhoto?: (uri: string) => void;
   /** iNaturalist state of the record (edit mode only): shows the uploaded
@@ -182,7 +187,8 @@ type Props = {
   inatUploadedAt?: number | null;
   /** Upload / sync to iNat row (edit mode only). */
   inat?: InatSheetState;
-  /** Audio clips (edit mode only — create mode has no record to attach to). */
+  /** Audio clips: the record's in edit mode, the parent's pending buffer in
+   *  create mode (attached when the row is inserted). */
   audioUris?: string[];
   onAddAudio?: (uri: string) => void;
   onRemoveAudio?: (uri: string) => void;
@@ -697,7 +703,7 @@ export function PlotSpeciesValueModal({
                           onPress={async () => {
                             const perm = await Location.requestForegroundPermissionsAsync();
                             if (perm.status !== 'granted') {
-                              Alert.alert(t('gps.permTitle'), t('plotValue.permMsg'));
+                              Alert.alert(t('gnss.permTitle'), t('plotValue.permMsg'));
                               return;
                             }
                             try {
@@ -712,14 +718,14 @@ export function PlotSpeciesValueModal({
                             } catch (e) {
                               Alert.alert(
                                 t('plotValue.locateFailed'),
-                                e instanceof Error ? e.message : String(e),
+                                errText(e),
                               );
                             }
                           }}
                           onLongPress={
                             lat != null
                               ? () => {
-                                  Alert.alert('GPS', undefined, [
+                                  Alert.alert('GNSS', undefined, [
                                     { text: t('common.cancel'), style: 'cancel' },
                                     {
                                       text: t('species.clearCoord'),
@@ -743,10 +749,42 @@ export function PlotSpeciesValueModal({
                               : t('species.locateSpecies')}
                           </Text>
                           <Text className="text-[11px] text-gray-400">
-                            {lat != null ? t('species.longPressClear') : t('species.tapGps')}
+                            {lat != null ? t('species.longPressClear') : t('species.tapGnss')}
                           </Text>
                         </Pressable>
                       </View>
+                      {/* Load the position out of an attached photo. Only when
+                          there is a photo and no coordinate yet: a photo taken
+                          at the plant carries the fix nobody stopped to save,
+                          and in a plot large enough to need per-species
+                          coordinates that is the whole point. Hidden once a
+                          position exists — replacing a measured coordinate is
+                          not something a button should offer. */}
+                      {lat == null && (photoUris?.length ?? 0) > 0 ? (
+                        <Pressable
+                          onPress={async () => {
+                            const out = await firstPhotoFix(photoUris ?? []);
+                            // Alert, not toast: this is a Modal and ToastHost
+                            // sits at the navigation root, so a toast fired
+                            // from in here renders behind it.
+                            if (out.kind === 'needs-photo-access') {
+                              Alert.alert(t('species.usePhotoGnss'), t('species.photoNeedsAccess'));
+                              return;
+                            }
+                            if (out.kind === 'no-gnss') {
+                              Alert.alert(t('species.usePhotoGnss'), t('species.photoNoGnss'));
+                              return;
+                            }
+                            onSaveLocation(out.fix.lat, out.fix.lng, out.fix.accuracyM);
+                          }}
+                          className="mt-2 flex-row items-center rounded-lg border border-gray-200 px-3 py-2 active:bg-gray-50 dark:border-gray-700 dark:active:bg-gray-800"
+                        >
+                          <Ionicons name="image-outline" size={18} color="#4b5563" />
+                          <Text className="ml-2 flex-1 text-sm text-gray-700 dark:text-gray-300">
+                            {t('species.usePhotoGnss')}
+                          </Text>
+                        </Pressable>
+                      ) : null}
                       {onChangeLocation ? (
                         // The map pans on its own; block the swipe so a sideways
                         // drag moves the map instead of stepping to the next species.

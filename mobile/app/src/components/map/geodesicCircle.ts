@@ -10,7 +10,7 @@
  *
  * Uses a spherical model (mean Earth radius), not the WGS84 ellipsoid. Plot
  * radii are usually tens to hundreds of metres, and at that scale the difference
- * is far below GPS error.
+ * is far below GNSS error.
  */
 
 /** IUGG mean Earth radius, in metres. */

@@ -83,6 +83,22 @@ for (const root of ROOTS) {
         `${rel}\n    offset={{ closed: -tabBarInset }} without useTabBarInset().`,
       );
     }
+    // The other half of the same number. Lifting the dock does not shrink the
+    // content above it — the dock is translated, so it OVERLAYS exactly
+    // `tabBarInset` px of whatever was laid out above. The content therefore
+    // has to reserve that much too. Shipped twice on 2026-09-22 (the species
+    // tab's Search and Key segments both hid their last element, the
+    // add-to-record button and the last key row), which is why the pairing is
+    // checked on the content side as well and not only on the dock's offset.
+    if (usesTabBar && !/paddingBottom:\s*tabBarInset/.test(src)) {
+      problems.push(
+        `${rel}\n    offset={{ closed: -tabBarInset }} but nothing reserves paddingBottom:\n` +
+          `    tabBarInset. The dock is translated up over the content, so the\n` +
+          `    bottom tabBarInset px of that content are hidden behind the search box.\n` +
+          `    Fix: contentContainerStyle={{ paddingBottom: tabBarInset }} on the list,\n` +
+          `         or style={{ paddingBottom: tabBarInset }} on the content container.`,
+      );
+    }
     if (!usesInsets && !usesTabBar && !usesStaleTabBar) {
       problems.push(
         `${rel}\n    <KeyboardStickyView> with an unrecognised offset. The two supported\n` +

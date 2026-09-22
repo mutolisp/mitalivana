@@ -4,7 +4,7 @@
  * The keys live in their own module (`tw-keys`), a separate SQLite file from the
  * Taiwan checklist (`tw-taicol`). This app never ATTACHes, so **this file never
  * queries the checklist directly**: whenever a scientific name or rank is
- * needed it goes through the `taxonNameRow` / `taxonAltNames` seams, which take
+ * needed it goes through the `taxonNameRow` seam, which takes
  * the checklist module's handle themselves. With the module absent they return
  * empty, and the key UI already behaves as "not found, not shown".
  *
@@ -12,6 +12,7 @@
  * tw-keys — no app release, and no re-downloading the checklist.
  */
 import { getDatasetDb, onDatasetsChanged } from './datasets';
+import { buildScopeIndex, lookupScope } from '~/lib/keyScopeIndex';
 
 export type IdentificationKey = {
   id: number;
@@ -25,9 +26,13 @@ export type IdentificationKey = {
   parent_key_id: number | null;
   notes: string | null;
   /** JSON array string of alternative names that should also match this key
-   *  during `findSubkeyForTaxon` / `findSubkeyByScopeName`. Used to bridge
-   *  TaiCOL genus moves (Amauropelta ↔ Parathelypteris) and single-genus
-   *  family worksheets named at family rank (Davalliaceae ↔ Davallia). */
+   *  during scope lookup. Bridges single-genus family worksheets named at
+   *  family rank (Davalliaceae ↔ Davallia) — see `~/lib/keyScopeIndex`.
+   *
+   *  ⚠️ Does NOT currently bridge TaiCOL genus moves (Amauropelta ↔
+   *  Parathelypteris). The code that did was only reachable from a lookup the
+   *  UI stopped using, and was removed with it; the shipped module has no
+   *  alias for those. Logged in `mobile/Plan.md` under 功能缺口. */
   aliases: string | null;
   updated_at: number | null;
 };
@@ -125,57 +130,10 @@ export function listIdentificationKeys(): IdentificationKey[] {
 let CACHED_KEYS: IdentificationKey[] | null = null;
 
 /** Reverse index for TaxonRow's per-row「有沒有對應 key」lookup. Built
- *  alongside CACHED_KEYS in prewarmKeys / getCachedKeys. Key format:
- *  `${scope_rank}:${scope_name}` lower-cased. Value: 1-2 entry array (typical
- *  case is 1 dichotomous + optionally 1 multi_access for the same scope). */
+ *  alongside CACHED_KEYS in prewarmKeys / getCachedKeys. Indexing and lookup
+ *  rules live in `~/lib/keyScopeIndex` (pure) so `check:keys` can exercise
+ *  them against the real tw-keys module. */
 let SCOPE_INDEX: Map<string, IdentificationKey[]> | null = null;
-
-function scopeKey(rank: string, name: string): string {
-  return `${rank.toLowerCase()}:${name}`;
-}
-
-/** Aliases are indexed under this instead of a real rank — see below. */
-const ALIAS_RANK = '\u0000alias';
-
-function buildScopeIndex(keys: IdentificationKey[]): Map<string, IdentificationKey[]> {
-  const m = new Map<string, IdentificationKey[]>();
-  for (const k of keys) {
-    if (!k.scope_name) continue;
-    const k1 = scopeKey(k.scope_rank, k.scope_name);
-    const arr = m.get(k1) ?? [];
-    arr.push(k);
-    m.set(k1, arr);
-    // Aliases are indexed WITHOUT a rank, because an alias is precisely the
-    // case where the name's rank differs from the key's own scope_rank.
-    //
-    // The whole point of the Davalliaceae alias `Davallia` is that a genus
-    // node should find a family-scoped key. Indexing it as
-    // `scopeKey(k.scope_rank, alias)` — i.e. `family:Davallia` — stored it
-    // under a coordinate nothing ever looks up: callers ask for
-    // `genus:Davallia`. Every single-genus-family alias was dead.
-    //
-    // `findSubkeyByScopeName`, which the old comment claimed to mirror,
-    // matches aliases with no rank condition at all and only uses rank as an
-    // ORDER BY tiebreaker. This now behaves the same way.
-    if (k.aliases) {
-      try {
-        const aliases = JSON.parse(k.aliases) as unknown;
-        if (Array.isArray(aliases)) {
-          for (const a of aliases) {
-            if (typeof a !== 'string' || !a) continue;
-            const k2 = scopeKey(ALIAS_RANK, a);
-            const arr2 = m.get(k2) ?? [];
-            arr2.push(k);
-            m.set(k2, arr2);
-          }
-        }
-      } catch {
-        // ignore malformed aliases JSON
-      }
-    }
-  }
-  return m;
-}
 
 /** Returns cached keys, computing on first call. Used by KeyListView. */
 export function getCachedKeys(): IdentificationKey[] {
@@ -211,15 +169,7 @@ onDatasetsChanged(clearKeysCache);
  *  Returns empty array if `prewarmKeys()` hasn't been called yet — fail
  *  open so tree rendering doesn't depend on key cache being ready. */
 export function getKeysForScope(rank: string, name: string): IdentificationKey[] {
-  if (!SCOPE_INDEX || !name) return [];
-  const exact = SCOPE_INDEX.get(scopeKey(rank, name)) ?? [];
-  const byAlias = SCOPE_INDEX.get(scopeKey(ALIAS_RANK, name)) ?? [];
-  if (byAlias.length === 0) return exact;
-  // Exact-rank matches first; aliases are the fallback that lets a genus node
-  // reach its single-genus family's key. Callers dedupe by id across the
-  // genus+family calls anyway, but don't hand them duplicates from one call.
-  const seen = new Set(exact.map((k) => k.id));
-  return [...exact, ...byAlias.filter((k) => !seen.has(k.id))];
+  return lookupScope(SCOPE_INDEX, rank, name);
 }
 
 export function getIdentificationKey(id: number): IdentificationKey | null {
@@ -333,106 +283,11 @@ function taxonNameRow(taxonId: string): { simple_name: string; rank: string } | 
   return null;
 }
 
-/** 同一個 taxon_id、同 rank 的非接受名（TaiCOL 換屬時的舊屬名來源）。 */
-function taxonAltNames(taxonId: string, rank: string): string[] {
-  const db = getDatasetDb('tw-taicol');
-  if (!db) return [];
-  const res = db.executeSync(
-    `SELECT DISTINCT simple_name FROM taicol_names
-      WHERE taxon_id = ? AND usage_status != 'accepted' AND rank = ?`,
-    [taxonId, rank],
-  );
-  return ((res.rows ?? []) as { simple_name: string }[])
-    .map((r) => (r.simple_name ?? '').trim())
-    .filter(Boolean);
-}
 
-export function findSubkeyForTaxon(taxonId: string): IdentificationKey | null {
-  if (!taxonId) return null;
-  const row = taxonNameRow(taxonId);
-  if (!row || !row.simple_name) return null;
-  const scope = RANK_TO_SCOPE[row.rank];
-  if (!scope) return null;
 
-  // 1. Exact match on accepted simple_name + matching scope_rank.
-  const exact = findSubkeyByScopeName(row.simple_name, scope);
-  if (exact) return exact;
 
-  // 2. Try the accepted name with any scope_rank (handles single-genus
-  //    families where the worksheet is named at family rank: e.g. taxon
-  //    rank=Genus name=Davallia but worksheet is family Davalliaceae —
-  //    catchable via the alias seed "Davallia" written on Davalliaceae).
-  const anyRank = findSubkeyByScopeName(row.simple_name);
-  if (anyRank) return anyRank;
-
-  // 3. TaiCOL genus-move fallback: query the same taxon_id's non-accepted
-  //    rows at the same rank, parse out the first sciname token (old
-  //    genus), and try it as a scope_name. Covers Amauropelta beddomei
-  //    (accepted) → "Parathelypteris" (non-accepted alias) → Parathelypteris
-  //    worksheet.
-  for (const sn of taxonAltNames(taxonId, row.rank)) {
-    const firstToken = sn.split(/\s+/)[0];
-    if (!firstToken || firstToken === row.simple_name) continue;
-    const k = findSubkeyByScopeName(firstToken);
-    if (k) return k;
-  }
-  return null;
-}
-
-/** Find a key by scope_name (preferring matching scope_rank when given).
- *  Also matches keys whose `aliases` JSON array contains the token.
- *
- *  Used by:
- *  - `findSubkeyForTaxon` (with mapped scope from taxon rank)
- *  - Key-runner lead-text fallback (when a terminal's target_id is null
- *    but the lead text starts with a known scope name, e.g. PDF lead
- *    "Bambusoideae 竹亞科" within Poaceae family key → navigate to the
- *    Bambusoideae subkey).
- *
- *  When `preferredRank` is provided, results matching that rank rank
- *  ahead of others. Otherwise we pick the most specific available scope
- *  (subfamily/tribe/genus before family) so the navigation lands on the
- *  finer-grained key when both exist. */
-export function findSubkeyByScopeName(
-  token: string,
-  preferredRank?: string,
-): IdentificationKey | null {
-  const t = (token ?? '').trim();
-  if (!t) return null;
-  const db = getDatasetDb('tw-keys');
-  if (!db) return null;
-  // We use a UNION to keep the query plan simple: first try aliases match
-  // (rare but explicit), then scope_name match. Order results by:
-  //   1. exact scope_rank match when preferredRank given
-  //   2. specificity (genus > subfamily > family) as a sensible default
-  const rankOrder = preferredRank
-    ? `CASE WHEN k.scope_rank = ? THEN 0 ELSE 1 END,`
-    : '';
-  const rankSpecificity = `CASE k.scope_rank
-    WHEN 'genus' THEN 1
-    WHEN 'subgenus' THEN 2
-    WHEN 'tribe' THEN 3
-    WHEN 'subfamily' THEN 4
-    WHEN 'family' THEN 5
-    ELSE 9 END`;
-  // Placeholder order in the SQL below is: scope_name, alias_value,
-  // (optionally) scope_rank for the ORDER BY tiebreaker. Pass params in
-  // that exact order — the previous [preferredRank, t, t] arrangement
-  // bound preferredRank into scope_name (`WHERE scope_name='genus'`),
-  // so no row ever matched and the subkey button silently never showed.
-  const params: any[] = preferredRank ? [t, t, preferredRank] : [t, t];
-  const sql = `${KEY_SELECT_SQL}
-    WHERE k.scope_name = ?
-       OR (k.aliases IS NOT NULL AND EXISTS (
-            SELECT 1 FROM json_each(k.aliases) WHERE value = ?
-          ))
-    ORDER BY ${rankOrder} ${rankSpecificity}
-    LIMIT 1`;
-  const res = db.executeSync(sql, params);
-  return ((res.rows ?? [])[0] as IdentificationKey | undefined) ?? null;
-}
-
-/** Plural variant of `findSubkeyByScopeName`: returns ALL matching keys
+/** Finds keys by scope_name (preferring a matching scope_rank when given),
+ *  also matching a key whose `aliases` JSON array contains the token. Returns ALL matches
  *  (one per mode). The same scope can carry both a dichotomous and a
  *  multi_access key — the runner offers a button for each.
  *
@@ -463,7 +318,8 @@ export function findSubkeysByScopeName(
     WHEN 'both' THEN 2
     ELSE 3 END`;
   // Placeholder order: scope_name, alias_value, optional rank for ORDER BY.
-  // See findSubkeyByScopeName above — same param-order trap, kept in sync.
+  // Placeholder order is scope_name, alias_value, then (optionally) scope_rank
+  // for the ORDER BY tiebreaker — pass params in exactly that order.
   const params: any[] = preferredRank ? [t, t, preferredRank] : [t, t];
   const sql = `${KEY_SELECT_SQL}
     WHERE k.scope_name = ?
@@ -476,8 +332,8 @@ export function findSubkeysByScopeName(
   return ((res.rows ?? []) as unknown) as IdentificationKey[];
 }
 
-/** Plural variant of `findSubkeyForTaxon`: returns all subkeys (one per
- *  mode) for the taxon's rank-mapped scope. Empty array if none. */
+/** All subkeys (one per mode) for the taxon's rank-mapped scope.
+ *  Empty array if none. */
 export function findSubkeysForTaxon(taxonId: string): IdentificationKey[] {
   if (!taxonId) return [];
   const row = taxonNameRow(taxonId);
@@ -486,24 +342,6 @@ export function findSubkeysForTaxon(taxonId: string): IdentificationKey[] {
   return findSubkeysByScopeName(row.simple_name, scope);
 }
 
-/** Lead-text fallback: when a key runner reaches a terminal lead whose
- *  `target_id` is null (PDF wrote a sub-scope pointer like "Bambusoideae
- *  竹亞科" not a leaf taxon), parse the lead text for a candidate
- *  scope_name token and look up a subkey.
- *
- *  Strategy: take the first whitespace-separated token of the lead. PDF
- *  convention puts the Latin scope name first; the CJK descriptor follows
- *  ("Bambusoideae 竹亞科"). Returns null when the lead clearly isn't a
- *  scope-name pointer (no Latin first token, etc.). */
-export function findSubkeyFromLeadText(leadText: string): IdentificationKey | null {
-  const s = (leadText ?? '').trim();
-  if (!s) return null;
-  const firstToken = s.split(/\s+/)[0];
-  if (!firstToken) return null;
-  // Must look like a Latin name: leading uppercase ASCII letter.
-  if (!/^[A-Z][a-zA-Z×-]+$/.test(firstToken)) return null;
-  return findSubkeyByScopeName(firstToken);
-}
 
 /**
  * Lookup taxon info by taxon_id. Prefers the accepted-name row; falls back

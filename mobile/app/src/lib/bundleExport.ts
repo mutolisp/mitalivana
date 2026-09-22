@@ -8,12 +8,13 @@
  * input map. Photo reads are async (asset → file URI → base64 → bytes) and
  * happen serially with a progress callback so the UI can update.
  */
+import { errText } from '~/lib/errText';
 import { File, Paths } from 'expo-file-system';
 import { rebaseAppFileUri } from './appFiles';
 import { readAsStringAsync } from 'expo-file-system/legacy';
 import * as MediaLibrary from 'expo-media-library';
 import yaml from 'js-yaml';
-import { strToU8, zipSync, type Zippable, type ZipOptions } from 'fflate';
+import { strFromU8, strToU8, zipSync, type Zippable, type ZipOptions } from 'fflate';
 import {
   getActiveLayers,
   getPlotLayers,
@@ -69,6 +70,9 @@ import type { Translate } from './reportTypes';
 import { markdownToDocx } from './docx';
 import { buildRecordsDwca, type DwcaInput } from './dwcRows';
 import { geoJsonToGpx, geoJsonToKml } from './geoSerializers';
+import { injectFileDigests, isManifestPath } from './manifestDigest';
+import { injectSignatures } from './signing';
+import { activeSigner } from './signingKey';
 
 
 export type GeoFormat = 'geojson' | 'gpx' | 'kml';
@@ -366,7 +370,7 @@ const README_RULES: Array<{ match: (name: string) => boolean; desc: string }> = 
   { match: (n) => n.endsWith('.docx'), desc: '物種名錄文件（Word）' },
   { match: (n) => n.includes('/photos/'), desc: '記錄的照片（檔名對應 yml 的 photo_files）' },
   { match: (n) => n.includes('/audio/'), desc: '記錄的錄音（檔名對應 yml 的 audio_files）' },
-  { match: (n) => /\/(points|track|site)\.(geojson|gpx|kml)$/.test(n), desc: '地理檔（GIS／GPS 軟體用）' },
+  { match: (n) => /\/(points|track|site)\.(geojson|gpx|kml)$/.test(n), desc: '地理檔（GIS／GNSS 軟體用）' },
   { match: (n) => n.endsWith('manifest.json'), desc: '匯出中繼資料（記錄種類、筆數、產生時間）' },
 ];
 
@@ -529,7 +533,7 @@ function buildCollectionPoints(
 }
 
 function buildPlotPoints(records: PlotSpeciesRecordWithTaxon[]): { type: 'FeatureCollection'; features: PointFeature[] } | null {
-  // Per-record GPS (v13): a species observation may carry its own coordinate
+  // Per-record GNSS (v13): a species observation may carry its own coordinate
   // (most common for transect / point count). Emit a Point per such record.
   const features: PointFeature[] = [];
   for (const r of records) {
@@ -571,13 +575,27 @@ function addDwcaEntry(
   abstract: string,
   records: Pick<DwcaInput, 'plots' | 'sessions' | 'trips'>,
 ): void {
-  const bytes = buildRecordsDwca({
+  const dwca = buildRecordsDwca({
     ...records,
     title,
     abstract,
     packageId: `mitalivana-${base}-${new Date().toISOString().slice(0, 10)}`,
   });
-  entries.push({ name: `${base}/dwca/${base}_dwca.zip`, bytes, zipOpts: { level: 0 } });
+  entries.push({
+    name: `${base}/dwca/${base}_dwca.zip`,
+    bytes: dwca.records,
+    zipOpts: { level: 0 },
+  });
+  // Conservation status belongs to the taxon, not the observation, and a DwC
+  // archive has one core — so it ships as its own Taxon-core archive beside
+  // the records one. Absent when nothing has a status to state.
+  if (dwca.taxa) {
+    entries.push({
+      name: `${base}/dwca/${base}_taxon_dwca.zip`,
+      bytes: dwca.taxa,
+      zipOpts: { level: 0 },
+    });
+  }
 }
 
 export async function buildSessionEntries(
@@ -703,7 +721,7 @@ export async function buildSessionEntries(
     entries.push({ name: `${base}/${base}.docx`, bytes: markdownToDocx(md) });
   }
 
-  // Geo: per-record GPS points
+  // Geo: per-record GNSS points
   const points = buildSessionPoints(records);
   if (points) addGeoEntries(entries, base, 'points', points, opts.geoFormats);
 
@@ -798,7 +816,11 @@ export async function buildPlotEntries(
         envUris,
         base,
         plot.plotid,
-        ymdString(plot.start_ts ?? Date.now()),
+        // `created_at`, not `start_ts ?? now`: a plot whose survey has not
+        // started has no start_ts, so the old fallback stamped TODAY and the
+        // same plot exported on two days produced two different filenames for
+        // the same photos. created_at exists from the moment the row does.
+        ymdString(plot.start_ts ?? plot.created_at),
         namer,
         progressCtx,
       );
@@ -818,7 +840,7 @@ export async function buildPlotEntries(
   const site = plot.site_id !== null ? getSite(plot.site_id) : null;
 
   // YAML — per-plot shape. Carries the full set of user-entered fields (notes,
-  // DwC attributes, detection method, per-record GPS) so the YAML is symmetric
+  // DwC attributes, detection method, per-record GNSS) so the YAML is symmetric
   // with the sp.csv.
   const yamlData = buildPlotYamlDoc({
     plot,
@@ -926,7 +948,7 @@ export async function buildPlotEntries(
   }
 
   // Geo: per-record species points (v13 — present when observations carry
-  // their own GPS; most common for transect / point count).
+  // their own GNSS; most common for transect / point count).
   const points = buildPlotPoints(species);
   if (points) addGeoEntries(entries, base, 'points', points, opts.geoFormats);
 
@@ -1026,10 +1048,12 @@ export async function buildCollectionEntries(
   // YAML — event block + specimens array (collection order). Raw
   // `convertToDwc`, not `toDwcCsvRow`: the yml is the round-trip format and
   // must keep every value the user entered (see toDwcCsvRow's docblock).
+  const tripSite = trip.site_id != null ? getSite(trip.site_id) : null;
   const yamlData = buildCollectionYamlDoc({
     trip,
     projectName: project?.name ?? '',
     specimens,
+    site: tripSite ? siteToImported(tripSite) : null,
     photoNames,
     audioNames,
   });
@@ -1572,7 +1596,7 @@ export async function bundleSession(
   opts.onProgress?.(total > 0 ? { label: '處理照片', done: 0, total } : { label: '準備中…' });
   const { entries, folderName } = await buildSessionEntries(sessionId, opts, ctx);
   await reportZipStage(opts.onProgress);
-  return finalizeZip(entries, folderName);
+  return await finalizeZip(entries, folderName);
 }
 
 export async function bundlePlot(
@@ -1584,7 +1608,7 @@ export async function bundlePlot(
   opts.onProgress?.(total > 0 ? { label: '處理照片', done: 0, total } : { label: '準備中…' });
   const { entries, folderName } = await buildPlotEntries(plotId, opts, ctx);
   await reportZipStage(opts.onProgress);
-  return finalizeZip(entries, folderName);
+  return await finalizeZip(entries, folderName);
 }
 
 export async function bundleCollection(
@@ -1596,7 +1620,7 @@ export async function bundleCollection(
   opts.onProgress?.(total > 0 ? { label: '處理照片', done: 0, total } : { label: '準備中…' });
   const { entries, folderName } = await buildCollectionEntries(tripId, opts, ctx);
   await reportZipStage(opts.onProgress);
-  return finalizeZip(entries, folderName);
+  return await finalizeZip(entries, folderName);
 }
 
 export async function bundleMany(items: BundleItem[], opts: BundleOptions): Promise<ExportFile> {
@@ -1646,7 +1670,7 @@ export async function bundleMany(items: BundleItem[], opts: BundleOptions): Prom
       itemMeta.push({
         kind: it.kind,
         id: it.id,
-        error: e instanceof Error ? e.message : String(e),
+        error: errText(e),
       });
     }
   }
@@ -1670,10 +1694,65 @@ export async function bundleMany(items: BundleItem[], opts: BundleOptions): Prom
     .replace(/[:.]/g, '-')
     .slice(0, 19);
   await reportZipStage(opts.onProgress);
-  return finalizeZip(allEntries, `mitalivana_bundle_${ts}`);
+  return await finalizeZip(allEntries, `mitalivana_bundle_${ts}`);
 }
 
-export function finalizeZip(entries: BuiltZipEntry[], folderName: string): ExportFile {
+/**
+ * Tell the recipient, inside the zip, what `signature.json` is.
+ *
+ * Not written by `buildRecordReadme`, because that runs while the records are
+ * still being walked — before anyone knows whether this export will be signed
+ * at all, and a README describing a signature file that is not there would be
+ * worse than one that stays quiet.
+ */
+function appendSignatureNote(entries: BuiltZipEntry[], orcid: string): void {
+  // Folders that will get a signature = folders that hold a manifest. Derived
+  // rather than passed in, because this now runs before the signing does.
+  const signedFolders = new Set(
+    entries
+      .filter((e) => isManifestPath(e.name))
+      .map((e) => (e.name.includes('/') ? e.name.slice(0, e.name.lastIndexOf('/') + 1) : '')),
+  );
+  for (const e of entries) {
+    if (!e.name.endsWith('README.md')) continue;
+    const folder = e.name.includes('/') ? e.name.slice(0, e.name.lastIndexOf('/') + 1) : '';
+    if (!signedFolders.has(folder)) continue;
+    e.bytes = strToU8(
+      `${strFromU8(e.bytes)}\n\n## 出處簽章\n\n` +
+        '- `signature.json` — 這份資料的 Ed25519 簽章，簽的是 `manifest.json`。\n' +
+        `- 署名 ORCID：${orcid}（https://orcid.org/${orcid}）\n` +
+        '- `manifest.json` 的 `files` 列出同層每個檔案的 SHA-256，所以一把簽章\n' +
+        '  同時涵蓋 yml、CSV、照片與錄音。\n' +
+        '- 驗證工具（離線、不需伺服器）：\n' +
+        '  https://github.com/mutolisp/checklister-ng/tree/main/mobile/verify\n' +
+        '- 通過驗證代表「檔案自匯出後未被更動、由持有該金鑰者簽署」，\n' +
+        '  不保證資料內容正確，也不排除 ORCID 帳號遭盜用。\n',
+    );
+  }
+}
+
+export async function finalizeZip(
+  entries: BuiltZipEntry[],
+  folderName: string,
+): Promise<ExportFile> {
+  // Signing goes through the same choke point rather than being decided per
+  // export type: every zip this app writes leaves by this function, so there
+  // is no "which exports get signed" rule that a new export path could miss.
+  // `activeSigner()` returns null unless signing is on AND a key exists AND an
+  // ORCID is set, so an incomplete setup produces an unsigned zip rather than
+  // a signature that attributes the data to nobody.
+  const active = await activeSigner();
+
+  // Order matters, and getting it wrong is silent. The README is itself listed
+  // in the manifest, so its note has to be written BEFORE the digests are
+  // taken; and the digests have to be in the manifest before it is signed.
+  // Appending the note last made every export report its own README as
+  // "changed".
+  if (active) appendSignatureNote(entries, active.signer.orcid);
+  // Manifests learn what they are describing only now, when every file's
+  // bytes exist. Rule lives in a pure module so the verifiers can share it.
+  injectFileDigests(entries, strFromU8, strToU8);
+  if (active) injectSignatures(entries, active.signer, active.seed, strFromU8, strToU8);
   const zippable: Zippable = {};
   for (const e of entries) zippable[e.name] = e.zipOpts ? [e.bytes, e.zipOpts] : e.bytes;
   const zipped = zipSync(zippable, { level: 6 });

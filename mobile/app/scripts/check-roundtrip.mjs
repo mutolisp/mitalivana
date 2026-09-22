@@ -32,6 +32,7 @@ import {
 } from '../src/lib/bundleYaml.ts';
 import { convertToDwc } from '../src/lib/dwcMapper.ts';
 import { establishmentDwcValue } from '../src/lib/dwcMultiValue.ts';
+import { collectionFromDoc, parseCollectionYaml } from '../src/lib/collectionImport.ts';
 import { parsePlotYaml } from '../src/lib/plotImport.ts';
 import { parseSessionYaml } from '../src/lib/sessionImport.ts';
 import { schemaColumns } from './schema-columns.mjs';
@@ -108,11 +109,8 @@ const NOT_RESTORABLE = {
     created_at: IMPORT_TIME,
     updated_at: IMPORT_TIME,
     env_photos_json: 'exported as `env_photo_files` (filenames, not device URIs)',
-    e0_cover_pct: 'legacy pre-v12 column, superseded by plot_survey_layers',
-    e0_height_cm: 'legacy', e1_cover_pct: 'legacy', e1_height_cm: 'legacy',
-    e2_cover_pct: 'legacy', e2_height_cm: 'legacy', e3_cover_pct: 'legacy',
-    e3_height_cm: 'legacy', e0_method: 'legacy', e1_method: 'legacy',
-    e2_method: 'legacy', e3_method: 'legacy',
+    // The pre-v12 per-layer columns were dropped in v42; the guard's own
+    // stale-entry check is what said so.
   },
   plot_species_records: {
     id: ROW_ID,
@@ -153,6 +151,8 @@ const NOT_RESTORABLE = {
     started_at: 'exported as event.startedAt (ISO)',
     ended_at: 'exported as event.endedAt (ISO)',
     recorded_by: 'exported as event.recordedBy',
+    institution_code: 'exported as event.institutionCode (the trip default)',
+    site_id: 'exported as the `site:` block + site.* sidecars',
     notes: 'exported as event.eventRemarks',
   },
   collection_specimens: {
@@ -334,7 +334,7 @@ console.log('check:roundtrip');
   // whole reason two rows can share a taxon_id; losing it merges them.
   eq('species[0].verbatim_identification', s0.verbatim_identification, 'Lauraceae sp2');
   eq('species[0].detection_type', s0.detection_type, 'seen');
-  eq('species[0].gps', [s0.lat, s0.lng, s0.accuracy], [24.71, 121.51, 4]);
+  eq('species[0].gnss', [s0.lat, s0.lng, s0.accuracy], [24.71, 121.51, 4]);
   eq('species[0].observed_at', s0.observed_at, 1756500100000);
   eq('species[0].photo_files', s0.photo_files, ['t0301_小西氏石櫟_1.jpg', 't0301_小西氏石櫟_2.jpg']);
   eq('species[0].name', s0.name, 'Lycopodium tamariscinum');
@@ -411,7 +411,7 @@ console.log('check:roundtrip');
   eq('record.taxon_id', r0.taxon_id, 't0455');
   eq('record.observed_at', r0.observed_at, 1756500300000);
   eq('record.notes', r0.notes, '路邊');
-  eq('record.gps', [r0.lat, r0.lng, r0.accuracy], [24.72, 121.52, 8]);
+  eq('record.gnss', [r0.lat, r0.lng, r0.accuracy], [24.72, 121.52, 8]);
   eq('record.quantity', [r0.organism_quantity, r0.organism_quantity_type], ['5', 'individuals']);
   eq('record.sex', r0.sex, 'female');
   eq('record.life_stage', r0.life_stage, 'adult');
@@ -581,34 +581,19 @@ checklist:
   } catch (e) {
     eq('bundle refusal', e.code, 'unsupportedBundle');
   }
-  const collection = zipSync({
-    'C/C.yml': strToU8('trip: {}\n'),
-    'C/manifest.json': strToU8(JSON.stringify({ kind: 'collection' })),
-  });
-  try {
-    readRecordImportFromBytes(collection);
-    fail('collection export was accepted');
-  } catch (e) {
-    eq('collection refusal', e.code, 'unsupportedCollection');
-  }
 }
-
-if (failures > 0) {
-  console.error(`\n✗ round-trip: ${failures} failure(s)`);
-  process.exit(1);
-}
-console.log('✓ round-trip: 名錄 / 樣區 yml survive export → import with no field lost');
 
 // ── 5. Collection (採集) ──────────────────────────────────────────────────
-// Collection has no importer yet (`recordImportZip` refuses the kind), so this
-// is export coverage only — but that is exactly the half that was missing:
-// the trip's uuid and notes and every specimen's photo binding were absent
-// from the yml and nothing failed, because no fixture reached these tables.
+// Was export-only until E1: `recordImportZip` refused the kind outright, so a
+// collection export was a one-way trip. Both halves are exercised now, and the
+// refusal assertion that used to live here has been replaced by the real
+// round-trip below — a guard that pins a limitation has to be retired with it.
 {
   const tripRow = {
     id: 7, uuid: 'trip-uuid-9', name: '2026-09-20 福山採集', project_id: 3, status: 'done',
     started_at: 1789860000000, ended_at: 1789880000000, recorded_by: '林政道',
     locality: '宜蘭縣員山鄉福山', notes: '午後雷陣雨，提前結束',
+    site_id: 11, institution_code: 'TAI',
     created_at: 1789860000000, updated_at: 1789880000000, starred: 0,
   };
   // Two specimens of ONE taxon: the shape that made the missing photo binding
@@ -623,6 +608,7 @@ console.log('✓ round-trip: 名錄 / 樣區 yml survive export → import with 
     // conditionally, so a null here would silently skip the assertion.
     degree_of_establishment: 'wild', sex: 'female', life_stage: 'adult',
     verbatim_identification: 'Fagaceae sp1',
+    duplicate_count: 3, institution_code: 'HAST', other_catalog_numbers: 'TAI 123456',
     reproductive_condition: '["flowering"]', leaf_phenology: '["evergreen"]',
     notes: `第 ${n} 份`, photo_paths: '["ph://a"]', audio_paths: '["file:///audio/a.m4a"]',
     used_name_id: 165943, used_scientific_name: 'Lithocarpus konishii',
@@ -642,8 +628,9 @@ console.log('✓ round-trip: 名錄 / 樣區 yml survive export → import with 
   ]);
   const audioNames = new Map([['c-occ-A', ['t0301_小西氏石櫟_1.m4a']]]);
 
+  const tripSite = { name: '福山哈盆步道', notes: '', geometry: { type: 'Point', coordinates: [121.58, 24.76] } };
   const doc = buildCollectionYamlDoc({
-    trip: tripRow, projectName: '福山長期樣區', specimens, photoNames, audioNames,
+    trip: tripRow, projectName: '福山長期樣區', specimens, site: tripSite, photoNames, audioNames,
   });
 
   eq('trip.eventUUID', doc.event.eventUUID, 'trip-uuid-9');
@@ -654,13 +641,110 @@ console.log('✓ round-trip: 名錄 / 樣區 yml survive export → import with 
   eq('specimen B media', doc.specimens[1].associatedMedia, 't0301_小西氏石櫟_2.jpg');
   eq('specimen A audio', doc.specimens[0].audio_files, 't0301_小西氏石櫟_1.m4a');
   eq('specimen verbatimIdentification', doc.specimens[0].verbatimIdentification, 'Fagaceae sp1');
+  // v43 herbarium fields. `duplicate_count` keeps its own key on purpose:
+  // DwC's `preparations` is a list of preparation METHODS and
+  // `individualCount` counts individuals, so neither can carry "3 sheets".
+  eq('specimen duplicate_count', doc.specimens[0].duplicate_count, 3);
+  eq('specimen institutionCode', doc.specimens[0].institutionCode, 'HAST');
+  eq('specimen otherCatalogNumbers', doc.specimens[0].otherCatalogNumbers, 'TAI 123456');
+  eq('trip institutionCode', doc.event.institutionCode, 'TAI');
+  eq('trip site name', doc.site?.name, '福山哈盆步道');
   eq('specimen B has no audio', doc.specimens[1].audio_files, undefined);
 
   const ymlKeys = new Set(Object.keys(doc.event));
-  ymlKeys.add('specimens').add('project');
+  ymlKeys.add('specimens').add('project').add('site');
   checkCoverage('collection_trips', ymlKeys);
   checkCoverage(
     'collection_specimens',
     new Set(Object.keys(specimenToYamlItem(specimens[0], photoNames, audioNames))),
   );
+
+// ── 6. Collection round-trip (E1) ────────────────────────────────────────
+// The half that did not exist: export → parse → compare every value. A field
+// that serialises but never comes back is exactly how the plot importer lost
+// `degree_of_establishment` for three versions without anything failing.
+{
+  const yml = yaml.dump(doc, { lineWidth: -1, noRefs: true });
+  const back = parseCollectionYaml(yml);
+
+  eq('trip uuid survives', back.uuid, tripRow.uuid);
+  eq('trip name survives', back.name, tripRow.name);
+  eq('trip recorded_by survives', back.recorded_by, tripRow.recorded_by);
+  eq('trip locality survives', back.locality, tripRow.locality);
+  eq('trip institution_code survives', back.institution_code, tripRow.institution_code);
+  eq('trip notes survives', back.notes, tripRow.notes);
+  eq('trip started_at survives', back.started_at, tripRow.started_at);
+  eq('trip ended_at survives', back.ended_at, tripRow.ended_at);
+  eq('trip project survives', back.project_name, '福山長期樣區');
+  eq('trip site survives', back.site?.name, '福山哈盆步道');
+  eq('specimen count survives', back.specimens.length, 2);
+
+  const a = back.specimens[0];
+  const src = specimens[0];
+  eq('specimen occurrence_id survives', a.occurrence_id, src.occurrence_id);
+  eq('specimen taxon_id survives', a.taxon_id, src.taxon_id);
+  eq('specimen record_number survives', a.record_number, src.record_number);
+  eq('specimen collected_at survives', a.collected_at, src.collected_at);
+  eq('specimen recorded_by survives', a.recorded_by, src.recorded_by);
+  eq('specimen identified_by survives', a.identified_by, src.identified_by);
+  eq('specimen date_identified survives', a.date_identified, src.date_identified);
+  eq('specimen lat survives', a.lat, src.lat);
+  eq('specimen lng survives', a.lng, src.lng);
+  eq('specimen accuracy survives', a.accuracy, src.accuracy);
+  eq('specimen locality survives', a.locality, src.locality);
+  eq('specimen sex survives', a.sex, src.sex);
+  eq('specimen life_stage survives', a.life_stage, src.life_stage);
+  eq('specimen reproductive_condition survives', a.reproductive_condition, src.reproductive_condition);
+  eq('specimen leaf_phenology survives', a.leaf_phenology, src.leaf_phenology);
+  eq('specimen degree_of_establishment survives', a.degree_of_establishment, src.degree_of_establishment);
+  eq('specimen verbatim_identification survives', a.verbatim_identification, src.verbatim_identification);
+  eq('specimen duplicate_count survives', a.duplicate_count, src.duplicate_count);
+  eq('specimen institution_code survives', a.institution_code, src.institution_code);
+  eq('specimen other_catalog_numbers survives', a.other_catalog_numbers, src.other_catalog_numbers);
+  eq('specimen notes survives', a.notes, src.notes);
+  eq('specimen photo binding survives', a.photo_files?.[0], 't0301_小西氏石櫟_1.jpg');
+  eq('specimen audio binding survives', a.audio_files?.[0], 't0301_小西氏石櫟_1.m4a');
+  eq('specimen B keeps its OWN photo', back.specimens[1].photo_files?.[0], 't0301_小西氏石櫟_2.jpg');
+  eq('specimen used_scientific_name survives', a.used_scientific_name, src.used_scientific_name);
+  eq('specimen used_name_id survives', a.used_name_id, src.used_name_id);
+
+  // A recorded 0 is a statement ("no duplicates taken"), not an absence. The
+  // serialiser uses `!= null` for exactly this; a truthiness test would drop
+  // it and it would come back as "not recorded".
+  const zeroDoc = buildCollectionYamlDoc({
+    trip: tripRow,
+    projectName: '',
+    specimens: [{ ...specimens[0], duplicate_count: 0 }],
+    site: null,
+  });
+  eq('duplicate_count 0 survives', collectionFromDoc(zeroDoc).specimens[0].duplicate_count, 0);
+
+  // Kind detection from a BARE yml. A collection document carries an `event:`
+  // block just like a session one, so testing `event` first classified it as a
+  // session and imported specimens as checklist rows — silently.
+  const asZip = zipSync({ 'C/C.yml': strToU8(yml) });
+  eq('bare collection yml is detected as a collection',
+     readRecordImportFromBytes(strToU8(yml)).kind, 'collection');
+  eq('zipped collection is detected as a collection',
+     readRecordImportFromBytes(asZip).kind, 'collection');
+
+  // …and the manifest must not be the only thing that saves it.
+  const withManifest = zipSync({
+    'C/C.yml': strToU8(yml),
+    'C/manifest.json': strToU8(JSON.stringify({ kind: 'collection' })),
+  });
+  const read = readRecordImportFromBytes(withManifest);
+  eq('manifest path gives the same kind', read.kind, 'collection');
+  eq('manifest path parses the specimens', read.collection.specimens.length, 2);
 }
+}
+
+// ── Summary ──────────────────────────────────────────────────────────────
+// Last, deliberately. This block used to sit before sections 5 and 6, so a
+// failure in either printed a ✗ and still exited 0. Verified by breaking one
+// assertion on purpose: the run reported the failure and returned success.
+if (failures > 0) {
+  console.error(`\n✗ round-trip: ${failures} failure(s)`);
+  process.exit(1);
+}
+console.log('✓ round-trip: 名錄 / 樣區 / 採集 yml survive export → import with no field lost');

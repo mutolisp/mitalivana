@@ -230,7 +230,7 @@ function AreaMap({
         <CtrlButton
           icon="locate"
           onPress={() =>
-            locateMe(mapRef, regionRef, () => Alert.alert(t('gps.permTitle'), t('gps.permMsg')))
+            locateMe(mapRef, regionRef, () => Alert.alert(t('gnss.permTitle'), t('gnss.permMsg')))
           }
           label={t('locMap.locateMe')}
         />

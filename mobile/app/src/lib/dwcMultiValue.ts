@@ -131,3 +131,54 @@ export function individualCountOf(
   const n = Number(raw);
   return Number.isFinite(n) && n >= 0 ? String(n) : '';
 }
+
+/**
+ * `threatStatus` for the Distribution extension.
+ *
+ * ⚠️ Controlled vocabulary, pinned in `scripts/vocab/threat-status-values.json`
+ * (GBIF IUCN Threat Status thesaurus, issued 2018-12-06, retrieved 2026-09-22):
+ * EX EW RE CR EN VU NT LC DD NA NE.
+ *
+ * **The leading `N`.** The Taiwan Red List writes national categories as
+ * `NCR` / `NEN` / `NVU` / `NNT` / `NLC`. IUCN's regional guidelines use the
+ * SAME category set for a national assessment — the `N` only says "national",
+ * which in a Distribution row is already stated by `countryCode`. So it is
+ * stripped rather than published as an invented category. This is the
+ * convention the app already follows for badge colours
+ * (`conservationColors.ts`: "National (Taiwan) codes share the same colour by
+ * stripping the leading `N`").
+ *
+ * Anything that does not land in the vocabulary returns '' — notably the
+ * pre-2001 `LR/cd` (Lower Risk / conservation dependent), which has no modern
+ * equivalent that we can assert without making the assessment ourselves.
+ */
+const THREAT_STATUS = new Set(['EX', 'EW', 'RE', 'CR', 'EN', 'VU', 'NT', 'LC', 'DD', 'NA', 'NE']);
+
+export function threatStatusDwcValue(code: string | null | undefined): string {
+  const c = (code ?? '').trim().toUpperCase();
+  if (!c) return '';
+  if (THREAT_STATUS.has(c)) return c;
+  if (c.startsWith('N') && THREAT_STATUS.has(c.slice(1))) return c.slice(1);
+  return '';
+}
+
+/**
+ * `appendixCITES` for the Distribution extension.
+ *
+ * TaiCOL stores compound listings (`I/II`, `I/II/III`) because different
+ * populations of one taxon can sit in different appendices, and adds its own
+ * `NC` marker for "not listed". A compound value is kept — it is the true
+ * listing — but `NC` is dropped: "not in any appendix" is the absence of a
+ * value, not an appendix called NC.
+ *
+ * GBIF publishes no value vocabulary for this term (checked 2026-09-22:
+ * rs.gbif.org/vocabulary/gbif/cites_appendix.xml is 404), so this validates
+ * shape rather than membership — only I / II / III may appear.
+ */
+export function citesAppendixDwcValue(code: string | null | undefined): string {
+  const parts = (code ?? '')
+    .split('/')
+    .map((p) => p.trim().toUpperCase())
+    .filter((p) => p === 'I' || p === 'II' || p === 'III');
+  return parts.join('/');
+}

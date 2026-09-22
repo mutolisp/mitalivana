@@ -8,6 +8,7 @@
  * Analysis scope is deliberately plots-only (user decision); sessions and
  * collection trips still ship in records/ and in the DwC-A.
  */
+import { errText } from '~/lib/errText';
 import yaml from 'js-yaml';
 import { strToU8 } from 'fflate';
 import {
@@ -126,7 +127,7 @@ export async function bundleProject(
       recordMeta.push({ kind, id, uuid, folder: `records/${folderName}` });
     } catch (e) {
       // A record that fails (e.g. empty session) is noted, not fatal.
-      recordMeta.push({ kind, id, uuid, error: e instanceof Error ? e.message : String(e) });
+      recordMeta.push({ kind, id, uuid, error: errText(e) });
     }
   };
 
@@ -265,10 +266,19 @@ export async function bundleProject(
     });
     entries.push({
       name: `dwca/${safeName}_dwca.zip`,
-      bytes: dwca,
+      bytes: dwca.records,
       // Already a deflate stream — store, don't re-compress.
       zipOpts: { level: 0 },
     });
+    // Taxon core: conservation status is a property of the taxon, and one
+    // archive can only have one core. Absent when nothing has a status.
+    if (dwca.taxa) {
+      entries.push({
+        name: `dwca/${safeName}_taxon_dwca.zip`,
+        bytes: dwca.taxa,
+        zipOpts: { level: 0 },
+      });
+    }
   }
 
   // ── Sites ────────────────────────────────────────────────────────────────
@@ -328,7 +338,7 @@ export async function bundleProject(
       }
     } catch (e) {
       // A report that fails must not cost the user the rest of the bundle.
-      readmeNotes.push(`研究報表產生失敗：${e instanceof Error ? e.message : String(e)}`);
+      readmeNotes.push(`研究報表產生失敗：${errText(e)}`);
     }
   }
 
@@ -364,7 +374,7 @@ export async function bundleProject(
   opts.onProgress?.({ label: '壓縮中…' });
   await new Promise((r) => setTimeout(r, 0));
   const ymdStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-  return finalizeZip(entries, `${safeName}_${ymdStr}`);
+  return await finalizeZip(entries, `${safeName}_${ymdStr}`);
 }
 
 // ── README ──────────────────────────────────────────────────────────────────

@@ -1,7 +1,17 @@
+import { errText } from '~/lib/errText';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Linking, Modal, Pressable, ScrollView, Text, View } from 'react-native';
+import {
+  Alert,
+  Linking,
+  Modal,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import {
   SwipeNavArea,
@@ -30,6 +40,7 @@ import {
   sourceOfTaxonId,
 } from '~/db';
 import { buildSpeciesCopyText, copyToClipboard, speciesCopyActions } from '~/lib/clipboard';
+import { formatQuantityBadge } from '~/lib/dwcAbundance';
 import { alienBadge } from '~/lib/conservationColors';
 import { CollapsibleSection, SynonymStatusBadge } from './CollapsibleSection';
 import { ConservationBadge } from './ConservationBadge';
@@ -50,12 +61,12 @@ type Props = {
   onRemove: () => void;
   /** Called when user saves new notes for the current record. The sheet handles its own NotesEditModal. */
   onSaveNotes: (newNotes: string) => void;
-  /** Save / clear per-record GPS coordinates. Pass null to clear. */
+  /** Save / clear per-record GNSS coordinates. Pass null to clear. */
   onSaveLocation?: (lat: number | null, lng: number | null, accuracy: number | null) => void;
   /** Live-commit a coordinate edited on the inline map (no toast). Manual map
-   *  edits carry no GPS accuracy. Pass alongside onSaveLocation to show the map. */
+   *  edits carry no GNSS accuracy. Pass alongside onSaveLocation to show the map. */
   /** `accuracy` is null for a hand-placed point; an undo passes the previous
-   *  measured value back so a restored GPS fix keeps its uncertainty. */
+   *  measured value back so a restored GNSS fix keeps its uncertainty. */
   onChangeLocation?: (lat: number, lng: number, accuracy: number | null) => void;
   /** Capture or pick a photo for the current record. Parent persists the URI. */
   onAddPhoto?: (mode: 'camera' | 'library') => void;
@@ -71,6 +82,12 @@ type Props = {
   /** Re-identify: hand the docked SearchBox over to replacing this record's
    *  taxon. Optional — callers without a search box simply omit it. */
   onReplaceTaxon?: () => void;
+  /** Save the individual count for this record. `null` clears it — which is a
+   *  different statement from 0 ("counted, none present"), so both are
+   *  reachable. Omit the prop on screens where a count makes no sense.
+   *  Always written as DwC organismQuantityType `individuals`; the checklist
+   *  deliberately does not offer cover / BB / DBH, which are plot methods. */
+  onSaveQuantity?: (count: number | null) => void;
   /** Save the verbatim field determination (`sp1` under a family or genus).
    *  Pass null to clear. Omit to hide the control — `VerbatimLabelField` also
    *  hides itself on a record already determined to species. */
@@ -132,6 +149,7 @@ export function SpeciesDetailSheet({
   inat,
   onSaveAttributes,
   onReplaceTaxon,
+  onSaveQuantity,
   onSaveVerbatim,
   pager,
 }: Props) {
@@ -441,13 +459,21 @@ export function SpeciesDetailSheet({
                       <Text selectable className="text-sm text-gray-700 dark:text-gray-300">
                         {t('species.timeLabel', { time: observedStr })}
                       </Text>
+                      {onSaveQuantity ? (
+                        <CountField
+                          key={record.id}
+                          quantity={record.organism_quantity}
+                          quantityType={record.organism_quantity_type}
+                          onCommit={onSaveQuantity}
+                        />
+                      ) : null}
                       {onSaveLocation ? (
                         <Pressable
                           onPress={async () => {
-                            // Tap to capture current GPS; long-press handled via separate clear action.
+                            // Tap to capture current GNSS; long-press handled via separate clear action.
                             const perm = await Location.requestForegroundPermissionsAsync();
                             if (perm.status !== 'granted') {
-                              Alert.alert(t('gps.permTitle'), t('gps.permMsg'));
+                              Alert.alert(t('gnss.permTitle'), t('gnss.permMsg'));
                               return;
                             }
                             try {
@@ -461,15 +487,15 @@ export function SpeciesDetailSheet({
                               );
                             } catch (e) {
                               Alert.alert(
-                                t('gps.posFailTitle'),
-                                e instanceof Error ? e.message : String(e),
+                                t('gnss.posFailTitle'),
+                                errText(e),
                               );
                             }
                           }}
                           onLongPress={
                             record.lat !== null
                               ? () => {
-                                  Alert.alert('GPS', undefined, [
+                                  Alert.alert('GNSS', undefined, [
                                     { text: t('common.cancel'), style: 'cancel' },
                                     {
                                       text: t('species.clearCoord'),
@@ -502,7 +528,7 @@ export function SpeciesDetailSheet({
                           <Text className="text-xs text-gray-400 dark:text-gray-500">
                             {record.lat !== null
                               ? t('species.longPressClear')
-                              : t('species.tapGps')}
+                              : t('species.tapGnss')}
                           </Text>
                         </Pressable>
                       ) : null}
@@ -526,11 +552,11 @@ export function SpeciesDetailSheet({
                               // Not asked for here: requesting it would present a
                               // system dialog on a view controller that is already
                               // presenting this sheet.
-                              Alert.alert(t('species.usePhotoGps'), t('species.photoNeedsAccess'));
+                              Alert.alert(t('species.usePhotoGnss'), t('species.photoNeedsAccess'));
                               return;
                             }
-                            if (out.kind === 'no-gps') {
-                              Alert.alert(t('species.usePhotoGps'), t('species.photoNoGps'));
+                            if (out.kind === 'no-gnss') {
+                              Alert.alert(t('species.usePhotoGnss'), t('species.photoNoGnss'));
                               return;
                             }
                             // No success notice: the coordinate row and the map
@@ -542,7 +568,7 @@ export function SpeciesDetailSheet({
                         >
                           <Ionicons name="image-outline" size={18} color="#4b5563" />
                           <Text className="ml-2 flex-1 text-sm text-gray-700 dark:text-gray-300">
-                            {t('species.usePhotoGps')}
+                            {t('species.usePhotoGnss')}
                           </Text>
                         </Pressable>
                       ) : null}
@@ -676,6 +702,108 @@ export function SpeciesDetailSheet({
         />
       </View>
     </Modal>
+  );
+}
+
+/**
+ * Individual count for one checklist record.
+ *
+ * Deliberately a plain count and nothing else. The plot survey's
+ * `PlotSpeciesValueModal` also offers Braun-Blanquet, % cover and DBH, but
+ * those are vegetation-plot methods: abundance RELATIVE to a declared sampling
+ * effort (a plot id, a protocol, a sample size). A checklist has no such
+ * denominator, so a cover value recorded here would be a fraction of nothing.
+ * A bare count is an occurrence attribute and needs no denominator, which is
+ * what DwC `individualCount` is.
+ *
+ * Stepper AND keyboard: field counts are usually 1-3, where tapping ＋ beats
+ * opening a keyboard, but a flock is 200 and a stepper alone would be absurd.
+ */
+function CountField({
+  quantity,
+  quantityType,
+  onCommit,
+}: {
+  quantity: string | null;
+  quantityType: string | null;
+  onCommit: (count: number | null) => void;
+}) {
+  const { t } = useTranslation();
+  // Anything not recorded as a plain count arrived by import — a BB code or a
+  // cover value from a hand-edited yml. Show it, but do not offer to step it:
+  // turning "BB: 3" into "4 individuals" would silently change the claim.
+  const foreign = quantityType != null && quantityType !== '' && quantityType !== 'individuals';
+  const parsed = quantity != null && quantity !== '' ? Number(quantity) : NaN;
+  const valid = !foreign && Number.isFinite(parsed) && parsed >= 0;
+  const current = valid ? parsed : null;
+  const [draft, setDraft] = useState(valid ? String(parsed) : '');
+  useEffect(() => {
+    setDraft(valid ? String(parsed) : '');
+  }, [parsed, valid]);
+
+  if (foreign) {
+    return (
+      <View className="mt-2 flex-row items-center">
+        <Text className="text-sm text-gray-500 dark:text-gray-400">{t('species.count')}</Text>
+        <Text className="ml-2 text-sm text-gray-700 dark:text-gray-300">
+          {formatQuantityBadge(quantity, quantityType)}
+        </Text>
+      </View>
+    );
+  }
+
+  const step = (delta: number) => onCommit(Math.max(0, (current ?? 0) + delta));
+
+  return (
+    <View className="mt-2 flex-row items-center">
+      <Text className="mr-3 text-sm text-gray-500 dark:text-gray-400">{t('species.count')}</Text>
+      <Pressable
+        onPress={() => step(-1)}
+        disabled={current == null || current <= 0}
+        hitSlop={6}
+        accessibilityLabel={t('species.countMinus')}
+        className={`h-8 w-8 items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 ${
+          current == null || current <= 0 ? 'opacity-40' : 'active:bg-gray-100 dark:active:bg-gray-700'
+        }`}
+      >
+        <Ionicons name="remove" size={16} color="#4b5563" />
+      </Pressable>
+      <TextInput
+        value={draft}
+        onChangeText={setDraft}
+        onBlur={() => {
+          const raw = draft.trim();
+          if (raw === '') {
+            onCommit(null);
+            return;
+          }
+          const n = Number(raw);
+          // A typo falls back to what is already stored rather than wiping it.
+          if (!Number.isFinite(n) || n < 0) {
+            setDraft(valid ? String(parsed) : '');
+            return;
+          }
+          onCommit(Math.floor(n));
+        }}
+        keyboardType="number-pad"
+        placeholder={t('species.countUnset')}
+        placeholderTextColor="#9ca3af"
+        className="mx-2 min-w-[56px] rounded-lg border border-gray-300 px-2 py-1 text-center text-base text-gray-900 dark:border-gray-600 dark:text-gray-100"
+      />
+      <Pressable
+        onPress={() => step(1)}
+        hitSlop={6}
+        accessibilityLabel={t('species.countPlus')}
+        className="h-8 w-8 items-center justify-center rounded-lg border border-gray-300 active:bg-gray-100 dark:border-gray-600 dark:active:bg-gray-700"
+      >
+        <Ionicons name="add" size={16} color="#4b5563" />
+      </Pressable>
+      {current != null ? (
+        <Pressable onPress={() => onCommit(null)} hitSlop={8} className="ml-3 active:opacity-70">
+          <Text className="text-xs text-gray-500 dark:text-gray-400">{t('species.countClear')}</Text>
+        </Pressable>
+      ) : null}
+    </View>
   );
 }
 

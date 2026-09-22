@@ -387,7 +387,7 @@ function importSessionTx(
  * Copy a checklist session as the next visit.
  *
  * Same contract as `duplicatePlotSurvey`: setup travels, observations do not.
- * The start GPS fix, the recorded track and the bound site all describe one
+ * The start GNSS fix, the recorded track and the bound site all describe one
  * outing and are always left out.
  */
 export function duplicateSession(id: number, opts: DuplicateRecordOptions): number | null {

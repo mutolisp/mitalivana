@@ -63,7 +63,15 @@ export function SpeciesSearchPanel({ autoFocus = false }: Props) {
 
   return (
     <View className="flex-1">
-      <View className="flex-1 bg-white dark:bg-gray-900">
+      {/* The dock below is translated UP by `tabBarInset` to clear the floating
+          pill, so it overlays exactly that much of this box. Padding (inside
+          the view, so the white background still reaches the dock) keeps the
+          panel's last element — the add-to-record button — above it. Same
+          reservation the tree segment makes via contentContainerStyle. */}
+      <View
+        className="flex-1 bg-white dark:bg-gray-900"
+        style={{ paddingBottom: tabBarInset }}
+      >
         {active ? (
           <SpeciesDetailPanel
             result={active}

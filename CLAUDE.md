@@ -437,6 +437,7 @@ make datasets-upload R2_BUCKET=mitalivana [DRY=1]
 | `mobile/docs/` | 仍代表現況的參考文件（檢索表、樣區、iNat/GBIF、報表、物種詳細頁、地圖、i18n） |
 | `mobile/docs/planned/` | 純規劃未動工（AI 辨識、P2P 協作、雲端協作） |
 | `mobile/archive/` | 已完成或被取代的設計稿與一次性稽核，**不再維護** |
+| `mobile/verify/` | 給**收資料的人**的出處簽章驗證端（Node／Python／單檔 HTML）。`verify.html` 是 `template.html` 的產物，改前者不要改後者 |
 
 每完成一個段落就更新 `Plan.md` 的待辦與 `Update_log.md`。
 

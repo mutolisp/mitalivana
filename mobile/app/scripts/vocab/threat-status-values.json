@@ -1,0 +1,19 @@
+{
+ "note": "Controlled VALUES for the Distribution extension's threatStatus (http://iucn.org/terms/threatStatus). Includes the two regional statuses RE and NA that IUCN defines for national assessments — which is why a Taiwan red-list category can be expressed here at all. (Upstream XML has a trailing space in the NE identifier; trimmed here.)",
+ "source": "https://rs.gbif.org/vocabulary/iucn/threat_status.xml",
+ "issued": "2018-12-06",
+ "retrieved": "2026-09-22",
+ "concepts": [
+  "EX",
+  "EW",
+  "RE",
+  "CR",
+  "EN",
+  "VU",
+  "NT",
+  "LC",
+  "DD",
+  "NA",
+  "NE"
+ ]
+}

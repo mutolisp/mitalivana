@@ -14,6 +14,7 @@
  * stop the temp file is moved to documentDirectory/audio/ and handed to
  * `onAdd`; the parent owns the DB write, exactly like PhotoGrid's `onAdd`.
  */
+import { errText } from '~/lib/errText';
 import { Ionicons } from '@expo/vector-icons';
 import {
   RecordingPresets,
@@ -79,7 +80,7 @@ export function AudioRecordTile({ onAdd }: { onAdd: (uri: string) => void }) {
       }
     } catch (e) {
       await endRecordingMode();
-      Alert.alert(t('species.audioFailTitle'), e instanceof Error ? e.message : String(e));
+      Alert.alert(t('species.audioFailTitle'), errText(e));
     } finally {
       setBusy(false);
     }

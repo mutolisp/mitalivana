@@ -1,3 +1,4 @@
+import { errText } from '~/lib/errText';
 import { Ionicons } from '@expo/vector-icons';
 import type { AdoptionInput } from '~/db';
 import * as Location from 'expo-location';
@@ -40,6 +41,7 @@ import {
   parseTrackSegments,
   reopenSession,
   updateRecordAttributes,
+  updateRecordQuantity,
   updateRecordLocation,
   updateRecordNotes,
   updateRecordTaxon,
@@ -65,6 +67,7 @@ import { SiteAssignSheet } from '~/components/SiteAssignSheet';
 import { BatchImportModal } from '~/components/BatchImportModal';
 import { PhotoImportModal } from '~/components/PhotoImportModal';
 import { pickPhotosWithExif, type PickedPhoto } from '~/lib/photoCapture';
+import { firstPhotoFix, rememberPickedPhotos } from '~/lib/photoMeta';
 import { SwipeRowActions } from '~/components/SwipeRowActions';
 import { useSettings, type RecordSort, type SortDirection } from '~/stores/settings';
 import { useToast } from '~/stores/toast';
@@ -236,9 +239,13 @@ export default function SessionDetailScreen() {
   const handlePickPhotosToImport = async () => {
     try {
       const picked = await pickPhotosWithExif();
+      // Remember before the sheet opens: records created here start out
+      // positioned, but clearing that coordinate later must still be able to
+      // recover it from the same photo.
+      rememberPickedPhotos(picked);
       if (picked.length > 0) setPickedPhotos(picked);
     } catch (e) {
-      Alert.alert(t('gps.posFailTitle'), e instanceof Error ? e.message : String(e));
+      Alert.alert(t('gnss.posFailTitle'), errText(e));
     }
   };
 
@@ -334,21 +341,53 @@ export default function SessionDetailScreen() {
   const handleAddPhoto = async (mode: 'camera' | 'library') => {
     if (!activeRecord) return;
     try {
-      const { captureAndSavePhoto, pickPhotos, buildContext } = await import('~/lib/photoCapture');
+      const { captureAndSavePhoto, pickPhotosWithExif, buildContext } = await import(
+        '~/lib/photoCapture'
+      );
       const ctx = buildContext(activeRecord);
-      let newUris: string[] = [];
+      let picked: PickedPhoto[] = [];
       if (mode === 'camera') {
         const uri = await captureAndSavePhoto(ctx);
-        if (uri) newUris = [uri];
+        // The camera path already stamps a fresh fix into the file it writes,
+        // so its EXIF is on disk and readable; nothing to carry separately.
+        if (uri) picked = [{ uri, exif: null }];
       } else {
-        newUris = await pickPhotos();
+        // `pickPhotosWithExif`, not `pickPhotos`: adding a photo to an existing
+        // record used to throw the EXIF away, so a record created first and
+        // photographed second never got the coordinate that the SAME photo
+        // would have supplied through the import flow. The picker's exif map is
+        // also the only place a HEIC's position is legible.
+        picked = await pickPhotosWithExif();
       }
-      if (newUris.length === 0) return;
+      if (picked.length === 0) return;
+      // Unconditional: see rememberPickedPhotos for why this cannot live inside
+      // the 'record has no coordinate' branch below.
+      rememberPickedPhotos(picked);
+      const newUris = picked.map((p) => p.uri);
       const existing = parsePhotoPaths(activeRecord.photo_paths);
       const next = [...existing, ...newUris];
       updateRecordPhotos(activeRecord.id, next);
       setActiveRecord({ ...activeRecord, photo_paths: JSON.stringify(next) });
       reload();
+      // A photo of the plant carries the position the recorder never got round
+      // to saving. Applied ONLY when the record has none — silently replacing a
+      // measured coordinate is not something attaching a photo should do. Same
+      // rule as the 「用照片的 GNSS」 button, which stays for photos added before
+      // this existed.
+      if (activeRecord.lat === null || activeRecord.lng === null) {
+        const out = await firstPhotoFix(picked);
+        if (out.kind === 'found') {
+          updateRecordLocation(activeRecord.id, out.fix.lat, out.fix.lng, out.fix.accuracyM);
+          setActiveRecord({
+            ...activeRecord,
+            photo_paths: JSON.stringify(next),
+            lat: out.fix.lat,
+            lng: out.fix.lng,
+            accuracy: out.fix.accuracyM,
+          });
+          reload();
+        }
+      }
       toast(
         mode === 'camera'
           ? t('session.photoSavedLinked')
@@ -357,7 +396,7 @@ export default function SessionDetailScreen() {
             : t('session.photosAdded', { count: newUris.length }),
       );
     } catch (e) {
-      Alert.alert(t('session.photoFailTitle'), e instanceof Error ? e.message : String(e));
+      Alert.alert(t('session.photoFailTitle'), errText(e));
     }
   };
 
@@ -465,12 +504,12 @@ export default function SessionDetailScreen() {
     toast(t('session.projectUpdated'));
   };
 
-  // ── GPS ───────────────────────────────────────────────────────
+  // ── GNSS ───────────────────────────────────────────────────────
 
   const ensureForegroundPermission = async (): Promise<boolean> => {
     const { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert(t('gps.permTitle'), t('gps.permMsg'));
+      Alert.alert(t('gnss.permTitle'), t('gnss.permMsg'));
       return false;
     }
     return true;
@@ -485,11 +524,17 @@ export default function SessionDetailScreen() {
       updateSession(session.id, {
         start_lat: pos.coords.latitude,
         start_lng: pos.coords.longitude,
+        // Dropping a point IS the single-point mode. The column existed and the
+        // yml round-trip carried it, but nothing ever wrote this value, so a
+        // session located this way exported with no mode at all — the export
+        // could not tell it apart from one that was never located.
+        // A track already in progress owns the mode; don't downgrade it.
+        ...(session.gps_mode === 'full_track' ? null : { gps_mode: 'single_point' as const }),
       });
       reload();
-      toast(t('gps.posRecorded'));
+      toast(t('gnss.posRecorded'));
     } catch (e) {
-      Alert.alert(t('gps.posFailTitle'), e instanceof Error ? e.message : String(e));
+      Alert.alert(t('gnss.posFailTitle'), errText(e));
     }
   };
 
@@ -501,16 +546,16 @@ export default function SessionDetailScreen() {
       recordingTarget &&
       !(recordingTarget.kind === 'session' && recordingTarget.id === session.id)
     ) {
-      Alert.alert(t('gps.trackBusyTitle'), t('gps.trackBusyMsg'));
+      Alert.alert(t('gnss.trackBusyTitle'), t('gnss.trackBusyMsg'));
       return;
     }
     try {
       // Resume (if a track already exists) is handled inside the recorder,
       // which loads prior segments and appends a new one.
       await startRecording({ kind: 'session', id: session.id });
-      toast(t('gps.trackStarted'));
+      toast(t('gnss.trackStarted'));
     } catch (e) {
-      Alert.alert(t('gps.trackStartFail'), e instanceof Error ? e.message : String(e));
+      Alert.alert(t('gnss.trackStartFail'), errText(e));
     }
   };
 
@@ -519,12 +564,12 @@ export default function SessionDetailScreen() {
       pauseRecording(); // commits the in-progress segment
     }
     reload();
-    toast(t('gps.trackSaved'));
+    toast(t('gnss.trackSaved'));
   }, [sessionId, reload, toast]);
 
   const handleClearGps = () => {
     if (!session) return;
-    Alert.alert(t('gps.clearTitle'), t('gps.clearMsg'), [
+    Alert.alert(t('gnss.clearTitle'), t('gnss.clearMsg'), [
       { text: t('common.cancel'), style: 'cancel' },
       {
         text: t('common.clear'),
@@ -541,13 +586,13 @@ export default function SessionDetailScreen() {
             gps_mode: null,
           });
           reload();
-          toast(t('gps.cleared'));
+          toast(t('gnss.cleared'));
         },
       },
     ]);
   };
 
-  /** Create a Point site from current GPS and assign to this session. */
+  /** Create a Point site from current GNSS and assign to this session. */
   const handleCreatePointSiteFromGps = async () => {
     if (!session) return;
     const ok = await ensureForegroundPermission();
@@ -568,7 +613,7 @@ export default function SessionDetailScreen() {
       reload();
       toast(t('session.pointSiteCreated'));
     } catch (e) {
-      Alert.alert(t('gps.posFailTitle'), e instanceof Error ? e.message : String(e));
+      Alert.alert(t('gnss.posFailTitle'), errText(e));
     }
   };
 
@@ -587,7 +632,7 @@ export default function SessionDetailScreen() {
         action: () => setSiteSheetOpen(true),
       },
       {
-        label: t('session.createPointSiteFromGps'),
+        label: t('session.createPointSiteFromGnss'),
         action: handleCreatePointSiteFromGps,
       },
       {
@@ -631,7 +676,7 @@ export default function SessionDetailScreen() {
     if (!session) return;
     const otherActive = getActiveSession();
     const proceed = () => {
-      // Reopen force-ends any other active record DB-side; stop a GPS watch
+      // Reopen force-ends any other active record DB-side; stop a GNSS watch
       // that belongs to something other than this session so it can't keep
       // writing to a now-ended record.
       pauseIfNot({ kind: 'session', id: session.id });
@@ -1019,6 +1064,23 @@ export default function SessionDetailScreen() {
           }
         }}
         onSaveNotes={handleSaveActiveNotes}
+        onSaveQuantity={(count) => {
+          if (!activeRecord) return;
+          // Always `individuals` — see CountField. Clearing wipes BOTH columns:
+          // a type with no quantity would export an organismQuantityType that
+          // quantifies nothing.
+          updateRecordQuantity(
+            activeRecord.id,
+            count == null ? null : String(count),
+            count == null ? null : 'individuals',
+          );
+          setActiveRecord({
+            ...activeRecord,
+            organism_quantity: count == null ? null : String(count),
+            organism_quantity_type: count == null ? null : 'individuals',
+          });
+          reload();
+        }}
         onSaveVerbatim={(value) => {
           if (!activeRecord) return;
           updateRecordAttributes(activeRecord.id, { verbatim_identification: value });
@@ -1036,7 +1098,7 @@ export default function SessionDetailScreen() {
         }}
         onChangeLocation={(lat, lng, accuracy) => {
           // Inline map edit: persist quietly (no toast). A hand-placed point
-          // arrives with accuracy null; an undo restoring a GPS fix carries the
+          // arrives with accuracy null; an undo restoring a GNSS fix carries the
           // measured value back, so pass it through rather than clearing it.
           if (!activeRecord) return;
           updateRecordLocation(activeRecord.id, lat, lng, accuracy);

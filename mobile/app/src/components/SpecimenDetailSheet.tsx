@@ -44,13 +44,16 @@ export type SpecimenPatch = {
   reproductive_condition?: string | null;
   leaf_phenology?: string | null;
   verbatim_identification?: string | null;
+  duplicate_count?: number | null;
+  institution_code?: string | null;
+  other_catalog_numbers?: string | null;
 };
 
 type Props = {
   specimen: SpecimenWithTaxon | null;
   onClose: () => void;
   onSave: (patch: SpecimenPatch) => void;
-  /** Commit a coordinate. `accuracy` is the GPS uncertainty in metres for a
+  /** Commit a coordinate. `accuracy` is the GNSS uncertainty in metres for a
    *  real fix, or null when the point was placed by hand on the map. */
   onChangeLocation: (lat: number, lng: number, accuracy: number | null) => void;
   onDelete: () => void;
@@ -115,6 +118,8 @@ export function SpecimenDetailSheet({
   const insets = useSafeAreaInsets();
   const [number, setNumber] = useState('');
   const [locality, setLocality] = useState('');
+  const [institution, setInstitution] = useState('');
+  const [otherNumbers, setOtherNumbers] = useState('');
   const [notes, setNotes] = useState('');
   const [attrs, setAttrs] = useState<SpeciesAttributesDraft>(EMPTY_DRAFT);
   const [assigning, setAssigning] = useState<'collector' | 'determiner' | null>(null);
@@ -149,6 +154,8 @@ export function SpecimenDetailSheet({
     if (!specimen) return;
     setNumber(specimen.record_number);
     setLocality(specimen.locality ?? '');
+    setInstitution(specimen.institution_code ?? '');
+    setOtherNumbers(specimen.other_catalog_numbers ?? '');
     setNotes(specimen.notes ?? '');
     setAttrs(attributesFromRecord(specimen));
     // Stepping keeps the sheet mounted, so the next specimen would otherwise
@@ -416,6 +423,84 @@ export function SpecimenDetailSheet({
                       />
                     </View>
                   </GestureDetector>
+                </Field>
+
+                {/* Herbarium bookkeeping (v43). Duplicates are a count, not a
+                    list of destinations: in the field you know you took three
+                    sheets, and which herbaria they end up in is decided later
+                    — usually not by the collector. */}
+                <Field label={t('collection.duplicates')}>
+                  <View className="flex-row items-center gap-3">
+                    <Pressable
+                      onPress={() =>
+                        onSave({
+                          duplicate_count: Math.max(0, (specimen.duplicate_count ?? 0) - 1),
+                        })
+                      }
+                      disabled={(specimen.duplicate_count ?? 0) <= 0}
+                      hitSlop={8}
+                      className={`h-9 w-9 items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 ${
+                        (specimen.duplicate_count ?? 0) <= 0 ? 'opacity-40' : 'active:bg-gray-100 dark:active:bg-gray-700'
+                      }`}
+                    >
+                      <Ionicons name="remove" size={18} color="#4b5563" />
+                    </Pressable>
+                    <Text className="min-w-[48px] text-center text-base text-gray-900 dark:text-gray-100">
+                      {specimen.duplicate_count ?? t('collection.duplicatesUnset')}
+                    </Text>
+                    <Pressable
+                      onPress={() =>
+                        onSave({ duplicate_count: (specimen.duplicate_count ?? 0) + 1 })
+                      }
+                      hitSlop={8}
+                      className="h-9 w-9 items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 active:bg-gray-100 dark:active:bg-gray-700"
+                    >
+                      <Ionicons name="add" size={18} color="#4b5563" />
+                    </Pressable>
+                    {specimen.duplicate_count != null ? (
+                      <Pressable
+                        onPress={() => onSave({ duplicate_count: null })}
+                        hitSlop={8}
+                        className="active:opacity-70"
+                      >
+                        <Text className="text-xs text-gray-500 dark:text-gray-400">
+                          {t('collection.duplicatesClear')}
+                        </Text>
+                      </Pressable>
+                    ) : null}
+                  </View>
+                </Field>
+
+                <Field label={t('collection.institution')}>
+                  <TextInput
+                    value={institution}
+                    onChangeText={setInstitution}
+                    // Uppercased on commit: institutionCode is an acronym
+                    // (TAI, HAST), and a lowercase one will not match anything
+                    // downstream.
+                    onBlur={() =>
+                      onSave({ institution_code: institution.trim().toUpperCase() || null })
+                    }
+                    placeholder={t('collection.institutionPlaceholder')}
+                    placeholderTextColor="#9ca3af"
+                    autoCapitalize="characters"
+                    autoCorrect={false}
+                    className={INPUT_CLASS}
+                  />
+                </Field>
+
+                <Field label={t('collection.otherNumbers')}>
+                  <TextInput
+                    value={otherNumbers}
+                    onChangeText={setOtherNumbers}
+                    onBlur={() =>
+                      onSave({ other_catalog_numbers: otherNumbers.trim() || null })
+                    }
+                    placeholder={t('collection.otherNumbersPlaceholder')}
+                    placeholderTextColor="#9ca3af"
+                    autoCorrect={false}
+                    className={INPUT_CLASS}
+                  />
                 </Field>
 
                 <View className="mt-4">

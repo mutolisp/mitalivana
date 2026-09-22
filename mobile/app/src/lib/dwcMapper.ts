@@ -58,7 +58,7 @@ export const DWC_FIELD_MAP: Record<string, string> = {
   occurrence_id: 'occurrenceID',
   eventDate: 'eventDate',
   modified: 'modified',
-  // GPS — internal fields → DwC location terms.
+  // GNSS — internal fields → DwC location terms.
   lat: 'decimalLatitude',
   lng: 'decimalLongitude',
   accuracy: 'coordinateUncertaintyInMeters',
@@ -82,6 +82,13 @@ export const DWC_FIELD_MAP: Record<string, string> = {
   // The determination as written in the field — `Orchidaceae sp1` when the
   // taxon can only be the family. Current DwC term, verified by check:dwc.
   verbatim_identification: 'verbatimIdentification',
+  // Herbarium bookkeeping (v43). `duplicate_count` has no DwC term and
+  // deliberately keeps its own key: `preparations` is a list of preparation
+  // METHODS, and `individualCount` counts individuals, not sheets. The DwC-A
+  // carries the number as an eMoF row instead; here, in the round-trip
+  // format, it stays exactly what the user typed.
+  institution_code: 'institutionCode',
+  other_catalog_numbers: 'otherCatalogNumbers',
   // Name usage. `taxonID` is the taxon CONCEPT; `scientificName` is whichever
   // name the recorder filed under, which may be one the checklist calls
   // not-accepted. The other three say so explicitly rather than leaving the

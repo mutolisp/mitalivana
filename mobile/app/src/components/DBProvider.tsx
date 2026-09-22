@@ -1,3 +1,4 @@
+import { errText } from '~/lib/errText';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Text, View } from 'react-native';
@@ -103,7 +104,7 @@ export function DBProvider({ children }: Props) {
         }, 0);
       } catch (e) {
         if (cancelled) return;
-        setError(e instanceof Error ? e.message : String(e));
+        setError(errText(e));
       } finally {
         // Native splash must always be released even on error so the user
         // can see the error screen / Stack. Ignore if already hidden.

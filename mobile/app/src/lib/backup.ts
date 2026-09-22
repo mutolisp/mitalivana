@@ -115,7 +115,7 @@ export async function createBackup(opts?: { includePacks?: boolean }): Promise<E
     { name: 'manifest.json', bytes: strToU8(JSON.stringify(manifest, null, 2)) },
   ];
   if (packsBytes) entries.push({ name: PACKS_DB_NAME, bytes: packsBytes });
-  return finalizeZip(entries, `${BACKUP_NAME_PREFIX}${ts}`);
+  return await finalizeZip(entries, `${BACKUP_NAME_PREFIX}${ts}`);
 }
 
 /** Whether any region pack exists — drives the opt-in switch on the screen. */
@@ -364,5 +364,5 @@ export async function createPhotoBackup(
 
   // UTF-8 BOM so Excel reads the CJK CSV correctly (matches desktop export).
   entries.push({ name: 'photos.csv', bytes: strToU8(`﻿${csv.join('\n')}`) });
-  return finalizeZip(entries, `mitalivana-photos-${timestamp()}`);
+  return await finalizeZip(entries, `mitalivana-photos-${timestamp()}`);
 }

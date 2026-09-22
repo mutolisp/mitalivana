@@ -1,3 +1,4 @@
+import { errText } from '~/lib/errText';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { useFocusEffect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
@@ -865,7 +866,7 @@ export default function MapScreen() {
     try {
       const perm = await Location.requestForegroundPermissionsAsync();
       if (perm.status !== 'granted') {
-        Alert.alert(t('gps.permTitle'), t('gps.permMsg'));
+        Alert.alert(t('gnss.permTitle'), t('gnss.permMsg'));
         return;
       }
       const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
@@ -879,7 +880,7 @@ export default function MapScreen() {
         500,
       );
     } catch (e) {
-      Alert.alert(t('gps.posFailTitle'), e instanceof Error ? e.message : String(e));
+      Alert.alert(t('gnss.posFailTitle'), errText(e));
     }
   };
 
@@ -1528,7 +1529,7 @@ export default function MapScreen() {
       setSearchQuery('');
       setSearchOpen(false);
     } catch (e) {
-      toast(t('map.searchFailed', { error: e instanceof Error ? e.message : String(e) }));
+      toast(t('map.searchFailed', { error: errText(e) }));
     } finally {
       setSearchBusy(false);
     }

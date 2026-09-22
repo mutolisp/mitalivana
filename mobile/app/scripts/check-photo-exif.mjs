@@ -130,7 +130,7 @@ near('Android southern latitude is not flipped back', metaFromPickerExif({ GPSLa
 near('western longitude', metaFromPickerExif({ GPSLatitude: 10, GPSLatitudeRef: 'N', GPSLongitude: 120.5, GPSLongitudeRef: 'W' }).lng, -120.5);
 // Android also hands back a DMS string when latLong is unavailable.
 near('DMS string form', metaFromPickerExif({ GPSLatitude: '24/1,30/1,3600/100', GPSLatitudeRef: 'N', GPSLongitude: '121/1,0/1,0/1', GPSLongitudeRef: 'E' }).lat, 24.51);
-// iOS nests GPS on some paths.
+// iOS nests GNSS on some paths.
 near('nested GPS block', metaFromPickerExif({ GPS: { GPSLatitude: 24.1, GPSLatitudeRef: 'N', GPSLongitude: 121.1, GPSLongitudeRef: 'E' } }).lat, 24.1);
 
 // ── 5. Refusals ────────────────────────────────────────────────────────────

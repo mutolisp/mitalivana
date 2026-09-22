@@ -1,3 +1,4 @@
+import { errText } from '~/lib/errText';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useFocusEffect, useRouter, type Href } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -237,7 +238,7 @@ export default function SitesScreen() {
         UTI: meta.uti,
       });
     } catch (e) {
-      Alert.alert(t('export.failed'), e instanceof Error ? e.message : String(e));
+      Alert.alert(t('export.failed'), errText(e));
     }
   };
 

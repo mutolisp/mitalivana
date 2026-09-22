@@ -149,6 +149,16 @@ type SettingsValues = {
    *  itself lives in SecureStore (googleAuth.ts), never here — settings ride
    *  along into backup zips and a credential must not. */
   gdrive_account: string;
+  /** Sign exports with this device's key. Off until a key and an ORCID exist;
+   *  `activeSigner()` re-checks all three, so flipping this alone signs
+   *  nothing. */
+  sign_exports: boolean;
+  /** ORCID iD the signature is attributed to, canonical `0000-0000-0000-0000`
+   *  form. The private key itself lives in SecureStore (signingKey.ts) — same
+   *  rule as the two credentials above. */
+  signer_orcid: string;
+  /** Name shown beside the ORCID in a signed manifest. Display only. */
+  signer_name: string;
   /** Whether the diversity card on a plot's species tab is expanded. */
   plot_stats_expanded: boolean;
   /** Heading printed at the top of every herbarium label, e.g. "Flora of
@@ -193,10 +203,9 @@ type SettingsValues = {
   /** Per-key runner state, keyed by `String(keyId)`. Only kept for keys in
    *  `key_recent_ids` — older entries are evicted by `pushRecentKey`. */
   key_runner_states: Record<string, KeyRunnerStateLite>;
-  /** Whether to bias AI species identification with current GPS (geomodel
+  /** Whether to bias AI species identification with current GNSS (geomodel
    *  filter). On = predictions skewed to species likely at this location;
    *  off = vision-only. Default on, per user request. */
-  ai_geomodel_filter: boolean;
   /** Whether to overlay the iNaturalist observation grid on a record's mini-map.
    *  **Off by default**: the tiles go over mobile data, and both data and battery
    *  are scarce in the field, so spending them is the user's call at the time
@@ -255,6 +264,9 @@ const DEFAULTS: SettingsValues = {
   collection_sort: 'collected',
   gbif_username: '',
   gbif_notify_email: '',
+  sign_exports: false,
+  signer_orcid: '',
+  signer_name: '',
   inat_login: '',
   inat_geoprivacy: 'open',
   gdrive_account: '',
@@ -277,7 +289,6 @@ const DEFAULTS: SettingsValues = {
   collection_number_pad: 4,
   key_recent_ids: [],
   key_runner_states: {},
-  ai_geomodel_filter: true,
   inat_grid_overlay: false,
   export_geo_formats: ['kml'],
   export_include_photos: true,
@@ -375,6 +386,9 @@ function readAll(): SettingsValues {
     last_record_sort: (map.get('last_record_sort') as RecordSort) ?? DEFAULTS.last_record_sort,
     collection_sort: (map.get('collection_sort') as CollectionSort) ?? DEFAULTS.collection_sort,
     gbif_username: map.get('gbif_username') ?? DEFAULTS.gbif_username,
+    sign_exports: map.get('sign_exports') === 'true',
+    signer_orcid: map.get('signer_orcid') ?? DEFAULTS.signer_orcid,
+    signer_name: map.get('signer_name') ?? DEFAULTS.signer_name,
     gbif_notify_email: map.get('gbif_notify_email') ?? DEFAULTS.gbif_notify_email,
     inat_login: map.get('inat_login') ?? DEFAULTS.inat_login,
     inat_geoprivacy: parseGeoprivacy(map.get('inat_geoprivacy')),
@@ -411,10 +425,6 @@ function readAll(): SettingsValues {
     })(),
     key_recent_ids: keyRecentIds,
     key_runner_states: keyRunnerStates,
-    ai_geomodel_filter:
-      map.get('ai_geomodel_filter') == null
-        ? DEFAULTS.ai_geomodel_filter
-        : map.get('ai_geomodel_filter') === 'true',
     inat_grid_overlay:
       map.get('inat_grid_overlay') == null
         ? DEFAULTS.inat_grid_overlay

@@ -2,11 +2,11 @@
  * Parse a coordinate the user typed or pasted.
  *
  * One text field rather than two, because the common case is pasting: from
- * Google Maps ("25.123456, 121.654321"), from a handheld GPS, or off an older
+ * Google Maps ("25.123456, 121.654321"), from a handheld GNSS, or off an older
  * datasheet in degrees/minutes/seconds. Two separate boxes would force the user
  * to split that by hand every time.
  *
- * DMS is supported because it is still what GPS units display and what older
+ * DMS is supported because it is still what GNSS units display and what older
  * Taiwanese survey records are written in; refusing it would send someone to a
  * converter website mid-survey, offline.
  *

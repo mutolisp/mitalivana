@@ -141,7 +141,7 @@ export function buildContextFromPlotRecord(
 
 /** Photo context for a collected specimen. Unlike plot species, a specimen
  *  carries its own coordinate, so it is passed through and overrides the
- *  camera's GPS the same way a checklist record's does. */
+ *  camera's GNSS the same way a checklist record's does. */
 export function buildContextFromSpecimen(sp: SpecimenWithTaxon): PhotoSpeciesContext {
   return {
     taxon_id: sp.taxon_id,
@@ -336,7 +336,7 @@ function mergePickerExif(
 
 /**
  * Compose a piexifjs ExifDict that contains:
- *  - Existing EXIF tags (preserved from the camera output, including GPS)
+ *  - Existing EXIF tags (preserved from the camera output, including GNSS)
  *  - ImageDescription / UserComment with our metadata
  */
 function composeExif(
@@ -373,11 +373,12 @@ function composeExif(
   // note there about the two having drifted while they lived apart.
   dict.Exif![piexif.ExifIFD.UserComment] = buildUserComment(ctx);
 
-  // GPS: if record has explicit lat/lng, override (camera GPS might be wrong if recorded later).
+  // GPS IFD: if the record has explicit lat/lng, override (the camera's own
+  // GNSS fix may be wrong when the photo was taken later).
   if (typeof ctx.lat === 'number' && typeof ctx.lng === 'number') {
     const latAbs = Math.abs(ctx.lat);
     const lngAbs = Math.abs(ctx.lng);
-    // A camera that recorded no position leaves no GPS IFD, so this block may
+    // A camera that recorded no position leaves no GNSS IFD, so this block may
     // be creating one from scratch; GPSVersionID is mandatory in that IFD.
     dict.GPS![piexif.GPSIFD.GPSVersionID] ??= [2, 3, 0, 0];
     dict.GPS![piexif.GPSIFD.GPSLatitudeRef] = ctx.lat >= 0 ? 'N' : 'S';
@@ -430,7 +431,7 @@ function embedMetadata(
  * the current truth without touching the user's original.
  *
  * Existing EXIF is loaded first, so the camera's own data (lens, exposure, and
- * any GPS it recorded) survives; `composeExif` only overrides GPS when `ctx`
+ * any GNSS it recorded) survives; `composeExif` only overrides GNSS when `ctx`
  * actually has a coordinate, which is what lets a capture-time fix stand when
  * the record still has none.
  *
@@ -518,7 +519,7 @@ async function saveWithRestoredExif(
 /**
  * Capture an environmental context photo for a plot (no species metadata
  * embedded — just the camera's native EXIF including lens/exposure and, where
- * the platform provides it, GPS + capture timestamp). Saves to Photos.app and
+ * the platform provides it, GNSS + capture timestamp). Saves to Photos.app and
  * returns the asset URI. Caller stores the URI in `plot_surveys.env_photos_json`.
  */
 export async function captureEnvPhoto(): Promise<string | null> {
@@ -531,9 +532,9 @@ export async function captureEnvPhoto(): Promise<string | null> {
  * The coordinate to stamp on a photo taken for a record that has none yet.
  *
  * Photographing first and fixing the position afterwards is the normal field
- * order, and it used to leave the photo with no GPS at all: the record had no
+ * order, and it used to leave the photo with no GNSS at all: the record had no
  * coordinate to copy, and `expo-image-picker` does not reliably pass the
- * camera's own GPS through the JPEG re-encode that `quality < 1` forces. Since
+ * camera's own GNSS through the JPEG re-encode that `quality < 1` forces. Since
  * the photo is being taken *here, now*, the device fix is the honest answer.
  *
  * Best-effort on purpose — no permission prompt of its own, no waiting around:

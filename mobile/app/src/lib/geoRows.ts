@@ -2,7 +2,7 @@
  * The rows 地理樣區管理 shows: the real `sites` rows, plus every plot survey
  * that carries coordinates of its own.
  *
- * A plot with a GPS fix already IS a place on the map, so it belongs in the
+ * A plot with a GNSS fix already IS a place on the map, so it belongs in the
  * list of places — but it is DERIVED here, never stored. A shadow `sites` row
  * per plot would draw a second marker on top of the plot's own, drift the
  * moment a plotid is renamed, and grow back after the user deleted it from

@@ -20,7 +20,7 @@ type GeoFormat = 'geojson' | 'gpx' | 'kml';
 
 const GEO_OPTIONS: Array<{ value: GeoFormat; label: string; hint: string }> = [
   { value: 'kml', label: 'KML', hint: 'Google Earth / Google Maps' },
-  { value: 'gpx', label: 'GPX', hint: 'Strava / Garmin / GPS device' },
+  { value: 'gpx', label: 'GPX', hint: 'Strava / Garmin / GNSS device' },
   { value: 'geojson', label: 'GeoJSON', hint: 'QGIS / GIS / mapping tools' },
 ];
 

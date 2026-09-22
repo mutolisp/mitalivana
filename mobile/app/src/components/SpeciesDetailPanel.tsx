@@ -6,7 +6,6 @@
  *   - SpeciesSearchPanel (renders inline above the search box, no modal)
  */
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import i18n from '~/i18n';
 import { useEffect, useRef, useState } from 'react';
@@ -26,13 +25,13 @@ import { buildSpeciesCopyText, copyToClipboard, speciesCopyActions } from '~/lib
 import { alienBadge } from '~/lib/conservationColors';
 import { rankColor } from '~/lib/rankColors';
 import { useFavorites } from '~/stores/favorites';
-import { useTaxonomyJump, type JumpPath } from '~/stores/taxonomyJump';
 import { showActionSheet } from './ActionSheet';
 import { CollapsibleSection, SynonymStatusBadge } from './CollapsibleSection';
 import { ConservationBadge } from './ConservationBadge';
 import { ScientificName } from './ScientificName';
 import { editManualTaxon } from './GbifLookupHost';
 import { ACTION_FILL } from '~/lib/colors';
+import { TaxonomyJumpChip } from './TaxonomyJumpChip';
 
 type Props = {
   result: SearchResult;
@@ -451,16 +450,19 @@ function splitAltNames(s: string): string[] {
     .filter(Boolean);
 }
 
-/** Parse TaiCOL `alien_status_note` field. Format: `type: citation | type: citation | …`
- *  Entries lacking the `type:` prefix are kept as citation-only (type = ''). */
-/** Build the cascade path used by `useTaxonomyJump` from a SearchResult. Stops
- *  at the deepest rank requested — e.g. tapping 「科」 builds path up to family,
- *  not down to genus. */
-function buildJumpPath(result: SearchResult, depth: Rank): JumpPath {
-  const order: Rank[] = ['kingdom', 'phylum', 'class', 'order', 'family', 'genus'];
-  const stopIdx = order.indexOf(depth);
-  const path: JumpPath = [];
-  const valueFor: Record<Rank, string> = {
+
+/**
+ * The full lineage as a row of chips, each jumping to that rank in the tree.
+ *
+ * Delegates every chip to the shared `TaxonomyJumpChip` rather than repeating
+ * its press handler and styling. The local copy this replaced had drifted in a
+ * way nothing would surface: it never called `Keyboard.dismiss()` before
+ * navigating, so jumping with the search keyboard open left the taxonomy tab's
+ * KeyboardStickyView latched and its search box floating mid-screen (memory
+ * `feedback-taxonomy-jump`).
+ */
+function RankChipRow({ result, onClose }: { result: SearchResult; onClose?: () => void }) {
+  const lineage = {
     kingdom: result.kingdom,
     phylum: result.phylum,
     class: result.class_name,
@@ -468,18 +470,6 @@ function buildJumpPath(result: SearchResult, depth: Rank): JumpPath {
     family: result.family,
     genus: result.genus,
   };
-  for (let i = 0; i <= stopIdx; i++) {
-    const r = order[i];
-    const v = valueFor[r];
-    if (v) path.push({ rank: r, value: v });
-  }
-  return path;
-}
-
-function RankChipRow({ result, onClose }: { result: SearchResult; onClose?: () => void }) {
-  const router = useRouter();
-  const requestJump = useTaxonomyJump((s) => s.request);
-
   const items: Array<{ rank: Rank; name: string; nameC: string }> = [];
   if (result.kingdom)
     items.push({ rank: 'kingdom', name: result.kingdom, nameC: result.kingdom_c });
@@ -496,35 +486,14 @@ function RankChipRow({ result, onClose }: { result: SearchResult; onClose?: () =
   return (
     <View className="mt-1 flex-row flex-wrap gap-1.5">
       {items.map(({ rank, name, nameC }) => (
-        <Pressable
+        <TaxonomyJumpChip
           key={rank}
-          onPress={() => {
-            const path = buildJumpPath(result, rank);
-            if (path.length === 0) return;
-            requestJump(path);
-            onClose?.();
-            // Defer the navigation a frame so the modal close animation starts
-            // before the tab switch — avoids a flash where both transitions
-            // overlap on iOS.
-            requestAnimationFrame(() => {
-              router.push('/(tabs)/taxonomy');
-            });
-          }}
-          className="flex-row items-center rounded-full bg-gray-100 px-2.5 py-1 active:bg-blue-100 dark:bg-gray-800 dark:active:bg-blue-900/60"
-          hitSlop={4}
-        >
-          <Text className="text-[10px] font-semibold uppercase text-gray-500 dark:text-gray-400">
-            {i18n.t('rank.' + rank)}
-          </Text>
-          {nameC ? (
-            <Text className="ml-1 text-xs text-gray-800 dark:text-gray-200">{nameC}</Text>
-          ) : null}
-          <Text
-            className={`ml-1 text-xs text-gray-600 dark:text-gray-400 ${rank === 'genus' ? 'italic' : ''}`}
-          >
-            {name}
-          </Text>
-        </Pressable>
+          rank={rank}
+          lineage={lineage}
+          name={name}
+          nameC={nameC}
+          beforeJump={onClose}
+        />
       ))}
     </View>
   );

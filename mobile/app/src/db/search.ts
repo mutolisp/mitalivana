@@ -159,13 +159,49 @@ function markSensuLato(results: SearchResult[]): SearchResult[] {
     .map((r) => r.name);
   if (speciesNames.length === 0) return results;
 
+  // One statement for the whole result set, not one per row.
+  //
+  // The old shape was `simple_name LIKE 'Genus species %'` per species, and it
+  // cost ~17 ms EACH on a Mac — every keystroke in the search box paid it for
+  // every binomial on screen. Two separate problems:
+  //
+  //  1. LIKE cannot use an index, so each call fell through to
+  //     `idx_taicol_usage_status`, which matches roughly half the table.
+  //  2. N statements meant N plan lookups and N result sets.
+  //
+  // Fixed by turning the prefix match into a RANGE (`>= 'X ' AND < 'X!'` —
+  // exact, because ' ' is 0x20 and '!' is 0x21, so every string starting with
+  // `'X '` sorts below `'X!'`), and joining all the ranges in one go through a
+  // VALUES CTE. Each range is then an index seek on `idx_taicol_simple_name`.
+  //
+  // The unary `+` on `usage_status` is load-bearing: without it the planner
+  // still prefers that low-selectivity index and the whole gain disappears
+  // (measured: 34 ms with it left in, 0.06 ms with the `+`). Same trap as
+  // memory `feedback-sql-estimate-vs-real-device`.
+  //
+  // Measured on the shipped module, 300 binomials: 4,923 ms → 9 ms, identical
+  // results. Verify with EXPLAIN QUERY PLAN after any edit — the expected plan
+  // is `SEARCH t USING INDEX idx_taicol_simple_name (simple_name>? AND simple_name<?)`.
   const slSpecies = new Set<string>();
-  for (const sp of speciesNames) {
-    const res = db.executeSync(
-      `SELECT 1 FROM taicol_names WHERE simple_name LIKE ? AND usage_status='accepted' AND is_in_taiwan LIKE '%true%' AND rank IN ('Subspecies','Variety','Form') LIMIT 1`,
-      [`${sp} %`],
-    );
-    if ((res.rows?.length ?? 0) > 0) slSpecies.add(sp);
+  const ranges = speciesNames.map(() => '(?,?)').join(',');
+  const rangeParams: string[] = [];
+  for (const sp of speciesNames) rangeParams.push(`${sp} `, `${sp}!`);
+  const res = db.executeSync(
+    `WITH p(lo, hi) AS (VALUES ${ranges})
+     SELECT DISTINCT t.simple_name FROM p JOIN taicol_names t
+       ON t.simple_name >= p.lo AND t.simple_name < p.hi
+      WHERE +t.usage_status = 'accepted'
+        AND t.is_in_taiwan LIKE '%true%'
+        AND t.rank IN ('Subspecies','Variety','Form')`,
+    rangeParams,
+  );
+  // An infraspecific name's binomial is its first two tokens; intersecting with
+  // what we asked for keeps a stray match from marking a species we never
+  // queried.
+  const asked = new Set(speciesNames);
+  for (const row of (res.rows ?? []) as unknown as { simple_name: string }[]) {
+    const binomial = (row.simple_name ?? '').split(/\s+/).slice(0, 2).join(' ');
+    if (asked.has(binomial)) slSpecies.add(binomial);
   }
 
   return results.map((r) => (slSpecies.has(r.name) ? { ...r, is_sensu_lato: true } : r));

@@ -23,6 +23,7 @@ export * from './keys';
 export * from './favorites';
 export * from './surveyors';
 export * from './externalTaxa';
+export * from './photoFix';
 export * from './manualTaxonomy';
 export * from './inatTaxonMap';
 export * from './inatSync';

@@ -117,6 +117,7 @@ function ThemedShell() {
             <Stack.Screen name="settings/language" options={{ title: t('settings.language') }} />
             <Stack.Screen name="settings/collection" options={{ title: t('settings.sectionCollection') }} />
             <Stack.Screen name="settings/export" options={{ title: t('exportPref.title') }} />
+            <Stack.Screen name="settings/provenance" options={{ title: t('nav.provenance') }} />
             <Stack.Screen name="surveyors" options={{ title: t('nav.surveyors') }} />
             <Stack.Screen name="about" options={{ title: t('nav.about') }} />
             <Stack.Screen name="favorites" options={{ title: t('nav.favorites') }} />

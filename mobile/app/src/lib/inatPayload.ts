@@ -361,7 +361,7 @@ const METRES_PER_DEG_LAT = 111_320;
 /**
  * Centre of a point cloud plus the half-diagonal of its bounding box in
  * metres — what `positional_accuracy` means for a record placed at "the
- * site" rather than at a GPS fix. Equirectangular; fine for site-sized
+ * site" rather than at a GNSS fix. Equirectangular; fine for site-sized
  * shapes. A single point has radius 0.
  */
 export function centreAndRadius(points: [number, number][]): { lat: number; lng: number; accuracyM: number } | null {

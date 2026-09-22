@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Pressable, Text, View } from 'react-native';
 import { parsePhotoPaths, type RecordWithTaxon } from '~/db';
 import { alienBadge } from '~/lib/conservationColors';
+import { formatQuantityBadge } from '~/lib/dwcAbundance';
 import { ConservationBadge } from './ConservationBadge';
 import { ScientificName } from './ScientificName';
 import { SynonymStatusBadge } from './CollapsibleSection';
@@ -97,6 +98,13 @@ export function SpeciesCard({ record, onPress, onLongPress }: Props) {
         ) : null}
         {record.protected ? (
           <Text className="mt-1 text-xs italic text-gray-600 dark:text-gray-400">{record.protected}</Text>
+        ) : null}
+        {/* The count is why it was recorded, so it belongs where the list is
+            scanned rather than only inside the detail sheet. */}
+        {record.organism_quantity ? (
+          <Text className="mt-1 text-sm font-semibold tabular-nums text-gray-800 dark:text-gray-200">
+            {formatQuantityBadge(record.organism_quantity, record.organism_quantity_type)}
+          </Text>
         ) : null}
       </View>
     </Pressable>

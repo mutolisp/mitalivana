@@ -13,7 +13,6 @@ export type ImportErrorCode =
   /** record document is missing its identity fields */
   | 'missingFields'
   /** a specimen-collection export — no import support yet */
-  | 'unsupportedCollection'
   /** a multi-record `bundleMany` zip — ambiguous, refuse rather than guess */
   | 'unsupportedBundle'
   /** neither a plot nor a session document */

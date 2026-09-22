@@ -261,7 +261,7 @@ const MIGRATIONS: Migration[] = [
     //   * plot_surveys.track_geojson — the transect track (LineString GeoJSON)
     //   * plot_species_records.layer's CHECK gains 'T' (a transect has no layers).
     //     SQLite cannot ALTER a CHECK, so the table is rebuilt by
-  //     rename+create+copy.
+    //     rename+create+copy.
     version: 6,
     up: (db) => {
       addColumnIfMissing(
@@ -308,9 +308,9 @@ const MIGRATIONS: Migration[] = [
   {
     // v7: transect track finalization flag.
     //   * track_finalized = 1 means the track has been stopped and saved and can no
-  //     longer be appended to; the plot still accepts species.
+    //     longer be appended to; the plot still accepts species.
     //   * track_geojson goes from LineString to MultiLineString (an array of
-  //     segments), handled in code;
+    //     segments), handled in code;
     //     the DB schema is unchanged (TEXT GeoJSON).
     version: 7,
     up: (db) => {
@@ -374,7 +374,7 @@ const MIGRATIONS: Migration[] = [
     },
   },
   {
-    // v10: capture per-record GPS accuracy (meters) so DwC
+    // v10: capture per-record GNSS accuracy (meters) so DwC
     // `coordinateUncertaintyInMeters` can be populated on export.
     // expo-location returns `pos.coords.accuracy` for free; without a column
     // to land it in we were dropping it on the floor.
@@ -511,7 +511,7 @@ const MIGRATIONS: Migration[] = [
     },
   },
   {
-    // v13: per-record GPS + detection method on plot species records, and a
+    // v13: per-record GNSS + detection method on plot species records, and a
     // radius column on plot_surveys for the new 定點計數法 (point count) survey
     // type. All additive ALTERs — no table rebuild:
     //   - plot_species_records.layer CHECK is untouched: point count reuses the
@@ -1250,6 +1250,101 @@ const MIGRATIONS: Migration[] = [
       addColumnIfMissing(db, `ALTER TABLE collection_specimens ADD COLUMN date_identified TEXT;`);
     },
   },
+  {
+    // Where a picked photo said it was taken.
+    //
+    // The position lives in the photo's own metadata, but for a HEIC — what an
+    // iPhone camera writes by default — it is only legible at the moment the
+    // picker hands it over: `piexif` parses JPEG / TIFF / a bare Exif blob and
+    // throws on HEIC, and `persistPickedPhoto` copies the file unchanged, so
+    // nothing can read it back off disk afterwards.
+    //
+    // Without this, attaching a photo could fill in a missing coordinate but
+    // 「用照片的 GNSS 定位」 could not recover it once the coordinate was
+    // cleared — the same photo, two different answers, depending on whether
+    // the app still happened to be holding the picker's EXIF in memory.
+    //
+    // Keyed by the stored URI, which is a uuid under documentDirectory/photos/
+    // and never reused. Rows are a cache: losing one costs a coordinate that
+    // has to be re-entered, never a record.
+    version: 41,
+    up: (db) => {
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS photo_fix (
+          uri TEXT PRIMARY KEY,
+          lat REAL,
+          lng REAL,
+          accuracy REAL,
+          taken_at INTEGER,
+          created_at INTEGER NOT NULL
+        );
+      `);
+    },
+  },
+  {
+    // Drop the pre-v12 per-layer columns.
+    //
+    // v12 moved per-layer cover / height / method into the normalised
+    // `plot_survey_layers` table and kept these for rollback safety. That was
+    // 2026-05; nothing in `src/` or `app/` reads them any more, and
+    // `check-roundtrip.mjs` already lists every one of them as legacy.
+    //
+    // Deliberately tolerant. `ALTER TABLE … DROP COLUMN` needs SQLite 3.35+
+    // (op-sqlite ships 3.51.3, so this does work), but a migration that throws
+    // is a migration that fails on every launch — and these columns cost
+    // nothing but bytes. Better to leave one behind than to brick the app over
+    // tidiness. `columnsOf` also makes the whole thing idempotent.
+    version: 42,
+    up: (db) => {
+      const present = columnsOf(db, 'plot_surveys');
+      const legacy = ['e0', 'e1', 'e2', 'e3'].flatMap((e) => [
+        `${e}_cover_pct`,
+        `${e}_height_cm`,
+        `${e}_method`,
+      ]);
+      for (const col of legacy) {
+        if (!present.has(col)) continue;
+        try {
+          db.executeSync(`ALTER TABLE plot_surveys DROP COLUMN ${col};`);
+        } catch {
+          // Older SQLite, or the column is referenced by something we cannot
+          // see. Nothing reads it either way.
+        }
+      }
+    },
+  },
+  {
+    // v43: herbarium bookkeeping the field app was missing.
+    //
+    // Duplicates are a COUNT, not a child table. In the field you know you
+    // took three sheets; which herbaria they end up in is decided back at the
+    // herbarium, often not by the collector. Modelling per-duplicate
+    // institutions here would ask for information nobody has yet, and the
+    // curation system that does have it is not this app.
+    //
+    // `institution_code` sits on both tables on purpose: the trip carries the
+    // default (a collecting trip usually feeds one herbarium) and the specimen
+    // overrides it when one sheet goes elsewhere. The specimen's value wins
+    // when set; NULL means "whatever the trip says".
+    version: 43,
+    up: (db) => {
+      addColumnIfMissing(
+        db,
+        `ALTER TABLE collection_specimens ADD COLUMN duplicate_count INTEGER;`,
+      );
+      addColumnIfMissing(db, `ALTER TABLE collection_specimens ADD COLUMN institution_code TEXT;`);
+      addColumnIfMissing(
+        db,
+        `ALTER TABLE collection_specimens ADD COLUMN other_catalog_numbers TEXT;`,
+      );
+      addColumnIfMissing(db, `ALTER TABLE collection_trips ADD COLUMN institution_code TEXT;`);
+      // E5: a collecting trip can be pinned to a geographic site, the same
+      // way a session already can. No FK: sites are deletable and a trip
+      // that outlives its site should keep its other data rather than
+      // cascade away.
+      addColumnIfMissing(db, `ALTER TABLE collection_trips ADD COLUMN site_id INTEGER;`);
+    },
+  },
 ];
 
 /** Highest schema version this build knows how to produce. Backup/restore uses
@@ -1295,7 +1390,31 @@ export async function runUserMigrations(db: DB): Promise<void> {
 
   for (const migration of MIGRATIONS) {
     if (migration.version <= current) continue;
-    migration.up(db);
-    db.executeSync(`INSERT INTO schema_version (version) VALUES (?);`, [migration.version]);
+    // One transaction per migration, and the version stamp goes inside it.
+    //
+    // Without this a crash part-way through a multi-statement migration left
+    // the schema half-changed AND unrecorded, so the next launch replayed it
+    // from the top — onto tables that were already partly migrated. That is
+    // how a v12 run could die at v6's `plot_type` and brick the app. The
+    // `addColumnIfMissing` guard makes the common case idempotent, but a table
+    // rebuild (rename → create → copy → drop) has no such luxury.
+    //
+    // Either the schema change and its version stamp both land, or neither
+    // does. SQLite's DDL is transactional, and `PRAGMA foreign_keys` is
+    // toggled around this whole loop in `init.ts` — never inside a migration,
+    // which is the one thing that would silently no-op in here.
+    db.executeSync('BEGIN IMMEDIATE;');
+    try {
+      migration.up(db);
+      db.executeSync(`INSERT INTO schema_version (version) VALUES (?);`, [migration.version]);
+      db.executeSync('COMMIT;');
+    } catch (e) {
+      try {
+        db.executeSync('ROLLBACK;');
+      } catch {
+        // SQLite may have rolled back already on a fatal statement error.
+      }
+      throw e;
+    }
   }
 }

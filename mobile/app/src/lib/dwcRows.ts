@@ -21,11 +21,145 @@ import { localIso, multiToPipe } from './bundleYaml';
 import { publishedTaxonId } from './taxonId';
 import { establishmentDwcValue } from './dwcAttributes';
 import {
+  citesAppendixDwcValue,
   establishmentMeansDwcValue,
   higherClassificationOf,
   individualCountOf,
+  parseMultiAttribute,
+  threatStatusDwcValue,
 } from './dwcMultiValue';
-import { buildDwcArchive, type DwcRow } from './dwcArchive';
+import { buildDwcArchive, buildTaxonArchive, type DwcRow } from './dwcArchive';
+
+/**
+ * One eMoF row per leaf-phenology value of one occurrence.
+ *
+ * Star schema, so a record that is both deciduous and evergreen (possible for
+ * a genus-level determination) becomes two rows rather than a pipe-joined
+ * string. `measurementID` is derived, not random, so re-exporting the same
+ * record twice produces the same archive — a random id would make every
+ * export differ from the last for no reason, which also matters for the
+ * per-file hashes the manifest is about to carry.
+ */
+/**
+ * The number of duplicate sheets, as an extended MeasurementOrFact row.
+ *
+ * Darwin Core has no term for it. `preparations` is a list of preparation
+ * METHODS ("a list of preparations and preservation methods" — every TDWG
+ * example is a method name), so folding a count into it would hand the
+ * receiving system a preparation literally called `sheet (3)`.
+ * `individualCount` is the number of individuals present, which is a different
+ * quantity: three sheets of one plant is one individual.
+ */
+function duplicateCountRows(occurrenceID: string, count: number | null): DwcRow[] {
+  if (count == null) return [];
+  return [
+    {
+      measurementID: `${occurrenceID}:duplicateCount`,
+      occurrenceID,
+      measurementType: 'duplicateCount',
+      measurementValue: String(count),
+    },
+  ];
+}
+
+function leafPhenologyRows(occurrenceID: string, leafPhenology: string | null): DwcRow[] {
+  return parseMultiAttribute(leafPhenology).map((value) => ({
+    measurementID: `${occurrenceID}:leafPhenology:${value}`,
+    occurrenceID,
+    measurementType: 'leafPhenology',
+    measurementValue: value,
+  }));
+}
+
+/**
+ * Taxon-core rows, accumulated across every occurrence so each taxon is stated
+ * once however many times it was recorded.
+ *
+ * Keyed by the PUBLISHED taxonID, because that is what the occurrence rows
+ * point at — keying by the local id would produce a taxon core the occurrences
+ * cannot join to. A taxon with no publishable id (a manually entered name)
+ * therefore has no taxon row either, which is correct: there is nothing to
+ * join on and nothing authoritative to say about it.
+ */
+type TaxonAcc = { taxa: Map<string, DwcRow>; distributions: DwcRow[] };
+
+function collectTaxon(
+  acc: TaxonAcc,
+  t: {
+    taxon_id: string;
+    simple_name: string;
+    name_author: string;
+    common_name_c: string;
+    rank: string;
+    kingdom: string;
+    phylum: string;
+    class: string;
+    order: string;
+    family: string;
+    genus: string;
+    redlist: string;
+    iucn: string;
+    cites: string;
+    alien_type: string;
+    is_endemic: string;
+    used_status: string;
+    used_accepted_name: string;
+  },
+): void {
+  const taxonID = publishedTaxonId(t.taxon_id);
+  if (!taxonID || acc.taxa.has(taxonID)) return;
+
+  acc.taxa.set(taxonID, {
+    taxonID,
+    // The ACCEPTED name, not the adopted one. An occurrence may be filed under
+    // a synonym; the taxon core is the checklist's position on the taxon.
+    scientificName: t.simple_name,
+    scientificNameAuthorship: t.name_author,
+    taxonRank: t.rank,
+    kingdom: t.kingdom,
+    phylum: t.phylum,
+    class: t.class,
+    order: t.order,
+    family: t.family,
+    genus: t.genus,
+    higherClassification: higherClassificationOf(t),
+    vernacularName: t.common_name_c,
+    taxonomicStatus: t.used_status ? 'accepted' : '',
+    acceptedNameUsage: t.used_accepted_name,
+    acceptedNameUsageID: t.used_status ? taxonID : '',
+  });
+
+  // Taiwan: the national red list, plus whether the taxon is native HERE.
+  const national = threatStatusDwcValue(t.redlist);
+  const means = establishmentMeansDwcValue(t.alien_type, t.is_endemic);
+  if (national || means) {
+    acc.distributions.push({
+      coreEventID: taxonID,
+      locality: 'Taiwan',
+      countryCode: 'TW',
+      occurrenceStatus: 'present',
+      establishmentMeans: means,
+      threatStatus: national,
+      source: 'TaiCOL 臺灣物種名錄',
+    });
+  }
+
+  // Global: a SECOND row, because it is a different assessment at a different
+  // scope. This is the thing a flat CSV cannot express — which is why the CSV
+  // has to call the global one `iucnRedListCategory` instead.
+  const global = threatStatusDwcValue(t.iucn);
+  const cites = citesAppendixDwcValue(t.cites);
+  if (global || cites) {
+    acc.distributions.push({
+      coreEventID: taxonID,
+      // No countryCode on purpose: the IUCN global assessment and a CITES
+      // appendix apply everywhere, and pinning them to TW would misstate both.
+      threatStatus: global,
+      appendixCITES: cites,
+      source: global && cites ? 'IUCN Red List; CITES' : global ? 'IUCN Red List' : 'CITES',
+    });
+  }
+}
 
 function eventDateOf(start: number | null, end: number | null): string {
   if (start == null) return '';
@@ -44,8 +178,13 @@ export type DwcaInput = {
   trips: CollectionTrip[];
 };
 
+/** Two archives: the Event-core records, and the Taxon core that carries what
+ *  is true of the taxa rather than of the observations. `taxa` is null when no
+ *  taxon has a conservation status or establishment means. */
+export type RecordsDwca = { records: Uint8Array; taxa: Uint8Array | null };
+
 /**
- * Every record kind → one Darwin Core Archive.
+ * Every record kind → Darwin Core Archives.
  *
  * Takes lists rather than a project so a single-record export can pass one
  * session (or one plot / one trip) through the exact same row builders the
@@ -59,10 +198,12 @@ export function buildRecordsDwca({
   plots,
   sessions,
   trips,
-}: DwcaInput): Uint8Array {
+}: DwcaInput): RecordsDwca {
   const events: DwcRow[] = [];
   const occurrences: DwcRow[] = [];
   const humboldt: DwcRow[] = [];
+  const measurements: DwcRow[] = [];
+  const taxonAcc: TaxonAcc = { taxa: new Map(), distributions: [] };
   const usedIds = new Set<string>();
   const creators = new Set<string>();
 
@@ -164,6 +305,8 @@ export function buildRecordsDwca({
         occurrenceRemarks: r.notes,
         modified: r.updated_at != null ? localIso(r.updated_at) : '',
       });
+      measurements.push(...leafPhenologyRows(r.occurrence_id, r.leaf_phenology));
+      collectTaxon(taxonAcc, r);
     }
   }
 
@@ -228,6 +371,8 @@ export function buildRecordsDwca({
         occurrenceRemarks: r.notes,
         modified: r.updated_at != null ? localIso(r.updated_at) : '',
       });
+      measurements.push(...leafPhenologyRows(r.occurrence_id, r.leaf_phenology));
+      collectTaxon(taxonAcc, r);
     }
   }
 
@@ -271,6 +416,10 @@ export function buildRecordsDwca({
         acceptedNameUsageID: sp.used_status ? publishedTaxonId(sp.taxon_id) : '',
         establishmentMeans: establishmentMeansDwcValue(sp.alien_type, sp.is_endemic),
         recordNumber: sp.record_number,
+        institutionCode: sp.institution_code,
+        otherCatalogNumbers: sp.other_catalog_numbers,
+        // The method, not the count — see duplicateCountRows.
+        preparations: sp.duplicate_count != null ? 'sheet' : '',
         identifiedBy: sp.identified_by,
         dateIdentified: sp.date_identified,
         eventDate: sp.collected_at != null ? localIso(sp.collected_at) : '',
@@ -280,20 +429,28 @@ export function buildRecordsDwca({
         occurrenceRemarks: sp.notes,
         modified: sp.updated_at != null ? localIso(sp.updated_at) : '',
       });
+      measurements.push(...leafPhenologyRows(sp.occurrence_id, sp.leaf_phenology));
+      measurements.push(...duplicateCountRows(sp.occurrence_id, sp.duplicate_count));
+      collectTaxon(taxonAcc, sp);
     }
   }
 
   const now = new Date();
-  return buildDwcArchive({
-    meta: {
-      title,
-      abstract,
-      creator: [...creators].join(', '),
-      pubDate: now.toISOString().slice(0, 10),
-      packageId,
-    },
-    events,
-    occurrences,
-    humboldt,
-  });
+  const meta = {
+    title,
+    abstract,
+    creator: [...creators].join(', '),
+    pubDate: now.toISOString().slice(0, 10),
+    packageId,
+  };
+  return {
+    records: buildDwcArchive({ meta, events, occurrences, humboldt, measurements }),
+    // Null when nothing has a conservation status or an establishment means —
+    // a taxon archive carrying only headers is noise in the bundle.
+    taxa: buildTaxonArchive({
+      meta: { ...meta, packageId: `${packageId}-taxon` },
+      taxa: [...taxonAcc.taxa.values()],
+      distributions: taxonAcc.distributions,
+    }),
+  };
 }

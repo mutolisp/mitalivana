@@ -5,14 +5,10 @@ module.exports = function (api) {
       ['babel-preset-expo', { jsxImportSource: 'nativewind' }],
       'nativewind/babel',
     ],
-    plugins: [
-      // react-native-worklets-core: required by vision-camera Frame Processors
-      // and vision-camera-plugin-inatvision. Must be listed BEFORE
-      // reanimated's plugin if both are present (reanimated is added by
-      // babel-preset-expo automatically). Currently we don't run reanimated
-      // worklets in the same file as inat frame processors, so order is
-      // not yet a concern — flag if that changes.
-      'react-native-worklets-core/plugin',
-    ],
+    // `react-native-worklets-core/plugin` used to be here for vision-camera
+    // Frame Processors. VisionCamera and the inatvision plugin were removed in
+    // 2026-09; nothing imports worklets-core any more, so the plugin only cost
+    // build time. Reanimated 4 uses `react-native-worklets` — a DIFFERENT
+    // package — and babel-preset-expo wires that one up itself.
   };
 };

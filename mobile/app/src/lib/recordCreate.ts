@@ -6,6 +6,7 @@
  * OR one plot may be active. Attempting to start another while a different
  * kind is active prompts the user to finish / resume the active one first.
  */
+import { errText } from '~/lib/errText';
 import { router, type Href } from 'expo-router';
 import { Alert } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
@@ -18,12 +19,15 @@ import {
   endPlotSurvey,
   endSession,
   getActiveCollectionTrip,
+  getCollectionTripByUuid,
   getPlotSurveyByUuid,
   getSessionByUuid,
+  importCollectionTrip,
   importPlotSurvey,
   importSession,
   listPlotSpecies,
   listSessionRecords,
+  listSpecimens,
   parseEnvPhotos,
   searchByTaxonId,
   type DuplicateRecordOptions,
@@ -243,6 +247,7 @@ export async function importRecordPromptAndOpen(): Promise<void> {
 
   try {
     if (payload.kind === 'plot') await finishPlotImport(payload);
+    else if (payload.kind === 'collection') await finishCollectionImport(payload);
     else await finishSessionImport(payload);
   } catch (e) {
     Alert.alert(i18n.t('recordCreate.importFailTitle'), importErrorMessage(e));
@@ -260,13 +265,12 @@ export function importErrorMessage(e: unknown): string {
       noYmlInZip: 'plotImport.noYmlInZip',
       invalidYml: 'plotImport.invalidYml',
       missingFields: 'plotImport.missingFields',
-      unsupportedCollection: 'recordImport.unsupportedCollection',
       unsupportedBundle: 'recordImport.unsupportedBundle',
       unknownKind: 'recordImport.unknownKind',
     };
     return i18n.t(key[e.code]);
   }
-  return e instanceof Error ? e.message : String(e);
+  return errText(e);
 }
 
 type ImportableRecord = { taxon_id: string; name?: string | null; family?: string | null };
@@ -491,6 +495,56 @@ async function finishSessionImport(
   router.push(`/session/${sessionId}` as Href);
 }
 
+async function finishCollectionImport(
+  payload: Extract<ReadRecordImport, { kind: 'collection' }>,
+): Promise<void> {
+  const data = payload.collection;
+  // Pre-uuid exports carry none — nothing to match against, so they always
+  // come in as a new record.
+  let newUuid = !data.uuid;
+  let prevPhotos = new Map<string, string[]>();
+
+  const prev = data.uuid ? getCollectionTripByUuid(data.uuid) : null;
+  if (prev) {
+    const answer = await askOverwrite(
+      'recordImport.collectionExistsTitle',
+      'recordImport.collectionExistsMsg',
+      data.name,
+    );
+    if (answer === null) return;
+    newUuid = answer;
+    if (!newUuid) {
+      prevPhotos = new Map(
+        listSpecimens(prev.id).map((sp) => [sp.occurrence_id, parsePhotoUris(sp.photo_paths)]),
+      );
+    }
+  }
+
+  const filesByOccurrence = new Map(
+    data.specimens
+      .filter((sp) => sp.occurrence_id && (sp.photo_files?.length ?? 0) > 0)
+      .map((sp) => [sp.occurrence_id as string, sp.photo_files as string[]]),
+  );
+  let photoUriByName = await askPhotoReuse(prevPhotos, filesByOccurrence, payload.photos.length);
+  let skippedPhotos = 0;
+  if (!photoUriByName && payload.photos.length > 0) {
+    const written = await importPhotos(payload.photos);
+    photoUriByName = written.uriByName;
+    skippedPhotos = written.skipped;
+  }
+
+  const audioUriByName = await importAudioClips(payload.audio);
+
+  const taxa = remapUnknownTaxa(data.specimens);
+  const { tripId } = importCollectionTrip(data, {
+    newUuid,
+    photoUriByName: photoUriByName ?? undefined,
+    audioUriByName: audioUriByName.size > 0 ? audioUriByName : undefined,
+  });
+  summarize(data.specimens.length, taxa, skippedPhotos);
+  router.push(`/collection/${tripId}` as Href);
+}
+
 /**
  * Duplicate a record from the records list, opening the copy only when it is
  * meant to be recorded in right away.
@@ -511,7 +565,7 @@ export async function duplicateRecordAndOpen(
     // 採集 sits outside the invariant; the other two must ask first.
     const ok = await ensureNoConflictingActive(item.kind);
     if (!ok) return null;
-    // Stop the GPS watch before the DB layer force-ends whatever it was
+    // Stop the GNSS watch before the DB layer force-ends whatever it was
     // recording for — otherwise the next batch flush writes to a closed record.
     pauseIfNot(null);
   }
@@ -522,7 +576,7 @@ export async function duplicateRecordAndOpen(
     else if (item.kind === 'session') newId = duplicateSession(item.id, opts);
     else newId = duplicateCollectionTrip(item.id, opts);
   } catch (e) {
-    Alert.alert(i18n.t('records.duplicateFailTitle'), e instanceof Error ? e.message : String(e));
+    Alert.alert(i18n.t('records.duplicateFailTitle'), errText(e));
     return null;
   }
   if (newId === null) return null;

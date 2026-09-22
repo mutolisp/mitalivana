@@ -44,7 +44,7 @@ export default function PlotsListScreen() {
     });
     const plotid = raw?.trim();
     if (!plotid) return;
-    // createPlotSurvey force-ends any active record DB-side; stop any GPS watch
+    // createPlotSurvey force-ends any active record DB-side; stop any GNSS watch
     // first so it can't keep writing to the record we're about to end.
     pauseIfNot(null);
     const id = createPlotSurvey({ plotid });

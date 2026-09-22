@@ -24,7 +24,7 @@ export type ChecklistRecord = {
   photo_paths: string | null;
   lat: number | null;
   lng: number | null;
-  /** GPS horizontal accuracy in metres, from `Location.getCurrentPositionAsync`.
+  /** GNSS horizontal accuracy in metres, from `Location.getCurrentPositionAsync`.
    *  Maps to DwC `coordinateUncertaintyInMeters` on export. */
   accuracy: number | null;
   /** DwC degreeOfEstablishment (v33): 'wild' | 'captive' | 'cultivated'.

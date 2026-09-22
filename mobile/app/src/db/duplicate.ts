@@ -4,7 +4,7 @@
  * Duplicating is "start the next one from this one" — the next plot in a
  * series, the next visit to the same site. It carries the setup, not the
  * observations: a copy that silently inherited the previous survey's counts,
- * photos, GPS fix and track would be a fabricated record. That is the same
+ * photos, GNSS fix and track would be a fabricated record. That is the same
  * reasoning `duplicateSpecimen` (src/db/collections.ts) already follows.
  *
  * A byte-for-byte copy is a different operation and already exists: export the

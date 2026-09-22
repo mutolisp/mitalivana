@@ -69,20 +69,20 @@ export function getActiveLayers(layerCount: number): FixedLayer[] {
 
 export type PlotStatus = 'active' | 'done';
 /** Survey method.
- *  - fixed: 方形/固定樣區，分植群層 (E1..E6)，靜態 GPS。
+ *  - fixed: 方形/固定樣區，分植群層 (E1..E6)，靜態 GNSS。
  *  - transect: 穿越線，錄製軌跡，不分層。
- *  - point_count: 定點計數法，靜態 GPS + 半徑，不分層（reuses 'T' bucket）。 */
+ *  - point_count: 定點計數法，靜態 GNSS + 半徑，不分層（reuses 'T' bucket）。 */
 export type PlotType = 'fixed' | 'transect' | 'point_count';
 
 /** Only fixed plots have vegetation strata (E1..E6) + plot_survey_layers rows. */
 export function isStratified(plot: Pick<PlotSurvey, 'plot_type'>): boolean {
   return plot.plot_type === 'fixed';
 }
-/** Only transect plots record a GPS track. */
+/** Only transect plots record a GNSS track. */
 export function usesTrack(plot: Pick<PlotSurvey, 'plot_type'>): boolean {
   return plot.plot_type === 'transect';
 }
-/** Fixed + point_count need a static GPS fix before accepting species;
+/** Fixed + point_count need a static GNSS fix before accepting species;
  *  transect unlocks via the track recorder stamping start_ts instead. */
 export function requiresStaticGps(plot: Pick<PlotSurvey, 'plot_type'>): boolean {
   return plot.plot_type !== 'transect';
@@ -138,22 +138,6 @@ export type PlotSurvey = {
   /** 加星號（v34）：0 / 1. Sorts the record above its peers in the list.
    *  Device-local organisation, deliberately not exported. */
   starred: number;
-  // Legacy per-layer columns (v5 schema). Kept in DB for rollback safety until
-  // v13; new code reads/writes via `plot_survey_layers` instead. Keep the
-  // fields here so type-checking against legacy callsites still works during
-  // the transition. Will be removed when the v13 drop migration ships.
-  e0_cover_pct: number | null;
-  e0_height_cm: number | null;
-  e1_cover_pct: number | null;
-  e1_height_cm: number | null;
-  e2_cover_pct: number | null;
-  e2_height_cm: number | null;
-  e3_cover_pct: number | null;
-  e3_height_cm: number | null;
-  e0_method: AbundanceMethod;
-  e1_method: AbundanceMethod;
-  e2_method: AbundanceMethod;
-  e3_method: AbundanceMethod;
   created_at: number;
   updated_at: number;
 };
@@ -209,7 +193,7 @@ export type PlotSpeciesRecord = {
   // percent / dbh_values_json are deprecated for new records.
   organism_quantity: string | null;
   organism_quantity_type: string | null;
-  // Per-record GPS (v13). Available for all plot types; most useful for
+  // Per-record GNSS (v13). Available for all plot types; most useful for
   // transect (each observation along the line has its own location).
   lat: number | null;
   lng: number | null;
@@ -662,21 +646,6 @@ const PLOT_UPDATABLE_KEYS: (keyof UpdatePlotPatch)[] = [
   'litter_cover_pct',
   'layer_count',
   'env_photos_json',
-  // Legacy per-layer columns. Still listed so any in-flight writer from older
-  // code paths doesn't error out, but new UI must go through updatePlotLayer
-  // against `plot_survey_layers`. Will be removed in v13.
-  'e0_cover_pct',
-  'e0_height_cm',
-  'e1_cover_pct',
-  'e1_height_cm',
-  'e2_cover_pct',
-  'e2_height_cm',
-  'e3_cover_pct',
-  'e3_height_cm',
-  'e0_method',
-  'e1_method',
-  'e2_method',
-  'e3_method',
   'track_geojson',
   'track_finalized',
 ];
@@ -791,10 +760,10 @@ export function deletePlotSurvey(id: number): void {
 
 /** True iff plot has the hard-required fields filled.
  *
- *  - fixed / point_count plot: plotid + static GPS (lat/lng/uncertainty)
+ *  - fixed / point_count plot: plotid + static GNSS (lat/lng/uncertainty)
  *  - transect plot: plotid + track has been activated at least once
  *                   (signalled by start_ts being set; trackRecorder.startRecording
- *                   stamps this immediately on ▶, without waiting for a GPS fix).
+ *                   stamps this immediately on ▶, without waiting for a GNSS fix).
  */
 export function plotCanAcceptSpecies(plot: PlotSurvey): boolean {
   if (!plot.plotid) return false;
@@ -802,7 +771,7 @@ export function plotCanAcceptSpecies(plot: PlotSurvey): boolean {
     return plot.start_ts != null;
   }
   // A coordinate is required; a measured accuracy is NOT. A point placed by
-  // hand on the map (GPS unavailable/wrong) deliberately carries
+  // hand on the map (GNSS unavailable/wrong) deliberately carries
   // coord_uncertainty_m = null — demanding it here locked every
   // manually-located plot out of species entry.
   return plot.decimal_latitude !== null && plot.decimal_longitude !== null;
@@ -836,7 +805,7 @@ export type AddPlotSpeciesInput = {
   leaf_phenology?: string | null;
   degree_of_establishment?: string | null;
   verbatim_identification?: string | null;
-  /** Per-record GPS (v13). */
+  /** Per-record GNSS (v13). */
   lat?: number | null;
   lng?: number | null;
   accuracy?: number | null;
@@ -985,7 +954,7 @@ export function updatePlotSpeciesValue(
   db.executeSync(`UPDATE plot_species_records SET ${sets.join(', ')} WHERE id = ?`, args);
 }
 
-/** Persist per-record GPS for a plot species record. Mirrors
+/** Persist per-record GNSS for a plot species record. Mirrors
  *  `records.ts::updateRecordLocation`. Pass nulls to clear. */
 export function updatePlotSpeciesLocation(
   id: number,
@@ -1396,7 +1365,7 @@ function importPlotSurveyTx(
  * subplots matched by label). Copying columns directly is both shorter and
  * exact about what is carried.
  *
- * Never carried, whatever the options say: the GPS fix, the walked track, the
+ * Never carried, whatever the options say: the GNSS fix, the walked track, the
  * bound site, environment photos, and every per-record observation value —
  * those describe one survey, not the setup it shared.
  */

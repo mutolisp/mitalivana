@@ -1,3 +1,4 @@
+import { errText } from '~/lib/errText';
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import { File } from 'expo-file-system';
@@ -147,7 +148,7 @@ export function GeoImportModal({ visible, defaultProjectId = 0, onClose, onCommi
         Alert.alert(t('geoImport.parseFail'), t('geoImport.noneUsable'));
       }
     } catch (e) {
-      Alert.alert(t('geoImport.readFail'), e instanceof Error ? e.message : String(e));
+      Alert.alert(t('geoImport.readFail'), errText(e));
     }
   };
 

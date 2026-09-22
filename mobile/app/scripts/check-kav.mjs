@@ -41,6 +41,22 @@ for (const root of ROOTS) {
     const rel = relative('.', file);
     if (rel === SELF) continue;
     const src = readFileSync(file, 'utf8');
+
+    // Importing RN's (or the library's) KAV directly skips the wrapper's
+    // auto-measured `keyboardVerticalOffset`. The caller then has to know how
+    // much chrome sits above it — which is the assumption that kept breaking:
+    // a hard-coded headerHeight / tabBarHeight under-shoots the moment
+    // anything else (ActiveSessionBar, iOS 26's nav bar) is added above.
+    // Silent when it breaks: the keyboard just covers the field again.
+    if (/KeyboardAvoidingView\b[^\n]*\}\s*from\s*'react-native'/.test(src)
+        || /KeyboardAvoidingView\b[^\n]*\}\s*from\s*'react-native-keyboard-controller'/.test(src)) {
+      problems.push(
+        `${rel}  imports KeyboardAvoidingView directly instead of ~/components/KeyboardAvoidingView\n` +
+          `    The wrapper measures its own screen-y and feeds it back as keyboardVerticalOffset;\n` +
+          `    a raw KAV leaves the caller guessing how much chrome is above it.`,
+      );
+    }
+
     // Each opening tag up to its '>' — attributes may span several lines.
     for (const m of src.matchAll(/<KeyboardAvoidingView\b[^>]*>/g)) {
       const tag = m[0];

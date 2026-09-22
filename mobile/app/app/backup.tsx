@@ -1,3 +1,4 @@
+import { errText } from '~/lib/errText';
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import * as Sharing from 'expo-sharing';
@@ -88,7 +89,7 @@ export default function BackupScreen() {
               await restoreSafetyBackup(name);
             } catch (e) {
               setBusy(null);
-              Alert.alert(t('backup.restoreFailed'), e instanceof Error ? e.message : String(e));
+              Alert.alert(t('backup.restoreFailed'), errText(e));
             }
           },
         },
@@ -129,7 +130,7 @@ export default function BackupScreen() {
       const file = await createBackup({ includePacks: packsExist && includePacks });
       await share(file);
     } catch (e) {
-      Alert.alert(t('backup.backupFailed'), e instanceof Error ? e.message : String(e));
+      Alert.alert(t('backup.backupFailed'), errText(e));
     } finally {
       setBusy(null);
     }
@@ -149,7 +150,7 @@ export default function BackupScreen() {
       }
       await share(file);
     } catch (e) {
-      Alert.alert(t('backup.photoBackupFailed'), e instanceof Error ? e.message : String(e));
+      Alert.alert(t('backup.photoBackupFailed'), errText(e));
     } finally {
       setBusy(null);
       setProgress('');
@@ -239,7 +240,7 @@ export default function BackupScreen() {
       await restoreBackup(uri);
     } catch (e) {
       setBusy(null);
-      Alert.alert(t('backup.restoreFailed'), e instanceof Error ? e.message : String(e));
+      Alert.alert(t('backup.restoreFailed'), errText(e));
     }
   };
 

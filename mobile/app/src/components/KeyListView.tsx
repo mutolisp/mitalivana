@@ -249,6 +249,10 @@ export function KeyListView({ initialQuery, prefillNonce }: Props = {}) {
             data={results}
             keyExtractor={getRowKey}
             keyboardShouldPersistTaps="handled"
+            // The dock below is lifted by `tabBarInset` to clear the floating
+            // pill, so it overlays that much of this list. Without the
+            // reservation the last row sits behind the search box.
+            contentContainerStyle={{ paddingBottom: tabBarInset }}
             renderItem={renderRow}
             initialNumToRender={10}
             maxToRenderPerBatch={8}

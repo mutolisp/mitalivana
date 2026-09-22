@@ -9,6 +9,7 @@
  * Grouped by what the row is for, not by which screen it used to live on:
  * day-to-day management first, set-once preferences after, destructive last.
  */
+import { errText } from '~/lib/errText';
 import { useRouter, type Href } from 'expo-router';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -119,7 +120,7 @@ export default function MenuScreen() {
         [{ text: t('common.ok') }],
       );
     } catch (e) {
-      toast(t('settings.integrityFailed', { error: e instanceof Error ? e.message : String(e) }));
+      toast(t('settings.integrityFailed', { error: errText(e) }));
     }
   };
 
@@ -168,7 +169,7 @@ export default function MenuScreen() {
                     toast(t('settings.allCleared'));
                     router.replace('/');
                   } catch (e) {
-                    toast(t('settings.clearFailed', { error: e instanceof Error ? e.message : String(e) }));
+                    toast(t('settings.clearFailed', { error: errText(e) }));
                   }
                 },
               },
@@ -277,6 +278,11 @@ export default function MenuScreen() {
           label={t('exportPref.title')}
           description={t('settings.exportPrefDesc')}
           onPress={() => router.push('/settings/export' as Href)}
+        />
+        <LinkRow
+          label={t('settings.provenance')}
+          description={t('settings.provenanceDesc')}
+          onPress={() => router.push('/settings/provenance' as Href)}
         />
       </Section>
 

@@ -15,7 +15,9 @@ all: backend frontend
 
 .PHONY: all backend frontend run dev pkg pkg-dmg pkg-win test taicol icon clean help \
 	datasets datasets-verify datasets-upload \
-	rudymap-config rudymap-serve rudymap-render rudymap-qa rudymap-optimize rudymap-pack rudymap-verify rudymap-verify-published rudymap-upload
+	rudymap-config rudymap-serve rudymap-render rudymap-qa rudymap-optimize rudymap-pack rudymap-verify rudymap-verify-published rudymap-upload \
+	vector-dump vector-tags vector-sprite vector-style vector-tiles vector-glyphs vector-hillshade vector-all vector-compare vector-upload \
+	build_verb_num check-version
 
 help:
 	@echo "Usage:"
@@ -31,7 +33,10 @@ help:
 	@echo "  make taicol        Import TaiCOL CSV (auto-find latest or CSV=path)"
 	@echo "  make datasets      Build downloadable checklist modules (dist/datasets)"
 	@echo "  make datasets-verify  Verify modules answer like the master DB"
-	@echo "  make rudymap-*     Rudy map offline tile pipeline (see backend/scripts/rudymap/README.md)"
+	@echo "  make vector-*      Offline vector basemap pipeline — the shipping one (make vector-all)"
+	@echo "  make rudymap-*     Legacy raster tile pipeline, kept for comparison only"
+	@echo "  make build_verb_num=0.5.2_22  Set the mobile version + build number everywhere"
+	@echo "  make check-version    Verify every copy of the mobile version agrees"
 	@echo "  make icon         Generate .ico/.icns from icons/checklister-ng_icons.png"
 	@echo "  make clean        Remove build artifacts"
 
@@ -212,3 +217,108 @@ icon:
 clean:
 	rm -rf build $(DIST_DIR) $(FRONTEND)/build
 	rm -rf *.egg-info __pycache__
+
+# ─── Vector map (MapLibre / pmtiles) ──────────────────────
+# The shipping offline basemap since 2026-09-19. The raster `rudymap-*` targets
+# above built the previous one and are kept only for regression comparison
+# (`vector-compare`).
+#
+# These steps used to exist only as shell snippets in the README, which meant
+# the dependency order — step 2 needs step 5's style to know what to prefilter —
+# lived in prose and had to be re-read every time. Encoded here instead.
+VEC_DIR      := $(RUDY_DIR)/vector
+VEC_STYLE_SRC := $(RUDY_SRC)/style/MOI_OSM.xml
+VEC_MAP      := $(RUDY_SRC)/map/MOI_OSM_Taiwan_TOPO_Rudy.map
+VEC_JAR      := $(RUDY_SRC)/mapsforgesrv-fatjar.jar
+VEC_CLASSES  := $(VEC_DIR)/classes
+
+# .map → GeoJSONL, one pass per zoom interval (~15 s for all of Taiwan).
+vector-dump:
+	@test -f $(VEC_MAP) || { echo "缺 $(VEC_MAP)（先跑 make rudymap-config）"; exit 1; }
+	mkdir -p $(VEC_CLASSES) $(VEC_DIR)
+	javac -cp $(VEC_JAR) -d $(VEC_CLASSES) backend/scripts/rudymap/vector/RudyMapDump.java
+	for z in 6 10 14; do \
+		java -cp $(VEC_JAR):$(VEC_CLASSES) RudyMapDump \
+			$(VEC_MAP) $(VEC_DIR)/z$$z.geojsonl $$z 32; \
+	done
+
+# Which tags the data actually carries — used to prune rules that can never match.
+vector-tags: backend
+	$(BACKEND_VENV)/bin/python backend/scripts/rudymap/vector/tag_index.py \
+		$(VEC_DIR)/z6.geojsonl $(VEC_DIR)/z10.geojsonl $(VEC_DIR)/z14.geojsonl \
+		--out $(VEC_DIR)/tags.json
+
+# Theme SVG/PNG → MapLibre sprite.
+vector-sprite: backend
+	$(BACKEND_VENV)/bin/python backend/scripts/rudymap/vector/build_sprite.py \
+		$(VEC_STYLE_SRC) $(VEC_DIR)/sprite
+
+# mapsforge theme XML → MapLibre style JSON.
+# ⚠️ First build only: run this WITHOUT --tag-index/--sprite-index once, because
+# those inputs come from targets that themselves need a usable style. After that
+# the full form below is the one to use.
+vector-style: backend
+	$(BACKEND_VENV)/bin/python backend/scripts/rudymap/vector/translate_theme.py \
+		$(VEC_STYLE_SRC) $(VEC_DIR)/style.json \
+		$(if $(wildcard $(VEC_DIR)/tags.json),--tag-index $(VEC_DIR)/tags.json,) \
+		$(if $(wildcard $(VEC_DIR)/sprite.json),--sprite-index $(VEC_DIR)/sprite.json,) \
+		--style elmt-hiking \
+		--hillshade-url "$(HILLSHADE_URL)"
+
+# GeoJSONL → MVT (tippecanoe, three passes; the z12–15 one takes about an hour).
+# Reads style.json to prefilter, so `vector-style` has to have run.
+vector-tiles:
+	@test -f $(VEC_DIR)/style.json || { echo "缺 style.json（先跑 make vector-style）"; exit 1; }
+	bash backend/scripts/rudymap/vector/build_tiles.sh
+
+# Latin glyphs. CJK is rendered from device fonts — see MLNIdeographicFontFamilyName
+# in app.config.ts — so only the Latin ranges are built.
+vector-glyphs:
+	cd backend/scripts/rudymap/vector && npm i
+	node backend/scripts/rudymap/vector/build_glyphs.js \
+		$(RUDY_SRC)/NotoSans-Regular.ttf $(VEC_DIR)/fonts
+
+vector-hillshade: backend
+	$(BACKEND_VENV)/bin/python backend/scripts/rudymap/vector/build_hillshade.py
+
+# Everything, in the order the inputs require.
+vector-all: vector-dump vector-style vector-sprite vector-tags vector-tiles vector-glyphs
+
+# Side-by-side raster vs vector renders — run after any style change.
+vector-compare: backend
+	$(BACKEND_VENV)/bin/python backend/scripts/rudymap/vector/compare_vector.py
+
+# make vector-upload R2_BUCKET=<bucket> [DRY=1]
+vector-upload: backend
+	@test -n "$(R2_BUCKET)" || { echo "需要 R2_BUCKET=..."; exit 1; }
+	$(BACKEND_VENV)/bin/python backend/scripts/rudymap/vector/upload_vector.py \
+		--bucket $(R2_BUCKET) $(if $(DRY),--dry-run,)
+
+HILLSHADE_URL ?= https://map.mitalivana.org/hillshade/{z}/{x}/{y}.png
+
+# ─── Mobile version / build number ────────────────────────
+# The version lives in twelve places across six files (app.config.ts,
+# package.json, about.tsx, and the committed iOS/Android prebuild artefacts).
+# They drift silently — 0.5.1 shipped with CFBundleVersion 20 while the Xcode
+# project still said 19.
+#
+#   make build_verb_num=0.5.2_22    set every place at once
+#   make check-version              verify they all agree
+#
+# `make build_verb_num=...` names no target, so make would otherwise fall
+# through to `all` and build the backend + frontend. Redirect the default goal.
+# `origin`, not `ifdef`: `ifdef` is false for an empty value, so a typo'd
+# `make build_verb_num=` would fall through and rebuild the whole frontend
+# instead of printing the usage line.
+ifneq ($(origin build_verb_num),undefined)
+.DEFAULT_GOAL := build_verb_num
+endif
+
+build_verb_num:
+	@test -n "$(build_verb_num)" || { \
+		echo "用法: make build_verb_num=<version>_<build>，例如 make build_verb_num=0.5.2_22"; \
+		exit 1; }
+	cd mobile/app && node scripts/set-version.mjs $(build_verb_num)
+
+check-version:
+	cd mobile/app && node scripts/set-version.mjs --check

@@ -7,6 +7,7 @@
  * not part of the app-wide single-active invariant, so opening or reopening one
  * never disturbs an in-progress checklist or plot survey.
  */
+import { errText } from '~/lib/errText';
 import { Ionicons } from '@expo/vector-icons';
 import type { AdoptionInput } from '~/db';
 import * as Location from 'expo-location';
@@ -28,6 +29,7 @@ import {
   listSpecimens,
   nextRecordNumber,
   reopenCollectionTrip,
+  getSite,
   updateCollectionTrip,
   updateSpecimen,
   updateSpecimenTaxon,
@@ -59,11 +61,13 @@ import { ProjectAssignSheet } from '~/components/ProjectAssignSheet';
 import { ScientificName } from '~/components/ScientificName';
 import { SearchBox } from '~/components/SearchBox';
 import { SpecimenDetailSheet, type SpecimenPatch } from '~/components/SpecimenDetailSheet';
+import { SiteAssignSheet } from '~/components/SiteAssignSheet';
 import { SurveyorAssignSheet } from '~/components/SurveyorAssignSheet';
 import { SwipeRowActions } from '~/components/SwipeRowActions';
 import { promptText } from '~/components/TextPromptModal';
 import { BackHeaderLeft } from '~/lib/goBack';
 import { isoDateTime } from '~/lib/datetime';
+import { firstPhotoFix, rememberPickedPhotos } from '~/lib/photoMeta';
 import {
   reproductiveLabel,
   leafPhenologyLabel,
@@ -281,6 +285,7 @@ export default function CollectionTripScreen() {
   const [replaceTarget, setReplaceTarget] = useState<SpecimenWithTaxon | null>(null);
   const [projectSheetOpen, setProjectSheetOpen] = useState(false);
   const [surveyorSheetOpen, setSurveyorSheetOpen] = useState(false);
+  const [siteSheetOpen, setSiteSheetOpen] = useState(false);
 
   const reload = useCallback(() => {
     const tr = getCollectionTrip(tripId);
@@ -303,6 +308,9 @@ export default function CollectionTripScreen() {
   };
 
   const isActive = trip?.status === 'active';
+  // Resolved on render rather than stored: the site row can be renamed or
+  // deleted elsewhere, and the chip must not keep showing a stale name.
+  const tripSite = trip?.site_id != null ? getSite(trip.site_id) : null;
 
   const handleAdd = async (result: SearchResult, adopted?: AdoptionInput | null) => {
     if (!result.taxon_id) {
@@ -452,7 +460,7 @@ export default function CollectionTripScreen() {
       }
       exitSelect();
     } catch (e) {
-      Alert.alert(t('export.failed'), e instanceof Error ? e.message : String(e));
+      Alert.alert(t('export.failed'), errText(e));
     } finally {
       setExportBusy(false);
     }
@@ -469,6 +477,49 @@ export default function CollectionTripScreen() {
     if (!next || next === trip.name) return;
     updateCollectionTrip(trip.id, { name: next });
     reload();
+  };
+
+  // Trip-level metadata, behind one chip rather than three.
+  //
+  // The header row is already carrying the project, the collectors, the sort
+  // and the select toggle; three more would not fit on a phone. An
+  // ActionSheet also keeps each field on the component built for it —
+  // `promptText` for the two text values, the screen-level `SiteAssignSheet`
+  // for the site. Nesting that sheet inside a modal of our own is not an
+  // option: iOS refuses a Modal presented over a Modal.
+  const handleTripMeta = async () => {
+    if (!trip) return;
+    const idx = await showActionSheet({
+      title: t('collection.tripMetaTitle'),
+      options: [
+        { label: `${t('collection.tripLocality')}${trip.locality ? `：${trip.locality}` : ''}` },
+        { label: `${t('collection.tripInstitution')}${trip.institution_code ? `：${trip.institution_code}` : ''}` },
+        { label: `${t('collection.tripSite')}${tripSite ? `：${tripSite.name}` : ''}` },
+      ],
+      cancelLabel: t('common.cancel'),
+    });
+    if (idx === 0) {
+      const v = await promptText({
+        title: t('collection.tripLocality'),
+        defaultValue: trip.locality ?? '',
+        confirmText: t('common.save'),
+      });
+      if (v === null) return;
+      updateCollectionTrip(trip.id, { locality: v.trim() || null });
+      reload();
+    } else if (idx === 1) {
+      const v = await promptText({
+        title: t('collection.tripInstitution'),
+        // The herbarium acronym a specimen inherits unless it sets its own.
+        defaultValue: trip.institution_code ?? '',
+        confirmText: t('common.save'),
+      });
+      if (v === null) return;
+      updateCollectionTrip(trip.id, { institution_code: v.trim().toUpperCase() || null });
+      reload();
+    } else if (idx === 2) {
+      setSiteSheetOpen(true);
+    }
   };
 
   const handleSave = (patch: SpecimenPatch) => {
@@ -499,20 +550,35 @@ export default function CollectionTripScreen() {
   const handleAddPhoto = async (mode: 'camera' | 'library') => {
     if (!active) return;
     try {
-      const { captureAndSavePhoto, pickPhotos, buildContextFromSpecimen } =
+      const { captureAndSavePhoto, pickPhotosWithExif, buildContextFromSpecimen } =
         await import('~/lib/photoCapture');
-      let newUris: string[] = [];
+      let picked: { uri: string; exif: Record<string, unknown> | null }[] = [];
       if (mode === 'camera') {
         const uri = await captureAndSavePhoto(buildContextFromSpecimen(active));
-        if (uri) newUris = [uri];
+        if (uri) picked = [{ uri, exif: null }];
       } else {
-        newUris = await pickPhotos();
+        // `pickPhotosWithExif`, not `pickPhotos` — see the same handler in
+        // app/session/[id].tsx. The picker's exif map is the only legible
+        // source of a HEIC's position, and without it a specimen created
+        // before it was photographed never picks up the coordinate.
+        picked = await pickPhotosWithExif();
       }
-      if (newUris.length === 0) return;
+      if (picked.length === 0) return;
+      rememberPickedPhotos(picked);
+      const newUris = picked.map((p) => p.uri);
       updateSpecimenPhotos(active.id, [...parsePhotoPaths(active.photo_paths), ...newUris]);
+      // Only when the specimen has no collecting point of its own. A specimen
+      // records where it was collected, so a photo of it in place carries that
+      // position — but a measured one is never replaced.
+      if (active.lat === null || active.lng === null) {
+        const out = await firstPhotoFix(picked);
+        if (out.kind === 'found') {
+          updateSpecimenLocation(active.id, out.fix.lat, out.fix.lng, out.fix.accuracyM);
+        }
+      }
       refreshActive(active.id);
     } catch (e) {
-      Alert.alert(t('session.photoFailTitle'), e instanceof Error ? e.message : String(e));
+      Alert.alert(t('session.photoFailTitle'), errText(e));
     }
   };
 
@@ -715,6 +781,23 @@ export default function CollectionTripScreen() {
                 {trip.recorded_by || t('collection.collectorEmpty')}
               </Text>
             </Pressable>
+            <Pressable
+              onPress={handleTripMeta}
+              hitSlop={6}
+              className="flex-row items-center active:opacity-70"
+            >
+              <Ionicons
+                name="location-outline"
+                size={14}
+                color={trip.locality || tripSite ? '#2563eb' : '#9ca3af'}
+              />
+              <Text
+                className={`ml-1 max-w-[96px] text-xs ${trip.locality || tripSite ? 'font-medium text-blue-700 dark:text-blue-300' : 'italic text-gray-500 dark:text-gray-400'}`}
+                numberOfLines={1}
+              >
+                {trip.locality || tripSite?.name || t('collection.tripLocalityEmpty')}
+              </Text>
+            </Pressable>
             {specimens.length > 0 ? (
               <>
                 <Pressable
@@ -883,6 +966,18 @@ export default function CollectionTripScreen() {
           reload();
         }}
       />
+      <SiteAssignSheet
+        visible={siteSheetOpen}
+        currentSiteId={trip.site_id}
+        preferredProjectId={trip.project_id}
+        onCancel={() => setSiteSheetOpen(false)}
+        onAssign={(siteId) => {
+          updateCollectionTrip(trip.id, { site_id: siteId });
+          setSiteSheetOpen(false);
+          reload();
+        }}
+      />
+
       <SurveyorAssignSheet
         visible={surveyorSheetOpen}
         current={trip.recorded_by ?? ''}

@@ -1,3 +1,4 @@
+import { errText } from '~/lib/errText';
 import { Ionicons } from '@expo/vector-icons';
 import { FolderAreaMap } from '~/components/FolderAreaMap';
 import { RecordLocationMap } from '~/components/RecordLocationMap';
@@ -172,7 +173,7 @@ export default function PlotDetailScreen() {
                 onPress={() => {
                   if (plot.status === 'done') {
                     // Reopen force-ends any other active record DB-side; stop a
-                    // GPS watch that belongs to something other than this plot.
+                    // GNSS watch that belongs to something other than this plot.
                     pauseIfNot({ kind: 'plot', id: plot.id });
                     reopenPlotSurvey(plot.id);
                     // Reopen force-ends any active session DB-side too; refresh
@@ -354,7 +355,7 @@ function EnvTab({ plot, onUpdated }: { plot: PlotSurvey; onUpdated: () => void }
   const captureGps = async () => {
     const perm = await Location.requestForegroundPermissionsAsync();
     if (perm.status !== 'granted') {
-      Alert.alert(t('gps.permTitle'), t('gps.permMsg'));
+      Alert.alert(t('gnss.permTitle'), t('gnss.permMsg'));
       return;
     }
     try {
@@ -365,20 +366,20 @@ function EnvTab({ plot, onUpdated }: { plot: PlotSurvey; onUpdated: () => void }
         decimal_latitude: pos.coords.latitude,
         decimal_longitude: pos.coords.longitude,
         coord_uncertainty_m: pos.coords.accuracy ?? null,
-        // Grab altitude (海拔) from the same GPS fix; keep existing value if the
+        // Grab altitude (海拔) from the same GNSS fix; keep existing value if the
         // device couldn't resolve altitude (often null indoors / poor signal).
         elevation_m:
           pos.coords.altitude != null ? Math.round(pos.coords.altitude) : plot.elevation_m,
         start_ts: plot.start_ts ?? Date.now(),
       });
     } catch (e) {
-      Alert.alert(t('gps.posFailTitle'), e instanceof Error ? e.message : String(e));
+      Alert.alert(t('gnss.posFailTitle'), errText(e));
     }
   };
 
   /** A coordinate exists, however it was obtained. */
   const hasCoord = plot.decimal_latitude !== null && plot.decimal_longitude !== null;
-  /** A coordinate that came from the GPS, so it carries an accuracy. A point
+  /** A coordinate that came from the GNSS, so it carries an accuracy. A point
    *  placed by hand on the map has none — which is why the two are separate:
    *  gating the readout on `hasGps` would make a hand-placed point look like no
    *  point at all. */
@@ -416,7 +417,7 @@ function EnvTab({ plot, onUpdated }: { plot: PlotSurvey; onUpdated: () => void }
           <View className="mt-3 rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900">
             <View className="flex-row items-center">
               <Text className="flex-1 text-xs font-medium text-gray-600 dark:text-gray-400">
-                {t('plot.gpsLabel')} <Text className="text-red-500">*</Text>
+                {t('plot.gnssLabel')} <Text className="text-red-500">*</Text>
               </Text>
               <Pressable
                 onPress={captureGps}
@@ -424,7 +425,7 @@ function EnvTab({ plot, onUpdated }: { plot: PlotSurvey; onUpdated: () => void }
               >
                 <Ionicons name="locate" size={14} color="white" />
                 <Text className="ml-1 text-xs font-medium text-white">
-                  {hasGps ? t('plot.refetchGps') : t('plot.fetchGps')}
+                  {hasGps ? t('plot.refetchGnss') : t('plot.fetchGnss')}
                 </Text>
               </Pressable>
             </View>
@@ -441,11 +442,11 @@ function EnvTab({ plot, onUpdated }: { plot: PlotSurvey; onUpdated: () => void }
               </Text>
             ) : (
               <Text className="mt-2 text-xs text-gray-400 dark:text-gray-500">
-                {t('plot.gpsNotYet')}
+                {t('plot.gnssNotYet')}
               </Text>
             )}
             {/* Same mini-map as the species record sheet — tap or drag to place
-                the plot centre when the GPS is unavailable or wrong, and zoom /
+                the plot centre when the GNSS fix is unavailable or wrong, and zoom /
                 locate / switch basemap to check it against the terrain. */}
             <SwipeBlockedArea>
               <RecordLocationMap
@@ -1315,7 +1316,7 @@ function EnvPhotoSection({ plot, onUpdated }: { plot: PlotSurvey; onUpdated: () 
       const uri = await captureEnvPhoto();
       if (uri) append([uri]);
     } catch (e) {
-      Alert.alert(t('plot.takePhotoFail'), e instanceof Error ? e.message : String(e));
+      Alert.alert(t('plot.takePhotoFail'), errText(e));
     }
   };
   const handlePick = async () => {
@@ -1323,7 +1324,7 @@ function EnvPhotoSection({ plot, onUpdated }: { plot: PlotSurvey; onUpdated: () 
       const uris = await pickPhotos();
       append(uris);
     } catch (e) {
-      Alert.alert(t('plot.pickPhotoFail'), e instanceof Error ? e.message : String(e));
+      Alert.alert(t('plot.pickPhotoFail'), errText(e));
     }
   };
 

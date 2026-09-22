@@ -28,7 +28,7 @@ const photos = [
   { uri: 'file://a.jpg', meta: meta({ lat: 24.1, lng: 121.1, accuracyM: 5, takenAt: 300, embedded: { taxon_id: 't-own' } }) },
   // A camera JPEG: position and time, no idea what it is.
   { uri: 'file://b.jpg', meta: meta({ lat: 24.2, lng: 121.2, takenAt: 100 }) },
-  // Shot indoors: no GPS.
+  // Shot indoors: no GNSS.
   { uri: 'file://c.jpg', meta: meta({ takenAt: 200 }) },
 ];
 
@@ -51,7 +51,7 @@ eq('positions are per row, not shared', rows.map((r) => r.lat), [24.2, null, 24.
 eq('accuracy rides along with the position it belongs to', rows.map((r) => r.accuracy), [null, null, 5]);
 
 // ── Absence must stay absence ─────────────────────────────────────────────
-eq('no GPS means no coordinate, not 0,0', rows.find((r) => r.observed_at === 200).lat, null);
+eq('no GNSS fix means no coordinate, not 0,0', rows.find((r) => r.observed_at === 200).lat, null);
 
 const stamped = buildPlannedRecords(plan, 't-picked', { kind: 'fixed', lat: 9, lng: 9, accuracyM: 12 }, NOW);
 eq('a supplied position only fills the gaps', stamped.map((r) => r.lat), [24.2, 9, 24.1]);

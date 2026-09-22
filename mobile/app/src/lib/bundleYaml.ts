@@ -239,6 +239,11 @@ export function specimenToYamlItem(
   if (leaf) item.leaf_phenology = leaf;
   if (sp.degree_of_establishment) item.degree_of_establishment = sp.degree_of_establishment;
   if (sp.verbatim_identification) item.verbatim_identification = sp.verbatim_identification;
+  // `!= null` rather than truthiness: a deliberately recorded 0 duplicates is
+  // a statement, and dropping it would round-trip back as "not recorded".
+  if (sp.duplicate_count != null) item.duplicate_count = sp.duplicate_count;
+  if (sp.institution_code) item.institution_code = sp.institution_code;
+  if (sp.other_catalog_numbers) item.other_catalog_numbers = sp.other_catalog_numbers;
   if (sp.notes) item.notes = sp.notes;
   // → DwC `associatedMedia`; the filenames inside the zip's photos/. A trip
   // often holds several duplicates of one species, so without this the photos
@@ -262,12 +267,15 @@ export type CollectionYamlInput = {
   trip: CollectionTrip;
   projectName: string;
   specimens: SpecimenWithTaxon[];
+  /** The trip's pinned site (v43), or null. Same block the session and plot
+   *  documents already carry, so one reader handles all three. */
+  site: ImportedSite | null;
   photoNames?: PhotoNames;
   audioNames?: PhotoNames;
 };
 
 export function buildCollectionYamlDoc(input: CollectionYamlInput): Record<string, unknown> {
-  const { trip, projectName, specimens, photoNames, audioNames } = input;
+  const { trip, projectName, specimens, site, photoNames, audioNames } = input;
   const startIso = localIso(trip.started_at);
   const endIso = trip.ended_at !== null ? localIso(trip.ended_at) : null;
 
@@ -282,6 +290,7 @@ export function buildCollectionYamlDoc(input: CollectionYamlInput): Record<strin
   if (endIso) event.endedAt = endIso;
   if (trip.recorded_by) event.recordedBy = trip.recorded_by;
   if (trip.locality) event.locality = trip.locality;
+  if (trip.institution_code) event.institutionCode = trip.institution_code;
   if (trip.notes) event.eventRemarks = trip.notes;
 
   const doc: Record<string, unknown> = {
@@ -289,6 +298,8 @@ export function buildCollectionYamlDoc(input: CollectionYamlInput): Record<strin
     specimens: specimens.map((sp) => convertToDwc(specimenToYamlItem(sp, photoNames, audioNames))),
   };
   if (projectName) doc.project = projectName;
+  const sb = siteBlock(site);
+  if (sb) doc.site = sb;
   return doc;
 }
 

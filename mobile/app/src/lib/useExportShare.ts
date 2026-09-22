@@ -6,6 +6,7 @@
  * of copying it. The records tab and the project screens both render
  * `<ExportProgressOverlay progress={progress} />` themselves.
  */
+import { errText } from '~/lib/errText';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert } from 'react-native';
@@ -56,7 +57,7 @@ export function useExportShare() {
         }
         toast(t('export.done', { filename: file.filename }));
       } catch (e) {
-        Alert.alert(t('export.failed'), e instanceof Error ? e.message : String(e));
+        Alert.alert(t('export.failed'), errText(e));
       } finally {
         setProgress(null);
         setBusy(false);

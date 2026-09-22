@@ -105,10 +105,6 @@ function crossPlotChao2(plotIds: number[]): Chao2Result {
  *  critical path (records-tab reload is perf-tuned); reload() clears this so
  *  new records show on the next pass. null = computed, not applicable. */
 const chao2ChipCache = new Map<string, number | null>();
-export function clearChao2ChipCache(): void {
-  chao2ChipCache.clear();
-}
-
 function ProjectChao2Chip({ projectId, plotIds }: { projectId: number; plotIds: number[] }) {
   const router = useRouter();
   const { t } = useTranslation();

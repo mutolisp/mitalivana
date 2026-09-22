@@ -1,6 +1,6 @@
 /**
  * Inline editable mini-map for a single record's coordinate. Shown under the
- * "locate this species / take GPS" row in both the session record sheet
+ * "locate this species / take GNSS" row in both the session record sheet
  * (`SpeciesDetailSheet`) and the plot species modal (`PlotSpeciesValueModal`).
  *
  * - Tap the map to place / relocate the point; drag the red marker to fine-tune.
@@ -20,8 +20,8 @@
  *   you cannot afford in the field (see the file header of useInatGrid.ts).
  *
  * `onChange` commits the new coordinate immediately (parent persists it without
- * a toast); manual placement carries no GPS accuracy, hence the `null` third
- * argument. Undo passes the previous accuracy back so restoring a GPS-measured
+ * a toast); manual placement carries no GNSS accuracy, hence the `null` third
+ * argument. Undo passes the previous accuracy back so restoring a GNSS-measured
  * fix returns its uncertainty too, not just its latitude and longitude.
  */
 import { useEffect, useRef, useState } from 'react';
@@ -63,7 +63,7 @@ type Reference = { center?: { lat: number; lng: number } | null; radiusM?: numbe
 type Props = {
   lat: number | null;
   lng: number | null;
-  /** Current GPS uncertainty in metres; null when the point was placed by hand.
+  /** Current GNSS uncertainty in metres; null when the point was placed by hand.
    *  Needed so an undo can put the measured value back, and so the confirm can
    *  say what is about to be lost. */
   accuracy?: number | null;
@@ -159,7 +159,7 @@ export function RecordLocationMap({ lat, lng, accuracy = null, onChange, referen
    * Tap/drag on the INLINE map, where the finger is often just scrolling the
    * sheet. Placing the first point is free — there is nothing to lose. Moving
    * an existing one is destructive and silent (the parent persists with no
-   * toast), and a GPS fix overwritten by hand loses its measured uncertainty as
+   * toast), and a GNSS fix overwritten by hand loses its measured uncertainty as
    * well as its position, which no later edit can recover. So that case
    * confirms first, then leaves an undo behind.
    *
@@ -175,7 +175,7 @@ export function RecordLocationMap({ lat, lng, accuracy = null, onChange, referen
     Alert.alert(
       t('locMap.moveConfirmTitle'),
       accuracy != null
-        ? t('locMap.moveConfirmGps', { m: Math.round(accuracy) })
+        ? t('locMap.moveConfirmGnss', { m: Math.round(accuracy) })
         : t('locMap.moveConfirmManual'),
       [
         { text: t('common.cancel'), style: 'cancel' },
@@ -417,7 +417,7 @@ function EditableMap({
   const mapRef = useRef<MapCamera>(null);
   const regionRef = useRef<Region>(initialRegion);
   // Last coordinate this map itself committed — lets us tell our own tap/drag
-  // (don't recenter) apart from an external set (GPS row → recenter).
+  // (don't recenter) apart from an external set (GNSS row → recenter).
   const lastCommittedRef = useRef<string | null>(
     lat != null && lng != null ? `${lat},${lng}` : null,
   );
@@ -425,7 +425,7 @@ function EditableMap({
   const recenter = (latitude: number, longitude: number) =>
     centerOn(mapRef, regionRef, latitude, longitude);
 
-  // When the coordinate changes from outside (e.g. the "點選 GPS" row), follow
+  // When the coordinate changes from outside (e.g. the "點選 GNSS" row), follow
   // it. Skipped for our own tap/drag, whose value we stamped in `place`.
   useEffect(() => {
     if (lat == null || lng == null) return;
@@ -438,7 +438,7 @@ function EditableMap({
   const zoom = (factor: number) => zoomBy(mapRef, regionRef, factor);
 
   const handleLocate = () =>
-    locateMe(mapRef, regionRef, () => Alert.alert(t('gps.permTitle'), t('gps.permMsg')));
+    locateMe(mapRef, regionRef, () => Alert.alert(t('gnss.permTitle'), t('gnss.permMsg')));
 
   const place = (c: LatLng) => {
     lastCommittedRef.current = `${c.latitude},${c.longitude}`;

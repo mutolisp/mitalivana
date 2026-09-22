@@ -9,10 +9,11 @@
  *   paused    : segments.length>0, finalized=0, recording=false
  *   finalized : (any)            , finalized=1
  *
- * Pause stops the GPS watch and persists the current segment as a closed line;
+ * Pause stops the GNSS watch and persists the current segment as a closed line;
  * Stop and save does the same plus sets track_finalized=1 so the track can no
  * longer be extended. The plot itself stays active for species entry.
  */
+import { errText } from '~/lib/errText';
 import { Ionicons } from '@expo/vector-icons';
 import { Alert, Pressable, Text, View } from 'react-native';
 import {
@@ -60,7 +61,7 @@ export function TransectTrackControl({ plot, onUpdated }: Props) {
       // reaches plotCanAcceptSpecies and unblocks the species tab.
       onUpdated();
     } catch (e) {
-      Alert.alert(t('transect.startFail'), e instanceof Error ? e.message : String(e));
+      Alert.alert(t('transect.startFail'), errText(e));
     }
   };
 

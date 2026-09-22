@@ -109,6 +109,28 @@
     "http://rs.tdwg.org/dwc/terms/occurrenceStatus",
     "http://rs.tdwg.org/dwc/terms/startDayOfYear"
    ]
+  },
+  {
+   "name": "emof",
+   "source": "https://rs.gbif.org/extension/obis/extended_measurement_or_fact_2023-08-28.xml",
+   "retrieved": "2026-09-22",
+   "rowType": "http://rs.iobis.org/obis/terms/ExtendedMeasurementOrFact",
+   "note": "Chosen over dwc MeasurementOrFact because only this one has dwc:occurrenceID. Under an Event core a plain MoF row attaches to the EVENT, so a per-organism trait would lose which occurrence it described.",
+   "terms": [
+    "http://rs.tdwg.org/dwc/terms/measurementID",
+    "http://rs.tdwg.org/dwc/terms/occurrenceID",
+    "http://rs.tdwg.org/dwc/terms/measurementType",
+    "http://rs.iobis.org/obis/terms/measurementTypeID",
+    "http://rs.tdwg.org/dwc/terms/measurementValue",
+    "http://rs.iobis.org/obis/terms/measurementValueID",
+    "http://rs.tdwg.org/dwc/terms/measurementAccuracy",
+    "http://rs.tdwg.org/dwc/terms/measurementUnit",
+    "http://rs.iobis.org/obis/terms/measurementUnitID",
+    "http://rs.tdwg.org/dwc/terms/measurementDeterminedDate",
+    "http://rs.tdwg.org/dwc/terms/measurementDeterminedBy",
+    "http://rs.tdwg.org/dwc/terms/measurementMethod",
+    "http://rs.tdwg.org/dwc/terms/measurementRemarks"
+   ]
   }
  ]
 }

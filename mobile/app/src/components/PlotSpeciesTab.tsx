@@ -1,3 +1,4 @@
+import { errText } from '~/lib/errText';
 import { Ionicons } from '@expo/vector-icons';
 import { PlotDiversityCard } from './PlotDiversityCard';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -60,6 +61,7 @@ import { alienBadge } from '~/lib/conservationColors';
 import { parseMultiAttribute, serializeMultiAttribute } from '~/lib/dwcAttributes';
 import { useSettings, type RecordSort, type SortDirection } from '~/stores/settings';
 import { useFavorites } from '~/stores/favorites';
+import { firstPhotoFix, rememberPickedPhotos, type PhotoFix } from '~/lib/photoMeta';
 import { toastFavoriteAdded } from '~/lib/favoritesToast';
 import { useToast } from '~/stores/toast';
 import { showActionSheet } from './ActionSheet';
@@ -114,6 +116,24 @@ export function PlotSpeciesTab({ plot, onChanged }: { plot: PlotSurvey; onChange
   // Photos taken while adding a NEW species (no record id yet); attached to the
   // record on save. Edit mode writes straight to the record instead.
   const [pendingPhotos, setPendingPhotos] = useState<string[]>([]);
+  /**
+   * Coordinate and clips held for a record that does not exist yet.
+   *
+   * Create mode used to offer neither: you had to save the species, reopen it,
+   * and only then could you locate it or attach a recording. In a plot big
+   * enough to need per-species coordinates that is the wrong way round — the
+   * position is known while you are standing at the plant, not afterwards.
+   *
+   * `fromPhotoUri` remembers which photo supplied the coordinate, so removing
+   * that photo takes the coordinate with it while a hand-placed one stays.
+   */
+  const [pendingLoc, setPendingLoc] = useState<{
+    lat: number;
+    lng: number;
+    accuracy: number | null;
+    fromPhotoUri: string | null;
+  } | null>(null);
+  const [pendingAudio, setPendingAudio] = useState<string[]>([]);
   // Non-null = the docked SearchBox re-identifies that record instead of adding
   // a new one. Reuses the search box already on screen rather than putting one
   // inside a Modal (no precedent in this app, and it would need its own
@@ -123,9 +143,14 @@ export function PlotSpeciesTab({ plot, onChanged }: { plot: PlotSurvey; onChange
   // Subplots (fixed plots only). When ≥1 subplot exists the species tab
   // is scoped to the active subplot; otherwise it behaves as before (flat plot).
   const [subplots, setSubplots] = useState<Subplot[]>([]);
-  useMemo(() => {
+  // `useEffect`, not `useMemo`: setting state during render is what it was
+  // doing, and React Compiler treats that as a reason to give up on the
+  // component. It also put a synchronous DB read in the render path, which
+  // this app has crashed Hermes over before (see KeyMatrixRunner's loader).
+  // The one-frame empty list costs nothing — `allRecords` below starts empty
+  // for the same reason.
+  useEffect(() => {
     setSubplots(stratified ? listSubplots(plot.id) : []);
-    return null;
   }, [plot.id, stratified]);
   const subplotMode = subplots.length > 0;
   const [activeSubplotId, setActiveSubplotId] = useState<number | null>(null);
@@ -155,9 +180,8 @@ export function PlotSpeciesTab({ plot, onChanged }: { plot: PlotSurvey; onChange
   // Per-layer method config from plot_survey_layers (used for default
   // abundance unit when opening the modal). Lazy-loaded; refreshed on plot.id.
   const [plotLayers, setPlotLayers] = useState<PlotLayer[]>([]);
-  useMemo(() => {
+  useEffect(() => {
     setPlotLayers(stratified ? getPlotLayers(plot.id) : []);
-    return null;
   }, [plot.id, plot.layer_count, stratified]);
   // Remember last entered value per layer for fast batch entry (carries unit
   // + scalar quantity to the next species). Keyed by Layer.
@@ -172,9 +196,8 @@ export function PlotSpeciesTab({ plot, onChanged }: { plot: PlotSurvey; onChange
   }, [plot.id]);
 
   // Reload on first mount + when plot changes
-  useMemo(() => {
+  useEffect(() => {
     reload();
-    return null;
   }, [reload]);
 
   const grouped = useMemo(() => {
@@ -319,6 +342,8 @@ export function PlotSpeciesTab({ plot, onChanged }: { plot: PlotSurvey; onChange
     Keyboard.dismiss();
     if (Platform.OS === 'ios') await new Promise((r) => setTimeout(r, 150));
     setPendingPhotos([]);
+    setPendingAudio([]);
+    setPendingLoc(null);
     setModal({ mode: 'create', taxon, layer, adopted });
   };
 
@@ -340,13 +365,23 @@ export function PlotSpeciesTab({ plot, onChanged }: { plot: PlotSurvey; onChange
         degree_of_establishment: v.degree_of_establishment,
         detection_type: v.detection_type,
         verbatim_identification: v.verbatim_identification,
+        // A coordinate read off a photo attached before the record existed.
+        // Goes in with the insert because there is nothing to update yet.
+        lat: pendingLoc?.lat ?? null,
+        lng: pendingLoc?.lng ?? null,
+        accuracy: pendingLoc?.accuracy ?? null,
         adopted: modal.adopted,
       });
       // Attach any photos taken before the record existed.
       if (newId > 0 && pendingPhotos.length > 0) {
         updatePlotSpeciesPhotos(newId, pendingPhotos);
       }
+      if (newId > 0 && pendingAudio.length > 0) {
+        updatePlotSpeciesAudio(newId, pendingAudio);
+      }
       setPendingPhotos([]);
+      setPendingAudio([]);
+      setPendingLoc(null);
       // Remember last entry per layer so the next species defaults to the
       // same unit + scalar value. DBH stems & per-individual attributes are
       // wiped to avoid leakage to the next species.
@@ -436,7 +471,12 @@ export function PlotSpeciesTab({ plot, onChanged }: { plot: PlotSurvey; onChange
   // Audio exists only in edit mode: a clip needs a record row to hang off,
   // and unlike photos there is no create-mode buffer (kept deliberately small).
   const handleAddAudioForModal = (uri: string) => {
-    if (!modal || modal.mode !== 'edit') return;
+    if (!modal) return;
+    if (modal.mode === 'create') {
+      // Buffer until the record exists, same as photos.
+      setPendingAudio((prev) => [...prev, uri]);
+      return;
+    }
     const record = modal.record;
     const merged = [...parsePhotoPaths(record.audio_paths), uri];
     updatePlotSpeciesAudio(record.id, merged);
@@ -446,7 +486,12 @@ export function PlotSpeciesTab({ plot, onChanged }: { plot: PlotSurvey; onChange
   };
 
   const handleRemoveAudioForModal = (uri: string) => {
-    if (!modal || modal.mode !== 'edit') return;
+    if (!modal) return;
+    if (modal.mode === 'create') {
+      setPendingAudio((prev) => prev.filter((u) => u !== uri));
+      if (!mediaUriReferenced(uri, 'audio_paths')) void deleteAudioFile(uri);
+      return;
+    }
     const record = modal.record;
     const next = parsePhotoPaths(record.audio_paths).filter((u) => u !== uri);
     updatePlotSpeciesAudio(record.id, next);
@@ -464,7 +509,7 @@ export function PlotSpeciesTab({ plot, onChanged }: { plot: PlotSurvey; onChange
   const handleAddPhotoForModal = async (mode: 'camera' | 'library') => {
     if (!modal) return;
     try {
-      const { captureAndSavePhoto, pickPhotos, buildContextFromPlotRecord } =
+      const { captureAndSavePhoto, pickPhotosWithExif, buildContextFromPlotRecord } =
         await import('~/lib/photoCapture');
       // EXIF/caption context: from the saved record in edit mode, or synthesized
       // from the picked taxon in create mode (no record exists yet).
@@ -488,28 +533,80 @@ export function PlotSpeciesTab({ plot, onChanged }: { plot: PlotSurvey; onChange
               observed_at: Date.now(),
               plot_survey_id: plot.id,
             };
-      let newUris: string[] = [];
+      let picked: { uri: string; exif: Record<string, unknown> | null }[] = [];
+      let fromLibrary = false;
       if (mode === 'camera') {
         const uri = await captureAndSavePhoto(ctx);
-        if (uri) newUris = [uri];
+        if (uri) picked = [{ uri, exif: null }];
       } else {
-        newUris = await pickPhotos();
+        // `pickPhotosWithExif`, not `pickPhotos`: the picker's exif map is the
+        // only legible source of a HEIC's position, and a plot big enough to
+        // matter needs the plant's own coordinate, not just the plot centre.
+        picked = await pickPhotosWithExif();
+        fromLibrary = true;
       }
-      if (newUris.length === 0) return;
+      if (picked.length === 0) return;
+      rememberPickedPhotos(picked);
+      const newUris = picked.map((p) => p.uri);
+
+      // ⚠️ Library photos only, and this is not a detail.
+      //
+      // `buildContextFromPlotRecord` hands the PLOT's centre to the camera
+      // path, and `photoCapture` OVERWRITES the camera's own GNSS with it
+      // ("if record has explicit lat/lng, override"). So a photo taken here
+      // carries the plot centre, not the position of the plant. Reading that
+      // back would store the plot's coordinate on every record as though it
+      // had been measured per plant — a fabricated distinction, and worse than
+      // leaving the field empty, because it looks like data.
+      //
+      // A photo picked from the library still has whatever the camera app
+      // recorded where the plant actually was, which is the thing worth having.
+      const fix = fromLibrary ? await firstPhotoFix(picked) : { kind: 'no-gnss' as const };
+
       if (modal.mode === 'edit') {
         const record = modal.record;
         const merged = [...parsePhotoPaths(record.photo_paths), ...newUris];
         updatePlotSpeciesPhotos(record.id, merged);
+        // Only fills a missing coordinate; a measured one is never replaced.
+        const gained =
+          fix.kind === 'found' && (record.lat === null || record.lng === null) ? fix.fix : null;
+        if (gained) {
+          updatePlotSpeciesLocation(record.id, gained.lat, gained.lng, gained.accuracyM);
+        }
         // Re-seed modal so PhotoGrid reflects the new entry without closing.
-        setModal({ mode: 'edit', record: { ...record, photo_paths: JSON.stringify(merged) } });
+        setModal({
+          mode: 'edit',
+          record: {
+            ...record,
+            photo_paths: JSON.stringify(merged),
+            ...(gained
+              ? { lat: gained.lat, lng: gained.lng, accuracy: gained.accuracyM }
+              : null),
+          },
+        });
         reload();
         onChanged();
       } else {
-        // Create mode: buffer until the record is saved.
+        // Create mode: buffer until the record is saved. The coordinate has to
+        // be buffered too — the record does not exist yet, so there is nothing
+        // to update; it goes in with the insert.
         setPendingPhotos((prev) => [...prev, ...newUris]);
+        if (fix.kind === 'found') {
+          // First one wins, and a coordinate the user placed by hand is never
+          // displaced by a photo: the photos were attached in the order they
+          // were taken, and a later one is not more authoritative.
+          setPendingLoc((prev) =>
+            prev ?? {
+              lat: fix.fix.lat,
+              lng: fix.fix.lng,
+              accuracy: fix.fix.accuracyM,
+              fromPhotoUri: fix.fix.uri,
+            },
+          );
+        }
       }
     } catch (e) {
-      Alert.alert(tr('plotSpecies.addPhotoFail'), e instanceof Error ? e.message : String(e));
+      Alert.alert(tr('plotSpecies.addPhotoFail'), errText(e));
     }
   };
 
@@ -524,7 +621,14 @@ export function PlotSpeciesTab({ plot, onChanged }: { plot: PlotSurvey; onChange
       reload();
       onChanged();
     } else {
-      setPendingPhotos((prev) => prev.filter((u) => u !== uri));
+      const left = pendingPhotos.filter((u) => u !== uri);
+      setPendingPhotos(left);
+      // The buffered coordinate came off a specific photo. Removing that photo
+      // removes the evidence, so the coordinate goes with it rather than
+      // silently outliving its source.
+      if (pendingLoc?.fromPhotoUri === uri) {
+        setPendingLoc(null);
+      }
     }
   };
 
@@ -545,10 +649,17 @@ export function PlotSpeciesTab({ plot, onChanged }: { plot: PlotSurvey; onChange
     lng: number | null,
     accuracy: number | null,
   ) => {
-    if (!modal || modal.mode !== 'edit') return;
+    if (!modal) return;
+    if (modal.mode === 'create') {
+      // No row to update yet — hold it and insert it with the record.
+      // `fromPhotoUri: null` marks it as the user's own placement, so removing
+      // a buffered photo will not take it away.
+      setPendingLoc(lat === null || lng === null ? null : { lat, lng, accuracy, fromPhotoUri: null });
+      return;
+    }
     const record = modal.record;
     updatePlotSpeciesLocation(record.id, lat, lng, accuracy);
-    // Re-seed modal with updated record so the GPS button reflects the new
+    // Re-seed modal with updated record so the GNSS button reflects the new
     // coords without closing the modal.
     setModal({ mode: 'edit', record: { ...record, lat, lng, accuracy } });
     reload();
@@ -558,7 +669,11 @@ export function PlotSpeciesTab({ plot, onChanged }: { plot: PlotSurvey; onChange
   const handleChangeModalLocation = (lat: number, lng: number, accuracy: number | null) => {
     // Inline map edit: persist quietly (no toast). Manual placement arrives
     // with accuracy null; an undo carries the previous measured value back.
-    if (!modal || modal.mode !== 'edit') return;
+    if (!modal) return;
+    if (modal.mode === 'create') {
+      setPendingLoc({ lat, lng, accuracy, fromPhotoUri: null });
+      return;
+    }
     const record = modal.record;
     updatePlotSpeciesLocation(record.id, lat, lng, accuracy);
     setModal({ mode: 'edit', record: { ...record, lat, lng, accuracy } });
@@ -945,11 +1060,14 @@ export function PlotSpeciesTab({ plot, onChanged }: { plot: PlotSurvey; onChange
           className={modalProps.className}
           defaultType={modalProps.defaultType}
           showDetection={modalProps.showDetection}
-          lat={modal.mode === 'edit' ? modal.record.lat : undefined}
-          lng={modal.mode === 'edit' ? modal.record.lng : undefined}
-          accuracy={modal.mode === 'edit' ? modal.record.accuracy : undefined}
-          onSaveLocation={modal.mode === 'edit' ? handleSaveModalLocation : undefined}
-          onChangeLocation={modal.mode === 'edit' ? handleChangeModalLocation : undefined}
+          // Create mode shows the same coordinate controls, backed by the
+          // pending buffer instead of a row. Standing at the plant is when the
+          // position is known; making the user save first and reopen loses it.
+          lat={modal.mode === 'edit' ? modal.record.lat : (pendingLoc?.lat ?? null)}
+          lng={modal.mode === 'edit' ? modal.record.lng : (pendingLoc?.lng ?? null)}
+          accuracy={modal.mode === 'edit' ? modal.record.accuracy : (pendingLoc?.accuracy ?? null)}
+          onSaveLocation={handleSaveModalLocation}
+          onChangeLocation={handleChangeModalLocation}
           plotGeo={{
             lat: plot.decimal_latitude,
             lng: plot.decimal_longitude,
@@ -961,7 +1079,7 @@ export function PlotSpeciesTab({ plot, onChanged }: { plot: PlotSurvey; onChange
           }
           onAddPhoto={handleAddPhotoForModal}
           onRemovePhoto={handleRemovePhotoForModal}
-          audioUris={modal.mode === 'edit' ? parsePhotoPaths(modal.record.audio_paths) : undefined}
+          audioUris={modal.mode === 'edit' ? parsePhotoPaths(modal.record.audio_paths) : pendingAudio}
           occurrenceId={modal.mode === 'edit' ? modal.record.occurrence_id : null}
           updatedAt={modal.mode === 'edit' ? modal.record.updated_at : null}
           inatObservationId={modal.mode === 'edit' ? modal.record.inat_observation_id : null}
@@ -976,11 +1094,18 @@ export function PlotSpeciesTab({ plot, onChanged }: { plot: PlotSurvey; onChange
                 }
               : undefined
           }
-          onAddAudio={modal.mode === 'edit' ? handleAddAudioForModal : undefined}
-          onRemoveAudio={modal.mode === 'edit' ? handleRemoveAudioForModal : undefined}
+          onAddAudio={handleAddAudioForModal}
+          onRemoveAudio={handleRemoveAudioForModal}
           pager={modalPager}
           onCancel={() => {
+            // Buffered clips were written to disk the moment recording stopped,
+            // so an abandoned draft has to take its files with it.
+            for (const uri of pendingAudio) {
+              if (!mediaUriReferenced(uri, 'audio_paths')) void deleteAudioFile(uri);
+            }
             setPendingPhotos([]);
+            setPendingAudio([]);
+            setPendingLoc(null);
             setModal(null);
           }}
           onSave={handleSaveValue}

@@ -76,13 +76,13 @@ function buildAdapter(target: RecordTarget): RecorderAdapter {
       writeTrack: (segs) => writePlotTrack(target.id, segs),
       onStart: () => {
         // Stamp start_ts immediately so species entry can begin before the
-        // first GPS fix arrives (transect plotCanAcceptSpecies keys off it).
+        // first GNSS fix arrives (transect plotCanAcceptSpecies keys off it).
         if (plot && plot.start_ts == null) {
           updatePlotSurvey(target.id, { start_ts: Date.now() });
         }
       },
       onFirstFix: (lat, lng, accuracy) => {
-        // Transect plots have no static GPS field; co-opt the first track
+        // Transect plots have no static GNSS field; co-opt the first track
         // point to satisfy the hard-gate for species entry. Only when the
         // gate fields are still empty.
         if (
@@ -114,12 +114,12 @@ function buildAdapter(target: RecordTarget): RecorderAdapter {
   };
 }
 
-/** Start watching GPS and appending to a new segment on the given target. */
+/** Start watching GNSS and appending to a new segment on the given target. */
 export async function startRecording(target: RecordTarget): Promise<void> {
   if (watchSub) return; // already recording
   const perm = await Location.requestForegroundPermissionsAsync();
   if (perm.status !== 'granted') {
-    throw new Error(i18n.t('gps.permTitle'));
+    throw new Error(i18n.t('gnss.permTitle'));
   }
 
   const adapter = buildAdapter(target);
@@ -173,7 +173,7 @@ export function pauseRecording(): void {
   useTrackRecorder.setState({ recordingTarget: null, livePoints: [] });
 }
 
-/** Whether the recorder currently owns a GPS subscription. */
+/** Whether the recorder currently owns a GNSS subscription. */
 export function isRecording(): boolean {
   return watchSub != null;
 }
@@ -186,7 +186,7 @@ export function isRecordingTarget(t: RecordTarget): boolean {
 
 /** Stop the watch if it is recording into something other than `keep`.
  *  Used at single-active switch points (create/reopen/end of either kind)
- *  that bypass recordCreate.ts, so the GPS always belongs to the active
+ *  that bypass recordCreate.ts, so the GNSS always belongs to the active
  *  record and never writes to a now-ended one. */
 export function pauseIfNot(keep: RecordTarget | null): void {
   const rt = useTrackRecorder.getState().recordingTarget;

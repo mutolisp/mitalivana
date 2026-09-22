@@ -1,0 +1,395 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mitalivana 匯出驗證</title>
+<!--
+  Verify the provenance signature on a Mitalivana export — one file, offline.
+
+  Save this page and open it by double-clicking. Nothing is uploaded: the
+  export is read in the browser and never leaves the machine. The one optional
+  network call is to orcid.org, and only when you press the ORCID button.
+
+  A `file://` page is a secure context per the HTML spec, so `crypto.subtle`
+  is available when this is opened straight from disk — which is what the
+  SHA-256/SHA-512 digests below rely on.
+
+  Ed25519 itself is done by noble-ed25519 (MIT, inlined at the bottom) rather
+  than by WebCrypto's own Ed25519, because that one is still missing from
+  enough browsers that a recipient would be told to go and upgrade. Regenerate
+  this file with `node build.mjs` after changing the template.
+
+  What a PASS means, exactly:
+    · every file the manifest lists is present and byte-for-byte unchanged
+    · the manifest — including the name and ORCID it is attributed to — was
+      signed by whoever holds the private key for the public key shown
+  What it does NOT mean: that the data is correct, that it was collected when
+  or where it says, or that the ORCID account was not compromised.
+-->
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #ffffff; --fg: #1f2937; --muted: #6b7280; --line: #e5e7eb;
+    --ok: #15803d; --bad: #b91c1c; --card: #f9fafb; --accent: #2563eb;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0b1220; --fg: #e5e7eb; --muted: #9ca3af; --line: #1f2937;
+      --ok: #4ade80; --bad: #f87171; --card: #111827; --accent: #60a5fa;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px 16px 64px; background: var(--bg); color: var(--fg);
+    font: 15px/1.6 system-ui, -apple-system, "Noto Sans TC", "PingFang TC", sans-serif;
+  }
+  main { max-width: 860px; margin: 0 auto; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 14px; margin: 0 0 24px; }
+  #drop {
+    border: 2px dashed var(--line); border-radius: 12px; padding: 40px 20px;
+    text-align: center; color: var(--muted); cursor: pointer; transition: .15s;
+  }
+  #drop.over { border-color: var(--accent); color: var(--fg); }
+  #drop strong { display: block; color: var(--fg); font-size: 16px; margin-bottom: 6px; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 14px; }
+  button {
+    font: inherit; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--line);
+    background: var(--card); color: var(--fg); cursor: pointer;
+  }
+  button:hover { border-color: var(--accent); }
+  button[disabled] { opacity: .5; cursor: default; }
+  .report { margin-top: 24px; }
+  .card {
+    border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px;
+    margin-bottom: 12px; background: var(--card);
+  }
+  .card h2 { font-size: 14px; margin: 0 0 10px; font-family: ui-monospace, monospace; font-weight: 600; }
+  .line { display: flex; gap: 10px; align-items: baseline; padding: 2px 0; }
+  .line .k { color: var(--muted); min-width: 92px; font-size: 13px; }
+  .line .v { word-break: break-all; }
+  .ok { color: var(--ok); } .bad { color: var(--bad); } .dim { color: var(--muted); }
+  code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+  .verdict { font-size: 17px; font-weight: 600; padding: 14px 16px; border-radius: 10px; margin-bottom: 16px; }
+  .verdict.ok { background: color-mix(in srgb, var(--ok) 12%, transparent); }
+  .verdict.bad { background: color-mix(in srgb, var(--bad) 12%, transparent); }
+  .caveat { font-size: 13px; color: var(--muted); margin-top: 20px; border-top: 1px solid var(--line); padding-top: 16px; }
+  .caveat li { margin-bottom: 6px; }
+  ul { padding-left: 20px; margin: 6px 0; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Mitalivana 匯出驗證</h1>
+  <p class="sub">
+    確認這份調查資料自匯出後未被更動，以及它由誰簽署。<strong>完全離線</strong>——
+    檔案不會上傳，只有你按下 ORCID 查詢時才會連到 orcid.org。
+  </p>
+
+  <div id="drop" tabindex="0">
+    <strong>把匯出的 .zip 或整個資料夾拖進來</strong>
+    也可以點下方按鈕選擇
+    <div class="row">
+      <button id="pickZip" type="button">選擇 .zip 檔</button>
+      <button id="pickDir" type="button">選擇資料夾</button>
+    </div>
+  </div>
+  <input id="fileZip" type="file" accept=".zip,application/zip" hidden>
+  <input id="fileDir" type="file" webkitdirectory directory multiple hidden>
+
+  <div class="report" id="report"></div>
+
+  <div class="caveat" id="caveat" hidden>
+    <strong>通過驗證代表什麼</strong>
+    <ul>
+      <li>清單中的每個檔案都在，而且與匯出當下逐位元組相同。</li>
+      <li>清單本身（包含它標示的姓名與 ORCID）確實由持有該公鑰對應私鑰的人簽署。</li>
+    </ul>
+    <strong>不代表什麼</strong>
+    <ul>
+      <li>不保證資料內容正確，也不保證採集時間地點如其所載。</li>
+      <li>不排除該 ORCID 帳號遭盜用。信任鏈到「本人掌控自己的 ORCID 帳號」為止。</li>
+      <li>沒有憑證機構、沒有撤銷機制、沒有可信時戳：簽章證明的是「持有金鑰」，不是簽署時間。</li>
+    </ul>
+  </div>
+</main>
+
+<script type="module">
+/*__NOBLE_ED25519__*/
+
+// noble ships async-only unless a sync SHA-512 is wired in; the async path
+// backed by WebCrypto avoids inlining a hash implementation as well.
+ed.hashes.sha512Async = async (m) => new Uint8Array(await crypto.subtle.digest('SHA-512', m));
+
+const SCHEMA = 'mitalivana-signature/1';
+const dec = new TextDecoder();
+const $ = (id) => document.getElementById(id);
+const report = $('report');
+
+const sha256Hex = async (bytes) => {
+  const d = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes));
+  return [...d].map((b) => b.toString(16).padStart(2, '0')).join('');
+};
+const hexToBytes = (hex) => {
+  if (typeof hex !== 'string' || hex.length % 2 || /[^0-9a-f]/i.test(hex)) return null;
+  const out = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < out.length; i++) out[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+  return out;
+};
+
+async function verifyEd25519(message, signatureHex, publicKeyHex) {
+  const sig = hexToBytes(signatureHex);
+  const pub = hexToBytes(publicKeyHex);
+  if (!sig || sig.length !== 64 || !pub || pub.length !== 32) return false;
+  try {
+    return await ed.verifyAsync(sig, message, pub);
+  } catch {
+    return false;
+  }
+}
+
+/* ── Minimal ZIP reader ───────────────────────────────────────────────────
+ * So the person this page exists for can drag the zip they were sent rather
+ * than being told to unzip it first. Only the two methods fflate writes are
+ * handled — stored and deflate — and anything else says so plainly instead of
+ * producing wrong bytes. Inflate comes from DecompressionStream, so there is
+ * no compression library inlined here either.
+ */
+async function readZip(buf) {
+  const dv = new DataView(buf);
+  const u8 = new Uint8Array(buf);
+  // End of central directory: scan back from the end, past any comment.
+  let eocd = -1;
+  for (let i = buf.byteLength - 22; i >= 0 && i > buf.byteLength - 22 - 65536; i--) {
+    if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+  }
+  if (eocd === -1) throw new Error('這不是有效的 zip 檔');
+  const count = dv.getUint16(eocd + 10, true);
+  let p = dv.getUint32(eocd + 16, true);
+  if (p === 0xffffffff) throw new Error('這份 zip 用了 ZIP64 格式，請改用 verify.py 或先解壓縮');
+
+  const out = new Map();
+  for (let n = 0; n < count; n++) {
+    if (dv.getUint32(p, true) !== 0x02014b50) throw new Error('zip 中央目錄毀損');
+    const method = dv.getUint16(p + 10, true);
+    const compSize = dv.getUint32(p + 20, true);
+    const nameLen = dv.getUint16(p + 28, true);
+    const extraLen = dv.getUint16(p + 30, true);
+    const cmtLen = dv.getUint16(p + 32, true);
+    const localAt = dv.getUint32(p + 42, true);
+    const name = dec.decode(u8.subarray(p + 46, p + 46 + nameLen));
+    p += 46 + nameLen + extraLen + cmtLen;
+    if (name.endsWith('/')) continue;
+
+    // The local header repeats the name and extra fields with its own lengths.
+    if (dv.getUint32(localAt, true) !== 0x04034b50) throw new Error(`zip 項目毀損：${name}`);
+    const dataAt = localAt + 30 + dv.getUint16(localAt + 26, true) + dv.getUint16(localAt + 28, true);
+    const raw = u8.subarray(dataAt, dataAt + compSize);
+    if (method === 0) {
+      out.set(name, raw.slice());
+    } else if (method === 8) {
+      const ds = new DecompressionStream('deflate-raw');
+      const blob = await new Response(new Blob([raw]).stream().pipeThrough(ds)).arrayBuffer();
+      out.set(name, new Uint8Array(blob));
+    } else {
+      throw new Error(`不支援的壓縮方式（${method}）：${name}`);
+    }
+  }
+  return out;
+}
+
+/** Strip the single wrapper folder every export has, so paths match the zip. */
+function stripCommonRoot(files) {
+  const names = [...files.keys()];
+  const first = names[0]?.split('/')[0];
+  if (!first || !names.every((n) => n.startsWith(first + '/'))) return files;
+  return new Map(names.map((n) => [n.slice(first.length + 1), files.get(n)]));
+}
+
+/* ── Report ─────────────────────────────────────────────────────────────── */
+
+const el = (tag, cls, text) => {
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (text != null) n.textContent = text;
+  return n;
+};
+function line(card, key, value, cls) {
+  const row = el('div', 'line');
+  row.append(el('span', 'k', key), el('span', 'v ' + (cls ?? ''), value));
+  card.append(row);
+  return row;
+}
+
+let lastFiles = null;
+
+async function run(files) {
+  lastFiles = files;
+  report.replaceChildren();
+  $('caveat').hidden = false;
+
+  const manifests = [...files.keys()]
+    .filter((p) => p === 'manifest.json' || p.endsWith('/manifest.json') || p.endsWith('bundle_manifest.json'))
+    .sort();
+  if (!manifests.length) {
+    report.append(el('div', 'verdict bad', '找不到 manifest.json — 這不像是 Mitalivana 的匯出檔'));
+    return;
+  }
+
+  let bad = 0;
+  let signed = 0;
+  const cards = [];
+
+  for (const mp of manifests) {
+    const card = el('div', 'card');
+    card.append(el('h2', null, mp));
+    const prefix = mp.includes('/') ? mp.slice(0, mp.lastIndexOf('/') + 1) : '';
+    const manifestBytes = files.get(mp);
+
+    let manifest;
+    try {
+      manifest = JSON.parse(dec.decode(manifestBytes));
+    } catch {
+      line(card, '清單', 'manifest.json 不是有效的 JSON', 'bad');
+      bad++; cards.push(card); continue;
+    }
+
+    const listed = manifest.files ?? [];
+    const changed = [];
+    const missing = [];
+    for (const f of listed) {
+      const rel = prefix + f.path;
+      if (!files.has(rel)) missing.push(f.path);
+      else if ((await sha256Hex(files.get(rel))) !== f.sha256) changed.push(f.path);
+    }
+    if (!listed.length) {
+      line(card, '檔案', '此清單沒有檔案列表（早期匯出）', 'dim');
+    } else if (!changed.length && !missing.length) {
+      line(card, '檔案', `${listed.length} 個檔案全部存在且未更動`, 'ok');
+    } else {
+      bad++;
+      // Named one by one: "有東西變了" would send the reader through the whole
+      // archive. A photo that went through a chat app comes back re-encoded
+      // and lands here — a different problem from a broken signature.
+      for (const p of changed) line(card, '已變更', p, 'bad');
+      for (const p of missing) line(card, '遺失', p, 'bad');
+    }
+
+    const sp = prefix + 'signature.json';
+    if (!files.has(sp)) {
+      line(card, '簽章', '未簽署（旁邊沒有 signature.json）', 'dim');
+      cards.push(card); continue;
+    }
+    signed++;
+    let sig;
+    try {
+      sig = JSON.parse(dec.decode(files.get(sp)));
+    } catch {
+      line(card, '簽章', 'signature.json 不是有效的 JSON', 'bad');
+      bad++; cards.push(card); continue;
+    }
+    if (sig.schema !== SCHEMA) {
+      line(card, '簽章', `無法辨識的格式「${sig.schema}」，本頁只認得 ${SCHEMA}`, 'bad');
+      bad++; cards.push(card); continue;
+    }
+
+    const valid = await verifyEd25519(manifestBytes, sig.signature ?? '', sig.public_key ?? '');
+    line(card, '簽章', valid ? '有效（Ed25519）' : '無效', valid ? 'ok' : 'bad');
+    if (!valid) bad++;
+
+    const by = manifest.signed_by ?? {};
+    if (by.name) line(card, '簽署者', by.name);
+    if (by.orcid) {
+      const row = line(card, 'ORCID', '');
+      const a = el('a', null, by.orcid);
+      a.href = `https://orcid.org/${by.orcid}`;
+      a.target = '_blank';
+      a.rel = 'noreferrer';
+      row.lastChild.append(a);
+    }
+    line(card, '公鑰', `ed25519:${sig.public_key}`, 'mono');
+    if (by.public_key && by.public_key !== sig.public_key) {
+      line(card, '不一致', '清單裡宣告的公鑰與實際簽署的不同', 'bad');
+      bad++;
+    }
+
+    if (valid && by.orcid) {
+      const row = line(card, 'ORCID 查核', '尚未查核', 'dim');
+      const btn = el('button', null, '連線 orcid.org 確認公鑰');
+      btn.style.marginLeft = '8px';
+      btn.onclick = async () => {
+        btn.disabled = true;
+        row.lastChild.textContent = '查詢中…';
+        try {
+          const res = await fetch(`https://pub.orcid.org/v3.0/${by.orcid}/researcher-urls`, {
+            headers: { Accept: 'application/json' },
+          });
+          if (!res.ok) throw new Error(`orcid.org 回應 ${res.status}`);
+          const body = await res.json();
+          // Either half of a "Websites & social links" entry: the label is
+          // free text, the URL field is validated as a URL.
+          const hay = (body['researcher-url'] ?? [])
+            .flatMap((u) => [u['url-name'] ?? '', u.url?.value ?? ''])
+            .join('\n');
+          const found = new RegExp(`ed25519:${sig.public_key}`, 'i').test(hay);
+          row.lastChild.textContent = found
+            ? '此公鑰確實公布在該 ORCID 頁面'
+            : '該 ORCID 頁面上找不到此公鑰 — 署名未獲證實';
+          row.lastChild.className = 'v ' + (found ? 'ok' : 'bad');
+        } catch (e) {
+          row.lastChild.textContent = `無法查核（${e.message}）`;
+          btn.disabled = false;
+        }
+      };
+      row.append(btn);
+    }
+    cards.push(card);
+  }
+
+  const verdict = el(
+    'div',
+    'verdict ' + (bad ? 'bad' : 'ok'),
+    bad ? `發現 ${bad} 項問題` : signed ? '全部通過' : '檔案完整，但這份匯出沒有簽章',
+  );
+  report.append(verdict, ...cards);
+}
+
+/* ── Input ──────────────────────────────────────────────────────────────── */
+
+async function fromFileList(list) {
+  const arr = [...list];
+  if (arr.length === 1 && /\.zip$/i.test(arr[0].name)) {
+    return stripCommonRoot(await readZip(await arr[0].arrayBuffer()));
+  }
+  const files = new Map();
+  for (const f of arr) {
+    const path = (f.webkitRelativePath || f.name).split('/').slice(1).join('/') || f.name;
+    files.set(path, new Uint8Array(await f.arrayBuffer()));
+  }
+  return files;
+}
+
+async function handle(list) {
+  try {
+    await run(await fromFileList(list));
+  } catch (e) {
+    report.replaceChildren(el('div', 'verdict bad', e.message));
+  }
+}
+
+const drop = $('drop');
+drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('over'); });
+drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+drop.addEventListener('drop', async (e) => {
+  e.preventDefault();
+  drop.classList.remove('over');
+  await handle(e.dataTransfer.files);
+});
+$('pickZip').onclick = () => $('fileZip').click();
+$('pickDir').onclick = () => $('fileDir').click();
+$('fileZip').onchange = (e) => handle(e.target.files);
+$('fileDir').onchange = (e) => handle(e.target.files);
+</script>
+</body>
+</html>

@@ -12,6 +12,7 @@
  * Reading EXIF is I/O per photo, so it runs while the sheet is open with a
  * progress bar, and yields to the UI thread between photos.
  */
+import { errText } from '~/lib/errText';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useEffect, useState } from 'react';
@@ -31,12 +32,6 @@ import {
 import type { PickedPhoto } from '~/lib/photoCapture';
 import { SearchBox } from './SearchBox';
 import { showActionSheet } from './ActionSheet';
-
-/** Message text for an unknown throw. A function, not an inline ternary at the
- *  call site, so it can sit inside a catch without stopping React Compiler. */
-function errText(e: unknown): string {
-  return e instanceof Error ? e.message : String(e);
-}
 
 type Props = {
   /** The photos the user picked, with whatever EXIF the picker gave us. */
@@ -97,7 +92,7 @@ export function PhotoImportModal({ picked, onCancel, onConfirm }: Props) {
     if (idx !== 1) return;
     const perm = await Location.requestForegroundPermissionsAsync();
     if (perm.status !== 'granted') {
-      Alert.alert(t('gps.permTitle'), t('gps.permMsg'));
+      Alert.alert(t('gnss.permTitle'), t('gnss.permMsg'));
       return;
     }
     // Nothing conditional inside the try/catch: React Compiler cannot lower a
@@ -107,7 +102,7 @@ export function PhotoImportModal({ picked, onCancel, onConfirm }: Props) {
     try {
       pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
     } catch (e) {
-      Alert.alert(t('gps.posFailTitle'), errText(e));
+      Alert.alert(t('gnss.posFailTitle'), errText(e));
       return;
     }
     // The measured accuracy rides along: this position is honest about being a

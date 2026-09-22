@@ -1,7 +1,8 @@
 /**
  * Record import — parsing an export `.yml` / `.zip` that is already in memory.
  *
- *   - which kind of record it is (checklist / plot survey), from the yml itself
+ *   - which kind of record it is (checklist / plot survey / collection), from
+ *     the yml itself
  *   - the parsed document (`plotImport.ts` / `sessionImport.ts`)
  *   - geometry the yml did not carry, recovered from the zip's `track.*` /
  *     `site.*` sidecars — **only** as a fallback: the yml is authoritative
@@ -17,10 +18,17 @@
 import { strFromU8, unzipSync } from 'fflate';
 import { detectFormat, parseGeoFile, type ImportedGeometry } from './geoConverters';
 import { ImportError } from './importError';
+import { collectionFromDoc, isCollectionDoc } from './collectionImport';
 import { plotFromDoc } from './plotImport';
 import { sessionFromDoc } from './sessionImport';
 import { buildTrackGeoJSON } from './track';
-import type { ImportedPlot, ImportedSession, ImportedSite, TrackSegment } from '~/db';
+import type {
+  ImportedCollectionTrip,
+  ImportedPlot,
+  ImportedSession,
+  ImportedSite,
+  TrackSegment,
+} from '~/db';
 import yaml from 'js-yaml';
 
 export type ImportedPhotoBlob = { name: string; bytes: Uint8Array };
@@ -35,6 +43,12 @@ export type ReadRecordImport =
   | {
       kind: 'session';
       session: ImportedSession;
+      photos: ImportedPhotoBlob[];
+      audio: ImportedPhotoBlob[];
+    }
+  | {
+      kind: 'collection';
+      collection: ImportedCollectionTrip;
       photos: ImportedPhotoBlob[];
       audio: ImportedPhotoBlob[];
     };
@@ -159,8 +173,13 @@ function collectMedia(
   return out;
 }
 
-function docKind(doc: Record<string, unknown> | null): 'plot' | 'session' {
+function docKind(doc: Record<string, unknown> | null): 'plot' | 'session' | 'collection' {
   if (doc?.plot) return 'plot';
+  // Before the generic `event` test, not after: a collection document carries
+  // an `event:` block too, so the old order silently classified a bare
+  // collection .yml as a session and imported specimens as checklist rows.
+  // Only the zip path was safe, and only because the manifest said so.
+  if (isCollectionDoc(doc)) return 'collection';
   if (doc?.event || doc?.checklist) return 'session';
   throw new ImportError('unknownKind');
 }
@@ -168,8 +187,8 @@ function docKind(doc: Record<string, unknown> | null): 'plot' | 'session' {
 /**
  * Inflate only the metadata entries of an export zip.
  *
- * A photo-heavy bundle is mostly bytes we may not even need (a session export,
- * a refused collection zip), so the photos are a separate pass.
+ * A photo-heavy bundle is mostly bytes we may not even need, so the photos are
+ * a separate pass, taken only once the kind is known and accepted.
  */
 function metaEntries(raw: Uint8Array): Entries {
   return unzipSync(raw, { filter: (f) => /\.(ya?ml|json|geojson|gpx|kml)$/i.test(f.name) });
@@ -196,8 +215,6 @@ function locateRecord(meta: Entries): { folder: string; manifestKind: string | n
       manifestKind = null;
     }
   }
-  if (manifestKind === 'collection') throw new ImportError('unsupportedCollection');
-
   // Prefer the record's own `${folder}/${folder}.yml`; fall back to any yml.
   const stem = folder.split('/').pop() ?? '';
   const ymlName =
@@ -225,16 +242,24 @@ export function readRecordYamlTextFromBytes(raw: Uint8Array): string {
 export function readRecordImportFromBytes(raw: Uint8Array): ReadRecordImport {
   if (!isZip(raw)) {
     const doc = yaml.load(strFromU8(raw)) as Record<string, unknown> | null;
-    return docKind(doc) === 'plot'
-      ? { kind: 'plot', plot: plotFromDoc(doc), photos: [], audio: [] }
-      : { kind: 'session', session: sessionFromDoc(doc), photos: [], audio: [] };
+    switch (docKind(doc)) {
+      case 'plot':
+        return { kind: 'plot', plot: plotFromDoc(doc), photos: [], audio: [] };
+      case 'collection':
+        return { kind: 'collection', collection: collectionFromDoc(doc), photos: [], audio: [] };
+      default:
+        return { kind: 'session', session: sessionFromDoc(doc), photos: [], audio: [] };
+    }
   }
 
   const meta = metaEntries(raw);
   const { folder, manifestKind, ymlName } = locateRecord(meta);
 
   const doc = yaml.load(textOf(meta, ymlName)) as Record<string, unknown> | null;
-  const kind = manifestKind === 'plot' || manifestKind === 'session' ? manifestKind : docKind(doc);
+  const kind =
+    manifestKind === 'plot' || manifestKind === 'session' || manifestKind === 'collection'
+      ? manifestKind
+      : docKind(doc);
 
   // Pass 2 — the media bytes, now that the kind is known and accepted.
   const mediaEntries = unzipSync(raw, { filter: (f) => /(^|\/)(photos|audio)\//i.test(f.name) });
@@ -246,6 +271,14 @@ export function readRecordImportFromBytes(raw: Uint8Array): ReadRecordImport {
     if (!plot.track_geojson) plot.track_geojson = geometriesToTrack(geoSidecar(meta, folder, 'track'));
     if (!plot.site) plot.site = geometryToSite(geoSidecar(meta, folder, 'site'), plot.plotid);
     return { kind: 'plot', plot, photos, audio };
+  }
+
+  if (kind === 'collection') {
+    const collection = collectionFromDoc(doc);
+    if (!collection.site) {
+      collection.site = geometryToSite(geoSidecar(meta, folder, 'site'), collection.name);
+    }
+    return { kind: 'collection', collection, photos, audio };
   }
 
   const session = sessionFromDoc(doc);

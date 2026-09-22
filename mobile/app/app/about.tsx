@@ -2,13 +2,27 @@ import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter, type Href } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import Constants from 'expo-constants';
-import { Linking, Pressable, ScrollView, Text, View } from 'react-native';
+import { Linking, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function AboutScreen() {
   const { t } = useTranslation();
   const router = useRouter();
-  const version = Constants.expoConfig?.version ?? '0.5.1';
+  const version = Constants.expoConfig?.version ?? '0.5.2';
+  // The build number is what identifies a specific binary — two builds of
+  // 0.5.2 are different apps to TestFlight and to whoever is reporting a bug,
+  // so showing only the marketing version makes a report ambiguous.
+  //
+  // `Platform.select` rather than an `if`: the two platforms genuinely store
+  // this in different fields (iOS a string, Android an integer), so this is
+  // picking the right key, not branching on capability. Read from the Expo
+  // config rather than `expo-application`, which would add a native module and
+  // force a dev-client rebuild for one label.
+  const build =
+    Platform.select({
+      ios: Constants.expoConfig?.ios?.buildNumber,
+      android: Constants.expoConfig?.android?.versionCode?.toString(),
+    }) ?? '22';
 
   return (
     <SafeAreaView edges={['bottom']} className="flex-1 bg-gray-50 dark:bg-gray-950">
@@ -17,7 +31,8 @@ export default function AboutScreen() {
         <View className="items-center bg-white px-4 py-8 dark:bg-gray-900">
           <Text className="text-3xl font-bold text-gray-900 dark:text-gray-100">Mitalivana</Text>
           <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            v{version} · {t('about.subtitle')}
+            v{version}
+            {build ? ` (${build})` : ''} · {t('about.subtitle')}
           </Text>
           <Link url="https://mitalivana.org" />
         </View>

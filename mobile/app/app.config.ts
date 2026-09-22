@@ -36,7 +36,7 @@ const GOOGLE_OAUTH_DEVICE_CLIENT_SECRET = process.env.GOOGLE_OAUTH_DEVICE_CLIENT
 const config: ExpoConfig = {
   name: 'Mitalivana',
   slug: 'checklister-mobile',
-  version: '0.5.1',
+  version: '0.5.2',
   orientation: 'portrait',
   icon: './assets/images/icon.png',
   scheme: 'checklister',
@@ -45,6 +45,12 @@ const config: ExpoConfig = {
   ios: {
     supportsTablet: true,
     bundleIdentifier: 'tw.edu.ntu.checklister',
+    // ios/ and android/ are committed prebuild artifacts, so the build numbers
+    // live in two places. Declaring them here as well means a future
+    // `expo prebuild` regenerates the same values instead of silently
+    // resetting them to 1 — which App Store Connect would reject, and which
+    // Play would treat as a downgrade.
+    buildNumber: '22',
     infoPlist: {
       // App uses only standard HTTPS encryption (exempt). Declaring this
       // skips the export-compliance prompt on every App Store Connect upload.
@@ -57,6 +63,10 @@ const config: ExpoConfig = {
   },
   android: {
     package: 'tw.checklister.mobile',
+    // Aligned with the iOS build number so "build 21" means one thing on both
+    // platforms. Nothing is published to Play yet, so raising it from 2 costs
+    // nothing; versionCode only has to increase.
+    versionCode: 22,
     adaptiveIcon: {
       backgroundColor: '#F5EBD9',
       foregroundImage: './assets/images/android-icon-foreground.png',
@@ -74,6 +84,10 @@ const config: ExpoConfig = {
   },
   plugins: [
     './plugins/withBackupExclusions',
+    // Pods keep their own (often ancient) deployment targets; Xcode 27 refuses
+    // anything below 15.0. This used to be a hand-edited `post_install` block
+    // in ios/Podfile — which `expo prebuild --clean` silently regenerates away.
+    ['./plugins/withPodMinDeploymentTarget', { minTarget: '15.1' }],
     // 向量地圖引擎。加了它就必須重建 dev client（不能用 Expo Go）。
     '@maplibre/maplibre-react-native',
     'expo-router',

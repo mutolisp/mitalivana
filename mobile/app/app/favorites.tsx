@@ -1,3 +1,4 @@
+import { errText } from '~/lib/errText';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useFocusEffect } from '@react-navigation/native';
@@ -396,7 +397,7 @@ export default function FavoritesScreen() {
         Alert.alert(t('export.shareUnavailable'), t('export.fileGenerated', { uri: file.uri }));
       }
     } catch (e) {
-      Alert.alert(t('export.failed'), e instanceof Error ? e.message : String(e));
+      Alert.alert(t('export.failed'), errText(e));
     }
   };
 

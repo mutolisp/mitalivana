@@ -13,8 +13,9 @@ import { getUserDb, withTransaction } from './init';
 import { ensureTaxonSelfSufficient } from './taxonCache';
 import { retaxonRecord } from './retaxon';
 import type { DuplicateRecordOptions } from './duplicate';
-import { existingProjectId } from './projects';
+import { existingProjectId, resolveProjectIdByName } from './projects';
 import { generateUuid } from './plots';
+import { createSite, deleteSiteIfUnreferenced, type ImportedSite } from './sites';
 import { defaultIdentifierString, defaultSurveyorString } from './surveyors';
 import { isoDate } from '~/lib/datetime';
 import {
@@ -39,6 +40,12 @@ export type CollectionTrip = {
   /** DwC recordedBy — comma-separated collector names. Inherited by specimens. */
   recorded_by: string | null;
   locality: string | null;
+  /** Geographic site this trip is pinned to (v43), or NULL. Mirrors
+   *  `sessions.site_id`; no FK, so deleting a site leaves the trip intact. */
+  site_id: number | null;
+  /** DwC institutionCode — the herbarium this trip's sheets are destined for
+   *  (v43). Specimens inherit it unless they set their own. */
+  institution_code: string | null;
   notes: string | null;
   created_at: number;
   updated_at: number;
@@ -74,7 +81,7 @@ export type Specimen = {
   date_identified: string | null; // DwC dateIdentified, YYYY-MM-DD
   lat: number | null;
   lng: number | null;
-  /** GPS horizontal accuracy in metres → DwC coordinateUncertaintyInMeters. */
+  /** GNSS horizontal accuracy in metres → DwC coordinateUncertaintyInMeters. */
   accuracy: number | null;
   locality: string | null;
   /** DwC degreeOfEstablishment (v33): 'wild' | 'captive' | 'cultivated'.
@@ -93,6 +100,15 @@ export type Specimen = {
   life_stage: string | null;
   reproductive_condition: string | null;
   leaf_phenology: string | null;
+  /** How many duplicate sheets were taken (v43). NULL = not recorded, which
+   *  is a different statement from 1. A count, not a child table: in the field
+   *  you know you took three, not which herbaria they will end up in. */
+  duplicate_count: number | null;
+  /** DwC institutionCode (v43). NULL = inherit the trip's. */
+  institution_code: string | null;
+  /** DwC otherCatalogNumbers (v43) — free text, whatever numbering the
+   *  receiving herbarium or a prior database used. */
+  other_catalog_numbers: string | null;
   notes: string | null;
   photo_paths: string | null;
   /** The name this specimen was deliberately determined as (v28). Both NULL =
@@ -115,7 +131,8 @@ export type SpecimenWithTaxon = Specimen & TaxonFields & AdoptionStatus;
 const SPECIMEN_COLS = `id, trip_id, occurrence_id, taxon_id, record_number, record_number_seq,
   collected_at, recorded_by, identified_by, date_identified, lat, lng, accuracy, locality,
   sex, life_stage, reproductive_condition, leaf_phenology, degree_of_establishment,
-  verbatim_identification, notes, photo_paths,
+  verbatim_identification, duplicate_count, institution_code, other_catalog_numbers,
+  notes, photo_paths,
   used_name_id, used_scientific_name,
   audio_paths, inat_observation_id, inat_media_done, inat_uploaded_at, inat_sync_hash,
   updated_at`;
@@ -134,7 +151,7 @@ export function listCollectionTrips(): CollectionTripWithStats[] {
            p.name AS project_name,
            (SELECT COUNT(*) FROM collection_specimens s WHERE s.trip_id = c.id) AS specimen_count
     FROM collection_trips c
-    -- LEFT JOIN，理由同 listSites / listPlotSurveysWithMeta。
+    -- LEFT JOIN for the same reason as listSites / listPlotSurveysWithMeta.
     LEFT JOIN projects p ON p.id = c.project_id
     ORDER BY c.started_at DESC
   `);
@@ -214,7 +231,7 @@ export function reopenCollectionTrip(id: number): void {
 }
 
 const TRIP_UPDATABLE_KEYS = new Set([
-  'name', 'project_id', 'recorded_by', 'locality', 'notes',
+  'name', 'project_id', 'recorded_by', 'locality', 'site_id', 'institution_code', 'notes',
 ]);
 
 export function updateCollectionTrip(id: number, patch: Partial<CollectionTrip>): void {
@@ -400,6 +417,11 @@ export type AddSpecimenInput = {
   accuracy?: number | null;
   locality?: string | null;
   notes?: string | null;
+  /** How many duplicate sheets. Omit = not recorded. */
+  duplicate_count?: number | null;
+  /** Omit to inherit the trip's herbarium. */
+  institution_code?: string | null;
+  other_catalog_numbers?: string | null;
 };
 
 export function addSpecimen(input: AddSpecimenInput): number {
@@ -407,14 +429,18 @@ export function addSpecimen(input: AddSpecimenInput): number {
   const db = getUserDb();
   const now = Date.now();
   const number = input.record_number ?? nextRecordNumber().text;
-  const trip = input.recorded_by === undefined ? getCollectionTrip(input.trip_id) : null;
+  // Two fields inherit from the trip, so the lookup happens when EITHER is
+  // left unspecified rather than only for the collector.
+  const needsTrip = input.recorded_by === undefined || input.institution_code === undefined;
+  const trip = needsTrip ? getCollectionTrip(input.trip_id) : null;
   const res = db.executeSync(
     `INSERT INTO collection_specimens
        (trip_id, occurrence_id, taxon_id, record_number, record_number_seq,
         collected_at, recorded_by, identified_by, date_identified,
         lat, lng, accuracy, locality, notes,
+        duplicate_count, institution_code, other_catalog_numbers,
         used_name_id, used_scientific_name, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       input.trip_id,
       generateUuid(),
@@ -439,6 +465,13 @@ export function addSpecimen(input: AddSpecimenInput): number {
       input.accuracy ?? null,
       input.locality ?? null,
       input.notes ?? null,
+      input.duplicate_count ?? null,
+      // Same shape as the collector: an explicit value (including null) wins,
+      // otherwise the trip's default herbarium.
+      input.institution_code !== undefined
+        ? input.institution_code
+        : (trip?.institution_code ?? null),
+      input.other_catalog_numbers ?? null,
       input.adopted?.name_id ?? null,
       input.adopted?.scientific_name ?? null,
       now,
@@ -456,7 +489,8 @@ const SPECIMEN_UPDATABLE_KEYS = new Set([
   'record_number', 'collected_at', 'recorded_by', 'identified_by', 'date_identified',
   'lat', 'lng', 'accuracy',
   'locality', 'sex', 'life_stage', 'reproductive_condition', 'leaf_phenology',
-  'degree_of_establishment', 'verbatim_identification', 'notes',
+  'degree_of_establishment', 'verbatim_identification',
+  'duplicate_count', 'institution_code', 'other_catalog_numbers', 'notes',
 ]);
 
 export function updateSpecimen(id: number, patch: Partial<Specimen>): void {
@@ -629,4 +663,205 @@ function duplicateCollectionTripTx(id: number, opts: DuplicateRecordOptions): nu
   if (newId === 0) return null;
 
   return newId;
+}
+
+// ───────────────────────── round-trip import ─────────────────────────
+
+/** One specimen as it comes out of a yml. Everything is optional because an
+ *  export from an older build simply has fewer keys. */
+export type ImportedSpecimen = {
+  occurrence_id: string | null;
+  taxon_id: string;
+  name?: string | null;
+  family?: string | null;
+  record_number?: string | null;
+  collected_at?: number | null;
+  recorded_by?: string | null;
+  identified_by?: string | null;
+  date_identified?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+  accuracy?: number | null;
+  locality?: string | null;
+  sex?: string | null;
+  life_stage?: string | null;
+  reproductive_condition?: string | null;
+  leaf_phenology?: string | null;
+  degree_of_establishment?: string | null;
+  verbatim_identification?: string | null;
+  duplicate_count?: number | null;
+  institution_code?: string | null;
+  other_catalog_numbers?: string | null;
+  notes?: string | null;
+  photo_files?: string[];
+  audio_files?: string[];
+  used_name_id?: number | null;
+  used_scientific_name?: string | null;
+};
+
+export type ImportedCollectionTrip = {
+  uuid: string;
+  name: string;
+  project_name?: string | null;
+  started_at: number;
+  ended_at?: number | null;
+  recorded_by?: string | null;
+  locality?: string | null;
+  institution_code?: string | null;
+  notes?: string | null;
+  site?: ImportedSite | null;
+  specimens: ImportedSpecimen[];
+};
+
+export function getCollectionTripByUuid(uuid: string): CollectionTrip | null {
+  const res = getUserDb().executeSync(`SELECT * FROM collection_trips WHERE uuid = ? LIMIT 1`, [
+    uuid,
+  ]);
+  return ((res.rows ?? []) as unknown as CollectionTrip[])[0] ?? null;
+}
+
+export function importCollectionTrip(
+  data: ImportedCollectionTrip,
+  opts: {
+    newUuid: boolean;
+    photoUriByName?: Map<string, string>;
+    audioUriByName?: Map<string, string>;
+  },
+): { tripId: number; name: string } {
+  // Overwrite deletes the previous copy first, so the whole thing has to be
+  // atomic — same reasoning as importSession / importPlotSurvey.
+  return withTransaction(() => importCollectionTripTx(data, opts));
+}
+
+function importCollectionTripTx(
+  data: ImportedCollectionTrip,
+  opts: {
+    newUuid: boolean;
+    photoUriByName?: Map<string, string>;
+    audioUriByName?: Map<string, string>;
+  },
+): { tripId: number; name: string } {
+  const db = getUserDb();
+  const now = Date.now();
+  const uuid = opts.newUuid ? generateUuid() : data.uuid;
+
+  const resolveMedia = (
+    files: string[] | undefined,
+    byName: Map<string, string> | undefined,
+  ): string | null => {
+    const uris = (files ?? [])
+      .map((f) => byName?.get(f) ?? null)
+      .filter((u): u is string => u !== null);
+    return uris.length > 0 ? JSON.stringify(uris) : null;
+  };
+
+  let prevSiteId: number | null = null;
+  if (!opts.newUuid) {
+    const prev = getCollectionTripByUuid(uuid);
+    if (prev) {
+      if (prev.site_id !== null) prevSiteId = prev.site_id;
+      deleteCollectionTrip(prev.id);
+    }
+  }
+
+  const projectId = resolveProjectIdByName(data.project_name, { create: true });
+
+  // An imported trip is always finished. `status` is collection-local and does
+  // not gate the app-wide single-active invariant, but an import that arrived
+  // as 'active' would still hijack every later "add to collection".
+  const lastCollected = data.specimens.reduce(
+    (max, s) => (s.collected_at != null && s.collected_at > max ? s.collected_at : max),
+    0,
+  );
+  const endedAt = data.ended_at ?? (Math.max(data.started_at, lastCollected) || now);
+
+  const res = db.executeSync(
+    `INSERT INTO collection_trips (
+       uuid, name, project_id, status, started_at, ended_at,
+       recorded_by, locality, institution_code, notes, created_at, updated_at
+     ) VALUES (?, ?, ?, 'done', ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      uuid,
+      data.name,
+      projectId,
+      data.started_at,
+      endedAt,
+      data.recorded_by ?? null,
+      data.locality ?? null,
+      data.institution_code ?? null,
+      data.notes ?? null,
+      now,
+      now,
+    ],
+  );
+  const tripId = res.insertId ?? 0;
+  if (tripId === 0) throw new Error('importCollectionTrip: insert failed');
+
+  for (const sp of data.specimens) {
+    // The taxon has to survive without the dataset module that produced it,
+    // exactly as `addSpecimen` ensures for a hand-entered one.
+    ensureTaxonSelfSufficient(sp.taxon_id);
+    // A blank collector's number is filled from the series rather than left
+    // empty: `record_number` is NOT NULL, and a specimen with no number is
+    // useless on a label.
+    const number = sp.record_number?.trim() || nextRecordNumber().text;
+    db.executeSync(
+      `INSERT INTO collection_specimens (
+         trip_id, occurrence_id, taxon_id, record_number, record_number_seq,
+         collected_at, recorded_by, identified_by, date_identified,
+         lat, lng, accuracy, locality, sex, life_stage,
+         reproductive_condition, leaf_phenology, degree_of_establishment,
+         verbatim_identification, duplicate_count, institution_code,
+         other_catalog_numbers, notes, photo_paths, audio_paths,
+         used_name_id, used_scientific_name, created_at, updated_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        tripId,
+        // Import-as-new means new occurrences, as in importSession: the same
+        // occurrenceID on two rows would make the copy indistinguishable from
+        // the original everywhere downstream (iNat, DwC, photo binding).
+        opts.newUuid ? generateUuid() : (sp.occurrence_id ?? generateUuid()),
+        sp.taxon_id,
+        number,
+        recordNumberSeq(number),
+        sp.collected_at ?? data.started_at,
+        sp.recorded_by ?? null,
+        sp.identified_by ?? null,
+        sp.date_identified ?? null,
+        sp.lat ?? null,
+        sp.lng ?? null,
+        sp.accuracy ?? null,
+        sp.locality ?? null,
+        sp.sex ?? null,
+        sp.life_stage ?? null,
+        sp.reproductive_condition ?? null,
+        sp.leaf_phenology ?? null,
+        sp.degree_of_establishment ?? null,
+        sp.verbatim_identification ?? null,
+        sp.duplicate_count ?? null,
+        sp.institution_code ?? null,
+        sp.other_catalog_numbers ?? null,
+        sp.notes ?? null,
+        resolveMedia(sp.photo_files, opts.photoUriByName),
+        resolveMedia(sp.audio_files, opts.audioUriByName),
+        sp.used_name_id ?? null,
+        sp.used_scientific_name ?? null,
+        now,
+        now,
+      ],
+    );
+  }
+
+  if (data.site) {
+    const siteId = createSite({
+      project_id: projectId,
+      name: data.site.name,
+      geometry: data.site.geometry,
+      notes: data.site.notes,
+    });
+    db.executeSync(`UPDATE collection_trips SET site_id = ? WHERE id = ?`, [siteId, tripId]);
+  }
+  if (prevSiteId !== null) deleteSiteIfUnreferenced(prevSiteId);
+
+  return { tripId, name: data.name };
 }

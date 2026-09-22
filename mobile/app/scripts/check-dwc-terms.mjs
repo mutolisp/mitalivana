@@ -19,18 +19,25 @@
  * Run: npm run check:dwc
  */
 import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { strFromU8, unzipSync } from 'fflate';
 import { DWC_FIELD_MAP } from '../src/lib/dwcMapper.ts';
 import { publishedTaxonId } from '../src/lib/taxonId.ts';
 import {
+  citesAppendixDwcValue,
   establishmentMeansDwcValue,
   higherClassificationOf,
   individualCountOf,
+  threatStatusDwcValue,
 } from '../src/lib/dwcMultiValue.ts';
 import {
   DWCA_INTERNALS,
   EVENT_COLS,
   HUMBOLDT_COLS,
+  DISTRIBUTION_COLS,
+  MEASUREMENT_COLS,
+  TAXON_COLS,
+  buildTaxonArchive,
   OCCURRENCE_COLS,
   buildDwcArchive,
 } from '../src/lib/dwcArchive.ts';
@@ -86,6 +93,24 @@ checkCols('EVENT_COLS', EVENT_COLS, DWC_TERMS, 'Darwin Core');
 checkCols('OCCURRENCE_COLS', OCCURRENCE_COLS, DWC_TERMS, 'Darwin Core');
 const humboldt = extByName.get('humboldt');
 checkCols('HUMBOLDT_COLS', HUMBOLDT_COLS, new Set(humboldt.terms), 'Humboldt extension');
+checkCols('TAXON_COLS', TAXON_COLS, DWC_TERMS, 'Darwin Core');
+const distribution = extByName.get('distribution');
+checkCols(
+  'DISTRIBUTION_COLS',
+  DISTRIBUTION_COLS,
+  new Set(distribution.terms),
+  'Distribution extension',
+);
+const emof = extByName.get('emof');
+checkCols('MEASUREMENT_COLS', MEASUREMENT_COLS, new Set(emof.terms), 'Extended MeasurementOrFact');
+// The reason eMoF was chosen over plain MoF. If a future revision drops this,
+// every per-organism measurement silently becomes a statement about the event.
+if (!emof.terms.includes('http://rs.tdwg.org/dwc/terms/occurrenceID')) {
+  fail('emof extension no longer declares occurrenceID — a MoF row could not name its occurrence');
+}
+if (!MEASUREMENT_COLS.some((c) => c.key === 'occurrenceID')) {
+  fail('MEASUREMENT_COLS must carry occurrenceID, or measurements attach to the event');
+}
 
 // ── 2. What meta.xml actually emits ──────────────────────────────────────
 // The full IRI, from the real generated file — the ColSpec arrays above could
@@ -96,11 +121,45 @@ checkCols('HUMBOLDT_COLS', HUMBOLDT_COLS, new Set(humboldt.terms), 'Humboldt ext
     events: [{ eventID: 'e1' }],
     occurrences: [{ coreEventID: 'e1', occurrenceID: 'o1' }],
     humboldt: [{ coreEventID: 'e1', siteCount: 1 }],
+    measurements: [
+      { coreEventID: 'e1', occurrenceID: 'o1', measurementType: 'leafPhenology', measurementValue: 'deciduous' },
+    ],
   });
   const files = unzipSync(zip);
   const metaXml = strFromU8(files['meta.xml']);
   const emitted = [...metaXml.matchAll(/term="([^"]+)"/g)].map((m) => m[1]);
-  const expected = [...EVENT_COLS, ...OCCURRENCE_COLS, ...HUMBOLDT_COLS].map((c) => c.term);
+  const expected = [...EVENT_COLS, ...OCCURRENCE_COLS, ...HUMBOLDT_COLS, ...MEASUREMENT_COLS].map(
+    (c) => c.term,
+  );
+  // Same round-trip for the Taxon-core archive.
+  const tzip = buildTaxonArchive({
+    meta: { packageId: 'check-taxon', title: 't', creator: '', abstract: '', pubDate: '2026-09-21' },
+    taxa: [{ taxonID: 't1', scientificName: 'X y' }],
+    distributions: [{ coreEventID: 't1', countryCode: 'TW', threatStatus: 'EN' }],
+  });
+  if (!tzip) fail('buildTaxonArchive returned null for input that has a distribution row');
+  else {
+    const tmeta = strFromU8(unzipSync(tzip)['meta.xml']);
+    const temitted = [...tmeta.matchAll(/term="([^"]+)"/g)].map((m) => m[1]);
+    const texpected = [...TAXON_COLS, ...DISTRIBUTION_COLS].map((c) => c.term);
+    for (const t of temitted) {
+      if (!texpected.includes(t)) fail(`taxon meta.xml emits ${t}, which is in no ColSpec array`);
+    }
+    for (const t of texpected) {
+      if (!temitted.includes(t)) fail(`taxon meta.xml never emits ${t}`);
+    }
+    if (!tmeta.includes('rowType="http://rs.tdwg.org/dwc/terms/Taxon"')) {
+      fail('taxon archive core rowType is not dwc:Taxon');
+    }
+  }
+  // An archive with no conservation data must not ship at all.
+  if (buildTaxonArchive({
+    meta: { packageId: 'x', title: 't', creator: '', abstract: '', pubDate: '2026-09-21' },
+    taxa: [{ taxonID: 't1' }],
+    distributions: [],
+  }) !== null) {
+    fail('buildTaxonArchive must return null when there are no distribution rows');
+  }
   for (const t of emitted) {
     if (!expected.includes(t)) fail(`meta.xml emits ${t}, which is in no ColSpec array`);
   }
@@ -133,6 +192,50 @@ checkCols('HUMBOLDT_COLS', HUMBOLDT_COLS, new Set(humboldt.terms), 'Humboldt ext
     if (isDwc(name) || isExt(name)) {
       fail(`APP_SPECIFIC."${name}" IS a real vocabulary term — remove it from the list`);
     }
+  }
+}
+
+// ── threatStatus must stay inside the IUCN vocabulary ────────────────────
+{
+  const vocab = new Set(
+    JSON.parse(readFileSync(new URL('./vocab/threat-status-values.json', import.meta.url)))
+      .concepts,
+  );
+  const cases = [
+    // Taiwan red list writes national categories with a leading N; the
+    // Distribution row's countryCode already says "national".
+    ['NCR', 'CR'], ['NEN', 'EN'], ['NVU', 'VU'], ['NNT', 'NT'], ['NLC', 'LC'],
+    // Already-plain codes pass straight through.
+    ['EX', 'EX'], ['EW', 'EW'], ['RE', 'RE'], ['DD', 'DD'], ['NA', 'NA'], ['NE', 'NE'],
+    ['LC', 'LC'], ['CR', 'CR'],
+    // Pre-2001 category with no modern equivalent we can assert ourselves.
+    ['LR/cd', ''],
+    ['', ''], [null, ''], ['nonsense', ''],
+    // `N` must not be stripped off something that isn't a category.
+    ['NX', ''],
+  ];
+  for (const [input, want] of cases) {
+    const got = threatStatusDwcValue(input);
+    if (got !== want) fail(`threatStatusDwcValue(${input}) = "${got}", want "${want}"`);
+    if (got !== '' && !vocab.has(got)) {
+      fail(`threatStatusDwcValue emitted "${got}", not in the pinned IUCN vocabulary`);
+    }
+  }
+}
+
+// ── appendixCITES: appendices only, never TaiCOL's "not listed" marker ────
+{
+  const cases = [
+    ['I', 'I'], ['II', 'II'], ['III', 'III'],
+    // Different populations in different appendices — a real compound listing.
+    ['I/II', 'I/II'], ['II/III', 'II/III'],
+    // `NC` is TaiCOL's "not listed"; absence of a value, not an appendix.
+    ['NC', ''], ['I/NC', 'I'], ['I/II/NC', 'I/II'], ['II/NC', 'II'],
+    ['', ''], [null, ''],
+  ];
+  for (const [input, want] of cases) {
+    const got = citesAppendixDwcValue(input);
+    if (got !== want) fail(`citesAppendixDwcValue(${input}) = "${got}", want "${want}"`);
   }
 }
 
@@ -186,6 +289,49 @@ checkCols('HUMBOLDT_COLS', HUMBOLDT_COLS, new Set(humboldt.terms), 'Humboldt ext
   }
 }
 
+// ── the checklist records a COUNT, never a plot method ───────────────────
+// A checklist has no plot id, protocol or sample size, so a cover value or a
+// BB code recorded against one would be a fraction of nothing. `individuals`
+// is the only type its UI may write, and clearing has to wipe BOTH columns —
+// a type with no quantity exports an organismQuantityType that quantifies
+// nothing, which `individualCountOf` would silently drop.
+{
+  const screen = readFileSync(
+    fileURLToPath(new URL('../app/session/[id].tsx', import.meta.url)),
+    'utf8',
+  );
+  const at = screen.indexOf('onSaveQuantity=');
+  const body = at === -1 ? '' : screen.slice(at, at + 900);
+  if (at === -1) fail('the session screen no longer passes onSaveQuantity');
+  if (!/updateRecordQuantity\(/.test(body)) {
+    fail('onSaveQuantity no longer calls updateRecordQuantity');
+  }
+  // Every quantity type this handler mentions must be the count one.
+  const types = [...body.matchAll(/'([A-Za-z% ()-]{3,})'/g)]
+    .map((m) => m[1])
+    .filter((v) => v === 'individuals' || /cover|Blanquet|DBH/i.test(v));
+  if (types.length === 0) fail("onSaveQuantity no longer writes 'individuals'");
+  for (const ty of types) {
+    if (ty !== 'individuals') {
+      fail(`the checklist must not record "${ty}" — that is a plot method`);
+    }
+  }
+  // Both columns move together. Scoped to the DB call's own arguments, not
+  // the whole handler: the optimistic state update below it repeats the same
+  // guard, so counting matches across the handler passed even with the write
+  // itself broken.
+  const call = /updateRecordQuantity\(([^;]*?)\);/s.exec(body);
+  if (!call) fail('could not read the updateRecordQuantity call');
+  else {
+    const args = call[1].split(',').map((a) => a.trim()).filter(Boolean);
+    if (args.length !== 3) {
+      fail(`updateRecordQuantity takes id, quantity, type — got ${args.length} args`);
+    } else if (!/count == null \? null/.test(args[1]) || !/count == null \? null/.test(args[2])) {
+      fail('clearing the count must wipe organism_quantity AND its type');
+    }
+  }
+}
+
 // ── higherClassification drops empty ranks rather than leaving holes ──────
 {
   const full = higherClassificationOf({
@@ -230,7 +376,7 @@ if (failures > 0) {
   process.exit(1);
 }
 console.log(
-  `✓ dwc-terms: ${EVENT_COLS.length + OCCURRENCE_COLS.length + HUMBOLDT_COLS.length} archive columns`
+  `✓ dwc-terms: ${EVENT_COLS.length + OCCURRENCE_COLS.length + HUMBOLDT_COLS.length + MEASUREMENT_COLS.length + TAXON_COLS.length + DISTRIBUTION_COLS.length} archive columns`
     + ` + ${new Set(Object.values(DWC_FIELD_MAP)).size} mapper outputs check out`
     + ` (DwC ${dwc.retrieved}, extensions ${gbif.extensions[0].retrieved})`,
 );

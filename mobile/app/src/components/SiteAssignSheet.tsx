@@ -17,8 +17,11 @@ type Props = {
   onCancel: () => void;
   /** Pass null to detach the current site. */
   onAssign: (siteId: number | null) => void;
-  /** Open map drawing mode with chosen geometry type; caller auto-assigns on save. */
-  onCreateNew: (drawType: DrawType) => void;
+  /** Open map drawing mode with chosen geometry type; caller auto-assigns on
+   *  save. Omit to hide the "new site" row — a collection trip can bind an
+   *  EXISTING site, but drawing one needs a map scope the trip does not have
+   *  yet (the map's draw mode is scoped by `?session=`). */
+  onCreateNew?: (drawType: DrawType) => void;
 };
 
 export function SiteAssignSheet({
@@ -79,6 +82,7 @@ export function SiteAssignSheet({
             </Text>
           </View>
 
+          {onCreateNew ? (
           <View className="border-b border-gray-100 bg-blue-50 dark:border-gray-800 dark:bg-blue-950/40">
             <View className="px-4 pb-2 pt-3">
               <Text className="text-xs font-medium uppercase tracking-wide text-blue-700 dark:text-blue-300">
@@ -103,6 +107,7 @@ export function SiteAssignSheet({
               />
             </View>
           </View>
+          ) : null}
 
           {currentSiteId !== null ? (
             <Pressable

@@ -211,7 +211,7 @@ export function parseUserComment(raw: unknown): EmbeddedContext | null {
   return null;
 }
 
-// ── GPS ────────────────────────────────────────────────────────────────────
+// ── GNSS ────────────────────────────────────────────────────────────────────
 
 /**
  * Apply the N/S/E/W reference to a magnitude.
@@ -344,7 +344,7 @@ export function metaFromPickerExif(exif: Record<string, unknown> | null | undefi
 
 /** Prefer whichever source has the answer, per field.
  *
- *  GPS and time come from the picker first: it reads the ORIGINAL asset, while
+ *  GNSS and time come from the picker first: it reads the ORIGINAL asset, while
  *  the bytes on disk may be a re-encoded copy. The embedded JSON comes from the
  *  bytes first: we wrote those with `utf8ToLatin1` and can invert it exactly,
  *  whereas the platform decodes the tag by its own rules. */
