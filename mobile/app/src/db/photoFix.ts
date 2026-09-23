@@ -4,7 +4,10 @@
  * A cache, not a source of truth. It exists because a HEIC's position is
  * legible exactly once — when `ImagePicker` hands over `asset.exif`. `piexif`
  * cannot parse HEIC at all, and `persistPickedPhoto` copies the file unchanged,
- * so after the pick the position is unreadable from disk forever.
+ * so after the pick the position was unreadable from disk. (`heifExifSegment`
+ * now reads a HEIC's own Exif item, so the file is a second source; this cache
+ * still covers anything that parser rejects and photos resolved through the
+ * library without permission.)
  *
  * That asymmetry produced a real defect: attaching a photo filled in a missing
  * coordinate, but clearing the coordinate and pressing 「用照片的 GNSS 定位」

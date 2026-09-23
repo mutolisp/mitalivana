@@ -12,7 +12,7 @@ import type { AdoptionInput } from '~/db';
 import type { TaxonGroup } from '~/db/types';
 import { applyChoice, chooseNameUsage } from '~/lib/adoptName';
 import { alienBadge } from '~/lib/conservationColors';
-import { lookupGbifName, manualTaxonEntry, type GbifLookupOutcome } from './GbifLookupHost';
+import { lookupGbifName, manualTaxonEntry, type GbifLookupOutcome, type LookupRunner } from './GbifLookupHost';
 import { TaxonGroupPicker } from './TaxonGroupPicker';
 import { ScientificName } from './ScientificName';
 import { useSettings } from '~/stores/settings';
@@ -77,6 +77,13 @@ type Props = {
    * cache, fuzzy fallback, name adoption — is the same box.
    */
   layout?: 'dock' | 'dropdown';
+  /**
+   * How to open the GBIF lookup / manual-taxon form (both root-hosted Modals).
+   * A box that sits inside a Modal MUST pass
+   * `(run) => runOverModal(setHidden, run)`: presenting one Modal over another
+   * crashes iOS. Default runs them directly.
+   */
+  runLookup?: LookupRunner;
 };
 
 /**
@@ -119,6 +126,7 @@ export function SearchBox({
   gbifFallback = true,
   renderNoMatch,
   layout = 'dock',
+  runLookup = (run) => run(),
 }: Props) {
   const { t } = useTranslation();
   const lastGroups = useSettings((s) => s.last_search_groups);
@@ -198,7 +206,7 @@ export function SearchBox({
   /** The user tapped the 「你輸入：X」 line: ask which name to file under. */
   const handleAdopt = async (result: SearchResult) => {
     Keyboard.dismiss();
-    const choice = await chooseNameUsage(result);
+    const choice = await chooseNameUsage(result, runLookup);
     if (!choice) return;
     const { result: picked, adopted } = applyChoice(result, choice);
     handleSelect(picked, adopted);
@@ -271,7 +279,7 @@ export function SearchBox({
           <Pressable
             onPress={async () => {
               Keyboard.dismiss();
-              applyPicked(await lookupGbifName(trimmedQuery));
+              applyPicked(await runLookup(() => lookupGbifName(trimmedQuery)));
             }}
             className="flex-row items-center rounded-full bg-blue-50 px-3 py-1.5 active:bg-blue-100 dark:bg-blue-950/40 dark:active:bg-blue-900/60"
           >
@@ -283,7 +291,7 @@ export function SearchBox({
           <Pressable
             onPress={async () => {
               Keyboard.dismiss();
-              applyPicked(await manualTaxonEntry(trimmedQuery));
+              applyPicked(await runLookup(() => manualTaxonEntry(trimmedQuery)));
             }}
             className="flex-row items-center rounded-full bg-amber-50 px-3 py-1.5 active:bg-amber-100 dark:bg-amber-950/40 dark:active:bg-amber-900/60"
           >

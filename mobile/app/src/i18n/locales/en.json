@@ -255,7 +255,10 @@
     "deleteSelectedMsg_one": "This record and the {{rows}} species rows inside it will be permanently removed.",
     "deleteSelectedMsg_other": "These {{count}} records and the {{rows}} species rows inside them will be permanently removed.",
     "deletedCount_one": "Deleted {{count}} record",
-    "deletedCount_other": "Deleted {{count}} records"
+    "deletedCount_other": "Deleted {{count}} records",
+    "search": "Search",
+    "searchPlaceholder": "Search projects or records",
+    "searchNoMatch": "No project or record matches “{{q}}”"
   },
   "export": {
     "preparing": "Preparing…",
@@ -806,7 +809,15 @@
     "deleteSkipPlotsMsg_one": "{{count}} more comes from a plot survey and is not deleted here.",
     "deleteSkipPlotsMsg_other": "{{count}} more come from plot surveys and are not deleted here.",
     "deletedCount_one": "{{count}} deleted",
-    "deletedCount_other": "{{count}} deleted"
+    "deletedCount_other": "{{count}} deleted",
+    "move": "Move",
+    "assignProjectDesc": "Pick a project, or create one, to move the sites into",
+    "newProjectDesc": "The sites move into it once created",
+    "movePlotOnlyMsg": "Everything selected is a record’s own coordinates — they follow that record’s project. Move the record from the Records tab.",
+    "movedToProject_one": "Moved {{count}} site to “{{name}}”",
+    "movedToProject_other": "Moved {{count}} sites to “{{name}}”",
+    "moveSkipPlotsMsg_one": "{{count}} more comes from a plot survey and was not moved here.",
+    "moveSkipPlotsMsg_other": "{{count}} more come from plot surveys and were not moved here."
   },
   "map": {
     "basemapStandard": "Standard",
@@ -1695,7 +1706,12 @@
     "rank": "Rank",
     "note": "A self-created taxon belongs to no checklist; exports use the name and ranks you entered.",
     "badge": "own",
-    "editSelf": "Edit this taxon"
+    "editSelf": "Edit this taxon",
+    "delete": "Delete this taxon",
+    "deleteTitle": "Delete taxon",
+    "deleteMsg": "Delete \"{{name}}\"? This cannot be undone.",
+    "deleteBlockedTitle": "Cannot delete",
+    "deleteBlockedMsg": "This taxon is still used by:\nChecklist records: {{records}}\nPlot records: {{plotRecords}}\nSpecimens: {{specimens}}\nFavorites: {{favorites}}\n\nDelete those records or re-identify them as another taxon first."
   },
   "plotStats": {
     "title": "Diversity statistics",

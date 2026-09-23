@@ -21,6 +21,8 @@
     "check:plotcover": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-plot-cover.mjs",
     "check:photoexif": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-photo-exif.mjs",
     "check:photoimport": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-photo-import.mjs",
+    "check:recordsearch": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-record-search.mjs",
+    "check:modallookup": "node ./scripts/check-modal-lookup.mjs",
     "check:photognss": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON ./scripts/check-photo-gnss.mjs",
     "check:compiler": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON ./scripts/check-compiler-bailout.mjs",
     "check:sign": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-sign.mjs",

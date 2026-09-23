@@ -228,7 +228,10 @@
     "layoutToList": "リスト表示に切り替え",
     "deleteSelectedTitle_other": "{{count}} 件の調査記録を削除しますか？",
     "deleteSelectedMsg_other": "この {{count}} 件の調査記録と、その中の {{rows}} 件の種の記録がすべて削除されます。元に戻せません。",
-    "deletedCount_other": "{{count}} 件の調査記録を削除しました"
+    "deletedCount_other": "{{count}} 件の調査記録を削除しました",
+    "search": "検索",
+    "searchPlaceholder": "プロジェクト名・説明・記録名で検索",
+    "searchNoMatch": "「{{q}}」に一致するプロジェクトや記録はありません"
   },
   "export": {
     "preparing": "準備中…",
@@ -759,7 +762,13 @@
     "deleteSelectedMsg_other": "地理サイトを {{count}} 件削除します。",
     "deleteBoundCountMsg_other": "うち {{count}} 件は使用中で、その記録は範囲を失います。",
     "deleteSkipPlotsMsg_other": "他に {{count}} 件はプロット調査由来のため、ここでは削除しません。",
-    "deletedCount_other": "{{count}} 件を削除しました"
+    "deletedCount_other": "{{count}} 件を削除しました",
+    "move": "移動",
+    "assignProjectDesc": "既存のプロジェクトを選ぶか、新規作成してサイトを移動します",
+    "newProjectDesc": "作成するとサイトがそこへ移動します",
+    "movePlotOnlyMsg": "選択したものはすべて記録自体の座標で、その記録のプロジェクトに従います。記録タブで記録を移動してください。",
+    "movedToProject_other": "{{count}} 件のサイトを「{{name}}」へ移動しました",
+    "moveSkipPlotsMsg_other": "ほか {{count}} 件は調査区の記録由来のため、ここでは移動していません。"
   },
   "map": {
     "basemapStandard": "標準",
@@ -1594,7 +1603,12 @@
     "rank": "階級",
     "note": "自作の種はどの種リストにも属しません。エクスポートでは入力した階級と名前で出力されます。",
     "badge": "自作",
-    "editSelf": "自作の種を編集"
+    "editSelf": "自作の種を編集",
+    "delete": "この自作の種を削除",
+    "deleteTitle": "自作の種を削除",
+    "deleteMsg": "「{{name}}」を削除しますか？この操作は取り消せません。",
+    "deleteBlockedTitle": "削除できません",
+    "deleteBlockedMsg": "この種はまだ次のデータで使われています：\n種リストの記録 {{records}} 件\n調査区の記録 {{plotRecords}} 件\n採集標本 {{specimens}} 点\nお気に入り {{favorites}} 件\n\n先にこれらの記録を削除するか、別の種に同定し直してください。"
   },
   "plotStats": {
     "title": "多様性統計",

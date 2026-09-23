@@ -12,8 +12,10 @@
 import { useEffect, useState } from 'react';
 import { Modal, Pressable, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import type { SearchResult } from '~/db';
+import type { ExternalTaxon, SearchResult } from '~/db';
 import { taxonSpeciesToSearchResult } from '~/lib/taxonSpecies';
+import { editManualTaxon, runOverModal } from './GbifLookupHost';
+import { clearSearchResultCache } from './SearchBox';
 import { SpeciesDetailPanel } from './SpeciesDetailPanel';
 
 type Props = {
@@ -37,6 +39,23 @@ export function LookupResultSheet({
   onAddLongPress,
 }: Props) {
   const [currentResult, setCurrentResult] = useState<SearchResult | null>(result);
+  // True while the manual-taxon editor is up — see runOverModal.
+  const [steppedAside, setSteppedAside] = useState(false);
+
+  const handleEditManualTaxon = async (ext: ExternalTaxon) => {
+    const out = await runOverModal(
+      setSteppedAside,
+      () => editManualTaxon(ext),
+      (o) => o === 'deleted',
+    );
+    if (out === 'deleted') {
+      // A cached result would keep offering the deleted taxon.
+      clearSearchResultCache();
+      onClose();
+      return;
+    }
+    if (out) setCurrentResult(out.result);
+  };
 
   // Re-seed local state whenever the parent passes a different taxon (or null
   // on close). Using taxon_id+name as the dependency catches the common case
@@ -48,7 +67,7 @@ export function LookupResultSheet({
   if (!currentResult) return null;
 
   return (
-    <Modal visible animationType="slide" transparent onRequestClose={onClose}>
+    <Modal visible={!steppedAside} animationType="slide" transparent onRequestClose={onClose}>
       <View className="flex-1">
         <Pressable
           onPress={onClose}
@@ -78,6 +97,7 @@ export function LookupResultSheet({
               onAddLongPress={onAddLongPress}
               onClose={onClose}
               onPickSubordinate={(sp) => setCurrentResult(taxonSpeciesToSearchResult(sp))}
+              onEditManualTaxon={handleEditManualTaxon}
             />
           </SafeAreaView>
         </View>

@@ -276,6 +276,148 @@ export function parseExifDateTime(dt: unknown, offset?: unknown): number | null 
   return Number.isFinite(ms) ? ms : null;
 }
 
+// ── HEIF container ─────────────────────────────────────────────────────────
+
+/**
+ * Pull the Exif item out of a HEIF/HEIC file, as a string `piexif.load` takes.
+ *
+ * Why this exists: a photo picked before the picker's EXIF was cached (v41) is
+ * stored as an unchanged HEIC copy, and piexif refuses HEIC outright — so the
+ * position was in the file on disk and 「用照片的 GNSS 定位」 still said there
+ * was none. The EXIF inside a HEIC is the same TIFF structure a JPEG carries;
+ * only the wrapper differs (ISO/IEC 23008-12 on top of ISOBMFF), so finding it
+ * is enough and piexif does the rest.
+ *
+ * `bin` is a Latin-1 binary string (what `atob` returns). Returns
+ * `"Exif\0\0" + TIFF`, or null when the file is not ISOBMFF or has no Exif item.
+ * Never throws: a malformed box is a photo without metadata, not an error.
+ */
+export function heifExifSegment(bin: string): string | null {
+  const u8 = (o: number) => beUint(bin, o, 1);
+  const u16 = (o: number) => beUint(bin, o, 2);
+  const u32 = (o: number) => beUint(bin, o, 4);
+  const uN = (o: number, n: number) => beUint(bin, o, n);
+  const type = (o: number) => bin.slice(o, o + 4);
+
+  /** Child boxes in [start, end): type → [payload start, box end]. */
+  const boxes = (start: number, end: number) => {
+    const out = new Map<string, [number, number]>();
+    let p = start;
+    while (p + 8 <= end) {
+      let size = u32(p);
+      let header = 8;
+      if (size === 1) {
+        size = uN(p + 8, 8);
+        header = 16;
+      } else if (size === 0) {
+        size = end - p;
+      }
+      if (size < header || p + size > end) break;
+      if (!out.has(type(p + 4))) out.set(type(p + 4), [p + header, p + size]);
+      p += size;
+    }
+    return out;
+  };
+
+  try {
+    if (bin.length < 12 || type(4) !== 'ftyp') return null;
+    const meta = boxes(0, bin.length).get('meta');
+    if (!meta) return null;
+    // `meta` is a FullBox: 4 bytes of version/flags before its children.
+    const inMeta = boxes(meta[0] + 4, meta[1]);
+
+    // iinf → the item whose type is 'Exif'.
+    const iinf = inMeta.get('iinf');
+    if (!iinf) return null;
+    let p = iinf[0];
+    const iinfVersion = u8(p);
+    const entryCount = iinfVersion === 0 ? u16(p + 4) : u32(p + 4);
+    p += iinfVersion === 0 ? 6 : 8;
+    let exifId: number | null = null;
+    for (let i = 0; i < entryCount && p + 12 <= iinf[1]; i++) {
+      const size = u32(p);
+      if (size < 12 || type(p + 4) !== 'infe') break;
+      const v = u8(p + 8);
+      // Only infe v2/v3 carry an item_type; v0/v1 items cannot be Exif.
+      if (v >= 2) {
+        const id = v === 2 ? u16(p + 12) : u32(p + 12);
+        const itemType = type(p + (v === 2 ? 16 : 18));
+        if (itemType === 'Exif') {
+          exifId = id;
+          break;
+        }
+      }
+      p += size;
+    }
+    if (exifId === null) return null;
+
+    // iloc → where that item's bytes are.
+    const iloc = inMeta.get('iloc');
+    if (!iloc) return null;
+    p = iloc[0];
+    const ilocVersion = u8(p);
+    const offsetSize = u8(p + 4) >> 4;
+    const lengthSize = u8(p + 4) & 0x0f;
+    const baseOffsetSize = u8(p + 5) >> 4;
+    const indexSize = ilocVersion === 1 || ilocVersion === 2 ? u8(p + 5) & 0x0f : 0;
+    const itemCount = ilocVersion < 2 ? u16(p + 6) : u32(p + 6);
+    p += ilocVersion < 2 ? 8 : 10;
+    for (let i = 0; i < itemCount && p < iloc[1]; i++) {
+      const id = ilocVersion < 2 ? u16(p) : u32(p);
+      p += ilocVersion < 2 ? 2 : 4;
+      let construction = 0;
+      if (ilocVersion === 1 || ilocVersion === 2) {
+        construction = u16(p) & 0x0f;
+        p += 2;
+      }
+      p += 2; // data_reference_index
+      const baseOffset = uN(p, baseOffsetSize);
+      p += baseOffsetSize;
+      const extentCount = u16(p);
+      p += 2;
+      let data = '';
+      for (let e = 0; e < extentCount; e++) {
+        p += indexSize;
+        const off = uN(p, offsetSize);
+        p += offsetSize;
+        const len = uN(p, lengthSize);
+        p += lengthSize;
+        if (id !== exifId) continue;
+        // 0 = offset into the file, 1 = offset into meta's `idat`. Anything
+        // else points into another item, which no camera does for Exif.
+        let origin = baseOffset;
+        if (construction === 1) {
+          const idat = inMeta.get('idat');
+          if (!idat) return null;
+          origin += idat[0];
+        } else if (construction !== 0) {
+          return null;
+        }
+        // A length of 0 means "to the end of the file".
+        const from = origin + off;
+        data += bin.slice(from, len === 0 ? bin.length : from + len);
+      }
+      if (id !== exifId) continue;
+      // The payload opens with a 4-byte offset to the TIFF header — usually
+      // skipping the 6-byte "Exif\0\0" marker the JPEG form also carries.
+      if (data.length < 4) return null;
+      const tiff = data.slice(4 + beUint(data, 0, 4));
+      if (tiff.slice(0, 2) !== 'II' && tiff.slice(0, 2) !== 'MM') return null;
+      return `Exif\0\0${tiff}`;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/** Big-endian unsigned integer of `n` bytes (n ≤ 8; exact up to 2^53). */
+function beUint(s: string, o: number, n: number): number {
+  let v = 0;
+  for (let i = 0; i < n; i++) v = v * 256 + (s.charCodeAt(o + i) & 0xff);
+  return v;
+}
+
 // ── The two sources ────────────────────────────────────────────────────────
 
 type ExifDictLike = {

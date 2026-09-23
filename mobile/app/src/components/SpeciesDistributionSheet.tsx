@@ -59,6 +59,7 @@ import { fetchObservationCount, searchTaxa, type InatTaxonHit } from '~/lib/inat
 import { pickHeatmapMode, type HeatmapMode } from '~/lib/inatHeatmap';
 import { inatTilesReachable, resolveInatTaxon, type InatGridTaxon } from '~/lib/useInatGrid';
 import { ScientificName } from './ScientificName';
+import { runOverModal } from './GbifLookupHost';
 import { SearchBox } from './SearchBox';
 
 /** A taxon resolved all the way to something the map can draw. */
@@ -151,6 +152,8 @@ export function SpeciesDistributionSheet({
   const [confirm, setConfirm] = useState<InatGridSelection | null>(null);
   const [inatHits, setInatHits] = useState<InatTaxonHit[] | null>(null);
   const [breakdown, setBreakdown] = useState<Breakdown | null>(null);
+  // True while a root-hosted lookup is up — see runOverModal.
+  const [steppedAside, setSteppedAside] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   /** Session-lived, so reopening the panel for the same species is free. */
   const breakdownCache = useRef<Map<number, Breakdown>>(new Map());
@@ -324,7 +327,7 @@ export function SpeciesDistributionSheet({
   const showEmptyHint = !busy && !confirm && !notice && !inatHits;
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={close}>
+    <Modal visible={visible && !steppedAside} transparent animationType="fade" onRequestClose={close}>
       <Pressable
         style={StyleSheet.absoluteFill}
         className="bg-black/30"
@@ -467,6 +470,7 @@ export function SpeciesDistributionSheet({
                 layout="dropdown"
                 autoFocus
                 onSelect={handleLocalPick}
+                runLookup={(run) => runOverModal(setSteppedAside, run)}
                 afterSelect="dismiss"
                 // Minting a taxon into the local checklist is not an answer to
                 // "which observations should the map draw" — searching iNaturalist

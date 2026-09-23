@@ -931,6 +931,11 @@ export default function CollectionTripScreen() {
           updateSpecimenLocation(active.id, lat, lng, accuracy);
           refreshActive(active.id);
         }}
+        onSaveLocation={(lat, lng, accuracy) => {
+          if (!active) return;
+          updateSpecimenLocation(active.id, lat, lng, accuracy);
+          refreshActive(active.id);
+        }}
         onReplaceTaxon={() => {
           if (!active) return;
           setReplaceTarget(active);

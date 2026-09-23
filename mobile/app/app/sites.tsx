@@ -14,11 +14,15 @@ import {
   countSiteReferences,
   createSite,
   deleteSite,
+  getProject,
   listPlotSurveysWithMeta,
   listSessions,
   listSites,
+  updateSite,
+  withTransaction,
   type Site,
 } from '~/db';
+import { ProjectAssignSheet } from '~/components/ProjectAssignSheet';
 import {
   buildGeoRows,
   geoRowToSite,
@@ -100,6 +104,15 @@ export default function SitesScreen() {
   const collapsedIds = useMemo(() => new Set(collapsedList), [collapsedList]);
   const [selectMode, setSelectMode] = useState(false);
   const [picked, setPicked] = useState<Set<string>>(new Set());
+  /** Rows waiting for a project. Kept apart from the sheet's visibility:
+   *  ProjectAssignSheet's 「新建專案」 calls onCancel BEFORE onAssign, so
+   *  clearing the rows on cancel would make that path move nothing. */
+  const [assignRows, setAssignRows] = useState<GeoRow[]>([]);
+  const [assignOpen, setAssignOpen] = useState(false);
+  const openAssign = (list: GeoRow[]) => {
+    setAssignRows(list);
+    setAssignOpen(true);
+  };
 
   const reload = useCallback(
     () => setRows(buildGeoRows(listSites(), listPlotSurveysWithMeta(), listSessions())),
@@ -324,6 +337,37 @@ export default function SitesScreen() {
     ]);
   };
 
+  /**
+   * Move stored sites to another project. Only `kind === 'site'` rows: a
+   * derived plot row IS the plot's coordinates and belongs to the plot's
+   * project, so it moves with the plot from the records tab, not from here.
+   */
+  const handleAssignProject = (projectId: number) => {
+    const rowsToMove = assignRows;
+    setAssignOpen(false);
+    const sites = rowsToMove.filter((r) => r.kind === 'site');
+    if (sites.length === 0) return;
+    withTransaction(() => {
+      for (const r of sites) updateSite(r.id, { project_id: projectId });
+    });
+    const skipped = rowsToMove.length - sites.length;
+    if (selectMode) exitSelect();
+    reload();
+    const moved = t('sites.movedToProject', {
+      count: sites.length,
+      name: getProject(projectId)?.name ?? '',
+    });
+    toast(skipped > 0 ? `${moved}\n${t('sites.moveSkipPlotsMsg', { count: skipped })}` : moved);
+  };
+
+  const handleBulkAssign = () => {
+    if (!chosen.some((r) => r.kind === 'site')) {
+      Alert.alert(t('records.moveToProject'), t('sites.movePlotOnlyMsg'));
+      return;
+    }
+    openAssign(chosen);
+  };
+
   const renderRow = (r: GeoRow) => {
     const checked = picked.has(r.key);
     // A row is a record's geometry either because it IS a plot's coordinates
@@ -384,6 +428,12 @@ export default function SitesScreen() {
       },
       ...(r.kind === 'site'
         ? [
+            {
+              label: t('records.moveToProject'),
+              icon: 'folder-open-outline' as const,
+              color: 'blue' as const,
+              onPress: () => openAssign([r]),
+            },
             {
               label: t('common.delete'),
               icon: 'trash-outline' as const,
@@ -459,6 +509,17 @@ export default function SitesScreen() {
                     }`}
                   >
                     {t('common.export')}
+                  </Text>
+                </Pressable>
+                <Pressable onPress={handleBulkAssign} disabled={picked.size === 0} hitSlop={8}>
+                  <Text
+                    className={`text-sm font-medium ${
+                      picked.size === 0
+                        ? 'text-gray-300 dark:text-gray-600'
+                        : 'text-blue-600 dark:text-blue-400'
+                    }`}
+                  >
+                    {t('sites.move')}
                   </Text>
                 </Pressable>
                 <Pressable onPress={handleBulkDelete} disabled={picked.size === 0} hitSlop={8}>
@@ -576,6 +637,15 @@ export default function SitesScreen() {
           )}
         </>
       )}
+      <ProjectAssignSheet
+        visible={assignOpen}
+        // Several rows have no single current project; -1 ticks nothing.
+        currentProjectId={assignRows.length === 1 ? assignRows[0].projectId : -1}
+        onCancel={() => setAssignOpen(false)}
+        onAssign={handleAssignProject}
+        description={t('sites.assignProjectDesc')}
+        newProjectDescription={t('sites.newProjectDesc')}
+      />
     </SafeAreaView>
   );
 }

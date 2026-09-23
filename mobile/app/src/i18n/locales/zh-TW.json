@@ -228,7 +228,10 @@
     "layoutToList": "改用列表檢視",
     "deleteSelectedTitle_other": "刪除 {{count}} 筆調查記錄？",
     "deleteSelectedMsg_other": "這 {{count}} 筆調查記錄與其下 {{rows}} 筆物種紀錄將全部移除，無法復原。",
-    "deletedCount_other": "已刪除 {{count}} 筆調查記錄"
+    "deletedCount_other": "已刪除 {{count}} 筆調查記錄",
+    "search": "搜尋",
+    "searchPlaceholder": "搜尋專案名稱、說明或記錄名稱",
+    "searchNoMatch": "沒有符合「{{q}}」的專案或記錄"
   },
   "export": {
     "preparing": "準備中…",
@@ -759,7 +762,13 @@
     "deleteSelectedMsg_other": "將刪除 {{count}} 個地理樣區。",
     "deleteBoundCountMsg_other": "其中 {{count}} 個正被記錄使用，使用它的記錄將失去範圍。",
     "deleteSkipPlotsMsg_other": "另有 {{count}} 筆來自記錄樣區，不會在此刪除。",
-    "deletedCount_other": "已刪除 {{count}} 筆"
+    "deletedCount_other": "已刪除 {{count}} 筆",
+    "move": "移動",
+    "assignProjectDesc": "選擇現有專案，或新建一個專案，把地理樣區移過去",
+    "newProjectDesc": "建立後自動把地理樣區移過去",
+    "movePlotOnlyMsg": "選取的都是記錄樣區的座標，它們跟著該筆記錄的專案；請到記錄頁移動該筆記錄。",
+    "movedToProject_other": "已將 {{count}} 個地理樣區移到「{{name}}」",
+    "moveSkipPlotsMsg_other": "另有 {{count}} 筆來自記錄樣區，未在此移動。"
   },
   "map": {
     "basemapStandard": "標準",
@@ -1594,7 +1603,12 @@
     "rank": "階層",
     "note": "自建物種不屬於任何名錄，匯出時以你填寫的階層與名稱呈現。",
     "badge": "自建",
-    "editSelf": "編輯自建物種"
+    "editSelf": "編輯自建物種",
+    "delete": "刪除此自建物種",
+    "deleteTitle": "刪除自建物種",
+    "deleteMsg": "確定要刪除「{{name}}」？此動作無法復原。",
+    "deleteBlockedTitle": "無法刪除",
+    "deleteBlockedMsg": "這個物種仍被下列資料使用：\n名錄記錄 {{records}} 筆\n樣區記錄 {{plotRecords}} 筆\n採集標本 {{specimens}} 件\n常用名錄 {{favorites}} 筆\n\n請先刪除這些記錄或改鑑定為其他物種，再刪除此物種。"
   },
   "plotStats": {
     "title": "多樣性統計",

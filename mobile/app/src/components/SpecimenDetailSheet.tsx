@@ -8,7 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Keyboard, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Alert, Keyboard, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import {
   SwipeNavArea,
@@ -21,6 +21,8 @@ import { DateTimeField } from './DateTimeField';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { isRecordNumberTaken, nextRecordNumber, type SpecimenWithTaxon } from '~/db';
 import { attributesFromRecord, attributesToColumns, EMPTY_DRAFT } from '~/lib/dwcAttributes';
+import { errText } from '~/lib/errText';
+import { firstPhotoFix } from '~/lib/photoMeta';
 import { RecordMetaFooter } from './RecordMetaFooter';
 import { PhotoGrid, PhotoViewerModal } from './PhotoGrid';
 import { AudioClipList } from './AudioClipList';
@@ -56,6 +58,9 @@ type Props = {
   /** Commit a coordinate. `accuracy` is the GNSS uncertainty in metres for a
    *  real fix, or null when the point was placed by hand on the map. */
   onChangeLocation: (lat: number, lng: number, accuracy: number | null) => void;
+  /** Same as onChangeLocation but may clear: nulls remove the coordinate
+   *  (long-press on the coordinate row). */
+  onSaveLocation: (lat: number | null, lng: number | null, accuracy: number | null) => void;
   onDelete: () => void;
   onAddPhoto: (mode: 'camera' | 'library') => void;
   onRemovePhoto: (uri: string) => void;
@@ -102,6 +107,7 @@ export function SpecimenDetailSheet({
   onClose,
   onSave,
   onChangeLocation,
+  onSaveLocation,
   onDelete,
   onAddPhoto,
   onRemovePhoto,
@@ -213,14 +219,39 @@ export function SpecimenDetailSheet({
     onSave(attributesToColumns(next));
   };
 
+  // The coordinate row, photo button and map below mirror SpeciesDetailSheet
+  // and PlotSpeciesValueModal: one location block, three record kinds.
   const locateMe = async () => {
     const perm = await Location.requestForegroundPermissionsAsync();
-    if (perm.status !== 'granted') return;
-    const pos = await Location.getCurrentPositionAsync({
-      accuracy: Location.Accuracy.Balanced,
-    });
-    // A real fix carries its uncertainty; keep it (DwC coordinateUncertaintyInMeters).
-    onChangeLocation(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy ?? null);
+    if (perm.status !== 'granted') {
+      Alert.alert(t('gnss.permTitle'), t('gnss.permMsg'));
+      return;
+    }
+    try {
+      const pos = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      // A real fix carries its uncertainty; keep it (DwC coordinateUncertaintyInMeters).
+      onSaveLocation(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy ?? null);
+    } catch (e) {
+      Alert.alert(t('gnss.posFailTitle'), errText(e));
+    }
+  };
+
+  // Same rule and messages as SpeciesDetailSheet's 「用照片的 GNSS 定位」:
+  // `Alert`, not a toast, because this sheet is a Modal and a root-hosted
+  // toast renders behind it; and no permission request from in here.
+  const locateFromPhotos = async () => {
+    const out = await firstPhotoFix(photos);
+    if (out.kind === 'needs-photo-access') {
+      Alert.alert(t('species.usePhotoGnss'), t('species.photoNeedsAccess'));
+      return;
+    }
+    if (out.kind === 'no-gnss') {
+      Alert.alert(t('species.usePhotoGnss'), t('species.photoNoGnss'));
+      return;
+    }
+    onSaveLocation(out.fix.lat, out.fix.lng, out.fix.accuracyM);
   };
 
   return (
@@ -388,27 +419,55 @@ export function SpecimenDetailSheet({
                     placeholderTextColor="#9ca3af"
                     className={INPUT_CLASS}
                   />
-                  <View className="mt-2 flex-row items-center justify-between">
-                    <Text className="text-xs text-gray-500 dark:text-gray-400">
+                  <Pressable
+                    onPress={locateMe}
+                    onLongPress={
+                      specimen.lat !== null
+                        ? () => {
+                            Alert.alert('GNSS', undefined, [
+                              { text: t('common.cancel'), style: 'cancel' },
+                              {
+                                text: t('species.clearCoord'),
+                                style: 'destructive',
+                                onPress: () => onSaveLocation(null, null, null),
+                              },
+                            ]);
+                          }
+                        : undefined
+                    }
+                    className="mt-2 flex-row items-center rounded-lg border border-gray-200 px-3 py-2 active:bg-gray-50 dark:border-gray-700 dark:active:bg-gray-800"
+                  >
+                    <Ionicons
+                      name={specimen.lat !== null ? 'location' : 'location-outline'}
+                      size={18}
+                      color={specimen.lat !== null ? '#2563eb' : '#4b5563'}
+                    />
+                    <Text className="ml-2 flex-1 text-sm text-gray-700 dark:text-gray-300" selectable>
                       {specimen.lat !== null && specimen.lng !== null
                         ? `${specimen.lat.toFixed(5)}, ${specimen.lng.toFixed(5)}${
                             specimen.accuracy !== null
                               ? ` (±${Math.round(specimen.accuracy)}m)`
                               : ''
                           }`
-                        : t('collection.noCoord')}
+                        : t('species.locateSpecies')}
                     </Text>
+                    <Text className="text-xs text-gray-400 dark:text-gray-500">
+                      {specimen.lat !== null ? t('species.longPressClear') : t('species.tapGnss')}
+                    </Text>
+                  </Pressable>
+                  {/* Only with photos and no position — a measured point is
+                      never overwritten by a button. */}
+                  {specimen.lat === null && photos.length > 0 ? (
                     <Pressable
-                      onPress={locateMe}
-                      hitSlop={8}
-                      className="flex-row items-center active:opacity-70"
+                      onPress={locateFromPhotos}
+                      className="mt-2 flex-row items-center rounded-lg border border-gray-200 px-3 py-2 active:bg-gray-50 dark:border-gray-700 dark:active:bg-gray-800"
                     >
-                      <Ionicons name="locate" size={14} color="#2563eb" />
-                      <Text className="ml-1 text-xs font-medium text-blue-700 dark:text-blue-300">
-                        {t('locMap.locateMe')}
+                      <Ionicons name="image-outline" size={18} color="#4b5563" />
+                      <Text className="ml-2 flex-1 text-sm text-gray-700 dark:text-gray-300">
+                        {t('species.usePhotoGnss')}
                       </Text>
                     </Pressable>
-                  </View>
+                  ) : null}
                   {/* The map pans on its own; block the swipe so a sideways drag
                   moves the map instead of stepping to the next specimen. */}
                   <GestureDetector gesture={nav.blocker}>
@@ -420,6 +479,11 @@ export function SpecimenDetailSheet({
                         // A hand-placed point has no measured uncertainty and arrives
                         // with null; an undo hands the previous one back.
                         onChange={onChangeLocation}
+                        taxon={{
+                          localTaxonId: specimen.taxon_id,
+                          name: specimen.simple_name,
+                          kingdom: specimen.kingdom,
+                        }}
                       />
                     </View>
                   </GestureDetector>

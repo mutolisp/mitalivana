@@ -30,6 +30,7 @@ import {
   type PlannedRecord,
 } from '~/lib/photoImport';
 import type { PickedPhoto } from '~/lib/photoCapture';
+import { runOverModal } from './GbifLookupHost';
 import { SearchBox } from './SearchBox';
 import { showActionSheet } from './ActionSheet';
 
@@ -48,6 +49,8 @@ export function PhotoImportModal({ picked, onCancel, onConfirm }: Props) {
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [taxon, setTaxon] = useState<SearchResult | null>(null);
   const [policy, setPolicy] = useState<MissingCoordPolicy>({ kind: 'leave-empty' });
+  // True while a root-hosted lookup is up — see runOverModal.
+  const [steppedAside, setSteppedAside] = useState(false);
 
   // Read every photo's EXIF once, when the sheet opens. In an effect, not
   // during render: the read is I/O and setting state mid-render is what makes
@@ -121,7 +124,7 @@ export function PhotoImportModal({ picked, onCancel, onConfirm }: Props) {
       : `${policy.lat.toFixed(4)}, ${policy.lng.toFixed(4)}`;
 
   return (
-    <Modal visible animationType="slide" onRequestClose={onCancel}>
+    <Modal visible={!steppedAside} animationType="slide" onRequestClose={onCancel}>
       <View
         className="flex-1 bg-white dark:bg-gray-900"
         style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
@@ -178,6 +181,7 @@ export function PhotoImportModal({ picked, onCancel, onConfirm }: Props) {
                     layout="dropdown"
                     afterSelect="dismiss"
                     onSelect={(result) => setTaxon(result)}
+                    runLookup={(run) => runOverModal(setSteppedAside, run)}
                   />
                 )}
               </View>

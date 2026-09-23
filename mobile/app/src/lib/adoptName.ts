@@ -23,7 +23,7 @@
 import { getDatasetDb, searchByTaxonId, type SearchResult } from '~/db';
 import type { AdoptionInput } from '~/db';
 import { showActionSheet } from '~/components/ActionSheet';
-import { lookupGbifName } from '~/components/GbifLookupHost';
+import { lookupGbifName, type LookupRunner } from '~/components/GbifLookupHost';
 import i18n from '~/i18n';
 
 export type AdoptionChoice =
@@ -57,7 +57,10 @@ export function otherConceptsFor(nameId: number, currentTaxonId: string): string
  * Only offered when the search actually resolved through another name — with
  * no `matched_as` there is no disagreement to resolve.
  */
-export async function chooseNameUsage(result: SearchResult): Promise<AdoptionChoice | null> {
+export async function chooseNameUsage(
+  result: SearchResult,
+  runLookup: LookupRunner = (run) => run(),
+): Promise<AdoptionChoice | null> {
   const m = result.matched_as;
   if (!m) return { kind: 'accepted' };
 
@@ -117,7 +120,7 @@ export async function chooseNameUsage(result: SearchResult): Promise<AdoptionCho
     };
   }
   if (chosen === 'ownTaxon') {
-    const picked = await lookupGbifName(m.name);
+    const picked = await runLookup(() => lookupGbifName(m.name));
     return picked ? { kind: 'other', result: picked.result } : null;
   }
   const other = others[idx - order.length];

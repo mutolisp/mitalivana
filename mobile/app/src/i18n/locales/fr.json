@@ -282,7 +282,10 @@
     "deleteSelectedMsg_other": "Ces {{count}} relevés et les {{rows}} observations qu’ils contiennent seront définitivement supprimés.",
     "deletedCount_one": "{{count}} relevé supprimé",
     "deletedCount_many": "{{count}} relevés supprimés",
-    "deletedCount_other": "{{count}} relevés supprimés"
+    "deletedCount_other": "{{count}} relevés supprimés",
+    "search": "Rechercher",
+    "searchPlaceholder": "Rechercher un projet ou un relevé",
+    "searchNoMatch": "Aucun projet ni relevé ne correspond à « {{q}} »"
   },
   "export": {
     "preparing": "Préparation…",
@@ -853,7 +856,17 @@
     "deleteSkipPlotsMsg_other": "{{count}} autres proviennent de placettes et ne sont pas supprimés ici.",
     "deletedCount_one": "{{count}} supprimé",
     "deletedCount_many": "{{count}} supprimés",
-    "deletedCount_other": "{{count}} supprimés"
+    "deletedCount_other": "{{count}} supprimés",
+    "move": "Déplacer",
+    "assignProjectDesc": "Choisissez un projet, ou créez-en un, pour y déplacer les sites",
+    "newProjectDesc": "Les sites y seront déplacés après sa création",
+    "movePlotOnlyMsg": "Tout ce qui est sélectionné correspond aux coordonnées d’un relevé et suit son projet. Déplacez le relevé depuis l’onglet Relevés.",
+    "movedToProject_one": "{{count}} site déplacé vers « {{name}} »",
+    "movedToProject_many": "{{count}} sites déplacés vers « {{name}} »",
+    "movedToProject_other": "{{count}} sites déplacés vers « {{name}} »",
+    "moveSkipPlotsMsg_one": "{{count}} autre provient d’une placette et n’a pas été déplacé ici.",
+    "moveSkipPlotsMsg_many": "{{count}} autres proviennent de placettes et n’ont pas été déplacés ici.",
+    "moveSkipPlotsMsg_other": "{{count}} autres proviennent de placettes et n’ont pas été déplacés ici."
   },
   "map": {
     "basemapStandard": "Standard",
@@ -1796,7 +1809,12 @@
     "rank": "Rang",
     "note": "Un taxon que vous créez n'appartient à aucune liste ; les exports reprennent le nom et les rangs que vous avez saisis.",
     "badge": "perso",
-    "editSelf": "Modifier ce taxon personnel"
+    "editSelf": "Modifier ce taxon personnel",
+    "delete": "Supprimer ce taxon",
+    "deleteTitle": "Supprimer le taxon",
+    "deleteMsg": "Supprimer « {{name}} » ? Cette action est irréversible.",
+    "deleteBlockedTitle": "Suppression impossible",
+    "deleteBlockedMsg": "Ce taxon est encore utilisé par :\nrelevés de liste d'espèces : {{records}}\nrelevés de placette : {{plotRecords}}\nspécimens : {{specimens}}\nfavoris : {{favorites}}\n\nSupprimez d'abord ces relevés ou réidentifiez-les sous un autre taxon."
   },
   "plotStats": {
     "title": "Statistiques de diversité",

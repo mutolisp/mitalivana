@@ -11,6 +11,7 @@ import * as MediaLibrary from 'expo-media-library';
 import { resolveAssetUri } from './bundleExport';
 import { recallPhotoFix, rememberPhotoFix } from '~/db/photoFix';
 import {
+  heifExifSegment,
   metaFromExifDict,
   metaFromPickerExif,
   mergeMeta,
@@ -21,9 +22,9 @@ import {
  * Everything a photo can tell us, from whichever sources are available.
  *
  * `pickerExif` is `asset.exif` when the photo just came from the picker. It is
- * the ONLY source for a HEIC: piexif accepts JPEG, TIFF or a bare Exif blob and
- * throws on anything else, and an iPhone camera writes HEIC. So a failure to
- * parse the bytes is normal, not an error — it just means this photo has
+ * the preferred source for a HEIC: piexif accepts JPEG, TIFF or a bare Exif
+ * blob only, so a HEIC's bytes go through `heifExifSegment` first. A failure to
+ * parse the bytes is still normal, not an error — it just means this photo has
  * whatever the picker gave us and nothing more.
  */
 export async function readPhotoMeta(
@@ -36,7 +37,11 @@ export async function readPhotoMeta(
     const fileUri = await resolveAssetUri(uri);
     if (fileUri) {
       const b64 = await readAsStringAsync(fileUri, { encoding: 'base64' });
-      fromBytes = metaFromExifDict(piexif.load(`data:image/jpeg;base64,${b64}`));
+      // HEIF has 'ftyp' at bytes 4–8. Checked on the first 12 bytes only, so a
+      // JPEG is not decoded twice.
+      const heif = atob(b64.slice(0, 16)).slice(4, 8) === 'ftyp';
+      const src = heif ? heifExifSegment(atob(b64)) : `data:image/jpeg;base64,${b64}`;
+      if (src) fromBytes = metaFromExifDict(piexif.load(src));
     }
   } catch {
     // Unreadable, or not a format piexif knows. The picker half may still have
@@ -143,10 +148,10 @@ export async function firstPhotoFix(sources: PhotoFixSource[]): Promise<PhotoFix
     }
     const meta = await readPhotoMeta(uri, exif);
     if (meta.lat !== null && meta.lng !== null) {
-      // Remember it now. For a HEIC this is the ONLY moment the position is
-      // legible — `piexif` cannot parse one and the stored copy is unchanged —
-      // so without this the same photo answers differently later, depending on
-      // whether the picker's EXIF happens to still be in memory.
+      // Remember it now. The picker's EXIF may be the only legible source (a
+      // HEIC variant `heifExifSegment` rejects, or a library photo we may not
+      // open later), so without this the same photo could answer differently
+      // later, depending on whether that EXIF happens to still be in memory.
       rememberPhotoFix(uri, meta);
       return {
         kind: 'found',

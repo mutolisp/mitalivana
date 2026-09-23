@@ -11,9 +11,20 @@ type Props = {
   currentProjectId: number;
   onCancel: () => void;
   onAssign: (projectId: number) => void;
+  /** Override the subtitle and the 「新建專案」 hint, which otherwise talk
+   *  about "this record" — wrong for anything that is not one (sites). */
+  description?: string;
+  newProjectDescription?: string;
 };
 
-export function ProjectAssignSheet({ visible, currentProjectId, onCancel, onAssign }: Props) {
+export function ProjectAssignSheet({
+  visible,
+  currentProjectId,
+  onCancel,
+  onAssign,
+  description,
+  newProjectDescription,
+}: Props) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [projects, setProjects] = useState<Project[]>([]);
@@ -63,7 +74,7 @@ export function ProjectAssignSheet({ visible, currentProjectId, onCancel, onAssi
           <View className="border-b border-gray-200 dark:border-gray-700 px-4 py-3">
             <Text className="text-base font-semibold text-gray-900 dark:text-gray-100">{t('sheets.assignProject')}</Text>
             <Text className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-              {t('sheets.assignProjectDesc')}
+              {description ?? t('sheets.assignProjectDesc')}
             </Text>
           </View>
           <Pressable
@@ -75,7 +86,7 @@ export function ProjectAssignSheet({ visible, currentProjectId, onCancel, onAssi
             </View>
             <View className="flex-1">
               <Text className="text-base font-semibold text-blue-700 dark:text-blue-300">{t('sheets.newProject')}</Text>
-              <Text className="text-xs text-blue-600 dark:text-blue-400">{t('sheets.newProjectDesc')}</Text>
+              <Text className="text-xs text-blue-600 dark:text-blue-400">{newProjectDescription ?? t('sheets.newProjectDesc')}</Text>
             </View>
           </Pressable>
           <ScrollView className="max-h-96">

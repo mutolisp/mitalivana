@@ -15,6 +15,7 @@
 import piexif from 'piexifjs';
 import {
   buildUserComment,
+  heifExifSegment,
   latin1ToUtf8,
   metaFromExifDict,
   metaFromPickerExif,
@@ -148,8 +149,50 @@ eq('picker wins for time', mergeMeta(bytes, picker).takenAt, 222);
 eq('bytes win for the embedded record', mergeMeta(bytes, picker).embedded.taxon_id, 'from-bytes');
 eq('a picker with no fix falls back to the bytes', mergeMeta(bytes, { lat: null, lng: null, accuracyM: null, takenAt: null, embedded: null }).lat, 1);
 
+// ── 7. The same EXIF inside a HEIF container ───────────────────────────────
+// A HEIC copied off the picker keeps its position, but piexif refuses the
+// container. Built in memory like the JPEG above: ftyp, meta{iinf, iloc[, idat]},
+// and the Exif item's payload (4-byte TIFF offset + "Exif\0\0" + TIFF).
+const be = (n, bytes) => {
+  let out = '';
+  for (let i = bytes - 1; i >= 0; i--) out += String.fromCharCode(Math.floor(n / 256 ** i) % 256);
+  return out;
+};
+const box = (type, body) => be(8 + body.length, 4) + type + body;
+const fullBox = (type, version, body) => box(type, String.fromCharCode(version) + '\0\0\0' + body);
+const tiff = piexif.dump(exifObj).slice(6); // drop piexif's own "Exif\0\0"
+const exifPayload = be(6, 4) + 'Exif\0\0' + tiff;
+const infe = (id, t) => fullBox('infe', 2, be(id, 2) + be(0, 2) + t + '\0');
+const iinf = fullBox('iinf', 0, be(2, 2) + infe(1, 'hvc1') + infe(2, 'Exif'));
+const ftyp = box('ftyp', 'heic' + be(0, 4) + 'mif1heic');
+const buildHeif = (construction) => {
+  // iloc v1 (has construction_method), offset/length 4 bytes, no base offset.
+  const iloc = (off) =>
+    fullBox('iloc', 1, '\x44\x00' + be(1, 2) +
+      be(2, 2) + be(construction, 2) + be(0, 2) + be(1, 2) + be(off, 4) + be(exifPayload.length, 4));
+  if (construction === 1) {
+    const meta = fullBox('meta', 0, iinf + iloc(0) + box('idat', exifPayload));
+    return ftyp + meta;
+  }
+  // File offset: the payload lives in mdat right after meta, whose size does
+  // not depend on the offset value.
+  const metaLen = fullBox('meta', 0, iinf + iloc(0)).length;
+  const meta = fullBox('meta', 0, iinf + iloc(ftyp.length + metaLen + 8));
+  return ftyp + meta + box('mdat', exifPayload);
+};
+for (const [label, construction] of [['file offset', 0], ['idat', 1]]) {
+  const seg = heifExifSegment(buildHeif(construction));
+  const m = seg ? metaFromExifDict(piexif.load(seg)) : null;
+  near(`HEIF (${label}) latitude`, m?.lat, 23.4567);
+  near(`HEIF (${label}) longitude`, m?.lng, 120.8912);
+  eq(`HEIF (${label}) embedded name`, m?.embedded?.cname, '小西氏石櫟');
+}
+eq('JPEG is not mistaken for HEIF', heifExifSegment(JPEG), null);
+eq('HEIF without an Exif item', heifExifSegment(ftyp + fullBox('meta', 0, fullBox('iinf', 0, be(1, 2) + infe(1, 'hvc1')))), null);
+eq('truncated HEIF does not throw', heifExifSegment(buildHeif(0).slice(0, 60)), null);
+
 if (failures > 0) {
   console.error(`✗ photo-exif: ${failures} failure(s)`);
   process.exit(1);
 }
-console.log('✓ photo-exif: writer/reader are inverse, and all three GPS conventions land in the right hemisphere');
+console.log('✓ photo-exif: writer/reader are inverse, all three GPS conventions land in the right hemisphere, and HEIF yields its Exif');

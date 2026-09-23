@@ -10,6 +10,7 @@ import {
   Pressable,
   RefreshControl,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
@@ -27,6 +28,7 @@ import {
   deleteSession,
   getProject,
   listPlotSpecies,
+  listProjects,
   listRecordsSummary,
   setRecordStarred,
   mergePlotSurveys,
@@ -56,6 +58,13 @@ import { pickExportLanguage } from '~/lib/pickExportLanguage';
 import { DuplicateRecordModal, type DuplicateRequest } from '~/components/DuplicateRecordModal';
 import { MergeRecordsModal, type MergeRequest } from '~/components/MergeRecordsModal';
 import { ProjectAssignSheet } from '~/components/ProjectAssignSheet';
+import {
+  filterRecordGroups,
+  matchingProjectIds,
+  normalizeRecordQuery,
+  recordMatches,
+  type SearchableProject,
+} from '~/lib/recordSearch';
 import {
   duplicateRecordAndOpen,
   importRecordPromptAndOpen,
@@ -317,6 +326,11 @@ export default function RecordsListScreen() {
   const collapsedIds = useMemo(() => new Set(collapsedList), [collapsedList]);
   const [items, setItems] = useState<RecordItem[]>([]);
   const [groups, setGroups] = useState<ProjectGroup[]>([]);
+  // Search (header magnifier). Projects are loaded with the list so a query
+  // can match a project's abstract / location / notes, not only its name.
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [projects, setProjects] = useState<SearchableProject[]>([]);
   const [counts, setCounts] = useState<Record<Filter, number>>({
     all: 0,
     session: 0,
@@ -373,6 +387,7 @@ export default function RecordsListScreen() {
     setCounts(summary.counts);
     setItems(summary.items);
     setGroups(summary.groups);
+    setProjects(listProjects());
     refreshActive();
     refreshActivePlot();
   }, [filter, refreshActive, refreshActivePlot]);
@@ -875,14 +890,33 @@ export default function RecordsListScreen() {
    *  lets FlatList know its cells need redrawing. */
   const selectionEpoch = `${selectMode}:${selected.size}:${[...selected].join(',')}`;
 
+  const nq = normalizeRecordQuery(query);
+  const projectHits = useMemo(() => matchingProjectIds(projects, nq), [projects, nq]);
+  const shownGroups = useMemo(
+    () => filterRecordGroups(groups, nq, projectHits),
+    [groups, nq, projectHits],
+  );
+  const shownItems = useMemo(
+    () => (nq ? items.filter((it) => recordMatches(it, nq, projectHits)) : items),
+    [items, nq, projectHits],
+  );
+  // While searching, a collapsed group would hide the very matches asked for.
+  const noCollapse = useMemo(() => new Set<number>(), []);
   const listRows = useMemo(
     () =>
       viewMode === 'byProject'
-        ? buildFlatRows(groups, collapsedIds, layout)
-        : toItemRows(items, layout),
-    [viewMode, groups, collapsedIds, layout, items],
+        ? buildFlatRows(shownGroups, nq ? noCollapse : collapsedIds, layout)
+        : toItemRows(shownItems, layout),
+    [viewMode, shownGroups, nq, noCollapse, collapsedIds, layout, shownItems],
   );
   const isEmpty = viewMode === 'flat' ? items.length === 0 : groups.length === 0;
+  const noSearchMatch =
+    !isEmpty && nq !== '' && (viewMode === 'flat' ? shownItems.length === 0 : shownGroups.length === 0);
+
+  const closeSearch = () => {
+    setSearchOpen(false);
+    setQuery('');
+  };
 
   // C7: pull-to-refresh. reload() is synchronous (op-sqlite executeSync), so
   // hold the spinner a beat — an instantly vanishing spinner reads as broken.
@@ -1114,6 +1148,11 @@ export default function RecordsListScreen() {
                   icon shows the CURRENT layout; the a11y label says what
                   tapping does. */}
               <PillButton
+                icon="search"
+                a11yLabel={t('records.search')}
+                onPress={() => (searchOpen ? closeSearch() : setSearchOpen(true))}
+              />
+              <PillButton
                 icon={layout === 'card' ? 'grid-outline' : 'list-outline'}
                 a11yLabel={t(layout === 'card' ? 'records.layoutToList' : 'records.layoutToCard')}
                 onPress={() => setSetting('records_layout', layout === 'card' ? 'list' : 'card')}
@@ -1137,6 +1176,27 @@ export default function RecordsListScreen() {
         )}
       </View>
 
+      {/* Stays up in select mode too: search a project, then select the group. */}
+      {searchOpen ? (
+        <View className="flex-row items-center border-b border-gray-200 bg-white px-4 py-2 dark:border-gray-700 dark:bg-gray-900">
+          <Ionicons name="search" size={16} color="#9ca3af" />
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            autoFocus
+            placeholder={t('records.searchPlaceholder')}
+            placeholderTextColor="#9ca3af"
+            autoCapitalize="none"
+            autoCorrect={false}
+            returnKeyType="search"
+            className="ml-2 flex-1 py-1 text-base text-gray-900 dark:text-gray-100"
+          />
+          <Pressable onPress={closeSearch} hitSlop={8} accessibilityLabel={t('common.close')}>
+            <Ionicons name="close-circle" size={18} color="#9ca3af" />
+          </Pressable>
+        </View>
+      ) : null}
+
       {isEmpty ? (
         <View className="flex-1 items-center justify-center px-6">
           <Ionicons name="add-circle-outline" size={56} color="#cbd5e1" />
@@ -1156,9 +1216,18 @@ export default function RecordsListScreen() {
             <Text className="ml-1 text-sm font-medium text-white">{t('records.emptyCreate')}</Text>
           </Pressable>
         </View>
+      ) : noSearchMatch ? (
+        <View className="flex-1 items-center justify-center px-6">
+          <Ionicons name="search-outline" size={48} color="#cbd5e1" />
+          <Text className="mt-3 text-center text-sm text-gray-500 dark:text-gray-400">
+            {t('records.searchNoMatch', { q: query.trim() })}
+          </Text>
+        </View>
       ) : (
         <FlatList
           data={listRows}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           keyExtractor={(row) => row.key}
           // `renderItem` closes over selectMode / selected, which are NOT in
           // `data`. Before `listRows` was memoised the array was rebuilt every
@@ -1177,7 +1246,7 @@ export default function RecordsListScreen() {
               return (
                 <ProjectHeader
                   group={row.group}
-                  collapsed={collapsedIds.has(row.group.projectId)}
+                  collapsed={!nq && collapsedIds.has(row.group.projectId)}
                   onToggle={() => toggleCollapsed(row.group.projectId)}
                   onToggleAll={toggleCollapseAll}
                   onExport={selectMode ? undefined : () => handleExportProject(row.group)}

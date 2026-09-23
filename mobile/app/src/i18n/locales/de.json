@@ -255,7 +255,10 @@
     "deleteSelectedMsg_one": "Diese Aufzeichnung und die {{rows}} Artdatensätze darin werden endgültig entfernt.",
     "deleteSelectedMsg_other": "Diese {{count}} Aufzeichnungen und die {{rows}} Artdatensätze darin werden endgültig entfernt.",
     "deletedCount_one": "{{count}} Aufzeichnung gelöscht",
-    "deletedCount_other": "{{count}} Aufzeichnungen gelöscht"
+    "deletedCount_other": "{{count}} Aufzeichnungen gelöscht",
+    "search": "Suchen",
+    "searchPlaceholder": "Projekte oder Aufnahmen durchsuchen",
+    "searchNoMatch": "Kein Projekt und keine Aufnahme passt zu „{{q}}“"
   },
   "export": {
     "preparing": "Wird vorbereitet…",
@@ -806,7 +809,15 @@
     "deleteSkipPlotsMsg_one": "{{count}} weiterer stammt aus einer Aufnahmefläche und bleibt erhalten.",
     "deleteSkipPlotsMsg_other": "{{count}} weitere stammen aus Aufnahmeflächen und bleiben erhalten.",
     "deletedCount_one": "{{count}} gelöscht",
-    "deletedCount_other": "{{count}} gelöscht"
+    "deletedCount_other": "{{count}} gelöscht",
+    "move": "Verschieben",
+    "assignProjectDesc": "Projekt wählen oder neu anlegen, um die Standorte dorthin zu verschieben",
+    "newProjectDesc": "Die Standorte werden nach dem Anlegen dorthin verschoben",
+    "movePlotOnlyMsg": "Alles Ausgewählte sind die Koordinaten einer Aufnahme selbst und folgen deren Projekt. Verschiebe die Aufnahme im Tab „Aufnahmen“.",
+    "movedToProject_one": "{{count}} Standort nach „{{name}}“ verschoben",
+    "movedToProject_other": "{{count}} Standorte nach „{{name}}“ verschoben",
+    "moveSkipPlotsMsg_one": "{{count}} weiterer stammt aus einer Probefläche und wurde hier nicht verschoben.",
+    "moveSkipPlotsMsg_other": "{{count}} weitere stammen aus Probeflächen und wurden hier nicht verschoben."
   },
   "map": {
     "basemapStandard": "Standard",
@@ -1695,7 +1706,12 @@
     "rank": "Rang",
     "note": "Ein selbst angelegtes Taxon gehört zu keiner Artenliste; im Export erscheinen die von Ihnen eingetragenen Ränge und Namen.",
     "badge": "eigen",
-    "editSelf": "Dieses Taxon bearbeiten"
+    "editSelf": "Dieses Taxon bearbeiten",
+    "delete": "Diese eigene Art löschen",
+    "deleteTitle": "Eigene Art löschen",
+    "deleteMsg": "„{{name}}“ löschen? Dies kann nicht rückgängig gemacht werden.",
+    "deleteBlockedTitle": "Löschen nicht möglich",
+    "deleteBlockedMsg": "Diese Art wird noch verwendet von:\nArtenlisten-Einträgen: {{records}}\nProbeflächen-Einträgen: {{plotRecords}}\nBelegen: {{specimens}}\nFavoriten: {{favorites}}\n\nLösche diese Einträge zuerst oder bestimme sie als andere Art neu."
   },
   "plotStats": {
     "title": "Diversitätsstatistik",

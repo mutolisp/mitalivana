@@ -283,6 +283,48 @@ export function countOrphanExternalTaxa(): number {
   return Number(((res.rows ?? [])[0] as { n?: number })?.n ?? 0);
 }
 
+/** What still points at one external taxon — the same four tables
+ *  `countOrphanExternalTaxa` counts as references. */
+export type ExternalTaxonUsage = {
+  records: number;
+  plotRecords: number;
+  specimens: number;
+  favorites: number;
+};
+
+export function externalTaxonUsage(taxonId: string): ExternalTaxonUsage {
+  const res = getUserDb().executeSync(
+    `SELECT
+       (SELECT COUNT(*) FROM checklist_records WHERE taxon_id = ?) AS records,
+       (SELECT COUNT(*) FROM plot_species_records WHERE taxon_id = ?) AS plot_records,
+       (SELECT COUNT(*) FROM collection_specimens WHERE taxon_id = ?) AS specimens,
+       (SELECT COUNT(*) FROM favorite_taxa WHERE taxon_id = ?) AS favorites;`,
+    [taxonId, taxonId, taxonId, taxonId],
+  );
+  const r = ((res.rows ?? [])[0] ?? {}) as Record<string, number | undefined>;
+  return {
+    records: Number(r.records ?? 0),
+    plotRecords: Number(r.plot_records ?? 0),
+    specimens: Number(r.specimens ?? 0),
+    favorites: Number(r.favorites ?? 0),
+  };
+}
+
+/**
+ * Delete a user-created taxon. Refuses (returns false) while anything still
+ * references it: a record pointing at a missing taxon loses its name in every
+ * list and export. Checked here, not only in the UI, so no other caller can
+ * orphan records.
+ */
+export function deleteManualTaxon(taxonId: string): boolean {
+  const u = externalTaxonUsage(taxonId);
+  if (u.records + u.plotRecords + u.specimens + u.favorites > 0) return false;
+  getUserDb().executeSync(`DELETE FROM external_taxa WHERE taxon_id = ? AND source = 'manual';`, [
+    taxonId,
+  ]);
+  return true;
+}
+
 /**
  * An external taxon as a `SearchResult`, so it slots into the search box, the
  * detail sheet and every other place a local taxon goes.

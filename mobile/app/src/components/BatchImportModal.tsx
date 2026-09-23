@@ -28,7 +28,7 @@ import {
   type CategorizedImport,
   type ParsedEntry,
 } from '~/lib/batchImport';
-import { lookupGbifName } from './GbifLookupHost';
+import { lookupGbifName, runOverModal } from './GbifLookupHost';
 import { clearSearchResultCache } from './SearchBox';
 import type { AdoptionInput } from '~/db';
 import { importErrorMessage } from '~/lib/recordCreate';
@@ -92,6 +92,9 @@ export function BatchImportModal({ visible, target, onClose, onCommitted }: Prop
   const [progress, setProgress] = useState<{ label: string; done: number; total: number } | null>(
     null,
   );
+
+  // True while the GBIF lookup is up — see runOverModal.
+  const [steppedAside, setSteppedAside] = useState(false);
 
   // A picked file replaces the typed text; voice mode never uses it.
   const usingFile = inputMode === 'paste' && pickedFile !== null;
@@ -180,7 +183,7 @@ export function BatchImportModal({ visible, target, onClose, onCommitted }: Prop
   /** No row found → GBIF. On success the name moves into the exact-match list, so
    *  the user sees it join the import rather than having to start over. */
   const handleLookupGbif = async (raw: string) => {
-    const picked = await lookupGbifName(raw);
+    const picked = await runOverModal(setSteppedAside, () => lookupGbifName(raw));
     if (!picked) return;
     clearSearchResultCache();
     setResolved((prev) =>
@@ -243,7 +246,7 @@ export function BatchImportModal({ visible, target, onClose, onCommitted }: Prop
     (resolved?.ambiguous.filter((_, i) => ambiguousPicks.get(i) !== null).length ?? 0);
 
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={handleClose}>
+    <Modal visible={visible && !steppedAside} animationType="slide" onRequestClose={handleClose}>
       <View
         className="flex-1 bg-white dark:bg-gray-900"
         style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}

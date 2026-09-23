@@ -16,6 +16,7 @@ import {
   getInfraspeciesOf,
   getSynonyms,
   type Ancestors,
+  type ExternalTaxon,
   type Rank,
   type SearchResult,
   type Synonym,
@@ -30,6 +31,7 @@ import { CollapsibleSection, SynonymStatusBadge } from './CollapsibleSection';
 import { ConservationBadge } from './ConservationBadge';
 import { ScientificName } from './ScientificName';
 import { editManualTaxon } from './GbifLookupHost';
+import { clearSearchResultCache } from './SearchBox';
 import { ACTION_FILL } from '~/lib/colors';
 import { TaxonomyJumpChip } from './TaxonomyJumpChip';
 
@@ -51,6 +53,11 @@ type Props = {
    *  internal `currentResult` state). When omitted, the row is rendered
    *  non-tappable. */
   onPickSubordinate?: (sp: TaxonSpecies) => void;
+  /** Set when this panel sits inside a Modal. The manual-taxon editor is a
+   *  root-hosted Modal, and presenting it over another Modal crashes iOS
+   *  ("already presenting"), so the caller must get out of the way first and
+   *  run the editor itself. When omitted the panel opens the editor directly. */
+  onEditManualTaxon?: (ext: ExternalTaxon) => void;
 };
 
 function externalLinks(result: SearchResult): Array<{ label: string; url: string }> {
@@ -90,6 +97,7 @@ export function SpeciesDetailPanel({
   addButtonLabel,
   onAddLongPress,
   onPickSubordinate,
+  onEditManualTaxon,
 }: Props) {
   // Local copy so the manual-edit flow can refresh the displayed taxon
   // in place — the prop only changes when the parent re-opens the panel.
@@ -175,7 +183,17 @@ export function SpeciesDetailPanel({
               onPress={async () => {
                 const ext = getExternalTaxon(result.taxon_id);
                 if (!ext) return;
+                if (onEditManualTaxon) {
+                  onEditManualTaxon(ext);
+                  return;
+                }
                 const out = await editManualTaxon(ext);
+                if (out === 'deleted') {
+                  // A cached result would keep offering the deleted taxon.
+                  clearSearchResultCache();
+                  onClose?.();
+                  return;
+                }
                 if (out) setResult(out.result);
               }}
               hitSlop={6}

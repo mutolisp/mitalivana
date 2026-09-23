@@ -282,7 +282,10 @@
     "deleteSelectedMsg_other": "Estos {{count}} registros y las {{rows}} observaciones que contienen se eliminarán de forma permanente.",
     "deletedCount_one": "{{count}} registro eliminado",
     "deletedCount_many": "{{count}} registros eliminados",
-    "deletedCount_other": "{{count}} registros eliminados"
+    "deletedCount_other": "{{count}} registros eliminados",
+    "search": "Buscar",
+    "searchPlaceholder": "Buscar proyectos o registros",
+    "searchNoMatch": "Ningún proyecto ni registro coincide con «{{q}}»"
   },
   "export": {
     "preparing": "Preparando…",
@@ -853,7 +856,17 @@
     "deleteSkipPlotsMsg_other": "Otros {{count}} provienen de parcelas y no se eliminan aquí.",
     "deletedCount_one": "{{count}} eliminado",
     "deletedCount_many": "{{count}} eliminados",
-    "deletedCount_other": "{{count}} eliminados"
+    "deletedCount_other": "{{count}} eliminados",
+    "move": "Mover",
+    "assignProjectDesc": "Elija un proyecto, o cree uno, para mover allí los sitios",
+    "newProjectDesc": "Los sitios se moverán allí al crearlo",
+    "movePlotOnlyMsg": "Todo lo seleccionado son las coordenadas de un registro y siguen su proyecto. Mueva el registro desde la pestaña Registros.",
+    "movedToProject_one": "{{count}} sitio movido a «{{name}}»",
+    "movedToProject_many": "{{count}} sitios movidos a «{{name}}»",
+    "movedToProject_other": "{{count}} sitios movidos a «{{name}}»",
+    "moveSkipPlotsMsg_one": "{{count}} más proviene de una parcela y no se movió aquí.",
+    "moveSkipPlotsMsg_many": "{{count}} más provienen de parcelas y no se movieron aquí.",
+    "moveSkipPlotsMsg_other": "{{count}} más provienen de parcelas y no se movieron aquí."
   },
   "map": {
     "basemapStandard": "Estándar",
@@ -1796,7 +1809,12 @@
     "rank": "Categoría taxonómica",
     "note": "Un taxón propio no pertenece a ninguna lista; al exportar se usan el nombre y las categorías que usted introdujo.",
     "badge": "propio",
-    "editSelf": "Editar este taxón propio"
+    "editSelf": "Editar este taxón propio",
+    "delete": "Eliminar esta especie propia",
+    "deleteTitle": "Eliminar especie propia",
+    "deleteMsg": "¿Eliminar «{{name}}»? Esta acción no se puede deshacer.",
+    "deleteBlockedTitle": "No se puede eliminar",
+    "deleteBlockedMsg": "Esta especie aún se usa en:\nregistros de lista de especies: {{records}}\nregistros de parcela: {{plotRecords}}\nespecímenes: {{specimens}}\nfavoritos: {{favorites}}\n\nPrimero elimina esos registros o reidentifícalos como otra especie."
   },
   "plotStats": {
     "title": "Estadísticas de diversidad",

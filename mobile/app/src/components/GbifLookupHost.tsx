@@ -12,10 +12,10 @@
  *   3. only then mint a 'g…' external taxon.
  *
  * Imperative API + module-level store + a host mounted at the navigation root,
- * exactly like `TextPromptModal` / `ActionSheet` — and for the same reason:
- * one caller (the batch importer's not-found list) is itself inside a Modal, and
- * iOS will not present a Modal on top of a Modal. Hoisting the host out of
- * every screen is what makes it work from anywhere.
+ * exactly like `TextPromptModal` / `ActionSheet`. Hoisting does NOT make it
+ * safe to open from inside another Modal: iOS still refuses to present one
+ * Modal over another, and the app crashes. Callers inside a Modal go through
+ * `runOverModal` (the batch importer's not-found list, LookupResultSheet).
  *
  *   const picked = await lookupGbifName('Ficus benjamina');
  *   if (picked) addToRecord(picked.result);
@@ -26,6 +26,7 @@ import { create } from 'zustand';
 import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Modal,
   Pressable,
@@ -39,6 +40,8 @@ import { KeyboardAvoidingView } from './KeyboardAvoidingView';
 import { ScientificName } from './ScientificName';
 import { SynonymStatusBadge } from './CollapsibleSection';
 import {
+  deleteManualTaxon,
+  externalTaxonUsage,
   generateUuid,
   searchByTaxonId,
   updateExternalTaxon,
@@ -62,6 +65,10 @@ import { ACTION_FILL } from '~/lib/colors';
  *  turned out to be a LOCAL one GBIF led us to (no external taxon minted). */
 export type GbifLookupOutcome = { result: SearchResult; viaLocal: boolean };
 
+/** What the host resolves with. `'deleted'` only ever comes back from
+ *  `editManualTaxon` — the delete button exists only when editing. */
+type LookupResolution = GbifLookupOutcome | 'deleted' | null;
+
 type LookupRequest = {
   query: string;
   /** 'lookup' = the classic GBIF name search; 'manual' = straight to the
@@ -70,13 +77,13 @@ type LookupRequest = {
   /** Set when editing an existing manual taxon — save then UPDATEs by id
    *  instead of minting. */
   edit?: ExternalTaxon;
-  resolve: (outcome: GbifLookupOutcome | null) => void;
+  resolve: (outcome: LookupResolution) => void;
 };
 
 type LookupStore = {
   pending: LookupRequest | null;
   open: (req: LookupRequest) => void;
-  resolve: (outcome: GbifLookupOutcome | null) => void;
+  resolve: (outcome: LookupResolution) => void;
 };
 
 const useLookupStore = create<LookupStore>((set, get) => ({
@@ -93,7 +100,9 @@ const useLookupStore = create<LookupStore>((set, get) => ({
  *  user settled on, or `null` if they backed out. */
 export function lookupGbifName(q: string): Promise<GbifLookupOutcome | null> {
   return new Promise((resolve) => {
-    useLookupStore.getState().open({ query: q, mode: 'lookup', resolve });
+    useLookupStore
+      .getState()
+      .open({ query: q, mode: 'lookup', resolve: (o) => resolve(o === 'deleted' ? null : o) });
   });
 }
 
@@ -101,18 +110,70 @@ export function lookupGbifName(q: string): Promise<GbifLookupOutcome | null> {
  *  the user knows the name is unpublished/local). */
 export function manualTaxonEntry(q: string): Promise<GbifLookupOutcome | null> {
   return new Promise((resolve) => {
-    useLookupStore.getState().open({ query: q, mode: 'manual', resolve });
+    useLookupStore
+      .getState()
+      .open({ query: q, mode: 'manual', resolve: (o) => resolve(o === 'deleted' ? null : o) });
   });
 }
 
 /** Re-open the manual form pre-filled from an existing manual taxon; saving
- *  updates the same taxon_id (records keep pointing at it). */
-export function editManualTaxon(taxon: ExternalTaxon): Promise<GbifLookupOutcome | null> {
+ *  updates the same taxon_id (records keep pointing at it). Resolves
+ *  `'deleted'` when the user deleted the taxon instead — the caller must stop
+ *  showing it. */
+export function editManualTaxon(
+  taxon: ExternalTaxon,
+): Promise<GbifLookupOutcome | 'deleted' | null> {
   return new Promise((resolve) => {
     useLookupStore
       .getState()
       .open({ query: taxon.simple_name, mode: 'manual', edit: taxon, resolve });
   });
+}
+
+/** Long enough for a slide-out to finish: iOS cannot present while a Modal
+ *  is still being dismissed, so present and dismiss must never share a tick. */
+const DISMISS_MS = 450;
+const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+/** How a caller gets a root-hosted lookup on screen: run it directly, or —
+ *  inside a Modal — through `runOverModal`. */
+export type LookupRunner = <T>(run: () => Promise<T>) => Promise<T>;
+
+/**
+ * Run one of the lookups above from inside a Modal.
+ *
+ * The host is a root-hosted Modal, and presenting it over another Modal
+ * crashes iOS ("Attempt to present … which is already presenting"). So the
+ * caller's Modal hides (`setHidden(true)` must drive its `visible`), the lookup
+ * runs, and the caller comes back after the host has slid out. The caller's
+ * state survives because it lives in the component that renders the Modal,
+ * not inside it.
+ *
+ * `stayHidden` lets the caller keep its Modal down for a result that ends it
+ * (a deleted taxon): coming back only to be closed would present and dismiss
+ * back to back.
+ */
+export async function runOverModal<T>(
+  setHidden: (hidden: boolean) => void,
+  run: () => Promise<T>,
+  stayHidden?: (result: T) => boolean,
+): Promise<T> {
+  setHidden(true);
+  await wait(DISMISS_MS);
+  let done = false;
+  let result: T | undefined;
+  try {
+    result = await run();
+    done = true;
+    return result;
+  } finally {
+    if (!(done && stayHidden?.(result as T))) {
+      // The host is sliding out now; re-presenting in the same tick is the
+      // same crash in reverse.
+      await wait(DISMISS_MS);
+      setHidden(false);
+    }
+  }
 }
 
 type Step = 'searching' | 'list' | 'confirm' | 'local' | 'manual';
@@ -303,6 +364,37 @@ export function GbifLookupHost() {
     const created = searchByTaxonId(taxonId);
     if (created) onResolved(created, false);
     else onClose();
+  };
+
+  /** Delete the taxon being edited — refused while any record, plot row,
+   *  specimen or favourite still uses it. `Alert` because this is a Modal. */
+  const handleManualDelete = () => {
+    const edit = pending?.edit;
+    if (!edit) return;
+    const u = externalTaxonUsage(edit.taxon_id);
+    if (u.records + u.plotRecords + u.specimens + u.favorites > 0) {
+      Alert.alert(
+        t('manualTaxon.deleteBlockedTitle'),
+        t('manualTaxon.deleteBlockedMsg', {
+          records: u.records,
+          plotRecords: u.plotRecords,
+          specimens: u.specimens,
+          favorites: u.favorites,
+        }),
+      );
+      return;
+    }
+    Alert.alert(t('manualTaxon.deleteTitle'), t('manualTaxon.deleteMsg', { name: edit.simple_name }), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('common.delete'),
+        style: 'destructive',
+        onPress: () => {
+          // The DB re-checks; a false here means a reference appeared since.
+          if (deleteManualTaxon(edit.taxon_id)) resolveLookup('deleted');
+        },
+      },
+    ]);
   };
 
   const handlePick = (c: GbifNameCandidate) => {
@@ -743,9 +835,22 @@ export function GbifLookupHost() {
                 })}
               </View>
 
-              <Text className="mb-8 mt-4 text-xs text-amber-700 dark:text-amber-400">
+              <Text
+                className={`${pending?.edit ? 'mb-4' : 'mb-8'} mt-4 text-xs text-amber-700 dark:text-amber-400`}
+              >
                 {t('manualTaxon.note')}
               </Text>
+              {pending?.edit ? (
+                <Pressable
+                  onPress={handleManualDelete}
+                  className="mb-8 flex-row items-center justify-center rounded-lg border border-red-200 py-3 active:bg-red-50 dark:border-red-900 dark:active:bg-red-950/40"
+                >
+                  <Ionicons name="trash-outline" size={16} color="#dc2626" />
+                  <Text className="ml-1.5 text-sm font-medium text-red-600 dark:text-red-400">
+                    {t('manualTaxon.delete')}
+                  </Text>
+                </Pressable>
+              ) : null}
             </ScrollView>
           </KeyboardAvoidingView>
         ) : null}

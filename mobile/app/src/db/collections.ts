@@ -553,8 +553,8 @@ export function updateSpecimenTaxon(
 
 export function updateSpecimenLocation(
   id: number,
-  lat: number,
-  lng: number,
+  lat: number | null,
+  lng: number | null,
   accuracy: number | null = null,
 ): void {
   const db = getUserDb();
