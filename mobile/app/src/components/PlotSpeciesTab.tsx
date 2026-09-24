@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   addPlotSpecies,
   deletePlotSpecies,
+  withTransaction,
   getActiveLayers,
   getPlotLayers,
   getSubplotLayers,
@@ -54,6 +55,8 @@ import type { AdoptionInput } from '~/db';
 import { ScientificName } from './ScientificName';
 import { SearchBox } from './SearchBox';
 import { SwipeRowActions } from './SwipeRowActions';
+import { SelectionToolbar } from './SelectionToolbar';
+import { useListSelection } from '~/lib/useListSelection';
 import { router, type Href } from 'expo-router';
 import { TaxonomyJumpChip } from './TaxonomyJumpChip';
 import { PlotSpeciesValueModal, type PlotValueDraft } from './PlotSpeciesValueModal';
@@ -693,50 +696,75 @@ export function PlotSpeciesTab({ plot, onChanged }: { plot: PlotSurvey; onChange
     const next = activeLayers[idx];
     if (next === r.layer) return;
     updatePlotSpeciesLayer(r.id, next);
+    // Called from the open value modal too: keep its record (and so the layer
+    // it shows) in step with the row just moved.
+    setModal((m) =>
+      m && m.mode === 'edit' && m.record.id === r.id
+        ? { ...m, record: { ...m.record, layer: next } }
+        : m,
+    );
     reload();
     onChanged();
     useToast.getState().show(tr('plotSpecies.movedTo', { layer: layerLabel(next) }));
   };
 
-  const handleLongPressRecord = async (r: PlotSpeciesRecordWithTaxon) => {
-    const fav = useFavorites.getState().ids.has(r.taxon_id);
-    // "變更分層" only makes sense for stratified plots (E1..E6); transect /
-    // point_count records all live in the single 'T' bucket.
-    const canChangeLayer = stratified;
-    const options = [
-      { label: tr('common.edit') },
-      { label: tr('plotSpecies.changeTaxon') },
-      ...(canChangeLayer ? [{ label: tr('plotSpecies.changeLayer') }] : []),
-      { label: fav ? tr('favorites.remove') : tr('favorites.add') },
-      { label: tr('common.delete'), destructive: true },
-    ];
-    let i = 0;
-    const editIdx = i++;
-    const taxonIdx = i++;
-    const layerIdx = canChangeLayer ? i++ : -1;
-    const favIdx = i++;
-    const delIdx = i++;
-    const idx = await showActionSheet({
-      title: r.common_name_c || r.simple_name,
-      options,
-    });
-    if (idx === editIdx) setModal({ mode: 'edit', record: r });
-    else if (idx === taxonIdx) setReplaceTarget(r);
-    else if (idx === layerIdx) handleChangeLayer(r);
-    else if (idx === favIdx) {
-      const t = useToast.getState().show;
-      if (fav) {
-        useFavorites.getState().remove(r.taxon_id);
-        t(tr('favorites.removed'));
-      } else {
-        if (useFavorites.getState().addById(r.taxon_id)) toastFavoriteAdded();
-        else t(tr('favorites.addFail'));
-      }
-    } else if (idx === delIdx) {
-      deletePlotSpecies(r.id);
-      reload();
-      onChanged();
-    }
+  // Long-press multi-select. The old long-press menu's edit / change taxon /
+  // change layer / favourite / delete now live in the value modal.
+  const selection = useListSelection<number>();
+
+  const handleBulkFavorite = () => {
+    const rows = visibleRecords.filter((r) => selection.picked.has(r.id));
+    const taxa = [...new Set(rows.map((r) => r.taxon_id).filter(Boolean))];
+    const added = taxa.filter((id) => useFavorites.getState().addById(id)).length;
+    selection.exit();
+    if (added > 0) toastFavoriteAdded(tr('favorites.addedCount', { count: added }));
+    else useToast.getState().show(tr('favorites.addFail'));
+  };
+
+  const handleBulkDelete = () => {
+    const rows = visibleRecords.filter((r) => selection.picked.has(r.id));
+    if (rows.length === 0) return;
+    Alert.alert(
+      tr('species.deleteSelectedTitle'),
+      tr('species.deleteSelectedMsg', { count: rows.length }),
+      [
+        { text: tr('common.cancel'), style: 'cancel' },
+        {
+          text: tr('common.delete'),
+          style: 'destructive',
+          onPress: () => {
+            withTransaction(() => {
+              for (const r of rows) deletePlotSpecies(r.id);
+            });
+            selection.exit();
+            reload();
+            onChanged();
+          },
+        },
+      ],
+    );
+  };
+
+  /** Delete from inside the value modal. Asks first: the row holds measured
+   *  values (cover, DBH, counts) that cannot be recovered. */
+  const handleDeleteFromModal = (r: PlotSpeciesRecordWithTaxon) => {
+    Alert.alert(
+      tr('plotSpecies.deleteRecord'),
+      tr('plotSpecies.deleteRecordMsg', { name: r.common_name_c || r.simple_name }),
+      [
+        { text: tr('common.cancel'), style: 'cancel' },
+        {
+          text: tr('common.delete'),
+          style: 'destructive',
+          onPress: () => {
+            deletePlotSpecies(r.id);
+            setModal(null);
+            reload();
+            onChanged();
+          },
+        },
+      ],
+    );
   };
 
   const layerMethodHint = (l: Layer): string | null => {
@@ -846,106 +874,121 @@ export function PlotSpeciesTab({ plot, onChanged }: { plot: PlotSurvey; onChange
           how you see that a species is already recorded in another one, and
           cross-layer occurrence is normal in a plot. Same meaning the dropdown
           had; only the tap count changed. */}
-      <View className="flex-row items-center border-b border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-900">
-        {!stratified ? (
-          <Text
-            className="flex-1 px-4 py-3 text-[11px] text-gray-500 dark:text-gray-400"
-            numberOfLines={1}
-          >
-            {isPointCount ? tr('plotSpecies.pointCountRecord') : tr('plotSpecies.transectRecord')}
-            {grouped['T'].length > 0
-              ? tr('plotSpecies.recordedCount', { count: grouped['T'].length })
-              : ''}
-          </Text>
-        ) : (
-          <>
-            {/* `subplotMode` implies stratified (subplots are only loaded for
-                stratified plots), so this belongs inside this branch.
-
-                A button that opens a sheet, not a chip strip of its own: a plot
-                can hold 10-20 subplots, which would push the layer chips clean
-                off screen, and you change subplot once per subplot while the
-                layer changes several times within one. */}
-            {subplotMode && activeSubplotId !== null ? (
-              <Pressable
-                onPress={handlePickSubplot}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel={tr('plotSpecies.subplot')}
-                className="ml-3 flex-row items-center rounded-full bg-gray-100 px-2.5 py-1 active:bg-gray-200 dark:bg-gray-800 dark:active:bg-gray-700"
-              >
-                <Text
-                  className="text-[11px] font-medium text-gray-700 dark:text-gray-300"
-                  numberOfLines={1}
-                  style={{ maxWidth: 72 }}
-                >
-                  {subplots.find((sp) => sp.id === activeSubplotId)?.label ?? ''}
-                </Text>
-                <Ionicons name="chevron-down" size={12} color="#9ca3af" style={{ marginLeft: 2 }} />
-              </Pressable>
-            ) : null}
-            {/* The Environment↔Species swipe activates at 18px of horizontal
-                travel and would swallow this ScrollView's drag. */}
-            <SwipeBlockedArea style={{ flex: 1 }}>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{
-                  paddingHorizontal: 8,
-                  paddingVertical: 8,
-                  alignItems: 'center',
-                }}
-              >
-                <Ionicons
-                  name="layers-outline"
-                  size={13}
-                  color="#9ca3af"
-                  style={{ marginRight: 6 }}
-                />
-                {activeLayers.map((l) => (
-                  <LayerChip
-                    key={l}
-                    // The code alone. `E4 亞喬木層` is ~112pt a chip, so three
-                    // full labels already overflow the strip; the full name is
-                    // in the accessibility label, on the Environment tab and in
-                    // the 變更分層 sheet. No count either — the group headers in
-                    // the list below already carry it, and a count that appears
-                    // when the first record lands would reflow the whole strip
-                    // out from under the finger.
-                    label={l}
-                    a11yLabel={`${tr('plotSpecies.layer')} ${layerLabel(l)}`}
-                    active={layer === l}
-                    onPress={() => setLayer(l)}
-                    // The code alone is unreadable until you have learnt the
-                    // scheme; long-press names the layer without spending the
-                    // width that would shrink the strip back down.
-                    onLongPress={() => useToast.getState().show(layerLabel(l))}
-                  />
-                ))}
-              </ScrollView>
-            </SwipeBlockedArea>
-          </>
-        )}
-        <View className="flex-row items-center gap-3 pl-2 pr-3">
-          <Pressable
-            onPress={handlePickSort}
-            hitSlop={8}
-            className="flex-row items-center active:opacity-70"
-          >
-            <Ionicons name="swap-vertical" size={16} color="#6b7280" />
-            <Text className="ml-0.5 text-xs text-gray-600 dark:text-gray-400">
-              {SORT_LABEL[sortOrder]}
+      {selection.selectMode ? (
+        <SelectionToolbar
+          count={selection.picked.size}
+          allPicked={
+            visibleRecords.length > 0 && visibleRecords.every((r) => selection.picked.has(r.id))
+          }
+          onToggleAll={() => selection.toggleAll(visibleRecords.map((r) => r.id))}
+          actions={[
+            { label: tr('favorites.add'), onPress: handleBulkFavorite },
+            { label: tr('common.delete'), onPress: handleBulkDelete, destructive: true },
+          ]}
+          onCancel={selection.exit}
+        />
+      ) : (
+        <View className="flex-row items-center border-b border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-900">
+          {!stratified ? (
+            <Text
+              className="flex-1 px-4 py-3 text-[11px] text-gray-500 dark:text-gray-400"
+              numberOfLines={1}
+            >
+              {isPointCount ? tr('plotSpecies.pointCountRecord') : tr('plotSpecies.transectRecord')}
+              {grouped['T'].length > 0
+                ? tr('plotSpecies.recordedCount', { count: grouped['T'].length })
+                : ''}
             </Text>
-          </Pressable>
-          <Pressable onPress={handleToggleSortDir} hitSlop={6} className="active:opacity-50">
-            <Ionicons
-              name={sortDir === 'desc' ? 'arrow-down' : 'arrow-up'}
-              size={14}
-              color="#6b7280"
-            />
-          </Pressable>
+          ) : (
+            <>
+              {/* `subplotMode` implies stratified (subplots are only loaded for
+                  stratified plots), so this belongs inside this branch.
+
+                  A button that opens a sheet, not a chip strip of its own: a plot
+                  can hold 10-20 subplots, which would push the layer chips clean
+                  off screen, and you change subplot once per subplot while the
+                  layer changes several times within one. */}
+              {subplotMode && activeSubplotId !== null ? (
+                <Pressable
+                  onPress={handlePickSubplot}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={tr('plotSpecies.subplot')}
+                  className="ml-3 flex-row items-center rounded-full bg-gray-100 px-2.5 py-1 active:bg-gray-200 dark:bg-gray-800 dark:active:bg-gray-700"
+                >
+                  <Text
+                    className="text-[11px] font-medium text-gray-700 dark:text-gray-300"
+                    numberOfLines={1}
+                    style={{ maxWidth: 72 }}
+                  >
+                    {subplots.find((sp) => sp.id === activeSubplotId)?.label ?? ''}
+                  </Text>
+                  <Ionicons name="chevron-down" size={12} color="#9ca3af" style={{ marginLeft: 2 }} />
+                </Pressable>
+              ) : null}
+              {/* The Environment↔Species swipe activates at 18px of horizontal
+                  travel and would swallow this ScrollView's drag. */}
+              <SwipeBlockedArea style={{ flex: 1 }}>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{
+                    paddingHorizontal: 8,
+                    paddingVertical: 8,
+                    alignItems: 'center',
+                  }}
+                >
+                  <Ionicons
+                    name="layers-outline"
+                    size={13}
+                    color="#9ca3af"
+                    style={{ marginRight: 6 }}
+                  />
+                  {activeLayers.map((l) => (
+                    <LayerChip
+                      key={l}
+                      // The code alone. `E4 亞喬木層` is ~112pt a chip, so three
+                      // full labels already overflow the strip; the full name is
+                      // in the accessibility label, on the Environment tab and in
+                      // the 變更分層 sheet. No count either — the group headers in
+                      // the list below already carry it, and a count that appears
+                      // when the first record lands would reflow the whole strip
+                      // out from under the finger.
+                      label={l}
+                      a11yLabel={`${tr('plotSpecies.layer')} ${layerLabel(l)}`}
+                      active={layer === l}
+                      onPress={() => setLayer(l)}
+                      // The code alone is unreadable until you have learnt the
+                      // scheme; long-press names the layer without spending the
+                      // width that would shrink the strip back down.
+                      onLongPress={() => useToast.getState().show(layerLabel(l))}
+                    />
+                  ))}
+                </ScrollView>
+              </SwipeBlockedArea>
+            </>
+          )}
+          <View className="flex-row items-center gap-3 pl-2 pr-3">
+            <Pressable
+              onPress={handlePickSort}
+              hitSlop={8}
+              className="flex-row items-center active:opacity-70"
+            >
+              <Ionicons name="swap-vertical" size={16} color="#6b7280" />
+              <Text className="ml-0.5 text-xs text-gray-600 dark:text-gray-400">
+                {SORT_LABEL[sortOrder]}
+              </Text>
+            </Pressable>
+            <Pressable onPress={handleToggleSortDir} hitSlop={6} className="active:opacity-50">
+              <Ionicons
+                name={sortDir === 'desc' ? 'arrow-down' : 'arrow-up'}
+                size={14}
+                color="#6b7280"
+              />
+            </Pressable>
+          </View>
         </View>
-      </View>
+      )}
 
       {/* Records grouped by layer */}
       <FlatList
@@ -979,6 +1022,7 @@ export function PlotSpeciesTab({ plot, onChanged }: { plot: PlotSurvey; onChange
           }
           return (
             <SwipeRowActions
+              disabled={selection.selectMode}
               actions={[
                 {
                   label: tr('records.uploadInat'),
@@ -1000,9 +1044,18 @@ export function PlotSpeciesTab({ plot, onChanged }: { plot: PlotSurvey; onChange
             >
               <SpeciesRow
                 record={item.record}
-                onPress={() => setModal({ mode: 'edit', record: item.record })}
-                onLongPress={() => handleLongPressRecord(item.record)}
-                onAdjust={(d) => handleAdjustQuantity(item.record, d)}
+                onPress={() =>
+                  selection.selectMode
+                    ? selection.toggle(item.record.id)
+                    : setModal({ mode: 'edit', record: item.record })
+                }
+                onLongPress={() => selection.enter(item.record.id)}
+                // In select mode a tap anywhere on the row selects it.
+                onAdjust={
+                  selection.selectMode ? undefined : (d) => handleAdjustQuantity(item.record, d)
+                }
+                selectMode={selection.selectMode}
+                picked={selection.picked.has(item.record.id)}
               />
             </SwipeRowActions>
           );
@@ -1097,6 +1150,20 @@ export function PlotSpeciesTab({ plot, onChanged }: { plot: PlotSurvey; onChange
           onAddAudio={handleAddAudioForModal}
           onRemoveAudio={handleRemoveAudioForModal}
           pager={modalPager}
+          recordActions={
+            modal.mode === 'edit'
+              ? {
+                  onReplaceTaxon: () => {
+                    // The docked SearchBox lives under this Modal, so the modal
+                    // has to close for the hand-off to mean anything.
+                    setReplaceTarget(modal.record);
+                    setModal(null);
+                  },
+                  onChangeLayer: stratified ? () => void handleChangeLayer(modal.record) : undefined,
+                  onDelete: () => handleDeleteFromModal(modal.record),
+                }
+              : undefined
+          }
           onCancel={() => {
             // Buffered clips were written to disk the moment recording stopped,
             // so an abandoned draft has to take its files with it.
@@ -1120,11 +1187,15 @@ function SpeciesRow({
   onPress,
   onLongPress,
   onAdjust,
+  selectMode,
+  picked,
 }: {
   record: PlotSpeciesRecordWithTaxon;
   onPress: () => void;
   onLongPress: () => void;
   onAdjust?: (delta: number) => void;
+  selectMode: boolean;
+  picked: boolean;
 }) {
   const { t: tr } = useTranslation();
   const ab = alienBadge(record.alien_type, record.kingdom);
@@ -1137,6 +1208,14 @@ function SpeciesRow({
       delayLongPress={350}
       className={`flex-row items-start border-b border-gray-100 px-4 py-3 dark:border-gray-800 ${uploaded ? 'bg-lime-50 active:bg-lime-100 dark:bg-lime-900/30 dark:active:bg-lime-900/50' : 'bg-white active:bg-gray-50 dark:bg-gray-900 dark:active:bg-gray-800'}`}
     >
+      {selectMode ? (
+        <Ionicons
+          name={picked ? 'checkbox' : 'square-outline'}
+          size={20}
+          color={picked ? '#2563eb' : '#9ca3af'}
+          style={{ marginRight: 10, alignSelf: 'center' }}
+        />
+      ) : null}
       <View className="flex-1">
         <View className="flex-row items-center" style={{ flexWrap: 'wrap' }}>
           <Text className="text-sm font-medium text-gray-900 dark:text-gray-100" numberOfLines={1}>

@@ -12,14 +12,16 @@ import { Ionicons } from '@expo/vector-icons';
 import type { AdoptionInput } from '~/db';
 import * as Location from 'expo-location';
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, FlatList, Pressable, Text, View } from 'react-native';
+import { Alert, BackHandler, FlatList, Pressable, Text, View } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import {
   addSpecimen,
   deleteSpecimen,
+  withTransaction,
   duplicateRecordNumbers,
   duplicateSpecimen,
   endCollectionTrip,
@@ -56,7 +58,7 @@ import { buildLabelSheetDocx } from '~/lib/docxLabels';
 import { DOCX_MIME } from '~/lib/docx';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
-import { useSettings, type CollectionSort } from '~/stores/settings';
+import { useSettings, type CollectionSort, type SortDirection } from '~/stores/settings';
 import { ProjectAssignSheet } from '~/components/ProjectAssignSheet';
 import { ScientificName } from '~/components/ScientificName';
 import { SearchBox } from '~/components/SearchBox';
@@ -116,28 +118,36 @@ const SORT_LABEL: Record<CollectionSort, string> = {
  * no numeric tail (`s.n.`, a voucher code) has a null seq and is put after the
  * numbered ones rather than silently interleaved at zero.
  */
-function sortSpecimens(list: SpecimenWithTaxon[], key: CollectionSort): SpecimenWithTaxon[] {
+function sortSpecimens(
+  list: SpecimenWithTaxon[],
+  key: CollectionSort,
+  dir: SortDirection,
+): SpecimenWithTaxon[] {
+  const sign = dir === 'desc' ? -1 : 1;
   const out = [...list];
   out.sort((a, b) => {
     switch (key) {
       case 'number': {
         const as = a.record_number_seq;
         const bs = b.record_number_seq;
-        if (as == null && bs == null) return a.record_number.localeCompare(b.record_number);
+        // Unnumbered specimens stay after the numbered ones in BOTH
+        // directions — descending is about the numbers, not about them.
+        if (as == null && bs == null) return sign * a.record_number.localeCompare(b.record_number);
         if (as == null) return 1;
         if (bs == null) return -1;
-        return as - bs;
+        return sign * (as - bs);
       }
       case 'family':
         return (
-          (a.family || '\uffff').localeCompare(b.family || '\uffff') ||
-          a.simple_name.localeCompare(b.simple_name)
+          sign *
+          ((a.family || '\uffff').localeCompare(b.family || '\uffff') ||
+            a.simple_name.localeCompare(b.simple_name))
         );
       case 'name':
-        return a.simple_name.localeCompare(b.simple_name);
+        return sign * a.simple_name.localeCompare(b.simple_name);
       case 'collected':
       default:
-        return a.collected_at - b.collected_at || a.id - b.id;
+        return sign * (a.collected_at - b.collected_at || a.id - b.id);
     }
   });
   return out;
@@ -149,6 +159,7 @@ function SpecimenRow({
   selectMode,
   picked,
   onPress,
+  onLongPress,
 }: {
   specimen: SpecimenWithTaxon;
   /** This collection number is carried by more than one specimen. */
@@ -156,6 +167,7 @@ function SpecimenRow({
   selectMode: boolean;
   picked: boolean;
   onPress: () => void;
+  onLongPress: () => void;
 }) {
   const photos = parsePhotoPaths(specimen.photo_paths);
   const attributes = attributeSummary(specimen);
@@ -164,6 +176,7 @@ function SpecimenRow({
   return (
     <Pressable
       onPress={onPress}
+      onLongPress={onLongPress}
       className={`flex-row items-center border-b border-gray-100 px-4 py-3 dark:border-gray-800 ${uploaded ? 'bg-lime-50 active:bg-lime-100 dark:bg-lime-900/30 dark:active:bg-lime-900/50' : 'bg-white active:bg-gray-50 dark:bg-gray-900 dark:active:bg-gray-800'}`}
     >
       {selectMode ? (
@@ -275,6 +288,7 @@ export default function CollectionTripScreen() {
   // adding a new one. Lives here because the SearchBox is a screen-level dock;
   // hosting one inside the detail Modal would need its own keyboard handling.
   const sortKey = useSettings((st) => st.collection_sort);
+  const sortDir = useSettings((st) => st.collection_sort_dir);
   const setSetting = useSettings((st) => st.set);
   /** Multi-select for the label export. Local state, like favorites: it belongs
    *  to this one screen and never has to survive navigation. */
@@ -394,9 +408,34 @@ export default function CollectionTripScreen() {
     setPicked(new Set());
   };
 
+  // Long-press enters select mode with that row picked — the records tab,
+  // favorites and sites screens all work this way.
+  const handleLongPress = (sp: SpecimenWithTaxon) => {
+    if (selectMode) return;
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setSelectMode(true);
+    setPicked(new Set([sp.id]));
+  };
+
+  // Android hardware back unwinds select mode before leaving the screen. Read
+  // through a ref so the once-registered listener never sees a stale flag.
+  const selectModeRef = useRef(selectMode);
+  selectModeRef.current = selectMode;
+  useFocusEffect(
+    useCallback(() => {
+      const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+        if (!selectModeRef.current) return false;
+        setSelectMode(false);
+        setPicked(new Set());
+        return true;
+      });
+      return () => sub.remove();
+    }, []),
+  );
+
   // Sorted once: the list, select-all and the exported label order all read the
   // same array, so labels come out in whatever order is on screen.
-  const display = sortSpecimens(specimens, sortKey);
+  const display = sortSpecimens(specimens, sortKey, sortDir);
 
   /** Step the detail sheet through `display` — the order actually on screen. */
   const detailPager = useMemo(() => {
@@ -421,8 +460,18 @@ export default function CollectionTripScreen() {
         label: k === sortKey ? `\u2713 ${t(SORT_LABEL[k])}` : t(SORT_LABEL[k]),
       })),
     });
-    if (idx >= 0 && idx < keys.length) setSetting('collection_sort', keys[idx]);
+    if (idx < 0 || idx >= keys.length) return;
+    // Same as the checklist screen: the active sort again flips direction; a
+    // different sort starts from its default (ascending, as before).
+    if (keys[idx] === sortKey) toggleSortDir();
+    else {
+      setSetting('collection_sort', keys[idx]);
+      setSetting('collection_sort_dir', 'asc');
+    }
   };
+
+  const toggleSortDir = () =>
+    setSetting('collection_sort_dir', sortDir === 'asc' ? 'desc' : 'asc');
 
   const handleExportLabels = async (title: string, includeFamily: boolean) => {
     // Filter `display`, not `picked`, so an id left over from a deleted
@@ -526,6 +575,30 @@ export default function CollectionTripScreen() {
     if (!active) return;
     updateSpecimen(active.id, patch);
     refreshActive(active.id);
+  };
+
+  const handleBulkDelete = () => {
+    // From `display`, so an id left over from an already-deleted row is ignored.
+    const rows = display.filter((sp) => picked.has(sp.id));
+    if (rows.length === 0) return;
+    Alert.alert(
+      t('collection.deleteTitle'),
+      t('collection.deleteSelectedMsg', { count: rows.length }),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('common.delete'),
+          style: 'destructive',
+          onPress: () => {
+            withTransaction(() => {
+              for (const sp of rows) deleteSpecimen(sp.id);
+            });
+            exitSelect();
+            reload();
+          },
+        },
+      ],
+    );
   };
 
   const handleDelete = (specimen: SpecimenWithTaxon) => {
@@ -704,7 +777,8 @@ export default function CollectionTripScreen() {
         }}
       />
       <View className="flex-1">
-        {/* Metadata row: project · collectors · sort · select · count.
+        {/* Metadata row: project · collectors · locality · sort. Select mode is
+            entered by long-pressing a row.
             While selecting, it is replaced wholesale by the selection toolbar —
             the same swap the records tab does. */}
         {selectMode ? (
@@ -742,6 +816,17 @@ export default function CollectionTripScreen() {
                   }`}
                 >
                   {t('collection.exportLabels')}
+                </Text>
+              </Pressable>
+              <Pressable onPress={handleBulkDelete} disabled={picked.size === 0} hitSlop={8}>
+                <Text
+                  className={`text-sm font-medium ${
+                    picked.size === 0
+                      ? 'text-gray-300 dark:text-gray-600'
+                      : 'text-red-600 dark:text-red-400'
+                  }`}
+                >
+                  {t('common.delete')}
                 </Text>
               </Pressable>
               <Pressable onPress={exitSelect} hitSlop={8}>
@@ -799,29 +884,30 @@ export default function CollectionTripScreen() {
               </Text>
             </Pressable>
             {specimens.length > 0 ? (
-              <>
-                <Pressable
-                  onPress={handlePickSort}
-                  hitSlop={6}
-                  className="flex-row items-center rounded-full bg-gray-100 px-2.5 py-1 active:bg-gray-200 dark:bg-gray-800 dark:active:bg-gray-700"
-                >
-                  <Ionicons name="swap-vertical" size={13} color="#4b5563" />
-                  <Text className="ml-1 text-[11px] font-medium text-gray-700 dark:text-gray-300">
-                    {t(SORT_LABEL[sortKey])}
-                  </Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => setSelectMode(true)}
-                  hitSlop={8}
-                  className="h-7 w-7 items-center justify-center rounded-full bg-gray-100 active:bg-gray-200 dark:bg-gray-800 dark:active:bg-gray-700"
-                >
-                  <Ionicons name="checkbox-outline" size={15} color="#4b5563" />
-                </Pressable>
-              </>
+              <Pressable
+                onPress={handlePickSort}
+                hitSlop={6}
+                className="flex-row items-center rounded-full bg-gray-100 px-2.5 py-1 active:bg-gray-200 dark:bg-gray-800 dark:active:bg-gray-700"
+              >
+                <Ionicons name="swap-vertical" size={13} color="#4b5563" />
+                <Text className="ml-1 text-[11px] font-medium text-gray-700 dark:text-gray-300">
+                  {t(SORT_LABEL[sortKey])}
+                </Text>
+              </Pressable>
             ) : null}
-            <Text className="text-xs text-gray-500 dark:text-gray-400">
-              {t('collection.specimenCount', { count: specimens.length })}
-            </Text>
+            {specimens.length > 0 ? (
+              <Pressable
+                onPress={toggleSortDir}
+                hitSlop={6}
+                className="active:opacity-50"
+              >
+                <Ionicons
+                  name={sortDir === 'desc' ? 'arrow-down' : 'arrow-up'}
+                  size={14}
+                  color="#6b7280"
+                />
+              </Pressable>
+            ) : null}
           </View>
         )}
 
@@ -868,6 +954,7 @@ export default function CollectionTripScreen() {
                   selectMode={selectMode}
                   picked={picked.has(item.id)}
                   onPress={() => (selectMode ? togglePick(item.id) : setActive(item))}
+                  onLongPress={() => handleLongPress(item)}
                 />
               </SwipeRowActions>
             )}

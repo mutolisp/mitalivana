@@ -107,7 +107,9 @@
     "nFolders_one": "{{count}} Liste",
     "nFolders_other": "{{count}} Listen",
     "nSpeciesInThem_one": "die darin enthaltene {{count}} Art",
-    "nSpeciesInThem_other": "die darin enthaltenen {{count}} Arten"
+    "nSpeciesInThem_other": "die darin enthaltenen {{count}} Arten",
+    "addedCount_one": "{{count}} Art zu den Favoriten hinzugefügt",
+    "addedCount_other": "{{count}} Arten zu den Favoriten hinzugefügt"
   },
   "gnss": {
     "permTitle": "Standortberechtigung erforderlich",
@@ -162,7 +164,6 @@
     "sortName": "Wissenschaftlicher Name",
     "sortFamily": "Familie",
     "editNotes": "Bemerkung bearbeiten",
-    "viewDetails": "Details anzeigen",
     "removeFromList": "Aus der Artenliste entfernen",
     "end": "Beenden",
     "continueEdit": "Weiter bearbeiten",
@@ -416,7 +417,10 @@
     "countUnset": "—",
     "countClear": "Löschen",
     "countMinus": "Um eins verringern",
-    "countPlus": "Um eins erhöhen"
+    "countPlus": "Um eins erhöhen",
+    "deleteSelectedTitle": "Arteinträge löschen",
+    "deleteSelectedMsg_one": "{{count}} ausgewählter Arteintrag wird gelöscht. Dies kann nicht rückgängig gemacht werden.",
+    "deleteSelectedMsg_other": "{{count}} ausgewählte Arteinträge werden gelöscht. Dies kann nicht rückgängig gemacht werden."
   },
   "attr": {
     "advanced": "Erweitert (Artmerkmale)",
@@ -497,7 +501,13 @@
     "toCollection": "Zur Aufsammlung hinzufügen: {{name}}",
     "newCollection": "Aufsammlung beginnen und hinzufügen",
     "addedToCollection": "Zur Aufsammlung {{number}} hinzugefügt: {{name}}",
-    "longPressHint": "Lange drücken, um Artenliste oder Aufsammlung zu wählen"
+    "longPressHint": "Lange drücken, um Artenliste oder Aufsammlung zu wählen",
+    "addedManyToPlot_one": "{{count}} Art zur Probefläche hinzugefügt (ohne Abundanz)",
+    "addedManyToPlot_other": "{{count}} Arten zur Probefläche hinzugefügt (ohne Abundanz)",
+    "addedManyToSession_one": "{{count}} Art zur Artenliste hinzugefügt",
+    "addedManyToSession_other": "{{count}} Arten zur Artenliste hinzugefügt",
+    "skippedExisting_one": "{{count}} bereits erfasste übersprungen",
+    "skippedExisting_other": "{{count}} bereits erfasste übersprungen"
   },
   "endSession": {
     "minutes": "{{count}} Min.",
@@ -690,9 +700,18 @@
     "collapseAll": "Alle einklappen",
     "tree": "Baum",
     "search": "Suche",
-    "addCurrent": "Zum aktuellen Datensatz hinzufügen",
-    "copyMenu": "Kopieren...",
-    "incompleteBucket": "Unvollständige Einordnung (selbst angelegt)"
+    "incompleteBucket": "Unvollständige Einordnung (selbst angelegt)",
+    "bulkNodeTitle": "Ausgewählte Taxa: {{names}}",
+    "bulkTooManyTitle": "Zu viele",
+    "bulkTooManyMsg": "Darunter liegen {{count}} Taxa – mehr als das Limit von {{max}} pro Vorgang. Bitte niedrigere Ränge wählen.",
+    "bulkAddToRecord": "Zur Aufnahme",
+    "nodeInfo": "Taxon-Info",
+    "bulkNodeSelf_one": "Nur das Taxon selbst ({{count}})",
+    "bulkNodeSelf_other": "Nur die Taxa selbst ({{count}})",
+    "bulkNodeAll_one": "Alles darunter ({{count}} Art bzw. infraspezifisches Taxon)",
+    "bulkNodeAll_other": "Alles darunter ({{count}} Arten und infraspezifische Taxa)",
+    "bulkNodeUnresolved_one": "{{count}} Taxon ist nicht in der Checkliste und wurde nicht hinzugefügt",
+    "bulkNodeUnresolved_other": "{{count}} Taxa sind nicht in der Checkliste und wurden nicht hinzugefügt"
   },
   "surveyors": {
     "addTitle": "Erfasser hinzufügen",
@@ -1015,7 +1034,9 @@
     "customUnitPlaceholder": "z. B. Stängelknoten / Rufanzahl / biomass(g)",
     "customQtyPlaceholder": "z. B. 3 oder 1.2 oder abundant",
     "dbhSummary_one": "insgesamt {{count}} Stamm",
-    "dbhSummary_other": "insgesamt {{count}} Stämme"
+    "dbhSummary_other": "insgesamt {{count}} Stämme",
+    "removeStemTitle": "Stamm entfernen",
+    "removeStemMsg": "Den Stamm mit {{value}} cm entfernen?"
   },
   "clipboard": {
     "copied": "Kopiert: {{label}}",
@@ -1083,7 +1104,9 @@
     "changeTaxonBanner": "Art für „{{name}}“ wechseln — unten eine auswählen",
     "taxonChanged": "Geändert zu {{name}}",
     "recordedCount_one": " · {{count}} erfasst",
-    "recordedCount_other": " · {{count}} erfasst"
+    "recordedCount_other": " · {{count}} erfasst",
+    "deleteRecord": "Diesen Eintrag löschen",
+    "deleteRecordMsg": "Den Eintrag „{{name}}“ löschen? Deckung, BHD und Anzahlen werden mitgelöscht und sind nicht wiederherstellbar."
   },
   "sheets": {
     "assignSite": "Geografischen Standort zuweisen",
@@ -1382,8 +1405,6 @@
     "labelNoneSelected": "Wählen Sie mindestens einen Beleg aus",
     "determiner": "Bestimmt von",
     "determinerEmpty": "Kein Bestimmer festgelegt",
-    "specimenCount_one": "{{count}} Beleg",
-    "specimenCount_other": "{{count}} Belege",
     "selectedCount_one": "{{count}} ausgewählt",
     "selectedCount_other": "{{count}} ausgewählt",
     "labelExportCount_one": "{{count}} Etikett exportieren",
@@ -1399,7 +1420,9 @@
     "institution": "Institutionscode",
     "institutionPlaceholder": "z. B. TAI, HAST",
     "otherNumbers": "Weitere Katalognummern",
-    "otherNumbersPlaceholder": "z. B. TAI 123456"
+    "otherNumbersPlaceholder": "z. B. TAI 123456",
+    "deleteSelectedMsg_one": "Den ausgewählten Beleg löschen?",
+    "deleteSelectedMsg_other": "Die {{count}} ausgewählten Belege löschen?"
   },
   "areaSpecies": {
     "title": "Artensuche im Gebiet",

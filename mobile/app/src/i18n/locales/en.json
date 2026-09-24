@@ -107,7 +107,9 @@
     "nFolders_one": "{{count}} list",
     "nFolders_other": "{{count}} lists",
     "nSpeciesInThem_one": "the {{count}} species in them",
-    "nSpeciesInThem_other": "the {{count}} species in them"
+    "nSpeciesInThem_other": "the {{count}} species in them",
+    "addedCount_one": "Added {{count}} taxon to favorites",
+    "addedCount_other": "Added {{count}} taxa to favorites"
   },
   "gnss": {
     "permTitle": "Location permission needed",
@@ -162,7 +164,6 @@
     "sortName": "Scientific name",
     "sortFamily": "Family",
     "editNotes": "Edit notes",
-    "viewDetails": "View details",
     "removeFromList": "Remove from checklist",
     "end": "End",
     "continueEdit": "Continue editing",
@@ -416,7 +417,10 @@
     "countUnset": "—",
     "countClear": "Clear",
     "countMinus": "Decrease by one",
-    "countPlus": "Increase by one"
+    "countPlus": "Increase by one",
+    "deleteSelectedTitle": "Delete species records",
+    "deleteSelectedMsg_one": "{{count}} selected species record will be deleted. This cannot be undone.",
+    "deleteSelectedMsg_other": "{{count}} selected species records will be deleted. This cannot be undone."
   },
   "attr": {
     "advanced": "Advanced (species attributes)",
@@ -497,7 +501,13 @@
     "toCollection": "Add to collection: {{name}}",
     "newCollection": "Start a collection and add",
     "addedToCollection": "Added to collection {{number}}: {{name}}",
-    "longPressHint": "Long-press to choose checklist or collection"
+    "longPressHint": "Long-press to choose checklist or collection",
+    "addedManyToPlot_one": "Added {{count}} taxon to the plot (no abundance yet)",
+    "addedManyToPlot_other": "Added {{count}} taxa to the plot (no abundance yet)",
+    "addedManyToSession_one": "Added {{count}} taxon to the checklist",
+    "addedManyToSession_other": "Added {{count}} taxa to the checklist",
+    "skippedExisting_one": "Skipped {{count}} already recorded",
+    "skippedExisting_other": "Skipped {{count}} already recorded"
   },
   "endSession": {
     "minutes": "{{count}} min",
@@ -690,9 +700,18 @@
     "collapseAll": "Collapse all",
     "tree": "Tree",
     "search": "Search",
-    "addCurrent": "Add to current record",
-    "copyMenu": "Copy...",
-    "incompleteBucket": "Incomplete classification (user-created)"
+    "incompleteBucket": "Incomplete classification (user-created)",
+    "bulkNodeTitle": "Selected taxa: {{names}}",
+    "bulkTooManyTitle": "Too many",
+    "bulkTooManyMsg": "There are {{count}} taxa under these, over the limit of {{max}} per batch. Pick lower-ranked taxa instead.",
+    "bulkAddToRecord": "Add to record",
+    "nodeInfo": "Taxon info",
+    "bulkNodeSelf_one": "Only the taxon itself ({{count}})",
+    "bulkNodeSelf_other": "Only the taxa themselves ({{count}})",
+    "bulkNodeAll_one": "Everything under it ({{count}} species and infraspecific taxon)",
+    "bulkNodeAll_other": "Everything under them ({{count}} species and infraspecific taxa)",
+    "bulkNodeUnresolved_one": "{{count}} taxon is not in the checklist and was not added",
+    "bulkNodeUnresolved_other": "{{count}} taxa are not in the checklist and were not added"
   },
   "surveyors": {
     "addTitle": "Add surveyor",
@@ -1015,7 +1034,9 @@
     "customUnitPlaceholder": "e.g. stem nodes / call count / biomass(g)",
     "customQtyPlaceholder": "e.g. 3 or 1.2 or abundant",
     "dbhSummary_one": "{{count}} stem",
-    "dbhSummary_other": "{{count}} stems"
+    "dbhSummary_other": "{{count}} stems",
+    "removeStemTitle": "Remove stem",
+    "removeStemMsg": "Remove the {{value}} cm stem?"
   },
   "clipboard": {
     "copied": "Copied: {{label}}",
@@ -1083,7 +1104,9 @@
     "changeTaxonBanner": "Changing species for \"{{name}}\" — pick one below",
     "taxonChanged": "Changed to {{name}}",
     "recordedCount_one": " · {{count}} recorded",
-    "recordedCount_other": " · {{count}} recorded"
+    "recordedCount_other": " · {{count}} recorded",
+    "deleteRecord": "Delete this record",
+    "deleteRecordMsg": "Delete the record for “{{name}}”? Its cover, DBH and counts are deleted too and cannot be recovered."
   },
   "sheets": {
     "assignSite": "Assign geographic site",
@@ -1382,8 +1405,6 @@
     "labelNoneSelected": "Select at least one specimen",
     "determiner": "Determined by",
     "determinerEmpty": "No determiner set",
-    "specimenCount_one": "{{count}} specimen",
-    "specimenCount_other": "{{count}} specimens",
     "selectedCount_one": "{{count}} selected",
     "selectedCount_other": "{{count}} selected",
     "labelExportCount_one": "Export {{count}} label",
@@ -1399,7 +1420,9 @@
     "institution": "Institution code",
     "institutionPlaceholder": "e.g. TAI, HAST",
     "otherNumbers": "Other catalog numbers",
-    "otherNumbersPlaceholder": "e.g. TAI 123456"
+    "otherNumbersPlaceholder": "e.g. TAI 123456",
+    "deleteSelectedMsg_one": "Delete the {{count}} selected specimen record?",
+    "deleteSelectedMsg_other": "Delete the {{count}} selected specimen records?"
   },
   "areaSpecies": {
     "title": "Species in area",

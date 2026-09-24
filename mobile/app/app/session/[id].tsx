@@ -30,6 +30,7 @@ import { useFocusEffect } from 'expo-router';
 import {
   addRecord,
   deleteRecord,
+  withTransaction,
   deleteSession,
   endSession,
   getActiveSession,
@@ -59,7 +60,6 @@ import { SearchBox } from '~/components/SearchBox';
 import { SpeciesCard } from '~/components/SpeciesCard';
 import { SpeciesDetailSheet } from '~/components/SpeciesDetailSheet';
 import { LookupResultSheet } from '~/components/LookupResultSheet';
-import { NotesEditModal } from '~/components/NotesEditModal';
 import { EndSessionModal } from '~/components/EndSessionModal';
 import { ProjectAssignSheet } from '~/components/ProjectAssignSheet';
 import { SurveyorAssignSheet } from '~/components/SurveyorAssignSheet';
@@ -69,6 +69,8 @@ import { PhotoImportModal } from '~/components/PhotoImportModal';
 import { pickPhotosWithExif, type PickedPhoto } from '~/lib/photoCapture';
 import { firstPhotoFix, rememberPickedPhotos } from '~/lib/photoMeta';
 import { SwipeRowActions } from '~/components/SwipeRowActions';
+import { SelectionToolbar } from '~/components/SelectionToolbar';
+import { useListSelection } from '~/lib/useListSelection';
 import { useSettings, type RecordSort, type SortDirection } from '~/stores/settings';
 import { useToast } from '~/stores/toast';
 import { useActiveSession } from '~/stores/activeSession';
@@ -154,7 +156,6 @@ export default function SessionDetailScreen() {
   const [records, setRecords] = useState<RecordWithTaxon[]>([]);
   const [filterKey, setFilterKey] = useState<string | null>(null);
   const [activeRecord, setActiveRecord] = useState<RecordWithTaxon | null>(null);
-  const [notesEditing, setNotesEditing] = useState<RecordWithTaxon | null>(null);
   const [endModalOpen, setEndModalOpen] = useState(false);
   const [projectSheetOpen, setProjectSheetOpen] = useState(false);
   const [siteSheetOpen, setSiteSheetOpen] = useState(false);
@@ -302,6 +303,42 @@ export default function SessionDetailScreen() {
         },
       },
     });
+  };
+
+  // Long-press multi-select. What the old long-press menu offered (notes,
+  // change taxon, favourites, remove) now lives in the detail sheet.
+  const selection = useListSelection<number>();
+
+  const handleBulkFavorite = () => {
+    const rows = filtered.filter((r) => selection.picked.has(r.id));
+    const taxa = [...new Set(rows.map((r) => r.taxon_id).filter(Boolean))];
+    const added = taxa.filter((id) => useFavorites.getState().addById(id)).length;
+    selection.exit();
+    if (added > 0) toastFavoriteAdded(t('favorites.addedCount', { count: added }));
+    else toast(t('favorites.addFail'));
+  };
+
+  const handleBulkDelete = () => {
+    const rows = filtered.filter((r) => selection.picked.has(r.id));
+    if (rows.length === 0) return;
+    Alert.alert(
+      t('species.deleteSelectedTitle'),
+      t('species.deleteSelectedMsg', { count: rows.length }),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('common.delete'),
+          style: 'destructive',
+          onPress: () => {
+            withTransaction(() => {
+              for (const r of rows) deleteRecord(r.id);
+            });
+            selection.exit();
+            reload();
+          },
+        },
+      ],
+    );
   };
 
   const handleSwipeRemove = (record: RecordWithTaxon) => {
@@ -484,16 +521,6 @@ export default function SessionDetailScreen() {
     });
     reload();
     toast(t('session.audioRemoved'));
-  };
-
-  const handleSaveLongPressNotes = (newNotes: string) => {
-    if (!notesEditing) return;
-    updateRecordNotes(notesEditing.id, newNotes || null);
-    if (activeRecord?.id === notesEditing.id) {
-      setActiveRecord({ ...notesEditing, notes: newNotes || null });
-    }
-    setNotesEditing(null);
-    reload();
   };
 
   const handleAssignProject = (projectId: number) => {
@@ -736,32 +763,6 @@ export default function SessionDetailScreen() {
     setSetting('last_record_sort_dir', sortDir === 'asc' ? 'desc' : 'asc');
   };
 
-  const handleLongPressRecord = async (record: RecordWithTaxon) => {
-    const fav = useFavorites.getState().ids.has(record.taxon_id);
-    const idx = await showActionSheet({
-      title: record.common_name_c || record.simple_name,
-      options: [
-        { label: t('session.editNotes') },
-        { label: t('session.changeTaxon') },
-        { label: fav ? t('favorites.remove') : t('favorites.add') },
-        { label: t('session.viewDetails') },
-        { label: t('session.removeFromList'), destructive: true },
-      ],
-    });
-    if (idx === 0) setNotesEditing(record);
-    else if (idx === 1) setReplaceTarget(record);
-    else if (idx === 2) {
-      if (fav) {
-        useFavorites.getState().remove(record.taxon_id);
-        toast(t('favorites.removed'));
-      } else {
-        if (useFavorites.getState().addById(record.taxon_id)) toastFavoriteAdded();
-        else toast(t('favorites.addFail'));
-      }
-    } else if (idx === 3) setActiveRecord(record);
-    else if (idx === 4) handleSwipeRemove(record);
-  };
-
   if (!session) {
     return (
       <View className="flex-1 items-center justify-center bg-white dark:bg-gray-900">
@@ -896,75 +897,89 @@ export default function SessionDetailScreen() {
             </Text>
           </Pressable>
         </View>
-        {/* Row 2 — filter chips (scrollable) + sort + batch import. */}
-        <View className="flex-row items-center border-b border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            className="flex-1"
-            contentContainerStyle={{
-              paddingHorizontal: 8,
-              paddingVertical: 8,
-              alignItems: 'center',
-            }}
-          >
-            <Chip
-              label={`${t('records.filterAll')} ${records.length}`}
-              active={filterKey === null}
-              onPress={() => setFilterKey(null)}
-            />
-            {HIGH_LEVEL_GROUPS.map((g) => {
-              const count = groupCounts.get(g.key) ?? 0;
-              if (count === 0) return null;
-              return (
-                <Chip
-                  key={g.key}
-                  label={`${t('group.' + g.key)} ${count}`}
-                  active={filterKey === g.key}
-                  onPress={() => setFilterKey(g.key)}
-                />
-              );
-            })}
-          </ScrollView>
-          <View className="flex-row items-center gap-3 pl-2 pr-3">
-            <Pressable
-              onPress={handlePickSort}
-              hitSlop={8}
-              className="flex-row items-center active:opacity-70"
+        {/* Row 2 — filter chips (scrollable) + sort + batch import. While
+            selecting, the selection bar takes its place (row 1 stays). */}
+        {selection.selectMode ? (
+          <SelectionToolbar
+            count={selection.picked.size}
+            allPicked={filtered.length > 0 && filtered.every((r) => selection.picked.has(r.id))}
+            onToggleAll={() => selection.toggleAll(filtered.map((r) => r.id))}
+            actions={[
+              { label: t('favorites.add'), onPress: handleBulkFavorite },
+              { label: t('common.delete'), onPress: handleBulkDelete, destructive: true },
+            ]}
+            onCancel={selection.exit}
+          />
+        ) : (
+          <View className="flex-row items-center border-b border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              className="flex-1"
+              contentContainerStyle={{
+                paddingHorizontal: 8,
+                paddingVertical: 8,
+                alignItems: 'center',
+              }}
             >
-              <Ionicons name="swap-vertical" size={18} color="#6b7280" />
-              <Text className="ml-0.5 text-xs text-gray-600 dark:text-gray-400">
-                {sortLabel[sortOrder]}
-              </Text>
-            </Pressable>
-            <Pressable onPress={handleToggleSortDir} hitSlop={6} className="active:opacity-50">
-              <Ionicons
-                name={sortDir === 'desc' ? 'arrow-down' : 'arrow-up'}
-                size={14}
-                color="#6b7280"
+              <Chip
+                label={`${t('records.filterAll')} ${records.length}`}
+                active={filterKey === null}
+                onPress={() => setFilterKey(null)}
               />
-            </Pressable>
-            {isActive ? (
+              {HIGH_LEVEL_GROUPS.map((g) => {
+                const count = groupCounts.get(g.key) ?? 0;
+                if (count === 0) return null;
+                return (
+                  <Chip
+                    key={g.key}
+                    label={`${t('group.' + g.key)} ${count}`}
+                    active={filterKey === g.key}
+                    onPress={() => setFilterKey(g.key)}
+                  />
+                );
+              })}
+            </ScrollView>
+            <View className="flex-row items-center gap-3 pl-2 pr-3">
               <Pressable
-                onPress={() => setBatchImportOpen(true)}
+                onPress={handlePickSort}
                 hitSlop={8}
-                className="active:opacity-70"
+                className="flex-row items-center active:opacity-70"
               >
-                <Ionicons name="cloud-upload-outline" size={18} color="#2563eb" />
+                <Ionicons name="swap-vertical" size={18} color="#6b7280" />
+                <Text className="ml-0.5 text-xs text-gray-600 dark:text-gray-400">
+                  {sortLabel[sortOrder]}
+                </Text>
               </Pressable>
-            ) : null}
-            {isActive ? (
-              <Pressable
-                onPress={handlePickPhotosToImport}
-                hitSlop={8}
-                accessibilityLabel={t('photoImport.entry')}
-                className="active:opacity-70"
-              >
-                <Ionicons name="images-outline" size={18} color="#2563eb" />
+              <Pressable onPress={handleToggleSortDir} hitSlop={6} className="active:opacity-50">
+                <Ionicons
+                  name={sortDir === 'desc' ? 'arrow-down' : 'arrow-up'}
+                  size={14}
+                  color="#6b7280"
+                />
               </Pressable>
-            ) : null}
+              {isActive ? (
+                <Pressable
+                  onPress={() => setBatchImportOpen(true)}
+                  hitSlop={8}
+                  className="active:opacity-70"
+                >
+                  <Ionicons name="cloud-upload-outline" size={18} color="#2563eb" />
+                </Pressable>
+              ) : null}
+              {isActive ? (
+                <Pressable
+                  onPress={handlePickPhotosToImport}
+                  hitSlop={8}
+                  accessibilityLabel={t('photoImport.entry')}
+                  className="active:opacity-70"
+                >
+                  <Ionicons name="images-outline" size={18} color="#2563eb" />
+                </Pressable>
+              ) : null}
+            </View>
           </View>
-        </View>
+        )}
         {filtered.length === 0 ? (
           <View className="flex-1 items-center justify-center px-6">
             <Ionicons name="search-outline" size={56} color="#9ca3af" />
@@ -978,6 +993,7 @@ export default function SessionDetailScreen() {
             keyExtractor={(r) => `${r.id}`}
             renderItem={({ item }) => (
               <SwipeRowActions
+                disabled={selection.selectMode}
                 actions={[
                   {
                     label: t('records.uploadInat'),
@@ -995,8 +1011,12 @@ export default function SessionDetailScreen() {
               >
                 <SpeciesCard
                   record={item}
-                  onPress={() => setActiveRecord(item)}
-                  onLongPress={() => handleLongPressRecord(item)}
+                  onPress={() =>
+                    selection.selectMode ? selection.toggle(item.id) : setActiveRecord(item)
+                  }
+                  onLongPress={() => selection.enter(item.id)}
+                  selectMode={selection.selectMode}
+                  picked={selection.picked.has(item.id)}
                 />
               </SwipeRowActions>
             )}
@@ -1141,13 +1161,6 @@ export default function SessionDetailScreen() {
       />
 
       {/* Long-press → 編輯備註 走獨立 modal（不在 detail sheet 開時）*/}
-      <NotesEditModal
-        visible={notesEditing !== null && !activeRecord}
-        initialValue={notesEditing?.notes ?? ''}
-        title={notesEditing?.common_name_c || notesEditing?.simple_name || t('session.notes')}
-        onCancel={() => setNotesEditing(null)}
-        onSave={handleSaveLongPressNotes}
-      />
 
       {endModalOpen ? (
         <EndSessionModal

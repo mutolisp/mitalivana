@@ -91,7 +91,8 @@
     "nRecordsSelected_other": "{{count}} 件の記録",
     "nSpeciesTotal_other": "{{count}} 種",
     "nFolders_other": "{{count}} 個のリスト",
-    "nSpeciesInThem_other": "その中の {{count}} 種"
+    "nSpeciesInThem_other": "その中の {{count}} 種",
+    "addedCount_other": "{{count}} 種をお気に入りに追加しました"
   },
   "gnss": {
     "permTitle": "位置情報の許可が必要です",
@@ -146,7 +147,6 @@
     "sortName": "学名",
     "sortFamily": "科",
     "editNotes": "備考を編集",
-    "viewDetails": "詳細を見る",
     "removeFromList": "種リストから削除",
     "end": "終了",
     "continueEdit": "編集を続ける",
@@ -388,7 +388,9 @@
     "countUnset": "—",
     "countClear": "クリア",
     "countMinus": "1 減らす",
-    "countPlus": "1 増やす"
+    "countPlus": "1 増やす",
+    "deleteSelectedTitle": "種の記録を削除",
+    "deleteSelectedMsg_other": "選択した {{count}} 件の種の記録を削除します。元に戻せません。"
   },
   "attr": {
     "advanced": "詳細（種の属性）",
@@ -468,7 +470,10 @@
     "toCollection": "採集に追加：{{name}}",
     "newCollection": "採集記録を作成して追加",
     "addedToCollection": "採集 {{number}} に追加しました：{{name}}",
-    "longPressHint": "長押しで種リストか採集を選択"
+    "longPressHint": "長押しで種リストか採集を選択",
+    "addedManyToPlot_other": "{{count}} 種を調査区に追加しました（被度などは未入力）",
+    "addedManyToSession_other": "{{count}} 種を種リストに追加しました",
+    "skippedExisting_other": "記録済みの {{count}} 種はスキップしました"
   },
   "endSession": {
     "minutes": "{{count}} 分",
@@ -654,9 +659,15 @@
     "collapseAll": "すべて折りたたむ",
     "tree": "分類ツリー",
     "search": "検索",
-    "addCurrent": "現在の記録に追加",
-    "copyMenu": "コピー...",
-    "incompleteBucket": "分類が未完成（自作）"
+    "incompleteBucket": "分類が未完成（自作）",
+    "bulkNodeTitle": "選択した分類群：{{names}}",
+    "bulkTooManyTitle": "件数が多すぎます",
+    "bulkTooManyMsg": "これらの下には {{count}} 件あり、1回の上限 {{max}} 件を超えています。より下位の分類群を選んでください。",
+    "bulkAddToRecord": "記録に追加",
+    "nodeInfo": "分類群の情報",
+    "bulkNodeSelf_other": "分類群そのものだけ追加（{{count}} 件）",
+    "bulkNodeAll_other": "下位の全分類群を追加（計 {{count}} 件、種・種内分類群を含む）",
+    "bulkNodeUnresolved_other": "{{count}} 件の分類群は名録にないため追加していません"
   },
   "surveyors": {
     "addTitle": "調査者を追加",
@@ -955,7 +966,9 @@
     "customUnit": "カスタム単位 (organismQuantityType)",
     "customUnitPlaceholder": "例：節数 / 鳴き声の回数 / biomass(g)",
     "customQtyPlaceholder": "例：3 / 1.2 / abundant",
-    "dbhSummary_other": "計 {{count}} 幹"
+    "dbhSummary_other": "計 {{count}} 幹",
+    "removeStemTitle": "幹を削除",
+    "removeStemMsg": "{{value}} cm の幹を削除しますか？"
   },
   "clipboard": {
     "copied": "コピーしました：{{label}}",
@@ -1020,7 +1033,9 @@
     "changeTaxon": "種を変更",
     "changeTaxonBanner": "「{{name}}」の種を変更：下の検索から選んでください",
     "taxonChanged": "{{name}} に変更しました",
-    "recordedCount_other": " · {{count}} 件記録済み"
+    "recordedCount_other": " · {{count}} 件記録済み",
+    "deleteRecord": "この記録を削除",
+    "deleteRecordMsg": "「{{name}}」の記録を削除しますか？被度・胸高直径・個体数なども削除され、元に戻せません。"
   },
   "sheets": {
     "assignSite": "サイトを指定",
@@ -1303,7 +1318,6 @@
     "labelNoneSelected": "標本を選択してください",
     "determiner": "同定者",
     "determinerEmpty": "同定者が未設定です",
-    "specimenCount_other": "{{count}} 点",
     "selectedCount_other": "{{count}} 点を選択中",
     "labelExportCount_other": "{{count}} 枚のラベルをエクスポート",
     "tripMetaTitle": "採集行程の情報",
@@ -1317,7 +1331,8 @@
     "institution": "所蔵機関コード",
     "institutionPlaceholder": "例：TAI、HAST",
     "otherNumbers": "その他の標本番号",
-    "otherNumbersPlaceholder": "例：TAI 123456"
+    "otherNumbersPlaceholder": "例：TAI 123456",
+    "deleteSelectedMsg_other": "選択した {{count}} 点の標本記録を削除しますか？"
   },
   "areaSpecies": {
     "title": "範囲内の種の検索",

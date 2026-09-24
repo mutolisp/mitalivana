@@ -35,6 +35,7 @@ import {
 } from './SwipeNavigator';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RecordMetaFooter } from './RecordMetaFooter';
+import { FavoriteToggle } from './FavoriteToggle';
 import { PhotoGrid, PhotoViewerModal } from './PhotoGrid';
 import { AudioClipRows, AudioRecordTile } from './AudioClipList';
 import { InatSyncButton, type InatSheetState } from './InatSyncButton';
@@ -197,6 +198,14 @@ type Props = {
   /** Position in the layer list ON SCREEN, so the modal can step to the
    *  neighbouring species by swipe or chevron. Edit mode only. */
   pager?: SwipeNavPagerState;
+  /** Edit mode only: actions on the saved row itself, which the species list
+   *  used to offer on long-press. They act immediately, not through Save. */
+  recordActions?: {
+    onReplaceTaxon: () => void;
+    /** Stratified plots only — a transect / point count has one layer. */
+    onChangeLayer?: () => void;
+    onDelete: () => void;
+  };
 };
 
 export function PlotSpeciesValueModal({
@@ -229,6 +238,7 @@ export function PlotSpeciesValueModal({
   onCancel,
   onSave,
   pager,
+  recordActions,
 }: Props) {
   const { t } = useTranslation();
   const resolvedDefaultType =
@@ -494,6 +504,33 @@ export function PlotSpeciesValueModal({
                         kingdom={header.kingdom}
                         className="text-sm text-gray-700 dark:text-gray-300"
                       />
+                    ) : null}
+                    {recordActions && header ? (
+                      <View className="flex-row flex-wrap items-center" style={{ columnGap: 16 }}>
+                        <Pressable
+                          onPress={recordActions.onReplaceTaxon}
+                          hitSlop={6}
+                          className="mt-2 flex-row items-center active:opacity-70"
+                        >
+                          <Ionicons name="swap-horizontal" size={14} color="#2563eb" />
+                          <Text className="ml-1 text-xs font-medium text-blue-700 dark:text-blue-300">
+                            {t('plotSpecies.changeTaxon')}
+                          </Text>
+                        </Pressable>
+                        {recordActions.onChangeLayer ? (
+                          <Pressable
+                            onPress={recordActions.onChangeLayer}
+                            hitSlop={6}
+                            className="mt-2 flex-row items-center active:opacity-70"
+                          >
+                            <Ionicons name="layers-outline" size={14} color="#2563eb" />
+                            <Text className="ml-1 text-xs font-medium text-blue-700 dark:text-blue-300">
+                              {t('plotSpecies.changeLayer')}
+                            </Text>
+                          </Pressable>
+                        ) : null}
+                        <FavoriteToggle taxonId={header.taxonId} />
+                      </View>
                     ) : null}
                     {/* Folded into the draft, not written on the spot: this
                         modal persists everything through its own Save. */}
@@ -868,6 +905,18 @@ export function PlotSpeciesValueModal({
                     inatObservationId={inatUploadedAt != null ? inatObservationId : null}
                   />
 
+                  {recordActions ? (
+                    <Pressable
+                      onPress={recordActions.onDelete}
+                      className="mt-4 flex-row items-center justify-center rounded-lg border border-red-200 bg-red-50 px-4 py-3 active:bg-red-100 dark:bg-red-950/40 dark:active:bg-red-900/60"
+                    >
+                      <Ionicons name="trash-outline" size={18} color="#dc2626" />
+                      <Text className="ml-2 text-sm font-medium text-red-700 dark:text-red-400">
+                        {t('plotSpecies.deleteRecord')}
+                      </Text>
+                    </Pressable>
+                  ) : null}
+
                   <View className="h-4" />
                 </KeyboardAwareScrollView>
               </SwipeNavArea>
@@ -1097,16 +1146,24 @@ function DBHInput({
 }
 
 function DbhStemChip({ value, onRemove }: { value: number; onRemove: () => void }) {
+  const { t } = useTranslation();
   const { colorScheme } = useNwColorScheme();
   const closeColor = colorScheme === 'dark' ? '#ffffff' : '#1e40af';
+  // Both the long-press and the ✕ ask first: a stem measured in the field
+  // cannot be recovered once it is gone. `Alert` because this is a Modal.
+  const confirmRemove = () =>
+    Alert.alert(t('plotValue.removeStemTitle'), t('plotValue.removeStemMsg', { value }), [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('common.remove'), style: 'destructive', onPress: onRemove },
+    ]);
   return (
     <Pressable
-      onLongPress={onRemove}
+      onLongPress={confirmRemove}
       delayLongPress={300}
       className="flex-row items-center rounded-full bg-blue-100 px-3 py-1.5 dark:bg-blue-900/60"
     >
       <Text className="text-sm font-medium text-blue-800 dark:text-white">{value} cm</Text>
-      <Pressable onPress={onRemove} hitSlop={8} className="ml-1.5">
+      <Pressable onPress={confirmRemove} hitSlop={8} className="ml-1.5">
         <Ionicons name="close-circle" size={16} color={closeColor} />
       </Pressable>
     </Pressable>

@@ -123,7 +123,10 @@
     "nFolders_other": "{{count}} listes",
     "nSpeciesInThem_one": "{{count}} espèce qu'elles contiennent",
     "nSpeciesInThem_many": "{{count}} espèces qu'elles contiennent",
-    "nSpeciesInThem_other": "{{count}} espèces qu'elles contiennent"
+    "nSpeciesInThem_other": "{{count}} espèces qu'elles contiennent",
+    "addedCount_one": "{{count}} taxon ajouté aux favoris",
+    "addedCount_many": "{{count}} taxons ajoutés aux favoris",
+    "addedCount_other": "{{count}} taxons ajoutés aux favoris"
   },
   "gnss": {
     "permTitle": "Autorisation de localisation requise",
@@ -178,7 +181,6 @@
     "sortName": "Nom scientifique",
     "sortFamily": "Famille",
     "editNotes": "Modifier les remarques",
-    "viewDetails": "Voir les détails",
     "removeFromList": "Retirer de la liste d'espèces",
     "end": "Terminer",
     "continueEdit": "Continuer l'édition",
@@ -444,7 +446,11 @@
     "countUnset": "—",
     "countClear": "Effacer",
     "countMinus": "Diminuer de un",
-    "countPlus": "Augmenter de un"
+    "countPlus": "Augmenter de un",
+    "deleteSelectedTitle": "Supprimer les observations",
+    "deleteSelectedMsg_one": "{{count}} observation sélectionnée sera supprimée, sans retour possible.",
+    "deleteSelectedMsg_many": "{{count}} observations sélectionnées seront supprimées, sans retour possible.",
+    "deleteSelectedMsg_other": "{{count}} observations sélectionnées seront supprimées, sans retour possible."
   },
   "attr": {
     "advanced": "Avancé (attributs de l'espèce)",
@@ -526,7 +532,16 @@
     "toCollection": "Ajouter à la récolte : {{name}}",
     "newCollection": "Créer une récolte et ajouter",
     "addedToCollection": "Ajouté à la récolte {{number}} : {{name}}",
-    "longPressHint": "Appui long pour choisir la liste d'espèces ou la récolte"
+    "longPressHint": "Appui long pour choisir la liste d'espèces ou la récolte",
+    "addedManyToPlot_one": "{{count}} taxon ajouté à la placette (abondance non saisie)",
+    "addedManyToPlot_many": "{{count}} taxons ajoutés à la placette (abondance non saisie)",
+    "addedManyToPlot_other": "{{count}} taxons ajoutés à la placette (abondance non saisie)",
+    "addedManyToSession_one": "{{count}} taxon ajouté à la liste d'espèces",
+    "addedManyToSession_many": "{{count}} taxons ajoutés à la liste d'espèces",
+    "addedManyToSession_other": "{{count}} taxons ajoutés à la liste d'espèces",
+    "skippedExisting_one": "{{count}} déjà présent ignoré",
+    "skippedExisting_many": "{{count}} déjà présents ignorés",
+    "skippedExisting_other": "{{count}} déjà présents ignorés"
   },
   "endSession": {
     "minutes": "{{count}} min",
@@ -726,9 +741,21 @@
     "collapseAll": "Tout replier",
     "tree": "Arbre",
     "search": "Recherche",
-    "addCurrent": "Ajouter à l'enregistrement en cours",
-    "copyMenu": "Copier...",
-    "incompleteBucket": "Classification incomplète (créée par vous)"
+    "incompleteBucket": "Classification incomplète (créée par vous)",
+    "bulkNodeTitle": "Taxons sélectionnés : {{names}}",
+    "bulkTooManyTitle": "Trop nombreux",
+    "bulkTooManyMsg": "{{count}} taxons se trouvent en dessous, au-delà de la limite de {{max}} par lot. Choisissez des taxons de rang inférieur.",
+    "bulkAddToRecord": "Ajouter au relevé",
+    "nodeInfo": "Infos sur le taxon",
+    "bulkNodeSelf_one": "Seulement le taxon lui-même ({{count}})",
+    "bulkNodeSelf_many": "Seulement les taxons eux-mêmes ({{count}})",
+    "bulkNodeSelf_other": "Seulement les taxons eux-mêmes ({{count}})",
+    "bulkNodeAll_one": "Tout ce qui est en dessous ({{count}} espèce ou taxon infraspécifique)",
+    "bulkNodeAll_many": "Tout ce qui est en dessous ({{count}} espèces et taxons infraspécifiques)",
+    "bulkNodeAll_other": "Tout ce qui est en dessous ({{count}} espèces et taxons infraspécifiques)",
+    "bulkNodeUnresolved_one": "{{count}} taxon absent de la liste n'a pas été ajouté",
+    "bulkNodeUnresolved_many": "{{count}} taxons absents de la liste n'ont pas été ajoutés",
+    "bulkNodeUnresolved_other": "{{count}} taxons absents de la liste n'ont pas été ajoutés"
   },
   "surveyors": {
     "addTitle": "Ajouter un observateur",
@@ -1075,7 +1102,9 @@
     "customQtyPlaceholder": "ex. 3 ou 1.2 ou abundant",
     "dbhSummary_one": "{{count}} tige au total",
     "dbhSummary_many": "{{count}} tiges au total",
-    "dbhSummary_other": "{{count}} tiges au total"
+    "dbhSummary_other": "{{count}} tiges au total",
+    "removeStemTitle": "Supprimer la tige",
+    "removeStemMsg": "Supprimer la tige de {{value}} cm ?"
   },
   "clipboard": {
     "copied": "Copié : {{label}}",
@@ -1146,7 +1175,9 @@
     "taxonChanged": "Remplacé par {{name}}",
     "recordedCount_one": " · {{count}} noté",
     "recordedCount_many": " · {{count}} notés",
-    "recordedCount_other": " · {{count}} notés"
+    "recordedCount_other": " · {{count}} notés",
+    "deleteRecord": "Supprimer ce relevé",
+    "deleteRecordMsg": "Supprimer le relevé de « {{name}} » ? Recouvrement, DHP et effectifs seront aussi supprimés, sans retour possible."
   },
   "sheets": {
     "assignSite": "Affecter un site géographique",
@@ -1461,9 +1492,6 @@
     "labelNoneSelected": "Sélectionnez au moins un spécimen",
     "determiner": "Déterminé par",
     "determinerEmpty": "Aucun déterminateur défini",
-    "specimenCount_one": "{{count}} spécimen",
-    "specimenCount_many": "{{count}} spécimens",
-    "specimenCount_other": "{{count}} spécimens",
     "selectedCount_one": "{{count}} sélectionné",
     "selectedCount_many": "{{count}} sélectionnés",
     "selectedCount_other": "{{count}} sélectionnés",
@@ -1481,7 +1509,10 @@
     "institution": "Code d'institution",
     "institutionPlaceholder": "p. ex. TAI, HAST",
     "otherNumbers": "Autres numéros de catalogue",
-    "otherNumbersPlaceholder": "p. ex. TAI 123456"
+    "otherNumbersPlaceholder": "p. ex. TAI 123456",
+    "deleteSelectedMsg_one": "Supprimer le spécimen sélectionné ?",
+    "deleteSelectedMsg_many": "Supprimer les {{count}} spécimens sélectionnés ?",
+    "deleteSelectedMsg_other": "Supprimer les {{count}} spécimens sélectionnés ?"
   },
   "areaSpecies": {
     "title": "Recherche d'espèces par zone",

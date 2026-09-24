@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter, type Href } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import Constants from 'expo-constants';
-import { Linking, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { Image, Linking, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function AboutScreen() {
@@ -22,14 +22,26 @@ export default function AboutScreen() {
     Platform.select({
       ios: Constants.expoConfig?.ios?.buildNumber,
       android: Constants.expoConfig?.android?.versionCode?.toString(),
-    }) ?? '23';
+    }) ?? '24';
 
   return (
     <SafeAreaView edges={['bottom']} className="flex-1 bg-gray-50 dark:bg-gray-950">
       <Stack.Screen options={{ title: t('nav.about') }} />
       <ScrollView>
         <View className="items-center bg-white px-4 py-8 dark:bg-gray-900">
-          <Text className="text-3xl font-bold text-gray-900 dark:text-gray-100">Mitalivana</Text>
+          <View className="flex-row items-center">
+            {/* The app icon itself, not a copy: a white square, so the hairline
+                border keeps its edge visible on the white header in light mode.
+                Radius ≈ 22% of the side, the iOS icon mask proportion. */}
+            <Image
+              source={require('../assets/images/icon.png')}
+              style={{ width: 44, height: 44, borderRadius: 10 }}
+              className="mr-3 border border-gray-200 dark:border-gray-700"
+              accessibilityIgnoresInvertColors
+              accessible={false}
+            />
+            <Text className="text-3xl font-bold text-gray-900 dark:text-gray-100">Mitalivana</Text>
+          </View>
           <Text className="mt-1 text-sm text-gray-500 dark:text-gray-400">
             v{version}
             {build ? ` (${build})` : ''} · {t('about.subtitle')}

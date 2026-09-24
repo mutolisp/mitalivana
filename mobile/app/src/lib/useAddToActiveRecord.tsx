@@ -21,7 +21,9 @@ import {
   createCollectionTrip,
   getActiveCollectionTrip,
   isTaxonInSession,
+  listPlotSpecies,
   nextRecordNumber,
+  withTransaction,
   type Layer,
   type SearchResult,
 } from '~/db';
@@ -67,6 +69,9 @@ function headerOf(sp: SearchResult): PlotModalHeader {
 
 export function useAddToActiveRecord(): {
   addSpecies: (sp: SearchResult, adopted?: AdoptionInput | null) => void;
+  /** Batch form of `addSpecies` (taxonomy-tree select mode): same destination
+   *  rule, but no per-species abundance modal. */
+  addMany: (list: SearchResult[]) => void;
   /** Explicit collection route, reached by long-pressing the add button.
    *  Never taken by `addSpecies` — collections stay off the default path so the
    *  existing plot → session behaviour is unchanged. */
@@ -119,6 +124,63 @@ export function useAddToActiveRecord(): {
     toast(t('session.added', { name: sp.cname || sp.name }), {
       action: { label: t('addToRecord.goTo'), onPress: () => router.push(`/session/${target.id}`) },
     });
+  };
+
+  /**
+   * Same routing as `addSpecies`, for many species at once.
+   *
+   * An active plot takes them into the default layer with NO values — asking
+   * for abundance species by species is exactly what a batch add avoids; the
+   * rows are filled in on the plot screen. Taxa already there (same layer) or
+   * already in the checklist are skipped, and the toast says how many.
+   */
+  const withSkipped = (msg: string, skipped: number) =>
+    skipped > 0 ? `${msg}\n${t('addToRecord.skippedExisting', { count: skipped })}` : msg;
+
+  const addMany = (list: SearchResult[]) => {
+    const seen = new Set<string>();
+    const valid = list.filter((sp) => {
+      if (!sp.taxon_id || seen.has(sp.taxon_id)) return false;
+      seen.add(sp.taxon_id);
+      return true;
+    });
+    if (valid.length === 0) return;
+    const activePlot = useActivePlot.getState().plot;
+    if (activePlot) {
+      const layer: Layer = activePlot.plot_type === 'fixed' ? 'E2' : 'T';
+      const have = new Set(
+        listPlotSpecies(activePlot.id)
+          .filter((r) => r.layer === layer)
+          .map((r) => r.taxon_id),
+      );
+      const fresh = valid.filter((sp) => !have.has(sp.taxon_id));
+      withTransaction(() => {
+        for (const sp of fresh) {
+          addPlotSpecies({ plot_survey_id: activePlot.id, taxon_id: sp.taxon_id, layer });
+        }
+      });
+      useActivePlot.getState().refresh();
+      toast(
+        withSkipped(t('addToRecord.addedManyToPlot', { count: fresh.length }), valid.length - fresh.length),
+        {
+          action: {
+            label: t('addToRecord.goTo'),
+            onPress: () => router.push(`/plot/${activePlot.id}`),
+          },
+        },
+      );
+      return;
+    }
+    const target = session ?? startSession();
+    const fresh = valid.filter((sp) => !isTaxonInSession(target.id, sp.taxon_id));
+    withTransaction(() => {
+      for (const sp of fresh) addRecord({ session_id: target.id, taxon_id: sp.taxon_id });
+    });
+    useActiveSession.getState().refresh();
+    toast(
+      withSkipped(t('addToRecord.addedManyToSession', { count: fresh.length }), valid.length - fresh.length),
+      { action: { label: t('addToRecord.goTo'), onPress: () => router.push(`/session/${target.id}`) } },
+    );
   };
 
   /**
@@ -211,6 +273,7 @@ export function useAddToActiveRecord(): {
 
   return {
     addSpecies,
+    addMany,
     addToCollection,
     promptAddDestination,
     modal,

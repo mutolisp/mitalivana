@@ -91,7 +91,8 @@
     "nRecordsSelected_other": "已選 {{count}} 筆記錄",
     "nSpeciesTotal_other": "共 {{count}} 種",
     "nFolders_other": "{{count}} 份常用名錄",
-    "nSpeciesInThem_other": "其中的 {{count}} 個物種"
+    "nSpeciesInThem_other": "其中的 {{count}} 個物種",
+    "addedCount_other": "已將 {{count}} 種加入常用名錄"
   },
   "gnss": {
     "permTitle": "需要定位權限",
@@ -146,7 +147,6 @@
     "sortName": "學名",
     "sortFamily": "科",
     "editNotes": "編輯備註",
-    "viewDetails": "看詳細資訊",
     "removeFromList": "從名錄移除",
     "end": "結束",
     "continueEdit": "繼續編輯",
@@ -388,7 +388,9 @@
     "countUnset": "—",
     "countClear": "清除",
     "countMinus": "減一",
-    "countPlus": "加一"
+    "countPlus": "加一",
+    "deleteSelectedTitle": "刪除物種記錄",
+    "deleteSelectedMsg_other": "將刪除選取的 {{count}} 筆物種記錄，無法復原。"
   },
   "attr": {
     "advanced": "進階（物種屬性）",
@@ -468,7 +470,10 @@
     "toCollection": "加入採集：{{name}}",
     "newCollection": "建立採集記錄並加入",
     "addedToCollection": "已加入採集 {{number}}：{{name}}",
-    "longPressHint": "長按可選擇加入名錄或採集"
+    "longPressHint": "長按可選擇加入名錄或採集",
+    "addedManyToPlot_other": "已加入 {{count}} 種到樣區（尚未填豐度）",
+    "addedManyToSession_other": "已加入 {{count}} 種到名錄",
+    "skippedExisting_other": "略過 {{count}} 種已在記錄中"
   },
   "endSession": {
     "minutes": "{{count}} 分鐘",
@@ -654,9 +659,15 @@
     "collapseAll": "全部收合",
     "tree": "分類樹",
     "search": "搜尋",
-    "addCurrent": "加入當前記錄",
-    "copyMenu": "複製...",
-    "incompleteBucket": "未完整分類（自建）"
+    "incompleteBucket": "未完整分類（自建）",
+    "bulkNodeTitle": "已選取分類群：{{names}}",
+    "bulkTooManyTitle": "數量過多",
+    "bulkTooManyMsg": "這些分類群以下共有 {{count}} 筆，超過單次上限 {{max}} 筆。請改選較低階層的分類群。",
+    "bulkAddToRecord": "加入記錄",
+    "nodeInfo": "分類群資訊",
+    "bulkNodeSelf_other": "只加入分類群本身（{{count}} 個）",
+    "bulkNodeAll_other": "加入其下所有分類群（共 {{count}} 筆，含種與種下）",
+    "bulkNodeUnresolved_other": "{{count}} 個分類群不在名錄中，未加入"
   },
   "surveyors": {
     "addTitle": "新增調查者",
@@ -955,7 +966,9 @@
     "customUnit": "自訂單位 (organismQuantityType)",
     "customUnitPlaceholder": "例: 莖節數 / 鳴叫次數 / biomass(g)",
     "customQtyPlaceholder": "例: 3 或 1.2 或 abundant",
-    "dbhSummary_other": "共 {{count}} 分枝"
+    "dbhSummary_other": "共 {{count}} 分枝",
+    "removeStemTitle": "刪除分枝",
+    "removeStemMsg": "確定要刪除 {{value}} cm 這根分枝？"
   },
   "clipboard": {
     "copied": "已複製：{{label}}",
@@ -1020,7 +1033,9 @@
     "changeTaxon": "更換物種",
     "changeTaxonBanner": "更換「{{name}}」的物種：用下方搜尋選擇",
     "taxonChanged": "已改為 {{name}}",
-    "recordedCount_other": " · 已記 {{count}} 筆"
+    "recordedCount_other": " · 已記 {{count}} 筆",
+    "deleteRecord": "刪除此筆記錄",
+    "deleteRecordMsg": "確定要刪除「{{name}}」這筆記錄？覆蓋度、胸徑、數量等數值會一併刪除，無法復原。"
   },
   "sheets": {
     "assignSite": "指定地理樣區",
@@ -1303,7 +1318,6 @@
     "labelNoneSelected": "請先選擇標本",
     "determiner": "鑑定者",
     "determinerEmpty": "尚未指定鑑定者",
-    "specimenCount_other": "{{count}} 份",
     "selectedCount_other": "已選 {{count}} 份",
     "labelExportCount_other": "匯出 {{count}} 張標籤",
     "tripMetaTitle": "行程資訊",
@@ -1317,7 +1331,8 @@
     "institution": "典藏館別",
     "institutionPlaceholder": "例：TAI、HAST",
     "otherNumbers": "其他館號",
-    "otherNumbersPlaceholder": "例：TAI 123456"
+    "otherNumbersPlaceholder": "例：TAI 123456",
+    "deleteSelectedMsg_other": "確定要刪除選取的 {{count}} 份標本記錄嗎？"
   },
   "areaSpecies": {
     "title": "範圍物種查詢",

@@ -22,6 +22,7 @@ import {
   addSearchHistory,
   getKeysForScope,
   getSpeciesUnder,
+  searchByTaxonId,
   getTaxonChildren,
   INCOMPLETE_PHYLUM,
   nodeKeyFor,
@@ -41,13 +42,10 @@ import { LookupResultSheet } from '~/components/LookupResultSheet';
 import { ScientificName } from '~/components/ScientificName';
 import { SpeciesSearchPanel } from '~/components/SpeciesSearchPanel';
 import { TaxonomySearchBox } from '~/components/TaxonomySearchBox';
-import {
-  buildSpeciesCopyText,
-  buildTaxonCopyText,
-  copyToClipboard,
-  speciesCopyActions,
-  taxonCopyActions,
-} from '~/lib/clipboard';
+import { SelectionToolbar } from '~/components/SelectionToolbar';
+import { TaxonNodeInfoSheet } from '~/components/TaxonNodeInfoSheet';
+import { matchScientificName } from '~/lib/sciMatch';
+import { useListSelection } from '~/lib/useListSelection';
 import { alienBadge } from '~/lib/conservationColors';
 import { perf } from '~/lib/perf';
 import { rankColor } from '~/lib/rankColors';
@@ -59,6 +57,15 @@ import { toastFavoriteAdded } from '~/lib/favoritesToast';
 import { useSettings } from '~/stores/settings';
 import { useTaxonomyJump } from '~/stores/taxonomyJump';
 import { useToast } from '~/stores/toast';
+
+/** What a picked tree row stands for. */
+type TreePick =
+  | { kind: 'species'; species: TaxonSpecies }
+  | { kind: 'node'; node: TaxonNodeData };
+
+/** Same ceiling the desktop batch add uses: past this, a mis-tap on a kingdom
+ *  would pour tens of thousands of rows into one record. */
+const BULK_ADD_MAX = 5000;
 
 type FlatItem =
   | { kind: 'taxon'; key: string; node: TaxonNodeData; depth: number; expanded: boolean }
@@ -125,6 +132,7 @@ export default function TaxonomyScreen() {
   const toast = useToast((s) => s.show);
   const {
     addSpecies,
+    addMany,
     promptAddDestination,
     modal: addRecordModal,
     targetLabel: addTargetLabel,
@@ -753,9 +761,105 @@ export default function TaxonomyScreen() {
     );
   }, [segment, loading, pendingScrollTarget, pendingJumpPath]);
 
-  // Smart-routes to the active plot (opens abundance modal) or session.
-  const handleQuickAdd = (sp: TaxonSpecies) => {
-    addSpecies(taxonSpeciesToSearchResult(sp));
+  // ── Long-press multi-select ──────────────────────────────────────────────
+  // Keys are flat-item keys; what each one stands for is kept here, because a
+  // picked species stays picked when its parent is collapsed and its row
+  // leaves `flatItems`.
+  const selection = useListSelection<string>();
+  const pickedPayload = useRef(new Map<string, TreePick>());
+  const [infoNode, setInfoNode] = useState<TaxonNodeData | null>(null);
+  // Picks belong to the tree; leaving it for 檢索表 / 搜尋 drops them.
+  const exitSelection = selection.exit;
+  useEffect(() => {
+    if (segment !== 'tree') exitSelection();
+  }, [segment, exitSelection]);
+  const pickEnter = (key: string, p: TreePick) => {
+    if (selection.selectMode) return;
+    pickedPayload.current = new Map([[key, p]]);
+    selection.enter(key);
+  };
+  const pickToggle = (key: string, p: TreePick) => {
+    pickedPayload.current.set(key, p);
+    selection.toggle(key);
+  };
+
+  /**
+   * Resolve the picks to taxa. A picked node (family, genus, …) is ambiguous —
+   * the node itself, or everything under it — so the user chooses once for all
+   * picked nodes. Returns null when they cancel or the batch is too large.
+   */
+  const resolvePicks = async (): Promise<SearchResult[] | null> => {
+    const out: SearchResult[] = [];
+    const nodes: TaxonNodeData[] = [];
+    for (const k of selection.picked) {
+      const p = pickedPayload.current.get(k);
+      if (!p) continue;
+      if (p.kind === 'species') out.push(taxonSpeciesToSearchResult(p.species));
+      else nodes.push(p.node);
+    }
+    if (nodes.length === 0) return out;
+    const under = nodes.reduce(
+      (n, nd) => n + (nd.stats.species ?? 0) + (nd.stats.infraspecific ?? 0),
+      0,
+    );
+    const idx = await showActionSheet({
+      title: t('taxonomy.bulkNodeTitle', {
+        names: nodes.map((nd) => nd.name_c || nd.name).join('、'),
+      }),
+      options: [
+        { label: t('taxonomy.bulkNodeSelf', { count: nodes.length }) },
+        { label: t('taxonomy.bulkNodeAll', { count: under }) },
+      ],
+      cancelLabel: t('common.cancel'),
+    });
+    if (idx < 0) return null;
+    if (idx === 0) {
+      let unresolved = 0;
+      for (const nd of nodes) {
+        const m = matchScientificName({
+          name: nd.name,
+          kingdom: nd.rank_key === 'kingdom' ? nd.name : nd.ancestors.kingdom,
+        });
+        const hit = m.kind === 'matched' ? searchByTaxonId(m.taxon_id) : null;
+        if (hit) out.push(hit);
+        else unresolved += 1;
+      }
+      // Manual / region-pack nodes have no checklist row of their own.
+      if (unresolved > 0) toast(t('taxonomy.bulkNodeUnresolved', { count: unresolved }));
+      return out;
+    }
+    if (under > BULK_ADD_MAX) {
+      Alert.alert(
+        t('taxonomy.bulkTooManyTitle'),
+        t('taxonomy.bulkTooManyMsg', { count: under, max: BULK_ADD_MAX }),
+      );
+      return null;
+    }
+    for (const nd of nodes) {
+      const lineage: Ancestors = { ...nd.ancestors, [nd.rank_key]: nd.name };
+      for (const sp of getSpeciesUnder(lineage)) out.push(taxonSpeciesToSearchResult(sp));
+    }
+    return out;
+  };
+
+  const handleBulkAddToRecord = async () => {
+    const list = await resolvePicks();
+    if (!list) return;
+    addMany(list);
+    selection.exit();
+  };
+
+  const handleBulkFavorite = async () => {
+    const list = await resolvePicks();
+    if (!list) return;
+    const seen = new Set<string>();
+    for (const sp of list) {
+      if (!sp.taxon_id || seen.has(sp.taxon_id)) continue;
+      seen.add(sp.taxon_id);
+      useFavorites.getState().add(sp);
+    }
+    selection.exit();
+    if (seen.size > 0) toastFavoriteAdded(t('favorites.addedCount', { count: seen.size }));
   };
 
   const handleAddFromSheet = () => {
@@ -821,10 +925,23 @@ export default function TaxonomyScreen() {
           </View>
         ) : (
           <View className="flex-1">
+            {selection.selectMode ? (
+              <SelectionToolbar
+                count={selection.picked.size}
+                actions={[
+                  { label: t('taxonomy.bulkAddToRecord'), onPress: () => void handleBulkAddToRecord() },
+                  { label: t('favorites.add'), onPress: () => void handleBulkFavorite() },
+                ]}
+                onCancel={selection.exit}
+              />
+            ) : null}
             <FlatList
               ref={listRef}
               className="flex-1"
               data={flatItems}
+              // Rows read the selection through renderItem's closure, which is
+              // not in `data`; without this they would not repaint on a toggle.
+              extraData={selection.picked}
               keyExtractor={(item) => item.key}
               // Padding only — getItemLayout stays a pure function of index.
               contentContainerStyle={{ paddingBottom: tabBarInset }}
@@ -897,21 +1014,20 @@ export default function TaxonomyScreen() {
                       expanded={item.expanded}
                       onToggle={() => handleToggle(item.key)}
                       onOpenKeys={openKeysForScope}
-                      onLongPress={async () => {
-                        const title = item.node.name_c || item.node.name;
-                        const actions = taxonCopyActions(item.node);
-                        const sub = await showActionSheet({
-                          title,
-                          options: actions.map((a) => ({ label: a.label })),
-                        });
-                        if (sub >= 0 && sub < actions.length) {
-                          const a = actions[sub];
-                          await copyToClipboard(
-                            buildTaxonCopyText(item.node, a.mode),
-                            a.label,
-                          );
-                        }
-                      }}
+                      // The incomplete bucket is not a taxon — nothing to add.
+                      onLongPress={
+                        item.node.name === INCOMPLETE_PHYLUM
+                          ? undefined
+                          : () => pickEnter(item.key, { kind: 'node', node: item.node })
+                      }
+                      onInfo={() => setInfoNode(item.node)}
+                      selectMode={selection.selectMode}
+                      picked={selection.picked.has(item.key)}
+                      onSelectToggle={
+                        item.node.name === INCOMPLETE_PHYLUM
+                          ? undefined
+                          : () => pickToggle(item.key, { kind: 'node', node: item.node })
+                      }
                     />
                   );
                 } else if (item.kind === 'species') {
@@ -919,46 +1035,16 @@ export default function TaxonomyScreen() {
                     <SpeciesRow
                       species={item.species}
                       depth={item.depth}
-                      onPress={() => setActiveSpecies(taxonSpeciesToSearchResult(item.species))}
-                      onLongPress={async () => {
-                        const title = item.species.common_name_c || item.species.simple_name;
-                        const sr = taxonSpeciesToSearchResult(item.species);
-                        const fav = useFavorites.getState().ids.has(sr.taxon_id);
-                        const idx = await showActionSheet({
-                          title,
-                          options: [
-                            { label: t('taxonomy.addCurrent') },
-                            { label: fav ? t('favorites.remove') : t('favorites.add') },
-                            { label: t('session.viewDetails') },
-                            { label: t('taxonomy.copyMenu') },
-                          ],
-                        });
-                        if (idx === 0) handleQuickAdd(item.species);
-                        else if (idx === 1) {
-                          if (fav) {
-                            useFavorites.getState().remove(sr.taxon_id);
-                            toast(t('favorites.removed'));
-                          } else {
-                            useFavorites.getState().add(sr);
-                            toastFavoriteAdded();
-                          }
-                        } else if (idx === 2)
-                          setActiveSpecies(taxonSpeciesToSearchResult(item.species));
-                        else if (idx === 3) {
-                          const actions = speciesCopyActions(item.species);
-                          const sub = await showActionSheet({
-                            title,
-                            options: actions.map((a) => ({ label: a.label })),
-                          });
-                          if (sub >= 0 && sub < actions.length) {
-                            const a = actions[sub];
-                            await copyToClipboard(
-                              buildSpeciesCopyText(item.species, a.mode),
-                              a.label,
-                            );
-                          }
-                        }
-                      }}
+                      onPress={() =>
+                        selection.selectMode
+                          ? pickToggle(item.key, { kind: 'species', species: item.species })
+                          : setActiveSpecies(taxonSpeciesToSearchResult(item.species))
+                      }
+                      onLongPress={() =>
+                        pickEnter(item.key, { kind: 'species', species: item.species })
+                      }
+                      selectMode={selection.selectMode}
+                      picked={selection.picked.has(item.key)}
                     />
                   );
                 } else {
@@ -998,6 +1084,7 @@ export default function TaxonomyScreen() {
         }}
       />
       {addRecordModal}
+      <TaxonNodeInfoSheet node={infoNode} onClose={() => setInfoNode(null)} />
     </View>
   );
 }
@@ -1032,12 +1119,23 @@ function TaxonRow({
   onToggle,
   onLongPress,
   onOpenKeys,
+  onInfo,
+  selectMode,
+  picked,
+  onSelectToggle,
 }: {
   node: TaxonNodeData;
   depth: number;
   expanded: boolean;
   onToggle: () => void;
+  /** Enters select mode. Absent for the incomplete bucket, which is not a taxon. */
   onLongPress?: () => void;
+  /** ⓘ — the node's info sheet (copy actions live there). */
+  onInfo: () => void;
+  selectMode: boolean;
+  picked: boolean;
+  /** Tap in select mode. Absent = this row cannot be selected. */
+  onSelectToggle?: () => void;
   /** Tap on the row's 🔑 chip — switch to 檢索表 segment + pre-filter to
    *  this scope's name so user lands on the matching key(s). */
   onOpenKeys?: (scopeName: string) => void;
@@ -1073,18 +1171,30 @@ function TaxonRow({
 
   return (
     <Pressable
-      onPress={onToggle}
+      // In select mode a tap selects; a row that cannot be selected still
+      // expands, so the tree stays navigable while picking.
+      onPress={selectMode && onSelectToggle ? onSelectToggle : onToggle}
       onLongPress={onLongPress}
       delayLongPress={350}
       className="flex-row items-center border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 px-4 py-3 active:bg-gray-50 dark:active:bg-gray-800"
       style={{ paddingLeft: 16 + depth * 14 }}
     >
-      <Ionicons
-        name={expanded ? 'chevron-down' : 'chevron-forward'}
-        size={16}
-        color="#6b7280"
-        style={{ marginRight: 8 }}
-      />
+      {selectMode && onSelectToggle ? (
+        // Same 16pt slot as the chevron, so rows keep their measured height.
+        <Ionicons
+          name={picked ? 'checkbox' : 'square-outline'}
+          size={16}
+          color={picked ? '#2563eb' : '#9ca3af'}
+          style={{ marginRight: 8 }}
+        />
+      ) : (
+        <Ionicons
+          name={expanded ? 'chevron-down' : 'chevron-forward'}
+          size={16}
+          color="#6b7280"
+          style={{ marginRight: 8 }}
+        />
+      )}
       <View className="flex-1">
         <View className="flex-row items-baseline">
           {isIncompleteBucket ? (
@@ -1134,6 +1244,20 @@ function TaxonRow({
         </View>
         {stats ? <Text className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{stats}</Text> : null}
       </View>
+      {!selectMode && !isIncompleteBucket ? (
+        <Pressable
+          onPress={(e) => {
+            // Stop the press from bubbling to the row's onToggle.
+            e.stopPropagation();
+            onInfo();
+          }}
+          hitSlop={8}
+          className="ml-2 active:opacity-60"
+          accessibilityLabel={t('taxonomy.nodeInfo')}
+        >
+          <Ionicons name="information-circle-outline" size={18} color="#9ca3af" />
+        </Pressable>
+      ) : null}
     </Pressable>
   );
 }
@@ -1143,11 +1267,15 @@ function SpeciesRow({
   depth,
   onPress,
   onLongPress,
+  selectMode,
+  picked,
 }: {
   species: TaxonSpecies;
   depth: number;
   onPress: () => void;
   onLongPress: () => void;
+  selectMode: boolean;
+  picked: boolean;
 }) {
   const { t } = useTranslation();
   const isInfraspecific = ['Subspecies', 'Variety', 'Form'].includes(species.rank);
@@ -1159,7 +1287,18 @@ function SpeciesRow({
       className="flex-row items-start border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 px-4 py-2 active:bg-blue-50 dark:active:bg-blue-900/40"
       style={{ paddingLeft: 16 + depth * 14 }}
     >
-      <Ionicons name="leaf-outline" size={14} color="#10b981" style={{ marginRight: 8, marginTop: 3 }} />
+      {/* The checkbox takes the leaf's slot at the leaf's size, so the row keeps
+          its measured height (getItemLayout depends on it). */}
+      {selectMode ? (
+        <Ionicons
+          name={picked ? 'checkbox' : 'square-outline'}
+          size={14}
+          color={picked ? '#2563eb' : '#9ca3af'}
+          style={{ marginRight: 8, marginTop: 3 }}
+        />
+      ) : (
+        <Ionicons name="leaf-outline" size={14} color="#10b981" style={{ marginRight: 8, marginTop: 3 }} />
+      )}
       <View className="flex-1">
         <Text className="text-sm text-gray-700 dark:text-gray-300">
           {species.common_name_c ? (

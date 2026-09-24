@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useTranslation } from 'react-i18next';
 import { Pressable, Text, View } from 'react-native';
@@ -13,9 +14,12 @@ type Props = {
   record: RecordWithTaxon;
   onPress: () => void;
   onLongPress?: () => void;
+  /** Select mode shows a checkbox in front of the row. */
+  selectMode?: boolean;
+  picked?: boolean;
 };
 
-export function SpeciesCard({ record, onPress, onLongPress }: Props) {
+export function SpeciesCard({ record, onPress, onLongPress, selectMode, picked }: Props) {
   const { t } = useTranslation();
   const isEndemic = record.is_endemic === 'true';
   const ab = alienBadge(record.alien_type, record.kingdom);
@@ -30,6 +34,14 @@ export function SpeciesCard({ record, onPress, onLongPress }: Props) {
       delayLongPress={350}
       className={`flex-row border-b border-gray-100 dark:border-gray-800 px-4 py-3 ${uploaded ? 'bg-lime-50 dark:bg-lime-900/30 active:bg-lime-100 dark:active:bg-lime-900/50' : 'bg-white dark:bg-gray-900 active:bg-gray-50 dark:active:bg-gray-800'}`}
     >
+      {selectMode ? (
+        <Ionicons
+          name={picked ? 'checkbox' : 'square-outline'}
+          size={20}
+          color={picked ? '#2563eb' : '#9ca3af'}
+          style={{ marginRight: 10, alignSelf: 'center' }}
+        />
+      ) : null}
       {photos.length > 0 ? (
         <View className="mr-3 h-14 w-14 overflow-hidden rounded-md bg-gray-100 dark:bg-gray-800">
           <Image

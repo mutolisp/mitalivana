@@ -136,6 +136,9 @@ type SettingsValues = {
   last_search_groups: TaxonGroup[];
   last_record_sort: RecordSort;
   collection_sort: CollectionSort;
+  /** Own key, not `last_record_sort_dir`: sharing it would flip the checklist
+   *  screen's order whenever the collection screen's is flipped. */
+  collection_sort_dir: SortDirection;
   /** GBIF username, remembered so a pack download only re-asks the password. */
   gbif_username: string;
   /** Email GBIF notifies when a pack download is ready ('' = no email). */
@@ -262,6 +265,8 @@ const DEFAULTS: SettingsValues = {
   last_record_sort: 'observed',
   // Preserves the order the list had before sorting existed.
   collection_sort: 'collected',
+  // Ascending is the only order the list had before direction existed.
+  collection_sort_dir: 'asc',
   gbif_username: '',
   gbif_notify_email: '',
   sign_exports: false,
@@ -385,6 +390,8 @@ function readAll(): SettingsValues {
     last_search_groups: parseSearchGroups(map.get('last_search_groups')),
     last_record_sort: (map.get('last_record_sort') as RecordSort) ?? DEFAULTS.last_record_sort,
     collection_sort: (map.get('collection_sort') as CollectionSort) ?? DEFAULTS.collection_sort,
+    collection_sort_dir:
+      (map.get('collection_sort_dir') as SortDirection) ?? DEFAULTS.collection_sort_dir,
     gbif_username: map.get('gbif_username') ?? DEFAULTS.gbif_username,
     sign_exports: map.get('sign_exports') === 'true',
     signer_orcid: map.get('signer_orcid') ?? DEFAULTS.signer_orcid,

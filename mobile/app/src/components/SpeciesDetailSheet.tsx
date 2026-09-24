@@ -1,4 +1,5 @@
 import { errText } from '~/lib/errText';
+import { FavoriteToggle } from './FavoriteToggle';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { useEffect, useRef, useState } from 'react';
@@ -272,6 +273,7 @@ export function SpeciesDetailSheet({
                         </Text>
                       </Pressable>
                     ) : null}
+                    {record.taxon_id ? <FavoriteToggle taxonId={record.taxon_id} /> : null}
                   </View>
                   <Pressable
                     onPress={async () => {
@@ -876,3 +878,4 @@ function ConservationBadgeRow({ label, value }: { label: string; value: string }
     </View>
   );
 }
+

@@ -91,7 +91,8 @@
     "nRecordsSelected_other": "기록 {{count}}건",
     "nSpeciesTotal_other": "{{count}}종",
     "nFolders_other": "목록 {{count}}개",
-    "nSpeciesInThem_other": "그 안의 {{count}}종"
+    "nSpeciesInThem_other": "그 안의 {{count}}종",
+    "addedCount_other": "{{count}}종을 즐겨찾기에 추가했습니다"
   },
   "gnss": {
     "permTitle": "위치 권한이 필요합니다",
@@ -146,7 +147,6 @@
     "sortName": "학명",
     "sortFamily": "과",
     "editNotes": "비고 편집",
-    "viewDetails": "상세 정보 보기",
     "removeFromList": "종 목록에서 제거",
     "end": "종료",
     "continueEdit": "계속 편집",
@@ -388,7 +388,9 @@
     "countUnset": "—",
     "countClear": "지우기",
     "countMinus": "1 감소",
-    "countPlus": "1 증가"
+    "countPlus": "1 증가",
+    "deleteSelectedTitle": "종 기록 삭제",
+    "deleteSelectedMsg_other": "선택한 종 기록 {{count}}건을 삭제합니다. 되돌릴 수 없습니다."
   },
   "attr": {
     "advanced": "고급 (종 속성)",
@@ -468,7 +470,10 @@
     "toCollection": "채집에 추가: {{name}}",
     "newCollection": "채집 기록을 만들어 추가",
     "addedToCollection": "채집 {{number}}에 추가함: {{name}}",
-    "longPressHint": "길게 누르면 종 목록 또는 채집 선택"
+    "longPressHint": "길게 누르면 종 목록 또는 채집 선택",
+    "addedManyToPlot_other": "{{count}}종을 조사구에 추가했습니다(풍부도 미입력)",
+    "addedManyToSession_other": "{{count}}종을 종 목록에 추가했습니다",
+    "skippedExisting_other": "이미 기록된 {{count}}종은 건너뛰었습니다"
   },
   "endSession": {
     "minutes": "{{count}}분",
@@ -654,9 +659,15 @@
     "collapseAll": "모두 접기",
     "tree": "분류 트리",
     "search": "검색",
-    "addCurrent": "현재 기록에 추가",
-    "copyMenu": "복사...",
-    "incompleteBucket": "분류 미완성(직접 만든 종)"
+    "incompleteBucket": "분류 미완성(직접 만든 종)",
+    "bulkNodeTitle": "선택한 분류군: {{names}}",
+    "bulkTooManyTitle": "너무 많습니다",
+    "bulkTooManyMsg": "이 분류군 아래에 {{count}}건이 있어 1회 한도 {{max}}건을 넘습니다. 더 낮은 계급의 분류군을 선택하세요.",
+    "bulkAddToRecord": "기록에 추가",
+    "nodeInfo": "분류군 정보",
+    "bulkNodeSelf_other": "분류군 자체만 추가({{count}}개)",
+    "bulkNodeAll_other": "하위 분류군 전부 추가(총 {{count}}건, 종·종하 포함)",
+    "bulkNodeUnresolved_other": "{{count}}개 분류군은 목록에 없어 추가하지 않았습니다"
   },
   "surveyors": {
     "addTitle": "조사자 추가",
@@ -955,7 +966,9 @@
     "customUnit": "사용자 지정 단위 (organismQuantityType)",
     "customUnitPlaceholder": "예: 마디 수 / 울음 횟수 / biomass(g)",
     "customQtyPlaceholder": "예: 3 또는 1.2 또는 abundant",
-    "dbhSummary_other": "총 줄기 {{count}}개"
+    "dbhSummary_other": "총 줄기 {{count}}개",
+    "removeStemTitle": "줄기 삭제",
+    "removeStemMsg": "{{value}} cm 줄기를 삭제할까요?"
   },
   "clipboard": {
     "copied": "복사했습니다: {{label}}",
@@ -1020,7 +1033,9 @@
     "changeTaxon": "종 변경",
     "changeTaxonBanner": "「{{name}}」의 종 변경: 아래 검색에서 고르세요",
     "taxonChanged": "{{name}}(으)로 변경했습니다",
-    "recordedCount_other": " · {{count}}건 기록됨"
+    "recordedCount_other": " · {{count}}건 기록됨",
+    "deleteRecord": "이 기록 삭제",
+    "deleteRecordMsg": "“{{name}}” 기록을 삭제할까요? 피도·흉고직경·개체수 등도 함께 삭제되며 되돌릴 수 없습니다."
   },
   "sheets": {
     "assignSite": "사이트 지정",
@@ -1303,7 +1318,6 @@
     "labelNoneSelected": "표본을 먼저 선택하세요",
     "determiner": "동정자",
     "determinerEmpty": "동정자가 지정되지 않았습니다",
-    "specimenCount_other": "{{count}}점",
     "selectedCount_other": "{{count}}점 선택됨",
     "labelExportCount_other": "라벨 {{count}}장 내보내기",
     "tripMetaTitle": "채집 일정 정보",
@@ -1317,7 +1331,8 @@
     "institution": "소장 기관 코드",
     "institutionPlaceholder": "예: TAI, HAST",
     "otherNumbers": "기타 표본 번호",
-    "otherNumbersPlaceholder": "예: TAI 123456"
+    "otherNumbersPlaceholder": "예: TAI 123456",
+    "deleteSelectedMsg_other": "선택한 표본 기록 {{count}}점을 삭제할까요?"
   },
   "areaSpecies": {
     "title": "범위 내 종 조회",
