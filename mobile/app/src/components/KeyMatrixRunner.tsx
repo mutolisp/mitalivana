@@ -225,12 +225,10 @@ export function KeyMatrixRunner({ keyId, keyData }: Props) {
     if (r) setActiveDetail(r);
   };
 
-  // Feedback here uses Alert, not toast: this whole component is a <Modal>, and
-  // ToastHost is an absolutely-positioned View at the navigation root — iOS
-  // presents a Modal in its own window, so the toast renders *behind* it and the
-  // user sees nothing. Alert is a native UIAlertController and does show on top.
-  // Same reason as the coordinate row in RecordLocationMap; judgement table is in
-  // memory `feedback-root-host-behind-modal`.
+  // Feedback here uses Alert: this runs from LookupResultSheet (a Modal), and
+  // the outcome — added, already there, or 「前往記錄」 — is one the user acts on,
+  // not one that should time out. (That sheet mounts its own ToastHost, so a
+  // toast would show; it is the wrong tool here, not an invisible one.)
   const handleAddToSession = async () => {
     if (!activeDetail?.taxon_id) {
       Alert.alert(t('addToRecord.noTaxonId'));

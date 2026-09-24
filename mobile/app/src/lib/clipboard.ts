@@ -11,13 +11,23 @@ import type { SearchResult } from '~/db/types';
 import type { RecordWithTaxon } from '~/db/records';
 import type { TaxonNode } from '~/db/taxonomy';
 
-/** Write `text` to clipboard and toast a "copied: {label}" confirmation. Safe to
- *  await or fire-and-forget. */
+/** Longest copied text echoed back in the toast before it is cut. */
+const ECHO_MAX = 40;
+
+/**
+ * Write `text` to the clipboard and toast a "copied: …" confirmation. Safe to
+ * await or fire-and-forget.
+ *
+ * `label` names WHAT was copied (a noun: 「公開金鑰」) — not the action. When
+ * omitted, the toast echoes the copied text itself. It used to take the menu
+ * action (「複製學名」) and strip the verb with a regex, which only knew 複製 /
+ * Copy and left 「コピーしました：学名をコピー」 in the other five locales.
+ */
 export async function copyToClipboard(text: string, label?: string): Promise<void> {
   await Clipboard.setStringAsync(text);
   const toast = useToast.getState().show;
-  const short = (label ?? '').replace(/^(複製|Copy)\s*/i, '').trim();
-  toast(short ? i18n.t('clipboard.copied', { label: short }) : i18n.t('clipboard.copiedPlain'));
+  const echo = label ?? (text.length > ECHO_MAX ? `${text.slice(0, ECHO_MAX)}…` : text);
+  toast(echo.trim() ? i18n.t('clipboard.copied', { label: echo.trim() }) : i18n.t('clipboard.copiedPlain'));
 }
 
 export type SpeciesCopyMode = 'sciname' | 'cname' | 'both' | 'full';

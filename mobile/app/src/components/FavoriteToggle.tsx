@@ -5,9 +5,8 @@ import { useFavorites } from '~/stores/favorites';
 
 /**
  * 加入／移除常用 for a record's taxon — what the species lists' old long-press
- * menus offered, now in the detail views. No toast: those views are Modals and
- * the root-hosted toast would render behind them; the heart filling in is the
- * feedback.
+ * menus offered, now in the detail views. No toast: the heart filling in is the
+ * feedback, and a banner on every tap would be noise.
  */
 export function FavoriteToggle({ taxonId }: { taxonId: string }) {
   const { t } = useTranslation();

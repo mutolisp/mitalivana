@@ -60,7 +60,7 @@ export function TaxonNodeInfoSheet({ node, onClose }: Props) {
                 // Close first: the "copied" toast is root-hosted and would be
                 // hidden behind this Modal.
                 onClose();
-                void copyToClipboard(buildTaxonCopyText(node, a.mode), a.label);
+                void copyToClipboard(buildTaxonCopyText(node, a.mode));
               }}
               className="flex-row items-center border-b border-gray-100 px-4 py-3 active:bg-gray-50 dark:border-gray-800 dark:active:bg-gray-800"
             >

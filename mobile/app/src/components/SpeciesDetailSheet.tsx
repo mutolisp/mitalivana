@@ -55,6 +55,7 @@ import { firstPhotoFix } from '~/lib/photoMeta';
 import { VerbatimLabelField } from './VerbatimLabelField';
 import { SpeciesAttributesBlock, type SpeciesAttributesDraft } from './SpeciesAttributesBlock';
 import { parseMultiAttribute } from '~/lib/dwcAttributes';
+import { ToastHost } from './ToastHost';
 
 type Props = {
   record: RecordWithTaxon | null;
@@ -284,7 +285,7 @@ export function SpeciesDetailSheet({
                       });
                       if (idx >= 0 && idx < actions.length) {
                         const a = actions[idx];
-                        await copyToClipboard(buildSpeciesCopyText(record, a.mode), a.label);
+                        await copyToClipboard(buildSpeciesCopyText(record, a.mode));
                       }
                     }}
                     hitSlop={8}
@@ -544,12 +545,10 @@ export function SpeciesDetailSheet({
                         <Pressable
                           onPress={async () => {
                             const out = await firstPhotoFix(parsePhotoPaths(record.photo_paths));
-                            // `Alert`, not the toast store: ToastHost is an
-                            // absolutely-positioned View at the navigation root,
-                            // and iOS gives this Modal its own window — a toast
-                            // fired from in here renders behind the sheet and is
-                            // never seen. Alert is a native UIAlertController and
-                            // does come up on top.
+                            // `Alert`, not a toast: the user has to read why
+                            // nothing happened. (Toasts do show in this sheet —
+                            // it mounts its own ToastHost — but one that times
+                            // out is the wrong tool for a failure.)
                             if (out.kind === 'needs-photo-access') {
                               // Not asked for here: requesting it would present a
                               // system dialog on a view controller that is already
@@ -703,6 +702,8 @@ export function SpeciesDetailSheet({
           onClose={() => setViewerIndex(null)}
         />
       </View>
+      {/* Toasts fired while this sheet is up (it has its own window). */}
+      <ToastHost inModal />
     </Modal>
   );
 }

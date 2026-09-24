@@ -33,6 +33,7 @@ import { KeyboardAvoidingView } from './KeyboardAvoidingView';
 import { SurveyorAssignSheet } from './SurveyorAssignSheet';
 import { SpeciesAttributesBlock, type SpeciesAttributesDraft } from './SpeciesAttributesBlock';
 import { VerbatimLabelField } from './VerbatimLabelField';
+import { ToastHost } from './ToastHost';
 
 export type SpecimenPatch = {
   record_number?: string;
@@ -239,8 +240,9 @@ export function SpecimenDetailSheet({
   };
 
   // Same rule and messages as SpeciesDetailSheet's 「用照片的 GNSS 定位」:
-  // `Alert`, not a toast, because this sheet is a Modal and a root-hosted
-  // toast renders behind it; and no permission request from in here.
+  // `Alert`, not a toast: a failure the user has to read, not one that should
+  // time out; and no permission request from in here (it would present a
+  // system dialog over this Modal).
   const locateFromPhotos = async () => {
     const out = await firstPhotoFix(photos);
     if (out.kind === 'needs-photo-access') {
@@ -636,6 +638,8 @@ export function SpecimenDetailSheet({
           else onSave({ recorded_by: v || null });
         }}
       />
+      {/* Toasts fired while this sheet is up (it has its own window). */}
+      <ToastHost inModal />
     </Modal>
   );
 }

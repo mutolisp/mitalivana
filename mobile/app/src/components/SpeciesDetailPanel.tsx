@@ -227,7 +227,7 @@ export function SpeciesDetailPanel({
             });
             if (idx >= 0 && idx < actions.length) {
               const a = actions[idx];
-              await copyToClipboard(buildSpeciesCopyText(result, a.mode), a.label);
+              await copyToClipboard(buildSpeciesCopyText(result, a.mode));
             }
           }}
           hitSlop={8}

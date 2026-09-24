@@ -17,6 +17,7 @@ import { taxonSpeciesToSearchResult } from '~/lib/taxonSpecies';
 import { editManualTaxon, runOverModal } from './GbifLookupHost';
 import { clearSearchResultCache } from './SearchBox';
 import { SpeciesDetailPanel } from './SpeciesDetailPanel';
+import { ToastHost } from './ToastHost';
 
 type Props = {
   result: SearchResult | null;
@@ -102,6 +103,8 @@ export function LookupResultSheet({
           </SafeAreaView>
         </View>
       </View>
+      {/* Toasts fired while this sheet is up (it has its own window). */}
+      <ToastHost inModal />
     </Modal>
   );
 }

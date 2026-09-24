@@ -33,6 +33,7 @@ import type { PickedPhoto } from '~/lib/photoCapture';
 import { runOverModal } from './GbifLookupHost';
 import { SearchBox } from './SearchBox';
 import { showActionSheet } from './ActionSheet';
+import { ToastHost } from './ToastHost';
 
 type Props = {
   /** The photos the user picked, with whatever EXIF the picker gave us. */
@@ -243,6 +244,8 @@ export function PhotoImportModal({ picked, onCancel, onConfirm }: Props) {
           </View>
         )}
       </View>
+      {/* Toasts fired while this sheet is up (it has its own window). */}
+      <ToastHost inModal />
     </Modal>
   );
 }

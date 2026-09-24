@@ -153,12 +153,14 @@ export function purgeOrphanRows(): void {
     ['checklist_records', 'session_id NOT IN (SELECT id FROM sessions)'],
     ['plot_species_records', 'plot_survey_id NOT IN (SELECT id FROM plot_surveys)'],
     ['plot_survey_layers', 'plot_survey_id NOT IN (SELECT id FROM plot_surveys)'],
-    ['subplot_layers', 'subplot_id NOT IN (SELECT id FROM plot_subplots)'],
     ['plot_subplots', 'plot_survey_id NOT IN (SELECT id FROM plot_surveys)'],
+    ['subplot_layers', 'subplot_id NOT IN (SELECT id FROM plot_subplots)'],
   ];
   for (const [table, where] of orphanDeletes) {
-    // subplot_layers is listed before plot_subplots so it is evaluated against
-    // the still-populated parent table, matching the delete order elsewhere.
+    // Parent before child: FK is OFF here, so nothing cascades. Deleting
+    // plot_subplots first means the subplot_layers sweep also catches the rows
+    // whose subplot was orphaned by a deleted plot — in one pass instead of
+    // on the next launch.
     db.executeSync(`DELETE FROM ${table} WHERE ${where};`);
   }
 
@@ -175,6 +177,14 @@ export function purgeOrphanRows(): void {
   db.executeSync(
     `UPDATE collection_trips SET site_id = NULL
        WHERE site_id IS NOT NULL AND site_id NOT IN (SELECT id FROM sites);`,
+  );
+  // The site's own back-reference to the 名錄 that created it (ON DELETE SET
+  // NULL). Left dangling from before FK enforcement, it made
+  // countSiteReferences count a user that no longer exists — the site showed
+  // as bound and was never cleaned up with its record.
+  db.executeSync(
+    `UPDATE sites SET session_id = NULL
+       WHERE session_id IS NOT NULL AND session_id NOT IN (SELECT id FROM sessions);`,
   );
   // No FK is declared on this one, but a pointer to a deleted subplot is just
   // as wrong — null it so the record falls back to plot-level scope.

@@ -181,13 +181,18 @@ export function GeoImportModal({ visible, defaultProjectId = 0, onClose, onCommi
     });
     onCommitted(added);
     if (added < entries.length) {
+      // Close only once the Alert is dismissed: presenting it and dismissing
+      // this Modal in the same tick can take the Alert down with the Modal.
       Alert.alert(
         t('geoImport.partial'),
         t('geoImport.partialMsg', {
           total: t('geoImport.nTotal', { count: entries.length }),
           added: t('geoImport.nSucceeded', { count: added }),
         }),
+        [{ text: t('common.ok'), onPress: handleClose }],
+        { onDismiss: handleClose },
       );
+      return;
     }
     handleClose();
   };

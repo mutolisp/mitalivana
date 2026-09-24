@@ -56,6 +56,7 @@ import { TaxonomyJumpChip } from './TaxonomyJumpChip';
 import { SpeciesAttributesBlock, type SpeciesAttributesDraft } from './SpeciesAttributesBlock';
 import { EMPTY_DRAFT, detectionOptions } from '~/lib/dwcAttributes';
 import { ACTION_FILL } from '~/lib/colors';
+import { ToastHost } from './ToastHost';
 import {
   quantityTypes,
   basalArea,
@@ -801,9 +802,8 @@ export function PlotSpeciesValueModal({
                         <Pressable
                           onPress={async () => {
                             const out = await firstPhotoFix(photoUris ?? []);
-                            // Alert, not toast: this is a Modal and ToastHost
-                            // sits at the navigation root, so a toast fired
-                            // from in here renders behind it.
+                            // Alert, not toast: a failure the user has to read,
+                            // not one that should time out.
                             if (out.kind === 'needs-photo-access') {
                               Alert.alert(t('species.usePhotoGnss'), t('species.photoNeedsAccess'));
                               return;
@@ -952,6 +952,8 @@ export function PlotSpeciesValueModal({
         index={viewerIndex}
         onClose={() => setViewerIndex(null)}
       />
+      {/* Toasts fired while this sheet is up (it has its own window). */}
+      <ToastHost inModal />
     </Modal>
   );
 }

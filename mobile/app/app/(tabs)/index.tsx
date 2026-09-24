@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Alert,
+  BackHandler,
   FlatList,
   LayoutAnimation,
   Modal,
@@ -360,6 +361,19 @@ export default function RecordsListScreen() {
   const selectToggle = useRecordSelection((s) => s.toggle);
   const selectSetMany = useRecordSelection((s) => s.setMany);
   const selectClear = useRecordSelection((s) => s.clear);
+  // Android hardware back leaves select mode before it leaves the tab — the
+  // same rule as every other list (useListSelection). Registered only while
+  // selecting, so an ordinary back is never swallowed.
+  useFocusEffect(
+    useCallback(() => {
+      if (!selectMode) return undefined;
+      const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+        selectClear();
+        return true;
+      });
+      return () => sub.remove();
+    }, [selectMode, selectClear]),
+  );
   const geoFormats = useSettings((s) => s.export_geo_formats);
   const includePhotos = useSettings((s) => s.export_include_photos);
   const mergeDuplicateTaxa = useSettings((s) => s.export_merge_duplicate_taxa);

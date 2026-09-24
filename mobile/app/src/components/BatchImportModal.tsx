@@ -230,13 +230,18 @@ export function BatchImportModal({ visible, target, onClose, onCommitted }: Prop
     setProgress(null);
     onCommitted(added);
     if (skipped > 0) {
+      // Close only once the Alert is dismissed: presenting it and dismissing
+      // this Modal in the same tick can take the Alert down with the Modal.
       Alert.alert(
         t('batchImport.done'),
         t('batchImport.doneMsg', {
           added: t('batchImport.nAdded', { count: added }),
           skipped: t('batchImport.nSkipped', { count: skipped }),
         }),
+        [{ text: t('common.ok'), onPress: handleClose }],
+        { onDismiss: handleClose },
       );
+      return;
     }
     handleClose();
   };

@@ -151,6 +151,13 @@ export async function restoreBackup(zipUri: string): Promise<void> {
   if (!ACCEPTED_BACKUP_KINDS.has(manifest.kind)) {
     throw new Error(i18n.t('backup.notChecklister'));
   }
+  // Must be a real schema number. `undefined > N` and `'abc' > N` are both
+  // false, so a missing or garbled field used to slip past the check below and
+  // restore an unknown DB. Every backup this app has ever written (since the
+  // first backup.ts) carries an integer here, so this rejects only bad files.
+  if (!Number.isInteger(manifest.schemaVersion) || manifest.schemaVersion < 1) {
+    throw new Error(i18n.t('backup.corrupt'));
+  }
   if (manifest.schemaVersion > LATEST_SCHEMA_VERSION) {
     throw new Error(
       i18n.t('backup.tooNew', { version: manifest.schemaVersion }),

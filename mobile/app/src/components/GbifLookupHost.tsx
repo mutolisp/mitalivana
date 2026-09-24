@@ -693,7 +693,7 @@ export function GbifLookupHost() {
         ) : null}
 
         {step === 'manual' ? (
-          <KeyboardAvoidingView className="flex-1">
+          <KeyboardAvoidingView className="flex-1" behavior="padding">
             <ScrollView className="flex-1 px-4 py-4" keyboardShouldPersistTaps="handled">
               <Text className="text-xs text-gray-500 dark:text-gray-400">
                 {t('manualTaxon.intro')}
