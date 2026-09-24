@@ -40,6 +40,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MapCanvas } from '~/components/map/MapCanvas';
 import type { LatLng, MapCamera, MapFeature, RasterOverlay, Region } from '~/components/map/types';
 import { useSettings, type MapBasemap } from '~/stores/settings';
+import { flattenPoints, geometryBounds, geometryToPrimitives, type GeoJSONGeometry } from '~/db';
 import { basemapToMapType, nextBasemap } from '~/lib/basemap';
 import {
   BasemapToggle,
@@ -76,11 +77,58 @@ type Props = {
   /** This record's species. Supplying it is what makes the iNaturalist grid
    *  toggle appear. */
   taxon?: InatGridTaxon;
+  /** A stored boundary to show around the point (the plot's 樣區範圍), drawn
+   *  faint and non-editable, in the same green as FolderAreaMap. One map for
+   *  centre and boundary instead of two native maps on one screen — and it
+   *  shows at a glance whether the centre sits inside the boundary. */
+  area?: GeoJSONGeometry | null;
 };
+
+/** The boundary as map features. Taps fall through to the map (nothing here
+ *  is tappable), so placing the centre inside the boundary still works. */
+function areaFeatures(area: GeoJSONGeometry | null | undefined): MapFeature[] {
+  if (!area) return [];
+  return geometryToPrimitives(area).map((prim, i) =>
+    prim.kind === 'point'
+      ? {
+          kind: 'marker' as const,
+          id: `area-${i}`,
+          lat: prim.latitude,
+          lng: prim.longitude,
+          color: '#059669',
+          opacity: 0.7,
+          tappable: false,
+        }
+      : prim.kind === 'line'
+        ? {
+            kind: 'line' as const,
+            id: `area-${i}`,
+            coords: prim.coords,
+            color: '#059669',
+            width: 2,
+          }
+        : {
+            kind: 'polygon' as const,
+            id: `area-${i}`,
+            coords: prim.coords,
+            stroke: '#059669',
+            fill: 'rgba(5,150,105,0.12)',
+            width: 2,
+          },
+  );
+}
 
 const INLINE_HEIGHT = 184;
 
-export function RecordLocationMap({ lat, lng, accuracy = null, onChange, reference, taxon }: Props) {
+export function RecordLocationMap({
+  lat,
+  lng,
+  accuracy = null,
+  onChange,
+  reference,
+  taxon,
+  area,
+}: Props) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { width: windowWidth } = useWindowDimensions();
@@ -222,16 +270,26 @@ export function RecordLocationMap({ lat, lng, accuracy = null, onChange, referen
   const hasPoint = shownLat != null && shownLng != null;
   // Point-centred when a coordinate exists; otherwise the user's last map view
   // (clamped tighter than the all-Taiwan default so tapping to place is usable).
-  const initialRegion: Region = hasPoint
-    ? { latitude: shownLat, longitude: shownLng, latitudeDelta: 0.006, longitudeDelta: 0.006 }
-    : {
-        latitude: mapView.latitude,
-        longitude: mapView.longitude,
-        latitudeDelta: Math.min(mapView.latitudeDelta, 0.08),
-        longitudeDelta: Math.min(mapView.longitudeDelta, 0.08),
-      };
+  // With a boundary, open framed on the boundary AND the point, so neither
+  // starts off-screen (and an off-boundary centre is visible as such).
+  const areaPoints = area ? flattenPoints(area) : [];
+  const initialRegion: Region =
+    areaPoints.length > 0
+      ? geometryBounds({
+          type: 'MultiPoint',
+          coordinates: hasPoint ? [...areaPoints, [shownLng, shownLat]] : areaPoints,
+        })
+      : hasPoint
+        ? { latitude: shownLat, longitude: shownLng, latitudeDelta: 0.006, longitudeDelta: 0.006 }
+        : {
+            latitude: mapView.latitude,
+            longitude: mapView.longitude,
+            latitudeDelta: Math.min(mapView.latitudeDelta, 0.08),
+            longitudeDelta: Math.min(mapView.longitudeDelta, 0.08),
+          };
 
   const cycleBasemap = () => setBasemap((b) => nextBasemap(b));
+  const shapes = areaFeatures(area);
 
   // iNat 觀察網格圖。關著的時候 useInatGrid 一個請求都不會送。
   const gridOn = useSettings((s) => s.inat_grid_overlay);
@@ -258,6 +316,7 @@ export function RecordLocationMap({ lat, lng, accuracy = null, onChange, referen
         initialRegion={initialRegion}
         onChange={guardedCommit}
         reference={reference}
+        extraFeatures={shapes}
         basemap={basemap}
         onCycleBasemap={cycleBasemap}
         onType={openEntry}
@@ -368,6 +427,7 @@ export function RecordLocationMap({ lat, lng, accuracy = null, onChange, referen
               initialRegion={initialRegion}
               onChange={commit}
               reference={reference}
+              extraFeatures={shapes}
               basemap={basemap}
               onCycleBasemap={cycleBasemap}
               onType={openEntry}
@@ -391,6 +451,7 @@ function EditableMap({
   initialRegion,
   onChange,
   reference,
+  extraFeatures,
   basemap,
   onCycleBasemap,
   onType,
@@ -404,6 +465,8 @@ function EditableMap({
   initialRegion: Region;
   onChange: (lat: number, lng: number) => void;
   reference?: Reference;
+  /** Non-editable shapes drawn under the point (the boundary). */
+  extraFeatures?: MapFeature[];
   basemap: MapBasemap;
   onCycleBasemap: () => void;
   onType: () => void;
@@ -471,6 +534,7 @@ function EditableMap({
         showsMyLocationButton={false}
         toolbarEnabled={false}
         features={[
+          ...(extraFeatures ?? []),
           ...(reference?.center && reference.radiusM
             ? [
                 {

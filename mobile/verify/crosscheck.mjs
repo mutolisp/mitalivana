@@ -187,6 +187,18 @@ for (const [label, r] of Object.entries({
 
   const tampered = readFileSync(join(dir, 'tampered.zip'));
   const htmlBad = await verifyInPage(new Uint8Array(tampered));
+
+  // The page is multilingual; the same two verdicts in English prove the
+  // language switch changes only the words, not the result.
+  const enGood = await verifyInPage(good, 'export.zip', 'en-US');
+  ok(/All checks passed/.test(enGood), 'verify.html (en) passes the untouched export', enGood);
+  ok(/Valid \(Ed25519\)/.test(enGood), 'verify.html (en) reports the signature valid', enGood);
+  const enBad = await verifyInPage(new Uint8Array(tampered), 'export.zip', 'en-US');
+  ok(/1 problem found/.test(enBad), 'verify.html (en) fails the tampered export', enBad);
+  ok(/Changed[\s\S]*photos\/b\.jpg/.test(enBad), 'verify.html (en) names photos/b.jpg', enBad);
+  // A Simplified-Chinese browser must get the Traditional Chinese page.
+  const cnGood = await verifyInPage(good, 'export.zip', 'zh-CN');
+  ok(/全部通過/.test(cnGood), 'verify.html gives a zh-CN browser the Traditional Chinese page', cnGood);
   ok(/發現 1 項問題/.test(htmlBad), 'verify.html fails the tampered export', htmlBad);
   ok(/已變更[\s\S]*photos\/b\.jpg/.test(htmlBad), 'verify.html names photos/b.jpg', htmlBad);
   ok(!/photos\/a\.jpg/.test(htmlBad), 'verify.html does not accuse the untouched photo', htmlBad);

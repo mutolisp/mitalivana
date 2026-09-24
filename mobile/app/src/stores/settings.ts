@@ -162,6 +162,10 @@ type SettingsValues = {
   signer_orcid: string;
   /** Name shown beside the ORCID in a signed manifest. Display only. */
   signer_name: string;
+  /** When `signer_orcid` was confirmed by signing in to ORCID (epoch ms);
+   *  0 = never. Signing requires it: an iD typed in by hand (the old way,
+   *  still in settings after an upgrade) proves nothing about who holds it. */
+  signer_orcid_auth_at: number;
   /** Whether the diversity card on a plot's species tab is expanded. */
   plot_stats_expanded: boolean;
   /** Heading printed at the top of every herbarium label, e.g. "Flora of
@@ -272,6 +276,7 @@ const DEFAULTS: SettingsValues = {
   sign_exports: false,
   signer_orcid: '',
   signer_name: '',
+  signer_orcid_auth_at: 0,
   inat_login: '',
   inat_geoprivacy: 'open',
   gdrive_account: '',
@@ -396,6 +401,7 @@ function readAll(): SettingsValues {
     sign_exports: map.get('sign_exports') === 'true',
     signer_orcid: map.get('signer_orcid') ?? DEFAULTS.signer_orcid,
     signer_name: map.get('signer_name') ?? DEFAULTS.signer_name,
+    signer_orcid_auth_at: Number(map.get('signer_orcid_auth_at') ?? DEFAULTS.signer_orcid_auth_at) || 0,
     gbif_notify_email: map.get('gbif_notify_email') ?? DEFAULTS.gbif_notify_email,
     inat_login: map.get('inat_login') ?? DEFAULTS.inat_login,
     inat_geoprivacy: parseGeoprivacy(map.get('inat_geoprivacy')),

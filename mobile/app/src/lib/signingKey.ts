@@ -104,7 +104,8 @@ export async function deleteKey(): Promise<void> {
  *
  * Null means exports carry no signature at all. Three things have to line up,
  * and a partial setup signs nothing rather than something half-attributed:
- * signing must be switched on, a key must exist, and an ORCID must be set.
+ * signing must be switched on, a key must exist, and an ORCID must be set —
+ * by signing in to ORCID, not typed (`signer_orcid_auth_at`).
  * A signature with no ORCID would assert "some key signed this" and prove
  * nothing about who, which is the one thing this feature exists to do.
  */
@@ -115,7 +116,7 @@ export async function activeSigner(): Promise<{
   const s = useSettings.getState();
   if (!s.sign_exports) return null;
   const orcid = normalizeOrcid(s.signer_orcid);
-  if (!orcid) return null;
+  if (!orcid || !s.signer_orcid_auth_at) return null;
   const seed = await readSeed();
   if (!seed) return null;
   return {

@@ -23,6 +23,12 @@
  *     devices". The secret is not a secret in an installed app — see the file
  *     header of googleAuth.ts — but it still goes through .env / EAS secrets
  *     so it is not committed.
+ *   - ORCID_CLIENT_ID / ORCID_REDIRECT_URI / ORCID_BASE → `extra.orcid`, read at
+ *     runtime by the provenance screen (src/lib/orcidAuth.ts). A **Public API**
+ *     client from the signer's own ORCID Developer Tools — no membership
+ *     needed. The redirect URI must be HTTPS and registered on that client;
+ *     the app intercepts it in a WebView and never loads it. ORCID_BASE
+ *     defaults to https://orcid.org; set https://sandbox.orcid.org to test.
  *
  * Missing vars don't crash the build, but the corresponding native config is
  * omitted (e.g. Android map tab will be blank if the key is absent).
@@ -32,6 +38,9 @@ import type { ExpoConfig } from 'expo/config';
 const GOOGLE_MAPS_ANDROID_API_KEY = process.env.GOOGLE_MAPS_ANDROID_API_KEY;
 const GOOGLE_OAUTH_DEVICE_CLIENT_ID = process.env.GOOGLE_OAUTH_DEVICE_CLIENT_ID;
 const GOOGLE_OAUTH_DEVICE_CLIENT_SECRET = process.env.GOOGLE_OAUTH_DEVICE_CLIENT_SECRET;
+const ORCID_CLIENT_ID = process.env.ORCID_CLIENT_ID;
+const ORCID_REDIRECT_URI = process.env.ORCID_REDIRECT_URI;
+const ORCID_BASE = process.env.ORCID_BASE;
 
 const config: ExpoConfig = {
   name: 'Mitalivana',
@@ -50,7 +59,7 @@ const config: ExpoConfig = {
     // `expo prebuild` regenerates the same values instead of silently
     // resetting them to 1 — which App Store Connect would reject, and which
     // Play would treat as a downgrade.
-    buildNumber: '25',
+    buildNumber: '26',
     infoPlist: {
       // App uses only standard HTTPS encryption (exempt). Declaring this
       // skips the export-compliance prompt on every App Store Connect upload.
@@ -66,7 +75,7 @@ const config: ExpoConfig = {
     // Aligned with the iOS build number so "build 21" means one thing on both
     // platforms. Nothing is published to Play yet, so raising it from 2 costs
     // nothing; versionCode only has to increase.
-    versionCode: 25,
+    versionCode: 26,
     adaptiveIcon: {
       backgroundColor: '#F5EBD9',
       foregroundImage: './assets/images/android-icon-foreground.png',
@@ -151,6 +160,13 @@ const config: ExpoConfig = {
     googleOauth: {
       clientId: GOOGLE_OAUTH_DEVICE_CLIENT_ID ?? '',
       clientSecret: GOOGLE_OAUTH_DEVICE_CLIENT_SECRET ?? '',
+    },
+    // Same empty-string convention: no client id → the sign-in button says
+    // "not configured".
+    orcid: {
+      clientId: ORCID_CLIENT_ID ?? '',
+      redirectUri: ORCID_REDIRECT_URI ?? '',
+      base: ORCID_BASE ?? 'https://orcid.org',
     },
   },
 };

@@ -75,8 +75,10 @@ export function renderText(node, out = []) {
 
 /**
  * Load verify.html, hand it a zip as a dropped file, return the rendered lines.
+ * `lang` is presented as the browser language, the way a reader's browser
+ * would choose the page's language.
  */
-export async function verifyInPage(zipBytes, fileName = 'export.zip') {
+export async function verifyInPage(zipBytes, fileName = 'export.zip', lang = 'zh-TW') {
   const html = readFileSync(fileURLToPath(new URL('verify.html', import.meta.url)), 'utf8');
   const m = /<script type="module">([\s\S]*?)<\/script>/.exec(html);
   if (!m) throw new Error('verify.html has no module script — did the template change?');
@@ -97,6 +99,7 @@ export async function verifyInPage(zipBytes, fileName = 'export.zip') {
     },
     console,
     RegExp,
+    navigator: { languages: [lang], language: lang },
   };
   sandbox.window = sandbox;
   sandbox.globalThis = sandbox;

@@ -98,6 +98,23 @@ export function externalTaxonId(source: ExternalTaxonSource, sourceKey: string):
  * same reason — `source` / `source_key` then describe where the current field
  * values came from, while the id stays whatever records already point at.
  */
+/**
+ * Listeners told whenever an external taxon is written or deleted. The
+ * taxonomy tab needs it: user-created taxa live in its tree, and a create /
+ * edit / delete usually happens without the tab ever losing focus (its own
+ * search segment, or the species popup over the tree) — the focus-time scope
+ * check alone left the tree stale until the app restarted.
+ */
+const manualTaxaListeners = new Set<() => void>();
+/** Fires on user-created (manual) taxon create / edit / delete. */
+export function onManualTaxaChanged(fn: () => void): () => void {
+  manualTaxaListeners.add(fn);
+  return () => manualTaxaListeners.delete(fn);
+}
+function notifyManualTaxaChanged(): void {
+  for (const fn of manualTaxaListeners) fn();
+}
+
 export function upsertExternalTaxon(input: ExternalTaxonInput): string {
   const taxonId =
     findExternalTaxonIdByName(input.simple_name, input.kingdom) ??
@@ -158,6 +175,10 @@ export function upsertExternalTaxon(input: ExternalTaxonInput): string {
       input.adopted ?? 0,
     ],
   );
+  // Only user-created taxa are in the tree. GBIF / iNat / pack copies are
+  // written in bulk (a batch add can copy thousands), and each notification
+  // costs the tree a scope-signature query for nothing.
+  if (input.source === 'manual') notifyManualTaxaChanged();
   return taxonId;
 }
 
@@ -196,6 +217,7 @@ export function updateExternalTaxon(
     `UPDATE external_taxa SET ${sets.join(', ')} WHERE taxon_id = ?;`,
     params,
   );
+  notifyManualTaxaChanged();
 }
 
 export function getExternalTaxon(taxonId: string): ExternalTaxon | null {
@@ -322,6 +344,7 @@ export function deleteManualTaxon(taxonId: string): boolean {
   getUserDb().executeSync(`DELETE FROM external_taxa WHERE taxon_id = ? AND source = 'manual';`, [
     taxonId,
   ]);
+  notifyManualTaxaChanged();
   return true;
 }
 

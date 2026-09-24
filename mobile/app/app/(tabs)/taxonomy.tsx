@@ -18,6 +18,7 @@ import { KeyboardStickyView } from '~/components/KeyboardAvoidingView';
 import {
   keysAvailable,
   taxonomyScopeSig,
+  onManualTaxaChanged,
   endemicTagLabel,
   addSearchHistory,
   getKeysForScope,
@@ -175,14 +176,18 @@ export default function TaxonomyScreen() {
   // (its hydratedRef latch alone would keep it dormant forever).
   const [scopeEpoch, setScopeEpoch] = useState(0);
   const resetForScope = useCallback(
-    (sig: string) => {
+    (sig: string, keepExpanded = false) => {
       scopeSigRef.current = sig;
       setRoots([]);
       setExpanded(new Set());
       setChildrenMap(new Map());
       setSpeciesMap(new Map());
       setNodeMap(new Map());
-      setSetting('taxonomy_expanded', []);
+      // A dataset / pack change can remove nodes, so its expansion is dropped.
+      // A user-taxon change cannot move the checklist nodes around it: keep
+      // the expansion and let hydration re-open it, so creating a species does
+      // not collapse the branch the user was working in.
+      if (!keepExpanded) setSetting('taxonomy_expanded', []);
       hydratedRef.current = false;
       setLoading(true);
       setScopeEpoch((e) => e + 1);
@@ -198,8 +203,16 @@ export default function TaxonomyScreen() {
     } catch {
       return;
     }
-    if (sig !== scopeSigRef.current) resetForScope(sig);
+    if (sig === scopeSigRef.current) return;
+    // The sig is `datasets|packs|manual`, and manual comes last with no '|' of
+    // its own: an unchanged prefix means only user-created taxa changed.
+    const prefix = (s: string) => s.slice(0, s.lastIndexOf('|'));
+    resetForScope(sig, prefix(sig) === prefix(scopeSigRef.current));
   }, [resetForScope]);
+  // Creating / editing / deleting a user taxon usually happens without this
+  // tab losing focus (its search segment, or the species popup over the
+  // tree), so the focus check below would not see it.
+  useEffect(() => onManualTaxaChanged(checkScope), [checkScope]);
   // Pack toggles / finished downloads have no store signal — caught on focus.
   useFocusEffect(checkScope);
   // Built-in region toggles DO have one; react immediately even without a

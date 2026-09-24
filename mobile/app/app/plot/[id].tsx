@@ -26,6 +26,8 @@ import {
   getPlotSurvey,
   getProject,
   getSite,
+  parseGeometry,
+  type GeoJSONGeometry,
   layerIndexOf,
   layerKeyForIndex,
   listPlotSpecies,
@@ -301,6 +303,8 @@ const COVER_KEYS = [
 type CoverKey = (typeof COVER_KEYS)[number];
 
 function EnvTab({ plot, onUpdated }: { plot: PlotSurvey; onUpdated: () => void }) {
+  const router = useRouter();
+  const boundary = usePlotBoundary(plot.site_id);
   const coverCheck = useMemo(
     () => checkPlotCover(plot.total_cover_pct, getPlotLayers(plot.id), listPlotSpecies(plot.id)),
     [plot],
@@ -447,12 +451,15 @@ function EnvTab({ plot, onUpdated }: { plot: PlotSurvey; onUpdated: () => void }
             )}
             {/* Same mini-map as the species record sheet — tap or drag to place
                 the plot centre when the GNSS fix is unavailable or wrong, and zoom /
-                locate / switch basemap to check it against the terrain. */}
+                locate / switch basemap to check it against the terrain. It also
+                draws the plot boundary: one map for centre and boundary, instead
+                of a second native map in its own section below. */}
             <SwipeBlockedArea>
               <RecordLocationMap
                 lat={plot.decimal_latitude}
                 lng={plot.decimal_longitude}
                 accuracy={plot.coord_uncertainty_m}
+                area={boundary}
                 onChange={(lat, lng, accuracy) =>
                   patch({
                     decimal_latitude: lat,
@@ -464,6 +471,21 @@ function EnvTab({ plot, onUpdated }: { plot: PlotSurvey; onUpdated: () => void }
                 }
               />
             </SwipeBlockedArea>
+            {/* Drawing stays on the map screen — the only place with vertex
+                handles — and comes back via router.replace. */}
+            <Pressable
+              onPress={() => router.push(`/(tabs)/map?draw=Polygon&plot=${plot.id}` as Href)}
+              className="mt-2 flex-row items-center rounded-lg border border-gray-200 px-3 py-2 active:bg-gray-50 dark:border-gray-700 dark:active:bg-gray-800"
+            >
+              <Ionicons name="shapes-outline" size={18} color={boundary ? '#059669' : '#4b5563'} />
+              <Text className="ml-2 flex-1 text-sm text-gray-700 dark:text-gray-300">
+                {boundary ? t('plot.editRange') : t('plot.drawRange')}
+              </Text>
+              <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
+            </Pressable>
+            <Text className="mt-1 text-[11px] text-gray-400 dark:text-gray-500">
+              {t('plot.rangeHint')}
+            </Text>
           </View>
         )}
 
@@ -527,7 +549,9 @@ function EnvTab({ plot, onUpdated }: { plot: PlotSurvey; onUpdated: () => void }
         </View>
       </Section>
 
-      <PlotBoundarySection plot={plot} />
+      {/* A transect has no centre-point map to carry the boundary, so it keeps
+          the boundary in its own section. */}
+      {plot.plot_type === 'transect' ? <PlotBoundarySection plot={plot} /> : null}
 
       <CollapsibleSection title={t('plot.basicInfo')}>
         {/* 穿越線不需要樣區大小 / 單位（其尺度由軌跡長度表示）。 */}
@@ -756,6 +780,29 @@ function Section({
   );
 }
 
+/**
+ * The plot boundary (its linked `sites` row) as geometry, or null. Re-read when
+ * `site_id` changes; drawing on the map screen comes back via `router.replace`,
+ * which remounts this screen. A malformed row shows as no boundary rather than
+ * taking the environment tab down.
+ */
+function usePlotBoundary(siteId: number | null): GeoJSONGeometry | null {
+  const [geometry, setGeometry] = useState<GeoJSONGeometry | null>(null);
+  useEffect(() => {
+    const site = siteId !== null ? getSite(siteId) : null;
+    let next: GeoJSONGeometry | null = null;
+    if (site) {
+      try {
+        next = parseGeometry(site);
+      } catch {
+        next = null;
+      }
+    }
+    setGeometry(next);
+  }, [siteId]);
+  return geometry;
+}
+
 /** Section with a tappable header that collapses/expands its body. Matches the
  *  visual style of `Section`; default collapsed to declutter the env tab. */
 /**
@@ -764,10 +811,11 @@ function Section({
  * for it). Read-only here: drawing hands over to the map screen, the only place
  * with vertex handles, and comes back via `router.replace`.
  *
- * Collapsed by default when there is no boundary — `CollapsibleSection` renders
- * nothing while closed, so the MapView is not mounted. This tab can already
- * hold the centre-point mini map, and two native maps on one screen is exactly
- * what the other mini-map components go out of their way to avoid.
+ * Transects only: fixed and point-count plots draw the boundary on the
+ * centre-point map in the GNSS card instead (two native maps on one screen is
+ * what the mini-map components go out of their way to avoid). Collapsed by
+ * default when there is no boundary — `CollapsibleSection` renders nothing
+ * while closed, so the MapView is not mounted.
  */
 function PlotBoundarySection({ plot }: { plot: PlotSurvey }) {
   const { t } = useTranslation();

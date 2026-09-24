@@ -20,6 +20,11 @@
   enough browsers that a recipient would be told to go and upgrade. Regenerate
   this file with `node build.mjs` after changing the template.
 
+  Languages: the same seven as the app (zh-TW, en, ja, ko, de, fr, es).
+  Chosen by `?lang=`, then the reader's last pick, then the browser language,
+  falling back to English. The static text below is the zh-TW fallback for a
+  page whose script never runs; everything is re-filled from MESSAGES.
+
   What a PASS means, exactly:
     · every file the manifest lists is present and byte-for-byte unchanged
     · the manifest — including the name and ORCID it is attributed to — was
@@ -45,7 +50,12 @@
     font: 15px/1.6 system-ui, -apple-system, "Noto Sans TC", "PingFang TC", sans-serif;
   }
   main { max-width: 860px; margin: 0 auto; }
+  .top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
   h1 { font-size: 22px; margin: 0 0 4px; }
+  select {
+    font: inherit; font-size: 13px; padding: 4px 8px; border-radius: 8px;
+    border: 1px solid var(--line); background: var(--card); color: var(--fg);
+  }
   .sub { color: var(--muted); font-size: 14px; margin: 0 0 24px; }
   #drop {
     border: 2px dashed var(--line); border-radius: 12px; padding: 40px 20px;
@@ -81,18 +91,20 @@
 </head>
 <body>
 <main>
-  <h1>Mitalivana 匯出驗證</h1>
+  <div class="top">
+    <h1 data-i18n="title">Mitalivana 匯出驗證</h1>
+    <select id="lang" aria-label="Language"></select>
+  </div>
   <p class="sub">
-    確認這份調查資料自匯出後未被更動，以及它由誰簽署。<strong>完全離線</strong>——
-    檔案不會上傳，只有你按下 ORCID 查詢時才會連到 orcid.org。
+    <span data-i18n="lead">確認這份調查資料自匯出後未被更動，並查看是誰簽署的。</span><strong data-i18n="localOnly">在你的瀏覽器內完成</strong><span data-i18n="privacy">——檔案不會上傳；只有你按下按鈕時，才會連到 orcid.org 查詢簽署者的公鑰。</span>
   </p>
 
   <div id="drop" tabindex="0">
-    <strong>把匯出的 .zip 或整個資料夾拖進來</strong>
-    也可以點下方按鈕選擇
+    <strong data-i18n="dropTitle">把匯出的 .zip 或整個資料夾拖進來</strong>
+    <span data-i18n="dropHint">也可以點下方按鈕選擇</span>
     <div class="row">
-      <button id="pickZip" type="button">選擇 .zip 檔</button>
-      <button id="pickDir" type="button">選擇資料夾</button>
+      <button id="pickZip" type="button" data-i18n="pickZip">選擇 .zip 檔</button>
+      <button id="pickDir" type="button" data-i18n="pickDir">選擇資料夾</button>
     </div>
   </div>
   <input id="fileZip" type="file" accept=".zip,application/zip" hidden>
@@ -101,16 +113,16 @@
   <div class="report" id="report"></div>
 
   <div class="caveat" id="caveat" hidden>
-    <strong>通過驗證代表什麼</strong>
+    <strong data-i18n="passTitle">通過驗證代表什麼</strong>
     <ul>
-      <li>清單中的每個檔案都在，而且與匯出當下逐位元組相同。</li>
-      <li>清單本身（包含它標示的姓名與 ORCID）確實由持有該公鑰對應私鑰的人簽署。</li>
+      <li data-i18n="pass1">匯出資料集中的每個檔案都存在，而且與匯出當下逐位元組相同。</li>
+      <li data-i18n="pass2">匯出資料集本身（包含它標示的姓名與 ORCID）確實由持有該公鑰對應私鑰的人簽署。</li>
     </ul>
-    <strong>不代表什麼</strong>
+    <strong data-i18n="notTitle">不代表什麼</strong>
     <ul>
-      <li>不保證資料內容正確，也不保證採集時間地點如其所載。</li>
-      <li>不排除該 ORCID 帳號遭盜用。信任鏈到「本人掌控自己的 ORCID 帳號」為止。</li>
-      <li>沒有憑證機構、沒有撤銷機制、沒有可信時戳：簽章證明的是「持有金鑰」，不是簽署時間。</li>
+      <li data-i18n="not1">不保證資料內容正確，也不保證採集時間地點如其所載。</li>
+      <li data-i18n="not2">不排除該 ORCID 帳號遭盜用。信任鏈到「本人掌控自己的 ORCID 帳號」為止。</li>
+      <li data-i18n="not3">沒有憑證機構、沒有撤銷機制、沒有可信時戳：簽章證明的是「持有金鑰」，不是簽署時間。</li>
     </ul>
   </div>
 </main>
@@ -1060,6 +1072,433 @@ return { etc, getPublicKey, getPublicKeyAsync, hash, hashes, keygen, keygenAsync
 // backed by WebCrypto avoids inlining a hash implementation as well.
 ed.hashes.sha512Async = async (m) => new Uint8Array(await crypto.subtle.digest('SHA-512', m));
 
+/* ── Languages ────────────────────────────────────────────────────────────
+ * Same seven as the app. A value is a string, or a function of its
+ * parameters where the wording depends on them (plurals, file names).
+ * Strings that sit next to each other in one sentence (lead / localOnly /
+ * privacy) carry their own spacing and punctuation: CJK joins without
+ * spaces, the others need one.
+ */
+const MESSAGES = {
+  'zh-TW': {
+    _name: '繁體中文', _htmlLang: 'zh-Hant-TW',
+    title: 'Mitalivana 匯出驗證',
+    lead: '確認這份調查資料自匯出後未被更動，並查看是誰簽署的。',
+    localOnly: '在你的瀏覽器內完成',
+    privacy: '——檔案不會上傳；只有你按下按鈕時，才會連到 orcid.org 查詢簽署者的公鑰。',
+    dropTitle: '把匯出的 .zip 或整個資料夾拖進來',
+    dropHint: '也可以點下方按鈕選擇',
+    pickZip: '選擇 .zip 檔',
+    pickDir: '選擇資料夾',
+    passTitle: '通過驗證代表什麼',
+    pass1: '匯出資料集中的每個檔案都存在，而且與匯出當下逐位元組相同。',
+    pass2: '匯出資料集本身（包含它標示的姓名與 ORCID）確實由持有該公鑰對應私鑰的人簽署。',
+    notTitle: '不代表什麼',
+    not1: '不保證資料內容正確，也不保證採集時間地點如其所載。',
+    not2: '不排除該 ORCID 帳號遭盜用。信任鏈到「本人掌控自己的 ORCID 帳號」為止。',
+    not3: '沒有憑證機構、沒有撤銷機制、沒有可信時戳：簽章證明的是「持有金鑰」，不是簽署時間。',
+    language: '語言',
+    errNotZip: '這不是有效的 zip 檔',
+    errZip64: '這份 zip 用了 ZIP64 格式，請改用 verify.py 或先解壓縮',
+    errCentral: 'zip 中央目錄毀損',
+    errEntry: (n) => `zip 項目毀損：${n}`,
+    errMethod: (m, n) => `不支援的壓縮方式（${m}）：${n}`,
+    noManifest: '找不到 manifest.json — 這不像是 Mitalivana 的匯出檔',
+    kManifest: '清單',
+    manifestBad: 'manifest.json 不是有效的 JSON',
+    kFiles: '檔案',
+    filesNone: '此清單沒有檔案列表（早期匯出）',
+    filesOk: (n) => `${n} 個檔案全部存在且未更動`,
+    kChanged: '已變更',
+    kMissing: '遺失',
+    kSig: '簽章',
+    unsigned: '未簽署（旁邊沒有 signature.json）',
+    sigBad: 'signature.json 不是有效的 JSON',
+    sigSchema: (s, e) => `無法辨識的格式「${s}」，本頁只認得 ${e}`,
+    sigValid: '有效（Ed25519）',
+    sigInvalid: '無效',
+    kSigner: '簽署者',
+    kKey: '公鑰',
+    kMismatch: '不一致',
+    mismatch: '清單裡宣告的公鑰與實際簽署的不同',
+    kOrcidCheck: 'ORCID 查核',
+    orcidNot: '尚未查核',
+    orcidBtn: '連線 orcid.org 確認公鑰',
+    orcidBusy: '查詢中…',
+    orcidFound: '此公鑰確實公布在該 ORCID 頁面',
+    orcidMissing: '該 ORCID 頁面上找不到此公鑰 — 署名未獲證實',
+    orcidHttp: (s) => `orcid.org 回應 ${s}`,
+    orcidFail: (m) => `無法查核（${m}）`,
+    verdictBad: (n) => `發現 ${n} 項問題`,
+    verdictOk: '全部通過',
+    verdictUnsigned: '檔案完整，但這份匯出沒有簽章',
+  },
+  en: {
+    _name: 'English', _htmlLang: 'en',
+    title: 'Verify a Mitalivana export',
+    lead: 'Check that this survey data has not been altered since export, and see who signed it. ',
+    localOnly: 'Runs entirely in your browser',
+    privacy: ' — your file is never uploaded. The only connection is to orcid.org, and only when you press the button to look up the signer’s public key.',
+    dropTitle: 'Drop the exported .zip or the whole folder here',
+    dropHint: 'or choose it with a button below',
+    pickZip: 'Choose .zip file',
+    pickDir: 'Choose folder',
+    passTitle: 'What a pass means',
+    pass1: 'Every file in the exported dataset is present and byte-for-byte identical to when it was exported.',
+    pass2: 'The exported dataset itself — including the name and ORCID it gives — was signed by whoever holds the private key for the public key shown.',
+    notTitle: 'What it does not mean',
+    not1: 'It does not guarantee that the data is correct, or that it was collected when and where it says.',
+    not2: 'It does not rule out a compromised ORCID account. The chain of trust ends at “the person controls their own ORCID account”.',
+    not3: 'There is no certificate authority, no revocation and no trusted timestamp: the signature proves possession of the key, not when it was signed.',
+    language: 'Language',
+    errNotZip: 'This is not a valid zip file',
+    errZip64: 'This zip uses the ZIP64 format — use verify.py instead, or unzip it first',
+    errCentral: 'The zip’s central directory is damaged',
+    errEntry: (n) => `Damaged zip entry: ${n}`,
+    errMethod: (m, n) => `Unsupported compression method (${m}): ${n}`,
+    noManifest: 'No manifest.json found — this does not look like a Mitalivana export',
+    kManifest: 'Manifest',
+    manifestBad: 'manifest.json is not valid JSON',
+    kFiles: 'Files',
+    filesNone: 'This manifest has no file list (early export)',
+    filesOk: (n) => (n === 1 ? '1 file present and unchanged' : `All ${n} files present and unchanged`),
+    kChanged: 'Changed',
+    kMissing: 'Missing',
+    kSig: 'Signature',
+    unsigned: 'Not signed (no signature.json alongside)',
+    sigBad: 'signature.json is not valid JSON',
+    sigSchema: (s, e) => `Unrecognised format “${s}”; this page only knows ${e}`,
+    sigValid: 'Valid (Ed25519)',
+    sigInvalid: 'Invalid',
+    kSigner: 'Signed by',
+    kKey: 'Public key',
+    kMismatch: 'Mismatch',
+    mismatch: 'The public key declared in the manifest differs from the one that signed it',
+    kOrcidCheck: 'ORCID check',
+    orcidNot: 'Not checked yet',
+    orcidBtn: 'Check the key on orcid.org',
+    orcidBusy: 'Checking…',
+    orcidFound: 'This public key is published on that ORCID record',
+    orcidMissing: 'This public key is not on that ORCID record — the attribution is not confirmed',
+    orcidHttp: (s) => `orcid.org answered ${s}`,
+    orcidFail: (m) => `Could not check (${m})`,
+    verdictBad: (n) => (n === 1 ? '1 problem found' : `${n} problems found`),
+    verdictOk: 'All checks passed',
+    verdictUnsigned: 'Files intact, but this export is not signed',
+  },
+  ja: {
+    _name: '日本語', _htmlLang: 'ja',
+    title: 'Mitalivana エクスポートの検証',
+    lead: 'この調査データがエクスポート後に改変されていないことを確認し、誰が署名したかを表示します。',
+    localOnly: 'すべてブラウザ内で完結',
+    privacy: '——ファイルはアップロードされません。ボタンを押したときだけ、署名者の公開鍵を調べるために orcid.org へ接続します。',
+    dropTitle: 'エクスポートした .zip またはフォルダをここにドロップ',
+    dropHint: '下のボタンから選ぶこともできます',
+    pickZip: '.zip ファイルを選択',
+    pickDir: 'フォルダを選択',
+    passTitle: '検証に合格したことの意味',
+    pass1: 'エクスポートしたデータセットのすべてのファイルが存在し、エクスポート時とバイト単位で同一です。',
+    pass2: 'エクスポートしたデータセット自体（記載された氏名と ORCID を含む）が、表示された公開鍵に対応する秘密鍵の保持者によって署名されています。',
+    notTitle: '意味しないこと',
+    not1: 'データ内容の正しさや、記載された日時・場所で採集されたことは保証しません。',
+    not2: 'ORCID アカウントが乗っ取られた可能性は排除しません。信頼の連鎖は「本人が自分の ORCID アカウントを管理している」ところまでです。',
+    not3: '認証局・失効の仕組み・信頼できるタイムスタンプはありません。署名が証明するのは「鍵を保持していること」であり、署名日時ではありません。',
+    language: '言語',
+    errNotZip: '有効な zip ファイルではありません',
+    errZip64: 'この zip は ZIP64 形式です。verify.py を使うか、先に展開してください',
+    errCentral: 'zip の中央ディレクトリが破損しています',
+    errEntry: (n) => `zip の項目が破損しています：${n}`,
+    errMethod: (m, n) => `未対応の圧縮方式（${m}）：${n}`,
+    noManifest: 'manifest.json が見つかりません — Mitalivana のエクスポートではないようです',
+    kManifest: 'マニフェスト',
+    manifestBad: 'manifest.json が有効な JSON ではありません',
+    kFiles: 'ファイル',
+    filesNone: 'このマニフェストにはファイル一覧がありません（初期のエクスポート）',
+    filesOk: (n) => `${n} 件のファイルがすべて存在し、変更されていません`,
+    kChanged: '変更あり',
+    kMissing: '欠落',
+    kSig: '署名',
+    unsigned: '未署名（signature.json がありません）',
+    sigBad: 'signature.json が有効な JSON ではありません',
+    sigSchema: (s, e) => `認識できない形式「${s}」です。このページは ${e} のみ対応しています`,
+    sigValid: '有効（Ed25519）',
+    sigInvalid: '無効',
+    kSigner: '署名者',
+    kKey: '公開鍵',
+    kMismatch: '不一致',
+    mismatch: 'マニフェストに記載された公開鍵と、実際に署名した公開鍵が異なります',
+    kOrcidCheck: 'ORCID 確認',
+    orcidNot: '未確認',
+    orcidBtn: 'orcid.org で公開鍵を確認',
+    orcidBusy: '確認中…',
+    orcidFound: 'この公開鍵はその ORCID ページに掲載されています',
+    orcidMissing: 'この公開鍵はその ORCID ページに見つかりません — 署名者は確認できません',
+    orcidHttp: (s) => `orcid.org の応答：${s}`,
+    orcidFail: (m) => `確認できませんでした（${m}）`,
+    verdictBad: (n) => `${n} 件の問題が見つかりました`,
+    verdictOk: 'すべて合格',
+    verdictUnsigned: 'ファイルは完全ですが、このエクスポートには署名がありません',
+  },
+  ko: {
+    _name: '한국어', _htmlLang: 'ko',
+    title: 'Mitalivana 내보내기 검증',
+    lead: '이 조사 데이터가 내보낸 뒤 변경되지 않았는지 확인하고, 누가 서명했는지 보여 줍니다. ',
+    localOnly: '모든 과정이 브라우저 안에서 진행됩니다',
+    privacy: ' — 파일은 업로드되지 않습니다. 버튼을 눌렀을 때만 서명자의 공개 키를 조회하기 위해 orcid.org에 연결합니다.',
+    dropTitle: '내보낸 .zip 파일이나 폴더 전체를 여기로 끌어 놓으세요',
+    dropHint: '아래 버튼으로 선택할 수도 있습니다',
+    pickZip: '.zip 파일 선택',
+    pickDir: '폴더 선택',
+    passTitle: '검증 통과의 의미',
+    pass1: '내보낸 데이터 세트의 모든 파일이 존재하며, 내보낼 때와 바이트 단위로 같습니다.',
+    pass2: '내보낸 데이터 세트 자체(표시된 이름과 ORCID 포함)가, 표시된 공개 키에 대응하는 개인 키 보유자에 의해 서명되었습니다.',
+    notTitle: '의미하지 않는 것',
+    not1: '데이터 내용이 정확하다거나, 기재된 시간과 장소에서 채집되었다는 것을 보장하지 않습니다.',
+    not2: 'ORCID 계정이 도용되었을 가능성을 배제하지 않습니다. 신뢰의 사슬은 "본인이 자신의 ORCID 계정을 관리한다"는 데까지입니다.',
+    not3: '인증 기관, 폐기 메커니즘, 신뢰할 수 있는 타임스탬프가 없습니다. 서명이 증명하는 것은 "키를 보유함"이지 서명 시점이 아닙니다.',
+    language: '언어',
+    errNotZip: '올바른 zip 파일이 아닙니다',
+    errZip64: '이 zip은 ZIP64 형식입니다. verify.py를 사용하거나 먼저 압축을 푸세요',
+    errCentral: 'zip의 중앙 디렉터리가 손상되었습니다',
+    errEntry: (n) => `손상된 zip 항목: ${n}`,
+    errMethod: (m, n) => `지원하지 않는 압축 방식(${m}): ${n}`,
+    noManifest: 'manifest.json을 찾을 수 없습니다 — Mitalivana 내보내기 파일이 아닌 것 같습니다',
+    kManifest: '매니페스트',
+    manifestBad: 'manifest.json이 올바른 JSON이 아닙니다',
+    kFiles: '파일',
+    filesNone: '이 매니페스트에는 파일 목록이 없습니다(초기 내보내기)',
+    filesOk: (n) => `파일 ${n}개 모두 있으며 변경되지 않았습니다`,
+    kChanged: '변경됨',
+    kMissing: '누락',
+    kSig: '서명',
+    unsigned: '서명되지 않음(signature.json 없음)',
+    sigBad: 'signature.json이 올바른 JSON이 아닙니다',
+    sigSchema: (s, e) => `알 수 없는 형식 "${s}" — 이 페이지는 ${e}만 인식합니다`,
+    sigValid: '유효(Ed25519)',
+    sigInvalid: '유효하지 않음',
+    kSigner: '서명자',
+    kKey: '공개 키',
+    kMismatch: '불일치',
+    mismatch: '매니페스트에 선언된 공개 키가 실제로 서명한 키와 다릅니다',
+    kOrcidCheck: 'ORCID 확인',
+    orcidNot: '아직 확인하지 않음',
+    orcidBtn: 'orcid.org에서 공개 키 확인',
+    orcidBusy: '확인 중…',
+    orcidFound: '이 공개 키는 해당 ORCID 페이지에 게시되어 있습니다',
+    orcidMissing: '해당 ORCID 페이지에서 이 공개 키를 찾을 수 없습니다 — 서명자가 확인되지 않았습니다',
+    orcidHttp: (s) => `orcid.org 응답 ${s}`,
+    orcidFail: (m) => `확인할 수 없음(${m})`,
+    verdictBad: (n) => `문제 ${n}건 발견`,
+    verdictOk: '모두 통과',
+    verdictUnsigned: '파일은 온전하지만 이 내보내기에는 서명이 없습니다',
+  },
+  de: {
+    _name: 'Deutsch', _htmlLang: 'de',
+    title: 'Mitalivana-Export prüfen',
+    lead: 'Prüfe, dass diese Erhebungsdaten seit dem Export nicht verändert wurden, und sieh, wer sie signiert hat. ',
+    localOnly: 'Läuft vollständig in deinem Browser',
+    privacy: ' – deine Datei wird nie hochgeladen. Verbunden wird nur mit orcid.org, und nur wenn du die Schaltfläche drückst, um den öffentlichen Schlüssel des Unterzeichners nachzuschlagen.',
+    dropTitle: 'Exportierte .zip-Datei oder den ganzen Ordner hier ablegen',
+    dropHint: 'oder über eine Schaltfläche unten auswählen',
+    pickZip: '.zip-Datei wählen',
+    pickDir: 'Ordner wählen',
+    passTitle: 'Was eine bestandene Prüfung bedeutet',
+    pass1: 'Jede Datei des exportierten Datensatzes ist vorhanden und Byte für Byte identisch mit dem Stand beim Export.',
+    pass2: 'Der exportierte Datensatz selbst – einschließlich des darin genannten Namens und der ORCID – wurde von der Person signiert, die den privaten Schlüssel zum angezeigten öffentlichen Schlüssel besitzt.',
+    notTitle: 'Was sie nicht bedeutet',
+    not1: 'Sie garantiert nicht, dass die Daten korrekt sind oder zu der angegebenen Zeit am angegebenen Ort erhoben wurden.',
+    not2: 'Sie schließt ein kompromittiertes ORCID-Konto nicht aus. Die Vertrauenskette endet bei „die Person kontrolliert ihr eigenes ORCID-Konto“.',
+    not3: 'Es gibt keine Zertifizierungsstelle, keinen Widerruf und keinen vertrauenswürdigen Zeitstempel: Die Signatur belegt den Besitz des Schlüssels, nicht den Zeitpunkt der Signatur.',
+    language: 'Sprache',
+    errNotZip: 'Dies ist keine gültige ZIP-Datei',
+    errZip64: 'Diese ZIP-Datei verwendet das ZIP64-Format – nutze verify.py oder entpacke sie zuerst',
+    errCentral: 'Das zentrale Verzeichnis der ZIP-Datei ist beschädigt',
+    errEntry: (n) => `Beschädigter ZIP-Eintrag: ${n}`,
+    errMethod: (m, n) => `Nicht unterstützte Komprimierungsmethode (${m}): ${n}`,
+    noManifest: 'Keine manifest.json gefunden – dies sieht nicht nach einem Mitalivana-Export aus',
+    kManifest: 'Manifest',
+    manifestBad: 'manifest.json ist kein gültiges JSON',
+    kFiles: 'Dateien',
+    filesNone: 'Dieses Manifest hat keine Dateiliste (früher Export)',
+    filesOk: (n) => (n === 1 ? '1 Datei vorhanden und unverändert' : `Alle ${n} Dateien vorhanden und unverändert`),
+    kChanged: 'Geändert',
+    kMissing: 'Fehlt',
+    kSig: 'Signatur',
+    unsigned: 'Nicht signiert (keine signature.json daneben)',
+    sigBad: 'signature.json ist kein gültiges JSON',
+    sigSchema: (s, e) => `Unbekanntes Format „${s}“; diese Seite kennt nur ${e}`,
+    sigValid: 'Gültig (Ed25519)',
+    sigInvalid: 'Ungültig',
+    kSigner: 'Signiert von',
+    kKey: 'Öffentlicher Schlüssel',
+    kMismatch: 'Abweichung',
+    mismatch: 'Der im Manifest angegebene öffentliche Schlüssel unterscheidet sich von dem, der signiert hat',
+    kOrcidCheck: 'ORCID-Prüfung',
+    orcidNot: 'Noch nicht geprüft',
+    orcidBtn: 'Schlüssel auf orcid.org prüfen',
+    orcidBusy: 'Wird geprüft …',
+    orcidFound: 'Dieser öffentliche Schlüssel ist in diesem ORCID-Eintrag veröffentlicht',
+    orcidMissing: 'Dieser öffentliche Schlüssel steht nicht in diesem ORCID-Eintrag – die Zuordnung ist nicht bestätigt',
+    orcidHttp: (s) => `orcid.org antwortete mit ${s}`,
+    orcidFail: (m) => `Prüfung nicht möglich (${m})`,
+    verdictBad: (n) => (n === 1 ? '1 Problem gefunden' : `${n} Probleme gefunden`),
+    verdictOk: 'Alle Prüfungen bestanden',
+    verdictUnsigned: 'Dateien vollständig, aber dieser Export ist nicht signiert',
+  },
+  fr: {
+    _name: 'Français', _htmlLang: 'fr',
+    title: 'Vérifier un export Mitalivana',
+    lead: 'Vérifiez que ces données d’inventaire n’ont pas été modifiées depuis l’export, et voyez qui les a signées. ',
+    localOnly: 'Tout se passe dans votre navigateur',
+    privacy: ' — votre fichier n’est jamais envoyé. La seule connexion est vers orcid.org, et seulement quand vous appuyez sur le bouton pour consulter la clé publique du signataire.',
+    dropTitle: 'Déposez ici le .zip exporté ou le dossier entier',
+    dropHint: 'ou choisissez-le avec un bouton ci-dessous',
+    pickZip: 'Choisir un fichier .zip',
+    pickDir: 'Choisir un dossier',
+    passTitle: 'Ce que signifie une vérification réussie',
+    pass1: 'Chaque fichier du jeu de données exporté est présent et identique, octet pour octet, à ce qu’il était lors de l’export.',
+    pass2: 'Le jeu de données exporté lui-même — y compris le nom et l’ORCID qu’il indique — a été signé par la personne qui détient la clé privée correspondant à la clé publique affichée.',
+    notTitle: 'Ce qu’elle ne signifie pas',
+    not1: 'Elle ne garantit pas que les données sont exactes, ni qu’elles ont été collectées au moment et à l’endroit indiqués.',
+    not2: 'Elle n’exclut pas un compte ORCID compromis. La chaîne de confiance s’arrête à « la personne contrôle son propre compte ORCID ».',
+    not3: 'Il n’y a ni autorité de certification, ni révocation, ni horodatage de confiance : la signature prouve la possession de la clé, pas la date de signature.',
+    language: 'Langue',
+    errNotZip: 'Ce n’est pas un fichier zip valide',
+    errZip64: 'Ce zip utilise le format ZIP64 — utilisez verify.py ou décompressez-le d’abord',
+    errCentral: 'Le répertoire central du zip est endommagé',
+    errEntry: (n) => `Entrée zip endommagée : ${n}`,
+    errMethod: (m, n) => `Méthode de compression non prise en charge (${m}) : ${n}`,
+    noManifest: 'Aucun manifest.json trouvé — ceci ne ressemble pas à un export Mitalivana',
+    kManifest: 'Manifeste',
+    manifestBad: 'manifest.json n’est pas un JSON valide',
+    kFiles: 'Fichiers',
+    filesNone: 'Ce manifeste n’a pas de liste de fichiers (ancien export)',
+    filesOk: (n) => (n === 1 ? '1 fichier présent et inchangé' : `Les ${n} fichiers sont présents et inchangés`),
+    kChanged: 'Modifié',
+    kMissing: 'Manquant',
+    kSig: 'Signature',
+    unsigned: 'Non signé (pas de signature.json à côté)',
+    sigBad: 'signature.json n’est pas un JSON valide',
+    sigSchema: (s, e) => `Format non reconnu « ${s} » ; cette page ne connaît que ${e}`,
+    sigValid: 'Valide (Ed25519)',
+    sigInvalid: 'Invalide',
+    kSigner: 'Signé par',
+    kKey: 'Clé publique',
+    kMismatch: 'Incohérence',
+    mismatch: 'La clé publique déclarée dans le manifeste diffère de celle qui a signé',
+    kOrcidCheck: 'Vérification ORCID',
+    orcidNot: 'Pas encore vérifié',
+    orcidBtn: 'Vérifier la clé sur orcid.org',
+    orcidBusy: 'Vérification…',
+    orcidFound: 'Cette clé publique est publiée sur ce dossier ORCID',
+    orcidMissing: 'Cette clé publique est absente de ce dossier ORCID — l’attribution n’est pas confirmée',
+    orcidHttp: (s) => `orcid.org a répondu ${s}`,
+    orcidFail: (m) => `Vérification impossible (${m})`,
+    verdictBad: (n) => (n === 1 ? '1 problème détecté' : `${n} problèmes détectés`),
+    verdictOk: 'Toutes les vérifications sont réussies',
+    verdictUnsigned: 'Fichiers intacts, mais cet export n’est pas signé',
+  },
+  es: {
+    _name: 'Español', _htmlLang: 'es',
+    title: 'Verificar una exportación de Mitalivana',
+    lead: 'Comprueba que estos datos de muestreo no se han modificado desde la exportación y mira quién los firmó. ',
+    localOnly: 'Todo ocurre en tu navegador',
+    privacy: ' — tu archivo nunca se sube. La única conexión es con orcid.org, y solo cuando pulsas el botón para consultar la clave pública del firmante.',
+    dropTitle: 'Arrastra aquí el .zip exportado o la carpeta completa',
+    dropHint: 'o elígelo con uno de los botones de abajo',
+    pickZip: 'Elegir archivo .zip',
+    pickDir: 'Elegir carpeta',
+    passTitle: 'Qué significa superar la verificación',
+    pass1: 'Todos los archivos del conjunto de datos exportado están presentes y son idénticos, byte a byte, a como estaban al exportarse.',
+    pass2: 'El propio conjunto de datos exportado —incluidos el nombre y el ORCID que indica— fue firmado por quien posee la clave privada de la clave pública mostrada.',
+    notTitle: 'Qué no significa',
+    not1: 'No garantiza que los datos sean correctos, ni que se recogieran cuando y donde se indica.',
+    not2: 'No descarta que la cuenta ORCID esté comprometida. La cadena de confianza termina en «la persona controla su propia cuenta ORCID».',
+    not3: 'No hay autoridad de certificación, ni revocación, ni sello de tiempo de confianza: la firma demuestra la posesión de la clave, no cuándo se firmó.',
+    language: 'Idioma',
+    errNotZip: 'Este no es un archivo zip válido',
+    errZip64: 'Este zip usa el formato ZIP64: usa verify.py o descomprímelo primero',
+    errCentral: 'El directorio central del zip está dañado',
+    errEntry: (n) => `Entrada zip dañada: ${n}`,
+    errMethod: (m, n) => `Método de compresión no compatible (${m}): ${n}`,
+    noManifest: 'No se encontró manifest.json: no parece una exportación de Mitalivana',
+    kManifest: 'Manifiesto',
+    manifestBad: 'manifest.json no es un JSON válido',
+    kFiles: 'Archivos',
+    filesNone: 'Este manifiesto no tiene lista de archivos (exportación antigua)',
+    filesOk: (n) => (n === 1 ? '1 archivo presente y sin cambios' : `Los ${n} archivos están presentes y sin cambios`),
+    kChanged: 'Modificado',
+    kMissing: 'Falta',
+    kSig: 'Firma',
+    unsigned: 'Sin firmar (no hay signature.json al lado)',
+    sigBad: 'signature.json no es un JSON válido',
+    sigSchema: (s, e) => `Formato no reconocido «${s}»; esta página solo reconoce ${e}`,
+    sigValid: 'Válida (Ed25519)',
+    sigInvalid: 'No válida',
+    kSigner: 'Firmado por',
+    kKey: 'Clave pública',
+    kMismatch: 'Discrepancia',
+    mismatch: 'La clave pública declarada en el manifiesto no coincide con la que firmó',
+    kOrcidCheck: 'Comprobación ORCID',
+    orcidNot: 'Aún sin comprobar',
+    orcidBtn: 'Comprobar la clave en orcid.org',
+    orcidBusy: 'Comprobando…',
+    orcidFound: 'Esta clave pública está publicada en ese registro ORCID',
+    orcidMissing: 'Esta clave pública no figura en ese registro ORCID: la autoría no está confirmada',
+    orcidHttp: (s) => `orcid.org respondió ${s}`,
+    orcidFail: (m) => `No se pudo comprobar (${m})`,
+    verdictBad: (n) => (n === 1 ? 'Se encontró 1 problema' : `Se encontraron ${n} problemas`),
+    verdictOk: 'Todas las comprobaciones superadas',
+    verdictUnsigned: 'Archivos íntegros, pero esta exportación no está firmada',
+  },
+};
+const LANGS = Object.keys(MESSAGES);
+const STORE_KEY = 'mitalivana-verify-lang';
+
+/** Any browser tag to one of ours: zh-* → zh-TW (the only Chinese we have),
+ *  otherwise the base language, else null. */
+function matchLang(tag) {
+  if (!tag) return null;
+  const t = String(tag).toLowerCase();
+  if (t.startsWith('zh')) return 'zh-TW';
+  const base = t.split('-')[0];
+  return LANGS.includes(base) ? base : null;
+}
+
+// Every source guarded: an embedding iframe (e.g. Google Sites) may block
+// storage, and the Node harness (headless.mjs) has neither location nor
+// storage — only `navigator.languages` when it wants a specific language.
+function pickLang() {
+  try {
+    const q = matchLang(new URLSearchParams(globalThis.location?.search ?? '').get('lang'));
+    if (q) return q;
+  } catch {}
+  try {
+    const saved = matchLang(globalThis.localStorage?.getItem(STORE_KEY));
+    if (saved) return saved;
+  } catch {}
+  for (const tag of globalThis.navigator?.languages ?? [globalThis.navigator?.language]) {
+    const m = matchLang(tag);
+    if (m) return m;
+  }
+  return 'en';
+}
+
+let lang = pickLang();
+const t = (key, ...args) => {
+  const v = MESSAGES[lang][key] ?? MESSAGES.en[key];
+  return typeof v === 'function' ? v(...args) : v;
+};
+
+function applyStatic() {
+  if (typeof document.querySelectorAll !== 'function') return; // headless harness
+  for (const node of document.querySelectorAll('[data-i18n]')) node.textContent = t(node.dataset.i18n);
+  document.title = t('title');
+  if (document.documentElement) document.documentElement.lang = MESSAGES[lang]._htmlLang;
+  const sel = document.getElementById('lang');
+  if (sel) sel.setAttribute('aria-label', t('language'));
+}
+
 const SCHEMA = 'mitalivana-signature/1';
 const dec = new TextDecoder();
 const $ = (id) => document.getElementById(id);
@@ -1102,14 +1541,14 @@ async function readZip(buf) {
   for (let i = buf.byteLength - 22; i >= 0 && i > buf.byteLength - 22 - 65536; i--) {
     if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
   }
-  if (eocd === -1) throw new Error('這不是有效的 zip 檔');
+  if (eocd === -1) throw new Error(t('errNotZip'));
   const count = dv.getUint16(eocd + 10, true);
   let p = dv.getUint32(eocd + 16, true);
-  if (p === 0xffffffff) throw new Error('這份 zip 用了 ZIP64 格式，請改用 verify.py 或先解壓縮');
+  if (p === 0xffffffff) throw new Error(t('errZip64'));
 
   const out = new Map();
   for (let n = 0; n < count; n++) {
-    if (dv.getUint32(p, true) !== 0x02014b50) throw new Error('zip 中央目錄毀損');
+    if (dv.getUint32(p, true) !== 0x02014b50) throw new Error(t('errCentral'));
     const method = dv.getUint16(p + 10, true);
     const compSize = dv.getUint32(p + 20, true);
     const nameLen = dv.getUint16(p + 28, true);
@@ -1121,7 +1560,7 @@ async function readZip(buf) {
     if (name.endsWith('/')) continue;
 
     // The local header repeats the name and extra fields with its own lengths.
-    if (dv.getUint32(localAt, true) !== 0x04034b50) throw new Error(`zip 項目毀損：${name}`);
+    if (dv.getUint32(localAt, true) !== 0x04034b50) throw new Error(t('errEntry', name));
     const dataAt = localAt + 30 + dv.getUint16(localAt + 26, true) + dv.getUint16(localAt + 28, true);
     const raw = u8.subarray(dataAt, dataAt + compSize);
     if (method === 0) {
@@ -1131,7 +1570,7 @@ async function readZip(buf) {
       const blob = await new Response(new Blob([raw]).stream().pipeThrough(ds)).arrayBuffer();
       out.set(name, new Uint8Array(blob));
     } else {
-      throw new Error(`不支援的壓縮方式（${method}）：${name}`);
+      throw new Error(t('errMethod', method, name));
     }
   }
   return out;
@@ -1171,7 +1610,7 @@ async function run(files) {
     .filter((p) => p === 'manifest.json' || p.endsWith('/manifest.json') || p.endsWith('bundle_manifest.json'))
     .sort();
   if (!manifests.length) {
-    report.append(el('div', 'verdict bad', '找不到 manifest.json — 這不像是 Mitalivana 的匯出檔'));
+    report.append(el('div', 'verdict bad', t('noManifest')));
     return;
   }
 
@@ -1189,7 +1628,7 @@ async function run(files) {
     try {
       manifest = JSON.parse(dec.decode(manifestBytes));
     } catch {
-      line(card, '清單', 'manifest.json 不是有效的 JSON', 'bad');
+      line(card, t('kManifest'), t('manifestBad'), 'bad');
       bad++; cards.push(card); continue;
     }
 
@@ -1202,21 +1641,21 @@ async function run(files) {
       else if ((await sha256Hex(files.get(rel))) !== f.sha256) changed.push(f.path);
     }
     if (!listed.length) {
-      line(card, '檔案', '此清單沒有檔案列表（早期匯出）', 'dim');
+      line(card, t('kFiles'), t('filesNone'), 'dim');
     } else if (!changed.length && !missing.length) {
-      line(card, '檔案', `${listed.length} 個檔案全部存在且未更動`, 'ok');
+      line(card, t('kFiles'), t('filesOk', listed.length), 'ok');
     } else {
       bad++;
-      // Named one by one: "有東西變了" would send the reader through the whole
-      // archive. A photo that went through a chat app comes back re-encoded
-      // and lands here — a different problem from a broken signature.
-      for (const p of changed) line(card, '已變更', p, 'bad');
-      for (const p of missing) line(card, '遺失', p, 'bad');
+      // Named one by one: "something changed" would send the reader through
+      // the whole archive. A photo that went through a chat app comes back
+      // re-encoded and lands here — a different problem from a broken signature.
+      for (const p of changed) line(card, t('kChanged'), p, 'bad');
+      for (const p of missing) line(card, t('kMissing'), p, 'bad');
     }
 
     const sp = prefix + 'signature.json';
     if (!files.has(sp)) {
-      line(card, '簽章', '未簽署（旁邊沒有 signature.json）', 'dim');
+      line(card, t('kSig'), t('unsigned'), 'dim');
       cards.push(card); continue;
     }
     signed++;
@@ -1224,20 +1663,20 @@ async function run(files) {
     try {
       sig = JSON.parse(dec.decode(files.get(sp)));
     } catch {
-      line(card, '簽章', 'signature.json 不是有效的 JSON', 'bad');
+      line(card, t('kSig'), t('sigBad'), 'bad');
       bad++; cards.push(card); continue;
     }
     if (sig.schema !== SCHEMA) {
-      line(card, '簽章', `無法辨識的格式「${sig.schema}」，本頁只認得 ${SCHEMA}`, 'bad');
+      line(card, t('kSig'), t('sigSchema', sig.schema, SCHEMA), 'bad');
       bad++; cards.push(card); continue;
     }
 
     const valid = await verifyEd25519(manifestBytes, sig.signature ?? '', sig.public_key ?? '');
-    line(card, '簽章', valid ? '有效（Ed25519）' : '無效', valid ? 'ok' : 'bad');
+    line(card, t('kSig'), valid ? t('sigValid') : t('sigInvalid'), valid ? 'ok' : 'bad');
     if (!valid) bad++;
 
     const by = manifest.signed_by ?? {};
-    if (by.name) line(card, '簽署者', by.name);
+    if (by.name) line(card, t('kSigner'), by.name);
     if (by.orcid) {
       const row = line(card, 'ORCID', '');
       const a = el('a', null, by.orcid);
@@ -1246,24 +1685,24 @@ async function run(files) {
       a.rel = 'noreferrer';
       row.lastChild.append(a);
     }
-    line(card, '公鑰', `ed25519:${sig.public_key}`, 'mono');
+    line(card, t('kKey'), `ed25519:${sig.public_key}`, 'mono');
     if (by.public_key && by.public_key !== sig.public_key) {
-      line(card, '不一致', '清單裡宣告的公鑰與實際簽署的不同', 'bad');
+      line(card, t('kMismatch'), t('mismatch'), 'bad');
       bad++;
     }
 
     if (valid && by.orcid) {
-      const row = line(card, 'ORCID 查核', '尚未查核', 'dim');
-      const btn = el('button', null, '連線 orcid.org 確認公鑰');
+      const row = line(card, t('kOrcidCheck'), t('orcidNot'), 'dim');
+      const btn = el('button', null, t('orcidBtn'));
       btn.style.marginLeft = '8px';
       btn.onclick = async () => {
         btn.disabled = true;
-        row.lastChild.textContent = '查詢中…';
+        row.lastChild.textContent = t('orcidBusy');
         try {
           const res = await fetch(`https://pub.orcid.org/v3.0/${by.orcid}/researcher-urls`, {
             headers: { Accept: 'application/json' },
           });
-          if (!res.ok) throw new Error(`orcid.org 回應 ${res.status}`);
+          if (!res.ok) throw new Error(t('orcidHttp', res.status));
           const body = await res.json();
           // Either half of a "Websites & social links" entry: the label is
           // free text, the URL field is validated as a URL.
@@ -1271,12 +1710,10 @@ async function run(files) {
             .flatMap((u) => [u['url-name'] ?? '', u.url?.value ?? ''])
             .join('\n');
           const found = new RegExp(`ed25519:${sig.public_key}`, 'i').test(hay);
-          row.lastChild.textContent = found
-            ? '此公鑰確實公布在該 ORCID 頁面'
-            : '該 ORCID 頁面上找不到此公鑰 — 署名未獲證實';
+          row.lastChild.textContent = found ? t('orcidFound') : t('orcidMissing');
           row.lastChild.className = 'v ' + (found ? 'ok' : 'bad');
         } catch (e) {
-          row.lastChild.textContent = `無法查核（${e.message}）`;
+          row.lastChild.textContent = t('orcidFail', e.message);
           btn.disabled = false;
         }
       };
@@ -1288,7 +1725,7 @@ async function run(files) {
   const verdict = el(
     'div',
     'verdict ' + (bad ? 'bad' : 'ok'),
-    bad ? `發現 ${bad} 項問題` : signed ? '全部通過' : '檔案完整，但這份匯出沒有簽章',
+    bad ? t('verdictBad', bad) : signed ? t('verdictOk') : t('verdictUnsigned'),
   );
   report.append(verdict, ...cards);
 }
@@ -1328,6 +1765,28 @@ $('pickZip').onclick = () => $('fileZip').click();
 $('pickDir').onclick = () => $('fileDir').click();
 $('fileZip').onchange = (e) => handle(e.target.files);
 $('fileDir').onchange = (e) => handle(e.target.files);
+
+// Language picker: switching re-renders the report already on screen, so the
+// reader does not have to load the export again.
+const langSel = $('lang');
+if (langSel) {
+  for (const code of LANGS) {
+    const opt = document.createElement('option');
+    opt.value = code;
+    opt.textContent = MESSAGES[code]._name;
+    langSel.append(opt);
+  }
+  langSel.value = lang;
+  langSel.onchange = () => {
+    lang = langSel.value;
+    try {
+      globalThis.localStorage?.setItem(STORE_KEY, lang);
+    } catch {}
+    applyStatic();
+    if (lastFiles) void run(lastFiles);
+  };
+}
+applyStatic();
 </script>
 </body>
 </html>
