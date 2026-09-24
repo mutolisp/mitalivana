@@ -451,7 +451,7 @@ function CandidateRow({
             </Text>
           ) : null}
           {info ? (
-            <ScientificName name={info.simple_name} kingdom={info.kingdom} />
+            <ScientificName name={info.simple_name} kingdom={info.kingdom} rank={info.rank} />
           ) : (
             <Text className="italic">{taxon.taxon_id}</Text>
           )}

@@ -2,6 +2,8 @@
  * Format scientific name for Markdown.
  * ICN/ICNP/ICVCN (plants/fungi/prokaryotes/viruses): *Genus species* var. *epithet* Author
  * ICZN (animals): *Genus species epithet* (Author, Year)
+ * Genus rank on its own, under either code: *Genus* Author — only when `rank`
+ * says Genus, since a lone capitalised word may be a family or a class.
  *
  * Mirrors backend/api/formatter.py.
  */
@@ -57,9 +59,14 @@ export function formatScientificNameMarkdown(
   fullname: string,
   kingdom: string = '',
   nomenclatureName: string = '',
+  rank: string = '',
 ): string {
   const trimmed = fullname.trim();
   if (!trimmed) return fullname;
+  if (rank.trim().toLowerCase() === 'genus') {
+    const g = trimmed.match(/^([A-Z][a-z-]+)(.*)$/);
+    if (g) return g[2].trim() ? `*${g[1]}* ${g[2].trim()}` : `*${g[1]}*`;
+  }
   if (isZoologicalFormat(nomenclatureName, kingdom)) return formatAnimal(trimmed);
   return formatBotanical(trimmed);
 }

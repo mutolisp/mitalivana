@@ -70,6 +70,10 @@ import {
 const BB_OPTIONS = ['+', 'r', '1', '2', '3', '4', '5'] as const;
 
 /** Name of the <PortalHost> this modal renders inside, for its own popovers. */
+/** Height shared by the unit dropdown and the value field that sit side by
+ *  side, so the two boxes line up on both platforms (a TextInput's natural
+ *  height differs between iOS and Android). */
+const FIELD_HEIGHT = 'h-12';
 const VALUE_MODAL_PORTAL = 'plot-species-value-modal';
 
 /** Modal-internal draft. The DB columns are organism_quantity + type. */
@@ -501,6 +505,7 @@ export function PlotSpeciesValueModal({
                     {header ? (
                       <ScientificName
                         name={header.name}
+                        rank={header.rank}
                         author={header.author}
                         kingdom={header.kingdom}
                         className="text-sm text-gray-700 dark:text-gray-300"
@@ -629,6 +634,10 @@ export function PlotSpeciesValueModal({
                         options={typeOptions}
                         onChange={handleSwitchType}
                         portalHost={VALUE_MODAL_PORTAL}
+                        // Same fixed height as the value field beside it, so
+                        // the two boxes line up whatever the platform's
+                        // TextInput height turns out to be.
+                        triggerClassName={FIELD_HEIGHT}
                       />
                     </View>
                     {inlineValue ? (
@@ -1030,7 +1039,13 @@ function PercentInput({
           {t('plotValue.coverPct')}
         </Text>
       )}
-      <View className="flex-row items-center rounded-lg border border-gray-200 bg-white px-3 dark:border-gray-700 dark:bg-gray-900">
+      <View
+        className={`flex-row items-center rounded-lg border bg-white px-3 dark:bg-gray-900 ${
+          compact
+            ? `${FIELD_HEIGHT} border-gray-300 dark:border-gray-600`
+            : 'border-gray-200 dark:border-gray-700'
+        }`}
+      >
         <TextInput
           value={value}
           onChangeText={onChange}
@@ -1038,7 +1053,8 @@ function PercentInput({
           placeholderTextColor="#9ca3af"
           keyboardType="decimal-pad"
           autoFocus
-          className="flex-1 py-3 text-base text-gray-900 dark:text-gray-100"
+          // Compact: the box above fixes the height; the input fills it.
+          className={`flex-1 text-base text-gray-900 dark:text-gray-100 ${compact ? 'h-full' : 'py-3'}`}
         />
         <Text className="ml-1 text-sm text-gray-500 dark:text-gray-400">%</Text>
       </View>
@@ -1073,7 +1089,13 @@ function CountInput({
           {t('plotValue.quantity')}
         </Text>
       )}
-      <View className="flex-row items-center rounded-lg border border-gray-200 bg-white px-3 dark:border-gray-700 dark:bg-gray-900">
+      <View
+        className={`flex-row items-center rounded-lg border bg-white px-3 dark:bg-gray-900 ${
+          compact
+            ? `${FIELD_HEIGHT} border-gray-300 dark:border-gray-600`
+            : 'border-gray-200 dark:border-gray-700'
+        }`}
+      >
         <TextInput
           value={value}
           onChangeText={onChange}
@@ -1081,7 +1103,8 @@ function CountInput({
           placeholderTextColor="#9ca3af"
           keyboardType="numeric"
           autoFocus
-          className="flex-1 py-3 text-base text-gray-900 dark:text-gray-100"
+          // Compact: the box above fixes the height; the input fills it.
+          className={`flex-1 text-base text-gray-900 dark:text-gray-100 ${compact ? 'h-full' : 'py-3'}`}
         />
         {suffix ? (
           <Text className="ml-1 text-sm text-gray-500 dark:text-gray-400">{suffix}</Text>

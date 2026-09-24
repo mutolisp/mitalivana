@@ -1221,7 +1221,15 @@ function TaxonRow({
               {node.name_c ? (
                 <Text className="text-base font-medium text-gray-900 dark:text-gray-100">{node.name_c}</Text>
               ) : null}
-              <Text className={`${node.name_c ? 'ml-1' : ''} text-sm text-gray-700 dark:text-gray-300`}>{node.name}</Text>
+              {/* Through ScientificName so a genus node is italic, like every
+                  other place a genus name appears; family and above stay
+                  upright. */}
+              <ScientificName
+                name={node.name}
+                rank={node.rank_key}
+                kingdom={node.ancestors.kingdom ?? (node.rank_key === 'kingdom' ? node.name : '')}
+                className={`${node.name_c ? 'ml-1' : ''} text-sm text-gray-700 dark:text-gray-300`}
+              />
             </>
           )}
           {node.rank_key && !isIncompleteBucket ? (() => {
@@ -1319,6 +1327,7 @@ function SpeciesRow({
           ) : null}
           <ScientificName
             name={species.simple_name}
+            rank={species.rank}
             kingdom={species.kingdom}
             nomenclature={species.nomenclature_name}
           />

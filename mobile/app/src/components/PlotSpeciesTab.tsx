@@ -1255,6 +1255,7 @@ function SpeciesRow({
         </View>
         <ScientificName
           name={record.simple_name}
+          rank={record.rank}
           author={record.name_author}
           kingdom={record.kingdom}
           className="mt-0.5 text-xs text-gray-700 dark:text-gray-300"

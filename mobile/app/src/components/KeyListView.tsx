@@ -326,6 +326,7 @@ const KeyRow = memo(function KeyRow({
           {isItalicRank(k.scope_rank) ? (
             <ScientificName
               name={k.scope_name}
+              rank={k.scope_rank}
               className="text-base font-medium text-gray-900 dark:text-gray-100"
             />
           ) : (
@@ -368,6 +369,7 @@ const ShortcutChip = memo(function ShortcutChip({
       {isItalicRank(k.scope_rank) ? (
         <ScientificName
           name={k.scope_name}
+          rank={k.scope_rank}
           className="text-xs font-medium text-gray-800 dark:text-gray-200"
         />
       ) : (

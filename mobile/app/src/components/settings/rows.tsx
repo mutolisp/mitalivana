@@ -136,6 +136,7 @@ export function SelectRow<T extends string | number>({
   divider = true,
   description,
   portalHost,
+  triggerClassName = '',
 }: {
   label: string;
   value: T;
@@ -146,6 +147,9 @@ export function SelectRow<T extends string | number>({
   divider?: boolean;
   description?: string;
   portalHost?: string;
+  /** Extra classes for the trigger box — e.g. a fixed height so it lines up
+   *  with a text field beside it. */
+  triggerClassName?: string;
 }) {
   const current = options.find((o) => o.value === value);
   const selected = current ? { value: String(current.value), label: current.label } : undefined;
@@ -159,7 +163,7 @@ export function SelectRow<T extends string | number>({
   const select = (
     <Select value={selected} onValueChange={handleChange} disabled={disabled}>
       <SelectTrigger
-        className={variant === 'inline' ? 'w-full' : 'min-w-[140px]'}
+        className={`${variant === 'inline' ? 'w-full' : 'min-w-[140px]'} ${triggerClassName}`}
         accessibilityLabel={label}
       >
         <SelectValue placeholder={String(value)} />

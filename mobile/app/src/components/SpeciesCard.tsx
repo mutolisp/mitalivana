@@ -76,6 +76,7 @@ export function SpeciesCard({ record, onPress, onLongPress, selectMode, picked }
         <View className="mt-0.5 flex-row items-center">
           <ScientificName
             name={record.simple_name}
+            rank={record.rank}
             author={record.name_author}
             kingdom={record.kingdom}
             className="flex-shrink text-sm text-gray-700 dark:text-gray-300"

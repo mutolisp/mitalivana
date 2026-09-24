@@ -855,6 +855,7 @@ export default function FavoritesScreen() {
                   ) : null}
                   <ScientificName
                     name={item.simple_name}
+                    rank={item.rank}
                     author=""
                     kingdom={item.kingdom}
                     className="text-xs text-gray-700 dark:text-gray-300"

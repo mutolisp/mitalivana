@@ -319,6 +319,7 @@ function renderGroup(
         item.fullname || '',
         item.kingdom || '',
         item.nomenclature_name || '',
+        item.rank || '',
       );
       const cname = item.cname || '';
       const name = item.name || '';

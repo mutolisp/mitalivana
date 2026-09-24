@@ -905,6 +905,7 @@ function LeadPreviewLine({ preview }: { preview: LeadPreview }) {
       <Text className="text-xs font-medium text-emerald-700 dark:text-emerald-300">→ </Text>
       <ScientificName
         name={t.simple_name}
+        rank={t.rank}
         kingdom={t.kingdom}
         className="text-xs font-medium text-emerald-700 dark:text-emerald-300"
       />
@@ -1024,6 +1025,7 @@ function TerminalTaxon({
           ) : null}
           <ScientificName
             name={taxon.simple_name}
+            rank={taxon.rank}
             kingdom={taxon.kingdom}
             className={`${taxon.common_name_c ? 'ml-2' : ''}text-base text-gray-800 dark:text-gray-200`}
           />
@@ -1118,6 +1120,7 @@ function SubkeyButton({
         <View className="mt-0.5 flex-row flex-wrap items-baseline">
           <ScientificName
             name={subkey.scope_name}
+            rank={subkey.scope_rank}
             className="text-base font-semibold text-gray-900 dark:text-gray-100"
           />
           {subkey.scope_cname ? (
@@ -1318,6 +1321,7 @@ function CandidateRow({ c, onPress }: { c: ReachableTerminal; onPress: () => voi
         {t ? (
           <ScientificName
             name={t.simple_name}
+            rank={t.rank}
             kingdom={t.kingdom}
             className={`${t.common_name_c ? 'ml-2' : ''}text-sm text-gray-700 dark:text-gray-300`}
           />

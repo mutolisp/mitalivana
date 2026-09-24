@@ -599,6 +599,7 @@ export function GbifLookupHost() {
               </Text>
               <ScientificName
                 name={localHit.picked.canonicalName}
+                rank={localHit.picked.rank}
                 author={localHit.picked.author}
                 kingdom={localHit.picked.kingdom}
                 className="mt-0.5 text-sm text-gray-900 dark:text-gray-100"
@@ -609,6 +610,7 @@ export function GbifLookupHost() {
               <View className="mt-0.5 flex-row items-center">
                 <ScientificName
                   name={localHit.result.name}
+                  rank={localHit.result.rank}
                   author={localHit.result.fullname.replace(localHit.result.name, '').trim()}
                   kingdom={localHit.result.kingdom}
                   className="text-sm text-gray-900 dark:text-gray-100"

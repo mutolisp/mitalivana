@@ -249,6 +249,7 @@ export function SpeciesDetailSheet({
                     </Text>
                     <ScientificName
                       name={record.simple_name}
+                      rank={record.rank}
                       author={record.name_author}
                       kingdom={record.kingdom}
                       className="text-sm text-gray-700 dark:text-gray-300"

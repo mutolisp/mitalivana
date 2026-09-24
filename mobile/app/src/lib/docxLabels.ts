@@ -22,6 +22,8 @@ export type LabelSpecimen = {
   simple_name: string;
   name_author: string;
   kingdom: string;
+  /** So a genus-level specimen ("Litsea sp.") gets its italic genus. */
+  rank?: string | null;
   common_name_c: string;
   family: string;
   family_c: string;
@@ -172,7 +174,7 @@ function labelParagraphs(sp: LabelSpecimen, opts: LabelOptions): string {
   // export uses. Set off by a blank line above and below.
   const full = [sp.simple_name, sp.name_author].filter(Boolean).join(' ').trim();
   if (full) {
-    const md = formatScientificNameMarkdown(full, sp.kingdom);
+    const md = formatScientificNameMarkdown(full, sp.kingdom, '', sp.rank ?? '');
     out.push(BLANK);
     out.push(para(parseRuns(md, false).map((r) => runXml(r, NAME_FONT)).join(''), LINE_NAME, CENTER));
     out.push(BLANK);

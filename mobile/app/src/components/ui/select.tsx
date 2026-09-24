@@ -62,12 +62,19 @@ function SelectTrigger({
 
 function SelectValue({
   className = '',
+  numberOfLines = 1,
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Value> & { className?: string }) {
   const { value } = SelectPrimitive.useRootContext();
+  // shrink + one line: a long label ("個體數 (individuals)") used to wrap to
+  // two lines, grow the trigger, and push the chevron outside its border. It
+  // now truncates, and the chevron keeps its place inside the box. `shrink`,
+  // not `flex-1`: an auto-width trigger (the settings rows) must still size
+  // to its label instead of collapsing to its min width.
   return (
     <SelectPrimitive.Value
-      className={`text-base ${value ? 'text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400'} ${className}`}
+      numberOfLines={numberOfLines}
+      className={`shrink text-base ${value ? 'text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400'} ${className}`}
       {...props}
     />
   );

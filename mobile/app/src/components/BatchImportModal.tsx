@@ -402,6 +402,7 @@ export function BatchImportModal({ visible, target, onClose, onCommitted }: Prop
                         ) : null}
                         <ScientificName
                           name={m.name}
+                          rank={m.rank}
                           author={m.fullname.replace(m.name, '').trim()}
                           kingdom={m.kingdom}
                           className="text-xs text-gray-700 dark:text-gray-300"
@@ -460,6 +461,7 @@ export function BatchImportModal({ visible, target, onClose, onCommitted }: Prop
                                 ) : null}
                                 <ScientificName
                                   name={m.name}
+                                  rank={m.rank}
                                   author={m.fullname.replace(m.name, '').trim()}
                                   kingdom={m.kingdom}
                                   className="text-xs text-gray-700 dark:text-gray-300"

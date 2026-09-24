@@ -2,8 +2,11 @@
  * Scientific-name italic segmentation — the app's single definition of what
  * gets italicised, shared by the RN component and by the report renderers.
  *
- * The rule (unchanged, extracted verbatim from `ScientificName.tsx`):
- *   - genus, species and infraspecific epithets → italic
+ * The rule (extracted from `ScientificName.tsx`):
+ *   - genus, species and infraspecific epithets → italic — including a
+ *     genus-rank name on its own ("Litsea"), which needs `rank` to be known:
+ *     a lone capitalised word may just as well be a class ("Aves"), so it is
+ *     only italicised when the rank says Genus
  *   - rank abbreviations (var., subsp., ssp., f., fo., ×) → upright
  *   - author and any trailing text → upright
  *   - family and above → upright in full
@@ -49,11 +52,32 @@ function isHighRank(rank: string, name: string): boolean {
   return false;
 }
 
-function parseSegments(name: string, animal: boolean, highRank: boolean): Segment[] {
+/** Genus rank, whatever its case (TaiCOL `Genus`, tree `genus`, GBIF `GENUS`). */
+function isGenusRank(rank: string): boolean {
+  return rank.trim().toLowerCase() === 'genus';
+}
+
+function parseSegments(
+  name: string,
+  animal: boolean,
+  highRank: boolean,
+  genus = false,
+): Segment[] {
   const trimmed = (name || '').trim();
   if (!trimmed) return [];
 
   if (highRank) return [{ text: trimmed, italic: false }];
+
+  // A genus on its own: the one word is italic under every code; anything
+  // after it (an author, if the caller passed one in) stays upright.
+  if (genus) {
+    const g = trimmed.match(/^([A-Z][a-z-]+)(.*)$/);
+    if (g) {
+      const segs: Segment[] = [{ text: g[1], italic: true }];
+      if (g[2]) segs.push({ text: g[2], italic: false });
+      return segs;
+    }
+  }
 
   if (animal) {
     const m = trimmed.match(/^([A-Z][a-z]+(?:\s+[a-z-]+)+)(.*)/);
@@ -96,7 +120,7 @@ export function scientificNameSegments(
 ): NameSegment[] {
   const animal = isAnimal(opts.kingdom ?? '', opts.nomenclature ?? '');
   const highRank = isHighRank(opts.rank ?? '', name);
-  return parseSegments(name, animal, highRank);
+  return parseSegments(name, animal, highRank, isGenusRank(opts.rank ?? ''));
 }
 
 /**

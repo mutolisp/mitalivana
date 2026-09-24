@@ -167,6 +167,7 @@ export function SpeciesDetailPanel({
           ) : null}
           <ScientificName
             name={result.name}
+            rank={result.rank}
             author={result.fullname.replace(result.name, '').trim()}
             kingdom={result.kingdom}
             nomenclature={result.nomenclature_name}
@@ -248,6 +249,7 @@ export function SpeciesDetailPanel({
             {t('species.matchedSynonymPre')}
             <ScientificName
               name={result.matched_as.name}
+              rank={result.rank}
               kingdom={result.kingdom}
               nomenclature={result.nomenclature_name}
             />
@@ -368,6 +370,7 @@ export function SpeciesDetailPanel({
                         ) : null}
                         <ScientificName
                           name={sp.simple_name}
+                          rank={sp.rank}
                           kingdom={sp.kingdom}
                           nomenclature={sp.nomenclature_name}
                         />

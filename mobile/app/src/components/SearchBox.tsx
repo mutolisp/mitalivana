@@ -403,6 +403,7 @@ const AutocompleteRow = memo(function AutocompleteRow({
         ) : null}
         <ScientificName
           name={result.name}
+          rank={result.rank}
           author={result.fullname.replace(result.name, '').trim()}
           kingdom={result.kingdom}
           nomenclature={result.nomenclature_name}
@@ -442,6 +443,7 @@ const AutocompleteRow = memo(function AutocompleteRow({
             {t('search.youEntered')}
             <ScientificName
               name={result.matched_as.name}
+              rank={result.rank}
               kingdom={result.kingdom}
               nomenclature={result.nomenclature_name}
             />
