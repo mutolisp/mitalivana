@@ -72,8 +72,13 @@ export type RecordTypeDefault = 'session' | 'plot' | 'collection' | 'ask';
 export type FabSide = 'right' | 'left';
 export type AnalysisFormat = 'vegan' | 'juice' | 'dwca';
 
-/** File format(s) the project bundle's research report is written as. */
+/** File format(s) the project bundle's research report is written as.
+ *  `'docx'` is a stored value kept for compatibility: it means "the formatted
+ *  document", written in whichever `DocFormat` is chosen. */
 export type ReportFormat = 'html' | 'docx' | 'both';
+
+/** Word-processor format every formatted document is written in. */
+export type DocFormat = 'docx' | 'odt';
 
 export type MapViewState = {
   latitude: number;
@@ -229,8 +234,13 @@ type SettingsValues = {
    *  record is what an Occurrence is. Off means the document lists a species
    *  once per record, which is what you want when every row is a point. */
   export_merge_duplicate_taxa: boolean;
-  /** Whether to emit a Word (.docx) version of the checklist alongside .md. */
+  /** Whether to emit a formatted document version of the checklist alongside
+   *  .md. The key still says docx so existing preferences survive; the format
+   *  itself is `export_doc_format`. */
   export_include_docx: boolean;
+  /** Format of every formatted document the app writes: checklists, research
+   *  reports, favorites and specimen labels. */
+  export_doc_format: DocFormat;
   /** How Braun-Blanquet codes are numericised in the project export's vegan
    *  matrices ('bb' keeps the raw code; JUICE files always get raw codes). */
   export_matrix_value: MatrixValueMode;
@@ -304,6 +314,7 @@ const DEFAULTS: SettingsValues = {
   export_include_photos: true,
   export_merge_duplicate_taxa: true,
   export_include_docx: true,
+  export_doc_format: 'docx',
   export_matrix_value: 'cover',
   export_analysis_formats: ['vegan', 'juice', 'dwca'],
   export_matrix_by_layer: true,
@@ -455,6 +466,7 @@ function readAll(): SettingsValues {
       map.get('export_include_docx') == null
         ? DEFAULTS.export_include_docx
         : map.get('export_include_docx') === 'true',
+    export_doc_format: map.get('export_doc_format') === 'odt' ? 'odt' : 'docx',
     export_matrix_value: parseMatrixValue(map.get('export_matrix_value')),
     export_analysis_formats: parseAnalysisFormats(map.get('export_analysis_formats')),
     export_matrix_by_layer:

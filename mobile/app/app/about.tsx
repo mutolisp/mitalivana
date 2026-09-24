@@ -8,7 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 export default function AboutScreen() {
   const { t } = useTranslation();
   const router = useRouter();
-  const version = Constants.expoConfig?.version ?? '0.5.2';
+  const version = Constants.expoConfig?.version ?? '0.5.3';
   // The build number is what identifies a specific binary — two builds of
   // 0.5.2 are different apps to TestFlight and to whoever is reporting a bug,
   // so showing only the marketing version makes a report ambiguous.
@@ -22,7 +22,7 @@ export default function AboutScreen() {
     Platform.select({
       ios: Constants.expoConfig?.ios?.buildNumber,
       android: Constants.expoConfig?.android?.versionCode?.toString(),
-    }) ?? '26';
+    }) ?? '28';
 
   return (
     <SafeAreaView edges={['bottom']} className="flex-1 bg-gray-50 dark:bg-gray-950">

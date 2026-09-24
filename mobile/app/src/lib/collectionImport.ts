@@ -96,6 +96,8 @@ export function collectionFromDoc(
       duplicate_count: num(s.duplicate_count),
       institution_code: str(s.institutionCode),
       other_catalog_numbers: str(s.otherCatalogNumbers),
+      catalog_number: str(s.catalogNumber),
+      elevation_m: num(s.minimumElevationInMeters),
       notes: str(s.occurrenceRemarks),
       photo_files: pipeToList(s.associatedMedia),
       // Kept out of associatedMedia so the clips return to audio_paths rather

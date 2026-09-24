@@ -256,3 +256,6 @@ export function composeVernacular(
   if (regions.includes('JP') && jp && jp !== tw) parts.push(jp);
   return parts.length > 0 ? parts.join(' / ') : ownCname;
 }
+
+// Pure, so it lives with the other cross-region logic (runs under Node).
+export { pickVernacular } from './mergeScope';

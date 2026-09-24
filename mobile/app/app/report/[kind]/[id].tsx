@@ -18,8 +18,8 @@ import { ExportProgressOverlay } from '~/components/ExportProgressOverlay';
 import { ReportView } from '~/components/report/ReportView';
 import i18n from '~/i18n';
 import { sanitizeFilename } from '~/lib/bundleExport';
-import { DOCX_MIME } from '~/lib/docx';
-import { buildReportDocx } from '~/lib/reportDocx';
+import { DOC_FORMATS } from '~/lib/docFormat';
+import { useSettings } from '~/stores/settings';
 import { BackHeaderLeft } from '~/lib/goBack';
 import {
   collectPlotReportInput,
@@ -57,6 +57,7 @@ function buildFor(kind: string, id: number, tr: Translate): Report | null {
 
 export default function ReportScreen() {
   const { t } = useTranslation();
+  const docFormat = useSettings((s) => s.export_doc_format);
   const { kind, id } = useLocalSearchParams<{ kind: string; id: string }>();
   const numericId = Number(id);
   const { busy, progress, shareBundle } = useExportShare();
@@ -78,10 +79,13 @@ export default function ReportScreen() {
     if (!report) return;
     const fmtIdx = await showActionSheet({
       title: t('report.exportFormat'),
-      options: [{ label: t('report.formatHtml') }, { label: t('report.formatDocx') }],
+      options: [
+        { label: t('report.formatHtml') },
+        { label: t(docFormat === 'odt' ? 'report.formatOdt' : 'report.formatDocx') },
+      ],
     });
     if (fmtIdx < 0) return;
-    const docx = fmtIdx === 1;
+    const doc = fmtIdx === 1 ? DOC_FORMATS[docFormat] : null;
 
     const lang = await pickExportLanguage(t, 'report.exportLanguage');
     if (!lang) return;
@@ -91,18 +95,18 @@ export default function ReportScreen() {
       const tr = i18n.getFixedT(lang) as unknown as Translate;
       const localised = buildFor(kind, numericId, tr) ?? report;
       const base = sanitizeFilename(localised.title);
-      const filename = `${base}.${docx ? 'docx' : 'html'}`;
+      const filename = `${base}.${doc ? doc.ext : 'html'}`;
       const file = new File(Paths.cache, filename);
       if (file.exists) file.delete();
       file.create();
-      // `write` takes bytes or a string; the DOCX path is a real OOXML
-      // package, the HTML path a single self-contained document.
-      file.write(docx ? buildReportDocx(localised) : buildReportHtml(localised, lang));
+      // `write` takes bytes or a string; the document path is a real
+      // OOXML / ODF package, the HTML path a single self-contained document.
+      file.write(doc ? doc.report(localised) : buildReportHtml(localised, lang));
       return {
         uri: file.uri,
         filename,
-        mimeType: docx ? DOCX_MIME : 'text/html',
-        UTI: docx ? 'org.openxmlformats.wordprocessingml.document' : 'public.html',
+        mimeType: doc ? doc.mime : 'text/html',
+        UTI: doc ? doc.uti : 'public.html',
       };
     });
   };

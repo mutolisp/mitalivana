@@ -28,6 +28,9 @@ import {
   getCollectionTrip,
   getProject,
   getSpecimen,
+  crossRegionVernacular,
+  pickVernacular,
+  regionOfTaxonId,
   listSpecimens,
   nextRecordNumber,
   reopenCollectionTrip,
@@ -55,8 +58,9 @@ import { apiErrorMessage } from '~/lib/apiErrorMessage';
 import { rebaseAppFileUri } from '~/lib/appFiles';
 import { familyLatinFirst } from '~/lib/familyLabel';
 import { LabelExportSheet } from '~/components/LabelExportSheet';
-import { buildLabelSheetDocx } from '~/lib/docxLabels';
-import { DOCX_MIME } from '~/lib/docx';
+import { DOC_FORMATS } from '~/lib/docFormat';
+import i18n from '~/i18n';
+import { placeKey, placeNameAt, placeNamesAt } from '~/lib/reverseGeocode';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { useSettings, type CollectionSort, type SortDirection } from '~/stores/settings';
@@ -290,6 +294,7 @@ export default function CollectionTripScreen() {
   // hosting one inside the detail Modal would need its own keyboard handling.
   const sortKey = useSettings((st) => st.collection_sort);
   const sortDir = useSettings((st) => st.collection_sort_dir);
+  const docFormat = useSettings((st) => st.export_doc_format);
   const setSetting = useSettings((st) => st.set);
   /** Multi-select for the label export. Local state, like favorites: it belongs
    *  to this one screen and never has to survive navigation. */
@@ -353,7 +358,12 @@ export default function CollectionTripScreen() {
     // A specimen's coordinate is its collecting locality, so stamp the current
     // fix at insert when permission is already granted. Silent on failure — the
     // user can always place the point on the map in the detail sheet.
-    let coords: { lat: number; lng: number; accuracy: number | null } | null = null;
+    let coords: {
+      lat: number;
+      lng: number;
+      accuracy: number | null;
+      altitude: number | null;
+    } | null = null;
     try {
       const perm = await Location.getForegroundPermissionsAsync();
       if (perm.granted) {
@@ -364,23 +374,36 @@ export default function CollectionTripScreen() {
           lat: pos.coords.latitude,
           lng: pos.coords.longitude,
           accuracy: pos.coords.accuracy ?? null,
+          altitude: pos.coords.altitude != null ? Math.round(pos.coords.altitude) : null,
         };
       }
     } catch {
       // no fix — leave the specimen ungeoreferenced
     }
-    addSpecimen({
+    const locality = trip?.locality ?? null;
+    const newId = addSpecimen({
       trip_id: tripId,
       taxon_id: result.taxon_id,
       adopted,
       record_number: number,
-      locality: trip?.locality ?? null,
+      locality,
       lat: coords?.lat ?? null,
       lng: coords?.lng ?? null,
       accuracy: coords?.accuracy ?? null,
+      elevation_m: coords?.altitude ?? null,
     });
     reload();
     toast(t('collection.added', { number, name: result.cname || result.name }));
+    // No locality from the trip: name the place from the fix, in the
+    // background (needs network). Re-read before writing — the user may have
+    // typed one while the lookup ran.
+    if (coords && !locality && newId) {
+      const place = await placeNameAt(coords.lat, coords.lng);
+      if (place && !getSpecimen(newId)?.locality) {
+        updateSpecimen(newId, { locality: place });
+        reload();
+      }
+    }
   };
 
   const handleDuplicate = (specimen: SpecimenWithTaxon) => {
@@ -484,12 +507,40 @@ export default function CollectionTripScreen() {
     }
     setExportBusy(true);
     try {
-      const bytes = buildLabelSheetDocx(rows, { title, includeFamily });
+      // One vernacular per label, in the app language (see pickVernacular).
+      const cross = crossRegionVernacular(
+        rows.map((r) => r.taxon_id),
+        ['TW', 'JP'],
+      );
+      // A specimen with no locality but a coordinate gets the geocoded place
+      // name — for the label only, not written back. Offline, the Loc. line
+      // simply carries the coordinates.
+      const unnamed = rows.filter(
+        (r) => !r.locality?.trim() && r.lat != null && r.lng != null,
+      );
+      const places =
+        unnamed.length > 0
+          ? await placeNamesAt(unnamed.map((r) => ({ lat: r.lat!, lng: r.lng! })))
+          : new Map<string, string>();
+      const labelRows = rows.map((r) => ({
+        ...r,
+        common_name_c: pickVernacular(
+          r.common_name_c,
+          regionOfTaxonId(r.taxon_id),
+          cross.get(r.taxon_id),
+          i18n.language,
+        ),
+        locality:
+          r.locality?.trim() ||
+          (r.lat != null && r.lng != null ? (places.get(placeKey(r.lat, r.lng)) ?? null) : null),
+      }));
+      const doc = DOC_FORMATS[docFormat];
+      const bytes = doc.labels(labelRows, { title, includeFamily });
       // A date + count basename, deliberately not the trip name: the existing
       // filename sanitiser strips every CJK character, which would turn
       // 「福州山公園」 into a row of underscores.
       const stamp = new Date().toISOString().slice(0, 10);
-      const filename = `labels_${stamp}_${rows.length}.docx`;
+      const filename = `labels_${stamp}_${rows.length}.${doc.ext}`;
       const file = new File(Paths.cache, filename);
       if (file.exists) file.delete();
       file.create();
@@ -501,8 +552,8 @@ export default function CollectionTripScreen() {
       await new Promise((r) => setTimeout(r, 450));
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(file.uri, {
-          mimeType: DOCX_MIME,
-          UTI: 'org.openxmlformats.wordprocessingml.document',
+          mimeType: doc.mime,
+          UTI: doc.uti,
           dialogTitle: filename,
         });
       } else {

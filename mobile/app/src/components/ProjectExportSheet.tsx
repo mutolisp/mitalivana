@@ -32,6 +32,7 @@ export function ProjectExportSheet({ visible, onClose, onExport }: Props) {
   const matrixByLayer = useSettings((s) => s.export_matrix_by_layer);
   const includePhotos = useSettings((s) => s.export_include_photos);
   const includeDocx = useSettings((s) => s.export_include_docx);
+  const docFormat = useSettings((s) => s.export_doc_format);
   const geoFormats = useSettings((s) => s.export_geo_formats);
   const includeReport = useSettings((s) => s.export_include_report);
   const reportFormat = useSettings((s) => s.export_report_format);
@@ -42,6 +43,7 @@ export function ProjectExportSheet({ visible, onClose, onExport }: Props) {
     matrixByLayer,
     includePhotos,
     includeDocx,
+    docFormat,
     geoFormats,
     includeReport,
     reportFormat,

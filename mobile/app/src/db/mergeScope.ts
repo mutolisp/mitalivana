@@ -67,3 +67,22 @@ export function stitchCrossRegion(
   }
   return out;
 }
+
+/**
+ * The ONE vernacular a herbarium label prints, chosen by the app language:
+ * Japanese → the Japanese name (和名), anything else → the Taiwan name; each
+ * falls back to the other when it is missing. Unlike `composeVernacular`, never
+ * both — a label line has room for one name, and "臺灣俗名 / 和名" read as a
+ * single name to anyone who does not know the convention.
+ */
+export function pickVernacular(
+  ownCname: string,
+  ownRegion: 'TW' | 'JP',
+  cross: { tw?: string; jp?: string } | undefined,
+  lang: string,
+): string {
+  const tw = cross?.tw ?? (ownRegion === 'TW' ? ownCname : undefined);
+  const jp = cross?.jp ?? (ownRegion === 'JP' ? ownCname : undefined);
+  const name = lang.toLowerCase().startsWith('ja') ? (jp ?? tw) : (tw ?? jp);
+  return name ?? '';
+}

@@ -23,6 +23,7 @@ import { isRecordNumberTaken, nextRecordNumber, type SpecimenWithTaxon } from '~
 import { attributesFromRecord, attributesToColumns, EMPTY_DRAFT } from '~/lib/dwcAttributes';
 import { errText } from '~/lib/errText';
 import { firstPhotoFix } from '~/lib/photoMeta';
+import { placeKey, placeNameAt } from '~/lib/reverseGeocode';
 import { RecordMetaFooter } from './RecordMetaFooter';
 import { PhotoGrid, PhotoViewerModal } from './PhotoGrid';
 import { AudioClipList } from './AudioClipList';
@@ -50,6 +51,8 @@ export type SpecimenPatch = {
   duplicate_count?: number | null;
   institution_code?: string | null;
   other_catalog_numbers?: string | null;
+  catalog_number?: string | null;
+  elevation_m?: number | null;
 };
 
 type Props = {
@@ -127,6 +130,18 @@ export function SpecimenDetailSheet({
   const [locality, setLocality] = useState('');
   const [institution, setInstitution] = useState('');
   const [otherNumbers, setOtherNumbers] = useState('');
+  const [catalog, setCatalog] = useState('');
+  const [elevation, setElevation] = useState('');
+  // Mirrors for the async place lookup below: when it resolves, it must know
+  // whether the same specimen is still open and its locality still empty.
+  const openIdRef = useRef<number | null>(null);
+  const localityRef = useRef('');
+  useEffect(() => {
+    openIdRef.current = specimen?.id ?? null;
+  }, [specimen?.id]);
+  useEffect(() => {
+    localityRef.current = locality;
+  }, [locality]);
   const [notes, setNotes] = useState('');
   const [attrs, setAttrs] = useState<SpeciesAttributesDraft>(EMPTY_DRAFT);
   const [assigning, setAssigning] = useState<'collector' | 'determiner' | null>(null);
@@ -163,6 +178,8 @@ export function SpecimenDetailSheet({
     setLocality(specimen.locality ?? '');
     setInstitution(specimen.institution_code ?? '');
     setOtherNumbers(specimen.other_catalog_numbers ?? '');
+    setCatalog(specimen.catalog_number ?? '');
+    setElevation(specimen.elevation_m != null ? String(specimen.elevation_m) : '');
     setNotes(specimen.notes ?? '');
     setAttrs(attributesFromRecord(specimen));
     // Stepping keeps the sheet mounted, so the next specimen would otherwise
@@ -170,6 +187,32 @@ export function SpecimenDetailSheet({
     scrollRef.current?.scrollTo({ y: 0, animated: false });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [specimen?.id]);
+
+  /**
+   * When the open specimen's coordinate CHANGES (GNSS button, photo GNSS, a
+   * photo added with a position, a point placed on the map), fill an EMPTY
+   * locality with the place the system geocoder names. Needs network; offline
+   * nothing happens. Opening a specimen never triggers it — only a change seen
+   * while the same specimen stays open — and it never overwrites: the checks
+   * run again when the answer arrives, because the user may have typed a
+   * locality, or moved to another specimen, meanwhile.
+   */
+  const lastCoordRef = useRef<{ id: number; key: string } | null>(null);
+  useEffect(() => {
+    if (!specimen) return;
+    const { id, lat, lng } = specimen;
+    const key = lat != null && lng != null ? placeKey(lat, lng) : '';
+    const prev = lastCoordRef.current;
+    lastCoordRef.current = { id, key };
+    if (!prev || prev.id !== id || !key || prev.key === key) return;
+    if (localityRef.current.trim()) return;
+    void placeNameAt(lat!, lng!).then((place) => {
+      if (!place || openIdRef.current !== id || localityRef.current.trim()) return;
+      setLocality(place);
+      onSave({ locality: place });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [specimen?.id, specimen?.lat, specimen?.lng]);
 
   if (!specimen) return null;
 
@@ -220,6 +263,21 @@ export function SpecimenDetailSheet({
     onSave(attributesToColumns(next));
   };
 
+  const commitElevation = () => {
+    const text = elevation.trim();
+    if (!text) {
+      onSave({ elevation_m: null });
+      return;
+    }
+    const n = Number(text);
+    if (!Number.isFinite(n)) {
+      // Not a number — put the stored value back rather than save garbage.
+      setElevation(specimen.elevation_m != null ? String(specimen.elevation_m) : '');
+      return;
+    }
+    onSave({ elevation_m: n });
+  };
+
   // The coordinate row, photo button and map below mirror SpeciesDetailSheet
   // and PlotSpeciesValueModal: one location block, three record kinds.
   const locateMe = async () => {
@@ -234,6 +292,13 @@ export function SpecimenDetailSheet({
       });
       // A real fix carries its uncertainty; keep it (DwC coordinateUncertaintyInMeters).
       onSaveLocation(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy ?? null);
+      // Altitude comes with the fix when the receiver reports one; rounded
+      // like the plot's, and editable below.
+      if (pos.coords.altitude != null) {
+        const m = Math.round(pos.coords.altitude);
+        setElevation(String(m));
+        onSave({ elevation_m: m });
+      }
     } catch (e) {
       Alert.alert(t('gnss.posFailTitle'), errText(e));
     }
@@ -491,6 +556,21 @@ export function SpecimenDetailSheet({
                   </GestureDetector>
                 </Field>
 
+                <Field label={t('collection.elevation')}>
+                  <View className="flex-row items-center">
+                    <TextInput
+                      value={elevation}
+                      onChangeText={setElevation}
+                      onBlur={commitElevation}
+                      placeholder={t('collection.elevationPlaceholder')}
+                      placeholderTextColor="#9ca3af"
+                      keyboardType="numbers-and-punctuation"
+                      className={`${INPUT_CLASS} flex-1`}
+                    />
+                    <Text className="ml-2 text-sm text-gray-500 dark:text-gray-400">m</Text>
+                  </View>
+                </Field>
+
                 {/* Herbarium bookkeeping (v43). Duplicates are a count, not a
                     list of destinations: in the field you know you took three
                     sheets, and which herbaria they end up in is decided later
@@ -548,6 +628,19 @@ export function SpecimenDetailSheet({
                       onSave({ institution_code: institution.trim().toUpperCase() || null })
                     }
                     placeholder={t('collection.institutionPlaceholder')}
+                    placeholderTextColor="#9ca3af"
+                    autoCapitalize="characters"
+                    autoCorrect={false}
+                    className={INPUT_CLASS}
+                  />
+                </Field>
+
+                <Field label={t('collection.catalogNumber')}>
+                  <TextInput
+                    value={catalog}
+                    onChangeText={setCatalog}
+                    onBlur={() => onSave({ catalog_number: catalog.trim() || null })}
+                    placeholder={t('collection.catalogNumberPlaceholder')}
                     placeholderTextColor="#9ca3af"
                     autoCapitalize="characters"
                     autoCorrect={false}

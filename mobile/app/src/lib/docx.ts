@@ -87,8 +87,9 @@ const INDENT_STEP = 240;
  *   ## / ### / #### heading → 0 / 1 / 2 (top group/order flush, sub-ranks deeper)
  *   **N. 科** bold family line → 1
  *   "N. " species line       → 2
- *   title / intro / stats    → 0 */
-function indentLevel(line: string): number {
+ *   title / intro / stats    → 0
+ *  Shared with `markdownToOdt`, so both formats indent the same lines. */
+export function indentLevel(line: string): number {
   const h = /^(#{1,4})\s/.exec(line);
   if (h) return Math.max(0, h[1].length - 2);
   if (line.startsWith('**')) return 1;

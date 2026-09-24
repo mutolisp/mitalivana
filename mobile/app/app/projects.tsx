@@ -43,6 +43,7 @@ export default function ProjectsScreen() {
   const includePhotos = useSettings((s) => s.export_include_photos);
   const mergeDuplicateTaxa = useSettings((s) => s.export_merge_duplicate_taxa);
   const includeDocx = useSettings((s) => s.export_include_docx);
+  const docFormat = useSettings((s) => s.export_doc_format);
   const levels = useSettings((s) => s.export_levels);
   const conservationFields = useSettings((s) => s.export_conservation_fields);
   const conservationHideLowConcern = useSettings((s) => s.export_conservation_hide_lc);
@@ -65,6 +66,7 @@ export default function ProjectsScreen() {
       reportFormat,
       includePhotos,
       includeDocx,
+      docFormat,
       geoFormats,
     });
     if (!okGo) return;
@@ -81,6 +83,7 @@ export default function ProjectsScreen() {
         includePhotos,
         mergeDuplicateTaxa,
         includeDocx,
+        docFormat,
         levels,
         conservationFields,
         conservationHideLowConcern,

@@ -609,6 +609,7 @@ checklist:
     degree_of_establishment: 'wild', sex: 'female', life_stage: 'adult',
     verbatim_identification: 'Fagaceae sp1',
     duplicate_count: 3, institution_code: 'HAST', other_catalog_numbers: 'TAI 123456',
+    catalog_number: '13450', elevation_m: 612.5,
     reproductive_condition: '["flowering"]', leaf_phenology: '["evergreen"]',
     notes: `第 ${n} 份`, photo_paths: '["ph://a"]', audio_paths: '["file:///audio/a.m4a"]',
     used_name_id: 165943, used_scientific_name: 'Lithocarpus konishii',
@@ -701,6 +702,8 @@ checklist:
   eq('specimen duplicate_count survives', a.duplicate_count, src.duplicate_count);
   eq('specimen institution_code survives', a.institution_code, src.institution_code);
   eq('specimen other_catalog_numbers survives', a.other_catalog_numbers, src.other_catalog_numbers);
+  eq('specimen catalog_number survives', a.catalog_number, src.catalog_number);
+  eq('specimen elevation_m survives', a.elevation_m, src.elevation_m);
   eq('specimen notes survives', a.notes, src.notes);
   eq('specimen photo binding survives', a.photo_files?.[0], 't0301_小西氏石櫟_1.jpg');
   eq('specimen audio binding survives', a.audio_files?.[0], 't0301_小西氏石櫟_1.m4a');

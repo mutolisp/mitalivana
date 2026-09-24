@@ -40,6 +40,7 @@ import {
   type ImportedSite,
   type Site,
 } from '~/db';
+import type { DocFormat } from '~/stores/settings';
 import { establishmentDwcValue } from './dwcAttributes';
 import { AUDIO_EXT, parseAudioPaths } from './audioCapture';
 import { checklistIdentity, uniqueByIdentity } from './checklistIdentity';
@@ -67,7 +68,7 @@ import {
 import i18n from '~/i18n';
 import { generateMarkdown, type ConservationField } from './markdown';
 import type { Translate } from './reportTypes';
-import { markdownToDocx } from './docx';
+import { DOC_FORMATS } from './docFormat';
 import { buildRecordsDwca, type DwcaInput } from './dwcRows';
 import { geoJsonToGpx, geoJsonToKml } from './geoSerializers';
 import { injectFileDigests, isManifestPath } from './manifestDigest';
@@ -87,11 +88,13 @@ type ProgressCtx = { done: number; total: number; onProgress?: (p: ExportProgres
 export type BundleOptions = {
   geoFormats: GeoFormat[];
   includePhotos: boolean;
-  /** Collapse repeated species in the checklist DOCUMENTS (md / docx). The
-   *  occurrence CSV and the DwC-A always keep every record. */
+  /** Collapse repeated species in the checklist DOCUMENTS (md / docx / odt).
+   *  The occurrence CSV and the DwC-A always keep every record. */
   mergeDuplicateTaxa: boolean;
-  /** Emit a Word (.docx) version of the checklist alongside the .md. */
+  /** Emit a formatted document version of the checklist alongside the .md. */
   includeDocx: boolean;
+  /** Format of that document. */
+  docFormat: DocFormat;
   /** Classification levels override for the checklist; empty = per-group defaults. */
   levels: string[];
   /** Conservation-status columns to include in the checklist. */
@@ -367,7 +370,8 @@ const README_RULES: Array<{ match: (name: string) => boolean; desc: string }> = 
     desc: 'Darwin Core Archive：event.txt（Event core）+ occurrence.txt + humboldt.txt + meta.xml + eml.xml，可直接上傳 GBIF IPT',
   },
   { match: (n) => n.endsWith('.md'), desc: '物種名錄文件（Markdown）' },
-  { match: (n) => n.endsWith('.docx'), desc: '物種名錄文件（Word）' },
+  { match: (n) => n.endsWith('.docx'), desc: '物種名錄文件（DOCX 排版文書檔）' },
+  { match: (n) => n.endsWith('.odt'), desc: '物種名錄文件（ODT 排版文書檔）' },
   { match: (n) => n.includes('/photos/'), desc: '記錄的照片（檔名對應 yml 的 photo_files）' },
   { match: (n) => n.includes('/audio/'), desc: '記錄的錄音（檔名對應 yml 的 audio_files）' },
   { match: (n) => /\/(points|track|site)\.(geojson|gpx|kml)$/.test(n), desc: '地理檔（GIS／GNSS 軟體用）' },
@@ -718,7 +722,8 @@ export async function buildSessionEntries(
   );
   entries.push({ name: `${base}/${base}.md`, bytes: strToU8(md) });
   if (opts.includeDocx) {
-    entries.push({ name: `${base}/${base}.docx`, bytes: markdownToDocx(md) });
+    const doc = DOC_FORMATS[opts.docFormat];
+    entries.push({ name: `${base}/${base}.${doc.ext}`, bytes: doc.fromMarkdown(md) });
   }
 
   // Geo: per-record GNSS points
@@ -857,7 +862,7 @@ export async function buildPlotEntries(
   entries.push({ name: `${base}/${base}.yml`, bytes: strToU8(yaml.dump(yamlData, { lineWidth: -1, noRefs: true })) });
 
   // ${plotid}_checklist.md — deduped (one row per taxon) human-readable 名錄,
-  // mirrors the session .md. Same dedup feeds the optional .docx below.
+  // mirrors the session .md. Same dedup feeds the optional document below.
   // Keyed by taxon AND the name it was filed under: a taxon deliberately
   // recorded under two different names is two checklist entries, and collapsing
   // them would silently drop one of the recorder's determinations.
@@ -874,9 +879,10 @@ export async function buildPlotEntries(
   );
   entries.push({ name: `${base}/${plot.plotid}_checklist.md`, bytes: strToU8(checklistMd) });
   if (opts.includeDocx) {
+    const doc = DOC_FORMATS[opts.docFormat];
     entries.push({
-      name: `${base}/${plot.plotid}_checklist.docx`,
-      bytes: markdownToDocx(checklistMd),
+      name: `${base}/${plot.plotid}_checklist.${doc.ext}`,
+      bytes: doc.fromMarkdown(checklistMd),
     });
   }
 
@@ -1118,7 +1124,8 @@ export async function buildCollectionEntries(
   );
   entries.push({ name: `${base}/${base}.md`, bytes: strToU8(md) });
   if (opts.includeDocx) {
-    entries.push({ name: `${base}/${base}.docx`, bytes: markdownToDocx(md) });
+    const doc = DOC_FORMATS[opts.docFormat];
+    entries.push({ name: `${base}/${base}.${doc.ext}`, bytes: doc.fromMarkdown(md) });
   }
 
   // Geo: one point per georeferenced specimen.

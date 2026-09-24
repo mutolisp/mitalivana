@@ -7,8 +7,8 @@ import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { strToU8 } from 'fflate';
 import { pickExportLanguage } from '~/lib/pickExportLanguage';
-import { DOCX_MIME } from '~/lib/docx';
-import { buildFavoritesCsv, buildFavoritesDocx } from '~/lib/favoritesExport';
+import { DOC_FORMATS } from '~/lib/docFormat';
+import { buildFavoritesCsv, buildFavoritesDoc } from '~/lib/favoritesExport';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -72,6 +72,7 @@ export default function FavoritesScreen() {
   // settings instead of being their own thing.
   const conservationFields = useSettings((s) => s.export_conservation_fields);
   const hideLowConcern = useSettings((s) => s.export_conservation_hide_lc);
+  const docFormat = useSettings((s) => s.export_doc_format);
   const add = useFavorites((s) => s.add);
   const remove = useFavorites((s) => s.remove);
   const createFolder = useFavorites((s) => s.createFolder);
@@ -354,7 +355,10 @@ export default function FavoritesScreen() {
   const handleExportFolder = async (f: FavoriteFolder) => {
     const idx = await showActionSheet({
       title: folderLabel(f),
-      options: [{ label: t('favorites.exportDocx') }, { label: t('favorites.exportCsv') }],
+      options: [
+        { label: t('favorites.exportDoc', { ext: DOC_FORMATS[docFormat].ext }) },
+        { label: t('favorites.exportCsv') },
+      ],
     });
     if (idx < 0) return;
     const rows = allItems.filter((i) => i.folder_id === f.id);
@@ -363,13 +367,14 @@ export default function FavoritesScreen() {
       return;
     }
     try {
-      const docx = idx === 0;
-      // Only the docx carries prose; the CSV is DwC terms, which never
+      const doc = idx === 0 ? DOC_FORMATS[docFormat] : null;
+      // Only the document carries prose; the CSV is DwC terms, which never
       // localise, so asking for a language there would be a pointless tap.
-      const lang = docx ? await pickExportLanguage(t, 'export.language') : null;
-      if (docx && !lang) return;
-      const bytes = docx
-        ? buildFavoritesDocx(folderLabel(f), rows, {
+      const lang = doc ? await pickExportLanguage(t, 'export.language') : null;
+      if (doc && !lang) return;
+      const bytes = doc
+        ? buildFavoritesDoc(folderLabel(f), rows, {
+            docFormat,
             lang: lang ?? undefined,
             conservationFields,
             hideLowConcern,
@@ -378,7 +383,7 @@ export default function FavoritesScreen() {
       // Date + count basename: the existing filename sanitiser strips CJK, so a
       // Chinese list name would become a row of underscores.
       const stamp = new Date().toISOString().slice(0, 10);
-      const filename = `favorites_${stamp}_${rows.length}.${docx ? 'docx' : 'csv'}`;
+      const filename = `favorites_${stamp}_${rows.length}.${doc ? doc.ext : 'csv'}`;
       const file = new File(Paths.cache, filename);
       if (file.exists) file.delete();
       file.create();
@@ -387,10 +392,8 @@ export default function FavoritesScreen() {
       await new Promise((r) => setTimeout(r, 450));
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(file.uri, {
-          mimeType: docx ? DOCX_MIME : 'text/csv',
-          UTI: docx
-            ? 'org.openxmlformats.wordprocessingml.document'
-            : 'public.comma-separated-values-text',
+          mimeType: doc ? doc.mime : 'text/csv',
+          UTI: doc ? doc.uti : 'public.comma-separated-values-text',
           dialogTitle: filename,
         });
       } else {

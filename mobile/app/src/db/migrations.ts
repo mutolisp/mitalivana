@@ -1345,6 +1345,19 @@ const MIGRATIONS: Migration[] = [
       addColumnIfMissing(db, `ALTER TABLE collection_trips ADD COLUMN site_id INTEGER;`);
     },
   },
+  {
+    // Herbarium label fields.
+    // `catalog_number` is the receiving herbarium's accession number for this
+    // sheet (DwC catalogNumber, e.g. 13450 of TAI13450); `other_catalog_numbers`
+    // stays for any further numbering. `elevation_m` is the collecting
+    // altitude in metres — from the GNSS fix when it reports one, otherwise
+    // typed in. NULL = not recorded.
+    version: 44,
+    up: (db) => {
+      addColumnIfMissing(db, `ALTER TABLE collection_specimens ADD COLUMN catalog_number TEXT;`);
+      addColumnIfMissing(db, `ALTER TABLE collection_specimens ADD COLUMN elevation_m REAL;`);
+    },
+  },
 ];
 
 /** Highest schema version this build knows how to produce. Backup/restore uses

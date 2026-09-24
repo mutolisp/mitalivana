@@ -244,6 +244,8 @@ export function specimenToYamlItem(
   if (sp.duplicate_count != null) item.duplicate_count = sp.duplicate_count;
   if (sp.institution_code) item.institution_code = sp.institution_code;
   if (sp.other_catalog_numbers) item.other_catalog_numbers = sp.other_catalog_numbers;
+  if (sp.catalog_number) item.catalog_number = sp.catalog_number;
+  if (sp.elevation_m != null) item.elevation_m = sp.elevation_m;
   if (sp.notes) item.notes = sp.notes;
   // → DwC `associatedMedia`; the filenames inside the zip's photos/. A trip
   // often holds several duplicates of one species, so without this the photos

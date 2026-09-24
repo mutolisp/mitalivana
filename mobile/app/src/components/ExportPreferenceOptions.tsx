@@ -2,6 +2,7 @@
  * Export-preference controls:
  *   - which geo file formats to pack (geojson / gpx / kml, multi-select)
  *   - whether to include photos
+ *   - the formatted-document format (DOCX / ODT) and what is written in it
  *
  * Persisted to settings, so the next swipe-export uses the same choices.
  *
@@ -12,7 +13,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { Pressable, Switch, Text, View } from 'react-native';
-import { useSettings, type ReportFormat } from '~/stores/settings';
+import { DOC_FORMATS, reportFormatLabels } from '~/lib/docFormat';
+import { useSettings, type DocFormat, type ReportFormat } from '~/stores/settings';
 import { AnalysisExportOptions } from './AnalysisExportOptions';
 import type { ConservationField } from '~/lib/markdown';
 
@@ -33,11 +35,10 @@ const LEVEL_OPTIONS: Array<{ value: string; label: string }> = [
   { value: 'genus', label: 'rank.genus' },
 ];
 
-const REPORT_FORMAT_OPTIONS: Array<{ value: ReportFormat; label: string }> = [
-  { value: 'html', label: 'HTML' },
-  { value: 'docx', label: 'DOCX' },
-  { value: 'both', label: 'HTML + DOCX' },
-];
+const DOC_FORMAT_OPTIONS: DocFormat[] = ['docx', 'odt'];
+
+/** Labels follow the chosen document format: HTML / ODT / HTML + ODT. */
+const REPORT_FORMAT_OPTIONS: ReportFormat[] = ['html', 'docx', 'both'];
 
 const CONSERVATION_OPTIONS: Array<{ value: ConservationField; label: string }> = [
   { value: 'redlist', label: 'exportPref.consRedlist' },
@@ -52,6 +53,7 @@ export function ExportPreferenceOptions() {
   const includePhotos = useSettings((s) => s.export_include_photos);
   const mergeDuplicates = useSettings((s) => s.export_merge_duplicate_taxa);
   const includeDocx = useSettings((s) => s.export_include_docx);
+  const docFormat = useSettings((s) => s.export_doc_format);
   const includeReport = useSettings((s) => s.export_include_report);
   const reportFormat = useSettings((s) => s.export_report_format);
   const levels = useSettings((s) => s.export_levels);
@@ -148,6 +150,20 @@ export function ExportPreferenceOptions() {
       <Text className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
         {t('exportPref.docFormat')}
       </Text>
+      <View className="border-b border-gray-100 dark:border-gray-800 py-3">
+        <Text className="text-sm font-medium text-gray-900 dark:text-gray-100">{t('exportPref.docFileFormat')}</Text>
+        <Text className="text-xs text-gray-500 dark:text-gray-400">{t('exportPref.docFileFormatHint')}</Text>
+        <View className="flex-row flex-wrap gap-1.5 pt-2">
+          {DOC_FORMAT_OPTIONS.map((value) => (
+            <Chip
+              key={value}
+              label={DOC_FORMATS[value].label}
+              on={docFormat === value}
+              onPress={() => setSetting('export_doc_format', value)}
+            />
+          ))}
+        </View>
+      </View>
       <View className="mb-4 flex-row items-center justify-between border-b border-gray-100 dark:border-gray-800 py-3">
         <View className="flex-1 pr-3">
           <Text className="text-sm font-medium text-gray-900 dark:text-gray-100">{t('exportPref.includeDocx')}</Text>
@@ -179,30 +195,14 @@ export function ExportPreferenceOptions() {
       {/* Format chips only matter once the report is on. */}
       {includeReport ? (
         <View className="mb-4 flex-row flex-wrap gap-1.5 pt-2">
-          {REPORT_FORMAT_OPTIONS.map((opt) => {
-            const on = reportFormat === opt.value;
-            return (
-              <Pressable
-                key={opt.value}
-                onPress={() => setSetting('export_report_format', opt.value)}
-                className={`rounded-full border px-3 py-1.5 ${
-                  on
-                    ? 'border-emerald-600 bg-emerald-50 dark:bg-emerald-900/30'
-                    : 'border-gray-300 dark:border-gray-700'
-                }`}
-              >
-                <Text
-                  className={`text-xs ${
-                    on
-                      ? 'font-semibold text-emerald-700 dark:text-emerald-300'
-                      : 'text-gray-600 dark:text-gray-400'
-                  }`}
-                >
-                  {opt.label}
-                </Text>
-              </Pressable>
-            );
-          })}
+          {REPORT_FORMAT_OPTIONS.map((value) => (
+            <Chip
+              key={value}
+              label={reportFormatLabels(value, docFormat).join(' + ')}
+              on={reportFormat === value}
+              onPress={() => setSetting('export_report_format', value)}
+            />
+          ))}
         </View>
       ) : (
         <View className="mb-4" />
@@ -274,5 +274,27 @@ export function ExportPreferenceOptions() {
           <AnalysisExportOptions />
         </View>
     </>
+  );
+}
+
+/** Single-select pill, shared by the document-format and report-format rows. */
+function Chip({ label, on, onPress }: { label: string; on: boolean; onPress: () => void }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      className={`rounded-full border px-3 py-1.5 ${
+        on
+          ? 'border-emerald-600 bg-emerald-50 dark:bg-emerald-900/30'
+          : 'border-gray-300 dark:border-gray-700'
+      }`}
+    >
+      <Text
+        className={`text-xs ${
+          on ? 'font-semibold text-emerald-700 dark:text-emerald-300' : 'text-gray-600 dark:text-gray-400'
+        }`}
+      >
+        {label}
+      </Text>
+    </Pressable>
   );
 }

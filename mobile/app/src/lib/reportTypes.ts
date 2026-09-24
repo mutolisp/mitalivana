@@ -1,6 +1,6 @@
 /**
  * Report structure types — the contract between the model and its three
- * renderers (in-app view, HTML, DOCX).
+ * renderers (in-app view, HTML, DOCX / ODT).
  *
  * Types only, no values, no imports: the renderers depend on THIS file, never
  * on `reportModel.ts`. That is what keeps "one model, three renderers" a
@@ -141,4 +141,8 @@ export type Report = {
   /** ISO 8601, local time — the app never uses locale-formatted dates. */
   generatedAt: string;
   sections: ReportSection[];
+  /** Line a renderer prints once when it writes charts as data tables (ODT),
+   *  pointing the reader to the HTML version for the figures. Supplied by the
+   *  model so no renderer needs a translator. */
+  chartTableNote?: string;
 };

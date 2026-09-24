@@ -417,6 +417,7 @@ export function buildRecordsDwca({
         establishmentMeans: establishmentMeansDwcValue(sp.alien_type, sp.is_endemic),
         recordNumber: sp.record_number,
         institutionCode: sp.institution_code,
+        catalogNumber: sp.catalog_number,
         otherCatalogNumbers: sp.other_catalog_numbers,
         // The method, not the count — see duplicateCountRows.
         preparations: sp.duplicate_count != null ? 'sheet' : '',
@@ -426,6 +427,7 @@ export function buildRecordsDwca({
         decimalLatitude: sp.lat,
         decimalLongitude: sp.lng,
         coordinateUncertaintyInMeters: sp.accuracy,
+        minimumElevationInMeters: sp.elevation_m,
         occurrenceRemarks: sp.notes,
         modified: sp.updated_at != null ? localIso(sp.updated_at) : '',
       });

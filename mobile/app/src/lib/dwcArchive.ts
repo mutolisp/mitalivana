@@ -55,6 +55,7 @@ export const OCCURRENCE_COLS: ColSpec[] = [
   // and every published example is a method name. The duplicate COUNT does
   // not belong in it; it goes to eMoF, where a fact with no core term belongs.
   { key: 'institutionCode', term: `${DWC}institutionCode` },
+  { key: 'catalogNumber', term: `${DWC}catalogNumber` },
   { key: 'otherCatalogNumbers', term: `${DWC}otherCatalogNumbers` },
   { key: 'preparations', term: `${DWC}preparations` },
   { key: 'vernacularName', term: `${DWC}vernacularName` },
@@ -92,6 +93,9 @@ export const OCCURRENCE_COLS: ColSpec[] = [
   { key: 'decimalLatitude', term: `${DWC}decimalLatitude` },
   { key: 'decimalLongitude', term: `${DWC}decimalLongitude` },
   { key: 'coordinateUncertaintyInMeters', term: `${DWC}coordinateUncertaintyInMeters` },
+  // Specimen altitude (v44); one value, written as the lower limit exactly as
+  // the plot event does.
+  { key: 'minimumElevationInMeters', term: `${DWC}minimumElevationInMeters` },
   // Specimen-only; blank for observations.
   { key: 'recordNumber', term: `${DWC}recordNumber` },
   { key: 'identifiedBy', term: `${DWC}identifiedBy` },

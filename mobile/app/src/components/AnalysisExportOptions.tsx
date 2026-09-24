@@ -9,9 +9,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { Alert, Pressable, Switch, Text, View } from 'react-native';
+import { DOC_FORMATS, reportFormatLabels } from '~/lib/docFormat';
 import {
   useSettings,
   type AnalysisFormat,
+  type DocFormat,
   type MatrixValueMode,
   type ReportFormat,
 } from '~/stores/settings';
@@ -42,17 +44,19 @@ export function exportContentItems(
     matrixByLayer: boolean;
     includePhotos: boolean;
     includeDocx: boolean;
+    docFormat: DocFormat;
     geoFormats: string[];
     includeReport: boolean;
     reportFormat: ReportFormat;
   },
 ): string[] {
   const items: string[] = [];
+  const docLabel = DOC_FORMATS[opts.docFormat].label;
   const recordFormats = [
     'YAML',
     'CSV',
     'Markdown',
-    ...(opts.includeDocx ? ['DOCX'] : []),
+    ...(opts.includeDocx ? [docLabel] : []),
     ...opts.geoFormats.map((f) => f.toUpperCase()),
     ...(opts.includePhotos ? [t('projectExport.itemPhotos')] : []),
   ];
@@ -61,7 +65,7 @@ export function exportContentItems(
   // must appear here or the confirmation list understates what lands in the zip.
   items.push(
     t('projectExport.itemChecklist', {
-      formats: ['Markdown', ...(opts.includeDocx ? ['DOCX'] : []), 'CSV'].join(' / '),
+      formats: ['Markdown', ...(opts.includeDocx ? [docLabel] : []), 'CSV'].join(' / '),
     }),
   );
   if (opts.analysisFormats.includes('vegan')) {
@@ -78,8 +82,7 @@ export function exportContentItems(
   if (opts.analysisFormats.includes('dwca')) items.push(t('projectExport.itemDwca'));
   items.push(t('projectExport.itemSites'));
   if (opts.includeReport) {
-    const formats =
-      opts.reportFormat === 'both' ? 'HTML / DOCX' : opts.reportFormat.toUpperCase();
+    const formats = reportFormatLabels(opts.reportFormat, opts.docFormat).join(' / ');
     items.push(t('projectExport.itemReport', { formats }));
   }
   return items;

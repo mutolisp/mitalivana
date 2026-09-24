@@ -89,6 +89,9 @@ export const DWC_FIELD_MAP: Record<string, string> = {
   // format, it stays exactly what the user typed.
   institution_code: 'institutionCode',
   other_catalog_numbers: 'otherCatalogNumbers',
+  catalog_number: 'catalogNumber',
+  // Specimen altitude (v44), one value → the lower limit, as plots do.
+  elevation_m: 'minimumElevationInMeters',
   // Name usage. `taxonID` is the taxon CONCEPT; `scientificName` is whichever
   // name the recorder filed under, which may be one the checklist calls
   // not-accepted. The other three say so explicitly rather than leaving the

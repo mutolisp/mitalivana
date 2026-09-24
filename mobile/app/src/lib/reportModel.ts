@@ -466,6 +466,7 @@ export function buildPlotReport(input: PlotReportInput, t: Translate): Report {
     title: t('report.plotTitle', { plotid: plot.plotid }),
     subtitle: input.projectName || undefined,
     generatedAt: isoDateTime(Date.now()),
+    chartTableNote: t('report.chartTableNote'),
     sections,
   };
 }
@@ -794,6 +795,7 @@ export function buildProjectReport(input: ProjectReportInput, t: Translate): Rep
     kind: 'project',
     title: t('report.projectTitle', { name: project.name }),
     generatedAt: isoDateTime(Date.now()),
+    chartTableNote: t('report.chartTableNote'),
     sections,
   };
 }
@@ -897,6 +899,7 @@ export function buildSessionReport(input: SessionReportInput, t: Translate): Rep
     title: t('report.sessionTitle', { name: session.name }),
     subtitle: input.projectName || undefined,
     generatedAt: isoDateTime(Date.now()),
+    chartTableNote: t('report.chartTableNote'),
     sections,
   };
 }

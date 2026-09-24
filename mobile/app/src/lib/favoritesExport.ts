@@ -2,7 +2,7 @@
  * Export one favourite checklist as a document or a spreadsheet.
  *
  * Reuses the checklist pipeline rather than growing a parallel one:
- * `taxonToMarkdownItem` → `generateMarkdown` → `markdownToDocx` is exactly what
+ * `taxonToMarkdownItem` → `generateMarkdown` → the document writer is exactly what
  * a session export does, so a favourites list comes out looking like every
  * other checklist this app produces.
  *
@@ -11,12 +11,11 @@
  * — the same `resolveTaxa` every record list already goes through.
  */
 import { convertToDwc } from './dwcMapper';
-import { markdownToDocx } from './docx';
+import { DOC_FORMATS } from './docFormat';
 import { generateMarkdown, type ConservationField } from './markdown';
 import { checklistT, mapAlienToSource, taxonToMarkdownItem } from './bundleExport';
 import { resolveTaxa, EMPTY_TAXON_FIELDS, type FavoriteItem, type TaxonFields } from '~/db';
-
-export type FavoritesExportFormat = 'docx' | 'csv';
+import type { DocFormat } from '~/stores/settings';
 
 type Resolved = { taxon_id: string; fields: TaxonFields };
 
@@ -52,7 +51,9 @@ function taxonSort(a: Resolved, b: Resolved): number {
   return 0;
 }
 
-export type FavoritesDocxOptions = {
+export type FavoritesDocOptions = {
+  /** DOCX or ODT — the export setting's document format. */
+  docFormat: DocFormat;
   lang?: string;
   /** The conservation columns chosen in the export settings. Omitted = show the
  *  Taiwan red list only (generateMarkdown's default). */
@@ -61,10 +62,10 @@ export type FavoritesDocxOptions = {
   hideLowConcern?: boolean;
 };
 
-export function buildFavoritesDocx(
+export function buildFavoritesDoc(
   folderName: string,
   items: FavoriteItem[],
-  opts: FavoritesDocxOptions = {},
+  opts: FavoritesDocOptions,
 ): Uint8Array {
   const md = generateMarkdown(
     resolve(items).map((r) => taxonToMarkdownItem(r.taxon_id, r.fields)),
@@ -72,7 +73,7 @@ export function buildFavoritesDocx(
     { project: folderName },
     { conservationFields: opts.conservationFields, hideLowConcern: opts.hideLowConcern },
   );
-  return markdownToDocx(md);
+  return DOC_FORMATS[opts.docFormat].fromMarkdown(md);
 }
 
 /**

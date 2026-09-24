@@ -45,7 +45,7 @@ import {
 import { csvEscape, localIso } from './bundleYaml';
 import { convertToDwc } from './dwcMapper';
 import { buildRecordsDwca } from './dwcRows';
-import { markdownToDocx } from './docx';
+import { DOC_FORMATS } from './docFormat';
 import { generateMarkdown, type MarkdownItem } from './markdown';
 import {
   buildCoverScaleCsv,
@@ -68,7 +68,6 @@ import { buildJuiceHeader, buildJuiceSpeciesList, buildJuiceTable } from './juic
 import { collectProjectReportInput } from './reportData';
 import { buildProjectReport, type Translate } from './reportModel';
 import { buildReportHtml } from './reportHtml';
-import { buildReportDocx } from './reportDocx';
 import i18n from '~/i18n';
 import { sitesToGeoJSON, sitesToGPX, sitesToKML } from './geoExporters';
 import type { AnalysisFormat, ReportFormat } from '~/stores/settings';
@@ -190,7 +189,8 @@ export async function bundleProject(
     );
     entries.push({ name: 'checklist/checklist.md', bytes: strToU8(checklistMd) });
     if (opts.includeDocx) {
-      entries.push({ name: 'checklist/checklist.docx', bytes: markdownToDocx(checklistMd) });
+      const doc = DOC_FORMATS[opts.docFormat];
+      entries.push({ name: `checklist/checklist.${doc.ext}`, bytes: doc.fromMarkdown(checklistMd) });
     }
     entries.push({
       name: 'checklist/checklist.csv',
@@ -331,8 +331,11 @@ export async function bundleProject(
         if (opts.reportFormat === 'html' || opts.reportFormat === 'both') {
           entries.push({ name: 'report/report.html', bytes: strToU8(buildReportHtml(report, lang)) });
         }
+        // 'docx' is the stored value for "the formatted document", in whichever
+        // format is chosen.
         if (opts.reportFormat === 'docx' || opts.reportFormat === 'both') {
-          entries.push({ name: 'report/report.docx', bytes: buildReportDocx(report) });
+          const doc = DOC_FORMATS[opts.docFormat];
+          entries.push({ name: `report/report.${doc.ext}`, bytes: doc.report(report) });
         }
         readmeNotes.push(`研究報表語言：${lang}（報表以目前介面語言產生，其餘匯出內容維持既有慣例）`);
       }
@@ -361,6 +364,7 @@ export async function bundleProject(
           analysis_formats: opts.analysisFormats,
           include_report: opts.includeReport,
           report_format: opts.includeReport ? opts.reportFormat : null,
+          doc_format: opts.docFormat,
           geoFormats: opts.geoFormats,
           includePhotos: opts.includePhotos,
           records: recordMeta,
@@ -386,6 +390,7 @@ function buildReadme(
   notes: string[],
   lossyTaxa: string[],
 ): string {
+  const checklistFormats = ['md', ...(opts.includeDocx ? [DOC_FORMATS[opts.docFormat].ext] : []), 'csv'].join(' / ');
   const scale = coverScaleRows()
     .map((r) => `| ${r.bbCode} | ${r.coverPct} | ${r.ordinal} | ${r.coverProvenance} |`)
     .join('\n');
@@ -404,7 +409,8 @@ function buildReadme(
     '',
     '- `records/` — 逐筆記錄的完整匯出（yml / csv / md / geo / 照片），與單筆匯出格式相同，可個別重新匯入 app'
       + '；DwC-A 只在本包最外層的 `dwca/` 出一份（涵蓋全部記錄），逐筆資料夾內不重複產生',
-    '- `checklist/` — **全專案合併物種名錄**（md / docx / csv）：樣區、名錄、採集三種記錄的物種聯集去重，'
+    `- \`checklist/\` — **全專案合併物種名錄**（${checklistFormats}）：`
+      + '樣區、名錄、採集三種記錄的物種聯集去重，'
       + '不含各筆記錄的豐度與備註（同一種可能在多個樣區有不同值）',
     '- `analysis/` — 跨樣區分析資料表（樣方 × 物種矩陣、環境表；**只涵蓋樣區**，名錄與採集不進矩陣）',
     '- `juice/` — JUICE 匯入檔（分號分隔）',

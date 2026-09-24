@@ -1,7 +1,7 @@
 {
   "name": "app",
   "main": "expo-router/entry",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "license": "BSD-2-Clause",
   "scripts": {
     "start": "expo start",
@@ -38,6 +38,8 @@
     "check:gbiflist": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-gbif-specieslist.mjs",
     "check:diversity": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-diversity.mjs",
     "check:report": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-report.mjs",
+    "check:odt": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-odt.mjs",
+    "check:label": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-label.mjs",
     "check:inat": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-inat-payload.mjs",
     "check:inat-heatmap": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-inat-heatmap.mjs",
     "check:gdrive": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-gdrive.mjs",
