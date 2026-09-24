@@ -48,6 +48,7 @@ import {
 import { deleteAudioFile } from '~/lib/audioCapture';
 import { mediaUriReferenced } from '~/db';
 import { hasInatChanges, syncRecord, useInatSync } from '~/lib/inatUpload';
+import { inatTokenAvailableQuietly } from '~/lib/inatAuth';
 import { apiErrorMessage } from '~/lib/apiErrorMessage';
 import { KeyboardStickyView } from './KeyboardAvoidingView';
 import { RecordStepBar } from './RecordStepBar';
@@ -452,6 +453,12 @@ export function PlotSpeciesTab({ plot, onChanged }: { plot: PlotSurvey; onChange
     }
     const toast = useToast.getState().show;
     try {
+      // The login WebView cannot be presented over the detail sheet (a Modal);
+      // when a login is needed the sheet closes first.
+      if (!(await inatTokenAvailableQuietly())) {
+        setModal(null);
+        await new Promise((res) => setTimeout(res, 450));
+      }
       const r = await syncRecord({ kind: 'plot', id: plot.id }, record.id);
       toast(
         r.noop

@@ -249,8 +249,20 @@ export async function importPackRows(
 
 /** True when at least one enabled, ready pack exists — the search gate. */
 let hasPacksCache: boolean | null = null;
+/** Content-derived caches elsewhere (the search box's result cache) that
+ *  must drop whenever pack content changes — delete, download finished,
+ *  enable toggle. Registered by their owners, like `onDatasetsChanged`. */
+const packInvalidators = new Set<() => void>();
+export function onPackContentChanged(fn: () => void): void {
+  packInvalidators.add(fn);
+}
+
+/** Call after any change to which pack rows exist or are enabled. A search
+ *  result cached before a pack was deleted would otherwise keep offering its
+ *  taxa, and a record saved from one resolves to a blank name. */
 export function invalidatePackCache(): void {
   hasPacksCache = null;
+  for (const fn of packInvalidators) fn();
 }
 function hasEnabledPacks(): boolean {
   if (hasPacksCache != null) return hasPacksCache;

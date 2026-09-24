@@ -50,6 +50,7 @@ import { showActionSheet } from '~/components/ActionSheet';
 import { deleteAudioFile } from '~/lib/audioCapture';
 import { mediaUriReferenced } from '~/db';
 import { hasInatChanges, syncRecord, useInatSync } from '~/lib/inatUpload';
+import { inatTokenAvailableQuietly } from '~/lib/inatAuth';
 import { apiErrorMessage } from '~/lib/apiErrorMessage';
 import { rebaseAppFileUri } from '~/lib/appFiles';
 import { familyLatinFirst } from '~/lib/familyLabel';
@@ -693,6 +694,12 @@ export default function CollectionTripScreen() {
       return;
     }
     try {
+      // The login WebView cannot be presented over the detail sheet (a Modal);
+      // when a login is needed the sheet closes first.
+      if (!(await inatTokenAvailableQuietly())) {
+        setActive(null);
+        await new Promise((res) => setTimeout(res, 450));
+      }
       const r = await syncRecord({ kind: 'collection', id: tripId }, specimen.id);
       toast(
         r.noop

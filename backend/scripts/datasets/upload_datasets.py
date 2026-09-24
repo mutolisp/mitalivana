@@ -1,18 +1,27 @@
 #!/usr/bin/env python3
-"""把名錄模組上傳到 R2（data.mitalivana.org）。
+"""Upload the checklist dataset modules to R2 (data.mitalivana.org).
 
     python -m backend.scripts.datasets.upload_datasets \\
         --bucket mitalivana --base-url https://data.mitalivana.org/checklists \\
         [--out dist/datasets] [--only tw-keys] [--dry-run]
 
-沿用向量地圖那條管線已經驗證過的三條規則（`rudymap/vector/upload_vector.py`）：
+Follows the three rules already proven on the vector-map pipeline
+(`rudymap/vector/upload_vector.py`):
 
-1. **版本目錄一旦上傳就不再覆蓋**，所以舊版 app 指到的檔案永遠還在。
-2. **`latest/manifest.json` 最後才寫**，app 不會在檔案還沒傳完時就看到新版本。
-3. 版本目錄底下的檔案 immutable 永久快取，manifest 只快取 5 分鐘。
+1. **A version directory is never overwritten once uploaded**, so files an
+   older app points at always stay. Enforced before anything is sent: if any
+   version file already exists at its public URL, the whole run aborts.
+   Overwriting would not even take effect for clients — those files are served
+   `immutable` for a year, so a cached old zip would fail the new manifest's
+   md5 check. Build with a new `--version` instead.
+2. **`latest/manifest.json` is written last**, so the app never sees a version
+   whose files are still uploading.
+3. Files under a version directory are cached immutable forever; the manifest
+   only for 5 minutes.
 
-憑證與上傳方式也照抄：有 S3 憑證就走 boto3（大檔自動分塊），沒有就退回 wrangler。
-臺灣名錄的 zip 有 34 MB，兩條路都吃得下。
+Credentials and transport are copied too: boto3 when S3 credentials exist
+(large files are chunked), otherwise wrangler. The Taiwan module's zip is
+34 MB, which both handle.
 """
 
 from __future__ import annotations
@@ -39,7 +48,7 @@ CONTENT_TYPES = {".zip": "application/zip", ".json": "application/json"}
 
 
 def load_creds() -> tuple[str, str, str] | None:
-    """R2 的 S3 憑證。環境變數優先，其次 ~/.mitalivana-r2.env。**不要印出值。**"""
+    """R2 S3 credentials: environment first, then ~/.mitalivana-r2.env. **Never print the values.**"""
     import os
 
     values: dict[str, str] = {}
@@ -72,7 +81,7 @@ def make_s3(creds: tuple[str, str, str]):
         endpoint_url=R2_ENDPOINT.format(account=account),
         aws_access_key_id=key,
         aws_secret_access_key=secret,
-        region_name="auto",  # R2 只認 auto
+        region_name="auto",  # R2 only accepts "auto"
         config=Config(signature_version="s3v4", retries={"max_attempts": 5}),
     )
 
@@ -116,6 +125,29 @@ def put_wrangler(bucket: str, key: str, local: Path, cache: str, dry_run: bool) 
         raise RuntimeError(f"上傳失敗：{key}")
 
 
+def published(url: str) -> bool:
+    """Whether `url` already answers 200.
+
+    Checked on the public URL so the same test covers both upload paths
+    (S3 and wrangler) and needs no credentials. Anything but 200/404 raises:
+    when existence cannot be established, refusing to upload is the safe side.
+    """
+    import urllib.error
+    import urllib.request
+
+    # Cloudflare answers 403 to the default "Python-urllib" user agent.
+    req = urllib.request.Request(
+        url, method="HEAD", headers={"User-Agent": "mitalivana-upload-datasets"}
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            return resp.status == 200
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            return False
+        raise
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="Upload dataset modules to R2")
     ap.add_argument("--out", type=Path, default=DEFAULT_OUT, help="build output directory")
@@ -146,7 +178,26 @@ def main() -> int:
     base = args.base_url.rstrip("/")
     prefix = args.prefix.strip("/")
 
-    # ① 先傳版本目錄底下的檔案（immutable）
+    # 0. Refuse up front if any version file is already published (rule 1).
+    #    Checked for every file before the first upload, so a clash never
+    #    leaves a half-uploaded version behind. Runs in --dry-run too: it only
+    #    reads.
+    clashes = []
+    for entry in entries:
+        if entry["id"] not in wanted:
+            continue
+        name = Path(entry["url"]).name
+        url = f"{base}/{entry['id']}/{entry['version']}/{name}"
+        if published(url):
+            clashes.append(url)
+    if clashes:
+        raise SystemExit(
+            "這些版本檔已經發布過，不可覆寫（immutable 快取，舊檔會讓 app 的 md5 驗證失敗）：\n  "
+            + "\n  ".join(clashes)
+            + "\n請用新的 --version 重新 make datasets 後再上傳。"
+        )
+
+    # 1. Files under the version directory first (immutable).
     for entry in entries:
         ident = entry["id"]
         if ident not in wanted:
@@ -156,14 +207,16 @@ def main() -> int:
         if not payload.exists():
             raise SystemExit(f"manifest 指到 {payload.name}，但檔案不在 {args.out}")
         send(f"{prefix}/{ident}/{version}/{payload.name}", payload, IMMUTABLE)
-        # url 在這裡才寫進 manifest，換 hosting 不必重新打包
+        # The url is only written into the manifest here, so a hosting change
+        # needs no rebuild.
         entry["url"] = f"{base}/{ident}/{version}/{payload.name}"
 
-    # ② 版本目錄自己的 manifest 快照（除錯用：知道某一版當時長什麼樣）
+    # 2. A snapshot of the manifest as uploaded (for debugging: what a given
+    #    version looked like at the time).
     snapshot = args.out / "manifest.uploaded.json"
     snapshot.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n")
 
-    # ③ latest/manifest.json **最後**才傳 —— 半套的版本永遠不會被 app 看到
+    # 3. latest/manifest.json goes **last** — the app never sees a partial version.
     send(f"{prefix}/latest/manifest.json", snapshot, MANIFEST_CACHE)
 
     print(f"\n完成。app 讀取：{base}/latest/manifest.json")

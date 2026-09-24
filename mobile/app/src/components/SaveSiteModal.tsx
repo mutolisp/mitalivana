@@ -14,6 +14,7 @@ import { KeyboardAvoidingView } from './KeyboardAvoidingView';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { createProject, listProjects, type Project } from '~/db';
 import { promptText } from './TextPromptModal';
+import { runOverModal } from './GbifLookupHost';
 import { SITE_TYPE_LABEL, type DrawType } from '~/lib/siteLabels';
 
 type Props = {
@@ -47,20 +48,23 @@ export function SaveSiteModal({
   const [notes, setNotes] = useState(defaultNotes);
   const [projects, setProjects] = useState<Project[]>([]);
   const [showProjectPicker, setShowProjectPicker] = useState(false);
+  // True while the root-hosted text prompt is up — see runOverModal.
+  const [steppedAside, setSteppedAside] = useState(false);
 
   const handleCreateProjectInline = async () => {
-    // iOS UIKit refuses to stack a second Modal on top of an already-presented
-    // one (SaveSiteModal → project-picker overlay → text prompt would be 3 deep).
-    // Dismiss the inline project picker first, await the iOS animation, then
-    // open the text prompt.
+    // The text prompt is a root-hosted Modal, and iOS crashes presenting it
+    // over any Modal still up. Closing only the project picker left this sheet
+    // itself up underneath, so the whole sheet steps aside (its form state lives
+    // in this component, not inside the Modal, and survives).
     setShowProjectPicker(false);
-    await new Promise((r) => setTimeout(r, 350));
-    const name = await promptText({
-      title: t('sheets.newProject'),
-      message: t('sheets.newProjectMsg'),
-      placeholder: t('sheets.projectNamePlaceholder'),
-      confirmText: t('surveyors.create'),
-    });
+    const name = await runOverModal(setSteppedAside, () =>
+      promptText({
+        title: t('sheets.newProject'),
+        message: t('sheets.newProjectMsg'),
+        placeholder: t('sheets.projectNamePlaceholder'),
+        confirmText: t('surveyors.create'),
+      }),
+    );
     const trimmed = (name ?? '').trim();
     if (!trimmed) return;
     const id = createProject({
@@ -86,7 +90,7 @@ export function SaveSiteModal({
   const canSave = name.trim().length > 0;
 
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onCancel}>
+    <Modal visible={visible && !steppedAside} animationType="slide" onRequestClose={onCancel}>
       <View
         className="flex-1 bg-white dark:bg-gray-900"
         style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}

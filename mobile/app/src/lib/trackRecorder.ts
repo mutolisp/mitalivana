@@ -54,6 +54,13 @@ let currentTarget: RecordTarget | null = null;
 let currentAdapter: RecorderAdapter | null = null;
 let currentSegment: TrackSegment = [];
 let priorSegmentsSnapshot: TrackSegment[] = [];
+/** A start is in flight (between the first await and `watchSub` being set).
+ *  Checking `watchSub` alone left that window open: a second tap started a
+ *  second watch, the first was overwritten and could never be removed — GPS
+ *  stayed on for good. */
+let starting = false;
+/** A pause arrived while a start was in flight; the start drops its watch. */
+let startCancelled = false;
 
 type RecorderState = {
   /** target currently being recorded into, or null when idle. */
@@ -116,11 +123,22 @@ function buildAdapter(target: RecordTarget): RecorderAdapter {
 
 /** Start watching GNSS and appending to a new segment on the given target. */
 export async function startRecording(target: RecordTarget): Promise<void> {
-  if (watchSub) return; // already recording
+  if (watchSub || starting) return; // already recording, or about to be
+  starting = true;
+  startCancelled = false;
+  try {
+    await beginWatch(target);
+  } finally {
+    starting = false;
+  }
+}
+
+async function beginWatch(target: RecordTarget): Promise<void> {
   const perm = await Location.requestForegroundPermissionsAsync();
   if (perm.status !== 'granted') {
     throw new Error(i18n.t('gnss.permTitle'));
   }
+  if (startCancelled) return;
 
   const adapter = buildAdapter(target);
   currentTarget = target;
@@ -131,7 +149,7 @@ export async function startRecording(target: RecordTarget): Promise<void> {
 
   adapter.onStart?.();
 
-  watchSub = await Location.watchPositionAsync(
+  const sub = await Location.watchPositionAsync(
     {
       accuracy: Location.Accuracy.BestForNavigation,
       distanceInterval: MIN_DISTANCE_M,
@@ -154,10 +172,18 @@ export async function startRecording(target: RecordTarget): Promise<void> {
       }
     },
   );
+  // Paused while the watch was being set up: pauseRecording found nothing to
+  // remove, so this watch would otherwise run with no owner.
+  if (startCancelled) {
+    sub.remove();
+    return;
+  }
+  watchSub = sub;
 }
 
 /** Stop the watch and commit the in-progress segment back to the target. */
 export function pauseRecording(): void {
+  if (starting) startCancelled = true;
   if (watchSub) {
     watchSub.remove();
     watchSub = null;

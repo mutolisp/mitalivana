@@ -15,6 +15,7 @@ import {
   createSite,
   deleteSite,
   getProject,
+  listCollectionTrips,
   listPlotSurveysWithMeta,
   listSessions,
   listSites,
@@ -115,7 +116,10 @@ export default function SitesScreen() {
   };
 
   const reload = useCallback(
-    () => setRows(buildGeoRows(listSites(), listPlotSurveysWithMeta(), listSessions())),
+    () =>
+      setRows(
+        buildGeoRows(listSites(), listPlotSurveysWithMeta(), listSessions(), listCollectionTrips()),
+      ),
     [],
   );
   useFocusEffect(useCallback(() => reload(), [reload]));

@@ -151,6 +151,23 @@ export function ensureInatJwt(opts: { interactive?: boolean } = {}): Promise<str
   return inflight;
 }
 
+/**
+ * Whether a token can be had WITHOUT showing the login WebView.
+ *
+ * For callers inside a Modal (the record detail sheets): the WebView host is
+ * itself a root-hosted Modal, and presenting it over another Modal crashes
+ * iOS. On `false` the caller closes its Modal first, then goes interactive.
+ */
+export async function inatTokenAvailableQuietly(): Promise<boolean> {
+  try {
+    await ensureInatJwt({ interactive: false });
+    return true;
+  } catch (e) {
+    if (e instanceof InatLoginRequired || e instanceof InatAuthCancelled) return false;
+    throw e;
+  }
+}
+
 async function rememberLogin(jwt: string): Promise<void> {
   try {
     const me = await fetchMe(jwt);

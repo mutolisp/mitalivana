@@ -660,18 +660,24 @@ function EnvTab({ plot, onUpdated }: { plot: PlotSurvey; onUpdated: () => void }
           label={t('plot.rockCover')}
           suffix="%"
           value={plot.rock_cover_pct}
+          min={0}
+          max={100}
           onSave={(n) => patchCover('rock_cover_pct', n)}
         />
         <NumField
           label={t('plot.gravelCover')}
           suffix="%"
           value={plot.gravel_cover_pct}
+          min={0}
+          max={100}
           onSave={(n) => patchCover('gravel_cover_pct', n)}
         />
         <NumField
           label={t('plot.bareCover')}
           suffix="%"
           value={plot.bareland_cover_pct}
+          min={0}
+          max={100}
           onSave={(n) => patchCover('bareland_cover_pct', n)}
         />
         {/* Running total for the seven ground-cover fractions. Warn rather than

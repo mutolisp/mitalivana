@@ -24,6 +24,7 @@ import { showActionSheet } from '~/components/ActionSheet';
 import { deleteAudioFile } from '~/lib/audioCapture';
 import { mediaUriReferenced } from '~/db';
 import { hasInatChanges, syncRecord, useInatSync } from '~/lib/inatUpload';
+import { inatTokenAvailableQuietly } from '~/lib/inatAuth';
 import { apiErrorMessage } from '~/lib/apiErrorMessage';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
@@ -481,6 +482,12 @@ export default function SessionDetailScreen() {
       return;
     }
     try {
+      // The login WebView cannot be presented over the detail sheet (a Modal);
+      // when a login is needed the sheet closes first.
+      if (!(await inatTokenAvailableQuietly())) {
+        setActiveRecord(null);
+        await new Promise((res) => setTimeout(res, 450));
+      }
       const r = await syncRecord({ kind: 'session', id: sessionId }, record.id);
       toast(
         r.noop

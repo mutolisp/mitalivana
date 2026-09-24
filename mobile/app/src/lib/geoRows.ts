@@ -91,6 +91,9 @@ export function buildGeoRows(
   sites: SiteWithProject[],
   plots: PlotSurveyWithMeta[],
   sessions: SessionBinding[] = [],
+  /** Collection trips pin a site too (v43); without them a site used only by
+   *  a trip showed as unbound and could be deleted without a warning. */
+  trips: { site_id: number | null }[] = [],
 ): GeoRow[] {
   const rows: GeoRow[] = [];
   const plotidBySite = new Map<number, string>();
@@ -100,6 +103,9 @@ export function buildGeoRows(
   const sessionSiteIds = new Set<number>();
   for (const s of sessions) {
     if (s.site_id != null) sessionSiteIds.add(s.site_id);
+  }
+  for (const tr of trips) {
+    if (tr.site_id != null) sessionSiteIds.add(tr.site_id);
   }
 
   for (const s of sites) {
@@ -125,7 +131,8 @@ export function buildGeoRows(
       ownerPlotid: plotidBySite.get(s.id) ?? null,
       isPlot: plotidBySite.has(s.id),
       // The third term is the site's own back-reference, set when a 名錄
-      // created it; the same three sources countSiteReferences() sums.
+      // created it; the same sources countSiteReferences() sums (trips are
+      // folded into sessionSiteIds above).
       boundToRecord: plotidBySite.has(s.id) || sessionSiteIds.has(s.id) || s.session_id != null,
     });
   }

@@ -47,6 +47,8 @@ import {
   type SearchResult,
 } from '~/db';
 import { useActiveSession } from '~/stores/activeSession';
+import { useActivePlot } from '~/stores/activePlot';
+import { useAddToActiveRecord } from '~/lib/useAddToActiveRecord';
 import { ConservationBadge } from './ConservationBadge';
 import { LookupResultSheet } from './LookupResultSheet';
 import { ScientificName } from './ScientificName';
@@ -150,6 +152,7 @@ export function KeyMatrixRunner({ keyId, keyData }: Props) {
   const session = useActiveSession((s) => s.session);
   const startActive = useActiveSession((s) => s.start);
   const refreshActive = useActiveSession((s) => s.refresh);
+  const { addSpecies, modal: addRecordModal } = useAddToActiveRecord();
 
   const [features, setFeatures] = useState<KeyFeature[]>([]);
   const [taxa, setTaxa] = useState<TaxonRow[]>([]);
@@ -228,9 +231,20 @@ export function KeyMatrixRunner({ keyId, keyData }: Props) {
   // user sees nothing. Alert is a native UIAlertController and does show on top.
   // Same reason as the coordinate row in RecordLocationMap; judgement table is in
   // memory `feedback-root-host-behind-modal`.
-  const handleAddToSession = () => {
+  const handleAddToSession = async () => {
     if (!activeDetail?.taxon_id) {
       Alert.alert(t('addToRecord.noTaxonId'));
+      return;
+    }
+    // An active plot takes the species, not a checklist: starting a session
+    // here would end the plot survey (single-active). The shared router opens
+    // the abundance modal, which cannot be presented over this sheet — so the
+    // sheet closes first and the modal follows once it has slid out.
+    if (useActivePlot.getState().plot) {
+      const picked = activeDetail;
+      setActiveDetail(null);
+      await new Promise((r) => setTimeout(r, 450));
+      addSpecies(picked);
       return;
     }
     const target = session ?? startActive();
@@ -358,8 +372,9 @@ export function KeyMatrixRunner({ keyId, keyData }: Props) {
       <LookupResultSheet
         result={activeDetail}
         onClose={() => setActiveDetail(null)}
-        onAddToSession={handleAddToSession}
+        onAddToSession={() => void handleAddToSession()}
       />
+      {addRecordModal}
     </View>
   );
 }

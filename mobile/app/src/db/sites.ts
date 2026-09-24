@@ -135,8 +135,12 @@ export function countSiteReferences(id: number): number {
     `SELECT
        (SELECT COUNT(*) FROM sessions WHERE site_id = ?) +
        (SELECT COUNT(*) FROM plot_surveys WHERE site_id = ?) +
+       (SELECT COUNT(*) FROM collection_trips WHERE site_id = ?) +
        (SELECT COUNT(*) FROM sites WHERE id = ? AND session_id IS NOT NULL) AS refs`,
-    [id, id, id],
+    // Every table that can hold a site_id must be counted here: a missing one
+    // lets deleteSiteIfUnreferenced delete a site that record still uses
+    // (collection_trips.site_id, v43, was missed).
+    [id, id, id, id],
   );
   return Number((res.rows?.[0] as { refs?: number } | undefined)?.refs ?? 0);
 }

@@ -171,6 +171,11 @@ export function purgeOrphanRows(): void {
     `UPDATE plot_surveys SET site_id = NULL
        WHERE site_id IS NOT NULL AND site_id NOT IN (SELECT id FROM sites);`,
   );
+  // No FK (v43), same repair.
+  db.executeSync(
+    `UPDATE collection_trips SET site_id = NULL
+       WHERE site_id IS NOT NULL AND site_id NOT IN (SELECT id FROM sites);`,
+  );
   // No FK is declared on this one, but a pointer to a deleted subplot is just
   // as wrong — null it so the record falls back to plot-level scope.
   db.executeSync(

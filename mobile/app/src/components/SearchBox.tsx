@@ -9,6 +9,7 @@ import {
   type SearchResult,
 } from '~/db';
 import type { AdoptionInput } from '~/db';
+import { onPackContentChanged } from '~/db/regionpacks';
 import type { TaxonGroup } from '~/db/types';
 import { applyChoice, chooseNameUsage } from '~/lib/adoptName';
 import { alienBadge } from '~/lib/conservationColors';
@@ -108,6 +109,10 @@ export function clearSearchResultCache(): void {
 // A different checklist module means the cached results answer the previous
       // dataset.
 onDatasetsChanged(clearSearchResultCache);
+// Same for region packs: deleting one, or one finishing its download, changes
+// what a query should return (a stale hit on a deleted pack's taxon saves a
+// record whose name resolves to nothing).
+onPackContentChanged(clearSearchResultCache);
 
 function cacheSet(key: string, value: SearchResult[]): void {
   if (resultCache.has(key)) resultCache.delete(key);
