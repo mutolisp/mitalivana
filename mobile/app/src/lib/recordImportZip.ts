@@ -15,6 +15,7 @@
  * the layer where "the text encoding of its contents can't be determined"
  * slipped through.
  */
+import { isGloriaDoc, type GloriaDoc } from '../modules/gloria/export/yaml';
 import { strFromU8, unzipSync } from 'fflate';
 import { detectFormat, parseGeoFile, type ImportedGeometry } from './geoConverters';
 import { ImportError } from './importError';
@@ -34,6 +35,10 @@ import yaml from 'js-yaml';
 export type ImportedPhotoBlob = { name: string; bytes: Uint8Array };
 
 export type ReadRecordImport =
+  | {
+      kind: 'gloria';
+      gloria: GloriaDoc;
+    }
   | {
       kind: 'plot';
       plot: ImportedPlot;
@@ -173,7 +178,10 @@ function collectMedia(
   return out;
 }
 
-function docKind(doc: Record<string, unknown> | null): 'plot' | 'session' | 'collection' {
+function docKind(doc: Record<string, unknown> | null): 'plot' | 'session' | 'collection' | 'gloria' {
+  // First: a GLORIA document has none of the other kinds' keys, and an older
+  // build would otherwise fall through to "session".
+  if (isGloriaDoc(doc)) return 'gloria';
   if (doc?.plot) return 'plot';
   // Before the generic `event` test, not after: a collection document carries
   // an `event:` block too, so the old order silently classified a bare
@@ -243,6 +251,8 @@ export function readRecordImportFromBytes(raw: Uint8Array): ReadRecordImport {
   if (!isZip(raw)) {
     const doc = yaml.load(strFromU8(raw)) as Record<string, unknown> | null;
     switch (docKind(doc)) {
+      case 'gloria':
+        return { kind: 'gloria', gloria: doc as unknown as GloriaDoc };
       case 'plot':
         return { kind: 'plot', plot: plotFromDoc(doc), photos: [], audio: [] };
       case 'collection':
@@ -257,9 +267,13 @@ export function readRecordImportFromBytes(raw: Uint8Array): ReadRecordImport {
 
   const doc = yaml.load(textOf(meta, ymlName)) as Record<string, unknown> | null;
   const kind =
-    manifestKind === 'plot' || manifestKind === 'session' || manifestKind === 'collection'
+    manifestKind === 'plot' || manifestKind === 'session' || manifestKind === 'collection' || manifestKind === 'gloria'
       ? manifestKind
       : docKind(doc);
+  if (kind === 'gloria') {
+    if (!isGloriaDoc(doc)) throw new ImportError('unknownKind');
+    return { kind: 'gloria', gloria: doc };
+  }
 
   // Pass 2 — the media bytes, now that the kind is known and accepted.
   const mediaEntries = unzipSync(raw, { filter: (f) => /(^|\/)(photos|audio)\//i.test(f.name) });

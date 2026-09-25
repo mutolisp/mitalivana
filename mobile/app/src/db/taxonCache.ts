@@ -148,7 +148,8 @@ function referencedTaxonIds(): string[] {
     SELECT DISTINCT taxon_id FROM checklist_records WHERE taxon_id IS NOT NULL
     UNION SELECT DISTINCT taxon_id FROM plot_species_records WHERE taxon_id IS NOT NULL
     UNION SELECT DISTINCT taxon_id FROM collection_specimens WHERE taxon_id IS NOT NULL
-    UNION SELECT DISTINCT taxon_id FROM favorite_taxa WHERE taxon_id IS NOT NULL`;
+    UNION SELECT DISTINCT taxon_id FROM favorite_taxa WHERE taxon_id IS NOT NULL
+    UNION SELECT DISTINCT taxon_id FROM gloria_taxa WHERE taxon_id IS NOT NULL`;
   const res = getUserDb().executeSync(sql);
   return ((res.rows ?? []) as Array<{ taxon_id?: string }>)
     .map((r) => String(r.taxon_id ?? ''))

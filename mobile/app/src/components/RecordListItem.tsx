@@ -51,7 +51,7 @@ export function KindIcon({
   const tint = active ? '#10b981' : '#94a3b8';
   const bg = active ? 'bg-emerald-50 dark:bg-emerald-950/40' : 'bg-gray-100 dark:bg-gray-800';
   const iconName =
-    kind === 'session' ? 'list' : kind === 'collection' ? 'leaf-outline' : 'grid-outline';
+    kind === 'session' ? 'list' : kind === 'collection' ? 'leaf-outline' : kind === 'gloria' ? 'triangle-outline' : 'grid-outline';
   const box = size === 'sm' ? 'h-7 w-7' : 'h-10 w-10';
   return (
     <View className={`items-center justify-center rounded-lg ${box} ${bg}`}>
@@ -129,7 +129,8 @@ export function RowDiversityLine({
       setVal(cached);
       return;
     }
-    if (kind === 'collection') {
+    // Diversity of a GLORIA survey is not one number (28 units, several methods).
+    if (kind === 'collection' || kind === 'gloria') {
       rowDivCache.set(key, null);
       setVal(null);
       return;

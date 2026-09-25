@@ -47,6 +47,7 @@ import {
 } from '~/db';
 import {
   bundleCollection,
+  bundleGloria,
   bundleMany,
   bundlePlot,
   bundleSession,
@@ -81,6 +82,8 @@ import { BetaSimilarityBlock, Chao2ResultBlock } from '~/components/CrossPlotCha
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useExportShare } from '~/lib/useExportShare';
 import { useActivePlot } from '~/stores/activePlot';
+import { useActiveGloria } from '~/modules/gloria/store';
+import { deleteGloriaSurvey, updateGloriaSurvey } from '~/modules/gloria/db';
 import { useActiveSession } from '~/stores/activeSession';
 import { selectionKey, useRecordSelection } from '~/stores/recordSelection';
 import { useSettings, type RecordsLayout } from '~/stores/settings';
@@ -310,6 +313,7 @@ export default function RecordsListScreen() {
     session: t('nav.session'),
     plot: t('nav.plot'),
     collection: t('nav.collection'),
+    gloria: t('nav.gloria'),
   };
   const viewLabel: Record<ViewMode, string> = {
     byProject: t('records.byProject'),
@@ -337,6 +341,7 @@ export default function RecordsListScreen() {
     session: 0,
     plot: 0,
     collection: 0,
+    gloria: 0,
   });
   const [duplicating, setDuplicating] = useState<{
     item: RecordItem;
@@ -405,6 +410,7 @@ export default function RecordsListScreen() {
     setProjects(listProjects());
     refreshActive();
     refreshActivePlot();
+    useActiveGloria.getState().refresh();
   }, [filter, refreshActive, refreshActivePlot]);
 
   useFocusEffect(
@@ -436,6 +442,7 @@ export default function RecordsListScreen() {
   const handleOpen = (item: RecordItem) => {
     if (item.kind === 'session') router.push(`/session/${item.id}` as Href);
     else if (item.kind === 'collection') router.push(`/collection/${item.id}` as Href);
+    else if (item.kind === 'gloria') router.push(`/gloria/${item.id}` as Href);
     else router.push(`/plot/${item.id}` as Href);
   };
 
@@ -485,6 +492,7 @@ export default function RecordsListScreen() {
     await shareBundle(() => {
       if (item.kind === 'session') return bundleSession(item.id, bundleOpts);
       if (item.kind === 'collection') return bundleCollection(item.id, bundleOpts);
+      if (item.kind === 'gloria') return bundleGloria(item.id, bundleOpts);
       return bundlePlot(item.id, bundleOpts);
     });
   };
@@ -578,9 +586,15 @@ export default function RecordsListScreen() {
   };
 
   const nounOf = (kind: RecordKind): string =>
-    t(kind === 'session' ? 'nav.session' : kind === 'plot' ? 'nav.plot' : 'nav.collection');
+    t(kind === 'session' ? 'nav.session' : kind === 'plot' ? 'nav.plot' : kind === 'gloria' ? 'nav.gloria' : 'nav.collection');
 
   const handleDuplicate = (item: RecordItem) => {
+    // A GLORIA survey is one summit × one monitoring cycle; a copy would be a
+    // second record of the same cycle. The next cycle is started from the summit.
+    if (item.kind === 'gloria') {
+      toast(t('records.duplicateNoGloria'));
+      return;
+    }
     // Names of the SAME kind only: a 名錄 and a 樣區 may legitimately share one.
     const taken = takenRecordNames(item.kind);
     setDuplicating({
@@ -662,6 +676,7 @@ export default function RecordsListScreen() {
       for (const it of picked) {
         if (it.kind === 'session') updateSession(it.id, { project_id: projectId });
         else if (it.kind === 'plot') updatePlotSurvey(it.id, { project_id: projectId });
+        else if (it.kind === 'gloria') updateGloriaSurvey(it.id, { project_id: projectId });
         else updateCollectionTrip(it.id, { project_id: projectId });
       }
     });
@@ -695,6 +710,11 @@ export default function RecordsListScreen() {
     }
     if (kind === 'collection') {
       toast(t('records.mergeNoCollection'));
+      return;
+    }
+    // GLORIA surveys are one summit × one monitoring cycle; there is nothing to merge.
+    if (kind === 'gloria') {
+      toast(t('records.mergeNoGloria'));
       return;
     }
     if (kind === 'plot') {
@@ -819,6 +839,7 @@ export default function RecordsListScreen() {
               for (const it of picked) {
                 if (it.kind === 'session') deleteSession(it.id);
                 else if (it.kind === 'collection') deleteCollectionTrip(it.id);
+                else if (it.kind === 'gloria') deleteGloriaSurvey(it.id);
                 else deletePlotSurvey(it.id);
               }
             });
@@ -848,6 +869,7 @@ export default function RecordsListScreen() {
     // stores cache that row.
     useActiveSession.getState().refresh();
     useActivePlot.getState().refresh();
+    useActiveGloria.getState().refresh();
     reload();
     selectClear();
     useToast.getState().show(t('records.merged', { name: opts.name }), {
@@ -872,6 +894,7 @@ export default function RecordsListScreen() {
           onPress: () => {
             if (item.kind === 'session') deleteSession(item.id);
             else if (item.kind === 'collection') deleteCollectionTrip(item.id);
+            else if (item.kind === 'gloria') deleteGloriaSurvey(item.id);
             else deletePlotSurvey(item.id);
             reload();
           },

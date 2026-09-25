@@ -19,7 +19,7 @@ import { ActivityIndicator, FlatList, Linking, Pressable, Text, TextInput, View 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScientificName } from '~/components/ScientificName';
 import { SelectRow } from '~/components/settings/rows';
-import type { RecordKind } from '~/db';
+import type { InatKind } from '~/db';
 import { observationWebUrl } from '~/lib/inatApi';
 import { getInatStatus } from '~/lib/inatAuth';
 import { GEOPRIVACY_VALUES, parseTags, type Geoprivacy, type LocationSource } from '~/lib/inatPayload';
@@ -42,11 +42,11 @@ import { useSettings } from '~/stores/settings';
 const PHOTO_BYTES = 3 * 1024 * 1024;
 const AUDIO_BYTES = 1 * 1024 * 1024;
 
-const KINDS: RecordKind[] = ['session', 'plot', 'collection'];
+const KINDS: InatKind[] = ['session', 'plot', 'collection'];
 
 export default function InatUploadScreen() {
   const params = useLocalSearchParams<{ kind?: string; id?: string; record?: string }>();
-  const kind = (KINDS as string[]).includes(params.kind ?? '') ? (params.kind as RecordKind) : 'session';
+  const kind = (KINDS as string[]).includes(params.kind ?? '') ? (params.kind as InatKind) : 'session';
   const id = Number(params.id ?? 0);
   const unit = useMemo<UploadUnit>(() => ({ kind, id }), [kind, id]);
   /** Set when opened from a single row's swipe action: only that record is

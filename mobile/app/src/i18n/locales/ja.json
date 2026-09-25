@@ -92,7 +92,8 @@
     "nSpeciesTotal_other": "{{count}} 種",
     "nFolders_other": "{{count}} 個のリスト",
     "nSpeciesInThem_other": "その中の {{count}} 種",
-    "addedCount_other": "{{count}} 種をお気に入りに追加しました"
+    "addedCount_other": "{{count}} 種をお気に入りに追加しました",
+    "kindGloria": "GLORIA"
   },
   "gnss": {
     "permTitle": "位置情報の許可が必要です",
@@ -231,7 +232,9 @@
     "deletedCount_other": "{{count}} 件の調査記録を削除しました",
     "search": "検索",
     "searchPlaceholder": "プロジェクト名・説明・記録名で検索",
-    "searchNoMatch": "「{{q}}」に一致するプロジェクトや記録はありません"
+    "searchNoMatch": "「{{q}}」に一致するプロジェクトや記録はありません",
+    "mergeNoGloria": "GLORIA 調査は 1 山頂・1 モニタリング周期の記録のため、結合できません。",
+    "duplicateNoGloria": "GLORIA 調査は複製できません。次のモニタリング周期は「新規 GLORIA 調査」で同じ山頂を選んで開始してください。"
   },
   "export": {
     "preparing": "準備中…",
@@ -264,7 +267,8 @@
     "gdrive": "Google ドライブ",
     "inatUpload": "iNaturalist にアップロード",
     "identifiers": "同定者",
-    "provenance": "Provenance signing"
+    "provenance": "Provenance signing",
+    "gloria": "GLORIA 山頂調査"
   },
   "tab": {
     "menu": "設定",
@@ -291,7 +295,8 @@
     "kindCollection": "採集記録",
     "defaultCollection": "既定：採集記録",
     "kindImport": "記録をインポート（.yml / .zip）",
-    "lastUpdated": "最終更新"
+    "lastUpdated": "最終更新",
+    "kindGloria": "GLORIA 山頂調査"
   },
   "rank": {
     "kingdom": "界",
@@ -473,7 +478,9 @@
     "longPressHint": "長押しで種リストか採集を選択",
     "addedManyToPlot_other": "{{count}} 種を調査区に追加しました（被度などは未入力）",
     "addedManyToSession_other": "{{count}} 種を種リストに追加しました",
-    "skippedExisting_other": "記録済みの {{count}} 種はスキップしました"
+    "skippedExisting_other": "記録済みの {{count}} 種はスキップしました",
+    "toGloria": "GLORIA 山頂リストに追加",
+    "addedToGloria_other": "GLORIA 山頂リストに {{count}} 種を追加しました。各ユニットの画面で記録してください。"
   },
   "endSession": {
     "minutes": "{{count}} 分",
@@ -654,7 +661,9 @@
     "defaultDeterminerDesc": "よく使う同定者のリスト。★ を付けた人が新しい標本に自動で入ります",
     "noDefaultPerson": "未設定",
     "provenance": "Provenance signing",
-    "provenanceDesc": "Attribute exported data to your ORCID"
+    "provenanceDesc": "Attribute exported data to your ORCID",
+    "moduleGloria": "GLORIA 山頂モニタリング",
+    "moduleGloriaDesc": "「新規記録」メニューに GLORIA 山頂調査を表示します。既存の GLORIA 記録は常に表示されます。"
   },
   "taxonomy": {
     "loadingTree": "分類ツリーを読み込み中...",
@@ -1207,7 +1216,8 @@
     "plotSubtitle_other": "{{count}} 件 · {{protocol}}{{size}}",
     "collectionSubtitle_other": "標本 {{count}} 点 · {{project}}",
     "sessionSubtitleNoProject_other": "{{count}} 件",
-    "collectionSubtitleNoProject_other": "標本 {{count}} 点"
+    "collectionSubtitleNoProject_other": "標本 {{count}} 点",
+    "gloriaSubtitle_other": "mocy {{mocy}} · {{count}} 種 · {{units}}/28 ユニット"
   },
   "plotImport": {
     "invalidYml": "有効な調査区 yml ではありません（plot ブロックがありません）",
@@ -1217,7 +1227,8 @@
   },
   "activeBar": {
     "recording": "記録中：{{name}}",
-    "plotRecording": "調査区を記録中：{{id}}"
+    "plotRecording": "調査区を記録中：{{id}}",
+    "gloriaRecording": "GLORIA 調査中 · mocy {{mocy}}"
   },
   "speciesSearch": {
     "hint": "下の欄に一般名 / 学名 / 科名を入力して種を検索し、{{br}}選択するとここに詳細が表示されます。"
@@ -1436,7 +1447,10 @@
     "doneUnresolved_other": "{{count}} 件はこの端末の種リストに taxon_id が見つかりませんでしたが、インポートしました",
     "donePhotosSkipped_other": "{{count}} 枚の写真をインポートできませんでした（権限またはファイルを読めません）",
     "collectionExistsTitle": "採集記録は既にあります",
-    "collectionExistsMsg": "「{{name}}」は既にこの端末にあります。上書きしますか、新しい複製として保存しますか？"
+    "collectionExistsMsg": "「{{name}}」は既にこの端末にあります。上書きしますか、新しい複製として保存しますか？",
+    "gloriaExistsTitle": "この GLORIA 調査はすでにあります",
+    "gloriaExistsMsg": "{{name}} はこの端末にあります。上書きすると、インポートしたファイルの内容に置き換わります。",
+    "gloriaImported": "{{name}} をインポートしました"
   },
   "gbifLookup": {
     "title": "GBIF 名前検索",
@@ -2209,5 +2223,308 @@
     "orcidSignOutTitle": "ORCID からサインアウトしますか？",
     "orcidSignOutMsg": "再度サインインするまで、エクスポートには署名されません。鍵は保持されます。",
     "orcidLegacy": "以前手入力した {{orcid}} は未確認です。署名に使うには ORCID でサインインしてください。"
+  },
+  "gloria": {
+    "notFound": "この GLORIA 調査が見つかりません",
+    "overview": "概要",
+    "endTitle": "GLORIA 調査を終了しますか？",
+    "endMsg": "あとで再開して記録を続けられます。",
+    "unitsDone": "{{done}}/{{total}} ユニット完了",
+    "tab": {
+      "points": "基礎データ",
+      "map": "調査区の概要",
+      "species": "種一覧"
+    },
+    "status": {
+      "none": "未着手",
+      "progress": "記録中",
+      "done": "完了",
+      "warn": "警告あり"
+    },
+    "list": {
+      "quadrats": "1×1 m 方形区",
+      "sas": "山頂区画（SAS）",
+      "squares": "10×10 m 方形区"
+    },
+    "p5m": {
+      "title": "{{direction}} 方位 · 3×3 m（山頂向き）",
+      "explain": "p5m は {{point}} の外角で、5 m 等高線上にあります（青緑の線）。この方位の 3×3 m はこの点から設置します。",
+      "notSet": "{{direction}} 方位の p5m が未指定です。「基礎データ」で 11 か 31 を選んでください。"
+    },
+    "new": {
+      "title": "新規 GLORIA 調査",
+      "region": "対象地域 {{region}}",
+      "lastMocy": "前回 mocy {{mocy}}",
+      "firstSurvey": "調査なし",
+      "addSummit": "山頂を追加",
+      "addSummitButton": "＋ 山頂を追加",
+      "country": "国コード",
+      "targetRegion": "対象地域コード",
+      "summitCode": "山頂コード",
+      "codeHint": "国コード 2 文字（ISO 3166）、対象地域と山頂は各 3 文字。例：TW-DAS-SUN（マニュアル Box 6.1）。",
+      "codeInvalid": "コードの形式が違います。国コードは英字 2 文字、対象地域と山頂は英数字 3 文字です。",
+      "summitName": "山名（任意）",
+      "elevation": "標高 m",
+      "vegZone": "植生帯",
+      "saveSummit": "山頂を保存",
+      "mocyIs": "今回は mocy {{mocy}}",
+      "carryOver": "mocy {{from}} から {{points}} 測点の距離と方位、10×10 m の開始設定を引き継ぎます。種と被度は空欄から記録します（ブラインド、マニュアル Box 4.5）。",
+      "noCarryOver": "この山頂の初回調査です。28 測点すべてを測定します。",
+      "surveyors": "調査者",
+      "noSurveyors": "未設定（設定の「調査者」で既定を指定できます）",
+      "start": "調査を開始"
+    },
+    "points": {
+      "carried": "測点は前回から引き継いでいます。前回と異なる欄は青緑で表示されます。",
+      "whereP5m": "p5m はどこ？",
+      "point": "点",
+      "distance": "距離 m",
+      "compass": "方位 °",
+      "photo": "写真",
+      "distanceOf": "{{point}} 距離（m）",
+      "compassOf": "{{point}} 方位（°）",
+      "photoM2": "{{point}} 方形区の写真",
+      "photoM2F": "{{point}} 方形区＋頻度枠の写真",
+      "photoPoint": "{{point}} 点の写真",
+      "intersection": "交差線"
+    },
+    "photo": {
+      "camera": "写真を撮る",
+      "library": "ライブラリから選択",
+      "remove": "写真を外す"
+    },
+    "matrix": {
+      "quadrats": "1×1",
+      "sas": "SAS",
+      "squares": "10×10",
+      "quadratHint": "被度 %。f の後は頻度のマス数。列名をタップでユニットを開きます。",
+      "sasHint": "多度 r! r s c d。• は記載済みで多度未入力。",
+      "squareHint": "400 点中のヒット数。• はヒットしなかった追加種。",
+      "empty": "まだ種がありません",
+      "species": "種"
+    },
+    "step": {
+      "cover": "被度と地表",
+      "frequency": "頻度",
+      "pointframe": "ポイントフレーム",
+      "sas": "種と多度",
+      "linePoints": "400 点の記録",
+      "additional": "ヒットしなかった種",
+      "notStarted": "未実施",
+      "pointsDone": "{{done}}/{{total}} 点",
+      "here": "現在地",
+      "jump": "他のユニットへ",
+      "backToSummit": "調査区の概要へ戻る",
+      "speciesCount_other": "{{count}} 種",
+      "freqDone_other": "{{count}} 種記入",
+      "freqCounted_other": "{{count}} 種の回数入力済み"
+    },
+    "issue": {
+      "topCoverSum": "地表被度の合計が {{sum}}%（100% のはず）",
+      "vascularExceeds": "維管束植物 {{vascular}}% ＞ 種の被度合計 {{sum}}%",
+      "subtypeRange": "地表被度サブタイプの値 {{value}} が 0–100 の範囲外",
+      "coverNoFreq": "{{name}}：被度 {{cover}}%、頻度 0 マス",
+      "sasMissing": "同じ方位の方形区にあり、ここに未記録：{{names}}",
+      "p5m": "{{direction}} 方位の p5m（11 か 31）が未指定",
+      "freqNoCover_other": "{{name}}：頻度 {{count}} マス、被度なし",
+      "pointInconsistent_other": "{{count}} 点で種と地表の記録が矛盾"
+    },
+    "cover": {
+      "title": "地表被度の推定（%）",
+      "sumOk": "合計 {{sum}} ✓",
+      "sumBad": "合計 {{sum}}（100 のはず）",
+      "subtypeHint": "属する地表タイプに対する %（マニュアル p.40）。例：岩 40% の半分に地衣類 → 50。",
+      "cov_vascular": "維管束植物",
+      "cov_solid_rock": "固着岩",
+      "cov_scree": "岩屑",
+      "cov_lichens": "地衣類（土壌上）",
+      "cov_bryophytes": "コケ類（土壌上）",
+      "cov_bare_ground": "裸地",
+      "cov_litter": "リター",
+      "sub_lich_below_vasc": "地衣類 · 維管束下",
+      "sub_lich_on_rock": "地衣類 · 岩上",
+      "sub_lich_on_scree": "地衣類 · 岩屑上",
+      "sub_bry_below_vasc": "コケ類 · 維管束下",
+      "sub_bry_on_rock": "コケ類 · 岩上",
+      "sub_bry_on_scree": "コケ類 · 岩屑上"
+    },
+    "surface": {
+      "R": "固着岩",
+      "S": "岩屑",
+      "L": "地衣類",
+      "B": "コケ類",
+      "G": "裸地",
+      "T": "リター"
+    },
+    "unit": {
+      "env": "調査区の環境",
+      "aspect": "斜面方位 °",
+      "slope": "傾斜 °",
+      "aspectShort": "方位 {{v}}°",
+      "slopeShort": "傾斜 {{v}}°",
+      "topSumShort": "地表被度 合計 {{sum}}",
+      "topNotYet": "地表被度 未入力",
+      "subtypes": "地表被度のサブタイプ（地衣類/コケ類）",
+      "vascularOk": "維管束植物 {{vascular}}% ≦ 種の被度合計 {{sum}}% ✓",
+      "vascularHint": "種の被度合計は維管束植物の地表被度を下回らないはずです（マニュアル p.41）。種の被度か地表被度を見直してください。",
+      "crossTitle": "頻度と被度が一致しません",
+      "noSpecies": "下の検索で種を追加",
+      "coverRule": "被度は % で、「<」「>」は使いません（マニュアル Form 2）。名前をタップで詳細、長押しで削除。",
+      "coverOf": "{{name}} 被度 %",
+      "cf": "同定不確実（cf.）",
+      "openDetail": "詳細を開く",
+      "remove": "このユニットから削除",
+      "rowHint": "種の詳細を開く",
+      "added": "{{name}} を追加しました",
+      "markDone": "このユニットを完了にする",
+      "markUndone": "完了を取り消す",
+      "sasMissingTitle": "{{direction}} 方位の方形区の種がすべて記載されていません",
+      "addAll": "すべて追加",
+      "abundanceLegend": "r! 極稀 · r 稀 · s 散在 · c 普通 · d 優占（被度 50% 超、マニュアル p.42）",
+      "grazing": "放牧/動物の痕跡",
+      "grazingPlaceholder": "例：糞、食害、踏みつけ",
+      "speciesHeader_other": "種（{{count}}）· 被度合計 {{sum}}",
+      "sasHeader_other": "種（{{count}}）· 多度",
+      "fromQuadratsDone_other": "方形区から {{count}} 種を追加"
+    },
+    "square": {
+      "walk": "開始点と方向（Form 6-S の 4 択）",
+      "option1": "左下辺 · 下の角から",
+      "option2": "左下辺 · 左の角から",
+      "option3": "右下辺 · 下の角から",
+      "option4": "右下辺 · 右の角から",
+      "pickWalk": "先に開始点を選びます。再調査では前回の選択を引き継ぎます（マニュアル p.57）。",
+      "start": "点ごとに記録（{{done}}/400）",
+      "hitsTitle": "ヒット数と被度（{{done}}/400、被度 ＝ ヒット ÷ 4）",
+      "fromQuadrats": "4 方形区から追加",
+      "extraEmpty": "点の記録後、ヒットしなかった種を記録します。まず 4 方形区の種を追加できます（マニュアル p.58）。",
+      "extra_other": "ヒットしなかった種（{{count}}）"
+    },
+    "species": {
+      "inUnit": "{{code}} · リスト番号 {{serial}}",
+      "abundance": "多度",
+      "cover": "被度 %",
+      "cf": "同定不確実",
+      "cfHint": "g 属、s 種、t 種以下が不確実（マニュアル Form 2 注 5）",
+      "lineage": "分類階層",
+      "openKey": "検索表を開く：{{name}}",
+      "repro": "繁殖状態（複数可）",
+      "leaf": "葉のフェノロジー（複数可）",
+      "notes": "備考",
+      "notesPlaceholder": "例：一部の株が枯れ、同定の疑問点"
+    },
+    "rank": {
+      "kingdom": "界",
+      "phylum": "門",
+      "class": "綱",
+      "order": "目",
+      "family": "科",
+      "genus": "属"
+    },
+    "freq": {
+      "title": "{{code}} · 頻度",
+      "undo": "元に戻す",
+      "brush": "ブラシ",
+      "cellMode": "1 マスずつ",
+      "uphill": "▲ 山頂方向（上り）",
+      "gridLabel": "頻度枠 10×10",
+      "hi1": "Hi1 糞",
+      "hi2": "Hi2 食害",
+      "hi3": "Hi3 踏みつけ",
+      "newSpecies": "＋ 新しい種",
+      "fillAll": "すべて塗る",
+      "inverse": "不在を塗る",
+      "inverseDone": "不在の記入を終える",
+      "clear": "消去",
+      "brushHint": "種か Hi を選んでマスをなぞります。塗ったマスから始めると消去。灰色の点は他の種。",
+      "inverseHint": "100 マスを塗りました。いないマスをなぞって（×）、「不在の記入を終える」を押します。",
+      "cellTitle": "{{cell}}（{{n}}/100）",
+      "emptyNext": "空 → 次へ",
+      "next": "次のマス ▶",
+      "addedNoCover": "{{name}} を追加（被度未入力）",
+      "goCover": "被度を入力",
+      "countMode": "回数のみ入力",
+      "countHint": "過去の調査で格子の記録がない場合に使用：各種と攪乱について出現した格数（0–100 の整数）だけを入力します。",
+      "switchTitle": "記録方法の切り替え",
+      "switchToCount": "回数入力に切り替えると、この方形区で描いた格子（種と Hi1–Hi3）が消去されます。切り替えますか？",
+      "switchToCells": "格子記録に戻すと、入力した回数が消去されます。切り替えますか？",
+      "switchConfirm": "消去して切り替え"
+    },
+    "walk": {
+      "titleQuadrat": "{{code}} · ポイントフレーム",
+      "titleSquare": "{{code}} · 10×10 m 点記録",
+      "linePoint": "{{line}} 線 · {{point}} 点目",
+      "point": "{{n}} 点目",
+      "allDone": "{{total}} 点すべて完了",
+      "progress": "{{done}}/{{total}} 記録済",
+      "forward": "→ 線に沿って進む",
+      "back": "← 逆向きに戻る",
+      "species": "ヒットした維管束植物（複数可）",
+      "surface": "植物に当たらないとき：地表タイプ",
+      "same": "前の点と同じ",
+      "next": "次の点 ▶",
+      "lineDone": "{{line}} 線完了：ヒット {{hits}}"
+    },
+    "endWithIssues_other": "警告が {{count}} 件あります。終了しますか？あとで再開できます。",
+    "kb": {
+      "next": "次へ",
+      "done": "完了"
+    },
+    "num": {
+      "rejectTitle": "範囲外の値",
+      "reject": "{{label}}：{{value}}{{unit}} は {{min}}–{{max}}{{unit}} の範囲外です。保存せず、元の値に戻しました。",
+      "warnTitle": "値を確認してください",
+      "warn": "{{label}}：{{value}}{{unit}} は通常の範囲 {{min}}–{{max}}{{unit}} を外れています。保存しました。入力ミスなら修正してください。",
+      "rejectInt": "{{label}}：{{value}} は整数ではありません。頻度は出現格数なので 0–100 の整数を入力してください。保存せず、元の値に戻しました。"
+    },
+    "foldCount": "{{title}}（{{n}}）",
+    "summit": {
+      "title": "山頂の基本データ",
+      "code": "山頂コード",
+      "name": "名称",
+      "namePlaceholder": "任意",
+      "lat": "緯度（WGS84）",
+      "lon": "経度（WGS84）",
+      "elevation": "標高（m）",
+      "zone": "植生帯（Vegetation zone）",
+      "zoneNone": "未設定",
+      "photos": "環境写真（{{n}}）",
+      "photosHint": "マニュアル付録 III に従い SU-OV（山頂全景）として書き出し、撮影位置をファイル名の第 8 要素に入れます。各写真の撮影位置を入力してください（例：S 側の鞍部から）。",
+      "viewpoint": "撮影位置",
+      "viewpointLabel": "{{n}} 枚目の撮影位置",
+      "photoFail": "写真を追加できませんでした"
+    },
+    "times": {
+      "title": "調査者と時刻",
+      "cover": "被度推定",
+      "freq": "頻度",
+      "survey": "調査",
+      "start": "開始",
+      "stop": "終了",
+      "now": "現在時刻にする",
+      "orderTitle": "時刻の順序が不正です",
+      "order": "{{what}}の終了時刻は開始時刻より前にできません。",
+      "hint": "開始は最初の入力時、終了は「このユニットを完了にする」を押した時に記録されます。時刻をタップすると変更できます。",
+      "hintQuadrat": "被度推定：最初の入力で開始、「このユニットを完了にする」で終了。頻度：最初の記入で開始し、終了は最後の編集に合わせて更新されます（手動で変更した後は自動更新しません）。時刻をタップすると変更できます。",
+      "by": "調査者",
+      "bySurvey": "調査全体と同じ：{{names}}",
+      "byNone": "未設定"
+    }
+  },
+  "vernacular": {
+    "title": "和名・俗名の表示言語",
+    "hint": "種の俗名をどの言語で表示するか選びます（最大 {{n}} 種）。下の順に「/」でつなぎ、先頭が主な名前になります。画面とエクスポートはこの設定に従い、検索は有効なすべての名録の名前を対象にします。標本ラベルは名前を一つだけ印刷します。",
+    "order": "表示する言語と順序",
+    "zhTW": "中国語（繁体字）の俗名",
+    "zhTWSource": "台湾生物名録（TaiCOL）",
+    "ja": "和名",
+    "jaSource": "日本維管束植物目録（YList）",
+    "zhTWShort": "中国語",
+    "jaShort": "和名",
+    "keepOne": "少なくとも一つの言語を残してください。",
+    "max": "同時に表示できる俗名は最大 {{n}} 種です。",
+    "moveUp": "上へ",
+    "moveDown": "下へ",
+    "onlyOne": "有効な名録が一つだけなので、選べる言語は一つです。「{{page}}」で他の名録（日本など）を有効にすると追加できます。"
   }
 }

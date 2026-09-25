@@ -126,7 +126,8 @@
     "nSpeciesInThem_other": "{{count}} espèces qu'elles contiennent",
     "addedCount_one": "{{count}} taxon ajouté aux favoris",
     "addedCount_many": "{{count}} taxons ajoutés aux favoris",
-    "addedCount_other": "{{count}} taxons ajoutés aux favoris"
+    "addedCount_other": "{{count}} taxons ajoutés aux favoris",
+    "kindGloria": "GLORIA"
   },
   "gnss": {
     "permTitle": "Autorisation de localisation requise",
@@ -287,7 +288,9 @@
     "deletedCount_other": "{{count}} relevés supprimés",
     "search": "Rechercher",
     "searchPlaceholder": "Rechercher un projet ou un relevé",
-    "searchNoMatch": "Aucun projet ni relevé ne correspond à « {{q}} »"
+    "searchNoMatch": "Aucun projet ni relevé ne correspond à « {{q}} »",
+    "mergeNoGloria": "Impossible de fusionner des relevés GLORIA : chacun couvre un sommet pour un cycle de suivi.",
+    "duplicateNoGloria": "Impossible de dupliquer un relevé GLORIA. Commencez le cycle suivant depuis « Nouvelle enquête GLORIA » en choisissant le même sommet."
   },
   "export": {
     "preparing": "Préparation…",
@@ -320,7 +323,8 @@
     "gdrive": "Google Drive",
     "inatUpload": "Envoyer vers iNaturalist",
     "identifiers": "Déterminateurs",
-    "provenance": "Provenance signing"
+    "provenance": "Provenance signing",
+    "gloria": "enquête GLORIA"
   },
   "tab": {
     "menu": "Réglages",
@@ -347,7 +351,8 @@
     "kindCollection": "Enregistrement de récolte",
     "defaultCollection": "Par défaut : enregistrement de récolte",
     "kindImport": "Importer un enregistrement (.yml / .zip)",
-    "lastUpdated": "Dernière modification"
+    "lastUpdated": "Dernière modification",
+    "kindGloria": "Enquête GLORIA"
   },
   "rank": {
     "kingdom": "Règne",
@@ -541,7 +546,11 @@
     "addedManyToSession_other": "{{count}} taxons ajoutés à la liste d'espèces",
     "skippedExisting_one": "{{count}} déjà présent ignoré",
     "skippedExisting_many": "{{count}} déjà présents ignorés",
-    "skippedExisting_other": "{{count}} déjà présents ignorés"
+    "skippedExisting_other": "{{count}} déjà présents ignorés",
+    "toGloria": "Ajouter à la liste du sommet GLORIA",
+    "addedToGloria_one": "{{count}} taxon ajouté à la liste du sommet GLORIA. Saisissez-le dans une unité.",
+    "addedToGloria_many": "{{count}} taxons ajoutés à la liste du sommet GLORIA. Saisissez-les dans les unités.",
+    "addedToGloria_other": "{{count}} taxons ajoutés à la liste du sommet GLORIA. Saisissez-les dans les unités."
   },
   "endSession": {
     "minutes": "{{count}} min",
@@ -736,7 +745,9 @@
     "defaultDeterminerDesc": "Liste des déterminateurs favoris ; les noms marqués ★ remplissent les nouveaux spécimens",
     "noDefaultPerson": "Non défini",
     "provenance": "Provenance signing",
-    "provenanceDesc": "Attribute exported data to your ORCID"
+    "provenanceDesc": "Attribute exported data to your ORCID",
+    "moduleGloria": "Suivi des sommets GLORIA",
+    "moduleGloriaDesc": "Affiche l’enquête GLORIA dans le menu Nouvel enregistrement. Les enregistrements GLORIA existants restent toujours visibles."
   },
   "taxonomy": {
     "loadingTree": "Chargement de l'arbre taxonomique...",
@@ -1381,7 +1392,10 @@
     "sessionSubtitleNoProject_other": "{{count}} enregistrements",
     "collectionSubtitleNoProject_one": "{{count}} spécimen",
     "collectionSubtitleNoProject_many": "{{count}} spécimens",
-    "collectionSubtitleNoProject_other": "{{count}} spécimens"
+    "collectionSubtitleNoProject_other": "{{count}} spécimens",
+    "gloriaSubtitle_one": "mocy {{mocy}} · {{count}} taxon · {{units}}/28 unités",
+    "gloriaSubtitle_many": "mocy {{mocy}} · {{count}} taxons · {{units}}/28 unités",
+    "gloriaSubtitle_other": "mocy {{mocy}} · {{count}} taxons · {{units}}/28 unités"
   },
   "plotImport": {
     "invalidYml": "Ce n'est pas un yml de placette valide (bloc plot manquant)",
@@ -1391,7 +1405,8 @@
   },
   "activeBar": {
     "recording": "Enregistrement : {{name}}",
-    "plotRecording": "Placette en cours : {{id}}"
+    "plotRecording": "Placette en cours : {{id}}",
+    "gloriaRecording": "Relevé GLORIA en cours · mocy {{mocy}}"
   },
   "speciesSearch": {
     "hint": "Recherchez une espèce par nom vernaculaire / scientifique / de famille ci-dessous,{{br}}puis consultez ici les détails après sélection."
@@ -1648,7 +1663,10 @@
     "donePhotosSkipped_many": "{{count}} photos non importées (autorisation refusée ou fichier illisible)",
     "donePhotosSkipped_other": "{{count}} photos non importées (autorisation refusée ou fichier illisible)",
     "collectionExistsTitle": "La récolte existe déjà",
-    "collectionExistsMsg": "« {{name}} » est déjà sur cet appareil. Écraser ou enregistrer comme nouvelle copie ?"
+    "collectionExistsMsg": "« {{name}} » est déjà sur cet appareil. Écraser ou enregistrer comme nouvelle copie ?",
+    "gloriaExistsTitle": "Ce relevé GLORIA existe déjà",
+    "gloriaExistsMsg": "{{name}} est déjà sur cet appareil. L’écraser le remplace par le fichier importé.",
+    "gloriaImported": "{{name}} importé"
   },
   "gbifLookup": {
     "title": "Recherche de nom sur GBIF",
@@ -2485,5 +2503,328 @@
     "orcidSignOutTitle": "Se déconnecter d'ORCID ?",
     "orcidSignOutMsg": "Les exportations ne seront plus signées tant que vous ne vous reconnectez pas. La clé est conservée.",
     "orcidLegacy": "{{orcid}}, saisi à la main auparavant, n'a pas été vérifié. Connectez-vous avec ORCID avant qu'il serve à signer."
+  },
+  "gloria": {
+    "notFound": "Relevé GLORIA introuvable",
+    "overview": "Vue d’ensemble",
+    "endTitle": "Terminer ce relevé GLORIA ?",
+    "endMsg": "Vous pourrez le rouvrir plus tard pour continuer.",
+    "unitsDone": "{{done}}/{{total}} unités terminées",
+    "tab": {
+      "points": "Données de base",
+      "map": "Vue des placettes",
+      "species": "Tableau des espèces"
+    },
+    "status": {
+      "none": "Pas commencé",
+      "progress": "En cours",
+      "done": "Terminé",
+      "warn": "Avertissements"
+    },
+    "list": {
+      "quadrats": "Quadrats de 1×1 m",
+      "sas": "Sections sommitales (SAS)",
+      "squares": "Carrés de 10×10 m"
+    },
+    "p5m": {
+      "title": "{{direction}} · grille 3×3 m (face au sommet)",
+      "explain": "p5m est l’angle extérieur de {{point}}, sur la courbe des 5 m (ligne turquoise). La grille 3×3 m de cette direction part de ce point.",
+      "notSet": "Aucun p5m pour {{direction}} : choisissez 11 ou 31 dans Données de base."
+    },
+    "new": {
+      "title": "Nouvelle enquête GLORIA",
+      "region": "Région cible {{region}}",
+      "lastMocy": "dernier : mocy {{mocy}}",
+      "firstSurvey": "aucun relevé",
+      "addSummit": "Ajouter un sommet",
+      "addSummitButton": "+ Ajouter un sommet",
+      "country": "Code pays",
+      "targetRegion": "Code de la région cible",
+      "summitCode": "Code du sommet",
+      "codeHint": "Pays 2 lettres (ISO 3166), région cible et sommet 3 caractères chacun, p. ex. TW-DAS-SUN (manuel, encadré 6.1).",
+      "codeInvalid": "Codes invalides : pays en 2 lettres, région cible et sommet en 3 lettres ou chiffres.",
+      "summitName": "Nom du sommet (facultatif)",
+      "elevation": "Altitude m",
+      "vegZone": "Étage de végétation",
+      "saveSummit": "Enregistrer le sommet",
+      "mocyIs": "Ce sera le mocy {{mocy}}",
+      "carryOver": "Reprend la distance et l’azimut de {{points}} points de mesure et le départ des carrés 10×10 m du mocy {{from}}. Espèces et recouvrements repartent vides : les relevés répétés sont faits à l’aveugle (manuel, encadré 4.5).",
+      "noCarryOver": "Premier relevé sur ce sommet : les 28 points de mesure sont à relever.",
+      "surveyors": "Observateurs",
+      "noSurveyors": "Aucun (valeurs par défaut dans Réglages › Observateurs)",
+      "start": "Commencer le relevé"
+    },
+    "points": {
+      "carried": "Points repris du dernier relevé ; les champs modifiés sont teintés en turquoise.",
+      "whereP5m": "Où est p5m ?",
+      "point": "Point",
+      "distance": "Dist. m",
+      "compass": "Azimut °",
+      "photo": "Photos",
+      "distanceOf": "{{point}} distance (m)",
+      "compassOf": "{{point}} azimut (°)",
+      "photoM2": "{{point}} photo du quadrat",
+      "photoM2F": "{{point}} photo du quadrat avec cadre de fréquence",
+      "photoPoint": "{{point}} photo du point",
+      "intersection": "Lignes d’intersection"
+    },
+    "photo": {
+      "camera": "Prendre une photo",
+      "library": "Choisir dans la photothèque",
+      "remove": "Retirer la photo"
+    },
+    "matrix": {
+      "quadrats": "1×1",
+      "sas": "SAS",
+      "squares": "10×10",
+      "quadratHint": "Recouvrement % ; f = cellules de fréquence. Touchez un nom de colonne pour ouvrir l’unité.",
+      "sasHint": "Abondance r! r s c d ; • = noté sans abondance.",
+      "squareHint": "Contacts sur 400 points ; • = espèce supplémentaire non touchée.",
+      "empty": "Aucune espèce pour l’instant",
+      "species": "Espèce"
+    },
+    "step": {
+      "cover": "Recouvrement et surface",
+      "frequency": "Fréquence",
+      "pointframe": "Point-frame",
+      "sas": "Espèces et abondance",
+      "linePoints": "400 points sur lignes",
+      "additional": "Espèces non touchées",
+      "notStarted": "non fait",
+      "pointsDone": "{{done}}/{{total}} points",
+      "here": "vous êtes ici",
+      "jump": "Aller à une autre unité",
+      "backToSummit": "Retour à la vue des placettes",
+      "speciesCount_one": "{{count}} espèce",
+      "speciesCount_many": "{{count}} espèces",
+      "speciesCount_other": "{{count}} espèces",
+      "freqDone_one": "{{count}} espèce saisie",
+      "freqDone_many": "{{count}} espèces saisies",
+      "freqDone_other": "{{count}} espèces saisies",
+      "freqCounted_one": "{{count}} comptée",
+      "freqCounted_many": "{{count}} comptée(s)",
+      "freqCounted_other": "{{count}} comptée(s)"
+    },
+    "issue": {
+      "topCoverSum": "Le recouvrement de surface totalise {{sum}} % au lieu de 100 %",
+      "vascularExceeds": "Plantes vasculaires {{vascular}} % > total du recouvrement des espèces {{sum}} %",
+      "subtypeRange": "Sous-type du recouvrement de surface {{value}} hors de 0–100",
+      "coverNoFreq": "{{name}} : {{cover}} % de recouvrement mais aucune cellule",
+      "sasMissing": "Dans les quadrats de cette direction mais pas ici : {{names}}",
+      "p5m": "Aucun p5m pour {{direction}} (11 ou 31)",
+      "freqNoCover_one": "{{name}} : dans {{count}} cellule mais sans recouvrement",
+      "freqNoCover_many": "{{name}} : dans {{count}} cellules mais sans recouvrement",
+      "freqNoCover_other": "{{name}} : dans {{count}} cellules mais sans recouvrement",
+      "pointInconsistent_one": "{{count}} point a à la fois une espèce et une surface, ou aucune",
+      "pointInconsistent_many": "{{count}} points ont à la fois une espèce et une surface, ou aucune",
+      "pointInconsistent_other": "{{count}} points ont à la fois une espèce et une surface, ou aucune"
+    },
+    "cover": {
+      "title": "Recouvrement de surface (%)",
+      "sumOk": "Total {{sum}} ✓",
+      "sumBad": "Total {{sum}} (devrait être 100)",
+      "subtypeHint": "En % du type de surface concerné (manuel p. 40) : p. ex. moitié d’une roche à 40 % couverte de lichens → 50.",
+      "cov_vascular": "Plantes vasculaires",
+      "cov_solid_rock": "Roche en place",
+      "cov_scree": "Éboulis",
+      "cov_lichens": "Lichens sur sol",
+      "cov_bryophytes": "Bryophytes sur sol",
+      "cov_bare_ground": "Sol nu",
+      "cov_litter": "Litière",
+      "sub_lich_below_vasc": "Lichens · sous vasculaires",
+      "sub_lich_on_rock": "Lichens · sur roche",
+      "sub_lich_on_scree": "Lichens · sur éboulis",
+      "sub_bry_below_vasc": "Bryophytes · sous vasculaires",
+      "sub_bry_on_rock": "Bryophytes · sur roche",
+      "sub_bry_on_scree": "Bryophytes · sur éboulis"
+    },
+    "surface": {
+      "R": "Roche en place",
+      "S": "Éboulis",
+      "L": "Lichens",
+      "B": "Bryophytes",
+      "G": "Sol nu",
+      "T": "Litière"
+    },
+    "unit": {
+      "env": "Environnement de la placette",
+      "aspect": "Exposition °",
+      "slope": "Pente °",
+      "aspectShort": "expo. {{v}}°",
+      "slopeShort": "pente {{v}}°",
+      "topSumShort": "surface total {{sum}}",
+      "topNotYet": "surface non saisie",
+      "subtypes": "Sous-types du recouvrement de surface (lichens/bryophytes)",
+      "vascularOk": "Plantes vasculaires {{vascular}} % ≤ total des espèces {{sum}} % ✓",
+      "vascularHint": "Le total des espèces ne doit pas être inférieur au recouvrement vasculaire (manuel p. 41). Vérifiez les espèces ou l’estimation de surface.",
+      "crossTitle": "Fréquence et recouvrement ne concordent pas",
+      "noSpecies": "Ajoutez des espèces avec la recherche ci-dessous",
+      "coverRule": "Recouvrement en %, sans « < » ni « > » (manuel, formulaire 2). Touchez un nom pour le détail ; appui long pour retirer.",
+      "coverOf": "{{name}} recouvrement %",
+      "cf": "Identification incertaine (cf.)",
+      "openDetail": "Ouvrir le détail",
+      "remove": "Retirer de cette unité",
+      "rowHint": "Ouvre le détail de l’espèce",
+      "added": "{{name}} ajouté",
+      "markDone": "Marquer l’unité comme terminée",
+      "markUndone": "Marquer comme non terminée",
+      "sasMissingTitle": "Toutes les espèces des quadrats {{direction}} ne sont pas notées",
+      "addAll": "Tout ajouter",
+      "abundanceLegend": "r! très rare · r rare · s dispersé · c commun · d dominant (>50 %, manuel p. 42)",
+      "grazing": "Pâturage/traces animales",
+      "grazingPlaceholder": "p. ex. fèces, abroutissement, piétinement",
+      "speciesHeader_one": "Espèces ({{count}}) · total {{sum}}",
+      "speciesHeader_many": "Espèces ({{count}}) · total {{sum}}",
+      "speciesHeader_other": "Espèces ({{count}}) · total {{sum}}",
+      "sasHeader_one": "Espèces ({{count}}) · abondance",
+      "sasHeader_many": "Espèces ({{count}}) · abondance",
+      "sasHeader_other": "Espèces ({{count}}) · abondance",
+      "fromQuadratsDone_one": "{{count}} espèce ajoutée depuis les quadrats",
+      "fromQuadratsDone_many": "{{count}} espèces ajoutées depuis les quadrats",
+      "fromQuadratsDone_other": "{{count}} espèces ajoutées depuis les quadrats"
+    },
+    "square": {
+      "walk": "Départ et sens (formulaire 6-S, quatre options)",
+      "option1": "Bord inférieur gauche · depuis l’angle bas",
+      "option2": "Bord inférieur gauche · depuis l’angle gauche",
+      "option3": "Bord inférieur droit · depuis l’angle bas",
+      "option4": "Bord inférieur droit · depuis l’angle droit",
+      "pickWalk": "Choisissez d’abord le départ. Les relevés répétés reprennent le choix précédent (manuel p. 57).",
+      "start": "Saisir les points ({{done}}/400)",
+      "hitsTitle": "Contacts et recouvrement ({{done}}/400 ; recouvrement = contacts ÷ 4)",
+      "fromQuadrats": "Ajouter depuis les 4 quadrats",
+      "extraEmpty": "Après les points, notez les espèces non touchées, en commençant par celles des 4 quadrats (manuel p. 58).",
+      "extra_one": "Espèces non touchées ({{count}})",
+      "extra_many": "Espèces non touchées ({{count}})",
+      "extra_other": "Espèces non touchées ({{count}})"
+    },
+    "species": {
+      "inUnit": "{{code}} · n° de liste {{serial}}",
+      "abundance": "Abondance",
+      "cover": "Recouvrement %",
+      "cf": "Identification incertaine",
+      "cfHint": "g genre, s espèce, t infraspécifique (manuel, formulaire 2, note 5)",
+      "lineage": "Classification",
+      "openKey": "Ouvrir la clé : {{name}}",
+      "repro": "État reproductif (plusieurs)",
+      "leaf": "Phénologie foliaire (plusieurs)",
+      "notes": "Notes",
+      "notesPlaceholder": "p. ex. pieds desséchés, caractères douteux"
+    },
+    "rank": {
+      "kingdom": "Règne",
+      "phylum": "Embranchement",
+      "class": "Classe",
+      "order": "Ordre",
+      "family": "Famille",
+      "genus": "Genre"
+    },
+    "freq": {
+      "title": "{{code}} · fréquence",
+      "undo": "Annuler",
+      "brush": "Pinceau",
+      "cellMode": "Cellule par cellule",
+      "uphill": "▲ Vers le sommet (amont)",
+      "gridLabel": "Grille de fréquence 10×10",
+      "hi1": "Hi1 fèces",
+      "hi2": "Hi2 abroutissement",
+      "hi3": "Hi3 piétinement",
+      "newSpecies": "+ Nouvelle espèce",
+      "fillAll": "Tout remplir",
+      "inverse": "Marquer les absences",
+      "inverseDone": "Fin des absences",
+      "clear": "Effacer",
+      "brushHint": "Choisissez une espèce ou Hi puis glissez sur les cellules ; commencer sur une cellule remplie efface. Points gris = autres espèces.",
+      "inverseHint": "Les 100 cellules sont remplies. Glissez sur celles où l’espèce est absente (×), puis « Fin ».",
+      "cellTitle": "{{cell}} ({{n}}/100)",
+      "emptyNext": "Vide → suivante",
+      "next": "Cellule suivante ▶",
+      "addedNoCover": "{{name}} ajouté ; recouvrement à saisir",
+      "goCover": "Saisir le recouvrement",
+      "countMode": "Nombre seul",
+      "countHint": "Pour les relevés sans données par cellule : saisissez seulement le nombre de cellules (entier, 0–100) pour chaque espèce et perturbation.",
+      "switchTitle": "Changer de méthode",
+      "switchToCount": "Passer au nombre efface les cellules marquées dans ce quadrat (espèces et Hi1–Hi3). Changer quand même ?",
+      "switchToCells": "Revenir aux cellules efface les nombres saisis. Changer quand même ?",
+      "switchConfirm": "Effacer et changer"
+    },
+    "walk": {
+      "titleQuadrat": "{{code}} · point-frame",
+      "titleSquare": "{{code}} · points 10×10 m",
+      "linePoint": "Ligne {{line}} · point {{point}}",
+      "point": "Point {{n}}",
+      "allDone": "Les {{total}} points sont faits",
+      "progress": "{{done}}/{{total}} saisis",
+      "forward": "→ Le long de la ligne",
+      "back": "← Retour",
+      "species": "Plantes vasculaires touchées (plusieurs)",
+      "surface": "Aucune plante : type de surface",
+      "same": "Comme le précédent",
+      "next": "Point suivant ▶",
+      "lineDone": "Ligne {{line}} terminée : {{hits}} contacts"
+    },
+    "endWithIssues_one": "{{count}} avertissement reste ouvert. Terminer quand même ? Vous pourrez rouvrir.",
+    "endWithIssues_many": "{{count}} avertissements restent ouverts. Terminer quand même ? Vous pourrez rouvrir.",
+    "endWithIssues_other": "{{count}} avertissements restent ouverts. Terminer quand même ? Vous pourrez rouvrir.",
+    "kb": {
+      "next": "Suivant",
+      "done": "OK"
+    },
+    "num": {
+      "rejectTitle": "Valeur hors limites",
+      "reject": "{{label}} : {{value}}{{unit}} est hors de {{min}}–{{max}}{{unit}}. Non enregistré ; la valeur précédente est rétablie.",
+      "warnTitle": "Vérifiez cette valeur",
+      "warn": "{{label}} : {{value}}{{unit}} sort de la plage habituelle {{min}}–{{max}}{{unit}}. Enregistré ; corrigez s’il s’agit d’une faute de frappe.",
+      "rejectInt": "{{label}} : {{value}} n’est pas un entier. La fréquence compte des cellules ; saisissez un entier de 0 à 100. Non enregistré ; la valeur précédente est rétablie."
+    },
+    "foldCount": "{{title}} ({{n}})",
+    "summit": {
+      "title": "Sommet",
+      "code": "Code du sommet",
+      "name": "Nom",
+      "namePlaceholder": "Facultatif",
+      "lat": "Latitude (WGS84)",
+      "lon": "Longitude (WGS84)",
+      "elevation": "Altitude (m)",
+      "zone": "Étage de végétation",
+      "zoneNone": "Non défini",
+      "photos": "Photos de l’environnement ({{n}})",
+      "photosHint": "Exportées en SU-OV (vue d’ensemble du sommet) selon l’annexe III du manuel, le point de vue formant l’élément 8 du nom de fichier. Indiquez d’où chaque photo a été prise, par ex. « depuis le col S ».",
+      "viewpoint": "Point de vue",
+      "viewpointLabel": "Point de vue de la photo {{n}}",
+      "photoFail": "Impossible d’ajouter la photo"
+    },
+    "times": {
+      "title": "Observateurs et heures",
+      "cover": "Estimation du recouvrement",
+      "freq": "Fréquence",
+      "survey": "Relevé",
+      "start": "Début",
+      "stop": "Fin",
+      "now": "Maintenant",
+      "orderTitle": "Heures dans le mauvais ordre",
+      "order": "La fin de « {{what}} » ne peut pas précéder son début.",
+      "hint": "Le début est enregistré à la première saisie et la fin quand vous touchez « Marquer l’unité comme terminée » ; touchez une heure pour la modifier.",
+      "hintQuadrat": "Recouvrement : début à la première saisie, fin à « Marquer l’unité comme terminée ». Fréquence : début au premier trait ; la fin suit la dernière modification jusqu’à ce que vous la fixiez à la main. Touchez une heure pour la modifier.",
+      "by": "Observateurs",
+      "bySurvey": "Comme le relevé : {{names}}",
+      "byNone": "Non défini"
+    }
+  },
+  "vernacular": {
+    "title": "Langues des noms vernaculaires",
+    "hint": "Choisissez les langues des noms vernaculaires (jusqu’à {{n}}). Ils sont joints par « / » dans l’ordre ci-dessous ; le premier est le nom principal. Les écrans et les exports suivent ce réglage ; la recherche porte toujours sur les noms de toutes les listes activées. Les étiquettes d’herbier n’impriment qu’un seul nom.",
+    "order": "Langues et ordre",
+    "zhTW": "Noms chinois (traditionnel)",
+    "zhTWSource": "Liste de Taïwan (TaiCOL)",
+    "ja": "Noms japonais (wamei)",
+    "jaSource": "Liste des plantes vasculaires du Japon (YList)",
+    "zhTWShort": "Chinois",
+    "jaShort": "Japonais",
+    "keepOne": "Gardez au moins une langue.",
+    "max": "Jusqu’à {{n}} noms vernaculaires peuvent être affichés à la fois.",
+    "moveUp": "Monter",
+    "moveDown": "Descendre",
+    "onlyOne": "Une seule liste est activée : une seule langue est disponible. Activez une autre liste (par exemple le Japon) dans « {{page}} » pour ajouter sa langue."
   }
 }

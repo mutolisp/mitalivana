@@ -112,5 +112,6 @@ export function deleteProject(id: number): void {
   db.executeSync(`UPDATE plot_surveys SET project_id = 0 WHERE project_id = ?`, [id]);
   db.executeSync(`UPDATE sites SET project_id = 0 WHERE project_id = ?`, [id]);
   db.executeSync(`UPDATE collection_trips SET project_id = 0 WHERE project_id = ?`, [id]);
+  db.executeSync(`UPDATE gloria_surveys SET project_id = 0 WHERE project_id = ?`, [id]);
   db.executeSync(`DELETE FROM projects WHERE id = ?`, [id]);
 }

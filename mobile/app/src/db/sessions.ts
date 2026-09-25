@@ -1,4 +1,5 @@
 import { getUserDb, withTransaction } from './init';
+import { closeActiveRecords } from './activeRecords';
 import { existingProjectId, resolveProjectIdByName } from './projects';
 import { createSite, deleteSiteIfUnreferenced, getSite, type ImportedSite } from './sites';
 import { defaultSurveyorString } from './surveyors';
@@ -100,15 +101,11 @@ export function endAllActiveSessions(): void {
 export function createSession(input: CreateSessionInput = {}): number {
   const db = getUserDb();
   const now = Date.now();
-  // Belt + suspenders: enforce single-active across BOTH kinds before we open
+  // Belt + suspenders: enforce single-active across all kinds before we open
   // another. UI gate (recordCreate.ts) is the primary check, but reopen / fab
   // paths in session/[id] + plots tab bypass it, so the DB layer must close
   // any active session AND any active plot here.
-  db.executeSync(`UPDATE sessions SET ended_at = ? WHERE ended_at IS NULL`, [now]);
-  db.executeSync(
-    `UPDATE plot_surveys SET status = 'done', stop_ts = COALESCE(stop_ts, ?), updated_at = ? WHERE status = 'active'`,
-    [now, now],
-  );
+  closeActiveRecords(db, now);
   const res = db.executeSync(
     `INSERT INTO sessions (uuid, name, type, project_id, started_at, gps_mode, start_lat, start_lng, recorded_by)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -176,11 +173,7 @@ export function deleteSession(id: number): void {
 export function reopenSession(id: number): void {
   const db = getUserDb();
   const now = Date.now();
-  db.executeSync(`UPDATE sessions SET ended_at = ? WHERE ended_at IS NULL AND id != ?`, [now, id]);
-  db.executeSync(
-    `UPDATE plot_surveys SET status = 'done', stop_ts = COALESCE(stop_ts, ?), updated_at = ? WHERE status = 'active'`,
-    [now, now],
-  );
+  closeActiveRecords(db, now, { kind: 'session', id });
   db.executeSync(`UPDATE sessions SET ended_at = NULL, resumed_at = ? WHERE id = ?`, [now, id]);
 }
 
@@ -407,12 +400,8 @@ function duplicateSessionTx(id: number, opts: DuplicateRecordOptions): number | 
   const now = Date.now();
 
   if (opts.activate) {
-    // Mirrors createSession: at most one open record across both kinds.
-    db.executeSync(`UPDATE sessions SET ended_at = ? WHERE ended_at IS NULL`, [now]);
-    db.executeSync(
-      `UPDATE plot_surveys SET status = 'done', stop_ts = COALESCE(stop_ts, ?), updated_at = ? WHERE status = 'active'`,
-      [now, now],
-    );
+    // Mirrors createSession: at most one open record across all kinds.
+    closeActiveRecords(db, now);
   }
 
   const res = db.executeSync(

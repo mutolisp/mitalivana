@@ -31,6 +31,7 @@ import { clearGoogleTokens } from '~/lib/googleAuth';
 import { clearInatTokens } from '~/lib/inatAuth';
 import { useToast } from '~/stores/toast';
 import { useActivePlot } from '~/stores/activePlot';
+import { useActiveGloria } from '~/modules/gloria/store';
 import { useActiveSession } from '~/stores/activeSession';
 import { useTabBarInset } from '~/lib/tabBarLayout';
 
@@ -45,12 +46,14 @@ export default function MenuScreen() {
   // on every settings write from anywhere in the app.
   const language = useSettings((s) => s.language);
   const theme = useSettings((s) => s.theme);
+  const vernacularLangs = useSettings((s) => s.vernacular_langs);
   const cardDensity = useSettings((s) => s.card_density);
   const fontScale = useSettings((s) => s.font_scale);
   const undoDuration = useSettings((s) => s.undo_duration);
   const recordTypeDefault = useSettings((s) => s.record_type_default);
   const gpsSession = useSettings((s) => s.record_gps_session);
   const gpsPlot = useSettings((s) => s.record_gps_plot);
+  const moduleGloria = useSettings((s) => s.module_gloria);
   const fabSide = useSettings((s) => s.fab_side);
   const inatLogin = useSettings((s) => s.inat_login);
   const vectorReady = useVectorInstall((x) => x.ready);
@@ -168,6 +171,7 @@ export default function MenuScreen() {
                     // ActiveSessionBar pointing at a plot that no longer exists.
                     useActiveSession.getState().refresh();
                     useActivePlot.getState().refresh();
+                    useActiveGloria.getState().refresh();
                     toast(t('settings.allCleared'));
                     router.replace('/');
                   } catch (e) {
@@ -236,6 +240,12 @@ export default function MenuScreen() {
           description={t('settings.gpsPerSpeciesPlotDesc')}
           value={gpsPlot}
           onChange={(v) => setSetting('record_gps_plot', v)}
+        />
+        <SwitchRow
+          label={t('settings.moduleGloria')}
+          description={t('settings.moduleGloriaDesc')}
+          value={moduleGloria}
+          onChange={(v) => setSetting('module_gloria', v)}
         />
         <LinkRow
           label={t('settings.surveyors')}
@@ -308,6 +318,11 @@ export default function MenuScreen() {
           label={t('settings.language')}
           value={languageLabel}
           onPress={() => router.push('/settings/language' as Href)}
+        />
+        <LinkRow
+          label={t('vernacular.title')}
+          value={vernacularLangs.map((l) => t(l === 'ja' ? 'vernacular.jaShort' : 'vernacular.zhTWShort')).join(' / ')}
+          onPress={() => router.push('/settings/vernacular' as Href)}
         />
         <SelectRow
           label={t('settings.theme')}

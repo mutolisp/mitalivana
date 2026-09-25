@@ -75,6 +75,17 @@ import { geoJsonToGpx, geoJsonToKml } from './geoSerializers';
 import { injectFileDigests, isManifestPath } from './manifestDigest';
 import { injectSignatures } from './signing';
 import { activeSigner } from './signingKey';
+import {
+  getGloriaSurvey,
+  listPoints as listGloriaPoints,
+  listUnits as listGloriaUnits,
+  loadExportData,
+  loadGloriaDoc,
+  p5mOf,
+} from '~/modules/gloria/db';
+import { planPhotoNames, yyyymmdd } from '~/modules/gloria/export/photoNames';
+import { parseOverviewPhotos } from '~/modules/gloria/model/overview';
+import { buildPointHitRows, buildSheetTables, POINT_HITS_HEADER, toCsv } from '~/modules/gloria/export/sheetRows';
 
 
 export type GeoFormat = 'geojson' | 'gpx' | 'kml';
@@ -138,7 +149,8 @@ export type ExportFile = {
 export type BundleItem =
   | { kind: 'session'; id: number }
   | { kind: 'plot'; id: number }
-  | { kind: 'collection'; id: number };
+  | { kind: 'collection'; id: number }
+  | { kind: 'gloria'; id: number };
 
 export function sanitizeFilename(name: string): string {
   // Allow Unicode letters (incl. CJK), digits, underscore, hyphen, dot. Without
@@ -1021,6 +1033,88 @@ export async function buildPlotEntries(
   return { entries, folderName: base };
 }
 
+/**
+ * A GLORIA survey: the round-trip yml, one CSV per tab of the Taiwan sheet
+ * (12_ and 13_ merged), and the per-point long table. Sheet CSVs are the
+ * deliverable; the yml restores the survey in the app.
+ */
+export async function buildGloriaEntries(
+  surveyId: number,
+  opts?: Pick<BundleOptions, 'includePhotos' | 'onProgress'>,
+): Promise<{ entries: BuiltZipEntry[]; folderName: string }> {
+  const data = loadExportData(surveyId);
+  const doc = loadGloriaDoc(surveyId);
+  if (!data || !doc) throw new Error(`GLORIA survey ${surveyId} not found`);
+  const base = sanitizeFilename(`GLORIA_${data.summit.full_code}_mocy${data.survey.mocy}`);
+  const entries: BuiltZipEntry[] = [];
+  entries.push({
+    name: `${base}/${base}.yml`,
+    bytes: strToU8(yaml.dump(doc, { lineWidth: -1, noRefs: true })),
+  });
+  for (const t of buildSheetTables(data)) {
+    if (t.rows.length === 0) continue;
+    entries.push({ name: `${base}/${base}_${t.name}.csv`, bytes: strToU8(toCsv(t.header, t.rows)) });
+  }
+  const pointRows = buildPointHitRows(data);
+  if (pointRows.length) {
+    entries.push({ name: `${base}/${base}_point_hits.csv`, bytes: strToU8(toCsv(POINT_HITS_HEADER, pointRows)) });
+  }
+  // Photos named per manual Annex III, in photos/ like the other exports.
+  let photoCount = 0;
+  if (opts?.includePhotos) {
+    const points = listGloriaPoints(surveyId);
+    const plan = planPhotoNames({
+      mocy: data.survey.mocy,
+      country: data.summit.country,
+      region: data.summit.target_region,
+      summit: data.summit.summit,
+      date: yyyymmdd(data.survey.start_ts),
+      p5m: p5mOf(points),
+      points,
+      units: listGloriaUnits(surveyId).map((u) => ({ code: u.code, photo_uris: parsePhotoUris(u.photo_paths) })),
+      overview: parseOverviewPhotos(getGloriaSurvey(surveyId)?.overview_photos),
+      extOf: (uri) => guessExt(uri),
+    });
+    if (plan.length) await ensurePhotosReadAccess();
+    for (let i = 0; i < plan.length; i++) {
+      opts.onProgress?.({ label: '處理照片', done: i, total: plan.length });
+      const fileUri = await resolveAssetUri(plan[i].uri);
+      if (!fileUri) continue;
+      try {
+        const b64 = await readAsStringAsync(fileUri, { encoding: 'base64' });
+        entries.push({ name: `${base}/photos/${plan[i].name}`, bytes: base64ToBytes(b64) });
+        photoCount += 1;
+      } catch {
+        // unreadable (deleted from the library): skip, the manifest count says how many made it
+      }
+    }
+  }
+  const manifest = buildManifest({
+    kind: 'gloria',
+    id: surveyId,
+    uuid: data.survey.uuid,
+    name: `${data.summit.full_code} mocy ${data.survey.mocy}`,
+    record_count: data.species.length,
+    photo_count: photoCount,
+  });
+  entries.push({ name: `${base}/manifest.json`, bytes: strToU8(JSON.stringify(manifest, null, 2)) });
+  const photoNote = photoCount
+    ? '\n\n## GLORIA 照片檔名\n\n' +
+      '- 依 GLORIA Field Manual 5th ed. Annex III：監測週期_國碼_目標區_山峰_項目代碼(8 碼，補 _)_日期_流水號(5 碼)。\n' +
+      '- 流水號只在這次調查內唯一。手冊要求在整個目標區內唯一，送交 GLORIA 中央資料庫前請在室內重新編號（例如用 GPDM）。\n' +
+      '- 日期取調查開始日，不是各張照片的拍攝時間；照片本身的 EXIF 保留原拍攝時間。\n'
+    : '';
+  entries.push({ name: `${base}/README.md`, bytes: strToU8(buildRecordReadme(base, entries) + photoNote) });
+  return { entries, folderName: base };
+}
+
+export async function bundleGloria(surveyId: number, opts: BundleOptions): Promise<ExportFile> {
+  opts.onProgress?.({ label: '準備中…' });
+  const { entries, folderName } = await buildGloriaEntries(surveyId, opts);
+  await reportZipStage(opts.onProgress);
+  return await finalizeZip(entries, folderName);
+}
+
 export async function buildCollectionEntries(
   tripId: number,
   opts: BundleOptions,
@@ -1552,7 +1646,7 @@ export function base64ToBytes(b64: string): Uint8Array {
 }
 
 function buildManifest(meta: {
-  kind: 'session' | 'plot' | 'collection' | 'bundle';
+  kind: 'session' | 'plot' | 'collection' | 'gloria' | 'bundle';
   id?: number;
   /** Plot survey uuid (plot_surveys.uuid) — the stable round-trip key. */
   uuid?: string;
@@ -1646,7 +1740,7 @@ export async function bundleMany(items: BundleItem[], opts: BundleOptions): Prom
     for (const it of items) {
       if (it.kind === 'session') totalPhotos += countPhotosSession(listSessionRecords(it.id));
       else if (it.kind === 'collection') totalPhotos += countPhotosSession(listSpecimens(it.id));
-      else totalPhotos += countPhotosPlotWithEnv(it.id);
+      else if (it.kind === 'plot') totalPhotos += countPhotosPlotWithEnv(it.id);
     }
   }
   const ctx = { done: 0, total: totalPhotos, onProgress: opts.onProgress };
@@ -1673,6 +1767,10 @@ export async function bundleMany(items: BundleItem[], opts: BundleOptions): Prom
           uuid: getCollectionTrip(it.id)?.uuid,
           folder: folderName,
         });
+      } else if (it.kind === 'gloria') {
+        const { entries, folderName } = await buildGloriaEntries(it.id, opts);
+        allEntries.push(...entries);
+        itemMeta.push({ kind: 'gloria', id: it.id, folder: folderName });
       } else {
         const { entries, folderName } = await buildPlotEntries(it.id, opts, ctx);
         allEntries.push(...entries);

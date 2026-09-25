@@ -14,6 +14,7 @@ import {
 } from '~/lib/track';
 import { generateUuid } from './uuid';
 import { getUserDb, withTransaction } from './init';
+import { closeActiveRecords } from './activeRecords';
 import { ensureTaxonSelfSufficient } from './taxonCache';
 import { retaxonRecord } from './retaxon';
 import { existingProjectId, resolveProjectIdByName } from './projects';
@@ -280,15 +281,11 @@ export function endAllActivePlots(): void {
 export function createPlotSurvey(input: CreatePlotInput): number {
   const db = getUserDb();
   const now = Date.now();
-  // Belt + suspenders: enforce single-active across BOTH kinds before we open
+  // Belt + suspenders: enforce single-active across all kinds before we open
   // another. UI gate (recordCreate.ts) is the primary check, but the plots
   // tab "+" button bypasses it, so the DB layer must close any active session
   // AND any active plot here.
-  db.executeSync(
-    `UPDATE plot_surveys SET status = 'done', stop_ts = COALESCE(stop_ts, ?), updated_at = ? WHERE status = 'active'`,
-    [now, now],
-  );
-  db.executeSync(`UPDATE sessions SET ended_at = ? WHERE ended_at IS NULL`, [now]);
+  closeActiveRecords(db, now);
   const res = db.executeSync(
     `INSERT INTO plot_surveys (
        uuid, plotid, plot_type, project_id, status,
@@ -726,11 +723,7 @@ export function reopenPlotSurvey(id: number): void {
   // Force-end any other active plot AND any active session first to keep the
   // single-active-across-kinds invariant. UI's `recordCreate.ts` is the
   // primary gate but the plot/[id] "重開" button bypasses it.
-  db.executeSync(
-    `UPDATE plot_surveys SET status = 'done', stop_ts = COALESCE(stop_ts, ?), updated_at = ? WHERE status = 'active' AND id != ?`,
-    [now, now, id],
-  );
-  db.executeSync(`UPDATE sessions SET ended_at = ? WHERE ended_at IS NULL`, [now]);
+  closeActiveRecords(db, now, { kind: 'plot', id });
   // Stamp `resumed_at` so StalePlotWatcher's baseline isn't the original
   // `start_ts` (which could be days old when reopening an ended plot).
   db.executeSync(
@@ -1431,11 +1424,7 @@ function duplicatePlotSurveyTx(id: number, opts: DuplicateRecordOptions): number
   if (opts.activate) {
     // Same belt + suspenders as createPlotSurvey: the copy can only become the
     // active record if nothing else is.
-    db.executeSync(
-      `UPDATE plot_surveys SET status = 'done', stop_ts = COALESCE(stop_ts, ?), updated_at = ? WHERE status = 'active'`,
-      [now, now],
-    );
-    db.executeSync(`UPDATE sessions SET ended_at = ? WHERE ended_at IS NULL`, [now]);
+    closeActiveRecords(db, now);
   }
 
   // Species rows are read up front: without the source's layer settings the

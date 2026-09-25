@@ -1381,6 +1381,219 @@ const MIGRATIONS: Migration[] = [
       }
     },
   },
+  {
+    // GLORIA summit monitoring (src/modules/gloria). One survey = one
+    // monitoring cycle (mocy) on one summit; it owns 28 units (16 quadrats,
+    // 8 summit area sections, 4 10×10 m squares) and 28 measurement points,
+    // all created with the survey.
+    //
+    // Cell and point data are fixed-length strings, one character per cell
+    // or point (model/grid.ts): NULL = method not done, all '0' = done and
+    // nothing found. `gloria_taxa` is the survey's roster and the only table
+    // here that holds a taxon_id; unit rows point at it, so re-identifying a
+    // taxon fixes every unit at once.
+    //
+    // `status` takes part in the app-wide single-active invariant, like
+    // sessions and plot surveys.
+    version: 47,
+    up: (db) => {
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS gloria_summits (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          full_code TEXT NOT NULL UNIQUE,
+          country TEXT NOT NULL,
+          target_region TEXT NOT NULL,
+          summit TEXT NOT NULL,
+          name TEXT,
+          decimal_latitude REAL,
+          decimal_longitude REAL,
+          twd97x REAL,
+          twd97y REAL,
+          elevation_m REAL,
+          veg_zone TEXT,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL
+        );
+      `);
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS gloria_surveys (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          uuid TEXT NOT NULL UNIQUE,
+          summit_id INTEGER NOT NULL,
+          mocy INTEGER NOT NULL,
+          year INTEGER,
+          status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'done')),
+          start_ts INTEGER NOT NULL,
+          stop_ts INTEGER,
+          recorded_by TEXT,
+          prev_survey_id INTEGER,
+          project_id INTEGER NOT NULL DEFAULT 0,
+          site_id INTEGER,
+          grid_ok_n INTEGER NOT NULL DEFAULT 0,
+          grid_ok_e INTEGER NOT NULL DEFAULT 0,
+          grid_ok_s INTEGER NOT NULL DEFAULT 0,
+          grid_ok_w INTEGER NOT NULL DEFAULT 0,
+          notes TEXT,
+          starred INTEGER NOT NULL DEFAULT 0,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          FOREIGN KEY (summit_id) REFERENCES gloria_summits(id),
+          FOREIGN KEY (prev_survey_id) REFERENCES gloria_surveys(id) ON DELETE SET NULL,
+          FOREIGN KEY (project_id) REFERENCES projects(id),
+          UNIQUE (summit_id, mocy)
+        );
+      `);
+      db.executeSync(`CREATE INDEX IF NOT EXISTS idx_gsurv_summit ON gloria_surveys(summit_id, mocy);`);
+      db.executeSync(`CREATE INDEX IF NOT EXISTS idx_gsurv_start ON gloria_surveys(start_ts DESC);`);
+      db.executeSync(
+        `CREATE INDEX IF NOT EXISTS idx_gsurv_active ON gloria_surveys(status) WHERE status = 'active';`,
+      );
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS gloria_points (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          survey_id INTEGER NOT NULL,
+          point_key TEXT NOT NULL,
+          is_p5m INTEGER NOT NULL DEFAULT 0,
+          distance_m REAL,
+          compass_deg REAL,
+          photo_m2 TEXT,
+          photo_m2f TEXT,
+          photo_point TEXT,
+          comments TEXT,
+          uuid TEXT NOT NULL UNIQUE,
+          FOREIGN KEY (survey_id) REFERENCES gloria_surveys(id) ON DELETE CASCADE,
+          UNIQUE (survey_id, point_key)
+        );
+      `);
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS gloria_units (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          survey_id INTEGER NOT NULL,
+          code TEXT NOT NULL,
+          unit_type TEXT NOT NULL CHECK (unit_type IN ('quadrat', 'sas', 'square')),
+          start_ts INTEGER,
+          stop_ts INTEGER,
+          freq_start_ts INTEGER,
+          freq_stop_ts INTEGER,
+          recorded_by TEXT,
+          aspect_deg REAL,
+          slope_deg REAL,
+          cov_vascular REAL,
+          cov_solid_rock REAL,
+          cov_scree REAL,
+          cov_lichens REAL,
+          cov_bryophytes REAL,
+          cov_bare_ground REAL,
+          cov_litter REAL,
+          sub_lich_below_vasc REAL,
+          sub_lich_on_rock REAL,
+          sub_lich_on_scree REAL,
+          sub_bry_below_vasc REAL,
+          sub_bry_on_rock REAL,
+          sub_bry_on_scree REAL,
+          dist_hi1 TEXT,
+          dist_hi2 TEXT,
+          dist_hi3 TEXT,
+          point_surface TEXT,
+          walk_option INTEGER CHECK (walk_option IS NULL OR walk_option BETWEEN 1 AND 4),
+          legacy_surface_hits TEXT,
+          grazing_note TEXT,
+          comments TEXT,
+          photo_paths TEXT,
+          uuid TEXT NOT NULL UNIQUE,
+          updated_at INTEGER NOT NULL,
+          FOREIGN KEY (survey_id) REFERENCES gloria_surveys(id) ON DELETE CASCADE,
+          UNIQUE (survey_id, code)
+        );
+      `);
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS gloria_taxa (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          survey_id INTEGER NOT NULL,
+          taxon_id TEXT NOT NULL,
+          serial INTEGER NOT NULL,
+          used_name_id INTEGER,
+          used_scientific_name TEXT,
+          verbatim_identification TEXT,
+          created_at INTEGER NOT NULL,
+          FOREIGN KEY (survey_id) REFERENCES gloria_surveys(id) ON DELETE CASCADE,
+          UNIQUE (survey_id, taxon_id),
+          UNIQUE (survey_id, serial)
+        );
+      `);
+      db.executeSync(`CREATE INDEX IF NOT EXISTS idx_gtaxa_taxon ON gloria_taxa(taxon_id);`);
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS gloria_unit_species (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          unit_id INTEGER NOT NULL,
+          gloria_taxon_id INTEGER NOT NULL,
+          occurrence_id TEXT NOT NULL UNIQUE,
+          cover_pct REAL CHECK (cover_pct IS NULL OR (cover_pct >= 0 AND cover_pct <= 100)),
+          abundance TEXT CHECK (abundance IS NULL OR abundance IN ('r!', 'r', 's', 'c', 'd')),
+          layer TEXT,
+          cf TEXT CHECK (cf IS NULL OR cf IN ('g', 's', 't')),
+          freq_cells TEXT,
+          point_hits TEXT,
+          legacy_hits INTEGER,
+          reproductive_condition TEXT,
+          leaf_phenology TEXT,
+          comments TEXT,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          FOREIGN KEY (unit_id) REFERENCES gloria_units(id) ON DELETE CASCADE,
+          FOREIGN KEY (gloria_taxon_id) REFERENCES gloria_taxa(id) ON DELETE CASCADE,
+          UNIQUE (unit_id, gloria_taxon_id)
+        );
+      `);
+      db.executeSync(`CREATE INDEX IF NOT EXISTS idx_gus_taxon ON gloria_unit_species(gloria_taxon_id);`);
+    },
+  },
+  {
+    // GLORIA frequency as a count only. Some past cycles (e.g. the first
+    // resurvey) recorded how many of the 100 cells a species occupied without
+    // marking which ones. `freq_mode` says how a quadrat's frequency was taken:
+    // 'cells' (freq_cells / dist_hi* masks) or 'count' (freq_count /
+    // dist_hi*_n); NULL = frequency not done.
+    version: 48,
+    up: (db) => {
+      addColumnIfMissing(
+        db,
+        `ALTER TABLE gloria_unit_species ADD COLUMN freq_count INTEGER CHECK (freq_count IS NULL OR (freq_count >= 0 AND freq_count <= 100));`,
+      );
+      addColumnIfMissing(
+        db,
+        `ALTER TABLE gloria_units ADD COLUMN freq_mode TEXT CHECK (freq_mode IS NULL OR freq_mode IN ('cells', 'count'));`,
+      );
+      for (const c of ['dist_hi1_n', 'dist_hi2_n', 'dist_hi3_n']) {
+        addColumnIfMissing(
+          db,
+          `ALTER TABLE gloria_units ADD COLUMN ${c} INTEGER CHECK (${c} IS NULL OR (${c} >= 0 AND ${c} <= 100));`,
+        );
+      }
+      // Quadrats that already have cell masks were done by cells.
+      db.executeSync(
+        `UPDATE gloria_units SET freq_mode = 'cells' WHERE freq_mode IS NULL
+           AND (dist_hi1 IS NOT NULL OR dist_hi2 IS NOT NULL OR dist_hi3 IS NOT NULL
+             OR EXISTS (SELECT 1 FROM gloria_unit_species us WHERE us.unit_id = gloria_units.id AND us.freq_cells IS NOT NULL))`,
+      );
+    },
+  },
+  {
+    // GLORIA summit overview photos (manual Annex III item SU-OV): JSON array
+    // of { uri, viewpoint } — the viewpoint is element 8 of the file name.
+    version: 49,
+    up: (db) => {
+      addColumnIfMissing(db, `ALTER TABLE gloria_surveys ADD COLUMN overview_photos TEXT;`);
+    },
+  },
+  {
+    // The frequency end time follows the last edit until the user sets it by
+    // hand; from then on it is theirs (see touchFrequency).
+    version: 50,
+    up: (db) => {
+      addColumnIfMissing(db, `ALTER TABLE gloria_units ADD COLUMN freq_stop_manual INTEGER NOT NULL DEFAULT 0;`);
+    },
+  },
 ];
 
 /** Highest schema version this build knows how to produce. Backup/restore uses

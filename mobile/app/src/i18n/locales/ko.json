@@ -92,7 +92,8 @@
     "nSpeciesTotal_other": "{{count}}종",
     "nFolders_other": "목록 {{count}}개",
     "nSpeciesInThem_other": "그 안의 {{count}}종",
-    "addedCount_other": "{{count}}종을 즐겨찾기에 추가했습니다"
+    "addedCount_other": "{{count}}종을 즐겨찾기에 추가했습니다",
+    "kindGloria": "GLORIA"
   },
   "gnss": {
     "permTitle": "위치 권한이 필요합니다",
@@ -231,7 +232,9 @@
     "deletedCount_other": "조사 기록 {{count}}건을 삭제했습니다",
     "search": "검색",
     "searchPlaceholder": "프로젝트 이름·설명 또는 기록 이름 검색",
-    "searchNoMatch": "“{{q}}”와(과) 일치하는 프로젝트나 기록이 없습니다"
+    "searchNoMatch": "“{{q}}”와(과) 일치하는 프로젝트나 기록이 없습니다",
+    "mergeNoGloria": "GLORIA 조사는 한 정상의 한 모니터링 주기 기록이라 병합할 수 없습니다.",
+    "duplicateNoGloria": "GLORIA 조사는 복제할 수 없습니다. 다음 모니터링 주기는 「새 GLORIA 조사」에서 같은 정상을 선택해 시작하세요."
   },
   "export": {
     "preparing": "준비 중…",
@@ -264,7 +267,8 @@
     "gdrive": "Google 드라이브",
     "inatUpload": "iNaturalist에 업로드",
     "identifiers": "동정자",
-    "provenance": "Provenance signing"
+    "provenance": "Provenance signing",
+    "gloria": "GLORIA 정상 조사"
   },
   "tab": {
     "menu": "설정",
@@ -291,7 +295,8 @@
     "kindCollection": "채집 기록",
     "defaultCollection": "기본: 채집 기록",
     "kindImport": "기록 가져오기 (.yml / .zip)",
-    "lastUpdated": "마지막 수정"
+    "lastUpdated": "마지막 수정",
+    "kindGloria": "GLORIA 정상 조사"
   },
   "rank": {
     "kingdom": "계",
@@ -473,7 +478,9 @@
     "longPressHint": "길게 누르면 종 목록 또는 채집 선택",
     "addedManyToPlot_other": "{{count}}종을 조사구에 추가했습니다(풍부도 미입력)",
     "addedManyToSession_other": "{{count}}종을 종 목록에 추가했습니다",
-    "skippedExisting_other": "이미 기록된 {{count}}종은 건너뛰었습니다"
+    "skippedExisting_other": "이미 기록된 {{count}}종은 건너뛰었습니다",
+    "toGloria": "GLORIA 정상 목록에 추가",
+    "addedToGloria_other": "GLORIA 정상 목록에 {{count}}종을 추가했습니다. 각 단위 화면에서 기록하세요."
   },
   "endSession": {
     "minutes": "{{count}}분",
@@ -654,7 +661,9 @@
     "defaultDeterminerDesc": "자주 쓰는 동정자 목록; ★ 표시한 이름이 새 표본에 자동 입력됩니다",
     "noDefaultPerson": "설정 안 됨",
     "provenance": "Provenance signing",
-    "provenanceDesc": "Attribute exported data to your ORCID"
+    "provenanceDesc": "Attribute exported data to your ORCID",
+    "moduleGloria": "GLORIA 정상 모니터링",
+    "moduleGloriaDesc": "「새 기록」 메뉴에 GLORIA 정상 조사를 표시합니다. 기존 GLORIA 기록은 항상 표시됩니다."
   },
   "taxonomy": {
     "loadingTree": "분류 트리 불러오는 중...",
@@ -1207,7 +1216,8 @@
     "plotSubtitle_other": "{{count}}건 · {{protocol}}{{size}}",
     "collectionSubtitle_other": "표본 {{count}}점 · {{project}}",
     "sessionSubtitleNoProject_other": "{{count}}건",
-    "collectionSubtitleNoProject_other": "표본 {{count}}점"
+    "collectionSubtitleNoProject_other": "표본 {{count}}점",
+    "gloriaSubtitle_other": "mocy {{mocy}} · {{count}}종 · {{units}}/28 단위"
   },
   "plotImport": {
     "invalidYml": "유효한 조사구 yml이 아닙니다 (plot 블록 없음)",
@@ -1217,7 +1227,8 @@
   },
   "activeBar": {
     "recording": "기록 중: {{name}}",
-    "plotRecording": "조사구 기록 중: {{id}}"
+    "plotRecording": "조사구 기록 중: {{id}}",
+    "gloriaRecording": "GLORIA 조사 중 · mocy {{mocy}}"
   },
   "speciesSearch": {
     "hint": "아래에서 일반명 / 학명 / 과명으로 종을 검색하고,{{br}}결과를 선택하면 여기에 상세 정보가 표시됩니다."
@@ -1436,7 +1447,10 @@
     "doneUnresolved_other": "{{count}}건은 이 기기의 종 목록에서 taxon_id를 찾지 못했지만 그대로 가져왔습니다",
     "donePhotosSkipped_other": "사진 {{count}}장을 가져오지 못했습니다 (권한 또는 파일을 읽을 수 없음)",
     "collectionExistsTitle": "채집 기록이 이미 있습니다",
-    "collectionExistsMsg": "\"{{name}}\"은(는) 이미 이 기기에 있습니다. 덮어쓸까요, 새 사본으로 저장할까요?"
+    "collectionExistsMsg": "\"{{name}}\"은(는) 이미 이 기기에 있습니다. 덮어쓸까요, 새 사본으로 저장할까요?",
+    "gloriaExistsTitle": "이 GLORIA 조사가 이미 있습니다",
+    "gloriaExistsMsg": "{{name}}이(가) 이미 이 기기에 있습니다. 덮어쓰면 가져온 파일 내용으로 바뀝니다.",
+    "gloriaImported": "{{name}}을(를) 가져왔습니다"
   },
   "gbifLookup": {
     "title": "GBIF 이름 조회",
@@ -2209,5 +2223,308 @@
     "orcidSignOutTitle": "ORCID에서 로그아웃할까요?",
     "orcidSignOutMsg": "다시 로그인할 때까지 내보내기에 서명하지 않습니다. 키는 유지됩니다.",
     "orcidLegacy": "이전에 직접 입력한 {{orcid}}는 확인되지 않았습니다. 서명에 사용하려면 ORCID로 로그인하세요."
+  },
+  "gloria": {
+    "notFound": "이 GLORIA 조사를 찾을 수 없습니다",
+    "overview": "개요",
+    "endTitle": "GLORIA 조사를 종료할까요?",
+    "endMsg": "나중에 다시 열어 계속 기록할 수 있습니다.",
+    "unitsDone": "{{done}}/{{total}} 단위 완료",
+    "tab": {
+      "points": "기초 자료",
+      "map": "조사구 개요",
+      "species": "종 총표"
+    },
+    "status": {
+      "none": "시작 전",
+      "progress": "진행 중",
+      "done": "완료",
+      "warn": "경고 있음"
+    },
+    "list": {
+      "quadrats": "1×1 m 방형구",
+      "sas": "정상 구역（SAS）",
+      "squares": "10×10 m 방형구"
+    },
+    "p5m": {
+      "title": "{{direction}} 방위 · 3×3 m（정상 방향）",
+      "explain": "p5m는 {{point}}의 바깥 모서리로 5 m 등고선 위에 있습니다（청록색 선）. 이 방위의 3×3 m는 이 점에서 설치합니다.",
+      "notSet": "{{direction}} 방위의 p5m이 아직 없습니다. 「기초 자료」에서 11 또는 31을 선택하세요."
+    },
+    "new": {
+      "title": "새 GLORIA 조사",
+      "region": "대상 지역 {{region}}",
+      "lastMocy": "지난번 mocy {{mocy}}",
+      "firstSurvey": "조사 없음",
+      "addSummit": "정상 추가",
+      "addSummitButton": "＋ 정상 추가",
+      "country": "국가 코드",
+      "targetRegion": "대상 지역 코드",
+      "summitCode": "정상 코드",
+      "codeHint": "국가 코드 2자（ISO 3166）, 대상 지역과 정상은 각 3자. 예: TW-DAS-SUN（매뉴얼 Box 6.1）.",
+      "codeInvalid": "코드 형식이 맞지 않습니다. 국가는 영문 2자, 대상 지역과 정상은 영숫자 각 3자입니다.",
+      "summitName": "산 이름（선택）",
+      "elevation": "해발 m",
+      "vegZone": "식생대",
+      "saveSummit": "정상 저장",
+      "mocyIs": "이번은 mocy {{mocy}}",
+      "carryOver": "mocy {{from}}에서 측정점 {{points}}개의 거리와 방위, 10×10 m 시작 설정을 가져옵니다. 종과 피도는 비워 두고 새로 기록합니다（블라인드, 매뉴얼 Box 4.5）.",
+      "noCarryOver": "이 정상의 첫 조사입니다. 측정점 28개를 모두 측정해야 합니다.",
+      "surveyors": "조사자",
+      "noSurveyors": "미설정（설정의 「조사자」에서 기본값 지정）",
+      "start": "조사 시작"
+    },
+    "points": {
+      "carried": "측정점은 지난번에서 가져왔습니다. 지난번과 다른 칸은 청록색으로 표시됩니다.",
+      "whereP5m": "p5m 위치?",
+      "point": "점",
+      "distance": "거리 m",
+      "compass": "방위 °",
+      "photo": "사진",
+      "distanceOf": "{{point}} 거리（m）",
+      "compassOf": "{{point}} 방위（°）",
+      "photoM2": "{{point}} 방형구 사진",
+      "photoM2F": "{{point}} 방형구＋빈도틀 사진",
+      "photoPoint": "{{point}} 지점 사진",
+      "intersection": "교차선"
+    },
+    "photo": {
+      "camera": "사진 촬영",
+      "library": "앨범에서 선택",
+      "remove": "사진 제거"
+    },
+    "matrix": {
+      "quadrats": "1×1",
+      "sas": "SAS",
+      "squares": "10×10",
+      "quadratHint": "피도 %; f 뒤는 빈도 칸 수. 열 이름을 누르면 해당 단위가 열립니다.",
+      "sasHint": "다도 r! r s c d; •는 목록에 있으나 다도 미입력.",
+      "squareHint": "400점 중 적중 수; •는 적중하지 않은 추가 종.",
+      "empty": "아직 종이 없습니다",
+      "species": "종"
+    },
+    "step": {
+      "cover": "피도와 지표",
+      "frequency": "빈도",
+      "pointframe": "포인트 프레임",
+      "sas": "종과 다도",
+      "linePoints": "400점 기록",
+      "additional": "적중하지 않은 종",
+      "notStarted": "미실시",
+      "pointsDone": "{{done}}/{{total}}점",
+      "here": "현재 위치",
+      "jump": "다른 단위로 이동",
+      "backToSummit": "조사구 개요로",
+      "speciesCount_other": "{{count}}종",
+      "freqDone_other": "{{count}}종 기록",
+      "freqCounted_other": "{{count}}종 횟수 입력됨"
+    },
+    "issue": {
+      "topCoverSum": "지표 피도 합계 {{sum}}%, 100%여야 합니다",
+      "vascularExceeds": "관속식물 {{vascular}}% > 종 피도 합계 {{sum}}%",
+      "subtypeRange": "지표 피도 하위 유형 값 {{value}}이 0–100 범위 밖",
+      "coverNoFreq": "{{name}}: 피도 {{cover}}%, 빈도 0칸",
+      "sasMissing": "같은 방위 방형구에는 있으나 여기에 없음: {{names}}",
+      "p5m": "{{direction}} 방위의 p5m（11 또는 31）이 없음",
+      "freqNoCover_other": "{{name}}: 빈도 {{count}}칸, 피도 없음",
+      "pointInconsistent_other": "{{count}}개 점에서 종과 지표 기록이 모순"
+    },
+    "cover": {
+      "title": "지표 피도 추정(%)",
+      "sumOk": "합계 {{sum}} ✓",
+      "sumBad": "합계 {{sum}}（100이어야 함）",
+      "subtypeHint": "해당 지표 유형 대비 %（매뉴얼 p.40）. 예: 암석 40% 중 절반에 지의류 → 50.",
+      "cov_vascular": "관속식물",
+      "cov_solid_rock": "고정 암석",
+      "cov_scree": "암설",
+      "cov_lichens": "지의류（토양）",
+      "cov_bryophytes": "선태류（토양）",
+      "cov_bare_ground": "나지",
+      "cov_litter": "낙엽층",
+      "sub_lich_below_vasc": "지의류 · 관속식물 아래",
+      "sub_lich_on_rock": "지의류 · 암석 위",
+      "sub_lich_on_scree": "지의류 · 암설 위",
+      "sub_bry_below_vasc": "선태류 · 관속식물 아래",
+      "sub_bry_on_rock": "선태류 · 암석 위",
+      "sub_bry_on_scree": "선태류 · 암설 위"
+    },
+    "surface": {
+      "R": "고정 암석",
+      "S": "암설",
+      "L": "지의류",
+      "B": "선태류",
+      "G": "나지",
+      "T": "낙엽층"
+    },
+    "unit": {
+      "env": "조사구 환경",
+      "aspect": "사면 방위 °",
+      "slope": "경사 °",
+      "aspectShort": "방위 {{v}}°",
+      "slopeShort": "경사 {{v}}°",
+      "topSumShort": "지표 피도 합계 {{sum}}",
+      "topNotYet": "지표 피도 미입력",
+      "subtypes": "지표 피도 하위 유형（지의류/선태류）",
+      "vascularOk": "관속식물 {{vascular}}% ≤ 종 피도 합계 {{sum}}% ✓",
+      "vascularHint": "종 피도 합계는 관속식물 지표 피도보다 작으면 안 됩니다（매뉴얼 p.41）. 종 피도나 지표 추정을 다시 확인하세요.",
+      "crossTitle": "빈도와 피도가 맞지 않습니다",
+      "noSpecies": "아래 검색으로 종 추가",
+      "coverRule": "피도는 %로, 「<」「>」는 쓰지 않습니다（매뉴얼 Form 2）. 이름을 누르면 상세, 길게 누르면 제거.",
+      "coverOf": "{{name}} 피도 %",
+      "cf": "동정 불확실（cf.）",
+      "openDetail": "상세 열기",
+      "remove": "이 단위에서 제거",
+      "rowHint": "종 상세 열기",
+      "added": "{{name}} 추가됨",
+      "markDone": "이 단위를 완료로 표시",
+      "markUndone": "완료 취소",
+      "sasMissingTitle": "{{direction}} 방위 방형구의 종이 모두 들어 있지 않습니다",
+      "addAll": "모두 추가",
+      "abundanceLegend": "r! 매우 드묾 · r 드묾 · s 산재 · c 흔함 · d 우점（피도 50% 초과, 매뉴얼 p.42）",
+      "grazing": "방목/동물 흔적",
+      "grazingPlaceholder": "예: 배설물, 섭식 흔적, 답압",
+      "speciesHeader_other": "종（{{count}}）· 피도 합계 {{sum}}",
+      "sasHeader_other": "종（{{count}}）· 다도",
+      "fromQuadratsDone_other": "방형구에서 {{count}}종 추가"
+    },
+    "square": {
+      "walk": "시작점과 방향（Form 6-S 4가지）",
+      "option1": "왼쪽 아래 변 · 아래 모서리부터",
+      "option2": "왼쪽 아래 변 · 왼쪽 모서리부터",
+      "option3": "오른쪽 아래 변 · 아래 모서리부터",
+      "option4": "오른쪽 아래 변 · 오른쪽 모서리부터",
+      "pickWalk": "먼저 시작점을 고르세요. 재조사에서는 지난번 선택을 이어 씁니다（매뉴얼 p.57）.",
+      "start": "점별 기록（{{done}}/400）",
+      "hitsTitle": "적중 수와 피도（{{done}}/400; 피도 = 적중 ÷ 4）",
+      "fromQuadrats": "방형구 4개에서 가져오기",
+      "extraEmpty": "점 기록 후 적중하지 않은 종을 적습니다. 먼저 방형구 4개의 종을 가져올 수 있습니다（매뉴얼 p.58）.",
+      "extra_other": "적중하지 않은 종（{{count}}）"
+    },
+    "species": {
+      "inUnit": "{{code}} · 목록 번호 {{serial}}",
+      "abundance": "다도",
+      "cover": "피도 %",
+      "cf": "동정 불확실",
+      "cfHint": "g 속, s 종, t 종하 수준 불확실（매뉴얼 Form 2 주 5）",
+      "lineage": "분류 계층",
+      "openKey": "검색표 열기: {{name}}",
+      "repro": "번식 상태（복수 선택）",
+      "leaf": "잎 계절상（복수 선택）",
+      "notes": "비고",
+      "notesPlaceholder": "예: 일부 개체 고사, 의심스러운 형질"
+    },
+    "rank": {
+      "kingdom": "계",
+      "phylum": "문",
+      "class": "강",
+      "order": "목",
+      "family": "과",
+      "genus": "속"
+    },
+    "freq": {
+      "title": "{{code}} · 빈도",
+      "undo": "실행 취소",
+      "brush": "브러시",
+      "cellMode": "칸별",
+      "uphill": "▲ 정상 방향（오르막）",
+      "gridLabel": "빈도 틀 10×10",
+      "hi1": "Hi1 배설물",
+      "hi2": "Hi2 섭식",
+      "hi3": "Hi3 답압",
+      "newSpecies": "＋ 새 종",
+      "fillAll": "모두 채우기",
+      "inverse": "빈칸 표시",
+      "inverseDone": "빈칸 표시 끝내기",
+      "clear": "지우기",
+      "brushHint": "종이나 Hi를 고른 뒤 칸을 드래그합니다. 칠한 칸에서 시작하면 지웁니다. 회색 점은 다른 종.",
+      "inverseHint": "100칸을 모두 채웠습니다. 없는 칸을 드래그해 표시（×）한 뒤 「빈칸 표시 끝내기」.",
+      "cellTitle": "{{cell}}（{{n}}/100）",
+      "emptyNext": "빈칸 → 다음",
+      "next": "다음 칸 ▶",
+      "addedNoCover": "{{name}} 추가됨. 피도 미입력",
+      "goCover": "피도 입력",
+      "countMode": "횟수만 입력",
+      "countHint": "과거 조사에 격자 기록이 없을 때 사용: 각 종과 교란에 대해 출현한 격자 수(0–100 정수)만 입력합니다.",
+      "switchTitle": "기록 방식 변경",
+      "switchToCount": "횟수 입력으로 바꾸면 이 방형구에 그린 격자(종과 Hi1–Hi3)가 지워집니다. 변경할까요?",
+      "switchToCells": "격자 기록으로 되돌리면 입력한 횟수가 지워집니다. 변경할까요?",
+      "switchConfirm": "지우고 변경"
+    },
+    "walk": {
+      "titleQuadrat": "{{code}} · 포인트 프레임",
+      "titleSquare": "{{code}} · 10×10 m 점 기록",
+      "linePoint": "{{line}}선 · {{point}}점",
+      "point": "{{n}}번째 점",
+      "allDone": "{{total}}점 모두 완료",
+      "progress": "{{done}}/{{total}} 기록",
+      "forward": "→ 선을 따라 전진",
+      "back": "← 반대로 돌아옴",
+      "species": "적중한 관속식물（복수）",
+      "surface": "식물 없음: 지표 유형",
+      "same": "이전 점과 같음",
+      "next": "다음 점 ▶",
+      "lineDone": "{{line}}선 완료: 적중 {{hits}}"
+    },
+    "endWithIssues_other": "경고가 {{count}}건 있습니다. 종료할까요? 나중에 다시 열 수 있습니다.",
+    "kb": {
+      "next": "다음",
+      "done": "완료"
+    },
+    "num": {
+      "rejectTitle": "범위를 벗어난 값",
+      "reject": "{{label}}: {{value}}{{unit}}은(는) {{min}}–{{max}}{{unit}} 범위를 벗어납니다. 저장하지 않고 이전 값으로 되돌렸습니다.",
+      "warnTitle": "값을 확인하세요",
+      "warn": "{{label}}: {{value}}{{unit}}은(는) 일반 범위 {{min}}–{{max}}{{unit}}을(를) 벗어납니다. 저장했습니다. 입력 실수라면 고치세요.",
+      "rejectInt": "{{label}}: {{value}}은(는) 정수가 아닙니다. 빈도는 출현 격자 수이므로 0–100 정수를 입력하세요. 저장하지 않고 이전 값으로 되돌렸습니다."
+    },
+    "foldCount": "{{title}} ({{n}})",
+    "summit": {
+      "title": "정상 기본 정보",
+      "code": "정상 코드",
+      "name": "이름",
+      "namePlaceholder": "선택",
+      "lat": "위도(WGS84)",
+      "lon": "경도(WGS84)",
+      "elevation": "해발고도(m)",
+      "zone": "식생대(Vegetation zone)",
+      "zoneNone": "미설정",
+      "photos": "환경 사진({{n}})",
+      "photosHint": "매뉴얼 부록 III에 따라 SU-OV(정상 전경)로 내보내며 촬영 위치를 파일 이름의 8번째 요소로 넣습니다. 사진마다 촬영 위치를 입력하세요(예: S쪽 안부에서).",
+      "viewpoint": "촬영 위치",
+      "viewpointLabel": "{{n}}번째 사진의 촬영 위치",
+      "photoFail": "사진을 추가하지 못했습니다"
+    },
+    "times": {
+      "title": "조사자와 시간",
+      "cover": "피도 추정",
+      "freq": "빈도",
+      "survey": "조사",
+      "start": "시작",
+      "stop": "종료",
+      "now": "현재 시각으로",
+      "orderTitle": "시간 순서가 맞지 않습니다",
+      "order": "{{what}}의 종료 시각은 시작 시각보다 이를 수 없습니다.",
+      "hint": "시작은 첫 입력 때, 종료는 \"이 단위를 완료로 표시\"를 누를 때 기록됩니다. 시간을 누르면 수정할 수 있습니다.",
+      "hintQuadrat": "피도 추정: 첫 입력 때 시작, \"이 단위를 완료로 표시\"를 누르면 종료. 빈도: 첫 기록 때 시작하고 종료는 마지막 편집에 맞춰 갱신되며, 직접 수정한 뒤에는 자동 갱신하지 않습니다. 시간을 누르면 수정할 수 있습니다.",
+      "by": "조사자",
+      "bySurvey": "조사 전체와 동일: {{names}}",
+      "byNone": "미지정"
+    }
+  },
+  "vernacular": {
+    "title": "일반명 표시 언어",
+    "hint": "종의 일반명을 어떤 언어로 표시할지 고릅니다(최대 {{n}}개). 아래 순서대로 \" / \"로 이어 붙이며 첫 번째가 주 이름입니다. 화면과 내보내기는 이 설정을 따르고, 검색은 활성화된 모든 목록의 이름을 대상으로 합니다. 표본 라벨은 이름을 하나만 인쇄합니다.",
+    "order": "표시 언어와 순서",
+    "zhTW": "중국어(번체) 일반명",
+    "zhTWSource": "대만 생물 목록(TaiCOL)",
+    "ja": "일본어 이름(와메이)",
+    "jaSource": "일본 관속식물 목록(YList)",
+    "zhTWShort": "중국어",
+    "jaShort": "일본어",
+    "keepOne": "언어를 하나 이상 남겨 두세요.",
+    "max": "일반명은 한 번에 최대 {{n}}개까지 표시됩니다.",
+    "moveUp": "위로",
+    "moveDown": "아래로",
+    "onlyOne": "활성화된 목록이 하나뿐이라 선택할 수 있는 언어도 하나입니다. \"{{page}}\"에서 다른 목록(예: 일본)을 활성화하면 추가할 수 있습니다."
   }
 }

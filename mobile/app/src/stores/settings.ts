@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { GEOPRIVACY_VALUES, type Geoprivacy } from '~/lib/inatPayload';
 import { getUserDb } from '~/db';
+import { parseVernacularLangs } from '~/db/mergeScope';
 import type { TaxonGroup } from '~/db/types';
 import type { ConservationField } from '~/lib/markdown';
 import type { MatrixValueMode } from '~/lib/vegMatrix';
@@ -32,6 +33,11 @@ export type Language =
  *  others (Japan/YList, …) are opt-in overlays that widen search/tree/export and
  *  merge vernacular names for shared species. See `~/db/regions`. */
 export type RegionCode = 'TW' | 'JP';
+
+/** Languages a vernacular name can be shown in, one per checklist that carries
+ *  them (TaiCOL → zh-TW, YList → ja). The user picks up to three and orders
+ *  them; see `composeByLangs` in `~/db/mergeScope`. */
+export type VernacularLang = 'zh-TW' | 'ja';
 
 export type RecordSort = 'observed' | 'cname' | 'name' | 'family';
 /**
@@ -182,6 +188,9 @@ type SettingsValues = {
    *  recorded is stamped regardless — the receiver is on anyway. */
   record_gps_session: boolean;
   record_gps_plot: boolean;
+  /** GLORIA summit-monitoring module: shows "New GLORIA survey" in the create
+   *  menus. Existing GLORIA records stay visible either way. */
+  module_gloria: boolean;
   /** Direction for `last_record_sort`. Observed defaults to 'desc' (latest
    *  on top); other sorts default to 'asc'. Tapping the same sort option a
    *  second time flips this. */
@@ -272,6 +281,9 @@ type SettingsValues = {
   /** Enabled regional name databases. Always contains 'TW'; 'JP' is opt-in.
    *  When only ['TW'] the app behaves byte-identically to before this feature. */
   enabled_regions: RegionCode[];
+  /** Vernacular languages to show, in order (first = primary), 1–3 of them.
+   *  A language whose checklist is not enabled simply contributes nothing. */
+  vernacular_langs: VernacularLang[];
   /** UI language; 'system' follows the device locale. */
   language: Language;
 };
@@ -300,6 +312,7 @@ const DEFAULTS: SettingsValues = {
   collection_label_family: false,
   record_gps_session: true,
   record_gps_plot: true,
+  module_gloria: false,
   last_record_sort_dir: 'desc',
   taxonomy_expanded: [],
   records_collapsed: [],
@@ -333,6 +346,7 @@ const DEFAULTS: SettingsValues = {
   // make the layout noisy.
   export_conservation_hide_lc: true,
   enabled_regions: ['TW'],
+  vernacular_langs: ['zh-TW', 'ja'],
   language: 'system',
 };
 
@@ -438,6 +452,7 @@ function readAll(): SettingsValues {
       map.get('record_gps_plot') == null
         ? DEFAULTS.record_gps_plot
         : map.get('record_gps_plot') === 'true',
+    module_gloria: map.get('module_gloria') === 'true',
     last_record_sort_dir:
       (map.get('last_record_sort_dir') as SortDirection) ?? DEFAULTS.last_record_sort_dir,
     taxonomy_expanded: taxonomyExpanded,
@@ -500,6 +515,7 @@ function readAll(): SettingsValues {
         ? DEFAULTS.export_conservation_hide_lc
         : map.get('export_conservation_hide_lc') === 'true',
     enabled_regions: parseRegions(map.get('enabled_regions')),
+    vernacular_langs: parseVernacularLangs(map.get('vernacular_langs')) ?? DEFAULTS.vernacular_langs,
     language: parseLanguage(map.get('language')),
   };
 }

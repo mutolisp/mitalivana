@@ -77,6 +77,7 @@ import { useSettings, type RecordSort, type SortDirection } from '~/stores/setti
 import { useToast } from '~/stores/toast';
 import { useActiveSession } from '~/stores/activeSession';
 import { useActivePlot } from '~/stores/activePlot';
+import { useActiveGloria } from '~/modules/gloria/store';
 import { useFavorites } from '~/stores/favorites';
 import { toastFavoriteAdded } from '~/lib/favoritesToast';
 import {
@@ -723,6 +724,7 @@ export default function SessionDetailScreen() {
       // ActiveSessionBar / StalePlotWatcher misbehave until the next nav.
       refreshActive();
       refreshActivePlot();
+      useActiveGloria.getState().refresh();
       reload();
       toast(t('session.reopened'));
     };

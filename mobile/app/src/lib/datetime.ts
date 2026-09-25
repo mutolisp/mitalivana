@@ -21,6 +21,12 @@ export function isoTime(ts: number): string {
   return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+/** `YYYY-MM-DD HH:MM:SS` (local) — a full stamp for survey start / end times. */
+export function isoStamp(ts: number): string {
+  const d = new Date(ts);
+  return `${isoDate(ts)} ${isoTime(ts)}:${pad(d.getSeconds())}`;
+}
+
 /** `YYYY-MM-DDTHH:MM` (local). */
 export function isoDateTime(ts: number): string {
   return `${isoDate(ts)}T${isoTime(ts)}`;

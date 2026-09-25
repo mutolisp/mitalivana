@@ -15,8 +15,9 @@ import {
 } from './plots';
 import { listSessions, type SessionWithStats } from './sessions';
 import { listCollectionTrips, type CollectionTripWithStats } from './collections';
+import { listGloriaSurveysWithMeta, type GloriaSurveyWithMeta } from '~/modules/gloria/db';
 
-export type RecordKind = 'session' | 'plot' | 'collection';
+export type RecordKind = 'session' | 'plot' | 'collection' | 'gloria';
 
 /** Records-tab filter: a single kind, or every kind. */
 export type RecordFilter = 'all' | RecordKind;
@@ -48,6 +49,8 @@ export type RecordItem = {
   session?: SessionWithStats;
   /** Collection-only: backing CollectionTripWithStats. */
   trip?: CollectionTripWithStats;
+  /** GLORIA-only: backing survey with summit code. */
+  gloria?: GloriaSurveyWithMeta;
 };
 
 function sessionToItem(s: SessionWithStats): RecordItem {
@@ -112,6 +115,25 @@ function tripToItem(c: CollectionTripWithStats): RecordItem {
   };
 }
 
+function gloriaToItem(g: GloriaSurveyWithMeta): RecordItem {
+  const projectName = g.project_name || i18n.t('plot.uncategorized');
+  const subtitle = i18n.t('recordsList.gloriaSubtitle', { count: g.species_count, mocy: g.mocy, units: g.units_started });
+  return {
+    kind: 'gloria',
+    id: g.id,
+    title: g.full_code,
+    subtitle,
+    subtitlePlain: subtitle,
+    active: g.status === 'active',
+    startedAt: g.start_ts,
+    recordCount: g.species_count,
+    starred: g.starred === 1,
+    projectId: g.project_id,
+    projectName,
+    gloria: g,
+  };
+}
+
 export function listRecords(filter: RecordFilter = 'all'): RecordItem[] {
   const items: RecordItem[] = [];
   if (filter === 'all' || filter === 'session') {
@@ -124,6 +146,9 @@ export function listRecords(filter: RecordFilter = 'all'): RecordItem[] {
   }
   if (filter === 'all' || filter === 'collection') {
     items.push(...listCollectionTrips().map(tripToItem));
+  }
+  if (filter === 'all' || filter === 'gloria') {
+    items.push(...listGloriaSurveysWithMeta().map(gloriaToItem));
   }
   items.sort(byActiveThenStarredThenNewest);
   return items;
@@ -190,7 +215,7 @@ export type RecordsSummary = {
  */
 export function listRecordsSummary(filter: RecordFilter = 'all'): RecordsSummary {
   const all = listRecords('all');
-  const counts: RecordsSummary['counts'] = { all: all.length, session: 0, plot: 0, collection: 0 };
+  const counts: RecordsSummary['counts'] = { all: all.length, session: 0, plot: 0, collection: 0, gloria: 0 };
   for (const it of all) counts[it.kind] += 1;
   const items = filter === 'all' ? all : all.filter((it) => it.kind === filter);
   return { items, groups: groupByProject(items), counts };
@@ -213,7 +238,9 @@ export function takenRecordNames(kind: RecordKind): Set<string> {
       ? `SELECT plotid AS name FROM plot_surveys`
       : kind === 'session'
         ? `SELECT name FROM sessions`
-        : `SELECT name FROM collection_trips`;
+        : kind === 'gloria'
+          ? `SELECT s.full_code || ' mocy ' || v.mocy AS name FROM gloria_surveys v JOIN gloria_summits s ON s.id = v.summit_id`
+          : `SELECT name FROM collection_trips`;
   const rows = (db.executeSync(sql).rows ?? []) as { name?: string }[];
   return new Set(rows.map((r) => (r.name ?? '').trim()).filter(Boolean));
 }
@@ -223,6 +250,7 @@ const RECORD_TABLE: Record<RecordKind, string> = {
   session: 'sessions',
   plot: 'plot_surveys',
   collection: 'collection_trips',
+  gloria: 'gloria_surveys',
 };
 
 /**
@@ -244,6 +272,8 @@ const RECORD_SPECIES_SOURCE: Record<RecordKind, { table: string; fk: string }> =
   session: { table: 'checklist_records', fk: 'session_id' },
   plot: { table: 'plot_species_records', fk: 'plot_survey_id' },
   collection: { table: 'collection_specimens', fk: 'trip_id' },
+  // The roster: every taxon the survey holds, recorded in a unit or not.
+  gloria: { table: 'gloria_taxa', fk: 'survey_id' },
 };
 
 /**

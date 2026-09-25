@@ -27,6 +27,7 @@ const ROUTE: Record<RecordKind, string> = {
   session: '/session',
   plot: '/plot',
   collection: '/collection',
+  gloria: '/gloria',
 };
 
 type Neighbours = {

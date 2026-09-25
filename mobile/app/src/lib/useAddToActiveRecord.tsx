@@ -12,7 +12,7 @@
  * addRecord. Returns the modal element so the host screen can render it.
  */
 import { useState } from 'react';
-import { useRouter } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import {
   addPlotSpecies,
@@ -30,6 +30,8 @@ import {
 import type { AdoptionInput } from '~/db';
 import { useActivePlot } from '~/stores/activePlot';
 import { useActiveSession } from '~/stores/activeSession';
+import { useActiveGloria } from '~/modules/gloria/store';
+import { ensureRosterTaxon } from '~/modules/gloria/db';
 import { useToast } from '~/stores/toast';
 import { defaultQuantityTypeFor } from './dwcAbundance';
 import { serializeMultiAttribute } from './dwcAttributes';
@@ -94,17 +96,22 @@ export function useAddToActiveRecord(): {
   const { t } = useTranslation();
   const toast = useToast((s) => s.show);
   const plot = useActivePlot((s) => s.plot);
+  const gloria = useActiveGloria((s) => s.survey);
   const session = useActiveSession((s) => s.session);
   const startSession = useActiveSession((s) => s.start);
   const [plotTarget, setPlotTarget] = useState<PlotTarget | null>(null);
 
-  const targetLabel = plot ? t('addToRecord.toPlot') : session ? t('addToRecord.toSession') : t('addToRecord.newSession');
+  const targetLabel = gloria
+    ? t('addToRecord.toGloria')
+    : plot
+      ? t('addToRecord.toPlot') : session ? t('addToRecord.toSession') : t('addToRecord.newSession');
 
   const addSpecies = (sp: SearchResult, adopted?: AdoptionInput | null) => {
     if (!sp.taxon_id) {
       toast(t('addToRecord.noTaxonId'));
       return;
     }
+    if (addToGloria([sp])) return;
     // Read the active plot fresh to avoid a stale closure.
     const activePlot = useActivePlot.getState().plot;
     if (activePlot) {
@@ -136,6 +143,23 @@ export function useAddToActiveRecord(): {
    * rows are filled in on the plot screen. Taxa already there (same layer) or
    * already in the checklist are skipped, and the toast says how many.
    */
+  /**
+   * An active GLORIA survey takes species into the summit roster only: which
+   * quadrat or section they belong to is decided on the unit screens, never
+   * guessed here. Returns false when no GLORIA survey is active.
+   */
+  const addToGloria = (list: SearchResult[]): boolean => {
+    const survey = useActiveGloria.getState().survey;
+    if (!survey) return false;
+    withTransaction(() => {
+      for (const sp of list) if (sp.taxon_id) ensureRosterTaxon(survey.id, sp.taxon_id);
+    });
+    toast(t('addToRecord.addedToGloria', { count: list.length }), {
+      action: { label: t('addToRecord.goTo'), onPress: () => router.push(`/gloria/${survey.id}` as Href) },
+    });
+    return true;
+  };
+
   const withSkipped = (msg: string, skipped: number) =>
     skipped > 0 ? `${msg}\n${t('addToRecord.skippedExisting', { count: skipped })}` : msg;
 
@@ -147,6 +171,7 @@ export function useAddToActiveRecord(): {
       return true;
     });
     if (valid.length === 0) return;
+    if (addToGloria(valid)) return;
     const activePlot = useActivePlot.getState().plot;
     if (activePlot) {
       const layer: Layer = activePlot.plot_type === 'fixed' ? 'E2' : 'T';

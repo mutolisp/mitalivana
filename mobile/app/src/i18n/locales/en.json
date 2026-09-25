@@ -109,7 +109,8 @@
     "nSpeciesInThem_one": "the {{count}} species in them",
     "nSpeciesInThem_other": "the {{count}} species in them",
     "addedCount_one": "Added {{count}} taxon to favorites",
-    "addedCount_other": "Added {{count}} taxa to favorites"
+    "addedCount_other": "Added {{count}} taxa to favorites",
+    "kindGloria": "GLORIA"
   },
   "gnss": {
     "permTitle": "Location permission needed",
@@ -259,7 +260,9 @@
     "deletedCount_other": "Deleted {{count}} records",
     "search": "Search",
     "searchPlaceholder": "Search projects or records",
-    "searchNoMatch": "No project or record matches “{{q}}”"
+    "searchNoMatch": "No project or record matches “{{q}}”",
+    "mergeNoGloria": "GLORIA surveys can't be merged: each covers one summit in one monitoring cycle.",
+    "duplicateNoGloria": "GLORIA surveys can't be duplicated. Start the next monitoring cycle from New GLORIA survey and pick the same summit."
   },
   "export": {
     "preparing": "Preparing…",
@@ -292,7 +295,8 @@
     "gdrive": "Google Drive",
     "inatUpload": "Upload to iNaturalist",
     "identifiers": "Identifiers",
-    "provenance": "Provenance signing"
+    "provenance": "Provenance signing",
+    "gloria": "GLORIA summit"
   },
   "tab": {
     "menu": "Settings",
@@ -319,7 +323,8 @@
     "kindCollection": "Collection",
     "defaultCollection": "Default: collection",
     "kindImport": "Import a record (.yml / .zip)",
-    "lastUpdated": "Last updated"
+    "lastUpdated": "Last updated",
+    "kindGloria": "GLORIA summit survey"
   },
   "rank": {
     "kingdom": "Kingdom",
@@ -507,7 +512,10 @@
     "addedManyToSession_one": "Added {{count}} taxon to the checklist",
     "addedManyToSession_other": "Added {{count}} taxa to the checklist",
     "skippedExisting_one": "Skipped {{count}} already recorded",
-    "skippedExisting_other": "Skipped {{count}} already recorded"
+    "skippedExisting_other": "Skipped {{count}} already recorded",
+    "toGloria": "Add to GLORIA summit list",
+    "addedToGloria_one": "Added {{count}} taxon to the GLORIA summit list. Record it on a unit screen.",
+    "addedToGloria_other": "Added {{count}} taxa to the GLORIA summit list. Record them on the unit screens."
   },
   "endSession": {
     "minutes": "{{count}} min",
@@ -695,7 +703,9 @@
     "defaultDeterminerDesc": "Preferred identifiers; starred names fill in new specimens",
     "noDefaultPerson": "Not set",
     "provenance": "Provenance signing",
-    "provenanceDesc": "Attribute exported data to your ORCID"
+    "provenanceDesc": "Attribute exported data to your ORCID",
+    "moduleGloria": "GLORIA summit monitoring",
+    "moduleGloriaDesc": "Shows GLORIA summit survey in the New record menu. Existing GLORIA records always stay visible."
   },
   "taxonomy": {
     "loadingTree": "Loading taxonomy tree...",
@@ -1294,7 +1304,9 @@
     "sessionSubtitleNoProject_one": "{{count}} record",
     "sessionSubtitleNoProject_other": "{{count}} records",
     "collectionSubtitleNoProject_one": "{{count}} specimen",
-    "collectionSubtitleNoProject_other": "{{count}} specimens"
+    "collectionSubtitleNoProject_other": "{{count}} specimens",
+    "gloriaSubtitle_one": "mocy {{mocy}} · {{count}} taxon · {{units}}/28 units",
+    "gloriaSubtitle_other": "mocy {{mocy}} · {{count}} taxa · {{units}}/28 units"
   },
   "plotImport": {
     "invalidYml": "Not a valid plot yml (missing plot block)",
@@ -1304,7 +1316,8 @@
   },
   "activeBar": {
     "recording": "Recording: {{name}}",
-    "plotRecording": "Plot recording: {{id}}"
+    "plotRecording": "Plot recording: {{id}}",
+    "gloriaRecording": "GLORIA survey in progress · mocy {{mocy}}"
   },
   "speciesSearch": {
     "hint": "Search species by common / scientific / family name below,{{br}}then view details here after selecting."
@@ -1542,7 +1555,10 @@
     "donePhotosSkipped_one": "{{count}} photo not imported (permission or unreadable)",
     "donePhotosSkipped_other": "{{count}} photos not imported (permission or unreadable)",
     "collectionExistsTitle": "Collection already exists",
-    "collectionExistsMsg": "\"{{name}}\" is already on this device. Overwrite it, or save as a new copy?"
+    "collectionExistsMsg": "\"{{name}}\" is already on this device. Overwrite it, or save as a new copy?",
+    "gloriaExistsTitle": "This GLORIA survey is already here",
+    "gloriaExistsMsg": "{{name}} is already on this device. Overwriting replaces it with the imported file.",
+    "gloriaImported": "Imported {{name}}"
   },
   "gbifLookup": {
     "title": "GBIF name lookup",
@@ -2347,5 +2363,318 @@
     "orcidSignOutTitle": "Sign out of ORCID?",
     "orcidSignOutMsg": "Exports will no longer be signed until you sign in again. The key is kept.",
     "orcidLegacy": "{{orcid}}, entered by hand earlier, has not been verified. Sign in with ORCID before it is used for signing."
+  },
+  "gloria": {
+    "notFound": "This GLORIA survey could not be found",
+    "overview": "Overview",
+    "endTitle": "End this GLORIA survey?",
+    "endMsg": "You can reopen it later to keep recording.",
+    "unitsDone": "{{done}}/{{total}} units done",
+    "tab": {
+      "points": "Base data",
+      "map": "Plot overview",
+      "species": "Species table"
+    },
+    "status": {
+      "none": "Not started",
+      "progress": "In progress",
+      "done": "Done",
+      "warn": "Warnings"
+    },
+    "list": {
+      "quadrats": "1×1 m quadrats",
+      "sas": "Summit area sections (SAS)",
+      "squares": "10×10 m squares"
+    },
+    "p5m": {
+      "title": "{{direction}} · 3×3 m grid (facing the summit)",
+      "explain": "p5m is the outer corner of {{point}}, on the 5-m contour (teal line). The 3×3 m grid for this direction is laid out from it.",
+      "notSet": "No p5m set for {{direction}} yet: pick 11 or 31 under Base data."
+    },
+    "new": {
+      "title": "New GLORIA survey",
+      "region": "Target region {{region}}",
+      "lastMocy": "last: mocy {{mocy}}",
+      "firstSurvey": "no survey yet",
+      "addSummit": "Add a summit",
+      "addSummitButton": "+ Add a summit",
+      "country": "Country code",
+      "targetRegion": "Target region code",
+      "summitCode": "Summit code",
+      "codeHint": "Country 2 letters (ISO 3166), target region and summit 3 characters each, e.g. TW-DAS-SUN (manual Box 6.1).",
+      "codeInvalid": "Codes don’t fit: country is 2 letters, target region and summit are 3 letters or digits each.",
+      "summitName": "Summit name (optional)",
+      "elevation": "Elevation m",
+      "vegZone": "Vegetation zone",
+      "saveSummit": "Save summit",
+      "mocyIs": "This will be mocy {{mocy}}",
+      "carryOver": "Carries the distance and bearing of {{points}} measurement points and the 10×10 m walk settings from mocy {{from}}. Species and cover start empty: resurveys are blind (manual Box 4.5).",
+      "noCarryOver": "First survey on this summit: all 28 measurement points need measuring.",
+      "surveyors": "Surveyors",
+      "noSurveyors": "None set (set defaults under Surveyors in settings)",
+      "start": "Start survey"
+    },
+    "points": {
+      "carried": "Measurement points are carried from last time; fields that now differ are tinted teal.",
+      "whereP5m": "Where is p5m?",
+      "point": "Point",
+      "distance": "Dist. m",
+      "compass": "Bearing °",
+      "photo": "Photos",
+      "distanceOf": "{{point}} distance (m)",
+      "compassOf": "{{point}} bearing (°)",
+      "photoM2": "{{point}} quadrat photo",
+      "photoM2F": "{{point}} quadrat photo with frequency frame",
+      "photoPoint": "{{point}} point photo",
+      "intersection": "Intersection lines"
+    },
+    "photo": {
+      "camera": "Take photo",
+      "library": "Choose from library",
+      "remove": "Remove photo"
+    },
+    "matrix": {
+      "quadrats": "1×1",
+      "sas": "SAS",
+      "squares": "10×10",
+      "quadratHint": "Cover %; f = frequency cells. Tap a column name to open that unit.",
+      "sasHint": "Abundance r! r s c d; • = listed without abundance.",
+      "squareHint": "Hits out of 400 points; • = additional species not hit.",
+      "empty": "No species yet",
+      "species": "Species"
+    },
+    "step": {
+      "cover": "Species and surface cover",
+      "frequency": "Frequency",
+      "pointframe": "Point-frame",
+      "sas": "Species and abundance",
+      "linePoints": "400 line points",
+      "additional": "Species not hit",
+      "notStarted": "not done",
+      "pointsDone": "{{done}}/{{total}} points",
+      "here": "you are here",
+      "jump": "Jump to another unit",
+      "backToSummit": "Back to Plot overview",
+      "speciesCount_one": "{{count}} species",
+      "speciesCount_other": "{{count}} species",
+      "freqDone_one": "{{count}} species drawn",
+      "freqDone_other": "{{count}} species drawn",
+      "freqCounted_one": "{{count}} counted",
+      "freqCounted_other": "{{count}} counted"
+    },
+    "issue": {
+      "topCoverSum": "Surface cover adds up to {{sum}}%, should be 100%",
+      "vascularExceeds": "Vascular plants {{vascular}}% > species cover total {{sum}}%",
+      "subtypeRange": "Surface cover subtype value {{value}} is outside 0–100",
+      "coverNoFreq": "{{name}}: {{cover}}% cover but no frequency cells",
+      "sasMissing": "In this direction’s quadrats but not here: {{names}}",
+      "p5m": "No p5m set for {{direction}} (11 or 31)",
+      "freqNoCover_one": "{{name}}: in {{count}} cell but no cover",
+      "freqNoCover_other": "{{name}}: in {{count}} cells but no cover",
+      "pointInconsistent_one": "{{count}} point has both a species and a surface, or neither",
+      "pointInconsistent_other": "{{count}} points have both a species and a surface, or neither"
+    },
+    "cover": {
+      "title": "Surface cover (%)",
+      "sumOk": "Total {{sum}} ✓",
+      "sumBad": "Total {{sum}} (should be 100)",
+      "subtypeHint": "As % of the surface type it belongs to (manual p.40): e.g. half of a 40% rock cover lichen-covered → enter 50.",
+      "cov_vascular": "Vascular plants",
+      "cov_solid_rock": "Solid rock",
+      "cov_scree": "Scree",
+      "cov_lichens": "Lichens on soil",
+      "cov_bryophytes": "Bryophytes on soil",
+      "cov_bare_ground": "Bare ground",
+      "cov_litter": "Litter",
+      "sub_lich_below_vasc": "Lichens · below vascular",
+      "sub_lich_on_rock": "Lichens · on rock",
+      "sub_lich_on_scree": "Lichens · on scree",
+      "sub_bry_below_vasc": "Bryophytes · below vascular",
+      "sub_bry_on_rock": "Bryophytes · on rock",
+      "sub_bry_on_scree": "Bryophytes · on scree"
+    },
+    "surface": {
+      "R": "Solid rock",
+      "S": "Scree",
+      "L": "Lichens",
+      "B": "Bryophytes",
+      "G": "Bare ground",
+      "T": "Litter"
+    },
+    "unit": {
+      "env": "Plot environment",
+      "aspect": "Aspect °",
+      "slope": "Slope °",
+      "aspectShort": "aspect {{v}}°",
+      "slopeShort": "slope {{v}}°",
+      "topSumShort": "surface cover total {{sum}}",
+      "topNotYet": "surface cover not entered",
+      "subtypes": "Surface cover subtypes (lichens/bryophytes)",
+      "vascularOk": "Vascular plants {{vascular}}% ≤ species cover total {{sum}}% ✓",
+      "vascularHint": "The species cover total should not be lower than the vascular plants’ surface cover (manual p.41). Recheck species cover or the surface cover estimate.",
+      "crossTitle": "Frequency and cover disagree",
+      "noSpecies": "Add species with the search below",
+      "coverRule": "Cover in %, no “<” or “>” (manual Form 2). Tap a name for details; long-press to remove.",
+      "coverOf": "{{name}} cover %",
+      "cf": "Uncertain identification (cf.)",
+      "openDetail": "Open details",
+      "remove": "Remove from this unit",
+      "rowHint": "Opens the species details",
+      "added": "Added {{name}}",
+      "markDone": "Mark this unit done",
+      "markUndone": "Mark as not done",
+      "sasMissingTitle": "Not all species of the {{direction}} quadrats are listed here",
+      "addAll": "Add all",
+      "abundanceLegend": "r! very rare · r rare · s scattered · c common · d dominant (>50% cover, manual p.42)",
+      "grazing": "Grazing/animal traces",
+      "grazingPlaceholder": "e.g. droppings, browsing, trampling",
+      "speciesHeader_one": "Species ({{count}}) · cover total {{sum}}",
+      "speciesHeader_other": "Species ({{count}}) · cover total {{sum}}",
+      "sasHeader_one": "Species ({{count}}) · abundance",
+      "sasHeader_other": "Species ({{count}}) · abundance",
+      "fromQuadratsDone_one": "Added {{count}} species from the quadrats",
+      "fromQuadratsDone_other": "Added {{count}} species from the quadrats"
+    },
+    "square": {
+      "walk": "Start and direction (Form 6-S, four options)",
+      "option1": "Lower-left edge · from the bottom corner",
+      "option2": "Lower-left edge · from the left corner",
+      "option3": "Lower-right edge · from the bottom corner",
+      "option4": "Lower-right edge · from the right corner",
+      "pickWalk": "Pick a start first. Resurveys reuse the previous choice (manual p.57).",
+      "start": "Record line points ({{done}}/400 done)",
+      "hitsTitle": "Hits and cover ({{done}}/400 recorded; cover = hits ÷ 4)",
+      "fromQuadrats": "Add from the 4 quadrats",
+      "extraEmpty": "After the line points, list the species not hit; start with the 4 quadrats’ species (manual p.58).",
+      "extra_one": "Species not hit ({{count}})",
+      "extra_other": "Species not hit ({{count}})"
+    },
+    "species": {
+      "inUnit": "{{code}} · list no. {{serial}}",
+      "abundance": "Abundance",
+      "cover": "Cover %",
+      "cf": "Uncertain identification",
+      "cfHint": "g genus, s species, t below species (manual Form 2, note 5)",
+      "lineage": "Classification",
+      "openKey": "Open key: {{name}}",
+      "repro": "Reproductive condition (any)",
+      "leaf": "Leaf phenology (any)",
+      "notes": "Notes",
+      "notesPlaceholder": "e.g. some plants withered, doubtful features"
+    },
+    "rank": {
+      "kingdom": "Kingdom",
+      "phylum": "Phylum",
+      "class": "Class",
+      "order": "Order",
+      "family": "Family",
+      "genus": "Genus"
+    },
+    "freq": {
+      "title": "{{code}} · frequency",
+      "undo": "Undo",
+      "brush": "Brush",
+      "cellMode": "Cell by cell",
+      "uphill": "▲ Toward the summit (uphill)",
+      "gridLabel": "Frequency grid 10×10",
+      "hi1": "Hi1 droppings",
+      "hi2": "Hi2 browsing",
+      "hi3": "Hi3 trampling",
+      "newSpecies": "+ New species",
+      "fillAll": "Fill all",
+      "inverse": "Mark absences",
+      "inverseDone": "Done marking absences",
+      "clear": "Clear",
+      "brushHint": "Pick a species or Hi, then drag across cells; starting on a filled cell erases. Grey dots are other species.",
+      "inverseHint": "All 100 cells are filled. Drag over the cells where it is absent (×), then tap Done.",
+      "cellTitle": "{{cell}} ({{n}}/100)",
+      "emptyNext": "Empty → next",
+      "next": "Next cell ▶",
+      "addedNoCover": "Added {{name}}; cover still missing",
+      "goCover": "Enter cover",
+      "countMode": "Count only",
+      "countHint": "For surveys that kept no cell records: enter only the number of cells (a whole number, 0–100) for each species and disturbance.",
+      "switchTitle": "Change recording method",
+      "switchToCount": "Switching to counts clears the cells drawn in this quadrat (species and Hi1–Hi3). Switch anyway?",
+      "switchToCells": "Switching back to cells clears the counts entered. Switch anyway?",
+      "switchConfirm": "Clear and switch"
+    },
+    "walk": {
+      "titleQuadrat": "{{code}} · point-frame",
+      "titleSquare": "{{code}} · 10×10 m line points",
+      "linePoint": "Line {{line}} · point {{point}}",
+      "point": "Point {{n}}",
+      "allDone": "All {{total}} points done",
+      "progress": "{{done}}/{{total}} recorded",
+      "forward": "→ Along the line",
+      "back": "← Walking back",
+      "species": "Vascular plants hit (any)",
+      "surface": "No plant hit: surface type",
+      "same": "Same as last",
+      "next": "Next point ▶",
+      "lineDone": "Line {{line}} done: {{hits}} hits"
+    },
+    "endWithIssues_one": "{{count}} warning is still open. End anyway? You can reopen it later.",
+    "endWithIssues_other": "{{count}} warnings are still open. End anyway? You can reopen it later.",
+    "kb": {
+      "next": "Next",
+      "done": "Done"
+    },
+    "num": {
+      "rejectTitle": "Value out of range",
+      "reject": "{{label}}: {{value}}{{unit}} is outside {{min}}–{{max}}{{unit}}. Not saved; the previous value is back.",
+      "warnTitle": "Please check this value",
+      "warn": "{{label}}: {{value}}{{unit}} is outside the usual {{min}}–{{max}}{{unit}}. Saved; correct it if it was a typo.",
+      "rejectInt": "{{label}}: {{value}} is not a whole number. Frequency counts cells; enter a whole number from 0 to 100. Not saved; the previous value is back."
+    },
+    "foldCount": "{{title}} ({{n}})",
+    "summit": {
+      "title": "Summit",
+      "code": "Summit code",
+      "name": "Name",
+      "namePlaceholder": "Optional",
+      "lat": "Latitude (WGS84)",
+      "lon": "Longitude (WGS84)",
+      "elevation": "Elevation (m)",
+      "zone": "Vegetation zone",
+      "zoneNone": "Not set",
+      "photos": "Environment photos ({{n}})",
+      "photosHint": "Exported as SU-OV (summit overview) per manual Annex III, with the viewpoint as element 8 of the file name. Enter where each photo was taken from, e.g. “from the S saddle”.",
+      "viewpoint": "Viewpoint",
+      "viewpointLabel": "Viewpoint of photo {{n}}",
+      "photoFail": "Could not add the photo"
+    },
+    "times": {
+      "title": "Researchers and times",
+      "cover": "Cover estimate",
+      "freq": "Frequency",
+      "survey": "Survey",
+      "start": "Start",
+      "stop": "End",
+      "now": "Set to now",
+      "orderTitle": "Times out of order",
+      "order": "The end of {{what}} cannot be earlier than its start.",
+      "hint": "The start is recorded at the first entry and the end when you tap “Mark this unit done”; tap a time to change it.",
+      "hintQuadrat": "Cover estimate: starts at the first entry, ends when you tap “Mark this unit done”. Frequency: starts at the first stroke; the end follows the latest edit until you set it by hand. Tap a time to change it.",
+      "by": "Researchers",
+      "bySurvey": "Same as survey: {{names}}",
+      "byNone": "Not set"
+    }
+  },
+  "vernacular": {
+    "title": "Common name languages",
+    "hint": "Choose which languages species common names appear in (up to {{n}}). They are joined with \" / \" in the order below; the first is the main name. Screens and exports follow this setting; search still matches names from every enabled checklist. Specimen labels keep printing a single name.",
+    "order": "Languages and order",
+    "zhTW": "Traditional Chinese names",
+    "zhTWSource": "Taiwan checklist (TaiCOL)",
+    "ja": "Japanese names (wamei)",
+    "jaSource": "Japan vascular plant checklist (YList)",
+    "zhTWShort": "Chinese",
+    "jaShort": "Japanese",
+    "keepOne": "Keep at least one common name language.",
+    "max": "Up to {{n}} common names can be shown at once.",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
+    "onlyOne": "Only one checklist is enabled, so there is one common name language. Enable another checklist (such as Japan) under “{{page}}” to add its language."
   }
 }

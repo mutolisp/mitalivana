@@ -13,6 +13,7 @@ import {
   createPlotPromptAndOpen,
   importRecordPromptAndOpen,
   showCreateChooser,
+  openNewGloria,
   startCollectionAndOpen,
   startSessionAndOpen,
 } from '~/lib/recordCreate';
@@ -24,30 +25,29 @@ import i18n from '~/i18n';
 async function showLongPressMenu(): Promise<void> {
   const updateDefault = (v: RecordTypeDefault) =>
     useSettings.getState().set('record_type_default', v);
+  // Label + action pairs, so an optional entry (GLORIA) cannot shift the
+  // index of the ones after it.
+  const actions: Array<[string, () => void]> = [
+    [i18n.t('record.kindSession'), () => void startSessionAndOpen()],
+    [i18n.t('record.kindPlot'), () => void createPlotPromptAndOpen()],
+    [i18n.t('record.kindCollection'), () => void startCollectionAndOpen()],
+    // Also here: with a record_type_default set, the ＋ button skips the
+    // chooser entirely, so this menu is the only way in.
+    [i18n.t('record.kindImport'), () => void importRecordPromptAndOpen()],
+    ...(useSettings.getState().module_gloria
+      ? ([[i18n.t('record.kindGloria'), openNewGloria]] as Array<[string, () => void]>)
+      : []),
+    [i18n.t('record.defaultAsk'), () => updateDefault('ask')],
+    [i18n.t('record.defaultSession'), () => updateDefault('session')],
+    [i18n.t('record.defaultPlot'), () => updateDefault('plot')],
+    [i18n.t('record.defaultCollection'), () => updateDefault('collection')],
+  ];
   const idx = await showActionSheet({
     title: i18n.t('record.createMenuTitle'),
     message: i18n.t('record.createMenuMsg'),
-    options: [
-      { label: i18n.t('record.kindSession') },
-      { label: i18n.t('record.kindPlot') },
-      { label: i18n.t('record.kindCollection') },
-      // Also here: with a record_type_default set, the ＋ button skips the
-      // chooser entirely, so this menu is the only way in.
-      { label: i18n.t('record.kindImport') },
-      { label: i18n.t('record.defaultAsk') },
-      { label: i18n.t('record.defaultSession') },
-      { label: i18n.t('record.defaultPlot') },
-      { label: i18n.t('record.defaultCollection') },
-    ],
+    options: actions.map(([label]) => ({ label })),
   });
-  if (idx === 0) startSessionAndOpen();
-  else if (idx === 1) createPlotPromptAndOpen();
-  else if (idx === 2) startCollectionAndOpen();
-  else if (idx === 3) importRecordPromptAndOpen();
-  else if (idx === 4) updateDefault('ask');
-  else if (idx === 5) updateDefault('session');
-  else if (idx === 6) updateDefault('plot');
-  else if (idx === 7) updateDefault('collection');
+  actions[idx]?.[1]();
 }
 
 function PlusButton() {

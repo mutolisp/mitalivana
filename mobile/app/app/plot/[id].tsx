@@ -65,6 +65,7 @@ import { TransectTrackControl } from '~/components/TransectTrackControl';
 import { isRecordingTarget, pauseIfNot, pauseRecording } from '~/lib/trackRecorder';
 import { useSettings, type PlotTab } from '~/stores/settings';
 import { useActivePlot } from '~/stores/activePlot';
+import { useActiveGloria } from '~/modules/gloria/store';
 import { useActiveSession } from '~/stores/activeSession';
 import { captureEnvPhoto, pickPhotos } from '~/lib/photoCapture';
 import { ACTION_FILL } from '~/lib/colors';
@@ -182,6 +183,7 @@ export default function PlotDetailScreen() {
                     // both stores so the UI bars + watchers reflect reality.
                     refreshActivePlot();
                     refreshActiveSession();
+                    useActiveGloria.getState().refresh();
                     reload();
                   } else {
                     Alert.alert(

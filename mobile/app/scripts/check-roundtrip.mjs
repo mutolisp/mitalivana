@@ -37,6 +37,7 @@ import { collectionFromDoc, parseCollectionYaml } from '../src/lib/collectionImp
 import { parsePlotYaml } from '../src/lib/plotImport.ts';
 import { parseSessionYaml } from '../src/lib/sessionImport.ts';
 import { schemaColumns } from './schema-columns.mjs';
+import { buildGloriaDoc, validateGloriaDoc } from '../src/modules/gloria/export/yaml.ts';
 import {
   readRecordImportFromBytes,
   readRecordYamlTextFromBytes,
@@ -79,7 +80,43 @@ const RESTORED_VIA = {
   collection_specimens: { elevation_source: 'vertical_datum' },
 };
 
+const GLORIA_SUMMIT = 'exported as the survey\'s `summit:` block; the summit row is upserted by full_code';
 const NOT_RESTORABLE = {
+  gloria_summits: {
+    id: ROW_ID,
+    created_at: IMPORT_TIME,
+    updated_at: IMPORT_TIME,
+  },
+  gloria_surveys: {
+    id: ROW_ID,
+    summit_id: GLORIA_SUMMIT,
+    status: "imported records are always 'done' (single-active invariant)",
+    prev_survey_id: 're-linked on import from the summit\'s other surveys by mocy',
+    project_id: 'exported by name (`project_name`), re-resolved on import',
+    site_id: 'not exported yet — GLORIA surveys have no site sidecar',
+    grid_ok_n: 'exported inside `grid_ok` {N,E,S,W}',
+    grid_ok_e: 'exported inside `grid_ok` {N,E,S,W}',
+    grid_ok_s: 'exported inside `grid_ok` {N,E,S,W}',
+    grid_ok_w: 'exported inside `grid_ok` {N,E,S,W}',
+    starred: STARRED,
+  },
+  gloria_points: {
+    id: ROW_ID,
+    survey_id: 'structural — points live inside their survey in the yml',
+  },
+  gloria_units: {
+    id: ROW_ID,
+    survey_id: 'structural — units live inside their survey in the yml',
+  },
+  gloria_taxa: {
+    id: ROW_ID,
+    survey_id: 'structural — the roster lives inside its survey in the yml',
+  },
+  gloria_unit_species: {
+    id: ROW_ID,
+    unit_id: 'exported as the unit CODE (`unit`), ids are per-device',
+    gloria_taxon_id: 'exported as the roster SERIAL (`serial`)',
+  },
   sessions: {
     id: ROW_ID,
     project_id: 'exported by name (`project`), re-resolved on import',
@@ -781,6 +818,42 @@ checklist:
 }
 }
 
+// ── GLORIA survey yml (src/modules/gloria/export/yaml.ts) ────────────────
+{
+  // One fixture row per table with EVERY migrated column set, so a column the
+  // builder forgets shows up as missing from the yml keys.
+  const full = (table, over = {}) => {
+    const row = {};
+    for (const c of SCHEMA.get(table)) row[c] = `${table}.${c}`;
+    return { ...row, ...over };
+  };
+  const summit = full('gloria_summits');
+  const survey = full('gloria_surveys', { mocy: 5, start_ts: 1, created_at: 1, updated_at: 2 });
+  const unit = full('gloria_units', { id: 7, code: 'N33' });
+  const taxon = full('gloria_taxa', { id: 9, serial: 3 });
+  const species = full('gloria_unit_species', { unit_id: 7, gloria_taxon_id: 9 });
+  const doc = buildGloriaDoc({
+    summit, survey, projectName: 'P', points: [full('gloria_points')], units: [unit], taxa: [taxon], species: [species],
+  });
+  const surveyKeys = new Set([...Object.keys(doc.survey), 'project_name']);
+  checkCoverage('gloria_summits', new Set(Object.keys(doc.summit)));
+  checkCoverage('gloria_surveys', surveyKeys);
+  checkCoverage('gloria_points', new Set(Object.keys(doc.points[0])));
+  checkCoverage('gloria_units', new Set(Object.keys(doc.units[0])));
+  checkCoverage('gloria_taxa', new Set(Object.keys(doc.taxa[0])));
+  checkCoverage('gloria_unit_species', new Set(Object.keys(doc.species[0])));
+  eq('gloria: species keyed by unit code', doc.species[0].unit, 'N33');
+  eq('gloria: species keyed by roster serial', doc.species[0].serial, 3);
+  const back = yaml.load(yaml.dump(doc, { lineWidth: -1, noRefs: true }));
+  eq('gloria: yml dump → load is lossless', back, JSON.parse(JSON.stringify(doc)));
+  eq('gloria: survives validation', validateGloriaDoc({ ...back, schema: 1, survey: { ...back.survey, mocy: 5 } }), []);
+  // An older build falls back to "checklist" for unknown yml; ours must not.
+  const bytes = strToU8(yaml.dump(doc));
+  eq('gloria: bare yml detected as gloria', readRecordImportFromBytes(bytes).kind, 'gloria');
+  eq('gloria: zipped yml detected as gloria',
+     readRecordImportFromBytes(zipSync({ 'G/G.yml': bytes, 'G/manifest.json': strToU8('{"kind":"gloria"}') })).kind, 'gloria');
+}
+
 // ── Summary ──────────────────────────────────────────────────────────────
 // Last, deliberately. This block used to sit before sections 5 and 6, so a
 // failure in either printed a ✗ and still exited 0. Verified by breaking one
@@ -789,4 +862,4 @@ if (failures > 0) {
   console.error(`\n✗ round-trip: ${failures} failure(s)`);
   process.exit(1);
 }
-console.log('✓ round-trip: 名錄 / 樣區 / 採集 yml survive export → import with no field lost');
+console.log('✓ round-trip: 名錄 / 樣區 / 採集 / GLORIA yml survive export → import with no field lost');

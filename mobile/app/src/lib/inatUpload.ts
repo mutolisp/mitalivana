@@ -36,7 +36,7 @@ import {
   markInatObservation,
   markInatUploaded,
   parseGeometry,
-  type RecordKind,
+  type InatKind,
 } from '~/db';
 import { ApiError, sleep } from './apiFetch';
 import { apiErrorMessage } from './apiErrorMessage';
@@ -87,10 +87,10 @@ import {
 const REQUEST_GAP_MS = 1000;
 const RATE_LIMITED_GAP_MS = 2000;
 
-export type UploadUnit = { kind: RecordKind; id: number };
+export type UploadUnit = { kind: InatKind; id: number };
 
 export type EligibleRecord = {
-  kind: RecordKind;
+  kind: InatKind;
   id: number;
   occurrenceId: string;
   localTaxonId: string;

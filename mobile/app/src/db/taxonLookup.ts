@@ -22,6 +22,7 @@ import {
   regionOfTaxonId,
   crossRegionVernacular,
   composeVernacular,
+  getVernacularLangs,
 } from './regions';
 
 export type TaxonFields = {
@@ -140,6 +141,7 @@ export function resolveTaxa(taxonIds: string[]): Map<string, TaxonFields> {
 
   const regions = getEnabledRegions();
   const cross = regions.includes('JP') ? crossRegionVernacular(ids, regions) : null;
+  const langs = cross ? getVernacularLangs() : [];
 
   const str = (t: Record<string, unknown>, k: string) => (t[k] as string) ?? '';
   for (const id of ids) {
@@ -150,7 +152,7 @@ export function resolveTaxa(taxonIds: string[]): Map<string, TaxonFields> {
       name_author: str(t, 'name_author'),
       alternative_name_c: str(t, 'alternative_name_c'),
       common_name_c: cross
-        ? composeVernacular(ownCname, regionOfTaxonId(id), cross.get(id), regions)
+        ? composeVernacular(ownCname, regionOfTaxonId(id), cross.get(id), regions, langs)
         : ownCname,
       family: str(t, 'family'),
       family_c: str(t, 'family_c'),

@@ -7,9 +7,9 @@ import {
   isAvailable,
 } from './datasets';
 import { getUserDb } from './init';
-import { stitchCrossRegion } from './mergeScope';
+import { composeByLangs, DEFAULT_VERNACULAR_LANGS, parseVernacularLangs, stitchCrossRegion } from './mergeScope';
 import i18n from '~/i18n';
-import type { RegionCode } from '~/stores/settings';
+import type { RegionCode, VernacularLang } from '~/stores/settings';
 
 /**
  * Regional checklist helpers. Taiwan (TaiCOL) and Japan (YList → `jp_names`)
@@ -70,6 +70,22 @@ export function getEnabledRegions(): RegionCode[] {
   const requested = getRequestedRegions();
   const installed = installedRegions();
   return requested.filter((r) => installed.includes(r));
+}
+
+/**
+ * The vernacular languages the user chose to show, in their order — read from
+ * the settings table like `getRequestedRegions`, so the DB layer needs no
+ * React store. Unset or corrupt → both, Taiwan first (the behaviour before the
+ * setting existed).
+ */
+export function getVernacularLangs(): VernacularLang[] {
+  try {
+    const res = getUserDb().executeSync(`SELECT value FROM settings WHERE key='vernacular_langs' LIMIT 1`);
+    const raw = ((res.rows ?? [])[0] as { value?: string } | undefined)?.value;
+    return parseVernacularLangs(raw) ?? DEFAULT_VERNACULAR_LANGS;
+  } catch {
+    return DEFAULT_VERNACULAR_LANGS;
+  }
 }
 
 /** Identification keys are usable (module installed, Taiwan checklist present,
@@ -240,21 +256,25 @@ export function crossRegionVernacular(
 
 /**
  * Compose the display vernacular for a row from its own name/region and the
- * cross-region lookup. Shared species → "臺灣俗名 / 和名"; single-region → that
- * region's name. Falls back to ownCname when the crosswalk had nothing.
+ * cross-region lookup, in the languages the user chose (`langs`, see
+ * `getVernacularLangs`) — e.g. "臺灣俗名 / 和名". A language only contributes
+ * while its checklist is enabled. Falls back to ownCname when none of the
+ * chosen languages has a name.
  */
 export function composeVernacular(
   ownCname: string,
   ownRegion: RegionCode,
   cross: { tw?: string; jp?: string } | undefined,
   regions: RegionCode[],
+  langs: readonly VernacularLang[],
 ): string {
   const tw = cross?.tw ?? (ownRegion === 'TW' ? ownCname : undefined);
   const jp = cross?.jp ?? (ownRegion === 'JP' ? ownCname : undefined);
-  const parts: string[] = [];
-  if (regions.includes('TW') && tw) parts.push(tw);
-  if (regions.includes('JP') && jp && jp !== tw) parts.push(jp);
-  return parts.length > 0 ? parts.join(' / ') : ownCname;
+  return composeByLangs(
+    { 'zh-TW': regions.includes('TW') ? tw : undefined, ja: regions.includes('JP') ? jp : undefined },
+    langs,
+    ownCname,
+  );
 }
 
 // Pure, so it lives with the other cross-region logic (runs under Node).

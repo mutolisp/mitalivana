@@ -9,15 +9,16 @@
 import { File, Paths } from 'expo-file-system';
 import { getDatasetDb } from './datasets';
 import { getUserDb } from './init';
+import { endActiveRecord, type ActiveKind } from './activeRecords';
 
 /**
  * Enforce the single-active invariant at app start.
  *
  * Steps:
  *   1. Per-kind: keep the most recently started active record; force-end
- *      every other open session / plot.
- *   2. Cross-kind: if both a session AND a plot are still active, end the
- *      one with the older start time.
+ *      every other open session / plot / GLORIA survey.
+ *   2. Cross-kind: if more than one kind is still active, keep the most
+ *      recently started and end the rest.
  *
  * Run idempotently — second invocation on the same data ends nothing.
  */
@@ -55,29 +56,40 @@ export function enforceSingleActiveOnStartup(): void {
     [now, now],
   );
 
-  // ── Step 2: cross-kind exclusion ───────────────────────────────────────
-  const sessRes = db.executeSync(
-    `SELECT id, started_at FROM sessions WHERE ended_at IS NULL ORDER BY started_at DESC LIMIT 1`,
+  // ── Step 1c: keep latest active GLORIA survey ──────────────────────────
+  db.executeSync(
+    `UPDATE gloria_surveys
+        SET status = 'done',
+            stop_ts = COALESCE(stop_ts, ?),
+            updated_at = ?
+      WHERE status = 'active'
+        AND id NOT IN (
+          SELECT id FROM gloria_surveys
+           WHERE status = 'active'
+           ORDER BY start_ts DESC
+           LIMIT 1
+        )`,
+    [now, now],
   );
-  const sessRow = (sessRes.rows?.[0] ?? null) as { id: number; started_at: number } | null;
 
-  const plotRes = db.executeSync(
+  // ── Step 2: cross-kind exclusion — the most recently started survives ──
+  const candidates: Array<{ kind: ActiveKind; id: number; ts: number }> = [];
+  const sessRow = db.executeSync(
+    `SELECT id, started_at AS ts FROM sessions WHERE ended_at IS NULL ORDER BY started_at DESC LIMIT 1`,
+  ).rows?.[0] as { id: number; ts: number } | undefined;
+  if (sessRow) candidates.push({ kind: 'session', ...sessRow });
+  const plotRow = db.executeSync(
     `SELECT id, COALESCE(start_ts, created_at) AS ts FROM plot_surveys WHERE status = 'active' ORDER BY ts DESC LIMIT 1`,
-  );
-  const plotRow = (plotRes.rows?.[0] ?? null) as { id: number; ts: number } | null;
+  ).rows?.[0] as { id: number; ts: number } | undefined;
+  if (plotRow) candidates.push({ kind: 'plot', ...plotRow });
+  const gloriaRow = db.executeSync(
+    `SELECT id, start_ts AS ts FROM gloria_surveys WHERE status = 'active' ORDER BY start_ts DESC LIMIT 1`,
+  ).rows?.[0] as { id: number; ts: number } | undefined;
+  if (gloriaRow) candidates.push({ kind: 'gloria', ...gloriaRow });
 
-  if (!sessRow || !plotRow) return;
-
-  if (sessRow.started_at >= plotRow.ts) {
-    // Session is newer → end the plot.
-    db.executeSync(
-      `UPDATE plot_surveys SET status = 'done', stop_ts = COALESCE(stop_ts, ?), updated_at = ? WHERE id = ?`,
-      [now, now, plotRow.id],
-    );
-  } else {
-    // Plot is newer → end the session.
-    db.executeSync(`UPDATE sessions SET ended_at = ? WHERE id = ?`, [now, sessRow.id]);
-  }
+  if (candidates.length < 2) return;
+  const keep = candidates.reduce((a, b) => (b.ts > a.ts ? b : a));
+  for (const c of candidates) if (c !== keep) endActiveRecord(db, now, c.kind, c.id);
 }
 
 /** Prefix for the automatic pre-repair snapshots. */
@@ -155,6 +167,10 @@ export function purgeOrphanRows(): void {
     ['plot_survey_layers', 'plot_survey_id NOT IN (SELECT id FROM plot_surveys)'],
     ['plot_subplots', 'plot_survey_id NOT IN (SELECT id FROM plot_surveys)'],
     ['subplot_layers', 'subplot_id NOT IN (SELECT id FROM plot_subplots)'],
+    ['gloria_points', 'survey_id NOT IN (SELECT id FROM gloria_surveys)'],
+    ['gloria_units', 'survey_id NOT IN (SELECT id FROM gloria_surveys)'],
+    ['gloria_taxa', 'survey_id NOT IN (SELECT id FROM gloria_surveys)'],
+    ['gloria_unit_species', 'unit_id NOT IN (SELECT id FROM gloria_units) OR gloria_taxon_id NOT IN (SELECT id FROM gloria_taxa)'],
   ];
   for (const [table, where] of orphanDeletes) {
     // Parent before child: FK is OFF here, so nothing cascades. Deleting
@@ -173,7 +189,15 @@ export function purgeOrphanRows(): void {
     `UPDATE plot_surveys SET site_id = NULL
        WHERE site_id IS NOT NULL AND site_id NOT IN (SELECT id FROM sites);`,
   );
-  // No FK (v43), same repair.
+  // No FK (v43 / v47), same repair.
+  db.executeSync(
+    `UPDATE gloria_surveys SET site_id = NULL
+       WHERE site_id IS NOT NULL AND site_id NOT IN (SELECT id FROM sites);`,
+  );
+  db.executeSync(
+    `UPDATE gloria_surveys SET prev_survey_id = NULL
+       WHERE prev_survey_id IS NOT NULL AND prev_survey_id NOT IN (SELECT id FROM gloria_surveys);`,
+  );
   db.executeSync(
     `UPDATE collection_trips SET site_id = NULL
        WHERE site_id IS NOT NULL AND site_id NOT IN (SELECT id FROM sites);`,
@@ -198,7 +222,7 @@ export function purgeOrphanRows(): void {
 
 /** Tables carrying a FK to `projects`. `deleteProject` used to reassign only
  *  the first two, stranding the other two. */
-const PROJECT_FK_TABLES = ['sessions', 'plot_surveys', 'sites', 'collection_trips'];
+const PROJECT_FK_TABLES = ['sessions', 'plot_surveys', 'sites', 'collection_trips', 'gloria_surveys'];
 
 /**
  * Reassign rows whose `project_id` points at a deleted project back to 0 (未分類).
@@ -256,7 +280,7 @@ export type IntegrityReport = {
  * are published DwC identifiers, so re-minting them would break any export
  * already handed over. The user needs the actual numbers to decide.
  */
-const ADOPTION_TABLES = ['checklist_records', 'plot_species_records', 'collection_specimens'];
+const ADOPTION_TABLES = ['checklist_records', 'plot_species_records', 'collection_specimens', 'gloria_taxa'];
 
 /**
  * Rows whose stored adopted name the checklist no longer confirms — the id is
@@ -319,7 +343,7 @@ export function checkIntegrity(): IntegrityReport {
     return Number((r.rows?.[0] as { n?: number })?.n ?? 0);
   };
 
-  const OCC_TABLES = ['checklist_records', 'plot_species_records', 'collection_specimens'];
+  const OCC_TABLES = ['checklist_records', 'plot_species_records', 'collection_specimens', 'gloria_unit_species'];
   const duplicateOccurrenceIds = OCC_TABLES.map((table) => {
     const dup = `SELECT occurrence_id, COUNT(*) AS c FROM ${table}
                  WHERE occurrence_id IS NOT NULL AND occurrence_id != ''
@@ -345,6 +369,10 @@ export function checkIntegrity(): IntegrityReport {
     ['plot_survey_layers', 'plot_survey_id NOT IN (SELECT id FROM plot_surveys)'],
     ['subplot_layers', 'subplot_id NOT IN (SELECT id FROM plot_subplots)'],
     ['plot_subplots', 'plot_survey_id NOT IN (SELECT id FROM plot_surveys)'],
+    ['gloria_points', 'survey_id NOT IN (SELECT id FROM gloria_surveys)'],
+    ['gloria_units', 'survey_id NOT IN (SELECT id FROM gloria_surveys)'],
+    ['gloria_taxa', 'survey_id NOT IN (SELECT id FROM gloria_surveys)'],
+    ['gloria_unit_species', 'unit_id NOT IN (SELECT id FROM gloria_units) OR gloria_taxon_id NOT IN (SELECT id FROM gloria_taxa)'],
   ]
     .map(([table, where]) => ({ table, n: num(`SELECT COUNT(*) AS n FROM ${table} WHERE ${where}`) }))
     .filter((o) => o.n > 0);

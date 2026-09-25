@@ -372,12 +372,13 @@ export function GbifLookupHost() {
     const edit = pending?.edit;
     if (!edit) return;
     const u = externalTaxonUsage(edit.taxon_id);
-    if (u.records + u.plotRecords + u.specimens + u.favorites > 0) {
+    if (u.records + u.plotRecords + u.specimens + u.favorites + u.gloriaTaxa > 0) {
       Alert.alert(
         t('manualTaxon.deleteBlockedTitle'),
         t('manualTaxon.deleteBlockedMsg', {
           records: u.records,
-          plotRecords: u.plotRecords,
+          // GLORIA survey rosters are plot data too; counted with plot records.
+          plotRecords: u.plotRecords + u.gloriaTaxa,
           specimens: u.specimens,
           favorites: u.favorites,
         }),

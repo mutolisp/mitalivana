@@ -18,6 +18,7 @@ const KIND_LABEL: Record<RecordKind, string> = {
   session: 'favorites.kindSession',
   plot: 'favorites.kindPlot',
   collection: 'favorites.kindCollection',
+  gloria: 'favorites.kindGloria',
 };
 
 type Props = {

@@ -14,8 +14,8 @@
 |---|---|
 | `Plan.md`（本檔） | **待辦** ＋ 現行架構與長效設計決策 |
 | `Update_log.md` | 已 ship 與踩過的坑；附錄 A–D 收了本檔原本 4,000 多行的 sprint 推導過程 |
-| `Device_test.md` | 實機驗證清單（171 項，全部未跑）。**驗證項不要寫回本檔** |
-| 守門 | `npm run check:*` 共 **26 支**；新增 `check:keys`、`check:manifest`、`check:photognss`、`check:compiler`、`check:searchplan`，`check:dwc` / `check:kav` 擴充 |
+| `Device_test.md` | 實機驗證清單（487 項，全部未跑）。**驗證項不要寫回本檔** |
+| 守門 | `npm run check:*` 共 **37 支**（2026-09-25 最新加入 `check:gloria`） |
 | `docs/` | 仍代表現況的參考文件：檢索表、樣區、匯出外部 API、報表、物種詳細頁、地圖、i18n |
 | `docs/planned/` | 純規劃未動工：AI 辨識、P2P 協作、雲端協作 |
 | `archive/` | 已完成或被取代的設計稿與一次性稽核 |
@@ -24,7 +24,8 @@
 各領域的現行設計決策不重複寫在這裡，去對應的 `docs/` 檔看：
 樣區調查 → `docs/Survey_plots_plan.md`；檢索表 → `docs/Ident_keys.md`；
 地圖與圖層 → `docs/Map.md`；iNat／GBIF → `docs/External_species_api.md`；
-報表 → `docs/Report.md`；物種詳細頁 → `docs/Species_details.md`；i18n → `docs/i18n.md`。
+報表 → `docs/Report.md`；物種詳細頁 → `docs/Species_details.md`；i18n → `docs/i18n.md`；
+GLORIA → `~/.claude/plans/gloria-1-gloria-jazzy-lagoon.md`（`docs/gloria.md` 尚未寫，見 G3）。
 
 ---
 
@@ -280,6 +281,26 @@
 - [ ] Xcode 26 + macOS 25.3 的 Cryptex disk image 機制需要手動 mount runtime 才能用 simulator（已解，文件記錄）
 - [ ] Expo CLI 54.0.24 與 Xcode 26 的 `devicectl` JSON format 不相容，無法 `expo run:ios --device`，需從 Xcode 開 workspace build。SDK 升 55+ 應可解
 - [ ] `expo-sharing` 必須裝 14.x（SDK 54 對應版本），裝到 55.x 會 build fail（type 不相容）
+
+
+### G. GLORIA 山峰監測模組（2026-09-25 上線 v47–v49，細節見 `Update_log.md`）
+
+已完成：資料模型、盲測重複調查、基礎資料（山峰基本資料＋環境照片＋28 量測點）、樣區總覽、物種總表、
+1×1 m 樣區／頻度（筆刷、逐格、直接輸入次數）／頻度點擊法、SAS、10×10 逐點、Sheet 分頁 CSV＋yml＋照片匯出、
+歷史資料一次性轉換（57 個 zip）。
+
+1. **DwC-A 匯出** —— 山峰為父 event、各單位為子 event，頻度與 hits 走 MoF。要先補 `OCCURRENCE_COLS.occurrenceStatus`、
+   `MEASUREMENT_COLS.measurementUnit`，並跑 `check:dwc`。
+2. **`gloria_taxa` 的 retaxon** —— 事後重新鑑定目前要手動；`retaxon.ts` 還不認得這張表。
+3. **文件** —— `docs/gloria.md`（Sheet 分頁對照、遮罩格式與 f11…f00、手冊頁碼、照片命名）；
+   `mitalivana-code-review` skill 加 GLORIA 檢查項。
+4. **Sheet 資料** —— 稽核網頁其餘類別待使用者處理；Sheet 修正完後重跑一次性轉換再匯入。
+   TW-SAC-JIA 的 twd97y 與其緯度差約 15 m（其餘 14 座 < 1 m），待使用者確認哪一格打錯。
+5. **匯出大小估算** —— `exportSize.ts` 對 GLORIA 只算文字，未計照片。
+6. **待確認** —— 截圖 4b 物種總表的 FRE 欄、Survey Type `CAL` 的意思（未確認前不做）。
+7. **MIREN** —— 本機沒有 protocol 原文，不做任何設計；拿到原文後照 GLORIA 模式另開 sibling 模組。
+
+**俗名顯示語言**（同日完成）的擴充點：新增語言需要有帶該語言俗名的名錄來源；國家名錄 pack（GBIF）目前不含俗名。
 
 ---
 

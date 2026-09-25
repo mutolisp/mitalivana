@@ -11,7 +11,7 @@
  * This layer depends on types only, never on a runtime module.
  */
 import type { TaxonNode } from './taxonomy';
-import type { RegionCode } from '~/stores/settings';
+import type { RegionCode, VernacularLang } from '~/stores/settings';
 
 /**
  * Merge same-level nodes returned by two checklist modules.
@@ -66,6 +66,53 @@ export function stitchCrossRegion(
     if (entry.tw || entry.jp) out.set(id, entry);
   }
   return out;
+}
+
+/** Which checklist carries each vernacular language. Adding a language means
+ *  adding its checklist here and to `VernacularLang`. */
+export const VERNACULAR_LANGS: readonly { lang: VernacularLang; region: RegionCode }[] = [
+  { lang: 'zh-TW', region: 'TW' },
+  { lang: 'ja', region: 'JP' },
+];
+export const MAX_VERNACULAR_LANGS = 3;
+export const DEFAULT_VERNACULAR_LANGS: VernacularLang[] = ['zh-TW', 'ja'];
+
+/**
+ * The stored `vernacular_langs` setting → known languages, de-duplicated, at
+ * most three. `null` when absent or unusable, so the caller applies its default.
+ * Shared by the settings store and the DB layer, which reads the same row.
+ */
+export function parseVernacularLangs(raw: string | null | undefined): VernacularLang[] | null {
+  if (raw == null) return null;
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return null;
+    const known = new Set<string>(VERNACULAR_LANGS.map((v) => v.lang));
+    const out = [...new Set(parsed.filter((v): v is VernacularLang => typeof v === 'string' && known.has(v)))];
+    return out.length > 0 ? out.slice(0, MAX_VERNACULAR_LANGS) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The vernacular shown for one taxon: the names it has in the user's chosen
+ * languages, in the user's order, joined with " / " (a name identical to one
+ * already shown is not repeated). When none of the chosen languages has a name,
+ * `fallback` (the taxon's own checklist name) is shown rather than nothing — a
+ * Japan-only species still needs a name when only zh-TW is ticked.
+ */
+export function composeByLangs(
+  names: Partial<Record<VernacularLang, string>>,
+  langs: readonly VernacularLang[],
+  fallback: string,
+): string {
+  const parts: string[] = [];
+  for (const lang of langs) {
+    const n = names[lang];
+    if (n && !parts.includes(n)) parts.push(n);
+  }
+  return parts.length > 0 ? parts.join(' / ') : fallback;
 }
 
 /**

@@ -300,18 +300,20 @@ export function countOrphanExternalTaxa(): number {
       WHERE NOT EXISTS (SELECT 1 FROM favorite_taxa f WHERE f.taxon_id = e.taxon_id)
         AND NOT EXISTS (SELECT 1 FROM checklist_records c WHERE c.taxon_id = e.taxon_id)
         AND NOT EXISTS (SELECT 1 FROM plot_species_records p WHERE p.taxon_id = e.taxon_id)
-        AND NOT EXISTS (SELECT 1 FROM collection_specimens s WHERE s.taxon_id = e.taxon_id);`,
+        AND NOT EXISTS (SELECT 1 FROM collection_specimens s WHERE s.taxon_id = e.taxon_id)
+        AND NOT EXISTS (SELECT 1 FROM gloria_taxa g WHERE g.taxon_id = e.taxon_id);`,
   );
   return Number(((res.rows ?? [])[0] as { n?: number })?.n ?? 0);
 }
 
-/** What still points at one external taxon — the same four tables
+/** What still points at one external taxon — the same tables
  *  `countOrphanExternalTaxa` counts as references. */
 export type ExternalTaxonUsage = {
   records: number;
   plotRecords: number;
   specimens: number;
   favorites: number;
+  gloriaTaxa: number;
 };
 
 export function externalTaxonUsage(taxonId: string): ExternalTaxonUsage {
@@ -320,8 +322,9 @@ export function externalTaxonUsage(taxonId: string): ExternalTaxonUsage {
        (SELECT COUNT(*) FROM checklist_records WHERE taxon_id = ?) AS records,
        (SELECT COUNT(*) FROM plot_species_records WHERE taxon_id = ?) AS plot_records,
        (SELECT COUNT(*) FROM collection_specimens WHERE taxon_id = ?) AS specimens,
-       (SELECT COUNT(*) FROM favorite_taxa WHERE taxon_id = ?) AS favorites;`,
-    [taxonId, taxonId, taxonId, taxonId],
+       (SELECT COUNT(*) FROM favorite_taxa WHERE taxon_id = ?) AS favorites,
+       (SELECT COUNT(*) FROM gloria_taxa WHERE taxon_id = ?) AS gloria_taxa;`,
+    [taxonId, taxonId, taxonId, taxonId, taxonId],
   );
   const r = ((res.rows ?? [])[0] ?? {}) as Record<string, number | undefined>;
   return {
@@ -329,6 +332,7 @@ export function externalTaxonUsage(taxonId: string): ExternalTaxonUsage {
     plotRecords: Number(r.plot_records ?? 0),
     specimens: Number(r.specimens ?? 0),
     favorites: Number(r.favorites ?? 0),
+    gloriaTaxa: Number(r.gloria_taxa ?? 0),
   };
 }
 
@@ -340,7 +344,7 @@ export function externalTaxonUsage(taxonId: string): ExternalTaxonUsage {
  */
 export function deleteManualTaxon(taxonId: string): boolean {
   const u = externalTaxonUsage(taxonId);
-  if (u.records + u.plotRecords + u.specimens + u.favorites > 0) return false;
+  if (u.records + u.plotRecords + u.specimens + u.favorites + u.gloriaTaxa > 0) return false;
   getUserDb().executeSync(`DELETE FROM external_taxa WHERE taxon_id = ? AND source = 'manual';`, [
     taxonId,
   ]);

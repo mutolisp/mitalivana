@@ -2,7 +2,8 @@ import { distance } from 'fastest-levenshtein';
 import { pinyin } from 'pinyin-pro';
 import { getDatasetDb, getSpec, onDatasetsChanged, type DatasetId } from './datasets';
 import { SEARCH_COLUMNS, searchSpecies, searchSpeciesJp, groupFilterClause, markJpAlias } from './search';
-import { getEnabledRegions, crossRegionVernacular, normalizeSci } from './regions';
+import { getEnabledRegions, crossRegionVernacular, getVernacularLangs, normalizeSci } from './regions';
+import { composeByLangs } from './mergeScope';
 import { searchExternalTaxa } from './externalTaxa';
 import { searchPackTaxa } from './regionpacks';
 import type { SearchResult, TaxonGroup } from './types';
@@ -339,23 +340,27 @@ function mergeBySciNorm(primary: SearchResult[], extra: SearchResult[]): SearchR
   return out;
 }
 
-/** Append the other enabled region's vernacular to each shared-species result,
- *  so e.g. a TaiCOL row gains its 和名 ("糯米條 / タイワンツクバネウツギ").
- *  Mutates in place. Preserves any existing display decoration on `cname`. */
+/** Show each result's vernacular in the user's chosen languages and order
+ *  (`getVernacularLangs`), so e.g. a TaiCOL row gains its 和名 ("糯米條 /
+ *  タイワンツクバネウツギ") or shows only it. Mutates in place. The row's own
+ *  language keeps its display decoration on `cname`; a language not chosen is
+ *  still searched, just not shown. */
 function enrichSharedVernacular(results: SearchResult[], regions: ('TW' | 'JP')[]): void {
   if (results.length === 0) return;
   const cross = crossRegionVernacular(
     results.map((r) => r.taxon_id).filter(Boolean),
     regions,
   );
+  const langs = getVernacularLangs();
   for (const r of results) {
     const c = cross.get(r.taxon_id);
-    if (!c) continue;
-    const other = r.region === 'JP' ? c.tw : c.jp;
-    const otherEnabled = r.region === 'JP' ? regions.includes('TW') : regions.includes('JP');
-    if (other && otherEnabled && other !== r._raw_cname) {
-      r.cname = r.cname ? `${r.cname} / ${other}` : other;
-    }
+    const ownJp = r.region === 'JP';
+    // The other region's name, unless it is the row's own name again.
+    const other = ownJp ? c?.tw : c?.jp;
+    const otherName = other && other !== r._raw_cname ? other : undefined;
+    const tw = ownJp ? (regions.includes('TW') ? otherName : undefined) : r.cname;
+    const jp = ownJp ? r.cname : regions.includes('JP') ? otherName : undefined;
+    r.cname = composeByLangs({ 'zh-TW': tw || undefined, ja: jp || undefined }, langs, r.cname);
   }
 }
 

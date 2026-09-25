@@ -109,7 +109,8 @@
     "nSpeciesInThem_one": "die darin enthaltene {{count}} Art",
     "nSpeciesInThem_other": "die darin enthaltenen {{count}} Arten",
     "addedCount_one": "{{count}} Art zu den Favoriten hinzugefügt",
-    "addedCount_other": "{{count}} Arten zu den Favoriten hinzugefügt"
+    "addedCount_other": "{{count}} Arten zu den Favoriten hinzugefügt",
+    "kindGloria": "GLORIA"
   },
   "gnss": {
     "permTitle": "Standortberechtigung erforderlich",
@@ -259,7 +260,9 @@
     "deletedCount_other": "{{count}} Aufzeichnungen gelöscht",
     "search": "Suchen",
     "searchPlaceholder": "Projekte oder Aufnahmen durchsuchen",
-    "searchNoMatch": "Kein Projekt und keine Aufnahme passt zu „{{q}}“"
+    "searchNoMatch": "Kein Projekt und keine Aufnahme passt zu „{{q}}“",
+    "mergeNoGloria": "GLORIA-Aufnahmen lassen sich nicht zusammenführen: Jede gilt einem Gipfel in einem Monitoringzyklus.",
+    "duplicateNoGloria": "GLORIA-Aufnahmen lassen sich nicht kopieren. Den nächsten Monitoringzyklus unter „Neue GLORIA-Aufnahme“ mit demselben Gipfel beginnen."
   },
   "export": {
     "preparing": "Wird vorbereitet…",
@@ -292,7 +295,8 @@
     "gdrive": "Google Drive",
     "inatUpload": "Zu iNaturalist hochladen",
     "identifiers": "Bestimmende",
-    "provenance": "Provenance signing"
+    "provenance": "Provenance signing",
+    "gloria": "GLORIA-Gipfel"
   },
   "tab": {
     "menu": "Einstellungen",
@@ -319,7 +323,8 @@
     "kindCollection": "Aufsammlung",
     "defaultCollection": "Standard: Aufsammlung",
     "kindImport": "Datensatz importieren (.yml / .zip)",
-    "lastUpdated": "Zuletzt geändert"
+    "lastUpdated": "Zuletzt geändert",
+    "kindGloria": "GLORIA-Gipfelaufnahme"
   },
   "rank": {
     "kingdom": "Reich",
@@ -507,7 +512,10 @@
     "addedManyToSession_one": "{{count}} Art zur Artenliste hinzugefügt",
     "addedManyToSession_other": "{{count}} Arten zur Artenliste hinzugefügt",
     "skippedExisting_one": "{{count}} bereits erfasste übersprungen",
-    "skippedExisting_other": "{{count}} bereits erfasste übersprungen"
+    "skippedExisting_other": "{{count}} bereits erfasste übersprungen",
+    "toGloria": "Zur GLORIA-Gipfelliste",
+    "addedToGloria_one": "{{count}} Taxon zur GLORIA-Gipfelliste hinzugefügt. In der jeweiligen Einheit erfassen.",
+    "addedToGloria_other": "{{count}} Taxa zur GLORIA-Gipfelliste hinzugefügt. In den Einheiten erfassen."
   },
   "endSession": {
     "minutes": "{{count}} Min.",
@@ -695,7 +703,9 @@
     "defaultDeterminerDesc": "Liste bevorzugter bestimmender Personen; mit ★ markierte füllen neue Belege",
     "noDefaultPerson": "Nicht gesetzt",
     "provenance": "Provenance signing",
-    "provenanceDesc": "Attribute exported data to your ORCID"
+    "provenanceDesc": "Attribute exported data to your ORCID",
+    "moduleGloria": "GLORIA-Gipfelmonitoring",
+    "moduleGloriaDesc": "Zeigt die GLORIA-Gipfelaufnahme im Menü „Neuer Datensatz“. Vorhandene GLORIA-Datensätze bleiben immer sichtbar."
   },
   "taxonomy": {
     "loadingTree": "Taxonomiebaum wird geladen...",
@@ -1294,7 +1304,9 @@
     "sessionSubtitleNoProject_one": "{{count}} Eintrag",
     "sessionSubtitleNoProject_other": "{{count}} Einträge",
     "collectionSubtitleNoProject_one": "{{count}} Beleg",
-    "collectionSubtitleNoProject_other": "{{count}} Belege"
+    "collectionSubtitleNoProject_other": "{{count}} Belege",
+    "gloriaSubtitle_one": "mocy {{mocy}} · {{count}} Taxon · {{units}}/28 Einheiten",
+    "gloriaSubtitle_other": "mocy {{mocy}} · {{count}} Taxa · {{units}}/28 Einheiten"
   },
   "plotImport": {
     "invalidYml": "Keine gültige Probeflächen-yml (Block plot fehlt)",
@@ -1304,7 +1316,8 @@
   },
   "activeBar": {
     "recording": "Erfassung: {{name}}",
-    "plotRecording": "Probeflächenerfassung: {{id}}"
+    "plotRecording": "Probeflächenerfassung: {{id}}",
+    "gloriaRecording": "GLORIA-Aufnahme läuft · mocy {{mocy}}"
   },
   "speciesSearch": {
     "hint": "Unten Arten nach Trivial-, wissenschaftlichem oder Familiennamen suchen,{{br}}nach der Auswahl erscheinen hier die Details."
@@ -1542,7 +1555,10 @@
     "donePhotosSkipped_one": "{{count}} Foto nicht importiert (Berechtigung fehlt oder Datei nicht lesbar)",
     "donePhotosSkipped_other": "{{count}} Fotos nicht importiert (Berechtigung fehlt oder Datei nicht lesbar)",
     "collectionExistsTitle": "Aufsammlung existiert bereits",
-    "collectionExistsMsg": "„{{name}}“ ist bereits auf diesem Gerät. Überschreiben oder als neue Kopie speichern?"
+    "collectionExistsMsg": "„{{name}}“ ist bereits auf diesem Gerät. Überschreiben oder als neue Kopie speichern?",
+    "gloriaExistsTitle": "Diese GLORIA-Aufnahme ist schon vorhanden",
+    "gloriaExistsMsg": "{{name}} ist schon auf diesem Gerät. Überschreiben ersetzt es durch die importierte Datei.",
+    "gloriaImported": "{{name}} importiert"
   },
   "gbifLookup": {
     "title": "GBIF-Namensabfrage",
@@ -2347,5 +2363,318 @@
     "orcidSignOutTitle": "Von ORCID abmelden?",
     "orcidSignOutMsg": "Exporte werden bis zur erneuten Anmeldung nicht mehr signiert. Der Schlüssel bleibt erhalten.",
     "orcidLegacy": "Die früher von Hand eingegebene {{orcid}} ist nicht bestätigt. Melde dich mit ORCID an, bevor sie zum Signieren verwendet wird."
+  },
+  "gloria": {
+    "notFound": "Diese GLORIA-Aufnahme wurde nicht gefunden",
+    "overview": "Übersicht",
+    "endTitle": "GLORIA-Aufnahme beenden?",
+    "endMsg": "Sie können sie später wieder öffnen und weiter erfassen.",
+    "unitsDone": "{{done}}/{{total}} Einheiten fertig",
+    "tab": {
+      "points": "Grunddaten",
+      "map": "Flächenübersicht",
+      "species": "Artentabelle"
+    },
+    "status": {
+      "none": "Nicht begonnen",
+      "progress": "In Arbeit",
+      "done": "Fertig",
+      "warn": "Warnungen"
+    },
+    "list": {
+      "quadrats": "1×1-m-Quadrate",
+      "sas": "Gipfelsektoren (SAS)",
+      "squares": "10×10-m-Quadrate"
+    },
+    "p5m": {
+      "title": "{{direction}} · 3×3-m-Raster (Blick zum Gipfel)",
+      "explain": "p5m ist die Außenecke von {{point}} auf der 5-m-Höhenlinie (türkise Linie). Das 3×3-m-Raster dieser Richtung wird von hier aus ausgelegt.",
+      "notSet": "Für {{direction}} ist noch kein p5m gesetzt: unter „Grunddaten“ 11 oder 31 wählen."
+    },
+    "new": {
+      "title": "Neue GLORIA-Aufnahme",
+      "region": "Zielregion {{region}}",
+      "lastMocy": "zuletzt mocy {{mocy}}",
+      "firstSurvey": "noch keine Aufnahme",
+      "addSummit": "Gipfel hinzufügen",
+      "addSummitButton": "+ Gipfel hinzufügen",
+      "country": "Ländercode",
+      "targetRegion": "Zielregionscode",
+      "summitCode": "Gipfelcode",
+      "codeHint": "Land 2 Buchstaben (ISO 3166), Zielregion und Gipfel je 3 Zeichen, z. B. TW-DAS-SUN (Handbuch Box 6.1).",
+      "codeInvalid": "Codes passen nicht: Land 2 Buchstaben, Zielregion und Gipfel je 3 Buchstaben oder Ziffern.",
+      "summitName": "Gipfelname (optional)",
+      "elevation": "Höhe m",
+      "vegZone": "Vegetationsstufe",
+      "saveSummit": "Gipfel speichern",
+      "mocyIs": "Das wird mocy {{mocy}}",
+      "carryOver": "Übernimmt Distanz und Richtung von {{points}} Messpunkten sowie die 10×10-m-Startwahl aus mocy {{from}}. Arten und Deckung beginnen leer: Wiederholungen sind blind (Handbuch Box 4.5).",
+      "noCarryOver": "Erste Aufnahme auf diesem Gipfel: alle 28 Messpunkte messen.",
+      "surveyors": "Erfasser",
+      "noSurveyors": "Keine (Standard unter „Erfasser“ in den Einstellungen)",
+      "start": "Aufnahme starten"
+    },
+    "points": {
+      "carried": "Messpunkte stammen aus der letzten Aufnahme; abweichende Felder sind türkis markiert.",
+      "whereP5m": "Wo ist p5m?",
+      "point": "Punkt",
+      "distance": "Dist. m",
+      "compass": "Richtung °",
+      "photo": "Fotos",
+      "distanceOf": "{{point}} Distanz (m)",
+      "compassOf": "{{point}} Richtung (°)",
+      "photoM2": "{{point}} Quadratfoto",
+      "photoM2F": "{{point}} Quadratfoto mit Frequenzrahmen",
+      "photoPoint": "{{point}} Punktfoto",
+      "intersection": "Schnittlinien"
+    },
+    "photo": {
+      "camera": "Foto aufnehmen",
+      "library": "Aus Mediathek wählen",
+      "remove": "Foto entfernen"
+    },
+    "matrix": {
+      "quadrats": "1×1",
+      "sas": "SAS",
+      "squares": "10×10",
+      "quadratHint": "Deckung %; f = Frequenzzellen. Spaltenname antippen öffnet die Einheit.",
+      "sasHint": "Abundanz r! r s c d; • = ohne Abundanz erfasst.",
+      "squareHint": "Treffer von 400 Punkten; • = zusätzliche Art ohne Treffer.",
+      "empty": "Noch keine Arten",
+      "species": "Art"
+    },
+    "step": {
+      "cover": "Deckung und Oberfläche",
+      "frequency": "Frequenz",
+      "pointframe": "Punktrahmen",
+      "sas": "Arten und Abundanz",
+      "linePoints": "400 Linienpunkte",
+      "additional": "Arten ohne Treffer",
+      "notStarted": "nicht erfasst",
+      "pointsDone": "{{done}}/{{total}} Punkte",
+      "here": "aktuell",
+      "jump": "Zu anderer Einheit",
+      "backToSummit": "Zur Flächenübersicht",
+      "speciesCount_one": "{{count}} Art",
+      "speciesCount_other": "{{count}} Arten",
+      "freqDone_one": "{{count}} Art erfasst",
+      "freqDone_other": "{{count}} Arten erfasst",
+      "freqCounted_one": "{{count}} gezählt",
+      "freqCounted_other": "{{count}} gezählt"
+    },
+    "issue": {
+      "topCoverSum": "Oberflächendeckung ergibt {{sum}} %, soll 100 % sein",
+      "vascularExceeds": "Gefäßpflanzen {{vascular}} % > Summe der Artdeckung {{sum}} %",
+      "subtypeRange": "Untertyp der Oberflächendeckung {{value}} liegt außerhalb 0–100",
+      "coverNoFreq": "{{name}}: {{cover}} % Deckung, aber keine Frequenzzelle",
+      "sasMissing": "In den Quadraten dieser Richtung, aber hier nicht: {{names}}",
+      "p5m": "Kein p5m für {{direction}} (11 oder 31)",
+      "freqNoCover_one": "{{name}}: in {{count}} Zelle, aber ohne Deckung",
+      "freqNoCover_other": "{{name}}: in {{count}} Zellen, aber ohne Deckung",
+      "pointInconsistent_one": "{{count}} Punkt hat Art und Oberfläche zugleich oder keins",
+      "pointInconsistent_other": "{{count}} Punkte haben Art und Oberfläche zugleich oder keins"
+    },
+    "cover": {
+      "title": "Oberflächendeckung (%)",
+      "sumOk": "Summe {{sum}} ✓",
+      "sumBad": "Summe {{sum}} (soll 100 sein)",
+      "subtypeHint": "In % der zugehörigen Oberfläche (Handbuch S. 40): z. B. halber Fels von 40 % mit Flechten → 50.",
+      "cov_vascular": "Gefäßpflanzen",
+      "cov_solid_rock": "Anstehender Fels",
+      "cov_scree": "Schutt",
+      "cov_lichens": "Flechten auf Boden",
+      "cov_bryophytes": "Moose auf Boden",
+      "cov_bare_ground": "Offener Boden",
+      "cov_litter": "Streu",
+      "sub_lich_below_vasc": "Flechten · unter Gefäßpfl.",
+      "sub_lich_on_rock": "Flechten · auf Fels",
+      "sub_lich_on_scree": "Flechten · auf Schutt",
+      "sub_bry_below_vasc": "Moose · unter Gefäßpfl.",
+      "sub_bry_on_rock": "Moose · auf Fels",
+      "sub_bry_on_scree": "Moose · auf Schutt"
+    },
+    "surface": {
+      "R": "Fels",
+      "S": "Schutt",
+      "L": "Flechten",
+      "B": "Moose",
+      "G": "Offener Boden",
+      "T": "Streu"
+    },
+    "unit": {
+      "env": "Flächenumgebung",
+      "aspect": "Exposition °",
+      "slope": "Neigung °",
+      "aspectShort": "Exp. {{v}}°",
+      "slopeShort": "Neig. {{v}}°",
+      "topSumShort": "Oberfläche Summe {{sum}}",
+      "topNotYet": "Oberfläche fehlt",
+      "subtypes": "Untertypen der Oberflächendeckung (Flechten/Moose)",
+      "vascularOk": "Gefäßpflanzen {{vascular}} % ≤ Summe der Artdeckung {{sum}} % ✓",
+      "vascularHint": "Die Summe der Artdeckung darf nicht unter der Gefäßpflanzen-Deckung liegen (Handbuch S. 41). Artdeckung oder Oberflächenschätzung prüfen.",
+      "crossTitle": "Frequenz und Deckung passen nicht zusammen",
+      "noSpecies": "Arten mit der Suche unten hinzufügen",
+      "coverRule": "Deckung in %, kein „<“ oder „>“ (Handbuch Formular 2). Name antippen für Details, lange drücken zum Entfernen.",
+      "coverOf": "{{name}} Deckung %",
+      "cf": "Unsichere Bestimmung (cf.)",
+      "openDetail": "Details öffnen",
+      "remove": "Aus dieser Einheit entfernen",
+      "rowHint": "Öffnet die Artdetails",
+      "added": "{{name}} hinzugefügt",
+      "markDone": "Einheit als fertig markieren",
+      "markUndone": "Als nicht fertig markieren",
+      "sasMissingTitle": "Noch nicht alle Arten der {{direction}}-Quadrate erfasst",
+      "addAll": "Alle hinzufügen",
+      "abundanceLegend": "r! sehr selten · r selten · s zerstreut · c häufig · d dominant (>50 % Deckung, Handbuch S. 42)",
+      "grazing": "Beweidung/Tierspuren",
+      "grazingPlaceholder": "z. B. Kot, Verbiss, Trittschäden",
+      "speciesHeader_one": "Arten ({{count}}) · Deckung gesamt {{sum}}",
+      "speciesHeader_other": "Arten ({{count}}) · Deckung gesamt {{sum}}",
+      "sasHeader_one": "Arten ({{count}}) · Abundanz",
+      "sasHeader_other": "Arten ({{count}}) · Abundanz",
+      "fromQuadratsDone_one": "{{count}} Art aus den Quadraten übernommen",
+      "fromQuadratsDone_other": "{{count}} Arten aus den Quadraten übernommen"
+    },
+    "square": {
+      "walk": "Start und Richtung (Formular 6-S, vier Optionen)",
+      "option1": "Linke Unterkante · ab unterer Ecke",
+      "option2": "Linke Unterkante · ab linker Ecke",
+      "option3": "Rechte Unterkante · ab unterer Ecke",
+      "option4": "Rechte Unterkante · ab rechter Ecke",
+      "pickWalk": "Zuerst den Start wählen. Wiederholungen übernehmen die letzte Wahl (Handbuch S. 57).",
+      "start": "Linienpunkte erfassen ({{done}}/400)",
+      "hitsTitle": "Treffer und Deckung ({{done}}/400; Deckung = Treffer ÷ 4)",
+      "fromQuadrats": "Aus den 4 Quadraten",
+      "extraEmpty": "Nach den Linienpunkten die nicht getroffenen Arten erfassen; zuerst die Arten der 4 Quadrate (Handbuch S. 58).",
+      "extra_one": "Arten ohne Treffer ({{count}})",
+      "extra_other": "Arten ohne Treffer ({{count}})"
+    },
+    "species": {
+      "inUnit": "{{code}} · Listennr. {{serial}}",
+      "abundance": "Abundanz",
+      "cover": "Deckung %",
+      "cf": "Unsichere Bestimmung",
+      "cfHint": "g Gattung, s Art, t unterhalb der Art (Handbuch Formular 2, Anm. 5)",
+      "lineage": "Systematik",
+      "openKey": "Schlüssel öffnen: {{name}}",
+      "repro": "Reproduktionszustand (mehrere)",
+      "leaf": "Blattphänologie (mehrere)",
+      "notes": "Notizen",
+      "notesPlaceholder": "z. B. teils vertrocknet, unsichere Merkmale"
+    },
+    "rank": {
+      "kingdom": "Reich",
+      "phylum": "Stamm",
+      "class": "Klasse",
+      "order": "Ordnung",
+      "family": "Familie",
+      "genus": "Gattung"
+    },
+    "freq": {
+      "title": "{{code}} · Frequenz",
+      "undo": "Rückgängig",
+      "brush": "Pinsel",
+      "cellMode": "Zelle für Zelle",
+      "uphill": "▲ Richtung Gipfel (bergauf)",
+      "gridLabel": "Frequenzraster 10×10",
+      "hi1": "Hi1 Kot",
+      "hi2": "Hi2 Verbiss",
+      "hi3": "Hi3 Tritt",
+      "newSpecies": "+ Neue Art",
+      "fillAll": "Alle füllen",
+      "inverse": "Fehlstellen markieren",
+      "inverseDone": "Fehlstellen fertig",
+      "clear": "Leeren",
+      "brushHint": "Art oder Hi wählen und über die Zellen ziehen; auf einer gefüllten Zelle beginnen löscht. Graue Punkte = andere Arten.",
+      "inverseHint": "Alle 100 Zellen gefüllt. Über die Zellen ohne Vorkommen ziehen (×), dann „Fertig“.",
+      "cellTitle": "{{cell}} ({{n}}/100)",
+      "emptyNext": "Leer → weiter",
+      "next": "Nächste Zelle ▶",
+      "addedNoCover": "{{name}} hinzugefügt; Deckung fehlt",
+      "goCover": "Deckung eingeben",
+      "countMode": "Nur Anzahl",
+      "countHint": "Für Aufnahmen ohne Zellendaten: pro Art und Störung nur die Anzahl der Zellen eingeben (ganze Zahl, 0–100).",
+      "switchTitle": "Aufnahmemethode wechseln",
+      "switchToCount": "Beim Wechsel zur Anzahl werden die in diesem Quadrat markierten Zellen (Arten und Hi1–Hi3) gelöscht. Trotzdem wechseln?",
+      "switchToCells": "Beim Wechsel zurück zu Zellen werden die eingegebenen Anzahlen gelöscht. Trotzdem wechseln?",
+      "switchConfirm": "Löschen und wechseln"
+    },
+    "walk": {
+      "titleQuadrat": "{{code}} · Punktrahmen",
+      "titleSquare": "{{code}} · 10×10 m Linienpunkte",
+      "linePoint": "Linie {{line}} · Punkt {{point}}",
+      "point": "Punkt {{n}}",
+      "allDone": "Alle {{total}} Punkte erfasst",
+      "progress": "{{done}}/{{total}} erfasst",
+      "forward": "→ Entlang der Linie",
+      "back": "← Zurück",
+      "species": "Getroffene Gefäßpflanzen (mehrere)",
+      "surface": "Keine Pflanze: Oberflächentyp",
+      "same": "Wie vorher",
+      "next": "Nächster Punkt ▶",
+      "lineDone": "Linie {{line}} fertig: {{hits}} Treffer"
+    },
+    "endWithIssues_one": "{{count}} Warnung ist offen. Trotzdem beenden? Später wieder öffnen möglich.",
+    "endWithIssues_other": "{{count}} Warnungen sind offen. Trotzdem beenden? Später wieder öffnen möglich.",
+    "kb": {
+      "next": "Weiter",
+      "done": "Fertig"
+    },
+    "num": {
+      "rejectTitle": "Wert außerhalb des Bereichs",
+      "reject": "{{label}}: {{value}}{{unit}} liegt außerhalb {{min}}–{{max}}{{unit}}. Nicht gespeichert, der vorige Wert gilt.",
+      "warnTitle": "Wert bitte prüfen",
+      "warn": "{{label}}: {{value}}{{unit}} liegt außerhalb des üblichen Bereichs {{min}}–{{max}}{{unit}}. Gespeichert; bei Tippfehler korrigieren.",
+      "rejectInt": "{{label}}: {{value}} ist keine ganze Zahl. Die Frequenz zählt Zellen; bitte eine ganze Zahl von 0 bis 100 eingeben. Nicht gespeichert; der vorige Wert ist wiederhergestellt."
+    },
+    "foldCount": "{{title}} ({{n}})",
+    "summit": {
+      "title": "Gipfel",
+      "code": "Gipfelcode",
+      "name": "Name",
+      "namePlaceholder": "Optional",
+      "lat": "Breite (WGS84)",
+      "lon": "Länge (WGS84)",
+      "elevation": "Höhe (m)",
+      "zone": "Vegetationsstufe",
+      "zoneNone": "Nicht gesetzt",
+      "photos": "Umgebungsfotos ({{n}})",
+      "photosHint": "Export als SU-OV (Gipfelübersicht) nach Anhang III des Handbuchs, der Standort als Element 8 des Dateinamens. Geben Sie für jedes Foto den Standort an, z. B. „vom S-Sattel“.",
+      "viewpoint": "Standort",
+      "viewpointLabel": "Standort von Foto {{n}}",
+      "photoFail": "Foto konnte nicht hinzugefügt werden"
+    },
+    "times": {
+      "title": "Bearbeitende und Zeiten",
+      "cover": "Deckungsschätzung",
+      "freq": "Frequenz",
+      "survey": "Aufnahme",
+      "start": "Beginn",
+      "stop": "Ende",
+      "now": "Jetzt setzen",
+      "orderTitle": "Zeiten in falscher Reihenfolge",
+      "order": "Das Ende von {{what}} darf nicht vor dem Beginn liegen.",
+      "hint": "Der Beginn wird bei der ersten Eingabe erfasst, das Ende beim Tippen auf „Einheit als fertig markieren“; zum Ändern auf eine Zeit tippen.",
+      "hintQuadrat": "Deckungsschätzung: Beginn bei der ersten Eingabe, Ende bei „Einheit als fertig markieren“. Frequenz: Beginn beim ersten Strich; das Ende folgt der letzten Änderung, bis Sie es von Hand setzen. Zum Ändern auf eine Zeit tippen.",
+      "by": "Bearbeitende",
+      "bySurvey": "Wie Aufnahme: {{names}}",
+      "byNone": "Nicht gesetzt"
+    }
+  },
+  "vernacular": {
+    "title": "Sprachen der Trivialnamen",
+    "hint": "Wählen Sie, in welchen Sprachen Trivialnamen erscheinen (höchstens {{n}}). Sie werden in der Reihenfolge unten mit „ / “ verbunden; der erste ist der Hauptname. Ansichten und Exporte folgen dieser Einstellung; die Suche findet weiterhin Namen aus allen aktiven Artenlisten. Herbaretiketten drucken nur einen Namen.",
+    "order": "Sprachen und Reihenfolge",
+    "zhTW": "Chinesische Namen (traditionell)",
+    "zhTWSource": "Artenliste Taiwan (TaiCOL)",
+    "ja": "Japanische Namen (Wamei)",
+    "jaSource": "Japanische Gefäßpflanzenliste (YList)",
+    "zhTWShort": "Chinesisch",
+    "jaShort": "Japanisch",
+    "keepOne": "Mindestens eine Sprache muss ausgewählt bleiben.",
+    "max": "Es können höchstens {{n}} Trivialnamen gleichzeitig angezeigt werden.",
+    "moveUp": "Nach oben",
+    "moveDown": "Nach unten",
+    "onlyOne": "Nur eine Artenliste ist aktiv, daher gibt es eine Sprache. Aktivieren Sie unter „{{page}}“ eine weitere (etwa Japan), um deren Sprache hinzuzufügen."
   }
 }

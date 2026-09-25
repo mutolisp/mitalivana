@@ -13,24 +13,28 @@
 import { getUserDb } from './init';
 import type { RecordKind } from './records_list';
 
-const TABLE: Record<RecordKind, string> = {
+/** Record kinds that can hold iNaturalist uploads. GLORIA is left out on
+ *  purpose: its plot data belongs in the GLORIA sheet, not on iNaturalist. */
+export type InatKind = Exclude<RecordKind, 'gloria'>;
+
+const TABLE: Record<InatKind, string> = {
   session: 'checklist_records',
   plot: 'plot_species_records',
   collection: 'collection_specimens',
 };
 
-export function markInatObservation(kind: RecordKind, id: number, observationId: number): void {
+export function markInatObservation(kind: InatKind, id: number, observationId: number): void {
   getUserDb().executeSync(
     `UPDATE ${TABLE[kind]} SET inat_observation_id = ?, inat_media_done = 0, inat_uploaded_at = NULL WHERE id = ?`,
     [observationId, id],
   );
 }
 
-export function markInatMediaDone(kind: RecordKind, id: number, n: number): void {
+export function markInatMediaDone(kind: InatKind, id: number, n: number): void {
   getUserDb().executeSync(`UPDATE ${TABLE[kind]} SET inat_media_done = ? WHERE id = ?`, [n, id]);
 }
 
-export function markInatUploaded(kind: RecordKind, id: number, syncHash: string | null = null): void {
+export function markInatUploaded(kind: InatKind, id: number, syncHash: string | null = null): void {
   getUserDb().executeSync(`UPDATE ${TABLE[kind]} SET inat_uploaded_at = ?, inat_sync_hash = ? WHERE id = ?`, [
     Date.now(),
     syncHash,

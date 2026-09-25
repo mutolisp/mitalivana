@@ -43,6 +43,8 @@ type Props = {
   onChange: (ts: number) => void;
   /** Which half to edit. Defaults to the whole timestamp. */
   mode?: Mode;
+  /** How the value reads on the field; defaults to the ISO form of `mode`. */
+  format?: (ts: number) => string;
 };
 
 /** Merge only the half this field owns back into the existing timestamp, so
@@ -91,7 +93,7 @@ function openAndroid(value: number, mode: Mode, onChange: (ts: number) => void):
   });
 }
 
-export function DateTimeField({ value, onChange, mode = 'datetime' }: Props) {
+export function DateTimeField({ value, onChange, mode = 'datetime', format }: Props) {
   const { t } = useTranslation();
   // iOS only: the inline spinner reports every intermediate wheel position, so
   // edits stage here and hit the DB once, on Done.
@@ -111,7 +113,9 @@ export function DateTimeField({ value, onChange, mode = 'datetime' }: Props) {
       >
         <Ionicons name={mode === 'date' ? 'calendar-outline' : 'time-outline'} size={16} color="#2563eb" />
         <Text className="ml-2 flex-1 text-base text-gray-900 dark:text-gray-100">
-          {mode === 'date'
+          {format
+            ? format(draft ?? value)
+            : mode === 'date'
             ? isoDate(draft ?? value)
             : mode === 'time'
               ? isoTime(draft ?? value)

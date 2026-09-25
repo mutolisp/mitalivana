@@ -1,9 +1,10 @@
 /**
  * Helpers shared by the central FAB and any contextual entry that needs to
- * create a new "record" (session or plot) and navigate to its detail screen.
+ * create a new "record" (session, plot or GLORIA survey) and navigate to its
+ * detail screen.
  *
- * Enforces single-active-record semantics: at any time at most one session
- * OR one plot may be active. Attempting to start another while a different
+ * Enforces single-active-record semantics: at any time at most one session,
+ * plot or GLORIA survey may be active. Attempting to start another while a different
  * kind is active prompts the user to finish / resume the active one first.
  */
 import { errText } from '~/lib/errText';
@@ -43,12 +44,16 @@ import { readRecordImport, type ReadRecordImport } from '~/lib/recordImport';
 import { useToast } from '~/stores/toast';
 import { useActivePlot } from '~/stores/activePlot';
 import { useActiveSession } from '~/stores/activeSession';
+import { useActiveGloria } from '~/modules/gloria/store';
+import { useSettings } from '~/stores/settings';
+import { createGloriaSurvey, endGloriaSurvey, gloriaSurveyUuidExists, importGloriaDoc } from '~/modules/gloria/db';
+import { validateGloriaDoc, type GloriaDoc } from '~/modules/gloria/export/yaml';
 import { isRecordingTarget, pauseIfNot, pauseRecording as pauseTrackRecording } from '~/lib/trackRecorder';
 import { promptText } from '~/components/TextPromptModal';
 import { showActionSheet } from '~/components/ActionSheet';
 import i18n from '~/i18n';
 
-type NewRecordKind = 'session' | 'plot';
+type NewRecordKind = 'session' | 'plot' | 'gloria';
 
 type ActiveConflict = {
   kind: NewRecordKind;
@@ -63,6 +68,18 @@ type ActiveConflict = {
  * both somehow coexist (it's the heavier-weight record).
  */
 function findActiveConflict(): ActiveConflict | null {
+  const gloria = useActiveGloria.getState().survey;
+  if (gloria) {
+    return {
+      kind: 'gloria',
+      label: `GLORIA mocy ${gloria.mocy}`,
+      href: `/gloria/${gloria.id}` as Href,
+      end: () => {
+        endGloriaSurvey(gloria.id);
+        useActiveGloria.getState().refresh();
+      },
+    };
+  }
   const plot = useActivePlot.getState().plot;
   if (plot) {
     return {
@@ -93,7 +110,7 @@ function findActiveConflict(): ActiveConflict | null {
 }
 
 function nounOf(k: NewRecordKind): string {
-  return i18n.t(k === 'session' ? 'nav.session' : 'nav.plot');
+  return i18n.t(k === 'session' ? 'nav.session' : k === 'plot' ? 'nav.plot' : 'nav.gloria');
 }
 
 /**
@@ -133,6 +150,7 @@ async function ensureNoConflictingActive(wanted: NewRecordKind): Promise<boolean
   // detect a conflict (or miss a real one because the store is stale).
   useActiveSession.getState().refresh();
   useActivePlot.getState().refresh();
+  useActiveGloria.getState().refresh();
 
   const conflict = findActiveConflict();
   if (!conflict) return true;
@@ -180,6 +198,20 @@ async function promptPlotid(plotType: PlotType): Promise<void> {
   });
   useActivePlot.getState().refresh();
   router.push(`/plot/${id}` as Href);
+}
+
+/**
+ * Start the next monitoring cycle of a GLORIA summit and open it. Same
+ * single-active guard as sessions and plots.
+ */
+export async function startGloriaAndOpen(summitId: number): Promise<void> {
+  const ok = await ensureNoConflictingActive('gloria');
+  if (!ok) return;
+  const id = createGloriaSurvey({ summitId });
+  useActiveGloria.getState().refresh();
+  useActivePlot.getState().refresh();
+  useActiveSession.getState().refresh();
+  router.replace(`/gloria/${id}` as Href);
 }
 
 /**
@@ -246,7 +278,8 @@ export async function importRecordPromptAndOpen(): Promise<void> {
   }
 
   try {
-    if (payload.kind === 'plot') await finishPlotImport(payload);
+    if (payload.kind === 'gloria') await finishGloriaImport(payload.gloria);
+    else if (payload.kind === 'plot') await finishPlotImport(payload);
     else if (payload.kind === 'collection') await finishCollectionImport(payload);
     else await finishSessionImport(payload);
   } catch (e) {
@@ -495,6 +528,27 @@ async function finishSessionImport(
   router.push(`/session/${sessionId}` as Href);
 }
 
+/**
+ * Restore a GLORIA survey. Keyed on the survey uuid: an existing copy can only
+ * be replaced, never duplicated — a summit has one survey per monitoring cycle.
+ */
+async function finishGloriaImport(doc: GloriaDoc): Promise<void> {
+  const problems = validateGloriaDoc(doc);
+  if (problems.length) throw new Error(problems.slice(0, 5).join('\n'));
+  if (gloriaSurveyUuidExists(doc.survey.uuid)) {
+    const idx = await showActionSheet({
+      title: i18n.t('recordImport.gloriaExistsTitle'),
+      message: i18n.t('recordImport.gloriaExistsMsg', { name: `${doc.summit.full_code} mocy ${doc.survey.mocy}` }),
+      cancelLabel: i18n.t('common.cancel'),
+      options: [{ label: i18n.t('recordCreate.overwrite'), destructive: true }],
+    });
+    if (idx !== 0) return;
+  }
+  const { surveyId } = importGloriaDoc(doc);
+  useToast.getState().show(i18n.t('recordImport.gloriaImported', { name: `${doc.summit.full_code} mocy ${doc.survey.mocy}` }));
+  router.push(`/gloria/${surveyId}` as Href);
+}
+
 async function finishCollectionImport(
   payload: Extract<ReadRecordImport, { kind: 'collection' }>,
 ): Promise<void> {
@@ -561,6 +615,7 @@ export async function duplicateRecordAndOpen(
   item: RecordItem,
   opts: DuplicateRecordOptions,
 ): Promise<number | null> {
+  if (item.kind === 'gloria') return null; // not duplicable — see the records tab's handleDuplicate
   if (opts.activate && item.kind !== 'collection') {
     // 採集 sits outside the invariant; the other two must ask first.
     const ok = await ensureNoConflictingActive(item.kind);
@@ -602,6 +657,7 @@ export async function duplicateRecordAndOpen(
 /** The「新增記錄」chooser (名錄 / 樣區 / 採集 / 匯入). Shared by the tab-bar
  *  ＋ button and the records tab's empty state. */
 export async function showCreateChooser(): Promise<void> {
+  const gloria = useSettings.getState().module_gloria;
   const idx = await showActionSheet({
     title: i18n.t('record.createChooserTitle'),
     options: [
@@ -611,10 +667,17 @@ export async function showCreateChooser(): Promise<void> {
       // Restoring an exported record is a peer of creating one from scratch;
       // the file decides which kind it becomes.
       { label: i18n.t('record.kindImport') },
+      ...(gloria ? [{ label: i18n.t('record.kindGloria') }] : []),
     ],
   });
   if (idx === 0) startSessionAndOpen();
   else if (idx === 1) createPlotPromptAndOpen();
   else if (idx === 2) startCollectionAndOpen();
   else if (idx === 3) importRecordPromptAndOpen();
+  else if (idx === 4 && gloria) openNewGloria();
+}
+
+/** The summit chooser; the survey itself is created from there (startGloriaAndOpen). */
+export function openNewGloria(): void {
+  router.push('/gloria/new' as Href);
 }

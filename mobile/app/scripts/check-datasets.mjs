@@ -14,7 +14,7 @@
  *
  * Usage: npm run check:datasets   (exit 1 on violation)
  */
-import { mergeScopeNodes, stitchCrossRegion } from '../src/db/mergeScope.ts';
+import { composeByLangs, parseVernacularLangs, mergeScopeNodes, stitchCrossRegion } from '../src/db/mergeScope.ts';
 import {
   datasetNeedsUpdate,
   parseDatasetManifest,
@@ -105,6 +105,20 @@ console.log('\n[stitchCrossRegion] 跨區俗名的縫合');
   );
   ok(out.get('t001').tw === '臺灣冷杉' && out.get('t001').jp === undefined, '缺少另一個模組時安全降級');
   ok(stitchCrossRegion(new Map(), new Map()).size === 0, '空輸入回空 map');
+}
+
+console.log('\n[composeByLangs] 使用者選的俗名語言與順序');
+{
+  const both = { 'zh-TW': '臺灣冷杉', ja: 'タイワンモミ' };
+  ok(composeByLangs(both, ['zh-TW', 'ja'], 'x') === '臺灣冷杉 / タイワンモミ', '兩種都勾：依順序以 / 串接');
+  ok(composeByLangs(both, ['ja', 'zh-TW'], 'x') === 'タイワンモミ / 臺灣冷杉', '順序由使用者決定');
+  ok(composeByLangs(both, ['zh-TW'], 'x') === '臺灣冷杉', '只勾正體中文就只出現中文');
+  ok(composeByLangs({ ja: 'ヤマザクラ' }, ['zh-TW'], 'ヤマザクラ') === 'ヤマザクラ', '勾的語言都沒有俗名時退回原名錄的名稱');
+  ok(composeByLangs({ 'zh-TW': '芒', ja: '芒' }, ['zh-TW', 'ja'], 'x') === '芒', '兩種語言同字不重複');
+  ok(composeByLangs({}, ['zh-TW', 'ja'], '') === '', '都沒有就是空字串');
+  ok(JSON.stringify(parseVernacularLangs('["ja","zh-TW"]')) === '["ja","zh-TW"]', '設定值保留使用者順序');
+  ok(JSON.stringify(parseVernacularLangs('["ja","ja","xx"]')) === '["ja"]', '重複與未知語言剔除');
+  ok(parseVernacularLangs('[]') === null && parseVernacularLangs('{') === null && parseVernacularLangs(null) === null, '空、損毀、缺值交給呼叫端用預設');
 }
 
 console.log('\n[parseDatasetManifest] 向前相容規則');

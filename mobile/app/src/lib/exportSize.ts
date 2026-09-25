@@ -93,7 +93,9 @@ export async function estimateBundleSize(
         ? listSessionRecords(it.id)
         : it.kind === 'collection'
           ? listSpecimens(it.id)
-          : listPlotSpecies(it.id);
+          : it.kind === 'plot'
+            ? listPlotSpecies(it.id)
+            : []; // GLORIA: no photos in the bundle yet; its size is text only
     recordCount += records.length;
     photoCount += records.flatMap((r) => parsePhotoUris(r.photo_paths)).length;
     if (opts.includePhotos) totalPhotoBytes += await recordsPhotoBytes(records);

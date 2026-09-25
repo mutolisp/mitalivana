@@ -92,7 +92,8 @@
     "nSpeciesTotal_other": "共 {{count}} 種",
     "nFolders_other": "{{count}} 份常用名錄",
     "nSpeciesInThem_other": "其中的 {{count}} 個物種",
-    "addedCount_other": "已將 {{count}} 種加入常用名錄"
+    "addedCount_other": "已將 {{count}} 種加入常用名錄",
+    "kindGloria": "GLORIA"
   },
   "gnss": {
     "permTitle": "需要定位權限",
@@ -231,7 +232,9 @@
     "deletedCount_other": "已刪除 {{count}} 筆調查記錄",
     "search": "搜尋",
     "searchPlaceholder": "搜尋專案名稱、說明或記錄名稱",
-    "searchNoMatch": "沒有符合「{{q}}」的專案或記錄"
+    "searchNoMatch": "沒有符合「{{q}}」的專案或記錄",
+    "mergeNoGloria": "GLORIA 調查是單一山峰的單次監測週期，不能合併。",
+    "duplicateNoGloria": "GLORIA 調查不能複製。下一個監測週期請從「新增 GLORIA 調查」選同一個山峰開始。"
   },
   "export": {
     "preparing": "準備中…",
@@ -264,7 +267,8 @@
     "gdrive": "Google 雲端硬碟",
     "inatUpload": "上傳到 iNaturalist",
     "identifiers": "鑑定者",
-    "provenance": "出處簽章"
+    "provenance": "出處簽章",
+    "gloria": "GLORIA 山峰調查"
   },
   "tab": {
     "menu": "設定",
@@ -291,7 +295,8 @@
     "kindCollection": "採集記錄",
     "defaultCollection": "預設：採集記錄",
     "kindImport": "匯入記錄（.yml / .zip）",
-    "lastUpdated": "最後更新"
+    "lastUpdated": "最後更新",
+    "kindGloria": "GLORIA 山峰調查"
   },
   "rank": {
     "kingdom": "界",
@@ -473,7 +478,9 @@
     "longPressHint": "長按可選擇加入名錄或採集",
     "addedManyToPlot_other": "已加入 {{count}} 種到樣區（尚未填豐度）",
     "addedManyToSession_other": "已加入 {{count}} 種到名錄",
-    "skippedExisting_other": "略過 {{count}} 種已在記錄中"
+    "skippedExisting_other": "略過 {{count}} 種已在記錄中",
+    "toGloria": "加入 GLORIA 山峰名錄",
+    "addedToGloria_other": "已加入 GLORIA 山峰名錄 {{count}} 種，請到各單位畫面記錄。"
   },
   "endSession": {
     "minutes": "{{count}} 分鐘",
@@ -654,7 +661,9 @@
     "defaultDeterminerDesc": "常用鑑定者清單，標記 ★ 者建立新標本時自動帶入",
     "noDefaultPerson": "未設定",
     "provenance": "出處簽章",
-    "provenanceDesc": "用 ORCID 替匯出資料署名"
+    "provenanceDesc": "用 ORCID 替匯出資料署名",
+    "moduleGloria": "GLORIA 山峰監測模組",
+    "moduleGloriaDesc": "在「新增記錄」選單顯示 GLORIA 山峰調查。已有的 GLORIA 記錄不受影響，一律顯示。"
   },
   "taxonomy": {
     "loadingTree": "載入分類樹...",
@@ -1207,7 +1216,8 @@
     "plotSubtitle_other": "{{count}} 筆 · {{protocol}}{{size}}",
     "collectionSubtitle_other": "{{count}} 份標本 · {{project}}",
     "sessionSubtitleNoProject_other": "{{count}} 筆",
-    "collectionSubtitleNoProject_other": "{{count}} 份標本"
+    "collectionSubtitleNoProject_other": "{{count}} 份標本",
+    "gloriaSubtitle_other": "mocy {{mocy}} · {{count}} 種 · {{units}}/28 單位"
   },
   "plotImport": {
     "invalidYml": "不是有效的樣區 yml（缺 plot 區塊）",
@@ -1217,7 +1227,8 @@
   },
   "activeBar": {
     "recording": "記錄中：{{name}}",
-    "plotRecording": "樣區記錄中：{{id}}"
+    "plotRecording": "樣區記錄中：{{id}}",
+    "gloriaRecording": "GLORIA 調查中 · mocy {{mocy}}"
   },
   "speciesSearch": {
     "hint": "下方輸入俗名 / 學名 / 科名搜尋物種，{{br}}選擇結果後在此檢視詳細資訊。"
@@ -1436,7 +1447,10 @@
     "doneUnresolved_other": "{{count}} 筆在本機名錄查無 taxon_id，仍已匯入",
     "donePhotosSkipped_other": "{{count}} 張照片未匯入（權限或檔案無法讀取）",
     "collectionExistsTitle": "採集記錄已存在",
-    "collectionExistsMsg": "「{{name}}」已在裝置中。要覆蓋更新，還是另存成新副本？"
+    "collectionExistsMsg": "「{{name}}」已在裝置中。要覆蓋更新，還是另存成新副本？",
+    "gloriaExistsTitle": "這筆 GLORIA 調查已存在",
+    "gloriaExistsMsg": "{{name}} 已在這台裝置上。覆蓋會以匯入檔的內容取代現有資料。",
+    "gloriaImported": "已匯入 {{name}}"
   },
   "gbifLookup": {
     "title": "GBIF 查名",
@@ -2209,5 +2223,308 @@
     "orcidSignOutTitle": "登出 ORCID？",
     "orcidSignOutMsg": "登出後匯出將不再簽章，直到重新登入。金鑰會保留。",
     "orcidLegacy": "先前手動填入的 {{orcid}} 尚未經過驗證，須以 ORCID 登入後才會用於簽章。"
+  },
+  "gloria": {
+    "notFound": "找不到這筆 GLORIA 調查",
+    "overview": "總覽",
+    "endTitle": "結束 GLORIA 調查？",
+    "endMsg": "之後仍可重新開啟繼續記錄。",
+    "unitsDone": "已完成 {{done}}/{{total}} 單位",
+    "tab": {
+      "points": "基礎資料",
+      "map": "樣區總覽",
+      "species": "物種總表"
+    },
+    "status": {
+      "none": "未開始",
+      "progress": "進行中",
+      "done": "完成",
+      "warn": "有警告"
+    },
+    "list": {
+      "quadrats": "1×1 m 樣區",
+      "sas": "山峰區域樣區（SAS）",
+      "squares": "10×10 m 樣區"
+    },
+    "p5m": {
+      "title": "{{direction}} 方位 · 3×3 m（面向山峰）",
+      "explain": "p5m 是 {{point}} 的外角，位在 5 m 等高線上（青綠色線）。這個方位的 3×3 m 就從這個點架設。",
+      "notSet": "{{direction}} 方位還沒指定 p5m：請在「基礎資料」選 11 或 31。"
+    },
+    "new": {
+      "title": "新增 GLORIA 調查",
+      "region": "目標區 {{region}}",
+      "lastMocy": "上次 mocy {{mocy}}",
+      "firstSurvey": "尚無調查",
+      "addSummit": "新增山峰",
+      "addSummitButton": "＋ 新增山峰",
+      "country": "國碼",
+      "targetRegion": "目標區代碼",
+      "summitCode": "山峰代碼",
+      "codeHint": "國碼 2 碼（ISO 3166）、目標區與山峰各 3 碼，例如 TW-DAS-SUN（手冊 Box 6.1）。",
+      "codeInvalid": "代碼格式不對：國碼 2 個英文字母，目標區與山峰各 3 個英數字。",
+      "summitName": "山峰名稱（選填）",
+      "elevation": "海拔 m",
+      "vegZone": "植被帶",
+      "saveSummit": "儲存山峰",
+      "mocyIs": "本次為 mocy {{mocy}}",
+      "carryOver": "從 mocy {{from}} 帶入 {{points}} 個量測點的距離與方位，以及 10×10 m 樣區的起點設定。物種與覆蓋度一律空白，重新盲測（手冊 Box 4.5）。",
+      "noCarryOver": "這座山峰第一次調查：28 個量測點都要量。",
+      "surveyors": "調查者",
+      "noSurveyors": "未設定（可在設定的「調查者」指定預設）",
+      "start": "開始調查"
+    },
+    "points": {
+      "carried": "量測點已從前次帶入；與前次不同的欄位會以青綠色標示。",
+      "whereP5m": "p5m 在哪？",
+      "point": "點",
+      "distance": "距離 m",
+      "compass": "方位 °",
+      "photo": "照片",
+      "distanceOf": "{{point}} 距離（m）",
+      "compassOf": "{{point}} 方位（°）",
+      "photoM2": "{{point}} 樣區照片",
+      "photoM2F": "{{point}} 樣區＋頻度框照片",
+      "photoPoint": "{{point}} 點位照片",
+      "intersection": "斜向交線"
+    },
+    "photo": {
+      "camera": "拍照",
+      "library": "從相簿選擇",
+      "remove": "移除照片"
+    },
+    "matrix": {
+      "quadrats": "1×1",
+      "sas": "SAS",
+      "squares": "10×10",
+      "quadratHint": "覆蓋度 %；f 後為頻度格數。點欄位名稱開啟該單位。",
+      "sasHint": "多度 r! r s c d；• 表示已列入但未填多度。",
+      "squareHint": "400 點中的命中數；• 表示未被點到的額外物種。",
+      "empty": "還沒有物種",
+      "species": "物種"
+    },
+    "step": {
+      "cover": "覆蓋度與地表",
+      "frequency": "頻度",
+      "pointframe": "頻度點擊法",
+      "sas": "物種與多度",
+      "linePoints": "400 點逐點",
+      "additional": "未被點到的物種",
+      "notStarted": "未做",
+      "pointsDone": "{{done}}/{{total}} 點",
+      "here": "目前位置",
+      "jump": "跳到其他單位",
+      "backToSummit": "回樣區總覽",
+      "speciesCount_other": "{{count}} 種",
+      "freqDone_other": "{{count}} 種已畫",
+      "freqCounted_other": "{{count}} 種已填次數"
+    },
+    "issue": {
+      "topCoverSum": "地表覆蓋估測合計 {{sum}}%，應為 100%",
+      "vascularExceeds": "維管束植物 {{vascular}}% > 物種覆蓋合計 {{sum}}%",
+      "subtypeRange": "地表覆蓋子類型數值 {{value}} 超出 0–100",
+      "coverNoFreq": "{{name}}：覆蓋度 {{cover}}%，頻度 0 格",
+      "sasMissing": "同方位樣區有、這裡還沒記：{{names}}",
+      "p5m": "{{direction}} 方位尚未指定 p5m（11 或 31）",
+      "freqNoCover_other": "{{name}}：頻度 {{count}} 格，但沒有覆蓋度",
+      "pointInconsistent_other": "{{count}} 個點的物種與地表紀錄互相矛盾"
+    },
+    "cover": {
+      "title": "地表覆蓋估測(%)",
+      "sumOk": "合計 {{sum}} ✓",
+      "sumBad": "合計 {{sum}}（應為 100）",
+      "subtypeHint": "以所屬地表類型的 % 表示（手冊 p.40）：例如岩石 40% 中一半有地衣，填 50。",
+      "cov_vascular": "維管束植物",
+      "cov_solid_rock": "固定岩石",
+      "cov_scree": "碎石",
+      "cov_lichens": "地衣（地表）",
+      "cov_bryophytes": "苔蘚（地表）",
+      "cov_bare_ground": "裸地",
+      "cov_litter": "枯落物",
+      "sub_lich_below_vasc": "地衣 · 維管束下",
+      "sub_lich_on_rock": "地衣 · 岩石上",
+      "sub_lich_on_scree": "地衣 · 碎石上",
+      "sub_bry_below_vasc": "苔蘚 · 維管束下",
+      "sub_bry_on_rock": "苔蘚 · 岩石上",
+      "sub_bry_on_scree": "苔蘚 · 碎石上"
+    },
+    "surface": {
+      "R": "固定岩石",
+      "S": "碎石",
+      "L": "地衣",
+      "B": "苔蘚",
+      "G": "裸地",
+      "T": "枯落物"
+    },
+    "unit": {
+      "env": "樣區環境",
+      "aspect": "坡向 °",
+      "slope": "坡度 °",
+      "aspectShort": "坡向 {{v}}°",
+      "slopeShort": "坡度 {{v}}°",
+      "topSumShort": "地表覆蓋估測(%) 合計 {{sum}}",
+      "topNotYet": "地表覆蓋估測(%) 未填",
+      "subtypes": "地表覆蓋子類型（地衣/苔蘚）",
+      "vascularOk": "維管束植物 {{vascular}}% ≤ 物種覆蓋合計 {{sum}}% ✓",
+      "vascularHint": "物種覆蓋合計不應小於維管束植物的地表覆蓋（手冊 p.41）。請重新檢查物種覆蓋度或地表覆蓋估測。",
+      "crossTitle": "頻度與覆蓋度不一致",
+      "noSpecies": "用下方搜尋加入物種",
+      "coverRule": "覆蓋度以 % 估計，不可填「<」或「>」（手冊 Form 2）。點物種名稱開啟詳細頁；長按可移除。",
+      "coverOf": "{{name}} 覆蓋度 %",
+      "cf": "鑑定存疑（cf.）",
+      "openDetail": "開啟詳細頁",
+      "remove": "從此單位移除",
+      "rowHint": "開啟物種詳細頁",
+      "added": "已加入 {{name}}",
+      "markDone": "標記此單位完成",
+      "markUndone": "取消完成",
+      "sasMissingTitle": "{{direction}} 方位樣區的物種還沒全部列入",
+      "addAll": "全部加入",
+      "abundanceLegend": "r! 極稀少 · r 稀少 · s 散生 · c 常見 · d 優勢（覆蓋 >50%，手冊 p.42）",
+      "grazing": "放牧/動物痕跡",
+      "grazingPlaceholder": "例如：水鹿排遺、啃食、踐踏",
+      "speciesHeader_other": "物種（{{count}}）· 物種覆蓋合計 {{sum}}",
+      "sasHeader_other": "物種（{{count}}）· 多度",
+      "fromQuadratsDone_other": "從樣區帶入 {{count}} 種"
+    },
+    "square": {
+      "walk": "起點與方向（Form 6-S 四種選項）",
+      "option1": "左下緣 · 從下角起",
+      "option2": "左下緣 · 從左角起",
+      "option3": "右下緣 · 從下角起",
+      "option4": "右下緣 · 從右角起",
+      "pickWalk": "先選起點與方向。重複調查時沿用前次的選擇（手冊 p.57）。",
+      "start": "逐點記錄（已記 {{done}}/400）",
+      "hitsTitle": "命中數與覆蓋度（已記 {{done}}/400；覆蓋 = 命中 ÷ 4）",
+      "fromQuadrats": "從 4 個 1×1 m 樣區帶入",
+      "extraEmpty": "走完逐點後，列出沒被點到的物種；可先從 4 個 1×1 m 樣區帶入（手冊 p.58）。",
+      "extra_other": "未被點到的物種（{{count}}）"
+    },
+    "species": {
+      "inUnit": "{{code}} · 名錄編號 {{serial}}",
+      "abundance": "多度",
+      "cover": "覆蓋度 %",
+      "cf": "鑑定存疑",
+      "cfHint": "g 屬、s 種、t 種下階層存疑（手冊 Form 2 註 5）",
+      "lineage": "分類階層",
+      "openKey": "開啟檢索表：{{name}}",
+      "repro": "繁殖狀態（可複選）",
+      "leaf": "葉物候（可複選）",
+      "notes": "備註",
+      "notesPlaceholder": "例如：部分植株枯黃、存疑的鑑定特徵"
+    },
+    "rank": {
+      "kingdom": "界",
+      "phylum": "門",
+      "class": "綱",
+      "order": "目",
+      "family": "科",
+      "genus": "屬"
+    },
+    "freq": {
+      "title": "{{code}} · 頻度",
+      "undo": "復原",
+      "brush": "筆刷",
+      "cellMode": "逐格",
+      "uphill": "▲ 山峰方向（上坡）",
+      "gridLabel": "頻度格 10×10",
+      "hi1": "Hi1 排遺",
+      "hi2": "Hi2 啃食",
+      "hi3": "Hi3 踐踏",
+      "newSpecies": "＋ 新物種",
+      "fillAll": "全部填入",
+      "inverse": "反向填",
+      "inverseDone": "結束反向填",
+      "clear": "清空",
+      "brushHint": "選一個物種或 Hi 後在格子上拖曳塗色；從已塗的格子開始拖曳就是擦除。灰點是其他物種。",
+      "inverseHint": "已先填滿 100 格。拖曳標出「沒有」的格子（×），再按「結束反向填」。",
+      "cellTitle": "{{cell}}（{{n}}/100）",
+      "emptyNext": "空格 → 下一格",
+      "next": "下一格 ▶",
+      "addedNoCover": "已加入 {{name}}，覆蓋度尚未填",
+      "goCover": "去填覆蓋度",
+      "countMode": "直接輸入次數",
+      "countHint": "過去沒有記錄格位時使用：每個物種與擾動只填出現的格數（0–100 的整數）。",
+      "switchTitle": "切換記錄方式",
+      "switchToCount": "改成直接輸入次數會清除這個樣區已畫的格位（物種與 Hi1–Hi3）。確定要切換？",
+      "switchToCells": "改回格位記錄會清除已輸入的次數。確定要切換？",
+      "switchConfirm": "清除並切換"
+    },
+    "walk": {
+      "titleQuadrat": "{{code}} · 頻度點擊法",
+      "titleSquare": "{{code}} · 10×10 m 逐點",
+      "linePoint": "第 {{line}} 線 · 第 {{point}} 點",
+      "point": "第 {{n}} 點",
+      "allDone": "{{total}} 點全部完成",
+      "progress": "已記 {{done}}/{{total}}",
+      "forward": "→ 沿線前進",
+      "back": "← 反向走回",
+      "species": "點到的維管束植物（可多選）",
+      "surface": "沒有植物時：地表類型",
+      "same": "同前一點",
+      "next": "下一點 ▶",
+      "lineDone": "第 {{line}} 線完成：{{hits}} 次命中"
+    },
+    "endWithIssues_other": "還有 {{count}} 項警告。仍要結束嗎？之後仍可重新開啟。",
+    "kb": {
+      "next": "下一格",
+      "done": "完成"
+    },
+    "num": {
+      "rejectTitle": "數值超出範圍",
+      "reject": "{{label}}：{{value}}{{unit}} 超出可接受範圍 {{min}}–{{max}}{{unit}}，未儲存，已恢復原值。",
+      "warnTitle": "請確認數值",
+      "warn": "{{label}}：{{value}}{{unit}} 超出常見範圍 {{min}}–{{max}}{{unit}}。已儲存；若輸入錯誤請更正。",
+      "rejectInt": "{{label}}：{{value}} 不是整數。頻度是出現的格數，請輸入 0–100 的整數。未儲存，已恢復原值。"
+    },
+    "foldCount": "{{title}}（{{n}}）",
+    "summit": {
+      "title": "山峰基本資料",
+      "code": "山峰代碼",
+      "name": "名稱",
+      "namePlaceholder": "選填",
+      "lat": "緯度（WGS84）",
+      "lon": "經度（WGS84）",
+      "elevation": "海拔（m）",
+      "zone": "植群帶（Vegetation Zone）",
+      "zoneNone": "未設定",
+      "photos": "環境照片（{{n}}）",
+      "photosHint": "匯出時依手冊附錄 III 命名為 SU-OV（山峰全景），並把拍攝位置寫入檔名第 8 段；請在每張照片下填拍攝位置，例如「從 S 方向鞍部」。",
+      "viewpoint": "拍攝位置",
+      "viewpointLabel": "第 {{n}} 張照片的拍攝位置",
+      "photoFail": "無法加入照片"
+    },
+    "times": {
+      "title": "調查者與時間",
+      "cover": "優勢度估測",
+      "freq": "頻度",
+      "survey": "調查",
+      "start": "開始",
+      "stop": "結束",
+      "now": "設為現在",
+      "orderTitle": "時間順序不對",
+      "order": "{{what}}的結束時間不能早於開始時間。",
+      "hint": "開始於第一次輸入時自動記錄，結束於按「標記此單位完成」時記錄；點時間即可修改。",
+      "hintQuadrat": "優勢度估測：開始於第一次輸入、結束於按「標記此單位完成」。頻度：開始於第一筆，結束隨最後一次編輯更新；手動改過結束時間後就不再自動更新。點時間即可修改。",
+      "by": "調查者",
+      "bySurvey": "同本次調查：{{names}}",
+      "byNone": "未指定"
+    }
+  },
+  "vernacular": {
+    "title": "俗名顯示語言",
+    "hint": "選擇物種俗名要顯示哪些語言（最多 {{n}} 種），依下列順序以「/」串接，排第一的是主要俗名。畫面與匯出都依此設定；搜尋仍會比對所有已啟用名錄的俗名。採集標籤維持只印一個俗名。",
+    "order": "顯示語言與順序",
+    "zhTW": "正體中文俗名",
+    "zhTWSource": "臺灣物種名錄（TaiCOL）",
+    "ja": "日文和名",
+    "jaSource": "日本維管束植物名錄（YList）",
+    "zhTWShort": "中文",
+    "jaShort": "和名",
+    "keepOne": "至少要保留一種俗名語言。",
+    "max": "最多同時顯示 {{n}} 種俗名。",
+    "moveUp": "上移",
+    "moveDown": "下移",
+    "onlyOne": "目前只啟用一份名錄，所以只有一種俗名可選。在「{{page}}」啟用其他名錄（例如日本名錄）後，就能加入其他語言。"
   }
 }

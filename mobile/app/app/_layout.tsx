@@ -27,6 +27,7 @@ import { ToastHost } from '~/components/ToastHost';
 import { useThemeSync } from '~/hooks/useThemeSync';
 import { useI18nSync } from '~/hooks/useI18nSync';
 import { useActivePlot } from '~/stores/activePlot';
+import { useActiveGloria } from '~/modules/gloria/store';
 import { useActiveSession } from '~/stores/activeSession';
 import { useSettings } from '~/stores/settings';
 
@@ -75,7 +76,8 @@ function ThemedShell() {
   const isDark = scheme === 'dark';
   const session = useActiveSession((s) => s.session);
   const plot = useActivePlot((s) => s.plot);
-  const hasActive = Boolean(session || plot);
+  const gloria = useActiveGloria((s) => s.survey);
+  const hasActive = Boolean(session || plot || gloria);
   // The map draws to the top edge. Its overlays already position themselves at
   // `insets.top + 8`, so the spacer was not just letterboxing the map — it was
   // pushing those controls down by a second full inset. The recording bar still
@@ -108,6 +110,7 @@ function ThemedShell() {
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen name="session/[id]" options={{ title: t('nav.session') }} />
             <Stack.Screen name="plot/[id]" options={{ title: t('nav.plot') }} />
+            <Stack.Screen name="gloria/new" options={{ title: t('gloria.new.title') }} />
             <Stack.Screen name="key/[id]" options={{ title: t('nav.key') }} />
             <Stack.Screen name="projects" options={{ title: t('nav.projects') }} />
             <Stack.Screen name="sites" options={{ title: t('nav.sites') }} />
@@ -115,6 +118,7 @@ function ThemedShell() {
                 right before the screen mounts (no flash) and exportPref.title's
                 existing es-419 override keeps working. */}
             <Stack.Screen name="settings/language" options={{ title: t('settings.language') }} />
+            <Stack.Screen name="settings/vernacular" options={{ title: t('vernacular.title') }} />
             <Stack.Screen name="settings/collection" options={{ title: t('settings.sectionCollection') }} />
             <Stack.Screen name="settings/export" options={{ title: t('exportPref.title') }} />
             <Stack.Screen name="settings/provenance" options={{ title: t('nav.provenance') }} />

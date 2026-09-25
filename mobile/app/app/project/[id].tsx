@@ -92,7 +92,7 @@ export default function ProjectDetailScreen() {
   }, [records, layout]);
 
   const counts = useMemo(() => {
-    const c = { session: 0, plot: 0, collection: 0 };
+    const c = { session: 0, plot: 0, collection: 0, gloria: 0 };
     for (const r of records) c[r.kind] += 1;
     return c;
   }, [records]);
@@ -140,6 +140,7 @@ export default function ProjectDetailScreen() {
   const handleOpen = (item: RecordItem) => {
     if (item.kind === 'session') router.push(`/session/${item.id}` as Href);
     else if (item.kind === 'collection') router.push(`/collection/${item.id}` as Href);
+    else if (item.kind === 'gloria') router.push(`/gloria/${item.id}` as Href);
     else router.push(`/plot/${item.id}` as Href);
   };
 

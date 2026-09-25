@@ -40,6 +40,7 @@ import {
 } from './bundleExport';
 
 import { closePacksDb, getPacksDb, listPacks, PACKS_DB_NAME } from '~/db/regionpacks';
+import { parseOverviewPhotos } from '~/modules/gloria/model/overview';
 
 const USER_DB_NAME = 'user.db';
 
@@ -304,6 +305,35 @@ function collectPhotoSources(): PhotoSource[] {
     if (uris.length) {
       out.push({
         folder: `plot_${r.owner_id}_${sanitizeFilename(String(r.owner_name ?? ''))}/env`,
+        taxonId: null,
+        uris,
+      });
+    }
+  }
+
+  // GLORIA: measurement-point photos (one URI per column), unit photos, and
+  // summit overview photos (JSON [{ uri, viewpoint }] on the survey).
+  const gloria = db.executeSync(
+    `SELECT v.id AS owner_id, s.full_code || '_mocy' || v.mocy AS owner_name,
+            p.photo_m2 AS a, p.photo_m2f AS b, p.photo_point AS c, NULL AS paths, NULL AS ov
+       FROM gloria_points p JOIN gloria_surveys v ON v.id = p.survey_id JOIN gloria_summits s ON s.id = v.summit_id
+      WHERE p.photo_m2 IS NOT NULL OR p.photo_m2f IS NOT NULL OR p.photo_point IS NOT NULL
+     UNION ALL
+     SELECT v.id, s.full_code || '_mocy' || v.mocy, NULL, NULL, NULL, u.photo_paths, NULL
+       FROM gloria_units u JOIN gloria_surveys v ON v.id = u.survey_id JOIN gloria_summits s ON s.id = v.summit_id
+      WHERE u.photo_paths IS NOT NULL AND u.photo_paths != ''
+     UNION ALL
+     SELECT v.id, s.full_code || '_mocy' || v.mocy, NULL, NULL, NULL, NULL, v.overview_photos
+       FROM gloria_surveys v JOIN gloria_summits s ON s.id = v.summit_id
+      WHERE v.overview_photos IS NOT NULL AND v.overview_photos != ''`,
+  );
+  for (const r of (gloria.rows ?? []) as Array<Record<string, unknown>>) {
+    const uris = [r.a, r.b, r.c].filter((x): x is string => typeof x === 'string' && x !== '');
+    if (typeof r.paths === 'string') uris.push(...parsePhotoUris(r.paths));
+    if (typeof r.ov === 'string') uris.push(...parseOverviewPhotos(r.ov).map((p) => p.uri));
+    if (uris.length) {
+      out.push({
+        folder: `gloria_${r.owner_id}_${sanitizeFilename(String(r.owner_name ?? ''))}`,
         taxonId: null,
         uris,
       });

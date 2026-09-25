@@ -15,6 +15,7 @@ import {
 } from '~/db';
 import { perf } from '~/lib/perf';
 import { useActivePlot } from '~/stores/activePlot';
+import { useActiveGloria } from '~/modules/gloria/store';
 import { useActiveSession } from '~/stores/activeSession';
 import { useFavorites } from '~/stores/favorites';
 import { useSurveyors } from '~/stores/surveyors';
@@ -29,6 +30,7 @@ export function DBProvider({ children }: Props) {
   const [progress, setProgress] = useState<string>(t('splash.starting'));
   const refreshActiveSession = useActiveSession((s) => s.refresh);
   const refreshActivePlot = useActivePlot((s) => s.refresh);
+  const refreshActiveGloria = useActiveGloria((s) => s.refresh);
   const refreshFavorites = useFavorites((s) => s.refresh);
   const refreshSurveyors = useSurveyors((s) => s.refresh);
   const loadSettings = useSettings((s) => s.load);
@@ -55,6 +57,7 @@ export function DBProvider({ children }: Props) {
         perf.time('app:refresh-active', () => {
           refreshActiveSession();
           refreshActivePlot();
+          refreshActiveGloria();
           refreshFavorites();
           refreshSurveyors();
         });
@@ -114,7 +117,7 @@ export function DBProvider({ children }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [loadSettings, refreshActiveSession, refreshActivePlot, refreshFavorites, refreshSurveyors]);
+  }, [loadSettings, refreshActiveSession, refreshActivePlot, refreshActiveGloria, refreshFavorites, refreshSurveyors]);
 
   if (error) {
     return (

@@ -17,6 +17,7 @@ import {
   normalizeSci,
   crossRegionVernacular,
   composeVernacular,
+  getVernacularLangs,
 } from './regions';
 import {
   packInfraspeciesOf,
@@ -230,7 +231,9 @@ let CACHED_KINGDOMS_SCOPE: string | null = null;
 /** 快取鍵含每個可用模組的**版本**，所以更新某個模組（整包換檔）會讓分類樹
  *  自動失效——不必額外呼叫清快取。 */
 function scopeSig(): string {
-  return `${datasetScopeSig()}|${packScopeSig()}|${manualScopeSig()}`;
+  // The vernacular languages ride in the last segment: changing them re-reads
+  // species names but, like a manual-taxon change, keeps the tree expanded.
+  return `${datasetScopeSig()}|${packScopeSig()}|${manualScopeSig()}~${getVernacularLangs().join(',')}`;
 }
 
 /** Exposed for the taxonomy screen: it must reset its in-memory tree when the
@@ -564,6 +567,7 @@ export function getSpeciesUnder(ancestors?: Ancestors): TaxonSpecies[] {
       species.map((sp) => sp.taxon_id),
       regions,
     );
+    const langs = getVernacularLangs();
     species = species.map((sp) => ({
       ...sp,
       common_name_c: composeVernacular(
@@ -571,6 +575,7 @@ export function getSpeciesUnder(ancestors?: Ancestors): TaxonSpecies[] {
         regionOfTaxonId(sp.taxon_id),
         cross.get(sp.taxon_id),
         regions,
+        langs,
       ),
     }));
   }
