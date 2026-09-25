@@ -29,11 +29,11 @@ export function enforceSingleActiveOnStartup(): void {
   // ── Step 1a: keep latest active session ────────────────────────────────
   db.executeSync(
     `UPDATE sessions
-        SET ended_at = ?
-      WHERE ended_at IS NULL
+        SET status = 'done', ended_at = COALESCE(ended_at, ?)
+      WHERE status = 'active'
         AND id NOT IN (
           SELECT id FROM sessions
-           WHERE ended_at IS NULL
+           WHERE status = 'active'
            ORDER BY started_at DESC
            LIMIT 1
         )`,
@@ -75,7 +75,7 @@ export function enforceSingleActiveOnStartup(): void {
   // ── Step 2: cross-kind exclusion — the most recently started survives ──
   const candidates: Array<{ kind: ActiveKind; id: number; ts: number }> = [];
   const sessRow = db.executeSync(
-    `SELECT id, started_at AS ts FROM sessions WHERE ended_at IS NULL ORDER BY started_at DESC LIMIT 1`,
+    `SELECT id, started_at AS ts FROM sessions WHERE status = 'active' ORDER BY started_at DESC LIMIT 1`,
   ).rows?.[0] as { id: number; ts: number } | undefined;
   if (sessRow) candidates.push({ kind: 'session', ...sessRow });
   const plotRow = db.executeSync(

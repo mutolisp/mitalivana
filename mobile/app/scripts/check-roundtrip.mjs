@@ -125,6 +125,7 @@ const NOT_RESTORABLE = {
     id: ROW_ID,
     project_id: 'exported by name (`project`), re-resolved on import',
     site_id: 'exported as the `site:` block + site.* sidecars',
+    status: "imported records are always 'done' (single-active invariant)",
     resumed_at: 'reopen bookkeeping, meaningless for a fresh import',
     starred: STARRED,
     uuid: 'exported as event.eventUUID',

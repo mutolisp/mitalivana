@@ -2386,7 +2386,8 @@
       "fromQuadratsDone_other": "方形区から {{count}} 種を追加",
       "lockedToast": "このユニットは完了してロックされています。右上の鍵をタップすると編集できます。",
       "lockedDone": "完了してロックしました（終了時刻を記録）",
-      "unlocked": "ロックを解除しました"
+      "unlocked": "ロックを解除しました",
+      "reorder": "長押ししてドラッグで並べ替え"
     },
     "square": {
       "walk": "開始点と方向（Form 6-S の 4 択）",
@@ -2533,7 +2534,8 @@
       "bySurvey": "調査全体と同じ：{{names}}",
       "byNone": "未設定",
       "titleOnly": "調査時刻",
-      "notYet": "未開始"
+      "notYet": "未開始",
+      "afterCover": "被度推定に続けて：{{time}}"
     },
     "summitImport": {
       "button": "山頂を読み込む",
@@ -2670,5 +2672,37 @@
     "freed": "{{size}} を解放しました",
     "busyTitle": "ダウンロード中",
     "busy": "名録・地図・国別名録のダウンロード中で、キャッシュにそのファイルがあります。完了後に削除してください。"
+  },
+  "recordLock": {
+    "undo": "元に戻す",
+    "redo": "やり直す",
+    "unlock": "ロックを解除して編集",
+    "relock": "編集を終えてロック",
+    "lockedToast": "この記録は終了してロックされています。右上の鍵をタップすると編集できます。",
+    "unlockedToast": "ロックを解除しました。画面を離れると再びロックされます",
+    "relockedToast": "ロックしました",
+    "banner": "終了してロックされています。右上の鍵をタップすると編集できます。",
+    "listLockedTitle_other": "{{count}} 件の記録が終了してロックされています",
+    "listLockedMsg": "終了した記録はロックされています。ロックを解除して続けますか？",
+    "unlockAndContinue": "ロックを解除して続ける"
+  },
+  "endTime": {
+    "title": "終了時刻",
+    "hasTime": "現在の終了時刻は {{time}} です。",
+    "noTime": "終了時刻はまだありません。過去のデータを入力する場合は空欄のままにして、後で手入力できます。",
+    "useNow": "現在時刻に更新",
+    "keep": "{{time}} のまま",
+    "recordNow": "現在時刻を記録",
+    "leaveBlank": "記録しない（後で手入力）"
+  },
+  "surveyTime": {
+    "title": "調査時刻",
+    "start": "開始",
+    "end": "終了",
+    "setNow": "現在時刻にする",
+    "clearEnd": "終了時刻を消去",
+    "hint": "日付と時刻は手入力できます（過去データの入力用）。タップして変更します。",
+    "orderTitle": "時刻の順序が不正",
+    "order": "終了は開始より前にできません。"
   }
 }

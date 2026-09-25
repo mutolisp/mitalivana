@@ -50,8 +50,10 @@ import { KeyboardStickyView } from '~/components/KeyboardAvoidingView';
 import { RecordStepBar } from '~/components/RecordStepBar';
 import { HeaderIconButton } from '~/components/HeaderIconButton';
 import { showActionSheet } from '~/components/ActionSheet';
-import { deleteAudioFile } from '~/lib/audioCapture';
-import { mediaUriReferenced } from '~/db';
+import { useRecordEditing } from '~/lib/useRecordEditing';
+import { chooseEndTime } from '~/lib/endTimeChoice';
+import { SurveyTimesModal } from '~/components/SurveyTimeFields';
+import { RecordEditButtons } from '~/components/RecordEditButtons';
 import { hasInatChanges, syncRecord, useInatSync } from '~/lib/inatUpload';
 import { inatTokenAvailableQuietly } from '~/lib/inatAuth';
 import { apiErrorMessage } from '~/lib/apiErrorMessage';
@@ -307,14 +309,37 @@ export default function CollectionTripScreen() {
   const [projectSheetOpen, setProjectSheetOpen] = useState(false);
   const [surveyorSheetOpen, setSurveyorSheetOpen] = useState(false);
   const [siteSheetOpen, setSiteSheetOpen] = useState(false);
+  const [timesOpen, setTimesOpen] = useState(false);
 
-  const reload = useCallback(() => {
+  // Lock + undo / redo (src/lib/useRecordEditing): a finished trip is
+  // read-only until unlocked here; every reload after an edit is one step.
+  const edit = useRecordEditing('collection', tripId, trip != null && trip.status !== 'active');
+  const { checkpoint, absorb } = edit;
+  // Remounts the detail sheet after a refused edit, so its fields drop what
+  // was typed and show the specimen again.
+  const [detailKey, setDetailKey] = useState(0);
+  /** Run an edit unless the trip is locked. */
+  const guard =
+    <A extends unknown[]>(fn: (...a: A) => void) =>
+    (...a: A) => {
+      if (edit.refuse()) {
+        setDetailKey((k) => k + 1);
+        return;
+      }
+      fn(...a);
+    };
+
+  const refresh = useCallback(() => {
     const tr = getCollectionTrip(tripId);
     setTrip(tr);
     setProject(tr ? getProject(tr.project_id) : null);
     setSpecimens(listSpecimens(tripId));
     setDupNumbers(duplicateRecordNumbers());
   }, [tripId]);
+  const reload = useCallback(() => {
+    refresh();
+    checkpoint();
+  }, [refresh, checkpoint]);
 
   useFocusEffect(
     useCallback(() => {
@@ -419,7 +444,9 @@ export default function CollectionTripScreen() {
       const place = await placeNameAt(coords.lat, coords.lng);
       if (place && !getSpecimen(newId)?.locality) {
         updateSpecimen(newId, { locality: place });
-        reload();
+        // The app's own late write: part of the add, not an undo step.
+        refresh();
+        absorb();
         // The sheet is most likely open on it by now; hand it the new row.
         setActive((prev) => (prev?.id === newId ? getSpecimen(newId) : prev));
       }
@@ -616,6 +643,7 @@ export default function CollectionTripScreen() {
         { label: `${t('collection.tripLocality')}${trip.locality ? `：${trip.locality}` : ''}` },
         { label: `${t('collection.tripInstitution')}${trip.institution_code ? `：${trip.institution_code}` : ''}` },
         { label: `${t('collection.tripSite')}${tripSite ? `：${tripSite.name}` : ''}` },
+        { label: t('surveyTime.title') },
       ],
       cancelLabel: t('common.cancel'),
     });
@@ -640,6 +668,8 @@ export default function CollectionTripScreen() {
       reload();
     } else if (idx === 2) {
       setSiteSheetOpen(true);
+    } else if (idx === 3) {
+      setTimesOpen(true);
     }
   };
 
@@ -650,6 +680,7 @@ export default function CollectionTripScreen() {
   };
 
   const handleBulkDelete = () => {
+    if (edit.refuse()) return;
     // From `display`, so an id left over from an already-deleted row is ignored.
     const rows = display.filter((sp) => picked.has(sp.id));
     if (rows.length === 0) return;
@@ -799,9 +830,9 @@ export default function CollectionTripScreen() {
       active.id,
       parsePhotoPaths(active.audio_paths).filter((u) => u !== uri),
     );
-    // A merged record shares its clips with the record it came from, so only
-    // the last reference may delete the file.
-    if (!mediaUriReferenced(uri, 'audio_paths')) void deleteAudioFile(uri);
+    // Deleted once no undo step can bring the clip back, and only if no other
+    // record (a merge shares clips) still points at it.
+    edit.deferAudioDelete(uri);
     refreshActive(active.id);
   };
 
@@ -823,7 +854,7 @@ export default function CollectionTripScreen() {
           // "edit the collector" and the trip name looked uneditable.
           headerTitle: () => (
             <Pressable
-              onPress={handleRename}
+              onPress={guard(() => void handleRename())}
               hitSlop={8}
               className="flex-row items-center active:opacity-60"
             >
@@ -841,16 +872,26 @@ export default function CollectionTripScreen() {
             // Icon rather than the words it used to be: 名錄 and 樣區 already
             // end / resume through exactly these two glyphs, and the odd one
             // out was 採集 — three sibling screens, one action, one shape.
-            <HeaderIconButton
-              icon={isActive ? 'stop-circle-outline' : 'refresh-outline'}
-              tone={isActive ? 'danger' : 'default'}
-              label={isActive ? t('collection.endTrip') : t('collection.resume')}
-              onPress={() => {
-                if (isActive) endCollectionTrip(trip.id);
-                else reopenCollectionTrip(trip.id);
-                reload();
-              }}
-            />
+            <View className="flex-row items-center gap-3">
+              <RecordEditButtons edit={edit} ended={!isActive} onChanged={reload} />
+              {!isActive && !edit.locked ? null : (
+                <HeaderIconButton
+                  icon={isActive ? 'stop-circle-outline' : 'refresh-outline'}
+                  tone={isActive ? 'danger' : 'default'}
+                  label={isActive ? t('collection.endTrip') : t('collection.resume')}
+                  onPress={async () => {
+                    if (isActive) {
+                      const chosen = await chooseEndTime(trip.ended_at);
+                      if (chosen === undefined) return;
+                      endCollectionTrip(trip.id, chosen);
+                    } else {
+                      reopenCollectionTrip(trip.id);
+                    }
+                    reload();
+                  }}
+                />
+              )}
+            </View>
           ),
         }}
       />
@@ -917,7 +958,7 @@ export default function CollectionTripScreen() {
         ) : (
           <View className="flex-row items-center gap-3 border-b border-gray-200 bg-white px-4 py-2 dark:border-gray-700 dark:bg-gray-900">
             <Pressable
-              onPress={() => setProjectSheetOpen(true)}
+              onPress={guard(() => setProjectSheetOpen(true))}
               hitSlop={8}
               className="active:opacity-70"
             >
@@ -928,7 +969,7 @@ export default function CollectionTripScreen() {
               />
             </Pressable>
             <Pressable
-              onPress={() => setSurveyorSheetOpen(true)}
+              onPress={guard(() => setSurveyorSheetOpen(true))}
               hitSlop={6}
               className="flex-1 flex-row items-center active:opacity-70"
             >
@@ -945,7 +986,7 @@ export default function CollectionTripScreen() {
               </Text>
             </Pressable>
             <Pressable
-              onPress={handleTripMeta}
+              onPress={guard(() => void handleTripMeta())}
               hitSlop={6}
               className="flex-row items-center active:opacity-70"
             >
@@ -1010,7 +1051,7 @@ export default function CollectionTripScreen() {
                     label: t('collection.duplicate'),
                     icon: 'copy-outline',
                     color: 'blue',
-                    onPress: () => handleDuplicate(item),
+                    onPress: guard(() => handleDuplicate(item)),
                   },
                   {
                     label: t('records.uploadInat'),
@@ -1022,7 +1063,7 @@ export default function CollectionTripScreen() {
                     label: t('common.delete'),
                     icon: 'trash-outline',
                     color: 'red',
-                    onPress: () => handleDelete(item),
+                    onPress: guard(() => handleDelete(item)),
                   },
                 ]}
               >
@@ -1090,33 +1131,34 @@ export default function CollectionTripScreen() {
       ) : null}
 
       <SpecimenDetailSheet
+        key={detailKey}
         specimen={active}
         onClose={() => setActive(null)}
-        onSave={handleSave}
-        onChangeLocation={(lat, lng, accuracy) => {
+        onSave={guard(handleSave)}
+        onChangeLocation={guard((lat: number, lng: number, accuracy: number | null) => {
           if (!active) return;
           updateSpecimenLocation(active.id, lat, lng, accuracy);
           refreshActive(active.id);
-        }}
-        onSaveLocation={(lat, lng, accuracy) => {
+        })}
+        onSaveLocation={guard((lat: number | null, lng: number | null, accuracy: number | null) => {
           if (!active) return;
           updateSpecimenLocation(active.id, lat, lng, accuracy);
           refreshActive(active.id);
-        }}
-        onReplaceTaxon={() => {
+        })}
+        onReplaceTaxon={guard(() => {
           if (!active) return;
           setReplaceTarget(active);
           setActive(null);
-        }}
+        })}
         duplicate={active ? dupNumbers.has(active.record_number) : false}
         pager={detailPager}
-        onDelete={() => {
+        onDelete={guard(() => {
           if (active) handleDelete(active);
-        }}
-        onAddPhoto={handleAddPhoto}
-        onRemovePhoto={handleRemovePhoto}
-        onAddAudio={handleAddAudio}
-        onRemoveAudio={handleRemoveAudio}
+        })}
+        onAddPhoto={guard((mode: 'camera' | 'library') => void handleAddPhoto(mode))}
+        onRemovePhoto={guard(handleRemovePhoto)}
+        onAddAudio={guard(handleAddAudio)}
+        onRemoveAudio={guard(handleRemoveAudio)}
         inat={
           active
             ? {
@@ -1148,6 +1190,21 @@ export default function CollectionTripScreen() {
           setSiteSheetOpen(false);
           reload();
         }}
+      />
+
+      <SurveyTimesModal
+        visible={timesOpen}
+        onClose={() => setTimesOpen(false)}
+        start={trip.started_at}
+        end={trip.ended_at}
+        startRequired
+        readOnly={edit.locked}
+        onChange={guard((which: 'start' | 'end', ts: number | null) => {
+          if (which === 'start') {
+            if (ts != null) updateCollectionTrip(trip.id, { started_at: ts });
+          } else updateCollectionTrip(trip.id, { ended_at: ts });
+          reload();
+        })}
       />
 
       <SurveyorAssignSheet

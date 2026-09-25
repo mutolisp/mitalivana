@@ -107,6 +107,7 @@ export function SummitSchematic({ p5m, statusOf, onUnit, onCluster }: Props) {
         const mid = at(0, 0);
         const pc = at(corner === '11' ? -1.5 * CELL : 1.5 * CELL, -1.5 * CELL);
         const lp = at(corner === '11' ? -1.5 * CELL : 1.5 * CELL, -1.5 * CELL - 11);
+        const lift = d === 'E' || d === 'W' ? (mid[1] < 150 ? 13 : -9) : 0;
         return (
           <G key={d}>
             <Rect
@@ -135,10 +136,12 @@ export function SummitSchematic({ p5m, statusOf, onUnit, onCluster }: Props) {
             })}
             <Circle cx={pc[0]} cy={pc[1]} r={3.4} fill={ink} stroke={paper} strokeWidth={1} />
             {/* On E / W the label would sit on the horizontal principal line:
-                lift it off the line, and give every label a paper backing. */}
+                move it off the line to the side the cluster is NOT on (with
+                p5m E11 the cluster is above the line, so the label goes below),
+                and give every label a paper backing. */}
             <Rect
               x={lp[0] - 23}
-              y={lp[1] + (d === 'E' || d === 'W' ? -9 : 0) - 5}
+              y={lp[1] + lift - 5}
               width={46}
               height={11}
               rx={3}
@@ -147,7 +150,7 @@ export function SummitSchematic({ p5m, statusOf, onUnit, onCluster }: Props) {
             />
             <SvgText
               x={lp[0]}
-              y={lp[1] + (d === 'E' || d === 'W' ? -9 : 0) + 3}
+              y={lp[1] + lift + 3}
               fontSize={9}
               fontWeight="700"
               fill="#00797b"

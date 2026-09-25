@@ -2534,7 +2534,8 @@
       "fromQuadratsDone_other": "Added {{count}} species from the quadrats",
       "lockedToast": "This unit is done and locked. Tap the lock at the top right to edit.",
       "lockedDone": "Done and locked; end time recorded",
-      "unlocked": "Unlocked; you can edit"
+      "unlocked": "Unlocked; you can edit",
+      "reorder": "Long-press and drag to reorder"
     },
     "square": {
       "walk": "Start and direction (Form 6-S, four options)",
@@ -2683,7 +2684,8 @@
       "bySurvey": "Same as survey: {{names}}",
       "byNone": "Not set",
       "titleOnly": "Survey times",
-      "notYet": "Not started"
+      "notYet": "Not started",
+      "afterCover": "After cover estimate: {{time}}"
     },
     "summitImport": {
       "button": "Import summits",
@@ -2820,5 +2822,38 @@
     "freed": "Freed {{size}}",
     "busyTitle": "Download in progress",
     "busy": "A checklist, map or country pack is downloading and has files in the cache. Clear the cache when it has finished."
+  },
+  "recordLock": {
+    "undo": "Undo",
+    "redo": "Redo",
+    "unlock": "Unlock to edit",
+    "relock": "Done editing, lock",
+    "lockedToast": "This record is finished and locked. Tap the lock at the top right to edit.",
+    "unlockedToast": "Unlocked for editing; it locks again when you leave",
+    "relockedToast": "Locked",
+    "banner": "Finished and locked. Tap the lock at the top right to edit.",
+    "listLockedTitle_one": "{{count}} record is finished and locked",
+    "listLockedTitle_other": "{{count}} records are finished and locked",
+    "listLockedMsg": "Finished records are locked. Unlock and continue?",
+    "unlockAndContinue": "Unlock and continue"
+  },
+  "endTime": {
+    "title": "End time",
+    "hasTime": "The current end time is {{time}}.",
+    "noTime": "No end time yet. When digitising old data you can leave it blank and fill it in later.",
+    "useNow": "Update to now",
+    "keep": "Keep {{time}}",
+    "recordNow": "Record now",
+    "leaveBlank": "Leave blank (fill in later)"
+  },
+  "surveyTime": {
+    "title": "Survey time",
+    "start": "Start",
+    "end": "End",
+    "setNow": "Set to now",
+    "clearEnd": "Clear end time",
+    "hint": "Dates and times can be typed by hand (for digitising old data); tap one to change it.",
+    "orderTitle": "Times out of order",
+    "order": "The end cannot be earlier than the start."
   }
 }

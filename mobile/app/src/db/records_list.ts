@@ -63,7 +63,7 @@ function sessionToItem(s: SessionWithStats): RecordItem {
       project: s.project_name,
     }),
     subtitlePlain: i18n.t('recordsList.sessionSubtitleNoProject', { count: s.record_count }),
-    active: s.ended_at === null,
+    active: s.status === 'active',
     startedAt: s.started_at,
     recordCount: s.record_count,
     starred: s.starred === 1,

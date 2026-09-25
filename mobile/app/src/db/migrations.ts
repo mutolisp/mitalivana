@@ -1633,6 +1633,33 @@ const MIGRATIONS: Migration[] = [
       addColumnIfMissing(db, `ALTER TABLE gloria_units ADD COLUMN pf_locked INTEGER NOT NULL DEFAULT 0;`);
     },
   },
+  {
+    // End times become plain, editable data (digitising old field sheets
+    // means typing a past time, or leaving it blank), so "finished" needs a
+    // column of its own wherever it was the end time itself:
+    //   - sessions: active WAS `ended_at IS NULL`; now `status`, like plots
+    //     and collection trips already have;
+    //   - GLORIA units: done WAS `stop_ts IS NOT NULL`; now `done_locked`.
+    version: 54,
+    up: (db) => {
+      addColumnIfMissing(db, `ALTER TABLE sessions ADD COLUMN status TEXT NOT NULL DEFAULT 'active';`);
+      db.executeSync(`UPDATE sessions SET status = 'done' WHERE ended_at IS NOT NULL;`);
+      db.executeSync(
+        `CREATE INDEX IF NOT EXISTS idx_sessions_status_active ON sessions(status) WHERE status = 'active';`,
+      );
+      addColumnIfMissing(db, `ALTER TABLE gloria_units ADD COLUMN done_locked INTEGER NOT NULL DEFAULT 0;`);
+      db.executeSync(`UPDATE gloria_units SET done_locked = 1 WHERE stop_ts IS NOT NULL;`);
+    },
+  },
+  {
+    // The order species are listed in a unit — the field sheet's order,
+    // dragged into place by the user. NULL = never reordered: after the
+    // reordered ones, by roster serial (model/speciesOrder.ts).
+    version: 55,
+    up: (db) => {
+      addColumnIfMissing(db, `ALTER TABLE gloria_unit_species ADD COLUMN sort_order INTEGER;`);
+    },
+  },
 ];
 
 /** Highest schema version this build knows how to produce. Backup/restore uses

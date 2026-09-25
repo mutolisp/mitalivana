@@ -2386,7 +2386,8 @@
       "fromQuadratsDone_other": "방형구에서 {{count}}종 추가",
       "lockedToast": "이 단위는 완료되어 잠겨 있습니다. 편집하려면 오른쪽 위의 자물쇠를 누르세요.",
       "lockedDone": "완료 및 잠금, 종료 시각 기록됨",
-      "unlocked": "잠금 해제됨, 편집할 수 있습니다"
+      "unlocked": "잠금 해제됨, 편집할 수 있습니다",
+      "reorder": "길게 눌러 끌어서 순서 변경"
     },
     "square": {
       "walk": "시작점과 방향（Form 6-S 4가지）",
@@ -2533,7 +2534,8 @@
       "bySurvey": "조사 전체와 동일: {{names}}",
       "byNone": "미지정",
       "titleOnly": "조사 시간",
-      "notYet": "시작 전"
+      "notYet": "시작 전",
+      "afterCover": "피도 추정에 이어서: {{time}}"
     },
     "summitImport": {
       "button": "정상 가져오기",
@@ -2670,5 +2672,37 @@
     "freed": "{{size}} 확보",
     "busyTitle": "다운로드 중",
     "busy": "목록·지도·국가 목록을 받는 중이라 캐시에 파일이 있습니다. 끝난 뒤 지우세요."
+  },
+  "recordLock": {
+    "undo": "실행 취소",
+    "redo": "다시 실행",
+    "unlock": "잠금 해제 후 편집",
+    "relock": "편집 완료, 잠금",
+    "lockedToast": "이 기록은 종료되어 잠겨 있습니다. 편집하려면 오른쪽 위의 자물쇠를 누르세요.",
+    "unlockedToast": "잠금 해제됨. 화면을 나가면 다시 잠깁니다",
+    "relockedToast": "잠김",
+    "banner": "종료되어 잠겨 있습니다. 편집하려면 오른쪽 위의 자물쇠를 누르세요.",
+    "listLockedTitle_other": "기록 {{count}}건이 종료되어 잠겨 있습니다",
+    "listLockedMsg": "종료된 기록은 잠겨 있습니다. 잠금을 해제하고 계속할까요?",
+    "unlockAndContinue": "잠금 해제 후 계속"
+  },
+  "endTime": {
+    "title": "종료 시각",
+    "hasTime": "현재 종료 시각은 {{time}}입니다.",
+    "noTime": "아직 종료 시각이 없습니다. 과거 자료를 입력할 때는 비워 두고 나중에 직접 입력할 수 있습니다.",
+    "useNow": "현재 시각으로 갱신",
+    "keep": "{{time}} 유지",
+    "recordNow": "현재 시각 기록",
+    "leaveBlank": "비워 두기(나중에 입력)"
+  },
+  "surveyTime": {
+    "title": "조사 시각",
+    "start": "시작",
+    "end": "종료",
+    "setNow": "현재 시각으로",
+    "clearEnd": "종료 시각 지우기",
+    "hint": "날짜와 시각을 직접 입력할 수 있습니다(과거 자료 입력용). 눌러서 변경합니다.",
+    "orderTitle": "시각 순서 오류",
+    "order": "종료가 시작보다 빠를 수 없습니다."
   }
 }

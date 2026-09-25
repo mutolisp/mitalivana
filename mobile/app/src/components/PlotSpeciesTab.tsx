@@ -83,7 +83,25 @@ type ValueModalState =
   | { mode: 'create'; taxon: SearchResult; layer: Layer; adopted?: AdoptionInput | null }
   | { mode: 'edit'; record: PlotSpeciesRecordWithTaxon };
 
-export function PlotSpeciesTab({ plot, onChanged }: { plot: PlotSurvey; onChanged: () => void }) {
+/** The plot screen's lock and history (src/lib/useRecordEditing), as this tab needs them. */
+export type PlotSpeciesLock = {
+  locked: boolean;
+  /** Toasts and returns true while locked. */
+  refuse: () => boolean;
+  deferAudioDelete: (uri: string) => void;
+  /** Reload after a write the app made by itself (GNSS stamp): not an undo step. */
+  onChangedQuiet: () => void;
+};
+
+export function PlotSpeciesTab({
+  plot,
+  onChanged,
+  lock,
+}: {
+  plot: PlotSurvey;
+  onChanged: () => void;
+  lock: PlotSpeciesLock;
+}) {
   const { t: tr } = useTranslation();
   // `stratified` = fixed plot only (has E1..E6 layers). transect + point_count
   // are non-stratified: a single 'T' bucket, no layer chips/headers. Keep the
@@ -360,6 +378,10 @@ export function PlotSpeciesTab({ plot, onChanged }: { plot: PlotSurvey; onChange
 
   const handleSaveValue = (v: PlotValueDraft) => {
     if (!modal) return;
+    if (modal.mode === 'edit' && lock.refuse()) {
+      setModal(null);
+      return;
+    }
     if (modal.mode === 'create') {
       const newId = addPlotSpecies({
         plot_survey_id: plot.id,
@@ -392,7 +414,7 @@ export function PlotSpeciesTab({ plot, onChanged }: { plot: PlotSurvey; onChange
       // Its own fix, unless the photos above already gave it one.
       stampNewRecord('plot', newId, plot.id, () => {
         reload();
-        onChanged();
+        lock.onChangedQuiet();
       });
       if (newId > 0 && pendingAudio.length > 0) {
         updatePlotSpeciesAudio(newId, pendingAudio);
@@ -520,9 +542,9 @@ export function PlotSpeciesTab({ plot, onChanged }: { plot: PlotSurvey; onChange
     const record = modal.record;
     const next = parsePhotoPaths(record.audio_paths).filter((u) => u !== uri);
     updatePlotSpeciesAudio(record.id, next);
-    // A merged record shares its clips with the record it came from, so only
-    // the last reference may delete the file.
-    if (!mediaUriReferenced(uri, 'audio_paths')) void deleteAudioFile(uri);
+    // Deleted once no undo step can bring the clip back, and only if no other
+    // record (a merge shares clips) still points at it.
+    lock.deferAudioDelete(uri);
     setModal({
       mode: 'edit',
       record: { ...record, audio_paths: next.length > 0 ? JSON.stringify(next) : null },
@@ -768,7 +790,18 @@ export function PlotSpeciesTab({ plot, onChanged }: { plot: PlotSurvey; onChange
     else useToast.getState().show(tr('favorites.addFail'));
   };
 
+  /** Wrap a modal callback: while locked it only explains why nothing happens.
+   *  Only an edit of a saved row is refused — a new species being drafted
+   *  can't happen while locked (the search box is gone). */
+  const editGuard =
+    <A extends unknown[]>(fn: (...a: A) => void) =>
+    (...a: A) => {
+      if (modal?.mode === 'edit' && lock.refuse()) return;
+      fn(...a);
+    };
+
   const handleBulkDelete = () => {
+    if (lock.refuse()) return;
     const rows = visibleRecords.filter((r) => selection.picked.has(r.id));
     if (rows.length === 0) return;
     Alert.alert(
@@ -1047,7 +1080,10 @@ export function PlotSpeciesTab({ plot, onChanged }: { plot: PlotSurvey; onChange
         automaticallyAdjustKeyboardInsets
         ListHeaderComponent={
           subplotMode && activeSubplotId != null ? (
-            <View className="border-b border-gray-100 bg-white px-4 py-2 dark:border-gray-800 dark:bg-gray-900">
+            <View
+              pointerEvents={lock.locked ? 'none' : 'auto'}
+              className="border-b border-gray-100 bg-white px-4 py-2 dark:border-gray-800 dark:bg-gray-900"
+            >
               <SubplotLayerInputs
                 subplotId={activeSubplotId}
                 activeLayers={activeLayers}
@@ -1082,6 +1118,7 @@ export function PlotSpeciesTab({ plot, onChanged }: { plot: PlotSurvey; onChange
                   icon: 'trash',
                   color: 'red',
                   onPress: () => {
+                    if (lock.refuse()) return;
                     deletePlotSpecies(item.record.id);
                     reload();
                     onChanged();
@@ -1099,7 +1136,9 @@ export function PlotSpeciesTab({ plot, onChanged }: { plot: PlotSurvey; onChange
                 onLongPress={() => selection.enter(item.record.id)}
                 // In select mode a tap anywhere on the row selects it.
                 onAdjust={
-                  selection.selectMode ? undefined : (d) => handleAdjustQuantity(item.record, d)
+                  selection.selectMode || lock.locked
+                    ? undefined
+                    : (d) => handleAdjustQuantity(item.record, d)
                 }
                 selectMode={selection.selectMode}
                 picked={selection.picked.has(item.record.id)}
@@ -1145,9 +1184,11 @@ export function PlotSpeciesTab({ plot, onChanged }: { plot: PlotSurvey; onChange
       <RecordStepBar kind="plot" id={plot.id} />
 
       {/* SearchBox sticks above the keyboard, follows accessory-bar changes */}
-      <KeyboardStickyView offset={{ opened: insets.bottom }}>
-        <SearchBox onSelect={handleSelect} />
-      </KeyboardStickyView>
+      {lock.locked ? null : (
+        <KeyboardStickyView offset={{ opened: insets.bottom }}>
+          <SearchBox onSelect={handleSelect} />
+        </KeyboardStickyView>
+      )}
 
       {modal && modalProps ? (
         <PlotSpeciesValueModal
@@ -1166,10 +1207,10 @@ export function PlotSpeciesTab({ plot, onChanged }: { plot: PlotSurvey; onChange
           lat={modal.mode === 'edit' ? modal.record.lat : (pendingLoc?.lat ?? null)}
           lng={modal.mode === 'edit' ? modal.record.lng : (pendingLoc?.lng ?? null)}
           accuracy={modal.mode === 'edit' ? modal.record.accuracy : (pendingLoc?.accuracy ?? null)}
-          onSaveLocation={handleSaveModalLocation}
-          onChangeLocation={handleChangeModalLocation}
+          onSaveLocation={editGuard(handleSaveModalLocation)}
+          onChangeLocation={editGuard(handleChangeModalLocation)}
           elevation={modal.mode === 'edit' ? modal.record.elevation_m : (pendingElevation?.metres ?? null)}
-          onSaveElevation={handleSaveModalElevation}
+          onSaveElevation={editGuard(handleSaveModalElevation)}
           plotGeo={{
             lat: plot.decimal_latitude,
             lng: plot.decimal_longitude,
@@ -1179,8 +1220,8 @@ export function PlotSpeciesTab({ plot, onChanged }: { plot: PlotSurvey; onChange
           photoUris={
             modal.mode === 'edit' ? parsePhotoPaths(modal.record.photo_paths) : pendingPhotos
           }
-          onAddPhoto={handleAddPhotoForModal}
-          onRemovePhoto={handleRemovePhotoForModal}
+          onAddPhoto={editGuard((mode: 'camera' | 'library') => void handleAddPhotoForModal(mode))}
+          onRemovePhoto={editGuard(handleRemovePhotoForModal)}
           audioUris={modal.mode === 'edit' ? parsePhotoPaths(modal.record.audio_paths) : pendingAudio}
           occurrenceId={modal.mode === 'edit' ? modal.record.occurrence_id : null}
           updatedAt={modal.mode === 'edit' ? modal.record.updated_at : null}
@@ -1196,20 +1237,22 @@ export function PlotSpeciesTab({ plot, onChanged }: { plot: PlotSurvey; onChange
                 }
               : undefined
           }
-          onAddAudio={handleAddAudioForModal}
-          onRemoveAudio={handleRemoveAudioForModal}
+          onAddAudio={editGuard(handleAddAudioForModal)}
+          onRemoveAudio={editGuard(handleRemoveAudioForModal)}
           pager={modalPager}
           recordActions={
             modal.mode === 'edit'
               ? {
-                  onReplaceTaxon: () => {
+                  onReplaceTaxon: editGuard(() => {
                     // The docked SearchBox lives under this Modal, so the modal
                     // has to close for the hand-off to mean anything.
                     setReplaceTarget(modal.record);
                     setModal(null);
-                  },
-                  onChangeLayer: stratified ? () => void handleChangeLayer(modal.record) : undefined,
-                  onDelete: () => handleDeleteFromModal(modal.record),
+                  }),
+                  onChangeLayer: stratified
+                    ? editGuard(() => void handleChangeLayer(modal.record))
+                    : undefined,
+                  onDelete: editGuard(() => handleDeleteFromModal(modal.record)),
                 }
               : undefined
           }

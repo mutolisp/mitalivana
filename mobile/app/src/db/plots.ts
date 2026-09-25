@@ -708,12 +708,19 @@ export function unfinalizePlotTrack(plotId: number): void {
   ]);
 }
 
-export function endPlotSurvey(id: number): void {
+/**
+ * `endTs`: the end time the user chose (src/lib/endTimeChoice) — a time, or
+ * null to leave it blank. Omitted (automatic endings): keep an existing time,
+ * otherwise now.
+ */
+export function endPlotSurvey(id: number, endTs?: number | null): void {
   const db = getUserDb();
   const now = Date.now();
   db.executeSync(
-    `UPDATE plot_surveys SET status = 'done', stop_ts = COALESCE(stop_ts, ?), updated_at = ? WHERE id = ?`,
-    [now, now, id],
+    endTs === undefined
+      ? `UPDATE plot_surveys SET status = 'done', stop_ts = COALESCE(stop_ts, ?), updated_at = ? WHERE id = ?`
+      : `UPDATE plot_surveys SET status = 'done', stop_ts = ?, updated_at = ? WHERE id = ?`,
+    [endTs === undefined ? now : endTs, now, id],
   );
 }
 
@@ -727,7 +734,8 @@ export function reopenPlotSurvey(id: number): void {
   // Stamp `resumed_at` so StalePlotWatcher's baseline isn't the original
   // `start_ts` (which could be days old when reopening an ended plot).
   db.executeSync(
-    `UPDATE plot_surveys SET status = 'active', stop_ts = NULL, resumed_at = ?, updated_at = ? WHERE id = ?`,
+    // The end time stays: finishing again asks whether to keep it or use now.
+    `UPDATE plot_surveys SET status = 'active', resumed_at = ?, updated_at = ? WHERE id = ?`,
     [now, now, id],
   );
 }

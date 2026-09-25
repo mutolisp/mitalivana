@@ -18,6 +18,7 @@ import { DateTimeField } from '~/components/DateTimeField';
 import { isoStamp } from '~/lib/datetime';
 import { SurveyorAssignSheet } from '~/components/SurveyorAssignSheet';
 import { updateUnit, type GloriaUnit, type UnitPatch } from '../db';
+import { followCoverTimes, nextMinute, onDay } from '../model/quadratTimes';
 import { Card, Label } from './ui';
 
 type Pair = { label: string; start: 'start_ts' | 'freq_start_ts' | 'pf_start_ts'; stop: 'stop_ts' | 'freq_stop_ts' | 'pf_stop_ts' };
@@ -108,11 +109,25 @@ export function SurveyTimes({
     }
     const patch: UnitPatch = { [col]: ts };
     if (col === 'freq_stop_ts') patch.freq_stop_manual = 1;
+    // Frequency follows the cover estimate: same day, next minute (model/quadratTimes).
+    if (unit.unit_type === 'quadrat' && (col === 'start_ts' || col === 'stop_ts')) {
+      Object.assign(patch, followCoverTimes(unit, col, ts));
+    }
     updateUnit(unit.id, patch);
     reload();
   };
+  // An empty frequency start on a quadrat whose cover estimate is recorded
+  // starts from it — the minute after its end, or its day at the current
+  // clock time — rather than today, which is wrong for an old sheet.
+  const freqFromCover =
+    unit.unit_type === 'quadrat' && unit.start_ts != null
+      ? unit.stop_ts != null
+        ? nextMinute(unit.stop_ts)
+        : onDay(Date.now(), unit.start_ts)
+      : null;
   const cell = (p: Pair, col: Pair['start'] | Pair['stop'], label: string) => {
     const v = unit[col];
+    const fill = col === 'freq_start_ts' && freqFromCover != null ? freqFromCover : null;
     return (
       // One row each, full width: the iOS picker expands inline under its
       // field and must not cover the other one.
@@ -128,12 +143,14 @@ export function SurveyTimes({
           </View>
         ) : (
           <Pressable
-            onPress={() => save(p, col, Date.now())}
+            onPress={() => save(p, col, fill ?? Date.now())}
             accessibilityRole="button"
             accessibilityLabel={`${p.label} ${label}`}
             className="flex-1 rounded-lg border border-dashed border-gray-300 px-3 py-2 dark:border-gray-600"
           >
-            <Text className="text-xs text-gray-500 dark:text-gray-400">{t('gloria.times.now')}</Text>
+            <Text className="text-xs text-gray-500 dark:text-gray-400">
+              {fill != null ? t('gloria.times.afterCover', { time: isoStamp(fill).slice(0, 16) }) : t('gloria.times.now')}
+            </Text>
           </Pressable>
         )}
       </View>

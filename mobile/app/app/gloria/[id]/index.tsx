@@ -26,6 +26,7 @@ import { P5mDiagram, SummitSchematic } from '~/modules/gloria/components/SummitS
 import { SpeciesMatrix } from '~/modules/gloria/components/SpeciesMatrix';
 import { missingRequiredPhotos, PhotoChecklist } from '~/modules/gloria/components/PhotoChecklist';
 import { Btn, Card, Label, NumAccessory, Seg } from '~/modules/gloria/components/ui';
+import { chooseEndTime } from '~/lib/endTimeChoice';
 
 type Tab = 'points' | 'map' | 'species' | 'photos';
 
@@ -75,8 +76,10 @@ export default function GloriaSurveyScreen() {
       {
         text: t('session.end'),
         style: 'destructive',
-        onPress: () => {
-          endGloriaSurvey(id);
+        onPress: async () => {
+          const chosen = await chooseEndTime(state.survey.stop_ts, { afterDialog: true });
+          if (chosen === undefined) return;
+          endGloriaSurvey(id, chosen);
           refreshStores();
           reload();
         },

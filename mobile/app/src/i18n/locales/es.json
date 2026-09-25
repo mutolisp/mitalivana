@@ -2682,7 +2682,8 @@
       "fromQuadratsDone_other": "{{count}} especies añadidas de los cuadrados",
       "lockedToast": "Esta unidad está terminada y bloqueada. Toca el candado arriba a la derecha para editarla.",
       "lockedDone": "Terminada y bloqueada; hora de fin registrada",
-      "unlocked": "Desbloqueada; puedes editar"
+      "unlocked": "Desbloqueada; puedes editar",
+      "reorder": "Mantén pulsado y arrastra para ordenar"
     },
     "square": {
       "walk": "Inicio y sentido (formulario 6-S, cuatro opciones)",
@@ -2833,7 +2834,8 @@
       "bySurvey": "Igual que el muestreo: {{names}}",
       "byNone": "Sin definir",
       "titleOnly": "Horas del muestreo",
-      "notYet": "Sin empezar"
+      "notYet": "Sin empezar",
+      "afterCover": "Tras la estimación de cobertura: {{time}}"
     },
     "summitImport": {
       "button": "Importar cimas",
@@ -2970,5 +2972,39 @@
     "freed": "{{size}} liberados",
     "busyTitle": "Descarga en curso",
     "busy": "Se está descargando una lista, un mapa o un paquete por país y tiene archivos en la caché. Bórrela cuando termine."
+  },
+  "recordLock": {
+    "undo": "Deshacer",
+    "redo": "Rehacer",
+    "unlock": "Desbloquear para editar",
+    "relock": "Terminar edición, bloquear",
+    "lockedToast": "Este registro está terminado y bloqueado. Toca el candado arriba a la derecha para editarlo.",
+    "unlockedToast": "Desbloqueado; se vuelve a bloquear al salir",
+    "relockedToast": "Bloqueado",
+    "banner": "Terminado y bloqueado. Toca el candado arriba a la derecha para editar.",
+    "listLockedTitle_one": "{{count}} registro está terminado y bloqueado",
+    "listLockedTitle_many": "{{count}} registros están terminados y bloqueados",
+    "listLockedTitle_other": "{{count}} registros están terminados y bloqueados",
+    "listLockedMsg": "Los registros terminados están bloqueados. ¿Desbloquear y continuar?",
+    "unlockAndContinue": "Desbloquear y continuar"
+  },
+  "endTime": {
+    "title": "Hora de fin",
+    "hasTime": "La hora de fin actual es {{time}}.",
+    "noTime": "Aún no hay hora de fin. Al digitalizar datos antiguos puedes dejarla en blanco y completarla después.",
+    "useNow": "Actualizar a ahora",
+    "keep": "Mantener {{time}}",
+    "recordNow": "Registrar ahora",
+    "leaveBlank": "Dejar en blanco (completar después)"
+  },
+  "surveyTime": {
+    "title": "Hora del muestreo",
+    "start": "Inicio",
+    "end": "Fin",
+    "setNow": "Poner ahora",
+    "clearEnd": "Borrar hora de fin",
+    "hint": "La fecha y la hora se pueden escribir a mano (para datos antiguos); tócalas para cambiarlas.",
+    "orderTitle": "Orden incorrecto",
+    "order": "El fin no puede ser anterior al inicio."
   }
 }

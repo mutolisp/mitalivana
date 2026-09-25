@@ -2682,7 +2682,8 @@
       "fromQuadratsDone_other": "{{count}} espèces ajoutées depuis les quadrats",
       "lockedToast": "Cette unité est terminée et verrouillée. Touchez le cadenas en haut à droite pour la modifier.",
       "lockedDone": "Terminé et verrouillé ; heure de fin enregistrée",
-      "unlocked": "Déverrouillé ; modification possible"
+      "unlocked": "Déverrouillé ; modification possible",
+      "reorder": "Appui long et glisser pour réordonner"
     },
     "square": {
       "walk": "Départ et sens (formulaire 6-S, quatre options)",
@@ -2833,7 +2834,8 @@
       "bySurvey": "Comme le relevé : {{names}}",
       "byNone": "Non défini",
       "titleOnly": "Heures du relevé",
-      "notYet": "Pas commencé"
+      "notYet": "Pas commencé",
+      "afterCover": "Après l’estimation du recouvrement : {{time}}"
     },
     "summitImport": {
       "button": "Importer des sommets",
@@ -2970,5 +2972,39 @@
     "freed": "{{size}} libérés",
     "busyTitle": "Téléchargement en cours",
     "busy": "Une liste, une carte ou un paquet par pays se télécharge et a des fichiers en cache. Videz le cache une fois terminé."
+  },
+  "recordLock": {
+    "undo": "Annuler",
+    "redo": "Rétablir",
+    "unlock": "Déverrouiller pour modifier",
+    "relock": "Fin de la modification, verrouiller",
+    "lockedToast": "Ce relevé est terminé et verrouillé. Touchez le cadenas en haut à droite pour le modifier.",
+    "unlockedToast": "Déverrouillé ; il se reverrouille quand vous quittez l’écran",
+    "relockedToast": "Verrouillé",
+    "banner": "Terminé et verrouillé. Touchez le cadenas en haut à droite pour modifier.",
+    "listLockedTitle_one": "{{count}} relevé est terminé et verrouillé",
+    "listLockedTitle_many": "{{count}} relevés sont terminés et verrouillés",
+    "listLockedTitle_other": "{{count}} relevés sont terminés et verrouillés",
+    "listLockedMsg": "Les relevés terminés sont verrouillés. Déverrouiller et continuer ?",
+    "unlockAndContinue": "Déverrouiller et continuer"
+  },
+  "endTime": {
+    "title": "Heure de fin",
+    "hasTime": "L’heure de fin actuelle est {{time}}.",
+    "noTime": "Pas encore d’heure de fin. Pour numériser d’anciennes données, vous pouvez la laisser vide et la saisir plus tard.",
+    "useNow": "Mettre à maintenant",
+    "keep": "Conserver {{time}}",
+    "recordNow": "Enregistrer maintenant",
+    "leaveBlank": "Laisser vide (saisir plus tard)"
+  },
+  "surveyTime": {
+    "title": "Heure du relevé",
+    "start": "Début",
+    "end": "Fin",
+    "setNow": "Mettre à maintenant",
+    "clearEnd": "Effacer l’heure de fin",
+    "hint": "La date et l’heure peuvent être saisies à la main (pour d’anciennes données) ; touchez pour modifier.",
+    "orderTitle": "Ordre incorrect",
+    "order": "La fin ne peut pas précéder le début."
   }
 }

@@ -14,8 +14,8 @@
 |---|---|
 | `Plan.md`（本檔） | **待辦** ＋ 現行架構與長效設計決策 |
 | `Update_log.md` | 已 ship 與踩過的坑；附錄 A–D 收了本檔原本 4,000 多行的 sprint 推導過程 |
-| `Device_test.md` | 實機驗證清單（537 項，全部未跑）。**驗證項不要寫回本檔** |
-| 守門 | `npm run check:*` 共 **38 支**（2026-09-25 最新加入 `check:gloria`、`check:storage`） |
+| `Device_test.md` | 實機驗證清單（585 項；部分已實測但尚未勾選，2026-09-26）。**驗證項不要寫回本檔** |
+| 守門 | `npm run check:*` 共 **39 支**（2026-09-25 最新加入 `check:gloria`、`check:storage`、`check:record-snapshot`） |
 | `docs/` | 仍代表現況的參考文件：檢索表、樣區、匯出外部 API、報表、物種詳細頁、地圖、i18n；`docs/gloria-ui/` GLORIA 介面草稿（五語） |
 | `docs/planned/` | 純規劃未動工：AI 辨識、P2P 協作、雲端協作 |
 | `archive/` | 已完成或被取代的設計稿與一次性稽核 |
@@ -26,7 +26,8 @@
 地圖與圖層 → `docs/Map.md`；iNat／GBIF → `docs/External_species_api.md`；
 報表 → `docs/Report.md`；物種詳細頁 → `docs/Species_details.md`；i18n → `docs/i18n.md`；
 GLORIA → `~/.claude/plans/gloria-1-gloria-jazzy-lagoon.md`（`docs/gloria.md` 尚未寫，見 G3）；
-GLORIA 介面草稿（五語）→ `docs/gloria-ui/`（原稿、譯文與建置腳本，流程見其 README）。
+GLORIA 介面草稿（五語）→ `docs/gloria-ui/`（原稿、譯文與建置腳本，流程見其 README）；
+記錄的完成鎖定與復原／重做 → 本檔 I 節（程式在 `src/lib/useRecordEditing.ts`、`src/db/recordSnapshotCore.ts`）。
 
 ---
 
@@ -284,22 +285,26 @@ GLORIA 介面草稿（五語）→ `docs/gloria-ui/`（原稿、譯文與建置�
 - [ ] `expo-sharing` 必須裝 14.x（SDK 54 對應版本），裝到 55.x 會 build fail（type 不相容）
 
 
-### G. GLORIA 山峰監測模組（2026-09-25 上線 v47–v53，細節見 `Update_log.md`）
+### G. GLORIA 山峰監測模組（2026-09-25 上線 v47–v55，細節見 `Update_log.md`）
 
 已完成：
 - 用詞：summit＝山峰、1×1 m／10×10 m 樣區、山峰區域樣區（SAS）、point-frame＝頻度點擊法、abundance＝豐度
 - 資料模型、盲測重複調查（Box 4.5）、single-active 整合、Sheet 分頁 CSV＋yml＋照片匯出、歷史資料一次性轉換（57 個 zip）
 - 基礎資料：山峰基本資料（名稱、WGS84 經緯度、海拔、植群帶下拉）、第幾次監測（mocy，同山峰不可重複）、環境照片（SU-OV＋拍攝位置）、28 量測點、備註（Form 1 COMMENTS）
-- 樣區總覽（菱形示意圖、狀態色、p5m 標籤避開主測線；單位清單依 E／N／S／W 各一排，必做標紅 *、10×10 標選擇性調查）、物種總表、
+- 樣區總覽（菱形示意圖、狀態色、p5m 標籤避開主測線且 E／W 放在 3×3 m 的另一側、SAS 標籤不被 3×3 m 蓋住；單位清單依 E／N／S／W 各一排，必做標紅 *、10×10 標選擇性調查）、物種總表、
   拍照檢核 tab（必拍 54、選拍四小區 64，結束時提醒）；各輸入畫面右上的總覽面板（跳轉依 E／N／S／W）
 - 1×1 m 樣區／頻度（筆刷、逐格、直接輸入次數；物種與干擾用下拉選單＋‹ ›）／頻度點擊法、SAS、10×10 逐點；
-  每個輸入畫面右上都有復原／重做／總覽／完成：完成記下結束時間並鎖定，再按解鎖（優勢度估測、頻度、頻度點擊法各自一組）
+  每個輸入畫面右上都有復原／重做／總覽／完成：完成先問結束時間（更新為現在／沿用／先不記錄）再鎖定，再按解鎖、時間保留
+  （優勢度估測、頻度、頻度點擊法各自一組；單位完成看 `done_locked`，手動填舊的結束時間不會鎖住）
+- 物種清單（1×1 m、SAS、10×10 m）：前面有編號（對照調查紙，與匯出 sp-N 一致）、可拖拉排序（v55 `sort_order`，
+  `model/speciesOrder.ts` 供畫面與匯出共用）；輸入時列表底部讓出搜尋框高度，候選清單不會伸到標題列下
 - 每單位調查者與調查時間：1×1 m、SAS、10×10 m 都在最上方「樣區環境」摺疊區內、時間可單獨收摺；
-  開始／結束（日期、時間分欄，自動記錄可手改；1×1 m 有優勢度估測、頻度、頻度點擊法三組）
+  開始／結束（日期、時間分欄，自動記錄可手改；1×1 m 有優勢度估測、頻度、頻度點擊法三組）；
+  頻度接續優勢度：同一天、優勢度結束的下一分鐘開始（`model/quadratTimes.ts`），舊日期的頻度編輯不會把結束改成今天
 - 搜尋預設只找維管束植物（GLORIA 各搜尋框＋調查進行中的分類樹搜尋；可當下改選，不覆寫使用者的設定）
 - 山峰清單（偏好設定）：匯入／匯出山峰（00_ 欄位）、匯入量測點（只需點位、距離、方位）、匯出量測點（02_ 欄位），CSV 與 .xlsx
-- 介面草稿 artifact（https://claude.ai/artifact/QCgtqCyBKeKFhizoRVA1Cn ，v41，五語；原稿 `docs/gloria-ui/`）：
-  01 建立～09 拍照檢核，05b 頻度點擊法（100 點、逐點復原／重做／完成）已補上；app 介面改動時同步更新
+- 介面草稿 artifact（https://claude.ai/artifact/QCgtqCyBKeKFhizoRVA1Cn ，v47，五語；原稿 `docs/gloria-ui/`）：
+  01 建立～09 拍照檢核，05b 頻度點擊法；完成時的結束時間選擇、物種編號與拖拉、頻度接續優勢度都已反映；app 介面改動時同步更新
 
 待辦：
 1. **DwC-A 匯出** —— 山峰為父 event、各單位為子 event，頻度與 hits 走 MoF。要先補 `OCCURRENCE_COLS.occurrenceStatus`、
@@ -314,8 +319,10 @@ GLORIA 介面草稿（五語）→ `docs/gloria-ui/`（原稿、譯文與建置�
    app 只替 app 內的照片命名。之後可評估「匯入照片並依檢核項目自動命名」。
 7. **待確認** —— 截圖 4b 物種總表的 FRE 欄、Survey Type `CAL` 的意思（未確認前不做）。
 8. **MIREN** —— 本機沒有 protocol 原文，不做任何設計；拿到原文後照 GLORIA 模式另開 sibling 模組。
-9. **實機驗證** —— GLORIA 所有畫面都只過 tsc 與 `check:*`，尚未在手機上操作（見 `Device_test.md` 的 GLORIA 段）；
-   特別是頻度手勢、下拉選單在 iOS／Android 的顯示、iOS 日期／時間轉輪、拍照檢核在 375 pt 寬的排版。
+9. **實機驗證** —— 部分已實測但 `Device_test.md` 尚未勾選；未確認的重點：頻度手勢、下拉選單在 iOS／Android 的顯示、
+   iOS 日期／時間轉輪、拍照檢核在 375 pt 寬的排版、物種拖拉（巢狀在捲動區內）、結束時間選單接在 Alert 之後是否會被吞掉。
+10. **拖拉中的即時編號** —— 目前放開後才重新編號；若實測覺得需要，可用 `onPlaceholderIndexChange` 在拖曳中預覽。
+11. **格式雜訊** —— `app/gloria/[id]/[code]/index.tsx` 曾被 prettier 整檔重排（2026-09-26），commit 時 diff 會偏大。
 
 **俗名顯示語言**（同日完成）的擴充點：新增語言需要有帶該語言俗名的名錄來源；國家名錄 pack（GBIF）目前不含俗名。
 
@@ -332,6 +339,22 @@ GLORIA 介面草稿（五語）→ `docs/gloria-ui/`（原稿、譯文與建置�
    `gbifDownload.ts` 網路例外時 `gbif-pack-*.zip` 不刪；ImagePicker 原檔在複製成功後可立即刪（`photoCapture.ts persistPickedPhoto`）。
 3. **「清除所有資料」不刪照片與錄音** —— 使用者選擇維持現狀（2026-09-25）；清除後這些檔案會出現在「未被使用的照片與錄音」，可在儲存空間頁清。
 4. **實機確認** —— 使用者手機 3.59 GB 的實際組成（特別是舊版 `rudymap/` 是否殘留），清除前先看頁面列出的數字。
+
+### I. 快速名錄／樣區調查／採集記錄的完成鎖定與復原（2026-09-25，細節見 `Update_log.md`）
+
+已完成（2026-09-26 追加）：結束／完成一律先問結束時間（`src/lib/endTimeChoice.ts`：更新為現在／沿用／先不記錄），
+重開不清時間；三種記錄與 GLORIA 都可手動填開始／結束（`src/components/SurveyTimeFields.tsx`；v54 `sessions.status`、
+`gloria_units.done_locked`）。置底搜尋框的候選清單改依可用空間限高（全 app）。
+
+已完成：結束＝鎖定（唯讀），右上鎖頭「解鎖編輯」只在當下畫面有效、不變成進行中；解鎖或進行中時右上有復原／重做；
+記錄分頁刪除或合併已結束的記錄要先「解鎖並繼續」。`check:record-snapshot` 守門。
+
+待辦：
+1. **實機驗證** —— 見 `Device_test.md` 同名段落；特別是樣區小區數量改少後復原、錄音移除後復原仍能播放。
+2. **鎖定時的顯示** —— 名錄與採集的詳細頁仍顯示輸入框，按下後才跳提示並還原；樣區環境頁則是整頁不接受點按＋橫幅。
+   若實測覺得詳細頁應該直接顯示為唯讀，再逐欄改（`SpeciesDetailSheet`、`SpecimenDetailSheet`、`PlotSpeciesValueModal`）。
+3. **不在畫面上的修改不進歷史** —— 地圖分頁移動樣區點位或編輯軌跡、分類樹或常用名錄加入物種，發生在別的畫面；
+   回到記錄畫面時歷史重來，這些修改不能從記錄畫面復原。已結束的記錄本來就不會被這些入口改到。
 
 ---
 

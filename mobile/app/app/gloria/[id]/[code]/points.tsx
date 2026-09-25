@@ -28,6 +28,8 @@ import { addUnitSpecies, commitPoint, setPointsLocked, startPoints } from '~/mod
 import { QUADRAT_N, SQUARE_N, SURFACE_CODES, SURFACE_UNVISITED, SURFACE_VASCULAR, emptyMask, emptySurface, getBit, popcount, setBits, type SurfaceCode } from '~/modules/gloria/model/grid';
 import { linePoint, walkOrder } from '~/modules/gloria/model/walk';
 import { unitTypeOf } from '~/modules/gloria/model/units';
+import { chooseEndTime } from '~/lib/endTimeChoice';
+import { bySpeciesOrder } from '~/modules/gloria/model/speciesOrder';
 import { displayName, GLORIA_SEARCH_GROUPS, useSurvey } from '~/modules/gloria/useSurvey';
 import { OverviewPanel } from '~/modules/gloria/components/OverviewPanel';
 import { Btn, Chip } from '~/modules/gloria/components/ui';
@@ -46,7 +48,7 @@ export default function PointsScreen() {
   const size = n * n;
   const { state, reload } = useSurvey(id);
   const unit = state?.unit(code);
-  const spp = useMemo(() => (state ? [...state.speciesOf(code)].sort((a, b) => a.serial - b.serial) : []), [state, code]);
+  const spp = useMemo(() => (state ? [...state.speciesOf(code)].sort(bySpeciesOrder) : []), [state, code]);
   const order = useMemo(() => walkOrder(n, isSquare ? (unit?.walk_option ?? 1) : null), [n, isSquare, unit?.walk_option]);
 
   const [surface, setSurface] = useState<string>(() => unit?.point_surface ?? emptySurface(size));
@@ -72,7 +74,7 @@ export default function PointsScreen() {
   const redo = useRef<PointStep[]>([]);
   const [undoCount, setUndoCount] = useState(0);
   const [redoCount, setRedoCount] = useState(0);
-  const locked = unit ? (isSquare ? unit.stop_ts != null : unit.pf_locked === 1) : null;
+  const locked = unit ? (isSquare ? unit.done_locked === 1 : unit.pf_locked === 1) : null;
   const lockToastShown = useRef(false);
   useEffect(() => {
     if (locked == null || lockToastShown.current) return;
@@ -169,8 +171,14 @@ export default function PointsScreen() {
     setRedoCount(redo.current.length);
     setSeq(r.seq + 1);
   };
-  const toggleLock = () => {
-    setPointsLocked(unit.id, !locked);
+  const toggleLock = async () => {
+    let endTs: number | null = null;
+    if (!locked) {
+      const chosen = await chooseEndTime(isSquare ? unit.stop_ts : unit.pf_stop_ts);
+      if (chosen === undefined) return;
+      endTs = chosen;
+    }
+    setPointsLocked(unit.id, !locked, endTs);
     undo.current = [];
     redo.current = [];
     setUndoCount(0);
@@ -210,7 +218,7 @@ export default function PointsScreen() {
               <HeaderIconButton
                 icon={locked ? 'lock-closed' : 'checkmark-done-outline'}
                 label={locked ? t('gloria.freq.unlock') : t('gloria.freq.done')}
-                onPress={toggleLock}
+                onPress={() => void toggleLock()}
               />
             </View>
           ),

@@ -2386,7 +2386,8 @@
       "fromQuadratsDone_other": "從樣區帶入 {{count}} 種",
       "lockedToast": "此單位已完成並鎖定；按右上角鎖頭解鎖後才能編輯",
       "lockedDone": "已完成並鎖定，完成時間已記錄",
-      "unlocked": "已解鎖，可以編輯"
+      "unlocked": "已解鎖，可以編輯",
+      "reorder": "長按拖拉調整順序"
     },
     "square": {
       "walk": "起點與方向（Form 6-S 四種選項）",
@@ -2533,7 +2534,8 @@
       "bySurvey": "同本次調查：{{names}}",
       "byNone": "未指定",
       "titleOnly": "調查時間",
-      "notYet": "尚未開始"
+      "notYet": "尚未開始",
+      "afterCover": "接續優勢度：{{time}}"
     },
     "summitImport": {
       "button": "匯入山峰",
@@ -2670,5 +2672,37 @@
     "freed": "已釋放 {{size}}",
     "busyTitle": "正在下載或安裝",
     "busy": "名錄、地圖或國家名錄正在下載，暫存裡有它的檔案。完成後再清除暫存。"
+  },
+  "recordLock": {
+    "undo": "復原",
+    "redo": "重做",
+    "unlock": "解鎖編輯",
+    "relock": "完成編輯並鎖定",
+    "lockedToast": "此記錄已結束並鎖定；按右上角鎖頭解鎖後才能編輯",
+    "unlockedToast": "已解鎖，可以編輯；離開畫面後會自動鎖定",
+    "relockedToast": "已鎖定",
+    "banner": "已結束並鎖定。按右上角鎖頭解鎖後才能編輯。",
+    "listLockedTitle_other": "{{count}} 筆記錄已結束並鎖定",
+    "listLockedMsg": "已結束的記錄受鎖定保護。要解鎖並繼續嗎？",
+    "unlockAndContinue": "解鎖並繼續"
+  },
+  "endTime": {
+    "title": "結束時間",
+    "hasTime": "目前的結束時間是 {{time}}。",
+    "noTime": "尚未有結束時間。數化舊資料時可以先不記錄，之後再手動填。",
+    "useNow": "更新為現在時間",
+    "keep": "沿用 {{time}}",
+    "recordNow": "記錄現在時間",
+    "leaveBlank": "先不記錄（之後手動填）"
+  },
+  "surveyTime": {
+    "title": "調查時間",
+    "start": "開始",
+    "end": "結束",
+    "setNow": "設為現在",
+    "clearEnd": "清除結束時間",
+    "hint": "可手動輸入日期與時間（數化舊資料時使用）；點日期或時間即可修改。",
+    "orderTitle": "時間順序不對",
+    "order": "結束時間不能早於開始時間。"
   }
 }

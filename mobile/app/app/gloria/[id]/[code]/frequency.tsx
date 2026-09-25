@@ -35,7 +35,9 @@ import {
 } from '~/modules/gloria/db';
 import { emptyMask, fillMask, getBit, popcount, rcLabel, setBits, QUADRAT_N } from '~/modules/gloria/model/grid';
 import type { Direction } from '~/modules/gloria/model/units';
+import { bySpeciesOrder } from '~/modules/gloria/model/speciesOrder';
 import { displayName, GLORIA_SEARCH_GROUPS, useSurvey } from '~/modules/gloria/useSurvey';
+import { chooseEndTime } from '~/lib/endTimeChoice';
 import { OverviewPanel } from '~/modules/gloria/components/OverviewPanel';
 import { BannerText, Btn, Chip, FoldBanner, NumAccessory, NumField, Seg } from '~/modules/gloria/components/ui';
 import { RANGES } from '~/modules/gloria/model/ranges';
@@ -69,7 +71,7 @@ export default function FrequencyScreen() {
     if (lockedOnOpen.current) toast(t('gloria.freq.lockedToast'));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const spp = useMemo(() => (state ? [...state.speciesOf(code)].sort((a, b) => a.serial - b.serial) : []), [state, code]);
+  const spp = useMemo(() => (state ? [...state.speciesOf(code)].sort(bySpeciesOrder) : []), [state, code]);
 
   const targets: Target[] = useMemo(
     () => [
@@ -433,9 +435,15 @@ export default function FrequencyScreen() {
               <HeaderIconButton
                 icon={locked ? 'lock-closed' : 'checkmark-done-outline'}
                 label={locked ? t('gloria.freq.unlock') : t('gloria.freq.done')}
-                onPress={() => {
+                onPress={async () => {
                   flushStroke();
-                  setFrequencyLocked(unit.id, !locked);
+                  let endTs: number | null = null;
+                  if (!locked) {
+                    const chosen = await chooseEndTime(unit.freq_stop_ts);
+                    if (chosen === undefined) return;
+                    endTs = chosen;
+                  }
+                  setFrequencyLocked(unit.id, !locked, endTs);
                   clearUndo();
                   setAdding(false);
                   reload();

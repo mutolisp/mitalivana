@@ -2534,7 +2534,8 @@
       "fromQuadratsDone_other": "{{count}} Arten aus den Quadraten übernommen",
       "lockedToast": "Diese Einheit ist abgeschlossen und gesperrt. Zum Bearbeiten oben rechts auf das Schloss tippen.",
       "lockedDone": "Abgeschlossen und gesperrt; Endzeit erfasst",
-      "unlocked": "Entsperrt; Bearbeiten möglich"
+      "unlocked": "Entsperrt; Bearbeiten möglich",
+      "reorder": "Lange drücken und ziehen zum Sortieren"
     },
     "square": {
       "walk": "Start und Richtung (Formular 6-S, vier Optionen)",
@@ -2683,7 +2684,8 @@
       "bySurvey": "Wie Aufnahme: {{names}}",
       "byNone": "Nicht gesetzt",
       "titleOnly": "Aufnahmezeiten",
-      "notYet": "Noch nicht begonnen"
+      "notYet": "Noch nicht begonnen",
+      "afterCover": "Nach Deckungsschätzung: {{time}}"
     },
     "summitImport": {
       "button": "Gipfel importieren",
@@ -2820,5 +2822,38 @@
     "freed": "{{size}} freigegeben",
     "busyTitle": "Download läuft",
     "busy": "Eine Artenliste, Karte oder ein Länderpaket wird geladen und liegt im Cache. Den Cache nach dem Abschluss leeren."
+  },
+  "recordLock": {
+    "undo": "Rückgängig",
+    "redo": "Wiederholen",
+    "unlock": "Zum Bearbeiten entsperren",
+    "relock": "Bearbeiten beenden, sperren",
+    "lockedToast": "Dieser Eintrag ist abgeschlossen und gesperrt. Zum Bearbeiten oben rechts auf das Schloss tippen.",
+    "unlockedToast": "Zum Bearbeiten entsperrt; beim Verlassen wird wieder gesperrt",
+    "relockedToast": "Gesperrt",
+    "banner": "Abgeschlossen und gesperrt. Zum Bearbeiten oben rechts auf das Schloss tippen.",
+    "listLockedTitle_one": "{{count}} Eintrag ist abgeschlossen und gesperrt",
+    "listLockedTitle_other": "{{count}} Einträge sind abgeschlossen und gesperrt",
+    "listLockedMsg": "Abgeschlossene Einträge sind gesperrt. Entsperren und fortfahren?",
+    "unlockAndContinue": "Entsperren und fortfahren"
+  },
+  "endTime": {
+    "title": "Endzeit",
+    "hasTime": "Die aktuelle Endzeit ist {{time}}.",
+    "noTime": "Noch keine Endzeit. Beim Digitalisieren alter Daten kann sie leer bleiben und später eingetragen werden.",
+    "useNow": "Auf jetzt setzen",
+    "keep": "{{time}} beibehalten",
+    "recordNow": "Jetzt erfassen",
+    "leaveBlank": "Leer lassen (später eintragen)"
+  },
+  "surveyTime": {
+    "title": "Aufnahmezeit",
+    "start": "Beginn",
+    "end": "Ende",
+    "setNow": "Auf jetzt setzen",
+    "clearEnd": "Endzeit löschen",
+    "hint": "Datum und Uhrzeit lassen sich von Hand eingeben (für alte Daten); zum Ändern antippen.",
+    "orderTitle": "Falsche Reihenfolge",
+    "order": "Das Ende darf nicht vor dem Beginn liegen."
   }
 }

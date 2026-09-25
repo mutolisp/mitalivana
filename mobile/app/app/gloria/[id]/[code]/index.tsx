@@ -18,7 +18,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Pressable, Text, TextInput, View } from 'react-native';
+import {
+  NestableDraggableFlatList,
+  NestableScrollContainer,
+  ScaleDecorator,
+} from 'react-native-draggable-flatlist';
+import { useKeyboardState } from 'react-native-keyboard-controller';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HeaderIconButton } from '~/components/HeaderIconButton';
 import { KeyboardStickyView } from '~/components/KeyboardAvoidingView';
@@ -32,6 +38,8 @@ import {
   markUnitStarted,
   removeUnitSpecies,
   restoreUnitSnapshot,
+  setUnitDone,
+  setUnitSpeciesOrder,
   snapshotUnit,
   updateUnit,
   updateUnitSpecies,
@@ -44,12 +52,34 @@ import { coverFromHits, WALK_OPTIONS, type WalkOption } from '~/modules/gloria/m
 import { quadratsOf, unitTypeOf, type Direction } from '~/modules/gloria/model/units';
 import { exactSum, speciesCoverSum, vascularCoverOk } from '~/modules/gloria/model/validate';
 import { issueText } from '~/modules/gloria/issues';
-import { displayName, GLORIA_SEARCH_GROUPS, toUnitSpecies, useSurvey, type SurveySpecies } from '~/modules/gloria/useSurvey';
+import { bySpeciesOrder } from '~/modules/gloria/model/speciesOrder';
+import { followCoverTimes } from '~/modules/gloria/model/quadratTimes';
+import {
+  displayName,
+  GLORIA_SEARCH_GROUPS,
+  toUnitSpecies,
+  useSurvey,
+  type SurveySpecies,
+} from '~/modules/gloria/useSurvey';
 import { OverviewPanel } from '~/modules/gloria/components/OverviewPanel';
 import { SubtypeFields, TopCoverFields, topSum } from '~/modules/gloria/components/CoverFields';
-import { ResearcherRow, SurveyTimes, unitResearchers } from '~/modules/gloria/components/SurveyTimes';
-import { Banner, BannerText, Btn, Card, FoldBanner, NumAccessory, NumField, PassBanner } from '~/modules/gloria/components/ui';
+import {
+  ResearcherRow,
+  SurveyTimes,
+  unitResearchers,
+} from '~/modules/gloria/components/SurveyTimes';
+import {
+  Banner,
+  BannerText,
+  Btn,
+  Card,
+  FoldBanner,
+  NumAccessory,
+  NumField,
+  PassBanner,
+} from '~/modules/gloria/components/ui';
 import { RANGES } from '~/modules/gloria/model/ranges';
+import { chooseEndTime } from '~/lib/endTimeChoice';
 
 const ABUNDANCE = ['r!', 'r', 's', 'c', 'd'] as const;
 const CF_CYCLE: Array<'g' | 's' | 't' | null> = [null, 'g', 's', 't'];
@@ -82,9 +112,14 @@ export default function GloriaUnitScreen() {
   }, []);
   useFocusEffect(clearHistory);
 
+  // The docked search (group filter + box) rides up with the keyboard and
+  // covers the end of the list unless the list is padded by its height.
+  const keyboardUp = useKeyboardState((k) => k.isVisible);
+  const [dockHeight, setDockHeight] = useState(0);
+
   const unit = state?.unit(code);
   // Say so once on open when the unit is already done, before a tap does nothing.
-  const lockedNow = unit ? unit.stop_ts != null : null;
+  const lockedNow = unit ? unit.done_locked === 1 : null;
   const lockToastShown = useRef(false);
   useEffect(() => {
     if (lockedNow == null || lockToastShown.current) return;
@@ -101,10 +136,13 @@ export default function GloriaUnitScreen() {
     );
   }
   const active = state.survey.status === 'active';
-  const spp = [...state.speciesOf(code)].sort((a, b) => a.serial - b.serial);
+  const spp = [...state.speciesOf(code)].sort(bySpeciesOrder);
+  // Each species' number in this unit — its row number on the field sheet
+  // and the export's sp-N; follows the dragged order.
+  const numberOf = new Map(spp.map((s, k) => [s.id, k + 1]));
   const issues = state.issues.filter((i) => i.unit === code);
   const dir = code[0] as Direction;
-  const locked = unit.stop_ts != null;
+  const locked = unit.done_locked === 1;
 
   /** Run one edit as one undo step; refused while the unit is done. */
   const track = (fn: () => void): boolean => {
@@ -122,7 +160,10 @@ export default function GloriaUnitScreen() {
     reload();
     return true;
   };
-  const step = (from: React.MutableRefObject<UnitSnapshot[]>, to: React.MutableRefObject<UnitSnapshot[]>) => {
+  const step = (
+    from: React.MutableRefObject<UnitSnapshot[]>,
+    to: React.MutableRefObject<UnitSnapshot[]>,
+  ) => {
     const snap = from.current.pop();
     if (!snap) return;
     to.current.push(snapshotUnit(unit.id));
@@ -147,15 +188,29 @@ export default function GloriaUnitScreen() {
   const speciesMenu = async (s: SurveySpecies) => {
     const idx = await showActionSheet({
       title: displayName(s),
-      options: [{ label: t('gloria.unit.openDetail') }, { label: t('gloria.unit.remove'), destructive: true }],
+      options: [
+        { label: t('gloria.unit.openDetail') },
+        { label: t('gloria.unit.remove'), destructive: true },
+      ],
       cancelLabel: t('common.cancel'),
     });
     if (idx === 0) router.push(`/gloria/${id}/${code}/species/${s.id}` as Href);
     if (idx === 1) track(() => removeUnitSpecies(s.id));
   };
-  /** 完成 stamps the end time now and locks; pressing it again reopens. */
-  const toggleDone = () => {
-    updateUnit(unit.id, { stop_ts: locked ? null : Date.now() });
+  /** 完成 locks with the end time the user picks (now / keep / blank);
+   *  pressing it again reopens and leaves the time as it is. */
+  const toggleDone = async () => {
+    if (locked) setUnitDone(unit.id, false);
+    else {
+      const chosen = await chooseEndTime(unit.stop_ts);
+      if (chosen === undefined) return;
+      setUnitDone(unit.id, true, chosen);
+      // A quadrat's frequency starts the minute after the cover estimate ends.
+      if (type === 'quadrat') {
+        const follow = followCoverTimes(unit, 'stop_ts', chosen);
+        if (Object.keys(follow).length) updateUnit(unit.id, follow);
+      }
+    }
     clearHistory();
     reload();
     toast(t(locked ? 'gloria.unit.unlocked' : 'gloria.unit.lockedDone'));
@@ -163,20 +218,69 @@ export default function GloriaUnitScreen() {
   const title = `${code} · ${type === 'quadrat' ? '1×1 m' : type === 'sas' ? 'SAS' : '10×10 m'}`;
 
   // ── species row (quadrat / SAS / square share the shell) ───────────────
-  const speciesRow = (s: SurveySpecies, i: number, right: React.ReactNode) => (
-    <View key={s.id} className={`flex-row items-center px-3 py-2 ${i ? 'border-t border-gray-100 dark:border-gray-800' : ''}`}>
+  /** `drag`: the row can be long-pressed on its handle and moved (1×1 m list). */
+  const speciesRow = (s: SurveySpecies, i: number, right: React.ReactNode, drag?: () => void) => (
+    <View
+      key={s.id}
+      className={`flex-row items-center bg-white px-3 py-2 dark:bg-gray-900 ${i ? 'border-t border-gray-100 dark:border-gray-800' : ''}`}
+    >
+      {drag && !locked ? (
+        <Pressable
+          onLongPress={drag}
+          delayLongPress={120}
+          hitSlop={8}
+          accessibilityLabel={t('gloria.unit.reorder')}
+          className="-ml-1 mr-1.5 py-1"
+        >
+          <Ionicons name="reorder-three" size={22} color="#9ca3af" />
+        </Pressable>
+      ) : null}
+      <Text
+        className="mr-2 w-6 text-right text-sm font-semibold text-gray-500 dark:text-gray-400"
+        style={{ fontVariant: ['tabular-nums'] }}
+      >
+        {numberOf.get(s.id)}
+      </Text>
       <Pressable
         className="flex-1 pr-2"
         onPress={() => router.push(`/gloria/${id}/${code}/species/${s.id}` as Href)}
         onLongPress={() => void speciesMenu(s)}
         accessibilityHint={t('gloria.unit.rowHint')}
       >
-        <Text className="text-sm font-semibold text-gray-900 dark:text-gray-100" numberOfLines={1}>{displayName(s)}</Text>
-        <Text className="text-xs italic text-gray-500 dark:text-gray-400" numberOfLines={1}>{s.simple_name}</Text>
+        <Text className="text-sm font-semibold text-gray-900 dark:text-gray-100" numberOfLines={1}>
+          {displayName(s)}
+        </Text>
+        <Text className="text-xs italic text-gray-500 dark:text-gray-400" numberOfLines={1}>
+          {s.simple_name}
+        </Text>
       </Pressable>
       {right}
       <Ionicons name="chevron-forward" size={14} color="#9ca3af" />
     </View>
+  );
+
+  /**
+   * A species list the user can put in the field sheet's order by dragging a
+   * row's handle. `items` may be part of the unit's list (a 10×10 m square's
+   * species without hits): the dragged rows take the slots they held in the
+   * whole list, so the others keep their place. Saved per unit; the export's
+   * sp-N numbering follows it (model/speciesOrder.ts).
+   */
+  const dragList = (items: SurveySpecies[], right: (s: SurveySpecies) => React.ReactNode) => (
+    <NestableDraggableFlatList
+      data={items}
+      keyExtractor={(s) => String(s.id)}
+      onDragEnd={({ data }) => {
+        if (!data.some((s, k) => s.id !== items[k].id)) return;
+        const moved = new Set(items.map((s) => s.id));
+        let k = 0;
+        const full = spp.map((s) => (moved.has(s.id) ? data[k++] : s));
+        track(() => setUnitSpeciesOrder(full.map((s) => s.id)));
+      }}
+      renderItem={({ item, getIndex, drag }) => (
+        <ScaleDecorator>{speciesRow(item, getIndex() ?? 0, right(item), drag)}</ScaleDecorator>
+      )}
+    />
   );
 
   const cfButton = (s: SurveySpecies) => (
@@ -188,7 +292,11 @@ export default function GloriaUnitScreen() {
       accessibilityLabel={t('gloria.unit.cf')}
       className={`ml-1.5 w-8 items-center rounded-md border py-1 ${s.cf ? 'border-amber-500 bg-amber-50 dark:bg-amber-950/40' : 'border-gray-300 dark:border-gray-700'}`}
     >
-      <Text className={`text-[11px] ${s.cf ? 'font-bold text-amber-700 dark:text-amber-300' : 'text-gray-400'}`}>{s.cf ?? 'cf'}</Text>
+      <Text
+        className={`text-[11px] ${s.cf ? 'font-bold text-amber-700 dark:text-amber-300' : 'text-gray-400'}`}
+      >
+        {s.cf ?? 'cf'}
+      </Text>
     </Pressable>
   );
 
@@ -198,7 +306,11 @@ export default function GloriaUnitScreen() {
       unitResearchers(u, state.survey.recorded_by),
       u.aspect_deg != null ? t('gloria.unit.aspectShort', { v: u.aspect_deg }) : null,
       u.slope_deg != null ? t('gloria.unit.slopeShort', { v: u.slope_deg }) : null,
-      type === 'square' ? null : sum != null ? t('gloria.unit.topSumShort', { sum }) : t('gloria.unit.topNotYet'),
+      type === 'square'
+        ? null
+        : sum != null
+          ? t('gloria.unit.topSumShort', { sum })
+          : t('gloria.unit.topNotYet'),
     ]
       .filter(Boolean)
       .join(' · ');
@@ -209,9 +321,14 @@ export default function GloriaUnitScreen() {
   /** 樣區環境: researchers, a times fold, then the unit type's own fields. */
   const envCard = (fields: React.ReactNode) => (
     <Card>
-      <Pressable onPress={() => setEnvOpen(!envIsOpen)} className="flex-row items-center px-3 py-2.5">
+      <Pressable
+        onPress={() => setEnvOpen(!envIsOpen)}
+        className="flex-row items-center px-3 py-2.5"
+      >
         <View className="flex-1">
-          <Text className="text-sm font-semibold text-gray-900 dark:text-gray-100">{t('gloria.unit.env')}</Text>
+          <Text className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+            {t('gloria.unit.env')}
+          </Text>
           <Text className="text-xs text-gray-500 dark:text-gray-400">{envSummary(unit)}</Text>
         </View>
         <Ionicons name={envIsOpen ? 'chevron-down' : 'chevron-forward'} size={16} color="#9ca3af" />
@@ -221,15 +338,25 @@ export default function GloriaUnitScreen() {
           <ResearcherRow unit={unit} surveyBy={state.survey.recorded_by} reload={reload} />
           {/* Survey times fold on their own: set once, rarely looked at again. */}
           <Pressable onPress={() => setTimesOpen(!timesOpen)} className="flex-row items-center">
-            <Ionicons name={timesOpen ? 'chevron-down' : 'chevron-forward'} size={14} color="#9ca3af" />
-            <Text className="ml-1 flex-1 text-xs font-semibold text-gray-600 dark:text-gray-300">{t('gloria.times.titleOnly')}</Text>
+            <Ionicons
+              name={timesOpen ? 'chevron-down' : 'chevron-forward'}
+              size={14}
+              color="#9ca3af"
+            />
+            <Text className="ml-1 flex-1 text-xs font-semibold text-gray-600 dark:text-gray-300">
+              {t('gloria.times.titleOnly')}
+            </Text>
             {!timesOpen ? (
               <Text className="text-xs text-gray-500 dark:text-gray-400" numberOfLines={1}>
-                {unit.start_ts != null ? isoStamp(unit.start_ts).slice(0, 16) : t('gloria.times.notYet')}
+                {unit.start_ts != null
+                  ? isoStamp(unit.start_ts).slice(0, 16)
+                  : t('gloria.times.notYet')}
               </Text>
             ) : null}
           </Pressable>
-          {timesOpen ? <SurveyTimes unit={unit} surveyBy={state.survey.recorded_by} reload={reload} embedded /> : null}
+          {timesOpen ? (
+            <SurveyTimes unit={unit} surveyBy={state.survey.recorded_by} reload={reload} embedded />
+          ) : null}
           {fields}
         </View>
       ) : null}
@@ -240,7 +367,15 @@ export default function GloriaUnitScreen() {
   const quadratBody = () => {
     const us = spp.map(toUnitSpecies);
     const vOk = vascularCoverOk(
-      { vascular: unit.cov_vascular, solidRock: null, scree: null, lichens: null, bryophytes: null, bareGround: null, litter: null },
+      {
+        vascular: unit.cov_vascular,
+        solidRock: null,
+        scree: null,
+        lichens: null,
+        bryophytes: null,
+        bareGround: null,
+        litter: null,
+      },
       us,
     );
     const sum = exactSum(speciesCoverSum(us));
@@ -253,25 +388,52 @@ export default function GloriaUnitScreen() {
           <>
             <View className="flex-row gap-4">
               <View className="flex-row items-center gap-2">
-                <Text className="text-xs text-gray-700 dark:text-gray-300">{t('gloria.unit.aspect')}</Text>
-                <NumField value={unit.aspect_deg} onCommit={(v) => patch({ aspect_deg: v })} range={RANGES.aspect} accessibilityLabel={t('gloria.unit.aspect')} width={56} editable={!locked} />
+                <Text className="text-xs text-gray-700 dark:text-gray-300">
+                  {t('gloria.unit.aspect')}
+                </Text>
+                <NumField
+                  value={unit.aspect_deg}
+                  onCommit={(v) => patch({ aspect_deg: v })}
+                  range={RANGES.aspect}
+                  accessibilityLabel={t('gloria.unit.aspect')}
+                  width={56}
+                  editable={!locked}
+                />
               </View>
               <View className="flex-row items-center gap-2">
-                <Text className="text-xs text-gray-700 dark:text-gray-300">{t('gloria.unit.slope')}</Text>
-                <NumField value={unit.slope_deg} onCommit={(v) => patch({ slope_deg: v })} range={RANGES.slope} accessibilityLabel={t('gloria.unit.slope')} width={56} editable={!locked} />
+                <Text className="text-xs text-gray-700 dark:text-gray-300">
+                  {t('gloria.unit.slope')}
+                </Text>
+                <NumField
+                  value={unit.slope_deg}
+                  onCommit={(v) => patch({ slope_deg: v })}
+                  range={RANGES.slope}
+                  accessibilityLabel={t('gloria.unit.slope')}
+                  width={56}
+                  editable={!locked}
+                />
               </View>
             </View>
             <TopCoverFields unit={unit} onCommit={patch} editable={!locked} />
             <Pressable onPress={() => setSubOpen(!subOpen)} className="flex-row items-center">
-              <Ionicons name={subOpen ? 'chevron-down' : 'chevron-forward'} size={14} color="#9ca3af" />
-              <Text className="ml-1 text-xs font-semibold text-gray-600 dark:text-gray-300">{t('gloria.unit.subtypes')}</Text>
+              <Ionicons
+                name={subOpen ? 'chevron-down' : 'chevron-forward'}
+                size={14}
+                color="#9ca3af"
+              />
+              <Text className="ml-1 text-xs font-semibold text-gray-600 dark:text-gray-300">
+                {t('gloria.unit.subtypes')}
+              </Text>
             </Pressable>
             {subOpen ? <SubtypeFields unit={unit} onCommit={patch} editable={!locked} /> : null}
           </>,
         )}
 
         {vOk === false ? (
-          <FoldBanner tone="error" title={t('gloria.issue.vascularExceeds', { vascular: unit.cov_vascular, sum })}>
+          <FoldBanner
+            tone="error"
+            title={t('gloria.issue.vascularExceeds', { vascular: unit.cov_vascular, sum })}
+          >
             <BannerText tone="error">{t('gloria.unit.vascularHint')}</BannerText>
           </FoldBanner>
         ) : vOk === true ? (
@@ -280,17 +442,25 @@ export default function GloriaUnitScreen() {
         {cross.length ? (
           <FoldBanner tone="error" title={t('gloria.unit.crossTitle')} count={cross.length}>
             {cross.map((i, k) => (
-              <BannerText key={k} tone="error">{issueText(t, i)}</BannerText>
+              <BannerText key={k} tone="error">
+                {issueText(t, i)}
+              </BannerText>
             ))}
           </FoldBanner>
         ) : null}
 
         <View className="flex-row gap-2">
           <View className="flex-1">
-            <Btn label={`${t('gloria.step.frequency')} · ${unit.freq_locked ? `${t('gloria.freq.doneShort')} · ` : ''}${freqN ? t(freqKey, { count: freqN }) : t('gloria.step.notStarted')}`} onPress={() => router.push(`/gloria/${id}/${code}/frequency` as Href)} />
+            <Btn
+              label={`${t('gloria.step.frequency')} · ${unit.freq_locked ? `${t('gloria.freq.doneShort')} · ` : ''}${freqN ? t(freqKey, { count: freqN }) : t('gloria.step.notStarted')}`}
+              onPress={() => router.push(`/gloria/${id}/${code}/frequency` as Href)}
+            />
           </View>
           <View className="flex-1">
-            <Btn label={`${t('gloria.step.pointframe')} · ${unit.pf_locked ? `${t('gloria.freq.doneShort')} · ` : ''}${unit.point_surface ? `${visitedCount(unit.point_surface)}/100` : t('gloria.step.notStarted')}`} onPress={() => router.push(`/gloria/${id}/${code}/points` as Href)} />
+            <Btn
+              label={`${t('gloria.step.pointframe')} · ${unit.pf_locked ? `${t('gloria.freq.doneShort')} · ` : ''}${unit.point_surface ? `${visitedCount(unit.point_surface)}/100` : t('gloria.step.notStarted')}`}
+              onPress={() => router.push(`/gloria/${id}/${code}/points` as Href)}
+            />
           </View>
         </View>
 
@@ -299,25 +469,23 @@ export default function GloriaUnitScreen() {
         </Text>
         <Card>
           {spp.length === 0 ? (
-            <Text className="px-3 py-6 text-center text-sm text-gray-400">{t('gloria.unit.noSpecies')}</Text>
+            <Text className="px-3 py-6 text-center text-sm text-gray-400">
+              {t('gloria.unit.noSpecies')}
+            </Text>
           ) : (
-            spp.map((s, i) =>
-              speciesRow(
-                s,
-                i,
-                <>
-                  <NumField
-                    value={s.cover_pct}
-                    onCommit={(v) => track(() => updateUnitSpecies(s.id, { cover_pct: v }))}
-                    range={RANGES.percent}
-                    width={76}
-                    editable={!locked}
-                    accessibilityLabel={t('gloria.unit.coverOf', { name: displayName(s) })}
-                  />
-                  {cfButton(s)}
-                </>,
-              ),
-            )
+            dragList(spp, (s) => (
+              <>
+                <NumField
+                  value={s.cover_pct}
+                  onCommit={(v) => track(() => updateUnitSpecies(s.id, { cover_pct: v }))}
+                  range={RANGES.percent}
+                  width={76}
+                  editable={!locked}
+                  accessibilityLabel={t('gloria.unit.coverOf', { name: displayName(s) })}
+                />
+                {cfButton(s)}
+              </>
+            ))
           )}
         </Card>
         <Text className="text-xs text-gray-400">{t('gloria.unit.coverRule')}</Text>
@@ -331,7 +499,9 @@ export default function GloriaUnitScreen() {
     const missingTaxa = () => {
       const inSas = new Set(spp.map((s) => s.taxon_id));
       const out = new Map<string, string>();
-      for (const q of quadratsOf(dir)) for (const s of state.speciesOf(q)) if (!inSas.has(s.taxon_id)) out.set(s.taxon_id, displayName(s));
+      for (const q of quadratsOf(dir))
+        for (const s of state.speciesOf(q))
+          if (!inSas.has(s.taxon_id)) out.set(s.taxon_id, displayName(s));
       return out;
     };
     return (
@@ -354,34 +524,44 @@ export default function GloriaUnitScreen() {
           </FoldBanner>
         ) : null}
         {envCard(<TopCoverFields unit={unit} onCommit={patch} editable={!locked} />)}
-        <Text className="text-xs font-semibold text-gray-500 dark:text-gray-400">{t('gloria.unit.sasHeader', { count: spp.length })}</Text>
+        <Text className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+          {t('gloria.unit.sasHeader', { count: spp.length })}
+        </Text>
         <Card>
           {spp.length === 0 ? (
-            <Text className="px-3 py-6 text-center text-sm text-gray-400">{t('gloria.unit.noSpecies')}</Text>
+            <Text className="px-3 py-6 text-center text-sm text-gray-400">
+              {t('gloria.unit.noSpecies')}
+            </Text>
           ) : (
-            spp.map((s, i) =>
-              speciesRow(
-                s,
-                i,
-                <View className="flex-row">
-                  {ABUNDANCE.map((a) => (
-                    <Pressable
-                      key={a}
-                      onPress={() => track(() => updateUnitSpecies(s.id, { abundance: s.abundance === a ? null : a }))}
-                      accessibilityRole="radio"
-                      accessibilityState={{ checked: s.abundance === a }}
-                      className={`ml-1 w-7 items-center rounded-md border py-1 ${s.abundance === a ? 'border-[#00A2A5] bg-[#00A2A5]' : 'border-gray-300 dark:border-gray-700'}`}
+            dragList(spp, (s) => (
+              <View className="flex-row">
+                {ABUNDANCE.map((a) => (
+                  <Pressable
+                    key={a}
+                    onPress={() =>
+                      track(() =>
+                        updateUnitSpecies(s.id, { abundance: s.abundance === a ? null : a }),
+                      )
+                    }
+                    accessibilityRole="radio"
+                    accessibilityState={{ checked: s.abundance === a }}
+                    className={`ml-1 w-7 items-center rounded-md border py-1 ${s.abundance === a ? 'border-[#00A2A5] bg-[#00A2A5]' : 'border-gray-300 dark:border-gray-700'}`}
+                  >
+                    <Text
+                      className={`text-[11px] ${s.abundance === a ? 'font-bold text-white' : 'text-gray-600 dark:text-gray-300'}`}
                     >
-                      <Text className={`text-[11px] ${s.abundance === a ? 'font-bold text-white' : 'text-gray-600 dark:text-gray-300'}`}>{a}</Text>
-                    </Pressable>
-                  ))}
-                </View>,
-              ),
-            )
+                      {a}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            ))
           )}
         </Card>
         <Text className="text-xs text-gray-400">{t('gloria.unit.abundanceLegend')}</Text>
-        <Text className="text-xs font-semibold text-gray-500 dark:text-gray-400">{t('gloria.unit.grazing')}</Text>
+        <Text className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+          {t('gloria.unit.grazing')}
+        </Text>
         <TextInput
           defaultValue={unit.grazing_note ?? ''}
           editable={!locked}
@@ -399,7 +579,10 @@ export default function GloriaUnitScreen() {
   const squareBody = () => {
     const visited = visitedCount(unit.point_surface);
     const hits = surfaceHits(unit.point_surface);
-    const withHits = spp.map((s) => ({ s, n: s.point_hits != null ? popcount(s.point_hits) : (s.legacy_hits ?? 0) }));
+    const withHits = spp.map((s) => ({
+      s,
+      n: s.point_hits != null ? popcount(s.point_hits) : (s.legacy_hits ?? 0),
+    }));
     const hit = withHits.filter((x) => x.n > 0).sort((a, b) => b.n - a.n);
     const extra = withHits.filter((x) => x.n === 0);
     const fromQuadrats = () => {
@@ -422,7 +605,9 @@ export default function GloriaUnitScreen() {
       <>
         {envCard(null)}
         <Card className="gap-2 p-3">
-          <Text className="text-xs font-semibold text-gray-500 dark:text-gray-400">{t('gloria.square.walk')}</Text>
+          <Text className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+            {t('gloria.square.walk')}
+          </Text>
           <View className="flex-row flex-wrap">
             {WALK_OPTIONS.map((o) => (
               <Pressable
@@ -430,7 +615,9 @@ export default function GloriaUnitScreen() {
                 onPress={() => patch({ walk_option: o as WalkOption })}
                 className={`mb-1.5 mr-1.5 rounded-lg border px-2.5 py-1.5 ${unit.walk_option === o ? 'border-[#00A2A5] bg-[#00A2A5]' : 'border-gray-300 dark:border-gray-700'}`}
               >
-                <Text className={`text-xs ${unit.walk_option === o ? 'font-semibold text-white' : 'text-gray-700 dark:text-gray-300'}`}>
+                <Text
+                  className={`text-xs ${unit.walk_option === o ? 'font-semibold text-white' : 'text-gray-700 dark:text-gray-300'}`}
+                >
                   {t(`gloria.square.option${o}`)}
                 </Text>
               </Pressable>
@@ -442,16 +629,38 @@ export default function GloriaUnitScreen() {
             disabled={unit.walk_option == null}
             onPress={() => router.push(`/gloria/${id}/${code}/points` as Href)}
           />
-          {unit.walk_option == null ? <Text className="text-xs text-gray-400">{t('gloria.square.pickWalk')}</Text> : null}
+          {unit.walk_option == null ? (
+            <Text className="text-xs text-gray-400">{t('gloria.square.pickWalk')}</Text>
+          ) : null}
         </Card>
         {visited > 0 ? (
           <Card className="p-3">
-            <Text className="mb-1 text-xs font-semibold text-gray-500 dark:text-gray-400">{t('gloria.square.hitsTitle', { done: visited })}</Text>
+            <Text className="mb-1 text-xs font-semibold text-gray-500 dark:text-gray-400">
+              {t('gloria.square.hitsTitle', { done: visited })}
+            </Text>
             {hit.map(({ s, n }) => (
               <View key={s.id} className="flex-row py-0.5">
-                <Text className="flex-1 text-xs text-gray-900 dark:text-gray-100">{displayName(s)}</Text>
-                <Text className="w-14 text-right text-xs text-gray-700 dark:text-gray-300" style={{ fontVariant: ['tabular-nums'] }}>{n}</Text>
-                <Text className="w-16 text-right text-xs text-gray-500" style={{ fontVariant: ['tabular-nums'] }}>{coverFromHits(n, 400).toFixed(2)}%</Text>
+                <Text
+                  className="mr-2 w-6 text-right text-xs text-gray-500 dark:text-gray-400"
+                  style={{ fontVariant: ['tabular-nums'] }}
+                >
+                  {numberOf.get(s.id)}
+                </Text>
+                <Text className="flex-1 text-xs text-gray-900 dark:text-gray-100">
+                  {displayName(s)}
+                </Text>
+                <Text
+                  className="w-14 text-right text-xs text-gray-700 dark:text-gray-300"
+                  style={{ fontVariant: ['tabular-nums'] }}
+                >
+                  {n}
+                </Text>
+                <Text
+                  className="w-16 text-right text-xs text-gray-500"
+                  style={{ fontVariant: ['tabular-nums'] }}
+                >
+                  {coverFromHits(n, 400).toFixed(2)}%
+                </Text>
               </View>
             ))}
             <Text className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
@@ -460,14 +669,21 @@ export default function GloriaUnitScreen() {
           </Card>
         ) : null}
         <View className="flex-row items-center">
-          <Text className="flex-1 text-xs font-semibold text-gray-500 dark:text-gray-400">{t('gloria.square.extra', { count: extra.length })}</Text>
+          <Text className="flex-1 text-xs font-semibold text-gray-500 dark:text-gray-400">
+            {t('gloria.square.extra', { count: extra.length })}
+          </Text>
           <Btn small label={t('gloria.square.fromQuadrats')} onPress={fromQuadrats} />
         </View>
         <Card>
           {extra.length === 0 ? (
-            <Text className="px-3 py-6 text-center text-sm text-gray-400">{t('gloria.square.extraEmpty')}</Text>
+            <Text className="px-3 py-6 text-center text-sm text-gray-400">
+              {t('gloria.square.extraEmpty')}
+            </Text>
           ) : (
-            extra.map(({ s }, i) => speciesRow(s, i, null))
+            dragList(
+              extra.map(({ s }) => s),
+              () => null,
+            )
           )}
         </Card>
       </>
@@ -483,32 +699,66 @@ export default function GloriaUnitScreen() {
           headerRight: () => (
             <View className="flex-row items-center gap-3">
               {!locked ? (
-                <HeaderIconButton icon="arrow-undo-outline" label={t('gloria.freq.undo')} disabled={undoCount === 0} onPress={() => step(undo, redo)} />
+                <HeaderIconButton
+                  icon="arrow-undo-outline"
+                  label={t('gloria.freq.undo')}
+                  disabled={undoCount === 0}
+                  onPress={() => step(undo, redo)}
+                />
               ) : null}
               {!locked ? (
-                <HeaderIconButton icon="arrow-redo-outline" label={t('gloria.freq.redo')} disabled={redoCount === 0} onPress={() => step(redo, undo)} />
+                <HeaderIconButton
+                  icon="arrow-redo-outline"
+                  label={t('gloria.freq.redo')}
+                  disabled={redoCount === 0}
+                  onPress={() => step(redo, undo)}
+                />
               ) : null}
-              <HeaderIconButton icon="grid-outline" label={t('gloria.overview')} onPress={() => setPanel(true)} />
+              <HeaderIconButton
+                icon="grid-outline"
+                label={t('gloria.overview')}
+                onPress={() => setPanel(true)}
+              />
               <HeaderIconButton
                 icon={locked ? 'lock-closed' : 'checkmark-done-outline'}
                 label={locked ? t('gloria.unit.markUndone') : t('gloria.unit.markDone')}
-                onPress={toggleDone}
+                onPress={() => void toggleDone()}
               />
             </View>
           ),
         }}
       />
-      <ScrollView className="flex-1" contentContainerClassName="gap-3 p-4" keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
+      {/* Nestable: the 1×1 m species list inside is draggable. */}
+      <NestableScrollContainer
+        style={{ flex: 1 }}
+        contentContainerStyle={{
+          gap: 12,
+          padding: 16,
+          paddingBottom: 16 + (keyboardUp ? dockHeight : 0),
+        }}
+        keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets
+      >
         {type === 'quadrat' ? quadratBody() : type === 'sas' ? sasBody() : squareBody()}
-      </ScrollView>
+      </NestableScrollContainer>
       {active && !locked ? (
         <KeyboardStickyView offset={{ opened: insets.bottom }}>
-          <SearchBox scopeGroups={GLORIA_SEARCH_GROUPS} onSelect={(r) => r.taxon_id && addTaxon(r.taxon_id, r.cname || r.name)} />
+          <View onLayout={(e) => setDockHeight(e.nativeEvent.layout.height)}>
+            <SearchBox
+              scopeGroups={GLORIA_SEARCH_GROUPS}
+              onSelect={(r) => r.taxon_id && addTaxon(r.taxon_id, r.cname || r.name)}
+            />
+          </View>
         </KeyboardStickyView>
       ) : null}
       <NumAccessory />
       {panel ? (
-        <OverviewPanel state={state} code={code} current={type === 'square' ? 'cover' : type === 'sas' ? 'sas' : 'cover'} onClose={() => setPanel(false)} />
+        <OverviewPanel
+          state={state}
+          code={code}
+          current={type === 'square' ? 'cover' : type === 'sas' ? 'sas' : 'cover'}
+          onClose={() => setPanel(false)}
+        />
       ) : null}
     </SafeAreaView>
   );

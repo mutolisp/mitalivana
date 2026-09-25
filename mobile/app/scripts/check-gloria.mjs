@@ -34,6 +34,8 @@ import { photoItems, checklistState } from '../src/modules/gloria/model/photoChe
 import { pointKeyOf, tableToPoints, rowsBySummitCycle, diffPoints } from '../src/modules/gloria/model/pointImport.ts';
 import { strToU8, zipSync } from 'fflate';
 import { element8, parseOverviewPhotos } from '../src/modules/gloria/model/overview.ts';
+import { bySpeciesOrder } from '../src/modules/gloria/model/speciesOrder.ts';
+import { followCoverTimes, nextMinute } from '../src/modules/gloria/model/quadratTimes.ts';
 
 let failures = 0;
 const eq = (label, got, want) => {
@@ -475,6 +477,40 @@ eq('SAS abundance codes (sheet 33_)', SAS_ABUNDANCE_CODE, { d: 1, c: 2, s: 3, r:
   eq('export names: cluster item N, quarter as element 8 of its quadrat, HSP',
     names.map((n) => n.name),
     ['05_TW_DAS_SUN_N________20260814_00001.jpg', '05_TW_DAS_SUN_N11______20260814_00002_UL.jpg', '05_TW_DAS_SUN_HSP______20260814_00003.jpg']);
+}
+
+// ── species order (v55): dragged order first, never-reordered rows after by serial ──
+{
+  const rows = [
+    { id: 'a', serial: 1, sort_order: 2 },
+    { id: 'b', serial: 2, sort_order: 0 },
+    { id: 'c', serial: 3, sort_order: null },
+    { id: 'd', serial: 4, sort_order: 1 },
+    { id: 'e', serial: 0 },
+  ];
+  eq('species order: sort_order, then serial for the rest', [...rows].sort(bySpeciesOrder).map((r) => r.id), ['b', 'd', 'a', 'e', 'c']);
+  eq('species order: nothing reordered = serial order',
+    [{ serial: 3 }, { serial: 1 }, { serial: 2 }].sort(bySpeciesOrder).map((r) => r.serial), [1, 2, 3]);
+}
+
+// ── 1×1 m frequency follows the cover estimate: same day, next minute ──
+{
+  const at = (y, mo, d, h, mi, se = 0) => new Date(y, mo - 1, d, h, mi, se).getTime();
+  eq('nextMinute rounds up to the next whole minute', [nextMinute(at(2019, 8, 14, 10, 5, 51)), nextMinute(at(2019, 8, 14, 10, 5, 0))],
+    [at(2019, 8, 14, 10, 6), at(2019, 8, 14, 10, 6)]);
+  const blank = { start_ts: at(2019, 8, 14, 9, 42), stop_ts: null, freq_start_ts: null, freq_stop_ts: null };
+  eq('cover end set, no frequency start → next minute', followCoverTimes(blank, 'stop_ts', at(2019, 8, 14, 10, 5, 51)),
+    { freq_start_ts: at(2019, 8, 14, 10, 6) });
+  const derived = { ...blank, stop_ts: at(2019, 8, 14, 10, 5, 51), freq_start_ts: at(2019, 8, 14, 10, 6) };
+  eq('derived start follows a corrected cover end', followCoverTimes(derived, 'stop_ts', at(2019, 8, 14, 10, 20)),
+    { freq_start_ts: at(2019, 8, 14, 10, 21) });
+  const own = { ...derived, freq_start_ts: at(2019, 8, 14, 10, 30), freq_stop_ts: at(2019, 8, 14, 11, 0) };
+  eq('a start the user set is kept; frequency moves to the cover day',
+    followCoverTimes(own, 'start_ts', at(2019, 8, 13, 9, 42)),
+    { freq_start_ts: at(2019, 8, 13, 10, 30), freq_stop_ts: at(2019, 8, 13, 11, 0) });
+  eq('cover end at 23:59 → frequency 00:00 next day (not moved back)',
+    followCoverTimes(blank, 'stop_ts', at(2019, 8, 14, 23, 59, 10)), { freq_start_ts: at(2019, 8, 15, 0, 0) });
+  eq('clearing a cover time touches nothing', followCoverTimes(own, 'stop_ts', null), {});
 }
 
 if (failures) {

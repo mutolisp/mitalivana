@@ -15,6 +15,7 @@ import { F_COLUMNS, SURFACE_CODES, popcount, surfaceHits, type SurfaceCode } fro
 import { POINTS, pointNumberOf, type Direction, type P5mCorner } from '../model/units';
 import { speciesCoverSum, vascularCoverOk, type TopCover } from '../model/validate';
 import { linePoint, walkOrder, type WalkOption } from '../model/walk';
+import { bySpeciesOrder } from '../model/speciesOrder';
 import {
   DISTURBANCES,
   H00_PLOT_COORDINATES,
@@ -106,6 +107,8 @@ export type ExportSpecies = {
   unit_code: string;
   occurrence_id: string;
   serial: number;
+  /** v55: the user's list order; the sp-N numbering follows it. */
+  sort_order?: number | null;
   cover_pct: number | null;
   abundance: string | null;
   freq_cells: string | null;
@@ -216,7 +219,7 @@ export function buildSheetTables(d: GloriaExportData): SheetTable[] {
   const m = sv.mocy;
   const base = [String(m), sm.country, sm.target_region, sm.summit];
   const present = d.species;
-  const speciesOf = (code: string) => present.filter((s) => s.unit_code === code).sort((a, b) => a.serial - b.serial);
+  const speciesOf = (code: string) => present.filter((s) => s.unit_code === code).sort(bySpeciesOrder);
   const quadrats = d.units.filter((u) => u.unit_type === 'quadrat');
   const sas = d.units.filter((u) => u.unit_type === 'sas');
   const squares = d.units.filter((u) => u.unit_type === 'square');

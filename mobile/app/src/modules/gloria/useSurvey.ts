@@ -112,7 +112,7 @@ export function loadSurveyState(id: number): SurveyState | null {
     const u = unitMap.get(code);
     if (!u) return 'none';
     if (issues.some((i) => i.unit === code)) return 'warn';
-    if (u.stop_ts != null) return 'done';
+    if (u.done_locked === 1) return 'done';
     const touched =
       u.start_ts != null ||
       u.point_surface != null ||

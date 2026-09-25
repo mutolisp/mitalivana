@@ -21,8 +21,6 @@ import { KeyboardStickyView } from '~/components/KeyboardAvoidingView';
 import { RecordStepBar } from '~/components/RecordStepBar';
 import { HeaderIconButton } from '~/components/HeaderIconButton';
 import { showActionSheet } from '~/components/ActionSheet';
-import { deleteAudioFile } from '~/lib/audioCapture';
-import { mediaUriReferenced } from '~/db';
 import { hasInatChanges, syncRecord, useInatSync } from '~/lib/inatUpload';
 import { inatTokenAvailableQuietly } from '~/lib/inatAuth';
 import { apiErrorMessage } from '~/lib/apiErrorMessage';
@@ -88,6 +86,11 @@ import {
   useTrackRecorder,
 } from '~/lib/trackRecorder';
 import { stampNewRecord } from '~/lib/recordFix';
+import { useRecordEditing } from '~/lib/useRecordEditing';
+import { chooseEndTime } from '~/lib/endTimeChoice';
+import { SurveyTimesModal } from '~/components/SurveyTimeFields';
+import { RecordEditButtons } from '~/components/RecordEditButtons';
+import type { SpeciesAttributesDraft } from '~/components/SpeciesAttributesBlock';
 
 function sortRecords(
   rs: RecordWithTaxon[],
@@ -164,6 +167,7 @@ export default function SessionDetailScreen() {
   const [projectSheetOpen, setProjectSheetOpen] = useState(false);
   const [siteSheetOpen, setSiteSheetOpen] = useState(false);
   const [surveyorSheetOpen, setSurveyorSheetOpen] = useState(false);
+  const [timesOpen, setTimesOpen] = useState(false);
   const [batchImportOpen, setBatchImportOpen] = useState(false);
   const [searchPreview, setSearchPreview] = useState<SearchResult | null>(null);
   // Track recording lives in the module-level recorder (src/lib/trackRecorder.ts)
@@ -182,13 +186,40 @@ export default function SessionDetailScreen() {
   const sortDir = useSettings((s) => s.last_record_sort_dir);
   const setSetting = useSettings((s) => s.set);
 
-  const reload = useCallback(() => {
+  // Lock + undo / redo (src/lib/useRecordEditing): an ended checklist is
+  // read-only until unlocked here; every reload after an edit is one step.
+  const edit = useRecordEditing('session', sessionId, session != null && session.status === 'done');
+  const { checkpoint, absorb } = edit;
+  // `detailKey` remounts the detail sheet after a refused edit, so its fields
+  // drop what was typed and show the record again.
+  const [detailKey, setDetailKey] = useState(0);
+  /** Run an edit unless the record is locked. */
+  const guard =
+    <A extends unknown[]>(fn: (...a: A) => void) =>
+    (...a: A) => {
+      if (edit.refuse()) {
+        setDetailKey((k) => k + 1);
+        return;
+      }
+      fn(...a);
+    };
+
+  const refresh = useCallback(() => {
     const s = getSession(sessionId);
     setSession(s);
     setProject(s ? getProject(s.project_id) : null);
     setSite(s && s.site_id !== null ? getSite(s.site_id) : null);
     setRecords(listSessionRecords(sessionId));
   }, [sessionId]);
+  const reload = useCallback(() => {
+    refresh();
+    checkpoint();
+  }, [refresh, checkpoint]);
+  /** For the app's own late writes (GNSS stamp): not an undo step. */
+  const reloadQuiet = useCallback(() => {
+    refresh();
+    absorb();
+  }, [refresh, absorb]);
 
   useFocusEffect(
     useCallback(() => {
@@ -297,13 +328,13 @@ export default function SessionDetailScreen() {
       if (choice !== 0) return;
     }
     const recordId = addRecord({ session_id: sessionId, taxon_id: result.taxon_id, adopted });
-    stampNewRecord('session', recordId, sessionId, reload);
+    stampNewRecord('session', recordId, sessionId, reloadQuiet);
     reload();
     toast(t('session.added', { name: result.cname || result.name }), {
       action: {
         label: t('common.undo'),
         onPress: () => {
-          deleteRecord(recordId);
+          edit.undo();
           reload();
         },
       },
@@ -324,6 +355,7 @@ export default function SessionDetailScreen() {
   };
 
   const handleBulkDelete = () => {
+    if (edit.refuse()) return;
     const rows = filtered.filter((r) => selection.picked.has(r.id));
     if (rows.length === 0) return;
     Alert.alert(
@@ -347,26 +379,36 @@ export default function SessionDetailScreen() {
   };
 
   const handleSwipeRemove = (record: RecordWithTaxon) => {
+    if (edit.refuse()) return;
     deleteRecord(record.id);
     reload();
+    // The removal is the newest history step, so undo brings the whole row
+    // back — photos, audio, coordinates, occurrence_id and iNat link included.
     toast(t('session.removed', { name: record.common_name_c || record.simple_name }), {
       action: {
         label: t('common.undo'),
         onPress: () => {
-          if (record.taxon_id) {
-            addRecord({ session_id: sessionId, taxon_id: record.taxon_id, notes: record.notes });
-            reload();
-          }
+          edit.undo();
+          reload();
         },
       },
     });
   };
 
-  const handleEnd = () => setEndModalOpen(true);
+  // The end time is asked first, before the end-session Modal: an iOS sheet
+  // presented while a Modal is closing silently never appears.
+  const [endTs, setEndTs] = useState<number | null>(null);
+  const handleEnd = async () => {
+    if (!session) return;
+    const chosen = await chooseEndTime(session.ended_at);
+    if (chosen === undefined) return;
+    setEndTs(chosen);
+    setEndModalOpen(true);
+  };
 
   const handleEndConfirm = (data: { name: string; project_id: number; notes: string }) => {
     if (session) {
-      endSession(session.id, data);
+      endSession(session.id, data, endTs);
       refreshActive();
       setEndModalOpen(false);
       goBackOrHome();
@@ -523,9 +565,9 @@ export default function SessionDetailScreen() {
     if (!activeRecord) return;
     const next = parsePhotoPaths(activeRecord.audio_paths).filter((u) => u !== uri);
     updateRecordAudio(activeRecord.id, next);
-    // A merged record shares its clips with the record it came from, so only
-    // the last reference may delete the file.
-    if (!mediaUriReferenced(uri, 'audio_paths')) void deleteAudioFile(uri);
+    // Deleted once no undo step can bring the clip back, and only if no other
+    // record (a merge shares clips) still points at it.
+    edit.deferAudioDelete(uri);
     setActiveRecord({
       ...activeRecord,
       audio_paths: next.length > 0 ? JSON.stringify(next) : null,
@@ -784,7 +826,7 @@ export default function SessionDetailScreen() {
     );
   }
 
-  const isActive = session.ended_at === null;
+  const isActive = session.status === 'active';
   const headerTitle = project && project.id !== 0 ? project.name : session.name;
 
   return (
@@ -802,20 +844,21 @@ export default function SessionDetailScreen() {
                 onPress={() => router.push(`/report/session/${sessionId}` as Href)}
                 label={t('report.navTitle')}
               />
+              <RecordEditButtons edit={edit} ended={!isActive} onChanged={reload} />
               {isActive ? (
                 <HeaderIconButton
                   icon="stop-circle-outline"
                   tone="danger"
-                  onPress={handleEnd}
+                  onPress={() => void handleEnd()}
                   label={t('session.end')}
                 />
-              ) : (
+              ) : edit.locked ? (
                 <HeaderIconButton
                   icon="refresh-outline"
                   onPress={handleReopen}
                   label={t('session.continueEdit')}
                 />
-              )}
+              ) : null}
             </View>
           ),
         }}
@@ -825,7 +868,7 @@ export default function SessionDetailScreen() {
             long surveyor name has room and no longer squeezes the controls). */}
         <View className="flex-row items-center gap-3 border-b border-gray-200 bg-white px-4 py-2 dark:border-gray-700 dark:bg-gray-900">
           <Pressable
-            onPress={() => setProjectSheetOpen(true)}
+            onPress={guard(() => setProjectSheetOpen(true))}
             hitSlop={8}
             className="active:opacity-70"
           >
@@ -836,7 +879,7 @@ export default function SessionDetailScreen() {
             />
           </Pressable>
           <Pressable
-            onPress={isActive ? handleSpatialMenu : () => setSiteSheetOpen(true)}
+            onPress={isActive ? handleSpatialMenu : guard(() => setSiteSheetOpen(true))}
             hitSlop={6}
             className="shrink flex-row items-center active:opacity-70"
           >
@@ -891,8 +934,17 @@ export default function SessionDetailScreen() {
               );
             })()}
           </Pressable>
+          {/* Survey start / end — typed by hand for old field sheets. */}
           <Pressable
-            onPress={() => setSurveyorSheetOpen(true)}
+            onPress={() => setTimesOpen(true)}
+            hitSlop={6}
+            accessibilityLabel={t('surveyTime.title')}
+            className="active:opacity-70"
+          >
+            <Ionicons name="time-outline" size={16} color="#2563eb" />
+          </Pressable>
+          <Pressable
+            onPress={guard(() => setSurveyorSheetOpen(true))}
             hitSlop={6}
             className="flex-1 flex-row items-center active:opacity-70"
           >
@@ -1079,24 +1131,25 @@ export default function SessionDetailScreen() {
       ) : null}
 
       <SpeciesDetailSheet
-        onReplaceTaxon={() => {
+        key={detailKey}
+        onReplaceTaxon={guard(() => {
           if (!activeRecord) return;
           setReplaceTarget(activeRecord);
           // The sheet is a Modal and the docked SearchBox lives under it, so it
           // has to close before the hand-off means anything.
           setActiveRecord(null);
-        }}
+        })}
         record={activeRecord}
         pager={detailPager}
         onClose={() => setActiveRecord(null)}
-        onRemove={() => {
+        onRemove={guard(() => {
           if (activeRecord) {
             deleteRecord(activeRecord.id);
             reload();
           }
-        }}
-        onSaveNotes={handleSaveActiveNotes}
-        onSaveQuantity={(count) => {
+        })}
+        onSaveNotes={guard(handleSaveActiveNotes)}
+        onSaveQuantity={guard((count: number | null) => {
           if (!activeRecord) return;
           // Always `individuals` — see CountField. Clearing wipes BOTH columns:
           // a type with no quantity would export an organismQuantityType that
@@ -1112,23 +1165,23 @@ export default function SessionDetailScreen() {
             organism_quantity_type: count == null ? null : 'individuals',
           });
           reload();
-        }}
-        onSaveVerbatim={(value) => {
+        })}
+        onSaveVerbatim={guard((value: string | null) => {
           if (!activeRecord) return;
           updateRecordAttributes(activeRecord.id, { verbatim_identification: value });
           // Patch the open sheet too — `reload()` refreshes the list behind it,
           // but activeRecord is a snapshot and would keep showing the old label.
           setActiveRecord({ ...activeRecord, verbatim_identification: value });
           reload();
-        }}
-        onSaveLocation={(lat, lng, accuracy) => {
+        })}
+        onSaveLocation={guard((lat: number | null, lng: number | null, accuracy: number | null) => {
           if (!activeRecord) return;
           updateRecordLocation(activeRecord.id, lat, lng, accuracy);
           setActiveRecord({ ...activeRecord, lat, lng, accuracy });
           reload();
           toast(lat === null ? t('session.coordCleared') : t('session.coordRecorded'));
-        }}
-        onChangeLocation={(lat, lng, accuracy) => {
+        })}
+        onChangeLocation={guard((lat: number, lng: number, accuracy: number | null) => {
           // Inline map edit: persist quietly (no toast). A hand-placed point
           // arrives with accuracy null; an undo restoring a GNSS fix carries the
           // measured value back, so pass it through rather than clearing it.
@@ -1136,8 +1189,8 @@ export default function SessionDetailScreen() {
           updateRecordLocation(activeRecord.id, lat, lng, accuracy);
           setActiveRecord({ ...activeRecord, lat, lng, accuracy });
           reload();
-        }}
-        onSaveElevation={(metres, source) => {
+        })}
+        onSaveElevation={guard((metres: number | null, source: 'gnss' | 'manual') => {
           if (!activeRecord) return;
           updateRecordElevation(activeRecord.id, metres, source);
           // Functional: the GNSS button saves the coordinate and then this in
@@ -1149,11 +1202,11 @@ export default function SessionDetailScreen() {
               : prev,
           );
           reload();
-        }}
-        onAddPhoto={handleAddPhoto}
-        onRemovePhoto={handleRemovePhoto}
-        onAddAudio={handleAddAudio}
-        onRemoveAudio={handleRemoveAudio}
+        })}
+        onAddPhoto={guard((mode: 'camera' | 'library') => void handleAddPhoto(mode))}
+        onRemovePhoto={guard(handleRemovePhoto)}
+        onAddAudio={guard(handleAddAudio)}
+        onRemoveAudio={guard(handleRemoveAudio)}
         inat={
           activeRecord
             ? {
@@ -1164,7 +1217,7 @@ export default function SessionDetailScreen() {
               }
             : undefined
         }
-        onSaveAttributes={(next) => {
+        onSaveAttributes={guard((next: SpeciesAttributesDraft) => {
           if (!activeRecord) return;
           // SpeciesAttributesDraft holds arrays in-memory; serialize before
           // writing to the TEXT column.
@@ -1182,7 +1235,7 @@ export default function SessionDetailScreen() {
           updateRecordAttributes(activeRecord.id, persisted);
           setActiveRecord({ ...activeRecord, ...persisted });
           reload();
-        }}
+        })}
       />
 
       {/* Long-press → 編輯備註 走獨立 modal（不在 detail sheet 開時）*/}
@@ -1219,6 +1272,21 @@ export default function SessionDetailScreen() {
           reload();
           setSurveyorSheetOpen(false);
         }}
+      />
+
+      <SurveyTimesModal
+        visible={timesOpen}
+        onClose={() => setTimesOpen(false)}
+        start={session.started_at}
+        end={session.ended_at}
+        startRequired
+        readOnly={edit.locked}
+        onChange={guard((which: 'start' | 'end', ts: number | null) => {
+          if (which === 'start') {
+            if (ts != null) updateSession(session.id, { started_at: ts });
+          } else updateSession(session.id, { ended_at: ts });
+          reload();
+        })}
       />
 
       <SiteAssignSheet

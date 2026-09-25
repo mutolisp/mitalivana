@@ -15,7 +15,6 @@ import { BackHeaderLeft } from '~/lib/goBack';
 import * as Location from 'expo-location';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { isoTime } from '~/lib/datetime';
 import { Alert, Platform, Pressable, Text, TextInput, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -69,6 +68,10 @@ import { useActiveGloria } from '~/modules/gloria/store';
 import { useActiveSession } from '~/stores/activeSession';
 import { captureEnvPhoto, pickPhotos } from '~/lib/photoCapture';
 import { ACTION_FILL } from '~/lib/colors';
+import { useRecordEditing } from '~/lib/useRecordEditing';
+import { chooseEndTime } from '~/lib/endTimeChoice';
+import { SurveyTimeFields } from '~/components/SurveyTimeFields';
+import { LockedBanner, RecordEditButtons } from '~/components/RecordEditButtons';
 
 export default function PlotDetailScreen() {
   const { t } = useTranslation();
@@ -103,12 +106,28 @@ export default function PlotDetailScreen() {
   const refreshActivePlot = useActivePlot((s) => s.refresh);
   const refreshActiveSession = useActiveSession((s) => s.refresh);
 
-  const reload = useCallback(() => {
+  // Lock + undo / redo (src/lib/useRecordEditing): a finished plot is
+  // read-only until unlocked here; every reload after an edit is one step.
+  const edit = useRecordEditing('plot', plotId, plot?.status === 'done');
+  const { checkpoint, absorb } = edit;
+  // Bumped after an undo / redo: the tabs keep local copies of rows (layers,
+  // subplots, species) keyed by plot id, so they remount to read them again.
+  const [rev, setRev] = useState(0);
+
+  const refresh = useCallback(() => {
     const p = getPlotSurvey(plotId);
     setPlot(p);
     setRecords(p ? listPlotSpecies(p.id) : []);
     refreshActivePlot();
   }, [plotId, refreshActivePlot]);
+  const reload = useCallback(() => {
+    refresh();
+    checkpoint();
+  }, [refresh, checkpoint]);
+  const reloadQuiet = useCallback(() => {
+    refresh();
+    absorb();
+  }, [refresh, absorb]);
 
   useEffect(() => {
     reload();
@@ -168,6 +187,15 @@ export default function PlotDetailScreen() {
                 onPress={() => router.push(`/report/plot/${plot.id}` as Href)}
                 label={t('report.navTitle')}
               />
+              <RecordEditButtons
+                edit={edit}
+                ended={plot.status === 'done'}
+                onChanged={() => {
+                  setRev((n) => n + 1);
+                  reload();
+                }}
+              />
+              {plot.status === 'done' && !edit.locked ? null : (
               <HeaderIconButton
                 icon={plot.status === 'done' ? 'refresh-outline' : 'stop-circle-outline'}
                 // 結束 is the destructive half of this toggle; 繼續 is not.
@@ -186,29 +214,27 @@ export default function PlotDetailScreen() {
                     useActiveGloria.getState().refresh();
                     reload();
                   } else {
-                    Alert.alert(
-                      t('plot.endTitle'),
-                      coverCheck.kind === 'total-exceeds-species'
-                        ? `${t('plot.endMsg')}\n\n${t('plot.coverExceedsSpecies', {
-                            total: coverCheck.total,
-                            sum: coverCheck.speciesSum,
-                          })}`
-                        : t('plot.endMsg'),
-                      [
-                      { text: t('common.cancel'), style: 'cancel' },
-                      {
-                        text: t('session.end'),
-                        onPress: () => {
-                          if (isRecordingTarget({ kind: 'plot', id: plot.id })) pauseRecording();
-                          endPlotSurvey(plot.id);
-                          reload();
-                        },
-                      },
-                      ],
-                    );
+                    // The end-time choice doubles as the confirmation; the
+                    // cover warning the old Alert carried rides along as a note.
+                    void chooseEndTime(plot.stop_ts, {
+                      title: t('plot.endTitle'),
+                      note:
+                        coverCheck.kind === 'total-exceeds-species'
+                          ? `${t('plot.endMsg')}\n\n${t('plot.coverExceedsSpecies', {
+                              total: coverCheck.total,
+                              sum: coverCheck.speciesSum,
+                            })}`
+                          : t('plot.endMsg'),
+                    }).then((chosen) => {
+                      if (chosen === undefined) return;
+                      if (isRecordingTarget({ kind: 'plot', id: plot.id })) pauseRecording();
+                      endPlotSurvey(plot.id, chosen);
+                      reload();
+                    });
                   }
                 }}
               />
+              )}
             </View>
           ),
         }}
@@ -229,10 +255,20 @@ export default function PlotDetailScreen() {
             `react-native-keyboard-controller`) which auto-scrolls the focused
             TextInput above the keyboard. PlotSpeciesTab wraps its SearchBox
             in KeyboardStickyView so the search row follows the kbd top. */}
-          {tab === 'env' ? <EnvTab plot={plot} onUpdated={reload} /> : null}
+          {tab === 'env' ? <EnvTab key={rev} plot={plot} onUpdated={reload} locked={edit.locked} /> : null}
           {tab === 'species' ? (
             ready ? (
-              <PlotSpeciesTab plot={plot} onChanged={reload} />
+              <PlotSpeciesTab
+                key={rev}
+                plot={plot}
+                onChanged={reload}
+                lock={{
+                  locked: edit.locked,
+                  refuse: edit.refuse,
+                  deferAudioDelete: edit.deferAudioDelete,
+                  onChangedQuiet: reloadQuiet,
+                }}
+              />
             ) : (
               <SpeciesGateScreen />
             )
@@ -285,11 +321,6 @@ function TabBtn({
 // Env Tab
 // ─────────────────────────────────────────────────────────────────────
 
-/** HH:MM clock for the point-count start/end time buttons. */
-function fmtClock(ts: number): string {
-  return isoTime(ts);
-}
-
 /** The ground-cover fractions that must add up to 100%. `total_cover_pct` is
  *  NOT one of them — that field lives in 基本資料 and means vegetation cover
  *  overall, not a share of the ground surface. */
@@ -304,7 +335,16 @@ const COVER_KEYS = [
 ] as const;
 type CoverKey = (typeof COVER_KEYS)[number];
 
-function EnvTab({ plot, onUpdated }: { plot: PlotSurvey; onUpdated: () => void }) {
+function EnvTab({
+  plot,
+  onUpdated,
+  locked,
+}: {
+  plot: PlotSurvey;
+  onUpdated: () => void;
+  /** Finished and not unlocked: shown, not editable (touches still scroll). */
+  locked: boolean;
+}) {
   const router = useRouter();
   const boundary = usePlotBoundary(plot.site_id);
   const coverCheck = useMemo(
@@ -398,6 +438,8 @@ function EnvTab({ plot, onUpdated }: { plot: PlotSurvey; onUpdated: () => void }
       keyboardShouldPersistTaps="handled"
       bottomOffset={24}
     >
+      {locked ? <LockedBanner /> : null}
+      <View pointerEvents={locked ? 'none' : 'auto'}>
       <Section title={t('plot.required')} required>
         <Field label="Plotid" value={plot.plotid} onSave={(v) => patch({ plotid: v })} required />
 
@@ -505,33 +547,20 @@ function EnvTab({ plot, onUpdated }: { plot: PlotSurvey; onUpdated: () => void }
                 patch({ point_radius_m: Number.isFinite(n as number) ? (n as number) : null });
               }}
             />
-            <View className="mt-3 rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900">
-              <Text className="text-xs font-medium text-gray-600 dark:text-gray-400">
-                {t('plot.countTime')}
-              </Text>
-              <View className="mt-2 flex-row gap-2">
-                <Pressable
-                  onPress={() => patch({ start_ts: Date.now() })}
-                  className="flex-1 flex-row items-center justify-center rounded-md bg-gray-100 px-3 py-2 active:opacity-70 dark:bg-gray-800"
-                >
-                  <Ionicons name="play" size={14} color="#16a34a" />
-                  <Text className="ml-1 text-xs text-gray-700 dark:text-gray-300">
-                    {t('plot.startLabel')} {plot.start_ts ? fmtClock(plot.start_ts) : '—'}
-                  </Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => patch({ stop_ts: Date.now() })}
-                  className="flex-1 flex-row items-center justify-center rounded-md bg-gray-100 px-3 py-2 active:opacity-70 dark:bg-gray-800"
-                >
-                  <Ionicons name="stop" size={14} color="#dc2626" />
-                  <Text className="ml-1 text-xs text-gray-700 dark:text-gray-300">
-                    {t('plot.stopLabel')} {plot.stop_ts ? fmtClock(plot.stop_ts) : '—'}
-                  </Text>
-                </Pressable>
-              </View>
-            </View>
           </>
         ) : null}
+        {/* Start / end: typed by hand for old field sheets, or set to now. For a
+            point count they are the count's own time. */}
+        <View className="mt-3 rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900">
+          <Text className="mb-2 text-xs font-medium text-gray-600 dark:text-gray-400">
+            {plot.plot_type === 'point_count' ? t('plot.countTime') : t('surveyTime.title')}
+          </Text>
+          <SurveyTimeFields
+            start={plot.start_ts}
+            end={plot.stop_ts}
+            onChange={(which, ts) => patch(which === 'start' ? { start_ts: ts } : { stop_ts: ts })}
+          />
+        </View>
 
         <View className="mb-3">
           <Text className="mb-1 text-xs font-medium text-gray-600 dark:text-gray-400">
@@ -755,6 +784,7 @@ function EnvTab({ plot, onUpdated }: { plot: PlotSurvey; onUpdated: () => void }
           setSurveyorSheetOpen(false);
         }}
       />
+      </View>
     </KeyboardAwareScrollView>
   );
 }

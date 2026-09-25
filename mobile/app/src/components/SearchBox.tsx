@@ -1,7 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
-import { memo, useEffect, useRef, useState, type ReactNode } from 'react';
+import { memo, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FlatList, Keyboard, Pressable, Text, TextInput, View } from 'react-native';
+import { FlatList, Keyboard, Pressable, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { HeaderHeightContext } from '@react-navigation/elements';
+import { useKeyboardState } from 'react-native-keyboard-controller';
 import {
   onDatasetsChanged,
   prewarmFuzzyIndex,
@@ -258,10 +260,24 @@ export function SearchBox({
 
   const dropdown = layout === 'dropdown';
 
+  // Docked, the suggestions grow UP from the input. With the keyboard up the
+  // room above is only window − keyboard − navigation header − this box's own
+  // chrome (group filter + input); a fixed max height could run the first
+  // rows in under the header (GLORIA unit screens, small phones), so cap it.
+  const headerHeight = useContext(HeaderHeightContext) ?? 0;
+  const { height: windowHeight } = useWindowDimensions();
+  const keyboardHeight = useKeyboardState((k) => (k.isVisible ? k.height : 0));
+  const [chromeHeight, setChromeHeight] = useState(0);
+  const listCap =
+    !dropdown && keyboardHeight > 0
+      ? Math.max(96, windowHeight - headerHeight - keyboardHeight - chromeHeight - 8)
+      : undefined;
+
   const suggestions =
     results.length > 0 ? (
       <View
         className={`${dropdown ? 'max-h-56 border-t' : 'max-h-72 border-b'} border-gray-100 dark:border-gray-800`}
+        style={listCap != null ? { maxHeight: Math.min(288, listCap) } : undefined}
       >
         <FlatList
           data={results}
@@ -364,8 +380,10 @@ export function SearchBox({
       ) : (
         <>
           {suggestions}
-          {picker}
-          {input}
+          <View onLayout={(e) => setChromeHeight(e.nativeEvent.layout.height)}>
+            {picker}
+            {input}
+          </View>
         </>
       )}
     </View>

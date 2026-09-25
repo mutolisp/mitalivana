@@ -697,7 +697,25 @@ export default function RecordsListScreen() {
    * own career series, and merging two trips would have to re-issue numbers
    * already written on the physical sheets.
    */
-  const handleMergeSelection = () => {
+  /**
+   * Ended checklists, plots and collection trips are locked (src/lib/useRecordEditing).
+   * Deleting or merging one here first asks to unlock it; GLORIA surveys have
+   * their own per-unit locks and are not covered.
+   */
+  const unlockThen = (items: RecordItem[], run: () => void) => {
+    const locked = items.filter((it) => it.kind !== 'gloria' && !it.active).length;
+    if (locked === 0) {
+      run();
+      return;
+    }
+    Alert.alert(t('recordLock.listLockedTitle', { count: locked }), t('recordLock.listLockedMsg'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('recordLock.unlockAndContinue'), style: 'destructive', onPress: run },
+    ]);
+  };
+
+  const handleMergeSelection = () => unlockThen(selectedItems, mergeSelection);
+  const mergeSelection = () => {
     const picked = selectedItems;
     if (picked.length < 2) {
       toast(t('records.mergeNeedTwo'));
@@ -825,6 +843,9 @@ export default function RecordsListScreen() {
       toast(t('records.noneSelected'));
       return;
     }
+    unlockThen(picked, () => deleteSelection(picked));
+  };
+  const deleteSelection = (picked: RecordItem[]) => {
     const rows = picked.reduce((sum, it) => sum + it.recordCount, 0);
     Alert.alert(
       t('records.deleteSelectedTitle', { count: picked.length }),
@@ -881,7 +902,8 @@ export default function RecordsListScreen() {
     });
   };
 
-  const handleDelete = (item: RecordItem) => {
+  const handleDelete = (item: RecordItem) => unlockThen([item], () => deleteOne(item));
+  const deleteOne = (item: RecordItem) => {
     const noun = nounOf(item.kind);
     Alert.alert(
       t('records.deleteTitle', { noun }),

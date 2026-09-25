@@ -1273,7 +1273,7 @@ export default function MapScreen() {
           ? PLOT_ACTIVE_COLOR
           : PLOT_COLOR
         : sessionBySiteId.has(site.id)
-          ? sessionBySiteId.get(site.id)?.ended_at === null
+          ? sessionBySiteId.get(site.id)?.status === 'active'
             ? SESSION_ACTIVE_COLOR
             : SESSION_COLOR
           : SITE_COLOR,
@@ -1634,7 +1634,7 @@ export default function MapScreen() {
           ? PLOT_ACTIVE_COLOR
           : PLOT_COLOR
         : sessionOwner
-          ? sessionOwner.ended_at === null
+          ? sessionOwner.status === 'active'
             ? SESSION_ACTIVE_COLOR
             : SESSION_COLOR
           : SITE_COLOR;

@@ -214,12 +214,19 @@ export function createCollectionTrip(input: CreateTripInput = {}): number {
   return res.insertId ?? 0;
 }
 
-export function endCollectionTrip(id: number): void {
+/**
+ * `endTs`: the end time the user chose (src/lib/endTimeChoice) — a time, or
+ * null to leave it blank. Omitted (automatic endings): keep an existing time,
+ * otherwise now.
+ */
+export function endCollectionTrip(id: number, endTs?: number | null): void {
   const db = getUserDb();
   const now = Date.now();
   db.executeSync(
-    `UPDATE collection_trips SET status = 'done', ended_at = COALESCE(ended_at, ?), updated_at = ? WHERE id = ?`,
-    [now, now, id],
+    endTs === undefined
+      ? `UPDATE collection_trips SET status = 'done', ended_at = COALESCE(ended_at, ?), updated_at = ? WHERE id = ?`
+      : `UPDATE collection_trips SET status = 'done', ended_at = ?, updated_at = ? WHERE id = ?`,
+    [endTs === undefined ? now : endTs, now, id],
   );
 }
 
@@ -231,7 +238,8 @@ export function reopenCollectionTrip(id: number): void {
     [now, now, id],
   );
   db.executeSync(
-    `UPDATE collection_trips SET status = 'active', ended_at = NULL, updated_at = ? WHERE id = ?`,
+    // The end time stays: finishing again asks whether to keep it or use now.
+    `UPDATE collection_trips SET status = 'active', updated_at = ? WHERE id = ?`,
     [now, id],
   );
 }
@@ -784,11 +792,8 @@ function importCollectionTripTx(
   // An imported trip is always finished. `status` is collection-local and does
   // not gate the app-wide single-active invariant, but an import that arrived
   // as 'active' would still hijack every later "add to collection".
-  const lastCollected = data.specimens.reduce(
-    (max, s) => (s.collected_at != null && s.collected_at > max ? s.collected_at : max),
-    0,
-  );
-  const endedAt = data.ended_at ?? (Math.max(data.started_at, lastCollected) || now);
+  // A blank end time is kept blank (v54: finished no longer needs one).
+  const endedAt = data.ended_at ?? null;
 
   const res = db.executeSync(
     `INSERT INTO collection_trips (

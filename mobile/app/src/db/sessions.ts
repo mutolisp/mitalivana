@@ -20,7 +20,11 @@ export type Session = {
   /** Optional reference to a pre-defined site (plot/transect/point). NULL for ad-hoc sessions. */
   site_id: number | null;
   started_at: number;
+  /** The survey's end time — plain data the user can type or leave blank
+   *  (v54). Whether the session is still open is `status`, not this. */
   ended_at: number | null;
+  /** 'active' | 'done' (v54). Before v54, active meant `ended_at IS NULL`. */
+  status: 'active' | 'done';
   /** Most recent time the session was reopened (status: done → active). Used
    *  by `StaleSessionWatcher` so reopening an old session doesn't immediately
    *  re-fire the "open for N hours" alert. */
@@ -50,7 +54,7 @@ function defaultSessionName(now: Date = new Date()): string {
 export function getActiveSession(): Session | null {
   const db = getUserDb();
   const res = db.executeSync(
-    `SELECT * FROM sessions WHERE ended_at IS NULL ORDER BY started_at DESC LIMIT 1`,
+    `SELECT * FROM sessions WHERE status = 'active' ORDER BY started_at DESC LIMIT 1`,
   );
   const rows = (res.rows ?? []) as unknown as Session[];
   return rows[0] ?? null;
@@ -95,7 +99,10 @@ export type CreateSessionInput = {
  */
 export function endAllActiveSessions(): void {
   const db = getUserDb();
-  db.executeSync(`UPDATE sessions SET ended_at = ? WHERE ended_at IS NULL`, [Date.now()]);
+  db.executeSync(
+    `UPDATE sessions SET status = 'done', ended_at = COALESCE(ended_at, ?) WHERE status = 'active'`,
+    [Date.now()],
+  );
 }
 
 export function createSession(input: CreateSessionInput = {}): number {
@@ -125,13 +132,22 @@ export function createSession(input: CreateSessionInput = {}): number {
   return res.insertId ?? 0;
 }
 
+/**
+ * `endTs`: the end time the user chose (src/lib/endTimeChoice) — a time, or
+ * null to leave it blank. Omitted (automatic endings): keep an existing time,
+ * otherwise now.
+ */
 export function endSession(
   id: number,
   updates: Partial<Pick<Session, 'name' | 'project_id' | 'notes'>> = {},
+  endTs?: number | null,
 ): void {
   const db = getUserDb();
-  const fields: string[] = ['ended_at = ?'];
-  const params: (string | number | null)[] = [Date.now()];
+  const fields: string[] = [
+    `status = 'done'`,
+    endTs === undefined ? 'ended_at = COALESCE(ended_at, ?)' : 'ended_at = ?',
+  ];
+  const params: (string | number | null)[] = [endTs === undefined ? Date.now() : endTs];
   for (const [k, v] of Object.entries(updates)) {
     fields.push(`${k} = ?`);
     params.push(v as string | number | null);
@@ -174,7 +190,8 @@ export function reopenSession(id: number): void {
   const db = getUserDb();
   const now = Date.now();
   closeActiveRecords(db, now, { kind: 'session', id });
-  db.executeSync(`UPDATE sessions SET ended_at = NULL, resumed_at = ? WHERE id = ?`, [now, id]);
+  // The end time stays: finishing again asks whether to keep it or use now.
+  db.executeSync(`UPDATE sessions SET status = 'active', resumed_at = ? WHERE id = ?`, [now, id]);
 }
 
 // ── Session round-trip import (v27+) ───────────────────────────────────────
@@ -258,7 +275,6 @@ function importSessionTx(
   },
 ): { sessionId: number; name: string } {
   const db = getUserDb();
-  const now = Date.now();
   const uuid = opts.newUuid ? generateUuid() : data.uuid;
   const resolveMedia = (
     files: string[] | undefined,
@@ -291,20 +307,17 @@ function importSessionTx(
 
   const projectId = resolveProjectIdByName(data.project_name, { create: true });
 
-  // Sessions have no `status`: being active IS `ended_at IS NULL`. An imported
+  // Imported as done: an imported
   // record must never take the single-active slot (and must not end the user's
   // in-progress one either, so this deliberately skips endAllActiveSessions).
-  const lastObserved = data.records.reduce(
-    (max, r) => (r.observed_at != null && r.observed_at > max ? r.observed_at : max),
-    0,
-  );
-  const endedAt = data.ended_at ?? (Math.max(data.started_at, lastObserved) || now);
+  // A blank end time is kept blank (v54: finished no longer needs one).
+  const endedAt = data.ended_at ?? null;
 
   const res = db.executeSync(
     `INSERT INTO sessions (
        uuid, name, type, project_id, started_at, ended_at, gps_mode,
-       start_lat, start_lng, track_geojson, notes, recorded_by
-     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       start_lat, start_lng, track_geojson, notes, recorded_by, status
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'done')`,
     [
       uuid,
       data.name,
@@ -405,8 +418,8 @@ function duplicateSessionTx(id: number, opts: DuplicateRecordOptions): number | 
   }
 
   const res = db.executeSync(
-    `INSERT INTO sessions (uuid, name, type, project_id, recorded_by, gps_mode, notes, started_at, ended_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO sessions (uuid, name, type, project_id, recorded_by, gps_mode, notes, started_at, ended_at, status)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       generateUuid(),
       name,
@@ -420,6 +433,7 @@ function duplicateSessionTx(id: number, opts: DuplicateRecordOptions): number | 
       opts.includeEnv ? source.notes : null,
       now,
       opts.activate ? null : now,
+      opts.activate ? 'active' : 'done',
     ],
   );
   const newId = res.insertId ?? 0;
@@ -499,8 +513,8 @@ function mergeSessionsTx(ids: number[], opts: MergeRecordOptions): number | null
   const res = db.executeSync(
     `INSERT INTO sessions
        (uuid, name, type, project_id, site_id, recorded_by, gps_mode,
-        start_lat, start_lng, track_geojson, notes, started_at, ended_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        start_lat, start_lng, track_geojson, notes, started_at, ended_at, status)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'done')`,
     [
       generateUuid(),
       name,

@@ -131,7 +131,7 @@ function buildAdapter(target: RecordTarget): RecorderAdapter {
     // A session is open while it has no end time.
     isLive: () => {
       const s = getSession(target.id);
-      return s != null && s.ended_at == null;
+      return s != null && s.status === 'active';
     },
   };
 }

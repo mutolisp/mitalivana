@@ -26,9 +26,11 @@ import {
 import { ALL_UNITS, DIRECTIONS, POINTS, type Direction, type P5mCorner, type UnitType } from './model/units';
 import { planPrefill, nextSerial, type PrevSurvey } from './model/prefill';
 import type { WalkOption } from './model/walk';
+import { nextMinute, onDay } from './model/quadratTimes';
+import { bySpeciesOrder } from './model/speciesOrder';
 import type { SummitDiff } from './model/summitImport';
 import type { GloriaDoc } from './export/yaml';
-import { UNIT_FIELDS, buildGloriaDoc } from './export/yaml';
+import { SPECIES_FIELDS, UNIT_FIELDS, buildGloriaDoc } from './export/yaml';
 import type { GloriaExportData } from './export/sheetRows';
 
 // ── Row types ─────────────────────────────────────────────────────────────
@@ -102,6 +104,9 @@ export type GloriaUnit = {
   freq_stop_manual: number;
   /** 1 while the frequency is marked done and locked against edits. */
   freq_locked: number;
+  /** 1 while the unit (a quadrat's cover estimate; a whole SAS / square) is
+   *  done and locked (v54). Before v54 done meant `stop_ts` set. */
+  done_locked: number;
   /** Point-framing of a 1×1 m quadrat: its own start / end and lock (v53). */
   pf_start_ts: number | null;
   pf_stop_ts: number | null;
@@ -169,6 +174,8 @@ export type GloriaUnitSpecies = {
   reproductive_condition: string | null;
   leaf_phenology: string | null;
   comments: string | null;
+  /** Position in the unit's list, set by dragging (v55); null = never reordered. */
+  sort_order: number | null;
   created_at: number;
   updated_at: number;
 };
@@ -432,11 +439,18 @@ export function createGloriaSurvey(input: CreateGloriaInput): number {
   });
 }
 
-export function endGloriaSurvey(id: number): void {
+/**
+ * `endTs`: the end time the user chose (src/lib/endTimeChoice) — a time, or
+ * null to leave it blank. Omitted (automatic endings): keep an existing time,
+ * otherwise now.
+ */
+export function endGloriaSurvey(id: number, endTs?: number | null): void {
   const now = Date.now();
   getUserDb().executeSync(
-    `UPDATE gloria_surveys SET status = 'done', stop_ts = COALESCE(stop_ts, ?), updated_at = ? WHERE id = ?`,
-    [now, now, id],
+    endTs === undefined
+      ? `UPDATE gloria_surveys SET status = 'done', stop_ts = COALESCE(stop_ts, ?), updated_at = ? WHERE id = ?`
+      : `UPDATE gloria_surveys SET status = 'done', stop_ts = ?, updated_at = ? WHERE id = ?`,
+    [endTs === undefined ? now : endTs, now, id],
   );
 }
 
@@ -445,7 +459,8 @@ export function reopenGloriaSurvey(id: number): void {
     const db = getUserDb();
     const now = Date.now();
     closeActiveRecords(db, now, { kind: 'gloria', id });
-    db.executeSync(`UPDATE gloria_surveys SET status = 'active', stop_ts = NULL, updated_at = ? WHERE id = ?`, [now, id]);
+    // The end time stays: finishing again asks whether to keep it or use now.
+    db.executeSync(`UPDATE gloria_surveys SET status = 'active', updated_at = ? WHERE id = ?`, [now, id]);
   });
 }
 
@@ -613,6 +628,29 @@ export function ensureRosterTaxon(surveyId: number, taxonId: string): number {
   return Number(res.insertId);
 }
 
+/**
+ * The position for a species added to a unit now: after every species already
+ * there, in the order the user sees them. Without it the list fell back to
+ * roster serial, so a species first met in another unit (lower serial) was
+ * slotted in above ones added before it. Rows without a position yet (from
+ * before v55) get theirs first, in their current order.
+ */
+function nextUnitPosition(unitId: number): number {
+  const db = getUserDb();
+  const have = rows<{ id: number; sort_order: number | null; serial: number }>(
+    db.executeSync(
+      `SELECT us.id, us.sort_order, t.serial FROM gloria_unit_species us
+         JOIN gloria_taxa t ON t.id = us.gloria_taxon_id WHERE us.unit_id = ?`,
+      [unitId],
+    ),
+  ).sort(bySpeciesOrder);
+  if (have.some((r) => r.sort_order == null)) {
+    have.forEach((r, i) => db.executeSync(`UPDATE gloria_unit_species SET sort_order = ? WHERE id = ?`, [i, r.id]));
+    return have.length;
+  }
+  return have.reduce((m, r) => Math.max(m, (r.sort_order as number) + 1), 0);
+}
+
 /** Add a taxon to a unit (and to the survey roster). An existing row is returned as is. */
 export function addUnitSpecies(unitId: number, taxonId: string): number {
   return withTransaction(() => {
@@ -631,14 +669,15 @@ export function addUnitSpecies(unitId: number, taxonId: string): number {
       db.executeSync(`SELECT freq_start_ts, point_surface FROM gloria_units WHERE id = ?`, [unitId]),
     )[0];
     const res = db.executeSync(
-      `INSERT INTO gloria_unit_species (unit_id, gloria_taxon_id, occurrence_id, freq_cells, point_hits, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO gloria_unit_species (unit_id, gloria_taxon_id, occurrence_id, freq_cells, point_hits, sort_order, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         unitId,
         gid,
         generateUuid(),
         u?.freq_start_ts != null ? '0'.repeat(100) : null,
         u?.point_surface != null ? '0'.repeat(u.point_surface.length) : null,
+        nextUnitPosition(unitId),
         now,
         now,
       ],
@@ -711,6 +750,20 @@ export function getUnitSpecies(id: number): (GloriaUnitSpeciesWithTaxon & { unit
  * Frequency counting has begun on a quadrat: stamp the start, and turn every
  * blank mask (species and the three grazing rows) into "done, nothing yet".
  */
+/**
+ * Where a quadrat's frequency starts when nothing says otherwise: the minute
+ * after the cover estimate ended, or — cover started but not ended — that
+ * day at the current clock time; otherwise now (model/quadratTimes).
+ */
+function frequencyStartDefault(unitId: number, now: number): number {
+  const u = rows<{ start_ts: number | null; stop_ts: number | null }>(
+    getUserDb().executeSync(`SELECT start_ts, stop_ts FROM gloria_units WHERE id = ?`, [unitId]),
+  )[0];
+  if (u?.stop_ts != null) return nextMinute(u.stop_ts);
+  if (u?.start_ts != null) return onDay(now, u.start_ts);
+  return now;
+}
+
 export function startFrequency(unitId: number): void {
   withTransaction(() => {
     const db = getUserDb();
@@ -719,7 +772,7 @@ export function startFrequency(unitId: number): void {
     db.executeSync(
       `UPDATE gloria_units SET freq_mode = 'cells', freq_start_ts = COALESCE(freq_start_ts, ?), dist_hi1 = COALESCE(dist_hi1, ?),
          dist_hi2 = COALESCE(dist_hi2, ?), dist_hi3 = COALESCE(dist_hi3, ?), updated_at = ? WHERE id = ?`,
-      [now, zero, zero, zero, now, unitId],
+      [frequencyStartDefault(unitId, now), zero, zero, zero, now, unitId],
     );
     db.executeSync(`UPDATE gloria_unit_species SET freq_cells = ? WHERE unit_id = ? AND freq_cells IS NULL`, [zero, unitId]);
   });
@@ -750,7 +803,7 @@ export function setFrequencyMode(unitId: number, mode: 'cells' | 'count', opts: 
       db.executeSync(
         `UPDATE gloria_units SET freq_mode = 'count', dist_hi1 = NULL, dist_hi2 = NULL, dist_hi3 = NULL,
            freq_start_ts = COALESCE(freq_start_ts, ?), updated_at = ? WHERE id = ?`,
-        [now, now, unitId],
+        [frequencyStartDefault(unitId, now), now, unitId],
       );
       db.executeSync(`UPDATE gloria_unit_species SET freq_cells = NULL WHERE unit_id = ?`, [unitId]);
     } else {
@@ -781,14 +834,22 @@ export function startPoints(unitId: number, size: number): void {
 }
 
 /**
- * Mark point recording done (locked, end time now) or reopen it. On a 1×1 m
- * quadrat that is the point-framing (pf_*); on a 10×10 m square the walk is
- * the whole unit, so it is the unit's own done (stop_ts).
+ * Lock / unlock with the end time the user chose (src/lib/endTimeChoice): a
+ * time, or null to leave it blank. Unlocking keeps the end time as it is.
  */
-export function setPointsLocked(unitId: number, locked: boolean): void {
+export function setUnitDone(unitId: number, locked: boolean, endTs: number | null = null): void {
+  updateUnit(unitId, locked ? { done_locked: 1, stop_ts: endTs } : { done_locked: 0 });
+}
+
+/**
+ * Mark point recording done or reopen it. On a 1×1 m quadrat that is the
+ * point-framing (pf_*); on a 10×10 m square the walk is the whole unit, so it
+ * is the unit's own done.
+ */
+export function setPointsLocked(unitId: number, locked: boolean, endTs: number | null = null): void {
   const type = rows<{ unit_type: string }>(getUserDb().executeSync(`SELECT unit_type FROM gloria_units WHERE id = ?`, [unitId]))[0]?.unit_type;
-  if (type === 'quadrat') updateUnit(unitId, { pf_locked: locked ? 1 : 0, pf_stop_ts: locked ? Date.now() : null });
-  else updateUnit(unitId, { stop_ts: locked ? Date.now() : null });
+  if (type !== 'quadrat') return setUnitDone(unitId, locked, endTs);
+  updateUnit(unitId, locked ? { pf_locked: 1, pf_stop_ts: endTs } : { pf_locked: 0 });
 }
 
 /**
@@ -831,20 +892,37 @@ export function restoreUnitSnapshot(snap: UnitSnapshot): void {
 }
 
 /**
- * Mark a quadrat's frequency done (locked, end time now — pressing 完成 is the
- * user saying "finished now", so it also replaces a hand-set end) or reopen it.
+ * Mark a quadrat's frequency done with the end time the user chose, or reopen
+ * it. The chosen time counts as set by hand: later edits no longer move it.
  */
-export function setFrequencyLocked(unitId: number, locked: boolean): void {
-  updateUnit(unitId, locked ? { freq_locked: 1, freq_stop_ts: Date.now(), freq_stop_manual: 0 } : { freq_locked: 0 });
+export function setFrequencyLocked(unitId: number, locked: boolean, endTs: number | null = null): void {
+  updateUnit(unitId, locked ? { freq_locked: 1, freq_stop_ts: endTs, freq_stop_manual: 1 } : { freq_locked: 0 });
 }
 
-/** A frequency edit happened now: move the end time, unless the user fixed it by hand. */
+/**
+ * A frequency edit happened now: move the end time, unless the user fixed it
+ * by hand — or the frequency is dated another day (an old sheet being typed
+ * in, whose end is not today either).
+ */
 export function touchFrequency(unitId: number): void {
-  getUserDb().executeSync(`UPDATE gloria_units SET freq_stop_ts = ? WHERE id = ? AND freq_stop_manual = 0`, [Date.now(), unitId]);
+  const now = Date.now();
+  const start = rows<{ freq_start_ts: number | null }>(
+    getUserDb().executeSync(`SELECT freq_start_ts FROM gloria_units WHERE id = ?`, [unitId]),
+  )[0]?.freq_start_ts;
+  if (start != null && onDay(start, now) !== start) return;
+  getUserDb().executeSync(`UPDATE gloria_units SET freq_stop_ts = ? WHERE id = ? AND freq_stop_manual = 0`, [now, unitId]);
 }
 
 export function markUnitStarted(unitId: number): void {
   getUserDb().executeSync(`UPDATE gloria_units SET start_ts = ? WHERE id = ? AND start_ts IS NULL`, [Date.now(), unitId]);
+}
+
+/** Save a unit's species order: `ids` in their new order. */
+export function setUnitSpeciesOrder(ids: number[]): void {
+  withTransaction(() => {
+    const db = getUserDb();
+    ids.forEach((id, i) => db.executeSync(`UPDATE gloria_unit_species SET sort_order = ? WHERE id = ?`, [i, id]));
+  });
 }
 
 export function removeUnitSpecies(id: number): void {
@@ -922,6 +1000,7 @@ export function loadExportData(surveyId: number): GloriaExportData | null {
       unit_code: s.unit_code,
       occurrence_id: s.occurrence_id,
       serial: s.serial,
+      sort_order: s.sort_order,
       cover_pct: s.cover_pct,
       abundance: s.abundance,
       freq_cells: s.freq_cells,
@@ -1025,6 +1104,10 @@ export function importGloriaDoc(doc: GloriaDoc, projectId = 0): GloriaImportResu
         [surveyId, ...cols.map((k) => (u[k] ?? null) as Scalar)],
       );
       unitId.set(u.code, Number(r.insertId));
+      // Files from before v54 say "done" only through stop_ts.
+      if (!('done_locked' in u) && u.stop_ts != null) {
+        db.executeSync(`UPDATE gloria_units SET done_locked = 1 WHERE id = ?`, [Number(r.insertId)]);
+      }
     }
     const taxonRow = new Map<number, number>();
     for (const t of doc.taxa) {
@@ -1040,12 +1123,16 @@ export function importGloriaDoc(doc: GloriaDoc, projectId = 0): GloriaImportResu
       const uid = unitId.get(s.unit);
       const gid = taxonRow.get(s.serial);
       if (uid == null || gid == null) throw new Error(`species ${s.occurrence_id} refers to a missing unit or taxon`);
+      // The same column list the export writes (SPECIES_FIELDS), so a column
+      // added there is restored here too; missing keys (older yml) become NULL.
+      const cols = SPECIES_FIELDS as readonly string[];
+      const rec = s as unknown as Record<string, unknown>;
+      const val = (k: string): Scalar =>
+        (k === 'created_at' || k === 'updated_at' ? (rec[k] ?? sv.start_ts) : (rec[k] ?? null)) as Scalar;
       db.executeSync(
-        `INSERT INTO gloria_unit_species (unit_id, gloria_taxon_id, occurrence_id, cover_pct, abundance, layer, cf,
-           freq_cells, freq_count, point_hits, legacy_hits, reproductive_condition, leaf_phenology, comments, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [uid, gid, s.occurrence_id, s.cover_pct, s.abundance, s.layer, s.cf, s.freq_cells, s.freq_count ?? null, s.point_hits,
-          s.legacy_hits, s.reproductive_condition ?? null, s.leaf_phenology ?? null, s.comments, s.created_at ?? sv.start_ts, s.updated_at ?? sv.start_ts],
+        `INSERT INTO gloria_unit_species (unit_id, gloria_taxon_id, ${cols.join(', ')})
+         VALUES (?, ?, ${cols.map(() => '?').join(', ')})`,
+        [uid, gid, ...cols.map(val)],
       );
     }
     for (const c of doc.photo_checks ?? []) {

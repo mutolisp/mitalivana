@@ -18,7 +18,10 @@ export type ActiveKind = 'session' | 'plot' | 'gloria';
 /** End every open record except `keep` (the one about to be opened or reopened). */
 export function closeActiveRecords(db: Db, now: number, keep?: { kind: ActiveKind; id: number }): void {
   const except = (kind: ActiveKind) => (keep?.kind === kind ? keep.id : -1);
-  db.executeSync(`UPDATE sessions SET ended_at = ? WHERE ended_at IS NULL AND id != ?`, [now, except('session')]);
+  db.executeSync(
+    `UPDATE sessions SET status = 'done', ended_at = COALESCE(ended_at, ?) WHERE status = 'active' AND id != ?`,
+    [now, except('session')],
+  );
   db.executeSync(
     `UPDATE plot_surveys SET status = 'done', stop_ts = COALESCE(stop_ts, ?), updated_at = ?
       WHERE status = 'active' AND id != ?`,
@@ -34,7 +37,7 @@ export function closeActiveRecords(db: Db, now: number, keep?: { kind: ActiveKin
 /** End one record of any kind. */
 export function endActiveRecord(db: Db, now: number, kind: ActiveKind, id: number): void {
   if (kind === 'session') {
-    db.executeSync(`UPDATE sessions SET ended_at = ? WHERE id = ?`, [now, id]);
+    db.executeSync(`UPDATE sessions SET status = 'done', ended_at = COALESCE(ended_at, ?) WHERE id = ?`, [now, id]);
   } else {
     const table = kind === 'plot' ? 'plot_surveys' : 'gloria_surveys';
     db.executeSync(
