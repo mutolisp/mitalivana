@@ -25,9 +25,14 @@ import { planPrefill, nextSerial } from '../src/modules/gloria/model/prefill.ts'
 import { photoFileName, planPhotoNames } from '../src/modules/gloria/export/photoNames.ts';
 import { RANGES, checkRange } from '../src/modules/gloria/model/ranges.ts';
 import {
-  H12_13_1X1_SP_FREQ, H14_1X1_DISTURBANCE, H22_SAS_SP, H32_10X10_SP, SAS_ABUNDANCE_CODE,
+  H00_PLOT_COORDINATES, H02_POINTS, H12_13_1X1_SP_FREQ, H14_1X1_DISTURBANCE, H22_SAS_SP, H32_10X10_SP, SAS_ABUNDANCE_CODE,
 } from '../src/modules/gloria/export/sheetHeaders.ts';
-import { buildSheetTables } from '../src/modules/gloria/export/sheetRows.ts';
+import { buildSheetTables, summitRow, pointRows, toCsv } from '../src/modules/gloria/export/sheetRows.ts';
+import { parseCsv, tableToSummits, diffSummits } from '../src/modules/gloria/model/summitImport.ts';
+import { readXlsxFirstSheet } from '../src/lib/xlsxRead.ts';
+import { photoItems, checklistState } from '../src/modules/gloria/model/photoChecks.ts';
+import { pointKeyOf, tableToPoints, rowsBySummitCycle, diffPoints } from '../src/modules/gloria/model/pointImport.ts';
+import { strToU8, zipSync } from 'fflate';
 import { element8, parseOverviewPhotos } from '../src/modules/gloria/model/overview.ts';
 
 let failures = 0;
@@ -224,6 +229,7 @@ eq('distance 9.9 / 150.1 warn but are kept', [9.9, 150.1].map((v) => checkRange(
 eq('negative distance refused', checkRange(-2, RANGES.distance), 'reject');
 eq('blank is ok', checkRange(null, RANGES.distance), 'ok');
 eq('cover 100.5 refused', checkRange(100.5, RANGES.percent), 'reject');
+eq('mocy: 1 and 99 ok, 0 / 100 / 2.5 refused', [1, 99, 0, 100, 2.5].map((v) => checkRange(v, RANGES.mocy)), ['ok', 'ok', 'reject', 'reject', 'reject']);
 eq('cell count: 37 ok, 37.5 refused, 101 refused', [37, 37.5, 101].map((v) => checkRange(v, RANGES.cells)), ['ok', 'reject', 'reject']);
 
 // ── sheet headers ──────────────────────────────────────────────────────
@@ -323,6 +329,152 @@ eq('SAS abundance codes (sheet 33_)', SAS_ABUNDANCE_CODE, { d: 1, c: 2, s: 3, r:
   }).find((x) => x.name.startsWith('00'));
   eq('00_: one row in sheet column order, full coordinate precision', t00.rows,
     [['TW-DAS-SUN', 'DAS', 'SUN', '121.058113728349', '', '23.459855882054', '', '255937', '2595207', '3255', 'lower alpine']]);
+}
+
+// ── summit import (CSV / xlsx, sheet 00_ columns) ───────────────────────
+{
+  eq('csv: quotes, doubled quotes, CRLF, BOM',
+    parseCsv('﻿a,b\r\n"x, y","say ""hi"""\r\n\r\n'), [['a', 'b'], ['x, y', 'say "hi"']]);
+  eq('csv: tab separated', parseCsv('a\tb\n1\t2\n'), [['a', 'b'], ['1', '2']]);
+  // Sheet 00_ exactly as downloaded: an empty degree-minute "Longitude" after decimalLongitude.
+  const sheet = [
+    ['fullSummitCode', 'targetRegion', 'summit', 'decimalLongitude', 'Longitude', 'decimalLatitude', 'Latitude', 'twd97x', 'twd97y', 'elevation', 'Vegetation Zone'],
+    ['TW-DAS-SUN', 'DAS', 'SUN', '121.058113728349', '', '23.459855882054', '', '255937', '2595207', '3255', 'lower alpine'],
+    ['TW-DAS-YAT', 'DAS', 'YAT', '121.052963202229', '', '23.455270369605', '', '', '', '3363', 'Upper Alpine'],
+    ['TW-DAS-XX', 'DAS', 'XX', '', '', '', '', '', '', '', ''],
+    ['TW-DAS-SEN', 'DAS', 'SEN', '', '', '95', '', '', '', '', ''],
+    ['TW-DAS-SUN', 'DAS', 'SUN', '', '', '', '', '', '', '', ''],
+    ['TW-HQM-QSS', 'HQM', 'QSS', '', '', '', '', '', '', '3300', 'alpine meadow'],
+  ];
+  const parsed = tableToSummits(sheet);
+  eq('00_: codes, full-precision coordinates, zone normalised',
+    parsed.items.map((i) => [i.full_code, i.decimal_longitude, i.decimal_latitude, i.elevation_m, i.veg_zone]),
+    [['TW-DAS-SUN', 121.058113728349, 23.459855882054, 3255, 'lower alpine'],
+      ['TW-DAS-YAT', 121.052963202229, 23.455270369605, 3363, 'upper alpine'],
+      ['TW-HQM-QSS', null, null, 3300, null]]);
+  eq('00_: bad code, bad latitude, duplicate and unknown zone reported with their line',
+    parsed.problems.map((p) => [p.line, p.message]),
+    [[4, 'badCode'], [5, 'bad_lat'], [6, 'duplicate'], [7, 'unknownZone']]);
+  eq('title row above the header is skipped',
+    tableToSummits([['Taiwan GLORIA'], ['code', 'name'], ['tw-nah-lin', 'Nanhu']]).items.map((i) => [i.full_code, i.name]),
+    [['TW-NAH-LIN', 'Nanhu']]);
+  const diff = diffSummits(
+    [{ id: 1, full_code: 'TW-DAS-SUN', name: null, decimal_latitude: 23.459855882054, decimal_longitude: 121.058113728349, elevation_m: 3250, veg_zone: 'lower alpine' },
+      { id: 2, full_code: 'TW-DAS-YAT', name: 'x', decimal_latitude: 23.455270369605, decimal_longitude: 121.052963202229, elevation_m: 3363, veg_zone: 'upper alpine' }],
+    parsed.items,
+  );
+  eq('diff: changed field listed, blank import cells never a change, unseen code is new',
+    diff.map((d) => [d.item.full_code, d.kind, d.kind === 'changed' ? d.changes.map((c) => `${c.field}:${c.from}→${c.to}`) : null]),
+    [['TW-DAS-SUN', 'changed', ['elevation_m:3250→3255']], ['TW-DAS-YAT', 'same', null], ['TW-HQM-QSS', 'new', null]]);
+
+  // A real .xlsx: shared strings (one rich), an inline string, a number, a skipped column.
+  const X = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
+  const xlsx = zipSync({
+    'xl/workbook.xml': strToU8(`<workbook xmlns="${X}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="00_" sheetId="1" r:id="rId1"/></sheets></workbook>`),
+    'xl/_rels/workbook.xml.rels': strToU8('<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Target="worksheets/sheet1.xml"/></Relationships>'),
+    'xl/sharedStrings.xml': strToU8(`<sst xmlns="${X}"><si><t>fullSummitCode</t></si><si><t>elevation</t></si><si><r><t>TW-DAS-</t></r><r><t>SUN</t></r></si></sst>`),
+    'xl/worksheets/sheet1.xml': strToU8(`<worksheet xmlns="${X}"><sheetData><row r="1"><c r="A1" t="s"><v>0</v></c><c r="C1" t="s"><v>1</v></c></row><row r="2"><c r="A2" t="s"><v>2</v></c><c r="B2" t="inlineStr"><is><t>note</t></is></c><c r="C2"><v>3255</v></c></row></sheetData></worksheet>`),
+  });
+  const rows = readXlsxFirstSheet(xlsx);
+  eq('xlsx: shared, rich and inline strings, numbers, gaps kept in place', rows, [['fullSummitCode', '', 'elevation'], ['TW-DAS-SUN', 'note', '3255']]);
+  eq('xlsx → summits', tableToSummits(rows).items.map((i) => [i.full_code, i.elevation_m]), [['TW-DAS-SUN', 3255]]);
+}
+
+// ── measurement point import (sheet 02_ or just the needed columns) ─────
+{
+  eq('point spellings → key',
+    ['N11', 'p-N11', 'p5m-N31', 'N10m', 'p10m-N', 'NE5', 'pNE-5', 'ne-10', 'X11'].map((s) => pointKeyOf(s)?.key ?? null),
+    ['N11', 'N11', 'N31', 'N10m', 'N10m', 'NE5', 'NE5', 'NE10', null]);
+  eq('direction column + bare point', [pointKeyOf('11', 'W')?.key, pointKeyOf('10m', 'S')?.key, pointKeyOf('5', 'SW')?.key], ['W11', 'S10m', 'SW5']);
+  eq('p5m- prefix marks the p5m corner', [pointKeyOf('p5m-E11').p5m, pointKeyOf('p-E31').p5m], [true, false]);
+
+  // Minimal file: no code, no mocy, p5m as a column.
+  const min = tableToPoints([
+    ['direction', 'point', 'distance', 'compass', 'p5m'],
+    ['N', '11', '26.35', '25', ''],
+    ['N', '31', '27.3', '19', 'TRUE'],
+    ['N', '10m', 'NA', '19', ''],
+    ['E', '99', '1', '1', ''],
+    ['S', '11', '29.4', '400', ''],
+  ]);
+  eq('minimal: rows read, NA is blank', min.rows.map((r) => [r.key, r.distance_m, r.compass_deg, r.p5m]),
+    [['N11', 26.35, 25, null], ['N31', 27.3, 19, true], ['N10m', null, 19, null]]);
+  eq('minimal: bad point and compass > 360 reported', min.problems.map((p) => [p.line, p.message]), [[5, 'badPoint'], [6, 'badCompass']]);
+
+  // Sheet 02_ columns: several summits and cycles in one file.
+  const H = ['id', 'quadratCode', 'country', 'targetRegion', 'summit', 'aspect', 'quadratCluster', 'pointNumber', 'p5m', 'quadrat1x1', 'distance', 'compassDirection', 'mocy', 'comments'];
+  const sheet = tableToPoints([
+    H,
+    ['TW-DAS-SUN-N-p-N11', '', 'TW', 'DAS', 'SUN', 'N', 'main line', 'p-N11', 'FALSE', 'N11', '26.35', '25', '4', ''],
+    ['TW-DAS-SUN-N-p5m-N31', '', 'TW', 'DAS', 'SUN', 'N', 'main line', 'p5m-N31', 'TRUE', 'N31', '27.30', '19', '4', ''],
+    ['TW-DAS-SUN-N-p10m-N', '', 'TW', 'DAS', 'SUN', 'N', 'main line', 'p10m-N', 'FALSE', 'NA', '40.60', '19', '4', 'new pole'],
+    ['TW-DAS-SUN-N-p-N11', '', 'TW', 'DAS', 'SUN', 'N', 'main line', 'p-N11', 'FALSE', 'N11', '26.00', '24', '3', ''],
+    ['TW-DAS-YAT-N-p-N11', '', 'TW', 'DAS', 'YAT', 'N', 'main line', 'p-N11', 'FALSE', 'N11', '10', '10', '4', ''],
+  ]);
+  const sun = rowsBySummitCycle(sheet.rows, 'TW-DAS-SUN');
+  eq('02_: this summit only, cycles newest first, other summits counted', [sun.cycles, sun.other], [[4, 3], 1]);
+  eq('02_: one cycle picked', sun.of(4).map((r) => [r.key, r.distance_m, r.p5m, r.comments]),
+    [['N11', 26.35, false, null], ['N31', 27.3, true, null], ['N10m', 40.6, false, 'new pole']]);
+
+  const stored = [
+    { id: 1, point_key: 'N11', is_p5m: 1, distance_m: 26.35, compass_deg: 26, comments: 'keep me' },
+    { id: 2, point_key: 'N31', is_p5m: 0, distance_m: null, compass_deg: null, comments: null },
+    { id: 3, point_key: 'N10m', is_p5m: 0, distance_m: 40.6, compass_deg: 19, comments: 'old' },
+  ];
+  const d = diffPoints(stored, sun.of(4));
+  eq('diff: fill vs overwrite, blank never clears',
+    d.points.map((p) => [p.key, p.fill, p.changes.map((c) => `${c.field}:${c.from}→${c.to}`)]),
+    [['N11', false, ['compass_deg:26→25']], ['N31', true, ['distance_m:null→27.3', 'compass_deg:null→19']], ['N10m', false, ['comments:old→new pole']]]);
+  eq('diff: p5m corner moves 11 → 31', d.p5m, [{ direction: 'N', from: '11', to: '31' }]);
+  eq('diff: both corners marked p5m is a problem',
+    diffPoints(stored, [{ ...sun.of(4)[0], p5m: true }, sun.of(4)[1]]).problems.map((p) => p.message), ['twoP5m']);
+}
+
+// ── summit / point CSV export reads back through the importers ───────────
+{
+  const sm = { full_code: 'TW-DAS-SUN', country: 'TW', target_region: 'DAS', summit: 'SUN', decimal_latitude: 23.459855882054,
+    decimal_longitude: 121.058113728349, twd97x: null, twd97y: null, elevation_m: 3255, veg_zone: 'lower alpine' };
+  const back = tableToSummits(parseCsv(toCsv(H00_PLOT_COORDINATES, [summitRow(sm)]))).items[0];
+  eq('00_ export → import', [back.full_code, back.decimal_latitude, back.decimal_longitude, back.elevation_m, back.veg_zone],
+    ['TW-DAS-SUN', 23.459855882054, 121.058113728349, 3255, 'lower alpine']);
+  const pts = [
+    { point_key: 'N11', is_p5m: 0, distance_m: 26.35, compass_deg: 25, comments: null, uuid: 'a' },
+    { point_key: 'N31', is_p5m: 1, distance_m: 27.3, compass_deg: 19, comments: 'new pole, "tilted"', uuid: 'b' },
+    { point_key: 'NE5', is_p5m: 0, distance_m: 24.8, compass_deg: 48, comments: null, uuid: 'c' },
+  ];
+  const rows = tableToPoints(parseCsv(toCsv(H02_POINTS, pointRows(sm, 5, pts)))).rows.filter((r) => r.distance_m != null);
+  eq('02_ export → import: keys, values, p5m, cycle, quoted comment',
+    rows.map((r) => [r.full_code, r.mocy, r.key, r.distance_m, r.compass_deg, r.p5m, r.comments]),
+    [['TW-DAS-SUN', 5, 'N11', 26.35, 25, false, null], ['TW-DAS-SUN', 5, 'N31', 27.3, 19, true, 'new pole, "tilted"'],
+      ['TW-DAS-SUN', 5, 'NE5', 24.8, 48, false, null]]);
+}
+
+// ── photo checklist (Form 1 photo checkboxes; manual §4.4) ──────────────
+{
+  const items = photoItems();
+  eq('checklist: 54 obligatory, 64 optional quarters',
+    [items.filter((i) => i.required).length, items.filter((i) => !i.required).length], [54, 64]);
+  eq('checklist: item keys unique', new Set(items.map((i) => i.item)).size, items.length);
+  const pts = [
+    { point_key: 'N11', is_p5m: 0, photo_m2: 'ph://a', photo_m2f: null, photo_point: null },
+    { point_key: 'N31', is_p5m: 1, photo_m2: null, photo_m2f: null, photo_point: 'ph://pole' },
+    { point_key: 'NE5', is_p5m: 0, photo_m2: null, photo_m2f: null, photo_point: 'ph://ne5' },
+  ];
+  const st = checklistState({
+    checks: [{ item: 'CL-N', checked: 1, photo_uri: null }, { item: 'N11:UL', checked: 0, photo_uri: 'ph://q' }, { item: 'N11:hp', checked: 0, photo_uri: null }],
+    points: pts,
+    overviewCount: 1,
+  });
+  const done = (k) => st.items.find((i) => i.item.item === k).done;
+  eq('done: ticked / point photo / p5m corner pole / intersection pole / own photo / overview',
+    ['CL-N', 'N11:bare', 'P5M-N', 'pNE-5', 'N11:UL', 'SU-OV', 'N11:hp', 'P5M-E', 'HSP'].map(done),
+    [true, true, true, true, true, true, false, false, false]);
+  eq('counts', [st.required.done, st.optional.done], [5, 1]);
+  const names = planPhotoNames({ mocy: 5, country: 'TW', region: 'DAS', summit: 'SUN', date: '20260814', p5m: {}, points: [], units: [],
+    checks: [{ item: 'CL-N', uri: 'ph://c' }, { item: 'N11:UL', uri: 'ph://q' }, { item: 'HSP', uri: 'ph://h' }] });
+  eq('export names: cluster item N, quarter as element 8 of its quadrat, HSP',
+    names.map((n) => n.name),
+    ['05_TW_DAS_SUN_N________20260814_00001.jpg', '05_TW_DAS_SUN_N11______20260814_00002_UL.jpg', '05_TW_DAS_SUN_HSP______20260814_00003.jpg']);
 }
 
 if (failures) {

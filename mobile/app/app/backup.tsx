@@ -2,6 +2,7 @@ import { errText } from '~/lib/errText';
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import * as Sharing from 'expo-sharing';
+import { shareThenDelete } from '~/lib/shareFile';
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Alert, Pressable, ScrollView, Switch, Text, View } from 'react-native';
@@ -120,7 +121,7 @@ export default function BackupScreen() {
       Alert.alert(t('backup.shareUnavailable'), t('backup.fileGenerated', { uri: file.uri }));
       return;
     }
-    await Sharing.shareAsync(file.uri, { mimeType: file.mimeType, dialogTitle: file.filename });
+    await shareThenDelete(file.uri, { mimeType: file.mimeType, dialogTitle: file.filename });
   };
 
   const handleBackup = async () => {

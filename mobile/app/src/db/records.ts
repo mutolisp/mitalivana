@@ -6,6 +6,8 @@ import {
   resolveTaxa,
 } from './taxonLookup';
 import { getUserDb } from './init';
+import { referencedMediaNames } from './media';
+import { mediaNamesIn } from '~/lib/mediaNames';
 import { ensureTaxonSelfSufficient } from './taxonCache';
 import { retaxonRecord } from './retaxon';
 import { generateUuid } from './plots';
@@ -358,35 +360,16 @@ export function isTaxonInSession(sessionId: number, taxonId: string): boolean {
  * removal just rewrites the row. Both columns are supported anyway so the check
  * is already in place if that ever changes.
  *
- * `instr` rather than `LIKE`: the URI is matched as a literal substring of the
- * JSON array, with no `%` / `_` to escape. Table and column names come from a
- * literal union — they are never user input.
+ * Checked by file NAME against every media column (src/db/media.ts), so a file
+ * another record — or another kind of column — still uses is never deleted.
+ * `_column` is kept for the callers' readability; the check spans all columns.
  */
-export function mediaUriReferenced(uri: string, column: 'photo_paths' | 'audio_paths'): boolean {
+export function mediaUriReferenced(uri: string, _column?: 'photo_paths' | 'audio_paths'): boolean {
   if (!uri) return false;
-  const db = getUserDb();
-  for (const table of [
-    'checklist_records',
-    'plot_species_records',
-    'collection_specimens',
-  ] as const) {
-    const res = db.executeSync(
-      `SELECT 1 FROM ${table} WHERE ${column} IS NOT NULL AND instr(${column}, ?) > 0 LIMIT 1`,
-      [uri],
-    );
-    if ((res.rows ?? []).length > 0) return true;
-  }
-  if (column === 'photo_paths') {
-    // GLORIA keeps photos on the unit (JSON array), on measurement points (one URI
-    // per column) and on the survey (overview photos, JSON [{ uri, viewpoint }]).
-    const res = db.executeSync(
-      `SELECT 1 FROM gloria_units WHERE photo_paths IS NOT NULL AND instr(photo_paths, ?) > 0
-       UNION ALL SELECT 1 FROM gloria_points WHERE photo_m2 = ? OR photo_m2f = ? OR photo_point = ?
-       UNION ALL SELECT 1 FROM gloria_surveys WHERE overview_photos IS NOT NULL AND instr(overview_photos, ?) > 0
-       LIMIT 1`,
-      [uri, uri, uri, uri, uri],
-    );
-    if ((res.rows ?? []).length > 0) return true;
-  }
-  return false;
+  const names = mediaNamesIn(uri);
+  // Not an app-owned file (a photo-library ph:// reference): never ours to delete.
+  if (names.length === 0) return true;
+  // The same list the storage clean-up reads, so a column added for one is
+  // never forgotten by the other (check:storage).
+  return referencedMediaNames().has(names[0]);
 }

@@ -7,6 +7,11 @@
  * vascular plant is hit — one surface type. Each commit is one transaction
  * (db.commitPoint); storage is canonical, the walk only orders the visits
  * (model/walk.ts).
+ *
+ * Undo / redo work point by point: a step holds one point's values, and
+ * applying it returns the values it replaced (the opposite step). 完成 locks
+ * recording and stamps its end — point-framing's own on a quadrat, the whole
+ * unit's on a square, where the walk is the survey.
  */
 import * as Haptics from 'expo-haptics';
 import { Stack, useLocalSearchParams } from 'expo-router';
@@ -19,15 +24,15 @@ import { KeyboardStickyView } from '~/components/KeyboardAvoidingView';
 import { SearchBox } from '~/components/SearchBox';
 import { BackHeaderLeft } from '~/lib/goBack';
 import { useToast } from '~/stores/toast';
-import { addUnitSpecies, commitPoint, startPoints } from '~/modules/gloria/db';
+import { addUnitSpecies, commitPoint, setPointsLocked, startPoints } from '~/modules/gloria/db';
 import { QUADRAT_N, SQUARE_N, SURFACE_CODES, SURFACE_UNVISITED, SURFACE_VASCULAR, emptyMask, emptySurface, getBit, popcount, setBits, type SurfaceCode } from '~/modules/gloria/model/grid';
 import { linePoint, walkOrder } from '~/modules/gloria/model/walk';
 import { unitTypeOf } from '~/modules/gloria/model/units';
-import { displayName, useSurvey } from '~/modules/gloria/useSurvey';
+import { displayName, GLORIA_SEARCH_GROUPS, useSurvey } from '~/modules/gloria/useSurvey';
 import { OverviewPanel } from '~/modules/gloria/components/OverviewPanel';
 import { Btn, Chip } from '~/modules/gloria/components/ui';
 
-type UndoStep = { seq: number; surface: string; hits: Record<number, boolean> };
+type PointStep = { seq: number; surface: string; hits: Record<number, boolean> };
 
 export default function PointsScreen() {
   const { t } = useTranslation();
@@ -63,7 +68,17 @@ export default function PointsScreen() {
   const [recent, setRecent] = useState<number[]>([]);
   const [adding, setAdding] = useState(false);
   const [panel, setPanel] = useState(false);
-  const undo = useRef<UndoStep[]>([]);
+  const undo = useRef<PointStep[]>([]);
+  const redo = useRef<PointStep[]>([]);
+  const [undoCount, setUndoCount] = useState(0);
+  const [redoCount, setRedoCount] = useState(0);
+  const locked = unit ? (isSquare ? unit.stop_ts != null : unit.pf_locked === 1) : null;
+  const lockToastShown = useRef(false);
+  useEffect(() => {
+    if (locked == null || lockToastShown.current) return;
+    lockToastShown.current = true;
+    if (locked) toast(t('gloria.walk.lockedToast'));
+  }, [locked, toast, t]);
 
   if (!state || !unit) {
     return (
@@ -79,12 +94,24 @@ export default function PointsScreen() {
   const visited = [...surface].filter((c) => c !== SURFACE_UNVISITED).length;
   const done = visited === size && seq >= size;
 
+  const refuseLocked = () => {
+    if (locked) toast(t('gloria.walk.lockedToast'));
+    return !!locked;
+  };
+  const pointAt = (k: number): PointStep => {
+    const i = order[k];
+    const h: Record<number, boolean> = {};
+    for (const s of spp) h[s.id] = getBit(hits[s.id] ?? emptyMask(size), i);
+    return { seq: k, surface: surface[i], hits: h };
+  };
+
   const commit = (species: number[], surfaceChar: string) => {
-    if (seq >= size) return;
+    if (seq >= size || refuseLocked()) return;
     if (unit.point_surface == null) startPoints(unit.id, size);
-    const prevHits: Record<number, boolean> = {};
-    for (const s of spp) prevHits[s.id] = getBit(hits[s.id] ?? emptyMask(size), idx);
-    undo.current.push({ seq, surface: surface[idx], hits: prevHits });
+    undo.current.push(pointAt(seq));
+    redo.current = [];
+    setUndoCount(undo.current.length);
+    setRedoCount(0);
     const on = new Set(species);
     commitPoint(unit.id, size, idx, spp.map((s) => ({ unitSpeciesId: s.id, on: on.has(s.id) })), surfaceChar);
     const nextHits = { ...hits };
@@ -114,17 +141,42 @@ export default function PointsScreen() {
     commit(sp, ch);
   };
 
-  const doUndo = () => {
-    const u = undo.current.pop();
-    if (!u) return;
+  /** Write one point's values back; returns the values they replaced. */
+  const applyStep = (u: PointStep): PointStep => {
+    const before = pointAt(u.seq);
     const i = order[u.seq];
     commitPoint(unit.id, size, i, spp.map((s) => ({ unitSpeciesId: s.id, on: !!u.hits[s.id] })), u.surface);
     const nextHits = { ...hits };
     for (const s of spp) nextHits[s.id] = setBits(nextHits[s.id] ?? emptyMask(size), [i], !!u.hits[s.id]);
     setHits(nextHits);
     setSurface(surface.slice(0, i) + u.surface + surface.slice(i + 1));
-    setSeq(u.seq);
     setPicked(new Set());
+    return before;
+  };
+  const doUndo = () => {
+    const u = undo.current.pop();
+    if (!u) return;
+    redo.current.push(applyStep(u));
+    setUndoCount(undo.current.length);
+    setRedoCount(redo.current.length);
+    setSeq(u.seq);
+  };
+  const doRedo = () => {
+    const r = redo.current.pop();
+    if (!r) return;
+    undo.current.push(applyStep(r));
+    setUndoCount(undo.current.length);
+    setRedoCount(redo.current.length);
+    setSeq(r.seq + 1);
+  };
+  const toggleLock = () => {
+    setPointsLocked(unit.id, !locked);
+    undo.current = [];
+    redo.current = [];
+    setUndoCount(0);
+    setRedoCount(0);
+    reload();
+    toast(t(locked ? 'gloria.walk.unlocked' : 'gloria.walk.lockedDone'));
   };
 
   const jumpTo = (canonical: number) => {
@@ -152,8 +204,14 @@ export default function PointsScreen() {
           headerLeft: BackHeaderLeft,
           headerRight: () => (
             <View className="flex-row items-center gap-3">
-              <HeaderIconButton icon="arrow-undo-outline" label={t('gloria.freq.undo')} onPress={doUndo} disabled={undo.current.length === 0} />
+              {!locked ? <HeaderIconButton icon="arrow-undo-outline" label={t('gloria.freq.undo')} onPress={doUndo} disabled={undoCount === 0} /> : null}
+              {!locked ? <HeaderIconButton icon="arrow-redo-outline" label={t('gloria.freq.redo')} onPress={doRedo} disabled={redoCount === 0} /> : null}
               <HeaderIconButton icon="grid-outline" label={t('gloria.overview')} onPress={() => setPanel(true)} />
+              <HeaderIconButton
+                icon={locked ? 'lock-closed' : 'checkmark-done-outline'}
+                label={locked ? t('gloria.freq.unlock') : t('gloria.freq.done')}
+                onPress={toggleLock}
+              />
             </View>
           ),
         }}
@@ -209,7 +267,7 @@ export default function PointsScreen() {
               }}
             />
           ))}
-          <Chip label={t('gloria.freq.newSpecies')} on={false} onPress={() => setAdding(true)} />
+          <Chip label={t('gloria.freq.newSpecies')} on={false} onPress={() => !refuseLocked() && setAdding(true)} />
         </View>
 
         <Text className="text-xs font-semibold text-gray-500 dark:text-gray-400">{t('gloria.walk.surface')}</Text>
@@ -224,6 +282,7 @@ export default function PointsScreen() {
       {adding ? (
         <KeyboardStickyView offset={{ opened: insets.bottom }}>
           <SearchBox
+            scopeGroups={GLORIA_SEARCH_GROUPS}
             onSelect={(r) => {
               if (!r.taxon_id) return;
               if (unit.point_surface == null) startPoints(unit.id, size);

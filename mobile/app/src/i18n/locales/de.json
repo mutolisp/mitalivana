@@ -2373,7 +2373,8 @@
     "tab": {
       "points": "Grunddaten",
       "map": "Flächenübersicht",
-      "species": "Artentabelle"
+      "species": "Artentabelle",
+      "photos": "Fotoliste"
     },
     "status": {
       "none": "Nicht begonnen",
@@ -2384,7 +2385,8 @@
     "list": {
       "quadrats": "1×1-m-Quadrate",
       "sas": "Gipfelsektoren (SAS)",
-      "squares": "10×10-m-Quadrate"
+      "squares": "10×10-m-Quadrate",
+      "optional": "(optional)"
     },
     "p5m": {
       "title": "{{direction}} · 3×3-m-Raster (Blick zum Gipfel)",
@@ -2420,12 +2422,8 @@
       "point": "Punkt",
       "distance": "Dist. m",
       "compass": "Richtung °",
-      "photo": "Fotos",
       "distanceOf": "{{point}} Distanz (m)",
       "compassOf": "{{point}} Richtung (°)",
-      "photoM2": "{{point}} Quadratfoto",
-      "photoM2F": "{{point}} Quadratfoto mit Frequenzrahmen",
-      "photoPoint": "{{point}} Punktfoto",
       "intersection": "Schnittlinien"
     },
     "photo": {
@@ -2521,8 +2519,8 @@
       "remove": "Aus dieser Einheit entfernen",
       "rowHint": "Öffnet die Artdetails",
       "added": "{{name}} hinzugefügt",
-      "markDone": "Einheit als fertig markieren",
-      "markUndone": "Als nicht fertig markieren",
+      "markDone": "Abschließen und sperren",
+      "markUndone": "Zum Bearbeiten entsperren",
       "sasMissingTitle": "Noch nicht alle Arten der {{direction}}-Quadrate erfasst",
       "addAll": "Alle hinzufügen",
       "abundanceLegend": "r! sehr selten · r selten · s zerstreut · c häufig · d dominant (>50 % Deckung, Handbuch S. 42)",
@@ -2533,7 +2531,10 @@
       "sasHeader_one": "Arten ({{count}}) · Abundanz",
       "sasHeader_other": "Arten ({{count}}) · Abundanz",
       "fromQuadratsDone_one": "{{count}} Art aus den Quadraten übernommen",
-      "fromQuadratsDone_other": "{{count}} Arten aus den Quadraten übernommen"
+      "fromQuadratsDone_other": "{{count}} Arten aus den Quadraten übernommen",
+      "lockedToast": "Diese Einheit ist abgeschlossen und gesperrt. Zum Bearbeiten oben rechts auf das Schloss tippen.",
+      "lockedDone": "Abgeschlossen und gesperrt; Endzeit erfasst",
+      "unlocked": "Entsperrt; Bearbeiten möglich"
     },
     "square": {
       "walk": "Start und Richtung (Formular 6-S, vier Optionen)",
@@ -2597,7 +2598,23 @@
       "switchTitle": "Aufnahmemethode wechseln",
       "switchToCount": "Beim Wechsel zur Anzahl werden die in diesem Quadrat markierten Zellen (Arten und Hi1–Hi3) gelöscht. Trotzdem wechseln?",
       "switchToCells": "Beim Wechsel zurück zu Zellen werden die eingegebenen Anzahlen gelöscht. Trotzdem wechseln?",
-      "switchConfirm": "Löschen und wechseln"
+      "switchConfirm": "Löschen und wechseln",
+      "done": "Fertig und sperren",
+      "unlock": "Zum Bearbeiten entsperren",
+      "lockedDone": "Frequenz fertig und gesperrt",
+      "unlocked": "Entsperrt; Bearbeiten wieder möglich",
+      "lockedToast": "Frequenz ist fertig und gesperrt; zum Bearbeiten oben rechts das Schloss tippen",
+      "doneShort": "Fertig",
+      "speciesPick": "Art ({{n}})",
+      "disturbPick": "Störung Hi1–Hi3",
+      "speciesNone": "(keine)",
+      "prevSpecies": "Vorige Art",
+      "nextSpecies": "Nächste Art",
+      "inCell": "In dieser Zelle:",
+      "cellEmpty": "(leer)",
+      "cellHas": "✓ {{name}} in dieser Zelle (tippen zum Entfernen)",
+      "cellAdd": "{{name}} zu dieser Zelle hinzufügen",
+      "redo": "Wiederholen"
     },
     "walk": {
       "titleQuadrat": "{{code}} · Punktrahmen",
@@ -2612,7 +2629,10 @@
       "surface": "Keine Pflanze: Oberflächentyp",
       "same": "Wie vorher",
       "next": "Nächster Punkt ▶",
-      "lineDone": "Linie {{line}} fertig: {{hits}} Treffer"
+      "lineDone": "Linie {{line}} fertig: {{hits}} Treffer",
+      "lockedToast": "Die Punktaufnahme ist abgeschlossen und gesperrt. Zum Bearbeiten oben rechts auf das Schloss tippen.",
+      "lockedDone": "Punktaufnahme abgeschlossen und gesperrt; Endzeit erfasst",
+      "unlocked": "Entsperrt; Bearbeiten möglich"
     },
     "endWithIssues_one": "{{count}} Warnung ist offen. Trotzdem beenden? Später wieder öffnen möglich.",
     "endWithIssues_other": "{{count}} Warnungen sind offen. Trotzdem beenden? Später wieder öffnen möglich.",
@@ -2642,7 +2662,10 @@
       "photosHint": "Export als SU-OV (Gipfelübersicht) nach Anhang III des Handbuchs, der Standort als Element 8 des Dateinamens. Geben Sie für jedes Foto den Standort an, z. B. „vom S-Sattel“.",
       "viewpoint": "Standort",
       "viewpointLabel": "Standort von Foto {{n}}",
-      "photoFail": "Foto konnte nicht hinzugefügt werden"
+      "photoFail": "Foto konnte nicht hinzugefügt werden",
+      "mocy": "Monitoringzyklus (mocy)",
+      "mocyTakenTitle": "Zyklus bereits vergeben",
+      "mocyTaken": "{{code}} hat bereits eine Aufnahme für mocy {{mocy}}; pro Gipfel gibt es je Zyklus nur eine."
     },
     "times": {
       "title": "Bearbeitende und Zeiten",
@@ -2654,11 +2677,100 @@
       "now": "Jetzt setzen",
       "orderTitle": "Zeiten in falscher Reihenfolge",
       "order": "Das Ende von {{what}} darf nicht vor dem Beginn liegen.",
-      "hint": "Der Beginn wird bei der ersten Eingabe erfasst, das Ende beim Tippen auf „Einheit als fertig markieren“; zum Ändern auf eine Zeit tippen.",
-      "hintQuadrat": "Deckungsschätzung: Beginn bei der ersten Eingabe, Ende bei „Einheit als fertig markieren“. Frequenz: Beginn beim ersten Strich; das Ende folgt der letzten Änderung, bis Sie es von Hand setzen. Zum Ändern auf eine Zeit tippen.",
+      "hint": "Der Beginn wird bei der ersten Eingabe erfasst, das Ende beim Tippen auf „Fertig“ oben rechts (erneut tippen entsperrt; ein späteres „Fertig“ erfasst eine neue Zeit). Zum Ändern auf eine Zeit tippen.",
+      "hintQuadrat": "Deckungsschätzung: Beginn bei der ersten Eingabe, Ende bei „Fertig“ oben rechts. Frequenz und Point-Framing: Beginn beim ersten Eintrag, Ende bei „Fertig“ im jeweiligen Bildschirm (das Frequenz-Ende folgt zudem der letzten Änderung, bis es von Hand gesetzt wird). Zum Ändern auf eine Zeit tippen.",
       "by": "Bearbeitende",
       "bySurvey": "Wie Aufnahme: {{names}}",
-      "byNone": "Nicht gesetzt"
+      "byNone": "Nicht gesetzt",
+      "titleOnly": "Aufnahmezeiten",
+      "notYet": "Noch nicht begonnen"
+    },
+    "summitImport": {
+      "button": "Gipfel importieren",
+      "listTitle": "GLORIA-Gipfel",
+      "listDesc": "Gipfel-Grunddaten ansehen, bearbeiten und importieren",
+      "reviewTitle": "Gipfelimport prüfen",
+      "format": "Importiert wird eine CSV- oder Excel-Datei (.xlsx, erstes Blatt) mit den Spalten von Blatt 00_plot_coordinates: fullSummitCode (oder targetRegion + summit), decimalLatitude, decimalLongitude, elevation, Vegetation Zone, optional name. Ein Download des Google Sheets funktioniert direkt.",
+      "readFail": "Datei konnte nicht gelesen werden",
+      "nothing": "Nichts zu importieren",
+      "fileSummary": "{{file}}: {{n}} Gipfel gelesen",
+      "new": "Neu ({{n}})",
+      "changed": "Geändert ({{n}})",
+      "same": "{{n}} stimmen mit der App überein, kein Import nötig",
+      "problems": "Zeilen mit Problemen ({{n}})",
+      "line": "Zeile {{line}}: ",
+      "p_noHeader": "keine Kopfzeile gefunden (braucht eine Spalte fullSummitCode oder summit)",
+      "p_badCode": "Gipfelcode muss Land (2) - Zielregion (3) - Gipfel (3) sein",
+      "p_codeMismatch": "fullSummitCode passt nicht zu targetRegion / summit",
+      "p_duplicate": "Gipfel doppelt in der Datei; die erste Zeile gilt",
+      "p_bad_lat": "Breite ist keine Zahl zwischen −90 und 90",
+      "p_bad_lon": "Länge ist keine Zahl zwischen −180 und 180",
+      "p_bad_elevation": "Höhe ist keine plausible Zahl",
+      "p_unknownZone": "Vegetationsstufe nicht in der Liste; diese Spalte wurde übersprungen (der Rest wird importiert)",
+      "hint": "Leere Zellen in der Datei löschen keine in der App gespeicherten Werte. Geänderte Gipfel sind anfangs nicht angehakt; angehakt werden sie mit den Werten der Datei überschrieben.",
+      "apply": "{{n}} importieren",
+      "done": "{{added}} Gipfel hinzugefügt, {{updated}} aktualisiert",
+      "all": "Alle wählen",
+      "none": "Keine wählen",
+      "noDetails": "Nur Code"
+    },
+    "pointImport": {
+      "button": "Messpunkte importieren (Distanz, Richtung, p5m)",
+      "reviewTitle": "Punktimport prüfen",
+      "fileSummary": "{{file}}: {{n}} Punkte für {{code}}",
+      "otherSummits": "; {{n}} Zeilen anderer Gipfel übersprungen",
+      "cycle": "Daten welches Zyklus verwenden",
+      "noMocy": "Ohne mocy",
+      "noRows": "Die Datei enthält keine Punkte für {{code}}",
+      "p5m": "p5m-Ecken",
+      "points": "Messpunkte ({{n}})",
+      "overwrites": "überschreibt gespeicherte Werte",
+      "distance": "Distanz m",
+      "compass": "Richtung °",
+      "comments": "Bemerkungen",
+      "nothingNew": "Die Datei stimmt mit den gespeicherten Werten überein; nichts zu importieren",
+      "hint": "Nötige Spalten: Punkt (N11, p5m-N31, N10m, NE5 … oder Richtung + Punkt), Distanz, Richtung; optional p5m, mocy, Gipfelcode, Bemerkungen. Ein Download von Blatt 02_ funktioniert direkt. Punkte, die nur leere Werte füllen, sind angehakt; solche, die Werte überschreiben oder p5m verlegen, nicht. Leere Zellen löschen keine Werte.",
+      "apply": "{{n}} importieren",
+      "done": "{{n}} Punkte und {{p}} p5m-Ecken aktualisiert",
+      "p_noPointHeader": "keine Punktspalte gefunden (point oder pointNumber)",
+      "p_badPoint": "Punktcode nicht erkannt",
+      "p_badMocy": "mocy ist keine positive ganze Zahl",
+      "p_badDistance": "Distanz ist keine Zahl zwischen 0 und 1000",
+      "p_badCompass": "Richtung ist keine Zahl zwischen 0 und 360",
+      "p_duplicatePoint": "Punkt doppelt; die erste Zeile gilt",
+      "p_twoP5m": "11 und 31 dieser Richtung sind beide als p5m markiert; ihr p5m wird nicht importiert"
+    },
+    "summitExport": {
+      "title": "Gipfeldaten exportieren",
+      "summits": "Gipfel-Grunddaten (Spalten von Blatt 00_, CSV)",
+      "points": "Messpunkte aller Aufnahmen: Distanz, Richtung, p5m (Spalten von Blatt 02_, CSV)"
+    },
+    "photoCheck": {
+      "hasPhoto": "Für diesen Punkt gibt es ein Foto; lang drücken zum Ersetzen oder Entfernen",
+      "noP5mTitle": "p5m nicht gesetzt",
+      "noP5m": "Zuerst in den Grunddaten die p5m-Ecke (11 oder 31) für {{direction}} festlegen",
+      "a11yHint": "Tippen zum Abhaken, lang drücken für Foto",
+      "bare": "Ohne Rahmen",
+      "hp": "Rahmen",
+      "required": "Pflichtfotos",
+      "optional": "Optional (Viertel UL / UR / LL / LR): {{done}} / {{total}}",
+      "hint": "Abhaken wie auf Form 1: Tippen hakt ab (auch für Fotos einer anderen Kamera); lang drücken nimmt oder wählt ein Foto in der App, das ebenfalls als erledigt zählt (Kamerasymbol in der Ecke). Gestrichelte Felder sind optional.",
+      "dirN": "Nord N",
+      "dirE": "Ost E",
+      "dirS": "Süd S",
+      "dirW": "West W",
+      "cluster": "Übersicht 3×3-m-Cluster",
+      "p5mUnset": "5mp (p5m nicht gesetzt)",
+      "intersection": "Schnittlinienpunkte",
+      "summit": "Gipfel",
+      "hsp": "HSP (höchster Punkt)",
+      "entire": "Gesamter Gipfel",
+      "endMissing": "{{n}} Pflichtfotos sind noch nicht abgehakt.",
+      "goTake": "Nachholen"
+    },
+    "notes": {
+      "title": "Bemerkungen",
+      "placeholder": "z. B. pNE-5 mit neuem Alustab markiert; W-p5m-Pfahl locker, ersetzen"
     }
   },
   "vernacular": {
@@ -2676,5 +2788,37 @@
     "moveUp": "Nach oben",
     "moveDown": "Nach unten",
     "onlyOne": "Nur eine Artenliste ist aktiv, daher gibt es eine Sprache. Aktivieren Sie unter „{{page}}“ eine weitere (etwa Japan), um deren Sprache hinzuzufügen."
+  },
+  "storage": {
+    "title": "Speicher",
+    "menuDesc": "Belegten Speicher ansehen; Cache und ungenutzte Fotos löschen",
+    "totalHint": "Die Daten der App auf diesem Gerät (ohne die App selbst). Kann leicht von „Dokumente und Daten“ in den iOS-Einstellungen abweichen.",
+    "canFree": "Freigebbar",
+    "cache": "Cache",
+    "cacheDesc": "Export- und Sicherungsdateien, Kopien beim Auswählen von Fotos oder Dateien, Download-Zwischendateien. Jederzeit löschbar, kein Datensatz nutzt sie.",
+    "cacheTitle": "Cache leeren",
+    "cacheConfirm": "Löscht {{size}} an Cache-Dateien. Keine gehört zu einem Datensatz.",
+    "orphans": "Ungenutzte Fotos und Aufnahmen",
+    "orphansDesc": "{{n}} Dateien, die kein Datensatz nutzt (z. B. von gelöschten Datensätzen)",
+    "orphansTitle": "Ungenutzte Fotos und Aufnahmen löschen",
+    "orphansConfirm": "Löscht {{n}} Dateien ({{size}}). Keine Liste, keine Fläche, keine Aufsammlung und keine GLORIA-Aufnahme verweist darauf. Nicht rückgängig zu machen.",
+    "legacy": "Reste älterer Versionen",
+    "legacyDesc": "Artenliste oder Rasterkarte einer älteren Version, die nicht automatisch entfernt wurde",
+    "legacyTitle": "Reste älterer Versionen entfernen",
+    "legacyConfirm": "Löscht {{size}}. Die alte Artenliste sichert vorher die von Datensätzen genutzten Namen.",
+    "safety": "Sicherheitskopien",
+    "safetyDesc": "{{n}}: Kopien vor automatischen Reparaturen; Verwaltung unter Sichern und Wiederherstellen",
+    "downloads": "Wieder ladbare Daten",
+    "datasets": "Artenlisten und Länderpakete",
+    "offlineMap": "Offline-Karte und Orte",
+    "yours": "Ihre Daten (werden hier nie gelöscht)",
+    "photos": "Fotos",
+    "audio": "Aufnahmen",
+    "database": "Datensatz-Datenbank",
+    "yoursHint": "Nur Fotos und Aufnahmen, die Datensätze noch nutzen, bleiben erhalten; Cache und ungenutzte Dateien zu löschen berührt sie nicht.",
+    "delete": "Löschen",
+    "freed": "{{size}} freigegeben",
+    "busyTitle": "Download läuft",
+    "busy": "Eine Artenliste, Karte oder ein Länderpaket wird geladen und liegt im Cache. Den Cache nach dem Abschluss leeren."
   }
 }

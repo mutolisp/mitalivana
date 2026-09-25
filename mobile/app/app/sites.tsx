@@ -3,6 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Stack, useFocusEffect, useRouter, type Href } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import * as Sharing from 'expo-sharing';
+import { shareThenDelete } from '~/lib/shareFile';
 import { File, Paths } from 'expo-file-system';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -249,7 +250,7 @@ export default function SitesScreen() {
         Alert.alert(t('sites.shareUnavailable'), t('backup.fileGenerated', { uri: file.uri }));
         return;
       }
-      await Sharing.shareAsync(file.uri, {
+      await shareThenDelete(file.uri, {
         mimeType: meta.mime,
         dialogTitle: filename,
         UTI: meta.uti,

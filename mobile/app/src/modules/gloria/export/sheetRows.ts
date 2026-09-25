@@ -185,6 +185,32 @@ const hitsOf = (s: ExportSpecies): number | null =>
 
 // ── build ─────────────────────────────────────────────────────────────────
 
+/** One sheet 00_plot_coordinates row. Also the summit-list CSV export. */
+export function summitRow(sm: ExportSummit): string[] {
+  return [sm.full_code, sm.target_region, sm.summit, coord(sm.decimal_longitude), '', coord(sm.decimal_latitude), '',
+    num(sm.twd97x), num(sm.twd97y), num(sm.elevation_m), sm.veg_zone ?? ''];
+}
+
+/** The 28 sheet 02_p5_p10m_direction rows of one survey. Also the point CSV export. */
+export function pointRows(sm: ExportSummit, mocy: number, points: ExportPoint[]): string[][] {
+  const p5m: Partial<Record<Direction, P5mCorner>> = {};
+  for (const p of points) if (p.is_p5m) p5m[p.point_key[0] as Direction] = p.point_key.slice(1) as P5mCorner;
+  const pointByKey = new Map(points.map((p) => [p.point_key, p]));
+  return POINTS.map((def) => {
+    const p = pointByKey.get(def.key);
+    const label = pointNumberOf(def.key, p5m);
+    return [
+      `${sm.full_code}-${def.direction}-${label}`,
+      `${sm.full_code}-${def.quadrat ?? 'NA'}`,
+      sm.country, sm.target_region, sm.summit, def.direction, def.line, label,
+      p?.is_p5m ? 'TRUE' : 'FALSE',
+      def.quadrat ?? 'NA',
+      p?.distance_m != null ? p.distance_m.toFixed(2) : '',
+      num(p?.compass_deg), String(mocy), '', '', '', '', '', '', p?.comments ?? '', p?.uuid ?? '',
+    ];
+  });
+}
+
 export function buildSheetTables(d: GloriaExportData): SheetTable[] {
   const { summit: sm, survey: sv } = d;
   const m = sv.mocy;
@@ -199,10 +225,7 @@ export function buildSheetTables(d: GloriaExportData): SheetTable[] {
 
   // 00_plot_coordinates — one row per summit; the sheet leaves the
   // degree-minute Longitude / Latitude columns empty.
-  const t00: string[][] = [
-    [sm.full_code, sm.target_region, sm.summit, coord(sm.decimal_longitude), '', coord(sm.decimal_latitude), '',
-      num(sm.twd97x), num(sm.twd97y), num(sm.elevation_m), sm.veg_zone ?? ''],
-  ];
+  const t00: string[][] = [summitRow(sm)];
 
   // 01_summits_survey_info — scanned-form identifiers are left for the office.
   const t01: string[][] = [
@@ -211,22 +234,7 @@ export function buildSheetTables(d: GloriaExportData): SheetTable[] {
   ];
 
   // 02_p5_p10m_direction
-  const p5m: Partial<Record<Direction, P5mCorner>> = {};
-  for (const p of d.points) if (p.is_p5m) p5m[p.point_key[0] as Direction] = p.point_key.slice(1) as P5mCorner;
-  const pointByKey = new Map(d.points.map((p) => [p.point_key, p]));
-  const t02: string[][] = POINTS.map((def) => {
-    const p = pointByKey.get(def.key);
-    const label = pointNumberOf(def.key, p5m);
-    return [
-      `${sm.full_code}-${def.direction}-${label}`,
-      `${sm.full_code}-${def.quadrat ?? 'NA'}`,
-      sm.country, sm.target_region, sm.summit, def.direction, def.line, label,
-      p?.is_p5m ? 'TRUE' : 'FALSE',
-      def.quadrat ?? 'NA',
-      p?.distance_m != null ? p.distance_m.toFixed(2) : '',
-      num(p?.compass_deg), String(m), '', '', '', '', '', '', p?.comments ?? '', p?.uuid ?? '',
-    ];
-  });
+  const t02 = pointRows(sm, m, d.points);
 
   // 10_1x1m_plotinfo
   const t10 = quadrats.map((u) => [

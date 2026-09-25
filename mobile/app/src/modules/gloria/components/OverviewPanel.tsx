@@ -11,7 +11,7 @@ import { useRouter, type Href } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { visitedCount } from '../model/grid';
-import { DIRECTIONS, unitTypeOf } from '../model/units';
+import { unitTypeOf } from '../model/units';
 import { issueText } from '../issues';
 import { STATUS_COLOR, STATUS_TEXT, type SurveyState } from '../useSurvey';
 import { Btn } from './ui';
@@ -50,7 +50,9 @@ export function OverviewPanel({
       {
         key: 'frequency',
         label: t('gloria.step.frequency'),
-        detail: freqCells.length ? t(freqKey, { count: freqCells.length }) : t('gloria.step.notStarted'),
+        detail:
+          (state.unit(code)?.freq_locked ? `${t('gloria.freq.doneShort')} · ` : '') +
+          (freqCells.length ? t(freqKey, { count: freqCells.length }) : t('gloria.step.notStarted')),
         href: `/gloria/${id}/${code}/frequency`,
       },
       {
@@ -71,14 +73,17 @@ export function OverviewPanel({
   }
   const issues = state.issues.filter((i) => i.unit === code);
 
-  const unitBtn = (c: string, label: string) => (
+  // Narrow, fixed-width buttons with a readable label; the 10×10 one spans two.
+  const unitBtn = (c: string, label: string, wide = false) => (
     <Pressable
       key={c}
       onPress={() => go(`/gloria/${id}/${c}`)}
-      style={{ backgroundColor: STATUS_COLOR[state.statusOf(c)] }}
-      className={`m-0.5 flex-1 items-center rounded py-1.5 ${c === code ? 'border-2 border-gray-900 dark:border-white' : ''}`}
+      accessibilityRole="button"
+      accessibilityLabel={c}
+      style={{ backgroundColor: STATUS_COLOR[state.statusOf(c)], width: wide ? 76 : 36 }}
+      className={`m-0.5 items-center rounded py-1.5 ${c === code ? 'border-2 border-gray-900 dark:border-white' : ''}`}
     >
-      <Text className="text-[10px] font-semibold" style={{ color: STATUS_TEXT[state.statusOf(c)] }}>{label}</Text>
+      <Text className="text-sm font-semibold" style={{ color: STATUS_TEXT[state.statusOf(c)] }}>{label}</Text>
     </Pressable>
   );
 
@@ -112,14 +117,14 @@ export function OverviewPanel({
             </View>
           ) : null}
           <Text className="text-xs font-semibold uppercase tracking-wide text-gray-500">{t('gloria.step.jump')}</Text>
-          <View className="flex-row">
-            {DIRECTIONS.map((d) => (
-              <View key={d} className="flex-1 items-stretch px-0.5">
-                <Text className="text-center text-xs font-bold text-gray-600 dark:text-gray-300">{d}</Text>
+          <View className="flex-row justify-around">
+            {(['E', 'N', 'S', 'W'] as const).map((d) => (
+              <View key={d} className="items-center">
+                <Text className="text-center text-sm font-bold text-gray-600 dark:text-gray-300">{d}</Text>
                 <View className="flex-row">{['13', '33'].map((q) => unitBtn(d + q, q))}</View>
                 <View className="flex-row">{['11', '31'].map((q) => unitBtn(d + q, q))}</View>
                 <View className="flex-row">{[`${d}05`, `${d}10`].map((c) => unitBtn(c, c.slice(1)))}</View>
-                <View className="flex-row">{unitBtn(d, '10×10')}</View>
+                <View className="flex-row">{unitBtn(d, '10×10', true)}</View>
               </View>
             ))}
           </View>

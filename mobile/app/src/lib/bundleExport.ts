@@ -77,6 +77,7 @@ import { injectSignatures } from './signing';
 import { activeSigner } from './signingKey';
 import {
   getGloriaSurvey,
+  listPhotoChecks,
   listPoints as listGloriaPoints,
   listUnits as listGloriaUnits,
   loadExportData,
@@ -85,6 +86,7 @@ import {
 } from '~/modules/gloria/db';
 import { planPhotoNames, yyyymmdd } from '~/modules/gloria/export/photoNames';
 import { parseOverviewPhotos } from '~/modules/gloria/model/overview';
+import { CHECKLIST_HEADER, checklistRows, checklistState } from '~/modules/gloria/model/photoChecks';
 import { buildPointHitRows, buildSheetTables, POINT_HITS_HEADER, toCsv } from '~/modules/gloria/export/sheetRows';
 
 
@@ -1059,6 +1061,16 @@ export async function buildGloriaEntries(
   if (pointRows.length) {
     entries.push({ name: `${base}/${base}_point_hits.csv`, bytes: strToU8(toCsv(POINT_HITS_HEADER, pointRows)) });
   }
+  // Form 1 photo checklist: what was ticked, what has a photo in the app.
+  const checklist = checklistState({
+    checks: listPhotoChecks(surveyId),
+    points: listGloriaPoints(surveyId),
+    overviewCount: parseOverviewPhotos(getGloriaSurvey(surveyId)?.overview_photos).length,
+  });
+  entries.push({
+    name: `${base}/${base}_photo_checklist.csv`,
+    bytes: strToU8(toCsv(CHECKLIST_HEADER, checklistRows(checklist.items))),
+  });
   // Photos named per manual Annex III, in photos/ like the other exports.
   let photoCount = 0;
   if (opts?.includePhotos) {
@@ -1073,6 +1085,7 @@ export async function buildGloriaEntries(
       points,
       units: listGloriaUnits(surveyId).map((u) => ({ code: u.code, photo_uris: parsePhotoUris(u.photo_paths) })),
       overview: parseOverviewPhotos(getGloriaSurvey(surveyId)?.overview_photos),
+      checks: listPhotoChecks(surveyId).flatMap((c) => (c.photo_uri ? [{ item: c.item, uri: c.photo_uri }] : [])),
       extOf: (uri) => guessExt(uri),
     });
     if (plan.length) await ensurePhotosReadAccess();

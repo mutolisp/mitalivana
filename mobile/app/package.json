@@ -47,7 +47,8 @@
     "check:datasets": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-datasets.mjs",
     "check:gloria": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-gloria.mjs",
     "licenses": "node ./scripts/gen-licenses.mjs",
-    "check:licenses": "node ./scripts/gen-licenses.mjs --check"
+    "check:licenses": "node ./scripts/gen-licenses.mjs --check",
+    "check:storage": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-storage.mjs"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",

@@ -2233,7 +2233,8 @@
     "tab": {
       "points": "基礎資料",
       "map": "樣區總覽",
-      "species": "物種總表"
+      "species": "物種總表",
+      "photos": "拍照檢核"
     },
     "status": {
       "none": "未開始",
@@ -2244,7 +2245,8 @@
     "list": {
       "quadrats": "1×1 m 樣區",
       "sas": "山峰區域樣區（SAS）",
-      "squares": "10×10 m 樣區"
+      "squares": "10×10 m 樣區",
+      "optional": "（選擇性調查）"
     },
     "p5m": {
       "title": "{{direction}} 方位 · 3×3 m（面向山峰）",
@@ -2280,12 +2282,8 @@
       "point": "點",
       "distance": "距離 m",
       "compass": "方位 °",
-      "photo": "照片",
       "distanceOf": "{{point}} 距離（m）",
       "compassOf": "{{point}} 方位（°）",
-      "photoM2": "{{point}} 樣區照片",
-      "photoM2F": "{{point}} 樣區＋頻度框照片",
-      "photoPoint": "{{point}} 點位照片",
       "intersection": "斜向交線"
     },
     "photo": {
@@ -2298,7 +2296,7 @@
       "sas": "SAS",
       "squares": "10×10",
       "quadratHint": "覆蓋度 %；f 後為頻度格數。點欄位名稱開啟該單位。",
-      "sasHint": "多度 r! r s c d；• 表示已列入但未填多度。",
+      "sasHint": "豐度 r! r s c d；• 表示已列入但未填豐度。",
       "squareHint": "400 點中的命中數；• 表示未被點到的額外物種。",
       "empty": "還沒有物種",
       "species": "物種"
@@ -2307,7 +2305,7 @@
       "cover": "覆蓋度與地表",
       "frequency": "頻度",
       "pointframe": "頻度點擊法",
-      "sas": "物種與多度",
+      "sas": "物種與豐度",
       "linePoints": "400 點逐點",
       "additional": "未被點到的物種",
       "notStarted": "未做",
@@ -2376,16 +2374,19 @@
       "remove": "從此單位移除",
       "rowHint": "開啟物種詳細頁",
       "added": "已加入 {{name}}",
-      "markDone": "標記此單位完成",
-      "markUndone": "取消完成",
+      "markDone": "完成並鎖定",
+      "markUndone": "解鎖編輯",
       "sasMissingTitle": "{{direction}} 方位樣區的物種還沒全部列入",
       "addAll": "全部加入",
       "abundanceLegend": "r! 極稀少 · r 稀少 · s 散生 · c 常見 · d 優勢（覆蓋 >50%，手冊 p.42）",
       "grazing": "放牧/動物痕跡",
       "grazingPlaceholder": "例如：水鹿排遺、啃食、踐踏",
       "speciesHeader_other": "物種（{{count}}）· 物種覆蓋合計 {{sum}}",
-      "sasHeader_other": "物種（{{count}}）· 多度",
-      "fromQuadratsDone_other": "從樣區帶入 {{count}} 種"
+      "sasHeader_other": "物種（{{count}}）· 豐度",
+      "fromQuadratsDone_other": "從樣區帶入 {{count}} 種",
+      "lockedToast": "此單位已完成並鎖定；按右上角鎖頭解鎖後才能編輯",
+      "lockedDone": "已完成並鎖定，完成時間已記錄",
+      "unlocked": "已解鎖，可以編輯"
     },
     "square": {
       "walk": "起點與方向（Form 6-S 四種選項）",
@@ -2402,7 +2403,7 @@
     },
     "species": {
       "inUnit": "{{code}} · 名錄編號 {{serial}}",
-      "abundance": "多度",
+      "abundance": "豐度",
       "cover": "覆蓋度 %",
       "cf": "鑑定存疑",
       "cfHint": "g 屬、s 種、t 種下階層存疑（手冊 Form 2 註 5）",
@@ -2448,7 +2449,23 @@
       "switchTitle": "切換記錄方式",
       "switchToCount": "改成直接輸入次數會清除這個樣區已畫的格位（物種與 Hi1–Hi3）。確定要切換？",
       "switchToCells": "改回格位記錄會清除已輸入的次數。確定要切換？",
-      "switchConfirm": "清除並切換"
+      "switchConfirm": "清除並切換",
+      "done": "完成並鎖定",
+      "unlock": "解鎖編輯",
+      "lockedDone": "頻度已完成並鎖定",
+      "unlocked": "已解鎖，可以編輯",
+      "lockedToast": "頻度已完成並鎖定；按右上角鎖頭解鎖後才能編輯",
+      "doneShort": "已完成",
+      "speciesPick": "物種（{{n}} 種）",
+      "disturbPick": "干擾 Hi1–Hi3",
+      "speciesNone": "（未選）",
+      "prevSpecies": "上一個物種",
+      "nextSpecies": "下一個物種",
+      "inCell": "本格：",
+      "cellEmpty": "（空）",
+      "cellHas": "✓ 此格有 {{name}}（點一下移除）",
+      "cellAdd": "此格加入 {{name}}",
+      "redo": "重做"
     },
     "walk": {
       "titleQuadrat": "{{code}} · 頻度點擊法",
@@ -2463,7 +2480,10 @@
       "surface": "沒有植物時：地表類型",
       "same": "同前一點",
       "next": "下一點 ▶",
-      "lineDone": "第 {{line}} 線完成：{{hits}} 次命中"
+      "lineDone": "第 {{line}} 線完成：{{hits}} 次命中",
+      "lockedToast": "點位記錄已完成並鎖定；按右上角鎖頭解鎖後才能編輯",
+      "lockedDone": "點位記錄已完成並鎖定，完成時間已記錄",
+      "unlocked": "已解鎖，可以編輯"
     },
     "endWithIssues_other": "還有 {{count}} 項警告。仍要結束嗎？之後仍可重新開啟。",
     "kb": {
@@ -2492,7 +2512,10 @@
       "photosHint": "匯出時依手冊附錄 III 命名為 SU-OV（山峰全景），並把拍攝位置寫入檔名第 8 段；請在每張照片下填拍攝位置，例如「從 S 方向鞍部」。",
       "viewpoint": "拍攝位置",
       "viewpointLabel": "第 {{n}} 張照片的拍攝位置",
-      "photoFail": "無法加入照片"
+      "photoFail": "無法加入照片",
+      "mocy": "第幾次監測（mocy）",
+      "mocyTakenTitle": "mocy 已有調查",
+      "mocyTaken": "{{code}} 已經有 mocy {{mocy}} 的調查，同一座山峰每次監測只能有一筆。"
     },
     "times": {
       "title": "調查者與時間",
@@ -2504,11 +2527,100 @@
       "now": "設為現在",
       "orderTitle": "時間順序不對",
       "order": "{{what}}的結束時間不能早於開始時間。",
-      "hint": "開始於第一次輸入時自動記錄，結束於按「標記此單位完成」時記錄；點時間即可修改。",
-      "hintQuadrat": "優勢度估測：開始於第一次輸入、結束於按「標記此單位完成」。頻度：開始於第一筆，結束隨最後一次編輯更新；手動改過結束時間後就不再自動更新。點時間即可修改。",
+      "hint": "開始於第一次輸入時自動記錄，結束於按右上角「完成」時記錄（再按一次解鎖，之後再按完成會記錄新的時間）；點時間即可修改。",
+      "hintQuadrat": "優勢度估測：開始於第一次輸入、結束於按右上角「完成」。頻度與頻度點擊法：開始於第一筆，結束於在各自畫面按「完成」（頻度的結束也隨最後一次編輯更新，手動改過後不再自動更新）。點時間即可修改。",
       "by": "調查者",
       "bySurvey": "同本次調查：{{names}}",
-      "byNone": "未指定"
+      "byNone": "未指定",
+      "titleOnly": "調查時間",
+      "notYet": "尚未開始"
+    },
+    "summitImport": {
+      "button": "匯入山峰",
+      "listTitle": "GLORIA 山峰清單",
+      "listDesc": "檢視、編輯與匯入山峰基本資料",
+      "reviewTitle": "確認匯入山峰",
+      "format": "可匯入 CSV 或 Excel（.xlsx，讀第一個工作表），欄位同 Sheet 00_plot_coordinates：fullSummitCode（或 targetRegion＋summit）、decimalLatitude、decimalLongitude、elevation、Vegetation Zone，可另加 name。直接從 Google Sheet 下載即可。",
+      "readFail": "無法讀取檔案",
+      "nothing": "沒有待匯入的資料",
+      "fileSummary": "{{file}}：讀到 {{n}} 座山峰",
+      "new": "新增（{{n}}）",
+      "changed": "有變更（{{n}}）",
+      "same": "{{n}} 座與 app 內相同，不需匯入",
+      "problems": "有問題的列（{{n}}）",
+      "line": "第 {{line}} 列：",
+      "p_noHeader": "找不到欄位名稱列（需要 fullSummitCode 或 summit 欄）",
+      "p_badCode": "山峰代碼格式不對，應為國碼 2 碼－目標區 3 碼－山峰 3 碼",
+      "p_codeMismatch": "fullSummitCode 與 targetRegion／summit 不一致",
+      "p_duplicate": "同一檔案內重複的山峰，只採用第一筆",
+      "p_bad_lat": "緯度不是 −90～90 的數字",
+      "p_bad_lon": "經度不是 −180～180 的數字",
+      "p_bad_elevation": "海拔不是合理的數字",
+      "p_unknownZone": "植群帶不在清單中，這一欄未匯入（其他欄照常）",
+      "hint": "檔案中空白的欄位不會清掉 app 內既有的值。有變更的山峰預設不勾選，勾選後以檔案的值覆蓋。",
+      "apply": "匯入 {{n}} 座",
+      "done": "已新增 {{added}} 座、更新 {{updated}} 座山峰",
+      "all": "全選",
+      "none": "全不選",
+      "noDetails": "只有代碼"
+    },
+    "pointImport": {
+      "button": "匯入量測點（距離、方位、p5m）",
+      "reviewTitle": "確認匯入量測點",
+      "fileSummary": "{{file}}：{{code}} 讀到 {{n}} 個點",
+      "otherSummits": "；其他山峰 {{n}} 列已略過",
+      "cycle": "要用哪一次的資料",
+      "noMocy": "未標 mocy",
+      "noRows": "檔案中沒有 {{code}} 的量測點",
+      "p5m": "p5m 角點",
+      "points": "量測點（{{n}}）",
+      "overwrites": "會覆蓋既有值",
+      "distance": "距離 m",
+      "compass": "方位 °",
+      "comments": "備註",
+      "nothingNew": "檔案中的數值與目前相同，不需匯入",
+      "hint": "必要欄位：點位（N11、p5m-N31、N10m、NE5… 或方向＋點兩欄）、距離、方位；可選 p5m、mocy、山峰代碼、備註。Sheet 02_ 直接下載即可。只填空白值的點預設勾選；會覆蓋既有值或改動 p5m 的預設不勾。空白欄位不會清掉既有值。",
+      "apply": "匯入 {{n}} 項",
+      "done": "已更新 {{n}} 個點、{{p}} 個 p5m",
+      "p_noPointHeader": "找不到點位欄（point 或 pointNumber）",
+      "p_badPoint": "看不懂的點位代號",
+      "p_badMocy": "mocy 不是正整數",
+      "p_badDistance": "距離不是 0～1000 的數字",
+      "p_badCompass": "方位不是 0～360 的數字",
+      "p_duplicatePoint": "同一個點重複出現，只採用第一筆",
+      "p_twoP5m": "同一方位的 11 與 31 都標為 p5m，此方位的 p5m 不匯入"
+    },
+    "summitExport": {
+      "title": "匯出山峰資料",
+      "summits": "山峰基本資料（Sheet 00_ 欄位 CSV）",
+      "points": "量測點：所有調查的距離、方位、p5m（Sheet 02_ 欄位 CSV）"
+    },
+    "photoCheck": {
+      "hasPhoto": "這項已有照片；長按可更換或移除",
+      "noP5mTitle": "尚未設定 p5m",
+      "noP5m": "請先在基礎資料指定 {{direction}} 方位的 p5m（11 或 31）",
+      "a11yHint": "點一下打勾，長按拍照或選照片",
+      "bare": "無框",
+      "hp": "有框",
+      "required": "必拍照片",
+      "optional": "選拍（四小區 UL／UR／LL／LR）：{{done}} / {{total}}",
+      "hint": "照 Form 1 勾選：點一下打勾（外部相機拍的也算）；長按用 app 拍照或從相簿選，附上照片就算完成（角落有相機圖示）。虛線框是選拍。",
+      "dirN": "北 N",
+      "dirE": "東 E",
+      "dirS": "南 S",
+      "dirW": "西 W",
+      "cluster": "3×3 m 樣區群總覽",
+      "p5mUnset": "5mp（尚未設定 p5m）",
+      "intersection": "交線點",
+      "summit": "山峰",
+      "hsp": "HSP 最高點",
+      "entire": "整座山峰",
+      "endMissing": "還有 {{n}} 項必拍照片沒有勾選。",
+      "goTake": "去補拍"
+    },
+    "notes": {
+      "title": "備註",
+      "placeholder": "例如：pNE-5 重新插鋁棒；W 方位 p5m 樁鬆動、需補"
     }
   },
   "vernacular": {
@@ -2526,5 +2638,37 @@
     "moveUp": "上移",
     "moveDown": "下移",
     "onlyOne": "目前只啟用一份名錄，所以只有一種俗名可選。在「{{page}}」啟用其他名錄（例如日本名錄）後，就能加入其他語言。"
+  },
+  "storage": {
+    "title": "儲存空間",
+    "menuDesc": "查看 app 佔用的空間，清除暫存與未使用的照片",
+    "totalHint": "app 在這台手機上的資料（不含 app 本身）。與 iOS 設定中的「文件與資料」可能略有差異。",
+    "canFree": "可以釋放",
+    "cache": "暫存",
+    "cacheDesc": "匯出與備份檔、選照片時的原檔複本、匯入檔複本、下載暫存。可隨時清除，不影響任何紀錄。",
+    "cacheTitle": "清除暫存",
+    "cacheConfirm": "將刪除 {{size}} 的暫存檔。這些檔案不屬於任何紀錄。",
+    "orphans": "未被使用的照片與錄音",
+    "orphansDesc": "{{n}} 個檔案沒有任何紀錄在用（例如刪除紀錄後留下的照片）",
+    "orphansTitle": "清除未被使用的照片與錄音",
+    "orphansConfirm": "將刪除 {{n}} 個檔案（{{size}}）。已確認沒有任何名錄、樣區、採集或 GLORIA 紀錄引用它們；刪除後無法復原。",
+    "legacy": "舊版殘留資料",
+    "legacyDesc": "舊版 app 的名錄檔或點陣地圖，之前自動刪除沒成功",
+    "legacyTitle": "清除舊版殘留資料",
+    "legacyConfirm": "將刪除 {{size}}。舊版名錄會先把紀錄用到的名稱備份起來再刪除。",
+    "safety": "安全備份",
+    "safetyDesc": "{{n}} 份：自動修復資料前留下的復原副本，到「備份與回復」管理",
+    "downloads": "可重新下載的資料",
+    "datasets": "名錄模組與國家名錄",
+    "offlineMap": "離線地圖與地標",
+    "yours": "你的資料（不會被清除）",
+    "photos": "照片",
+    "audio": "錄音",
+    "database": "紀錄資料庫",
+    "yoursHint": "照片與錄音只保留仍被紀錄使用的；清除暫存與未使用的檔案都不會動到它們。",
+    "delete": "刪除",
+    "freed": "已釋放 {{size}}",
+    "busyTitle": "正在下載或安裝",
+    "busy": "名錄、地圖或國家名錄正在下載，暫存裡有它的檔案。完成後再清除暫存。"
   }
 }

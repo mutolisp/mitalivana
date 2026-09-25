@@ -119,6 +119,11 @@ function ThemedShell() {
                 existing es-419 override keeps working. */}
             <Stack.Screen name="settings/language" options={{ title: t('settings.language') }} />
             <Stack.Screen name="settings/vernacular" options={{ title: t('vernacular.title') }} />
+            <Stack.Screen name="settings/storage" options={{ title: t('storage.title') }} />
+            <Stack.Screen name="gloria/summits" options={{ title: t('gloria.summitImport.listTitle') }} />
+            <Stack.Screen name="gloria/summit-import" options={{ title: t('gloria.summitImport.reviewTitle') }} />
+            <Stack.Screen name="gloria/summit/[id]" options={{ title: '' }} />
+            <Stack.Screen name="gloria/[id]/points-import" options={{ title: t('gloria.pointImport.reviewTitle') }} />
             <Stack.Screen name="settings/collection" options={{ title: t('settings.sectionCollection') }} />
             <Stack.Screen name="settings/export" options={{ title: t('exportPref.title') }} />
             <Stack.Screen name="settings/provenance" options={{ title: t('nav.provenance') }} />

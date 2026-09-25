@@ -22,6 +22,7 @@
 
 import { POINTS, pointNumberOf, type Direction, type P5mCorner } from '../model/units';
 import { element8, type OverviewPhoto } from '../model/overview';
+import { photoItems } from '../model/photoChecks';
 
 export type PhotoNameParts = {
   mocy: number;
@@ -76,6 +77,8 @@ export function planPhotoNames(input: {
   points: PointPhotos[];
   units: Array<{ code: string; photo_uris: string[] }>;
   overview?: OverviewPhoto[];
+  /** Photos taken on the photo checklist (clusters, quarters, HSP), by checklist item. */
+  checks?: Array<{ item: string; uri: string }>;
   extOf?: (uri: string) => string;
 }): Array<{ uri: string; name: string }> {
   const out: Array<{ uri: string; name: string }> = [];
@@ -98,6 +101,17 @@ export function planPhotoNames(input: {
     push(p.photo_point, pointNumberOf(def.key, input.p5m));
   }
   for (const u of input.units) for (const uri of u.photo_uris) push(uri, u.code);
+  // Checklist photos in checklist order: the cluster (item code N/E/S/W), a
+  // quadrat's quarters (its code, the quarter as element 8 — WS T: "use the
+  // next-lying obligatory item"), the HSP.
+  const listed = photoItems();
+  const rank = new Map(listed.map((it, i) => [it.item, i]));
+  const byItem = new Map(listed.map((it) => [it.item, it]));
+  const checks = [...(input.checks ?? [])].sort((a, b) => (rank.get(a.item) ?? 999) - (rank.get(b.item) ?? 999));
+  for (const c of checks) {
+    const it = byItem.get(c.item);
+    if (it) push(c.uri, it.code, it.note);
+  }
   for (const p of input.overview ?? []) push(p.uri, 'SU-OV', p.viewpoint);
   return out;
 }

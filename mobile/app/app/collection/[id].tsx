@@ -63,6 +63,7 @@ import i18n from '~/i18n';
 import { placeKey, placeNameAt, placeNamesAt } from '~/lib/reverseGeocode';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
+import { shareThenDelete } from '~/lib/shareFile';
 import { useSettings, type CollectionSort, type SortDirection } from '~/stores/settings';
 import { ProjectAssignSheet } from '~/components/ProjectAssignSheet';
 import { ScientificName } from '~/components/ScientificName';
@@ -570,7 +571,7 @@ export default function CollectionTripScreen() {
       // dismissing. Same unconditional wait as the records-tab export.
       await new Promise((r) => setTimeout(r, 450));
       if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(file.uri, {
+        await shareThenDelete(file.uri, {
           mimeType: doc.mime,
           UTI: doc.uti,
           dialogTitle: filename,

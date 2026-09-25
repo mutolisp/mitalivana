@@ -5,6 +5,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { router, Stack, useLocalSearchParams, type Href } from 'expo-router';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
+import { shareThenDelete } from '~/lib/shareFile';
 import { strToU8 } from 'fflate';
 import { pickExportLanguage } from '~/lib/pickExportLanguage';
 import { DOC_FORMATS } from '~/lib/docFormat';
@@ -391,7 +392,7 @@ export default function FavoritesScreen() {
       // iOS cannot present the share sheet over a dismissing sheet.
       await new Promise((r) => setTimeout(r, 450));
       if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(file.uri, {
+        await shareThenDelete(file.uri, {
           mimeType: doc ? doc.mime : 'text/csv',
           UTI: doc ? doc.uti : 'public.comma-separated-values-text',
           dialogTitle: filename,

@@ -2233,7 +2233,8 @@
     "tab": {
       "points": "基礎データ",
       "map": "調査区の概要",
-      "species": "種一覧"
+      "species": "種一覧",
+      "photos": "写真チェック"
     },
     "status": {
       "none": "未着手",
@@ -2244,7 +2245,8 @@
     "list": {
       "quadrats": "1×1 m 方形区",
       "sas": "山頂区画（SAS）",
-      "squares": "10×10 m 方形区"
+      "squares": "10×10 m 方形区",
+      "optional": "（任意調査）"
     },
     "p5m": {
       "title": "{{direction}} 方位 · 3×3 m（山頂向き）",
@@ -2280,12 +2282,8 @@
       "point": "点",
       "distance": "距離 m",
       "compass": "方位 °",
-      "photo": "写真",
       "distanceOf": "{{point}} 距離（m）",
       "compassOf": "{{point}} 方位（°）",
-      "photoM2": "{{point}} 方形区の写真",
-      "photoM2F": "{{point}} 方形区＋頻度枠の写真",
-      "photoPoint": "{{point}} 点の写真",
       "intersection": "交差線"
     },
     "photo": {
@@ -2376,8 +2374,8 @@
       "remove": "このユニットから削除",
       "rowHint": "種の詳細を開く",
       "added": "{{name}} を追加しました",
-      "markDone": "このユニットを完了にする",
-      "markUndone": "完了を取り消す",
+      "markDone": "完了してロック",
+      "markUndone": "ロックを解除して編集",
       "sasMissingTitle": "{{direction}} 方位の方形区の種がすべて記載されていません",
       "addAll": "すべて追加",
       "abundanceLegend": "r! 極稀 · r 稀 · s 散在 · c 普通 · d 優占（被度 50% 超、マニュアル p.42）",
@@ -2385,7 +2383,10 @@
       "grazingPlaceholder": "例：糞、食害、踏みつけ",
       "speciesHeader_other": "種（{{count}}）· 被度合計 {{sum}}",
       "sasHeader_other": "種（{{count}}）· 多度",
-      "fromQuadratsDone_other": "方形区から {{count}} 種を追加"
+      "fromQuadratsDone_other": "方形区から {{count}} 種を追加",
+      "lockedToast": "このユニットは完了してロックされています。右上の鍵をタップすると編集できます。",
+      "lockedDone": "完了してロックしました（終了時刻を記録）",
+      "unlocked": "ロックを解除しました"
     },
     "square": {
       "walk": "開始点と方向（Form 6-S の 4 択）",
@@ -2448,7 +2449,23 @@
       "switchTitle": "記録方法の切り替え",
       "switchToCount": "回数入力に切り替えると、この方形区で描いた格子（種と Hi1–Hi3）が消去されます。切り替えますか？",
       "switchToCells": "格子記録に戻すと、入力した回数が消去されます。切り替えますか？",
-      "switchConfirm": "消去して切り替え"
+      "switchConfirm": "消去して切り替え",
+      "done": "完了してロック",
+      "unlock": "ロック解除して編集",
+      "lockedDone": "頻度を完了しロックしました",
+      "unlocked": "ロックを解除しました",
+      "lockedToast": "頻度は完了済みでロック中です。右上の鍵で解除してください",
+      "doneShort": "完了",
+      "speciesPick": "種（{{n}} 種）",
+      "disturbPick": "攪乱 Hi1–Hi3",
+      "speciesNone": "（未選択）",
+      "prevSpecies": "前の種",
+      "nextSpecies": "次の種",
+      "inCell": "この格：",
+      "cellEmpty": "（空）",
+      "cellHas": "✓ この格に {{name}} あり（タップで削除）",
+      "cellAdd": "この格に {{name}} を追加",
+      "redo": "やり直し"
     },
     "walk": {
       "titleQuadrat": "{{code}} · ポイントフレーム",
@@ -2463,7 +2480,10 @@
       "surface": "植物に当たらないとき：地表タイプ",
       "same": "前の点と同じ",
       "next": "次の点 ▶",
-      "lineDone": "{{line}} 線完了：ヒット {{hits}}"
+      "lineDone": "{{line}} 線完了：ヒット {{hits}}",
+      "lockedToast": "ポイント記録は完了してロックされています。右上の鍵をタップすると編集できます。",
+      "lockedDone": "ポイント記録を完了してロックしました（終了時刻を記録）",
+      "unlocked": "ロックを解除しました"
     },
     "endWithIssues_other": "警告が {{count}} 件あります。終了しますか？あとで再開できます。",
     "kb": {
@@ -2492,7 +2512,10 @@
       "photosHint": "マニュアル付録 III に従い SU-OV（山頂全景）として書き出し、撮影位置をファイル名の第 8 要素に入れます。各写真の撮影位置を入力してください（例：S 側の鞍部から）。",
       "viewpoint": "撮影位置",
       "viewpointLabel": "{{n}} 枚目の撮影位置",
-      "photoFail": "写真を追加できませんでした"
+      "photoFail": "写真を追加できませんでした",
+      "mocy": "モニタリング回次（mocy）",
+      "mocyTakenTitle": "この回次は使用済み",
+      "mocyTaken": "{{code}} には mocy {{mocy}} の調査がすでにあります。1 つの山頂で各回次の調査は 1 件だけです。"
     },
     "times": {
       "title": "調査者と時刻",
@@ -2504,11 +2527,100 @@
       "now": "現在時刻にする",
       "orderTitle": "時刻の順序が不正です",
       "order": "{{what}}の終了時刻は開始時刻より前にできません。",
-      "hint": "開始は最初の入力時、終了は「このユニットを完了にする」を押した時に記録されます。時刻をタップすると変更できます。",
-      "hintQuadrat": "被度推定：最初の入力で開始、「このユニットを完了にする」で終了。頻度：最初の記入で開始し、終了は最後の編集に合わせて更新されます（手動で変更した後は自動更新しません）。時刻をタップすると変更できます。",
+      "hint": "開始は最初の入力時、終了は右上の「完了」をタップした時に記録されます（もう一度タップでロック解除、その後の「完了」で新しい時刻を記録）。時刻をタップすると変更できます。",
+      "hintQuadrat": "被度推定：最初の入力で開始、右上の「完了」で終了。頻度とポイントフレーム法：最初の入力で開始、それぞれの画面の「完了」で終了（頻度の終了は手動で設定するまで最後の編集に合わせて更新）。時刻をタップすると変更できます。",
       "by": "調査者",
       "bySurvey": "調査全体と同じ：{{names}}",
-      "byNone": "未設定"
+      "byNone": "未設定",
+      "titleOnly": "調査時刻",
+      "notYet": "未開始"
+    },
+    "summitImport": {
+      "button": "山頂を読み込む",
+      "listTitle": "GLORIA 山頂一覧",
+      "listDesc": "山頂の基本データの確認・編集・読み込み",
+      "reviewTitle": "山頂の読み込みを確認",
+      "format": "CSV または Excel（.xlsx、最初のシート）を読み込めます。列は Sheet 00_plot_coordinates と同じ：fullSummitCode（または targetRegion＋summit）、decimalLatitude、decimalLongitude、elevation、Vegetation Zone、任意で name。Google Sheet をそのままダウンロードしたファイルで使えます。",
+      "readFail": "ファイルを読めませんでした",
+      "nothing": "読み込むデータがありません",
+      "fileSummary": "{{file}}：{{n}} 山頂を読み取りました",
+      "new": "新規（{{n}}）",
+      "changed": "変更あり（{{n}}）",
+      "same": "{{n}} 山頂はアプリと同じため読み込み不要",
+      "problems": "問題のある行（{{n}}）",
+      "line": "{{line}} 行目：",
+      "p_noHeader": "列名の行が見つかりません（fullSummitCode か summit 列が必要）",
+      "p_badCode": "山頂コードは 国 2 桁－対象地域 3 桁－山頂 3 桁 の形式です",
+      "p_codeMismatch": "fullSummitCode と targetRegion／summit が一致しません",
+      "p_duplicate": "ファイル内で重複した山頂。最初の行を使います",
+      "p_bad_lat": "緯度が −90～90 の数値ではありません",
+      "p_bad_lon": "経度が −180～180 の数値ではありません",
+      "p_bad_elevation": "標高が妥当な数値ではありません",
+      "p_unknownZone": "植生帯が一覧にないため、この列は読み込みません（他の列は読み込みます）",
+      "hint": "ファイルの空欄でアプリ内の値が消えることはありません。変更ありの山頂は初期状態で未選択で、選択するとファイルの値で上書きします。",
+      "apply": "{{n}} 山頂を読み込む",
+      "done": "{{added}} 山頂を追加、{{updated}} 山頂を更新しました",
+      "all": "すべて選択",
+      "none": "選択解除",
+      "noDetails": "コードのみ"
+    },
+    "pointImport": {
+      "button": "測定点を読み込む（距離・方位・p5m）",
+      "reviewTitle": "測定点の読み込みを確認",
+      "fileSummary": "{{file}}：{{code}} の点を {{n}} 件読み取りました",
+      "otherSummits": "。他の山頂の {{n}} 行は除外しました",
+      "cycle": "どの回次のデータを使うか",
+      "noMocy": "mocy なし",
+      "noRows": "ファイルに {{code}} の測定点がありません",
+      "p5m": "p5m の角",
+      "points": "測定点（{{n}}）",
+      "overwrites": "既存の値を上書き",
+      "distance": "距離 m",
+      "compass": "方位 °",
+      "comments": "備考",
+      "nothingNew": "ファイルの値は現在と同じため読み込み不要です",
+      "hint": "必要な列：点（N11、p5m-N31、N10m、NE5… または方向＋点の 2 列）、距離、方位。任意で p5m、mocy、山頂コード、備考。Sheet 02_ をそのままダウンロードしたもので使えます。空欄を埋めるだけの点は最初から選択、既存の値を上書きする点や p5m の変更は未選択です。空欄が既存の値を消すことはありません。",
+      "apply": "{{n}} 件を読み込む",
+      "done": "{{n}} 点と p5m {{p}} 件を更新しました",
+      "p_noPointHeader": "点の列（point または pointNumber）が見つかりません",
+      "p_badPoint": "点のコードを解釈できません",
+      "p_badMocy": "mocy が正の整数ではありません",
+      "p_badDistance": "距離が 0～1000 の数値ではありません",
+      "p_badCompass": "方位が 0～360 の数値ではありません",
+      "p_duplicatePoint": "同じ点が重複しています。最初の行を使います",
+      "p_twoP5m": "同じ方向の 11 と 31 の両方が p5m になっているため、この方向の p5m は読み込みません"
+    },
+    "summitExport": {
+      "title": "山頂データを書き出す",
+      "summits": "山頂の基本データ（Sheet 00_ 形式の CSV）",
+      "points": "全調査の測定点：距離・方位・p5m（Sheet 02_ 形式の CSV）"
+    },
+    "photoCheck": {
+      "hasPhoto": "この項目には写真があります。長押しで差し替え・削除",
+      "noP5mTitle": "p5m が未設定",
+      "noP5m": "先に基本データで {{direction}} の p5m（11 または 31）を指定してください",
+      "a11yHint": "タップでチェック、長押しで撮影・写真選択",
+      "bare": "枠なし",
+      "hp": "枠あり",
+      "required": "必須の写真",
+      "optional": "任意（四区画 UL／UR／LL／LR）：{{done}} / {{total}}",
+      "hint": "Form 1 と同じくチェックします：タップでチェック（別のカメラで撮った場合も含む）。長押しでアプリから撮影・写真選択し、写真を付けると完了扱い（角にカメラアイコン）。破線枠は任意です。",
+      "dirN": "北 N",
+      "dirE": "東 E",
+      "dirS": "南 S",
+      "dirW": "西 W",
+      "cluster": "3×3 m 方形区群の全景",
+      "p5mUnset": "5mp（p5m 未設定）",
+      "intersection": "交線点",
+      "summit": "山頂",
+      "hsp": "HSP（最高点）",
+      "entire": "山頂全体",
+      "endMissing": "必須の写真がまだ {{n}} 項目チェックされていません。",
+      "goTake": "撮りに行く"
+    },
+    "notes": {
+      "title": "備考",
+      "placeholder": "例：pNE-5 にアルミ棒を打ち直し。W の p5m 杭が緩んでいる"
     }
   },
   "vernacular": {
@@ -2526,5 +2638,37 @@
     "moveUp": "上へ",
     "moveDown": "下へ",
     "onlyOne": "有効な名録が一つだけなので、選べる言語は一つです。「{{page}}」で他の名録（日本など）を有効にすると追加できます。"
+  },
+  "storage": {
+    "title": "ストレージ",
+    "menuDesc": "アプリの使用容量を確認し、キャッシュと未使用の写真を削除",
+    "totalHint": "この端末上のアプリのデータ（アプリ本体を除く）。iOS 設定の「書類とデータ」と多少異なる場合があります。",
+    "canFree": "削除できるもの",
+    "cache": "キャッシュ",
+    "cacheDesc": "書き出し・バックアップのファイル、写真やファイル選択時のコピー、ダウンロードの一時ファイル。いつでも削除でき、記録には影響しません。",
+    "cacheTitle": "キャッシュを削除",
+    "cacheConfirm": "{{size}} のキャッシュを削除します。どの記録にも属していません。",
+    "orphans": "使われていない写真と録音",
+    "orphansDesc": "どの記録も使っていないファイル {{n}} 件（削除した記録の写真など）",
+    "orphansTitle": "使われていない写真と録音を削除",
+    "orphansConfirm": "{{n}} 件（{{size}}）を削除します。名録・調査区・採集・GLORIA のどの記録も参照していません。元に戻せません。",
+    "legacy": "旧バージョンの残り",
+    "legacyDesc": "自動削除できなかった旧バージョンの名録ファイルまたはラスター地図",
+    "legacyTitle": "旧バージョンの残りを削除",
+    "legacyConfirm": "{{size}} を削除します。旧名録は記録で使う名前を先にバックアップしてから削除します。",
+    "safety": "安全バックアップ",
+    "safetyDesc": "{{n}} 件：自動修復の前に作られた復元用コピー。「バックアップと復元」で管理",
+    "downloads": "再ダウンロードできるデータ",
+    "datasets": "名録モジュールと国別名録",
+    "offlineMap": "オフライン地図と地点",
+    "yours": "あなたのデータ（ここでは削除されません）",
+    "photos": "写真",
+    "audio": "録音",
+    "database": "記録データベース",
+    "yoursHint": "写真と録音は記録で使われているものだけが残ります。キャッシュや未使用ファイルの削除では消えません。",
+    "delete": "削除",
+    "freed": "{{size}} を解放しました",
+    "busyTitle": "ダウンロード中",
+    "busy": "名録・地図・国別名録のダウンロード中で、キャッシュにそのファイルがあります。完了後に削除してください。"
   }
 }

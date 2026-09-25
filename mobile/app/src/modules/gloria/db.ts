@@ -26,6 +26,7 @@ import {
 import { ALL_UNITS, DIRECTIONS, POINTS, type Direction, type P5mCorner, type UnitType } from './model/units';
 import { planPrefill, nextSerial, type PrevSurvey } from './model/prefill';
 import type { WalkOption } from './model/walk';
+import type { SummitDiff } from './model/summitImport';
 import type { GloriaDoc } from './export/yaml';
 import { UNIT_FIELDS, buildGloriaDoc } from './export/yaml';
 import type { GloriaExportData } from './export/sheetRows';
@@ -99,6 +100,12 @@ export type GloriaUnit = {
   freq_stop_ts: number | null;
   /** 1 once the user set freq_stop_ts by hand; edits then stop moving it. */
   freq_stop_manual: number;
+  /** 1 while the frequency is marked done and locked against edits. */
+  freq_locked: number;
+  /** Point-framing of a 1×1 m quadrat: its own start / end and lock (v53). */
+  pf_start_ts: number | null;
+  pf_stop_ts: number | null;
+  pf_locked: number;
   recorded_by: string | null;
   aspect_deg: number | null;
   slope_deg: number | null;
@@ -224,6 +231,29 @@ export function upsertSummit(input: SummitInput): number {
     [code, ...vals, now, now],
   );
   return Number(res.insertId);
+}
+
+/**
+ * Write the summits the user ticked on the import review: new ones are
+ * created, changed ones get only the fields that differ (a blank cell in the
+ * file never clears a stored value — see model/summitImport diffSummits).
+ */
+export function applySummitImport(chosen: SummitDiff[]): { added: number; updated: number } {
+  let added = 0;
+  let updated = 0;
+  withTransaction(() => {
+    for (const d of chosen) {
+      if (d.kind === 'new') {
+        const { line: _line, full_code: _code, ...input } = d.item;
+        upsertSummit(input);
+        added += 1;
+      } else if (d.kind === 'changed') {
+        updateSummit(d.id, Object.fromEntries(d.changes.map((c) => [c.field, c.to])) as SummitPatch);
+        updated += 1;
+      }
+    }
+  });
+  return { added, updated };
 }
 
 export type SummitPatch = Partial<
@@ -431,8 +461,32 @@ export function deleteGloriaSurvey(id: number): void {
     db.executeSync(`DELETE FROM gloria_units WHERE survey_id = ?`, [id]);
     db.executeSync(`DELETE FROM gloria_taxa WHERE survey_id = ?`, [id]);
     db.executeSync(`DELETE FROM gloria_points WHERE survey_id = ?`, [id]);
+    db.executeSync(`DELETE FROM gloria_photo_checks WHERE survey_id = ?`, [id]);
     db.executeSync(`UPDATE gloria_surveys SET prev_survey_id = NULL WHERE prev_survey_id = ?`, [id]);
     db.executeSync(`DELETE FROM gloria_surveys WHERE id = ?`, [id]);
+  });
+}
+
+/**
+ * Change which monitoring cycle a survey is (mocy). One survey per cycle per
+ * summit, so a cycle already taken is refused. The previous-cycle links of the
+ * whole summit are then rebuilt in mocy order — they drive the "differs from
+ * last time" tint on the measurement points.
+ */
+export function setSurveyMocy(id: number, mocy: number): 'ok' | 'taken' | 'invalid' {
+  if (!Number.isInteger(mocy) || mocy < 1 || mocy > 99) return 'invalid';
+  return withTransaction(() => {
+    const db = getUserDb();
+    const sv = rows<{ summit_id: number }>(db.executeSync(`SELECT summit_id FROM gloria_surveys WHERE id = ?`, [id]))[0];
+    if (!sv) return 'invalid';
+    const clash = rows(db.executeSync(`SELECT 1 FROM gloria_surveys WHERE summit_id = ? AND mocy = ? AND id != ?`, [sv.summit_id, mocy, id]));
+    if (clash.length) return 'taken';
+    db.executeSync(`UPDATE gloria_surveys SET mocy = ?, updated_at = ? WHERE id = ?`, [mocy, Date.now(), id]);
+    const chain = rows<{ id: number }>(db.executeSync(`SELECT id FROM gloria_surveys WHERE summit_id = ? ORDER BY mocy`, [sv.summit_id]));
+    chain.forEach((s, i) =>
+      db.executeSync(`UPDATE gloria_surveys SET prev_survey_id = ? WHERE id = ?`, [i > 0 ? chain[i - 1].id : null, s.id]),
+    );
+    return 'ok';
   });
 }
 
@@ -456,6 +510,47 @@ export function updatePoint(
   patch: Partial<Pick<GloriaPoint, 'distance_m' | 'compass_deg' | 'photo_m2' | 'photo_m2f' | 'photo_point' | 'comments'>>,
 ): void {
   patchRow('gloria_points', id, patch, false);
+}
+
+// ── Photo checklist (model/photoChecks) ───────────────────────────────────
+
+export type PhotoCheckRow = { id: number; survey_id: number; item: string; checked: number; photo_uri: string | null; updated_at: number };
+
+export function listPhotoChecks(surveyId: number): PhotoCheckRow[] {
+  return rows<PhotoCheckRow>(getUserDb().executeSync(`SELECT * FROM gloria_photo_checks WHERE survey_id = ? ORDER BY item`, [surveyId]));
+}
+
+/** Tick / untick an item, or set / clear its own photo (a photo also ticks it). */
+export function setPhotoCheck(surveyId: number, item: string, patch: { checked?: boolean; photo_uri?: string | null }): void {
+  const db = getUserDb();
+  const now = Date.now();
+  const has = rows(db.executeSync(`SELECT 1 FROM gloria_photo_checks WHERE survey_id = ? AND item = ?`, [surveyId, item])).length > 0;
+  const checked = patch.checked ?? (patch.photo_uri ? true : undefined);
+  if (!has) {
+    db.executeSync(
+      `INSERT INTO gloria_photo_checks (survey_id, item, checked, photo_uri, updated_at) VALUES (?, ?, ?, ?, ?)`,
+      [surveyId, item, checked ? 1 : 0, patch.photo_uri ?? null, now],
+    );
+  } else {
+    if (checked !== undefined)
+      db.executeSync(`UPDATE gloria_photo_checks SET checked = ?, updated_at = ? WHERE survey_id = ? AND item = ?`, [checked ? 1 : 0, now, surveyId, item]);
+    if (patch.photo_uri !== undefined)
+      db.executeSync(`UPDATE gloria_photo_checks SET photo_uri = ?, updated_at = ? WHERE survey_id = ? AND item = ?`, [patch.photo_uri, now, surveyId, item]);
+  }
+  touchSurvey(surveyId);
+}
+
+/** Write the points and p5m corners ticked on the point-import review, together. */
+export function applyPointImport(
+  surveyId: number,
+  points: Array<{ id: number; patch: Partial<Pick<GloriaPoint, 'distance_m' | 'compass_deg' | 'comments'>> }>,
+  p5m: Array<{ direction: Direction; corner: P5mCorner }>,
+): void {
+  withTransaction(() => {
+    for (const p of points) updatePoint(p.id, p.patch);
+    for (const x of p5m) setP5m(surveyId, x.direction, x.corner);
+    touchSurvey(surveyId);
+  });
 }
 
 /** Mark which lower corner of a direction is the p5m point (exactly one). */
@@ -674,15 +769,75 @@ export function startPoints(unitId: number, size: number): void {
   withTransaction(() => {
     const db = getUserDb();
     const now = Date.now();
+    // A quadrat's point-framing has its own start; a square's walk is the unit's.
+    const type = rows<{ unit_type: string }>(db.executeSync(`SELECT unit_type FROM gloria_units WHERE id = ?`, [unitId]))[0]?.unit_type;
+    const startCol = type === 'quadrat' ? 'pf_start_ts' : 'start_ts';
     db.executeSync(
-      `UPDATE gloria_units SET point_surface = COALESCE(point_surface, ?), start_ts = COALESCE(start_ts, ?), updated_at = ? WHERE id = ?`,
+      `UPDATE gloria_units SET point_surface = COALESCE(point_surface, ?), ${startCol} = COALESCE(${startCol}, ?), updated_at = ? WHERE id = ?`,
       ['.'.repeat(size), now, now, unitId],
     );
     db.executeSync(`UPDATE gloria_unit_species SET point_hits = ? WHERE unit_id = ? AND point_hits IS NULL`, ['0'.repeat(size), unitId]);
   });
 }
 
-/** Stamp the unit's start time on its first edit (sheet covEstStartTime / startTime). */
+/**
+ * Mark point recording done (locked, end time now) or reopen it. On a 1×1 m
+ * quadrat that is the point-framing (pf_*); on a 10×10 m square the walk is
+ * the whole unit, so it is the unit's own done (stop_ts).
+ */
+export function setPointsLocked(unitId: number, locked: boolean): void {
+  const type = rows<{ unit_type: string }>(getUserDb().executeSync(`SELECT unit_type FROM gloria_units WHERE id = ?`, [unitId]))[0]?.unit_type;
+  if (type === 'quadrat') updateUnit(unitId, { pf_locked: locked ? 1 : 0, pf_stop_ts: locked ? Date.now() : null });
+  else updateUnit(unitId, { stop_ts: locked ? Date.now() : null });
+}
+
+/**
+ * A unit and its species rows as they are now — the undo step of the unit
+ * screen. Restoring puts every column back, re-creates removed species rows
+ * with their ids and drops rows added since.
+ */
+export type UnitSnapshot = { unit: Record<string, unknown>; species: Array<Record<string, unknown>> };
+
+export function snapshotUnit(unitId: number): UnitSnapshot {
+  const db = getUserDb();
+  return {
+    unit: rows<Record<string, unknown>>(db.executeSync(`SELECT * FROM gloria_units WHERE id = ?`, [unitId]))[0] ?? {},
+    species: rows<Record<string, unknown>>(db.executeSync(`SELECT * FROM gloria_unit_species WHERE unit_id = ?`, [unitId])),
+  };
+}
+
+export function restoreUnitSnapshot(snap: UnitSnapshot): void {
+  const unitId = snap.unit.id as number;
+  withTransaction(() => {
+    const db = getUserDb();
+    const ucols = Object.keys(snap.unit).filter((c) => c !== 'id');
+    db.executeSync(
+      `UPDATE gloria_units SET ${ucols.map((c) => `${c} = ?`).join(', ')} WHERE id = ?`,
+      [...ucols.map((c) => snap.unit[c] as Scalar), unitId],
+    );
+    const keep = snap.species.map((s) => s.id as number);
+    db.executeSync(
+      `DELETE FROM gloria_unit_species WHERE unit_id = ?${keep.length ? ` AND id NOT IN (${keep.map(() => '?').join(',')})` : ''}`,
+      [unitId, ...keep],
+    );
+    for (const s of snap.species) {
+      const cols = Object.keys(s);
+      db.executeSync(
+        `INSERT OR REPLACE INTO gloria_unit_species (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`,
+        cols.map((c) => s[c] as Scalar),
+      );
+    }
+  });
+}
+
+/**
+ * Mark a quadrat's frequency done (locked, end time now — pressing 完成 is the
+ * user saying "finished now", so it also replaces a hand-set end) or reopen it.
+ */
+export function setFrequencyLocked(unitId: number, locked: boolean): void {
+  updateUnit(unitId, locked ? { freq_locked: 1, freq_stop_ts: Date.now(), freq_stop_manual: 0 } : { freq_locked: 0 });
+}
+
 /** A frequency edit happened now: move the end time, unless the user fixed it by hand. */
 export function touchFrequency(unitId: number): void {
   getUserDb().executeSync(`UPDATE gloria_units SET freq_stop_ts = ? WHERE id = ? AND freq_stop_manual = 0`, [Date.now(), unitId]);
@@ -805,6 +960,7 @@ export function loadGloriaDoc(surveyId: number): GloriaDoc | null {
     units: listUnits(surveyId),
     taxa,
     species,
+    photoChecks: listPhotoChecks(surveyId),
     displayName: (id) => names.get(id)?.simple_name || undefined,
   });
 }
@@ -890,6 +1046,12 @@ export function importGloriaDoc(doc: GloriaDoc, projectId = 0): GloriaImportResu
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [uid, gid, s.occurrence_id, s.cover_pct, s.abundance, s.layer, s.cf, s.freq_cells, s.freq_count ?? null, s.point_hits,
           s.legacy_hits, s.reproductive_condition ?? null, s.leaf_phenology ?? null, s.comments, s.created_at ?? sv.start_ts, s.updated_at ?? sv.start_ts],
+      );
+    }
+    for (const c of doc.photo_checks ?? []) {
+      db.executeSync(
+        `INSERT INTO gloria_photo_checks (survey_id, item, checked, photo_uri, updated_at) VALUES (?, ?, ?, ?, ?)`,
+        [surveyId, c.item, c.checked ? 1 : 0, c.photo_uri ?? null, c.updated_at ?? sv.start_ts],
       );
     }
     return { surveyId, replaced: !!existing };

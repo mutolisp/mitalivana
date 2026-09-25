@@ -56,6 +56,11 @@ export function refreshPoiInstalled(): void {
 let cancelled = false;
 let running = false;
 
+/** A download or import is in progress (its zip sits in the cache). */
+export function isPoiRunning(): boolean {
+  return running;
+}
+
 export function cancelPoiInstall(): void {
   cancelled = true;
 }

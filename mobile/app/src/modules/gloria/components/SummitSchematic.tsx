@@ -12,9 +12,13 @@ import { STATUS_COLOR, type UnitStatus } from '../useSurvey';
 
 const VERTEX: Record<Direction, [number, number]> = { N: [150, 66], E: [234, 150], S: [150, 234], W: [66, 150] };
 const OUT: Record<Direction, [number, number]> = { N: [0, -1], E: [1, 0], S: [0, 1], W: [-1, 0] };
+// Label centres (32×16 boxes). A cluster takes 39×39 next to its vertex on
+// either side of the principal line, depending on where p5m is, so the 05
+// labels sit on the principal line between HSP and the cluster, and the 10
+// labels clear both possible cluster positions.
 const SAS_LABEL: Array<[string, number, number]> = [
-  ['N05', 186, 118], ['N10', 192, 58], ['E05', 186, 190], ['E10', 246, 196],
-  ['S05', 114, 190], ['S10', 108, 250], ['W05', 114, 118], ['W10', 54, 112],
+  ['N05', 150, 120], ['N10', 192, 58], ['E05', 178, 150], ['E10', 246, 201],
+  ['S05', 150, 180], ['S10', 108, 250], ['W05', 122, 150], ['W10', 54, 99],
 ];
 const CELL = 13;
 
@@ -130,7 +134,25 @@ export function SummitSchematic({ p5m, statusOf, onUnit, onCluster }: Props) {
               );
             })}
             <Circle cx={pc[0]} cy={pc[1]} r={3.4} fill={ink} stroke={paper} strokeWidth={1} />
-            <SvgText x={lp[0]} y={lp[1] + 3} fontSize={9} fontWeight="700" fill="#00797b" textAnchor="middle">
+            {/* On E / W the label would sit on the horizontal principal line:
+                lift it off the line, and give every label a paper backing. */}
+            <Rect
+              x={lp[0] - 23}
+              y={lp[1] + (d === 'E' || d === 'W' ? -9 : 0) - 5}
+              width={46}
+              height={11}
+              rx={3}
+              fill={paper}
+              fillOpacity={0.9}
+            />
+            <SvgText
+              x={lp[0]}
+              y={lp[1] + (d === 'E' || d === 'W' ? -9 : 0) + 3}
+              fontSize={9}
+              fontWeight="700"
+              fill="#00797b"
+              textAnchor="middle"
+            >
               {`p5m ${d}${corner}`}
             </SvgText>
           </G>

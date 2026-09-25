@@ -12,34 +12,37 @@ import { PhotoGrid, PhotoViewerModal } from '~/components/PhotoGrid';
 import { SelectRow } from '~/components/settings/rows';
 import { errText } from '~/lib/errText';
 import { captureEnvPhoto, pickPhotos } from '~/lib/photoCapture';
-import { updateGloriaSurvey, updateSummit, type SummitPatch } from '../db';
+import { setSurveyMocy, updateGloriaSurvey, updateSummit, type GloriaSummit, type SummitPatch } from '../db';
 import { parseOverviewPhotos, serializeOverviewPhotos, type OverviewPhoto } from '../model/overview';
 import { RANGES } from '../model/ranges';
+import { VEG_ZONES } from '../model/vegZones';
+import { useActiveGloria } from '../store';
 import type { SurveyState } from '../useSurvey';
 import { Card, Label, NumField } from './ui';
 
-/** Vegetation zones as the project records them (sheet 00_ "Vegetation Zone"). */
-export const VEG_ZONES = [
-  { value: 'treeline ecotone', label: 'treeline ecotone' },
-  { value: 'lower alpine', label: 'lower alpine' },
-  { value: 'alpine', label: 'alpine (lower/upper alpine ecotone)' },
-  { value: 'upper alpine', label: 'upper alpine' },
-  { value: 'subnival', label: 'subnival (alpine to nival ecotone)' },
-  { value: 'nival', label: 'nival' },
-] as const;
+export { VEG_ZONES } from '../model/vegZones';
 
 const INPUT =
   'rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100';
 
-export function SummitForm({ state, reload }: { state: SurveyState; reload: () => void }) {
+/** The summit's own fields — used on the base-data tab and the summit list's editor. */
+export function SummitFields({
+  summit: s,
+  onChanged,
+  afterCode,
+}: {
+  summit: GloriaSummit;
+  onChanged: () => void;
+  /** A row placed right after the code (the survey's mocy on the base-data tab). */
+  afterCode?: (field: (label: string, input: React.ReactNode) => React.ReactNode) => React.ReactNode;
+}) {
   const { t } = useTranslation();
-  const s = state.summit;
   const patch = (p: SummitPatch) => {
     updateSummit(s.id, p);
-    reload();
+    onChanged();
   };
   const field = (label: string, input: React.ReactNode) => (
-    <View className="flex-row items-center py-1">
+    <View key={label} className="flex-row items-center py-1">
       <Text className="flex-1 text-sm text-gray-700 dark:text-gray-300">{label}</Text>
       {input}
     </View>
@@ -50,49 +53,69 @@ export function SummitForm({ state, reload }: { state: SurveyState; reload: () =
     ...VEG_ZONES,
     ...(s.veg_zone && !VEG_ZONES.some((z) => z.value === s.veg_zone) ? [{ value: s.veg_zone, label: s.veg_zone }] : []),
   ];
+  return (
+    <Card className="gap-0.5 p-3">
+      {field(t('gloria.summit.code'), <Text className="text-sm font-semibold text-gray-900 dark:text-gray-100">{s.full_code}</Text>)}
+      {afterCode?.(field)}
+      {field(
+        t('gloria.summit.name'),
+        <TextInput
+          key={`name-${s.updated_at}`}
+          defaultValue={s.name ?? ''}
+          onEndEditing={(e) => {
+            const v = e.nativeEvent.text.trim() || null;
+            if (v !== s.name) patch({ name: v });
+          }}
+          placeholder={t('gloria.summit.namePlaceholder')}
+          placeholderTextColor="#9ca3af"
+          accessibilityLabel={t('gloria.summit.name')}
+          className={`${INPUT} w-44`}
+        />,
+      )}
+      {field(
+        t('gloria.summit.lat'),
+        <NumField value={s.decimal_latitude} onCommit={(v) => patch({ decimal_latitude: v })} range={RANGES.latitude} signed width={140} accessibilityLabel={t('gloria.summit.lat')} />,
+      )}
+      {field(
+        t('gloria.summit.lon'),
+        <NumField value={s.decimal_longitude} onCommit={(v) => patch({ decimal_longitude: v })} range={RANGES.longitude} signed width={140} accessibilityLabel={t('gloria.summit.lon')} />,
+      )}
+      {field(
+        t('gloria.summit.elevation'),
+        <NumField value={s.elevation_m} onCommit={(v) => patch({ elevation_m: v })} range={RANGES.elevation} width={100} accessibilityLabel={t('gloria.summit.elevation')} />,
+      )}
+      <View className="pt-1.5">
+        <SelectRow variant="inline" label={t('gloria.summit.zone')} value={s.veg_zone ?? ''} options={zones} onChange={(v) => patch({ veg_zone: v || null })} />
+      </View>
+    </Card>
+  );
+}
 
+export function SummitForm({ state, reload }: { state: SurveyState; reload: () => void }) {
+  const { t } = useTranslation();
+  // Remounts the mocy field after a refused entry, so it shows the stored value again.
+  const [mocyKey, setMocyKey] = useState(0);
+  const setMocy = (v: number | null) => {
+    const r = v == null ? 'invalid' : setSurveyMocy(state.survey.id, v);
+    if (r === 'taken') Alert.alert(t('gloria.summit.mocyTakenTitle'), t('gloria.summit.mocyTaken', { mocy: v, code: state.summit.full_code }));
+    if (r === 'ok') {
+      reload();
+      useActiveGloria.getState().refresh(); // the status bar shows the mocy
+    } else setMocyKey((k) => k + 1);
+  };
   return (
     <>
       <Label>{t('gloria.summit.title')}</Label>
-      <Card className="gap-0.5 p-3">
-        {field(t('gloria.summit.code'), <Text className="text-sm font-semibold text-gray-900 dark:text-gray-100">{s.full_code}</Text>)}
-        {field(
-          t('gloria.summit.name'),
-          <TextInput
-            key={`name-${s.updated_at}`}
-            defaultValue={s.name ?? ''}
-            onEndEditing={(e) => {
-              const v = e.nativeEvent.text.trim() || null;
-              if (v !== s.name) patch({ name: v });
-            }}
-            placeholder={t('gloria.summit.namePlaceholder')}
-            placeholderTextColor="#9ca3af"
-            accessibilityLabel={t('gloria.summit.name')}
-            className={`${INPUT} w-44`}
-          />,
-        )}
-        {field(
-          t('gloria.summit.lat'),
-          <NumField value={s.decimal_latitude} onCommit={(v) => patch({ decimal_latitude: v })} range={RANGES.latitude} signed width={140} accessibilityLabel={t('gloria.summit.lat')} />,
-        )}
-        {field(
-          t('gloria.summit.lon'),
-          <NumField value={s.decimal_longitude} onCommit={(v) => patch({ decimal_longitude: v })} range={RANGES.longitude} signed width={140} accessibilityLabel={t('gloria.summit.lon')} />,
-        )}
-        {field(
-          t('gloria.summit.elevation'),
-          <NumField value={s.elevation_m} onCommit={(v) => patch({ elevation_m: v })} range={RANGES.elevation} width={100} accessibilityLabel={t('gloria.summit.elevation')} />,
-        )}
-        <View className="pt-1.5">
-          <SelectRow
-            variant="inline"
-            label={t('gloria.summit.zone')}
-            value={s.veg_zone ?? ''}
-            options={zones}
-            onChange={(v) => patch({ veg_zone: v || null })}
-          />
-        </View>
-      </Card>
+      <SummitFields
+        summit={state.summit}
+        onChanged={reload}
+        afterCode={(field) =>
+          field(
+            t('gloria.summit.mocy'),
+            <NumField key={`mocy-${mocyKey}`} value={state.survey.mocy} onCommit={setMocy} range={RANGES.mocy} width={70} accessibilityLabel={t('gloria.summit.mocy')} />,
+          )
+        }
+      />
       <OverviewPhotos state={state} reload={reload} />
     </>
   );

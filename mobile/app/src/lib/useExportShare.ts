@@ -11,6 +11,7 @@ import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert } from 'react-native';
 import * as Sharing from 'expo-sharing';
+import { shareThenDelete } from '~/lib/shareFile';
 import type { ExportProgress } from '~/lib/bundleExport';
 import { formatBytes } from '~/lib/exportSize';
 import { useToast } from '~/stores/toast';
@@ -49,7 +50,7 @@ export function useExportShare() {
         if (!ok) {
           Alert.alert(t('export.shareUnavailable'), t('export.fileGenerated', { uri: file.uri }));
         } else {
-          await Sharing.shareAsync(file.uri, {
+          await shareThenDelete(file.uri, {
             mimeType: file.mimeType,
             ...(file.UTI ? { UTI: file.UTI } : {}),
             dialogTitle: file.filename,

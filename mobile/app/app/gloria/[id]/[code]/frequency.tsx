@@ -14,7 +14,9 @@ import * as Haptics from 'expo-haptics';
 import { Stack, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, AppState, ScrollView, Text, View, type TextInput } from 'react-native';
+import { Alert, AppState, Pressable, ScrollView, Text, View, type TextInput } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { SelectRow } from '~/components/settings/rows';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HeaderIconButton } from '~/components/HeaderIconButton';
@@ -25,6 +27,7 @@ import { useToast } from '~/stores/toast';
 import {
   addUnitSpecies,
   setFrequencyMode,
+  setFrequencyLocked,
   startFrequency,
   touchFrequency,
   updateUnit,
@@ -32,7 +35,7 @@ import {
 } from '~/modules/gloria/db';
 import { emptyMask, fillMask, getBit, popcount, rcLabel, setBits, QUADRAT_N } from '~/modules/gloria/model/grid';
 import type { Direction } from '~/modules/gloria/model/units';
-import { displayName, useSurvey } from '~/modules/gloria/useSurvey';
+import { displayName, GLORIA_SEARCH_GROUPS, useSurvey } from '~/modules/gloria/useSurvey';
 import { OverviewPanel } from '~/modules/gloria/components/OverviewPanel';
 import { BannerText, Btn, Chip, FoldBanner, NumAccessory, NumField, Seg } from '~/modules/gloria/components/ui';
 import { RANGES } from '~/modules/gloria/model/ranges';
@@ -58,6 +61,14 @@ export default function FrequencyScreen() {
   const code = String(params.code);
   const { state, reload } = useSurvey(id);
   const unit = state?.unit(code);
+  // Marked done: nothing on this screen may change the data until reopened.
+  const locked = unit?.freq_locked === 1;
+  // Say so once on arrival; the header lock shows it from then on.
+  const lockedOnOpen = useRef(locked);
+  useEffect(() => {
+    if (lockedOnOpen.current) toast(t('gloria.freq.lockedToast'));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const spp = useMemo(() => (state ? [...state.speciesOf(code)].sort((a, b) => a.serial - b.serial) : []), [state, code]);
 
   const targets: Target[] = useMemo(
@@ -101,6 +112,28 @@ export default function FrequencyScreen() {
   const [adding, setAdding] = useState(false);
   const [panel, setPanel] = useState(false);
   const undo = useRef<Array<{ key: string; mask: string }>>([]);
+  // The stack lives in a ref (gesture callbacks must see it at once); its
+  // length is state so the header's undo button enables when a stroke ends —
+  // a finished stroke writes but does not re-render, which left it disabled.
+  const [undoCount, setUndoCount] = useState(0);
+  // Redo: what undo took back, until the next new edit (then history forks).
+  const redo = useRef<Array<{ key: string; mask: string }>>([]);
+  const [redoCount, setRedoCount] = useState(0);
+  const pushUndo = useRef((e: { key: string; mask: string }, fresh = true) => {
+    undo.current.push(e);
+    if (undo.current.length > 100) undo.current.shift();
+    setUndoCount(undo.current.length);
+    if (fresh) {
+      redo.current = [];
+      setRedoCount(0);
+    }
+  }).current;
+  const clearUndo = () => {
+    undo.current = [];
+    redo.current = [];
+    setUndoCount(0);
+    setRedoCount(0);
+  };
   const [size, setSize] = useState(300);
   const stroke = useRef<{ key: string; on: boolean; seen: Set<number>; before: string } | null>(null);
   const cur = active ?? targets[0]?.key ?? null;
@@ -116,27 +149,32 @@ export default function FrequencyScreen() {
     touchFrequency(unit.id);
   };
   persistRef.current = persist;
-  const write = (key: string, mask: string, pushUndo = true) => {
+  const write = (key: string, mask: string, record = true) => {
+    if (locked) {
+      toast(t('gloria.freq.lockedToast'));
+      return;
+    }
     const before = masksRef.current[key] ?? emptyMask(CELLS);
     if (before === mask) return;
-    if (pushUndo) {
-      undo.current.push({ key, mask: before });
-      if (undo.current.length > 100) undo.current.shift();
+    if (record) {
+      pushUndo({ key, mask: before });
     }
     setMasks({ ...masksRef.current, [key]: mask });
     persist(key, mask);
   };
 
   // A stroke that is still open when the app leaves the foreground is written anyway.
+  // Writes the open stroke. The undo step was already taken when the stroke
+  // began, so this only persists. It is called from the gesture's finalize,
+  // but also before the next stroke, before undo / redo / lock, on leaving
+  // and on backgrounding: a device that does not deliver finalize must lose
+  // neither the stroke nor its undo step.
   const flushStroke = useRef(() => {
     const s = stroke.current;
     stroke.current = null;
     if (!s) return;
     const now = masksRef.current[s.key];
-    if (now && now !== s.before) {
-      undo.current.push({ key: s.key, mask: s.before });
-      persistRef.current(s.key, now);
-    }
+    if (now && now !== s.before) persistRef.current(s.key, now);
   }).current;
   useEffect(() => {
     const sub = AppState.addEventListener('change', (st) => {
@@ -167,11 +205,17 @@ export default function FrequencyScreen() {
           setSel(i);
           return;
         }
+        if (locked) {
+          toast(t('gloria.freq.lockedToast'));
+          return;
+        }
         if (!cur) return;
+        flushStroke(); // a previous stroke whose finalize never came
         const before = masksRef.current[cur] ?? emptyMask(CELLS);
         // The first cell decides: paint where it was empty, erase where it was set.
         const on = !getBit(before, i);
         stroke.current = { key: cur, on, seen: new Set([i]), before };
+        pushUndo({ key: cur, mask: before });
         setMasks({ ...masksRef.current, [cur]: setBits(before, [i], on) });
       })
       .onUpdate((e) => {
@@ -185,7 +229,7 @@ export default function FrequencyScreen() {
       .onFinalize(() => flushStroke());
     // setMasks only touches refs and a state setter.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, cur, size, flushStroke]);
+  }, [mode, cur, size, flushStroke, locked]);
 
   if (!state || !unit) {
     return (
@@ -214,13 +258,18 @@ export default function FrequencyScreen() {
   const hasCounts = byCount && (spp.some((s) => s.freq_count != null) || GRAZING.some((g) => unit[g.countCol] != null));
   const switchMode = (next: typeof mode) => {
     if (next === mode) return;
+    // Viewing another method is harmless, but switching to / from counts clears data.
+    if (locked && (next === 'count' || mode === 'count')) {
+      toast(t('gloria.freq.lockedToast'));
+      return;
+    }
     const toCount = next === 'count';
     const loses = toCount ? hasCells : mode === 'count' && hasCounts;
     const go = () => {
       if (loses) {
         setFrequencyMode(unit.id, toCount ? 'count' : 'cells', { discard: true });
         cellsStarted.current = false;
-        undo.current = [];
+        clearUndo();
         reload();
       }
       setInverse(false);
@@ -233,6 +282,10 @@ export default function FrequencyScreen() {
     ]);
   };
   const commitCount = (write: () => void) => {
+    if (locked) {
+      toast(t('gloria.freq.lockedToast'));
+      return;
+    }
     // Late commit from a field of a count screen already left: drop it.
     if (modeRef.current !== 'count') return;
     // Never wipes painted cells: those were cleared (with confirmation) on the way in.
@@ -258,6 +311,78 @@ export default function FrequencyScreen() {
     })),
   ];
 
+  /**
+   * Species and disturbance pickers, the same in both modes: a dropdown each
+   * (options carry their cell count) instead of a chip per species, and ‹ ›
+   * to step through the species in roster order. `onChosen` (cell mode) also
+   * puts what was chosen from a dropdown into the current cell; the arrows
+   * only move the focus.
+   */
+  const targetPicker = (onChosen?: (k: string) => void) => {
+    const sp = targets.filter((x) => x.usid != null);
+    const hi = targets.filter((x) => x.col != null);
+    const spOn = sp.some((x) => x.key === cur);
+    const hiOn = hi.some((x) => x.key === cur);
+    const idx = sp.findIndex((x) => x.key === cur);
+    const focus = (k: string) => {
+      setActive(k);
+      setInverse(false);
+    };
+    const choose = (k: string) => {
+      if (!k) return;
+      focus(k);
+      onChosen?.(k);
+    };
+    const opts = (xs: Target[]) => xs.map((x) => ({ value: x.key, label: `${x.label} · ${popcount(masks[x.key])}` }));
+    const box = (on: boolean) => `flex-1 rounded-lg border-2 px-1.5 pb-1.5 pt-1 ${on ? 'border-[#00A2A5]' : 'border-transparent'}`;
+    const arrow = (dir: 'back' | 'forward') => (
+      <Pressable
+        onPress={() => {
+          if (!sp.length) return;
+          focus(sp[dir === 'back' ? (idx <= 0 ? sp.length : idx) - 1 : (idx + 1) % sp.length].key);
+        }}
+        accessibilityRole="button"
+        accessibilityLabel={t(dir === 'back' ? 'gloria.freq.prevSpecies' : 'gloria.freq.nextSpecies')}
+        className="mb-1.5 h-9 w-9 items-center justify-center rounded-lg border border-gray-300 dark:border-gray-700"
+      >
+        <Ionicons name={dir === 'back' ? 'chevron-back' : 'chevron-forward'} size={18} color="#6b7280" />
+      </Pressable>
+    );
+    return (
+      <View className="gap-1.5">
+        <View className="flex-row items-end gap-1.5">
+          {arrow('back')}
+          <View className={box(spOn)}>
+            <SelectRow
+              variant="inline"
+              label={t('gloria.freq.speciesPick', { n: sp.length })}
+              value={spOn ? cur! : ''}
+              options={[{ value: '', label: t('gloria.freq.speciesNone') }, ...opts(sp)]}
+              onChange={choose}
+            />
+          </View>
+          {arrow('forward')}
+        </View>
+        <View className="flex-row items-end gap-1.5">
+          <View className={box(hiOn)}>
+            <SelectRow
+              variant="inline"
+              label={t('gloria.freq.disturbPick')}
+              value={hiOn ? cur! : ''}
+              options={[{ value: '', label: t('gloria.freq.speciesNone') }, ...opts(hi)]}
+              onChange={choose}
+            />
+          </View>
+          <View className="mb-1.5">
+            <Btn small label={t('gloria.freq.newSpecies')} onPress={() => (locked ? toast(t('gloria.freq.lockedToast')) : setAdding(true))} />
+          </View>
+        </View>
+      </View>
+    );
+  };
+  /** Put `key` into the current cell (cell mode), or take it out. */
+  const setInCell = (key: string, on: boolean) => write(key, setBits(masks[key] ?? emptyMask(CELLS), [sel], on));
+
   const nextCell = (clear: boolean) => {
     if (clear) for (const tg of targets) if (getBit(masks[tg.key] ?? '', sel)) write(tg.key, setBits(masks[tg.key], [sel], false));
     void Haptics.selectionAsync();
@@ -272,18 +397,51 @@ export default function FrequencyScreen() {
           headerLeft: BackHeaderLeft,
           headerRight: () => (
             <View className="flex-row items-center gap-3">
-              {mode !== 'count' ? (
+              {mode !== 'count' && !locked ? (
                 <HeaderIconButton
                   icon="arrow-undo-outline"
                   label={t('gloria.freq.undo')}
-                  disabled={undo.current.length === 0}
+                  disabled={undoCount === 0}
                   onPress={() => {
+                    flushStroke();
                     const u = undo.current.pop();
-                    if (u) write(u.key, u.mask, false);
+                    setUndoCount(undo.current.length);
+                    if (!u) return;
+                    redo.current.push({ key: u.key, mask: masksRef.current[u.key] ?? emptyMask(CELLS) });
+                    setRedoCount(redo.current.length);
+                    write(u.key, u.mask, false);
+                  }}
+                />
+              ) : null}
+              {mode !== 'count' && !locked ? (
+                <HeaderIconButton
+                  icon="arrow-redo-outline"
+                  label={t('gloria.freq.redo')}
+                  disabled={redoCount === 0}
+                  onPress={() => {
+                    flushStroke();
+                    const r = redo.current.pop();
+                    setRedoCount(redo.current.length);
+                    if (!r) return;
+                    // Back onto the undo stack without dropping the rest of the redo stack.
+                    pushUndo({ key: r.key, mask: masksRef.current[r.key] ?? emptyMask(CELLS) }, false);
+                    write(r.key, r.mask, false);
                   }}
                 />
               ) : null}
               <HeaderIconButton icon="grid-outline" label={t('gloria.overview')} onPress={() => setPanel(true)} />
+              <HeaderIconButton
+                icon={locked ? 'lock-closed' : 'checkmark-done-outline'}
+                label={locked ? t('gloria.freq.unlock') : t('gloria.freq.done')}
+                onPress={() => {
+                  flushStroke();
+                  setFrequencyLocked(unit.id, !locked);
+                  clearUndo();
+                  setAdding(false);
+                  reload();
+                  toast(locked ? t('gloria.freq.unlocked') : t('gloria.freq.lockedDone'));
+                }}
+              />
             </View>
           ),
         }}
@@ -400,61 +558,61 @@ export default function FrequencyScreen() {
                   onSubmitEditing={i < countRows.length - 1 ? () => countRefs.current[i + 1]?.focus() : undefined}
                   accessibilityLabel={r.label}
                   range={RANGES.cells}
+                  editable={!locked}
                 />
               </View>
             ))}
             <View className="flex-row">
-              <Chip label={t('gloria.freq.newSpecies')} on={false} onPress={() => setAdding(true)} />
+              <Chip label={t('gloria.freq.newSpecies')} on={false} onPress={() => (locked ? toast(t('gloria.freq.lockedToast')) : setAdding(true))} />
             </View>
           </>
         ) : mode === 'brush' ? (
           <>
-            <View className="flex-row flex-wrap">
-              {targets.map((tg) => (
-                <Chip
-                  key={tg.key}
-                  label={tg.label}
-                  on={tg.key === cur}
-                  tone={tg.tone}
-                  badge={String(popcount(masks[tg.key]))}
-                  onPress={() => {
-                    setActive(tg.key);
-                    setInverse(false);
-                  }}
-                />
-              ))}
-              <Chip label={t('gloria.freq.newSpecies')} on={false} onPress={() => setAdding(true)} />
-            </View>
+            {targetPicker()}
             <View className="flex-row gap-2">
-              <Btn small label={t('gloria.freq.fillAll')} disabled={!cur} onPress={() => cur && write(cur, fillMask(CELLS, true))} />
+              <Btn small label={t('gloria.freq.fillAll')} disabled={!cur || locked} onPress={() => cur && write(cur, fillMask(CELLS, true))} />
               <Btn
                 small
                 label={inverse ? t('gloria.freq.inverseDone') : t('gloria.freq.inverse')}
-                disabled={!cur}
+                disabled={!cur || locked}
                 onPress={() => {
                   if (!cur) return;
                   if (!inverse) write(cur, fillMask(CELLS, true));
                   setInverse(!inverse);
                 }}
               />
-              <Btn small label={t('gloria.freq.clear')} disabled={!cur} onPress={() => cur && write(cur, fillMask(CELLS, false))} />
+              <Btn small label={t('gloria.freq.clear')} disabled={!cur || locked} onPress={() => cur && write(cur, fillMask(CELLS, false))} />
             </View>
             <Text className="text-xs text-gray-500 dark:text-gray-400">{inverse ? t('gloria.freq.inverseHint') : t('gloria.freq.brushHint')}</Text>
           </>
         ) : (
           <>
             <Text className="text-sm font-semibold text-gray-900 dark:text-gray-100">{t('gloria.freq.cellTitle', { cell: rcLabel(sel), n: sel + 1 })}</Text>
-            <View className="flex-row flex-wrap">
-              {targets.map((tg) => (
-                <Chip
-                  key={tg.key}
-                  label={tg.label}
-                  tone={tg.tone}
-                  on={getBit(masks[tg.key] ?? '', sel)}
-                  onPress={() => write(tg.key, setBits(masks[tg.key] ?? emptyMask(CELLS), [sel], !getBit(masks[tg.key] ?? '', sel)))}
-                />
-              ))}
+            {/* What this cell already holds; ✕ takes one out. */}
+            <View className="flex-row flex-wrap items-center">
+              <Text className="mb-1.5 mr-1.5 text-xs text-gray-500 dark:text-gray-400">{t('gloria.freq.inCell')}</Text>
+              {targets.filter((tg) => getBit(masks[tg.key] ?? '', sel)).length === 0 ? (
+                <Text className="mb-1.5 text-xs text-gray-400">{t('gloria.freq.cellEmpty')}</Text>
+              ) : (
+                targets
+                  .filter((tg) => getBit(masks[tg.key] ?? '', sel))
+                  .map((tg) => (
+                    <Chip key={tg.key} label={`${tg.label}  ✕`} tone={tg.tone} on onPress={() => setInCell(tg.key, false)} />
+                  ))
+              )}
             </View>
+            {targetPicker((k) => setInCell(k, true))}
+            {curTarget ? (
+              <Btn
+                label={
+                  getBit(masks[curTarget.key] ?? '', sel)
+                    ? t('gloria.freq.cellHas', { name: curTarget.label })
+                    : t('gloria.freq.cellAdd', { name: curTarget.label })
+                }
+                disabled={locked}
+                onPress={() => setInCell(curTarget.key, !getBit(masks[curTarget.key] ?? '', sel))}
+              />
+            ) : null}
             <View className="flex-row gap-2">
               <View className="flex-1"><Btn label={t('gloria.freq.emptyNext')} onPress={() => nextCell(true)} /></View>
               <View className="flex-[2]"><Btn primary label={t('gloria.freq.next')} onPress={() => nextCell(false)} /></View>
@@ -465,6 +623,7 @@ export default function FrequencyScreen() {
       {adding ? (
         <KeyboardStickyView offset={{ opened: insets.bottom }}>
           <SearchBox
+            scopeGroups={GLORIA_SEARCH_GROUPS}
             onSelect={(r) => {
               if (!r.taxon_id) return;
               const usid = addUnitSpecies(unit.id, r.taxon_id);

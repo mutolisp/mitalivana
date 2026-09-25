@@ -112,6 +112,10 @@ const NOT_RESTORABLE = {
     id: ROW_ID,
     survey_id: 'structural — the roster lives inside its survey in the yml',
   },
+  gloria_photo_checks: {
+    id: ROW_ID,
+    survey_id: 'structural — the checklist lives inside its survey in the yml',
+  },
   gloria_unit_species: {
     id: ROW_ID,
     unit_id: 'exported as the unit CODE (`unit`), ids are per-device',
@@ -834,6 +838,7 @@ checklist:
   const species = full('gloria_unit_species', { unit_id: 7, gloria_taxon_id: 9 });
   const doc = buildGloriaDoc({
     summit, survey, projectName: 'P', points: [full('gloria_points')], units: [unit], taxa: [taxon], species: [species],
+    photoChecks: [full('gloria_photo_checks', { item: 'CL-N', checked: 1 })],
   });
   const surveyKeys = new Set([...Object.keys(doc.survey), 'project_name']);
   checkCoverage('gloria_summits', new Set(Object.keys(doc.summit)));
@@ -842,6 +847,7 @@ checklist:
   checkCoverage('gloria_units', new Set(Object.keys(doc.units[0])));
   checkCoverage('gloria_taxa', new Set(Object.keys(doc.taxa[0])));
   checkCoverage('gloria_unit_species', new Set(Object.keys(doc.species[0])));
+  checkCoverage('gloria_photo_checks', new Set(Object.keys(doc.photo_checks[0])));
   eq('gloria: species keyed by unit code', doc.species[0].unit, 'N33');
   eq('gloria: species keyed by roster serial', doc.species[0].serial, 3);
   const back = yaml.load(yaml.dump(doc, { lineWidth: -1, noRefs: true }));

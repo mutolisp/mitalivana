@@ -39,11 +39,13 @@ function Grid({
   keys,
   labelKey,
   onCommit,
+  editable,
 }: {
   unit: GloriaUnit;
   keys: readonly (keyof UnitPatch & keyof GloriaUnit)[];
   labelKey: (k: string) => string;
   onCommit: (patch: UnitPatch) => void;
+  editable: boolean;
 }) {
   const { t } = useTranslation();
   const refs = useRef<Array<TextInput | null>>([]);
@@ -60,6 +62,7 @@ function Grid({
             accessibilityLabel={t(labelKey(k))}
             width={76}
             range={RANGES.percent}
+            editable={editable}
           />
         </View>
       ))}
@@ -67,7 +70,7 @@ function Grid({
   );
 }
 
-export function TopCoverFields({ unit, onCommit }: { unit: GloriaUnit; onCommit: (p: UnitPatch) => void }) {
+export function TopCoverFields({ unit, onCommit, editable = true }: { unit: GloriaUnit; onCommit: (p: UnitPatch) => void; editable?: boolean }) {
   const { t } = useTranslation();
   // Filling the sixth of seven completes the seventh (model/validate autoFillLast).
   const commitTop = (p: UnitPatch) => {
@@ -84,7 +87,7 @@ export function TopCoverFields({ unit, onCommit }: { unit: GloriaUnit; onCommit:
   return (
     <View className="gap-1">
       <Text className="text-xs font-semibold text-gray-500 dark:text-gray-400">{t('gloria.cover.title')}</Text>
-      <Grid unit={unit} keys={TOP_KEYS} labelKey={(k) => `gloria.cover.${k}`} onCommit={commitTop} />
+      <Grid unit={unit} keys={TOP_KEYS} labelKey={(k) => `gloria.cover.${k}`} onCommit={commitTop} editable={editable} />
       {sum != null ? (
         <Text className={`text-right text-xs font-semibold ${ok ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
           {ok ? t('gloria.cover.sumOk', { sum }) : t('gloria.cover.sumBad', { sum })}
@@ -94,12 +97,12 @@ export function TopCoverFields({ unit, onCommit }: { unit: GloriaUnit; onCommit:
   );
 }
 
-export function SubtypeFields({ unit, onCommit }: { unit: GloriaUnit; onCommit: (p: UnitPatch) => void }) {
+export function SubtypeFields({ unit, onCommit, editable = true }: { unit: GloriaUnit; onCommit: (p: UnitPatch) => void; editable?: boolean }) {
   const { t } = useTranslation();
   return (
     <View className="gap-1">
       <Text className="text-xs text-gray-500 dark:text-gray-400">{t('gloria.cover.subtypeHint')}</Text>
-      <Grid unit={unit} keys={SUB_KEYS} labelKey={(k) => `gloria.cover.${k}`} onCommit={onCommit} />
+      <Grid unit={unit} keys={SUB_KEYS} labelKey={(k) => `gloria.cover.${k}`} onCommit={onCommit} editable={editable} />
     </View>
   );
 }

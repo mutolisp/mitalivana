@@ -65,6 +65,13 @@ type Props = {
    */
   renderNoMatch?: (query: string) => ReactNode;
   /**
+   * Taxon groups a screen always starts with, whatever the user last picked
+   * elsewhere — a GLORIA survey records vascular plants only. The user can
+   * still change them here, but that change stays on this screen and is not
+   * remembered as `last_search_groups`.
+   */
+  scopeGroups?: TaxonGroup[];
+  /**
    * Which way round the box is built.
    *
    *   - 'dock' (default): suggestions ABOVE the input. Right when the box is
@@ -132,13 +139,14 @@ export function SearchBox({
   renderNoMatch,
   layout = 'dock',
   runLookup = (run) => run(),
+  scopeGroups,
 }: Props) {
   const { t } = useTranslation();
   const lastGroups = useSettings((s) => s.last_search_groups);
   const setSetting = useSettings((s) => s.set);
 
   const [query, setQuery] = useState('');
-  const [groups, setGroupsLocal] = useState<TaxonGroup[]>(lastGroups);
+  const [groups, setGroupsLocal] = useState<TaxonGroup[]>(scopeGroups ?? lastGroups);
   const [results, setResults] = useState<SearchResult[]>([]);
   const inputRef = useRef<TextInput>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -148,9 +156,11 @@ export function SearchBox({
   const noLocalHit =
     (gbifFallback || !!renderNoMatch) && trimmedQuery.length > 0 && results.length === 0;
 
+  // A screen can gain or lose its scope while mounted (a GLORIA survey starts
+  // or ends under the taxonomy tab); follow it, then the remembered groups.
   useEffect(() => {
-    setGroupsLocal(lastGroups);
-  }, [lastGroups]);
+    setGroupsLocal(scopeGroups ?? lastGroups);
+  }, [lastGroups, scopeGroups]);
 
   // Pre-warm the 62k fuzzy cname index off the critical path so the first
   // user query doesn't pay the ~200-500ms cold-load cost. setTimeout(0)
@@ -205,7 +215,7 @@ export function SearchBox({
 
   const handleGroupChange = (next: TaxonGroup[]) => {
     setGroupsLocal(next);
-    setSetting('last_search_groups', next);
+    if (!scopeGroups) setSetting('last_search_groups', next);
   };
 
   /** The user tapped the 「你輸入：X」 line: ask which name to file under. */

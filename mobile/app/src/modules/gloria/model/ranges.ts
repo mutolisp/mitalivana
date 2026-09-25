@@ -21,6 +21,8 @@ export const RANGES = {
   latitude: { min: -90, max: 90, unit: '°' },
   longitude: { min: -180, max: 180, unit: '°' },
   elevation: { min: -500, max: 9000, unit: 'm' },
+  /** Monitoring cycle; Annex III gives it two digits in photo names. */
+  mocy: { min: 1, max: 99, integer: true, unit: '' },
   /** Frequency entered as a count: whole cells out of 100. */
   cells: { min: 0, max: 100, integer: true, unit: '' },
 } satisfies Record<string, Range>;

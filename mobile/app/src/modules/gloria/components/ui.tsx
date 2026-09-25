@@ -266,8 +266,9 @@ export const NumField = forwardRef<
     range?: Range;
     /** Needs a minus sign (coordinates) — the iOS decimal pad has none. */
     signed?: boolean;
+    editable?: boolean;
   }
->(function NumField({ value, onCommit, placeholder, changed, width = 76, onSubmitEditing, accessibilityLabel, range, signed }, ref) {
+>(function NumField({ value, onCommit, placeholder, changed, width = 76, onSubmitEditing, accessibilityLabel, range, signed, editable = true }, ref) {
   const { t } = useTranslation();
   const [text, setText] = useState(fmt(value));
   // Last value handed to onCommit: Next commits and the blur that follows
@@ -325,6 +326,7 @@ export const NumField = forwardRef<
       blurOnSubmit={!onSubmitEditing}
       returnKeyType={onSubmitEditing ? 'next' : 'done'}
       keyboardType={signed ? 'numbers-and-punctuation' : NUMERIC_KEYBOARD}
+      editable={editable}
       placeholder={placeholder}
       accessibilityLabel={accessibilityLabel}
       selectTextOnFocus

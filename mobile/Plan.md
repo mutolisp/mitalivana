@@ -14,9 +14,9 @@
 |---|---|
 | `Plan.md`（本檔） | **待辦** ＋ 現行架構與長效設計決策 |
 | `Update_log.md` | 已 ship 與踩過的坑；附錄 A–D 收了本檔原本 4,000 多行的 sprint 推導過程 |
-| `Device_test.md` | 實機驗證清單（487 項，全部未跑）。**驗證項不要寫回本檔** |
-| 守門 | `npm run check:*` 共 **37 支**（2026-09-25 最新加入 `check:gloria`） |
-| `docs/` | 仍代表現況的參考文件：檢索表、樣區、匯出外部 API、報表、物種詳細頁、地圖、i18n |
+| `Device_test.md` | 實機驗證清單（537 項，全部未跑）。**驗證項不要寫回本檔** |
+| 守門 | `npm run check:*` 共 **38 支**（2026-09-25 最新加入 `check:gloria`、`check:storage`） |
+| `docs/` | 仍代表現況的參考文件：檢索表、樣區、匯出外部 API、報表、物種詳細頁、地圖、i18n；`docs/gloria-ui/` GLORIA 介面草稿（五語） |
 | `docs/planned/` | 純規劃未動工：AI 辨識、P2P 協作、雲端協作 |
 | `archive/` | 已完成或被取代的設計稿與一次性稽核 |
 | `PRIVACY.md` / `PRIVACY.en.md` | 隱私政策 |
@@ -25,7 +25,8 @@
 樣區調查 → `docs/Survey_plots_plan.md`；檢索表 → `docs/Ident_keys.md`；
 地圖與圖層 → `docs/Map.md`；iNat／GBIF → `docs/External_species_api.md`；
 報表 → `docs/Report.md`；物種詳細頁 → `docs/Species_details.md`；i18n → `docs/i18n.md`；
-GLORIA → `~/.claude/plans/gloria-1-gloria-jazzy-lagoon.md`（`docs/gloria.md` 尚未寫，見 G3）。
+GLORIA → `~/.claude/plans/gloria-1-gloria-jazzy-lagoon.md`（`docs/gloria.md` 尚未寫，見 G3）；
+GLORIA 介面草稿（五語）→ `docs/gloria-ui/`（原稿、譯文與建置腳本，流程見其 README）。
 
 ---
 
@@ -283,24 +284,54 @@ GLORIA → `~/.claude/plans/gloria-1-gloria-jazzy-lagoon.md`（`docs/gloria.md` 
 - [ ] `expo-sharing` 必須裝 14.x（SDK 54 對應版本），裝到 55.x 會 build fail（type 不相容）
 
 
-### G. GLORIA 山峰監測模組（2026-09-25 上線 v47–v49，細節見 `Update_log.md`）
+### G. GLORIA 山峰監測模組（2026-09-25 上線 v47–v53，細節見 `Update_log.md`）
 
-已完成：資料模型、盲測重複調查、基礎資料（山峰基本資料＋環境照片＋28 量測點）、樣區總覽、物種總表、
-1×1 m 樣區／頻度（筆刷、逐格、直接輸入次數）／頻度點擊法、SAS、10×10 逐點、Sheet 分頁 CSV＋yml＋照片匯出、
-歷史資料一次性轉換（57 個 zip）。
+已完成：
+- 用詞：summit＝山峰、1×1 m／10×10 m 樣區、山峰區域樣區（SAS）、point-frame＝頻度點擊法、abundance＝豐度
+- 資料模型、盲測重複調查（Box 4.5）、single-active 整合、Sheet 分頁 CSV＋yml＋照片匯出、歷史資料一次性轉換（57 個 zip）
+- 基礎資料：山峰基本資料（名稱、WGS84 經緯度、海拔、植群帶下拉）、第幾次監測（mocy，同山峰不可重複）、環境照片（SU-OV＋拍攝位置）、28 量測點、備註（Form 1 COMMENTS）
+- 樣區總覽（菱形示意圖、狀態色、p5m 標籤避開主測線；單位清單依 E／N／S／W 各一排，必做標紅 *、10×10 標選擇性調查）、物種總表、
+  拍照檢核 tab（必拍 54、選拍四小區 64，結束時提醒）；各輸入畫面右上的總覽面板（跳轉依 E／N／S／W）
+- 1×1 m 樣區／頻度（筆刷、逐格、直接輸入次數；物種與干擾用下拉選單＋‹ ›）／頻度點擊法、SAS、10×10 逐點；
+  每個輸入畫面右上都有復原／重做／總覽／完成：完成記下結束時間並鎖定，再按解鎖（優勢度估測、頻度、頻度點擊法各自一組）
+- 每單位調查者與調查時間：1×1 m、SAS、10×10 m 都在最上方「樣區環境」摺疊區內、時間可單獨收摺；
+  開始／結束（日期、時間分欄，自動記錄可手改；1×1 m 有優勢度估測、頻度、頻度點擊法三組）
+- 搜尋預設只找維管束植物（GLORIA 各搜尋框＋調查進行中的分類樹搜尋；可當下改選，不覆寫使用者的設定）
+- 山峰清單（偏好設定）：匯入／匯出山峰（00_ 欄位）、匯入量測點（只需點位、距離、方位）、匯出量測點（02_ 欄位），CSV 與 .xlsx
+- 介面草稿 artifact（https://claude.ai/artifact/QCgtqCyBKeKFhizoRVA1Cn ，v41，五語；原稿 `docs/gloria-ui/`）：
+  01 建立～09 拍照檢核，05b 頻度點擊法（100 點、逐點復原／重做／完成）已補上；app 介面改動時同步更新
 
+待辦：
 1. **DwC-A 匯出** —— 山峰為父 event、各單位為子 event，頻度與 hits 走 MoF。要先補 `OCCURRENCE_COLS.occurrenceStatus`、
    `MEASUREMENT_COLS.measurementUnit`，並跑 `check:dwc`。
 2. **`gloria_taxa` 的 retaxon** —— 事後重新鑑定目前要手動；`retaxon.ts` 還不認得這張表。
-3. **文件** —— `docs/gloria.md`（Sheet 分頁對照、遮罩格式與 f11…f00、手冊頁碼、照片命名）；
-   `mitalivana-code-review` skill 加 GLORIA 檢查項。
-4. **Sheet 資料** —— 稽核網頁其餘類別待使用者處理；Sheet 修正完後重跑一次性轉換再匯入。
-   TW-SAC-JIA 的 twd97y 與其緯度差約 15 m（其餘 14 座 < 1 m），待使用者確認哪一格打錯。
-5. **匯出大小估算** —— `exportSize.ts` 對 GLORIA 只算文字，未計照片。
-6. **待確認** —— 截圖 4b 物種總表的 FRE 欄、Survey Type `CAL` 的意思（未確認前不做）。
-7. **MIREN** —— 本機沒有 protocol 原文，不做任何設計；拿到原文後照 GLORIA 模式另開 sibling 模組。
+3. **文件** —— `docs/gloria.md`（Sheet 分頁對照、遮罩格式與 f11…f00、手冊頁碼、照片命名與拍照檢核項目、
+   山峰／量測點匯入匯出欄位）；`mitalivana-code-review` skill 加 GLORIA 檢查項。
+4. **Sheet 資料** —— 稽核網頁其餘類別待使用者處理；Sheet 修正完後重跑一次性轉換再匯入（山峰與量測點
+   現在也可直接用 app 內的匯入更新）。TW-SAC-JIA 的 twd97y 與其緯度差約 15 m（其餘 14 座 < 1 m），待確認哪一格打錯。
+5. **匯出大小估算** —— `exportSize.ts` 對 GLORIA 只算文字，未計照片（含拍照檢核與環境照片）。
+6. **外部相機的照片** —— 拍照檢核只記「已拍」，外部相機拍的檔案仍需在室內依附錄 III 命名（或用 GPDM）；
+   app 只替 app 內的照片命名。之後可評估「匯入照片並依檢核項目自動命名」。
+7. **待確認** —— 截圖 4b 物種總表的 FRE 欄、Survey Type `CAL` 的意思（未確認前不做）。
+8. **MIREN** —— 本機沒有 protocol 原文，不做任何設計；拿到原文後照 GLORIA 模式另開 sibling 模組。
+9. **實機驗證** —— GLORIA 所有畫面都只過 tsc 與 `check:*`，尚未在手機上操作（見 `Device_test.md` 的 GLORIA 段）；
+   特別是頻度手勢、下拉選單在 iOS／Android 的顯示、iOS 日期／時間轉輪、拍照檢核在 375 pt 寬的排版。
 
 **俗名顯示語言**（同日完成）的擴充點：新增語言需要有帶該語言俗名的名錄來源；國家名錄 pack（GBIF）目前不含俗名。
+
+
+### H. 儲存空間（2026-09-25 上線，細節見 `Update_log.md`）
+
+已完成：偏好設定 →「儲存空間」頁（暫存一鍵清除、未被使用的照片與錄音確認後刪除、舊版殘留、各類大小與既有管理頁連結）；
+所有分享點改為分享後 30 秒刪檔；孤兒判斷用全部媒體欄位的檔名集合（`mediaNamesIn`，`check:storage` 守門）。
+
+待辦（都已能用「清除暫存」手動回收，這些是從源頭不再留檔）：
+1. ~~**`mediaUriReferenced` 與孤兒掃描統一**~~ —— ✅ 2026-09-25：兩者共用 `src/db/media.ts referencedMediaNames()`，欄位清單只有
+   `src/lib/mediaNames.ts MEDIA_COLUMNS` 一份；`check:storage` 以實際 migrate 出的 schema 比對，新增像媒體的欄位未登記即失敗。
+2. **源頭漏刪** —— `backup.ts` 的 VACUUM 快照沒有 try/finally（例外時留下整份 DB）；`driveBackup.ts` 還原成功後 `drive-restore-*.zip` 不刪；
+   `gbifDownload.ts` 網路例外時 `gbif-pack-*.zip` 不刪；ImagePicker 原檔在複製成功後可立即刪（`photoCapture.ts persistPickedPhoto`）。
+3. **「清除所有資料」不刪照片與錄音** —— 使用者選擇維持現狀（2026-09-25）；清除後這些檔案會出現在「未被使用的照片與錄音」，可在儲存空間頁清。
+4. **實機確認** —— 使用者手機 3.59 GB 的實際組成（特別是舊版 `rudymap/` 是否殘留），清除前先看頁面列出的數字。
 
 ---
 

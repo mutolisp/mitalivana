@@ -3,12 +3,20 @@
  * frequency and point-framing), a summit area section (abundance), or a
  * 10×10 m square (entry to line-pointing, derived hits, additional species).
  *
- * The species list gets the room; plot environment (aspect, slope, top
- * cover) folds away. Species are added from the docked search box.
+ * The species list gets the room; plot environment (researchers, times,
+ * aspect, slope, top cover) folds away. Species are added from the docked
+ * search box.
+ *
+ * 完成 (header) stamps the end time and locks the form; pressing it again
+ * reopens, and a later 完成 stamps a new time. Every edit is one undo step:
+ * a snapshot of the unit row and its species rows taken before the edit.
+ * The history is dropped whenever the screen regains focus — frequency,
+ * point-framing and the species page write to the same rows, and restoring
+ * an older snapshot would silently undo their work.
  */
 import { Ionicons } from '@expo/vector-icons';
-import { Stack, useLocalSearchParams, useRouter, type Href } from 'expo-router';
-import { useState } from 'react';
+import { Stack, useFocusEffect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,30 +25,35 @@ import { KeyboardStickyView } from '~/components/KeyboardAvoidingView';
 import { SearchBox } from '~/components/SearchBox';
 import { showActionSheet } from '~/components/ActionSheet';
 import { BackHeaderLeft } from '~/lib/goBack';
+import { isoStamp } from '~/lib/datetime';
 import { useToast } from '~/stores/toast';
 import {
   addUnitSpecies,
   markUnitStarted,
   removeUnitSpecies,
+  restoreUnitSnapshot,
+  snapshotUnit,
   updateUnit,
   updateUnitSpecies,
   type GloriaUnit,
   type UnitPatch,
+  type UnitSnapshot,
 } from '~/modules/gloria/db';
 import { popcount, surfaceHits, visitedCount, SURFACE_CODES } from '~/modules/gloria/model/grid';
 import { coverFromHits, WALK_OPTIONS, type WalkOption } from '~/modules/gloria/model/walk';
 import { quadratsOf, unitTypeOf, type Direction } from '~/modules/gloria/model/units';
 import { exactSum, speciesCoverSum, vascularCoverOk } from '~/modules/gloria/model/validate';
 import { issueText } from '~/modules/gloria/issues';
-import { displayName, toUnitSpecies, useSurvey, type SurveySpecies } from '~/modules/gloria/useSurvey';
+import { displayName, GLORIA_SEARCH_GROUPS, toUnitSpecies, useSurvey, type SurveySpecies } from '~/modules/gloria/useSurvey';
 import { OverviewPanel } from '~/modules/gloria/components/OverviewPanel';
 import { SubtypeFields, TopCoverFields, topSum } from '~/modules/gloria/components/CoverFields';
-import { SurveyTimes } from '~/modules/gloria/components/SurveyTimes';
+import { ResearcherRow, SurveyTimes, unitResearchers } from '~/modules/gloria/components/SurveyTimes';
 import { Banner, BannerText, Btn, Card, FoldBanner, NumAccessory, NumField, PassBanner } from '~/modules/gloria/components/ui';
 import { RANGES } from '~/modules/gloria/model/ranges';
 
 const ABUNDANCE = ['r!', 'r', 's', 'c', 'd'] as const;
 const CF_CYCLE: Array<'g' | 's' | 't' | null> = [null, 'g', 's', 't'];
+const UNDO_LIMIT = 100;
 
 export default function GloriaUnitScreen() {
   const { t } = useTranslation();
@@ -55,8 +68,30 @@ export default function GloriaUnitScreen() {
   const [panel, setPanel] = useState(false);
   const [envOpen, setEnvOpen] = useState<boolean | null>(null);
   const [subOpen, setSubOpen] = useState(false);
+  const [timesOpen, setTimesOpen] = useState(false);
+
+  const undo = useRef<UnitSnapshot[]>([]);
+  const redo = useRef<UnitSnapshot[]>([]);
+  const [undoCount, setUndoCount] = useState(0);
+  const [redoCount, setRedoCount] = useState(0);
+  const clearHistory = useCallback(() => {
+    undo.current = [];
+    redo.current = [];
+    setUndoCount(0);
+    setRedoCount(0);
+  }, []);
+  useFocusEffect(clearHistory);
 
   const unit = state?.unit(code);
+  // Say so once on open when the unit is already done, before a tap does nothing.
+  const lockedNow = unit ? unit.stop_ts != null : null;
+  const lockToastShown = useRef(false);
+  useEffect(() => {
+    if (lockedNow == null || lockToastShown.current) return;
+    lockToastShown.current = true;
+    if (lockedNow) toast(t('gloria.unit.lockedToast'));
+  }, [lockedNow, toast, t]);
+
   if (!state || !unit || !type) {
     return (
       <SafeAreaView className="flex-1 items-center justify-center bg-gray-50 dark:bg-gray-950">
@@ -69,17 +104,45 @@ export default function GloriaUnitScreen() {
   const spp = [...state.speciesOf(code)].sort((a, b) => a.serial - b.serial);
   const issues = state.issues.filter((i) => i.unit === code);
   const dir = code[0] as Direction;
+  const locked = unit.stop_ts != null;
 
-  const patch = (p: UnitPatch) => {
-    markUnitStarted(unit.id);
-    updateUnit(unit.id, p);
+  /** Run one edit as one undo step; refused while the unit is done. */
+  const track = (fn: () => void): boolean => {
+    if (locked) {
+      toast(t('gloria.unit.lockedToast'));
+      return false;
+    }
+    const before = snapshotUnit(unit.id);
+    fn();
+    undo.current.push(before);
+    if (undo.current.length > UNDO_LIMIT) undo.current.shift();
+    redo.current = [];
+    setUndoCount(undo.current.length);
+    setRedoCount(0);
+    reload();
+    return true;
+  };
+  const step = (from: React.MutableRefObject<UnitSnapshot[]>, to: React.MutableRefObject<UnitSnapshot[]>) => {
+    const snap = from.current.pop();
+    if (!snap) return;
+    to.current.push(snapshotUnit(unit.id));
+    restoreUnitSnapshot(snap);
+    setUndoCount(undo.current.length);
+    setRedoCount(redo.current.length);
     reload();
   };
+
+  const patch = (p: UnitPatch) =>
+    track(() => {
+      markUnitStarted(unit.id);
+      updateUnit(unit.id, p);
+    });
   const addTaxon = (taxonId: string, name?: string) => {
-    markUnitStarted(unit.id);
-    addUnitSpecies(unit.id, taxonId);
-    reload();
-    if (name) toast(t('gloria.unit.added', { name }));
+    const done = track(() => {
+      markUnitStarted(unit.id);
+      addUnitSpecies(unit.id, taxonId);
+    });
+    if (done && name) toast(t('gloria.unit.added', { name }));
   };
   const speciesMenu = async (s: SurveySpecies) => {
     const idx = await showActionSheet({
@@ -88,14 +151,14 @@ export default function GloriaUnitScreen() {
       cancelLabel: t('common.cancel'),
     });
     if (idx === 0) router.push(`/gloria/${id}/${code}/species/${s.id}` as Href);
-    if (idx === 1) {
-      removeUnitSpecies(s.id);
-      reload();
-    }
+    if (idx === 1) track(() => removeUnitSpecies(s.id));
   };
+  /** 完成 stamps the end time now and locks; pressing it again reopens. */
   const toggleDone = () => {
-    updateUnit(unit.id, { stop_ts: unit.stop_ts == null ? Date.now() : null });
+    updateUnit(unit.id, { stop_ts: locked ? null : Date.now() });
+    clearHistory();
     reload();
+    toast(t(locked ? 'gloria.unit.unlocked' : 'gloria.unit.lockedDone'));
   };
   const title = `${code} · ${type === 'quadrat' ? '1×1 m' : type === 'sas' ? 'SAS' : '10×10 m'}`;
 
@@ -120,8 +183,7 @@ export default function GloriaUnitScreen() {
     <Pressable
       onPress={() => {
         const next = CF_CYCLE[(CF_CYCLE.indexOf(s.cf) + 1) % CF_CYCLE.length];
-        updateUnitSpecies(s.id, { cf: next });
-        reload();
+        track(() => updateUnitSpecies(s.id, { cf: next }));
       }}
       accessibilityLabel={t('gloria.unit.cf')}
       className={`ml-1.5 w-8 items-center rounded-md border py-1 ${s.cf ? 'border-amber-500 bg-amber-50 dark:bg-amber-950/40' : 'border-gray-300 dark:border-gray-700'}`}
@@ -133,14 +195,46 @@ export default function GloriaUnitScreen() {
   const envSummary = (u: GloriaUnit) => {
     const sum = topSum(u);
     return [
+      unitResearchers(u, state.survey.recorded_by),
       u.aspect_deg != null ? t('gloria.unit.aspectShort', { v: u.aspect_deg }) : null,
       u.slope_deg != null ? t('gloria.unit.slopeShort', { v: u.slope_deg }) : null,
-      sum != null ? t('gloria.unit.topSumShort', { sum }) : t('gloria.unit.topNotYet'),
+      type === 'square' ? null : sum != null ? t('gloria.unit.topSumShort', { sum }) : t('gloria.unit.topNotYet'),
     ]
       .filter(Boolean)
       .join(' · ');
   };
-  const envIsOpen = envOpen ?? topSum(unit) == null;
+  // Open until there is something to summarise (a square has no top cover).
+  const envIsOpen = envOpen ?? (type === 'square' ? unit.start_ts == null : topSum(unit) == null);
+
+  /** 樣區環境: researchers, a times fold, then the unit type's own fields. */
+  const envCard = (fields: React.ReactNode) => (
+    <Card>
+      <Pressable onPress={() => setEnvOpen(!envIsOpen)} className="flex-row items-center px-3 py-2.5">
+        <View className="flex-1">
+          <Text className="text-sm font-semibold text-gray-900 dark:text-gray-100">{t('gloria.unit.env')}</Text>
+          <Text className="text-xs text-gray-500 dark:text-gray-400">{envSummary(unit)}</Text>
+        </View>
+        <Ionicons name={envIsOpen ? 'chevron-down' : 'chevron-forward'} size={16} color="#9ca3af" />
+      </Pressable>
+      {envIsOpen ? (
+        <View className="gap-2 px-3 pb-3">
+          <ResearcherRow unit={unit} surveyBy={state.survey.recorded_by} reload={reload} />
+          {/* Survey times fold on their own: set once, rarely looked at again. */}
+          <Pressable onPress={() => setTimesOpen(!timesOpen)} className="flex-row items-center">
+            <Ionicons name={timesOpen ? 'chevron-down' : 'chevron-forward'} size={14} color="#9ca3af" />
+            <Text className="ml-1 flex-1 text-xs font-semibold text-gray-600 dark:text-gray-300">{t('gloria.times.titleOnly')}</Text>
+            {!timesOpen ? (
+              <Text className="text-xs text-gray-500 dark:text-gray-400" numberOfLines={1}>
+                {unit.start_ts != null ? isoStamp(unit.start_ts).slice(0, 16) : t('gloria.times.notYet')}
+              </Text>
+            ) : null}
+          </Pressable>
+          {timesOpen ? <SurveyTimes unit={unit} surveyBy={state.survey.recorded_by} reload={reload} embedded /> : null}
+          {fields}
+        </View>
+      ) : null}
+    </Card>
+  );
 
   // ── quadrat ────────────────────────────────────────────────────────────
   const quadratBody = () => {
@@ -155,35 +249,26 @@ export default function GloriaUnitScreen() {
     const cross = issues.filter((i) => i.kind === 'cover-no-freq' || i.kind === 'freq-no-cover');
     return (
       <>
-        <Card>
-          <Pressable onPress={() => setEnvOpen(!envIsOpen)} className="flex-row items-center px-3 py-2.5">
-            <View className="flex-1">
-              <Text className="text-sm font-semibold text-gray-900 dark:text-gray-100">{t('gloria.unit.env')}</Text>
-              <Text className="text-xs text-gray-500 dark:text-gray-400">{envSummary(unit)}</Text>
-            </View>
-            <Ionicons name={envIsOpen ? 'chevron-down' : 'chevron-forward'} size={16} color="#9ca3af" />
-          </Pressable>
-          {envIsOpen ? (
-            <View className="gap-2 px-3 pb-3">
-              <View className="flex-row gap-4">
-                <View className="flex-row items-center gap-2">
-                  <Text className="text-xs text-gray-700 dark:text-gray-300">{t('gloria.unit.aspect')}</Text>
-                  <NumField value={unit.aspect_deg} onCommit={(v) => patch({ aspect_deg: v })} range={RANGES.aspect} accessibilityLabel={t('gloria.unit.aspect')} width={56} />
-                </View>
-                <View className="flex-row items-center gap-2">
-                  <Text className="text-xs text-gray-700 dark:text-gray-300">{t('gloria.unit.slope')}</Text>
-                  <NumField value={unit.slope_deg} onCommit={(v) => patch({ slope_deg: v })} range={RANGES.slope} accessibilityLabel={t('gloria.unit.slope')} width={56} />
-                </View>
+        {envCard(
+          <>
+            <View className="flex-row gap-4">
+              <View className="flex-row items-center gap-2">
+                <Text className="text-xs text-gray-700 dark:text-gray-300">{t('gloria.unit.aspect')}</Text>
+                <NumField value={unit.aspect_deg} onCommit={(v) => patch({ aspect_deg: v })} range={RANGES.aspect} accessibilityLabel={t('gloria.unit.aspect')} width={56} editable={!locked} />
               </View>
-              <TopCoverFields unit={unit} onCommit={patch} />
-              <Pressable onPress={() => setSubOpen(!subOpen)} className="flex-row items-center">
-                <Ionicons name={subOpen ? 'chevron-down' : 'chevron-forward'} size={14} color="#9ca3af" />
-                <Text className="ml-1 text-xs font-semibold text-gray-600 dark:text-gray-300">{t('gloria.unit.subtypes')}</Text>
-              </Pressable>
-              {subOpen ? <SubtypeFields unit={unit} onCommit={patch} /> : null}
+              <View className="flex-row items-center gap-2">
+                <Text className="text-xs text-gray-700 dark:text-gray-300">{t('gloria.unit.slope')}</Text>
+                <NumField value={unit.slope_deg} onCommit={(v) => patch({ slope_deg: v })} range={RANGES.slope} accessibilityLabel={t('gloria.unit.slope')} width={56} editable={!locked} />
+              </View>
             </View>
-          ) : null}
-        </Card>
+            <TopCoverFields unit={unit} onCommit={patch} editable={!locked} />
+            <Pressable onPress={() => setSubOpen(!subOpen)} className="flex-row items-center">
+              <Ionicons name={subOpen ? 'chevron-down' : 'chevron-forward'} size={14} color="#9ca3af" />
+              <Text className="ml-1 text-xs font-semibold text-gray-600 dark:text-gray-300">{t('gloria.unit.subtypes')}</Text>
+            </Pressable>
+            {subOpen ? <SubtypeFields unit={unit} onCommit={patch} editable={!locked} /> : null}
+          </>,
+        )}
 
         {vOk === false ? (
           <FoldBanner tone="error" title={t('gloria.issue.vascularExceeds', { vascular: unit.cov_vascular, sum })}>
@@ -202,10 +287,10 @@ export default function GloriaUnitScreen() {
 
         <View className="flex-row gap-2">
           <View className="flex-1">
-            <Btn label={`${t('gloria.step.frequency')} · ${freqN ? t(freqKey, { count: freqN }) : t('gloria.step.notStarted')}`} onPress={() => router.push(`/gloria/${id}/${code}/frequency` as Href)} />
+            <Btn label={`${t('gloria.step.frequency')} · ${unit.freq_locked ? `${t('gloria.freq.doneShort')} · ` : ''}${freqN ? t(freqKey, { count: freqN }) : t('gloria.step.notStarted')}`} onPress={() => router.push(`/gloria/${id}/${code}/frequency` as Href)} />
           </View>
           <View className="flex-1">
-            <Btn label={`${t('gloria.step.pointframe')} · ${unit.point_surface ? `${visitedCount(unit.point_surface)}/100` : t('gloria.step.notStarted')}`} onPress={() => router.push(`/gloria/${id}/${code}/points` as Href)} />
+            <Btn label={`${t('gloria.step.pointframe')} · ${unit.pf_locked ? `${t('gloria.freq.doneShort')} · ` : ''}${unit.point_surface ? `${visitedCount(unit.point_surface)}/100` : t('gloria.step.notStarted')}`} onPress={() => router.push(`/gloria/${id}/${code}/points` as Href)} />
           </View>
         </View>
 
@@ -223,12 +308,10 @@ export default function GloriaUnitScreen() {
                 <>
                   <NumField
                     value={s.cover_pct}
-                    onCommit={(v) => {
-                      updateUnitSpecies(s.id, { cover_pct: v });
-                      reload();
-                    }}
+                    onCommit={(v) => track(() => updateUnitSpecies(s.id, { cover_pct: v }))}
                     range={RANGES.percent}
                     width={76}
+                    editable={!locked}
                     accessibilityLabel={t('gloria.unit.coverOf', { name: displayName(s) })}
                   />
                   {cfButton(s)}
@@ -260,29 +343,17 @@ export default function GloriaUnitScreen() {
               <Btn
                 small
                 label={t('gloria.unit.addAll')}
-                onPress={() => {
-                  for (const tid of missingTaxa().keys()) addUnitSpecies(unit.id, tid);
-                  markUnitStarted(unit.id);
-                  reload();
-                }}
+                onPress={() =>
+                  track(() => {
+                    for (const tid of missingTaxa().keys()) addUnitSpecies(unit.id, tid);
+                    markUnitStarted(unit.id);
+                  })
+                }
               />
             </View>
           </FoldBanner>
         ) : null}
-        <Card>
-          <Pressable onPress={() => setEnvOpen(!envIsOpen)} className="flex-row items-center px-3 py-2.5">
-            <View className="flex-1">
-              <Text className="text-sm font-semibold text-gray-900 dark:text-gray-100">{t('gloria.cover.title')}</Text>
-              <Text className="text-xs text-gray-500 dark:text-gray-400">{envSummary(unit)}</Text>
-            </View>
-            <Ionicons name={envIsOpen ? 'chevron-down' : 'chevron-forward'} size={16} color="#9ca3af" />
-          </Pressable>
-          {envIsOpen ? (
-            <View className="px-3 pb-3">
-              <TopCoverFields unit={unit} onCommit={patch} />
-            </View>
-          ) : null}
-        </Card>
+        {envCard(<TopCoverFields unit={unit} onCommit={patch} editable={!locked} />)}
         <Text className="text-xs font-semibold text-gray-500 dark:text-gray-400">{t('gloria.unit.sasHeader', { count: spp.length })}</Text>
         <Card>
           {spp.length === 0 ? (
@@ -296,10 +367,7 @@ export default function GloriaUnitScreen() {
                   {ABUNDANCE.map((a) => (
                     <Pressable
                       key={a}
-                      onPress={() => {
-                        updateUnitSpecies(s.id, { abundance: s.abundance === a ? null : a });
-                        reload();
-                      }}
+                      onPress={() => track(() => updateUnitSpecies(s.id, { abundance: s.abundance === a ? null : a }))}
                       accessibilityRole="radio"
                       accessibilityState={{ checked: s.abundance === a }}
                       className={`ml-1 w-7 items-center rounded-md border py-1 ${s.abundance === a ? 'border-[#00A2A5] bg-[#00A2A5]' : 'border-gray-300 dark:border-gray-700'}`}
@@ -316,6 +384,7 @@ export default function GloriaUnitScreen() {
         <Text className="text-xs font-semibold text-gray-500 dark:text-gray-400">{t('gloria.unit.grazing')}</Text>
         <TextInput
           defaultValue={unit.grazing_note ?? ''}
+          editable={!locked}
           onEndEditing={(e) => patch({ grazing_note: e.nativeEvent.text.trim() || null })}
           placeholder={t('gloria.unit.grazingPlaceholder')}
           multiline
@@ -336,20 +405,22 @@ export default function GloriaUnitScreen() {
     const fromQuadrats = () => {
       const have = new Set(spp.map((s) => s.taxon_id));
       let n = 0;
-      for (const q of quadratsOf(dir)) {
-        for (const s of state.speciesOf(q)) {
-          if (have.has(s.taxon_id)) continue;
-          have.add(s.taxon_id);
-          addUnitSpecies(unit.id, s.taxon_id);
-          n++;
+      const done = track(() => {
+        for (const q of quadratsOf(dir)) {
+          for (const s of state.speciesOf(q)) {
+            if (have.has(s.taxon_id)) continue;
+            have.add(s.taxon_id);
+            addUnitSpecies(unit.id, s.taxon_id);
+            n++;
+          }
         }
-      }
-      markUnitStarted(unit.id);
-      reload();
-      toast(t('gloria.unit.fromQuadratsDone', { count: n }));
+        markUnitStarted(unit.id);
+      });
+      if (done) toast(t('gloria.unit.fromQuadratsDone', { count: n }));
     };
     return (
       <>
+        {envCard(null)}
         <Card className="gap-2 p-3">
           <Text className="text-xs font-semibold text-gray-500 dark:text-gray-400">{t('gloria.square.walk')}</Text>
           <View className="flex-row flex-wrap">
@@ -411,10 +482,16 @@ export default function GloriaUnitScreen() {
           headerLeft: BackHeaderLeft,
           headerRight: () => (
             <View className="flex-row items-center gap-3">
+              {!locked ? (
+                <HeaderIconButton icon="arrow-undo-outline" label={t('gloria.freq.undo')} disabled={undoCount === 0} onPress={() => step(undo, redo)} />
+              ) : null}
+              {!locked ? (
+                <HeaderIconButton icon="arrow-redo-outline" label={t('gloria.freq.redo')} disabled={redoCount === 0} onPress={() => step(redo, undo)} />
+              ) : null}
               <HeaderIconButton icon="grid-outline" label={t('gloria.overview')} onPress={() => setPanel(true)} />
               <HeaderIconButton
-                icon={unit.stop_ts != null ? 'checkmark-circle' : 'checkmark-circle-outline'}
-                label={unit.stop_ts != null ? t('gloria.unit.markUndone') : t('gloria.unit.markDone')}
+                icon={locked ? 'lock-closed' : 'checkmark-done-outline'}
+                label={locked ? t('gloria.unit.markUndone') : t('gloria.unit.markDone')}
                 onPress={toggleDone}
               />
             </View>
@@ -423,11 +500,10 @@ export default function GloriaUnitScreen() {
       />
       <ScrollView className="flex-1" contentContainerClassName="gap-3 p-4" keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
         {type === 'quadrat' ? quadratBody() : type === 'sas' ? sasBody() : squareBody()}
-        <SurveyTimes unit={unit} surveyBy={state.survey.recorded_by} reload={reload} />
       </ScrollView>
-      {active ? (
+      {active && !locked ? (
         <KeyboardStickyView offset={{ opened: insets.bottom }}>
-          <SearchBox onSelect={(r) => r.taxon_id && addTaxon(r.taxon_id, r.cname || r.name)} />
+          <SearchBox scopeGroups={GLORIA_SEARCH_GROUPS} onSelect={(r) => r.taxon_id && addTaxon(r.taxon_id, r.cname || r.name)} />
         </KeyboardStickyView>
       ) : null}
       <NumAccessory />

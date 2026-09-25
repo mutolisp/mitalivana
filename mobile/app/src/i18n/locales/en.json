@@ -2373,7 +2373,8 @@
     "tab": {
       "points": "Base data",
       "map": "Plot overview",
-      "species": "Species table"
+      "species": "Species table",
+      "photos": "Photo check"
     },
     "status": {
       "none": "Not started",
@@ -2384,7 +2385,8 @@
     "list": {
       "quadrats": "1×1 m quadrats",
       "sas": "Summit area sections (SAS)",
-      "squares": "10×10 m squares"
+      "squares": "10×10 m squares",
+      "optional": "(optional)"
     },
     "p5m": {
       "title": "{{direction}} · 3×3 m grid (facing the summit)",
@@ -2420,12 +2422,8 @@
       "point": "Point",
       "distance": "Dist. m",
       "compass": "Bearing °",
-      "photo": "Photos",
       "distanceOf": "{{point}} distance (m)",
       "compassOf": "{{point}} bearing (°)",
-      "photoM2": "{{point}} quadrat photo",
-      "photoM2F": "{{point}} quadrat photo with frequency frame",
-      "photoPoint": "{{point}} point photo",
       "intersection": "Intersection lines"
     },
     "photo": {
@@ -2521,8 +2519,8 @@
       "remove": "Remove from this unit",
       "rowHint": "Opens the species details",
       "added": "Added {{name}}",
-      "markDone": "Mark this unit done",
-      "markUndone": "Mark as not done",
+      "markDone": "Mark done and lock",
+      "markUndone": "Unlock to edit",
       "sasMissingTitle": "Not all species of the {{direction}} quadrats are listed here",
       "addAll": "Add all",
       "abundanceLegend": "r! very rare · r rare · s scattered · c common · d dominant (>50% cover, manual p.42)",
@@ -2533,7 +2531,10 @@
       "sasHeader_one": "Species ({{count}}) · abundance",
       "sasHeader_other": "Species ({{count}}) · abundance",
       "fromQuadratsDone_one": "Added {{count}} species from the quadrats",
-      "fromQuadratsDone_other": "Added {{count}} species from the quadrats"
+      "fromQuadratsDone_other": "Added {{count}} species from the quadrats",
+      "lockedToast": "This unit is done and locked. Tap the lock at the top right to edit.",
+      "lockedDone": "Done and locked; end time recorded",
+      "unlocked": "Unlocked; you can edit"
     },
     "square": {
       "walk": "Start and direction (Form 6-S, four options)",
@@ -2597,7 +2598,23 @@
       "switchTitle": "Change recording method",
       "switchToCount": "Switching to counts clears the cells drawn in this quadrat (species and Hi1–Hi3). Switch anyway?",
       "switchToCells": "Switching back to cells clears the counts entered. Switch anyway?",
-      "switchConfirm": "Clear and switch"
+      "switchConfirm": "Clear and switch",
+      "done": "Done and lock",
+      "unlock": "Unlock to edit",
+      "lockedDone": "Frequency done and locked",
+      "unlocked": "Unlocked; you can edit again",
+      "lockedToast": "Frequency is done and locked; tap the lock at the top right to edit",
+      "doneShort": "Done",
+      "speciesPick": "Species ({{n}})",
+      "disturbPick": "Disturbance Hi1–Hi3",
+      "speciesNone": "(none)",
+      "prevSpecies": "Previous species",
+      "nextSpecies": "Next species",
+      "inCell": "In this cell:",
+      "cellEmpty": "(empty)",
+      "cellHas": "✓ {{name}} is in this cell (tap to remove)",
+      "cellAdd": "Add {{name}} to this cell",
+      "redo": "Redo"
     },
     "walk": {
       "titleQuadrat": "{{code}} · point-frame",
@@ -2612,7 +2629,10 @@
       "surface": "No plant hit: surface type",
       "same": "Same as last",
       "next": "Next point ▶",
-      "lineDone": "Line {{line}} done: {{hits}} hits"
+      "lineDone": "Line {{line}} done: {{hits}} hits",
+      "lockedToast": "Point recording is done and locked. Tap the lock at the top right to edit.",
+      "lockedDone": "Point recording done and locked; end time recorded",
+      "unlocked": "Unlocked; you can edit"
     },
     "endWithIssues_one": "{{count}} warning is still open. End anyway? You can reopen it later.",
     "endWithIssues_other": "{{count}} warnings are still open. End anyway? You can reopen it later.",
@@ -2642,7 +2662,10 @@
       "photosHint": "Exported as SU-OV (summit overview) per manual Annex III, with the viewpoint as element 8 of the file name. Enter where each photo was taken from, e.g. “from the S saddle”.",
       "viewpoint": "Viewpoint",
       "viewpointLabel": "Viewpoint of photo {{n}}",
-      "photoFail": "Could not add the photo"
+      "photoFail": "Could not add the photo",
+      "mocy": "Monitoring cycle (mocy)",
+      "mocyTakenTitle": "Cycle already used",
+      "mocyTaken": "{{code}} already has a survey for mocy {{mocy}}; each summit has one survey per monitoring cycle."
     },
     "times": {
       "title": "Researchers and times",
@@ -2654,11 +2677,100 @@
       "now": "Set to now",
       "orderTitle": "Times out of order",
       "order": "The end of {{what}} cannot be earlier than its start.",
-      "hint": "The start is recorded at the first entry and the end when you tap “Mark this unit done”; tap a time to change it.",
-      "hintQuadrat": "Cover estimate: starts at the first entry, ends when you tap “Mark this unit done”. Frequency: starts at the first stroke; the end follows the latest edit until you set it by hand. Tap a time to change it.",
+      "hint": "The start is recorded at the first entry and the end when you tap Done at the top right (tap again to unlock; a later Done records a new time). Tap a time to change it.",
+      "hintQuadrat": "Cover estimation starts at the first entry and ends when you tap Done at the top right. Frequency and point-framing start at the first entry and end when you tap Done on their own screens (the frequency end also follows the latest edit until you set it by hand). Tap a time to change it.",
       "by": "Researchers",
       "bySurvey": "Same as survey: {{names}}",
-      "byNone": "Not set"
+      "byNone": "Not set",
+      "titleOnly": "Survey times",
+      "notYet": "Not started"
+    },
+    "summitImport": {
+      "button": "Import summits",
+      "listTitle": "GLORIA summits",
+      "listDesc": "View, edit and import summit base data",
+      "reviewTitle": "Review summit import",
+      "format": "Import a CSV or Excel file (.xlsx, first sheet) with the columns of sheet 00_plot_coordinates: fullSummitCode (or targetRegion + summit), decimalLatitude, decimalLongitude, elevation, Vegetation Zone, and optionally name. A download of the Google Sheet works as is.",
+      "readFail": "Could not read the file",
+      "nothing": "Nothing to import",
+      "fileSummary": "{{file}}: {{n}} summits read",
+      "new": "New ({{n}})",
+      "changed": "Changed ({{n}})",
+      "same": "{{n}} already match the app; nothing to import",
+      "problems": "Rows with problems ({{n}})",
+      "line": "Row {{line}}: ",
+      "p_noHeader": "no header row found (needs a fullSummitCode or summit column)",
+      "p_badCode": "summit code should be country (2) - target region (3) - summit (3)",
+      "p_codeMismatch": "fullSummitCode does not match targetRegion / summit",
+      "p_duplicate": "summit repeated in the file; the first row is used",
+      "p_bad_lat": "latitude is not a number from −90 to 90",
+      "p_bad_lon": "longitude is not a number from −180 to 180",
+      "p_bad_elevation": "elevation is not a plausible number",
+      "p_unknownZone": "vegetation zone not in the list; that column was skipped (the rest is imported)",
+      "hint": "Blank cells in the file never clear values stored in the app. Changed summits start unticked; ticking one overwrites it with the file’s values.",
+      "apply": "Import {{n}}",
+      "done": "Added {{added}}, updated {{updated}} summits",
+      "all": "Select all",
+      "none": "Select none",
+      "noDetails": "Code only"
+    },
+    "pointImport": {
+      "button": "Import measurement points (distance, bearing, p5m)",
+      "reviewTitle": "Review point import",
+      "fileSummary": "{{file}}: {{n}} points for {{code}}",
+      "otherSummits": "; {{n}} rows of other summits skipped",
+      "cycle": "Which cycle’s data to use",
+      "noMocy": "No mocy given",
+      "noRows": "The file has no points for {{code}}",
+      "p5m": "p5m corners",
+      "points": "Measurement points ({{n}})",
+      "overwrites": "overwrites stored values",
+      "distance": "Distance m",
+      "compass": "Bearing °",
+      "comments": "Comments",
+      "nothingNew": "The file matches the stored values; nothing to import",
+      "hint": "Needed columns: point (N11, p5m-N31, N10m, NE5… or direction + point), distance, bearing; optional p5m, mocy, summit code, comments. A sheet 02_ download works as is. Points that only fill empty values start ticked; ones that overwrite values or move p5m start unticked. Blank cells never clear values.",
+      "apply": "Import {{n}}",
+      "done": "Updated {{n}} points and {{p}} p5m corners",
+      "p_noPointHeader": "no point column found (point or pointNumber)",
+      "p_badPoint": "point code not recognised",
+      "p_badMocy": "mocy is not a positive whole number",
+      "p_badDistance": "distance is not a number from 0 to 1000",
+      "p_badCompass": "bearing is not a number from 0 to 360",
+      "p_duplicatePoint": "point repeated; the first row is used",
+      "p_twoP5m": "both 11 and 31 of this direction are marked p5m; its p5m is not imported"
+    },
+    "summitExport": {
+      "title": "Export summit data",
+      "summits": "Summit base data (sheet 00_ columns, CSV)",
+      "points": "Measurement points of every survey: distance, bearing, p5m (sheet 02_ columns, CSV)"
+    },
+    "photoCheck": {
+      "hasPhoto": "This item has a photo; long-press to replace or remove it",
+      "noP5mTitle": "p5m not set",
+      "noP5m": "Set the p5m corner (11 or 31) of {{direction}} on the Base data tab first",
+      "a11yHint": "Tap to tick, long-press to take or pick a photo",
+      "bare": "No frame",
+      "hp": "Frame",
+      "required": "Obligatory photos",
+      "optional": "Optional (quarters UL / UR / LL / LR): {{done}} / {{total}}",
+      "hint": "Tick as on Form 1: tap to tick (photos from another camera count); long-press to take or pick a photo in the app, which also marks it done (camera icon in the corner). Dashed boxes are optional.",
+      "dirN": "North N",
+      "dirE": "East E",
+      "dirS": "South S",
+      "dirW": "West W",
+      "cluster": "3×3 m cluster overview",
+      "p5mUnset": "5mp (p5m not set)",
+      "intersection": "Intersection points",
+      "summit": "Summit",
+      "hsp": "HSP (highest point)",
+      "entire": "Entire summit",
+      "endMissing": "{{n}} obligatory photos are not ticked yet.",
+      "goTake": "Take them"
+    },
+    "notes": {
+      "title": "Comments",
+      "placeholder": "e.g. pNE-5 re-staked with a new aluminium rod; W p5m pole loose, replace"
     }
   },
   "vernacular": {
@@ -2676,5 +2788,37 @@
     "moveUp": "Move up",
     "moveDown": "Move down",
     "onlyOne": "Only one checklist is enabled, so there is one common name language. Enable another checklist (such as Japan) under “{{page}}” to add its language."
+  },
+  "storage": {
+    "title": "Storage",
+    "menuDesc": "See what the app takes up; clear the cache and unused photos",
+    "totalHint": "The app’s data on this device (not the app itself). May differ slightly from “Documents & Data” in iOS Settings.",
+    "canFree": "Can be freed",
+    "cache": "Cache",
+    "cacheDesc": "Export and backup files, copies made when picking photos or files, download staging. Safe to clear any time; no record uses them.",
+    "cacheTitle": "Clear cache",
+    "cacheConfirm": "This deletes {{size}} of cached files. None of them belong to a record.",
+    "orphans": "Unused photos and recordings",
+    "orphansDesc": "{{n}} files no record uses (e.g. left behind by deleted records)",
+    "orphansTitle": "Delete unused photos and recordings",
+    "orphansConfirm": "This deletes {{n}} files ({{size}}). No checklist, plot, collection or GLORIA record refers to them. This cannot be undone.",
+    "legacy": "Old version leftovers",
+    "legacyDesc": "A checklist file or raster map from an older version that was not removed automatically",
+    "legacyTitle": "Remove old version leftovers",
+    "legacyConfirm": "This deletes {{size}}. The old checklist first backs up the names your records use.",
+    "safety": "Safety backups",
+    "safetyDesc": "{{n}}: recovery copies made before automatic repairs; manage them in Backup and restore",
+    "downloads": "Downloadable data",
+    "datasets": "Checklists and country packs",
+    "offlineMap": "Offline map and places",
+    "yours": "Your data (never cleared here)",
+    "photos": "Photos",
+    "audio": "Recordings",
+    "database": "Records database",
+    "yoursHint": "Only photos and recordings that records still use are kept here; clearing the cache or unused files never touches them.",
+    "delete": "Delete",
+    "freed": "Freed {{size}}",
+    "busyTitle": "Download in progress",
+    "busy": "A checklist, map or country pack is downloading and has files in the cache. Clear the cache when it has finished."
   }
 }

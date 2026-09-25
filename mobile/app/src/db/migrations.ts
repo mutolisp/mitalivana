@@ -1594,6 +1594,45 @@ const MIGRATIONS: Migration[] = [
       addColumnIfMissing(db, `ALTER TABLE gloria_units ADD COLUMN freq_stop_manual INTEGER NOT NULL DEFAULT 0;`);
     },
   },
+  {
+    // GLORIA photo checklist (manual Box 4.4: tick every obligatory photo on
+    // Form 1). One row per ticked or photographed item; `item` is a key from
+    // model/photoChecks. Photos of items that already have a column
+    // (gloria_points.photo_*, overview_photos) stay there.
+    version: 51,
+    up: (db) => {
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS gloria_photo_checks (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          survey_id INTEGER NOT NULL,
+          item TEXT NOT NULL,
+          checked INTEGER NOT NULL DEFAULT 0 CHECK (checked IN (0, 1)),
+          photo_uri TEXT,
+          updated_at INTEGER NOT NULL,
+          FOREIGN KEY (survey_id) REFERENCES gloria_surveys(id) ON DELETE CASCADE,
+          UNIQUE (survey_id, item)
+        );
+      `);
+    },
+  },
+  {
+    // Frequency of a quadrat marked done: the screen refuses edits until reopened.
+    version: 52,
+    up: (db) => {
+      addColumnIfMissing(db, `ALTER TABLE gloria_units ADD COLUMN freq_locked INTEGER NOT NULL DEFAULT 0;`);
+    },
+  },
+  {
+    // Point-framing of a 1×1 m quadrat gets its own start / end and lock, apart
+    // from the cover estimate (start_ts / stop_ts). A 10×10 m square's walk is
+    // the unit itself and keeps using start_ts / stop_ts.
+    version: 53,
+    up: (db) => {
+      addColumnIfMissing(db, `ALTER TABLE gloria_units ADD COLUMN pf_start_ts INTEGER;`);
+      addColumnIfMissing(db, `ALTER TABLE gloria_units ADD COLUMN pf_stop_ts INTEGER;`);
+      addColumnIfMissing(db, `ALTER TABLE gloria_units ADD COLUMN pf_locked INTEGER NOT NULL DEFAULT 0;`);
+    },
+  },
 ];
 
 /** Highest schema version this build knows how to produce. Backup/restore uses

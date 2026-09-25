@@ -20,6 +20,13 @@ import {
 } from './db';
 import { validateSurvey, type Issue, type QuadratInput, type TopCover, type UnitSpecies } from './model/validate';
 import type { Direction, P5mCorner } from './model/units';
+import type { TaxonGroup } from '~/db/types';
+
+/**
+ * GLORIA records vascular plants, so every GLORIA search box starts filtered
+ * to them, whatever group the user last picked elsewhere (SearchBox scopeGroups).
+ */
+export const GLORIA_SEARCH_GROUPS: TaxonGroup[] = ['Tracheophyta'];
 
 export type UnitStatus = 'none' | 'progress' | 'done' | 'warn';
 export type SurveySpecies = GloriaUnitSpeciesWithTaxon & { unit_code: string };

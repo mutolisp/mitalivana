@@ -17,6 +17,8 @@ import { addSearchHistory, type SearchResult } from '~/db';
 import { useSpeciesSearchPanel } from '~/stores/speciesSearchPanel';
 import { useAddToActiveRecord } from '~/lib/useAddToActiveRecord';
 import { taxonSpeciesToSearchResult } from '~/lib/taxonSpecies';
+import { useActiveGloria } from '~/modules/gloria/store';
+import { GLORIA_SEARCH_GROUPS } from '~/modules/gloria/useSurvey';
 import { SearchBox } from './SearchBox';
 import { SpeciesDetailPanel } from './SpeciesDetailPanel';
 
@@ -27,6 +29,8 @@ type Props = {
 export function SpeciesSearchPanel({ autoFocus = false }: Props) {
   const { t } = useTranslation();
   const { addSpecies, promptAddDestination, modal, targetLabel } = useAddToActiveRecord();
+  // While a GLORIA survey is active, a pick here lands in its species roster.
+  const gloriaActive = useActiveGloria((s) => s.survey != null);
   // The tab bar floats over the scene, so this dock's natural laid-out position
   // is the SCREEN bottom — behind the pill. It has to be lifted by the bar's
   // clearance while the keyboard is closed; once the keyboard is open,
@@ -99,6 +103,7 @@ export function SpeciesSearchPanel({ autoFocus = false }: Props) {
           onLongPressResult={handleLongPress}
           autoFocus={autoFocus}
           afterSelect="dismiss"
+          scopeGroups={gloriaActive ? GLORIA_SEARCH_GROUPS : undefined}
         />
       </KeyboardStickyView>
       {modal}

@@ -3,14 +3,17 @@
  * over, start. The survey itself is created by startGloriaAndOpen, which runs
  * the single-active guard.
  */
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
+import { useFocusEffect, useRouter, type Href } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { defaultSurveyorString } from '~/db/surveyors';
 import { startGloriaAndOpen } from '~/lib/recordCreate';
 import { useToast } from '~/stores/toast';
+import { errText } from '~/lib/errText';
+import { startSummitImport } from '~/modules/gloria/summitImportFile';
 import { listSummits, prefillSummary, upsertSummit, type SummitWithLast } from '~/modules/gloria/db';
 import { Banner, BannerText, Btn, Card, Label, NUMERIC_KEYBOARD, parseNum } from '~/modules/gloria/components/ui';
 import { VEG_ZONES } from '~/modules/gloria/components/SummitForm';
@@ -26,6 +29,21 @@ export default function NewGloriaScreen() {
   const [picked, setPicked] = useState<number | null>(summits[0]?.id ?? null);
   const [adding, setAdding] = useState(summits.length === 0);
   const [form, setForm] = useState({ country: 'TW', region: '', summit: '', name: '', elevation: '', zone: '' });
+  const router = useRouter();
+  // Back from the import review: show what was added.
+  useFocusEffect(
+    useCallback(() => {
+      const list = listSummits();
+      setSummits(list);
+      if (list.length) setAdding(false);
+      setPicked((p) => p ?? list[0]?.id ?? null);
+    }, []),
+  );
+  const runImport = () =>
+    void startSummitImport(
+      () => router.push('/gloria/summit-import' as Href),
+      (e) => Alert.alert(t('gloria.summitImport.readFail'), errText(e)),
+    );
 
   const groups = useMemo(() => {
     const m = new Map<string, SummitWithLast[]>();
@@ -116,7 +134,10 @@ export default function NewGloriaScreen() {
             </View>
           </Card>
         ) : (
-          <Btn label={t('gloria.new.addSummitButton')} onPress={() => setAdding(true)} />
+          <View className="flex-row gap-2">
+            <View className="flex-1"><Btn label={t('gloria.new.addSummitButton')} onPress={() => setAdding(true)} /></View>
+            <View className="flex-1"><Btn label={t('gloria.summitImport.button')} onPress={runImport} /></View>
+          </View>
         )}
 
         {summary ? (

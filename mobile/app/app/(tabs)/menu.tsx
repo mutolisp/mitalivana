@@ -247,6 +247,13 @@ export default function MenuScreen() {
           value={moduleGloria}
           onChange={(v) => setSetting('module_gloria', v)}
         />
+        {moduleGloria ? (
+          <LinkRow
+            label={t('gloria.summitImport.listTitle')}
+            description={t('gloria.summitImport.listDesc')}
+            onPress={() => router.push('/gloria/summits' as Href)}
+          />
+        ) : null}
         <LinkRow
           label={t('settings.surveyors')}
           description={t('settings.surveyorsDesc')}
@@ -364,6 +371,7 @@ export default function MenuScreen() {
       </Section>
 
       <Section title={t('settings.sectionData')}>
+        <LinkRow label={t('storage.title')} description={t('storage.menuDesc')} onPress={() => router.push('/settings/storage' as Href)} />
         <LinkRow
           label={t('settings.integrityCheck')}
           description={t('settings.integrityDesc')}

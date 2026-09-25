@@ -6,25 +6,28 @@ import { Ionicons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { HeaderIconButton } from '~/components/HeaderIconButton';
 import { BackHeaderLeft } from '~/lib/goBack';
 import { RecordStepBar } from '~/components/RecordStepBar';
 import { useActivePlot } from '~/stores/activePlot';
 import { useActiveSession } from '~/stores/activeSession';
-import { endGloriaSurvey, reopenGloriaSurvey } from '~/modules/gloria/db';
+import { endGloriaSurvey, reopenGloriaSurvey, updateGloriaSurvey } from '~/modules/gloria/db';
 import { useActiveGloria } from '~/modules/gloria/store';
 import { useSurvey, STATUS_COLOR } from '~/modules/gloria/useSurvey';
 import { issueText } from '~/modules/gloria/issues';
-import { DIRECTIONS, QUADRAT_CODES, SAS_CODES, SQUARE_CODES, type Direction } from '~/modules/gloria/model/units';
+import { QUADRAT_CODES, SAS_CODES, SQUARE_CODES, type Direction } from '~/modules/gloria/model/units';
 import { PointsForm } from '~/modules/gloria/components/PointsForm';
 import { SummitForm } from '~/modules/gloria/components/SummitForm';
+import { startPointImport } from '~/modules/gloria/summitImportFile';
+import { errText } from '~/lib/errText';
 import { P5mDiagram, SummitSchematic } from '~/modules/gloria/components/SummitSchematic';
 import { SpeciesMatrix } from '~/modules/gloria/components/SpeciesMatrix';
+import { missingRequiredPhotos, PhotoChecklist } from '~/modules/gloria/components/PhotoChecklist';
 import { Btn, Card, Label, NumAccessory, Seg } from '~/modules/gloria/components/ui';
 
-type Tab = 'points' | 'map' | 'species';
+type Tab = 'points' | 'map' | 'species' | 'photos';
 
 export default function GloriaSurveyScreen() {
   const { t } = useTranslation();
@@ -62,8 +65,13 @@ export default function GloriaSurveyScreen() {
       return;
     }
     const n = state.issues.length;
-    Alert.alert(t('gloria.endTitle'), n ? t('gloria.endWithIssues', { count: n }) : t('gloria.endMsg'), [
+    const missing = missingRequiredPhotos(state);
+    const msg = [n ? t('gloria.endWithIssues', { count: n }) : t('gloria.endMsg'), missing ? t('gloria.photoCheck.endMissing', { n: missing }) : '']
+      .filter(Boolean)
+      .join('\n\n');
+    Alert.alert(t('gloria.endTitle'), msg, [
       { text: t('common.cancel'), style: 'cancel' },
+      ...(missing ? [{ text: t('gloria.photoCheck.goTake'), onPress: () => setTab('photos') }] : []),
       {
         text: t('session.end'),
         style: 'destructive',
@@ -77,21 +85,30 @@ export default function GloriaSurveyScreen() {
   };
   const done = state.units.filter((u) => state.statusOf(u.code) === 'done').length;
 
-  const unitList = (title: string, codes: readonly string[]) => (
+  // One row per direction, E N S W; obligatory methods get a red *.
+  const unitList = (title: string, codes: readonly string[], kind: 'required' | 'optional') => (
     <View className="gap-1.5">
-      <Label>{title}</Label>
-      <View className="flex-row flex-wrap">
-        {codes.map((c) => (
-          <Pressable
-            key={c}
-            onPress={() => openUnit(c)}
-            className="mb-1.5 mr-1.5 flex-row items-center rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 active:bg-gray-50 dark:border-gray-800 dark:bg-gray-900"
-          >
-            <View className="mr-1.5 h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: STATUS_COLOR[state.statusOf(c)] }} />
-            <Text className="text-xs font-semibold text-gray-900 dark:text-gray-100">{c}</Text>
-          </Pressable>
-        ))}
-      </View>
+      <Label>
+        {title}
+        {kind === 'required' ? <Text className="text-red-600 dark:text-red-400"> *</Text> : null}
+        {kind === 'optional' ? <Text className="normal-case tracking-normal">{` ${t('gloria.list.optional')}`}</Text> : null}
+      </Label>
+      {(['E', 'N', 'S', 'W'] as const).map((d) => (
+        <View key={d} className="flex-row flex-wrap">
+          {codes
+            .filter((c) => c[0] === d)
+            .map((c) => (
+              <Pressable
+                key={c}
+                onPress={() => openUnit(c)}
+                className="mb-1.5 mr-1.5 flex-row items-center rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 active:bg-gray-50 dark:border-gray-800 dark:bg-gray-900"
+              >
+                <View className="mr-1.5 h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: STATUS_COLOR[state.statusOf(c)] }} />
+                <Text className="text-xs font-semibold text-gray-900 dark:text-gray-100">{c}</Text>
+              </Pressable>
+            ))}
+        </View>
+      ))}
     </View>
   );
 
@@ -119,6 +136,7 @@ export default function GloriaSurveyScreen() {
             { value: 'points', label: t('gloria.tab.points') },
             { value: 'map', label: t('gloria.tab.map') },
             { value: 'species', label: t('gloria.tab.species') },
+            { value: 'photos', label: t('gloria.tab.photos') },
           ]}
         />
       </View>
@@ -126,14 +144,43 @@ export default function GloriaSurveyScreen() {
         {tab === 'points' ? (
           <>
             <SummitForm state={state} reload={reload} />
+            <Btn
+              label={t('gloria.pointImport.button')}
+              onPress={() =>
+                void startPointImport(
+                  id,
+                  () => router.push(`/gloria/${id}/points-import` as Href),
+                  (e) => Alert.alert(t('gloria.summitImport.readFail'), errText(e)),
+                )
+              }
+            />
             <PointsForm state={state} reload={reload} onHelp={setHelp} />
+            {/* Form 1 COMMENTS; exported as the comments column of sheet 01_. */}
+            <Label>{t('gloria.notes.title')}</Label>
+            <TextInput
+              key={`notes-${state.survey.id}`}
+              defaultValue={state.survey.notes ?? ''}
+              onEndEditing={(e) => {
+                const v = e.nativeEvent.text.trim() || null;
+                if (v !== state.survey.notes) {
+                  updateGloriaSurvey(id, { notes: v });
+                  reload();
+                }
+              }}
+              placeholder={t('gloria.notes.placeholder')}
+              placeholderTextColor="#9ca3af"
+              multiline
+              accessibilityLabel={t('gloria.notes.title')}
+              className="min-h-[96px] rounded-lg border border-gray-300 bg-white p-2.5 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+              style={{ textAlignVertical: 'top' }}
+            />
           </>
         ) : null}
 
         {tab === 'map' ? (
           <>
             <View className="flex-row flex-wrap gap-1.5">
-              {DIRECTIONS.map((d) => (
+              {(['E', 'N', 'S', 'W'] as const).map((d) => (
                 <Pressable key={d} onPress={() => setHelp(d)} className="rounded-lg border border-gray-300 bg-white px-2.5 py-1 dark:border-gray-700 dark:bg-gray-900">
                   <Text className="text-xs text-gray-700 dark:text-gray-300">
                     p5m <Text className="font-bold text-[#00797b] dark:text-cyan-300">{state.p5m[d] ? d + state.p5m[d] : `${d}?`}</Text>
@@ -168,13 +215,14 @@ export default function GloriaSurveyScreen() {
                 ))}
               </Card>
             ) : null}
-            {unitList(t('gloria.list.quadrats'), QUADRAT_CODES)}
-            {unitList(t('gloria.list.sas'), SAS_CODES)}
-            {unitList(t('gloria.list.squares'), SQUARE_CODES)}
+            {unitList(t('gloria.list.quadrats'), QUADRAT_CODES, 'required')}
+            {unitList(t('gloria.list.sas'), SAS_CODES, 'required')}
+            {unitList(t('gloria.list.squares'), SQUARE_CODES, 'optional')}
           </>
         ) : null}
 
         {tab === 'species' ? <SpeciesMatrix state={state} onUnit={openUnit} /> : null}
+        {tab === 'photos' ? <PhotoChecklist state={state} reload={reload} /> : null}
       </ScrollView>
       <RecordStepBar kind="gloria" id={id} />
       <NumAccessory />

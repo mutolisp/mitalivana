@@ -64,6 +64,8 @@ export type GloriaDoc = {
     /** Display name at export time, for a reader without the checklist. */
     scientific_name?: string;
   }>;
+  /** Photo checklist (v51); optional so older yml still loads. */
+  photo_checks?: Array<{ item: string; checked: number; photo_uri: string | null; updated_at: number }>;
   species: Array<{
     unit: string;
     serial: number;
@@ -86,7 +88,7 @@ export type GloriaDoc = {
 
 /** Unit columns carried verbatim (everything but ids and the FK). */
 export const UNIT_FIELDS = [
-  'code', 'unit_type', 'start_ts', 'stop_ts', 'freq_start_ts', 'freq_stop_ts', 'freq_stop_manual', 'recorded_by', 'aspect_deg', 'slope_deg',
+  'code', 'unit_type', 'start_ts', 'stop_ts', 'freq_start_ts', 'freq_stop_ts', 'freq_stop_manual', 'freq_locked', 'pf_start_ts', 'pf_stop_ts', 'pf_locked', 'recorded_by', 'aspect_deg', 'slope_deg',
   'cov_vascular', 'cov_solid_rock', 'cov_scree', 'cov_lichens', 'cov_bryophytes', 'cov_bare_ground', 'cov_litter',
   'sub_lich_below_vasc', 'sub_lich_on_rock', 'sub_lich_on_scree', 'sub_bry_below_vasc', 'sub_bry_on_rock',
   'sub_bry_on_scree', 'dist_hi1', 'dist_hi2', 'dist_hi3', 'freq_mode', 'dist_hi1_n', 'dist_hi2_n', 'dist_hi3_n', 'point_surface', 'walk_option', 'legacy_surface_hits',
@@ -129,6 +131,7 @@ export const POINT_FIELDS = [
 export const TAXON_FIELDS = [
   'serial', 'taxon_id', 'used_name_id', 'used_scientific_name', 'verbatim_identification', 'created_at',
 ] as const;
+export const PHOTO_CHECK_FIELDS = ['item', 'checked', 'photo_uri', 'updated_at'] as const;
 export const SPECIES_FIELDS = [
   'occurrence_id', 'cover_pct', 'abundance', 'layer', 'cf', 'freq_cells', 'freq_count', 'point_hits', 'legacy_hits',
   'reproductive_condition', 'leaf_phenology', 'comments', 'created_at', 'updated_at',
@@ -143,6 +146,7 @@ export type GloriaDocInput = {
   taxa: Row[];
   /** Unit-species rows; `unit_id` and `gloria_taxon_id` are resolved through the maps. */
   species: Row[];
+  photoChecks?: Row[];
   displayName?: (taxonId: string) => string | undefined;
 };
 
@@ -184,5 +188,6 @@ export function buildGloriaDoc(i: GloriaDocInput): GloriaDoc {
       serial: serialOf.get(s.gloria_taxon_id) ?? 0,
       ...(pick(s, SPECIES_FIELDS) as Omit<GloriaDoc['species'][number], 'unit' | 'serial'>),
     })),
+    photo_checks: (i.photoChecks ?? []).map((c) => pick(c, PHOTO_CHECK_FIELDS) as NonNullable<GloriaDoc['photo_checks']>[number]),
   };
 }
