@@ -595,6 +595,10 @@
     "fabSideLeft": "左側",
     "undoSeconds": "{{count}} 秒",
     "defaultCreate": "調查記錄設定",
+    "gpsPerSpeciesSession": "快速名錄：每筆物種自動定位",
+    "gpsPerSpeciesSessionDesc": "輸入物種時記錄當下的 GNSS 座標與海拔；有開軌跡時一律記錄。需已允許定位。",
+    "gpsPerSpeciesPlot": "樣區調查：每筆物種自動定位",
+    "gpsPerSpeciesPlotDesc": "輸入物種時記錄當下的 GNSS 座標與海拔；穿越線有開軌跡時一律記錄。需已允許定位。",
     "createAsk": "每次詢問",
     "off": "關閉",
     "surveyors": "調查者",
@@ -982,18 +986,14 @@
     "busyTitle": "已有記錄正在錄製軌跡",
     "busyMsg": "請先停止或暫停其他記錄的軌跡",
     "startFail": "無法啟動軌跡",
-    "stopTitle": "停止並儲存軌跡？",
-    "stopMsg": "停止後將無法再 append 新點，但仍可繼續記錄物種。",
     "stop": "停止",
     "label": "穿越線軌跡",
     "stopped": "已停止",
     "paused": "已暫停",
     "notStarted": "尚未開始記錄軌跡（物種輸入需此資料）",
     "pause": "暫停",
-    "stopSave": "停止並儲存",
     "resume": "繼續",
     "start": "開始記錄",
-    "preview": "預覽",
     "summary_other": "{{count}} 段 · {{points}} 點 · {{length}}"
   },
   "layerSheet": {
@@ -1196,8 +1196,7 @@
   },
   "track": {
     "startPoint": "起點",
-    "endPoint": "終點",
-    "noData": "沒有軌跡資料"
+    "endPoint": "終點"
   },
   "photo": {
     "camPerm": "需要相機權限",
@@ -1338,6 +1337,10 @@
     "catalogNumberPlaceholder": "例：13450（標籤印成 TAI13450）",
     "elevation": "海拔",
     "elevationPlaceholder": "定位時自動帶入 GNSS 海拔，可自行修改",
+    "resolvePlace": "用座標解析地點",
+    "resolvePlaceFail": "無法解析地點，請確認網路連線後再試。",
+    "resolvePlaceReplace": "取代目前的採集地點？",
+    "resolvePlaceReplaceOk": "取代",
     "deleteSelectedMsg_other": "確定要刪除選取的 {{count}} 份標本記錄嗎？"
   },
   "areaSpecies": {

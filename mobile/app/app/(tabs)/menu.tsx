@@ -14,7 +14,7 @@ import { useRouter, type Href } from 'expo-router';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, ScrollView, Text, View } from 'react-native';
-import { LinkRow, Section, SelectRow } from '~/components/settings/rows';
+import { LinkRow, Section, SelectRow, SwitchRow } from '~/components/settings/rows';
 import { LANGUAGE_CATALOGUE } from '~/i18n';
 import {
   useSettings,
@@ -49,6 +49,8 @@ export default function MenuScreen() {
   const fontScale = useSettings((s) => s.font_scale);
   const undoDuration = useSettings((s) => s.undo_duration);
   const recordTypeDefault = useSettings((s) => s.record_type_default);
+  const gpsSession = useSettings((s) => s.record_gps_session);
+  const gpsPlot = useSettings((s) => s.record_gps_plot);
   const fabSide = useSettings((s) => s.fab_side);
   const inatLogin = useSettings((s) => s.inat_login);
   const vectorReady = useVectorInstall((x) => x.ready);
@@ -222,6 +224,18 @@ export default function MenuScreen() {
           value={recordTypeDefault}
           options={recordTypeOptions}
           onChange={(v) => setSetting('record_type_default', v)}
+        />
+        <SwitchRow
+          label={t('settings.gpsPerSpeciesSession')}
+          description={t('settings.gpsPerSpeciesSessionDesc')}
+          value={gpsSession}
+          onChange={(v) => setSetting('record_gps_session', v)}
+        />
+        <SwitchRow
+          label={t('settings.gpsPerSpeciesPlot')}
+          description={t('settings.gpsPerSpeciesPlotDesc')}
+          value={gpsPlot}
+          onChange={(v) => setSetting('record_gps_plot', v)}
         />
         <LinkRow
           label={t('settings.surveyors')}

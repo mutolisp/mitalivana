@@ -1358,6 +1358,29 @@ const MIGRATIONS: Migration[] = [
       addColumnIfMissing(db, `ALTER TABLE collection_specimens ADD COLUMN elevation_m REAL;`);
     },
   },
+  {
+    // Per-record altitude for the other two record kinds, filled with the
+    // coordinate when a species is entered (GNSS) and editable afterwards —
+    // the same metres column the specimen got in v44. NULL = not recorded.
+    version: 45,
+    up: (db) => {
+      addColumnIfMissing(db, `ALTER TABLE checklist_records ADD COLUMN elevation_m REAL;`);
+      addColumnIfMissing(db, `ALTER TABLE plot_species_records ADD COLUMN elevation_m REAL;`);
+    },
+  },
+  {
+    // Where each altitude came from, so the export can state its vertical
+    // datum (dwcLocation.ts): 'gnss' = height above the WGS 84 ellipsoid as
+    // the receiver reported it (EPSG:7030); 'manual' = typed in, datum
+    // unknown ('not recorded'). NULL = no altitude, or one recorded before
+    // this column existed — exported as 'not recorded', never guessed.
+    version: 46,
+    up: (db) => {
+      for (const table of ['plot_surveys', 'checklist_records', 'plot_species_records', 'collection_specimens']) {
+        addColumnIfMissing(db, `ALTER TABLE ${table} ADD COLUMN elevation_source TEXT;`);
+      }
+    },
+  },
 ];
 
 /** Highest schema version this build knows how to produce. Backup/restore uses

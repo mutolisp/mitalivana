@@ -62,6 +62,7 @@ import {
 import { useToast } from '~/stores/toast';
 import { ACTION_FILL } from '~/lib/colors';
 import { useInstalledDatasets } from '~/lib/datasetInstall';
+import { stampNewRecord } from '~/lib/recordFix';
 
 type LeadKey = 'a' | 'b';
 
@@ -466,7 +467,8 @@ export default function KeyRunnerScreen() {
         toast(tr('keys.alreadyInSession', { name: taxon.common_name_c || taxon.simple_name }));
         return;
       }
-      addRecord({ session_id: target.id, taxon_id: taxonId });
+      const recordId = addRecord({ session_id: target.id, taxon_id: taxonId });
+      stampNewRecord('session', recordId, target.id, refreshActiveSession);
       refreshActiveSession();
       toast(tr('session.added', { name: taxon.common_name_c || taxon.simple_name }), {
         action: {
@@ -482,7 +484,7 @@ export default function KeyRunnerScreen() {
     (v: PlotValueDraft) => {
       if (!plotValueTarget || !activePlot) return;
       const t = plotValueTarget.taxon;
-      addPlotSpecies({
+      const recordId = addPlotSpecies({
         plot_survey_id: activePlot.id,
         taxon_id: t.taxon_id,
         layer: plotValueTarget.layer,
@@ -494,6 +496,7 @@ export default function KeyRunnerScreen() {
         reproductive_condition: serializeMultiAttribute(v.reproductive_condition),
         leaf_phenology: serializeMultiAttribute(v.leaf_phenology),
       });
+      stampNewRecord('plot', recordId, activePlot.id, refreshActivePlot);
       setPlotValueTarget(null);
       toast(
         tr('keys.addedToPlotLayer', {
@@ -508,7 +511,7 @@ export default function KeyRunnerScreen() {
         },
       );
     },
-    [plotValueTarget, activePlot, router, toast],
+    [plotValueTarget, activePlot, refreshActivePlot, router, toast],
   );
 
   // Must stay above the early returns below — a Hook after a conditional

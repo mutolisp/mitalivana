@@ -8,7 +8,17 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, Keyboard, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Keyboard,
+  Modal,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import {
   SwipeNavArea,
@@ -53,6 +63,7 @@ export type SpecimenPatch = {
   other_catalog_numbers?: string | null;
   catalog_number?: string | null;
   elevation_m?: number | null;
+  elevation_source?: 'gnss' | 'manual' | null;
 };
 
 type Props = {
@@ -132,6 +143,7 @@ export function SpecimenDetailSheet({
   const [otherNumbers, setOtherNumbers] = useState('');
   const [catalog, setCatalog] = useState('');
   const [elevation, setElevation] = useState('');
+  const [resolvingPlace, setResolvingPlace] = useState(false);
   // Mirrors for the async place lookup below: when it resolves, it must know
   // whether the same specimen is still open and its locality still empty.
   const openIdRef = useRef<number | null>(null);
@@ -142,6 +154,12 @@ export function SpecimenDetailSheet({
   useEffect(() => {
     localityRef.current = locality;
   }, [locality]);
+  // A locality written from outside while the sheet is open (the place name a
+  // newly added specimen gets once the geocoder answers) reaches the field —
+  // but only into an empty one, never over what the user is typing.
+  useEffect(() => {
+    if (specimen?.locality && !localityRef.current.trim()) setLocality(specimen.locality);
+  }, [specimen?.locality]);
   const [notes, setNotes] = useState('');
   const [attrs, setAttrs] = useState<SpeciesAttributesDraft>(EMPTY_DRAFT);
   const [assigning, setAssigning] = useState<'collector' | 'determiner' | null>(null);
@@ -263,10 +281,41 @@ export function SpecimenDetailSheet({
     onSave(attributesToColumns(next));
   };
 
+  /**
+   * 「用座標解析地點」: the user asked, so unlike the automatic fill this may
+   * replace a locality — after confirming, when one is already there. A
+   * failure is said out loud (usually no network) instead of doing nothing.
+   */
+  const resolvePlace = async () => {
+    if (specimen.lat == null || specimen.lng == null || resolvingPlace) return;
+    const id = specimen.id;
+    setResolvingPlace(true);
+    const place = await placeNameAt(specimen.lat, specimen.lng);
+    setResolvingPlace(false);
+    if (openIdRef.current !== id) return;
+    if (!place) {
+      Alert.alert(t('collection.resolvePlace'), t('collection.resolvePlaceFail'));
+      return;
+    }
+    const apply = () => {
+      setLocality(place);
+      onSave({ locality: place });
+    };
+    const current = localityRef.current.trim();
+    if (!current || current === place) {
+      apply();
+      return;
+    }
+    Alert.alert(t('collection.resolvePlaceReplace'), place, [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('collection.resolvePlaceReplaceOk'), onPress: apply },
+    ]);
+  };
+
   const commitElevation = () => {
     const text = elevation.trim();
     if (!text) {
-      onSave({ elevation_m: null });
+      onSave({ elevation_m: null, elevation_source: null });
       return;
     }
     const n = Number(text);
@@ -275,7 +324,7 @@ export function SpecimenDetailSheet({
       setElevation(specimen.elevation_m != null ? String(specimen.elevation_m) : '');
       return;
     }
-    onSave({ elevation_m: n });
+    onSave({ elevation_m: n, elevation_source: 'manual' });
   };
 
   // The coordinate row, photo button and map below mirror SpeciesDetailSheet
@@ -297,7 +346,7 @@ export function SpecimenDetailSheet({
       if (pos.coords.altitude != null) {
         const m = Math.round(pos.coords.altitude);
         setElevation(String(m));
-        onSave({ elevation_m: m });
+        onSave({ elevation_m: m, elevation_source: 'gnss' });
       }
     } catch (e) {
       Alert.alert(t('gnss.posFailTitle'), errText(e));
@@ -554,6 +603,22 @@ export function SpecimenDetailSheet({
                       />
                     </View>
                   </GestureDetector>
+                  {specimen.lat !== null && specimen.lng !== null ? (
+                    <Pressable
+                      onPress={resolvePlace}
+                      disabled={resolvingPlace}
+                      className="mt-2 flex-row items-center rounded-lg border border-gray-200 px-3 py-2 active:bg-gray-50 dark:border-gray-700 dark:active:bg-gray-800"
+                    >
+                      {resolvingPlace ? (
+                        <ActivityIndicator size="small" />
+                      ) : (
+                        <Ionicons name="navigate-circle-outline" size={18} color="#4b5563" />
+                      )}
+                      <Text className="ml-2 flex-1 text-sm text-gray-700 dark:text-gray-300">
+                        {t('collection.resolvePlace')}
+                      </Text>
+                    </Pressable>
+                  ) : null}
                 </Field>
 
                 <Field label={t('collection.elevation')}>

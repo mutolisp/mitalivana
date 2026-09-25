@@ -630,6 +630,10 @@
     "fabSideLeft": "Left",
     "undoSeconds": "{{count}} s",
     "defaultCreate": "Survey record settings",
+    "gpsPerSpeciesSession": "Quick checklist: locate each species",
+    "gpsPerSpeciesSessionDesc": "Records the GNSS position and altitude when a species is entered; always while a track is recording. Needs location permission.",
+    "gpsPerSpeciesPlot": "Plot survey: locate each species",
+    "gpsPerSpeciesPlotDesc": "Records the GNSS position and altitude when a species is entered; always while a transect track is recording. Needs location permission.",
     "createAsk": "Ask each time",
     "off": "Off",
     "surveyors": "Surveyors",
@@ -1050,18 +1054,14 @@
     "busyTitle": "Another record is recording a track",
     "busyMsg": "Stop or pause the other record's track first",
     "startFail": "Could not start track",
-    "stopTitle": "Stop and save track?",
-    "stopMsg": "After stopping you can't append new points, but you can keep recording species.",
     "stop": "Stop",
     "label": "Transect track",
     "stopped": "Stopped",
     "paused": "Paused",
     "notStarted": "Track recording not started (required for species entry)",
     "pause": "Pause",
-    "stopSave": "Stop & save",
     "resume": "Resume",
     "start": "Start recording",
-    "preview": "Preview",
     "summary_one": "{{count}} segment · {{points}} pts · {{length}}",
     "summary_other": "{{count}} segments · {{points}} pts · {{length}}"
   },
@@ -1278,8 +1278,7 @@
   },
   "track": {
     "startPoint": "Start",
-    "endPoint": "End",
-    "noData": "No track data"
+    "endPoint": "End"
   },
   "photo": {
     "camPerm": "Camera permission needed",
@@ -1427,6 +1426,10 @@
     "catalogNumberPlaceholder": "e.g. 13450 (printed as TAI13450)",
     "elevation": "Altitude",
     "elevationPlaceholder": "Filled from the GNSS fix when locating; editable",
+    "resolvePlace": "Get place name from coordinates",
+    "resolvePlaceFail": "Could not look up the place. Check the network connection and try again.",
+    "resolvePlaceReplace": "Replace the current locality?",
+    "resolvePlaceReplaceOk": "Replace",
     "deleteSelectedMsg_one": "Delete the {{count}} selected specimen record?",
     "deleteSelectedMsg_other": "Delete the {{count}} selected specimen records?"
   },

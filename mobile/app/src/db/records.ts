@@ -27,6 +27,10 @@ export type ChecklistRecord = {
   /** GNSS horizontal accuracy in metres, from `Location.getCurrentPositionAsync`.
    *  Maps to DwC `coordinateUncertaintyInMeters` on export. */
   accuracy: number | null;
+  /** Altitude in metres (v45) → DwC min/maximumElevationInMeters. */
+  elevation_m: number | null;
+  /** 'gnss' | 'manual' | null (v46) → DwC verticalDatum; see dwcLocation.ts. */
+  elevation_source: string | null;
   /** DwC degreeOfEstablishment (v33): 'wild' | 'captive' | 'cultivated'.
    *  NULL = not recorded, which is a different statement from an explicit
    *  'wild'. Per-INDIVIDUAL — not to be confused with the taxon-level
@@ -194,6 +198,35 @@ export function updateRecordLocation(
   );
 }
 
+export function updateRecordElevation(
+  id: number,
+  elevation: number | null,
+  source: 'gnss' | 'manual',
+): void {
+  getUserDb().executeSync(
+    `UPDATE checklist_records SET elevation_m = ?, elevation_source = ?, updated_at = ? WHERE id = ?`,
+    [elevation, elevation != null ? source : null, Date.now(), id],
+  );
+}
+
+/**
+ * Stamp the fix taken when the species was entered — only onto a record that
+ * still has no coordinate, so a point placed by hand or read off a photo in
+ * the meantime is never overwritten. Returns whether it wrote.
+ */
+export function stampRecordFix(
+  id: number,
+  fix: { lat: number; lng: number; accuracy: number | null; elevation_m: number | null },
+): boolean {
+  const res = getUserDb().executeSync(
+    `UPDATE checklist_records
+        SET lat = ?, lng = ?, accuracy = ?, elevation_m = ?, elevation_source = ?, updated_at = ?
+      WHERE id = ? AND lat IS NULL`,
+    [fix.lat, fix.lng, fix.accuracy, fix.elevation_m, fix.elevation_m != null ? 'gnss' : null, Date.now(), id],
+  );
+  return (res.rowsAffected ?? 0) > 0;
+}
+
 export type RecordAttributePatch = Partial<{
   sex: string | null;
   life_stage: string | null;
@@ -269,7 +302,7 @@ export function listSessionRecords(sessionId: number): RecordWithTaxon[] {
 
   const recordsRes = userDb.executeSync(
     `SELECT id, session_id, taxon_id, occurrence_id, observed_at, notes, photo_paths, lat, lng, accuracy,
-            sex, life_stage, reproductive_condition, leaf_phenology, degree_of_establishment,
+            elevation_m, elevation_source, sex, life_stage, reproductive_condition, leaf_phenology, degree_of_establishment,
             verbatim_identification,
             organism_quantity, organism_quantity_type,
             used_name_id, used_scientific_name,

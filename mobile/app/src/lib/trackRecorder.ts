@@ -46,7 +46,16 @@ type RecorderAdapter = {
   onStart?: () => void;
   /** On the first fix of a fresh recording (plot co-opts gate fields). */
   onFirstFix?: (lat: number, lng: number, accuracy: number | null) => void;
+  /** Whether the record is still open. Once it has been ended — by any path,
+   *  including the DB-level single-active safety nets that cannot reach the
+   *  recorder — the recorder pauses itself (see `LIVE_CHECK_MS`). */
+  isLive: () => boolean;
 };
+
+/** How often a recording checks that its record is still open, besides on
+ *  every point: a phone standing still gets no position callbacks at all. */
+const LIVE_CHECK_MS = 30_000;
+let liveTimer: ReturnType<typeof setInterval> | null = null;
 
 // Module-scope mutable refs
 let watchSub: Location.LocationSubscription | null = null;
@@ -88,6 +97,7 @@ function buildAdapter(target: RecordTarget): RecorderAdapter {
           updatePlotSurvey(target.id, { start_ts: Date.now() });
         }
       },
+      isLive: () => getPlotSurvey(target.id)?.status === 'active',
       onFirstFix: (lat, lng, accuracy) => {
         // Transect plots have no static GNSS field; co-opt the first track
         // point to satisfy the hard-gate for species entry. Only when the
@@ -118,6 +128,11 @@ function buildAdapter(target: RecordTarget): RecorderAdapter {
         track_geojson: buildTrackGeoJSON(segs),
         gps_mode: 'full_track',
       }),
+    // A session is open while it has no end time.
+    isLive: () => {
+      const s = getSession(target.id);
+      return s != null && s.ended_at == null;
+    },
   };
 }
 
@@ -157,6 +172,11 @@ async function beginWatch(target: RecordTarget): Promise<void> {
     },
     (pos) => {
       if (currentTarget == null) return;
+      // The record was ended while recording: stop here, keep what we have.
+      if (!adapter.isLive()) {
+        pauseRecording();
+        return;
+      }
       const pt: [number, number] = [pos.coords.longitude, pos.coords.latitude];
       currentSegment.push(pt);
       useTrackRecorder.setState({ livePoints: [...currentSegment] });
@@ -179,6 +199,9 @@ async function beginWatch(target: RecordTarget): Promise<void> {
     return;
   }
   watchSub = sub;
+  liveTimer = setInterval(() => {
+    if (currentAdapter && !currentAdapter.isLive()) pauseRecording();
+  }, LIVE_CHECK_MS);
 }
 
 /** Stop the watch and commit the in-progress segment back to the target. */
@@ -187,6 +210,10 @@ export function pauseRecording(): void {
   if (watchSub) {
     watchSub.remove();
     watchSub = null;
+  }
+  if (liveTimer) {
+    clearInterval(liveTimer);
+    liveTimer = null;
   }
   if (currentAdapter != null && currentSegment.length > 0) {
     const next = [...priorSegmentsSnapshot, currentSegment.slice()];

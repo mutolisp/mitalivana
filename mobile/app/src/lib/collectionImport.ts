@@ -27,6 +27,7 @@ import yaml from 'js-yaml';
 import { ImportError } from './importError';
 import { num, parseSiteBlock, pipeToJson, pipeToList, str } from './plotImport';
 import type { ImportedCollectionTrip, ImportedSpecimen } from '~/db';
+import { sourceFromVerticalDatum } from './dwcLocation';
 
 /**
  * ISO-8601 (with local offset, as `localIso` writes it) → epoch ms.
@@ -98,6 +99,7 @@ export function collectionFromDoc(
       other_catalog_numbers: str(s.otherCatalogNumbers),
       catalog_number: str(s.catalogNumber),
       elevation_m: num(s.minimumElevationInMeters),
+      elevation_source: sourceFromVerticalDatum(s.verticalDatum, num(s.minimumElevationInMeters)),
       notes: str(s.occurrenceRemarks),
       photo_files: pipeToList(s.associatedMedia),
       // Kept out of associatedMedia so the clips return to audio_paths rather

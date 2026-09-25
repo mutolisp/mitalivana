@@ -53,6 +53,7 @@ import { ConservationBadge } from './ConservationBadge';
 import { LookupResultSheet } from './LookupResultSheet';
 import { ScientificName } from './ScientificName';
 import { ACTION_FILL } from '~/lib/colors';
+import { stampNewRecord } from '~/lib/recordFix';
 
 type Props = {
   keyId: number;
@@ -250,7 +251,8 @@ export function KeyMatrixRunner({ keyId, keyData }: Props) {
       Alert.alert(t('session.alreadyExists', { name: activeDetail.cname || activeDetail.name }));
       return;
     }
-    addRecord({ session_id: target.id, taxon_id: activeDetail.taxon_id });
+    const recordId = addRecord({ session_id: target.id, taxon_id: activeDetail.taxon_id });
+    stampNewRecord('session', recordId, target.id, refreshActive);
     refreshActive();
     // The success case keeps its "go to record" affordance as an Alert button —
     // unlike the sheet cases elsewhere, nothing in this Modal visibly changes on

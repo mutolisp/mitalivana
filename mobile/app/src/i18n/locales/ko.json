@@ -595,6 +595,10 @@
     "fabSideLeft": "왼쪽",
     "undoSeconds": "{{count}}초",
     "defaultCreate": "조사 기록 설정",
+    "gpsPerSpeciesSession": "빠른 종 목록: 종마다 자동 위치 기록",
+    "gpsPerSpeciesSessionDesc": "종을 입력할 때 GNSS 좌표와 해발고도를 기록합니다. 궤적 기록 중에는 항상 기록합니다. 위치 권한이 필요합니다.",
+    "gpsPerSpeciesPlot": "조사구 조사: 종마다 자동 위치 기록",
+    "gpsPerSpeciesPlotDesc": "종을 입력할 때 GNSS 좌표와 해발고도를 기록합니다. 트랜섹트 궤적 기록 중에는 항상 기록합니다. 위치 권한이 필요합니다.",
     "createAsk": "매번 묻기",
     "off": "끔",
     "surveyors": "조사자",
@@ -982,18 +986,14 @@
     "busyTitle": "다른 기록이 이동경로를 기록 중입니다",
     "busyMsg": "먼저 다른 기록의 이동경로를 정지하거나 일시정지하세요",
     "startFail": "이동경로를 시작할 수 없습니다",
-    "stopTitle": "이동경로를 정지하고 저장할까요?",
-    "stopMsg": "정지하면 새 점을 추가할 수 없지만 종 기록은 계속할 수 있습니다.",
     "stop": "정지",
     "label": "트랜섹트 이동경로",
     "stopped": "정지됨",
     "paused": "일시정지됨",
     "notStarted": "이동경로 기록을 시작하지 않았습니다(종 입력에 필요)",
     "pause": "일시정지",
-    "stopSave": "정지 후 저장",
     "resume": "재개",
     "start": "기록 시작",
-    "preview": "미리보기",
     "summary_other": "{{count}}구간 · {{points}}점 · {{length}}"
   },
   "layerSheet": {
@@ -1196,8 +1196,7 @@
   },
   "track": {
     "startPoint": "시작점",
-    "endPoint": "종점",
-    "noData": "이동경로 데이터가 없습니다"
+    "endPoint": "종점"
   },
   "photo": {
     "camPerm": "카메라 권한이 필요합니다",
@@ -1338,6 +1337,10 @@
     "catalogNumberPlaceholder": "예: 13450 (라벨에는 TAI13450으로 인쇄)",
     "elevation": "해발고도",
     "elevationPlaceholder": "위치 측정 시 GNSS 고도를 자동 입력하며 수정할 수 있습니다",
+    "resolvePlace": "좌표로 지명 찾기",
+    "resolvePlaceFail": "지명을 찾지 못했습니다. 네트워크 연결을 확인한 뒤 다시 시도하세요.",
+    "resolvePlaceReplace": "현재 채집지를 바꿀까요?",
+    "resolvePlaceReplaceOk": "바꾸기",
     "deleteSelectedMsg_other": "선택한 표본 기록 {{count}}점을 삭제할까요?"
   },
   "areaSpecies": {

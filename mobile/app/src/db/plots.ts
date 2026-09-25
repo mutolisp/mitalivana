@@ -119,6 +119,8 @@ export type PlotSurvey = {
   locality: string | null;
   field_note: string | null;
   elevation_m: number | null;
+  /** 'gnss' | 'manual' | null (v46); see dwcLocation.ts. */
+  elevation_source: string | null;
   slope_deg: number | null;
   aspect_deg: number | null;
   terrain_position: string | null;
@@ -198,6 +200,10 @@ export type PlotSpeciesRecord = {
   lat: number | null;
   lng: number | null;
   accuracy: number | null;
+  /** Altitude in metres (v45) → DwC min/maximumElevationInMeters. */
+  elevation_m: number | null;
+  /** 'gnss' | 'manual' | null (v46) → DwC verticalDatum; see dwcLocation.ts. */
+  elevation_source: string | null;
   // Detection method (v13): 'seen' | 'heard' | 'flying'. Point count / animal
   // records; null for plant/unspecified.
   detection_type: string | null;
@@ -634,6 +640,7 @@ const PLOT_UPDATABLE_KEYS: (keyof UpdatePlotPatch)[] = [
   'locality',
   'field_note',
   'elevation_m',
+  'elevation_source',
   'slope_deg',
   'aspect_deg',
   'terrain_position',
@@ -809,6 +816,8 @@ export type AddPlotSpeciesInput = {
   lat?: number | null;
   lng?: number | null;
   accuracy?: number | null;
+  elevation_m?: number | null;
+  elevation_source?: string | null;
   /** Detection method (v13): 'seen' | 'heard' | 'flying'. */
   detection_type?: string | null;
   /** Set only when the user deliberately chose a non-accepted name (v28). */
@@ -824,10 +833,10 @@ export function addPlotSpecies(input: AddPlotSpeciesInput): number {
        (plot_survey_id, taxon_id, occurrence_id, subplot_id, layer,
         organism_quantity, organism_quantity_type,
         notes, sex, life_stage, reproductive_condition, leaf_phenology, degree_of_establishment,
-        lat, lng, accuracy, detection_type,
+        verbatim_identification, lat, lng, accuracy, elevation_m, elevation_source, detection_type,
         used_name_id, used_scientific_name,
         observed_at, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       input.plot_survey_id,
       input.taxon_id,
@@ -842,9 +851,15 @@ export function addPlotSpecies(input: AddPlotSpeciesInput): number {
       input.reproductive_condition ?? null,
       input.leaf_phenology ?? null,
       input.degree_of_establishment ?? null,
+      // Accepted by the input type all along but missing from this
+      // statement, so a determination typed while ADDING a species (Lauraceae
+      // sp2) was dropped; only an edit afterwards kept it.
+      input.verbatim_identification ?? null,
       input.lat ?? null,
       input.lng ?? null,
       input.accuracy ?? null,
+      input.elevation_m ?? null,
+      input.elevation_m != null ? (input.elevation_source ?? 'manual') : null,
       input.detection_type ?? null,
       input.adopted?.name_id ?? null,
       input.adopted?.scientific_name ?? null,
@@ -969,6 +984,32 @@ export function updatePlotSpeciesLocation(
   );
 }
 
+export function updatePlotSpeciesElevation(
+  id: number,
+  elevation: number | null,
+  source: 'gnss' | 'manual',
+): void {
+  getUserDb().executeSync(
+    `UPDATE plot_species_records SET elevation_m = ?, elevation_source = ?, updated_at = ? WHERE id = ?`,
+    [elevation, elevation != null ? source : null, Date.now(), id],
+  );
+}
+
+/** Same as `records.ts::stampRecordFix`, for a plot species record: only onto
+ *  a record that still has no coordinate. Returns whether it wrote. */
+export function stampPlotSpeciesFix(
+  id: number,
+  fix: { lat: number; lng: number; accuracy: number | null; elevation_m: number | null },
+): boolean {
+  const res = getUserDb().executeSync(
+    `UPDATE plot_species_records
+        SET lat = ?, lng = ?, accuracy = ?, elevation_m = ?, elevation_source = ?, updated_at = ?
+      WHERE id = ? AND lat IS NULL`,
+    [fix.lat, fix.lng, fix.accuracy, fix.elevation_m, fix.elevation_m != null ? 'gnss' : null, Date.now(), id],
+  );
+  return (res.rowsAffected ?? 0) > 0;
+}
+
 /** Persist the list of photo URIs (`ph://` or `file://`) for a plot species
  *  record. Pass an empty array to clear. Stored as JSON in `photo_paths`. */
 export function updatePlotSpeciesPhotos(id: number, paths: string[]): void {
@@ -1074,6 +1115,8 @@ export type ImportedPlotSpecies = {
   lat?: number | null;
   lng?: number | null;
   accuracy?: number | null;
+  elevation_m?: number | null;
+  elevation_source?: string | null;
   observed_at?: number | null;
   /** Photo filenames inside the zip's `photos/` belonging to this record. */
   photo_files?: string[];
@@ -1111,6 +1154,7 @@ export type ImportedPlot = {
   decimal_longitude?: number | null;
   coord_uncertainty_m?: number | null;
   elevation_m?: number | null;
+  elevation_source?: string | null;
   slope_deg?: number | null;
   aspect_deg?: number | null;
   terrain_position?: string | null;
@@ -1198,11 +1242,11 @@ function importPlotSurveyTx(
        start_ts, stop_ts, decimal_latitude, decimal_longitude, coord_uncertainty_m, point_radius_m,
        sample_size_value, sample_size_unit, sampling_protocol, total_cover_pct,
        recorded_by, locality, field_note,
-       elevation_m, slope_deg, aspect_deg, terrain_position,
+       elevation_m, elevation_source, slope_deg, aspect_deg, terrain_position,
        rock_cover_pct, gravel_cover_pct, bareland_cover_pct,
        vascular_cover_pct, bryophyte_cover_pct, lichen_cover_pct, litter_cover_pct,
        layer_count, created_at, updated_at
-     ) VALUES (?, ?, ?, ?, 'done', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     ) VALUES (?, ?, ?, ?, 'done', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       uuid,
       data.plotid,
@@ -1227,6 +1271,7 @@ function importPlotSurveyTx(
       data.locality ?? null,
       data.field_note ?? null,
       data.elevation_m ?? null,
+      data.elevation_source ?? null,
       data.slope_deg ?? null,
       data.aspect_deg ?? null,
       data.terrain_position ?? null,
@@ -1294,10 +1339,10 @@ function importPlotSurveyTx(
          plot_survey_id, taxon_id, occurrence_id, subplot_id, layer,
          organism_quantity, organism_quantity_type, notes, sex, life_stage,
          reproductive_condition, leaf_phenology, degree_of_establishment,
-         verbatim_identification, lat, lng, accuracy, detection_type,
+         verbatim_identification, lat, lng, accuracy, elevation_m, elevation_source, detection_type,
          photo_paths, audio_paths, used_name_id, used_scientific_name,
          observed_at, created_at, updated_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         plotId,
         sp.taxon_id,
@@ -1321,6 +1366,8 @@ function importPlotSurveyTx(
         sp.lat ?? null,
         sp.lng ?? null,
         sp.accuracy ?? null,
+        sp.elevation_m ?? null,
+        sp.elevation_source ?? null,
         sp.detection_type ?? null,
         photoPaths(sp.photo_files),
         audioPaths(sp.audio_files),
@@ -1424,11 +1471,11 @@ function duplicatePlotSurveyTx(id: number, opts: DuplicateRecordOptions): number
     `INSERT INTO plot_surveys (
        uuid, plotid, plot_type, project_id, status, recorded_by, sampling_protocol,
        layer_count, sample_size_value, sample_size_unit, point_radius_m,
-       locality, field_note, elevation_m, slope_deg, aspect_deg, terrain_position,
+       locality, field_note, elevation_m, elevation_source, slope_deg, aspect_deg, terrain_position,
        total_cover_pct, rock_cover_pct, gravel_cover_pct, bareland_cover_pct,
        vascular_cover_pct, bryophyte_cover_pct, lichen_cover_pct, litter_cover_pct,
        start_ts, stop_ts, created_at, updated_at
-     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       generateUuid(),
       name,
@@ -1447,6 +1494,7 @@ function duplicatePlotSurveyTx(id: number, opts: DuplicateRecordOptions): number
       env(source.locality),
       env(source.field_note),
       env(source.elevation_m),
+      env(source.elevation_source),
       env(source.slope_deg),
       env(source.aspect_deg),
       env(source.terrain_position),
@@ -1628,12 +1676,12 @@ function mergePlotSurveysTx(ids: number[], opts: MergeRecordOptions): number | n
        uuid, plotid, plot_type, project_id, site_id, status, recorded_by, sampling_protocol,
        layer_count, sample_size_value, sample_size_unit, point_radius_m,
        decimal_latitude, decimal_longitude, coord_uncertainty_m,
-       locality, field_note, elevation_m, slope_deg, aspect_deg, terrain_position,
+       locality, field_note, elevation_m, elevation_source, slope_deg, aspect_deg, terrain_position,
        total_cover_pct, rock_cover_pct, gravel_cover_pct, bareland_cover_pct,
        vascular_cover_pct, bryophyte_cover_pct, lichen_cover_pct, litter_cover_pct,
        track_geojson, track_finalized, env_photos_json,
        start_ts, stop_ts, created_at, updated_at
-     ) VALUES (?, ?, ?, ?, ?, 'done', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     ) VALUES (?, ?, ?, ?, ?, 'done', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       generateUuid(),
       name,
@@ -1652,6 +1700,7 @@ function mergePlotSurveysTx(ids: number[], opts: MergeRecordOptions): number | n
       primary.locality,
       fieldNote,
       primary.elevation_m,
+      primary.elevation_source,
       primary.slope_deg,
       primary.aspect_deg,
       primary.terrain_position,
@@ -1744,9 +1793,9 @@ function mergePlotSurveysTx(ids: number[], opts: MergeRecordOptions): number | n
             bb_value, percent, dbh_values_json, notes, photo_paths, audio_paths,
             observed_at, created_at, updated_at, degree_of_establishment,
             sex, life_stage, reproductive_condition, leaf_phenology,
-            organism_quantity, organism_quantity_type, lat, lng, accuracy,
-            detection_type, used_name_id, used_scientific_name)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            organism_quantity, organism_quantity_type, lat, lng, accuracy, elevation_m,
+            elevation_source, detection_type, used_name_id, used_scientific_name)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           newId,
           sp.taxon_id,
@@ -1773,6 +1822,8 @@ function mergePlotSurveysTx(ids: number[], opts: MergeRecordOptions): number | n
           sp.lat,
           sp.lng,
           sp.accuracy,
+          sp.elevation_m,
+          sp.elevation_source,
           sp.detection_type,
           sp.used_name_id,
           sp.used_scientific_name,

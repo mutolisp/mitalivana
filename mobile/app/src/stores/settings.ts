@@ -177,6 +177,11 @@ type SettingsValues = {
    *  Taiwan". Remembered between exports. */
   collection_label_title: string;
   collection_label_family: boolean;
+  /** Take a GNSS fix for every species entered into a quick checklist
+   *  (session) / a plot survey. A plot or session whose track is being
+   *  recorded is stamped regardless — the receiver is on anyway. */
+  record_gps_session: boolean;
+  record_gps_plot: boolean;
   /** Direction for `last_record_sort`. Observed defaults to 'desc' (latest
    *  on top); other sorts default to 'asc'. Tapping the same sort option a
    *  second time flips this. */
@@ -293,6 +298,8 @@ const DEFAULTS: SettingsValues = {
   plot_stats_expanded: false,
   collection_label_title: '',
   collection_label_family: false,
+  record_gps_session: true,
+  record_gps_plot: true,
   last_record_sort_dir: 'desc',
   taxonomy_expanded: [],
   records_collapsed: [],
@@ -423,6 +430,14 @@ function readAll(): SettingsValues {
       map.get('collection_label_family') == null
         ? DEFAULTS.collection_label_family
         : map.get('collection_label_family') === 'true',
+    record_gps_session:
+      map.get('record_gps_session') == null
+        ? DEFAULTS.record_gps_session
+        : map.get('record_gps_session') === 'true',
+    record_gps_plot:
+      map.get('record_gps_plot') == null
+        ? DEFAULTS.record_gps_plot
+        : map.get('record_gps_plot') === 'true',
     last_record_sort_dir:
       (map.get('last_record_sort_dir') as SortDirection) ?? DEFAULTS.last_record_sort_dir,
     taxonomy_expanded: taxonomyExpanded,

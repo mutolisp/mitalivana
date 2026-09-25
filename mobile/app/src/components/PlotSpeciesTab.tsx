@@ -39,6 +39,7 @@ import {
   type SearchResult,
   layerLabel,
   updatePlotSpeciesLocation,
+  updatePlotSpeciesElevation,
   updatePlotSpeciesLayer,
   updatePlotSpeciesTaxon,
   updatePlotSpeciesPhotos,
@@ -76,6 +77,7 @@ import {
   legacyMethodToType,
   parseDbhArray,
 } from '~/lib/dwcAbundance';
+import { stampNewRecord } from '~/lib/recordFix';
 
 type ValueModalState =
   | { mode: 'create'; taxon: SearchResult; layer: Layer; adopted?: AdoptionInput | null }
@@ -131,6 +133,10 @@ export function PlotSpeciesTab({ plot, onChanged }: { plot: PlotSurvey; onChange
    * `fromPhotoUri` remembers which photo supplied the coordinate, so removing
    * that photo takes the coordinate with it while a hand-placed one stays.
    */
+  const [pendingElevation, setPendingElevation] = useState<{
+    metres: number;
+    source: 'gnss' | 'manual';
+  } | null>(null);
   const [pendingLoc, setPendingLoc] = useState<{
     lat: number;
     lng: number;
@@ -348,6 +354,7 @@ export function PlotSpeciesTab({ plot, onChanged }: { plot: PlotSurvey; onChange
     setPendingPhotos([]);
     setPendingAudio([]);
     setPendingLoc(null);
+    setPendingElevation(null);
     setModal({ mode: 'create', taxon, layer, adopted });
   };
 
@@ -374,18 +381,26 @@ export function PlotSpeciesTab({ plot, onChanged }: { plot: PlotSurvey; onChange
         lat: pendingLoc?.lat ?? null,
         lng: pendingLoc?.lng ?? null,
         accuracy: pendingLoc?.accuracy ?? null,
+        elevation_m: pendingElevation?.metres ?? null,
+        elevation_source: pendingElevation?.source ?? null,
         adopted: modal.adopted,
       });
       // Attach any photos taken before the record existed.
       if (newId > 0 && pendingPhotos.length > 0) {
         updatePlotSpeciesPhotos(newId, pendingPhotos);
       }
+      // Its own fix, unless the photos above already gave it one.
+      stampNewRecord('plot', newId, plot.id, () => {
+        reload();
+        onChanged();
+      });
       if (newId > 0 && pendingAudio.length > 0) {
         updatePlotSpeciesAudio(newId, pendingAudio);
       }
       setPendingPhotos([]);
       setPendingAudio([]);
       setPendingLoc(null);
+      setPendingElevation(null);
       // Remember last entry per layer so the next species defaults to the
       // same unit + scalar value. DBH stems & per-individual attributes are
       // wiped to avoid leakage to the next species.
@@ -687,6 +702,31 @@ export function PlotSpeciesTab({ plot, onChanged }: { plot: PlotSurvey; onChange
     const record = modal.record;
     updatePlotSpeciesLocation(record.id, lat, lng, accuracy);
     setModal({ mode: 'edit', record: { ...record, lat, lng, accuracy } });
+    reload();
+    onChanged();
+  };
+
+  const handleSaveModalElevation = (metres: number | null, source: 'gnss' | 'manual') => {
+    if (!modal) return;
+    if (modal.mode === 'create') {
+      setPendingElevation(metres == null ? null : { metres, source });
+      return;
+    }
+    updatePlotSpeciesElevation(modal.record.id, metres, source);
+    // Functional: the GNSS button saves the coordinate first in the same tap,
+    // and re-spreading the old snapshot would put the old coordinate back.
+    setModal((prev) =>
+      prev && prev.mode === 'edit'
+        ? {
+            mode: 'edit',
+            record: {
+              ...prev.record,
+              elevation_m: metres,
+              elevation_source: metres != null ? source : null,
+            },
+          }
+        : prev,
+    );
     reload();
     onChanged();
   };
@@ -1128,6 +1168,8 @@ export function PlotSpeciesTab({ plot, onChanged }: { plot: PlotSurvey; onChange
           accuracy={modal.mode === 'edit' ? modal.record.accuracy : (pendingLoc?.accuracy ?? null)}
           onSaveLocation={handleSaveModalLocation}
           onChangeLocation={handleChangeModalLocation}
+          elevation={modal.mode === 'edit' ? modal.record.elevation_m : (pendingElevation?.metres ?? null)}
+          onSaveElevation={handleSaveModalElevation}
           plotGeo={{
             lat: plot.decimal_latitude,
             lng: plot.decimal_longitude,

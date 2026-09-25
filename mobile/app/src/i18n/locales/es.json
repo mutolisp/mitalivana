@@ -665,6 +665,10 @@
     "fabSideLeft": "Izquierda",
     "undoSeconds": "{{count}} s",
     "defaultCreate": "Ajustes de registro",
+    "gpsPerSpeciesSession": "Lista rápida: ubicar cada especie",
+    "gpsPerSpeciesSessionDesc": "Registra la posición GNSS y la altitud al introducir cada especie; siempre mientras se graba un recorrido. Requiere permiso de ubicación.",
+    "gpsPerSpeciesPlot": "Muestreo de parcela: ubicar cada especie",
+    "gpsPerSpeciesPlotDesc": "Registra la posición GNSS y la altitud al introducir cada especie; siempre mientras se graba el recorrido de un transecto. Requiere permiso de ubicación.",
     "createAsk": "Preguntar cada vez",
     "off": "Desactivado",
     "surveyors": "Observadores",
@@ -1118,18 +1122,14 @@
     "busyTitle": "Otro registro está grabando una traza",
     "busyMsg": "Detenga o pause primero la traza del otro registro",
     "startFail": "No se pudo iniciar la traza",
-    "stopTitle": "¿Detener y guardar la traza?",
-    "stopMsg": "Tras detenerla no podrá añadir puntos nuevos, pero sí seguir registrando especies.",
     "stop": "Detener",
     "label": "Traza del transecto",
     "stopped": "Detenida",
     "paused": "En pausa",
     "notStarted": "La grabación de la traza no ha comenzado (necesaria para introducir especies)",
     "pause": "Pausar",
-    "stopSave": "Detener y guardar",
     "resume": "Reanudar",
     "start": "Empezar a grabar",
-    "preview": "Vista previa",
     "summary_one": "{{count}} tramo · {{points}} pts · {{length}}",
     "summary_many": "{{count}} tramos · {{points}} pts · {{length}}",
     "summary_other": "{{count}} tramos · {{points}} pts · {{length}}"
@@ -1360,8 +1360,7 @@
   },
   "track": {
     "startPoint": "Inicio",
-    "endPoint": "Fin",
-    "noData": "No hay datos de traza"
+    "endPoint": "Fin"
   },
   "photo": {
     "camPerm": "Se necesita permiso de cámara",
@@ -1516,6 +1515,10 @@
     "catalogNumberPlaceholder": "p. ej. 13450 (se imprime TAI13450)",
     "elevation": "Altitud",
     "elevationPlaceholder": "Se toma del GNSS al localizar; editable",
+    "resolvePlace": "Obtener el lugar a partir de las coordenadas",
+    "resolvePlaceFail": "No se pudo obtener el lugar. Comprueba la conexión de red y vuelve a intentarlo.",
+    "resolvePlaceReplace": "¿Reemplazar la localidad actual?",
+    "resolvePlaceReplaceOk": "Reemplazar",
     "deleteSelectedMsg_one": "¿Eliminar el espécimen seleccionado?",
     "deleteSelectedMsg_many": "¿Eliminar los {{count}} especímenes seleccionados?",
     "deleteSelectedMsg_other": "¿Eliminar los {{count}} especímenes seleccionados?"

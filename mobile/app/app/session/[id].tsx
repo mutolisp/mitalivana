@@ -45,6 +45,7 @@ import {
   updateRecordAttributes,
   updateRecordQuantity,
   updateRecordLocation,
+  updateRecordElevation,
   updateRecordNotes,
   updateRecordTaxon,
   updateRecordPhotos,
@@ -85,6 +86,7 @@ import {
   startRecording,
   useTrackRecorder,
 } from '~/lib/trackRecorder';
+import { stampNewRecord } from '~/lib/recordFix';
 
 function sortRecords(
   rs: RecordWithTaxon[],
@@ -294,6 +296,7 @@ export default function SessionDetailScreen() {
       if (choice !== 0) return;
     }
     const recordId = addRecord({ session_id: sessionId, taxon_id: result.taxon_id, adopted });
+    stampNewRecord('session', recordId, sessionId, reload);
     reload();
     toast(t('session.added', { name: result.cname || result.name }), {
       action: {
@@ -1130,6 +1133,19 @@ export default function SessionDetailScreen() {
           if (!activeRecord) return;
           updateRecordLocation(activeRecord.id, lat, lng, accuracy);
           setActiveRecord({ ...activeRecord, lat, lng, accuracy });
+          reload();
+        }}
+        onSaveElevation={(metres, source) => {
+          if (!activeRecord) return;
+          updateRecordElevation(activeRecord.id, metres, source);
+          // Functional: the GNSS button saves the coordinate and then this in
+          // the same tap, and a spread of the `activeRecord` snapshot here
+          // would put the old coordinate back.
+          setActiveRecord((prev) =>
+            prev
+              ? { ...prev, elevation_m: metres, elevation_source: metres != null ? source : null }
+              : prev,
+          );
           reload();
         }}
         onAddPhoto={handleAddPhoto}

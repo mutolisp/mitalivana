@@ -372,8 +372,9 @@ function EnvTab({ plot, onUpdated }: { plot: PlotSurvey; onUpdated: () => void }
         coord_uncertainty_m: pos.coords.accuracy ?? null,
         // Grab altitude (海拔) from the same GNSS fix; keep existing value if the
         // device couldn't resolve altitude (often null indoors / poor signal).
-        elevation_m:
-          pos.coords.altitude != null ? Math.round(pos.coords.altitude) : plot.elevation_m,
+        ...(pos.coords.altitude != null
+          ? { elevation_m: Math.round(pos.coords.altitude), elevation_source: 'gnss' }
+          : null),
         start_ts: plot.start_ts ?? Date.now(),
       });
     } catch (e) {
@@ -624,7 +625,7 @@ function EnvTab({ plot, onUpdated }: { plot: PlotSurvey; onUpdated: () => void }
           label={t('plot.elevation')}
           suffix="m"
           value={plot.elevation_m}
-          onSave={(n) => patch({ elevation_m: n })}
+          onSave={(n) => patch({ elevation_m: n, elevation_source: n != null ? 'manual' : null })}
         />
         <NumField
           label={t('plot.slope')}

@@ -40,6 +40,7 @@ import {
   type PlotValueDraft,
 } from '~/components/PlotSpeciesValueModal';
 import type { PlotType } from '~/db';
+import { stampNewRecord } from './recordFix';
 
 type PlotTarget = {
   sp: SearchResult;
@@ -119,7 +120,8 @@ export function useAddToActiveRecord(): {
       toast(t('addToRecord.alreadyInRecord', { name: sp.cname || sp.name }));
       return;
     }
-    addRecord({ session_id: target.id, taxon_id: sp.taxon_id, adopted });
+    const recordId = addRecord({ session_id: target.id, taxon_id: sp.taxon_id, adopted });
+    stampNewRecord('session', recordId, target.id, () => useActiveSession.getState().refresh());
     useActiveSession.getState().refresh();
     toast(t('session.added', { name: sp.cname || sp.name }), {
       action: { label: t('addToRecord.goTo'), onPress: () => router.push(`/session/${target.id}`) },
@@ -233,7 +235,7 @@ export function useAddToActiveRecord(): {
   const handlePlotSave = (v: PlotValueDraft) => {
     if (!plotTarget) return;
     const { sp, plotId, layer, adopted } = plotTarget;
-    addPlotSpecies({
+    const recordId = addPlotSpecies({
       plot_survey_id: plotId,
       taxon_id: sp.taxon_id,
       layer,
@@ -249,6 +251,7 @@ export function useAddToActiveRecord(): {
       detection_type: v.detection_type,
       verbatim_identification: v.verbatim_identification,
     });
+    stampNewRecord('plot', recordId, plotId, () => useActivePlot.getState().refresh());
     setPlotTarget(null);
     useActivePlot.getState().refresh();
     toast(t('addToRecord.addedToPlot', { name: sp.cname || sp.name }), {

@@ -66,6 +66,7 @@ import {
   parseDbhArray,
   serializeDbhArray,
 } from '~/lib/dwcAbundance';
+import { ElevationField } from './ElevationField';
 
 const BB_OPTIONS = ['+', 'r', '1', '2', '3', '4', '5'] as const;
 
@@ -168,6 +169,10 @@ type Props = {
    *  edit carries no GNSS accuracy (null); an undo hands the previous measured
    *  value back. Pass alongside onSaveLocation to show the map. */
   onChangeLocation?: (lat: number, lng: number, accuracy: number | null) => void;
+  /** The record's altitude (metres) and how to save it; in create mode the
+   *  parent buffers it like the coordinate. Omit `onSaveElevation` to hide. */
+  elevation?: number | null;
+  onSaveElevation?: (metres: number | null, source: 'gnss' | 'manual') => void;
   /** Plot geographic context for the coordinate map preview (centre / track /
    *  point-count radius). Omit to hide the preview button. */
   plotGeo?: {
@@ -228,6 +233,8 @@ export function PlotSpeciesValueModal({
   accuracy,
   onSaveLocation,
   onChangeLocation,
+  elevation,
+  onSaveElevation,
   plotGeo,
   photoUris,
   onAddPhoto,
@@ -762,6 +769,9 @@ export function PlotSpeciesValueModal({
                                 pos.coords.longitude,
                                 pos.coords.accuracy ?? null,
                               );
+                              if (onSaveElevation && pos.coords.altitude != null) {
+                                onSaveElevation(Math.round(pos.coords.altitude), 'gnss');
+                              }
                             } catch (e) {
                               Alert.alert(
                                 t('plotValue.locateFailed'),
@@ -861,6 +871,18 @@ export function PlotSpeciesValueModal({
                             />
                           </View>
                         </GestureDetector>
+                      ) : null}
+                      {onSaveElevation ? (
+                        <View className="mt-2">
+                          <Text className="mb-1 text-xs font-medium text-gray-600 dark:text-gray-400">
+                            {t('collection.elevation')}
+                          </Text>
+                          <ElevationField
+                            value={elevation}
+                            onCommit={(m) => onSaveElevation(m, 'manual')}
+                            inputClassName="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                          />
+                        </View>
                       ) : null}
                     </View>
                   ) : null}

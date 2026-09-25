@@ -56,6 +56,7 @@ import { VerbatimLabelField } from './VerbatimLabelField';
 import { SpeciesAttributesBlock, type SpeciesAttributesDraft } from './SpeciesAttributesBlock';
 import { parseMultiAttribute } from '~/lib/dwcAttributes';
 import { ToastHost } from './ToastHost';
+import { ElevationField } from './ElevationField';
 
 type Props = {
   record: RecordWithTaxon | null;
@@ -70,6 +71,8 @@ type Props = {
   /** `accuracy` is null for a hand-placed point; an undo passes the previous
    *  measured value back so a restored GNSS fix keeps its uncertainty. */
   onChangeLocation?: (lat: number, lng: number, accuracy: number | null) => void;
+  /** Save / clear the record's altitude (metres). Omit to hide the field. */
+  onSaveElevation?: (metres: number | null, source: 'gnss' | 'manual') => void;
   /** Capture or pick a photo for the current record. Parent persists the URI. */
   onAddPhoto?: (mode: 'camera' | 'library') => void;
   /** Remove a single photo URI from the current record. */
@@ -144,6 +147,7 @@ export function SpeciesDetailSheet({
   onSaveNotes,
   onSaveLocation,
   onChangeLocation,
+  onSaveElevation,
   onAddPhoto,
   onRemovePhoto,
   onAddAudio,
@@ -489,6 +493,11 @@ export function SpeciesDetailSheet({
                                 pos.coords.longitude,
                                 pos.coords.accuracy ?? null,
                               );
+                              // The fix's altitude comes along, rounded like
+                              // every other altitude in the app.
+                              if (onSaveElevation && pos.coords.altitude != null) {
+                                onSaveElevation(Math.round(pos.coords.altitude), 'gnss');
+                              }
                             } catch (e) {
                               Alert.alert(
                                 t('gnss.posFailTitle'),
@@ -592,6 +601,18 @@ export function SpeciesDetailSheet({
                             />
                           </View>
                         </GestureDetector>
+                      ) : null}
+                      {onSaveElevation ? (
+                        <View className="mt-2">
+                          <Text className="mb-1 text-xs font-medium text-gray-600 dark:text-gray-400">
+                            {t('collection.elevation')}
+                          </Text>
+                          <ElevationField
+                            value={record.elevation_m}
+                            onCommit={(m) => onSaveElevation(m, 'manual')}
+                            inputClassName="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                          />
+                        </View>
                       ) : null}
                       {onAddPhoto ? (
                         <PhotoGrid

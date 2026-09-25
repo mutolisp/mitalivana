@@ -21,6 +21,29 @@ import type {
   SubplotLayer,
   ImportedSite,
 } from '~/db';
+import { GEODETIC_DATUM, locationTerms } from './dwcLocation';
+
+/**
+ * The datum / altitude keys of a record or specimen yml item. Written with
+ * snake_case keys that `dwcMapper` turns into geodeticDatum,
+ * minimum/maximumElevationInMeters and verticalDatum; the import reads the
+ * altitude's source back off verticalDatum (dwcLocation.sourceFromVerticalDatum).
+ */
+function datumKeys(
+  lat: number | null,
+  elevation: number | null,
+  source: string | null,
+): Record<string, unknown> {
+  const loc = locationTerms(lat, elevation, source);
+  const out: Record<string, unknown> = {};
+  if (loc.geodeticDatum) out.geodetic_datum = loc.geodeticDatum;
+  if (elevation != null) {
+    out.elevation_m = elevation;
+    out.elevation_max_m = elevation;
+    out.vertical_datum = loc.verticalDatum;
+  }
+  return out;
+}
 
 /** DwC multi-value convention: pipe-separated. Pulls JSON-array DB cells out
  *  and joins with `|`; empty → empty string (CSV column kept positional). */
@@ -102,6 +125,7 @@ export function recordToYamlItem(
   if (r.lat !== null) item.lat = r.lat;
   if (r.lng !== null) item.lng = r.lng;
   if (r.accuracy !== null) item.accuracy = r.accuracy;
+  Object.assign(item, datumKeys(r.lat, r.elevation_m, r.elevation_source));
   if (r.organism_quantity !== null) item.organism_quantity = r.organism_quantity;
   if (r.organism_quantity_type !== null) item.organism_quantity_type = r.organism_quantity_type;
   // DwC species attributes + notes (these were previously dropped from the
@@ -178,6 +202,7 @@ export function buildSessionYamlDoc(input: SessionYamlInput): Record<string, unk
   if (session.notes) event.eventRemarks = session.notes;
   if (session.start_lat !== null) event.decimalLatitude = session.start_lat;
   if (session.start_lng !== null) event.decimalLongitude = session.start_lng;
+  if (session.start_lat !== null) event.geodeticDatum = GEODETIC_DATUM;
   if (session.gps_mode) event.gpsMode = session.gps_mode;
   // Verbatim, exactly as the plot yml carries `track_geojson`: re-serializing
   // through WKT or a Feature would not round-trip byte-for-byte.
@@ -245,7 +270,7 @@ export function specimenToYamlItem(
   if (sp.institution_code) item.institution_code = sp.institution_code;
   if (sp.other_catalog_numbers) item.other_catalog_numbers = sp.other_catalog_numbers;
   if (sp.catalog_number) item.catalog_number = sp.catalog_number;
-  if (sp.elevation_m != null) item.elevation_m = sp.elevation_m;
+  Object.assign(item, datumKeys(sp.lat, sp.elevation_m, sp.elevation_source));
   if (sp.notes) item.notes = sp.notes;
   // → DwC `associatedMedia`; the filenames inside the zip's photos/. A trip
   // often holds several duplicates of one species, so without this the photos
@@ -354,6 +379,8 @@ export function buildPlotYamlDoc(input: PlotYamlInput): Record<string, unknown> 
     if (r.lat !== null) item.lat = r.lat;
     if (r.lng !== null) item.lng = r.lng;
     if (r.accuracy !== null) item.accuracy = r.accuracy;
+    if (r.elevation_m != null) item.elevation_m = r.elevation_m;
+    if (r.elevation_source) item.elevation_source = r.elevation_source;
     item.observed_at = r.observed_at;
     const audio = audioField(input.audioNames, r.occurrence_id);
     if (audio) item.audio_files = audio;
@@ -376,7 +403,7 @@ export function buildPlotYamlDoc(input: PlotYamlInput): Record<string, unknown> 
   const plotNumOrStr: Array<keyof PlotSurvey> = [
     'start_ts', 'stop_ts', 'recorded_by', 'locality', 'field_note', 'sampling_protocol',
     'sample_size_value', 'sample_size_unit', 'decimal_latitude', 'decimal_longitude',
-    'coord_uncertainty_m', 'elevation_m', 'slope_deg', 'aspect_deg', 'terrain_position',
+    'coord_uncertainty_m', 'elevation_m', 'elevation_source', 'slope_deg', 'aspect_deg', 'terrain_position',
     'total_cover_pct', 'rock_cover_pct', 'gravel_cover_pct', 'bareland_cover_pct',
     'vascular_cover_pct', 'bryophyte_cover_pct', 'lichen_cover_pct', 'litter_cover_pct',
     'point_radius_m', 'track_geojson', 'track_finalized',
@@ -475,7 +502,13 @@ export function buildPlotEnvRows(
   push('decimalLatitude', plot.decimal_latitude);
   push('decimalLongitude', plot.decimal_longitude);
   push('coordinateUncertaintyInMeters', plot.coord_uncertainty_m);
-  push('minimumElevationInMeters', plot.elevation_m);
+  {
+    const loc = locationTerms(plot.decimal_latitude, plot.elevation_m, plot.elevation_source);
+    push('geodeticDatum', loc.geodeticDatum || null);
+    push('minimumElevationInMeters', plot.elevation_m);
+    push('maximumElevationInMeters', plot.elevation_m);
+    push('verticalDatum', loc.verticalDatum || null);
+  }
 
   // Site morphology. Seven of these are terms from GBIF's Relevé extension
   // (rs.gbif.org/extension/gbif/1.0/releve_2016-05-10.xml) — the vegetation-plot

@@ -14,7 +14,7 @@ import * as Location from 'expo-location';
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, BackHandler, FlatList, Pressable, Text, View } from 'react-native';
+import { Alert, BackHandler, FlatList, Keyboard, Pressable, Text, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
@@ -355,6 +355,13 @@ export default function CollectionTripScreen() {
       return;
     }
     const number = nextRecordNumber().text;
+    // The new specimen's detail sheet opens once it is inserted. When the pick
+    // went through the name-usage picker (an action sheet, or the GBIF lookup
+    // Modal), that UI is still animating out, and iOS silently refuses to
+    // present a Modal over a dismissing one — so the sheet waits out the same
+    // 450 ms the rest of the app uses. Started now, it overlaps the GNSS fix
+    // below instead of adding to it.
+    const settled = new Promise((r) => setTimeout(r, 450));
     // A specimen's coordinate is its collecting locality, so stamp the current
     // fix at insert when permission is already granted. Silent on failure — the
     // user can always place the point on the map in the detail sheet.
@@ -380,28 +387,40 @@ export default function CollectionTripScreen() {
     } catch {
       // no fix — leave the specimen ungeoreferenced
     }
-    const locality = trip?.locality ?? null;
+    // The specimen's locality starts EMPTY, not as a copy of the trip's: a
+    // trip-wide name ("測試地點", a mountain) says nothing about where this
+    // sheet was taken, and once filled it blocked the place lookup below. The
+    // trip's locality still travels with the export at the event level.
     const newId = addSpecimen({
       trip_id: tripId,
       taxon_id: result.taxon_id,
       adopted,
       record_number: number,
-      locality,
+      locality: null,
       lat: coords?.lat ?? null,
       lng: coords?.lng ?? null,
       accuracy: coords?.accuracy ?? null,
       elevation_m: coords?.altitude ?? null,
+      elevation_source: coords?.altitude != null ? 'gnss' : null,
     });
     reload();
     toast(t('collection.added', { number, name: result.cname || result.name }));
-    // No locality from the trip: name the place from the fix, in the
-    // background (needs network). Re-read before writing — the user may have
-    // typed one while the lookup ran.
-    if (coords && !locality && newId) {
+    if (newId) {
+      await settled;
+      Keyboard.dismiss();
+      // Unless the user opened another specimen while the fix was coming in.
+      setActive((prev) => prev ?? getSpecimen(newId));
+    }
+    // Name the place from the fix, in the background (needs network). Re-read
+    // before writing — the user may have typed one while the lookup ran.
+    // Offline or no answer: the locality stays blank.
+    if (coords && newId) {
       const place = await placeNameAt(coords.lat, coords.lng);
       if (place && !getSpecimen(newId)?.locality) {
         updateSpecimen(newId, { locality: place });
         reload();
+        // The sheet is most likely open on it by now; hand it the new row.
+        setActive((prev) => (prev?.id === newId ? getSpecimen(newId) : prev));
       }
     }
   };
@@ -1063,7 +1082,9 @@ export default function CollectionTripScreen() {
         // root SafeAreaView's bottom inset. The two are a pair: drop the
         // SafeAreaView and this offset would shove the box behind the keyboard.
         <KeyboardStickyView offset={{ opened: insets.bottom }}>
-          <SearchBox onSelect={handleAdd} />
+          {/* 'dismiss': a pick opens the specimen's detail sheet, so the
+              keyboard must not come back up underneath it. */}
+          <SearchBox onSelect={handleAdd} afterSelect="dismiss" />
         </KeyboardStickyView>
       ) : null}
 

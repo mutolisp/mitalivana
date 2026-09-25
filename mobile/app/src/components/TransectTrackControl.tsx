@@ -7,11 +7,16 @@
  *   idle      : segments=[]      , finalized=0, recording=false
  *   recording : (any)            , finalized=0, recording=true
  *   paused    : segments.length>0, finalized=0, recording=false
- *   finalized : (any)            , finalized=1
+ *   stopped   : (any)            , finalized=1, recording=false
  *
- * Pause stops the GNSS watch and persists the current segment as a closed line;
- * Stop and save does the same plus sets track_finalized=1 so the track can no
- * longer be extended. The plot itself stays active for species entry.
+ * Two fixed controls: one toggle — ▶ start / resume while not recording,
+ * ⏸ pause while recording — and ⏹ stop. The live track is drawn on the mini
+ * map underneath, so there is no separate preview.
+ * Pause and stop both end the GNSS watch and close the current segment; stop
+ * also marks the track as stopped. Stopping is NOT final: ▶ reopens the track
+ * and records a new segment. (It used to be final, with no way back — a
+ * transect stopped by mistake could never be continued.)
+ * The plot itself stays active for species entry either way.
  */
 import { errText } from '~/lib/errText';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,6 +25,7 @@ import {
   finalizePlotTrack,
   parseTrackSegments,
   trackLengthMeters,
+  unfinalizePlotTrack,
   type PlotSurvey,
 } from '~/db';
 import {
@@ -27,8 +33,7 @@ import {
   startRecording,
   useTrackRecorder,
 } from '~/lib/trackRecorder';
-import { TrackPreviewModal } from './TrackPreviewModal';
-import { useState } from 'react';
+import { TrackMiniMap } from './TrackMiniMap';
 import { useTranslation } from 'react-i18next';
 
 type Props = {
@@ -46,16 +51,17 @@ export function TransectTrackControl({ plot, onUpdated }: Props) {
   const livePoints = useTrackRecorder((s) => s.livePoints);
   const recording = recordingTarget?.kind === 'plot' && recordingTarget.id === plot.id;
 
-  const [previewOpen, setPreviewOpen] = useState(false);
-
   const handleStart = async () => {
-    if (plotDone || finalized) return;
+    if (plotDone) return;
     // Block double-recording if some other record is already capturing.
     if (recordingTarget && !(recordingTarget.kind === 'plot' && recordingTarget.id === plot.id)) {
       Alert.alert(t('transect.busyTitle'), t('transect.busyMsg'));
       return;
     }
     try {
+      // Restarting a stopped track: reopen it first; the recorder then appends
+      // a new segment after the saved ones.
+      if (finalized) unfinalizePlotTrack(plot.id);
       await startRecording({ kind: 'plot', id: plot.id });
       // Refresh upstream so plot.start_ts (just stamped by startRecording)
       // reaches plotCanAcceptSpecies and unblocks the species tab.
@@ -70,19 +76,11 @@ export function TransectTrackControl({ plot, onUpdated }: Props) {
     onUpdated();
   };
 
+  // No confirmation: stopping can be undone with ▶.
   const handleStop = () => {
-    Alert.alert(t('transect.stopTitle'), t('transect.stopMsg'), [
-      { text: t('common.cancel'), style: 'cancel' },
-      {
-        text: t('transect.stop'),
-        style: 'destructive',
-        onPress: () => {
-          pauseRecording();
-          finalizePlotTrack(plot.id);
-          onUpdated();
-        },
-      },
-    ]);
+    pauseRecording();
+    finalizePlotTrack(plot.id);
+    onUpdated();
   };
 
   // Visual state
@@ -122,42 +120,29 @@ export function TransectTrackControl({ plot, onUpdated }: Props) {
       )}
 
       <View className="mt-3 flex-row gap-2">
-        {finalized ? null : recording ? (
-          <>
-            <ControlButton icon="pause" label={t('transect.pause')} tone="amber" onPress={handlePause} />
-            <ControlButton icon="stop" label={t('transect.stopSave')} tone="red" onPress={handleStop} />
-          </>
+        {recording ? (
+          <ControlButton icon="pause" label={t('transect.pause')} tone="amber" onPress={handlePause} />
         ) : (
-          <>
-            <ControlButton
-              icon="play"
-              label={totalSegments > 0 ? t('transect.resume') : t('transect.start')}
-              tone="emerald"
-              onPress={handleStart}
-              disabled={plotDone}
-            />
-            {totalSegments > 0 ? (
-              <ControlButton icon="stop" label={t('transect.stopSave')} tone="red" onPress={handleStop} />
-            ) : null}
-          </>
-        )}
-
-        {totalPoints > 0 ? (
           <ControlButton
-            icon="map-outline"
-            label={t('transect.preview')}
-            tone="gray"
-            onPress={() => setPreviewOpen(true)}
+            icon="play"
+            label={totalSegments > 0 ? t('transect.resume') : t('transect.start')}
+            tone="emerald"
+            onPress={handleStart}
+            disabled={plotDone}
           />
-        ) : null}
+        )}
+        <ControlButton
+          icon="stop"
+          label={t('transect.stop')}
+          tone="red"
+          onPress={handleStop}
+          // Stoppable while recording or paused; not before anything was
+          // recorded, and not twice.
+          disabled={finalized || (!recording && totalSegments === 0)}
+        />
       </View>
 
-      <TrackPreviewModal
-        visible={previewOpen}
-        segments={previewSegments}
-        title={plot.plotid}
-        onClose={() => setPreviewOpen(false)}
-      />
+      <TrackMiniMap segments={previewSegments} follow={recording} />
     </View>
   );
 }
@@ -171,7 +156,7 @@ function ControlButton({
 }: {
   icon: React.ComponentProps<typeof Ionicons>['name'];
   label: string;
-  tone: 'emerald' | 'amber' | 'red' | 'gray';
+  tone: 'emerald' | 'amber' | 'red';
   onPress: () => void;
   disabled?: boolean;
 }) {
@@ -180,18 +165,15 @@ function ControlButton({
       ? 'bg-emerald-500 active:bg-emerald-600'
       : tone === 'amber'
         ? 'bg-amber-500 active:bg-amber-600'
-        : tone === 'red'
-          ? 'bg-red-500 active:bg-red-600'
-          : 'bg-gray-200 dark:bg-gray-700 active:bg-gray-300 dark:active:bg-gray-600';
-  const textColor = tone === 'gray' ? 'text-gray-800 dark:text-gray-200' : 'text-white';
+        : 'bg-red-500 active:bg-red-600';
   return (
     <Pressable
       onPress={disabled ? undefined : onPress}
       disabled={disabled}
       className={`flex-1 flex-row items-center justify-center rounded-md px-3 py-2 ${bg} ${disabled ? 'opacity-40' : ''}`}
     >
-      <Ionicons name={icon} size={14} color={tone === 'gray' ? '#1f2937' : 'white'} />
-      <Text className={`ml-1.5 text-xs font-medium ${textColor}`}>{label}</Text>
+      <Ionicons name={icon} size={14} color="white" />
+      <Text className="ml-1.5 text-xs font-medium text-white">{label}</Text>
     </Pressable>
   );
 }

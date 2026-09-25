@@ -29,6 +29,7 @@ import {
   threatStatusDwcValue,
 } from './dwcMultiValue';
 import { buildDwcArchive, buildTaxonArchive, type DwcRow } from './dwcArchive';
+import { locationTerms } from './dwcLocation';
 
 /**
  * One eMoF row per leaf-phenology value of one occurrence.
@@ -229,7 +230,7 @@ export function buildRecordsDwca({
       decimalLatitude: p.decimal_latitude,
       decimalLongitude: p.decimal_longitude,
       coordinateUncertaintyInMeters: p.coord_uncertainty_m,
-      minimumElevationInMeters: p.elevation_m,
+      ...locationTerms(p.decimal_latitude, p.elevation_m, p.elevation_source),
       recordedBy: p.recorded_by,
       eventRemarks: p.field_note,
     });
@@ -302,6 +303,7 @@ export function buildRecordsDwca({
         decimalLatitude: r.lat,
         decimalLongitude: r.lng,
         coordinateUncertaintyInMeters: r.accuracy,
+        ...locationTerms(r.lat, r.elevation_m, r.elevation_source),
         occurrenceRemarks: r.notes,
         modified: r.updated_at != null ? localIso(r.updated_at) : '',
       });
@@ -318,6 +320,7 @@ export function buildRecordsDwca({
       eventDate: eventDateOf(s.started_at, s.ended_at),
       decimalLatitude: s.start_lat,
       decimalLongitude: s.start_lng,
+      ...locationTerms(s.start_lat, null, null),
       recordedBy: s.recorded_by,
       eventRemarks: s.notes,
     });
@@ -368,6 +371,7 @@ export function buildRecordsDwca({
         decimalLatitude: r.lat,
         decimalLongitude: r.lng,
         coordinateUncertaintyInMeters: r.accuracy,
+        ...locationTerms(r.lat, r.elevation_m, r.elevation_source),
         occurrenceRemarks: r.notes,
         modified: r.updated_at != null ? localIso(r.updated_at) : '',
       });
@@ -427,7 +431,7 @@ export function buildRecordsDwca({
         decimalLatitude: sp.lat,
         decimalLongitude: sp.lng,
         coordinateUncertaintyInMeters: sp.accuracy,
-        minimumElevationInMeters: sp.elevation_m,
+        ...locationTerms(sp.lat, sp.elevation_m, sp.elevation_source),
         occurrenceRemarks: sp.notes,
         modified: sp.updated_at != null ? localIso(sp.updated_at) : '',
       });

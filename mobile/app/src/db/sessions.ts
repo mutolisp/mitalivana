@@ -202,6 +202,8 @@ export type ImportedSessionRecord = {
   lat?: number | null;
   lng?: number | null;
   accuracy?: number | null;
+  elevation_m?: number | null;
+  elevation_source?: string | null;
   organism_quantity?: string | null;
   organism_quantity_type?: string | null;
   sex?: string | null;
@@ -332,11 +334,11 @@ function importSessionTx(
     db.executeSync(
       `INSERT INTO checklist_records (
          session_id, taxon_id, occurrence_id, observed_at, notes, photo_paths,
-         audio_paths, lat, lng, accuracy, sex, life_stage, reproductive_condition,
-         leaf_phenology, degree_of_establishment, verbatim_identification,
+         audio_paths, lat, lng, accuracy, elevation_m, elevation_source, sex, life_stage,
+         reproductive_condition, leaf_phenology, degree_of_establishment, verbatim_identification,
          organism_quantity, organism_quantity_type, used_name_id, used_scientific_name,
          updated_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         sessionId,
         r.taxon_id,
@@ -349,6 +351,8 @@ function importSessionTx(
         r.lat ?? null,
         r.lng ?? null,
         r.accuracy ?? null,
+        r.elevation_m ?? null,
+        r.elevation_source ?? null,
         r.sex ?? null,
         r.life_stage ?? null,
         r.reproductive_condition ?? null,
@@ -549,10 +553,10 @@ function mergeSessionsTx(ids: number[], opts: MergeRecordOptions): number | null
       db.executeSync(
         `INSERT INTO checklist_records
            (session_id, taxon_id, occurrence_id, observed_at, updated_at, notes, photo_paths,
-            lat, lng, accuracy, degree_of_establishment, sex, life_stage,
-            reproductive_condition, leaf_phenology, organism_quantity,
+            lat, lng, accuracy, elevation_m, elevation_source, degree_of_establishment, sex,
+            life_stage, reproductive_condition, leaf_phenology, organism_quantity,
             organism_quantity_type, used_name_id, used_scientific_name, audio_paths)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           newId,
           r.taxon_id,
@@ -568,6 +572,8 @@ function mergeSessionsTx(ids: number[], opts: MergeRecordOptions): number | null
           r.lat,
           r.lng,
           r.accuracy,
+          r.elevation_m,
+          r.elevation_source,
           r.degree_of_establishment,
           r.sex,
           r.life_stage,

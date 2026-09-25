@@ -113,6 +113,8 @@ export type Specimen = {
   catalog_number: string | null;
   /** Collecting altitude in metres (v44) → DwC min/maximumElevationInMeters. */
   elevation_m: number | null;
+  /** 'gnss' | 'manual' | null (v46) → DwC verticalDatum; see dwcLocation.ts. */
+  elevation_source: string | null;
   notes: string | null;
   photo_paths: string | null;
   /** The name this specimen was deliberately determined as (v28). Both NULL =
@@ -136,7 +138,7 @@ const SPECIMEN_COLS = `id, trip_id, occurrence_id, taxon_id, record_number, reco
   collected_at, recorded_by, identified_by, date_identified, lat, lng, accuracy, locality,
   sex, life_stage, reproductive_condition, leaf_phenology, degree_of_establishment,
   verbatim_identification, duplicate_count, institution_code, other_catalog_numbers,
-  catalog_number, elevation_m, notes, photo_paths,
+  catalog_number, elevation_m, elevation_source, notes, photo_paths,
   used_name_id, used_scientific_name,
   audio_paths, inat_observation_id, inat_media_done, inat_uploaded_at, inat_sync_hash,
   updated_at`;
@@ -420,6 +422,8 @@ export type AddSpecimenInput = {
   lng?: number | null;
   accuracy?: number | null;
   elevation_m?: number | null;
+  /** Where `elevation_m` came from; defaults to 'manual' when it is set. */
+  elevation_source?: 'gnss' | 'manual' | null;
   locality?: string | null;
   notes?: string | null;
   /** How many duplicate sheets. Omit = not recorded. */
@@ -442,10 +446,10 @@ export function addSpecimen(input: AddSpecimenInput): number {
     `INSERT INTO collection_specimens
        (trip_id, occurrence_id, taxon_id, record_number, record_number_seq,
         collected_at, recorded_by, identified_by, date_identified,
-        lat, lng, accuracy, elevation_m, locality, notes,
+        lat, lng, accuracy, elevation_m, elevation_source, locality, notes,
         duplicate_count, institution_code, other_catalog_numbers,
         used_name_id, used_scientific_name, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       input.trip_id,
       generateUuid(),
@@ -469,6 +473,7 @@ export function addSpecimen(input: AddSpecimenInput): number {
       input.lng ?? null,
       input.accuracy ?? null,
       input.elevation_m ?? null,
+      input.elevation_m != null ? (input.elevation_source ?? 'manual') : null,
       input.locality ?? null,
       input.notes ?? null,
       input.duplicate_count ?? null,
@@ -497,7 +502,7 @@ const SPECIMEN_UPDATABLE_KEYS = new Set([
   'locality', 'sex', 'life_stage', 'reproductive_condition', 'leaf_phenology',
   'degree_of_establishment', 'verbatim_identification',
   'duplicate_count', 'institution_code', 'other_catalog_numbers', 'catalog_number',
-  'elevation_m', 'notes',
+  'elevation_m', 'elevation_source', 'notes',
 ]);
 
 export function updateSpecimen(id: number, patch: Partial<Specimen>): void {
@@ -701,6 +706,7 @@ export type ImportedSpecimen = {
   other_catalog_numbers?: string | null;
   catalog_number?: string | null;
   elevation_m?: number | null;
+  elevation_source?: string | null;
   notes?: string | null;
   photo_files?: string[];
   audio_files?: string[];
@@ -821,9 +827,9 @@ function importCollectionTripTx(
          lat, lng, accuracy, locality, sex, life_stage,
          reproductive_condition, leaf_phenology, degree_of_establishment,
          verbatim_identification, duplicate_count, institution_code,
-         other_catalog_numbers, catalog_number, elevation_m, notes, photo_paths, audio_paths,
-         used_name_id, used_scientific_name, created_at, updated_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         other_catalog_numbers, catalog_number, elevation_m, elevation_source, notes, photo_paths,
+         audio_paths, used_name_id, used_scientific_name, created_at, updated_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         tripId,
         // Import-as-new means new occurrences, as in importSession: the same
@@ -852,6 +858,7 @@ function importCollectionTripTx(
         sp.other_catalog_numbers ?? null,
         sp.catalog_number ?? null,
         sp.elevation_m ?? null,
+        sp.elevation_source ?? null,
         sp.notes ?? null,
         resolveMedia(sp.photo_files, opts.photoUriByName),
         resolveMedia(sp.audio_files, opts.audioUriByName),

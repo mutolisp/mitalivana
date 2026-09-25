@@ -38,7 +38,12 @@ export const EVENT_COLS: ColSpec[] = [
   { key: 'decimalLatitude', term: `${DWC}decimalLatitude` },
   { key: 'decimalLongitude', term: `${DWC}decimalLongitude` },
   { key: 'coordinateUncertaintyInMeters', term: `${DWC}coordinateUncertaintyInMeters` },
+  // Datum and elevation terms come from dwcLocation.ts — see there for the
+  // TDWG definitions they follow.
+  { key: 'geodeticDatum', term: `${DWC}geodeticDatum` },
   { key: 'minimumElevationInMeters', term: `${DWC}minimumElevationInMeters` },
+  { key: 'maximumElevationInMeters', term: `${DWC}maximumElevationInMeters` },
+  { key: 'verticalDatum', term: `${DWC}verticalDatum` },
   { key: 'recordedBy', term: `${DWC}recordedBy` },
   { key: 'eventRemarks', term: `${DWC}eventRemarks` },
 ];
@@ -93,9 +98,12 @@ export const OCCURRENCE_COLS: ColSpec[] = [
   { key: 'decimalLatitude', term: `${DWC}decimalLatitude` },
   { key: 'decimalLongitude', term: `${DWC}decimalLongitude` },
   { key: 'coordinateUncertaintyInMeters', term: `${DWC}coordinateUncertaintyInMeters` },
-  // Specimen altitude (v44); one value, written as the lower limit exactly as
-  // the plot event does.
+  // Datum and altitude (dwcLocation.ts): one measured altitude is written as
+  // both limits, with the vertical datum it was measured against.
+  { key: 'geodeticDatum', term: `${DWC}geodeticDatum` },
   { key: 'minimumElevationInMeters', term: `${DWC}minimumElevationInMeters` },
+  { key: 'maximumElevationInMeters', term: `${DWC}maximumElevationInMeters` },
+  { key: 'verticalDatum', term: `${DWC}verticalDatum` },
   // Specimen-only; blank for observations.
   { key: 'recordNumber', term: `${DWC}recordNumber` },
   { key: 'identifiedBy', term: `${DWC}identifiedBy` },

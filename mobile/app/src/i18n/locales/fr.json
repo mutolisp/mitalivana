@@ -665,6 +665,10 @@
     "fabSideLeft": "Gauche",
     "undoSeconds": "{{count}} s",
     "defaultCreate": "Réglages des relevés",
+    "gpsPerSpeciesSession": "Liste d'espèces rapide : localiser chaque espèce",
+    "gpsPerSpeciesSessionDesc": "Enregistre la position GNSS et l'altitude à la saisie de chaque espèce ; toujours pendant l'enregistrement d'une trace. Nécessite l'autorisation de localisation.",
+    "gpsPerSpeciesPlot": "Inventaire de placette : localiser chaque espèce",
+    "gpsPerSpeciesPlotDesc": "Enregistre la position GNSS et l'altitude à la saisie de chaque espèce ; toujours pendant l'enregistrement de la trace d'un transect. Nécessite l'autorisation de localisation.",
     "createAsk": "Demander à chaque fois",
     "off": "Désactivé",
     "surveyors": "Observateurs",
@@ -1118,18 +1122,14 @@
     "busyTitle": "Un autre enregistrement enregistre déjà une trace",
     "busyMsg": "Arrêtez ou mettez d'abord en pause la trace de l'autre enregistrement",
     "startFail": "Impossible de démarrer la trace",
-    "stopTitle": "Arrêter et enregistrer la trace ?",
-    "stopMsg": "Une fois arrêtée, vous ne pourrez plus ajouter de nouveaux points, mais vous pourrez continuer à noter des espèces.",
     "stop": "Arrêter",
     "label": "Trace du transect",
     "stopped": "Arrêtée",
     "paused": "En pause",
     "notStarted": "Enregistrement de la trace non démarré (nécessaire pour la saisie des espèces)",
     "pause": "Pause",
-    "stopSave": "Arrêter et enregistrer",
     "resume": "Reprendre",
     "start": "Démarrer l'enregistrement",
-    "preview": "Aperçu",
     "summary_one": "{{count}} segment · {{points}} pts · {{length}}",
     "summary_many": "{{count}} segments · {{points}} pts · {{length}}",
     "summary_other": "{{count}} segments · {{points}} pts · {{length}}"
@@ -1360,8 +1360,7 @@
   },
   "track": {
     "startPoint": "Départ",
-    "endPoint": "Arrivée",
-    "noData": "Aucune donnée de trace"
+    "endPoint": "Arrivée"
   },
   "photo": {
     "camPerm": "Autorisation d'accès à l'appareil photo requise",
@@ -1516,6 +1515,10 @@
     "catalogNumberPlaceholder": "ex. 13450 (imprimé TAI13450)",
     "elevation": "Altitude",
     "elevationPlaceholder": "Reprise du GNSS lors de la localisation ; modifiable",
+    "resolvePlace": "Trouver le lieu à partir des coordonnées",
+    "resolvePlaceFail": "Impossible de trouver le lieu. Vérifiez la connexion réseau et réessayez.",
+    "resolvePlaceReplace": "Remplacer la localité actuelle ?",
+    "resolvePlaceReplaceOk": "Remplacer",
     "deleteSelectedMsg_one": "Supprimer le spécimen sélectionné ?",
     "deleteSelectedMsg_many": "Supprimer les {{count}} spécimens sélectionnés ?",
     "deleteSelectedMsg_other": "Supprimer les {{count}} spécimens sélectionnés ?"

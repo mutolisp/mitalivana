@@ -21,6 +21,7 @@
  *
  * Run: npm run check:roundtrip
  */
+import { locationTerms, sourceFromVerticalDatum } from '../src/lib/dwcLocation.ts';
 import yaml from 'js-yaml';
 import { strToU8, zipSync } from 'fflate';
 import {
@@ -68,6 +69,14 @@ const INAT = {
 };
 const NAME_USAGE = {
   used_scientific_name: 'IS the exported scientificName; recovered from it on import',
+};
+
+/** Columns restored from a DIFFERENT yml key rather than one of their own:
+ *  the altitude's source travels as the DwC verticalDatum it implies
+ *  (dwcLocation.ts), so the occurrence CSV carries no app-only column. */
+const RESTORED_VIA = {
+  checklist_records: { elevation_source: 'vertical_datum' },
+  collection_specimens: { elevation_source: 'vertical_datum' },
 };
 
 const NOT_RESTORABLE = {
@@ -188,12 +197,36 @@ function checkCoverage(table, ymlKeys) {
   for (const col of cols) {
     if (ymlKeys.has(col)) continue;
     if (col in reasons) continue;
+    const via = RESTORED_VIA[table]?.[col];
+    if (via && ymlKeys.has(via)) continue;
     fail(`${table}: column "${col}" is in neither the yml nor NOT_RESTORABLE.${table}`);
   }
   for (const col of Object.keys(reasons)) {
     if (!cols.has(col)) fail(`NOT_RESTORABLE.${table}.${col}: no such column (stale entry)`);
     else if (ymlKeys.has(col)) fail(`NOT_RESTORABLE.${table}.${col}: the yml does carry it`);
   }
+}
+
+// ── DwC datum / elevation terms (dwcLocation.ts) ─────────────────────────
+{
+  eq('gnss altitude: both limits + ellipsoid datum', locationTerms(24.7, 612, 'gnss'), {
+    geodeticDatum: 'EPSG:4326',
+    minimumElevationInMeters: 612,
+    maximumElevationInMeters: 612,
+    verticalDatum: 'EPSG:7030',
+  });
+  eq('typed altitude: datum not recorded', locationTerms(24.7, 612, 'manual').verticalDatum, 'not recorded');
+  eq('legacy altitude (no source): datum not recorded', locationTerms(24.7, 612, null).verticalDatum, 'not recorded');
+  eq('no altitude: no vertical datum, no limits', locationTerms(24.7, null, 'gnss'), {
+    geodeticDatum: 'EPSG:4326',
+    minimumElevationInMeters: '',
+    maximumElevationInMeters: '',
+    verticalDatum: '',
+  });
+  eq('no coordinate: no geodetic datum', locationTerms(null, null, null).geodeticDatum, '');
+  eq('import: EPSG:7030 ⇒ gnss', sourceFromVerticalDatum('EPSG:7030', 612), 'gnss');
+  eq('import: anything else ⇒ manual', sourceFromVerticalDatum('not recorded', 612), 'manual');
+  eq('import: no altitude ⇒ null', sourceFromVerticalDatum('EPSG:7030', null), null);
 }
 
 // ── Fixtures ──────────────────────────────────────────────────────────────
@@ -211,7 +244,7 @@ const plotRow = {
   decimal_longitude: 121.5, decimal_latitude: 24.7, coord_uncertainty_m: 5,
   point_radius_m: 25, sample_size_value: 400, sample_size_unit: 'm2',
   sampling_protocol: '方形樣區', total_cover_pct: 85, recorded_by: '林政道',
-  locality: '福山植物園', field_note: '雨後', elevation_m: 620, slope_deg: 12,
+  locality: '福山植物園', field_note: '雨後', elevation_m: 620, elevation_source: 'manual', slope_deg: 12,
   aspect_deg: 210, terrain_position: '中坡', rock_cover_pct: 5, gravel_cover_pct: 2,
   bareland_cover_pct: 1, vascular_cover_pct: 80, bryophyte_cover_pct: 10,
   lichen_cover_pct: 1, litter_cover_pct: 30, layer_count: 3,
@@ -229,7 +262,7 @@ const plotSpecies = [
     photo_paths: '["ph://a","ph://b"]', observed_at: 1756500100000, created_at: 1,
     sex: 'unknown', life_stage: 'adult', reproductive_condition: '["flowering","fruiting"]',
     leaf_phenology: '["evergreen"]', organism_quantity: '3', organism_quantity_type: 'individuals',
-    lat: 24.71, lng: 121.51, accuracy: 4, detection_type: 'seen',
+    lat: 24.71, lng: 121.51, accuracy: 4, elevation_m: 1350, elevation_source: 'gnss', detection_type: 'seen',
     degree_of_establishment: 'cultivated',
     verbatim_identification: 'Lauraceae sp2',
     used_name_id: 165943, used_scientific_name: 'Lycopodium tamariscinum',
@@ -248,7 +281,7 @@ const plotSpecies = [
     sex: null, life_stage: null, reproductive_condition: null, leaf_phenology: null,
     degree_of_establishment: null,
     organism_quantity: '2', organism_quantity_type: 'individuals',
-    lat: null, lng: null, accuracy: null, detection_type: null,
+    lat: null, lng: null, accuracy: null, elevation_m: null, elevation_source: null, detection_type: null,
     used_name_id: null, used_scientific_name: null,
     used_status: '', used_stale: false, used_accepted_name: '',
     simple_name: 'Lithocarpus konishii', name_author: 'Hayata', common_name_c: '小西氏石櫟',
@@ -301,7 +334,7 @@ console.log('check:roundtrip');
   for (const k of ['start_ts', 'stop_ts', 'recorded_by', 'locality', 'field_note',
     'sampling_protocol', 'sample_size_value', 'sample_size_unit', 'coord_uncertainty_m',
     'point_radius_m',
-    'elevation_m', 'slope_deg', 'aspect_deg', 'terrain_position', 'total_cover_pct',
+    'elevation_m', 'elevation_source', 'slope_deg', 'aspect_deg', 'terrain_position', 'total_cover_pct',
     'rock_cover_pct', 'gravel_cover_pct', 'bareland_cover_pct', 'vascular_cover_pct',
     'bryophyte_cover_pct', 'lichen_cover_pct', 'litter_cover_pct']) {
     eq(`plot.${k}`, back[k], plotRow[k]);
@@ -335,6 +368,8 @@ console.log('check:roundtrip');
   eq('species[0].verbatim_identification', s0.verbatim_identification, 'Lauraceae sp2');
   eq('species[0].detection_type', s0.detection_type, 'seen');
   eq('species[0].gnss', [s0.lat, s0.lng, s0.accuracy], [24.71, 121.51, 4]);
+  eq('species[0].elevation_m', s0.elevation_m, 1350);
+  eq('species[0].elevation_source', s0.elevation_source, 'gnss');
   eq('species[0].observed_at', s0.observed_at, 1756500100000);
   eq('species[0].photo_files', s0.photo_files, ['t0301_小西氏石櫟_1.jpg', 't0301_小西氏石櫟_2.jpg']);
   eq('species[0].name', s0.name, 'Lycopodium tamariscinum');
@@ -366,7 +401,7 @@ console.log('check:roundtrip');
     {
       id: 1, session_id: 4, taxon_id: 't0455', occurrence_id: 'socc-1',
       observed_at: 1756500300000, notes: '路邊', photo_paths: '["ph://x"]',
-      lat: 24.72, lng: 121.52, accuracy: 8, sex: 'female', life_stage: 'adult',
+      lat: 24.72, lng: 121.52, accuracy: 8, elevation_m: 88.5, elevation_source: 'gnss', sex: 'female', life_stage: 'adult',
       reproductive_condition: '["flowering"]', leaf_phenology: '["deciduous"]',
       degree_of_establishment: 'wild',
       verbatim_identification: 'Orchidaceae sp1',
@@ -412,6 +447,9 @@ console.log('check:roundtrip');
   eq('record.observed_at', r0.observed_at, 1756500300000);
   eq('record.notes', r0.notes, '路邊');
   eq('record.gnss', [r0.lat, r0.lng, r0.accuracy], [24.72, 121.52, 8]);
+  eq('record.elevation_m', r0.elevation_m, 88.5);
+  // Restored from verticalDatum (EPSG:7030 ⇒ gnss), not from a key of its own.
+  eq('record.elevation_source', r0.elevation_source, 'gnss');
   eq('record.quantity', [r0.organism_quantity, r0.organism_quantity_type], ['5', 'individuals']);
   eq('record.sex', r0.sex, 'female');
   eq('record.life_stage', r0.life_stage, 'adult');
@@ -609,7 +647,7 @@ checklist:
     degree_of_establishment: 'wild', sex: 'female', life_stage: 'adult',
     verbatim_identification: 'Fagaceae sp1',
     duplicate_count: 3, institution_code: 'HAST', other_catalog_numbers: 'TAI 123456',
-    catalog_number: '13450', elevation_m: 612.5,
+    catalog_number: '13450', elevation_m: 612.5, elevation_source: 'manual',
     reproductive_condition: '["flowering"]', leaf_phenology: '["evergreen"]',
     notes: `第 ${n} 份`, photo_paths: '["ph://a"]', audio_paths: '["file:///audio/a.m4a"]',
     used_name_id: 165943, used_scientific_name: 'Lithocarpus konishii',
@@ -704,6 +742,7 @@ checklist:
   eq('specimen other_catalog_numbers survives', a.other_catalog_numbers, src.other_catalog_numbers);
   eq('specimen catalog_number survives', a.catalog_number, src.catalog_number);
   eq('specimen elevation_m survives', a.elevation_m, src.elevation_m);
+  eq('specimen elevation_source survives (via verticalDatum)', a.elevation_source, 'manual');
   eq('specimen notes survives', a.notes, src.notes);
   eq('specimen photo binding survives', a.photo_files?.[0], 't0301_小西氏石櫟_1.jpg');
   eq('specimen audio binding survives', a.audio_files?.[0], 't0301_小西氏石櫟_1.m4a');

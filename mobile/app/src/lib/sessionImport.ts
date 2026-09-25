@@ -12,6 +12,7 @@ import yaml from 'js-yaml';
 import { ImportError } from './importError';
 import { num, parseSiteBlock, pipeToJson, pipeToList, str } from './plotImport';
 import type { ImportedSession, ImportedSessionRecord } from '~/db';
+import { sourceFromVerticalDatum } from './dwcLocation';
 
 /**
  * ISO-8601 (with local offset, as `localIso` writes it) → epoch ms.
@@ -57,6 +58,8 @@ export function sessionFromDoc(doc: Record<string, unknown> | null): ImportedSes
       lat: num(r.decimalLatitude),
       lng: num(r.decimalLongitude),
       accuracy: num(r.coordinateUncertaintyInMeters),
+      elevation_m: num(r.minimumElevationInMeters),
+      elevation_source: sourceFromVerticalDatum(r.verticalDatum, num(r.minimumElevationInMeters)),
       organism_quantity: str(r.organismQuantity),
       organism_quantity_type: str(r.organismQuantityType),
       sex: str(r.sex),

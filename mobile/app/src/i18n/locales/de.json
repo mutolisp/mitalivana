@@ -630,6 +630,10 @@
     "fabSideLeft": "Links",
     "undoSeconds": "{{count}} s",
     "defaultCreate": "Aufnahme-Einstellungen",
+    "gpsPerSpeciesSession": "Schnelle Artenliste: jede Art verorten",
+    "gpsPerSpeciesSessionDesc": "Speichert beim Erfassen einer Art die GNSS-Position und Höhe; während einer Trackaufzeichnung immer. Erfordert Standortberechtigung.",
+    "gpsPerSpeciesPlot": "Probeflächenaufnahme: jede Art verorten",
+    "gpsPerSpeciesPlotDesc": "Speichert beim Erfassen einer Art die GNSS-Position und Höhe; während einer Transekt-Trackaufzeichnung immer. Erfordert Standortberechtigung.",
     "createAsk": "Jedes Mal fragen",
     "off": "Aus",
     "surveyors": "Erfasser",
@@ -1050,18 +1054,14 @@
     "busyTitle": "Ein anderer Datensatz zeichnet bereits einen Track auf",
     "busyMsg": "Stoppen oder pausieren Sie zuerst den Track des anderen Datensatzes",
     "startFail": "Track konnte nicht gestartet werden",
-    "stopTitle": "Track stoppen und speichern?",
-    "stopMsg": "Nach dem Stoppen lassen sich keine neuen Punkte anhängen; Arten können Sie weiterhin erfassen.",
     "stop": "Stoppen",
     "label": "Transekt-Track",
     "stopped": "Gestoppt",
     "paused": "Pausiert",
     "notStarted": "Track-Aufzeichnung noch nicht gestartet (für die Arteingabe erforderlich)",
     "pause": "Pausieren",
-    "stopSave": "Stoppen und speichern",
     "resume": "Fortsetzen",
     "start": "Aufzeichnung starten",
-    "preview": "Vorschau",
     "summary_one": "{{count}} Abschnitt · {{points}} Pkt. · {{length}}",
     "summary_other": "{{count}} Abschnitte · {{points}} Pkt. · {{length}}"
   },
@@ -1278,8 +1278,7 @@
   },
   "track": {
     "startPoint": "Startpunkt",
-    "endPoint": "Endpunkt",
-    "noData": "Keine Trackdaten"
+    "endPoint": "Endpunkt"
   },
   "photo": {
     "camPerm": "Kameraberechtigung erforderlich",
@@ -1427,6 +1426,10 @@
     "catalogNumberPlaceholder": "z. B. 13450 (gedruckt als TAI13450)",
     "elevation": "Höhe",
     "elevationPlaceholder": "Wird bei der Ortung aus dem GNSS übernommen; änderbar",
+    "resolvePlace": "Ortsnamen aus Koordinaten ermitteln",
+    "resolvePlaceFail": "Ort konnte nicht ermittelt werden. Bitte Netzwerkverbindung prüfen und erneut versuchen.",
+    "resolvePlaceReplace": "Aktuellen Fundort ersetzen?",
+    "resolvePlaceReplaceOk": "Ersetzen",
     "deleteSelectedMsg_one": "Den ausgewählten Beleg löschen?",
     "deleteSelectedMsg_other": "Die {{count}} ausgewählten Belege löschen?"
   },

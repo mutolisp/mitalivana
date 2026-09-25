@@ -41,6 +41,7 @@ import {
   type Site,
 } from '~/db';
 import type { DocFormat } from '~/stores/settings';
+import { GEODETIC_DATUM, locationTerms } from './dwcLocation';
 import { establishmentDwcValue } from './dwcAttributes';
 import { AUDIO_EXT, parseAudioPaths } from './audioCapture';
 import { checklistIdentity, uniqueByIdentity } from './checklistIdentity';
@@ -474,6 +475,10 @@ function buildPlotSpeciesCsv(
     { h: 'decimalLatitude', v: (r) => r.lat ?? '' },
     { h: 'decimalLongitude', v: (r) => r.lng ?? '' },
     { h: 'coordinateUncertaintyInMeters', v: (r) => r.accuracy ?? '' },
+    { h: 'geodeticDatum', v: (r) => locationTerms(r.lat, r.elevation_m, r.elevation_source).geodeticDatum },
+    { h: 'minimumElevationInMeters', v: (r) => r.elevation_m ?? '' },
+    { h: 'maximumElevationInMeters', v: (r) => r.elevation_m ?? '' },
+    { h: 'verticalDatum', v: (r) => locationTerms(r.lat, r.elevation_m, r.elevation_source).verticalDatum },
     { h: 'eventDate', v: (r) => (r.observed_at ? localIso(r.observed_at) : '') },
     // Per-occurrence remarks. Was eventRemarks, which is the EVENT's note —
     // every other occurrence export in the app uses occurrenceRemarks, and the
@@ -680,6 +685,7 @@ export async function buildSessionEntries(
   pushEnv('eventRemarks', session.notes);
   if (session.start_lat !== null) pushEnv('decimalLatitude', session.start_lat);
   if (session.start_lng !== null) pushEnv('decimalLongitude', session.start_lng);
+  if (session.start_lat !== null) pushEnv('geodeticDatum', GEODETIC_DATUM);
   const envCsv = '﻿' + ['term,value', ...envRows.map((r) => `${csvEscape(r.term)},${csvEscape(r.value)}`)].join('\n');
   entries.push({
     name: `${base}/${sanitizeFilename(session.name)}_env.csv`,

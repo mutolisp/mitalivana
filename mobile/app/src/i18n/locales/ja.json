@@ -595,6 +595,10 @@
     "fabSideLeft": "左側",
     "undoSeconds": "{{count}} 秒",
     "defaultCreate": "調査記録の設定",
+    "gpsPerSpeciesSession": "クイック種リスト：種ごとに自動測位",
+    "gpsPerSpeciesSessionDesc": "種を入力した時点の GNSS 座標と標高を記録します。軌跡の記録中は常に記録します。位置情報の許可が必要です。",
+    "gpsPerSpeciesPlot": "調査区調査：種ごとに自動測位",
+    "gpsPerSpeciesPlotDesc": "種を入力した時点の GNSS 座標と標高を記録します。トランセクトの軌跡記録中は常に記録します。位置情報の許可が必要です。",
     "createAsk": "毎回確認",
     "off": "オフ",
     "surveyors": "調査者",
@@ -982,18 +986,14 @@
     "busyTitle": "別の記録が軌跡を記録中です",
     "busyMsg": "先に他の記録の軌跡を停止または一時停止してください",
     "startFail": "軌跡を開始できません",
-    "stopTitle": "軌跡を停止して保存しますか？",
-    "stopMsg": "停止すると新しい点を追加できなくなりますが、種の記録は続けられます。",
     "stop": "停止",
     "label": "トランセクト軌跡",
     "stopped": "停止しました",
     "paused": "一時停止中",
     "notStarted": "軌跡の記録が未開始です（種の入力に必要）",
     "pause": "一時停止",
-    "stopSave": "停止して保存",
     "resume": "再開",
     "start": "記録を開始",
-    "preview": "プレビュー",
     "summary_other": "{{count}} セグメント · {{points}} 点 · {{length}}"
   },
   "layerSheet": {
@@ -1196,8 +1196,7 @@
   },
   "track": {
     "startPoint": "起点",
-    "endPoint": "終点",
-    "noData": "軌跡データがありません"
+    "endPoint": "終点"
   },
   "photo": {
     "camPerm": "カメラの権限が必要です",
@@ -1338,6 +1337,10 @@
     "catalogNumberPlaceholder": "例：13450（ラベルには TAI13450 と印刷）",
     "elevation": "標高",
     "elevationPlaceholder": "測位時に GNSS の高度を自動入力。編集できます",
+    "resolvePlace": "座標から地名を取得",
+    "resolvePlaceFail": "地名を取得できませんでした。ネットワーク接続を確認して再試行してください。",
+    "resolvePlaceReplace": "現在の採集地を置き換えますか？",
+    "resolvePlaceReplaceOk": "置き換える",
     "deleteSelectedMsg_other": "選択した {{count}} 点の標本記録を削除しますか？"
   },
   "areaSpecies": {

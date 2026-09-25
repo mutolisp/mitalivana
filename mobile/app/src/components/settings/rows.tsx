@@ -7,7 +7,7 @@
  */
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { Pressable, Switch, Text, TextInput, View } from 'react-native';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/components/ui/select';
 
 const ROW = 'bg-white dark:bg-gray-900 px-4 py-3';
@@ -106,6 +106,38 @@ export function LinkRow({
         ) : null}
         {chevron ? <Ionicons name="chevron-forward" size={value ? 16 : 18} color="#9ca3af" /> : null}
       </View>
+    </Pressable>
+  );
+}
+
+/** An on/off setting: label and description on the left, a Switch on the
+ *  right. Tapping the row flips it too, not just the thumb. */
+export function SwitchRow({
+  label,
+  description,
+  value,
+  onChange,
+}: {
+  label: string;
+  description?: string;
+  value: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <Pressable
+      onPress={() => onChange(!value)}
+      accessibilityRole="switch"
+      accessibilityLabel={label}
+      accessibilityState={{ checked: value }}
+      className={`flex-row items-center justify-between ${DIVIDER} ${ROW} ${PRESSED}`}
+    >
+      <View className="flex-1 pr-3">
+        <Text className="text-base text-gray-900 dark:text-gray-100">{label}</Text>
+        {description ? (
+          <Text className="text-xs text-gray-500 dark:text-gray-400">{description}</Text>
+        ) : null}
+      </View>
+      <Switch value={value} onValueChange={onChange} />
     </Pressable>
   );
 }
