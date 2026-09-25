@@ -2923,6 +2923,12 @@
     "notes": {
       "title": "Comentarios",
       "placeholder": "p. ej., pNE-5 marcado con una nueva varilla de aluminio; estaca p5m W suelta, cambiarla"
+    },
+    "zoom": {
+      "in": "Acercar",
+      "out": "Alejar",
+      "reset": "Restablecer zoom",
+      "hint": "Pellizca con dos dedos para acercar y arrastra con dos para mover; o usa los botones de arriba a la derecha"
     }
   },
   "vernacular": {

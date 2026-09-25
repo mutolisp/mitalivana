@@ -2773,6 +2773,12 @@
     "notes": {
       "title": "Bemerkungen",
       "placeholder": "z. B. pNE-5 mit neuem Alustab markiert; W-p5m-Pfahl locker, ersetzen"
+    },
+    "zoom": {
+      "in": "Vergrößern",
+      "out": "Verkleinern",
+      "reset": "Zoom zurücksetzen",
+      "hint": "Mit zwei Fingern zoomen und verschieben; oder die Tasten oben rechts"
     }
   },
   "vernacular": {

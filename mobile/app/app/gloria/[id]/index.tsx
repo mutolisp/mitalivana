@@ -37,6 +37,8 @@ export default function GloriaSurveyScreen() {
   const { state, reload } = useSurvey(id);
   const [tab, setTab] = useState<Tab>(() => (state && state.points.every((p) => p.distance_m == null) ? 'points' : 'map'));
   const [help, setHelp] = useState<Direction | null>(null);
+  // Off while two fingers zoom the overview drawing.
+  const [scrollOn, setScrollOn] = useState(true);
 
   if (!state) {
     return (
@@ -143,7 +145,7 @@ export default function GloriaSurveyScreen() {
           ]}
         />
       </View>
-      <ScrollView contentContainerClassName="gap-3 p-4" keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
+      <ScrollView contentContainerClassName="gap-3 p-4" keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets scrollEnabled={scrollOn}>
         {tab === 'points' ? (
           <>
             <SummitForm state={state} reload={reload} />
@@ -192,7 +194,14 @@ export default function GloriaSurveyScreen() {
               ))}
             </View>
             <Card className="p-2">
-              <SummitSchematic p5m={state.p5m} statusOf={state.statusOf} onUnit={openUnit} onCluster={setHelp} />
+              <SummitSchematic
+                p5m={state.p5m}
+                statusOf={state.statusOf}
+                onUnit={openUnit}
+                onCluster={setHelp}
+                onInteract={(active) => setScrollOn(!active)}
+              />
+              <Text className="mt-1 text-center text-[11px] text-gray-400">{t('gloria.zoom.hint')}</Text>
             </Card>
             <View className="flex-row flex-wrap gap-3">
               {(['none', 'progress', 'done', 'warn'] as const).map((k) => (

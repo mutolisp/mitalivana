@@ -4,7 +4,17 @@
  * cut into eight sections by the intersection lines. Each 3×3 m cluster is
  * drawn with its p5m corner on the 5-m line, rotated so its rows run
  * uphill (quadrat 11 = lower left seen from below the cluster).
+ *
+ * Zoom: two fingers pinch (1–4×, around the fingers) and move the view; the
+ * ＋ / − / reset buttons do the same one-handed. One finger is left to the
+ * page's own scrolling. Zooming changes the SVG viewBox, so lines and labels
+ * are redrawn sharp at every size, and every unit stays tappable.
  */
+import { Ionicons } from '@expo/vector-icons';
+import { useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Pressable, View } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Svg, { Circle, G, Line, Path, Polygon, Rect, Text as SvgText } from 'react-native-svg';
 import { useColorScheme } from 'nativewind';
 import { CORNERS, DIRECTIONS, type Direction, type P5mCorner } from '../model/units';
@@ -41,9 +51,70 @@ type Props = {
   statusOf: (code: string) => UnitStatus;
   onUnit: (code: string) => void;
   onCluster: (d: Direction) => void;
+  /** True while two fingers are on the drawing — the page should stop scrolling. */
+  onInteract?: (active: boolean) => void;
 };
 
-export function SummitSchematic({ p5m, statusOf, onUnit, onCluster }: Props) {
+const FULL = 300;
+const MIN_SIZE = FULL / 4; // 4× at most
+type ViewBox = { x: number; y: number; s: number };
+const HOME: ViewBox = { x: 0, y: 0, s: FULL };
+
+function clampView(v: ViewBox): ViewBox {
+  const s = Math.min(FULL, Math.max(MIN_SIZE, v.s));
+  return { s, x: Math.min(FULL - s, Math.max(0, v.x)), y: Math.min(FULL - s, Math.max(0, v.y)) };
+}
+
+export function SummitSchematic({ p5m, statusOf, onUnit, onCluster, onInteract }: Props) {
+  const { t } = useTranslation();
+  const [view, setView] = useState<ViewBox>(HOME);
+  const [width, setWidth] = useState(0);
+  // Gesture state lives in refs: callbacks run on the JS thread (runOnJS)
+  // and must see the view as it was when the gesture began.
+  const base = useRef<ViewBox>(HOME);
+  const focal = useRef({ x: 0, y: 0 });
+  const pinching = useRef(false);
+  const unitsPerPx = (v: ViewBox) => (width > 0 ? v.s / width : 1);
+
+  const pinch = Gesture.Pinch()
+    .runOnJS(true)
+    .onStart((e) => {
+      pinching.current = true;
+      base.current = view;
+      const k = unitsPerPx(view);
+      // The drawing point under the fingers stays under them.
+      focal.current = { x: view.x + e.focalX * k, y: view.y + e.focalY * k };
+      onInteract?.(true);
+    })
+    .onUpdate((e) => {
+      const s = base.current.s / e.scale;
+      const k = width > 0 ? s / width : 1;
+      setView(clampView({ s, x: focal.current.x - e.focalX * k, y: focal.current.y - e.focalY * k }));
+    })
+    .onFinalize(() => {
+      pinching.current = false;
+      onInteract?.(false);
+    });
+  const pan = Gesture.Pan()
+    .runOnJS(true)
+    .minPointers(2)
+    .onStart(() => {
+      base.current = view;
+      onInteract?.(true);
+    })
+    .onUpdate((e) => {
+      if (pinching.current) return;
+      const k = unitsPerPx(base.current);
+      setView(clampView({ ...base.current, x: base.current.x - e.translationX * k, y: base.current.y - e.translationY * k }));
+    })
+    .onFinalize(() => onInteract?.(false));
+  const zoomBy = (f: number) =>
+    setView((v) => {
+      const s = v.s / f;
+      return clampView({ s, x: v.x + v.s / 2 - s / 2, y: v.y + v.s / 2 - s / 2 });
+    });
+  const zoomed = view.s < FULL - 0.5;
+
   const dark = useColorScheme().colorScheme === 'dark';
   const ink = dark ? '#f3f4f6' : '#111827';
   const faint = dark ? '#4b5563' : '#d1d5db';
@@ -52,7 +123,10 @@ export function SummitSchematic({ p5m, statusOf, onUnit, onCluster }: Props) {
   const axis = dark ? '#d1d5db' : '#374151';
 
   return (
-    <Svg viewBox="0 0 300 300" width="100%" style={{ aspectRatio: 1 }}>
+    <View onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
+    <GestureDetector gesture={Gesture.Simultaneous(pinch, pan)}>
+    <View collapsable={false}>
+    <Svg viewBox={`${view.x} ${view.y} ${view.s} ${view.s}`} width="100%" style={{ aspectRatio: 1 }}>
       {/* Summit area sections (Fig. 3.6, Work Step G): each is bounded by
           the intersection lines to NE / SE / SW / NW and by the 5-m / 10-m
           lines; tinted by status and tappable, so their extent reads at a
@@ -168,6 +242,28 @@ export function SummitSchematic({ p5m, statusOf, onUnit, onCluster }: Props) {
         <SvgText x={7} y={154} textAnchor="middle">W</SvgText>
       </G>
     </Svg>
+    </View>
+    </GestureDetector>
+      <View className="absolute right-1 top-1 flex-row gap-1">
+        {[
+          { icon: 'add' as const, label: t('gloria.zoom.in'), on: () => zoomBy(1.5), off: view.s <= MIN_SIZE + 0.5 },
+          { icon: 'remove' as const, label: t('gloria.zoom.out'), on: () => zoomBy(1 / 1.5), off: !zoomed },
+          { icon: 'scan-outline' as const, label: t('gloria.zoom.reset'), on: () => setView(HOME), off: !zoomed },
+        ].map((b) => (
+          <Pressable
+            key={b.icon}
+            onPress={b.on}
+            disabled={b.off}
+            accessibilityRole="button"
+            accessibilityLabel={b.label}
+            hitSlop={4}
+            className={`h-8 w-8 items-center justify-center rounded-full border border-gray-300 bg-white/90 dark:border-gray-600 dark:bg-gray-900/90 ${b.off ? 'opacity-40' : ''}`}
+          >
+            <Ionicons name={b.icon} size={16} color="#00A2A5" />
+          </Pressable>
+        ))}
+      </View>
+    </View>
   );
 }
 

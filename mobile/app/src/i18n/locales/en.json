@@ -2773,6 +2773,12 @@
     "notes": {
       "title": "Comments",
       "placeholder": "e.g. pNE-5 re-staked with a new aluminium rod; W p5m pole loose, replace"
+    },
+    "zoom": {
+      "in": "Zoom in",
+      "out": "Zoom out",
+      "reset": "Reset zoom",
+      "hint": "Pinch with two fingers to zoom, drag with two to move; or use the buttons at the top right"
     }
   },
   "vernacular": {

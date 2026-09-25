@@ -2623,6 +2623,12 @@
     "notes": {
       "title": "備註",
       "placeholder": "例如：pNE-5 重新插鋁棒；W 方位 p5m 樁鬆動、需補"
+    },
+    "zoom": {
+      "in": "放大",
+      "out": "縮小",
+      "reset": "還原",
+      "hint": "兩指捏合縮放、兩指拖曳移動；也可用右上角按鈕"
     }
   },
   "vernacular": {

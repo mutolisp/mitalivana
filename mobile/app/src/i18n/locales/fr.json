@@ -2923,6 +2923,12 @@
     "notes": {
       "title": "Remarques",
       "placeholder": "p. ex. pNE-5 remarqué avec un nouveau piquet alu ; piquet p5m W branlant, à remplacer"
+    },
+    "zoom": {
+      "in": "Zoom avant",
+      "out": "Zoom arrière",
+      "reset": "Réinitialiser le zoom",
+      "hint": "Pincez à deux doigts pour zoomer, glissez à deux doigts pour déplacer ; ou utilisez les boutons en haut à droite"
     }
   },
   "vernacular": {
