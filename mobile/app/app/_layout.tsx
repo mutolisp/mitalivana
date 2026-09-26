@@ -120,6 +120,7 @@ function ThemedShell() {
             <Stack.Screen name="settings/language" options={{ title: t('settings.language') }} />
             <Stack.Screen name="settings/vernacular" options={{ title: t('vernacular.title') }} />
             <Stack.Screen name="settings/storage" options={{ title: t('storage.title') }} />
+            <Stack.Screen name="settings/merge-backups" options={{ title: t('mergeBackups.title') }} />
             <Stack.Screen name="gloria/summits" options={{ title: t('gloria.summitImport.listTitle') }} />
             <Stack.Screen name="gloria/summit-import" options={{ title: t('gloria.summitImport.reviewTitle') }} />
             <Stack.Screen name="gloria/summit/[id]" options={{ title: '' }} />
@@ -137,6 +138,7 @@ function ThemedShell() {
             <Stack.Screen name="gdrive" options={{ title: t('nav.gdrive') }} />
             <Stack.Screen name="inat-upload" options={{ title: t('nav.inatUpload') }} />
             <Stack.Screen name="report/[kind]/[id]" options={{ title: t('report.navTitle') }} />
+            <Stack.Screen name="merge" options={{ title: t('teamMerge.title') }} />
           </Stack>
         </View>
         {/* Select popovers render here, NOT via React.createPortal: the portal

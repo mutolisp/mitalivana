@@ -98,6 +98,30 @@ export function safetyBackups(): File[] {
   return root.list().filter((e): e is File => e instanceof File && /^safety-backup-.*\.db$/.test(e.name));
 }
 
+/** Where team merge keeps the record as it was before each merge (teamMergeFlow.ts). */
+export const MERGE_BACKUP_DIR = 'merge-backups';
+
+/** Pre-merge backups, newest first (names start with the UTC timestamp). */
+export function mergeBackups(): File[] {
+  const dir = new Directory(Paths.document, MERGE_BACKUP_DIR);
+  if (!dir.exists) return [];
+  return dir
+    .list()
+    .filter((e): e is File => e instanceof File && e.name.endsWith('.zip'))
+    .sort((a, b) => b.name.localeCompare(a.name));
+}
+
+/**
+ * `2026-09-26T11-05-00-123Z_GLORIA_TW-DAS-SUN_mocy5.zip` → when and what.
+ * The timestamp is `toISOString()` with `:` and `.` made filename-safe.
+ */
+export function mergeBackupInfo(name: string): { at: number | null; label: string } {
+  const m = name.match(/^(\d{4}-\d{2}-\d{2})T(\d{2})-(\d{2})-(\d{2})-(\d{3})Z_(.+)\.zip$/);
+  if (!m) return { at: null, label: name.replace(/\.zip$/, '') };
+  const at = Date.parse(`${m[1]}T${m[2]}:${m[3]}:${m[4]}.${m[5]}Z`);
+  return { at: Number.isFinite(at) ? at : null, label: m[6] };
+}
+
 /** Leftovers of retired storage that a failed launch-time delete may have kept. */
 export function legacyLeftovers(): Array<File | Directory> {
   const out: Array<File | Directory> = [];

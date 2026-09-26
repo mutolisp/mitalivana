@@ -14,7 +14,7 @@ import * as Haptics from 'expo-haptics';
 import { Stack, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, AppState, Pressable, ScrollView, Text, View, type TextInput } from 'react-native';
+import { Alert, AppState, Pressable, ScrollView, Text, useWindowDimensions, View, type TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SelectRow } from '~/components/settings/rows';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -23,6 +23,7 @@ import { HeaderIconButton } from '~/components/HeaderIconButton';
 import { KeyboardStickyView } from '~/components/KeyboardAvoidingView';
 import { SearchBox } from '~/components/SearchBox';
 import { BackHeaderLeft } from '~/lib/goBack';
+import { FONT_SCALE_VALUE, useSettings } from '~/stores/settings';
 import { useToast } from '~/stores/toast';
 import {
   addUnitSpecies,
@@ -58,6 +59,8 @@ export default function FrequencyScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const toast = useToast((s) => s.show);
+  // App font setting × system text size: the picker's arrows grow with the text.
+  const fs = FONT_SCALE_VALUE[useSettings((s) => s.font_scale)] * useWindowDimensions().fontScale;
   const params = useLocalSearchParams<{ id: string; code: string }>();
   const id = Number(params.id);
   const code = String(params.code);
@@ -345,9 +348,12 @@ export default function FrequencyScreen() {
         }}
         accessibilityRole="button"
         accessibilityLabel={t(dir === 'back' ? 'gloria.freq.prevSpecies' : 'gloria.freq.nextSpecies')}
-        className="mb-1.5 h-9 w-9 items-center justify-center rounded-lg border border-gray-300 dark:border-gray-700"
+        // As tall as the menu beside it (py-2 + border + one text-base line),
+        // which grows with the font size.
+        style={{ width: Math.round(36 * fs), height: 18 + Math.round(24 * fs) }}
+        className="mb-1.5 items-center justify-center rounded-lg border border-gray-300 dark:border-gray-700"
       >
-        <Ionicons name={dir === 'back' ? 'chevron-back' : 'chevron-forward'} size={18} color="#6b7280" />
+        <Ionicons name={dir === 'back' ? 'chevron-back' : 'chevron-forward'} size={Math.round(18 * fs)} color="#6b7280" />
       </Pressable>
     );
     return (

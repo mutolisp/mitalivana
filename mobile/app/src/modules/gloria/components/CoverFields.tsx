@@ -10,9 +10,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, Text, View } from 'react-native';
-import { SelectRow } from '~/components/settings/rows';
+import { Pressable, Text, useWindowDimensions, View } from 'react-native';
 import { SwipeNavArea, useSwipeNav } from '~/components/SwipeNavigator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/components/ui/select';
+import { FONT_SCALE_VALUE, useSettings } from '~/stores/settings';
 import type { GloriaUnit, UnitPatch } from '../db';
 import { NumField } from './ui';
 import { RANGES } from '../model/ranges';
@@ -47,7 +48,7 @@ export function topSum(u: GloriaUnit): number | null {
  * target picker: ‹ [item ▾] › [value] ☐無, stepped by the arrows, a sideways
  * swipe, the keyboard's Next, or a tap on the summary line below, which shows
  * every item's value at once. Whatever is typed is committed before the row
- * moves to another item.
+ * moves to another item; ticking 「無」 moves on by itself.
  */
 function CoverStepper({
   unit,
@@ -63,6 +64,10 @@ function CoverStepper({
   editable: boolean;
 }) {
   const { t } = useTranslation();
+  // Text grows with the app's font setting and the system text size; the
+  // row's boxes (arrows, value field, icons) grow with it. Heights follow by
+  // stretching every box to the tallest one, the item menu.
+  const fs = FONT_SCALE_VALUE[useSettings((x) => x.font_scale)] * useWindowDimensions().fontScale;
   const [i, setI] = useState(0);
   // Current item for callbacks bound earlier (Next on the keyboard bar).
   const iRef = useRef(0);
@@ -82,24 +87,33 @@ function CoverStepper({
       onPress={() => go(i + d)}
       accessibilityRole="button"
       accessibilityLabel={t(d < 0 ? 'gloria.cover.prev' : 'gloria.cover.next')}
-      className="h-9 w-8 items-center justify-center rounded-lg border border-gray-300 dark:border-gray-700"
+      style={{ width: Math.round(32 * fs), minHeight: Math.round(40 * fs) }}
+      className="items-center justify-center rounded-lg border border-gray-300 dark:border-gray-700"
     >
-      <Ionicons name={d < 0 ? 'chevron-back' : 'chevron-forward'} size={16} color="#6b7280" />
+      <Ionicons name={d < 0 ? 'chevron-back' : 'chevron-forward'} size={Math.round(16 * fs)} color="#6b7280" />
     </Pressable>
   );
   return (
     <View className="gap-1">
       <SwipeNavArea nav={nav} style={{ flex: 0 }}>
-        <View className="flex-row items-center gap-1.5">
+        <View className="flex-row items-stretch gap-1.5">
           {arrow(-1)}
+          {/* No label above: the trigger itself names the item. */}
           <View className="flex-1">
-            <SelectRow
-              variant="inline"
-              label={t(labelKey(k))}
-              value={k as string}
-              options={keys.map((x) => ({ value: x as string, label: t(labelKey(x)) }))}
-              onChange={(x) => go(keys.indexOf(x as (typeof keys)[number]))}
-            />
+            <Select
+              style={{ flex: 1 }}
+              value={{ value: k as string, label: t(labelKey(k)) }}
+              onValueChange={(o) => o && go(keys.indexOf(o.value as (typeof keys)[number]))}
+            >
+              <SelectTrigger className="w-full flex-1" accessibilityLabel={t(labelKey(k))}>
+                <SelectValue placeholder={t(labelKey(k))} />
+              </SelectTrigger>
+              <SelectContent>
+                {keys.map((x) => (
+                  <SelectItem key={x} value={x as string} label={t(labelKey(x))} />
+                ))}
+              </SelectContent>
+            </Select>
           </View>
           {arrow(1)}
           <NumField
@@ -107,13 +121,19 @@ function CoverStepper({
             onCommit={(n) => onCommit({ [k]: n })}
             onSubmitEditing={() => go(iRef.current + 1)}
             commitRef={commitRef}
+            target={k as string}
             accessibilityLabel={t(labelKey(k))}
-            width={56}
+            width={Math.round(56 * fs)}
             range={RANGES.percent}
             editable={editable}
           />
           <Pressable
-            onPress={() => onCommit({ [k]: none ? null : 0 })}
+            onPress={() => {
+              onCommit({ [k]: none ? null : 0 });
+              // Ticked: on to the next item (not past the last). Anything
+              // half-typed is dropped, not committed: 「無」 is the answer.
+              if (!none && i < keys.length - 1) setI(i + 1);
+            }}
             disabled={!editable}
             hitSlop={6}
             accessibilityRole="checkbox"
@@ -121,8 +141,8 @@ function CoverStepper({
             accessibilityLabel={`${t(labelKey(k))} ${t('gloria.cover.none')}`}
             className="flex-row items-center"
           >
-            <Ionicons name={none ? 'checkbox' : 'square-outline'} size={18} color={none ? '#00A2A5' : '#9ca3af'} />
-            <Text className="text-[10px] text-gray-500 dark:text-gray-400">{t('gloria.cover.none')}</Text>
+            <Ionicons name={none ? 'checkbox' : 'square-outline'} size={Math.round(18 * fs)} color={none ? '#00A2A5' : '#9ca3af'} />
+            <Text className="text-xxs text-gray-500 dark:text-gray-400">{t('gloria.cover.none')}</Text>
           </Pressable>
         </View>
       </SwipeNavArea>
@@ -133,7 +153,7 @@ function CoverStepper({
           return (
             <Pressable key={x} onPress={() => go(n)} hitSlop={4} className="mr-2 py-0.5">
               <Text
-                className={`text-[11px] ${n === i ? 'font-bold text-[#00797b] dark:text-cyan-300' : 'text-gray-500 dark:text-gray-400'}`}
+                className={`text-xs ${n === i ? 'font-bold text-[#00797b] dark:text-cyan-300' : 'text-gray-500 dark:text-gray-400'}`}
                 style={{ fontVariant: ['tabular-nums'] }}
               >
                 {t(`gloria.cover.short.${x}`)} {val ?? '–'}
@@ -160,14 +180,31 @@ export function TopCoverFields({ unit, onCommit, editable = true }: { unit: Glor
   };
   const sum = topSum(unit);
   const ok = sum != null && Math.abs(sum - 100) < 1e-9;
+  // Foldable like the subtypes; folded, the header still shows the total.
+  const [open, setOpen] = useState(true);
+  const total =
+    sum != null ? (
+      <Text className={`text-xs font-semibold ${ok ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+        {ok ? t('gloria.cover.sumOk', { sum }) : t('gloria.cover.sumBad', { sum })}
+      </Text>
+    ) : null;
   return (
     <View className="gap-1">
-      <Text className="text-xs font-semibold text-gray-500 dark:text-gray-400">{t('gloria.cover.title')}</Text>
-      <CoverStepper unit={unit} keys={TOP_KEYS} labelKey={(k) => `gloria.cover.${k}`} onCommit={commitTop} editable={editable} />
-      {sum != null ? (
-        <Text className={`text-right text-xs font-semibold ${ok ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
-          {ok ? t('gloria.cover.sumOk', { sum }) : t('gloria.cover.sumBad', { sum })}
-        </Text>
+      <Pressable
+        onPress={() => setOpen(!open)}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open }}
+        className="flex-row items-center"
+      >
+        <Ionicons name={open ? 'chevron-down' : 'chevron-forward'} size={14} color="#9ca3af" />
+        <Text className="ml-1 flex-1 text-xs font-semibold text-gray-600 dark:text-gray-300">{t('gloria.cover.title')}</Text>
+        {open ? null : total}
+      </Pressable>
+      {open ? (
+        <>
+          <CoverStepper unit={unit} keys={TOP_KEYS} labelKey={(k) => `gloria.cover.${k}`} onCommit={commitTop} editable={editable} />
+          {total ? <View className="items-end">{total}</View> : null}
+        </>
       ) : null}
     </View>
   );

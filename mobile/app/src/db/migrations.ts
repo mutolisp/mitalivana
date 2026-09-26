@@ -1706,6 +1706,38 @@ const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    // Team merge (src/lib/mergeEngine.ts). `sync_base` is the common ancestor
+    // for a record: each row's content hash as of the last exchange (import or
+    // merge) with another device. A row whose hash moved changed since then; a
+    // row in the base but gone now was deleted — no updated_at stamping or
+    // tombstones needed in the write helpers.
+    //
+    // Merging matches species rows by occurrence_id, so none may be blank.
+    // v16 backfilled them once; this catches any written without since.
+    version: 57,
+    up: (db) => {
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS sync_base (
+          record_kind TEXT NOT NULL,
+          record_uuid TEXT NOT NULL,
+          tbl TEXT NOT NULL,
+          row_key TEXT NOT NULL,
+          hash TEXT NOT NULL,
+          PRIMARY KEY (record_kind, record_uuid, tbl, row_key)
+        );
+      `);
+      const uuidExpr = `lower(
+        hex(randomblob(4)) || '-' || hex(randomblob(2)) || '-4' ||
+        substr(hex(randomblob(2)), 2) || '-' ||
+        substr('89ab', abs(random()) % 4 + 1, 1) || substr(hex(randomblob(2)), 2) || '-' ||
+        hex(randomblob(6))
+      )`;
+      for (const tbl of ['checklist_records', 'plot_species_records']) {
+        db.executeSync(`UPDATE ${tbl} SET occurrence_id = ${uuidExpr} WHERE occurrence_id IS NULL OR occurrence_id = '';`);
+      }
+    },
+  },
 ];
 
 /** Highest schema version this build knows how to produce. Backup/restore uses

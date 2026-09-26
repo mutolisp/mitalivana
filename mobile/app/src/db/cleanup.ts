@@ -172,6 +172,10 @@ export function purgeOrphanRows(): void {
     ['gloria_units', 'survey_id NOT IN (SELECT id FROM gloria_surveys)'],
     ['gloria_taxa', 'survey_id NOT IN (SELECT id FROM gloria_surveys)'],
     ['gloria_unit_species', 'unit_id NOT IN (SELECT id FROM gloria_units) OR gloria_taxon_id NOT IN (SELECT id FROM gloria_taxa)'],
+    // Team-merge ancestors (v57) of records no longer here.
+    ['sync_base', `record_kind = 'session' AND record_uuid NOT IN (SELECT uuid FROM sessions WHERE uuid IS NOT NULL)`],
+    ['sync_base', `record_kind = 'plot' AND record_uuid NOT IN (SELECT uuid FROM plot_surveys)`],
+    ['sync_base', `record_kind = 'gloria' AND record_uuid NOT IN (SELECT uuid FROM gloria_surveys)`],
   ];
   for (const [table, where] of orphanDeletes) {
     // Parent before child: FK is OFF here, so nothing cascades. Deleting

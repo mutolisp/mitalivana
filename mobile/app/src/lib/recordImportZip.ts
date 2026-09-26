@@ -23,6 +23,7 @@ import { collectionFromDoc, isCollectionDoc } from './collectionImport';
 import { plotFromDoc } from './plotImport';
 import { sessionFromDoc } from './sessionImport';
 import { buildTrackGeoJSON } from './track';
+import { readSyncBlock, type SyncBlock } from './mergeEngine';
 import type {
   ImportedCollectionTrip,
   ImportedPlot,
@@ -34,7 +35,8 @@ import yaml from 'js-yaml';
 
 export type ImportedPhotoBlob = { name: string; bytes: Uint8Array };
 
-export type ReadRecordImport =
+/** `sync`: the sender's common ancestor for team merge (mergeEngine.ts). */
+export type ReadRecordImport = { sync?: SyncBlock | null } & (
   | {
       kind: 'gloria';
       gloria: GloriaDoc;
@@ -56,7 +58,8 @@ export type ReadRecordImport =
       collection: ImportedCollectionTrip;
       photos: ImportedPhotoBlob[];
       audio: ImportedPhotoBlob[];
-    };
+    }
+);
 
 type Entries = Record<string, Uint8Array>;
 
@@ -252,13 +255,13 @@ export function readRecordImportFromBytes(raw: Uint8Array): ReadRecordImport {
     const doc = yaml.load(strFromU8(raw)) as Record<string, unknown> | null;
     switch (docKind(doc)) {
       case 'gloria':
-        return { kind: 'gloria', gloria: doc as unknown as GloriaDoc };
+        return { sync: readSyncBlock(doc), kind: 'gloria', gloria: doc as unknown as GloriaDoc };
       case 'plot':
-        return { kind: 'plot', plot: plotFromDoc(doc), photos: [], audio: [] };
+        return { sync: readSyncBlock(doc), kind: 'plot', plot: plotFromDoc(doc), photos: [], audio: [] };
       case 'collection':
-        return { kind: 'collection', collection: collectionFromDoc(doc), photos: [], audio: [] };
+        return { sync: readSyncBlock(doc), kind: 'collection', collection: collectionFromDoc(doc), photos: [], audio: [] };
       default:
-        return { kind: 'session', session: sessionFromDoc(doc), photos: [], audio: [] };
+        return { sync: readSyncBlock(doc), kind: 'session', session: sessionFromDoc(doc), photos: [], audio: [] };
     }
   }
 
@@ -272,7 +275,7 @@ export function readRecordImportFromBytes(raw: Uint8Array): ReadRecordImport {
       : docKind(doc);
   if (kind === 'gloria') {
     if (!isGloriaDoc(doc)) throw new ImportError('unknownKind');
-    return { kind: 'gloria', gloria: doc };
+    return { sync: readSyncBlock(doc), kind: 'gloria', gloria: doc };
   }
 
   // Pass 2 — the media bytes, now that the kind is known and accepted.
@@ -284,7 +287,7 @@ export function readRecordImportFromBytes(raw: Uint8Array): ReadRecordImport {
     const plot = plotFromDoc(doc);
     if (!plot.track_geojson) plot.track_geojson = geometriesToTrack(geoSidecar(meta, folder, 'track'));
     if (!plot.site) plot.site = geometryToSite(geoSidecar(meta, folder, 'site'), plot.plotid);
-    return { kind: 'plot', plot, photos, audio };
+    return { sync: readSyncBlock(doc), kind: 'plot', plot, photos, audio };
   }
 
   if (kind === 'collection') {
@@ -292,7 +295,7 @@ export function readRecordImportFromBytes(raw: Uint8Array): ReadRecordImport {
     if (!collection.site) {
       collection.site = geometryToSite(geoSidecar(meta, folder, 'site'), collection.name);
     }
-    return { kind: 'collection', collection, photos, audio };
+    return { sync: readSyncBlock(doc), kind: 'collection', collection, photos, audio };
   }
 
   const session = sessionFromDoc(doc);
@@ -300,5 +303,5 @@ export function readRecordImportFromBytes(raw: Uint8Array): ReadRecordImport {
     session.track_geojson = geometriesToTrack(geoSidecar(meta, folder, 'track'));
   }
   if (!session.site) session.site = geometryToSite(geoSidecar(meta, folder, 'site'), session.name);
-  return { kind: 'session', session, photos, audio };
+  return { sync: readSyncBlock(doc), kind: 'session', session, photos, audio };
 }

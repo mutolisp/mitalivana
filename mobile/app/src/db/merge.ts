@@ -26,7 +26,7 @@
  * The merged record is always written as finished (`done` / `ended_at` set) and
  * never claims the single-active slot — same rule as an imported record.
  */
-import { buildTrackGeoJSON, parseTrackSegments } from '~/lib/track';
+import { buildTrackGeoJSON, parseTrackSegments } from '../lib/track';
 
 export type MergeRecordOptions = {
   /** `sessions.name` / `plot_surveys.plotid` for the record being created. */

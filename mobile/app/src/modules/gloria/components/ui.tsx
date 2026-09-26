@@ -270,8 +270,11 @@ export const NumField = forwardRef<
     /** Filled with this field's commit, for a parent that swaps the field's
      *  target (the cover stepper) and must save what was typed first. */
     commitRef?: { current: (() => boolean) | null };
+    /** What the value belongs to; a change resets the typed text even when
+     *  the old and new values happen to be equal. */
+    target?: string;
   }
->(function NumField({ value, onCommit, placeholder, changed, width = 76, onSubmitEditing, accessibilityLabel, range, signed, editable = true, commitRef }, ref) {
+>(function NumField({ value, onCommit, placeholder, changed, width = 76, onSubmitEditing, accessibilityLabel, range, signed, editable = true, commitRef, target }, ref) {
   const { t } = useTranslation();
   const [text, setText] = useState(fmt(value));
   // Last value handed to onCommit: Next commits and the blur that follows
@@ -280,7 +283,7 @@ export const NumField = forwardRef<
   useEffect(() => {
     setText(fmt(value));
     sent.current = undefined;
-  }, [value]);
+  }, [value, target]);
   /** Returns false when the entry was refused (focus should stay here). */
   const commit = (): boolean => {
     const n = parseNum(text);

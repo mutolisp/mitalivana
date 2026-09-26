@@ -635,7 +635,7 @@ export function ensureRosterTaxon(surveyId: number, taxonId: string): number {
  * slotted in above ones added before it. Rows without a position yet (from
  * before v55) get theirs first, in their current order.
  */
-function nextUnitPosition(unitId: number): number {
+export function nextUnitPosition(unitId: number): number {
   const db = getUserDb();
   const have = rows<{ id: number; sort_order: number | null; serial: number }>(
     db.executeSync(

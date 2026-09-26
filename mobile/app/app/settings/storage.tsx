@@ -3,7 +3,7 @@
  *
  * Only two things are deleted from here, each after a confirmation: the cache
  * (always disposable) and photos / recordings that no record points to.
- * Downloadable data (checklists, offline map, POI) and safety backups link to
+ * Downloadable data (checklists, offline map, POI), safety and pre-merge backups link to
  * the screens that already manage them; the user's own database is shown for
  * information only.
  */
@@ -22,6 +22,7 @@ import {
   dirSize,
   findMediaOrphans,
   legacyLeftovers,
+  mergeBackups,
   removeLegacyLeftovers,
   safetyBackups,
   sizeOf,
@@ -33,6 +34,7 @@ type Sizes = {
   cache: number;
   orphans: Orphans;
   safety: { n: number; bytes: number };
+  merge: { n: number; bytes: number };
   datasets: number;
   packs: number;
   vectormap: number;
@@ -50,10 +52,12 @@ function measure(): Sizes {
     return f.exists ? (f.size ?? 0) : 0;
   };
   const safety = safetyBackups();
+  const merge = mergeBackups();
   return {
     cache: dirSize(new Directory(Paths.cache)),
     orphans: findMediaOrphans(),
     safety: { n: safety.length, bytes: safety.reduce((a, f) => a + (f.size ?? 0), 0) },
+    merge: { n: merge.length, bytes: merge.reduce((a, f) => a + (f.size ?? 0), 0) },
     datasets: doc('datasets'),
     packs: file('regionpacks.db'),
     vectormap: doc('vectormap'),
@@ -75,7 +79,7 @@ export default function StorageScreen() {
   if (!s) return <SettingsPage>{null}</SettingsPage>;
 
   const total =
-    s.cache + s.safety.bytes + s.datasets + s.packs + s.vectormap + s.poi + s.legacy + s.userDb + s.photos + s.audio;
+    s.cache + s.safety.bytes + s.merge.bytes + s.datasets + s.packs + s.vectormap + s.poi + s.legacy + s.userDb + s.photos + s.audio;
   const confirm = (title: string, msg: string, run: () => void | Promise<void>) =>
     Alert.alert(title, msg, [
       { text: t('common.cancel'), style: 'cancel' },
@@ -143,6 +147,12 @@ export default function StorageScreen() {
             description={t('storage.safetyDesc', { n: s.safety.n })}
             value={formatBytes(s.safety.bytes)}
             onPress={() => router.push('/backup' as Href)}
+          />
+          <LinkRow
+            label={t('storage.mergeBackups')}
+            description={t('storage.mergeBackupsDesc', { n: s.merge.n })}
+            value={formatBytes(s.merge.bytes)}
+            onPress={() => router.push('/settings/merge-backups' as Href)}
           />
         </Section>
 

@@ -46,12 +46,19 @@ import { useActivePlot } from '~/stores/activePlot';
 import { useActiveSession } from '~/stores/activeSession';
 import { useActiveGloria } from '~/modules/gloria/store';
 import { useSettings } from '~/stores/settings';
-import { createGloriaSurvey, endGloriaSurvey, gloriaSurveyUuidExists, importGloriaDoc } from '~/modules/gloria/db';
+import { createGloriaSurvey, endGloriaSurvey, getGloriaSurvey, gloriaSurveyUuidExists, importGloriaDoc } from '~/modules/gloria/db';
 import { validateGloriaDoc, type GloriaDoc } from '~/modules/gloria/export/yaml';
 import { isRecordingTarget, pauseIfNot, pauseRecording as pauseTrackRecording } from '~/lib/trackRecorder';
 import { promptText } from '~/components/TextPromptModal';
 import { showActionSheet } from '~/components/ActionSheet';
 import i18n from '~/i18n';
+import { setSyncBase } from '~/db/syncBase';
+import { localPlotDoc, localSessionDoc } from '~/db/teamMerge';
+import { COMBINERS, gloriaSide, plotSide, sessionSide, type MergeKind } from '~/lib/mergeDocs';
+import { baseOf, diffSides, type MergeSide, type SyncBlock } from '~/lib/mergeEngine';
+import { usePendingMerge } from '~/lib/teamMergeFlow';
+import type { ImportedPhotoBlob } from '~/lib/recordImportZip';
+import { findGloriaSurveyFor, localGloriaDoc } from '~/modules/gloria/merge';
 
 type NewRecordKind = 'session' | 'plot' | 'gloria';
 
@@ -278,7 +285,7 @@ export async function importRecordPromptAndOpen(): Promise<void> {
   }
 
   try {
-    if (payload.kind === 'gloria') await finishGloriaImport(payload.gloria);
+    if (payload.kind === 'gloria') await finishGloriaImport(payload.gloria, payload.sync);
     else if (payload.kind === 'plot') await finishPlotImport(payload);
     else if (payload.kind === 'collection') await finishCollectionImport(payload);
     else await finishSessionImport(payload);
@@ -331,6 +338,61 @@ function remapUnknownTaxa(records: ImportableRecord[]): { remapped: number; unre
     }
   }
   return { remapped, unresolved };
+}
+
+type ImportMode = 'merge' | 'overwrite' | 'new';
+
+/**
+ * The record is already here → merge (team merge, reviewed row by row) /
+ * overwrite / save as new / cancel. null = cancelled.
+ */
+async function askImportMode(titleKey: string, msgKey: string, label: string): Promise<ImportMode | null> {
+  const choice = await showActionSheet({
+    title: i18n.t(titleKey),
+    message: i18n.t(msgKey, { plotid: label, name: label }),
+    cancelLabel: i18n.t('common.cancel'),
+    options: [
+      { label: i18n.t('teamMerge.merge') },
+      { label: i18n.t('recordCreate.overwrite'), destructive: true },
+      { label: i18n.t('recordCreate.saveAsNew') },
+    ],
+  });
+  return choice === 0 ? 'merge' : choice === 1 ? 'overwrite' : choice === 2 ? 'new' : null;
+}
+
+/**
+ * Compare the file with this device's copy and open the review — or, when
+ * nothing differs, just record that the two now agree.
+ */
+function openMerge(
+  kind: MergeKind,
+  local: { id: number; uuid: string; label: string; side: MergeSide },
+  remote: { side: MergeSide; sync: SyncBlock | null | undefined; photos: ImportedPhotoBlob[]; audio: ImportedPhotoBlob[] },
+  href: Href,
+): void {
+  const items = diffSides(local.side, remote.side, remote.sync?.base ?? null, COMBINERS[kind]);
+  if (items.length === 0) {
+    setSyncBase(kind, local.uuid, baseOf(remote.side));
+    Alert.alert(i18n.t('teamMerge.nothingTitle'), i18n.t('teamMerge.nothingMsg', { name: local.label }));
+    router.push(href);
+    return;
+  }
+  usePendingMerge.getState().set({
+    kind,
+    localId: local.id,
+    localUuid: local.uuid,
+    label: local.label,
+    items,
+    remoteSide: remote.side,
+    photos: remote.photos,
+    audio: remote.audio,
+  });
+  router.push('/merge' as Href);
+}
+
+/** After an import that kept the uuid: the record as stored is what both sides now share. */
+function rememberBase(kind: MergeKind, uuid: string, side: MergeSide | null): void {
+  if (side) setSyncBase(kind, uuid, baseOf(side));
 }
 
 /** uuid clash → overwrite / save-as-new / cancel. null = cancelled. */
@@ -428,13 +490,21 @@ async function finishPlotImport(payload: Extract<ReadRecordImport, { kind: 'plot
 
   const prev = getPlotSurveyByUuid(data.uuid);
   if (prev) {
-    const answer = await askOverwrite(
-      'recordCreate.plotExistsTitle',
-      'recordCreate.plotExistsMsg',
-      data.plotid,
-    );
-    if (answer === null) return;
-    newUuid = answer;
+    const mode = await askImportMode('recordCreate.plotExistsTitle', 'recordCreate.plotExistsMsg', data.plotid);
+    if (mode === null) return;
+    if (mode === 'merge') {
+      remapUnknownTaxa(data.species);
+      const local = localPlotDoc(prev.id);
+      if (!local) return;
+      openMerge(
+        'plot',
+        { id: prev.id, uuid: prev.uuid, label: prev.plotid, side: plotSide(local) },
+        { side: plotSide(data), sync: payload.sync, photos: payload.photos, audio: payload.audio },
+        `/plot/${prev.id}` as Href,
+      );
+      return;
+    }
+    newUuid = mode === 'new';
     if (!newUuid) {
       prevPhotos = new Map(
         listPlotSpecies(prev.id).map((r) => [r.occurrence_id, parsePhotoUris(r.photo_paths)]),
@@ -471,6 +541,10 @@ async function finishPlotImport(payload: Extract<ReadRecordImport, { kind: 'plot
     photoUriByName: photoUriByName ?? undefined,
     audioUriByName: audioUriByName.size > 0 ? audioUriByName : undefined,
   });
+  if (!newUuid) {
+    const stored = localPlotDoc(plotId);
+    rememberBase('plot', data.uuid, stored ? plotSide(stored) : null);
+  }
   // Imported plot is status='done'; refresh stores so lists pick it up.
   useActivePlot.getState().refresh();
   summarize(data.species.length, taxa, skippedPhotos);
@@ -488,13 +562,21 @@ async function finishSessionImport(
 
   const prev = data.uuid ? getSessionByUuid(data.uuid) : null;
   if (prev) {
-    const answer = await askOverwrite(
-      'recordImport.sessionExistsTitle',
-      'recordImport.sessionExistsMsg',
-      data.name,
-    );
-    if (answer === null) return;
-    newUuid = answer;
+    const mode = await askImportMode('recordImport.sessionExistsTitle', 'recordImport.sessionExistsMsg', data.name);
+    if (mode === null) return;
+    if (mode === 'merge') {
+      remapUnknownTaxa(data.records);
+      const local = localSessionDoc(prev.id);
+      if (!local) return;
+      openMerge(
+        'session',
+        { id: prev.id, uuid: prev.uuid ?? data.uuid, label: prev.name, side: sessionSide(local) },
+        { side: sessionSide(data), sync: payload.sync, photos: payload.photos, audio: payload.audio },
+        `/session/${prev.id}` as Href,
+      );
+      return;
+    }
+    newUuid = mode === 'new';
     if (!newUuid) {
       prevPhotos = new Map(
         listSessionRecords(prev.id).map((r) => [r.occurrence_id, parsePhotoUris(r.photo_paths)]),
@@ -523,6 +605,10 @@ async function finishSessionImport(
     photoUriByName: photoUriByName ?? undefined,
     audioUriByName: audioUriByName.size > 0 ? audioUriByName : undefined,
   });
+  if (!newUuid) {
+    const stored = localSessionDoc(sessionId);
+    rememberBase('session', data.uuid, stored ? sessionSide(stored) : null);
+  }
   useActiveSession.getState().refresh();
   summarize(data.records.length, taxa, skippedPhotos);
   router.push(`/session/${sessionId}` as Href);
@@ -532,19 +618,50 @@ async function finishSessionImport(
  * Restore a GLORIA survey. Keyed on the survey uuid: an existing copy can only
  * be replaced, never duplicated — a summit has one survey per monitoring cycle.
  */
-async function finishGloriaImport(doc: GloriaDoc): Promise<void> {
+async function finishGloriaImport(doc: GloriaDoc, sync: SyncBlock | null | undefined): Promise<void> {
   const problems = validateGloriaDoc(doc);
   if (problems.length) throw new Error(problems.slice(0, 5).join('\n'));
-  if (gloriaSurveyUuidExists(doc.survey.uuid)) {
+  const name = `${doc.summit.full_code} mocy ${doc.survey.mocy}`;
+  // Same summit and cycle here already — possibly started on this device
+  // under another uuid, which can only be merged, not overwritten.
+  const hereId = findGloriaSurveyFor(doc);
+  const here = hereId != null ? getGloriaSurvey(hereId) : null;
+  if (here) {
+    const sameUuid = here.uuid === doc.survey.uuid;
     const idx = await showActionSheet({
       title: i18n.t('recordImport.gloriaExistsTitle'),
-      message: i18n.t('recordImport.gloriaExistsMsg', { name: `${doc.summit.full_code} mocy ${doc.survey.mocy}` }),
+      message: i18n.t(sameUuid ? 'recordImport.gloriaExistsMsg' : 'teamMerge.gloriaOtherCopy', { name }),
+      cancelLabel: i18n.t('common.cancel'),
+      options: [
+        { label: i18n.t('teamMerge.merge') },
+        ...(sameUuid ? [{ label: i18n.t('recordCreate.overwrite'), destructive: true }] : []),
+      ],
+    });
+    if (idx === 0) {
+      const local = localGloriaDoc(here.id);
+      if (!local) return;
+      openMerge(
+        'gloria',
+        { id: here.id, uuid: here.uuid, label: name, side: gloriaSide(local) },
+        { side: gloriaSide(doc), sync, photos: [], audio: [] },
+        `/gloria/${here.id}` as Href,
+      );
+      return;
+    }
+    if (idx !== 1 || !sameUuid) return;
+  } else if (gloriaSurveyUuidExists(doc.survey.uuid)) {
+    // Same survey, since moved to another cycle here: only a replace makes sense.
+    const idx = await showActionSheet({
+      title: i18n.t('recordImport.gloriaExistsTitle'),
+      message: i18n.t('recordImport.gloriaExistsMsg', { name }),
       cancelLabel: i18n.t('common.cancel'),
       options: [{ label: i18n.t('recordCreate.overwrite'), destructive: true }],
     });
     if (idx !== 0) return;
   }
   const { surveyId } = importGloriaDoc(doc);
+  const stored = localGloriaDoc(surveyId);
+  rememberBase('gloria', doc.survey.uuid, stored ? gloriaSide(stored) : null);
   useToast.getState().show(i18n.t('recordImport.gloriaImported', { name: `${doc.summit.full_code} mocy ${doc.survey.mocy}` }));
   router.push(`/gloria/${surveyId}` as Href);
 }

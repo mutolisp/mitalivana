@@ -11,6 +11,7 @@
 import { errText } from '~/lib/errText';
 import { File, Paths } from 'expo-file-system';
 import { rebaseAppFileUri } from './appFiles';
+import { syncBlockFor } from '~/db/syncBase';
 import { readAsStringAsync } from 'expo-file-system/legacy';
 import * as MediaLibrary from 'expo-media-library';
 import yaml from 'js-yaml';
@@ -680,6 +681,8 @@ export async function buildSessionEntries(
     photoNames,
     audioNames,
   });
+  // Team merge: this device's common ancestor for the record (mergeEngine.ts).
+  yamlData.sync = syncBlockFor('session', session.uuid);
   entries.push({ name: `${base}/${base}.yml`, bytes: strToU8(yaml.dump(yamlData, { lineWidth: -1, noRefs: true })) });
 
   // ${session.name}_env.csv — tall (term,value) format, mirrors plot env.
@@ -879,6 +882,8 @@ export async function buildPlotEntries(
     envPhotoNames,
     audioNames,
   });
+  // Team merge: this device's common ancestor for the record (mergeEngine.ts).
+  yamlData.sync = syncBlockFor('plot', plot.uuid);
   entries.push({ name: `${base}/${base}.yml`, bytes: strToU8(yaml.dump(yamlData, { lineWidth: -1, noRefs: true })) });
 
   // ${plotid}_checklist.md — deduped (one row per taxon) human-readable 名錄,
@@ -1049,9 +1054,11 @@ export async function buildGloriaEntries(
   if (!data || !doc) throw new Error(`GLORIA survey ${surveyId} not found`);
   const base = sanitizeFilename(`GLORIA_${data.summit.full_code}_mocy${data.survey.mocy}`);
   const entries: BuiltZipEntry[] = [];
+  // Team merge: this device's common ancestor for the record (mergeEngine.ts).
+  const withSync = { ...doc, sync: syncBlockFor('gloria', data.survey.uuid) };
   entries.push({
     name: `${base}/${base}.yml`,
-    bytes: strToU8(yaml.dump(doc, { lineWidth: -1, noRefs: true })),
+    bytes: strToU8(yaml.dump(withSync, { lineWidth: -1, noRefs: true })),
   });
   for (const t of buildSheetTables(data)) {
     if (t.rows.length === 0) continue;

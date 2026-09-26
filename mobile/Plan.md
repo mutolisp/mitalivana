@@ -14,10 +14,10 @@
 |---|---|
 | `Plan.md`（本檔） | **待辦** ＋ 現行架構與長效設計決策 |
 | `Update_log.md` | 已 ship 與踩過的坑；附錄 A–D 收了本檔原本 4,000 多行的 sprint 推導過程 |
-| `Device_test.md` | 實機驗證清單（637 項，已通過並勾選 4 項，2026-09-26）。**驗證項不要寫回本檔** |
-| 守門 | `npm run check:*` 共 **42 支**（最新加入 `check:usage-rank`、`check:gloria-stats`） |
+| `Device_test.md` | 實機驗證清單（656 項，已通過並勾選 4 項，2026-09-26）。**驗證項不要寫回本檔** |
+| 守門 | `npm run check:*` 共 **43 支**（最新加入 `check:gloria-stats`、`check:merge`） |
 | `docs/` | 仍代表現況的參考文件：檢索表、樣區、匯出外部 API、報表、物種詳細頁、地圖、i18n；`docs/gloria-ui/` GLORIA 介面草稿（五語） |
-| `docs/planned/` | 純規劃未動工：AI 辨識、P2P 協作、雲端協作 |
+| `docs/planned/` | 規劃：AI 辨識、P2P 協作、雲端協作（兩份協作文件的記錄層合併已由 `docs/Team_merge.md` 實作） |
 | `archive/` | 已完成或被取代的設計稿與一次性稽核 |
 | `PRIVACY.md` / `PRIVACY.en.md` | 隱私政策 |
 
@@ -27,7 +27,8 @@
 報表 → `docs/Report.md`；物種詳細頁 → `docs/Species_details.md`；i18n → `docs/i18n.md`；
 GLORIA → `~/.claude/plans/gloria-1-gloria-jazzy-lagoon.md`（`docs/gloria.md` 尚未寫，見 G3）；
 GLORIA 介面草稿（五語）→ `docs/gloria-ui/`（原稿、譯文與建置腳本，流程見其 README）；
-記錄的完成鎖定與復原／重做 → 本檔 I 節（程式在 `src/lib/useRecordEditing.ts`、`src/db/recordSnapshotCore.ts`）。
+記錄的完成鎖定與復原／重做 → 本檔 I 節（程式在 `src/lib/useRecordEditing.ts`、`src/db/recordSnapshotCore.ts`）；
+多人調查合併 → `docs/Team_merge.md`（本檔 L 節）。
 
 ---
 
@@ -305,7 +306,7 @@ GLORIA 介面草稿（五語）→ `docs/gloria-ui/`（原稿、譯文與建置�
 - 搜尋預設只找維管束植物（GLORIA 各搜尋框＋調查進行中的分類樹搜尋；可當下改選，不覆寫使用者的設定）
 - 統計報告：單次調查與專案（目標區域、山峰、複查次數、多樣性指數、與前次比較；類型／方位／山峰篩選）；專案統計顯示 GLORIA 筆數與山峰數
 - 山峰清單（偏好設定）：匯入／匯出山峰（00_ 欄位）、匯入量測點（只需點位、距離、方位）、匯出量測點（02_ 欄位），CSV 與 .xlsx
-- 介面草稿 artifact（https://claude.ai/artifact/QCgtqCyBKeKFhizoRVA1Cn ，v57，五語；原稿 `docs/gloria-ui/`）：
+- 介面草稿 artifact（https://claude.ai/artifact/QCgtqCyBKeKFhizoRVA1Cn ，v59，五語；原稿 `docs/gloria-ui/`）：
   01 建立～09 拍照檢核，05b 頻度點擊法；完成時的結束時間選擇、物種編號與拖拉、頻度接續優勢度都已反映；app 介面改動時同步更新
 
 待辦：
@@ -362,6 +363,20 @@ GLORIA 介面草稿（五語）→ `docs/gloria-ui/`（原稿、譯文與建置�
 2. **實機驗證**：見 `Device_test.md` 同名段落。
 3. **桌機版**尚未處理：後端 `taicol_names` 與 `taxonomy_api.py` 仍然只有六階。
 4. 目前只能一次改掛一個分類群（ⓘ →「變更上層歸屬」），批次改掛只能在「新增下層分類群」的第二步做。若實測覺得不夠用，再接到多選工具列。
+
+### L. 多人調查合併（2026-09-26，v57，細節見 `docs/Team_merge.md`）
+
+已完成：快速名錄、樣區調查、GLORIA 匯入同一筆記錄時可選「合併」（GLORIA 以山峰＋mocy 配對，兩台可各自新建）；
+審閱畫面分「需要決定」（兩邊都改、可能重複、刪除）與「自動套用」（對方新增、只有對方改）；刪除一律要點選才生效。
+共同基準用內容雜湊（`sync_base`，匯出檔帶 `sync:`），不改任何寫入／刪除 helper；套用前自動備份到 `Documents/merge-backups/`。
+`check:merge` 守門。
+
+待辦：
+1. **實機驗證** —— 見 `Device_test.md` 同名段落，兩支手機來回傳一次以上。
+2. **採集記錄不合併** —— 採集號衝突要先有「每人採集號前綴」或重新編號的設計。
+3. **已存在的列上新增的照片不帶過來**、GLORIA 照片不合併 —— 若實測需要，再定照片的身分（目前只有檔名與裝置 URI）。
+4. ~~合併前備份沒有瀏覽介面~~ —— 已接到「儲存空間 → 合併前備份」，可分享、刪除（2026-09-26）。
+5. **傳輸**：現場區網同步（`planned/P2P_collaboration.md` 階段 B）仍未做；合併引擎已與傳輸分開，可直接接上。
 
 ### I. 快速名錄／樣區調查／採集記錄的完成鎖定與復原（2026-09-25，細節見 `Update_log.md`）
 
