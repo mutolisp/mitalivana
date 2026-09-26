@@ -2435,11 +2435,17 @@
       "quadrats": "1×1",
       "sas": "SAS",
       "squares": "10×10",
-      "quadratHint": "Deckung %; f = Frequenzzellen. Spaltenname antippen öffnet die Einheit.",
-      "sasHint": "Abundanz r! r s c d; • = ohne Abundanz erfasst.",
-      "squareHint": "Treffer von 400 Punkten; • = zusätzliche Art ohne Treffer.",
+      "quadratHint": "Zahlen sind Deckung % oder Frequenzzellen (umschaltbar); die Farbe zeigt den anderen Wert. — = nicht eingetragen. Spaltennamen tippen öffnet die Einheit; die Artenspalte bleibt beim seitlichen Scrollen stehen.",
+      "sasHint": "Abundanz r! r s c d, dunkler = mehr; • = gelistet, aber noch ohne Abundanz.",
+      "squareHint": "Treffer von 400 Punkten, gefärbt nach der daraus berechneten Deckung; • = zusätzliche, nicht getroffene Art.",
       "empty": "Noch keine Arten",
-      "species": "Art"
+      "species": "Art",
+      "showCover": "Deckung zeigen",
+      "showFreq": "Frequenz zeigen",
+      "shadeFreq": "Farbe = Frequenz (Zellen)",
+      "shadeCover": "Farbe = Deckung",
+      "shadeAbundance": "Farbe = Abundanz",
+      "shadeHits": "Farbe = Deckung (Treffer / 4)"
     },
     "step": {
       "cover": "Deckung und Oberfläche",
@@ -2535,7 +2541,11 @@
       "lockedToast": "Diese Einheit ist abgeschlossen und gesperrt. Zum Bearbeiten oben rechts auf das Schloss tippen.",
       "lockedDone": "Abgeschlossen und gesperrt; Endzeit erfasst",
       "unlocked": "Entsperrt; Bearbeiten möglich",
-      "reorder": "Lange drücken und ziehen zum Sortieren"
+      "reorder": "Lange drücken und ziehen zum Sortieren",
+      "replace": "Art ändern",
+      "replaceExists": "{{name}} steht bereits auf der Liste dieser Fläche",
+      "replaced": "Geändert in {{name}}; Deckung, Frequenz und übrige Daten bleiben erhalten",
+      "replaceBanner": "{{name}} ändern: unten nach der richtigen Art suchen"
     },
     "square": {
       "walk": "Start und Richtung (Formular 6-S, vier Optionen)",

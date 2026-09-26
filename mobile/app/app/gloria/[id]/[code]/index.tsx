@@ -37,8 +37,10 @@ import {
   addUnitSpecies,
   markUnitStarted,
   removeUnitSpecies,
+  replaceUnitSpeciesTaxon,
   restoreUnitSnapshot,
   setUnitDone,
+  takeSpeciesReplace,
   setUnitSpeciesOrder,
   snapshotUnit,
   updateUnit,
@@ -96,8 +98,33 @@ export default function GloriaUnitScreen() {
   const type = unitTypeOf(code);
   const { state, reload } = useSurvey(id);
   const [panel, setPanel] = useState(false);
-  const [envOpen, setEnvOpen] = useState<boolean | null>(null);
+  // Open on arrival when there is nothing to summarise yet, decided once:
+  // deriving it on every render folded the card away as soon as the first
+  // top-cover value was typed, in the middle of filling in the rest.
+  const [envOpen, setEnvOpen] = useState<boolean>(() => {
+    const u = state?.unit(code);
+    if (!u) return true;
+    return unitTypeOf(code) === 'square' ? u.start_ts == null : topSum(u) == null;
+  });
   const [subOpen, setSubOpen] = useState(false);
+  // Searching to add a species on a 1×1 m quadrat: fold the plot environment
+  // away and bring the species list up under the navigation bar, so what is
+  // being added to stays in view. `speciesY` is the list header's position in
+  // the scroll content; `pinSpecies` waits for the fold to re-layout.
+  const scrollRef = useRef<React.ElementRef<typeof NestableScrollContainer>>(null);
+  const speciesY = useRef(0);
+  const [pinSpecies, setPinSpecies] = useState(false);
+  // After adding a species, keep the end of the list against the top of the
+  // search dock while the keyboard is up — through the dock shrinking as the
+  // suggestions close — until the user scrolls or the keyboard goes.
+  const followEnd = useRef(false);
+  // Window y of this screen's content (under the header), so the docked
+  // suggestions stop there even with the active-record bar above the header.
+  const rootRef = useRef<View>(null);
+  const [rootTop, setRootTop] = useState<number | undefined>(undefined);
+  const scrollToSpecies = () =>
+    // After the keyboard has come up: its inset is what makes room to scroll that far.
+    setTimeout(() => scrollRef.current?.scrollTo({ y: Math.max(0, speciesY.current - 8), animated: true }), 300);
   const [timesOpen, setTimesOpen] = useState(false);
 
   const undo = useRef<UnitSnapshot[]>([]);
@@ -111,10 +138,22 @@ export default function GloriaUnitScreen() {
     setRedoCount(0);
   }, []);
   useFocusEffect(clearHistory);
+  // Non-null = the docked search re-identifies that species row instead of
+  // adding one (from the row's long-press menu, or its species page).
+  const [replaceId, setReplaceId] = useState<number | null>(null);
+  useFocusEffect(
+    useCallback(() => {
+      const r = takeSpeciesReplace();
+      if (r != null) setReplaceId(r);
+    }, []),
+  );
 
   // The docked search (group filter + box) rides up with the keyboard and
   // covers the end of the list unless the list is padded by its height.
   const keyboardUp = useKeyboardState((k) => k.isVisible);
+  useEffect(() => {
+    if (!keyboardUp) followEnd.current = false;
+  }, [keyboardUp]);
   const [dockHeight, setDockHeight] = useState(0);
 
   const unit = state?.unit(code);
@@ -178,11 +217,28 @@ export default function GloriaUnitScreen() {
       markUnitStarted(unit.id);
       updateUnit(unit.id, p);
     });
+  /** The docked search picked a taxon while re-identifying `replaceId`. */
+  const replaceTaxon = (usid: number, taxonId: string, name: string) => {
+    const current = spp.find((x) => x.id === usid);
+    if (current?.taxon_id === taxonId) {
+      setReplaceId(null);
+      return;
+    }
+    // Checked here too, so a refused pick leaves no empty undo step.
+    if (spp.some((x) => x.id !== usid && x.taxon_id === taxonId)) {
+      toast(t('gloria.unit.replaceExists', { name }));
+      return; // still replacing: they picked a species already on the list
+    }
+    if (!track(() => replaceUnitSpeciesTaxon(usid, taxonId))) return;
+    setReplaceId(null);
+    toast(t('gloria.unit.replaced', { name }));
+  };
   const addTaxon = (taxonId: string, name?: string) => {
     const done = track(() => {
       markUnitStarted(unit.id);
       addUnitSpecies(unit.id, taxonId);
     });
+    if (done) followEnd.current = true;
     if (done && name) toast(t('gloria.unit.added', { name }));
   };
   const speciesMenu = async (s: SurveySpecies) => {
@@ -190,12 +246,17 @@ export default function GloriaUnitScreen() {
       title: displayName(s),
       options: [
         { label: t('gloria.unit.openDetail') },
+        { label: t('gloria.unit.replace') },
         { label: t('gloria.unit.remove'), destructive: true },
       ],
       cancelLabel: t('common.cancel'),
     });
     if (idx === 0) router.push(`/gloria/${id}/${code}/species/${s.id}` as Href);
-    if (idx === 1) track(() => removeUnitSpecies(s.id));
+    if (idx === 1) {
+      if (locked) toast(t('gloria.unit.lockedToast'));
+      else setReplaceId(s.id);
+    }
+    if (idx === 2) track(() => removeUnitSpecies(s.id));
   };
   /** 完成 locks with the end time the user picks (now / keep / blank);
    *  pressing it again reopens and leaves the time as it is. */
@@ -316,7 +377,7 @@ export default function GloriaUnitScreen() {
       .join(' · ');
   };
   // Open until there is something to summarise (a square has no top cover).
-  const envIsOpen = envOpen ?? (type === 'square' ? unit.start_ts == null : topSum(unit) == null);
+  const envIsOpen = envOpen;
 
   /** 樣區環境: researchers, a times fold, then the unit type's own fields. */
   const envCard = (fields: React.ReactNode) => (
@@ -464,7 +525,16 @@ export default function GloriaUnitScreen() {
           </View>
         </View>
 
-        <Text className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+        <Text
+          className="text-xs font-semibold text-gray-500 dark:text-gray-400"
+          onLayout={(e) => {
+            speciesY.current = e.nativeEvent.layout.y;
+            if (pinSpecies) {
+              setPinSpecies(false);
+              scrollToSpecies();
+            }
+          }}
+        >
           {t('gloria.unit.speciesHeader', { count: spp.length, sum })}
         </Text>
         <Card>
@@ -691,7 +761,12 @@ export default function GloriaUnitScreen() {
   };
 
   return (
-    <SafeAreaView edges={['bottom']} className="flex-1 bg-gray-50 dark:bg-gray-950">
+    <SafeAreaView
+      ref={rootRef}
+      onLayout={() => rootRef.current?.measureInWindow((_x, y) => setRootTop(y))}
+      edges={['bottom']}
+      className="flex-1 bg-gray-50 dark:bg-gray-950"
+    >
       <Stack.Screen
         options={{
           title,
@@ -730,11 +805,19 @@ export default function GloriaUnitScreen() {
       />
       {/* Nestable: the 1×1 m species list inside is draggable. */}
       <NestableScrollContainer
+        ref={scrollRef}
         style={{ flex: 1 }}
         contentContainerStyle={{
           gap: 12,
           padding: 16,
-          paddingBottom: 16 + (keyboardUp ? dockHeight : 0),
+          // Keyboard up: exactly the dock's height, so the last row meets its top edge.
+          paddingBottom: keyboardUp ? dockHeight + 4 : 16,
+        }}
+        onContentSizeChange={() => {
+          if (followEnd.current && keyboardUp) scrollRef.current?.scrollToEnd({ animated: true });
+        }}
+        onScrollBeginDrag={() => {
+          followEnd.current = false;
         }}
         keyboardShouldPersistTaps="handled"
         automaticallyAdjustKeyboardInsets
@@ -744,9 +827,41 @@ export default function GloriaUnitScreen() {
       {active && !locked ? (
         <KeyboardStickyView offset={{ opened: insets.bottom }}>
           <View onLayout={(e) => setDockHeight(e.nativeEvent.layout.height)}>
+            {replaceId != null ? (
+              <View className="flex-row items-center border-t border-amber-200 bg-amber-50 px-4 py-2 dark:border-amber-900 dark:bg-amber-950/40">
+                <Ionicons name="swap-horizontal" size={14} color="#d97706" />
+                <Text className="ml-2 flex-1 text-xs text-amber-800 dark:text-amber-300" numberOfLines={1}>
+                  {t('gloria.unit.replaceBanner', {
+                    name: (() => {
+                      const r = spp.find((x) => x.id === replaceId);
+                      return r ? `${numberOf.get(r.id)}. ${displayName(r)}` : '';
+                    })(),
+                  })}
+                </Text>
+                <Pressable onPress={() => setReplaceId(null)} hitSlop={8} className="active:opacity-70">
+                  <Text className="text-xs font-medium text-amber-800 dark:text-amber-300">{t('common.cancel')}</Text>
+                </Pressable>
+              </View>
+            ) : null}
             <SearchBox
               scopeGroups={GLORIA_SEARCH_GROUPS}
-              onSelect={(r) => r.taxon_id && addTaxon(r.taxon_id, r.cname || r.name)}
+              topLimit={rootTop}
+              onSelect={(r) => {
+                if (!r.taxon_id) return;
+                if (replaceId != null) replaceTaxon(replaceId, r.taxon_id, r.cname || r.name);
+                else addTaxon(r.taxon_id, r.cname || r.name);
+              }}
+              onFocus={
+                type === 'quadrat'
+                  ? () => {
+                      if (envIsOpen) {
+                        // Scroll once the folded card has moved the list up.
+                        setPinSpecies(true);
+                        setEnvOpen(false);
+                      } else scrollToSpecies();
+                    }
+                  : undefined
+              }
             />
           </View>
         </KeyboardStickyView>

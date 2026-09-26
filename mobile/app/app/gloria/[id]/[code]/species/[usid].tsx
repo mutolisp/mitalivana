@@ -6,13 +6,22 @@
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Keyboard, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { SwipeNavArea, SwipeNavPager, usePagerNav, type SwipeNavPagerState } from '~/components/SwipeNavigator';
+import { bySpeciesOrder } from '~/modules/gloria/model/speciesOrder';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getKeysForScope, sourceOfTaxonId, type IdentificationKey } from '~/db';
 import { BackHeaderLeft } from '~/lib/goBack';
 import { leafPhenologyOptions, parseMultiAttribute, reproductiveOptions, serializeMultiAttribute } from '~/lib/dwcAttributes';
 import { useSettings } from '~/stores/settings';
-import { getUnitSpecies, removeUnitSpecies, updateUnitSpecies, type UnitSpeciesPatch } from '~/modules/gloria/db';
+import {
+  getUnitSpecies,
+  listUnitSpecies,
+  removeUnitSpecies,
+  requestSpeciesReplace,
+  updateUnitSpecies,
+  type UnitSpeciesPatch,
+} from '~/modules/gloria/db';
 import { unitTypeOf } from '~/modules/gloria/model/units';
 import { displayName } from '~/modules/gloria/useSurvey';
 import { Btn, Card, Chip, Label, NumAccessory, NumField } from '~/modules/gloria/components/ui';
@@ -24,11 +33,36 @@ export default function GloriaSpeciesScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const params = useLocalSearchParams<{ id: string; code: string; usid: string }>();
-  const usid = Number(params.usid);
   const type = unitTypeOf(String(params.code));
+  // The species shown; swiping (or the ‹ › row) steps through the unit's list
+  // in its on-screen order without stacking a page per species.
+  const [usid, setUsid] = useState(() => Number(params.usid));
   const [s, setS] = useState(() => getUnitSpecies(usid));
   const reload = useCallback(() => setS(getUnitSpecies(usid)), [usid]);
   useFocusEffect(reload);
+  const unitId = s?.unit_id;
+  const order = useMemo(
+    () => (unitId != null ? listUnitSpecies(unitId).sort(bySpeciesOrder).map((x) => x.id) : []),
+    // `s` too: a reload after an edit elsewhere may have changed the list.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [unitId, s],
+  );
+  const index = order.indexOf(usid);
+  const pager: SwipeNavPagerState | undefined =
+    index >= 0
+      ? {
+          index,
+          total: order.length,
+          onStep: (dir) => {
+            const next = order[index + dir];
+            if (next == null) return;
+            Keyboard.dismiss(); // commits a note being typed, to the species it was typed for
+            setUsid(next);
+            setS(getUnitSpecies(next));
+          },
+        }
+      : undefined;
+  const nav = usePagerNav(pager);
   const twOn = useSettings((st) => st.enabled_regions.includes('TW'));
 
   const keys = useMemo<IdentificationKey[]>(() => {
@@ -68,7 +102,10 @@ export default function GloriaSpeciesScreen() {
   return (
     <SafeAreaView edges={['bottom']} className="flex-1 bg-gray-50 dark:bg-gray-950">
       <Stack.Screen options={{ title: displayName(s), headerLeft: BackHeaderLeft }} />
-      <ScrollView contentContainerClassName="gap-3 p-4" keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
+      <SwipeNavPager state={pager} />
+      <SwipeNavArea nav={nav}>
+      {/* Keyed by species: the note field's defaultValue must reset per species. */}
+      <ScrollView key={usid} contentContainerClassName="gap-3 p-4" keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
         <View>
           <Text className="text-lg font-bold text-gray-900 dark:text-gray-100">{displayName(s)}</Text>
           <Text className="text-sm text-gray-600 dark:text-gray-300">
@@ -154,7 +191,15 @@ export default function GloriaSpeciesScreen() {
           className="min-h-[80px] rounded-lg border border-gray-300 bg-white p-2.5 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
           placeholderTextColor="#9ca3af"
         />
-        <View className="mt-2">
+        <View className="mt-2 gap-2">
+          {/* Re-identify: back to the unit, whose search box picks the new name. */}
+          <Btn
+            label={t('gloria.unit.replace')}
+            onPress={() => {
+              requestSpeciesReplace(s.id);
+              router.back();
+            }}
+          />
           <Btn
             label={t('gloria.unit.remove')}
             onPress={() => {
@@ -164,6 +209,7 @@ export default function GloriaSpeciesScreen() {
           />
         </View>
       </ScrollView>
+      </SwipeNavArea>
       <NumAccessory />
     </SafeAreaView>
   );

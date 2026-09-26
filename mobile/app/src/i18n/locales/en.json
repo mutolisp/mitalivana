@@ -2435,11 +2435,17 @@
       "quadrats": "1×1",
       "sas": "SAS",
       "squares": "10×10",
-      "quadratHint": "Cover %; f = frequency cells. Tap a column name to open that unit.",
-      "sasHint": "Abundance r! r s c d; • = listed without abundance.",
-      "squareHint": "Hits out of 400 points; • = additional species not hit.",
+      "quadratHint": "Numbers are cover % or frequency cells (switchable); the shade is the other one. — = not entered. Tap a column name to open that unit; the species column stays put when scrolling sideways.",
+      "sasHint": "Abundance r! r s c d, darker = more; • means listed but no abundance yet.",
+      "squareHint": "Hits out of 400 points, shaded by the cover they give; • marks extra species not hit.",
       "empty": "No species yet",
-      "species": "Species"
+      "species": "Species",
+      "showCover": "Show cover",
+      "showFreq": "Show frequency",
+      "shadeFreq": "Shade = frequency (cells)",
+      "shadeCover": "Shade = cover",
+      "shadeAbundance": "Shade = abundance",
+      "shadeHits": "Shade = cover (hits / 4)"
     },
     "step": {
       "cover": "Species and surface cover",
@@ -2535,7 +2541,11 @@
       "lockedToast": "This unit is done and locked. Tap the lock at the top right to edit.",
       "lockedDone": "Done and locked; end time recorded",
       "unlocked": "Unlocked; you can edit",
-      "reorder": "Long-press and drag to reorder"
+      "reorder": "Long-press and drag to reorder",
+      "replace": "Change species",
+      "replaceExists": "{{name}} is already on this plot’s list",
+      "replaced": "Changed to {{name}}; its cover, frequency and other data are kept",
+      "replaceBanner": "Changing {{name}}: search below for the right species"
     },
     "square": {
       "walk": "Start and direction (Form 6-S, four options)",

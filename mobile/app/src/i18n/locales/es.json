@@ -2575,11 +2575,17 @@
       "quadrats": "1×1",
       "sas": "SAS",
       "squares": "10×10",
-      "quadratHint": "Cobertura %; f = celdas de frecuencia. Toca el nombre de una columna para abrir la unidad.",
-      "sasHint": "Abundancia r! r s c d; • = anotada sin abundancia.",
-      "squareHint": "Contactos sobre 400 puntos; • = especie adicional sin contacto.",
+      "quadratHint": "Los números son la cobertura % o las celdas de frecuencia (a elegir); el tono muestra el otro valor. — = sin dato. Toca el nombre de una columna para abrir la unidad; la columna de especies queda fija al desplazarse de lado.",
+      "sasHint": "Abundancia r! r s c d, más oscuro = más; • = listada pero sin abundancia.",
+      "squareHint": "Toques de 400 puntos, con tono según la cobertura resultante; • = especie adicional no tocada.",
       "empty": "Aún no hay especies",
-      "species": "Especie"
+      "species": "Especie",
+      "showCover": "Mostrar cobertura",
+      "showFreq": "Mostrar frecuencia",
+      "shadeFreq": "Tono = frecuencia (celdas)",
+      "shadeCover": "Tono = cobertura",
+      "shadeAbundance": "Tono = abundancia",
+      "shadeHits": "Tono = cobertura (toques / 4)"
     },
     "step": {
       "cover": "Cobertura y superficie",
@@ -2683,7 +2689,11 @@
       "lockedToast": "Esta unidad está terminada y bloqueada. Toca el candado arriba a la derecha para editarla.",
       "lockedDone": "Terminada y bloqueada; hora de fin registrada",
       "unlocked": "Desbloqueada; puedes editar",
-      "reorder": "Mantén pulsado y arrastra para ordenar"
+      "reorder": "Mantén pulsado y arrastra para ordenar",
+      "replace": "Cambiar especie",
+      "replaceExists": "{{name}} ya está en la lista de esta parcela",
+      "replaced": "Cambiada a {{name}}; se conservan la cobertura, la frecuencia y los demás datos",
+      "replaceBanner": "Cambiando {{name}}: busca abajo la especie correcta"
     },
     "square": {
       "walk": "Inicio y sentido (formulario 6-S, cuatro opciones)",

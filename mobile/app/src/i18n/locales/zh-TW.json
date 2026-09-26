@@ -2295,11 +2295,17 @@
       "quadrats": "1×1",
       "sas": "SAS",
       "squares": "10×10",
-      "quadratHint": "覆蓋度 %；f 後為頻度格數。點欄位名稱開啟該單位。",
-      "sasHint": "豐度 r! r s c d；• 表示已列入但未填豐度。",
-      "squareHint": "400 點中的命中數；• 表示未被點到的額外物種。",
+      "quadratHint": "數字為優勢度（覆蓋度 %）或頻度格數，可切換；底色是另一項。—＝未填。點欄位名稱開啟該單位；左右捲動時物種欄固定。",
+      "sasHint": "豐度 r! r s c d，底色越深越多；• 表示已列入但未填豐度。",
+      "squareHint": "400 點中的命中數，底色為換算的覆蓋度；• 表示未被點到的額外物種。",
       "empty": "還沒有物種",
-      "species": "物種"
+      "species": "物種",
+      "showCover": "顯示優勢度",
+      "showFreq": "顯示頻度",
+      "shadeFreq": "底色＝頻度（格）",
+      "shadeCover": "底色＝優勢度",
+      "shadeAbundance": "底色＝豐度",
+      "shadeHits": "底色＝覆蓋度（hits／4）"
     },
     "step": {
       "cover": "覆蓋度與地表",
@@ -2387,7 +2393,11 @@
       "lockedToast": "此單位已完成並鎖定；按右上角鎖頭解鎖後才能編輯",
       "lockedDone": "已完成並鎖定，完成時間已記錄",
       "unlocked": "已解鎖，可以編輯",
-      "reorder": "長按拖拉調整順序"
+      "reorder": "長按拖拉調整順序",
+      "replace": "更換物種",
+      "replaceExists": "{{name}} 已在這個樣區的名單中",
+      "replaced": "已更換為 {{name}}，原本的覆蓋度、頻度等資料都保留",
+      "replaceBanner": "更換 {{name}}：從下方搜尋選擇正確的物種"
     },
     "square": {
       "walk": "起點與方向（Form 6-S 四種選項）",

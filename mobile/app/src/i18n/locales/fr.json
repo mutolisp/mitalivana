@@ -2575,11 +2575,17 @@
       "quadrats": "1×1",
       "sas": "SAS",
       "squares": "10×10",
-      "quadratHint": "Recouvrement % ; f = cellules de fréquence. Touchez un nom de colonne pour ouvrir l’unité.",
-      "sasHint": "Abondance r! r s c d ; • = noté sans abondance.",
-      "squareHint": "Contacts sur 400 points ; • = espèce supplémentaire non touchée.",
+      "quadratHint": "Les nombres sont le recouvrement % ou les cellules de fréquence (au choix) ; la teinte montre l’autre valeur. — = non saisi. Touchez un nom de colonne pour ouvrir l’unité ; la colonne des espèces reste fixe au défilement horizontal.",
+      "sasHint": "Abondance r! r s c d, plus foncé = plus abondant ; • = listée mais sans abondance.",
+      "squareHint": "Contacts sur 400 points, teintés selon le recouvrement obtenu ; • = espèce supplémentaire non touchée.",
       "empty": "Aucune espèce pour l’instant",
-      "species": "Espèce"
+      "species": "Espèce",
+      "showCover": "Afficher le recouvrement",
+      "showFreq": "Afficher la fréquence",
+      "shadeFreq": "Teinte = fréquence (cellules)",
+      "shadeCover": "Teinte = recouvrement",
+      "shadeAbundance": "Teinte = abondance",
+      "shadeHits": "Teinte = recouvrement (contacts / 4)"
     },
     "step": {
       "cover": "Recouvrement et surface",
@@ -2683,7 +2689,11 @@
       "lockedToast": "Cette unité est terminée et verrouillée. Touchez le cadenas en haut à droite pour la modifier.",
       "lockedDone": "Terminé et verrouillé ; heure de fin enregistrée",
       "unlocked": "Déverrouillé ; modification possible",
-      "reorder": "Appui long et glisser pour réordonner"
+      "reorder": "Appui long et glisser pour réordonner",
+      "replace": "Changer d’espèce",
+      "replaceExists": "{{name}} figure déjà sur la liste de cette placette",
+      "replaced": "Remplacé par {{name}} ; recouvrement, fréquence et autres données sont conservés",
+      "replaceBanner": "Changer {{name}} : cherchez ci-dessous la bonne espèce"
     },
     "square": {
       "walk": "Départ et sens (formulaire 6-S, quatre options)",

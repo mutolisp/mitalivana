@@ -917,6 +917,54 @@ export function markUnitStarted(unitId: number): void {
   getUserDb().executeSync(`UPDATE gloria_units SET start_ts = ? WHERE id = ? AND start_ts IS NULL`, [Date.now(), unitId]);
 }
 
+/**
+ * Re-identify one species row of a unit: it keeps everything recorded for it
+ * (cover, abundance, cells, hits, phenology, notes, position, occurrence id)
+ * and only points at another taxon. Refused when the unit already lists that
+ * taxon — merging two rows would have to pick whose data survives.
+ * The old taxon stays on the survey roster (an undo points back to it).
+ */
+export function replaceUnitSpeciesTaxon(usid: number, taxonId: string): 'ok' | 'exists' | 'same' {
+  return withTransaction(() => {
+    const db = getUserDb();
+    const row = rows<{ unit_id: number; gloria_taxon_id: number; survey_id: number }>(
+      db.executeSync(
+        `SELECT us.unit_id, us.gloria_taxon_id, u.survey_id FROM gloria_unit_species us
+           JOIN gloria_units u ON u.id = us.unit_id WHERE us.id = ?`,
+        [usid],
+      ),
+    )[0];
+    if (!row) throw new Error(`gloria unit species ${usid} not found`);
+    const gid = ensureRosterTaxon(row.survey_id, taxonId);
+    if (gid === row.gloria_taxon_id) return 'same';
+    const clash = rows(
+      db.executeSync(`SELECT 1 FROM gloria_unit_species WHERE unit_id = ? AND gloria_taxon_id = ? AND id != ?`, [
+        row.unit_id,
+        gid,
+        usid,
+      ]),
+    ).length;
+    if (clash) return 'exists';
+    db.executeSync(`UPDATE gloria_unit_species SET gloria_taxon_id = ?, updated_at = ? WHERE id = ?`, [gid, Date.now(), usid]);
+    touchSurvey(row.survey_id);
+    return 'ok';
+  });
+}
+
+/**
+ * A re-identification asked for from the species page, picked up by the unit
+ * screen when it regains focus (its docked search box does the picking).
+ */
+let pendingReplace: number | null = null;
+export function requestSpeciesReplace(usid: number): void {
+  pendingReplace = usid;
+}
+export function takeSpeciesReplace(): number | null {
+  const v = pendingReplace;
+  pendingReplace = null;
+  return v;
+}
+
 /** Save a unit's species order: `ids` in their new order. */
 export function setUnitSpeciesOrder(ids: number[]): void {
   withTransaction(() => {

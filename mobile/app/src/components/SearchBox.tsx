@@ -73,6 +73,15 @@ type Props = {
    * remembered as `last_search_groups`.
    */
   scopeGroups?: TaxonGroup[];
+  /** The input got focus — e.g. to make room for the list being added to. */
+  onFocus?: () => void;
+  /**
+   * Window y of the top of the screen's content (just under the navigation
+   * header). Docked suggestions never grow above it. Without it the limit is
+   * estimated from the header height alone, which misses chrome drawn above
+   * the navigator (the active-record bar).
+   */
+  topLimit?: number;
   /**
    * Which way round the box is built.
    *
@@ -142,6 +151,8 @@ export function SearchBox({
   layout = 'dock',
   runLookup = (run) => run(),
   scopeGroups,
+  onFocus,
+  topLimit,
 }: Props) {
   const { t } = useTranslation();
   const lastGroups = useSettings((s) => s.last_search_groups);
@@ -270,7 +281,7 @@ export function SearchBox({
   const [chromeHeight, setChromeHeight] = useState(0);
   const listCap =
     !dropdown && keyboardHeight > 0
-      ? Math.max(96, windowHeight - headerHeight - keyboardHeight - chromeHeight - 8)
+      ? Math.max(96, windowHeight - (topLimit ?? headerHeight) - keyboardHeight - chromeHeight - 8)
       : undefined;
 
   const suggestions =
@@ -355,6 +366,7 @@ export function SearchBox({
           value={query}
           onChangeText={setQuery}
           autoFocus={autoFocus}
+          onFocus={onFocus}
           autoCorrect={false}
           returnKeyType="search"
         />
