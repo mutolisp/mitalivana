@@ -1,8 +1,9 @@
 /**
  * The record header's ⋯ menu (checklist, plot survey, GLORIA): 研究報告, and
- * 同步 once this device has joined a team. One button instead of two keeps
- * the header from pushing the end / reopen button off screen (GLORIA) or
- * squeezing the title to nothing (checklist, plot).
+ * 同步 once this device has joined a team. With a team there is also a sync
+ * button beside it that syncs in one tap; the menu keeps 同步 because its
+ * title is where the last sync time shows. Without a team only ⋯ is drawn,
+ * so headers of people who never use teams stay as narrow as before.
  *
  * 同步 is the only thing that sends: no background sync, per the field-use
  * rules (battery, no signal).
@@ -14,7 +15,7 @@ import { useTranslation } from 'react-i18next';
 import { Alert } from 'react-native';
 import { showActionSheet } from '~/components/ActionSheet';
 import type { MergeKind } from '~/lib/mergeDocs';
-import { lastSyncedAt, linkedTeams, listTeams, recordUuid, syncRecord } from '~/lib/teamSync';
+import { hasSecret, lastSyncedAt, linkedTeams, listTeams, recordUuid, syncRecord } from '~/lib/teamSync';
 import { teamSyncErrorText } from '~/lib/teamSyncText';
 import { useToast } from '~/stores/toast';
 import { HeaderIconButton } from './HeaderIconButton';
@@ -35,7 +36,13 @@ export function RecordMenuButton({
   const toast = useToast((s) => s.show);
   const [hasTeam, setHasTeam] = useState(false);
   const [busy, setBusy] = useState(false);
-  useFocusEffect(useCallback(() => setHasTeam(listTeams().length > 0), []));
+  // Only teams this device holds the key for: a team restored from a backup
+  // without its key cannot sync, so it must not bring up the button.
+  useFocusEffect(
+    useCallback(() => {
+      void Promise.all(listTeams().map((x) => hasSecret(x.team_id))).then((keys) => setHasTeam(keys.some(Boolean)));
+    }, []),
+  );
 
   const pickTeam = async (): Promise<string | null> => {
     const teams = listTeams();
@@ -97,11 +104,11 @@ export function RecordMenuButton({
   };
 
   return (
-    <HeaderIconButton
-      icon={hasTeam ? 'ellipsis-horizontal-circle-outline' : 'ellipsis-horizontal'}
-      onPress={() => void open()}
-      disabled={busy}
-      label={t('record.moreActions')}
-    />
+    <>
+      {hasTeam ? (
+        <HeaderIconButton icon="cloud-outline" onPress={() => void sync()} disabled={busy} label={t('teamSync.sync')} />
+      ) : null}
+      <HeaderIconButton icon="ellipsis-horizontal" onPress={() => void open()} disabled={busy} label={t('record.moreActions')} />
+    </>
   );
 }

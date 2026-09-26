@@ -14,7 +14,7 @@
 |---|---|
 | `Plan.md`（本檔） | **待辦** ＋ 現行架構與長效設計決策 |
 | `Update_log.md` | 已 ship 與踩過的坑；附錄 A–D 收了本檔原本 4,000 多行的 sprint 推導過程 |
-| `Device_test.md` | 實機驗證清單（697 項，已通過並勾選 4 項，2026-09-26）。**驗證項不要寫回本檔** |
+| `Device_test.md` | 實機驗證清單（715 項，已通過並勾選 4 項，2026-09-26）。**驗證項不要寫回本檔** |
 | 守門 | `npm run check:*` 共 **46 支**（最新加入 `check:team-crypto`、`check:team-quota`、`check:privacy`） |
 | `docs/` | 仍代表現況的參考文件：檢索表、樣區、匯出外部 API、報表、物種詳細頁、地圖、i18n、多人合併（`Team_merge.md`）、隊伍同步（`Team_sync.md`）；`docs/gloria-ui/` GLORIA 介面草稿（五語） |
 | `sync-worker/` | 隊伍同步中繼伺服器（Cloudflare Worker＋R2）與自架說明（README） |
@@ -387,10 +387,11 @@ GLORIA 介面草稿（五語）→ `docs/gloria-ui/`（原稿、譯文與建置�
 - 上限：每隊伍、每台裝置、每日次數、全伺服器，可調、可個別覆寫。公用預設伺服器用嚴格值；自架（App 內，或 `npm run deploy -- --self-host`）
   用 `SELF_HOST_VARS` 大幅放寬（每隊／每台 8 GB、1,000 台、每天 100,000 次、單檔 10 MB），保留全伺服器 8 GB 與每隊 5,000 檔。
 - 自架：app 內部署（先檢查帳號有無 workers.dev 子網域，沒有就停下說明，不建立任何東西），或電腦用腳本／wrangler。
-- 記錄畫面標題列：「研究報告」與「同步」收進 ⋯ 選單（`RecordMenuButton`）；名錄與 GLORIA 標題截斷時點一下顯示全名。
+- 記錄畫面標題列：「研究報告」與「同步」收進 ⋯ 選單（`RecordMenuButton`），有隊伍（持有金鑰）時旁邊多一顆雲朵鈕一按同步；名錄與 GLORIA 標題截斷時點一下顯示全名。
 - 設定 → 隱私權政策：App 內離線顯示（`check:privacy` 確保與 `PRIVACY.md` 一致）。
 - 隊員名稱（v59）：建立／加入時設定，名稱只在加密資料內；同步提示、審閱標頭與「隊員」清單顯示誰上傳了什麼。
 - 伺服器清單與搬移（v60）：記住自己部署與輸入過的伺服器、可設新隊伍預設；隊長可把隊伍搬到其他伺服器（同一把金鑰，隊員用新邀請碼加入即切換，資料保留）。
+- 隊伍頁：點隊伍進入分段的詳細頁（取代九項的動作選單）；電腦自架後以終端機 QR（`checklister://team/server`）把伺服器加進 App，不必貼網址。
 - 隱私政策 v0.2。
 - `check:team-crypto`、`check:team-quota`、`check:privacy` 守門。
 

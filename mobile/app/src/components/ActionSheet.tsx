@@ -126,7 +126,7 @@ export function ActionSheetHost() {
                 className={`items-center justify-center border-b border-gray-100 dark:border-gray-800 py-3.5 active:bg-gray-50 dark:active:bg-gray-800 ${i === pending.options.length - 1 ? 'border-b-0' : ''}`}
               >
                 <Text
-                  className={`text-base ${opt.destructive ? 'font-semibold text-red-600 dark:text-red-400' : 'text-blue-600 dark:text-blue-400'}`}
+                  className={`text-center text-base ${opt.destructive ? 'font-semibold text-red-600 dark:text-red-400' : 'text-blue-600 dark:text-blue-400'}`}
                 >
                   {opt.label}
                 </Text>
