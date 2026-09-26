@@ -434,9 +434,11 @@ export default function GloriaUnitScreen() {
             </Text>
             {!timesOpen ? (
               <Text className="text-xs text-gray-500 dark:text-gray-400" numberOfLines={1}>
-                {unit.start_ts != null
-                  ? isoStamp(unit.start_ts).slice(0, 16)
-                  : t('gloria.times.notYet')}
+                {unit.start_ts == null
+                  ? t('gloria.times.notYet')
+                  : unit.date_only === 1
+                    ? `${isoStamp(unit.start_ts).slice(0, 10)} ${t('gloria.times.timeUnset')}`
+                    : isoStamp(unit.start_ts).slice(0, 16)}
               </Text>
             ) : null}
           </Pressable>

@@ -1885,6 +1885,17 @@ const MIGRATIONS: Migration[] = [
       );
     },
   },
+  {
+    // GLORIA: a unit start filled from the survey's start date carries no
+    // time of day — 1 = `start_ts` is local midnight standing for "that date,
+    // time unknown". NULL otherwise (never 0; merge-safe like freq_skipped).
+    // Such a unit is not "started": status, counts and the first-input stamp
+    // treat it as untouched.
+    version: 64,
+    up: (db) => {
+      addColumnIfMissing(db, `ALTER TABLE gloria_units ADD COLUMN date_only INTEGER;`);
+    },
+  },
 ];
 
 /** Highest schema version this build knows how to produce. Backup/restore uses

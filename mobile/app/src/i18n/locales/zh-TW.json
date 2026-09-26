@@ -2407,6 +2407,25 @@
       "addNew": "新增 {{name}} {{label}}",
       "taken": "這次調查已經有 {{label}} 了，標籤未更改"
     },
+    "dates": {
+      "title": "調查日期",
+      "start": "開始",
+      "end": "結束",
+      "endSameDay": "設為同一天（{{date}}）",
+      "fromUnits": "從各樣區帶入",
+      "toUnits": "帶入各樣區",
+      "hint": "「從各樣區帶入」：以 1×1 m、SAS、10×10 m 記錄的最早與最晚日期作為開始與結束。「帶入各樣區」：尚未有日期的樣區填入開始日期（只填日期，時刻空白）；已有日期的不會被覆蓋。",
+      "fromUnitsTitle": "從各樣區帶入調查日期",
+      "fromUnitsMsg": "依各樣區最早與最晚的記錄，開始調查日期改為 {{start}}、結束調查日期改為 {{end}}（時刻不變）。",
+      "toUnitsTitle": "帶入各樣區",
+      "toUnitsMsg_other": "{{count}} 個尚未填日期的樣區將填入 {{date}}（只填日期，時刻空白）。",
+      "otherDay_other": "注意：{{count}} 個樣區已有其他日期，不會更改：{{list}}",
+      "noneEmpty": "所有樣區都已有日期，沒有需要填入的",
+      "filled_other": "已在 {{count}} 個樣區填入日期",
+      "apply": "套用",
+      "orderTitle": "日期順序不對",
+      "order": "結束調查日期不能早於開始調查日期。"
+    },
     "step": {
       "cover": "覆蓋度與地表",
       "frequency": "頻度",
@@ -2668,6 +2687,7 @@
       "byNone": "未指定",
       "titleOnly": "調查時間",
       "notYet": "尚未開始",
+      "timeUnset": "時刻未填",
       "afterCover": "接續優勢度：{{time}}",
       "sameAsStart": "同開始時間（{{time}}）"
     },

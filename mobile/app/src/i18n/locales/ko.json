@@ -2407,6 +2407,25 @@
       "addNew": "{{name}} {{label}} 추가",
       "taken": "이 조사에 이미 {{label}}이(가) 있어 라벨을 바꾸지 않았습니다"
     },
+    "dates": {
+      "title": "조사 날짜",
+      "start": "시작",
+      "end": "종료",
+      "endSameDay": "같은 날로 설정({{date}})",
+      "fromUnits": "각 구역에서 가져오기",
+      "toUnits": "각 구역에 넣기",
+      "hint": "각 구역에서 가져오기: 1×1 m, SAS, 10×10 m 기록 중 가장 이른 날짜와 늦은 날짜를 시작·종료로 합니다. 각 구역에 넣기: 날짜가 없는 구역에 시작 날짜를 넣습니다(날짜만, 시각은 비움). 날짜가 있는 구역은 덮어쓰지 않습니다.",
+      "fromUnitsTitle": "각 구역에서 조사 날짜 가져오기",
+      "fromUnitsMsg": "각 구역의 가장 이른·늦은 기록에 따라 시작을 {{start}}, 종료를 {{end}}(으)로 바꿉니다(시각은 그대로).",
+      "toUnitsTitle": "각 구역에 넣기",
+      "toUnitsMsg_other": "날짜가 없는 구역 {{count}}곳에 {{date}}을(를) 넣습니다(날짜만, 시각은 비움).",
+      "otherDay_other": "참고: 구역 {{count}}곳은 이미 다른 날짜가 있어 바꾸지 않습니다: {{list}}",
+      "noneEmpty": "모든 구역에 날짜가 있어 넣을 것이 없습니다",
+      "filled_other": "구역 {{count}}곳에 날짜를 넣었습니다",
+      "apply": "적용",
+      "orderTitle": "날짜 순서가 맞지 않습니다",
+      "order": "종료 날짜는 시작 날짜보다 앞설 수 없습니다."
+    },
     "step": {
       "cover": "피도와 지표",
       "frequency": "빈도",
@@ -2668,6 +2687,7 @@
       "byNone": "미지정",
       "titleOnly": "조사 시간",
       "notYet": "시작 전",
+      "timeUnset": "시각 미입력",
       "afterCover": "피도 추정에 이어서: {{time}}",
       "sameAsStart": "시작과 같게({{time}})"
     },

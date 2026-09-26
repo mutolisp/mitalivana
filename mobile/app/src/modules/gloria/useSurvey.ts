@@ -122,8 +122,9 @@ export function loadSurveyState(id: number): SurveyState | null {
     if (!u) return 'none';
     if (issues.some((i) => i.unit === code)) return 'warn';
     if (u.done_locked === 1) return 'done';
+    // A date filled from the survey (date_only) is not a start.
     const touched =
-      u.start_ts != null ||
+      (u.start_ts != null && u.date_only !== 1) ||
       u.point_surface != null ||
       u.cov_vascular != null ||
       speciesOf(code).length > 0;

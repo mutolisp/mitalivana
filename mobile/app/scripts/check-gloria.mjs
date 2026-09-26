@@ -9,6 +9,7 @@
  *   - prefill carries plot positions only, never species or values
  *   - sheet headers: spCode dropped, 12_+13_ merged in the right order
  *   - morphospecies labels (sp1, sp2): next label, relabel plan, sheet comments
+ *   - survey dates ↔ unit dates: span, clock times kept, fill only empty units
  *
  * Run: npm run check:gloria
  */
@@ -38,6 +39,7 @@ import { element8, parseOverviewPhotos } from '../src/modules/gloria/model/overv
 import { bySpeciesOrder } from '../src/modules/gloria/model/speciesOrder.ts';
 import { followCoverTimes, nextMinute } from '../src/modules/gloria/model/quadratTimes.ts';
 import { nextMorphoLabel, planNewMorpho } from '../src/modules/gloria/model/morpho.ts';
+import { unitTimeSpan, surveyDatesFromUnits, planUnitDates, takesRealStart } from '../src/modules/gloria/model/surveyDates.ts';
 import { speciesComments } from '../src/modules/gloria/export/sheetRows.ts';
 
 let failures = 0;
@@ -530,6 +532,28 @@ eq('SAS abundance codes (sheet 33_)', SAS_ABUNDANCE_CODE, { d: 1, c: 2, s: 3, r:
   eq('sheet comments: label first, then the notes', speciesComments({ morpho_label: 'sp2', comments: 'leaves hairy' }), 'sp2; leaves hairy');
   eq('sheet comments: no label → notes as they are', speciesComments({ morpho_label: null, comments: 'x' }), 'x');
   eq('sheet comments: label only', speciesComments({ morpho_label: 'sp1', comments: null }), 'sp1');
+}
+
+// ── Survey dates ↔ unit dates ──
+{
+  const at = (mo, d, h, mi = 0) => new Date(2026, mo - 1, d, h, mi).getTime();
+  const units = [
+    { code: 'N11', start_ts: at(8, 14, 9, 42), stop_ts: at(8, 14, 10, 5), freq_start_ts: at(8, 14, 10, 6), freq_stop_ts: null },
+    { code: 'N05', start_ts: at(8, 15, 11, 20), stop_ts: null, pf_stop_ts: at(8, 15, 16, 30) },
+    { code: 'N', start_ts: null, stop_ts: null },
+  ];
+  eq('span: earliest and latest time over every unit column', unitTimeSpan(units), { first: at(8, 14, 9, 42), last: at(8, 15, 16, 30) });
+  eq('span: no times → null', unitTimeSpan([{ code: 'N', start_ts: null, stop_ts: null }]), null);
+  eq('units → survey: dates move, the survey clock times stay',
+    surveyDatesFromUnits({ start_ts: at(9, 1, 8, 0), stop_ts: at(9, 2, 17, 0) }, unitTimeSpan(units)),
+    { start_ts: at(8, 14, 8, 0), stop_ts: at(8, 15, 17, 0) });
+  eq('units → survey: an empty end takes the last unit time',
+    surveyDatesFromUnits({ start_ts: at(9, 1, 8, 0), stop_ts: null }, unitTimeSpan(units)).stop_ts, at(8, 15, 16, 30));
+  eq('survey → units: only empty units, at local midnight; a start on another day is reported',
+    planUnitDates(units, at(8, 14, 8, 0)),
+    { fill: ['N'], value: at(8, 14, 0, 0), otherDay: [{ code: 'N05', start_ts: at(8, 15, 11, 20) }] });
+  eq('date-only start takes the real time only on that day',
+    [takesRealStart(at(8, 14, 0), at(8, 14, 9, 30)), takesRealStart(at(8, 14, 0), at(9, 20, 9, 30))], [true, false]);
 }
 
 if (failures) {

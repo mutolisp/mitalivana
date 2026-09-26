@@ -27,6 +27,7 @@ import { ALL_UNITS, DIRECTIONS, POINTS, type Direction, type P5mCorner, type Uni
 import { planPrefill, nextSerial, type PrevSurvey } from './model/prefill';
 import type { WalkOption } from './model/walk';
 import { nextMinute, onDay } from './model/quadratTimes';
+import { takesRealStart } from './model/surveyDates';
 import { bySpeciesOrder } from './model/speciesOrder';
 import type { SummitDiff } from './model/summitImport';
 import type { GloriaDoc } from './export/yaml';
@@ -113,6 +114,8 @@ export type GloriaUnit = {
   pf_locked: number;
   /** 1 = frequency and point-framing not done here (shrubs; v62). NULL = not skipped, never 0. */
   freq_skipped: number | null;
+  /** 1 = start_ts is only a date (filled from the survey's start date; v64). NULL otherwise. */
+  date_only: number | null;
   recorded_by: string | null;
   aspect_deg: number | null;
   slope_deg: number | null;
@@ -341,7 +344,7 @@ export function listGloriaSurveysWithMeta(): GloriaSurveyWithMeta[] {
                  JOIN gloria_units u ON u.id = us.unit_id
                 WHERE u.survey_id = v.id) AS species_count,
               (SELECT COUNT(*) FROM gloria_units u
-                WHERE u.survey_id = v.id AND (u.start_ts IS NOT NULL OR u.point_surface IS NOT NULL
+                WHERE u.survey_id = v.id AND ((u.start_ts IS NOT NULL AND u.date_only IS NULL) OR u.point_surface IS NOT NULL
                    OR EXISTS (SELECT 1 FROM gloria_unit_species us WHERE us.unit_id = u.id))
               ) AS units_started
          FROM gloria_surveys v
@@ -984,8 +987,49 @@ export function touchFrequency(unitId: number): void {
   getUserDb().executeSync(`UPDATE gloria_units SET freq_stop_ts = ? WHERE id = ? AND freq_stop_manual = 0`, [now, unitId]);
 }
 
+/**
+ * First input on a unit: stamp its start. A date-only start (filled from the
+ * survey date) takes the real time when recording happens that very day;
+ * on any other day it is a date typed from an old sheet and stays.
+ */
 export function markUnitStarted(unitId: number): void {
-  getUserDb().executeSync(`UPDATE gloria_units SET start_ts = ? WHERE id = ? AND start_ts IS NULL`, [Date.now(), unitId]);
+  const db = getUserDb();
+  const now = Date.now();
+  const u = rows<{ start_ts: number | null; date_only: number | null }>(
+    db.executeSync(`SELECT start_ts, date_only FROM gloria_units WHERE id = ?`, [unitId]),
+  )[0];
+  if (!u) return;
+  if (u.start_ts == null || (u.date_only === 1 && takesRealStart(u.start_ts, now))) {
+    db.executeSync(`UPDATE gloria_units SET start_ts = ?, date_only = NULL WHERE id = ?`, [now, unitId]);
+  }
+}
+
+/** Survey start / end moved to other days (base data), clock times kept by the caller. */
+export function setSurveyDates(surveyId: number, dates: { start_ts: number; stop_ts: number | null }): void {
+  patchRow('gloria_surveys', surveyId, dates, true);
+}
+
+/**
+ * Give every unit of the survey that has no start the given date, as a date
+ * without a time (model/surveyDates planUnitDates). Units with a start are
+ * left alone. Returns how many were filled.
+ */
+export function fillUnitDates(surveyId: number, codes: string[], value: number): number {
+  if (!codes.length) return 0;
+  return withTransaction(() => {
+    const db = getUserDb();
+    const now = Date.now();
+    let n = 0;
+    for (const code of codes) {
+      const r = db.executeSync(
+        `UPDATE gloria_units SET start_ts = ?, date_only = 1, updated_at = ? WHERE survey_id = ? AND code = ? AND start_ts IS NULL`,
+        [value, now, surveyId, code],
+      );
+      n += r.rowsAffected ?? 0;
+    }
+    touchSurvey(surveyId);
+    return n;
+  });
 }
 
 /**

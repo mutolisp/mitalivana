@@ -2548,6 +2548,28 @@
       "addNew": "{{name}} {{label}} neu",
       "taken": "Diese Aufnahme hat bereits {{label}}; Etikett nicht geändert"
     },
+    "dates": {
+      "title": "Aufnahmedaten",
+      "start": "Beginn",
+      "end": "Ende",
+      "endSameDay": "Gleicher Tag ({{date}})",
+      "fromUnits": "Aus Einheiten übernehmen",
+      "toUnits": "In Einheiten eintragen",
+      "hint": "Aus Einheiten übernehmen: das früheste und späteste Datum der 1×1-m-Quadrate, SAS und 10×10-m-Flächen wird Beginn und Ende. In Einheiten eintragen: Einheiten ohne Datum erhalten das Beginndatum (nur Datum, Uhrzeit leer); vorhandene Daten werden nie überschrieben.",
+      "fromUnitsTitle": "Aufnahmedaten aus Einheiten übernehmen",
+      "fromUnitsMsg": "Nach den frühesten und spätesten Einträgen wird der Beginn {{start}} und das Ende {{end}} (Uhrzeiten unverändert).",
+      "toUnitsTitle": "In Einheiten eintragen",
+      "toUnitsMsg_one": "{{count}} Einheit ohne Datum erhält {{date}} (nur Datum, Uhrzeit leer).",
+      "toUnitsMsg_other": "{{count}} Einheiten ohne Datum erhalten {{date}} (nur Datum, Uhrzeit leer).",
+      "otherDay_one": "Hinweis: {{count}} Einheit hat bereits ein anderes Datum und bleibt unverändert: {{list}}",
+      "otherDay_other": "Hinweis: {{count}} Einheiten haben bereits ein anderes Datum und bleiben unverändert: {{list}}",
+      "noneEmpty": "Alle Einheiten haben bereits ein Datum; nichts einzutragen",
+      "filled_one": "Datum in {{count}} Einheit eingetragen",
+      "filled_other": "Datum in {{count}} Einheiten eingetragen",
+      "apply": "Übernehmen",
+      "orderTitle": "Daten in falscher Reihenfolge",
+      "order": "Das Enddatum darf nicht vor dem Beginndatum liegen."
+    },
     "step": {
       "cover": "Deckung und Oberfläche",
       "frequency": "Frequenz",
@@ -2819,6 +2841,7 @@
       "byNone": "Nicht gesetzt",
       "titleOnly": "Aufnahmezeiten",
       "notYet": "Noch nicht begonnen",
+      "timeUnset": "Uhrzeit fehlt",
       "afterCover": "Nach Deckungsschätzung: {{time}}",
       "sameAsStart": "Wie Beginn ({{time}})"
     },

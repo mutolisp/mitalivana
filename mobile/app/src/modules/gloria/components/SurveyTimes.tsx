@@ -105,7 +105,8 @@ export function SurveyTimes({
               ] as Pair[])),
         ]
       : [{ label: t('gloria.times.survey'), start: 'start_ts', stop: 'stop_ts' }];
-  const save = (p: Pair, col: Pair['start'] | Pair['stop'], ts: number) => {
+  /** `part`: which half was picked — a time on a date-only start makes it a real start. */
+  const save = (p: Pair, col: Pair['start'] | Pair['stop'], ts: number, part?: 'date' | 'time') => {
     const start = col === p.start ? ts : unit[p.start];
     const stop = col === p.stop ? ts : unit[p.stop];
     if (start != null && stop != null && stop < start) {
@@ -114,6 +115,7 @@ export function SurveyTimes({
     }
     const patch: UnitPatch = { [col]: ts };
     if (col === 'freq_stop_ts') patch.freq_stop_manual = 1;
+    if (col === 'start_ts' && part === 'time' && unit.date_only === 1) patch.date_only = null;
     // Frequency follows the cover estimate: same day, next minute (model/quadratTimes).
     if (unit.unit_type === 'quadrat' && unit.freq_skipped !== 1 && (col === 'start_ts' || col === 'stop_ts')) {
       Object.assign(patch, followCoverTimes(unit, col, ts));
@@ -143,8 +145,14 @@ export function SurveyTimes({
           // few flicks, where one datetime wheel steps through every day.
           // Stacked, not side by side — a half-width spinner overflows.
           <View className="flex-1 gap-1.5">
-            <DateTimeField value={v} mode="date" onChange={(ts) => save(p, col, ts)} />
-            <DateTimeField value={v} mode="time" format={(ts) => isoStamp(ts).slice(11)} onChange={(ts) => save(p, col, ts)} />
+            <DateTimeField value={v} mode="date" onChange={(ts) => save(p, col, ts, 'date')} />
+            <DateTimeField
+              value={v}
+              mode="time"
+              // A start filled from the survey date has no time yet.
+              format={(ts) => (col === 'start_ts' && unit.date_only === 1 ? t('gloria.times.timeUnset') : isoStamp(ts).slice(11))}
+              onChange={(ts) => save(p, col, ts, 'time')}
+            />
           </View>
         ) : (
           <View className="flex-1 gap-1.5">
@@ -158,7 +166,10 @@ export function SurveyTimes({
                 className="rounded-lg border border-dashed border-[#00A2A5] px-3 py-2"
               >
                 <Text className="text-xs text-[#00797b] dark:text-cyan-300">
-                  {t('gloria.times.sameAsStart', { time: isoStamp(unit[p.start] as number).slice(0, 16) })}
+                  {t('gloria.times.sameAsStart', {
+                    // A date-only start has no time to copy.
+                    time: isoStamp(unit[p.start] as number).slice(0, p.start === 'start_ts' && unit.date_only === 1 ? 10 : 16),
+                  })}
                 </Text>
               </Pressable>
             ) : null}

@@ -2407,6 +2407,25 @@
       "addNew": "{{name}} {{label}} を追加",
       "taken": "この調査には既に {{label}} があります。ラベルは変更されていません"
     },
+    "dates": {
+      "title": "調査日",
+      "start": "開始",
+      "end": "終了",
+      "endSameDay": "同じ日にする（{{date}}）",
+      "fromUnits": "各区画から反映",
+      "toUnits": "各区画に反映",
+      "hint": "「各区画から反映」：1×1 m・SAS・10×10 m の記録の最も早い日と遅い日を開始・終了日にします。「各区画に反映」：日付のない区画に開始日を入れます（日付のみ、時刻は空欄）。日付のある区画は上書きしません。",
+      "fromUnitsTitle": "各区画から調査日を反映",
+      "fromUnitsMsg": "各区画の最も早い・遅い記録から、開始日を {{start}}、終了日を {{end}} にします（時刻は変わりません）。",
+      "toUnitsTitle": "各区画に反映",
+      "toUnitsMsg_other": "日付のない {{count}} 区画に {{date}} を入れます（日付のみ、時刻は空欄）。",
+      "otherDay_other": "注意：{{count}} 区画は別の日付があるため変更しません：{{list}}",
+      "noneEmpty": "すべての区画に日付があります。入れるものはありません",
+      "filled_other": "{{count}} 区画に日付を入れました",
+      "apply": "適用",
+      "orderTitle": "日付の順序が正しくありません",
+      "order": "終了日を開始日より前にはできません。"
+    },
     "step": {
       "cover": "被度と地表",
       "frequency": "頻度",
@@ -2668,6 +2687,7 @@
       "byNone": "未設定",
       "titleOnly": "調査時刻",
       "notYet": "未開始",
+      "timeUnset": "時刻未入力",
       "afterCover": "被度推定に続けて：{{time}}",
       "sameAsStart": "開始と同じ（{{time}}）"
     },

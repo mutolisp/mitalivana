@@ -2548,6 +2548,28 @@
       "addNew": "New {{name}} {{label}}",
       "taken": "This survey already has {{label}}; label not changed"
     },
+    "dates": {
+      "title": "Survey dates",
+      "start": "Start",
+      "end": "End",
+      "endSameDay": "Same day ({{date}})",
+      "fromUnits": "Take from units",
+      "toUnits": "Fill units",
+      "hint": "Take from units: the earliest and latest dates recorded on the 1×1 m quadrats, SAS and 10×10 m squares become the start and end. Fill units: units with no date get the start date (date only, time left blank); a unit that already has a date is never overwritten.",
+      "fromUnitsTitle": "Take survey dates from units",
+      "fromUnitsMsg": "From the earliest and latest unit records, the survey start becomes {{start}} and the end {{end}} (times unchanged).",
+      "toUnitsTitle": "Fill units",
+      "toUnitsMsg_one": "{{count}} unit without a date will get {{date}} (date only, time blank).",
+      "toUnitsMsg_other": "{{count}} units without a date will get {{date}} (date only, time blank).",
+      "otherDay_one": "Note: {{count}} unit already has another date and stays as it is: {{list}}",
+      "otherDay_other": "Note: {{count}} units already have another date and stay as they are: {{list}}",
+      "noneEmpty": "Every unit already has a date; nothing to fill",
+      "filled_one": "Date filled in {{count}} unit",
+      "filled_other": "Date filled in {{count}} units",
+      "apply": "Apply",
+      "orderTitle": "Dates out of order",
+      "order": "The end date cannot be before the start date."
+    },
     "step": {
       "cover": "Species and surface cover",
       "frequency": "Frequency",
@@ -2819,6 +2841,7 @@
       "byNone": "Not set",
       "titleOnly": "Survey times",
       "notYet": "Not started",
+      "timeUnset": "time not set",
       "afterCover": "After cover estimate: {{time}}",
       "sameAsStart": "Same as start ({{time}})"
     },

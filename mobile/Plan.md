@@ -14,7 +14,7 @@
 |---|---|
 | `Plan.md`（本檔） | **待辦** ＋ 現行架構與長效設計決策 |
 | `Update_log.md` | 已 ship 與踩過的坑；附錄 A–D 收了本檔原本 4,000 多行的 sprint 推導過程 |
-| `Device_test.md` | 實機驗證清單（731 項，已通過並勾選 4 項，2026-09-27）。**驗證項不要寫回本檔** |
+| `Device_test.md` | 實機驗證清單（737 項，已通過並勾選 4 項，2026-09-27）。**驗證項不要寫回本檔** |
 | 守門 | `npm run check:*` 共 **46 支**（最新加入 `check:team-crypto`、`check:team-quota`、`check:privacy`） |
 | `docs/` | 仍代表現況的參考文件：檢索表、樣區、匯出外部 API、報表、物種詳細頁、地圖、i18n、多人合併（`Team_merge.md`）、隊伍同步（`Team_sync.md`）；`docs/gloria-ui/` GLORIA 介面草稿（五語） |
 | `sync-worker/` | 隊伍同步中繼伺服器（Cloudflare Worker＋R2）與自架說明（README） |
@@ -287,7 +287,7 @@ GLORIA 介面草稿（五語）→ `docs/gloria-ui/`（原稿、譯文與建置�
 - [ ] `expo-sharing` 必須裝 14.x（SDK 54 對應版本），裝到 55.x 會 build fail（type 不相容）
 
 
-### G. GLORIA 山峰監測模組（2026-09-25 上線 v47–v55，細節見 `Update_log.md`）
+### G. GLORIA 山峰監測模組（2026-09-25 上線 v47–v55，2026-09-27 補 v62–v64，細節見 `Update_log.md`）
 
 已完成：
 - 用詞：summit＝山峰、1×1 m／10×10 m 樣區、山峰區域樣區（SAS）、point-frame＝頻度點擊法、abundance＝豐度
@@ -304,12 +304,13 @@ GLORIA 介面草稿（五語）→ `docs/gloria-ui/`（原稿、譯文與建置�
 - 每單位調查者與調查時間：1×1 m、SAS、10×10 m 都在最上方「樣區環境」摺疊區內、時間可單獨收摺；
   開始／結束（日期、時間分欄，自動記錄可手改；1×1 m 有優勢度估測、頻度、頻度點擊法三組）；
   頻度接續優勢度：同一天、優勢度結束的下一分鐘開始（`model/quadratTimes.ts`）；空白的結束可一鍵「同開始時間」，舊日期的頻度編輯不會把結束改成今天
+- 基礎資料的開始／結束調查日期，可從各樣區帶入或帶入各樣區（只填空白、只填日期；v64 `date_only`）
 - 未鑑定到種可標 sp1、sp2（v63，整次調查共用；加入時選既有或新增，詳細頁可改；Sheet 標籤放 comments）
 - 1×1 m 可勾「灌叢，不做頻度與頻度點擊法」（v62 `freq_skipped`；頻度依手冊 §5.1.2，頻度點擊法一併略過是專案規則）；1×1 m、SAS、10×10 m 都有備註（`comments`）；1×1 m 加物種後焦點跳到覆蓋度
 - 搜尋預設只找維管束植物（GLORIA 各搜尋框＋調查進行中的分類樹搜尋；可當下改選，不覆寫使用者的設定）
 - 統計報告：單次調查與專案（目標區域、山峰、複查次數、多樣性指數、與前次比較；類型／方位／山峰篩選）；專案統計顯示 GLORIA 筆數與山峰數
 - 山峰清單（偏好設定）：匯入／匯出山峰（00_ 欄位）、匯入量測點（只需點位、距離、方位）、匯出量測點（02_ 欄位），CSV 與 .xlsx
-- 介面草稿 artifact（https://claude.ai/artifact/QCgtqCyBKeKFhizoRVA1Cn ，v63，五語；原稿 `docs/gloria-ui/`）：
+- 介面草稿 artifact（https://claude.ai/artifact/QCgtqCyBKeKFhizoRVA1Cn ，v64，五語；原稿 `docs/gloria-ui/`）：
   01 建立～09 拍照檢核，05b 頻度點擊法；完成時的結束時間選擇、物種編號與拖拉、頻度接續優勢度都已反映；app 介面改動時同步更新
 
 待辦：

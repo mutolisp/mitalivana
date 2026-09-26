@@ -100,6 +100,8 @@ export type ExportUnit = {
   /** JSON {R,S,L,B,G,T: hits} for imported history without per-point data. */
   legacy_surface_hits: string | null;
   comments: string | null;
+  /** 1 = start_ts is a date only (filled from the survey date): no startTime. */
+  date_only?: number | null;
   uuid: string;
 };
 
@@ -234,6 +236,8 @@ export function buildSheetTables(d: GloriaExportData): SheetTable[] {
   const squares = d.units.filter((u) => u.unit_type === 'square');
   const unitResearcher = (u: ExportUnit) => researchers(u.recorded_by ?? sv.recorded_by);
   const unitDate = (u: ExportUnit) => localDate(u.start_ts ?? sv.start_ts);
+  // A date filled from the survey carries no time of day.
+  const unitStart = (u: ExportUnit) => (u.date_only === 1 ? '' : localTime(u.start_ts));
 
   // 00_plot_coordinates — one row per summit; the sheet leaves the
   // degree-minute Longitude / Latitude columns empty.
@@ -264,7 +268,7 @@ export function buildSheetTables(d: GloriaExportData): SheetTable[] {
       : '';
     return [
       '', `${sm.full_code}-${u.code}-mocy_${m}-1x1_env`, PROTOCOL.quadrat, ...base, u.code[0], u.code, unitDate(u),
-      localTime(u.start_ts), localTime(u.stop_ts), localTime(u.freq_start_ts), localTime(u.freq_stop_ts),
+      unitStart(u), localTime(u.stop_ts), localTime(u.freq_start_ts), localTime(u.freq_stop_ts),
       unitResearcher(u), sum, ok == null ? '' : ok ? 'TRUE' : 'FALSE', String(spp.length), u.comments ?? '',
       num(u.cov_vascular), num(u.cov_solid_rock), num(u.cov_scree), num(u.cov_lichens), num(u.cov_bryophytes),
       num(u.cov_bare_ground), num(u.cov_litter),
@@ -315,7 +319,7 @@ export function buildSheetTables(d: GloriaExportData): SheetTable[] {
   // 21_sas_env / 22_sas_sp
   const t21 = sas.map((u) => [
     `${sm.full_code}-${u.code}-mocy_${m}-SAS_env`, PROTOCOL.sas, ...base, u.code[0], u.code, unitDate(u),
-    localTime(u.start_ts), localTime(u.stop_ts), unitResearcher(u),
+    unitStart(u), localTime(u.stop_ts), unitResearcher(u),
     num(u.cov_vascular), num(u.cov_solid_rock), num(u.cov_scree), num(u.cov_lichens), num(u.cov_bryophytes),
     num(u.cov_bare_ground), num(u.cov_litter), String(speciesOf(u.code).length), '', u.comments ?? '', u.uuid,
   ]);
@@ -340,7 +344,7 @@ export function buildSheetTables(d: GloriaExportData): SheetTable[] {
     const h = (c: SurfaceCode) => (hits ? String(hits[c]) : '');
     t31.push([
       `${sm.full_code}-${u.code}-mocy_${m}-10x10_env`, PROTOCOL.square, ...base, u.code, unitDate(u),
-      localTime(u.start_ts), localTime(u.stop_ts), unitResearcher(u),
+      unitStart(u), localTime(u.stop_ts), unitResearcher(u),
       h('R'), h('S'), h('L'), h('B'), h('G'), h('T'), String(spp.length), u.comments ?? '', u.uuid,
     ]);
     spp.forEach((s, i) => {

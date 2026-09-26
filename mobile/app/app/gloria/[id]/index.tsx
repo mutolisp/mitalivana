@@ -22,6 +22,7 @@ import { issueText } from '~/modules/gloria/issues';
 import { QUADRAT_CODES, SAS_CODES, SQUARE_CODES, type Direction } from '~/modules/gloria/model/units';
 import { PointsForm } from '~/modules/gloria/components/PointsForm';
 import { SummitForm } from '~/modules/gloria/components/SummitForm';
+import { SurveyDates } from '~/modules/gloria/components/SurveyDates';
 import { startPointImport } from '~/modules/gloria/summitImportFile';
 import { errText } from '~/lib/errText';
 import { P5mDiagram, SummitSchematic } from '~/modules/gloria/components/SummitSchematic';
@@ -155,6 +156,7 @@ export default function GloriaSurveyScreen() {
         {tab === 'points' ? (
           <>
             <SummitForm state={state} reload={reload} />
+            <SurveyDates state={state} reload={reload} />
             <Btn
               label={t('gloria.pointImport.button')}
               onPress={() =>
