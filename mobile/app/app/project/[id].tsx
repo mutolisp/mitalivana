@@ -251,7 +251,22 @@ export default function ProjectDetailScreen() {
                   collections: t('projectDetail.nCollections', { count: counts.collection }),
                   sites: t('projectDetail.nSites', { count: siteCount }),
                 })}
+                {counts.gloria > 0
+                  ? ` · ${t('records.gloriaCount', {
+                      count: counts.gloria,
+                      summits: new Set(records.filter((r) => r.kind === 'gloria').map((r) => r.gloria?.summit_id)).size,
+                    })}`
+                  : ''}
               </Text>
+              {counts.gloria > 0 ? (
+                <Pressable
+                  onPress={() => router.push(`/report/gloriaProject/${projectId}` as Href)}
+                  accessibilityRole="button"
+                  className="mt-1 self-start active:opacity-60"
+                >
+                  <Text className="text-xs font-medium text-[#00797b] dark:text-cyan-300">{t('projectDetail.gloriaReport')} ›</Text>
+                </Pressable>
+              ) : null}
             </View>
           </View>
         }

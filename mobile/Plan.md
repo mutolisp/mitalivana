@@ -14,8 +14,8 @@
 |---|---|
 | `Plan.md`（本檔） | **待辦** ＋ 現行架構與長效設計決策 |
 | `Update_log.md` | 已 ship 與踩過的坑；附錄 A–D 收了本檔原本 4,000 多行的 sprint 推導過程 |
-| `Device_test.md` | 實機驗證清單（610 項，已通過並勾選 4 項，2026-09-26）。**驗證項不要寫回本檔** |
-| 守門 | `npm run check:*` 共 **41 支**（最新加入 `check:record-snapshot`、`check:usage-rank`） |
+| `Device_test.md` | 實機驗證清單（634 項，已通過並勾選 4 項，2026-09-26）。**驗證項不要寫回本檔** |
+| 守門 | `npm run check:*` 共 **42 支**（最新加入 `check:usage-rank`、`check:gloria-stats`） |
 | `docs/` | 仍代表現況的參考文件：檢索表、樣區、匯出外部 API、報表、物種詳細頁、地圖、i18n；`docs/gloria-ui/` GLORIA 介面草稿（五語） |
 | `docs/planned/` | 純規劃未動工：AI 辨識、P2P 協作、雲端協作 |
 | `archive/` | 已完成或被取代的設計稿與一次性稽核 |
@@ -303,8 +303,9 @@ GLORIA 介面草稿（五語）→ `docs/gloria-ui/`（原稿、譯文與建置�
   開始／結束（日期、時間分欄，自動記錄可手改；1×1 m 有優勢度估測、頻度、頻度點擊法三組）；
   頻度接續優勢度：同一天、優勢度結束的下一分鐘開始（`model/quadratTimes.ts`）；空白的結束可一鍵「同開始時間」，舊日期的頻度編輯不會把結束改成今天
 - 搜尋預設只找維管束植物（GLORIA 各搜尋框＋調查進行中的分類樹搜尋；可當下改選，不覆寫使用者的設定）
+- 統計報告：單次調查與專案（目標區域、山峰、複查次數、多樣性指數、與前次比較；類型／方位／山峰篩選）；專案統計顯示 GLORIA 筆數與山峰數
 - 山峰清單（偏好設定）：匯入／匯出山峰（00_ 欄位）、匯入量測點（只需點位、距離、方位）、匯出量測點（02_ 欄位），CSV 與 .xlsx
-- 介面草稿 artifact（https://claude.ai/artifact/QCgtqCyBKeKFhizoRVA1Cn ，v54，五語；原稿 `docs/gloria-ui/`）：
+- 介面草稿 artifact（https://claude.ai/artifact/QCgtqCyBKeKFhizoRVA1Cn ，v55，五語；原稿 `docs/gloria-ui/`）：
   01 建立～09 拍照檢核，05b 頻度點擊法；完成時的結束時間選擇、物種編號與拖拉、頻度接續優勢度都已反映；app 介面改動時同步更新
 
 待辦：
@@ -318,6 +319,7 @@ GLORIA 介面草稿（五語）→ `docs/gloria-ui/`（原稿、譯文與建置�
 5. **匯出大小估算** —— `exportSize.ts` 對 GLORIA 只算文字，未計照片（含拍照檢核與環境照片）。
 6. **外部相機的照片** —— 拍照檢核只記「已拍」，外部相機拍的檔案仍需在室內依附錄 III 命名（或用 GPDM）；
    app 只替 app 內的照片命名。之後可評估「匯入照片並依檢核項目自動命名」。
+7a. **SAS 等級換算為暫定慣例** —— d→4、c→3、s→2、r→1、r!→r（2026-09-26 指定）；若日後有團隊定案或文獻依據，改 `stats.ts GLORIA_TO_BB` 並更新報告方法段。
 7. **待確認** —— 截圖 4b 物種總表的 FRE 欄、Survey Type `CAL` 的意思（未確認前不做）。
 8. **MIREN** —— 本機沒有 protocol 原文，不做任何設計；拿到原文後照 GLORIA 模式另開 sibling 模組。
 9. **實機驗證** —— 已通過的在 `Device_test.md` 打 x；未確認的重點：頻度手勢、下拉選單在 iOS／Android 的顯示、

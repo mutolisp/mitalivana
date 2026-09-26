@@ -124,12 +124,19 @@ export default function GloriaSurveyScreen() {
           title: `${summit.full_code} · mocy ${survey.mocy}`,
           headerLeft: BackHeaderLeft,
           headerRight: () => (
-            <HeaderIconButton
-              icon={active ? 'stop-circle-outline' : 'refresh-outline'}
-              tone={active ? 'danger' : 'default'}
-              label={active ? t('session.end') : t('plot.reopen')}
-              onPress={toggleEnd}
-            />
+            <View className="flex-row items-center gap-3">
+              <HeaderIconButton
+                icon="document-text-outline"
+                onPress={() => router.push(`/report/gloria/${id}` as Href)}
+                label={t('report.navTitle')}
+              />
+              <HeaderIconButton
+                icon={active ? 'stop-circle-outline' : 'refresh-outline'}
+                tone={active ? 'danger' : 'default'}
+                label={active ? t('session.end') : t('plot.reopen')}
+                onPress={toggleEnd}
+              />
+            </View>
           ),
         }}
       />

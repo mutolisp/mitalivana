@@ -135,7 +135,7 @@ export type ReportSection = {
 };
 
 export type Report = {
-  kind: 'plot' | 'project' | 'session';
+  kind: 'plot' | 'project' | 'session' | 'gloria' | 'gloriaProject';
   title: string;
   subtitle?: string;
   /** ISO 8601, local time — the app never uses locale-formatted dates. */

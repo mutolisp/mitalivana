@@ -22,6 +22,18 @@ import type {
   ProjectReportInput,
   SessionReportInput,
 } from './reportModel';
+import {
+  getGloriaSurvey,
+  getSummit,
+  listGloriaSurveysWithMeta,
+  listSurveySpecies,
+  listUnits,
+  type GloriaSummit,
+  type GloriaSurvey,
+  type GloriaSurveyWithMeta,
+} from '~/modules/gloria/db';
+import type { SpeciesFieldRow, UnitKind } from '~/modules/gloria/model/stats';
+import type { GloriaCycle, GloriaProjectReportInput, GloriaReportInput } from './reportGloria';
 
 /**
  * Everything a plot report needs, in one pass. Mirrors the assembly
@@ -87,6 +99,7 @@ export function collectProjectReportInput(projectId: number): ProjectReportInput
       session: mine.filter((it) => it.kind === 'session').length,
       plot: mine.filter((it) => it.kind === 'plot').length,
       collection: mine.filter((it) => it.kind === 'collection').length,
+      gloria: mine.filter((it) => it.kind === 'gloria').length,
     },
     siteCount: listSitesByProject(projectId).length,
   };
@@ -109,4 +122,63 @@ export function collectSessionReportInput(sessionId: number): SessionReportInput
     projectName: project?.name ?? '',
     species: listSessionRecords(session.id),
   };
+}
+
+// ── GLORIA ──────────────────────────────────────────────────────────────────
+
+/** A survey's species rows in the shape the statistics take. */
+function gloriaRows(surveyId: number): SpeciesFieldRow[] {
+  const types = new Map(listUnits(surveyId).map((u) => [u.code, u.unit_type as UnitKind]));
+  return listSurveySpecies(surveyId).map((s) => ({
+    unit_code: s.unit_code,
+    unit_type: types.get(s.unit_code) ?? 'quadrat',
+    taxon_id: s.taxon_id,
+    name: s.common_name_c || s.simple_name || s.used_scientific_name || s.taxon_id,
+    cover_pct: s.cover_pct,
+    freq_cells: s.freq_cells,
+    freq_count: s.freq_count,
+    point_hits: s.point_hits,
+    legacy_hits: s.legacy_hits,
+    abundance: s.abundance,
+  }));
+}
+
+function gloriaCycle(v: GloriaSurvey): GloriaCycle {
+  return {
+    id: v.id,
+    mocy: v.mocy,
+    year: v.year,
+    status: v.status,
+    start_ts: v.start_ts,
+    stop_ts: v.stop_ts,
+    recorded_by: v.recorded_by,
+    rows: gloriaRows(v.id),
+  };
+}
+
+/** One survey, and the previous cycle of its summit (`prev_survey_id`). */
+export function collectGloriaReportInput(surveyId: number): GloriaReportInput | null {
+  const survey = getGloriaSurvey(surveyId);
+  if (!survey) return null;
+  const summit = getSummit(survey.summit_id);
+  if (!summit) return null;
+  const prev = survey.prev_survey_id != null ? getGloriaSurvey(survey.prev_survey_id) : null;
+  return { summit, survey: gloriaCycle(survey), prev: prev ? gloriaCycle(prev) : null };
+}
+
+/** Every GLORIA survey of a project, grouped by summit, cycles in mocy order. */
+export function collectGloriaProjectReportInput(projectId: number): GloriaProjectReportInput | null {
+  const project = getProject(projectId);
+  const surveys = listGloriaSurveysWithMeta().filter((v) => v.project_id === projectId);
+  if (surveys.length === 0) return null;
+  const bySummit = new Map<number, GloriaSurveyWithMeta[]>();
+  for (const v of surveys) bySummit.set(v.summit_id, [...(bySummit.get(v.summit_id) ?? []), v]);
+  const summits = [...bySummit]
+    .map(([summitId, list]) => ({
+      summit: getSummit(summitId),
+      cycles: [...list].sort((a, b) => a.mocy - b.mocy).map(gloriaCycle),
+    }))
+    .filter((s): s is { summit: GloriaSummit; cycles: GloriaCycle[] } => s.summit != null)
+    .sort((a, b) => a.summit.full_code.localeCompare(b.summit.full_code));
+  return { projectName: project?.name ?? '', summits };
 }

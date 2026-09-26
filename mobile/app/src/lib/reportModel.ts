@@ -487,7 +487,8 @@ export type ProjectReportInput = {
     species: ReportRecord[];
     subplotIds: number[];
   }>;
-  counts: { session: number; plot: number; collection: number };
+  /** `gloria`: GLORIA surveys of the project (listed; analysed in their own report). */
+  counts: { session: number; plot: number; collection: number; gloria?: number };
   siteCount: number;
 };
 
@@ -520,6 +521,7 @@ export function buildProjectReport(input: ProjectReportInput, t: Translate): Rep
     [t('record.kindPlot'), int(counts.plot)],
     [t('record.kindSession'), int(counts.session)],
     [t('record.kindCollection'), int(counts.collection)],
+    ...(counts.gloria ? [[t('record.kindGloria'), int(counts.gloria)]] : []),
     [t('nav.sites'), int(input.siteCount)],
   ];
   for (const [type, n] of typeCount) overviewRows.push([`  ${type}`, int(n)]);

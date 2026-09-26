@@ -197,6 +197,12 @@ function ProjectHeader({
       return count > 0 ? t(key, { count }) : null;
     })
     .filter((x): x is string => x !== null);
+  // GLORIA: surveys and the distinct summits they cover.
+  const gloria = group.items.filter((x) => x.kind === 'gloria');
+  if (gloria.length > 0) {
+    const summits = new Set(gloria.map((x) => x.gloria?.summit_id)).size;
+    parts.push(t('records.gloriaCount', { count: gloria.length, summits }));
+  }
   return (
     <Pressable
       onPress={selectMode ? onToggleSelect : onToggle}
