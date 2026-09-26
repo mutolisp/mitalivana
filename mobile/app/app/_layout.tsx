@@ -26,6 +26,7 @@ import { TextPromptHost } from '~/components/TextPromptModal';
 import { ToastHost } from '~/components/ToastHost';
 import { useThemeSync } from '~/hooks/useThemeSync';
 import { useI18nSync } from '~/hooks/useI18nSync';
+import { useDatasetUpdateCheck } from '~/lib/datasetUpdateCheck';
 import { useActivePlot } from '~/stores/activePlot';
 import { useActiveGloria } from '~/modules/gloria/store';
 import { useActiveSession } from '~/stores/activeSession';
@@ -72,6 +73,7 @@ export default function RootLayout() {
 function ThemedShell() {
   const scheme = useThemeSync();
   useI18nSync();
+  useDatasetUpdateCheck();
   const { t } = useTranslation();
   const isDark = scheme === 'dark';
   const session = useActiveSession((s) => s.session);

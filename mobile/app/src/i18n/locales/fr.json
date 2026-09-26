@@ -1840,6 +1840,8 @@
     "download": "Télécharger {{size}}",
     "update": "Mettre à jour {{size}}",
     "updateAvailable": "Mise à jour disponible",
+    "updateToast": "Une mise à jour des données de référentiel est disponible",
+    "updateToastAction": "Mettre à jour",
     "downloading": "Téléchargement {{percent}} %",
     "extracting": "Extraction {{percent}} %",
     "installing": "Installation…",

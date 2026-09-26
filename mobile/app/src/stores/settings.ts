@@ -157,6 +157,9 @@ type SettingsValues = {
   gbif_username: string;
   /** Email GBIF notifies when a pack download is ready ('' = no email). */
   gbif_notify_email: string;
+  /** `id@version,…` of the module updates already toasted about, so each new
+   *  set is announced once (see lib/datasetUpdateCheck.ts). */
+  dataset_update_notified: string;
   /** iNaturalist login of the linked account, for display only. The token
    *  itself lives in SecureStore (inatAuth.ts), never here. */
   inat_login: string;
@@ -308,6 +311,7 @@ const DEFAULTS: SettingsValues = {
   collection_sort_dir: 'asc',
   gbif_username: '',
   gbif_notify_email: '',
+  dataset_update_notified: '',
   sign_exports: false,
   signer_orcid: '',
   signer_name: '',
@@ -440,6 +444,7 @@ function readAll(): SettingsValues {
     collection_sort_dir:
       (map.get('collection_sort_dir') as SortDirection) ?? DEFAULTS.collection_sort_dir,
     gbif_username: map.get('gbif_username') ?? DEFAULTS.gbif_username,
+    dataset_update_notified: map.get('dataset_update_notified') ?? DEFAULTS.dataset_update_notified,
     sign_exports: map.get('sign_exports') === 'true',
     signer_orcid: map.get('signer_orcid') ?? DEFAULTS.signer_orcid,
     signer_name: map.get('signer_name') ?? DEFAULTS.signer_name,

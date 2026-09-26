@@ -1840,6 +1840,8 @@
     "download": "Descargar {{size}}",
     "update": "Actualizar {{size}}",
     "updateAvailable": "Actualización disponible",
+    "updateToast": "Hay una actualización disponible de los datos de listas",
+    "updateToastAction": "Actualizar",
     "downloading": "Descargando {{percent}} %",
     "extracting": "Extrayendo {{percent}} %",
     "installing": "Instalando…",

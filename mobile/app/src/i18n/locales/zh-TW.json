@@ -1612,6 +1612,8 @@
     "download": "下載 {{size}}",
     "update": "更新 {{size}}",
     "updateAvailable": "有新版",
+    "updateToast": "名錄資料有新版本可以更新",
+    "updateToastAction": "前往更新",
     "downloading": "下載中 {{percent}}%",
     "extracting": "解壓中 {{percent}}%",
     "installing": "安裝中…",

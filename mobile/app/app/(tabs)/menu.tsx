@@ -28,6 +28,7 @@ import { checkIntegrity, clearAllUserData, clearSearchHistory } from '~/db';
 import { useDriveState } from '~/lib/driveState';
 import { usePoiInstall } from '~/lib/poiInstall';
 import { useVectorInstall } from '~/lib/vectormapInstall';
+import { useHasDatasetUpdate } from '~/lib/datasetUpdateCheck';
 import { clearGoogleTokens } from '~/lib/googleAuth';
 import { clearInatTokens } from '~/lib/inatAuth';
 import { useToast } from '~/stores/toast';
@@ -38,6 +39,7 @@ import { useTabBarInset } from '~/lib/tabBarLayout';
 
 export default function MenuScreen() {
   const { t } = useTranslation();
+  const hasDatasetUpdate = useHasDatasetUpdate();
   const tabBarInset = useTabBarInset();
   const router = useRouter();
   const toast = useToast((s) => s.show);
@@ -283,6 +285,7 @@ export default function MenuScreen() {
         <LinkRow
           label={t('settings.regionPacks')}
           description={t('settings.regionPacksDesc')}
+          badge={hasDatasetUpdate}
           onPress={() => router.push('/regionpacks' as Href)}
         />
         <LinkRow

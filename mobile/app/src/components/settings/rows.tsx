@@ -76,6 +76,7 @@ export function LinkRow({
   value,
   destructive = false,
   chevron = true,
+  badge = false,
   onPress,
 }: {
   label: string;
@@ -83,6 +84,8 @@ export function LinkRow({
   value?: string;
   destructive?: boolean;
   chevron?: boolean;
+  /** Red dot before the chevron: something behind this row wants attention. */
+  badge?: boolean;
   onPress: () => void;
 }) {
   return (
@@ -104,6 +107,7 @@ export function LinkRow({
         {value ? (
           <Text className="mr-1 text-base text-gray-500 dark:text-gray-400">{value}</Text>
         ) : null}
+        {badge ? <View className="mr-1.5 h-2 w-2 rounded-full bg-red-500" /> : null}
         {chevron ? <Ionicons name="chevron-forward" size={value ? 16 : 18} color="#9ca3af" /> : null}
       </View>
     </Pressable>

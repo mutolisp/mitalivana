@@ -1726,6 +1726,8 @@
     "download": "Download {{size}}",
     "update": "Update {{size}}",
     "updateAvailable": "Update available",
+    "updateToast": "Checklist data has an update available",
+    "updateToastAction": "Update",
     "downloading": "Downloading {{percent}}%",
     "extracting": "Extracting {{percent}}%",
     "installing": "Installing…",

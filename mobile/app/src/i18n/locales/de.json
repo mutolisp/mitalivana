@@ -1726,6 +1726,8 @@
     "download": "Herunterladen {{size}}",
     "update": "Aktualisieren {{size}}",
     "updateAvailable": "Update verfügbar",
+    "updateToast": "Für die Checklisten-Daten ist ein Update verfügbar",
+    "updateToastAction": "Aktualisieren",
     "downloading": "Lädt herunter {{percent}} %",
     "extracting": "Entpackt {{percent}} %",
     "installing": "Wird installiert …",

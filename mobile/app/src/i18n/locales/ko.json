@@ -1612,6 +1612,8 @@
     "download": "내려받기 {{size}}",
     "update": "업데이트 {{size}}",
     "updateAvailable": "새 버전 있음",
+    "updateToast": "목록 데이터의 새 버전이 있습니다",
+    "updateToastAction": "업데이트",
     "downloading": "내려받는 중 {{percent}}%",
     "extracting": "압축 푸는 중 {{percent}}%",
     "installing": "설치 중…",

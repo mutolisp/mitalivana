@@ -18,6 +18,7 @@ import {
   startSessionAndOpen,
 } from '~/lib/recordCreate';
 import { perf } from '~/lib/perf';
+import { useHasDatasetUpdate } from '~/lib/datasetUpdateCheck';
 import { BAR_GAP, BAR_HEIGHT, FAB_SIZE, useTabBarMetrics } from '~/lib/tabBarLayout';
 import i18n from '~/i18n';
 
@@ -180,6 +181,19 @@ function TabBarPill() {
   );
 }
 
+/** Settings gear, with a red dot while a checklist module update is waiting. */
+function MenuTabIcon({ color }: { color: string }) {
+  const hasUpdate = useHasDatasetUpdate();
+  return (
+    <View>
+      <Ionicons name="settings-outline" size={22} color={color} />
+      {hasUpdate ? (
+        <View className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-red-500" />
+      ) : null}
+    </View>
+  );
+}
+
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const fg = TAB_FG[colorScheme === 'dark' ? 'dark' : 'light'];
@@ -268,9 +282,7 @@ export default function TabLayout() {
               name="menu"
               options={{
                 title: t('tab.menu'),
-                tabBarIcon: ({ color }) => (
-                  <Ionicons name="settings-outline" size={22} color={color} />
-                ),
+                tabBarIcon: ({ color }) => <MenuTabIcon color={color} />,
               }}
             />
           ) : name === 'map' ? (

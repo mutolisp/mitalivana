@@ -1612,6 +1612,8 @@
     "download": "ダウンロード {{size}}",
     "update": "更新 {{size}}",
     "updateAvailable": "新しい版があります",
+    "updateToast": "チェックリストデータに新しい版があります",
+    "updateToastAction": "更新する",
     "downloading": "ダウンロード中 {{percent}}%",
     "extracting": "展開中 {{percent}}%",
     "installing": "インストール中…",
