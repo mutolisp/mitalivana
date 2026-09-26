@@ -155,6 +155,19 @@ export default function GloriaUnitScreen() {
     if (!keyboardUp) followEnd.current = false;
   }, [keyboardUp]);
   const [dockHeight, setDockHeight] = useState(0);
+  // 1×1 m: a species just picked from the search gets its cover field focused
+  // (numeric pad up), so the next thing typed is its cover. Consumed once the
+  // row exists after the reload.
+  const coverRefs = useRef(new Map<number, TextInput>());
+  const focusCover = useRef<number | null>(null);
+  useEffect(() => {
+    const usid = focusCover.current;
+    if (usid == null) return;
+    const field = coverRefs.current.get(usid);
+    if (!field) return;
+    focusCover.current = null;
+    field.focus();
+  });
 
   const unit = state?.unit(code);
   // Say so once on open when the unit is already done, before a tap does nothing.
@@ -234,11 +247,13 @@ export default function GloriaUnitScreen() {
     toast(t('gloria.unit.replaced', { name }));
   };
   const addTaxon = (taxonId: string, name?: string) => {
+    let usid: number | null = null;
     const done = track(() => {
       markUnitStarted(unit.id);
-      addUnitSpecies(unit.id, taxonId);
+      usid = addUnitSpecies(unit.id, taxonId);
     });
     if (done) followEnd.current = true;
+    if (done && type === 'quadrat') focusCover.current = usid;
     if (done && name) toast(t('gloria.unit.added', { name }));
   };
   const speciesMenu = async (s: SurveySpecies) => {
@@ -267,7 +282,7 @@ export default function GloriaUnitScreen() {
       if (chosen === undefined) return;
       setUnitDone(unit.id, true, chosen);
       // A quadrat's frequency starts the minute after the cover estimate ends.
-      if (type === 'quadrat') {
+      if (type === 'quadrat' && unit.freq_skipped !== 1) {
         const follow = followCoverTimes(unit, 'stop_ts', chosen);
         if (Object.keys(follow).length) updateUnit(unit.id, follow);
       }
@@ -424,6 +439,27 @@ export default function GloriaUnitScreen() {
     </Card>
   );
 
+  /** Free-text remarks of the unit (`comments`; sheet 11_ / 21_ / 31_ `comments`). */
+  const commentsField = (
+    <>
+      <Text className="text-xs font-semibold text-gray-500 dark:text-gray-400">{t('gloria.unit.comments')}</Text>
+      <TextInput
+        // Keyed by the stored value so an undo shows the restored text.
+        key={unit.comments ?? ''}
+        defaultValue={unit.comments ?? ''}
+        editable={!locked}
+        onEndEditing={(e) => {
+          const v = e.nativeEvent.text.trim() || null;
+          if (v !== unit.comments) patch({ comments: v });
+        }}
+        placeholder={t('gloria.unit.commentsPlaceholder')}
+        multiline
+        className="min-h-[64px] rounded-lg border border-gray-300 bg-white p-2.5 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+        placeholderTextColor="#9ca3af"
+      />
+    </>
+  );
+
   // ── quadrat ────────────────────────────────────────────────────────────
   const quadratBody = () => {
     const us = spp.map(toUnitSpecies);
@@ -443,6 +479,7 @@ export default function GloriaUnitScreen() {
     const freqN = spp.filter((s) => s.freq_cells != null || s.freq_count != null).length;
     const freqKey = unit.freq_mode === 'count' ? 'gloria.step.freqCounted' : 'gloria.step.freqDone';
     const cross = issues.filter((i) => i.kind === 'cover-no-freq' || i.kind === 'freq-no-cover');
+    const skipped = unit.freq_skipped === 1;
     return (
       <>
         {envCard(
@@ -510,6 +547,22 @@ export default function GloriaUnitScreen() {
           </FoldBanner>
         ) : null}
 
+        {/* Manual §5.1.2 p.51: no frequency where the grid frame cannot be
+            mounted (shrubs, small trees, tall vegetation). Point-framing uses
+            the same kind of frame, so it is skipped with it. */}
+        <Pressable
+          onPress={() => patch({ freq_skipped: skipped ? null : 1 })}
+          disabled={locked}
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: skipped, disabled: locked }}
+          className="flex-row items-center gap-2"
+        >
+          <Ionicons name={skipped ? 'checkbox' : 'square-outline'} size={20} color={skipped ? '#00A2A5' : '#9ca3af'} />
+          <Text className="flex-1 text-sm text-gray-700 dark:text-gray-300">{t('gloria.unit.freqSkip')}</Text>
+        </Pressable>
+        {skipped ? (
+          <Text className="text-xs text-gray-400">{t('gloria.unit.freqSkipHint')}</Text>
+        ) : (
         <View className="flex-row gap-2">
           <View className="flex-1">
             <Btn
@@ -524,6 +577,7 @@ export default function GloriaUnitScreen() {
             />
           </View>
         </View>
+        )}
 
         <Text
           className="text-xs font-semibold text-gray-500 dark:text-gray-400"
@@ -546,6 +600,10 @@ export default function GloriaUnitScreen() {
             dragList(spp, (s) => (
               <>
                 <NumField
+                  ref={(r) => {
+                    if (r) coverRefs.current.set(s.id, r);
+                    else coverRefs.current.delete(s.id);
+                  }}
                   value={s.cover_pct}
                   onCommit={(v) => track(() => updateUnitSpecies(s.id, { cover_pct: v }))}
                   range={RANGES.percent}
@@ -559,6 +617,7 @@ export default function GloriaUnitScreen() {
           )}
         </Card>
         <Text className="text-xs text-gray-400">{t('gloria.unit.coverRule')}</Text>
+        {commentsField}
       </>
     );
   };
@@ -641,6 +700,7 @@ export default function GloriaUnitScreen() {
           className="min-h-[64px] rounded-lg border border-gray-300 bg-white p-2.5 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
           placeholderTextColor="#9ca3af"
         />
+        {commentsField}
       </>
     );
   };
@@ -756,6 +816,7 @@ export default function GloriaUnitScreen() {
             )
           )}
         </Card>
+        {commentsField}
       </>
     );
   };

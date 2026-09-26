@@ -2,7 +2,7 @@
  * Team sync (docs/Team_sync.md): the teams this device belongs to, creating
  * and joining one, and where new teams live. A team's own actions are on its
  * page (app/settings/team/[id].tsx); syncing a record is done from the
- * record's own screen (RecordMenuButton, the header's ⋯). Nothing here runs
+ * record's own screen (RecordMenuButton: the header's ⋯ unfolds a sync button). Nothing here runs
  * by itself.
  */
 import { useFocusEffect, useRouter, type Href } from 'expo-router';

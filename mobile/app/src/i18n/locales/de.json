@@ -328,7 +328,8 @@
     "kindImport": "Datensatz importieren (.yml / .zip)",
     "lastUpdated": "Zuletzt geändert",
     "kindGloria": "GLORIA-Gipfelaufnahme",
-    "moreActions": "Weitere Aktionen"
+    "moreActions": "Weitere Aktionen",
+    "lessActions": "Weniger Aktionen"
   },
   "rank": {
     "kingdom": "Reich",
@@ -2547,6 +2548,7 @@
       "linePoints": "400 Linienpunkte",
       "additional": "Arten ohne Treffer",
       "notStarted": "nicht erfasst",
+      "skipped": "entfällt (Sträucher)",
       "pointsDone": "{{done}}/{{total}} Punkte",
       "here": "aktuell",
       "jump": "Zu anderer Einheit",
@@ -2642,6 +2644,10 @@
       "abundanceLegend": "r! sehr selten · r selten · s zerstreut · c häufig · d dominant (>50 % Deckung, Handbuch S. 42)",
       "grazing": "Beweidung/Tierspuren",
       "grazingPlaceholder": "z. B. Kot, Verbiss, Trittschäden",
+      "freqSkip": "Sträucher: keine Frequenz und kein Point-Framing",
+      "freqSkipHint": "Wo der Gitterrahmen nicht richtig aufgelegt werden kann (Sträucher, kleine Bäume, hochwüchsige Vegetation), wird keine Frequenz erhoben (Handbuch §5.1.2). Point-Framing nutzt denselben Rahmen und entfällt ebenfalls. Beides gilt nicht als offen, Zeiten sind nicht nötig. Bereits erfasste Daten bleiben erhalten; Haken entfernen, um sie wieder zu bearbeiten.",
+      "comments": "Bemerkungen",
+      "commentsPlaceholder": "Weitere Beobachtungen",
       "speciesHeader_one": "Arten ({{count}}) · Deckung gesamt {{sum}}",
       "speciesHeader_other": "Arten ({{count}}) · Deckung gesamt {{sum}}",
       "sasHeader_one": "Arten ({{count}}) · Abundanz",
@@ -3275,7 +3281,13 @@
     "pullDesc": "Datensätze des Teams importieren, die dieses Telefon noch nicht hat",
     "usageTap": "Zum Abfragen tippen (stellt Verbindung her)",
     "usageLine": "Team {{team}} / {{teamMax}} · dieses Telefon {{mine}} · Geräte {{devices}} / {{devicesMax}}",
-    "moveDesc": "Mit demselben Schlüssel auf einen anderen Server umziehen; das Team tritt mit der neuen Einladung bei"
+    "moveDesc": "Mit demselben Schlüssel auf einen anderen Server umziehen; das Team tritt mit der neuen Einladung bei",
+    "pullHint": "Nach unten ziehen, um alle Datensätze dieses Teams zu synchronisieren und neue zu holen",
+    "teamSynced_one": "{{count}} geänderter Datensatz hochgeladen",
+    "teamSynced_other": "{{count}} geänderte Datensätze hochgeladen",
+    "teamImported_one": "{{count}} neuer Datensatz importiert",
+    "teamImported_other": "{{count}} neue Datensätze importiert",
+    "teamNothing": "Alles ist auf dem neuesten Stand"
   },
   "teamDeploy": {
     "title": "Eigenes Cloudflare verwenden",

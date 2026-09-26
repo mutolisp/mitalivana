@@ -357,7 +357,8 @@
     "kindImport": "Importar un registro (.yml / .zip)",
     "lastUpdated": "Última modificación",
     "kindGloria": "Prospección GLORIA",
-    "moreActions": "Más acciones"
+    "moreActions": "Más acciones",
+    "lessActions": "Menos acciones"
   },
   "rank": {
     "kingdom": "Reino",
@@ -2688,6 +2689,7 @@
       "linePoints": "400 puntos en líneas",
       "additional": "Especies sin contacto",
       "notStarted": "sin hacer",
+      "skipped": "no se hace (arbustos)",
       "pointsDone": "{{done}}/{{total}} puntos",
       "here": "estás aquí",
       "jump": "Ir a otra unidad",
@@ -2788,6 +2790,10 @@
       "abundanceLegend": "r! muy rara · r rara · s dispersa · c común · d dominante (>50 %, manual p. 42)",
       "grazing": "Pastoreo/rastros animales",
       "grazingPlaceholder": "p. ej. excrementos, ramoneo, pisoteo",
+      "freqSkip": "Arbustos: sin frecuencia ni point-framing",
+      "freqSkipHint": "No se registra la frecuencia donde el marco de cuadrícula no puede colocarse bien (arbustos, árboles pequeños, vegetación alta; manual §5.1.2). El point-framing usa el mismo marco y también se omite. Ninguno cuenta como pendiente y no hace falta anotar horas. Los datos ya introducidos se conservan; desmarque para volver a editarlos.",
+      "comments": "Observaciones",
+      "commentsPlaceholder": "Otros datos que anotar",
       "speciesHeader_one": "Especies ({{count}}) · total {{sum}}",
       "speciesHeader_many": "Especies ({{count}}) · total {{sum}}",
       "speciesHeader_other": "Especies ({{count}}) · total {{sum}}",
@@ -3438,7 +3444,15 @@
     "pullDesc": "Importar los registros del equipo que este teléfono aún no tiene",
     "usageTap": "Toque para consultar (se conecta)",
     "usageLine": "Equipo {{team}} / {{teamMax}} · este teléfono {{mine}} · dispositivos {{devices}} / {{devicesMax}}",
-    "moveDesc": "Mover a otro servidor con la misma clave; el equipo se une con la nueva invitación"
+    "moveDesc": "Mover a otro servidor con la misma clave; el equipo se une con la nueva invitación",
+    "pullHint": "Deslice hacia abajo para sincronizar todos los registros del equipo y traer los nuevos",
+    "teamSynced_one": "{{count}} registro modificado subido",
+    "teamSynced_many": "{{count}} registros modificados subidos",
+    "teamSynced_other": "{{count}} registros modificados subidos",
+    "teamImported_one": "{{count}} registro nuevo importado",
+    "teamImported_many": "{{count}} registros nuevos importados",
+    "teamImported_other": "{{count}} registros nuevos importados",
+    "teamNothing": "Todo está al día"
   },
   "teamDeploy": {
     "title": "Usar mi propio Cloudflare",

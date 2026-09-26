@@ -299,7 +299,8 @@
     "kindImport": "匯入記錄（.yml / .zip）",
     "lastUpdated": "最後更新",
     "kindGloria": "GLORIA 山峰調查",
-    "moreActions": "更多動作"
+    "moreActions": "更多動作",
+    "lessActions": "收起動作"
   },
   "rank": {
     "kingdom": "界",
@@ -2406,6 +2407,7 @@
       "linePoints": "400 點逐點",
       "additional": "未被點到的物種",
       "notStarted": "未做",
+      "skipped": "不做（灌叢）",
       "pointsDone": "{{done}}/{{total}} 點",
       "here": "目前位置",
       "jump": "跳到其他單位",
@@ -2496,6 +2498,10 @@
       "abundanceLegend": "r! 極稀少 · r 稀少 · s 散生 · c 常見 · d 優勢（覆蓋 >50%，手冊 p.42）",
       "grazing": "放牧/動物痕跡",
       "grazingPlaceholder": "例如：水鹿排遺、啃食、踐踏",
+      "freqSkip": "灌叢，不做頻度與頻度點擊法",
+      "freqSkipHint": "網格框架無法平放（灌叢、小樹或高大植物）時不做頻度（手冊 §5.1.2）；頻度點擊法用同樣的框架，一併不做。這兩項不列入待完成，也不必填時間。已填的資料會保留，取消勾選即可再編輯。",
+      "comments": "備註",
+      "commentsPlaceholder": "其他需要記下的事項",
       "speciesHeader_other": "物種（{{count}}）· 物種覆蓋合計 {{sum}}",
       "sasHeader_other": "物種（{{count}}）· 豐度",
       "fromQuadratsDone_other": "從樣區帶入 {{count}} 種",
@@ -3112,7 +3118,11 @@
     "pullDesc": "匯入隊伍中這台手機還沒有的記錄",
     "usageTap": "點一下查詢（會連線）",
     "usageLine": "隊伍 {{team}}／{{teamMax}} · 本機 {{mine}} · 裝置 {{devices}}／{{devicesMax}} 台",
-    "moveDesc": "沿用同一把金鑰搬到其他伺服器，隊員用新邀請碼加入即可"
+    "moveDesc": "沿用同一把金鑰搬到其他伺服器，隊員用新邀請碼加入即可",
+    "pullHint": "往下拉：同步這個隊伍的所有記錄，並取得新的記錄",
+    "teamSynced_other": "已上傳 {{count}} 筆有變更的記錄",
+    "teamImported_other": "新匯入 {{count}} 筆",
+    "teamNothing": "都是最新的，沒有新的變更"
   },
   "teamDeploy": {
     "title": "用我自己的 Cloudflare",

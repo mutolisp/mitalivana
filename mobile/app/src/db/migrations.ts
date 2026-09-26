@@ -1824,6 +1824,27 @@ const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    // Team sync: what this device last uploaded for a record — a hash of the
+    // content, base and name (not the export time) and when. The team page's
+    // pull-down skips a record whose hash is unchanged and was uploaded in the
+    // last 30 days, so an untouched record is not re-sent on every pull.
+    version: 61,
+    up: (db) => {
+      addColumnIfMissing(db, `ALTER TABLE sync_links ADD COLUMN uploaded_hash TEXT;`);
+      addColumnIfMissing(db, `ALTER TABLE sync_links ADD COLUMN uploaded_at INTEGER;`);
+    },
+  },
+  {
+    // GLORIA: a 1×1 m quadrat where the grid frame cannot be mounted (shrubs,
+    // tall vegetation; manual §5.1.2 p.51) skips frequency and point-framing.
+    // 1 = skipped, NULL = not. Never 0, so a file from an older app (no such
+    // key, read as NULL) does not differ from an untouched quadrat in a merge.
+    version: 62,
+    up: (db) => {
+      addColumnIfMissing(db, `ALTER TABLE gloria_units ADD COLUMN freq_skipped INTEGER;`);
+    },
+  },
 ];
 
 /** Highest schema version this build knows how to produce. Backup/restore uses

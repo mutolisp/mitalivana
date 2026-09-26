@@ -357,7 +357,8 @@
     "kindImport": "Importer un enregistrement (.yml / .zip)",
     "lastUpdated": "Dernière modification",
     "kindGloria": "Enquête GLORIA",
-    "moreActions": "Autres actions"
+    "moreActions": "Autres actions",
+    "lessActions": "Moins d'actions"
   },
   "rank": {
     "kingdom": "Règne",
@@ -2688,6 +2689,7 @@
       "linePoints": "400 points sur lignes",
       "additional": "Espèces non touchées",
       "notStarted": "non fait",
+      "skipped": "non fait (arbustes)",
       "pointsDone": "{{done}}/{{total}} points",
       "here": "vous êtes ici",
       "jump": "Aller à une autre unité",
@@ -2788,6 +2790,10 @@
       "abundanceLegend": "r! très rare · r rare · s dispersé · c commun · d dominant (>50 %, manuel p. 42)",
       "grazing": "Pâturage/traces animales",
       "grazingPlaceholder": "p. ex. fèces, abroutissement, piétinement",
+      "freqSkip": "Arbustes : ni fréquence ni point-framing",
+      "freqSkipHint": "La fréquence n’est pas relevée là où le cadre quadrillé ne peut pas être posé correctement (arbustes, petits arbres, végétation haute ; manuel §5.1.2). Le point-framing utilise le même cadre et est aussi omis. Aucun des deux ne compte comme à faire et aucune heure n’est requise. Les données déjà saisies sont conservées ; décochez pour les modifier.",
+      "comments": "Remarques",
+      "commentsPlaceholder": "Autres éléments à noter",
       "speciesHeader_one": "Espèces ({{count}}) · total {{sum}}",
       "speciesHeader_many": "Espèces ({{count}}) · total {{sum}}",
       "speciesHeader_other": "Espèces ({{count}}) · total {{sum}}",
@@ -3438,7 +3444,15 @@
     "pullDesc": "Importer les relevés de l’équipe absents de ce téléphone",
     "usageTap": "Touchez pour consulter (connexion)",
     "usageLine": "Équipe {{team}} / {{teamMax}} · ce téléphone {{mine}} · appareils {{devices}} / {{devicesMax}}",
-    "moveDesc": "Déplacer vers un autre serveur avec la même clé ; les membres rejoignent avec la nouvelle invitation"
+    "moveDesc": "Déplacer vers un autre serveur avec la même clé ; les membres rejoignent avec la nouvelle invitation",
+    "pullHint": "Tirez vers le bas pour synchroniser tous les relevés de l’équipe et récupérer les nouveaux",
+    "teamSynced_one": "{{count}} relevé modifié envoyé",
+    "teamSynced_many": "{{count}} relevés modifiés envoyés",
+    "teamSynced_other": "{{count}} relevés modifiés envoyés",
+    "teamImported_one": "{{count}} nouveau relevé importé",
+    "teamImported_many": "{{count}} nouveaux relevés importés",
+    "teamImported_other": "{{count}} nouveaux relevés importés",
+    "teamNothing": "Tout est à jour"
   },
   "teamDeploy": {
     "title": "Utiliser mon propre Cloudflare",

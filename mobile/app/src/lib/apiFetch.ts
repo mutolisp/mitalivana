@@ -67,7 +67,7 @@ export class ApiError extends Error {
 const MAX_DETAIL = 300;
 
 /** Both services ask API consumers to identify themselves. */
-export const USER_AGENT = 'Checklister-NG/1.0 (Taiwan species checklist; mutolisp@gmail.com)';
+export const USER_AGENT = 'Checklister-NG/1.0 (Taiwan species checklist; contact@mitalivana.org)';
 
 export const DEFAULT_TIMEOUT_MS = 20000;
 

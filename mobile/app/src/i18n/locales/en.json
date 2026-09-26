@@ -328,7 +328,8 @@
     "kindImport": "Import a record (.yml / .zip)",
     "lastUpdated": "Last updated",
     "kindGloria": "GLORIA summit survey",
-    "moreActions": "More actions"
+    "moreActions": "More actions",
+    "lessActions": "Fewer actions"
   },
   "rank": {
     "kingdom": "Kingdom",
@@ -2547,6 +2548,7 @@
       "linePoints": "400 line points",
       "additional": "Species not hit",
       "notStarted": "not done",
+      "skipped": "skipped (shrubs)",
       "pointsDone": "{{done}}/{{total}} points",
       "here": "you are here",
       "jump": "Jump to another unit",
@@ -2642,6 +2644,10 @@
       "abundanceLegend": "r! very rare · r rare · s scattered · c common · d dominant (>50% cover, manual p.42)",
       "grazing": "Grazing/animal traces",
       "grazingPlaceholder": "e.g. droppings, browsing, trampling",
+      "freqSkip": "Shrubs: no frequency or point-framing",
+      "freqSkipHint": "Frequency is not recorded where the grid frame cannot be mounted properly (shrubs, small trees, tall vegetation; manual §5.1.2). Point-framing uses the same kind of frame and is skipped too. Neither counts as to-do and no times are needed. Data already entered is kept; untick to edit it again.",
+      "comments": "Comments",
+      "commentsPlaceholder": "Anything else worth noting",
       "speciesHeader_one": "Species ({{count}}) · cover total {{sum}}",
       "speciesHeader_other": "Species ({{count}}) · cover total {{sum}}",
       "sasHeader_one": "Species ({{count}}) · abundance",
@@ -3275,7 +3281,13 @@
     "pullDesc": "Import the team’s records this phone does not have yet",
     "usageTap": "Tap to check (connects)",
     "usageLine": "Team {{team}} / {{teamMax}} · this phone {{mine}} · devices {{devices}} / {{devicesMax}}",
-    "moveDesc": "Move to another server with the same key; teammates join with the new invitation"
+    "moveDesc": "Move to another server with the same key; teammates join with the new invitation",
+    "pullHint": "Pull down to sync all of this team’s records and bring in new ones",
+    "teamSynced_one": "{{count}} changed record uploaded",
+    "teamSynced_other": "{{count}} changed records uploaded",
+    "teamImported_one": "{{count}} new record imported",
+    "teamImported_other": "{{count}} new records imported",
+    "teamNothing": "Everything is up to date"
   },
   "teamDeploy": {
     "title": "Use my own Cloudflare",

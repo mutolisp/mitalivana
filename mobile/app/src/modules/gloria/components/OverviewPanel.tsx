@@ -45,8 +45,12 @@ export function OverviewPanel({
   if (type === 'quadrat') {
     const freqCells = spp.filter((s) => s.freq_cells != null || s.freq_count != null);
     const freqKey = state.unit(code)?.freq_mode === 'count' ? 'gloria.step.freqCounted' : 'gloria.step.freqDone';
+    const skipped = u?.freq_skipped === 1;
     steps.push(
       { key: 'cover', label: t('gloria.step.cover'), detail: t('gloria.step.speciesCount', { count: spp.length }), href: `/gloria/${id}/${code}` },
+    );
+    if (skipped) steps.push({ key: 'frequency', label: `${t('gloria.step.frequency')}／${t('gloria.step.pointframe')}`, detail: t('gloria.step.skipped'), href: `/gloria/${id}/${code}` });
+    else steps.push(
       {
         key: 'frequency',
         label: t('gloria.step.frequency'),

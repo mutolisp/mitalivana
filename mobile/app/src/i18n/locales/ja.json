@@ -299,7 +299,8 @@
     "kindImport": "記録をインポート（.yml / .zip）",
     "lastUpdated": "最終更新",
     "kindGloria": "GLORIA 山頂調査",
-    "moreActions": "その他の操作"
+    "moreActions": "その他の操作",
+    "lessActions": "操作を閉じる"
   },
   "rank": {
     "kingdom": "界",
@@ -2406,6 +2407,7 @@
       "linePoints": "400 点の記録",
       "additional": "ヒットしなかった種",
       "notStarted": "未実施",
+      "skipped": "実施せず（低木）",
       "pointsDone": "{{done}}/{{total}} 点",
       "here": "現在地",
       "jump": "他のユニットへ",
@@ -2496,6 +2498,10 @@
       "abundanceLegend": "r! 極稀 · r 稀 · s 散在 · c 普通 · d 優占（被度 50% 超、マニュアル p.42）",
       "grazing": "放牧/動物の痕跡",
       "grazingPlaceholder": "例：糞、食害、踏みつけ",
+      "freqSkip": "低木のため頻度・ポイントフレーム法を実施しない",
+      "freqSkipHint": "グリッドフレームを正しく設置できない場所（低木、小高木、丈の高い植生）では頻度を記録しません（マニュアル §5.1.2）。ポイントフレーム法も同じフレームを使うため実施しません。どちらも未完了扱いにならず、時刻の入力も不要です。入力済みのデータは残り、チェックを外すと再び編集できます。",
+      "comments": "備考",
+      "commentsPlaceholder": "その他の記録事項",
       "speciesHeader_other": "種（{{count}}）· 被度合計 {{sum}}",
       "sasHeader_other": "種（{{count}}）· 多度",
       "fromQuadratsDone_other": "方形区から {{count}} 種を追加",
@@ -3112,7 +3118,11 @@
     "pullDesc": "この端末にまだないチームの記録を取り込みます",
     "usageTap": "タップして確認（接続します）",
     "usageLine": "チーム {{team}}／{{teamMax}} · この端末 {{mine}} · 端末 {{devices}}／{{devicesMax}} 台",
-    "moveDesc": "同じ鍵のまま別のサーバーへ移動し、メンバーは新しい招待コードで参加します"
+    "moveDesc": "同じ鍵のまま別のサーバーへ移動し、メンバーは新しい招待コードで参加します",
+    "pullHint": "下に引くと、このチームのすべての記録を同期し、新しい記録を取り込みます",
+    "teamSynced_other": "変更のあった {{count}} 件の記録をアップロードしました",
+    "teamImported_other": "{{count}} 件を新たに取り込みました",
+    "teamNothing": "すべて最新で、新しい変更はありません"
   },
   "teamDeploy": {
     "title": "自分の Cloudflare を使う",

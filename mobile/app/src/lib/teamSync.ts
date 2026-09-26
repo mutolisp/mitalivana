@@ -33,7 +33,7 @@ import { ApiError, fetchText } from './apiFetch';
 import { siteToImported } from './bundleExport';
 import { buildPlotYamlDoc, buildSessionYamlDoc } from './bundleYaml';
 import { COMBINERS, gloriaSide, plotSide, sessionSide, type MergeKind } from './mergeDocs';
-import { baseOf, diffSides, needsReview, type MergeSide } from './mergeEngine';
+import { baseOf, diffSides, needsReview, rowHash, type MergeSide } from './mergeEngine';
 import { remapUnknownTaxa } from './recordCreate';
 import { readRecordImportFromBytes, type ReadRecordImport } from './recordImportZip';
 import {
@@ -230,6 +230,9 @@ export async function joinTeam(inv: Invite, memberName: string | null = null): P
        member_name = COALESCE(excluded.member_name, sync_teams.member_name)`,
     [keys.teamId, inv.name, inv.server, Date.now(), cleanName(memberName)],
   );
+  // Rejoining (e.g. after the team moved): what was uploaded may not be on
+  // this server, so the next pull-down sends everything again.
+  getUserDb().executeSync(`UPDATE sync_links SET uploaded_hash = NULL WHERE team_id = ?`, [keys.teamId]);
   return keys.teamId;
 }
 
@@ -366,8 +369,9 @@ export async function moveTeam(teamId: string, newServer: string): Promise<MoveR
   }
   if (target !== DEFAULT_SERVER) rememberServer(target);
   getUserDb().executeSync(`UPDATE sync_teams SET server = ? WHERE team_id = ?`, [target === DEFAULT_SERVER ? null : target, teamId]);
-  // Etags from the old server mean nothing on the new one.
+  // Etags and upload fingerprints from the old server mean nothing on the new one.
   getUserDb().executeSync(`DELETE FROM sync_seen WHERE team_id = ?`, [teamId]);
+  getUserDb().executeSync(`UPDATE sync_links SET uploaded_hash = NULL WHERE team_id = ?`, [teamId]);
   const linked = rows<{ record_kind: MergeKind; record_uuid: string }>(
     `SELECT record_kind, record_uuid FROM sync_links WHERE team_id = ?`,
     [teamId],
@@ -427,7 +431,11 @@ function identOf(kind: MergeKind, id: number): Ident | null {
 }
 
 /** The record as an export yml (no media), carrying this device's ancestor. */
-function recordText(kind: MergeKind, id: number, uuid: string, author: string | null): string {
+/**
+ * The sealed upload's plaintext, and its fingerprint: the same document
+ * without the export time, so an unchanged record hashes the same every time.
+ */
+function recordText(kind: MergeKind, id: number, uuid: string, author: string | null): { text: string; hash: string } {
   let doc: Record<string, unknown> | null = null;
   if (kind === 'session') {
     const session = getSession(id);
@@ -460,7 +468,8 @@ function recordText(kind: MergeKind, id: number, uuid: string, author: string | 
   }
   if (!doc) throw new TeamSyncError('noRecord');
   const sync = { ...syncBlockFor(kind, uuid), ...(author ? { author } : {}) };
-  return yaml.dump({ ...doc, sync }, { lineWidth: -1, noRefs: true });
+  const { exported_at: _at, ...stable } = sync;
+  return { text: yaml.dump({ ...doc, sync }, { lineWidth: -1, noRefs: true }), hash: rowHash({ doc, sync: stable }) };
 }
 
 export function linkedTeams(kind: MergeKind, uuid: string): string[] {
@@ -470,9 +479,6 @@ export function linkedTeams(kind: MergeKind, uuid: string): string[] {
 }
 export function recordUuid(kind: MergeKind, id: number): string | null {
   return identOf(kind, id)?.uuid ?? null;
-}
-export function lastSyncedAt(kind: MergeKind, uuid: string): number | null {
-  return rows<{ t: number | null }>(`SELECT MAX(last_synced_at) AS t FROM sync_links WHERE record_kind = ? AND record_uuid = ?`, [kind, uuid])[0]?.t ?? null;
 }
 export function queuedCount(teamId?: string): number {
   return rows<{ n: number }>(teamId ? `SELECT COUNT(*) AS n FROM sync_queue WHERE team_id = ?` : `SELECT COUNT(*) AS n FROM sync_queue`, teamId ? [teamId] : [])[0]?.n ?? 0;
@@ -549,7 +555,12 @@ export type SyncOutcome = {
   review: boolean;
   /** No connection: queued for the next 同步. */
   queued: boolean;
+  /** This device's copy was sent (false: unchanged, skipped by onlyIfChanged). */
+  uploaded: boolean;
 };
+
+/** An unchanged record is still re-sent after this long, well inside the relay's 90-day expiry. */
+const REUPLOAD_MS = 30 * 24 * 3600 * 1000;
 
 function hrefOf(kind: MergeKind, id: number): Href {
   return (kind === 'session' ? `/session/${id}` : kind === 'plot' ? `/plot/${id}` : `/gloria/${id}`) as Href;
@@ -560,17 +571,35 @@ function hrefOf(kind: MergeKind, id: number): Href {
  * last merge. Copies that need a decision open the review screen (one at a
  * time; the rest are picked up by the next 同步).
  */
-export async function syncRecord(teamId: string, kind: MergeKind, id: number): Promise<SyncOutcome> {
+export async function syncRecord(
+  teamId: string,
+  kind: MergeKind,
+  id: number,
+  opts: { onlyIfChanged?: boolean } = {},
+): Promise<SyncOutcome> {
   const { team, keys } = await keysOf(teamId);
   const who = identOf(kind, id);
   if (!who) throw new TeamSyncError('noRecord');
   const rec = recordKey(keys.encKey, kind, who.ident);
   const dev = deviceKey(keys.encKey, installId());
   link(teamId, kind, who.uuid, rec, null);
-  const out: SyncOutcome = { merged: 0, mergedFrom: [], review: false, queued: false };
+  const out: SyncOutcome = { merged: 0, mergedFrom: [], review: false, queued: false, uploaded: false };
   try {
-    const sealed = sealRecord(keys.encKey, randomBytes(NONCE_BYTES), recordText(kind, id, who.uuid, team.member_name), aadFor(keys.teamId, rec, dev));
-    await relay(serverOf(team), 'PUT', `/v1/t/${keys.teamId}/r/${rec}/${dev}`, { token: keys.authToken, body: b64u(sealed) });
+    const { text, hash } = recordText(kind, id, who.uuid, team.member_name);
+    const last = rows<{ uploaded_hash: string | null; uploaded_at: number | null }>(
+      `SELECT uploaded_hash, uploaded_at FROM sync_links WHERE team_id = ? AND record_kind = ? AND record_uuid = ?`,
+      [teamId, kind, who.uuid],
+    )[0];
+    const unchanged = last?.uploaded_hash === hash && (last.uploaded_at ?? 0) > Date.now() - REUPLOAD_MS;
+    if (!(opts.onlyIfChanged && unchanged)) {
+      const sealed = sealRecord(keys.encKey, randomBytes(NONCE_BYTES), text, aadFor(keys.teamId, rec, dev));
+      await relay(serverOf(team), 'PUT', `/v1/t/${keys.teamId}/r/${rec}/${dev}`, { token: keys.authToken, body: b64u(sealed) });
+      getUserDb().executeSync(
+        `UPDATE sync_links SET uploaded_hash = ?, uploaded_at = ? WHERE team_id = ? AND record_kind = ? AND record_uuid = ?`,
+        [hash, Date.now(), teamId, kind, who.uuid],
+      );
+      out.uploaded = true;
+    }
     const { items } = JSON.parse((await relay(serverOf(team), 'GET', `/v1/t/${keys.teamId}/r/${rec}/`, { token: keys.authToken })).text) as {
       items: Item[];
     };
@@ -651,6 +680,45 @@ export async function flushQueue(teamId: string): Promise<{ sent: number; review
     if (r.review) return { sent, review: true, queued: false };
   }
   return { sent, review: false, queued: false };
+}
+
+export type TeamSyncOutcome = {
+  /** Records whose changes were uploaded (unchanged ones are only checked for teammates' changes). */
+  sent: number;
+  merged: number;
+  mergedFrom: string[];
+  /** The team's records that were not on this device yet. */
+  imported: number;
+  /** Stopped at a copy that needs the reviewer (the merge screen is open). */
+  review: boolean;
+  /** Stopped for lack of a connection (the rest wait for the next sync). */
+  queued: boolean;
+};
+
+/**
+ * The team page's pull-to-refresh: sync every record linked to this team —
+ * uploading only those changed since this device last sent them (and the
+ * queue) — then bring in the team's records not here yet.
+ * Stops at the first review or when the connection drops, like flushQueue.
+ */
+export async function syncTeam(teamId: string): Promise<TeamSyncOutcome> {
+  const out: TeamSyncOutcome = { sent: 0, merged: 0, mergedFrom: [], imported: 0, review: false, queued: false };
+  const linked = rows<{ record_kind: MergeKind; record_uuid: string }>(
+    `SELECT record_kind, record_uuid FROM sync_links WHERE team_id = ? ORDER BY last_synced_at`,
+    [teamId],
+  );
+  for (const l of linked) {
+    const id = localIdOf(l.record_kind, l.record_uuid);
+    if (id == null) continue; // deleted here; cleanup.ts drops the link
+    const r = await syncRecord(teamId, l.record_kind, id, { onlyIfChanged: true });
+    if (r.queued) return { ...out, queued: true };
+    if (r.uploaded) out.sent += 1;
+    out.merged += r.merged;
+    out.mergedFrom.push(...r.mergedFrom);
+    if (r.review) return { ...out, review: true };
+  }
+  out.imported = (await pullTeamRecords(teamId)).imported;
+  return out;
 }
 
 /**

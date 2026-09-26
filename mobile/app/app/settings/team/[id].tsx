@@ -1,12 +1,13 @@
 /**
  * One team: who is in it, where its data lives, and what can be done with it.
  * Replaces the action sheet that had grown to nine items. Nothing here syncs
- * a record; that is the record screen's ⋯ → 同步.
+ * a single record; that is the record screen's ⋯ → cloud button. Pulling down syncs
+ * every linked record of the team.
  */
 import { useFocusEffect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Alert, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { LinkRow, Section } from '~/components/settings/rows';
 import { SettingsPage } from '~/components/settings/SettingsPage';
 import { afterPrompt, askMyName, pickServer } from '~/components/teamSyncPrompts';
@@ -26,6 +27,7 @@ import {
   queuedCount,
   serverOf,
   setMemberName,
+  syncTeam,
   teamUsage,
   type Team,
   type TeamMember,
@@ -49,6 +51,7 @@ export default function TeamScreen() {
   const [queued, setQueued] = useState(0);
   const [usage, setUsage] = useState<TeamUsage | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   const refresh = useCallback(() => {
     if (!id) return;
@@ -91,6 +94,29 @@ export default function TeamScreen() {
       const r = await pullTeamRecords(teamId);
       Alert.alert(t('teamSync.pullDoneTitle'), t('teamSync.pullDone', { imported: r.imported, linked: r.linked }));
     });
+
+  // Pull down = sync the whole team: every linked record, then what is new.
+  const refreshAll = async () => {
+    if (!hasKey || busy) return;
+    setRefreshing(true);
+    try {
+      const r = await syncTeam(teamId);
+      if (r.queued) toast(t('teamSync.queuedToast'));
+      else if (!r.review) {
+        const parts = [
+          r.sent ? t('teamSync.teamSynced', { count: r.sent }) : null,
+          r.mergedFrom.length ? t('teamSync.mergedFromToast', { names: [...new Set(r.mergedFrom)].join('、') }) : null,
+          r.imported ? t('teamSync.teamImported', { count: r.imported }) : null,
+        ].filter(Boolean);
+        toast(parts.length ? parts.join('；') : t('teamSync.teamNothing'));
+      }
+    } catch (e) {
+      Alert.alert(t('teamSync.failTitle'), teamSyncErrorText(e));
+    } finally {
+      setRefreshing(false);
+      refresh();
+    }
+  };
 
   const flush = () =>
     run(t('teamSync.syncing'), async () => {
@@ -172,14 +198,21 @@ export default function TeamScreen() {
 
   return (
     <SettingsPage title={team.name}>
-      <ScrollView contentContainerClassName="pb-10">
+      <ScrollView
+        contentContainerClassName="pb-10"
+        refreshControl={hasKey ? <RefreshControl refreshing={refreshing} onRefresh={() => void refreshAll()} /> : undefined}
+      >
         {busy ? (
           <View className="flex-row items-center gap-2 px-4 pt-3">
             <ActivityIndicator />
             <Text className="text-sm text-gray-600 dark:text-gray-300">{busy}</Text>
           </View>
         ) : null}
-        {!hasKey ? <Text className="px-4 pt-3 text-sm text-red-600 dark:text-red-400">{t('teamSync.err.noSecret')}</Text> : null}
+        {!hasKey ? (
+          <Text className="px-4 pt-3 text-sm text-red-600 dark:text-red-400">{t('teamSync.err.noSecret')}</Text>
+        ) : (
+          <Text className="px-4 pt-3 text-xs text-gray-500 dark:text-gray-400">{t('teamSync.pullHint')}</Text>
+        )}
 
         <Section title={t('teamSync.sectionTeam')}>
           <LinkRow label={t('teamSync.myNameTitle')} value={team.member_name || t('teamSync.unnamed')} onPress={() => void rename()} />

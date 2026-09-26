@@ -111,6 +111,8 @@ export type GloriaUnit = {
   pf_start_ts: number | null;
   pf_stop_ts: number | null;
   pf_locked: number;
+  /** 1 = frequency and point-framing not done here (shrubs; v62). NULL = not skipped, never 0. */
+  freq_skipped: number | null;
   recorded_by: string | null;
   aspect_deg: number | null;
   slope_deg: number | null;

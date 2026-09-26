@@ -77,10 +77,12 @@ export function quadratInput(u: GloriaUnit, spp: SurveySpecies[]): QuadratInput 
     top: topOf(u),
     subtypes: [u.sub_lich_below_vasc, u.sub_lich_on_rock, u.sub_lich_on_scree, u.sub_bry_below_vasc, u.sub_bry_on_rock, u.sub_bry_on_scree],
     species: spp.map(toUnitSpecies),
+    // A skipped quadrat (shrubs) has no frequency to cross-check.
     freqDone:
-      u.freq_mode != null ||
+      u.freq_skipped !== 1 &&
+      (u.freq_mode != null ||
       [u.dist_hi1, u.dist_hi2, u.dist_hi3].some((m) => m != null) ||
-      spp.some((s) => s.freq_cells != null || s.freq_count != null),
+      spp.some((s) => s.freq_cells != null || s.freq_count != null)),
     point_surface: u.point_surface,
   };
 }

@@ -26,7 +26,7 @@ DEFAULT_MANIFEST = "https://map.mitalivana.org/rudymap/latest/manifest.json"
 # Cloudflare 會擋掉 urllib 的預設 UA（實測直接 403，換成任何其他字串就 200）。
 # app 端也明確帶 UA（src/lib/apiFetch.ts 的 USER_AGENT），這裡用同一個字串，
 # 驗的才是 app 真正會走的路徑。
-USER_AGENT = "Checklister-NG/1.0 (Taiwan species checklist; mutolisp@gmail.com)"
+USER_AGENT = "Checklister-NG/1.0 (Taiwan species checklist; contact@mitalivana.org)"
 
 
 def fetch(url: str, timeout: int = 120, head: bool = False):

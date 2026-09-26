@@ -96,8 +96,13 @@ export function SurveyTimes({
     unit.unit_type === 'quadrat'
       ? [
           { label: t('gloria.times.cover'), start: 'start_ts', stop: 'stop_ts' },
-          { label: t('gloria.times.freq'), start: 'freq_start_ts', stop: 'freq_stop_ts' },
-          { label: t('gloria.step.pointframe'), start: 'pf_start_ts', stop: 'pf_stop_ts' },
+          // Skipped (shrubs): no frequency or point-framing, so no times to fill.
+          ...(unit.freq_skipped === 1
+            ? []
+            : ([
+                { label: t('gloria.times.freq'), start: 'freq_start_ts', stop: 'freq_stop_ts' },
+                { label: t('gloria.step.pointframe'), start: 'pf_start_ts', stop: 'pf_stop_ts' },
+              ] as Pair[])),
         ]
       : [{ label: t('gloria.times.survey'), start: 'start_ts', stop: 'stop_ts' }];
   const save = (p: Pair, col: Pair['start'] | Pair['stop'], ts: number) => {
@@ -110,7 +115,7 @@ export function SurveyTimes({
     const patch: UnitPatch = { [col]: ts };
     if (col === 'freq_stop_ts') patch.freq_stop_manual = 1;
     // Frequency follows the cover estimate: same day, next minute (model/quadratTimes).
-    if (unit.unit_type === 'quadrat' && (col === 'start_ts' || col === 'stop_ts')) {
+    if (unit.unit_type === 'quadrat' && unit.freq_skipped !== 1 && (col === 'start_ts' || col === 'stop_ts')) {
       Object.assign(patch, followCoverTimes(unit, col, ts));
     }
     updateUnit(unit.id, patch);
