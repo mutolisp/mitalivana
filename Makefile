@@ -115,6 +115,9 @@ taicol: backend
 # tw-keys），產出 + manifest 在 dist/datasets/。母檔本身不會被改動。
 # 每次名錄或檢索表更新後：make datasets && make datasets-verify
 DATASETS_OUT := dist/datasets
+# Module version defaults to today's date (build_datasets.py). Not `VERSION`:
+# that is the app version (line 1) and would stamp every module 1.0.0.
+# Override: make datasets DATASETS_VERSION=2026-09-26b
 
 # Snapshot TaiCOL parent links (subfamily / tribe / superfamily …), which the
 # CSVs lack. Run after each TaiCOL update, before `make datasets`.
@@ -123,7 +126,7 @@ taicol-tree: backend
 
 datasets: backend
 	$(BACKEND_VENV)/bin/python -m backend.scripts.datasets.build_datasets \
-		--out $(DATASETS_OUT) $(if $(VERSION),--version $(VERSION),) $(if $(ONLY),--only $(ONLY),)
+		--out $(DATASETS_OUT) $(if $(DATASETS_VERSION),--version $(DATASETS_VERSION),) $(if $(ONLY),--only $(ONLY),)
 
 # 等價性驗證：模組回答必須與母檔一致（結構 / 列數 / 查詢 / 衍生索引 /
 # 檢索表 taxon 解析 / 跨區俗名）。名錄更新後一定要跑。

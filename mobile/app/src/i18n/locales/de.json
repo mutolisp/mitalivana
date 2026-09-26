@@ -1783,7 +1783,10 @@
     "deleteTitle": "Eigene Art löschen",
     "deleteMsg": "„{{name}}“ löschen? Dies kann nicht rückgängig gemacht werden.",
     "deleteBlockedTitle": "Löschen nicht möglich",
-    "deleteBlockedMsg": "Diese Art wird noch verwendet von:\nArtenlisten-Einträgen: {{records}}\nProbeflächen-Einträgen: {{plotRecords}}\nBelegen: {{specimens}}\nFavoriten: {{favorites}}\n\nLösche diese Einträge zuerst oder bestimme sie als andere Art neu."
+    "deleteBlockedMsg": "Diese Art wird noch verwendet von:\nArtenlisten-Einträgen: {{records}}\nProbeflächen-Einträgen: {{plotRecords}}\nBelegen: {{specimens}}\nFavoriten: {{favorites}}\n\nLösche diese Einträge zuerst oder bestimme sie als andere Art neu.",
+    "intermediate": "Zwischenränge (optional)",
+    "intermediateHint": "Ein gleichnamiger Knoten wird wiederverwendet oder neu angelegt. Unterfamilie, Tribus und Untertribus gelten im Taxonomiebaum für die ganze Gattung, Untergattung nur für diese Art.",
+    "intermediateNeeds": "Zuerst ausfüllen: {{ranks}}"
   },
   "plotStats": {
     "title": "Diversitätsstatistik",

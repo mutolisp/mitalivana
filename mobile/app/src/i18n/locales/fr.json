@@ -1896,7 +1896,10 @@
     "deleteTitle": "Supprimer le taxon",
     "deleteMsg": "Supprimer « {{name}} » ? Cette action est irréversible.",
     "deleteBlockedTitle": "Suppression impossible",
-    "deleteBlockedMsg": "Ce taxon est encore utilisé par :\nrelevés de liste d'espèces : {{records}}\nrelevés de placette : {{plotRecords}}\nspécimens : {{specimens}}\nfavoris : {{favorites}}\n\nSupprimez d'abord ces relevés ou réidentifiez-les sous un autre taxon."
+    "deleteBlockedMsg": "Ce taxon est encore utilisé par :\nrelevés de liste d'espèces : {{records}}\nrelevés de placette : {{plotRecords}}\nspécimens : {{specimens}}\nfavoris : {{favorites}}\n\nSupprimez d'abord ces relevés ou réidentifiez-les sous un autre taxon.",
+    "intermediate": "Rangs intermédiaires (facultatif)",
+    "intermediateHint": "Un nœud du même nom est réutilisé, sinon créé. Sous-famille, tribu et sous-tribu s’appliquent au genre entier dans l’arbre taxonomique ; le sous-genre à cette espèce seulement.",
+    "intermediateNeeds": "À remplir d’abord : {{ranks}}"
   },
   "plotStats": {
     "title": "Statistiques de diversité",

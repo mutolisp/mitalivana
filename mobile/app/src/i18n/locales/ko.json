@@ -1670,7 +1670,10 @@
     "deleteTitle": "직접 만든 종 삭제",
     "deleteMsg": "\"{{name}}\"을(를) 삭제할까요? 되돌릴 수 없습니다.",
     "deleteBlockedTitle": "삭제할 수 없음",
-    "deleteBlockedMsg": "이 종은 아직 다음 데이터에서 사용 중입니다:\n종 목록 기록 {{records}}건\n조사구 기록 {{plotRecords}}건\n채집 표본 {{specimens}}점\n즐겨찾기 {{favorites}}건\n\n먼저 해당 기록을 삭제하거나 다른 종으로 다시 동정하세요."
+    "deleteBlockedMsg": "이 종은 아직 다음 데이터에서 사용 중입니다:\n종 목록 기록 {{records}}건\n조사구 기록 {{plotRecords}}건\n채집 표본 {{specimens}}점\n즐겨찾기 {{favorites}}건\n\n먼저 해당 기록을 삭제하거나 다른 종으로 다시 동정하세요.",
+    "intermediate": "중간 계급(선택)",
+    "intermediateHint": "같은 이름의 노드가 있으면 재사용하고 없으면 만듭니다. 아과·족·아족은 속 단위로 적용되어 분류 트리에서 같은 속의 종이 모두 함께 옮겨집니다. 아속은 이 종에만 적용됩니다.",
+    "intermediateNeeds": "먼저 입력: {{ranks}}"
   },
   "plotStats": {
     "title": "다양성 통계",

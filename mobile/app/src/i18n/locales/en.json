@@ -1783,7 +1783,10 @@
     "deleteTitle": "Delete taxon",
     "deleteMsg": "Delete \"{{name}}\"? This cannot be undone.",
     "deleteBlockedTitle": "Cannot delete",
-    "deleteBlockedMsg": "This taxon is still used by:\nChecklist records: {{records}}\nPlot records: {{plotRecords}}\nSpecimens: {{specimens}}\nFavorites: {{favorites}}\n\nDelete those records or re-identify them as another taxon first."
+    "deleteBlockedMsg": "This taxon is still used by:\nChecklist records: {{records}}\nPlot records: {{plotRecords}}\nSpecimens: {{specimens}}\nFavorites: {{favorites}}\n\nDelete those records or re-identify them as another taxon first.",
+    "intermediate": "Intermediate ranks (optional)",
+    "intermediateHint": "Reuses a node of the same name or creates one. Subfamily, tribe and subtribe apply to the whole genus in the taxonomy tree; subgenus only to this species.",
+    "intermediateNeeds": "Fill in first: {{ranks}}"
   },
   "plotStats": {
     "title": "Diversity statistics",

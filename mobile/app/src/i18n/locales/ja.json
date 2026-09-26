@@ -1670,7 +1670,10 @@
     "deleteTitle": "自作の種を削除",
     "deleteMsg": "「{{name}}」を削除しますか？この操作は取り消せません。",
     "deleteBlockedTitle": "削除できません",
-    "deleteBlockedMsg": "この種はまだ次のデータで使われています：\n種リストの記録 {{records}} 件\n調査区の記録 {{plotRecords}} 件\n採集標本 {{specimens}} 点\nお気に入り {{favorites}} 件\n\n先にこれらの記録を削除するか、別の種に同定し直してください。"
+    "deleteBlockedMsg": "この種はまだ次のデータで使われています：\n種リストの記録 {{records}} 件\n調査区の記録 {{plotRecords}} 件\n採集標本 {{specimens}} 点\nお気に入り {{favorites}} 件\n\n先にこれらの記録を削除するか、別の種に同定し直してください。",
+    "intermediate": "中間階級（任意）",
+    "intermediateHint": "同名のノードがあれば再利用し、なければ作成します。亜科・族・亜族は属単位で、分類ツリーでは同じ属の種がすべて移動します。亜属はこの種だけに適用されます。",
+    "intermediateNeeds": "先に入力：{{ranks}}"
   },
   "plotStats": {
     "title": "多様性統計",

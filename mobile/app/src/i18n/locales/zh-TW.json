@@ -1670,7 +1670,10 @@
     "deleteTitle": "刪除自建物種",
     "deleteMsg": "確定要刪除「{{name}}」？此動作無法復原。",
     "deleteBlockedTitle": "無法刪除",
-    "deleteBlockedMsg": "這個物種仍被下列資料使用：\n名錄記錄 {{records}} 筆\n樣區記錄 {{plotRecords}} 筆\n採集標本 {{specimens}} 件\n常用名錄 {{favorites}} 筆\n\n請先刪除這些記錄或改鑑定為其他物種，再刪除此物種。"
+    "deleteBlockedMsg": "這個物種仍被下列資料使用：\n名錄記錄 {{records}} 筆\n樣區記錄 {{plotRecords}} 筆\n採集標本 {{specimens}} 件\n常用名錄 {{favorites}} 筆\n\n請先刪除這些記錄或改鑑定為其他物種，再刪除此物種。",
+    "intermediate": "亞階層（選填）",
+    "intermediateHint": "會建立或沿用同名的節點。亞科、族、亞族是以屬為單位，同屬的物種在分類樹上都會一起移過去；亞屬則只影響這個物種。",
+    "intermediateNeeds": "需要先填：{{ranks}}"
   },
   "plotStats": {
     "title": "多樣性統計",

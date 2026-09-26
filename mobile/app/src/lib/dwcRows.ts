@@ -91,6 +91,7 @@ type TaxonAcc = { taxa: Map<string, DwcRow>; distributions: DwcRow[]; classify: 
 const NO_INTERMEDIATES: Classify = () => ({
   terms: { superfamily: '', subfamily: '', tribe: '', subtribe: '', subgenus: '' },
   after: {},
+  names: {},
 });
 
 function makeClassifier(): Classify {

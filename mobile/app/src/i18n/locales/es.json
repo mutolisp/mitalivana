@@ -1896,7 +1896,10 @@
     "deleteTitle": "Eliminar especie propia",
     "deleteMsg": "¿Eliminar «{{name}}»? Esta acción no se puede deshacer.",
     "deleteBlockedTitle": "No se puede eliminar",
-    "deleteBlockedMsg": "Esta especie aún se usa en:\nregistros de lista de especies: {{records}}\nregistros de parcela: {{plotRecords}}\nespecímenes: {{specimens}}\nfavoritos: {{favorites}}\n\nPrimero elimina esos registros o reidentifícalos como otra especie."
+    "deleteBlockedMsg": "Esta especie aún se usa en:\nregistros de lista de especies: {{records}}\nregistros de parcela: {{plotRecords}}\nespecímenes: {{specimens}}\nfavoritos: {{favorites}}\n\nPrimero elimina esos registros o reidentifícalos como otra especie.",
+    "intermediate": "Rangos intermedios (opcional)",
+    "intermediateHint": "Se reutiliza un nodo con el mismo nombre o se crea uno. Subfamilia, tribu y subtribu se aplican a todo el género en el árbol taxonómico; el subgénero solo a esta especie.",
+    "intermediateNeeds": "Completa primero: {{ranks}}"
   },
   "plotStats": {
     "title": "Estadísticas de diversidad",

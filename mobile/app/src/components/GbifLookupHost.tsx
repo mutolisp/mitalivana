@@ -40,9 +40,13 @@ import { KeyboardAvoidingView } from './KeyboardAvoidingView';
 import { ScientificName } from './ScientificName';
 import { SynonymStatusBadge } from './CollapsibleSection';
 import {
+  applyManualIntermediates,
   deleteManualTaxon,
   externalTaxonUsage,
   generateUuid,
+  manualIntermediatesOf,
+  MANUAL_INTERMEDIATE_GROUPS,
+  type ManualIntermediates,
   searchByTaxonId,
   updateExternalTaxon,
   upsertExternalTaxon,
@@ -203,6 +207,32 @@ type ManualForm = {
   rank: string;
 };
 
+const EMPTY_INTERMEDIATES: ManualIntermediates = {
+  superfamily: '',
+  subfamily: '',
+  tribe: '',
+  subtribe: '',
+  subgenus: '',
+};
+
+/** Current intermediate ranks of a taxon being edited (TaiCOL's placement with
+ *  the user's applied); empty for a new one. */
+function initialIntermediates(edit?: ExternalTaxon): ManualIntermediates {
+  if (!edit) return EMPTY_INTERMEDIATES;
+  try {
+    return manualIntermediatesOf({
+      kingdom: edit.kingdom ?? '',
+      order: edit.order ?? '',
+      family: edit.family ?? '',
+      genus: edit.genus ?? '',
+      simple_name: edit.simple_name,
+      rank: edit.rank || deriveRank(edit.simple_name),
+    });
+  } catch {
+    return EMPTY_INTERMEDIATES;
+  }
+}
+
 /** Rank guessed from the epithet count; the chips let the user override. */
 function deriveRank(sci: string): string {
   const toks = sci.trim().split(/\s+/).filter(Boolean);
@@ -271,6 +301,18 @@ export function GbifLookupHost() {
   const [manual, setManual] = useState<ManualForm>(emptyManualForm(''));
   const [autoFilling, setAutoFilling] = useState(false);
   const [manualError, setManualError] = useState<string | null>(null);
+  // Optional intermediate ranks (superfamily, subfamily, tribe, subtribe,
+  // subgenus). `interBefore` is what they were when the form opened, so saving
+  // only re-places what the user changed.
+  const [inter, setInter] = useState<ManualIntermediates>(EMPTY_INTERMEDIATES);
+  const [interBefore, setInterBefore] = useState<ManualIntermediates>(EMPTY_INTERMEDIATES);
+  const [interOpen, setInterOpen] = useState(false);
+  const resetIntermediates = (edit?: ExternalTaxon) => {
+    const v = initialIntermediates(edit);
+    setInter(v);
+    setInterBefore(v);
+    setInterOpen(Object.values(v).some(Boolean));
+  };
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -285,6 +327,7 @@ export function GbifLookupHost() {
     setAutoFilling(false);
     if (pending.mode === 'manual') {
       setManual(emptyManualForm(pending.query, pending.edit));
+      resetIntermediates(pending.edit);
       setStep('manual');
       return () => ctrl.abort();
     }
@@ -360,6 +403,13 @@ export function GbifLookupHost() {
         source_key: generateUuid().replace(/-/g, '').slice(0, 12),
         ...fields,
       });
+    }
+    try {
+      applyManualIntermediates({ ...fields, simple_name: name }, interBefore, inter);
+    } catch (e) {
+      // The taxon itself is saved; a failed placement must not lose it.
+      // eslint-disable-next-line no-console
+      console.warn('[manualTaxon] intermediate placement failed:', e);
     }
     const created = searchByTaxonId(taxonId);
     if (created) onResolved(created, false);
@@ -533,6 +583,7 @@ export function GbifLookupHost() {
                 <Pressable
                   onPress={() => {
                     setManual(emptyManualForm(query ?? ''));
+                    resetIntermediates();
                     setManualError(null);
                     setStep('manual');
                   }}
@@ -811,6 +862,59 @@ export function GbifLookupHost() {
                   />
                 </View>
               ))}
+
+              <Pressable
+                onPress={() => setInterOpen((o) => !o)}
+                className="mt-4 flex-row items-center"
+                hitSlop={6}
+              >
+                <Ionicons name={interOpen ? 'chevron-down' : 'chevron-forward'} size={14} color="#6b7280" />
+                <Text className="ml-1 text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">
+                  {t('manualTaxon.intermediate')}
+                </Text>
+              </Pressable>
+              {interOpen ? (
+                <View>
+                  <Text className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    {t('manualTaxon.intermediateHint')}
+                  </Text>
+                  {MANUAL_INTERMEDIATE_GROUPS.flatMap((g) =>
+                    g.ranks.map((r) => {
+                      // A field hangs between two fixed ranks; without them
+                      // there is nothing to place, so say which are missing.
+                      const needs =
+                        g.anchor === 'genus'
+                          ? manual.genus.trim() && manual.rank !== 'genus'
+                            ? []
+                            : ['genus']
+                          : [g.anchor, g.child].filter((x) => !manual[x as 'order' | 'family' | 'genus'].trim());
+                      return (
+                        <View key={r}>
+                          <Text className="mt-3 text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">
+                            {t(`rank.${r}`)}
+                          </Text>
+                          <TextInput
+                            value={inter[r]}
+                            onChangeText={(v) => setInter((prev) => ({ ...prev, [r]: v }))}
+                            editable={needs.length === 0 || !!inter[r]}
+                            autoCapitalize="words"
+                            autoCorrect={false}
+                            placeholder={
+                              needs.length > 0
+                                ? t('manualTaxon.intermediateNeeds', {
+                                    ranks: needs.map((x) => t(`rank.${x}`)).join(' / '),
+                                  })
+                                : ''
+                            }
+                            placeholderTextColor="#9ca3af"
+                            className="mt-1 rounded-lg border border-gray-300 px-3 py-2.5 text-base text-gray-900 dark:border-gray-600 dark:text-gray-100"
+                          />
+                        </View>
+                      );
+                    }),
+                  )}
+                </View>
+              ) : null}
 
               <Text className="mt-3 text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">
                 {t('manualTaxon.rank')}

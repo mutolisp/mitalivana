@@ -42,6 +42,9 @@ import {
   chainForChild,
   childKeyOf,
   createChainResolver,
+  createIntermediateNode,
+  findIntermediate,
+  placeChildren,
   hasOverride,
   RANK_LADDER,
   ranksBetween,
@@ -582,6 +585,8 @@ export type IntermediateDwcTerms = {
 
 export type IntermediateClassification = {
   terms: IntermediateDwcTerms;
+  /** Raw name per intermediate rank ('subfamily' → 'Ledrinae'). */
+  names: Record<string, string>;
   /** Intermediate names right after each fixed rank, top-down, for
    *  `higherClassificationOf`. */
   after: Partial<Record<Rank, string[]>>;
@@ -605,8 +610,9 @@ export function createIntermediateClassifier(): (t: {
   return (t) => {
     const terms: IntermediateDwcTerms = { superfamily: '', subfamily: '', tribe: '', subtribe: '', subgenus: '' };
     const after: Partial<Record<Rank, string[]>> = {};
+    const names: Record<string, string> = {};
     const kingdom = (t.kingdom ?? '').trim();
-    if (!kingdom) return { terms, after };
+    if (!kingdom) return { terms, after, names };
     const vals: Record<Rank, string> = {
       kingdom,
       phylum: (t.phylum ?? '').trim(),
@@ -620,6 +626,7 @@ export function createIntermediateClassifier(): (t: {
       if (chain.length === 0) return;
       after[anchorRank] = chain.map((n) => n.name);
       for (const n of chain) {
+        names[n.rank] = n.name;
         if (n.rank === 'subgenus') terms.subgenus = vals.genus ? `${vals.genus} (${n.name})` : n.name;
         else if (n.rank in terms) terms[n.rank as keyof IntermediateDwcTerms] = n.name;
       }
@@ -634,8 +641,81 @@ export function createIntermediateClassifier(): (t: {
       const binomial = binomialOf({ simple_name: name, rank: t.rank ?? 'Species' } as TaxonSpecies);
       take('genus', 'species', binomial);
     }
-    return { terms, after };
+    return { terms, after, names };
   };
+}
+
+// ── Intermediate ranks on the manual-taxon form ────────────────────────────
+
+/** The optional intermediate fields of the manual-taxon form, grouped by the
+ *  fixed-rank anchor they hang under and the child that gets placed. */
+export const MANUAL_INTERMEDIATE_GROUPS = [
+  { anchor: 'order', child: 'family', ranks: ['superfamily'] },
+  { anchor: 'family', child: 'genus', ranks: ['subfamily', 'tribe', 'subtribe'] },
+  { anchor: 'genus', child: 'species', ranks: ['subgenus'] },
+] as const;
+export type ManualIntermediateRank = (typeof MANUAL_INTERMEDIATE_GROUPS)[number]['ranks'][number];
+export type ManualIntermediates = Record<ManualIntermediateRank, string>;
+
+type ManualLineage = {
+  kingdom: string;
+  order: string;
+  family: string;
+  genus: string;
+  simple_name: string;
+  rank: string;
+};
+
+/** Current values for the form: TaiCOL's placement with the user's applied. */
+export function manualIntermediatesOf(t: ManualLineage & { phylum?: string; class?: string }): ManualIntermediates {
+  const { names } = createIntermediateClassifier()({ ...t, rank: capitalize(t.rank) });
+  return {
+    superfamily: names.superfamily ?? '',
+    subfamily: names.subfamily ?? '',
+    tribe: names.tribe ?? '',
+    subtribe: names.subtribe ?? '',
+    subgenus: names.subgenus ?? '',
+  };
+}
+
+/**
+ * Apply what the user typed in the form's intermediate fields.
+ *
+ * Placement is per child, not per species: a subfamily moves the whole GENUS
+ * (every species of it) in the tree; a subgenus moves this species. Nodes are
+ * reused by name under the same anchor (TaiCOL's first), created otherwise.
+ * Only a group the user actually changed is touched, so saving an unrelated
+ * edit never pins TaiCOL's current placement as a user override.
+ */
+export function applyManualIntermediates(
+  t: ManualLineage,
+  before: ManualIntermediates,
+  after: ManualIntermediates,
+): void {
+  const kingdom = t.kingdom.trim();
+  if (!kingdom) return;
+  const vals: Record<string, string> = {
+    order: t.order.trim(),
+    family: t.family.trim(),
+    genus: t.genus.trim(),
+    species: t.simple_name.includes(' ') ? binomialOf({ simple_name: t.simple_name.trim(), rank: capitalize(t.rank) } as TaxonSpecies) : '',
+  };
+  for (const g of MANUAL_INTERMEDIATE_GROUPS) {
+    const changed = g.ranks.some((r) => before[r].trim() !== after[r].trim());
+    const anchorName = vals[g.anchor];
+    const childName = vals[g.child];
+    if (!changed || !anchorName || !childName) continue;
+    let parent: string | null = null;
+    for (const r of g.ranks) {
+      const name = after[r].trim();
+      if (!name) continue;
+      parent =
+        findIntermediate(kingdom, g.anchor, anchorName, r, name) ??
+        createIntermediateNode({ rank: r, simple_name: name, kingdom, anchorRank: g.anchor, anchorName, parentRef: parent });
+    }
+    // All fields cleared → the user took it out of TaiCOL's intermediate too.
+    placeChildren([childKeyOf(kingdom, g.child, childName)], parent);
+  }
 }
 
 // ── Editing intermediates (IntermediateEditor) ──────────────────────────────

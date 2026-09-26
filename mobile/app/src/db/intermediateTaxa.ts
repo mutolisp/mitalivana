@@ -215,6 +215,24 @@ export function visiblePathOf(ref: string): IntermediateNode[] {
   return visiblePath(loadOverlay(), ref, getIntermediateMode());
 }
 
+/** An existing intermediate (TaiCOL first, then user-created) with this name
+ *  and rank under this anchor — so the manual-taxon form reuses nodes rather
+ *  than minting a second 竹亞科 every time. */
+export function findIntermediate(
+  kingdom: string,
+  anchorRank: string,
+  anchorName: string,
+  rank: string,
+  name: string,
+): string | undefined {
+  const r = rank.toLowerCase();
+  const match = (n: IntermediateNode) =>
+    n.kingdom === kingdom && n.anchorRank === anchorRank && n.anchorName === anchorName && n.rank === r && n.name === name;
+  for (const n of taicolTree().byRef.values()) if (match(n)) return n.ref;
+  for (const n of userRows(`SELECT * FROM user_taxon_node`).map(userRowToNode)) if (match(n)) return n.ref;
+  return undefined;
+}
+
 /** Intermediates the tree search can offer, TaiCOL and user-created. */
 export function searchIntermediate(q: string, limit = 20): IntermediateNode[] {
   const raw = q.trim();
