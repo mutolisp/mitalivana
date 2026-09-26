@@ -663,7 +663,9 @@
     "provenance": "Provenance signing",
     "provenanceDesc": "Attribute exported data to your ORCID",
     "moduleGloria": "GLORIA 정상 모니터링",
-    "moduleGloriaDesc": "「새 기록」 메뉴에 GLORIA 정상 조사를 표시합니다. 기존 GLORIA 기록은 항상 표시됩니다."
+    "moduleGloriaDesc": "「새 기록」 메뉴에 GLORIA 정상 조사를 표시합니다. 기존 GLORIA 기록은 항상 표시됩니다.",
+    "searchUsageRank": "자주 기록한 종 우선",
+    "searchUsageRankDesc": "종 검색 시 이름이 정확히 일치하는 결과는 계속 맨 위에 두고, 그다음은 기록한 횟수가 많은 종부터 보여 줍니다(빠른 목록·조사구·채집·GLORIA 합계)."
   },
   "taxonomy": {
     "loadingTree": "분류 트리 불러오는 중...",
@@ -2545,7 +2547,8 @@
       "byNone": "미지정",
       "titleOnly": "조사 시간",
       "notYet": "시작 전",
-      "afterCover": "피도 추정에 이어서: {{time}}"
+      "afterCover": "피도 추정에 이어서: {{time}}",
+      "sameAsStart": "시작과 같게({{time}})"
     },
     "summitImport": {
       "button": "정상 가져오기",

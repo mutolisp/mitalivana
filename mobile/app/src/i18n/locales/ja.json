@@ -663,7 +663,9 @@
     "provenance": "Provenance signing",
     "provenanceDesc": "Attribute exported data to your ORCID",
     "moduleGloria": "GLORIA 山頂モニタリング",
-    "moduleGloriaDesc": "「新規記録」メニューに GLORIA 山頂調査を表示します。既存の GLORIA 記録は常に表示されます。"
+    "moduleGloriaDesc": "「新規記録」メニューに GLORIA 山頂調査を表示します。既存の GLORIA 記録は常に表示されます。",
+    "searchUsageRank": "よく記録する種を優先",
+    "searchUsageRankDesc": "種の検索で、名前が完全一致するものは引き続き先頭に。その後は記録回数の多い種から表示します（クイックリスト・プロット・採集・GLORIA の合計）。"
   },
   "taxonomy": {
     "loadingTree": "分類ツリーを読み込み中...",
@@ -2545,7 +2547,8 @@
       "byNone": "未設定",
       "titleOnly": "調査時刻",
       "notYet": "未開始",
-      "afterCover": "被度推定に続けて：{{time}}"
+      "afterCover": "被度推定に続けて：{{time}}",
+      "sameAsStart": "開始と同じ（{{time}}）"
     },
     "summitImport": {
       "button": "山頂を読み込む",

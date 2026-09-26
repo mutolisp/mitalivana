@@ -7,9 +7,13 @@ import { useKeyboardState } from 'react-native-keyboard-controller';
 import {
   onDatasetsChanged,
   prewarmFuzzyIndex,
+  searchByTaxonId,
   searchWithFuzzyFallback,
+  TAXON_GROUP_FILTERS,
   type SearchResult,
 } from '~/db';
+import { invalidateUsageCounts, usageCounts } from '~/db/usageCounts';
+import { rankByUsage, usedMatching } from '~/lib/usageRank';
 import type { AdoptionInput } from '~/db';
 import { onPackContentChanged } from '~/db/regionpacks';
 import type { TaxonGroup } from '~/db/types';
@@ -132,6 +136,44 @@ onDatasetsChanged(clearSearchResultCache);
 // record whose name resolves to nothing).
 onPackContentChanged(clearSearchResultCache);
 
+function inGroups(r: SearchResult, groups: TaxonGroup[]): boolean {
+  if (groups.length === 0) return true;
+  return groups.some((g) => {
+    const f = TAXON_GROUP_FILTERS[g];
+    return (
+      (!f.kingdom || r.kingdom === f.kingdom) &&
+      (!f.phylum || r.phylum === f.phylum) &&
+      (!f.class || r.class_name === f.class)
+    );
+  });
+}
+
+/**
+ * Setting `search_usage_rank`: exact matches first, then the taxa the user
+ * records most (src/lib/usageRank.ts). Used taxa that match the query but fell
+ * outside the search's own cut-off are brought back first, so a species
+ * recorded a hundred times is not lost behind twenty rarer ones. Applied
+ * after the result cache, so a fresh add counts at once.
+ */
+function withUsage(results: SearchResult[], q: string, groups: TaxonGroup[]): SearchResult[] {
+  try {
+    const { used, counts } = usageCounts();
+    const have = new Set(results.map((r) => r.taxon_id));
+    const extra = usedMatching(
+      used.filter((u) => !have.has(u.taxon_id)),
+      q,
+      5,
+    )
+      .map((u) => searchByTaxonId(u.taxon_id))
+      .filter((r): r is SearchResult => !!r && !have.has(r.taxon_id) && inGroups(r, groups));
+    return rankByUsage([...results, ...extra], q, counts);
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.warn('[SearchBox] usage ranking failed:', e);
+    return results;
+  }
+}
+
 function cacheSet(key: string, value: SearchResult[]): void {
   if (resultCache.has(key)) resultCache.delete(key);
   resultCache.set(key, value);
@@ -156,6 +198,7 @@ export function SearchBox({
 }: Props) {
   const { t } = useTranslation();
   const lastGroups = useSettings((s) => s.last_search_groups);
+  const usageRank = useSettings((s) => s.search_usage_rank);
   const setSetting = useSettings((s) => s.set);
 
   const [query, setQuery] = useState('');
@@ -202,15 +245,17 @@ export function SearchBox({
     // the SQL.
     const cacheKey = `${trimmed}|${groups.join(',')}`;
     const cached = cacheGet(cacheKey);
+    const finish = (r: SearchResult[]) =>
+      setResults((usageRank ? withUsage(r, trimmed, groups) : r).slice(0, 20));
     if (cached) {
-      setResults(cached.slice(0, 20));
+      finish(cached);
       return;
     }
     debounceRef.current = setTimeout(() => {
       try {
         const r = searchWithFuzzyFallback({ q: trimmed, groups: groups.length ? groups : undefined });
         cacheSet(cacheKey, r);
-        setResults(r.slice(0, 20));
+        finish(r);
       } catch (e) {
         // Defense in depth: never let a search-time exception escape the
         // debounce timer — an uncaught error here has been observed to
@@ -224,7 +269,7 @@ export function SearchBox({
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [query, groups]);
+  }, [query, groups, usageRank]);
 
   const handleGroupChange = (next: TaxonGroup[]) => {
     setGroupsLocal(next);
@@ -242,6 +287,8 @@ export function SearchBox({
 
   const handleSelect = (result: SearchResult, adopted: AdoptionInput | null = null) => {
     onSelect(result, adopted);
+    // Probably just recorded: let the next search count it.
+    invalidateUsageCounts();
     setQuery('');
     setResults([]);
     if (afterSelect === 'refocus') {

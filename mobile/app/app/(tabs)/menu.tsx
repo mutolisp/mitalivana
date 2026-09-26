@@ -53,6 +53,7 @@ export default function MenuScreen() {
   const recordTypeDefault = useSettings((s) => s.record_type_default);
   const gpsSession = useSettings((s) => s.record_gps_session);
   const gpsPlot = useSettings((s) => s.record_gps_plot);
+  const usageRank = useSettings((s) => s.search_usage_rank);
   const moduleGloria = useSettings((s) => s.module_gloria);
   const fabSide = useSettings((s) => s.fab_side);
   const inatLogin = useSettings((s) => s.inat_login);
@@ -240,6 +241,12 @@ export default function MenuScreen() {
           description={t('settings.gpsPerSpeciesPlotDesc')}
           value={gpsPlot}
           onChange={(v) => setSetting('record_gps_plot', v)}
+        />
+        <SwitchRow
+          label={t('settings.searchUsageRank')}
+          description={t('settings.searchUsageRankDesc')}
+          value={usageRank}
+          onChange={(v) => setSetting('search_usage_rank', v)}
         />
         <SwitchRow
           label={t('settings.moduleGloria')}

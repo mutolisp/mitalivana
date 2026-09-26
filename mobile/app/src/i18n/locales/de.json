@@ -705,7 +705,9 @@
     "provenance": "Provenance signing",
     "provenanceDesc": "Attribute exported data to your ORCID",
     "moduleGloria": "GLORIA-Gipfelmonitoring",
-    "moduleGloriaDesc": "Zeigt die GLORIA-Gipfelaufnahme im Menü „Neuer Datensatz“. Vorhandene GLORIA-Datensätze bleiben immer sichtbar."
+    "moduleGloriaDesc": "Zeigt die GLORIA-Gipfelaufnahme im Menü „Neuer Datensatz“. Vorhandene GLORIA-Datensätze bleiben immer sichtbar.",
+    "searchUsageRank": "Häufig erfasste Arten zuerst",
+    "searchUsageRankDesc": "Bei der Artsuche stehen exakte Namenstreffer weiterhin oben; danach kommen Arten, die du öfter erfasst hast (Artenlisten, Plots, Sammlungen und GLORIA zusammen)."
   },
   "taxonomy": {
     "loadingTree": "Taxonomiebaum wird geladen...",
@@ -2695,7 +2697,8 @@
       "byNone": "Nicht gesetzt",
       "titleOnly": "Aufnahmezeiten",
       "notYet": "Noch nicht begonnen",
-      "afterCover": "Nach Deckungsschätzung: {{time}}"
+      "afterCover": "Nach Deckungsschätzung: {{time}}",
+      "sameAsStart": "Wie Beginn ({{time}})"
     },
     "summitImport": {
       "button": "Gipfel importieren",

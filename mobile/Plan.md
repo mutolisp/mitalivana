@@ -14,8 +14,8 @@
 |---|---|
 | `Plan.md`（本檔） | **待辦** ＋ 現行架構與長效設計決策 |
 | `Update_log.md` | 已 ship 與踩過的坑；附錄 A–D 收了本檔原本 4,000 多行的 sprint 推導過程 |
-| `Device_test.md` | 實機驗證清單（603 項；部分已實測但尚未勾選，2026-09-26）。**驗證項不要寫回本檔** |
-| 守門 | `npm run check:*` 共 **39 支**（2026-09-25 最新加入 `check:gloria`、`check:storage`、`check:record-snapshot`） |
+| `Device_test.md` | 實機驗證清單（610 項，已通過並勾選 4 項，2026-09-26）。**驗證項不要寫回本檔** |
+| 守門 | `npm run check:*` 共 **41 支**（最新加入 `check:record-snapshot`、`check:usage-rank`） |
 | `docs/` | 仍代表現況的參考文件：檢索表、樣區、匯出外部 API、報表、物種詳細頁、地圖、i18n；`docs/gloria-ui/` GLORIA 介面草稿（五語） |
 | `docs/planned/` | 純規劃未動工：AI 辨識、P2P 協作、雲端協作 |
 | `archive/` | 已完成或被取代的設計稿與一次性稽核 |
@@ -301,10 +301,10 @@ GLORIA 介面草稿（五語）→ `docs/gloria-ui/`（原稿、譯文與建置�
   `model/speciesOrder.ts` 供畫面與匯出共用）；輸入時列表底部讓出搜尋框高度，候選清單不會伸到標題列下
 - 每單位調查者與調查時間：1×1 m、SAS、10×10 m 都在最上方「樣區環境」摺疊區內、時間可單獨收摺；
   開始／結束（日期、時間分欄，自動記錄可手改；1×1 m 有優勢度估測、頻度、頻度點擊法三組）；
-  頻度接續優勢度：同一天、優勢度結束的下一分鐘開始（`model/quadratTimes.ts`），舊日期的頻度編輯不會把結束改成今天
+  頻度接續優勢度：同一天、優勢度結束的下一分鐘開始（`model/quadratTimes.ts`）；空白的結束可一鍵「同開始時間」，舊日期的頻度編輯不會把結束改成今天
 - 搜尋預設只找維管束植物（GLORIA 各搜尋框＋調查進行中的分類樹搜尋；可當下改選，不覆寫使用者的設定）
 - 山峰清單（偏好設定）：匯入／匯出山峰（00_ 欄位）、匯入量測點（只需點位、距離、方位）、匯出量測點（02_ 欄位），CSV 與 .xlsx
-- 介面草稿 artifact（https://claude.ai/artifact/QCgtqCyBKeKFhizoRVA1Cn ，v53，五語；原稿 `docs/gloria-ui/`）：
+- 介面草稿 artifact（https://claude.ai/artifact/QCgtqCyBKeKFhizoRVA1Cn ，v54，五語；原稿 `docs/gloria-ui/`）：
   01 建立～09 拍照檢核，05b 頻度點擊法；完成時的結束時間選擇、物種編號與拖拉、頻度接續優勢度都已反映；app 介面改動時同步更新
 
 待辦：
@@ -320,7 +320,7 @@ GLORIA 介面草稿（五語）→ `docs/gloria-ui/`（原稿、譯文與建置�
    app 只替 app 內的照片命名。之後可評估「匯入照片並依檢核項目自動命名」。
 7. **待確認** —— 截圖 4b 物種總表的 FRE 欄、Survey Type `CAL` 的意思（未確認前不做）。
 8. **MIREN** —— 本機沒有 protocol 原文，不做任何設計；拿到原文後照 GLORIA 模式另開 sibling 模組。
-9. **實機驗證** —— 部分已實測但 `Device_test.md` 尚未勾選；未確認的重點：頻度手勢、下拉選單在 iOS／Android 的顯示、
+9. **實機驗證** —— 已通過的在 `Device_test.md` 打 x；未確認的重點：頻度手勢、下拉選單在 iOS／Android 的顯示、
    iOS 日期／時間轉輪、拍照檢核在 375 pt 寬的排版、物種拖拉（巢狀在捲動區內）、結束時間選單接在 Alert 之後是否會被吞掉。
 10. **拖拉中的即時編號** —— 目前放開後才重新編號；若實測覺得需要，可用 `onPlaceholderIndexChange` 在拖曳中預覽。
 11. **格式雜訊** —— `app/gloria/[id]/[code]/index.tsx` 曾被 prettier 整檔重排（2026-09-26），commit 時 diff 會偏大。
@@ -342,6 +342,12 @@ GLORIA 介面草稿（五語）→ `docs/gloria-ui/`（原稿、譯文與建置�
    `gbifDownload.ts` 網路例外時 `gbif-pack-*.zip` 不刪；ImagePicker 原檔在複製成功後可立即刪（`photoCapture.ts persistPickedPhoto`）。
 3. **「清除所有資料」不刪照片與錄音** —— 使用者選擇維持現狀（2026-09-25）；清除後這些檔案會出現在「未被使用的照片與錄音」，可在儲存空間頁清。
 4. **實機確認** —— 使用者手機 3.59 GB 的實際組成（特別是舊版 `rudymap/` 是否殘留），清除前先看頁面列出的數字。
+
+### J. 搜尋：常用物種優先（2026-09-26，細節見 `Update_log.md`）
+
+已完成：設定「常用物種優先」（預設開）；精確符合永遠第一，其次依記錄次數；被截斷的常用物種會補回。`check:usage-rank` 守門。
+
+待辦：分類樹的階層搜尋（`searchTaxonomy`）未套用——它的結果 `TaxonSearchHit` 沒有 taxon_id；若要套用需先補欄位。
 
 ### I. 快速名錄／樣區調查／採集記錄的完成鎖定與復原（2026-09-25，細節見 `Update_log.md`）
 

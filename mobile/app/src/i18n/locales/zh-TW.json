@@ -663,7 +663,9 @@
     "provenance": "出處簽章",
     "provenanceDesc": "用 ORCID 替匯出資料署名",
     "moduleGloria": "GLORIA 山峰監測模組",
-    "moduleGloriaDesc": "在「新增記錄」選單顯示 GLORIA 山峰調查。已有的 GLORIA 記錄不受影響，一律顯示。"
+    "moduleGloriaDesc": "在「新增記錄」選單顯示 GLORIA 山峰調查。已有的 GLORIA 記錄不受影響，一律顯示。",
+    "searchUsageRank": "常用物種優先",
+    "searchUsageRankDesc": "搜尋物種時，完全相符的名稱仍排第一，其次依你記錄過的次數由多到少排列（快速名錄、樣區、採集、GLORIA 合計）。"
   },
   "taxonomy": {
     "loadingTree": "載入分類樹...",
@@ -2545,7 +2547,8 @@
       "byNone": "未指定",
       "titleOnly": "調查時間",
       "notYet": "尚未開始",
-      "afterCover": "接續優勢度：{{time}}"
+      "afterCover": "接續優勢度：{{time}}",
+      "sameAsStart": "同開始時間（{{time}}）"
     },
     "summitImport": {
       "button": "匯入山峰",

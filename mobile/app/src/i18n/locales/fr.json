@@ -747,7 +747,9 @@
     "provenance": "Provenance signing",
     "provenanceDesc": "Attribute exported data to your ORCID",
     "moduleGloria": "Suivi des sommets GLORIA",
-    "moduleGloriaDesc": "Affiche l’enquête GLORIA dans le menu Nouvel enregistrement. Les enregistrements GLORIA existants restent toujours visibles."
+    "moduleGloriaDesc": "Affiche l’enquête GLORIA dans le menu Nouvel enregistrement. Les enregistrements GLORIA existants restent toujours visibles.",
+    "searchUsageRank": "Espèces fréquentes en premier",
+    "searchUsageRankDesc": "Lors d’une recherche d’espèce, les noms exacts restent en tête ; ensuite viennent les espèces que vous avez le plus souvent relevées (listes, placettes, collectes et GLORIA réunis)."
   },
   "taxonomy": {
     "loadingTree": "Chargement de l'arbre taxonomique...",
@@ -2845,7 +2847,8 @@
       "byNone": "Non défini",
       "titleOnly": "Heures du relevé",
       "notYet": "Pas commencé",
-      "afterCover": "Après l’estimation du recouvrement : {{time}}"
+      "afterCover": "Après l’estimation du recouvrement : {{time}}",
+      "sameAsStart": "Comme le début ({{time}})"
     },
     "summitImport": {
       "button": "Importer des sommets",

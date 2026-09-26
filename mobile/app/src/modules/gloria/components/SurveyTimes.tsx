@@ -142,16 +142,32 @@ export function SurveyTimes({
             <DateTimeField value={v} mode="time" format={(ts) => isoStamp(ts).slice(11)} onChange={(ts) => save(p, col, ts)} />
           </View>
         ) : (
-          <Pressable
-            onPress={() => save(p, col, fill ?? Date.now())}
-            accessibilityRole="button"
-            accessibilityLabel={`${p.label} ${label}`}
-            className="flex-1 rounded-lg border border-dashed border-gray-300 px-3 py-2 dark:border-gray-600"
-          >
-            <Text className="text-xs text-gray-500 dark:text-gray-400">
-              {fill != null ? t('gloria.times.afterCover', { time: isoStamp(fill).slice(0, 16) }) : t('gloria.times.now')}
-            </Text>
-          </Pressable>
+          <View className="flex-1 gap-1.5">
+            {/* An empty end with a start: copy the start (date and time) to adjust
+                from — an old sheet's end is that day, rarely today. */}
+            {col === p.stop && unit[p.start] != null ? (
+              <Pressable
+                onPress={() => save(p, col, unit[p.start] as number)}
+                accessibilityRole="button"
+                accessibilityLabel={`${p.label} ${label}`}
+                className="rounded-lg border border-dashed border-[#00A2A5] px-3 py-2"
+              >
+                <Text className="text-xs text-[#00797b] dark:text-cyan-300">
+                  {t('gloria.times.sameAsStart', { time: isoStamp(unit[p.start] as number).slice(0, 16) })}
+                </Text>
+              </Pressable>
+            ) : null}
+            <Pressable
+              onPress={() => save(p, col, fill ?? Date.now())}
+              accessibilityRole="button"
+              accessibilityLabel={`${p.label} ${label}`}
+              className="rounded-lg border border-dashed border-gray-300 px-3 py-2 dark:border-gray-600"
+            >
+              <Text className="text-xs text-gray-500 dark:text-gray-400">
+                {fill != null ? t('gloria.times.afterCover', { time: isoStamp(fill).slice(0, 16) }) : t('gloria.times.now')}
+              </Text>
+            </Pressable>
+          </View>
         )}
       </View>
     );

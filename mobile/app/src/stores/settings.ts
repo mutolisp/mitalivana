@@ -188,6 +188,9 @@ type SettingsValues = {
    *  recorded is stamped regardless — the receiver is on anyway. */
   record_gps_session: boolean;
   record_gps_plot: boolean;
+  /** Species search: after exact matches, list the taxa the user records most
+   *  first (src/lib/usageRank.ts). */
+  search_usage_rank: boolean;
   /** GLORIA summit-monitoring module: shows "New GLORIA survey" in the create
    *  menus. Existing GLORIA records stay visible either way. */
   module_gloria: boolean;
@@ -312,6 +315,7 @@ const DEFAULTS: SettingsValues = {
   collection_label_family: false,
   record_gps_session: true,
   record_gps_plot: true,
+  search_usage_rank: true,
   module_gloria: false,
   last_record_sort_dir: 'desc',
   taxonomy_expanded: [],
@@ -452,6 +456,10 @@ function readAll(): SettingsValues {
       map.get('record_gps_plot') == null
         ? DEFAULTS.record_gps_plot
         : map.get('record_gps_plot') === 'true',
+    search_usage_rank:
+      map.get('search_usage_rank') == null
+        ? DEFAULTS.search_usage_rank
+        : map.get('search_usage_rank') === 'true',
     module_gloria: map.get('module_gloria') === 'true',
     last_record_sort_dir:
       (map.get('last_record_sort_dir') as SortDirection) ?? DEFAULTS.last_record_sort_dir,

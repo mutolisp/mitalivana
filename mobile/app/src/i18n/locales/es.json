@@ -747,7 +747,9 @@
     "provenance": "Provenance signing",
     "provenanceDesc": "Attribute exported data to your ORCID",
     "moduleGloria": "Monitoreo de cumbres GLORIA",
-    "moduleGloriaDesc": "Muestra la prospección GLORIA en el menú Nuevo registro. Los registros GLORIA existentes siempre siguen visibles."
+    "moduleGloriaDesc": "Muestra la prospección GLORIA en el menú Nuevo registro. Los registros GLORIA existentes siempre siguen visibles.",
+    "searchUsageRank": "Especies frecuentes primero",
+    "searchUsageRankDesc": "Al buscar especies, las coincidencias exactas siguen primero; después, las especies que has registrado más veces (listas, parcelas, colectas y GLORIA en conjunto)."
   },
   "taxonomy": {
     "loadingTree": "Cargando el árbol taxonómico...",
@@ -2845,7 +2847,8 @@
       "byNone": "Sin definir",
       "titleOnly": "Horas del muestreo",
       "notYet": "Sin empezar",
-      "afterCover": "Tras la estimación de cobertura: {{time}}"
+      "afterCover": "Tras la estimación de cobertura: {{time}}",
+      "sameAsStart": "Igual que el inicio ({{time}})"
     },
     "summitImport": {
       "button": "Importar cimas",

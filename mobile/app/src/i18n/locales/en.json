@@ -705,7 +705,9 @@
     "provenance": "Provenance signing",
     "provenanceDesc": "Attribute exported data to your ORCID",
     "moduleGloria": "GLORIA summit monitoring",
-    "moduleGloriaDesc": "Shows GLORIA summit survey in the New record menu. Existing GLORIA records always stay visible."
+    "moduleGloriaDesc": "Shows GLORIA summit survey in the New record menu. Existing GLORIA records always stay visible.",
+    "searchUsageRank": "Frequently recorded species first",
+    "searchUsageRankDesc": "When searching species, exact name matches still come first; after them, species you have recorded more often come first (quick checklists, plots, collections and GLORIA combined)."
   },
   "taxonomy": {
     "loadingTree": "Loading taxonomy tree...",
@@ -2695,7 +2697,8 @@
       "byNone": "Not set",
       "titleOnly": "Survey times",
       "notYet": "Not started",
-      "afterCover": "After cover estimate: {{time}}"
+      "afterCover": "After cover estimate: {{time}}",
+      "sameAsStart": "Same as start ({{time}})"
     },
     "summitImport": {
       "button": "Import summits",
