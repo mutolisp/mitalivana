@@ -312,7 +312,26 @@
     "subgenus": "亜属",
     "subspecies": "亜種",
     "variety": "変種",
-    "form": "品種"
+    "form": "品種",
+    "superfamily": "上科",
+    "epifamily": "エピ科",
+    "suborder": "亜目",
+    "infraorder": "下目",
+    "parvorder": "小目",
+    "supertribe": "上族",
+    "subtribe": "亜族",
+    "section": "節",
+    "subsection": "亜節",
+    "series": "列",
+    "subkingdom": "亜界",
+    "infrakingdom": "下界",
+    "superphylum": "上門",
+    "subphylum": "亜門",
+    "infraphylum": "下門",
+    "superclass": "上綱",
+    "subclass": "亜綱",
+    "infraclass": "下綱",
+    "superorder": "上目"
   },
   "search": {
     "placeholder": "種／分類群のキーワードを入力...",
@@ -665,7 +684,10 @@
     "moduleGloria": "GLORIA 山頂モニタリング",
     "moduleGloriaDesc": "「新規記録」メニューに GLORIA 山頂調査を表示します。既存の GLORIA 記録は常に表示されます。",
     "searchUsageRank": "よく記録する種を優先",
-    "searchUsageRankDesc": "種の検索で、名前が完全一致するものは引き続き先頭に。その後は記録回数の多い種から表示します（クイックリスト・プロット・採集・GLORIA の合計）。"
+    "searchUsageRankDesc": "種の検索で、名前が完全一致するものは引き続き先頭に。その後は記録回数の多い種から表示します（クイックリスト・プロット・採集・GLORIA の合計）。",
+    "intermediateRanks": "中間階級の表示",
+    "intermediateBelowOrder": "目より下",
+    "intermediateAll": "すべて"
   },
   "taxonomy": {
     "loadingTree": "分類ツリーを読み込み中...",
@@ -2723,5 +2745,31 @@
     "hint": "日付と時刻は手入力できます（過去データの入力用）。タップして変更します。",
     "orderTitle": "時刻の順序が不正",
     "order": "終了は開始より前にできません。"
+  },
+  "intermediate": {
+    "addChild": "下位の分類群を追加…",
+    "changeParent": "上位の所属を変更…",
+    "resetTaicol": "TaiCOL の所属に戻す",
+    "editNode": "この分類群を編集",
+    "deleteNode": "この分類群を削除",
+    "deleteTitle": "「{{name}}」を削除しますか？",
+    "deleteMsg": "この下に置いた分類群は TaiCOL の所属に戻ります。",
+    "formTitleNew": "分類群を追加",
+    "formTitleEdit": "分類群を編集",
+    "rank": "階級",
+    "name": "学名",
+    "author": "命名者",
+    "cname": "和名・俗名",
+    "under": "{{parent}} の下",
+    "pickMembers": "「{{name}}」に入れる分類群を選択",
+    "pickMembersHint": "後から各分類群の ⓘ で所属を変更することもできます。",
+    "skipMembers": "スキップ",
+    "directUnder": "{{name}} の直下",
+    "parentTitle": "「{{name}}」の上位",
+    "userCreated": "自作",
+    "nameRequired": "学名を入力してください",
+    "noRank": "ここに入れられる中間階級はありません",
+    "saved": "保存しました",
+    "placed": "所属を更新しました"
   }
 }

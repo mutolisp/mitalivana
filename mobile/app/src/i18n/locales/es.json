@@ -368,7 +368,26 @@
     "subgenus": "Subgénero",
     "subspecies": "Subespecie",
     "variety": "Variedad",
-    "form": "Forma"
+    "form": "Forma",
+    "superfamily": "Superfamilia",
+    "epifamily": "Epifamilia",
+    "suborder": "Suborden",
+    "infraorder": "Infraorden",
+    "parvorder": "Parvorden",
+    "supertribe": "Supertribu",
+    "subtribe": "Subtribu",
+    "section": "Sección",
+    "subsection": "Subsección",
+    "series": "Serie",
+    "subkingdom": "Subreino",
+    "infrakingdom": "Infrarreino",
+    "superphylum": "Superfilo",
+    "subphylum": "Subfilo",
+    "infraphylum": "Infrafilo",
+    "superclass": "Superclase",
+    "subclass": "Subclase",
+    "infraclass": "Infraclase",
+    "superorder": "Superorden"
   },
   "search": {
     "placeholder": "Escriba una especie o un taxón...",
@@ -749,7 +768,10 @@
     "moduleGloria": "Monitoreo de cumbres GLORIA",
     "moduleGloriaDesc": "Muestra la prospección GLORIA en el menú Nuevo registro. Los registros GLORIA existentes siempre siguen visibles.",
     "searchUsageRank": "Especies frecuentes primero",
-    "searchUsageRankDesc": "Al buscar especies, las coincidencias exactas siguen primero; después, las especies que has registrado más veces (listas, parcelas, colectas y GLORIA en conjunto)."
+    "searchUsageRankDesc": "Al buscar especies, las coincidencias exactas siguen primero; después, las especies que has registrado más veces (listas, parcelas, colectas y GLORIA en conjunto).",
+    "intermediateRanks": "Rangos intermedios",
+    "intermediateBelowOrder": "Por debajo del orden",
+    "intermediateAll": "Todos"
   },
   "taxonomy": {
     "loadingTree": "Cargando el árbol taxonómico...",
@@ -3025,5 +3047,31 @@
     "hint": "La fecha y la hora se pueden escribir a mano (para datos antiguos); tócalas para cambiarlas.",
     "orderTitle": "Orden incorrecto",
     "order": "El fin no puede ser anterior al inicio."
+  },
+  "intermediate": {
+    "addChild": "Añadir un rango inferior…",
+    "changeParent": "Cambiar el taxón superior…",
+    "resetTaicol": "Restaurar la ubicación de TaiCOL",
+    "editNode": "Editar este taxón",
+    "deleteNode": "Eliminar este taxón",
+    "deleteTitle": "¿Eliminar «{{name}}»?",
+    "deleteMsg": "Los taxones colocados debajo vuelven a su ubicación de TaiCOL.",
+    "formTitleNew": "Nuevo taxón",
+    "formTitleEdit": "Editar taxón",
+    "rank": "Rango",
+    "name": "Nombre científico",
+    "author": "Autor",
+    "cname": "Nombre común",
+    "under": "Bajo {{parent}}",
+    "pickMembers": "Elige los taxones que van en «{{name}}»",
+    "pickMembersHint": "También puedes cambiar el taxón superior más tarde desde su ⓘ.",
+    "skipMembers": "Omitir",
+    "directUnder": "Directamente bajo {{name}}",
+    "parentTitle": "Taxón superior de «{{name}}»",
+    "userCreated": "Propio",
+    "nameRequired": "Escribe un nombre científico",
+    "noRank": "Aquí no cabe ningún rango intermedio",
+    "saved": "Guardado",
+    "placed": "Ubicación actualizada"
   }
 }

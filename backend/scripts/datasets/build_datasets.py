@@ -29,6 +29,7 @@ Three design rules worth keeping:
 from __future__ import annotations
 
 import argparse
+import gzip
 import hashlib
 import json
 import shutil
@@ -230,6 +231,211 @@ def build_module(master: Path, mod: Module, out_dir: Path) -> Path:
     return path
 
 
+# ─── Intermediate ranks (subfamily, tribe, superfamily, subgenus …) ─────────
+#
+# The TaiCOL CSVs only carry kingdom…genus, so the tree could never show a
+# subfamily. The API's parent links can (fetch_taicol_tree.py snapshots them);
+# this folds the newest snapshot into two tables the app reads:
+#
+#   taxon_tree  — every intermediate-rank taxon some tree child hangs under,
+#                 with its intermediate parent (NULL = directly under the
+#                 fixed-rank anchor) and that anchor.
+#   rank_bridge — per tree child (a fixed-rank taxon, or a species under a
+#                 subgenus/section), the intermediates between it and its
+#                 fixed-rank parent, top-down, as a JSON array of taxon_ids.
+#
+# Only children the tree can actually show (accepted, in Taiwan) are kept, so
+# the tree search never offers an intermediate that has nothing under it.
+
+TREE_SNAPSHOT_GLOB = "TaiCOL_taxon_tree_*.json.gz"
+TREE_SNAPSHOT_DIR = REPO_ROOT / "references" / "TW"
+FIXED_RANKS = ("Kingdom", "Phylum", "Class", "Order", "Family", "Genus")
+#: Ranks that are neither fixed nor intermediate: above kingdom, or species level.
+NON_INTERMEDIATE = {
+    "Domain", "Superkingdom", "Realm", "Subrealm", "Unranked",
+    "Species", "Subspecies", "Nothosubspecies", "Variety", "Subvariety", "Nothovariety",
+    "Form", "Subform", "Special Form", "Race", "Stirp", "Morph", "Aberration",
+    "Hybrid Formula",
+}
+SPECIES_LEVEL_SQL = "rank IN ('Species','Subspecies','Variety','Form')"
+IN_TAIWAN_SQL = "is_in_taiwan LIKE '%true%'"
+
+TREE_DDL = """
+CREATE TABLE taxon_tree (
+  taxon_id TEXT PRIMARY KEY,
+  parent_taxon_id TEXT,
+  rank TEXT NOT NULL,
+  simple_name TEXT NOT NULL,
+  common_name_c TEXT,
+  kingdom TEXT NOT NULL,
+  anchor_rank TEXT NOT NULL,
+  anchor_name TEXT NOT NULL
+);
+CREATE TABLE rank_bridge (
+  kingdom TEXT NOT NULL,
+  child_rank TEXT NOT NULL,
+  child_name TEXT NOT NULL,
+  anchor_rank TEXT NOT NULL,
+  anchor_name TEXT NOT NULL,
+  chain TEXT NOT NULL,
+  PRIMARY KEY (kingdom, child_rank, child_name, anchor_name)
+);
+CREATE INDEX idx_rank_bridge_anchor ON rank_bridge(kingdom, anchor_rank, anchor_name, child_rank);
+CREATE INDEX idx_taxon_tree_name ON taxon_tree(simple_name);
+CREATE INDEX idx_taxon_tree_cname ON taxon_tree(common_name_c);
+"""
+
+
+def latest_tree_snapshot(directory: Path = TREE_SNAPSHOT_DIR) -> Path:
+    found = sorted(directory.glob(TREE_SNAPSHOT_GLOB))
+    if not found:
+        # Fail loudly: a module without the tables still works in the app, but
+        # the tree would silently lose every subfamily users had.
+        raise SystemExit(
+            f"no {TREE_SNAPSHOT_GLOB} in {directory}; run "
+            "`python -m backend.scripts.datasets.fetch_taicol_tree` first"
+        )
+    return found[-1]
+
+
+def build_rank_tree(db_path: Path, snapshot: Path) -> tuple[int, int]:
+    """Add `taxon_tree` + `rank_bridge` to a built tw-taicol module."""
+    with gzip.open(snapshot, "rt", encoding="utf-8") as fh:
+        payload = json.load(fh)
+    fields = payload["fields"]
+    ix = {f: i for i, f in enumerate(fields)}
+    taxa = {r[ix["taxon_id"]]: r for r in payload["rows"]}
+
+    def rank_of(tid: str | None) -> str | None:
+        r = taxa.get(tid) if tid else None
+        return r[ix["rank"]] if r else None
+
+    def is_intermediate(tid: str | None) -> bool:
+        rk = rank_of(tid)
+        return rk is not None and rk not in FIXED_RANKS and rk not in NON_INTERMEDIATE
+
+    # ~8k records (mostly species/genera) come without `kingdom`; the Kingdom
+    # ancestor is authoritative anyway, so walk up to it.
+    kingdom_cache: dict[str, str] = {}
+
+    def kingdom_of(tid: str) -> str:
+        if tid in kingdom_cache:
+            return kingdom_cache[tid]
+        path: list[str] = []
+        cur: str | None = tid
+        found = ""
+        while cur and cur in taxa and cur not in kingdom_cache and cur not in path:
+            path.append(cur)
+            r = taxa[cur]
+            if r[ix["rank"]] == "Kingdom":
+                found = r[ix["simple_name"]]
+                break
+            cur = r[ix["parent_taxon_id"]]
+        else:
+            if cur in kingdom_cache:
+                found = kingdom_cache[cur]
+        if not found:
+            found = taxa[tid][ix["kingdom"]] or ""
+        for p in path:
+            kingdom_cache[p] = found
+        return found
+
+    conn = sqlite3.connect(db_path)
+    cur = conn.cursor()
+
+    # What the tree can show: every fixed-rank value on an accepted, in-Taiwan
+    # species-level row, and those species themselves (for subgenus/section).
+    shown: set[tuple[str, str, str]] = set()
+    for col in ("phylum", "class", "order", "family", "genus"):
+        q = f'"{col}"' if col in ("order", "class") else col
+        for kingdom, name in cur.execute(
+            f"SELECT DISTINCT kingdom, {q} FROM taicol_names "
+            f"WHERE usage_status='accepted' AND {IN_TAIWAN_SQL} AND {SPECIES_LEVEL_SQL} "
+            f"AND {q} IS NOT NULL AND {q} != ''"
+        ):
+            shown.add((kingdom, col, name))
+    for kingdom, name in cur.execute(
+        f"SELECT DISTINCT kingdom, simple_name FROM taicol_names "
+        f"WHERE usage_status='accepted' AND {IN_TAIWAN_SQL} AND rank='Species'"
+    ):
+        shown.add((kingdom, "species", name))
+
+    # The listing also carries stale concepts under the same name (~840 pairs,
+    # e.g. two Acidobacteriota). Where names collide, the taxon_id the
+    # checklist itself accepts wins.
+    accepted_ids = {
+        r[0]
+        for r in cur.execute(
+            "SELECT DISTINCT taxon_id FROM taicol_names WHERE usage_status='accepted' AND taxon_id IS NOT NULL"
+        )
+    }
+
+    # The tree lists child rank C under the fixed rank right above it; a
+    # bridge row anchored anywhere else would never be read.
+    expected_anchor = {
+        "Phylum": "Kingdom", "Class": "Phylum", "Order": "Class",
+        "Family": "Order", "Genus": "Family", "Species": "Genus",
+    }
+
+    bridge: dict[tuple[str, str, str, str], tuple[bool, list[str]]] = {}
+    for tid, row in taxa.items():
+        rank = row[ix["rank"]]
+        if rank not in expected_anchor:
+            continue
+        chain: list[str] = []
+        p = row[ix["parent_taxon_id"]]
+        seen: set[str] = set()
+        while is_intermediate(p) and p not in seen:
+            seen.add(p)
+            chain.append(p)
+            p = taxa[p][ix["parent_taxon_id"]]
+        if not chain or rank_of(p) != expected_anchor[rank]:
+            continue
+        kingdom = kingdom_of(tid)
+        child_rank = rank.lower()
+        name = row[ix["simple_name"]]
+        if (kingdom, child_rank, name) not in shown:
+            continue
+        anchor_rank = expected_anchor[rank].lower()
+        anchor_name = taxa[p][ix["simple_name"]]
+        chain.reverse()
+        key = (kingdom, child_rank, name, anchor_name)
+        preferred = tid in accepted_ids
+        if key in bridge and (bridge[key][0] or not preferred):
+            continue
+        bridge[key] = (preferred, chain)
+
+    used: dict[str, tuple[str, str]] = {}  # intermediate taxon_id → anchor
+    bridge_rows = []
+    for (kingdom, child_rank, name, anchor_name), (_, chain) in bridge.items():
+        anchor_rank = expected_anchor[child_rank.capitalize()].lower()
+        bridge_rows.append((kingdom, child_rank, name, anchor_rank, anchor_name, json.dumps(chain)))
+        for c in chain:
+            used[c] = (anchor_rank, anchor_name)
+
+    tree_rows = []
+    for tid, (anchor_rank, anchor_name) in used.items():
+        r = taxa[tid]
+        parent = r[ix["parent_taxon_id"]]
+        tree_rows.append((
+            tid,
+            parent if is_intermediate(parent) else None,
+            r[ix["rank"]],
+            r[ix["simple_name"]],
+            r[ix["common_name_c"]],
+            kingdom_of(tid),
+            anchor_rank,
+            anchor_name,
+        ))
+
+    cur.executescript(TREE_DDL)
+    cur.executemany("INSERT INTO taxon_tree VALUES (?,?,?,?,?,?,?,?)", tree_rows)
+    cur.executemany("INSERT INTO rank_bridge VALUES (?,?,?,?,?,?)", bridge_rows)
+    conn.commit()
+    conn.close()
+    return len(tree_rows), len(bridge_rows)
+
+
 def _file_md5(path: Path) -> str:
     h = hashlib.md5()
     with path.open("rb") as fh:
@@ -268,6 +474,10 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--version", default=date.today().isoformat(), help="module version")
     ap.add_argument("--only", action="append", help="build only these module ids")
     ap.add_argument("--no-zip", action="store_true", help="skip zipping (faster iteration)")
+    ap.add_argument(
+        "--tree-snapshot", type=Path, default=None,
+        help=f"TaiCOL parent-link snapshot (default: newest {TREE_SNAPSHOT_GLOB})",
+    )
     args = ap.parse_args(argv)
 
     if not args.db.exists():
@@ -283,6 +493,11 @@ def main(argv: list[str]) -> int:
             continue
         print(f"[{mod.ident}] building…")
         db_path = build_module(args.db, mod, out_dir)
+
+        if mod.ident == "tw-taicol":
+            snapshot = args.tree_snapshot or latest_tree_snapshot()
+            n_tree, n_bridge = build_rank_tree(db_path, snapshot)
+            print(f"  intermediate ranks from {snapshot.name}: {n_tree} taxa, {n_bridge} bridge rows")
 
         # 衍生索引沿用既有工具（見檔頭規則 3）
         if mod.ident in ("tw-taicol", "jp-ylist"):

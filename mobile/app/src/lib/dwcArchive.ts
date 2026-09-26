@@ -76,7 +76,12 @@ export const OCCURRENCE_COLS: ColSpec[] = [
   { key: 'phylum', term: `${DWC}phylum` },
   { key: 'class', term: `${DWC}class` },
   { key: 'order', term: `${DWC}order` },
+  { key: 'superfamily', term: `${DWC}superfamily` },
+  { key: 'subfamily', term: `${DWC}subfamily` },
+  { key: 'tribe', term: `${DWC}tribe` },
+  { key: 'subtribe', term: `${DWC}subtribe` },
   { key: 'genus', term: `${DWC}genus` },
+  { key: 'subgenus', term: `${DWC}subgenus` },
   // Set only when the user deliberately filed the record under a name the
   // checklist does not accept: `scientificName` then holds that name and these
   // two say what the checklist would have used instead.
@@ -171,8 +176,13 @@ export const TAXON_COLS: ColSpec[] = [
   { key: 'phylum', term: `${DWC}phylum` },
   { key: 'class', term: `${DWC}class` },
   { key: 'order', term: `${DWC}order` },
+  { key: 'superfamily', term: `${DWC}superfamily` },
   { key: 'family', term: `${DWC}family` },
+  { key: 'subfamily', term: `${DWC}subfamily` },
+  { key: 'tribe', term: `${DWC}tribe` },
+  { key: 'subtribe', term: `${DWC}subtribe` },
   { key: 'genus', term: `${DWC}genus` },
+  { key: 'subgenus', term: `${DWC}subgenus` },
   { key: 'higherClassification', term: `${DWC}higherClassification` },
   { key: 'vernacularName', term: `${DWC}vernacularName` },
   { key: 'taxonomicStatus', term: `${DWC}taxonomicStatus` },

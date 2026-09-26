@@ -1,7 +1,7 @@
 {
   "name": "app",
   "main": "expo-router/entry",
-  "version": "0.5.3",
+  "version": "0.5.4",
   "license": "BSD-2-Clause",
   "scripts": {
     "start": "expo start",
@@ -50,7 +50,8 @@
     "check:licenses": "node ./scripts/gen-licenses.mjs --check",
     "check:storage": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-storage.mjs",
     "check:record-snapshot": "node --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-record-snapshot.mjs",
-    "check:usage-rank": "node --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-usage-rank.mjs"
+    "check:usage-rank": "node --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-usage-rank.mjs",
+    "check:intermediate": "node --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-intermediate.mjs"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",

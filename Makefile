@@ -14,7 +14,7 @@ UNAME_S := $(shell uname -s)
 all: backend frontend
 
 .PHONY: all backend frontend run dev pkg pkg-dmg pkg-win test taicol icon clean help \
-	datasets datasets-verify datasets-upload \
+	datasets datasets-verify datasets-upload taicol-tree \
 	rudymap-config rudymap-serve rudymap-render rudymap-qa rudymap-optimize rudymap-pack rudymap-verify rudymap-verify-published rudymap-upload \
 	vector-dump vector-tags vector-sprite vector-style vector-tiles vector-glyphs vector-hillshade vector-all vector-compare vector-upload \
 	build_verb_num check-version
@@ -32,6 +32,7 @@ help:
 	@echo "  make test          Run regression tests (pytest)"
 	@echo "  make taicol        Import TaiCOL CSV (auto-find latest or CSV=path)"
 	@echo "  make datasets      Build downloadable checklist modules (dist/datasets)"
+	@echo "  make taicol-tree   Snapshot TaiCOL parent links (subfamily/tribe/…) for datasets"
 	@echo "  make datasets-verify  Verify modules answer like the master DB"
 	@echo "  make vector-*      Offline vector basemap pipeline — the shipping one (make vector-all)"
 	@echo "  make rudymap-*     Legacy raster tile pipeline, kept for comparison only"
@@ -114,6 +115,12 @@ taicol: backend
 # tw-keys），產出 + manifest 在 dist/datasets/。母檔本身不會被改動。
 # 每次名錄或檢索表更新後：make datasets && make datasets-verify
 DATASETS_OUT := dist/datasets
+
+# Snapshot TaiCOL parent links (subfamily / tribe / superfamily …), which the
+# CSVs lack. Run after each TaiCOL update, before `make datasets`.
+taicol-tree: backend
+	$(BACKEND_VENV)/bin/python -m backend.scripts.datasets.fetch_taicol_tree
+
 datasets: backend
 	$(BACKEND_VENV)/bin/python -m backend.scripts.datasets.build_datasets \
 		--out $(DATASETS_OUT) $(if $(VERSION),--version $(VERSION),) $(if $(ONLY),--only $(ONLY),)

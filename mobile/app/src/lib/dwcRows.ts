@@ -9,6 +9,7 @@
  * that a cycle.
  */
 import {
+  createIntermediateClassifier,
   listPlotSpecies,
   listSessionRecords,
   listSpecimens,
@@ -82,7 +83,29 @@ function leafPhenologyRows(occurrenceID: string, leafPhenology: string | null): 
  * therefore has no taxon row either, which is correct: there is nothing to
  * join on and nothing authoritative to say about it.
  */
-type TaxonAcc = { taxa: Map<string, DwcRow>; distributions: DwcRow[] };
+type Classify = ReturnType<typeof createIntermediateClassifier>;
+type TaxonAcc = { taxa: Map<string, DwcRow>; distributions: DwcRow[]; classify: Classify };
+
+/** No intermediates at all — when the classifier cannot be built (no user DB /
+ *  checklist registry, e.g. under the Node check scripts). */
+const NO_INTERMEDIATES: Classify = () => ({
+  terms: { superfamily: '', subfamily: '', tribe: '', subtribe: '', subgenus: '' },
+  after: {},
+});
+
+function makeClassifier(): Classify {
+  try {
+    return createIntermediateClassifier();
+  } catch {
+    return NO_INTERMEDIATES;
+  }
+}
+
+/** higherClassification plus the intermediate-rank DwC terms. */
+function taxonomyCols(classify: Classify, t: Parameters<Classify>[0] & Parameters<typeof higherClassificationOf>[0]): DwcRow {
+  const ic = classify(t);
+  return { higherClassification: higherClassificationOf(t, ic.after), ...ic.terms };
+}
 
 function collectTaxon(
   acc: TaxonAcc,
@@ -123,7 +146,7 @@ function collectTaxon(
     order: t.order,
     family: t.family,
     genus: t.genus,
-    higherClassification: higherClassificationOf(t),
+    ...taxonomyCols(acc.classify, t),
     vernacularName: t.common_name_c,
     taxonomicStatus: t.used_status ? 'accepted' : '',
     acceptedNameUsage: t.used_accepted_name,
@@ -204,7 +227,7 @@ export function buildRecordsDwca({
   const occurrences: DwcRow[] = [];
   const humboldt: DwcRow[] = [];
   const measurements: DwcRow[] = [];
-  const taxonAcc: TaxonAcc = { taxa: new Map(), distributions: [] };
+  const taxonAcc: TaxonAcc = { taxa: new Map(), distributions: [], classify: makeClassifier() };
   const usedIds = new Set<string>();
   const creators = new Set<string>();
 
@@ -285,7 +308,7 @@ export function buildRecordsDwca({
         reproductiveCondition: multiToPipe(r.reproductive_condition),
         degreeOfEstablishment: establishmentDwcValue(r.degree_of_establishment),
         taxonRank: r.rank,
-        higherClassification: higherClassificationOf(r),
+        ...taxonomyCols(taxonAcc.classify, r),
         phylum: r.phylum,
         class: r.class,
         order: r.order,
@@ -353,7 +376,7 @@ export function buildRecordsDwca({
         reproductiveCondition: multiToPipe(r.reproductive_condition),
         degreeOfEstablishment: establishmentDwcValue(r.degree_of_establishment),
         taxonRank: r.rank,
-        higherClassification: higherClassificationOf(r),
+        ...taxonomyCols(taxonAcc.classify, r),
         phylum: r.phylum,
         class: r.class,
         order: r.order,
@@ -406,7 +429,7 @@ export function buildRecordsDwca({
         reproductiveCondition: multiToPipe(sp.reproductive_condition),
         degreeOfEstablishment: establishmentDwcValue(sp.degree_of_establishment),
         taxonRank: sp.rank,
-        higherClassification: higherClassificationOf(sp),
+        ...taxonomyCols(taxonAcc.classify, sp),
         phylum: sp.phylum,
         class: sp.class,
         order: sp.order,

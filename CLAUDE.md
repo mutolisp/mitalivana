@@ -411,6 +411,9 @@ npm run check:dock                                   # 底部置底搜尋框結�
 TaiCOL / 檢索表更新後的正確流程：
 
 ```bash
+# ⓪ TaiCOL 親代鏈快照（亞科／族／總科…，CSV 沒有）；每次 TaiCOL 更新都要重抓，約 15 分鐘
+make taicol-tree                 # → references/TW/TaiCOL_taxon_tree_YYYYMMDD.json.gz
+
 # ① 產出模組（母檔 backend/twnamelist.db 不會被改動）
 make datasets                    # → dist/datasets/{tw-taicol,jp-ylist,tw-keys}.db(.zip) + manifest.json
 
@@ -420,6 +423,8 @@ make datasets-verify
 # ③ 上傳（版本目錄不覆寫、latest/manifest.json 最後才傳）
 make datasets-upload R2_BUCKET=mitalivana [DRY=1]
 ```
+
+tw-taicol 模組另外帶有 `taxon_tree`／`rank_bridge` 兩張表，由最新的快照建出；找不到快照時 build 會直接中止。app 端的分類樹靠這兩張表顯示亞階層（`src/lib/intermediateRanks.ts`、`src/db/intermediateTaxa.ts`；使用者自建與改掛存在 user.db v56）。
 
 `build_datasets.py` 內部會替每個模組呼叫 `build_mobile_fuzzy_index`（TW/JP 兩半各自可缺席）與 `build_pinyin_index.mjs`，**所以「換資料就要重建 fuzzy index」這條規則仍然成立**，只是已經自動化。缺 `cname_fuzzy_index` 會讓中文搜尋 throw `no such table`，未捕獲例外在 SearchBox debounce setTimeout 內反覆觸發後會 destabilize Hermes runtime（GC `_newChunkAndPHV` EXC_BAD_ACCESS crash）——`fuzzy.ts` 已加 try/catch graceful 退場，但缺 index 等於失去模糊比對能力。
 

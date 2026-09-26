@@ -13,9 +13,24 @@ import { buildTaxonCopyText, copyToClipboard, taxonCopyActions } from '~/lib/cli
 type Props = {
   node: TaxonNode | null;
   onClose: () => void;
+  /** Intermediate-rank actions (subfamily, tribe …). Each is offered only when
+   *  passed; the caller opens its editor after this sheet has slid out. */
+  onAddChild?: (node: TaxonNode) => void;
+  onChangeParent?: (node: TaxonNode) => void;
+  onResetPlacement?: (node: TaxonNode) => void;
+  onEdit?: (node: TaxonNode) => void;
+  onDelete?: (node: TaxonNode) => void;
 };
 
-export function TaxonNodeInfoSheet({ node, onClose }: Props) {
+export function TaxonNodeInfoSheet({
+  node,
+  onClose,
+  onAddChild,
+  onChangeParent,
+  onResetPlacement,
+  onEdit,
+  onDelete,
+}: Props) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   if (!node) return null;
@@ -50,9 +65,42 @@ export function TaxonNodeInfoSheet({ node, onClose }: Props) {
             </View>
             <Text className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
               {t('rank.' + node.rank_key)}
+              {node.user ? ` · ${t('intermediate.userCreated')}` : ''}
               {stats ? ` · ${stats}` : ''}
             </Text>
           </View>
+          {(
+            [
+              [onAddChild, 'add-circle-outline', 'intermediate.addChild'],
+              [onChangeParent, 'git-branch-outline', 'intermediate.changeParent'],
+              [onResetPlacement, 'refresh-outline', 'intermediate.resetTaicol'],
+              [onEdit, 'create-outline', 'intermediate.editNode'],
+              [onDelete, 'trash-outline', 'intermediate.deleteNode'],
+            ] as const
+          ).map(([fn, icon, label]) =>
+            fn ? (
+              <Pressable
+                key={label}
+                onPress={() => {
+                  onClose();
+                  fn(node);
+                }}
+                className="flex-row items-center border-b border-gray-100 px-4 py-3 active:bg-gray-50 dark:border-gray-800 dark:active:bg-gray-800"
+              >
+                <Ionicons
+                  name={icon}
+                  size={18}
+                  color={icon === 'trash-outline' ? '#dc2626' : '#4b5563'}
+                  style={{ marginRight: 12 }}
+                />
+                <Text
+                  className={`text-base ${icon === 'trash-outline' ? 'text-red-600' : 'text-gray-900 dark:text-gray-100'}`}
+                >
+                  {t(label)}
+                </Text>
+              </Pressable>
+            ) : null,
+          )}
           {taxonCopyActions(node).map((a) => (
             <Pressable
               key={a.mode}

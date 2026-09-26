@@ -1660,6 +1660,52 @@ const MIGRATIONS: Migration[] = [
       addColumnIfMissing(db, `ALTER TABLE gloria_unit_species ADD COLUMN sort_order INTEGER;`);
     },
   },
+  {
+    // Intermediate ranks (subfamily, tribe, superfamily, subgenus …) the user
+    // adds or re-places in the taxonomy tree. TaiCOL's own parent links ship in
+    // the tw-taicol module (`taxon_tree` / `rank_bridge`); these two tables are
+    // the user layer on top and win over it (db/intermediateTaxa.ts).
+    //
+    // user_taxon_node: a user-created intermediate taxon. It hangs below the
+    // fixed-rank taxon `anchor_rank`/`anchor_name` (e.g. family Poaceae), under
+    // `parent_ref` (another intermediate: TaiCOL taxon_id or 'un…') or
+    // directly under the anchor when NULL.
+    //
+    // taxon_parent_override: re-places an existing child. `child_key` is
+    // 'kingdom|rank|name' for a fixed-rank taxon or species (names survive a
+    // TaiCOL re-import, taxon_ids may not) or a TaiCOL taxon_id for a TaiCOL
+    // intermediate. `parent_ref` NULL = directly under the anchor, i.e. the user
+    // detached it from TaiCOL's intermediate.
+    version: 56,
+    up: (db) => {
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS user_taxon_node (
+          id TEXT PRIMARY KEY,
+          rank TEXT NOT NULL,
+          simple_name TEXT NOT NULL,
+          name_author TEXT,
+          common_name_c TEXT,
+          kingdom TEXT NOT NULL,
+          anchor_rank TEXT NOT NULL,
+          anchor_name TEXT NOT NULL,
+          parent_ref TEXT,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL
+        );
+      `);
+      db.executeSync(`
+        CREATE INDEX IF NOT EXISTS idx_user_taxon_node_anchor
+          ON user_taxon_node(kingdom, anchor_rank, anchor_name);
+      `);
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS taxon_parent_override (
+          child_key TEXT PRIMARY KEY,
+          parent_ref TEXT,
+          updated_at INTEGER NOT NULL
+        );
+      `);
+    },
+  },
 ];
 
 /** Highest schema version this build knows how to produce. Backup/restore uses

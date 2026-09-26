@@ -349,6 +349,18 @@ GLORIA 介面草稿（五語）→ `docs/gloria-ui/`（原稿、譯文與建置�
 
 待辦：分類樹的階層搜尋（`searchTaxonomy`）未套用——它的結果 `TaxonSearchHit` 沒有 taxon_id；若要套用需先補欄位。
 
+### K. 分類樹亞階層（2026-09-26，細節見 `Update_log.md`）
+
+已完成：TaiCOL 親代鏈進入 tw-taicol 模組（`taxon_tree`／`rank_bridge`），v56 使用者自建中間階層與改掛，
+設定可切換「目以下／全部」，階層搜尋與跳轉、批次加入、DwC 匯出五個術語。`check:intermediate` 與 `verify_datasets` 守門。
+
+待辦：
+1. **重建並上傳模組**：`make taicol-tree`（已有 2026-09-26 快照可沿用）→ `make datasets` → `make datasets-verify` → `make datasets-upload`。
+   在重建前，`dist/datasets/tw-taicol.db` 沒有新表，`check:intermediate` 會失敗。
+2. **實機驗證**：見 `Device_test.md` 同名段落。
+3. **桌機版**尚未處理：後端 `taicol_names` 與 `taxonomy_api.py` 仍然只有六階。
+4. 目前只能一次改掛一個分類群（ⓘ →「變更上層歸屬」），批次改掛只能在「新增下層分類群」的第二步做。若實測覺得不夠用，再接到多選工具列。
+
 ### I. 快速名錄／樣區調查／採集記錄的完成鎖定與復原（2026-09-25，細節見 `Update_log.md`）
 
 已完成（2026-09-26 追加）：結束／完成一律先問結束時間（`src/lib/endTimeChoice.ts`：更新為現在／沿用／先不記錄），

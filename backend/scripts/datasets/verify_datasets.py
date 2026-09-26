@@ -17,6 +17,7 @@ resolve every taxon_id one by one, 0 failures — never just compare totals.
 from __future__ import annotations
 
 import argparse
+import json
 import random
 import sqlite3
 import sys
@@ -28,7 +29,7 @@ DEFAULT_OUT = REPO_ROOT / "dist" / "datasets"
 
 #: Tables each module is allowed to contain (whitelist + derived).
 ALLOWED = {
-    "tw-taicol": {"taicol_names", "species_xref", "cname_fuzzy_index"},
+    "tw-taicol": {"taicol_names", "species_xref", "cname_fuzzy_index", "taxon_tree", "rank_bridge"},
     "jp-ylist": {"jp_names", "species_xref", "cname_fuzzy_index_jp"},
     "tw-keys": {
         "identification_keys",
@@ -338,6 +339,79 @@ def check_cross_region(
     check(bad == 0, f"{len(ids)} 個共有種的跨區俗名相同", f"{bad} 筆不同")
 
 
+# ── 7. intermediate ranks (taxon_tree / rank_bridge) ───────────────────────
+
+
+def check_rank_tree(mods: dict[str, sqlite3.Connection]) -> None:
+    tw = mods.get("tw-taicol")
+    if tw is None:
+        return
+    print("\n[亞階層] taxon_tree / rank_bridge")
+    present = tables_of(tw)
+    for t in ("taxon_tree", "rank_bridge"):
+        check(t in present, f"tw-taicol: 有 {t}")
+    if not {"taxon_tree", "rank_bridge"} <= present:
+        return
+    n_tree = count(tw, "taxon_tree")
+    n_bridge = count(tw, "rank_bridge")
+    check(n_tree > 0 and n_bridge > 0, f"tw-taicol: taxon_tree {n_tree} 列、rank_bridge {n_bridge} 列")
+
+    refs = {r[0] for r in tw.execute("SELECT taxon_id FROM taxon_tree")}
+    dangling_parent = tw.execute(
+        "SELECT count(*) FROM taxon_tree t WHERE parent_taxon_id IS NOT NULL "
+        "AND NOT EXISTS (SELECT 1 FROM taxon_tree p WHERE p.taxon_id = t.parent_taxon_id)"
+    ).fetchone()[0]
+    check(dangling_parent == 0, "taxon_tree 的 parent 都在表內", f"{dangling_parent} 筆懸空")
+
+    bad_ref = 0
+    bad_order = 0
+    for (chain_json,) in tw.execute("SELECT chain FROM rank_bridge"):
+        chain = json.loads(chain_json)
+        if any(c not in refs for c in chain):
+            bad_ref += 1
+            continue
+        # top-down: each element's parent is the previous one (NULL for the first)
+        parents = [
+            tw.execute("SELECT parent_taxon_id FROM taxon_tree WHERE taxon_id=?", (c,)).fetchone()[0]
+            for c in chain
+        ]
+        if parents[0] is not None or any(parents[i] != chain[i - 1] for i in range(1, len(chain))):
+            bad_order += 1
+    check(bad_ref == 0, "rank_bridge 的 chain 都指得到 taxon_tree", f"{bad_ref} 筆落空")
+    check(bad_order == 0, "rank_bridge 的 chain 由上而下、首尾相接", f"{bad_order} 筆不接")
+
+    # The anchor must agree with the flat columns the tree groups on.
+    mismatch = tw.execute(
+        """
+        SELECT count(*) FROM rank_bridge b
+        WHERE b.child_rank = 'genus' AND b.anchor_rank = 'family'
+          AND NOT EXISTS (
+            SELECT 1 FROM taicol_names n
+            WHERE n.kingdom = b.kingdom AND n.genus = b.child_name AND n.family = b.anchor_name
+              AND n.usage_status = 'accepted' AND n.is_in_taiwan LIKE '%true%'
+          )
+        """
+    ).fetchone()[0]
+    check(mismatch == 0, "屬的 anchor 科與 taicol_names 一致", f"{mismatch} 筆不一致")
+
+    # Known placements (TaiCOL API, verified 2026-09-26).
+    for kingdom, rank, child, anchor, expect in (
+        ("Animalia", "genus", "Ledra", "Cicadellidae", "Ledrinae"),
+        ("Animalia", "family", "Cicadellidae", "Hemiptera", "Membracoidea"),
+        ("Animalia", "family", "Papilionidae", "Lepidoptera", "Papilionoidea"),
+    ):
+        row = tw.execute(
+            "SELECT chain FROM rank_bridge WHERE kingdom=? AND child_rank=? AND child_name=? AND anchor_name=?",
+            (kingdom, rank, child, anchor),
+        ).fetchone()
+        names = []
+        if row:
+            for c in json.loads(row[0]):
+                hit = tw.execute("SELECT simple_name FROM taxon_tree WHERE taxon_id=?", (c,)).fetchone()
+                names.append(hit[0] if hit else f"?{c}")
+        check(expect in names, f"{child} 位於 {expect} 之下", f"chain={names}")
+
+
 def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser(description="Verify dataset modules against the master DB")
     ap.add_argument("--db", type=Path, default=DEFAULT_DB)
@@ -368,6 +442,7 @@ def main(argv: list[str]) -> int:
     check_derived(master, mods)
     check_keys(master, mods)
     check_cross_region(master, mods, args.sample)
+    check_rank_tree(mods)
 
     print(f"\n{checks - len(failures)}/{checks} 項通過")
     if failures:

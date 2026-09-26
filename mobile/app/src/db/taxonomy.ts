@@ -37,6 +37,20 @@ import {
   manualTreeChildren,
 } from './manualTaxonomy';
 import type { SearchResult } from './types';
+import {
+  arrangeChildren,
+  chainForChild,
+  childKeyOf,
+  createChainResolver,
+  hasOverride,
+  RANK_LADDER,
+  ranksBetween,
+  type LadderRank,
+  intermediateScopeSig,
+  searchIntermediate,
+  visiblePathOf,
+  type IntermediateNode,
+} from './intermediateTaxa';
 
 /**
  * The query scope of each available checklist module.
@@ -151,6 +165,15 @@ export type TaxonNode = {
   child_rank: ChildRank;
   stats: Record<string, number>;
   ancestors: Ancestors;
+  /** Intermediate-rank node only (subfamily, tribe …, see intermediateTaxa.ts):
+   *  its TaiCOL taxon_id or user node id. For such a node `ancestors` is the
+   *  fixed lineage INCLUDING its anchor, and `child_rank` the fixed rank (or
+   *  species) its members have. */
+  ref?: string;
+  /** Intermediate refs between the anchor and this node, top-down. */
+  via?: string[];
+  /** Intermediate node the user created (editable / deletable). */
+  user?: boolean;
 };
 
 function quoteCol(col: string): string {
@@ -165,13 +188,23 @@ export function nodeKeyFor(node: {
   rank_key: string;
   name: string;
   ancestors: Ancestors;
+  ref?: string;
+  via?: string[];
 }): string {
   const parts: string[] = [];
   for (const r of RANK_ORDER) {
     const v = node.ancestors[r];
     if (v) parts.push(`${r}:${v}`);
   }
-  parts.push(`${node.rank_key}:${node.name}`);
+  // A fixed-rank node's key ignores which intermediate it is shown under, so a
+  // jump path (fixed ranks only) and the persisted expanded set keep working
+  // when intermediates appear, move, or the display mode changes.
+  if (node.ref) {
+    for (const r of node.via ?? []) parts.push(`via:${r}`);
+    parts.push(`${node.rank_key}:${node.ref}`);
+  } else {
+    parts.push(`${node.rank_key}:${node.name}`);
+  }
   return parts.join('|');
 }
 
@@ -233,7 +266,7 @@ let CACHED_KINGDOMS_SCOPE: string | null = null;
 function scopeSig(): string {
   // The vernacular languages ride in the last segment: changing them re-reads
   // species names but, like a manual-taxon change, keeps the tree expanded.
-  return `${datasetScopeSig()}|${packScopeSig()}|${manualScopeSig()}~${getVernacularLangs().join(',')}`;
+  return `${datasetScopeSig()}|${packScopeSig()}|${manualScopeSig()}.${intermediateScopeSig()}~${getVernacularLangs().join(',')}`;
 }
 
 /** Exposed for the taxonomy screen: it must reset its in-memory tree when the
@@ -328,6 +361,9 @@ export type ChildrenOptions = {
    * `undefined` / `{}` only for the top-level kingdom listing.
    */
   ancestors?: Ancestors;
+  /** Intermediate refs already descended into below the anchor (listing the
+   *  children of a subfamily node). Omitted = the anchor's own children. */
+  via?: string[];
 };
 
 export function getTaxonChildren(opts: ChildrenOptions): TaxonNode[] {
@@ -335,6 +371,14 @@ export function getTaxonChildren(opts: ChildrenOptions): TaxonNode[] {
   if (opts.rank === 'kingdom' && !hasAncestors) return getTopLevel();
   if (opts.rank === 'species') return getSpeciesAsNodes();
   if (opts.rank === 'kingdom') return [];
+  const nodes = fixedChildren(opts.rank, opts.ancestors);
+  return arrangeRankNodes(nodes, opts.rank, opts.ancestors ?? {}, opts.via ?? []);
+}
+
+/** Children of fixed rank `rank` under `ancestors`, before intermediate
+ *  grouping: every checklist module, region packs and manual taxa merged. */
+function fixedChildren(rank: Rank, ancestorsIn: Ancestors | undefined): TaxonNode[] {
+  const opts = { rank, ancestors: ancestorsIn };
 
   const rankIdx = RANK_ORDER.indexOf(opts.rank);
   if (rankIdx === -1) return [];
@@ -383,13 +427,362 @@ export function getTaxonChildren(opts: ChildrenOptions): TaxonNode[] {
   // {name, stats}, and a manual genus under a checklist family is the same
   // shape of contribution a pack makes.
   const manual = manualTreeChildren(opts.rank, opts.ancestors);
-  if (manual.length === 0) return nodes;
-  nodes = mergePackNodes(nodes, manual, opts.rank, childRank, ancestors);
-  // The incomplete bucket is a leaf-of-ranks: its children are species, not
-  // the classes a real phylum would hold.
-  return nodes.map((n) =>
-    n.name === INCOMPLETE_PHYLUM ? { ...n, child_rank: 'species' as ChildRank } : n,
+  if (manual.length > 0) {
+    nodes = mergePackNodes(nodes, manual, opts.rank, childRank, ancestors);
+    // The incomplete bucket is a leaf-of-ranks: its children are species, not
+    // the classes a real phylum would hold.
+    nodes = nodes.map((n) =>
+      n.name === INCOMPLETE_PHYLUM ? { ...n, child_rank: 'species' as ChildRank } : n,
+    );
+  }
+  return nodes;
+}
+
+function capitalize(s: string): string {
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+}
+
+function intermediateToNode(
+  n: IntermediateNode,
+  lineage: Ancestors,
+  childRank: ChildRank,
+  via: string[],
+  stats: Record<string, number>,
+): TaxonNode {
+  return {
+    name: n.name,
+    name_c: n.name_c,
+    rank: capitalize(n.rank),
+    rank_key: n.rank,
+    child_rank: childRank,
+    stats,
+    ancestors: lineage,
+    ref: n.ref,
+    via,
+    user: n.user,
+  };
+}
+
+/** The fixed-rank anchor whose children of `rank` are being listed. */
+function anchorOf(rank: ChildRank, lineage: Ancestors): { kingdom: string; anchorRank: Rank; anchorName: string } | null {
+  const idx = rank === 'species' ? RANK_ORDER.length : RANK_ORDER.indexOf(rank);
+  if (idx < 1) return null;
+  const anchorRank = RANK_ORDER[idx - 1];
+  const anchorName = lineage[anchorRank];
+  const kingdom = lineage.kingdom;
+  // The manual incomplete bucket is not a taxon; nothing hangs between it and
+  // its species.
+  if (!anchorName || !kingdom || lineage.phylum === INCOMPLETE_PHYLUM) return null;
+  return { kingdom, anchorRank, anchorName };
+}
+
+/** Fold fixed-rank children into their intermediate groups (subfamily …). */
+function arrangeRankNodes(nodes: TaxonNode[], rank: Rank, lineage: Ancestors, via: string[]): TaxonNode[] {
+  const a = anchorOf(rank, lineage);
+  if (!a) return via.length ? [] : nodes;
+  const { direct, groups } = arrangeChildren({ ...a, childRank: rank }, nodes, via, (n) => n.name);
+  if (groups.length === 0) return direct;
+  const groupNodes = groups.map((g) => {
+    const stats: Record<string, number> = { [rank]: g.members.length };
+    for (const m of g.members) {
+      for (const [k, v] of Object.entries(m.stats)) stats[k] = (stats[k] ?? 0) + v;
+    }
+    return intermediateToNode(g.node, lineage, rank, via, stats);
+  });
+  return [...groupNodes, ...direct];
+}
+
+const INFRA_MARKER = /\s+(subsp|ssp|var|subvar|f|fo|forma|subf)\.?\s.*$/;
+
+/** The species binomial a species-level row belongs to (its own name for a
+ *  species; the parent binomial for a subspecies / variety / form). */
+function binomialOf(sp: TaxonSpecies): string {
+  if (sp.rank === 'Species') return sp.simple_name;
+  const stripped = sp.simple_name.replace(INFRA_MARKER, '');
+  if (stripped !== sp.simple_name) return stripped;
+  const tok = sp.simple_name.split(/\s+/);
+  return tok.slice(0, tok[1] === '×' ? 3 : 2).join(' ');
+}
+
+/**
+ * Split the species under a genus (or under one of its subgenus / section
+ * nodes, `via`) into intermediate groups and the species sitting directly at
+ * this level.
+ */
+export function arrangeSpecies(
+  lineage: Ancestors,
+  species: TaxonSpecies[],
+  via: string[] = [],
+): { groups: TaxonNode[]; direct: TaxonSpecies[] } {
+  const a = anchorOf('species', lineage);
+  if (!a) return { groups: [], direct: via.length ? [] : species };
+  const { direct, groups } = arrangeChildren({ ...a, childRank: 'species' }, species, via, binomialOf);
+  return {
+    direct,
+    groups: groups.map((g) => {
+      const sp = g.members.filter((m) => m.rank === 'Species').length;
+      const stats: Record<string, number> = { species: sp };
+      if (g.members.length > sp) stats.infraspecific = g.members.length - sp;
+      return intermediateToNode(g.node, lineage, 'species', via, stats);
+    }),
+  };
+}
+
+/**
+ * Every species-level taxon under a tree node, fixed or intermediate — what a
+ * bulk "add everything under it" means for that node.
+ */
+export function getSpeciesUnderNode(node: TaxonNode): TaxonSpecies[] {
+  if (!node.ref) return getSpeciesUnder({ ...node.ancestors, [node.rank_key]: node.name });
+  const lineage = node.ancestors;
+  const a = anchorOf(node.child_rank, lineage);
+  if (!a) return [];
+  const via = node.via ?? [];
+  if (node.child_rank === 'species') {
+    const all = getSpeciesUnder(lineage);
+    const g = arrangeChildren({ ...a, childRank: 'species' }, all, via, binomialOf).groups.find(
+      (x) => x.node.ref === node.ref,
+    );
+    return g?.members ?? [];
+  }
+  const fixed = fixedChildren(node.child_rank as Rank, lineage);
+  const g = arrangeChildren({ ...a, childRank: node.child_rank }, fixed, via, (n) => n.name).groups.find(
+    (x) => x.node.ref === node.ref,
   );
+  const out: TaxonSpecies[] = [];
+  for (const m of g?.members ?? []) {
+    out.push(...getSpeciesUnder({ ...lineage, [node.child_rank]: m.name }));
+  }
+  return out;
+}
+
+/**
+ * The intermediate nodes (outermost first) that stand between a fixed-rank
+ * parent and one of its children — what a tree jump must expand on the way.
+ * `lineage` is the parent's lineage INCLUDING the parent.
+ */
+export function intermediateTrail(lineage: Ancestors, childRank: ChildRank, childName: string): TaxonNode[] {
+  const a = anchorOf(childRank, lineage);
+  if (!a) return [];
+  const chain = chainForChild({ ...a, childRank }, childName);
+  return chain.map((n, i) => intermediateToNode(n, lineage, childRank, chain.slice(0, i).map((x) => x.ref), {}));
+}
+
+// ── Export ──────────────────────────────────────────────────────────────────
+
+/** DwC terms that name an intermediate rank (tdwg/dwc term list). Anything else
+ *  — suborder, infraorder … — has no term and only reaches higherClassification. */
+export type IntermediateDwcTerms = {
+  superfamily: string;
+  subfamily: string;
+  tribe: string;
+  subtribe: string;
+  subgenus: string;
+};
+
+export type IntermediateClassification = {
+  terms: IntermediateDwcTerms;
+  /** Intermediate names right after each fixed rank, top-down, for
+   *  `higherClassificationOf`. */
+  after: Partial<Record<Rank, string[]>>;
+};
+
+/**
+ * Classifier for export: a taxon's intermediate ranks from its fixed chain,
+ * the user's placements applied, the display mode ignored.
+ */
+export function createIntermediateClassifier(): (t: {
+  kingdom?: string | null;
+  phylum?: string | null;
+  class?: string | null;
+  order?: string | null;
+  family?: string | null;
+  genus?: string | null;
+  simple_name?: string | null;
+  rank?: string | null;
+}) => IntermediateClassification {
+  const resolve = createChainResolver();
+  return (t) => {
+    const terms: IntermediateDwcTerms = { superfamily: '', subfamily: '', tribe: '', subtribe: '', subgenus: '' };
+    const after: Partial<Record<Rank, string[]>> = {};
+    const kingdom = (t.kingdom ?? '').trim();
+    if (!kingdom) return { terms, after };
+    const vals: Record<Rank, string> = {
+      kingdom,
+      phylum: (t.phylum ?? '').trim(),
+      class: (t.class ?? '').trim(),
+      order: (t.order ?? '').trim(),
+      family: (t.family ?? '').trim(),
+      genus: (t.genus ?? '').trim(),
+    };
+    const take = (anchorRank: Rank, childRank: ChildRank, childName: string) => {
+      const chain = resolve({ kingdom, anchorRank, anchorName: vals[anchorRank], childRank }, childName);
+      if (chain.length === 0) return;
+      after[anchorRank] = chain.map((n) => n.name);
+      for (const n of chain) {
+        if (n.rank === 'subgenus') terms.subgenus = vals.genus ? `${vals.genus} (${n.name})` : n.name;
+        else if (n.rank in terms) terms[n.rank as keyof IntermediateDwcTerms] = n.name;
+      }
+    };
+    for (let i = 1; i < RANK_ORDER.length; i++) {
+      const anchor = RANK_ORDER[i - 1];
+      const child = RANK_ORDER[i];
+      if (vals[anchor] && vals[child]) take(anchor, child, vals[child]);
+    }
+    const name = (t.simple_name ?? '').trim();
+    if (vals.genus && name.includes(' ')) {
+      const binomial = binomialOf({ simple_name: name, rank: t.rank ?? 'Species' } as TaxonSpecies);
+      take('genus', 'species', binomial);
+    }
+    return { terms, after };
+  };
+}
+
+// ── Editing intermediates (IntermediateEditor) ──────────────────────────────
+
+/** Where children of `parent` live: the fixed lineage, their rank, and the
+ *  intermediate path already descended into. */
+export type LevelContext = {
+  lineage: Ancestors;
+  childRank: ChildRank;
+  via: string[];
+  /** Ref a new node under `parent` hangs from; null = the anchor itself. */
+  parentRef: string | null;
+  parentRank: string;
+  kingdom: string;
+  anchorRank: Rank;
+  anchorName: string;
+};
+
+export function levelContext(parent: TaxonNode): LevelContext | null {
+  if (parent.name === INCOMPLETE_PHYLUM) return null;
+  const lineage: Ancestors = parent.ref ? parent.ancestors : { ...parent.ancestors, [parent.rank_key]: parent.name };
+  const via = parent.ref ? [...(parent.via ?? []), parent.ref] : [];
+  const a = anchorOf(parent.child_rank, lineage);
+  if (!a) return null;
+  return {
+    lineage,
+    childRank: parent.child_rank,
+    via,
+    parentRef: parent.ref ?? null,
+    parentRank: parent.rank_key,
+    ...a,
+  };
+}
+
+/** Ranks a new node under `parent` may take. */
+export function ranksForNewChild(parent: TaxonNode): LadderRank[] {
+  const ctx = levelContext(parent);
+  return ctx ? ranksBetween(ctx.parentRank, ctx.childRank) : [];
+}
+
+/** Key `placeChildren` / `clearPlacement` take for a tree node. */
+export function placementKeyOf(node: TaxonNode): string | null {
+  if (node.ref) return node.ref;
+  const kingdom = node.ancestors.kingdom;
+  if (!kingdom || node.rank_key === 'kingdom' || node.name === INCOMPLETE_PHYLUM) return null;
+  return childKeyOf(kingdom, node.rank_key, node.name);
+}
+
+export function speciesPlacementKey(kingdom: string, sp: TaxonSpecies): string {
+  return childKeyOf(kingdom, 'species', binomialOf(sp));
+}
+
+/** The user moved this child away from TaiCOL's placement. */
+export function isPlacementOverridden(node: TaxonNode): boolean {
+  const k = placementKeyOf(node);
+  return !!k && !k.startsWith('un') && hasOverride(k);
+}
+
+export type PlacementCandidate = { key: string; name: string; name_c: string; rank: string; isGroup: boolean };
+
+/** What sits directly at `parent`'s level — the choices for "move these into
+ *  the node just created". Groups move with everything under them. */
+export function placementCandidates(parent: TaxonNode, excludeRef?: string): PlacementCandidate[] {
+  const ctx = levelContext(parent);
+  if (!ctx) return [];
+  const out: PlacementCandidate[] = [];
+  if (ctx.childRank === 'species') {
+    const { groups, direct } = arrangeSpecies(ctx.lineage, getSpeciesUnder(ctx.lineage), ctx.via);
+    for (const g of groups) {
+      if (g.ref === excludeRef) continue;
+      out.push({ key: g.ref!, name: g.name, name_c: g.name_c, rank: g.rank_key, isGroup: true });
+    }
+    const seen = new Set<string>();
+    for (const sp of direct) {
+      if (sp.rank !== 'Species' || seen.has(sp.simple_name)) continue;
+      seen.add(sp.simple_name);
+      out.push({
+        key: speciesPlacementKey(ctx.kingdom, sp),
+        name: sp.simple_name,
+        name_c: sp.common_name_c,
+        rank: 'species',
+        isGroup: false,
+      });
+    }
+    return out;
+  }
+  for (const n of getTaxonChildren({ rank: ctx.childRank as Rank, ancestors: ctx.lineage, via: ctx.via })) {
+    if (n.ref === excludeRef) continue;
+    const key = placementKeyOf(n);
+    if (!key) continue;
+    out.push({ key, name: n.name, name_c: n.name_c, rank: n.rank_key, isGroup: !!n.ref });
+  }
+  return out;
+}
+
+export type ParentCandidate = { ref: string | null; name: string; name_c: string; rank: string; depth: number };
+
+/**
+ * Where `node` may be moved: any intermediate under the same anchor ranked
+ * above it (never itself or its own descendants), or directly under the anchor.
+ */
+export function parentCandidates(node: TaxonNode): ParentCandidate[] {
+  const lineage = node.ancestors;
+  const childRank: ChildRank = node.ref ? node.child_rank : (node.rank_key as ChildRank);
+  const a = anchorOf(childRank, lineage);
+  if (!a) return [];
+  const myIdx = RANK_LADDER.indexOf(node.rank_key as LadderRank);
+  const out: ParentCandidate[] = [
+    { ref: null, name: a.anchorName, name_c: lineageCname(lineage, a.anchorRank), rank: a.anchorRank, depth: 0 },
+  ];
+  const walk = (via: string[], depth: number) => {
+    const groups =
+      childRank === 'species'
+        ? arrangeSpecies(lineage, getSpeciesUnder(lineage), via).groups
+        : getTaxonChildren({ rank: childRank as Rank, ancestors: lineage, via }).filter((n) => !!n.ref);
+    for (const g of groups) {
+      if (g.ref === node.ref) continue; // itself and everything below it
+      const gIdx = RANK_LADDER.indexOf(g.rank_key as LadderRank);
+      if (myIdx < 0 || gIdx < 0 || gIdx < myIdx) {
+        out.push({ ref: g.ref!, name: g.name, name_c: g.name_c, rank: g.rank_key, depth });
+      }
+      walk([...via, g.ref!], depth + 1);
+    }
+  };
+  walk([], 1);
+  return out;
+}
+
+function lineageCname(lineage: Ancestors, rank: Rank): string {
+  const col = RANK_C_COL[rank];
+  const name = lineage[rank];
+  if (!col || !name) return '';
+  for (const scope of nameScopes()) {
+    const res = scope.db.executeSync(
+      `SELECT ${col} AS c FROM ${scope.table} WHERE ${quoteCol(rank)} = ? AND ${col} IS NOT NULL AND ${col} != '' LIMIT 1`,
+      [name],
+    );
+    const c = ((res.rows ?? [])[0] as { c?: string } | undefined)?.c;
+    if (c) return c;
+  }
+  return '';
+}
+
+/** Same trail, ending at an intermediate node itself (tree search hit). */
+function trailToRef(lineage: Ancestors, childRank: ChildRank, ref: string): TaxonNode[] {
+  const path = visiblePathOf(ref);
+  return path.map((n, i) => intermediateToNode(n, lineage, childRank, path.slice(0, i).map((x) => x.ref), {}));
 }
 
 export type TaxonSpecies = {
@@ -644,7 +1037,46 @@ export type TaxonSearchHit = {
   matched_as?: { name: string; fullname: string; status: string };
   /** Set when this hit came from the fuzzy (Levenshtein) fallback. */
   fuzzy_match?: { query: string; matched: string; score: number };
+  /** Intermediate-rank hit (subfamily …): its ref. `path` then ends at the
+   *  fixed-rank anchor it hangs under. */
+  ref?: string;
 };
+
+/** Fixed lineage of an anchor taxon, read off any accepted row under it. */
+function anchorPath(kingdom: string, anchorRank: string, anchorName: string): Array<{ rank: Rank; value: string }> | null {
+  const idx = RANK_ORDER.indexOf(anchorRank as Rank);
+  if (idx < 0) return null;
+  const col = quoteCol(anchorRank);
+  for (const scope of nameScopes()) {
+    const res = scope.db.executeSync(
+      `SELECT kingdom, phylum, class, "order", family, genus FROM ${scope.table}
+        WHERE kingdom = ? AND ${col} = ? AND usage_status='accepted' AND ${scope.taiwanClause}
+          AND rank IN ('Species','Subspecies','Variety','Form')
+        LIMIT 1`,
+      [kingdom, anchorName],
+    );
+    const row = (res.rows ?? [])[0] as Record<string, unknown> | undefined;
+    if (!row) continue;
+    const path: Array<{ rank: Rank; value: string }> = [];
+    for (const r of RANK_ORDER.slice(0, idx + 1)) {
+      const v = (row[r] as string) ?? '';
+      if (!v) return null;
+      path.push({ rank: r, value: v });
+    }
+    return path;
+  }
+  return null;
+}
+
+/** Intermediate nodes a search hit for an intermediate taxon must expand. */
+export function trailForHit(hit: TaxonSearchHit): TaxonNode[] {
+  if (!hit.ref || hit.path.length === 0) return [];
+  const lineage: Ancestors = {};
+  for (const p of hit.path) lineage[p.rank] = p.value;
+  const anchorIdx = RANK_ORDER.indexOf(hit.path[hit.path.length - 1].rank);
+  const childRank: ChildRank = anchorIdx + 1 < RANK_ORDER.length ? RANK_ORDER[anchorIdx + 1] : 'species';
+  return trailToRef(lineage, childRank, hit.ref);
+}
 
 /** Map a species-level `SearchResult` (from the main search pipeline, which
  *  already does synonym resolution + fuzzy fallback) onto a `TaxonSearchHit`
@@ -790,6 +1222,27 @@ export function searchTaxonomy(q: string): TaxonSearchHit[] {
         path,
       });
     }
+  }
+
+  // Intermediate ranks (subfamily, tribe …; TaiCOL and user-created). Only
+  // those whose anchor the tree can reach are offered.
+  try {
+    for (const n of searchIntermediate(trimmed)) {
+      const path = anchorPath(n.kingdom, n.anchorRank, n.anchorName);
+      if (!path) continue;
+      hits.push({
+        display: n.name_c ? `${n.name_c} (${n.name})` : n.name,
+        name: n.name,
+        cname: n.name_c,
+        rank: capitalize(n.rank),
+        author: n.name_author ?? '',
+        path,
+        ref: n.ref,
+      });
+    }
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.warn('[searchTaxonomy] intermediate search failed:', e);
   }
 
   // Augment with synonym + fuzzy species matches by reusing the main search

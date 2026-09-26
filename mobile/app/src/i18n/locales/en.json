@@ -340,7 +340,26 @@
     "subgenus": "Subgenus",
     "subspecies": "Subspecies",
     "variety": "Variety",
-    "form": "Form"
+    "form": "Form",
+    "superfamily": "Superfamily",
+    "epifamily": "Epifamily",
+    "suborder": "Suborder",
+    "infraorder": "Infraorder",
+    "parvorder": "Parvorder",
+    "supertribe": "Supertribe",
+    "subtribe": "Subtribe",
+    "section": "Section",
+    "subsection": "Subsection",
+    "series": "Series",
+    "subkingdom": "Subkingdom",
+    "infrakingdom": "Infrakingdom",
+    "superphylum": "Superphylum",
+    "subphylum": "Subphylum",
+    "infraphylum": "Infraphylum",
+    "superclass": "Superclass",
+    "subclass": "Subclass",
+    "infraclass": "Infraclass",
+    "superorder": "Superorder"
   },
   "search": {
     "placeholder": "Search species / taxon keywords...",
@@ -707,7 +726,10 @@
     "moduleGloria": "GLORIA summit monitoring",
     "moduleGloriaDesc": "Shows GLORIA summit survey in the New record menu. Existing GLORIA records always stay visible.",
     "searchUsageRank": "Frequently recorded species first",
-    "searchUsageRankDesc": "When searching species, exact name matches still come first; after them, species you have recorded more often come first (quick checklists, plots, collections and GLORIA combined)."
+    "searchUsageRankDesc": "When searching species, exact name matches still come first; after them, species you have recorded more often come first (quick checklists, plots, collections and GLORIA combined).",
+    "intermediateRanks": "Intermediate ranks",
+    "intermediateBelowOrder": "Below order",
+    "intermediateAll": "All"
   },
   "taxonomy": {
     "loadingTree": "Loading taxonomy tree...",
@@ -2874,5 +2896,31 @@
     "hint": "Dates and times can be typed by hand (for digitising old data); tap one to change it.",
     "orderTitle": "Times out of order",
     "order": "The end cannot be earlier than the start."
+  },
+  "intermediate": {
+    "addChild": "Add a rank below…",
+    "changeParent": "Change parent…",
+    "resetTaicol": "Restore TaiCOL placement",
+    "editNode": "Edit this taxon",
+    "deleteNode": "Delete this taxon",
+    "deleteTitle": "Delete “{{name}}”?",
+    "deleteMsg": "Taxa placed under it return to their TaiCOL placement.",
+    "formTitleNew": "New taxon",
+    "formTitleEdit": "Edit taxon",
+    "rank": "Rank",
+    "name": "Scientific name",
+    "author": "Author",
+    "cname": "Common name",
+    "under": "Under {{parent}}",
+    "pickMembers": "Choose the taxa to place in “{{name}}”",
+    "pickMembersHint": "You can also change a taxon’s parent later from its ⓘ.",
+    "skipMembers": "Skip",
+    "directUnder": "Directly under {{name}}",
+    "parentTitle": "Parent of “{{name}}”",
+    "userCreated": "Custom",
+    "nameRequired": "Enter a scientific name",
+    "noRank": "No intermediate rank fits here",
+    "saved": "Saved",
+    "placed": "Placement updated"
   }
 }

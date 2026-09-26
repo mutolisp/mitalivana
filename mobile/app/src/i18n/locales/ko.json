@@ -312,7 +312,26 @@
     "subgenus": "아속",
     "subspecies": "아종",
     "variety": "변종",
-    "form": "품종"
+    "form": "품종",
+    "superfamily": "상과",
+    "epifamily": "에피과",
+    "suborder": "아목",
+    "infraorder": "하목",
+    "parvorder": "소목",
+    "supertribe": "상족",
+    "subtribe": "아족",
+    "section": "절",
+    "subsection": "아절",
+    "series": "열",
+    "subkingdom": "아계",
+    "infrakingdom": "하계",
+    "superphylum": "상문",
+    "subphylum": "아문",
+    "infraphylum": "하문",
+    "superclass": "상강",
+    "subclass": "아강",
+    "infraclass": "하강",
+    "superorder": "상목"
   },
   "search": {
     "placeholder": "종／분류군 키워드 입력...",
@@ -665,7 +684,10 @@
     "moduleGloria": "GLORIA 정상 모니터링",
     "moduleGloriaDesc": "「새 기록」 메뉴에 GLORIA 정상 조사를 표시합니다. 기존 GLORIA 기록은 항상 표시됩니다.",
     "searchUsageRank": "자주 기록한 종 우선",
-    "searchUsageRankDesc": "종 검색 시 이름이 정확히 일치하는 결과는 계속 맨 위에 두고, 그다음은 기록한 횟수가 많은 종부터 보여 줍니다(빠른 목록·조사구·채집·GLORIA 합계)."
+    "searchUsageRankDesc": "종 검색 시 이름이 정확히 일치하는 결과는 계속 맨 위에 두고, 그다음은 기록한 횟수가 많은 종부터 보여 줍니다(빠른 목록·조사구·채집·GLORIA 합계).",
+    "intermediateRanks": "중간 계급 표시",
+    "intermediateBelowOrder": "목 아래",
+    "intermediateAll": "전체"
   },
   "taxonomy": {
     "loadingTree": "분류 트리 불러오는 중...",
@@ -2723,5 +2745,31 @@
     "hint": "날짜와 시각을 직접 입력할 수 있습니다(과거 자료 입력용). 눌러서 변경합니다.",
     "orderTitle": "시각 순서 오류",
     "order": "종료가 시작보다 빠를 수 없습니다."
+  },
+  "intermediate": {
+    "addChild": "하위 분류군 추가…",
+    "changeParent": "상위 소속 변경…",
+    "resetTaicol": "TaiCOL 소속으로 되돌리기",
+    "editNode": "이 분류군 편집",
+    "deleteNode": "이 분류군 삭제",
+    "deleteTitle": "“{{name}}”을(를) 삭제할까요?",
+    "deleteMsg": "그 아래에 둔 분류군은 TaiCOL 소속으로 돌아갑니다.",
+    "formTitleNew": "분류군 추가",
+    "formTitleEdit": "분류군 편집",
+    "rank": "계급",
+    "name": "학명",
+    "author": "명명자",
+    "cname": "국명",
+    "under": "{{parent}} 아래",
+    "pickMembers": "“{{name}}”에 넣을 분류군 선택",
+    "pickMembersHint": "나중에 각 분류군의 ⓘ에서 소속을 바꿀 수도 있습니다.",
+    "skipMembers": "건너뛰기",
+    "directUnder": "{{name}} 바로 아래",
+    "parentTitle": "“{{name}}”의 상위",
+    "userCreated": "직접 추가",
+    "nameRequired": "학명을 입력하세요",
+    "noRank": "여기에 넣을 수 있는 중간 계급이 없습니다",
+    "saved": "저장했습니다",
+    "placed": "소속을 변경했습니다"
   }
 }

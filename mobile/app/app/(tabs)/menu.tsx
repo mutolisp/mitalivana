@@ -20,6 +20,7 @@ import {
   useSettings,
   type Theme,
   type CardDensity,
+  type IntermediateRanksMode,
   type FontScale,
   type RecordTypeDefault,
 } from '~/stores/settings';
@@ -48,6 +49,7 @@ export default function MenuScreen() {
   const theme = useSettings((s) => s.theme);
   const vernacularLangs = useSettings((s) => s.vernacular_langs);
   const cardDensity = useSettings((s) => s.card_density);
+  const intermediateRanks = useSettings((s) => s.taxonomy_intermediate_ranks);
   const fontScale = useSettings((s) => s.font_scale);
   const undoDuration = useSettings((s) => s.undo_duration);
   const recordTypeDefault = useSettings((s) => s.record_type_default);
@@ -77,6 +79,10 @@ export default function MenuScreen() {
   const densityOptions: Array<{ value: CardDensity; label: string }> = [
     { value: 'compact', label: t('settings.densityCompact') },
     { value: 'comfortable', label: t('settings.densityComfortable') },
+  ];
+  const intermediateOptions: Array<{ value: IntermediateRanksMode; label: string }> = [
+    { value: 'below_order', label: t('settings.intermediateBelowOrder') },
+    { value: 'all', label: t('settings.intermediateAll') },
   ];
   const fontScaleOptions: Array<{ value: FontScale; label: string }> = [
     { value: 'small', label: t('settings.fontSmall') },
@@ -337,6 +343,12 @@ export default function MenuScreen() {
           label={t('vernacular.title')}
           value={vernacularLangs.map((l) => t(l === 'ja' ? 'vernacular.jaShort' : 'vernacular.zhTWShort')).join(' / ')}
           onPress={() => router.push('/settings/vernacular' as Href)}
+        />
+        <SelectRow
+          label={t('settings.intermediateRanks')}
+          value={intermediateRanks}
+          options={intermediateOptions}
+          onChange={(v) => setSetting('taxonomy_intermediate_ranks', v)}
         />
         <SelectRow
           label={t('settings.theme')}

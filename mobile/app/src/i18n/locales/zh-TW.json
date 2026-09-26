@@ -312,7 +312,26 @@
     "subgenus": "亞屬",
     "subspecies": "亞種",
     "variety": "變種",
-    "form": "型"
+    "form": "型",
+    "superfamily": "總科",
+    "epifamily": "上科",
+    "suborder": "亞目",
+    "infraorder": "下目",
+    "parvorder": "小目",
+    "supertribe": "總族",
+    "subtribe": "亞族",
+    "section": "節",
+    "subsection": "亞節",
+    "series": "系",
+    "subkingdom": "亞界",
+    "infrakingdom": "下界",
+    "superphylum": "總門",
+    "subphylum": "亞門",
+    "infraphylum": "下門",
+    "superclass": "總綱",
+    "subclass": "亞綱",
+    "infraclass": "下綱",
+    "superorder": "總目"
   },
   "search": {
     "placeholder": "輸入物種/分類群關鍵字...",
@@ -665,7 +684,10 @@
     "moduleGloria": "GLORIA 山峰監測模組",
     "moduleGloriaDesc": "在「新增記錄」選單顯示 GLORIA 山峰調查。已有的 GLORIA 記錄不受影響，一律顯示。",
     "searchUsageRank": "常用物種優先",
-    "searchUsageRankDesc": "搜尋物種時，完全相符的名稱仍排第一，其次依你記錄過的次數由多到少排列（快速名錄、樣區、採集、GLORIA 合計）。"
+    "searchUsageRankDesc": "搜尋物種時，完全相符的名稱仍排第一，其次依你記錄過的次數由多到少排列（快速名錄、樣區、採集、GLORIA 合計）。",
+    "intermediateRanks": "亞階層顯示",
+    "intermediateBelowOrder": "目以下",
+    "intermediateAll": "全部"
   },
   "taxonomy": {
     "loadingTree": "載入分類樹...",
@@ -2723,5 +2745,31 @@
     "hint": "可手動輸入日期與時間（數化舊資料時使用）；點日期或時間即可修改。",
     "orderTitle": "時間順序不對",
     "order": "結束時間不能早於開始時間。"
+  },
+  "intermediate": {
+    "addChild": "新增下層分類群…",
+    "changeParent": "變更上層歸屬…",
+    "resetTaicol": "還原為 TaiCOL 歸屬",
+    "editNode": "編輯此分類群",
+    "deleteNode": "刪除此分類群",
+    "deleteTitle": "刪除「{{name}}」？",
+    "deleteMsg": "原本歸在它底下的分類群會回到 TaiCOL 的預設位置。",
+    "formTitleNew": "新增分類群",
+    "formTitleEdit": "編輯分類群",
+    "rank": "階層",
+    "name": "學名",
+    "author": "命名者",
+    "cname": "中文俗名",
+    "under": "位於 {{parent}} 之下",
+    "pickMembers": "選擇要歸入「{{name}}」的分類群",
+    "pickMembersHint": "之後也可以從各分類群的 ⓘ 變更歸屬。",
+    "skipMembers": "略過",
+    "directUnder": "直接歸於 {{name}}",
+    "parentTitle": "「{{name}}」的上層",
+    "userCreated": "自建",
+    "nameRequired": "請輸入學名",
+    "noRank": "這裡沒有可以插入的中間階層",
+    "saved": "已儲存",
+    "placed": "已更新歸屬"
   }
 }

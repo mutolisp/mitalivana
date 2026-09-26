@@ -10,6 +10,9 @@ export type { MatrixValueMode };
 
 export type Theme = 'light' | 'dark' | 'auto';
 export type CardDensity = 'compact' | 'comfortable';
+/** Which intermediate ranks (subfamily, tribe, superfamily …) the taxonomy tree
+ *  shows. Read by the DB layer too — keep in step with db/intermediateTaxa.ts. */
+export type IntermediateRanksMode = 'below_order' | 'all';
 /** How the records list draws each record: one per row, or a 2-up card grid. */
 export type RecordsLayout = 'list' | 'card';
 
@@ -289,6 +292,8 @@ type SettingsValues = {
   vernacular_langs: VernacularLang[];
   /** UI language; 'system' follows the device locale. */
   language: Language;
+  /** Taxonomy tree: intermediate ranks below order only, or every one TaiCOL has. */
+  taxonomy_intermediate_ranks: IntermediateRanksMode;
 };
 
 const DEFAULTS: SettingsValues = {
@@ -352,6 +357,7 @@ const DEFAULTS: SettingsValues = {
   enabled_regions: ['TW'],
   vernacular_langs: ['zh-TW', 'ja'],
   language: 'system',
+  taxonomy_intermediate_ranks: 'below_order',
 };
 
 type SettingsState = SettingsValues & {
@@ -525,6 +531,8 @@ function readAll(): SettingsValues {
     enabled_regions: parseRegions(map.get('enabled_regions')),
     vernacular_langs: parseVernacularLangs(map.get('vernacular_langs')) ?? DEFAULTS.vernacular_langs,
     language: parseLanguage(map.get('language')),
+    taxonomy_intermediate_ranks:
+      map.get('taxonomy_intermediate_ranks') === 'all' ? 'all' : DEFAULTS.taxonomy_intermediate_ranks,
   };
 }
 

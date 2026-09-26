@@ -340,7 +340,26 @@
     "subgenus": "Untergattung",
     "subspecies": "Unterart",
     "variety": "Varietät",
-    "form": "Form"
+    "form": "Form",
+    "superfamily": "Überfamilie",
+    "epifamily": "Epifamilie",
+    "suborder": "Unterordnung",
+    "infraorder": "Teilordnung",
+    "parvorder": "Kleinordnung",
+    "supertribe": "Übertribus",
+    "subtribe": "Untertribus",
+    "section": "Sektion",
+    "subsection": "Untersektion",
+    "series": "Serie",
+    "subkingdom": "Unterreich",
+    "infrakingdom": "Teilreich",
+    "superphylum": "Überstamm",
+    "subphylum": "Unterstamm",
+    "infraphylum": "Teilstamm",
+    "superclass": "Überklasse",
+    "subclass": "Unterklasse",
+    "infraclass": "Teilklasse",
+    "superorder": "Überordnung"
   },
   "search": {
     "placeholder": "Art / Taxon-Stichwort eingeben...",
@@ -707,7 +726,10 @@
     "moduleGloria": "GLORIA-Gipfelmonitoring",
     "moduleGloriaDesc": "Zeigt die GLORIA-Gipfelaufnahme im Menü „Neuer Datensatz“. Vorhandene GLORIA-Datensätze bleiben immer sichtbar.",
     "searchUsageRank": "Häufig erfasste Arten zuerst",
-    "searchUsageRankDesc": "Bei der Artsuche stehen exakte Namenstreffer weiterhin oben; danach kommen Arten, die du öfter erfasst hast (Artenlisten, Plots, Sammlungen und GLORIA zusammen)."
+    "searchUsageRankDesc": "Bei der Artsuche stehen exakte Namenstreffer weiterhin oben; danach kommen Arten, die du öfter erfasst hast (Artenlisten, Plots, Sammlungen und GLORIA zusammen).",
+    "intermediateRanks": "Zwischenränge",
+    "intermediateBelowOrder": "Unterhalb der Ordnung",
+    "intermediateAll": "Alle"
   },
   "taxonomy": {
     "loadingTree": "Taxonomiebaum wird geladen...",
@@ -2874,5 +2896,31 @@
     "hint": "Datum und Uhrzeit lassen sich von Hand eingeben (für alte Daten); zum Ändern antippen.",
     "orderTitle": "Falsche Reihenfolge",
     "order": "Das Ende darf nicht vor dem Beginn liegen."
+  },
+  "intermediate": {
+    "addChild": "Rang darunter hinzufügen…",
+    "changeParent": "Übergeordnetes Taxon ändern…",
+    "resetTaicol": "TaiCOL-Zuordnung wiederherstellen",
+    "editNode": "Dieses Taxon bearbeiten",
+    "deleteNode": "Dieses Taxon löschen",
+    "deleteTitle": "„{{name}}“ löschen?",
+    "deleteMsg": "Darunter eingeordnete Taxa kehren zu ihrer TaiCOL-Zuordnung zurück.",
+    "formTitleNew": "Neues Taxon",
+    "formTitleEdit": "Taxon bearbeiten",
+    "rank": "Rang",
+    "name": "Wissenschaftlicher Name",
+    "author": "Autor",
+    "cname": "Trivialname",
+    "under": "Unter {{parent}}",
+    "pickMembers": "Taxa für „{{name}}“ auswählen",
+    "pickMembersHint": "Die Zuordnung lässt sich später auch über das ⓘ eines Taxons ändern.",
+    "skipMembers": "Überspringen",
+    "directUnder": "Direkt unter {{name}}",
+    "parentTitle": "Übergeordnetes Taxon von „{{name}}“",
+    "userCreated": "Eigenes",
+    "nameRequired": "Wissenschaftlichen Namen eingeben",
+    "noRank": "Hier passt kein Zwischenrang",
+    "saved": "Gespeichert",
+    "placed": "Zuordnung aktualisiert"
   }
 }

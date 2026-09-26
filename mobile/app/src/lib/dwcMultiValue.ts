@@ -95,17 +95,26 @@ export function establishmentMeansDwcValue(
  * holes. The rank names are still recoverable from the dedicated
  * kingdom/phylum/class/order/family columns, which is where position matters.
  */
-export function higherClassificationOf(t: {
-  kingdom?: string | null;
-  phylum?: string | null;
-  class?: string | null;
-  order?: string | null;
-  family?: string | null;
-}): string {
-  return [t.kingdom, t.phylum, t.class, t.order, t.family]
-    .map((v) => (v ?? '').trim())
-    .filter((v) => v.length > 0)
-    .join('|');
+export function higherClassificationOf(
+  t: {
+    kingdom?: string | null;
+    phylum?: string | null;
+    class?: string | null;
+    order?: string | null;
+    family?: string | null;
+  },
+  /** Intermediate ranks (suborder, superfamily, subfamily, tribe …) placed
+   *  right after the fixed rank they hang under, top-down. Subfamily and tribe
+   *  sit between family and genus, so they follow the family. */
+  after: Partial<Record<'kingdom' | 'phylum' | 'class' | 'order' | 'family', string[]>> = {},
+): string {
+  const out: string[] = [];
+  for (const r of ['kingdom', 'phylum', 'class', 'order', 'family'] as const) {
+    const v = (t[r] ?? '').trim();
+    if (v) out.push(v);
+    for (const x of after[r] ?? []) if (x.trim()) out.push(x.trim());
+  }
+  return out.join('|');
 }
 
 /**

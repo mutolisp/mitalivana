@@ -19,6 +19,17 @@ import {
   keysAvailable,
   taxonomyScopeSig,
   onManualTaxaChanged,
+  onIntermediateChanged,
+  arrangeSpecies,
+  getSpeciesUnderNode,
+  intermediateTrail,
+  trailForHit,
+  clearPlacement,
+  deleteIntermediateNode,
+  isPlacementOverridden,
+  placementKeyOf,
+  ranksForNewChild,
+  parentCandidates,
   endemicTagLabel,
   addSearchHistory,
   getKeysForScope,
@@ -45,6 +56,7 @@ import { SpeciesSearchPanel } from '~/components/SpeciesSearchPanel';
 import { TaxonomySearchBox } from '~/components/TaxonomySearchBox';
 import { SelectionToolbar } from '~/components/SelectionToolbar';
 import { TaxonNodeInfoSheet } from '~/components/TaxonNodeInfoSheet';
+import { IntermediateEditor, type EditorRequest } from '~/components/IntermediateEditor';
 import { matchScientificName } from '~/lib/sciMatch';
 import { useListSelection } from '~/lib/useListSelection';
 import { alienBadge } from '~/lib/conservationColors';
@@ -97,7 +109,11 @@ function flatten(
       const key = nodeKeyFor(node);
       out.push({ kind: 'taxon', key, node, depth, expanded: expanded.has(key) });
       if (!expanded.has(key)) continue;
+      // A genus can hold both: subgenus / section nodes (children) and the
+      // species sitting directly under it.
+      const children = childrenMap.get(key);
       const sp = speciesMap.get(key);
+      if (children) walk(children, depth + 1);
       if (sp) {
         for (const s of sp) {
           out.push({
@@ -107,11 +123,8 @@ function flatten(
             depth: depth + 1,
           });
         }
-        continue;
       }
-      const children = childrenMap.get(key);
-      if (children) walk(children, depth + 1);
-      else out.push({ kind: 'loading', key: `${key}:loading`, depth: depth + 1 });
+      if (!children && !sp) out.push({ kind: 'loading', key: `${key}:loading`, depth: depth + 1 });
     }
   }
   walk(roots, 0);
@@ -213,6 +226,7 @@ export default function TaxonomyScreen() {
   // tab losing focus (its search segment, or the species popup over the
   // tree), so the focus check below would not see it.
   useEffect(() => onManualTaxaChanged(checkScope), [checkScope]);
+  useEffect(() => onIntermediateChanged(checkScope), [checkScope]);
   // Pack toggles / finished downloads have no store signal — caught on focus.
   useFocusEffect(checkScope);
   // Built-in region toggles DO have one; react immediately even without a
@@ -558,13 +572,32 @@ export default function TaxonomyScreen() {
    *  entry. Used by both the in-tab search hit handler and the
    *  cross-screen taxonomy jump (rank chip on SpeciesDetailPanel). */
   const expandToPath = useCallback(
-    (path: Array<{ rank: Rank; value: string }>, toastLabel?: string, speciesName?: string) => {
+    (
+      path: Array<{ rank: Rank; value: string }>,
+      toastLabel?: string,
+      speciesName?: string,
+      /** Intermediate nodes to open below the last path entry, ending at the
+       *  target itself (an intermediate-rank search hit). */
+      finalTrail?: TaxonNodeData[],
+    ) => {
       if (path.length === 0 || roots.length === 0) return;
 
       const wantExpanded = new Set(expanded);
       const nm = new Map(nodeMap);
       const cm = new Map(childrenMap);
       const sm = new Map(speciesMap);
+      // Open the intermediate nodes (subfamily, tribe …) a child hides under;
+      // without this the child row is never in the flat list and the scroll
+      // lands nowhere.
+      const openTrail = (trail: TaxonNodeData[]) => {
+        for (const g of trail) {
+          const gk = nodeKeyFor(g);
+          wantExpanded.add(gk);
+          const node = nm.get(gk) ?? g;
+          nm.set(gk, node);
+          if (!cm.has(gk) && !sm.has(gk)) loadInto(node, nm, cm, sm);
+        }
+      };
 
       for (let i = 0; i < path.length; i++) {
         const p = path[i];
@@ -595,7 +628,12 @@ export default function TaxonomyScreen() {
           nm.set(k, node);
         }
         if (!cm.has(k) && !sm.has(k)) loadInto(node, nm, cm, sm);
+        const next = path[i + 1];
+        const lineage: Ancestors = { ...ancestors, [p.rank]: p.value };
+        if (next) openTrail(intermediateTrail(lineage, next.rank, next.value));
+        else if (speciesName && p.rank === 'genus') openTrail(intermediateTrail(lineage, 'species', speciesName));
       }
+      if (finalTrail && finalTrail.length > 0) openTrail(finalTrail);
 
       setNodeMap(nm);
       setChildrenMap(cm);
@@ -608,11 +646,14 @@ export default function TaxonomyScreen() {
         targetAncestors[path[j].rank] = path[j].value;
       }
       const target = path[path.length - 1];
-      const targetKey = nodeKeyFor({
-        rank_key: target.rank,
-        name: target.value,
-        ancestors: targetAncestors,
-      });
+      const targetKey =
+        finalTrail && finalTrail.length > 0
+          ? nodeKeyFor(finalTrail[finalTrail.length - 1])
+          : nodeKeyFor({
+              rank_key: target.rank,
+              name: target.value,
+              ancestors: targetAncestors,
+            });
       // Defer the scroll to a follow-up effect that runs once flatItems has
       // recomputed against the new state — virtualization needs the new
       // children rows mounted before scrollToIndex can land. Direct rAF
@@ -629,7 +670,7 @@ export default function TaxonomyScreen() {
 
   const handleSearchPick = (hit: TaxonSearchHit) => {
     const speciesName = SPECIES_RANKS.includes(hit.rank) ? hit.name : undefined;
-    expandToPath(hit.path, hit.cname || hit.name, speciesName);
+    expandToPath(hit.path, hit.cname || hit.name, speciesName, hit.ref ? trailForHit(hit) : undefined);
   };
 
   // Cross-screen taxonomy jump: SpeciesDetailPanel's rank chip writes a
@@ -781,6 +822,40 @@ export default function TaxonomyScreen() {
   const selection = useListSelection<string>();
   const pickedPayload = useRef(new Map<string, TreePick>());
   const [infoNode, setInfoNode] = useState<TaxonNodeData | null>(null);
+  const [editorReq, setEditorReq] = useState<EditorRequest | null>(null);
+  // The ⓘ sheet is a Modal: iOS cannot present the editor Modal while it is
+  // still sliding out, so the editor opens after the dismissal has finished.
+  const openEditorAfterSheet = (req: EditorRequest) => {
+    setTimeout(() => setEditorReq(req), 450);
+  };
+  // What the ⓘ sheet may offer for this node. Memoised: `parentCandidates`
+  // walks the anchor's intermediates with a query per level.
+  const infoCaps = useMemo(() => {
+    if (!infoNode) return null;
+    return {
+      canAdd: ranksForNewChild(infoNode).length > 0,
+      // "Directly under the anchor" alone is no choice — unless the node is
+      // somewhere else now.
+      canMove:
+        !!placementKeyOf(infoNode) &&
+        (parentCandidates(infoNode).length > 1 || !!infoNode.ref),
+      overridden: isPlacementOverridden(infoNode),
+    };
+  }, [infoNode]);
+  const confirmDeleteIntermediate = (node: TaxonNodeData) => {
+    if (!node.ref) return;
+    const ref = node.ref;
+    setTimeout(() => {
+      Alert.alert(
+        t('intermediate.deleteTitle', { name: node.name_c || node.name }),
+        t('intermediate.deleteMsg'),
+        [
+          { text: t('common.cancel'), style: 'cancel' },
+          { text: t('common.delete'), style: 'destructive', onPress: () => deleteIntermediateNode(ref) },
+        ],
+      );
+    }, 450);
+  };
   // Picks belong to the tree; leaving it for 檢索表 / 搜尋 drops them.
   const exitSelection = selection.exit;
   useEffect(() => {
@@ -849,8 +924,7 @@ export default function TaxonomyScreen() {
       return null;
     }
     for (const nd of nodes) {
-      const lineage: Ancestors = { ...nd.ancestors, [nd.rank_key]: nd.name };
-      for (const sp of getSpeciesUnder(lineage)) out.push(taxonSpeciesToSearchResult(sp));
+      for (const sp of getSpeciesUnderNode(nd)) out.push(taxonSpeciesToSearchResult(sp));
     }
     return out;
   };
@@ -1097,7 +1171,27 @@ export default function TaxonomyScreen() {
         }}
       />
       {addRecordModal}
-      <TaxonNodeInfoSheet node={infoNode} onClose={() => setInfoNode(null)} />
+      <TaxonNodeInfoSheet
+        node={infoNode}
+        onClose={() => setInfoNode(null)}
+        onAddChild={
+          infoCaps?.canAdd ? (n) => openEditorAfterSheet({ kind: 'create', parent: n }) : undefined
+        }
+        onChangeParent={
+          infoCaps?.canMove ? (n) => openEditorAfterSheet({ kind: 'parent', node: n }) : undefined
+        }
+        onResetPlacement={
+          infoCaps?.overridden
+            ? (n) => {
+                const k = placementKeyOf(n);
+                if (k) clearPlacement([k]);
+              }
+            : undefined
+        }
+        onEdit={infoNode?.user ? (n) => openEditorAfterSheet({ kind: 'edit', node: n }) : undefined}
+        onDelete={infoNode?.user ? confirmDeleteIntermediate : undefined}
+      />
+      <IntermediateEditor request={editorReq} onClose={() => setEditorReq(null)} />
     </View>
   );
 }
@@ -1110,16 +1204,26 @@ function loadInto(
   sm: Map<string, TaxonSpecies[]>,
 ): void {
   const k = nodeKeyFor(node);
-  // Children of this node belong to the lineage = (node's ancestors) ∪ (this node).
-  const childAncestors: Ancestors = { ...node.ancestors, [node.rank_key]: node.name };
+  // Children of this node belong to the lineage = (node's ancestors) ∪ (this
+  // node). An intermediate node (subfamily …) is not a lineage rank: its
+  // `ancestors` already end at its anchor, and `via` narrows the children.
+  const childAncestors: Ancestors = node.ref
+    ? node.ancestors
+    : { ...node.ancestors, [node.rank_key]: node.name };
+  const via = node.ref ? [...(node.via ?? []), node.ref] : [];
   if (node.child_rank === 'species') {
-    const sp = getSpeciesUnder(childAncestors);
-    sm.set(k, sp);
+    const { groups, direct } = arrangeSpecies(childAncestors, getSpeciesUnder(childAncestors), via);
+    sm.set(k, direct);
+    if (groups.length > 0) {
+      cm.set(k, groups);
+      for (const c of groups) nm.set(nodeKeyFor(c), c);
+    }
     return;
   }
   const children = getTaxonChildren({
     rank: node.child_rank as Rank,
     ancestors: childAncestors,
+    via,
   });
   cm.set(k, children);
   for (const c of children) nm.set(nodeKeyFor(c), c);
