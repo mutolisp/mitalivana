@@ -9,6 +9,8 @@ import { useTranslation } from 'react-i18next';
 import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { HeaderIconButton } from '~/components/HeaderIconButton';
+import { RecordMenuButton } from '~/components/RecordMenuButton';
+import { HeaderTitleText } from '~/components/HeaderTitleText';
 import { BackHeaderLeft } from '~/lib/goBack';
 import { RecordStepBar } from '~/components/RecordStepBar';
 import { useActivePlot } from '~/stores/activePlot';
@@ -122,14 +124,11 @@ export default function GloriaSurveyScreen() {
       <Stack.Screen
         options={{
           title: `${summit.full_code} · mocy ${survey.mocy}`,
+          headerTitle: () => <HeaderTitleText text={`${summit.full_code} · mocy ${survey.mocy}`} />,
           headerLeft: BackHeaderLeft,
           headerRight: () => (
             <View className="flex-row items-center gap-3">
-              <HeaderIconButton
-                icon="document-text-outline"
-                onPress={() => router.push(`/report/gloria/${id}` as Href)}
-                label={t('report.navTitle')}
-              />
+              <RecordMenuButton kind="gloria" id={id} reportHref={`/report/gloria/${id}` as Href} onSynced={reload} />
               <HeaderIconButton
                 icon={active ? 'stop-circle-outline' : 'refresh-outline'}
                 tone={active ? 'danger' : 'default'}

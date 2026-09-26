@@ -323,7 +323,7 @@ type ImportableRecord = { taxon_id: string; name?: string | null; family?: strin
  * render blank. The yml also carries the scientific name, so try that before
  * giving up; anything still unresolved is imported as-is and reported.
  */
-function remapUnknownTaxa(records: ImportableRecord[]): { remapped: number; unresolved: number } {
+export function remapUnknownTaxa(records: ImportableRecord[]): { remapped: number; unresolved: number } {
   let remapped = 0;
   let unresolved = 0;
   for (const r of records) {

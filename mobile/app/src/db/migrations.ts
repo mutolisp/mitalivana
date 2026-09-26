@@ -1738,6 +1738,92 @@ const MIGRATIONS: Migration[] = [
       }
     },
   },
+  {
+    // Team sync through a relay (src/lib/teamSync.ts, docs/Team_sync.md).
+    // The team secret itself is NOT here: it lives in the Keychain / Keystore
+    // (expo-secure-store) and never enters a backup. These tables hold only
+    // what this device needs to resume: which teams, which records sync with
+    // which team (and under which server-side name), the peers' uploads
+    // already merged (by etag), and records waiting for a connection.
+    version: 58,
+    up: (db) => {
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS sync_teams (
+          team_id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          server TEXT,
+          is_owner INTEGER NOT NULL DEFAULT 0,
+          joined_at INTEGER NOT NULL,
+          last_sync_at INTEGER
+        );
+      `);
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS sync_links (
+          team_id TEXT NOT NULL,
+          record_kind TEXT NOT NULL,
+          record_uuid TEXT NOT NULL,
+          rec_key TEXT NOT NULL,
+          last_synced_at INTEGER,
+          PRIMARY KEY (team_id, record_kind, record_uuid)
+        );
+      `);
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS sync_seen (
+          team_id TEXT NOT NULL,
+          rec_key TEXT NOT NULL,
+          dev TEXT NOT NULL,
+          etag TEXT NOT NULL,
+          PRIMARY KEY (team_id, rec_key, dev)
+        );
+      `);
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS sync_queue (
+          team_id TEXT NOT NULL,
+          record_kind TEXT NOT NULL,
+          record_uuid TEXT NOT NULL,
+          queued_at INTEGER NOT NULL,
+          PRIMARY KEY (team_id, record_kind, record_uuid)
+        );
+      `);
+    },
+  },
+  {
+    // Team sync: names. `member_name` is how this device signs its uploads in
+    // that team; it travels only inside the sealed record (sync.author), so
+    // the relay never sees it. `sync_members` is who this device has heard
+    // from, learnt from teammates' decrypted uploads — keyed by the keyed
+    // device name, so a teammate who renames themselves updates in place.
+    version: 59,
+    up: (db) => {
+      addColumnIfMissing(db, `ALTER TABLE sync_teams ADD COLUMN member_name TEXT;`);
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS sync_members (
+          team_id TEXT NOT NULL,
+          dev TEXT NOT NULL,
+          name TEXT NOT NULL,
+          last_upload_at INTEGER,
+          PRIMARY KEY (team_id, dev)
+        );
+      `);
+    },
+  },
+  {
+    // Team sync: relays this device knows besides the built-in default — the
+    // one it deployed (is_own) or a URL typed when creating a team — and which
+    // one new teams start on (is_default; none set = the built-in default).
+    // Only URLs: a relay's admin token stays in the Keychain / Keystore.
+    version: 60,
+    up: (db) => {
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS sync_servers (
+          url TEXT PRIMARY KEY,
+          is_own INTEGER NOT NULL DEFAULT 0,
+          is_default INTEGER NOT NULL DEFAULT 0,
+          added_at INTEGER NOT NULL
+        );
+      `);
+    },
+  },
 ];
 
 /** Highest schema version this build knows how to produce. Backup/restore uses

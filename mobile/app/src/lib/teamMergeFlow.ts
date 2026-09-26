@@ -36,6 +36,11 @@ export type PendingMerge = {
   remoteSide: MergeSide;
   photos: ImportedPhotoBlob[];
   audio: ImportedPhotoBlob[];
+  /** Run after a successful apply (team sync marks the peer's upload as merged). */
+  afterApply?: () => void;
+  /** Team sync: who sent this copy and when they uploaded it (shown in the review header). */
+  from?: string | null;
+  fromAt?: number | null;
 };
 
 export const usePendingMerge = create<{ pending: PendingMerge | null; set: (p: PendingMerge | null) => void }>((set) => ({
@@ -127,6 +132,7 @@ export async function applyPendingMerge(
   else applyGloriaMerge(p.localId, ops);
 
   setSyncBase(p.kind, p.localUuid, baseOf(p.remoteSide));
+  p.afterApply?.();
   useActiveSession.getState().refresh();
   useActivePlot.getState().refresh();
   useActiveGloria.getState().refresh();

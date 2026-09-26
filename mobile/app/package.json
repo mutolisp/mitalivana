@@ -53,11 +53,16 @@
     "check:usage-rank": "node --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-usage-rank.mjs",
     "check:intermediate": "node --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-intermediate.mjs",
     "check:gloria-stats": "node --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-gloria-stats.mjs",
-    "check:merge": "node --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-merge.mjs"
+    "check:merge": "node --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-merge.mjs",
+    "check:team-crypto": "node --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-team-crypto.mjs",
+    "check:team-quota": "node --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-team-quota.mjs",
+    "privacy": "node ./scripts/gen-privacy.mjs",
+    "check:privacy": "node --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/gen-privacy.mjs --check"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
     "@maplibre/maplibre-react-native": "^11.3.10",
+    "@noble/ciphers": "^2.4.0",
     "@noble/ed25519": "^3.2.0",
     "@noble/hashes": "^2.4.0",
     "@op-engineering/op-sqlite": "^15.2.12",
@@ -100,6 +105,7 @@
     "nativewind": "^4.2.3",
     "piexifjs": "^1.0.6",
     "pinyin-pro": "^3.28.1",
+    "qrcode-generator": "^2.0.4",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-i18next": "^17.0.8",

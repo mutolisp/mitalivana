@@ -4,6 +4,7 @@ import { FolderAreaMap } from '~/components/FolderAreaMap';
 import { RecordLocationMap } from '~/components/RecordLocationMap';
 import { RecordStepBar } from '~/components/RecordStepBar';
 import { HeaderIconButton } from '~/components/HeaderIconButton';
+import { RecordMenuButton } from '~/components/RecordMenuButton';
 import {
   SwipeBlockedArea,
   SwipeBlockProvider,
@@ -182,10 +183,14 @@ export default function PlotDetailScreen() {
           headerLeft: BackHeaderLeft,
           headerRight: () => (
             <View className="flex-row items-center gap-3">
-              <HeaderIconButton
-                icon="document-text-outline"
-                onPress={() => router.push(`/report/plot/${plot.id}` as Href)}
-                label={t('report.navTitle')}
+              <RecordMenuButton
+                kind="plot"
+                id={plot.id}
+                reportHref={`/report/plot/${plot.id}` as Href}
+                onSynced={() => {
+                  setRev((n) => n + 1);
+                  reload();
+                }}
               />
               <RecordEditButtons
                 edit={edit}

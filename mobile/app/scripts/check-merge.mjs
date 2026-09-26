@@ -154,6 +154,8 @@ eq('GLORIA: same unit+taxon under another id → duplicate with the cover differ
 // ── 9. the export's sync block ──
 eq('sync block read', readSyncBlock({ sync: { exported_at: 5, base: [['sp', 'a', 'h'], ['bad']] } }), { exported_at: 5, base: [['sp', 'a', 'h']] });
 eq('no sync block → no ancestor', readSyncBlock({}), null);
+eq('sync block carries the sender\'s team name, trimmed', readSyncBlock({ sync: { exported_at: 5, base: [], author: '  林 ' } }).author, '林');
+eq('no author → none', 'author' in readSyncBlock({ sync: { exported_at: 5, base: [] } }), false);
 eq('blank and missing hash alike', rowHash({ a: 1, b: '' }) === rowHash({ a: 1 }), true);
 
 if (failed) {

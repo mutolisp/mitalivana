@@ -360,6 +360,13 @@ export default function MergeReviewScreen() {
       <ScrollView contentContainerClassName="gap-3 p-4">
         <View className="gap-1">
           <Text className="text-base font-semibold text-gray-900 dark:text-gray-100">{pending.label}</Text>
+          {pending.from ? (
+            <Text className="text-sm text-[#00797b] dark:text-cyan-300">
+              {pending.fromAt
+                ? t('teamMerge.fromAt', { name: pending.from, date: isoStamp(pending.fromAt).slice(0, 16) })
+                : t('teamMerge.from', { name: pending.from })}
+            </Text>
+          ) : null}
           <Text className="text-xs text-gray-500 dark:text-gray-400">
             {t('teamMerge.summary', {
               added: counts.added,

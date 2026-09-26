@@ -50,7 +50,11 @@ export type MergeSide = Record<string, MergeRow[]>;
 /** [table, row key, hash] — the shape stored in `sync_base` and in `sync.base`. */
 export type BaseEntry = [string, string, string];
 
-export type SyncBlock = { exported_at: number | null; base: BaseEntry[] };
+/**
+ * `author`: the sender's name in the team (team sync). It travels inside the
+ * sealed record, so the relay never sees it; absent in files exported by hand.
+ */
+export type SyncBlock = { exported_at: number | null; base: BaseEntry[]; author?: string | null };
 
 export type ItemKind =
   /** Only the sender has it: new there. */
@@ -130,12 +134,13 @@ export function baseOf(side: MergeSide): BaseEntry[] {
 
 /** `sync:` block of an export document; absent or malformed → no ancestor. */
 export function readSyncBlock(doc: unknown): SyncBlock | null {
-  const s = (doc as { sync?: unknown } | null)?.sync as { exported_at?: unknown; base?: unknown } | undefined;
+  const s = (doc as { sync?: unknown } | null)?.sync as { exported_at?: unknown; base?: unknown; author?: unknown } | undefined;
   if (!s || !Array.isArray(s.base)) return null;
   const base = s.base.filter(
     (e): e is BaseEntry => Array.isArray(e) && e.length === 3 && e.every((x) => typeof x === 'string'),
   );
-  return { exported_at: typeof s.exported_at === 'number' ? s.exported_at : null, base };
+  const author = typeof s.author === 'string' && s.author.trim() ? s.author.trim().slice(0, 60) : null;
+  return { exported_at: typeof s.exported_at === 'number' ? s.exported_at : null, base, ...(author ? { author } : {}) };
 }
 
 // ── diff ───────────────────────────────────────────────────────────────────

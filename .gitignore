@@ -35,6 +35,7 @@ references/*
 
 # Claude Code local settings
 .claude/settings.local.json
+.claude
 
 # Environment files
 .env
@@ -79,6 +80,9 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
+
+# cloudflare
+.wrangler
 
 app-example
 

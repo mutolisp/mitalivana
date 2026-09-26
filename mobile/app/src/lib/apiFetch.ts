@@ -30,7 +30,7 @@ export type ApiErrorKind =
  * picks its cross-probe target from an exhaustive map keyed on this, so a new
  * member that nobody routed is a compile error rather than a silent fallback.
  */
-export type ApiService = 'inat' | 'gbif' | 'gdrive';
+export type ApiService = 'inat' | 'gbif' | 'gdrive' | 'sync' | 'cloudflare';
 
 export class ApiError extends Error {
   kind: ApiErrorKind;
@@ -278,6 +278,59 @@ async function sendBody(
     } catch (e) {
       throw new ApiError(service, 'parse', String((e as Error)?.message ?? e));
     }
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener('abort', onAbort);
+  }
+}
+
+/**
+ * A request with a text body and a text answer, for the team-sync relay
+ * (sealed records travel as base64url text: React Native's fetch is reliable
+ * with strings, less so with binary bodies). Same timeout / abort / error
+ * vocabulary; a non-2xx keeps the server's body in `detail` (the relay sends
+ * `{"error": code}`). No 429 retry: the relay's 429 means a daily limit.
+ */
+export async function fetchText(
+  service: ApiService,
+  method: 'GET' | 'PUT' | 'POST' | 'DELETE',
+  url: string,
+  opts: { headers?: Record<string, string>; body?: string; contentType?: string; signal?: AbortSignal; timeoutMs?: number } = {},
+): Promise<{ status: number; text: string; etag: string | null }> {
+  const { headers, body, contentType = 'text/plain', signal, timeoutMs = DEFAULT_TIMEOUT_MS } = opts;
+  const ctrl = new AbortController();
+  let timedOut = false;
+  const onAbort = () => ctrl.abort();
+  signal?.addEventListener('abort', onAbort);
+  const timer = setTimeout(() => {
+    timedOut = true;
+    ctrl.abort();
+  }, timeoutMs);
+  try {
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        method,
+        headers: { 'User-Agent': USER_AGENT, ...(body !== undefined ? { 'Content-Type': contentType } : {}), ...headers },
+        body,
+        signal: ctrl.signal,
+      });
+    } catch (e) {
+      if (timedOut) throw new ApiError(service, 'timeout', `timed out after ${timeoutMs} ms`);
+      if (signal?.aborted) throw new ApiError(service, 'aborted', 'aborted');
+      throw new ApiError(service, 'network', String((e as Error)?.message ?? e));
+    }
+    let text = '';
+    try {
+      text = await res.text();
+    } catch (e) {
+      if (res.ok) throw new ApiError(service, 'parse', String((e as Error)?.message ?? e));
+    }
+    if (!res.ok) {
+      const kind = res.status === 429 ? 'rate_limit' : 'http';
+      throw new ApiError(service, kind, `HTTP ${res.status}`, res.status, text.trim().slice(0, MAX_DETAIL) || undefined);
+    }
+    return { status: res.status, text, etag: res.headers.get('etag') };
   } finally {
     clearTimeout(timer);
     signal?.removeEventListener('abort', onAbort);

@@ -177,7 +177,7 @@ export function parsePhotoUris(json: string | null): string[] {
 
 /** DB site row → the `site:` block both ymls carry. Returns null when the
  *  stored geometry is unparseable (the sidecar files skip it too). */
-function siteToImported(site: Site): ImportedSite | null {
+export function siteToImported(site: Site): ImportedSite | null {
   const geom = parseGeoJsonSafe(site.geometry_geojson);
   if (!geom) return null;
   return { name: site.name, notes: site.notes, geometry: geom as ImportedSite['geometry'] };

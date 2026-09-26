@@ -20,6 +20,8 @@ import {
 import { KeyboardStickyView } from '~/components/KeyboardAvoidingView';
 import { RecordStepBar } from '~/components/RecordStepBar';
 import { HeaderIconButton } from '~/components/HeaderIconButton';
+import { RecordMenuButton } from '~/components/RecordMenuButton';
+import { HeaderTitleText } from '~/components/HeaderTitleText';
 import { showActionSheet } from '~/components/ActionSheet';
 import { hasInatChanges, syncRecord, useInatSync } from '~/lib/inatUpload';
 import { inatTokenAvailableQuietly } from '~/lib/inatAuth';
@@ -834,16 +836,13 @@ export default function SessionDetailScreen() {
       <Stack.Screen
         options={{
           title: headerTitle,
+          headerTitle: () => <HeaderTitleText text={headerTitle} />,
           // Override the default chevron back so a fresh deep-link / replace
           // entry doesn't strand the user with a dead button.
           headerLeft: BackHeaderLeft,
           headerRight: () => (
             <View className="flex-row items-center gap-3">
-              <HeaderIconButton
-                icon="document-text-outline"
-                onPress={() => router.push(`/report/session/${sessionId}` as Href)}
-                label={t('report.navTitle')}
-              />
+              <RecordMenuButton kind="session" id={sessionId} reportHref={`/report/session/${sessionId}` as Href} onSynced={reload} />
               <RecordEditButtons edit={edit} ended={!isActive} onChanged={reload} />
               {isActive ? (
                 <HeaderIconButton

@@ -120,11 +120,20 @@ export async function fetchDatasetManifest(): Promise<{
   const res = await fetch(MANIFEST_URL, { headers: { 'User-Agent': USER_AGENT } });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   // 解析規則本身在 `datasetManifest.ts`（純模組，有 check-datasets.mjs 驗）。
-  return parseDatasetManifest<DatasetManifestEntry>(await res.json(), {
+  const parsed = parseDatasetManifest<DatasetManifestEntry>(await res.json(), {
     knownIds: [...KNOWN_IDS],
     appSchema: APP_DATASET_SCHEMA,
   });
+  // Every fetch, from any screen, refreshes the copy the update dot compares
+  // against. The dot used to keep the launch-time copy for 24 h, so a module
+  // re-uploaded in between (tw-keys 26b → 26c) and installed from the
+  // regionpacks screen still looked outdated and the dot never cleared.
+  useRemoteManifest.setState({ entries: parsed.entries });
+  return parsed;
 }
+
+/** The most recently fetched manifest, whoever fetched it. Empty until one succeeds. */
+export const useRemoteManifest = create<{ entries: DatasetManifestEntry[] }>(() => ({ entries: [] }));
 
 /** 這個模組相較於已安裝的版本是新的嗎？ */
 export function hasUpdate(entry: DatasetManifestEntry): boolean {

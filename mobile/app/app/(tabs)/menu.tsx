@@ -322,6 +322,11 @@ export default function MenuScreen() {
           onPress={() => router.push('/gdrive' as Href)}
         />
         <LinkRow
+          label={t('teamSync.title')}
+          description={t('teamSync.menuDesc')}
+          onPress={() => router.push('/settings/team-sync' as Href)}
+        />
+        <LinkRow
           label={t('exportPref.title')}
           description={t('settings.exportPrefDesc')}
           onPress={() => router.push('/settings/export' as Href)}
@@ -410,9 +415,10 @@ export default function MenuScreen() {
         />
       </Section>
 
-      {/* No caption: a caption promises a group, and this is one row. */}
+      {/* No caption: about and the privacy policy need no heading. */}
       <Section>
         <LinkRow label={t('nav.about')} onPress={() => router.push('/about' as Href)} />
+        <LinkRow label={t('nav.privacy')} onPress={() => router.push('/privacy' as Href)} />
       </Section>
     </ScrollView>
   );

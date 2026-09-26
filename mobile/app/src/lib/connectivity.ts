@@ -45,6 +45,11 @@ const CROSS_PROBE = {
   inat: 'gbif',
   gbif: 'inat',
   gdrive: 'gbif',
+  // Neither the sync relay nor the Cloudflare API has a free unauthenticated
+  // HEAD worth relying on; GBIF answers the only question (is there a
+  // connection?) without contacting a new host.
+  sync: 'gbif',
+  cloudflare: 'gbif',
 } satisfies Record<ApiService, keyof typeof PROBES>;
 
 const PROBE_TIMEOUT_MS = 6000;

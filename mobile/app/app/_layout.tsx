@@ -123,6 +123,12 @@ function ThemedShell() {
             <Stack.Screen name="settings/vernacular" options={{ title: t('vernacular.title') }} />
             <Stack.Screen name="settings/storage" options={{ title: t('storage.title') }} />
             <Stack.Screen name="settings/merge-backups" options={{ title: t('mergeBackups.title') }} />
+            <Stack.Screen name="settings/team-sync" options={{ title: t('teamSync.title') }} />
+            <Stack.Screen name="settings/team-invite" options={{ title: t('teamSync.inviteTitle') }} />
+            <Stack.Screen name="settings/team/[id]" options={{ title: t('teamSync.title') }} />
+            <Stack.Screen name="settings/team-deploy" options={{ title: t('teamDeploy.title') }} />
+            <Stack.Screen name="team/join" options={{ title: t('teamSync.joinTitle') }} />
+            <Stack.Screen name="team/server" options={{ title: t('teamSync.addServerTitle') }} />
             <Stack.Screen name="gloria/summits" options={{ title: t('gloria.summitImport.listTitle') }} />
             <Stack.Screen name="gloria/summit-import" options={{ title: t('gloria.summitImport.reviewTitle') }} />
             <Stack.Screen name="gloria/summit/[id]" options={{ title: '' }} />
@@ -132,6 +138,7 @@ function ThemedShell() {
             <Stack.Screen name="settings/provenance" options={{ title: t('nav.provenance') }} />
             <Stack.Screen name="surveyors" options={{ title: t('nav.surveyors') }} />
             <Stack.Screen name="about" options={{ title: t('nav.about') }} />
+            <Stack.Screen name="privacy" options={{ title: t('nav.privacy') }} />
             <Stack.Screen name="favorites" options={{ title: t('nav.favorites') }} />
             <Stack.Screen name="backup" options={{ title: t('nav.backup') }} />
             <Stack.Screen name="regionpacks" options={{ title: t('nav.regionPacks') }} />

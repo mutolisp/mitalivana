@@ -16,37 +16,31 @@
 import { useEffect } from 'react';
 import { AppState } from 'react-native';
 import { router, type Href } from 'expo-router';
-import { create } from 'zustand';
-
 import { allSpecs, getInstall } from '~/db';
 import i18n from '~/i18n';
 import { useSettings } from '~/stores/settings';
 import { useToast } from '~/stores/toast';
 import {
   fetchDatasetManifest,
+  hasUpdate,
   useInstalledDatasets,
+  useRemoteManifest,
   type DatasetManifestEntry,
 } from './datasetInstall';
 
 const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
-type RemoteState = { entries: DatasetManifestEntry[] };
-
-/** Last fetched manifest. Empty until the first successful check. */
-const useRemoteManifest = create<RemoteState>(() => ({ entries: [] }));
-
 let lastCheckedAt = 0;
 let inFlight = false;
 
-/** `id@version` of every installed module whose remote version differs.
- *  Reads the registry itself, not the `useInstalledDatasets` snapshot: that one
- *  is taken at module load and can predate `initDb()`. */
+/** `id@version` of every installed module with a newer remote version — the
+ *  same test the regionpacks screen uses (`hasUpdate`), so the dot and the
+ *  screen never disagree. Reads the registry itself, not the
+ *  `useInstalledDatasets` snapshot: that one is taken at module load and can
+ *  predate `initDb()`. */
 function updatableSig(entries: DatasetManifestEntry[]): string[] {
   return entries
-    .filter((e) => {
-      const rec = getInstall(e.id);
-      return rec != null && rec.version !== e.version;
-    })
+    .filter((e) => getInstall(e.id) != null && hasUpdate(e))
     .map((e) => `${e.id}@${e.version}`)
     .sort();
 }
@@ -57,9 +51,8 @@ export async function checkDatasetUpdates(): Promise<void> {
   if (!allSpecs().some((spec) => getInstall(spec.id) != null)) return;
   inFlight = true;
   try {
-    const { entries } = await fetchDatasetManifest();
+    const { entries } = await fetchDatasetManifest(); // also refreshes useRemoteManifest
     lastCheckedAt = Date.now();
-    useRemoteManifest.setState({ entries });
 
     const sig = updatableSig(entries).join(',');
     const settings = useSettings.getState();
