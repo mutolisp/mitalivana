@@ -267,8 +267,11 @@ export const NumField = forwardRef<
     /** Needs a minus sign (coordinates) — the iOS decimal pad has none. */
     signed?: boolean;
     editable?: boolean;
+    /** Filled with this field's commit, for a parent that swaps the field's
+     *  target (the cover stepper) and must save what was typed first. */
+    commitRef?: { current: (() => boolean) | null };
   }
->(function NumField({ value, onCommit, placeholder, changed, width = 76, onSubmitEditing, accessibilityLabel, range, signed, editable = true }, ref) {
+>(function NumField({ value, onCommit, placeholder, changed, width = 76, onSubmitEditing, accessibilityLabel, range, signed, editable = true, commitRef }, ref) {
   const { t } = useTranslation();
   const [text, setText] = useState(fmt(value));
   // Last value handed to onCommit: Next commits and the blur that follows
@@ -305,6 +308,19 @@ export const NumField = forwardRef<
     }
     return true;
   };
+  if (commitRef) commitRef.current = commit;
+  // The accessory bar's Next is bound at focus. A field that stays focused
+  // while its target changes (the cover stepper) re-binds it on each render,
+  // or Next would commit to the item that had focus first.
+  const focused = useRef(false);
+  const bindNext = () => {
+    focusedNext = onSubmitEditing
+      ? () => {
+          if (commit()) onSubmitEditing();
+        }
+      : null;
+  };
+  if (focused.current) bindNext();
   return (
     <TextInput
       ref={ref}
@@ -316,11 +332,11 @@ export const NumField = forwardRef<
       }}
       onFocus={() => {
         // What the iOS accessory bar's Next does for this field.
-        focusedNext = onSubmitEditing
-          ? () => {
-              if (commit()) onSubmitEditing();
-            }
-          : null;
+        focused.current = true;
+        bindNext();
+      }}
+      onBlur={() => {
+        focused.current = false;
       }}
       inputAccessoryViewID={NUM_ACCESSORY_ID}
       blurOnSubmit={!onSubmitEditing}

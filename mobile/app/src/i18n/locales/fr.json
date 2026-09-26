@@ -2729,7 +2729,25 @@
       "sub_lich_on_scree": "Lichens · sur éboulis",
       "sub_bry_below_vasc": "Bryophytes · sous vasculaires",
       "sub_bry_on_rock": "Bryophytes · sur roche",
-      "sub_bry_on_scree": "Bryophytes · sur éboulis"
+      "sub_bry_on_scree": "Bryophytes · sur éboulis",
+      "none": "Aucun",
+      "prev": "Élément précédent",
+      "next": "Élément suivant",
+      "short": {
+        "cov_vascular": "Vasc",
+        "cov_solid_rock": "Roche",
+        "cov_scree": "Éboulis",
+        "cov_lichens": "Lich",
+        "cov_bryophytes": "Bryo",
+        "cov_bare_ground": "Nu",
+        "cov_litter": "Litière",
+        "sub_lich_below_vasc": "L-vasc",
+        "sub_lich_on_rock": "L-roche",
+        "sub_lich_on_scree": "L-éboul",
+        "sub_bry_below_vasc": "B-vasc",
+        "sub_bry_on_rock": "B-roche",
+        "sub_bry_on_scree": "B-éboul"
+      }
     },
     "surface": {
       "R": "Roche en place",

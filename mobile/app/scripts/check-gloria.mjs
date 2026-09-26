@@ -214,6 +214,10 @@ eq('annex III: 8-character item kept', photoFileName({ mocy: 1, country: 'AT', r
   const K = ['a', 'b', 'c'];
   eq('fills the last blank', autoFillLast({ a: 60, b: 25, c: null }, K, 'b'), { key: 'c', value: 15 });
   eq('never fills the field just edited (clearing to retype)', autoFillLast({ a: 60, b: null, c: 25 }, K, 'b'), null);
+  // 「無」 ticks record 0: a zero is an estimate, not a blank, so the one field
+  // left blank is still the one completed.
+  eq('ticked-none zeros leave the last blank to fill', autoFillLast({ a: 60, b: 0, c: null }, K, 'b'), { key: 'c', value: 40 });
+  eq('all estimated (zeros included): nothing to fill', autoFillLast({ a: 100, b: 0, c: 0 }, K, 'c'), null);
   eq('no fill while two are blank', autoFillLast({ a: 60, b: null, c: null }, K, 'a'), null);
   eq('no negative fill when the rest is over 100', autoFillLast({ a: 80, b: 30, c: null }, K, 'b'), null);
   eq('rounds away float noise', autoFillLast({ a: 33.3, b: 33.3, c: null }, K, 'a'), { key: 'c', value: 33.4 });

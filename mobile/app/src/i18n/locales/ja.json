@@ -2437,7 +2437,25 @@
       "sub_lich_on_scree": "地衣類 · 岩屑上",
       "sub_bry_below_vasc": "コケ類 · 維管束下",
       "sub_bry_on_rock": "コケ類 · 岩上",
-      "sub_bry_on_scree": "コケ類 · 岩屑上"
+      "sub_bry_on_scree": "コケ類 · 岩屑上",
+      "none": "なし",
+      "prev": "前の項目",
+      "next": "次の項目",
+      "short": {
+        "cov_vascular": "維",
+        "cov_solid_rock": "岩",
+        "cov_scree": "屑",
+        "cov_lichens": "地衣",
+        "cov_bryophytes": "コケ",
+        "cov_bare_ground": "裸",
+        "cov_litter": "リ",
+        "sub_lich_below_vasc": "地衣下",
+        "sub_lich_on_rock": "地衣岩",
+        "sub_lich_on_scree": "地衣屑",
+        "sub_bry_below_vasc": "コケ下",
+        "sub_bry_on_rock": "コケ岩",
+        "sub_bry_on_scree": "コケ屑"
+      }
     },
     "surface": {
       "R": "固着岩",

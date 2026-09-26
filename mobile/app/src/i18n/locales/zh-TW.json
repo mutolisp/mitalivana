@@ -2437,7 +2437,25 @@
       "sub_lich_on_scree": "地衣 · 碎石上",
       "sub_bry_below_vasc": "苔蘚 · 維管束下",
       "sub_bry_on_rock": "苔蘚 · 岩石上",
-      "sub_bry_on_scree": "苔蘚 · 碎石上"
+      "sub_bry_on_scree": "苔蘚 · 碎石上",
+      "none": "無",
+      "prev": "上一項",
+      "next": "下一項",
+      "short": {
+        "cov_vascular": "維",
+        "cov_solid_rock": "岩",
+        "cov_scree": "碎",
+        "cov_lichens": "衣",
+        "cov_bryophytes": "苔",
+        "cov_bare_ground": "裸",
+        "cov_litter": "枯",
+        "sub_lich_below_vasc": "衣下",
+        "sub_lich_on_rock": "衣岩",
+        "sub_lich_on_scree": "衣碎",
+        "sub_bry_below_vasc": "苔下",
+        "sub_bry_on_rock": "苔岩",
+        "sub_bry_on_scree": "苔碎"
+      }
     },
     "surface": {
       "R": "固定岩石",

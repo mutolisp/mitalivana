@@ -2583,7 +2583,25 @@
       "sub_lich_on_scree": "Lichens · on scree",
       "sub_bry_below_vasc": "Bryophytes · below vascular",
       "sub_bry_on_rock": "Bryophytes · on rock",
-      "sub_bry_on_scree": "Bryophytes · on scree"
+      "sub_bry_on_scree": "Bryophytes · on scree",
+      "none": "None",
+      "prev": "Previous item",
+      "next": "Next item",
+      "short": {
+        "cov_vascular": "Vasc",
+        "cov_solid_rock": "Rock",
+        "cov_scree": "Scree",
+        "cov_lichens": "Lich",
+        "cov_bryophytes": "Bryo",
+        "cov_bare_ground": "Bare",
+        "cov_litter": "Litter",
+        "sub_lich_below_vasc": "L-vasc",
+        "sub_lich_on_rock": "L-rock",
+        "sub_lich_on_scree": "L-scree",
+        "sub_bry_below_vasc": "B-vasc",
+        "sub_bry_on_rock": "B-rock",
+        "sub_bry_on_scree": "B-scree"
+      }
     },
     "surface": {
       "R": "Solid rock",

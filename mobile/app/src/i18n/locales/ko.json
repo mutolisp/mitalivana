@@ -2437,7 +2437,25 @@
       "sub_lich_on_scree": "지의류 · 암설 위",
       "sub_bry_below_vasc": "선태류 · 관속식물 아래",
       "sub_bry_on_rock": "선태류 · 암석 위",
-      "sub_bry_on_scree": "선태류 · 암설 위"
+      "sub_bry_on_scree": "선태류 · 암설 위",
+      "none": "없음",
+      "prev": "이전 항목",
+      "next": "다음 항목",
+      "short": {
+        "cov_vascular": "관",
+        "cov_solid_rock": "암",
+        "cov_scree": "자갈",
+        "cov_lichens": "지의",
+        "cov_bryophytes": "이끼",
+        "cov_bare_ground": "나지",
+        "cov_litter": "낙엽",
+        "sub_lich_below_vasc": "지의하",
+        "sub_lich_on_rock": "지의암",
+        "sub_lich_on_scree": "지의자",
+        "sub_bry_below_vasc": "이끼하",
+        "sub_bry_on_rock": "이끼암",
+        "sub_bry_on_scree": "이끼자"
+      }
     },
     "surface": {
       "R": "고정 암석",

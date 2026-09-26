@@ -2583,7 +2583,25 @@
       "sub_lich_on_scree": "Flechten · auf Schutt",
       "sub_bry_below_vasc": "Moose · unter Gefäßpfl.",
       "sub_bry_on_rock": "Moose · auf Fels",
-      "sub_bry_on_scree": "Moose · auf Schutt"
+      "sub_bry_on_scree": "Moose · auf Schutt",
+      "none": "Kein",
+      "prev": "Vorheriger Eintrag",
+      "next": "Nächster Eintrag",
+      "short": {
+        "cov_vascular": "Gef",
+        "cov_solid_rock": "Fels",
+        "cov_scree": "Schutt",
+        "cov_lichens": "Flecht",
+        "cov_bryophytes": "Moos",
+        "cov_bare_ground": "Offen",
+        "cov_litter": "Streu",
+        "sub_lich_below_vasc": "F-Gef",
+        "sub_lich_on_rock": "F-Fels",
+        "sub_lich_on_scree": "F-Schutt",
+        "sub_bry_below_vasc": "M-Gef",
+        "sub_bry_on_rock": "M-Fels",
+        "sub_bry_on_scree": "M-Schutt"
+      }
     },
     "surface": {
       "R": "Fels",

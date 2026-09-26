@@ -2729,7 +2729,25 @@
       "sub_lich_on_scree": "Líquenes · sobre pedregal",
       "sub_bry_below_vasc": "Briófitos · bajo vasculares",
       "sub_bry_on_rock": "Briófitos · sobre roca",
-      "sub_bry_on_scree": "Briófitos · sobre pedregal"
+      "sub_bry_on_scree": "Briófitos · sobre pedregal",
+      "none": "No",
+      "prev": "Elemento anterior",
+      "next": "Elemento siguiente",
+      "short": {
+        "cov_vascular": "Vasc",
+        "cov_solid_rock": "Roca",
+        "cov_scree": "Canch",
+        "cov_lichens": "Líq",
+        "cov_bryophytes": "Brió",
+        "cov_bare_ground": "Desn",
+        "cov_litter": "Hoja",
+        "sub_lich_below_vasc": "L-vasc",
+        "sub_lich_on_rock": "L-roca",
+        "sub_lich_on_scree": "L-canch",
+        "sub_bry_below_vasc": "B-vasc",
+        "sub_bry_on_rock": "B-roca",
+        "sub_bry_on_scree": "B-canch"
+      }
     },
     "surface": {
       "R": "Roca firme",
