@@ -85,10 +85,28 @@ export function applyGloriaMerge(surveyId: number, ops: MergeOp[]): void {
       const cols: Record<string, unknown> = { ...data };
       delete cols.unit;
       delete cols.taxon_id;
+      delete cols.verbatim_identification;
       const uid = data.unit != null ? unitId(String(data.unit)) : null;
       if (uid != null) cols.unit_id = uid;
-      if (data.taxon_id != null) {
-        const gid = ensureRosterTaxon(surveyId, String(data.taxon_id));
+      // Taxon and morphospecies label together pick the roster entry. An
+      // update carries only what changed, so the other half comes from the
+      // row as it is on this device.
+      const relabel = 'verbatim_identification' in data;
+      if (data.taxon_id != null || relabel) {
+        const here =
+          op.op === 'update'
+            ? (db.executeSync(
+                `SELECT t.taxon_id, t.verbatim_identification FROM gloria_unit_species us
+                   JOIN gloria_taxa t ON t.id = us.gloria_taxon_id
+                   JOIN gloria_units u ON u.id = us.unit_id
+                  WHERE us.occurrence_id = ? AND u.survey_id = ?`,
+                [op.key, surveyId],
+              ).rows?.[0] as { taxon_id: string; verbatim_identification: string | null } | undefined)
+            : undefined;
+        const taxon = data.taxon_id != null ? String(data.taxon_id) : here?.taxon_id;
+        const label = relabel ? ((data.verbatim_identification as string | null) ?? null) : (here?.verbatim_identification ?? null);
+        if (taxon == null) throw new Error(`no taxon for ${op.op === 'update' ? op.key : op.row.key}`);
+        const gid = ensureRosterTaxon(surveyId, taxon, label);
         cols.gloria_taxon_id = gid;
         if (op.op === 'insert' && (extra?.used_name_id != null || extra?.used_scientific_name)) {
           writeUpdate(

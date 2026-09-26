@@ -56,8 +56,15 @@ export function topOf(u: GloriaUnit): TopCover {
   };
 }
 
-export function displayName(s: { common_name_c?: string; simple_name?: string; taxon_id: string }): string {
-  return s.common_name_c || s.simple_name || s.taxon_id;
+/** The species' name, with its morphospecies label (「薹屬 sp1」) when it has one. */
+export function displayName(s: {
+  common_name_c?: string;
+  simple_name?: string;
+  taxon_id: string;
+  verbatim_identification?: string | null;
+}): string {
+  const name = s.common_name_c || s.simple_name || s.taxon_id;
+  return s.verbatim_identification ? `${name} ${s.verbatim_identification}` : name;
 }
 
 export function toUnitSpecies(s: SurveySpecies): UnitSpecies {

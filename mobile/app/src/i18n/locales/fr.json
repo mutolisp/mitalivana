@@ -2681,6 +2681,14 @@
       "shadeAbundance": "Teinte = abondance",
       "shadeHits": "Teinte = recouvrement (contacts / 4)"
     },
+    "morpho": {
+      "pickTitle": "{{name}} figure déjà dans ce relevé",
+      "pickMsg": "Quand l’identification s’arrête au genre ou à la famille, un taxon peut regrouper plusieurs espèces (sp1, sp2). Choisissez laquelle ou ajoutez-en une.",
+      "relabelNote": "En ajoutant une nouvelle, l’entrée sans étiquette reçoit {{label}} pour distinguer les deux (pour tout le relevé).",
+      "unlabelled": "{{name}} (sans étiquette)",
+      "addNew": "Nouvelle {{name}} {{label}}",
+      "taken": "Ce relevé a déjà {{label}} ; étiquette inchangée"
+    },
     "step": {
       "cover": "Recouvrement et surface",
       "frequency": "Fréquence",

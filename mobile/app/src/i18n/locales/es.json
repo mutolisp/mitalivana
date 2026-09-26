@@ -2681,6 +2681,14 @@
       "shadeAbundance": "Tono = abundancia",
       "shadeHits": "Tono = cobertura (toques / 4)"
     },
+    "morpho": {
+      "pickTitle": "{{name}} ya está en este muestreo",
+      "pickMsg": "Si la identificación llega solo a género o familia, un taxón puede ser varias especies (sp1, sp2). Elija cuál o añada una nueva.",
+      "relabelNote": "Al añadir una nueva, la entrada sin etiqueta pasa a {{label}} para distinguir ambas (en todo el muestreo).",
+      "unlabelled": "{{name}} (sin etiqueta)",
+      "addNew": "Nueva {{name}} {{label}}",
+      "taken": "Este muestreo ya tiene {{label}}; la etiqueta no cambió"
+    },
     "step": {
       "cover": "Cobertura y superficie",
       "frequency": "Frecuencia",

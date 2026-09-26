@@ -163,16 +163,23 @@ export function gloriaSide(d: GloriaDoc): MergeSide {
       const rec = s as unknown as Row;
       return {
         key: s.occurrence_id,
-        data: { unit: s.unit, taxon_id: taxonId, ...Object.fromEntries(GLORIA_SP_DATA.map((k) => [k, rec[k] ?? null])) },
+        // The morphospecies label (sp1, sp2) is part of what the species IS:
+        // data, so a relabel merges like any change, and in the duplicate key,
+        // so 薹屬 sp1 and sp2 in one unit are never offered as the same row.
+        data: {
+          unit: s.unit,
+          taxon_id: taxonId,
+          verbatim_identification: t?.verbatim_identification ?? null,
+          ...Object.fromEntries(GLORIA_SP_DATA.map((k) => [k, rec[k] ?? null])),
+        },
         extra: {
           sort_order: s.sort_order ?? null,
           used_name_id: t?.used_name_id ?? null,
           used_scientific_name: t?.used_scientific_name ?? null,
-          verbatim_identification: t?.verbatim_identification ?? null,
           scientific_name: t?.scientific_name ?? null,
         },
-        dupKey: `${s.unit}|${taxonId}`,
-        label: t?.scientific_name || t?.used_scientific_name || taxonId,
+        dupKey: `${s.unit}|${taxonId}|${t?.verbatim_identification ?? ''}`,
+        label: [t?.scientific_name || t?.used_scientific_name || taxonId, t?.verbatim_identification].filter(Boolean).join(' '),
         group: s.unit,
       };
     }),

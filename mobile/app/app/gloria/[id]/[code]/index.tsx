@@ -34,6 +34,7 @@ import { BackHeaderLeft } from '~/lib/goBack';
 import { isoStamp } from '~/lib/datetime';
 import { useToast } from '~/stores/toast';
 import {
+  addRosterSpecies,
   addUnitSpecies,
   markUnitStarted,
   removeUnitSpecies,
@@ -54,6 +55,7 @@ import { coverFromHits, WALK_OPTIONS, type WalkOption } from '~/modules/gloria/m
 import { quadratsOf, unitTypeOf, type Direction } from '~/modules/gloria/model/units';
 import { exactSum, speciesCoverSum, vascularCoverOk } from '~/modules/gloria/model/validate';
 import { issueText } from '~/modules/gloria/issues';
+import { pickMorphoLabel } from '~/modules/gloria/morpho';
 import { bySpeciesOrder } from '~/modules/gloria/model/speciesOrder';
 import { followCoverTimes } from '~/modules/gloria/model/quadratTimes';
 import {
@@ -233,12 +235,13 @@ export default function GloriaUnitScreen() {
   /** The docked search picked a taxon while re-identifying `replaceId`. */
   const replaceTaxon = (usid: number, taxonId: string, name: string) => {
     const current = spp.find((x) => x.id === usid);
-    if (current?.taxon_id === taxonId) {
+    // A replacement lands on the taxon's unlabelled roster entry.
+    if (current?.taxon_id === taxonId && !current.verbatim_identification) {
       setReplaceId(null);
       return;
     }
     // Checked here too, so a refused pick leaves no empty undo step.
-    if (spp.some((x) => x.id !== usid && x.taxon_id === taxonId)) {
+    if (spp.some((x) => x.id !== usid && x.taxon_id === taxonId && !x.verbatim_identification)) {
       toast(t('gloria.unit.replaceExists', { name }));
       return; // still replacing: they picked a species already on the list
     }
@@ -246,15 +249,22 @@ export default function GloriaUnitScreen() {
     setReplaceId(null);
     toast(t('gloria.unit.replaced', { name }));
   };
-  const addTaxon = (taxonId: string, name?: string) => {
+  const addTaxon = async (taxonId: string, rank: string | undefined, name: string) => {
+    if (locked) {
+      toast(t('gloria.unit.lockedToast'));
+      return;
+    }
+    // A genus already on the roster: which morphospecies (sp1, sp2, new)?
+    const label = await pickMorphoLabel(t, state.survey.id, taxonId, rank, name);
+    if (label === undefined) return;
     let usid: number | null = null;
     const done = track(() => {
       markUnitStarted(unit.id);
-      usid = addUnitSpecies(unit.id, taxonId);
+      usid = addUnitSpecies(unit.id, taxonId, label);
     });
     if (done) followEnd.current = true;
     if (done && type === 'quadrat') focusCover.current = usid;
-    if (done && name) toast(t('gloria.unit.added', { name }));
+    if (done) toast(t('gloria.unit.added', { name: label ? `${name} ${label}` : name }));
   };
   const speciesMenu = async (s: SurveySpecies) => {
     const idx = await showActionSheet({
@@ -625,12 +635,13 @@ export default function GloriaUnitScreen() {
   // ── summit area section ────────────────────────────────────────────────
   const sasBody = () => {
     const missing = issues.find((i) => i.kind === 'sas-missing');
+    // By roster entry, not taxon: 薹屬 sp1 and sp2 are two species.
     const missingTaxa = () => {
-      const inSas = new Set(spp.map((s) => s.taxon_id));
-      const out = new Map<string, string>();
+      const inSas = new Set(spp.map((s) => s.gloria_taxon_id));
+      const out = new Map<number, string>();
       for (const q of quadratsOf(dir))
         for (const s of state.speciesOf(q))
-          if (!inSas.has(s.taxon_id)) out.set(s.taxon_id, displayName(s));
+          if (!inSas.has(s.gloria_taxon_id)) out.set(s.gloria_taxon_id, displayName(s));
       return out;
     };
     return (
@@ -644,7 +655,7 @@ export default function GloriaUnitScreen() {
                 label={t('gloria.unit.addAll')}
                 onPress={() =>
                   track(() => {
-                    for (const tid of missingTaxa().keys()) addUnitSpecies(unit.id, tid);
+                    for (const gid of missingTaxa().keys()) addRosterSpecies(unit.id, gid);
                     markUnitStarted(unit.id);
                   })
                 }
@@ -716,14 +727,14 @@ export default function GloriaUnitScreen() {
     const hit = withHits.filter((x) => x.n > 0).sort((a, b) => b.n - a.n);
     const extra = withHits.filter((x) => x.n === 0);
     const fromQuadrats = () => {
-      const have = new Set(spp.map((s) => s.taxon_id));
+      const have = new Set(spp.map((s) => s.gloria_taxon_id));
       let n = 0;
       const done = track(() => {
         for (const q of quadratsOf(dir)) {
           for (const s of state.speciesOf(q)) {
-            if (have.has(s.taxon_id)) continue;
-            have.add(s.taxon_id);
-            addUnitSpecies(unit.id, s.taxon_id);
+            if (have.has(s.gloria_taxon_id)) continue;
+            have.add(s.gloria_taxon_id);
+            addRosterSpecies(unit.id, s.gloria_taxon_id);
             n++;
           }
         }
@@ -910,7 +921,7 @@ export default function GloriaUnitScreen() {
               onSelect={(r) => {
                 if (!r.taxon_id) return;
                 if (replaceId != null) replaceTaxon(replaceId, r.taxon_id, r.cname || r.name);
-                else addTaxon(r.taxon_id, r.cname || r.name);
+                else void addTaxon(r.taxon_id, r.rank, r.cname || r.name);
               }}
               onFocus={
                 type === 'quadrat'

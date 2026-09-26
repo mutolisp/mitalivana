@@ -19,11 +19,14 @@ import {
   listUnitSpecies,
   removeUnitSpecies,
   requestSpeciesReplace,
+  setRosterLabel,
   updateUnitSpecies,
   type UnitSpeciesPatch,
 } from '~/modules/gloria/db';
 import { unitTypeOf } from '~/modules/gloria/model/units';
 import { displayName } from '~/modules/gloria/useSurvey';
+import { VerbatimLabelField } from '~/components/VerbatimLabelField';
+import { useToast } from '~/stores/toast';
 import { Btn, Card, Chip, Label, NumAccessory, NumField } from '~/modules/gloria/components/ui';
 import { RANGES } from '~/modules/gloria/model/ranges';
 
@@ -39,6 +42,7 @@ export default function GloriaSpeciesScreen() {
   const [usid, setUsid] = useState(() => Number(params.usid));
   const [s, setS] = useState(() => getUnitSpecies(usid));
   const reload = useCallback(() => setS(getUnitSpecies(usid)), [usid]);
+  const toast = useToast((x) => x.show);
   useFocusEffect(reload);
   const unitId = s?.unit_id;
   const order = useMemo(
@@ -112,6 +116,17 @@ export default function GloriaSpeciesScreen() {
             <Text className="italic">{s.simple_name}</Text> {s.name_author}
           </Text>
           <Text className="mt-0.5 text-xs text-gray-400">{t('gloria.species.inUnit', { code: params.code, serial: s.serial })}</Text>
+          {/* Morphospecies label (sp1, sp2): on the survey roster, so every
+              unit listing this entry shows the new label. */}
+          <VerbatimLabelField
+            key={s.gloria_taxon_id}
+            rank={s.rank}
+            value={s.verbatim_identification}
+            onCommit={(v) => {
+              if (setRosterLabel(s.gloria_taxon_id, v) === 'taken') toast(t('gloria.morpho.taken', { label: v }));
+              reload();
+            }}
+          />
         </View>
 
         <Card className="gap-2 p-3">

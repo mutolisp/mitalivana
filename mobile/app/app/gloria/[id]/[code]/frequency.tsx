@@ -34,6 +34,7 @@ import {
   updateUnit,
   updateUnitSpecies,
 } from '~/modules/gloria/db';
+import { pickMorphoLabel } from '~/modules/gloria/morpho';
 import { emptyMask, fillMask, getBit, popcount, rcLabel, setBits, QUADRAT_N } from '~/modules/gloria/model/grid';
 import type { Direction } from '~/modules/gloria/model/units';
 import { bySpeciesOrder } from '~/modules/gloria/model/speciesOrder';
@@ -638,9 +639,11 @@ export default function FrequencyScreen() {
         <KeyboardStickyView offset={{ opened: insets.bottom }}>
           <SearchBox
             scopeGroups={GLORIA_SEARCH_GROUPS}
-            onSelect={(r) => {
+            onSelect={async (r) => {
               if (!r.taxon_id) return;
-              const usid = addUnitSpecies(unit.id, r.taxon_id);
+              const label = await pickMorphoLabel(t, unit.survey_id, r.taxon_id, r.rank, r.cname || r.name);
+              if (label === undefined) return;
+              const usid = addUnitSpecies(unit.id, r.taxon_id, label);
               if (mode !== 'count' && unit.freq_mode !== 'cells') startFrequency(unit.id);
               setAdding(false);
               setActive(`sp${usid}`);

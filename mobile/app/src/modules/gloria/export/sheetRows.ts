@@ -103,6 +103,11 @@ export type ExportUnit = {
   uuid: string;
 };
 
+/** A species row's comments cell: the morphospecies label first, then the notes. */
+export function speciesComments(s: Pick<ExportSpecies, 'comments' | 'morpho_label'>): string {
+  return [s.morpho_label, s.comments].filter(Boolean).join('; ');
+}
+
 export type ExportSpecies = {
   unit_code: string;
   occurrence_id: string;
@@ -116,6 +121,10 @@ export type ExportSpecies = {
   point_hits: string | null;
   legacy_hits: number | null;
   comments: string | null;
+  /** Morphospecies label (sp1, sp2; roster `verbatim_identification`). The
+   *  sheet has no column for it: it goes first in `comments`, and
+   *  scientificName stays the genus / family the determination reached. */
+  morpho_label?: string | null;
   /** Scientific name with authorship, as the sheet writes it. */
   scientific_name: string;
   vernacular_name: string;
@@ -278,7 +287,7 @@ export function buildSheetTables(d: GloriaExportData): SheetTable[] {
         String(i + 1), s.vernacular_name, s.scientific_name, s.taxon_rank, s.family, num(s.cover_pct),
         hits == null ? '' : String(hits), freq,
         ...F_COLUMNS.map((_, idx) => (cells == null ? '' : cells[idx] === '1' ? '1' : '0')),
-        s.comments ?? '',
+        speciesComments(s),
       ]);
     });
   }
@@ -316,7 +325,7 @@ export function buildSheetTables(d: GloriaExportData): SheetTable[] {
       t22.push([
         `${sm.full_code}-${u.code}-mocy_${m}-SAS_sp-${i + 1}`, PROTOCOL.sas, ...base, u.code[0], u.code, String(i + 1),
         s.vernacular_name, s.scientific_name, s.taxon_rank, s.family, s.abundance ?? '',
-        s.abundance ? String(SAS_ABUNDANCE_CODE[s.abundance] ?? '') : '', s.comments ?? '', s.occurrence_id,
+        s.abundance ? String(SAS_ABUNDANCE_CODE[s.abundance] ?? '') : '', speciesComments(s), s.occurrence_id,
       ]);
     });
   }
@@ -339,7 +348,7 @@ export function buildSheetTables(d: GloriaExportData): SheetTable[] {
       t32.push([
         `${sm.full_code}-${u.code}-mocy_${m}-10x10_sp-${i + 1}`, PROTOCOL.square, ...base, u.code, String(i + 1),
         s.vernacular_name, s.scientific_name, s.taxon_rank, s.family, hitsN == null ? '0' : String(hitsN),
-        s.comments ?? '', s.occurrence_id,
+        speciesComments(s), s.occurrence_id,
       ]);
     });
   }

@@ -8,6 +8,7 @@
  *   - validation rules (manual p.40–42, p.52, p.58)
  *   - prefill carries plot positions only, never species or values
  *   - sheet headers: spCode dropped, 12_+13_ merged in the right order
+ *   - morphospecies labels (sp1, sp2): next label, relabel plan, sheet comments
  *
  * Run: npm run check:gloria
  */
@@ -36,6 +37,8 @@ import { strToU8, zipSync } from 'fflate';
 import { element8, parseOverviewPhotos } from '../src/modules/gloria/model/overview.ts';
 import { bySpeciesOrder } from '../src/modules/gloria/model/speciesOrder.ts';
 import { followCoverTimes, nextMinute } from '../src/modules/gloria/model/quadratTimes.ts';
+import { nextMorphoLabel, planNewMorpho } from '../src/modules/gloria/model/morpho.ts';
+import { speciesComments } from '../src/modules/gloria/export/sheetRows.ts';
 
 let failures = 0;
 const eq = (label, got, want) => {
@@ -515,6 +518,18 @@ eq('SAS abundance codes (sheet 33_)', SAS_ABUNDANCE_CODE, { d: 1, c: 2, s: 3, r:
   eq('cover end at 23:59 → frequency 00:00 next day (not moved back)',
     followCoverTimes(blank, 'stop_ts', at(2019, 8, 14, 23, 59, 10)), { freq_start_ts: at(2019, 8, 15, 0, 0) });
   eq('clearing a cover time touches nothing', followCoverTimes(own, 'stop_ts', null), {});
+}
+
+// ── Morphospecies labels: one genus as sp1, sp2 on the survey roster ──
+{
+  eq('nextMorphoLabel: none → sp1', nextMorphoLabel([]), 'sp1');
+  eq('nextMorphoLabel: one past the highest spN, other labels ignored', nextMorphoLabel(['sp1', 'SP3', 'A', null, ' sp2 ']), 'sp4');
+  eq('planNewMorpho: an unlabelled entry is labelled first', planNewMorpho([null]), { relabel: 'sp1', label: 'sp2' });
+  eq('planNewMorpho: all labelled → only the new label', planNewMorpho(['sp1', 'sp2']), { relabel: null, label: 'sp3' });
+  eq('planNewMorpho: blank counts as unlabelled', planNewMorpho(['sp1', '  ']), { relabel: 'sp2', label: 'sp3' });
+  eq('sheet comments: label first, then the notes', speciesComments({ morpho_label: 'sp2', comments: 'leaves hairy' }), 'sp2; leaves hairy');
+  eq('sheet comments: no label → notes as they are', speciesComments({ morpho_label: null, comments: 'x' }), 'x');
+  eq('sheet comments: label only', speciesComments({ morpho_label: 'sp1', comments: null }), 'sp1');
 }
 
 if (failures) {

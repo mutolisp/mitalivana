@@ -1845,6 +1845,46 @@ const MIGRATIONS: Migration[] = [
       addColumnIfMissing(db, `ALTER TABLE gloria_units ADD COLUMN freq_skipped INTEGER;`);
     },
   },
+  {
+    // GLORIA morphospecies: a determination that stopped at a genus or family
+    // can be on the roster more than once, told apart by its label (sp1,
+    // sp2 — `verbatim_identification`, shared by the whole survey). The roster
+    // was UNIQUE (survey_id, taxon_id); it becomes unique per taxon AND label.
+    //
+    // Rebuilt the way SQLite documents (new table, copy, drop, rename the new
+    // one): renaming the OLD table first would rewrite gloria_unit_species'
+    // `REFERENCES gloria_taxa` to follow it. Migrations run with foreign keys
+    // off (db/init.ts), so the drop leaves the unit species rows alone; ids
+    // are copied, so their gloria_taxon_id still points at the same entry.
+    version: 63,
+    up: (db) => {
+      db.executeSync(`
+        CREATE TABLE gloria_taxa_v63 (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          survey_id INTEGER NOT NULL,
+          taxon_id TEXT NOT NULL,
+          serial INTEGER NOT NULL,
+          used_name_id INTEGER,
+          used_scientific_name TEXT,
+          verbatim_identification TEXT,
+          created_at INTEGER NOT NULL,
+          FOREIGN KEY (survey_id) REFERENCES gloria_surveys(id) ON DELETE CASCADE,
+          UNIQUE (survey_id, serial)
+        );
+      `);
+      db.executeSync(`
+        INSERT INTO gloria_taxa_v63 (id, survey_id, taxon_id, serial, used_name_id, used_scientific_name, verbatim_identification, created_at)
+        SELECT id, survey_id, taxon_id, serial, used_name_id, used_scientific_name, verbatim_identification, created_at FROM gloria_taxa;
+      `);
+      db.executeSync(`DROP TABLE gloria_taxa;`);
+      db.executeSync(`ALTER TABLE gloria_taxa_v63 RENAME TO gloria_taxa;`);
+      db.executeSync(`CREATE INDEX IF NOT EXISTS idx_gtaxa_taxon ON gloria_taxa(taxon_id);`);
+      // An empty label and no label are the same entry.
+      db.executeSync(
+        `CREATE UNIQUE INDEX IF NOT EXISTS idx_gtaxa_label ON gloria_taxa(survey_id, taxon_id, IFNULL(verbatim_identification, ''));`,
+      );
+    },
+  },
 ];
 
 /** Highest schema version this build knows how to produce. Backup/restore uses

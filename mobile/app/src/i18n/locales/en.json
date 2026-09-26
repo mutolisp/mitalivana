@@ -2540,6 +2540,14 @@
       "shadeAbundance": "Shade = abundance",
       "shadeHits": "Shade = cover (hits / 4)"
     },
+    "morpho": {
+      "pickTitle": "{{name}} is already in this survey",
+      "pickMsg": "When a determination stops at genus or family, one taxon can be several species (sp1, sp2). Pick which one, or add a new one.",
+      "relabelNote": "Adding a new one labels the unlabelled entry {{label}} so the two can be told apart (for the whole survey).",
+      "unlabelled": "{{name}} (no label)",
+      "addNew": "New {{name}} {{label}}",
+      "taken": "This survey already has {{label}}; label not changed"
+    },
     "step": {
       "cover": "Species and surface cover",
       "frequency": "Frequency",

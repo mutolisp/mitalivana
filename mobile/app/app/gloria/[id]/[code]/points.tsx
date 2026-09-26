@@ -25,6 +25,7 @@ import { SearchBox } from '~/components/SearchBox';
 import { BackHeaderLeft } from '~/lib/goBack';
 import { useToast } from '~/stores/toast';
 import { addUnitSpecies, commitPoint, setPointsLocked, startPoints } from '~/modules/gloria/db';
+import { pickMorphoLabel } from '~/modules/gloria/morpho';
 import { QUADRAT_N, SQUARE_N, SURFACE_CODES, SURFACE_UNVISITED, SURFACE_VASCULAR, emptyMask, emptySurface, getBit, popcount, setBits, type SurfaceCode } from '~/modules/gloria/model/grid';
 import { linePoint, walkOrder } from '~/modules/gloria/model/walk';
 import { unitTypeOf } from '~/modules/gloria/model/units';
@@ -291,10 +292,12 @@ export default function PointsScreen() {
         <KeyboardStickyView offset={{ opened: insets.bottom }}>
           <SearchBox
             scopeGroups={GLORIA_SEARCH_GROUPS}
-            onSelect={(r) => {
+            onSelect={async (r) => {
               if (!r.taxon_id) return;
+              const label = await pickMorphoLabel(t, unit.survey_id, r.taxon_id, r.rank, r.cname || r.name);
+              if (label === undefined) return;
               if (unit.point_surface == null) startPoints(unit.id, size);
-              const usid = addUnitSpecies(unit.id, r.taxon_id);
+              const usid = addUnitSpecies(unit.id, r.taxon_id, label);
               setAdding(false);
               setPicked(new Set([...picked, usid]));
               reload();

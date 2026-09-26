@@ -184,7 +184,14 @@ export type GloriaUnitSpecies = {
 
 /** Unit species with its roster entry and resolved names, for display. */
 export type GloriaUnitSpeciesWithTaxon = GloriaUnitSpecies &
-  TaxonFields & { taxon_id: string; serial: number; used_name_id: number | null; used_scientific_name: string | null };
+  TaxonFields & {
+    taxon_id: string;
+    serial: number;
+    used_name_id: number | null;
+    used_scientific_name: string | null;
+    /** Morphospecies label on the roster entry (sp1, sp2), shared by the survey. */
+    verbatim_identification: string | null;
+  };
 
 const rows = <T>(res: { rows?: unknown[] }): T[] => (res.rows ?? []) as T[];
 
@@ -615,19 +622,63 @@ export function updateUnit(id: number, patch: UnitPatch): void {
 // ── Roster and unit species ───────────────────────────────────────────────
 
 /** Roster row for a taxon, created with the next serial when missing. */
-export function ensureRosterTaxon(surveyId: number, taxonId: string): number {
+/**
+ * The roster entry for a taxon and morphospecies label (null = unlabelled),
+ * created when missing. The same genus can be on the roster as sp1 and sp2
+ * (v63); an empty label is the same as none.
+ */
+export function ensureRosterTaxon(surveyId: number, taxonId: string, label: string | null = null): number {
   ensureTaxonSelfSufficient(taxonId);
   const db = getUserDb();
+  const tag = label?.trim() || null;
   const found = rows<{ id: number }>(
-    db.executeSync(`SELECT id FROM gloria_taxa WHERE survey_id = ? AND taxon_id = ?`, [surveyId, taxonId]),
+    db.executeSync(
+      `SELECT id FROM gloria_taxa WHERE survey_id = ? AND taxon_id = ? AND IFNULL(verbatim_identification, '') = ?`,
+      [surveyId, taxonId, tag ?? ''],
+    ),
   )[0];
   if (found) return found.id;
   const serials = rows<{ serial: number }>(db.executeSync(`SELECT serial FROM gloria_taxa WHERE survey_id = ?`, [surveyId]));
   const res = db.executeSync(
-    `INSERT INTO gloria_taxa (survey_id, taxon_id, serial, created_at) VALUES (?, ?, ?, ?)`,
-    [surveyId, taxonId, nextSerial(serials), Date.now()],
+    `INSERT INTO gloria_taxa (survey_id, taxon_id, serial, verbatim_identification, created_at) VALUES (?, ?, ?, ?, ?)`,
+    [surveyId, taxonId, nextSerial(serials), tag, Date.now()],
   );
   return Number(res.insertId);
+}
+
+/** The roster entries of one taxon in a survey, oldest first: its morphospecies. */
+export function rosterEntriesOf(surveyId: number, taxonId: string): Array<{ id: number; label: string | null }> {
+  return rows<{ id: number; label: string | null }>(
+    getUserDb().executeSync(
+      `SELECT id, verbatim_identification AS label FROM gloria_taxa WHERE survey_id = ? AND taxon_id = ? ORDER BY serial`,
+      [surveyId, taxonId],
+    ),
+  );
+}
+
+/**
+ * Relabel a roster entry — every unit listing it follows, since the label
+ * belongs to the survey. 'taken' when the same taxon already has that label.
+ */
+export function setRosterLabel(gid: number, label: string | null): 'ok' | 'taken' {
+  return withTransaction(() => {
+    const db = getUserDb();
+    const t = rows<{ survey_id: number; taxon_id: string }>(
+      db.executeSync(`SELECT survey_id, taxon_id FROM gloria_taxa WHERE id = ?`, [gid]),
+    )[0];
+    if (!t) throw new Error(`gloria taxon ${gid} not found`);
+    const tag = label?.trim() || null;
+    const clash = rows(
+      db.executeSync(
+        `SELECT 1 FROM gloria_taxa WHERE survey_id = ? AND taxon_id = ? AND IFNULL(verbatim_identification, '') = ? AND id != ?`,
+        [t.survey_id, t.taxon_id, tag ?? '', gid],
+      ),
+    ).length;
+    if (clash) return 'taken';
+    db.executeSync(`UPDATE gloria_taxa SET verbatim_identification = ? WHERE id = ?`, [tag, gid]);
+    touchSurvey(t.survey_id);
+    return 'ok';
+  });
 }
 
 /**
@@ -653,13 +704,25 @@ export function nextUnitPosition(unitId: number): number {
   return have.reduce((m, r) => Math.max(m, (r.sort_order as number) + 1), 0);
 }
 
-/** Add a taxon to a unit (and to the survey roster). An existing row is returned as is. */
-export function addUnitSpecies(unitId: number, taxonId: string): number {
+/**
+ * Add a taxon — with its morphospecies label, if any — to a unit (and to the
+ * survey roster). An existing row is returned as is.
+ */
+export function addUnitSpecies(unitId: number, taxonId: string, label: string | null = null): number {
   return withTransaction(() => {
     const db = getUserDb();
     const unit = rows<{ survey_id: number }>(db.executeSync(`SELECT survey_id FROM gloria_units WHERE id = ?`, [unitId]))[0];
     if (!unit) throw new Error(`gloria unit ${unitId} not found`);
-    const gid = ensureRosterTaxon(unit.survey_id, taxonId);
+    return addRosterSpecies(unitId, ensureRosterTaxon(unit.survey_id, taxonId, label));
+  });
+}
+
+/** Add a roster entry (taxon + label, as another unit lists it) to a unit. */
+export function addRosterSpecies(unitId: number, gid: number): number {
+  return withTransaction(() => {
+    const db = getUserDb();
+    const unit = rows<{ survey_id: number }>(db.executeSync(`SELECT survey_id FROM gloria_units WHERE id = ?`, [unitId]))[0];
+    if (!unit) throw new Error(`gloria unit ${unitId} not found`);
     const now = Date.now();
     const existing = rows<{ id: number }>(
       db.executeSync(`SELECT id FROM gloria_unit_species WHERE unit_id = ? AND gloria_taxon_id = ?`, [unitId, gid]),
@@ -692,7 +755,7 @@ export function addUnitSpecies(unitId: number, taxonId: string): number {
 export function listUnitSpecies(unitId: number): GloriaUnitSpeciesWithTaxon[] {
   const recs = rows<GloriaUnitSpecies & GloriaTaxonJoin>(
     getUserDb().executeSync(
-      `SELECT us.*, t.taxon_id, t.serial, t.used_name_id, t.used_scientific_name
+      `SELECT us.*, t.taxon_id, t.serial, t.used_name_id, t.used_scientific_name, t.verbatim_identification
          FROM gloria_unit_species us JOIN gloria_taxa t ON t.id = us.gloria_taxon_id
         WHERE us.unit_id = ? ORDER BY t.serial`,
       [unitId],
@@ -705,7 +768,7 @@ export function listUnitSpecies(unitId: number): GloriaUnitSpeciesWithTaxon[] {
 export function listSurveySpecies(surveyId: number): Array<GloriaUnitSpeciesWithTaxon & { unit_code: string }> {
   const recs = rows<GloriaUnitSpecies & GloriaTaxonJoin & { unit_code: string }>(
     getUserDb().executeSync(
-      `SELECT us.*, u.code AS unit_code, t.taxon_id, t.serial, t.used_name_id, t.used_scientific_name
+      `SELECT us.*, u.code AS unit_code, t.taxon_id, t.serial, t.used_name_id, t.used_scientific_name, t.verbatim_identification
          FROM gloria_unit_species us
          JOIN gloria_units u ON u.id = us.unit_id
          JOIN gloria_taxa t ON t.id = us.gloria_taxon_id
@@ -716,7 +779,13 @@ export function listSurveySpecies(surveyId: number): Array<GloriaUnitSpeciesWith
   return withTaxa(recs);
 }
 
-type GloriaTaxonJoin = { taxon_id: string; serial: number; used_name_id: number | null; used_scientific_name: string | null };
+type GloriaTaxonJoin = {
+  taxon_id: string;
+  serial: number;
+  used_name_id: number | null;
+  used_scientific_name: string | null;
+  verbatim_identification: string | null;
+};
 
 function withTaxa<T extends GloriaUnitSpecies & GloriaTaxonJoin>(recs: T[]): Array<T & TaxonFields> {
   if (recs.length === 0) return [];
@@ -737,7 +806,7 @@ export function updateUnitSpecies(id: number, patch: UnitSpeciesPatch): void {
 export function getUnitSpecies(id: number): (GloriaUnitSpeciesWithTaxon & { unit_code: string }) | null {
   const recs = rows<GloriaUnitSpecies & GloriaTaxonJoin & { unit_code: string }>(
     getUserDb().executeSync(
-      `SELECT us.*, u.code AS unit_code, t.taxon_id, t.serial, t.used_name_id, t.used_scientific_name
+      `SELECT us.*, u.code AS unit_code, t.taxon_id, t.serial, t.used_name_id, t.used_scientific_name, t.verbatim_identification
          FROM gloria_unit_species us
          JOIN gloria_units u ON u.id = us.unit_id
          JOIN gloria_taxa t ON t.id = us.gloria_taxon_id
@@ -1058,6 +1127,7 @@ export function loadExportData(surveyId: number): GloriaExportData | null {
       point_hits: s.point_hits,
       legacy_hits: s.legacy_hits,
       comments: s.comments,
+      morpho_label: s.verbatim_identification,
       scientific_name: [s.simple_name || s.used_scientific_name || s.taxon_id, s.name_author].filter(Boolean).join(' '),
       vernacular_name: s.common_name_c ?? '',
       taxon_rank: (s.rank ?? '').toLowerCase(),

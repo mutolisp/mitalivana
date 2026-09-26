@@ -2540,6 +2540,14 @@
       "shadeAbundance": "Farbe = Abundanz",
       "shadeHits": "Farbe = Deckung (Treffer / 4)"
     },
+    "morpho": {
+      "pickTitle": "{{name}} ist bereits in dieser Aufnahme",
+      "pickMsg": "Endet die Bestimmung bei Gattung oder Familie, kann ein Taxon mehrere Arten sein (sp1, sp2). Wählen Sie eine aus oder fügen Sie eine neue hinzu.",
+      "relabelNote": "Beim Hinzufügen erhält der Eintrag ohne Etikett das Etikett {{label}}, damit beide unterscheidbar sind (für die ganze Aufnahme).",
+      "unlabelled": "{{name}} (ohne Etikett)",
+      "addNew": "{{name}} {{label}} neu",
+      "taken": "Diese Aufnahme hat bereits {{label}}; Etikett nicht geändert"
+    },
     "step": {
       "cover": "Deckung und Oberfläche",
       "frequency": "Frequenz",

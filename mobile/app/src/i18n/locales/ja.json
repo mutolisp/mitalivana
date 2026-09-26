@@ -2399,6 +2399,14 @@
       "shadeAbundance": "色＝多度",
       "shadeHits": "色＝被度（ヒット数／4）"
     },
+    "morpho": {
+      "pickTitle": "{{name}} はこの調査に既にあります",
+      "pickMsg": "同定が属や科までの場合、同じ分類群に複数の種（sp1、sp2）がありえます。どれかを選ぶか、新しく追加してください。",
+      "relabelNote": "新しく追加すると、ラベルのない既存の記録が {{label}} になり、2 種を区別できます（調査全体に適用）。",
+      "unlabelled": "{{name}}（ラベルなし）",
+      "addNew": "{{name}} {{label}} を追加",
+      "taken": "この調査には既に {{label}} があります。ラベルは変更されていません"
+    },
     "step": {
       "cover": "被度と地表",
       "frequency": "頻度",

@@ -132,8 +132,11 @@ function gloriaRows(surveyId: number): SpeciesFieldRow[] {
   return listSurveySpecies(surveyId).map((s) => ({
     unit_code: s.unit_code,
     unit_type: types.get(s.unit_code) ?? 'quadrat',
-    taxon_id: s.taxon_id,
-    name: s.common_name_c || s.simple_name || s.used_scientific_name || s.taxon_id,
+    // A morphospecies (sp1, sp2 of one genus) is its own species here: the
+    // label is part of the key. Labels are per survey, so the previous-cycle
+    // comparison matches them by label text only.
+    taxon_id: s.verbatim_identification ? `${s.taxon_id}|${s.verbatim_identification}` : s.taxon_id,
+    name: [s.common_name_c || s.simple_name || s.used_scientific_name || s.taxon_id, s.verbatim_identification].filter(Boolean).join(' '),
     cover_pct: s.cover_pct,
     freq_cells: s.freq_cells,
     freq_count: s.freq_count,

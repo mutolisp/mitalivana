@@ -2399,6 +2399,14 @@
       "shadeAbundance": "底色＝豐度",
       "shadeHits": "底色＝覆蓋度（hits／4）"
     },
+    "morpho": {
+      "pickTitle": "{{name}} 已在這次調查中",
+      "pickMsg": "鑑定只到屬或科時，同一個分類群可以有多種（sp1、sp2）。選擇是哪一種，或新增一種。",
+      "relabelNote": "新增時，原本沒有標籤的那一筆會標為 {{label}}，兩種才分得開（整次調查一起改）。",
+      "unlabelled": "{{name}}（未標）",
+      "addNew": "新增 {{name}} {{label}}",
+      "taken": "這次調查已經有 {{label}} 了，標籤未更改"
+    },
     "step": {
       "cover": "覆蓋度與地表",
       "frequency": "頻度",
