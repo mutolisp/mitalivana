@@ -13,6 +13,7 @@
  */
 import { getUserDb, withTransaction } from '~/db/init';
 import { writeInsert, writeUpdate } from '~/db/teamMerge';
+import { GLORIA_UNIT_LOCKS } from '~/lib/mergeDocs';
 import type { MergeOp } from '~/lib/mergeEngine';
 import { ensureRosterTaxon, getGloriaSurvey, loadGloriaDoc, nextUnitPosition, setPhotoCheck } from './db';
 import type { GloriaDoc } from './export/yaml';
@@ -61,7 +62,11 @@ export function applyGloriaMerge(surveyId: number, ops: MergeOp[]): void {
       } else if (op.tbl === 'point' && op.op === 'update') {
         writeUpdate('gloria_points', op.data, 'survey_id = ? AND point_key = ?', [surveyId, op.key], false);
       } else if (op.tbl === 'unit' && op.op === 'update') {
-        writeUpdate('gloria_units', op.data, 'survey_id = ? AND code = ?', [surveyId, op.key], true);
+        // Locks travel as 1 / null; the columns hold 1 / 0.
+        const data = Object.fromEntries(
+          Object.entries(op.data).map(([k, v]) => [k, GLORIA_UNIT_LOCKS.includes(k) ? (v ? 1 : 0) : v]),
+        );
+        writeUpdate('gloria_units', data, 'survey_id = ? AND code = ?', [surveyId, op.key], true);
       } else if (op.tbl === 'check' && op.op !== 'delete') {
         const data = op.op === 'insert' ? op.row.data : op.data;
         setPhotoCheck(surveyId, op.op === 'insert' ? op.row.key : op.key, { checked: !!data.checked });

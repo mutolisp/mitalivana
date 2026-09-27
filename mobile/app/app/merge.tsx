@@ -51,8 +51,10 @@ const LABELLED = new Set([
   'degree_of_establishment', 'verbatim_identification', 'plotid', 'layer_count', 'locality', 'slope_deg',
   'aspect_deg', 'cover_pct', 'height_cm', 'layer', 'subplot', 'label', 'year', 'unit', 'abundance', 'cf',
   'freq_cells', 'freq_count', 'point_hits', 'distance_m', 'compass_deg', 'is_p5m', 'checked', 'recorded_by',
-  'start_ts', 'stop_ts', 'total_cover_pct', 'detection_type',
+  'start_ts', 'stop_ts', 'total_cover_pct', 'detection_type', 'done_locked', 'freq_locked', 'pf_locked',
 ]);
+/** GLORIA 完成 locks: 1 or null. */
+const LOCKS = new Set(['done_locked', 'freq_locked', 'pf_locked']);
 /** Grids and point strings: shown as a count, not 100–400 characters. */
 const MASKS = new Set(['freq_cells', 'point_hits', 'dist_hi1', 'dist_hi2', 'dist_hi3', 'point_surface']);
 const TIMES = /(_ts|_at)$/;
@@ -64,6 +66,7 @@ function fieldLabel(t: (k: string) => string, f: string): string {
 }
 
 function fmt(f: string, v: unknown): string {
+  if (LOCKS.has(f)) return v ? '✓' : '—';
   if (v === null || v === undefined || v === '') return '—';
   if (MASKS.has(f) && typeof v === 'string') {
     const on = f === 'point_surface' ? [...v].filter((c) => c !== '.').length : [...v].filter((c) => c === '1').length;

@@ -2991,7 +2991,10 @@
       "start_ts": "開始時間",
       "stop_ts": "結束時間",
       "total_cover_pct": "總覆蓋度",
-      "detection_type": "偵測方式"
+      "detection_type": "偵測方式",
+      "done_locked": "完成",
+      "freq_locked": "頻度完成",
+      "pf_locked": "頻度點擊法完成"
     },
     "from": "來自 {{name}}",
     "fromAt": "來自 {{name}}，{{date}} 上傳"

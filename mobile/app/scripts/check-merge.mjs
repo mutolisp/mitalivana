@@ -12,7 +12,9 @@
  *   - the reviewer's "keep mine" reaches the sender on the way back;
  *   - GLORIA: two devices on different aspects merge with no questions; the
  *     same quadrat and species with different cover is a conflict;
- *   - surveyors / time span combined, not asked.
+ *   - surveyors / time span combined, not asked;
+ *   - a sender that uploaded before merging (empty base): this device's own
+ *     base fills in, so the teammate's plain edit is taken, not a conflict.
  */
 import {
   baseOf,
@@ -144,7 +146,18 @@ eq('GLORIA grid ticks combined, not asked', [kinds(gi), gi[0]?.patch?.grid_ok], 
 eq('GLORIA from a shared start: no questions either', summarizeItems(diffSides(g1, g2, blankBase, COMBINERS.gloria)).conflict, 0);
 eq('no ancestor: a value against a blank is not a conflict', kinds(diffSides({ u: [row('k', { v: null, w: 1 })] }, { u: [row('k', { v: 7, w: 1 })] }, null)), ['auto:k']);
 eq('no ancestor: my value against their blank stays mine', diffSides({ u: [row('k', { v: 3 })] }, { u: [row('k', { v: null })] }, null).length, 0);
-eq('GLORIA: locks, uuids and stamps are not compared', rowHash(g1.unit[0].data) === rowHash(gloriaSide(gdoc([{ ...blankN[0], uuid: 'other', done_locked: 0, updated_at: 5 }], [], [])).unit[0].data), true);
+eq('GLORIA: uuids and stamps are not compared', rowHash(g1.unit[0].data) === rowHash(gloriaSide(gdoc([{ ...blankN[0], uuid: 'other', updated_at: 5 }], [], [])).unit[0].data), true);
+// 完成 locks are merged (a teammate's 完成 must arrive), as 1 / null: an
+// unlocked unit hashes as it did before locks were merged, so old bases hold.
+{
+  const bare = (lock) => gloriaSide(gdoc([{ ...unit('N11', 30), done_locked: lock }], [], []));
+  const { done_locked: _d, ...noLock } = bare(0).unit[0].data;
+  eq('GLORIA: unlocked (0) hashes like a row from before locks were merged', rowHash(bare(0).unit[0].data) === rowHash(noLock), true);
+  eq('GLORIA: locked and unlocked differ', rowHash(bare(1).unit[0].data) === rowHash(bare(0).unit[0].data), false);
+  const oldBase = [['unit', 'N11', rowHash(noLock)]];
+  eq('GLORIA: the leader\'s 完成 reaches the member automatically (Device_test 43-4)', kinds(diffSides(bare(0), bare(1), oldBase, COMBINERS.gloria)), ['auto:N11']);
+  eq('GLORIA: the member\'s unlocked copy does not undo the leader\'s 完成', diffSides(bare(1), bare(0), oldBase, COMBINERS.gloria).length, 0);
+}
 // Same quadrat, same species, different serials and occurrence ids, different cover.
 const h1 = gloriaSide(gdoc([unit('N11', 30)], [us('N11', 1, 'o1', 30)], [taxon(1, 'tA')]));
 const h2 = gloriaSide(gdoc([unit('N11', 30)], [us('N11', 4, 'o9', 25)], [taxon(4, 'tA')]));
@@ -158,8 +171,25 @@ eq('sync block carries the sender\'s team name, trimmed', readSyncBlock({ sync: 
 eq('no author → none', 'author' in readSyncBlock({ sync: { exported_at: 5, base: [] } }), false);
 eq('blank and missing hash alike', rowHash({ a: 1, b: '' }) === rowHash({ a: 1 }), true);
 
+// ── 10. stale sender base (team sync uploads before it merges) ──
+{
+  const side = (rows) => ({ unit: Object.entries(rows).map(([k, d]) => row(k, d)) });
+  const L0 = side({ N11: { cov: 10 }, N31: { cov: 20 } }); // leader's first upload, imported by the member
+  const M1 = side({ N11: { cov: 10 }, N31: { cov: 25 } }); // member changed N31
+  const L1 = side({ N11: { cov: 15 }, N31: { cov: 20 } }); // leader changed N11, uploaded with an empty base
+  eq('empty sender base alone: the leader\'s edit is a conflict (the reported bug)',
+    kinds(diffSides(M1, L1, [])), ['conflict:N11', 'conflict:N31']);
+  eq('own base fills in: leader\'s edit taken, member\'s kept, nothing asked',
+    kinds(diffSides(M1, L1, [], {}, baseOf(L0))), ['auto:N11']);
+  const stale = baseOf(side({ N11: { cov: 99 }, N31: { cov: 20 } }));
+  eq('the sender\'s base still wins where it has the row',
+    kinds(diffSides(M1, L1, baseOf(L0), {}, stale)), ['auto:N11']);
+  eq('the sender\'s base is not overridden by the fallback',
+    kinds(diffSides(M1, L1, stale, {}, baseOf(L0))), ['conflict:N11']);
+}
+
 if (failed) {
   console.error(`check:merge — ${failed} failed`);
   process.exit(1);
 }
-console.log('✓ merge: duplicates, ancestor-based auto/conflict/deletion, idempotence, round trip, combined fields, GLORIA');
+console.log('✓ merge: duplicates, ancestor-based auto/conflict/deletion, idempotence, round trip, combined fields, GLORIA, stale sender base');

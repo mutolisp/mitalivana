@@ -29,7 +29,7 @@ import { RANGES, checkRange } from '../src/modules/gloria/model/ranges.ts';
 import {
   H00_PLOT_COORDINATES, H02_POINTS, H12_13_1X1_SP_FREQ, H14_1X1_DISTURBANCE, H22_SAS_SP, H32_10X10_SP, SAS_ABUNDANCE_CODE,
 } from '../src/modules/gloria/export/sheetHeaders.ts';
-import { buildSheetTables, summitRow, pointRows, toCsv } from '../src/modules/gloria/export/sheetRows.ts';
+import { buildSheetTables, buildPointHitRows, summitRow, pointRows, toCsv, SHRUB_NOTE } from '../src/modules/gloria/export/sheetRows.ts';
 import { parseCsv, tableToSummits, diffSummits } from '../src/modules/gloria/model/summitImport.ts';
 import { readXlsxFirstSheet } from '../src/lib/xlsxRead.ts';
 import { photoItems, checklistState } from '../src/modules/gloria/model/photoChecks.ts';
@@ -297,6 +297,48 @@ eq('SAS abundance codes (sheet 33_)', SAS_ABUNDANCE_CODE, { d: 1, c: 2, s: 3, r:
   eq('14 count: Hi1–3 totals, cells blank', hi, [['3', true], ['', true], ['0', true]]);
   const hc = t14.rows.filter((r) => r[0].includes('-N31-')).map((r) => r[fi]);
   eq('14 cells: Hi1–3 popcounts', hc, ['2', '0', '0']);
+  // Shrub quadrat (freq_skipped): frequency times left in the app are not exported.
+  const at = (h) => new Date(2012, 7, 14, h, 0).getTime();
+  const t11 = buildSheetTables({
+    summit: { full_code: 'TW-DAS-SUN', country: 'TW', target_region: 'DAS', summit: 'SUN' },
+    survey: { uuid: 's', mocy: 2, year: 2012, start_ts: 0, stop_ts: null, recorded_by: null, notes: null },
+    points: [],
+    units: [
+      unit('N13', { start_ts: at(9), cov_vascular: 50, freq_start_ts: at(10), freq_stop_ts: at(11), freq_skipped: 1 }),
+      unit('N33', { start_ts: at(9), cov_vascular: 50, freq_start_ts: at(10), freq_stop_ts: at(11) }),
+    ],
+    species: [],
+  }).find((x) => x.name.startsWith('11'));
+  const fcol = (r) => [r[t11.header.indexOf('freqEstStartTime')], r[t11.header.indexOf('freqEstStopTime')]];
+  eq('11 shrub quadrat: no frequency times', fcol(byUnit(t11.rows, 'N13')), ['', '']);
+  eq('11 other quadrat: frequency times kept', fcol(byUnit(t11.rows, 'N33')), ['10:00', '11:00']);
+  // Shrub quadrat data recorded before the tick: exported as 0, with the note.
+  const shrubData = {
+    summit: { full_code: 'TW-DAS-SUN', country: 'TW', target_region: 'DAS', summit: 'SUN' },
+    survey: { uuid: 's', mocy: 2, year: 2012, start_ts: 0, stop_ts: null, recorded_by: null, notes: null },
+    points: [],
+    units: [unit('N13', {
+      start_ts: at(9), cov_vascular: 50, freq_skipped: 1, comments: '箭竹密生',
+      freq_mode: 'cells', dist_hi1: setBits(emptyMask(100), [0], true), point_surface: '-R' + '.'.repeat(98),
+    })],
+    species: [sp('N13', 1, { freq_cells: setBits(emptyMask(100), [0, 5], true), point_hits: '10' + '0'.repeat(98), morpho_label: 'sp1' })],
+  };
+  const st = buildSheetTables(shrubData);
+  const s11 = st.find((x) => x.name.startsWith('11'));
+  const r11 = s11.rows[0];
+  eq('11 shrub: surface point totals are 0', ['tphSolidRock', 'tphScree', 'tphLitter'].map((c) => r11[s11.header.indexOf(c)]), ['0', '0', '0']);
+  eq('11 shrub: note (bilingual) before the user comment', r11[s11.header.indexOf('comments')], `${SHRUB_NOTE}; 箭竹密生`);
+  const s12 = st.find((x) => x.name.startsWith('12'));
+  const r12 = s12.rows[0];
+  eq('12/13 shrub: hits, freq and every cell 0',
+    [r12[s12.header.indexOf('totalPointsHitCalc')], r12[s12.header.indexOf('freq')], F_COLUMNS.every((c) => r12[s12.header.indexOf(c)] === '0')],
+    ['0', '0', true]);
+  eq('12/13 shrub: note, then label', r12[s12.header.indexOf('comments')], `${SHRUB_NOTE}; sp1`);
+  const s14 = st.find((x) => x.name.startsWith('14'));
+  const fi14 = s14.header.indexOf('freq');
+  eq('14 shrub: three disturbance rows, all 0', s14.rows.map((r) => [r[fi14], r.slice(fi14 + 1).every((v) => v === '0')]), [['0', true], ['0', true], ['0', true]]);
+  eq('point hits: none for a shrub quadrat', buildPointHitRows(shrubData).length, 0);
+  eq('the note carries the English in brackets', /^[^()]+\([A-Za-z ,.-]+\)$/.test(SHRUB_NOTE), true);
 
   // Each unit may name its own researchers; empty falls back to the survey's.
   const byTables = buildSheetTables({
@@ -543,6 +585,9 @@ eq('SAS abundance codes (sheet 33_)', SAS_ABUNDANCE_CODE, { d: 1, c: 2, s: 3, r:
     { code: 'N', start_ts: null, stop_ts: null },
   ];
   eq('span: earliest and latest time over every unit column', unitTimeSpan(units), { first: at(8, 14, 9, 42), last: at(8, 15, 16, 30) });
+  eq('span: a shrub quadrat’s leftover frequency / point-frame times do not count',
+    unitTimeSpan([{ code: 'N11', start_ts: at(8, 14, 9, 42), stop_ts: at(8, 14, 10, 5), freq_stop_ts: at(8, 20, 9, 0), pf_start_ts: at(8, 1, 9, 0), freq_skipped: 1 }]),
+    { first: at(8, 14, 9, 42), last: at(8, 14, 10, 5) });
   eq('span: no times → null', unitTimeSpan([{ code: 'N', start_ts: null, stop_ts: null }]), null);
   eq('units → survey: dates move, the survey clock times stay',
     surveyDatesFromUnits({ start_ts: at(9, 1, 8, 0), stop_ts: at(9, 2, 17, 0) }, unitTimeSpan(units)),

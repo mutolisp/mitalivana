@@ -3309,7 +3309,10 @@
       "start_ts": "Début",
       "stop_ts": "Fin",
       "total_cover_pct": "Recouvrement total",
-      "detection_type": "Détection"
+      "detection_type": "Détection",
+      "done_locked": "Terminé",
+      "freq_locked": "Fréquence terminée",
+      "pf_locked": "Point-frame terminé"
     },
     "from": "De {{name}}",
     "fromAt": "De {{name}}, envoyé le {{date}}"

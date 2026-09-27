@@ -24,7 +24,7 @@ import { getProject } from '~/db/projects';
 import { listSessionRecords } from '~/db/records';
 import { getSessionByUuid, getSession, importSession } from '~/db/sessions';
 import { getSite } from '~/db/sites';
-import { setSyncBase, syncBlockFor } from '~/db/syncBase';
+import { getSyncBase, setSyncBase, syncBlockFor } from '~/db/syncBase';
 import { localPlotDoc, localSessionDoc } from '~/db/teamMerge';
 import { getGloriaSurvey, getSummit, importGloriaDoc, loadGloriaDoc } from '~/modules/gloria/db';
 import { validateGloriaDoc } from '~/modules/gloria/export/yaml';
@@ -538,7 +538,7 @@ function prepare(kind: MergeKind, localId: number, localUuid: string, payload: R
     return 'mismatch';
   }
   if (!local) return 'mismatch';
-  const items = diffSides(local, remote, payload.sync?.base ?? null, COMBINERS[kind]);
+  const items = diffSides(local, remote, payload.sync?.base ?? null, COMBINERS[kind], getSyncBase(kind, localUuid));
   if (items.length === 0) {
     setSyncBase(kind, localUuid, baseOf(remote));
     return 'same';
@@ -584,22 +584,25 @@ export async function syncRecord(
   const dev = deviceKey(keys.encKey, installId());
   link(teamId, kind, who.uuid, rec, null);
   const out: SyncOutcome = { merged: 0, mergedFrom: [], review: false, queued: false, uploaded: false };
-  try {
+  // This device's copy as it is now, with its base (`sync.base`).
+  const put = async () => {
     const { text, hash } = recordText(kind, id, who.uuid, team.member_name);
+    const sealed = sealRecord(keys.encKey, randomBytes(NONCE_BYTES), text, aadFor(keys.teamId, rec, dev));
+    await relay(serverOf(team), 'PUT', `/v1/t/${keys.teamId}/r/${rec}/${dev}`, { token: keys.authToken, body: b64u(sealed) });
+    getUserDb().executeSync(
+      `UPDATE sync_links SET uploaded_hash = ?, uploaded_at = ? WHERE team_id = ? AND record_kind = ? AND record_uuid = ?`,
+      [hash, Date.now(), teamId, kind, who.uuid],
+    );
+    out.uploaded = true;
+  };
+  try {
+    const { hash } = recordText(kind, id, who.uuid, team.member_name);
     const last = rows<{ uploaded_hash: string | null; uploaded_at: number | null }>(
       `SELECT uploaded_hash, uploaded_at FROM sync_links WHERE team_id = ? AND record_kind = ? AND record_uuid = ?`,
       [teamId, kind, who.uuid],
     )[0];
     const unchanged = last?.uploaded_hash === hash && (last.uploaded_at ?? 0) > Date.now() - REUPLOAD_MS;
-    if (!(opts.onlyIfChanged && unchanged)) {
-      const sealed = sealRecord(keys.encKey, randomBytes(NONCE_BYTES), text, aadFor(keys.teamId, rec, dev));
-      await relay(serverOf(team), 'PUT', `/v1/t/${keys.teamId}/r/${rec}/${dev}`, { token: keys.authToken, body: b64u(sealed) });
-      getUserDb().executeSync(
-        `UPDATE sync_links SET uploaded_hash = ?, uploaded_at = ? WHERE team_id = ? AND record_kind = ? AND record_uuid = ?`,
-        [hash, Date.now(), teamId, kind, who.uuid],
-      );
-      out.uploaded = true;
-    }
+    if (!(opts.onlyIfChanged && unchanged)) await put();
     const { items } = JSON.parse((await relay(serverOf(team), 'GET', `/v1/t/${keys.teamId}/r/${rec}/`, { token: keys.authToken })).text) as {
       items: Item[];
     };
@@ -640,6 +643,11 @@ export async function syncRecord(
       out.review = true;
       break;
     }
+    // Teammates' changes were merged here: send the merged copy now. The copy
+    // uploaded above predates them and carries the base from before, so a
+    // teammate merging it would take their own newer values for conflicts
+    // and keep the old ones (Device_test 隊伍同步 #4, 2026-09-27).
+    if (out.merged > 0) await put();
     const now = Date.now();
     link(teamId, kind, who.uuid, rec, now);
     getUserDb().executeSync(`UPDATE sync_teams SET last_sync_at = ? WHERE team_id = ?`, [now, teamId]);

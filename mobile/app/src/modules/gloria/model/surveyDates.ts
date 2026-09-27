@@ -20,13 +20,19 @@ export type UnitTimes = {
   freq_stop_ts?: number | null;
   pf_start_ts?: number | null;
   pf_stop_ts?: number | null;
+  /** 1 = shrub quadrat (v62): its frequency / point-framing times do not count. */
+  freq_skipped?: number | null;
 };
 
 /** Earliest and latest time on any unit; null when no unit has one. */
 export function unitTimeSpan(units: ReadonlyArray<UnitTimes>): { first: number; last: number } | null {
   const all: number[] = [];
   for (const u of units)
-    for (const v of [u.start_ts, u.stop_ts, u.freq_start_ts, u.freq_stop_ts, u.pf_start_ts, u.pf_stop_ts])
+    for (const v of [
+      u.start_ts,
+      u.stop_ts,
+      ...(u.freq_skipped === 1 ? [] : [u.freq_start_ts, u.freq_stop_ts, u.pf_start_ts, u.pf_stop_ts]),
+    ])
       if (v != null) all.push(v);
   return all.length ? { first: Math.min(...all), last: Math.max(...all) } : null;
 }

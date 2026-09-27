@@ -126,9 +126,17 @@ export function plotSide(p: ImportedPlot): MergeSide {
 
 // ── GLORIA ─────────────────────────────────────────────────────────────────
 
-/** Unit columns that are not survey data: identity, media, locks, stamps. */
-const UNIT_OUT = ['code', 'uuid', 'updated_at', 'photo_paths', 'done_locked', 'freq_locked', 'pf_locked'];
+/** Unit columns that are not survey data: identity, media, stamps. */
+const UNIT_OUT = ['code', 'uuid', 'updated_at', 'photo_paths'];
 export const GLORIA_UNIT_DATA = UNIT_FIELDS.filter((k) => !UNIT_OUT.includes(k));
+/**
+ * 完成 locks are merged too: in a team they are shared progress (the leader
+ * marks N11 done, the members see it done). Carried as 1 or null — never 0 —
+ * so an unlocked unit hashes exactly as it did before the locks were merged
+ * and existing bases stay valid; written back as 0 (the columns are NOT NULL).
+ * Until 2026-09-27 they were left out, and a teammate's 完成 never arrived.
+ */
+export const GLORIA_UNIT_LOCKS = ['done_locked', 'freq_locked', 'pf_locked'];
 const GLORIA_SP_DATA = [
   'cover_pct', 'abundance', 'layer', 'cf', 'freq_cells', 'freq_count', 'point_hits', 'legacy_hits',
   'reproductive_condition', 'leaf_phenology', 'comments',
@@ -153,7 +161,9 @@ export function gloriaSide(d: GloriaDoc): MergeSide {
     })),
     unit: d.units.map((u) => ({
       key: u.code,
-      data: Object.fromEntries(GLORIA_UNIT_DATA.map((k) => [k, u[k] ?? null])),
+      data: Object.fromEntries(
+        GLORIA_UNIT_DATA.map((k) => [k, GLORIA_UNIT_LOCKS.includes(k) ? (u[k] ? 1 : null) : (u[k] ?? null)]),
+      ),
       label: u.code,
       group: u.code,
     })),

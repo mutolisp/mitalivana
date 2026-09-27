@@ -83,6 +83,7 @@ import {
   listUnits as listGloriaUnits,
   loadExportData,
   loadGloriaDoc,
+  listSurveySpecies as listGloriaSpecies,
   p5mOf,
 } from '~/modules/gloria/db';
 import { planPhotoNames, yyyymmdd } from '~/modules/gloria/export/photoNames';
@@ -1042,12 +1043,14 @@ export async function buildPlotEntries(
 
 /**
  * A GLORIA survey: the round-trip yml, one CSV per tab of the Taiwan sheet
- * (12_ and 13_ merged), and the per-point long table. Sheet CSVs are the
- * deliverable; the yml restores the survey in the app.
+ * (12_ and 13_ merged), the per-point long table, and the survey's species
+ * checklist (md, plus docx / odt per the export settings) like the other
+ * records. Sheet CSVs are the deliverable; the yml restores the survey.
  */
 export async function buildGloriaEntries(
   surveyId: number,
-  opts?: Pick<BundleOptions, 'includePhotos' | 'onProgress'>,
+  opts?: Pick<BundleOptions, 'includePhotos' | 'onProgress'> &
+    Partial<Pick<BundleOptions, 'includeDocx' | 'docFormat' | 'levels' | 'conservationFields' | 'conservationHideLowConcern' | 'lang'>>,
 ): Promise<{ entries: BuiltZipEntry[]; folderName: string }> {
   const data = loadExportData(surveyId);
   const doc = loadGloriaDoc(surveyId);
@@ -1067,6 +1070,29 @@ export async function buildGloriaEntries(
   const pointRows = buildPointHitRows(data);
   if (pointRows.length) {
     entries.push({ name: `${base}/${base}_point_hits.csv`, bytes: strToU8(toCsv(POINT_HITS_HEADER, pointRows)) });
+  }
+  // Species checklist: one entry per roster entry (taxon + morphospecies
+  // label) found in any unit — 1×1 m, SAS or 10×10 m. A label (sp1, sp2)
+  // goes in the brackets after the name, as it goes in the sheet's comments;
+  // per-unit notes stay in the sheet, they belong to one unit.
+  const roster = new Map<number, ReturnType<typeof listGloriaSpecies>[number]>();
+  for (const s of listGloriaSpecies(surveyId)) if (!roster.has(s.gloria_taxon_id)) roster.set(s.gloria_taxon_id, s);
+  if (roster.size) {
+    const checklistMd = generateMarkdown(
+      [...roster.values()].map((s) => ({ ...taxonToMarkdownItem(s.taxon_id, s), notes: s.verbatim_identification })),
+      checklistT(opts?.lang),
+      { project: getGloriaSurvey(surveyId)?.project_id !== 0 ? (doc.survey.project_name ?? '') : '', site: `${data.summit.full_code} mocy ${data.survey.mocy}` },
+      {
+        levelsOverride: opts?.levels?.length ? orderLevels(opts.levels) : undefined,
+        conservationFields: opts?.conservationFields,
+        hideLowConcern: opts?.conservationHideLowConcern,
+      },
+    );
+    entries.push({ name: `${base}/${base}_checklist.md`, bytes: strToU8(checklistMd) });
+    if (opts?.includeDocx && opts.docFormat) {
+      const fmt = DOC_FORMATS[opts.docFormat];
+      entries.push({ name: `${base}/${base}_checklist.${fmt.ext}`, bytes: fmt.fromMarkdown(checklistMd) });
+    }
   }
   // Form 1 photo checklist: what was ticked, what has a photo in the app.
   const checklist = checklistState({

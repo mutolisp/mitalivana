@@ -24,6 +24,13 @@
  * as blank: filling a blank is a change, so work done on one side only comes
  * across without a question, and nothing is ever deleted.
  *
+ * A row missing from the sender's base falls back to the receiver's own base
+ * (`fallback`): the sender may simply not have exchanged with anyone since it
+ * last uploaded (team sync uploads before it merges), while this device's base
+ * still holds what it last received from a teammate. Without the fallback, a
+ * teammate's plain edit of a value both copies had was taken for a conflict
+ * and the review kept the old value here by default.
+ *
  * After a merge the receiver's base becomes the sender's rows (what the sender
  * has now), NOT the merged result: a row where the reviewer kept this device's
  * value must still look "changed here" to the sender next time, so the
@@ -157,8 +164,10 @@ export function diffSides(
   remote: MergeSide,
   base: BaseEntry[] | null,
   combiners: Combiners = {},
+  fallback: BaseEntry[] | null = null,
 ): MergeItem[] {
-  const baseMap = new Map((base ?? []).map(([t, k, h]) => [bkey(t, k), h]));
+  // The sender's base wins; this device's own base fills the rows it lacks.
+  const baseMap = new Map([...(fallback ?? []), ...(base ?? [])].map(([t, k, h]) => [bkey(t, k), h]));
   const tables = [...new Set([...Object.keys(local), ...Object.keys(remote)])];
   const out: MergeItem[] = [];
   for (const tbl of tables) {

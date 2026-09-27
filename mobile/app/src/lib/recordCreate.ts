@@ -52,7 +52,7 @@ import { isRecordingTarget, pauseIfNot, pauseRecording as pauseTrackRecording } 
 import { promptText } from '~/components/TextPromptModal';
 import { showActionSheet } from '~/components/ActionSheet';
 import i18n from '~/i18n';
-import { setSyncBase } from '~/db/syncBase';
+import { getSyncBase, setSyncBase } from '~/db/syncBase';
 import { localPlotDoc, localSessionDoc } from '~/db/teamMerge';
 import { COMBINERS, gloriaSide, plotSide, sessionSide, type MergeKind } from '~/lib/mergeDocs';
 import { baseOf, diffSides, type MergeSide, type SyncBlock } from '~/lib/mergeEngine';
@@ -370,7 +370,7 @@ function openMerge(
   remote: { side: MergeSide; sync: SyncBlock | null | undefined; photos: ImportedPhotoBlob[]; audio: ImportedPhotoBlob[] },
   href: Href,
 ): void {
-  const items = diffSides(local.side, remote.side, remote.sync?.base ?? null, COMBINERS[kind]);
+  const items = diffSides(local.side, remote.side, remote.sync?.base ?? null, COMBINERS[kind], getSyncBase(kind, local.uuid));
   if (items.length === 0) {
     setSyncBase(kind, local.uuid, baseOf(remote.side));
     Alert.alert(i18n.t('teamMerge.nothingTitle'), i18n.t('teamMerge.nothingMsg', { name: local.label }));

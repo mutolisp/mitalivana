@@ -3150,7 +3150,10 @@
       "start_ts": "Start",
       "stop_ts": "End",
       "total_cover_pct": "Total cover",
-      "detection_type": "Detection"
+      "detection_type": "Detection",
+      "done_locked": "Done",
+      "freq_locked": "Frequency done",
+      "pf_locked": "Point-frame done"
     },
     "from": "From {{name}}",
     "fromAt": "From {{name}}, uploaded {{date}}"

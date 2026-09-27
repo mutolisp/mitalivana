@@ -2991,7 +2991,10 @@
       "start_ts": "시작",
       "stop_ts": "종료",
       "total_cover_pct": "전체 피도",
-      "detection_type": "확인 방식"
+      "detection_type": "확인 방식",
+      "done_locked": "완료",
+      "freq_locked": "빈도 완료",
+      "pf_locked": "포인트 프레임 완료"
     },
     "from": "{{name}}에게서",
     "fromAt": "{{name}}에게서, {{date}} 업로드"

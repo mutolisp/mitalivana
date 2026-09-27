@@ -2991,7 +2991,10 @@
       "start_ts": "開始",
       "stop_ts": "終了",
       "total_cover_pct": "全体被度",
-      "detection_type": "確認方法"
+      "detection_type": "確認方法",
+      "done_locked": "完了",
+      "freq_locked": "頻度 完了",
+      "pf_locked": "ポイントフレーム法 完了"
     },
     "from": "{{name}} から",
     "fromAt": "{{name}} から、{{date}} アップロード"

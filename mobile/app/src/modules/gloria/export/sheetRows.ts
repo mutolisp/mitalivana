@@ -100,10 +100,22 @@ export type ExportUnit = {
   /** JSON {R,S,L,B,G,T: hits} for imported history without per-point data. */
   legacy_surface_hits: string | null;
   comments: string | null;
+  /** 1 = a shrub quadrat: no frequency / point-framing (v62), so no times for them. */
+  freq_skipped?: number | null;
   /** 1 = start_ts is a date only (filled from the survey date): no startTime. */
   date_only?: number | null;
   uuid: string;
 };
+
+/**
+ * Comments cell text for a shrub quadrat (freq_skipped, v62): its frequency
+ * and point-framing go out as 0 with this note. Text the app writes into a
+ * sheet is always 「原文(English)」 (user's rule, 2026-09-27); what the user
+ * typed is exported as typed.
+ */
+export const SHRUB_NOTE = '灌叢不點擊(Shrubs, not point-framed)';
+
+const withNote = (note: string | null, text: string): string => [note, text].filter(Boolean).join('; ');
 
 /** A species row's comments cell: the morphospecies label first, then the notes. */
 export function speciesComments(s: Pick<ExportSpecies, 'comments' | 'morpho_label'>): string {
@@ -262,14 +274,19 @@ export function buildSheetTables(d: GloriaExportData): SheetTable[] {
     const spp = speciesOf(u.code);
     const ok = vascularCoverOk(topOf(u), spp.map((s) => ({ key: s.occurrence_id, name: '', cover_pct: s.cover_pct, freq_cells: null, point_hits: null })));
     const hits = surfaceHitsOf(u);
-    const tph = (c: SurfaceCode) => (hits ? String(hits[c]) : '');
+    const shrub = u.freq_skipped === 1;
+    // Shrub quadrat: no point-framing, so every surface total is 0.
+    const tph = (c: SurfaceCode) => (shrub ? '0' : hits ? String(hits[c]) : '');
     const sum = spp.some((s) => s.cover_pct != null)
       ? num(speciesCoverSum(spp.map((s) => ({ key: '', name: '', cover_pct: s.cover_pct, freq_cells: null, point_hits: null }))))
       : '';
     return [
       '', `${sm.full_code}-${u.code}-mocy_${m}-1x1_env`, PROTOCOL.quadrat, ...base, u.code[0], u.code, unitDate(u),
-      unitStart(u), localTime(u.stop_ts), localTime(u.freq_start_ts), localTime(u.freq_stop_ts),
-      unitResearcher(u), sum, ok == null ? '' : ok ? 'TRUE' : 'FALSE', String(spp.length), u.comments ?? '',
+      unitStart(u), localTime(u.stop_ts),
+      // Times kept in the app from before the quadrat was marked as shrubs are not exported.
+      u.freq_skipped === 1 ? '' : localTime(u.freq_start_ts), u.freq_skipped === 1 ? '' : localTime(u.freq_stop_ts),
+      unitResearcher(u), sum, ok == null ? '' : ok ? 'TRUE' : 'FALSE', String(spp.length),
+      withNote(shrub ? SHRUB_NOTE : null, u.comments ?? ''),
       num(u.cov_vascular), num(u.cov_solid_rock), num(u.cov_scree), num(u.cov_lichens), num(u.cov_bryophytes),
       num(u.cov_bare_ground), num(u.cov_litter),
       num(u.sub_lich_below_vasc), num(u.sub_lich_on_rock), num(u.sub_lich_on_scree),
@@ -281,17 +298,20 @@ export function buildSheetTables(d: GloriaExportData): SheetTable[] {
   // 12_ + 13_ merged
   const t1213: string[][] = [];
   for (const u of quadrats) {
+    const shrub = u.freq_skipped === 1;
     speciesOf(u.code).forEach((s, i) => {
       const cells = s.freq_cells;
       const hits = hitsOf(s);
       // Count-only frequency: the total goes in `freq`, the 100 cells stay blank.
       const freq = cells != null ? String(popcount(cells)) : s.freq_count != null ? String(s.freq_count) : '';
+      // Shrub quadrat: hits, frequency and all 100 cells are 0, whatever
+      // was recorded before it was marked (still kept in the app).
       t1213.push([
         s.occurrence_id, `${sm.full_code}-${u.code}-mocy_${m}-1x1_sp-${i + 1}`, PROTOCOL.quadrat, ...base, u.code[0], u.code,
         String(i + 1), s.vernacular_name, s.scientific_name, s.taxon_rank, s.family, num(s.cover_pct),
-        hits == null ? '' : String(hits), freq,
-        ...F_COLUMNS.map((_, idx) => (cells == null ? '' : cells[idx] === '1' ? '1' : '0')),
-        speciesComments(s),
+        shrub ? '0' : hits == null ? '' : String(hits), shrub ? '0' : freq,
+        ...F_COLUMNS.map((_, idx) => (shrub ? '0' : cells == null ? '' : cells[idx] === '1' ? '1' : '0')),
+        withNote(shrub ? SHRUB_NOTE : null, speciesComments(s)),
       ]);
     });
   }
@@ -304,6 +324,13 @@ export function buildSheetTables(d: GloriaExportData): SheetTable[] {
     const byCount = u.freq_mode === 'count';
     const freqDone =
       byCount || masks.some((x) => x != null) || speciesOf(u.code).some((s) => s.freq_cells != null || s.freq_count != null);
+    // Shrub quadrat: disturbance frequency is 0 too, rows always present.
+    if (u.freq_skipped === 1) {
+      DISTURBANCES.forEach((dist) => {
+        t14.push([`${sm.full_code}-${u.code}-mocy_${m}-1x1_disturb-${dist.code}`, ...base, u.code, dist.code, dist.type, '0', ...F_COLUMNS.map(() => '0')]);
+      });
+      continue;
+    }
     if (!freqDone) continue;
     DISTURBANCES.forEach((dist, k) => {
       const id = `${sm.full_code}-${u.code}-mocy_${m}-1x1_disturb-${dist.code}`;
@@ -381,7 +408,8 @@ export function buildPointHitRows(d: GloriaExportData): string[][] {
   const out: string[][] = [];
   const present = d.species.filter((s) => s.point_hits != null);
   for (const u of d.units) {
-    if (!u.point_surface) continue;
+    // A shrub quadrat was not point-framed: no points, whatever the app still holds.
+    if (!u.point_surface || u.freq_skipped === 1) continue;
     const size = u.point_surface.length;
     const n = Math.round(Math.sqrt(size));
     const order = walkOrder(n, u.unit_type === 'square' ? u.walk_option : null);

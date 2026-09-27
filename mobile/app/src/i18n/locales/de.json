@@ -3150,7 +3150,10 @@
       "start_ts": "Beginn",
       "stop_ts": "Ende",
       "total_cover_pct": "Gesamtdeckung",
-      "detection_type": "Nachweis"
+      "detection_type": "Nachweis",
+      "done_locked": "Fertig",
+      "freq_locked": "Frequenz fertig",
+      "pf_locked": "Point-Frame fertig"
     },
     "from": "Von {{name}}",
     "fromAt": "Von {{name}}, hochgeladen {{date}}"
