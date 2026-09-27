@@ -25,6 +25,10 @@ export const RANGES = {
   mocy: { min: 1, max: 99, integer: true, unit: '' },
   /** Frequency entered as a count: whole cells out of 100. */
   cells: { min: 0, max: 100, integer: true, unit: '' },
+  /** Temperature logger to a p5m corner of its cluster (Form 4 Dist-11 / Dist-31): inside a 3 × 3 m cluster. */
+  loggerDist: { min: 0, max: 10, warnMax: 4.3, unit: 'm' },
+  /** Form 4 note 5: hours from local time to UTC. */
+  utcDiff: { min: -14, max: 14, unit: 'h' },
 } satisfies Record<string, Range>;
 
 export type RangeCheck = 'ok' | 'reject' | 'warn';

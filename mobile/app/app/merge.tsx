@@ -52,9 +52,12 @@ const LABELLED = new Set([
   'aspect_deg', 'cover_pct', 'height_cm', 'layer', 'subplot', 'label', 'year', 'unit', 'abundance', 'cf',
   'freq_cells', 'freq_count', 'point_hits', 'distance_m', 'compass_deg', 'is_p5m', 'checked', 'recorded_by',
   'start_ts', 'stop_ts', 'total_cover_pct', 'detection_type', 'done_locked', 'freq_locked', 'pf_locked',
+  // Temperature loggers (v65)
+  'visit_ts', 'researchers', 'locked', 'role', 'direction', 'quadrat', 'serial', 'logger_type', 'utc_diff_h', 'dist11_m',
+  'dist31_m', 'photo_open', 'photo_closed', 'flags', 'researcher', 'visit', 'prev_uuid',
 ]);
 /** GLORIA 完成 locks: 1 or null. */
-const LOCKS = new Set(['done_locked', 'freq_locked', 'pf_locked']);
+const LOCKS = new Set(['done_locked', 'freq_locked', 'pf_locked', 'locked', 'photo_open', 'photo_closed']);
 /** Grids and point strings: shown as a count, not 100–400 characters. */
 const MASKS = new Set(['freq_cells', 'point_hits', 'dist_hi1', 'dist_hi2', 'dist_hi3', 'point_surface']);
 const TIMES = /(_ts|_at)$/;

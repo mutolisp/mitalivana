@@ -22,12 +22,12 @@ import { isVectorRunning } from './vectormapInstall';
 
 export type Orphans = { files: File[]; bytes: number };
 
-/** Files in Documents/photos and Documents/audio that no record names. */
+/** Files in Documents/photos, audio and files that no record names. */
 export function findMediaOrphans(): Orphans {
   const keep = referencedMediaNames();
   const files: File[] = [];
   let bytes = 0;
-  for (const sub of ['photos', 'audio']) {
+  for (const sub of ['photos', 'audio', 'files']) {
     const dir = new Directory(Paths.document, sub);
     if (!dir.exists) continue;
     for (const f of dir.list()) {

@@ -43,6 +43,7 @@ type Sizes = {
   userDb: number;
   photos: number;
   audio: number;
+  files: number;
 };
 
 function measure(): Sizes {
@@ -66,6 +67,7 @@ function measure(): Sizes {
     userDb: ['user.db', 'user.db-wal', 'user.db-shm'].reduce((a, n) => a + file(n), 0),
     photos: doc('photos'),
     audio: doc('audio'),
+    files: doc('files'),
   };
 }
 
@@ -79,7 +81,7 @@ export default function StorageScreen() {
   if (!s) return <SettingsPage>{null}</SettingsPage>;
 
   const total =
-    s.cache + s.safety.bytes + s.merge.bytes + s.datasets + s.packs + s.vectormap + s.poi + s.legacy + s.userDb + s.photos + s.audio;
+    s.cache + s.safety.bytes + s.merge.bytes + s.datasets + s.packs + s.vectormap + s.poi + s.legacy + s.userDb + s.photos + s.audio + s.files;
   const confirm = (title: string, msg: string, run: () => void | Promise<void>) =>
     Alert.alert(title, msg, [
       { text: t('common.cancel'), style: 'cancel' },
@@ -164,6 +166,7 @@ export default function StorageScreen() {
         <Section title={t('storage.yours')}>
           <LinkRow label={t('storage.photos')} value={formatBytes(s.photos)} chevron={false} onPress={() => undefined} />
           <LinkRow label={t('storage.audio')} value={formatBytes(s.audio)} chevron={false} onPress={() => undefined} />
+          <LinkRow label={t('storage.files')} value={formatBytes(s.files)} chevron={false} onPress={() => undefined} />
           <LinkRow label={t('storage.database')} value={formatBytes(s.userDb)} chevron={false} onPress={() => undefined} />
         </Section>
         <Text className="px-4 pt-3 text-xs text-gray-500 dark:text-gray-400">{t('storage.yoursHint')}</Text>

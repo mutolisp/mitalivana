@@ -132,6 +132,7 @@ function ThemedShell() {
             <Stack.Screen name="gloria/summits" options={{ title: t('gloria.summitImport.listTitle') }} />
             <Stack.Screen name="gloria/summit-import" options={{ title: t('gloria.summitImport.reviewTitle') }} />
             <Stack.Screen name="gloria/summit/[id]" options={{ title: '' }} />
+            <Stack.Screen name="gloria/logger/[visitId]" options={{ title: t('gloria.tab.loggers') }} />
             <Stack.Screen name="gloria/[id]/points-import" options={{ title: t('gloria.pointImport.reviewTitle') }} />
             <Stack.Screen name="settings/collection" options={{ title: t('settings.sectionCollection') }} />
             <Stack.Screen name="settings/export" options={{ title: t('exportPref.title') }} />

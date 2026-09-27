@@ -22,7 +22,7 @@ if (process.argv.includes('--check')) {
     process.exit(1);
   }
   // The screen's parser: every section heading survives, links keep their URL.
-  const { parsePolicy } = await import('../src/lib/policyMarkdown.ts');
+  const { parsePolicy, inAppBlocks, isOpenableUrl } = await import('../src/lib/policyMarkdown.ts');
   const { zh, en } = JSON.parse(next);
   for (const [name, md] of [['zh', zh], ['en', en]]) {
     const blocks = parsePolicy(md);
@@ -31,6 +31,16 @@ if (process.argv.includes('--check')) {
     const links = blocks.flatMap((b) => ('spans' in b ? b.spans : [])).filter((s) => s.url?.startsWith('https://')).length;
     if (got !== h2 || got < 5 || links < 3) {
       console.error(`✖ ${name}: parsed ${got}/${h2} section headings, ${links} links`);
+      process.exit(1);
+    }
+    // In the app: no leftover link to the other language's file, and the
+    // contact address opens the mail app (Device_test 43-44).
+    const shown = inAppBlocks(blocks).flatMap((b) => ('spans' in b ? b.spans : []));
+    // A link the app cannot open, or Markdown link syntax left as plain text.
+    const dead = shown.filter((s) => (s.url ? !isOpenableUrl(s.url) : /\]\(/.test(s.text)));
+    const mail = shown.some((s) => s.url?.startsWith('mailto:'));
+    if (dead.length || !mail) {
+      console.error(`✖ ${name}: ${dead.length} link(s) the app cannot open (${dead.map((s) => s.url ?? s.text).join(', ')}); mailto link ${mail ? 'present' : 'missing'}`);
       process.exit(1);
     }
   }

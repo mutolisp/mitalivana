@@ -116,6 +116,15 @@ const NOT_RESTORABLE = {
     id: ROW_ID,
     survey_id: 'structural — the checklist lives inside its survey in the yml',
   },
+  gloria_logger_visits: {
+    id: ROW_ID,
+    summit_id: 'structural — visits of the survey\'s cycle ride in its yml; re-attached to the summit on import',
+    survey_id: 'which survey a visit was entered from; the cycle is worked out from the date (model/loggers cycleOf)',
+  },
+  gloria_loggers: {
+    id: ROW_ID,
+    visit_id: 'structural — loggers live inside their visit in the yml',
+  },
   gloria_unit_species: {
     id: ROW_ID,
     unit_id: 'exported as the unit CODE (`unit`), ids are per-device',
@@ -840,6 +849,7 @@ checklist:
   const doc = buildGloriaDoc({
     summit, survey, projectName: 'P', points: [full('gloria_points')], units: [unit], taxa: [taxon], species: [species],
     photoChecks: [full('gloria_photo_checks', { item: 'CL-N', checked: 1 })],
+    loggerVisits: [{ ...full('gloria_logger_visits'), loggers: [full('gloria_loggers')] }],
   });
   const surveyKeys = new Set([...Object.keys(doc.survey), 'project_name']);
   checkCoverage('gloria_summits', new Set(Object.keys(doc.summit)));
@@ -849,6 +859,8 @@ checklist:
   checkCoverage('gloria_taxa', new Set(Object.keys(doc.taxa[0])));
   checkCoverage('gloria_unit_species', new Set(Object.keys(doc.species[0])));
   checkCoverage('gloria_photo_checks', new Set(Object.keys(doc.photo_checks[0])));
+  checkCoverage('gloria_logger_visits', new Set(Object.keys(doc.logger_visits[0]).filter((k) => k !== 'loggers')));
+  checkCoverage('gloria_loggers', new Set(Object.keys(doc.logger_visits[0].loggers[0])));
   eq('gloria: species keyed by unit code', doc.species[0].unit, 'N33');
   eq('gloria: species keyed by roster serial', doc.species[0].serial, 3);
   const back = yaml.load(yaml.dump(doc, { lineWidth: -1, noRefs: true }));

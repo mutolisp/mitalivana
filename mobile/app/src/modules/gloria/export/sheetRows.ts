@@ -11,6 +11,7 @@
  *     are left blank: the app stores what was measured.
  */
 
+import { H04_TEMPERATURE_LOGGERS, loggerRows, temperatureLoggersId, type ExportVisit } from './loggerRows';
 import { F_COLUMNS, SURFACE_CODES, popcount, surfaceHits, type SurfaceCode } from '../model/grid';
 import { POINTS, pointNumberOf, type Direction, type P5mCorner } from '../model/units';
 import { speciesCoverSum, vascularCoverOk, type TopCover } from '../model/validate';
@@ -152,6 +153,8 @@ export type GloriaExportData = {
   points: ExportPoint[];
   units: ExportUnit[];
   species: ExportSpecies[];
+  /** Temperature-logger visits of this survey's cycle (v65); absent in older callers. */
+  visits?: ExportVisit[];
 };
 
 export type SheetTable = { name: string; header: readonly string[]; rows: string[][] };
@@ -258,7 +261,7 @@ export function buildSheetTables(d: GloriaExportData): SheetTable[] {
   // 01_summits_survey_info — scanned-form identifiers are left for the office.
   const t01: string[][] = [
     [String(m), String(sv.year ?? new Date(sv.start_ts).getFullYear()), sm.target_region, sm.summit,
-      localDate(sv.start_ts), localDate(sv.stop_ts), '', '', '', '', '', sv.notes ?? '', ''],
+      localDate(sv.start_ts), localDate(sv.stop_ts), '', temperatureLoggersId(m, sm, d.visits ?? []), '', '', '', sv.notes ?? '', ''],
   ];
 
   // 02_p5_p10m_direction
@@ -388,6 +391,8 @@ export function buildSheetTables(d: GloriaExportData): SheetTable[] {
     { name: '00_plot_coordinates', header: H00_PLOT_COORDINATES, rows: t00 },
     { name: '01_summits_survey_info', header: H01_SUMMITS_SURVEY_INFO, rows: t01 },
     { name: '02_p5_p10m_direction', header: H02_POINTS, rows: t02 },
+    // Not a tab of the sheet: Form 4 has none there (export/loggerRows.ts).
+    { name: '04_temperature_loggers', header: H04_TEMPERATURE_LOGGERS, rows: loggerRows(m, sm, d.visits ?? []) },
     { name: '10_1x1m_plotinfo', header: H10_1X1_PLOTINFO, rows: t10 },
     { name: '11_1x1m_env', header: H11_1X1_ENV, rows: t11 },
     { name: '12_13_1x1m_sp_freq', header: H12_13_1X1_SP_FREQ, rows: t1213 },

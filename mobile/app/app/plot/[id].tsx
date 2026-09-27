@@ -560,9 +560,12 @@ function EnvTab({
           <Text className="mb-2 text-xs font-medium text-gray-600 dark:text-gray-400">
             {plot.plot_type === 'point_count' ? t('plot.countTime') : t('surveyTime.title')}
           </Text>
+          {/* Locked: plain text, like the checklist and collection time sheets —
+              an ⓧ that cannot be pressed looked like it could (Device_test 38-11). */}
           <SurveyTimeFields
             start={plot.start_ts}
             end={plot.stop_ts}
+            readOnly={locked}
             onChange={(which, ts) => patch(which === 'start' ? { start_ts: ts } : { stop_ts: ts })}
           />
         </View>

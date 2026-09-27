@@ -16,6 +16,7 @@ import { writeInsert, writeUpdate } from '~/db/teamMerge';
 import { GLORIA_UNIT_LOCKS } from '~/lib/mergeDocs';
 import type { MergeOp } from '~/lib/mergeEngine';
 import { ensureRosterTaxon, getGloriaSurvey, loadGloriaDoc, nextUnitPosition, setPhotoCheck } from './db';
+import { applyLoggerOp } from './loggerDb';
 import type { GloriaDoc } from './export/yaml';
 
 /** This device's survey of the same summit and cycle, if any. */
@@ -72,6 +73,9 @@ export function applyGloriaMerge(surveyId: number, ops: MergeOp[]): void {
         setPhotoCheck(surveyId, op.op === 'insert' ? op.row.key : op.key, { checked: !!data.checked });
       }
     }
+
+    // Logger visits before their loggers; both belong to the summit (v65).
+    for (const tbl of ['visit', 'logger']) for (const op of ops) if (op.tbl === tbl) applyLoggerOp(survey.summit_id, op);
 
     // Species after the units they belong to.
     for (const op of ops) {

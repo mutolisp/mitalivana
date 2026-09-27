@@ -1,7 +1,7 @@
 /**
  * App-owned media files live under documentDirectory/photos/ (library picks,
- * see photoCapture.persistPickedPhoto) and documentDirectory/audio/
- * (recordings). Their DB rows store the ABSOLUTE file:// URI — and on iOS the
+ * see photoCapture.persistPickedPhoto), documentDirectory/audio/
+ * (recordings) and documentDirectory/files/ (attached documents, fileAttach.ts). Their DB rows store the ABSOLUTE file:// URI — and on iOS the
  * absolute path contains the app container UUID, which changes on every
  * reinstall (a new dev-client build, a TestFlight update…). The files survive
  * (Documents is migrated), the stored path does not, and every thumbnail of a
@@ -16,7 +16,7 @@
  */
 import { documentDirectory } from 'expo-file-system/legacy';
 
-const APP_FILE_RE = /\/(photos|audio)\/([^/]+)$/;
+const APP_FILE_RE = /\/(photos|audio|files)\/([^/]+)$/;
 
 export function rebaseAppFileUri(uri: string): string {
   if (!documentDirectory || !uri.startsWith('file:') || uri.startsWith(documentDirectory)) return uri;

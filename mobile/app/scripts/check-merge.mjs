@@ -164,6 +164,21 @@ const h2 = gloriaSide(gdoc([unit('N11', 30)], [us('N11', 4, 'o9', 25)], [taxon(4
 const hd = diffSides(h1, h2, null, COMBINERS.gloria);
 eq('GLORIA: same unit+taxon under another id → duplicate with the cover difference', [kinds(hd), hd[0]?.fields], [['duplicate:o9'], ['cover_pct']]);
 
+// ── 8b. GLORIA temperature-logger visits (v65) ──
+{
+  const lgr = (uuid, o = {}) => ({ uuid, role: 'install', direction: 'E', quadrat: 'E22', label: 'c', serial: '111', logger_type: 'Hobo', start_ts: 1, stop_ts: null, utc_diff_h: -8, dist11_m: 1, dist31_m: 2, photo_open: 0, photo_closed: null, photo_open_uri: null, photo_closed_uri: null, flags: null, researcher: null, comments: null, data_files: null, prev_uuid: null, sort_order: 0, updated_at: 1, ...o });
+  const withVisits = (loggers, vo = {}) => ({ ...gdoc([], [], []), logger_visits: [{ uuid: 'v1', visit_ts: 5, researchers: '陳', comments: null, form4_files: null, locked: null, created_at: 1, updated_at: 1, ...vo, loggers }] });
+  const A = gloriaSide(withVisits([lgr('l1')]));
+  const baseA = baseOf(A);
+  eq('GLORIA loggers: a teammate\'s new logger is added', kinds(diffSides(A, gloriaSide(withVisits([lgr('l1'), lgr('l2', { label: 'd', serial: '222' })])), baseA)), ['added:l2']);
+  eq('GLORIA loggers: a teammate\'s read-out time is taken automatically', kinds(diffSides(A, gloriaSide(withVisits([lgr('l1', { stop_ts: 9 })])), baseA)), ['auto:l1']);
+  eq('GLORIA loggers: photos and files are not compared; tick 0 is the same as none',
+    diffSides(A, gloriaSide(withVisits([lgr('l1', { photo_open: null, photo_open_uri: 'ph://x', data_files: '[{"uri":"f","name":"a.csv"}]' })], { form4_files: '[]' })), baseA).length, 0);
+  eq('GLORIA loggers: the same serial entered on two devices apart is a possible duplicate',
+    kinds(diffSides(A, gloriaSide(withVisits([lgr('l9')])), null)), ['duplicate:l9']);
+  eq('GLORIA loggers: a visit marked done arrives', kinds(diffSides(A, gloriaSide(withVisits([lgr('l1')], { locked: 1 })), baseA)), ['auto:v1']);
+}
+
 // ── 9. the export's sync block ──
 eq('sync block read', readSyncBlock({ sync: { exported_at: 5, base: [['sp', 'a', 'h'], ['bad']] } }), { exported_at: 5, base: [['sp', 'a', 'h']] });
 eq('no sync block → no ancestor', readSyncBlock({}), null);

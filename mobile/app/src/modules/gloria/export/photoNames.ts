@@ -79,15 +79,21 @@ export function planPhotoNames(input: {
   overview?: OverviewPhoto[];
   /** Photos taken on the photo checklist (clusters, quarters, HSP), by checklist item. */
   checks?: Array<{ item: string; uri: string }>;
+  /**
+   * Temperature-logger position photos (Form 4 photo check, Work Step N):
+   * item LOG-E22c (Box 6.1 prefix), element 8 open / closed, dated by their
+   * visit — a visit can be years after the survey started.
+   */
+  loggers?: Array<{ uri: string; item: string; note: string; date: string }>;
   extOf?: (uri: string) => string;
 }): Array<{ uri: string; name: string }> {
   const out: Array<{ uri: string; name: string }> = [];
   const byKey = new Map(input.points.map((p) => [p.point_key, p]));
   let order = 0;
-  const push = (uri: string | null, item: string, note?: string) => {
+  const push = (uri: string | null, item: string, note?: string, date = input.date) => {
     if (!uri) return;
     order += 1;
-    const base = { mocy: input.mocy, country: input.country, region: input.region, summit: input.summit, date: input.date };
+    const base = { mocy: input.mocy, country: input.country, region: input.region, summit: input.summit, date };
     out.push({ uri, name: photoFileName({ ...base, item, order, note }, input.extOf?.(uri) ?? 'jpg') });
   };
   for (const def of POINTS) {
@@ -113,5 +119,6 @@ export function planPhotoNames(input: {
     if (it) push(c.uri, it.code, it.note);
   }
   for (const p of input.overview ?? []) push(p.uri, 'SU-OV', p.viewpoint);
+  for (const l of input.loggers ?? []) push(l.uri, l.item, l.note, l.date);
   return out;
 }

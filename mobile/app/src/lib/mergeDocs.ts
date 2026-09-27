@@ -16,7 +16,7 @@
 import type { ImportedPlot, ImportedSession } from '../db';
 import { unionSurveyors } from '../db/merge';
 import type { GloriaDoc } from '../modules/gloria/export/yaml';
-import { UNIT_FIELDS } from '../modules/gloria/export/yaml';
+import { LOGGER_FIELDS, UNIT_FIELDS } from '../modules/gloria/export/yaml';
 import { buildTrackGeoJSON, parseTrackSegments } from './track';
 import type { Combiners, MergeRow, MergeSide, Row } from './mergeEngine';
 
@@ -137,6 +137,10 @@ export const GLORIA_UNIT_DATA = UNIT_FIELDS.filter((k) => !UNIT_OUT.includes(k))
  * Until 2026-09-27 they were left out, and a teammate's 完成 never arrived.
  */
 export const GLORIA_UNIT_LOCKS = ['done_locked', 'freq_locked', 'pf_locked'];
+/** Logger columns compared in a merge: all but identity, stamps and media. */
+const GLORIA_LOGGER_DATA = LOGGER_FIELDS.filter(
+  (k) => !['uuid', 'updated_at', 'sort_order', 'photo_open_uri', 'photo_closed_uri', 'data_files'].includes(k),
+);
 const GLORIA_SP_DATA = [
   'cover_pct', 'abundance', 'layer', 'cf', 'freq_cells', 'freq_count', 'point_hits', 'legacy_hits',
   'reproductive_condition', 'leaf_phenology', 'comments',
@@ -194,5 +198,24 @@ export function gloriaSide(d: GloriaDoc): MergeSide {
       };
     }),
     check: (d.photo_checks ?? []).map((c) => ({ key: c.item, data: { checked: c.checked ? 1 : 0 }, label: c.item })),
+    // Temperature-logger visits of the cycle and their loggers (v65). Files
+    // and photos stay out, like every other medium; ticks and locks are 1 / null.
+    visit: (d.logger_visits ?? []).map((v) => ({
+      key: String(v.uuid),
+      data: { visit_ts: v.visit_ts ?? null, researchers: v.researchers ?? null, comments: v.comments ?? null, locked: v.locked ? 1 : null },
+      label: `LOG ${typeof v.visit_ts === 'number' ? new Date(v.visit_ts).toISOString().slice(0, 10) : ''}`,
+    })),
+    logger: (d.logger_visits ?? []).flatMap((v) =>
+      v.loggers.map((l) => ({
+        key: String(l.uuid),
+        data: {
+          visit: String(v.uuid),
+          ...Object.fromEntries(GLORIA_LOGGER_DATA.map((k) => [k, k === 'photo_open' || k === 'photo_closed' ? (l[k] ? 1 : null) : (l[k] ?? null)])),
+        },
+        dupKey: l.serial ? `${String(v.uuid)}|${String(l.role)}|${String(l.serial)}` : undefined,
+        label: `${String(l.quadrat)}${String(l.label ?? '')} ${String(l.serial ?? '')}`.trim(),
+        group: String(l.direction),
+      })),
+    ),
   };
 }

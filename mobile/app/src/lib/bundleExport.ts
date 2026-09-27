@@ -78,6 +78,7 @@ import { injectSignatures } from './signing';
 import { activeSigner } from './signingKey';
 import {
   getGloriaSurvey,
+  getSummit,
   listPhotoChecks,
   listPoints as listGloriaPoints,
   listUnits as listGloriaUnits,
@@ -90,6 +91,9 @@ import { planPhotoNames, yyyymmdd } from '~/modules/gloria/export/photoNames';
 import { parseOverviewPhotos } from '~/modules/gloria/model/overview';
 import { CHECKLIST_HEADER, checklistRows, checklistState } from '~/modules/gloria/model/photoChecks';
 import { buildPointHitRows, buildSheetTables, POINT_HITS_HEADER, toCsv } from '~/modules/gloria/export/sheetRows';
+import { H04_TEMPERATURE_LOGGERS, loggerRows, planLoggerFiles, type ExportVisit } from '~/modules/gloria/export/loggerRows';
+import { listLoggers, listVisits, summitCycles } from '~/modules/gloria/loggerDb';
+import { cycleOf, loggerPhotoItem } from '~/modules/gloria/model/loggers';
 
 
 export type GeoFormat = 'geojson' | 'gpx' | 'kml';
@@ -386,6 +390,8 @@ const README_RULES: Array<{ match: (name: string) => boolean; desc: string }> = 
     match: (n) => n.includes('/dwca/'),
     desc: 'Darwin Core Archive：event.txt（Event core）+ occurrence.txt + humboldt.txt + meta.xml + eml.xml，可直接上傳 GBIF IPT',
   },
+  { match: (n) => n.endsWith('_04_temperature_loggers.csv'), desc: '溫度計（Form 4）：每支溫度計每次巡查一列，讀取與新部署；非 GLORIA Sheet 原有分頁' },
+  { match: (n) => n.includes('/loggers/'), desc: '溫度計資料檔（全長碼_序號_原檔名）與 Form 4 掃描檔（01_ 的表單識別碼）' },
   { match: (n) => n.endsWith('.md'), desc: '物種名錄文件（Markdown）' },
   { match: (n) => n.endsWith('.docx'), desc: '物種名錄文件（DOCX 排版文書檔）' },
   { match: (n) => n.endsWith('.odt'), desc: '物種名錄文件（ODT 排版文書檔）' },
@@ -1119,6 +1125,14 @@ export async function buildGloriaEntries(
       units: listGloriaUnits(surveyId).map((u) => ({ code: u.code, photo_uris: parsePhotoUris(u.photo_paths) })),
       overview: parseOverviewPhotos(getGloriaSurvey(surveyId)?.overview_photos),
       checks: listPhotoChecks(surveyId).flatMap((c) => (c.photo_uri ? [{ item: c.item, uri: c.photo_uri }] : [])),
+      loggers: (data.visits ?? []).flatMap((v) =>
+        v.loggers.flatMap((l) =>
+          (['open', 'closed'] as const).flatMap((w) => {
+            const uri = w === 'open' ? l.photo_open_uri : l.photo_closed_uri;
+            return uri ? [{ uri, item: loggerPhotoItem(l.quadrat, l.label), note: w, date: yyyymmdd(v.visit_ts) }] : [];
+          }),
+        ),
+      ),
       extOf: (uri) => guessExt(uri),
     });
     if (plan.length) await ensurePhotosReadAccess();
@@ -1133,6 +1147,19 @@ export async function buildGloriaEntries(
       } catch {
         // unreadable (deleted from the library): skip, the manifest count says how many made it
       }
+    }
+  }
+  // Temperature loggers: the loggers' data exports always (the data itself,
+  // small); Form 4 scans with the photos switch. Both under loggers/.
+  for (const f of planLoggerFiles(data.survey.mocy, data.summit, data.visits ?? [])) {
+    if (f.kind === 'form4' && !opts?.includePhotos) continue;
+    const fileUri = await resolveAssetUri(f.uri);
+    if (!fileUri) continue;
+    try {
+      const b64 = await readAsStringAsync(fileUri, { encoding: 'base64' });
+      entries.push({ name: `${base}/loggers/${f.name}`, bytes: base64ToBytes(b64) });
+    } catch {
+      // gone from the device: the 04_ table still names it
     }
   }
   const manifest = buildManifest({
@@ -1152,6 +1179,69 @@ export async function buildGloriaEntries(
     : '';
   entries.push({ name: `${base}/README.md`, bytes: strToU8(buildRecordReadme(base, entries) + photoNote) });
   return { entries, folderName: base };
+}
+
+/**
+ * The temperature loggers of one summit alone (the summit page): every visit,
+ * each under the cycle its date falls in — for visits between two surveys,
+ * without exporting a survey. 04_ table, loggers/ (data files, Form 4 scans)
+ * and photos/ (position photos, with the photos switch).
+ */
+export async function bundleLoggers(summitId: number, opts: Pick<BundleOptions, 'includePhotos' | 'onProgress'>): Promise<ExportFile> {
+  const summit = getSummit(summitId);
+  if (!summit) throw new Error(`GLORIA summit ${summitId} not found`);
+  const cycles = summitCycles(summitId);
+  const byCycle = new Map<number, ExportVisit[]>();
+  for (const v of listVisits(summitId)) {
+    const m = cycleOf(v.visit_ts, cycles) ?? 0;
+    byCycle.set(m, [...(byCycle.get(m) ?? []), { ...v, loggers: listLoggers(v.id) }]);
+  }
+  const base = sanitizeFilename(`GLORIA_${summit.full_code}_temperature-loggers`);
+  const entries: BuiltZipEntry[] = [];
+  const rows = [...byCycle.entries()].sort((a, b) => a[0] - b[0]).flatMap(([m, vs]) => loggerRows(m, summit, vs));
+  entries.push({ name: `${base}/${base}_04_temperature_loggers.csv`, bytes: strToU8(toCsv(H04_TEMPERATURE_LOGGERS, rows)) });
+  const files = [...byCycle.entries()].flatMap(([m, vs]) => planLoggerFiles(m, summit, vs));
+  const photos = opts.includePhotos
+    ? [...byCycle.entries()].flatMap(([m, vs]) =>
+        planPhotoNames({
+          mocy: m,
+          country: summit.country,
+          region: summit.target_region,
+          summit: summit.summit,
+          date: '',
+          p5m: {},
+          points: [],
+          units: [],
+          loggers: vs.flatMap((v) =>
+            v.loggers.flatMap((l) =>
+              (['open', 'closed'] as const).flatMap((w) => {
+                const uri = w === 'open' ? l.photo_open_uri : l.photo_closed_uri;
+                return uri ? [{ uri, item: loggerPhotoItem(l.quadrat, l.label), note: w, date: yyyymmdd(v.visit_ts) }] : [];
+              }),
+            ),
+          ),
+          extOf: (uri) => guessExt(uri),
+        }),
+      )
+    : [];
+  if (photos.length) await ensurePhotosReadAccess();
+  const todo = [
+    ...files.filter((f) => f.kind === 'data' || opts.includePhotos).map((f) => ({ uri: f.uri, name: `${base}/loggers/${f.name}` })),
+    ...photos.map((p) => ({ uri: p.uri, name: `${base}/photos/${p.name}` })),
+  ];
+  for (let i = 0; i < todo.length; i++) {
+    opts.onProgress?.({ label: '處理檔案', done: i, total: todo.length });
+    const fileUri = await resolveAssetUri(todo[i].uri);
+    if (!fileUri) continue;
+    try {
+      entries.push({ name: todo[i].name, bytes: base64ToBytes(await readAsStringAsync(fileUri, { encoding: 'base64' })) });
+    } catch {
+      // gone from the device: the 04_ table still names it
+    }
+  }
+  entries.push({ name: `${base}/README.md`, bytes: strToU8(buildRecordReadme(base, entries)) });
+  await reportZipStage(opts.onProgress);
+  return await finalizeZip(entries, base);
 }
 
 export async function bundleGloria(surveyId: number, opts: BundleOptions): Promise<ExportFile> {

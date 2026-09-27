@@ -211,10 +211,10 @@ async function promptPlotid(plotType: PlotType): Promise<void> {
  * Start the next monitoring cycle of a GLORIA summit and open it. Same
  * single-active guard as sessions and plots.
  */
-export async function startGloriaAndOpen(summitId: number): Promise<void> {
+export async function startGloriaAndOpen(summitId: number, recordedBy?: string | null): Promise<void> {
   const ok = await ensureNoConflictingActive('gloria');
   if (!ok) return;
-  const id = createGloriaSurvey({ summitId });
+  const id = createGloriaSurvey({ summitId, recorded_by: recordedBy });
   useActiveGloria.getState().refresh();
   useActivePlot.getState().refresh();
   useActiveSession.getState().refresh();

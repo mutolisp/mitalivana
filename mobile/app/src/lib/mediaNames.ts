@@ -7,7 +7,7 @@
  * reinstall (appFiles.ts). Photo-library references (ph://…) are not app
  * files and yield nothing.
  */
-const NAME_RE = /(?:^|\/)(?:photos|audio)\/([^/"'\s\\,\]}]+)/g;
+const NAME_RE = /(?:^|\/)(?:photos|audio|files)\/([^/"'\s\\,\]}]+)/g;
 
 export function mediaNamesIn(value: string): string[] {
   const out: string[] = [];
@@ -44,6 +44,11 @@ export const MEDIA_COLUMNS: ReadonlyArray<readonly [table: string, column: strin
   ['gloria_points', 'photo_point'],
   ['gloria_surveys', 'overview_photos'],
   ['gloria_photo_checks', 'photo_uri'],
+  // Temperature loggers (v65): position photos and attached files (Documents/files/).
+  ['gloria_loggers', 'photo_open_uri'],
+  ['gloria_loggers', 'photo_closed_uri'],
+  ['gloria_loggers', 'data_files'],
+  ['gloria_logger_visits', 'form4_files'],
 ];
 
 /** Media-looking column names that hold no file reference, and why. */
@@ -51,4 +56,6 @@ export const NOT_MEDIA: Readonly<Record<string, string>> = {
   'checklist_records.inat_media_done': 'iNat upload progress counter',
   'plot_species_records.inat_media_done': 'iNat upload progress counter',
   'collection_specimens.inat_media_done': 'iNat upload progress counter',
+  'gloria_loggers.photo_open': 'Form 4 photo check tick (1 / null); the photo is photo_open_uri',
+  'gloria_loggers.photo_closed': 'Form 4 photo check tick (1 / null); the photo is photo_closed_uri',
 };

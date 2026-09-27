@@ -33,6 +33,7 @@ import type { SummitDiff } from './model/summitImport';
 import type { GloriaDoc } from './export/yaml';
 import { SPECIES_FIELDS, UNIT_FIELDS, buildGloriaDoc } from './export/yaml';
 import type { GloriaExportData } from './export/sheetRows';
+import { importLoggerVisits, listLoggers, visitsOfSurvey } from './loggerDb';
 
 // ── Row types ─────────────────────────────────────────────────────────────
 
@@ -1159,6 +1160,7 @@ export function loadExportData(surveyId: number): GloriaExportData | null {
     survey,
     points: listPoints(surveyId),
     units: listUnits(surveyId),
+    visits: visitsOfSurvey(surveyId).map((v) => ({ ...v, loggers: listLoggers(v.id) })),
     species: species.map((s) => ({
       unit_code: s.unit_code,
       occurrence_id: s.occurrence_id,
@@ -1204,6 +1206,7 @@ export function loadGloriaDoc(surveyId: number): GloriaDoc | null {
     taxa,
     species,
     photoChecks: listPhotoChecks(surveyId),
+    loggerVisits: visitsOfSurvey(surveyId).map((v) => ({ ...v, loggers: listLoggers(v.id) })),
     displayName: (id) => names.get(id)?.simple_name || undefined,
   });
 }
@@ -1305,6 +1308,15 @@ export function importGloriaDoc(doc: GloriaDoc, projectId = 0): GloriaImportResu
         [surveyId, c.item, c.checked ? 1 : 0, c.photo_uri ?? null, c.updated_at ?? sv.start_ts],
       );
     }
+    // Logger visits belong to the summit: upserted by uuid, never removed by
+    // replacing a survey (a visit may have been entered outside it).
+    importLoggerVisits(summitIdOf(surveyId), doc.logger_visits ?? []);
     return { surveyId, replaced: !!existing };
   });
+}
+
+function summitIdOf(surveyId: number): number {
+  const r = rows<{ summit_id: number }>(getUserDb().executeSync(`SELECT summit_id FROM gloria_surveys WHERE id = ?`, [surveyId]))[0];
+  if (!r) throw new Error(`gloria survey ${surveyId} not found`);
+  return r.summit_id;
 }

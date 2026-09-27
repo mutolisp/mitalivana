@@ -23,6 +23,7 @@ import { QUADRAT_CODES, SAS_CODES, SQUARE_CODES, type Direction } from '~/module
 import { PointsForm } from '~/modules/gloria/components/PointsForm';
 import { SummitForm } from '~/modules/gloria/components/SummitForm';
 import { SurveyDates } from '~/modules/gloria/components/SurveyDates';
+import { LoggerVisitList } from '~/modules/gloria/components/LoggerVisitList';
 import { startPointImport } from '~/modules/gloria/summitImportFile';
 import { errText } from '~/lib/errText';
 import { P5mDiagram, SummitSchematic } from '~/modules/gloria/components/SummitSchematic';
@@ -31,7 +32,7 @@ import { missingRequiredPhotos, PhotoChecklist } from '~/modules/gloria/componen
 import { Btn, Card, Label, NumAccessory, Seg } from '~/modules/gloria/components/ui';
 import { chooseEndTime } from '~/lib/endTimeChoice';
 
-type Tab = 'points' | 'map' | 'species' | 'photos';
+type Tab = 'points' | 'map' | 'species' | 'photos' | 'loggers';
 
 export default function GloriaSurveyScreen() {
   const { t } = useTranslation();
@@ -149,6 +150,7 @@ export default function GloriaSurveyScreen() {
             { value: 'map', label: t('gloria.tab.map') },
             { value: 'species', label: t('gloria.tab.species') },
             { value: 'photos', label: t('gloria.tab.photos') },
+            { value: 'loggers', label: t('gloria.tab.loggers') },
           ]}
         />
       </View>
@@ -243,6 +245,14 @@ export default function GloriaSurveyScreen() {
 
         {tab === 'species' ? <SpeciesMatrix state={state} onUnit={openUnit} /> : null}
         {tab === 'photos' ? <PhotoChecklist state={state} reload={reload} /> : null}
+        {tab === 'loggers' ? (
+          <LoggerVisitList
+            summitId={state.summit.id}
+            surveyId={state.survey.id}
+            onlyMocy={state.survey.mocy}
+            researchers={state.survey.recorded_by}
+          />
+        ) : null}
       </ScrollView>
       <RecordStepBar kind="gloria" id={id} />
       <NumAccessory />

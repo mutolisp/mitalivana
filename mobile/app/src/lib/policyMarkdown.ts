@@ -72,3 +72,24 @@ export function parsePolicy(md: string): Block[] {
   flush();
   return blocks;
 }
+
+/** A link the app can open: web pages and e-mail. */
+export const isOpenableUrl = (url: string): boolean => /^(https?:\/\/|mailto:)/.test(url);
+
+/** A link to a file next to this one (the other language's .md), as a span or as raw text. */
+const RELATIVE_LINK = /^\[[^\]]+\]\((?!https?:|mailto:)[^)\s]+\)$/;
+
+/**
+ * In the app, drop paragraphs that are only a link to the other language's
+ * file (「*[English version](PRIVACY.en.md)*」): the .md files keep them for
+ * readers on the web, but in the app the language follows the UI and the
+ * relative link leads nowhere. Wrapped in *…* the parser keeps the link as
+ * literal text, which is how it showed up raw on screen (Device_test 43-44).
+ */
+export function inAppBlocks(blocks: Block[]): Block[] {
+  return blocks.filter((b) => {
+    if (b.type !== 'p') return true;
+    const deadLinkOnly = b.spans.every((s) => (s.url ? !isOpenableUrl(s.url) : !s.text.trim() || RELATIVE_LINK.test(s.text.trim())));
+    return !(b.spans.length > 0 && deadLinkOnly);
+  });
+}

@@ -10,6 +10,7 @@ import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-nativ
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { defaultSurveyorString } from '~/db/surveyors';
+import { SurveyorAssignSheet } from '~/components/SurveyorAssignSheet';
 import { startGloriaAndOpen } from '~/lib/recordCreate';
 import { useToast } from '~/stores/toast';
 import { errText } from '~/lib/errText';
@@ -51,7 +52,9 @@ export default function NewGloriaScreen() {
     return [...m.entries()];
   }, [summits]);
   const summary = picked != null ? prefillSummary(picked) : null;
-  const surveyors = defaultSurveyorString();
+  // Starts from the default surveyors (設定 → 調查者); the picker changes it for this survey.
+  const [surveyors, setSurveyors] = useState<string | null>(() => defaultSurveyorString());
+  const [pickingSurveyors, setPickingSurveyors] = useState(false);
 
   const saveSummit = () => {
     const country = form.country.trim().toUpperCase();
@@ -153,13 +156,27 @@ export default function NewGloriaScreen() {
 
         <View className="gap-1.5">
           <Label>{t('gloria.new.surveyors')}</Label>
-          <Card className="px-3 py-2">
-            <Text className="text-sm text-gray-900 dark:text-gray-100">{surveyors || t('gloria.new.noSurveyors')}</Text>
-          </Card>
+          <Pressable onPress={() => setPickingSurveyors(true)} accessibilityRole="button" accessibilityLabel={t('gloria.new.surveyors')}>
+            <Card className="flex-row items-center px-3 py-2">
+              <Text className={`flex-1 text-sm ${surveyors ? 'text-gray-900 dark:text-gray-100' : 'text-gray-400'}`}>
+                {surveyors || t('gloria.new.noSurveyors')}
+              </Text>
+              <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
+            </Card>
+          </Pressable>
+          <SurveyorAssignSheet
+            visible={pickingSurveyors}
+            current={surveyors ?? ''}
+            onCancel={() => setPickingSurveyors(false)}
+            onAssign={(v) => {
+              setPickingSurveyors(false);
+              setSurveyors(v.trim() || null);
+            }}
+          />
         </View>
       </ScrollView>
       <View className="border-t border-gray-200 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
-        <Btn primary label={t('gloria.new.start')} disabled={picked == null} onPress={() => picked != null && void startGloriaAndOpen(picked)} />
+        <Btn primary label={t('gloria.new.start')} disabled={picked == null} onPress={() => picked != null && void startGloriaAndOpen(picked, surveyors)} />
       </View>
     </SafeAreaView>
   );

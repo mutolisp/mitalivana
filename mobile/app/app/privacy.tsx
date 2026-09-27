@@ -9,7 +9,7 @@ import { useTranslation } from 'react-i18next';
 import { Linking, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BackHeaderLeft } from '~/lib/goBack';
-import { parsePolicy, type Inline } from '~/lib/policyMarkdown';
+import { inAppBlocks, isOpenableUrl, parsePolicy, type Inline } from '~/lib/policyMarkdown';
 
 const policy = require('~/generated/privacy.json') as { zh: string; en: string };
 
@@ -19,7 +19,7 @@ function Spans({ spans }: { spans: Inline[] }) {
       {spans.map((s, i) =>
         s.url ? (
           // Relative links (the other language's .md) have nowhere to go in the app.
-          /^https?:\/\//.test(s.url) ? (
+          isOpenableUrl(s.url) ? (
             <Text key={i} className="text-[#00797b] underline dark:text-cyan-300" onPress={() => void Linking.openURL(s.url!)}>
               {s.text}
             </Text>
@@ -43,7 +43,7 @@ function Spans({ spans }: { spans: Inline[] }) {
 
 export default function PrivacyScreen() {
   const { t, i18n } = useTranslation();
-  const blocks = useMemo(() => parsePolicy(i18n.language.startsWith('zh') ? policy.zh : policy.en), [i18n.language]);
+  const blocks = useMemo(() => inAppBlocks(parsePolicy(i18n.language.startsWith('zh') ? policy.zh : policy.en)), [i18n.language]);
   return (
     <SafeAreaView edges={['bottom']} className="flex-1 bg-white dark:bg-gray-950">
       <Stack.Screen options={{ title: t('nav.privacy'), headerLeft: BackHeaderLeft }} />

@@ -10,6 +10,7 @@
  *   - sheet headers: spCode dropped, 12_+13_ merged in the right order
  *   - morphospecies labels (sp1, sp2): next label, relabel plan, sheet comments
  *   - survey dates ↔ unit dates: span, clock times kept, fill only empty units
+ *   - temperature loggers: cycle by date, carry-forward, letters, codes, positions
  *
  * Run: npm run check:gloria
  */
@@ -40,6 +41,8 @@ import { bySpeciesOrder } from '../src/modules/gloria/model/speciesOrder.ts';
 import { followCoverTimes, nextMinute } from '../src/modules/gloria/model/quadratTimes.ts';
 import { nextMorphoLabel, planNewMorpho } from '../src/modules/gloria/model/morpho.ts';
 import { unitTimeSpan, surveyDatesFromUnits, planUnitDates, takesRealStart } from '../src/modules/gloria/model/surveyDates.ts';
+import { cycleOf, carryForward, missingCarry, nextLoggerLabel, loggerCode, loggerPhotoItem, validQuadrat, utcDiffHours, form4Id } from '../src/modules/gloria/model/loggers.ts';
+import { loggerRows, planLoggerFiles, temperatureLoggersId, H04_TEMPERATURE_LOGGERS } from '../src/modules/gloria/export/loggerRows.ts';
 import { speciesComments } from '../src/modules/gloria/export/sheetRows.ts';
 
 let failures = 0;
@@ -599,6 +602,54 @@ eq('SAS abundance codes (sheet 33_)', SAS_ABUNDANCE_CODE, { d: 1, c: 2, s: 3, r:
     { fill: ['N'], value: at(8, 14, 0, 0), otherDay: [{ code: 'N05', start_ts: at(8, 15, 11, 20) }] });
   eq('date-only start takes the real time only on that day',
     [takesRealStart(at(8, 14, 0), at(8, 14, 9, 30)), takesRealStart(at(8, 14, 0), at(9, 20, 9, 30))], [true, false]);
+}
+
+// ── Temperature loggers (manual §4.3, Box 6.1, Form 4) ──
+{
+  const d = (y, m, dd, h = 12) => new Date(y, m - 1, dd, h).getTime();
+  const surveys = [{ mocy: 4, start_ts: d(2026, 8, 4, 9) }, { mocy: 5, start_ts: d(2030, 7, 10, 9) }, { mocy: 3, start_ts: d(2022, 7, 27) }];
+  eq('cycle: a 2028 visit belongs to mocy 4', cycleOf(d(2028, 7, 12), surveys), 4);
+  eq('cycle: a visit on the day mocy 5 starts (earlier hour) is mocy 5', cycleOf(d(2030, 7, 10, 7), surveys), 5);
+  eq('cycle: before the first survey → the first one', cycleOf(d(2020, 1, 1), surveys), 3);
+  eq('cycle: no survey → null', cycleOf(d(2028, 1, 1), []), null);
+  const L = (uuid, role, quadrat, label, flags, extra = {}) => ({ uuid, role, direction: quadrat[0], quadrat, label, serial: `s-${label}`, logger_type: 'Hobo MX2203', start_ts: 1, dist11_m: 1.5, dist31_m: 2.25, flags: flags ? JSON.stringify(flags) : null, ...extra });
+  const visit1 = [L('ra', 'readout', 'E22', 'a', ['LC']), L('rb', 'readout', 'E22', 'b', null), L('ic', 'install', 'E22', 'c', null), L('id', 'install', 'E22', 'd', null), L('wn', 'readout', 'W22', 'a', ['BC'])];
+  eq('carry: installs and loggers still in the ground; a changed one (LC) is not', carryForward(visit1).map((x) => x.prev_uuid), ['rb', 'ic', 'id', 'wn']);
+  eq('carry: seeds keep serial, type, place and distances', carryForward([visit1[2]])[0], { direction: 'E', quadrat: 'E22', label: 'c', serial: 's-c', logger_type: 'Hobo MX2203', start_ts: 1, dist11_m: 1.5, dist31_m: 2.25, prev_uuid: 'ic' });
+  {
+    const seeds = carryForward(visit1);
+    const have = [{ role: 'readout', quadrat: 'E22', label: 'B', prev_uuid: null }, { role: 'readout', quadrat: 'W22', label: 'a', prev_uuid: 'wn' }, { role: 'install', quadrat: 'E22', label: 'c', prev_uuid: null }];
+    eq('refill: skips rows already carried and read-outs typed in at the same place and letter', missingCarry(seeds, have).map((x) => x.prev_uuid), ['ic', 'id']);
+    eq('refill: nothing there yet → everything', missingCarry(seeds, []).length, 4);
+  }
+  eq('letter: next after every one used at the position', [nextLoggerLabel([]), nextLoggerLabel(['a', 'b']), nextLoggerLabel(['a', 'C', null, 'x1'])], ['a', 'c', 'd']);
+  eq('full-length code with the letter (Box 6.1)', loggerCode({ country: 'TW', target_region: 'SAC', summit: 'JIA' }, 'E22', 'c', 2026), 'TW_SAC_JIA_E22c_2026');
+  eq('photo item LOG-E22c fits 8 characters', [loggerPhotoItem('E22', 'c'), loggerPhotoItem('E22', 'c').length], ['LOG-E22c', 8]);
+  eq('position: centre and the four sides allowed, corners refused', ['N22', 'N12', 'N21', 'N23', 'N32', 'N11', 'N13', 'N31', 'N33', 'X22'].map(validQuadrat), [true, true, true, true, true, false, false, false, false, false]);
+  eq('UTC difference is minus the zone offset, as Form 4 note 5 (Taiwan −8)', utcDiffHours({ getTimezoneOffset: () => -480 }), -8);
+  eq('Form 4 identifier, as the sheet writes it', form4Id(4, 'TW-SAC-JIA', 1, d(2026, 8, 4)), 'mocy4_TW-SAC-JIA_1_temperature-logger_20260804');
+  // Export: 04_ rows, the 01_ identifier, file names.
+  const sm = { full_code: 'TW-SAC-JIA', country: 'TW', target_region: 'SAC', summit: 'JIA' };
+  const lg = (o) => ({ uuid: 'u', role: 'install', quadrat: 'E22', label: 'c', serial: '22237134', logger_type: 'Hobo MX2203', start_ts: d(2026, 8, 5, 12), stop_ts: null, utc_diff_h: -8, dist11_m: 1.234, dist31_m: 2, photo_open: 1, photo_closed: null, photo_open_uri: null, photo_closed_uri: 'file:///x/photos/p.jpg', flags: null, researcher: null, comments: null, data_files: null, ...o });
+  const v2 = { uuid: 'v2', visit_ts: d(2028, 7, 12), researchers: '乙', comments: null, form4_files: null, loggers: [lg({ uuid: 'r1', role: 'readout', stop_ts: d(2028, 7, 12, 10), flags: '["DR"]', data_files: JSON.stringify([{ uri: 'file:///x/files/a.csv', name: 'E22c 2028.csv', size: 10 }]) })] };
+  const v1 = { uuid: 'v1', visit_ts: d(2026, 8, 5), researchers: '陳', comments: null, form4_files: JSON.stringify([{ uri: 'ph://1', name: 'scan.pdf', size: null }, { uri: 'ph://2', name: 'p2.jpg', size: null }]), loggers: [lg({})] };
+  const rows = loggerRows(4, sm, [v2, v1]);
+  const col = (r, h) => r[H04_TEMPERATURE_LOGGERS.indexOf(h)];
+  eq('04_: visits in date order, one row per logger', rows.map((r) => [col(r, 'visitDate'), col(r, 'role')]), [['2026-08-05', 'installation'], ['2028-07-12', 'read-out']]);
+  const sameDay = loggerRows(4, sm, [v1, { ...v1, uuid: 'v1b', form4_files: null }]).map((r) => col(r, 'id'));
+  eq('04_: ids stay unique with two visits on one day (numbered by visit)', [new Set(sameDay).size, sameDay[1]], [2, 'TW-SAC-JIA-mocy_4-logger_2-E22c-install']);
+  eq('04_: code, times, UTC, distances to 2 decimals, photo checks (tick or photo)',
+    ['loggerCode', 'startDate', 'startTime', 'utcDiff', 'dist11', 'photoCheckOpen', 'photoCheckClosed', 'researcher', 'form4'].map((h) => col(rows[0], h)),
+    ['TW_SAC_JIA_E22c_2026', '2026-08-05', '12:00', '-8', '1.23', 'TRUE', 'TRUE', '陳', 'mocy4_TW-SAC-JIA_1_temperature-logger_20260805']);
+  eq('04_: read-out row keeps the install year in its code, flags and file names',
+    ['loggerCode', 'stopTime', 'flags', 'dataFiles', 'form4'].map((h) => col(rows[1], h)),
+    ['TW_SAC_JIA_E22c_2026', '10:00', 'DR', 'TW_SAC_JIA_E22c_2026_22237134_E22c_2028.csv', 'mocy4_TW-SAC-JIA_2_temperature-logger_20280712']);
+  eq('01_ temperature_loggers: the cycle\'s first visit', [temperatureLoggersId(4, sm, [v2, v1]), temperatureLoggersId(4, sm, [])], ['mocy4_TW-SAC-JIA_1_temperature-logger_20260805', '']);
+  eq('zip files: Form 4 scans under the form identifier (numbered), data under code_serial_name',
+    planLoggerFiles(4, sm, [v2, v1]).map((f) => [f.kind, f.name]),
+    [['form4', 'mocy4_TW-SAC-JIA_1_temperature-logger_20260805.pdf'], ['form4', 'mocy4_TW-SAC-JIA_1_temperature-logger_20260805-2.jpg'], ['data', 'TW_SAC_JIA_E22c_2026_22237134_E22c_2028.csv']]);
+  const named = planPhotoNames({ mocy: 4, country: 'TW', region: 'SAC', summit: 'JIA', date: '20260804', p5m: {}, points: [], units: [], loggers: [{ uri: 'u1', item: 'LOG-E22c', note: 'open', date: '20280712' }] });
+  eq('logger photo: Annex III name with LOG- item, visit date and open/closed', named[0].name, '04_TW_SAC_JIA_LOG-E22c_20280712_00001_open.jpg');
 }
 
 if (failures) {

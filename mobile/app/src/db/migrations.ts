@@ -1896,6 +1896,69 @@ const MIGRATIONS: Migration[] = [
       addColumnIfMissing(db, `ALTER TABLE gloria_units ADD COLUMN date_only INTEGER;`);
     },
   },
+  {
+    // GLORIA temperature loggers (manual §4.3, Form 4). A visit is one Form 4:
+    // readings, battery or logger changes and new installations on one day.
+    // Visits belong to the SUMMIT, not to a survey — loggers are read and
+    // swapped several times between two monitoring cycles — and fall into a
+    // cycle by date (model/loggers cycleOf), so the cycle is never stored.
+    // `survey_id` only notes the survey a visit was entered from.
+    // Locks and ticks are 1 / NULL (never 0), merge-safe like freq_skipped.
+    // File columns hold JSON [{uri, name, size}] of files kept in
+    // Documents/files/.
+    version: 65,
+    up: (db) => {
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS gloria_logger_visits (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          uuid TEXT NOT NULL UNIQUE,
+          summit_id INTEGER NOT NULL,
+          survey_id INTEGER,
+          visit_ts INTEGER NOT NULL,
+          researchers TEXT,
+          comments TEXT,
+          form4_files TEXT,
+          locked INTEGER,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          FOREIGN KEY (summit_id) REFERENCES gloria_summits(id) ON DELETE CASCADE,
+          FOREIGN KEY (survey_id) REFERENCES gloria_surveys(id) ON DELETE SET NULL
+        );
+      `);
+      db.executeSync(`CREATE INDEX IF NOT EXISTS idx_glv_summit ON gloria_logger_visits(summit_id, visit_ts);`);
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS gloria_loggers (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          uuid TEXT NOT NULL UNIQUE,
+          visit_id INTEGER NOT NULL,
+          role TEXT NOT NULL CHECK (role IN ('install', 'readout')),
+          direction TEXT NOT NULL CHECK (direction IN ('N', 'E', 'S', 'W')),
+          quadrat TEXT NOT NULL,
+          label TEXT,
+          serial TEXT,
+          logger_type TEXT,
+          start_ts INTEGER,
+          stop_ts INTEGER,
+          utc_diff_h REAL,
+          dist11_m REAL,
+          dist31_m REAL,
+          photo_open INTEGER,
+          photo_closed INTEGER,
+          photo_open_uri TEXT,
+          photo_closed_uri TEXT,
+          flags TEXT,
+          researcher TEXT,
+          comments TEXT,
+          data_files TEXT,
+          prev_uuid TEXT,
+          sort_order INTEGER,
+          updated_at INTEGER NOT NULL,
+          FOREIGN KEY (visit_id) REFERENCES gloria_logger_visits(id) ON DELETE CASCADE
+        );
+      `);
+      db.executeSync(`CREATE INDEX IF NOT EXISTS idx_glog_visit ON gloria_loggers(visit_id);`);
+    },
+  },
 ];
 
 /** Highest schema version this build knows how to produce. Backup/restore uses

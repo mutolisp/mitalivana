@@ -66,6 +66,8 @@ export type GloriaDoc = {
   }>;
   /** Photo checklist (v51); optional so older yml still loads. */
   photo_checks?: Array<{ item: string; checked: number; photo_uri: string | null; updated_at: number }>;
+  /** Temperature-logger visits of this survey's cycle (v65), each with its loggers. Optional: older files have none. */
+  logger_visits?: Array<Record<(typeof VISIT_FIELDS)[number], unknown> & { loggers: Array<Record<(typeof LOGGER_FIELDS)[number], unknown>> }>;
   species: Array<{
     unit: string;
     serial: number;
@@ -134,6 +136,13 @@ export const TAXON_FIELDS = [
   'serial', 'taxon_id', 'used_name_id', 'used_scientific_name', 'verbatim_identification', 'created_at',
 ] as const;
 export const PHOTO_CHECK_FIELDS = ['item', 'checked', 'photo_uri', 'updated_at'] as const;
+/** Logger visit and logger columns carried verbatim (everything but ids and foreign keys). */
+export const VISIT_FIELDS = ['uuid', 'visit_ts', 'researchers', 'comments', 'form4_files', 'locked', 'created_at', 'updated_at'] as const;
+export const LOGGER_FIELDS = [
+  'uuid', 'role', 'direction', 'quadrat', 'label', 'serial', 'logger_type', 'start_ts', 'stop_ts', 'utc_diff_h', 'dist11_m',
+  'dist31_m', 'photo_open', 'photo_closed', 'photo_open_uri', 'photo_closed_uri', 'flags', 'researcher', 'comments',
+  'data_files', 'prev_uuid', 'sort_order', 'updated_at',
+] as const;
 export const SPECIES_FIELDS = [
   'occurrence_id', 'cover_pct', 'abundance', 'layer', 'cf', 'freq_cells', 'freq_count', 'point_hits', 'legacy_hits',
   'reproductive_condition', 'leaf_phenology', 'comments', 'sort_order', 'created_at', 'updated_at',
@@ -149,6 +158,7 @@ export type GloriaDocInput = {
   /** Unit-species rows; `unit_id` and `gloria_taxon_id` are resolved through the maps. */
   species: Row[];
   photoChecks?: Row[];
+  loggerVisits?: Array<Row & { loggers: Row[] }>;
   displayName?: (taxonId: string) => string | undefined;
 };
 
@@ -191,5 +201,13 @@ export function buildGloriaDoc(i: GloriaDocInput): GloriaDoc {
       ...(pick(s, SPECIES_FIELDS) as Omit<GloriaDoc['species'][number], 'unit' | 'serial'>),
     })),
     photo_checks: (i.photoChecks ?? []).map((c) => pick(c, PHOTO_CHECK_FIELDS) as NonNullable<GloriaDoc['photo_checks']>[number]),
+    ...(i.loggerVisits?.length
+      ? {
+          logger_visits: i.loggerVisits.map((v) => ({
+            ...pick(v, VISIT_FIELDS),
+            loggers: v.loggers.map((l) => pick(l, LOGGER_FIELDS)),
+          })) as NonNullable<GloriaDoc['logger_visits']>,
+        }
+      : {}),
   };
 }
