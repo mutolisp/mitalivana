@@ -14,7 +14,7 @@
 |---|---|
 | `Plan.md`（本檔） | **待辦** ＋ 現行架構與長效設計決策 |
 | `Update_log.md` | 已 ship 與踩過的坑；附錄 A–D 收了本檔原本 4,000 多行的 sprint 推導過程 |
-| `Device_test.md` | 實機驗證清單（781 項，章節與項目有編號如 43-4；通過 23、M 2；互動清單 https://claude.ai/artifact/M6suPJa1FS8ABG7gqmsu1Z ，由 `docs/device-test/build.py` 產生，2026-09-27）。**驗證項不要寫回本檔** |
+| `Device_test.md` | 實機驗證清單（782 項，章節與項目有編號如 43-4；通過 23、M 2；互動清單 https://claude.ai/artifact/M6suPJa1FS8ABG7gqmsu1Z ，由 `docs/device-test/build.py` 產生，2026-09-27）。**驗證項不要寫回本檔** |
 | 守門 | `npm run check:*` 共 **46 支**（最新加入 `check:team-crypto`、`check:team-quota`、`check:privacy`） |
 | `docs/` | 仍代表現況的參考文件：檢索表、樣區、匯出外部 API、報表、物種詳細頁、地圖、i18n、多人合併（`Team_merge.md`）、隊伍同步（`Team_sync.md`）；`docs/gloria-ui/` GLORIA 介面草稿（五語） |
 | `sync-worker/` | 隊伍同步中繼伺服器（Cloudflare Worker＋R2）與自架說明（README） |
