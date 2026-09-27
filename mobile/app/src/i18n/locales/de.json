@@ -2898,7 +2898,8 @@
     "endWithIssues_other": "{{count}} Warnungen sind offen. Trotzdem beenden? Später wieder öffnen möglich.",
     "kb": {
       "next": "Weiter",
-      "done": "Fertig"
+      "done": "Fertig",
+      "prev": "Zurück"
     },
     "num": {
       "rejectTitle": "Wert außerhalb des Bereichs",
@@ -3421,7 +3422,7 @@
     "mergedFromToast": "Daten von {{names}} zusammengeführt",
     "members": "Mitglieder",
     "myNameTitle": "Mein Name im Team",
-    "myNameMsg": "Das Team sieht ihn beim Synchronisieren (z. B. „Daten von Lin zusammengeführt“). Er steht nur in den verschlüsselten Daten; der Server sieht ihn nicht.",
+    "myNameMsg": "Das Team sieht ihn beim Synchronisieren (z. B. „Daten von Mitglied A zusammengeführt“). Er steht nur in den verschlüsselten Daten; der Server sieht ihn nicht.",
     "myNamePlaceholder": "z. B. Lin Hsiao-ming",
     "membersMe": "Ich: {{name}}",
     "unnamed": "(nicht festgelegt)",
@@ -3471,7 +3472,8 @@
     "teamSynced_other": "{{count}} geänderte Datensätze hochgeladen",
     "teamImported_one": "{{count}} neuer Datensatz importiert",
     "teamImported_other": "{{count}} neue Datensätze importiert",
-    "teamNothing": "Alles ist auf dem neuesten Stand"
+    "teamNothing": "Alles ist auf dem neuesten Stand",
+    "mergedWithSummary": "{{who}}: {{what}}"
   },
   "teamDeploy": {
     "title": "Eigenes Cloudflare verwenden",
@@ -3508,5 +3510,22 @@
     "makeDefaultMsg": "Neue Teams beginnen auf diesem Server. Bestehende Teams bleiben; mit „Auf anderen Server umziehen“ verschieben.",
     "makeDefaultNo": "Nicht jetzt",
     "makeDefaultYes": "Als Standard"
+  },
+  "mergeLog": {
+    "sep": ", ",
+    "title": "Zusammenführungsprotokoll",
+    "intro": "Was jede Zusammenführung von Teamdaten (Team-Sync oder importierte Datei) hinzugefügt, geändert und gelöscht hat. Nur auf diesem Telefon; wird nie exportiert oder synchronisiert.",
+    "none": "In diesen Datensatz wurden noch keine Teamdaten zusammengeführt",
+    "unsigned": "Unsigniertes Teammitglied",
+    "details": "Details",
+    "actionAdded": "Hinzugefügt",
+    "actionChanged": "Geändert",
+    "actionDeleted": "Gelöscht",
+    "added_one": "{{count}} hinzugefügt",
+    "added_other": "{{count}} hinzugefügt",
+    "changed_one": "{{count}} geändert",
+    "changed_other": "{{count}} geändert",
+    "deleted_one": "{{count}} gelöscht",
+    "deleted_other": "{{count}} gelöscht"
   }
 }

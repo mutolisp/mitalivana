@@ -180,6 +180,10 @@ export function purgeOrphanRows(): void {
     ['sync_links', `record_kind = 'session' AND record_uuid NOT IN (SELECT uuid FROM sessions WHERE uuid IS NOT NULL)`],
     ['sync_links', `record_kind = 'plot' AND record_uuid NOT IN (SELECT uuid FROM plot_surveys)`],
     ['sync_links', `record_kind = 'gloria' AND record_uuid NOT IN (SELECT uuid FROM gloria_surveys)`],
+    // Merge log (v67) of records no longer here.
+    ['merge_log', `record_kind = 'session' AND record_uuid NOT IN (SELECT uuid FROM sessions WHERE uuid IS NOT NULL)`],
+    ['merge_log', `record_kind = 'plot' AND record_uuid NOT IN (SELECT uuid FROM plot_surveys)`],
+    ['merge_log', `record_kind = 'gloria' AND record_uuid NOT IN (SELECT uuid FROM gloria_surveys)`],
     ['sync_queue', `record_uuid NOT IN (SELECT uuid FROM sessions WHERE uuid IS NOT NULL UNION SELECT uuid FROM plot_surveys UNION SELECT uuid FROM gloria_surveys)`],
   ];
   for (const [table, where] of orphanDeletes) {

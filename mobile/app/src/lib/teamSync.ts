@@ -33,7 +33,7 @@ import { ApiError, fetchText } from './apiFetch';
 import { siteToImported } from './bundleExport';
 import { buildPlotYamlDoc, buildSessionYamlDoc } from './bundleYaml';
 import { COMBINERS, gloriaSide, plotSide, sessionSide, type MergeKind } from './mergeDocs';
-import { baseOf, diffSides, needsReview, rowHash, type MergeSide } from './mergeEngine';
+import { baseOf, diffSides, needsReview, rowHash, type MergeChange, type MergeSide } from './mergeEngine';
 import { remapUnknownTaxa } from './recordCreate';
 import { readRecordImportFromBytes, type ReadRecordImport } from './recordImportZip';
 import {
@@ -551,6 +551,8 @@ export type SyncOutcome = {
   merged: number;
   /** Their names, when they signed (for the toast). */
   mergedFrom: string[];
+  /** Rows the merges changed (for the toast's summary; the merge log keeps them). */
+  changes: MergeChange[];
   /** A copy needs the reviewer: the merge screen was opened. */
   review: boolean;
   /** No connection: queued for the next 同步. */
@@ -583,7 +585,7 @@ export async function syncRecord(
   const rec = recordKey(keys.encKey, kind, who.ident);
   const dev = deviceKey(keys.encKey, installId());
   link(teamId, kind, who.uuid, rec, null);
-  const out: SyncOutcome = { merged: 0, mergedFrom: [], review: false, queued: false, uploaded: false };
+  const out: SyncOutcome = { merged: 0, mergedFrom: [], changes: [], review: false, queued: false, uploaded: false };
   // This device's copy as it is now, with its base (`sync.base`).
   const put = async () => {
     const { text, hash } = recordText(kind, id, who.uuid, team.member_name);
@@ -628,7 +630,8 @@ export async function syncRecord(
       if (prep.items.every((i) => !needsReview(i))) {
         // Only additions and one-sided edits: applied like the review's
         // defaults, without a backup (nothing is overwritten that was changed here).
-        await applyPendingMerge({ ...prep, afterApply: onApplied }, new Map(), { backup: false });
+        const res = await applyPendingMerge({ ...prep, afterApply: onApplied, from: payload.sync?.author ?? null }, new Map(), { backup: false });
+        out.changes.push(...res.changes);
         out.merged += 1;
         if (payload.sync?.author) out.mergedFrom.push(payload.sync.author);
         continue;
@@ -695,6 +698,7 @@ export type TeamSyncOutcome = {
   sent: number;
   merged: number;
   mergedFrom: string[];
+  changes: MergeChange[];
   /** The team's records that were not on this device yet. */
   imported: number;
   /** Stopped at a copy that needs the reviewer (the merge screen is open). */
@@ -710,7 +714,7 @@ export type TeamSyncOutcome = {
  * Stops at the first review or when the connection drops, like flushQueue.
  */
 export async function syncTeam(teamId: string): Promise<TeamSyncOutcome> {
-  const out: TeamSyncOutcome = { sent: 0, merged: 0, mergedFrom: [], imported: 0, review: false, queued: false };
+  const out: TeamSyncOutcome = { sent: 0, merged: 0, mergedFrom: [], changes: [], imported: 0, review: false, queued: false };
   const linked = rows<{ record_kind: MergeKind; record_uuid: string }>(
     `SELECT record_kind, record_uuid FROM sync_links WHERE team_id = ? ORDER BY last_synced_at`,
     [teamId],
@@ -723,6 +727,7 @@ export async function syncTeam(teamId: string): Promise<TeamSyncOutcome> {
     if (r.uploaded) out.sent += 1;
     out.merged += r.merged;
     out.mergedFrom.push(...r.mergedFrom);
+    out.changes.push(...r.changes);
     if (r.review) return { ...out, review: true };
   }
   out.imported = (await pullTeamRecords(teamId)).imported;

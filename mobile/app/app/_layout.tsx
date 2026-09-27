@@ -149,6 +149,7 @@ function ThemedShell() {
             <Stack.Screen name="inat-upload" options={{ title: t('nav.inatUpload') }} />
             <Stack.Screen name="report/[kind]/[id]" options={{ title: t('report.navTitle') }} />
             <Stack.Screen name="merge" options={{ title: t('teamMerge.title') }} />
+            <Stack.Screen name="merge-log" options={{ title: t('mergeLog.title') }} />
           </Stack>
         </View>
         {/* Select popovers render here, NOT via React.createPortal: the portal

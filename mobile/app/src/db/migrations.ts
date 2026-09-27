@@ -1969,6 +1969,26 @@ const MIGRATIONS: Migration[] = [
       addColumnIfMissing(db, `ALTER TABLE gloria_units ADD COLUMN no_researchers INTEGER;`);
     },
   },
+  {
+    // Merge log: what each merge (team sync or an imported teammate's file)
+    // changed in a record, row by row (mergeEngine describeMerge), for the
+    // record's 合併紀錄. Kept per device, not exported or synced; orphans are
+    // cleared with the record (db/cleanup).
+    version: 67,
+    up: (db) => {
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS merge_log (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          record_kind TEXT NOT NULL,
+          record_uuid TEXT NOT NULL,
+          author TEXT,
+          merged_at INTEGER NOT NULL,
+          changes TEXT NOT NULL
+        );
+      `);
+      db.executeSync(`CREATE INDEX IF NOT EXISTS idx_merge_log_record ON merge_log(record_kind, record_uuid, merged_at);`);
+    },
+  },
 ];
 
 /** Highest schema version this build knows how to produce. Backup/restore uses

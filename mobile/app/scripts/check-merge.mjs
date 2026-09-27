@@ -18,7 +18,9 @@
  */
 import {
   baseOf,
+  countChanges,
   defaultDecision,
+  describeMerge,
   diffSides,
   planOps,
   readSyncBlock,
@@ -78,6 +80,17 @@ eq('conflict lists the differing field only', d2[1].fields, ['cover']);
 const r2 = apply(L2, planOps(d2, decide(d2, (i) => (i.kind === 'conflict' ? { pick: 'local', fields: { cover: 'remote' } } : null))));
 eq('auto took 20, per-field pick took 15', r2.sp.map((r) => r.data.cover), [20, 15]);
 
+// ── 2b. the merge log reads back what was written ──
+{
+  const dec = decide(d2, (i) => (i.kind === 'conflict' ? { pick: 'local', fields: { cover: 'remote' } } : null));
+  eq('log: auto and per-field conflict both show old → new', describeMerge(d2, dec).map((c) => [c.action, c.label, c.fields]),
+    [['changed', 'x', [{ f: 'cover', from: 5, to: 20 }]], ['changed', 'y', [{ f: 'cover', from: 10, to: 15 }]]]);
+  eq('log: keeping mine on a conflict logs nothing for it', describeMerge(d2, decide(d2, (i) => (i.kind === 'conflict' ? { pick: 'local' } : null))).map((c) => c.label), ['x']);
+  const dm = describeMerge(first, decide(first, () => null));
+  eq('log: 7 added, duplicates kept mine → not logged', countChanges(dm), { added: 7, changed: 0, deleted: 0 });
+  eq('log: keep both → the duplicates are added too', countChanges(describeMerge(first, decide(first, (i) => (i.kind === 'duplicate' ? { pick: 'both' } : null)))).added, 10);
+}
+
 // ── 3. deletions through the ancestor ──
 const base3 = baseOf({ sp: [row('p', { taxon_id: 't1', v: 1 }), row('q', { taxon_id: 't2', v: 1 }), row('s', { taxon_id: 't3', v: 1 })] });
 const L3 = { sp: [row('p', { taxon_id: 't1', v: 1 }), row('q', { taxon_id: 't2', v: 2 })] }; // s deleted here
@@ -87,6 +100,14 @@ eq('deleted there: unchanged here → asked; changed here → conflict; deleted 
 const R3b = { sp: [row('s', { taxon_id: 't3', v: 9 })] };
 eq('deleted here but changed there → delete conflict', kinds(diffSides(L3, R3b, base3)).includes('deleteConflict:s'), true);
 eq('nothing is deleted by default', planOps(diffSides(L3, R3, base3), new Map()).filter((o) => o.op === 'delete').length, 0);
+
+{
+  const d3 = diffSides(L3, R3, base3);
+  const all = decide(d3, () => ({ pick: 'remote' }));
+  eq('log: nothing deleted by default; taken deletions match the written ones',
+    [countChanges(describeMerge(d3, new Map())).deleted, countChanges(describeMerge(d3, all)).deleted],
+    [0, planOps(d3, all).filter((o) => o.op === 'delete').length]);
+}
 
 // ── 4. no ancestor: never a deletion, a difference is a conflict ──
 eq('older file (no base): missing row is not a deletion', diffSides(L3, { sp: [] }, null).length, 0);

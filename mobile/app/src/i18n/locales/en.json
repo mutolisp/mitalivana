@@ -2898,7 +2898,8 @@
     "endWithIssues_other": "{{count}} warnings are still open. End anyway? You can reopen it later.",
     "kb": {
       "next": "Next",
-      "done": "Done"
+      "done": "Done",
+      "prev": "Previous"
     },
     "num": {
       "rejectTitle": "Value out of range",
@@ -3421,7 +3422,7 @@
     "mergedFromToast": "Merged data from {{names}}",
     "members": "Members",
     "myNameTitle": "My name in the team",
-    "myNameMsg": "Teammates see this when they sync (e.g. “Merged data from Lin”). It travels only inside the encrypted data; the server cannot see it.",
+    "myNameMsg": "Teammates see this when they sync (e.g. “Merged data from Member A”). It travels only inside the encrypted data; the server cannot see it.",
     "myNamePlaceholder": "e.g. Lin Hsiao-ming",
     "membersMe": "Me: {{name}}",
     "unnamed": "(not set)",
@@ -3471,7 +3472,8 @@
     "teamSynced_other": "{{count}} changed records uploaded",
     "teamImported_one": "{{count}} new record imported",
     "teamImported_other": "{{count}} new records imported",
-    "teamNothing": "Everything is up to date"
+    "teamNothing": "Everything is up to date",
+    "mergedWithSummary": "{{who}}: {{what}}"
   },
   "teamDeploy": {
     "title": "Use my own Cloudflare",
@@ -3508,5 +3510,22 @@
     "makeDefaultMsg": "New teams will start on this server. Existing teams are not affected; move them with “Move to another server”.",
     "makeDefaultNo": "Not now",
     "makeDefaultYes": "Make default"
+  },
+  "mergeLog": {
+    "sep": ", ",
+    "title": "Merge log",
+    "intro": "What each merge of a teammate’s data (team sync or an imported file) added, changed and deleted. Kept on this phone only; never exported or synced.",
+    "none": "No teammate’s data has been merged into this record yet",
+    "unsigned": "Unsigned teammate",
+    "details": "Details",
+    "actionAdded": "Added",
+    "actionChanged": "Changed",
+    "actionDeleted": "Deleted",
+    "added_one": "{{count}} added",
+    "added_other": "{{count}} added",
+    "changed_one": "{{count}} changed",
+    "changed_other": "{{count}} changed",
+    "deleted_one": "{{count}} deleted",
+    "deleted_other": "{{count}} deleted"
   }
 }

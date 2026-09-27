@@ -318,6 +318,64 @@ function pickFields(data: Row, fields: string[]): Row {
   return Object.fromEntries(fields.map((f) => [f, data[f] ?? null]));
 }
 
+/** One row as it was changed by a merge, for the merge log and its summary. */
+export type MergeChange = {
+  tbl: string;
+  /** Row title as the review screen shows it (group · label). */
+  label: string;
+  action: 'added' | 'changed' | 'deleted';
+  /** changed: each field with its old and new value (raw, formatted when shown). */
+  fields: Array<{ f: string; from: unknown; to: unknown }>;
+};
+
+const titleOf = (r: MergeRow | null | undefined) => (!r ? '' : r.group && r.group !== r.label ? `${r.group} · ${r.label}` : r.label);
+
+/**
+ * What a merge did, row by row — the same decisions as planOps, read back as
+ * changes. Combined fields (surveyors, time span) count as changed fields.
+ */
+export function describeMerge(items: MergeItem[], decisions: Map<string, Decision>): MergeChange[] {
+  const out: MergeChange[] = [];
+  const changed = (it: MergeItem, fields: string[], from: MergeRow | null | undefined) => {
+    const fs: MergeChange['fields'] = fields.map((f) => ({ f, from: from?.data[f] ?? null, to: it.remote?.data[f] ?? null }));
+    for (const [k, v] of Object.entries(it.patch ?? {})) if (!fields.includes(k)) fs.push({ f: k, from: (from?.extra?.[k] ?? from?.data[k] ?? null) as unknown, to: v as unknown });
+    if (fs.length) out.push({ tbl: it.tbl, label: titleOf(it.remote ?? from), action: 'changed', fields: fs });
+  };
+  for (const it of items) {
+    const d = decisions.get(it.id) ?? defaultDecision(it);
+    switch (it.kind) {
+      case 'added':
+        if (d.pick !== 'local') out.push({ tbl: it.tbl, label: titleOf(it.remote), action: 'added', fields: [] });
+        break;
+      case 'auto':
+        changed(it, d.pick === 'local' ? [] : it.fields, it.local);
+        break;
+      case 'conflict':
+        changed(it, d.pick === 'remote' ? it.fields : it.fields.filter((f) => (d.fields ?? {})[f] === 'remote'), it.local);
+        break;
+      case 'duplicate':
+        if (d.pick === 'both') out.push({ tbl: it.tbl, label: titleOf(it.remote), action: 'added', fields: [] });
+        else if (d.pick === 'remote') changed(it, it.fields, it.dup);
+        break;
+      case 'remoteDeleted':
+        if (d.pick === 'remote') out.push({ tbl: it.tbl, label: titleOf(it.local), action: 'deleted', fields: [] });
+        break;
+      case 'deleteConflict':
+        if (d.pick === 'remote')
+          out.push(it.remote ? { tbl: it.tbl, label: titleOf(it.remote), action: 'added', fields: [] } : { tbl: it.tbl, label: titleOf(it.local), action: 'deleted', fields: [] });
+        break;
+    }
+  }
+  return out;
+}
+
+/** Added / changed / deleted counts of a merge, for the toast. */
+export function countChanges(changes: MergeChange[]): { added: number; changed: number; deleted: number } {
+  const c = { added: 0, changed: 0, deleted: 0 };
+  for (const x of changes) c[x.action] += 1;
+  return c;
+}
+
 /** Counts per kind, for the review screen's summary and the done toast. */
 export function summarizeItems(items: MergeItem[]): Record<ItemKind, number> {
   const out: Record<ItemKind, number> = { added: 0, auto: 0, conflict: 0, duplicate: 0, remoteDeleted: 0, deleteConflict: 0 };

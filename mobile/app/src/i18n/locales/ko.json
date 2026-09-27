@@ -2740,7 +2740,8 @@
     "endWithIssues_other": "경고가 {{count}}건 있습니다. 종료할까요? 나중에 다시 열 수 있습니다.",
     "kb": {
       "next": "다음",
-      "done": "완료"
+      "done": "완료",
+      "prev": "이전"
     },
     "num": {
       "rejectTitle": "범위를 벗어난 값",
@@ -3250,7 +3251,7 @@
     "mergedFromToast": "{{names}}의 데이터를 병합했습니다",
     "members": "팀원",
     "myNameTitle": "팀에서 내 이름",
-    "myNameMsg": "팀원이 동기화할 때 표시됩니다(예: 「린의 데이터를 병합했습니다」). 이름은 암호화된 데이터 안에만 있어 서버는 볼 수 없습니다.",
+    "myNameMsg": "팀원이 동기화할 때 표시됩니다(예: 「팀원 A의 데이터를 병합했습니다」). 이름은 암호화된 데이터 안에만 있어 서버는 볼 수 없습니다.",
     "myNamePlaceholder": "예: 린샤오밍",
     "membersMe": "나: {{name}}",
     "unnamed": "(설정 안 됨)",
@@ -3297,7 +3298,8 @@
     "pullHint": "아래로 당기면 이 팀의 모든 기록을 동기화하고 새 기록을 가져옵니다",
     "teamSynced_other": "변경된 기록 {{count}}건을 업로드했습니다",
     "teamImported_other": "{{count}}건을 새로 가져왔습니다",
-    "teamNothing": "모두 최신이며 새 변경 사항이 없습니다"
+    "teamNothing": "모두 최신이며 새 변경 사항이 없습니다",
+    "mergedWithSummary": "{{who}}: {{what}}"
   },
   "teamDeploy": {
     "title": "내 Cloudflare 사용",
@@ -3334,5 +3336,19 @@
     "makeDefaultMsg": "앞으로 팀을 만들 때 이 서버가 미리 선택됩니다. 이미 만든 팀은 영향이 없으며 「다른 서버로 이전」으로 옮길 수 있습니다.",
     "makeDefaultNo": "안 함",
     "makeDefaultYes": "기본으로 설정"
+  },
+  "mergeLog": {
+    "sep": ", ",
+    "title": "병합 기록",
+    "intro": "팀원 데이터를 병합할 때마다(팀 동기화 또는 가져온 파일) 추가·변경·삭제된 내용. 이 휴대폰에만 저장되며 내보내거나 동기화하지 않습니다.",
+    "none": "이 기록에는 아직 팀원 데이터를 병합한 적이 없습니다",
+    "unsigned": "서명 없는 팀원",
+    "details": "자세히",
+    "actionAdded": "추가",
+    "actionChanged": "변경",
+    "actionDeleted": "삭제",
+    "added_other": "추가 {{count}}건",
+    "changed_other": "변경 {{count}}건",
+    "deleted_other": "삭제 {{count}}건"
   }
 }

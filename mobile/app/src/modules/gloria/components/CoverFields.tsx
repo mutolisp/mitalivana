@@ -120,6 +120,7 @@ function CoverStepper({
             value={v}
             onCommit={(n) => onCommit({ [k]: n })}
             onSubmitEditing={() => go(iRef.current + 1)}
+            onPrev={() => go(iRef.current - 1)}
             commitRef={commitRef}
             target={k as string}
             accessibilityLabel={t(labelKey(k))}

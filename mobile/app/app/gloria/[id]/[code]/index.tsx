@@ -160,10 +160,35 @@ export default function GloriaUnitScreen() {
   // The docked search (group filter + box) rides up with the keyboard and
   // covers the end of the list unless the list is padded by its height.
   const keyboardUp = useKeyboardState((k) => k.isVisible);
+  const keyboardHeight = useKeyboardState((k) => k.height);
+  const [dockHeight, setDockHeight] = useState(0);
+  // After adding a species the list's last row is brought to the top edge of
+  // the search dock (not the page's end — notes and 清空 lie below). Both are
+  // measured on screen, so keyboard handling that differs by platform
+  // (iOS insets, Android window resize) does not enter the sum.
+  const listRef = useRef<View>(null);
+  const dockRef = useRef<View>(null);
+  const scrollY = useRef(0);
+  const alignNewest = () => {
+    // After the frame that moved things (keyboard, dock, new row) has laid out.
+    requestAnimationFrame(() =>
+      listRef.current?.measureInWindow((_x, ly, _w, lh) =>
+        dockRef.current?.measureInWindow((_dx, dy) => {
+          const delta = ly + lh - dy + 4;
+          if (Math.abs(delta) > 1) scrollRef.current?.scrollTo({ y: Math.max(0, scrollY.current + delta), animated: true });
+        }),
+      ),
+    );
+  };
+  // The keyboard and the dock change height after a pick (suggestions close;
+  // on a 1×1 m quadrat the numeric pad replaces the text keyboard): re-align.
+  useEffect(() => {
+    if (followEnd.current && keyboardUp) alignNewest();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [keyboardHeight, dockHeight]);
   useEffect(() => {
     if (!keyboardUp) followEnd.current = false;
   }, [keyboardUp]);
-  const [dockHeight, setDockHeight] = useState(0);
   // 1×1 m: a species just picked from the search gets its cover field focused
   // (numeric pad up), so the next thing typed is its cover. Consumed once the
   // row exists after the reload.
@@ -722,6 +747,8 @@ export default function GloriaUnitScreen() {
           {t('gloria.unit.speciesHeader', { count: spp.length, sum })}
           <Req />
         </Text>
+        {/* Measured for keeping the newest species against the search dock (alignNewest). */}
+        <View ref={listRef} collapsable={false}>
         <Card>
           {spp.length === 0 ? (
             <Text className="px-3 py-6 text-center text-sm text-gray-400">
@@ -746,6 +773,7 @@ export default function GloriaUnitScreen() {
             ))
           )}
         </Card>
+        </View>
         <Text className="text-xs text-gray-400">{t('gloria.unit.coverRule')}</Text>
         {commentsField}
         {clearButton}
@@ -790,6 +818,8 @@ export default function GloriaUnitScreen() {
           {t('gloria.unit.sasHeader', { count: spp.length })}
           <Req />
         </Text>
+        {/* Measured for keeping the newest species against the search dock (alignNewest). */}
+        <View ref={listRef} collapsable={false}>
         <Card>
           {spp.length === 0 ? (
             <Text className="px-3 py-6 text-center text-sm text-gray-400">
@@ -821,6 +851,7 @@ export default function GloriaUnitScreen() {
             ))
           )}
         </Card>
+        </View>
         <Text className="text-xs text-gray-400">{t('gloria.unit.abundanceLegend')}</Text>
         <Text className="text-xs font-semibold text-gray-500 dark:text-gray-400">
           {t('gloria.unit.grazing')}
@@ -1024,8 +1055,12 @@ export default function GloriaUnitScreen() {
           // Keyboard up: exactly the dock's height, so the last row meets its top edge.
           paddingBottom: keyboardUp ? dockHeight + 4 : 16,
         }}
+        onScroll={(e) => {
+          scrollY.current = e.nativeEvent.contentOffset.y;
+        }}
+        scrollEventThrottle={16}
         onContentSizeChange={() => {
-          if (followEnd.current && keyboardUp) scrollRef.current?.scrollToEnd({ animated: true });
+          if (followEnd.current && keyboardUp) alignNewest();
         }}
         onScrollBeginDrag={() => {
           followEnd.current = false;
@@ -1039,7 +1074,7 @@ export default function GloriaUnitScreen() {
           an ended survey still gets corrections (frequency and point walks allow it too). */}
       {!locked ? (
         <KeyboardStickyView offset={{ opened: insets.bottom }}>
-          <View onLayout={(e) => setDockHeight(e.nativeEvent.layout.height)}>
+          <View ref={dockRef} collapsable={false} onLayout={(e) => setDockHeight(e.nativeEvent.layout.height)}>
             {replaceId != null ? (
               <View className="flex-row items-center border-t border-amber-200 bg-amber-50 px-4 py-2 dark:border-amber-900 dark:bg-amber-950/40">
                 <Ionicons name="swap-horizontal" size={14} color="#d97706" />

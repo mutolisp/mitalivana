@@ -2740,7 +2740,8 @@
     "endWithIssues_other": "警告が {{count}} 件あります。終了しますか？あとで再開できます。",
     "kb": {
       "next": "次へ",
-      "done": "完了"
+      "done": "完了",
+      "prev": "前へ"
     },
     "num": {
       "rejectTitle": "範囲外の値",
@@ -3250,7 +3251,7 @@
     "mergedFromToast": "{{names}} のデータを統合しました",
     "members": "メンバー",
     "myNameTitle": "チームでの自分の名前",
-    "myNameMsg": "メンバーが同期するときに表示されます（例：「林 のデータを統合しました」）。名前は暗号化されたデータの中だけにあり、サーバーからは見えません。",
+    "myNameMsg": "メンバーが同期するときに表示されます（例：「メンバーA のデータを統合しました」）。名前は暗号化されたデータの中だけにあり、サーバーからは見えません。",
     "myNamePlaceholder": "例：林 小明",
     "membersMe": "自分：{{name}}",
     "unnamed": "（未設定）",
@@ -3297,7 +3298,8 @@
     "pullHint": "下に引くと、このチームのすべての記録を同期し、新しい記録を取り込みます",
     "teamSynced_other": "変更のあった {{count}} 件の記録をアップロードしました",
     "teamImported_other": "{{count}} 件を新たに取り込みました",
-    "teamNothing": "すべて最新で、新しい変更はありません"
+    "teamNothing": "すべて最新で、新しい変更はありません",
+    "mergedWithSummary": "{{who}}：{{what}}"
   },
   "teamDeploy": {
     "title": "自分の Cloudflare を使う",
@@ -3334,5 +3336,19 @@
     "makeDefaultMsg": "今後チームを作成するとき、このサーバーがあらかじめ選ばれます。作成済みのチームは影響を受けません。「別のサーバーへ移動」で移せます。",
     "makeDefaultNo": "しない",
     "makeDefaultYes": "既定にする"
+  },
+  "mergeLog": {
+    "sep": "、",
+    "title": "統合履歴",
+    "intro": "メンバーのデータを統合するたびに（チーム同期または読み込んだファイル）、追加・変更・削除した内容。この端末にだけ保存され、書き出しや同期はされません。",
+    "none": "この記録にはまだメンバーのデータを統合していません",
+    "unsigned": "署名のないメンバー",
+    "details": "詳細",
+    "actionAdded": "追加",
+    "actionChanged": "変更",
+    "actionDeleted": "削除",
+    "added_other": "追加 {{count}} 件",
+    "changed_other": "変更 {{count}} 件",
+    "deleted_other": "削除 {{count}} 件"
   }
 }

@@ -2740,7 +2740,8 @@
     "endWithIssues_other": "還有 {{count}} 項警告。仍要結束嗎？之後仍可重新開啟。",
     "kb": {
       "next": "下一格",
-      "done": "完成"
+      "done": "完成",
+      "prev": "上一格"
     },
     "num": {
       "rejectTitle": "數值超出範圍",
@@ -3250,7 +3251,7 @@
     "mergedFromToast": "已合併 {{names}} 的資料",
     "members": "隊員",
     "myNameTitle": "我在隊伍中的名稱",
-    "myNameMsg": "隊友同步時會看到這個名稱（例如「已合併 林 的資料」）。名稱只放在加密資料裡，伺服器看不到。",
+    "myNameMsg": "隊友同步時會看到這個名稱（例如「已合併 A 隊員 的資料」）。名稱只放在加密資料裡，伺服器看不到。",
     "myNamePlaceholder": "例如：林小明",
     "membersMe": "我：{{name}}",
     "unnamed": "（未設定）",
@@ -3297,7 +3298,8 @@
     "pullHint": "往下拉：同步這個隊伍的所有記錄，並取得新的記錄",
     "teamSynced_other": "已上傳 {{count}} 筆有變更的記錄",
     "teamImported_other": "新匯入 {{count}} 筆",
-    "teamNothing": "都是最新的，沒有新的變更"
+    "teamNothing": "都是最新的，沒有新的變更",
+    "mergedWithSummary": "{{who}}：{{what}}"
   },
   "teamDeploy": {
     "title": "用我自己的 Cloudflare",
@@ -3334,5 +3336,19 @@
     "makeDefaultMsg": "之後建立隊伍時，會預先選這台伺服器。已建立的隊伍不受影響，可以用「搬移到其他伺服器」移過來。",
     "makeDefaultNo": "不用",
     "makeDefaultYes": "設為預設"
+  },
+  "mergeLog": {
+    "sep": "、",
+    "title": "合併紀錄",
+    "intro": "每次合併隊友資料（隊伍同步或匯入的檔案）新增、修改、刪除了哪些內容。只存在這台手機，不會匯出或同步。",
+    "none": "這筆記錄還沒有合併過隊友的資料",
+    "unsigned": "未署名的隊友",
+    "details": "明細",
+    "actionAdded": "新增",
+    "actionChanged": "修改",
+    "actionDeleted": "刪除",
+    "added_other": "新增 {{count}} 項",
+    "changed_other": "修改 {{count}} 項",
+    "deleted_other": "刪除 {{count}} 項"
   }
 }

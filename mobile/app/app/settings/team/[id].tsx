@@ -4,6 +4,7 @@
  * a single record; that is the record screen's ⋯ → cloud button. Pulling down syncs
  * every linked record of the team.
  */
+import { mergeSummary } from '~/lib/mergeSummaryText';
 import { useFocusEffect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -105,7 +106,13 @@ export default function TeamScreen() {
       else if (!r.review) {
         const parts = [
           r.sent ? t('teamSync.teamSynced', { count: r.sent }) : null,
-          r.mergedFrom.length ? t('teamSync.mergedFromToast', { names: [...new Set(r.mergedFrom)].join('、') }) : null,
+          r.mergedFrom.length
+            ? (() => {
+                const who = t('teamSync.mergedFromToast', { names: [...new Set(r.mergedFrom)].join('、') });
+                const what = mergeSummary(t, r.changes);
+                return what ? t('teamSync.mergedWithSummary', { who, what }) : who;
+              })()
+            : null,
           r.imported ? t('teamSync.teamImported', { count: r.imported }) : null,
         ].filter(Boolean);
         toast(parts.length ? parts.join('；') : t('teamSync.teamNothing'));

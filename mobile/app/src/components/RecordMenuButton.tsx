@@ -14,6 +14,8 @@ import { useTranslation } from 'react-i18next';
 import { Alert } from 'react-native';
 import { showActionSheet } from '~/components/ActionSheet';
 import type { MergeKind } from '~/lib/mergeDocs';
+import { hasMergeLog } from '~/db/mergeLog';
+import { mergeSummary } from '~/lib/mergeSummaryText';
 import { hasSecret, linkedTeams, listTeams, recordUuid, syncRecord } from '~/lib/teamSync';
 import { teamSyncErrorText } from '~/lib/teamSyncText';
 import { useToast } from '~/stores/toast';
@@ -36,13 +38,20 @@ export function RecordMenuButton({
   const [hasTeam, setHasTeam] = useState(false);
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState(false);
+  const [hasLog, setHasLog] = useState(false);
+  const openLog = () => {
+    const uuid = recordUuid(kind, id);
+    if (uuid) router.push({ pathname: '/merge-log', params: { kind, uuid } } as Href);
+  };
   // Only teams this device holds the key for: a team restored from a backup
   // without its key cannot sync, so it must not bring up the button.
   useFocusEffect(
     useCallback(() => {
       void Promise.all(listTeams().map((x) => hasSecret(x.team_id))).then((keys) => setHasTeam(keys.some(Boolean)));
+      const uuid = recordUuid(kind, id);
+      setHasLog(!!uuid && hasMergeLog(kind, uuid));
       return () => setOpen(false);
-    }, []),
+    }, [kind, id]),
   );
 
   const pickTeam = async (): Promise<string | null> => {
@@ -68,14 +77,19 @@ export function RecordMenuButton({
       const r = await syncRecord(teamId, kind, id);
       useToast.getState().dismiss();
       if (r.queued) toast(t('teamSync.queuedToast'));
-      else if (!r.review)
-        toast(
-          r.mergedFrom.length
-            ? t('teamSync.mergedFromToast', { names: [...new Set(r.mergedFrom)].join('、') })
-            : r.merged
-              ? t('teamSync.mergedToast', { count: r.merged })
-              : t('teamSync.upToDate'),
-        );
+      else if (!r.review) {
+        const who = r.mergedFrom.length
+          ? t('teamSync.mergedFromToast', { names: [...new Set(r.mergedFrom)].join('、') })
+          : r.merged
+            ? t('teamSync.mergedToast', { count: r.merged })
+            : null;
+        const what = mergeSummary(t, r.changes);
+        if (who) {
+          setHasLog(true);
+          // What was merged, with the full list one tap away (the record's merge log).
+          toast(what ? t('teamSync.mergedWithSummary', { who, what }) : who, { durationMs: 8000, action: { label: t('mergeLog.details'), onPress: openLog } });
+        } else toast(t('teamSync.upToDate'));
+      }
       onSynced?.();
     } catch (e) {
       useToast.getState().dismiss();
@@ -97,6 +111,16 @@ export function RecordMenuButton({
             }}
             label={t('report.navTitle')}
           />
+          {hasLog ? (
+            <HeaderIconButton
+              icon="time-outline"
+              onPress={() => {
+                setOpen(false);
+                openLog();
+              }}
+              label={t('mergeLog.title')}
+            />
+          ) : null}
           {hasTeam ? (
             <HeaderIconButton
               icon="cloud-outline"

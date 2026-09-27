@@ -12,6 +12,7 @@
  */
 import { Directory, File, Paths } from 'expo-file-system';
 import { create } from 'zustand';
+import { addMergeLog } from '~/db/mergeLog';
 import { setSyncBase } from '~/db/syncBase';
 import { applyPlotMerge, applySessionMerge } from '~/db/teamMerge';
 import { applyGloriaMerge } from '~/modules/gloria/merge';
@@ -21,7 +22,7 @@ import { useActiveSession } from '~/stores/activeSession';
 import { importAudioClips } from './audioCapture';
 import { bundleGloria, bundlePlot, bundleSession, type BundleOptions } from './bundleExport';
 import type { MergeKind } from './mergeDocs';
-import { baseOf, planOps, type Decision, type MergeItem, type MergeOp, type MergeSide } from './mergeEngine';
+import { baseOf, describeMerge, planOps, type Decision, type MergeChange, type MergeItem, type MergeOp, type MergeSide } from './mergeEngine';
 import { importPhotosToLibrary } from './photoCapture';
 import type { ImportedPhotoBlob } from './recordImportZip';
 import { MERGE_BACKUP_DIR } from './storage';
@@ -101,7 +102,7 @@ function mediaWanted(ops: MergeOp[], field: 'photo_files' | 'audio_files'): Set<
   return names;
 }
 
-export type MergeResult = { ops: number; backup: File | null; skippedPhotos: number };
+export type MergeResult = { ops: number; backup: File | null; skippedPhotos: number; changes: MergeChange[] };
 
 export async function applyPendingMerge(
   p: PendingMerge,
@@ -132,9 +133,11 @@ export async function applyPendingMerge(
   else applyGloriaMerge(p.localId, ops);
 
   setSyncBase(p.kind, p.localUuid, baseOf(p.remoteSide));
+  const changes = describeMerge(p.items, decisions);
+  addMergeLog(p.kind, p.localUuid, p.from ?? null, changes);
   p.afterApply?.();
   useActiveSession.getState().refresh();
   useActivePlot.getState().refresh();
   useActiveGloria.getState().refresh();
-  return { ops: ops.length, backup, skippedPhotos };
+  return { ops: ops.length, backup, skippedPhotos, changes };
 }

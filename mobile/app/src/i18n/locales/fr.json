@@ -3056,7 +3056,8 @@
     "endWithIssues_other": "{{count}} avertissements restent ouverts. Terminer quand même ? Vous pourrez rouvrir.",
     "kb": {
       "next": "Suivant",
-      "done": "OK"
+      "done": "OK",
+      "prev": "Précédent"
     },
     "num": {
       "rejectTitle": "Valeur hors limites",
@@ -3592,7 +3593,7 @@
     "mergedFromToast": "Données de {{names}} fusionnées",
     "members": "Membres",
     "myNameTitle": "Mon nom dans l’équipe",
-    "myNameMsg": "Les membres le voient lors de la synchronisation (ex. « Données de Lin fusionnées »). Il ne figure que dans les données chiffrées ; le serveur ne le voit pas.",
+    "myNameMsg": "Les membres le voient lors de la synchronisation (ex. « Données du membre A fusionnées »). Il ne figure que dans les données chiffrées ; le serveur ne le voit pas.",
     "myNamePlaceholder": "ex. Lin Hsiao-ming",
     "membersMe": "Moi : {{name}}",
     "unnamed": "(non défini)",
@@ -3645,7 +3646,8 @@
     "teamImported_one": "{{count}} nouveau relevé importé",
     "teamImported_many": "{{count}} nouveaux relevés importés",
     "teamImported_other": "{{count}} nouveaux relevés importés",
-    "teamNothing": "Tout est à jour"
+    "teamNothing": "Tout est à jour",
+    "mergedWithSummary": "{{who}} : {{what}}"
   },
   "teamDeploy": {
     "title": "Utiliser mon propre Cloudflare",
@@ -3682,5 +3684,25 @@
     "makeDefaultMsg": "Les nouvelles équipes démarreront sur ce serveur. Les équipes existantes ne changent pas ; déplacez-les avec « Déplacer vers un autre serveur ».",
     "makeDefaultNo": "Pas maintenant",
     "makeDefaultYes": "Par défaut"
+  },
+  "mergeLog": {
+    "sep": ", ",
+    "title": "Historique des fusions",
+    "intro": "Ce que chaque fusion des données d’un membre (synchronisation d’équipe ou fichier importé) a ajouté, modifié et supprimé. Conservé sur ce téléphone seulement ; jamais exporté ni synchronisé.",
+    "none": "Aucune donnée de membre n’a encore été fusionnée dans ce relevé",
+    "unsigned": "Membre non signé",
+    "details": "Détails",
+    "actionAdded": "Ajouté",
+    "actionChanged": "Modifié",
+    "actionDeleted": "Supprimé",
+    "added_one": "{{count}} ajouté",
+    "added_many": "{{count}} ajoutés",
+    "added_other": "{{count}} ajoutés",
+    "changed_one": "{{count}} modifié",
+    "changed_many": "{{count}} modifiés",
+    "changed_other": "{{count}} modifiés",
+    "deleted_one": "{{count}} supprimé",
+    "deleted_many": "{{count}} supprimés",
+    "deleted_other": "{{count}} supprimés"
   }
 }

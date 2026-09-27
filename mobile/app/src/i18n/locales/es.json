@@ -3056,7 +3056,8 @@
     "endWithIssues_other": "Quedan {{count}} avisos. ¿Terminar igualmente? Puedes reabrirlo.",
     "kb": {
       "next": "Siguiente",
-      "done": "Listo"
+      "done": "Listo",
+      "prev": "Anterior"
     },
     "num": {
       "rejectTitle": "Valor fuera de rango",
@@ -3592,7 +3593,7 @@
     "mergedFromToast": "Se combinaron los datos de {{names}}",
     "members": "Integrantes",
     "myNameTitle": "Mi nombre en el equipo",
-    "myNameMsg": "El equipo lo verá al sincronizar (p. ej. «Se combinaron los datos de Lin»). Solo va dentro de los datos cifrados; el servidor no lo ve.",
+    "myNameMsg": "El equipo lo verá al sincronizar (p. ej. «Se combinaron los datos del miembro A»). Solo va dentro de los datos cifrados; el servidor no lo ve.",
     "myNamePlaceholder": "p. ej. Lin Hsiao-ming",
     "membersMe": "Yo: {{name}}",
     "unnamed": "(sin definir)",
@@ -3645,7 +3646,8 @@
     "teamImported_one": "{{count}} registro nuevo importado",
     "teamImported_many": "{{count}} registros nuevos importados",
     "teamImported_other": "{{count}} registros nuevos importados",
-    "teamNothing": "Todo está al día"
+    "teamNothing": "Todo está al día",
+    "mergedWithSummary": "{{who}}: {{what}}"
   },
   "teamDeploy": {
     "title": "Usar mi propio Cloudflare",
@@ -3682,5 +3684,25 @@
     "makeDefaultMsg": "Los equipos nuevos empezarán en este servidor. Los existentes no cambian; muévalos con «Mover a otro servidor».",
     "makeDefaultNo": "Ahora no",
     "makeDefaultYes": "Predeterminado"
+  },
+  "mergeLog": {
+    "sep": ", ",
+    "title": "Historial de combinaciones",
+    "intro": "Lo que cada combinación de datos de un miembro (sincronización de equipo o archivo importado) añadió, cambió y eliminó. Solo se guarda en este teléfono; nunca se exporta ni sincroniza.",
+    "none": "Aún no se han combinado datos de miembros en este registro",
+    "unsigned": "Miembro sin firma",
+    "details": "Detalles",
+    "actionAdded": "Añadido",
+    "actionChanged": "Cambiado",
+    "actionDeleted": "Eliminado",
+    "added_one": "{{count}} añadido",
+    "added_many": "{{count}} añadidos",
+    "added_other": "{{count}} añadidos",
+    "changed_one": "{{count}} cambiado",
+    "changed_many": "{{count}} cambiados",
+    "changed_other": "{{count}} cambiados",
+    "deleted_one": "{{count}} eliminado",
+    "deleted_many": "{{count}} eliminados",
+    "deleted_other": "{{count}} eliminados"
   }
 }

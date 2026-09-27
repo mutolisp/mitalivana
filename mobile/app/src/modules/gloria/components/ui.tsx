@@ -4,9 +4,12 @@
  * (src/lib/colors.ts), emerald for done, amber / red for warnings.
  */
 import { Ionicons } from '@expo/vector-icons';
-import { forwardRef, useEffect, useRef, useState } from 'react';
+import { forwardRef, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, InputAccessoryView, Keyboard, Pressable, Text, TextInput, View } from 'react-native';
+import { Alert, InputAccessoryView, Keyboard, Platform, Pressable, Text, TextInput, View } from 'react-native';
+import { useKeyboardState } from 'react-native-keyboard-controller';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { KeyboardStickyView } from '~/components/KeyboardAvoidingView';
 import { checkRange, type Range } from '../model/ranges';
 import { ACTION_FILL } from '~/lib/colors';
 import { useSettings } from '~/stores/settings';
@@ -216,27 +219,68 @@ export const NUMERIC_KEYBOARD = 'decimal-pad' as const;
 
 /**
  * iOS's number pad has no return key, so numeric fields get a bar above the
- * keyboard with Next / Done. Android's number pad carries its own Next key
- * (returnKeyType), and InputAccessoryView renders nothing there. Render one
- * <NumAccessory /> per screen that uses NumField.
+ * keyboard with Next / Done. A field that steps through items (the cover
+ * stepper: 7 top covers, 6 subtypes) also gets Previous. Android's number pad
+ * has its own Next key and InputAccessoryView renders nothing there, so the
+ * bar is drawn there only for stepping fields, which need Previous too.
+ * Render one <NumAccessory /> per screen that uses NumField; on Android it
+ * rides on the keyboard (KeyboardStickyView), so the screen root must be
+ * <SafeAreaView edges={['bottom']}> — true where the stepper is used.
  */
 export const NUM_ACCESSORY_ID = 'gloria-num';
 let focusedNext: (() => void) | null = null;
+let focusedPrev: (() => void) | null = null;
+// Whether the focused field steps (has Previous), for the Android bar.
+let stepping = false;
+const listeners = new Set<() => void>();
+const setStepping = (v: boolean) => {
+  if (v === stepping) return;
+  stepping = v;
+  listeners.forEach((l) => l());
+};
+const subscribeStepping = (l: () => void) => {
+  listeners.add(l);
+  return () => listeners.delete(l);
+};
 
-export function NumAccessory() {
+function AccessoryBar() {
   const { t } = useTranslation();
   return (
-    <InputAccessoryView nativeID={NUM_ACCESSORY_ID}>
-      <View className="flex-row items-center justify-end gap-5 border-t border-gray-300 bg-gray-100 px-4 py-2 dark:border-gray-700 dark:bg-gray-800">
-        <Pressable onPress={() => (focusedNext ? focusedNext() : Keyboard.dismiss())} hitSlop={8} accessibilityRole="button">
-          <Text className="text-base font-semibold text-[#00797b] dark:text-cyan-300">{t('gloria.kb.next')}</Text>
+    <View className="flex-row items-center gap-5 border-t border-gray-300 bg-gray-100 px-4 py-2 dark:border-gray-700 dark:bg-gray-800">
+      {focusedPrev || stepping ? (
+        <Pressable onPress={() => focusedPrev?.()} hitSlop={8} accessibilityRole="button">
+          <Text className="text-base font-semibold text-[#00797b] dark:text-cyan-300">‹ {t('gloria.kb.prev')}</Text>
         </Pressable>
-        <Pressable onPress={() => Keyboard.dismiss()} hitSlop={8} accessibilityRole="button">
-          <Text className="text-base text-gray-700 dark:text-gray-200">{t('gloria.kb.done')}</Text>
-        </Pressable>
-      </View>
-    </InputAccessoryView>
+      ) : null}
+      <View className="flex-1" />
+      <Pressable onPress={() => (focusedNext ? focusedNext() : Keyboard.dismiss())} hitSlop={8} accessibilityRole="button">
+        <Text className="text-base font-semibold text-[#00797b] dark:text-cyan-300">{t('gloria.kb.next')} ›</Text>
+      </Pressable>
+      <Pressable onPress={() => Keyboard.dismiss()} hitSlop={8} accessibilityRole="button">
+        <Text className="text-base text-gray-700 dark:text-gray-200">{t('gloria.kb.done')}</Text>
+      </Pressable>
+    </View>
   );
+}
+
+export function NumAccessory() {
+  const insets = useSafeAreaInsets();
+  const keyboardUp = useKeyboardState((k) => k.isVisible);
+  const step = useSyncExternalStore(subscribeStepping, () => stepping);
+  if (Platform.OS !== 'android') {
+    return (
+      <InputAccessoryView nativeID={NUM_ACCESSORY_ID}>
+        <AccessoryBar />
+      </InputAccessoryView>
+    );
+  }
+  // Android: in the flow at the screen bottom (like the search dock, which it
+  // then sits under), lifted with the keyboard while a stepper is focused.
+  return keyboardUp && step ? (
+    <KeyboardStickyView offset={{ opened: insets.bottom }}>
+      <AccessoryBar />
+    </KeyboardStickyView>
+  ) : null;
 }
 
 export function parseNum(s: string): number | null {
@@ -261,6 +305,8 @@ export const NumField = forwardRef<
     changed?: boolean;
     width?: number;
     onSubmitEditing?: () => void;
+    /** Step to the previous item (the keyboard bar's Previous); stepping fields only. */
+    onPrev?: () => void;
     accessibilityLabel: string;
     /** Refuse values outside min/max; warn (but keep) outside warnMin/warnMax. */
     range?: Range;
@@ -274,7 +320,7 @@ export const NumField = forwardRef<
      *  the old and new values happen to be equal. */
     target?: string;
   }
->(function NumField({ value, onCommit, placeholder, changed, width = 76, onSubmitEditing, accessibilityLabel, range, signed, editable = true, commitRef, target }, ref) {
+>(function NumField({ value, onCommit, placeholder, changed, width = 76, onSubmitEditing, onPrev, accessibilityLabel, range, signed, editable = true, commitRef, target }, ref) {
   const { t } = useTranslation();
   const [text, setText] = useState(fmt(value));
   // Last value handed to onCommit: Next commits and the blur that follows
@@ -322,6 +368,12 @@ export const NumField = forwardRef<
           if (commit()) onSubmitEditing();
         }
       : null;
+    focusedPrev = onPrev
+      ? () => {
+          if (commit()) onPrev();
+        }
+      : null;
+    setStepping(!!onPrev);
   };
   if (focused.current) bindNext();
   return (
@@ -340,6 +392,7 @@ export const NumField = forwardRef<
       }}
       onBlur={() => {
         focused.current = false;
+        setStepping(false);
       }}
       inputAccessoryViewID={NUM_ACCESSORY_ID}
       blurOnSubmit={!onSubmitEditing}
