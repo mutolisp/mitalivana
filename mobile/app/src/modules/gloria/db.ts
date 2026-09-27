@@ -24,7 +24,7 @@ import {
   type TaxonFields,
 } from '~/db/taxonLookup';
 import { ALL_UNITS, DIRECTIONS, POINTS, type Direction, type P5mCorner, type UnitType } from './model/units';
-import { planPrefill, nextSerial, type PrevSurvey } from './model/prefill';
+import { planPrefill, planTopoFill, nextSerial, type PrevSurvey } from './model/prefill';
 import type { WalkOption } from './model/walk';
 import { nextMinute, onDay } from './model/quadratTimes';
 import { takesRealStart } from './model/surveyDates';
@@ -118,6 +118,8 @@ export type GloriaUnit = {
   /** 1 = start_ts is only a date (filled from the survey's start date; v64). NULL otherwise. */
   date_only: number | null;
   recorded_by: string | null;
+  /** 1 = explicitly no researchers (cleared, v66); NULL recorded_by otherwise follows the survey. Never 0. */
+  no_researchers: number | null;
   aspect_deg: number | null;
   slope_deg: number | null;
   cov_vascular: number | null;
@@ -376,8 +378,8 @@ export function prefillSummary(summitId: number): { mocy: number; points: number
 function loadPrev(prev: GloriaSurvey): PrevSurvey {
   const db = getUserDb();
   const points = rows<GloriaPoint>(db.executeSync(`SELECT * FROM gloria_points WHERE survey_id = ?`, [prev.id]));
-  const units = rows<{ code: string; walk_option: WalkOption | null }>(
-    db.executeSync(`SELECT code, walk_option FROM gloria_units WHERE survey_id = ?`, [prev.id]),
+  const units = rows<{ code: string; walk_option: WalkOption | null; unit_type: string; aspect_deg: number | null; slope_deg: number | null }>(
+    db.executeSync(`SELECT code, walk_option, unit_type, aspect_deg, slope_deg FROM gloria_units WHERE survey_id = ?`, [prev.id]),
   );
   return {
     mocy: prev.mocy,
@@ -388,8 +390,53 @@ function loadPrev(prev: GloriaSurvey): PrevSurvey {
       compass_deg: p.compass_deg,
       comments: p.comments,
     })),
-    walkOptions: units,
+    walkOptions: units.map((u) => ({ code: u.code, walk_option: u.walk_option })),
+    topo: units.filter((u) => u.unit_type === 'quadrat').map((u) => ({ code: u.code, aspect_deg: u.aspect_deg, slope_deg: u.slope_deg })),
   };
+}
+
+/** The survey before this one on the same summit (by mocy), if any. */
+export function previousSurveyOf(surveyId: number): GloriaSurvey | null {
+  const sv = getGloriaSurvey(surveyId);
+  if (!sv) return null;
+  return (
+    rows<GloriaSurvey>(
+      getUserDb().executeSync(`SELECT * FROM gloria_surveys WHERE summit_id = ? AND mocy < ? ORDER BY mocy DESC LIMIT 1`, [sv.summit_id, sv.mocy]),
+    )[0] ?? null
+  );
+}
+
+/** The walk option this square had on the previous survey of the summit (p.57: repeat it). */
+export function previousWalkOption(surveyId: number, code: string): { mocy: number; option: WalkOption | null } | null {
+  const prev = previousSurveyOf(surveyId);
+  if (!prev) return null;
+  const u = rows<{ walk_option: WalkOption | null }>(
+    getUserDb().executeSync(`SELECT walk_option FROM gloria_units WHERE survey_id = ? AND code = ?`, [prev.id, code]),
+  )[0];
+  return { mocy: prev.mocy, option: u?.walk_option ?? null };
+}
+
+const topoOf = (surveyId: number) =>
+  rows<{ code: string; aspect_deg: number | null; slope_deg: number | null }>(
+    getUserDb().executeSync(`SELECT code, aspect_deg, slope_deg FROM gloria_units WHERE survey_id = ? AND unit_type = 'quadrat'`, [surveyId]),
+  );
+
+/** What 帶入坡向坡度 would fill: quadrats of this survey with neither value set (model/prefill planTopoFill). */
+export function planTopoFromPrevious(surveyId: number): { prev: GloriaSurvey; fill: ReturnType<typeof planTopoFill> } | null {
+  const prev = previousSurveyOf(surveyId);
+  return prev ? { prev, fill: planTopoFill(topoOf(surveyId), topoOf(prev.id)) } : null;
+}
+
+export function applyTopoFill(surveyId: number, fill: ReturnType<typeof planTopoFill>): void {
+  withTransaction(() => {
+    const db = getUserDb();
+    const now = Date.now();
+    for (const f of fill)
+      db.executeSync(
+        `UPDATE gloria_units SET aspect_deg = COALESCE(aspect_deg, ?), slope_deg = COALESCE(slope_deg, ?), updated_at = ? WHERE survey_id = ? AND code = ?`,
+        [f.aspect_deg, f.slope_deg, now, surveyId, f.code],
+      );
+  });
 }
 
 export type CreateGloriaInput = {
@@ -440,12 +487,13 @@ export function createGloriaSurvey(input: CreateGloriaInput): number {
       );
     }
 
-    // Units: all 28, empty; only the walk option is carried (p.57).
+    // Units: all 28, empty; only the walk option (p.57) and a quadrat's aspect / slope are carried.
     const walk = new Map(plan.walkOptions.map((w) => [w.code, w.walk_option]));
+    const topo = new Map(plan.topo.map((x) => [x.code, x]));
     for (const u of ALL_UNITS) {
       db.executeSync(
-        `INSERT INTO gloria_units (survey_id, code, unit_type, walk_option, uuid, updated_at) VALUES (?, ?, ?, ?, ?, ?)`,
-        [surveyId, u.code, u.type, walk.get(u.code) ?? null, generateUuid(), now],
+        `INSERT INTO gloria_units (survey_id, code, unit_type, walk_option, aspect_deg, slope_deg, uuid, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [surveyId, u.code, u.type, walk.get(u.code) ?? null, topo.get(u.code)?.aspect_deg ?? null, topo.get(u.code)?.slope_deg ?? null, generateUuid(), now],
       );
     }
     return surveyId;
@@ -933,6 +981,33 @@ export function setPointsLocked(unitId: number, locked: boolean, endTs: number |
  * with their ids and drops rows added since.
  */
 export type UnitSnapshot = { unit: Record<string, unknown>; species: Array<Record<string, unknown>> };
+
+/**
+ * Empty a unit: every species row and every recorded value. Kept: what
+ * places the unit (code, the 10×10 m walk option) and its photos — files
+ * are removed from the photo screens, not by clearing numbers. The caller
+ * takes an undo snapshot first.
+ */
+export function clearUnit(unitId: number): void {
+  withTransaction(() => {
+    const db = getUserDb();
+    db.executeSync(`DELETE FROM gloria_unit_species WHERE unit_id = ?`, [unitId]);
+    db.executeSync(
+      `UPDATE gloria_units SET
+         start_ts = NULL, stop_ts = NULL, freq_start_ts = NULL, freq_stop_ts = NULL, freq_stop_manual = 0,
+         freq_locked = 0, done_locked = 0, pf_start_ts = NULL, pf_stop_ts = NULL, pf_locked = 0,
+         freq_skipped = NULL, date_only = NULL, recorded_by = NULL, no_researchers = 1, aspect_deg = NULL, slope_deg = NULL,
+         cov_vascular = NULL, cov_solid_rock = NULL, cov_scree = NULL, cov_lichens = NULL, cov_bryophytes = NULL,
+         cov_bare_ground = NULL, cov_litter = NULL, sub_lich_below_vasc = NULL, sub_lich_on_rock = NULL,
+         sub_lich_on_scree = NULL, sub_bry_below_vasc = NULL, sub_bry_on_rock = NULL, sub_bry_on_scree = NULL,
+         dist_hi1 = NULL, dist_hi2 = NULL, dist_hi3 = NULL, freq_mode = NULL, dist_hi1_n = NULL, dist_hi2_n = NULL,
+         dist_hi3_n = NULL, point_surface = NULL, legacy_surface_hits = NULL, grazing_note = NULL, comments = NULL,
+         updated_at = ?
+       WHERE id = ?`,
+      [Date.now(), unitId],
+    );
+  });
+}
 
 export function snapshotUnit(unitId: number): UnitSnapshot {
   const db = getUserDb();

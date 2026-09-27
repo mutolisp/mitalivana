@@ -74,6 +74,8 @@ export type ExportUnit = {
   freq_start_ts: number | null;
   freq_stop_ts: number | null;
   recorded_by: string | null;
+  /** 1 = cleared: no researchers, not the survey's (v66). */
+  no_researchers?: number | null;
   aspect_deg: number | null;
   slope_deg: number | null;
   cov_vascular: number | null;
@@ -249,7 +251,8 @@ export function buildSheetTables(d: GloriaExportData): SheetTable[] {
   const quadrats = d.units.filter((u) => u.unit_type === 'quadrat');
   const sas = d.units.filter((u) => u.unit_type === 'sas');
   const squares = d.units.filter((u) => u.unit_type === 'square');
-  const unitResearcher = (u: ExportUnit) => researchers(u.recorded_by ?? sv.recorded_by);
+  // Cleared units have no researchers at all; otherwise empty follows the survey.
+  const unitResearcher = (u: ExportUnit) => (u.no_researchers === 1 ? '' : researchers(u.recorded_by ?? sv.recorded_by));
   const unitDate = (u: ExportUnit) => localDate(u.start_ts ?? sv.start_ts);
   // A date filled from the survey carries no time of day.
   const unitStart = (u: ExportUnit) => (u.date_only === 1 ? '' : localTime(u.start_ts));

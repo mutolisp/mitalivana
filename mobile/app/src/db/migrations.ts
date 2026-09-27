@@ -1959,6 +1959,16 @@ const MIGRATIONS: Migration[] = [
       db.executeSync(`CREATE INDEX IF NOT EXISTS idx_glog_visit ON gloria_loggers(visit_id);`);
     },
   },
+  {
+    // A GLORIA unit with explicitly no researchers (1; after 清空此樣區資料),
+    // as against NULL recorded_by, which follows the survey's list. A flag,
+    // not an empty string: the merge engine treats '' as NULL. 1 / NULL,
+    // never 0, merge-safe like freq_skipped.
+    version: 66,
+    up: (db) => {
+      addColumnIfMissing(db, `ALTER TABLE gloria_units ADD COLUMN no_researchers INTEGER;`);
+    },
+  },
 ];
 
 /** Highest schema version this build knows how to produce. Backup/restore uses

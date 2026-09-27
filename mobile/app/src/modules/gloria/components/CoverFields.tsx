@@ -15,7 +15,7 @@ import { SwipeNavArea, useSwipeNav } from '~/components/SwipeNavigator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/components/ui/select';
 import { FONT_SCALE_VALUE, useSettings } from '~/stores/settings';
 import type { GloriaUnit, UnitPatch } from '../db';
-import { NumField } from './ui';
+import { NumField, Req } from './ui';
 import { RANGES } from '../model/ranges';
 import { autoFillLast, exactSum } from '../model/validate';
 
@@ -153,7 +153,7 @@ function CoverStepper({
           return (
             <Pressable key={x} onPress={() => go(n)} hitSlop={4} className="mr-2 py-0.5">
               <Text
-                className={`text-xs ${n === i ? 'font-bold text-[#00797b] dark:text-cyan-300' : 'text-gray-500 dark:text-gray-400'}`}
+                className={`text-xs ${n === i ? 'font-bold text-[#00797b] dark:text-cyan-300' : val == null ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'}`}
                 style={{ fontVariant: ['tabular-nums'] }}
               >
                 {t(`gloria.cover.short.${x}`)} {val ?? '–'}
@@ -197,7 +197,10 @@ export function TopCoverFields({ unit, onCommit, editable = true }: { unit: Glor
         className="flex-row items-center"
       >
         <Ionicons name={open ? 'chevron-down' : 'chevron-forward'} size={14} color="#9ca3af" />
-        <Text className="ml-1 flex-1 text-xs font-semibold text-gray-600 dark:text-gray-300">{t('gloria.cover.title')}</Text>
+        <Text className="ml-1 flex-1 text-xs font-semibold text-gray-600 dark:text-gray-300">
+          {t('gloria.cover.title')}
+          <Req />
+        </Text>
         {open ? null : total}
       </Pressable>
       {open ? (

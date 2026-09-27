@@ -359,3 +359,8 @@ export const NumField = forwardRef<
     />
   );
 });
+
+/** Red asterisk after a required field's label (nest inside its <Text>). */
+export function Req({ on = true }: { on?: boolean }) {
+  return on ? <Text className="text-red-600 dark:text-red-400"> *</Text> : null;
+}

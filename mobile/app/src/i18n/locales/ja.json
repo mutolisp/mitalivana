@@ -2527,7 +2527,9 @@
       "sasMissing": "同じ方位の方形区にあり、ここに未記録：{{names}}",
       "p5m": "{{direction}} 方位の p5m（11 か 31）が未指定",
       "freqNoCover_other": "{{name}}：頻度 {{count}} マス、被度なし",
-      "pointInconsistent_other": "{{count}} 点で種と地表の記録が矛盾"
+      "pointInconsistent_other": "{{count}} 点で種と地表の記録が矛盾",
+      "required": "必須項目が未入力：{{fields}}",
+      "requiredSpecies": "値が未入力の種：{{names}}"
     },
     "cover": {
       "title": "地表被度の推定（%）",
@@ -2615,20 +2617,32 @@
       "replace": "種を変更",
       "replaceExists": "{{name}} はこの区画のリストにすでにあります",
       "replaced": "{{name}} に変更しました。被度・頻度などのデータはそのままです",
-      "replaceBanner": "{{name}} を変更：下の検索で正しい種を選んでください"
+      "replaceBanner": "{{name}} を変更：下の検索で正しい種を選んでください",
+      "requiredTitle": "必須項目が未入力",
+      "methodRequired": "頻度またはポイントフレーム（少なくとも一方）",
+      "clear": "この区画のデータを消去",
+      "clearTitle": "{{code}} を消去しますか？",
+      "clearMsg": "この区画のすべての種と値（調査者、時刻、斜面方位・傾斜、地表被度、頻度、ポイントフレーム、備考）を削除します。10×10 m の歩行方法と写真は残ります。",
+      "clearGo": "消去",
+      "clearAgainTitle": "もう一度確認",
+      "clearAgainMsg": "{{code}} のデータをすべて消去しますか？この画面を離れるまでは上部の「元に戻す」で戻せます。",
+      "clearGoFinal": "すべて消去",
+      "cleared": "{{code}} を消去しました"
     },
     "square": {
       "walk": "開始点と方向（Form 6-S の 4 択）",
-      "option1": "左下辺 · 下の角から",
-      "option2": "左下辺 · 左の角から",
-      "option3": "右下辺 · 下の角から",
-      "option4": "右下辺 · 右の角から",
+      "option1": "左上辺 · 左の角から頂点へ上る",
+      "option2": "右下辺 · 下の角から右の角へ上る",
+      "option3": "右上辺 · 右の角から頂点へ上る",
+      "option4": "左下辺 · 下の角から左の角へ上る",
       "pickWalk": "先に開始点を選びます。再調査では前回の選択を引き継ぎます（マニュアル p.57）。",
       "start": "点ごとに記録（{{done}}/400）",
       "hitsTitle": "ヒット数と被度（{{done}}/400、被度 ＝ ヒット ÷ 4）",
       "fromQuadrats": "4 方形区から追加",
       "extraEmpty": "点の記録後、ヒットしなかった種を記録します。まず 4 方形区の種を追加できます（マニュアル p.58）。",
-      "extra_other": "ヒットしなかった種（{{count}}）"
+      "extra_other": "ヒットしなかった種（{{count}}）",
+      "prevOption": "前回（mocy {{mocy}}）は選択肢 {{option}}：{{label}}。再調査では同じにします（マニュアル p.57）",
+      "prevNone": "前回（mocy {{mocy}}）は開始点の記録がありません"
     },
     "species": {
       "inUnit": "{{code}} · リスト番号 {{serial}}",
@@ -2712,7 +2726,16 @@
       "lineDone": "{{line}} 線完了：ヒット {{hits}}",
       "lockedToast": "ポイント記録は完了してロックされています。右上の鍵をタップすると編集できます。",
       "lockedDone": "ポイント記録を完了してロックしました（終了時刻を記録）",
-      "unlocked": "ロックを解除しました"
+      "unlocked": "ロックを解除しました",
+      "addingHint": "新しい種を検索して追加",
+      "prevIs": "前の点：{{what}}",
+      "thisPoint": "この点：",
+      "noSpecies": "種がまだありません。「＋ 新しい種」で追加",
+      "pickSpecies": "種を選ぶ",
+      "cardHint": "タップ＝この点でヒット、長押し＝ヒットして記録し次の点へ",
+      "cardOn": "この点でヒット ✓",
+      "cardOff": "タップ＝ヒット、長押し＝記録して次へ",
+      "cardCount": "{{i}} / {{n}} · ヒット {{hits}}"
     },
     "endWithIssues_other": "警告が {{count}} 件あります。終了しますか？あとで再開できます。",
     "kb": {
@@ -2859,6 +2882,30 @@
       "out": "縮小",
       "reset": "元に戻す",
       "hint": "2本指でピンチして拡大縮小、2本指でドラッグして移動。右上のボタンも使えます"
+    },
+    "researchers": {
+      "fromUnits": "各区画から反映",
+      "fromUnitsTitle": "各区画から調査者を反映",
+      "fromUnitsMsg": "各区画で個別に指定され、今回の調査にまだない調査者を追加します：{{names}}",
+      "noneNew": "各区画の調査者はすべて名簿にあります",
+      "hint": "「各区画から反映」：1×1 m・SAS・10×10 m で個別に指定した調査者を今回の調査の名簿に追加します（重複なし）。個別指定のない区画は今回の調査の調査者になります。"
+    },
+    "required": {
+      "researchers": "調査者",
+      "aspect": "斜面方位",
+      "slope": "傾斜",
+      "time": "調査日時",
+      "freqTime": "頻度の時刻",
+      "topCover": "地表被度の推定",
+      "subtypes": "地表被度のサブタイプ",
+      "method": "頻度またはポイントフレーム"
+    },
+    "topo": {
+      "carry": "mocy {{mocy}} から 1×1 m の斜面方位・傾斜を反映",
+      "none": "mocy {{mocy}} から反映できる値がないか、すべて入力済みです",
+      "title": "斜面方位・傾斜を反映",
+      "msg_other": "mocy {{mocy}} から {{count}} 区画の斜面方位・傾斜を反映します（空欄のみ）：{{list}}",
+      "done_other": "{{count}} 区画に反映しました"
     }
   },
   "vernacular": {
@@ -3090,7 +3137,8 @@
       "flags": "記号",
       "researcher": "調査者",
       "visit": "巡回",
-      "prev_uuid": "前回の記録"
+      "prev_uuid": "前回の記録",
+      "no_researchers": "調査者なし（消去済み）"
     },
     "from": "{{name}} から",
     "fromAt": "{{name}} から、{{date}} アップロード"

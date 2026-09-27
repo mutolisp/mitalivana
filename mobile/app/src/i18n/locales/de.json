@@ -2680,7 +2680,9 @@
       "freqNoCover_one": "{{name}}: in {{count}} Zelle, aber ohne Deckung",
       "freqNoCover_other": "{{name}}: in {{count}} Zellen, aber ohne Deckung",
       "pointInconsistent_one": "{{count}} Punkt hat Art und Oberfläche zugleich oder keins",
-      "pointInconsistent_other": "{{count}} Punkte haben Art und Oberfläche zugleich oder keins"
+      "pointInconsistent_other": "{{count}} Punkte haben Art und Oberfläche zugleich oder keins",
+      "required": "Pflichtangaben fehlen: {{fields}}",
+      "requiredSpecies": "Arten ohne Wert: {{names}}"
     },
     "cover": {
       "title": "Oberflächendeckung (%)",
@@ -2771,21 +2773,33 @@
       "replace": "Art ändern",
       "replaceExists": "{{name}} steht bereits auf der Liste dieser Fläche",
       "replaced": "Geändert in {{name}}; Deckung, Frequenz und übrige Daten bleiben erhalten",
-      "replaceBanner": "{{name}} ändern: unten nach der richtigen Art suchen"
+      "replaceBanner": "{{name}} ändern: unten nach der richtigen Art suchen",
+      "requiredTitle": "Pflichtangaben fehlen",
+      "methodRequired": "Frequenz oder Punktrahmen (mindestens eines)",
+      "clear": "Diese Einheit leeren",
+      "clearTitle": "{{code}} leeren?",
+      "clearMsg": "Löscht alle Arten und Werte dieser Einheit: Bearbeitende, Zeiten, Exposition und Neigung, Oberflächendeckung, Frequenz, Punktrahmen, Bemerkungen. Die 10×10-m-Begehungsvariante und Fotos bleiben.",
+      "clearGo": "Leeren",
+      "clearAgainTitle": "Noch einmal bestätigen",
+      "clearAgainMsg": "Wirklich alle Daten von {{code}} löschen? Rückgängig oben stellt sie wieder her, bis dieser Bildschirm verlassen wird.",
+      "clearGoFinal": "Alles leeren",
+      "cleared": "{{code}} geleert"
     },
     "square": {
       "walk": "Start und Richtung (Formular 6-S, vier Optionen)",
-      "option1": "Linke Unterkante · ab unterer Ecke",
-      "option2": "Linke Unterkante · ab linker Ecke",
-      "option3": "Rechte Unterkante · ab unterer Ecke",
-      "option4": "Rechte Unterkante · ab rechter Ecke",
+      "option1": "Linke Oberkante · von der linken Ecke hinauf zur Spitze",
+      "option2": "Rechte Unterkante · von der unteren Ecke hinauf zur rechten",
+      "option3": "Rechte Oberkante · von der rechten Ecke hinauf zur Spitze",
+      "option4": "Linke Unterkante · von der unteren Ecke hinauf zur linken",
       "pickWalk": "Zuerst den Start wählen. Wiederholungen übernehmen die letzte Wahl (Handbuch S. 57).",
       "start": "Linienpunkte erfassen ({{done}}/400)",
       "hitsTitle": "Treffer und Deckung ({{done}}/400; Deckung = Treffer ÷ 4)",
       "fromQuadrats": "Aus den 4 Quadraten",
       "extraEmpty": "Nach den Linienpunkten die nicht getroffenen Arten erfassen; zuerst die Arten der 4 Quadrate (Handbuch S. 58).",
       "extra_one": "Arten ohne Treffer ({{count}})",
-      "extra_other": "Arten ohne Treffer ({{count}})"
+      "extra_other": "Arten ohne Treffer ({{count}})",
+      "prevOption": "Letztes Mal (mocy {{mocy}}): Variante {{option}}, {{label}}. Bei Wiederholung beibehalten (Handbuch S. 57)",
+      "prevNone": "Letztes Mal (mocy {{mocy}}) ist kein Start erfasst"
     },
     "species": {
       "inUnit": "{{code}} · Listennr. {{serial}}",
@@ -2869,7 +2883,16 @@
       "lineDone": "Linie {{line}} fertig: {{hits}} Treffer",
       "lockedToast": "Die Punktaufnahme ist abgeschlossen und gesperrt. Zum Bearbeiten oben rechts auf das Schloss tippen.",
       "lockedDone": "Punktaufnahme abgeschlossen und gesperrt; Endzeit erfasst",
-      "unlocked": "Entsperrt; Bearbeiten möglich"
+      "unlocked": "Entsperrt; Bearbeiten möglich",
+      "addingHint": "Neue Art suchen und hinzufügen",
+      "prevIs": "Letzter Punkt: {{what}}",
+      "thisPoint": "Dieser Punkt:",
+      "noSpecies": "Noch keine Art; mit + Neue Art hinzufügen",
+      "pickSpecies": "Art wählen",
+      "cardHint": "Tippen = Treffer an diesem Punkt; lang drücken = Treffer, erfassen und weiter",
+      "cardOn": "Treffer an diesem Punkt ✓",
+      "cardOff": "Tippen = Treffer, lang drücken = erfassen und weiter",
+      "cardCount": "{{i}} / {{n}} · {{hits}} Treffer"
     },
     "endWithIssues_one": "{{count}} Warnung ist offen. Trotzdem beenden? Später wieder öffnen möglich.",
     "endWithIssues_other": "{{count}} Warnungen sind offen. Trotzdem beenden? Später wieder öffnen möglich.",
@@ -3017,6 +3040,32 @@
       "out": "Verkleinern",
       "reset": "Zoom zurücksetzen",
       "hint": "Mit zwei Fingern zoomen und verschieben; oder die Tasten oben rechts"
+    },
+    "researchers": {
+      "fromUnits": "Aus Einheiten übernehmen",
+      "fromUnitsTitle": "Erfasser aus Einheiten übernehmen",
+      "fromUnitsMsg": "Erfasser, die bei einzelnen Einheiten angegeben, aber noch nicht bei dieser Aufnahme sind, hinzufügen: {{names}}",
+      "noneNew": "Alle Erfasser der Einheiten stehen schon auf der Liste",
+      "hint": "„Aus Einheiten übernehmen“ fügt die bei einzelnen 1×1-m-, SAS- und 10×10-m-Einheiten angegebenen Erfasser ohne Doppelungen der Liste dieser Aufnahme hinzu. Eine Einheit ohne eigene Angabe übernimmt die Erfasser der Aufnahme."
+    },
+    "required": {
+      "researchers": "Bearbeitende",
+      "aspect": "Exposition",
+      "slope": "Neigung",
+      "time": "Aufnahmedatum und -zeit",
+      "freqTime": "Frequenzzeiten",
+      "topCover": "Oberflächendeckung",
+      "subtypes": "Untertypen der Oberflächendeckung",
+      "method": "Frequenz oder Punktrahmen"
+    },
+    "topo": {
+      "carry": "1×1-m-Exposition und -Neigung aus mocy {{mocy}} übernehmen",
+      "none": "Aus mocy {{mocy}} gibt es nichts zu übernehmen, oder alle Quadrate haben Werte",
+      "title": "Exposition und Neigung übernehmen",
+      "msg_one": "Exposition und Neigung von {{count}} Quadrat aus mocy {{mocy}} übernehmen (nur leere): {{list}}",
+      "msg_other": "Exposition und Neigung von {{count}} Quadraten aus mocy {{mocy}} übernehmen (nur leere): {{list}}",
+      "done_one": "{{count}} Quadrat ausgefüllt",
+      "done_other": "{{count}} Quadrate ausgefüllt"
     }
   },
   "vernacular": {
@@ -3253,7 +3302,8 @@
       "flags": "Vermerke",
       "researcher": "Bearbeiter",
       "visit": "Besuch",
-      "prev_uuid": "Vorheriger Eintrag"
+      "prev_uuid": "Vorheriger Eintrag",
+      "no_researchers": "Keine Bearbeitenden (geleert)"
     },
     "from": "Von {{name}}",
     "fromAt": "Von {{name}}, hochgeladen {{date}}"

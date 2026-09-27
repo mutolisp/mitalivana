@@ -2833,7 +2833,9 @@
       "freqNoCover_other": "{{name}}: en {{count}} celdas pero sin cobertura",
       "pointInconsistent_one": "{{count}} punto tiene especie y superficie a la vez, o ninguna",
       "pointInconsistent_many": "{{count}} puntos tienen especie y superficie a la vez, o ninguna",
-      "pointInconsistent_other": "{{count}} puntos tienen especie y superficie a la vez, o ninguna"
+      "pointInconsistent_other": "{{count}} puntos tienen especie y superficie a la vez, o ninguna",
+      "required": "Faltan campos obligatorios: {{fields}}",
+      "requiredSpecies": "Especies sin valor: {{names}}"
     },
     "cover": {
       "title": "Cobertura de superficie (%)",
@@ -2927,14 +2929,24 @@
       "replace": "Cambiar especie",
       "replaceExists": "{{name}} ya está en la lista de esta parcela",
       "replaced": "Cambiada a {{name}}; se conservan la cobertura, la frecuencia y los demás datos",
-      "replaceBanner": "Cambiando {{name}}: busca abajo la especie correcta"
+      "replaceBanner": "Cambiando {{name}}: busca abajo la especie correcta",
+      "requiredTitle": "Faltan campos obligatorios",
+      "methodRequired": "Frecuencia o point-frame (al menos uno)",
+      "clear": "Vaciar esta unidad",
+      "clearTitle": "¿Vaciar {{code}}?",
+      "clearMsg": "Borra todas las especies y valores de esta unidad: observadores, horas, orientación y pendiente, cobertura de superficie, frecuencia, point-frame, observaciones. El recorrido del 10×10 m y las fotos se mantienen.",
+      "clearGo": "Vaciar",
+      "clearAgainTitle": "Confirmar de nuevo",
+      "clearAgainMsg": "¿Vaciar de verdad todos los datos de {{code}}? Deshacer arriba los recupera mientras no salga de esta pantalla.",
+      "clearGoFinal": "Vaciar todo",
+      "cleared": "{{code}} vaciado"
     },
     "square": {
       "walk": "Inicio y sentido (formulario 6-S, cuatro opciones)",
-      "option1": "Borde inferior izquierdo · desde la esquina baja",
-      "option2": "Borde inferior izquierdo · desde la esquina izquierda",
-      "option3": "Borde inferior derecho · desde la esquina baja",
-      "option4": "Borde inferior derecho · desde la esquina derecha",
+      "option1": "Borde superior izquierdo · de la esquina izquierda a la cima",
+      "option2": "Borde inferior derecho · de la esquina baja a la derecha",
+      "option3": "Borde superior derecho · de la esquina derecha a la cima",
+      "option4": "Borde inferior izquierdo · de la esquina baja a la izquierda",
       "pickWalk": "Elige primero el inicio. Los remuestreos reutilizan la elección anterior (manual p. 57).",
       "start": "Registrar puntos ({{done}}/400)",
       "hitsTitle": "Contactos y cobertura ({{done}}/400; cobertura = contactos ÷ 4)",
@@ -2942,7 +2954,9 @@
       "extraEmpty": "Tras los puntos, anota las especies sin contacto, empezando por las de los 4 cuadrados (manual p. 58).",
       "extra_one": "Especies sin contacto ({{count}})",
       "extra_many": "Especies sin contacto ({{count}})",
-      "extra_other": "Especies sin contacto ({{count}})"
+      "extra_other": "Especies sin contacto ({{count}})",
+      "prevOption": "La vez anterior (mocy {{mocy}}): opción {{option}}, {{label}}. Repítala en el remuestreo (manual p. 57)",
+      "prevNone": "La vez anterior (mocy {{mocy}}) no tiene inicio registrado"
     },
     "species": {
       "inUnit": "{{code}} · n.º de lista {{serial}}",
@@ -3026,7 +3040,16 @@
       "lineDone": "Línea {{line}} terminada: {{hits}} contactos",
       "lockedToast": "El registro por puntos está terminado y bloqueado. Toca el candado arriba a la derecha para editarlo.",
       "lockedDone": "Registro por puntos terminado y bloqueado; hora de fin registrada",
-      "unlocked": "Desbloqueado; puedes editar"
+      "unlocked": "Desbloqueado; puedes editar",
+      "addingHint": "Buscar y añadir una especie",
+      "prevIs": "Punto anterior: {{what}}",
+      "thisPoint": "Este punto:",
+      "noSpecies": "Aún no hay especies; añada con + Nueva especie",
+      "pickSpecies": "Elegir especie",
+      "cardHint": "Tocar = tocada en este punto; pulsación larga = tocada, registrar y pasar al siguiente",
+      "cardOn": "Tocada en este punto ✓",
+      "cardOff": "Tocar = tocada, pulsación larga = registrar y siguiente",
+      "cardCount": "{{i}} / {{n}} · {{hits}} toques"
     },
     "endWithIssues_one": "Queda {{count}} aviso. ¿Terminar igualmente? Puedes reabrirlo.",
     "endWithIssues_many": "Quedan {{count}} avisos. ¿Terminar igualmente? Puedes reabrirlo.",
@@ -3175,6 +3198,34 @@
       "out": "Alejar",
       "reset": "Restablecer zoom",
       "hint": "Pellizca con dos dedos para acercar y arrastra con dos para mover; o usa los botones de arriba a la derecha"
+    },
+    "researchers": {
+      "fromUnits": "Tomar de las unidades",
+      "fromUnitsTitle": "Tomar observadores de las unidades",
+      "fromUnitsMsg": "Añadir los observadores indicados en unidades que aún no están en este muestreo: {{names}}",
+      "noneNew": "Los observadores de todas las unidades ya están en la lista",
+      "hint": "«Tomar de las unidades» añade a la lista de este muestreo, sin repetir, los observadores indicados en unidades de 1×1 m, SAS y 10×10 m. Una unidad sin observadores propios usa los del muestreo."
+    },
+    "required": {
+      "researchers": "observadores",
+      "aspect": "orientación",
+      "slope": "pendiente",
+      "time": "fecha y hora del muestreo",
+      "freqTime": "horas de frecuencia",
+      "topCover": "cobertura de superficie",
+      "subtypes": "subtipos de cobertura",
+      "method": "frecuencia o point-frame"
+    },
+    "topo": {
+      "carry": "Traer orientación y pendiente 1×1 m de mocy {{mocy}}",
+      "none": "No hay nada que traer de mocy {{mocy}}, o todos los cuadrantes tienen valores",
+      "title": "Traer orientación y pendiente",
+      "msg_one": "Rellenar orientación y pendiente de {{count}} cuadrante desde mocy {{mocy}} (solo vacíos): {{list}}",
+      "msg_many": "Rellenar orientación y pendiente de {{count}} cuadrantes desde mocy {{mocy}} (solo vacíos): {{list}}",
+      "msg_other": "Rellenar orientación y pendiente de {{count}} cuadrantes desde mocy {{mocy}} (solo vacíos): {{list}}",
+      "done_one": "{{count}} cuadrante rellenado",
+      "done_many": "{{count}} cuadrantes rellenados",
+      "done_other": "{{count}} cuadrantes rellenados"
     }
   },
   "vernacular": {
@@ -3416,7 +3467,8 @@
       "flags": "Códigos",
       "researcher": "Observador",
       "visit": "Visita",
-      "prev_uuid": "Registro anterior"
+      "prev_uuid": "Registro anterior",
+      "no_researchers": "Sin observadores (vaciado)"
     },
     "from": "De {{name}}",
     "fromAt": "De {{name}}, subido el {{date}}"

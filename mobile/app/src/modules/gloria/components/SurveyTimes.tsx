@@ -19,12 +19,22 @@ import { isoStamp } from '~/lib/datetime';
 import { SurveyorAssignSheet } from '~/components/SurveyorAssignSheet';
 import { updateUnit, type GloriaUnit, type UnitPatch } from '../db';
 import { followCoverTimes, nextMinute, onDay } from '../model/quadratTimes';
-import { Card, Label } from './ui';
+import { Card, Label, Req } from './ui';
 
-type Pair = { label: string; start: 'start_ts' | 'freq_start_ts' | 'pf_start_ts'; stop: 'stop_ts' | 'freq_stop_ts' | 'pf_stop_ts' };
+type Pair = {
+  label: string;
+  start: 'start_ts' | 'freq_start_ts' | 'pf_start_ts';
+  stop: 'stop_ts' | 'freq_stop_ts' | 'pf_stop_ts';
+  /** Required (model/validate missingRequired): not point-framing, not a 10×10 m square. */
+  required?: boolean;
+};
 
-/** Who recorded a unit; empty means the survey's researchers (shown greyed). */
+/**
+ * Who recorded a unit: its own list; none at all once cleared
+ * (no_researchers); otherwise the survey's (shown greyed).
+ */
 export function unitResearchers(unit: GloriaUnit, surveyBy: string | null): string | null {
+  if (unit.no_researchers === 1) return null;
   return unit.recorded_by || surveyBy;
 }
 
@@ -36,11 +46,14 @@ export function ResearcherRow({
   unit,
   surveyBy,
   reload,
+  required = false,
 }: {
   unit: GloriaUnit;
   /** The survey's researchers — what an empty unit value stands for. */
   surveyBy: string | null;
   reload: () => void;
+  /** Marked required (1×1 m and SAS; model/validate missingRequired). */
+  required?: boolean;
 }) {
   const { t } = useTranslation();
   const [picking, setPicking] = useState(false);
@@ -52,22 +65,32 @@ export function ResearcherRow({
         accessibilityLabel={t('gloria.times.by')}
         className="flex-row items-center border-b border-gray-100 pb-2 dark:border-gray-800"
       >
-        <Text className="text-sm font-semibold text-gray-900 dark:text-gray-100">{t('gloria.times.by')}</Text>
+        <Text className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+          {t('gloria.times.by')}
+          <Req on={required} />
+        </Text>
         <Text
           className={`ml-3 flex-1 text-right text-sm ${unit.recorded_by ? 'text-gray-900 dark:text-gray-100' : 'text-gray-400'}`}
           numberOfLines={2}
         >
-          {unit.recorded_by || (surveyBy ? t('gloria.times.bySurvey', { names: surveyBy }) : t('gloria.times.byNone'))}
+          {unit.recorded_by ||
+            (surveyBy && unit.no_researchers !== 1 ? t('gloria.times.bySurvey', { names: surveyBy }) : t('gloria.times.byNone'))}
         </Text>
       </Pressable>
       <SurveyorAssignSheet
         visible={picking}
-        current={unit.recorded_by ?? surveyBy ?? ''}
+        current={unit.recorded_by ?? (unit.no_researchers === 1 ? '' : (surveyBy ?? ''))}
         onCancel={() => setPicking(false)}
         onAssign={(v) => {
           setPicking(false);
-          // Same people as the survey → store nothing, so it keeps following the survey.
-          updateUnit(unit.id, { recorded_by: v && v !== surveyBy ? v : null });
+          // Same people as the survey → store nothing, so it keeps following the survey;
+          // nobody picked → explicitly none (as after clearing).
+          updateUnit(
+            unit.id,
+            !v.trim()
+              ? { recorded_by: null, no_researchers: 1 }
+              : { recorded_by: v === surveyBy ? null : v, no_researchers: null },
+          );
           reload();
         }}
       />
@@ -95,16 +118,16 @@ export function SurveyTimes({
   const pairs: Pair[] =
     unit.unit_type === 'quadrat'
       ? [
-          { label: t('gloria.times.cover'), start: 'start_ts', stop: 'stop_ts' },
+          { label: t('gloria.times.cover'), start: 'start_ts', stop: 'stop_ts', required: true },
           // Skipped (shrubs): no frequency or point-framing, so no times to fill.
           ...(unit.freq_skipped === 1
             ? []
             : ([
-                { label: t('gloria.times.freq'), start: 'freq_start_ts', stop: 'freq_stop_ts' },
+                { label: t('gloria.times.freq'), start: 'freq_start_ts', stop: 'freq_stop_ts', required: true },
                 { label: t('gloria.step.pointframe'), start: 'pf_start_ts', stop: 'pf_stop_ts' },
               ] as Pair[])),
         ]
-      : [{ label: t('gloria.times.survey'), start: 'start_ts', stop: 'stop_ts' }];
+      : [{ label: t('gloria.times.survey'), start: 'start_ts', stop: 'stop_ts', required: unit.unit_type === 'sas' }];
   /** `part`: which half was picked — a time on a date-only start makes it a real start. */
   const save = (p: Pair, col: Pair['start'] | Pair['stop'], ts: number, part?: 'date' | 'time') => {
     const start = col === p.start ? ts : unit[p.start];
@@ -193,7 +216,10 @@ export function SurveyTimes({
     <>
       {pairs.map((p) => (
         <View key={p.start} className="gap-1">
-          <Text className="text-sm font-semibold text-gray-900 dark:text-gray-100">{p.label}</Text>
+          <Text className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+            {p.label}
+            <Req on={!!p.required} />
+          </Text>
           {cell(p, p.start, t('gloria.times.start'))}
           {cell(p, p.stop, t('gloria.times.stop'))}
         </View>
@@ -207,7 +233,7 @@ export function SurveyTimes({
     <>
       <Label>{t(withResearchers ? 'gloria.times.title' : 'gloria.times.titleOnly')}</Label>
       <Card className="gap-2 p-3">
-        {withResearchers ? <ResearcherRow unit={unit} surveyBy={surveyBy} reload={reload} /> : null}
+        {withResearchers ? <ResearcherRow unit={unit} surveyBy={surveyBy} reload={reload} required={unit.unit_type !== 'square'} /> : null}
         {body}
       </Card>
     </>

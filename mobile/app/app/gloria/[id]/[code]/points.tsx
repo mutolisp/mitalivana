@@ -17,7 +17,10 @@ import * as Haptics from 'expo-haptics';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Ionicons } from '@expo/vector-icons';
 import { Pressable, ScrollView, Text, View } from 'react-native';
+import { SwipeNavArea, useSwipeNav } from '~/components/SwipeNavigator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/components/ui/select';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HeaderIconButton } from '~/components/HeaderIconButton';
 import { KeyboardStickyView } from '~/components/KeyboardAvoidingView';
@@ -34,6 +37,8 @@ import { bySpeciesOrder } from '~/modules/gloria/model/speciesOrder';
 import { displayName, GLORIA_SEARCH_GROUPS, useSurvey } from '~/modules/gloria/useSurvey';
 import { OverviewPanel } from '~/modules/gloria/components/OverviewPanel';
 import { Btn, Chip } from '~/modules/gloria/components/ui';
+import { WalkDiagram } from '~/modules/gloria/components/WalkDiagram';
+import { PointMap } from '~/modules/gloria/components/PointMap';
 
 type PointStep = { seq: number; surface: string; hits: Record<number, boolean> };
 
@@ -68,8 +73,26 @@ export default function PointsScreen() {
   };
   const [seq, setSeq] = useState(firstOpen);
   const [picked, setPicked] = useState<Set<number>>(new Set());
-  const [recent, setRecent] = useState<number[]>([]);
   const [adding, setAdding] = useState(false);
+  const [scrollOn, setScrollOn] = useState(true);
+  const scrollRef = useRef<ScrollView>(null);
+  // The species shown on the big card (one at a time, like the frequency screen).
+  const [cur, setCur] = useState(0);
+  const pendingCard = useRef<number | null>(null);
+  useEffect(() => {
+    if (pendingCard.current == null) return;
+    const k = spp.findIndex((x) => x.id === pendingCard.current);
+    if (k >= 0) {
+      setCur(k);
+      pendingCard.current = null;
+    }
+  }, [spp]);
+  const curIdx = spp.length ? Math.min(cur, spp.length - 1) : 0;
+  const nav = useSwipeNav({
+    onStep: (d) => spp.length && setCur(((curIdx + d) % spp.length + spp.length) % spp.length),
+    hasPrev: spp.length > 1,
+    hasNext: spp.length > 1,
+  });
   const [panel, setPanel] = useState(false);
   const undo = useRef<PointStep[]>([]);
   const redo = useRef<PointStep[]>([]);
@@ -121,7 +144,6 @@ export default function PointsScreen() {
     for (const s of spp) nextHits[s.id] = setBits(nextHits[s.id] ?? emptyMask(size), [idx], on.has(s.id));
     setHits(nextHits);
     setSurface(surface.slice(0, idx) + surfaceChar + surface.slice(idx + 1));
-    if (species.length) setRecent((r) => [...species, ...r.filter((x) => !on.has(x))].slice(0, 12));
     setPicked(new Set());
     const lineEnd = (seq + 1) % n === 0;
     if (lineEnd) {
@@ -133,6 +155,16 @@ export default function PointsScreen() {
       void Haptics.selectionAsync();
     }
     setSeq(seq + 1);
+  };
+
+  /** What the previous point holds, for the 同前一點 button (species names, else the surface type). */
+  const previousText = (): string | null => {
+    if (seq === 0 || seq > size) return null;
+    const prevIdx = order[seq - 1];
+    const ch = surface[prevIdx];
+    if (ch === SURFACE_UNVISITED) return null;
+    const names = spp.filter((s) => getBit(hits[s.id] ?? '', prevIdx)).map((s) => displayName(s));
+    return names.length ? names.join('、') : t(`gloria.surface.${ch}`);
   };
 
   const sameAsPrevious = () => {
@@ -188,22 +220,93 @@ export default function PointsScreen() {
     toast(t(locked ? 'gloria.walk.unlocked' : 'gloria.walk.lockedDone'));
   };
 
-  const jumpTo = (canonical: number) => {
+  /** Go back to a recorded point (or the first open one); false when it cannot be reached yet. */
+  const jumpTo = (canonical: number): boolean => {
     const k = order.indexOf(canonical);
-    if (k < 0 || (surface[canonical] === SURFACE_UNVISITED && k > firstOpenLive())) return;
+    if (k < 0 || (surface[canonical] === SURFACE_UNVISITED && k > firstOpenLive())) return false;
     setSeq(k);
     setPicked(new Set(spp.filter((s) => getBit(hits[s.id] ?? '', canonical)).map((s) => s.id)));
+    return true;
   };
   const firstOpenLive = () => {
     const k = order.findIndex((i) => surface[i] === SURFACE_UNVISITED);
     return k < 0 ? size : k;
   };
 
-  const chipOrder = [...recent.map((r) => spp.find((s) => s.id === r)).filter(Boolean), ...spp.filter((s) => !recent.includes(s.id))] as typeof spp;
-  // Mini map: a square is drawn as the diamond it is on the slope (rotated 45°);
-  // display row r, column c ↔ canonical a = c, b = n-1-r (model/walk.ts).
-  const miniIdx = (r: number, c: number) => (isSquare ? c * n + (n - 1 - r) : r * n + c);
-  const cellPx = isSquare ? 6 : 12;
+  const toggle = (usid: number) => {
+    const p = new Set(picked);
+    if (p.has(usid)) p.delete(usid);
+    else p.add(usid);
+    setPicked(p);
+  };
+
+  /**
+   * One species at a time, large: swipe or ‹ › to another, tap its name for the
+   * full list. Tap the card = hit here (again = not); long press = hit, record
+   * the point and go on. The card stays on its species for the next point.
+   */
+  const spCard = () => {
+    const s = spp[curIdx];
+    if (!s) return <Text className="py-4 text-center text-sm text-gray-400">{t('gloria.walk.noSpecies')}</Text>;
+    const on = picked.has(s.id);
+    const arrow = (d: -1 | 1) => (
+      <Pressable
+        onPress={() => setCur(((curIdx + d) % spp.length + spp.length) % spp.length)}
+        disabled={spp.length < 2}
+        accessibilityRole="button"
+        accessibilityLabel={t(d < 0 ? 'gloria.freq.prevSpecies' : 'gloria.freq.nextSpecies')}
+        className="w-11 items-center justify-center self-stretch rounded-lg border border-gray-300 dark:border-gray-700"
+      >
+        <Ionicons name={d < 0 ? 'chevron-back' : 'chevron-forward'} size={22} color="#6b7280" />
+      </Pressable>
+    );
+    return (
+      <SwipeNavArea nav={nav} style={{ flex: 0 }}>
+        <View className="flex-row items-stretch gap-2">
+          {arrow(-1)}
+          <View className="flex-1 gap-1.5">
+            <Select
+              value={{ value: String(s.id), label: displayName(s) }}
+              onValueChange={(o) => o && setCur(Math.max(0, spp.findIndex((x) => String(x.id) === o.value)))}
+            >
+              <SelectTrigger className="w-full" accessibilityLabel={t('gloria.walk.pickSpecies')}>
+                <SelectValue placeholder={displayName(s)} />
+              </SelectTrigger>
+              <SelectContent>
+                {spp.map((x) => (
+                  <SelectItem key={x.id} value={String(x.id)} label={`${displayName(x)} · ${popcount(hits[x.id])}`} />
+                ))}
+              </SelectContent>
+            </Select>
+            <Pressable
+              onPress={() => !done && toggle(s.id)}
+              onLongPress={() => {
+                if (done) return;
+                commit([...new Set([...picked, s.id])], SURFACE_VASCULAR);
+              }}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: on }}
+              accessibilityHint={t('gloria.walk.cardHint')}
+              style={on ? { backgroundColor: '#00A2A5', borderColor: '#00A2A5' } : undefined}
+              className="min-h-[112px] items-center justify-center rounded-xl border-2 border-gray-300 bg-white px-3 py-3 dark:border-gray-700 dark:bg-gray-900"
+            >
+              <Text className={`text-center text-2xl font-bold ${on ? 'text-white' : 'text-gray-900 dark:text-gray-100'}`} numberOfLines={2}>
+                {displayName(s)}
+              </Text>
+              <Text className={`text-center text-xs italic ${on ? 'text-white/80' : 'text-gray-500 dark:text-gray-400'}`} numberOfLines={1}>
+                {s.simple_name}
+              </Text>
+              <Text className={`mt-1 text-[10px] ${on ? 'text-white' : 'text-[#00797b] dark:text-cyan-300'}`} style={{ fontVariant: ['tabular-nums'] }}>
+                {on ? t('gloria.walk.cardOn') : t('gloria.walk.cardOff')} · {t('gloria.walk.cardCount', { i: curIdx + 1, n: spp.length, hits: popcount(hits[s.id]) })}
+              </Text>
+            </Pressable>
+          </View>
+          {arrow(1)}
+        </View>
+      </SwipeNavArea>
+    );
+  };
+
 
   return (
     <SafeAreaView edges={['bottom']} className="flex-1 bg-gray-50 dark:bg-gray-950">
@@ -225,71 +328,78 @@ export default function PointsScreen() {
           ),
         }}
       />
-      <ScrollView className="flex-1" contentContainerClassName="gap-3 p-4" keyboardShouldPersistTaps="handled">
-        <View className="flex-row items-start gap-3">
+      <ScrollView ref={scrollRef} className="flex-1" contentContainerClassName="gap-3 p-4" keyboardShouldPersistTaps="handled" scrollEnabled={scrollOn}>
+        {/* Title, progress and direction beside the walk sketch: compact, so the species card stays near the top. */}
+        <View className="flex-row items-center gap-3">
+          {isSquare && unit.walk_option != null && !done ? <WalkDiagram option={unit.walk_option} size={64} line={line} /> : null}
           <View className="flex-1 gap-1">
-            <Text className="text-2xl font-bold text-gray-900 dark:text-gray-100" style={{ fontVariant: ['tabular-nums'] }}>
-              {done ? t('gloria.walk.allDone', { total: size }) : isSquare ? t('gloria.walk.linePoint', { line, point }) : t('gloria.walk.point', { n: seq + 1 })}
-            </Text>
+            <View className="flex-row items-center gap-2">
+              <Text className="text-lg font-bold text-gray-900 dark:text-gray-100" style={{ fontVariant: ['tabular-nums'] }}>
+                {done ? t('gloria.walk.allDone', { total: size }) : isSquare ? t('gloria.walk.linePoint', { line, point }) : t('gloria.walk.point', { n: seq + 1 })}
+              </Text>
+              {isSquare && !done ? (
+                <Text className="rounded-md bg-cyan-50 px-1.5 py-0.5 text-[11px] font-semibold text-[#00797b] dark:bg-cyan-950/40 dark:text-cyan-300">
+                  {line % 2 === 1 ? t('gloria.walk.forward') : t('gloria.walk.back')}
+                </Text>
+              ) : null}
+            </View>
             <Text className="text-xs text-gray-500" style={{ fontVariant: ['tabular-nums'] }}>{t('gloria.walk.progress', { done: visited, total: size })}</Text>
             <View className="h-1.5 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-800">
               <View className="h-full bg-[#00A2A5]" style={{ width: `${(visited / size) * 100}%` }} />
             </View>
-            {isSquare && !done ? (
-              <Text className="self-start rounded-md bg-cyan-50 px-2 py-1 text-xs font-semibold text-[#00797b] dark:bg-cyan-950/40 dark:text-cyan-300">
-                {line % 2 === 1 ? t('gloria.walk.forward') : t('gloria.walk.back')}
-              </Text>
-            ) : null}
-          </View>
-          <View style={{ width: n * cellPx + 8, height: n * cellPx + 8, transform: isSquare ? [{ rotate: '45deg' }, { scale: 0.72 }] : undefined }} className="p-1">
-            {Array.from({ length: n }, (_, r) => (
-              <View key={r} className="flex-row">
-                {Array.from({ length: n }, (_, c) => {
-                  const ci = miniIdx(r, c);
-                  const ch = surface[ci];
-                  const isCur = ci === idx && !done;
-                  const bg = isCur ? '#d97706' : ch === SURFACE_VASCULAR ? '#059669' : ch && ch !== SURFACE_UNVISITED ? '#9ca3af' : undefined;
-                  return (
-                    <Pressable key={c} onPress={() => jumpTo(ci)} hitSlop={2}>
-                      <View style={{ width: cellPx - 1, height: cellPx - 1, margin: 0.5, backgroundColor: bg }} className={bg ? '' : 'bg-gray-200 dark:bg-gray-800'} />
-                    </Pressable>
-                  );
-                })}
-              </View>
-            ))}
           </View>
         </View>
 
-        <Text className="text-xs font-semibold text-gray-500 dark:text-gray-400">{t('gloria.walk.species')}</Text>
-        <View className="flex-row flex-wrap">
-          {chipOrder.map((s) => (
-            <Chip
-              key={s.id}
-              label={displayName(s)}
-              badge={String(popcount(hits[s.id]))}
-              on={picked.has(s.id)}
-              onPress={() => {
-                const p = new Set(picked);
-                if (p.has(s.id)) p.delete(s.id);
-                else p.add(s.id);
-                setPicked(p);
-              }}
-            />
-          ))}
+        <View className="flex-row items-center">
+          <Text className="flex-1 text-xs font-semibold text-gray-500 dark:text-gray-400">{t('gloria.walk.species')}</Text>
           <Chip label={t('gloria.freq.newSpecies')} on={false} onPress={() => !refuseLocked() && setAdding(true)} />
         </View>
+        {spCard()}
+        {/* What this point holds so far; tap one to take it out. */}
+        {picked.size ? (
+          <View className="flex-row flex-wrap items-center">
+            <Text className="mb-1.5 mr-1.5 text-xs text-gray-500 dark:text-gray-400">{t('gloria.walk.thisPoint')}</Text>
+            {spp
+              .filter((s) => picked.has(s.id))
+              .map((s) => (
+                <Chip key={s.id} label={`${displayName(s)}  ✕`} on onPress={() => toggle(s.id)} />
+              ))}
+          </View>
+        ) : null}
 
         <Text className="text-xs font-semibold text-gray-500 dark:text-gray-400">{t('gloria.walk.surface')}</Text>
-        <View className="flex-row flex-wrap">
+        {/* One row, swiped sideways: tapping a surface records the point. */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-2 pr-2" keyboardShouldPersistTaps="handled">
           {SURFACE_CODES.map((c: SurfaceCode) => (
-            <View key={c} className="w-1/3 p-1">
+            <View key={c} style={{ minWidth: 88 }}>
               <Btn label={t(`gloria.surface.${c}`)} disabled={picked.size > 0 || done} onPress={() => commit([], c)} />
             </View>
           ))}
+        </ScrollView>
+        {/* The point map below the recording controls (no scrolling while
+            recording), centred and large; pinch or ＋ to zoom, tap a point to go back to it. */}
+        <View className="w-full max-w-[380px] self-center">
+          <PointMap
+            n={n}
+            square={isSquare}
+            surface={surface}
+            current={done ? null : idx}
+            onPoint={(i) => {
+              // Back to the controls with the chosen point loaded.
+              if (jumpTo(i)) scrollRef.current?.scrollTo({ y: 0, animated: true });
+            }}
+            onInteract={(on) => setScrollOn(!on)}
+          />
         </View>
       </ScrollView>
       {adding ? (
         <KeyboardStickyView offset={{ opened: insets.bottom }}>
+          <View className="flex-row items-center border-t border-gray-200 bg-white px-4 py-2 dark:border-gray-800 dark:bg-gray-900">
+            <Text className="flex-1 text-xs text-gray-500 dark:text-gray-400">{t('gloria.walk.addingHint')}</Text>
+            <Pressable onPress={() => setAdding(false)} hitSlop={8} accessibilityRole="button">
+              <Text className="text-sm font-semibold text-[#00797b] dark:text-cyan-300">{t('common.cancel')}</Text>
+            </Pressable>
+          </View>
           <SearchBox
             scopeGroups={GLORIA_SEARCH_GROUPS}
             onSelect={async (r) => {
@@ -300,17 +410,26 @@ export default function PointsScreen() {
               const usid = addUnitSpecies(unit.id, r.taxon_id, label);
               setAdding(false);
               setPicked(new Set([...picked, usid]));
+              // Show the new species on the card (it lands where the unit's order puts it).
+              pendingCard.current = usid;
               reload();
             }}
           />
         </KeyboardStickyView>
       ) : (
-        <View className="flex-row gap-2 border-t border-gray-200 bg-white px-4 py-2.5 dark:border-gray-800 dark:bg-gray-900">
+        <View className="gap-1.5 border-t border-gray-200 bg-white px-4 py-2.5 dark:border-gray-800 dark:bg-gray-900">
+          {previousText() && !done ? (
+            <Text className="text-xs text-gray-500 dark:text-gray-400" numberOfLines={2}>
+              {t('gloria.walk.prevIs', { what: previousText() })}
+            </Text>
+          ) : null}
+          <View className="flex-row gap-2">
           <View className="flex-1">
             <Btn label={t('gloria.walk.same')} onPress={sameAsPrevious} disabled={seq === 0 || done} />
           </View>
           <View className="flex-[2]">
             <Btn primary label={t('gloria.walk.next')} disabled={picked.size === 0 || done} onPress={() => commit([...picked], SURFACE_VASCULAR)} />
+          </View>
           </View>
         </View>
       )}

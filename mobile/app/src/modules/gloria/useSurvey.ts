@@ -18,7 +18,8 @@ import {
   type GloriaUnit,
   type GloriaUnitSpeciesWithTaxon,
 } from './db';
-import { validateSurvey, type Issue, type QuadratInput, type TopCover, type UnitSpecies } from './model/validate';
+import { validateSurvey, type Issue, type QuadratInput, type RequiredInput, type TopCover, type UnitSpecies } from './model/validate';
+import { visitedCount } from './model/grid';
 import type { Direction, P5mCorner } from './model/units';
 import type { TaxonGroup } from '~/db/types';
 
@@ -94,6 +95,34 @@ export function quadratInput(u: GloriaUnit, spp: SurveySpecies[]): QuadratInput 
   };
 }
 
+/** A started 1×1 m quadrat or SAS, for the required-field check (model/validate missingRequired). */
+export function requiredInput(u: GloriaUnit, spp: SurveySpecies[], surveyBy: string | null): RequiredInput {
+  const base = {
+    code: u.code,
+    researchers: u.no_researchers === 1 ? null : u.recorded_by || surveyBy,
+    start_ts: u.start_ts,
+    stop_ts: u.stop_ts,
+    date_only: u.date_only,
+    top: topOf(u),
+  };
+  if (u.unit_type === 'sas')
+    return { ...base, type: 'sas', species: spp.map((s) => ({ name: displayName(s), value: s.abundance })) };
+  const q = quadratInput(u, spp);
+  return {
+    ...base,
+    type: 'quadrat',
+    species: spp.map((s) => ({ name: displayName(s), value: s.cover_pct })),
+    aspect_deg: u.aspect_deg,
+    slope_deg: u.slope_deg,
+    subtypes: q.subtypes,
+    skipped: u.freq_skipped === 1,
+    freqDone: q.freqDone,
+    pfDone: visitedCount(u.point_surface) > 0,
+    freq_start_ts: u.freq_start_ts,
+    freq_stop_ts: u.freq_stop_ts,
+  };
+}
+
 export function loadSurveyState(id: number): SurveyState | null {
   const survey = getGloriaSurvey(id);
   if (!survey) return null;
@@ -106,7 +135,15 @@ export function loadSurveyState(id: number): SurveyState | null {
   for (const s of species) byUnit.set(s.unit_code, [...(byUnit.get(s.unit_code) ?? []), s]);
   const speciesOf = (code: string) => byUnit.get(code) ?? [];
   const p5m = p5mOf(points);
+  // A date filled from the survey (date_only) is not a start.
+  const started = (u: GloriaUnit) =>
+    u.done_locked === 1 ||
+    (u.start_ts != null && u.date_only !== 1) ||
+    u.point_surface != null ||
+    u.cov_vascular != null ||
+    speciesOf(u.code).length > 0;
   const issues = validateSurvey({
+    required: units.filter((u) => (u.unit_type === 'quadrat' || u.unit_type === 'sas') && started(u)).map((u) => requiredInput(u, speciesOf(u.code), survey.recorded_by)),
     p5m,
     quadrats: units.filter((u) => u.unit_type === 'quadrat').map((u) => quadratInput(u, speciesOf(u.code))),
     sas: units
@@ -122,13 +159,7 @@ export function loadSurveyState(id: number): SurveyState | null {
     if (!u) return 'none';
     if (issues.some((i) => i.unit === code)) return 'warn';
     if (u.done_locked === 1) return 'done';
-    // A date filled from the survey (date_only) is not a start.
-    const touched =
-      (u.start_ts != null && u.date_only !== 1) ||
-      u.point_surface != null ||
-      u.cov_vascular != null ||
-      speciesOf(code).length > 0;
-    return touched ? 'progress' : 'none';
+    return started(u) ? 'progress' : 'none';
   };
   return { survey, summit, points, units, species, p5m, issues, unit: (c) => unitMap.get(c), speciesOf, statusOf };
 }

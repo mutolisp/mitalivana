@@ -20,6 +20,9 @@
  *   point-inconsistent   p.41 / p.58  a surface is recorded only where no
  *                              vascular plant was hit
  *   p5m                  Form 1 note 5: exactly one of 11 / 31 per direction
+ *   required             project rule (2026-09-27): the fields the team
+ *                        must fill on a unit once it is started — see
+ *                        missingRequired
  */
 
 import { DIRECTIONS, quadratsOf, upperSasOf } from './units';
@@ -73,7 +76,63 @@ export type Issue =
   | { unit: string; kind: 'freq-no-cover'; species: string; cells: number }
   | { unit: string; kind: 'sas-missing'; species: string[] }
   | { unit: string; kind: 'point-inconsistent'; points: number[] }
-  | { unit: string; kind: 'p5m'; direction: Direction };
+  | { unit: string; kind: 'p5m'; direction: Direction }
+  | { unit: string; kind: 'required'; fields: RequiredField[]; species: string[] };
+
+/** Required fields of a unit, in screen order. */
+export type RequiredField =
+  | 'researchers'
+  | 'aspect'
+  | 'slope'
+  | 'time'
+  | 'freqTime'
+  | 'topCover'
+  | 'subtypes'
+  | 'method';
+
+/**
+ * What a started 1×1 m quadrat or SAS must have (project rule). Both: the
+ * researchers (the unit's or the survey's), a start with a time and an end,
+ * all seven top covers, every species' value (quadrat: cover; SAS:
+ * abundance). A quadrat also: aspect, slope, all six subtypes, and frequency
+ * or point-framing — unless skipped for shrubs, which drops both and their
+ * times. Frequency times are asked for when frequency was done;
+ * point-framing times never (the sheet has no column for them).
+ */
+export type RequiredInput = {
+  code: string;
+  type: 'quadrat' | 'sas';
+  researchers: string | null;
+  start_ts: number | null;
+  stop_ts: number | null;
+  date_only: number | null;
+  top: TopCover;
+  species: Array<{ name: string; value: number | string | null }>;
+  aspect_deg?: number | null;
+  slope_deg?: number | null;
+  subtypes?: Array<number | null>;
+  skipped?: boolean;
+  freqDone?: boolean;
+  pfDone?: boolean;
+  freq_start_ts?: number | null;
+  freq_stop_ts?: number | null;
+};
+
+export function missingRequired(r: RequiredInput): Issue[] {
+  const f: RequiredField[] = [];
+  if (!r.researchers?.trim()) f.push('researchers');
+  if (r.type === 'quadrat') {
+    if (r.aspect_deg == null) f.push('aspect');
+    if (r.slope_deg == null) f.push('slope');
+  }
+  if (r.start_ts == null || r.date_only === 1 || r.stop_ts == null) f.push('time');
+  if (r.type === 'quadrat' && !r.skipped && r.freqDone && (r.freq_start_ts == null || r.freq_stop_ts == null)) f.push('freqTime');
+  if (topValues(r.top).some((v) => v == null)) f.push('topCover');
+  if (r.type === 'quadrat' && (r.subtypes ?? []).some((v) => v == null)) f.push('subtypes');
+  if (r.type === 'quadrat' && !r.skipped && !r.freqDone && !r.pfDone) f.push('method');
+  const species = r.species.filter((s) => s.value == null || s.value === '').map((s) => s.name);
+  return f.length || species.length ? [{ unit: r.code, kind: 'required', fields: f, species }] : [];
+}
 
 const EPS = 1e-9; // float noise only; real covers go down to 0.001
 /**
@@ -181,6 +240,8 @@ export type SurveyInput = {
   quadrats: QuadratInput[];
   sas: SasInput[];
   squares: SquareInput[];
+  /** Started quadrats and SAS, for the required-field check. */
+  required?: RequiredInput[];
 };
 
 /** Every issue of a survey, grouped by nothing — callers group by `unit`. */
@@ -194,6 +255,7 @@ export function validateSurvey(s: SurveyInput): Issue[] {
   for (const q of s.squares) {
     out.push(...checkPoints(q.code, q.point_surface, q.species));
     }
+  for (const r of s.required ?? []) out.push(...missingRequired(r));
   return out;
 }
 

@@ -92,7 +92,7 @@ export type GloriaDoc = {
 
 /** Unit columns carried verbatim (everything but ids and the FK). */
 export const UNIT_FIELDS = [
-  'code', 'unit_type', 'start_ts', 'stop_ts', 'freq_start_ts', 'freq_stop_ts', 'freq_stop_manual', 'freq_locked', 'pf_start_ts', 'pf_stop_ts', 'pf_locked', 'freq_skipped', 'date_only', 'done_locked', 'recorded_by', 'aspect_deg', 'slope_deg',
+  'code', 'unit_type', 'start_ts', 'stop_ts', 'freq_start_ts', 'freq_stop_ts', 'freq_stop_manual', 'freq_locked', 'pf_start_ts', 'pf_stop_ts', 'pf_locked', 'freq_skipped', 'date_only', 'done_locked', 'recorded_by', 'no_researchers', 'aspect_deg', 'slope_deg',
   'cov_vascular', 'cov_solid_rock', 'cov_scree', 'cov_lichens', 'cov_bryophytes', 'cov_bare_ground', 'cov_litter',
   'sub_lich_below_vasc', 'sub_lich_on_rock', 'sub_lich_on_scree', 'sub_bry_below_vasc', 'sub_bry_on_rock',
   'sub_bry_on_scree', 'dist_hi1', 'dist_hi2', 'dist_hi3', 'freq_mode', 'dist_hi1_n', 'dist_hi2_n', 'dist_hi3_n', 'point_surface', 'walk_option', 'legacy_surface_hits',

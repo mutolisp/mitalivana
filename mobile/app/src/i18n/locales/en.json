@@ -2680,7 +2680,9 @@
       "freqNoCover_one": "{{name}}: in {{count}} cell but no cover",
       "freqNoCover_other": "{{name}}: in {{count}} cells but no cover",
       "pointInconsistent_one": "{{count}} point has both a species and a surface, or neither",
-      "pointInconsistent_other": "{{count}} points have both a species and a surface, or neither"
+      "pointInconsistent_other": "{{count}} points have both a species and a surface, or neither",
+      "required": "Required, not filled: {{fields}}",
+      "requiredSpecies": "Species without a value: {{names}}"
     },
     "cover": {
       "title": "Surface cover (%)",
@@ -2771,21 +2773,33 @@
       "replace": "Change species",
       "replaceExists": "{{name}} is already on this plot’s list",
       "replaced": "Changed to {{name}}; its cover, frequency and other data are kept",
-      "replaceBanner": "Changing {{name}}: search below for the right species"
+      "replaceBanner": "Changing {{name}}: search below for the right species",
+      "requiredTitle": "Required fields missing",
+      "methodRequired": "Frequency or point-frame (at least one)",
+      "clear": "Clear this unit",
+      "clearTitle": "Clear {{code}}?",
+      "clearMsg": "Deletes every species and value of this unit: researchers, times, aspect and slope, surface cover, frequency, point-frame, comments. The 10×10 m walk option and photos stay.",
+      "clearGo": "Clear",
+      "clearAgainTitle": "Confirm again",
+      "clearAgainMsg": "Really clear all data of {{code}}? Undo at the top brings it back until you leave this screen.",
+      "clearGoFinal": "Clear everything",
+      "cleared": "{{code}} cleared"
     },
     "square": {
       "walk": "Start and direction (Form 6-S, four options)",
-      "option1": "Lower-left edge · from the bottom corner",
-      "option2": "Lower-left edge · from the left corner",
-      "option3": "Lower-right edge · from the bottom corner",
-      "option4": "Lower-right edge · from the right corner",
+      "option1": "Upper-left edge · left corner up to the top",
+      "option2": "Lower-right edge · bottom corner up to the right",
+      "option3": "Upper-right edge · right corner up to the top",
+      "option4": "Lower-left edge · bottom corner up to the left",
       "pickWalk": "Pick a start first. Resurveys reuse the previous choice (manual p.57).",
       "start": "Record line points ({{done}}/400 done)",
       "hitsTitle": "Hits and cover ({{done}}/400 recorded; cover = hits ÷ 4)",
       "fromQuadrats": "Add from the 4 quadrats",
       "extraEmpty": "After the line points, list the species not hit; start with the 4 quadrats’ species (manual p.58).",
       "extra_one": "Species not hit ({{count}})",
-      "extra_other": "Species not hit ({{count}})"
+      "extra_other": "Species not hit ({{count}})",
+      "prevOption": "Last time (mocy {{mocy}}): option {{option}}, {{label}}. Repeat it on a resurvey (manual p.57)",
+      "prevNone": "Last time (mocy {{mocy}}) has no start recorded"
     },
     "species": {
       "inUnit": "{{code}} · list no. {{serial}}",
@@ -2869,7 +2883,16 @@
       "lineDone": "Line {{line}} done: {{hits}} hits",
       "lockedToast": "Point recording is done and locked. Tap the lock at the top right to edit.",
       "lockedDone": "Point recording done and locked; end time recorded",
-      "unlocked": "Unlocked; you can edit"
+      "unlocked": "Unlocked; you can edit",
+      "addingHint": "Search and add a new species",
+      "prevIs": "Last point: {{what}}",
+      "thisPoint": "This point:",
+      "noSpecies": "No species yet; add one with + New species",
+      "pickSpecies": "Choose species",
+      "cardHint": "Tap = hit at this point; long press = hit, record and go to the next point",
+      "cardOn": "Hit at this point ✓",
+      "cardOff": "Tap = hit, long press = record and next",
+      "cardCount": "{{i}} / {{n}} · {{hits}} hits"
     },
     "endWithIssues_one": "{{count}} warning is still open. End anyway? You can reopen it later.",
     "endWithIssues_other": "{{count}} warnings are still open. End anyway? You can reopen it later.",
@@ -3017,6 +3040,32 @@
       "out": "Zoom out",
       "reset": "Reset zoom",
       "hint": "Pinch with two fingers to zoom, drag with two to move; or use the buttons at the top right"
+    },
+    "researchers": {
+      "fromUnits": "Bring in from units",
+      "fromUnitsTitle": "Bring in researchers from units",
+      "fromUnitsMsg": "Add researchers set on single units but not yet on this survey: {{names}}",
+      "noneNew": "Every unit’s researchers are already on the list",
+      "hint": "“Bring in from units” adds the researchers set on single 1×1 m, SAS and 10×10 m units to this survey’s list, without repeats. A unit with none of its own uses this survey’s researchers."
+    },
+    "required": {
+      "researchers": "researchers",
+      "aspect": "aspect",
+      "slope": "slope",
+      "time": "survey date and time",
+      "freqTime": "frequency times",
+      "topCover": "surface cover",
+      "subtypes": "surface cover subtypes",
+      "method": "frequency or point-frame"
+    },
+    "topo": {
+      "carry": "Bring in 1×1 m aspect and slope from mocy {{mocy}}",
+      "none": "Nothing to bring in from mocy {{mocy}}, or every quadrat already has values",
+      "title": "Bring in aspect and slope",
+      "msg_one": "Fill aspect and slope of {{count}} quadrat from mocy {{mocy}} (blanks only): {{list}}",
+      "msg_other": "Fill aspect and slope of {{count}} quadrats from mocy {{mocy}} (blanks only): {{list}}",
+      "done_one": "Filled {{count}} quadrat",
+      "done_other": "Filled {{count}} quadrats"
     }
   },
   "vernacular": {
@@ -3253,7 +3302,8 @@
       "flags": "Flags",
       "researcher": "Researcher",
       "visit": "Visit",
-      "prev_uuid": "Previous record"
+      "prev_uuid": "Previous record",
+      "no_researchers": "No researchers (cleared)"
     },
     "from": "From {{name}}",
     "fromAt": "From {{name}}, uploaded {{date}}"

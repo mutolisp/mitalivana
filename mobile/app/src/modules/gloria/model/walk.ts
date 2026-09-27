@@ -20,11 +20,19 @@
  *     b = 0..19: distance from the lower-RIGHT edge = 0.25 + 0.5b m
  * (left / right as seen looking toward the summit).
  *
- * "It is more comfortable to work uphill; therefore only four options
- * remain, which are illustrated on Form 6-S" (p.57). Form 6-S shows them as
- * diagrams only; our reading: the first line runs along one of the two lower
- * edges, starting at one of its two ends, and each following line is 0.5 m
- * further uphill.
+ * Manual p.57: "you can start with the first line from any of the four
+ * corners in either of the two possible directions. It is more comfortable,
+ * however, to work uphill; therefore only four options remain, which are
+ * illustrated on Form 6-S … On the first line start in the direction as
+ * indicated on the marked sketch, and begin the next line from the opposite
+ * [end]". The Form 6-S sketch (HSP at the top corner) shows, left to right,
+ * the start line on each of the four edges, walked uphill:
+ *   1  upper-left edge,  left corner → top corner    (b fixed at the far end)
+ *   2  lower-right edge, bottom corner → right corner (b fixed at 0)
+ *   3  upper-right edge, right corner → top corner    (a fixed at the far end)
+ *   4  lower-left edge,  bottom corner → left corner  (a fixed at 0)
+ * Every first line runs with the free coordinate rising from 0; the next
+ * lines step 0.5 m across the square and alternate direction.
  */
 
 import { SQUARE_N } from './grid';
@@ -32,11 +40,12 @@ import { SQUARE_N } from './grid';
 export type WalkOption = 1 | 2 | 3 | 4;
 export const WALK_OPTIONS: readonly WalkOption[] = [1, 2, 3, 4];
 
-export const WALK_OPTION_INFO: Record<WalkOption, { edge: 'lower-left' | 'lower-right'; start: 'bottom' | 'side' }> = {
-  1: { edge: 'lower-left', start: 'bottom' },
-  2: { edge: 'lower-left', start: 'side' },
-  3: { edge: 'lower-right', start: 'bottom' },
-  4: { edge: 'lower-right', start: 'side' },
+/** Which coordinate a line keeps fixed, and whether the lines start at its far end (Form 6-S). */
+export const WALK_OPTION_INFO: Record<WalkOption, { fixed: 'a' | 'b'; fromFar: boolean }> = {
+  1: { fixed: 'b', fromFar: true },
+  2: { fixed: 'b', fromFar: false },
+  3: { fixed: 'a', fromFar: true },
+  4: { fixed: 'a', fromFar: false },
 };
 
 /** Visit order → canonical index, for an N×N frame. `option` null = row-major (1×1 m frame). */
@@ -46,13 +55,13 @@ export function walkOrder(n: number, option: WalkOption | null): number[] {
     for (let i = 0; i < n * n; i++) out.push(i);
     return out;
   }
-  const { edge, start } = WALK_OPTION_INFO[option];
+  const { fixed, fromFar } = WALK_OPTION_INFO[option];
   for (let line = 0; line < n; line++) {
-    const forward = (line % 2 === 0) === (start === 'bottom');
+    const across = fromFar ? n - 1 - line : line;
+    const forward = line % 2 === 0; // the first line uphill, then back and forth
     for (let j = 0; j < n; j++) {
       const along = forward ? j : n - 1 - j;
-      // Lines parallel to the lower-left edge keep `a` fixed; to the lower-right edge keep `b` fixed.
-      out.push(edge === 'lower-left' ? line * n + along : along * n + line);
+      out.push(fixed === 'b' ? along * n + across : across * n + along);
     }
   }
   return out;

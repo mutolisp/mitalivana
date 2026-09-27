@@ -2527,7 +2527,9 @@
       "sasMissing": "同方位樣區有、這裡還沒記：{{names}}",
       "p5m": "{{direction}} 方位尚未指定 p5m（11 或 31）",
       "freqNoCover_other": "{{name}}：頻度 {{count}} 格，但沒有覆蓋度",
-      "pointInconsistent_other": "{{count}} 個點的物種與地表紀錄互相矛盾"
+      "pointInconsistent_other": "{{count}} 個點的物種與地表紀錄互相矛盾",
+      "required": "尚缺必填：{{fields}}",
+      "requiredSpecies": "未填數值的物種：{{names}}"
     },
     "cover": {
       "title": "地表覆蓋估測(%)",
@@ -2615,20 +2617,32 @@
       "replace": "更換物種",
       "replaceExists": "{{name}} 已在這個樣區的名單中",
       "replaced": "已更換為 {{name}}，原本的覆蓋度、頻度等資料都保留",
-      "replaceBanner": "更換 {{name}}：從下方搜尋選擇正確的物種"
+      "replaceBanner": "更換 {{name}}：從下方搜尋選擇正確的物種",
+      "requiredTitle": "尚缺必填項目",
+      "methodRequired": "頻度或頻度點擊法（至少做一種）",
+      "clear": "清空此樣區資料",
+      "clearTitle": "清空 {{code}}？",
+      "clearMsg": "會刪除這個樣區的所有物種與數值：調查者、時間、坡向坡度、地表覆蓋、頻度、點擊、備註。10×10 m 的走線方式與照片保留。",
+      "clearGo": "清空",
+      "clearAgainTitle": "再確認一次",
+      "clearAgainMsg": "確定要清空 {{code}} 的所有資料嗎？清空後可用上方的復原還原；離開此畫面後就無法復原。",
+      "clearGoFinal": "確定清空",
+      "cleared": "已清空 {{code}}"
     },
     "square": {
       "walk": "起點與方向（Form 6-S 四種選項）",
-      "option1": "左下緣 · 從下角起",
-      "option2": "左下緣 · 從左角起",
-      "option3": "右下緣 · 從下角起",
-      "option4": "右下緣 · 從右角起",
+      "option1": "左上緣 · 由左角往上走到頂角",
+      "option2": "右下緣 · 由下角往上走到右角",
+      "option3": "右上緣 · 由右角往上走到頂角",
+      "option4": "左下緣 · 由下角往上走到左角",
       "pickWalk": "先選起點與方向。重複調查時沿用前次的選擇（手冊 p.57）。",
       "start": "逐點記錄（已記 {{done}}/400）",
       "hitsTitle": "命中數與覆蓋度（已記 {{done}}/400；覆蓋 = 命中 ÷ 4）",
       "fromQuadrats": "從 4 個 1×1 m 樣區帶入",
       "extraEmpty": "走完逐點後，列出沒被點到的物種；可先從 4 個 1×1 m 樣區帶入（手冊 p.58）。",
-      "extra_other": "未被點到的物種（{{count}}）"
+      "extra_other": "未被點到的物種（{{count}}）",
+      "prevOption": "上次（mocy {{mocy}}）用選項 {{option}}：{{label}}。重複調查請沿用（手冊 p.57）",
+      "prevNone": "上次（mocy {{mocy}}）沒有記錄起點與方向"
     },
     "species": {
       "inUnit": "{{code}} · 名錄編號 {{serial}}",
@@ -2712,7 +2726,16 @@
       "lineDone": "第 {{line}} 線完成：{{hits}} 次命中",
       "lockedToast": "點位記錄已完成並鎖定；按右上角鎖頭解鎖後才能編輯",
       "lockedDone": "點位記錄已完成並鎖定，完成時間已記錄",
-      "unlocked": "已解鎖，可以編輯"
+      "unlocked": "已解鎖，可以編輯",
+      "addingHint": "搜尋並加入新物種",
+      "prevIs": "前一點：{{what}}",
+      "thisPoint": "這一點：",
+      "noSpecies": "還沒有物種，按「＋ 新物種」加入",
+      "pickSpecies": "選擇物種",
+      "cardHint": "點一下＝這一點點到；長按＝點到並記錄、前往下一點",
+      "cardOn": "這一點點到 ✓",
+      "cardOff": "點一下＝點到，長按＝記錄並下一點",
+      "cardCount": "{{i}} / {{n}} · 命中 {{hits}}"
     },
     "endWithIssues_other": "還有 {{count}} 項警告。仍要結束嗎？之後仍可重新開啟。",
     "kb": {
@@ -2859,6 +2882,30 @@
       "out": "縮小",
       "reset": "還原",
       "hint": "兩指捏合縮放、兩指拖曳移動；也可用右上角按鈕"
+    },
+    "researchers": {
+      "fromUnits": "從各樣區帶入",
+      "fromUnitsTitle": "從各樣區帶入調查者",
+      "fromUnitsMsg": "加入各樣區個別指定、但本次調查還沒列的調查者：{{names}}",
+      "noneNew": "各樣區的調查者都已在名單上",
+      "hint": "「從各樣區帶入」：把 1×1 m、SAS、10×10 m 個別指定的調查者加入本次調查的名單，已有的不重複。樣區沒有個別指定時，就是本次調查的調查者。"
+    },
+    "required": {
+      "researchers": "調查者",
+      "aspect": "坡向",
+      "slope": "坡度",
+      "time": "調查日期時間",
+      "freqTime": "頻度時間",
+      "topCover": "地表覆蓋估測",
+      "subtypes": "地表覆蓋子類型",
+      "method": "頻度或頻度點擊法"
+    },
+    "topo": {
+      "carry": "從 mocy {{mocy}} 帶入 1×1 m 坡向坡度",
+      "none": "mocy {{mocy}} 沒有可帶入的坡向坡度，或各樣區都已填",
+      "title": "帶入坡向坡度",
+      "msg_other": "從 mocy {{mocy}} 帶入 {{count}} 個樣區的坡向坡度（只填空白的）：{{list}}",
+      "done_other": "已帶入 {{count}} 個樣區"
     }
   },
   "vernacular": {
@@ -3090,7 +3137,8 @@
       "flags": "註記",
       "researcher": "調查者",
       "visit": "巡查",
-      "prev_uuid": "前次紀錄"
+      "prev_uuid": "前次紀錄",
+      "no_researchers": "無調查者（已清空）"
     },
     "from": "來自 {{name}}",
     "fromAt": "來自 {{name}}，{{date}} 上傳"

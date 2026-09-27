@@ -3,7 +3,29 @@
  * pure model so the model stays free of i18n.
  */
 import type { TFunction } from 'i18next';
-import type { Issue } from './model/validate';
+import type { Issue, RequiredField } from './model/validate';
+
+/** Literal t() calls, one per field, so check:i18n sees every key. */
+export function requiredLabel(t: TFunction, f: RequiredField): string {
+  switch (f) {
+    case 'researchers':
+      return t('gloria.required.researchers');
+    case 'aspect':
+      return t('gloria.required.aspect');
+    case 'slope':
+      return t('gloria.required.slope');
+    case 'time':
+      return t('gloria.required.time');
+    case 'freqTime':
+      return t('gloria.required.freqTime');
+    case 'topCover':
+      return t('gloria.required.topCover');
+    case 'subtypes':
+      return t('gloria.required.subtypes');
+    case 'method':
+      return t('gloria.required.method');
+  }
+}
 
 export function issueText(t: TFunction, i: Issue): string {
   switch (i.kind) {
@@ -23,5 +45,12 @@ export function issueText(t: TFunction, i: Issue): string {
       return t('gloria.issue.pointInconsistent', { count: i.points.length });
     case 'p5m':
       return t('gloria.issue.p5m', { direction: i.direction });
+    case 'required':
+      return [
+        i.fields.length ? t('gloria.issue.required', { fields: i.fields.map((f) => requiredLabel(t, f)).join('、') }) : null,
+        i.species.length ? t('gloria.issue.requiredSpecies', { names: i.species.join('、') }) : null,
+      ]
+        .filter(Boolean)
+        .join('\n');
   }
 }

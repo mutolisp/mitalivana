@@ -22,9 +22,9 @@ import {
 } from '../src/modules/gloria/model/grid.ts';
 import { walkOrder, lineHits, coverFromHits, WALK_OPTIONS } from '../src/modules/gloria/model/walk.ts';
 import {
-  checkQuadrat, checkSasContainsQuadrats, checkP5m, checkPoints, vascularCoverOk, autoFillLast,
+  checkQuadrat, checkSasContainsQuadrats, checkP5m, checkPoints, vascularCoverOk, autoFillLast, missingRequired,
 } from '../src/modules/gloria/model/validate.ts';
-import { planPrefill, nextSerial } from '../src/modules/gloria/model/prefill.ts';
+import { planPrefill, planTopoFill, nextSerial } from '../src/modules/gloria/model/prefill.ts';
 import { photoFileName, planPhotoNames } from '../src/modules/gloria/export/photoNames.ts';
 import { RANGES, checkRange } from '../src/modules/gloria/model/ranges.ts';
 import {
@@ -44,6 +44,7 @@ import { unitTimeSpan, surveyDatesFromUnits, planUnitDates, takesRealStart } fro
 import { cycleOf, carryForward, missingCarry, nextLoggerLabel, loggerCode, loggerPhotoItem, validQuadrat, utcDiffHours, form4Id } from '../src/modules/gloria/model/loggers.ts';
 import { loggerRows, planLoggerFiles, temperatureLoggersId, H04_TEMPERATURE_LOGGERS } from '../src/modules/gloria/export/loggerRows.ts';
 import { speciesComments } from '../src/modules/gloria/export/sheetRows.ts';
+import { researchersFromUnits } from '../src/modules/gloria/model/researchers.ts';
 
 let failures = 0;
 const eq = (label, got, want) => {
@@ -103,13 +104,19 @@ for (const opt of WALK_OPTIONS) {
     if (Math.abs(a1 - a0) + Math.abs(b1 - b0) !== 1) jumps += 1;
   }
   eq(`option ${opt}: each step moves to a neighbour (boustrophedon)`, jumps, 0);
-  // The first line runs along a lower edge: a = 0 (lower-left) or b = 0 (lower-right).
+  // Form 6-S: the first line runs uphill along one edge — its free coordinate rises from 0.
   const first = order.slice(0, 20);
-  ok(`option ${opt}: first line on a lower edge`,
-    first.every((i) => Math.floor(i / 20) === 0) || first.every((i) => i % 20 === 0));
+  const aOf = (i) => Math.floor(i / 20), bOf = (i) => i % 20;
+  ok(`option ${opt}: first line on one edge, walked uphill`,
+    [aOf, bOf].some((fixedOf) => first.every((i) => fixedOf(i) === fixedOf(first[0])) && [0, 19].includes(fixedOf(first[0]))) &&
+    first.every((i) => aOf(i) + bOf(i) >= aOf(first[0]) + bOf(first[0])) && aOf(first[19]) + bOf(first[19]) > aOf(first[0]) + bOf(first[0]));
 }
-eq('options 1 and 2 start at opposite ends', [walkOrder(20, 1)[0], walkOrder(20, 2)[0]], [0, 19]);
-eq('options 3 and 4 start at opposite ends', [walkOrder(20, 3)[0], walkOrder(20, 4)[0]], [0, 380]);
+// Canonical a = from the lower-left edge, b = from the lower-right edge (0..19).
+eq('option 1: upper-left edge, left corner → top', [walkOrder(20, 1)[0], walkOrder(20, 1)[19]], [0 * 20 + 19, 19 * 20 + 19]);
+eq('option 2: lower-right edge, bottom → right corner', [walkOrder(20, 2)[0], walkOrder(20, 2)[19]], [0, 19 * 20]);
+eq('option 3: upper-right edge, right corner → top', [walkOrder(20, 3)[0], walkOrder(20, 3)[19]], [19 * 20, 19 * 20 + 19]);
+eq('option 4: lower-left edge, bottom → left corner', [walkOrder(20, 4)[0], walkOrder(20, 4)[19]], [0, 19]);
+eq('the second line starts where the first ended, one line across', [walkOrder(20, 2)[20], walkOrder(20, 4)[20]], [19 * 20 + 1, 1 * 20 + 19]);
 eq('1×1 frame is row-major', walkOrder(10, null).slice(0, 3), [0, 1, 2]);
 {
   const order = walkOrder(20, 1);
@@ -178,6 +185,28 @@ eq('lower SAS is not checked',
 eq('p5m missing for W', checkP5m({ N: '31', E: '11', S: '11' }).map((i) => i.direction), ['W']);
 eq('p5m complete', checkP5m({ N: '31', E: '11', S: '11', W: '31' }), []);
 
+// ── required fields of a started unit (project rule, 2026-09-27) ─────────
+{
+  const top = { vascular: 40, solidRock: 10, scree: 10, lichens: 10, bryophytes: 10, bareGround: 10, litter: 10 };
+  const q = {
+    code: 'N11', type: 'quadrat', researchers: '甲', start_ts: 1, stop_ts: 2, date_only: null, top,
+    species: [{ name: 'A', value: 5 }], aspect_deg: 10, slope_deg: 20, subtypes: [0, 0, 0, 0, 0, 0],
+    skipped: false, freqDone: true, pfDone: false, freq_start_ts: 3, freq_stop_ts: 4,
+  };
+  const fields = (r) => missingRequired(r)[0]?.fields ?? [];
+  eq('required: a complete quadrat has no issue', missingRequired(q), []);
+  eq('required: every quadrat field, in screen order',
+    fields({ ...q, researchers: ' ', aspect_deg: null, slope_deg: null, stop_ts: null, freq_stop_ts: null, top: { ...top, litter: null }, subtypes: [0, null, 0, 0, 0, 0] }),
+    ['researchers', 'aspect', 'slope', 'time', 'freqTime', 'topCover', 'subtypes']);
+  eq('required: a date without a time is not a time', fields({ ...q, date_only: 1 }), ['time']);
+  eq('required: frequency or point-framing, either one', [fields({ ...q, freqDone: false, freq_start_ts: null }), fields({ ...q, freqDone: false, pfDone: true, freq_start_ts: null })], [['method'], []]);
+  eq('required: shrubs drop frequency, point-framing and their times', fields({ ...q, skipped: true, freqDone: false, freq_start_ts: null, freq_stop_ts: null }), []);
+  eq('required: species without a value are named', missingRequired({ ...q, species: [{ name: 'A', value: null }, { name: 'B', value: 3 }] })[0].species, ['A']);
+  eq('required: SAS asks researchers, time, top cover, abundance — no aspect, subtypes or method',
+    missingRequired({ code: 'N05', type: 'sas', researchers: null, start_ts: 1, stop_ts: null, date_only: null, top: { ...top, scree: null }, species: [{ name: 'C', value: null }, { name: 'D', value: 'r' }] }),
+    [{ unit: 'N05', kind: 'required', fields: ['researchers', 'time', 'topCover'], species: ['C'] }]);
+}
+
 // ── prefill: plot re-establishment only — resurveys are blind (Box 4.5) ──
 {
   const plan = planPrefill({
@@ -185,12 +214,20 @@ eq('p5m complete', checkP5m({ N: '31', E: '11', S: '11', W: '31' }), []);
     p5m: { N: '31' },
     points: [{ key: 'N31', distance_m: 27.3, compass_deg: 19, comments: null }],
     walkOptions: [{ code: 'N', walk_option: 2 }, { code: 'E', walk_option: null }],
+    topo: [{ code: 'N11', aspect_deg: 200, slope_deg: 15 }, { code: 'N31', aspect_deg: null, slope_deg: null }],
   });
   eq('mocy + 1', plan.mocy, 5);
   eq('p5m carried', plan.p5m, { N: '31' });
   eq('points carried', plan.points[0].distance_m, 27.3);
   eq('walk option carried, blanks dropped', plan.walkOptions, [{ code: 'N', walk_option: 2 }]);
-  eq('carries nothing but points, p5m, walk options', Object.keys(plan).sort(), ['mocy', 'p5m', 'points', 'walkOptions']);
+  eq('carries nothing but points, p5m, walk options, quadrat aspect / slope', Object.keys(plan).sort(), ['mocy', 'p5m', 'points', 'topo', 'walkOptions']);
+  eq('aspect / slope carried, blanks dropped', plan.topo, [{ code: 'N11', aspect_deg: 200, slope_deg: 15 }]);
+  eq('topo fill: only what is blank, never over a typed value',
+    planTopoFill(
+      [{ code: 'N11', aspect_deg: null, slope_deg: null }, { code: 'N31', aspect_deg: 90, slope_deg: null }, { code: 'N33', aspect_deg: 10, slope_deg: 5 }],
+      [{ code: 'N11', aspect_deg: 200, slope_deg: 15 }, { code: 'N31', aspect_deg: 180, slope_deg: 20 }, { code: 'N33', aspect_deg: 1, slope_deg: 1 }],
+    ),
+    [{ code: 'N11', aspect_deg: 200, slope_deg: 15 }, { code: 'N31', aspect_deg: null, slope_deg: 20 }]);
   eq('first survey', planPrefill(null).mocy, 1);
   eq('next serial', nextSerial([{ serial: 3 }, { serial: 7 }]), 8);
 }
@@ -315,6 +352,18 @@ eq('SAS abundance codes (sheet 33_)', SAS_ABUNDANCE_CODE, { d: 1, c: 2, s: 3, r:
   const fcol = (r) => [r[t11.header.indexOf('freqEstStartTime')], r[t11.header.indexOf('freqEstStopTime')]];
   eq('11 shrub quadrat: no frequency times', fcol(byUnit(t11.rows, 'N13')), ['', '']);
   eq('11 other quadrat: frequency times kept', fcol(byUnit(t11.rows, 'N33')), ['10:00', '11:00']);
+  // Researchers: empty follows the survey; a cleared unit (no_researchers) has none.
+  {
+    const t = buildSheetTables({
+      summit: { full_code: 'TW-DAS-SUN', country: 'TW', target_region: 'DAS', summit: 'SUN' },
+      survey: { uuid: 's', mocy: 2, year: 2012, start_ts: 0, stop_ts: null, recorded_by: '甲, 乙', notes: null },
+      points: [],
+      units: [unit('N13', { start_ts: at(9), cov_vascular: 50 }), unit('N33', { start_ts: at(9), cov_vascular: 50, no_researchers: 1 }), unit('N11', { start_ts: at(9), cov_vascular: 50, recorded_by: '丙' })],
+      species: [],
+    }).find((x) => x.name.startsWith('11'));
+    const rc = t.header.findIndex((h) => /research|recorded|observer/i.test(h));
+    eq('11 researchers: survey\'s / none when cleared / the unit\'s own', ['N13', 'N33', 'N11'].map((c) => byUnit(t.rows, c)[rc]), ['甲|乙', '', '丙']);
+  }
   // Shrub quadrat data recorded before the tick: exported as 0, with the note.
   const shrubData = {
     summit: { full_code: 'TW-DAS-SUN', country: 'TW', target_region: 'DAS', summit: 'SUN' },
@@ -622,6 +671,8 @@ eq('SAS abundance codes (sheet 33_)', SAS_ABUNDANCE_CODE, { d: 1, c: 2, s: 3, r:
     eq('refill: skips rows already carried and read-outs typed in at the same place and letter', missingCarry(seeds, have).map((x) => x.prev_uuid), ['ic', 'id']);
     eq('refill: nothing there yet → everything', missingCarry(seeds, []).length, 4);
   }
+  eq('researchers: units add whoever the survey lacks, in order, no repeats', researchersFromUnits('甲, 乙', [{ recorded_by: null }, { recorded_by: '乙, 丙' }, { recorded_by: '丁｜x'.replace('｜', '|') }, { recorded_by: '丙' }]), { value: '甲, 乙, 丙, 丁, x', added: ['丙', '丁', 'x'] });
+  eq('researchers: nothing new, nothing added; empty survey stays empty', [researchersFromUnits('甲', [{ recorded_by: '甲' }]).added, researchersFromUnits(null, [{ recorded_by: null }]).value], [[], null]);
   eq('letter: next after every one used at the position', [nextLoggerLabel([]), nextLoggerLabel(['a', 'b']), nextLoggerLabel(['a', 'C', null, 'x1'])], ['a', 'c', 'd']);
   eq('full-length code with the letter (Box 6.1)', loggerCode({ country: 'TW', target_region: 'SAC', summit: 'JIA' }, 'E22', 'c', 2026), 'TW_SAC_JIA_E22c_2026');
   eq('photo item LOG-E22c fits 8 characters', [loggerPhotoItem('E22', 'c'), loggerPhotoItem('E22', 'c').length], ['LOG-E22c', 8]);

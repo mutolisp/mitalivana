@@ -55,9 +55,11 @@ const LABELLED = new Set([
   // Temperature loggers (v65)
   'visit_ts', 'researchers', 'locked', 'role', 'direction', 'quadrat', 'serial', 'logger_type', 'utc_diff_h', 'dist11_m',
   'dist31_m', 'photo_open', 'photo_closed', 'flags', 'researcher', 'visit', 'prev_uuid',
+  // A cleared GLORIA unit: no researchers (v66)
+  'no_researchers',
 ]);
-/** GLORIA 完成 locks: 1 or null. */
-const LOCKS = new Set(['done_locked', 'freq_locked', 'pf_locked', 'locked', 'photo_open', 'photo_closed']);
+/** GLORIA 完成 locks and other 1 / null flags. */
+const LOCKS = new Set(['done_locked', 'freq_locked', 'pf_locked', 'locked', 'photo_open', 'photo_closed', 'no_researchers']);
 /** Grids and point strings: shown as a count, not 100–400 characters. */
 const MASKS = new Set(['freq_cells', 'point_hits', 'dist_hi1', 'dist_hi2', 'dist_hi3', 'point_surface']);
 const TIMES = /(_ts|_at)$/;

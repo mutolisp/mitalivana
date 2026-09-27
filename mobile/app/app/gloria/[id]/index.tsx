@@ -23,6 +23,8 @@ import { QUADRAT_CODES, SAS_CODES, SQUARE_CODES, type Direction } from '~/module
 import { PointsForm } from '~/modules/gloria/components/PointsForm';
 import { SummitForm } from '~/modules/gloria/components/SummitForm';
 import { SurveyDates } from '~/modules/gloria/components/SurveyDates';
+import { SurveyResearchers } from '~/modules/gloria/components/SurveyResearchers';
+import { TopoCarry } from '~/modules/gloria/components/TopoCarry';
 import { LoggerVisitList } from '~/modules/gloria/components/LoggerVisitList';
 import { startPointImport } from '~/modules/gloria/summitImportFile';
 import { errText } from '~/lib/errText';
@@ -158,7 +160,9 @@ export default function GloriaSurveyScreen() {
         {tab === 'points' ? (
           <>
             <SummitForm state={state} reload={reload} />
+            <SurveyResearchers state={state} reload={reload} />
             <SurveyDates state={state} reload={reload} />
+            <TopoCarry state={state} reload={reload} />
             <Btn
               label={t('gloria.pointImport.button')}
               onPress={() =>

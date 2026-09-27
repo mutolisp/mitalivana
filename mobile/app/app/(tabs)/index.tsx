@@ -3,6 +3,7 @@ import { useFocusEffect, useRouter, type Href } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
+  ActivityIndicator,
   Alert,
   BackHandler,
   FlatList,
@@ -336,6 +337,9 @@ export default function RecordsListScreen() {
   const setSetting = useSettings((s) => s.set);
   const collapsedIds = useMemo(() => new Set(collapsedList), [collapsedList]);
   const [items, setItems] = useState<RecordItem[]>([]);
+  // False until the first read: the list starts empty, and showing 「還沒有任何記錄」
+  // for that moment made users think their records were gone.
+  const [loaded, setLoaded] = useState(false);
   const [groups, setGroups] = useState<ProjectGroup[]>([]);
   // Search (header magnifier). Projects are loaded with the list so a query
   // can match a project's abstract / location / notes, not only its name.
@@ -413,6 +417,7 @@ export default function RecordsListScreen() {
     setCounts(summary.counts);
     setItems(summary.items);
     setGroups(summary.groups);
+    setLoaded(true);
     setProjects(listProjects());
     refreshActive();
     refreshActivePlot();
@@ -1267,7 +1272,12 @@ export default function RecordsListScreen() {
         </View>
       ) : null}
 
-      {isEmpty ? (
+      {!loaded ? (
+        <View className="flex-1 items-center justify-center px-6">
+          <ActivityIndicator color="#00A2A5" />
+          <Text className="mt-3 text-sm text-gray-500 dark:text-gray-400">{t('common.loading')}</Text>
+        </View>
+      ) : isEmpty ? (
         <View className="flex-1 items-center justify-center px-6">
           <Ionicons name="add-circle-outline" size={56} color="#cbd5e1" />
           <Text className="mt-3 text-base font-medium text-gray-700 dark:text-gray-300">

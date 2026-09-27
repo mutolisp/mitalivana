@@ -2833,7 +2833,9 @@
       "freqNoCover_other": "{{name}} : dans {{count}} cellules mais sans recouvrement",
       "pointInconsistent_one": "{{count}} point a à la fois une espèce et une surface, ou aucune",
       "pointInconsistent_many": "{{count}} points ont à la fois une espèce et une surface, ou aucune",
-      "pointInconsistent_other": "{{count}} points ont à la fois une espèce et une surface, ou aucune"
+      "pointInconsistent_other": "{{count}} points ont à la fois une espèce et une surface, ou aucune",
+      "required": "Champs obligatoires manquants : {{fields}}",
+      "requiredSpecies": "Espèces sans valeur : {{names}}"
     },
     "cover": {
       "title": "Recouvrement de surface (%)",
@@ -2927,14 +2929,24 @@
       "replace": "Changer d’espèce",
       "replaceExists": "{{name}} figure déjà sur la liste de cette placette",
       "replaced": "Remplacé par {{name}} ; recouvrement, fréquence et autres données sont conservés",
-      "replaceBanner": "Changer {{name}} : cherchez ci-dessous la bonne espèce"
+      "replaceBanner": "Changer {{name}} : cherchez ci-dessous la bonne espèce",
+      "requiredTitle": "Champs obligatoires manquants",
+      "methodRequired": "Fréquence ou point-frame (au moins un)",
+      "clear": "Vider cette unité",
+      "clearTitle": "Vider {{code}} ?",
+      "clearMsg": "Supprime toutes les espèces et valeurs de cette unité : observateurs, heures, exposition et pente, recouvrement de surface, fréquence, point-frame, remarques. Le mode de parcours du 10×10 m et les photos restent.",
+      "clearGo": "Vider",
+      "clearAgainTitle": "Confirmer à nouveau",
+      "clearAgainMsg": "Vider vraiment toutes les données de {{code}} ? Annuler en haut les rétablit tant que vous restez sur cet écran.",
+      "clearGoFinal": "Tout vider",
+      "cleared": "{{code}} vidé"
     },
     "square": {
       "walk": "Départ et sens (formulaire 6-S, quatre options)",
-      "option1": "Bord inférieur gauche · depuis l’angle bas",
-      "option2": "Bord inférieur gauche · depuis l’angle gauche",
-      "option3": "Bord inférieur droit · depuis l’angle bas",
-      "option4": "Bord inférieur droit · depuis l’angle droit",
+      "option1": "Bord supérieur gauche · de l’angle gauche au sommet",
+      "option2": "Bord inférieur droit · de l’angle bas à l’angle droit",
+      "option3": "Bord supérieur droit · de l’angle droit au sommet",
+      "option4": "Bord inférieur gauche · de l’angle bas à l’angle gauche",
       "pickWalk": "Choisissez d’abord le départ. Les relevés répétés reprennent le choix précédent (manuel p. 57).",
       "start": "Saisir les points ({{done}}/400)",
       "hitsTitle": "Contacts et recouvrement ({{done}}/400 ; recouvrement = contacts ÷ 4)",
@@ -2942,7 +2954,9 @@
       "extraEmpty": "Après les points, notez les espèces non touchées, en commençant par celles des 4 quadrats (manuel p. 58).",
       "extra_one": "Espèces non touchées ({{count}})",
       "extra_many": "Espèces non touchées ({{count}})",
-      "extra_other": "Espèces non touchées ({{count}})"
+      "extra_other": "Espèces non touchées ({{count}})",
+      "prevOption": "La dernière fois (mocy {{mocy}}) : option {{option}}, {{label}}. À reprendre au relevé suivant (manuel p. 57)",
+      "prevNone": "La dernière fois (mocy {{mocy}}), aucun départ n’est noté"
     },
     "species": {
       "inUnit": "{{code}} · n° de liste {{serial}}",
@@ -3026,7 +3040,16 @@
       "lineDone": "Ligne {{line}} terminée : {{hits}} contacts",
       "lockedToast": "Le relevé par points est terminé et verrouillé. Touchez le cadenas en haut à droite pour le modifier.",
       "lockedDone": "Relevé par points terminé et verrouillé ; heure de fin enregistrée",
-      "unlocked": "Déverrouillé ; modification possible"
+      "unlocked": "Déverrouillé ; modification possible",
+      "addingHint": "Chercher et ajouter une espèce",
+      "prevIs": "Point précédent : {{what}}",
+      "thisPoint": "Ce point :",
+      "noSpecies": "Pas encore d’espèce ; ajoutez-en avec + Nouvelle espèce",
+      "pickSpecies": "Choisir l’espèce",
+      "cardHint": "Toucher = touchée à ce point ; appui long = touchée, enregistrer et point suivant",
+      "cardOn": "Touchée à ce point ✓",
+      "cardOff": "Toucher = touchée, appui long = enregistrer et suivant",
+      "cardCount": "{{i}} / {{n}} · {{hits}} contacts"
     },
     "endWithIssues_one": "{{count}} avertissement reste ouvert. Terminer quand même ? Vous pourrez rouvrir.",
     "endWithIssues_many": "{{count}} avertissements restent ouverts. Terminer quand même ? Vous pourrez rouvrir.",
@@ -3175,6 +3198,34 @@
       "out": "Zoom arrière",
       "reset": "Réinitialiser le zoom",
       "hint": "Pincez à deux doigts pour zoomer, glissez à deux doigts pour déplacer ; ou utilisez les boutons en haut à droite"
+    },
+    "researchers": {
+      "fromUnits": "Reprendre des unités",
+      "fromUnitsTitle": "Reprendre les observateurs des unités",
+      "fromUnitsMsg": "Ajouter les observateurs indiqués sur des unités mais pas encore sur ce relevé : {{names}}",
+      "noneNew": "Les observateurs de toutes les unités figurent déjà dans la liste",
+      "hint": "« Reprendre des unités » ajoute à la liste de ce relevé, sans doublon, les observateurs indiqués sur des unités 1×1 m, SAS et 10×10 m. Une unité sans observateur propre reprend ceux du relevé."
+    },
+    "required": {
+      "researchers": "observateurs",
+      "aspect": "exposition",
+      "slope": "pente",
+      "time": "date et heure du relevé",
+      "freqTime": "heures de fréquence",
+      "topCover": "recouvrement de surface",
+      "subtypes": "sous-types du recouvrement",
+      "method": "fréquence ou point-frame"
+    },
+    "topo": {
+      "carry": "Reprendre exposition et pente 1×1 m de mocy {{mocy}}",
+      "none": "Rien à reprendre de mocy {{mocy}}, ou tous les quadrats ont des valeurs",
+      "title": "Reprendre exposition et pente",
+      "msg_one": "Remplir exposition et pente de {{count}} quadrat depuis mocy {{mocy}} (cases vides seulement) : {{list}}",
+      "msg_many": "Remplir exposition et pente de {{count}} quadrats depuis mocy {{mocy}} (cases vides seulement) : {{list}}",
+      "msg_other": "Remplir exposition et pente de {{count}} quadrats depuis mocy {{mocy}} (cases vides seulement) : {{list}}",
+      "done_one": "{{count}} quadrat rempli",
+      "done_many": "{{count}} quadrats remplis",
+      "done_other": "{{count}} quadrats remplis"
     }
   },
   "vernacular": {
@@ -3416,7 +3467,8 @@
       "flags": "Codes",
       "researcher": "Observateur",
       "visit": "Visite",
-      "prev_uuid": "Enregistrement précédent"
+      "prev_uuid": "Enregistrement précédent",
+      "no_researchers": "Aucun observateur (vidé)"
     },
     "from": "De {{name}}",
     "fromAt": "De {{name}}, envoyé le {{date}}"
