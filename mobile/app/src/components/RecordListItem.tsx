@@ -39,25 +39,32 @@ export function clearRecordDiversityCache(): void {
   rowDivCache.clear();
 }
 
+/**
+ * Kind tile: the colour says what KIND of record it is (checklist moss, plot
+ * and GLORIA acorn, collection cupule). Whether it is recording is carried by
+ * the dot and badge beside the title, not by this tile.
+ */
 export function KindIcon({
   kind,
-  active,
   size = 'md',
 }: {
   kind: RecordKind;
-  active: boolean;
-  /** `sm` is the card footer / list trailing badge; `md` the leading tile. */
+  /** `sm` is the card footer; `md` the list row's leading tile. */
   size?: 'sm' | 'md';
 }) {
   const c = useThemeColors();
-  const tint = active ? c.accent : '#94a3b8';
-  const bg = active ? 'bg-emerald-50 dark:bg-emerald-950/40' : 'bg-gray-100 dark:bg-gray-800';
+  const look =
+    kind === 'session'
+      ? { bg: 'bg-accent-100 dark:bg-accent-900', tint: c.accent }
+      : kind === 'collection'
+        ? { bg: 'bg-gray-100 dark:bg-gray-800', tint: c.cupule }
+        : { bg: 'bg-acorn-tint dark:bg-gray-800', tint: c.acornDeep };
   const iconName =
     kind === 'session' ? 'list' : kind === 'collection' ? 'leaf-outline' : kind === 'gloria' ? 'triangle-outline' : 'grid-outline';
-  const box = size === 'sm' ? 'h-7 w-7' : 'h-10 w-10';
+  const box = size === 'sm' ? 'h-7 w-7 rounded-lg' : 'h-10 w-10 rounded-xl';
   return (
-    <View className={`items-center justify-center rounded-lg ${box} ${bg}`}>
-      <Ionicons name={iconName as never} size={size === 'sm' ? 15 : 20} color={tint} />
+    <View className={`items-center justify-center ${box} ${look.bg}`}>
+      <Ionicons name={iconName as never} size={size === 'sm' ? 15 : 20} color={look.tint} />
     </View>
   );
 }
@@ -119,7 +126,7 @@ export function RowDiversityLine({
 }: {
   kind: RecordKind;
   id: number;
-  variant?: 'full' | 'richness';
+  variant?: 'full' | 'richness' | 'count';
 }) {
   const { t } = useTranslation();
   const key = `${kind}-${id}`;
@@ -162,6 +169,25 @@ export function RowDiversityLine({
   }, [key, kind, id]);
 
   if (!val) return null;
+  if (variant === 'count') {
+    // The number is what the eye scans for; the unit rides along small. Split
+    // around the number so each locale keeps its own word order.
+    const text = t('plotStats.sppCount', { count: val.s });
+    const at = text.indexOf(String(val.s));
+    return (
+      <Text className="text-right text-gray-900 dark:text-gray-100" style={{ fontVariant: ['tabular-nums'] }}>
+        {at < 0 ? (
+          <Text className="text-lg font-bold">{text}</Text>
+        ) : (
+          <>
+            <Text className="text-xs text-gray-500 dark:text-gray-400">{text.slice(0, at)}</Text>
+            <Text className="text-lg font-bold">{val.s}</Text>
+            <Text className="text-xs text-gray-500 dark:text-gray-400">{text.slice(at + String(val.s).length)}</Text>
+          </>
+        )}
+      </Text>
+    );
+  }
   if (variant === 'richness') {
     return (
       <Text className="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -231,7 +257,6 @@ export function RecordListRow({
   selected = false,
   onToggleStar,
 }: CommonProps) {
-  const c = useThemeColors();
   const compact = useSettings((s) => s.card_density) === 'compact';
   // An auto-named session IS its own start time; printing both is just the
   // same string twice.
@@ -245,14 +270,11 @@ export function RecordListRow({
       onPress={onPress}
       onLongPress={onLongPress}
       delayLongPress={350}
-      className={`flex-row items-center px-3 ${compact ? 'py-2' : 'py-3'} active:bg-gray-50 dark:active:bg-gray-800 ${selected ? 'bg-accent-50 dark:bg-accent-950/40' : 'bg-card dark:bg-gray-900'}`}
+      className={`flex-row items-center px-3 ${compact ? 'py-2' : 'py-3'} active:bg-gray-100 dark:active:bg-gray-800 ${selected ? 'bg-accent-50 dark:bg-accent-950/40' : 'bg-card dark:bg-gray-900'}`}
+      style={{ minHeight: 64 }}
     >
-      <View className="mr-2.5">
-        {selectMode ? (
-          <SelectCheckbox checked={selected} />
-        ) : (
-          <StarButton starred={item.starred} onToggle={onToggleStar} />
-        )}
+      <View className="mr-3 h-10 w-10 items-center justify-center">
+        {selectMode ? <SelectCheckbox checked={selected} /> : <KindIcon kind={item.kind} />}
       </View>
       <View className="flex-1">
         <View className="flex-row items-center">
@@ -280,14 +302,10 @@ export function RecordListRow({
           </Text>
         ) : null}
       </View>
-      {selectMode ? null : (
-        <>
-          <View className="ml-2">
-            <KindIcon kind={item.kind} active={item.active} size="sm" />
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={c.ink3} style={{ marginLeft: 4 }} />
-        </>
-      )}
+      <View className="ml-2 items-end justify-center gap-1">
+        <RowDiversityLine kind={item.kind} id={item.id} variant="count" />
+        {selectMode ? null : <StarButton starred={item.starred} onToggle={onToggleStar} size={20} />}
+      </View>
     </Pressable>
   );
 }
@@ -317,10 +335,10 @@ export function RecordGridCard({
       onPress={onPress}
       onLongPress={onLongPress}
       delayLongPress={350}
-      className={`flex-1 rounded-2xl border ${compact ? 'p-2.5' : 'p-3'} active:opacity-80 ${
+      className={`flex-1 rounded-2xl border ${compact ? 'p-2.5' : 'p-3'} ${
         selected
           ? 'border-accent-400 bg-accent-50 dark:border-accent-600 dark:bg-accent-950/40'
-          : 'border-gray-200 bg-card dark:border-gray-700 dark:bg-gray-900'
+          : 'border-gray-200 bg-card active:bg-gray-100 dark:border-gray-700 dark:bg-gray-900 dark:active:bg-gray-800'
       }`}
     >
       <View className="mb-1 flex-row items-start">
@@ -358,7 +376,7 @@ export function RecordGridCard({
       </View>
 
       <View className="mt-2 flex-row items-center">
-        <KindIcon kind={item.kind} active={item.active} size="sm" />
+        <KindIcon kind={item.kind} size="sm" />
         <Text
           className="ml-2 flex-1 text-xs font-medium text-accent-700 dark:text-accent-300"
           numberOfLines={1}

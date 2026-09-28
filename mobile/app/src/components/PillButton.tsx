@@ -8,23 +8,28 @@
  * Neutral by default. The colour used to vary per screen — new checklist and
  * import were blue, sort grey, the favourites entry amber — which made every
  * toolbar look like it had one important button and some leftovers. Tinting now
- * means something: it is reserved for `amber`, the favourites colour.
+ * means something: it is reserved for `favorite`, the favourites colour.
+ *
+ * 44 tall for real (an icon-only pill is 44 × 44), not a 30 pt pill padded out
+ * with hitSlop: this is a field app, used with gloves.
  */
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, Text } from 'react-native';
 
+import { useThemeColors, type ThemeColors } from '~/theme/colors';
+
 const TONE = {
   neutral: {
-    box: 'border-gray-300 bg-card dark:border-gray-600 dark:bg-gray-900',
-    icon: '#4b5563',
-    text: 'text-gray-700 dark:text-gray-300',
+    box: 'border-line bg-card active:bg-gray-100 dark:border-line-dark dark:bg-card-dark dark:active:bg-gray-800',
+    icon: 'ink2',
+    text: 'text-ink-2 dark:text-gray-300',
   },
-  amber: {
-    box: 'border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40',
-    icon: '#d97706',
-    text: 'text-amber-700 dark:text-amber-300',
+  favorite: {
+    box: 'border-acorn-tint bg-acorn-tint active:bg-acorn/30 dark:border-gray-700 dark:bg-gray-800 dark:active:bg-gray-700',
+    icon: 'acornDeep',
+    text: 'text-acorn-deep dark:text-acorn',
   },
-} as const;
+} as const satisfies Record<string, { box: string; icon: keyof ThemeColors; text: string }>;
 
 export function PillButton({
   icon,
@@ -41,17 +46,18 @@ export function PillButton({
   onPress: () => void;
   tone?: keyof typeof TONE;
 }) {
+  const c = useThemeColors();
   const t = TONE[tone];
   return (
     <Pressable
       onPress={onPress}
-      hitSlop={6}
       accessibilityRole="button"
       accessibilityLabel={a11yLabel ?? label}
-      className={`flex-row items-center rounded-full border ${label ? 'px-3' : 'px-2.5'} py-1.5 active:opacity-70 ${t.box}`}
+      className={`flex-row items-center justify-center rounded-full border ${label ? 'px-3.5' : ''} ${t.box}`}
+      style={{ minHeight: 44, minWidth: 44 }}
     >
-      <Ionicons name={icon} size={16} color={t.icon} />
-      {label ? <Text className={`ml-1 text-xs font-medium ${t.text}`}>{label}</Text> : null}
+      <Ionicons name={icon} size={18} color={c[t.icon]} />
+      {label ? <Text className={`ml-1 text-sm font-medium ${t.text}`}>{label}</Text> : null}
     </Pressable>
   );
 }

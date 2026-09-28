@@ -32,9 +32,10 @@ import { ConservationBadge } from './ConservationBadge';
 import { ScientificName } from './ScientificName';
 import { editManualTaxon } from './GbifLookupHost';
 import { clearSearchResultCache } from './SearchBox';
-import { ACTION_FILL } from '~/lib/colors';
+
 import { TaxonomyJumpChip } from './TaxonomyJumpChip';
 import { useThemeColors } from '~/theme/colors';
+import { Button } from '~/components/ui/Button';
 
 type Props = {
   result: SearchResult;
@@ -433,17 +434,15 @@ export function SpeciesDetailPanel({
         ) : null}
 
         <View className="px-4 pb-6 pt-4">
-          <Pressable
+          <Button
+            label={addButtonLabel ?? t('species.addToRecord')}
+            icon="add"
             onPress={onAddToSession}
             onLongPress={onAddLongPress}
             delayLongPress={350}
-            className={`flex-row items-center justify-center rounded-lg px-4 py-3 ${ACTION_FILL}`}
-          >
-            <Ionicons name="add" size={18} color="white" />
-            <Text className="ml-2 text-sm font-medium text-white">
-              {addButtonLabel ?? t('species.addToRecord')}
-            </Text>
-          </Pressable>
+            size="lg"
+            fullWidth
+          />
           {onAddLongPress ? (
             <Text className="mt-1.5 text-center text-[11px] text-gray-400 dark:text-gray-500">
               {t('addToRecord.longPressHint')}
@@ -472,7 +471,6 @@ function splitAltNames(s: string): string[] {
     .map((x) => x.trim())
     .filter(Boolean);
 }
-
 
 /**
  * The full lineage as a row of chips, each jumping to that rank in the tree.

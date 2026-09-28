@@ -54,9 +54,10 @@ import { blockIfMirenActive } from '~/lib/mirenGuard';
 import { ConservationBadge } from './ConservationBadge';
 import { LookupResultSheet } from './LookupResultSheet';
 import { ScientificName } from './ScientificName';
-import { ACTION_FILL } from '~/lib/colors';
+
 import { stampNewRecord } from '~/lib/recordFix';
 import { useThemeColors } from '~/theme/colors';
+import { Button } from '~/components/ui/Button';
 
 type Props = {
   keyId: number;
@@ -719,9 +720,7 @@ function NumericPicker({
             {t('keys.uncertainClear')}
           </Text>
         </Pressable>
-        <Pressable onPress={apply} className={`rounded-full px-4 py-2 ${ACTION_FILL}`}>
-          <Text className="text-sm font-medium text-white">{t('keys.apply')}</Text>
-        </Pressable>
+        <Button label={t('keys.apply')} onPress={apply} />
       </View>
     </View>
   );

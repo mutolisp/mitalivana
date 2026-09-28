@@ -26,8 +26,9 @@ import {
 import { GEOPRIVACY_VALUES, type Geoprivacy } from '~/lib/inatPayload';
 import { useSettings } from '~/stores/settings';
 import { useToast } from '~/stores/toast';
-import { ACTION_FILL } from '~/lib/colors';
+
 import { useThemeColors } from '~/theme/colors';
+import { Button } from '~/components/ui/Button';
 
 export default function InaturalistScreen() {
   const c = useThemeColors();
@@ -134,13 +135,14 @@ export default function InaturalistScreen() {
               <Text className="text-base font-semibold text-gray-900 dark:text-gray-100">
                 {t('inat.notConnected')}
               </Text>
-              <Pressable
+              <Button
+                label={t('inat.connect')}
                 onPress={handleConnect}
                 disabled={busy}
-                className={`mt-3 items-center rounded-xl py-3 ${ACTION_FILL}`}
-              >
-                <Text className="text-base font-semibold text-white">{t('inat.connect')}</Text>
-              </Pressable>
+                size="lg"
+                fullWidth
+                className="mt-3"
+              />
             </>
           )}
         </View>

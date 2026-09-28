@@ -7,7 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { Alert, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { createSite, listProjects, type Project } from '~/db';
-import { ACTION_FILL } from '~/lib/colors';
+
 import {
   detectFormat,
   parseGeoFile,
@@ -15,6 +15,7 @@ import {
   type ImportedGeometry,
 } from '~/lib/geoConverters';
 import { useThemeColors } from '~/theme/colors';
+import { Button } from '~/components/ui/Button';
 
 type Props = {
   visible: boolean;
@@ -234,15 +235,12 @@ export function GeoImportModal({ visible, defaultProjectId = 0, onClose, onCommi
                 {'\n'}
                 {t('geoImport.multiHint')}
               </Text>
-              <Pressable
+              <Button
+                label={t('geoImport.pickFile')}
+                icon="folder-open-outline"
                 onPress={handlePickFile}
-                className={`mt-6 flex-row items-center rounded-full px-4 py-2 ${ACTION_FILL}`}
-              >
-                <Ionicons name="folder-open-outline" size={16} color="white" />
-                <Text className="ml-1 text-sm font-medium text-white">
-                  {t('geoImport.pickFile')}
-                </Text>
-              </Pressable>
+                className="mt-6"
+              />
               {skipped.length > 0 ? <SkippedBlock skipped={skipped} /> : null}
             </View>
           ) : (

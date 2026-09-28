@@ -73,6 +73,7 @@
     "data-model": "node --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/gen-data-model.mjs"
   },
   "dependencies": {
+    "@expo-google-fonts/source-serif-4": "^0.4.1",
     "@expo/vector-icons": "^15.0.3",
     "@maplibre/maplibre-react-native": "^11.3.10",
     "@noble/ciphers": "^2.4.0",

@@ -20,10 +20,11 @@ const IUCN_PALETTE: Record<string, { bg: string; text: 'white' | 'dark' }> = {
   EX: { bg: '#4C4338', text: 'white' },
   EW: { bg: '#80628A', text: 'white' },
   CR: { bg: '#B53523', text: 'white' },
-  EN: { bg: '#E48B47', text: 'white' },
+  // Dark text on EN and LC: white measured 2.6:1 and 2.4:1 on these two.
+  EN: { bg: '#E48B47', text: 'dark' },
   VU: { bg: '#F6CB47', text: 'dark' },
   NT: { bg: '#9FC040', text: 'dark' },
-  LC: { bg: '#6EBA3F', text: 'white' },
+  LC: { bg: '#6EBA3F', text: 'dark' },
   DD: { bg: '#C3C3C3', text: 'dark' },
   NE: { bg: '#E5E5E5', text: 'dark' },
   NA: { bg: '#E5E5E5', text: 'dark' },

@@ -40,8 +40,9 @@ import { promptText } from '~/components/TextPromptModal';
 import { SwipeRowActions, type SwipeAction } from '~/components/SwipeRowActions';
 import { HeaderIconButton } from '~/components/HeaderIconButton';
 import { BackHeaderLeft } from '~/lib/goBack';
-import { ACTION_FILL } from '~/lib/colors';
+
 import { useThemeColors } from '~/theme/colors';
+import { Button } from '~/components/ui/Button';
 
 type ExportFormat = 'geojson' | 'kml' | 'gpx' | 'wkt';
 
@@ -485,12 +486,7 @@ export default function SitesScreen() {
           <Text className="mt-2 text-center text-sm text-gray-500 dark:text-gray-400">
             {t('sites.emptyHint')}
           </Text>
-          <Pressable
-            onPress={() => router.push('/(tabs)/map')}
-            className={`mt-4 rounded-full px-4 py-2 ${ACTION_FILL}`}
-          >
-            <Text className="text-sm font-medium text-white">{t('sites.goToMap')}</Text>
-          </Pressable>
+          <Button label={t('sites.goToMap')} onPress={() => router.push('/(tabs)/map')} className="mt-4" />
         </View>
       ) : (
         <>

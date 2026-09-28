@@ -20,9 +20,10 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Linking, Modal, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ACTION_FILL } from '~/lib/colors';
+
 import { useGoogleDeviceFlow } from '~/lib/googleAuth';
 import { useThemeColors } from '~/theme/colors';
+import { Button } from '~/components/ui/Button';
 
 export function GoogleDeviceCodeHost() {
   const pending = useGoogleDeviceFlow((s) => s.pending);
@@ -91,27 +92,22 @@ function DeviceCodeSheet() {
           </View>
 
           <View className="mt-3 flex-row gap-2">
-            <Pressable
+            <Button
+              label={t('gdrive.copyCode')}
+              icon="copy-outline"
               onPress={async () => {
                 await Clipboard.setStringAsync(code.userCode);
                 setCopied(true);
               }}
-              className="flex-1 flex-row items-center justify-center rounded-lg border border-accent-500 py-2.5 active:bg-accent-50 dark:active:bg-accent-900/40"
-            >
-              <Ionicons name="copy-outline" size={16} color={c.accent} />
-              <Text className="ml-1.5 text-sm font-semibold text-accent-600 dark:text-accent-400">
-                {t('gdrive.copyCode')}
-              </Text>
-            </Pressable>
-            <Pressable
+              variant="secondary"
+              className="flex-1"
+            />
+            <Button
+              label={t('gdrive.openBrowser')}
+              icon="open-outline"
               onPress={() => void Linking.openURL(code.verificationUrl)}
-              className={`flex-1 flex-row items-center justify-center rounded-lg py-2.5 ${ACTION_FILL}`}
-            >
-              <Ionicons name="open-outline" size={16} color="#ffffff" />
-              <Text className="ml-1.5 text-sm font-semibold text-white">
-                {t('gdrive.openBrowser')}
-              </Text>
-            </Pressable>
+              className="flex-1"
+            />
           </View>
 
           {/* Reserves its own line so the layout does not jump when it appears. */}

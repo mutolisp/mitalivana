@@ -5,7 +5,7 @@ import * as Sharing from 'expo-sharing';
 import { shareThenDelete } from '~/lib/shareFile';
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { Switch } from '~/components/ui/Switch';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { showActionSheet } from '~/components/ActionSheet';
@@ -19,7 +19,7 @@ import {
 } from '~/lib/backup';
 import { listSafetyBackups } from '~/db';
 import type { ExportFile } from '~/lib/bundleExport';
-import { ACTION_FILL } from '~/lib/colors';
+
 import {
   backupTooNew,
   driveErrorMessage,
@@ -35,6 +35,7 @@ import { useDriveState } from '~/lib/driveState';
 import { GoogleAuthCancelled, GoogleCodeExpired } from '~/lib/googleAuth';
 import { useToast } from '~/stores/toast';
 import { useThemeColors } from '~/theme/colors';
+import { Button } from '~/components/ui/Button';
 
 type Busy = null | 'backup' | 'photos' | 'restore' | 'drive' | 'cloudList' | 'cloudRestore';
 
@@ -472,15 +473,15 @@ function ActionButton({
   disabled: boolean;
   destructive?: boolean;
 }) {
-  const base = destructive ? 'bg-red-500 active:bg-red-600' : ACTION_FILL;
   return (
-    <Pressable
+    <Button
+      label={label}
       onPress={onPress}
-      disabled={disabled}
-      className={`flex-row items-center justify-center rounded-lg px-4 py-3 ${base} ${disabled && !busy ? 'opacity-40' : ''}`}
-    >
-      {busy ? <ActivityIndicator size="small" color="white" /> : null}
-      <Text className={`text-sm font-medium text-white ${busy ? 'ml-2' : ''}`}>{label}</Text>
-    </Pressable>
+      variant={destructive ? 'danger' : 'primary'}
+      disabled={disabled && !busy}
+      loading={busy}
+      size="lg"
+      fullWidth
+    />
   );
 }

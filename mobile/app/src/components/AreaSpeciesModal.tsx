@@ -53,7 +53,8 @@ import {
 import { useFavorites } from '~/stores/favorites';
 import type { FavoriteFolder } from '~/db';
 import { setFavoriteFolderArea } from '~/db';
-import { ACTION_FILL } from '~/lib/colors';
+
+import { Button } from '~/components/ui/Button';
 
 type Step = 'filters' | 'loading' | 'result';
 
@@ -508,19 +509,13 @@ export function AreaSpeciesModal({
                 {t(source === 'inat' ? 'areaSpecies.attribution' : 'areaSpecies.attributionGbif')}
               </Text>
 
-              <Pressable
+              <Button
+                label={t('areaSpecies.search')}
                 onPress={runQuery}
                 disabled={areaTooLarge || (source === 'gbif' ? !wkt : !bbox)}
-                className={`items-center rounded-xl py-3 ${
-                  !areaTooLarge && (source === 'gbif' ? wkt : bbox)
-                    ? ACTION_FILL
-                    : 'bg-gray-300 dark:bg-gray-700'
-                }`}
-              >
-                <Text className="text-base font-semibold text-white">
-                  {t('areaSpecies.search')}
-                </Text>
-              </Pressable>
+                size="lg"
+                fullWidth
+              />
             </ScrollView>
           ) : null}
 
@@ -714,19 +709,17 @@ export function AreaSpeciesModal({
                     className="mb-3 rounded-lg border border-gray-300 px-3 py-2 text-base text-gray-900 dark:border-gray-600 dark:text-gray-100"
                   />
                 ) : null}
-                <Pressable
+                <Button
+                  label={
+                    target.kind === 'new'
+                      ? t('areaSpecies.createFolder', { count: importable })
+                      : t('areaSpecies.addToFolder', { count: importable, name: target.name })
+                  }
                   onPress={commit}
                   disabled={!ready}
-                  className={`items-center rounded-xl py-3 ${
-                    ready ? ACTION_FILL : 'bg-gray-300 dark:bg-gray-700'
-                  }`}
-                >
-                  <Text className="text-base font-semibold text-white">
-                    {target.kind === 'new'
-                      ? t('areaSpecies.createFolder', { count: importable })
-                      : t('areaSpecies.addToFolder', { count: importable, name: target.name })}
-                  </Text>
-                </Pressable>
+                  size="lg"
+                  fullWidth
+                />
               </View>
             </>
           ) : null}

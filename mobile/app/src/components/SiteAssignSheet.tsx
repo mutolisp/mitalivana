@@ -4,9 +4,10 @@ import { useTranslation } from 'react-i18next';
 import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { listSites, type SiteWithProject } from '~/db';
-import { ACTION_FILL } from '~/lib/colors';
+
 import { SITE_TYPE_ICON, SITE_TYPE_LABEL, type DrawType } from '~/lib/siteLabels';
 import { useThemeColors } from '~/theme/colors';
+import { Button } from '~/components/ui/Button';
 
 export type { DrawType } from '~/lib/siteLabels';
 
@@ -183,12 +184,6 @@ function NewSiteButton({
   onPress: () => void;
 }) {
   return (
-    <Pressable
-      onPress={onPress}
-      className={`flex-1 flex-row items-center justify-center rounded-lg py-2.5 ${ACTION_FILL}`}
-    >
-      <Ionicons name={icon} size={16} color="white" />
-      <Text className="ml-1 text-sm font-semibold text-white">{label}</Text>
-    </Pressable>
+    <Button label={label} icon={icon} onPress={onPress} className="flex-1" />
   );
 }

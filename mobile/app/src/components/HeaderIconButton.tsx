@@ -11,11 +11,12 @@
  * `active:opacity-60`) makes the target look like it is disappearing rather
  * than being pushed.
  *
- * The 36pt disc plus `hitSlop` clears the 44pt minimum touch target on both
- * platforms even though the disc itself reads as smaller.
+ * The disc reads as 36pt but sits centred in a transparent 44pt pressable, so
+ * the touch target is really 44 on both platforms rather than a 36pt button
+ * stretched with `hitSlop`.
  */
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable } from 'react-native';
+import { Pressable, View } from 'react-native';
 
 import { useThemeColors } from '~/theme/colors';
 
@@ -64,22 +65,27 @@ export function HeaderIconButton({
     <Pressable
       onPress={onPress}
       disabled={disabled}
-      hitSlop={8}
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ disabled }}
-      className={`h-9 w-9 items-center justify-center rounded-full ${edge === 'left' ? '-ml-1' : ''} ${
-        disabled
-          ? 'bg-gray-100 dark:bg-gray-800'
-          : 'bg-gray-100 active:bg-gray-200 dark:bg-gray-800 dark:active:bg-gray-700'
-      }`}
+      className={`h-11 w-11 items-center justify-center ${edge === 'left' ? '-ml-2' : ''}`}
     >
-      <Ionicons
-        name={icon}
-        size={22}
-        color={disabled ? c.disabled : tone === 'danger' ? c.alert : c.accent}
-        style={{ transform: [{ translateX: OPTICAL_NUDGE_X[icon] ?? 0 }] }}
-      />
+      {({ pressed }) => (
+        // `active:` on the Pressable would not reach this child, so the
+        // pressed state is passed down explicitly.
+        <View
+          className={`h-9 w-9 items-center justify-center rounded-full ${
+            pressed && !disabled ? 'bg-gray-200 dark:bg-gray-700' : 'bg-gray-100 dark:bg-gray-800'
+          }`}
+        >
+          <Ionicons
+            name={icon}
+            size={22}
+            color={disabled ? c.disabled : tone === 'danger' ? c.alert : c.accent}
+            style={{ transform: [{ translateX: OPTICAL_NUDGE_X[icon] ?? 0 }] }}
+          />
+        </View>
+      )}
     </Pressable>
   );
 }

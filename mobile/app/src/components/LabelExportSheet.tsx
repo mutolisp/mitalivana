@@ -14,7 +14,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardAvoidingView } from './KeyboardAvoidingView';
 import { useThemeColors } from '~/theme/colors';
 import { useSettings } from '~/stores/settings';
-import { ACTION_FILL } from '~/lib/colors';
+
+import { Button } from '~/components/ui/Button';
 
 type Props = {
   visible: boolean;
@@ -115,17 +116,13 @@ export function LabelExportSheet({ visible, count, busy, onCancel, onConfirm }: 
               <Switch value={includeFamily} onValueChange={setIncludeFamily} />
             </View>
 
-            <Pressable
+            <Button
+              label={busy ? t('export.exporting') : t('collection.labelExportCount', { count })}
               onPress={confirm}
-              disabled={busy}
-              className={`items-center rounded-xl py-3 ${
-                busy ? 'bg-gray-300 dark:bg-gray-700' : ACTION_FILL
-              }`}
-            >
-              <Text className="text-base font-semibold text-white">
-                {busy ? t('export.exporting') : t('collection.labelExportCount', { count })}
-              </Text>
-            </Pressable>
+              loading={busy}
+              size="lg"
+              fullWidth
+            />
           </ScrollView>
         </View>
       </KeyboardAvoidingView>

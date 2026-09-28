@@ -96,6 +96,7 @@ import type { SpeciesAttributesDraft } from '~/components/SpeciesAttributesBlock
 import { saveVersionSoon } from '~/db/recordVersions';
 import { useVersionOnLeave } from '~/lib/useVersionOnLeave';
 import { useThemeColors } from '~/theme/colors';
+import { Chip } from '~/components/ui/Chip';
 
 function sortRecords(
   rs: RecordWithTaxon[],
@@ -336,6 +337,7 @@ export default function SessionDetailScreen() {
     }
     const recordId = addRecord({ session_id: sessionId, taxon_id: result.taxon_id, adopted });
     stampNewRecord('session', recordId, sessionId, reloadQuiet);
+    setFlashId(recordId);
     reload();
     toast(t('session.added', { name: result.cname || result.name }), {
       action: {
@@ -347,6 +349,9 @@ export default function SessionDetailScreen() {
       },
     });
   };
+
+  // The row just added from the search box lights up once (SpeciesCard).
+  const [flashId, setFlashId] = useState<number | null>(null);
 
   // Long-press multi-select. What the old long-press menu offered (notes,
   // change taxon, favourites, remove) now lives in the detail sheet.
@@ -985,15 +990,18 @@ export default function SessionDetailScreen() {
               horizontal
               showsHorizontalScrollIndicator={false}
               className="flex-1"
+              accessibilityRole="tablist"
               contentContainerStyle={{
                 paddingHorizontal: 8,
                 paddingVertical: 8,
                 alignItems: 'center',
+                gap: 8,
               }}
             >
               <Chip
-                label={`${t('records.filterAll')} ${records.length}`}
-                active={filterKey === null}
+                label={t('records.filterAll')}
+                count={records.length}
+                selected={filterKey === null}
                 onPress={() => setFilterKey(null)}
               />
               {HIGH_LEVEL_GROUPS.map((g) => {
@@ -1002,8 +1010,9 @@ export default function SessionDetailScreen() {
                 return (
                   <Chip
                     key={g.key}
-                    label={`${t('group.' + g.key)} ${count}`}
-                    active={filterKey === g.key}
+                    label={t('group.' + g.key)}
+                    count={count}
+                    selected={filterKey === g.key}
                     onPress={() => setFilterKey(g.key)}
                   />
                 );
@@ -1086,6 +1095,7 @@ export default function SessionDetailScreen() {
                   onLongPress={() => selection.enter(item.id)}
                   selectMode={selection.selectMode}
                   picked={selection.picked.has(item.id)}
+                  flash={item.id === flashId}
                 />
               </SwipeRowActions>
             )}
@@ -1351,17 +1361,3 @@ export default function SessionDetailScreen() {
   );
 }
 
-function Chip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
-  return (
-    <Pressable
-      onPress={onPress}
-      className={`mr-2 rounded-full border px-3 py-1.5 ${active ? 'border-accent-500 bg-accent-500' : 'border-gray-300 bg-card dark:border-gray-600 dark:bg-gray-900'}`}
-    >
-      <Text
-        className={`text-xs font-medium ${active ? 'text-white' : 'text-gray-700 dark:text-gray-300'}`}
-      >
-        {label}
-      </Text>
-    </Pressable>
-  );
-}

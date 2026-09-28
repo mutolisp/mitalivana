@@ -73,6 +73,7 @@ import { formatBytes } from '~/lib/exportSize';
 import { clearSearchResultCache } from '~/components/SearchBox';
 import { ACTION_FILL } from '~/lib/colors';
 import { useThemeColors } from '~/theme/colors';
+import { Button } from '~/components/ui/Button';
 
 export default function RegionPacksScreen() {
   const c = useThemeColors();
@@ -753,12 +754,7 @@ export default function RegionPacksScreen() {
         }
       />
       <View className="px-4 pb-2 pt-2">
-        <Pressable
-          onPress={() => setPickerOpen(true)}
-          className={`items-center rounded-xl py-3 ${ACTION_FILL}`}
-        >
-          <Text className="text-base font-semibold text-white">{t('regionPacks.add')}</Text>
-        </Pressable>
+        <Button label={t('regionPacks.add')} onPress={() => setPickerOpen(true)} size="lg" fullWidth />
       </View>
 
       <CountryPickerModal
@@ -921,11 +917,7 @@ function GroupChooserModal({
           </Text>
         </View>
         <View className="mt-auto px-4 pb-4" style={{ paddingBottom: Math.max(insets.bottom, 16) }}>
-          <Pressable onPress={onConfirm} className={`items-center rounded-xl py-3 ${ACTION_FILL}`}>
-            <Text className="text-base font-semibold text-white">
-              {t('regionPacks.startDownload')}
-            </Text>
-          </Pressable>
+          <Button label={t('regionPacks.startDownload')} onPress={onConfirm} size="lg" fullWidth />
         </View>
       </View>
     </Modal>

@@ -68,13 +68,14 @@ import { useActivePlot } from '~/stores/activePlot';
 import { useActiveGloria } from '~/modules/gloria/store';
 import { useActiveSession } from '~/stores/activeSession';
 import { captureEnvPhoto, pickPhotos } from '~/lib/photoCapture';
-import { ACTION_FILL } from '~/lib/colors';
+
 import { useRecordEditing } from '~/lib/useRecordEditing';
 import { chooseEndTime } from '~/lib/endTimeChoice';
 import { SurveyTimeFields } from '~/components/SurveyTimeFields';
 import { LockedBanner, RecordEditButtons } from '~/components/RecordEditButtons';
 import { onVersionRestored, saveVersionSoon } from '~/db/recordVersions';
 import { useVersionOnLeave } from '~/lib/useVersionOnLeave';
+import { Button } from '~/components/ui/Button';
 
 export default function PlotDetailScreen() {
   const { t } = useTranslation();
@@ -488,15 +489,11 @@ function EnvTab({
               <Text className="flex-1 text-xs font-medium text-gray-600 dark:text-gray-400">
                 {t('plot.gnssLabel')} <Text className="text-red-500">*</Text>
               </Text>
-              <Pressable
+              <Button
+                label={hasGps ? t('plot.refetchGnss') : t('plot.fetchGnss')}
+                icon="locate"
                 onPress={captureGps}
-                className={`flex-row items-center rounded-md px-3 py-1.5 ${ACTION_FILL}`}
-              >
-                <Ionicons name="locate" size={14} color="white" />
-                <Text className="ml-1 text-xs font-medium text-white">
-                  {hasGps ? t('plot.refetchGnss') : t('plot.fetchGnss')}
-                </Text>
-              </Pressable>
+              />
             </View>
             {hasCoord ? (
               <Text selectable className="mt-2 text-sm text-gray-900 dark:text-gray-100">
@@ -937,7 +934,6 @@ function SubplotSection({ plot, onUpdated }: { plot: PlotSurvey; onUpdated: () =
   const { t } = useTranslation();
 
   // +/- icons sit on a dark button in dark mode — use a bright glyph there.
-  const { scheme } = useThemeColors();
   const stepIcon = c.ink;
   const [subplots, setSubplots] = useState<Subplot[]>([]);
   const reload = useCallback(() => setSubplots(listSubplots(plot.id)), [plot.id]);
@@ -1228,7 +1224,6 @@ function LayerSection({ plot, onUpdated }: { plot: PlotSurvey; onUpdated: () => 
   const { t } = useTranslation();
 
   // +/- icons sit on a dark button in dark mode — use a bright glyph there.
-  const { scheme } = useThemeColors();
   const stepIcon = c.ink;
   const [layers, setLayers] = useState<PlotLayer[]>([]);
   useEffect(() => {

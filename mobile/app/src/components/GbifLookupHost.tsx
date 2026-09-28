@@ -63,8 +63,9 @@ import {
 } from '~/lib/gbif';
 import { apiErrorMessage } from '~/lib/apiErrorMessage';
 import { matchScientificName } from '~/lib/sciMatch';
-import { ACTION_FILL } from '~/lib/colors';
+
 import { useThemeColors } from '~/theme/colors';
+import { Button } from '~/components/ui/Button';
 
 /** What the caller gets back: a taxon that is now usable, plus whether it
  *  turned out to be a LOCAL one GBIF led us to (no external taxon minted). */
@@ -582,19 +583,16 @@ export function GbifLookupHost() {
                 <Text className="mt-3 text-center text-sm text-gray-500 dark:text-gray-400">
                   {t('gbifLookup.noResults', { q: query ?? '' })}
                 </Text>
-                <Pressable
+                <Button
+                  label={t('manualTaxon.createOwn')}
                   onPress={() => {
                     setManual(emptyManualForm(query ?? ''));
                     resetIntermediates();
                     setManualError(null);
                     setStep('manual');
                   }}
-                  className={`mt-4 rounded-full px-4 py-2 ${ACTION_FILL}`}
-                >
-                  <Text className="text-sm font-medium text-white">
-                    {t('manualTaxon.createOwn')}
-                  </Text>
-                </Pressable>
+                  className="mt-4"
+                />
               </View>
             ) : null}
             <FlatList

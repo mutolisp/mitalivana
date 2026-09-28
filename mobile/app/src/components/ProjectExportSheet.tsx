@@ -10,8 +10,9 @@ import { Modal, Pressable, ScrollView, Text, View, useWindowDimensions } from 'r
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSettings } from '~/stores/settings';
 import { AnalysisExportOptions, exportContentItems } from './AnalysisExportOptions';
-import { ACTION_FILL } from '~/lib/colors';
+
 import { useThemeColors } from '~/theme/colors';
+import { Button } from '~/components/ui/Button';
 
 type Props = {
   visible: boolean;
@@ -105,15 +106,13 @@ export function ProjectExportSheet({ visible, onClose, onExport }: Props) {
               className="px-4"
               style={{ paddingBottom: Math.max(insets.bottom, 12), paddingTop: 4 }}
             >
-              <Pressable
+              <Button
+                label={t('projectExport.exportNow')}
+                icon="share-outline"
                 onPress={onExport}
-                className={`flex-row items-center justify-center rounded-lg px-4 py-3 ${ACTION_FILL}`}
-              >
-                <Ionicons name="share-outline" size={16} color="white" style={{ marginRight: 6 }} />
-                <Text className="text-sm font-medium text-white">
-                  {t('projectExport.exportNow')}
-                </Text>
-              </Pressable>
+                size="lg"
+                fullWidth
+              />
             </View>
           </SafeAreaView>
         </View>

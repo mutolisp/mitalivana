@@ -92,9 +92,10 @@ import { useToast } from '~/stores/toast';
 import { syncAllTeams } from '~/lib/teamSync';
 import { teamSyncErrorText } from '~/lib/teamSyncText';
 import { mergeSummary } from '~/lib/mergeSummaryText';
-import { ACTION_FILL } from '~/lib/colors';
+
 import { useTabBarInset } from '~/lib/tabBarLayout';
 import { useThemeColors } from '~/theme/colors';
+import { Button } from '~/components/ui/Button';
 
 type Filter = 'all' | RecordKind;
 type ViewMode = 'flat' | 'byProject';
@@ -1281,7 +1282,7 @@ export default function RecordsListScreen() {
                   end up tapping the wrong thing in the field. */}
               <PillButton
                 icon="heart"
-                tone="amber"
+                tone="favorite"
                 a11yLabel={t('records.favorites')}
                 onPress={() => router.push('/favorites')}
               />
@@ -1332,13 +1333,12 @@ export default function RecordsListScreen() {
           <Text className="mt-2 text-center text-sm text-gray-500 dark:text-gray-400">
             {t('records.emptyHint')}
           </Text>
-          <Pressable
+          <Button
+            label={t('records.emptyCreate')}
+            icon="add"
             onPress={() => showCreateChooser()}
-            className={`mt-5 flex-row items-center rounded-lg px-5 py-2.5 ${ACTION_FILL}`}
-          >
-            <Ionicons name="add" size={18} color="white" />
-            <Text className="ml-1 text-sm font-medium text-white">{t('records.emptyCreate')}</Text>
-          </Pressable>
+            className="mt-5"
+          />
         </View>
       ) : noSearchMatch ? (
         <View className="flex-1 items-center justify-center px-6">

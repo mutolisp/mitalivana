@@ -448,10 +448,12 @@ MIREN（規劃中）→ `docs/planned/MIREN.md`；
 
 - [x] Phase 1：色彩 token（2026-09-28）
 - [x] Phase 2：藍色與寫死 hex 收斂、`check:palette`、導覽列 header 主題、開關（2026-09-29，細節見 `Update_log.md`）
-- [ ] Phase 3：基礎元件（`Button`、`Chip`、`ContextChip`、`Tag`、`CountStepper`；改寫 `PillButton`、`HeaderIconButton`、`SpeciesCard`、`RecordListItem`；Source Serif 4）
-- [ ] Phase 4：記錄首頁、建立記錄 sheet、快速名錄、物種細節（建議拆四個 PR）
+- [x] Phase 3：基礎元件 `Button`、`Chip`、`Tag`；改寫 `PillButton`、`HeaderIconButton`、`SpeciesCard`、`RecordListItem`；Source Serif 4（2026-09-29）
+- [ ] Phase 4：記錄首頁、建立記錄 sheet、快速名錄、物種細節（建議拆四個 PR）。**快速名錄那個 PR 帶上從 Phase 3 延過來的 `CountStepper`、`ContextChip`、`count.*` i18n key**；記錄首頁那個 PR 做「同日期放進一張卡片」
 - [ ] Phase 5（選配）：中文標題宋體
-- 待決：`bg-accent-500` 上的白字對比 4.1（原 `blue-500` 3.68，略好但低於 4.5；21 處，如「全部」chip），照文件維持 500 階，Phase 3 的 `Chip` 取代時一併處理
+- 待決：`bg-accent-500` 上的白字對比 4.1（原 `blue-500` 3.68，略好但低於 4.5）。名錄頁的「全部」chip 已由 Phase 3 的 `Chip` 取代（改成深色底），其餘約 20 處仍是 `bg-accent-500`
+- 待辦：`key/[id].tsx` 終點的學名 className 少一個空格（`'ml-2' : ''}text-base` → `ml-2text-base`），俗名與學名黏在一起、字級也沒生效（既有 bug）
+- 待辦：專案匯出「壓縮中…」的轉圈仍是藍色（Phase 2 沒清到的 `ActivityIndicator` 顏色）
 - 待辦：`check:palette` 的 baseline 還有 60 檔 177 處（琥珀警示色、`#4b5563`、`#d1d5db` 等對照表外的值、模組層級常數），逐步降低；每次減少後 `npm run check:palette -- --update`
 
 ## 技術棧

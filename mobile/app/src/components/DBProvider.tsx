@@ -5,6 +5,10 @@ import { ActivityIndicator, Text, View } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Font from 'expo-font';
 import { Ionicons } from '@expo/vector-icons';
+import { SourceSerif4_400Regular } from '@expo-google-fonts/source-serif-4/400Regular';
+import { SourceSerif4_400Regular_Italic } from '@expo-google-fonts/source-serif-4/400Regular_Italic';
+import { SourceSerif4_600SemiBold } from '@expo-google-fonts/source-serif-4/600SemiBold';
+import { SourceSerif4_600SemiBold_Italic } from '@expo-google-fonts/source-serif-4/600SemiBold_Italic';
 import {
   hasAnyNamesDataset,
   initDb,
@@ -46,7 +50,15 @@ export function DBProvider({ children }: Props) {
         // Preload icon font in parallel with DB init. Without this, tab
         // labels appear before tab icons on cold start (Ionicons font is
         // lazy-loaded by @expo/vector-icons on first glyph render).
-        const fontPromise = Font.loadAsync(Ionicons.font).catch(() => {
+        // Source Serif 4 is for scientific names (<ScientificName>). Imported
+        // per weight: the package index would bundle all 16 files.
+        const fontPromise = Font.loadAsync({
+          ...Ionicons.font,
+          SourceSerif4_400Regular,
+          SourceSerif4_400Regular_Italic,
+          SourceSerif4_600SemiBold,
+          SourceSerif4_600SemiBold_Italic,
+        }).catch(() => {
           // Non-fatal: icons fall back to boxes; labels still readable.
         });
         await initDb((step) => {

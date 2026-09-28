@@ -67,6 +67,7 @@ import { ACTION_FILL } from '~/lib/colors';
 import { useInstalledDatasets } from '~/lib/datasetInstall';
 import { stampNewRecord } from '~/lib/recordFix';
 import { useThemeColors } from '~/theme/colors';
+import { Button } from '~/components/ui/Button';
 
 type LeadKey = 'a' | 'b';
 
@@ -1217,27 +1218,18 @@ function UnresolvedTerminal({ rawId, onBack }: { rawId: string | null; onBack: (
 }
 
 function FooterButtons({ onBack, onRestart }: { onBack: () => void; onRestart?: () => void }) {
-  const c = useThemeColors();
   const { t: tr } = useTranslation();
   return (
     <View className="mt-4 flex-row gap-3">
-      <Pressable
+      <Button
+        label={tr('keys.prevStep')}
+        icon="arrow-back"
         onPress={onBack}
-        className="flex-1 flex-row items-center justify-center rounded-lg bg-gray-200 py-3 active:bg-gray-300 dark:bg-gray-700 dark:active:bg-gray-600"
-      >
-        <Ionicons name="arrow-back" size={14} color={c.ink} />
-        <Text className="ml-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">
-          {tr('keys.prevStep')}
-        </Text>
-      </Pressable>
+        variant="secondary"
+        className="flex-1"
+      />
       {onRestart ? (
-        <Pressable
-          onPress={onRestart}
-          className={`flex-1 flex-row items-center justify-center rounded-lg py-3 ${ACTION_FILL}`}
-        >
-          <Ionicons name="refresh" size={14} color="white" />
-          <Text className="ml-1.5 text-sm font-medium text-white">{tr('keys.restart')}</Text>
-        </Pressable>
+        <Button label={tr('keys.restart')} icon="refresh" onPress={onRestart} className="flex-1" />
       ) : null}
     </View>
   );

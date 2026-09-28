@@ -68,6 +68,7 @@ import {
 } from '~/lib/dwcAbundance';
 import { ElevationField } from './ElevationField';
 import { useThemeColors } from '~/theme/colors';
+import { Button } from '~/components/ui/Button';
 
 const BB_OPTIONS = ['+', 'r', '1', '2', '3', '4', '5'] as const;
 
@@ -955,20 +956,20 @@ export function PlotSpeciesValueModal({
               </SwipeNavArea>
 
               <View className="flex-row gap-3 border-t border-gray-100 px-4 py-3 dark:border-gray-800">
-                <Pressable
+                <Button
+                  label={t('common.cancel')}
                   onPress={onCancel}
-                  className="flex-1 items-center justify-center rounded-lg bg-gray-100 py-3 active:bg-gray-200 dark:bg-gray-800 dark:active:bg-gray-700"
-                >
-                  <Text className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    {t('common.cancel')}
-                  </Text>
-                </Pressable>
-                <Pressable
-                  onPress={canSave ? handleSave : undefined}
-                  className={`flex-1 items-center justify-center rounded-lg py-3 ${canSave ? ACTION_FILL : 'bg-gray-200 dark:bg-gray-700'}`}
-                >
-                  <Text className="text-sm font-medium text-white">{t('common.save')}</Text>
-                </Pressable>
+                  variant="secondary"
+                  size="lg"
+                  className="flex-1"
+                />
+                <Button
+                  label={t('common.save')}
+                  onPress={handleSave}
+                  disabled={!canSave}
+                  size="lg"
+                  className="flex-1"
+                />
               </View>
             </SafeAreaView>
           </View>

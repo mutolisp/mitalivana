@@ -44,6 +44,7 @@ module.exports = {
       'xxs': ['var(--ts-xxs, 10px)', { lineHeight: 'var(--lh-xxs, 14px)' }],
       'xs':  ['var(--ts-xs, 12px)',  { lineHeight: 'var(--lh-xs, 16px)' }],
       'sm':  ['var(--ts-sm, 14px)',  { lineHeight: 'var(--lh-sm, 20px)' }],
+      'sci': ['var(--ts-sci, 15px)', { lineHeight: 'var(--lh-sci, 20px)' }],
       'base':['var(--ts-base, 16px)',{ lineHeight: 'var(--lh-base, 24px)' }],
       'lg':  ['var(--ts-lg, 18px)',  { lineHeight: 'var(--lh-lg, 28px)' }],
       'xl':  ['var(--ts-xl, 20px)',  { lineHeight: 'var(--lh-xl, 28px)' }],
@@ -62,6 +63,21 @@ module.exports = {
         cupule: '#6B5433',
         acorn: { DEFAULT: '#E0A04A', deep: '#97561A', pressed: '#C98A36', tint: '#F3E4CB' },
         alert: { DEFAULT: '#A8321F', tint: '#F7E3DC', dark: '#E8876F', 'dark-tint': '#4A2A22' },
+      },
+      // Scientific names (<ScientificName>). RN does not switch to an italic
+      // file for `fontStyle: 'italic'`, so each style is its own family,
+      // loaded in DBProvider.
+      borderRadius: {
+        chip: '18px',
+        control: '24px',
+        card: '16px',
+        sheet: '24px',
+      },
+      fontFamily: {
+        latin: ['SourceSerif4_400Regular_Italic'],
+        'latin-upright': ['SourceSerif4_400Regular'],
+        'latin-semibold': ['SourceSerif4_600SemiBold_Italic'],
+        'latin-semibold-upright': ['SourceSerif4_600SemiBold'],
       },
     },
   },

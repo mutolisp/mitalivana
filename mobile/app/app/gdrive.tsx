@@ -12,7 +12,7 @@ import { useTranslation } from 'react-i18next';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { SettingsPage } from '~/components/settings/SettingsPage';
 import { apiErrorMessage } from '~/lib/apiErrorMessage';
-import { ACTION_FILL } from '~/lib/colors';
+
 import {
   GoogleAuthCancelled,
   GoogleCodeExpired,
@@ -24,6 +24,7 @@ import {
   type GoogleStatus,
 } from '~/lib/googleAuth';
 import { useToast } from '~/stores/toast';
+import { Button } from '~/components/ui/Button';
 
 export default function GoogleDriveScreen() {
   const { t } = useTranslation();
@@ -116,13 +117,14 @@ export default function GoogleDriveScreen() {
               <Text className="text-base font-semibold text-gray-900 dark:text-gray-100">
                 {t('gdrive.notConnected')}
               </Text>
-              <Pressable
+              <Button
+                label={t('gdrive.connect')}
                 onPress={handleConnect}
                 disabled={busy}
-                className={`mt-3 items-center rounded-xl py-3 ${ACTION_FILL}`}
-              >
-                <Text className="text-base font-semibold text-white">{t('gdrive.connect')}</Text>
-              </Pressable>
+                size="lg"
+                fullWidth
+                className="mt-3"
+              />
             </>
           )}
         </View>
