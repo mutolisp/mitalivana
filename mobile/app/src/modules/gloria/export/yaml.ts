@@ -11,6 +11,8 @@
 
 export const GLORIA_YAML_SCHEMA = 1;
 
+import { sanitizeMediaField } from '../../../lib/appMediaUriCore';
+
 export type GloriaDoc = {
   record_type: 'gloria';
   schema: number;
@@ -220,3 +222,43 @@ export function buildGloriaDoc(i: GloriaDocInput): GloriaDoc {
       : {}),
   };
 }
+
+/**
+ * The document with every media reference the app must not read removed
+ * (appMediaUriCore: `allow` says which). A file's own text can point at
+ * user.db or the credentials file; stored as is, the next export would pack
+ * it (security audit S1). Own paths (recovery, own round trip) pass through.
+ */
+export function sanitizeGloriaDocMedia(doc: GloriaDoc, allow: (uri: string) => boolean): GloriaDoc {
+  const clean = (v: unknown): string | null => (typeof v === 'string' ? sanitizeMediaField(v, allow) : null);
+  const sv = doc.survey;
+  return {
+    ...doc,
+    survey: {
+      ...sv,
+      overview_photos: clean(sv.overview_photos),
+      form1_files: clean(sv.form1_files),
+      form2_files: clean(sv.form2_files),
+      form3_files: clean(sv.form3_files),
+      form6s_files: clean(sv.form6s_files),
+    },
+    points: doc.points.map((p) => ({ ...p, photo_m2: clean(p.photo_m2), photo_m2f: clean(p.photo_m2f), photo_point: clean(p.photo_point) })),
+    units: doc.units.map((u) => ({ ...u, photo_paths: clean(u.photo_paths) })),
+    ...(doc.photo_checks ? { photo_checks: doc.photo_checks.map((c) => ({ ...c, photo_uri: clean(c.photo_uri) })) } : {}),
+    ...(doc.logger_visits
+      ? {
+          logger_visits: doc.logger_visits.map((v) => ({
+            ...v,
+            form4_files: clean(v.form4_files),
+            loggers: v.loggers.map((l) => ({
+              ...l,
+              photo_open_uri: clean(l.photo_open_uri),
+              photo_closed_uri: clean(l.photo_closed_uri),
+              data_files: clean(l.data_files),
+            })),
+          })),
+        }
+      : {}),
+  };
+}
+

@@ -40,15 +40,39 @@ const EXCLUDED = [
   'twnamelist.db', // The merged file from before 0.5; still present where retireLegacyBundle() has
   // not run yet
   'twnamelist.db.version',
+  // Not large, but a secret: the plain-text GBIF password of builds before
+  // 2026-09-28, until loadGbifCredentials moves it into SecureStore.
+  'gbif_credentials.json',
 ];
+
+/**
+ * SharedPreferences files kept out of the backup: expo-secure-store's
+ * Keystore-encrypted values. Its own plugin adds this rule, but only when the
+ * app sets no rules of its own — ours replace them, so it is repeated here
+ * (security audit S5). Restored on another phone the Keystore key is missing
+ * and every token would fail to decrypt.
+ *
+ * Two spellings: Android's documented example names the file with `.xml`
+ * (`<exclude domain="sharedpref" path="device.xml"/>`, developer.android.com
+ * /identity/data/autobackup), expo-secure-store's own rule omits it; the one
+ * that does not match is inert. No <include> anywhere: with one present,
+ * Android backs up only the included files, and user.db would drop out.
+ */
+const SHAREDPREF_EXCLUDED = ['SecureStore.xml', 'SecureStore'];
+
+const excludes = (indent) =>
+  [
+    ...EXCLUDED.map((p) => `${indent}<exclude domain="file" path="${p}" />`),
+    ...SHAREDPREF_EXCLUDED.map((p) => `${indent}<exclude domain="sharedpref" path="${p}" />`),
+  ].join('\n');
 
 const DATA_EXTRACTION_RULES = `<?xml version="1.0" encoding="utf-8"?>
 <data-extraction-rules>
   <cloud-backup>
-${EXCLUDED.map((p) => `    <exclude domain="file" path="${p}" />`).join('\n')}
+${excludes('    ')}
   </cloud-backup>
   <device-transfer>
-${EXCLUDED.map((p) => `    <exclude domain="file" path="${p}" />`).join('\n')}
+${excludes('    ')}
   </device-transfer>
 </data-extraction-rules>
 `;
@@ -56,7 +80,7 @@ ${EXCLUDED.map((p) => `    <exclude domain="file" path="${p}" />`).join('\n')}
 // Android 11 以下走舊的 fullBackupContent，根元素不同，不能與上面共用一個檔案。
 const FULL_BACKUP_CONTENT = `<?xml version="1.0" encoding="utf-8"?>
 <full-backup-content>
-${EXCLUDED.map((p) => `  <exclude domain="file" path="${p}" />`).join('\n')}
+${excludes('  ')}
 </full-backup-content>
 `;
 
@@ -88,3 +112,6 @@ const withManifestAttrs = (config) =>
   });
 
 module.exports = (config) => withManifestAttrs(withBackupRuleFiles(config));
+// For check:backup-rules (and to rewrite a prebuilt android/ without a full prebuild).
+module.exports.DATA_EXTRACTION_RULES = DATA_EXTRACTION_RULES;
+module.exports.FULL_BACKUP_CONTENT = FULL_BACKUP_CONTENT;

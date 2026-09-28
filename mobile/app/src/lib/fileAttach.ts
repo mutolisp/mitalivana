@@ -5,8 +5,8 @@
  * cache, which the storage page may clear — and referenced as
  * { uri, name, size }, the original name kept for display and export.
  *
- * Read paths through rebaseAppFileUri (appFiles.ts): the absolute path
- * changes on iOS reinstall. Removing a reference leaves the file; the
+ * Read paths through safeAppFileUri (appFiles.ts): the absolute path
+ * changes on iOS reinstall, and only the app's media folders may be read. Removing a reference leaves the file; the
  * storage page's orphan scan (MEDIA_COLUMNS) reclaims it.
  */
 import * as DocumentPicker from 'expo-document-picker';
@@ -14,7 +14,7 @@ import { copyAsync, documentDirectory, makeDirectoryAsync } from 'expo-file-syst
 import * as Sharing from 'expo-sharing';
 import { generateUuid } from '~/db/uuid';
 import type { FileRef } from '~/modules/gloria/model/loggers';
-import { rebaseAppFileUri } from './appFiles';
+import { safeAppFileUri } from './appFiles';
 
 const FILES_DIR = documentDirectory ? `${documentDirectory}files/` : null;
 
@@ -59,7 +59,7 @@ export function photoRef(uri: string, name: string): FileRef {
 
 /** Hand the file to the system share sheet (open in another app, save, send). */
 export async function shareAttached(ref: FileRef, resolve?: (uri: string) => Promise<string | null>): Promise<void> {
-  const local = ref.uri.startsWith('file:') ? rebaseAppFileUri(ref.uri) : ((await resolve?.(ref.uri)) ?? null);
+  const local = ref.uri.startsWith('file:') ? safeAppFileUri(ref.uri) : ((await resolve?.(ref.uri)) ?? null);
   if (!local) throw new Error('file unavailable');
   await Sharing.shareAsync(local, { dialogTitle: ref.name });
 }

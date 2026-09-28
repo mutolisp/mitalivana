@@ -1,6 +1,7 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack, usePathname } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { View } from 'react-native';
 import { SystemBars } from 'react-native-edge-to-edge';
@@ -30,6 +31,7 @@ import { useI18nSync } from '~/hooks/useI18nSync';
 import { useDatasetUpdateCheck } from '~/lib/datasetUpdateCheck';
 import { useActivePlot } from '~/stores/activePlot';
 import { useActiveGloria } from '~/modules/gloria/store';
+import { useActiveMiren } from '~/modules/miren/store';
 import { useActiveSession } from '~/stores/activeSession';
 import { useSettings } from '~/stores/settings';
 
@@ -80,7 +82,15 @@ function ThemedShell() {
   const session = useActiveSession((s) => s.session);
   const plot = useActivePlot((s) => s.plot);
   const gloria = useActiveGloria((s) => s.survey);
-  const hasActive = Boolean(session || plot || gloria);
+  const miren = useActiveMiren((s) => s.survey);
+  const hasActive = Boolean(session || plot || gloria || miren);
+  // Starting any other record ends an active MIREN survey in the DB
+  // (closeActiveRecords), but most of those paths refresh only their own
+  // store. Re-reading MIREN whenever another active record changes keeps the
+  // bar from showing a survey that has already ended.
+  useEffect(() => {
+    useActiveMiren.getState().refresh();
+  }, [session, plot, gloria]);
   // The map draws to the top edge. Its overlays already position themselves at
   // `insets.top + 8`, so the spacer was not just letterboxing the map — it was
   // pushing those controls down by a second full inset. The recording bar still

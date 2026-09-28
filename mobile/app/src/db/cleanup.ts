@@ -10,6 +10,7 @@ import { File, Paths } from 'expo-file-system';
 import { getDatasetDb } from './datasets';
 import { getUserDb } from './init';
 import { endActiveRecord, type ActiveKind } from './activeRecords';
+import { CASCADE_ORPHANS, NULL_DANGLING, PROJECT_FK_TABLES } from './integrityRules';
 import { DELETED_KEEP_MS } from '~/lib/recordVersionsCore';
 
 /**
@@ -200,18 +201,8 @@ export function purgeOrphanRows(): void {
   const db = getUserDb();
 
   // Declared ON DELETE CASCADE → the parent is gone, so the child must go too.
-  const orphanDeletes: Array<[string, string]> = [
-    ['collection_specimens', 'trip_id NOT IN (SELECT id FROM collection_trips)'],
-    ['checklist_records', 'session_id NOT IN (SELECT id FROM sessions)'],
-    ['plot_species_records', 'plot_survey_id NOT IN (SELECT id FROM plot_surveys)'],
-    ['plot_survey_layers', 'plot_survey_id NOT IN (SELECT id FROM plot_surveys)'],
-    ['plot_subplots', 'plot_survey_id NOT IN (SELECT id FROM plot_surveys)'],
-    ['subplot_layers', 'subplot_id NOT IN (SELECT id FROM plot_subplots)'],
-    ['gloria_points', 'survey_id NOT IN (SELECT id FROM gloria_surveys)'],
-    ['gloria_photo_checks', 'survey_id NOT IN (SELECT id FROM gloria_surveys)'],
-    ['gloria_units', 'survey_id NOT IN (SELECT id FROM gloria_surveys)'],
-    ['gloria_taxa', 'survey_id NOT IN (SELECT id FROM gloria_surveys)'],
-    ['gloria_unit_species', 'unit_id NOT IN (SELECT id FROM gloria_units) OR gloria_taxon_id NOT IN (SELECT id FROM gloria_taxa)'],
+  const orphanDeletes: Array<readonly [string, string]> = [
+    ...CASCADE_ORPHANS,
     // Team-merge ancestors (v57) of records no longer here.
     ['sync_base', `record_kind = 'session' AND record_uuid NOT IN (SELECT uuid FROM sessions WHERE uuid IS NOT NULL)`],
     ['sync_base', `record_kind = 'plot' AND record_uuid NOT IN (SELECT uuid FROM plot_surveys)`],
@@ -240,49 +231,13 @@ export function purgeOrphanRows(): void {
 
   sweepRecordVersions();
 
-  // Declared ON DELETE SET NULL → keep the row, drop the dangling pointer.
-  db.executeSync(
-    `UPDATE sessions SET site_id = NULL
-       WHERE site_id IS NOT NULL AND site_id NOT IN (SELECT id FROM sites);`,
-  );
-  db.executeSync(
-    `UPDATE plot_surveys SET site_id = NULL
-       WHERE site_id IS NOT NULL AND site_id NOT IN (SELECT id FROM sites);`,
-  );
-  // No FK (v43 / v47), same repair.
-  db.executeSync(
-    `UPDATE gloria_surveys SET site_id = NULL
-       WHERE site_id IS NOT NULL AND site_id NOT IN (SELECT id FROM sites);`,
-  );
-  db.executeSync(
-    `UPDATE gloria_surveys SET prev_survey_id = NULL
-       WHERE prev_survey_id IS NOT NULL AND prev_survey_id NOT IN (SELECT id FROM gloria_surveys);`,
-  );
-  db.executeSync(
-    `UPDATE collection_trips SET site_id = NULL
-       WHERE site_id IS NOT NULL AND site_id NOT IN (SELECT id FROM sites);`,
-  );
-  // The site's own back-reference to the 名錄 that created it (ON DELETE SET
-  // NULL). Left dangling from before FK enforcement, it made
-  // countSiteReferences count a user that no longer exists — the site showed
-  // as bound and was never cleaned up with its record.
-  db.executeSync(
-    `UPDATE sites SET session_id = NULL
-       WHERE session_id IS NOT NULL AND session_id NOT IN (SELECT id FROM sessions);`,
-  );
-  // No FK is declared on this one, but a pointer to a deleted subplot is just
-  // as wrong — null it so the record falls back to plot-level scope.
-  db.executeSync(
-    `UPDATE plot_species_records SET subplot_id = NULL
-       WHERE subplot_id IS NOT NULL AND subplot_id NOT IN (SELECT id FROM plot_subplots);`,
-  );
+  // Declared ON DELETE SET NULL (or no FK at all) → keep the row, drop the dangling pointer.
+  for (const [table, column, parent] of NULL_DANGLING) {
+    db.executeSync(`UPDATE ${table} SET ${column} = NULL WHERE ${column} IS NOT NULL AND ${column} NOT IN (SELECT id FROM ${parent});`);
+  }
 
   repairDanglingProjectIds(db);
 }
-
-/** Tables carrying a FK to `projects`. `deleteProject` used to reassign only
- *  the first two, stranding the other two. */
-const PROJECT_FK_TABLES = ['sessions', 'plot_surveys', 'sites', 'collection_trips', 'gloria_surveys'];
 
 /**
  * Reassign rows whose `project_id` points at a deleted project back to 0 (未分類).
@@ -422,20 +377,7 @@ export function checkIntegrity(): IntegrityReport {
     n: countStaleAdoptions(table),
   })).filter((a) => a.n > 0);
 
-  const orphanRows = [
-    ['collection_specimens', 'trip_id NOT IN (SELECT id FROM collection_trips)'],
-    ['checklist_records', 'session_id NOT IN (SELECT id FROM sessions)'],
-    ['plot_species_records', 'plot_survey_id NOT IN (SELECT id FROM plot_surveys)'],
-    ['plot_survey_layers', 'plot_survey_id NOT IN (SELECT id FROM plot_surveys)'],
-    ['subplot_layers', 'subplot_id NOT IN (SELECT id FROM plot_subplots)'],
-    ['plot_subplots', 'plot_survey_id NOT IN (SELECT id FROM plot_surveys)'],
-    ['gloria_points', 'survey_id NOT IN (SELECT id FROM gloria_surveys)'],
-    ['gloria_photo_checks', 'survey_id NOT IN (SELECT id FROM gloria_surveys)'],
-    ['gloria_units', 'survey_id NOT IN (SELECT id FROM gloria_surveys)'],
-    ['gloria_taxa', 'survey_id NOT IN (SELECT id FROM gloria_surveys)'],
-    ['gloria_unit_species', 'unit_id NOT IN (SELECT id FROM gloria_units) OR gloria_taxon_id NOT IN (SELECT id FROM gloria_taxa)'],
-  ]
-    .map(([table, where]) => ({ table, n: num(`SELECT COUNT(*) AS n FROM ${table} WHERE ${where}`) }))
+  const orphanRows = CASCADE_ORPHANS.map(([table, where]) => ({ table, n: num(`SELECT COUNT(*) AS n FROM ${table} WHERE ${where}`) }))
     .filter((o) => o.n > 0);
 
   const danglingProjectIds = PROJECT_FK_TABLES.map((table) => ({

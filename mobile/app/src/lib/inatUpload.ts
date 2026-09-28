@@ -40,7 +40,7 @@ import {
 } from '~/db';
 import { ApiError, sleep } from './apiFetch';
 import { apiErrorMessage } from './apiErrorMessage';
-import { rebaseAppFileUri } from './appFiles';
+import { safeAppFileUri } from './appFiles';
 import { parseAudioPaths } from './audioCapture';
 import { ensurePhotosReadAccess, guessExt, parsePhotoUris, resolveAssetUri } from './bundleExport';
 import { classifyFailure } from './connectivity';
@@ -601,7 +601,8 @@ async function uploadMedia(rec: EligibleRecord, ctx: BatchContext, from: number)
         if (local.temp) void deleteAsync(local.uri, { idempotent: true });
       }
     } else {
-      await ctx.call((jwt) => uploadSound(jwt, rec.occurrenceId, rebaseAppFileUri(item.uri), AUDIO_MIME_TYPE));
+      const sound = safeAppFileUri(item.uri);
+      if (sound) await ctx.call((jwt) => uploadSound(jwt, rec.occurrenceId, sound, AUDIO_MIME_TYPE));
     }
     markInatMediaDone(rec.kind, rec.id, k + 1);
     sent += 1;

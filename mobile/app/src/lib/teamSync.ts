@@ -136,6 +136,36 @@ export function installId(): string {
 }
 
 const secretKey = (teamId: string) => `teamSecret_${teamId}`;
+
+/**
+ * The owner token: made by the phone that creates the team and kept only in
+ * its SecureStore — never in the invitation — so only that phone can delete
+ * the team from the server (Worker 1.3.0; security audit S8). The server
+ * keeps its hash. Lost with the phone: the team then expires 90 days after
+ * its last upload instead.
+ */
+const ownerKey = (teamId: string) => `teamOwner_${teamId}`;
+async function loadOwnerToken(teamId: string): Promise<string | null> {
+  try {
+    return await SecureStore.getItemAsync(ownerKey(teamId));
+  } catch {
+    return null;
+  }
+}
+async function saveOwnerToken(teamId: string, token: string): Promise<void> {
+  await SecureStore.setItemAsync(ownerKey(teamId), token, { keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY });
+}
+async function forgetOwnerToken(teamId: string): Promise<void> {
+  try {
+    await SecureStore.deleteItemAsync(ownerKey(teamId));
+  } catch {
+    // nothing stored
+  }
+}
+async function ownerHeaders(teamId: string): Promise<Record<string, string>> {
+  const t = await loadOwnerToken(teamId);
+  return t ? { 'x-owner-token': t } : {};
+}
 async function saveSecret(teamId: string, secret: Uint8Array): Promise<void> {
   await SecureStore.setItemAsync(secretKey(teamId), b64u(secret), {
     keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
@@ -168,10 +198,11 @@ async function relay(
   server: string,
   method: 'GET' | 'PUT' | 'POST' | 'DELETE',
   path: string,
-  opts: { token?: string; body?: string; json?: boolean } = {},
+  opts: { token?: string; body?: string; json?: boolean; headers?: Record<string, string> } = {},
 ) {
+  const headers = { ...(opts.token ? { Authorization: `Bearer ${opts.token}` } : {}), ...(opts.headers ?? {}) };
   return fetchText('sync', method, `${server.replace(/\/+$/, '')}${path}`, {
-    headers: opts.token ? { Authorization: `Bearer ${opts.token}` } : undefined,
+    headers: Object.keys(headers).length ? headers : undefined,
     body: opts.body,
     contentType: opts.json ? 'application/json' : 'text/plain',
     timeoutMs: 30000,
@@ -201,12 +232,17 @@ export async function createTeam(name: string, server: string | null, memberName
   await checkServer(srv);
   const secret = randomBytes(TEAM_SECRET_BYTES);
   const keys = deriveTeamKeys(secret);
+  const ownerToken = randomHex(32);
   try {
-    await relay(srv, 'POST', `/v1/t/${keys.teamId}`, { body: JSON.stringify({ authHash: authTokenHash(keys.authToken) }), json: true });
+    await relay(srv, 'POST', `/v1/t/${keys.teamId}`, {
+      body: JSON.stringify({ authHash: authTokenHash(keys.authToken), ownerHash: authTokenHash(ownerToken) }),
+      json: true,
+    });
   } catch (e) {
     throw asSyncError(e);
   }
   await saveSecret(keys.teamId, secret);
+  await saveOwnerToken(keys.teamId, ownerToken);
   if (server) rememberServer(server);
   getUserDb().executeSync(
     `INSERT OR REPLACE INTO sync_teams (team_id, name, server, is_owner, joined_at, member_name) VALUES (?, ?, ?, 1, ?, ?)`,
@@ -315,9 +351,32 @@ export async function inviteCodeFor(teamId: string): Promise<string | null> {
   return t && secret ? encodeInvite({ secret, name: t.name, server: t.server }) : null;
 }
 
+/**
+ * For "clear all data": every team's secret on this device, and the install
+ * id (the next team sees a new device). Team rows go with user.db.
+ */
+export async function forgetAllTeamSecrets(): Promise<void> {
+  for (const t of listTeams()) {
+    try {
+      await SecureStore.deleteItemAsync(secretKey(t.team_id));
+    } catch (e) {
+      if (__DEV__) console.warn('[teamSync] secret delete failed', e);
+    }
+    await forgetOwnerToken(t.team_id);
+  }
+  try {
+    const f = new File(Paths.document, DEVICE_FILE);
+    if (f.exists) f.delete();
+  } catch (e) {
+    if (__DEV__) console.warn('[teamSync] device file delete failed', e);
+  }
+  cachedInstallId = null;
+}
+
 /** Forget the team on this device (the cloud copy stays until it expires or the owner deletes it). */
 export async function leaveTeam(teamId: string): Promise<void> {
   await SecureStore.deleteItemAsync(secretKey(teamId));
+  await forgetOwnerToken(teamId);
   const db = getUserDb();
   for (const t of ['sync_teams', 'sync_links', 'sync_seen', 'sync_queue', 'sync_members', 'sync_log']) db.executeSync(`DELETE FROM ${t} WHERE team_id = ?`, [teamId]);
 }
@@ -334,7 +393,7 @@ export async function keysOf(teamId: string): Promise<{ team: Team; keys: TeamKe
 export async function deleteTeamEverywhere(teamId: string): Promise<void> {
   const { team, keys } = await keysOf(teamId);
   try {
-    await relay(serverOf(team), 'DELETE', `/v1/t/${keys.teamId}`, { token: keys.authToken });
+    await relay(serverOf(team), 'DELETE', `/v1/t/${keys.teamId}`, { token: keys.authToken, headers: await ownerHeaders(teamId) });
   } catch (e) {
     const err = asSyncError(e);
     if (err.code !== 'noTeam') throw err;
@@ -358,8 +417,12 @@ export async function moveTeam(teamId: string, newServer: string): Promise<MoveR
   const target = normUrl(newServer) || DEFAULT_SERVER;
   if (target === oldServer) throw new TeamSyncError('sameServer');
   await checkServer(target);
+  const ownerToken = await loadOwnerToken(teamId);
   try {
-    await relay(target, 'POST', `/v1/t/${keys.teamId}`, { body: JSON.stringify({ authHash: authTokenHash(keys.authToken) }), json: true });
+    await relay(target, 'POST', `/v1/t/${keys.teamId}`, {
+      body: JSON.stringify({ authHash: authTokenHash(keys.authToken), ...(ownerToken ? { ownerHash: authTokenHash(ownerToken) } : {}) }),
+      json: true,
+    });
   } catch (e) {
     const err = asSyncError(e);
     // Already there (a move that was interrupted): fine if our key opens it.
@@ -395,7 +458,7 @@ export async function moveTeam(teamId: string, newServer: string): Promise<MoveR
 export async function deleteTeamOn(teamId: string, server: string): Promise<void> {
   const { keys } = await keysOf(teamId);
   try {
-    await relay(server, 'DELETE', `/v1/t/${keys.teamId}`, { token: keys.authToken });
+    await relay(server, 'DELETE', `/v1/t/${keys.teamId}`, { token: keys.authToken, headers: await ownerHeaders(teamId) });
   } catch (e) {
     const err = asSyncError(e);
     if (err.code !== 'noTeam') throw err;
@@ -879,8 +942,35 @@ export async function syncAllTeams(): Promise<(TeamSyncOutcome & { teams: number
   }
 }
 
+/**
+ * A team this phone owns but created before Worker 1.3.0 has no owner hash on
+ * the server, so any member could still delete it: claim it once. A server
+ * that already has one (another member claimed first) or does not know the
+ * route (older Worker) is left alone; tried at most once per launch.
+ */
+const ownerClaimTried = new Set<string>();
+async function ensureOwnerClaim(teamId: string): Promise<void> {
+  if (ownerClaimTried.has(teamId)) return;
+  ownerClaimTried.add(teamId);
+  const team = getTeam(teamId);
+  if (!team?.is_owner || (await loadOwnerToken(teamId))) return;
+  const { keys } = await keysOf(teamId);
+  const token = randomHex(32);
+  try {
+    await relay(serverOf(team), 'PUT', `/v1/t/${keys.teamId}/owner`, {
+      token: keys.authToken,
+      body: JSON.stringify({ ownerHash: authTokenHash(token) }),
+      json: true,
+    });
+    await saveOwnerToken(teamId, token);
+  } catch (e) {
+    if (__DEV__) console.warn('[teamSync] owner claim skipped', asSyncError(e).code);
+  }
+}
+
 async function syncTeamNow(teamId: string, opts: { pull?: boolean } = {}): Promise<TeamSyncOutcome> {
   const out: TeamSyncOutcome = { sent: 0, merged: 0, mergedFrom: [], changes: [], imported: 0, review: false, queued: false };
+  await ensureOwnerClaim(teamId).catch(() => {});
   // Files that could not be fetched last time, for every record of the team.
   await retryPendingMedia(teamId, localIdOf).catch(() => {});
   const linked = rows<{ record_kind: MergeKind; record_uuid: string }>(

@@ -49,6 +49,8 @@ import {
 import { useActiveSession } from '~/stores/activeSession';
 import { useActivePlot } from '~/stores/activePlot';
 import { useAddToActiveRecord } from '~/lib/useAddToActiveRecord';
+import { useActiveGloria } from '~/modules/gloria/store';
+import { blockIfMirenActive } from '~/lib/mirenGuard';
 import { ConservationBadge } from './ConservationBadge';
 import { LookupResultSheet } from './LookupResultSheet';
 import { ScientificName } from './ScientificName';
@@ -246,6 +248,14 @@ export function KeyMatrixRunner({ keyId, keyData }: Props) {
       addSpecies(picked);
       return;
     }
+    // An active GLORIA survey takes it into its roster (the shared router);
+    // an active MIREN survey is not ended by an implicit checklist.
+    if (useActiveGloria.getState().survey) {
+      addSpecies(activeDetail);
+      setActiveDetail(null);
+      return;
+    }
+    if (!session && blockIfMirenActive()) return;
     const target = session ?? startActive();
     if (isTaxonInSession(target.id, activeDetail.taxon_id)) {
       Alert.alert(t('session.alreadyExists', { name: activeDetail.cname || activeDetail.name }));

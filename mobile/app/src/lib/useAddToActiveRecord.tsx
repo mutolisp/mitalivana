@@ -7,9 +7,11 @@
  * (which, via single-active enforcement, would silently end an active plot
  * survey).
  *
- * Priority: active plot → open PlotSpeciesValueModal (enter abundance) →
- * addPlotSpecies. Otherwise active session (or a freshly started one) →
- * addRecord. Returns the modal element so the host screen can render it.
+ * Priority: active GLORIA → its roster; active plot → open
+ * PlotSpeciesValueModal (enter abundance) → addPlotSpecies. Otherwise active
+ * session (or a freshly started one) → addRecord — except while a MIREN survey
+ * is active, which blocks with a prompt (blockIfMirenActive). Returns the
+ * modal element so the host screen can render it.
  */
 import { useState } from 'react';
 import { useRouter, type Href } from 'expo-router';
@@ -28,6 +30,7 @@ import {
   type SearchResult,
 } from '~/db';
 import type { AdoptionInput } from '~/db';
+import { blockIfMirenActive } from '~/lib/mirenGuard';
 import { useActivePlot } from '~/stores/activePlot';
 import { useActiveSession } from '~/stores/activeSession';
 import { useActiveGloria } from '~/modules/gloria/store';
@@ -121,7 +124,8 @@ export function useAddToActiveRecord(): {
       setPlotTarget({ sp, plotId: activePlot.id, plotType: activePlot.plot_type, layer, adopted });
       return;
     }
-    // Session path (or start a fresh one).
+    // Session path (or start a fresh one — never over a MIREN survey).
+    if (!session && blockIfMirenActive()) return;
     const target = session ?? startSession();
     if (isTaxonInSession(target.id, sp.taxon_id)) {
       toast(t('addToRecord.alreadyInRecord', { name: sp.cname || sp.name }));
@@ -198,6 +202,7 @@ export function useAddToActiveRecord(): {
       );
       return;
     }
+    if (!session && blockIfMirenActive()) return;
     const target = session ?? startSession();
     const fresh = valid.filter((sp) => !isTaxonInSession(target.id, sp.taxon_id));
     withTransaction(() => {

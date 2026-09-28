@@ -121,6 +121,15 @@ eq('second team from the same IP (limit 2) → 201', (await call('POST', `/v1/t/
 const third = deriveTeamKeys(Uint8Array.from({ length: 32 }, (_, i) => 100 + i)).teamId;
 eq('third team from the same IP → 429 createRate', (await call('POST', `/v1/t/${third}`, { body: { authHash: authTokenHash('y') } })).body.error, 'createRate');
 eq('another IP may create', (await call('POST', `/v1/t/${third}`, { body: { authHash: authTokenHash('y') }, ip: '5.6.7.8' })).status, 201);
+{
+  const fourth = deriveTeamKeys(Uint8Array.from({ length: 32 }, (_, i) => 50 + i)).teamId;
+  eq('owner: a malformed owner hash → 400', (await call('POST', `/v1/t/${fourth}`, { body: { authHash: authTokenHash('z'), ownerHash: 'x' }, ip: '9.9.9.9' })).status, 400);
+  eq('owner: created with an owner hash → only the owner token deletes', [
+    (await call('POST', `/v1/t/${fourth}`, { body: { authHash: authTokenHash('z'), ownerHash: authTokenHash('own') }, ip: '9.9.9.9' })).status,
+    (await call('DELETE', `/v1/t/${fourth}`, { token: 'z' })).body.error,
+    (await call('DELETE', `/v1/t/${fourth}`, { token: 'z', headers: { 'x-owner-token': 'own' } })).status,
+  ], [201, 'ownerOnly', 200]);
+}
 
 const blob = Uint8Array.from({ length: 1000 }, (_, i) => (i * 31) & 255);
 eq('wrong token → 401', (await call('PUT', `/v1/t/${T}/r/${rec}/${d1}`, { token: 'nope', body: blob })).status, 401);
@@ -138,13 +147,54 @@ eq('limits: team token cannot use admin', (await call('PUT', `/v1/admin/t/${T}/l
 eq('limits: admin raises devices', (await call('PUT', `/v1/admin/t/${T}/limits`, { token: 'admin-secret', body: { maxTeamDevices: 5 } })).body.maxTeamDevices, 5);
 eq('third device now allowed', (await call('PUT', `/v1/t/${T}/r/${rec}/${d3}`, { token: tok, body: blob })).status, 200);
 
-// Server-wide: 3000 bytes stored > MAX_TOTAL_BYTES 5000? no → still writable; push over, run cron.
-await call('PUT', `/v1/t/${T}/r/${'b'.repeat(32)}/${d1}`, { token: tok, body: new Uint8Array(3000) });
+// Server-wide (MAX_TOTAL_BYTES 5000): 3000 bytes stored. An upload that would
+// pass the total is refused at once, not only after the next daily cron.
+const big = `t/${T}/r/${'b'.repeat(32)}/${d1}`;
+eq('server-wide: an upload past the total is refused at once, not written', [
+  (await call('PUT', `/v1/t/${T}/r/${'b'.repeat(32)}/${d1}`, { token: tok, body: new Uint8Array(3000) })).body.error,
+  env.SYNC.m.has(big),
+], ['serverFull', false]);
+{
+  // Small metadata writes are left to the cron's exact recount; uploads move the total by their size.
+  const total = () => Number(new TextDecoder().decode(env.SYNC.m.get('sys/bytes').bytes));
+  const t0 = total();
+  await call('PUT', `/v1/t/${T}/r/${'c'.repeat(32)}/${d1}`, { token: tok, body: new Uint8Array(100) });
+  const t1 = total();
+  await call('PUT', `/v1/t/${T}/r/${'c'.repeat(32)}/${d1}`, { token: tok, body: new Uint8Array(40) });
+  eq('server-wide: the running total moves by exactly what is stored (new, then replaced)', [t1 - t0, total() - t1], [100, -60]);
+}
+// Something the running total missed (another writer): the daily cron still catches it.
+await env.SYNC.put(big, new Uint8Array(3000));
 await worker.scheduled({}, env);
 eq('cron sets read-only above the total', !!(await env.SYNC.head('sys/readonly')), true);
 eq('read-only: uploads 503, downloads still work', [(await call('PUT', `/v1/t/${T}/r/${rec}/${d1}`, { token: tok, body: blob })).body.error, (await call('GET', `/v1/t/${T}/r/${rec}/${d1}`, { token: tok })).status], ['serverFull', 200]);
 
-eq('delete team', (await call('DELETE', `/v1/t/${T}`, { token: tok })).status, 200);
+eq('owner: the team (created without an owner hash) is deletable by any member until claimed', true, true);
+const ownerTok = 'o'.repeat(40);
+const ownerHash = authTokenHash(ownerTok);
+eq('owner: claim sets the owner hash once', [
+  (await call('PUT', `/v1/t/${T}/owner`, { token: tok, body: { ownerHash } })).status,
+  (await call('PUT', `/v1/t/${T}/owner`, { token: tok, body: { ownerHash } })).status,
+  (await call('PUT', `/v1/t/${T}/owner`, { token: tok, body: { ownerHash: authTokenHash('someone-else') } })).body.error,
+  (await call('PUT', `/v1/t/${T}/owner`, { token: 'nope', body: { ownerHash } })).status,
+], [200, 200, 'ownerSet', 401]);
+eq('owner: a member without the owner token cannot delete; nothing removed', [
+  (await call('DELETE', `/v1/t/${T}`, { token: tok })).body.error,
+  (await call('DELETE', `/v1/t/${T}`, { token: tok, headers: { 'x-owner-token': 'wrong' } })).body.error,
+  env.SYNC.m.has(`t/${T}/r/${rec}/${d1}`),
+], ['ownerOnly', 'ownerOnly', true]);
+// An upload that refreshes the auth object keeps the owner hash.
+{
+  const a = JSON.parse(new TextDecoder().decode(env.SYNC.m.get(`t/${T}/auth`).bytes));
+  await env.SYNC.put(`t/${T}/auth`, JSON.stringify({ ...a, created: 0, touched: 0 }));
+  // Room again: drop the oversized object and let the cron recount and lift read-only.
+  await env.SYNC.delete(big);
+  await worker.scheduled({}, env);
+  const up = await call('PUT', `/v1/t/${T}/r/${rec}/${d1}`, { token: tok, body: blob });
+  const after = JSON.parse(new TextDecoder().decode(env.SYNC.m.get(`t/${T}/auth`).bytes));
+  eq('owner: the auth refresh on upload keeps the owner hash', [up.status, after.touched > 0, after.ownerHash], [200, true, ownerHash]);
+}
+eq('delete team (owner token)', (await call('DELETE', `/v1/t/${T}`, { token: tok, headers: { 'x-owner-token': ownerTok } })).status, 200);
 eq('after delete: gone', [(await call('GET', `/v1/t/${T}/r/${rec}/${d1}`, { token: tok })).status, [...env.SYNC.m.keys()].some((k) => k.startsWith(`t/${T}/`))], [404, false]);
 
 // ── files (docs/planned/Media_sync.md phases 0–2) ──
@@ -195,10 +245,27 @@ eq('files: done with every chunk → complete, counted once', [
   (await mcall('GET', `/v1/t/${T}/usage`, { token: tok })).body.mediaBytes,
 ], [200, 200, [mid], 1000]);
 const mid2 = 'e'.repeat(32);
-eq('files: team file quota — a file that would pass it is refused before storing', [
-  (await mcall('PUT', `/v1/t/${T}/m/${mid2}/0`, { token: tok, body: chunk, headers: { 'x-media-size': '1000' } })).status,
-  (await mcall('PUT', `/v1/t/${T}/m/${mid2}/0`, { token: tok, body: chunk, headers: { 'x-media-size': '1001' } })).body.error,
-], [200, 'mediaQuota']);
+const mid3 = 'd'.repeat(32);
+eq('files: the quota counts bytes stored, not the client\'s x-media-size', [
+  (await mcall('PUT', `/v1/t/${T}/m/${mid2}/0`, { token: tok, body: chunk, headers: { 'x-media-size': '0' } })).status,
+  (await mcall('PUT', `/v1/t/${T}/m/${mid2}/1`, { token: tok, body: chunk, headers: { 'x-media-size': '0' } })).body.error,
+  menv.SYNC.m.has(`m/${T}/${mid2}/1`),
+  (await mcall('GET', `/v1/t/${T}/usage`, { token: tok })).body.mediaBytes,
+], [200, 'mediaQuota', false, 1700]);
+eq('files: x-media-size still refuses a file that cannot fit at its first chunk', [
+  (await mcall('PUT', `/v1/t/${T}/m/${mid3}/0`, { token: tok, body: chunk.subarray(0, 100), headers: { 'x-media-size': '400' } })).body.error,
+  menv.SYNC.m.has(`m/${T}/${mid3}/0`),
+], ['mediaQuota', false]);
+eq('files: replacing a chunk counts only the difference', [
+  (await mcall('PUT', `/v1/t/${T}/m/${mid2}/0`, { token: tok, body: chunk })).status,
+  (await mcall('GET', `/v1/t/${T}/usage`, { token: tok })).body.mediaBytes,
+], [200, 1700]);
+eq('files: done ignores the client\'s size (records what is stored)', [
+  (await mcall('POST', `/v1/t/${T}/m/${mid2}/done`, { token: tok, body: { n: 1, size: 0 } })).status,
+  JSON.parse(new TextDecoder().decode(menv.SYNC.m.get(`m/${T}/${mid2}/info`).bytes)).size,
+  (await mcall('GET', `/v1/t/${T}/usage`, { token: tok })).body.mediaBytes,
+], [200, 700, 1700]);
+await mcall('PUT', `/v1/admin/t/${T}/limits`, { token: 'admin-secret', body: { maxMediaTeamBytes: 100000 } });
 eq('files: chunk at the limit passes, one over → 413 not written', [
   (await mcall('PUT', `/v1/t/${T}/m/${mid}/2`, { token: tok, body: new Uint8Array(800) })).status,
   (await mcall('PUT', `/v1/t/${T}/m/${mid}/3`, { token: tok, body: new Uint8Array(801) })).body.error,
@@ -223,7 +290,7 @@ eq('files: clean-up after a week removes only what no record refers to', [
   (await collectMediaGarbage(menv.SYNC, Date.now() + 8 * day)).deleted,
   menv.SYNC.m.has(keyOf(0)), menv.SYNC.m.has(`m/${T}/${mid}/info`), [...menv.SYNC.m.keys()].some((k) => k.startsWith(`m/${T}/${mid2}/`)),
   Number(new TextDecoder().decode(menv.SYNC.m.get(`m/${T}/usage`).bytes)),
-], [1, true, true, false, 1000]);
+], [1, true, true, false, 1800]);
 await mcall('DELETE', `/v1/t/${T}`, { token: tok });
 eq('files: deleted with the team, records and files alike', [...menv.SYNC.m.keys()].some((k) => k.startsWith(`t/${T}/`) || k.startsWith(`m/${T}/`)), false);
 

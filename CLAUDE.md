@@ -56,11 +56,7 @@ Transform tasks into verifiable goals:
 "Add validation" → "Write tests for invalid inputs, then make them pass"
 "Fix the bug" → "Write a test that reproduces it, then make it pass"
 "Refactor X" → "Ensure tests pass before and after"
-For multi-step tasks, state a brief plan:
-
-1. [Step] → verify: [check]
-2. [Step] → verify: [check]
-3. [Step] → verify: [check]
+For multi-step tasks, say how each step will be verified.
 Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
 
 These guidelines are working if: fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
@@ -68,7 +64,7 @@ These guidelines are working if: fewer unnecessary changes in diffs, fewer rewri
 
 ## Project Overview
 
-Checklister-NG（次世代名錄產生器）是臺灣物種名錄產生工具，支援所有生物類群（維管束植物、鳥類、昆蟲、真菌等）。整合 TaiCOL 臺灣物種名錄（242k 筆），支援俗名/學名搜尋（含模糊比對）、同物異名、多分類群匯出、分類樹瀏覽、樣區地圖繪製等功能。
+Checklister-NG（次世代名錄產生器）是臺灣物種名錄產生工具，支援所有生物類群（維管束植物、鳥類、昆蟲、真菌等）。整合 TaiCOL 臺灣物種名錄，支援俗名/學名搜尋（含模糊比對）、同物異名、多分類群匯出、分類樹瀏覽、樣區地圖繪製等功能。
 
 ## Build & Development
 
@@ -238,7 +234,7 @@ SvelteKit + adapter-static + Tailwind CSS + Flowbite：
 SQLite（`backend/twnamelist.db`）：
 - `dao_plant_type` — 高階類群排序（plant_type 0-6）
 - `dao_pnamelist_pg` — 舊版維管束植物名錄（6,270 筆）
-- `taicol_names` — TaiCOL 全物種名錄（242k 筆）
+- `taicol_names` — TaiCOL 全物種名錄
   - 完整階層：kingdom(kingdom_c) → phylum(phylum_c) → class(class_c) → order(order_c) → family(family_c) → genus(genus_c)
   - 俗名/替代俗名 + usage_status
   - 保育欄位：`redlist`（臺灣紅皮書）、`iucn`（IUCN 全球）、`cites`（CITES 附錄）、`protected`（保育類等級 I/II/III 或文資法 1）
@@ -303,9 +299,8 @@ SQLite（`backend/twnamelist.db`）：
 判準：**中文是在描述，還是中文本身就是資料？** 描述就翻，是資料就留。
 不確定時留原文並在旁邊補英文說明，不要為了純英文而讓事實流失。
 
-現況：`mobile/app/` 已全數轉為英文（2026-09-20，148 檔）。`backend/` 與
-`frontend/` 尚有中文註解（約 445 / 202 行），**動到哪個檔就順手轉該檔**，不必
-另開一輪全面改寫。
+`mobile/app/`、`backend/`、`frontend/` 都還有中文註解，**動到哪個檔就順手轉該檔**，
+不必另開一輪全面改寫。
 
 ## Mobile App（`mobile/app/`）
 
@@ -373,15 +368,15 @@ npm run check:dock                                   # 底部置底搜尋框結�
 ### Record 結構
 
 - **Session（名錄）**：輕量物種記錄，table `sessions` + `checklist_records`
-- **Plot survey（樣區）**：結構化調查，分 `plot_type: 'fixed' | 'transect'`
-  - fixed：4 層植群（E0–E3）+ per-layer cover/height/method
-  - transect：穿越線 + MultiLineString 軌跡（GeoJSON 存 `track_geojson`）
+- **Plot survey（樣區）**：結構化調查，`plot_type: 'fixed' | 'transect' | 'point_count'`（有 CHECK）
+  - fixed：1–6 層植群（E1–E6，層數 `layer_count`，預設 4）+ per-layer cover/height/method（`plot_survey_layers`）
+  - transect：穿越線 + MultiLineString 軌跡（GeoJSON 存 `track_geojson`）；transect 與 point_count 的物種都放 `'T'` 層
 - **Site（地理樣區）**：純地理形狀（point/line/polygon），可被 session 綁定。**不要與 plot 混淆**。選單入口寫「**地理樣區**」明確區分。
-- **Single-active invariant**：任何時刻全 app 最多一筆 active record（跨 session / plot）。動到「建立 / reopen」流程時必須 enforce。
+- **Single-active invariant**：任何時刻全 app 最多一筆 active record（跨 session / plot / GLORIA / MIREN；採集記錄豁免）。動到「建立 / reopen」流程時必須 enforce。
 
 ### Stores
 
-- `useActiveSession` / `useActivePlot` 各自追蹤 active 記錄，但 ActiveSessionBar component 同時讀兩個，取 startedAt 較新者顯示。
+- `useActiveSession` / `useActivePlot` / `useActiveGloria` / `useActiveMiren` 各自追蹤 active 記錄；ActiveSessionBar 同時讀四個，取開始時間最新者顯示。
 - Track recording 的 GPS watch 必須放 **module-level** (`src/lib/trackRecorder.ts`)，不能放 component state — 切 tab unmount component 不該中斷 GPS。
 
 ### 共用 UI 元件
@@ -394,7 +389,7 @@ npm run check:dock                                   # 底部置底搜尋框結�
 
 ### Android 上架前置（尚未完成，僅紀錄）
 
-- **Google Maps API key 已設定**（2026-05-17）：`app.json` 已改成 dynamic config `app.config.ts`，`:68` 讀 `process.env.GOOGLE_MAPS_ANDROID_API_KEY` 注入 `android.config.googleMaps.apiKey`。local dev 走 `.env`、雲端 build 走 EAS secret，**都不進 git**。少了它 Android 地圖 tab 會空白。iOS 用 Apple Maps 不受影響。
+- **Google Maps API key 已設定**（2026-05-17）：`app.json` 已改成 dynamic config `app.config.ts`，讀 `process.env.GOOGLE_MAPS_ANDROID_API_KEY` 注入 `android.config.googleMaps.apiKey`。local dev 走 `.env`、雲端 build 走 EAS secret，**都不進 git**。少了它 Android 地圖 tab 會空白。iOS 用 Apple Maps 不受影響。
 - Play Store 上架清單見 `mobile/Plan.md` 的「待辦 → F. 發布」。
 
 ### Build & Test
@@ -442,6 +437,7 @@ tw-taicol 模組另外帶有 `taxon_tree`／`rank_bridge` 兩張表，由最新�
 | `mobile/docs/` | 仍代表現況的參考文件（檢索表、樣區、iNat/GBIF、報表、物種詳細頁、地圖、i18n） |
 | `mobile/docs/planned/` | 純規劃未動工（AI 辨識、P2P 協作、雲端協作） |
 | `mobile/archive/` | 已完成或被取代的設計稿與一次性稽核，**不再維護** |
+| `mobile/docs/data-model/` | 資料模型與 UML（code review／稽核用）。`semantics.md` 人工撰寫（中英對照），`schema.json`／`data-model.html` 由 `npm run data-model` 從實際 migration 產生。**改 schema 或改名函式後跑 `npm run data-model`**，`check:data-model` 會擋：新表沒寫說明、文件引用的表欄／函式／檔案不存在、產生物過期 |
 | `mobile/verify/` | 給**收資料的人**的出處簽章驗證端（Node／Python／單檔 HTML）。`verify.html` 是 `template.html` 的產物，改前者不要改後者 |
 
 每完成一個段落就更新 `Plan.md` 的待辦與 `Update_log.md`。
@@ -456,9 +452,6 @@ tw-taicol 模組另外帶有 `taxon_tree`／`rank_bridge` 兩張表，由最新�
 
 - ~~**分類樹批次加入名錄**~~: `BatchAddModal` + `GET /api/taxonomy/species_under` + `species_count`，含篩選（來源/特有/紅皮書/CITES/保育類）、500 筆警告、5000 筆上限、loading 進度
 - ~~**進階篩選批次加入**~~: SearchBox 「限定特定分類群」設定後顯示「+批次加入」按鈕，復用 BatchAddModal
-
-## Done (from Planned)
-
 - ~~**SQLite VACUUM**~~: 匯入後自動 VACUUM
 - ~~**地圖改版**~~: 滿版 + 多底圖 + 中研院 WMTS 疊圖 + view state 持久化
 - ~~**批次加入名錄**~~: species_under/species_count API + BatchAddModal

@@ -564,7 +564,10 @@
     "skippedExisting_other": "{{count}} bereits erfasste übersprungen",
     "toGloria": "Zur GLORIA-Gipfelliste",
     "addedToGloria_one": "{{count}} Taxon zur GLORIA-Gipfelliste hinzugefügt. In der jeweiligen Einheit erfassen.",
-    "addedToGloria_other": "{{count}} Taxa zur GLORIA-Gipfelliste hinzugefügt. In den Einheiten erfassen."
+    "addedToGloria_other": "{{count}} Taxa zur GLORIA-Gipfelliste hinzugefügt. In den Einheiten erfassen.",
+    "mirenActiveTitle": "MIREN-Erhebung läuft",
+    "mirenActiveMsg": "Die MIREN-Erhebung {{year}} ist noch nicht beendet. Eine Art hier hinzuzufügen würde eine Artenliste beginnen und die MIREN-Erhebung beenden. Arten für MIREN werden in den Plots der Erhebung erfasst; für alles andere zuerst die MIREN-Erhebung beenden.",
+    "goToMiren": "Zur MIREN-Erhebung"
   },
   "endSession": {
     "minutes": "{{count}} Min.",
@@ -702,7 +705,7 @@
     "clearAll": "Alle Daten löschen",
     "clearAllDesc": "Nicht umkehrbar; erfordert eine zweite Bestätigung",
     "clearAllConfirmTitle": "Alle Daten löschen?",
-    "clearAllConfirmMsg": "Alle Datensätze, Projekte und Einstellungen werden gelöscht. Die TaiCOL-Artdaten bleiben erhalten.",
+    "clearAllConfirmMsg": "Alle Datensätze, Projekte und Einstellungen werden gelöscht, dazu die Fotos, Aufnahmen und angehängten Dateien der App, die Sicherungen auf diesem Gerät (Sicherheitskopien, Sicherungen vor dem Zusammenführen), Team-Schlüssel, die Anmeldungen bei iNaturalist / Google / GBIF und der Signaturschlüssel. Erhalten bleiben: heruntergeladene Artenlisten und Offline-Karten sowie in der Fotomediathek gespeicherte Fotos; Sicherungen in Google Drive sind nicht betroffen.",
     "clearAllConfirm2Title": "Erneut bestätigen",
     "clearAllConfirm2Msg": "Dieser Vorgang kann nicht rückgängig gemacht werden.",
     "allCleared": "Alle Daten gelöscht",
@@ -856,7 +859,11 @@
     "selectedCount_one": "{{count}} ausgewählt",
     "selectedCount_other": "{{count}} ausgewählt",
     "deleteSelectedMsg_one": "{{count}} Projekt wird gelöscht. Die zugehörigen {{sessions}} und {{plots}} gehen zurück auf „Nicht zugeordnet“.",
-    "deleteSelectedMsg_other": "{{count}} Projekte werden gelöscht. Die zugehörigen {{sessions}} und {{plots}} gehen zurück auf „Nicht zugeordnet“."
+    "deleteSelectedMsg_other": "{{count}} Projekte werden gelöscht. Die zugehörigen {{sessions}} und {{plots}} gehen zurück auf „Nicht zugeordnet“.",
+    "statsCollections": "Sammlungen {{n}}",
+    "statsGloria": "GLORIA {{n}}",
+    "statsMiren": "MIREN {{n}}",
+    "deleteOthers": "Weitere {{n}} Sammlungs-, GLORIA- oder MIREN-Datensätze kommen ebenfalls zu „Nicht zugeordnet“."
   },
   "sites": {
     "typePoint": "Punkt",
@@ -1380,7 +1387,8 @@
   "activeBar": {
     "recording": "Erfassung: {{name}}",
     "plotRecording": "Probeflächenerfassung: {{id}}",
-    "gloriaRecording": "GLORIA-Aufnahme läuft · mocy {{mocy}}"
+    "gloriaRecording": "GLORIA-Aufnahme läuft · mocy {{mocy}}",
+    "mirenRecording": "MIREN-Erhebung läuft · {{year}}"
   },
   "speciesSearch": {
     "hint": "Unten Arten nach Trivial-, wissenschaftlichem oder Familiennamen suchen,{{br}}nach der Auswahl erscheinen hier die Details."
@@ -1666,7 +1674,8 @@
     "nCollections_other": "Aufsammlungen {{count}}",
     "nSites_one": "Standorte {{count}}",
     "nSites_other": "Standorte {{count}}",
-    "gloriaReport": "GLORIA-Bericht"
+    "gloriaReport": "GLORIA-Bericht",
+    "mirenTitle": "MIREN-Erhebungen"
   },
   "projectExport": {
     "title": "Projektexport",
@@ -3475,7 +3484,8 @@
       "mediaDisabled": "Dieser Server synchronisiert keine Fotos, Tonaufnahmen oder Scans (nur selbst betriebene Server)",
       "mediaMismatch": "Die heruntergeladene Datei stimmt nicht mit der hochgeladenen überein",
       "mediaQuota": "Der Dateispeicher des Teams ist voll (Limit {{limit}}); den Betreiber des Servers um mehr bitten",
-      "mediaIncomplete": "Ein Datei-Upload war unvollständig; erneut synchronisieren"
+      "mediaIncomplete": "Ein Datei-Upload war unvollständig; erneut synchronisieren",
+      "ownerOnly": "Nur das Gerät, das das Team erstellt hat (Teamleitung), kann es vom Server löschen."
     },
     "mergedFromToast": "Daten von {{names}} zusammengeführt",
     "members": "Mitglieder",

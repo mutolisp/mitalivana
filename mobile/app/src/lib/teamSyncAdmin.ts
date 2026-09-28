@@ -17,6 +17,10 @@ export async function saveAdminToken(url: string, token: string): Promise<void> 
   await SecureStore.setItemAsync(keyFor(url), token, { keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY });
 }
 
+export async function deleteAdminToken(url: string): Promise<void> {
+  await SecureStore.deleteItemAsync(keyFor(url));
+}
+
 export async function adminTokenFor(url: string): Promise<string | null> {
   return SecureStore.getItemAsync(keyFor(url));
 }

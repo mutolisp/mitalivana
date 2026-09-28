@@ -15,7 +15,7 @@ import { requestRecordingPermissionsAsync, setAudioModeAsync } from 'expo-audio'
 import { File } from 'expo-file-system';
 import { deleteAsync, documentDirectory, makeDirectoryAsync, moveAsync } from 'expo-file-system/legacy';
 import { generateUuid } from '~/db';
-import { rebaseAppFileUri } from './appFiles';
+import { safeAppFileUri } from './appFiles';
 
 export const APP_AUDIO_DIR = documentDirectory ? `${documentDirectory}audio/` : null;
 
@@ -95,8 +95,11 @@ export async function importAudioClips(
 
 export async function deleteAudioFile(uri: string): Promise<void> {
   if (!uri.startsWith('file:')) return;
+  // Only a clip in the app's audio folder: a record's text must never delete user.db (security audit S1).
+  const target = safeAppFileUri(uri);
+  if (!target) return;
   try {
-    await deleteAsync(rebaseAppFileUri(uri), { idempotent: true });
+    await deleteAsync(target, { idempotent: true });
   } catch (e) {
     if (__DEV__) console.warn('[audioCapture] delete failed', uri, e);
   }

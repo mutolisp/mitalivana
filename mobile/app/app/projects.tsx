@@ -152,6 +152,22 @@ export default function ProjectsScreen() {
     setEditing(null);
   };
 
+  // Collections, GLORIA and MIREN surveys also belong to projects: counted on
+  // the list and named when a delete moves them to 未分類, like the rest.
+  const statsLine = (p: ProjectWithCounts) =>
+    [
+      t('projects.stats', { sessions: p.session_count, plots: p.plot_count }),
+      p.collection_count ? t('projects.statsCollections', { n: p.collection_count }) : '',
+      p.gloria_count ? t('projects.statsGloria', { n: p.gloria_count }) : '',
+      p.miren_count ? t('projects.statsMiren', { n: p.miren_count }) : '',
+    ]
+      .filter(Boolean)
+      .join(' · ');
+  const othersNote = (ps: ProjectWithCounts[]) => {
+    const n = ps.reduce((sum, p) => sum + p.collection_count + p.gloria_count + p.miren_count, 0);
+    return n ? `\n\n${t('projects.deleteOthers', { n })}` : '';
+  };
+
   const handleDelete = (project: ProjectWithCounts) => {
     if (project.id === 0) return;
     Alert.alert(
@@ -160,7 +176,7 @@ export default function ProjectsScreen() {
         name: project.name,
         sessions: t('projects.nChecklists', { count: project.session_count }),
         plots: t('projects.nPlots', { count: project.plot_count }),
-      }),
+      }) + othersNote([project]),
       [
         { text: t('common.cancel'), style: 'cancel' },
         {
@@ -203,7 +219,7 @@ export default function ProjectsScreen() {
         count: chosen.length,
         sessions: t('projects.nChecklists', { count: sessions }),
         plots: t('projects.nPlots', { count: plots }),
-      }),
+      }) + othersNote(chosen),
       [
         { text: t('common.cancel'), style: 'cancel' },
         {
@@ -327,7 +343,7 @@ export default function ProjectsScreen() {
                     {item.name}
                   </Text>
                   <Text className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                    {t('projects.stats', { sessions: item.session_count, plots: item.plot_count })}
+                    {statsLine(item)}
                   </Text>
                   {item.location_description ? (
                     <Text

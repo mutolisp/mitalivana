@@ -528,7 +528,10 @@
     "addedManyToSession_other": "{{count}} 種を種リストに追加しました",
     "skippedExisting_other": "記録済みの {{count}} 種はスキップしました",
     "toGloria": "GLORIA 山頂リストに追加",
-    "addedToGloria_other": "GLORIA 山頂リストに {{count}} 種を追加しました。各ユニットの画面で記録してください。"
+    "addedToGloria_other": "GLORIA 山頂リストに {{count}} 種を追加しました。各ユニットの画面で記録してください。",
+    "mirenActiveTitle": "MIREN 調査中",
+    "mirenActiveMsg": "{{year}} 年の MIREN 調査はまだ終了していません。ここから種を追加すると種リストが始まり、MIREN 調査が終了します。MIREN の種は調査のプロットで記録してください。ほかの種を記録するには、先に MIREN 調査を終了してください。",
+    "goToMiren": "MIREN 調査へ"
   },
   "endSession": {
     "minutes": "{{count}} 分",
@@ -665,7 +668,7 @@
     "clearAll": "すべてのデータを消去",
     "clearAllDesc": "復元できません。二段階の確認が必要です",
     "clearAllConfirmTitle": "すべてのデータを消去しますか？",
-    "clearAllConfirmMsg": "すべての記録・プロジェクト・設定が削除されます。TaiCOL の種データは保持されます。",
+    "clearAllConfirmMsg": "すべての記録・プロジェクト・設定を削除します。アプリ内の写真・録音・添付ファイル、この端末のバックアップ（安全スナップショット、統合前バックアップ）、チームの鍵、iNaturalist／Google／GBIF のサインイン、出所署名の鍵も削除されます。残るもの：ダウンロード済みの種リストとオフライン地図、システムの写真ライブラリに保存した写真。Google ドライブ上のバックアップには影響しません。",
     "clearAllConfirm2Title": "もう一度確認",
     "clearAllConfirm2Msg": "この操作は取り消せません。",
     "allCleared": "すべてのデータを消去しました",
@@ -806,7 +809,11 @@
     "searchPlaceholder": "プロジェクト名または場所を検索",
     "noMatch": "該当するプロジェクトがありません",
     "selectedCount_other": "{{count}} 件を選択中",
-    "deleteSelectedMsg_other": "プロジェクトを {{count}} 件削除します。所属していた{{sessions}}と{{plots}}は「未分類」に戻ります。"
+    "deleteSelectedMsg_other": "プロジェクトを {{count}} 件削除します。所属していた{{sessions}}と{{plots}}は「未分類」に戻ります。",
+    "statsCollections": "採集 {{n}}",
+    "statsGloria": "GLORIA {{n}}",
+    "statsMiren": "MIREN {{n}}",
+    "deleteOthers": "ほかに採集・GLORIA・MIREN の記録 {{n}} 件も「未分類」に戻ります。"
   },
   "sites": {
     "typePoint": "ポイント",
@@ -1290,7 +1297,8 @@
   "activeBar": {
     "recording": "記録中：{{name}}",
     "plotRecording": "調査区を記録中：{{id}}",
-    "gloriaRecording": "GLORIA 調査中 · mocy {{mocy}}"
+    "gloriaRecording": "GLORIA 調査中 · mocy {{mocy}}",
+    "mirenRecording": "MIREN 調査中 · {{year}}"
   },
   "speciesSearch": {
     "hint": "下の欄に一般名 / 学名 / 科名を入力して種を検索し、{{br}}選択するとここに詳細が表示されます。"
@@ -1553,7 +1561,8 @@
     "nPlots_other": "調査区 {{count}}",
     "nCollections_other": "採集 {{count}}",
     "nSites_other": "調査地 {{count}}",
-    "gloriaReport": "GLORIA レポート"
+    "gloriaReport": "GLORIA レポート",
+    "mirenTitle": "MIREN 調査"
   },
   "projectExport": {
     "title": "プロジェクトのエクスポート",
@@ -3304,7 +3313,8 @@
       "mediaDisabled": "このサーバーは写真・録音・スキャンの同期に対応していません（自前のサーバーのみ対応）",
       "mediaMismatch": "ダウンロードしたファイルがアップロードしたものと一致しません",
       "mediaQuota": "チームのファイル容量がいっぱいです（上限 {{limit}}）。サーバーの運用者に引き上げを依頼してください",
-      "mediaIncomplete": "ファイルのアップロードが不完全です。もう一度同期してください"
+      "mediaIncomplete": "ファイルのアップロードが不完全です。もう一度同期してください",
+      "ownerOnly": "サーバー上のチームを削除できるのは、チームを作成した端末（リーダー）だけです。"
     },
     "mergedFromToast": "{{names}} のデータを統合しました",
     "members": "メンバー",

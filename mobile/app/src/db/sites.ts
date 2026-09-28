@@ -1,4 +1,5 @@
 import { getUserDb } from './init';
+import { SITE_REF_TABLES } from './integrityRules';
 
 export type SiteGeometryType =
   | 'Point'
@@ -131,17 +132,13 @@ export function deleteSite(id: number): void {
  */
 export function countSiteReferences(id: number): number {
   const db = getUserDb();
+  // Every table that can hold a site_id must be counted: a missing one lets
+  // deleteSiteIfUnreferenced delete a site that record still uses
+  // (collection_trips v43 and miren_surveys were both missed once).
   const res = db.executeSync(
-    `SELECT
-       (SELECT COUNT(*) FROM sessions WHERE site_id = ?) +
-       (SELECT COUNT(*) FROM plot_surveys WHERE site_id = ?) +
-       (SELECT COUNT(*) FROM collection_trips WHERE site_id = ?) +
-       (SELECT COUNT(*) FROM gloria_surveys WHERE site_id = ?) +
+    `SELECT ${SITE_REF_TABLES.map((t) => `(SELECT COUNT(*) FROM ${t} WHERE site_id = ?)`).join(' + ')} +
        (SELECT COUNT(*) FROM sites WHERE id = ? AND session_id IS NOT NULL) AS refs`,
-    // Every table that can hold a site_id must be counted here: a missing one
-    // lets deleteSiteIfUnreferenced delete a site that record still uses
-    // (collection_trips.site_id, v43, was missed).
-    [id, id, id, id, id],
+    [...SITE_REF_TABLES.map(() => id), id],
   );
   return Number((res.rows?.[0] as { refs?: number } | undefined)?.refs ?? 0);
 }

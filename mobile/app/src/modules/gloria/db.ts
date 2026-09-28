@@ -31,7 +31,8 @@ import { takesRealStart } from './model/surveyDates';
 import { bySpeciesOrder } from './model/speciesOrder';
 import type { SummitDiff } from './model/summitImport';
 import type { GloriaDoc } from './export/yaml';
-import { SPECIES_FIELDS, UNIT_FIELDS, buildGloriaDoc } from './export/yaml';
+import { SPECIES_FIELDS, UNIT_FIELDS, buildGloriaDoc, sanitizeGloriaDocMedia } from './export/yaml';
+import { isAppMediaAllowed } from '~/lib/appFiles';
 import type { GloriaExportData } from './export/sheetRows';
 import type { ScanColumn } from './model/formScans';
 import { importLoggerVisits, listLoggers, visitsOfSurvey } from './loggerDb';
@@ -1306,7 +1307,10 @@ export type GloriaImportResult = { surveyId: number; replaced: boolean };
  * with that uuid is replaced wholesale. The import always lands as 'done' so
  * it never takes the single-active slot.
  */
-export function importGloriaDoc(doc: GloriaDoc, projectId = 0): GloriaImportResult {
+export function importGloriaDoc(input: GloriaDoc, projectId = 0): GloriaImportResult {
+  // Media references the app must never read (user.db, credentials…) are
+  // dropped before they are stored — security audit S1.
+  const doc = sanitizeGloriaDocMedia(input, isAppMediaAllowed);
   return withTransaction(() => {
     const db = getUserDb();
     const summitId = upsertSummit(doc.summit);

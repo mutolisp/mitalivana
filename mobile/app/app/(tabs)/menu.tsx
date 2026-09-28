@@ -24,16 +24,16 @@ import {
   type FontScale,
   type RecordTypeDefault,
 } from '~/stores/settings';
-import { checkIntegrity, clearAllUserData, clearSearchHistory } from '~/db';
+import { checkIntegrity, clearSearchHistory } from '~/db';
+import { clearAllData } from '~/lib/clearAllData';
 import { useDriveState } from '~/lib/driveState';
 import { usePoiInstall } from '~/lib/poiInstall';
 import { useVectorInstall } from '~/lib/vectormapInstall';
 import { useHasDatasetUpdate } from '~/lib/datasetUpdateCheck';
-import { clearGoogleTokens } from '~/lib/googleAuth';
-import { clearInatTokens } from '~/lib/inatAuth';
 import { useToast } from '~/stores/toast';
 import { useActivePlot } from '~/stores/activePlot';
 import { useActiveGloria } from '~/modules/gloria/store';
+import { useActiveMiren } from '~/modules/miren/store';
 import { useActiveSession } from '~/stores/activeSession';
 import { useTabBarInset } from '~/lib/tabBarLayout';
 
@@ -170,11 +170,9 @@ export default function MenuScreen() {
                 style: 'destructive',
                 onPress: async () => {
                   try {
-                    await clearAllUserData();
-                    // user.db is gone but the tokens live in SecureStore —
-                    // same "clear at the call site" rule as gbifCredentials.
-                    await clearInatTokens();
-                    await clearGoogleTokens();
+                    // user.db, and everything else this phone keeps for the
+                    // user: secrets, media folders, local backups (clearAllData.ts).
+                    await clearAllData();
                     reloadSettings();
                     // Both active records, not just the session: the whole DB
                     // file is gone, so a live plot survey would otherwise leave
@@ -182,6 +180,7 @@ export default function MenuScreen() {
                     useActiveSession.getState().refresh();
                     useActivePlot.getState().refresh();
                     useActiveGloria.getState().refresh();
+                    useActiveMiren.getState().refresh();
                     toast(t('settings.allCleared'));
                     router.replace('/');
                   } catch (e) {

@@ -60,9 +60,16 @@
     "check:team-pick": "node --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON ./scripts/check-team-pick.mjs",
     "check:media-refs": "node --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON ./scripts/check-media-refs.mjs",
     "check:record-versions": "node --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-record-versions.mjs",
+    "check:data-model": "node --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/gen-data-model.mjs --check",
+    "check:integrity-rules": "node --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-integrity-rules.mjs",
+    "check:table-rebuild": "node --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-table-rebuild.mjs",
+    "check:add-guard": "node ./scripts/check-add-guard.mjs",
+    "check:media-uri": "node --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-media-uri.mjs",
+    "check:backup-rules": "node ./scripts/check-backup-rules.mjs",
     "privacy": "node ./scripts/gen-privacy.mjs",
     "check:privacy": "node --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/gen-privacy.mjs --check",
-    "postinstall": "patch-package"
+    "postinstall": "patch-package",
+    "data-model": "node --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/gen-data-model.mjs"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",

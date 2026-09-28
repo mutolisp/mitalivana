@@ -25,7 +25,7 @@ import { FileSystemUploadType, copyAsync, createUploadTask, documentDirectory, d
 import { getUserDb } from '~/db/init';
 import { generateUuid } from '~/db/uuid';
 import { fetchText } from './apiFetch';
-import { rebaseAppFileUri } from './appFiles';
+import { isAppMediaAllowed, rebaseAppFileUri } from './appFiles';
 import { resolveAssetUri } from './bundleExport';
 import type { MergeKind } from './mergeDocs';
 import { addRecordMedia, listRecordMedia } from './mediaRefs';
@@ -152,6 +152,8 @@ const isAppFile = (uri: string) => !!documentDirectory && uri.startsWith('file:'
  * photo-library and other files copied to the cache (dispose() removes the copy).
  */
 async function readable(uri: string): Promise<{ fileUri: string; name: string; dispose: () => void } | null> {
+  // Never a file outside the media folders, whatever the record says (security audit S1).
+  if (!isAppMediaAllowed(uri)) return null;
   if (isAppFile(uri)) {
     const f = rebaseAppFileUri(uri);
     return new File(f).exists ? { fileUri: f, name: f.split('/').pop() ?? 'file', dispose: () => {} } : null;
@@ -170,6 +172,7 @@ async function readable(uri: string): Promise<{ fileUri: string; name: string; d
 
 /** Content hash of a stored reference, from the cache when the file cannot have changed. */
 async function shaOfRef(uri: string): Promise<{ sha: string; size: number; name: string } | null> {
+  if (!isAppMediaAllowed(uri)) return null;
   const cached = rows<{ sha: string; size: number | null }>(`SELECT sha, size FROM media_hash WHERE uri = ?`, [uri])[0];
   // App files are checked by size; photo-library assets do not change under the same id.
   if (cached && (!isAppFile(uri) || new File(rebaseAppFileUri(uri)).size === cached.size)) {

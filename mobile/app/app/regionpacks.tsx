@@ -235,7 +235,7 @@ export default function RegionPacksScreen() {
         () =>
           Alert.alert(t('regionPacks.savePwTitle'), t('regionPacks.savePwMsg'), [
             { text: t('regionPacks.savePwNo'), style: 'cancel' },
-            { text: t('regionPacks.savePwYes'), onPress: () => saveGbifCredentials(creds) },
+            { text: t('regionPacks.savePwYes'), onPress: () => void saveGbifCredentials(creds) },
           ]),
         450,
       );
@@ -287,7 +287,7 @@ export default function RegionPacksScreen() {
         drivePack(pack.id);
       } catch (e) {
         const is401 = e instanceof ApiError && e.status === 401;
-        if (is401) clearGbifCredentials(); // stale saved password must not loop forever
+        if (is401) void clearGbifCredentials(); // stale saved password must not loop forever
         const msg = is401
           ? t('regionPacks.badCredentials')
           : e instanceof ApiError && e.detail

@@ -528,7 +528,10 @@
     "addedManyToSession_other": "已加入 {{count}} 種到名錄",
     "skippedExisting_other": "略過 {{count}} 種已在記錄中",
     "toGloria": "加入 GLORIA 山峰名錄",
-    "addedToGloria_other": "已加入 GLORIA 山峰名錄 {{count}} 種，請到各單位畫面記錄。"
+    "addedToGloria_other": "已加入 GLORIA 山峰名錄 {{count}} 種，請到各單位畫面記錄。",
+    "mirenActiveTitle": "MIREN 調查進行中",
+    "mirenActiveMsg": "{{year}} 年的 MIREN 調查尚未結束。從這裡加入物種會開始一筆名錄，並把 MIREN 調查結束。MIREN 的物種請在調查的樣區內記錄；要記其他物種，請先結束 MIREN 調查。",
+    "goToMiren": "前往 MIREN 調查"
   },
   "endSession": {
     "minutes": "{{count}} 分鐘",
@@ -665,7 +668,7 @@
     "clearAll": "清除所有資料",
     "clearAllDesc": "不可復原，需二次確認",
     "clearAllConfirmTitle": "清除所有資料？",
-    "clearAllConfirmMsg": "所有記錄、專案、設定都會刪除。TaiCOL 物種資料保留。",
+    "clearAllConfirmMsg": "所有記錄、專案與設定都會刪除，連同 App 內的照片、錄音、附加檔案、這台手機上的備份（安全快照、合併前備份）、隊伍金鑰、iNaturalist／Google／GBIF 登入與出處簽章金鑰。保留：已下載的名錄與離線地圖、存到系統相簿的照片；Google 雲端硬碟上的備份不受影響。",
     "clearAllConfirm2Title": "再次確認",
     "clearAllConfirm2Msg": "此動作無法復原。",
     "allCleared": "已清除所有資料",
@@ -806,7 +809,11 @@
     "searchPlaceholder": "搜尋專案名稱或位置",
     "noMatch": "沒有符合的專案",
     "selectedCount_other": "已選 {{count}} 個",
-    "deleteSelectedMsg_other": "將刪除 {{count}} 個專案。原屬這些專案的 {{sessions}}與 {{plots}}會回到「未分類」。"
+    "deleteSelectedMsg_other": "將刪除 {{count}} 個專案。原屬這些專案的 {{sessions}}與 {{plots}}會回到「未分類」。",
+    "statsCollections": "採集 {{n}}",
+    "statsGloria": "GLORIA {{n}}",
+    "statsMiren": "MIREN {{n}}",
+    "deleteOthers": "另有 {{n}} 筆採集、GLORIA 或 MIREN 記錄也會回到「未分類」。"
   },
   "sites": {
     "typePoint": "點位",
@@ -1290,7 +1297,8 @@
   "activeBar": {
     "recording": "記錄中：{{name}}",
     "plotRecording": "樣區記錄中：{{id}}",
-    "gloriaRecording": "GLORIA 調查中 · mocy {{mocy}}"
+    "gloriaRecording": "GLORIA 調查中 · mocy {{mocy}}",
+    "mirenRecording": "MIREN 調查中 · {{year}}"
   },
   "speciesSearch": {
     "hint": "下方輸入俗名 / 學名 / 科名搜尋物種，{{br}}選擇結果後在此檢視詳細資訊。"
@@ -1553,7 +1561,8 @@
     "nPlots_other": "樣區 {{count}}",
     "nCollections_other": "採集 {{count}}",
     "nSites_other": "地理樣區 {{count}}",
-    "gloriaReport": "GLORIA 統計報告"
+    "gloriaReport": "GLORIA 統計報告",
+    "mirenTitle": "MIREN 調查"
   },
   "projectExport": {
     "title": "專案匯出",
@@ -3304,7 +3313,8 @@
       "mediaDisabled": "這個伺服器不開放照片、錄音與掃描檔同步（只有自架伺服器可以）",
       "mediaMismatch": "下載的檔案內容與上傳的不一致",
       "mediaQuota": "隊伍的檔案容量已滿（上限 {{limit}}），請伺服器部署者調高",
-      "mediaIncomplete": "檔案上傳不完整，請再同步一次"
+      "mediaIncomplete": "檔案上傳不完整，請再同步一次",
+      "ownerOnly": "只有建立隊伍的那台手機（隊長）可以刪除雲端上的隊伍。"
     },
     "mergedFromToast": "已合併 {{names}} 的資料",
     "members": "隊員",

@@ -1,4 +1,5 @@
 import { getUserDb } from './init';
+import { PROJECT_FK_TABLES } from './integrityRules';
 
 export type Project = {
   id: number;
@@ -19,6 +20,9 @@ export function listProjects(): Project[] {
 export type ProjectWithCounts = Project & {
   session_count: number;
   plot_count: number;
+  collection_count: number;
+  gloria_count: number;
+  miren_count: number;
 };
 
 export function listProjectsWithCounts(): ProjectWithCounts[] {
@@ -26,7 +30,10 @@ export function listProjectsWithCounts(): ProjectWithCounts[] {
   const res = db.executeSync(
     `SELECT p.*,
             (SELECT COUNT(*) FROM sessions s WHERE s.project_id = p.id) AS session_count,
-            (SELECT COUNT(*) FROM plot_surveys ps WHERE ps.project_id = p.id) AS plot_count
+            (SELECT COUNT(*) FROM plot_surveys ps WHERE ps.project_id = p.id) AS plot_count,
+            (SELECT COUNT(*) FROM collection_trips ct WHERE ct.project_id = p.id) AS collection_count,
+            (SELECT COUNT(*) FROM gloria_surveys gs WHERE gs.project_id = p.id) AS gloria_count,
+            (SELECT COUNT(*) FROM miren_surveys ms WHERE ms.project_id = p.id) AS miren_count
        FROM projects p
    ORDER BY p.id ASC`,
   );
@@ -105,13 +112,11 @@ export function updateProject(id: number, input: Partial<ProjectInput>): void {
 export function deleteProject(id: number): void {
   if (id === 0) throw new Error('Cannot delete the default 未分類 project');
   const db = getUserDb();
-  // 有 4 張表 FK 到 projects。漏掉 sites 與 collection_trips 的話，它們的
-  // project_id 會指向已刪除的計畫；而兩者的列表查詢都 JOIN projects，
-  // 結果是那些樣點與採集記錄直接從清單消失（資料其實還在）。
-  db.executeSync(`UPDATE sessions SET project_id = 0 WHERE project_id = ?`, [id]);
-  db.executeSync(`UPDATE plot_surveys SET project_id = 0 WHERE project_id = ?`, [id]);
-  db.executeSync(`UPDATE sites SET project_id = 0 WHERE project_id = ?`, [id]);
-  db.executeSync(`UPDATE collection_trips SET project_id = 0 WHERE project_id = ?`, [id]);
-  db.executeSync(`UPDATE gloria_surveys SET project_id = 0 WHERE project_id = ?`, [id]);
+  // Every table with a FK to projects moves to 0 (未分類). A table left out
+  // strands its rows under a deleted project — or, with FK enforcement on,
+  // makes this delete throw (miren_surveys was missed: data-model audit A1).
+  for (const table of PROJECT_FK_TABLES) {
+    db.executeSync(`UPDATE ${table} SET project_id = 0 WHERE project_id = ?`, [id]);
+  }
   db.executeSync(`DELETE FROM projects WHERE id = ?`, [id]);
 }

@@ -14,6 +14,7 @@ import {
 } from '~/db';
 import { promptText } from '~/components/TextPromptModal';
 import { pauseIfNot } from '~/lib/trackRecorder';
+import { ensureNoConflictingActive } from '~/lib/recordCreate';
 import { ACTION_FILL } from '~/lib/colors';
 
 function formatTime(ts: number | null): string {
@@ -44,8 +45,11 @@ export default function PlotsListScreen() {
     });
     const plotid = raw?.trim();
     if (!plotid) return;
-    // createPlotSurvey force-ends any active record DB-side; stop any GNSS watch
-    // first so it can't keep writing to the record we're about to end.
+    // createPlotSurvey force-ends any active record DB-side: ask first (end it
+    // or go to it), as every other "new record" entry does.
+    if (!(await ensureNoConflictingActive('plot'))) return;
+    // Stop any GNSS watch first so it can't keep writing to the record we're
+    // about to end.
     pauseIfNot(null);
     const id = createPlotSurvey({ plotid });
     router.push(`/plot/${id}` as Href);

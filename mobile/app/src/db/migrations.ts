@@ -2373,6 +2373,21 @@ const MIGRATIONS: Migration[] = [
       db.executeSync(`CREATE INDEX IF NOT EXISTS idx_record_versions ON record_versions(record_kind, record_uuid, created_at);`);
     },
   },
+  {
+    // v75: CHECK the status / plot_type of sessions, plot_surveys and
+    // collection_trips, as GLORIA and MIREN already do (data-model audit A4).
+    // Out-of-range values are normalised first so the copy cannot fail.
+    version: 75,
+    up: (db) => {
+      db.executeSync(`UPDATE sessions SET status = CASE WHEN ended_at IS NULL THEN 'active' ELSE 'done' END WHERE status NOT IN ('active', 'done');`);
+      db.executeSync(`UPDATE plot_surveys SET status = CASE WHEN stop_ts IS NULL THEN 'active' ELSE 'done' END WHERE status NOT IN ('active', 'done');`);
+      db.executeSync(`UPDATE plot_surveys SET plot_type = 'fixed' WHERE plot_type NOT IN ('fixed', 'transect', 'point_count');`);
+      db.executeSync(`UPDATE collection_trips SET status = CASE WHEN ended_at IS NULL THEN 'active' ELSE 'done' END WHERE status NOT IN ('active', 'done');`);
+      addTableChecks(db, 'sessions', [`status IN ('active', 'done')`]);
+      addTableChecks(db, 'plot_surveys', [`status IN ('active', 'done')`, `plot_type IN ('fixed', 'transect', 'point_count')`]);
+      addTableChecks(db, 'collection_trips', [`status IN ('active', 'done')`]);
+    },
+  },
 ];
 
 /** Highest schema version this build knows how to produce. Backup/restore uses
@@ -2399,6 +2414,37 @@ function columnsOf(db: DB, table: string): Set<string> {
  * Skipping when the column exists makes every migration idempotent, which is
  * what lets a half-applied schema heal itself on the next run.
  */
+/**
+ * Add table-level CHECK constraints to an existing table. SQLite cannot ALTER
+ * a CHECK, so the table is rebuilt the way the SQLite docs prescribe for
+ * tables other tables point at: CREATE the new one under a temporary name from
+ * the table's own current DDL (every column added over the years kept as is),
+ * copy, DROP the old, RENAME the new into place, then recreate the indexes and
+ * the AUTOINCREMENT counter. Renaming the *new* table (not the old one) keeps
+ * the children's `REFERENCES <table>` pointing at the right name. Needs
+ * foreign_keys OFF, as the runner has it (init.ts).
+ */
+function addTableChecks(db: DB, table: string, checks: string[]): void {
+  const one = (sql: string, params: (string | number)[] = []) => db.executeSync(sql, params).rows?.[0] as Record<string, unknown> | undefined;
+  const ddl = String(one(`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?`, [table])?.sql ?? '');
+  if (!ddl) throw new Error(`addTableChecks: no table ${table}`);
+  const indexes = (db.executeSync(`SELECT sql FROM sqlite_master WHERE type = 'index' AND tbl_name = ? AND sql IS NOT NULL`, [table]).rows ?? []).map((r) =>
+    String((r as { sql: unknown }).sql),
+  );
+  const seq = one(`SELECT seq FROM sqlite_sequence WHERE name = ?`, [table])?.seq as number | undefined;
+  const tmp = `${table}_rebuild`;
+  const close = ddl.lastIndexOf(')');
+  const created = ddl.slice(0, close).replace(new RegExp(`^CREATE TABLE\\s+(IF NOT EXISTS\\s+)?"?${table}"?`, 'i'), `CREATE TABLE ${tmp}`);
+  if (created === ddl.slice(0, close)) throw new Error(`addTableChecks: cannot rename ${table} in its DDL`);
+  const cols = [...columnsOf(db, table)].map((c) => `"${c}"`).join(', ');
+  db.executeSync(`${created}, ${checks.map((c) => `CHECK (${c})`).join(', ')})`);
+  db.executeSync(`INSERT INTO ${tmp} (${cols}) SELECT ${cols} FROM ${table}`);
+  db.executeSync(`DROP TABLE ${table}`);
+  db.executeSync(`ALTER TABLE ${tmp} RENAME TO ${table}`);
+  for (const sql of indexes) db.executeSync(sql);
+  if (seq != null) db.executeSync(`UPDATE sqlite_sequence SET seq = MAX(seq, ?) WHERE name = ?`, [seq, table]);
+}
+
 function addColumnIfMissing(db: DB, sql: string): void {
   const m = sql.match(/ALTER\s+TABLE\s+"?(\w+)"?\s+ADD\s+COLUMN\s+"?(\w+)"?/i);
   if (!m) {
@@ -2411,13 +2457,15 @@ function addColumnIfMissing(db: DB, sql: string): void {
 
 export const LATEST_SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version;
 
-export async function runUserMigrations(db: DB): Promise<void> {
+export async function runUserMigrations(db: DB, upTo = Infinity): Promise<void> {
   db.executeSync(`CREATE TABLE IF NOT EXISTS schema_version (version INTEGER PRIMARY KEY);`);
   const result = db.executeSync(`SELECT MAX(version) AS v FROM schema_version;`);
   const current = (result.rows?.[0]?.v as number | null) ?? 0;
 
   for (const migration of MIGRATIONS) {
     if (migration.version <= current) continue;
+    // Tests stop part-way (upTo) to put rows in before a table rebuild.
+    if (migration.version > upTo) break;
     // One transaction per migration, and the version stamp goes inside it.
     //
     // Without this a crash part-way through a multi-statement migration left

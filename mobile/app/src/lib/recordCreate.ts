@@ -166,7 +166,7 @@ async function showConflictAlert(conflict: ActiveConflict, wanted: NewRecordKind
  * either nothing is active, or the user chose to end the conflicting one.
  * Returns false if the user cancelled or chose to resume the active record.
  */
-async function ensureNoConflictingActive(wanted: NewRecordKind): Promise<boolean> {
+export async function ensureNoConflictingActive(wanted: NewRecordKind): Promise<boolean> {
   // Refresh from DB before reading — another screen may have ended a record
   // without the in-memory store seeing it yet, and we don't want to falsely
   // detect a conflict (or miss a real one because the store is stale).
@@ -214,6 +214,7 @@ async function promptPlotid(plotType: PlotType): Promise<void> {
   });
   const plotid = raw?.trim();
   if (!plotid) return;
+  // add-guard: only caller createPlotPromptAndOpen runs ensureNoConflictingActive first
   const id = createPlotSurvey({
     plotid,
     plot_type: plotType,

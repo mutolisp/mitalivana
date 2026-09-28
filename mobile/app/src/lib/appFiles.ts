@@ -14,12 +14,23 @@
  * absolute URI, which stays correct for the current container and readable
  * by older builds.
  */
-import { documentDirectory } from 'expo-file-system/legacy';
-
-const APP_FILE_RE = /\/(photos|audio|files)\/([^/]+)$/;
+import { cacheDirectory, documentDirectory } from 'expo-file-system/legacy';
+import { isAllowedMediaUri, rebaseOnto } from './appMediaUriCore';
 
 export function rebaseAppFileUri(uri: string): string {
-  if (!documentDirectory || !uri.startsWith('file:') || uri.startsWith(documentDirectory)) return uri;
-  const m = APP_FILE_RE.exec(uri);
-  return m ? `${documentDirectory}${m[1]}/${m[2]}` : uri;
+  return rebaseOnto(uri, documentDirectory);
+}
+
+/** Whether a stored media URI may be read, shared, uploaded or deleted (appMediaUriCore.ts). */
+export function isAppMediaAllowed(uri: string): boolean {
+  return isAllowedMediaUri(uri, { documentDirectory, cacheDirectory });
+}
+
+/**
+ * For code that reads, shares, uploads or deletes a record's file: the
+ * re-anchored URI, or null when the text points somewhere a record's media
+ * never lives (the database, credentials, cache) — security audit S1.
+ */
+export function safeAppFileUri(uri: string): string | null {
+  return isAppMediaAllowed(uri) ? rebaseAppFileUri(uri) : null;
 }

@@ -110,6 +110,33 @@ async function storeJwt(jwt: string): Promise<void> {
   });
 }
 
+const KEY_REVOKED = 'inat_session_revoked';
+
+/**
+ * "Clear all data": the next iNaturalist use must sign in again, even though
+ * the WebView's cookie may still carry the previous user's session. No
+ * network needed (an offline logout page would leave the session in place).
+ */
+export async function markInatSessionRevoked(): Promise<void> {
+  await SecureStore.setItemAsync(KEY_REVOKED, '1', { keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY });
+}
+
+async function sessionRevoked(): Promise<boolean> {
+  try {
+    return (await SecureStore.getItemAsync(KEY_REVOKED)) === '1';
+  } catch {
+    return false;
+  }
+}
+
+async function clearSessionRevoked(): Promise<void> {
+  try {
+    await SecureStore.deleteItemAsync(KEY_REVOKED);
+  } catch {
+    // nothing stored
+  }
+}
+
 /** Forget the token only (no network). The WebView session is untouched, so
  *  the next `ensureInatJwt` can still refresh silently. */
 export async function clearInatTokens(): Promise<void> {
@@ -139,10 +166,18 @@ export function ensureInatJwt(opts: { interactive?: boolean } = {}): Promise<str
     try {
       const stored = await getStoredJwt();
       if (stored && jwtUsable(stored)) return stored;
+      // After "clear all data" the WebView may still hold the previous user's
+      // session: never reuse it silently; before an interactive sign-in, log
+      // that session out so the login page is shown (security audit S3).
+      if (await sessionRevoked()) {
+        if (!opts.interactive) throw new InatLoginRequired('session revoked by clear all data');
+        await runFlow('logout', false, 'hidden').catch(() => {});
+      }
       const jwt = await runFlow('token', opts.interactive ?? false, 'hidden');
       if (!jwt) throw new InatAuthCancelled();
       await storeJwt(jwt);
       await rememberLogin(jwt);
+      await clearSessionRevoked();
       return jwt;
     } finally {
       inflight = null;
@@ -226,6 +261,7 @@ export async function pasteInatToken(): Promise<'ok' | 'invalid'> {
     if (e instanceof InatLoginRequired) return 'invalid';
     throw e;
   }
+  await clearSessionRevoked();
   return 'ok';
 }
 

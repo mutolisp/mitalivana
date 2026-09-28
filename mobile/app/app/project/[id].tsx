@@ -34,6 +34,7 @@ import { bundleProject } from '~/lib/projectExport';
 import { useExportShare } from '~/lib/useExportShare';
 import { BackHeaderLeft } from '~/lib/goBack';
 import { useSettings } from '~/stores/settings';
+import { listMirenSurveysOfProject } from '~/modules/miren/db';
 
 export default function ProjectDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -44,6 +45,8 @@ export default function ProjectDetailScreen() {
   const [project, setProject] = useState<Project | null>(null);
   const [records, setRecords] = useState<RecordItem[]>([]);
   const [siteCount, setSiteCount] = useState(0);
+  // MIREN surveys are not record-list items (no RecordKind): listed on their own below.
+  const [mirens, setMirens] = useState<ReturnType<typeof listMirenSurveysOfProject>>([]);
   const [editing, setEditing] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
 
@@ -69,6 +72,7 @@ export default function ProjectDetailScreen() {
     setProject(getProject(projectId));
     setRecords(listRecords('all').filter((r) => r.projectId === projectId));
     setSiteCount(listSitesByProject(projectId).length);
+    setMirens(listMirenSurveysOfProject(projectId));
   }, [projectId]);
   useFocusEffect(useCallback(() => reload(), [reload]));
 
@@ -257,6 +261,7 @@ export default function ProjectDetailScreen() {
                       summits: new Set(records.filter((r) => r.kind === 'gloria').map((r) => r.gloria?.summit_id)).size,
                     })}`
                   : ''}
+                {mirens.length > 0 ? ` · ${t('projects.statsMiren', { n: mirens.length })}` : ''}
               </Text>
               {counts.gloria > 0 ? (
                 <Pressable
@@ -270,13 +275,35 @@ export default function ProjectDetailScreen() {
             </View>
           </View>
         }
+        ListFooterComponent={
+          mirens.length > 0 ? (
+            <View className="mx-3 mt-2 gap-2">
+              <Text className="px-1 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{t('projectDetail.mirenTitle')}</Text>
+              {mirens.map((m) => (
+                <Pressable
+                  key={m.id}
+                  onPress={() => router.push(`/miren/survey/${m.id}` as Href)}
+                  accessibilityRole="button"
+                  className="flex-row items-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3 active:bg-gray-50 dark:border-gray-700 dark:bg-gray-900"
+                >
+                  <Ionicons name="trail-sign-outline" size={18} color="#6b7280" />
+                  <Text className="flex-1 text-sm font-semibold text-gray-900 dark:text-gray-100">{m.label}</Text>
+                  <Text className="text-xs text-gray-500 dark:text-gray-400">{m.status === 'active' ? t('miren.survey.active') : t('miren.survey.done')}</Text>
+                  <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
+                </Pressable>
+              ))}
+            </View>
+          ) : null
+        }
         ListEmptyComponent={
+          mirens.length > 0 ? null : (
           <View className="items-center px-4 py-16">
             <Ionicons name="folder-open-outline" size={40} color="#9ca3af" />
             <Text className="mt-3 text-sm text-gray-500 dark:text-gray-400">
               {t('projectDetail.empty')}
             </Text>
           </View>
+          )
         }
         renderItem={({ item: row }) =>
           layout === 'card' ? (

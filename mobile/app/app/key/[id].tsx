@@ -53,6 +53,9 @@ import { ScientificName } from '~/components/ScientificName';
 import { serializeMultiAttribute } from '~/lib/dwcAttributes';
 import { useActivePlot } from '~/stores/activePlot';
 import { useActiveSession } from '~/stores/activeSession';
+import { useActiveGloria } from '~/modules/gloria/store';
+import { ensureRosterTaxon } from '~/modules/gloria/db';
+import { blockIfMirenActive } from '~/lib/mirenGuard';
 import {
   getKeyRunnerState,
   pushRecentKey,
@@ -456,8 +459,19 @@ export default function KeyRunnerScreen() {
         setPlotValueTarget({ taxon, layer });
         return;
       }
+      // An active GLORIA survey takes it into its summit roster (units are
+      // chosen on the unit screens); starting a checklist would end it.
+      const gloria = useActiveGloria.getState().survey;
+      if (gloria) {
+        ensureRosterTaxon(gloria.id, taxonId);
+        toast(tr('addToRecord.addedToGloria', { count: 1 }), {
+          action: { label: tr('addToRecord.goTo'), onPress: () => router.push(`/gloria/${gloria.id}` as Href) },
+        });
+        return;
+      }
       // Session path: start a fresh session if none active (same pattern
-      // as SpeciesSearchPanel).
+      // as SpeciesSearchPanel) — never over a MIREN survey.
+      if (!activeSession && blockIfMirenActive()) return;
       const target = activeSession ?? startActiveSession();
       if (!target) {
         toast(tr('keys.cannotStartSession'));

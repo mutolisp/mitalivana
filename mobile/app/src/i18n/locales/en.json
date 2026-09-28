@@ -564,7 +564,10 @@
     "skippedExisting_other": "Skipped {{count}} already recorded",
     "toGloria": "Add to GLORIA summit list",
     "addedToGloria_one": "Added {{count}} taxon to the GLORIA summit list. Record it on a unit screen.",
-    "addedToGloria_other": "Added {{count}} taxa to the GLORIA summit list. Record them on the unit screens."
+    "addedToGloria_other": "Added {{count}} taxa to the GLORIA summit list. Record them on the unit screens.",
+    "mirenActiveTitle": "MIREN survey in progress",
+    "mirenActiveMsg": "The {{year}} MIREN survey has not ended. Adding a species here would start a checklist and end the MIREN survey. Record MIREN species in the survey's plots; to record anything else, end the MIREN survey first.",
+    "goToMiren": "Go to MIREN survey"
   },
   "endSession": {
     "minutes": "{{count}} min",
@@ -702,7 +705,7 @@
     "clearAll": "Clear all data",
     "clearAllDesc": "Irreversible; requires a second confirmation",
     "clearAllConfirmTitle": "Clear all data?",
-    "clearAllConfirmMsg": "All records, projects, and settings will be deleted. TaiCOL species data is kept.",
+    "clearAllConfirmMsg": "All records, projects and settings are deleted, together with the app's photos, recordings and attached files, the backups kept on this phone (safety snapshots, pre-merge backups), team keys, the iNaturalist / Google / GBIF sign-ins and the provenance signing key. Kept: downloaded checklists and offline maps, and photos saved to the system photo library; backups in Google Drive are not affected.",
     "clearAllConfirm2Title": "Confirm again",
     "clearAllConfirm2Msg": "This action cannot be undone.",
     "allCleared": "All data cleared",
@@ -856,7 +859,11 @@
     "selectedCount_one": "{{count}} selected",
     "selectedCount_other": "{{count}} selected",
     "deleteSelectedMsg_one": "{{count}} project will be deleted. Its {{sessions}} and {{plots}} move back to “Unassigned”.",
-    "deleteSelectedMsg_other": "{{count}} projects will be deleted. Their {{sessions}} and {{plots}} move back to “Unassigned”."
+    "deleteSelectedMsg_other": "{{count}} projects will be deleted. Their {{sessions}} and {{plots}} move back to “Unassigned”.",
+    "statsCollections": "Collections {{n}}",
+    "statsGloria": "GLORIA {{n}}",
+    "statsMiren": "MIREN {{n}}",
+    "deleteOthers": "{{n}} more collection, GLORIA or MIREN records also move to \"Uncategorized\"."
   },
   "sites": {
     "typePoint": "Point",
@@ -1380,7 +1387,8 @@
   "activeBar": {
     "recording": "Recording: {{name}}",
     "plotRecording": "Plot recording: {{id}}",
-    "gloriaRecording": "GLORIA survey in progress · mocy {{mocy}}"
+    "gloriaRecording": "GLORIA survey in progress · mocy {{mocy}}",
+    "mirenRecording": "MIREN survey in progress · {{year}}"
   },
   "speciesSearch": {
     "hint": "Search species by common / scientific / family name below,{{br}}then view details here after selecting."
@@ -1666,7 +1674,8 @@
     "nCollections_other": "{{count}} collections",
     "nSites_one": "{{count}} site",
     "nSites_other": "{{count}} sites",
-    "gloriaReport": "GLORIA report"
+    "gloriaReport": "GLORIA report",
+    "mirenTitle": "MIREN surveys"
   },
   "projectExport": {
     "title": "Project export",
@@ -3475,7 +3484,8 @@
       "mediaDisabled": "This server does not sync photos, audio or scans (only self-hosted servers do)",
       "mediaMismatch": "The downloaded file does not match the uploaded one",
       "mediaQuota": "The team’s file space is full (limit {{limit}}); ask whoever runs the server to raise it",
-      "mediaIncomplete": "A file upload was incomplete; sync again"
+      "mediaIncomplete": "A file upload was incomplete; sync again",
+      "ownerOnly": "Only the phone that created the team (the owner) can delete it from the server."
     },
     "mergedFromToast": "Merged data from {{names}}",
     "members": "Members",

@@ -10,7 +10,7 @@
  */
 import { errText } from '~/lib/errText';
 import { File, Paths } from 'expo-file-system';
-import { rebaseAppFileUri } from './appFiles';
+import { safeAppFileUri } from './appFiles';
 import { syncBlockFor } from '~/db/syncBase';
 import { readAsStringAsync } from 'expo-file-system/legacy';
 import * as MediaLibrary from 'expo-media-library';
@@ -1471,7 +1471,9 @@ export function mediaAssetTarget(uri: string): { assetId: string | null; fallbac
 export async function resolveAssetUri(uri: string): Promise<string | null> {
   // App-owned files: the stored absolute path may point at a previous iOS
   // container (see appFiles.ts) — re-anchor before anyone tries to read it.
-  if (uri.startsWith('file://')) return rebaseAppFileUri(uri);
+  // Only the app's media folders (or shared storage): a record's text can
+  // point anywhere, including user.db (security audit S1).
+  if (uri.startsWith('file:')) return safeAppFileUri(uri);
 
   // PHAsset (iOS) and Android MediaStore URIs both need an extra hop to get
   // the underlying file path.
@@ -1669,8 +1671,9 @@ type AudioBearing = {
  *
  * Simpler than photos on every axis: these are app-owned files under
  * documentDirectory/audio/, so there is no photo-library asset to resolve, no
- * EXIF to restamp and no permission to elevate. `rebaseAppFileUri` is still
- * needed because the iOS container id changes between installs.
+ * EXIF to restamp and no permission to elevate. `safeAppFileUri` is still
+ * needed: the iOS container id changes between installs, and a record's text
+ * must not point the export at another file.
  *
  * Until this existed a clip had no way off the device at all — it rode in
  * neither the export bundle nor either backup.
@@ -1683,7 +1686,8 @@ async function collectAudio<T extends AudioBearing>(
   const names: PhotoNames = new Map();
   for (const r of records) {
     for (const uri of parseAudioPaths(r.audio_paths)) {
-      const fileUri = rebaseAppFileUri(uri);
+      const fileUri = safeAppFileUri(uri);
+      if (!fileUri) continue;
       try {
         const b64 = await readAsStringAsync(fileUri, { encoding: 'base64' });
         const ext = /\.([A-Za-z0-9]+)$/.exec(fileUri)?.[1]?.toLowerCase() ?? AUDIO_EXT;

@@ -577,6 +577,19 @@ export function surveyContext(surveyId: number): SurveyContext | null {
   return { survey, route, region, regionCode };
 }
 
+/** A project's MIREN surveys, newest year first, labelled as their screen is (region.route · year). */
+export function listMirenSurveysOfProject(projectId: number): Array<MirenSurvey & { label: string }> {
+  const ids = rows<{ id: number }>(
+    getUserDb().executeSync(`SELECT id FROM miren_surveys WHERE project_id = ? ORDER BY year DESC, id DESC`, [projectId]),
+  );
+  return ids.flatMap(({ id }) => {
+    const ctx = surveyContext(id);
+    const survey = ctx?.survey ?? getMirenSurvey(id);
+    if (!survey) return [];
+    return [{ ...survey, label: ctx ? `${ctx.regionCode}.${ctx.route.code} · ${survey.year}` : `MIREN · ${survey.year}` }];
+  });
+}
+
 export type CreateMirenInput = {
   routeId: number;
   year: number;

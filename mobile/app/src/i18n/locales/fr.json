@@ -600,7 +600,10 @@
     "toGloria": "Ajouter à la liste du sommet GLORIA",
     "addedToGloria_one": "{{count}} taxon ajouté à la liste du sommet GLORIA. Saisissez-le dans une unité.",
     "addedToGloria_many": "{{count}} taxons ajoutés à la liste du sommet GLORIA. Saisissez-les dans les unités.",
-    "addedToGloria_other": "{{count}} taxons ajoutés à la liste du sommet GLORIA. Saisissez-les dans les unités."
+    "addedToGloria_other": "{{count}} taxons ajoutés à la liste du sommet GLORIA. Saisissez-les dans les unités.",
+    "mirenActiveTitle": "Relevé MIREN en cours",
+    "mirenActiveMsg": "Le relevé MIREN {{year}} n’est pas terminé. Ajouter une espèce ici commencerait une liste et terminerait le relevé MIREN. Les espèces MIREN se notent dans les placettes du relevé ; pour noter autre chose, terminez d’abord le relevé MIREN.",
+    "goToMiren": "Aller au relevé MIREN"
   },
   "endSession": {
     "minutes": "{{count}} min",
@@ -739,7 +742,7 @@
     "clearAll": "Effacer toutes les données",
     "clearAllDesc": "Irréversible, demande une seconde confirmation",
     "clearAllConfirmTitle": "Effacer toutes les données ?",
-    "clearAllConfirmMsg": "Tous les enregistrements, projets et réglages seront supprimés. Les données d'espèces TaiCOL sont conservées.",
+    "clearAllConfirmMsg": "Tous les enregistrements, projets et réglages sont supprimés, ainsi que les photos, enregistrements sonores et fichiers joints de l’app, les sauvegardes conservées sur ce téléphone (instantanés de sécurité, sauvegardes avant fusion), les clés d’équipe, les connexions iNaturalist / Google / GBIF et la clé de signature. Conservés : les listes et cartes hors ligne téléchargées, et les photos enregistrées dans la photothèque ; les sauvegardes dans Google Drive ne sont pas touchées.",
     "clearAllConfirm2Title": "Confirmer à nouveau",
     "clearAllConfirm2Msg": "Cette action est irréversible.",
     "allCleared": "Toutes les données ont été effacées",
@@ -906,7 +909,11 @@
     "selectedCount_other": "{{count}} sélectionnés",
     "deleteSelectedMsg_one": "{{count}} projet sera supprimé. Ses {{sessions}} et {{plots}} reviennent à « Non classé ».",
     "deleteSelectedMsg_many": "{{count}} projets seront supprimés. Leurs {{sessions}} et {{plots}} reviennent à « Non classé ».",
-    "deleteSelectedMsg_other": "{{count}} projets seront supprimés. Leurs {{sessions}} et {{plots}} reviennent à « Non classé »."
+    "deleteSelectedMsg_other": "{{count}} projets seront supprimés. Leurs {{sessions}} et {{plots}} reviennent à « Non classé ».",
+    "statsCollections": "Collectes {{n}}",
+    "statsGloria": "GLORIA {{n}}",
+    "statsMiren": "MIREN {{n}}",
+    "deleteOthers": "{{n}} autres enregistrements de collecte, GLORIA ou MIREN reviennent aussi dans « Non classé »."
   },
   "sites": {
     "typePoint": "Point",
@@ -1470,7 +1477,8 @@
   "activeBar": {
     "recording": "Enregistrement : {{name}}",
     "plotRecording": "Placette en cours : {{id}}",
-    "gloriaRecording": "Relevé GLORIA en cours · mocy {{mocy}}"
+    "gloriaRecording": "Relevé GLORIA en cours · mocy {{mocy}}",
+    "mirenRecording": "Relevé MIREN en cours · {{year}}"
   },
   "speciesSearch": {
     "hint": "Recherchez une espèce par nom vernaculaire / scientifique / de famille ci-dessous,{{br}}puis consultez ici les détails après sélection."
@@ -1779,7 +1787,8 @@
     "nSites_one": "Sites {{count}}",
     "nSites_many": "Sites {{count}}",
     "nSites_other": "Sites {{count}}",
-    "gloriaReport": "Rapport GLORIA"
+    "gloriaReport": "Rapport GLORIA",
+    "mirenTitle": "Relevés MIREN"
   },
   "projectExport": {
     "title": "Export du projet",
@@ -3646,7 +3655,8 @@
       "mediaDisabled": "Ce serveur ne synchronise pas les photos, sons ni scans (seuls les serveurs auto-hébergés le font)",
       "mediaMismatch": "Le fichier téléchargé ne correspond pas à celui envoyé",
       "mediaQuota": "L’espace fichiers de l’équipe est plein (limite {{limit}}) ; demandez à la personne qui gère le serveur de l’augmenter",
-      "mediaIncomplete": "L’envoi d’un fichier est incomplet ; synchronisez à nouveau"
+      "mediaIncomplete": "L’envoi d’un fichier est incomplet ; synchronisez à nouveau",
+      "ownerOnly": "Seul le téléphone qui a créé l’équipe (le responsable) peut la supprimer du serveur."
     },
     "mergedFromToast": "Données de {{names}} fusionnées",
     "members": "Membres",

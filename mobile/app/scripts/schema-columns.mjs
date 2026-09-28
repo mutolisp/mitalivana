@@ -28,10 +28,23 @@ function shim(sqlite) {
   };
 }
 
+/** An in-memory database with every migration applied. The caller closes it. */
+export async function migratedDb(upTo = Infinity) {
+  // Foreign keys OFF while migrating, as the app has them (init.ts): a table
+  // rebuild drops the old parent table, which with FKs ON deletes its children.
+  const sqlite = new DatabaseSync(':memory:', { enableForeignKeyConstraints: false });
+  await runUserMigrations(shim(sqlite), upTo);
+  return sqlite;
+}
+
+/** Run the migrations after `upTo` on a database migrated that far. */
+export async function migrateRest(sqlite) {
+  await runUserMigrations(shim(sqlite));
+}
+
 /** Map of table name → Set of column names, for the fully migrated schema. */
 export async function schemaColumns() {
-  const sqlite = new DatabaseSync(':memory:');
-  await runUserMigrations(shim(sqlite));
+  const sqlite = await migratedDb();
   const out = new Map();
   const tables = sqlite
     .prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'`)
