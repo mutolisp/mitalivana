@@ -7,10 +7,12 @@
  */
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
-import { Pressable, Switch, Text, TextInput, View } from 'react-native';
+import { Pressable, Text, TextInput, View } from 'react-native';
+import { Switch } from '~/components/ui/Switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/components/ui/select';
+import { useThemeColors } from '~/theme/colors';
 
-const ROW = 'bg-white dark:bg-gray-900 px-4 py-3';
+const ROW = 'bg-card dark:bg-gray-900 px-4 py-3';
 const DIVIDER = 'border-b border-gray-100 dark:border-gray-800';
 const PRESSED = 'active:bg-gray-50 dark:active:bg-gray-800';
 
@@ -44,6 +46,7 @@ export function RowInput({
   autoCapitalize?: 'none' | 'characters';
   onCommit: (v: string) => void;
 }) {
+  const c = useThemeColors();
   const [draft, setDraft] = useState(value);
   useEffect(() => {
     setDraft(value);
@@ -56,7 +59,7 @@ export function RowInput({
         onChangeText={setDraft}
         onBlur={() => onCommit(draft)}
         placeholder={placeholder}
-        placeholderTextColor="#9ca3af"
+        placeholderTextColor={c.ink3}
         keyboardType={keyboardType ?? 'default'}
         autoCapitalize={autoCapitalize ?? 'none'}
         autoCorrect={false}
@@ -88,6 +91,7 @@ export function LinkRow({
   badge?: boolean;
   onPress: () => void;
 }) {
+  const c = useThemeColors();
   return (
     <Pressable
       onPress={onPress}
@@ -108,7 +112,7 @@ export function LinkRow({
           <Text className="mr-1 text-base text-gray-500 dark:text-gray-400">{value}</Text>
         ) : null}
         {badge ? <View className="mr-1.5 h-2 w-2 rounded-full bg-red-500" /> : null}
-        {chevron ? <Ionicons name="chevron-forward" size={value ? 16 : 18} color="#9ca3af" /> : null}
+        {chevron ? <Ionicons name="chevron-forward" size={value ? 16 : 18} color={c.ink3} /> : null}
       </View>
     </Pressable>
   );

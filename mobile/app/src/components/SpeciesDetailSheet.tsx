@@ -57,6 +57,7 @@ import { SpeciesAttributesBlock, type SpeciesAttributesDraft } from './SpeciesAt
 import { parseMultiAttribute } from '~/lib/dwcAttributes';
 import { ToastHost } from './ToastHost';
 import { ElevationField } from './ElevationField';
+import { useThemeColors } from '~/theme/colors';
 
 type Props = {
   record: RecordWithTaxon | null;
@@ -159,6 +160,7 @@ export function SpeciesDetailSheet({
   onSaveVerbatim,
   pager,
 }: Props) {
+  const c = useThemeColors();
   const router = useRouter();
   const nav = usePagerNav(pager);
   const scrollRef = useRef<ScrollView>(null);
@@ -234,7 +236,7 @@ export function SpeciesDetailSheet({
         />
         <View
           style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '85%' }}
-          className="rounded-t-2xl bg-white dark:bg-gray-900"
+          className="rounded-t-2xl bg-card dark:bg-gray-900"
         >
           {/* gesture-handler does not reach into a Modal's own native view
               hierarchy, so the swipe needs a root of its own here (same reason
@@ -273,8 +275,8 @@ export function SpeciesDetailSheet({
                         hitSlop={6}
                         className="mt-2 flex-row items-center self-start active:opacity-70"
                       >
-                        <Ionicons name="swap-horizontal" size={14} color="#2563eb" />
-                        <Text className="ml-1 text-xs font-medium text-blue-700 dark:text-blue-300">
+                        <Ionicons name="swap-horizontal" size={14} color={c.accent} />
+                        <Text className="ml-1 text-xs font-medium text-accent-700 dark:text-accent-300">
                           {t('session.changeTaxon')}
                         </Text>
                       </Pressable>
@@ -296,10 +298,10 @@ export function SpeciesDetailSheet({
                     hitSlop={8}
                     className="ml-2"
                   >
-                    <Ionicons name="copy-outline" size={20} color="#6b7280" />
+                    <Ionicons name="copy-outline" size={20} color={c.ink2} />
                   </Pressable>
                   <Pressable onPress={onClose} hitSlop={8} className="ml-2">
-                    <Ionicons name="close" size={22} color="#6b7280" />
+                    <Ionicons name="close" size={22} color={c.ink2} />
                   </Pressable>
                 </View>
 
@@ -350,7 +352,7 @@ export function SpeciesDetailSheet({
                               }}
                               className={`flex-row items-center rounded-full px-2.5 py-1 active:opacity-80 ${
                                 k.mode === 'multi_access'
-                                  ? 'bg-blue-100 dark:bg-blue-900/60'
+                                  ? 'bg-accent-100 dark:bg-accent-900/60'
                                   : 'bg-emerald-100 dark:bg-emerald-900/60'
                               }`}
                               hitSlop={4}
@@ -358,12 +360,12 @@ export function SpeciesDetailSheet({
                               <Ionicons
                                 name="key"
                                 size={12}
-                                color={k.mode === 'multi_access' ? '#2563eb' : '#10b981'}
+                                color={k.mode === 'multi_access' ? c.accent : c.accent}
                               />
                               <Text
                                 className={`ml-1 text-xs font-medium ${
                                   k.mode === 'multi_access'
-                                    ? 'text-blue-700 dark:text-blue-300'
+                                    ? 'text-accent-700 dark:text-accent-300'
                                     : 'text-emerald-700 dark:text-emerald-300'
                                 }`}
                               >
@@ -524,7 +526,7 @@ export function SpeciesDetailSheet({
                           <Ionicons
                             name={record.lat !== null ? 'location' : 'location-outline'}
                             size={18}
-                            color={record.lat !== null ? '#2563eb' : '#4b5563'}
+                            color={record.lat !== null ? c.accent : '#4b5563'}
                           />
                           <Text
                             className="ml-2 flex-1 text-sm text-gray-700 dark:text-gray-300"
@@ -610,7 +612,7 @@ export function SpeciesDetailSheet({
                           <ElevationField
                             value={record.elevation_m}
                             onCommit={(m) => onSaveElevation(m, 'manual')}
-                            inputClassName="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                            inputClassName="rounded-lg border border-gray-200 bg-card px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
                           />
                         </View>
                       ) : null}
@@ -638,7 +640,7 @@ export function SpeciesDetailSheet({
                         <Text className="ml-2 flex-1 text-sm text-gray-700 dark:text-gray-300">
                           {record.notes ? record.notes : t('species.addNote')}
                         </Text>
-                        <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
+                        <Ionicons name="chevron-forward" size={16} color={c.ink3} />
                       </Pressable>
                       {onSaveAttributes ? (
                         <View className="mt-3">
@@ -667,12 +669,12 @@ export function SpeciesDetailSheet({
                           <Pressable
                             key={link.label}
                             onPress={() => Linking.openURL(link.url)}
-                            className="flex-row items-center rounded-full bg-blue-50 px-3 py-1.5 active:bg-blue-100 dark:bg-blue-950/40 dark:active:bg-blue-900/60"
+                            className="flex-row items-center rounded-full bg-accent-50 px-3 py-1.5 active:bg-accent-100 dark:bg-accent-950/40 dark:active:bg-accent-900/60"
                           >
-                            <Text className="text-xs font-medium text-blue-700 dark:text-blue-300">
+                            <Text className="text-xs font-medium text-accent-700 dark:text-accent-300">
                               {link.label}
                             </Text>
-                            <Ionicons name="open-outline" size={12} color="#2563eb" />
+                            <Ionicons name="open-outline" size={12} color={c.accent} />
                           </Pressable>
                         ))}
                       </View>
@@ -694,7 +696,7 @@ export function SpeciesDetailSheet({
                         }}
                         className="flex-row items-center justify-center rounded-lg border border-red-200 bg-red-50 px-4 py-3 active:bg-red-100 dark:bg-red-950/40 dark:active:bg-red-900/60"
                       >
-                        <Ionicons name="trash-outline" size={18} color="#dc2626" />
+                        <Ionicons name="trash-outline" size={18} color={c.alert} />
                         <Text className="ml-2 text-sm font-medium text-red-700 dark:text-red-400">
                           {t('session.removeFromList')}
                         </Text>
@@ -753,6 +755,7 @@ function CountField({
   quantityType: string | null;
   onCommit: (count: number | null) => void;
 }) {
+  const c = useThemeColors();
   const { t } = useTranslation();
   // Anything not recorded as a plain count arrived by import — a BB code or a
   // cover value from a hand-edited yml. Show it, but do not offer to step it:
@@ -812,7 +815,7 @@ function CountField({
         }}
         keyboardType="number-pad"
         placeholder={t('species.countUnset')}
-        placeholderTextColor="#9ca3af"
+        placeholderTextColor={c.ink3}
         className="mx-2 min-w-[56px] rounded-lg border border-gray-300 px-2 py-1 text-center text-base text-gray-900 dark:border-gray-600 dark:text-gray-100"
       />
       <Pressable
@@ -856,8 +859,8 @@ const TAG_STYLES: Record<'emerald' | 'blue' | 'purple' | 'rose', { bg: string; t
     text: 'text-emerald-700 dark:text-emerald-300',
   },
   blue: {
-    bg: 'bg-blue-100 dark:bg-blue-900/60',
-    text: 'text-blue-700 dark:text-blue-300',
+    bg: 'bg-accent-100 dark:bg-accent-900/60',
+    text: 'text-accent-700 dark:text-accent-300',
   },
   purple: {
     bg: 'bg-purple-100 dark:bg-purple-900/60',

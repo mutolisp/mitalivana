@@ -17,8 +17,10 @@ import { showActionSheet } from '~/components/ActionSheet';
 import { useExportShare } from '~/lib/useExportShare';
 import { ExportProgressOverlay } from '~/components/ExportProgressOverlay';
 import { Btn, Card, Label } from '~/modules/gloria/components/ui';
+import { useThemeColors } from '~/theme/colors';
 
 export default function GloriaSummitsScreen() {
+  const c = useThemeColors();
   const { t } = useTranslation();
   const router = useRouter();
   const [summits, setSummits] = useState<SummitWithLast[]>(() => listSummits());
@@ -75,7 +77,7 @@ export default function GloriaSummitsScreen() {
                         .join(' · ')}
                     </Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
+                  <Ionicons name="chevron-forward" size={16} color={c.ink3} />
                 </Pressable>
               ))}
             </Card>

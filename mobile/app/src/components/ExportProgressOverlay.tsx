@@ -18,7 +18,7 @@ export function ExportProgressOverlay({ progress }: { progress: ExportProgress |
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={() => {}}>
       <View className="flex-1 items-center justify-center bg-black/40 px-10">
-        <View className="w-full max-w-xs rounded-2xl bg-white dark:bg-gray-900 px-6 py-6">
+        <View className="w-full max-w-xs rounded-2xl bg-card dark:bg-gray-900 px-6 py-6">
           <ActivityIndicator size="large" color="#3b82f6" />
           <Text className="mt-4 text-center text-base font-medium text-gray-900 dark:text-gray-100">
             {progress?.label ?? t('export.exporting')}
@@ -26,7 +26,7 @@ export function ExportProgressOverlay({ progress }: { progress: ExportProgress |
           {total > 0 ? (
             <>
               <View className="mt-4 h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
-                <View className="h-2 rounded-full bg-blue-500" style={{ width: `${pct}%` }} />
+                <View className="h-2 rounded-full bg-accent-500" style={{ width: `${pct}%` }} />
               </View>
               <Text className="mt-2 text-center text-xs text-gray-500 dark:text-gray-400">
                 {done} / {total}

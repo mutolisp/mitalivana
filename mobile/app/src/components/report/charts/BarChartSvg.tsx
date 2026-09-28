@@ -14,7 +14,7 @@
 import { useTranslation } from 'react-i18next';
 import { Text, View } from 'react-native';
 import Svg, { Rect } from 'react-native-svg';
-import { useThemeColors } from '~/hooks/useThemeColors';
+import { useThemeColors } from '~/theme/colors';
 import {
   CHART_PRIMARY,
   CHART_SECONDARY,

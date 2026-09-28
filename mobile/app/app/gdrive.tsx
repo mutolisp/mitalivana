@@ -80,7 +80,7 @@ export default function GoogleDriveScreen() {
       <ScrollView contentContainerStyle={{ padding: 16 }}>
         <Text className="text-xs text-gray-500 dark:text-gray-400">{t('gdrive.intro')}</Text>
 
-        <View className="mt-4 rounded-xl bg-white px-4 py-3 dark:bg-gray-900">
+        <View className="mt-4 rounded-xl bg-card px-4 py-3 dark:bg-gray-900">
           {!configured ? (
             // A build without the OAuth client would show a button that does
             // nothing; say what is actually wrong instead.

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { FlatList, Modal, Pressable, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Slider from '@react-native-community/slider';
+import { useThemeColors } from '~/theme/colors';
 
 /** One selectable WMTS overlay source (e.g. Academia Sinica, NLSC). */
 export type LayerSource = {
@@ -29,6 +30,7 @@ type Props = {
  *  each source keeps its own selected layer + opacity, so overlays can be
  *  stacked (e.g. an NLSC basemap under a Sinica historical layer). */
 export function LayerSheet({ visible, sources, onClose }: Props) {
+  const c = useThemeColors();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState(0);
@@ -59,7 +61,7 @@ export function LayerSheet({ visible, sources, onClose }: Props) {
         />
         <View
           style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '75%', paddingBottom: insets.bottom }}
-          className="rounded-t-2xl bg-white dark:bg-gray-900"
+          className="rounded-t-2xl bg-card dark:bg-gray-900"
         >
           <View className="items-center pt-2">
             <View className="h-1 w-12 rounded-full bg-gray-300 dark:bg-gray-700" />
@@ -68,7 +70,7 @@ export function LayerSheet({ visible, sources, onClose }: Props) {
           <View className="flex-row items-center justify-between border-b border-gray-100 dark:border-gray-800 px-4 py-3">
             <Text className="text-base font-semibold text-gray-900 dark:text-gray-100">{t('layerSheet.title')}</Text>
             <Pressable onPress={onClose} hitSlop={8}>
-              <Ionicons name="close" size={20} color="#6b7280" />
+              <Ionicons name="close" size={20} color={c.ink2} />
             </Pressable>
           </View>
 
@@ -84,10 +86,10 @@ export function LayerSheet({ visible, sources, onClose }: Props) {
                       setTab(i);
                       setQuery('');
                     }}
-                    className={`flex-1 items-center py-2.5 ${isActive ? 'border-b-2 border-blue-500' : ''}`}
+                    className={`flex-1 items-center py-2.5 ${isActive ? 'border-b-2 border-accent-500' : ''}`}
                   >
                     <Text
-                      className={`text-sm ${isActive ? 'font-semibold text-blue-700 dark:text-blue-300' : 'text-gray-500 dark:text-gray-400'}`}
+                      className={`text-sm ${isActive ? 'font-semibold text-accent-700 dark:text-accent-300' : 'text-gray-500 dark:text-gray-400'}`}
                     >
                       {s.label}
                       {s.selectedId ? ' ●' : ''}
@@ -99,9 +101,9 @@ export function LayerSheet({ visible, sources, onClose }: Props) {
           ) : null}
 
           {active.selectedId ? (
-            <View className="border-b border-gray-100 dark:border-gray-800 bg-blue-50 dark:bg-blue-950/40 px-4 py-3">
+            <View className="border-b border-gray-100 dark:border-gray-800 bg-accent-50 dark:bg-accent-950/40 px-4 py-3">
               <View className="flex-row items-center justify-between">
-                <Text className="flex-1 text-xs font-medium text-blue-900 dark:text-blue-100" numberOfLines={1}>
+                <Text className="flex-1 text-xs font-medium text-accent-900 dark:text-accent-100" numberOfLines={1}>
                   {t('layerSheet.current', { title: selectedTitle })}
                 </Text>
                 <Pressable onPress={() => active.onSelect('')} hitSlop={6} className="ml-2">
@@ -109,17 +111,17 @@ export function LayerSheet({ visible, sources, onClose }: Props) {
                 </Pressable>
               </View>
               <View className="mt-2 flex-row items-center">
-                <Text className="w-12 text-xs text-blue-900 dark:text-blue-100">{t('layerSheet.opacity')}</Text>
+                <Text className="w-12 text-xs text-accent-900 dark:text-accent-100">{t('layerSheet.opacity')}</Text>
                 <Slider
                   style={{ flex: 1, height: 30 }}
                   value={active.opacity}
                   minimumValue={0.1}
                   maximumValue={1}
                   step={0.05}
-                  minimumTrackTintColor="#2563eb"
+                  minimumTrackTintColor={c.accent}
                   onValueChange={active.onOpacityChange}
                 />
-                <Text className="w-10 text-right text-xs text-blue-900 dark:text-blue-100">
+                <Text className="w-10 text-right text-xs text-accent-900 dark:text-accent-100">
                   {Math.round(active.opacity * 100)}%
                 </Text>
               </View>
@@ -128,18 +130,18 @@ export function LayerSheet({ visible, sources, onClose }: Props) {
 
           <View className="border-b border-gray-100 dark:border-gray-800 px-3 py-2">
             <View className="flex-row items-center rounded-full bg-gray-100 dark:bg-gray-800 px-3 py-2">
-              <Ionicons name="search" size={16} color="#6b7280" />
+              <Ionicons name="search" size={16} color={c.ink2} />
               <TextInput
                 className="ml-2 flex-1 text-sm text-gray-900 dark:text-gray-100"
                 placeholder={t('layerSheet.searchPlaceholder', { count: active.layers.length })}
-                placeholderTextColor="#9ca3af"
+                placeholderTextColor={c.ink3}
                 value={query}
                 onChangeText={setQuery}
                 autoCorrect={false}
               />
               {query ? (
                 <Pressable onPress={() => setQuery('')} hitSlop={6}>
-                  <Ionicons name="close-circle" size={16} color="#9ca3af" />
+                  <Ionicons name="close-circle" size={16} color={c.ink3} />
                 </Pressable>
               ) : null}
             </View>
@@ -154,16 +156,16 @@ export function LayerSheet({ visible, sources, onClose }: Props) {
               return (
                 <Pressable
                   onPress={() => active.onSelect(item.id)}
-                  className={`flex-row items-center border-b border-gray-100 dark:border-gray-800 px-4 py-2.5 ${isActive ? 'bg-blue-50 dark:bg-blue-950/40' : 'active:bg-gray-50 dark:active:bg-gray-800'}`}
+                  className={`flex-row items-center border-b border-gray-100 dark:border-gray-800 px-4 py-2.5 ${isActive ? 'bg-accent-50 dark:bg-accent-950/40' : 'active:bg-gray-50 dark:active:bg-gray-800'}`}
                 >
                   <Ionicons
                     name={isActive ? 'radio-button-on' : 'radio-button-off'}
                     size={16}
-                    color={isActive ? '#2563eb' : '#9ca3af'}
+                    color={isActive ? c.accent : c.ink3}
                     style={{ marginRight: 10 }}
                   />
                   <Text
-                    className={`flex-1 text-sm ${isActive ? 'font-medium text-blue-700 dark:text-blue-300' : 'text-gray-800 dark:text-gray-200'}`}
+                    className={`flex-1 text-sm ${isActive ? 'font-medium text-accent-700 dark:text-accent-300' : 'text-gray-800 dark:text-gray-200'}`}
                     numberOfLines={2}
                   >
                     {item.title}

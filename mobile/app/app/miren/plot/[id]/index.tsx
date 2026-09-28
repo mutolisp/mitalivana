@@ -56,6 +56,7 @@ import { FieldRow, TextBlock, TextCommit } from '~/modules/miren/components/fiel
 import { Banner, BannerText, Btn, Card, Label, NumAccessory, NumField, Seg } from '~/modules/gloria/components/ui';
 import { RANGES } from '~/modules/gloria/model/ranges';
 import { GLORIA_SEARCH_GROUPS } from '~/modules/gloria/useSurvey';
+import { useThemeColors } from '~/theme/colors';
 
 type Tab = 'species' | 'plot';
 
@@ -85,7 +86,7 @@ function ClassChips({
             accessibilityState={{ selected: on, disabled }}
             accessibilityLabel={classLabel(c, unit)}
             style={{ minWidth: 62, minHeight: 44 }}
-            className={`items-center justify-center rounded-lg border px-2 ${on ? 'border-[#00A2A5] bg-[#00A2A5]' : 'border-gray-300 bg-white dark:border-gray-700 dark:bg-gray-900'} ${disabled ? 'opacity-50' : ''}`}
+            className={`items-center justify-center rounded-lg border px-2 ${on ? 'border-accent-600 bg-accent-600' : 'border-gray-300 bg-card dark:border-gray-700 dark:bg-gray-900'} ${disabled ? 'opacity-50' : ''}`}
           >
             <Text className={`text-base font-semibold ${on ? 'text-white' : 'text-gray-900 dark:text-gray-100'}`}>{c.value}</Text>
             <Text className={`text-[10px] ${on ? 'text-white/90' : 'text-gray-500 dark:text-gray-400'}`}>{`${c.label}${unit}`}</Text>
@@ -97,6 +98,7 @@ function ClassChips({
 }
 
 export default function MirenPlotScreen() {
+  const tc = useThemeColors();
   const { t } = useTranslation();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -258,13 +260,13 @@ export default function MirenPlotScreen() {
                 </Text>
               </View>
               {measures.mode === 'presence' ? (
-                <Ionicons name="checkmark-circle" size={20} color="#059669" />
+                <Ionicons name="checkmark-circle" size={20} color={tc.accent} />
               ) : (
                 <Text className="font-mono text-xs text-gray-700 dark:text-gray-300">
                   {`C ${s.cover_class ?? '–'} · A ${s.abundance_class ?? '–'}`}
                 </Text>
               )}
-              {lockedRow ? <Ionicons name="lock-closed" size={14} color="#9ca3af" /> : null}
+              {lockedRow ? <Ionicons name="lock-closed" size={14} color={tc.ink3} /> : null}
             </Pressable>
             {open && measures.mode === 'cover-abundance' ? (
               <View className="gap-2 pt-3">

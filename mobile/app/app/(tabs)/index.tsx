@@ -94,6 +94,7 @@ import { teamSyncErrorText } from '~/lib/teamSyncText';
 import { mergeSummary } from '~/lib/mergeSummaryText';
 import { ACTION_FILL } from '~/lib/colors';
 import { useTabBarInset } from '~/lib/tabBarLayout';
+import { useThemeColors } from '~/theme/colors';
 
 type Filter = 'all' | RecordKind;
 type ViewMode = 'flat' | 'byProject';
@@ -187,6 +188,7 @@ function ProjectHeader({
   groupSelected?: boolean;
   onToggleSelect?: () => void;
 }) {
+  const c = useThemeColors();
   const { t } = useTranslation();
   const countOf = (k: RecordKind) => group.items.filter((x) => x.kind === k).length;
   const parts = (
@@ -226,7 +228,7 @@ function ProjectHeader({
           <Ionicons
             name={collapsed ? 'chevron-forward' : 'chevron-down'}
             size={14}
-            color="#6b7280"
+            color={c.ink2}
             style={{ marginRight: 4 }}
           />
         )}
@@ -251,7 +253,7 @@ function ProjectHeader({
             accessibilityLabel={t('common.export')}
             className="ml-2 p-1.5 active:opacity-60"
           >
-            <Ionicons name="share-outline" size={16} color="#2563eb" />
+            <Ionicons name="share-outline" size={16} color={c.accent} />
           </Pressable>
         ) : null}
       </View>
@@ -314,6 +316,7 @@ function buildFlatRows(
 }
 
 export default function RecordsListScreen() {
+  const c = useThemeColors();
   const router = useRouter();
   const tabBarInset = useTabBarInset();
   const { t } = useTranslation();
@@ -1188,11 +1191,11 @@ export default function RecordsListScreen() {
   return (
     <View className="flex-1 bg-gray-50 dark:bg-gray-950">
       <ExportProgressOverlay progress={exportProgress} />
-      <View className="border-b border-gray-200 bg-white px-4 py-4 dark:border-gray-700 dark:bg-gray-900">
+      <View className="border-b border-gray-200 bg-card px-4 py-4 dark:border-gray-700 dark:bg-gray-900">
         {selectMode ? (
           <View className="flex-row items-center justify-between">
             <Pressable onPress={selectClear} hitSlop={8}>
-              <Text className="text-base font-medium text-blue-600 dark:text-blue-400">
+              <Text className="text-base font-medium text-accent-600 dark:text-accent-400">
                 {t('common.cancel')}
               </Text>
             </Pressable>
@@ -1210,7 +1213,7 @@ export default function RecordsListScreen() {
                 <Ionicons
                   name="heart-outline"
                   size={20}
-                  color={selected.size === 0 ? '#9ca3af' : '#d97706'}
+                  color={selected.size === 0 ? c.disabled : c.acornDeep}
                 />
               </Pressable>
               <Pressable
@@ -1220,12 +1223,12 @@ export default function RecordsListScreen() {
                 accessibilityRole="button"
                 accessibilityLabel={t('common.export')}
               >
-                {/* Same teal as the swipe-reveal 匯出, so the two read as one
+                {/* Same accent as the swipe-reveal 匯出, so the two read as one
                     action rather than two features that happen to share a name. */}
                 <Ionicons
                   name="share-outline"
                   size={20}
-                  color={selected.size === 0 || exportBusy ? '#9ca3af' : '#00A2A5'}
+                  color={selected.size === 0 || exportBusy ? c.disabled : c.accent}
                 />
               </Pressable>
               {/* 統計 / 專案 / 合併 live behind the overflow: the bar keeps only
@@ -1241,7 +1244,7 @@ export default function RecordsListScreen() {
                 <Ionicons
                   name="ellipsis-horizontal"
                   size={20}
-                  color={selected.size === 0 ? '#9ca3af' : '#374151'}
+                  color={selected.size === 0 ? c.disabled : c.ink}
                 />
               </Pressable>
             </View>
@@ -1294,28 +1297,28 @@ export default function RecordsListScreen() {
 
       {/* Stays up in select mode too: search a project, then select the group. */}
       {searchOpen ? (
-        <View className="flex-row items-center border-b border-gray-200 bg-white px-4 py-2 dark:border-gray-700 dark:bg-gray-900">
-          <Ionicons name="search" size={16} color="#9ca3af" />
+        <View className="flex-row items-center border-b border-gray-200 bg-card px-4 py-2 dark:border-gray-700 dark:bg-gray-900">
+          <Ionicons name="search" size={16} color={c.ink3} />
           <TextInput
             value={query}
             onChangeText={setQuery}
             autoFocus
             placeholder={t('records.searchPlaceholder')}
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor={c.ink3}
             autoCapitalize="none"
             autoCorrect={false}
             returnKeyType="search"
             className="ml-2 flex-1 py-1 text-base text-gray-900 dark:text-gray-100"
           />
           <Pressable onPress={closeSearch} hitSlop={8} accessibilityLabel={t('common.close')}>
-            <Ionicons name="close-circle" size={18} color="#9ca3af" />
+            <Ionicons name="close-circle" size={18} color={c.ink3} />
           </Pressable>
         </View>
       ) : null}
 
       {!loaded ? (
         <View className="flex-1 items-center justify-center px-6">
-          <ActivityIndicator color="#00A2A5" />
+          <ActivityIndicator color={c.accent} />
           <Text className="mt-3 text-sm text-gray-500 dark:text-gray-400">{t('common.loading')}</Text>
         </View>
       ) : isEmpty ? (
@@ -1403,7 +1406,7 @@ export default function RecordsListScreen() {
       >
         <Pressable className="flex-1 bg-black/40" onPress={() => setChao2Sheet(null)} />
         <View
-          className="rounded-t-2xl bg-white px-4 pt-4 dark:bg-gray-900"
+          className="rounded-t-2xl bg-card px-4 pt-4 dark:bg-gray-900"
           style={{ paddingBottom: Math.max(sheetInsets.bottom, 16) }}
         >
           <Text className="text-base font-semibold text-gray-900 dark:text-gray-100">

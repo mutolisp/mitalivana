@@ -6,9 +6,10 @@
  * Every field commits on end of editing and writes at once, as elsewhere.
  */
 import { Text, TextInput, View } from 'react-native';
+import { useThemeColors } from '~/theme/colors';
 
 export const INPUT =
-  'rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100';
+  'rounded-md border border-gray-300 bg-card px-2 py-1.5 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100';
 
 /** A label on the left, the control on the right. `hint` is the protocol's own term. */
 export function FieldRow({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
@@ -41,6 +42,7 @@ export function TextCommit({
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
   maxLength?: number;
 }) {
+  const c = useThemeColors();
   return (
     <TextInput
       key={value ?? ''}
@@ -50,7 +52,7 @@ export function TextCommit({
         if (v !== value) onCommit(v);
       }}
       placeholder={placeholder}
-      placeholderTextColor="#9ca3af"
+      placeholderTextColor={c.ink3}
       accessibilityLabel={accessibilityLabel}
       autoCapitalize={autoCapitalize}
       maxLength={maxLength}
@@ -72,6 +74,7 @@ export function TextBlock({
   placeholder?: string;
   accessibilityLabel: string;
 }) {
+  const c = useThemeColors();
   return (
     <TextInput
       key={value ?? ''}
@@ -82,7 +85,7 @@ export function TextBlock({
         if (v !== value) onCommit(v);
       }}
       placeholder={placeholder}
-      placeholderTextColor="#9ca3af"
+      placeholderTextColor={c.ink3}
       accessibilityLabel={accessibilityLabel}
       className={`${INPUT} min-h-[64px]`}
       textAlignVertical="top"

@@ -33,6 +33,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Platform, Pressable, Text, View } from 'react-native';
 import { isoDate, isoDateTime, isoTime } from '~/lib/datetime';
+import { useThemeColors } from '~/theme/colors';
 
 type Mode = 'date' | 'time' | 'datetime';
 
@@ -94,6 +95,7 @@ function openAndroid(value: number, mode: Mode, onChange: (ts: number) => void):
 }
 
 export function DateTimeField({ value, onChange, mode = 'datetime', format }: Props) {
+  const c = useThemeColors();
   const { t } = useTranslation();
   // iOS only: the inline spinner reports every intermediate wheel position, so
   // edits stage here and hit the DB once, on Done.
@@ -109,9 +111,9 @@ export function DateTimeField({ value, onChange, mode = 'datetime', format }: Pr
     <View>
       <Pressable
         onPress={handlePress}
-        className="flex-row items-center rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 active:opacity-70"
+        className="flex-row items-center rounded-lg border border-gray-300 dark:border-gray-600 bg-card dark:bg-gray-800 px-3 py-2 active:opacity-70"
       >
-        <Ionicons name={mode === 'date' ? 'calendar-outline' : 'time-outline'} size={16} color="#2563eb" />
+        <Ionicons name={mode === 'date' ? 'calendar-outline' : 'time-outline'} size={16} color={c.accent} />
         <Text className="ml-2 flex-1 text-base text-gray-900 dark:text-gray-100">
           {format
             ? format(draft ?? value)
@@ -121,11 +123,11 @@ export function DateTimeField({ value, onChange, mode = 'datetime', format }: Pr
               ? isoTime(draft ?? value)
               : isoDateTime(draft ?? value)}
         </Text>
-        <Ionicons name={expanded ? 'chevron-down' : 'chevron-forward'} size={16} color="#9ca3af" />
+        <Ionicons name={expanded ? 'chevron-down' : 'chevron-forward'} size={16} color={c.ink3} />
       </Pressable>
 
       {expanded ? (
-        <View className="mt-1 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+        <View className="mt-1 rounded-lg border border-gray-200 dark:border-gray-700 bg-card dark:bg-gray-800">
           <DateTimePicker
             value={new Date(draft)}
             mode={mode}
@@ -150,7 +152,7 @@ export function DateTimeField({ value, onChange, mode = 'datetime', format }: Pr
               hitSlop={8}
               className="active:opacity-60"
             >
-              <Text className="text-sm font-medium text-blue-600 dark:text-blue-400">
+              <Text className="text-sm font-medium text-accent-600 dark:text-accent-400">
                 {t('common.done')}
               </Text>
             </Pressable>

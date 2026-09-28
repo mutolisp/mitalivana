@@ -148,8 +148,8 @@ const TINT_ALPHA = { light: 0.3, dark: 0.28 };
  * still legible to someone who cannot rely on the weight difference alone.
  */
 const TAB_FG = {
-  light: { active: LIGHT.accent, inactive: '#4A3D31' }, // gray-700
-  dark: { active: DARK.accent, inactive: DARK.ink2 }, // ink2 = gray-300
+  light: { active: LIGHT.accent, inactive: LIGHT.overlayIcon },
+  dark: { active: DARK.accent, inactive: DARK.overlayIcon },
 };
 
 function TabBarPill() {

@@ -4,8 +4,10 @@ import { useTranslation } from 'react-i18next';
 import Constants from 'expo-constants';
 import { Image, Linking, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useThemeColors } from '~/theme/colors';
 
 export default function AboutScreen() {
+  const c = useThemeColors();
   const { t } = useTranslation();
   const router = useRouter();
   const version = Constants.expoConfig?.version ?? '0.5.4';
@@ -28,7 +30,7 @@ export default function AboutScreen() {
     <SafeAreaView edges={['bottom']} className="flex-1 bg-gray-50 dark:bg-gray-950">
       <Stack.Screen options={{ title: t('nav.about') }} />
       <ScrollView>
-        <View className="items-center bg-white px-4 py-8 dark:bg-gray-900">
+        <View className="items-center bg-card px-4 py-8 dark:bg-gray-900">
           <View className="flex-row items-center">
             {/* The app icon itself, not a copy: a white square, so the hairline
                 border keeps its edge visible on the white header in light mode.
@@ -73,14 +75,14 @@ export default function AboutScreen() {
             }
             className="mt-1 active:opacity-70"
           >
-            <Text className="text-sm text-blue-600 dark:text-blue-400">
+            <Text className="text-sm text-accent-600 dark:text-accent-400">
               https://gbif.jp/activities/checklist/wamei_checklist_110/
             </Text>
           </Pressable>
           <Text className="mt-1 text-xs text-gray-600 dark:text-gray-400">
             授權：
             <Text
-              className="text-blue-600 dark:text-blue-400"
+              className="text-accent-600 dark:text-accent-400"
               onPress={() => Linking.openURL('https://creativecommons.org/licenses/by/4.0/')}
             >
               CC-BY 4.0 International
@@ -94,7 +96,7 @@ export default function AboutScreen() {
             onPress={() => Linking.openURL('http://ylist.info')}
             className="mt-1 active:opacity-70"
           >
-            <Text className="text-sm text-blue-600 dark:text-blue-400">http://ylist.info</Text>
+            <Text className="text-sm text-accent-600 dark:text-accent-400">http://ylist.info</Text>
           </Pressable>
           <Text className="mt-3 text-sm text-gray-700 dark:text-gray-300">
             檢索表：王震哲、 楊智凱、 張和明、 林讚標、 王偉聿、 呂長澤、 洪鈴雅、 陳志雄、 陳志輝、
@@ -135,7 +137,7 @@ export default function AboutScreen() {
             onPress={() => Linking.openURL('https://github.com/mutolisp/mitalivana')}
             className="mt-1 active:opacity-70"
           >
-            <Text className="text-sm text-blue-600 dark:text-blue-400">mitalivana</Text>
+            <Text className="text-sm text-accent-600 dark:text-accent-400">mitalivana</Text>
           </Pressable>
         </Section>
 
@@ -147,10 +149,10 @@ export default function AboutScreen() {
             onPress={() => router.push('/licenses' as Href)}
             className="mt-3 flex-row items-center active:opacity-70"
           >
-            <Text className="flex-1 text-sm text-blue-600 dark:text-blue-400">
+            <Text className="flex-1 text-sm text-accent-600 dark:text-accent-400">
               {t('licenses.title')}
             </Text>
-            <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
+            <Ionicons name="chevron-forward" size={16} color={c.ink3} />
           </Pressable>
         </Section>
 
@@ -176,14 +178,14 @@ export default function AboutScreen() {
 function Link({ url, label }: { url: string; label?: string }) {
   return (
     <Pressable onPress={() => Linking.openURL(url)} className="mt-1 active:opacity-70">
-      <Text className="text-sm text-blue-600 dark:text-blue-400">{label ?? url}</Text>
+      <Text className="text-sm text-accent-600 dark:text-accent-400">{label ?? url}</Text>
     </Pressable>
   );
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <View className="mt-4 border-b border-gray-100 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
+    <View className="mt-4 border-b border-gray-100 bg-card px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
       <Text className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
         {title}
       </Text>

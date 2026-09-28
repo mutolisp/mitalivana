@@ -12,8 +12,10 @@ import { DEFAULT_SERVER, getTeam, joinTeam, parseInvite, pullTeamRecords } from 
 import { deriveTeamKeys } from '~/lib/teamCrypto';
 import { teamSyncErrorText } from '~/lib/teamSyncText';
 import { defaultSurveyorString } from '~/db/surveyors';
+import { useThemeColors } from '~/theme/colors';
 
 export default function TeamJoinScreen() {
+  const tc = useThemeColors();
   const { t } = useTranslation();
   const { c } = useLocalSearchParams<{ c?: string }>();
   const [busy, setBusy] = useState(false);
@@ -61,7 +63,7 @@ export default function TeamJoinScreen() {
         </Text>
         {inv.server ? <Text className="text-xs text-amber-700 dark:text-amber-400">{t('teamSync.customServerNote')}</Text> : null}
         {already ? (
-          <Text className={`text-xs ${(already.server ?? null) !== (inv.server ?? null) ? 'text-[#00797b] dark:text-cyan-300' : 'text-gray-500'}`}>
+          <Text className={`text-xs ${(already.server ?? null) !== (inv.server ?? null) ? 'text-accent-700 dark:text-accent-300' : 'text-gray-500'}`}>
             {(already.server ?? null) !== (inv.server ?? null) ? t('teamSync.movedJoin') : t('teamSync.alreadyMember')}
           </Text>
         ) : null}
@@ -71,9 +73,9 @@ export default function TeamJoinScreen() {
             value={myName}
             onChangeText={setMyName}
             placeholder={t('teamSync.myNamePlaceholder')}
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor={tc.ink3}
             maxLength={60}
-            className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-base text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+            className="rounded-lg border border-gray-300 bg-card px-3 py-2 text-base text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
           />
           <Text className="text-xs text-gray-500 dark:text-gray-400">{t('teamSync.myNameMsg')}</Text>
         </View>
@@ -82,7 +84,7 @@ export default function TeamJoinScreen() {
           onPress={() => void join()}
           disabled={busy}
           accessibilityRole="button"
-          className={`items-center rounded-xl py-3 ${busy ? 'bg-gray-400' : 'bg-[#00A2A5] active:bg-[#008284]'}`}
+          className={`items-center rounded-xl py-3 ${busy ? 'bg-gray-400' : 'bg-accent-600 active:bg-accent-700'}`}
         >
           {busy ? <ActivityIndicator color="#fff" /> : <Text className="text-base font-semibold text-white">{t('teamSync.join')}</Text>}
         </Pressable>

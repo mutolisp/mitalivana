@@ -11,6 +11,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useSettings } from '~/stores/settings';
 import { AnalysisExportOptions, exportContentItems } from './AnalysisExportOptions';
 import { ACTION_FILL } from '~/lib/colors';
+import { useThemeColors } from '~/theme/colors';
 
 type Props = {
   visible: boolean;
@@ -20,6 +21,7 @@ type Props = {
 };
 
 export function ProjectExportSheet({ visible, onClose, onExport }: Props) {
+  const c = useThemeColors();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   // Bottom sheet must never reach the Dynamic Island / status bar: cap its
@@ -65,7 +67,7 @@ export function ProjectExportSheet({ visible, onClose, onExport }: Props) {
         />
         <View
           style={{ position: 'absolute', bottom: 0, left: 0, right: 0, maxHeight: sheetMaxHeight }}
-          className="rounded-t-2xl bg-white dark:bg-gray-900"
+          className="rounded-t-2xl bg-card dark:bg-gray-900"
         >
           <SafeAreaView edges={['bottom']} style={{ flexShrink: 1 }}>
             <View className="items-center pt-2">
@@ -77,7 +79,7 @@ export function ProjectExportSheet({ visible, onClose, onExport }: Props) {
                 {t('projectExport.title')}
               </Text>
               <Pressable onPress={onClose} hitSlop={8}>
-                <Ionicons name="close" size={22} color="#6b7280" />
+                <Ionicons name="close" size={22} color={c.ink2} />
               </Pressable>
             </View>
 

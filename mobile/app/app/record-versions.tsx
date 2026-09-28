@@ -23,15 +23,17 @@ import { useActiveGloria } from '~/modules/gloria/store';
 import { useActivePlot } from '~/stores/activePlot';
 import { useActiveSession } from '~/stores/activeSession';
 import { useToast } from '~/stores/toast';
+import { useThemeColors } from '~/theme/colors';
 
 const REASON_TONE: Record<string, string> = {
-  manual: 'bg-cyan-100 text-[#00797b] dark:bg-cyan-950 dark:text-cyan-300',
+  manual: 'bg-accent-100 text-accent-700 dark:bg-accent-950 dark:text-accent-300',
   done: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300',
   before_restore: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300',
 };
 const TONE_DEFAULT = 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300';
 
 export default function RecordVersionsScreen() {
+  const c = useThemeColors();
   const { t } = useTranslation();
   const toast = useToast((s) => s.show);
   const params = useLocalSearchParams<{ kind: MergeKind; id: string }>();
@@ -95,7 +97,7 @@ export default function RecordVersionsScreen() {
         {versions.map((v, i) => {
           const expanded = open === v.id;
           return (
-            <View key={v.id} className="rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
+            <View key={v.id} className="rounded-xl border border-gray-200 bg-card dark:border-gray-800 dark:bg-gray-900">
               <Pressable
                 onPress={() => {
                   setOpen(expanded ? null : v.id);
@@ -116,7 +118,7 @@ export default function RecordVersionsScreen() {
                   {v.note ? <Text className="text-sm text-gray-700 dark:text-gray-300">{v.note}</Text> : null}
                   <Text className="text-[11px] text-gray-400">{formatBytes(v.size)}</Text>
                 </View>
-                <Ionicons name={expanded ? 'chevron-down' : 'chevron-forward'} size={16} color="#9ca3af" />
+                <Ionicons name={expanded ? 'chevron-down' : 'chevron-forward'} size={16} color={c.ink3} />
               </Pressable>
               {expanded ? (
                 <View className="gap-2 border-t border-gray-100 px-3 py-2 dark:border-gray-800">

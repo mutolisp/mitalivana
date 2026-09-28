@@ -95,6 +95,7 @@ import { RecordEditButtons } from '~/components/RecordEditButtons';
 import type { SpeciesAttributesDraft } from '~/components/SpeciesAttributesBlock';
 import { saveVersionSoon } from '~/db/recordVersions';
 import { useVersionOnLeave } from '~/lib/useVersionOnLeave';
+import { useThemeColors } from '~/theme/colors';
 
 function sortRecords(
   rs: RecordWithTaxon[],
@@ -141,6 +142,7 @@ const HIGH_LEVEL_GROUPS: Array<{
 ];
 
 export default function SessionDetailScreen() {
+  const c = useThemeColors();
   const { id } = useLocalSearchParams<{ id: string }>();
   const sessionId = parseInt(id as string, 10);
   useVersionOnLeave('session', sessionId);
@@ -825,7 +827,7 @@ export default function SessionDetailScreen() {
 
   if (!session) {
     return (
-      <View className="flex-1 items-center justify-center bg-white dark:bg-gray-900">
+      <View className="flex-1 items-center justify-center bg-card dark:bg-gray-900">
         <Stack.Screen options={{ title: t('nav.session'), headerLeft: BackHeaderLeft }} />
         <Text className="text-gray-500 dark:text-gray-400">{t('common.loading')}</Text>
       </View>
@@ -869,7 +871,7 @@ export default function SessionDetailScreen() {
       <View className="flex-1">
         {/* Row 1 — identity: project · spatial · surveyor (full width so the
             long surveyor name has room and no longer squeezes the controls). */}
-        <View className="flex-row items-center gap-3 border-b border-gray-200 bg-white px-4 py-2 dark:border-gray-700 dark:bg-gray-900">
+        <View className="flex-row items-center gap-3 border-b border-gray-200 bg-card px-4 py-2 dark:border-gray-700 dark:bg-gray-900">
           <Pressable
             onPress={guard(() => setProjectSheetOpen(true))}
             hitSlop={8}
@@ -878,7 +880,7 @@ export default function SessionDetailScreen() {
             <Ionicons
               name={project && project.id !== 0 ? 'folder' : 'folder-open-outline'}
               size={18}
-              color={project && project.id !== 0 ? '#2563eb' : '#9ca3af'}
+              color={project && project.id !== 0 ? c.accent : c.ink3}
             />
           </Pressable>
           <Pressable
@@ -891,7 +893,7 @@ export default function SessionDetailScreen() {
               if (tracking) {
                 return (
                   <>
-                    <Ionicons name="radio" size={14} color="#dc2626" />
+                    <Ionicons name="radio" size={14} color={c.alert} />
                     <Text
                       className="ml-1 text-xs font-medium text-red-600 dark:text-red-400"
                       numberOfLines={1}
@@ -904,9 +906,9 @@ export default function SessionDetailScreen() {
               if (site) {
                 return (
                   <>
-                    <Ionicons name="pin" size={14} color="#2563eb" />
+                    <Ionicons name="pin" size={14} color={c.accent} />
                     <Text
-                      className="ml-1 text-xs font-medium text-blue-700 dark:text-blue-300"
+                      className="ml-1 text-xs font-medium text-accent-700 dark:text-accent-300"
                       numberOfLines={1}
                     >
                       {site.name}
@@ -917,9 +919,9 @@ export default function SessionDetailScreen() {
               if (session.start_lat !== null) {
                 return (
                   <>
-                    <Ionicons name="location" size={14} color="#2563eb" />
+                    <Ionicons name="location" size={14} color={c.accent} />
                     <Text
-                      className="ml-1 text-xs font-medium text-blue-700 dark:text-blue-300"
+                      className="ml-1 text-xs font-medium text-accent-700 dark:text-accent-300"
                       numberOfLines={1}
                     >
                       {t('session.located')}
@@ -929,7 +931,7 @@ export default function SessionDetailScreen() {
               }
               return (
                 <>
-                  <Ionicons name="pin-outline" size={14} color="#9ca3af" />
+                  <Ionicons name="pin-outline" size={14} color={c.ink3} />
                   <Text className="ml-1 text-xs italic text-gray-500 dark:text-gray-400">
                     {t('session.spatial')}
                   </Text>
@@ -944,7 +946,7 @@ export default function SessionDetailScreen() {
             accessibilityLabel={t('surveyTime.title')}
             className="active:opacity-70"
           >
-            <Ionicons name="time-outline" size={16} color="#2563eb" />
+            <Ionicons name="time-outline" size={16} color={c.accent} />
           </Pressable>
           <Pressable
             onPress={guard(() => setSurveyorSheetOpen(true))}
@@ -954,10 +956,10 @@ export default function SessionDetailScreen() {
             <Ionicons
               name="people-outline"
               size={14}
-              color={session.recorded_by ? '#2563eb' : '#9ca3af'}
+              color={session.recorded_by ? c.accent : c.ink3}
             />
             <Text
-              className={`ml-1 flex-1 text-xs ${session.recorded_by ? 'font-medium text-blue-700 dark:text-blue-300' : 'italic text-gray-500 dark:text-gray-400'}`}
+              className={`ml-1 flex-1 text-xs ${session.recorded_by ? 'font-medium text-accent-700 dark:text-accent-300' : 'italic text-gray-500 dark:text-gray-400'}`}
               numberOfLines={1}
             >
               {session.recorded_by || t('session.surveyor')}
@@ -978,7 +980,7 @@ export default function SessionDetailScreen() {
             onCancel={selection.exit}
           />
         ) : (
-          <View className="flex-row items-center border-b border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
+          <View className="flex-row items-center border-b border-gray-200 bg-card dark:border-gray-700 dark:bg-gray-900">
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -1013,7 +1015,7 @@ export default function SessionDetailScreen() {
                 hitSlop={8}
                 className="flex-row items-center active:opacity-70"
               >
-                <Ionicons name="swap-vertical" size={18} color="#6b7280" />
+                <Ionicons name="swap-vertical" size={18} color={c.ink2} />
                 <Text className="ml-0.5 text-xs text-gray-600 dark:text-gray-400">
                   {sortLabel[sortOrder]}
                 </Text>
@@ -1022,7 +1024,7 @@ export default function SessionDetailScreen() {
                 <Ionicons
                   name={sortDir === 'desc' ? 'arrow-down' : 'arrow-up'}
                   size={14}
-                  color="#6b7280"
+                  color={c.ink2}
                 />
               </Pressable>
               {isActive ? (
@@ -1031,7 +1033,7 @@ export default function SessionDetailScreen() {
                   hitSlop={8}
                   className="active:opacity-70"
                 >
-                  <Ionicons name="cloud-upload-outline" size={18} color="#2563eb" />
+                  <Ionicons name="cloud-upload-outline" size={18} color={c.accent} />
                 </Pressable>
               ) : null}
               {isActive ? (
@@ -1041,7 +1043,7 @@ export default function SessionDetailScreen() {
                   accessibilityLabel={t('photoImport.entry')}
                   className="active:opacity-70"
                 >
-                  <Ionicons name="images-outline" size={18} color="#2563eb" />
+                  <Ionicons name="images-outline" size={18} color={c.accent} />
                 </Pressable>
               ) : null}
             </View>
@@ -1049,7 +1051,7 @@ export default function SessionDetailScreen() {
         )}
         {filtered.length === 0 ? (
           <View className="flex-1 items-center justify-center px-6">
-            <Ionicons name="search-outline" size={56} color="#9ca3af" />
+            <Ionicons name="search-outline" size={56} color={c.ink3} />
             <Text className="mt-3 text-base text-gray-700 dark:text-gray-300">
               {records.length === 0 ? t('session.emptyHint') : t('session.emptyGroup')}
             </Text>
@@ -1353,7 +1355,7 @@ function Chip({ label, active, onPress }: { label: string; active: boolean; onPr
   return (
     <Pressable
       onPress={onPress}
-      className={`mr-2 rounded-full border px-3 py-1.5 ${active ? 'border-blue-500 bg-blue-500' : 'border-gray-300 bg-white dark:border-gray-600 dark:bg-gray-900'}`}
+      className={`mr-2 rounded-full border px-3 py-1.5 ${active ? 'border-accent-500 bg-accent-500' : 'border-gray-300 bg-card dark:border-gray-600 dark:bg-gray-900'}`}
     >
       <Text
         className={`text-xs font-medium ${active ? 'text-white' : 'text-gray-700 dark:text-gray-300'}`}

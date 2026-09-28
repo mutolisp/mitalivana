@@ -13,11 +13,13 @@ import { CORNERS, DIAGONALS, type Direction } from '../model/units';
 import type { SurveyState } from '../useSurvey';
 import { Banner, BannerText, Card, NumField } from './ui';
 import { RANGES } from '../model/ranges';
+import { useThemeColors } from '~/theme/colors';
 
 // Directions in the order the team works through them.
 const ORDER: readonly Direction[] = ['E', 'N', 'S', 'W'];
 
 export function PointsForm({ state, reload, onHelp }: { state: SurveyState; reload: () => void; onHelp: (d: Direction) => void }) {
+  const tc = useThemeColors();
   const { t } = useTranslation();
   const byKey = useMemo(() => new Map(state.points.map((p) => [p.point_key, p])), [state.points]);
   const prev = useMemo(() => {
@@ -60,7 +62,7 @@ export function PointsForm({ state, reload, onHelp }: { state: SurveyState; relo
               accessibilityLabel={`p5m ${k}`}
               hitSlop={8}
             >
-              <Ionicons name={p.is_p5m ? 'radio-button-on' : 'radio-button-off'} size={18} color={p.is_p5m ? '#00A2A5' : '#9ca3af'} />
+              <Ionicons name={p.is_p5m ? 'radio-button-on' : 'radio-button-off'} size={18} color={p.is_p5m ? tc.accent : tc.ink3} />
             </Pressable>
           ) : null}
         </View>
@@ -109,8 +111,8 @@ export function PointsForm({ state, reload, onHelp }: { state: SurveyState; relo
         <Card key={d}>
           <View className="flex-row items-center px-3 pt-2.5">
             <Text className="flex-1 text-base font-bold text-gray-900 dark:text-gray-100">{d}</Text>
-            <Pressable onPress={() => onHelp(d)} className="rounded-full border border-[#00A2A5] bg-cyan-50 px-2.5 py-1 dark:bg-cyan-950/40">
-              <Text className="text-[11px] font-semibold text-[#00797b] dark:text-cyan-300">{t('gloria.points.whereP5m')}</Text>
+            <Pressable onPress={() => onHelp(d)} className="rounded-full border border-accent-600 bg-accent-50 px-2.5 py-1 dark:bg-accent-950/40">
+              <Text className="text-[11px] font-semibold text-accent-700 dark:text-accent-300">{t('gloria.points.whereP5m')}</Text>
             </Pressable>
           </View>
           {head()}

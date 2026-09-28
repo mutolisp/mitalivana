@@ -38,6 +38,7 @@ import {
   useInatTokenFlow,
 } from '~/lib/inatAuth';
 import { parseTokenText } from '~/lib/inatJwt';
+import { useThemeColors } from '~/theme/colors';
 
 const INAT_ORIGIN = 'https://www.inaturalist.org';
 
@@ -74,6 +75,7 @@ export function InatTokenHost() {
 }
 
 function FlowWebView() {
+  const c = useThemeColors();
   const pending = useInatTokenFlow((s) => s.pending);
   const show = useInatTokenFlow((s) => s.show);
   const finish = useInatTokenFlow((s) => s.finish);
@@ -181,10 +183,10 @@ function FlowWebView() {
 
   return (
     <Modal visible animationType="slide" onRequestClose={() => settle(null)}>
-      <View style={{ flex: 1, paddingTop: insets.top }} className="bg-white dark:bg-gray-900">
+      <View style={{ flex: 1, paddingTop: insets.top }} className="bg-card dark:bg-gray-900">
         <View className="flex-row items-center border-b border-gray-200 dark:border-gray-800 px-2 py-2">
           <Pressable onPress={() => settle(null)} hitSlop={10} className="p-2" accessibilityLabel={t('common.cancel')}>
-            <Ionicons name="close" size={24} color="#6b7280" />
+            <Ionicons name="close" size={24} color={c.ink2} />
           </Pressable>
           <Text className="ml-1 flex-1 text-base font-semibold text-gray-900 dark:text-gray-100">{t('inat.loginTitle')}</Text>
           {loading ? <ActivityIndicator /> : null}

@@ -200,7 +200,7 @@ export default function MenuScreen() {
       className="flex-1 bg-gray-50 dark:bg-gray-950"
       contentContainerStyle={{ paddingBottom: tabBarInset + 24 }}
     >
-      <View className="border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 py-6">
+      <View className="border-b border-gray-200 dark:border-gray-700 bg-card dark:bg-gray-900 px-4 py-6">
         <Text className="text-2xl font-bold text-gray-900 dark:text-gray-100">{t('tab.menu')}</Text>
       </View>
 

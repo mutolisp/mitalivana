@@ -15,7 +15,7 @@ import { Pressable, Text } from 'react-native';
 
 const TONE = {
   neutral: {
-    box: 'border-gray-300 bg-white dark:border-gray-600 dark:bg-gray-900',
+    box: 'border-gray-300 bg-card dark:border-gray-600 dark:bg-gray-900',
     icon: '#4b5563',
     text: 'text-gray-700 dark:text-gray-300',
   },

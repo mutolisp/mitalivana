@@ -56,6 +56,7 @@ import { LookupResultSheet } from './LookupResultSheet';
 import { ScientificName } from './ScientificName';
 import { ACTION_FILL } from '~/lib/colors';
 import { stampNewRecord } from '~/lib/recordFix';
+import { useThemeColors } from '~/theme/colors';
 
 type Props = {
   keyId: number;
@@ -150,6 +151,7 @@ function isSelectionActive(sel: Selection | undefined): boolean {
 }
 
 export function KeyMatrixRunner({ keyId, keyData }: Props) {
+  const c = useThemeColors();
   const { t } = useTranslation();
   const router = useRouter();
   const session = useActiveSession((s) => s.session);
@@ -284,7 +286,7 @@ export function KeyMatrixRunner({ keyId, keyData }: Props) {
     return (
       <SafeAreaView
         edges={['top']}
-        className="flex-1 items-center justify-center bg-white dark:bg-gray-900"
+        className="flex-1 items-center justify-center bg-card dark:bg-gray-900"
       >
         <Stack.Screen options={{ title: t('nav.key') }} />
         <Text className="text-sm text-gray-500 dark:text-gray-400">{t('common.loading')}</Text>
@@ -297,7 +299,7 @@ export function KeyMatrixRunner({ keyId, keyData }: Props) {
       <Stack.Screen options={{ title: headerTitle }} />
 
       {/* Top: feature list (60% height) */}
-      <View style={{ flex: 0.6 }} className="bg-white dark:bg-gray-900">
+      <View style={{ flex: 0.6 }} className="bg-card dark:bg-gray-900">
         <View className="flex-row items-center justify-between border-b border-gray-100 px-4 py-2 dark:border-gray-800">
           <Text className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
             {t('keys.features', { count: features.length })}
@@ -308,7 +310,7 @@ export function KeyMatrixRunner({ keyId, keyData }: Props) {
             hitSlop={6}
             className={`rounded-full px-3 py-1 ${activeCount === 0 ? 'opacity-40' : 'active:bg-gray-100 dark:active:bg-gray-800'}`}
           >
-            <Text className="text-xs font-medium text-blue-600 dark:text-blue-400">
+            <Text className="text-xs font-medium text-accent-600 dark:text-accent-400">
               {t('keys.reset')}
             </Text>
           </Pressable>
@@ -341,7 +343,7 @@ export function KeyMatrixRunner({ keyId, keyData }: Props) {
         </Text>
         {activeCount > 0 ? (
           <Pressable onPress={handleReset} hitSlop={6}>
-            <Text className="text-xs font-medium text-blue-600 dark:text-blue-400">
+            <Text className="text-xs font-medium text-accent-600 dark:text-accent-400">
               {t('keys.clearAll')}
             </Text>
           </Pressable>
@@ -349,11 +351,11 @@ export function KeyMatrixRunner({ keyId, keyData }: Props) {
       </View>
 
       {/* Bottom: candidate list (40% height) */}
-      <View style={{ flex: 0.4 }} className="bg-white dark:bg-gray-900">
+      <View style={{ flex: 0.4 }} className="bg-card dark:bg-gray-900">
         <ScrollView>
           {candidates.length === 0 ? (
             <View className="items-center justify-center py-8">
-              <Ionicons name="search-outline" size={36} color="#9ca3af" />
+              <Ionicons name="search-outline" size={36} color={c.ink3} />
               <Text className="mt-2 text-sm text-gray-500 dark:text-gray-400">
                 {t('keys.noMatchSpecies')}
               </Text>
@@ -398,6 +400,7 @@ function FeatureRow({
   selection: Selection | undefined;
   onPress: () => void;
 }) {
+  const c = useThemeColors();
   const { t } = useTranslation();
   const isText = feature.type === 'text';
   const active = isSelectionActive(selection);
@@ -415,13 +418,13 @@ function FeatureRow({
           </Text>
         ) : (
           <Text
-            className={`text-xs ${active ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`}
+            className={`text-xs ${active ? 'text-accent-600 dark:text-accent-400' : 'text-gray-500 dark:text-gray-400'}`}
           >
             {selectionLabel(selection)}
           </Text>
         )}
       </View>
-      {!isText ? <Ionicons name="chevron-forward" size={16} color="#9ca3af" /> : null}
+      {!isText ? <Ionicons name="chevron-forward" size={16} color={c.ink3} /> : null}
     </Pressable>
   );
 }
@@ -435,6 +438,7 @@ function CandidateRow({
   features: KeyFeature[];
   onPress: () => void;
 }) {
+  const c = useThemeColors();
   const { t } = useTranslation();
   const info = taxon.info;
   // Show text features inline on candidate card so users still see info like 「分布」
@@ -447,12 +451,12 @@ function CandidateRow({
   return (
     <Pressable
       onPress={onPress}
-      className="flex-row items-start border-b border-gray-100 px-4 py-3 active:bg-blue-50 dark:border-gray-800 dark:active:bg-blue-900/40"
+      className="flex-row items-start border-b border-gray-100 px-4 py-3 active:bg-accent-50 dark:border-gray-800 dark:active:bg-accent-900/40"
     >
       <Ionicons
         name="leaf-outline"
         size={14}
-        color="#10b981"
+        color={c.accent}
         style={{ marginRight: 8, marginTop: 3 }}
       />
       <View className="flex-1">
@@ -522,7 +526,7 @@ function StatePickerSheet({
         />
         <View
           style={{ position: 'absolute', bottom: 0, left: 0, right: 0, maxHeight: '75%' }}
-          className="rounded-t-2xl bg-white dark:bg-gray-900"
+          className="rounded-t-2xl bg-card dark:bg-gray-900"
         >
           <SafeAreaView edges={['bottom']}>
             <View className="items-center pt-2">
@@ -533,7 +537,7 @@ function StatePickerSheet({
                 {feature.name}
               </Text>
               <Pressable onPress={onClose} hitSlop={6}>
-                <Text className="text-sm font-medium text-blue-600 dark:text-blue-400">
+                <Text className="text-sm font-medium text-accent-600 dark:text-accent-400">
                   {t('common.done')}
                 </Text>
               </Pressable>
@@ -583,7 +587,7 @@ function CategoricalPicker({
               <Pressable
                 key={v}
                 onPress={() => toggle(v)}
-                className={`rounded-full border px-3 py-2 ${on ? 'border-blue-500 bg-blue-500' : 'border-gray-300 bg-white active:bg-gray-50 dark:border-gray-600 dark:bg-gray-900 dark:active:bg-gray-800'}`}
+                className={`rounded-full border px-3 py-2 ${on ? 'border-accent-500 bg-accent-500' : 'border-gray-300 bg-card active:bg-gray-50 dark:border-gray-600 dark:bg-gray-900 dark:active:bg-gray-800'}`}
               >
                 <Text
                   className={`text-sm ${on ? 'font-medium text-white' : 'text-gray-700 dark:text-gray-300'}`}
@@ -608,7 +612,7 @@ function CategoricalPicker({
           onPress={() => onChange({ kind: 'categorical', states: [...values] })}
           className="rounded-full px-3 py-2 active:bg-gray-100 dark:active:bg-gray-800"
         >
-          <Text className="text-sm font-medium text-blue-600 dark:text-blue-400">
+          <Text className="text-sm font-medium text-accent-600 dark:text-accent-400">
             {t('keys.selectAll')}
           </Text>
         </Pressable>
@@ -628,6 +632,7 @@ function NumericPicker({
   taxa: TaxonRow[];
   onChange: (sel: Selection | null) => void;
 }) {
+  const c = useThemeColors();
   const { t } = useTranslation();
   // Show the observed taxa range as a hint so the user knows the sensible
   // input bounds (e.g. 「現有資料：< 1 ~ 20」for tree-height in metres).
@@ -681,8 +686,8 @@ function NumericPicker({
             onEndEditing={apply}
             keyboardType="numeric"
             placeholder={t('keys.noLimit')}
-            placeholderTextColor="#9ca3af"
-            className="rounded-md border border-gray-300 bg-white px-3 py-2 text-base text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+            placeholderTextColor={c.ink3}
+            className="rounded-md border border-gray-300 bg-card px-3 py-2 text-base text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
           />
         </View>
         <Text className="text-gray-400 dark:text-gray-500">~</Text>
@@ -696,8 +701,8 @@ function NumericPicker({
             onEndEditing={apply}
             keyboardType="numeric"
             placeholder={t('keys.noLimit')}
-            placeholderTextColor="#9ca3af"
-            className="rounded-md border border-gray-300 bg-white px-3 py-2 text-base text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+            placeholderTextColor={c.ink3}
+            className="rounded-md border border-gray-300 bg-card px-3 py-2 text-base text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
           />
         </View>
       </View>

@@ -43,7 +43,7 @@ export function SyncProgressHost() {
   return (
     <View pointerEvents="none" className="absolute inset-x-0 top-0" style={{ paddingTop: insets.top }}>
       <KeepAwake />
-      <View className="mx-4 mt-2 gap-1 rounded-lg bg-[#00797b] px-3 py-2 shadow-lg" accessibilityLiveRegion="polite">
+      <View className="mx-4 mt-2 gap-1 rounded-lg bg-accent-700 px-3 py-2 shadow-lg" accessibilityLiveRegion="polite">
         <Text className="text-xs font-semibold text-white" numberOfLines={1}>
           {head}
         </Text>
@@ -53,8 +53,8 @@ export function SyncProgressHost() {
           </Text>
         ) : null}
         {ratio != null ? (
-          <View className="h-1 overflow-hidden rounded-full bg-white/30">
-            <View className="h-1 rounded-full bg-white" style={{ width: `${Math.round(ratio * 100)}%` }} />
+          <View className="h-1 overflow-hidden rounded-full bg-card/30">
+            <View className="h-1 rounded-full bg-card" style={{ width: `${Math.round(ratio * 100)}%` }} />
           </View>
         ) : null}
         {files ? <Text className="text-[10px] text-white/80">{t('teamSync.progress.keepOpen')}</Text> : null}

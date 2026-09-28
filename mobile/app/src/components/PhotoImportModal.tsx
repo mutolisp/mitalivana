@@ -34,6 +34,7 @@ import { runOverModal } from './GbifLookupHost';
 import { SearchBox } from './SearchBox';
 import { showActionSheet } from './ActionSheet';
 import { ToastHost } from './ToastHost';
+import { useThemeColors } from '~/theme/colors';
 
 type Props = {
   /** The photos the user picked, with whatever EXIF the picker gave us. */
@@ -44,6 +45,7 @@ type Props = {
 };
 
 export function PhotoImportModal({ picked, onCancel, onConfirm }: Props) {
+  const c = useThemeColors();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [plan, setPlan] = useState<PhotoPlan | null>(null);
@@ -127,7 +129,7 @@ export function PhotoImportModal({ picked, onCancel, onConfirm }: Props) {
   return (
     <Modal visible={!steppedAside} animationType="slide" onRequestClose={onCancel}>
       <View
-        className="flex-1 bg-white dark:bg-gray-900"
+        className="flex-1 bg-card dark:bg-gray-900"
         style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
       >
         <View className="flex-row items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-700">
@@ -140,7 +142,7 @@ export function PhotoImportModal({ picked, onCancel, onConfirm }: Props) {
           <Pressable onPress={() => onConfirm(rows)} hitSlop={8} disabled={!canConfirm}>
             <Text
               className={`text-base font-semibold ${
-                canConfirm ? 'text-blue-600 dark:text-blue-400' : 'text-gray-300 dark:text-gray-600'
+                canConfirm ? 'text-accent-600 dark:text-accent-400' : 'text-gray-300 dark:text-gray-600'
               }`}
             >
               {t('photoImport.add', { count: rows.length })}
@@ -171,11 +173,11 @@ export function PhotoImportModal({ picked, onCancel, onConfirm }: Props) {
                     onPress={() => setTaxon(null)}
                     className="flex-row items-center rounded-lg border border-gray-200 px-3 py-2 active:opacity-70 dark:border-gray-700"
                   >
-                    <Ionicons name="leaf-outline" size={16} color="#059669" />
+                    <Ionicons name="leaf-outline" size={16} color={c.accent} />
                     <Text className="ml-2 flex-1 text-sm text-gray-900 dark:text-gray-100">
                       {taxon.cname || taxon.name}
                     </Text>
-                    <Ionicons name="close-circle" size={18} color="#9ca3af" />
+                    <Ionicons name="close-circle" size={18} color={c.ink3} />
                   </Pressable>
                 ) : (
                   <SearchBox
@@ -193,12 +195,12 @@ export function PhotoImportModal({ picked, onCancel, onConfirm }: Props) {
                 onPress={pickPolicy}
                 className="flex-row items-center border-b border-gray-100 px-4 py-3 active:opacity-70 dark:border-gray-800"
               >
-                <Ionicons name="location-outline" size={16} color="#6b7280" />
+                <Ionicons name="location-outline" size={16} color={c.ink2} />
                 <Text className="ml-2 flex-1 text-sm text-gray-700 dark:text-gray-300">
                   {t('photoImport.noCoordCount', { count: plan.withoutCoords })}
                 </Text>
                 <Text className="text-sm text-gray-500 dark:text-gray-400">{policyLabel}</Text>
-                <Ionicons name="chevron-forward" size={14} color="#9ca3af" />
+                <Ionicons name="chevron-forward" size={14} color={c.ink3} />
               </Pressable>
             ) : null}
 
@@ -230,7 +232,7 @@ export function PhotoImportModal({ picked, onCancel, onConfirm }: Props) {
               <>
                 <View className="mt-4 h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
                   <View
-                    className="h-2 rounded-full bg-blue-500"
+                    className="h-2 rounded-full bg-accent-500"
                     style={{
                       width: `${progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0}%`,
                     }}
@@ -256,7 +258,7 @@ function Badge({ icon, tone }: { icon: 'pricetag' | 'location'; tone: 'emerald' 
   return (
     <View
       className={`h-5 w-5 items-center justify-center rounded-full ${
-        tone === 'emerald' ? 'bg-emerald-600' : 'bg-blue-600'
+        tone === 'emerald' ? 'bg-emerald-600' : 'bg-accent-600'
       }`}
     >
       <Ionicons name={icon} size={11} color="white" />

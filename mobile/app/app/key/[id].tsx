@@ -66,6 +66,7 @@ import { useToast } from '~/stores/toast';
 import { ACTION_FILL } from '~/lib/colors';
 import { useInstalledDatasets } from '~/lib/datasetInstall';
 import { stampNewRecord } from '~/lib/recordFix';
+import { useThemeColors } from '~/theme/colors';
 
 type LeadKey = 'a' | 'b';
 
@@ -222,6 +223,7 @@ function buildLeadPreview(
 }
 
 export default function KeyRunnerScreen() {
+  const tc = useThemeColors();
   const { t: tr } = useTranslation();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -542,7 +544,7 @@ export default function KeyRunnerScreen() {
     return (
       <SafeAreaView
         edges={['top']}
-        className="flex-1 items-center justify-center bg-white px-8 dark:bg-gray-900"
+        className="flex-1 items-center justify-center bg-card px-8 dark:bg-gray-900"
       >
         <Stack.Screen options={{ title: tr('nav.key'), headerLeft: BackHeaderLeft }} />
         <Text className="text-center text-sm text-gray-500 dark:text-gray-400">
@@ -555,7 +557,7 @@ export default function KeyRunnerScreen() {
     return (
       <SafeAreaView
         edges={['top']}
-        className="flex-1 items-center justify-center bg-white dark:bg-gray-900"
+        className="flex-1 items-center justify-center bg-card dark:bg-gray-900"
       >
         <Stack.Screen options={{ title: tr('nav.key'), headerLeft: BackHeaderLeft }} />
         <Text className="text-sm text-gray-500 dark:text-gray-400">{tr('common.loading')}</Text>
@@ -567,7 +569,7 @@ export default function KeyRunnerScreen() {
     return (
       <SafeAreaView
         edges={['top']}
-        className="flex-1 items-center justify-center bg-white dark:bg-gray-900"
+        className="flex-1 items-center justify-center bg-card dark:bg-gray-900"
       >
         <Stack.Screen options={{ title: tr('nav.key'), headerLeft: BackHeaderLeft }} />
         <Text className="text-sm text-gray-500 dark:text-gray-400">{tr('keys.keyNotFound')}</Text>
@@ -586,7 +588,7 @@ export default function KeyRunnerScreen() {
     return (
       <SafeAreaView
         edges={['top']}
-        className="flex-1 items-center justify-center bg-white dark:bg-gray-900"
+        className="flex-1 items-center justify-center bg-card dark:bg-gray-900"
       >
         <Stack.Screen options={{ title: keyData.scope_name, headerLeft: BackHeaderLeft }} />
         <Text className="text-sm text-gray-500 dark:text-gray-400">{tr('keys.noNodes')}</Text>
@@ -687,14 +689,14 @@ export default function KeyRunnerScreen() {
 
       {!state.terminal && state.path.length > 1 ? (
         <View
-          className="border-t border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900"
+          className="border-t border-gray-200 bg-card dark:border-gray-700 dark:bg-gray-900"
           style={{ paddingBottom: insets.bottom }}
         >
           <Pressable
             onPress={goBack}
             className="flex-row items-center justify-center py-3 active:bg-gray-100 dark:active:bg-gray-700"
           >
-            <Ionicons name="arrow-back" size={16} color="#374151" />
+            <Ionicons name="arrow-back" size={16} color={tc.ink} />
             <Text className="ml-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">
               {tr('keys.prevStep')}
             </Text>
@@ -754,13 +756,14 @@ function Breadcrumb({
    *  losing their place. */
   onLongPressStep: (coupletNumber: number) => void;
 }) {
+  const c = useThemeColors();
   const { t: tr } = useTranslation();
   if (path.length === 0) return null;
   return (
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
-      className="border-b border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-900"
+      className="border-b border-gray-100 bg-card dark:border-gray-800 dark:bg-gray-900"
       // ScrollView defaults to flexGrow: 1, which would steal vertical space
       // from the main content ScrollView below. Force it to wrap its content.
       style={{ flexGrow: 0, flexShrink: 0 }}
@@ -793,7 +796,7 @@ function Breadcrumb({
               <Ionicons
                 name="chevron-forward"
                 size={10}
-                color="#9ca3af"
+                color={c.ink3}
                 style={{ marginHorizontal: 2 }}
               />
             ) : null}
@@ -805,10 +808,10 @@ function Breadcrumb({
           <Ionicons
             name="chevron-forward"
             size={10}
-            color="#9ca3af"
+            color={c.ink3}
             style={{ marginHorizontal: 2 }}
           />
-          <View className="rounded-full bg-blue-500 px-2 py-0.5">
+          <View className="rounded-full bg-accent-500 px-2 py-0.5">
             <Text className="text-[11px] font-semibold text-white">{tr('keys.terminal')}</Text>
           </View>
         </View>
@@ -830,6 +833,7 @@ function CoupletView({
   reachableCount: number;
   onPeekCandidates: () => void;
 }) {
+  const c = useThemeColors();
   const { t: tr } = useTranslation();
   return (
     <View className="px-4 pt-3">
@@ -842,7 +846,7 @@ function CoupletView({
             onPress={onPeekCandidates}
             className="flex-row items-center rounded-full bg-gray-100 px-2.5 py-1 active:bg-gray-200 dark:bg-gray-800 dark:active:bg-gray-700"
           >
-            <Ionicons name="list" size={12} color="#6b7280" />
+            <Ionicons name="list" size={12} color={c.ink2} />
             <Text className="ml-1 text-[11px] font-medium text-gray-700 dark:text-gray-300">
               {tr('keys.uncertainSeeCandidates', { count: reachableCount })}
             </Text>
@@ -885,7 +889,7 @@ function LeadButton({
   return (
     <Pressable
       onPress={onPress}
-      className="rounded-xl border border-gray-200 bg-white px-4 py-4 active:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:active:bg-gray-800"
+      className="rounded-xl border border-gray-200 bg-card px-4 py-4 active:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:active:bg-gray-800"
     >
       <View className="flex-row items-baseline">
         <View className="mr-2 h-7 w-7 items-center justify-center rounded-full bg-emerald-500">
@@ -904,7 +908,7 @@ function LeadPreviewLine({ preview }: { preview: LeadPreview }) {
   const { t: tr } = useTranslation();
   if (preview.kind === 'couplet') {
     return (
-      <Text className="mt-2 text-xs font-medium text-blue-600 dark:text-blue-400">
+      <Text className="mt-2 text-xs font-medium text-accent-600 dark:text-accent-400">
         {tr('keys.toCoupletN', { n: preview.coupletNumber })}
       </Text>
     );
@@ -1013,8 +1017,8 @@ function TerminalTaxon({
   if (marker)
     tags.push({
       label: marker,
-      bg: 'bg-blue-100 dark:bg-blue-900/60',
-      text: 'text-blue-700 dark:text-blue-300',
+      bg: 'bg-accent-100 dark:bg-accent-900/60',
+      text: 'text-accent-700 dark:text-accent-300',
     });
 
   return (
@@ -1116,19 +1120,19 @@ function SubkeyButton({
   return (
     <Pressable
       onPress={onPress}
-      className="mt-3 flex-row items-center rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 active:bg-blue-100 dark:border-blue-800 dark:bg-blue-950/40 dark:active:bg-blue-900/60"
+      className="mt-3 flex-row items-center rounded-xl border border-accent-200 bg-accent-50 px-4 py-3 active:bg-accent-100 dark:border-accent-800 dark:bg-accent-950/40 dark:active:bg-accent-900/60"
     >
-      <View className="mr-3 h-9 w-9 items-center justify-center rounded-lg bg-blue-500">
+      <View className="mr-3 h-9 w-9 items-center justify-center rounded-lg bg-accent-500">
         <Ionicons name="key" size={18} color="white" />
       </View>
       <View className="flex-1">
         <View className="flex-row flex-wrap items-center">
-          <Text className="text-xs font-medium text-blue-700 dark:text-blue-300">
+          <Text className="text-xs font-medium text-accent-700 dark:text-accent-300">
             {tr('keys.continueSubkey', { rank: subkeyRankLabel(subkey.scope_rank) })}
           </Text>
           {showModeBadge ? (
-            <View className="ml-2 rounded bg-blue-200 px-1.5 py-0.5 dark:bg-blue-800/80">
-              <Text className="text-[10px] font-medium text-blue-800 dark:text-blue-200">
+            <View className="ml-2 rounded bg-accent-200 px-1.5 py-0.5 dark:bg-accent-800/80">
+              <Text className="text-[10px] font-medium text-accent-800 dark:text-accent-200">
                 {subkeyModeLabel(subkey.mode)}
               </Text>
             </View>
@@ -1179,7 +1183,7 @@ function AddToActiveRecordButton({
       onPress={onPress}
       className={`mt-3 flex-row items-center rounded-xl px-4 py-3 ${ACTION_FILL}`}
     >
-      <View className="mr-3 h-9 w-9 items-center justify-center rounded-lg bg-white/20">
+      <View className="mr-3 h-9 w-9 items-center justify-center rounded-lg bg-card/20">
         <Ionicons name="add" size={20} color="white" />
       </View>
       <View className="flex-1">
@@ -1213,6 +1217,7 @@ function UnresolvedTerminal({ rawId, onBack }: { rawId: string | null; onBack: (
 }
 
 function FooterButtons({ onBack, onRestart }: { onBack: () => void; onRestart?: () => void }) {
+  const c = useThemeColors();
   const { t: tr } = useTranslation();
   return (
     <View className="mt-4 flex-row gap-3">
@@ -1220,7 +1225,7 @@ function FooterButtons({ onBack, onRestart }: { onBack: () => void; onRestart?: 
         onPress={onBack}
         className="flex-1 flex-row items-center justify-center rounded-lg bg-gray-200 py-3 active:bg-gray-300 dark:bg-gray-700 dark:active:bg-gray-600"
       >
-        <Ionicons name="arrow-back" size={14} color="#374151" />
+        <Ionicons name="arrow-back" size={14} color={c.ink} />
         <Text className="ml-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">
           {tr('keys.prevStep')}
         </Text>
@@ -1287,7 +1292,7 @@ function CandidatesSheet({
         />
         <View
           style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '80%' }}
-          className="rounded-t-2xl bg-white dark:bg-gray-900"
+          className="rounded-t-2xl bg-card dark:bg-gray-900"
         >
           <SafeAreaView edges={['bottom']} className="flex-1">
             <View className="items-center pt-2">
@@ -1389,6 +1394,7 @@ function CoupletPreviewPopup({
   couplet: KeyCouplet | null;
   onClose: () => void;
 }) {
+  const c = useThemeColors();
   const { t: tr } = useTranslation();
   if (!couplet) return null;
   return (
@@ -1407,7 +1413,7 @@ function CoupletPreviewPopup({
          * close the popup; only the backdrop does. */}
         <Pressable
           onPress={() => {}}
-          className="w-full max-w-md rounded-2xl bg-white p-4 shadow-2xl dark:bg-gray-900"
+          className="w-full max-w-md rounded-2xl bg-card p-4 shadow-2xl dark:bg-gray-900"
           style={{ maxWidth: 480 }}
         >
           <View className="mb-3 flex-row items-center justify-between">
@@ -1415,7 +1421,7 @@ function CoupletPreviewPopup({
               {tr('keys.coupletN', { n: couplet.number })}
             </Text>
             <Pressable onPress={onClose} hitSlop={8}>
-              <Ionicons name="close" size={20} color="#6b7280" />
+              <Ionicons name="close" size={20} color={c.ink2} />
             </Pressable>
           </View>
           <PreviewLead label="A" text={couplet.lead_a_text} />

@@ -19,11 +19,12 @@ import { VEG_ZONES } from '../model/vegZones';
 import { useActiveGloria } from '../store';
 import type { SurveyState } from '../useSurvey';
 import { Card, Label, NumField } from './ui';
+import { useThemeColors } from '~/theme/colors';
 
 export { VEG_ZONES } from '../model/vegZones';
 
 const INPUT =
-  'rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100';
+  'rounded-md border border-gray-300 bg-card px-2 py-1.5 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100';
 
 /** The summit's own fields — used on the base-data tab and the summit list's editor. */
 export function SummitFields({
@@ -36,6 +37,7 @@ export function SummitFields({
   /** A row placed right after the code (the survey's mocy on the base-data tab). */
   afterCode?: (field: (label: string, input: React.ReactNode) => React.ReactNode) => React.ReactNode;
 }) {
+  const c = useThemeColors();
   const { t } = useTranslation();
   const patch = (p: SummitPatch) => {
     updateSummit(s.id, p);
@@ -67,7 +69,7 @@ export function SummitFields({
             if (v !== s.name) patch({ name: v });
           }}
           placeholder={t('gloria.summit.namePlaceholder')}
-          placeholderTextColor="#9ca3af"
+          placeholderTextColor={c.ink3}
           accessibilityLabel={t('gloria.summit.name')}
           className={`${INPUT} w-44`}
         />,
@@ -122,6 +124,7 @@ export function SummitForm({ state, reload }: { state: SurveyState; reload: () =
 }
 
 function OverviewPhotos({ state, reload }: { state: SurveyState; reload: () => void }) {
+  const c = useThemeColors();
   const { t } = useTranslation();
   const photos = parseOverviewPhotos(state.survey.overview_photos);
   const [viewer, setViewer] = useState<number | null>(null);
@@ -166,7 +169,7 @@ function OverviewPhotos({ state, reload }: { state: SurveyState; reload: () => v
                 if (v !== p.viewpoint) save(photos.map((x) => (x.uri === p.uri ? { ...x, viewpoint: v } : x)));
               }}
               placeholder={t('gloria.summit.viewpoint')}
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={c.ink3}
               accessibilityLabel={t('gloria.summit.viewpointLabel', { n: i + 1 })}
               className={`${INPUT} flex-1`}
             />

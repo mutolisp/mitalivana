@@ -2533,7 +2533,7 @@
     },
     "p5m": {
       "title": "{{direction}} · 3×3 m grid (facing the summit)",
-      "explain": "p5m is the outer corner of {{point}}, on the 5-m contour (teal line). The 3×3 m grid for this direction is laid out from it.",
+      "explain": "p5m is the outer corner of {{point}}, on the 5-m contour (green line). The 3×3 m grid for this direction is laid out from it.",
       "notSet": "No p5m set for {{direction}} yet: pick 11 or 31 under Base data."
     },
     "new": {
@@ -2560,7 +2560,7 @@
       "start": "Start survey"
     },
     "points": {
-      "carried": "Measurement points are carried from last time; fields that now differ are tinted teal.",
+      "carried": "Measurement points are carried from last time; fields that now differ are tinted green.",
       "whereP5m": "Where is p5m?",
       "point": "Point",
       "distance": "Dist. m",

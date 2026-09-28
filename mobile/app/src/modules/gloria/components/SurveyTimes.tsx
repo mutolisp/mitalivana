@@ -186,9 +186,9 @@ export function SurveyTimes({
                 onPress={() => save(p, col, unit[p.start] as number)}
                 accessibilityRole="button"
                 accessibilityLabel={`${p.label} ${label}`}
-                className="rounded-lg border border-dashed border-[#00A2A5] px-3 py-2"
+                className="rounded-lg border border-dashed border-accent-600 px-3 py-2"
               >
-                <Text className="text-xs text-[#00797b] dark:text-cyan-300">
+                <Text className="text-xs text-accent-700 dark:text-accent-300">
                   {t('gloria.times.sameAsStart', {
                     // A date-only start has no time to copy.
                     time: isoStamp(unit[p.start] as number).slice(0, p.start === 'start_ts' && unit.date_only === 1 ? 10 : 16),

@@ -19,6 +19,7 @@ import { clearTaxonomyCache } from '~/db';
 import { getEnabledRegions } from '~/db/regions';
 import { MAX_VERNACULAR_LANGS, VERNACULAR_LANGS } from '~/db/mergeScope';
 import { useSettings, type VernacularLang } from '~/stores/settings';
+import { useThemeColors } from '~/theme/colors';
 
 const LABEL: Record<VernacularLang, { name: string; source: string }> = {
   'zh-TW': { name: 'vernacular.zhTW', source: 'vernacular.zhTWSource' },
@@ -26,6 +27,7 @@ const LABEL: Record<VernacularLang, { name: string; source: string }> = {
 };
 
 export default function VernacularScreen() {
+  const c = useThemeColors();
   const { t } = useTranslation();
   const langs = useSettings((s) => s.vernacular_langs);
   const setSetting = useSettings((s) => s.set);
@@ -62,7 +64,7 @@ export default function VernacularScreen() {
   const row = (lang: VernacularLang, i: number | null) => {
     const on = i != null;
     return (
-      <View key={lang} className="flex-row items-center border-b border-gray-100 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
+      <View key={lang} className="flex-row items-center border-b border-gray-100 bg-card px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
         <Pressable
           onPress={() => toggle(lang)}
           accessibilityRole="checkbox"
@@ -70,7 +72,7 @@ export default function VernacularScreen() {
           accessibilityLabel={t(LABEL[lang].name)}
           className="flex-1 flex-row items-center"
         >
-          <Ionicons name={on ? 'checkbox' : 'square-outline'} size={22} color={on ? '#00A2A5' : '#9ca3af'} />
+          <Ionicons name={on ? 'checkbox' : 'square-outline'} size={22} color={on ? c.accent : c.ink3} />
           <View className="ml-3 flex-1">
             <Text className="text-base text-gray-900 dark:text-gray-100">
               {on && chosen.length > 1 ? `${i + 1}. ` : ''}

@@ -20,11 +20,11 @@ import {
   Linking,
   Modal,
   Pressable,
-  Switch,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { Switch } from '~/components/ui/Switch';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SettingsPage } from '~/components/settings/SettingsPage';
 import { promptText } from '~/components/TextPromptModal';
@@ -72,8 +72,10 @@ import {
 import { formatBytes } from '~/lib/exportSize';
 import { clearSearchResultCache } from '~/components/SearchBox';
 import { ACTION_FILL } from '~/lib/colors';
+import { useThemeColors } from '~/theme/colors';
 
 export default function RegionPacksScreen() {
+  const c = useThemeColors();
   const { t, i18n } = useTranslation();
   const toast = useToast((s) => s.show);
   const settings = useSettings();
@@ -497,13 +499,13 @@ export default function RegionPacksScreen() {
     const canAct = entry !== null && !busy && !isDatasetInstallRunning() && blockedBy.length === 0;
 
     const body = (
-      <View className="border-b border-gray-100 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
+      <View className="border-b border-gray-100 bg-card px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
         <View className="flex-row items-center">
           <View className="flex-1 pr-3">
             <Text className="text-base font-medium text-gray-900 dark:text-gray-100">
               {datasetName(id)}
               {updatable ? (
-                <Text className="text-xs text-blue-600 dark:text-blue-400">
+                <Text className="text-xs text-accent-600 dark:text-accent-400">
                   {' '}
                   {t('datasets.updateAvailable')}
                 </Text>
@@ -527,7 +529,7 @@ export default function RegionPacksScreen() {
         {busy && dsProgress ? (
           <View className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
             <View
-              className="h-1.5 rounded-full bg-blue-500"
+              className="h-1.5 rounded-full bg-accent-500"
               style={{
                 width: `${
                   dsProgress.phase === 'download'
@@ -554,7 +556,7 @@ export default function RegionPacksScreen() {
               </Pressable>
             ) : (
               <Pressable onPress={() => void startDatasetInstall(entry!)} hitSlop={8}>
-                <Text className="text-sm font-medium text-blue-600 dark:text-blue-400">
+                <Text className="text-sm font-medium text-accent-600 dark:text-accent-400">
                   {actionLabel}
                 </Text>
               </Pressable>
@@ -609,7 +611,7 @@ export default function RegionPacksScreen() {
               : undefined
           }
           delayLongPress={350}
-          className="border-b border-gray-100 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900"
+          className="border-b border-gray-100 bg-card px-4 py-3 dark:border-gray-800 dark:bg-gray-900"
         >
           <View className="flex-row items-center">
             <View className="flex-1">
@@ -670,19 +672,19 @@ export default function RegionPacksScreen() {
       {searchable ? (
         <View className="border-b border-gray-100 px-4 py-2 dark:border-gray-800">
           <View className="flex-row items-center rounded-full bg-gray-100 px-3 py-2 dark:bg-gray-800">
-            <Ionicons name="search" size={16} color="#6b7280" />
+            <Ionicons name="search" size={16} color={c.ink2} />
             <TextInput
               value={filter}
               onChangeText={setFilter}
               placeholder={t('regionPacks.filterPlaceholder')}
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={c.ink3}
               autoCapitalize="none"
               autoCorrect={false}
               className="ml-2 flex-1 text-sm text-gray-900 dark:text-gray-100"
             />
             {filter ? (
               <Pressable onPress={() => setFilter('')} hitSlop={8}>
-                <Ionicons name="close-circle" size={16} color="#9ca3af" />
+                <Ionicons name="close-circle" size={16} color={c.ink3} />
               </Pressable>
             ) : null}
           </View>
@@ -730,7 +732,7 @@ export default function RegionPacksScreen() {
                 // Nested-Text link: opens GBIF's login/register page in the
                 // browser for users without an account yet.
                 onPress={() => void Linking.openURL('https://www.gbif.org/user/profile')}
-                className="text-blue-600 dark:text-blue-400"
+                className="text-accent-600 dark:text-accent-400"
               >
                 {t('regionPacks.introRegister')}
               </Text>
@@ -742,8 +744,8 @@ export default function RegionPacksScreen() {
               className="mt-2 flex-row items-center"
               accessibilityRole="link"
             >
-              <Ionicons name="open-outline" size={14} color="#2563eb" />
-              <Text className="ml-1 text-xs text-blue-600 dark:text-blue-400">
+              <Ionicons name="open-outline" size={14} color={c.accent} />
+              <Text className="ml-1 text-xs text-accent-600 dark:text-accent-400">
                 {t('regionPacks.openGbifWeb')}
               </Text>
             </Pressable>
@@ -791,6 +793,7 @@ function CountryPickerModal({
   onClose: () => void;
   onPick: (c: Country) => void;
 }) {
+  const tc = useThemeColors();
   const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
   const [q, setQ] = useState('');
@@ -811,13 +814,13 @@ function CountryPickerModal({
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <View style={{ paddingTop: insets.top }} className="flex-1 bg-white dark:bg-gray-900">
+      <View style={{ paddingTop: insets.top }} className="flex-1 bg-card dark:bg-gray-900">
         <View className="flex-row items-center border-b border-gray-100 px-4 py-3 dark:border-gray-800">
           <Text className="flex-1 text-base font-semibold text-gray-900 dark:text-gray-100">
             {t('regionPacks.pickCountry')}
           </Text>
           <Pressable onPress={onClose} hitSlop={10} accessibilityLabel={t('common.cancel')}>
-            <Ionicons name="close" size={22} color="#6b7280" />
+            <Ionicons name="close" size={22} color={tc.ink2} />
           </Pressable>
         </View>
         <View className="px-4 py-2">
@@ -825,9 +828,9 @@ function CountryPickerModal({
             value={q}
             onChangeText={setQ}
             placeholder={t('regionPacks.searchCountry')}
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor={tc.ink3}
             autoCapitalize="none"
-            className="rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-base text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+            className="rounded-lg border border-gray-300 bg-card px-3 py-2.5 text-base text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
           />
         </View>
         <FlatList
@@ -837,7 +840,7 @@ function CountryPickerModal({
           renderItem={({ item }) => (
             <Pressable
               onPress={() => onPick(item)}
-              className="flex-row items-center border-b border-gray-100 px-4 py-3 active:bg-blue-50 dark:border-gray-800 dark:active:bg-blue-900/40"
+              className="flex-row items-center border-b border-gray-100 px-4 py-3 active:bg-accent-50 dark:border-gray-800 dark:active:bg-accent-900/40"
             >
               <Text className="flex-1 text-base text-gray-900 dark:text-gray-100">
                 {zh ? item.zh : item.en}
@@ -864,18 +867,19 @@ function GroupChooserModal({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  const c = useThemeColors();
   const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
   const coarse = chosen.has('Reptilia') || chosen.has('Actinopterygii');
   return (
     <Modal visible={country != null} animationType="slide" onRequestClose={onCancel}>
-      <View style={{ paddingTop: insets.top }} className="flex-1 bg-white dark:bg-gray-900">
+      <View style={{ paddingTop: insets.top }} className="flex-1 bg-card dark:bg-gray-900">
         <View className="flex-row items-center border-b border-gray-100 px-4 py-3 dark:border-gray-800">
           <Text className="flex-1 text-base font-semibold text-gray-900 dark:text-gray-100">
             {country ? countryName(country.code, i18n.language) : ''}
           </Text>
           <Pressable onPress={onCancel} hitSlop={10} accessibilityLabel={t('common.cancel')}>
-            <Ionicons name="close" size={22} color="#6b7280" />
+            <Ionicons name="close" size={22} color={c.ink2} />
           </Pressable>
         </View>
         <View className="px-4 py-3">
@@ -894,8 +898,8 @@ function GroupChooserModal({
                   onPress={() => onToggle(k)}
                   className={`rounded-full border px-3 py-1.5 ${
                     on
-                      ? 'border-blue-500 bg-blue-500'
-                      : 'border-gray-300 bg-white dark:border-gray-600 dark:bg-gray-800'
+                      ? 'border-accent-500 bg-accent-500'
+                      : 'border-gray-300 bg-card dark:border-gray-600 dark:bg-gray-800'
                   }`}
                 >
                   <Text

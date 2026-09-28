@@ -40,7 +40,8 @@ import { promptText } from '~/components/TextPromptModal';
 import { SwipeRowActions, type SwipeAction } from '~/components/SwipeRowActions';
 import { HeaderIconButton } from '~/components/HeaderIconButton';
 import { BackHeaderLeft } from '~/lib/goBack';
-import { ACCENT, ACTION_FILL } from '~/lib/colors';
+import { ACTION_FILL } from '~/lib/colors';
+import { useThemeColors } from '~/theme/colors';
 
 type ExportFormat = 'geojson' | 'kml' | 'gpx' | 'wkt';
 
@@ -49,8 +50,10 @@ type ExportFormat = 'geojson' | 'kml' | 'gpx' | 'wkt';
 const SEARCH_THRESHOLD = 10;
 
 /** A place that belongs to a record — a 樣區's coordinates or boundary, or a
- *  shape a 名錄 holds. Same teal as the map draws them in. */
-const RECORD_TINT = ACCENT;
+ *  shape a 名錄 holds. Same teal as the map draws them in: must equal
+ *  PLOT_COLOR in app/(tabs)/map.tsx. A data colour, so it does not follow the
+ *  UI accent. */
+const RECORD_TINT = '#00A2A5';
 /** A standalone place: drawn or imported by hand, owned by no record. */
 const STANDALONE_TINT = '#74AB00';
 /** UI chrome (checkboxes, the group share icon). Deliberately neither of the
@@ -91,6 +94,7 @@ function formatTime(ts: number): string {
 }
 
 export default function SitesScreen() {
+  const c = useThemeColors();
   const { t } = useTranslation();
   const router = useRouter();
   const toast = useToast((s) => s.show);
@@ -395,13 +399,13 @@ export default function SitesScreen() {
       <Pressable
         onPress={() => (selectMode ? togglePick(r.key) : handleJumpTo(r))}
         onLongPress={() => (selectMode ? undefined : handleLongPress(r))}
-        className="flex-row items-center border-b border-gray-100 bg-white px-4 py-3 active:bg-gray-50 dark:border-gray-800 dark:bg-gray-900 dark:active:bg-gray-800"
+        className="flex-row items-center border-b border-gray-100 bg-card px-4 py-3 active:bg-gray-50 dark:border-gray-800 dark:bg-gray-900 dark:active:bg-gray-800"
       >
         {selectMode ? (
           <Ionicons
             name={checked ? 'checkbox' : 'square-outline'}
             size={20}
-            color={checked ? CHROME_TINT : '#9ca3af'}
+            color={checked ? CHROME_TINT : c.ink3}
             style={{ marginRight: 12 }}
           />
         ) : (
@@ -419,7 +423,7 @@ export default function SitesScreen() {
             </Text>
           ) : null}
         </View>
-        <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
+        <Ionicons name="chevron-forward" size={16} color={c.ink3} />
       </Pressable>
     );
     // A derived row has no row of its own to delete — its coordinates belong
@@ -474,7 +478,7 @@ export default function SitesScreen() {
 
       {rows.length === 0 ? (
         <View className="flex-1 items-center justify-center px-6">
-          <Ionicons name="map-outline" size={64} color="#9ca3af" />
+          <Ionicons name="map-outline" size={64} color={c.ink3} />
           <Text className="mt-4 text-lg font-medium text-gray-700 dark:text-gray-300">
             {t('sites.empty')}
           </Text>
@@ -491,13 +495,13 @@ export default function SitesScreen() {
       ) : (
         <>
           {selectMode ? (
-            <View className="flex-row items-center justify-between border-b border-gray-200 bg-white px-4 py-2 dark:border-gray-700 dark:bg-gray-900">
+            <View className="flex-row items-center justify-between border-b border-gray-200 bg-card px-4 py-2 dark:border-gray-700 dark:bg-gray-900">
               <Text className="text-sm text-gray-500 dark:text-gray-400">
                 {t('sites.selectedCount', { count: picked.size })}
               </Text>
               <View className="flex-row items-center gap-3">
                 <Pressable onPress={toggleSelectAll} hitSlop={8}>
-                  <Text className="text-sm text-blue-600 dark:text-blue-400">
+                  <Text className="text-sm text-accent-600 dark:text-accent-400">
                     {allVisiblePicked ? t('sites.deselectAll') : t('sites.selectAll')}
                   </Text>
                 </Pressable>
@@ -510,7 +514,7 @@ export default function SitesScreen() {
                     className={`text-sm font-medium ${
                       picked.size === 0
                         ? 'text-gray-300 dark:text-gray-600'
-                        : 'text-blue-600 dark:text-blue-400'
+                        : 'text-accent-600 dark:text-accent-400'
                     }`}
                   >
                     {t('common.export')}
@@ -521,7 +525,7 @@ export default function SitesScreen() {
                     className={`text-sm font-medium ${
                       picked.size === 0
                         ? 'text-gray-300 dark:text-gray-600'
-                        : 'text-blue-600 dark:text-blue-400'
+                        : 'text-accent-600 dark:text-accent-400'
                     }`}
                   >
                     {t('sites.move')}
@@ -548,19 +552,19 @@ export default function SitesScreen() {
           ) : null}
 
           {showSearch ? (
-            <View className="flex-row items-center border-b border-gray-200 bg-white px-4 py-2 dark:border-gray-700 dark:bg-gray-900">
-              <Ionicons name="search" size={16} color="#9ca3af" />
+            <View className="flex-row items-center border-b border-gray-200 bg-card px-4 py-2 dark:border-gray-700 dark:bg-gray-900">
+              <Ionicons name="search" size={16} color={c.ink3} />
               <TextInput
                 value={filter}
                 onChangeText={setFilter}
                 placeholder={t('sites.searchPlaceholder')}
-                placeholderTextColor="#9ca3af"
+                placeholderTextColor={c.ink3}
                 autoCapitalize="none"
                 className="ml-2 flex-1 py-1 text-base text-gray-900 dark:text-gray-100"
               />
               {filter ? (
                 <Pressable onPress={() => setFilter('')} hitSlop={8}>
-                  <Ionicons name="close-circle" size={18} color="#9ca3af" />
+                  <Ionicons name="close-circle" size={18} color={c.ink3} />
                 </Pressable>
               ) : null}
             </View>
@@ -599,7 +603,7 @@ export default function SitesScreen() {
                       <Ionicons
                         name={collapsed ? 'chevron-forward' : 'chevron-down'}
                         size={14}
-                        color="#6b7280"
+                        color={c.ink2}
                         style={{ marginRight: 4 }}
                       />
                       <Text className="flex-1 text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-400">

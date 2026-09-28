@@ -14,7 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { useTranslation } from 'react-i18next';
 
-import { useThemeColors } from '~/hooks/useThemeColors';
+import { useThemeColors } from '~/theme/colors';
 import { Pressable, Text } from 'react-native';
 import { BASEMAP_LABEL_KEY } from '~/lib/basemap';
 import type { MapBasemap } from '~/stores/settings';
@@ -88,7 +88,7 @@ export function CtrlButton({
       hitSlop={6}
       accessibilityRole="button"
       accessibilityLabel={label}
-      className="h-8 w-8 items-center justify-center rounded-md bg-white/90 active:bg-white dark:bg-gray-900/90"
+      className="h-8 w-8 items-center justify-center rounded-md bg-card/90 active:bg-card dark:bg-gray-900/90"
     >
       <Ionicons name={icon} size={18} color={overlayIcon} />
     </Pressable>
@@ -98,11 +98,11 @@ export function CtrlButton({
 /** Cycles standard → satellite → hybrid; the label names the CURRENT one. */
 export function BasemapToggle({ basemap, onPress }: { basemap: MapBasemap; onPress: () => void }) {
   const { t } = useTranslation();
-  const { overlayAccent } = useThemeColors();
+  const { accent: overlayAccent } = useThemeColors();
   return (
     <Pressable
       onPress={onPress}
-      className="flex-row items-center rounded-md bg-white/90 px-2 py-1 dark:bg-gray-900/90"
+      className="flex-row items-center rounded-md bg-card/90 px-2 py-1 dark:bg-gray-900/90"
       accessibilityRole="button"
     >
       <Ionicons name="layers-outline" size={13} color={overlayAccent} />

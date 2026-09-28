@@ -36,10 +36,12 @@ import { Btn, Card, Label, NumAccessory, Seg } from '~/modules/gloria/components
 import { chooseEndTime } from '~/lib/endTimeChoice';
 import { saveVersionSoon } from '~/db/recordVersions';
 import { useVersionOnLeave } from '~/lib/useVersionOnLeave';
+import { useThemeColors } from '~/theme/colors';
 
 type Tab = 'points' | 'map' | 'species' | 'photos' | 'loggers';
 
 export default function GloriaSurveyScreen() {
+  const tc = useThemeColors();
   const { t } = useTranslation();
   const router = useRouter();
   const id = Number(useLocalSearchParams<{ id: string }>().id);
@@ -117,7 +119,7 @@ export default function GloriaSurveyScreen() {
               <Pressable
                 key={c}
                 onPress={() => openUnit(c)}
-                className="mb-1.5 mr-1.5 flex-row items-center rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 active:bg-gray-50 dark:border-gray-800 dark:bg-gray-900"
+                className="mb-1.5 mr-1.5 flex-row items-center rounded-lg border border-gray-200 bg-card px-2.5 py-1.5 active:bg-gray-50 dark:border-gray-800 dark:bg-gray-900"
               >
                 <View className="mr-1.5 h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: STATUS_COLOR[state.statusOf(c)] }} />
                 <Text className="text-xs font-semibold text-gray-900 dark:text-gray-100">{c}</Text>
@@ -192,10 +194,10 @@ export default function GloriaSurveyScreen() {
                 }
               }}
               placeholder={t('gloria.notes.placeholder')}
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={tc.ink3}
               multiline
               accessibilityLabel={t('gloria.notes.title')}
-              className="min-h-[96px] rounded-lg border border-gray-300 bg-white p-2.5 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+              className="min-h-[96px] rounded-lg border border-gray-300 bg-card p-2.5 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
               style={{ textAlignVertical: 'top' }}
             />
             <FormScans state={state} reload={reload} form="1" />
@@ -206,9 +208,9 @@ export default function GloriaSurveyScreen() {
           <>
             <View className="flex-row flex-wrap gap-1.5">
               {(['E', 'N', 'S', 'W'] as const).map((d) => (
-                <Pressable key={d} onPress={() => setHelp(d)} className="rounded-lg border border-gray-300 bg-white px-2.5 py-1 dark:border-gray-700 dark:bg-gray-900">
+                <Pressable key={d} onPress={() => setHelp(d)} className="rounded-lg border border-gray-300 bg-card px-2.5 py-1 dark:border-gray-700 dark:bg-gray-900">
                   <Text className="text-xs text-gray-700 dark:text-gray-300">
-                    p5m <Text className="font-bold text-[#00797b] dark:text-cyan-300">{state.p5m[d] ? d + state.p5m[d] : `${d}?`}</Text>
+                    p5m <Text className="font-bold text-accent-700 dark:text-accent-300">{state.p5m[d] ? d + state.p5m[d] : `${d}?`}</Text>
                   </Text>
                 </Pressable>
               ))}
@@ -242,7 +244,7 @@ export default function GloriaSurveyScreen() {
                   >
                     <Text className="w-12 text-xs font-bold text-red-600 dark:text-red-400">{i.unit}</Text>
                     <Text className="flex-1 text-xs text-gray-700 dark:text-gray-300">{issueText(t, i)}</Text>
-                    <Ionicons name="chevron-forward" size={14} color="#9ca3af" />
+                    <Ionicons name="chevron-forward" size={14} color={tc.ink3} />
                   </Pressable>
                 ))}
               </Card>
@@ -274,7 +276,7 @@ export default function GloriaSurveyScreen() {
         // Anchored in the screen, not a Modal: nothing to type here, and a
         // Modal would sit above the app's toast host.
         <Pressable onPress={() => setHelp(null)} className="absolute inset-0 justify-end bg-black/35">
-          <Pressable onPress={() => undefined} className="gap-2 rounded-t-2xl bg-white p-4 pb-8 dark:bg-gray-900">
+          <Pressable onPress={() => undefined} className="gap-2 rounded-t-2xl bg-card p-4 pb-8 dark:bg-gray-900">
             <View className="flex-row items-center">
               <Text className="flex-1 text-base font-bold text-gray-900 dark:text-gray-100">
                 {t('gloria.p5m.title', { direction: help })}

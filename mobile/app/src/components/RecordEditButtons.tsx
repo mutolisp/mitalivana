@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { Text, View } from 'react-native';
 import { HeaderIconButton } from '~/components/HeaderIconButton';
 import type { RecordEditing } from '~/lib/useRecordEditing';
+import { useThemeColors } from '~/theme/colors';
 
 export function RecordEditButtons({
   edit,
@@ -57,10 +58,11 @@ export function RecordEditButtons({
 
 /** Shown above a locked record's fields, which then take no touches. */
 export function LockedBanner() {
+  const c = useThemeColors();
   const { t } = useTranslation();
   return (
     <View className="mx-4 mt-3 flex-row items-center rounded-lg border border-gray-200 bg-gray-100 px-3 py-2 dark:border-gray-700 dark:bg-gray-800">
-      <Ionicons name="lock-closed" size={14} color="#6b7280" />
+      <Ionicons name="lock-closed" size={14} color={c.ink2} />
       <Text className="ml-2 flex-1 text-xs text-gray-600 dark:text-gray-300">
         {t('recordLock.banner')}
       </Text>

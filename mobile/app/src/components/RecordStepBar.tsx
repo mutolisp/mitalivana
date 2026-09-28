@@ -22,6 +22,7 @@ import { useFocusEffect, useRouter, type Href } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { listRecords, type RecordItem, type RecordKind } from '~/db/records_list';
+import { useThemeColors } from '~/theme/colors';
 
 const ROUTE: Record<RecordKind, string> = {
   session: '/session',
@@ -69,7 +70,7 @@ export function RecordStepBar({ kind, id }: { kind: RecordKind; id: number }) {
   };
 
   return (
-    <View className="flex-row items-center border-t border-gray-200 bg-white px-2 py-1.5 dark:border-gray-700 dark:bg-gray-900">
+    <View className="flex-row items-center border-t border-gray-200 bg-card px-2 py-1.5 dark:border-gray-700 dark:bg-gray-900">
       <StepButton item={n.prev} dir="prev" onPress={() => go(n.prev)} />
       <Text
         style={{ fontVariant: ['tabular-nums'] }}
@@ -91,6 +92,7 @@ function StepButton({
   dir: 'prev' | 'next';
   onPress: () => void;
 }) {
+  const c = useThemeColors();
   const next = dir === 'next';
   return (
     <Pressable
@@ -101,7 +103,7 @@ function StepButton({
       className={`flex-1 flex-row items-center ${next ? 'justify-end' : 'justify-start'} px-2 py-1 active:opacity-60`}
     >
       {next ? null : (
-        <Ionicons name="chevron-back" size={16} color={item ? '#6b7280' : '#d1d5db'} />
+        <Ionicons name="chevron-back" size={16} color={item ? c.ink2 : '#d1d5db'} />
       )}
       <Text
         numberOfLines={1}
@@ -112,7 +114,7 @@ function StepButton({
         {item?.title ?? ''}
       </Text>
       {next ? (
-        <Ionicons name="chevron-forward" size={16} color={item ? '#6b7280' : '#d1d5db'} />
+        <Ionicons name="chevron-forward" size={16} color={item ? c.ink2 : '#d1d5db'} />
       ) : null}
     </Pressable>
   );

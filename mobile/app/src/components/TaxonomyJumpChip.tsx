@@ -12,6 +12,7 @@ import { useRouter } from 'expo-router';
 import { Keyboard, Pressable, Text } from 'react-native';
 import type { Rank } from '~/db';
 import { useTaxonomyJump, type JumpPath } from '~/stores/taxonomyJump';
+import { useThemeColors } from '~/theme/colors';
 
 const RANK_ZH: Record<Rank, string> = {
   kingdom: 'rank.kingdom',
@@ -56,6 +57,7 @@ export function TaxonomyJumpChip({
   beforeJump,
   compact = false,
 }: Props) {
+  const c = useThemeColors();
   const { t } = useTranslation();
   const router = useRouter();
   const requestJump = useTaxonomyJump((s) => s.request);
@@ -97,7 +99,7 @@ export function TaxonomyJumpChip({
     return (
       <Pressable
         onPress={handlePress}
-        className="flex-row items-center rounded-full bg-gray-100 px-2 py-0.5 active:bg-blue-100 dark:bg-gray-800 dark:active:bg-blue-900/60"
+        className="flex-row items-center rounded-full bg-gray-100 px-2 py-0.5 active:bg-accent-100 dark:bg-gray-800 dark:active:bg-accent-900/60"
         hitSlop={6}
       >
         {nameC ? (
@@ -106,7 +108,7 @@ export function TaxonomyJumpChip({
         <Text className={`text-[10px] text-gray-600 dark:text-gray-400 ${nameC ? 'ml-1' : ''} ${italic}`}>
           {name}
         </Text>
-        <Ionicons name="open-outline" size={10} color="#6b7280" style={{ marginLeft: 3 }} />
+        <Ionicons name="open-outline" size={10} color={c.ink2} style={{ marginLeft: 3 }} />
       </Pressable>
     );
   }
@@ -114,7 +116,7 @@ export function TaxonomyJumpChip({
   return (
     <Pressable
       onPress={handlePress}
-      className="flex-row items-center rounded-full bg-gray-100 px-2.5 py-1 active:bg-blue-100 dark:bg-gray-800 dark:active:bg-blue-900/60"
+      className="flex-row items-center rounded-full bg-gray-100 px-2.5 py-1 active:bg-accent-100 dark:bg-gray-800 dark:active:bg-accent-900/60"
       hitSlop={4}
     >
       <Text className="text-[10px] font-semibold uppercase text-gray-500 dark:text-gray-400">
@@ -124,7 +126,7 @@ export function TaxonomyJumpChip({
         <Text className="ml-1 text-xs text-gray-800 dark:text-gray-200">{nameC}</Text>
       ) : null}
       <Text className={`ml-1 text-xs text-gray-600 dark:text-gray-400 ${italic}`}>{name}</Text>
-      <Ionicons name="open-outline" size={11} color="#6b7280" style={{ marginLeft: 4 }} />
+      <Ionicons name="open-outline" size={11} color={c.ink2} style={{ marginLeft: 4 }} />
     </Pressable>
   );
 }

@@ -5,7 +5,7 @@
  * Keep in sync with tailwind.config.js. `check:palette` forbids new hex
  * literals outside src/theme/, conservationColors.ts and rankColors.ts.
  */
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useColorScheme } from 'nativewind';
 
 export const LIGHT = {
   paper: '#F6EFE2',
@@ -25,6 +25,12 @@ export const LIGHT = {
   alertTint: '#F7E3DC',
   onAccent: '#FFFFFF',
   onAcorn: '#2B2119',
+  /**
+   * Icon on a floating control over the map, and the tab bar's inactive tint.
+   * Darker than `ink2`: those controls are translucent, so whatever the tiles
+   * underneath are shows through and eats contrast.
+   */
+  overlayIcon: '#4A3D31',
 } as const;
 
 export const DARK: Record<keyof typeof LIGHT, string> = {
@@ -45,10 +51,19 @@ export const DARK: Record<keyof typeof LIGHT, string> = {
   alertTint: '#4A2A22',
   onAccent: '#1F1814',
   onAcorn: '#2B2119',
+  overlayIcon: '#CDBDA3',
 };
 
-export type ThemeColors = typeof DARK;
+export type ThemeColors = typeof DARK & { scheme: 'light' | 'dark' };
 
+const LIGHT_THEME: ThemeColors = { ...LIGHT, scheme: 'light' };
+const DARK_THEME: ThemeColors = { ...DARK, scheme: 'dark' };
+
+/**
+ * Reads NativeWind's scheme, the same one that drives `dark:` classes, so a
+ * hex from here never disagrees with the classes next to it when the user
+ * overrides the system theme.
+ */
 export function useThemeColors(): ThemeColors {
-  return useColorScheme() === 'dark' ? DARK : LIGHT;
+  return useColorScheme().colorScheme === 'dark' ? DARK_THEME : LIGHT_THEME;
 }

@@ -26,8 +26,10 @@ import { useStore } from 'zustand';
 import { peopleStore } from '~/stores/surveyors';
 import { HeaderIconButton } from '~/components/HeaderIconButton';
 import type { PersonKind, Surveyor } from '~/db';
+import { useThemeColors } from '~/theme/colors';
 
 export function PeopleListScreen({ kind }: { kind: PersonKind }) {
+  const c = useThemeColors();
   const { t } = useTranslation();
   // `useStore(api, selector)` rather than calling the bound hook held in a
   // variable — see peopleStore's docblock for what the indirect form did.
@@ -83,7 +85,7 @@ export function PeopleListScreen({ kind }: { kind: PersonKind }) {
     <ScaleDecorator>
       <SwipeRow onDelete={() => remove(item.id)} label={t('common.delete')}>
         <View
-          className={`flex-row items-center border-b border-gray-100 bg-white px-4 dark:border-gray-800 dark:bg-gray-900 ${isActive ? 'opacity-90' : ''}`}
+          className={`flex-row items-center border-b border-gray-100 bg-card px-4 dark:border-gray-800 dark:bg-gray-900 ${isActive ? 'opacity-90' : ''}`}
         >
           <Pressable
             onPress={() => toggleDefault(item.id, !item.is_default)}
@@ -93,7 +95,7 @@ export function PeopleListScreen({ kind }: { kind: PersonKind }) {
             <Ionicons
               name={item.is_default ? 'star' : 'star-outline'}
               size={20}
-              color={item.is_default ? '#d97706' : '#9ca3af'}
+              color={item.is_default ? c.acornDeep : c.ink3}
             />
           </Pressable>
           <Pressable
@@ -109,7 +111,7 @@ export function PeopleListScreen({ kind }: { kind: PersonKind }) {
           ) : null}
           {/* Drag handle — long-press to pick up and reorder. */}
           <Pressable onLongPress={drag} delayLongPress={120} hitSlop={10} className="py-3 pl-1">
-            <Ionicons name="reorder-three" size={24} color="#9ca3af" />
+            <Ionicons name="reorder-three" size={24} color={c.ink3} />
           </Pressable>
         </View>
       </SwipeRow>

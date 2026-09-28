@@ -81,7 +81,7 @@ export function ToastHost({ inModal = false }: { inModal?: boolean }) {
                 }}
                 className="ml-3 active:opacity-70"
               >
-                <Text className="text-sm font-bold text-blue-300">{current.action.label}</Text>
+                <Text className="text-sm font-bold text-accent-300">{current.action.label}</Text>
               </Pressable>
             ) : null}
           </View>

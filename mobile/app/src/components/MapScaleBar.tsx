@@ -78,7 +78,7 @@ export function MapScaleBar({
     <View
       pointerEvents="none"
       style={{ bottom }}
-      className="absolute left-3 items-start rounded bg-white/75 px-1.5 py-1 dark:bg-black/60"
+      className="absolute left-3 items-start rounded bg-card/75 px-1.5 py-1 dark:bg-black/60"
     >
       <Text className="mb-0.5 text-[10px] leading-3 text-gray-800 dark:text-gray-200">
         {formatScaleLabel(scale.meters)}

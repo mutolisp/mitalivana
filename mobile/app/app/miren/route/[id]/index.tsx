@@ -31,8 +31,10 @@ import { parseMultiAttribute, serializeMultiAttribute } from '~/lib/dwcMultiValu
 import { FieldRow, TextBlock, TextCommit } from '~/modules/miren/components/fields';
 import { Btn, Card, Chip, Label, NumAccessory, NumField } from '~/modules/gloria/components/ui';
 import { promptText } from '~/components/TextPromptModal';
+import { useThemeColors } from '~/theme/colors';
 
 export default function MirenRouteScreen() {
+  const c = useThemeColors();
   const { t } = useTranslation();
   const router = useRouter();
   const id = Number(useLocalSearchParams<{ id: string }>().id);
@@ -192,7 +194,7 @@ export default function MirenRouteScreen() {
                       {clear == null ? t('miren.site.clearanceUnchecked') : `${Math.round(s.road_clearance_m ?? 0)} m`}
                     </Text>
                   ) : null}
-                  <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
+                  <Ionicons name="chevron-forward" size={16} color={c.ink3} />
                 </Pressable>
               );
             })}
@@ -214,7 +216,7 @@ export default function MirenRouteScreen() {
                 <Text className={`mr-2 text-xs ${v.status === 'active' ? 'text-emerald-600' : 'text-gray-500'}`}>
                   {t(v.status === 'active' ? 'miren.survey.active' : 'miren.survey.done')}
                 </Text>
-                <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
+                <Ionicons name="chevron-forward" size={16} color={c.ink3} />
               </Pressable>
             ))}
           </Card>

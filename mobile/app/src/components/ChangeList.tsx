@@ -10,7 +10,7 @@ import type { MergeChange } from '~/lib/mergeEngine';
 
 const ACTION_TONE: Record<MergeChange['action'], string> = {
   added: 'text-emerald-700 dark:text-emerald-300',
-  changed: 'text-[#00797b] dark:text-cyan-300',
+  changed: 'text-accent-700 dark:text-accent-300',
   deleted: 'text-red-700 dark:text-red-300',
 };
 

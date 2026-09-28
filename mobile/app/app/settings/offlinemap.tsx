@@ -66,7 +66,7 @@ export default function OfflineMapScreen() {
         <VectorSection remote={remote} />
         <PoiSection remote={remote} />
 
-        <View className="mt-6 bg-white px-4 py-3 dark:bg-gray-900">
+        <View className="mt-6 bg-card px-4 py-3 dark:bg-gray-900">
           <Text className="text-sm font-semibold text-gray-900 dark:text-gray-100">
             {t('offlinemap.sourceTitle')}
           </Text>
@@ -81,7 +81,7 @@ export default function OfflineMapScreen() {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <View className="mt-6 gap-3 bg-white px-4 py-3 dark:bg-gray-900">
+    <View className="mt-6 gap-3 bg-card px-4 py-3 dark:bg-gray-900">
       <Text className="text-sm font-semibold text-gray-900 dark:text-gray-100">{title}</Text>
       {children}
     </View>

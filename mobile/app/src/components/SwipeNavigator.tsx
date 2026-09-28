@@ -42,6 +42,7 @@ import Animated, {
   withTiming,
   type SharedValue,
 } from 'react-native-reanimated';
+import { useThemeColors } from '~/theme/colors';
 
 /** Horizontal travel before the swipe takes the gesture from the ScrollView. */
 const ACTIVATE_X = 18;
@@ -227,6 +228,7 @@ export function SwipeNavPager({
   /** Draw the bottom-sheet grab handle above the row. */
   grabber?: boolean;
 }) {
+  const c = useThemeColors();
   const index = state?.index ?? 0;
   const total = state?.total ?? 0;
   const onStep = state?.onStep;
@@ -251,7 +253,7 @@ export function SwipeNavPager({
           className="px-3 py-1"
           accessibilityRole="button"
         >
-          <Ionicons name="chevron-back" size={18} color={hasPrev ? '#6b7280' : '#d1d5db'} />
+          <Ionicons name="chevron-back" size={18} color={hasPrev ? c.ink2 : '#d1d5db'} />
         </Pressable>
         {/* Explicit style rather than min-w-16 / tabular-nums: both are
             Tailwind-only spellings that map to nothing on React Native, so the
@@ -269,7 +271,7 @@ export function SwipeNavPager({
           className="px-3 py-1"
           accessibilityRole="button"
         >
-          <Ionicons name="chevron-forward" size={18} color={hasNext ? '#6b7280' : '#d1d5db'} />
+          <Ionicons name="chevron-forward" size={18} color={hasNext ? c.ink2 : '#d1d5db'} />
         </Pressable>
       </View>
     </View>

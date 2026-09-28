@@ -2674,7 +2674,7 @@
     },
     "p5m": {
       "title": "{{direction}} · grille 3×3 m (face au sommet)",
-      "explain": "p5m est l’angle extérieur de {{point}}, sur la courbe des 5 m (ligne turquoise). La grille 3×3 m de cette direction part de ce point.",
+      "explain": "p5m est l’angle extérieur de {{point}}, sur la courbe des 5 m (ligne verte). La grille 3×3 m de cette direction part de ce point.",
       "notSet": "Aucun p5m pour {{direction}} : choisissez 11 ou 31 dans Données de base."
     },
     "new": {
@@ -2701,7 +2701,7 @@
       "start": "Commencer le relevé"
     },
     "points": {
-      "carried": "Points repris du dernier relevé ; les champs modifiés sont teintés en turquoise.",
+      "carried": "Points repris du dernier relevé ; les champs modifiés sont teintés en vert.",
       "whereP5m": "Où est p5m ?",
       "point": "Point",
       "distance": "Dist. m",

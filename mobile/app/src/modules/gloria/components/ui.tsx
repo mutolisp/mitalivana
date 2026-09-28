@@ -1,7 +1,8 @@
 /**
  * Small building blocks shared by the GLORIA screens. Colours follow the app:
- * gray surfaces, the teal ACCENT for anything the user acts on
- * (src/lib/colors.ts), emerald for done, amber / red for warnings.
+ * gray surfaces, the moss `accent-*` / `useThemeColors().accent` for anything
+ * the user acts on (src/theme/colors.ts), emerald for done, amber / red for
+ * warnings.
  */
 import { Ionicons } from '@expo/vector-icons';
 import { forwardRef, useEffect, useRef, useState, useSyncExternalStore } from 'react';
@@ -13,10 +14,11 @@ import { KeyboardStickyView } from '~/components/KeyboardAvoidingView';
 import { checkRange, type Range } from '../model/ranges';
 import { ACTION_FILL } from '~/lib/colors';
 import { useSettings } from '~/stores/settings';
+import { useThemeColors } from '~/theme/colors';
 
 export function Card({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
-    <View className={`rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900 ${className}`}>
+    <View className={`rounded-xl border border-gray-200 bg-card dark:border-gray-800 dark:bg-gray-900 ${className}`}>
       {children}
     </View>
   );
@@ -83,7 +85,7 @@ export function Seg<T extends string>({
             onPress={() => onChange(o.value)}
             accessibilityRole="tab"
             accessibilityState={{ selected: on }}
-            className={`flex-1 items-center rounded-md py-1.5 ${on ? 'bg-white dark:bg-gray-700' : ''}`}
+            className={`flex-1 items-center rounded-md py-1.5 ${on ? 'bg-card dark:bg-gray-700' : ''}`}
           >
             <Text className={`text-xs ${on ? 'font-semibold text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400'}`}>
               {o.label}
@@ -111,8 +113,9 @@ export function Chip({
   /** Distinct colour for grazing features, so they never read as species. */
   tone?: string;
 }) {
+  const c = useThemeColors();
   const border = tone ? { borderColor: tone, borderStyle: 'dashed' as const } : undefined;
-  const fill = on ? { backgroundColor: tone ?? '#00A2A5', borderColor: tone ?? '#00A2A5' } : undefined;
+  const fill = on ? { backgroundColor: tone ?? c.accent, borderColor: tone ?? c.accent } : undefined;
   return (
     <Pressable
       onPress={onPress}
@@ -120,7 +123,7 @@ export function Chip({
       accessibilityRole="button"
       accessibilityState={{ selected: on }}
       style={[border, fill]}
-      className="mr-1.5 mb-1.5 flex-row items-center rounded-full border border-gray-300 bg-white px-3 py-1.5 dark:border-gray-700 dark:bg-gray-900"
+      className="mr-1.5 mb-1.5 flex-row items-center rounded-full border border-gray-300 bg-card px-3 py-1.5 dark:border-gray-700 dark:bg-gray-900"
     >
       <Text className={`text-xs ${on ? 'font-semibold text-white' : 'text-gray-900 dark:text-gray-100'}`}>{label}</Text>
       {badge ? (
@@ -157,7 +160,7 @@ export function Banner({ tone, children }: { tone: 'warn' | 'error' | 'info' | '
   const cls = {
     warn: 'border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40',
     error: 'border-red-400 bg-red-50 dark:border-red-800 dark:bg-red-950/40',
-    info: 'border-transparent bg-cyan-50 dark:bg-cyan-950/40',
+    info: 'border-transparent bg-accent-50 dark:bg-accent-950/40',
     ok: 'border-emerald-400 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/40',
   }[tone];
   return <View className={`rounded-lg border px-3 py-2 ${cls}`}>{children}</View>;
@@ -179,9 +182,10 @@ export function FoldBanner({
   count?: number;
   children: React.ReactNode;
 }) {
+  const c = useThemeColors();
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
-  const ink = tone === 'error' ? '#dc2626' : '#d97706';
+  const ink = tone === 'error' ? c.alert : '#d97706';
   return (
     <Banner tone={tone}>
       <Pressable
@@ -208,7 +212,7 @@ export function BannerText({ tone, children, bold }: { tone: 'warn' | 'error' | 
   const cls = {
     warn: 'text-amber-800 dark:text-amber-300',
     error: 'text-red-700 dark:text-red-300',
-    info: 'text-cyan-800 dark:text-cyan-300',
+    info: 'text-accent-800 dark:text-accent-300',
     ok: 'text-emerald-700 dark:text-emerald-300',
   }[tone];
   return <Text className={`text-xs ${bold ? 'font-semibold' : ''} ${cls}`}>{children}</Text>;
@@ -249,12 +253,12 @@ function AccessoryBar() {
     <View className="flex-row items-center gap-5 border-t border-gray-300 bg-gray-100 px-4 py-2 dark:border-gray-700 dark:bg-gray-800">
       {focusedPrev || stepping ? (
         <Pressable onPress={() => focusedPrev?.()} hitSlop={8} accessibilityRole="button">
-          <Text className="text-base font-semibold text-[#00797b] dark:text-cyan-300">‹ {t('gloria.kb.prev')}</Text>
+          <Text className="text-base font-semibold text-accent-700 dark:text-accent-300">‹ {t('gloria.kb.prev')}</Text>
         </Pressable>
       ) : null}
       <View className="flex-1" />
       <Pressable onPress={() => (focusedNext ? focusedNext() : Keyboard.dismiss())} hitSlop={8} accessibilityRole="button">
-        <Text className="text-base font-semibold text-[#00797b] dark:text-cyan-300">{t('gloria.kb.next')} ›</Text>
+        <Text className="text-base font-semibold text-accent-700 dark:text-accent-300">{t('gloria.kb.next')} ›</Text>
       </Pressable>
       <Pressable onPress={() => Keyboard.dismiss()} hitSlop={8} accessibilityRole="button">
         <Text className="text-base text-gray-700 dark:text-gray-200">{t('gloria.kb.done')}</Text>
@@ -321,6 +325,7 @@ export const NumField = forwardRef<
     target?: string;
   }
 >(function NumField({ value, onCommit, placeholder, changed, width = 76, onSubmitEditing, onPrev, accessibilityLabel, range, signed, editable = true, commitRef, target }, ref) {
+  const c = useThemeColors();
   const { t } = useTranslation();
   const [text, setText] = useState(fmt(value));
   // Last value handed to onCommit: Next commits and the blur that follows
@@ -405,10 +410,10 @@ export const NumField = forwardRef<
       style={{ width, fontVariant: ['tabular-nums'] }}
       className={`rounded-md border px-2 py-1.5 text-right text-sm ${
         changed
-          ? 'border-[#00A2A5] bg-cyan-50 text-gray-900 dark:bg-cyan-950/40 dark:text-gray-100'
-          : 'border-gray-300 bg-white text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100'
+          ? 'border-accent-600 bg-accent-50 text-gray-900 dark:bg-accent-950/40 dark:text-gray-100'
+          : 'border-gray-300 bg-card text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100'
       }`}
-      placeholderTextColor="#9ca3af"
+      placeholderTextColor={c.ink3}
     />
   );
 });

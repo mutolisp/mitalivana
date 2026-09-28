@@ -10,7 +10,7 @@
  * rectangles, and every label is CJK text the app has no bundled font for.
  */
 import { Text, View } from 'react-native';
-import { useThemeColors } from '~/hooks/useThemeColors';
+import { useThemeColors } from '~/theme/colors';
 import { CHART_PRIMARY, CHART_TRACK, CHART_TRACK_DARK, withHash } from '~/lib/reportTheme';
 import type { ProfileChart } from '~/lib/reportTypes';
 import { RichCell } from '../RichCell';

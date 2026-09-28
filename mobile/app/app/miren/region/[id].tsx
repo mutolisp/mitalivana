@@ -15,8 +15,10 @@ import { promptNewRoute } from '~/modules/miren/prompts';
 import { REGION_CODE_LENGTH, type RouteKind } from '~/modules/miren/model/codes';
 import { FieldRow, TextBlock, TextCommit } from '~/modules/miren/components/fields';
 import { Btn, Card, Label } from '~/modules/gloria/components/ui';
+import { useThemeColors } from '~/theme/colors';
 
 export default function MirenRegionScreen() {
+  const c = useThemeColors();
   const { t } = useTranslation();
   const router = useRouter();
   const id = Number(useLocalSearchParams<{ id: string }>().id);
@@ -120,7 +122,7 @@ export default function MirenRegionScreen() {
                           .join(' · ')}
                       </Text>
                     </View>
-                    <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
+                    <Ionicons name="chevron-forward" size={16} color={c.ink3} />
                   </Pressable>
                 ))}
               </Card>

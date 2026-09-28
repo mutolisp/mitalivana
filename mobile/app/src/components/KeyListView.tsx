@@ -38,7 +38,7 @@ import { KeyboardStickyView } from './KeyboardAvoidingView';
 import { getCachedKeys, type IdentificationKey } from '~/db';
 import { useSettings } from '~/stores/settings';
 import { ScientificName } from './ScientificName';
-import { useThemeColors } from '~/hooks/useThemeColors';
+import { useThemeColors } from '~/theme/colors';
 
 function scopeLabel(rank: string): string {
   const KEY: Record<string, string> = {
@@ -265,7 +265,7 @@ export function KeyListView({ initialQuery, prefillNonce }: Props = {}) {
       {/* Sticky panel: chips (when no query) + search box. Follows the kbd
           top via KeyboardStickyView regardless of accessory-bar changes. */}
       <KeyboardStickyView offset={{ closed: -tabBarInset }}>
-        <View className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+        <View className="border-t border-gray-200 dark:border-gray-700 bg-card dark:bg-gray-900">
           {showChips ? (
             <ScrollView
               horizontal
@@ -279,19 +279,19 @@ export function KeyListView({ initialQuery, prefillNonce }: Props = {}) {
           ) : null}
           <View className="flex-row items-center gap-2 px-3 pb-3 pt-2">
             <View className="flex-1 flex-row items-center rounded-full bg-gray-100 dark:bg-gray-800 px-3 py-2">
-              <Ionicons name="search" size={16} color={colors.icon} />
+              <Ionicons name="search" size={16} color={colors.ink2} />
               <TextInput
                 value={query}
                 onChangeText={setQuery}
                 placeholder={t('keys.searchPlaceholder')}
-                placeholderTextColor={colors.placeholder}
+                placeholderTextColor={colors.ink3}
                 autoCorrect={false}
                 returnKeyType="search"
                 className="ml-2 flex-1 text-sm text-gray-900 dark:text-gray-100"
               />
               {query ? (
                 <Pressable onPress={() => setQuery('')} hitSlop={8}>
-                  <Ionicons name="close-circle" size={16} color={colors.icon} />
+                  <Ionicons name="close-circle" size={16} color={colors.ink2} />
                 </Pressable>
               ) : null}
             </View>
@@ -313,13 +313,14 @@ const KeyRow = memo(function KeyRow({
   k: IdentificationKey;
   onPick: (id: number) => void;
 }) {
+  const c = useThemeColors();
   return (
     <Pressable
       onPress={() => onPick(k.id)}
-      className="flex-row items-center border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 px-4 py-3 active:bg-gray-50 dark:active:bg-gray-800"
+      className="flex-row items-center border-b border-gray-100 dark:border-gray-800 bg-card dark:bg-gray-900 px-4 py-3 active:bg-gray-50 dark:active:bg-gray-800"
     >
       <View className="mr-3 h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 dark:bg-emerald-950/40">
-        <Ionicons name="key" size={18} color="#10b981" />
+        <Ionicons name="key" size={18} color={c.accent} />
       </View>
       <View className="flex-1">
         <View className="flex-row items-baseline flex-wrap">
@@ -341,15 +342,15 @@ const KeyRow = memo(function KeyRow({
             {scopeLabel(k.scope_rank)}
           </Text>
           {modeLabel(k.mode) ? (
-            <View className="ml-2 rounded bg-blue-100 dark:bg-blue-900/60 px-1.5 py-0.5">
-              <Text className="text-[10px] font-medium text-blue-700 dark:text-blue-300">
+            <View className="ml-2 rounded bg-accent-100 dark:bg-accent-900/60 px-1.5 py-0.5">
+              <Text className="text-[10px] font-medium text-accent-700 dark:text-accent-300">
                 {modeLabel(k.mode)}
               </Text>
             </View>
           ) : null}
         </View>
       </View>
-      <Ionicons name="chevron-forward" size={18} color="#9ca3af" />
+      <Ionicons name="chevron-forward" size={18} color={c.ink3} />
     </Pressable>
   );
 });
@@ -364,7 +365,7 @@ const ShortcutChip = memo(function ShortcutChip({
   return (
     <Pressable
       onPress={() => onPress(k.id)}
-      className="flex-row items-center rounded-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-1.5 active:bg-gray-50 dark:active:bg-gray-800"
+      className="flex-row items-center rounded-full border border-gray-300 dark:border-gray-600 bg-card dark:bg-gray-900 px-3 py-1.5 active:bg-gray-50 dark:active:bg-gray-800"
     >
       {isItalicRank(k.scope_rank) ? (
         <ScientificName

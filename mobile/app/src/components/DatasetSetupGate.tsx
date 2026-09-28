@@ -81,7 +81,7 @@ export function DatasetSetupGate({ children }: { children: ReactNode }) {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white dark:bg-gray-900">
+    <SafeAreaView className="flex-1 bg-card dark:bg-gray-900">
       <ScrollView contentContainerClassName="grow justify-center px-6 py-10">
         <Text className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
           {t('datasets.setupTitle')}
@@ -100,7 +100,7 @@ export function DatasetSetupGate({ children }: { children: ReactNode }) {
                 {t('datasets.setupOffline')}
               </Text>
               <Pressable onPress={retry} className="mt-3 self-start" hitSlop={8}>
-                <Text className="text-base font-medium text-blue-600 dark:text-blue-400">
+                <Text className="text-base font-medium text-accent-600 dark:text-accent-400">
                   {t('datasets.setupRetry')}
                 </Text>
               </Pressable>
@@ -154,7 +154,7 @@ export function DatasetSetupGate({ children }: { children: ReactNode }) {
                         onPress={() => void startDatasetInstall(e)}
                         disabled={activeId !== null}
                         hitSlop={8}
-                        className="rounded-full bg-blue-600 px-4 py-2 active:bg-blue-700"
+                        className="rounded-full bg-accent-600 px-4 py-2 active:bg-accent-700"
                       >
                         <Text className="text-sm font-medium text-white">
                           {t('datasets.setupStart')}
@@ -165,7 +165,7 @@ export function DatasetSetupGate({ children }: { children: ReactNode }) {
                   {busy && progress ? (
                     <View className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
                       <View
-                        className="h-1.5 rounded-full bg-blue-500"
+                        className="h-1.5 rounded-full bg-accent-500"
                         style={{
                           width: `${
                             progress.phase === 'download'

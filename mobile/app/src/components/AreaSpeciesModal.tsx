@@ -19,16 +19,16 @@ import {
   Modal,
   Pressable,
   ScrollView,
-  Switch,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { Switch } from '~/components/ui/Switch';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardAvoidingView } from './KeyboardAvoidingView';
 import { showActionSheet } from './ActionSheet';
 import { ScientificName } from './ScientificName';
-import { useThemeColors } from '~/hooks/useThemeColors';
+import { useThemeColors } from '~/theme/colors';
 import { ApiError } from '~/lib/apiFetch';
 import { apiErrorMessage } from '~/lib/apiErrorMessage';
 import {
@@ -374,12 +374,12 @@ export function AreaSpeciesModal({
           }}
         />
         <View
-          className="flex-1 rounded-t-2xl bg-white dark:bg-gray-900"
+          className="flex-1 rounded-t-2xl bg-card dark:bg-gray-900"
           style={{ marginTop: insets.top + 16, paddingBottom: insets.bottom + 12 }}
         >
           <View className="flex-row items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-700">
             <Pressable onPress={handleClose} hitSlop={8}>
-              <Text className="text-base text-blue-500">{t('common.cancel')}</Text>
+              <Text className="text-base text-accent-500">{t('common.cancel')}</Text>
             </Pressable>
             <Text className="text-base font-semibold text-gray-900 dark:text-gray-100">
               {t('areaSpecies.title')}
@@ -405,14 +405,14 @@ export function AreaSpeciesModal({
                       onPress={() => setSource(s)}
                       className={`flex-1 items-center rounded-xl border px-3 py-2 ${
                         on
-                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+                          ? 'border-accent-500 bg-accent-50 dark:bg-accent-900/30'
                           : 'border-gray-300 dark:border-gray-600'
                       }`}
                     >
                       <Text
                         className={`text-sm font-medium ${
                           on
-                            ? 'text-blue-600 dark:text-blue-300'
+                            ? 'text-accent-600 dark:text-accent-300'
                             : 'text-gray-700 dark:text-gray-300'
                         }`}
                       >
@@ -477,8 +477,8 @@ export function AreaSpeciesModal({
                       onPress={() => toggleIconic(k)}
                       className={`rounded-full border px-3 py-1.5 ${
                         on
-                          ? 'border-blue-500 bg-blue-500'
-                          : 'border-gray-300 bg-white dark:border-gray-600 dark:bg-gray-800'
+                          ? 'border-accent-500 bg-accent-500'
+                          : 'border-gray-300 bg-card dark:border-gray-600 dark:bg-gray-800'
                       }`}
                     >
                       <Text
@@ -535,7 +535,7 @@ export function AreaSpeciesModal({
                     : t('areaSpecies.searching')}
               </Text>
               <Pressable onPress={cancelQuery} className="mt-6 px-4 py-2" hitSlop={8}>
-                <Text className="text-base text-blue-500">{t('common.cancel')}</Text>
+                <Text className="text-base text-accent-500">{t('common.cancel')}</Text>
               </Pressable>
             </View>
           ) : null}
@@ -602,10 +602,10 @@ export function AreaSpeciesModal({
                           size={16}
                           color={
                             kind === 'matched'
-                              ? '#10b981'
+                              ? colors.accent
                               : kind === 'ambiguous'
                                 ? '#f59e0b'
-                                : colors.icon
+                                : colors.ink2
                           }
                         />
                       </View>
@@ -655,13 +655,13 @@ export function AreaSpeciesModal({
                       className={`mb-2 flex-row items-center justify-center rounded-lg border py-2 ${
                         busy
                           ? 'border-gray-300 dark:border-gray-700'
-                          : 'border-blue-500 active:bg-blue-50 dark:active:bg-blue-900/30'
+                          : 'border-accent-500 active:bg-accent-50 dark:active:bg-accent-900/30'
                       }`}
                     >
                       {busy ? <ActivityIndicator size="small" /> : null}
                       <Text
                         className={`ml-2 text-sm font-medium ${
-                          busy ? 'text-gray-400' : 'text-blue-600 dark:text-blue-300'
+                          busy ? 'text-gray-400' : 'text-accent-600 dark:text-accent-300'
                         }`}
                       >
                         {busy
@@ -703,14 +703,14 @@ export function AreaSpeciesModal({
                   <Text className="flex-1 text-base text-gray-900 dark:text-gray-100">
                     {target.kind === 'new' ? t('areaSpecies.targetNew') : target.name}
                   </Text>
-                  <Ionicons name="chevron-down" size={16} color={colors.icon} />
+                  <Ionicons name="chevron-down" size={16} color={colors.ink2} />
                 </Pressable>
                 {target.kind === 'new' ? (
                   <TextInput
                     value={folderName}
                     onChangeText={setFolderName}
                     placeholder={t('areaSpecies.folderPlaceholder')}
-                    placeholderTextColor={colors.placeholder}
+                    placeholderTextColor={colors.ink3}
                     className="mb-3 rounded-lg border border-gray-300 px-3 py-2 text-base text-gray-900 dark:border-gray-600 dark:text-gray-100"
                   />
                 ) : null}

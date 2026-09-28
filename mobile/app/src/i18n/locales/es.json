@@ -2674,7 +2674,7 @@
     },
     "p5m": {
       "title": "{{direction}} · cuadrícula 3×3 m (mirando a la cumbre)",
-      "explain": "p5m es la esquina exterior de {{point}}, sobre la curva de 5 m (línea turquesa). La cuadrícula de 3×3 m de esta dirección se instala desde ese punto.",
+      "explain": "p5m es la esquina exterior de {{point}}, sobre la curva de 5 m (línea verde). La cuadrícula de 3×3 m de esta dirección se instala desde ese punto.",
       "notSet": "Aún no hay p5m para {{direction}}: elige 11 o 31 en Datos base."
     },
     "new": {
@@ -2701,7 +2701,7 @@
       "start": "Iniciar muestreo"
     },
     "points": {
-      "carried": "Puntos tomados del último muestreo; los campos que cambian se tiñen de turquesa.",
+      "carried": "Puntos tomados del último muestreo; los campos que cambian se tiñen de verde.",
       "whereP5m": "¿Dónde está p5m?",
       "point": "Punto",
       "distance": "Dist. m",

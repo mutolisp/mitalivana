@@ -16,8 +16,8 @@ import { listSyncLog, listTeams, localIdOf, serverLabel, syncedRecordHref, type 
 const TONE: Record<SyncLogAction, string> = {
   upload: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300',
   skip: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300',
-  merge: 'bg-cyan-100 text-[#00797b] dark:bg-cyan-950 dark:text-cyan-300',
-  import: 'bg-cyan-100 text-[#00797b] dark:bg-cyan-950 dark:text-cyan-300',
+  merge: 'bg-accent-100 text-accent-700 dark:bg-accent-950 dark:text-accent-300',
+  import: 'bg-accent-100 text-accent-700 dark:bg-accent-950 dark:text-accent-300',
   link: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300',
   queued: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300',
   fail: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300',
@@ -72,7 +72,7 @@ export default function TeamLogScreen() {
                 disabled={id == null}
                 onPress={() => id != null && e.record_kind && router.push(syncedRecordHref(e.record_kind, id))}
                 accessibilityRole={id != null ? 'button' : undefined}
-                className="flex-row items-start gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 active:bg-gray-50 dark:border-gray-800 dark:bg-gray-900"
+                className="flex-row items-start gap-2 rounded-lg border border-gray-200 bg-card px-3 py-2 active:bg-gray-50 dark:border-gray-800 dark:bg-gray-900"
               >
                 <Text className="w-11 pt-0.5 font-mono text-xs text-gray-500 dark:text-gray-400">{stamp.slice(11, 16)}</Text>
                 <Text className={`overflow-hidden rounded px-1.5 py-0.5 text-[11px] font-semibold ${TONE[e.action]}`}>{t(`teamSync.log.action.${e.action}`)}</Text>

@@ -13,8 +13,10 @@ import { listRegions, type RegionWithCounts } from '~/modules/miren/db';
 import { promptNewRegion } from '~/modules/miren/prompts';
 import { useActiveMiren } from '~/modules/miren/store';
 import { Btn, Card, Label } from '~/modules/gloria/components/ui';
+import { useThemeColors } from '~/theme/colors';
 
 export default function MirenRegionsScreen() {
+  const c = useThemeColors();
   const { t } = useTranslation();
   const router = useRouter();
   const [regions, setRegions] = useState<RegionWithCounts[]>(() => listRegions());
@@ -54,7 +56,7 @@ export default function MirenRegionsScreen() {
                     {[r.country, t('miren.regions.counts', { routes: r.routes, surveys: r.surveys })].filter(Boolean).join(' · ')}
                   </Text>
                 </View>
-                <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
+                <Ionicons name="chevron-forward" size={16} color={c.ink3} />
               </Pressable>
             ))}
           </Card>

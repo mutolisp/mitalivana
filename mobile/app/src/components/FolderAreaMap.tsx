@@ -28,6 +28,7 @@ import {
   locateMe,
   zoomBy,
 } from './MapControls';
+import { useThemeColors } from '~/theme/colors';
 
 const INLINE_HEIGHT = 160;
 
@@ -54,6 +55,7 @@ export function FolderAreaMap({
   emptyLabel,
   editLabel,
 }: Props) {
+  const c = useThemeColors();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const storedBasemap = useSettings((s) => s.map_view.basemap);
@@ -87,7 +89,7 @@ export function FolderAreaMap({
         onPress={onEdit}
         className="mx-4 mb-2 mt-3 flex-row items-center justify-center rounded-xl border border-dashed border-gray-300 py-3 active:bg-gray-100 dark:border-gray-700 dark:active:bg-gray-800"
       >
-        <Ionicons name="map-outline" size={16} color="#6b7280" />
+        <Ionicons name="map-outline" size={16} color={c.ink2} />
         <Text className="ml-2 text-sm text-gray-600 dark:text-gray-400">
           {emptyLabel ?? t('favorites.setArea')}
         </Text>
@@ -105,15 +107,15 @@ export function FolderAreaMap({
         height={INLINE_HEIGHT}
         onExpand={() => setFullscreen(true)}
       />
-      <View className="flex-row items-center justify-between bg-white px-3 py-2 dark:bg-gray-900">
+      <View className="flex-row items-center justify-between bg-card px-3 py-2 dark:bg-gray-900">
         <Text className="text-xs text-gray-500 dark:text-gray-400">
           {source
             ? t('favorites.areaFrom', { source: source.toUpperCase() })
             : (title ?? t('favorites.area'))}
         </Text>
         <Pressable onPress={onEdit} hitSlop={8} className="flex-row items-center active:opacity-70">
-          <Ionicons name="create-outline" size={14} color="#2563eb" />
-          <Text className="ml-1 text-xs font-medium text-blue-600 dark:text-blue-400">
+          <Ionicons name="create-outline" size={14} color={c.accent} />
+          <Text className="ml-1 text-xs font-medium text-accent-600 dark:text-accent-400">
             {editLabel ?? t('favorites.editArea')}
           </Text>
         </Pressable>
@@ -128,7 +130,7 @@ export function FolderAreaMap({
               {title ?? t('favorites.area')}
             </Text>
             <Pressable onPress={() => setFullscreen(false)} hitSlop={12} className="px-3 py-1.5">
-              <Text className="text-base font-semibold text-blue-400">{t('common.done')}</Text>
+              <Text className="text-base font-semibold text-accent-400">{t('common.done')}</Text>
             </Pressable>
           </View>
           {/* Mounted only while open. A map view that is not on screen still
@@ -164,6 +166,7 @@ function AreaMap({
   height?: number;
   onExpand?: () => void;
 }) {
+  const c = useThemeColors();
   const { t } = useTranslation();
   const mapRef = useRef<MapCamera>(null);
   const regionRef = useRef<Region>(region);
@@ -188,21 +191,21 @@ function AreaMap({
                 id: String(i),
                 lat: prim.latitude,
                 lng: prim.longitude,
-                color: '#059669',
+                color: c.accent,
               }
             : prim.kind === 'line'
               ? {
                   kind: 'line' as const,
                   id: String(i),
                   coords: prim.coords,
-                  color: '#059669',
+                  color: c.accent,
                   width: 3,
                 }
               : {
                   kind: 'polygon' as const,
                   id: String(i),
                   coords: prim.coords,
-                  stroke: '#059669',
+                  stroke: c.accent,
                   fill: 'rgba(5,150,105,0.12)',
                   width: 2,
                 },

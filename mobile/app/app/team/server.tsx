@@ -55,7 +55,7 @@ export default function TeamServerScreen() {
             <Pressable
               onPress={() => void add(true)}
               accessibilityRole="button"
-              className="items-center rounded-xl bg-[#00A2A5] py-3 active:bg-[#008284]"
+              className="items-center rounded-xl bg-accent-600 py-3 active:bg-accent-700"
             >
               <Text className="text-base font-semibold text-white">{t('teamSync.addServerDefault')}</Text>
             </Pressable>

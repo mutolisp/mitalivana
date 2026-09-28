@@ -1,9 +1,10 @@
 /**
  * App accent, in one place.
  *
- * Since the UI redesign the accent is moss (`accent-600` in
- * tailwind.config.js); the hex copies below must match it. The history of
- * the old teal is kept for context:
+ * Since the UI redesign the accent is moss (`accent-*` in tailwind.config.js)
+ * and glyph colours come from `useThemeColors()` in src/theme/colors.ts, which
+ * has a dark-mode value a single constant could not. The history of the old
+ * teal is kept for context:
  *
  * `#00A2A5` arrived for the export swipe action and then spread to the header
  * icon buttons and the filled primary actions. It was redefined at each of
@@ -15,11 +16,6 @@
  * (the same mechanism that makes `SwipeRowActions`' colour map work), so the
  * classes are compiled even though call sites interpolate it.
  */
-
-/** Accent (moss, accent-600), for glyphs and text. */
-export const ACCENT = '#2F6B3E';
-/** Accent one step darker (accent-700), for a pressed fill. */
-export const ACCENT_PRESSED = '#265833';
 
 /** Filled primary action: the button that completes what the user started. */
 export const ACTION_FILL = 'bg-accent-600 active:bg-accent-700';

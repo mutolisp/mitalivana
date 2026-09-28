@@ -86,6 +86,7 @@ import {
   parseMultiAttribute,
 } from '~/lib/dwcAttributes';
 import { useToast } from '~/stores/toast';
+import { useThemeColors } from '~/theme/colors';
 
 function parsePhotoPaths(s: string | null): string[] {
   if (!s) return [];
@@ -177,6 +178,7 @@ function SpecimenRow({
   onPress: () => void;
   onLongPress: () => void;
 }) {
+  const c = useThemeColors();
   const photos = parsePhotoPaths(specimen.photo_paths);
   const attributes = attributeSummary(specimen);
   // Already on iNaturalist → tinted row (see migrations.ts v30).
@@ -185,13 +187,13 @@ function SpecimenRow({
     <Pressable
       onPress={onPress}
       onLongPress={onLongPress}
-      className={`flex-row items-center border-b border-gray-100 px-4 py-3 dark:border-gray-800 ${uploaded ? 'bg-lime-50 active:bg-lime-100 dark:bg-lime-900/30 dark:active:bg-lime-900/50' : 'bg-white active:bg-gray-50 dark:bg-gray-900 dark:active:bg-gray-800'}`}
+      className={`flex-row items-center border-b border-gray-100 px-4 py-3 dark:border-gray-800 ${uploaded ? 'bg-lime-50 active:bg-lime-100 dark:bg-lime-900/30 dark:active:bg-lime-900/50' : 'bg-card active:bg-gray-50 dark:bg-gray-900 dark:active:bg-gray-800'}`}
     >
       {selectMode ? (
         <Ionicons
           name={picked ? 'checkbox' : 'square-outline'}
           size={20}
-          color={picked ? '#2563eb' : '#9ca3af'}
+          color={picked ? c.accent : c.ink3}
           style={{ marginRight: 10 }}
         />
       ) : null}
@@ -262,7 +264,7 @@ function SpecimenRow({
             {isoDateTime(specimen.collected_at)}
           </Text>
           {specimen.lat !== null ? (
-            <Ionicons name="location" size={11} color="#2563eb" style={{ marginLeft: 6 }} />
+            <Ionicons name="location" size={11} color={c.accent} style={{ marginLeft: 6 }} />
           ) : null}
           {attributes ? (
             <Text
@@ -274,12 +276,13 @@ function SpecimenRow({
           ) : null}
         </View>
       </View>
-      {selectMode ? null : <Ionicons name="chevron-forward" size={16} color="#9ca3af" />}
+      {selectMode ? null : <Ionicons name="chevron-forward" size={16} color={c.ink3} />}
     </Pressable>
   );
 }
 
 export default function CollectionTripScreen() {
+  const c = useThemeColors();
   const { id } = useLocalSearchParams<{ id: string }>();
   const tripId = Number(id);
   const { t } = useTranslation();
@@ -864,7 +867,7 @@ export default function CollectionTripScreen() {
               >
                 {trip.name}
               </Text>
-              <Ionicons name="pencil-outline" size={14} color="#9ca3af" style={{ marginLeft: 6 }} />
+              <Ionicons name="pencil-outline" size={14} color={c.ink3} style={{ marginLeft: 6 }} />
             </Pressable>
           ),
           headerLeft: () => <BackHeaderLeft />,
@@ -901,7 +904,7 @@ export default function CollectionTripScreen() {
             While selecting, it is replaced wholesale by the selection toolbar —
             the same swap the records tab does. */}
         {selectMode ? (
-          <View className="flex-row items-center justify-between border-b border-gray-200 bg-white px-4 py-2 dark:border-gray-700 dark:bg-gray-900">
+          <View className="flex-row items-center justify-between border-b border-gray-200 bg-card px-4 py-2 dark:border-gray-700 dark:bg-gray-900">
             <Text className="text-sm text-gray-500 dark:text-gray-400">
               {t('collection.selectedCount', { count: picked.size })}
             </Text>
@@ -916,7 +919,7 @@ export default function CollectionTripScreen() {
                 }
                 hitSlop={8}
               >
-                <Text className="text-sm text-blue-600 dark:text-blue-400">
+                <Text className="text-sm text-accent-600 dark:text-accent-400">
                   {picked.size === display.length && display.length > 0
                     ? t('favorites.deselectAll')
                     : t('favorites.selectAll')}
@@ -931,7 +934,7 @@ export default function CollectionTripScreen() {
                   className={`text-sm font-medium ${
                     picked.size === 0
                       ? 'text-gray-300 dark:text-gray-600'
-                      : 'text-blue-600 dark:text-blue-400'
+                      : 'text-accent-600 dark:text-accent-400'
                   }`}
                 >
                   {t('collection.exportLabels')}
@@ -956,7 +959,7 @@ export default function CollectionTripScreen() {
             </View>
           </View>
         ) : (
-          <View className="flex-row items-center gap-3 border-b border-gray-200 bg-white px-4 py-2 dark:border-gray-700 dark:bg-gray-900">
+          <View className="flex-row items-center gap-3 border-b border-gray-200 bg-card px-4 py-2 dark:border-gray-700 dark:bg-gray-900">
             <Pressable
               onPress={guard(() => setProjectSheetOpen(true))}
               hitSlop={8}
@@ -965,7 +968,7 @@ export default function CollectionTripScreen() {
               <Ionicons
                 name={project && project.id !== 0 ? 'folder' : 'folder-open-outline'}
                 size={18}
-                color={project && project.id !== 0 ? '#2563eb' : '#9ca3af'}
+                color={project && project.id !== 0 ? c.accent : c.ink3}
               />
             </Pressable>
             <Pressable
@@ -976,10 +979,10 @@ export default function CollectionTripScreen() {
               <Ionicons
                 name="people-outline"
                 size={14}
-                color={trip.recorded_by ? '#2563eb' : '#9ca3af'}
+                color={trip.recorded_by ? c.accent : c.ink3}
               />
               <Text
-                className={`ml-1 flex-1 text-xs ${trip.recorded_by ? 'font-medium text-blue-700 dark:text-blue-300' : 'italic text-gray-500 dark:text-gray-400'}`}
+                className={`ml-1 flex-1 text-xs ${trip.recorded_by ? 'font-medium text-accent-700 dark:text-accent-300' : 'italic text-gray-500 dark:text-gray-400'}`}
                 numberOfLines={1}
               >
                 {trip.recorded_by || t('collection.collectorEmpty')}
@@ -993,10 +996,10 @@ export default function CollectionTripScreen() {
               <Ionicons
                 name="location-outline"
                 size={14}
-                color={trip.locality || tripSite ? '#2563eb' : '#9ca3af'}
+                color={trip.locality || tripSite ? c.accent : c.ink3}
               />
               <Text
-                className={`ml-1 max-w-[96px] text-xs ${trip.locality || tripSite ? 'font-medium text-blue-700 dark:text-blue-300' : 'italic text-gray-500 dark:text-gray-400'}`}
+                className={`ml-1 max-w-[96px] text-xs ${trip.locality || tripSite ? 'font-medium text-accent-700 dark:text-accent-300' : 'italic text-gray-500 dark:text-gray-400'}`}
                 numberOfLines={1}
               >
                 {trip.locality || tripSite?.name || t('collection.tripLocalityEmpty')}
@@ -1023,7 +1026,7 @@ export default function CollectionTripScreen() {
                 <Ionicons
                   name={sortDir === 'desc' ? 'arrow-down' : 'arrow-up'}
                   size={14}
-                  color="#6b7280"
+                  color={c.ink2}
                 />
               </Pressable>
             ) : null}

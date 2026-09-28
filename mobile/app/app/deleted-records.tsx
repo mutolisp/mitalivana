@@ -61,7 +61,7 @@ export default function DeletedRecordsScreen() {
               key={`${r.kind}|${r.uuid}`}
               onPress={() => recover(r)}
               accessibilityRole="button"
-              className="flex-row items-center gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2.5 active:bg-gray-50 dark:border-gray-800 dark:bg-gray-900"
+              className="flex-row items-center gap-3 rounded-lg border border-gray-200 bg-card px-3 py-2.5 active:bg-gray-50 dark:border-gray-800 dark:bg-gray-900"
             >
               <View className="flex-1">
                 <Text className="text-sm font-semibold text-gray-900 dark:text-gray-100">{r.label || t('teamSync.log.unnamed')}</Text>
@@ -70,7 +70,7 @@ export default function DeletedRecordsScreen() {
                   {t('versions.daysLeft', { n: left })}
                 </Text>
               </View>
-              <Text className="text-sm font-semibold text-[#00797b] dark:text-cyan-300">{t('versions.recoverGo')}</Text>
+              <Text className="text-sm font-semibold text-accent-700 dark:text-accent-300">{t('versions.recoverGo')}</Text>
             </Pressable>
           );
         })}

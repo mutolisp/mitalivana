@@ -33,6 +33,7 @@ import {
   ensureMicPermission,
   persistRecording,
 } from '~/lib/audioCapture';
+import { useThemeColors } from '~/theme/colors';
 
 function mmss(seconds: number): string {
   const s = Math.max(0, Math.floor(seconds));
@@ -42,6 +43,7 @@ function mmss(seconds: number): string {
 /** The square 「錄音」 tile. Same box as PhotoGrid's add tile so the two can
  *  sit side by side. */
 export function AudioRecordTile({ onAdd }: { onAdd: (uri: string) => void }) {
+  const c = useThemeColors();
   const { t } = useTranslation();
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const rec = useAudioRecorderState(recorder, 500);
@@ -97,7 +99,7 @@ export function AudioRecordTile({ onAdd }: { onAdd: (uri: string) => void }) {
       }`}
       style={{ width: 88, height: 88 }}
     >
-      <Ionicons name={rec.isRecording ? 'stop' : 'mic-outline'} size={24} color={rec.isRecording ? '#dc2626' : '#6b7280'} />
+      <Ionicons name={rec.isRecording ? 'stop' : 'mic-outline'} size={24} color={rec.isRecording ? c.alert : c.ink2} />
       <Text className={`mt-1 text-xs ${rec.isRecording ? 'text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-gray-400'}`}>
         {rec.isRecording ? mmss(rec.durationMillis / 1000) : t('species.recordAudio')}
       </Text>
@@ -107,6 +109,7 @@ export function AudioRecordTile({ onAdd }: { onAdd: (uri: string) => void }) {
 
 /** Recorded clips, one row each. Renders nothing when there are none. */
 export function AudioClipRows({ clips, onRemove }: { clips: string[]; onRemove: (uri: string) => void }) {
+  const c = useThemeColors();
   const { t } = useTranslation();
   const [playingUri, setPlayingUri] = useState<string | null>(null);
 
@@ -137,7 +140,7 @@ export function AudioClipRows({ clips, onRemove }: { clips: string[]; onRemove: 
             onLongPress={() => confirmRemove(uri)}
             className="mb-1 flex-row items-center rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 active:bg-gray-50 dark:active:bg-gray-800"
           >
-            <Ionicons name={playing ? 'stop-circle' : 'play-circle-outline'} size={22} color="#2563eb" />
+            <Ionicons name={playing ? 'stop-circle' : 'play-circle-outline'} size={22} color={c.accent} />
             <Text className="ml-2 flex-1 text-sm text-gray-700 dark:text-gray-300">
               {t('species.audioClipN', { n: i + 1 })}
             </Text>

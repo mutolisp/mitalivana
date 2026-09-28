@@ -14,6 +14,7 @@ import { Alert, Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DateTimeField } from '~/components/DateTimeField';
 import { isoStamp } from '~/lib/datetime';
+import { useThemeColors } from '~/theme/colors';
 
 type Props = {
   start: number | null;
@@ -33,6 +34,7 @@ export function SurveyTimeFields({
   startRequired = false,
   readOnly = false,
 }: Props) {
+  const c = useThemeColors();
   const { t } = useTranslation();
   const save = (which: 'start' | 'end', ts: number) => {
     const s = which === 'start' ? ts : start;
@@ -83,7 +85,7 @@ export function SurveyTimeFields({
             accessibilityLabel={t('surveyTime.clearEnd')}
             className="pt-2.5 active:opacity-60"
           >
-            <Ionicons name="close-circle" size={18} color="#9ca3af" />
+            <Ionicons name="close-circle" size={18} color={c.ink3} />
           </Pressable>
         ) : null}
       </View>
@@ -114,7 +116,7 @@ export function SurveyTimesModal({
             {t('surveyTime.title')}
           </Text>
           <Pressable onPress={onClose} hitSlop={8} className="active:opacity-60">
-            <Text className="text-base font-medium text-[#00A2A5]">{t('common.done')}</Text>
+            <Text className="text-base font-medium text-accent-600">{t('common.done')}</Text>
           </Pressable>
         </View>
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 16 }}>

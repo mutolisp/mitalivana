@@ -12,6 +12,7 @@ import {
 import { KeyboardAvoidingView } from './KeyboardAvoidingView';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Project, ProjectInput } from '~/db';
+import { useThemeColors } from '~/theme/colors';
 
 const EMPTY: ProjectInput = { name: '', abstract: null, location_description: null, notes: null };
 
@@ -33,6 +34,7 @@ export function ProjectEditModal({
   newTitle,
   editTitle,
 }: Props) {
+  const c = useThemeColors();
   const { t } = useTranslation();
   const resolvedNew = newTitle ?? t('sheets.addProjectTitle');
   const resolvedEdit = editTitle ?? t('sheets.editProjectTitle');
@@ -60,7 +62,7 @@ export function ProjectEditModal({
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onCancel}>
       <View
-        className="flex-1 bg-white dark:bg-gray-900"
+        className="flex-1 bg-card dark:bg-gray-900"
         style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
       >
         <View className="flex-row items-center justify-between border-b border-gray-200 dark:border-gray-700 px-4 py-3">
@@ -80,7 +82,7 @@ export function ProjectEditModal({
             }}
             hitSlop={8}
           >
-            <Text className={`text-base font-semibold ${canSave ? 'text-blue-600 dark:text-blue-400' : 'text-gray-300'}`}>
+            <Text className={`text-base font-semibold ${canSave ? 'text-accent-600 dark:text-accent-400' : 'text-gray-300'}`}>
               {t('common.save')}
             </Text>
           </Pressable>
@@ -94,7 +96,7 @@ export function ProjectEditModal({
                 autoFocus={isNew}
                 className="rounded border border-gray-300 dark:border-gray-600 px-3 py-2 text-base text-gray-900 dark:text-gray-100"
                 placeholder={t('sheets.projectNameEx')}
-                placeholderTextColor="#9ca3af"
+                placeholderTextColor={c.ink3}
               />
             </Field>
             <Field label={t('sheets.summary')}>

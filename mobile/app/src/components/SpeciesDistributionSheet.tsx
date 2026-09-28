@@ -61,6 +61,7 @@ import { inatTilesReachable, resolveInatTaxon, type InatGridTaxon } from '~/lib/
 import { ScientificName } from './ScientificName';
 import { runOverModal } from './GbifLookupHost';
 import { SearchBox } from './SearchBox';
+import { useThemeColors } from '~/theme/colors';
 
 /** A taxon resolved all the way to something the map can draw. */
 export type InatGridSelection = {
@@ -141,6 +142,7 @@ export function SpeciesDistributionSheet({
   onPickVisibleArea,
   onDrawArea,
 }: Props) {
+  const c = useThemeColors();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
@@ -342,7 +344,7 @@ export function SpeciesDistributionSheet({
             card is the flex column, so this is what makes the status area's
             flexShrink give way instead of the whole thing overflowing. */}
         <View
-          className="overflow-hidden rounded-2xl bg-white shadow-lg dark:bg-gray-900"
+          className="overflow-hidden rounded-2xl bg-card shadow-lg dark:bg-gray-900"
           style={{ maxHeight: windowHeight * 0.6 }}
         >
           <View className="flex-row items-center justify-between border-b border-gray-100 px-3 py-2 dark:border-gray-800">
@@ -350,7 +352,7 @@ export function SpeciesDistributionSheet({
               {t('speciesDist.title')}
             </Text>
             <Pressable onPress={close} hitSlop={8}>
-              <Ionicons name="close" size={18} color="#9ca3af" />
+              <Ionicons name="close" size={18} color={c.ink3} />
             </Pressable>
           </View>
 
@@ -362,13 +364,13 @@ export function SpeciesDistributionSheet({
                   key={k}
                   onPress={() => setTab(k)}
                   className={`mr-4 border-b-2 pb-1.5 ${
-                    active ? 'border-blue-600 dark:border-blue-400' : 'border-transparent'
+                    active ? 'border-accent-600 dark:border-accent-400' : 'border-transparent'
                   }`}
                 >
                   <Text
                     className={`text-xs ${
                       active
-                        ? 'font-semibold text-blue-700 dark:text-blue-300'
+                        ? 'font-semibold text-accent-700 dark:text-accent-300'
                         : 'text-gray-500 dark:text-gray-400'
                     }`}
                   >
@@ -513,7 +515,7 @@ export function SpeciesDistributionSheet({
                 {/* The name check. iNaturalist answered with a different name than
                 the one asked for, so nothing is drawn until the user says so. */}
                 {confirm ? (
-                  <View className="border-t border-blue-200 bg-blue-50 px-3 py-2 dark:border-blue-900 dark:bg-blue-950/30">
+                  <View className="border-t border-accent-200 bg-accent-50 px-3 py-2 dark:border-accent-900 dark:bg-accent-950/30">
                     <Text className="text-xs text-gray-700 dark:text-gray-300">
                       {t('inatGrid.synonymAsk', {
                         asked: confirm.askedName,
@@ -528,7 +530,7 @@ export function SpeciesDistributionSheet({
                     <View className="mt-2 flex-row gap-2">
                       <Pressable
                         onPress={() => apply(confirm)}
-                        className="rounded-full bg-blue-600 px-3 py-1.5 active:bg-blue-700"
+                        className="rounded-full bg-accent-600 px-3 py-1.5 active:bg-accent-700"
                       >
                         <Text className="text-xs font-medium text-white">
                           {t('inatGrid.synonymUse')}
@@ -567,7 +569,7 @@ export function SpeciesDistributionSheet({
                       <Pressable
                         key={hit.id}
                         onPress={() => handleInatPick(hit)}
-                        className="border-t border-gray-100 px-3 py-2 active:bg-blue-50 dark:border-gray-800 dark:active:bg-blue-900/40"
+                        className="border-t border-gray-100 px-3 py-2 active:bg-accent-50 dark:border-gray-800 dark:active:bg-accent-900/40"
                       >
                         <View className="flex-row flex-wrap items-center">
                           {hit.commonName ? (
@@ -640,14 +642,15 @@ function AreaChoice({
   label: string;
   onPress: () => void;
 }) {
+  const c = useThemeColors();
   return (
     <Pressable
       onPress={onPress}
       className="mb-2 flex-row items-center rounded-xl border border-gray-200 px-3 py-2.5 active:bg-gray-50 dark:border-gray-700 dark:active:bg-gray-800"
     >
-      <Ionicons name={icon} size={18} color="#2563eb" />
+      <Ionicons name={icon} size={18} color={c.accent} />
       <Text className="ml-2 flex-1 text-sm text-gray-900 dark:text-gray-100">{label}</Text>
-      <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
+      <Ionicons name="chevron-forward" size={16} color={c.ink3} />
     </Pressable>
   );
 }

@@ -50,6 +50,7 @@ import { FolderAreaMap } from '~/components/FolderAreaMap';
 import { HeaderIconButton } from '~/components/HeaderIconButton';
 import { PillButton } from '~/components/PillButton';
 import { goBackOrHome } from '~/lib/goBack';
+import { useThemeColors } from '~/theme/colors';
 
 type SortKey = 'added' | 'cname' | 'name' | 'family';
 const SORT_LABEL: Record<SortKey, string> = {
@@ -60,6 +61,7 @@ const SORT_LABEL: Record<SortKey, string> = {
 };
 
 export default function FavoritesScreen() {
+  const c = useThemeColors();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const folders = useFavorites((s) => s.folders);
@@ -520,7 +522,7 @@ export default function FavoritesScreen() {
             ),
           }}
         />
-        <View className="flex-row items-center justify-between border-b border-gray-200 bg-white px-4 py-2 dark:border-gray-700 dark:bg-gray-900">
+        <View className="flex-row items-center justify-between border-b border-gray-200 bg-card px-4 py-2 dark:border-gray-700 dark:bg-gray-900">
           <Text className="text-sm text-gray-500 dark:text-gray-400">
             {folderSelectMode
               ? t('favorites.selectedFolders', { count: pickedFolders.size })
@@ -538,7 +540,7 @@ export default function FavoritesScreen() {
                 }
                 hitSlop={8}
               >
-                <Text className="text-sm text-blue-600 dark:text-blue-400">
+                <Text className="text-sm text-accent-600 dark:text-accent-400">
                   {pickedFolders.size === deletableFolders.length && deletableFolders.length > 0
                     ? t('favorites.deselectAll')
                     : t('favorites.selectAll')}
@@ -618,7 +620,7 @@ export default function FavoritesScreen() {
                   setPicked(new Set());
                 }}
                 onLongPress={() => (folderSelectMode ? undefined : handleFolderLongPress(f))}
-                className="flex-row items-center border-b border-gray-100 bg-white px-4 py-3 active:bg-gray-50 dark:border-gray-800 dark:bg-gray-900 dark:active:bg-gray-800"
+                className="flex-row items-center border-b border-gray-100 bg-card px-4 py-3 active:bg-gray-50 dark:border-gray-800 dark:bg-gray-900 dark:active:bg-gray-800"
               >
                 {folderSelectMode ? (
                   <Ionicons
@@ -628,8 +630,8 @@ export default function FavoritesScreen() {
                       f.id === DEFAULT_FOLDER_ID
                         ? '#d1d5db'
                         : pickedFolders.has(f.id)
-                          ? '#2563eb'
-                          : '#9ca3af'
+                          ? c.accent
+                          : c.ink3
                     }
                     style={{ marginRight: 12 }}
                   />
@@ -637,7 +639,7 @@ export default function FavoritesScreen() {
                 <Ionicons
                   name={f.is_default ? 'star' : 'folder-outline'}
                   size={20}
-                  color={f.is_default ? '#f59e0b' : '#6b7280'}
+                  color={f.is_default ? '#f59e0b' : c.ink2}
                 />
                 <View className="ml-3 flex-1">
                   <Text className="text-base text-gray-900 dark:text-gray-100">
@@ -653,7 +655,7 @@ export default function FavoritesScreen() {
                   {t('favorites.count', { count: f.species_count })}
                 </Text>
                 {folderSelectMode ? null : (
-                  <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
+                  <Ionicons name="chevron-forward" size={16} color={c.ink3} />
                 )}
               </Pressable>
             </SwipeRowActions>
@@ -691,7 +693,7 @@ export default function FavoritesScreen() {
                 <Ionicons
                   name="pencil-outline"
                   size={14}
-                  color="#9ca3af"
+                  color={c.ink3}
                   style={{ marginLeft: 6 }}
                 />
               ) : null}
@@ -715,7 +717,7 @@ export default function FavoritesScreen() {
           flex-1 View (not a child) so keyboard translation lifts only the
           search box, not the list — mirrors the session detail screen. */}
       <View className="flex-1">
-        <View className="flex-row items-center justify-between border-b border-gray-200 bg-white px-4 py-2 dark:border-gray-700 dark:bg-gray-900">
+        <View className="flex-row items-center justify-between border-b border-gray-200 bg-card px-4 py-2 dark:border-gray-700 dark:bg-gray-900">
           <Text className="text-sm text-gray-500 dark:text-gray-400">
             {selectMode
               ? t('favorites.selectedCount', { count: picked.size })
@@ -731,7 +733,7 @@ export default function FavoritesScreen() {
                 }
                 hitSlop={8}
               >
-                <Text className="text-sm text-blue-600 dark:text-blue-400">
+                <Text className="text-sm text-accent-600 dark:text-accent-400">
                   {picked.size === display.length && display.length > 0
                     ? t('favorites.deselectAll')
                     : t('favorites.selectAll')}
@@ -775,20 +777,20 @@ export default function FavoritesScreen() {
             put a thousand species in here, so the search has to be findable —
             but popping the keyboard every time a list is opened would fight the
             far commoner case of just browsing it. */}
-        <View className="border-b border-gray-100 bg-white px-4 py-2 dark:border-gray-800 dark:bg-gray-900">
+        <View className="border-b border-gray-100 bg-card px-4 py-2 dark:border-gray-800 dark:bg-gray-900">
           <View className="flex-row items-center rounded-lg bg-gray-100 px-2 dark:bg-gray-800">
-            <Ionicons name="search-outline" size={15} color="#9ca3af" />
+            <Ionicons name="search-outline" size={15} color={c.ink3} />
             <TextInput
               className="flex-1 px-2 py-2 text-sm text-gray-900 dark:text-gray-100"
               value={filter}
               onChangeText={setFilter}
               placeholder={t('favorites.searchPlaceholder')}
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={c.ink3}
               returnKeyType="search"
             />
             {filter.length > 0 ? (
               <Pressable onPress={() => setFilter('')} hitSlop={8} className="px-1">
-                <Ionicons name="close-circle" size={16} color="#9ca3af" />
+                <Ionicons name="close-circle" size={16} color={c.ink3} />
               </Pressable>
             ) : null}
           </View>
@@ -841,13 +843,13 @@ export default function FavoritesScreen() {
               <Pressable
                 onPress={() => (selectMode ? togglePick(item.id) : openDetail(item.taxon_id))}
                 onLongPress={() => (selectMode ? undefined : handleLongPress(item))}
-                className="flex-row items-center border-b border-gray-100 bg-white px-4 py-3 active:bg-gray-50 dark:border-gray-800 dark:bg-gray-900 dark:active:bg-gray-800"
+                className="flex-row items-center border-b border-gray-100 bg-card px-4 py-3 active:bg-gray-50 dark:border-gray-800 dark:bg-gray-900 dark:active:bg-gray-800"
               >
                 {selectMode ? (
                   <Ionicons
                     name={picked.has(item.id) ? 'checkbox' : 'square-outline'}
                     size={20}
-                    color={picked.has(item.id) ? '#2563eb' : '#9ca3af'}
+                    color={picked.has(item.id) ? c.accent : c.ink3}
                     style={{ marginRight: 12 }}
                   />
                 ) : null}

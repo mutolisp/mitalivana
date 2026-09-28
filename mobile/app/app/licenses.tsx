@@ -17,6 +17,7 @@ import { useTranslation } from 'react-i18next';
 import { FlatList, Linking, Pressable, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BackHeaderLeft } from '~/lib/goBack';
+import { useThemeColors } from '~/theme/colors';
 
 type Manifest = {
   packages: { n: string; v: string; l: string; t: number; u: string }[];
@@ -28,6 +29,7 @@ type Manifest = {
 const manifest = require('~/generated/licenses.json') as Manifest;
 
 export default function LicensesScreen() {
+  const c = useThemeColors();
   const { t } = useTranslation();
   const [filter, setFilter] = useState('');
   const [open, setOpen] = useState<string | null>(null);
@@ -57,7 +59,7 @@ export default function LicensesScreen() {
     <SafeAreaView edges={['bottom']} className="flex-1 bg-gray-50 dark:bg-gray-950">
       <Stack.Screen options={{ title: t('licenses.title'), headerLeft: BackHeaderLeft }} />
 
-      <View className="border-b border-gray-200 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-900">
+      <View className="border-b border-gray-200 bg-card px-4 py-3 dark:border-gray-700 dark:bg-gray-900">
         <Text className="text-xs text-gray-600 dark:text-gray-400">{t('licenses.intro')}</Text>
         <Text className="mt-2 text-xs font-medium text-gray-700 dark:text-gray-300">
           {t('licenses.summary', { count: manifest.packages.length })}
@@ -71,20 +73,20 @@ export default function LicensesScreen() {
         </View>
       </View>
 
-      <View className="flex-row items-center border-b border-gray-200 bg-white px-4 py-2 dark:border-gray-700 dark:bg-gray-900">
-        <Ionicons name="search" size={16} color="#9ca3af" />
+      <View className="flex-row items-center border-b border-gray-200 bg-card px-4 py-2 dark:border-gray-700 dark:bg-gray-900">
+        <Ionicons name="search" size={16} color={c.ink3} />
         <TextInput
           value={filter}
           onChangeText={setFilter}
           placeholder={t('licenses.searchPlaceholder')}
-          placeholderTextColor="#9ca3af"
+          placeholderTextColor={c.ink3}
           autoCapitalize="none"
           autoCorrect={false}
           className="ml-2 flex-1 py-1 text-base text-gray-900 dark:text-gray-100"
         />
         {filter ? (
           <Pressable onPress={() => setFilter('')} hitSlop={8}>
-            <Ionicons name="close-circle" size={18} color="#9ca3af" />
+            <Ionicons name="close-circle" size={18} color={c.ink3} />
           </Pressable>
         ) : null}
       </View>
@@ -101,7 +103,7 @@ export default function LicensesScreen() {
           renderItem={({ item }) => {
             const expanded = open === item.n;
             return (
-              <View className="border-b border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-900">
+              <View className="border-b border-gray-100 bg-card dark:border-gray-800 dark:bg-gray-900">
                 <Pressable
                   onPress={() => setOpen(expanded ? null : item.n)}
                   className="flex-row items-center px-4 py-3 active:bg-gray-50 dark:active:bg-gray-800"
@@ -118,7 +120,7 @@ export default function LicensesScreen() {
                   <Ionicons
                     name={expanded ? 'chevron-down' : 'chevron-forward'}
                     size={16}
-                    color="#9ca3af"
+                    color={c.ink3}
                   />
                 </Pressable>
                 {expanded ? (
@@ -128,7 +130,7 @@ export default function LicensesScreen() {
                         onPress={() => Linking.openURL(item.u)}
                         className="mb-2 active:opacity-70"
                       >
-                        <Text className="text-xs text-blue-600 dark:text-blue-400">{item.u}</Text>
+                        <Text className="text-xs text-accent-600 dark:text-accent-400">{item.u}</Text>
                       </Pressable>
                     ) : null}
                     <Text

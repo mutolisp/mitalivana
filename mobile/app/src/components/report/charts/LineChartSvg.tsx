@@ -11,7 +11,7 @@
 import React, { useState } from 'react';
 import { Text, View, type LayoutChangeEvent } from 'react-native';
 import Svg, { Polygon, Polyline } from 'react-native-svg';
-import { useThemeColors } from '~/hooks/useThemeColors';
+import { useThemeColors } from '~/theme/colors';
 import { CHART_TRACK, CHART_TRACK_DARK, seriesColor, withHash } from '~/lib/reportTheme';
 import type { XYChart } from '~/lib/reportTypes';
 

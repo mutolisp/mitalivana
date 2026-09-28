@@ -2533,7 +2533,7 @@
     },
     "p5m": {
       "title": "{{direction}} · 3×3-m-Raster (Blick zum Gipfel)",
-      "explain": "p5m ist die Außenecke von {{point}} auf der 5-m-Höhenlinie (türkise Linie). Das 3×3-m-Raster dieser Richtung wird von hier aus ausgelegt.",
+      "explain": "p5m ist die Außenecke von {{point}} auf der 5-m-Höhenlinie (grüne Linie). Das 3×3-m-Raster dieser Richtung wird von hier aus ausgelegt.",
       "notSet": "Für {{direction}} ist noch kein p5m gesetzt: unter „Grunddaten“ 11 oder 31 wählen."
     },
     "new": {
@@ -2560,7 +2560,7 @@
       "start": "Aufnahme starten"
     },
     "points": {
-      "carried": "Messpunkte stammen aus der letzten Aufnahme; abweichende Felder sind türkis markiert.",
+      "carried": "Messpunkte stammen aus der letzten Aufnahme; abweichende Felder sind grün markiert.",
       "whereP5m": "Wo ist p5m?",
       "point": "Punkt",
       "distance": "Dist. m",

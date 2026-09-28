@@ -68,7 +68,7 @@ export function OrcidSignInModal({ config, onDone }: Props) {
 
   return (
     <Modal visible animationType="slide" onRequestClose={() => onDone({ kind: 'cancelled' })}>
-      <View className="flex-1 bg-white dark:bg-gray-900" style={{ paddingTop: insets.top }}>
+      <View className="flex-1 bg-card dark:bg-gray-900" style={{ paddingTop: insets.top }}>
         <View className="flex-row items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-700">
           <Pressable onPress={() => onDone({ kind: 'cancelled' })} hitSlop={8}>
             <Text className="text-base text-gray-700 dark:text-gray-300">{t('common.cancel')}</Text>

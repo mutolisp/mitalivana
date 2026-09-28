@@ -5,6 +5,7 @@ import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { createProject, listProjects, type Project } from '~/db';
 import { promptText } from './TextPromptModal';
+import { useThemeColors } from '~/theme/colors';
 
 type Props = {
   visible: boolean;
@@ -25,6 +26,7 @@ export function ProjectAssignSheet({
   description,
   newProjectDescription,
 }: Props) {
+  const c = useThemeColors();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [projects, setProjects] = useState<Project[]>([]);
@@ -69,7 +71,7 @@ export function ProjectAssignSheet({
         />
         <View
           style={{ position: 'absolute', bottom: 0, left: 0, right: 0, paddingBottom: insets.bottom + 8 }}
-          className="rounded-t-2xl bg-white dark:bg-gray-900"
+          className="rounded-t-2xl bg-card dark:bg-gray-900"
         >
           <View className="border-b border-gray-200 dark:border-gray-700 px-4 py-3">
             <Text className="text-base font-semibold text-gray-900 dark:text-gray-100">{t('sheets.assignProject')}</Text>
@@ -79,14 +81,14 @@ export function ProjectAssignSheet({
           </View>
           <Pressable
             onPress={handleCreateInline}
-            className="flex-row items-center border-b border-gray-100 dark:border-gray-800 bg-blue-50 dark:bg-blue-950/40 px-4 py-3 active:bg-blue-100 dark:active:bg-blue-900/60"
+            className="flex-row items-center border-b border-gray-100 dark:border-gray-800 bg-accent-50 dark:bg-accent-950/40 px-4 py-3 active:bg-accent-100 dark:active:bg-accent-900/60"
           >
-            <View className="mr-3 h-8 w-8 items-center justify-center rounded-full bg-blue-500">
+            <View className="mr-3 h-8 w-8 items-center justify-center rounded-full bg-accent-500">
               <Ionicons name="add" size={20} color="white" />
             </View>
             <View className="flex-1">
-              <Text className="text-base font-semibold text-blue-700 dark:text-blue-300">{t('sheets.newProject')}</Text>
-              <Text className="text-xs text-blue-600 dark:text-blue-400">{newProjectDescription ?? t('sheets.newProjectDesc')}</Text>
+              <Text className="text-base font-semibold text-accent-700 dark:text-accent-300">{t('sheets.newProject')}</Text>
+              <Text className="text-xs text-accent-600 dark:text-accent-400">{newProjectDescription ?? t('sheets.newProjectDesc')}</Text>
             </View>
           </Pressable>
           <ScrollView className="max-h-96">
@@ -96,17 +98,17 @@ export function ProjectAssignSheet({
                 <Pressable
                   key={p.id}
                   onPress={() => onAssign(p.id)}
-                  className={`flex-row items-center border-b border-gray-100 dark:border-gray-800 px-4 py-3 ${active ? 'bg-blue-50 dark:bg-blue-950/40' : 'active:bg-gray-50 dark:active:bg-gray-800'}`}
+                  className={`flex-row items-center border-b border-gray-100 dark:border-gray-800 px-4 py-3 ${active ? 'bg-accent-50 dark:bg-accent-950/40' : 'active:bg-gray-50 dark:active:bg-gray-800'}`}
                 >
                   <Ionicons
                     name={p.id === 0 ? 'help-circle-outline' : 'folder-outline'}
                     size={20}
-                    color="#6b7280"
+                    color={c.ink2}
                     style={{ marginRight: 12 }}
                   />
                   <View className="flex-1">
                     <Text
-                      className={`text-base ${active ? 'font-semibold text-blue-700 dark:text-blue-300' : 'text-gray-900 dark:text-gray-100'} ${p.id === 0 ? 'italic text-gray-500 dark:text-gray-400' : ''}`}
+                      className={`text-base ${active ? 'font-semibold text-accent-700 dark:text-accent-300' : 'text-gray-900 dark:text-gray-100'} ${p.id === 0 ? 'italic text-gray-500 dark:text-gray-400' : ''}`}
                     >
                       {p.name}
                     </Text>
@@ -116,7 +118,7 @@ export function ProjectAssignSheet({
                       </Text>
                     ) : null}
                   </View>
-                  {active ? <Ionicons name="checkmark" size={20} color="#2563eb" /> : null}
+                  {active ? <Ionicons name="checkmark" size={20} color={c.accent} /> : null}
                 </Pressable>
               );
             })}

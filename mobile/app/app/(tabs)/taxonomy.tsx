@@ -70,6 +70,7 @@ import { toastFavoriteAdded } from '~/lib/favoritesToast';
 import { useSettings } from '~/stores/settings';
 import { useTaxonomyJump } from '~/stores/taxonomyJump';
 import { useToast } from '~/stores/toast';
+import { useThemeColors } from '~/theme/colors';
 
 /** What a picked tree row stands for. */
 type TreePick =
@@ -132,6 +133,7 @@ function flatten(
 }
 
 export default function TaxonomyScreen() {
+  const c = useThemeColors();
   const { t } = useTranslation();
   // Mount-time marker — paired with `taxonomy:first-paint` below.
   // Must fire only ONCE on first render; putting it bare in the function body
@@ -957,7 +959,7 @@ export default function TaxonomyScreen() {
 
   return (
     <View className="flex-1 bg-gray-50 dark:bg-gray-950">
-      <View className="border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 pb-3 pt-3">
+      <View className="border-b border-gray-200 dark:border-gray-700 bg-card dark:bg-gray-900 px-4 pb-3 pt-3">
         <View className="flex-row items-center justify-between">
           <Text className="text-2xl font-bold text-gray-900 dark:text-gray-100">{t('tab.species')}</Text>
           {segment === 'tree' ? (
@@ -965,15 +967,15 @@ export default function TaxonomyScreen() {
               onPress={handleCollapseAll}
               disabled={expanded.size === 0}
               hitSlop={6}
-              className={`flex-row items-center rounded-full px-3 py-1.5 ${expanded.size === 0 ? 'bg-gray-100 dark:bg-gray-800' : 'bg-blue-50 dark:bg-blue-950/40 active:bg-blue-100 dark:active:bg-blue-900/60'}`}
+              className={`flex-row items-center rounded-full px-3 py-1.5 ${expanded.size === 0 ? 'bg-gray-100 dark:bg-gray-800' : 'bg-accent-50 dark:bg-accent-950/40 active:bg-accent-100 dark:active:bg-accent-900/60'}`}
             >
               <Ionicons
                 name="contract-outline"
                 size={14}
-                color={expanded.size === 0 ? '#9ca3af' : '#2563eb'}
+                color={expanded.size === 0 ? c.disabled : c.accent}
               />
               <Text
-                className={`ml-1 text-xs font-medium ${expanded.size === 0 ? 'text-gray-400 dark:text-gray-500' : 'text-blue-700 dark:text-blue-300'}`}
+                className={`ml-1 text-xs font-medium ${expanded.size === 0 ? 'text-gray-400 dark:text-gray-500' : 'text-accent-700 dark:text-accent-300'}`}
               >
                 {t('taxonomy.collapseAll')}{expanded.size > 0 ? ` (${expanded.size})` : ''}
               </Text>
@@ -1257,6 +1259,7 @@ function TaxonRow({
    *  this scope's name so user lands on the matching key(s). */
   onOpenKeys?: (scopeName: string) => void;
 }) {
+  const tc = useThemeColors();
   const { t } = useTranslation();
   // Localize the rank-key at render (data layer stores keys, not labels) so the
   // tree re-localizes on a language switch. Space-separated so e.g. "Phylum 5"
@@ -1293,7 +1296,7 @@ function TaxonRow({
       onPress={selectMode && onSelectToggle ? onSelectToggle : onToggle}
       onLongPress={onLongPress}
       delayLongPress={350}
-      className="flex-row items-center border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 px-4 py-3 active:bg-gray-50 dark:active:bg-gray-800"
+      className="flex-row items-center border-b border-gray-100 dark:border-gray-800 bg-card dark:bg-gray-900 px-4 py-3 active:bg-gray-50 dark:active:bg-gray-800"
       style={{ paddingLeft: 16 + depth * 14 }}
     >
       {selectMode && onSelectToggle ? (
@@ -1301,14 +1304,14 @@ function TaxonRow({
         <Ionicons
           name={picked ? 'checkbox' : 'square-outline'}
           size={16}
-          color={picked ? '#2563eb' : '#9ca3af'}
+          color={picked ? tc.accent : tc.ink3}
           style={{ marginRight: 8 }}
         />
       ) : (
         <Ionicons
           name={expanded ? 'chevron-down' : 'chevron-forward'}
           size={16}
-          color="#6b7280"
+          color={tc.ink2}
           style={{ marginRight: 8 }}
         />
       )}
@@ -1360,7 +1363,7 @@ function TaxonRow({
                   <Ionicons
                     name="key"
                     size={14}
-                    color={k.mode === 'multi_access' ? '#3b82f6' : '#10b981'}
+                    color={k.mode === 'multi_access' ? '#3b82f6' : tc.accent}
                   />
                 </Pressable>
               ))}
@@ -1380,7 +1383,7 @@ function TaxonRow({
           className="ml-2 active:opacity-60"
           accessibilityLabel={t('taxonomy.nodeInfo')}
         >
-          <Ionicons name="information-circle-outline" size={18} color="#9ca3af" />
+          <Ionicons name="information-circle-outline" size={18} color={tc.ink3} />
         </Pressable>
       ) : null}
     </Pressable>
@@ -1402,6 +1405,7 @@ function SpeciesRow({
   selectMode: boolean;
   picked: boolean;
 }) {
+  const tc = useThemeColors();
   const { t } = useTranslation();
   const isInfraspecific = ['Subspecies', 'Variety', 'Form'].includes(species.rank);
   return (
@@ -1409,7 +1413,7 @@ function SpeciesRow({
       onPress={onPress}
       onLongPress={onLongPress}
       delayLongPress={350}
-      className="flex-row items-start border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 px-4 py-2 active:bg-blue-50 dark:active:bg-blue-900/40"
+      className="flex-row items-start border-b border-gray-100 dark:border-gray-800 bg-card dark:bg-gray-900 px-4 py-2 active:bg-accent-50 dark:active:bg-accent-900/40"
       style={{ paddingLeft: 16 + depth * 14 }}
     >
       {/* The checkbox takes the leaf's slot at the leaf's size, so the row keeps
@@ -1418,11 +1422,11 @@ function SpeciesRow({
         <Ionicons
           name={picked ? 'checkbox' : 'square-outline'}
           size={14}
-          color={picked ? '#2563eb' : '#9ca3af'}
+          color={picked ? tc.accent : tc.ink3}
           style={{ marginRight: 8, marginTop: 3 }}
         />
       ) : (
-        <Ionicons name="leaf-outline" size={14} color="#10b981" style={{ marginRight: 8, marginTop: 3 }} />
+        <Ionicons name="leaf-outline" size={14} color={tc.accent} style={{ marginRight: 8, marginTop: 3 }} />
       )}
       <View className="flex-1">
         <Text className="text-sm text-gray-700 dark:text-gray-300">
@@ -1487,7 +1491,7 @@ function LoadingRow({ depth }: { depth: number }) {
   const { t } = useTranslation();
   return (
     <View
-      className="flex-row items-center border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 px-4 py-2"
+      className="flex-row items-center border-b border-gray-100 dark:border-gray-800 bg-card dark:bg-gray-900 px-4 py-2"
       style={{ paddingLeft: 16 + depth * 14 }}
     >
       <ActivityIndicator size="small" />

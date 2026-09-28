@@ -93,7 +93,7 @@ export function OverviewPanel({
 
   return (
     <Pressable onPress={onClose} className="absolute inset-0 bg-black/35 px-2.5 pt-2">
-      <Pressable onPress={() => undefined} className="max-h-[92%] rounded-2xl bg-white dark:bg-gray-900">
+      <Pressable onPress={() => undefined} className="max-h-[92%] rounded-2xl bg-card dark:bg-gray-900">
         <ScrollView contentContainerClassName="gap-3 p-3">
           <View className="flex-row items-center">
             <Text className="flex-1 text-base font-bold text-gray-900 dark:text-gray-100">{code}</Text>
@@ -105,7 +105,7 @@ export function OverviewPanel({
                 key={s.key + i}
                 onPress={() => (s.key === current ? onClose() : go(s.href))}
                 className={`flex-row items-center px-3 py-2.5 ${i ? 'border-t border-gray-100 dark:border-gray-800' : ''} ${
-                  s.key === current ? 'bg-cyan-50 dark:bg-cyan-950/40' : 'active:bg-gray-50 dark:active:bg-gray-800'
+                  s.key === current ? 'bg-accent-50 dark:bg-accent-950/40' : 'active:bg-gray-50 dark:active:bg-gray-800'
                 }`}
               >
                 <Text className="flex-1 text-sm font-semibold text-gray-900 dark:text-gray-100">{s.label}</Text>

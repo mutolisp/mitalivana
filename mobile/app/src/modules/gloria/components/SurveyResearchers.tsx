@@ -45,7 +45,7 @@ export function SurveyResearchers({ state, reload }: { state: SurveyState; reloa
           onPress={() => setPicking(true)}
           accessibilityRole="button"
           accessibilityLabel={t('gloria.new.surveyors')}
-          className="rounded-md border border-gray-300 bg-white px-2 py-2 dark:border-gray-700 dark:bg-gray-900"
+          className="rounded-md border border-gray-300 bg-card px-2 py-2 dark:border-gray-700 dark:bg-gray-900"
         >
           <Text className={`text-sm ${sv.recorded_by ? 'text-gray-900 dark:text-gray-100' : 'text-gray-400'}`}>
             {sv.recorded_by || t('gloria.times.byNone')}

@@ -39,6 +39,7 @@ import { createTeam, listServers, randomHex, rememberServer, setDefaultServerFor
 import { teamSyncErrorText } from '~/lib/teamSyncText';
 import { saveAdminToken } from '~/lib/teamSyncAdmin';
 import { defaultSurveyorString } from '~/db/surveyors';
+import { useThemeColors } from '~/theme/colors';
 
 const STEPS: DeployStep[] = ['url', 'guard', 'bucket', 'lifecycle', 'script', 'subdomain', 'schedule', 'check'];
 
@@ -52,6 +53,7 @@ function lastServerName(): string {
 }
 
 export default function TeamDeployScreen() {
+  const c = useThemeColors();
   const { t } = useTranslation();
   const router = useRouter();
   const [step, setStep] = useState<DeployStep | null>(null);
@@ -234,7 +236,7 @@ export default function TeamDeployScreen() {
     <SettingsPage title={t('teamDeploy.title')}>
       <ScrollView contentContainerClassName="gap-4 p-4 pb-10" keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
         <Text className="text-sm leading-6 text-gray-700 dark:text-gray-300">{t('teamDeploy.intro')}</Text>
-        <View className="gap-1 rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-800 dark:bg-gray-900">
+        <View className="gap-1 rounded-xl border border-gray-200 bg-card p-3 dark:border-gray-800 dark:bg-gray-900">
           <Text className="text-sm font-semibold text-gray-900 dark:text-gray-100">{t('teamDeploy.permsTitle')}</Text>
           {['Workers Scripts：Edit', 'Workers R2 Storage：Edit', 'Account Settings：Read'].map((p) => (
             <Text key={p} selectable className="font-mono text-xs text-gray-700 dark:text-gray-300">
@@ -243,14 +245,14 @@ export default function TeamDeployScreen() {
           ))}
           <Text className="pt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">{t('teamDeploy.permsNote')}</Text>
           <Pressable onPress={() => void Linking.openURL(tokenTemplateUrl('account'))} accessibilityRole="link" className="pt-1">
-            <Text className="text-sm text-[#00797b] dark:text-cyan-300">{t('teamDeploy.openAccountTokens')} ›</Text>
+            <Text className="text-sm text-accent-700 dark:text-accent-300">{t('teamDeploy.openAccountTokens')} ›</Text>
           </Pressable>
           <Pressable onPress={() => void Linking.openURL(tokenTemplateUrl('user'))} accessibilityRole="link">
-            <Text className="text-xs text-[#00797b] dark:text-cyan-300">{t('teamDeploy.openUserTokens')} ›</Text>
+            <Text className="text-xs text-accent-700 dark:text-accent-300">{t('teamDeploy.openUserTokens')} ›</Text>
           </Pressable>
         </View>
 
-        <View className="gap-1 rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-800 dark:bg-gray-900">
+        <View className="gap-1 rounded-xl border border-gray-200 bg-card p-3 dark:border-gray-800 dark:bg-gray-900">
           <Text className="text-sm font-semibold text-gray-900 dark:text-gray-100">{t('teamDeploy.nameLabel')}</Text>
           <TextInput
             value={serverName}
@@ -259,9 +261,9 @@ export default function TeamDeployScreen() {
             autoCapitalize="none"
             autoCorrect={false}
             placeholder={DEFAULT_SCRIPT}
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor={c.ink3}
             accessibilityLabel={t('teamDeploy.nameLabel')}
-            className="rounded-md border border-gray-300 bg-white px-2 py-1.5 font-mono text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+            className="rounded-md border border-gray-300 bg-card px-2 py-1.5 font-mono text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
           />
           <Text className="text-xs leading-5 text-gray-500 dark:text-gray-400">
             {t('teamDeploy.nameHint', { host: PUBLIC_HOST, alt: SELF_HOST_SCRIPT })}
@@ -291,7 +293,7 @@ export default function TeamDeployScreen() {
             <Text selectable className="font-mono text-xs text-gray-800 dark:text-gray-200">
               {done}
             </Text>
-            <Pressable onPress={() => void createHere()} accessibilityRole="button" className="items-center rounded-lg bg-[#00A2A5] py-2 active:bg-[#008284]">
+            <Pressable onPress={() => void createHere()} accessibilityRole="button" className="items-center rounded-lg bg-accent-600 py-2 active:bg-accent-700">
               <Text className="text-sm font-semibold text-white">{t('teamDeploy.createTeamHere')}</Text>
             </Pressable>
           </View>
@@ -301,7 +303,7 @@ export default function TeamDeployScreen() {
           onPress={() => void deploy()}
           disabled={busy}
           accessibilityRole="button"
-          className={`items-center rounded-xl py-3 ${busy ? 'bg-gray-400' : 'bg-[#00A2A5] active:bg-[#008284]'}`}
+          className={`items-center rounded-xl py-3 ${busy ? 'bg-gray-400' : 'bg-accent-600 active:bg-accent-700'}`}
         >
           <Text className="text-base font-semibold text-white">{t('teamDeploy.deploy')}</Text>
         </Pressable>

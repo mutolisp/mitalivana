@@ -17,11 +17,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable } from 'react-native';
 
-import { ACCENT } from '~/lib/colors';
-
-const TINT = ACCENT;
-const TINT_DANGER = '#dc2626';
-const TINT_DISABLED = '#9ca3af';
+import { useThemeColors } from '~/theme/colors';
 
 /**
  * Optical-centring nudges, in points.
@@ -63,6 +59,7 @@ export function HeaderIconButton({
    *  button would sit. Use on `headerLeft`. */
   edge?: 'left';
 }) {
+  const c = useThemeColors();
   return (
     <Pressable
       onPress={onPress}
@@ -80,7 +77,7 @@ export function HeaderIconButton({
       <Ionicons
         name={icon}
         size={22}
-        color={disabled ? TINT_DISABLED : tone === 'danger' ? TINT_DANGER : TINT}
+        color={disabled ? c.disabled : tone === 'danger' ? c.alert : c.accent}
         style={{ transform: [{ translateX: OPTICAL_NUDGE_X[icon] ?? 0 }] }}
       />
     </Pressable>

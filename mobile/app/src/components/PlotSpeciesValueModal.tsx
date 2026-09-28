@@ -67,6 +67,7 @@ import {
   serializeDbhArray,
 } from '~/lib/dwcAbundance';
 import { ElevationField } from './ElevationField';
+import { useThemeColors } from '~/theme/colors';
 
 const BB_OPTIONS = ['+', 'r', '1', '2', '3', '4', '5'] as const;
 
@@ -252,6 +253,7 @@ export function PlotSpeciesValueModal({
   pager,
   recordActions,
 }: Props) {
+  const c = useThemeColors();
   const { t } = useTranslation();
   const resolvedDefaultType =
     initial?.organism_quantity_type ?? defaultType ?? defaultQuantityTypeFor(kingdom);
@@ -486,7 +488,7 @@ export function PlotSpeciesValueModal({
             ScrollView's height is properly bounded. */}
           <View
             style={{ marginTop: insets.top + 16 }}
-            className="flex-1 rounded-t-2xl bg-white dark:bg-gray-900"
+            className="flex-1 rounded-t-2xl bg-card dark:bg-gray-900"
           >
             <SafeAreaView edges={['bottom']} className="flex-1">
               <SwipeNavPager state={stepPager} grabber />
@@ -525,8 +527,8 @@ export function PlotSpeciesValueModal({
                           hitSlop={6}
                           className="mt-2 flex-row items-center active:opacity-70"
                         >
-                          <Ionicons name="swap-horizontal" size={14} color="#2563eb" />
-                          <Text className="ml-1 text-xs font-medium text-blue-700 dark:text-blue-300">
+                          <Ionicons name="swap-horizontal" size={14} color={c.accent} />
+                          <Text className="ml-1 text-xs font-medium text-accent-700 dark:text-accent-300">
                             {t('plotSpecies.changeTaxon')}
                           </Text>
                         </Pressable>
@@ -536,8 +538,8 @@ export function PlotSpeciesValueModal({
                             hitSlop={6}
                             className="mt-2 flex-row items-center active:opacity-70"
                           >
-                            <Ionicons name="layers-outline" size={14} color="#2563eb" />
-                            <Text className="ml-1 text-xs font-medium text-blue-700 dark:text-blue-300">
+                            <Ionicons name="layers-outline" size={14} color={c.accent} />
+                            <Text className="ml-1 text-xs font-medium text-accent-700 dark:text-accent-300">
                               {t('plotSpecies.changeLayer')}
                             </Text>
                           </Pressable>
@@ -598,7 +600,7 @@ export function PlotSpeciesValueModal({
                             }}
                             className={`flex-row items-center rounded-full px-2.5 py-1 active:opacity-80 ${
                               k.mode === 'multi_access'
-                                ? 'bg-blue-100 dark:bg-blue-900/60'
+                                ? 'bg-accent-100 dark:bg-accent-900/60'
                                 : 'bg-emerald-100 dark:bg-emerald-900/60'
                             }`}
                             hitSlop={4}
@@ -606,12 +608,12 @@ export function PlotSpeciesValueModal({
                             <Ionicons
                               name="key"
                               size={12}
-                              color={k.mode === 'multi_access' ? '#2563eb' : '#10b981'}
+                              color={k.mode === 'multi_access' ? c.accent : c.accent}
                             />
                             <Text
                               className={`ml-1 text-xs font-medium ${
                                 k.mode === 'multi_access'
-                                  ? 'text-blue-700 dark:text-blue-300'
+                                  ? 'text-accent-700 dark:text-accent-300'
                                   : 'text-emerald-700 dark:text-emerald-300'
                               }`}
                             >
@@ -706,9 +708,9 @@ export function PlotSpeciesValueModal({
                       value={notes}
                       onChangeText={setNotes}
                       placeholder={t('plotValue.notesPlaceholder')}
-                      placeholderTextColor="#9ca3af"
+                      placeholderTextColor={c.ink3}
                       multiline
-                      className="min-h-[60px] rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                      className="min-h-[60px] rounded-lg border border-gray-200 bg-card px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
                     />
                   </View>
 
@@ -733,7 +735,7 @@ export function PlotSpeciesValueModal({
                             <Pressable
                               key={o.value}
                               onPress={() => setDetection(on ? null : o.value)}
-                              className={`rounded-full border px-3 py-1.5 ${on ? 'border-emerald-500 bg-emerald-500' : 'border-gray-300 bg-white dark:border-gray-600 dark:bg-gray-900'}`}
+                              className={`rounded-full border px-3 py-1.5 ${on ? 'border-emerald-500 bg-emerald-500' : 'border-gray-300 bg-card dark:border-gray-600 dark:bg-gray-900'}`}
                             >
                               <Text
                                 className={`text-xs font-medium ${on ? 'text-white' : 'text-gray-700 dark:text-gray-300'}`}
@@ -798,7 +800,7 @@ export function PlotSpeciesValueModal({
                           <Ionicons
                             name={lat != null ? 'location' : 'location-outline'}
                             size={18}
-                            color={lat != null ? '#2563eb' : '#4b5563'}
+                            color={lat != null ? c.accent : '#4b5563'}
                           />
                           <Text className="ml-2 flex-1 text-sm text-gray-700 dark:text-gray-300">
                             {lat != null && lng != null
@@ -880,7 +882,7 @@ export function PlotSpeciesValueModal({
                           <ElevationField
                             value={elevation}
                             onCommit={(m) => onSaveElevation(m, 'manual')}
-                            inputClassName="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                            inputClassName="rounded-lg border border-gray-200 bg-card px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
                           />
                         </View>
                       ) : null}
@@ -941,7 +943,7 @@ export function PlotSpeciesValueModal({
                       onPress={recordActions.onDelete}
                       className="mt-4 flex-row items-center justify-center rounded-lg border border-red-200 bg-red-50 px-4 py-3 active:bg-red-100 dark:bg-red-950/40 dark:active:bg-red-900/60"
                     >
-                      <Ionicons name="trash-outline" size={18} color="#dc2626" />
+                      <Ionicons name="trash-outline" size={18} color={c.alert} />
                       <Text className="ml-2 text-sm font-medium text-red-700 dark:text-red-400">
                         {t('plotSpecies.deleteRecord')}
                       </Text>
@@ -1053,6 +1055,7 @@ function PercentInput({
    *  quick values are rendered by the caller below both. */
   compact?: boolean;
 }) {
+  const c = useThemeColors();
   const { t } = useTranslation();
   return (
     <View>
@@ -1062,7 +1065,7 @@ function PercentInput({
         </Text>
       )}
       <View
-        className={`flex-row items-center rounded-lg border bg-white px-3 dark:bg-gray-900 ${
+        className={`flex-row items-center rounded-lg border bg-card px-3 dark:bg-gray-900 ${
           compact
             ? `${FIELD_HEIGHT} border-gray-300 dark:border-gray-600`
             : 'border-gray-200 dark:border-gray-700'
@@ -1072,7 +1075,7 @@ function PercentInput({
           value={value}
           onChangeText={onChange}
           placeholder="0–100"
-          placeholderTextColor="#9ca3af"
+          placeholderTextColor={c.ink3}
           keyboardType="decimal-pad"
           autoFocus
           // Compact: the box above fixes the height; the input fills it.
@@ -1103,6 +1106,7 @@ function CountInput({
   /** Beside the unit dropdown, which already names the unit. */
   compact?: boolean;
 }) {
+  const c = useThemeColors();
   const { t } = useTranslation();
   return (
     <View>
@@ -1112,7 +1116,7 @@ function CountInput({
         </Text>
       )}
       <View
-        className={`flex-row items-center rounded-lg border bg-white px-3 dark:bg-gray-900 ${
+        className={`flex-row items-center rounded-lg border bg-card px-3 dark:bg-gray-900 ${
           compact
             ? `${FIELD_HEIGHT} border-gray-300 dark:border-gray-600`
             : 'border-gray-200 dark:border-gray-700'
@@ -1122,7 +1126,7 @@ function CountInput({
           value={value}
           onChangeText={onChange}
           placeholder={t('plotValue.enterCount')}
-          placeholderTextColor="#9ca3af"
+          placeholderTextColor={c.ink3}
           keyboardType="numeric"
           autoFocus
           // Compact: the box above fixes the height; the input fills it.
@@ -1149,6 +1153,7 @@ function DBHInput({
   onAdd: () => void;
   onRemove: (idx: number) => void;
 }) {
+  const c = useThemeColors();
   const { t } = useTranslation();
   const totalBA = basalArea(stems);
   return (
@@ -1156,13 +1161,13 @@ function DBHInput({
       <Text className="mb-2 text-xs font-medium text-gray-600 dark:text-gray-400">
         {t('abundance.dbh')}
       </Text>
-      <View className="flex-row items-center rounded-lg border border-gray-200 bg-white px-3 dark:border-gray-700 dark:bg-gray-900">
+      <View className="flex-row items-center rounded-lg border border-gray-200 bg-card px-3 dark:border-gray-700 dark:bg-gray-900">
         <TextInput
           value={stemDraft}
           onChangeText={setStemDraft}
           onSubmitEditing={onAdd}
           placeholder={t('plotValue.dbhPlaceholder')}
-          placeholderTextColor="#9ca3af"
+          placeholderTextColor={c.ink3}
           keyboardType="decimal-pad"
           returnKeyType="done"
           autoFocus
@@ -1207,9 +1212,9 @@ function DbhStemChip({ value, onRemove }: { value: number; onRemove: () => void 
     <Pressable
       onLongPress={confirmRemove}
       delayLongPress={300}
-      className="flex-row items-center rounded-full bg-blue-100 px-3 py-1.5 dark:bg-blue-900/60"
+      className="flex-row items-center rounded-full bg-accent-100 px-3 py-1.5 dark:bg-accent-900/60"
     >
-      <Text className="text-sm font-medium text-blue-800 dark:text-white">{value} cm</Text>
+      <Text className="text-sm font-medium text-accent-800 dark:text-white">{value} cm</Text>
       <Pressable onPress={confirmRemove} hitSlop={8} className="ml-1.5">
         <Ionicons name="close-circle" size={16} color={closeColor} />
       </Pressable>
@@ -1228,6 +1233,7 @@ function CustomInput({
   quantityValue: string;
   setQuantityValue: (s: string) => void;
 }) {
+  const c = useThemeColors();
   const { t } = useTranslation();
   return (
     <View className="gap-3">
@@ -1239,9 +1245,9 @@ function CustomInput({
           value={typeValue}
           onChangeText={setTypeValue}
           placeholder={t('plotValue.customUnitPlaceholder')}
-          placeholderTextColor="#9ca3af"
+          placeholderTextColor={c.ink3}
           autoCapitalize="none"
-          className="rounded-lg border border-gray-200 bg-white px-3 py-3 text-base text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+          className="rounded-lg border border-gray-200 bg-card px-3 py-3 text-base text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
         />
       </View>
       <View>
@@ -1252,8 +1258,8 @@ function CustomInput({
           value={quantityValue}
           onChangeText={setQuantityValue}
           placeholder={t('plotValue.customQtyPlaceholder')}
-          placeholderTextColor="#9ca3af"
-          className="rounded-lg border border-gray-200 bg-white px-3 py-3 text-base text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+          placeholderTextColor={c.ink3}
+          className="rounded-lg border border-gray-200 bg-card px-3 py-3 text-base text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
         />
       </View>
     </View>

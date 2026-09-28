@@ -12,7 +12,8 @@
  */
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { Pressable, Switch, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
+import { Switch } from '~/components/ui/Switch';
 import { DOC_FORMATS, reportFormatLabels } from '~/lib/docFormat';
 import { useSettings, type DocFormat, type ReportFormat } from '~/stores/settings';
 import { AnalysisExportOptions } from './AnalysisExportOptions';
@@ -100,7 +101,7 @@ export function ExportPreferenceOptions() {
               className="flex-row items-center border-b border-gray-100 dark:border-gray-800 py-3 active:bg-gray-50 dark:active:bg-gray-800"
             >
               <View
-                className={`mr-3 h-6 w-6 items-center justify-center rounded ${on ? 'bg-blue-500' : 'border border-gray-300 dark:border-gray-700'}`}
+                className={`mr-3 h-6 w-6 items-center justify-center rounded ${on ? 'bg-accent-500' : 'border border-gray-300 dark:border-gray-700'}`}
               >
                 {on ? <Ionicons name="checkmark" size={16} color="white" /> : null}
               </View>
@@ -223,7 +224,7 @@ export function ExportPreferenceOptions() {
             <Pressable
               key={opt.value}
               onPress={() => toggleLevel(opt.value)}
-              className={`rounded-full border px-3 py-1.5 ${on ? 'border-blue-500 bg-blue-500' : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900'}`}
+              className={`rounded-full border px-3 py-1.5 ${on ? 'border-accent-500 bg-accent-500' : 'border-gray-300 dark:border-gray-600 bg-card dark:bg-gray-900'}`}
             >
               <Text className={`text-xs font-medium ${on ? 'text-white' : 'text-gray-700 dark:text-gray-300'}`}>
                 {t(opt.label)}
@@ -243,7 +244,7 @@ export function ExportPreferenceOptions() {
             <Pressable
               key={opt.value}
               onPress={() => toggleConservation(opt.value)}
-              className={`rounded-full border px-3 py-1.5 ${on ? 'border-emerald-500 bg-emerald-500' : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900'}`}
+              className={`rounded-full border px-3 py-1.5 ${on ? 'border-emerald-500 bg-emerald-500' : 'border-gray-300 dark:border-gray-600 bg-card dark:bg-gray-900'}`}
             >
               <Text className={`text-xs font-medium ${on ? 'text-white' : 'text-gray-700 dark:text-gray-300'}`}>
                 {t(opt.label)}

@@ -45,6 +45,7 @@ import { SurveyorAssignSheet } from './SurveyorAssignSheet';
 import { SpeciesAttributesBlock, type SpeciesAttributesDraft } from './SpeciesAttributesBlock';
 import { VerbatimLabelField } from './VerbatimLabelField';
 import { ToastHost } from './ToastHost';
+import { useThemeColors } from '~/theme/colors';
 
 export type SpecimenPatch = {
   record_number?: string;
@@ -115,7 +116,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 const INPUT_CLASS =
-  'rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-base text-gray-900 dark:text-gray-100';
+  'rounded-lg border border-gray-300 dark:border-gray-600 bg-card dark:bg-gray-800 px-3 py-2 text-base text-gray-900 dark:text-gray-100';
 
 export function SpecimenDetailSheet({
   specimen,
@@ -133,6 +134,7 @@ export function SpecimenDetailSheet({
   duplicate,
   pager,
 }: Props) {
+  const c = useThemeColors();
   const { t } = useTranslation();
   // SafeAreaView reports 0 inset inside a Modal (separate view hierarchy, no
   // provider) — apply the top inset by hand.
@@ -375,9 +377,9 @@ export function SpecimenDetailSheet({
       {/* gesture-handler needs its own root inside a Modal's view hierarchy. */}
       <GestureHandlerRootView style={{ flex: 1 }}>
         <View className="flex-1 bg-gray-50 dark:bg-gray-900" style={{ paddingTop: insets.top }}>
-          <View className="flex-row items-center justify-between border-b border-gray-200 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-900">
+          <View className="flex-row items-center justify-between border-b border-gray-200 bg-card px-4 py-3 dark:border-gray-700 dark:bg-gray-900">
             <Pressable onPress={onClose} hitSlop={8} className="active:opacity-60">
-              <Ionicons name="chevron-down" size={24} color="#6b7280" />
+              <Ionicons name="chevron-down" size={24} color={c.ink2} />
             </Pressable>
             <Text
               className="flex-1 px-3 text-base font-semibold text-gray-900 dark:text-gray-100"
@@ -386,7 +388,7 @@ export function SpecimenDetailSheet({
               {specimen.record_number}
             </Text>
             <Pressable onPress={onDelete} hitSlop={8} className="active:opacity-60">
-              <Ionicons name="trash-outline" size={20} color="#dc2626" />
+              <Ionicons name="trash-outline" size={20} color={c.alert} />
             </Pressable>
           </View>
           <SwipeNavPager state={guardedPager} />
@@ -405,7 +407,7 @@ export function SpecimenDetailSheet({
                 keyboardShouldPersistTaps="handled"
               >
                 {/* Species identity */}
-                <View className="mt-4 rounded-lg bg-white p-3 dark:bg-gray-800">
+                <View className="mt-4 rounded-lg bg-card p-3 dark:bg-gray-800">
                   {specimen.common_name_c ? (
                     <Text className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                       {specimen.common_name_c}
@@ -439,8 +441,8 @@ export function SpecimenDetailSheet({
                     hitSlop={6}
                     className="mt-2 flex-row items-center self-start active:opacity-70"
                   >
-                    <Ionicons name="swap-horizontal" size={14} color="#2563eb" />
-                    <Text className="ml-1 text-xs font-medium text-blue-700 dark:text-blue-300">
+                    <Ionicons name="swap-horizontal" size={14} color={c.accent} />
+                    <Text className="ml-1 text-xs font-medium text-accent-700 dark:text-accent-300">
                       {t('collection.changeTaxon')}
                     </Text>
                   </Pressable>
@@ -489,12 +491,12 @@ export function SpecimenDetailSheet({
                 <Field label={t('collection.collector')}>
                   <Pressable
                     onPress={() => setAssigning('collector')}
-                    className="flex-row items-center rounded-lg border border-gray-300 bg-white px-3 py-2 active:opacity-70 dark:border-gray-600 dark:bg-gray-800"
+                    className="flex-row items-center rounded-lg border border-gray-300 bg-card px-3 py-2 active:opacity-70 dark:border-gray-600 dark:bg-gray-800"
                   >
                     <Ionicons
                       name="people-outline"
                       size={16}
-                      color={specimen.recorded_by ? '#2563eb' : '#9ca3af'}
+                      color={specimen.recorded_by ? c.accent : c.ink3}
                     />
                     <Text
                       className={`ml-2 flex-1 text-base ${specimen.recorded_by ? 'text-gray-900 dark:text-gray-100' : 'italic text-gray-400 dark:text-gray-500'}`}
@@ -510,12 +512,12 @@ export function SpecimenDetailSheet({
                 <Field label={t('collection.determiner')}>
                   <Pressable
                     onPress={() => setAssigning('determiner')}
-                    className="flex-row items-center rounded-lg border border-gray-300 bg-white px-3 py-2 active:opacity-70 dark:border-gray-600 dark:bg-gray-800"
+                    className="flex-row items-center rounded-lg border border-gray-300 bg-card px-3 py-2 active:opacity-70 dark:border-gray-600 dark:bg-gray-800"
                   >
                     <Ionicons
                       name="ribbon-outline"
                       size={16}
-                      color={specimen.identified_by ? '#2563eb' : '#9ca3af'}
+                      color={specimen.identified_by ? c.accent : c.ink3}
                     />
                     <Text
                       className={`ml-2 flex-1 text-base ${specimen.identified_by ? 'text-gray-900 dark:text-gray-100' : 'italic text-gray-400 dark:text-gray-500'}`}
@@ -532,7 +534,7 @@ export function SpecimenDetailSheet({
                     onChangeText={setLocality}
                     onBlur={() => onSave({ locality: locality.trim() || null })}
                     placeholder={t('collection.localityPlaceholder')}
-                    placeholderTextColor="#9ca3af"
+                    placeholderTextColor={c.ink3}
                     className={INPUT_CLASS}
                   />
                   <Pressable
@@ -556,7 +558,7 @@ export function SpecimenDetailSheet({
                     <Ionicons
                       name={specimen.lat !== null ? 'location' : 'location-outline'}
                       size={18}
-                      color={specimen.lat !== null ? '#2563eb' : '#4b5563'}
+                      color={specimen.lat !== null ? c.accent : '#4b5563'}
                     />
                     <Text className="ml-2 flex-1 text-sm text-gray-700 dark:text-gray-300" selectable>
                       {specimen.lat !== null && specimen.lng !== null
@@ -628,7 +630,7 @@ export function SpecimenDetailSheet({
                       onChangeText={setElevation}
                       onBlur={commitElevation}
                       placeholder={t('collection.elevationPlaceholder')}
-                      placeholderTextColor="#9ca3af"
+                      placeholderTextColor={c.ink3}
                       keyboardType="numbers-and-punctuation"
                       className={`${INPUT_CLASS} flex-1`}
                     />
@@ -693,7 +695,7 @@ export function SpecimenDetailSheet({
                       onSave({ institution_code: institution.trim().toUpperCase() || null })
                     }
                     placeholder={t('collection.institutionPlaceholder')}
-                    placeholderTextColor="#9ca3af"
+                    placeholderTextColor={c.ink3}
                     autoCapitalize="characters"
                     autoCorrect={false}
                     className={INPUT_CLASS}
@@ -706,7 +708,7 @@ export function SpecimenDetailSheet({
                     onChangeText={setCatalog}
                     onBlur={() => onSave({ catalog_number: catalog.trim() || null })}
                     placeholder={t('collection.catalogNumberPlaceholder')}
-                    placeholderTextColor="#9ca3af"
+                    placeholderTextColor={c.ink3}
                     autoCapitalize="characters"
                     autoCorrect={false}
                     className={INPUT_CLASS}
@@ -721,7 +723,7 @@ export function SpecimenDetailSheet({
                       onSave({ other_catalog_numbers: otherNumbers.trim() || null })
                     }
                     placeholder={t('collection.otherNumbersPlaceholder')}
-                    placeholderTextColor="#9ca3af"
+                    placeholderTextColor={c.ink3}
                     autoCorrect={false}
                     className={INPUT_CLASS}
                   />
@@ -743,7 +745,7 @@ export function SpecimenDetailSheet({
                     onChangeText={setNotes}
                     onBlur={() => onSave({ notes: notes.trim() || null })}
                     placeholder={t('collection.remarksPlaceholder')}
-                    placeholderTextColor="#9ca3af"
+                    placeholderTextColor={c.ink3}
                     multiline
                     className={`${INPUT_CLASS} min-h-[72px]`}
                     textAlignVertical="top"

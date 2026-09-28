@@ -9,6 +9,7 @@ import { Modal, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { TaxonNode } from '~/db';
 import { buildTaxonCopyText, copyToClipboard, taxonCopyActions } from '~/lib/clipboard';
+import { useThemeColors } from '~/theme/colors';
 
 type Props = {
   node: TaxonNode | null;
@@ -31,6 +32,7 @@ export function TaxonNodeInfoSheet({
   onEdit,
   onDelete,
 }: Props) {
+  const c = useThemeColors();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   if (!node) return null;
@@ -47,7 +49,7 @@ export function TaxonNodeInfoSheet({
         />
         <View
           style={{ position: 'absolute', bottom: 0, left: 0, right: 0, paddingBottom: insets.bottom + 8 }}
-          className="rounded-t-2xl bg-white dark:bg-gray-900"
+          className="rounded-t-2xl bg-card dark:bg-gray-900"
         >
           <View className="border-b border-gray-200 px-4 py-3 dark:border-gray-700">
             <View className="flex-row items-baseline">
@@ -90,7 +92,7 @@ export function TaxonNodeInfoSheet({
                 <Ionicons
                   name={icon}
                   size={18}
-                  color={icon === 'trash-outline' ? '#dc2626' : '#4b5563'}
+                  color={icon === 'trash-outline' ? c.alert : '#4b5563'}
                   style={{ marginRight: 12 }}
                 />
                 <Text

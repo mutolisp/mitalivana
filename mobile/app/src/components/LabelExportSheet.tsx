@@ -8,10 +8,11 @@
  */
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Modal, Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
+import { Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Switch } from '~/components/ui/Switch';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardAvoidingView } from './KeyboardAvoidingView';
-import { useThemeColors } from '~/hooks/useThemeColors';
+import { useThemeColors } from '~/theme/colors';
 import { useSettings } from '~/stores/settings';
 import { ACTION_FILL } from '~/lib/colors';
 
@@ -69,12 +70,12 @@ export function LabelExportSheet({ visible, count, busy, onCancel, onConfirm }: 
             simply overflows past the margin instead of yielding to it, and the
             inner ScrollView never gets a bounded height to scroll within. */}
         <View
-          className="rounded-t-2xl bg-white dark:bg-gray-900"
+          className="rounded-t-2xl bg-card dark:bg-gray-900"
           style={{ marginTop: insets.top + 16, flexShrink: 1, paddingBottom: insets.bottom + 12 }}
         >
           <View className="flex-row items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-700">
             <Pressable onPress={onCancel} hitSlop={8}>
-              <Text className="text-base text-blue-500">{t('common.cancel')}</Text>
+              <Text className="text-base text-accent-500">{t('common.cancel')}</Text>
             </Pressable>
             <Text className="text-base font-semibold text-gray-900 dark:text-gray-100">
               {t('collection.labelSheetTitle')}
@@ -98,7 +99,7 @@ export function LabelExportSheet({ visible, count, busy, onCancel, onConfirm }: 
               value={title}
               onChangeText={setTitle}
               placeholder={t('collection.labelHeadingPlaceholder')}
-              placeholderTextColor={colors.placeholder}
+              placeholderTextColor={colors.ink3}
               className="mb-4 rounded-lg border border-gray-300 px-3 py-2 text-base text-gray-900 dark:border-gray-600 dark:text-gray-100"
             />
 

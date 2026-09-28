@@ -64,6 +64,7 @@ import {
 import { apiErrorMessage } from '~/lib/apiErrorMessage';
 import { matchScientificName } from '~/lib/sciMatch';
 import { ACTION_FILL } from '~/lib/colors';
+import { useThemeColors } from '~/theme/colors';
 
 /** What the caller gets back: a taxon that is now usable, plus whether it
  *  turned out to be a LOCAL one GBIF led us to (no external taxon minted). */
@@ -283,6 +284,7 @@ type LocalHit = {
 };
 
 export function GbifLookupHost() {
+  const tc = useThemeColors();
   const pending = useLookupStore((s) => s.pending);
   const resolveLookup = useLookupStore((s) => s.resolve);
   const query = pending?.query ?? null;
@@ -521,7 +523,7 @@ export function GbifLookupHost() {
   return (
     <Modal visible={query !== null} animationType="slide" onRequestClose={onClose}>
       <View
-        className="flex-1 bg-white dark:bg-gray-900"
+        className="flex-1 bg-card dark:bg-gray-900"
         style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
       >
         <View className="flex-row items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-700">
@@ -533,7 +535,7 @@ export function GbifLookupHost() {
           </Text>
           {step === 'confirm' ? (
             <Pressable onPress={handleConfirm} hitSlop={8}>
-              <Text className="text-base font-semibold text-blue-600 dark:text-blue-400">
+              <Text className="text-base font-semibold text-accent-600 dark:text-accent-400">
                 {t('gbifLookup.add')}
               </Text>
             </Pressable>
@@ -547,7 +549,7 @@ export function GbifLookupHost() {
                 className={`text-base font-semibold ${
                   !splitScientificName(manual.sci.trim()).name || !manual.kingdom
                     ? 'text-gray-300 dark:text-gray-600'
-                    : 'text-blue-600 dark:text-blue-400'
+                    : 'text-accent-600 dark:text-accent-400'
                 }`}
               >
                 {pending?.edit ? t('common.save') : t('gbifLookup.add')}
@@ -676,7 +678,7 @@ export function GbifLookupHost() {
                 onResolved(localHit.result, true);
                 onClose();
               }}
-              className="mt-6 rounded-lg bg-blue-600 px-4 py-3 active:bg-blue-700"
+              className="mt-6 rounded-lg bg-accent-600 px-4 py-3 active:bg-accent-700"
             >
               <Text className="text-center text-sm font-semibold text-white">
                 {t('gbifLookup.useLocal')}
@@ -728,7 +730,7 @@ export function GbifLookupHost() {
                   value={cname}
                   onChangeText={setCname}
                   placeholder={t('gbifLookup.cnamePlaceholder')}
-                  placeholderTextColor="#9ca3af"
+                  placeholderTextColor={tc.ink3}
                   className="mt-1 rounded-lg border border-gray-300 px-3 py-2.5 text-base text-gray-900 dark:border-gray-700 dark:text-gray-100"
                 />
                 <Text className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
@@ -762,7 +764,7 @@ export function GbifLookupHost() {
                   setManual((prev) => ({ ...prev, sci: v, rank: deriveRank(v) }))
                 }
                 placeholder="Laurus nobilis L."
-                placeholderTextColor="#9ca3af"
+                placeholderTextColor={tc.ink3}
                 autoCapitalize="none"
                 autoCorrect={false}
                 className="mt-1 rounded-lg border border-gray-300 px-3 py-2.5 text-base text-gray-900 dark:border-gray-600 dark:text-gray-100"
@@ -775,7 +777,7 @@ export function GbifLookupHost() {
                 value={manual.cname}
                 onChangeText={(v) => setManual((prev) => ({ ...prev, cname: v }))}
                 placeholder={t('manualTaxon.cnamePlaceholder')}
-                placeholderTextColor="#9ca3af"
+                placeholderTextColor={tc.ink3}
                 className="mt-1 rounded-lg border border-gray-300 px-3 py-2.5 text-base text-gray-900 dark:border-gray-600 dark:text-gray-100"
               />
 
@@ -791,8 +793,8 @@ export function GbifLookupHost() {
                       onPress={() => setManual((prev) => ({ ...prev, kingdom: k }))}
                       className={`rounded-full border px-3 py-1.5 ${
                         on
-                          ? 'border-blue-500 bg-blue-500'
-                          : 'border-gray-300 bg-white dark:border-gray-600 dark:bg-gray-800'
+                          ? 'border-accent-500 bg-accent-500'
+                          : 'border-gray-300 bg-card dark:border-gray-600 dark:bg-gray-800'
                       }`}
                     >
                       <Text
@@ -868,7 +870,7 @@ export function GbifLookupHost() {
                 className="mt-4 flex-row items-center"
                 hitSlop={6}
               >
-                <Ionicons name={interOpen ? 'chevron-down' : 'chevron-forward'} size={14} color="#6b7280" />
+                <Ionicons name={interOpen ? 'chevron-down' : 'chevron-forward'} size={14} color={tc.ink2} />
                 <Text className="ml-1 text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">
                   {t('manualTaxon.intermediate')}
                 </Text>
@@ -906,7 +908,7 @@ export function GbifLookupHost() {
                                   })
                                 : ''
                             }
-                            placeholderTextColor="#9ca3af"
+                            placeholderTextColor={tc.ink3}
                             className="mt-1 rounded-lg border border-gray-300 px-3 py-2.5 text-base text-gray-900 dark:border-gray-600 dark:text-gray-100"
                           />
                         </View>
@@ -928,8 +930,8 @@ export function GbifLookupHost() {
                       onPress={() => setManual((prev) => ({ ...prev, rank: r }))}
                       className={`rounded-full border px-3 py-1.5 ${
                         on
-                          ? 'border-blue-500 bg-blue-500'
-                          : 'border-gray-300 bg-white dark:border-gray-600 dark:bg-gray-800'
+                          ? 'border-accent-500 bg-accent-500'
+                          : 'border-gray-300 bg-card dark:border-gray-600 dark:bg-gray-800'
                       }`}
                     >
                       <Text
@@ -952,7 +954,7 @@ export function GbifLookupHost() {
                   onPress={handleManualDelete}
                   className="mb-8 flex-row items-center justify-center rounded-lg border border-red-200 py-3 active:bg-red-50 dark:border-red-900 dark:active:bg-red-950/40"
                 >
-                  <Ionicons name="trash-outline" size={16} color="#dc2626" />
+                  <Ionicons name="trash-outline" size={16} color={tc.alert} />
                   <Text className="ml-1.5 text-sm font-medium text-red-600 dark:text-red-400">
                     {t('manualTaxon.delete')}
                   </Text>

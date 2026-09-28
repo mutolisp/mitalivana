@@ -137,7 +137,7 @@ export function DBProvider({ children }: Props) {
 
   if (!ready) {
     return (
-      <View className="flex-1 items-center justify-center bg-white dark:bg-gray-900 px-8">
+      <View className="flex-1 items-center justify-center bg-card dark:bg-gray-900 px-8">
         <ActivityIndicator size="large" />
         <Text className="mt-4 text-sm text-gray-700 dark:text-gray-300">{progress}</Text>
       </View>

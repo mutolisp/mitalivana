@@ -15,7 +15,7 @@ import { ReportChartView } from './charts';
 export function ReportView({ report }: { report: Report }) {
   return (
     <ScrollView className="flex-1 bg-gray-50 dark:bg-gray-950" contentContainerClassName="pb-12">
-      <View className="border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-4 py-4">
+      <View className="border-b border-gray-200 dark:border-gray-800 bg-card dark:bg-gray-900 px-4 py-4">
         <Text className="text-xl font-bold text-gray-900 dark:text-gray-100">{report.title}</Text>
         {report.subtitle ? (
           <Text className="mt-0.5 text-sm text-gray-600 dark:text-gray-400">{report.subtitle}</Text>
@@ -34,7 +34,7 @@ export function ReportView({ report }: { report: Report }) {
 
 function SectionView({ section }: { section: ReportSection }) {
   return (
-    <View className="mt-3 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 px-4 py-3">
+    <View className="mt-3 border-t border-gray-100 dark:border-gray-800 bg-card dark:bg-gray-900 px-4 py-3">
       <Text className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">
         {section.heading}
       </Text>
@@ -152,7 +152,7 @@ function TableView({ table }: { table: ReportTable }) {
         <Text
           numberOfLines={2}
           className={`shrink text-[11px] font-semibold ${alignOf(i)} ${
-            active ? 'text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400'
+            active ? 'text-accent-600 dark:text-accent-400' : 'text-gray-600 dark:text-gray-400'
           }`}
         >
           {c}

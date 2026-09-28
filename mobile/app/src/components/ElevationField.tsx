@@ -9,6 +9,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Text, TextInput, View } from 'react-native';
+import { useThemeColors } from '~/theme/colors';
 
 const show = (v: number | null | undefined) => (v != null ? String(v) : '');
 
@@ -21,6 +22,7 @@ export function ElevationField({
   onCommit: (metres: number | null) => void;
   inputClassName: string;
 }) {
+  const c = useThemeColors();
   const { t } = useTranslation();
   const [text, setText] = useState(show(value));
   const editing = useRef(false);
@@ -55,7 +57,7 @@ export function ElevationField({
         onChangeText={setText}
         onBlur={commit}
         placeholder={t('collection.elevationPlaceholder')}
-        placeholderTextColor="#9ca3af"
+        placeholderTextColor={c.ink3}
         keyboardType="numbers-and-punctuation"
         accessibilityLabel={t('collection.elevation')}
         className={`${inputClassName} flex-1`}

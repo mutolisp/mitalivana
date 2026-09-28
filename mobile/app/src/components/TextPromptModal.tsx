@@ -28,6 +28,7 @@ import {
 import { KeyboardAvoidingView } from './KeyboardAvoidingView';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { create } from 'zustand';
+import { useThemeColors } from '~/theme/colors';
 
 type PromptOptions = {
   title: string;
@@ -74,6 +75,7 @@ export function promptText(options: PromptOptions): Promise<string | null> {
 }
 
 export function TextPromptHost() {
+  const c = useThemeColors();
   const pending = usePromptStore((s) => s.pending);
   const resolve = usePromptStore((s) => s.resolve);
   const [value, setValue] = useState('');
@@ -106,7 +108,7 @@ export function TextPromptHost() {
           }}
         />
         <SafeAreaView edges={['top', 'bottom']} className="flex-1 items-center justify-center px-6">
-          <View className="w-full max-w-md rounded-2xl bg-white dark:bg-gray-900">
+          <View className="w-full max-w-md rounded-2xl bg-card dark:bg-gray-900">
             <View className="px-5 pt-5 pb-3">
               <Text className="text-base font-semibold text-gray-900 dark:text-gray-100">{pending.title}</Text>
               {pending.message ? (
@@ -119,13 +121,13 @@ export function TextPromptHost() {
                 onChangeText={setValue}
                 onSubmitEditing={handleConfirm}
                 placeholder={pending.placeholder}
-                placeholderTextColor="#9ca3af"
+                placeholderTextColor={c.ink3}
                 keyboardType={pending.keyboardType ?? 'default'}
                 autoCapitalize={pending.autoCapitalize ?? 'sentences'}
                 secureTextEntry={pending.secureTextEntry ?? false}
                 autoFocus
                 returnKeyType="done"
-                className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-3 text-base text-gray-900 dark:text-gray-100"
+                className="rounded-lg border border-gray-300 dark:border-gray-600 bg-card dark:bg-gray-900 px-3 py-3 text-base text-gray-900 dark:text-gray-100"
               />
             </View>
             <View className="flex-row border-t border-gray-100 dark:border-gray-800">
@@ -138,10 +140,10 @@ export function TextPromptHost() {
               <Pressable
                 onPress={canConfirm ? handleConfirm : undefined}
                 disabled={!canConfirm}
-                className={`flex-1 items-center justify-center py-3 ${canConfirm ? 'active:bg-blue-50 dark:active:bg-blue-900/40' : ''}`}
+                className={`flex-1 items-center justify-center py-3 ${canConfirm ? 'active:bg-accent-50 dark:active:bg-accent-900/40' : ''}`}
               >
                 <Text
-                  className={`text-base font-semibold ${canConfirm ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500'}`}
+                  className={`text-base font-semibold ${canConfirm ? 'text-accent-600 dark:text-accent-400' : 'text-gray-400 dark:text-gray-500'}`}
                 >
                   {pending.confirmText ?? i18n.t('common.ok')}
                 </Text>

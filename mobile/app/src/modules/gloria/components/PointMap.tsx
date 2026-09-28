@@ -15,6 +15,7 @@ import { Pressable, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Svg, { Line, Polygon, Rect, Text as SvgText } from 'react-native-svg';
 import { SURFACE_UNVISITED, SURFACE_VASCULAR } from '../model/grid';
+import { useThemeColors } from '~/theme/colors';
 
 const FULL = 300;
 const MIN_SIZE = FULL / 5; // 5× at most: a 10×10 m point is ~9 units wide
@@ -53,6 +54,7 @@ export function PointMap({
   /** True while two fingers are on the map — the page should stop scrolling. */
   onInteract?: (active: boolean) => void;
 }) {
+  const tc = useThemeColors();
   const { t } = useTranslation();
   const dark = useColorScheme().colorScheme === 'dark';
   const [view, setView] = useState<ViewBox>(HOME);
@@ -109,12 +111,12 @@ export function PointMap({
 
   const empty = dark ? '#374151' : '#d1d5db';
   const edge = dark ? '#111827' : '#ffffff';
-  const ink = dark ? '#9ca3af' : '#6b7280';
+  const ink = tc.ink2;
   const fill = (i: number) => {
     if (i === current) return '#d97706';
     const ch = surface[i];
-    if (ch === SURFACE_VASCULAR) return '#059669';
-    if (ch && ch !== SURFACE_UNVISITED) return '#9ca3af';
+    if (ch === SURFACE_VASCULAR) return tc.accent;
+    if (ch && ch !== SURFACE_UNVISITED) return tc.ink3;
     return empty;
   };
 
@@ -171,9 +173,9 @@ export function PointMap({
             accessibilityRole="button"
             accessibilityLabel={b.label}
             hitSlop={4}
-            className={`h-8 w-8 items-center justify-center rounded-full border border-gray-300 bg-white/90 dark:border-gray-600 dark:bg-gray-900/90 ${b.off ? 'opacity-40' : ''}`}
+            className={`h-8 w-8 items-center justify-center rounded-full border border-gray-300 bg-card/90 dark:border-gray-600 dark:bg-gray-900/90 ${b.off ? 'opacity-40' : ''}`}
           >
-            <Ionicons name={b.icon} size={16} color="#00A2A5" />
+            <Ionicons name={b.icon} size={16} color={tc.accent} />
           </Pressable>
         ))}
       </View>

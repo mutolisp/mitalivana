@@ -28,6 +28,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { isSpeciesLevelRank } from '~/lib/dataQuality';
+import { useThemeColors } from '~/theme/colors';
 
 type Props = {
   /** The taxon's rank, in either English (TaiCOL) or Chinese (YList) — the
@@ -38,6 +39,7 @@ type Props = {
 };
 
 export function VerbatimLabelField({ rank, value, onCommit }: Props) {
+  const c = useThemeColors();
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [text, setText] = useState('');
@@ -59,7 +61,7 @@ export function VerbatimLabelField({ rank, value, onCommit }: Props) {
         hitSlop={6}
         className="mt-1 flex-row items-center self-start active:opacity-70"
       >
-        <Ionicons name="pricetag-outline" size={13} color="#6b7280" />
+        <Ionicons name="pricetag-outline" size={13} color={c.ink2} />
         <Text className="ml-1 text-xs text-gray-600 dark:text-gray-400">
           {value || t('species.verbatimAdd')}
         </Text>
@@ -73,7 +75,7 @@ export function VerbatimLabelField({ rank, value, onCommit }: Props) {
             value={text}
             onChangeText={setText}
             placeholder={t('species.verbatimPlaceholder')}
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor={c.ink3}
             autoCapitalize="none"
             autoCorrect={false}
             autoFocus
@@ -86,7 +88,7 @@ export function VerbatimLabelField({ rank, value, onCommit }: Props) {
               <Text className="text-sm text-gray-500 dark:text-gray-400">{t('common.cancel')}</Text>
             </Pressable>
             <Pressable onPress={submit} hitSlop={8}>
-              <Text className="text-sm font-medium text-blue-600 dark:text-blue-400">
+              <Text className="text-sm font-medium text-accent-600 dark:text-accent-400">
                 {t('common.ok')}
               </Text>
             </Pressable>

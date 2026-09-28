@@ -34,6 +34,7 @@ import { editManualTaxon } from './GbifLookupHost';
 import { clearSearchResultCache } from './SearchBox';
 import { ACTION_FILL } from '~/lib/colors';
 import { TaxonomyJumpChip } from './TaxonomyJumpChip';
+import { useThemeColors } from '~/theme/colors';
 
 type Props = {
   result: SearchResult;
@@ -101,6 +102,7 @@ export function SpeciesDetailPanel({
 }: Props) {
   // Local copy so the manual-edit flow can refresh the displayed taxon
   // in place — the prop only changes when the parent re-opens the panel.
+  const c = useThemeColors();
   const [result, setResult] = useState(resultProp);
   useEffect(() => setResult(resultProp), [resultProp]);
   const { t } = useTranslation();
@@ -212,7 +214,7 @@ export function SpeciesDetailPanel({
               hitSlop={6}
               className="mt-2 flex-row items-center self-start rounded-full bg-amber-50 px-3 py-1.5 active:bg-amber-100 dark:bg-amber-950/40 dark:active:bg-amber-900/60"
             >
-              <Ionicons name={favorited ? 'heart' : 'heart-outline'} size={14} color="#d97706" />
+              <Ionicons name={favorited ? 'heart' : 'heart-outline'} size={14} color={c.acornDeep} />
               <Text className="ml-1.5 text-xs font-medium text-amber-700 dark:text-amber-300">
                 {favorited ? t('species.inFavorites') : t('favorites.add')}
               </Text>
@@ -234,11 +236,11 @@ export function SpeciesDetailPanel({
           hitSlop={8}
           className="ml-2"
         >
-          <Ionicons name="copy-outline" size={20} color="#6b7280" />
+          <Ionicons name="copy-outline" size={20} color={c.ink2} />
         </Pressable>
         {onClose ? (
           <Pressable onPress={onClose} hitSlop={8} className="ml-2">
-            <Ionicons name="close" size={22} color="#6b7280" />
+            <Ionicons name="close" size={22} color={c.ink2} />
           </Pressable>
         ) : null}
       </View>
@@ -358,7 +360,7 @@ export function SpeciesDetailPanel({
                     <Ionicons
                       name="leaf-outline"
                       size={14}
-                      color="#10b981"
+                      color={c.accent}
                       style={{ marginRight: 8, marginTop: 3 }}
                     />
                     <View className="flex-1">
@@ -393,7 +395,7 @@ export function SpeciesDetailPanel({
                   <Pressable
                     key={sp.taxon_id || sp.simple_name}
                     onPress={() => onPickSubordinate(sp)}
-                    className="active:bg-blue-50 dark:active:bg-blue-900/40"
+                    className="active:bg-accent-50 dark:active:bg-accent-900/40"
                   >
                     {row}
                   </Pressable>
@@ -411,12 +413,12 @@ export function SpeciesDetailPanel({
               <Pressable
                 key={link.label}
                 onPress={() => Linking.openURL(link.url)}
-                className="flex-row items-center rounded-full bg-blue-50 px-3 py-1.5 active:bg-blue-100 dark:bg-blue-950/40 dark:active:bg-blue-900/60"
+                className="flex-row items-center rounded-full bg-accent-50 px-3 py-1.5 active:bg-accent-100 dark:bg-accent-950/40 dark:active:bg-accent-900/60"
               >
-                <Text className="text-xs font-medium text-blue-700 dark:text-blue-300">
+                <Text className="text-xs font-medium text-accent-700 dark:text-accent-300">
                   {link.label}
                 </Text>
-                <Ionicons name="open-outline" size={12} color="#2563eb" />
+                <Ionicons name="open-outline" size={12} color={c.accent} />
               </Pressable>
             ))}
           </View>
@@ -548,8 +550,8 @@ const TAG_STYLES: Record<'emerald' | 'blue' | 'purple' | 'rose', { bg: string; t
     text: 'text-emerald-700 dark:text-emerald-300',
   },
   blue: {
-    bg: 'bg-blue-100 dark:bg-blue-900/60',
-    text: 'text-blue-700 dark:text-blue-300',
+    bg: 'bg-accent-100 dark:bg-accent-900/60',
+    text: 'text-accent-700 dark:text-accent-300',
   },
   purple: {
     bg: 'bg-purple-100 dark:bg-purple-900/60',

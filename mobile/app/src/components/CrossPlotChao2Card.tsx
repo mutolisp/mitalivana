@@ -19,12 +19,14 @@ import { useTranslation } from 'react-i18next';
 import { Pressable, Text, View } from 'react-native';
 import { listPlotSpecies } from '~/db';
 import { betaSimilarity, chao2, type BetaSimilarity, type Chao2Result, type DiversityRecord } from '~/lib/diversity';
+import { useThemeColors } from '~/theme/colors';
 
 type PlotRef = { id: number; title: string };
 
 const pct = (v: number): string => `${Math.round(v * 100)}%`;
 
 export function CrossPlotChao2Card({ plots }: { plots: PlotRef[] }) {
+  const c = useThemeColors();
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const [deselected, setDeselected] = useState<Set<number>>(new Set());
@@ -109,7 +111,7 @@ export function CrossPlotChao2Card({ plots }: { plots: PlotRef[] }) {
                   <Ionicons
                     name={on ? 'checkbox' : 'square-outline'}
                     size={18}
-                    color={on ? '#0284c7' : '#9ca3af'}
+                    color={on ? '#0284c7' : c.ink3}
                   />
                   <Text className="ml-2 flex-1 text-sm text-gray-900 dark:text-gray-100" numberOfLines={1}>
                     {plot.title}
@@ -152,7 +154,7 @@ export function CrossPlotChao2Card({ plots }: { plots: PlotRef[] }) {
 export function Chao2ResultBlock({ result }: { result: Extract<Chao2Result, { applicable: true }> }) {
   const { t } = useTranslation();
   return (
-    <View className="mt-2 rounded-lg bg-white dark:bg-gray-900 px-3 py-2">
+    <View className="mt-2 rounded-lg bg-card dark:bg-gray-900 px-3 py-2">
       <Text className="text-sm font-medium text-gray-900 dark:text-gray-100" style={{ fontVariant: ['tabular-nums'] }}>
         {t('plotStats.crossResult', {
           count: result.unitCount,
@@ -182,7 +184,7 @@ export function BetaSimilarityBlock({
 }) {
   const { t } = useTranslation();
   return (
-    <View className="mt-2 rounded-lg bg-white dark:bg-gray-900 px-3 py-2">
+    <View className="mt-2 rounded-lg bg-card dark:bg-gray-900 px-3 py-2">
       <Text className="text-xs font-semibold text-gray-700 dark:text-gray-300" numberOfLines={1}>
         {t('plotStats.betaTitle', { a: nameA, b: nameB })}
       </Text>

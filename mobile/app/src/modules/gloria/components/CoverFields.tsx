@@ -18,6 +18,7 @@ import type { GloriaUnit, UnitPatch } from '../db';
 import { NumField, Req } from './ui';
 import { RANGES } from '../model/ranges';
 import { autoFillLast, exactSum } from '../model/validate';
+import { useThemeColors } from '~/theme/colors';
 
 export const TOP_KEYS = [
   'cov_vascular',
@@ -63,6 +64,7 @@ function CoverStepper({
   onCommit: (patch: UnitPatch) => void;
   editable: boolean;
 }) {
+  const c = useThemeColors();
   const { t } = useTranslation();
   // Text grows with the app's font setting and the system text size; the
   // row's boxes (arrows, value field, icons) grow with it. Heights follow by
@@ -90,7 +92,7 @@ function CoverStepper({
       style={{ width: Math.round(32 * fs), minHeight: Math.round(40 * fs) }}
       className="items-center justify-center rounded-lg border border-gray-300 dark:border-gray-700"
     >
-      <Ionicons name={d < 0 ? 'chevron-back' : 'chevron-forward'} size={Math.round(16 * fs)} color="#6b7280" />
+      <Ionicons name={d < 0 ? 'chevron-back' : 'chevron-forward'} size={Math.round(16 * fs)} color={c.ink2} />
     </Pressable>
   );
   return (
@@ -142,7 +144,7 @@ function CoverStepper({
             accessibilityLabel={`${t(labelKey(k))} ${t('gloria.cover.none')}`}
             className="flex-row items-center"
           >
-            <Ionicons name={none ? 'checkbox' : 'square-outline'} size={Math.round(18 * fs)} color={none ? '#00A2A5' : '#9ca3af'} />
+            <Ionicons name={none ? 'checkbox' : 'square-outline'} size={Math.round(18 * fs)} color={none ? c.accent : c.ink3} />
             <Text className="text-xxs text-gray-500 dark:text-gray-400">{t('gloria.cover.none')}</Text>
           </Pressable>
         </View>
@@ -154,7 +156,7 @@ function CoverStepper({
           return (
             <Pressable key={x} onPress={() => go(n)} hitSlop={4} className="mr-2 py-0.5">
               <Text
-                className={`text-xs ${n === i ? 'font-bold text-[#00797b] dark:text-cyan-300' : val == null ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'}`}
+                className={`text-xs ${n === i ? 'font-bold text-accent-700 dark:text-accent-300' : val == null ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'}`}
                 style={{ fontVariant: ['tabular-nums'] }}
               >
                 {t(`gloria.cover.short.${x}`)} {val ?? '–'}
@@ -168,6 +170,7 @@ function CoverStepper({
 }
 
 export function TopCoverFields({ unit, onCommit, editable = true }: { unit: GloriaUnit; onCommit: (p: UnitPatch) => void; editable?: boolean }) {
+  const c = useThemeColors();
   const { t } = useTranslation();
   // Filling the sixth of seven completes the seventh (model/validate autoFillLast).
   const commitTop = (p: UnitPatch) => {
@@ -197,7 +200,7 @@ export function TopCoverFields({ unit, onCommit, editable = true }: { unit: Glor
         accessibilityState={{ expanded: open }}
         className="flex-row items-center"
       >
-        <Ionicons name={open ? 'chevron-down' : 'chevron-forward'} size={14} color="#9ca3af" />
+        <Ionicons name={open ? 'chevron-down' : 'chevron-forward'} size={14} color={c.ink3} />
         <Text className="ml-1 flex-1 text-xs font-semibold text-gray-600 dark:text-gray-300">
           {t('gloria.cover.title')}
           <Req />

@@ -19,6 +19,7 @@ import Svg, { Circle, G, Line, Path, Polygon, Rect, Text as SvgText } from 'reac
 import { useColorScheme } from 'nativewind';
 import { CORNERS, DIRECTIONS, type Direction, type P5mCorner } from '../model/units';
 import { STATUS_COLOR, type UnitStatus } from '../useSurvey';
+import { useThemeColors } from '~/theme/colors';
 
 const VERTEX: Record<Direction, [number, number]> = { N: [150, 66], E: [234, 150], S: [150, 234], W: [66, 150] };
 const OUT: Record<Direction, [number, number]> = { N: [0, -1], E: [1, 0], S: [0, 1], W: [-1, 0] };
@@ -66,6 +67,7 @@ function clampView(v: ViewBox): ViewBox {
 }
 
 export function SummitSchematic({ p5m, statusOf, onUnit, onCluster, onInteract }: Props) {
+  const tc = useThemeColors();
   const { t } = useTranslation();
   const [view, setView] = useState<ViewBox>(HOME);
   const [width, setWidth] = useState(0);
@@ -118,9 +120,9 @@ export function SummitSchematic({ p5m, statusOf, onUnit, onCluster, onInteract }
   const dark = useColorScheme().colorScheme === 'dark';
   const ink = dark ? '#f3f4f6' : '#111827';
   const faint = dark ? '#4b5563' : '#d1d5db';
-  const mute = dark ? '#9ca3af' : '#6b7280';
+  const mute = tc.ink2;
   const paper = dark ? '#111827' : '#ffffff';
-  const axis = dark ? '#d1d5db' : '#374151';
+  const axis = tc.ink;
 
   return (
     <View onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
@@ -227,7 +229,7 @@ export function SummitSchematic({ p5m, statusOf, onUnit, onCluster, onInteract }
               y={lp[1] + lift + 3}
               fontSize={9}
               fontWeight="700"
-              fill="#00797b"
+              fill={tc.accentPressed}
               textAnchor="middle"
             >
               {`p5m ${d}${corner}`}
@@ -257,9 +259,9 @@ export function SummitSchematic({ p5m, statusOf, onUnit, onCluster, onInteract }
             accessibilityRole="button"
             accessibilityLabel={b.label}
             hitSlop={4}
-            className={`h-8 w-8 items-center justify-center rounded-full border border-gray-300 bg-white/90 dark:border-gray-600 dark:bg-gray-900/90 ${b.off ? 'opacity-40' : ''}`}
+            className={`h-8 w-8 items-center justify-center rounded-full border border-gray-300 bg-card/90 dark:border-gray-600 dark:bg-gray-900/90 ${b.off ? 'opacity-40' : ''}`}
           >
-            <Ionicons name={b.icon} size={16} color="#00A2A5" />
+            <Ionicons name={b.icon} size={16} color={tc.accent} />
           </Pressable>
         ))}
       </View>
@@ -281,9 +283,10 @@ export function P5mDiagram({
   corner: P5mCorner;
   measure: (key: string) => { distance: number | null; compass: number | null };
 }) {
+  const c = useThemeColors();
   const dark = useColorScheme().colorScheme === 'dark';
   const ink = dark ? '#f3f4f6' : '#111827';
-  const mute = dark ? '#9ca3af' : '#6b7280';
+  const mute = c.ink2;
   // Same light green in both themes; its labels are always dark (below).
   const quad = '#A8D8B9';
   const paper = dark ? '#111827' : '#ffffff';
@@ -314,7 +317,7 @@ export function P5mDiagram({
   return (
     <Svg viewBox="0 0 300 250" width="100%" style={{ aspectRatio: 300 / 250 }}>
       {/* The 5-m contour passes through the p5m corner (Fig. 3.2). */}
-      <Path d={`M ${pX - 50} ${T + 3 * W + 22} Q ${pX} ${T + 3 * W - 6} ${pX + 50} ${T + 3 * W + 22}`} fill="none" stroke="#00A2A5" strokeWidth={2} />
+      <Path d={`M ${pX - 50} ${T + 3 * W + 22} Q ${pX} ${T + 3 * W - 6} ${pX + 50} ${T + 3 * W + 22}`} fill="none" stroke={c.accent} strokeWidth={2} />
       {cells}
       {pts.map(([q, x, y, pos]) => {
         const isP = q === corner;
@@ -324,9 +327,9 @@ export function P5mDiagram({
         const anchor = x < 150 ? 'start' : 'end';
         return (
           <G key={q}>
-            {isP ? <Circle cx={x} cy={y} r={11} fill="none" stroke="#00A2A5" strokeWidth={3} /> : null}
+            {isP ? <Circle cx={x} cy={y} r={11} fill="none" stroke={c.accent} strokeWidth={3} /> : null}
             <Circle cx={x} cy={y} r={6} fill={ink} />
-            <SvgText x={tx} y={ty} fontSize={11} fontWeight={isP ? '800' : '600'} fill={isP ? '#00797b' : mute} textAnchor={anchor}>
+            <SvgText x={tx} y={ty} fontSize={11} fontWeight={isP ? '800' : '600'} fill={isP ? c.accentPressed : mute} textAnchor={anchor}>
               {`${isP ? 'p5m' : 'p'}-${direction}${q}`}
             </SvgText>
             <SvgText x={tx} y={ty + (pos === 'bottom' ? 12 : -12)} fontSize={9} fill={mute} textAnchor={anchor}>

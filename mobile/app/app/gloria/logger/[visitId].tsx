@@ -25,7 +25,7 @@ import { FileList, LoggerForm, ResearcherPick } from '~/modules/gloria/component
 import { Banner, BannerText, Btn, Card, Label, NumAccessory } from '~/modules/gloria/components/ui';
 
 const INPUT =
-  'rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100';
+  'rounded-md border border-gray-300 bg-card px-2 py-1.5 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100';
 
 export default function LoggerVisitScreen() {
   const { t } = useTranslation();

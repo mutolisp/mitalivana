@@ -45,6 +45,7 @@ import { BannerText, Btn, Chip, FoldBanner, NumAccessory, NumField, Seg } from '
 import { RANGES } from '~/modules/gloria/model/ranges';
 import { saveVersionSoon } from '~/db/recordVersions';
 import { useVersionOnLeave } from '~/lib/useVersionOnLeave';
+import { useThemeColors } from '~/theme/colors';
 
 const CELLS = QUADRAT_N * QUADRAT_N;
 const GRAZING = [
@@ -58,6 +59,7 @@ const SIDES: Record<Direction, [Direction, Direction]> = { N: ['E', 'W'], E: ['S
 type Target = { key: string; label: string; tone?: string; usid?: number; col?: 'dist_hi1' | 'dist_hi2' | 'dist_hi3' };
 
 export default function FrequencyScreen() {
+  const tc = useThemeColors();
   const { t } = useTranslation();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -343,7 +345,7 @@ export default function FrequencyScreen() {
       onChosen?.(k);
     };
     const opts = (xs: Target[]) => xs.map((x) => ({ value: x.key, label: `${x.label} · ${popcount(masks[x.key])}` }));
-    const box = (on: boolean) => `flex-1 rounded-lg border-2 px-1.5 pb-1.5 pt-1 ${on ? 'border-[#00A2A5]' : 'border-transparent'}`;
+    const box = (on: boolean) => `flex-1 rounded-lg border-2 px-1.5 pb-1.5 pt-1 ${on ? 'border-accent-600' : 'border-transparent'}`;
     const arrow = (dir: 'back' | 'forward') => (
       <Pressable
         onPress={() => {
@@ -357,7 +359,7 @@ export default function FrequencyScreen() {
         style={{ width: Math.round(36 * fs), height: 18 + Math.round(24 * fs) }}
         className="mb-1.5 items-center justify-center rounded-lg border border-gray-300 dark:border-gray-700"
       >
-        <Ionicons name={dir === 'back' ? 'chevron-back' : 'chevron-forward'} size={Math.round(18 * fs)} color="#6b7280" />
+        <Ionicons name={dir === 'back' ? 'chevron-back' : 'chevron-forward'} size={Math.round(18 * fs)} color={tc.ink2} />
       </Pressable>
     );
     return (
@@ -489,7 +491,7 @@ export default function FrequencyScreen() {
               {`R${Math.floor(touched / QUADRAT_N) + 1}C${(touched % QUADRAT_N) + 1}`}
             </Text>
           ) : null}
-          <Text className="text-center text-xs font-semibold text-[#00797b] dark:text-cyan-300">{t('gloria.freq.uphill')}</Text>
+          <Text className="text-center text-xs font-semibold text-accent-700 dark:text-accent-300">{t('gloria.freq.uphill')}</Text>
         </View>
         {/* The whole block (side labels, row labels, grid) is centred; the grid's
             size comes from the row's width: 2 × 20 side labels + 22 row labels. */}
@@ -530,11 +532,11 @@ export default function FrequencyScreen() {
                           top: Math.floor(i / QUADRAT_N) * cellPx,
                           width: cellPx,
                           height: cellPx,
-                          backgroundColor: on ? (curTarget?.tone ?? '#00A2A5') : undefined,
+                          backgroundColor: on ? (curTarget?.tone ?? tc.accent) : undefined,
                           borderWidth: mode === 'cell' && i === sel ? 2 : 0.5,
                           borderColor: mode === 'cell' && i === sel ? '#d97706' : '#d1d5db',
                         }}
-                        className={on ? '' : 'bg-white dark:bg-gray-900'}
+                        className={on ? '' : 'bg-card dark:bg-gray-900'}
                       >
                         {inverse && !on ? <Text className="text-center text-[11px] font-bold text-red-500">×</Text> : null}
                         {others > 0 && !inverse ? (

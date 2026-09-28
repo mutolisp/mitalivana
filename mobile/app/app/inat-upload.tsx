@@ -36,6 +36,7 @@ import {
 } from '~/lib/inatUpload';
 import { useExportShare } from '~/lib/useExportShare';
 import { useSettings } from '~/stores/settings';
+import { useThemeColors } from '~/theme/colors';
 
 /** Rough transfer size for the confirm-if-large prompt; originals go up
  *  unresized, so a phone photo is a few MB. */
@@ -45,6 +46,7 @@ const AUDIO_BYTES = 1 * 1024 * 1024;
 const KINDS: InatKind[] = ['session', 'plot', 'collection'];
 
 export default function InatUploadScreen() {
+  const c = useThemeColors();
   const params = useLocalSearchParams<{ kind?: string; id?: string; record?: string }>();
   const kind = (KINDS as string[]).includes(params.kind ?? '') ? (params.kind as InatKind) : 'session';
   const id = Number(params.id ?? 0);
@@ -151,7 +153,7 @@ export default function InatUploadScreen() {
         <Ionicons
           name={done ? 'checkmark-circle' : checked ? 'checkbox' : 'square-outline'}
           size={22}
-          color={done ? '#16a34a' : checked ? '#2563eb' : '#9ca3af'}
+          color={done ? '#16a34a' : checked ? c.accent : c.ink3}
         />
         <View className="ml-3 flex-1">
           <Text className="text-base text-gray-900 dark:text-gray-100" numberOfLines={1}>
@@ -191,7 +193,7 @@ export default function InatUploadScreen() {
             className="ml-2 justify-center"
             accessibilityRole="link"
           >
-            <Text className="text-xs text-blue-600 dark:text-blue-400">#{r.observationId}</Text>
+            <Text className="text-xs text-accent-600 dark:text-accent-400">#{r.observationId}</Text>
           </Pressable>
         ) : null}
       </Pressable>
@@ -229,9 +231,9 @@ export default function InatUploadScreen() {
               onChangeText={setTagsText}
               editable={!running}
               placeholder={t('inat.tagsPlaceholder')}
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={c.ink3}
               autoCapitalize="none"
-              className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-base text-gray-900 dark:text-gray-100"
+              className="rounded-lg border border-gray-300 dark:border-gray-600 bg-card dark:bg-gray-900 px-3 py-2 text-base text-gray-900 dark:text-gray-100"
             />
 
             <View className="mt-3">
@@ -257,7 +259,7 @@ export default function InatUploadScreen() {
                   }
                   hitSlop={6}
                 >
-                  <Text className="text-xs text-blue-600 dark:text-blue-400">{t('inat.toggleAll')}</Text>
+                  <Text className="text-xs text-accent-600 dark:text-accent-400">{t('inat.toggleAll')}</Text>
                 </Pressable>
               ) : null}
             </View>
@@ -279,7 +281,7 @@ export default function InatUploadScreen() {
         }
       />
 
-      <View className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-4 pb-2 pt-2">
+      <View className="border-t border-gray-200 dark:border-gray-800 bg-card dark:bg-gray-900 px-4 pb-2 pt-2">
         {running && progress ? (
           <>
             <Text className="text-xs text-gray-600 dark:text-gray-400" numberOfLines={1}>

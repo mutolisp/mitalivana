@@ -19,11 +19,13 @@ import { listSummits, prefillSummary, upsertSummit, type SummitWithLast } from '
 import { Banner, BannerText, Btn, Card, Label, NUMERIC_KEYBOARD, parseNum } from '~/modules/gloria/components/ui';
 import { VEG_ZONES } from '~/modules/gloria/components/SummitForm';
 import { SelectRow } from '~/components/settings/rows';
+import { useThemeColors } from '~/theme/colors';
 
 const INPUT =
-  'rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100';
+  'rounded-md border border-gray-300 bg-card px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100';
 
 export default function NewGloriaScreen() {
+  const c = useThemeColors();
   const { t } = useTranslation();
   const toast = useToast((s) => s.show);
   const [summits, setSummits] = useState<SummitWithLast[]>(() => listSummits());
@@ -105,7 +107,7 @@ export default function NewGloriaScreen() {
                   <Ionicons
                     name={picked === s.id ? 'radio-button-on' : 'radio-button-off'}
                     size={20}
-                    color={picked === s.id ? '#00A2A5' : '#9ca3af'}
+                    color={picked === s.id ? c.accent : c.ink3}
                   />
                 </Pressable>
               ))}
@@ -161,7 +163,7 @@ export default function NewGloriaScreen() {
               <Text className={`flex-1 text-sm ${surveyors ? 'text-gray-900 dark:text-gray-100' : 'text-gray-400'}`}>
                 {surveyors || t('gloria.new.noSurveyors')}
               </Text>
-              <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
+              <Ionicons name="chevron-forward" size={16} color={c.ink3} />
             </Card>
           </Pressable>
           <SurveyorAssignSheet
@@ -175,7 +177,7 @@ export default function NewGloriaScreen() {
           />
         </View>
       </ScrollView>
-      <View className="border-t border-gray-200 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
+      <View className="border-t border-gray-200 bg-card px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
         <Btn primary label={t('gloria.new.start')} disabled={picked == null} onPress={() => picked != null && void startGloriaAndOpen(picked, surveyors)} />
       </View>
     </SafeAreaView>

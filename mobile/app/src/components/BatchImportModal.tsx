@@ -35,6 +35,7 @@ import { importErrorMessage } from '~/lib/recordCreate';
 import { readRecordYamlText } from '~/lib/recordImport';
 import { splitVoiceInput } from '~/lib/voiceSplit';
 import { ScientificName } from './ScientificName';
+import { useThemeColors } from '~/theme/colors';
 
 /** Where matched taxa land. The modal owns the dedupe + insert for each kind
  *  so callers don't reimplement it; adding a third target means one more case
@@ -74,6 +75,7 @@ type Step = 'input' | 'preview';
 type InputMode = 'paste' | 'voice';
 
 export function BatchImportModal({ visible, target, onClose, onCommitted }: Props) {
+  const c = useThemeColors();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [step, setStep] = useState<Step>('input');
@@ -253,7 +255,7 @@ export function BatchImportModal({ visible, target, onClose, onCommitted }: Prop
   return (
     <Modal visible={visible && !steppedAside} animationType="slide" onRequestClose={handleClose}>
       <View
-        className="flex-1 bg-white dark:bg-gray-900"
+        className="flex-1 bg-card dark:bg-gray-900"
         style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
       >
         <View className="flex-row items-center justify-between border-b border-gray-200 dark:border-gray-700 px-4 py-3">
@@ -270,7 +272,7 @@ export function BatchImportModal({ visible, target, onClose, onCommitted }: Prop
           {step === 'input' ? (
             <Pressable onPress={handlePreview} hitSlop={8} disabled={progress !== null}>
               <Text
-                className={`text-base font-semibold ${progress ? 'text-gray-300' : 'text-blue-600 dark:text-blue-400'}`}
+                className={`text-base font-semibold ${progress ? 'text-gray-300' : 'text-accent-600 dark:text-accent-400'}`}
               >
                 {t('batchImport.preview')}
               </Text>
@@ -282,7 +284,7 @@ export function BatchImportModal({ visible, target, onClose, onCommitted }: Prop
               disabled={totalSelected === 0 || progress !== null}
             >
               <Text
-                className={`text-base font-semibold ${totalSelected === 0 || progress ? 'text-gray-300' : 'text-blue-600 dark:text-blue-400'}`}
+                className={`text-base font-semibold ${totalSelected === 0 || progress ? 'text-gray-300' : 'text-accent-600 dark:text-accent-400'}`}
               >
                 {t('batchImport.add')}
               </Text>
@@ -314,10 +316,10 @@ export function BatchImportModal({ visible, target, onClose, onCommitted }: Prop
                   </Text>
                   <Pressable
                     onPress={handlePickFile}
-                    className="mt-2 flex-row items-center self-start rounded-full bg-white dark:bg-gray-900 px-3 py-1.5 active:bg-blue-50 dark:active:bg-blue-900/40"
+                    className="mt-2 flex-row items-center self-start rounded-full bg-card dark:bg-gray-900 px-3 py-1.5 active:bg-accent-50 dark:active:bg-accent-900/40"
                   >
-                    <Ionicons name="folder-open-outline" size={14} color="#2563eb" />
-                    <Text className="ml-1 text-xs font-medium text-blue-700 dark:text-blue-300">{t('batchImport.readFromFile')}</Text>
+                    <Ionicons name="folder-open-outline" size={14} color={c.accent} />
+                    <Text className="ml-1 text-xs font-medium text-accent-700 dark:text-accent-300">{t('batchImport.readFromFile')}</Text>
                   </Pressable>
                 </>
               ) : (
@@ -329,7 +331,7 @@ export function BatchImportModal({ visible, target, onClose, onCommitted }: Prop
             {usingFile ? (
               <View className="flex-1 px-4 py-4">
                 <View className="flex-row items-center rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 px-3 py-3">
-                  <Ionicons name="document-text-outline" size={20} color="#2563eb" />
+                  <Ionicons name="document-text-outline" size={20} color={c.accent} />
                   <View className="ml-2 flex-1">
                     <Text
                       numberOfLines={1}
@@ -342,7 +344,7 @@ export function BatchImportModal({ visible, target, onClose, onCommitted }: Prop
                     </Text>
                   </View>
                   <Pressable onPress={() => setPickedFile(null)} hitSlop={8}>
-                    <Ionicons name="close-circle" size={20} color="#9ca3af" />
+                    <Ionicons name="close-circle" size={20} color={c.ink3} />
                   </Pressable>
                 </View>
                 <Text className="mt-3 text-xs text-gray-600 dark:text-gray-400">
@@ -361,7 +363,7 @@ export function BatchImportModal({ visible, target, onClose, onCommitted }: Prop
                     ? t('batchImport.exampleVoice')
                     : t('batchImport.exampleText')
                 }
-                placeholderTextColor="#9ca3af"
+                placeholderTextColor={c.ink3}
                 textAlignVertical="top"
               />
             )}
@@ -393,7 +395,7 @@ export function BatchImportModal({ visible, target, onClose, onCommitted }: Prop
                       <Ionicons
                         name={skipped ? 'square-outline' : 'checkbox'}
                         size={20}
-                        color={skipped ? '#9ca3af' : '#10b981'}
+                        color={skipped ? c.ink3 : c.accent}
                         style={{ marginRight: 10 }}
                       />
                       <View className="flex-1">
@@ -436,7 +438,7 @@ export function BatchImportModal({ visible, target, onClose, onCommitted }: Prop
                           <Ionicons
                             name={pick === null ? 'radio-button-on' : 'radio-button-off'}
                             size={16}
-                            color={pick === null ? '#6b7280' : '#9ca3af'}
+                            color={pick === null ? c.ink2 : c.ink3}
                           />
                           <Text className="ml-2 text-xs italic text-gray-600 dark:text-gray-400">{t('batchImport.skipThis')}</Text>
                         </Pressable>
@@ -453,7 +455,7 @@ export function BatchImportModal({ visible, target, onClose, onCommitted }: Prop
                               <Ionicons
                                 name={selected ? 'radio-button-on' : 'radio-button-off'}
                                 size={16}
-                                color={selected ? '#d97706' : '#9ca3af'}
+                                color={selected ? '#d97706' : c.ink3}
                               />
                               <View className="ml-2 flex-1">
                                 {m.cname ? (
@@ -490,7 +492,7 @@ export function BatchImportModal({ visible, target, onClose, onCommitted }: Prop
                     className="flex-row items-center border-b border-gray-100 dark:border-gray-800 px-4 py-2 active:bg-gray-50 dark:active:bg-gray-800"
                   >
                     <Text className="flex-1 text-sm text-gray-700 dark:text-gray-300">{e.raw}</Text>
-                    <Ionicons name="earth-outline" size={16} color="#2563eb" />
+                    <Ionicons name="earth-outline" size={16} color={c.accent} />
                   </Pressable>
                 ))}
               </Section>
@@ -512,14 +514,14 @@ export function BatchImportModal({ visible, target, onClose, onCommitted }: Prop
             靜默不顯示（DateTimeField 的註解記著同一個坑）。 */}
         {progress ? (
           <View className="absolute bottom-0 left-0 right-0 top-0 items-center justify-center bg-black/40 px-10">
-            <View className="w-full max-w-xs rounded-2xl bg-white dark:bg-gray-900 px-6 py-6">
+            <View className="w-full max-w-xs rounded-2xl bg-card dark:bg-gray-900 px-6 py-6">
               <ActivityIndicator size="large" color="#3b82f6" />
               <Text className="mt-4 text-center text-base font-medium text-gray-900 dark:text-gray-100">
                 {progress.label}
               </Text>
               <View className="mt-4 h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
                 <View
-                  className="h-2 rounded-full bg-blue-500"
+                  className="h-2 rounded-full bg-accent-500"
                   style={{
                     width: `${progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0}%`,
                   }}
@@ -547,14 +549,15 @@ function ModeTab({
   active: boolean;
   onPress: () => void;
 }) {
+  const c = useThemeColors();
   return (
     <Pressable
       onPress={onPress}
-      className={`flex-1 flex-row items-center justify-center py-2.5 ${active ? 'border-b-2 border-blue-600 dark:border-blue-400' : ''}`}
+      className={`flex-1 flex-row items-center justify-center py-2.5 ${active ? 'border-b-2 border-accent-600 dark:border-accent-400' : ''}`}
     >
-      <Ionicons name={icon} size={16} color={active ? '#2563eb' : '#9ca3af'} />
+      <Ionicons name={icon} size={16} color={active ? c.accent : c.ink3} />
       <Text
-        className={`ml-1.5 text-sm font-medium ${active ? 'text-blue-700 dark:text-blue-300' : 'text-gray-500 dark:text-gray-400'}`}
+        className={`ml-1.5 text-sm font-medium ${active ? 'text-accent-700 dark:text-accent-300' : 'text-gray-500 dark:text-gray-400'}`}
       >
         {label}
       </Text>

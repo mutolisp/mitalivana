@@ -24,6 +24,7 @@ import { TaxonGroupPicker } from './TaxonGroupPicker';
 import { ScientificName } from './ScientificName';
 import { useSettings } from '~/stores/settings';
 import { useToast } from '~/stores/toast';
+import { useThemeColors } from '~/theme/colors';
 
 /**
  * Debounce window between the last keystroke and the actual search firing.
@@ -196,6 +197,7 @@ export function SearchBox({
   onFocus,
   topLimit,
 }: Props) {
+  const c = useThemeColors();
   const { t } = useTranslation();
   const lastGroups = useSettings((s) => s.last_search_groups);
   const usageRank = useSettings((s) => s.search_usage_rank);
@@ -370,10 +372,10 @@ export function SearchBox({
               Keyboard.dismiss();
               applyPicked(await runLookup(() => lookupGbifName(trimmedQuery)));
             }}
-            className="flex-row items-center rounded-full bg-blue-50 px-3 py-1.5 active:bg-blue-100 dark:bg-blue-950/40 dark:active:bg-blue-900/60"
+            className="flex-row items-center rounded-full bg-accent-50 px-3 py-1.5 active:bg-accent-100 dark:bg-accent-950/40 dark:active:bg-accent-900/60"
           >
-            <Ionicons name="earth-outline" size={14} color="#2563eb" />
-            <Text className="ml-1 text-xs font-medium text-blue-700 dark:text-blue-300">
+            <Ionicons name="earth-outline" size={14} color={c.accent} />
+            <Text className="ml-1 text-xs font-medium text-accent-700 dark:text-accent-300">
               {t('search.lookupGbif')}
             </Text>
           </Pressable>
@@ -404,12 +406,12 @@ export function SearchBox({
   const input = (
     <View className="flex-row items-center px-2 py-2">
       <View className="flex-1 flex-row items-center rounded-full bg-gray-100 px-3 py-2 dark:bg-gray-800">
-        <Ionicons name="search" size={18} color="#6b7280" />
+        <Ionicons name="search" size={18} color={c.ink2} />
         <TextInput
           ref={inputRef}
           className="ml-2 flex-1 text-base text-gray-900 dark:text-gray-100"
           placeholder={t('search.placeholder')}
-          placeholderTextColor="#9ca3af"
+          placeholderTextColor={c.ink3}
           value={query}
           onChangeText={setQuery}
           autoFocus={autoFocus}
@@ -419,7 +421,7 @@ export function SearchBox({
         />
         {query ? (
           <Pressable onPress={() => setQuery('')} hitSlop={8}>
-            <Ionicons name="close-circle" size={18} color="#9ca3af" />
+            <Ionicons name="close-circle" size={18} color={c.ink3} />
           </Pressable>
         ) : null}
       </View>
@@ -428,7 +430,7 @@ export function SearchBox({
 
   return (
     <View
-      className={`${dropdown ? '' : 'border-t border-gray-200 dark:border-gray-700'} bg-white dark:bg-gray-900`}
+      className={`${dropdown ? '' : 'border-t border-gray-200 dark:border-gray-700'} bg-card dark:bg-gray-900`}
     >
       {dropdown ? (
         <>
@@ -477,7 +479,7 @@ const AutocompleteRow = memo(function AutocompleteRow({
       onPress={onPress}
       onLongPress={onLongPress}
       delayLongPress={350}
-      className="border-b border-gray-100 dark:border-gray-800 px-4 py-2.5 active:bg-blue-50 dark:active:bg-blue-900/40"
+      className="border-b border-gray-100 dark:border-gray-800 px-4 py-2.5 active:bg-accent-50 dark:active:bg-accent-900/40"
     >
       <View className="flex-row flex-wrap items-center">
         {isSynonym ? <Text className="mr-1 text-sm text-orange-600">≡</Text> : null}

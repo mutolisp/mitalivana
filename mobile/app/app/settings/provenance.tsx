@@ -20,7 +20,8 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Constants from 'expo-constants';
-import { Alert, Linking, Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
+import { Alert, Linking, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Switch } from '~/components/ui/Switch';
 
 import { OrcidSignInModal, type OrcidSignInResult } from '~/components/OrcidSignInModal';
 import { Section } from '~/components/settings/rows';
@@ -33,6 +34,7 @@ import { normalizeOrcid, orcidProfileUrl, publicKeyLabel } from '~/lib/signing';
 import { deleteKey, ensureKey, readPublicKey } from '~/lib/signingKey';
 import { useSettings } from '~/stores/settings';
 import { useToast } from '~/stores/toast';
+import { useThemeColors } from '~/theme/colors';
 
 /** The ORCID Public API client, from `extra.orcid` (app.config.ts). Empty
  *  client id or redirect URI = not configured on this build. */
@@ -46,6 +48,7 @@ function orcidConfig(): { base: string; clientId: string; redirectUri: string } 
 }
 
 export default function ProvenanceSettingsScreen() {
+  const c = useThemeColors();
   const { t } = useTranslation();
   const signEnabled = useSettings((s) => s.sign_exports);
   const storedOrcid = useSettings((s) => s.signer_orcid);
@@ -145,7 +148,7 @@ export default function ProvenanceSettingsScreen() {
               </Text>
               <View className="mt-3 flex-row gap-2">
                 <Pressable
-                  className="rounded-lg bg-blue-600 px-3 py-2"
+                  className="rounded-lg bg-accent-600 px-3 py-2"
                   onPress={() => void copyToClipboard(publicKeyLabel(publicKey), t('provenance.keyLabel'))}
                 >
                   <Text className="text-sm font-medium text-white">{t('provenance.copyKey')}</Text>
@@ -160,7 +163,7 @@ export default function ProvenanceSettingsScreen() {
           ) : (
             <Pressable
               disabled={busy}
-              className={`rounded-lg px-4 py-3 ${busy ? 'bg-gray-400' : 'bg-blue-600'}`}
+              className={`rounded-lg px-4 py-3 ${busy ? 'bg-gray-400' : 'bg-accent-600'}`}
               onPress={makeKey}
             >
               <Text className="text-center text-sm font-medium text-white">
@@ -190,7 +193,7 @@ export default function ProvenanceSettingsScreen() {
                   className="rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-600"
                   onPress={() => setSigningIn(true)}
                 >
-                  <Text className="text-sm font-medium text-blue-600 dark:text-blue-400">
+                  <Text className="text-sm font-medium text-accent-600 dark:text-accent-400">
                     {t('provenance.orcidSignInAgain')}
                   </Text>
                 </Pressable>
@@ -234,7 +237,7 @@ export default function ProvenanceSettingsScreen() {
             onChangeText={setNameDraft}
             onBlur={() => setSetting('signer_name', nameDraft.trim())}
             placeholder={t('provenance.namePlaceholder')}
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor={c.ink3}
             autoCorrect={false}
             className="rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-base text-gray-900 dark:text-gray-100"
           />
@@ -250,7 +253,7 @@ export default function ProvenanceSettingsScreen() {
               className="mt-3 rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-3"
               onPress={() => void Linking.openURL(`${orcidProfileUrl(storedOrcid)}`)}
             >
-              <Text className="text-center text-sm font-medium text-blue-600 dark:text-blue-400">
+              <Text className="text-center text-sm font-medium text-accent-600 dark:text-accent-400">
                 {t('provenance.openProfile')}
               </Text>
             </Pressable>

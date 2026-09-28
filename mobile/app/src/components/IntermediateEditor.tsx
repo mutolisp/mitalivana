@@ -31,6 +31,7 @@ import { KeyboardAvoidingView } from './KeyboardAvoidingView';
 import { ScientificName } from './ScientificName';
 import { ToastHost } from './ToastHost';
 import { useToast } from '~/stores/toast';
+import { useThemeColors } from '~/theme/colors';
 
 export type EditorRequest =
   | { kind: 'create'; parent: TaxonNode }
@@ -42,6 +43,7 @@ type Props = { request: EditorRequest | null; onClose: () => void };
 const cap = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
 export function IntermediateEditor({ request, onClose }: Props) {
+  const tc = useThemeColors();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const toast = useToast((s) => s.show);
@@ -177,14 +179,14 @@ export function IntermediateEditor({ request, onClose }: Props) {
     step === 'form' ? (
       <Pressable onPress={saveForm} hitSlop={8}>
         <Text
-          className={`text-base font-semibold ${name.trim() ? 'text-blue-600 dark:text-blue-400' : 'text-gray-300'}`}
+          className={`text-base font-semibold ${name.trim() ? 'text-accent-600 dark:text-accent-400' : 'text-gray-300'}`}
         >
           {t('common.save')}
         </Text>
       </Pressable>
     ) : step === 'members' ? (
       <Pressable onPress={saveMembers} hitSlop={8}>
-        <Text className="text-base font-semibold text-blue-600 dark:text-blue-400">
+        <Text className="text-base font-semibold text-accent-600 dark:text-accent-400">
           {picked.size > 0 ? t('common.done') : t('intermediate.skipMembers')}
         </Text>
       </Pressable>
@@ -195,7 +197,7 @@ export function IntermediateEditor({ request, onClose }: Props) {
   return (
     <Modal visible animationType="slide" onRequestClose={onClose}>
       <View
-        className="flex-1 bg-white dark:bg-gray-900"
+        className="flex-1 bg-card dark:bg-gray-900"
         style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
       >
         <View className="flex-row items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-700">
@@ -238,7 +240,7 @@ export function IntermediateEditor({ request, onClose }: Props) {
                           onPress={() => setRank(r)}
                           className={`mb-2 mr-2 rounded-full border px-3 py-1 ${
                             rank === r
-                              ? 'border-blue-600 bg-blue-600'
+                              ? 'border-accent-600 bg-accent-600'
                               : 'border-gray-300 dark:border-gray-600'
                           }`}
                         >
@@ -262,7 +264,7 @@ export function IntermediateEditor({ request, onClose }: Props) {
                   autoCorrect={false}
                   className="rounded border border-gray-300 px-3 py-2 text-base text-gray-900 dark:border-gray-600 dark:text-gray-100"
                   placeholder="Bambusoideae"
-                  placeholderTextColor="#9ca3af"
+                  placeholderTextColor={tc.ink3}
                 />
               </Field>
               <Field label={t('intermediate.author')}>
@@ -271,7 +273,7 @@ export function IntermediateEditor({ request, onClose }: Props) {
                   onChangeText={setAuthor}
                   autoCorrect={false}
                   className="rounded border border-gray-300 px-3 py-2 text-base text-gray-900 dark:border-gray-600 dark:text-gray-100"
-                  placeholderTextColor="#9ca3af"
+                  placeholderTextColor={tc.ink3}
                 />
               </Field>
               <Field label={t('intermediate.cname')}>
@@ -279,7 +281,7 @@ export function IntermediateEditor({ request, onClose }: Props) {
                   value={cname}
                   onChangeText={setCname}
                   className="rounded border border-gray-300 px-3 py-2 text-base text-gray-900 dark:border-gray-600 dark:text-gray-100"
-                  placeholderTextColor="#9ca3af"
+                  placeholderTextColor={tc.ink3}
                 />
               </Field>
             </ScrollView>
@@ -307,7 +309,7 @@ export function IntermediateEditor({ request, onClose }: Props) {
                   <Ionicons
                     name={on ? 'checkbox' : 'square-outline'}
                     size={22}
-                    color={on ? '#2563eb' : '#9ca3af'}
+                    color={on ? tc.accent : tc.ink3}
                     style={{ marginRight: 12 }}
                   />
                   <View className="flex-1">

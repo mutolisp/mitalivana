@@ -32,7 +32,7 @@ export default function TeamInviteScreen() {
         <Text className="text-xs text-gray-500 dark:text-gray-400">{serverOf(team)}</Text>
         {code ? (
           <>
-            <View className="rounded-xl bg-white p-2">
+            <View className="rounded-xl bg-card p-2">
               <QrCode value={inviteLink(code)} size={size} />
             </View>
             <Text className="text-center text-sm text-gray-700 dark:text-gray-300">{t('teamSync.inviteHow')}</Text>

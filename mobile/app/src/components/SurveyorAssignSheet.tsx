@@ -12,6 +12,7 @@ import { KeyboardAvoidingView } from './KeyboardAvoidingView';
 import { useStore } from 'zustand';
 import { peopleStore } from '~/stores/surveyors';
 import type { PersonKind, Surveyor } from '~/db';
+import { useThemeColors } from '~/theme/colors';
 
 type Props = {
   visible: boolean;
@@ -44,6 +45,7 @@ export function SurveyorAssignSheet({
   onCancel,
   onAssign,
 }: Props) {
+  const c = useThemeColors();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const store = peopleStore(kind);
@@ -122,20 +124,20 @@ export function SurveyorAssignSheet({
     return (
       <ScaleDecorator>
         <View
-          className={`flex-row items-center border-b border-gray-100 dark:border-gray-800 px-4 ${active ? 'bg-blue-50 dark:bg-blue-950/40' : 'bg-white dark:bg-gray-900'} ${isActive ? 'opacity-90' : ''}`}
+          className={`flex-row items-center border-b border-gray-100 dark:border-gray-800 px-4 ${active ? 'bg-accent-50 dark:bg-accent-950/40' : 'bg-card dark:bg-gray-900'} ${isActive ? 'opacity-90' : ''}`}
         >
           <Pressable onPress={() => toggle(item.name)} className="flex-1 flex-row items-center py-3">
             <Ionicons
               name={active ? 'checkbox' : 'square-outline'}
               size={20}
-              color={active ? '#2563eb' : '#9ca3af'}
+              color={active ? c.accent : c.ink3}
               style={{ marginRight: 12 }}
             />
             <Text className="flex-1 text-base text-gray-900 dark:text-gray-100">{item.name}</Text>
           </Pressable>
           {/* Drag handle — long-press to reorder. */}
           <Pressable onLongPress={drag} delayLongPress={120} hitSlop={10} className="py-3 pl-2">
-            <Ionicons name="reorder-three" size={24} color="#9ca3af" />
+            <Ionicons name="reorder-three" size={24} color={c.ink3} />
           </Pressable>
         </View>
       </ScaleDecorator>
@@ -156,7 +158,7 @@ export function SurveyorAssignSheet({
           />
           <View
             style={{ marginTop: insets.top + 16 }}
-            className="flex-1 rounded-t-2xl bg-white dark:bg-gray-900"
+            className="flex-1 rounded-t-2xl bg-card dark:bg-gray-900"
           >
             <SafeAreaView edges={['bottom']} className="flex-1">
               <View className="items-center pt-2">
@@ -170,7 +172,7 @@ export function SurveyorAssignSheet({
                   </Text>
                 </View>
                 <Pressable onPress={handleConfirm} hitSlop={8} className="ml-3">
-                  <Text className="text-base font-semibold text-blue-600 dark:text-blue-400">{t('common.done')}</Text>
+                  <Text className="text-base font-semibold text-accent-600 dark:text-accent-400">{t('common.done')}</Text>
                 </Pressable>
               </View>
 
@@ -182,24 +184,24 @@ export function SurveyorAssignSheet({
                     value={newName}
                     onChangeText={setNewName}
                     placeholder={labels.placeholder}
-                    placeholderTextColor="#9ca3af"
+                    placeholderTextColor={c.ink3}
                     autoFocus
                     returnKeyType="done"
                     onSubmitEditing={handleAddSubmit}
                   />
                   <Pressable onPress={handleAddSubmit} hitSlop={6} className="px-2 py-1">
-                    <Text className="text-sm font-medium text-blue-600 dark:text-blue-400">{labels.addAction}</Text>
+                    <Text className="text-sm font-medium text-accent-600 dark:text-accent-400">{labels.addAction}</Text>
                   </Pressable>
                 </View>
               ) : (
                 <Pressable
                   onPress={() => setAdding(true)}
-                  className="flex-row items-center border-b border-gray-100 dark:border-gray-800 bg-blue-50 dark:bg-blue-950/40 px-4 py-3 active:bg-blue-100 dark:active:bg-blue-900/60"
+                  className="flex-row items-center border-b border-gray-100 dark:border-gray-800 bg-accent-50 dark:bg-accent-950/40 px-4 py-3 active:bg-accent-100 dark:active:bg-accent-900/60"
                 >
-                  <View className="mr-3 h-8 w-8 items-center justify-center rounded-full bg-blue-500">
+                  <View className="mr-3 h-8 w-8 items-center justify-center rounded-full bg-accent-500">
                     <Ionicons name="add" size={20} color="white" />
                   </View>
-                  <Text className="text-base font-semibold text-blue-700 dark:text-blue-300">{labels.addTitle}</Text>
+                  <Text className="text-base font-semibold text-accent-700 dark:text-accent-300">{labels.addTitle}</Text>
                 </Pressable>
               )}
 
@@ -209,12 +211,12 @@ export function SurveyorAssignSheet({
                   <Pressable
                     key={`extra-${name}`}
                     onPress={() => toggle(name)}
-                    className={`flex-row items-center border-b border-gray-100 dark:border-gray-800 px-4 py-3 ${active ? 'bg-blue-50 dark:bg-blue-950/40' : 'active:bg-gray-50 dark:active:bg-gray-800'}`}
+                    className={`flex-row items-center border-b border-gray-100 dark:border-gray-800 px-4 py-3 ${active ? 'bg-accent-50 dark:bg-accent-950/40' : 'active:bg-gray-50 dark:active:bg-gray-800'}`}
                   >
                     <Ionicons
                       name={active ? 'checkbox' : 'square-outline'}
                       size={20}
-                      color={active ? '#2563eb' : '#9ca3af'}
+                      color={active ? c.accent : c.ink3}
                       style={{ marginRight: 12 }}
                     />
                     <Text className="flex-1 text-base text-gray-900 dark:text-gray-100">{name}</Text>

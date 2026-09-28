@@ -183,7 +183,7 @@ function SingleChipGroup<T extends string>({
           <Pressable
             key={opt.value}
             onPress={() => onChange(opt.value)}
-            className={`rounded-full border px-3 py-1.5 ${active ? 'border-emerald-500 bg-emerald-500' : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900'}`}
+            className={`rounded-full border px-3 py-1.5 ${active ? 'border-emerald-500 bg-emerald-500' : 'border-gray-300 dark:border-gray-600 bg-card dark:bg-gray-900'}`}
           >
             <Text className={`text-xs font-medium ${active ? 'text-white' : 'text-gray-700 dark:text-gray-300'}`}>
               {opt.label}
@@ -212,7 +212,7 @@ function MultiChipGroup<T extends string>({
           <Pressable
             key={opt.value}
             onPress={() => onToggle(opt.value)}
-            className={`rounded-full border px-3 py-1.5 ${active ? 'border-emerald-500 bg-emerald-500' : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900'}`}
+            className={`rounded-full border px-3 py-1.5 ${active ? 'border-emerald-500 bg-emerald-500' : 'border-gray-300 dark:border-gray-600 bg-card dark:bg-gray-900'}`}
           >
             <Text className={`text-xs font-medium ${active ? 'text-white' : 'text-gray-700 dark:text-gray-300'}`}>
               {opt.label}

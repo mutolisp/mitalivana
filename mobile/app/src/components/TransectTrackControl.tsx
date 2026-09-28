@@ -94,7 +94,7 @@ export function TransectTrackControl({ plot, onUpdated }: Props) {
   const lengthStr = lengthM > 1000 ? `${(lengthM / 1000).toFixed(2)} km` : `${lengthM.toFixed(0)} m`;
 
   return (
-    <View className="mt-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-3">
+    <View className="mt-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-card dark:bg-gray-900 p-3">
       <View className="flex-row items-center justify-between">
         <Text className="text-xs font-medium text-gray-600 dark:text-gray-400">
           {t('transect.label')} <Text className="text-red-500">*</Text>

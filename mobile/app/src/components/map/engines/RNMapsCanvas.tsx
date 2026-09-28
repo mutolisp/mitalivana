@@ -20,6 +20,7 @@ import MapView, {
 } from 'react-native-maps';
 
 import { NORTH_ARROW_SIZE, type MapCamera, type MapCanvasProps, type MapFeature } from '../types';
+import { useThemeColors } from '~/theme/colors';
 
 /**
  * North arrow.
@@ -46,6 +47,7 @@ function NorthArrow({
   inset?: { bottom: number; right: number };
   onPress: () => void;
 }) {
+  const c = useThemeColors();
   const { t } = useTranslation();
   return (
     <Pressable
@@ -61,7 +63,7 @@ function NorthArrow({
         width: NORTH_ARROW_SIZE,
         height: NORTH_ARROW_SIZE,
       }}
-      className="items-center justify-center rounded-full bg-white/95 shadow-md dark:bg-gray-900/95"
+      className="items-center justify-center rounded-full bg-card/95 shadow-md dark:bg-gray-900/95"
     >
       <View className="items-center" style={{ transform: [{ rotate: `${-heading}deg` }] }}>
         {/* Border triangle: RN has no polygon primitive, and an icon font glyph
@@ -75,7 +77,7 @@ function NorthArrow({
             borderBottomWidth: 9,
             borderLeftColor: 'transparent',
             borderRightColor: 'transparent',
-            borderBottomColor: '#dc2626',
+            borderBottomColor: c.alert,
           }}
         />
         <Text className="mt-0.5 text-[9px] font-bold text-gray-700 dark:text-gray-200">N</Text>

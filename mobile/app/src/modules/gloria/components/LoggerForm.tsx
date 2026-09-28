@@ -31,9 +31,10 @@ import {
 import { RANGES } from '../model/ranges';
 import type { Direction } from '../model/units';
 import { Btn, Card, Chip, NumField } from './ui';
+import { useThemeColors } from '~/theme/colors';
 
 const INPUT =
-  'flex-1 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100';
+  'flex-1 rounded-md border border-gray-300 bg-card px-2 py-1.5 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100';
 
 /** Files attached to a logger or a visit: tap to open or share, remove from the menu. */
 export function FileList({
@@ -47,6 +48,7 @@ export function FileList({
   editable: boolean;
   resolve: (uri: string) => Promise<string | null>;
 }) {
+  const c = useThemeColors();
   const { t } = useTranslation();
   const menu = async (f: FileRef, i: number) => {
     const idx = await showActionSheet({
@@ -61,8 +63,8 @@ export function FileList({
     <View className="gap-1">
       {files.map((f, i) => (
         <Pressable key={`${f.uri}-${i}`} onPress={() => void menu(f, i)} className="flex-row items-center gap-1.5 py-0.5">
-          <Ionicons name={/\.pdf$/i.test(f.name) ? 'document-text-outline' : /\.(jpe?g|png|heic|webp)$/i.test(f.name) ? 'image-outline' : 'document-outline'} size={16} color="#00797b" />
-          <Text className="flex-1 text-sm text-[#00797b] dark:text-cyan-300" numberOfLines={1}>
+          <Ionicons name={/\.pdf$/i.test(f.name) ? 'document-text-outline' : /\.(jpe?g|png|heic|webp)$/i.test(f.name) ? 'image-outline' : 'document-outline'} size={16} color={c.accentPressed} />
+          <Text className="flex-1 text-sm text-accent-700 dark:text-accent-300" numberOfLines={1}>
             {f.name}
           </Text>
         </Pressable>
@@ -99,7 +101,7 @@ export function ResearcherPick({
         onPress={() => setPicking(true)}
         accessibilityRole="button"
         accessibilityLabel={label}
-        className="flex-1 rounded-md border border-gray-300 bg-white px-2 py-1.5 dark:border-gray-700 dark:bg-gray-900"
+        className="flex-1 rounded-md border border-gray-300 bg-card px-2 py-1.5 dark:border-gray-700 dark:bg-gray-900"
       >
         <Text className={`text-sm ${value ? 'text-gray-900 dark:text-gray-100' : 'text-gray-400'}`} numberOfLines={2}>
           {value || (inherited ? t('gloria.logger.byVisit', { names: inherited }) : t('gloria.times.byNone'))}
@@ -138,6 +140,7 @@ export function LoggerForm({
   reload: () => void;
   resolve: (uri: string) => Promise<string | null>;
 }) {
+  const c = useThemeColors();
   const { t } = useTranslation();
   const [open, setOpen] = useState<Set<number>>(() => new Set(loggers.filter((l) => l.role === 'install' && !l.serial).map((l) => l.id)));
   const [viewer, setViewer] = useState<{ uris: string[]; i: number } | null>(null);
@@ -246,7 +249,7 @@ export function LoggerForm({
           accessibilityState={{ checked: ticked }}
           className="flex-row items-center gap-2"
         >
-          <Ionicons name={ticked ? 'checkbox' : 'square-outline'} size={18} color={ticked ? '#00A2A5' : '#9ca3af'} />
+          <Ionicons name={ticked ? 'checkbox' : 'square-outline'} size={18} color={ticked ? c.accent : c.ink3} />
           <Text className="text-xs text-gray-700 dark:text-gray-300">{t(which === 'open' ? 'gloria.logger.photoOpen' : 'gloria.logger.photoClosed')}</Text>
         </Pressable>
         <PhotoGrid
@@ -341,7 +344,7 @@ export function LoggerForm({
               .filter(Boolean)
               .join(' · ')}
           </Text>
-          <Ionicons name={expanded ? 'chevron-down' : 'chevron-forward'} size={14} color="#9ca3af" />
+          <Ionicons name={expanded ? 'chevron-down' : 'chevron-forward'} size={14} color={c.ink3} />
         </Pressable>
         {expanded ? (
           <View className="gap-2 px-3 pb-3">

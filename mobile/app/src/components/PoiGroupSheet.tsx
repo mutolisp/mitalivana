@@ -12,6 +12,7 @@ import { Modal, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { POI_GROUPS } from '~/db/rudypoi';
+import { useThemeColors } from '~/theme/colors';
 
 const ICON: Record<string, keyof typeof Ionicons.glyphMap> = {
   peaks: 'triangle-outline',
@@ -32,6 +33,7 @@ type Props = {
 };
 
 export function PoiGroupSheet({ visible, enabled, available, onToggle, onClose }: Props) {
+  const c = useThemeColors();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
 
@@ -40,14 +42,14 @@ export function PoiGroupSheet({ visible, enabled, available, onToggle, onClose }
       <Pressable className="flex-1 bg-black/40" onPress={onClose} />
       <View
         style={{ paddingBottom: insets.bottom + 12 }}
-        className="rounded-t-2xl bg-white dark:bg-gray-900"
+        className="rounded-t-2xl bg-card dark:bg-gray-900"
       >
         <View className="flex-row items-center justify-between px-4 py-3">
           <Text className="text-base font-semibold text-gray-900 dark:text-gray-100">
             {t('poi.title')}
           </Text>
           <Pressable onPress={onClose} hitSlop={8}>
-            <Ionicons name="close" size={22} color="#6b7280" />
+            <Ionicons name="close" size={22} color={c.ink2} />
           </Pressable>
         </View>
 
@@ -68,7 +70,7 @@ export function PoiGroupSheet({ visible, enabled, available, onToggle, onClose }
                   <Ionicons
                     name={ICON[g.key] ?? 'ellipse-outline'}
                     size={20}
-                    color={on ? '#059669' : '#9ca3af'}
+                    color={on ? c.accent : c.ink3}
                   />
                   <Text
                     className={
@@ -79,7 +81,7 @@ export function PoiGroupSheet({ visible, enabled, available, onToggle, onClose }
                   >
                     {t(g.labelKey)}
                   </Text>
-                  {on ? <Ionicons name="checkmark" size={20} color="#059669" /> : null}
+                  {on ? <Ionicons name="checkmark" size={20} color={c.accent} /> : null}
                 </Pressable>
               );
             })}

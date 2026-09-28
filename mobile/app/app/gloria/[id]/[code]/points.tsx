@@ -41,10 +41,12 @@ import { WalkDiagram } from '~/modules/gloria/components/WalkDiagram';
 import { PointMap } from '~/modules/gloria/components/PointMap';
 import { saveVersionSoon } from '~/db/recordVersions';
 import { useVersionOnLeave } from '~/lib/useVersionOnLeave';
+import { useThemeColors } from '~/theme/colors';
 
 type PointStep = { seq: number; surface: string; hits: Record<number, boolean> };
 
 export default function PointsScreen() {
+  const tc = useThemeColors();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const toast = useToast((s) => s.show);
@@ -261,7 +263,7 @@ export default function PointsScreen() {
         accessibilityLabel={t(d < 0 ? 'gloria.freq.prevSpecies' : 'gloria.freq.nextSpecies')}
         className="w-11 items-center justify-center self-stretch rounded-lg border border-gray-300 dark:border-gray-700"
       >
-        <Ionicons name={d < 0 ? 'chevron-back' : 'chevron-forward'} size={22} color="#6b7280" />
+        <Ionicons name={d < 0 ? 'chevron-back' : 'chevron-forward'} size={22} color={tc.ink2} />
       </Pressable>
     );
     return (
@@ -291,8 +293,8 @@ export default function PointsScreen() {
               accessibilityRole="checkbox"
               accessibilityState={{ checked: on }}
               accessibilityHint={t('gloria.walk.cardHint')}
-              style={on ? { backgroundColor: '#00A2A5', borderColor: '#00A2A5' } : undefined}
-              className="min-h-[112px] items-center justify-center rounded-xl border-2 border-gray-300 bg-white px-3 py-3 dark:border-gray-700 dark:bg-gray-900"
+              style={on ? { backgroundColor: tc.accent, borderColor: tc.accent } : undefined}
+              className="min-h-[112px] items-center justify-center rounded-xl border-2 border-gray-300 bg-card px-3 py-3 dark:border-gray-700 dark:bg-gray-900"
             >
               <Text className={`text-center text-2xl font-bold ${on ? 'text-white' : 'text-gray-900 dark:text-gray-100'}`} numberOfLines={2}>
                 {displayName(s)}
@@ -300,7 +302,7 @@ export default function PointsScreen() {
               <Text className={`text-center text-xs italic ${on ? 'text-white/80' : 'text-gray-500 dark:text-gray-400'}`} numberOfLines={1}>
                 {s.simple_name}
               </Text>
-              <Text className={`mt-1 text-[10px] ${on ? 'text-white' : 'text-[#00797b] dark:text-cyan-300'}`} style={{ fontVariant: ['tabular-nums'] }}>
+              <Text className={`mt-1 text-[10px] ${on ? 'text-white' : 'text-accent-700 dark:text-accent-300'}`} style={{ fontVariant: ['tabular-nums'] }}>
                 {on ? t('gloria.walk.cardOn') : t('gloria.walk.cardOff')} · {t('gloria.walk.cardCount', { i: curIdx + 1, n: spp.length, hits: popcount(hits[s.id]) })}
               </Text>
             </Pressable>
@@ -342,14 +344,14 @@ export default function PointsScreen() {
                 {done ? t('gloria.walk.allDone', { total: size }) : isSquare ? t('gloria.walk.linePoint', { line, point }) : t('gloria.walk.point', { n: seq + 1 })}
               </Text>
               {isSquare && !done ? (
-                <Text className="rounded-md bg-cyan-50 px-1.5 py-0.5 text-[11px] font-semibold text-[#00797b] dark:bg-cyan-950/40 dark:text-cyan-300">
+                <Text className="rounded-md bg-accent-50 px-1.5 py-0.5 text-[11px] font-semibold text-accent-700 dark:bg-accent-950/40 dark:text-accent-300">
                   {line % 2 === 1 ? t('gloria.walk.forward') : t('gloria.walk.back')}
                 </Text>
               ) : null}
             </View>
             <Text className="text-xs text-gray-500" style={{ fontVariant: ['tabular-nums'] }}>{t('gloria.walk.progress', { done: visited, total: size })}</Text>
             <View className="h-1.5 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-800">
-              <View className="h-full bg-[#00A2A5]" style={{ width: `${(visited / size) * 100}%` }} />
+              <View className="h-full bg-accent-600" style={{ width: `${(visited / size) * 100}%` }} />
             </View>
           </View>
         </View>
@@ -398,10 +400,10 @@ export default function PointsScreen() {
       </ScrollView>
       {adding ? (
         <KeyboardStickyView offset={{ opened: insets.bottom }}>
-          <View className="flex-row items-center border-t border-gray-200 bg-white px-4 py-2 dark:border-gray-800 dark:bg-gray-900">
+          <View className="flex-row items-center border-t border-gray-200 bg-card px-4 py-2 dark:border-gray-800 dark:bg-gray-900">
             <Text className="flex-1 text-xs text-gray-500 dark:text-gray-400">{t('gloria.walk.addingHint')}</Text>
             <Pressable onPress={() => setAdding(false)} hitSlop={8} accessibilityRole="button">
-              <Text className="text-sm font-semibold text-[#00797b] dark:text-cyan-300">{t('common.cancel')}</Text>
+              <Text className="text-sm font-semibold text-accent-700 dark:text-accent-300">{t('common.cancel')}</Text>
             </Pressable>
           </View>
           <SearchBox
@@ -421,7 +423,7 @@ export default function PointsScreen() {
           />
         </KeyboardStickyView>
       ) : (
-        <View className="gap-1.5 border-t border-gray-200 bg-white px-4 py-2.5 dark:border-gray-800 dark:bg-gray-900">
+        <View className="gap-1.5 border-t border-gray-200 bg-card px-4 py-2.5 dark:border-gray-800 dark:bg-gray-900">
           {previousText() && !done ? (
             <Text className="text-xs text-gray-500 dark:text-gray-400" numberOfLines={2}>
               {t('gloria.walk.prevIs', { what: previousText() })}

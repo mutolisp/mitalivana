@@ -16,6 +16,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Dimensions, FlatList, Modal, Pressable, Text, View } from 'react-native';
 import { rebaseAppFileUri } from '~/lib/appFiles';
+import { useThemeColors } from '~/theme/colors';
 
 export function PhotoGrid({
   photos,
@@ -32,6 +33,7 @@ export function PhotoGrid({
   onView?: (index: number) => void;
   onRemove?: (uri: string) => void;
 }) {
+  const c = useThemeColors();
   const { t } = useTranslation();
   return (
     <View>
@@ -61,14 +63,14 @@ export function PhotoGrid({
           className="items-center justify-center rounded-lg border border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-950 active:bg-gray-100 dark:active:bg-gray-700"
           style={{ width: 88, height: 88 }}
         >
-          <Ionicons name="camera-outline" size={24} color="#6b7280" />
+          <Ionicons name="camera-outline" size={24} color={c.ink2} />
           <Text className="mt-1 text-xs text-gray-600 dark:text-gray-400">{t('species.takePhoto')}</Text>
         </Pressable>
       </View>
       {onPickLibrary ? (
         <Pressable onPress={onPickLibrary} hitSlop={8} className="mt-2 flex-row items-center active:opacity-70">
-          <Ionicons name="images-outline" size={14} color="#2563eb" />
-          <Text className="ml-1 text-xs font-medium text-blue-700 dark:text-blue-300">{t('collection.fromLibrary')}</Text>
+          <Ionicons name="images-outline" size={14} color={c.accent} />
+          <Text className="ml-1 text-xs font-medium text-accent-700 dark:text-accent-300">{t('collection.fromLibrary')}</Text>
         </Pressable>
       ) : null}
     </View>

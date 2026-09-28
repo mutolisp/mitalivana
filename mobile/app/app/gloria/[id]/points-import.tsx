@@ -16,6 +16,7 @@ import { applyPointImport, getGloriaSurvey, getSummit, listPoints } from '~/modu
 import { diffPoints, rowsBySummitCycle, type PointChange } from '~/modules/gloria/model/pointImport';
 import { usePendingPointImport } from '~/modules/gloria/summitImportFile';
 import { Btn, Card, Chip, Label } from '~/modules/gloria/components/ui';
+import { useThemeColors } from '~/theme/colors';
 
 const FIELD: Record<PointChange['field'], string> = {
   distance_m: 'gloria.pointImport.distance',
@@ -24,6 +25,7 @@ const FIELD: Record<PointChange['field'], string> = {
 };
 
 export default function PointImportScreen() {
+  const tc = useThemeColors();
   const { t } = useTranslation();
   const router = useRouter();
   const toast = useToast((s) => s.show);
@@ -59,7 +61,7 @@ export default function PointImportScreen() {
   const chosenPoints = diff.points.filter((p) => isOn(`pt:${p.key}`, p.fill));
   const chosenP5m = diff.p5m.filter((p) => isOn(`p5m:${p.direction}`, p.from == null));
   const problems = [...pending.problems, ...diff.problems];
-  const box = (on: boolean) => <Ionicons name={on ? 'checkbox' : 'square-outline'} size={20} color={on ? '#00A2A5' : '#9ca3af'} />;
+  const box = (on: boolean) => <Ionicons name={on ? 'checkbox' : 'square-outline'} size={20} color={on ? tc.accent : tc.ink3} />;
   const cycleLabel = (m: number | null) => (m == null ? t('gloria.pointImport.noMocy') : `mocy ${m}`);
 
   return (
@@ -148,7 +150,7 @@ export default function PointImportScreen() {
         ) : null}
         <Text className="text-[11px] text-gray-400">{t('gloria.pointImport.hint')}</Text>
       </ScrollView>
-      <View className="border-t border-gray-200 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
+      <View className="border-t border-gray-200 bg-card px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
         <Btn
           primary
           disabled={chosenPoints.length + chosenP5m.length === 0}

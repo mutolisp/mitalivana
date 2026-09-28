@@ -76,7 +76,7 @@ export function LookupResultSheet({
         />
         <View
           style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '85%' }}
-          className="rounded-t-2xl bg-white dark:bg-gray-900"
+          className="rounded-t-2xl bg-card dark:bg-gray-900"
         >
           <SafeAreaView edges={['bottom']} className="flex-1">
             <View className="items-center pt-2">

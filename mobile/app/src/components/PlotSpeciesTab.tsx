@@ -78,6 +78,7 @@ import {
   parseDbhArray,
 } from '~/lib/dwcAbundance';
 import { stampNewRecord } from '~/lib/recordFix';
+import { useThemeColors } from '~/theme/colors';
 
 type ValueModalState =
   | { mode: 'create'; taxon: SearchResult; layer: Layer; adopted?: AdoptionInput | null }
@@ -102,6 +103,7 @@ export function PlotSpeciesTab({
   onChanged: () => void;
   lock: PlotSpeciesLock;
 }) {
+  const c = useThemeColors();
   const { t: tr } = useTranslation();
   // `stratified` = fixed plot only (has E1..E6 layers). transect + point_count
   // are non-stratified: a single 'T' bucket, no layer chips/headers. Keep the
@@ -968,7 +970,7 @@ export function PlotSpeciesTab({
           onCancel={selection.exit}
         />
       ) : (
-        <View className="flex-row items-center border-b border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-900">
+        <View className="flex-row items-center border-b border-gray-100 bg-card dark:border-gray-800 dark:bg-gray-900">
           {!stratified ? (
             <Text
               className="flex-1 px-4 py-3 text-[11px] text-gray-500 dark:text-gray-400"
@@ -1003,7 +1005,7 @@ export function PlotSpeciesTab({
                   >
                     {subplots.find((sp) => sp.id === activeSubplotId)?.label ?? ''}
                   </Text>
-                  <Ionicons name="chevron-down" size={12} color="#9ca3af" style={{ marginLeft: 2 }} />
+                  <Ionicons name="chevron-down" size={12} color={c.ink3} style={{ marginLeft: 2 }} />
                 </Pressable>
               ) : null}
               {/* The Environment↔Species swipe activates at 18px of horizontal
@@ -1021,7 +1023,7 @@ export function PlotSpeciesTab({
                   <Ionicons
                     name="layers-outline"
                     size={13}
-                    color="#9ca3af"
+                    color={c.ink3}
                     style={{ marginRight: 6 }}
                   />
                   {activeLayers.map((l) => (
@@ -1054,7 +1056,7 @@ export function PlotSpeciesTab({
               hitSlop={8}
               className="flex-row items-center active:opacity-70"
             >
-              <Ionicons name="swap-vertical" size={16} color="#6b7280" />
+              <Ionicons name="swap-vertical" size={16} color={c.ink2} />
               <Text className="ml-0.5 text-xs text-gray-600 dark:text-gray-400">
                 {SORT_LABEL[sortOrder]}
               </Text>
@@ -1063,7 +1065,7 @@ export function PlotSpeciesTab({
               <Ionicons
                 name={sortDir === 'desc' ? 'arrow-down' : 'arrow-up'}
                 size={14}
-                color="#6b7280"
+                color={c.ink2}
               />
             </Pressable>
           </View>
@@ -1082,7 +1084,7 @@ export function PlotSpeciesTab({
           subplotMode && activeSubplotId != null ? (
             <View
               pointerEvents={lock.locked ? 'none' : 'auto'}
-              className="border-b border-gray-100 bg-white px-4 py-2 dark:border-gray-800 dark:bg-gray-900"
+              className="border-b border-gray-100 bg-card px-4 py-2 dark:border-gray-800 dark:bg-gray-900"
             >
               <SubplotLayerInputs
                 subplotId={activeSubplotId}
@@ -1289,6 +1291,7 @@ function SpeciesRow({
   selectMode: boolean;
   picked: boolean;
 }) {
+  const c = useThemeColors();
   const { t: tr } = useTranslation();
   const ab = alienBadge(record.alien_type, record.kingdom);
   // Already on iNaturalist → tinted row (see migrations.ts v30).
@@ -1298,13 +1301,13 @@ function SpeciesRow({
       onPress={onPress}
       onLongPress={onLongPress}
       delayLongPress={350}
-      className={`flex-row items-start border-b border-gray-100 px-4 py-3 dark:border-gray-800 ${uploaded ? 'bg-lime-50 active:bg-lime-100 dark:bg-lime-900/30 dark:active:bg-lime-900/50' : 'bg-white active:bg-gray-50 dark:bg-gray-900 dark:active:bg-gray-800'}`}
+      className={`flex-row items-start border-b border-gray-100 px-4 py-3 dark:border-gray-800 ${uploaded ? 'bg-lime-50 active:bg-lime-100 dark:bg-lime-900/30 dark:active:bg-lime-900/50' : 'bg-card active:bg-gray-50 dark:bg-gray-900 dark:active:bg-gray-800'}`}
     >
       {selectMode ? (
         <Ionicons
           name={picked ? 'checkbox' : 'square-outline'}
           size={20}
-          color={picked ? '#2563eb' : '#9ca3af'}
+          color={picked ? c.accent : c.ink3}
           style={{ marginRight: 10, alignSelf: 'center' }}
         />
       ) : null}
@@ -1423,7 +1426,7 @@ function ValueBadge({
           text: 'text-emerald-700 dark:text-emerald-300',
         }
       : kind === 'percent'
-        ? { bg: 'bg-blue-100 dark:bg-blue-900/60', text: 'text-blue-700 dark:text-blue-300' }
+        ? { bg: 'bg-accent-100 dark:bg-accent-900/60', text: 'text-accent-700 dark:text-accent-300' }
         : kind === 'DBH'
           ? { bg: 'bg-amber-100 dark:bg-amber-900/60', text: 'text-amber-800 dark:text-amber-300' }
           : { bg: 'bg-slate-100', text: 'text-slate-700' };
@@ -1471,6 +1474,7 @@ function MiniNum({
   /** Inclusive upper bound — entered value must be ≤ this. */
   max?: number;
 }) {
+  const c = useThemeColors();
   const { t: tr } = useTranslation();
   const [draft, setDraft] = useState(value == null ? '' : String(value));
   useEffect(() => {
@@ -1478,7 +1482,7 @@ function MiniNum({
   }, [value]);
   const toast = useToast((s) => s.show);
   return (
-    <View className="flex-1 flex-row items-center rounded-md border border-gray-200 bg-white px-2 dark:border-gray-700 dark:bg-gray-900">
+    <View className="flex-1 flex-row items-center rounded-md border border-gray-200 bg-card px-2 dark:border-gray-700 dark:bg-gray-900">
       <TextInput
         value={draft}
         onChangeText={setDraft}
@@ -1501,7 +1505,7 @@ function MiniNum({
           onSave(Number.isFinite(n) ? n : null);
         }}
         placeholder={placeholder}
-        placeholderTextColor="#9ca3af"
+        placeholderTextColor={c.ink3}
         keyboardType="decimal-pad"
         className="flex-1 py-1.5 text-sm text-gray-900 dark:text-gray-100"
       />
@@ -1525,6 +1529,7 @@ function SubplotLayerInputs({
   plotLayers: PlotLayer[];
   onChanged: () => void;
 }) {
+  const c = useThemeColors();
   const { t: tr } = useTranslation();
   const [rows, setRows] = useState<SubplotLayer[]>([]);
   const reload = useCallback(() => setRows(getSubplotLayers(subplotId)), [subplotId]);
@@ -1538,7 +1543,7 @@ function SubplotLayerInputs({
         className="flex-row items-center py-1"
         hitSlop={6}
       >
-        <Ionicons name={open ? 'chevron-down' : 'chevron-forward'} size={14} color="#6b7280" />
+        <Ionicons name={open ? 'chevron-down' : 'chevron-forward'} size={14} color={c.ink2} />
         <Text className="ml-1 text-xs font-medium text-gray-600 dark:text-gray-400">
           {tr('plotSpecies.subplotCoverHeight')}
         </Text>
@@ -1622,7 +1627,7 @@ function LayerChip({
       className={`mr-2 rounded-full border px-3 py-1.5 ${
         active
           ? 'border-emerald-500 bg-emerald-500'
-          : 'border-gray-300 bg-white dark:border-gray-600 dark:bg-gray-900'
+          : 'border-gray-300 bg-card dark:border-gray-600 dark:bg-gray-900'
       }`}
     >
       <Text

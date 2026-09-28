@@ -23,8 +23,10 @@ import { CORNERS, DIAGONALS, DIRECTIONS } from '../model/units';
 import { pickGloriaPhoto } from '../photo';
 import type { SurveyState } from '../useSurvey';
 import { Card, Label } from './ui';
+import { useThemeColors } from '~/theme/colors';
 
 export function PhotoChecklist({ state, reload }: { state: SurveyState; reload: () => void }) {
+  const tc = useThemeColors();
   const { t } = useTranslation();
   const toast = useToast((s) => s.show);
   const sid = state.survey.id;
@@ -88,13 +90,13 @@ export function PhotoChecklist({ state, reload }: { state: SurveyState; reload: 
         accessibilityHint={t('gloria.photoCheck.a11yHint')}
         className={`${opts?.wide ? 'flex-1 flex-row px-2.5' : 'w-10 justify-center'} h-9 items-center rounded-md border ${
           s.done
-            ? 'border-[#00A2A5] bg-[#00A2A5]'
+            ? 'border-accent-600 bg-accent-600'
             : optional
               ? 'border-dashed border-gray-300 dark:border-gray-600'
               : 'border-gray-300 dark:border-gray-600'
         }`}
       >
-        <Ionicons name={s.done ? 'checkmark' : 'square-outline'} size={opts?.wide ? 16 : 14} color={s.done ? '#fff' : '#9ca3af'} />
+        <Ionicons name={s.done ? 'checkmark' : 'square-outline'} size={opts?.wide ? 16 : 14} color={s.done ? '#fff' : tc.ink3} />
         {opts?.wide ? (
           <Text className={`ml-1.5 flex-1 text-xs ${s.done ? 'font-semibold text-white' : 'text-gray-700 dark:text-gray-200'}`} numberOfLines={1}>
             {label}
@@ -102,7 +104,7 @@ export function PhotoChecklist({ state, reload }: { state: SurveyState; reload: 
         ) : null}
         {s.photo ? (
           <View className="absolute right-0.5 top-0.5">
-            <Ionicons name="camera" size={9} color={s.done ? '#fff' : '#00797b'} />
+            <Ionicons name="camera" size={9} color={s.done ? '#fff' : tc.accentPressed} />
           </View>
         ) : null}
       </Pressable>
@@ -128,7 +130,7 @@ export function PhotoChecklist({ state, reload }: { state: SurveyState; reload: 
           </Text>
         </View>
         <View className="h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-800">
-          <View className="h-2 rounded-full bg-[#00A2A5]" style={{ width: `${pct}%` }} />
+          <View className="h-2 rounded-full bg-accent-600" style={{ width: `${pct}%` }} />
         </View>
         <Text className="text-xs text-gray-500 dark:text-gray-400">
           {t('gloria.photoCheck.optional', { done: cl.optional.done, total: cl.optional.total })}

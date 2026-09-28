@@ -29,10 +29,12 @@ import { VerbatimLabelField } from '~/components/VerbatimLabelField';
 import { useToast } from '~/stores/toast';
 import { Btn, Card, Chip, Label, NumAccessory, NumField } from '~/modules/gloria/components/ui';
 import { RANGES } from '~/modules/gloria/model/ranges';
+import { useThemeColors } from '~/theme/colors';
 
 const ABUNDANCE = ['r!', 'r', 's', 'c', 'd'] as const;
 
 export default function GloriaSpeciesScreen() {
+  const tc = useThemeColors();
   const { t } = useTranslation();
   const router = useRouter();
   const params = useLocalSearchParams<{ id: string; code: string; usid: string }>();
@@ -137,7 +139,7 @@ export default function GloriaSpeciesScreen() {
                 <Pressable
                   key={a}
                   onPress={() => patch({ abundance: s.abundance === a ? null : a })}
-                  className={`ml-1 w-8 items-center rounded-md border py-1.5 ${s.abundance === a ? 'border-[#00A2A5] bg-[#00A2A5]' : 'border-gray-300 dark:border-gray-700'}`}
+                  className={`ml-1 w-8 items-center rounded-md border py-1.5 ${s.abundance === a ? 'border-accent-600 bg-accent-600' : 'border-gray-300 dark:border-gray-700'}`}
                 >
                   <Text className={`text-xs ${s.abundance === a ? 'font-bold text-white' : 'text-gray-600 dark:text-gray-300'}`}>{a}</Text>
                 </Pressable>
@@ -203,8 +205,8 @@ export default function GloriaSpeciesScreen() {
           onEndEditing={(e) => patch({ comments: e.nativeEvent.text.trim() || null })}
           placeholder={t('gloria.species.notesPlaceholder')}
           multiline
-          className="min-h-[80px] rounded-lg border border-gray-300 bg-white p-2.5 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
-          placeholderTextColor="#9ca3af"
+          className="min-h-[80px] rounded-lg border border-gray-300 bg-card p-2.5 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+          placeholderTextColor={tc.ink3}
         />
         <View className="mt-2 gap-2">
           {/* Re-identify: back to the unit, whose search box picks the new name. */}

@@ -58,6 +58,7 @@ import {
   type InatGridState,
   type InatGridTaxon,
 } from '~/lib/useInatGrid';
+import { useThemeColors } from '~/theme/colors';
 
 type Reference = { center?: { lat: number; lng: number } | null; radiusM?: number | null };
 
@@ -129,6 +130,7 @@ export function RecordLocationMap({
   taxon,
   area,
 }: Props) {
+  const c = useThemeColors();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { width: windowWidth } = useWindowDimensions();
@@ -340,7 +342,7 @@ export function RecordLocationMap({
               setEntryError(null);
             }}
             placeholder="25.123456, 121.654321"
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor={c.ink3}
             autoCapitalize="characters"
             autoCorrect={false}
             autoFocus
@@ -356,7 +358,7 @@ export function RecordLocationMap({
               <Text className="text-sm text-gray-500 dark:text-gray-400">{t('common.cancel')}</Text>
             </Pressable>
             <Pressable onPress={submitEntry} hitSlop={8}>
-              <Text className="text-sm font-medium text-blue-600 dark:text-blue-400">
+              <Text className="text-sm font-medium text-accent-600 dark:text-accent-400">
                 {t('common.ok')}
               </Text>
             </Pressable>
@@ -372,7 +374,7 @@ export function RecordLocationMap({
         <View className="mt-2 flex-row items-center rounded-lg bg-gray-900 px-3 py-2 dark:bg-gray-800">
           <Text className="flex-1 text-xs text-white">{t('locMap.moved')}</Text>
           <Pressable onPress={undoMove} hitSlop={8}>
-            <Text className="text-xs font-semibold text-blue-300">{t('locMap.undo')}</Text>
+            <Text className="text-xs font-semibold text-accent-300">{t('locMap.undo')}</Text>
           </Pressable>
         </View>
       ) : null}
@@ -384,7 +386,7 @@ export function RecordLocationMap({
           <View className="flex-row items-center justify-between px-4 py-3">
             <Text className="text-base font-semibold text-white">{t('locMap.fullscreenTitle')}</Text>
             <Pressable onPress={() => setFullscreen(false)} hitSlop={12} className="px-3 py-1.5">
-              <Text className="text-base font-semibold text-blue-400">{t('common.done')}</Text>
+              <Text className="text-base font-semibold text-accent-400">{t('common.done')}</Text>
             </Pressable>
           </View>
           {/* Mounted only while open — a hidden MapView still holds MapKit
@@ -399,7 +401,7 @@ export function RecordLocationMap({
                   setEntryError(null);
                 }}
                 placeholder="25.123456, 121.654321"
-                placeholderTextColor="#6b7280"
+                placeholderTextColor={c.ink2}
                 autoCapitalize="characters"
                 autoCorrect={false}
                 autoFocus
@@ -415,7 +417,7 @@ export function RecordLocationMap({
                   <Text className="text-sm text-gray-400">{t('common.cancel')}</Text>
                 </Pressable>
                 <Pressable onPress={submitEntry} hitSlop={8}>
-                  <Text className="text-sm font-medium text-blue-400">{t('common.ok')}</Text>
+                  <Text className="text-sm font-medium text-accent-400">{t('common.ok')}</Text>
                 </Pressable>
               </View>
             </View>
@@ -476,6 +478,7 @@ function EditableMap({
   /** 給了才畫 iNat 切換鈕。`undefined` = 這張地圖沒有物種脈絡。 */
   inat?: { on: boolean; toggle: () => void };
 }) {
+  const tc = useThemeColors();
   const { t } = useTranslation();
   const mapRef = useRef<MapCamera>(null);
   const regionRef = useRef<Region>(initialRegion);
@@ -543,7 +546,7 @@ function EditableMap({
                   lat: reference.center.lat,
                   lng: reference.center.lng,
                   radiusM: reference.radiusM,
-                  stroke: '#2563eb',
+                  stroke: tc.accent,
                   fill: 'rgba(37,99,235,0.10)',
                   width: 1,
                 },

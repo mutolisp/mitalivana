@@ -192,7 +192,7 @@ export function SpeciesMatrix({ state, onUnit }: { state: SurveyState; onUnit: (
               <View className={`flex-row ${headerCell}`}>
                 {codes.map((c) => (
                   <Pressable key={c} onPress={() => onUnit(c)} style={{ width: CELL_W }} className="pr-1.5">
-                    <Text className="text-right text-[11px] font-semibold text-[#00797b] dark:text-cyan-300">{c}</Text>
+                    <Text className="text-right text-[11px] font-semibold text-accent-700 dark:text-accent-300">{c}</Text>
                   </Pressable>
                 ))}
               </View>

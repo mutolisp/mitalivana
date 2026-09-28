@@ -8,6 +8,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useMemo, useState } from 'react';
 import { FlatList, Pressable, Text, TextInput, View } from 'react-native';
+import { useThemeColors } from '~/theme/colors';
 
 export type SearchableOption = {
   value: string;
@@ -27,6 +28,7 @@ export function SearchableOptionList({
   onSelect: (value: string) => void;
   searchPlaceholder?: string;
 }) {
+  const c = useThemeColors();
   const [q, setQ] = useState('');
 
   const rows = useMemo(() => {
@@ -47,10 +49,10 @@ export function SearchableOptionList({
           value={q}
           onChangeText={setQ}
           placeholder={searchPlaceholder}
-          placeholderTextColor="#9ca3af"
+          placeholderTextColor={c.ink3}
           autoCapitalize="none"
           autoCorrect={false}
-          className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2.5 text-base text-gray-900 dark:text-gray-100"
+          className="rounded-lg border border-gray-300 dark:border-gray-600 bg-card dark:bg-gray-900 px-3 py-2.5 text-base text-gray-900 dark:text-gray-100"
         />
       </View>
       <FlatList
@@ -60,7 +62,7 @@ export function SearchableOptionList({
         renderItem={({ item }) => (
           <Pressable
             onPress={() => onSelect(item.value)}
-            className="flex-row items-center border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 px-4 py-3 active:bg-blue-50 dark:active:bg-blue-900/40"
+            className="flex-row items-center border-b border-gray-100 dark:border-gray-800 bg-card dark:bg-gray-900 px-4 py-3 active:bg-accent-50 dark:active:bg-accent-900/40"
           >
             <View className="flex-1">
               <Text className="text-base text-gray-900 dark:text-gray-100">{item.label}</Text>
@@ -68,7 +70,7 @@ export function SearchableOptionList({
                 <Text className="text-xs text-gray-500 dark:text-gray-400">{item.sublabel}</Text>
               ) : null}
             </View>
-            {item.value === value ? <Ionicons name="checkmark" size={20} color="#2563eb" /> : null}
+            {item.value === value ? <Ionicons name="checkmark" size={20} color={c.accent} /> : null}
           </Pressable>
         )}
       />

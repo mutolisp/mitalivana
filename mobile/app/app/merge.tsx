@@ -29,6 +29,7 @@ import {
 import { applyPendingMerge, usePendingMerge, type PendingMerge } from '~/lib/teamMergeFlow';
 import { useToast } from '~/stores/toast';
 import { fieldLabel, fmt } from '~/lib/mergeFormat';
+import { useThemeColors } from '~/theme/colors';
 
 function rowTitle(r: MergeRow | null | undefined): string {
   if (!r) return '';
@@ -45,11 +46,11 @@ function Choice({ on, label, onPress, danger }: { on: boolean; label: string; on
         on
           ? danger
             ? 'border-red-500 bg-red-50 dark:bg-red-950/40'
-            : 'border-[#00A2A5] bg-cyan-50 dark:bg-cyan-950/40'
+            : 'border-accent-600 bg-accent-50 dark:bg-accent-950/40'
           : 'border-gray-300 dark:border-gray-700'
       }`}
     >
-      <Text className={`text-sm ${on ? (danger ? 'text-red-700 dark:text-red-300' : 'text-[#00797b] dark:text-cyan-300') : 'text-gray-700 dark:text-gray-300'}`}>
+      <Text className={`text-sm ${on ? (danger ? 'text-red-700 dark:text-red-300' : 'text-accent-700 dark:text-accent-300') : 'text-gray-700 dark:text-gray-300'}`}>
         {label}
       </Text>
     </Pressable>
@@ -75,7 +76,7 @@ function FieldRow({
       onPress={() => onPick(side)}
       accessibilityRole="radio"
       accessibilityState={{ selected: pick === side }}
-      className={`flex-1 rounded-md border px-2 py-1.5 ${pick === side ? 'border-[#00A2A5] bg-cyan-50 dark:bg-cyan-950/40' : 'border-gray-200 dark:border-gray-800'}`}
+      className={`flex-1 rounded-md border px-2 py-1.5 ${pick === side ? 'border-accent-600 bg-accent-50 dark:bg-accent-950/40' : 'border-gray-200 dark:border-gray-800'}`}
     >
       <Text className="text-sm text-gray-900 dark:text-gray-100" numberOfLines={3}>
         {value}
@@ -115,7 +116,7 @@ function ReviewCard({
       <Text className="text-xs text-gray-500 dark:text-gray-400">{table}</Text>
     </View>
   );
-  const card = 'gap-2 rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-800 dark:bg-gray-900';
+  const card = 'gap-2 rounded-xl border border-gray-200 bg-card p-3 dark:border-gray-800 dark:bg-gray-900';
 
   if (item.kind === 'conflict') {
     const pickOf = (f: string) => (decision.pick === 'remote' ? 'remote' : (decision.fields?.[f] ?? 'local'));
@@ -200,6 +201,7 @@ function ReviewCard({
 }
 
 function AutoRow({ item, on, onToggle }: { item: MergeItem; on: boolean; onToggle: () => void }) {
+  const c = useThemeColors();
   const { t } = useTranslation();
   const detail =
     item.kind === 'added'
@@ -215,7 +217,7 @@ function AutoRow({ item, on, onToggle }: { item: MergeItem; on: boolean; onToggl
       accessibilityState={{ checked: on }}
       className="flex-row items-start gap-2 border-b border-gray-100 py-2 dark:border-gray-800"
     >
-      <Ionicons name={on ? 'checkbox' : 'square-outline'} size={20} color={on ? '#00A2A5' : '#9ca3af'} />
+      <Ionicons name={on ? 'checkbox' : 'square-outline'} size={20} color={on ? c.accent : c.ink3} />
       <View className="flex-1">
         <Text className="text-sm text-gray-900 dark:text-gray-100">
           {rowTitle(item.remote ?? item.local)}
@@ -306,7 +308,7 @@ export default function MergeReviewScreen() {
         <View className="gap-1">
           <Text className="text-base font-semibold text-gray-900 dark:text-gray-100">{pending.label}</Text>
           {pending.from ? (
-            <Text className="text-sm text-[#00797b] dark:text-cyan-300">
+            <Text className="text-sm text-accent-700 dark:text-accent-300">
               {pending.fromAt
                 ? t('teamMerge.fromAt', { name: pending.from, date: isoStamp(pending.fromAt).slice(0, 16) })
                 : t('teamMerge.from', { name: pending.from })}
@@ -329,10 +331,10 @@ export default function MergeReviewScreen() {
                 {t('teamMerge.reviewHeader', { count: review.length })}
               </Text>
               <Pressable onPress={() => setAll(review, 'local')} hitSlop={6}>
-                <Text className="text-xs text-[#00797b] dark:text-cyan-300">{t('teamMerge.allMine')}</Text>
+                <Text className="text-xs text-accent-700 dark:text-accent-300">{t('teamMerge.allMine')}</Text>
               </Pressable>
               <Pressable onPress={() => setAll(review, 'remote')} hitSlop={6}>
-                <Text className="text-xs text-[#00797b] dark:text-cyan-300">{t('teamMerge.allTheirs')}</Text>
+                <Text className="text-xs text-accent-700 dark:text-accent-300">{t('teamMerge.allTheirs')}</Text>
               </Pressable>
             </View>
             {review.map((it) => (
@@ -346,7 +348,7 @@ export default function MergeReviewScreen() {
             <Text className="text-xs font-semibold text-gray-600 dark:text-gray-300">
               {t('teamMerge.autoHeader', { count: auto.length })}
             </Text>
-            <View className="rounded-xl border border-gray-200 bg-white px-3 dark:border-gray-800 dark:bg-gray-900">
+            <View className="rounded-xl border border-gray-200 bg-card px-3 dark:border-gray-800 dark:bg-gray-900">
               {auto.map((it) => {
                 const on = dec(it).pick !== 'local';
                 return <AutoRow key={it.id} item={it} on={on} onToggle={() => setDec(it, { pick: on ? 'local' : 'remote' })} />;
@@ -357,12 +359,12 @@ export default function MergeReviewScreen() {
 
         <Text className="text-xs text-gray-500 dark:text-gray-400">{t('teamMerge.backupNote')}</Text>
       </ScrollView>
-      <View className="border-t border-gray-200 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
+      <View className="border-t border-gray-200 bg-card px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
         <Pressable
           onPress={apply}
           disabled={busy}
           accessibilityRole="button"
-          className={`items-center rounded-xl py-3 ${busy ? 'bg-gray-400' : 'bg-[#00A2A5] active:bg-[#008284]'}`}
+          className={`items-center rounded-xl py-3 ${busy ? 'bg-gray-400' : 'bg-accent-600 active:bg-accent-700'}`}
         >
           <Text className="text-base font-semibold text-white">{busy ? t('teamMerge.applying') : t('teamMerge.apply')}</Text>
         </Pressable>

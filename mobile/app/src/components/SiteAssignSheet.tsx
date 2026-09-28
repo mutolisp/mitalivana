@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { listSites, type SiteWithProject } from '~/db';
 import { ACTION_FILL } from '~/lib/colors';
 import { SITE_TYPE_ICON, SITE_TYPE_LABEL, type DrawType } from '~/lib/siteLabels';
+import { useThemeColors } from '~/theme/colors';
 
 export type { DrawType } from '~/lib/siteLabels';
 
@@ -32,6 +33,7 @@ export function SiteAssignSheet({
   onAssign,
   onCreateNew,
 }: Props) {
+  const c = useThemeColors();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [sites, setSites] = useState<SiteWithProject[]>([]);
@@ -71,7 +73,7 @@ export function SiteAssignSheet({
             right: 0,
             paddingBottom: insets.bottom + 8,
           }}
-          className="rounded-t-2xl bg-white dark:bg-gray-900"
+          className="rounded-t-2xl bg-card dark:bg-gray-900"
         >
           <View className="border-b border-gray-200 px-4 py-3 dark:border-gray-700">
             <Text className="text-base font-semibold text-gray-900 dark:text-gray-100">
@@ -83,9 +85,9 @@ export function SiteAssignSheet({
           </View>
 
           {onCreateNew ? (
-          <View className="border-b border-gray-100 bg-blue-50 dark:border-gray-800 dark:bg-blue-950/40">
+          <View className="border-b border-gray-100 bg-accent-50 dark:border-gray-800 dark:bg-accent-950/40">
             <View className="px-4 pb-2 pt-3">
-              <Text className="text-xs font-medium uppercase tracking-wide text-blue-700 dark:text-blue-300">
+              <Text className="text-xs font-medium uppercase tracking-wide text-accent-700 dark:text-accent-300">
                 {t('sheets.newSite')}
               </Text>
             </View>
@@ -117,7 +119,7 @@ export function SiteAssignSheet({
               <Ionicons
                 name="close-circle-outline"
                 size={20}
-                color="#6b7280"
+                color={c.ink2}
                 style={{ marginRight: 12 }}
               />
               <Text className="flex-1 text-base text-gray-700 dark:text-gray-300">
@@ -140,17 +142,17 @@ export function SiteAssignSheet({
                   <Pressable
                     key={s.id}
                     onPress={() => onAssign(s.id)}
-                    className={`flex-row items-center border-b border-gray-100 px-4 py-3 dark:border-gray-800 ${active ? 'bg-blue-50 dark:bg-blue-950/40' : 'active:bg-gray-50 dark:active:bg-gray-800'}`}
+                    className={`flex-row items-center border-b border-gray-100 px-4 py-3 dark:border-gray-800 ${active ? 'bg-accent-50 dark:bg-accent-950/40' : 'active:bg-gray-50 dark:active:bg-gray-800'}`}
                   >
                     <Ionicons
                       name={SITE_TYPE_ICON[s.geometry_type]}
                       size={20}
-                      color={active ? '#2563eb' : '#6b7280'}
+                      color={active ? c.accent : c.ink2}
                       style={{ marginRight: 12 }}
                     />
                     <View className="flex-1">
                       <Text
-                        className={`text-base ${active ? 'font-semibold text-blue-700 dark:text-blue-300' : 'text-gray-900 dark:text-gray-100'}`}
+                        className={`text-base ${active ? 'font-semibold text-accent-700 dark:text-accent-300' : 'text-gray-900 dark:text-gray-100'}`}
                         numberOfLines={1}
                       >
                         {s.name}
@@ -159,7 +161,7 @@ export function SiteAssignSheet({
                         {t(SITE_TYPE_LABEL[s.geometry_type])} · {s.project_name}
                       </Text>
                     </View>
-                    {active ? <Ionicons name="checkmark" size={20} color="#2563eb" /> : null}
+                    {active ? <Ionicons name="checkmark" size={20} color={c.accent} /> : null}
                   </Pressable>
                 );
               })

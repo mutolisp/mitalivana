@@ -54,7 +54,7 @@ import {
   MAX_LAYER_COUNT,
 } from '~/db';
 import { PhotoGrid, PhotoViewerModal } from '~/components/PhotoGrid';
-import { useThemeColors } from '~/hooks/useThemeColors';
+import { useThemeColors } from '~/theme/colors';
 import { useToast } from '~/stores/toast';
 import { PlotSpeciesTab } from '~/components/PlotSpeciesTab';
 import { plotStatsSummary } from '~/components/PlotDiversityCard';
@@ -258,7 +258,7 @@ export default function PlotDetailScreen() {
           ),
         }}
       />
-      <View className="flex-row border-b border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
+      <View className="flex-row border-b border-gray-200 bg-card dark:border-gray-700 dark:bg-gray-900">
         <TabBtn label={t('plot.tabEnv')} active={tab === 'env'} onPress={() => selectTab('env')} />
         <TabBtn
           label={`${t('plot.tabSpecies')} ${records.length > 0 ? records.length : ''}`}
@@ -364,6 +364,7 @@ function EnvTab({
   /** Finished and not unlocked: shown, not editable (touches still scroll). */
   locked: boolean;
 }) {
+  const c = useThemeColors();
   const router = useRouter();
   const boundary = usePlotBoundary(plot.site_id);
   const coverCheck = useMemo(
@@ -464,7 +465,7 @@ function EnvTab({
 
         <Pressable
           onPress={() => setProjectSheetOpen(true)}
-          className="mt-3 flex-row items-center rounded-lg border border-gray-200 bg-white px-3 py-3 active:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:active:bg-gray-800"
+          className="mt-3 flex-row items-center rounded-lg border border-gray-200 bg-card px-3 py-3 active:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:active:bg-gray-800"
         >
           <Ionicons name="folder-outline" size={18} color="#4b5563" />
           <View className="ml-2 flex-1">
@@ -476,13 +477,13 @@ function EnvTab({
               {project?.name ?? t('plot.uncategorized')}
             </Text>
           </View>
-          <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
+          <Ionicons name="chevron-forward" size={16} color={c.ink3} />
         </Pressable>
 
         {plot.plot_type === 'transect' ? (
           <TransectTrackControl plot={plot} onUpdated={onUpdated} />
         ) : (
-          <View className="mt-3 rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900">
+          <View className="mt-3 rounded-lg border border-gray-200 bg-card p-3 dark:border-gray-700 dark:bg-gray-900">
             <View className="flex-row items-center">
               <Text className="flex-1 text-xs font-medium text-gray-600 dark:text-gray-400">
                 {t('plot.gnssLabel')} <Text className="text-red-500">*</Text>
@@ -541,11 +542,11 @@ function EnvTab({
               onPress={() => router.push(`/(tabs)/map?draw=Polygon&plot=${plot.id}` as Href)}
               className="mt-2 flex-row items-center rounded-lg border border-gray-200 px-3 py-2 active:bg-gray-50 dark:border-gray-700 dark:active:bg-gray-800"
             >
-              <Ionicons name="shapes-outline" size={18} color={boundary ? '#059669' : '#4b5563'} />
+              <Ionicons name="shapes-outline" size={18} color={boundary ? c.accent : '#4b5563'} />
               <Text className="ml-2 flex-1 text-sm text-gray-700 dark:text-gray-300">
                 {boundary ? t('plot.editRange') : t('plot.drawRange')}
               </Text>
-              <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
+              <Ionicons name="chevron-forward" size={16} color={c.ink3} />
             </Pressable>
             <Text className="mt-1 text-[11px] text-gray-400 dark:text-gray-500">
               {t('plot.rangeHint')}
@@ -570,7 +571,7 @@ function EnvTab({
         ) : null}
         {/* Start / end: typed by hand for old field sheets, or set to now. For a
             point count they are the count's own time. */}
-        <View className="mt-3 rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900">
+        <View className="mt-3 rounded-lg border border-gray-200 bg-card p-3 dark:border-gray-700 dark:bg-gray-900">
           <Text className="mb-2 text-xs font-medium text-gray-600 dark:text-gray-400">
             {plot.plot_type === 'point_count' ? t('plot.countTime') : t('surveyTime.title')}
           </Text>
@@ -590,7 +591,7 @@ function EnvTab({
           </Text>
           <Pressable
             onPress={() => setSurveyorSheetOpen(true)}
-            className="flex-row items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-2.5 active:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:active:bg-gray-800"
+            className="flex-row items-center justify-between rounded-lg border border-gray-200 bg-card px-3 py-2.5 active:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:active:bg-gray-800"
           >
             <Text
               className={`flex-1 text-sm ${plot.recorded_by ? 'text-gray-900 dark:text-gray-100' : 'text-gray-400 dark:text-gray-500'}`}
@@ -598,7 +599,7 @@ function EnvTab({
             >
               {plot.recorded_by || t('plot.assignSurveyor')}
             </Text>
-            <Ionicons name="people-outline" size={16} color="#9ca3af" />
+            <Ionicons name="people-outline" size={16} color={c.ink3} />
           </Pressable>
         </View>
       </Section>
@@ -912,6 +913,7 @@ function CollapsibleSection({
   defaultExpanded?: boolean;
   children: React.ReactNode;
 }) {
+  const c = useThemeColors();
   const [open, setOpen] = useState(defaultExpanded);
   return (
     <View className="px-4 py-3">
@@ -920,7 +922,7 @@ function CollapsibleSection({
         className={`flex-row items-center ${open ? 'mb-2' : ''}`}
         hitSlop={6}
       >
-        <Ionicons name={open ? 'chevron-down' : 'chevron-forward'} size={16} color="#6b7280" />
+        <Ionicons name={open ? 'chevron-down' : 'chevron-forward'} size={16} color={c.ink2} />
         <Text className="ml-1 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
           {title}
         </Text>
@@ -931,11 +933,12 @@ function CollapsibleSection({
 }
 
 function SubplotSection({ plot, onUpdated }: { plot: PlotSurvey; onUpdated: () => void }) {
+  const c = useThemeColors();
   const { t } = useTranslation();
 
   // +/- icons sit on a dark button in dark mode — use a bright glyph there.
   const { scheme } = useThemeColors();
-  const stepIcon = scheme === 'dark' ? '#f3f4f6' : '#374151';
+  const stepIcon = c.ink;
   const [subplots, setSubplots] = useState<Subplot[]>([]);
   const reload = useCallback(() => setSubplots(listSubplots(plot.id)), [plot.id]);
   useEffect(() => reload(), [reload]);
@@ -994,7 +997,7 @@ function SubplotSection({ plot, onUpdated }: { plot: PlotSurvey; onUpdated: () =
           disabled={count <= 0}
           className={`h-9 w-9 items-center justify-center rounded-full ${count <= 0 ? 'bg-gray-100 dark:bg-gray-800' : 'bg-gray-200 active:bg-gray-300 dark:bg-gray-700 dark:active:bg-gray-600'}`}
         >
-          <Ionicons name="remove" size={18} color={count <= 0 ? '#9ca3af' : stepIcon} />
+          <Ionicons name="remove" size={18} color={count <= 0 ? c.ink3 : stepIcon} />
         </Pressable>
         <Text className="mx-4 min-w-[24px] text-center text-lg font-semibold text-gray-900 dark:text-gray-100">
           {count}
@@ -1015,7 +1018,7 @@ function SubplotSection({ plot, onUpdated }: { plot: PlotSurvey; onUpdated: () =
           <Ionicons
             name={uniform ? 'checkbox' : 'square-outline'}
             size={20}
-            color={uniform ? '#2563eb' : scheme === 'dark' ? '#9ca3af' : '#6b7280'}
+            color={uniform ? c.accent : c.ink2}
           />
           <Text className="ml-2 text-sm text-gray-800 dark:text-gray-200">
             {t('plot.subplotUniform')}
@@ -1025,7 +1028,7 @@ function SubplotSection({ plot, onUpdated }: { plot: PlotSurvey; onUpdated: () =
 
       {/* Uniform mode: one shared 寬/長 pair applied to all subplots. */}
       {uniform && count > 0 ? (
-        <View className="mb-2 rounded-lg border border-gray-200 bg-white px-3 py-2 dark:border-gray-700 dark:bg-gray-900">
+        <View className="mb-2 rounded-lg border border-gray-200 bg-card px-3 py-2 dark:border-gray-700 dark:bg-gray-900">
           <Text className="mb-1 text-[11px] text-gray-500 dark:text-gray-400">
             {t('plot.subplotSharedSize')}
           </Text>
@@ -1051,7 +1054,7 @@ function SubplotSection({ plot, onUpdated }: { plot: PlotSurvey; onUpdated: () =
       {subplots.map((s) => (
         <View
           key={s.id}
-          className="mb-2 rounded-lg border border-gray-200 bg-white px-3 py-2 dark:border-gray-700 dark:bg-gray-900"
+          className="mb-2 rounded-lg border border-gray-200 bg-card px-3 py-2 dark:border-gray-700 dark:bg-gray-900"
         >
           <Field
             label={t('plot.subplotName', { idx: s.idx })}
@@ -1111,6 +1114,7 @@ function Field({
   suffix?: string;
   onSave: (v: string) => void;
 }) {
+  const c = useThemeColors();
   const [draft, setDraft] = useState(value);
   useEffect(() => {
     setDraft(value);
@@ -1123,7 +1127,7 @@ function Field({
         {label}
         {required ? <Text className="text-red-500"> *</Text> : null}
       </Text>
-      <View className="flex-row items-center rounded-lg border border-gray-200 bg-white px-3 dark:border-gray-700 dark:bg-gray-900">
+      <View className="flex-row items-center rounded-lg border border-gray-200 bg-card px-3 dark:border-gray-700 dark:bg-gray-900">
         <TextInput
           value={draft}
           onChangeText={setDraft}
@@ -1131,7 +1135,7 @@ function Field({
             if (dirty) onSave(draft);
           }}
           placeholder={placeholder}
-          placeholderTextColor="#9ca3af"
+          placeholderTextColor={c.ink3}
           multiline={multiline}
           keyboardType={keyboardType}
           className="flex-1 py-2 text-sm text-gray-900 dark:text-gray-100"
@@ -1220,11 +1224,12 @@ function SpeciesGateScreen() {
 // ─────────────────────────────────────────────────────────────────────
 
 function LayerSection({ plot, onUpdated }: { plot: PlotSurvey; onUpdated: () => void }) {
+  const c = useThemeColors();
   const { t } = useTranslation();
 
   // +/- icons sit on a dark button in dark mode — use a bright glyph there.
   const { scheme } = useThemeColors();
-  const stepIcon = scheme === 'dark' ? '#f3f4f6' : '#374151';
+  const stepIcon = c.ink;
   const [layers, setLayers] = useState<PlotLayer[]>([]);
   useEffect(() => {
     setLayers(getPlotLayers(plot.id));
@@ -1259,7 +1264,7 @@ function LayerSection({ plot, onUpdated }: { plot: PlotSurvey; onUpdated: () => 
 
   return (
     <CollapsibleSection title={t('plot.layerSection')}>
-      <View className="mb-3 rounded-lg border border-gray-200 bg-white px-3 py-3 dark:border-gray-700 dark:bg-gray-900">
+      <View className="mb-3 rounded-lg border border-gray-200 bg-card px-3 py-3 dark:border-gray-700 dark:bg-gray-900">
         <Text className="text-xs font-medium text-gray-600 dark:text-gray-400">
           {t('plot.layerCount')}
         </Text>
@@ -1272,7 +1277,7 @@ function LayerSection({ plot, onUpdated }: { plot: PlotSurvey; onUpdated: () => 
             <Ionicons
               name="remove"
               size={18}
-              color={plot.layer_count <= 1 ? '#9ca3af' : stepIcon}
+              color={plot.layer_count <= 1 ? c.ink3 : stepIcon}
             />
           </Pressable>
           <Text className="mx-4 min-w-[24px] text-center text-lg font-semibold text-gray-900 dark:text-gray-100">
@@ -1286,7 +1291,7 @@ function LayerSection({ plot, onUpdated }: { plot: PlotSurvey; onUpdated: () => 
             <Ionicons
               name="add"
               size={18}
-              color={plot.layer_count >= MAX_LAYER_COUNT ? '#9ca3af' : stepIcon}
+              color={plot.layer_count >= MAX_LAYER_COUNT ? c.ink3 : stepIcon}
             />
           </Pressable>
         </View>
@@ -1305,7 +1310,7 @@ function LayerSection({ plot, onUpdated }: { plot: PlotSurvey; onUpdated: () => 
         return (
           <View
             key={layerKey}
-            className="mb-2 rounded-lg border border-gray-200 bg-white px-3 py-3 dark:border-gray-700 dark:bg-gray-900"
+            className="mb-2 rounded-lg border border-gray-200 bg-card px-3 py-3 dark:border-gray-700 dark:bg-gray-900"
           >
             <Text className="text-sm font-semibold text-gray-900 dark:text-gray-100">
               {layerLabel(layerKey)}
@@ -1484,6 +1489,7 @@ function PlotHeaderTitle({
   expanded: boolean;
   onToggle: () => void;
 }) {
+  const c = useThemeColors();
   const { t } = useTranslation();
 
   if (stats === null) {
@@ -1525,7 +1531,7 @@ function PlotHeaderTitle({
         <Ionicons
           name={expanded ? 'chevron-up' : 'chevron-down'}
           size={11}
-          color="#059669"
+          color={c.accent}
           style={{ marginLeft: 3 }}
         />
       </View>

@@ -9,6 +9,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
+import { useThemeColors } from '~/theme/colors';
 
 type Props = {
   title: string;
@@ -18,6 +19,7 @@ type Props = {
 };
 
 export function CollapsibleSection({ title, count, defaultOpen = false, children }: Props) {
+  const c = useThemeColors();
   const [open, setOpen] = useState(defaultOpen);
   return (
     <View className="border-b border-gray-100 dark:border-gray-800 px-4 py-3">
@@ -33,7 +35,7 @@ export function CollapsibleSection({ title, count, defaultOpen = false, children
         <Ionicons
           name={open ? 'chevron-up' : 'chevron-down'}
           size={14}
-          color="#6b7280"
+          color={c.ink2}
           style={{ marginLeft: 6 }}
         />
       </Pressable>
@@ -59,8 +61,8 @@ export function SynonymStatusBadge({ status }: { status: string }) {
     );
   }
   return (
-    <View className="ml-1.5 rounded bg-blue-100 px-1.5 py-0.5 dark:bg-blue-900/60">
-      <Text className="text-[10px] font-medium text-blue-700 dark:text-blue-300">{status}</Text>
+    <View className="ml-1.5 rounded bg-accent-100 px-1.5 py-0.5 dark:bg-accent-900/60">
+      <Text className="text-[10px] font-medium text-accent-700 dark:text-accent-300">{status}</Text>
     </View>
   );
 }

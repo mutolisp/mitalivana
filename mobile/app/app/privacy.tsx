@@ -20,7 +20,7 @@ function Spans({ spans }: { spans: Inline[] }) {
         s.url ? (
           // Relative links (the other language's .md) have nowhere to go in the app.
           isOpenableUrl(s.url) ? (
-            <Text key={i} className="text-[#00797b] underline dark:text-cyan-300" onPress={() => void Linking.openURL(s.url!)}>
+            <Text key={i} className="text-accent-700 underline dark:text-accent-300" onPress={() => void Linking.openURL(s.url!)}>
               {s.text}
             </Text>
           ) : (
@@ -45,7 +45,7 @@ export default function PrivacyScreen() {
   const { t, i18n } = useTranslation();
   const blocks = useMemo(() => inAppBlocks(parsePolicy(i18n.language.startsWith('zh') ? policy.zh : policy.en)), [i18n.language]);
   return (
-    <SafeAreaView edges={['bottom']} className="flex-1 bg-white dark:bg-gray-950">
+    <SafeAreaView edges={['bottom']} className="flex-1 bg-card dark:bg-gray-950">
       <Stack.Screen options={{ title: t('nav.privacy'), headerLeft: BackHeaderLeft }} />
       <ScrollView contentContainerClassName="gap-2 px-4 py-4 pb-12">
         {blocks.map((b, i) => {

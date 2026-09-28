@@ -11,7 +11,7 @@
  */
 import { Text, View } from 'react-native';
 import Svg, { Rect } from 'react-native-svg';
-import { useThemeColors } from '~/hooks/useThemeColors';
+import { useThemeColors } from '~/theme/colors';
 import { CHART_PRIMARY, CHART_TRACK, CHART_TRACK_DARK, withHash } from '~/lib/reportTheme';
 import type { CategoricalChart } from '~/lib/reportTypes';
 import { RichCell } from '../RichCell';

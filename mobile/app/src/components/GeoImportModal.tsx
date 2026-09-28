@@ -14,6 +14,7 @@ import {
   type GeoFormat,
   type ImportedGeometry,
 } from '~/lib/geoConverters';
+import { useThemeColors } from '~/theme/colors';
 
 type Props = {
   visible: boolean;
@@ -66,6 +67,7 @@ function fallbackName(base: string, indexInFile: number, countInFile: number): s
 }
 
 export function GeoImportModal({ visible, defaultProjectId = 0, onClose, onCommitted }: Props) {
+  const c = useThemeColors();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [files, setFiles] = useState<PickedFile[]>([]);
@@ -202,7 +204,7 @@ export function GeoImportModal({ visible, defaultProjectId = 0, onClose, onCommi
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={handleClose}>
       <View
-        className="flex-1 bg-white dark:bg-gray-900"
+        className="flex-1 bg-card dark:bg-gray-900"
         style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
       >
         <View className="flex-row items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-700">
@@ -214,7 +216,7 @@ export function GeoImportModal({ visible, defaultProjectId = 0, onClose, onCommi
           </Text>
           <Pressable onPress={handleCommit} hitSlop={8} disabled={entries.length === 0}>
             <Text
-              className={`text-base font-semibold ${entries.length === 0 ? 'text-gray-300' : 'text-blue-600 dark:text-blue-400'}`}
+              className={`text-base font-semibold ${entries.length === 0 ? 'text-gray-300' : 'text-accent-600 dark:text-accent-400'}`}
             >
               {t('geoImport.create', { n: entries.length || '' })}
             </Text>
@@ -224,7 +226,7 @@ export function GeoImportModal({ visible, defaultProjectId = 0, onClose, onCommi
         <ScrollView className="flex-1">
           {files.length === 0 ? (
             <View className="items-center px-6 py-12">
-              <Ionicons name="cloud-upload-outline" size={56} color="#9ca3af" />
+              <Ionicons name="cloud-upload-outline" size={56} color={c.ink3} />
               <Text className="mt-4 text-center text-sm text-gray-600 dark:text-gray-400">
                 {t('geoImport.supportHint')}
                 {'\n'}
@@ -245,8 +247,8 @@ export function GeoImportModal({ visible, defaultProjectId = 0, onClose, onCommi
             </View>
           ) : (
             <>
-              <View className="border-b border-gray-100 bg-blue-50 px-4 py-3 dark:border-gray-800 dark:bg-blue-950/40">
-                <Text className="text-sm text-blue-900 dark:text-blue-100">
+              <View className="border-b border-gray-100 bg-accent-50 px-4 py-3 dark:border-gray-800 dark:bg-accent-950/40">
+                <Text className="text-sm text-accent-900 dark:text-accent-100">
                   <Text className="font-bold">
                     {singleFile
                       ? files[0].filename
@@ -254,7 +256,7 @@ export function GeoImportModal({ visible, defaultProjectId = 0, onClose, onCommi
                   </Text>
                   {singleFile ? `（${FORMAT_LABEL[files[0].format]}）` : ''}
                 </Text>
-                <Text className="mt-1 text-xs text-blue-800">
+                <Text className="mt-1 text-xs text-accent-800">
                   {t('geoImport.geomSummary', { count: entries.length })}
                 </Text>
               </View>
@@ -268,7 +270,7 @@ export function GeoImportModal({ visible, defaultProjectId = 0, onClose, onCommi
                     onChangeText={setNamePrefix}
                     className="rounded border border-gray-300 px-3 py-2 text-base text-gray-900 dark:border-gray-600 dark:text-gray-100"
                     placeholder={t('geoImport.namePrefixEx')}
-                    placeholderTextColor="#9ca3af"
+                    placeholderTextColor={c.ink3}
                   />
                   <Text className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                     {t('geoImport.namePrefixHint')}
@@ -290,10 +292,10 @@ export function GeoImportModal({ visible, defaultProjectId = 0, onClose, onCommi
                       <Pressable
                         key={p.id}
                         onPress={() => setProjectId(p.id)}
-                        className={`rounded-full border px-3 py-1.5 ${active ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/40' : 'border-gray-300 bg-white dark:border-gray-600 dark:bg-gray-900'}`}
+                        className={`rounded-full border px-3 py-1.5 ${active ? 'border-accent-500 bg-accent-50 dark:bg-accent-950/40' : 'border-gray-300 bg-card dark:border-gray-600 dark:bg-gray-900'}`}
                       >
                         <Text
-                          className={`text-xs ${active ? 'font-semibold text-blue-700 dark:text-blue-300' : 'text-gray-700 dark:text-gray-300'} ${p.id === 0 ? 'italic' : ''}`}
+                          className={`text-xs ${active ? 'font-semibold text-accent-700 dark:text-accent-300' : 'text-gray-700 dark:text-gray-300'} ${p.id === 0 ? 'italic' : ''}`}
                         >
                           {p.name}
                         </Text>
@@ -320,7 +322,7 @@ export function GeoImportModal({ visible, defaultProjectId = 0, onClose, onCommi
                             {f.filename}（{FORMAT_LABEL[f.format]}·{f.geoms.length}）
                           </Text>
                           <Pressable onPress={() => removeFile(fi)} hitSlop={8} className="ml-2">
-                            <Ionicons name="close-circle" size={18} color="#9ca3af" />
+                            <Ionicons name="close-circle" size={18} color={c.ink3} />
                           </Pressable>
                         </View>
                       )}
@@ -356,7 +358,7 @@ export function GeoImportModal({ visible, defaultProjectId = 0, onClose, onCommi
                   onPress={handlePickFile}
                   className="flex-row items-center self-start rounded-full bg-gray-100 px-3 py-1.5 active:bg-gray-200 dark:bg-gray-800 dark:active:bg-gray-700"
                 >
-                  <Ionicons name="folder-open-outline" size={14} color="#374151" />
+                  <Ionicons name="folder-open-outline" size={14} color={c.ink} />
                   <Text className="ml-1 text-xs font-medium text-gray-700 dark:text-gray-300">
                     {t('geoImport.addMoreFiles')}
                   </Text>

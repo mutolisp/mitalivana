@@ -3,10 +3,10 @@
  *
  * Adapted rather than pasted: RNR's registry copy styles itself with shadcn
  * tokens (`bg-popover`, `text-foreground`, `border-input`, …) and draws lucide
- * icons. This project has neither — `tailwind.config.js` has an empty
- * `theme.extend`, so those classes do not exist, and icons are Ionicons
- * everywhere. Standing up a parallel shadcn colour system next to the existing
- * gray-50 / gray-950 / blue-500 convention would leave the app with two.
+ * icons. This project has neither — `tailwind.config.js` defines the app's
+ * own tokens (`paper`, `card`, `ink`, `accent`, …), not shadcn's, and icons
+ * are Ionicons everywhere. Standing up a parallel shadcn colour system next to
+ * the existing gray / accent convention would leave the app with two.
  *
  * Also dropped from upstream, all native-only concerns:
  *   - every `Platform.OS === 'web'` branch (`@rn-primitives/select` already
@@ -29,6 +29,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useThemeColors } from '~/theme/colors';
 
 const Select = SelectPrimitive.Root;
 
@@ -49,13 +50,14 @@ function SelectTrigger({
   children,
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Trigger> & { className?: string }) {
+  const c = useThemeColors();
   return (
     <SelectPrimitive.Trigger
-      className={`flex-row items-center justify-between gap-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 ${props.disabled ? 'opacity-50' : ''} ${className}`}
+      className={`flex-row items-center justify-between gap-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-card dark:bg-gray-900 px-3 py-2 ${props.disabled ? 'opacity-50' : ''} ${className}`}
       {...props}
     >
       <>{children}</>
-      <Ionicons name="chevron-down" size={16} color="#9ca3af" />
+      <Ionicons name="chevron-down" size={16} color={c.ink3} />
     </SelectPrimitive.Trigger>
   );
 }
@@ -112,7 +114,7 @@ function SelectContent({
             insets={{ top: insets.top + 8, bottom: insets.bottom + 8, left: 12, right: 12 }}
             position={position}
             sideOffset={4}
-            className={`z-50 min-w-[8rem] rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-lg ${className}`}
+            className={`z-50 min-w-[8rem] rounded-xl border border-gray-200 dark:border-gray-700 bg-card dark:bg-gray-900 shadow-lg ${className}`}
             {...props}
           >
             <ScrollView style={{ maxHeight: MAX_POPOVER_HEIGHT }} bounces={false}>
@@ -130,16 +132,17 @@ function SelectItem({
   label,
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Item> & { className?: string }) {
+  const c = useThemeColors();
   return (
     <SelectPrimitive.Item
       label={label}
-      className={`flex-row items-center justify-between gap-2 rounded-lg px-3 py-2.5 active:bg-blue-50 dark:active:bg-blue-900/40 ${props.disabled ? 'opacity-50' : ''} ${className}`}
+      className={`flex-row items-center justify-between gap-2 rounded-lg px-3 py-2.5 active:bg-accent-50 dark:active:bg-accent-900/40 ${props.disabled ? 'opacity-50' : ''} ${className}`}
       {...props}
     >
       <SelectPrimitive.ItemText className="text-base text-gray-900 dark:text-gray-100" />
       <SelectPrimitive.ItemIndicator asChild>
         <View>
-          <Ionicons name="checkmark" size={18} color="#2563eb" />
+          <Ionicons name="checkmark" size={18} color={c.accent} />
         </View>
       </SelectPrimitive.ItemIndicator>
     </SelectPrimitive.Item>

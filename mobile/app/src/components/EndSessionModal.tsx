@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { listProjects, type Project, type Session } from '~/db';
 import { useTranslation } from 'react-i18next';
 import i18n from '~/i18n';
+import { useThemeColors } from '~/theme/colors';
 
 type Props = {
   visible: boolean;
@@ -26,6 +27,7 @@ function formatDuration(start: number, end: number = Date.now()): string {
 }
 
 export function EndSessionModal({ visible, session, recordCount, onCancel, onConfirm, onDeleteEmpty }: Props) {
+  const c = useThemeColors();
   const { t } = useTranslation();
   const [name, setName] = useState(session.name);
   const [projectId, setProjectId] = useState(session.project_id);
@@ -49,7 +51,7 @@ export function EndSessionModal({ visible, session, recordCount, onCancel, onCon
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onCancel}>
-      <View className="flex-1 bg-white dark:bg-gray-900" style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}>
+      <View className="flex-1 bg-card dark:bg-gray-900" style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}>
         <View className="flex-row items-center justify-between border-b border-gray-200 dark:border-gray-700 px-4 py-3">
           <Pressable onPress={onCancel} hitSlop={8}>
             <Text className="text-base text-gray-700 dark:text-gray-300">{t('common.cancel')}</Text>
@@ -75,8 +77,8 @@ export function EndSessionModal({ visible, session, recordCount, onCancel, onCon
                 </Text>
               </View>
             ) : (
-              <View className="border-b border-gray-100 dark:border-gray-800 bg-blue-50 dark:bg-blue-950/40 px-4 py-4">
-                <Text className="text-sm text-blue-900 dark:text-blue-100">
+              <View className="border-b border-gray-100 dark:border-gray-800 bg-accent-50 dark:bg-accent-950/40 px-4 py-4">
+                <Text className="text-sm text-accent-900 dark:text-accent-100">
                   {t('endSession.summary', { count: recordCount, duration })}
                 </Text>
               </View>
@@ -88,7 +90,7 @@ export function EndSessionModal({ visible, session, recordCount, onCancel, onCon
                 onChangeText={setName}
                 className="border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-base text-gray-900 dark:text-gray-100"
                 placeholder={t('endSession.namePlaceholder')}
-                placeholderTextColor="#9ca3af"
+                placeholderTextColor={c.ink3}
               />
             </Field>
 
@@ -98,7 +100,7 @@ export function EndSessionModal({ visible, session, recordCount, onCancel, onCon
                 className="flex-row items-center justify-between rounded border border-gray-300 dark:border-gray-600 px-3 py-2 active:bg-gray-50 dark:active:bg-gray-800"
               >
                 <Text className="text-base text-gray-900 dark:text-gray-100">{currentProject?.name ?? t('plot.uncategorized')}</Text>
-                <Ionicons name="chevron-down" size={16} color="#6b7280" />
+                <Ionicons name="chevron-down" size={16} color={c.ink2} />
               </Pressable>
             </Field>
 
@@ -111,7 +113,7 @@ export function EndSessionModal({ visible, session, recordCount, onCancel, onCon
                 className="border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-base text-gray-900 dark:text-gray-100"
                 style={{ minHeight: 100, textAlignVertical: 'top' }}
                 placeholder={t('endSession.notesPlaceholder')}
-                placeholderTextColor="#9ca3af"
+                placeholderTextColor={c.ink3}
               />
             </Field>
           </ScrollView>
@@ -120,7 +122,7 @@ export function EndSessionModal({ visible, session, recordCount, onCancel, onCon
 
       <Modal visible={showProjectPicker} transparent animationType="slide" onRequestClose={() => setShowProjectPicker(false)}>
         <Pressable onPress={() => setShowProjectPicker(false)} className="flex-1 bg-black/40">
-          <Pressable className="mt-auto rounded-t-2xl bg-white dark:bg-gray-900" style={{ paddingBottom: insets.bottom + 8 }}>
+          <Pressable className="mt-auto rounded-t-2xl bg-card dark:bg-gray-900" style={{ paddingBottom: insets.bottom + 8 }}>
             <View className="border-b border-gray-200 dark:border-gray-700 px-4 py-3">
               <Text className="text-base font-semibold text-gray-900 dark:text-gray-100">{t('endSession.selectProject')}</Text>
             </View>
@@ -134,12 +136,12 @@ export function EndSessionModal({ visible, session, recordCount, onCancel, onCon
                       setProjectId(p.id);
                       setShowProjectPicker(false);
                     }}
-                    className={`flex-row items-center border-b border-gray-100 dark:border-gray-800 px-4 py-3 ${active ? 'bg-blue-50 dark:bg-blue-950/40' : 'active:bg-gray-50 dark:active:bg-gray-800'}`}
+                    className={`flex-row items-center border-b border-gray-100 dark:border-gray-800 px-4 py-3 ${active ? 'bg-accent-50 dark:bg-accent-950/40' : 'active:bg-gray-50 dark:active:bg-gray-800'}`}
                   >
-                    <Text className={`flex-1 text-base ${active ? 'font-semibold text-blue-700 dark:text-blue-300' : 'text-gray-900 dark:text-gray-100'} ${p.id === 0 ? 'italic text-gray-500 dark:text-gray-400' : ''}`}>
+                    <Text className={`flex-1 text-base ${active ? 'font-semibold text-accent-700 dark:text-accent-300' : 'text-gray-900 dark:text-gray-100'} ${p.id === 0 ? 'italic text-gray-500 dark:text-gray-400' : ''}`}>
                       {p.name}
                     </Text>
-                    {active ? <Ionicons name="checkmark" size={20} color="#2563eb" /> : null}
+                    {active ? <Ionicons name="checkmark" size={20} color={c.accent} /> : null}
                   </Pressable>
                 );
               })}

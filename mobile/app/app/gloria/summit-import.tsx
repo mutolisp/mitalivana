@@ -16,6 +16,7 @@ import { applySummitImport, listSummits } from '~/modules/gloria/db';
 import { diffSummits, type Compared, type StoredSummit, type SummitDiff } from '~/modules/gloria/model/summitImport';
 import { usePendingSummitImport } from '~/modules/gloria/summitImportFile';
 import { Btn, Card, Label } from '~/modules/gloria/components/ui';
+import { useThemeColors } from '~/theme/colors';
 
 const FIELD_LABEL: Record<Compared, string> = {
   name: 'gloria.summit.name',
@@ -26,6 +27,7 @@ const FIELD_LABEL: Record<Compared, string> = {
 };
 
 export default function SummitImportScreen() {
+  const tc = useThemeColors();
   const { t } = useTranslation();
   const router = useRouter();
   const toast = useToast((s) => s.show);
@@ -79,7 +81,7 @@ export default function SummitImportScreen() {
         accessibilityState={{ checked: on }}
         className="flex-row items-start border-b border-gray-100 px-3 py-2.5 dark:border-gray-800"
       >
-        <Ionicons name={on ? 'checkbox' : 'square-outline'} size={20} color={on ? '#00A2A5' : '#9ca3af'} />
+        <Ionicons name={on ? 'checkbox' : 'square-outline'} size={20} color={on ? tc.accent : tc.ink3} />
         <View className="ml-2.5 flex-1">
           <Text className="text-sm font-semibold text-gray-900 dark:text-gray-100">{d.item.full_code}</Text>
           {d.kind === 'changed' ? (
@@ -104,7 +106,7 @@ export default function SummitImportScreen() {
             <Label>{title}</Label>
           </View>
           <Pressable onPress={() => setAll(list, !list.every((d) => ticked.has(d.item.full_code)))} hitSlop={6}>
-            <Text className="text-xs font-semibold text-[#00797b] dark:text-cyan-300">
+            <Text className="text-xs font-semibold text-accent-700 dark:text-accent-300">
               {list.every((d) => ticked.has(d.item.full_code)) ? t('gloria.summitImport.none') : t('gloria.summitImport.all')}
             </Text>
           </Pressable>
@@ -139,7 +141,7 @@ export default function SummitImportScreen() {
         ) : null}
         <Text className="text-[11px] text-gray-400">{t('gloria.summitImport.hint')}</Text>
       </ScrollView>
-      <View className="border-t border-gray-200 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
+      <View className="border-t border-gray-200 bg-card px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
         <Btn
           primary
           disabled={chosen.length === 0}

@@ -5,7 +5,8 @@ import * as Sharing from 'expo-sharing';
 import { shareThenDelete } from '~/lib/shareFile';
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Alert, Pressable, ScrollView, Switch, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { Switch } from '~/components/ui/Switch';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { showActionSheet } from '~/components/ActionSheet';
 import {
@@ -33,6 +34,7 @@ import { formatBytes } from '~/lib/exportSize';
 import { useDriveState } from '~/lib/driveState';
 import { GoogleAuthCancelled, GoogleCodeExpired } from '~/lib/googleAuth';
 import { useToast } from '~/stores/toast';
+import { useThemeColors } from '~/theme/colors';
 
 type Busy = null | 'backup' | 'photos' | 'restore' | 'drive' | 'cloudList' | 'cloudRestore';
 
@@ -44,6 +46,7 @@ function cloudLabel(f: DriveFile): string {
 }
 
 export default function BackupScreen() {
+  const c = useThemeColors();
   const { t } = useTranslation();
   const toast = useToast((s) => s.show);
   const [busy, setBusy] = useState<Busy>(null);
@@ -375,7 +378,7 @@ export default function BackupScreen() {
                     hitSlop={8}
                     className="active:opacity-60"
                   >
-                    <Text className="text-sm font-medium text-blue-600 dark:text-blue-400">
+                    <Text className="text-sm font-medium text-accent-600 dark:text-accent-400">
                       {t('backup.restore')}
                     </Text>
                   </Pressable>
@@ -410,7 +413,7 @@ export default function BackupScreen() {
                   hitSlop={8}
                   className="mr-3 active:opacity-60"
                 >
-                  <Text className="text-sm font-medium text-blue-600 dark:text-blue-400">
+                  <Text className="text-sm font-medium text-accent-600 dark:text-accent-400">
                     {t('backup.restore')}
                   </Text>
                 </Pressable>
@@ -420,7 +423,7 @@ export default function BackupScreen() {
                   hitSlop={8}
                   className="active:opacity-60"
                 >
-                  <Ionicons name="trash-outline" size={18} color="#dc2626" />
+                  <Ionicons name="trash-outline" size={18} color={c.alert} />
                 </Pressable>
               </View>
             ))}
@@ -443,7 +446,7 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <View className="mt-3 border-y border-gray-200 bg-white px-4 py-4 dark:border-gray-700 dark:bg-gray-900">
+    <View className="mt-3 border-y border-gray-200 bg-card px-4 py-4 dark:border-gray-700 dark:bg-gray-900">
       <View className="flex-row items-center">
         <Ionicons name={icon} size={20} color="#4b5563" />
         <Text className="ml-2 text-base font-semibold text-gray-900 dark:text-gray-100">

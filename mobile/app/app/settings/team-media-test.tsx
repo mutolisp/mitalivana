@@ -101,7 +101,7 @@ export default function TeamMediaTestScreen() {
       onPress={onPress}
       disabled={disabled || busy}
       accessibilityRole="button"
-      className={`flex-1 items-center rounded-lg px-3 py-2.5 ${disabled || busy ? 'bg-gray-300 dark:bg-gray-700' : 'bg-[#00797b] active:opacity-80'}`}
+      className={`flex-1 items-center rounded-lg px-3 py-2.5 ${disabled || busy ? 'bg-gray-300 dark:bg-gray-700' : 'bg-accent-700 active:opacity-80'}`}
     >
       <Text className="text-center text-sm font-semibold text-white">{label}</Text>
     </Pressable>
@@ -122,7 +122,7 @@ export default function TeamMediaTestScreen() {
         {btn(t('teamSync.mediaTest.rerun'), () => void run(last), !enabled || !last.length)}
         {status ? <Text className="text-xs text-gray-500 dark:text-gray-400">{status}</Text> : null}
         {rows.map((r, i) => (
-          <View key={i} className="gap-0.5 rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-800 dark:bg-gray-900">
+          <View key={i} className="gap-0.5 rounded-lg border border-gray-200 bg-card p-3 dark:border-gray-800 dark:bg-gray-900">
             <Text selectable className={`text-sm font-semibold ${r.ok ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
               {r.name}
             </Text>

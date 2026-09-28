@@ -152,7 +152,7 @@ export default function CollectionSettingsScreen() {
               setSetting('collection_number_pad', clamped);
             }}
           />
-          <View className="bg-white dark:bg-gray-900 px-4 pb-3">
+          <View className="bg-card dark:bg-gray-900 px-4 pb-3">
             <Text className="text-xs text-gray-500 dark:text-gray-400">
               {t('settings.collectionNumberDesc', { next: nextNumberPreview })}
             </Text>

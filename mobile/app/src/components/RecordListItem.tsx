@@ -25,6 +25,7 @@ import { listPlotSpecies, listSessionRecords, type RecordItem, type RecordKind }
 import { isoDateTime } from '~/lib/datetime';
 import { computeDiversity } from '~/lib/diversity';
 import { useSettings } from '~/stores/settings';
+import { useThemeColors } from '~/theme/colors';
 
 /**
  * Per-row S / H′ / J′ cache.
@@ -48,7 +49,8 @@ export function KindIcon({
   /** `sm` is the card footer / list trailing badge; `md` the leading tile. */
   size?: 'sm' | 'md';
 }) {
-  const tint = active ? '#10b981' : '#94a3b8';
+  const c = useThemeColors();
+  const tint = active ? c.accent : '#94a3b8';
   const bg = active ? 'bg-emerald-50 dark:bg-emerald-950/40' : 'bg-gray-100 dark:bg-gray-800';
   const iconName =
     kind === 'session' ? 'list' : kind === 'collection' ? 'leaf-outline' : kind === 'gloria' ? 'triangle-outline' : 'grid-outline';
@@ -63,7 +65,7 @@ export function KindIcon({
 export function SelectCheckbox({ checked }: { checked: boolean }) {
   return (
     <View
-      className={`h-6 w-6 items-center justify-center rounded-full ${checked ? 'bg-blue-500' : 'border-2 border-gray-300 dark:border-gray-600'}`}
+      className={`h-6 w-6 items-center justify-center rounded-full ${checked ? 'bg-accent-500' : 'border-2 border-gray-300 dark:border-gray-600'}`}
     >
       {checked ? <Ionicons name="checkmark" size={14} color="white" /> : null}
     </View>
@@ -229,6 +231,7 @@ export function RecordListRow({
   selected = false,
   onToggleStar,
 }: CommonProps) {
+  const c = useThemeColors();
   const compact = useSettings((s) => s.card_density) === 'compact';
   // An auto-named session IS its own start time; printing both is just the
   // same string twice.
@@ -242,7 +245,7 @@ export function RecordListRow({
       onPress={onPress}
       onLongPress={onLongPress}
       delayLongPress={350}
-      className={`flex-row items-center px-3 ${compact ? 'py-2' : 'py-3'} active:bg-gray-50 dark:active:bg-gray-800 ${selected ? 'bg-blue-50 dark:bg-blue-950/40' : 'bg-white dark:bg-gray-900'}`}
+      className={`flex-row items-center px-3 ${compact ? 'py-2' : 'py-3'} active:bg-gray-50 dark:active:bg-gray-800 ${selected ? 'bg-accent-50 dark:bg-accent-950/40' : 'bg-card dark:bg-gray-900'}`}
     >
       <View className="mr-2.5">
         {selectMode ? (
@@ -282,7 +285,7 @@ export function RecordListRow({
           <View className="ml-2">
             <KindIcon kind={item.kind} active={item.active} size="sm" />
           </View>
-          <Ionicons name="chevron-forward" size={18} color="#9ca3af" style={{ marginLeft: 4 }} />
+          <Ionicons name="chevron-forward" size={18} color={c.ink3} style={{ marginLeft: 4 }} />
         </>
       )}
     </Pressable>
@@ -316,8 +319,8 @@ export function RecordGridCard({
       delayLongPress={350}
       className={`flex-1 rounded-2xl border ${compact ? 'p-2.5' : 'p-3'} active:opacity-80 ${
         selected
-          ? 'border-blue-400 bg-blue-50 dark:border-blue-600 dark:bg-blue-950/40'
-          : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900'
+          ? 'border-accent-400 bg-accent-50 dark:border-accent-600 dark:bg-accent-950/40'
+          : 'border-gray-200 bg-card dark:border-gray-700 dark:bg-gray-900'
       }`}
     >
       <View className="mb-1 flex-row items-start">
@@ -357,7 +360,7 @@ export function RecordGridCard({
       <View className="mt-2 flex-row items-center">
         <KindIcon kind={item.kind} active={item.active} size="sm" />
         <Text
-          className="ml-2 flex-1 text-xs font-medium text-blue-700 dark:text-blue-300"
+          className="ml-2 flex-1 text-xs font-medium text-accent-700 dark:text-accent-300"
           numberOfLines={1}
         >
           {showProject ? item.subtitlePlain : item.projectName}

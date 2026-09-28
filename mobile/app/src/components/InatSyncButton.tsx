@@ -9,6 +9,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Pressable, Text } from 'react-native';
+import { useThemeColors } from '~/theme/colors';
 
 /** What a detail sheet needs to offer upload / sync for its record. Built by
  *  the screen that owns the record (it knows the unit id). */
@@ -23,6 +24,7 @@ export type InatSheetState = {
 /** Upload to iNaturalist (not yet uploaded) / sync with iNaturalist (uploaded,
  *  marked when changed) — one row, iNaturalist green. */
 export function InatSyncButton({ state }: { state: InatSheetState }) {
+  const c = useThemeColors();
   const { t } = useTranslation();
   const label = state.syncing
     ? t('inat.syncing')
@@ -39,7 +41,7 @@ export function InatSyncButton({ state }: { state: InatSheetState }) {
     >
       <Ionicons name={state.uploaded ? 'sync-outline' : 'cloud-upload-outline'} size={18} color="#74AB00" />
       <Text className="ml-2 flex-1 text-sm text-lime-700 dark:text-lime-300">{label}</Text>
-      {state.syncing ? <ActivityIndicator size="small" color="#74AB00" /> : <Ionicons name="chevron-forward" size={16} color="#9ca3af" />}
+      {state.syncing ? <ActivityIndicator size="small" color="#74AB00" /> : <Ionicons name="chevron-forward" size={16} color={c.ink3} />}
     </Pressable>
   );
 }

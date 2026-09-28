@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { Pressable, Text, View } from 'react-native';
 import { useTabBarInset } from '~/lib/tabBarLayout';
+import { useThemeColors } from '~/theme/colors';
 
 export type MapFeatureInfo = {
   title: string;
@@ -38,6 +39,7 @@ export function MapFeatureCard({
   info: MapFeatureInfo;
   onClose: () => void;
 }) {
+  const c = useThemeColors();
   const { t } = useTranslation();
   // Sits above the floating tab bar, not just above the safe area — the bar
   // overlays the map rather than ending the scene above itself.
@@ -45,7 +47,7 @@ export function MapFeatureCard({
 
   return (
     <View
-      className="absolute left-3 right-3 overflow-hidden rounded-2xl bg-white shadow-lg dark:bg-gray-900"
+      className="absolute left-3 right-3 overflow-hidden rounded-2xl bg-card shadow-lg dark:bg-gray-900"
       style={{ bottom: tabBarInset + 12 }}
     >
       <View className="flex-row">
@@ -79,7 +81,7 @@ export function MapFeatureCard({
               <Ionicons name="ellipsis-horizontal" size={16} color="#4b5563" />
             </Pressable>
             <Pressable onPress={onClose} hitSlop={10} className="ml-1 p-1">
-              <Ionicons name="close" size={18} color="#9ca3af" />
+              <Ionicons name="close" size={18} color={c.ink3} />
             </Pressable>
           </View>
 

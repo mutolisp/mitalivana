@@ -94,11 +94,13 @@ import { RANGES } from '~/modules/gloria/model/ranges';
 import { chooseEndTime } from '~/lib/endTimeChoice';
 import { saveVersionSoon } from '~/db/recordVersions';
 import { useVersionOnLeave } from '~/lib/useVersionOnLeave';
+import { useThemeColors } from '~/theme/colors';
 
 const ABUNDANCE = ['r!', 'r', 's', 'c', 'd'] as const;
 const UNDO_LIMIT = 100;
 
 export default function GloriaUnitScreen() {
+  const tc = useThemeColors();
   const { t } = useTranslation();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -385,7 +387,7 @@ export default function GloriaUnitScreen() {
                 }
                 accessibilityRole="checkbox"
                 accessibilityState={{ checked: sel }}
-                style={sel ? { backgroundColor: '#00A2A5', borderColor: '#00A2A5' } : undefined}
+                style={sel ? { backgroundColor: tc.accent, borderColor: tc.accent } : undefined}
                 className="rounded-md border border-gray-300 px-2 py-1 dark:border-gray-700"
               >
                 <Text className={`text-center text-xs ${sel ? 'font-semibold text-white' : 'text-gray-700 dark:text-gray-200'}`}>{o.label}</Text>
@@ -402,7 +404,7 @@ export default function GloriaUnitScreen() {
     const row = (
     <View
       key={s.id}
-      className={`flex-row items-center bg-white px-3 py-2 dark:bg-gray-900 ${i ? 'border-t border-gray-100 dark:border-gray-800' : ''}`}
+      className={`flex-row items-center bg-card px-3 py-2 dark:bg-gray-900 ${i ? 'border-t border-gray-100 dark:border-gray-800' : ''}`}
     >
       {drag && !locked ? (
         <Pressable
@@ -412,7 +414,7 @@ export default function GloriaUnitScreen() {
           accessibilityLabel={t('gloria.unit.reorder')}
           className="-ml-1 mr-1.5 py-1"
         >
-          <Ionicons name="reorder-three" size={22} color="#9ca3af" />
+          <Ionicons name="reorder-three" size={22} color={tc.ink3} />
         </Pressable>
       ) : null}
       <Text
@@ -442,13 +444,13 @@ export default function GloriaUnitScreen() {
           ) : null}
         </View>
         {repro.length ? (
-          <Text className="text-[11px] font-semibold text-[#00797b] dark:text-cyan-300" numberOfLines={1}>
+          <Text className="text-[11px] font-semibold text-accent-700 dark:text-accent-300" numberOfLines={1}>
             {repro.map((r) => reproductiveLabel(r)).join('・')}
           </Text>
         ) : null}
       </Pressable>
       {right}
-      <Ionicons name="chevron-forward" size={14} color="#9ca3af" />
+      <Ionicons name="chevron-forward" size={14} color={tc.ink3} />
     </View>
     );
     // 10×10 m rows record no phenology here.
@@ -515,7 +517,7 @@ export default function GloriaUnitScreen() {
           </Text>
           <Text className="text-xs text-gray-500 dark:text-gray-400">{envSummary(unit)}</Text>
         </View>
-        <Ionicons name={envIsOpen ? 'chevron-down' : 'chevron-forward'} size={16} color="#9ca3af" />
+        <Ionicons name={envIsOpen ? 'chevron-down' : 'chevron-forward'} size={16} color={tc.ink3} />
       </Pressable>
       {envIsOpen ? (
         <View className="gap-2 px-3 pb-3">
@@ -525,7 +527,7 @@ export default function GloriaUnitScreen() {
             <Ionicons
               name={timesOpen ? 'chevron-down' : 'chevron-forward'}
               size={14}
-              color="#9ca3af"
+              color={tc.ink3}
             />
             <Text className="ml-1 flex-1 text-xs font-semibold text-gray-600 dark:text-gray-300">
               {t('gloria.times.titleOnly')}
@@ -603,8 +605,8 @@ export default function GloriaUnitScreen() {
         }}
         placeholder={t('gloria.unit.commentsPlaceholder')}
         multiline
-        className="min-h-[64px] rounded-lg border border-gray-300 bg-white p-2.5 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
-        placeholderTextColor="#9ca3af"
+        className="min-h-[64px] rounded-lg border border-gray-300 bg-card p-2.5 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+        placeholderTextColor={tc.ink3}
       />
     </>
   );
@@ -669,7 +671,7 @@ export default function GloriaUnitScreen() {
               <Ionicons
                 name={subOpen ? 'chevron-down' : 'chevron-forward'}
                 size={14}
-                color="#9ca3af"
+                color={tc.ink3}
               />
               <Text className="ml-1 text-xs font-semibold text-gray-600 dark:text-gray-300">
                 {t('gloria.unit.subtypes')}
@@ -710,7 +712,7 @@ export default function GloriaUnitScreen() {
           accessibilityState={{ checked: skipped, disabled: locked }}
           className="flex-row items-center gap-2"
         >
-          <Ionicons name={skipped ? 'checkbox' : 'square-outline'} size={20} color={skipped ? '#00A2A5' : '#9ca3af'} />
+          <Ionicons name={skipped ? 'checkbox' : 'square-outline'} size={20} color={skipped ? tc.accent : tc.ink3} />
           <Text className="flex-1 text-sm text-gray-700 dark:text-gray-300">{t('gloria.unit.freqSkip')}</Text>
         </Pressable>
         {skipped ? (
@@ -842,7 +844,7 @@ export default function GloriaUnitScreen() {
                     }
                     accessibilityRole="radio"
                     accessibilityState={{ checked: s.abundance === a }}
-                    className={`ml-1 w-7 items-center rounded-md border py-1 ${s.abundance === a ? 'border-[#00A2A5] bg-[#00A2A5]' : 'border-gray-300 dark:border-gray-700'}`}
+                    className={`ml-1 w-7 items-center rounded-md border py-1 ${s.abundance === a ? 'border-accent-600 bg-accent-600' : 'border-gray-300 dark:border-gray-700'}`}
                   >
                     <Text
                       className={`text-[11px] ${s.abundance === a ? 'font-bold text-white' : 'text-gray-600 dark:text-gray-300'}`}
@@ -866,8 +868,8 @@ export default function GloriaUnitScreen() {
           onEndEditing={(e) => patch({ grazing_note: e.nativeEvent.text.trim() || null })}
           placeholder={t('gloria.unit.grazingPlaceholder')}
           multiline
-          className="min-h-[64px] rounded-lg border border-gray-300 bg-white p-2.5 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
-          placeholderTextColor="#9ca3af"
+          className="min-h-[64px] rounded-lg border border-gray-300 bg-card p-2.5 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+          placeholderTextColor={tc.ink3}
         />
         {commentsField}
         {clearButton}
@@ -919,10 +921,10 @@ export default function GloriaUnitScreen() {
                   accessibilityRole="radio"
                   accessibilityState={{ checked: on }}
                   accessibilityLabel={walkOptionLabel(t, o as WalkOption)}
-                  className={`w-[24%] items-center rounded-lg border py-1 ${on ? 'border-[#00A2A5] bg-cyan-50 dark:bg-cyan-950/40' : 'border-gray-300 dark:border-gray-700'}`}
+                  className={`w-[24%] items-center rounded-lg border py-1 ${on ? 'border-accent-600 bg-accent-50 dark:bg-accent-950/40' : 'border-gray-300 dark:border-gray-700'}`}
                 >
                   <WalkDiagram option={o as WalkOption} size={64} />
-                  <Text className={`text-xs ${on ? 'font-bold text-[#00797b] dark:text-cyan-300' : 'text-gray-600 dark:text-gray-300'}`}>{o}</Text>
+                  <Text className={`text-xs ${on ? 'font-bold text-accent-700 dark:text-accent-300' : 'text-gray-600 dark:text-gray-300'}`}>{o}</Text>
                 </Pressable>
               );
             })}

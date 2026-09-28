@@ -40,7 +40,7 @@ export type SwipeAction = {
 
 const BG: Record<SwipeAction['color'], string> = {
   red: 'bg-red-600 active:bg-red-700',
-  blue: 'bg-blue-600 active:bg-blue-700',
+  blue: 'bg-accent-600 active:bg-accent-700',
   emerald: 'bg-emerald-600 active:bg-emerald-700',
   purple: 'bg-purple-600 active:bg-purple-700',
   amber: 'bg-amber-600 active:bg-amber-700',

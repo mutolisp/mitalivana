@@ -13,6 +13,7 @@ import { useTranslation } from 'react-i18next';
 import { FlatList, Modal, Pressable, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { RecordItem, RecordKind } from '~/db';
+import { useThemeColors } from '~/theme/colors';
 
 const KIND_LABEL: Record<RecordKind, string> = {
   session: 'favorites.kindSession',
@@ -29,6 +30,7 @@ type Props = {
 };
 
 export function RecordPickerSheet({ visible, records, onCancel, onConfirm }: Props) {
+  const c = useThemeColors();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -74,7 +76,7 @@ export function RecordPickerSheet({ visible, records, onCancel, onConfirm }: Pro
         />
         <View
           style={{ marginTop: insets.top + 16 }}
-          className="flex-1 rounded-t-2xl bg-white dark:bg-gray-900"
+          className="flex-1 rounded-t-2xl bg-card dark:bg-gray-900"
         >
           <SafeAreaView edges={['bottom']} className="flex-1">
             <View className="items-center pt-2">
@@ -105,7 +107,7 @@ export function RecordPickerSheet({ visible, records, onCancel, onConfirm }: Pro
                   className={`text-base font-semibold ${
                     selected.size === 0
                       ? 'text-gray-300 dark:text-gray-600'
-                      : 'text-blue-600 dark:text-blue-400'
+                      : 'text-accent-600 dark:text-accent-400'
                   }`}
                 >
                   {t('common.done')}
@@ -120,7 +122,7 @@ export function RecordPickerSheet({ visible, records, onCancel, onConfirm }: Pro
               <Ionicons
                 name={allSelected ? 'checkbox' : 'square-outline'}
                 size={20}
-                color={allSelected ? '#2563eb' : '#9ca3af'}
+                color={allSelected ? c.accent : c.ink3}
               />
               <Text className="ml-3 text-sm text-gray-700 dark:text-gray-300">
                 {allSelected ? t('favorites.deselectAll') : t('favorites.selectAll')}
@@ -140,7 +142,7 @@ export function RecordPickerSheet({ visible, records, onCancel, onConfirm }: Pro
                     <Ionicons
                       name={on ? 'checkbox' : 'square-outline'}
                       size={20}
-                      color={on ? '#2563eb' : '#9ca3af'}
+                      color={on ? c.accent : c.ink3}
                     />
                     <View className="ml-3 flex-1">
                       <Text className="text-sm text-gray-900 dark:text-gray-100" numberOfLines={1}>

@@ -15,8 +15,10 @@ import { BackHeaderLeft } from '~/lib/goBack';
 import type { MergeKind } from '~/lib/mergeDocs';
 import { mergeSummary } from '~/lib/mergeSummaryText';
 import { ChangeList } from '~/components/ChangeList';
+import { useThemeColors } from '~/theme/colors';
 
 export default function MergeLogScreen() {
+  const c = useThemeColors();
   const { t } = useTranslation();
   const { kind, uuid } = useLocalSearchParams<{ kind: MergeKind; uuid: string }>();
   const entries = useMemo(() => listMergeLog(kind, uuid), [kind, uuid]);
@@ -32,7 +34,7 @@ export default function MergeLogScreen() {
         {entries.map((e) => {
           const expanded = open.has(e.id);
           return (
-            <View key={e.id} className="rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
+            <View key={e.id} className="rounded-xl border border-gray-200 bg-card dark:border-gray-800 dark:bg-gray-900">
               <Pressable
                 onPress={() => setOpen((s) => new Set(s.has(e.id) ? [...s].filter((x) => x !== e.id) : [...s, e.id]))}
                 accessibilityRole="button"
@@ -45,7 +47,7 @@ export default function MergeLogScreen() {
                   </Text>
                   <Text className="text-xs text-gray-500 dark:text-gray-400">{mergeSummary(t, e.changes)}</Text>
                 </View>
-                <Ionicons name={expanded ? 'chevron-down' : 'chevron-forward'} size={16} color="#9ca3af" />
+                <Ionicons name={expanded ? 'chevron-down' : 'chevron-forward'} size={16} color={c.ink3} />
               </Pressable>
               {expanded ? <ChangeList changes={e.changes} /> : null}
             </View>

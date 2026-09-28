@@ -130,7 +130,7 @@ export default function MirenRecheckScreen() {
                       accessibilityRole="button"
                       accessibilityState={{ selected: on }}
                       style={{ minHeight: 44 }}
-                      className={`flex-1 items-center justify-center rounded-lg border px-1 ${on ? 'border-[#00A2A5] bg-[#00A2A5]' : 'border-gray-300 bg-white dark:border-gray-700 dark:bg-gray-900'}`}
+                      className={`flex-1 items-center justify-center rounded-lg border px-1 ${on ? 'border-accent-600 bg-accent-600' : 'border-gray-300 bg-card dark:border-gray-700 dark:bg-gray-900'}`}
                     >
                       <Text className={`text-xs font-semibold ${on ? 'text-white' : 'text-gray-900 dark:text-gray-100'}`}>{t(`miren.recheck.${o}`)}</Text>
                     </Pressable>
@@ -147,7 +147,7 @@ export default function MirenRecheckScreen() {
                         disabled={finished}
                         onPress={() => (updatePlotSpecies(row.id, { cover_class: k.value }), reload())}
                         style={{ minWidth: 44, minHeight: 40 }}
-                        className={`items-center justify-center rounded-md border ${row.cover_class === k.value ? 'border-[#00A2A5] bg-[#00A2A5]' : 'border-gray-300 dark:border-gray-700'}`}
+                        className={`items-center justify-center rounded-md border ${row.cover_class === k.value ? 'border-accent-600 bg-accent-600' : 'border-gray-300 dark:border-gray-700'}`}
                       >
                         <Text className={`text-sm ${row.cover_class === k.value ? 'text-white' : 'text-gray-900 dark:text-gray-100'}`}>{`C${k.value}`}</Text>
                         <Text className={`text-[9px] ${row.cover_class === k.value ? 'text-white/90' : 'text-gray-500'}`}>{`${k.label}%`}</Text>
@@ -161,7 +161,7 @@ export default function MirenRecheckScreen() {
                         disabled={finished}
                         onPress={() => (updatePlotSpecies(row.id, { abundance_class: k.value }), reload())}
                         style={{ minWidth: 60, minHeight: 40 }}
-                        className={`items-center justify-center rounded-md border ${row.abundance_class === k.value ? 'border-[#00A2A5] bg-[#00A2A5]' : 'border-gray-300 dark:border-gray-700'}`}
+                        className={`items-center justify-center rounded-md border ${row.abundance_class === k.value ? 'border-accent-600 bg-accent-600' : 'border-gray-300 dark:border-gray-700'}`}
                       >
                         <Text className={`text-sm ${row.abundance_class === k.value ? 'text-white' : 'text-gray-900 dark:text-gray-100'}`}>{`A${k.value}`}</Text>
                         <Text className={`text-[9px] ${row.abundance_class === k.value ? 'text-white/90' : 'text-gray-500'}`}>{k.label}</Text>

@@ -35,8 +35,10 @@ import { useExportShare } from '~/lib/useExportShare';
 import { BackHeaderLeft } from '~/lib/goBack';
 import { useSettings } from '~/stores/settings';
 import { listMirenSurveysOfProject } from '~/modules/miren/db';
+import { useThemeColors } from '~/theme/colors';
 
 export default function ProjectDetailScreen() {
+  const tc = useThemeColors();
   const { id } = useLocalSearchParams<{ id: string }>();
   const projectId = Number(id);
   const router = useRouter();
@@ -184,7 +186,7 @@ export default function ProjectDetailScreen() {
                 <Ionicons
                   name="pencil-outline"
                   size={14}
-                  color="#9ca3af"
+                  color={tc.ink3}
                   style={{ marginLeft: 6 }}
                 />
               )}
@@ -221,7 +223,7 @@ export default function ProjectDetailScreen() {
         ListHeaderComponent={
           <View>
             {project.abstract || project.location_description || project.notes ? (
-              <View className="border-b border-gray-100 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
+              <View className="border-b border-gray-100 bg-card px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
                 {project.abstract ? (
                   <Text className="text-sm text-gray-700 dark:text-gray-300">
                     {project.abstract}
@@ -229,7 +231,7 @@ export default function ProjectDetailScreen() {
                 ) : null}
                 {project.location_description ? (
                   <View className="mt-1 flex-row items-center">
-                    <Ionicons name="location-outline" size={13} color="#6b7280" />
+                    <Ionicons name="location-outline" size={13} color={tc.ink2} />
                     <Text className="ml-1 flex-1 text-xs text-gray-500 dark:text-gray-400">
                       {project.location_description}
                     </Text>
@@ -269,7 +271,7 @@ export default function ProjectDetailScreen() {
                   accessibilityRole="button"
                   className="mt-1 self-start active:opacity-60"
                 >
-                  <Text className="text-xs font-medium text-[#00797b] dark:text-cyan-300">{t('projectDetail.gloriaReport')} ›</Text>
+                  <Text className="text-xs font-medium text-accent-700 dark:text-accent-300">{t('projectDetail.gloriaReport')} ›</Text>
                 </Pressable>
               ) : null}
             </View>
@@ -284,12 +286,12 @@ export default function ProjectDetailScreen() {
                   key={m.id}
                   onPress={() => router.push(`/miren/survey/${m.id}` as Href)}
                   accessibilityRole="button"
-                  className="flex-row items-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3 active:bg-gray-50 dark:border-gray-700 dark:bg-gray-900"
+                  className="flex-row items-center gap-3 rounded-2xl border border-gray-200 bg-card px-4 py-3 active:bg-gray-50 dark:border-gray-700 dark:bg-gray-900"
                 >
-                  <Ionicons name="trail-sign-outline" size={18} color="#6b7280" />
+                  <Ionicons name="trail-sign-outline" size={18} color={tc.ink2} />
                   <Text className="flex-1 text-sm font-semibold text-gray-900 dark:text-gray-100">{m.label}</Text>
                   <Text className="text-xs text-gray-500 dark:text-gray-400">{m.status === 'active' ? t('miren.survey.active') : t('miren.survey.done')}</Text>
-                  <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
+                  <Ionicons name="chevron-forward" size={16} color={tc.ink3} />
                 </Pressable>
               ))}
             </View>
@@ -298,7 +300,7 @@ export default function ProjectDetailScreen() {
         ListEmptyComponent={
           mirens.length > 0 ? null : (
           <View className="items-center px-4 py-16">
-            <Ionicons name="folder-open-outline" size={40} color="#9ca3af" />
+            <Ionicons name="folder-open-outline" size={40} color={tc.ink3} />
             <Text className="mt-3 text-sm text-gray-500 dark:text-gray-400">
               {t('projectDetail.empty')}
             </Text>

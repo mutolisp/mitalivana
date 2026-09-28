@@ -27,6 +27,7 @@ import { TextPromptHost } from '~/components/TextPromptModal';
 import { ToastHost } from '~/components/ToastHost';
 import { SyncProgressHost } from '~/components/SyncProgressHost';
 import { useThemeSync } from '~/hooks/useThemeSync';
+import { DARK, LIGHT } from '~/theme/colors';
 import { useI18nSync } from '~/hooks/useI18nSync';
 import { useDatasetUpdateCheck } from '~/lib/datasetUpdateCheck';
 import { useActivePlot } from '~/stores/activePlot';
@@ -34,6 +35,36 @@ import { useActiveGloria } from '~/modules/gloria/store';
 import { useActiveMiren } from '~/modules/miren/store';
 import { useActiveSession } from '~/stores/activeSession';
 import { useSettings } from '~/stores/settings';
+
+/**
+ * Stack headers, screen backgrounds and tab-bar fallbacks come from React
+ * Navigation's theme, which NativeWind classes cannot reach. The stock
+ * DarkTheme is near-black, so both are rebuilt on the app's warm tokens.
+ */
+const NAV_LIGHT = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    primary: LIGHT.accent,
+    background: LIGHT.paper,
+    card: LIGHT.card,
+    text: LIGHT.ink,
+    border: LIGHT.line,
+    notification: LIGHT.alert,
+  },
+};
+const NAV_DARK = {
+  ...DarkTheme,
+  colors: {
+    ...DarkTheme.colors,
+    primary: DARK.accent,
+    background: DARK.paper,
+    card: DARK.card,
+    text: DARK.ink,
+    border: DARK.line,
+    notification: DARK.alert,
+  },
+};
 
 // Keep the native splash visible until DBProvider signals ready (see below).
 // Done at module-evaluation time so the splash doesn't auto-hide between
@@ -102,7 +133,7 @@ function ThemedShell() {
   const mapBasemap = useSettings((s) => s.map_view.basemap);
 
   return (
-    <ThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
+    <ThemeProvider value={isDark ? NAV_DARK : NAV_LIGHT}>
       <FontScaleProvider>
         <View style={{ flex: 1 }}>
           {/* Persistent top chrome — visible across ALL stack screens
@@ -216,5 +247,5 @@ function ThemedShell() {
 
 function TopSafeAreaSpacer() {
   const insets = useSafeAreaInsets();
-  return <View style={{ height: insets.top }} className="bg-white dark:bg-gray-900" />;
+  return <View style={{ height: insets.top }} className="bg-card dark:bg-gray-900" />;
 }

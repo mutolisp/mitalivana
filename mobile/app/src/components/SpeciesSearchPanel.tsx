@@ -73,7 +73,7 @@ export function SpeciesSearchPanel({ autoFocus = false }: Props) {
           panel's last element — the add-to-record button — above it. Same
           reservation the tree segment makes via contentContainerStyle. */}
       <View
-        className="flex-1 bg-white dark:bg-gray-900"
+        className="flex-1 bg-card dark:bg-gray-900"
         style={{ paddingBottom: tabBarInset }}
       >
         {active ? (

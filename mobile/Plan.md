@@ -444,6 +444,16 @@ MIREN（規劃中）→ `docs/planned/MIREN.md`；
 
 ---
 
+### N. UI 改版「橡實野帳」（規劃見 `docs/planned/ui-redesign/`）
+
+- [x] Phase 1：色彩 token（2026-09-28）
+- [x] Phase 2：藍色與寫死 hex 收斂、`check:palette`、導覽列 header 主題、開關（2026-09-29，細節見 `Update_log.md`）
+- [ ] Phase 3：基礎元件（`Button`、`Chip`、`ContextChip`、`Tag`、`CountStepper`；改寫 `PillButton`、`HeaderIconButton`、`SpeciesCard`、`RecordListItem`；Source Serif 4）
+- [ ] Phase 4：記錄首頁、建立記錄 sheet、快速名錄、物種細節（建議拆四個 PR）
+- [ ] Phase 5（選配）：中文標題宋體
+- 待決：`bg-accent-500` 上的白字對比 4.1（原 `blue-500` 3.68，略好但低於 4.5；21 處，如「全部」chip），照文件維持 500 階，Phase 3 的 `Chip` 取代時一併處理
+- 待辦：`check:palette` 的 baseline 還有 60 檔 177 處（琥珀警示色、`#4b5563`、`#d1d5db` 等對照表外的值、模組層級常數），逐步降低；每次減少後 `npm run check:palette -- --update`
+
 ## 技術棧
 
 | 項目 | 選擇 | 備註 |

@@ -100,7 +100,7 @@ import {
 import { describeVectorInstall, vectorStyleUri } from '~/lib/vectormap';
 import { useVectorInstall } from '~/lib/vectormapInstall';
 import { useTabBarInset } from '~/lib/tabBarLayout';
-import { useThemeColors } from '~/hooks/useThemeColors';
+import { useThemeColors } from '~/theme/colors';
 import { resolveLanguage } from '~/i18n';
 import { useSettings, type MapBasemap } from '~/stores/settings';
 import { useToast } from '~/stores/toast';
@@ -155,7 +155,7 @@ const NLSC_TILE_URL =
 const CLUSTER_COLOR = '#4f46e5';
 
 // A standalone place — drawn or imported by hand, owned by no record. Records
-// wear the accent teal (PLOT_COLOR / SESSION_COLOR below); this yellow-green is
+// wear teal / cyan (PLOT_COLOR / SESSION_COLOR below); this yellow-green is
 // reserved for "nobody's record, just a place".
 const SITE_COLOR = '#74AB00';
 const SITE_FILL = 'rgba(116, 171, 0, 0.18)';
@@ -302,7 +302,8 @@ function bboxCorners(b: BBox): LatLng[] {
   ];
 }
 const DRAW_FILL = 'rgba(220, 38, 38, 0.18)';
-// Plot survey overlay. The accent teal, matching 地理樣區管理's 樣區 rows.
+// Plot survey overlay. Teal, the pre-redesign UI accent, kept as a map data
+// colour; matches RECORD_TINT on 地理樣區管理's 樣區 rows (app/sites.tsx).
 const PLOT_COLOR = '#00A2A5'; // teal — done plots
 const PLOT_ACTIVE_COLOR = '#db2777'; // magenta — the single active plot
 const PLOT_FILL = 'rgba(0, 162, 165, 0.15)'; // point_count radius circle
@@ -342,8 +343,9 @@ function measuredMeters(points: LatLng[]): number {
 }
 
 export default function MapScreen() {
+  const tc = useThemeColors();
   const { t } = useTranslation();
-  const { overlayIcon, overlayAccent, muted } = useThemeColors();
+  const { overlayIcon, accent: overlayAccent, ink3: muted } = useThemeColors();
   const initial = useSettings((s) => s.map_view);
   const setSetting = useSettings((s) => s.set);
   const settingsLoaded = useSettings((s) => s.loaded);
@@ -2041,7 +2043,7 @@ export default function MapScreen() {
         style={{ top: insets.top + 8, right: searchOpen ? 12 : undefined }}
       >
         {searchOpen ? (
-          <View className="flex-row items-center rounded-full bg-white px-3 py-2 shadow-md dark:bg-gray-900/95">
+          <View className="flex-row items-center rounded-full bg-card px-3 py-2 shadow-md dark:bg-gray-900/95">
             <Pressable onPress={closeSearch} hitSlop={8}>
               <Ionicons name="arrow-back" size={18} color={overlayIcon} />
             </Pressable>
@@ -2049,7 +2051,7 @@ export default function MapScreen() {
               ref={searchInputRef}
               className="ml-2 flex-1 text-sm text-gray-900 dark:text-gray-100"
               placeholder={t('map.searchPlaceholder')}
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={tc.ink3}
               value={searchQuery}
               onChangeText={setSearchQuery}
               onSubmitEditing={handleSearch}
@@ -2148,7 +2150,7 @@ export default function MapScreen() {
           className="absolute left-3"
           style={{ top: insets.top + 60, maxWidth: windowWidth * 0.72 }}
         >
-          <View className="flex-row items-center self-start rounded-full bg-white/95 px-3 py-1.5 shadow-md dark:bg-gray-900/95">
+          <View className="flex-row items-center self-start rounded-full bg-card/95 px-3 py-1.5 shadow-md dark:bg-gray-900/95">
             {/* Tapping the pill reopens the picker: it is the only affordance
                 that leads back to what this layer is and to searching again. */}
             <Pressable
@@ -2218,7 +2220,7 @@ export default function MapScreen() {
       {/* Drawing toolbar (below search FAB row) */}
       {drawMode ? (
         <View className="absolute left-3 right-3" style={{ top: insets.top + 60 }}>
-          <View className="flex-row items-center rounded-full bg-white px-3 py-2 shadow-md dark:bg-gray-900/95">
+          <View className="flex-row items-center rounded-full bg-card px-3 py-2 shadow-md dark:bg-gray-900/95">
             <Pressable onPress={cancelDraw} hitSlop={8} className="px-2">
               <Text className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 {t('common.cancel')}
@@ -2267,7 +2269,7 @@ export default function MapScreen() {
       {/* Edit-geometry toolbar (drag the marker, then save). */}
       {editMode ? (
         <View className="absolute left-3 right-3" style={{ top: insets.top + 60 }}>
-          <View className="flex-row items-center rounded-full bg-white px-3 py-2 shadow-md dark:bg-gray-900/95">
+          <View className="flex-row items-center rounded-full bg-card px-3 py-2 shadow-md dark:bg-gray-900/95">
             <Pressable onPress={cancelPlotEdit} hitSlop={8} className="px-2">
               <Text className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 {t('common.cancel')}
@@ -2291,7 +2293,7 @@ export default function MapScreen() {
           two toolbars above, so it is gated on them not being up. */}
       {shownSessionNoCoords && !drawMode && !editMode && !info ? (
         <View className="absolute left-3 right-3" style={{ top: insets.top + 60 }} pointerEvents="none">
-          <View className="flex-row items-center rounded-full bg-white px-3 py-2 shadow-md dark:bg-gray-900/95">
+          <View className="flex-row items-center rounded-full bg-card px-3 py-2 shadow-md dark:bg-gray-900/95">
             <Ionicons name="information-circle-outline" size={16} color={overlayIcon} />
             <Text className="ml-2 flex-1 text-xs text-gray-700 dark:text-gray-300">
               {t('map.sessionNoCoords', shownSessionNoCoords)}
@@ -2427,13 +2429,13 @@ function FabButton({
    *  screen reader nothing. */
   a11yLabel?: string;
 }) {
-  const { overlayIcon, overlayAccent } = useThemeColors();
+  const { overlayIcon, accent: overlayAccent } = useThemeColors();
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={a11yLabel}
-      className="h-11 w-11 items-center justify-center rounded-full bg-white shadow-md active:bg-gray-100 dark:bg-gray-900/95 dark:active:bg-gray-700"
+      className="h-11 w-11 items-center justify-center rounded-full bg-card shadow-md active:bg-gray-100 dark:bg-gray-900/95 dark:active:bg-gray-700"
     >
       <Ionicons name={icon} size={20} color={accent ? overlayAccent : overlayIcon} />
     </Pressable>
@@ -2451,14 +2453,14 @@ function FabRow({
   onPress: () => void;
   accent?: boolean;
 }) {
-  const { overlayIcon, overlayAccent } = useThemeColors();
+  const { overlayIcon, accent: overlayAccent } = useThemeColors();
   return (
     <Pressable
       onPress={onPress}
-      className="mt-2 flex-row items-center rounded-full bg-white px-3 py-2 shadow-md active:bg-gray-100 dark:bg-gray-900/95 dark:active:bg-gray-700"
+      className="mt-2 flex-row items-center rounded-full bg-card px-3 py-2 shadow-md active:bg-gray-100 dark:bg-gray-900/95 dark:active:bg-gray-700"
     >
       <Text
-        className={`mr-2 text-xs font-medium ${accent ? 'text-blue-700 dark:text-blue-300' : 'text-gray-700 dark:text-gray-300'}`}
+        className={`mr-2 text-xs font-medium ${accent ? 'text-accent-700 dark:text-accent-300' : 'text-gray-700 dark:text-gray-300'}`}
       >
         {label}
       </Text>

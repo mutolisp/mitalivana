@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { Linking, Pressable, Text, View } from 'react-native';
 import { observationWebUrl } from '~/lib/inatApi';
+import { useThemeColors } from '~/theme/colors';
 
 /** `YYYY-MM-DD HH:mm` in the device's own timezone — the wall clock the
  *  surveyor was looking at, not UTC. Seconds are noise at this altitude. */
@@ -42,6 +43,7 @@ export function RecordMetaFooter({
    *  id gated the same way the external link is, so the two never disagree. */
   inatObservationId?: number | null;
 }) {
+  const c = useThemeColors();
   const { t } = useTranslation();
   if (!occurrenceId && updatedAt == null && inatObservationId == null) return null;
   return (
@@ -63,10 +65,10 @@ export function RecordMetaFooter({
             accessibilityRole="link"
             className="flex-1 flex-row items-center active:opacity-60"
           >
-            <Text className="text-[11px] text-blue-600 underline dark:text-blue-400">
+            <Text className="text-[11px] text-accent-600 underline dark:text-accent-400">
               {inatObservationId}
             </Text>
-            <Ionicons name="open-outline" size={11} color="#2563eb" style={{ marginLeft: 4 }} />
+            <Ionicons name="open-outline" size={11} color={c.accent} style={{ marginLeft: 4 }} />
           </Pressable>
         </View>
       ) : null}

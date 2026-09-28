@@ -25,12 +25,14 @@ import { useSettings } from '~/stores/settings';
 import { listRecords } from '~/db';
 import { HeaderIconButton } from '~/components/HeaderIconButton';
 import { BackHeaderLeft } from '~/lib/goBack';
+import { useThemeColors } from '~/theme/colors';
 
 /** Below this the list is short enough to scan; a search box would just eat a
  *  row's worth of screen. */
 const SEARCH_THRESHOLD = 10;
 
 export default function ProjectsScreen() {
+  const c = useThemeColors();
   const { t } = useTranslation();
   const router = useRouter();
   const [projects, setProjects] = useState<ProjectWithCounts[]>([]);
@@ -252,13 +254,13 @@ export default function ProjectsScreen() {
         }}
       />
       {selectMode ? (
-        <View className="flex-row items-center justify-between border-b border-gray-200 bg-white px-4 py-2 dark:border-gray-700 dark:bg-gray-900">
+        <View className="flex-row items-center justify-between border-b border-gray-200 bg-card px-4 py-2 dark:border-gray-700 dark:bg-gray-900">
           <Text className="text-sm text-gray-500 dark:text-gray-400">
             {t('projects.selectedCount', { count: picked.size })}
           </Text>
           <View className="flex-row items-center gap-3">
             <Pressable onPress={toggleSelectAll} hitSlop={8}>
-              <Text className="text-sm text-blue-600 dark:text-blue-400">
+              <Text className="text-sm text-accent-600 dark:text-accent-400">
                 {allVisiblePicked ? t('projects.deselectAll') : t('projects.selectAll')}
               </Text>
             </Pressable>
@@ -280,19 +282,19 @@ export default function ProjectsScreen() {
         </View>
       ) : null}
       {showSearch ? (
-        <View className="flex-row items-center border-b border-gray-200 bg-white px-4 py-2 dark:border-gray-700 dark:bg-gray-900">
-          <Ionicons name="search" size={16} color="#9ca3af" />
+        <View className="flex-row items-center border-b border-gray-200 bg-card px-4 py-2 dark:border-gray-700 dark:bg-gray-900">
+          <Ionicons name="search" size={16} color={c.ink3} />
           <TextInput
             value={filter}
             onChangeText={setFilter}
             placeholder={t('projects.searchPlaceholder')}
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor={c.ink3}
             autoCapitalize="none"
             className="ml-2 flex-1 py-1 text-base text-gray-900 dark:text-gray-100"
           />
           {filter ? (
             <Pressable onPress={() => setFilter('')} hitSlop={8}>
-              <Ionicons name="close-circle" size={18} color="#9ca3af" />
+              <Ionicons name="close-circle" size={18} color={c.ink3} />
             </Pressable>
           ) : null}
         </View>
@@ -313,7 +315,7 @@ export default function ProjectsScreen() {
                   selectMode ? togglePick(item.id) : router.push(`/project/${item.id}` as Href)
                 }
                 onLongPress={() => (selectMode ? undefined : handleLongPress(item))}
-                className="flex-row items-center border-b border-gray-100 bg-white px-4 py-3 active:bg-gray-50 dark:border-gray-800 dark:bg-gray-900 dark:active:bg-gray-800"
+                className="flex-row items-center border-b border-gray-100 bg-card px-4 py-3 active:bg-gray-50 dark:border-gray-800 dark:bg-gray-900 dark:active:bg-gray-800"
               >
                 {selectMode ? (
                   <Ionicons
@@ -325,14 +327,14 @@ export default function ProjectsScreen() {
                           : 'square-outline'
                     }
                     size={18}
-                    color={checked ? '#2563eb' : '#9ca3af'}
+                    color={checked ? c.accent : c.ink3}
                     style={{ marginRight: 10 }}
                   />
                 ) : (
                   <Ionicons
                     name={item.id === 0 ? 'help-circle-outline' : 'folder-outline'}
                     size={18}
-                    color="#6b7280"
+                    color={c.ink2}
                     style={{ marginRight: 10 }}
                   />
                 )}

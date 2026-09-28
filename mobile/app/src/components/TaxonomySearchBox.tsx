@@ -6,6 +6,7 @@ import { FlatList, Keyboard, Pressable, Text, TextInput, View } from 'react-nati
 import { searchTaxonomy, type TaxonSearchHit } from '~/db';
 import { rankColor } from '~/lib/rankColors';
 import { ScientificName } from './ScientificName';
+import { useThemeColors } from '~/theme/colors';
 
 const DEBOUNCE_MS = 250;
 
@@ -14,6 +15,7 @@ type Props = {
 };
 
 export function TaxonomySearchBox({ onPick }: Props) {
+  const c = useThemeColors();
   const { t } = useTranslation();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<TaxonSearchHit[]>([]);
@@ -57,7 +59,7 @@ export function TaxonomySearchBox({ onPick }: Props) {
   };
 
   return (
-    <View className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+    <View className="border-t border-gray-200 dark:border-gray-700 bg-card dark:bg-gray-900">
       {results.length > 0 ? (
         <View className="max-h-60 border-b border-gray-100 dark:border-gray-800">
           <FlatList
@@ -74,12 +76,12 @@ export function TaxonomySearchBox({ onPick }: Props) {
       ) : null}
       <View className="flex-row items-center px-2 py-2">
         <View className="flex-1 flex-row items-center rounded-full bg-gray-100 dark:bg-gray-800 px-3 py-2">
-          <Ionicons name="search" size={18} color="#6b7280" />
+          <Ionicons name="search" size={18} color={c.ink2} />
           <TextInput
             ref={inputRef}
             className="ml-2 flex-1 text-base text-gray-900 dark:text-gray-100"
             placeholder={t('search.taxonomyPlaceholder')}
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor={c.ink3}
             value={query}
             onChangeText={setQuery}
             autoCorrect={false}
@@ -87,7 +89,7 @@ export function TaxonomySearchBox({ onPick }: Props) {
           />
           {query ? (
             <Pressable onPress={() => setQuery('')} hitSlop={8}>
-              <Ionicons name="close-circle" size={18} color="#9ca3af" />
+              <Ionicons name="close-circle" size={18} color={c.ink3} />
             </Pressable>
           ) : null}
         </View>
@@ -103,7 +105,7 @@ const HitRow = memo(function HitRow({ hit, onPress }: { hit: TaxonSearchHit; onP
   const isSynonym = !!hit.matched_as;
   const isFuzzy = !!hit.fuzzy_match;
   return (
-    <Pressable onPress={onPress} className="border-b border-gray-100 dark:border-gray-800 px-4 py-2.5 active:bg-blue-50 dark:active:bg-blue-900/40">
+    <Pressable onPress={onPress} className="border-b border-gray-100 dark:border-gray-800 px-4 py-2.5 active:bg-accent-50 dark:active:bg-accent-900/40">
       <View className="flex-row items-center">
         <Text className="flex-1 text-sm text-gray-900 dark:text-gray-100" numberOfLines={1}>
           {isSynonym ? <Text className="text-orange-600">≡ </Text> : null}

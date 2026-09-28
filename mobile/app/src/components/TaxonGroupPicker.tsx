@@ -5,6 +5,7 @@ import i18n from '~/i18n';
 import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { TaxonGroup } from '~/db/types';
+import { useThemeColors } from '~/theme/colors';
 
 export const TAXON_GROUP_OPTIONS: Array<{ value: TaxonGroup | '' }> = [
   { value: '' },
@@ -38,6 +39,7 @@ type Props = {
 };
 
 export function TaxonGroupPicker({ value, onChange }: Props) {
+  const c = useThemeColors();
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
 
@@ -50,17 +52,17 @@ export function TaxonGroupPicker({ value, onChange }: Props) {
     <View className="flex-1 flex-row items-center">
       <Pressable
         onPress={() => setOpen(true)}
-        className="flex-row items-center rounded-full bg-blue-50 dark:bg-blue-950/40 px-3 py-1.5 active:bg-blue-100 dark:active:bg-blue-900/60"
+        className="flex-row items-center rounded-full bg-accent-50 dark:bg-accent-950/40 px-3 py-1.5 active:bg-accent-100 dark:active:bg-accent-900/60"
       >
-        <Ionicons name="filter" size={14} color="#2563eb" />
-        <Ionicons name="chevron-down" size={12} color="#2563eb" style={{ marginLeft: 2 }} />
+        <Ionicons name="filter" size={14} color={c.accent} />
+        <Ionicons name="chevron-down" size={12} color={c.accent} style={{ marginLeft: 2 }} />
       </Pressable>
 
       {value.length === 0 ? (
         <Text className="ml-2 text-xs text-gray-500 dark:text-gray-400">{t('taxonGroup.all')}</Text>
       ) : value.length > MAX_INLINE_CHIPS ? (
         <Pressable onPress={() => setOpen(true)} className="ml-2">
-          <Text className="text-xs font-medium text-blue-700 dark:text-blue-300">
+          <Text className="text-xs font-medium text-accent-700 dark:text-accent-300">
             {t('taxonGroup.selectedGroups', { count: value.length })}
           </Text>
         </Pressable>
@@ -76,12 +78,12 @@ export function TaxonGroupPicker({ value, onChange }: Props) {
             <Pressable
               key={g}
               onPress={() => toggle(g)}
-              className="flex-row items-center rounded-full bg-blue-100 dark:bg-blue-900/60 px-2 py-1 active:bg-blue-200 dark:active:bg-blue-800"
+              className="flex-row items-center rounded-full bg-accent-100 dark:bg-accent-900/60 px-2 py-1 active:bg-accent-200 dark:active:bg-accent-800"
             >
-              <Text className="text-xs font-medium text-blue-700 dark:text-blue-300">
+              <Text className="text-xs font-medium text-accent-700 dark:text-accent-300">
                 {getGroupLabel(g)}
               </Text>
-              <Ionicons name="close" size={12} color="#2563eb" style={{ marginLeft: 2 }} />
+              <Ionicons name="close" size={12} color={c.accent} style={{ marginLeft: 2 }} />
             </Pressable>
           ))}
         </ScrollView>
@@ -89,7 +91,7 @@ export function TaxonGroupPicker({ value, onChange }: Props) {
 
       <Modal visible={open} animationType="slide" transparent onRequestClose={() => setOpen(false)}>
         <Pressable onPress={() => setOpen(false)} className="flex-1 bg-black/40">
-          <Pressable className="mt-auto rounded-t-2xl bg-white dark:bg-gray-900 pb-6">
+          <Pressable className="mt-auto rounded-t-2xl bg-card dark:bg-gray-900 pb-6">
             <SafeAreaView edges={['bottom']}>
               <View className="flex-row items-center justify-between border-b border-gray-200 dark:border-gray-700 px-4 py-3">
                 <View className="flex-1">
@@ -100,7 +102,7 @@ export function TaxonGroupPicker({ value, onChange }: Props) {
                 </View>
                 <Pressable
                   onPress={() => setOpen(false)}
-                  className="ml-3 rounded-full bg-blue-600 px-4 py-1.5 active:bg-blue-700"
+                  className="ml-3 rounded-full bg-accent-600 px-4 py-1.5 active:bg-accent-700"
                 >
                   <Text className="text-sm font-medium text-white">{t('common.done')}</Text>
                 </Pressable>
@@ -116,12 +118,12 @@ export function TaxonGroupPicker({ value, onChange }: Props) {
                         if (isAll) onChange([]);
                         else toggle(opt.value as TaxonGroup);
                       }}
-                      className={`flex-row items-center border-b border-gray-100 dark:border-gray-800 px-4 py-3 ${active ? 'bg-blue-50 dark:bg-blue-950/40' : 'active:bg-gray-50 dark:active:bg-gray-800'}`}
+                      className={`flex-row items-center border-b border-gray-100 dark:border-gray-800 px-4 py-3 ${active ? 'bg-accent-50 dark:bg-accent-950/40' : 'active:bg-gray-50 dark:active:bg-gray-800'}`}
                     >
-                      <Text className={`flex-1 text-base ${active ? 'font-semibold text-blue-700 dark:text-blue-300' : 'text-gray-900 dark:text-gray-100'}`}>
+                      <Text className={`flex-1 text-base ${active ? 'font-semibold text-accent-700 dark:text-accent-300' : 'text-gray-900 dark:text-gray-100'}`}>
                         {getGroupLabel(opt.value)}
                       </Text>
-                      {active ? <Ionicons name="checkmark" size={20} color="#2563eb" /> : null}
+                      {active ? <Ionicons name="checkmark" size={20} color={c.accent} /> : null}
                     </Pressable>
                   );
                 })}

@@ -104,7 +104,7 @@ export function ActionSheetHost() {
           }}
         />
         <SafeAreaView edges={['bottom']} className="mt-auto">
-          <View className="mx-3 mb-2 rounded-2xl bg-white dark:bg-gray-900">
+          <View className="mx-3 mb-2 rounded-2xl bg-card dark:bg-gray-900">
             {pending.title || pending.message ? (
               <View className="border-b border-gray-100 dark:border-gray-800 px-4 py-3">
                 {pending.title ? (
@@ -126,14 +126,14 @@ export function ActionSheetHost() {
                 className={`items-center justify-center border-b border-gray-100 dark:border-gray-800 py-3.5 active:bg-gray-50 dark:active:bg-gray-800 ${i === pending.options.length - 1 ? 'border-b-0' : ''}`}
               >
                 <Text
-                  className={`text-center text-base ${opt.destructive ? 'font-semibold text-red-600 dark:text-red-400' : 'text-blue-600 dark:text-blue-400'}`}
+                  className={`text-center text-base ${opt.destructive ? 'font-semibold text-red-600 dark:text-red-400' : 'text-accent-600 dark:text-accent-400'}`}
                 >
                   {opt.label}
                 </Text>
               </Pressable>
             ))}
           </View>
-          <View className="mx-3 mb-2 rounded-2xl bg-white dark:bg-gray-900">
+          <View className="mx-3 mb-2 rounded-2xl bg-card dark:bg-gray-900">
             <Pressable
               onPress={() => resolve(-1)}
               className="items-center justify-center py-3.5 active:bg-gray-50 dark:active:bg-gray-800"

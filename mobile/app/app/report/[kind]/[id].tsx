@@ -195,7 +195,7 @@ function GloriaFilterBar({
       onPress={press}
       accessibilityRole="button"
       accessibilityState={{ selected: on }}
-      className={`mr-1.5 rounded-full border px-3 py-1 ${on ? 'border-[#00A2A5] bg-[#00A2A5]' : 'border-gray-300 dark:border-gray-600'}`}
+      className={`mr-1.5 rounded-full border px-3 py-1 ${on ? 'border-accent-600 bg-accent-600' : 'border-gray-300 dark:border-gray-600'}`}
     >
       <Text className={`text-xs ${on ? 'font-semibold text-white' : 'text-gray-700 dark:text-gray-300'}`}>{label}</Text>
     </Pressable>
@@ -209,7 +209,7 @@ function GloriaFilterBar({
     </View>
   );
   return (
-    <View className="border-b border-gray-200 bg-white px-3 py-1.5 dark:border-gray-800 dark:bg-gray-900">
+    <View className="border-b border-gray-200 bg-card px-3 py-1.5 dark:border-gray-800 dark:bg-gray-900">
       {row(t('report.gloria.types'), [
         chip(t('report.gloria.all'), value.types.length === 0, () => onChange({ ...value, types: [] }), 'all'),
         ...TYPE_KEYS.map(([k, key]) => chip(t(key), value.types.includes(k), () => onChange({ ...value, types: toggle(value.types, k) }), k)),

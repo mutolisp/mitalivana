@@ -9,10 +9,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Modal, Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
+import { Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Switch } from '~/components/ui/Switch';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardAvoidingView } from './KeyboardAvoidingView';
 import type { DuplicateRecordOptions } from '~/db';
+import { useThemeColors } from '~/theme/colors';
 
 export type DuplicateRequest = {
   /** Name to pre-fill (already advanced past every taken name). */
@@ -36,6 +38,7 @@ type Props = {
 };
 
 export function DuplicateRecordModal({ request, onCancel, onConfirm }: Props) {
+  const c = useThemeColors();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [name, setName] = useState('');
@@ -66,7 +69,7 @@ export function DuplicateRecordModal({ request, onCancel, onConfirm }: Props) {
           the status bar / notch). Same shape as SaveSiteModal / BatchImportModal:
           insets padding on the root, KAV + ScrollView for the body. */}
       <View
-        className="flex-1 bg-white dark:bg-gray-900"
+        className="flex-1 bg-card dark:bg-gray-900"
         style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
       >
         <View className="flex-row items-center justify-between border-b border-gray-200 dark:border-gray-700 px-4 py-3">
@@ -90,7 +93,7 @@ export function DuplicateRecordModal({ request, onCancel, onConfirm }: Props) {
           >
             <Text
               className={`text-base font-semibold ${
-                canConfirm ? 'text-blue-600 dark:text-blue-400' : 'text-gray-300 dark:text-gray-600'
+                canConfirm ? 'text-accent-600 dark:text-accent-400' : 'text-gray-300 dark:text-gray-600'
               }`}
             >
               {t('records.duplicate')}
@@ -110,7 +113,7 @@ export function DuplicateRecordModal({ request, onCancel, onConfirm }: Props) {
                 className={`mt-1 rounded-lg border px-3 py-2.5 text-base text-gray-900 dark:text-gray-100 ${
                   taken ? 'border-amber-400' : 'border-gray-300 dark:border-gray-700'
                 }`}
-                placeholderTextColor="#9ca3af"
+                placeholderTextColor={c.ink3}
               />
               {taken ? (
                 <View className="mt-1 flex-row items-center">

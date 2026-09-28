@@ -16,6 +16,7 @@ import { promptText } from '~/components/TextPromptModal';
 import { pauseIfNot } from '~/lib/trackRecorder';
 import { ensureNoConflictingActive } from '~/lib/recordCreate';
 import { ACTION_FILL } from '~/lib/colors';
+import { useThemeColors } from '~/theme/colors';
 
 function formatTime(ts: number | null): string {
   return ts ? isoDateTime(ts) : '';
@@ -71,7 +72,7 @@ export default function PlotsListScreen() {
 
   return (
     <SafeAreaView edges={['top']} className="flex-1 bg-gray-50 dark:bg-gray-950">
-      <View className="border-b border-gray-100 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
+      <View className="border-b border-gray-100 bg-card px-4 py-3 dark:border-gray-800 dark:bg-gray-900">
         <Text className="text-lg font-semibold text-gray-900 dark:text-gray-100">
           {t('plots.title')}
         </Text>
@@ -116,6 +117,7 @@ function PlotRow({
   onPress: () => void;
   onLongPress: () => void;
 }) {
+  const c = useThemeColors();
   const { t } = useTranslation();
   const isActive = plot.status === 'active';
   const ready = plotCanAcceptSpecies(plot);
@@ -124,7 +126,7 @@ function PlotRow({
       onPress={onPress}
       onLongPress={onLongPress}
       delayLongPress={350}
-      className="flex-row items-center border-b border-gray-100 bg-white px-4 py-3 active:bg-gray-50 dark:border-gray-800 dark:bg-gray-900 dark:active:bg-gray-800"
+      className="flex-row items-center border-b border-gray-100 bg-card px-4 py-3 active:bg-gray-50 dark:border-gray-800 dark:bg-gray-900 dark:active:bg-gray-800"
     >
       <View className="flex-1">
         <View className="flex-row items-center">
@@ -159,7 +161,7 @@ function PlotRow({
           </Text>
         ) : null}
       </View>
-      <Ionicons name="chevron-forward" size={18} color="#9ca3af" />
+      <Ionicons name="chevron-forward" size={18} color={c.ink3} />
     </Pressable>
   );
 }
