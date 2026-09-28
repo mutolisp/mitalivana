@@ -66,6 +66,9 @@ import {
 } from '~/db';
 import { useActiveSession } from '~/stores/activeSession';
 import { isRecordingTarget } from '~/lib/trackRecorder';
+import { trackLengthMeters } from '~/lib/track';
+import { getSite as getMirenSite, setSiteClearance } from '~/modules/miren/db';
+import { ROAD_CLEARANCE_M } from '~/modules/miren/model/planner';
 import { MapFeatureCard, type MapFeatureInfo } from '~/components/MapFeatureCard';
 import {
   clusterPoints,
@@ -333,6 +336,11 @@ function basemapLabelKey(o: (typeof BASEMAP_OPTIONS)[number], vectorReady: boole
   return o.labelKey;
 }
 
+/** Length of a measured polyline in metres — the app's one haversine (lib/track). */
+function measuredMeters(points: LatLng[]): number {
+  return trackLengthMeters([points.map((p) => [p.longitude, p.latitude] as [number, number])]);
+}
+
 export default function MapScreen() {
   const { t } = useTranslation();
   const { overlayIcon, overlayAccent, muted } = useThemeColors();
@@ -349,6 +357,8 @@ export default function MapScreen() {
     favoriteArea?: string;
     site?: string;
     plot?: string;
+    /** MIREN site id: measure from its planned point, then offer to record the distance. */
+    measureSite?: string;
   }>();
   /** When set, after saving the next drawn site we bind it to this session and bounce back. */
   const handoffSessionId = useRef<number | null>(null);
@@ -442,7 +452,10 @@ export default function MapScreen() {
   /** What the current drawing is FOR. 'site' saves a geographic site; 'species'
    *  queries iNaturalist for what has been observed inside it. Same gesture, two
    *  terminuses — the alternative was a second drawing implementation. */
-  const [drawPurpose, setDrawPurpose] = useState<'site' | 'species' | 'favoriteArea'>('site');
+  const [drawPurpose, setDrawPurpose] = useState<'site' | 'species' | 'favoriteArea' | 'measure'>('site');
+  /** The MIREN site a measurement is recorded to (Road protocol §2.3 a: the
+   *  farthest plot end ≥ 100 m from all roads), when handed off from a site. */
+  const measureSiteId = useRef<number | null>(null);
   /** Which favourite folder's area is being redrawn, when handed off from
    *  favourites. */
   const favoriteAreaId = useRef<number | null>(null);
@@ -608,7 +621,20 @@ export default function MapScreen() {
     const favParam = params.favoriteArea;
     const siteParam = params.site;
     const plotParam = params.plot;
-    if (!drawParam && !sessionParam && !favParam && !siteParam && !plotParam) return;
+    const measureParam = params.measureSite;
+    if (!drawParam && !sessionParam && !favParam && !siteParam && !plotParam && !measureParam) return;
+
+    if (typeof measureParam === 'string') {
+      const msid = parseInt(measureParam, 10);
+      const ms = Number.isNaN(msid) ? null : getMirenSite(msid);
+      if (ms) {
+        measureSiteId.current = ms.id;
+        const start = ms.planned_lat != null && ms.planned_lon != null ? { latitude: ms.planned_lat, longitude: ms.planned_lon } : null;
+        if (start) focusRegion({ ...start, latitudeDelta: 0.004, longitudeDelta: 0.004 });
+        startDraw('LineString', 'measure');
+        if (start) setDrawPoints([start]);
+      }
+    }
 
     if (typeof siteParam === 'string') {
       const sid = parseInt(siteParam, 10);
@@ -672,6 +698,7 @@ export default function MapScreen() {
       favoriteArea: undefined,
       site: undefined,
       plot: undefined,
+      measureSite: undefined,
     });
   }, [
     params.draw,
@@ -679,6 +706,7 @@ export default function MapScreen() {
     params.favoriteArea,
     params.site,
     params.plot,
+    params.measureSite,
     router,
     toast,
     t,
@@ -916,13 +944,15 @@ export default function MapScreen() {
 
   const startDraw = (
     mode: 'Point' | 'LineString' | 'Polygon',
-    purpose: 'site' | 'species' = 'site',
+    purpose: 'site' | 'species' | 'measure' = 'site',
   ) => {
     setDrawMode(mode);
     setDrawPurpose(purpose);
     setDrawPoints([]);
     toast(
-      purpose === 'species'
+      purpose === 'measure'
+        ? t('map.measureHint')
+        : purpose === 'species'
         ? t('areaSpecies.drawHint')
         : mode === 'Point'
           ? t('map.drawTapPoint')
@@ -973,6 +1003,7 @@ export default function MapScreen() {
     setDrawPoints([]);
     handoffSessionId.current = null;
     favoriteAreaId.current = null;
+    measureSiteId.current = null;
     setPlotHandoff(null);
   };
 
@@ -991,6 +1022,37 @@ export default function MapScreen() {
 
   const finishDraw = () => {
     if (!drawMode) return;
+    if (drawPurpose === 'measure') {
+      if (drawPoints.length < 2) {
+        toast(t('map.lineNeed2'));
+        return;
+      }
+      const meters = measuredMeters(drawPoints);
+      const siteId = measureSiteId.current;
+      const shown = `${Math.round(meters)} m`;
+      if (siteId == null) {
+        Alert.alert(t('map.measure'), t('map.measureResult', { d: shown }), [{ text: t('common.ok'), onPress: cancelDraw }]);
+        return;
+      }
+      Alert.alert(
+        t('map.measure'),
+        t(meters >= ROAD_CLEARANCE_M ? 'map.measureRecord' : 'map.measureRecordShort', { d: shown, m: ROAD_CLEARANCE_M }),
+        [
+          { text: t('common.cancel'), style: 'cancel' },
+          {
+            text: t('map.measureSave'),
+            onPress: () => {
+              setSiteClearance(siteId, meters);
+              cancelDraw();
+              // Not router.back(): the map is in the (tabs) group, below the site
+              // screen in the root stack (same as the favourites area handoff).
+              router.navigate(`/miren/site/${siteId}` as Href);
+            },
+          },
+        ],
+      );
+      return;
+    }
     if (drawPurpose === 'favoriteArea') {
       const fid = favoriteAreaId.current;
       if (fid == null) return;
@@ -2045,6 +2107,14 @@ export default function MapScreen() {
                 onPress={handlePickDrawMode}
               />
               <FabRow
+                icon="resize-outline"
+                label={t('map.measure')}
+                onPress={() => {
+                  setToolsOpen(false);
+                  startDraw('LineString', 'measure');
+                }}
+              />
+              <FabRow
                 icon={inatGrid ? 'grid' : 'globe-outline'}
                 label={t('speciesDist.title')}
                 onPress={() => {
@@ -2155,10 +2225,12 @@ export default function MapScreen() {
               </Text>
             </Pressable>
             <Text className="flex-1 text-center text-xs text-gray-700 dark:text-gray-300">
-              {t('map.drawingLabel', {
-                type: t(SITE_TYPE_LABEL[drawMode]),
-                count: drawPoints.length,
-              })}
+              {drawPurpose === 'measure'
+                ? t('map.measuring', { d: `${Math.round(measuredMeters(drawPoints))} m` })
+                : t('map.drawingLabel', {
+                    type: t(SITE_TYPE_LABEL[drawMode]),
+                    count: drawPoints.length,
+                  })}
             </Text>
             {drawPoints.length > 0 ? (
               <Pressable onPress={undoLastPoint} hitSlop={8} className="px-2">

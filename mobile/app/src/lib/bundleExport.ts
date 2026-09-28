@@ -92,6 +92,7 @@ import { parseOverviewPhotos } from '~/modules/gloria/model/overview';
 import { CHECKLIST_HEADER, checklistRows, checklistState } from '~/modules/gloria/model/photoChecks';
 import { buildPointHitRows, buildSheetTables, POINT_HITS_HEADER, toCsv } from '~/modules/gloria/export/sheetRows';
 import { H04_TEMPERATURE_LOGGERS, loggerRows, planLoggerFiles, type ExportVisit } from '~/modules/gloria/export/loggerRows';
+import { planFormScans } from '~/modules/gloria/model/formScans';
 import { listLoggers, listVisits, summitCycles } from '~/modules/gloria/loggerDb';
 import { cycleOf, loggerPhotoItem } from '~/modules/gloria/model/loggers';
 
@@ -1162,6 +1163,20 @@ export async function buildGloriaEntries(
       // gone from the device: the 04_ table still names it
     }
   }
+  // Scans of the paper forms 1, 2, 3, 6-S, named by their 01_ identifiers;
+  // with the photos switch like the Form 4 scans.
+  if (opts?.includePhotos) {
+    for (const f of planFormScans(data.summit.full_code, data.survey, data.units)) {
+      const fileUri = await resolveAssetUri(f.uri);
+      if (!fileUri) continue;
+      try {
+        const b64 = await readAsStringAsync(fileUri, { encoding: 'base64' });
+        entries.push({ name: `${base}/forms/${f.name}`, bytes: base64ToBytes(b64) });
+      } catch {
+        // gone from the device: 01_ still names it
+      }
+    }
+  }
   const manifest = buildManifest({
     kind: 'gloria',
     id: surveyId,
@@ -1971,7 +1986,7 @@ function appendSignatureNote(entries: BuiltZipEntry[], orcid: string): void {
         '- `manifest.json` 的 `files` 列出同層每個檔案的 SHA-256，所以一把簽章\n' +
         '  同時涵蓋 yml、CSV、照片與錄音。\n' +
         '- 驗證工具（離線、不需伺服器）：\n' +
-        '  https://github.com/mutolisp/checklister-ng/tree/main/mobile/verify\n' +
+        '  https://github.com/mutolisp/mitalivana/tree/main/mobile/verify\n' +
         '- 通過驗證代表「檔案自匯出後未被更動、由持有該金鑰者簽署」，\n' +
         '  不保證資料內容正確，也不排除 ORCID 帳號遭盜用。\n',
     );

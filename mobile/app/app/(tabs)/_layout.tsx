@@ -14,6 +14,7 @@ import {
   importRecordPromptAndOpen,
   showCreateChooser,
   openNewGloria,
+  openMiren,
   startCollectionAndOpen,
   startSessionAndOpen,
 } from '~/lib/recordCreate';
@@ -37,6 +38,9 @@ async function showLongPressMenu(): Promise<void> {
     [i18n.t('record.kindImport'), () => void importRecordPromptAndOpen()],
     ...(useSettings.getState().module_gloria
       ? ([[i18n.t('record.kindGloria'), openNewGloria]] as Array<[string, () => void]>)
+      : []),
+    ...(useSettings.getState().module_miren
+      ? ([[i18n.t('record.kindMiren'), openMiren]] as Array<[string, () => void]>)
       : []),
     [i18n.t('record.defaultAsk'), () => updateDefault('ask')],
     [i18n.t('record.defaultSession'), () => updateDefault('session')],

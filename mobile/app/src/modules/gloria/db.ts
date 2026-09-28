@@ -33,6 +33,7 @@ import type { SummitDiff } from './model/summitImport';
 import type { GloriaDoc } from './export/yaml';
 import { SPECIES_FIELDS, UNIT_FIELDS, buildGloriaDoc } from './export/yaml';
 import type { GloriaExportData } from './export/sheetRows';
+import type { ScanColumn } from './model/formScans';
 import { importLoggerVisits, listLoggers, visitsOfSurvey } from './loggerDb';
 
 // ── Row types ─────────────────────────────────────────────────────────────
@@ -74,6 +75,11 @@ export type GloriaSurvey = {
   notes: string | null;
   /** JSON [{ uri, viewpoint }]; see model/overview.ts. */
   overview_photos: string | null;
+  /** Scans of the paper forms, JSON FileRef[] each (v69); see model/formScans.ts. */
+  form1_files: string | null;
+  form2_files: string | null;
+  form3_files: string | null;
+  form6s_files: string | null;
   starred: number;
   created_at: number;
   updated_at: number;
@@ -566,7 +572,7 @@ export function setSurveyMocy(id: number, mocy: number): 'ok' | 'taken' | 'inval
   });
 }
 
-type SurveyPatch = Partial<Pick<GloriaSurvey, 'recorded_by' | 'notes' | 'project_id' | 'site_id' | 'starred' | 'year' | 'overview_photos'>> &
+type SurveyPatch = Partial<Pick<GloriaSurvey, 'recorded_by' | 'notes' | 'project_id' | 'site_id' | 'starred' | 'year' | 'overview_photos' | ScanColumn>> &
   Partial<Record<'grid_ok_n' | 'grid_ok_e' | 'grid_ok_s' | 'grid_ok_w', number>>;
 
 export function updateGloriaSurvey(id: number, patch: SurveyPatch): void {
@@ -1317,10 +1323,12 @@ export function importGloriaDoc(doc: GloriaDoc, projectId = 0): GloriaImportResu
     const sv = doc.survey;
     const res = db.executeSync(
       `INSERT INTO gloria_surveys (uuid, summit_id, mocy, year, status, start_ts, stop_ts, recorded_by, prev_survey_id,
-         project_id, grid_ok_n, grid_ok_e, grid_ok_s, grid_ok_w, notes, overview_photos, created_at, updated_at)
-       VALUES (?, ?, ?, ?, 'done', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         project_id, grid_ok_n, grid_ok_e, grid_ok_s, grid_ok_w, notes, overview_photos,
+         form1_files, form2_files, form3_files, form6s_files, created_at, updated_at)
+       VALUES (?, ?, ?, ?, 'done', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [sv.uuid, summitId, sv.mocy, sv.year, sv.start_ts, sv.stop_ts ?? sv.start_ts, sv.recorded_by, prev?.id ?? null,
         projectId, sv.grid_ok?.N ?? 0, sv.grid_ok?.E ?? 0, sv.grid_ok?.S ?? 0, sv.grid_ok?.W ?? 0, sv.notes, sv.overview_photos ?? null,
+        sv.form1_files ?? null, sv.form2_files ?? null, sv.form3_files ?? null, sv.form6s_files ?? null,
         sv.created_at ?? sv.start_ts, sv.updated_at ?? sv.start_ts],
     );
     const surveyId = Number(res.insertId);

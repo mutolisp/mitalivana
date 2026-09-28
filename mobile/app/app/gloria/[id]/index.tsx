@@ -20,6 +20,7 @@ import { useActiveGloria } from '~/modules/gloria/store';
 import { useSurvey, STATUS_COLOR } from '~/modules/gloria/useSurvey';
 import { issueText } from '~/modules/gloria/issues';
 import { QUADRAT_CODES, SAS_CODES, SQUARE_CODES, type Direction } from '~/modules/gloria/model/units';
+import { FormScans } from '~/modules/gloria/components/FormScans';
 import { PointsForm } from '~/modules/gloria/components/PointsForm';
 import { SummitForm } from '~/modules/gloria/components/SummitForm';
 import { SurveyDates } from '~/modules/gloria/components/SurveyDates';
@@ -193,6 +194,7 @@ export default function GloriaSurveyScreen() {
               className="min-h-[96px] rounded-lg border border-gray-300 bg-white p-2.5 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
               style={{ textAlignVertical: 'top' }}
             />
+            <FormScans state={state} reload={reload} form="1" />
           </>
         ) : null}
 
@@ -244,6 +246,9 @@ export default function GloriaSurveyScreen() {
             {unitList(t('gloria.list.quadrats'), QUADRAT_CODES, 'required')}
             {unitList(t('gloria.list.sas'), SAS_CODES, 'required')}
             {unitList(t('gloria.list.squares'), SQUARE_CODES, 'optional')}
+            <FormScans state={state} reload={reload} form="2" />
+            <FormScans state={state} reload={reload} form="3" />
+            <FormScans state={state} reload={reload} form="6S" />
           </>
         ) : null}
 

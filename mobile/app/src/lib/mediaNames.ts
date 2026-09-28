@@ -49,6 +49,13 @@ export const MEDIA_COLUMNS: ReadonlyArray<readonly [table: string, column: strin
   ['gloria_loggers', 'photo_closed_uri'],
   ['gloria_loggers', 'data_files'],
   ['gloria_logger_visits', 'form4_files'],
+  // Scans of the paper forms 1, 2, 3, 6-S (v69).
+  ['gloria_surveys', 'form1_files'],
+  ['gloria_surveys', 'form2_files'],
+  ['gloria_surveys', 'form3_files'],
+  ['gloria_surveys', 'form6s_files'],
+  // MIREN (v68): plot photos.
+  ['miren_plots', 'photo_paths'],
 ];
 
 /** Media-looking column names that hold no file reference, and why. */
@@ -58,4 +65,5 @@ export const NOT_MEDIA: Readonly<Record<string, string>> = {
   'collection_specimens.inat_media_done': 'iNat upload progress counter',
   'gloria_loggers.photo_open': 'Form 4 photo check tick (1 / null); the photo is photo_open_uri',
   'gloria_loggers.photo_closed': 'Form 4 photo check tick (1 / null); the photo is photo_closed_uri',
+  'miren_sites.photo_point': 'where the repeat photo is taken from (coordinates), not a photo',
 };

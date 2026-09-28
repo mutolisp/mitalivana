@@ -487,9 +487,14 @@ export default function FrequencyScreen() {
           ) : null}
           <Text className="text-center text-xs font-semibold text-[#00797b] dark:text-cyan-300">{t('gloria.freq.uphill')}</Text>
         </View>
-        <View className="flex-row items-center">
+        {/* The whole block (side labels, row labels, grid) is centred; the grid's
+            size comes from the row's width: 2 × 20 side labels + 22 row labels. */}
+        <View
+          className="flex-row items-center justify-center"
+          onLayout={(e) => setSize(Math.max(0, Math.min(Math.floor(e.nativeEvent.layout.width) - 62, 360)))}
+        >
           <Text className="w-5 text-center text-[11px] font-bold text-gray-700 dark:text-gray-200" style={{ transform: [{ rotate: '-90deg' }] }}>{leftSide}</Text>
-          <View className="flex-1">
+          <View style={{ width: size + 22 }}>
             <View className="flex-row" style={{ marginLeft: 22 }}>
               {Array.from({ length: QUADRAT_N }, (_, c) => (
                 <Text key={c} style={{ width: cellPx }} className="text-center text-[10px] font-semibold text-gray-700 dark:text-gray-200">{`C${c + 1}`}</Text>
@@ -501,11 +506,11 @@ export default function FrequencyScreen() {
                   <Text key={r} style={{ height: cellPx, lineHeight: cellPx }} className="text-[10px] font-semibold text-gray-700 dark:text-gray-200">{`R${r + 1}`}</Text>
                 ))}
               </View>
+              {/* Drawn at an exact pixel size: percentage cells in a flex-wrap
+                  row under a max-width clamp wrapped at 9 columns on iPad. */}
               <GestureDetector gesture={gesture}>
                 <View
-                  onLayout={(e) => setSize(Math.min(e.nativeEvent.layout.width, 360))}
-                  className="flex-1 flex-row flex-wrap border-2 border-gray-600 dark:border-gray-400"
-                  style={{ aspectRatio: 1, maxWidth: 360 }}
+                  style={{ width: size, height: size }}
                   accessibilityLabel={t('gloria.freq.gridLabel')}
                 >
                   {Array.from({ length: CELLS }, (_, i) => {
@@ -516,8 +521,11 @@ export default function FrequencyScreen() {
                       <View
                         key={i}
                         style={{
-                          width: `${100 / QUADRAT_N}%`,
-                          height: `${100 / QUADRAT_N}%`,
+                          position: 'absolute',
+                          left: (i % QUADRAT_N) * cellPx,
+                          top: Math.floor(i / QUADRAT_N) * cellPx,
+                          width: cellPx,
+                          height: cellPx,
                           backgroundColor: on ? (curTarget?.tone ?? '#00A2A5') : undefined,
                           borderWidth: mode === 'cell' && i === sel ? 2 : 0.5,
                           borderColor: mode === 'cell' && i === sel ? '#d97706' : '#d1d5db',
@@ -540,6 +548,8 @@ export default function FrequencyScreen() {
                       into quarters, the way the field frame is read. */}
                   <View pointerEvents="none" className="absolute bottom-0 top-0 bg-gray-800 dark:bg-gray-200" style={{ left: '50%', width: 2, marginLeft: -1 }} />
                   <View pointerEvents="none" className="absolute left-0 right-0 bg-gray-800 dark:bg-gray-200" style={{ top: '50%', height: 2, marginTop: -1 }} />
+                  {/* Frame drawn over the cells, so it takes no room from them. */}
+                  <View pointerEvents="none" className="absolute inset-0 border-2 border-gray-600 dark:border-gray-400" />
                 </View>
               </GestureDetector>
             </View>

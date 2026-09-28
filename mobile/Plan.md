@@ -14,11 +14,11 @@
 |---|---|
 | `Plan.md`（本檔） | **待辦** ＋ 現行架構與長效設計決策 |
 | `Update_log.md` | 已 ship 與踩過的坑；附錄 A–D 收了本檔原本 4,000 多行的 sprint 推導過程 |
-| `Device_test.md` | 實機驗證清單（782 項，章節與項目有編號如 43-4；通過 23、M 2；互動清單 https://claude.ai/artifact/M6suPJa1FS8ABG7gqmsu1Z ，由 `docs/device-test/build.py` 產生，2026-09-27）。**驗證項不要寫回本檔** |
-| 守門 | `npm run check:*` 共 **46 支**（最新加入 `check:team-crypto`、`check:team-quota`、`check:privacy`） |
+| `Device_test.md` | 實機驗證清單（783 項，章節與項目有編號如 43-4；通過 23、M 2；互動清單 https://claude.ai/artifact/M6suPJa1FS8ABG7gqmsu1Z ，由 `docs/device-test/build.py` 產生，2026-09-27）。**驗證項不要寫回本檔** |
+| 守門 | `npm run check:*` 共 **47 支**（最新加入 `check:miren`） |
 | `docs/` | 仍代表現況的參考文件：檢索表、樣區、匯出外部 API、報表、物種詳細頁、地圖、i18n、多人合併（`Team_merge.md`）、隊伍同步（`Team_sync.md`）；`docs/gloria-ui/` GLORIA 介面草稿（五語） |
 | `sync-worker/` | 隊伍同步中繼伺服器（Cloudflare Worker＋R2）與自架說明（README） |
-| `docs/planned/` | 規劃：AI 辨識、P2P 協作、雲端協作（兩份協作文件的記錄層合併已由 `docs/Team_merge.md` 實作） |
+| `docs/planned/` | 規劃：AI 辨識、P2P 協作、雲端協作、Garmin 手錶快速記錄、MIREN 山區入侵植物調查（兩份協作文件的記錄層合併已由 `docs/Team_merge.md` 實作） |
 | `archive/` | 已完成或被取代的設計稿與一次性稽核 |
 | `PRIVACY.md` / `PRIVACY.en.md` | 隱私政策（v0.2，2026-09-26 加入隊伍同步）；打包進 app 的「設定 → 隱私權政策」，改了要跑 `npm run privacy`（`check:privacy` 會擋） |
 
@@ -28,6 +28,7 @@
 報表 → `docs/Report.md`；物種詳細頁 → `docs/Species_details.md`；i18n → `docs/i18n.md`；
 GLORIA → `~/.claude/plans/gloria-1-gloria-jazzy-lagoon.md`（`docs/gloria.md` 尚未寫，見 G3）；
 GLORIA 介面草稿（五語）→ `docs/gloria-ui/`（原稿、譯文與建置腳本，流程見其 README）；
+MIREN（規劃中）→ `docs/planned/MIREN.md`；
 記錄的完成鎖定與復原／重做 → 本檔 I 節（程式在 `src/lib/useRecordEditing.ts`、`src/db/recordSnapshotCore.ts`）；
 多人調查合併 → `docs/Team_merge.md`（本檔 L 節）；隊伍同步（雲端中繼）→ `docs/Team_sync.md`（本檔 M 節）。
 
@@ -257,6 +258,14 @@ GLORIA 介面草稿（五語）→ `docs/gloria-ui/`（原稿、譯文與建置�
 15. **背景定位** —— `trackRecorder.ts:131` 只有前景 `watchPositionAsync`。野外電力有限，
     先評估是否真的需要。
 16. **AI 物種辨識** —— 前提是使用者自訓 TaiCOL 模型。見 `docs/planned/Vision_model.md`。
+17. **Garmin 手錶快速記錄物種與豐度** —— 設計與實作規劃完成、未動工（2026-09-27），
+    見 `docs/planned/Garmin_watch.md`（記錄法：快速名錄／定點計數；只走藍牙；自寫 Expo 模組）。
+    動工從 §九 階段 0 可行性測試開始（fēnix＋iPhone 實測中文顯示、訊息上限、收訊條件）。
+18. **MIREN 山區入侵植物調查（Road＋Trail）** —— 規劃完成（2026-09-27）；階段 2、3 完成（2026-09-28：v68 schema＋純邏輯＋`check:miren`＋全部畫面與地圖測距，**未實機測試**），
+    見 `docs/planned/MIREN.md`（原文在 `references/MIREN/`；artifact https://claude.ai/artifact/16GnXjrgVoaWkhrFKRSiQe ）。
+    照 GLORIA 另開 sibling 模組（user.db v68）；盲記封存後當場複查、匯出加 `Found after recheck`；
+    物種狀態掛 region（S2 表 B）；地圖分頁加共用測距工具確認「距其他道路 ≥100 m」。
+    trail plot 配置依 Liedtke et al. 2020 釐清（2×50 m 為選做）。下一步：實機測試階段 3、§十一 階段 4（匯出）；階段 3 未做項目見 `MIREN.md` §十一；待確認：官方 trail 範本、S1／S3、臺灣 region 代碼。
 
 ### F. 發布
 
@@ -313,7 +322,7 @@ GLORIA 介面草稿（五語）→ `docs/gloria-ui/`（原稿、譯文與建置�
 - 搜尋預設只找維管束植物（GLORIA 各搜尋框＋調查進行中的分類樹搜尋；可當下改選，不覆寫使用者的設定）
 - 統計報告：單次調查與專案（目標區域、山峰、複查次數、多樣性指數、與前次比較；類型／方位／山峰篩選）；專案統計顯示 GLORIA 筆數與山峰數
 - 山峰清單（偏好設定）：匯入／匯出山峰（00_ 欄位）、匯入量測點（只需點位、距離、方位）、匯出量測點（02_ 欄位），CSV 與 .xlsx
-- 介面草稿 artifact（https://claude.ai/artifact/QCgtqCyBKeKFhizoRVA1Cn ，v74，五語；原稿 `docs/gloria-ui/`）：
+- 介面草稿 artifact（https://claude.ai/artifact/QCgtqCyBKeKFhizoRVA1Cn ，v75，五語；原稿 `docs/gloria-ui/`）：
   01 建立～09 拍照檢核，05b 頻度點擊法；完成時的結束時間選擇、物種編號與拖拉、頻度接續優勢度都已反映；app 介面改動時同步更新
 
 待辦：
@@ -329,7 +338,7 @@ GLORIA 介面草稿（五語）→ `docs/gloria-ui/`（原稿、譯文與建置�
    app 只替 app 內的照片命名。之後可評估「匯入照片並依檢核項目自動命名」。
 7a. **SAS 等級換算為暫定慣例** —— d→4、c→3、s→2、r→1、r!→r（2026-09-26 指定）；若日後有團隊定案或文獻依據，改 `stats.ts GLORIA_TO_BB` 並更新報告方法段。
 7. **待確認** —— 截圖 4b 物種總表的 FRE 欄、Survey Type `CAL` 的意思（未確認前不做）。
-8. **MIREN** —— 本機沒有 protocol 原文，不做任何設計；拿到原文後照 GLORIA 模式另開 sibling 模組。
+8. **MIREN** —— 已取得 protocol 原文並完成規劃（2026-09-27），移到 E18，見 `docs/planned/MIREN.md`。
 9. **實機驗證** —— 已通過的在 `Device_test.md` 打 x；未確認的重點：頻度手勢、下拉選單在 iOS／Android 的顯示、
    iOS 日期／時間轉輪、拍照檢核在 375 pt 寬的排版、物種拖拉（巢狀在捲動區內）、結束時間選單接在 Alert 之後是否會被吞掉。
 10. **拖拉中的即時編號** —— 目前放開後才重新編號；若實測覺得需要，可用 `onPlaceholderIndexChange` 在拖曳中預覽。

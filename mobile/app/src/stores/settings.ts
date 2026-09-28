@@ -200,6 +200,9 @@ type SettingsValues = {
   /** GLORIA summit-monitoring module: shows "New GLORIA survey" in the create
    *  menus. Existing GLORIA records stay visible either way. */
   module_gloria: boolean;
+  /** MIREN road / trail survey module: shows "MIREN survey" in the create
+   *  menus and the region list in settings. Existing records stay visible. */
+  module_miren: boolean;
   /** Direction for `last_record_sort`. Observed defaults to 'desc' (latest
    *  on top); other sorts default to 'asc'. Tapping the same sort option a
    *  second time flips this. */
@@ -326,6 +329,7 @@ const DEFAULTS: SettingsValues = {
   record_gps_plot: true,
   search_usage_rank: true,
   module_gloria: false,
+  module_miren: false,
   last_record_sort_dir: 'desc',
   taxonomy_expanded: [],
   records_collapsed: [],
@@ -472,6 +476,7 @@ function readAll(): SettingsValues {
         ? DEFAULTS.search_usage_rank
         : map.get('search_usage_rank') === 'true',
     module_gloria: map.get('module_gloria') === 'true',
+    module_miren: map.get('module_miren') === 'true',
     last_record_sort_dir:
       (map.get('last_record_sort_dir') as SortDirection) ?? DEFAULTS.last_record_sort_dir,
     taxonomy_expanded: taxonomyExpanded,

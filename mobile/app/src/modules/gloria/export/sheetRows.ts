@@ -17,6 +17,7 @@ import { POINTS, pointNumberOf, type Direction, type P5mCorner } from '../model/
 import { speciesCoverSum, vascularCoverOk, type TopCover } from '../model/validate';
 import { linePoint, walkOrder, type WalkOption } from '../model/walk';
 import { bySpeciesOrder } from '../model/speciesOrder';
+import { formScanIds, type ScanColumn } from '../model/formScans';
 import {
   DISTURBANCES,
   H00_PLOT_COORDINATES,
@@ -55,7 +56,7 @@ export type ExportSurvey = {
   stop_ts: number | null;
   recorded_by: string | null;
   notes: string | null;
-};
+} & Partial<Record<ScanColumn, string | null>>;
 
 export type ExportPoint = {
   point_key: string;
@@ -261,10 +262,13 @@ export function buildSheetTables(d: GloriaExportData): SheetTable[] {
   // degree-minute Longitude / Latitude columns empty.
   const t00: string[][] = [summitRow(sm)];
 
-  // 01_summits_survey_info — scanned-form identifiers are left for the office.
+  // 01_summits_survey_info — a form's identifier when the app holds its
+  // scan; the others are left for the office.
+  const scanIds = formScanIds(sm.full_code, sv, d.units);
   const t01: string[][] = [
     [String(m), String(sv.year ?? new Date(sv.start_ts).getFullYear()), sm.target_region, sm.summit,
-      localDate(sv.start_ts), localDate(sv.stop_ts), '', temperatureLoggersId(m, sm, d.visits ?? []), '', '', '', sv.notes ?? '', ''],
+      localDate(sv.start_ts), localDate(sv.stop_ts), scanIds['1'] ?? '', temperatureLoggersId(m, sm, d.visits ?? []),
+      scanIds['2'] ?? '', scanIds['3'] ?? '', scanIds['6S'] ?? '', sv.notes ?? '', ''],
   ];
 
   // 02_p5_p10m_direction

@@ -45,6 +45,8 @@ import { useToast } from '~/stores/toast';
 import { useActivePlot } from '~/stores/activePlot';
 import { useActiveSession } from '~/stores/activeSession';
 import { useActiveGloria } from '~/modules/gloria/store';
+import { useActiveMiren } from '~/modules/miren/store';
+import { createMirenSurvey, endMirenSurvey } from '~/modules/miren/db';
 import { useSettings } from '~/stores/settings';
 import { createGloriaSurvey, endGloriaSurvey, getGloriaSurvey, gloriaSurveyUuidExists, importGloriaDoc } from '~/modules/gloria/db';
 import { validateGloriaDoc, type GloriaDoc } from '~/modules/gloria/export/yaml';
@@ -60,7 +62,7 @@ import { usePendingMerge } from '~/lib/teamMergeFlow';
 import type { ImportedPhotoBlob } from '~/lib/recordImportZip';
 import { findGloriaSurveyFor, localGloriaDoc } from '~/modules/gloria/merge';
 
-type NewRecordKind = 'session' | 'plot' | 'gloria';
+type NewRecordKind = 'session' | 'plot' | 'gloria' | 'miren';
 
 type ActiveConflict = {
   kind: NewRecordKind;
@@ -75,6 +77,18 @@ type ActiveConflict = {
  * both somehow coexist (it's the heavier-weight record).
  */
 function findActiveConflict(): ActiveConflict | null {
+  const miren = useActiveMiren.getState().survey;
+  if (miren) {
+    return {
+      kind: 'miren',
+      label: `MIREN ${miren.year}`,
+      href: `/miren/survey/${miren.id}` as Href,
+      end: () => {
+        endMirenSurvey(miren.id);
+        useActiveMiren.getState().refresh();
+      },
+    };
+  }
   const gloria = useActiveGloria.getState().survey;
   if (gloria) {
     return {
@@ -117,7 +131,7 @@ function findActiveConflict(): ActiveConflict | null {
 }
 
 function nounOf(k: NewRecordKind): string {
-  return i18n.t(k === 'session' ? 'nav.session' : k === 'plot' ? 'nav.plot' : 'nav.gloria');
+  return i18n.t(k === 'session' ? 'nav.session' : k === 'plot' ? 'nav.plot' : k === 'gloria' ? 'nav.gloria' : 'nav.miren');
 }
 
 /**
@@ -158,6 +172,7 @@ async function ensureNoConflictingActive(wanted: NewRecordKind): Promise<boolean
   useActiveSession.getState().refresh();
   useActivePlot.getState().refresh();
   useActiveGloria.getState().refresh();
+  useActiveMiren.getState().refresh();
 
   const conflict = findActiveConflict();
   if (!conflict) return true;
@@ -219,6 +234,32 @@ export async function startGloriaAndOpen(summitId: number, recordedBy?: string |
   useActivePlot.getState().refresh();
   useActiveSession.getState().refresh();
   router.replace(`/gloria/${id}` as Href);
+}
+
+/**
+ * Start a MIREN route's survey for a year and open it. Same single-active
+ * guard as the other kinds. Returns the refusal when the survey could not be
+ * created (year taken, no sites), for the caller to explain.
+ */
+export async function startMirenAndOpen(
+  routeId: number,
+  year: number,
+): Promise<'ok' | 'cancelled' | 'taken' | 'no-sites' | 'invalid'> {
+  const ok = await ensureNoConflictingActive('miren');
+  if (!ok) return 'cancelled';
+  const r = createMirenSurvey({ routeId, year });
+  if (!r.ok) return r.error;
+  useActiveMiren.getState().refresh();
+  useActiveGloria.getState().refresh();
+  useActivePlot.getState().refresh();
+  useActiveSession.getState().refresh();
+  router.replace(`/miren/survey/${r.id}` as Href);
+  return 'ok';
+}
+
+/** The MIREN region list; surveys are started from a route there. */
+export function openMiren(): void {
+  router.push('/miren' as Href);
 }
 
 /**
@@ -775,6 +816,7 @@ export async function duplicateRecordAndOpen(
  *  ＋ button and the records tab's empty state. */
 export async function showCreateChooser(): Promise<void> {
   const gloria = useSettings.getState().module_gloria;
+  const miren = useSettings.getState().module_miren;
   const idx = await showActionSheet({
     title: i18n.t('record.createChooserTitle'),
     options: [
@@ -785,6 +827,7 @@ export async function showCreateChooser(): Promise<void> {
       // the file decides which kind it becomes.
       { label: i18n.t('record.kindImport') },
       ...(gloria ? [{ label: i18n.t('record.kindGloria') }] : []),
+      ...(miren ? [{ label: i18n.t('record.kindMiren') }] : []),
     ],
   });
   if (idx === 0) startSessionAndOpen();
@@ -792,6 +835,7 @@ export async function showCreateChooser(): Promise<void> {
   else if (idx === 2) startCollectionAndOpen();
   else if (idx === 3) importRecordPromptAndOpen();
   else if (idx === 4 && gloria) openNewGloria();
+  else if (idx === (gloria ? 5 : 4) && miren) openMiren();
 }
 
 /** The summit chooser; the survey itself is created from there (startGloriaAndOpen). */

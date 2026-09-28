@@ -134,6 +134,14 @@ function ThemedShell() {
             <Stack.Screen name="gloria/summit/[id]" options={{ title: '' }} />
             <Stack.Screen name="gloria/logger/[visitId]" options={{ title: t('gloria.tab.loggers') }} />
             <Stack.Screen name="gloria/[id]/points-import" options={{ title: t('gloria.pointImport.reviewTitle') }} />
+            <Stack.Screen name="miren/index" options={{ title: t('miren.regions.title') }} />
+            <Stack.Screen name="miren/region/[id]" options={{ title: '' }} />
+            <Stack.Screen name="miren/route/[id]/index" options={{ title: '' }} />
+            <Stack.Screen name="miren/route/[id]/plan" options={{ title: t('miren.plan.title') }} />
+            <Stack.Screen name="miren/site/[id]" options={{ title: '' }} />
+            <Stack.Screen name="miren/survey/[id]" options={{ title: '' }} />
+            <Stack.Screen name="miren/plot/[id]/index" options={{ title: '' }} />
+            <Stack.Screen name="miren/plot/[id]/recheck" options={{ title: t('miren.recheck.title') }} />
             <Stack.Screen name="settings/collection" options={{ title: t('settings.sectionCollection') }} />
             <Stack.Screen name="settings/export" options={{ title: t('exportPref.title') }} />
             <Stack.Screen name="settings/provenance" options={{ title: t('nav.provenance') }} />

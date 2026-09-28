@@ -1989,6 +1989,255 @@ const MIGRATIONS: Migration[] = [
       db.executeSync(`CREATE INDEX IF NOT EXISTS idx_merge_log_record ON merge_log(record_kind, record_uuid, merged_at);`);
     },
   },
+  {
+    // MIREN road / trail surveys (src/modules/miren; design in
+    // docs/planned/MIREN.md). Reference data — regions, routes, sites and
+    // the region's native/alien table (S2 table B) — is shared across
+    // years, like gloria_summits. One survey = one route in one year; it owns
+    // its plots (site × plot number × visit), its roster and its rechecks,
+    // so a survey exports and merges on its own.
+    //
+    // Cover and abundance are stored as class numbers; which scale applies
+    // follows from route kind + plot number (model/scales.ts). Road tree
+    // cover / bare ground / litter are percentages (project decision
+    // 2026-09-27); the trail plot covers are classes 0–8 as the trail
+    // protocol asks. Field dates are ISO 8601 text; bookkeeping times are
+    // epoch ms like every other table, written out as ISO 8601 on export.
+    //
+    // Blind recording and recheck: `blind_closed_at` seals the blind list,
+    // `compared_at` finishes the plot; `miren_plot_species.phase` tells a
+    // species found in the recheck ('recheck') from a blind one.
+    //
+    // `status` takes part in the app-wide single-active invariant.
+    version: 68,
+    up: (db) => {
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS miren_regions (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          uuid TEXT NOT NULL UNIQUE,
+          code_road TEXT UNIQUE CHECK (code_road IS NULL OR length(code_road) = 3),
+          code_trail TEXT UNIQUE CHECK (code_trail IS NULL OR length(code_trail) = 2),
+          name TEXT,
+          country TEXT,
+          default_literature TEXT,
+          regional_description TEXT,
+          notes TEXT,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          CHECK (code_road IS NOT NULL OR code_trail IS NOT NULL)
+        );
+      `);
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS miren_region_status (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          region_id INTEGER NOT NULL,
+          taxon_id TEXT NOT NULL,
+          verbatim_identification TEXT,
+          status TEXT NOT NULL DEFAULT 'unknown' CHECK (status IN ('native', 'alien', 'unknown')),
+          status_source TEXT,
+          comments TEXT,
+          updated_at INTEGER NOT NULL,
+          FOREIGN KEY (region_id) REFERENCES miren_regions(id) ON DELETE CASCADE
+        );
+      `);
+      db.executeSync(
+        `CREATE UNIQUE INDEX IF NOT EXISTS idx_mstatus_taxon ON miren_region_status(region_id, taxon_id, IFNULL(verbatim_identification, ''));`,
+      );
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS miren_routes (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          uuid TEXT NOT NULL UNIQUE,
+          region_id INTEGER NOT NULL,
+          kind TEXT NOT NULL CHECK (kind IN ('road', 'trail')),
+          code TEXT NOT NULL CHECK (length(code) = 2),
+          name TEXT,
+          traffic_intensity INTEGER CHECK (traffic_intensity IS NULL OR traffic_intensity BETWEEN 1 AND 3),
+          road_open_months INTEGER CHECK (road_open_months IS NULL OR road_open_months BETWEEN 0 AND 12),
+          road_type TEXT,
+          length_m REAL,
+          category TEXT CHECK (category IS NULL OR category IN ('formal', 'informal')),
+          substrate TEXT,
+          activities TEXT,
+          history TEXT,
+          width_m REAL,
+          track_geojson TEXT,
+          focal_points_geojson TEXT,
+          notes TEXT,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          FOREIGN KEY (region_id) REFERENCES miren_regions(id) ON DELETE CASCADE,
+          UNIQUE (region_id, kind, code)
+        );
+      `);
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS miren_sites (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          uuid TEXT NOT NULL UNIQUE,
+          route_id INTEGER NOT NULL,
+          site_no INTEGER NOT NULL CHECK (site_no BETWEEN 1 AND 99),
+          suffix TEXT NOT NULL DEFAULT '' CHECK (suffix IN ('', 'a')),
+          planned_lat REAL,
+          planned_lon REAL,
+          planned_elev REAL,
+          side TEXT CHECK (side IS NULL OR side IN ('left', 'right')),
+          marker_note TEXT,
+          photo_point TEXT,
+          road_clearance_m REAL,
+          clearance_checked_at INTEGER,
+          mountain_zone TEXT CHECK (mountain_zone IS NULL OR mountain_zone IN ('lowland', 'montane', 'alpine', 'nival')),
+          verge_width_m REAL,
+          herbivores TEXT,
+          dist_trailhead_along_m REAL,
+          dist_trailhead_direct_m REAL,
+          notes TEXT,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          FOREIGN KEY (route_id) REFERENCES miren_routes(id) ON DELETE CASCADE,
+          UNIQUE (route_id, site_no, suffix)
+        );
+      `);
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS miren_surveys (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          uuid TEXT NOT NULL UNIQUE,
+          route_id INTEGER NOT NULL,
+          year INTEGER NOT NULL,
+          status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'done')),
+          start_ts INTEGER NOT NULL,
+          stop_ts INTEGER,
+          recorded_by TEXT,
+          prev_survey_id INTEGER,
+          project_id INTEGER NOT NULL DEFAULT 0,
+          site_id INTEGER,
+          literature TEXT,
+          notes TEXT,
+          starred INTEGER NOT NULL DEFAULT 0,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          FOREIGN KEY (route_id) REFERENCES miren_routes(id),
+          FOREIGN KEY (prev_survey_id) REFERENCES miren_surveys(id) ON DELETE SET NULL,
+          FOREIGN KEY (project_id) REFERENCES projects(id),
+          UNIQUE (route_id, year)
+        );
+      `);
+      db.executeSync(`CREATE INDEX IF NOT EXISTS idx_msurv_start ON miren_surveys(start_ts DESC);`);
+      db.executeSync(
+        `CREATE INDEX IF NOT EXISTS idx_msurv_active ON miren_surveys(status) WHERE status = 'active';`,
+      );
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS miren_plots (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          uuid TEXT NOT NULL UNIQUE,
+          survey_id INTEGER NOT NULL,
+          site_id INTEGER NOT NULL,
+          plot_no INTEGER NOT NULL CHECK (plot_no BETWEEN 1 AND 4),
+          visit INTEGER NOT NULL DEFAULT 1 CHECK (visit BETWEEN 1 AND 3),
+          sampled INTEGER NOT NULL DEFAULT 1 CHECK (sampled IN (0, 1)),
+          not_sampled_reason TEXT,
+          lat REAL,
+          lon REAL,
+          elev REAL,
+          date TEXT CHECK (date IS NULL OR date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+          observers TEXT,
+          start_ts INTEGER,
+          stop_ts INTEGER,
+          tree_cover_pct REAL CHECK (tree_cover_pct IS NULL OR (tree_cover_pct >= 0 AND tree_cover_pct <= 100)),
+          bare_ground_pct REAL CHECK (bare_ground_pct IS NULL OR (bare_ground_pct >= 0 AND bare_ground_pct <= 100)),
+          litter_pct REAL CHECK (litter_pct IS NULL OR (litter_pct >= 0 AND litter_pct <= 100)),
+          additional_data TEXT CHECK (additional_data IS NULL OR length(additional_data) <= 50),
+          protected_area INTEGER CHECK (protected_area IS NULL OR protected_area IN (0, 1)),
+          literature TEXT,
+          habitat TEXT CHECK (habitat IS NULL OR habitat IN ('forb-grass', 'shrubland', 'open-forest', 'closed-forest', 'bare-rock', 'riparian-wetland')),
+          disturbance_type TEXT CHECK (disturbance_type IS NULL OR disturbance_type IN ('none', 'human', 'animal', 'environmental')),
+          disturbance_intensity INTEGER CHECK (disturbance_intensity IS NULL OR disturbance_intensity BETWEEN 0 AND 2),
+          cls_bare_ground INTEGER CHECK (cls_bare_ground IS NULL OR cls_bare_ground BETWEEN 0 AND 8),
+          cls_bare_rock INTEGER CHECK (cls_bare_rock IS NULL OR cls_bare_rock BETWEEN 0 AND 8),
+          cls_vegetation INTEGER CHECK (cls_vegetation IS NULL OR cls_vegetation BETWEEN 0 AND 8),
+          cls_canopy INTEGER CHECK (cls_canopy IS NULL OR cls_canopy BETWEEN 0 AND 8),
+          cls_shrub INTEGER CHECK (cls_shrub IS NULL OR cls_shrub BETWEEN 0 AND 8),
+          cls_herb INTEGER CHECK (cls_herb IS NULL OR cls_herb BETWEEN 0 AND 8),
+          riparian INTEGER CHECK (riparian IS NULL OR riparian IN (0, 1)),
+          fenced INTEGER CHECK (fenced IS NULL OR fenced IN (0, 1)),
+          herbivore_rating INTEGER CHECK (herbivore_rating IS NULL OR herbivore_rating BETWEEN 0 AND 8),
+          herbivore_type TEXT CHECK (herbivore_type IS NULL OR herbivore_type IN ('i', 'v', 'b')),
+          trampling_rating INTEGER CHECK (trampling_rating IS NULL OR trampling_rating BETWEEN 0 AND 8),
+          trampling_type TEXT,
+          comments TEXT,
+          blind_closed_at INTEGER,
+          compared_at INTEGER,
+          photo_paths TEXT,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          FOREIGN KEY (survey_id) REFERENCES miren_surveys(id) ON DELETE CASCADE,
+          FOREIGN KEY (site_id) REFERENCES miren_sites(id),
+          UNIQUE (survey_id, site_id, plot_no, visit)
+        );
+      `);
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS miren_taxa (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          survey_id INTEGER NOT NULL,
+          taxon_id TEXT NOT NULL,
+          used_name_id INTEGER,
+          used_scientific_name TEXT,
+          verbatim_identification TEXT,
+          created_at INTEGER NOT NULL,
+          FOREIGN KEY (survey_id) REFERENCES miren_surveys(id) ON DELETE CASCADE
+        );
+      `);
+      db.executeSync(`CREATE INDEX IF NOT EXISTS idx_mtaxa_taxon ON miren_taxa(taxon_id);`);
+      db.executeSync(
+        `CREATE UNIQUE INDEX IF NOT EXISTS idx_mtaxa_label ON miren_taxa(survey_id, taxon_id, IFNULL(verbatim_identification, ''));`,
+      );
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS miren_plot_species (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          plot_id INTEGER NOT NULL,
+          miren_taxon_id INTEGER NOT NULL,
+          occurrence_id TEXT NOT NULL UNIQUE,
+          cover_class INTEGER CHECK (cover_class IS NULL OR cover_class BETWEEN 0 AND 8),
+          abundance_class INTEGER CHECK (abundance_class IS NULL OR abundance_class BETWEEN 0 AND 3),
+          presence INTEGER CHECK (presence IS NULL OR presence IN (0, 1)),
+          phase TEXT NOT NULL DEFAULT 'blind' CHECK (phase IN ('blind', 'recheck')),
+          note TEXT,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          FOREIGN KEY (plot_id) REFERENCES miren_plots(id) ON DELETE CASCADE,
+          FOREIGN KEY (miren_taxon_id) REFERENCES miren_taxa(id) ON DELETE CASCADE,
+          UNIQUE (plot_id, miren_taxon_id)
+        );
+      `);
+      db.executeSync(`CREATE INDEX IF NOT EXISTS idx_mps_taxon ON miren_plot_species(miren_taxon_id);`);
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS miren_rechecks (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          uuid TEXT NOT NULL UNIQUE,
+          plot_id INTEGER NOT NULL,
+          prev_taxon_id TEXT NOT NULL,
+          prev_verbatim_identification TEXT,
+          outcome TEXT NOT NULL CHECK (outcome IN ('found', 'not_found', 'reidentified')),
+          new_miren_taxon_id INTEGER,
+          checked_at INTEGER NOT NULL,
+          FOREIGN KEY (plot_id) REFERENCES miren_plots(id) ON DELETE CASCADE,
+          FOREIGN KEY (new_miren_taxon_id) REFERENCES miren_taxa(id) ON DELETE SET NULL
+        );
+      `);
+      db.executeSync(
+        `CREATE UNIQUE INDEX IF NOT EXISTS idx_mrecheck_taxon ON miren_rechecks(plot_id, prev_taxon_id, IFNULL(prev_verbatim_identification, ''));`,
+      );
+    },
+  },
+  {
+    // Scans of the paper GLORIA forms kept with the survey (model/formScans):
+    // Form 1, Form 2 (1-m² quadrat), Form 3 (SAS), Form 6-S (10 × 10 m). Each
+    // is a JSON FileRef[] like gloria_logger_visits.form4_files — files in
+    // Documents/files/ or photo-library references; not merged, like all media.
+    version: 69,
+    up: (db) => {
+      for (const c of ['form1_files', 'form2_files', 'form3_files', 'form6s_files'])
+        addColumnIfMissing(db, `ALTER TABLE gloria_surveys ADD COLUMN ${c} TEXT;`);
+    },
+  },
 ];
 
 /** Highest schema version this build knows how to produce. Backup/restore uses

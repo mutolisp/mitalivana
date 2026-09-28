@@ -11,6 +11,7 @@
  *   - morphospecies labels (sp1, sp2): next label, relabel plan, sheet comments
  *   - survey dates ↔ unit dates: span, clock times kept, fill only empty units
  *   - temperature loggers: cycle by date, carry-forward, letters, codes, positions
+ *   - form scans (1, 2, 3, 6-S): 01_ identifiers, method start dates, zip names
  *
  * Run: npm run check:gloria
  */
@@ -38,6 +39,7 @@ import { pointKeyOf, tableToPoints, rowsBySummitCycle, diffPoints } from '../src
 import { strToU8, zipSync } from 'fflate';
 import { element8, parseOverviewPhotos } from '../src/modules/gloria/model/overview.ts';
 import { bySpeciesOrder } from '../src/modules/gloria/model/speciesOrder.ts';
+import { formScanIds, planFormScans } from '../src/modules/gloria/model/formScans.ts';
 import { followCoverTimes, nextMinute } from '../src/modules/gloria/model/quadratTimes.ts';
 import { nextMorphoLabel, planNewMorpho } from '../src/modules/gloria/model/morpho.ts';
 import { unitTimeSpan, surveyDatesFromUnits, planUnitDates, takesRealStart } from '../src/modules/gloria/model/surveyDates.ts';
@@ -701,6 +703,36 @@ eq('SAS abundance codes (sheet 33_)', SAS_ABUNDANCE_CODE, { d: 1, c: 2, s: 3, r:
     [['form4', 'mocy4_TW-SAC-JIA_1_temperature-logger_20260805.pdf'], ['form4', 'mocy4_TW-SAC-JIA_1_temperature-logger_20260805-2.jpg'], ['data', 'TW_SAC_JIA_E22c_2026_22237134_E22c_2028.csv']]);
   const named = planPhotoNames({ mocy: 4, country: 'TW', region: 'SAC', summit: 'JIA', date: '20260804', p5m: {}, points: [], units: [], loggers: [{ uri: 'u1', item: 'LOG-E22c', note: 'open', date: '20280712' }] });
   eq('logger photo: Annex III name with LOG- item, visit date and open/closed', named[0].name, '04_TW_SAC_JIA_LOG-E22c_20280712_00001_open.jpg');
+}
+
+// ── form scans (Form 1, 2, 3, 6-S; model/formScans) ─────────────────────────
+{
+  const at = (m, dd, h = 12) => new Date(2026, m - 1, dd, h).getTime();
+  const files = (...names) => JSON.stringify(names.map((name, i) => ({ uri: `file:///x/files/${i}`, name, size: null })));
+  const sv = {
+    uuid: 's', mocy: 4, year: 2026, start_ts: at(8, 4), stop_ts: null, recorded_by: null, notes: null,
+    form1_files: files('a.pdf'), form2_files: files('p1.JPG', 'p2.png', 'noext'), form3_files: files('sas.pdf'), form6s_files: null,
+  };
+  const units = [
+    { unit_type: 'quadrat', start_ts: at(8, 6, 9) }, { unit_type: 'quadrat', start_ts: at(8, 5, 15) }, { unit_type: 'quadrat', start_ts: null },
+    { unit_type: 'square', start_ts: at(8, 7) },
+  ];
+  // SAS has no started unit: its date falls back to the survey start.
+  eq('01_ identifiers: sheet slots 0/2/3, earliest start of the method, forms without a scan absent',
+    formScanIds('TW-SAC-JIA', sv, units),
+    { 1: 'mocy4_TW-SAC-JIA_0_summit-overview_20260804', 2: 'mocy4_TW-SAC-JIA_2_1x1_20260805', 3: 'mocy4_TW-SAC-JIA_3_SAS_20260804' });
+  eq('01_ 10x10 slot 4 once a Form 6-S scan exists',
+    formScanIds('TW-SAC-JIA', { ...sv, form6s_files: files('s.pdf') }, units)['6S'], 'mocy4_TW-SAC-JIA_4_10x10_20260807');
+  eq('zip names: identifier, -2 -3 for later files, the file\'s own extension (jpg when none)',
+    planFormScans('TW-SAC-JIA', sv, units).map((f) => f.name),
+    ['mocy4_TW-SAC-JIA_0_summit-overview_20260804.pdf', 'mocy4_TW-SAC-JIA_2_1x1_20260805.jpg', 'mocy4_TW-SAC-JIA_2_1x1_20260805-2.png',
+      'mocy4_TW-SAC-JIA_2_1x1_20260805-3.jpg', 'mocy4_TW-SAC-JIA_3_SAS_20260804.pdf']);
+  const t01 = buildSheetTables({ summit: { full_code: 'TW-SAC-JIA', country: 'TW', target_region: 'SAC', summit: 'JIA' }, survey: sv, points: [], units: [], species: [] })
+    .find((x) => x.name.startsWith('01'));
+  const c01 = (h) => t01.rows[0][t01.header.indexOf(h)];
+  eq('01_ row: identifiers land in summitOverview / vegdata_*, a form without a scan stays blank',
+    ['summitOverview', 'vegdata_1x1_form', 'vegdata_sas', 'vegdata_10x10'].map(c01),
+    ['mocy4_TW-SAC-JIA_0_summit-overview_20260804', 'mocy4_TW-SAC-JIA_2_1x1_20260804', 'mocy4_TW-SAC-JIA_3_SAS_20260804', '']);
 }
 
 if (failures) {

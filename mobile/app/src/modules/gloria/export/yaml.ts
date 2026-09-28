@@ -39,6 +39,11 @@ export type GloriaDoc = {
     notes: string | null;
     /** JSON [{ uri, viewpoint }] — summit overview photos (Annex III SU-OV). */
     overview_photos?: string | null;
+    /** JSON FileRef[] — scans of the paper forms (v69, model/formScans). */
+    form1_files?: string | null;
+    form2_files?: string | null;
+    form3_files?: string | null;
+    form6s_files?: string | null;
     created_at: number;
     updated_at: number;
   };
@@ -186,6 +191,10 @@ export function buildGloriaDoc(i: GloriaDocInput): GloriaDoc {
       },
       notes: (sv.notes as string | null) ?? null,
       overview_photos: (sv.overview_photos as string | null) ?? null,
+      form1_files: (sv.form1_files as string | null) ?? null,
+      form2_files: (sv.form2_files as string | null) ?? null,
+      form3_files: (sv.form3_files as string | null) ?? null,
+      form6s_files: (sv.form6s_files as string | null) ?? null,
       created_at: sv.created_at as number,
       updated_at: sv.updated_at as number,
     },

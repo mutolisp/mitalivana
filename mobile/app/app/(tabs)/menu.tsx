@@ -59,6 +59,7 @@ export default function MenuScreen() {
   const gpsPlot = useSettings((s) => s.record_gps_plot);
   const usageRank = useSettings((s) => s.search_usage_rank);
   const moduleGloria = useSettings((s) => s.module_gloria);
+  const moduleMiren = useSettings((s) => s.module_miren);
   const fabSide = useSettings((s) => s.fab_side);
   const inatLogin = useSettings((s) => s.inat_login);
   const vectorReady = useVectorInstall((x) => x.ready);
@@ -267,6 +268,19 @@ export default function MenuScreen() {
             label={t('gloria.summitImport.listTitle')}
             description={t('gloria.summitImport.listDesc')}
             onPress={() => router.push('/gloria/summits' as Href)}
+          />
+        ) : null}
+        <SwitchRow
+          label={t('settings.moduleMiren')}
+          description={t('settings.moduleMirenDesc')}
+          value={moduleMiren}
+          onChange={(v) => setSetting('module_miren', v)}
+        />
+        {moduleMiren ? (
+          <LinkRow
+            label={t('miren.regions.title')}
+            description={t('miren.regions.desc')}
+            onPress={() => router.push('/miren' as Href)}
           />
         ) : null}
         <LinkRow

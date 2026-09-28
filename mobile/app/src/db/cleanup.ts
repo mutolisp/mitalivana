@@ -72,6 +72,22 @@ export function enforceSingleActiveOnStartup(): void {
     [now, now],
   );
 
+  // ── Step 1d: keep latest active MIREN survey ───────────────────────────
+  db.executeSync(
+    `UPDATE miren_surveys
+        SET status = 'done',
+            stop_ts = COALESCE(stop_ts, ?),
+            updated_at = ?
+      WHERE status = 'active'
+        AND id NOT IN (
+          SELECT id FROM miren_surveys
+           WHERE status = 'active'
+           ORDER BY start_ts DESC
+           LIMIT 1
+        )`,
+    [now, now],
+  );
+
   // ── Step 2: cross-kind exclusion — the most recently started survives ──
   const candidates: Array<{ kind: ActiveKind; id: number; ts: number }> = [];
   const sessRow = db.executeSync(
@@ -86,6 +102,10 @@ export function enforceSingleActiveOnStartup(): void {
     `SELECT id, start_ts AS ts FROM gloria_surveys WHERE status = 'active' ORDER BY start_ts DESC LIMIT 1`,
   ).rows?.[0] as { id: number; ts: number } | undefined;
   if (gloriaRow) candidates.push({ kind: 'gloria', ...gloriaRow });
+  const mirenRow = db.executeSync(
+    `SELECT id, start_ts AS ts FROM miren_surveys WHERE status = 'active' ORDER BY start_ts DESC LIMIT 1`,
+  ).rows?.[0] as { id: number; ts: number } | undefined;
+  if (mirenRow) candidates.push({ kind: 'miren', ...mirenRow });
 
   if (candidates.length < 2) return;
   const keep = candidates.reduce((a, b) => (b.ts > a.ts ? b : a));
