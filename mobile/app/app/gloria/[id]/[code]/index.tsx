@@ -92,6 +92,8 @@ import {
 } from '~/modules/gloria/components/ui';
 import { RANGES } from '~/modules/gloria/model/ranges';
 import { chooseEndTime } from '~/lib/endTimeChoice';
+import { saveVersionSoon } from '~/db/recordVersions';
+import { useVersionOnLeave } from '~/lib/useVersionOnLeave';
 
 const ABUNDANCE = ['r!', 'r', 's', 'c', 'd'] as const;
 const UNDO_LIMIT = 100;
@@ -103,6 +105,7 @@ export default function GloriaUnitScreen() {
   const toast = useToast((s) => s.show);
   const params = useLocalSearchParams<{ id: string; code: string }>();
   const id = Number(params.id);
+  useVersionOnLeave('gloria', id);
   const code = String(params.code);
   const type = unitTypeOf(code);
   const { state, reload } = useSurvey(id);
@@ -322,6 +325,7 @@ export default function GloriaUnitScreen() {
       const chosen = await chooseEndTime(unit.stop_ts);
       if (chosen === undefined) return;
       setUnitDone(unit.id, true, chosen);
+      saveVersionSoon('gloria', id, 'done');
       // A quadrat's frequency starts the minute after the cover estimate ends.
       if (type === 'quadrat' && unit.freq_skipped !== 1) {
         const follow = followCoverTimes(unit, 'stop_ts', chosen);

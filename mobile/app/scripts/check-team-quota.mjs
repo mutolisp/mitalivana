@@ -14,7 +14,7 @@
  */
 import { checkUpload, limitsFrom, sanitizeOverrides, usageOf } from '../../sync-worker/src/quota.js';
 import worker from '../../sync-worker/src/index.js';
-import { LIFECYCLE, NO_SUBDOMAIN, SELF_HOST_VARS, deploySyncServer, multipart, scriptMetadata } from '../src/lib/syncDeploy.ts';
+import { LIFECYCLE, NO_SUBDOMAIN, PUBLIC_HOST, PUBLIC_SERVER, SELF_HOST_SCRIPT, SELF_HOST_VARS, deploySyncServer, isAccountId, isServerName, multipart, removeSyncServer, scriptMetadata, serverNameOf, tokenTemplateUrl } from '../src/lib/syncDeploy.ts';
 import { MEDIA_CHUNK_BYTES, authTokenHash, chunkAad, chunkCount, deriveTeamKeys, mediaId, openChunk, sealChunk } from '../src/lib/teamCrypto.ts';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { renderSource } from './build-sync-worker-source.mjs';
@@ -89,8 +89,8 @@ function fakeR2() {
 }
 
 const env = { SYNC: fakeR2(), ADMIN_TOKEN: 'admin-secret', IP_SALT: 's', MAX_OBJECT_BYTES: '4000', MAX_TEAM_DEVICES: '2', MAX_TEAMS_PER_IP_PER_DAY: '2', MAX_TOTAL_BYTES: '5000' };
-const call = async (method, path, { token, body, ip = '1.2.3.4' } = {}) => {
-  const headers = { 'cf-connecting-ip': ip };
+const call = async (method, path, { token, body, ip = '1.2.3.4', headers: extra = {} } = {}) => {
+  const headers = { 'cf-connecting-ip': ip, ...extra };
   if (token) headers.authorization = `Bearer ${token}`;
   let payload;
   if (body instanceof Uint8Array) {
@@ -147,38 +147,62 @@ eq('read-only: uploads 503, downloads still work', [(await call('PUT', `/v1/t/${
 eq('delete team', (await call('DELETE', `/v1/t/${T}`, { token: tok })).status, 200);
 eq('after delete: gone', [(await call('GET', `/v1/t/${T}/r/${rec}/${d1}`, { token: tok })).status, [...env.SYNC.m.keys()].some((k) => k.startsWith(`t/${T}/`))], [404, false]);
 
-// ── files (docs/planned/Media_sync.md phase 0) ──
+// ── files (docs/planned/Media_sync.md phases 0–2) ──
 const mid = 'f'.repeat(32);
 const chunk = Uint8Array.from({ length: 700 }, (_, i) => (i * 13) & 255);
 eq('files: off by default → 403 mediaDisabled, nothing written', [
   (await call('PUT', `/v1/t/${other}/m/${mid}/0`, { token: 'x', body: chunk })).body.error,
   (await call('GET', `/v1/t/${other}/m/${mid}`, { token: 'x' })).body.error,
-  [...env.SYNC.m.keys()].some((k) => k.includes('/m/')),
-], ['mediaDisabled', 'mediaDisabled', false]);
+  (await call('POST', `/v1/t/${other}/m/have`, { token: 'x', body: { mids: [mid] } })).body.error,
+  (await call('PUT', `/v1/t/${other}/refs/${'a'.repeat(32)}/${'b'.repeat(32)}`, { token: 'x', body: { mids: [mid] } })).body.error,
+  [...env.SYNC.m.keys()].some((k) => k.startsWith('m/') || k.includes('/refs/')),
+], ['mediaDisabled', 'mediaDisabled', 'mediaDisabled', 'mediaDisabled', false]);
 const tomlVars = Object.fromEntries([...readFileSync(new URL('../../sync-worker/wrangler.toml', import.meta.url), 'utf8').matchAll(/^([A-Z_]+) = "([^"]*)"$/gm)].map((m) => [m[1], m[2]]));
 eq('files: the public server config (wrangler.toml) keeps them off', [tomlVars.MEDIA_ENABLED, limitsFrom(tomlVars).mediaEnabled], ['0', 0]);
-eq('files: self-host deploy turns them on', limitsFrom(SELF_HOST_VARS).mediaEnabled, 1);
-eq('files: a team override cannot turn them on', Object.keys(sanitizeOverrides({ mediaEnabled: 1, maxMediaChunkBytes: 9 })), []);
-const menv = { ...env, SYNC: fakeR2(), MEDIA_ENABLED: '1', MAX_MEDIA_CHUNK_BYTES: '800' };
+eq('files: self-host deploy turns them on with 20 GB per team', [limitsFrom(SELF_HOST_VARS).mediaEnabled, limitsFrom(SELF_HOST_VARS).maxMediaTeamBytes], [1, 20 * 1024 ** 3]);
+eq('files: a team override cannot turn them on, but may change the team file quota', Object.keys(sanitizeOverrides({ mediaEnabled: 1, maxMediaChunkBytes: 9, maxMediaTeamBytes: 5 })), ['maxMediaTeamBytes']);
+const MV = { MEDIA_ENABLED: '1', MAX_MEDIA_CHUNK_BYTES: '800', MAX_MEDIA_TEAM_BYTES: '2000' };
+const menv = { ...env, SYNC: fakeR2(), ...MV };
 const mcall = async (method, path, opts = {}) => {
   const saved = env.SYNC;
   Object.assign(env, menv);
   try {
     return await call(method, path, opts);
   } finally {
-    Object.assign(env, { SYNC: saved, MEDIA_ENABLED: undefined, MAX_MEDIA_CHUNK_BYTES: undefined });
+    Object.assign(env, { SYNC: saved, MEDIA_ENABLED: undefined, MAX_MEDIA_CHUNK_BYTES: undefined, MAX_MEDIA_TEAM_BYTES: undefined });
   }
 };
+const keyOf = (i) => `m/${T}/${mid}/${i}`;
 await mcall('POST', `/v1/t/${T}`, { body: { authHash: authTokenHash(tok) } });
 eq('files: wrong token → 401', (await mcall('PUT', `/v1/t/${T}/m/${mid}/0`, { token: 'nope', body: chunk })).status, 401);
-eq('files: chunks 0 and 1 stored', [(await mcall('PUT', `/v1/t/${T}/m/${mid}/0`, { token: tok, body: chunk })).status, (await mcall('PUT', `/v1/t/${T}/m/${mid}/1`, { token: tok, body: chunk.subarray(0, 300) })).status], [200, 200]);
+eq('files: chunks 0 and 1 stored outside t/ (not under the 90-day record lifecycle)', [
+  (await mcall('PUT', `/v1/t/${T}/m/${mid}/0`, { token: tok, body: chunk, headers: { 'x-media-size': '1000' } })).status,
+  (await mcall('PUT', `/v1/t/${T}/m/${mid}/1`, { token: tok, body: chunk.subarray(0, 300), headers: { 'x-media-size': '1000' } })).status,
+  menv.SYNC.m.has(keyOf(0)), [...menv.SYNC.m.keys()].some((k) => k.startsWith(`t/${T}/m/`)),
+], [200, 200, true, false]);
 const back = await mcall('GET', `/v1/t/${T}/m/${mid}/0`, { token: tok });
 eq('files: download returns the bytes sent', [back.status, back.body.join() === chunk.join()], [200, true]);
-eq('files: status lists the stored chunks in order', (await mcall('GET', `/v1/t/${T}/m/${mid}`, { token: tok })).body.chunks, [{ i: 0, size: 700 }, { i: 1, size: 300 }]);
+eq('files: status lists the stored chunks in order, not yet complete', (await mcall('GET', `/v1/t/${T}/m/${mid}`, { token: tok })).body, { chunks: [{ i: 0, size: 700 }, { i: 1, size: 300 }], done: false });
+eq('files: not complete → not in have', (await mcall('POST', `/v1/t/${T}/m/have`, { token: tok, body: { mids: [mid] } })).body.have, []);
+eq('files: done with a chunk missing → 409, not complete', [
+  (await mcall('POST', `/v1/t/${T}/m/${mid}/done`, { token: tok, body: { n: 3, size: 1000 } })).body,
+  menv.SYNC.m.has(`m/${T}/${mid}/info`),
+], [{ error: 'mediaIncomplete', missing: 2 }, false]);
+eq('files: done with every chunk → complete, counted once', [
+  (await mcall('POST', `/v1/t/${T}/m/${mid}/done`, { token: tok, body: { n: 2, size: 1000 } })).status,
+  (await mcall('POST', `/v1/t/${T}/m/${mid}/done`, { token: tok, body: { n: 2, size: 1000 } })).status,
+  (await mcall('POST', `/v1/t/${T}/m/have`, { token: tok, body: { mids: [mid, 'e'.repeat(32), 'bad'] } })).body.have,
+  (await mcall('GET', `/v1/t/${T}/usage`, { token: tok })).body.mediaBytes,
+], [200, 200, [mid], 1000]);
+const mid2 = 'e'.repeat(32);
+eq('files: team file quota — a file that would pass it is refused before storing', [
+  (await mcall('PUT', `/v1/t/${T}/m/${mid2}/0`, { token: tok, body: chunk, headers: { 'x-media-size': '1000' } })).status,
+  (await mcall('PUT', `/v1/t/${T}/m/${mid2}/0`, { token: tok, body: chunk, headers: { 'x-media-size': '1001' } })).body.error,
+], [200, 'mediaQuota']);
 eq('files: chunk at the limit passes, one over → 413 not written', [
   (await mcall('PUT', `/v1/t/${T}/m/${mid}/2`, { token: tok, body: new Uint8Array(800) })).status,
   (await mcall('PUT', `/v1/t/${T}/m/${mid}/3`, { token: tok, body: new Uint8Array(801) })).body.error,
-  menv.SYNC.m.has(`t/${T}/m/${mid}/3`),
+  menv.SYNC.m.has(keyOf(3)),
 ], [200, 'objectTooLarge', false]);
 eq('files: bad index or name → 404', [
   (await mcall('PUT', `/v1/t/${T}/m/${mid}/01`, { token: tok, body: chunk })).status,
@@ -188,15 +212,27 @@ eq('files: bad index or name → 404', [
 eq('files: empty chunk → 400', (await mcall('PUT', `/v1/t/${T}/m/${mid}/4`, { token: tok, body: new Uint8Array(0) })).status, 400);
 eq('files: not counted as records', (await mcall('GET', `/v1/t/${T}/usage`, { token: tok })).body.bytes, 0);
 eq('files: /v1/info reports them on', (await mcall('GET', '/v1/info')).body.limits.mediaEnabled, 1);
+// Clean-up: a file some record copy refers to stays; an unreferenced one goes after a week.
+const recA = 'a'.repeat(32);
+const devA = 'b'.repeat(32);
+eq('files: a record copy lists the files it refers to', (await mcall('PUT', `/v1/t/${T}/refs/${recA}/${devA}`, { token: tok, body: { mids: [mid, mid, 'nope'] } })).body.count, 1);
+const { collectMediaGarbage } = await import('../../sync-worker/src/index.js');
+const day = 24 * 3600 * 1000;
+eq('files: clean-up within the week keeps everything', (await collectMediaGarbage(menv.SYNC, Date.now() + 6 * day)).deleted, 0);
+eq('files: clean-up after a week removes only what no record refers to', [
+  (await collectMediaGarbage(menv.SYNC, Date.now() + 8 * day)).deleted,
+  menv.SYNC.m.has(keyOf(0)), menv.SYNC.m.has(`m/${T}/${mid}/info`), [...menv.SYNC.m.keys()].some((k) => k.startsWith(`m/${T}/${mid2}/`)),
+  Number(new TextDecoder().decode(menv.SYNC.m.get(`m/${T}/usage`).bytes)),
+], [1, true, true, false, 1000]);
 await mcall('DELETE', `/v1/t/${T}`, { token: tok });
-eq('files: deleted with the team', [...menv.SYNC.m.keys()].some((k) => k.startsWith(`t/${T}/`)), false);
+eq('files: deleted with the team, records and files alike', [...menv.SYNC.m.keys()].some((k) => k.startsWith(`t/${T}/`) || k.startsWith(`m/${T}/`)), false);
 
 // The phone's path end to end (src/lib/mediaSync.ts without the file I/O):
-// hash → name, seal each 4 MiB chunk, store, fetch, open, same bytes.
+// hash → name, seal each 4 MiB chunk, store, mark done, fetch, open, same bytes.
 {
-  const fenv = { SYNC: fakeR2(), MEDIA_ENABLED: '1' };
+  const fenv = { SYNC: fakeR2(), MEDIA_ENABLED: '1', MAX_MEDIA_TEAM_BYTES: String(1024 ** 3) };
   const fcall = (method, path, opts = {}) => {
-    const headers = { 'cf-connecting-ip': '9.9.9.9' };
+    const headers = { 'cf-connecting-ip': '9.9.9.9', ...(opts.headers ?? {}) };
     if (opts.token) headers.authorization = `Bearer ${opts.token}`;
     if (opts.body instanceof Uint8Array) headers['content-length'] = String(opts.body.length);
     const body = opts.body instanceof Uint8Array ? opts.body : opts.body ? JSON.stringify(opts.body) : undefined;
@@ -210,9 +246,10 @@ eq('files: deleted with the team', [...menv.SYNC.m.keys()].some((k) => k.startsW
   for (let i = 0; i < n; i++) {
     const nonce = Uint8Array.from({ length: 24 }, (_, k) => (k * 5 + i) & 255);
     const sealed = sealChunk(keys.encKey, nonce, file.subarray(i * MEDIA_CHUNK_BYTES, (i + 1) * MEDIA_CHUNK_BYTES), chunkAad(T, fmid, i, n));
-    codes.push((await fcall('PUT', `/v1/t/${T}/m/${fmid}/${i}`, { token: tok, body: sealed })).status);
+    codes.push((await fcall('PUT', `/v1/t/${T}/m/${fmid}/${i}`, { token: tok, body: sealed, headers: { 'x-media-size': String(file.length) } })).status);
   }
-  eq('files e2e: three full-size sealed chunks fit the default chunk limit', codes, [200, 200, 200]);
+  codes.push((await fcall('POST', `/v1/t/${T}/m/${fmid}/done`, { token: tok, body: { n, size: file.length } })).status);
+  eq('files e2e: three full-size sealed chunks fit the default chunk limit, then complete', codes, [200, 200, 200, 200]);
   const parts = [];
   for (let i = 0; i < n; i++) {
     const res = await fcall('GET', `/v1/t/${T}/m/${fmid}/${i}`, { token: tok });
@@ -225,7 +262,7 @@ eq('files: deleted with the team', [...menv.SYNC.m.keys()].some((k) => k.startsW
     off += p.length;
   }
   eq('files e2e: reassembled file has the same bytes and name', [joined.length === file.length, mediaId(keys.encKey, sha256(joined)) === fmid], [true, true]);
-  const stored = [...fenv.SYNC.m.entries()].filter(([k]) => k.includes('/m/'));
+  const stored = [...fenv.SYNC.m.entries()].filter(([k]) => k.startsWith('m/') && !k.endsWith('/info') && !k.endsWith('/usage'));
   const plainHead = Buffer.from(file.subarray(0, 64)).toString('hex');
   eq('files e2e: the server holds no plaintext', stored.every(([, v]) => !Buffer.from(v.bytes).toString('hex').includes(plainHead)), true);
 }
@@ -294,6 +331,91 @@ eq('self-host limits reach the Worker as vars; per-team / device / daily lifted,
 eq('self-host team objects stay within the free plan\'s 50 list calls per upload', Math.ceil(SELF_HOST_VARS.MAX_TEAM_OBJECTS / 1000) < 50, true);
 eq('default deploy (no vars) keeps the public limits', limitsFrom(Object.fromEntries(meta.bindings.filter((x) => x.type === 'plain_text').map((x) => [x.name, x.text]))).maxTeamDevices, 20);
 eq('multipart framing', multipart([{ name: 'a', type: 't', text: 'x' }], 'B'), '--B\r\nContent-Disposition: form-data; name="a"; filename="a"\r\nContent-Type: t\r\n\r\nx\r\n--B--\r\n');
+
+// Token pages (Cloudflare "API token template URLs"): the account page first,
+// the three permissions the deploy needs pre-filled on both.
+const perms = (u) => JSON.parse(decodeURIComponent(new URL(u).searchParams.get('permissionGroupKeys')));
+const want = [{ key: 'workers_scripts', type: 'edit' }, { key: 'workers_r2', type: 'edit' }, { key: 'account_settings', type: 'read' }];
+eq('token page: account API token template', [tokenTemplateUrl('account').startsWith('https://dash.cloudflare.com/?to=/:account/api-tokens&'), perms(tokenTemplateUrl('account'))], [true, want]);
+eq('token page: personal token fallback, all accounts and zones', [new URL(tokenTemplateUrl('user')).pathname, perms(tokenTemplateUrl('user')), new URL(tokenTemplateUrl('user')).searchParams.get('accountId')], ['/profile/api-tokens', want, '*']);
+eq('account id: 32 hex only', [isAccountId('0123456789abcdef0123456789abcdef'), isAccountId(' 0123456789abcdef0123456789abcdef '), isAccountId('0123456789ABCDEF0123456789ABCDEF'), isAccountId('abc')], [true, true, false, false]);
+
+const pub = limitsFrom({});
+eq('public server defaults (2026-09-28): 5 MB per record, 200 MB and 20 devices per team, 50 MB per device, 200 uploads a day, files off',
+  [pub.maxObjectBytes, pub.maxTeamBytes, pub.maxTeamDevices, pub.maxDeviceBytes, pub.maxDevicePutsPerDay, pub.mediaEnabled], [5 * 1024 ** 2, 200 * 1024 ** 2, 20, 50 * 1024 ** 2, 200, 0]);
+eq('wrangler.toml matches the public defaults', limitsFrom(tomlVars), pub);
+
+// ── the public server's Worker is not a self-host target (2026-09-28) ──
+// teamSync.ts imports Expo, so read the constant from its source.
+const DEFAULT_SERVER = /export const DEFAULT_SERVER = '([^']+)'/.exec(readFileSync(new URL('../src/lib/teamSync.ts', import.meta.url), 'utf8'))?.[1];
+eq('public host is the app default server', `https://${PUBLIC_HOST}`, DEFAULT_SERVER);
+eq('server names: Worker and bucket rules (3–63, a–z 0–9 -, no dash at the ends)',
+  ['mitalivana-sync', SELF_HOST_SCRIPT, 'ab', 'a'.repeat(63), 'a'.repeat(64), '-abc', 'abc-', 'Abc', 'a_b'].map(isServerName),
+  [true, true, false, true, false, false, false, false, false]);
+eq('server name from a workers.dev URL', [serverNameOf('https://mitalivana-sync-self.fieldteam.workers.dev'), serverNameOf('https://sync.mitalivana.org'), serverNameOf('https://x.y.workers.dev')], [SELF_HOST_SCRIPT, null, null]);
+const cfWith = (domains) => {
+  const log = [];
+  const f = async (url, init = {}) => {
+    const path = url.replace(/^https:\/\/api\.cloudflare\.com\/client\/v4\/accounts\/acc1/, '');
+    log.push(`${init.method ?? 'GET'} ${path}`);
+    const ok = (result) => new Response(JSON.stringify({ success: true, result }), { status: 200, headers: { 'content-type': 'application/json' } });
+    if (path.endsWith('/workers/subdomain')) return ok({ subdomain: 'fieldteam' });
+    if (path.startsWith('/workers/domains')) {
+      const service = new URL(`https://x${path}`).searchParams.get('service');
+      return ok(domains.filter((d) => d.service === service));
+    }
+    return ok({});
+  };
+  return { f, log };
+};
+const bound = [{ hostname: PUBLIC_HOST, service: 'mitalivana-sync' }];
+const base = { token: 't', accountId: 'acc1', modules: {}, randomHex: (n) => '0'.repeat(n * 2), sleep: async () => {}, waitForInfo: false };
+{
+  const { f, log } = cfWith(bound);
+  let err = null;
+  try {
+    await deploySyncServer({ ...base, fetchImpl: f, vars: SELF_HOST_VARS, selfHost: true });
+  } catch (e) {
+    err = e;
+  }
+  eq('self-host onto the public Worker: refused before anything is created', [err?.detail, log], [PUBLIC_SERVER, ['GET /workers/subdomain', 'GET /workers/domains?service=mitalivana-sync']]);
+}
+{
+  const { f, log } = cfWith(bound);
+  const r = await deploySyncServer({ ...base, fetchImpl: f, script: SELF_HOST_SCRIPT, vars: SELF_HOST_VARS, selfHost: true });
+  eq('self-host under another name in the same account: its own Worker, URL and bucket', [r.url, log.filter((l) => !l.startsWith('GET'))], [
+    `https://${SELF_HOST_SCRIPT}.fieldteam.workers.dev`,
+    ['POST /r2/buckets', `PUT /r2/buckets/${SELF_HOST_SCRIPT}/lifecycle`, `PUT /workers/scripts/${SELF_HOST_SCRIPT}`, `POST /workers/scripts/${SELF_HOST_SCRIPT}/subdomain`, `PUT /workers/scripts/${SELF_HOST_SCRIPT}/schedules`],
+  ]);
+}
+{
+  const { f, log } = cfWith(bound);
+  await deploySyncServer({ ...base, fetchImpl: f });
+  eq('redeploying the public server itself (no self-host) is not blocked', log.includes('PUT /workers/scripts/mitalivana-sync'), true);
+}
+{
+  const { f, log } = cfWith(bound);
+  let err = null;
+  try {
+    await removeSyncServer({ token: 't', accountId: 'acc1', fetchImpl: f });
+  } catch (e) {
+    err = e;
+  }
+  eq('remove: the public Worker is never deleted', [err?.detail, log.some((l) => l.startsWith('DELETE'))], [PUBLIC_SERVER, false]);
+  const other = cfWith(bound);
+  await removeSyncServer({ token: 't', accountId: 'acc1', fetchImpl: other.f, script: SELF_HOST_SCRIPT });
+  eq('remove: a self-hosted Worker and its bucket of the same name', other.log.filter((l) => l.startsWith('DELETE')), [`DELETE /workers/scripts/${SELF_HOST_SCRIPT}`, `DELETE /r2/buckets/${SELF_HOST_SCRIPT}`]);
+}
+{
+  const { f } = cfWith([]);
+  let err = null;
+  try {
+    await deploySyncServer({ ...base, fetchImpl: f, script: 'Bad_Name', selfHost: true });
+  } catch (e) {
+    err = e;
+  }
+  eq('a bad name is refused before anything is created', err?.detail, 'badName');
+}
 
 eq('app copy of the Worker source is current (node scripts/build-sync-worker-source.mjs)', readFileSync(new URL('../src/lib/syncWorkerSource.ts', import.meta.url), 'utf8') === renderSource(), true);
 

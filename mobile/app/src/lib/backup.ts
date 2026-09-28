@@ -41,6 +41,7 @@ import {
 
 import { closePacksDb, getPacksDb, listPacks, PACKS_DB_NAME } from '~/db/regionpacks';
 import { parseOverviewPhotos } from '~/modules/gloria/model/overview';
+import { parseFiles } from '~/modules/gloria/model/loggers';
 
 const USER_DB_NAME = 'user.db';
 
@@ -238,6 +239,8 @@ type PhotoSource = {
   folder: string;
   taxonId: string | null;
   uris: string[];
+  /** Attached files keep their own names (scans, logger data), one per uri. */
+  names?: string[];
 };
 
 /** Collect every photo referenced anywhere in user.db, grouped by owner. */
@@ -345,10 +348,55 @@ function collectPhotoSources(): PhotoSource[] {
     }
   }
 
+  // Attached files (GLORIA form scans v69, temperature-logger visits and
+  // loggers v65): documents rather than photos, kept under their own names
+  // so a scan is recognisable in the backup. Loggers belong to the summit.
+  const files = db.executeSync(
+    `SELECT 'gloria_' || v.id || '_' || s.full_code || '_mocy' || v.mocy AS folder,
+            v.form1_files AS f1, v.form2_files AS f2, v.form3_files AS f3, v.form6s_files AS f6
+       FROM gloria_surveys v JOIN gloria_summits s ON s.id = v.summit_id
+      WHERE COALESCE(v.form1_files, v.form2_files, v.form3_files, v.form6s_files) IS NOT NULL`,
+  );
+  for (const r of (files.rows ?? []) as Array<Record<string, unknown>>) {
+    const refs = (['f1', 'f2', 'f3', 'f6'] as const).flatMap((k, i) =>
+      parseFiles(r[k] as string | null).map((f) => ({ uri: f.uri, name: `Form${['1', '2', '3', '6-S'][i]}_${f.name}` })),
+    );
+    if (refs.length) out.push({ folder: `${sanitizeFilename(String(r.folder))}/files`, taxonId: null, uris: refs.map((f) => f.uri), names: refs.map((f) => f.name) });
+  }
+  const loggers = db.executeSync(
+    `SELECT 'gloria_' || s.full_code || '_loggers' AS folder, lv.visit_ts AS ts, lv.form4_files AS form4,
+            NULL AS label, NULL AS open, NULL AS closed, NULL AS data
+       FROM gloria_logger_visits lv JOIN gloria_summits s ON s.id = lv.summit_id
+      WHERE lv.form4_files IS NOT NULL AND lv.form4_files != ''
+     UNION ALL
+     SELECT 'gloria_' || s.full_code || '_loggers', lv.visit_ts, NULL, l.quadrat || COALESCE(l.label, ''),
+            l.photo_open_uri, l.photo_closed_uri, l.data_files
+       FROM gloria_loggers l JOIN gloria_logger_visits lv ON lv.id = l.visit_id JOIN gloria_summits s ON s.id = lv.summit_id
+      WHERE l.photo_open_uri IS NOT NULL OR l.photo_closed_uri IS NOT NULL OR (l.data_files IS NOT NULL AND l.data_files != '')`,
+  );
+  for (const r of (loggers.rows ?? []) as Array<Record<string, unknown>>) {
+    const day = new Date(Number(r.ts)).toISOString().slice(0, 10);
+    const refs: Array<{ uri: string; name: string }> = [];
+    for (const f of parseFiles(r.form4 as string | null)) refs.push({ uri: f.uri, name: `${day}_Form4_${f.name}` });
+    const tag = String(r.label ?? '');
+    if (typeof r.open === 'string' && r.open) refs.push({ uri: r.open, name: `${day}_${tag}_open.jpg` });
+    if (typeof r.closed === 'string' && r.closed) refs.push({ uri: r.closed, name: `${day}_${tag}_closed.jpg` });
+    for (const f of parseFiles(r.data as string | null)) refs.push({ uri: f.uri, name: `${day}_${tag}_${f.name}` });
+    if (refs.length) out.push({ folder: sanitizeFilename(String(r.folder)), taxonId: null, uris: refs.map((f) => f.uri), names: refs.map((f) => f.name) });
+  }
+
   return out;
 }
 
 const csvEscape = (s: string): string => `"${s.replace(/"/g, '""')}"`;
+
+function uniqueName(entries: BuiltZipEntry[], folder: string, name: string): string {
+  const taken = (n: string) => entries.some((e) => e.name === `${folder}/${n}`);
+  if (!taken(name)) return name;
+  const dot = name.lastIndexOf('.');
+  const [stem, ext] = dot > 0 ? [name.slice(0, dot), name.slice(dot)] : [name, ''];
+  for (let k = 2; ; k++) if (!taken(`${stem}-${k}${ext}`)) return `${stem}-${k}${ext}`;
+}
 
 /**
  * Export every record photo into a zip + photos.csv mapping. Returns null if
@@ -385,7 +433,9 @@ export async function createPhotoBackup(
       try {
         const b64 = await readAsStringAsync(fileUri, { encoding: 'base64' });
         const ext = guessExt(fileUri);
-        const name = `${src.folder}/${label}_${i + 1}.${ext}`;
+        const own = src.names?.[i];
+        // Two attachments of one name (Form2_scan.pdf twice) must not overwrite each other.
+        const name = own ? `${src.folder}/${uniqueName(entries, src.folder, sanitizeFilename(own))}` : `${src.folder}/${label}_${i + 1}.${ext}`;
         entries.push({ name, bytes: base64ToBytes(b64) });
         csv.push(
           [

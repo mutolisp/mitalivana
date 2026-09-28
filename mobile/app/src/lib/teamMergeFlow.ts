@@ -13,6 +13,7 @@
 import { Directory, File, Paths } from 'expo-file-system';
 import { create } from 'zustand';
 import { addMergeLog } from '~/db/mergeLog';
+import { saveVersion } from '~/db/recordVersions';
 import { setSyncBase } from '~/db/syncBase';
 import { applyPlotMerge, applySessionMerge } from '~/db/teamMerge';
 import { applyGloriaMerge } from '~/modules/gloria/merge';
@@ -110,6 +111,8 @@ export async function applyPendingMerge(
   opts: { backup: boolean },
 ): Promise<MergeResult> {
   const backup = opts.backup ? await backupBeforeMerge(p.kind, p.localId) : null;
+  // Versions around the merge (v73): what it was, what it became.
+  saveVersion(p.kind, p.localId, 'before_merge');
   const ops = planOps(p.items, decisions);
 
   let skippedPhotos = 0;
@@ -133,6 +136,7 @@ export async function applyPendingMerge(
   else applyGloriaMerge(p.localId, ops);
 
   setSyncBase(p.kind, p.localUuid, baseOf(p.remoteSide));
+  saveVersion(p.kind, p.localId, 'after_merge');
   const changes = describeMerge(p.items, decisions);
   addMergeLog(p.kind, p.localUuid, p.from ?? null, changes);
   p.afterApply?.();

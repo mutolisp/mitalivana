@@ -2238,6 +2238,109 @@ const MIGRATIONS: Migration[] = [
         addColumnIfMissing(db, `ALTER TABLE gloria_surveys ADD COLUMN ${c} TEXT;`);
     },
   },
+  {
+    // Team sync log: what this device sent, skipped, merged, imported or
+    // failed, per record — so "did it upload, and where?" has an answer
+    // (settings → 隊伍同步 → 同步紀錄). `label` is the record's name at the
+    // time, readable after the record is deleted; `server` is the relay it
+    // went to. Kept on this device only (not exported, backed up with
+    // user.db), trimmed at start-up (db/cleanup) and with the team.
+    version: 70,
+    up: (db) => {
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS sync_log (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          team_id TEXT NOT NULL,
+          record_kind TEXT,
+          record_uuid TEXT,
+          label TEXT,
+          action TEXT NOT NULL CHECK (action IN ('upload', 'skip', 'merge', 'import', 'link', 'queued', 'fail')),
+          server TEXT,
+          bytes INTEGER,
+          detail TEXT,
+          at INTEGER NOT NULL
+        );
+      `);
+      db.executeSync(`CREATE INDEX IF NOT EXISTS idx_sync_log_team ON sync_log(team_id, at);`);
+    },
+  },
+  {
+    // Short names for relays (settings → 隊伍同步 → 伺服器): shown instead of
+    // the long workers.dev address wherever a server is named. Any URL,
+    // the built-in default included (it is not in sync_servers). This device
+    // only; the invitation still carries the full URL.
+    version: 71,
+    up: (db) => {
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS sync_server_alias (
+          url TEXT PRIMARY KEY,
+          alias TEXT NOT NULL
+        );
+      `);
+    },
+  },
+  {
+    // File sync (docs/planned/Media_sync.md phase 2). `media_hash` caches the
+    // SHA-256 of files this device sent or received, by the reference stored
+    // in the record (so a photo is hashed once, and a received file is
+    // recognised as already here). `media_pending` holds files a teammate's
+    // record refers to that could not be fetched yet (no signal); every sync
+    // of the record tries them again. Both are device-local.
+    version: 72,
+    up: (db) => {
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS media_hash (
+          uri TEXT PRIMARY KEY,
+          size INTEGER,
+          sha TEXT NOT NULL,
+          at INTEGER NOT NULL
+        );
+      `);
+      db.executeSync(`CREATE INDEX IF NOT EXISTS idx_media_hash_sha ON media_hash(sha);`);
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS media_pending (
+          team_id TEXT NOT NULL,
+          record_kind TEXT NOT NULL,
+          record_uuid TEXT NOT NULL,
+          entry_key TEXT NOT NULL,
+          entry TEXT NOT NULL,
+          at INTEGER NOT NULL,
+          PRIMARY KEY (team_id, record_kind, record_uuid, entry_key)
+        );
+      `);
+    },
+  },
+  {
+    // Record versions (plan 2026-09-28): whole snapshots of a checklist, plot
+    // survey or GLORIA survey — the local document team merge compares —
+    // deflated and base64-encoded in `doc`. Taken when a record is finished,
+    // around merges and imports, before a restore, on leaving its screen
+    // (consecutive leaves within 30 min update one row: `updated_at`) and by
+    // hand (`note`). `label` keeps the record's name for after a deletion;
+    // `deleted_at` is set when the record is gone and the versions are kept
+    // 30 days for recovery (db/cleanup). Device-local: not synced or exported;
+    // backups carry them with user.db. Media are referenced, not copied.
+    version: 73,
+    up: (db) => {
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS record_versions (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          record_kind TEXT NOT NULL CHECK (record_kind IN ('session', 'plot', 'gloria')),
+          record_uuid TEXT NOT NULL,
+          label TEXT,
+          reason TEXT NOT NULL CHECK (reason IN ('done', 'leave', 'before_merge', 'after_merge', 'before_restore', 'before_import', 'manual')),
+          note TEXT,
+          content_hash TEXT NOT NULL,
+          size INTEGER NOT NULL,
+          doc TEXT NOT NULL,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          deleted_at INTEGER
+        );
+      `);
+      db.executeSync(`CREATE INDEX IF NOT EXISTS idx_record_versions ON record_versions(record_kind, record_uuid, created_at);`);
+    },
+  },
 ];
 
 /** Highest schema version this build knows how to produce. Backup/restore uses

@@ -27,12 +27,15 @@ import { getSite } from '~/db/sites';
 import { getSyncBase, setSyncBase, syncBlockFor } from '~/db/syncBase';
 import { localPlotDoc, localSessionDoc } from '~/db/teamMerge';
 import { getGloriaSurvey, getSummit, importGloriaDoc, loadGloriaDoc } from '~/modules/gloria/db';
-import { validateGloriaDoc } from '~/modules/gloria/export/yaml';
+import { validateGloriaDoc, type GloriaDoc } from '~/modules/gloria/export/yaml';
 import { findGloriaSurveyFor, localGloriaDoc } from '~/modules/gloria/merge';
 import { ApiError, fetchText } from './apiFetch';
 import { siteToImported } from './bundleExport';
 import { buildPlotYamlDoc, buildSessionYamlDoc } from './bundleYaml';
 import { COMBINERS, gloriaSide, plotSide, sessionSide, type MergeKind } from './mergeDocs';
+import { prepareRecordMedia, receiveRecordMedia, retryPendingMedia, sendRecordMedia, serverTakesFiles } from './mediaSync';
+import type { MediaEntry } from './mediaRefsCore';
+import { useSyncProgress, withSyncProgress } from '~/stores/syncProgress';
 import { baseOf, diffSides, needsReview, rowHash, type MergeChange, type MergeSide } from './mergeEngine';
 import { remapUnknownTaxa } from './recordCreate';
 import { readRecordImportFromBytes, type ReadRecordImport } from './recordImportZip';
@@ -316,7 +319,7 @@ export async function inviteCodeFor(teamId: string): Promise<string | null> {
 export async function leaveTeam(teamId: string): Promise<void> {
   await SecureStore.deleteItemAsync(secretKey(teamId));
   const db = getUserDb();
-  for (const t of ['sync_teams', 'sync_links', 'sync_seen', 'sync_queue', 'sync_members']) db.executeSync(`DELETE FROM ${t} WHERE team_id = ?`, [teamId]);
+  for (const t of ['sync_teams', 'sync_links', 'sync_seen', 'sync_queue', 'sync_members', 'sync_log']) db.executeSync(`DELETE FROM ${t} WHERE team_id = ?`, [teamId]);
 }
 
 export async function keysOf(teamId: string): Promise<{ team: Team; keys: TeamKeys }> {
@@ -399,7 +402,7 @@ export async function deleteTeamOn(teamId: string, server: string): Promise<void
   }
 }
 
-export type TeamUsage = { bytes: number; objects: number; devices: Record<string, number>; limits: Record<string, number>; mine: number };
+export type TeamUsage = { bytes: number; objects: number; devices: Record<string, number>; limits: Record<string, number>; mine: number; mediaBytes?: number };
 
 export async function teamUsage(teamId: string): Promise<TeamUsage> {
   const { team, keys } = await keysOf(teamId);
@@ -435,7 +438,7 @@ function identOf(kind: MergeKind, id: number): Ident | null {
  * The sealed upload's plaintext, and its fingerprint: the same document
  * without the export time, so an unchanged record hashes the same every time.
  */
-function recordText(kind: MergeKind, id: number, uuid: string, author: string | null): { text: string; hash: string } {
+function recordText(kind: MergeKind, id: number, uuid: string, author: string | null, media: MediaEntry[] = []): { text: string; hash: string } {
   let doc: Record<string, unknown> | null = null;
   if (kind === 'session') {
     const session = getSession(id);
@@ -467,9 +470,100 @@ function recordText(kind: MergeKind, id: number, uuid: string, author: string | 
     doc = loadGloriaDoc(id) as unknown as Record<string, unknown> | null;
   }
   if (!doc) throw new TeamSyncError('noRecord');
-  const sync = { ...syncBlockFor(kind, uuid), ...(author ? { author } : {}) };
+  // The file manifest is part of the fingerprint: a new photo makes the record "changed".
+  const sync = { ...syncBlockFor(kind, uuid), ...(author ? { author } : {}), ...(media.length ? { media } : {}) };
   const { exported_at: _at, ...stable } = sync;
   return { text: yaml.dump({ ...doc, sync }, { lineWidth: -1, noRefs: true }), hash: rowHash({ doc, sync: stable }) };
+}
+
+/** The team's server without the scheme, to tell same-named teams apart. */
+export function serverHost(t: Pick<Team, 'server'>): string {
+  return hostOf(serverOf(t));
+}
+
+export const hostOf = (url: string) => url.replace(/^https:\/\//, '').replace(/\/+$/, '');
+
+// ── server names (v71) ──────────────────────────────────────────────────────
+
+/** The short name given to a server on this device, or null. */
+export function serverAlias(url: string): string | null {
+  return rows<{ alias: string }>(`SELECT alias FROM sync_server_alias WHERE url = ?`, [normUrl(url)])[0]?.alias ?? null;
+}
+
+/** Name a server on this device; empty or null removes the name. */
+export function setServerAlias(url: string, alias: string | null): void {
+  const a = alias?.trim().slice(0, 40) || null;
+  if (a) getUserDb().executeSync(`INSERT OR REPLACE INTO sync_server_alias (url, alias) VALUES (?, ?)`, [normUrl(url), a]);
+  else getUserDb().executeSync(`DELETE FROM sync_server_alias WHERE url = ?`, [normUrl(url)]);
+}
+
+/** How a server is shown: its short name, else its host. */
+export function serverLabel(url: string): string {
+  return serverAlias(url) ?? hostOf(url);
+}
+
+/** A team's server as shown (short name, else host). */
+export function teamServerLabel(t: Pick<Team, 'server'>): string {
+  return serverLabel(serverOf(t));
+}
+
+/** Other teams on this device with the same name (one re-created on another server instead of moved). */
+export function sameNameTeams(teamId: string): Array<Team & { linked: number }> {
+  const me = getTeam(teamId);
+  if (!me) return [];
+  const k = me.name.trim().toLowerCase();
+  return listTeams()
+    .filter((x) => x.team_id !== teamId && x.name.trim().toLowerCase() === k)
+    .map((x) => ({ ...x, linked: rows<{ n: number }>(`SELECT COUNT(*) AS n FROM sync_links WHERE team_id = ?`, [x.team_id])[0]?.n ?? 0 }));
+}
+
+// ── sync log (v70) ─────────────────────────────────────────────────────────
+
+export type SyncLogAction = 'upload' | 'skip' | 'merge' | 'import' | 'link' | 'queued' | 'fail';
+export type SyncLogEntry = {
+  id: number;
+  team_id: string;
+  record_kind: MergeKind | null;
+  record_uuid: string | null;
+  label: string | null;
+  action: SyncLogAction;
+  server: string | null;
+  bytes: number | null;
+  detail: string | null;
+  at: number;
+};
+
+/** A record's name as the lists show it: checklist name, plot id, GLORIA summit and cycle. */
+function recordLabel(kind: MergeKind, id: number): string | null {
+  if (kind === 'session') return getSession(id)?.name ?? null;
+  if (kind === 'plot') return getPlotSurvey(id)?.plotid ?? null;
+  const sv = getGloriaSurvey(id);
+  const sm = sv ? getSummit(sv.summit_id) : null;
+  return sv && sm ? `${sm.full_code} mocy ${sv.mocy}` : null;
+}
+
+function logSync(
+  teamId: string,
+  action: SyncLogAction,
+  rec: { kind: MergeKind; uuid: string; id?: number | null } | null,
+  extra: { server?: string | null; bytes?: number | null; detail?: string | null } = {},
+): void {
+  try {
+    getUserDb().executeSync(
+      `INSERT INTO sync_log (team_id, record_kind, record_uuid, label, action, server, bytes, detail, at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [teamId, rec?.kind ?? null, rec?.uuid ?? null, rec?.id != null ? recordLabel(rec.kind, rec.id) : null, action, extra.server ?? null, extra.bytes ?? null, extra.detail ?? null, Date.now()],
+    );
+  } catch (e) {
+    // The log must never stop a sync.
+    if (__DEV__) console.warn('[teamSync] log failed', e);
+  }
+}
+
+/** Newest first; one team, or every team on this device. */
+export function listSyncLog(teamId?: string | null, limit = 300): SyncLogEntry[] {
+  return teamId
+    ? rows<SyncLogEntry>(`SELECT * FROM sync_log WHERE team_id = ? ORDER BY at DESC, id DESC LIMIT ?`, [teamId, limit])
+    : rows<SyncLogEntry>(`SELECT * FROM sync_log ORDER BY at DESC, id DESC LIMIT ?`, [limit]);
 }
 
 export function linkedTeams(kind: MergeKind, uuid: string): string[] {
@@ -573,12 +667,15 @@ function hrefOf(kind: MergeKind, id: number): Href {
  * last merge. Copies that need a decision open the review screen (one at a
  * time; the rest are picked up by the next 同步).
  */
-export async function syncRecord(
-  teamId: string,
-  kind: MergeKind,
-  id: number,
-  opts: { onlyIfChanged?: boolean } = {},
-): Promise<SyncOutcome> {
+export function syncRecord(teamId: string, kind: MergeKind, id: number, opts: { onlyIfChanged?: boolean } = {}): Promise<SyncOutcome> {
+  // The progress strip on every screen while it runs (SyncProgressHost).
+  return withSyncProgress(() => {
+    useSyncProgress.getState().update({ record: recordLabel(kind, id), stage: 'record' });
+    return syncRecordNow(teamId, kind, id, opts);
+  });
+}
+
+async function syncRecordNow(teamId: string, kind: MergeKind, id: number, opts: { onlyIfChanged?: boolean }): Promise<SyncOutcome> {
   const { team, keys } = await keysOf(teamId);
   const who = identOf(kind, id);
   if (!who) throw new TeamSyncError('noRecord');
@@ -586,25 +683,40 @@ export async function syncRecord(
   const dev = deviceKey(keys.encKey, installId());
   link(teamId, kind, who.uuid, rec, null);
   const out: SyncOutcome = { merged: 0, mergedFrom: [], changes: [], review: false, queued: false, uploaded: false };
-  // This device's copy as it is now, with its base (`sync.base`).
+  const server = serverOf(team);
+  // Files go only to servers that take them (self-hosted, Media_sync.md).
+  const withFiles = async () => ((await serverTakesFiles(server)) ? prepareRecordMedia(keys, kind, id) : null);
+  // A teammate's copy: its files are fetched and added here (adding only).
+  const receive = async (manifest: unknown[] | undefined) => {
+    if (!manifest?.length) return;
+    const r = await receiveRecordMedia(teamId, kind, who.uuid, id, manifest);
+    if (r.added) logSync(teamId, 'merge', { kind, uuid: who.uuid, id }, { server, detail: `files:${r.added}` });
+  };
+  // This device's copy as it is now, with its base (`sync.base`) and its files.
   const put = async () => {
-    const { text, hash } = recordText(kind, id, who.uuid, team.member_name);
+    const prepared = await withFiles();
+    const sentFiles = prepared ? await sendRecordMedia(server, keys, prepared, rec, dev) : 0;
+    const { text, hash } = recordText(kind, id, who.uuid, team.member_name, prepared?.entries ?? []);
     const sealed = sealRecord(keys.encKey, randomBytes(NONCE_BYTES), text, aadFor(keys.teamId, rec, dev));
-    await relay(serverOf(team), 'PUT', `/v1/t/${keys.teamId}/r/${rec}/${dev}`, { token: keys.authToken, body: b64u(sealed) });
+    const body = b64u(sealed);
+    await relay(serverOf(team), 'PUT', `/v1/t/${keys.teamId}/r/${rec}/${dev}`, { token: keys.authToken, body });
     getUserDb().executeSync(
       `UPDATE sync_links SET uploaded_hash = ?, uploaded_at = ? WHERE team_id = ? AND record_kind = ? AND record_uuid = ?`,
       [hash, Date.now(), teamId, kind, who.uuid],
     );
     out.uploaded = true;
+    logSync(teamId, 'upload', { kind, uuid: who.uuid, id }, { server, bytes: body.length, detail: sentFiles ? `files:${sentFiles}` : null });
   };
   try {
-    const { hash } = recordText(kind, id, who.uuid, team.member_name);
+    await retryPendingMedia(teamId, localIdOf, { kind, uuid: who.uuid });
+    const { hash } = recordText(kind, id, who.uuid, team.member_name, (await withFiles())?.entries ?? []);
     const last = rows<{ uploaded_hash: string | null; uploaded_at: number | null }>(
       `SELECT uploaded_hash, uploaded_at FROM sync_links WHERE team_id = ? AND record_kind = ? AND record_uuid = ?`,
       [teamId, kind, who.uuid],
     )[0];
     const unchanged = last?.uploaded_hash === hash && (last.uploaded_at ?? 0) > Date.now() - REUPLOAD_MS;
     if (!(opts.onlyIfChanged && unchanged)) await put();
+    else logSync(teamId, 'skip', { kind, uuid: who.uuid, id }, { server: serverOf(team) });
     const { items } = JSON.parse((await relay(serverOf(team), 'GET', `/v1/t/${keys.teamId}/r/${rec}/`, { token: keys.authToken })).text) as {
       items: Item[];
     };
@@ -622,7 +734,13 @@ export async function syncRecord(
       }
       rememberMember(teamId, it.dev, payload.sync?.author, it.uploaded);
       const prep = prepare(kind, id, who.uuid, payload);
-      if (prep === 'same' || prep === 'mismatch') {
+      if (prep === 'mismatch') {
+        markSeen(teamId, rec, it.dev, it.etag);
+        continue;
+      }
+      if (prep === 'same') {
+        // Same content, but the teammate may have photos this device lacks.
+        await receive(payload.sync?.media);
         markSeen(teamId, rec, it.dev, it.etag);
         continue;
       }
@@ -634,11 +752,17 @@ export async function syncRecord(
         out.changes.push(...res.changes);
         out.merged += 1;
         if (payload.sync?.author) out.mergedFrom.push(payload.sync.author);
+        // After the rows: a photo of a species row new here needs that row.
+        await receive(payload.sync?.media);
         continue;
       }
       usePendingMerge.getState().set({
         ...prep,
-        afterApply: onApplied,
+        afterApply: () => {
+          onApplied();
+          // Files after the reviewed rows are in; failures wait in media_pending.
+          void receive(payload.sync?.media).catch(() => {});
+        },
         from: payload.sync?.author ?? null,
         fromAt: it.uploaded || null,
       });
@@ -650,7 +774,10 @@ export async function syncRecord(
     // uploaded above predates them and carries the base from before, so a
     // teammate merging it would take their own newer values for conflicts
     // and keep the old ones (Device_test 隊伍同步 #4, 2026-09-27).
-    if (out.merged > 0) await put();
+    if (out.merged > 0) {
+      logSync(teamId, 'merge', { kind, uuid: who.uuid, id }, { server: serverOf(team), detail: [...new Set(out.mergedFrom)].join('、') || String(out.merged) });
+      await put();
+    }
     const now = Date.now();
     link(teamId, kind, who.uuid, rec, now);
     getUserDb().executeSync(`UPDATE sync_teams SET last_sync_at = ? WHERE team_id = ?`, [now, teamId]);
@@ -663,13 +790,15 @@ export async function syncRecord(
         `INSERT OR REPLACE INTO sync_queue (team_id, record_kind, record_uuid, queued_at) VALUES (?, ?, ?, ?)`,
         [teamId, kind, who.uuid, Date.now()],
       );
+      logSync(teamId, 'queued', { kind, uuid: who.uuid, id }, { server: serverOf(team) });
       return { ...out, queued: true };
     }
+    logSync(teamId, 'fail', { kind, uuid: who.uuid, id }, { server: serverOf(team), detail: err.code });
     throw err;
   }
 }
 
-function localIdOf(kind: MergeKind, uuid: string): number | null {
+export function localIdOf(kind: MergeKind, uuid: string): number | null {
   if (kind === 'session') return getSessionByUuid(uuid)?.id ?? null;
   if (kind === 'plot') return getPlotSurveyByUuid(uuid)?.id ?? null;
   return rows<{ id: number }>(`SELECT id FROM gloria_surveys WHERE uuid = ?`, [uuid])[0]?.id ?? null;
@@ -713,15 +842,55 @@ export type TeamSyncOutcome = {
  * queue) — then bring in the team's records not here yet.
  * Stops at the first review or when the connection drops, like flushQueue.
  */
-export async function syncTeam(teamId: string): Promise<TeamSyncOutcome> {
+export function syncTeam(teamId: string, opts: { pull?: boolean } = {}): Promise<TeamSyncOutcome> {
+  return withSyncProgress(() => syncTeamNow(teamId, opts));
+}
+
+let allRunning = false;
+
+/**
+ * The Records tab's pull-down: every record already linked to a team this
+ * device holds the key for, team by team — what each team page's pull-down
+ * does, without fetching teammates' records that are not here yet. Null when
+ * one is already running. Stops at the first review or when offline.
+ */
+export async function syncAllTeams(): Promise<(TeamSyncOutcome & { teams: number }) | null> {
+  if (allRunning) return null;
+  allRunning = true;
+  try {
+    return await withSyncProgress(async () => {
+      const out = { sent: 0, merged: 0, mergedFrom: [] as string[], changes: [] as TeamSyncOutcome['changes'], imported: 0, review: false, queued: false, teams: 0 };
+      for (const team of listTeams()) {
+        if (!(await hasSecret(team.team_id))) continue;
+        const linked = rows<{ n: number }>(`SELECT COUNT(*) AS n FROM sync_links WHERE team_id = ?`, [team.team_id])[0]?.n ?? 0;
+        if (!linked) continue;
+        out.teams += 1;
+        const r = await syncTeamNow(team.team_id, { pull: false });
+        out.sent += r.sent;
+        out.merged += r.merged;
+        out.mergedFrom.push(...r.mergedFrom);
+        out.changes.push(...r.changes);
+        if (r.queued || r.review) return { ...out, queued: r.queued, review: r.review };
+      }
+      return out;
+    });
+  } finally {
+    allRunning = false;
+  }
+}
+
+async function syncTeamNow(teamId: string, opts: { pull?: boolean } = {}): Promise<TeamSyncOutcome> {
   const out: TeamSyncOutcome = { sent: 0, merged: 0, mergedFrom: [], changes: [], imported: 0, review: false, queued: false };
+  // Files that could not be fetched last time, for every record of the team.
+  await retryPendingMedia(teamId, localIdOf).catch(() => {});
   const linked = rows<{ record_kind: MergeKind; record_uuid: string }>(
     `SELECT record_kind, record_uuid FROM sync_links WHERE team_id = ? ORDER BY last_synced_at`,
     [teamId],
   );
-  for (const l of linked) {
+  for (const [n, l] of linked.entries()) {
     const id = localIdOf(l.record_kind, l.record_uuid);
     if (id == null) continue; // deleted here; cleanup.ts drops the link
+    useSyncProgress.getState().update({ recordIndex: n + 1, recordCount: linked.length });
     const r = await syncRecord(teamId, l.record_kind, id, { onlyIfChanged: true });
     if (r.queued) return { ...out, queued: true };
     if (r.uploaded) out.sent += 1;
@@ -730,7 +899,7 @@ export async function syncTeam(teamId: string): Promise<TeamSyncOutcome> {
     out.changes.push(...r.changes);
     if (r.review) return { ...out, review: true };
   }
-  out.imported = (await pullTeamRecords(teamId)).imported;
+  if (opts.pull !== false) out.imported = (await pullTeamRecords(teamId)).imported;
   return out;
 }
 
@@ -740,7 +909,11 @@ export async function syncTeam(teamId: string): Promise<TeamSyncOutcome> {
  * keep recording. A record that exists here already is linked, and merged on
  * its next 同步.
  */
-export async function pullTeamRecords(teamId: string): Promise<{ imported: number; linked: number }> {
+export function pullTeamRecords(teamId: string): Promise<{ imported: number; linked: number }> {
+  return withSyncProgress(() => pullTeamRecordsNow(teamId));
+}
+
+async function pullTeamRecordsNow(teamId: string): Promise<{ imported: number; linked: number }> {
   const { team, keys } = await keysOf(teamId);
   const dev = deviceKey(keys.encKey, installId());
   let items: Item[];
@@ -776,7 +949,12 @@ export async function pullTeamRecords(teamId: string): Promise<{ imported: numbe
         : localIdOf(kind, payload.kind === 'session' ? payload.session.uuid : payload.plot.uuid);
     if (hereId != null) {
       const who = identOf(kind, hereId);
-      if (who) link(teamId, kind, who.uuid, rec, null);
+      if (who) {
+        link(teamId, kind, who.uuid, rec, null);
+        logSync(teamId, 'link', { kind, uuid: who.uuid, id: hereId }, { server: serverOf(team), detail: payload.sync?.author ?? null });
+        useSyncProgress.getState().update({ record: recordLabel(kind, hereId) });
+        await receiveRecordMedia(teamId, kind, who.uuid, hereId, payload.sync?.media ?? []);
+      }
       linked += 1;
       continue;
     }
@@ -790,7 +968,7 @@ export async function pullTeamRecords(teamId: string): Promise<{ imported: numbe
       newId = importPlotSurvey(payload.plot, { newUuid: false }).plotId;
     } else {
       if (validateGloriaDoc(payload.gloria).length) continue;
-      newId = importGloriaDoc(payload.gloria).surveyId;
+      newId = importGloriaDoc(withoutSenderFiles(payload.gloria)).surveyId;
     }
     // The imported rows are what both sides now share.
     const who = identOf(kind, newId);
@@ -807,9 +985,36 @@ export async function pullTeamRecords(teamId: string): Promise<{ imported: numbe
     }
     link(teamId, kind, who.uuid, rec, Date.now());
     markSeen(teamId, rec, it.dev, it.etag);
+    logSync(teamId, 'import', { kind, uuid: who.uuid, id: newId }, { server: serverOf(team), bytes: it.size, detail: payload.sync?.author ?? null });
+    useSyncProgress.getState().update({ record: recordLabel(kind, newId) });
+    await receiveRecordMedia(teamId, kind, who.uuid, newId, payload.sync?.media ?? []);
     imported += 1;
   }
   return { imported, linked };
+}
+
+/**
+ * A teammate's GLORIA document without the file references of THEIR phone
+ * (paths that do not exist here). The files come through the record's file
+ * manifest instead and are added with this device's paths (mediaSync.ts).
+ */
+function withoutSenderFiles(g: GloriaDoc): GloriaDoc {
+  return {
+    ...g,
+    survey: { ...g.survey, overview_photos: null, form1_files: null, form2_files: null, form3_files: null, form6s_files: null },
+    points: g.points.map((p) => ({ ...p, photo_m2: null, photo_m2f: null, photo_point: null })),
+    units: g.units.map((u) => ({ ...u, photo_paths: null })),
+    ...(g.photo_checks ? { photo_checks: g.photo_checks.map((c) => ({ ...c, photo_uri: null })) } : {}),
+    ...(g.logger_visits
+      ? {
+          logger_visits: g.logger_visits.map((v) => ({
+            ...v,
+            form4_files: null,
+            loggers: v.loggers.map((l) => ({ ...l, photo_open_uri: null, photo_closed_uri: null, data_files: null })),
+          })),
+        }
+      : {}),
+  };
 }
 
 export { hrefOf as syncedRecordHref };

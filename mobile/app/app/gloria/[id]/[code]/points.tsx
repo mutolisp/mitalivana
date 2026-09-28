@@ -39,6 +39,8 @@ import { OverviewPanel } from '~/modules/gloria/components/OverviewPanel';
 import { Btn, Chip } from '~/modules/gloria/components/ui';
 import { WalkDiagram } from '~/modules/gloria/components/WalkDiagram';
 import { PointMap } from '~/modules/gloria/components/PointMap';
+import { saveVersionSoon } from '~/db/recordVersions';
+import { useVersionOnLeave } from '~/lib/useVersionOnLeave';
 
 type PointStep = { seq: number; surface: string; hits: Record<number, boolean> };
 
@@ -48,6 +50,7 @@ export default function PointsScreen() {
   const toast = useToast((s) => s.show);
   const params = useLocalSearchParams<{ id: string; code: string }>();
   const id = Number(params.id);
+  useVersionOnLeave('gloria', id);
   const code = String(params.code);
   const isSquare = unitTypeOf(code) === 'square';
   const n = isSquare ? SQUARE_N : QUADRAT_N;
@@ -212,6 +215,7 @@ export default function PointsScreen() {
       endTs = chosen;
     }
     setPointsLocked(unit.id, !locked, endTs);
+    if (!locked) saveVersionSoon('gloria', id, 'done');
     undo.current = [];
     redo.current = [];
     setUndoCount(0);

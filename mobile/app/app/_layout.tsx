@@ -24,6 +24,7 @@ import { GoogleDeviceCodeHost } from '~/components/GoogleDeviceCodeHost';
 import { InatTokenHost } from '~/components/InatTokenHost';
 import { TextPromptHost } from '~/components/TextPromptModal';
 import { ToastHost } from '~/components/ToastHost';
+import { SyncProgressHost } from '~/components/SyncProgressHost';
 import { useThemeSync } from '~/hooks/useThemeSync';
 import { useI18nSync } from '~/hooks/useI18nSync';
 import { useDatasetUpdateCheck } from '~/lib/datasetUpdateCheck';
@@ -128,6 +129,7 @@ function ThemedShell() {
             <Stack.Screen name="settings/team/[id]" options={{ title: t('teamSync.title') }} />
             <Stack.Screen name="settings/team-deploy" options={{ title: t('teamDeploy.title') }} />
             <Stack.Screen name="settings/team-media-test" />
+            <Stack.Screen name="settings/team-log" />
             <Stack.Screen name="team/join" options={{ title: t('teamSync.joinTitle') }} />
             <Stack.Screen name="team/server" options={{ title: t('teamSync.addServerTitle') }} />
             <Stack.Screen name="gloria/summits" options={{ title: t('gloria.summitImport.listTitle') }} />
@@ -159,6 +161,8 @@ function ThemedShell() {
             <Stack.Screen name="report/[kind]/[id]" options={{ title: t('report.navTitle') }} />
             <Stack.Screen name="merge" options={{ title: t('teamMerge.title') }} />
             <Stack.Screen name="merge-log" options={{ title: t('mergeLog.title') }} />
+            <Stack.Screen name="record-versions" options={{ title: t('versions.title') }} />
+            <Stack.Screen name="deleted-records" options={{ title: t('versions.deletedTitle') }} />
           </Stack>
         </View>
         {/* Select popovers render here, NOT via React.createPortal: the portal
@@ -169,6 +173,7 @@ function ThemedShell() {
             screen, its native header, and the ActiveSessionBar). Before
             <ToastHost> so a toast fired with a popover open still wins. */}
         <PortalHost />
+        <SyncProgressHost />
         <ToastHost />
         <TextPromptHost />
         <GbifLookupHost />

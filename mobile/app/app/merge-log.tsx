@@ -13,15 +13,8 @@ import { listMergeLog } from '~/db/mergeLog';
 import { isoStamp } from '~/lib/datetime';
 import { BackHeaderLeft } from '~/lib/goBack';
 import type { MergeKind } from '~/lib/mergeDocs';
-import type { MergeChange } from '~/lib/mergeEngine';
-import { fieldLabel, fmt } from '~/lib/mergeFormat';
 import { mergeSummary } from '~/lib/mergeSummaryText';
-
-const ACTION_TONE: Record<MergeChange['action'], string> = {
-  added: 'text-emerald-700 dark:text-emerald-300',
-  changed: 'text-[#00797b] dark:text-cyan-300',
-  deleted: 'text-red-700 dark:text-red-300',
-};
+import { ChangeList } from '~/components/ChangeList';
 
 export default function MergeLogScreen() {
   const { t } = useTranslation();
@@ -29,8 +22,6 @@ export default function MergeLogScreen() {
   const entries = useMemo(() => listMergeLog(kind, uuid), [kind, uuid]);
   // The newest merge opens by itself: it is usually the one the toast pointed at.
   const [open, setOpen] = useState<Set<number>>(() => new Set(entries.slice(0, 1).map((e) => e.id)));
-  const actionLabel = (a: MergeChange['action']) =>
-    a === 'added' ? t('mergeLog.actionAdded') : a === 'deleted' ? t('mergeLog.actionDeleted') : t('mergeLog.actionChanged');
 
   return (
     <SafeAreaView edges={['bottom']} className="flex-1 bg-gray-50 dark:bg-gray-950">
@@ -56,23 +47,7 @@ export default function MergeLogScreen() {
                 </View>
                 <Ionicons name={expanded ? 'chevron-down' : 'chevron-forward'} size={16} color="#9ca3af" />
               </Pressable>
-              {expanded
-                ? e.changes.map((c, k) => (
-                    <View key={k} className="gap-0.5 border-t border-gray-100 px-3 py-2 dark:border-gray-800">
-                      <Text className="text-sm text-gray-900 dark:text-gray-100">
-                        <Text className={`font-semibold ${ACTION_TONE[c.action]}`}>{actionLabel(c.action)}</Text>
-                        {'  '}
-                        {c.label}
-                        <Text className="text-xs text-gray-500"> · {t(`teamMerge.table.${c.tbl}`)}</Text>
-                      </Text>
-                      {c.fields.map((f) => (
-                        <Text key={f.f} className="text-xs text-gray-600 dark:text-gray-300">
-                          {fieldLabel(t, f.f)}：{fmt(f.f, f.from)} → {fmt(f.f, f.to)}
-                        </Text>
-                      ))}
-                    </View>
-                  ))
-                : null}
+              {expanded ? <ChangeList changes={e.changes} /> : null}
             </View>
           );
         })}

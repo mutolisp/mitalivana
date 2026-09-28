@@ -66,4 +66,5 @@ export const NOT_MEDIA: Readonly<Record<string, string>> = {
   'gloria_loggers.photo_open': 'Form 4 photo check tick (1 / null); the photo is photo_open_uri',
   'gloria_loggers.photo_closed': 'Form 4 photo check tick (1 / null); the photo is photo_closed_uri',
   'miren_sites.photo_point': 'where the repeat photo is taken from (coordinates), not a photo',
+  'media_hash.uri': 'hash cache of files sent or received by team sync (v72); the record columns hold the references, and a cached path whose file is gone is skipped',
 };

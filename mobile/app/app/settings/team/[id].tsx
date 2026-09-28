@@ -11,7 +11,7 @@ import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Alert, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { LinkRow, Section } from '~/components/settings/rows';
 import { SettingsPage } from '~/components/settings/SettingsPage';
-import { afterPrompt, askMyName, pickServer } from '~/components/teamSyncPrompts';
+import { afterPrompt, askMyName, pickServer, renameServer } from '~/components/teamSyncPrompts';
 import { promptText } from '~/components/TextPromptModal';
 import { isoStamp } from '~/lib/datetime';
 import { formatBytes } from '~/lib/exportSize';
@@ -26,6 +26,10 @@ import {
   moveTeam,
   pullTeamRecords,
   queuedCount,
+  sameNameTeams,
+  localIdOf,
+  teamServerLabel,
+  hostOf,
   serverOf,
   setMemberName,
   syncTeam,
@@ -35,6 +39,7 @@ import {
   type TeamUsage,
 } from '~/lib/teamSync';
 import { adminTokenFor, setTeamLimits } from '~/lib/teamSyncAdmin';
+import { pendingMediaCount, retryPendingMedia } from '~/lib/mediaSync';
 import { teamSyncErrorText } from '~/lib/teamSyncText';
 import { useToast } from '~/stores/toast';
 
@@ -53,11 +58,15 @@ export default function TeamScreen() {
   const [usage, setUsage] = useState<TeamUsage | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [twins, setTwins] = useState<ReturnType<typeof sameNameTeams>>([]);
+  const [pendingFiles, setPendingFiles] = useState(0);
 
   const refresh = useCallback(() => {
     if (!id) return;
     const tm = getTeam(id);
     setTeam(tm);
+    setTwins(sameNameTeams(id));
+    setPendingFiles(pendingMediaCount(id));
     setMembers(listMembers(id));
     setQueued(queuedCount(id));
     void hasSecret(id).then(setHasKey);
@@ -134,7 +143,7 @@ export default function TeamScreen() {
 
   const adjustLimits = async () => {
     // Start from the limits in force on this server: a self-hosted one is
-    // 8 GB / 1,000 devices, not the default server's 50 MB / 20.
+    // 8 GB / 1,000 devices, not the default server's 200 MB / 20.
     let current = usage;
     if (!current) {
       setBusy(t('teamSync.loading'));
@@ -241,14 +250,26 @@ export default function TeamScreen() {
         ) : (
           <Text className="px-4 pt-3 text-xs text-gray-500 dark:text-gray-400">{t('teamSync.pullHint')}</Text>
         )}
+        {/* A team of the same name elsewhere (re-created instead of moved): records stay with whichever they are linked to. */}
+        {twins.length ? (
+          <View className="mx-4 mt-3 gap-1 rounded-lg border border-amber-300 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950/40">
+            <Text className="text-sm font-semibold text-amber-900 dark:text-amber-200">{t('teamSync.sameNameTitle', { name: team.name })}</Text>
+            {twins.map((x) => (
+              <Text key={x.team_id} className="text-xs text-amber-900 dark:text-amber-200">
+                · {t('teamSync.sameNameLine', { host: teamServerLabel(x), n: x.linked })}
+              </Text>
+            ))}
+            <Text className="text-xs leading-5 text-amber-900 dark:text-amber-200">{t('teamSync.sameNameHint')}</Text>
+          </View>
+        ) : null}
 
         <Section title={t('teamSync.sectionTeam')}>
           <LinkRow label={t('teamSync.myNameTitle')} value={team.member_name || t('teamSync.unnamed')} onPress={() => void rename()} />
           <LinkRow
             label={t('teamSync.serverLabel')}
-            value={serverOf(team).replace(/^https:\/\//, '')}
-            chevron={false}
-            onPress={() => toast(serverOf(team))}
+            value={teamServerLabel(team)}
+            description={teamServerLabel(team) !== hostOf(serverOf(team)) ? hostOf(serverOf(team)) : t('teamSync.aliasTap')}
+            onPress={() => void renameServer(t, serverOf(team)).then((saved) => saved && refresh())}
           />
           <LinkRow
             label={t('teamSync.roleLabel')}
@@ -292,12 +313,28 @@ export default function TeamScreen() {
                     mine: formatBytes(usage.mine),
                     devices: Object.keys(usage.devices).length,
                     devicesMax: usage.limits.maxTeamDevices,
-                  })
+                  }) +
+                  (usage.limits.mediaEnabled
+                    ? `\n${t('teamSync.usageFiles', { size: formatBytes(usage.mediaBytes ?? 0), max: formatBytes(usage.limits.maxMediaTeamBytes ?? 0) })}`
+                    : '')
                 : t('teamSync.usageTap')
             }
             chevron={false}
             onPress={() => void loadUsage()}
           />
+          <LinkRow label={t('teamSync.log.title')} description={t('teamSync.log.desc')} onPress={() => router.push(`/settings/team-log?team=${teamId}` as Href)} />
+          {pendingFiles ? (
+            <LinkRow
+              label={t('teamSync.pendingFiles', { n: pendingFiles })}
+              description={t('teamSync.pendingFilesDesc')}
+              onPress={() =>
+                void run(t('teamSync.loading'), async () => {
+                  const r = await retryPendingMedia(teamId, localIdOf);
+                  toast(r.pending ? t('teamSync.pendingLeft', { added: r.added, n: r.pending }) : t('teamSync.pendingDone', { added: r.added }));
+                })
+              }
+            />
+          ) : null}
           {isAdmin ? <LinkRow label={t('teamSync.limitsTitle')} onPress={() => void adjustLimits()} /> : null}
           {/* Media_sync.md phase 0 test tool, development builds only. */}
           {__DEV__ ? (

@@ -73,6 +73,8 @@ import { useRecordEditing } from '~/lib/useRecordEditing';
 import { chooseEndTime } from '~/lib/endTimeChoice';
 import { SurveyTimeFields } from '~/components/SurveyTimeFields';
 import { LockedBanner, RecordEditButtons } from '~/components/RecordEditButtons';
+import { saveVersionSoon } from '~/db/recordVersions';
+import { useVersionOnLeave } from '~/lib/useVersionOnLeave';
 
 export default function PlotDetailScreen() {
   const { t } = useTranslation();
@@ -80,6 +82,7 @@ export default function PlotDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const plotId = Number(id);
+  useVersionOnLeave('plot', plotId);
   const [plot, setPlot] = useState<PlotSurvey | null>(null);
   /**
    * Restore the tab this plot was last left on — a survey is filled in on the
@@ -234,6 +237,7 @@ export default function PlotDetailScreen() {
                       if (chosen === undefined) return;
                       if (isRecordingTarget({ kind: 'plot', id: plot.id })) pauseRecording();
                       endPlotSurvey(plot.id, chosen);
+                      saveVersionSoon('plot', plot.id, 'done');
                       reload();
                     });
                   }

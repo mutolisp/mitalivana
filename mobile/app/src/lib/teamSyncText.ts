@@ -7,11 +7,11 @@ import { errText } from './errText';
 import { formatBytes } from './exportSize';
 import { TeamSyncError } from './teamSync';
 
-const BYTE_LIMITS = new Set(['teamQuota', 'deviceQuota', 'objectTooLarge']);
+const BYTE_LIMITS = new Set(['teamQuota', 'deviceQuota', 'objectTooLarge', 'mediaQuota']);
 const KNOWN = new Set([
   'offline', 'notARelay', 'incompatible', 'noTeam', 'noSecret', 'unauthorized', 'exists', 'createRate', 'teamQuota',
   'teamFull', 'deviceQuota', 'deviceRate', 'objectTooLarge', 'serverFull', 'corrupt', 'noRecord', 'server', 'sameServer',
-  'mediaDisabled', 'mediaMismatch',
+  'mediaDisabled', 'mediaMismatch', 'mediaQuota', 'mediaIncomplete',
 ]);
 
 export function teamSyncErrorText(e: unknown): string {

@@ -93,6 +93,8 @@ import { chooseEndTime } from '~/lib/endTimeChoice';
 import { SurveyTimesModal } from '~/components/SurveyTimeFields';
 import { RecordEditButtons } from '~/components/RecordEditButtons';
 import type { SpeciesAttributesDraft } from '~/components/SpeciesAttributesBlock';
+import { saveVersionSoon } from '~/db/recordVersions';
+import { useVersionOnLeave } from '~/lib/useVersionOnLeave';
 
 function sortRecords(
   rs: RecordWithTaxon[],
@@ -141,6 +143,7 @@ const HIGH_LEVEL_GROUPS: Array<{
 export default function SessionDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const sessionId = parseInt(id as string, 10);
+  useVersionOnLeave('session', sessionId);
   const router = useRouter();
   const { t } = useTranslation();
   const sortLabel: Record<RecordSort, string> = {
@@ -411,6 +414,7 @@ export default function SessionDetailScreen() {
   const handleEndConfirm = (data: { name: string; project_id: number; notes: string }) => {
     if (session) {
       endSession(session.id, data, endTs);
+      saveVersionSoon('session', session.id, 'done');
       refreshActive();
       setEndModalOpen(false);
       goBackOrHome();

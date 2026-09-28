@@ -22,7 +22,33 @@
 
 export const API = 'https://api.cloudflare.com/client/v4';
 export const DEFAULT_SCRIPT = 'mitalivana-sync';
-export const DEFAULT_BUCKET = 'mitalivana-sync';
+/**
+ * The public server: Worker `mitalivana-sync` with the custom domain below.
+ * A self-hosted deploy in the same Cloudflare account must not reuse that
+ * Worker (a workers.dev URL is the same Worker, same limits, same bucket) —
+ * on 2026-09-28 an in-app self-host did, and the public server ran with the
+ * self-host limits. Such an account self-hosts as SELF_HOST_SCRIPT instead.
+ */
+export const PUBLIC_HOST = 'sync.mitalivana.org';
+export const SELF_HOST_SCRIPT = 'mitalivana-sync-self';
+/** `DeployError.detail` when the Worker serves the public server. */
+export const PUBLIC_SERVER = 'publicServer';
+
+/**
+ * A name usable as both the Worker and its bucket: Worker names on workers.dev
+ * are at most 63 characters, alphanumeric and dashes, no dash at either end;
+ * R2 bucket names are 3–63 lowercase letters, digits and dashes, no dash at
+ * either end (Cloudflare docs, checked 2026-09-28).
+ */
+export function isServerName(name: string): boolean {
+  return /^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/.test(name);
+}
+
+/** The Worker name of a deployment from its workers.dev URL (`https://{name}.{sub}.workers.dev`). */
+export function serverNameOf(url: string): string | null {
+  const m = /^https:\/\/([a-z0-9-]+)\.[a-z0-9-]+\.workers\.dev\/?$/.exec(url.trim());
+  return m && isServerName(m[1]) ? m[1] : null;
+}
 export const COMPATIBILITY_DATE = '2026-09-01';
 export const DAILY_CRON = '17 3 * * *';
 
@@ -47,8 +73,10 @@ export const SELF_HOST_VARS: Record<string, number> = {
   MAX_DEVICE_PUTS_PER_DAY: 100000,
   MAX_TEAMS_PER_IP_PER_DAY: 1000,
   MAX_TOTAL_BYTES: 8 * 1024 * 1024 * 1024,
-  // Files sync on the deployer's own server only (docs/planned/Media_sync.md).
+  // Files sync on the deployer's own server only (docs/planned/Media_sync.md);
+  // 20 GB of files per team to start with, adjustable per team by the deployer.
   MEDIA_ENABLED: 1,
+  MAX_MEDIA_TEAM_BYTES: 20 * 1024 * 1024 * 1024,
 };
 
 const DAY = 24 * 3600;
@@ -92,6 +120,31 @@ async function cf(fetchImpl: FetchLike, token: string, step: string, method: str
   }
   return data?.result;
 }
+
+/**
+ * The token the deploy needs, as Cloudflare's token template URLs pre-fill it
+ * (developers.cloudflare.com/fundamentals/api/how-to/account-owned-token-template,
+ * checked 2026-09-28): permission keys `workers_scripts`, `workers_r2`,
+ * `account_settings`. An account API token belongs to the account, not to a
+ * person, which Cloudflare recommends for integrations; its page needs an
+ * Administrator. The user-token page stays as the fallback.
+ */
+export const TOKEN_PERMISSIONS = [
+  { key: 'workers_scripts', type: 'edit' },
+  { key: 'workers_r2', type: 'edit' },
+  { key: 'account_settings', type: 'read' },
+] as const;
+const TOKEN_NAME = 'Mitalivana sync';
+
+export function tokenTemplateUrl(kind: 'account' | 'user'): string {
+  const perms = encodeURIComponent(JSON.stringify(TOKEN_PERMISSIONS));
+  const name = encodeURIComponent(TOKEN_NAME);
+  return kind === 'account'
+    ? `https://dash.cloudflare.com/?to=/:account/api-tokens&permissionGroupKeys=${perms}&name=${name}`
+    : `https://dash.cloudflare.com/profile/api-tokens?permissionGroupKeys=${perms}&accountId=*&zoneId=all&name=${name}`;
+}
+
+export const isAccountId = (s: string) => /^[0-9a-f]{32}$/.test(s.trim());
 
 export type CfAccount = { id: string; name: string };
 
@@ -138,10 +191,24 @@ export function scriptMetadata({
  * reused (re-running updates the Worker in place). Returns the Worker URL and
  * the new admin token (the caller keeps it; it is not recoverable).
  */
-export type DeployStep = 'url' | 'bucket' | 'lifecycle' | 'script' | 'subdomain' | 'schedule' | 'check';
+export type DeployStep = 'url' | 'guard' | 'bucket' | 'lifecycle' | 'script' | 'subdomain' | 'schedule' | 'check';
 
 /** `DeployError.detail` when the account has no workers.dev subdomain yet. */
 export const NO_SUBDOMAIN = 'noSubdomain';
+
+/**
+ * Refuses when the Worker `script` in this account serves the public server's
+ * domain (List Worker Domains, GET /accounts/{id}/workers/domains?service=…;
+ * needs Workers Scripts Read or Write, which the deploy token has).
+ */
+export async function guardPublicServer(fetchImpl: FetchLike, token: string, accountId: string, script: string, step = 'guard'): Promise<void> {
+  const domains = (await cf(fetchImpl, token, step, 'GET', `/accounts/${accountId}/workers/domains?service=${encodeURIComponent(script)}`)) as
+    | Array<{ hostname?: string; service?: string }>
+    | null;
+  if ((domains ?? []).some((d) => d.hostname === PUBLIC_HOST && (d.service == null || d.service === script))) {
+    throw new DeployError(step, 0, PUBLIC_SERVER);
+  }
+}
 
 export async function deploySyncServer({
   token,
@@ -150,8 +217,9 @@ export async function deploySyncServer({
   fetchImpl,
   randomHex,
   script = DEFAULT_SCRIPT,
-  bucket = DEFAULT_BUCKET,
+  bucket = script,
   vars = {},
+  selfHost = false,
   onStep = () => {},
   waitForInfo = true,
   sleep = (ms: number) => new Promise((r) => setTimeout(r, ms)),
@@ -162,9 +230,12 @@ export async function deploySyncServer({
   fetchImpl: FetchLike;
   /** `n` random bytes as hex, from a CSPRNG. */
   randomHex: (n: number) => string;
+  /** Worker name; the bucket takes the same name unless given. */
   script?: string;
   bucket?: string;
   vars?: Record<string, string | number>;
+  /** A deployer's own server: refuses to overwrite the public server's Worker. */
+  selfHost?: boolean;
   onStep?: (step: DeployStep) => void;
   waitForInfo?: boolean;
   sleep?: (ms: number) => Promise<unknown>;
@@ -180,7 +251,14 @@ export async function deploySyncServer({
     throw e;
   })) as { subdomain?: string } | null;
   if (!sub?.subdomain) throw new DeployError('url', 0, NO_SUBDOMAIN);
+  if (!isServerName(script) || !isServerName(bucket)) throw new DeployError('url', 0, 'badName');
   const url = `https://${script}.${sub.subdomain}.workers.dev`;
+
+  // Still before anything is created.
+  if (selfHost) {
+    onStep('guard');
+    await guardPublicServer(fetchImpl, token, accountId, script);
+  }
 
   onStep('bucket');
   try {
@@ -229,13 +307,13 @@ export async function deploySyncServer({
   return { url, adminToken };
 }
 
-/** Remove a self-hosted deployment: the Worker, then every object and the bucket. */
+/** Remove a self-hosted deployment: the Worker, then every object and the bucket. Never the public server's. */
 export async function removeSyncServer({
   token,
   accountId,
   fetchImpl,
   script = DEFAULT_SCRIPT,
-  bucket = DEFAULT_BUCKET,
+  bucket = script,
 }: {
   token: string;
   accountId: string;
@@ -244,6 +322,7 @@ export async function removeSyncServer({
   bucket?: string;
 }): Promise<{ bucketDeleted: boolean }> {
   const acct = `/accounts/${accountId}`;
+  await guardPublicServer(fetchImpl, token, accountId, script, 'script');
   await cf(fetchImpl, token, 'script', 'DELETE', `${acct}/workers/scripts/${script}`);
   // A bucket must be empty to delete; the Worker is gone, so the objects are
   // left to lifecycle (at most 90 days) when deleting the bucket is refused.

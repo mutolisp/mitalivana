@@ -16,7 +16,8 @@ import { showActionSheet } from '~/components/ActionSheet';
 import type { MergeKind } from '~/lib/mergeDocs';
 import { hasMergeLog } from '~/db/mergeLog';
 import { mergeSummary } from '~/lib/mergeSummaryText';
-import { hasSecret, linkedTeams, listTeams, recordUuid, syncRecord } from '~/lib/teamSync';
+import { hasSecret, linkedTeams, listTeams, recordUuid, syncRecord, teamServerLabel } from '~/lib/teamSync';
+import { confirmSwitch, planTeamPick } from '~/lib/teamPick';
 import { teamSyncErrorText } from '~/lib/teamSyncText';
 import { useToast } from '~/stores/toast';
 import { HeaderIconButton } from './HeaderIconButton';
@@ -54,29 +55,52 @@ export function RecordMenuButton({
     }, [kind, id]),
   );
 
+  // With several teams the button always asks, each with its server, and
+  // switching between same-named ones asks again (src/lib/teamPick.ts): a
+  // record must not silently keep going to an old server.
   const pickTeam = async (): Promise<string | null> => {
-    const teams = listTeams();
+    const teams = listTeams().map((x) => ({ team_id: x.team_id, name: x.name, host: teamServerLabel(x) }));
     const uuid = recordUuid(kind, id);
     const linked = uuid ? linkedTeams(kind, uuid) : [];
-    if (linked.length === 1) return linked[0];
-    if (teams.length === 1) return teams[0].team_id;
-    const idx = await showActionSheet({
-      title: t('teamSync.pickTeam'),
-      cancelLabel: t('common.cancel'),
-      options: teams.map((x) => ({ label: x.name })),
-    });
-    return teams[idx]?.team_id ?? null;
+    const plan = planTeamPick(teams, linked);
+    let chosen: string | null;
+    if (plan.kind === 'use') chosen = plan.teamId;
+    else {
+      const idx = await showActionSheet({
+        title: t('teamSync.pickTeam'),
+        cancelLabel: t('common.cancel'),
+        options: plan.options.map((o) => ({
+          label: [o.name, o.host ? `（${o.host}）` : '', o.linked ? ` · ${t('teamSync.pickLinked')}` : ''].join(''),
+        })),
+      });
+      chosen = plan.options[idx]?.teamId ?? null;
+    }
+    if (!chosen) return null;
+    const from = confirmSwitch(teams, linked, chosen);
+    if (!from) return chosen;
+    const to = teams.find((x) => x.team_id === chosen)!;
+    const ok = await new Promise<boolean>((resolve) =>
+      Alert.alert(t('teamSync.switchTitle'), t('teamSync.switchMsg', { name: to.name, from: from.host, to: to.host }), [
+        { text: t('common.cancel'), style: 'cancel', onPress: () => resolve(false) },
+        // No host on the button: Android capitalises dialog buttons; the message names it.
+        { text: t('teamSync.switchGo'), onPress: () => resolve(true) },
+      ]),
+    );
+    return ok ? chosen : null;
   };
 
   const sync = async () => {
     const teamId = await pickTeam();
     if (!teamId) return;
+    const dest = listTeams().find((x) => x.team_id === teamId);
+    // Every result says where it went.
+    const where = dest ? `\n${t('teamSync.sentTo', { name: dest.name, host: teamServerLabel(dest) })}` : '';
     setBusy(true);
-    toast(t('teamSync.syncing'), { durationMs: 30000 });
+    // Progress shows in the strip on every screen (SyncProgressHost).
     try {
       const r = await syncRecord(teamId, kind, id);
       useToast.getState().dismiss();
-      if (r.queued) toast(t('teamSync.queuedToast'));
+      if (r.queued) toast(t('teamSync.queuedToast') + where);
       else if (!r.review) {
         const who = r.mergedFrom.length
           ? t('teamSync.mergedFromToast', { names: [...new Set(r.mergedFrom)].join('、') })
@@ -87,13 +111,13 @@ export function RecordMenuButton({
         if (who) {
           setHasLog(true);
           // What was merged, with the full list one tap away (the record's merge log).
-          toast(what ? t('teamSync.mergedWithSummary', { who, what }) : who, { durationMs: 8000, action: { label: t('mergeLog.details'), onPress: openLog } });
-        } else toast(t('teamSync.upToDate'));
+          toast((what ? t('teamSync.mergedWithSummary', { who, what }) : who) + where, { durationMs: 8000, action: { label: t('mergeLog.details'), onPress: openLog } });
+        } else toast(t('teamSync.upToDate') + where, { durationMs: 5000 });
       }
       onSynced?.();
     } catch (e) {
       useToast.getState().dismiss();
-      Alert.alert(t('teamSync.failTitle'), teamSyncErrorText(e));
+      Alert.alert(t('teamSync.failTitle'), teamSyncErrorText(e) + where);
     } finally {
       setBusy(false);
     }
@@ -110,6 +134,15 @@ export function RecordMenuButton({
               router.push(reportHref);
             }}
             label={t('report.navTitle')}
+          />
+          {/* Record versions (v73): snapshots, comparison, restore. */}
+          <HeaderIconButton
+            icon="layers-outline"
+            onPress={() => {
+              setOpen(false);
+              router.push({ pathname: '/record-versions', params: { kind, id: String(id) } } as Href);
+            }}
+            label={t('versions.title')}
           />
           {hasLog ? (
             <HeaderIconButton

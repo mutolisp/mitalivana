@@ -61,6 +61,7 @@ import { baseOf, diffSides, type MergeSide, type SyncBlock } from '~/lib/mergeEn
 import { usePendingMerge } from '~/lib/teamMergeFlow';
 import type { ImportedPhotoBlob } from '~/lib/recordImportZip';
 import { findGloriaSurveyFor, localGloriaDoc } from '~/modules/gloria/merge';
+import { saveVersionByUuid } from '~/db/recordVersions';
 
 type NewRecordKind = 'session' | 'plot' | 'gloria' | 'miren';
 
@@ -577,6 +578,8 @@ async function finishPlotImport(payload: Extract<ReadRecordImport, { kind: 'plot
   const audioUriByName = await importAudioClips(payload.audio);
 
   const taxa = remapUnknownTaxa(data.species);
+  // Replacing this device's copy: keep a version of it first (v73).
+  if (!newUuid) saveVersionByUuid('plot', data.uuid, 'before_import');
   const { plotId } = importPlotSurvey(data, {
     newUuid,
     photoUriByName: photoUriByName ?? undefined,
@@ -641,6 +644,7 @@ async function finishSessionImport(
   const audioUriByName = await importAudioClips(payload.audio);
 
   const taxa = remapUnknownTaxa(data.records);
+  if (!newUuid && data.uuid) saveVersionByUuid('session', data.uuid, 'before_import');
   const { sessionId } = importSession(data, {
     newUuid,
     photoUriByName: photoUriByName ?? undefined,
@@ -700,6 +704,7 @@ async function finishGloriaImport(doc: GloriaDoc, sync: SyncBlock | null | undef
     });
     if (idx !== 0) return;
   }
+  saveVersionByUuid('gloria', doc.survey.uuid, 'before_import');
   const { surveyId } = importGloriaDoc(doc);
   const stored = localGloriaDoc(surveyId);
   rememberBase('gloria', doc.survey.uuid, stored ? gloriaSide(stored) : null);

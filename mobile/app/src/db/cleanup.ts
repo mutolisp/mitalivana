@@ -10,6 +10,7 @@ import { File, Paths } from 'expo-file-system';
 import { getDatasetDb } from './datasets';
 import { getUserDb } from './init';
 import { endActiveRecord, type ActiveKind } from './activeRecords';
+import { DELETED_KEEP_MS } from '~/lib/recordVersionsCore';
 
 /**
  * Enforce the single-active invariant at app start.
@@ -176,6 +177,25 @@ export function listSafetyBackups(): { name: string; uri: string; size: number }
  *
  * Idempotent: a second run finds nothing.
  */
+/**
+ * Record versions (v73): a record gone → its versions wait 30 days for
+ * "recently deleted"; one back (recovered, re-imported) → not deleted. Run at
+ * start-up and when the "recently deleted" list opens.
+ */
+export function sweepRecordVersions(now = Date.now()): void {
+  const db = getUserDb();
+  const alive = {
+    session: `SELECT uuid FROM sessions WHERE uuid IS NOT NULL`,
+    plot: `SELECT uuid FROM plot_surveys`,
+    gloria: `SELECT uuid FROM gloria_surveys`,
+  };
+  for (const [kind, sql] of Object.entries(alive)) {
+    db.executeSync(`UPDATE record_versions SET deleted_at = ? WHERE record_kind = ? AND deleted_at IS NULL AND record_uuid NOT IN (${sql})`, [now, kind]);
+    db.executeSync(`UPDATE record_versions SET deleted_at = NULL WHERE record_kind = ? AND deleted_at IS NOT NULL AND record_uuid IN (${sql})`, [kind]);
+  }
+  db.executeSync(`DELETE FROM record_versions WHERE deleted_at IS NOT NULL AND deleted_at < ?`, [now - DELETED_KEEP_MS]);
+}
+
 export function purgeOrphanRows(): void {
   const db = getUserDb();
 
@@ -205,6 +225,10 @@ export function purgeOrphanRows(): void {
     ['merge_log', `record_kind = 'plot' AND record_uuid NOT IN (SELECT uuid FROM plot_surveys)`],
     ['merge_log', `record_kind = 'gloria' AND record_uuid NOT IN (SELECT uuid FROM gloria_surveys)`],
     ['sync_queue', `record_uuid NOT IN (SELECT uuid FROM sessions WHERE uuid IS NOT NULL UNION SELECT uuid FROM plot_surveys UNION SELECT uuid FROM gloria_surveys)`],
+    // Sync log (v70): only teams still on this device, newest 500 per team.
+    // Entries of deleted records stay (their label says what they were).
+    ['sync_log', `team_id NOT IN (SELECT team_id FROM sync_teams)`],
+    ['sync_log', `id IN (SELECT id FROM (SELECT id, ROW_NUMBER() OVER (PARTITION BY team_id ORDER BY at DESC, id DESC) AS rn FROM sync_log) WHERE rn > 500)`],
   ];
   for (const [table, where] of orphanDeletes) {
     // Parent before child: FK is OFF here, so nothing cascades. Deleting
@@ -213,6 +237,8 @@ export function purgeOrphanRows(): void {
     // on the next launch.
     db.executeSync(`DELETE FROM ${table} WHERE ${where};`);
   }
+
+  sweepRecordVersions();
 
   // Declared ON DELETE SET NULL → keep the row, drop the dangling pointer.
   db.executeSync(

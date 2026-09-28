@@ -10,11 +10,11 @@ import type { TFunction } from 'i18next';
 import { Alert } from 'react-native';
 import { defaultSurveyorString } from '~/db/surveyors';
 import { isHttpsUrl } from '~/lib/teamCrypto';
-import { DEFAULT_SERVER, defaultServerForNewTeams, listServers } from '~/lib/teamSync';
+import { DEFAULT_SERVER, defaultServerForNewTeams, hostOf, listServers, serverAlias, serverLabel, setServerAlias } from '~/lib/teamSync';
 import { showActionSheet } from './ActionSheet';
 import { promptText } from './TextPromptModal';
 
-const host = (u: string) => u.replace(/^https:\/\//, '');
+const host = (u: string) => serverLabel(u);
 
 /**
  * Pick a relay: the built-in one, the remembered ones (deployed here first),
@@ -57,6 +57,22 @@ export async function pickServer(t: TFunction, title: string, exclude?: string):
     return undefined;
   }
   return u;
+}
+
+/**
+ * Give a server a short name on this device (v71); empty clears it and the
+ * address shows again. Resolves true when something was saved.
+ */
+export async function renameServer(t: TFunction, url: string): Promise<boolean> {
+  const v = await promptText({
+    title: t('teamSync.aliasTitle'),
+    message: t('teamSync.aliasMsg', { host: hostOf(url) }),
+    defaultValue: serverAlias(url) ?? '',
+    placeholder: t('teamSync.aliasPlaceholder'),
+  });
+  if (v === null) return false;
+  setServerAlias(url, v);
+  return true;
 }
 
 /** This device's name in a team; null = cancelled. Starts from the default surveyor. */

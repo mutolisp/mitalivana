@@ -12,7 +12,7 @@ import { ActivityIndicator, Alert, ScrollView, Text, View } from 'react-native';
 import { showActionSheet } from '~/components/ActionSheet';
 import { LinkRow, Section } from '~/components/settings/rows';
 import { SettingsPage } from '~/components/settings/SettingsPage';
-import { askMyName, pickServer } from '~/components/teamSyncPrompts';
+import { askMyName, pickServer, renameServer } from '~/components/teamSyncPrompts';
 import { promptText } from '~/components/TextPromptModal';
 import { isoStamp } from '~/lib/datetime';
 import {
@@ -23,13 +23,19 @@ import {
   forgetServer,
   hasSecret,
   listServers,
+  rememberServer,
   listTeams,
   queuedCount,
+  serverLabel,
+  teamServerLabel,
+  hostOf,
   setDefaultServerForNewTeams,
   type KnownServer,
   type Team,
 } from '~/lib/teamSync';
+import { duplicateNames } from '~/lib/teamPick';
 import { teamSyncErrorText } from '~/lib/teamSyncText';
+import { isHttpsUrl } from '~/lib/teamCrypto';
 
 type Row = Team & { hasKey: boolean; queued: number };
 
@@ -82,29 +88,45 @@ export default function TeamSyncScreen() {
     router.push(`/team/join?c=${encodeURIComponent(code.trim())}` as Href);
   };
 
-  const chooseDefault = async () => {
-    const url = await pickServer(t, t('teamSync.defaultServerTitle'));
+  /** Add a relay by its address; it is checked before it joins the list. */
+  const addServer = async () => {
+    const typed = await promptText({
+      title: t('teamSync.addServer'),
+      message: t('teamSync.serverUrlMsg'),
+      placeholder: 'https://mitalivana-sync.example.workers.dev',
+      autoCapitalize: 'none',
+      keyboardType: 'email-address',
+    });
+    const url = typed?.trim().replace(/\/+$/, '');
     if (!url) return;
+    if (!isHttpsUrl(url)) {
+      Alert.alert(t('teamSync.failTitle'), t('teamSync.err.server'));
+      return;
+    }
     await run(t('teamSync.loading'), async () => {
-      // A typed URL is checked before it becomes the default for new teams.
-      if (url !== DEFAULT_SERVER) await checkServer(url);
-      setDefaultServerForNewTeams(url);
+      await checkServer(url);
+      rememberServer(url);
     });
   };
 
-  const forget = async () => {
-    const known = listServers();
-    if (!known.length) return;
+  /** One server's actions: short name, default for new teams, forget (not the built-in one). */
+  const serverMenu = async (url: string) => {
+    const builtin = url === DEFAULT_SERVER;
+    const actions: Array<{ label: string; destructive?: boolean; run: () => Promise<void> | void }> = [
+      { label: t('teamSync.aliasTitle'), run: () => renameServer(t, url).then(() => refresh()) },
+      ...(url !== servers.def ? [{ label: t('teamSync.makeDefault'), run: () => (setDefaultServerForNewTeams(url), refresh()) }] : []),
+      ...(!builtin ? [{ label: t('teamSync.forgetOne'), destructive: true, run: () => (forgetServer(url), refresh()) }] : []),
+    ];
     const idx = await showActionSheet({
-      title: t('teamSync.forgetTitle'),
-      message: t('teamSync.forgetMsg'),
+      title: serverLabel(url),
+      message: hostOf(url),
       cancelLabel: t('common.cancel'),
-      options: known.map((x) => ({ label: x.url.replace(/^https:\/\//, ''), destructive: true })),
+      options: actions.map((a) => ({ label: a.label, destructive: a.destructive })),
     });
-    if (!known[idx]) return;
-    forgetServer(known[idx].url);
-    refresh();
+    await actions[idx]?.run();
   };
+
+  const dupNames = duplicateNames(teams);
 
   return (
     <SettingsPage>
@@ -125,6 +147,8 @@ export default function TeamSyncScreen() {
                 key={x.team_id}
                 label={x.name}
                 description={[
+                  // Same-named teams are told apart by their server.
+                  dupNames.has(x.name.trim().toLowerCase()) ? teamServerLabel(x) : null,
                   x.member_name ? t('teamSync.iAm', { name: x.member_name }) : t('teamSync.noMyName'),
                   x.is_owner ? t('teamSync.owner') : null,
                   !x.hasKey ? t('teamSync.noKey') : null,
@@ -141,19 +165,32 @@ export default function TeamSyncScreen() {
         <Section title={t('teamSync.actions')}>
           <LinkRow label={t('teamSync.create')} onPress={() => void create()} />
           <LinkRow label={t('teamSync.join')} description={t('teamSync.joinDesc')} onPress={() => void join()} />
+          <LinkRow label={t('teamSync.log.titleAll')} description={t('teamSync.log.desc')} onPress={() => router.push('/settings/team-log' as Href)} />
         </Section>
+        {/* Every server once: its short name (v71) and address, what it is; tap for name / default / forget. */}
         <Section title={t('teamSync.sectionServers')}>
-          <LinkRow
-            label={t('teamSync.defaultServerTitle')}
-            description={servers.def.replace(/^https:\/\//, '')}
-            onPress={() => void chooseDefault()}
-          />
+          {[DEFAULT_SERVER, ...servers.known.map((x) => x.url)].map((u) => {
+            const named = serverLabel(u) !== hostOf(u);
+            const tags = [
+              u === DEFAULT_SERVER ? t('teamSync.aliasBuiltin') : null,
+              servers.known.find((x) => x.url === u)?.is_own ? t('teamSync.aliasOwn') : null,
+              u === servers.def ? t('teamSync.aliasDefault') : null,
+            ].filter(Boolean);
+            return (
+              <LinkRow
+                key={u}
+                label={serverLabel(u)}
+                description={[named ? hostOf(u) : null, ...tags].filter(Boolean).join(' · ')}
+                onPress={() => void serverMenu(u)}
+              />
+            );
+          })}
+          <LinkRow label={t('teamSync.addServer')} description={t('teamSync.addServerDesc')} onPress={() => void addServer()} />
           <LinkRow
             label={t('teamSync.selfHost')}
             description={t('teamSync.selfHostDesc')}
             onPress={() => router.push('/settings/team-deploy' as Href)}
           />
-          {servers.known.length ? <LinkRow label={t('teamSync.forgetTitle')} onPress={() => void forget()} /> : null}
         </Section>
         <Text className="px-4 pt-3 text-xs leading-5 text-gray-500 dark:text-gray-400">
           {t('teamSync.privacy', { server: DEFAULT_SERVER.replace(/^https:\/\//, '') })}

@@ -11,20 +11,45 @@
 import { useRouter, type Href } from 'expo-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { showActionSheet } from '~/components/ActionSheet';
 import { SettingsPage } from '~/components/settings/SettingsPage';
 import { promptText } from '~/components/TextPromptModal';
 import { errText } from '~/lib/errText';
-import { DeployError, deploySyncServer, listAccounts, NO_SUBDOMAIN, removeSyncServer, SELF_HOST_VARS, type DeployStep } from '~/lib/syncDeploy';
+import {
+  DEFAULT_SCRIPT,
+  DeployError,
+  deploySyncServer,
+  isAccountId,
+  isServerName,
+  listAccounts,
+  NO_SUBDOMAIN,
+  PUBLIC_HOST,
+  PUBLIC_SERVER,
+  removeSyncServer,
+  SELF_HOST_SCRIPT,
+  SELF_HOST_VARS,
+  serverNameOf,
+  tokenTemplateUrl,
+  type CfAccount,
+  type DeployStep,
+} from '~/lib/syncDeploy';
 import { SYNC_WORKER_MODULES } from '~/lib/syncWorkerSource';
-import { createTeam, randomHex, rememberServer, setDefaultServerForNewTeams } from '~/lib/teamSync';
+import { createTeam, listServers, randomHex, rememberServer, setDefaultServerForNewTeams } from '~/lib/teamSync';
 import { teamSyncErrorText } from '~/lib/teamSyncText';
 import { saveAdminToken } from '~/lib/teamSyncAdmin';
 import { defaultSurveyorString } from '~/db/surveyors';
 
-const STEPS: DeployStep[] = ['url', 'bucket', 'lifecycle', 'script', 'subdomain', 'schedule', 'check'];
-const TOKEN_PAGE = 'https://dash.cloudflare.com/profile/api-tokens';
+const STEPS: DeployStep[] = ['url', 'guard', 'bucket', 'lifecycle', 'script', 'subdomain', 'schedule', 'check'];
+
+/** The name this phone deployed under last time (its workers.dev URL), else the default. */
+function lastServerName(): string {
+  for (const s of listServers()) {
+    const n = s.is_own ? serverNameOf(s.url) : null;
+    if (n) return n;
+  }
+  return DEFAULT_SCRIPT;
+}
 
 export default function TeamDeployScreen() {
   const { t } = useTranslation();
@@ -33,6 +58,9 @@ export default function TeamDeployScreen() {
   const [done, setDone] = useState<string | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Worker name = bucket name. In the account that runs the public server,
+  // the default name is taken by it, so the deploy offers SELF_HOST_SCRIPT.
+  const [serverName, setServerName] = useState(lastServerName);
 
   const askToken = () =>
     promptText({
@@ -43,10 +71,32 @@ export default function TeamDeployScreen() {
       autoCapitalize: 'none',
     });
 
+  /** Asked when the token cannot list its accounts (an account API token may not be allowed to). */
+  const askAccountId = async (): Promise<CfAccount | null> => {
+    // The token prompt (a Modal) closed just now; wait for its exit.
+    await new Promise((r) => setTimeout(r, 450));
+    const id = await promptText({
+      title: t('teamDeploy.accountIdTitle'),
+      message: t('teamDeploy.accountIdMsg'),
+      placeholder: 'Account ID',
+      autoCapitalize: 'none',
+    });
+    if (!id) return null;
+    if (!isAccountId(id)) throw new Error(t('teamDeploy.accountIdBad'));
+    return { id: id.trim(), name: id.trim() };
+  };
+
   /** Token → the account to use (asks when there are several). */
   const pickAccount = async (token: string) => {
-    const accounts = await listAccounts({ token, fetchImpl: (u, i) => fetch(u, i) });
-    if (accounts.length === 0) throw new Error(t('teamDeploy.noAccount'));
+    let accounts: CfAccount[];
+    try {
+      accounts = await listAccounts({ token, fetchImpl: (u, i) => fetch(u, i) });
+    } catch (e) {
+      // A refused listing is not a bad token by itself: the later steps tell.
+      if (e instanceof DeployError && (e.status === 401 || e.status === 403)) return askAccountId();
+      throw e;
+    }
+    if (accounts.length === 0) return askAccountId();
     if (accounts.length === 1) return accounts[0];
     // The token prompt (a Modal) closed just now; a native sheet presented
     // during its exit animation is dismissed with it on iOS.
@@ -59,25 +109,56 @@ export default function TeamDeployScreen() {
     return accounts[idx] ?? null;
   };
 
+  /** Yes / no before switching away from the public server's Worker name. */
+  const confirmAltName = () =>
+    new Promise<boolean>((resolve) =>
+      Alert.alert(t('teamDeploy.publicTitle'), t('teamDeploy.publicUseAlt', { host: PUBLIC_HOST, name: SELF_HOST_SCRIPT }), [
+        { text: t('common.cancel'), style: 'cancel', onPress: () => resolve(false) },
+        // No name on the button: Android capitalises dialog buttons; the message names it.
+        { text: t('teamDeploy.publicUseAltGo'), onPress: () => resolve(true) },
+      ]),
+    );
+
   const deploy = async () => {
+    const wanted = serverName.trim();
+    if (!isServerName(wanted)) {
+      Alert.alert(t('teamDeploy.nameBadTitle'), t('teamDeploy.nameBad'));
+      return;
+    }
     const token = await askToken();
     if (!token) return;
     setBusy(true);
     setFailed(null);
     setDone(null);
+    let used = wanted;
     try {
       const account = await pickAccount(token.trim());
       if (!account) return;
-      const res = await deploySyncServer({
-        token: token.trim(),
-        accountId: account.id,
-        modules: SYNC_WORKER_MODULES,
-        fetchImpl: (u, i) => fetch(u, i),
-        randomHex,
-        // Your own server: only your own bill limits it (SELF_HOST_VARS).
-        vars: SELF_HOST_VARS,
-        onStep: setStep,
-      });
+      const run = (script: string) =>
+        deploySyncServer({
+          token: token.trim(),
+          accountId: account.id,
+          modules: SYNC_WORKER_MODULES,
+          fetchImpl: (u, i) => fetch(u, i),
+          randomHex,
+          script,
+          // Your own server: only your own bill limits it (SELF_HOST_VARS).
+          vars: SELF_HOST_VARS,
+          selfHost: true,
+          onStep: setStep,
+        });
+      let res;
+      try {
+        res = await run(wanted);
+      } catch (e) {
+        // The public server's account: nothing was created; offer the other name.
+        if (!(e instanceof DeployError && e.detail === PUBLIC_SERVER && wanted === DEFAULT_SCRIPT)) throw e;
+        setStep(null);
+        if (!(await confirmAltName())) return;
+        used = SELF_HOST_SCRIPT;
+        setServerName(used);
+        res = await run(used);
+      }
       await saveAdminToken(res.url, res.adminToken);
       rememberServer(res.url, true);
       setDone(res.url);
@@ -90,7 +171,9 @@ export default function TeamDeployScreen() {
         e instanceof DeployError
           ? e.detail === NO_SUBDOMAIN
             ? t('teamDeploy.noSubdomain')
-            : t('teamDeploy.failStep', { step: t(`teamDeploy.step.${e.step}`), detail: e.detail ?? e.status })
+            : e.detail === PUBLIC_SERVER
+              ? t('teamDeploy.publicRefused', { host: PUBLIC_HOST, name: used })
+              : t('teamDeploy.failStep', { step: t(`teamDeploy.step.${e.step}`), detail: e.detail ?? e.status })
           : errText(e),
       );
     } finally {
@@ -100,16 +183,28 @@ export default function TeamDeployScreen() {
   };
 
   const remove = async () => {
+    const script = serverName.trim();
+    if (!isServerName(script)) {
+      Alert.alert(t('teamDeploy.nameBadTitle'), t('teamDeploy.nameBad'));
+      return;
+    }
     const token = await askToken();
     if (!token) return;
     setBusy(true);
     try {
       const account = await pickAccount(token.trim());
       if (!account) return;
-      const r = await removeSyncServer({ token: token.trim(), accountId: account.id, fetchImpl: (u, i) => fetch(u, i) });
+      const r = await removeSyncServer({ token: token.trim(), accountId: account.id, fetchImpl: (u, i) => fetch(u, i), script });
       Alert.alert(t('teamDeploy.removedTitle'), r.bucketDeleted ? t('teamDeploy.removed') : t('teamDeploy.removedKeepBucket'));
     } catch (e) {
-      Alert.alert(t('teamSync.failTitle'), e instanceof DeployError ? `${t(`teamDeploy.step.${e.step}`)}：${e.detail ?? e.status}` : errText(e));
+      Alert.alert(
+        t('teamSync.failTitle'),
+        e instanceof DeployError
+          ? e.detail === PUBLIC_SERVER
+            ? t('teamDeploy.publicRemoveRefused', { host: PUBLIC_HOST, name: script })
+            : `${t(`teamDeploy.step.${e.step}`)}：${e.detail ?? e.status}`
+          : errText(e),
+      );
     } finally {
       setBusy(false);
     }
@@ -137,7 +232,7 @@ export default function TeamDeployScreen() {
   const stepIndex = step ? STEPS.indexOf(step) : -1;
   return (
     <SettingsPage title={t('teamDeploy.title')}>
-      <ScrollView contentContainerClassName="gap-4 p-4 pb-10">
+      <ScrollView contentContainerClassName="gap-4 p-4 pb-10" keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
         <Text className="text-sm leading-6 text-gray-700 dark:text-gray-300">{t('teamDeploy.intro')}</Text>
         <View className="gap-1 rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-800 dark:bg-gray-900">
           <Text className="text-sm font-semibold text-gray-900 dark:text-gray-100">{t('teamDeploy.permsTitle')}</Text>
@@ -147,9 +242,30 @@ export default function TeamDeployScreen() {
             </Text>
           ))}
           <Text className="pt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">{t('teamDeploy.permsNote')}</Text>
-          <Pressable onPress={() => void Linking.openURL(TOKEN_PAGE)} accessibilityRole="link" className="pt-1">
-            <Text className="text-sm text-[#00797b] dark:text-cyan-300">{t('teamDeploy.openDashboard')} ›</Text>
+          <Pressable onPress={() => void Linking.openURL(tokenTemplateUrl('account'))} accessibilityRole="link" className="pt-1">
+            <Text className="text-sm text-[#00797b] dark:text-cyan-300">{t('teamDeploy.openAccountTokens')} ›</Text>
           </Pressable>
+          <Pressable onPress={() => void Linking.openURL(tokenTemplateUrl('user'))} accessibilityRole="link">
+            <Text className="text-xs text-[#00797b] dark:text-cyan-300">{t('teamDeploy.openUserTokens')} ›</Text>
+          </Pressable>
+        </View>
+
+        <View className="gap-1 rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-800 dark:bg-gray-900">
+          <Text className="text-sm font-semibold text-gray-900 dark:text-gray-100">{t('teamDeploy.nameLabel')}</Text>
+          <TextInput
+            value={serverName}
+            onChangeText={(v) => setServerName(v.toLowerCase())}
+            editable={!busy}
+            autoCapitalize="none"
+            autoCorrect={false}
+            placeholder={DEFAULT_SCRIPT}
+            placeholderTextColor="#9ca3af"
+            accessibilityLabel={t('teamDeploy.nameLabel')}
+            className="rounded-md border border-gray-300 bg-white px-2 py-1.5 font-mono text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+          />
+          <Text className="text-xs leading-5 text-gray-500 dark:text-gray-400">
+            {t('teamDeploy.nameHint', { host: PUBLIC_HOST, alt: SELF_HOST_SCRIPT })}
+          </Text>
         </View>
 
         {busy && step ? (

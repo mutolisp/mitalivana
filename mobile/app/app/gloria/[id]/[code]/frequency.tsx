@@ -43,6 +43,8 @@ import { chooseEndTime } from '~/lib/endTimeChoice';
 import { OverviewPanel } from '~/modules/gloria/components/OverviewPanel';
 import { BannerText, Btn, Chip, FoldBanner, NumAccessory, NumField, Seg } from '~/modules/gloria/components/ui';
 import { RANGES } from '~/modules/gloria/model/ranges';
+import { saveVersionSoon } from '~/db/recordVersions';
+import { useVersionOnLeave } from '~/lib/useVersionOnLeave';
 
 const CELLS = QUADRAT_N * QUADRAT_N;
 const GRAZING = [
@@ -64,6 +66,7 @@ export default function FrequencyScreen() {
   const fs = FONT_SCALE_VALUE[useSettings((s) => s.font_scale)] * useWindowDimensions().fontScale;
   const params = useLocalSearchParams<{ id: string; code: string }>();
   const id = Number(params.id);
+  useVersionOnLeave('gloria', id);
   const code = String(params.code);
   const { state, reload } = useSurvey(id);
   const unit = state?.unit(code);
@@ -451,6 +454,7 @@ export default function FrequencyScreen() {
                     endTs = chosen;
                   }
                   setFrequencyLocked(unit.id, !locked, endTs);
+                  if (!locked) saveVersionSoon('gloria', id, 'done');
                   clearUndo();
                   setAdding(false);
                   reload();

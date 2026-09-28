@@ -13,6 +13,7 @@ import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, ScrollView, Text, View } from 'react-native';
 import { LinkRow, Section } from '~/components/settings/rows';
+import { clearOldVersions, versionsSize } from '~/db/recordVersions';
 import { SettingsPage } from '~/components/settings/SettingsPage';
 import { formatBytes } from '~/lib/exportSize';
 import {
@@ -44,6 +45,7 @@ type Sizes = {
   photos: number;
   audio: number;
   files: number;
+  versions: { bytes: number; count: number };
 };
 
 function measure(): Sizes {
@@ -68,6 +70,8 @@ function measure(): Sizes {
     photos: doc('photos'),
     audio: doc('audio'),
     files: doc('files'),
+    // Inside user.db (counted there too); shown for its own clean-up.
+    versions: versionsSize(),
   };
 }
 
@@ -109,6 +113,12 @@ export default function StorageScreen() {
       refresh();
     });
   };
+  const clearVersions = () =>
+    confirm(t('storage.versionsTitle'), t('storage.versionsConfirm', { n: s.versions.count }), () => {
+      const n = clearOldVersions();
+      toast(t('storage.versionsCleared', { n }));
+      refresh();
+    });
   const clearLegacy = () =>
     confirm(t('storage.legacyTitle'), t('storage.legacyConfirm', { size: formatBytes(s.legacy) }), () => {
       removeLegacyLeftovers();
@@ -149,6 +159,13 @@ export default function StorageScreen() {
             description={t('storage.safetyDesc', { n: s.safety.n })}
             value={formatBytes(s.safety.bytes)}
             onPress={() => router.push('/backup' as Href)}
+          />
+          <LinkRow
+            label={t('storage.versions')}
+            description={t('storage.versionsDesc', { n: s.versions.count })}
+            value={formatBytes(s.versions.bytes)}
+            chevron={false}
+            onPress={clearVersions}
           />
           <LinkRow
             label={t('storage.mergeBackups')}

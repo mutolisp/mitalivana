@@ -34,6 +34,8 @@ import { SpeciesMatrix } from '~/modules/gloria/components/SpeciesMatrix';
 import { missingRequiredPhotos, PhotoChecklist } from '~/modules/gloria/components/PhotoChecklist';
 import { Btn, Card, Label, NumAccessory, Seg } from '~/modules/gloria/components/ui';
 import { chooseEndTime } from '~/lib/endTimeChoice';
+import { saveVersionSoon } from '~/db/recordVersions';
+import { useVersionOnLeave } from '~/lib/useVersionOnLeave';
 
 type Tab = 'points' | 'map' | 'species' | 'photos' | 'loggers';
 
@@ -41,6 +43,7 @@ export default function GloriaSurveyScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const id = Number(useLocalSearchParams<{ id: string }>().id);
+  useVersionOnLeave('gloria', id);
   const { state, reload } = useSurvey(id);
   const [tab, setTab] = useState<Tab>(() => (state && state.points.every((p) => p.distance_m == null) ? 'points' : 'map'));
   const [help, setHelp] = useState<Direction | null>(null);
@@ -89,6 +92,7 @@ export default function GloriaSurveyScreen() {
           const chosen = await chooseEndTime(state.survey.stop_ts, { afterDialog: true });
           if (chosen === undefined) return;
           endGloriaSurvey(id, chosen);
+          saveVersionSoon('gloria', id, 'done');
           refreshStores();
           reload();
         },

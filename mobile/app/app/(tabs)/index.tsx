@@ -89,6 +89,9 @@ import { useActiveSession } from '~/stores/activeSession';
 import { selectionKey, useRecordSelection } from '~/stores/recordSelection';
 import { useSettings, type RecordsLayout } from '~/stores/settings';
 import { useToast } from '~/stores/toast';
+import { syncAllTeams } from '~/lib/teamSync';
+import { teamSyncErrorText } from '~/lib/teamSyncText';
+import { mergeSummary } from '~/lib/mergeSummaryText';
 import { ACTION_FILL } from '~/lib/colors';
 import { useTabBarInset } from '~/lib/tabBarLayout';
 
@@ -785,9 +788,15 @@ export default function RecordsListScreen() {
         { label: `${t('records.filterTitle')}: ${filterLabel[filter]} (${counts[filter]})` },
         { label: `${t('records.viewTitle')}: ${viewLabel[viewMode]}` },
         { label: t('record.kindImport') },
+        { label: t('versions.deletedTitle') },
       ],
     });
     if (idx < 0) return;
+    // Recently deleted records (record versions keep them 30 days).
+    if (idx === 3) {
+      router.push('/deleted-records' as Href);
+      return;
+    }
     // iOS will not present a second sheet in the tick the first is dismissing.
     await new Promise((r) => setTimeout(r, 250));
     if (idx === 0) await pickFilter();
@@ -1048,7 +1057,34 @@ export default function RecordsListScreen() {
     requestAnimationFrame(() => {
       reload();
       setTimeout(() => setRefreshing(false), 300);
+      // Records already synced with a team are synced again too; progress
+      // shows in the strip on every screen, so the list stays usable.
+      void syncLinkedRecords();
     });
+  };
+
+  const syncLinkedRecords = async () => {
+    try {
+      const r = await syncAllTeams();
+      if (!r || r.teams === 0) return;
+      reload();
+      if (r.queued) toast(t('teamSync.queuedToast'));
+      else if (!r.review) {
+        const parts = [
+          r.sent ? t('teamSync.teamSynced', { count: r.sent }) : null,
+          r.mergedFrom.length
+            ? (() => {
+                const who = t('teamSync.mergedFromToast', { names: [...new Set(r.mergedFrom)].join('、') });
+                const what = mergeSummary(t, r.changes);
+                return what ? t('teamSync.mergedWithSummary', { who, what }) : who;
+              })()
+            : null,
+        ].filter(Boolean);
+        toast(parts.length ? parts.join('；') : t('teamSync.teamNothing'));
+      }
+    } catch (e) {
+      Alert.alert(t('teamSync.failTitle'), teamSyncErrorText(e));
+    }
   };
 
   // C4: one-shot swipe-actions teaser on the first visible record row. The

@@ -2,7 +2,7 @@
 
 *[正體中文版](PRIVACY.md)*
 
-**v0.2 | 2026-09-26** (adds Team sync)
+**v0.3 | 2026-09-28** (Team sync: photos, audio and scans on self-hosted servers)
 
 Mitalivana is an offline-first field tool for biodiversity surveys. This policy explains what the app stores on your device, the circumstances under which data leaves your device, and how you can delete it.
 
@@ -65,8 +65,8 @@ Once uploaded, this data resides in your own iNaturalist account, and how public
 
 **Team sync**: the app connects only when you press Sync, Fetch the team's records, Cloud usage and similar buttons.
 
-- **What is sent**: the record's content (species, quantities, coordinates, surveyor names, notes; not photos or recordings) and the name you set for yourself in the team, encrypted on the phone with the team key (XChaCha20-Poly1305) before it is sent.
-- **What the server sees**: the team code, hashed record and device codes, file sizes, upload times and the connecting IP address. It cannot read the records, and the codes do not reveal which project, plot or summit they are.
+- **What is sent**: the record's content (species, quantities, coordinates, surveyor names, notes) and the name you set for yourself in the team, encrypted on the phone with the team key (XChaCha20-Poly1305) before it is sent. The default server takes no photos, audio or scans; when a team uses a self-hosted server, the photos, recordings and attached files (such as GLORIA form scans) a record refers to are also sent, encrypted in chunks, EXIF (time taken, GPS) included inside the ciphertext.
+- **What the server sees**: the team code, hashed record and device codes, file sizes, upload times and the connecting IP address; when files sync, also each file's code and size, and which file codes one record refers to. It cannot read the records or files, and the codes do not reveal which project, plot or summit they are.
 - **Default server**: operated by the developer on Cloudflare (`sync.mitalivana.org`, Cloudflare Workers + R2). Data is deleted automatically 90 days after its last update, and the team lead can delete all of a team's cloud data at any time. To limit abuse the server counts team creations per day by a hash of the IP address; those counters are deleted after two days. As the infrastructure provider, Cloudflare's handling is governed by Cloudflare's privacy policy.
 - **Self-hosted server**: if a team uses a server one member deployed ("Use my own Cloudflare"), the data sits in that member's Cloudflare account and is that member's responsibility; the content is ciphertext there too.
 - **Who can read it**: anyone holding the team's invitation code or QR code can read and change the team's data, so give it only to teammates.
@@ -81,7 +81,7 @@ Once uploaded, this data resides in your own iNaturalist account, and how public
 
 Each of the services above has its own privacy policy, and their handling of data lies outside this app's control.
 
-Apart from the cases above, your location, photos and audio remain on your device only; under no circumstances does the developer receive them.
+Apart from the cases above (including the ciphertext exchanged through a server a teammate chose when the team is self-hosted), your location, photos and audio remain on your device only; under no circumstances does the developer receive them.
 
 ---
 

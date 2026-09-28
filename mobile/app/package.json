@@ -57,6 +57,9 @@
     "check:merge": "node --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-merge.mjs",
     "check:team-crypto": "node --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-team-crypto.mjs",
     "check:team-quota": "node --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-team-quota.mjs",
+    "check:team-pick": "node --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON ./scripts/check-team-pick.mjs",
+    "check:media-refs": "node --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON ./scripts/check-media-refs.mjs",
+    "check:record-versions": "node --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-record-versions.mjs",
     "privacy": "node ./scripts/gen-privacy.mjs",
     "check:privacy": "node --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/gen-privacy.mjs --check",
     "postinstall": "patch-package"
@@ -90,6 +93,7 @@
     "expo-haptics": "~15.0.8",
     "expo-image": "~3.0.11",
     "expo-image-picker": "~17.0.11",
+    "expo-keep-awake": "~15.0.8",
     "expo-linking": "~8.0.11",
     "expo-location": "~19.0.8",
     "expo-media-library": "~18.2.1",
