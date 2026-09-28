@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { DARK, LIGHT, useThemeColors } from '~/theme/colors';
 import { useSettings, type FabSide, type RecordTypeDefault } from '~/stores/settings';
 import { showActionSheet } from '~/components/ActionSheet';
 import {
@@ -57,6 +58,7 @@ async function showLongPressMenu(): Promise<void> {
 
 function PlusButton() {
   const recordTypeDefault = useSettings((s) => s.record_type_default);
+  const c = useThemeColors();
 
   const onPress = () => {
     if (recordTypeDefault === 'session') startSessionAndOpen();
@@ -70,17 +72,16 @@ function PlusButton() {
       onPress={onPress}
       onLongPress={showLongPressMenu}
       delayLongPress={350}
-      // Brand color #008F51. NativeWind 4 supports `bg-[#xxx]` arbitrary
-      // hex as long as the literal appears verbatim in source so the JIT
-      // scanner can pick it up. Press state darkens by ~20%.
+      // Acorn (tailwind.config.js) is reserved for this button alone; the
+      // glyph on it is ink (`onAcorn`), which white would fail against.
       //
       // Sized to sit INSIDE the pill rather than overhang its top edge the way
       // it did on the old square bar: a circle straddling a rounded edge reads
       // as a mistake, and `overflow: 'hidden'` on the pill would clip it.
-      className="items-center justify-center rounded-full bg-[#008F51] active:bg-[#007241]"
+      className="items-center justify-center rounded-full bg-acorn active:bg-acorn-pressed"
       style={{ width: FAB_SIZE, height: FAB_SIZE, borderRadius: FAB_SIZE / 2 }}
     >
-      <Ionicons name="add" size={26} color="white" />
+      <Ionicons name="add" size={26} color={c.onAcorn} />
     </Pressable>
   );
 }
@@ -147,8 +148,8 @@ const TINT_ALPHA = { light: 0.3, dark: 0.28 };
  * still legible to someone who cannot rely on the weight difference alone.
  */
 const TAB_FG = {
-  light: { active: '#075E7A', inactive: '#374151' },
-  dark: { active: '#FFFFFF', inactive: '#D1D5DB' },
+  light: { active: LIGHT.accent, inactive: '#4A3D31' }, // gray-700
+  dark: { active: DARK.accent, inactive: DARK.ink2 }, // ink2 = gray-300
 };
 
 function TabBarPill() {

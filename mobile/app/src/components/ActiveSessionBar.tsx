@@ -76,12 +76,12 @@ export function ActiveSessionBar() {
   //
   // It keeps filling `insets.top` because nothing else does: _layout.tsx only
   // renders <TopSafeAreaSpacer> when NOTHING is active. And it must stay
-  // emerald there — `<SystemBars style={hasActive ? 'light' : …}>` in
+  // accent there — `<SystemBars style={hasActive ? 'light' : …}>` in
   // _layout.tsx paints the status-bar icons white while any record is running,
   // so a pale inset would hide the clock and battery entirely.
   if (pathname === targetPath) {
     return (
-      <View className="bg-emerald-600" style={{ paddingTop: insets.top }}>
+      <View className="bg-accent-600" style={{ paddingTop: insets.top }}>
         <View className="h-1" />
       </View>
     );
@@ -93,7 +93,7 @@ export function ActiveSessionBar() {
         if (pathname === targetPath) return;
         router.navigate(href);
       }}
-      className="bg-emerald-600 active:bg-emerald-700"
+      className="bg-accent-600 active:bg-accent-700"
       style={{ paddingTop: insets.top }}
     >
       <View className="flex-row items-center px-4 py-2">
