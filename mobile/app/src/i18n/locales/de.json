@@ -219,8 +219,8 @@
     "emptyCreate": "Neuer Datensatz",
     "selectedCount_one": "{{count}} ausgewählt",
     "selectedCount_other": "{{count}} ausgewählt",
-    "deleteMsg_one": "„{{title}}“ und der {{count}} zugehörige Datensatz werden dauerhaft entfernt.",
-    "deleteMsg_other": "„{{title}}“ und die {{count}} zugehörigen Datensätze werden dauerhaft entfernt.",
+    "deleteMsg_one": "„{{title}}“ und der {{count}} zugehörige Datensatz werden entfernt.",
+    "deleteMsg_other": "„{{title}}“ und die {{count}} zugehörigen Datensätze werden entfernt.",
     "collectionCount_one": "Aufsammlungen {{count}}",
     "collectionCount_other": "Aufsammlungen {{count}}",
     "uploadInat": "iNat",
@@ -254,8 +254,8 @@
     "layoutToList": "Zur Listenansicht wechseln",
     "deleteSelectedTitle_one": "{{count}} Aufzeichnung löschen?",
     "deleteSelectedTitle_other": "{{count}} Aufzeichnungen löschen?",
-    "deleteSelectedMsg_one": "Diese Aufzeichnung und die {{rows}} Artdatensätze darin werden endgültig entfernt.",
-    "deleteSelectedMsg_other": "Diese {{count}} Aufzeichnungen und die {{rows}} Artdatensätze darin werden endgültig entfernt.",
+    "deleteSelectedMsg_one": "Diese Aufzeichnung und die {{rows}} Artdatensätze darin werden entfernt.",
+    "deleteSelectedMsg_other": "Diese {{count}} Aufzeichnungen und die {{rows}} Artdatensätze darin werden entfernt.",
     "deletedCount_one": "{{count}} Aufzeichnung gelöscht",
     "deletedCount_other": "{{count}} Aufzeichnungen gelöscht",
     "search": "Suchen",
@@ -264,7 +264,9 @@
     "mergeNoGloria": "GLORIA-Aufnahmen lassen sich nicht zusammenführen: Jede gilt einem Gipfel in einem Monitoringzyklus.",
     "duplicateNoGloria": "GLORIA-Aufnahmen lassen sich nicht kopieren. Den nächsten Monitoringzyklus unter „Neue GLORIA-Aufnahme“ mit demselben Gipfel beginnen.",
     "gloriaCount_one": "GLORIA {{count}} ({{summits}} Gipfel)",
-    "gloriaCount_other": "GLORIA {{count}} ({{summits}} Gipfel)"
+    "gloriaCount_other": "GLORIA {{count}} ({{summits}} Gipfel)",
+    "deleteRecoverable": "Artenlisten, Probeflächen- und GLORIA-Aufnahmen lassen sich 30 Tage lang unter Datensätze ⋯ → „Zuletzt gelöscht“ wiederherstellen.",
+    "deletePermanent": "Sammlungen lassen sich nach dem Löschen nicht wiederherstellen."
   },
   "export": {
     "preparing": "Wird vorbereitet…",
@@ -3984,7 +3986,8 @@
       "after_merge": "Nach Zusammenführung",
       "before_restore": "Vor Wiederherstellung",
       "before_import": "Vor Import",
-      "manual": "Manuell"
+      "manual": "Manuell",
+      "before_delete": "Vor dem Löschen"
     },
     "vsNow": "Mit jetzt vergleichen",
     "vsPrev": "Mit vorheriger vergleichen",

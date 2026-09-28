@@ -865,11 +865,16 @@ export default function RecordsListScreen() {
     }
     unlockThen(picked, () => deleteSelection(picked));
   };
+  // Checklists, plots and GLORIA surveys keep their versions 30 days after deletion (record versions);
+  // collections have none.
+  const recoverableNote = (items: RecordItem[]) =>
+    (items.some((it) => it.kind !== 'collection') ? `\n\n${t('records.deleteRecoverable')}` : '') +
+    (items.some((it) => it.kind === 'collection') ? `\n\n${t('records.deletePermanent')}` : '');
   const deleteSelection = (picked: RecordItem[]) => {
     const rows = picked.reduce((sum, it) => sum + it.recordCount, 0);
     Alert.alert(
       t('records.deleteSelectedTitle', { count: picked.length }),
-      t('records.deleteSelectedMsg', { count: picked.length, rows }),
+      t('records.deleteSelectedMsg', { count: picked.length, rows }) + recoverableNote(picked),
       [
         { text: t('common.cancel'), style: 'cancel' },
         {
@@ -927,7 +932,7 @@ export default function RecordsListScreen() {
     const noun = nounOf(item.kind);
     Alert.alert(
       t('records.deleteTitle', { noun }),
-      t('records.deleteMsg', { title: item.title, count: item.recordCount }),
+      t('records.deleteMsg', { title: item.title, count: item.recordCount }) + recoverableNote([item]),
       [
         { text: t('common.cancel'), style: 'cancel' },
         {

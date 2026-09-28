@@ -199,7 +199,7 @@
     "includeSpeciesCollection": "標本的採集號是實體標本的編號，無法預先配發，因此不會一併複製。",
     "emptyCreate": "新增記錄",
     "selectedCount_other": "已選 {{count}}",
-    "deleteMsg_other": "「{{title}}」與其下 {{count}} 筆紀錄將全部移除，無法復原。",
+    "deleteMsg_other": "「{{title}}」與其下 {{count}} 筆紀錄將全部移除。",
     "collectionCount_other": "採集 {{count}}",
     "uploadInat": "iNat",
     "mergeProvenance": "合併自：{{sources}}",
@@ -228,14 +228,16 @@
     "layoutToCard": "改用卡片檢視",
     "layoutToList": "改用列表檢視",
     "deleteSelectedTitle_other": "刪除 {{count}} 筆調查記錄？",
-    "deleteSelectedMsg_other": "這 {{count}} 筆調查記錄與其下 {{rows}} 筆物種紀錄將全部移除，無法復原。",
+    "deleteSelectedMsg_other": "這 {{count}} 筆調查記錄與其下 {{rows}} 筆物種紀錄將全部移除。",
     "deletedCount_other": "已刪除 {{count}} 筆調查記錄",
     "search": "搜尋",
     "searchPlaceholder": "搜尋專案名稱、說明或記錄名稱",
     "searchNoMatch": "沒有符合「{{q}}」的專案或記錄",
     "mergeNoGloria": "GLORIA 調查是單一山峰的單次監測週期，不能合併。",
     "duplicateNoGloria": "GLORIA 調查不能複製。下一個監測週期請從「新增 GLORIA 調查」選同一個山峰開始。",
-    "gloriaCount_other": "GLORIA {{count}} 筆（{{summits}} 座山峰）"
+    "gloriaCount_other": "GLORIA {{count}} 筆（{{summits}} 座山峰）",
+    "deleteRecoverable": "名錄、樣區與 GLORIA 調查 30 天內可從記錄分頁 ⋯ →「最近刪除」救回。",
+    "deletePermanent": "採集記錄刪除後無法復原。"
   },
   "export": {
     "preparing": "準備中…",
@@ -3807,7 +3809,8 @@
       "after_merge": "合併後",
       "before_restore": "還原前",
       "before_import": "匯入覆蓋前",
-      "manual": "手動"
+      "manual": "手動",
+      "before_delete": "刪除前"
     },
     "vsNow": "與現在比",
     "vsPrev": "與上一版比",

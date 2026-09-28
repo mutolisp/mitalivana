@@ -171,6 +171,9 @@ export function updateSession(id: number, updates: Partial<Session>): void {
 }
 
 export function deleteSession(id: number): void {
+  // Snapshot first, so the deletion can be undone for 30 days (record versions).
+  // Lazy: recordVersions imports this module.
+  (require('./recordVersions') as typeof import('./recordVersions')).saveVersion('session', id, 'before_delete');
   const db = getUserDb();
   // 子列在 schema 裡都宣告了 ON DELETE CASCADE，而 FK 強制已於 initDb() 末尾開啟
   // （src/db/init.ts，per-connection、整個 session 有效），所以那些 cascade 現在確實

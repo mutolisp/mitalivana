@@ -73,7 +73,7 @@ import { useRecordEditing } from '~/lib/useRecordEditing';
 import { chooseEndTime } from '~/lib/endTimeChoice';
 import { SurveyTimeFields } from '~/components/SurveyTimeFields';
 import { LockedBanner, RecordEditButtons } from '~/components/RecordEditButtons';
-import { saveVersionSoon } from '~/db/recordVersions';
+import { onVersionRestored, saveVersionSoon } from '~/db/recordVersions';
 import { useVersionOnLeave } from '~/lib/useVersionOnLeave';
 
 export default function PlotDetailScreen() {
@@ -136,6 +136,16 @@ export default function PlotDetailScreen() {
   useEffect(() => {
     reload();
   }, [reload]);
+  // A version restored from the versions screen (opened over this one): read everything again.
+  useEffect(
+    () =>
+      onVersionRestored((kind, rid) => {
+        if (kind !== 'plot' || rid !== plotId) return;
+        setRev((n) => n + 1);
+        reload();
+      }),
+    [plotId, reload],
+  );
 
   const ready = plot ? plotCanAcceptSpecies(plot) : false;
 

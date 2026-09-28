@@ -6,13 +6,13 @@
  */
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChangeList } from '~/components/ChangeList';
 import { promptText } from '~/components/TextPromptModal';
-import { diffVersions, flushPendingVersions, listVersions, restoreVersion, saveVersion, uuidAndLabel, type RecordVersion } from '~/db/recordVersions';
+import { diffVersions, listVersions, onVersionSaved, restoreVersion, saveVersion, uuidAndLabel, type RecordVersion } from '~/db/recordVersions';
 import { isoStamp } from '~/lib/datetime';
 import { errText } from '~/lib/errText';
 import { formatBytes } from '~/lib/exportSize';
@@ -42,13 +42,9 @@ export default function RecordVersionsScreen() {
   const [open, setOpen] = useState<number | null>(null);
   const [against, setAgainst] = useState<'now' | 'prev'>('now');
   const reload = useCallback(() => setVersions(who ? listVersions(kind, who.uuid) : []), [kind, who]);
-  // Opening this screen blurred the record, which queued a "leave" snapshot: take it first so it is listed.
-  useFocusEffect(
-    useCallback(() => {
-      flushPendingVersions();
-      reload();
-    }, [reload]),
-  );
+  useFocusEffect(reload);
+  // Opening this screen blurred the record, which queued a "leave" snapshot that lands a moment later.
+  useEffect(() => onVersionSaved((k, rid) => k === kind && rid === id && reload()), [kind, id, reload]);
 
   const changes = useMemo(() => {
     if (open == null) return null;

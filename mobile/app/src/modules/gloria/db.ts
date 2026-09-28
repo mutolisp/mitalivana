@@ -533,6 +533,9 @@ export function reopenGloriaSurvey(id: number): void {
 
 /** Delete a survey and everything under it (FK cascades cover points, units, roster, unit species). */
 export function deleteGloriaSurvey(id: number): void {
+  // Snapshot first, so the deletion can be undone for 30 days (record versions).
+  // Lazy: recordVersions imports this module.
+  (require('../../db/recordVersions') as typeof import('../../db/recordVersions')).saveVersion('gloria', id, 'before_delete');
   withTransaction(() => {
     const db = getUserDb();
     // Explicit child deletes as well: cascades are only as good as PRAGMA foreign_keys.

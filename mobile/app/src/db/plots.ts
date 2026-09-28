@@ -741,6 +741,9 @@ export function reopenPlotSurvey(id: number): void {
 }
 
 export function deletePlotSurvey(id: number): void {
+  // Snapshot first, so the deletion can be undone for 30 days (record versions).
+  // Lazy: recordVersions imports this module.
+  (require('./recordVersions') as typeof import('./recordVersions')).saveVersion('plot', id, 'before_delete');
   const db = getUserDb();
   // Read the boundary before the row goes: nothing else would know about it
   // afterwards, and an unreferenced site keeps showing up on the map and in

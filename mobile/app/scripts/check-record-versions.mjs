@@ -10,10 +10,14 @@
  *     turns the current rows into exactly the version's rows: changed fields
  *     back, added rows removed, deleted rows back; and restoring the saved
  *     "before restore" state undoes it;
- *   - the diff shown (describeMerge) names each of those changes.
+ *   - the diff shown (describeMerge) names each of those changes;
+ *   - surveyors / time span (team merge combines them, kept in `extra`) count
+ *     as content and restore exactly, not unioned; the same list written
+ *     differently ("a, b" / "a,b") with the same value is not a change.
  */
 import { baseOf, describeMerge, diffSides, planOps } from '../src/lib/mergeEngine.ts';
-import { DELETED_KEEP_MS, KEEP_AUTO, LEAVE_MERGE_MS, expired, pickPrune, planSave, restoreDecisions } from '../src/lib/recordVersionsCore.ts';
+import { COMBINERS } from '../src/lib/mergeDocs.ts';
+import { DELETED_KEEP_MS, KEEP_AUTO, LEAVE_MERGE_MS, expired, pickPrune, planSave, restoreDecisions, snapshotHash, takeVersion } from '../src/lib/recordVersionsCore.ts';
 
 let failed = 0;
 const eq = (msg, got, want) => {
@@ -57,22 +61,28 @@ function apply(side, ops) {
     const rows = (out[op.tbl] ??= []);
     if (op.op === 'insert') rows.push({ ...op.row, data: { ...op.row.data } });
     else if (op.op === 'delete') out[op.tbl] = rows.filter((r) => r.key !== op.key);
-    else Object.assign(rows.find((x) => x.key === op.key).data, op.data);
+    else {
+      const r = rows.find((x) => x.key === op.key);
+      Object.assign(r.data, op.data);
+      if (op.extra) r.extra = { ...r.extra, ...op.extra };
+    }
   }
   return out;
 }
-const norm = (side) => Object.fromEntries(Object.entries(side).map(([t, rows]) => [t, rows.map((r) => [r.key, r.data]).sort((a, b) => (a[0] < b[0] ? -1 : 1))]).filter(([, r]) => r.length));
+const norm = (side) => Object.fromEntries(Object.entries(side).map(([t, rows]) => [t, rows.map((r) => [r.key, r.data, r.extra ?? null]).sort((a, b) => (a[0] < b[0] ? -1 : 1))]).filter(([, r]) => r.length));
+const C = takeVersion(COMBINERS.plot);
 const restore = (current, version) => {
-  const items = diffSides(current, version, baseOf(current));
+  const items = diffSides(current, version, baseOf(current), C);
   return { items, out: apply(current, planOps(items, restoreDecisions(items))) };
 };
 
+const rec = (notes, extra) => ({ ...row('r', { name: 'Plot A', notes }), extra });
 const version = {
-  record: [row('r', { name: 'Plot A', notes: 'old' })],
+  record: [rec('old', { recorded_by: 'Lin, Higa', start_ts: 100, stop_ts: 200, track_geojson: null })],
   species: [row('a', { taxon_id: 't1', cover: 5 }), row('b', { taxon_id: 't2', cover: 10 }), row('c', { taxon_id: 't3', cover: 1 })],
 };
 const current = {
-  record: [row('r', { name: 'Plot A', notes: 'new' })],
+  record: [rec('new', { recorded_by: 'Lin, Higa, Chen', start_ts: 50, stop_ts: 300, track_geojson: null })],
   species: [row('a', { taxon_id: 't1', cover: 25 }), row('b', { taxon_id: 't2', cover: 10 }), row('d', { taxon_id: 't4', cover: 3 })],
 };
 const { items, out } = restore(current, version);
@@ -80,6 +90,19 @@ eq('restore yields exactly the version', norm(out), norm(version));
 const undo = restore(out, current).out;
 eq('restoring the before-restore state undoes it', norm(undo), norm(current));
 eq('restoring the same content changes nothing', planOps(diffSides(version, version, baseOf(version)), new Map()).length, 0);
+
+const sv = describeMerge(items, restoreDecisions(items)).find((c) => c.label === 'r').fields.map((f) => f.f).sort();
+eq('surveyors and times listed as changed', sv, ['notes', 'recorded_by', 'start_ts', 'stop_ts']);
+
+// Only the combined fields differ: still a change, and still restored exactly.
+const onlyExtra = { ...version, record: [rec('old', { recorded_by: 'Lin', start_ts: 100, stop_ts: 200, track_geojson: null })] };
+eq('surveyors-only change changes the hash', snapshotHash(onlyExtra) !== snapshotHash(version), true);
+eq('same content → same hash', snapshotHash(structuredClone(version)), snapshotHash(version));
+eq('surveyors-only restore is exact', norm(restore(version, onlyExtra).out), norm(onlyExtra));
+// Same list, different spacing → no change listed (team merge's union would reformat it).
+const spaced = { ...version, record: [rec('old', { recorded_by: 'Lin,Higa', start_ts: 100, stop_ts: 200, track_geojson: null })] };
+eq('no noise from the surveyor union', diffSides(version, version, baseOf(version), C).length, 0);
+eq('different text is a real difference', diffSides(version, spaced, baseOf(version), C).length, 1);
 
 const shown = describeMerge(items, restoreDecisions(items)).map((c) => `${c.action}:${c.label}`).sort();
 eq('diff names each change', shown, ['added:c', 'changed:a', 'changed:r', 'deleted:d']);

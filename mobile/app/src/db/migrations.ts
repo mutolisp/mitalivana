@@ -2341,6 +2341,38 @@ const MIGRATIONS: Migration[] = [
       db.executeSync(`CREATE INDEX IF NOT EXISTS idx_record_versions ON record_versions(record_kind, record_uuid, created_at);`);
     },
   },
+  {
+    // v74: record_versions.reason gains 'before_delete' — a record is
+    // snapshotted as it is deleted, so one never opened since v73 can still
+    // be recovered. SQLite cannot ALTER a CHECK: rename + create + copy + drop
+    // (inside the runner's per-migration transaction).
+    version: 74,
+    up: (db) => {
+      db.executeSync(`ALTER TABLE record_versions RENAME TO record_versions_v73;`);
+      db.executeSync(`
+        CREATE TABLE record_versions (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          record_kind TEXT NOT NULL CHECK (record_kind IN ('session', 'plot', 'gloria')),
+          record_uuid TEXT NOT NULL,
+          label TEXT,
+          reason TEXT NOT NULL CHECK (reason IN ('done', 'leave', 'before_merge', 'after_merge', 'before_restore', 'before_import', 'before_delete', 'manual')),
+          note TEXT,
+          content_hash TEXT NOT NULL,
+          size INTEGER NOT NULL,
+          doc TEXT NOT NULL,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          deleted_at INTEGER
+        );
+      `);
+      db.executeSync(`
+        INSERT INTO record_versions (id, record_kind, record_uuid, label, reason, note, content_hash, size, doc, created_at, updated_at, deleted_at)
+        SELECT id, record_kind, record_uuid, label, reason, note, content_hash, size, doc, created_at, updated_at, deleted_at FROM record_versions_v73;
+      `);
+      db.executeSync(`DROP TABLE record_versions_v73;`);
+      db.executeSync(`CREATE INDEX IF NOT EXISTS idx_record_versions ON record_versions(record_kind, record_uuid, created_at);`);
+    },
+  },
 ];
 
 /** Highest schema version this build knows how to produce. Backup/restore uses

@@ -219,8 +219,8 @@
     "emptyCreate": "New record",
     "selectedCount_one": "{{count}} selected",
     "selectedCount_other": "{{count}} selected",
-    "deleteMsg_one": "\"{{title}}\" and its {{count}} record will be permanently removed.",
-    "deleteMsg_other": "\"{{title}}\" and its {{count}} records will be permanently removed.",
+    "deleteMsg_one": "\"{{title}}\" and its {{count}} record will be removed.",
+    "deleteMsg_other": "\"{{title}}\" and its {{count}} records will be removed.",
     "collectionCount_one": "{{count}} collection",
     "collectionCount_other": "{{count}} collections",
     "uploadInat": "iNat",
@@ -254,8 +254,8 @@
     "layoutToList": "Switch to list view",
     "deleteSelectedTitle_one": "Delete {{count}} record?",
     "deleteSelectedTitle_other": "Delete {{count}} records?",
-    "deleteSelectedMsg_one": "This record and the {{rows}} species rows inside it will be permanently removed.",
-    "deleteSelectedMsg_other": "These {{count}} records and the {{rows}} species rows inside them will be permanently removed.",
+    "deleteSelectedMsg_one": "This record and the {{rows}} species rows inside it will be removed.",
+    "deleteSelectedMsg_other": "These {{count}} records and the {{rows}} species rows inside them will be removed.",
     "deletedCount_one": "Deleted {{count}} record",
     "deletedCount_other": "Deleted {{count}} records",
     "search": "Search",
@@ -264,7 +264,9 @@
     "mergeNoGloria": "GLORIA surveys can't be merged: each covers one summit in one monitoring cycle.",
     "duplicateNoGloria": "GLORIA surveys can't be duplicated. Start the next monitoring cycle from New GLORIA survey and pick the same summit.",
     "gloriaCount_one": "GLORIA {{count}} ({{summits}} summits)",
-    "gloriaCount_other": "GLORIA {{count}} ({{summits}} summits)"
+    "gloriaCount_other": "GLORIA {{count}} ({{summits}} summits)",
+    "deleteRecoverable": "Checklists, plot surveys and GLORIA surveys can be recovered for 30 days from Records ⋯ → “Recently deleted”.",
+    "deletePermanent": "Collections cannot be recovered once deleted."
   },
   "export": {
     "preparing": "Preparing…",
@@ -3984,7 +3986,8 @@
       "after_merge": "After merge",
       "before_restore": "Before restore",
       "before_import": "Before import",
-      "manual": "Manual"
+      "manual": "Manual",
+      "before_delete": "Before deletion"
     },
     "vsNow": "Compare with now",
     "vsPrev": "Compare with previous",

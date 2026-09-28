@@ -11,10 +11,10 @@
  *     ones, the user's own, stay);
  *   - how long versions of a deleted record wait before they go (30 days).
  */
-import { defaultDecision, type Decision, type MergeItem } from './mergeEngine';
+import { baseOf, defaultDecision, rowHash, type Combiners, type Decision, type MergeItem, type MergeSide } from './mergeEngine';
 
-export type VersionReason = 'done' | 'leave' | 'before_merge' | 'after_merge' | 'before_restore' | 'before_import' | 'manual';
-export const VERSION_REASONS: readonly VersionReason[] = ['done', 'leave', 'before_merge', 'after_merge', 'before_restore', 'before_import', 'manual'];
+export type VersionReason = 'done' | 'leave' | 'before_merge' | 'after_merge' | 'before_restore' | 'before_import' | 'before_delete' | 'manual';
+export const VERSION_REASONS: readonly VersionReason[] = ['done', 'leave', 'before_merge', 'after_merge', 'before_restore', 'before_import', 'before_delete', 'manual'];
 
 export const LEAVE_MERGE_MS = 30 * 60 * 1000;
 export const KEEP_AUTO = 30;
@@ -60,4 +60,25 @@ export function expired(deletedAt: number | null, now: number): boolean {
  */
 export function restoreDecisions(items: readonly MergeItem[]): Map<string, Decision> {
   return new Map(items.map((it) => [it.id, { ...defaultDecision(it), pick: 'remote' as const }]));
+}
+
+/**
+ * Content of a snapshot for "has it changed": every row's data AND the fields
+ * team merge combines instead of comparing (surveyors, time span, track —
+ * kept in `extra`), so a version that differs only there is still stored.
+ */
+export function snapshotHash(side: MergeSide): string {
+  const extras = Object.entries(side).flatMap(([tbl, rs]) => rs.filter((r) => r.extra).map((r) => [tbl, r.key, rowHash(r.extra!)]));
+  return rowHash({ rows: baseOf(side), extras });
+}
+
+/**
+ * Team merge's combiners with each field taking the version's value: restoring
+ * brings surveyors / times / track back exactly (not unioned with the current
+ * ones), and the diff lists them only where they really differ.
+ */
+export function takeVersion(combiners: Combiners): Combiners {
+  return Object.fromEntries(
+    Object.entries(combiners).map(([tbl, fs]) => [tbl, Object.fromEntries(Object.keys(fs).map((f) => [f, (_now: unknown, then: unknown) => then ?? null]))]),
+  );
 }

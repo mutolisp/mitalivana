@@ -199,7 +199,7 @@
     "includeSpeciesCollection": "標本の採集番号は実物の標本に付ける番号で、あらかじめ発行できないため、複製されません。",
     "emptyCreate": "記録を新規作成",
     "selectedCount_other": "{{count}} 件を選択中",
-    "deleteMsg_other": "「{{title}}」とその {{count}} 件の記録がすべて削除されます。元に戻せません。",
+    "deleteMsg_other": "「{{title}}」とその {{count}} 件の記録がすべて削除されます。",
     "collectionCount_other": "採集 {{count}}",
     "uploadInat": "iNat",
     "mergeProvenance": "結合元：{{sources}}",
@@ -228,14 +228,16 @@
     "layoutToCard": "カード表示に切り替え",
     "layoutToList": "リスト表示に切り替え",
     "deleteSelectedTitle_other": "{{count}} 件の調査記録を削除しますか？",
-    "deleteSelectedMsg_other": "この {{count}} 件の調査記録と、その中の {{rows}} 件の種の記録がすべて削除されます。元に戻せません。",
+    "deleteSelectedMsg_other": "この {{count}} 件の調査記録と、その中の {{rows}} 件の種の記録がすべて削除されます。",
     "deletedCount_other": "{{count}} 件の調査記録を削除しました",
     "search": "検索",
     "searchPlaceholder": "プロジェクト名・説明・記録名で検索",
     "searchNoMatch": "「{{q}}」に一致するプロジェクトや記録はありません",
     "mergeNoGloria": "GLORIA 調査は 1 山頂・1 モニタリング周期の記録のため、結合できません。",
     "duplicateNoGloria": "GLORIA 調査は複製できません。次のモニタリング周期は「新規 GLORIA 調査」で同じ山頂を選んで開始してください。",
-    "gloriaCount_other": "GLORIA {{count}} 件（山頂 {{summits}}）"
+    "gloriaCount_other": "GLORIA {{count}} 件（山頂 {{summits}}）",
+    "deleteRecoverable": "種リスト・調査区・GLORIA 調査は 30 日間、「記録」タブの ⋯ →「最近削除した項目」から復旧できます。",
+    "deletePermanent": "採集記録は削除すると元に戻せません。"
   },
   "export": {
     "preparing": "準備中…",
@@ -3807,7 +3809,8 @@
       "after_merge": "統合後",
       "before_restore": "復元前",
       "before_import": "取り込み前",
-      "manual": "手動"
+      "manual": "手動",
+      "before_delete": "削除前"
     },
     "vsNow": "現在と比較",
     "vsPrev": "前の版と比較",

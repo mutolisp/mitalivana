@@ -199,7 +199,7 @@
     "includeSpeciesCollection": "표본의 채집번호는 실물 표본에 부여하는 번호라 미리 발행할 수 없으므로 복제되지 않습니다.",
     "emptyCreate": "새 기록",
     "selectedCount_other": "{{count}}건 선택됨",
-    "deleteMsg_other": "\"{{title}}\"과(와) 그 안의 기록 {{count}}건이 모두 삭제됩니다. 되돌릴 수 없습니다.",
+    "deleteMsg_other": "\"{{title}}\"과(와) 그 안의 기록 {{count}}건이 모두 삭제됩니다.",
     "collectionCount_other": "채집 {{count}}",
     "uploadInat": "iNat",
     "mergeProvenance": "병합 원본: {{sources}}",
@@ -228,14 +228,16 @@
     "layoutToCard": "카드 보기로 전환",
     "layoutToList": "목록 보기로 전환",
     "deleteSelectedTitle_other": "조사 기록 {{count}}건을 삭제할까요?",
-    "deleteSelectedMsg_other": "이 {{count}}건의 조사 기록과 그 안의 종 기록 {{rows}}건이 모두 삭제되며 되돌릴 수 없습니다.",
+    "deleteSelectedMsg_other": "이 {{count}}건의 조사 기록과 그 안의 종 기록 {{rows}}건이 모두 삭제됩니다.",
     "deletedCount_other": "조사 기록 {{count}}건을 삭제했습니다",
     "search": "검색",
     "searchPlaceholder": "프로젝트 이름·설명 또는 기록 이름 검색",
     "searchNoMatch": "“{{q}}”와(과) 일치하는 프로젝트나 기록이 없습니다",
     "mergeNoGloria": "GLORIA 조사는 한 정상의 한 모니터링 주기 기록이라 병합할 수 없습니다.",
     "duplicateNoGloria": "GLORIA 조사는 복제할 수 없습니다. 다음 모니터링 주기는 「새 GLORIA 조사」에서 같은 정상을 선택해 시작하세요.",
-    "gloriaCount_other": "GLORIA {{count}}건(산정 {{summits}})"
+    "gloriaCount_other": "GLORIA {{count}}건(산정 {{summits}})",
+    "deleteRecoverable": "종 목록·조사구·GLORIA 조사는 30일 동안 기록 탭 ⋯ → “최근 삭제”에서 되살릴 수 있습니다.",
+    "deletePermanent": "채집 기록은 삭제하면 되돌릴 수 없습니다."
   },
   "export": {
     "preparing": "준비 중…",
@@ -3807,7 +3809,8 @@
       "after_merge": "병합 후",
       "before_restore": "복원 전",
       "before_import": "가져오기 전",
-      "manual": "직접"
+      "manual": "직접",
+      "before_delete": "삭제 전"
     },
     "vsNow": "현재와 비교",
     "vsPrev": "이전 버전과 비교",

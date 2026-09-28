@@ -23,11 +23,11 @@ import { applyGloriaMerge, localGloriaDoc } from '~/modules/gloria/merge';
 import { getGloriaSurvey, getSummit, importGloriaDoc } from '~/modules/gloria/db';
 import type { GloriaDoc } from '~/modules/gloria/export/yaml';
 import { COMBINERS, gloriaSide, plotSide, sessionSide, type MergeKind } from '~/lib/mergeDocs';
-import { baseOf, describeMerge, diffSides, planOps, rowHash, type MergeChange, type MergeSide } from '~/lib/mergeEngine';
+import { baseOf, describeMerge, diffSides, planOps, type MergeChange, type MergeSide } from '~/lib/mergeEngine';
 import { addRecordMedia, listRecordMedia } from '~/lib/mediaRefs';
 import type { FileItem, MediaRef } from '~/lib/mediaRefsCore';
 import { b64u, fromB64u } from '~/lib/teamCrypto';
-import { pickPrune, planSave, restoreDecisions, type VersionMeta, type VersionReason } from '~/lib/recordVersionsCore';
+import { pickPrune, planSave, restoreDecisions, snapshotHash, takeVersion, type VersionMeta, type VersionReason } from '~/lib/recordVersionsCore';
 import { File } from 'expo-file-system';
 import { rebaseAppFileUri } from '~/lib/appFiles';
 
@@ -80,7 +80,6 @@ export function localRecordId(kind: MergeKind, uuid: string): number | null {
   return rows<{ id: number }>(`SELECT id FROM gloria_surveys WHERE uuid = ?`, [uuid])[0]?.id ?? null;
 }
 
-const contentHash = (side: MergeSide) => rowHash({ rows: baseOf(side) });
 const encode = (s: Snapshot) => b64u(deflateSync(strToU8(JSON.stringify(s)), { level: 9 }));
 const decode = (text: string): Snapshot => JSON.parse(strFromU8(inflateSync(fromB64u(text)))) as Snapshot;
 
@@ -96,7 +95,7 @@ export function saveVersion(kind: MergeKind, id: number, reason: VersionReason, 
     const who = uuidAndLabel(kind, id);
     const doc = who ? localDoc(kind, id) : null;
     if (!who || !doc) return false;
-    const hash = contentHash(sideOf(kind, doc));
+    const hash = snapshotHash(sideOf(kind, doc));
     const latest = rows<VersionMeta>(
       `SELECT id, reason, content_hash, created_at, updated_at FROM record_versions WHERE record_kind = ? AND record_uuid = ? ORDER BY created_at DESC, id DESC LIMIT 1`,
       [kind, who.uuid],
@@ -130,26 +129,20 @@ export function saveVersionByUuid(kind: MergeKind, uuid: string, reason: Version
   return id == null ? false : saveVersion(kind, id, reason);
 }
 
-const pending = new Map<string, { timer: ReturnType<typeof setTimeout>; run: () => void }>();
-
-/** After the current interaction settles (a screen's leave, a finish): the snapshot must not delay the UI. */
+/** After the current interaction settles (a screen's leave, a finish): the snapshot must not delay the UI.
+ *  The delay also lets a text field that commits on blur write first. */
 export function saveVersionSoon(kind: MergeKind, id: number, reason: VersionReason): void {
-  const key = `${kind}|${id}|${reason}`;
-  const prev = pending.get(key);
-  if (prev) clearTimeout(prev.timer);
-  const run = () => {
-    pending.delete(key);
-    saveVersion(kind, id, reason);
-  };
-  pending.set(key, { timer: setTimeout(run, 350), run });
+  setTimeout(() => {
+    if (saveVersion(kind, id, reason)) for (const fn of listeners) fn(kind, id);
+  }, 350);
 }
 
-/** Take the deferred snapshots now — the versions screen opens over the record and would otherwise list without it. */
-export function flushPendingVersions(): void {
-  for (const p of [...pending.values()]) {
-    clearTimeout(p.timer);
-    p.run();
-  }
+const listeners = new Set<(kind: MergeKind, id: number) => void>();
+
+/** Told when a deferred snapshot lands — the versions screen opens over the record, before its "leave" one. */
+export function onVersionSaved(fn: (kind: MergeKind, id: number) => void): () => void {
+  listeners.add(fn);
+  return () => listeners.delete(fn);
 }
 
 // ── read ──────────────────────────────────────────────────────────────────────
@@ -181,7 +174,7 @@ export function diffVersions(kind: MergeKind, recordId: number | null, from: num
   const a = sideAt(from);
   const b = sideAt(to);
   if (!a || !b) return null;
-  const items = diffSides(a, b, baseOf(a), COMBINERS[kind]);
+  const items = diffSides(a, b, baseOf(a), takeVersion(COMBINERS[kind]));
   return describeMerge(items, restoreDecisions(items));
 }
 
@@ -203,13 +196,22 @@ export function restoreVersion(kind: MergeKind, id: number, versionId: number): 
   if (!snap || !doc) throw new Error('version or record not found');
   saveVersion(kind, id, 'before_restore');
   const current = sideOf(kind, doc);
-  const items = diffSides(current, sideOf(kind, snap.doc), baseOf(current), COMBINERS[kind]);
+  const items = diffSides(current, sideOf(kind, snap.doc), baseOf(current), takeVersion(COMBINERS[kind]));
   const ops = planOps(items, restoreDecisions(items));
   if (kind === 'session') applySessionMerge(id, ops, {});
   else if (kind === 'plot') applyPlotMerge(id, ops, {});
   else applyGloriaMerge(id, ops);
   putBackMedia(kind, id, snap.media);
+  for (const fn of restoredListeners) fn(kind, id);
   return ops.length;
+}
+
+const restoredListeners = new Set<(kind: MergeKind, id: number) => void>();
+
+/** Told after a restore, for a record screen that stays mounted under the versions screen and keeps its own copies. */
+export function onVersionRestored(fn: (kind: MergeKind, id: number) => void): () => void {
+  restoredListeners.add(fn);
+  return () => restoredListeners.delete(fn);
 }
 
 export type DeletedRecord = { kind: MergeKind; uuid: string; label: string | null; deletedAt: number; versions: number; latestId: number };

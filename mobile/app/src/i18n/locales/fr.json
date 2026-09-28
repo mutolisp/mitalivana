@@ -239,9 +239,9 @@
     "selectedCount_one": "{{count}} sélectionné",
     "selectedCount_many": "{{count}} sélectionnés",
     "selectedCount_other": "{{count}} sélectionnés",
-    "deleteMsg_one": "« {{title}} » et son {{count}} enregistrement seront définitivement supprimés.",
-    "deleteMsg_many": "« {{title}} » et ses {{count}} enregistrements seront définitivement supprimés.",
-    "deleteMsg_other": "« {{title}} » et ses {{count}} enregistrements seront définitivement supprimés.",
+    "deleteMsg_one": "« {{title}} » et son {{count}} enregistrement seront supprimés.",
+    "deleteMsg_many": "« {{title}} » et ses {{count}} enregistrements seront supprimés.",
+    "deleteMsg_other": "« {{title}} » et ses {{count}} enregistrements seront supprimés.",
     "collectionCount_one": "Récoltes {{count}}",
     "collectionCount_many": "Récoltes {{count}}",
     "collectionCount_other": "Récoltes {{count}}",
@@ -280,9 +280,9 @@
     "deleteSelectedTitle_one": "Supprimer {{count}} relevé ?",
     "deleteSelectedTitle_many": "Supprimer {{count}} relevés ?",
     "deleteSelectedTitle_other": "Supprimer {{count}} relevés ?",
-    "deleteSelectedMsg_one": "Ce relevé et les {{rows}} observations qu’il contient seront définitivement supprimés.",
-    "deleteSelectedMsg_many": "Ces {{count}} relevés et les {{rows}} observations qu’ils contiennent seront définitivement supprimés.",
-    "deleteSelectedMsg_other": "Ces {{count}} relevés et les {{rows}} observations qu’ils contiennent seront définitivement supprimés.",
+    "deleteSelectedMsg_one": "Ce relevé et les {{rows}} observations qu’il contient seront supprimés.",
+    "deleteSelectedMsg_many": "Ces {{count}} relevés et les {{rows}} observations qu’ils contiennent seront supprimés.",
+    "deleteSelectedMsg_other": "Ces {{count}} relevés et les {{rows}} observations qu’ils contiennent seront supprimés.",
     "deletedCount_one": "{{count}} relevé supprimé",
     "deletedCount_many": "{{count}} relevés supprimés",
     "deletedCount_other": "{{count}} relevés supprimés",
@@ -293,7 +293,9 @@
     "duplicateNoGloria": "Impossible de dupliquer un relevé GLORIA. Commencez le cycle suivant depuis « Nouvelle enquête GLORIA » en choisissant le même sommet.",
     "gloriaCount_one": "GLORIA {{count}} ({{summits}} sommets)",
     "gloriaCount_many": "GLORIA {{count}} ({{summits}} sommets)",
-    "gloriaCount_other": "GLORIA {{count}} ({{summits}} sommets)"
+    "gloriaCount_other": "GLORIA {{count}} ({{summits}} sommets)",
+    "deleteRecoverable": "Les listes, placettes et relevés GLORIA peuvent être récupérés pendant 30 jours via Enregistrements ⋯ → « Supprimés récemment ».",
+    "deletePermanent": "Les collectes supprimées ne peuvent pas être récupérées."
   },
   "export": {
     "preparing": "Préparation…",
@@ -4161,7 +4163,8 @@
       "after_merge": "Après fusion",
       "before_restore": "Avant restauration",
       "before_import": "Avant importation",
-      "manual": "Manuelle"
+      "manual": "Manuelle",
+      "before_delete": "Avant suppression"
     },
     "vsNow": "Comparer avec maintenant",
     "vsPrev": "Comparer avec la précédente",

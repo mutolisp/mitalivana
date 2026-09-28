@@ -239,9 +239,9 @@
     "selectedCount_one": "{{count}} seleccionado",
     "selectedCount_many": "{{count}} seleccionados",
     "selectedCount_other": "{{count}} seleccionados",
-    "deleteMsg_one": "«{{title}}» y su {{count}} registro se eliminarán de forma permanente.",
-    "deleteMsg_many": "«{{title}}» y sus {{count}} registros se eliminarán de forma permanente.",
-    "deleteMsg_other": "«{{title}}» y sus {{count}} registros se eliminarán de forma permanente.",
+    "deleteMsg_one": "«{{title}}» y su {{count}} registro se eliminarán.",
+    "deleteMsg_many": "«{{title}}» y sus {{count}} registros se eliminarán.",
+    "deleteMsg_other": "«{{title}}» y sus {{count}} registros se eliminarán.",
     "collectionCount_one": "Recolecciones {{count}}",
     "collectionCount_many": "Recolecciones {{count}}",
     "collectionCount_other": "Recolecciones {{count}}",
@@ -280,9 +280,9 @@
     "deleteSelectedTitle_one": "¿Eliminar {{count}} registro?",
     "deleteSelectedTitle_many": "¿Eliminar {{count}} registros?",
     "deleteSelectedTitle_other": "¿Eliminar {{count}} registros?",
-    "deleteSelectedMsg_one": "Este registro y las {{rows}} observaciones que contiene se eliminarán de forma permanente.",
-    "deleteSelectedMsg_many": "Estos {{count}} registros y las {{rows}} observaciones que contienen se eliminarán de forma permanente.",
-    "deleteSelectedMsg_other": "Estos {{count}} registros y las {{rows}} observaciones que contienen se eliminarán de forma permanente.",
+    "deleteSelectedMsg_one": "Este registro y las {{rows}} observaciones que contiene se eliminarán.",
+    "deleteSelectedMsg_many": "Estos {{count}} registros y las {{rows}} observaciones que contienen se eliminarán.",
+    "deleteSelectedMsg_other": "Estos {{count}} registros y las {{rows}} observaciones que contienen se eliminarán.",
     "deletedCount_one": "{{count}} registro eliminado",
     "deletedCount_many": "{{count}} registros eliminados",
     "deletedCount_other": "{{count}} registros eliminados",
@@ -293,7 +293,9 @@
     "duplicateNoGloria": "No se puede duplicar un muestreo GLORIA. Inicia el siguiente ciclo desde «Nueva prospección GLORIA» y elige la misma cumbre.",
     "gloriaCount_one": "GLORIA {{count}} ({{summits}} cumbres)",
     "gloriaCount_many": "GLORIA {{count}} ({{summits}} cumbres)",
-    "gloriaCount_other": "GLORIA {{count}} ({{summits}} cumbres)"
+    "gloriaCount_other": "GLORIA {{count}} ({{summits}} cumbres)",
+    "deleteRecoverable": "Las listas, parcelas y muestreos GLORIA pueden recuperarse durante 30 días desde Registros ⋯ → «Eliminados recientemente».",
+    "deletePermanent": "Las colectas eliminadas no se pueden recuperar."
   },
   "export": {
     "preparing": "Preparando…",
@@ -4161,7 +4163,8 @@
       "after_merge": "Después de fusionar",
       "before_restore": "Antes de restaurar",
       "before_import": "Antes de importar",
-      "manual": "Manual"
+      "manual": "Manual",
+      "before_delete": "Antes de eliminar"
     },
     "vsNow": "Comparar con ahora",
     "vsPrev": "Comparar con la anterior",
