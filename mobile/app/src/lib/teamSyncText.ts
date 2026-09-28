@@ -11,6 +11,7 @@ const BYTE_LIMITS = new Set(['teamQuota', 'deviceQuota', 'objectTooLarge']);
 const KNOWN = new Set([
   'offline', 'notARelay', 'incompatible', 'noTeam', 'noSecret', 'unauthorized', 'exists', 'createRate', 'teamQuota',
   'teamFull', 'deviceQuota', 'deviceRate', 'objectTooLarge', 'serverFull', 'corrupt', 'noRecord', 'server', 'sameServer',
+  'mediaDisabled', 'mediaMismatch',
 ]);
 
 export function teamSyncErrorText(e: unknown): string {

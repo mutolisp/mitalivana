@@ -59,6 +59,7 @@ import {
   buildSpeciesLong,
   coverScaleRows,
   tableToCsv,
+  TooManyRelevesError,
   type MatrixValueMode,
   type Releve,
   type RelevePlotInput,
@@ -87,14 +88,14 @@ export async function bundleProject(
   opts: ProjectExportOptions,
 ): Promise<ExportFile> {
   const project = getProject(projectId);
-  if (!project) throw new Error(`專案 ${projectId} 不存在`);
+  if (!project) throw new Error(i18n.t('export.err.projectNotFound', { id: projectId }));
 
   const sessions = listSessions().filter((s) => s.project_id === projectId);
   const plots = listPlotSurveys().filter((p) => p.project_id === projectId);
   const trips = listCollectionTrips().filter((c) => c.project_id === projectId);
   const sites = listSitesByProject(projectId);
   if (sessions.length + plots.length + trips.length + sites.length === 0) {
-    throw new Error(`「${project.name}」內沒有任何記錄，無法匯出`);
+    throw new Error(i18n.t('export.err.projectEmpty', { name: project.name }));
   }
 
   // Whole-bundle photo total so the progress bar covers the full batch.
@@ -105,7 +106,7 @@ export async function bundleProject(
     for (const c of trips) totalPhotos += countPhotosSession(listSpecimens(c.id));
   }
   const ctx = { done: 0, total: totalPhotos, onProgress: opts.onProgress };
-  opts.onProgress?.({ label: '準備中…' });
+  opts.onProgress?.({ label: i18n.t('export.preparing') });
 
   const entries: BuiltZipEntry[] = [];
   const recordMeta: Array<Record<string, unknown>> = [];
@@ -119,7 +120,7 @@ export async function bundleProject(
     build: () => Promise<{ entries: BuiltZipEntry[]; folderName: string }>,
   ) => {
     recordIdx += 1;
-    opts.onProgress?.({ label: `處理記錄 ${recordIdx}/${totalRecords}`, done: recordIdx - 1, total: totalRecords });
+    opts.onProgress?.({ label: i18n.t('export.stage.records', { current: recordIdx, total: totalRecords }), done: recordIdx - 1, total: totalRecords });
     try {
       const { entries: built, folderName } = await build();
       entries.push(...built.map((e) => ({ ...e, name: `records/${e.name}` })));
@@ -147,7 +148,7 @@ export async function bundleProject(
   // Per-record abundance and remarks are dropped on purpose: one species can
   // appear in several plots with different values, so carrying any one of them
   // would be picking a winner. This is a species list, not an observation table.
-  opts.onProgress?.({ label: '合併物種名錄…' });
+  opts.onProgress?.({ label: i18n.t('export.stage.mergeChecklist') });
   const checklistItems: MarkdownItem[] = [];
   const seenSpecies = new Set<string>();
   const addSpecies = (
@@ -209,7 +210,7 @@ export async function bundleProject(
   const safeName = sanitizeFilename(project.name);
 
   if (plots.length > 0 && (wantVegan || wantJuice)) {
-    opts.onProgress?.({ label: '產生分析資料表…' });
+    opts.onProgress?.({ label: i18n.t('export.stage.analysis') });
     const inputs: RelevePlotInput[] = plots.map((plot) => ({
       plot,
       projectName: project.name,
@@ -217,7 +218,14 @@ export async function bundleProject(
       subplots: listSubplots(plot.id).map((sp) => ({ ...sp, layers: getSubplotLayers(sp.id) })),
       species: listPlotSpecies(plot.id),
     }));
-    const built = buildReleves(inputs);
+    let built: ReturnType<typeof buildReleves>;
+    try {
+      built = buildReleves(inputs);
+    } catch (e) {
+      // vegMatrix stays free of ~/i18n (check:vegmatrix runs it in Node).
+      if (e instanceof TooManyRelevesError) throw new Error(i18n.t('export.err.tooManyReleves', { n: e.releves, max: e.max }));
+      throw e;
+    }
     releves = built.releves;
     readmeNotes.push(...built.warnings);
     cols = buildSpeciesCols(releves);
@@ -255,7 +263,7 @@ export async function bundleProject(
 
   // ── Darwin Core Archive (all three record kinds) ─────────────────────────
   if (wantDwca && totalRecords > 0) {
-    opts.onProgress?.({ label: '產生 Darwin Core Archive…' });
+    opts.onProgress?.({ label: i18n.t('export.stage.dwca') });
     const dwca = buildRecordsDwca({
       title: project.name,
       abstract: project.abstract ?? '',
@@ -322,7 +330,7 @@ export async function bundleProject(
   // Still fixed regardless of language: DwC terms, scientific and vernacular
   // names, and the analysis tables, which are controlled vocabularies and data.
   if (opts.includeReport) {
-    opts.onProgress?.({ label: '產生研究報表…' });
+    opts.onProgress?.({ label: i18n.t('export.stage.report') });
     try {
       const input = collectProjectReportInput(projectId);
       if (input) {
@@ -375,7 +383,7 @@ export async function bundleProject(
     ),
   });
 
-  opts.onProgress?.({ label: '壓縮中…' });
+  opts.onProgress?.({ label: i18n.t('export.stage.compressing') });
   await new Promise((r) => setTimeout(r, 0));
   const ymdStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   return await finalizeZip(entries, `${safeName}_${ymdStr}`);

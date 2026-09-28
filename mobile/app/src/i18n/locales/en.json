@@ -278,7 +278,28 @@
     "largeTitle": "Export file is large",
     "largeMsg": "Estimated ~{{size}}. Continue?",
     "exporting": "Exporting…",
-    "language": "Checklist language"
+    "language": "Checklist language",
+    "stage": {
+      "photos": "Processing photos",
+      "files": "Processing files",
+      "compressing": "Compressing…",
+      "records": "Processing record {{current}}/{{total}}",
+      "mergeChecklist": "Merging species checklist…",
+      "analysis": "Building analysis tables…",
+      "dwca": "Building Darwin Core Archive…",
+      "report": "Building research report…"
+    },
+    "err": {
+      "sessionNotFound": "Record {{id}} not found",
+      "sessionEmpty": "“{{name}}” has no species to export",
+      "plotNotFound": "Plot {{id}} not found",
+      "tripNotFound": "Collection {{id}} not found",
+      "tripEmpty": "“{{name}}” has no specimens to export",
+      "projectNotFound": "Project {{id}} not found",
+      "projectEmpty": "“{{name}}” has no records to export",
+      "noneSelected": "No records selected",
+      "tooManyReleves": "{{n}} relevés exceed the JUICE limit of {{max}}"
+    }
   },
   "nav": {
     "session": "Checklist",
@@ -2371,7 +2392,13 @@
     "onlineNote": "Online mode reads the remote map file directly and only fetches what you look at.",
     "error": "Download failed: {{message}}",
     "newVersion": "Version {{version}} is available; the whole map must be downloaded again",
-    "update": "Update offline map ({{size}})"
+    "update": "Update offline map ({{size}})",
+    "err": {
+      "incomplete": "Incomplete download: {{name}} received {{got}} bytes, expected {{expect}}",
+      "noTiles": "The data list has no tile file",
+      "splitTiles": "The tiles are split into several files; offline maps need the single-file version",
+      "noSpace": "Not enough storage on this device; free up space and try again"
+    }
   },
   "offlinemap": {
     "title": "Offline maps",
@@ -3437,7 +3464,9 @@
       "noRecord": "Record not found.",
       "server": "The server returned an error.",
       "unknown": "Error: {{detail}}",
-      "sameServer": "The team is already on this server."
+      "sameServer": "The team is already on this server.",
+      "mediaDisabled": "This server does not sync photos, audio or scans (only self-hosted servers do)",
+      "mediaMismatch": "The downloaded file does not match the uploaded one"
     },
     "mergedFromToast": "Merged data from {{names}}",
     "members": "Members",
@@ -3493,7 +3522,31 @@
     "teamImported_one": "{{count}} new record imported",
     "teamImported_other": "{{count}} new records imported",
     "teamNothing": "Everything is up to date",
-    "mergedWithSummary": "{{who}}: {{what}}"
+    "mergedWithSummary": "{{who}}: {{what}}",
+    "mediaTest": {
+      "title": "File sync test (phase 0)",
+      "intro": "Pick files or photos → encrypted in chunks and uploaded to this team’s server → downloaded and decrypted → bytes compared. Only self-hosted servers accept files. {{platform}} · 4 MiB per chunk.",
+      "checking": "Checking the server…",
+      "accepted": "The server accepts files",
+      "refused": "This server does not accept files (the default server does not; use a self-hosted server and deploy it again)",
+      "pickFile": "Choose files",
+      "pickPhoto": "From library",
+      "rerun": "Send the last batch again (skips chunks already there)",
+      "stage": {
+        "hash": "Hashing {{done}}/{{total}}",
+        "upload": "Uploading {{done}}/{{total}}",
+        "download": "Downloading {{done}}/{{total}}"
+      },
+      "done": "Done",
+      "sizeLine": "{{mb}} MB · {{n}} chunks",
+      "skipped": "({{n}} chunks already on the server, skipped)",
+      "timesUp": "Hash {{hash}} ms · encrypt {{seal}} ms · upload {{upload}} ms ({{rate}})",
+      "timesDown": "Download {{download}} ms ({{rate}}) · decrypt {{open}} ms",
+      "heap": "JS heap peak {{value}}",
+      "match": "Bytes match",
+      "mismatch": "Mismatch: downloaded {{bytes}} bytes, sha256 {{sha}}",
+      "failed": "Failed: {{message}}"
+    }
   },
   "teamDeploy": {
     "title": "Use my own Cloudflare",

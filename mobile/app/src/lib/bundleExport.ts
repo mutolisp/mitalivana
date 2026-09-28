@@ -393,6 +393,7 @@ const README_RULES: Array<{ match: (name: string) => boolean; desc: string }> = 
   },
   { match: (n) => n.endsWith('_04_temperature_loggers.csv'), desc: '溫度計（Form 4）：每支溫度計每次巡查一列，讀取與新部署；非 GLORIA Sheet 原有分頁' },
   { match: (n) => n.includes('/loggers/'), desc: '溫度計資料檔（全長碼_序號_原檔名）與 Form 4 掃描檔（01_ 的表單識別碼）' },
+  { match: (n) => n.includes('/forms/'), desc: 'GLORIA 紙本表單掃描檔（Form 1、2、3、6-S；檔名為 01_ 的表單識別碼，同一表單第二個檔案起加 -2、-3）' },
   { match: (n) => n.endsWith('.md'), desc: '物種名錄文件（Markdown）' },
   { match: (n) => n.endsWith('.docx'), desc: '物種名錄文件（DOCX 排版文書檔）' },
   { match: (n) => n.endsWith('.odt'), desc: '物種名錄文件（ODT 排版文書檔）' },
@@ -636,10 +637,10 @@ export async function buildSessionEntries(
   progressCtx: ProgressCtx,
 ): Promise<{ entries: BuiltZipEntry[]; folderName: string }> {
   const session = getSession(sessionId);
-  if (!session) throw new Error(`記錄 ${sessionId} 不存在`);
+  if (!session) throw new Error(i18n.t('export.err.sessionNotFound', { id: sessionId }));
   const project = getProject(session.project_id);
   const records = listSessionRecords(sessionId);
-  if (records.length === 0) throw new Error(`「${session.name}」內無物種，無法匯出`);
+  if (records.length === 0) throw new Error(i18n.t('export.err.sessionEmpty', { name: session.name }));
 
   const base = sanitizeFilename(`${session.name}_${project?.name ?? ''}`);
   const entries: BuiltZipEntry[] = [];
@@ -820,7 +821,7 @@ export async function buildPlotEntries(
   progressCtx: ProgressCtx,
 ): Promise<{ entries: BuiltZipEntry[]; folderName: string }> {
   const plot = getPlotSurvey(plotId);
-  if (!plot) throw new Error(`樣區 ${plotId} 不存在`);
+  if (!plot) throw new Error(i18n.t('export.err.plotNotFound', { id: plotId }));
   const project = plot.project_id !== null ? getProject(plot.project_id) : null;
   const species = listPlotSpecies(plotId);
   // Loaded once and reused by the yml round-trip block + sp.csv + subplots.csv.
@@ -1138,7 +1139,7 @@ export async function buildGloriaEntries(
     });
     if (plan.length) await ensurePhotosReadAccess();
     for (let i = 0; i < plan.length; i++) {
-      opts.onProgress?.({ label: '處理照片', done: i, total: plan.length });
+      opts.onProgress?.({ label: i18n.t('export.stage.photos'), done: i, total: plan.length });
       const fileUri = await resolveAssetUri(plan[i].uri);
       if (!fileUri) continue;
       try {
@@ -1150,10 +1151,12 @@ export async function buildGloriaEntries(
       }
     }
   }
-  // Temperature loggers: the loggers' data exports always (the data itself,
-  // small); Form 4 scans with the photos switch. Both under loggers/.
-  for (const f of planLoggerFiles(data.survey.mocy, data.summit, data.visits ?? [])) {
-    if (f.kind === 'form4' && !opts?.includePhotos) continue;
+  // Temperature loggers: the loggers' data exports and the Form 4 scans,
+  // always (like the other form scans), under loggers/.
+  const loggerFiles = planLoggerFiles(data.survey.mocy, data.summit, data.visits ?? []);
+  // Form 4 camera shots are photo-library references.
+  if (loggerFiles.some((f) => !f.uri.startsWith('file:'))) await ensurePhotosReadAccess();
+  for (const f of loggerFiles) {
     const fileUri = await resolveAssetUri(f.uri);
     if (!fileUri) continue;
     try {
@@ -1163,18 +1166,20 @@ export async function buildGloriaEntries(
       // gone from the device: the 04_ table still names it
     }
   }
-  // Scans of the paper forms 1, 2, 3, 6-S, named by their 01_ identifiers;
-  // with the photos switch like the Form 4 scans.
-  if (opts?.includePhotos) {
-    for (const f of planFormScans(data.summit.full_code, data.survey, data.units)) {
-      const fileUri = await resolveAssetUri(f.uri);
-      if (!fileUri) continue;
-      try {
-        const b64 = await readAsStringAsync(fileUri, { encoding: 'base64' });
-        entries.push({ name: `${base}/forms/${f.name}`, bytes: base64ToBytes(b64) });
-      } catch {
-        // gone from the device: 01_ still names it
-      }
+  // Scans of the paper forms 1, 2, 3, 6-S, named by their 01_ identifiers.
+  // Always, whatever the photos switch: they are the survey's paper record,
+  // and 01_ names them.
+  const scans = planFormScans(data.summit.full_code, data.survey, data.units);
+  // Camera shots are photo-library references; picked files are app files.
+  if (scans.some((f) => !f.uri.startsWith('file:'))) await ensurePhotosReadAccess();
+  for (const f of scans) {
+    const fileUri = await resolveAssetUri(f.uri);
+    if (!fileUri) continue;
+    try {
+      const b64 = await readAsStringAsync(fileUri, { encoding: 'base64' });
+      entries.push({ name: `${base}/forms/${f.name}`, bytes: base64ToBytes(b64) });
+    } catch {
+      // gone from the device: 01_ still names it
     }
   }
   const manifest = buildManifest({
@@ -1199,8 +1204,8 @@ export async function buildGloriaEntries(
 /**
  * The temperature loggers of one summit alone (the summit page): every visit,
  * each under the cycle its date falls in — for visits between two surveys,
- * without exporting a survey. 04_ table, loggers/ (data files, Form 4 scans)
- * and photos/ (position photos, with the photos switch).
+ * without exporting a survey. 04_ table, loggers/ (data files and Form 4
+ * scans, always) and photos/ (position photos, with the photos switch).
  */
 export async function bundleLoggers(summitId: number, opts: Pick<BundleOptions, 'includePhotos' | 'onProgress'>): Promise<ExportFile> {
   const summit = getSummit(summitId);
@@ -1239,13 +1244,13 @@ export async function bundleLoggers(summitId: number, opts: Pick<BundleOptions, 
         }),
       )
     : [];
-  if (photos.length) await ensurePhotosReadAccess();
+  if (photos.length || files.some((f) => !f.uri.startsWith('file:'))) await ensurePhotosReadAccess();
   const todo = [
-    ...files.filter((f) => f.kind === 'data' || opts.includePhotos).map((f) => ({ uri: f.uri, name: `${base}/loggers/${f.name}` })),
+    ...files.map((f) => ({ uri: f.uri, name: `${base}/loggers/${f.name}` })),
     ...photos.map((p) => ({ uri: p.uri, name: `${base}/photos/${p.name}` })),
   ];
   for (let i = 0; i < todo.length; i++) {
-    opts.onProgress?.({ label: '處理檔案', done: i, total: todo.length });
+    opts.onProgress?.({ label: i18n.t('export.stage.files'), done: i, total: todo.length });
     const fileUri = await resolveAssetUri(todo[i].uri);
     if (!fileUri) continue;
     try {
@@ -1260,7 +1265,7 @@ export async function bundleLoggers(summitId: number, opts: Pick<BundleOptions, 
 }
 
 export async function bundleGloria(surveyId: number, opts: BundleOptions): Promise<ExportFile> {
-  opts.onProgress?.({ label: '準備中…' });
+  opts.onProgress?.({ label: i18n.t('export.preparing') });
   const { entries, folderName } = await buildGloriaEntries(surveyId, opts);
   await reportZipStage(opts.onProgress);
   return await finalizeZip(entries, folderName);
@@ -1272,10 +1277,10 @@ export async function buildCollectionEntries(
   progressCtx: ProgressCtx,
 ): Promise<{ entries: BuiltZipEntry[]; folderName: string }> {
   const trip = getCollectionTrip(tripId);
-  if (!trip) throw new Error(`採集記錄 ${tripId} 不存在`);
+  if (!trip) throw new Error(i18n.t('export.err.tripNotFound', { id: tripId }));
   const project = getProject(trip.project_id);
   const specimens = listSpecimens(tripId);
-  if (specimens.length === 0) throw new Error(`「${trip.name}」內無標本，無法匯出`);
+  if (specimens.length === 0) throw new Error(i18n.t('export.err.tripEmpty', { name: trip.name }));
 
   const base = sanitizeFilename(`${trip.name}_${project?.name ?? ''}`);
   const entries: BuiltZipEntry[] = [];
@@ -1630,7 +1635,7 @@ async function collectPhotos<T extends PhotoBearing>(
     for (const uri of uris) {
       const fileUri = await resolveAssetUri(uri);
       ctx.done += 1;
-      ctx.onProgress?.({ label: '處理照片', done: ctx.done, total: ctx.total });
+      ctx.onProgress?.({ label: i18n.t('export.stage.photos'), done: ctx.done, total: ctx.total });
       if (!fileUri) continue;
       try {
         const raw = await readAsStringAsync(fileUri, { encoding: 'base64' });
@@ -1718,7 +1723,7 @@ async function collectEnvPhotos(
     const uri = uris[i];
     const fileUri = await resolveAssetUri(uri);
     ctx.done += 1;
-    ctx.onProgress?.({ label: '處理照片', done: ctx.done, total: ctx.total });
+    ctx.onProgress?.({ label: i18n.t('export.stage.photos'), done: ctx.done, total: ctx.total });
     if (!fileUri) continue;
     try {
       const b64 = await readAsStringAsync(fileUri, { encoding: 'base64' });
@@ -1758,7 +1763,7 @@ async function collectPhotosPlot(
     for (const uri of uris) {
       const fileUri = await resolveAssetUri(uri);
       ctx.done += 1;
-      ctx.onProgress?.({ label: '處理照片', done: ctx.done, total: ctx.total });
+      ctx.onProgress?.({ label: i18n.t('export.stage.photos'), done: ctx.done, total: ctx.total });
       if (!fileUri) continue;
       try {
         const raw = await readAsStringAsync(fileUri, { encoding: 'base64' });
@@ -1840,7 +1845,7 @@ export function countPhotosPlotWithEnv(plotId: number): number {
  *  overlay can paint "壓縮中…" before zipSync freezes the JS thread. */
 async function reportZipStage(onProgress?: (p: ExportProgress) => void): Promise<void> {
   if (!onProgress) return;
-  onProgress({ label: '壓縮中…' });
+  onProgress({ label: i18n.t('export.stage.compressing') });
   await new Promise((r) => setTimeout(r, 0));
 }
 
@@ -1851,7 +1856,7 @@ export async function bundleSession(
   const records = listSessionRecords(sessionId);
   const total = opts.includePhotos ? countPhotosSession(records) : 0;
   const ctx = { done: 0, total, onProgress: opts.onProgress };
-  opts.onProgress?.(total > 0 ? { label: '處理照片', done: 0, total } : { label: '準備中…' });
+  opts.onProgress?.(total > 0 ? { label: i18n.t('export.stage.photos'), done: 0, total } : { label: i18n.t('export.preparing') });
   const { entries, folderName } = await buildSessionEntries(sessionId, opts, ctx);
   await reportZipStage(opts.onProgress);
   return await finalizeZip(entries, folderName);
@@ -1863,7 +1868,7 @@ export async function bundlePlot(
 ): Promise<ExportFile> {
   const total = opts.includePhotos ? countPhotosPlotWithEnv(plotId) : 0;
   const ctx = { done: 0, total, onProgress: opts.onProgress };
-  opts.onProgress?.(total > 0 ? { label: '處理照片', done: 0, total } : { label: '準備中…' });
+  opts.onProgress?.(total > 0 ? { label: i18n.t('export.stage.photos'), done: 0, total } : { label: i18n.t('export.preparing') });
   const { entries, folderName } = await buildPlotEntries(plotId, opts, ctx);
   await reportZipStage(opts.onProgress);
   return await finalizeZip(entries, folderName);
@@ -1875,14 +1880,14 @@ export async function bundleCollection(
 ): Promise<ExportFile> {
   const total = opts.includePhotos ? countPhotosSession(listSpecimens(tripId)) : 0;
   const ctx = { done: 0, total, onProgress: opts.onProgress };
-  opts.onProgress?.(total > 0 ? { label: '處理照片', done: 0, total } : { label: '準備中…' });
+  opts.onProgress?.(total > 0 ? { label: i18n.t('export.stage.photos'), done: 0, total } : { label: i18n.t('export.preparing') });
   const { entries, folderName } = await buildCollectionEntries(tripId, opts, ctx);
   await reportZipStage(opts.onProgress);
   return await finalizeZip(entries, folderName);
 }
 
 export async function bundleMany(items: BundleItem[], opts: BundleOptions): Promise<ExportFile> {
-  if (items.length === 0) throw new Error('沒有選擇任何記錄');
+  if (items.length === 0) throw new Error(i18n.t('export.err.noneSelected'));
 
   // Compute total photos across all items first so progress reflects the
   // whole batch, not just the current item.
@@ -1895,7 +1900,7 @@ export async function bundleMany(items: BundleItem[], opts: BundleOptions): Prom
     }
   }
   const ctx = { done: 0, total: totalPhotos, onProgress: opts.onProgress };
-  opts.onProgress?.({ label: '準備中…' });
+  opts.onProgress?.({ label: i18n.t('export.preparing') });
 
   const allEntries: BuiltZipEntry[] = [];
   const itemMeta: Array<Record<string, unknown>> = [];
@@ -1903,7 +1908,7 @@ export async function bundleMany(items: BundleItem[], opts: BundleOptions): Prom
     const it = items[i];
     // Per-record progress so the user sees movement across a multi-record batch
     // even before photo reads kick in (photos report their own 處理照片 x/y).
-    opts.onProgress?.({ label: `處理記錄 ${i + 1}/${items.length}`, done: i, total: items.length });
+    opts.onProgress?.({ label: i18n.t('export.stage.records', { current: i + 1, total: items.length }), done: i, total: items.length });
     try {
       if (it.kind === 'session') {
         const { entries, folderName } = await buildSessionEntries(it.id, opts, ctx);

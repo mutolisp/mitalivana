@@ -249,7 +249,28 @@
     "largeTitle": "내보낼 파일이 큽니다",
     "largeMsg": "예상 약 {{size}}입니다. 계속할까요?",
     "exporting": "내보내는 중…",
-    "language": "목록 언어"
+    "language": "목록 언어",
+    "stage": {
+      "photos": "사진 처리 중",
+      "files": "파일 처리 중",
+      "compressing": "압축 중…",
+      "records": "기록 처리 중 {{current}}/{{total}}",
+      "mergeChecklist": "종 목록 병합 중…",
+      "analysis": "분석용 표 생성 중…",
+      "dwca": "Darwin Core Archive 생성 중…",
+      "report": "연구 보고서 생성 중…"
+    },
+    "err": {
+      "sessionNotFound": "기록 {{id}}을(를) 찾을 수 없습니다",
+      "sessionEmpty": "“{{name}}”에 종이 없어 내보낼 수 없습니다",
+      "plotNotFound": "조사구 {{id}}을(를) 찾을 수 없습니다",
+      "tripNotFound": "채집 기록 {{id}}을(를) 찾을 수 없습니다",
+      "tripEmpty": "“{{name}}”에 표본이 없어 내보낼 수 없습니다",
+      "projectNotFound": "프로젝트 {{id}}을(를) 찾을 수 없습니다",
+      "projectEmpty": "“{{name}}”에 기록이 없어 내보낼 수 없습니다",
+      "noneSelected": "선택한 기록이 없습니다",
+      "tooManyReleves": "조사구 수 {{n}}이(가) JUICE 상한 {{max}}을(를) 초과합니다"
+    }
   },
   "nav": {
     "session": "종 목록",
@@ -2234,7 +2255,13 @@
     "onlineNote": "온라인 모드는 원격 지도 파일을 직접 읽어 보고 있는 범위만 가져옵니다.",
     "error": "내려받기 실패: {{message}}",
     "newVersion": "새 버전 {{version}}이(가) 있습니다. 지도 전체를 다시 내려받아야 합니다",
-    "update": "오프라인 지도 업데이트 ({{size}})"
+    "update": "오프라인 지도 업데이트 ({{size}})",
+    "err": {
+      "incomplete": "다운로드가 완료되지 않았습니다: {{name}} {{got}}바이트 수신, {{expect}}바이트여야 함",
+      "noTiles": "데이터 목록에 타일 파일이 없습니다",
+      "splitTiles": "타일이 여러 파일로 나뉘어 있습니다. 오프라인 지도에는 단일 파일 버전이 필요합니다",
+      "noSpace": "기기 저장 공간이 부족합니다. 공간을 확보한 뒤 다시 시도하세요"
+    }
   },
   "offlinemap": {
     "title": "오프라인 지도",
@@ -3266,7 +3293,9 @@
       "noRecord": "기록을 찾을 수 없습니다.",
       "server": "서버가 오류를 반환했습니다.",
       "unknown": "오류: {{detail}}",
-      "sameServer": "팀이 이미 이 서버에 있습니다."
+      "sameServer": "팀이 이미 이 서버에 있습니다.",
+      "mediaDisabled": "이 서버는 사진·녹음·스캔 동기화를 지원하지 않습니다(자체 서버만 지원)",
+      "mediaMismatch": "다운로드한 파일이 업로드한 파일과 일치하지 않습니다"
     },
     "mergedFromToast": "{{names}}의 데이터를 병합했습니다",
     "members": "팀원",
@@ -3319,7 +3348,31 @@
     "teamSynced_other": "변경된 기록 {{count}}건을 업로드했습니다",
     "teamImported_other": "{{count}}건을 새로 가져왔습니다",
     "teamNothing": "모두 최신이며 새 변경 사항이 없습니다",
-    "mergedWithSummary": "{{who}}: {{what}}"
+    "mergedWithSummary": "{{who}}: {{what}}",
+    "mediaTest": {
+      "title": "파일 동기화 테스트(단계 0)",
+      "intro": "파일이나 사진 선택 → 조각으로 암호화해 팀 서버에 업로드 → 다운로드·복호화 → 바이트 비교. 파일은 자체 서버만 받습니다. {{platform}} · 조각당 4 MiB.",
+      "checking": "서버 확인 중…",
+      "accepted": "서버가 파일을 받습니다",
+      "refused": "이 서버는 파일을 받지 않습니다(기본 서버는 미지원. 자체 서버를 사용해 다시 배포하세요)",
+      "pickFile": "파일 선택",
+      "pickPhoto": "앨범에서",
+      "rerun": "직전 묶음 다시 보내기(이미 있는 조각은 건너뜀)",
+      "stage": {
+        "hash": "해시 계산 {{done}}/{{total}}",
+        "upload": "업로드 {{done}}/{{total}}",
+        "download": "다운로드 {{done}}/{{total}}"
+      },
+      "done": "완료",
+      "sizeLine": "{{mb}} MB · 조각 {{n}}개",
+      "skipped": "(서버에 이미 조각 {{n}}개 있음, 건너뜀)",
+      "timesUp": "해시 {{hash}} ms · 암호화 {{seal}} ms · 업로드 {{upload}} ms({{rate}})",
+      "timesDown": "다운로드 {{download}} ms({{rate}}) · 복호화 {{open}} ms",
+      "heap": "JS 힙 최대 {{value}}",
+      "match": "바이트 일치",
+      "mismatch": "불일치: 다운로드 {{bytes}}바이트, sha256 {{sha}}",
+      "failed": "실패: {{message}}"
+    }
   },
   "teamDeploy": {
     "title": "내 Cloudflare 사용",

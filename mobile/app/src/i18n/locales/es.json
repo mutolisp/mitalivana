@@ -307,7 +307,28 @@
     "largeTitle": "El archivo de exportación es grande",
     "largeMsg": "Tamaño estimado: ~{{size}}. ¿Continuar?",
     "exporting": "Exportando…",
-    "language": "Idioma de la lista"
+    "language": "Idioma de la lista",
+    "stage": {
+      "photos": "Procesando fotos",
+      "files": "Procesando archivos",
+      "compressing": "Comprimiendo…",
+      "records": "Procesando registro {{current}}/{{total}}",
+      "mergeChecklist": "Uniendo la lista de especies…",
+      "analysis": "Creando tablas de análisis…",
+      "dwca": "Creando Darwin Core Archive…",
+      "report": "Creando informe de investigación…"
+    },
+    "err": {
+      "sessionNotFound": "No se encuentra el registro {{id}}",
+      "sessionEmpty": "«{{name}}» no tiene especies para exportar",
+      "plotNotFound": "No se encuentra la parcela {{id}}",
+      "tripNotFound": "No se encuentra la colecta {{id}}",
+      "tripEmpty": "«{{name}}» no tiene especímenes para exportar",
+      "projectNotFound": "No se encuentra el proyecto {{id}}",
+      "projectEmpty": "«{{name}}» no tiene registros para exportar",
+      "noneSelected": "No hay registros seleccionados",
+      "tooManyReleves": "El número de inventarios ({{n}}) supera el límite de JUICE ({{max}})"
+    }
   },
   "nav": {
     "session": "Lista de especies",
@@ -2508,7 +2529,13 @@
     "onlineNote": "El modo en línea lee el archivo remoto directamente y solo obtiene la zona visible.",
     "error": "Error de descarga: {{message}}",
     "newVersion": "La versión {{version}} está disponible; hay que descargar el mapa completo de nuevo",
-    "update": "Actualizar el mapa sin conexión ({{size}})"
+    "update": "Actualizar el mapa sin conexión ({{size}})",
+    "err": {
+      "incomplete": "Descarga incompleta: {{name}} recibió {{got}} bytes de {{expect}}",
+      "noTiles": "La lista de datos no incluye archivo de teselas",
+      "splitTiles": "Las teselas están divididas en varios archivos; los mapas sin conexión necesitan la versión de un solo archivo",
+      "noSpace": "No hay espacio suficiente en el dispositivo; libera espacio e inténtalo de nuevo"
+    }
   },
   "offlinemap": {
     "title": "Mapas sin conexión",
@@ -3608,7 +3635,9 @@
       "noRecord": "No se encontró el registro.",
       "server": "El servidor devolvió un error.",
       "unknown": "Error: {{detail}}",
-      "sameServer": "El equipo ya está en este servidor."
+      "sameServer": "El equipo ya está en este servidor.",
+      "mediaDisabled": "Este servidor no sincroniza fotos, audio ni escaneos (solo los servidores propios)",
+      "mediaMismatch": "El archivo descargado no coincide con el que se subió"
     },
     "mergedFromToast": "Se combinaron los datos de {{names}}",
     "members": "Integrantes",
@@ -3667,7 +3696,31 @@
     "teamImported_many": "{{count}} registros nuevos importados",
     "teamImported_other": "{{count}} registros nuevos importados",
     "teamNothing": "Todo está al día",
-    "mergedWithSummary": "{{who}}: {{what}}"
+    "mergedWithSummary": "{{who}}: {{what}}",
+    "mediaTest": {
+      "title": "Prueba de sincronización de archivos (fase 0)",
+      "intro": "Elige archivos o fotos → se cifran por partes y se suben al servidor del equipo → se descargan y descifran → se comparan los bytes. Solo los servidores propios aceptan archivos. {{platform}} · 4 MiB por parte.",
+      "checking": "Comprobando el servidor…",
+      "accepted": "El servidor acepta archivos",
+      "refused": "Este servidor no acepta archivos (el servidor predeterminado no los acepta; usa un servidor propio y vuelve a implementarlo)",
+      "pickFile": "Elegir archivos",
+      "pickPhoto": "Galería",
+      "rerun": "Enviar de nuevo el último lote (omite las partes que ya están)",
+      "stage": {
+        "hash": "Hash {{done}}/{{total}}",
+        "upload": "Subiendo {{done}}/{{total}}",
+        "download": "Descargando {{done}}/{{total}}"
+      },
+      "done": "Listo",
+      "sizeLine": "{{mb}} MB · {{n}} partes",
+      "skipped": "({{n}} partes ya en el servidor, omitidas)",
+      "timesUp": "Hash {{hash}} ms · cifrado {{seal}} ms · subida {{upload}} ms ({{rate}})",
+      "timesDown": "Descarga {{download}} ms ({{rate}}) · descifrado {{open}} ms",
+      "heap": "Pico del heap JS {{value}}",
+      "match": "Los bytes coinciden",
+      "mismatch": "No coinciden: {{bytes}} bytes descargados, sha256 {{sha}}",
+      "failed": "Error: {{message}}"
+    }
   },
   "teamDeploy": {
     "title": "Usar mi propio Cloudflare",

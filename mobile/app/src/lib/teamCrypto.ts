@@ -82,6 +82,47 @@ export function openRecord(encKey: Uint8Array, blob: Uint8Array, aad: Uint8Array
   return strFromU8(inflateSync(pt));
 }
 
+// ── files (photos, audio, scans; docs/planned/Media_sync.md §3.1, §3.3) ────
+
+/** Plaintext bytes per chunk. A sealed chunk adds 1 + 24 + 16 bytes. */
+export const MEDIA_CHUNK_BYTES = 4 * 1024 * 1024;
+export const CHUNK_OVERHEAD = 1 + NONCE_BYTES + 16;
+
+/**
+ * The server-side name of a file, from the SHA-256 of its content: the same
+ * photo gets the same name on every phone and in every record, so it is sent
+ * once; without encKey the name says nothing about the content.
+ */
+export function mediaId(encKey: Uint8Array, contentSha256: Uint8Array): string {
+  return keyed(encKey, `media|${bytesToHex(contentSha256)}`);
+}
+
+export function chunkCount(size: number): number {
+  return Math.max(1, Math.ceil(size / MEDIA_CHUNK_BYTES));
+}
+
+/** Binds a chunk to its team, file, position and the file's chunk count: reordered, truncated or moved chunks do not open. */
+export function chunkAad(teamId: string, mid: string, index: number, count: number): Uint8Array {
+  return strToU8(`${teamId}|m|${mid}|${index}|${count}`);
+}
+
+/** Chunk → [version][nonce][ciphertext+tag]. Not deflated: photos and PDFs are compressed already. */
+export function sealChunk(encKey: Uint8Array, nonce: Uint8Array, plain: Uint8Array, aad: Uint8Array): Uint8Array {
+  if (nonce.length !== NONCE_BYTES) throw new Error('nonce must be 24 bytes');
+  const ct = xchacha20poly1305(encKey, nonce, aad).encrypt(plain);
+  const out = new Uint8Array(1 + NONCE_BYTES + ct.length);
+  out[0] = BLOB_VERSION;
+  out.set(nonce, 1);
+  out.set(ct, 1 + NONCE_BYTES);
+  return out;
+}
+
+/** Throws when the chunk was altered, moved (wrong aad) or sealed with another key. */
+export function openChunk(encKey: Uint8Array, blob: Uint8Array, aad: Uint8Array): Uint8Array {
+  if (blob.length < CHUNK_OVERHEAD || blob[0] !== BLOB_VERSION) throw new Error('not a team-sync chunk');
+  return xchacha20poly1305(encKey, blob.subarray(1, 1 + NONCE_BYTES), aad).decrypt(blob.subarray(1 + NONCE_BYTES));
+}
+
 // ── invitations (QR / text code) ──────────────────────────────────────────
 
 export type Invite = {

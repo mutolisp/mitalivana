@@ -47,6 +47,8 @@ export const SELF_HOST_VARS: Record<string, number> = {
   MAX_DEVICE_PUTS_PER_DAY: 100000,
   MAX_TEAMS_PER_IP_PER_DAY: 1000,
   MAX_TOTAL_BYTES: 8 * 1024 * 1024 * 1024,
+  // Files sync on the deployer's own server only (docs/planned/Media_sync.md).
+  MEDIA_ENABLED: 1,
 };
 
 const DAY = 24 * 3600;

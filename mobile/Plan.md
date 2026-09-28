@@ -18,7 +18,7 @@
 | 守門 | `npm run check:*` 共 **47 支**（最新加入 `check:miren`） |
 | `docs/` | 仍代表現況的參考文件：檢索表、樣區、匯出外部 API、報表、物種詳細頁、地圖、i18n、多人合併（`Team_merge.md`）、隊伍同步（`Team_sync.md`）；`docs/gloria-ui/` GLORIA 介面草稿（五語） |
 | `sync-worker/` | 隊伍同步中繼伺服器（Cloudflare Worker＋R2）與自架說明（README） |
-| `docs/planned/` | 規劃：AI 辨識、P2P 協作、雲端協作、Garmin 手錶快速記錄、MIREN 山區入侵植物調查（兩份協作文件的記錄層合併已由 `docs/Team_merge.md` 實作） |
+| `docs/planned/` | 規劃：AI 辨識、P2P 協作、雲端協作、Garmin 手錶快速記錄、MIREN 山區入侵植物調查、照片與檔案同步（兩份協作文件的記錄層合併已由 `docs/Team_merge.md` 實作） |
 | `archive/` | 已完成或被取代的設計稿與一次性稽核 |
 | `PRIVACY.md` / `PRIVACY.en.md` | 隱私政策（v0.2，2026-09-26 加入隊伍同步）；打包進 app 的「設定 → 隱私權政策」，改了要跑 `npm run privacy`（`check:privacy` 會擋） |
 
@@ -266,6 +266,9 @@ MIREN（規劃中）→ `docs/planned/MIREN.md`；
     照 GLORIA 另開 sibling 模組（user.db v68）；盲記封存後當場複查、匯出加 `Found after recheck`；
     物種狀態掛 region（S2 表 B）；地圖分頁加共用測距工具確認「距其他道路 ≥100 m」。
     trail plot 配置依 Liedtke et al. 2020 釐清（2×50 m 為選做）。下一步：實機測試階段 3、§十一 階段 4（匯出）；階段 3 未做項目見 `MIREN.md` §十一；待確認：官方 trail 範本、S1／S3、臺灣 region 代碼。
+19. **照片與檔案同步（隊伍同步第二版）** —— 規劃完成、未動工（2026-09-28），見 `docs/planned/Media_sync.md`
+    （artifact https://claude.ai/artifact/R3NtQX5WqhEmbFAkDBhGHx ）。內容代號去重、4 MiB 分段加密、打開記錄才下載、媒體欄位併入共同基準合併。
+    R2 Standard 100 GB 約 US$1.35／月（官方價目 2026-09-28 查）。已決定：預設伺服器不開放檔案同步，自架伺服器開放、總量由部署者在 app 內調（顯示預估用量與費用）。Wi-Fi 限定下載先不做。
 
 ### F. 發布
 

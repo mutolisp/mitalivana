@@ -7,12 +7,16 @@
  *     uploads, teams per IP per day, server-wide read-only);
  *   - per-team overrides only through ADMIN_TOKEN;
  *   - wrong token 401, refused uploads are not written, delete removes all,
- *     the stored object is the bytes sent (the server never decodes them).
+ *     the stored object is the bytes sent (the server never decodes them);
+ *   - files (Media_sync.md phase 0): refused on the public settings, on a
+ *     self-hosted server chunks round-trip, oversize / bad index refused, not
+ *     counted as records, deleted with the team.
  */
 import { checkUpload, limitsFrom, sanitizeOverrides, usageOf } from '../../sync-worker/src/quota.js';
 import worker from '../../sync-worker/src/index.js';
 import { LIFECYCLE, NO_SUBDOMAIN, SELF_HOST_VARS, deploySyncServer, multipart, scriptMetadata } from '../src/lib/syncDeploy.ts';
-import { authTokenHash, deriveTeamKeys } from '../src/lib/teamCrypto.ts';
+import { MEDIA_CHUNK_BYTES, authTokenHash, chunkAad, chunkCount, deriveTeamKeys, mediaId, openChunk, sealChunk } from '../src/lib/teamCrypto.ts';
+import { sha256 } from '@noble/hashes/sha2.js';
 import { renderSource } from './build-sync-worker-source.mjs';
 import { readFileSync } from 'node:fs';
 
@@ -142,6 +146,89 @@ eq('read-only: uploads 503, downloads still work', [(await call('PUT', `/v1/t/${
 
 eq('delete team', (await call('DELETE', `/v1/t/${T}`, { token: tok })).status, 200);
 eq('after delete: gone', [(await call('GET', `/v1/t/${T}/r/${rec}/${d1}`, { token: tok })).status, [...env.SYNC.m.keys()].some((k) => k.startsWith(`t/${T}/`))], [404, false]);
+
+// ── files (docs/planned/Media_sync.md phase 0) ──
+const mid = 'f'.repeat(32);
+const chunk = Uint8Array.from({ length: 700 }, (_, i) => (i * 13) & 255);
+eq('files: off by default → 403 mediaDisabled, nothing written', [
+  (await call('PUT', `/v1/t/${other}/m/${mid}/0`, { token: 'x', body: chunk })).body.error,
+  (await call('GET', `/v1/t/${other}/m/${mid}`, { token: 'x' })).body.error,
+  [...env.SYNC.m.keys()].some((k) => k.includes('/m/')),
+], ['mediaDisabled', 'mediaDisabled', false]);
+const tomlVars = Object.fromEntries([...readFileSync(new URL('../../sync-worker/wrangler.toml', import.meta.url), 'utf8').matchAll(/^([A-Z_]+) = "([^"]*)"$/gm)].map((m) => [m[1], m[2]]));
+eq('files: the public server config (wrangler.toml) keeps them off', [tomlVars.MEDIA_ENABLED, limitsFrom(tomlVars).mediaEnabled], ['0', 0]);
+eq('files: self-host deploy turns them on', limitsFrom(SELF_HOST_VARS).mediaEnabled, 1);
+eq('files: a team override cannot turn them on', Object.keys(sanitizeOverrides({ mediaEnabled: 1, maxMediaChunkBytes: 9 })), []);
+const menv = { ...env, SYNC: fakeR2(), MEDIA_ENABLED: '1', MAX_MEDIA_CHUNK_BYTES: '800' };
+const mcall = async (method, path, opts = {}) => {
+  const saved = env.SYNC;
+  Object.assign(env, menv);
+  try {
+    return await call(method, path, opts);
+  } finally {
+    Object.assign(env, { SYNC: saved, MEDIA_ENABLED: undefined, MAX_MEDIA_CHUNK_BYTES: undefined });
+  }
+};
+await mcall('POST', `/v1/t/${T}`, { body: { authHash: authTokenHash(tok) } });
+eq('files: wrong token → 401', (await mcall('PUT', `/v1/t/${T}/m/${mid}/0`, { token: 'nope', body: chunk })).status, 401);
+eq('files: chunks 0 and 1 stored', [(await mcall('PUT', `/v1/t/${T}/m/${mid}/0`, { token: tok, body: chunk })).status, (await mcall('PUT', `/v1/t/${T}/m/${mid}/1`, { token: tok, body: chunk.subarray(0, 300) })).status], [200, 200]);
+const back = await mcall('GET', `/v1/t/${T}/m/${mid}/0`, { token: tok });
+eq('files: download returns the bytes sent', [back.status, back.body.join() === chunk.join()], [200, true]);
+eq('files: status lists the stored chunks in order', (await mcall('GET', `/v1/t/${T}/m/${mid}`, { token: tok })).body.chunks, [{ i: 0, size: 700 }, { i: 1, size: 300 }]);
+eq('files: chunk at the limit passes, one over → 413 not written', [
+  (await mcall('PUT', `/v1/t/${T}/m/${mid}/2`, { token: tok, body: new Uint8Array(800) })).status,
+  (await mcall('PUT', `/v1/t/${T}/m/${mid}/3`, { token: tok, body: new Uint8Array(801) })).body.error,
+  menv.SYNC.m.has(`t/${T}/m/${mid}/3`),
+], [200, 'objectTooLarge', false]);
+eq('files: bad index or name → 404', [
+  (await mcall('PUT', `/v1/t/${T}/m/${mid}/01`, { token: tok, body: chunk })).status,
+  (await mcall('PUT', `/v1/t/${T}/m/${mid}/-1`, { token: tok, body: chunk })).status,
+  (await mcall('PUT', `/v1/t/${T}/m/XYZ/0`, { token: tok, body: chunk })).status,
+], [404, 404, 404]);
+eq('files: empty chunk → 400', (await mcall('PUT', `/v1/t/${T}/m/${mid}/4`, { token: tok, body: new Uint8Array(0) })).status, 400);
+eq('files: not counted as records', (await mcall('GET', `/v1/t/${T}/usage`, { token: tok })).body.bytes, 0);
+eq('files: /v1/info reports them on', (await mcall('GET', '/v1/info')).body.limits.mediaEnabled, 1);
+await mcall('DELETE', `/v1/t/${T}`, { token: tok });
+eq('files: deleted with the team', [...menv.SYNC.m.keys()].some((k) => k.startsWith(`t/${T}/`)), false);
+
+// The phone's path end to end (src/lib/mediaSync.ts without the file I/O):
+// hash → name, seal each 4 MiB chunk, store, fetch, open, same bytes.
+{
+  const fenv = { SYNC: fakeR2(), MEDIA_ENABLED: '1' };
+  const fcall = (method, path, opts = {}) => {
+    const headers = { 'cf-connecting-ip': '9.9.9.9' };
+    if (opts.token) headers.authorization = `Bearer ${opts.token}`;
+    if (opts.body instanceof Uint8Array) headers['content-length'] = String(opts.body.length);
+    const body = opts.body instanceof Uint8Array ? opts.body : opts.body ? JSON.stringify(opts.body) : undefined;
+    return worker.fetch(new Request(`https://sync.test${path}`, { method, headers, body }), fenv);
+  };
+  await fcall('POST', `/v1/t/${T}`, { body: { authHash: authTokenHash(tok) } });
+  const file = Uint8Array.from({ length: 2 * MEDIA_CHUNK_BYTES + 12345 }, (_, i) => (i * 7 + (i >> 11)) & 255);
+  const fmid = mediaId(keys.encKey, sha256(file));
+  const n = chunkCount(file.length);
+  let codes = [];
+  for (let i = 0; i < n; i++) {
+    const nonce = Uint8Array.from({ length: 24 }, (_, k) => (k * 5 + i) & 255);
+    const sealed = sealChunk(keys.encKey, nonce, file.subarray(i * MEDIA_CHUNK_BYTES, (i + 1) * MEDIA_CHUNK_BYTES), chunkAad(T, fmid, i, n));
+    codes.push((await fcall('PUT', `/v1/t/${T}/m/${fmid}/${i}`, { token: tok, body: sealed })).status);
+  }
+  eq('files e2e: three full-size sealed chunks fit the default chunk limit', codes, [200, 200, 200]);
+  const parts = [];
+  for (let i = 0; i < n; i++) {
+    const res = await fcall('GET', `/v1/t/${T}/m/${fmid}/${i}`, { token: tok });
+    parts.push(openChunk(keys.encKey, new Uint8Array(await res.arrayBuffer()), chunkAad(T, fmid, i, n)));
+  }
+  const joined = new Uint8Array(parts.reduce((a, p) => a + p.length, 0));
+  let off = 0;
+  for (const p of parts) {
+    joined.set(p, off);
+    off += p.length;
+  }
+  eq('files e2e: reassembled file has the same bytes and name', [joined.length === file.length, mediaId(keys.encKey, sha256(joined)) === fmid], [true, true]);
+  const stored = [...fenv.SYNC.m.entries()].filter(([k]) => k.includes('/m/'));
+  const plainHead = Buffer.from(file.subarray(0, 64)).toString('hex');
+  eq('files e2e: the server holds no plaintext', stored.every(([, v]) => !Buffer.from(v.bytes).toString('hex').includes(plainHead)), true);
+}
 
 // ── in-app / script deploy against a recorded fake Cloudflare API ──
 const calls = [];

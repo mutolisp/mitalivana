@@ -127,6 +127,7 @@ function ThemedShell() {
             <Stack.Screen name="settings/team-invite" options={{ title: t('teamSync.inviteTitle') }} />
             <Stack.Screen name="settings/team/[id]" options={{ title: t('teamSync.title') }} />
             <Stack.Screen name="settings/team-deploy" options={{ title: t('teamDeploy.title') }} />
+            <Stack.Screen name="settings/team-media-test" />
             <Stack.Screen name="team/join" options={{ title: t('teamSync.joinTitle') }} />
             <Stack.Screen name="team/server" options={{ title: t('teamSync.addServerTitle') }} />
             <Stack.Screen name="gloria/summits" options={{ title: t('gloria.summitImport.listTitle') }} />

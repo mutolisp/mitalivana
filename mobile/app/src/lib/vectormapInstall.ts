@@ -16,6 +16,7 @@ import { Directory, File, Paths } from 'expo-file-system';
 import { createDownloadResumable } from 'expo-file-system/legacy';
 import { create } from 'zustand';
 
+import i18n from '~/i18n';
 import { USER_AGENT } from '~/lib/apiFetch';
 import {
   ensureVectorRoot,
@@ -228,7 +229,7 @@ async function downloadTo(
     const got = dest.size ?? 0;
     if (got !== expectBytes) {
       if (dest.exists) dest.delete();
-      throw new Error(`下載不完整：${dest.name} 收到 ${got} / 應為 ${expectBytes} 位元組`);
+      throw new Error(i18n.t('vectormap.err.incomplete', { name: dest.name, got, expect: expectBytes }));
     }
   }
 }
@@ -347,14 +348,14 @@ export async function startVectorInstall(manifest: VectorManifest): Promise<void
   try {
     const need = manifest.bytes + SPACE_HEADROOM;
     if (Paths.availableDiskSpace != null && Paths.availableDiskSpace < need) {
-      throw new Error('not_enough_space');
+      throw new Error(i18n.t('vectormap.err.noSpace'));
     }
 
     const tilesUrl = manifest.tilesPmtiles[0];
-    if (!tilesUrl) throw new Error('manifest 沒有圖磚檔');
+    if (!tilesUrl) throw new Error(i18n.t('vectormap.err.noTiles'));
     if (manifest.tilesPmtiles.length > 1) {
       // 一個 style source 只能指一個 .pmtiles，切檔版沒辦法離線。
-      throw new Error('manifest 的圖磚被切成多份，離線需要單檔版本');
+      throw new Error(i18n.t('vectormap.err.splitTiles'));
     }
 
     ensureVectorRoot();

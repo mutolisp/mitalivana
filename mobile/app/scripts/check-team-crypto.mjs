@@ -7,11 +7,19 @@
  *     or device (different additional data) does not open;
  *   - record / device names are keyed hashes (no uuid in them);
  *   - invitations round-trip as a code and as a join link, typos are caught by
- *     the checksum, a non-https server is refused.
+ *     the checksum, a non-https server is refused;
+ *   - files: the name follows the content and the team key; chunks round-trip
+ *     and do not open at another index, count, file, team key or when altered.
  */
 import {
   aadFor,
   authTokenHash,
+  chunkAad,
+  chunkCount,
+  MEDIA_CHUNK_BYTES,
+  mediaId,
+  openChunk,
+  sealChunk,
   decodeInvite,
   deriveTeamKeys,
   deviceKey,
@@ -21,6 +29,7 @@ import {
   recordKey,
   sealRecord,
 } from '../src/lib/teamCrypto.ts';
+import { sha256 } from '@noble/hashes/sha2.js';
 
 let failed = 0;
 const ok = (msg, cond) => {
@@ -85,8 +94,26 @@ ok('a typo is caught by the checksum', decodeInvite(typo) === 'checksum');
 ok('http server refused', decodeInvite(encodeInvite({ ...inv, server: 'http://sync.example.org' })) === 'server');
 ok('garbage is a format error', decodeInvite('hello') === 'format');
 
+// ── files ──
+const photo = Uint8Array.from({ length: 5000 }, (_, i) => (i * 31) & 255);
+const mid = mediaId(k.encKey, sha256(photo));
+ok('file name: 32 hex, same content → same name', /^[0-9a-f]{32}$/.test(mid) && mid === mediaId(k.encKey, sha256(photo.slice())));
+ok('file name: another content or team key → another name', mid !== mediaId(k.encKey, sha256(photo.subarray(1))) && mid !== mediaId(ko.encKey, sha256(photo)));
+ok('chunk count: 0 and exact multiples', [chunkCount(0), chunkCount(1), chunkCount(MEDIA_CHUNK_BYTES), chunkCount(MEDIA_CHUNK_BYTES + 1)].join() === '1,1,1,2');
+const caad = chunkAad(k.teamId, mid, 1, 3);
+const chunk = sealChunk(k.encKey, nonce, photo, caad);
+ok('chunk round trip', openChunk(k.encKey, chunk, caad).join() === photo.join());
+ok('chunk size = plain + 41', chunk.length === photo.length + 41);
+ok('chunk at another index does not open', throws(() => openChunk(k.encKey, chunk, chunkAad(k.teamId, mid, 2, 3))));
+ok('chunk with another count (truncated file) does not open', throws(() => openChunk(k.encKey, chunk, chunkAad(k.teamId, mid, 1, 2))));
+ok('chunk moved to another file does not open', throws(() => openChunk(k.encKey, chunk, chunkAad(k.teamId, '0'.repeat(32), 1, 3))));
+ok('chunk with another team key does not open', throws(() => openChunk(ko.encKey, chunk, caad)));
+const bent = chunk.slice();
+bent[100] ^= 1;
+ok('altered chunk does not open', throws(() => openChunk(k.encKey, bent, caad)));
+
 if (failed) {
   console.error(`check:team-crypto — ${failed} failed`);
   process.exit(1);
 }
-console.log('✓ team-crypto: derivation, seal/open, tamper and move detection, keyed names, invitations');
+console.log('✓ team-crypto: derivation, seal/open, tamper and move detection, keyed names, invitations, file chunks');

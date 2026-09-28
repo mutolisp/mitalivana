@@ -93,6 +93,19 @@ export type Releve = {
 /** JUICE .TAB relevé numbers are integers 1–999999. */
 export const MAX_RELEVES = 999999;
 
+/** More relevés than JUICE takes; carries the numbers so the caller words it (this module has no i18n). */
+export class TooManyRelevesError extends Error {
+  // Plain fields, not constructor parameter properties: Node's type stripping
+  // (check:vegmatrix and friends) does not run those.
+  readonly releves: number;
+  readonly max: number;
+  constructor(releves: number, max: number) {
+    super(`${releves} relevés exceed the JUICE limit of ${max}`);
+    this.releves = releves;
+    this.max = max;
+  }
+}
+
 function ymd(ts: number | null): string {
   if (ts == null) return '';
   const d = new Date(ts);
@@ -203,7 +216,7 @@ export function buildReleves(inputs: RelevePlotInput[]): {
   }
 
   if (releves.length > MAX_RELEVES) {
-    throw new Error(`樣方數 ${releves.length} 超過 JUICE 上限 ${MAX_RELEVES}`);
+    throw new TooManyRelevesError(releves.length, MAX_RELEVES);
   }
   return { releves, warnings };
 }

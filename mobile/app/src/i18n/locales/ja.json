@@ -249,7 +249,28 @@
     "largeTitle": "エクスポートするファイルが大きいです",
     "largeMsg": "推定約 {{size}} です。続けますか？",
     "exporting": "エクスポート中…",
-    "language": "目録の言語"
+    "language": "目録の言語",
+    "stage": {
+      "photos": "写真を処理中",
+      "files": "ファイルを処理中",
+      "compressing": "圧縮中…",
+      "records": "記録を処理中 {{current}}/{{total}}",
+      "mergeChecklist": "種リストを統合中…",
+      "analysis": "解析用の表を作成中…",
+      "dwca": "Darwin Core Archive を作成中…",
+      "report": "研究レポートを作成中…"
+    },
+    "err": {
+      "sessionNotFound": "記録 {{id}} が見つかりません",
+      "sessionEmpty": "「{{name}}」に種がないため書き出せません",
+      "plotNotFound": "調査区 {{id}} が見つかりません",
+      "tripNotFound": "採集記録 {{id}} が見つかりません",
+      "tripEmpty": "「{{name}}」に標本がないため書き出せません",
+      "projectNotFound": "プロジェクト {{id}} が見つかりません",
+      "projectEmpty": "「{{name}}」に記録がないため書き出せません",
+      "noneSelected": "記録が選択されていません",
+      "tooManyReleves": "調査区数 {{n}} が JUICE の上限 {{max}} を超えています"
+    }
   },
   "nav": {
     "session": "種リスト",
@@ -2234,7 +2255,13 @@
     "onlineNote": "オンラインモードでは遠隔の地図ファイルを直接読み、表示範囲だけを取得します。",
     "error": "ダウンロード失敗：{{message}}",
     "newVersion": "新しいバージョン {{version}} があります。地図全体を再ダウンロードする必要があります",
-    "update": "オフライン地図を更新（{{size}}）"
+    "update": "オフライン地図を更新（{{size}}）",
+    "err": {
+      "incomplete": "ダウンロードが不完全です：{{name}} は {{got}} バイト受信（本来 {{expect}} バイト）",
+      "noTiles": "データ一覧にタイルファイルがありません",
+      "splitTiles": "タイルが複数ファイルに分かれています。オフライン地図には単一ファイル版が必要です",
+      "noSpace": "端末の空き容量が足りません。空きを作ってから再度お試しください"
+    }
   },
   "offlinemap": {
     "title": "オフライン地図",
@@ -3266,7 +3293,9 @@
       "noRecord": "記録が見つかりません。",
       "server": "サーバーがエラーを返しました。",
       "unknown": "エラー：{{detail}}",
-      "sameServer": "チームはすでにこのサーバーにあります。"
+      "sameServer": "チームはすでにこのサーバーにあります。",
+      "mediaDisabled": "このサーバーは写真・録音・スキャンの同期に対応していません（自前のサーバーのみ対応）",
+      "mediaMismatch": "ダウンロードしたファイルがアップロードしたものと一致しません"
     },
     "mergedFromToast": "{{names}} のデータを統合しました",
     "members": "メンバー",
@@ -3319,7 +3348,31 @@
     "teamSynced_other": "変更のあった {{count}} 件の記録をアップロードしました",
     "teamImported_other": "{{count}} 件を新たに取り込みました",
     "teamNothing": "すべて最新で、新しい変更はありません",
-    "mergedWithSummary": "{{who}}：{{what}}"
+    "mergedWithSummary": "{{who}}：{{what}}",
+    "mediaTest": {
+      "title": "ファイル同期テスト（段階 0）",
+      "intro": "ファイルか写真を選ぶ → 分割・暗号化してチームのサーバーへアップロード → ダウンロード・復号 → バイトを照合。ファイルは自前のサーバーのみ対応。{{platform}}・1 分割 4 MiB。",
+      "checking": "サーバーを確認中…",
+      "accepted": "サーバーはファイルを受け付けます",
+      "refused": "このサーバーはファイルを受け付けません（既定のサーバーは非対応。自前のサーバーを使い、もう一度デプロイしてください）",
+      "pickFile": "ファイルを選択",
+      "pickPhoto": "ライブラリから",
+      "rerun": "直前の分をもう一度送る（既にある分割はスキップ）",
+      "stage": {
+        "hash": "ハッシュ計算 {{done}}／{{total}}",
+        "upload": "アップロード {{done}}／{{total}}",
+        "download": "ダウンロード {{done}}／{{total}}"
+      },
+      "done": "完了",
+      "sizeLine": "{{mb}} MB・{{n}} 分割",
+      "skipped": "（サーバーに既に {{n}} 分割あり、スキップ）",
+      "timesUp": "ハッシュ {{hash}} ms・暗号化 {{seal}} ms・アップロード {{upload}} ms（{{rate}}）",
+      "timesDown": "ダウンロード {{download}} ms（{{rate}}）・復号 {{open}} ms",
+      "heap": "JS ヒープ最大 {{value}}",
+      "match": "バイト一致",
+      "mismatch": "不一致：ダウンロード {{bytes}} バイト、sha256 {{sha}}",
+      "failed": "失敗：{{message}}"
+    }
   },
   "teamDeploy": {
     "title": "自分の Cloudflare を使う",

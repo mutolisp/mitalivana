@@ -86,7 +86,7 @@ export class TeamSyncError extends Error {
   }
 }
 
-function asSyncError(e: unknown): TeamSyncError {
+export function asSyncError(e: unknown): TeamSyncError {
   if (e instanceof TeamSyncError) return e;
   if (e instanceof ApiError) {
     if (e.kind === 'network' || e.kind === 'timeout') return new TeamSyncError('offline');
@@ -103,7 +103,7 @@ function asSyncError(e: unknown): TeamSyncError {
 
 // ── randomness, install id, secrets ─────────────────────────────────────────
 
-function randomBytes(n: number): Uint8Array {
+export function randomBytes(n: number): Uint8Array {
   const res = getUserDb().executeSync(`SELECT hex(randomblob(?)) AS h;`, [n]);
   const hex = String((res.rows?.[0] as { h?: string } | undefined)?.h ?? '');
   if (hex.length !== n * 2) throw new Error('randomblob failed');
@@ -319,7 +319,7 @@ export async function leaveTeam(teamId: string): Promise<void> {
   for (const t of ['sync_teams', 'sync_links', 'sync_seen', 'sync_queue', 'sync_members']) db.executeSync(`DELETE FROM ${t} WHERE team_id = ?`, [teamId]);
 }
 
-async function keysOf(teamId: string): Promise<{ team: Team; keys: TeamKeys }> {
+export async function keysOf(teamId: string): Promise<{ team: Team; keys: TeamKeys }> {
   const team = getTeam(teamId);
   if (!team) throw new TeamSyncError('noTeam');
   const secret = await loadSecret(teamId);

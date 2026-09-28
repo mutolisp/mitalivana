@@ -278,7 +278,28 @@
     "largeTitle": "Exportdatei ist groß",
     "largeMsg": "Geschätzt ca. {{size}}. Fortfahren?",
     "exporting": "Wird exportiert…",
-    "language": "Sprache der Artenliste"
+    "language": "Sprache der Artenliste",
+    "stage": {
+      "photos": "Fotos werden verarbeitet",
+      "files": "Dateien werden verarbeitet",
+      "compressing": "Wird komprimiert…",
+      "records": "Aufnahme {{current}}/{{total}} wird verarbeitet",
+      "mergeChecklist": "Artenliste wird zusammengeführt…",
+      "analysis": "Analysetabellen werden erstellt…",
+      "dwca": "Darwin Core Archive wird erstellt…",
+      "report": "Forschungsbericht wird erstellt…"
+    },
+    "err": {
+      "sessionNotFound": "Aufnahme {{id}} nicht gefunden",
+      "sessionEmpty": "„{{name}}“ enthält keine Arten zum Exportieren",
+      "plotNotFound": "Probefläche {{id}} nicht gefunden",
+      "tripNotFound": "Sammlung {{id}} nicht gefunden",
+      "tripEmpty": "„{{name}}“ enthält keine Belege zum Exportieren",
+      "projectNotFound": "Projekt {{id}} nicht gefunden",
+      "projectEmpty": "„{{name}}“ enthält keine Aufnahmen zum Exportieren",
+      "noneSelected": "Keine Aufnahmen ausgewählt",
+      "tooManyReleves": "{{n}} Vegetationsaufnahmen überschreiten das JUICE-Limit von {{max}}"
+    }
   },
   "nav": {
     "session": "Artenliste",
@@ -2371,7 +2392,13 @@
     "onlineNote": "Im Online-Modus wird die entfernte Kartendatei direkt gelesen; geladen wird nur der sichtbare Bereich.",
     "error": "Download fehlgeschlagen: {{message}}",
     "newVersion": "Version {{version}} ist verfügbar; die gesamte Karte muss erneut heruntergeladen werden",
-    "update": "Offline-Karte aktualisieren ({{size}})"
+    "update": "Offline-Karte aktualisieren ({{size}})",
+    "err": {
+      "incomplete": "Download unvollständig: {{name}} hat {{got}} Byte erhalten, erwartet {{expect}}",
+      "noTiles": "Die Datenliste enthält keine Kacheldatei",
+      "splitTiles": "Die Kacheln sind auf mehrere Dateien verteilt; Offline-Karten brauchen die Version als Einzeldatei",
+      "noSpace": "Nicht genug Speicher auf dem Gerät; Platz schaffen und erneut versuchen"
+    }
   },
   "offlinemap": {
     "title": "Offline-Karten",
@@ -3437,7 +3464,9 @@
       "noRecord": "Datensatz nicht gefunden.",
       "server": "Der Server meldete einen Fehler.",
       "unknown": "Fehler: {{detail}}",
-      "sameServer": "Das Team ist bereits auf diesem Server."
+      "sameServer": "Das Team ist bereits auf diesem Server.",
+      "mediaDisabled": "Dieser Server synchronisiert keine Fotos, Tonaufnahmen oder Scans (nur selbst betriebene Server)",
+      "mediaMismatch": "Die heruntergeladene Datei stimmt nicht mit der hochgeladenen überein"
     },
     "mergedFromToast": "Daten von {{names}} zusammengeführt",
     "members": "Mitglieder",
@@ -3493,7 +3522,31 @@
     "teamImported_one": "{{count}} neuer Datensatz importiert",
     "teamImported_other": "{{count}} neue Datensätze importiert",
     "teamNothing": "Alles ist auf dem neuesten Stand",
-    "mergedWithSummary": "{{who}}: {{what}}"
+    "mergedWithSummary": "{{who}}: {{what}}",
+    "mediaTest": {
+      "title": "Dateisynchronisation testen (Phase 0)",
+      "intro": "Dateien oder Fotos wählen → in Teilen verschlüsselt auf den Server des Teams geladen → heruntergeladen und entschlüsselt → Bytes verglichen. Nur selbst betriebene Server nehmen Dateien an. {{platform}} · 4 MiB pro Teil.",
+      "checking": "Server wird geprüft…",
+      "accepted": "Der Server nimmt Dateien an",
+      "refused": "Dieser Server nimmt keine Dateien an (der Standardserver nicht; einen selbst betriebenen Server verwenden und neu bereitstellen)",
+      "pickFile": "Dateien wählen",
+      "pickPhoto": "Aus Mediathek",
+      "rerun": "Letzten Stapel erneut senden (vorhandene Teile werden übersprungen)",
+      "stage": {
+        "hash": "Hash {{done}}/{{total}}",
+        "upload": "Hochladen {{done}}/{{total}}",
+        "download": "Herunterladen {{done}}/{{total}}"
+      },
+      "done": "Fertig",
+      "sizeLine": "{{mb}} MB · {{n}} Teile",
+      "skipped": "({{n}} Teile schon auf dem Server, übersprungen)",
+      "timesUp": "Hash {{hash}} ms · Verschlüsseln {{seal}} ms · Hochladen {{upload}} ms ({{rate}})",
+      "timesDown": "Herunterladen {{download}} ms ({{rate}}) · Entschlüsseln {{open}} ms",
+      "heap": "JS-Heap-Spitze {{value}}",
+      "match": "Bytes stimmen überein",
+      "mismatch": "Abweichung: {{bytes}} Byte heruntergeladen, sha256 {{sha}}",
+      "failed": "Fehlgeschlagen: {{message}}"
+    }
   },
   "teamDeploy": {
     "title": "Eigenes Cloudflare verwenden",

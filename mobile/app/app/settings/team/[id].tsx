@@ -133,9 +133,30 @@ export default function TeamScreen() {
     });
 
   const adjustLimits = async () => {
-    const mb = await promptText({ title: t('teamSync.limitsTitle'), message: t('teamSync.limitsBytesMsg'), keyboardType: 'numeric', defaultValue: '50' });
+    // Start from the limits in force on this server: a self-hosted one is
+    // 8 GB / 1,000 devices, not the default server's 50 MB / 20.
+    let current = usage;
+    if (!current) {
+      setBusy(t('teamSync.loading'));
+      try {
+        current = await teamUsage(teamId);
+        setUsage(current);
+      } catch (e) {
+        Alert.alert(t('teamSync.failTitle'), teamSyncErrorText(e));
+        return;
+      } finally {
+        setBusy(null);
+      }
+    }
+    const mbNow = String(Math.round(current.limits.maxTeamBytes / (1024 * 1024)));
+    const mb = await promptText({ title: t('teamSync.limitsTitle'), message: t('teamSync.limitsBytesMsg'), keyboardType: 'numeric', defaultValue: mbNow });
     if (!mb) return;
-    const devices = await promptText({ title: t('teamSync.limitsTitle'), message: t('teamSync.limitsDevicesMsg'), keyboardType: 'numeric', defaultValue: '20' });
+    const devices = await promptText({
+      title: t('teamSync.limitsTitle'),
+      message: t('teamSync.limitsDevicesMsg'),
+      keyboardType: 'numeric',
+      defaultValue: String(current.limits.maxTeamDevices),
+    });
     if (!devices) return;
     const bytes = Math.round(Number(mb) * 1024 * 1024);
     const n = Math.round(Number(devices));
@@ -278,6 +299,10 @@ export default function TeamScreen() {
             onPress={() => void loadUsage()}
           />
           {isAdmin ? <LinkRow label={t('teamSync.limitsTitle')} onPress={() => void adjustLimits()} /> : null}
+          {/* Media_sync.md phase 0 test tool, development builds only. */}
+          {__DEV__ ? (
+            <LinkRow label={t('teamSync.mediaTest.title')} onPress={() => router.push(`/settings/team-media-test?id=${teamId}` as Href)} />
+          ) : null}
         </Section>
 
         <Section title={t('teamSync.sectionManage')}>
