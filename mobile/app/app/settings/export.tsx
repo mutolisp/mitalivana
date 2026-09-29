@@ -4,16 +4,16 @@
  * confirm and nothing to cancel; as a pushed route the back chevron is the
  * whole interaction.
  */
-import { ScrollView } from 'react-native';
 import { ExportPreferenceOptions } from '~/components/ExportPreferenceOptions';
+import { FocusScrollView } from '~/components/settings/FocusScroll';
 import { SettingsPage } from '~/components/settings/SettingsPage';
 
 export default function ExportSettingsScreen() {
   return (
     <SettingsPage>
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 24 }}>
+      <FocusScrollView contentContainerStyle={{ padding: 16, paddingBottom: 24 }}>
         <ExportPreferenceOptions />
-      </ScrollView>
+      </FocusScrollView>
     </SettingsPage>
   );
 }

@@ -9,7 +9,8 @@
 import { useTranslation } from 'react-i18next';
 import { useFocusEffect, useRouter, type Href } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, ScrollView, Text, View } from 'react-native';
+import { Alert, Text, View } from 'react-native';
+import { FocusAnchor, FocusScrollView } from '~/components/settings/FocusScroll';
 import { LinkRow, RowInput } from '~/components/settings/rows';
 import { SettingsPage } from '~/components/settings/SettingsPage';
 import { promptText } from '~/components/TextPromptModal';
@@ -103,7 +104,7 @@ export default function CollectionSettingsScreen() {
 
   return (
     <SettingsPage>
-      <ScrollView>
+      <FocusScrollView>
         <View className="mt-6">
           {/* Both rows show the starred names and open the list they come from.
               The collector's list is the surveyors — a specimen IS a record of
@@ -113,52 +114,60 @@ export default function CollectionSettingsScreen() {
               Neither default is required. Left unstarred nothing is filled in,
               which is better than a label crediting someone who was not
               involved. */}
-          <LinkRow
-            label={t('settings.defaultCollector')}
-            description={t('settings.defaultCollectorDesc')}
-            value={defaults.collector || t('settings.noDefaultPerson')}
-            onPress={() => router.push('/surveyors' as Href)}
-          />
-          <LinkRow
-            label={t('settings.defaultDeterminer')}
-            description={t('settings.defaultDeterminerDesc')}
-            value={defaults.determiner || t('settings.noDefaultPerson')}
-            onPress={() => router.push('/identifiers' as Href)}
-          />
-          <RowInput
-            label={t('collection.numberPrefix')}
-            value={prefix}
-            placeholder={t('settings.numberPrefixPlaceholder')}
-            autoCapitalize="characters"
-            onCommit={(v) => setSetting('collection_number_prefix', v.trim())}
-          />
-          {/* Replaces the old start-number field that wrote silently on blur: changing
-              the number affects physical specimen labels, so the user has to see
-              the current state and confirm. Same setting underneath. */}
-          <LinkRow
-            label={t('collection.numberStart')}
-            value={nextNumberPreview}
-            onPress={handleSetNextNumber}
-          />
-          <RowInput
-            label={t('collection.numberPad')}
-            value={String(pad)}
-            placeholder="4"
-            keyboardType="number-pad"
-            onCommit={(v) => {
-              // 0 = no padding; the cap of 10 stops a typo producing an absurdly long number.
-              const n = Math.floor(Number(v));
-              const clamped = Number.isFinite(n) ? Math.min(Math.max(n, 0), 10) : 4;
-              setSetting('collection_number_pad', clamped);
-            }}
-          />
+          <FocusAnchor id="collector">
+            <LinkRow
+              label={t('settings.defaultCollector')}
+              description={t('settings.defaultCollectorDesc')}
+              value={defaults.collector || t('settings.noDefaultPerson')}
+              onPress={() => router.push('/surveyors' as Href)}
+            />
+          </FocusAnchor>
+          <FocusAnchor id="determiner">
+            <LinkRow
+              label={t('settings.defaultDeterminer')}
+              description={t('settings.defaultDeterminerDesc')}
+              value={defaults.determiner || t('settings.noDefaultPerson')}
+              onPress={() => router.push('/identifiers' as Href)}
+            />
+          </FocusAnchor>
+          <FocusAnchor id="number">
+            <RowInput
+              label={t('collection.numberPrefix')}
+              value={prefix}
+              placeholder={t('settings.numberPrefixPlaceholder')}
+              autoCapitalize="characters"
+              onCommit={(v) => setSetting('collection_number_prefix', v.trim())}
+            />
+            {/* Replaces the old start-number field that wrote silently on blur: changing
+                the number affects physical specimen labels, so the user has to see
+                the current state and confirm. Same setting underneath. */}
+            <LinkRow
+              label={t('collection.numberStart')}
+              value={nextNumberPreview}
+              onPress={handleSetNextNumber}
+            />
+          </FocusAnchor>
+          <FocusAnchor id="pad">
+            <RowInput
+              label={t('collection.numberPad')}
+              value={String(pad)}
+              placeholder="4"
+              keyboardType="number-pad"
+              onCommit={(v) => {
+                // 0 = no padding; the cap of 10 stops a typo producing an absurdly long number.
+                const n = Math.floor(Number(v));
+                const clamped = Number.isFinite(n) ? Math.min(Math.max(n, 0), 10) : 4;
+                setSetting('collection_number_pad', clamped);
+              }}
+            />
+          </FocusAnchor>
           <View className="bg-card dark:bg-gray-900 px-4 pb-3">
             <Text className="text-xs text-gray-500 dark:text-gray-400">
               {t('settings.collectionNumberDesc', { next: nextNumberPreview })}
             </Text>
           </View>
         </View>
-      </ScrollView>
+      </FocusScrollView>
     </SettingsPage>
   );
 }

@@ -140,7 +140,7 @@ export default function ProvenanceSettingsScreen() {
         </Text>
 
         {/* ── 1. the key ─────────────────────────────────────────────── */}
-        <Section title={t('provenance.keySection')}>
+        <Section plain title={t('provenance.keySection')}>
           {publicKey ? (
             <View className="rounded-lg bg-gray-50 dark:bg-gray-800 p-3">
               <Text selectable className="font-mono text-xs text-gray-900 dark:text-gray-100">
@@ -177,7 +177,7 @@ export default function ProvenanceSettingsScreen() {
         </Section>
 
         {/* ── 2. who it signs as ─────────────────────────────────────── */}
-        <Section title={t('provenance.identitySection')}>
+        <Section plain title={t('provenance.identitySection')}>
           <Text className="mb-1 text-xs text-gray-500 dark:text-gray-400">ORCID iD</Text>
           {verified ? (
             <View className="rounded-lg bg-gray-50 p-3 dark:bg-gray-800">
@@ -245,7 +245,7 @@ export default function ProvenanceSettingsScreen() {
 
         {/* ── 3. publish it ──────────────────────────────────────────── */}
         {publicKey && verified ? (
-          <Section title={t('provenance.publishSection')}>
+          <Section plain title={t('provenance.publishSection')}>
             <Text className="text-sm text-gray-600 dark:text-gray-400">
               {t('provenance.publishHint')}
             </Text>
@@ -261,7 +261,7 @@ export default function ProvenanceSettingsScreen() {
         ) : null}
 
         {/* ── 4. the switch, last, because it needs the three above ──── */}
-        <Section title={t('provenance.signSection')}>
+        <Section plain title={t('provenance.signSection')}>
           <View className="flex-row items-center justify-between py-2">
             <View className="flex-1 pr-3">
               <Text className="text-base text-gray-900 dark:text-gray-100">

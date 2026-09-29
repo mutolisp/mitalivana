@@ -47,13 +47,22 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 function SelectTrigger({
   className = '',
+  bare = false,
   children,
   ...props
-}: React.ComponentProps<typeof SelectPrimitive.Trigger> & { className?: string }) {
+}: React.ComponentProps<typeof SelectPrimitive.Trigger> & {
+  className?: string;
+  /** No box: just the value and the chevron, for a settings row whose right
+   *  side is its current value (03-screens-flow.md §4c). */
+  bare?: boolean;
+}) {
   const c = useThemeColors();
+  const box = bare
+    ? 'gap-1 py-1'
+    : 'gap-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-card dark:bg-gray-900 px-3 py-2';
   return (
     <SelectPrimitive.Trigger
-      className={`flex-row items-center justify-between gap-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-card dark:bg-gray-900 px-3 py-2 ${props.disabled ? 'opacity-50' : ''} ${className}`}
+      className={`flex-row items-center justify-between ${box} ${props.disabled ? 'opacity-50' : ''} ${className}`}
       {...props}
     >
       <>{children}</>
@@ -65,8 +74,9 @@ function SelectTrigger({
 function SelectValue({
   className = '',
   numberOfLines = 1,
+  bare = false,
   ...props
-}: React.ComponentProps<typeof SelectPrimitive.Value> & { className?: string }) {
+}: React.ComponentProps<typeof SelectPrimitive.Value> & { className?: string; bare?: boolean }) {
   const { value } = SelectPrimitive.useRootContext();
   // shrink + one line: a long label ("個體數 (individuals)") used to wrap to
   // two lines, grow the trigger, and push the chevron outside its border. It
@@ -76,7 +86,11 @@ function SelectValue({
   return (
     <SelectPrimitive.Value
       numberOfLines={numberOfLines}
-      className={`shrink text-base ${value ? 'text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400'} ${className}`}
+      className={`shrink ${
+        bare
+          ? 'text-sm text-gray-600 dark:text-gray-300'
+          : `text-base ${value ? 'text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400'}`
+      } ${className}`}
       {...props}
     />
   );

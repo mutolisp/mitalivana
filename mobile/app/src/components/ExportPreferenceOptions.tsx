@@ -17,6 +17,7 @@ import { Switch } from '~/components/ui/Switch';
 import { DOC_FORMATS, reportFormatLabels } from '~/lib/docFormat';
 import { useSettings, type DocFormat, type ReportFormat } from '~/stores/settings';
 import { AnalysisExportOptions } from './AnalysisExportOptions';
+import { FocusAnchor } from './settings/FocusScroll';
 import type { ConservationField } from '~/lib/markdown';
 
 type GeoFormat = 'geojson' | 'gpx' | 'kml';
@@ -85,50 +86,54 @@ export function ExportPreferenceOptions() {
 
   return (
     <>
-      <Text className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-        {t('exportPref.geoFormats')}
-      </Text>
-      <Text className="mb-2 text-xs text-gray-500 dark:text-gray-400">
-        {t('exportPref.geoFormatsHint')}
-      </Text>
-      <View className="mb-4">
-        {GEO_OPTIONS.map((opt) => {
-          const on = formats.includes(opt.value);
-          return (
-            <Pressable
-              key={opt.value}
-              onPress={() => toggleFormat(opt.value)}
-              className="flex-row items-center border-b border-gray-100 dark:border-gray-800 py-3 active:bg-gray-50 dark:active:bg-gray-800"
-            >
-              <View
-                className={`mr-3 h-6 w-6 items-center justify-center rounded ${on ? 'bg-accent-500' : 'border border-gray-300 dark:border-gray-700'}`}
+      <FocusAnchor id="geo">
+        <Text className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+          {t('exportPref.geoFormats')}
+        </Text>
+        <Text className="mb-2 text-xs text-gray-500 dark:text-gray-400">
+          {t('exportPref.geoFormatsHint')}
+        </Text>
+        <View className="mb-4">
+          {GEO_OPTIONS.map((opt) => {
+            const on = formats.includes(opt.value);
+            return (
+              <Pressable
+                key={opt.value}
+                onPress={() => toggleFormat(opt.value)}
+                className="flex-row items-center border-b border-gray-100 dark:border-gray-800 py-3 active:bg-gray-50 dark:active:bg-gray-800"
               >
-                {on ? <Ionicons name="checkmark" size={16} color="white" /> : null}
-              </View>
-              <View className="flex-1">
-                <Text className="text-sm font-medium text-gray-900 dark:text-gray-100">{opt.label}</Text>
-                <Text className="text-xs text-gray-500 dark:text-gray-400">{opt.hint}</Text>
-              </View>
-            </Pressable>
-          );
-        })}
-      </View>
-
-      <Text className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-        {t('exportPref.photo')}
-      </Text>
-      <View className="mb-4 flex-row items-center justify-between border-b border-gray-100 dark:border-gray-800 py-3">
-        <View className="flex-1 pr-3">
-          <Text className="text-sm font-medium text-gray-900 dark:text-gray-100">{t('exportPref.includePhotos')}</Text>
-          <Text className="text-xs text-gray-500 dark:text-gray-400">
-            {t('exportPref.includePhotosHint')}
-          </Text>
+                <View
+                  className={`mr-3 h-6 w-6 items-center justify-center rounded ${on ? 'bg-accent-500' : 'border border-gray-300 dark:border-gray-700'}`}
+                >
+                  {on ? <Ionicons name="checkmark" size={16} color="white" /> : null}
+                </View>
+                <View className="flex-1">
+                  <Text className="text-sm font-medium text-gray-900 dark:text-gray-100">{opt.label}</Text>
+                  <Text className="text-xs text-gray-500 dark:text-gray-400">{opt.hint}</Text>
+                </View>
+              </Pressable>
+            );
+          })}
         </View>
-        <Switch
-          value={includePhotos}
-          onValueChange={(v) => setSetting('export_include_photos', v)}
-        />
-      </View>
+      </FocusAnchor>
+
+      <FocusAnchor id="photo">
+        <Text className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+          {t('exportPref.photo')}
+        </Text>
+        <View className="mb-4 flex-row items-center justify-between border-b border-gray-100 dark:border-gray-800 py-3">
+          <View className="flex-1 pr-3">
+            <Text className="text-sm font-medium text-gray-900 dark:text-gray-100">{t('exportPref.includePhotos')}</Text>
+            <Text className="text-xs text-gray-500 dark:text-gray-400">
+              {t('exportPref.includePhotosHint')}
+            </Text>
+          </View>
+          <Switch
+            value={includePhotos}
+            onValueChange={(v) => setSetting('export_include_photos', v)}
+          />
+        </View>
+      </FocusAnchor>
 
       <Text className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
         {t('exportPref.checklistDoc')}
@@ -148,35 +153,37 @@ export function ExportPreferenceOptions() {
         />
       </View>
 
-      <Text className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-        {t('exportPref.docFormat')}
-      </Text>
-      <View className="border-b border-gray-100 dark:border-gray-800 py-3">
-        <Text className="text-sm font-medium text-gray-900 dark:text-gray-100">{t('exportPref.docFileFormat')}</Text>
-        <Text className="text-xs text-gray-500 dark:text-gray-400">{t('exportPref.docFileFormatHint')}</Text>
-        <View className="flex-row flex-wrap gap-1.5 pt-2">
-          {DOC_FORMAT_OPTIONS.map((value) => (
-            <Chip
-              key={value}
-              label={DOC_FORMATS[value].label}
-              on={docFormat === value}
-              onPress={() => setSetting('export_doc_format', value)}
-            />
-          ))}
+      <FocusAnchor id="doc">
+        <Text className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+          {t('exportPref.docFormat')}
+        </Text>
+        <View className="border-b border-gray-100 dark:border-gray-800 py-3">
+          <Text className="text-sm font-medium text-gray-900 dark:text-gray-100">{t('exportPref.docFileFormat')}</Text>
+          <Text className="text-xs text-gray-500 dark:text-gray-400">{t('exportPref.docFileFormatHint')}</Text>
+          <View className="flex-row flex-wrap gap-1.5 pt-2">
+            {DOC_FORMAT_OPTIONS.map((value) => (
+              <Chip
+                key={value}
+                label={DOC_FORMATS[value].label}
+                on={docFormat === value}
+                onPress={() => setSetting('export_doc_format', value)}
+              />
+            ))}
+          </View>
         </View>
-      </View>
-      <View className="mb-4 flex-row items-center justify-between border-b border-gray-100 dark:border-gray-800 py-3">
-        <View className="flex-1 pr-3">
-          <Text className="text-sm font-medium text-gray-900 dark:text-gray-100">{t('exportPref.includeDocx')}</Text>
-          <Text className="text-xs text-gray-500 dark:text-gray-400">
-            {t('exportPref.includeDocxHint')}
-          </Text>
+        <View className="mb-4 flex-row items-center justify-between border-b border-gray-100 dark:border-gray-800 py-3">
+          <View className="flex-1 pr-3">
+            <Text className="text-sm font-medium text-gray-900 dark:text-gray-100">{t('exportPref.includeDocx')}</Text>
+            <Text className="text-xs text-gray-500 dark:text-gray-400">
+              {t('exportPref.includeDocxHint')}
+            </Text>
+          </View>
+          <Switch
+            value={includeDocx}
+            onValueChange={(v) => setSetting('export_include_docx', v)}
+          />
         </View>
-        <Switch
-          value={includeDocx}
-          onValueChange={(v) => setSetting('export_include_docx', v)}
-        />
-      </View>
+      </FocusAnchor>
 
       <Text className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
         {t('exportPref.report')}
@@ -209,71 +216,75 @@ export function ExportPreferenceOptions() {
         <View className="mb-4" />
       )}
 
-      <Text className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-        {t('exportPref.levels')}
-      </Text>
-      <Text className="mb-2 text-xs text-gray-500 dark:text-gray-400">
-        {levels.length === 0
-          ? t('exportPref.levelsHintDefault')
-          : t('exportPref.levelsHintCustom')}
-      </Text>
-      <View className="mb-4 flex-row flex-wrap gap-1.5">
-        {LEVEL_OPTIONS.map((opt) => {
-          const on = levels.includes(opt.value);
-          return (
-            <Pressable
-              key={opt.value}
-              onPress={() => toggleLevel(opt.value)}
-              className={`rounded-full border px-3 py-1.5 ${on ? 'border-accent-500 bg-accent-500' : 'border-gray-300 dark:border-gray-600 bg-card dark:bg-gray-900'}`}
-            >
-              <Text className={`text-xs font-medium ${on ? 'text-white' : 'text-gray-700 dark:text-gray-300'}`}>
-                {t(opt.label)}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-
-      <Text className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-        {t('exportPref.consFields')}
-      </Text>
-      <View className="mb-4 flex-row flex-wrap gap-1.5">
-        {CONSERVATION_OPTIONS.map((opt) => {
-          const on = conservationFields.includes(opt.value);
-          return (
-            <Pressable
-              key={opt.value}
-              onPress={() => toggleConservation(opt.value)}
-              className={`rounded-full border px-3 py-1.5 ${on ? 'border-emerald-500 bg-emerald-500' : 'border-gray-300 dark:border-gray-600 bg-card dark:bg-gray-900'}`}
-            >
-              <Text className={`text-xs font-medium ${on ? 'text-white' : 'text-gray-700 dark:text-gray-300'}`}>
-                {t(opt.label)}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-      <View className="mb-4 flex-row items-center justify-between border-b border-gray-100 dark:border-gray-800 py-3">
-        <View className="flex-1 pr-3">
-          <Text className="text-sm font-medium text-gray-900 dark:text-gray-100">
-            {t('exportPref.consHideLc')}
-          </Text>
-          <Text className="text-xs text-gray-500 dark:text-gray-400">
-            {t('exportPref.consHideLcHint')}
-          </Text>
+      <FocusAnchor id="levels">
+        <Text className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+          {t('exportPref.levels')}
+        </Text>
+        <Text className="mb-2 text-xs text-gray-500 dark:text-gray-400">
+          {levels.length === 0
+            ? t('exportPref.levelsHintDefault')
+            : t('exportPref.levelsHintCustom')}
+        </Text>
+        <View className="mb-4 flex-row flex-wrap gap-1.5">
+          {LEVEL_OPTIONS.map((opt) => {
+            const on = levels.includes(opt.value);
+            return (
+              <Pressable
+                key={opt.value}
+                onPress={() => toggleLevel(opt.value)}
+                className={`rounded-full border px-3 py-1.5 ${on ? 'border-accent-500 bg-accent-500' : 'border-gray-300 dark:border-gray-600 bg-card dark:bg-gray-900'}`}
+              >
+                <Text className={`text-xs font-medium ${on ? 'text-white' : 'text-gray-700 dark:text-gray-300'}`}>
+                  {t(opt.label)}
+                </Text>
+              </Pressable>
+            );
+          })}
         </View>
-        <Switch
-          value={hideLowConcern}
-          onValueChange={(v) => setSetting('export_conservation_hide_lc', v)}
-        />
-      </View>
 
+        <Text className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+          {t('exportPref.consFields')}
+        </Text>
+        <View className="mb-4 flex-row flex-wrap gap-1.5">
+          {CONSERVATION_OPTIONS.map((opt) => {
+            const on = conservationFields.includes(opt.value);
+            return (
+              <Pressable
+                key={opt.value}
+                onPress={() => toggleConservation(opt.value)}
+                className={`rounded-full border px-3 py-1.5 ${on ? 'border-emerald-500 bg-emerald-500' : 'border-gray-300 dark:border-gray-600 bg-card dark:bg-gray-900'}`}
+              >
+                <Text className={`text-xs font-medium ${on ? 'text-white' : 'text-gray-700 dark:text-gray-300'}`}>
+                  {t(opt.label)}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        <View className="mb-4 flex-row items-center justify-between border-b border-gray-100 dark:border-gray-800 py-3">
+          <View className="flex-1 pr-3">
+            <Text className="text-sm font-medium text-gray-900 dark:text-gray-100">
+              {t('exportPref.consHideLc')}
+            </Text>
+            <Text className="text-xs text-gray-500 dark:text-gray-400">
+              {t('exportPref.consHideLcHint')}
+            </Text>
+          </View>
+          <Switch
+            value={hideLowConcern}
+            onValueChange={(v) => setSetting('export_conservation_hide_lc', v)}
+          />
+        </View>
+      </FocusAnchor>
+
+      <FocusAnchor id="analysis">
         <View className="mb-3 border-t border-gray-200 dark:border-gray-700 pt-3">
           <Text className="mb-2 text-sm font-semibold text-gray-900 dark:text-gray-100">
             {t('projectExport.prefSection')}
           </Text>
           <AnalysisExportOptions />
         </View>
+      </FocusAnchor>
     </>
   );
 }
