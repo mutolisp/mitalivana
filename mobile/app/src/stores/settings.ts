@@ -187,6 +187,8 @@ type SettingsValues = {
   signer_orcid_auth_at: number;
   /** Whether the diversity card on a plot's species tab is expanded. */
   plot_stats_expanded: boolean;
+  /** The R / C number keypad under a frequency grid's species card is shown. */
+  freq_keypad: boolean;
   /** Heading printed at the top of every herbarium label, e.g. "Flora of
    *  Taiwan". Remembered between exports. */
   collection_label_title: string;
@@ -326,6 +328,7 @@ const DEFAULTS: SettingsValues = {
   inat_geoprivacy: 'open',
   gdrive_account: '',
   plot_stats_expanded: false,
+  freq_keypad: true,
   collection_label_title: '',
   collection_label_family: false,
   record_gps_session: true,
@@ -462,6 +465,7 @@ function readAll(): SettingsValues {
     inat_geoprivacy: parseGeoprivacy(map.get('inat_geoprivacy')),
     gdrive_account: map.get('gdrive_account') ?? DEFAULTS.gdrive_account,
     plot_stats_expanded: map.get('plot_stats_expanded') === 'true',
+    freq_keypad: map.get('freq_keypad') !== 'false',
     collection_label_title: map.get('collection_label_title') ?? DEFAULTS.collection_label_title,
     collection_label_family:
       map.get('collection_label_family') == null

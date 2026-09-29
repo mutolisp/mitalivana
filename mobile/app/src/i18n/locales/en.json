@@ -785,7 +785,14 @@
       "goDom": "Enter dominance",
       "domFreqTitle": "Dominance and frequency disagree",
       "domNoFreq": "{{names}}: dominance but no frequency yet",
-      "freqNoDom": "{{names}}: frequency but no dominance yet"
+      "freqNoDom": "{{names}}: frequency but no dominance yet",
+      "keypad": "Row and column keypad",
+      "keypadRow": "Row {{n}}",
+      "keypadCol": "Column {{n}}",
+      "keypadHint": "Tap to choose; hold to lock this row or column, hold again to release",
+      "keypadShow": "Show the keypad",
+      "keypadHide": "Hide the keypad",
+      "moreBelow": "More below"
     },
     "tabFreq": "Frequency"
   },

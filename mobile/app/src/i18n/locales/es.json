@@ -823,7 +823,14 @@
       "goDom": "Anotar dominancia",
       "domFreqTitle": "La dominancia y la frecuencia no coinciden",
       "domNoFreq": "{{names}}: dominancia pero aún sin frecuencia",
-      "freqNoDom": "{{names}}: frecuencia pero aún sin dominancia"
+      "freqNoDom": "{{names}}: frecuencia pero aún sin dominancia",
+      "keypad": "Teclado de filas y columnas",
+      "keypadRow": "Fila {{n}}",
+      "keypadCol": "Columna {{n}}",
+      "keypadHint": "Toca para elegir; mantén para fijar esta fila o columna, mantén otra vez para soltarla",
+      "keypadShow": "Mostrar el teclado",
+      "keypadHide": "Ocultar el teclado",
+      "moreBelow": "Hay más abajo"
     },
     "tabFreq": "Frecuencia"
   },

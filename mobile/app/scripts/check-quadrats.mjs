@@ -21,6 +21,7 @@ import * as q from '../src/db/quadratsCore.ts';
 import { quadratProgress } from '../src/lib/quadratProgress.ts';
 import { hasQuantity, plotFreqIssues } from '../src/lib/quadratIssues.ts';
 import { compactSpeciesLabel, shortSciName } from '../src/lib/speciesLabel.ts';
+import { KEYPAD_EMPTY, keypadLabel, keypadLongPress, keypadMark, keypadPress } from '../src/lib/gridKeypad.ts';
 import { quadratsFromYaml } from '../src/lib/quadratYaml.ts';
 import { buildPlotFrequencyCsv, buildQuadratsCsv, buildQuadratSurfaceCsv, cellColumns, quadratEventIds } from '../src/lib/quadratCsv.ts';
 
@@ -362,6 +363,41 @@ ok(quadratProgress({ ...blank, freq_mode: 'count' }, [{ name: 'A', cover_pct: 3,
   ok(shortSciName('Rubus rolfei var. rolfei') === 'R. rolfei var. rolfei', 'short name: infraspecific keeps its rank');
   ok(compactSpeciesLabel({ cname: '玉山箭竹', sci: 'Yushania niitakayamensis', fallback: 'x' }) === '玉山箭竹', 'label: vernacular name first');
   ok(compactSpeciesLabel({ cname: null, sci: 'Carex brunnea', qualifier: 'sp.1', fallback: 'x' }) === 'C. brunnea sp.1', 'label: no vernacular → short scientific name, then the qualifier');
+}
+
+{
+  // The R / C keypad (user spec 2026-09-29): which cell each press toggles.
+  const R = (k) => ({ axis: 'r', k });
+  const C = (k) => ({ axis: 'c', k });
+  const run = (presses, n = 10) => {
+    let st = KEYPAD_EMPTY;
+    const cells = [];
+    for (const [kind, key] of presses) {
+      if (kind === 'long') st = keypadLongPress(st, key);
+      else {
+        const res = keypadPress(st, key, n);
+        st = res.state;
+        if (res.cell != null) cells.push(res.cell);
+      }
+    }
+    return { st, cells };
+  };
+  ok(['0', '1', '8', '9'].join() === [9, 0, 7, 8].map(keypadLabel).join(), 'keypad: labels 1–9, 0 for the tenth');
+  ok(run([['tap', R(0)], ['tap', C(1)]]).cells.join() === '1', 'keypad: R1 then C2 toggles R1C2 (cell 1)');
+  ok(run([['tap', C(1)], ['tap', R(0)]]).cells.join() === '1', 'keypad: C2 then R1 toggles the same cell');
+  const one = run([['tap', R(0)]]);
+  ok(one.cells.length === 0 && keypadMark(one.st, R(0)) === 'pending', 'keypad: a first tap waits, marked');
+  ok(run([['tap', R(0)], ['tap', R(2)], ['tap', C(0)]]).cells.join() === '20', 'keypad: a second R replaces the first (R3C1)');
+  ok(run([['tap', R(0)], ['tap', R(0)]]).st.pending === null, 'keypad: the same button again clears the wait');
+  const locked = run([['long', R(0)], ['tap', C(1)], ['tap', C(2)], ['tap', C(4)]]);
+  ok(locked.cells.join() === '1,2,4' && keypadMark(locked.st, R(0)) === 'locked', 'keypad: long press R1, then C2, C3, C5 → R1C2, R1C3, R1C5');
+  ok(run([['long', C(9)], ['tap', R(9)], ['tap', R(0)]]).cells.join() === '99,9', 'keypad: a locked column takes rows (C10: R10C10, R1C10)');
+  ok(run([['long', R(0)], ['long', R(0)]]).st.lock === null, 'keypad: long press the locked button again unlocks');
+  ok(run([['long', R(0)], ['long', R(3)], ['tap', C(0)]]).cells.join() === '30', 'keypad: long press another button moves the lock');
+  ok(run([['long', R(0)], ['tap', R(5)], ['tap', C(0)]]).cells.join() === '50', 'keypad: a tap on the locked axis moves the lock');
+  ok(run([['tap', R(0)], ['long', C(0)], ['tap', R(1)]]).cells.join() === '10', 'keypad: a long press drops a waiting tap');
+  ok(run([['tap', R(0)], ['tap', C(1)]], 4).cells.join() === '1' && run([['tap', R(2)], ['tap', C(3)]], 4).cells.join() === '11', 'keypad: a 4 × 4 grid (R3C4 = 11)');
+  ok(run([['tap', R(5)], ['tap', C(0)]], 4).cells.length === 0, 'keypad: a button past the grid does nothing');
 }
 
 sqlite.close();

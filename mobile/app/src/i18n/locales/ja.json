@@ -747,7 +747,14 @@
       "goDom": "優占度を入力",
       "domFreqTitle": "優占度と頻度が一致しません",
       "domNoFreq": "{{names}}：優占度はあるが頻度がまだ",
-      "freqNoDom": "{{names}}：頻度はあるが優占度がまだ"
+      "freqNoDom": "{{names}}：頻度はあるが優占度がまだ",
+      "keypad": "行・列の数字キー",
+      "keypadRow": "{{n}} 行目",
+      "keypadCol": "{{n}} 列目",
+      "keypadHint": "タップで選択、長押しでこの行・列を固定（もう一度長押しで解除）",
+      "keypadShow": "数字キーを表示",
+      "keypadHide": "数字キーを隠す",
+      "moreBelow": "下に続きがあります"
     },
     "tabFreq": "頻度"
   },

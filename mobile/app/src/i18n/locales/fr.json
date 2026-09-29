@@ -823,7 +823,14 @@
       "goDom": "Saisir la dominance",
       "domFreqTitle": "Dominance et fréquence ne concordent pas",
       "domNoFreq": "{{names}} : dominance mais pas encore de fréquence",
-      "freqNoDom": "{{names}} : fréquence mais pas encore de dominance"
+      "freqNoDom": "{{names}} : fréquence mais pas encore de dominance",
+      "keypad": "Clavier des lignes et colonnes",
+      "keypadRow": "Ligne {{n}}",
+      "keypadCol": "Colonne {{n}}",
+      "keypadHint": "Toucher pour choisir ; maintenir pour verrouiller cette ligne ou colonne, maintenir à nouveau pour la libérer",
+      "keypadShow": "Afficher le clavier",
+      "keypadHide": "Masquer le clavier",
+      "moreBelow": "Suite plus bas"
     },
     "tabFreq": "Fréquence"
   },

@@ -747,7 +747,14 @@
       "goDom": "우점도 입력",
       "domFreqTitle": "우점도와 빈도가 맞지 않습니다",
       "domNoFreq": "{{names}}: 우점도는 있으나 빈도 없음",
-      "freqNoDom": "{{names}}: 빈도는 있으나 우점도 없음"
+      "freqNoDom": "{{names}}: 빈도는 있으나 우점도 없음",
+      "keypad": "행·열 숫자 키",
+      "keypadRow": "{{n}}행",
+      "keypadCol": "{{n}}열",
+      "keypadHint": "눌러서 선택, 길게 눌러 이 행·열을 고정(다시 길게 누르면 해제)",
+      "keypadShow": "숫자 키 보이기",
+      "keypadHide": "숫자 키 숨기기",
+      "moreBelow": "아래에 더 있습니다"
     },
     "tabFreq": "빈도"
   },

@@ -80,6 +80,7 @@ import { PlotQuadratsTab } from '~/components/quadrat/PlotQuadratsTab';
 import { PlotFreqTab } from '~/components/quadrat/PlotFreqTab';
 import { QuadratSettings } from '~/components/quadrat/QuadratSettings';
 import { listQuadrats, parseQuadratConfig } from '~/db/quadrats';
+import { plotFreqIssueLines } from '~/components/quadrat/plotFreqIssueLines';
 
 export default function PlotDetailScreen() {
   const { t } = useTranslation();
@@ -183,6 +184,10 @@ export default function PlotDetailScreen() {
     [plot, records],
   );
 
+  // Dominance ⇄ frequency mismatches (same rule as the 頻度 / 物種 tabs), for
+  // the end-of-survey confirmation: a reminder there, ending still allowed.
+  const freqIssues = freqOn ? plotFreqIssueLines(t, records, qcfg.freqMode) : [];
+
   /** Environment ↔ Species by horizontal swipe, mirroring the two tab buttons
    *  exactly — including the Species tab staying shut until the survey can
    *  accept species. Declared before the not-found early return so the hook
@@ -265,13 +270,15 @@ export default function PlotDetailScreen() {
                     // cover warning the old Alert carried rides along as a note.
                     void chooseEndTime(plot.stop_ts, {
                       title: t('plot.endTitle'),
-                      note:
+                      note: [
+                        t('plot.endMsg'),
                         coverCheck.kind === 'total-exceeds-species'
-                          ? `${t('plot.endMsg')}\n\n${t('plot.coverExceedsSpecies', {
-                              total: coverCheck.total,
-                              sum: coverCheck.speciesSum,
-                            })}`
-                          : t('plot.endMsg'),
+                          ? t('plot.coverExceedsSpecies', { total: coverCheck.total, sum: coverCheck.speciesSum })
+                          : null,
+                        freqIssues.length ? `${t('plot.quadrats.domFreqTitle')}\n${freqIssues.join('\n')}` : null,
+                      ]
+                        .filter(Boolean)
+                        .join('\n\n'),
                     }).then((chosen) => {
                       if (chosen === undefined) return;
                       if (isRecordingTarget({ kind: 'plot', id: plot.id })) pauseRecording();

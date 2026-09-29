@@ -18,6 +18,7 @@
 import * as Haptics from 'expo-haptics';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Ionicons } from '@expo/vector-icons';
 import { Alert, Pressable, ScrollView, Text, View, type TextInput } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -26,9 +27,13 @@ import { SearchBox } from '~/components/SearchBox';
 import type { AdoptionInput } from '~/db/taxonLookup';
 import type { SearchResult, TaxonGroup } from '~/db/types';
 import { emptyMask, fillMask, getBit, popcount, rcLabel, setBits } from '~/lib/grid';
+import { KEYPAD_EMPTY, keypadLongPress, keypadPress, type KeypadAxis, type KeypadState } from '~/lib/gridKeypad';
 import { compactSpeciesLabel } from '~/lib/speciesLabel';
+import { useSettings } from '~/stores/settings';
+import { useThemeColors } from '~/theme/colors';
 import { BannerText, Btn, Chip, FoldBanner, NumField, Seg } from '~/modules/gloria/components/ui';
 import { FrequencyGrid, type FrequencyGridHandle } from './FrequencyGrid';
+import { GridKeypad } from './GridKeypad';
 import { SpeciesPager, SpeciesToggleCard, type PagerSpecies } from './SpeciesPager';
 
 export type FreqItem = {
@@ -125,6 +130,19 @@ export function FrequencyPanel({
   // Height the panel has between the tabs and the bottom bar: the grid gives
   // up size so the species card and its tools stay on screen with it.
   const [areaH, setAreaH] = useState(0);
+  const tc = useThemeColors();
+  // The R / C keypad (brush only): shown or not is remembered; its state
+  // lives in a ref as well, so quick presses never read a stale render.
+  const showPad = useSettings((st) => st.freq_keypad);
+  const [pad, setPadState] = useState<KeypadState>(KEYPAD_EMPTY);
+  const padRef = useRef(pad);
+  const setPad = (p: KeypadState) => {
+    padRef.current = p;
+    setPadState(p);
+  };
+  // The lower part scrolls: a ⌄ says there is more under the fold.
+  const [fold, setFold] = useState({ h: 0, content: 0, y: 0 });
+  const moreBelow = fold.content - fold.y - fold.h > 8;
   const countRefs = useRef<(TextInput | null)[]>([]);
 
   // The masks live here, and this copy is the truth while the screen is in
@@ -178,6 +196,14 @@ export function FrequencyPanel({
   const cur = active && shown.some((s) => s.key === active) ? active : (shown[0]?.key ?? null);
   const curIndex = Math.max(0, shown.findIndex((s) => s.key === cur));
   const curItem = items.find((s) => s.key === cur);
+  // Another species or grid: a half-entered R / C is dropped, a lock kept
+  // (the same row for the next species); a new grid size starts clean.
+  useEffect(() => {
+    if (padRef.current.pending) setPad({ ...padRef.current, pending: null });
+  }, [cur]);
+  useEffect(() => {
+    setPad(KEYPAD_EMPTY);
+  }, [n]);
   const cellsOf = (s: FreqItem) => (storedMode === 'count' ? (s.freq_count ?? 0) : popcount(masks[s.key] ?? s.freq_cells));
   const short = (s: FreqItem) => compactSpeciesLabel({ cname: s.cname, sci: s.sci, qualifier: s.qualifier, fallback: s.name });
   const write = (key: string, mask: string) => {
@@ -223,6 +249,29 @@ export function FrequencyPanel({
     setInverse(false);
   };
 
+  const padPress = (axis: KeypadAxis, k: number) => {
+    const res = keypadPress(padRef.current, { axis, k }, n);
+    setPad(res.state);
+    if (res.cell == null || !cur) return;
+    // The same path as the brush's fill / clear: toggles the cell in this copy, one write.
+    const m = masksRef.current[cur] ?? emptyMask(cells);
+    write(cur, setBits(m, [res.cell], !getBit(m, res.cell)));
+  };
+  const padSwitch = (
+    <Pressable
+      onPress={() => {
+        setPad(KEYPAD_EMPTY);
+        useSettings.getState().set('freq_keypad', !showPad);
+      }}
+      hitSlop={8}
+      accessibilityRole="button"
+      accessibilityLabel={t(showPad ? 'plot.quadrats.keypadHide' : 'plot.quadrats.keypadShow')}
+      className={`h-8 w-10 items-center justify-center rounded-full ${showPad ? 'bg-accent-100 dark:bg-accent-900/60' : 'bg-mark/30'}`}
+    >
+      <Ionicons name="keypad-outline" size={18} color={showPad ? tc.accent : tc.ink2} />
+    </Pressable>
+  );
+
   const pagerItems: PagerSpecies[] = shown.map((s) => ({
     key: s.key,
     name: s.qualifier ? `${s.name} ${s.qualifier}` : s.name,
@@ -262,7 +311,20 @@ export function FrequencyPanel({
 
   const brushTools = (
     <>
-      {shown.length ? <SpeciesPager items={pagerItems} index={curIndex} total={cells} onIndex={pick} /> : noSpecies}
+      {shown.length ? (
+        <SpeciesPager items={pagerItems} index={curIndex} total={cells} onIndex={pick} compact={showPad} trailing={padSwitch} />
+      ) : (
+        noSpecies
+      )}
+      {showPad && shown.length ? (
+        <GridKeypad
+          n={n}
+          state={pad}
+          disabled={ro}
+          onPress={padPress}
+          onLongPress={(axis, k) => setPad(keypadLongPress(padRef.current, { axis, k }))}
+        />
+      ) : null}
       <View className="flex-row flex-wrap items-center gap-2">
         <Pill label={t('quadrat.freq.fillAll')} disabled={!cur || ro} onPress={() => cur && write(cur, fillMask(cells, true))} />
         <Pill
@@ -358,15 +420,40 @@ export function FrequencyPanel({
               readMask={(key) => masksRef.current[key]}
               onPaint={(key, mask) => setMasks({ ...masksRef.current, [key]: mask })}
               onCommit={(key, mask) => send(key, mask)}
-              maxSize={gridMax(areaH, mode)}
+              maxSize={gridMax(areaH, mode, mode === 'brush' && showPad)}
               accessibilityLabel={t('plot.quadrats.gridLabel', { n })}
             />
           </View>
-          <ScrollView className="flex-1" contentContainerClassName="gap-3 px-4 pb-4 pt-3" keyboardShouldPersistTaps="handled">
-            {mode === 'brush' ? brushTools : cellTools}
-            {/* Under the tools: the species card comes first on a short screen. */}
-            {banner}
-          </ScrollView>
+          <View className="flex-1">
+            <ScrollView
+              className="flex-1"
+              contentContainerClassName="gap-3 px-4 pb-4 pt-3"
+              keyboardShouldPersistTaps="handled"
+              scrollEventThrottle={32}
+              onLayout={(e) => {
+                const h = e.nativeEvent.layout.height;
+                setFold((f) => (f.h === h ? f : { ...f, h }));
+              }}
+              onContentSizeChange={(_w, content) => setFold((f) => (f.content === content ? f : { ...f, content }))}
+              onScroll={(e) => {
+                const y = e.nativeEvent.contentOffset.y;
+                setFold((f) => (Math.abs(f.y - y) < 4 ? f : { ...f, y }));
+              }}
+            >
+              {mode === 'brush' ? brushTools : cellTools}
+              {/* Under the tools: the species card comes first on a short screen. */}
+              {banner}
+            </ScrollView>
+            {moreBelow ? (
+              <View
+                pointerEvents="none"
+                accessibilityLabel={t('plot.quadrats.moreBelow')}
+                className="absolute bottom-1 h-7 w-7 items-center justify-center self-center rounded-full bg-card/90 dark:bg-card-dark/90"
+              >
+                <Ionicons name="chevron-down" size={18} color={tc.ink2} />
+              </View>
+            ) : null}
+          </View>
         </View>
       ) : (
         <KeyboardAwareScrollView className="flex-1" contentContainerClassName="gap-3 px-4 pb-4 pt-3" keyboardShouldPersistTaps="handled" bottomOffset={24}>
@@ -451,9 +538,11 @@ export function FrequencyPanel({
 const ABOVE_GRID = 100;
 const BELOW_GRID = { brush: 180, cell: 190 } as const;
 const GRID_FLOOR = { brush: 260, cell: 200 } as const;
-function gridMax(areaH: number, mode: 'brush' | 'cell'): number {
+/** The keypad's two rows, less what the compact species card gives back. */
+const KEYPAD_H = 76;
+function gridMax(areaH: number, mode: 'brush' | 'cell', keypad: boolean): number {
   if (!areaH) return 360;
-  return Math.min(360, Math.max(GRID_FLOOR[mode], areaH - ABOVE_GRID - BELOW_GRID[mode]));
+  return Math.min(360, Math.max(GRID_FLOOR[mode], areaH - ABOVE_GRID - BELOW_GRID[mode] - (keypad ? KEYPAD_H : 0)));
 }
 
 /** Outlined pill for the frequency tools (design 10d). */

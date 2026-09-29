@@ -747,7 +747,14 @@
       "goDom": "去填優勢度",
       "domFreqTitle": "優勢度與頻度對不上",
       "domNoFreq": "{{names}} 有優勢度但還沒有頻度",
-      "freqNoDom": "{{names}} 有頻度但還沒有優勢度"
+      "freqNoDom": "{{names}} 有頻度但還沒有優勢度",
+      "keypad": "列、欄數字鍵盤",
+      "keypadRow": "第 {{n}} 列",
+      "keypadCol": "第 {{n}} 欄",
+      "keypadHint": "點一下選擇；長按鎖定這一列或欄，再按一次長按解除",
+      "keypadShow": "顯示數字鍵盤",
+      "keypadHide": "收起數字鍵盤",
+      "moreBelow": "下方還有內容"
     },
     "tabFreq": "頻度"
   },

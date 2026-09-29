@@ -161,17 +161,24 @@ export function SpeciesPager({
   index,
   total,
   onIndex,
+  compact,
+  trailing,
 }: {
   items: readonly PagerSpecies[];
   index: number;
   /** Cells in the grid (n²). */
   total: number;
   onIndex: (i: number) => void;
+  /** Lower card (the keypad is shown under it): scientific name and cover share a line. */
+  compact?: boolean;
+  /** At the right end of the dots row (the keypad switch). */
+  trailing?: React.ReactNode;
 }) {
   const { t } = useTranslation();
   const cur = items[index];
   const { step, swipe, off } = useStepper(items.length, index, onIndex, false);
   if (!cur) return null;
+  const meta = [cur.cover != null ? `${t('plot.quadrats.cover')} ${cur.cover}%` : null, `${index + 1}/${items.length}`].filter(Boolean).join(' · ');
   return (
     <View className="gap-2">
       <View className="flex-row gap-2">
@@ -184,7 +191,9 @@ export function SpeciesPager({
                   accessibilityRole="button"
                   accessibilityLabel={`${cur.name}, ${cur.cells} / ${total}`}
                   accessibilityHint={t('plot.quadrats.pagerHint')}
-                  className="min-h-[76px] flex-row items-center rounded-2xl border-2 border-accent-600 bg-card px-4 py-3 active:opacity-80 dark:border-accent-400 dark:bg-card-dark"
+                  className={`flex-row items-center rounded-2xl border-2 border-accent-600 bg-card px-4 active:opacity-80 dark:border-accent-400 dark:bg-card-dark ${
+                    compact ? 'min-h-[60px] py-2' : 'min-h-[76px] py-3'
+                  }`}
                 >
                   <View className="flex-1 pr-2">
                     <View className="flex-row flex-wrap items-center gap-x-1.5">
@@ -193,12 +202,20 @@ export function SpeciesPager({
                       </View>
                       {cur.layer ? <Tag kind="acorn" label={cur.layer} /> : null}
                     </View>
-                    {cur.cname && cur.sci ? <ScientificName name={cur.sci} numberOfLines={1} className="text-sm text-ink-2 dark:text-gray-300" /> : null}
-                    <Text className="mt-0.5 text-sm text-ink-2 dark:text-gray-300" numberOfLines={1}>
-                      {[cur.cover != null ? `${t('plot.quadrats.cover')} ${cur.cover}%` : null, `${index + 1}/${items.length}`]
-                        .filter(Boolean)
-                        .join(' · ')}
-                    </Text>
+                    {compact ? (
+                      <Text className="text-sm text-ink-2 dark:text-gray-300" numberOfLines={1}>
+                        {cur.cname && cur.sci ? <ScientificName name={cur.sci} className="text-sm text-ink-2 dark:text-gray-300" /> : null}
+                        {cur.cname && cur.sci ? ' · ' : ''}
+                        {meta}
+                      </Text>
+                    ) : (
+                      <>
+                        {cur.cname && cur.sci ? <ScientificName name={cur.sci} numberOfLines={1} className="text-sm text-ink-2 dark:text-gray-300" /> : null}
+                        <Text className="mt-0.5 text-sm text-ink-2 dark:text-gray-300" numberOfLines={1}>
+                          {meta}
+                        </Text>
+                      </>
+                    )}
                   </View>
                   <View className="items-end">
                     <Text className="text-3xl font-bold text-ink dark:text-gray-100" style={{ fontVariant: ['tabular-nums'] }}>
@@ -212,15 +229,21 @@ export function SpeciesPager({
         </GestureDetector>
         <Arrow dir={1} off={off(1)} onPress={() => step(1)} />
       </View>
-      {items.length > 1 ? (
-        <View className="flex-row flex-wrap justify-center gap-1.5" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-          {items.map((it, i) =>
-            i === index ? (
-              <View key={it.key} className="h-1.5 w-5 rounded-full bg-ink dark:bg-gray-100" />
-            ) : (
-              <View key={it.key} className={`h-1.5 w-1.5 rounded-full ${it.missing ? 'bg-alert dark:bg-alert-dark' : 'bg-mark dark:bg-mark-dark'}`} />
-            ),
-          )}
+      {items.length > 1 || trailing ? (
+        <View className="flex-row items-center">
+          <View className="flex-1" />
+          <View className="flex-row flex-wrap justify-center gap-1.5" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+            {items.length > 1
+              ? items.map((it, i) =>
+                  i === index ? (
+                    <View key={it.key} className="h-1.5 w-5 rounded-full bg-ink dark:bg-gray-100" />
+                  ) : (
+                    <View key={it.key} className={`h-1.5 w-1.5 rounded-full ${it.missing ? 'bg-alert dark:bg-alert-dark' : 'bg-mark dark:bg-mark-dark'}`} />
+                  ),
+                )
+              : null}
+          </View>
+          <View className="flex-1 items-end">{trailing}</View>
         </View>
       ) : null}
     </View>

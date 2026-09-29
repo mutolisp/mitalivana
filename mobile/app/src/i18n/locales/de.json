@@ -785,7 +785,14 @@
       "goDom": "Dominanz eintragen",
       "domFreqTitle": "Dominanz und Frequenz passen nicht zusammen",
       "domNoFreq": "{{names}}: Dominanz, aber noch keine Frequenz",
-      "freqNoDom": "{{names}}: Frequenz, aber noch keine Dominanz"
+      "freqNoDom": "{{names}}: Frequenz, aber noch keine Dominanz",
+      "keypad": "Zeilen- und Spaltentasten",
+      "keypadRow": "Zeile {{n}}",
+      "keypadCol": "Spalte {{n}}",
+      "keypadHint": "Tippen wählt; halten fixiert diese Zeile oder Spalte, erneut halten löst sie",
+      "keypadShow": "Tasten einblenden",
+      "keypadHide": "Tasten ausblenden",
+      "moreBelow": "Weiter unten geht es weiter"
     },
     "tabFreq": "Frequenz"
   },
