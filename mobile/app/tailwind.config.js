@@ -62,6 +62,9 @@ module.exports = {
         line: { DEFAULT: warm[200], dark: warm[700] },
         ink: { DEFAULT: warm[900], 2: warm[600], 3: warm[500] },
         cupule: '#6B5433',
+        // Controls (05-controls.md): unchecked mark edge, icon-button ground.
+        mark: { DEFAULT: '#B9A88F', dark: '#6F5F52' },
+        disc: { DEFAULT: '#EDE3D2', dark: '#3A2E25', pressed: '#E4D7C1', 'dark-pressed': '#4A3D31' },
         // wash / edge: the pinned group's card (03-screens-flow.md §1).
         acorn: { DEFAULT: '#E0A04A', deep: '#97561A', pressed: '#C98A36', tint: '#F3E4CB', wash: '#FBF3E4', edge: '#EBD3AD' },
         alert: { DEFAULT: '#A8321F', tint: '#F7E3DC', dark: '#E8876F', 'dark-tint': '#4A2A22' },

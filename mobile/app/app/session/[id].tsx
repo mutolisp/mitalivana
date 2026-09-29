@@ -74,7 +74,7 @@ import { pickPhotosWithExif, takePhotoWithExif, type PickedPhoto } from '~/lib/p
 import { computeDiversity } from '~/lib/diversity';
 import { firstPhotoFix, rememberPickedPhotos } from '~/lib/photoMeta';
 import { SwipeRowActions } from '~/components/SwipeRowActions';
-import { SelectionToolbar } from '~/components/SelectionToolbar';
+import { SelectionDock, SelectionToolbar } from '~/components/SelectionToolbar';
 import { useListSelection } from '~/lib/useListSelection';
 import { useSettings, type RecordSort, type SortDirection } from '~/stores/settings';
 import { useToast } from '~/stores/toast';
@@ -1056,10 +1056,6 @@ export default function SessionDetailScreen() {
             count={selection.picked.size}
             allPicked={filtered.length > 0 && filtered.every((r) => selection.picked.has(r.id))}
             onToggleAll={() => selection.toggleAll(filtered.map((r) => r.id))}
-            actions={[
-              { label: t('favorites.add'), onPress: handleBulkFavorite },
-              { label: t('common.delete'), onPress: handleBulkDelete, destructive: true },
-            ]}
             onCancel={selection.exit}
           />
         ) : (
@@ -1192,9 +1188,19 @@ export default function SessionDetailScreen() {
       {/* Above the dock on purpose — chrome BELOW a KeyboardStickyView is what
           its `offset.opened` compensates for. */}
       <RecordStepBar kind="session" id={sessionId} />
+      {/* While selecting, the actions take the dock's place (05-controls.md §2.1). */}
+      {selection.selectMode ? (
+        <SelectionDock
+          count={selection.picked.size}
+          actions={[
+            { label: t('favorites.add'), onPress: handleBulkFavorite },
+            { label: t('common.delete'), onPress: handleBulkDelete, destructive: true },
+          ]}
+        />
+      ) : null}
       {/* `|| replaceTarget`: a finished checklist still needs the box to fix a
           wrong determination, without reopening the whole record. */}
-      {isActive || replaceTarget ? (
+      {!selection.selectMode && (isActive || replaceTarget) ? (
         // Sticks above the keyboard regardless of accessory-bar height
         // changes (e.g. iOS predictive suggestions). Sibling to the content
         // View, not a child, so kbd-driven translation doesn't push the

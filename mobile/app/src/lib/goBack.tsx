@@ -9,7 +9,7 @@
  */
 import i18n from '~/i18n';
 import { router } from 'expo-router';
-import { HeaderIconButton } from '~/components/HeaderIconButton';
+import { IconDisc } from '~/components/ui/IconDisc';
 
 export function goBackOrHome(): void {
   if (router.canGoBack()) {
@@ -28,12 +28,5 @@ export function BackHeaderLeft() {
   // as the accessibility label, which is where a screen reader looks for it.
   // The button's square box is what centres the glyph — Ionicons' chevron
   // carries an asymmetric bearing, so padding alone leaves it off-centre.
-  return (
-    <HeaderIconButton
-      icon="chevron-back"
-      onPress={goBackOrHome}
-      label={i18n.t('nav.back')}
-      edge="left"
-    />
-  );
+  return <IconDisc icon="back" onPress={goBackOrHome} accessibilityLabel={i18n.t('nav.back')} edge="left" />;
 }

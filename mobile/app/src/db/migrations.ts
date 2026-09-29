@@ -2388,6 +2388,18 @@ const MIGRATIONS: Migration[] = [
       addTableChecks(db, 'collection_trips', [`status IN ('active', 'done')`]);
     },
   },
+  {
+    // v76: duplicate sheets are at least 1 (user decision, 2026-09-29). The
+    // v43 NULL ("not recorded") is folded into 1; from here every write goes
+    // through `duplicateCountOf`. No CHECK: that would mean rebuilding the
+    // table, and the helper already refuses anything below 1.
+    version: 76,
+    up: (db) => {
+      db.executeSync(
+        `UPDATE collection_specimens SET duplicate_count = 1 WHERE duplicate_count IS NULL OR duplicate_count < 1;`,
+      );
+    },
+  },
 ];
 
 /** Highest schema version this build knows how to produce. Backup/restore uses

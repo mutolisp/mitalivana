@@ -37,6 +37,7 @@ import { placeKey, placeNameAt } from '~/lib/reverseGeocode';
 import { RecordMetaFooter } from './RecordMetaFooter';
 import { PhotoGrid, PhotoViewerModal } from './PhotoGrid';
 import { AudioClipList } from './AudioClipList';
+import { CountStepper } from './ui/CountStepper';
 import { InatSyncButton, type InatSheetState } from './InatSyncButton';
 import { RecordLocationMap } from './RecordLocationMap';
 import { ScientificName } from './ScientificName';
@@ -643,44 +644,14 @@ export function SpecimenDetailSheet({
                     sheets, and which herbaria they end up in is decided later
                     — usually not by the collector. */}
                 <Field label={t('collection.duplicates')}>
-                  <View className="flex-row items-center gap-3">
-                    <Pressable
-                      onPress={() =>
-                        onSave({
-                          duplicate_count: Math.max(0, (specimen.duplicate_count ?? 0) - 1),
-                        })
-                      }
-                      disabled={(specimen.duplicate_count ?? 0) <= 0}
-                      hitSlop={8}
-                      className={`h-9 w-9 items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 ${
-                        (specimen.duplicate_count ?? 0) <= 0 ? 'opacity-40' : 'active:bg-gray-100 dark:active:bg-gray-700'
-                      }`}
-                    >
-                      <Ionicons name="remove" size={18} color="#4b5563" />
-                    </Pressable>
-                    <Text className="min-w-[48px] text-center text-base text-gray-900 dark:text-gray-100">
-                      {specimen.duplicate_count ?? t('collection.duplicatesUnset')}
-                    </Text>
-                    <Pressable
-                      onPress={() =>
-                        onSave({ duplicate_count: (specimen.duplicate_count ?? 0) + 1 })
-                      }
-                      hitSlop={8}
-                      className="h-9 w-9 items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 active:bg-gray-100 dark:active:bg-gray-700"
-                    >
-                      <Ionicons name="add" size={18} color="#4b5563" />
-                    </Pressable>
-                    {specimen.duplicate_count != null ? (
-                      <Pressable
-                        onPress={() => onSave({ duplicate_count: null })}
-                        hitSlop={8}
-                        className="active:opacity-70"
-                      >
-                        <Text className="text-xs text-gray-500 dark:text-gray-400">
-                          {t('collection.duplicatesClear')}
-                        </Text>
-                      </Pressable>
-                    ) : null}
+                  {/* At least 1 (v76): − stops at 1 and there is no "clear". */}
+                  <View className="flex-row">
+                    <CountStepper
+                      value={specimen.duplicate_count}
+                      min={1}
+                      onChange={(v) => onSave({ duplicate_count: v })}
+                      accessibilityName={specimen.record_number}
+                    />
                   </View>
                 </Field>
 

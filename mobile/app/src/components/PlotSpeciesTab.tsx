@@ -57,7 +57,7 @@ import type { AdoptionInput } from '~/db';
 import { ScientificName } from './ScientificName';
 import { SearchBox } from './SearchBox';
 import { SwipeRowActions } from './SwipeRowActions';
-import { SelectionToolbar } from './SelectionToolbar';
+import { SelectionDock, SelectionToolbar } from './SelectionToolbar';
 import { useListSelection } from '~/lib/useListSelection';
 import { router, type Href } from 'expo-router';
 import { TaxonomyJumpChip } from './TaxonomyJumpChip';
@@ -963,10 +963,6 @@ export function PlotSpeciesTab({
             visibleRecords.length > 0 && visibleRecords.every((r) => selection.picked.has(r.id))
           }
           onToggleAll={() => selection.toggleAll(visibleRecords.map((r) => r.id))}
-          actions={[
-            { label: tr('favorites.add'), onPress: handleBulkFavorite },
-            { label: tr('common.delete'), onPress: handleBulkDelete, destructive: true },
-          ]}
           onCancel={selection.exit}
         />
       ) : (
@@ -1185,8 +1181,19 @@ export function PlotSpeciesTab({
           is what its `offset.opened` compensates for. */}
       <RecordStepBar kind="plot" id={plot.id} />
 
+      {/* While selecting, the actions take the dock's place (05-controls.md §2.1). */}
+      {selection.selectMode ? (
+        <SelectionDock
+          count={selection.picked.size}
+          actions={[
+            { label: tr('favorites.add'), onPress: handleBulkFavorite },
+            { label: tr('common.delete'), onPress: handleBulkDelete, destructive: true },
+          ]}
+        />
+      ) : null}
+
       {/* SearchBox sticks above the keyboard, follows accessory-bar changes */}
-      {lock.locked ? null : (
+      {lock.locked || selection.selectMode ? null : (
         <KeyboardStickyView offset={{ opened: insets.bottom }}>
           <SearchBox onSelect={handleSelect} />
         </KeyboardStickyView>

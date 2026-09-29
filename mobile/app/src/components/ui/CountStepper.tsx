@@ -20,6 +20,7 @@ export function CountStepper({
   size = 'row',
   unitLabel,
   accessibilityName,
+  min,
 }: {
   /** null = presence only. */
   value: number | null;
@@ -30,22 +31,33 @@ export function CountStepper({
   unitLabel?: string;
   /** The species, for the buttons' screen-reader labels. */
   accessibilityName: string;
+  /** A floor instead of presence-only: − stops here and the value is never
+   *  null (duplicate sheets, which are at least 1). */
+  min?: number;
 }) {
   const { t } = useTranslation();
   const c = useThemeColors();
-  const empty = value == null || value <= 0;
+  const floored = min != null;
+  const shown = floored ? Math.max(min, value ?? min) : value;
+  const empty = shown == null || shown <= 0;
+  // Nothing below: presence-only has nothing under "—", a floor has its min.
+  const atBottom = floored ? shown! <= min : empty;
   const step = (dir: -1 | 1) => {
     void Haptics.selectionAsync();
-    if (dir === 1) onChange(empty ? 1 : value + 1);
-    else if (!empty) onChange(value === 1 ? null : value - 1);
+    if (floored) {
+      onChange(dir === 1 ? shown! + 1 : Math.max(min, shown! - 1));
+      return;
+    }
+    if (dir === 1) onChange(empty ? 1 : shown! + 1);
+    else if (!empty) onChange(shown === 1 ? null : shown! - 1);
   };
   const figure = (
     <Text
       className={`text-center font-bold text-gray-900 dark:text-gray-100 ${size === 'detail' ? 'text-3xl' : 'text-lg'}`}
       style={{ fontVariant: ['tabular-nums'], minWidth: size === 'detail' ? 56 : 28 }}
-      accessibilityLabel={empty ? t('count.presenceOnly') : String(value)}
+      accessibilityLabel={empty ? t('count.presenceOnly') : String(shown)}
     >
-      {empty ? '—' : value}
+      {empty ? '—' : shown}
     </Text>
   );
 
@@ -54,11 +66,11 @@ export function CountStepper({
       <View className="flex-row items-center justify-center gap-5">
         <Pressable
           onPress={() => step(-1)}
-          disabled={empty}
+          disabled={atBottom}
           accessibilityRole="button"
           accessibilityLabel={t('count.decrease', { name: accessibilityName })}
-          accessibilityState={{ disabled: empty }}
-          className={`h-[52px] w-[52px] items-center justify-center rounded-full border border-line bg-card active:bg-gray-100 dark:border-line-dark dark:bg-card-dark dark:active:bg-gray-800 ${empty ? 'opacity-40' : ''}`}
+          accessibilityState={{ disabled: atBottom }}
+          className={`h-[52px] w-[52px] items-center justify-center rounded-full border border-line bg-card active:bg-gray-100 dark:border-line-dark dark:bg-card-dark dark:active:bg-gray-800 ${atBottom ? 'opacity-40' : ''}`}
         >
           <Ionicons name="remove" size={26} color={c.ink} />
         </Pressable>
@@ -82,11 +94,11 @@ export function CountStepper({
     <View className="flex-row items-center rounded-full border border-line bg-card dark:border-line-dark dark:bg-card-dark">
       <Pressable
         onPress={() => step(-1)}
-        disabled={empty}
+        disabled={atBottom}
         accessibilityRole="button"
         accessibilityLabel={t('count.decrease', { name: accessibilityName })}
-        accessibilityState={{ disabled: empty }}
-        className={`h-11 w-11 items-center justify-center rounded-full active:bg-gray-100 dark:active:bg-gray-800 ${empty ? 'opacity-40' : ''}`}
+        accessibilityState={{ disabled: atBottom }}
+        className={`h-11 w-11 items-center justify-center rounded-full active:bg-gray-100 dark:active:bg-gray-800 ${atBottom ? 'opacity-40' : ''}`}
       >
         <Ionicons name="remove" size={20} color={c.ink2} />
       </Pressable>

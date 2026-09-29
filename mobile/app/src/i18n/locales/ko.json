@@ -16,7 +16,12 @@
     "undo": "UNDO",
     "remove": "제거",
     "loading": "불러오는 중...",
-    "more": "더보기"
+    "more": "더보기",
+    "selectAll": "모두 선택",
+    "exitSelect": "선택 종료",
+    "previous": "이전",
+    "next": "다음",
+    "selectedCount_other": "{{count}}개 선택됨"
   },
   "group": {
     "plantae": "식물",
@@ -1379,7 +1384,6 @@
     "fromLibrary": "앨범에서 선택",
     "added": "{{number}} 추가함: {{name}}",
     "emptyHint": "아래 검색창으로 채집한 종을 추가하세요.\n채집 번호는 자동으로 부여됩니다.",
-    "endTrip": "종료",
     "resume": "채집 계속하기",
     "deleteTitle": "표본 삭제",
     "deleteMsg": "표본 {{number}}을(를) 삭제할까요?",
@@ -1423,8 +1427,6 @@
     "tripInstitution": "소장 기관",
     "tripSite": "조사 지역",
     "duplicates": "중복 표본 수",
-    "duplicatesUnset": "—",
-    "duplicatesClear": "지우기",
     "institution": "소장 기관 코드",
     "institutionPlaceholder": "예: TAI, HAST",
     "otherNumbers": "기타 표본 번호",
@@ -1437,7 +1439,19 @@
     "resolvePlaceFail": "지명을 찾지 못했습니다. 네트워크 연결을 확인한 뒤 다시 시도하세요.",
     "resolvePlaceReplace": "현재 채집지를 바꿀까요?",
     "resolvePlaceReplaceOk": "바꾸기",
-    "deleteSelectedMsg_other": "선택한 표본 기록 {{count}}점을 삭제할까요?"
+    "deleteSelectedMsg_other": "선택한 표본 기록 {{count}}점을 삭제할까요?",
+    "addSpecimen": "표본 추가",
+    "addBySpecies": "종 이름으로 표본 추가",
+    "undetermined": "미동정",
+    "retakePhoto": "사진 찍기",
+    "layoutList": "목록",
+    "layoutGrid": "사진 격자",
+    "labels": "라벨",
+    "countSummary_other": "채집 중 · 표본 {{count}}점",
+    "countDone_other": "표본 {{count}}점",
+    "filterUndetermined_other": "미동정 {{count}}",
+    "filterNoPhoto_other": "사진 없음 {{count}}",
+    "photoCount_other": "사진 {{count}}장"
   },
   "areaSpecies": {
     "title": "범위 내 종 조회",

@@ -1,62 +1,85 @@
 /**
- * The bar that replaces a list's own controls while rows are being selected:
- * count on the left; 全選 · actions · 取消 on the right. Same look as the
- * collection and sites screens' select bars.
+ * Select mode chrome (05-controls.md §2.1), shared by every list with a
+ * long-press selection:
+ *
+ *   SelectionToolbar  top: ✕ (leave) · 已選 N 項 · select-all mark
+ *   SelectionDock     bottom: the actions, where the thumb is
+ *
+ * The select-all mark is three-state: off with nothing picked, mixed with
+ * some, on with all; tapping mixed or off selects all, tapping on clears.
+ * Picking the last row off does not leave select mode — a stray tap should
+ * not throw the user out of a half-built selection.
  */
 import { useTranslation } from 'react-i18next';
-import { Pressable, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
+import { Button } from '~/components/ui/Button';
+import { IconDisc } from '~/components/ui/IconDisc';
+import { SelectMark } from '~/components/ui/SelectMark';
 
 export type SelectionAction = {
   label: string;
   onPress: () => void;
-  /** Destructive actions are red. */
+  /** Destructive actions use the danger look. */
   destructive?: boolean;
+  /** Enabled even with nothing picked (e.g. an action that opens a chooser). */
+  always?: boolean;
 };
 
-type Props = {
+export function SelectionToolbar({
+  count,
+  allPicked,
+  onToggleAll,
+  onCancel,
+}: {
   count: number;
-  /** Whether every visible row is already picked (the 全選 label flips). */
+  /** Every visible row is picked. */
   allPicked?: boolean;
-  /** Omit to hide 全選 — the taxonomy tree has no meaningful "all". */
+  /** Omit to hide select-all — the taxonomy tree has no meaningful "all". */
   onToggleAll?: () => void;
-  actions: SelectionAction[];
   onCancel: () => void;
-};
-
-export function SelectionToolbar({ count, allPicked, onToggleAll, actions, onCancel }: Props) {
+}) {
   const { t } = useTranslation();
-  const none = count === 0;
+  const state = count === 0 ? 'off' : allPicked ? 'on' : 'mixed';
   return (
-    <View className="flex-row items-center justify-between border-b border-gray-200 bg-card px-4 py-2 dark:border-gray-700 dark:bg-gray-900">
-      <Text className="text-sm text-gray-500 dark:text-gray-400">
-        {t('favorites.selectedCount', { count })}
+    <View className="flex-row items-center border-b border-line bg-card px-2 dark:border-line-dark dark:bg-card-dark" style={{ minHeight: 52 }}>
+      <IconDisc icon="close" onPress={onCancel} accessibilityLabel={t('common.exitSelect')} />
+      <Text className="flex-1 text-center text-base font-semibold text-ink dark:text-gray-100" style={{ fontVariant: ['tabular-nums'] }}>
+        {t('common.selectedCount', { count })}
       </Text>
-      <View className="flex-row items-center gap-3">
-        {onToggleAll ? (
-          <Pressable onPress={onToggleAll} hitSlop={8}>
-            <Text className="text-sm text-accent-600 dark:text-accent-400">
-              {allPicked ? t('favorites.deselectAll') : t('favorites.selectAll')}
-            </Text>
-          </Pressable>
-        ) : null}
+      <View className="h-11 w-11 items-center justify-center">
+        {onToggleAll ? <SelectMark state={state} onPress={onToggleAll} accessibilityLabel={t('common.selectAll')} /> : null}
+      </View>
+    </View>
+  );
+}
+
+/** The actions for the current selection, docked at the bottom. */
+export function SelectionDock({
+  count,
+  actions,
+  bottomInset = 0,
+}: {
+  count: number;
+  actions: SelectionAction[];
+  /** Extra space below (a floating tab bar). */
+  bottomInset?: number;
+}) {
+  return (
+    <View
+      className="items-center border-t border-line bg-card px-4 pt-2.5 dark:border-line-dark dark:bg-card-dark"
+      style={{ paddingBottom: 10 + bottomInset }}
+    >
+      <View className="w-full flex-row flex-wrap justify-center gap-2" style={{ maxWidth: 520 }}>
         {actions.map((a) => (
-          <Pressable key={a.label} onPress={a.onPress} disabled={none} hitSlop={8}>
-            <Text
-              className={`text-sm font-medium ${
-                none
-                  ? 'text-gray-300 dark:text-gray-600'
-                  : a.destructive
-                    ? 'text-red-600 dark:text-red-400'
-                    : 'text-accent-600 dark:text-accent-400'
-              }`}
-            >
-              {a.label}
-            </Text>
-          </Pressable>
+          <Button
+            key={a.label}
+            label={a.label}
+            onPress={a.onPress}
+            variant={a.destructive ? 'danger' : 'secondary'}
+            disabled={count === 0 && !a.always}
+            className="flex-grow"
+          />
         ))}
-        <Pressable onPress={onCancel} hitSlop={8}>
-          <Text className="text-sm text-gray-500 dark:text-gray-400">{t('common.cancel')}</Text>
-        </Pressable>
       </View>
     </View>
   );

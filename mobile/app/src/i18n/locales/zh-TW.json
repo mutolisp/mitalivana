@@ -16,7 +16,12 @@
     "undo": "UNDO",
     "remove": "移除",
     "loading": "載入中...",
-    "more": "更多"
+    "more": "更多",
+    "selectAll": "全選",
+    "exitSelect": "結束選取",
+    "previous": "上一筆",
+    "next": "下一筆",
+    "selectedCount_other": "已選 {{count}} 項"
   },
   "group": {
     "plantae": "植物",
@@ -1379,7 +1384,6 @@
     "fromLibrary": "從相簿選擇",
     "added": "已加入 {{number}}：{{name}}",
     "emptyHint": "用下方搜尋框加入採集的物種，\n系統會自動配發採集號。",
-    "endTrip": "結束",
     "resume": "繼續採集",
     "deleteTitle": "刪除標本",
     "deleteMsg": "確定要刪除 {{number}} 這份標本記錄嗎？",
@@ -1423,8 +1427,6 @@
     "tripInstitution": "典藏館別",
     "tripSite": "地理樣區",
     "duplicates": "複份數",
-    "duplicatesUnset": "未記",
-    "duplicatesClear": "清除",
     "institution": "典藏館別",
     "institutionPlaceholder": "例：TAI、HAST",
     "otherNumbers": "其他館號",
@@ -1437,7 +1439,19 @@
     "resolvePlaceFail": "無法解析地點，請確認網路連線後再試。",
     "resolvePlaceReplace": "取代目前的採集地點？",
     "resolvePlaceReplaceOk": "取代",
-    "deleteSelectedMsg_other": "確定要刪除選取的 {{count}} 份標本記錄嗎？"
+    "deleteSelectedMsg_other": "確定要刪除選取的 {{count}} 份標本記錄嗎？",
+    "addSpecimen": "新增標本",
+    "addBySpecies": "以物種名稱新增標本",
+    "undetermined": "未鑑定",
+    "retakePhoto": "補拍照片",
+    "layoutList": "列表",
+    "layoutGrid": "照片格",
+    "labels": "標籤",
+    "countSummary_other": "採集中 · {{count}} 份標本",
+    "countDone_other": "{{count}} 份標本",
+    "filterUndetermined_other": "待鑑定 {{count}}",
+    "filterNoPhoto_other": "無照片 {{count}}",
+    "photoCount_other": "{{count}} 張照片"
   },
   "areaSpecies": {
     "title": "範圍物種查詢",

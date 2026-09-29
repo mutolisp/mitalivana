@@ -12,9 +12,9 @@ import { Ionicons } from '@expo/vector-icons';
 import type { AdoptionInput } from '~/db';
 import * as Location from 'expo-location';
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, BackHandler, FlatList, Keyboard, Pressable, Text, View } from 'react-native';
+import { Alert, BackHandler, FlatList, Keyboard, Pressable, ScrollView, Text, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
@@ -41,12 +41,23 @@ import {
   updateSpecimenLocation,
   updateSpecimenPhotos,
   updateSpecimenAudio,
+  duplicateCountOf,
+  getDefaultNames,
+  isUndetermined,
+  UNDETERMINED_TAXON_ID,
   type CollectionTrip,
   type Project,
   type SearchResult,
   type SpecimenWithTaxon,
 } from '~/db';
 import { KeyboardStickyView } from '~/components/KeyboardAvoidingView';
+import { EndRecordButton } from '~/components/EndRecordButton';
+import { MenuButton, showMenu, type MenuSection } from '~/components/OverflowMenu';
+import { CardGrid } from '~/components/ui/CardGrid';
+import { Chip } from '~/components/ui/Chip';
+import { ContextChip } from '~/components/ui/ContextChip';
+import { CountStepper } from '~/components/ui/CountStepper';
+import { CodeBadge, ListRow, Thumb } from '~/components/ui/ListRow';
 import { RecordStepBar } from '~/components/RecordStepBar';
 import { HeaderIconButton } from '~/components/HeaderIconButton';
 import { showActionSheet } from '~/components/ActionSheet';
@@ -78,13 +89,6 @@ import { promptText } from '~/components/TextPromptModal';
 import { BackHeaderLeft } from '~/lib/goBack';
 import { isoDateTime } from '~/lib/datetime';
 import { firstPhotoFix, rememberPickedPhotos } from '~/lib/photoMeta';
-import {
-  reproductiveLabel,
-  leafPhenologyLabel,
-  sexLabel,
-  lifeStageLabel,
-  parseMultiAttribute,
-} from '~/lib/dwcAttributes';
 import { useToast } from '~/stores/toast';
 import { useThemeColors } from '~/theme/colors';
 
@@ -99,17 +103,7 @@ function parsePhotoPaths(s: string | null): string[] {
   return [];
 }
 
-/** DwC species attributes, flattened to one short line for the row. Ordered to
- *  match the detail sheet: sex → life stage → phenology. */
-function attributeSummary(sp: SpecimenWithTaxon): string {
-  const parts = [
-    sexLabel(sp.sex),
-    lifeStageLabel(sp.life_stage),
-    ...parseMultiAttribute(sp.reproductive_condition).map(reproductiveLabel),
-    ...parseMultiAttribute(sp.leaf_phenology).map(leafPhenologyLabel),
-  ].filter(Boolean);
-  return parts.join('・');
-}
+const SORT_KEYS: CollectionSort[] = ['collected', 'number', 'family', 'name'];
 
 const SORT_LABEL: Record<CollectionSort, string> = {
   collected: 'collection.sortCollected',
@@ -162,13 +156,25 @@ function sortSpecimens(
   return out;
 }
 
-function SpecimenRow({
+/** The row's name: the Chinese name, else the field label, else the Latin. */
+function specimenTitle(sp: SpecimenWithTaxon): string {
+  return sp.common_name_c || sp.verbatim_identification || sp.simple_name;
+}
+
+/**
+ * One specimen as a list row (04-collection-listrow.md §3.4): photo or a
+ * dashed camera frame that takes one on the spot, the name with its
+ * collection number, the Latin name, and the duplicate-sheet stepper.
+ */
+function SpecimenListRow({
   specimen,
   duplicate,
   selectMode,
   picked,
   onPress,
   onLongPress,
+  onTakePhoto,
+  onDuplicates,
 }: {
   specimen: SpecimenWithTaxon;
   /** This collection number is carried by more than one specimen. */
@@ -177,106 +183,179 @@ function SpecimenRow({
   picked: boolean;
   onPress: () => void;
   onLongPress: () => void;
+  onTakePhoto: () => void;
+  onDuplicates: (n: number) => void;
 }) {
+  const { t } = useTranslation();
   const c = useThemeColors();
   const photos = parsePhotoPaths(specimen.photo_paths);
-  const attributes = attributeSummary(specimen);
-  // Already on iNaturalist → tinted row (see migrations.ts v30).
-  const uploaded = specimen.inat_uploaded_at != null;
+  const undetermined = isUndetermined(specimen);
+  // Latin first — the herbarium convention on this screen (asked for).
+  const family = undetermined ? null : familyLatinFirst(specimen.family, specimen.family_c);
+  const meta = [
+    family,
+    isoDateTime(specimen.collected_at),
+    photos.length ? t('collection.photoCount', { count: photos.length }) : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+  return (
+    <ListRow
+      onPress={onPress}
+      onLongPress={onLongPress}
+      selected={selectMode && picked}
+      tone={specimen.inat_uploaded_at != null ? 'uploaded' : 'default'}
+      leading={
+        selectMode ? (
+          <Ionicons name={picked ? 'checkbox' : 'square-outline'} size={22} color={picked ? c.accent : c.ink3} />
+        ) : (
+          <Thumb
+            uri={photos[0]}
+            count={photos.length}
+            // An empty frame takes the missing photo right here.
+            onPress={photos.length ? undefined : onTakePhoto}
+            accessibilityLabel={t('collection.retakePhoto')}
+          />
+        )
+      }
+      title={
+        <View className="flex-row items-center">
+          <Text
+            className={`flex-shrink text-base font-medium ${undetermined ? 'text-acorn-deep dark:text-acorn' : 'text-ink dark:text-gray-100'}`}
+            numberOfLines={1}
+          >
+            {undetermined ? t('collection.undetermined') : specimenTitle(specimen)}
+          </Text>
+          <View className="ml-2">
+            <CodeBadge code={`#${specimen.record_number}`} />
+          </View>
+          {duplicate ? <Ionicons name="warning" size={13} color={c.acornDeep} style={{ marginLeft: 4 }} /> : null}
+        </View>
+      }
+      subtitle={
+        undetermined ? (
+          specimen.verbatim_identification ? (
+            <Text className="text-sm text-gray-600 dark:text-gray-300" numberOfLines={1}>
+              {specimen.verbatim_identification}
+            </Text>
+          ) : null
+        ) : (
+          <ScientificName
+            name={specimen.simple_name}
+            author={specimen.name_author}
+            kingdom={specimen.kingdom}
+            rank={specimen.rank}
+            className="text-sci text-gray-600 dark:text-gray-300"
+            numberOfLines={1}
+          />
+        )
+      }
+      meta={meta}
+      trailing={
+        selectMode ? null : (
+          <View className="items-center">
+            <CountStepper
+              value={specimen.duplicate_count}
+              min={1}
+              onChange={(v) => onDuplicates(duplicateCountOf(v))}
+              accessibilityName={specimen.record_number}
+            />
+            <Text className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">{t('collection.duplicates')}</Text>
+          </View>
+        )
+      }
+    />
+  );
+}
+
+/** One specimen as a photo card (§2): 4:3 photo with the number, duplicates and photo count on it. */
+function SpecimenCard({
+  specimen,
+  width,
+  selectMode,
+  picked,
+  onPress,
+  onLongPress,
+  onTakePhoto,
+}: {
+  specimen: SpecimenWithTaxon;
+  width: number;
+  selectMode: boolean;
+  picked: boolean;
+  onPress: () => void;
+  onLongPress: () => void;
+  onTakePhoto: () => void;
+}) {
+  const { t } = useTranslation();
+  const c = useThemeColors();
+  const photos = parsePhotoPaths(specimen.photo_paths);
+  const undetermined = isUndetermined(specimen);
+  const h = (width * 3) / 4;
   return (
     <Pressable
       onPress={onPress}
       onLongPress={onLongPress}
-      className={`flex-row items-center border-b border-gray-100 px-4 py-3 dark:border-gray-800 ${uploaded ? 'bg-lime-50 active:bg-lime-100 dark:bg-lime-900/30 dark:active:bg-lime-900/50' : 'bg-card active:bg-gray-50 dark:bg-gray-900 dark:active:bg-gray-800'}`}
+      delayLongPress={350}
+      className={`overflow-hidden rounded-card border bg-card dark:bg-card-dark ${
+        selectMode && picked ? 'border-accent-600 dark:border-accent-400' : 'border-line dark:border-line-dark'
+      }`}
+      style={selectMode && picked ? { borderWidth: 2 } : undefined}
     >
-      {selectMode ? (
-        <Ionicons
-          name={picked ? 'checkbox' : 'square-outline'}
-          size={20}
-          color={picked ? c.accent : c.ink3}
-          style={{ marginRight: 10 }}
-        />
-      ) : null}
-      {photos.length > 0 ? (
-        <View className="mr-3">
-          <Image
-            source={{ uri: rebaseAppFileUri(photos[0]) }}
-            style={{ width: 44, height: 44, borderRadius: 6 }}
-            contentFit="cover"
-          />
-          {photos.length > 1 ? (
-            <View className="absolute -right-1 -top-1 rounded-full bg-gray-900/80 px-1.5">
-              <Text className="text-[10px] font-medium text-white">{photos.length}</Text>
-            </View>
-          ) : null}
+      <View style={{ width, height: h }}>
+        {photos.length ? (
+          <Image source={{ uri: rebaseAppFileUri(photos[0]) }} style={{ width, height: h }} contentFit="cover" />
+        ) : (
+          <Pressable
+            onPress={selectMode ? onPress : onTakePhoto}
+            accessibilityRole="button"
+            accessibilityLabel={t('collection.retakePhoto')}
+            className="flex-1 items-center justify-center bg-gray-100 active:bg-gray-200 dark:bg-gray-800 dark:active:bg-gray-700"
+          >
+            <Ionicons name="camera-outline" size={26} color={c.ink3} />
+            <Text className="mt-1 text-xs text-gray-500 dark:text-gray-400">{t('collection.retakePhoto')}</Text>
+          </Pressable>
+        )}
+        <View className="absolute left-2 top-2 rounded-md bg-black/60 px-1.5 py-0.5">
+          <Text className="font-mono text-xs font-bold text-white">{specimen.record_number}</Text>
         </View>
-      ) : (
-        <View className="mr-3 h-11 w-11 items-center justify-center rounded-md bg-gray-100 dark:bg-gray-800">
-          <Ionicons name="leaf-outline" size={18} color="#94a3b8" />
-        </View>
-      )}
-      <View className="flex-1">
-        <View className="flex-row items-center">
-          <Text className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">
-            {specimen.record_number}
+        <View className="absolute right-2 top-2 rounded-md bg-black/60 px-1.5 py-0.5">
+          <Text className="text-xs font-medium text-white">
+            {`${t('collection.duplicates')} ${duplicateCountOf(specimen.duplicate_count)}`}
           </Text>
-          {duplicate ? (
-            <Ionicons name="warning" size={12} color="#d97706" style={{ marginLeft: 3 }} />
-          ) : null}
-          {specimen.common_name_c || specimen.verbatim_identification ? (
-            <Text
-              className="ml-2 flex-1 text-base text-gray-900 dark:text-gray-100"
-              numberOfLines={1}
-            >
-              {specimen.common_name_c}
-              {/* The field determination (v39), on the name line for the same
-                  reason SpeciesCard puts it there. Rendered even without a
-                  Chinese name, which is the common case for a `sp1` under a
-                  family. */}
-              {specimen.verbatim_identification ? (
-                <Text className="text-gray-500 dark:text-gray-400">
-                  {specimen.common_name_c
-                    ? ` · ${specimen.verbatim_identification}`
-                    : specimen.verbatim_identification}
-                </Text>
-              ) : null}
-            </Text>
-          ) : null}
         </View>
-        <ScientificName
-          name={specimen.simple_name}
-          author={specimen.name_author}
-          kingdom={specimen.kingdom}
-          rank={specimen.rank}
-          className="text-xs text-gray-600 dark:text-gray-400"
-          numberOfLines={1}
-        />
-        {/* Latin first here — the herbarium convention, and deliberately the
-            reverse of every other list in the app, which leads with the Chinese
-            name. Asked for explicitly for this screen. */}
-        {familyLatinFirst(specimen.family, specimen.family_c) ? (
-          <Text className="text-[11px] text-gray-500 dark:text-gray-400" numberOfLines={1}>
-            {familyLatinFirst(specimen.family, specimen.family_c)}
-          </Text>
+        {photos.length ? (
+          <View className="absolute bottom-2 right-2 flex-row items-center rounded-md bg-black/60 px-1.5 py-0.5">
+            <Ionicons name="images-outline" size={11} color="white" />
+            <Text className="ml-1 text-xs font-medium text-white">{photos.length}</Text>
+          </View>
         ) : null}
-        <View className="mt-0.5 flex-row items-center">
-          <Text className="text-[11px] text-gray-400 dark:text-gray-500">
-            {isoDateTime(specimen.collected_at)}
-          </Text>
-          {specimen.lat !== null ? (
-            <Ionicons name="location" size={11} color={c.accent} style={{ marginLeft: 6 }} />
-          ) : null}
-          {attributes ? (
-            <Text
-              className="ml-2 flex-1 text-[11px] text-emerald-700 dark:text-emerald-400"
-              numberOfLines={1}
-            >
-              {attributes}
-            </Text>
-          ) : null}
-        </View>
+        {selectMode ? (
+          <View className="absolute bottom-2 left-2">
+            <Ionicons name={picked ? 'checkmark-circle' : 'ellipse-outline'} size={24} color={picked ? c.accent : 'white'} />
+          </View>
+        ) : null}
       </View>
-      {selectMode ? null : <Ionicons name="chevron-forward" size={16} color={c.ink3} />}
+      <View className="p-2.5">
+        <Text
+          className={`text-sm font-medium ${undetermined ? 'text-acorn-deep dark:text-acorn' : 'text-ink dark:text-gray-100'}`}
+          numberOfLines={1}
+        >
+          {undetermined ? t('collection.undetermined') : specimenTitle(specimen)}
+        </Text>
+        {undetermined ? null : (
+          <ScientificName
+            name={specimen.simple_name}
+            author={specimen.name_author}
+            kingdom={specimen.kingdom}
+            rank={specimen.rank}
+            className="text-xs text-gray-600 dark:text-gray-300"
+            numberOfLines={1}
+          />
+        )}
+        <Text className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400" numberOfLines={1}>
+          {isoDateTime(specimen.collected_at)}
+        </Text>
+      </View>
     </Pressable>
   );
 }
@@ -313,6 +392,14 @@ export default function CollectionTripScreen() {
   const [surveyorSheetOpen, setSurveyorSheetOpen] = useState(false);
   const [siteSheetOpen, setSiteSheetOpen] = useState(false);
   const [timesOpen, setTimesOpen] = useState(false);
+  const layout = useSettings((st) => st.collection_layout);
+  const [filter, setFilter] = useState<'all' | 'undetermined' | 'noPhoto'>('all');
+  /** The search dock is open (以物種名稱新增); otherwise the add buttons show. */
+  const [searching, setSearching] = useState(false);
+  const [quickBusy, setQuickBusy] = useState(false);
+  // Starred identifiers: what a new specimen's 鑑定者 will be. Re-read on focus
+  // (edited on their own screen), like the specimen settings page does.
+  const [determiners, setDeterminers] = useState('');
 
   // Lock + undo / redo (src/lib/useRecordEditing): a finished trip is
   // read-only until unlocked here; every reload after an edit is one step.
@@ -338,6 +425,7 @@ export default function CollectionTripScreen() {
     setProject(tr ? getProject(tr.project_id) : null);
     setSpecimens(listSpecimens(tripId));
     setDupNumbers(duplicateRecordNumbers());
+    setDeterminers(getDefaultNames('identifier').join(', '));
   }, [tripId]);
   const reload = useCallback(() => {
     refresh();
@@ -383,6 +471,21 @@ export default function CollectionTripScreen() {
       );
       return;
     }
+    setSearching(false);
+    await createSpecimen(result.taxon_id, adopted ?? null, result.cname || result.name, []);
+  };
+
+  /**
+   * Insert one specimen with the next collection number and open it. Shared
+   * by the add-by-name search and the photo-first add, which passes the
+   * placeholder Plantae and the photo it has just taken.
+   */
+  const createSpecimen = async (
+    taxonId: string,
+    adopted: AdoptionInput | null,
+    displayName: string,
+    photoUris: string[],
+  ) => {
     const number = nextRecordNumber().text;
     // The new specimen's detail sheet opens once it is inserted. When the pick
     // went through the name-usage picker (an action sheet, or the GBIF lookup
@@ -422,7 +525,7 @@ export default function CollectionTripScreen() {
     // trip's locality still travels with the export at the event level.
     const newId = addSpecimen({
       trip_id: tripId,
-      taxon_id: result.taxon_id,
+      taxon_id: taxonId,
       adopted,
       record_number: number,
       locality: null,
@@ -432,8 +535,9 @@ export default function CollectionTripScreen() {
       elevation_m: coords?.altitude ?? null,
       elevation_source: coords?.altitude != null ? 'gnss' : null,
     });
+    if (newId && photoUris.length) updateSpecimenPhotos(newId, photoUris);
     reload();
-    toast(t('collection.added', { number, name: result.cname || result.name }));
+    toast(t('collection.added', { number, name: displayName }));
     if (newId) {
       await settled;
       Keyboard.dismiss();
@@ -453,6 +557,38 @@ export default function CollectionTripScreen() {
         // The sheet is most likely open on it by now; hand it the new row.
         setActive((prev) => (prev?.id === newId ? getSpecimen(newId) : prev));
       }
+    }
+  };
+
+  /**
+   * 新增標本 (§3.6, "number first"): take the photo, then file it at once
+   * under the next collection number, determination Plantae until named.
+   * A cancelled camera files nothing.
+   */
+  const handleQuickAdd = async () => {
+    if (quickBusy) return;
+    setQuickBusy(true);
+    try {
+      const { captureAndSavePhoto } = await import('~/lib/photoCapture');
+      const uri = await captureAndSavePhoto({
+        taxon_id: UNDETERMINED_TAXON_ID,
+        simple_name: 'Plantae',
+        name_author: '',
+        common_name_c: '',
+        family: '',
+        family_c: '',
+        kingdom: 'Plantae',
+        observed_at: Date.now(),
+        collection_trip_id: tripId,
+        record_number: nextRecordNumber().text,
+      });
+      if (!uri) return;
+      rememberPickedPhotos([{ uri, exif: null }]);
+      await createSpecimen(UNDETERMINED_TAXON_ID, null, t('collection.undetermined'), [uri]);
+    } catch (e) {
+      Alert.alert(t('session.photoFailTitle'), errText(e));
+    } finally {
+      setQuickBusy(false);
     }
   };
 
@@ -510,6 +646,16 @@ export default function CollectionTripScreen() {
   // Sorted once: the list, select-all and the exported label order all read the
   // same array, so labels come out in whatever order is on screen.
   const display = sortSpecimens(specimens, sortKey, sortDir);
+  const undeterminedCount = specimens.filter(isUndetermined).length;
+  const noPhotoCount = specimens.filter((sp) => parsePhotoPaths(sp.photo_paths).length === 0).length;
+  // The chip filter narrows only what is drawn; labels, select-all and the
+  // detail pager keep working on the whole sorted list.
+  const shown =
+    filter === 'undetermined'
+      ? display.filter(isUndetermined)
+      : filter === 'noPhoto'
+        ? display.filter((sp) => parsePhotoPaths(sp.photo_paths).length === 0)
+        : display;
 
   /** Step the detail sheet through `display` — the order actually on screen. */
   const detailPager = useMemo(() => {
@@ -526,22 +672,78 @@ export default function CollectionTripScreen() {
     };
   }, [display, active]);
 
-  const handlePickSort = async () => {
-    const keys: CollectionSort[] = ['collected', 'number', 'family', 'name'];
-    const idx = await showActionSheet({
-      title: t('collection.sortTitle'),
-      options: keys.map((k) => ({
-        label: k === sortKey ? `\u2713 ${t(SORT_LABEL[k])}` : t(SORT_LABEL[k]),
-      })),
-    });
-    if (idx < 0 || idx >= keys.length) return;
-    // Same as the checklist screen: the active sort again flips direction; a
-    // different sort starts from its default (ascending, as before).
-    if (keys[idx] === sortKey) toggleSortDir();
+  /** The same sort again flips its direction; another starts ascending. */
+  const pickSort = (key: CollectionSort) => {
+    const { sortKey: cur, sortDir: dir } = latestMenu.current;
+    if (key === cur) setSetting('collection_sort_dir', dir === 'asc' ? 'desc' : 'asc');
     else {
-      setSetting('collection_sort', keys[idx]);
+      setSetting('collection_sort', key);
       setSetting('collection_sort_dir', 'asc');
     }
+  };
+
+  // ⋯ stays open through undo / redo and the sort radios, rebuilding itself,
+  // so it reads the latest values through a ref (as RecordMenuButton does).
+  const latestMenu = useRef({ edit, sortKey, sortDir });
+  latestMenu.current = { edit, sortKey, sortDir };
+  const menuSections = (): MenuSection[] => {
+    const { edit: e, sortKey: k, sortDir: d } = latestMenu.current;
+    const out: MenuSection[] = [];
+    if (!e.locked) {
+      out.push({
+        items: [
+          {
+            kind: 'stepper',
+            id: 'history',
+            undo: {
+              label: t('recordLock.undo'),
+              icon: 'arrow-undo-outline',
+              count: e.undoCount,
+              onPress: () => {
+                e.undo();
+                reload();
+              },
+            },
+            redo: {
+              label: t('recordLock.redo'),
+              icon: 'arrow-redo-outline',
+              count: e.redoCount,
+              onPress: () => {
+                e.redo();
+                reload();
+              },
+            },
+          },
+        ],
+      });
+    }
+    out.push({
+      title: t('collection.sortTitle'),
+      items: SORT_KEYS.map((key) => ({
+        kind: 'radio' as const,
+        id: `sort-${key}`,
+        group: 'sort',
+        label: key === k ? `${t(SORT_LABEL[key])} ${d === 'asc' ? '↑' : '↓'}` : t(SORT_LABEL[key]),
+        checked: key === k,
+        onSelect: () => pickSort(key),
+      })),
+    });
+    out.push({ items: [{ kind: 'action', id: 'labels', label: t('collection.labels'), icon: 'pricetag-outline' }] });
+    return out;
+  };
+  const openMenu = async (anchor: RefObject<View | null>) => {
+    const choice = await showMenu(anchor, menuSections);
+    if (choice === 'labels') openLabels();
+  };
+  /** 標籤 from ⋯: every specimen on screen, ready to narrow down or export. */
+  const openLabels = () => {
+    if (display.length === 0) {
+      toast(t('collection.labelNoneSelected'));
+      return;
+    }
+    setSelectMode(true);
+    setPicked(new Set(display.map((sp) => sp.id)));
+    setLabelSheetOpen(true);
   };
 
   const toggleSortDir = () =>
@@ -726,8 +928,14 @@ export default function CollectionTripScreen() {
     );
   };
 
-  const handleAddPhoto = async (mode: 'camera' | 'library') => {
-    if (!active) return;
+  const handleAddPhoto = (mode: 'camera' | 'library') => {
+    if (active) void addPhotoTo(active, mode, true);
+  };
+
+  /** Photos onto `target`; `openAfter` keeps its detail sheet in sync, while
+   *  a photo taken from the list (the empty thumbnail) just reloads the list. */
+  const addPhotoTo = async (target: SpecimenWithTaxon, mode: 'camera' | 'library', openAfter: boolean) => {
+    const active = target;
     try {
       const { captureAndSavePhoto, pickPhotosWithExif, buildContextFromSpecimen } =
         await import('~/lib/photoCapture');
@@ -755,7 +963,8 @@ export default function CollectionTripScreen() {
           updateSpecimenLocation(active.id, out.fix.lat, out.fix.lng, out.fix.accuracyM);
         }
       }
-      refreshActive(active.id);
+      if (openAfter) refreshActive(active.id);
+      else reload();
     } catch (e) {
       Alert.alert(t('session.photoFailTitle'), errText(e));
     }
@@ -848,6 +1057,10 @@ export default function CollectionTripScreen() {
     );
   }
 
+  // What 新增標本 will file under; recomputed per render so a hand-edited
+  // number or a changed prefix shows at once.
+  const nextNo = isActive ? nextRecordNumber().text : '';
+
   return (
     <SafeAreaView edges={['bottom']} className="flex-1 bg-gray-50 dark:bg-gray-900">
       <Stack.Screen
@@ -861,13 +1074,28 @@ export default function CollectionTripScreen() {
               hitSlop={8}
               className="flex-row items-center active:opacity-60"
             >
-              <Text
-                className="max-w-[220px] text-[17px] font-semibold text-gray-900 dark:text-gray-100"
-                numberOfLines={1}
-              >
-                {trip.name}
-              </Text>
-              <Ionicons name="pencil-outline" size={14} color={c.ink3} style={{ marginLeft: 6 }} />
+              <View>
+                <View className="flex-row items-center">
+                  <Text
+                    className="max-w-[200px] text-[17px] font-semibold text-gray-900 dark:text-gray-100"
+                    numberOfLines={1}
+                  >
+                    {trip.name}
+                  </Text>
+                  <Ionicons name="pencil-outline" size={14} color={c.ink3} style={{ marginLeft: 6 }} />
+                </View>
+                <View className="flex-row items-center">
+                  <View className={`mr-1.5 h-2 w-2 rounded-full ${isActive ? 'bg-accent-600 dark:bg-accent-400' : 'bg-gray-400'}`} />
+                  <Text
+                    numberOfLines={1}
+                    className={`text-xs font-medium ${isActive ? 'text-accent-600 dark:text-accent-400' : 'text-gray-500 dark:text-gray-400'}`}
+                  >
+                    {isActive
+                      ? t('collection.countSummary', { count: specimens.length })
+                      : `${t('session.ended')} · ${t('collection.countDone', { count: specimens.length })}`}
+                  </Text>
+                </View>
+              </View>
             </Pressable>
           ),
           headerLeft: () => <BackHeaderLeft />,
@@ -876,24 +1104,27 @@ export default function CollectionTripScreen() {
             // end / resume through exactly these two glyphs, and the odd one
             // out was 採集 — three sibling screens, one action, one shape.
             <View className="flex-row items-center gap-3">
-              <RecordEditButtons edit={edit} ended={!isActive} onChanged={reload} />
-              {!isActive && !edit.locked ? null : (
-                <HeaderIconButton
-                  icon={isActive ? 'stop-circle-outline' : 'refresh-outline'}
-                  tone={isActive ? 'danger' : 'default'}
-                  label={isActive ? t('collection.endTrip') : t('collection.resume')}
+              <MenuButton onOpen={openMenu} />
+              <RecordEditButtons edit={edit} ended={!isActive} onChanged={reload} inMenu />
+              {isActive ? (
+                <EndRecordButton
                   onPress={async () => {
-                    if (isActive) {
-                      const chosen = await chooseEndTime(trip.ended_at);
-                      if (chosen === undefined) return;
-                      endCollectionTrip(trip.id, chosen);
-                    } else {
-                      reopenCollectionTrip(trip.id);
-                    }
+                    const chosen = await chooseEndTime(trip.ended_at);
+                    if (chosen === undefined) return;
+                    endCollectionTrip(trip.id, chosen);
                     reload();
                   }}
                 />
-              )}
+              ) : edit.locked ? (
+                <HeaderIconButton
+                  icon="refresh-outline"
+                  label={t('collection.resume')}
+                  onPress={() => {
+                    reopenCollectionTrip(trip.id);
+                    reload();
+                  }}
+                />
+              ) : null}
             </View>
           ),
         }}
@@ -959,90 +1190,111 @@ export default function CollectionTripScreen() {
             </View>
           </View>
         ) : (
-          <View className="flex-row items-center gap-3 border-b border-gray-200 bg-card px-4 py-2 dark:border-gray-700 dark:bg-gray-900">
-            <Pressable
-              onPress={guard(() => setProjectSheetOpen(true))}
-              hitSlop={8}
-              className="active:opacity-70"
+          <View>
+            {/* Context: project · place · collector · determiner. Taps keep
+                the screens they had; unset ones are dashed. */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              className="grow-0 border-b border-line bg-card dark:border-line-dark dark:bg-card-dark"
+              contentContainerClassName="gap-2 px-4 py-2"
             >
-              <Ionicons
-                name={project && project.id !== 0 ? 'folder' : 'folder-open-outline'}
-                size={18}
-                color={project && project.id !== 0 ? c.accent : c.ink3}
+              <ContextChip
+                icon="folder-outline"
+                label={project && project.id !== 0 ? project.name : t('session.projectUnset')}
+                set={!!project && project.id !== 0}
+                onPress={guard(() => setProjectSheetOpen(true))}
               />
-            </Pressable>
-            <Pressable
-              onPress={guard(() => setSurveyorSheetOpen(true))}
-              hitSlop={6}
-              className="flex-1 flex-row items-center active:opacity-70"
-            >
-              <Ionicons
-                name="people-outline"
-                size={14}
-                color={trip.recorded_by ? c.accent : c.ink3}
+              <ContextChip
+                icon={tripSite ? 'pin' : 'location-outline'}
+                label={trip.locality || tripSite?.name || t('collection.tripLocalityEmpty')}
+                set={!!(trip.locality || tripSite)}
+                onPress={guard(() => void handleTripMeta())}
               />
-              <Text
-                className={`ml-1 flex-1 text-xs ${trip.recorded_by ? 'font-medium text-accent-700 dark:text-accent-300' : 'italic text-gray-500 dark:text-gray-400'}`}
-                numberOfLines={1}
-              >
-                {trip.recorded_by || t('collection.collectorEmpty')}
-              </Text>
-            </Pressable>
-            <Pressable
-              onPress={guard(() => void handleTripMeta())}
-              hitSlop={6}
-              className="flex-row items-center active:opacity-70"
-            >
-              <Ionicons
-                name="location-outline"
-                size={14}
-                color={trip.locality || tripSite ? c.accent : c.ink3}
+              <ContextChip
+                icon="people-outline"
+                label={trip.recorded_by || t('collection.collectorEmpty')}
+                set={!!trip.recorded_by}
+                onPress={guard(() => setSurveyorSheetOpen(true))}
               />
-              <Text
-                className={`ml-1 max-w-[96px] text-xs ${trip.locality || tripSite ? 'font-medium text-accent-700 dark:text-accent-300' : 'italic text-gray-500 dark:text-gray-400'}`}
-                numberOfLines={1}
-              >
-                {trip.locality || tripSite?.name || t('collection.tripLocalityEmpty')}
-              </Text>
-            </Pressable>
+              {/* The starred identifiers new specimens get; the trip has no
+                  determiner of its own, so this opens that list. */}
+              <ContextChip
+                icon="ribbon-outline"
+                label={determiners || t('collection.determinerEmpty')}
+                set={!!determiners}
+                onPress={() => router.push('/identifiers' as Href)}
+              />
+            </ScrollView>
             {specimens.length > 0 ? (
-              <Pressable
-                onPress={handlePickSort}
-                hitSlop={6}
-                className="flex-row items-center rounded-full bg-gray-100 px-2.5 py-1 active:bg-gray-200 dark:bg-gray-800 dark:active:bg-gray-700"
-              >
-                <Ionicons name="swap-vertical" size={13} color="#4b5563" />
-                <Text className="ml-1 text-[11px] font-medium text-gray-700 dark:text-gray-300">
-                  {t(SORT_LABEL[sortKey])}
-                </Text>
-              </Pressable>
-            ) : null}
-            {specimens.length > 0 ? (
-              <Pressable
-                onPress={toggleSortDir}
-                hitSlop={6}
-                className="active:opacity-50"
-              >
-                <Ionicons
-                  name={sortDir === 'desc' ? 'arrow-down' : 'arrow-up'}
-                  size={14}
-                  color={c.ink2}
-                />
-              </Pressable>
+              <View className="flex-row items-center border-b border-line bg-card py-2 pl-4 pr-2 dark:border-line-dark dark:bg-card-dark">
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-1" contentContainerClassName="gap-2 pr-2">
+                  <Chip label={t('records.filterAll')} count={specimens.length} selected={filter === 'all'} onPress={() => setFilter('all')} />
+                  <Chip
+                    label={t('collection.filterUndetermined', { count: undeterminedCount })}
+                    selected={filter === 'undetermined'}
+                    onPress={() => setFilter('undetermined')}
+                  />
+                  <Chip
+                    label={t('collection.filterNoPhoto', { count: noPhotoCount })}
+                    selected={filter === 'noPhoto'}
+                    onPress={() => setFilter('noPhoto')}
+                  />
+                </ScrollView>
+                {/* List ｜ photo grid, remembered (collection_layout). */}
+                <View className="flex-row rounded-full border border-line p-0.5 dark:border-line-dark">
+                  {(
+                    [
+                      ['list', 'list-outline', 'collection.layoutList'],
+                      ['grid', 'grid-outline', 'collection.layoutGrid'],
+                    ] as const
+                  ).map(([value, icon, label]) => (
+                    <Pressable
+                      key={value}
+                      onPress={() => setSetting('collection_layout', value)}
+                      accessibilityRole="button"
+                      accessibilityLabel={t(label)}
+                      accessibilityState={{ selected: layout === value }}
+                      className={`items-center justify-center rounded-full ${layout === value ? 'bg-ink dark:bg-gray-100' : ''}`}
+                      style={{ width: 44, height: 40 }}
+                    >
+                      <Ionicons name={icon} size={18} color={layout === value ? c.card : c.ink2} />
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
             ) : null}
           </View>
         )}
 
         {specimens.length === 0 ? (
           <View className="flex-1 items-center justify-center px-6">
-            <Ionicons name="leaf-outline" size={56} color="#cbd5e1" />
+            <Ionicons name="leaf-outline" size={56} color={c.disabled} />
             <Text className="mt-3 text-center text-base text-gray-700 dark:text-gray-300">
               {t('collection.emptyHint')}
             </Text>
           </View>
+        ) : layout === 'grid' ? (
+          // No swipe actions on a card: long-press → select still reaches
+          // labels and delete, as on the records tab's card view.
+          <CardGrid
+            data={shown}
+            keyExtractor={(sp) => String(sp.id)}
+            renderCard={(item, width) => (
+              <SpecimenCard
+                specimen={item}
+                width={width}
+                selectMode={selectMode}
+                picked={picked.has(item.id)}
+                onPress={() => (selectMode ? togglePick(item.id) : setActive(item))}
+                onLongPress={() => handleLongPress(item)}
+                onTakePhoto={guard(() => void addPhotoTo(item, 'camera', false))}
+              />
+            )}
+          />
         ) : (
           <FlatList
-            data={display}
+            data={shown}
             keyExtractor={(sp) => String(sp.id)}
             renderItem={({ item }) => (
               // Destructive action sits last = closest to the swipe origin,
@@ -1070,13 +1322,18 @@ export default function CollectionTripScreen() {
                   },
                 ]}
               >
-                <SpecimenRow
+                <SpecimenListRow
                   specimen={item}
                   duplicate={dupNumbers.has(item.record_number)}
                   selectMode={selectMode}
                   picked={picked.has(item.id)}
                   onPress={() => (selectMode ? togglePick(item.id) : setActive(item))}
                   onLongPress={() => handleLongPress(item)}
+                  onTakePhoto={guard(() => void addPhotoTo(item, 'camera', false))}
+                  onDuplicates={guard((n: number) => {
+                    updateSpecimen(item.id, { duplicate_count: n });
+                    reload();
+                  })}
                 />
               </SwipeRowActions>
             )}
@@ -1117,9 +1374,9 @@ export default function CollectionTripScreen() {
         onConfirm={handleExportLabels}
       />
 
-      {isActive || replaceTarget ? (
-        // Also shown while re-identifying, so a finished trip's specimen can
-        // still be corrected without reopening the whole trip.
+      {replaceTarget || (isActive && searching) ? (
+        // Re-identifying (also on a finished trip, so a specimen can be
+        // corrected without reopening it), or adding by name.
         //
         // Sibling of the flex-1 content View, not a child, so the keyboard
         // translation lifts only the search box and not the list.
@@ -1129,8 +1386,59 @@ export default function CollectionTripScreen() {
         <KeyboardStickyView offset={{ opened: insets.bottom }}>
           {/* 'dismiss': a pick opens the specimen's detail sheet, so the
               keyboard must not come back up underneath it. */}
-          <SearchBox onSelect={handleAdd} afterSelect="dismiss" />
+          <SearchBox
+            onSelect={handleAdd}
+            afterSelect="dismiss"
+            autoFocus={!replaceTarget}
+            trailing={
+              replaceTarget ? undefined : (
+                <Pressable
+                  onPress={() => {
+                    Keyboard.dismiss();
+                    setSearching(false);
+                  }}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('common.close')}
+                  className="h-11 w-11 items-center justify-center"
+                >
+                  <Ionicons name="close" size={22} color={c.ink2} />
+                </Pressable>
+              )
+            }
+          />
         </KeyboardStickyView>
+      ) : isActive ? (
+        // "Number first" (§3.6): the photo files a specimen under the next
+        // number at once; the round key adds one by species name instead.
+        // Centred and capped so a tablet does not stretch it across the row.
+        <View className="items-center border-t border-line bg-card px-4 py-2.5 dark:border-line-dark dark:bg-card-dark">
+          <View className="w-full flex-row items-center gap-2.5" style={{ maxWidth: 520 }}>
+            <Pressable
+              onPress={guard(() => void handleQuickAdd())}
+              disabled={quickBusy}
+              accessibilityRole="button"
+              accessibilityLabel={`${t('collection.addSpecimen')} ${nextNo}`}
+              className={`flex-1 flex-row items-center justify-center rounded-full bg-accent-600 px-4 active:bg-accent-700 dark:bg-accent-400 dark:active:bg-accent-300 ${quickBusy ? 'opacity-60' : ''}`}
+              style={{ minHeight: 56 }}
+            >
+              <Ionicons name="camera" size={20} color={c.onAccent} />
+              <Text className="ml-2 text-base font-bold text-white dark:text-gray-950">{t('collection.addSpecimen')}</Text>
+              <Text className="ml-2 font-mono text-base font-bold text-white/80 dark:text-gray-950/70" numberOfLines={1}>
+                {`#${nextNo}`}
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={guard(() => setSearching(true))}
+              accessibilityRole="button"
+              accessibilityLabel={t('collection.addBySpecies')}
+              className="items-center justify-center rounded-full border border-line bg-card active:bg-gray-100 dark:border-line-dark dark:bg-card-dark dark:active:bg-gray-800"
+              style={{ width: 56, height: 56 }}
+            >
+              <Ionicons name="search" size={22} color={c.accent} />
+            </Pressable>
+          </View>
+        </View>
       ) : null}
 
       <SpecimenDetailSheet
@@ -1158,7 +1466,7 @@ export default function CollectionTripScreen() {
         onDelete={guard(() => {
           if (active) handleDelete(active);
         })}
-        onAddPhoto={guard((mode: 'camera' | 'library') => void handleAddPhoto(mode))}
+        onAddPhoto={guard((mode: 'camera' | 'library') => handleAddPhoto(mode))}
         onRemovePhoto={guard(handleRemovePhoto)}
         onAddAudio={guard(handleAddAudio)}
         onRemoveAudio={guard(handleRemoveAudio)}

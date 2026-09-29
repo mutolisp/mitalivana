@@ -100,8 +100,11 @@ export type Specimen = {
   life_stage: string | null;
   reproductive_condition: string | null;
   leaf_phenology: string | null;
-  /** How many duplicate sheets were taken (v43). NULL = not recorded, which
-   *  is a different statement from 1. A count, not a child table: in the field
+  /** How many duplicate sheets were taken (v43). At least 1 since v76 (user
+   *  decision, 2026-09-29): the old NULL = "not recorded" was folded into 1,
+   *  and every write goes through `duplicateCountOf`. Typed nullable because
+   *  rows restored from an older version or merged from an older peer may
+   *  still carry NULL until touched. A count, not a child table: in the field
    *  you know you took three, not which herbaria they will end up in. */
   duplicate_count: number | null;
   /** DwC institutionCode (v43). NULL = inherit the trip's. */
@@ -142,6 +145,24 @@ const SPECIMEN_COLS = `id, trip_id, occurrence_id, taxon_id, record_number, reco
   used_name_id, used_scientific_name,
   audio_paths, inat_observation_id, inat_media_done, inat_uploaded_at, inat_sync_hash,
   updated_at`;
+
+/**
+ * Placeholder determination for a specimen collected before it is named
+ * (the "photo first, number now" add, 04-collection-listrow.md §3): TaiCOL's
+ * Plantae (植物界). A real taxon rather than an empty `taxon_id`, which is
+ * NOT NULL and which every label, export and upload assumes is set; Plantae
+ * is a true statement about the specimen until it is re-determined.
+ */
+export const UNDETERMINED_TAXON_ID = 't0000003';
+
+export function isUndetermined(sp: Pick<Specimen, 'taxon_id'>): boolean {
+  return sp.taxon_id === UNDETERMINED_TAXON_ID;
+}
+
+/** Duplicate sheets: at least 1 (v76). NULL, 0 and negatives all become 1. */
+export function duplicateCountOf(v: number | null | undefined): number {
+  return v != null && Number.isFinite(v) && v >= 1 ? Math.floor(v) : 1;
+}
 
 function defaultTripName(now: Date = new Date()): string {
   const pad = (n: number) => String(n).padStart(2, '0');
@@ -484,7 +505,7 @@ export function addSpecimen(input: AddSpecimenInput): number {
       input.elevation_m != null ? (input.elevation_source ?? 'manual') : null,
       input.locality ?? null,
       input.notes ?? null,
-      input.duplicate_count ?? null,
+      duplicateCountOf(input.duplicate_count),
       // Same shape as the collector: an explicit value (including null) wins,
       // otherwise the trip's default herbarium.
       input.institution_code !== undefined
@@ -520,7 +541,7 @@ export function updateSpecimen(id: number, patch: Partial<Specimen>): void {
   for (const [k, v] of Object.entries(patch)) {
     if (!SPECIMEN_UPDATABLE_KEYS.has(k)) continue;
     fields.push(`${k} = ?`);
-    params.push(v as string | number | null);
+    params.push(k === 'duplicate_count' ? duplicateCountOf(v as number | null) : (v as string | number | null));
     // Keep the numeric tail in sync so the series continues from a hand-edit.
     if (k === 'record_number') {
       fields.push('record_number_seq = ?');
@@ -858,7 +879,7 @@ function importCollectionTripTx(
         sp.leaf_phenology ?? null,
         sp.degree_of_establishment ?? null,
         sp.verbatim_identification ?? null,
-        sp.duplicate_count ?? null,
+        duplicateCountOf(sp.duplicate_count),
         sp.institution_code ?? null,
         sp.other_catalog_numbers ?? null,
         sp.catalog_number ?? null,

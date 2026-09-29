@@ -25,7 +25,8 @@ export function useListSelection<K>() {
    *  already selecting, so a long-press never clears a selection. */
   const enter = (key: K) => {
     if (selectMode) return;
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    // A light tick, the same on every list (05-controls.md §2.1).
+    void Haptics.selectionAsync();
     setSelectMode(true);
     setPicked(new Set([key]));
   };

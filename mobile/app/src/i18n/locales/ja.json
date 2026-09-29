@@ -16,7 +16,12 @@
     "undo": "UNDO",
     "remove": "取り除く",
     "loading": "読み込み中...",
-    "more": "その他"
+    "more": "その他",
+    "selectAll": "すべて選択",
+    "exitSelect": "選択を終了",
+    "previous": "前へ",
+    "next": "次へ",
+    "selectedCount_other": "{{count}} 件選択"
   },
   "group": {
     "plantae": "植物",
@@ -1379,7 +1384,6 @@
     "fromLibrary": "アルバムから選択",
     "added": "{{number}} を追加しました：{{name}}",
     "emptyHint": "下の検索欄から採集した種を追加してください。\n採集番号は自動で割り当てられます。",
-    "endTrip": "終了",
     "resume": "採集を再開",
     "deleteTitle": "標本を削除",
     "deleteMsg": "標本 {{number}} を削除しますか？",
@@ -1423,8 +1427,6 @@
     "tripInstitution": "所蔵機関",
     "tripSite": "調査地",
     "duplicates": "複製標本数",
-    "duplicatesUnset": "—",
-    "duplicatesClear": "クリア",
     "institution": "所蔵機関コード",
     "institutionPlaceholder": "例：TAI、HAST",
     "otherNumbers": "その他の標本番号",
@@ -1437,7 +1439,19 @@
     "resolvePlaceFail": "地名を取得できませんでした。ネットワーク接続を確認して再試行してください。",
     "resolvePlaceReplace": "現在の採集地を置き換えますか？",
     "resolvePlaceReplaceOk": "置き換える",
-    "deleteSelectedMsg_other": "選択した {{count}} 点の標本記録を削除しますか？"
+    "deleteSelectedMsg_other": "選択した {{count}} 点の標本記録を削除しますか？",
+    "addSpecimen": "標本を追加",
+    "addBySpecies": "種名で標本を追加",
+    "undetermined": "未同定",
+    "retakePhoto": "写真を撮る",
+    "layoutList": "リスト",
+    "layoutGrid": "写真グリッド",
+    "labels": "ラベル",
+    "countSummary_other": "採集中 · 標本 {{count}} 点",
+    "countDone_other": "標本 {{count}} 点",
+    "filterUndetermined_other": "未同定 {{count}}",
+    "filterNoPhoto_other": "写真なし {{count}}",
+    "photoCount_other": "写真 {{count}} 枚"
   },
   "areaSpecies": {
     "title": "範囲内の種の検索",

@@ -15,6 +15,8 @@ export type CardDensity = 'compact' | 'comfortable';
 export type IntermediateRanksMode = 'below_order' | 'all';
 /** How the records list draws each record: one per row, or a 2-up card grid. */
 export type RecordsLayout = 'list' | 'card';
+/** The specimen list: rows, or the photo-card grid (04-collection-listrow.md). */
+export type CollectionLayout = 'list' | 'grid';
 
 /** UI language. 'system' follows the device locale; others force that language.
  *  All four ship a locale file (see `~/i18n`), kept structurally identical to
@@ -219,6 +221,7 @@ type SettingsValues = {
   /** List / card view. Persisted (unlike the byProject⇄timeline axis, which is
    *  a way of reading the data; this one is how the user likes it drawn). */
   records_layout: RecordsLayout;
+  collection_layout: CollectionLayout;
   font_scale: FontScale;
   map_view: MapViewState;
   /** Last plot detail tab, so returning to a survey in progress lands where the
@@ -336,6 +339,7 @@ const DEFAULTS: SettingsValues = {
   sites_collapsed: [],
   records_swipe_hint_shown: false,
   records_layout: 'list',
+  collection_layout: 'list',
   font_scale: 'normal',
   map_view: DEFAULT_MAP_VIEW,
   plot_last_tab: { plotId: 0, tab: 'env' },
@@ -484,6 +488,7 @@ function readAll(): SettingsValues {
     sites_collapsed: parseNumberArray(map.get('sites_collapsed')),
     records_swipe_hint_shown: map.get('records_swipe_hint_shown') === 'true',
     records_layout: map.get('records_layout') === 'card' ? 'card' : DEFAULTS.records_layout,
+    collection_layout: map.get('collection_layout') === 'grid' ? 'grid' : DEFAULTS.collection_layout,
     font_scale: (map.get('font_scale') as FontScale) ?? DEFAULTS.font_scale,
     map_view: mapView,
     plot_last_tab: plotLastTab,
