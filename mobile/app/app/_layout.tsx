@@ -14,6 +14,8 @@ import 'react-native-reanimated';
 import '../global.css';
 
 import { ActionSheetHost } from '~/components/ActionSheet';
+import { CreateSheetHost } from '~/components/CreateRecordSheet';
+import { MenuHost } from '~/components/OverflowMenu';
 import { ActiveSessionBar } from '~/components/ActiveSessionBar';
 import { DBProvider } from '~/components/DBProvider';
 import { DatasetSetupGate } from '~/components/DatasetSetupGate';
@@ -214,6 +216,10 @@ function ThemedShell() {
             screen, its native header, and the ActiveSessionBar). Before
             <ToastHost> so a toast fired with a popover open still wins. */}
         <PortalHost />
+        {/* ⋯ menus: a plain overlay, not a Modal, so a header can open one
+            without iOS's Modal-over-Modal refusal; before ToastHost so a toast
+            still paints above it. */}
+        <MenuHost />
         <SyncProgressHost />
         <ToastHost />
         <TextPromptHost />
@@ -221,6 +227,7 @@ function ThemedShell() {
         <InatTokenHost />
         <GoogleDeviceCodeHost />
         <ActionSheetHost />
+        <CreateSheetHost />
       </FontScaleProvider>
       {/* Active record → green ActiveSessionBar covers status bar → need
           'light' icons. On the full-bleed map the aerial basemaps put dark

@@ -14,16 +14,20 @@ export function RecordEditButtons({
   edit,
   ended,
   onChanged,
+  inMenu = false,
 }: {
   edit: RecordEditing;
   ended: boolean;
   /** Reload the screen after an undo / redo restored the record. */
   onChanged: () => void;
+  /** Undo / redo live in the screen's ⋯ menu (RecordMenuButton `edit`);
+   *  only the lock is drawn here. */
+  inMenu?: boolean;
 }) {
   const { t } = useTranslation();
   return (
     <>
-      {!edit.locked ? (
+      {!edit.locked && !inMenu ? (
         <HeaderIconButton
           icon="arrow-undo-outline"
           label={t('recordLock.undo')}
@@ -34,7 +38,7 @@ export function RecordEditButtons({
           }}
         />
       ) : null}
-      {!edit.locked ? (
+      {!edit.locked && !inMenu ? (
         <HeaderIconButton
           icon="arrow-redo-outline"
           label={t('recordLock.redo')}

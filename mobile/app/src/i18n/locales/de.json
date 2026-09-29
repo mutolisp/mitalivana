@@ -182,7 +182,12 @@
     "imported_one": "{{count}} importiert",
     "imported_other": "{{count}} importiert",
     "audioAdded": "Aufnahme hinzugefügt",
-    "audioRemoved": "Aufnahme entfernt"
+    "audioRemoved": "Aufnahme entfernt",
+    "ended": "Beendet",
+    "projectUnset": "Kein Projekt",
+    "surveyorUnset": "Keine Erfasser",
+    "inList": "In der Liste",
+    "cameraAdd": "Per Foto hinzufügen"
   },
   "records": {
     "recording": "Erfassung läuft",
@@ -266,7 +271,13 @@
     "gloriaCount_one": "GLORIA {{count}} ({{summits}} Gipfel)",
     "gloriaCount_other": "GLORIA {{count}} ({{summits}} Gipfel)",
     "deleteRecoverable": "Artenlisten, Probeflächen- und GLORIA-Aufnahmen lassen sich 30 Tage lang unter Datensätze ⋯ → „Zuletzt gelöscht“ wiederherstellen.",
-    "deletePermanent": "Sammlungen lassen sich nach dem Löschen nicht wiederherstellen."
+    "deletePermanent": "Sammlungen lassen sich nach dem Löschen nicht wiederherstellen.",
+    "activeResume": "Erfassung fortsetzen",
+    "activeSpecies": "Arten",
+    "activeElapsed": "Dauer",
+    "thisWeek": "Diese Woche",
+    "starredGroup": "Markiert",
+    "monthGroup": "{{year}}-{{month2}}"
   },
   "export": {
     "preparing": "Wird vorbereitet…",
@@ -336,24 +347,21 @@
     "sites": "Geografische Standorte",
     "sitesDesc": "Punkte / Linien / Flächen auf der Karte",
     "backupDesc": "Daten und Fotos sichern und wiederherstellen",
-    "favoritesDesc": "Listen häufiger Arten; komplett in eine Aufnahme übernehmbar"
+    "favoritesDesc": "Listen häufiger Arten; komplett in eine Aufnahme übernehmbar",
+    "layout": "Ansicht",
+    "selectMany": "Mehrere auswählen",
+    "days30": "30 Tage",
+    "addSpecies": "Arten hinzufügen"
   },
   "record": {
     "kindSession": "Schnelle Artenliste",
     "kindPlot": "Probeflächenaufnahme",
     "createChooserTitle": "Neuen Datensatz anlegen",
-    "createMenuTitle": "Datensatz anlegen",
-    "createMenuMsg": "Wählen Sie eine Aktion; die unteren drei ändern das Standardverhalten der +-Taste.",
-    "defaultAsk": "Standard: jedes Mal fragen",
-    "defaultSession": "Standard: schnelle Artenliste",
-    "defaultPlot": "Standard: Probeflächenaufnahme",
     "kindCollection": "Aufsammlung",
-    "defaultCollection": "Standard: Aufsammlung",
     "kindImport": "Datensatz importieren (.yml / .zip)",
     "lastUpdated": "Zuletzt geändert",
     "kindGloria": "GLORIA-Gipfelaufnahme",
     "moreActions": "Weitere Aktionen",
-    "lessActions": "Weniger Aktionen",
     "kindMiren": "MIREN-Straßen- / Wegerhebung"
   },
   "rank": {
@@ -474,7 +482,9 @@
     "countPlus": "Um eins erhöhen",
     "deleteSelectedTitle": "Arteinträge löschen",
     "deleteSelectedMsg_one": "{{count}} ausgewählter Arteintrag wird gelöscht. Dies kann nicht rückgängig gemacht werden.",
-    "deleteSelectedMsg_other": "{{count}} ausgewählte Arteinträge werden gelöscht. Dies kann nicht rückgängig gemacht werden."
+    "deleteSelectedMsg_other": "{{count}} ausgewählte Arteinträge werden gelöscht. Dies kann nicht rückgängig gemacht werden.",
+    "taxonInfo": "Taxon-Info",
+    "coordinates": "Koordinaten"
   },
   "attr": {
     "advanced": "Erweitert (Artmerkmale)",
@@ -533,11 +543,6 @@
     "newTransect": "Neuer Transekt",
     "newPointCount": "Neue Punktzählung",
     "enterPlotid": "plotid eingeben (z. B. {{example}})",
-    "plotMenuTitle": "Probefläche",
-    "optFixed": "Feste Probefläche (geschichtete Vegetation)",
-    "optTransect": "Transekt (einschichtig, mit Track)",
-    "optPointCount": "Punktzählung (Vögel/Tiere, mit Radius)",
-    "optImport": "Probefläche importieren (.yml / .zip)",
     "importFailTitle": "Import fehlgeschlagen",
     "plotExistsTitle": "Probefläche existiert bereits",
     "plotExistsMsg": "„{{plotid}}“ ist bereits auf diesem Gerät vorhanden. Überschreiben oder als neue Kopie speichern?",
@@ -1128,7 +1133,8 @@
     "copySciname": "Wissenschaftlichen Namen kopieren",
     "copyCname": "Trivialnamen kopieren",
     "copyBoth": "Trivial- + wissenschaftlichen Namen kopieren",
-    "copyFull": "Vollständige Angaben kopieren"
+    "copyFull": "Vollständige Angaben kopieren",
+    "copyMenu": "Kopieren"
   },
   "transect": {
     "busyTitle": "Ein anderer Datensatz zeichnet bereits einen Track auf",
@@ -4027,5 +4033,34 @@
     "recoverGo": "Wiederherstellen",
     "recovered": "„{{name}}“ wiederhergestellt",
     "recoverFail": "Wiederherstellen nicht möglich"
+  },
+  "create": {
+    "descSession": "Unterwegs erfassen: Arten, Anzahl, Fotos und Koordinaten",
+    "descPlot": "Dauerfläche, Transekt oder Punktzählung, Deckung nach Schicht",
+    "descCollection": "Belegnummern, Etiketten und Bestimmung",
+    "others": "Weitere",
+    "plusDefault": "Beim Tippen auf ＋",
+    "isDefault": "Standard",
+    "ask": "Jedes Mal fragen",
+    "importFile": "Datei importieren",
+    "plotPageSubtitle": "Flächentyp wählen",
+    "plotFixedDesc": "Geschichtete Vegetation: Deckung und Höhe je Schicht",
+    "plotTransectDesc": "Erhebung entlang einer Linie, mit GPS-Track",
+    "plotPointDesc": "Punkt-Stopp-Zählung für Vögel und andere Tiere",
+    "traitLayers": "Schichten E1–E6",
+    "traitDefault4": "Standard: 4 Schichten",
+    "traitSubplots": "Teilflächen möglich",
+    "traitSingleLayer": "Eine Schicht",
+    "traitTrack": "Mit Track",
+    "traitRadius": "Mit Radius",
+    "importPlot": "Flächendatei importieren",
+    "startSurvey": "Erhebung starten"
+  },
+  "count": {
+    "increase": "{{name}} erhöhen",
+    "decrease": "{{name}} verringern",
+    "presenceOnly": "Nur Nachweis",
+    "plusOne": "Anzahl +1",
+    "plusOneDone": "{{name}}: Anzahl +1"
   }
 }

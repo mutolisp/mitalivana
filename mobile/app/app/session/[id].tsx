@@ -4,9 +4,11 @@ import type { AdoptionInput } from '~/db';
 import * as Location from 'expo-location';
 import { Stack, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { BackHeaderLeft, goBackOrHome } from '~/lib/goBack';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { isoDateTime } from '~/lib/datetime';
+import { isoDate, isoDateTime, isoTime } from '~/lib/datetime';
+import { useElapsed } from '~/lib/useElapsed';
+import { ContextChip } from '~/components/ui/ContextChip';
 import {
   Alert,
   FlatList,
@@ -68,7 +70,8 @@ import { SurveyorAssignSheet } from '~/components/SurveyorAssignSheet';
 import { SiteAssignSheet } from '~/components/SiteAssignSheet';
 import { BatchImportModal } from '~/components/BatchImportModal';
 import { PhotoImportModal } from '~/components/PhotoImportModal';
-import { pickPhotosWithExif, type PickedPhoto } from '~/lib/photoCapture';
+import { pickPhotosWithExif, takePhotoWithExif, type PickedPhoto } from '~/lib/photoCapture';
+import { computeDiversity } from '~/lib/diversity';
 import { firstPhotoFix, rememberPickedPhotos } from '~/lib/photoMeta';
 import { SwipeRowActions } from '~/components/SwipeRowActions';
 import { SelectionToolbar } from '~/components/SelectionToolbar';
@@ -212,13 +215,29 @@ export default function SessionDetailScreen() {
       fn(...a);
     };
 
+  // Row ± writes, coalesced: the list updates at once, the DB 300 ms after the
+  // last press on that row — ten quick taps are one write and one undo step.
+  const pendingCounts = useRef(new Map<number, { value: number | null; timer: ReturnType<typeof setTimeout> }>());
+  const writeCount = (id: number, value: number | null) =>
+    updateRecordQuantity(id, value == null ? null : String(value), value == null ? null : 'individuals');
+  /** Write any count still waiting — before a reload reads the DB back. */
+  const flushCounts = useCallback(() => {
+    for (const [id, p] of pendingCounts.current) {
+      clearTimeout(p.timer);
+      writeCount(id, p.value);
+    }
+    pendingCounts.current.clear();
+  }, []);
+  useEffect(() => flushCounts, [flushCounts]);
+
   const refresh = useCallback(() => {
+    flushCounts();
     const s = getSession(sessionId);
     setSession(s);
     setProject(s ? getProject(s.project_id) : null);
     setSite(s && s.site_id !== null ? getSite(s.site_id) : null);
     setRecords(listSessionRecords(sessionId));
-  }, [sessionId]);
+  }, [sessionId, flushCounts]);
   const reload = useCallback(() => {
     refresh();
     checkpoint();
@@ -261,6 +280,47 @@ export default function SessionDetailScreen() {
     };
   }, [filtered, activeRecord]);
 
+  const handleRowCount = (rec: RecordWithTaxon, next: number | null) => {
+    if (edit.refuse()) return;
+    // Not reload(): patch the one row. `records` feeds `filtered`, which is
+    // the FlatList's data, so the cell redraws without extraData.
+    setRecords((rs) =>
+      rs.map((r) =>
+        r.id === rec.id
+          ? {
+              ...r,
+              organism_quantity: next == null ? null : String(next),
+              organism_quantity_type: next == null ? null : 'individuals',
+            }
+          : r,
+      ),
+    );
+    const prev = pendingCounts.current.get(rec.id);
+    if (prev) clearTimeout(prev.timer);
+    const timer = setTimeout(() => {
+      pendingCounts.current.delete(rec.id);
+      writeCount(rec.id, next);
+      checkpoint();
+    }, 300);
+    pendingCounts.current.set(rec.id, { value: next, timer });
+  };
+
+  /** Taxa already on this list, for the search box's 已在名錄 mark. */
+  const takenTaxa = useMemo(() => new Set(records.map((r) => r.taxon_id)), [records]);
+  /** S for the header, counted as the records tab counts it. */
+  const richness = useMemo(
+    () =>
+      computeDiversity(
+        records.map((r) => ({
+          taxon_id: r.taxon_id,
+          used_scientific_name: r.used_scientific_name,
+          organism_quantity: r.organism_quantity,
+          organism_quantity_type: r.organism_quantity_type,
+        })),
+      ).richness,
+    [records],
+  );
+
   const groupCounts = useMemo(() => {
     const map = new Map<string, number>();
     for (const g of HIGH_LEVEL_GROUPS) map.set(g.key, 0);
@@ -288,6 +348,17 @@ export default function SessionDetailScreen() {
       // recover it from the same photo.
       rememberPickedPhotos(picked);
       if (picked.length > 0) setPickedPhotos(picked);
+    } catch (e) {
+      Alert.alert(t('gnss.posFailTitle'), errText(e));
+    }
+  };
+
+  /** The dock's camera key: one photo, then the same import sheet as picking. */
+  const handleTakePhotoToImport = async () => {
+    try {
+      const taken = await takePhotoWithExif();
+      rememberPickedPhotos(taken);
+      if (taken.length > 0) setPickedPhotos(taken);
     } catch (e) {
       Alert.alert(t('gnss.posFailTitle'), errText(e));
     }
@@ -327,13 +398,33 @@ export default function SessionDetailScreen() {
     // morphospecies, and that is ordinary field work. A double tap is still the
     // commoner case, so it stays one tap away from being undone.
     if (isTaxonInSession(sessionId, result.taxon_id)) {
+      // "+1" only where a count means individuals — the row the ± would step.
+      // The newest such row, when a morphospecies split left several.
+      const countable = records
+        .filter(
+          (r) =>
+            r.taxon_id === result.taxon_id &&
+            (r.organism_quantity_type == null || r.organism_quantity_type === 'individuals'),
+        )
+        .sort((a, b) => b.observed_at - a.observed_at)[0];
+      const options = [
+        ...(countable && !edit.locked ? [{ label: t('count.plusOne') }] : []),
+        { label: t('session.addAnyway') },
+      ];
       const choice = await showActionSheet({
         title: t('session.alreadyExists', { name: result.cname || result.name }),
         message: t('session.duplicateHint'),
         cancelLabel: t('common.cancel'),
-        options: [{ label: t('session.addAnyway') }],
+        options,
       });
-      if (choice !== 0) return;
+      if (choice < 0) return;
+      if (countable && !edit.locked && choice === 0) {
+        const n = Number(countable.organism_quantity);
+        handleRowCount(countable, Number.isFinite(n) && n > 0 ? n + 1 : 1);
+        setFlashId(countable.id);
+        toast(t('count.plusOneDone', { name: result.cname || result.name }));
+        return;
+      }
     }
     const recordId = addRecord({ session_id: sessionId, taxon_id: result.taxon_id, adopted });
     stampNewRecord('session', recordId, sessionId, reloadQuiet);
@@ -840,28 +931,74 @@ export default function SessionDetailScreen() {
   }
 
   const isActive = session.status === 'active';
-  const headerTitle = project && project.id !== 0 ? project.name : session.name;
 
   return (
     <SafeAreaView edges={['bottom']} className="flex-1 bg-gray-50 dark:bg-gray-950">
       <Stack.Screen
         options={{
-          title: headerTitle,
-          headerTitle: () => <HeaderTitleText text={headerTitle} />,
+          // The record's own name; the project moved to the context strip.
+          title: session.name,
+          headerTitle: () => (
+            <HeaderTitleText
+              text={session.name}
+              subtitle={
+                <SessionStatusLine
+                  active={isActive}
+                  startedAt={session.started_at}
+                  endedAt={session.ended_at}
+                  species={richness}
+                />
+              }
+            />
+          ),
           // Override the default chevron back so a fresh deep-link / replace
           // entry doesn't strand the user with a dead button.
           headerLeft: BackHeaderLeft,
           headerRight: () => (
             <View className="flex-row items-center gap-3">
-              <RecordMenuButton kind="session" id={sessionId} reportHref={`/report/session/${sessionId}` as Href} onSynced={reload} />
-              <RecordEditButtons edit={edit} ended={!isActive} onChanged={reload} />
+              <RecordMenuButton
+                kind="session"
+                id={sessionId}
+                reportHref={`/report/session/${sessionId}` as Href}
+                onSynced={reload}
+                // Moved here from the filter row: two actions that only mean
+                // something while recording, taking width from the chips.
+                extra={
+                  isActive
+                    ? [
+                        {
+                          label: t('batchImport.title'),
+                          icon: 'list-outline',
+                          section: t('menu.addSpecies'),
+                          onPress: () => setBatchImportOpen(true),
+                        },
+                        {
+                          label: t('photoImport.entry'),
+                          icon: 'images-outline',
+                          section: t('menu.addSpecies'),
+                          onPress: () => void handlePickPhotosToImport(),
+                        },
+                      ]
+                    : []
+                }
+                edit={edit}
+                onEdited={reload}
+              />
+              <RecordEditButtons edit={edit} ended={!isActive} onChanged={reload} inMenu />
               {isActive ? (
-                <HeaderIconButton
-                  icon="stop-circle-outline"
-                  tone="danger"
+                // A word, not the old stop glyph: ending is the one header
+                // action that changes the record's state.
+                <Pressable
                   onPress={() => void handleEnd()}
-                  label={t('session.end')}
-                />
+                  hitSlop={4}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('session.end')}
+                  className="flex-row items-center rounded-full border-[1.5px] border-alert px-3 active:bg-alert-tint dark:border-alert-dark dark:active:bg-alert-dark-tint"
+                  style={{ minHeight: 36 }}
+                >
+                  <View className="mr-1.5 h-2.5 w-2.5 rounded-sm bg-alert dark:bg-alert-dark" />
+                  <Text className="text-sm font-bold text-alert dark:text-alert-dark">{t('session.end')}</Text>
+                </Pressable>
               ) : edit.locked ? (
                 <HeaderIconButton
                   icon="refresh-outline"
@@ -874,103 +1011,55 @@ export default function SessionDetailScreen() {
         }}
       />
       <View className="flex-1">
-        {/* Row 1 — identity: project · spatial · surveyor (full width so the
-            long surveyor name has room and no longer squeezes the controls). */}
-        <View className="flex-row items-center gap-3 border-b border-gray-200 bg-card px-4 py-2 dark:border-gray-700 dark:bg-gray-900">
-          <Pressable
+        {/* Context strip — project · place · survey time · surveyor. Every
+            chip keeps the tap it had as a bare icon; unset ones are dashed so
+            what is still missing before ending shows at a glance. */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          className="grow-0 border-b border-gray-200 bg-card dark:border-gray-700 dark:bg-gray-900"
+          contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 8, gap: 8 }}
+        >
+          <ContextChip
+            icon="folder-outline"
+            label={project && project.id !== 0 ? project.name : t('session.projectUnset')}
+            set={!!project && project.id !== 0}
             onPress={guard(() => setProjectSheetOpen(true))}
-            hitSlop={8}
-            className="active:opacity-70"
-          >
-            <Ionicons
-              name={project && project.id !== 0 ? 'folder' : 'folder-open-outline'}
-              size={18}
-              color={project && project.id !== 0 ? c.accent : c.ink3}
-            />
-          </Pressable>
-          <Pressable
+          />
+          {/* Priority: tracking > site assigned > start point > empty */}
+          <ContextChip
+            icon={site ? 'pin' : 'location-outline'}
+            label={
+              tracking
+                ? t('session.trackBadge', { count: trackCount })
+                : site
+                  ? site.name
+                  : session.start_lat !== null
+                    ? t('session.located')
+                    : t('session.spatial')
+            }
+            set={tracking || !!site || session.start_lat !== null}
+            tone={tracking ? 'live' : 'default'}
             onPress={isActive ? handleSpatialMenu : guard(() => setSiteSheetOpen(true))}
-            hitSlop={6}
-            className="shrink flex-row items-center active:opacity-70"
-          >
-            {(() => {
-              // Priority: tracking > site assigned > start point > empty
-              if (tracking) {
-                return (
-                  <>
-                    <Ionicons name="radio" size={14} color={c.alert} />
-                    <Text
-                      className="ml-1 text-xs font-medium text-red-600 dark:text-red-400"
-                      numberOfLines={1}
-                    >
-                      {t('session.trackBadge', { count: trackCount })}
-                    </Text>
-                  </>
-                );
-              }
-              if (site) {
-                return (
-                  <>
-                    <Ionicons name="pin" size={14} color={c.accent} />
-                    <Text
-                      className="ml-1 text-xs font-medium text-accent-700 dark:text-accent-300"
-                      numberOfLines={1}
-                    >
-                      {site.name}
-                    </Text>
-                  </>
-                );
-              }
-              if (session.start_lat !== null) {
-                return (
-                  <>
-                    <Ionicons name="location" size={14} color={c.accent} />
-                    <Text
-                      className="ml-1 text-xs font-medium text-accent-700 dark:text-accent-300"
-                      numberOfLines={1}
-                    >
-                      {t('session.located')}
-                    </Text>
-                  </>
-                );
-              }
-              return (
-                <>
-                  <Ionicons name="pin-outline" size={14} color={c.ink3} />
-                  <Text className="ml-1 text-xs italic text-gray-500 dark:text-gray-400">
-                    {t('session.spatial')}
-                  </Text>
-                </>
-              );
-            })()}
-          </Pressable>
+          />
           {/* Survey start / end — typed by hand for old field sheets. */}
-          <Pressable
+          <ContextChip
+            icon="time-outline"
+            label={
+              session.ended_at
+                ? `${isoTime(session.started_at)}–${isoTime(session.ended_at)}`
+                : isoTime(session.started_at)
+            }
+            set
             onPress={() => setTimesOpen(true)}
-            hitSlop={6}
-            accessibilityLabel={t('surveyTime.title')}
-            className="active:opacity-70"
-          >
-            <Ionicons name="time-outline" size={16} color={c.accent} />
-          </Pressable>
-          <Pressable
+          />
+          <ContextChip
+            icon="people-outline"
+            label={session.recorded_by || t('session.surveyorUnset')}
+            set={!!session.recorded_by}
             onPress={guard(() => setSurveyorSheetOpen(true))}
-            hitSlop={6}
-            className="flex-1 flex-row items-center active:opacity-70"
-          >
-            <Ionicons
-              name="people-outline"
-              size={14}
-              color={session.recorded_by ? c.accent : c.ink3}
-            />
-            <Text
-              className={`ml-1 flex-1 text-xs ${session.recorded_by ? 'font-medium text-accent-700 dark:text-accent-300' : 'italic text-gray-500 dark:text-gray-400'}`}
-              numberOfLines={1}
-            >
-              {session.recorded_by || t('session.surveyor')}
-            </Text>
-          </Pressable>
-        </View>
+          />
+        </ScrollView>
         {/* Row 2 — filter chips (scrollable) + sort + batch import. While
             selecting, the selection bar takes its place (row 1 stays). */}
         {selection.selectMode ? (
@@ -1018,43 +1107,33 @@ export default function SessionDetailScreen() {
                 );
               })}
             </ScrollView>
-            <View className="flex-row items-center gap-3 pl-2 pr-3">
+            {/* Sort and its direction, each a real 44 pt target. Batch and
+                photo import moved to the header's ⋯. */}
+            <View className="flex-row items-center pr-1">
               <Pressable
                 onPress={handlePickSort}
-                hitSlop={8}
-                className="flex-row items-center active:opacity-70"
+                accessibilityRole="button"
+                accessibilityLabel={`${t('session.sortTitle')}: ${sortLabel[sortOrder]}`}
+                className="flex-row items-center rounded-full px-2 active:bg-gray-100 dark:active:bg-gray-800"
+                style={{ minHeight: 44 }}
               >
                 <Ionicons name="swap-vertical" size={18} color={c.ink2} />
                 <Text className="ml-0.5 text-xs text-gray-600 dark:text-gray-400">
                   {sortLabel[sortOrder]}
                 </Text>
               </Pressable>
-              <Pressable onPress={handleToggleSortDir} hitSlop={6} className="active:opacity-50">
+              <Pressable
+                onPress={handleToggleSortDir}
+                accessibilityRole="button"
+                accessibilityLabel={t('session.sortActiveHint', { label: sortLabel[sortOrder] })}
+                className="h-11 w-11 items-center justify-center rounded-full active:bg-gray-100 dark:active:bg-gray-800"
+              >
                 <Ionicons
                   name={sortDir === 'desc' ? 'arrow-down' : 'arrow-up'}
-                  size={14}
+                  size={16}
                   color={c.ink2}
                 />
               </Pressable>
-              {isActive ? (
-                <Pressable
-                  onPress={() => setBatchImportOpen(true)}
-                  hitSlop={8}
-                  className="active:opacity-70"
-                >
-                  <Ionicons name="cloud-upload-outline" size={18} color={c.accent} />
-                </Pressable>
-              ) : null}
-              {isActive ? (
-                <Pressable
-                  onPress={handlePickPhotosToImport}
-                  hitSlop={8}
-                  accessibilityLabel={t('photoImport.entry')}
-                  className="active:opacity-70"
-                >
-                  <Ionicons name="images-outline" size={18} color={c.accent} />
-                </Pressable>
-              ) : null}
             </View>
           </View>
         )}
@@ -1096,6 +1175,7 @@ export default function SessionDetailScreen() {
                   selectMode={selection.selectMode}
                   picked={selection.picked.has(item.id)}
                   flash={item.id === flashId}
+                  onCountChange={edit.locked ? undefined : (next) => handleRowCount(item, next)}
                 />
               </SwipeRowActions>
             )}
@@ -1133,6 +1213,20 @@ export default function SessionDetailScreen() {
         <KeyboardStickyView offset={{ opened: insets.bottom }}>
           <SearchBox
             onSelect={handleAdd}
+            markedTaxa={takenTaxa}
+            markLabel={t('session.inList')}
+            trailing={
+              isActive ? (
+                <Pressable
+                  onPress={() => void handleTakePhotoToImport()}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('session.cameraAdd')}
+                  className="h-12 w-12 items-center justify-center rounded-full border border-line bg-card active:bg-gray-100 dark:border-line-dark dark:bg-card-dark dark:active:bg-gray-800"
+                >
+                  <Ionicons name="camera-outline" size={22} color={c.ink2} />
+                </Pressable>
+              ) : undefined
+            }
             onLongPressResult={async (r) => {
               // iOS UIKit won't present a Modal while keyboard / Chinese IME
               // composition is still active. Dismiss first, wait one frame,
@@ -1361,3 +1455,36 @@ export default function SessionDetailScreen() {
   );
 }
 
+/**
+ * Under the checklist's title: a moss dot and 記錄中 · elapsed · species while
+ * recording; a grey dot and 已結束 · date once ended. Elapsed ticks once a
+ * minute (useElapsed).
+ */
+function SessionStatusLine({
+  active,
+  startedAt,
+  endedAt,
+  species,
+}: {
+  active: boolean;
+  startedAt: number;
+  endedAt: number | null;
+  species: number;
+}) {
+  const { t } = useTranslation();
+  const elapsed = useElapsed(startedAt);
+  return (
+    <View className="flex-row items-center">
+      <View className={`mr-1.5 h-2 w-2 rounded-full ${active ? 'bg-accent-600 dark:bg-accent-400' : 'bg-gray-400'}`} />
+      <Text
+        numberOfLines={1}
+        className={`text-xs font-medium ${active ? 'text-accent-600 dark:text-accent-400' : 'text-gray-500 dark:text-gray-400'}`}
+        style={{ fontVariant: ['tabular-nums'] }}
+      >
+        {active
+          ? `${t('records.recording')} · ${elapsed} · ${t('plotStats.sppCount', { count: species })}`
+          : `${t('session.ended')} · ${endedAt ? isoDate(endedAt) : ''}`}
+      </Text>
+    </View>
+  );
+}

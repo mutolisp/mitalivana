@@ -163,7 +163,12 @@
     "photosAdded_other": "사진 {{count}}장을 추가했습니다",
     "imported_other": "{{count}}건을 가져왔습니다",
     "audioAdded": "녹음을 추가했습니다",
-    "audioRemoved": "녹음을 제거했습니다"
+    "audioRemoved": "녹음을 제거했습니다",
+    "ended": "종료됨",
+    "projectUnset": "프로젝트 미지정",
+    "surveyorUnset": "조사자 미입력",
+    "inList": "목록에 있음",
+    "cameraAdd": "촬영해서 추가"
   },
   "records": {
     "recording": "기록 중",
@@ -237,7 +242,13 @@
     "duplicateNoGloria": "GLORIA 조사는 복제할 수 없습니다. 다음 모니터링 주기는 「새 GLORIA 조사」에서 같은 정상을 선택해 시작하세요.",
     "gloriaCount_other": "GLORIA {{count}}건(산정 {{summits}})",
     "deleteRecoverable": "종 목록·조사구·GLORIA 조사는 30일 동안 기록 탭 ⋯ → “최근 삭제”에서 되살릴 수 있습니다.",
-    "deletePermanent": "채집 기록은 삭제하면 되돌릴 수 없습니다."
+    "deletePermanent": "채집 기록은 삭제하면 되돌릴 수 없습니다.",
+    "activeResume": "기록 계속하기",
+    "activeSpecies": "종",
+    "activeElapsed": "경과 시간",
+    "thisWeek": "이번 주",
+    "starredGroup": "별표",
+    "monthGroup": "{{year}}년 {{month}}월"
   },
   "export": {
     "preparing": "준비 중…",
@@ -307,24 +318,21 @@
     "sites": "지리 사이트",
     "sitesDesc": "지도 위의 지점／경로／범위",
     "backupDesc": "데이터·사진 백업 및 복원",
-    "favoritesDesc": "자주 쓰는 종 목록. 조사할 때 한꺼번에 기록에 추가할 수 있습니다"
+    "favoritesDesc": "자주 쓰는 종 목록. 조사할 때 한꺼번에 기록에 추가할 수 있습니다",
+    "layout": "보기 형식",
+    "selectMany": "여러 개 선택",
+    "days30": "30일",
+    "addSpecies": "종 추가"
   },
   "record": {
     "kindSession": "빠른 종 목록",
     "kindPlot": "조사구 조사",
     "createChooserTitle": "새 기록 만들기",
-    "createMenuTitle": "기록 만들기",
-    "createMenuMsg": "작업을 선택하세요. 아래 세 항목은 + 버튼의 기본 동작을 바꿉니다.",
-    "defaultAsk": "기본: 매번 묻기",
-    "defaultSession": "기본: 빠른 종 목록",
-    "defaultPlot": "기본: 조사구 조사",
     "kindCollection": "채집 기록",
-    "defaultCollection": "기본: 채집 기록",
     "kindImport": "기록 가져오기 (.yml / .zip)",
     "lastUpdated": "마지막 수정",
     "kindGloria": "GLORIA 정상 조사",
     "moreActions": "추가 작업",
-    "lessActions": "작업 접기",
     "kindMiren": "MIREN 도로/탐방로 조사"
   },
   "rank": {
@@ -443,7 +451,9 @@
     "countMinus": "1 감소",
     "countPlus": "1 증가",
     "deleteSelectedTitle": "종 기록 삭제",
-    "deleteSelectedMsg_other": "선택한 종 기록 {{count}}건을 삭제합니다. 되돌릴 수 없습니다."
+    "deleteSelectedMsg_other": "선택한 종 기록 {{count}}건을 삭제합니다. 되돌릴 수 없습니다.",
+    "taxonInfo": "분류 정보",
+    "coordinates": "좌표"
   },
   "attr": {
     "advanced": "고급 (종 속성)",
@@ -501,11 +511,6 @@
     "newTransect": "새 트랜섹트",
     "newPointCount": "새 정점 조사",
     "enterPlotid": "plotid 입력 (예: {{example}})",
-    "plotMenuTitle": "조사구",
-    "optFixed": "고정 조사구 (층위 식생)",
-    "optTransect": "트랜섹트 (단일 층위, 이동경로 포함)",
-    "optPointCount": "정점 조사 (조류/동물, 반경 포함)",
-    "optImport": "조사구 가져오기 (.yml / .zip)",
     "importFailTitle": "가져오기 실패",
     "plotExistsTitle": "조사구가 이미 있습니다",
     "plotExistsMsg": "\"{{plotid}}\"이(가) 이미 이 기기에 있습니다. 덮어써서 업데이트할까요, 아니면 새 사본으로 저장할까요?",
@@ -1058,7 +1063,8 @@
     "copySciname": "학명 복사",
     "copyCname": "일반명 복사",
     "copyBoth": "일반명 + 학명 복사",
-    "copyFull": "전체 정보 복사"
+    "copyFull": "전체 정보 복사",
+    "copyMenu": "복사"
   },
   "transect": {
     "busyTitle": "다른 기록이 이동경로를 기록 중입니다",
@@ -3850,5 +3856,34 @@
     "recoverGo": "되살리기",
     "recovered": "“{{name}}”을(를) 되살렸습니다",
     "recoverFail": "되살릴 수 없습니다"
+  },
+  "create": {
+    "descSession": "걸으며 기록: 종·개체수·사진·좌표",
+    "descPlot": "고정 조사구·횡단선·정점 계수, 층별 피도",
+    "descCollection": "표본 번호·라벨·동정",
+    "others": "기타",
+    "plusDefault": "＋를 누를 때",
+    "isDefault": "기본",
+    "ask": "매번 묻기",
+    "importFile": "파일 가져오기",
+    "plotPageSubtitle": "조사구 유형 선택",
+    "plotFixedDesc": "층별 식생: 층마다 피도와 높이 기록",
+    "plotTransectDesc": "선을 따라 조사, GPS 궤적 기록",
+    "plotPointDesc": "조류·동물 정점 계수",
+    "traitLayers": "E1–E6 층",
+    "traitDefault4": "기본 4층",
+    "traitSubplots": "소구획 가능",
+    "traitSingleLayer": "단층",
+    "traitTrack": "궤적 포함",
+    "traitRadius": "반경 포함",
+    "importPlot": "조사구 파일 가져오기",
+    "startSurvey": "조사 시작"
+  },
+  "count": {
+    "increase": "{{name}} 수 늘리기",
+    "decrease": "{{name}} 수 줄이기",
+    "presenceOnly": "출현만 기록",
+    "plusOne": "개체수 +1",
+    "plusOneDone": "{{name}} 개체수 +1"
   }
 }

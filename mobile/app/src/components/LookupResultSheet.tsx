@@ -22,7 +22,8 @@ import { ToastHost } from './ToastHost';
 type Props = {
   result: SearchResult | null;
   onClose: () => void;
-  onAddToSession: () => void;
+  /** Omit for a read-only view (the record sheet's 分類資訊). */
+  onAddToSession?: () => void;
   /** Override the add-button label (e.g. "add to the current plot" when a plot is
    *  active). */
   addButtonLabel?: string;
@@ -84,10 +85,14 @@ export function LookupResultSheet({
             </View>
             <SpeciesDetailPanel
               result={currentResult}
-              onAddToSession={() => {
-                onAddToSession();
-                onClose();
-              }}
+              onAddToSession={
+                onAddToSession
+                  ? () => {
+                      onAddToSession();
+                      onClose();
+                    }
+                  : undefined
+              }
               addButtonLabel={addButtonLabel}
               // Passed straight through: do NOT close the sheet here. The
               // handler presents an ActionSheet, and iOS cannot present one

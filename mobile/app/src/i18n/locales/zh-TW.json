@@ -163,7 +163,12 @@
     "photosAdded_other": "已加入 {{count}} 張照片",
     "imported_other": "已匯入 {{count}} 筆",
     "audioAdded": "已加入錄音",
-    "audioRemoved": "已移除錄音"
+    "audioRemoved": "已移除錄音",
+    "ended": "已結束",
+    "projectUnset": "未指定專案",
+    "surveyorUnset": "調查者未填",
+    "inList": "已在名錄",
+    "cameraAdd": "拍照加入"
   },
   "records": {
     "recording": "記錄中",
@@ -237,7 +242,13 @@
     "duplicateNoGloria": "GLORIA 調查不能複製。下一個監測週期請從「新增 GLORIA 調查」選同一個山峰開始。",
     "gloriaCount_other": "GLORIA {{count}} 筆（{{summits}} 座山峰）",
     "deleteRecoverable": "名錄、樣區與 GLORIA 調查 30 天內可從記錄分頁 ⋯ →「最近刪除」救回。",
-    "deletePermanent": "採集記錄刪除後無法復原。"
+    "deletePermanent": "採集記錄刪除後無法復原。",
+    "activeResume": "繼續記錄",
+    "activeSpecies": "物種",
+    "activeElapsed": "經過時間",
+    "thisWeek": "本週",
+    "starredGroup": "已加星號",
+    "monthGroup": "{{year}} 年 {{month}} 月"
   },
   "export": {
     "preparing": "準備中…",
@@ -307,24 +318,21 @@
     "sites": "地理樣區",
     "sitesDesc": "地圖上的點位/路線/範圍",
     "backupDesc": "資料/照片備份與回復",
-    "favoritesDesc": "常用物種清單,調查時可整批加入記錄"
+    "favoritesDesc": "常用物種清單,調查時可整批加入記錄",
+    "layout": "版面",
+    "selectMany": "選取多筆",
+    "days30": "30 天",
+    "addSpecies": "加入物種"
   },
   "record": {
     "kindSession": "快速名錄",
     "kindPlot": "樣區調查",
     "createChooserTitle": "建立新記錄",
-    "createMenuTitle": "建立記錄",
-    "createMenuMsg": "選擇一個動作；下方三項是改變 + 鍵的預設行為。",
-    "defaultAsk": "預設：每次詢問",
-    "defaultSession": "預設：快速名錄",
-    "defaultPlot": "預設：樣區調查",
     "kindCollection": "採集記錄",
-    "defaultCollection": "預設：採集記錄",
     "kindImport": "匯入記錄（.yml / .zip）",
     "lastUpdated": "最後更新",
     "kindGloria": "GLORIA 山峰調查",
     "moreActions": "更多動作",
-    "lessActions": "收起動作",
     "kindMiren": "MIREN 道路／步道調查"
   },
   "rank": {
@@ -443,7 +451,9 @@
     "countMinus": "減一",
     "countPlus": "加一",
     "deleteSelectedTitle": "刪除物種記錄",
-    "deleteSelectedMsg_other": "將刪除選取的 {{count}} 筆物種記錄，無法復原。"
+    "deleteSelectedMsg_other": "將刪除選取的 {{count}} 筆物種記錄，無法復原。",
+    "taxonInfo": "分類資訊",
+    "coordinates": "座標"
   },
   "attr": {
     "advanced": "進階（物種屬性）",
@@ -501,11 +511,6 @@
     "newTransect": "新穿越線",
     "newPointCount": "新定點計數",
     "enterPlotid": "輸入 plotid（例：{{example}}）",
-    "plotMenuTitle": "樣區",
-    "optFixed": "固定樣區(分層植群)",
-    "optTransect": "穿越線(單層、含軌跡)",
-    "optPointCount": "定點計數法(鳥類/動物，含半徑)",
-    "optImport": "匯入樣區(.yml / .zip)",
     "importFailTitle": "匯入失敗",
     "plotExistsTitle": "樣區已存在",
     "plotExistsMsg": "「{{plotid}}」已在裝置中。要覆蓋更新，還是另存成新副本？",
@@ -1058,7 +1063,8 @@
     "copySciname": "複製學名",
     "copyCname": "複製俗名",
     "copyBoth": "複製俗名 + 學名",
-    "copyFull": "複製完整資訊"
+    "copyFull": "複製完整資訊",
+    "copyMenu": "複製"
   },
   "transect": {
     "busyTitle": "已有記錄正在錄製軌跡",
@@ -3850,5 +3856,34 @@
     "recoverGo": "救回",
     "recovered": "已救回「{{name}}」",
     "recoverFail": "無法救回"
+  },
+  "create": {
+    "descSession": "邊走邊記：物種、數量、照片與座標",
+    "descPlot": "固定樣區、穿越線或定點計數，分層記錄覆蓋度",
+    "descCollection": "標本採集號、標籤與鑑定",
+    "others": "其他",
+    "plusDefault": "按下 ＋ 時",
+    "isDefault": "預設",
+    "ask": "每次詢問",
+    "importFile": "匯入檔案",
+    "plotPageSubtitle": "選擇樣區類型",
+    "plotFixedDesc": "分層植群，逐層記錄覆蓋度與高度",
+    "plotTransectDesc": "沿線調查，記錄 GPS 軌跡",
+    "plotPointDesc": "鳥類、動物的定點計數",
+    "traitLayers": "E1–E6 分層",
+    "traitDefault4": "預設 4 層",
+    "traitSubplots": "可分小區",
+    "traitSingleLayer": "單層",
+    "traitTrack": "含軌跡",
+    "traitRadius": "含半徑",
+    "importPlot": "匯入樣區檔案",
+    "startSurvey": "開始調查"
+  },
+  "count": {
+    "increase": "增加{{name}}數量",
+    "decrease": "減少{{name}}數量",
+    "presenceOnly": "只記出現",
+    "plusOne": "數量 +1",
+    "plusOneDone": "{{name}} 數量 +1"
   }
 }

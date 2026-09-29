@@ -163,7 +163,12 @@
     "photosAdded_other": "写真を {{count}} 枚追加しました",
     "imported_other": "{{count}} 件をインポートしました",
     "audioAdded": "録音を追加しました",
-    "audioRemoved": "録音を削除しました"
+    "audioRemoved": "録音を削除しました",
+    "ended": "終了",
+    "projectUnset": "プロジェクト未指定",
+    "surveyorUnset": "調査者未入力",
+    "inList": "リストにあり",
+    "cameraAdd": "撮影して追加"
   },
   "records": {
     "recording": "記録中",
@@ -237,7 +242,13 @@
     "duplicateNoGloria": "GLORIA 調査は複製できません。次のモニタリング周期は「新規 GLORIA 調査」で同じ山頂を選んで開始してください。",
     "gloriaCount_other": "GLORIA {{count}} 件（山頂 {{summits}}）",
     "deleteRecoverable": "種リスト・調査区・GLORIA 調査は 30 日間、「記録」タブの ⋯ →「最近削除した項目」から復旧できます。",
-    "deletePermanent": "採集記録は削除すると元に戻せません。"
+    "deletePermanent": "採集記録は削除すると元に戻せません。",
+    "activeResume": "記録を続ける",
+    "activeSpecies": "種",
+    "activeElapsed": "経過時間",
+    "thisWeek": "今週",
+    "starredGroup": "スター付き",
+    "monthGroup": "{{year}}年{{month}}月"
   },
   "export": {
     "preparing": "準備中…",
@@ -307,24 +318,21 @@
     "sites": "地理サイト",
     "sitesDesc": "地図上の地点／ルート／範囲",
     "backupDesc": "データ・写真のバックアップと復元",
-    "favoritesDesc": "よく使う種のリスト。調査時にまとめて記録へ追加できます"
+    "favoritesDesc": "よく使う種のリスト。調査時にまとめて記録へ追加できます",
+    "layout": "表示形式",
+    "selectMany": "複数選択",
+    "days30": "30 日",
+    "addSpecies": "種を追加"
   },
   "record": {
     "kindSession": "クイック種リスト",
     "kindPlot": "調査区調査",
     "createChooserTitle": "新しい記録を作成",
-    "createMenuTitle": "記録を作成",
-    "createMenuMsg": "操作を選んでください。下の3項目は + ボタンの既定の動作を変更します。",
-    "defaultAsk": "既定：毎回確認",
-    "defaultSession": "既定：クイック種リスト",
-    "defaultPlot": "既定：調査区調査",
     "kindCollection": "採集記録",
-    "defaultCollection": "既定：採集記録",
     "kindImport": "記録をインポート（.yml / .zip）",
     "lastUpdated": "最終更新",
     "kindGloria": "GLORIA 山頂調査",
     "moreActions": "その他の操作",
-    "lessActions": "操作を閉じる",
     "kindMiren": "MIREN 道路・登山道調査"
   },
   "rank": {
@@ -443,7 +451,9 @@
     "countMinus": "1 減らす",
     "countPlus": "1 増やす",
     "deleteSelectedTitle": "種の記録を削除",
-    "deleteSelectedMsg_other": "選択した {{count}} 件の種の記録を削除します。元に戻せません。"
+    "deleteSelectedMsg_other": "選択した {{count}} 件の種の記録を削除します。元に戻せません。",
+    "taxonInfo": "分類情報",
+    "coordinates": "座標"
   },
   "attr": {
     "advanced": "詳細（種の属性）",
@@ -501,11 +511,6 @@
     "newTransect": "新しいトランセクト",
     "newPointCount": "新しいポイントセンサス",
     "enterPlotid": "plotid を入力（例：{{example}}）",
-    "plotMenuTitle": "調査区",
-    "optFixed": "固定調査区（階層植生）",
-    "optTransect": "トランセクト（単層・軌跡付き）",
-    "optPointCount": "ポイントセンサス（鳥類・動物、半径付き）",
-    "optImport": "調査区をインポート（.yml / .zip）",
     "importFailTitle": "インポートに失敗しました",
     "plotExistsTitle": "調査区がすでに存在します",
     "plotExistsMsg": "「{{plotid}}」はすでにこの端末にあります。上書きして更新しますか、それとも別のコピーとして保存しますか？",
@@ -1058,7 +1063,8 @@
     "copySciname": "学名をコピー",
     "copyCname": "一般名をコピー",
     "copyBoth": "一般名 + 学名をコピー",
-    "copyFull": "詳細情報をコピー"
+    "copyFull": "詳細情報をコピー",
+    "copyMenu": "コピー"
   },
   "transect": {
     "busyTitle": "別の記録が軌跡を記録中です",
@@ -3850,5 +3856,34 @@
     "recoverGo": "復旧",
     "recovered": "「{{name}}」を復旧しました",
     "recoverFail": "復旧できません"
+  },
+  "create": {
+    "descSession": "歩きながら記録：種・数・写真・座標",
+    "descPlot": "固定プロット・トランセクト・定点カウント、階層別被度",
+    "descCollection": "標本番号・ラベル・同定",
+    "others": "その他",
+    "plusDefault": "＋を押したとき",
+    "isDefault": "既定",
+    "ask": "毎回選ぶ",
+    "importFile": "ファイルを読み込む",
+    "plotPageSubtitle": "調査区の種類を選ぶ",
+    "plotFixedDesc": "階層別の植生：層ごとに被度と高さを記録",
+    "plotTransectDesc": "ライン沿いの調査、GPS 軌跡を記録",
+    "plotPointDesc": "鳥類・動物の定点カウント",
+    "traitLayers": "E1–E6 の階層",
+    "traitDefault4": "既定 4 層",
+    "traitSubplots": "小区画に分割可",
+    "traitSingleLayer": "単層",
+    "traitTrack": "軌跡あり",
+    "traitRadius": "半径あり",
+    "importPlot": "調査区ファイルを読み込む",
+    "startSurvey": "調査を開始"
+  },
+  "count": {
+    "increase": "{{name}}の数を増やす",
+    "decrease": "{{name}}の数を減らす",
+    "presenceOnly": "在のみ記録",
+    "plusOne": "数 +1",
+    "plusOneDone": "{{name}}の数 +1"
   }
 }

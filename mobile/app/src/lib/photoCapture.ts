@@ -26,7 +26,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import * as MediaLibrary from 'expo-media-library';
 import piexif from 'piexifjs';
-import { buildUserComment, utf8ToLatin1 } from './photoExif';
+import { buildUserComment, metaFromPickerExif, utf8ToLatin1 } from './photoExif';
 import { generateUuid } from '~/db';
 import type { PlotSpeciesRecordWithTaxon, RecordWithTaxon, SpecimenWithTaxon } from '~/db';
 
@@ -636,6 +636,41 @@ export async function pickPhotosWithExif(): Promise<PickedPhoto[]> {
     });
   }
   return out;
+}
+
+/**
+ * Take ONE photo for the import flow — the checklist dock's camera key — and
+ * hand it back exactly as `pickPhotosWithExif` would, so PhotoImportModal
+ * treats it like a picked photo: species chosen there, time and position read
+ * from its EXIF.
+ *
+ * The camera's EXIF often has no GNSS (Android in particular), and the import
+ * reads position from nowhere else, so the device fix is written into the
+ * EXIF map in the tag names `metaFromPickerExif` reads — the same best-effort
+ * fix `captureAndSavePhoto` stamps. A copy also goes to the photo library, as
+ * with every other camera key in the app.
+ */
+export async function takePhotoWithExif(): Promise<PickedPhoto[]> {
+  const asset = await launchCamera();
+  if (!asset) return [];
+  const persistent = await persistPickedPhoto(asset);
+  if (!persistent) return [];
+  let exif = (asset.exif as Record<string, unknown> | undefined) ?? null;
+  if (metaFromPickerExif(exif).lat === null) {
+    const fix = await currentFixForPhoto();
+    if (fix) {
+      exif = {
+        ...(exif ?? {}),
+        GPSLatitude: Math.abs(fix.lat),
+        GPSLatitudeRef: fix.lat >= 0 ? 'N' : 'S',
+        GPSLongitude: Math.abs(fix.lng),
+        GPSLongitudeRef: fix.lng >= 0 ? 'E' : 'W',
+        ...(fix.accuracy != null ? { GPSHPositioningError: fix.accuracy } : {}),
+      };
+    }
+  }
+  saveWithRestoredExif(asset, null).catch((e) => console.warn('[photoCapture] library copy failed:', e));
+  return [{ uri: persistent, exif }];
 }
 
 export async function pickPhotos(): Promise<string[]> {

@@ -47,7 +47,6 @@ import { useActiveSession } from '~/stores/activeSession';
 import { useActiveGloria } from '~/modules/gloria/store';
 import { useActiveMiren } from '~/modules/miren/store';
 import { createMirenSurvey, endMirenSurvey } from '~/modules/miren/db';
-import { useSettings } from '~/stores/settings';
 import { createGloriaSurvey, endGloriaSurvey, getGloriaSurvey, gloriaSurveyUuidExists, importGloriaDoc } from '~/modules/gloria/db';
 import { validateGloriaDoc, type GloriaDoc } from '~/modules/gloria/export/yaml';
 import { isRecordingTarget, pauseIfNot, pauseRecording as pauseTrackRecording } from '~/lib/trackRecorder';
@@ -62,6 +61,7 @@ import { usePendingMerge } from '~/lib/teamMergeFlow';
 import type { ImportedPhotoBlob } from '~/lib/recordImportZip';
 import { findGloriaSurveyFor, localGloriaDoc } from '~/modules/gloria/merge';
 import { saveVersionByUuid } from '~/db/recordVersions';
+import { showCreateSheet } from '~/lib/createSheet';
 
 type NewRecordKind = 'session' | 'plot' | 'gloria' | 'miren';
 
@@ -211,10 +211,11 @@ async function promptPlotid(plotType: PlotType): Promise<void> {
     message: i18n.t('recordCreate.enterPlotid', { example: meta.example }),
     placeholder: meta.example,
     autoCapitalize: 'none',
+    confirmText: i18n.t('create.startSurvey'),
   });
   const plotid = raw?.trim();
   if (!plotid) return;
-  // add-guard: only caller createPlotPromptAndOpen runs ensureNoConflictingActive first
+  // add-guard: only caller createPlotOfType runs ensureNoConflictingActive first
   const id = createPlotSurvey({
     plotid,
     plot_type: plotType,
@@ -283,24 +284,24 @@ export async function startCollectionAndOpen(): Promise<void> {
  * a NEW plot; import skips the guard (imported plots land as status='done' and
  * never become the active record).
  */
+/**
+ * 樣區調查: the plot-type choice is the create sheet's second page now (not an
+ * ActionSheet), so this just opens the sheet there. Kept so existing callers
+ * need no change.
+ */
 export async function createPlotPromptAndOpen(): Promise<void> {
-  const idx = await showActionSheet({
-    title: i18n.t('recordCreate.plotMenuTitle'),
-    options: [
-      { label: i18n.t('recordCreate.optFixed') },
-      { label: i18n.t('recordCreate.optTransect') },
-      { label: i18n.t('recordCreate.optPointCount') },
-      { label: i18n.t('recordCreate.optImport') },
-    ],
-  });
-  if (idx === 3) {
-    await importPlotPromptAndOpen();
-    return;
-  }
-  if (idx < 0 || idx > 2) return;
+  await showCreateSheet({ page: 'plot' });
+}
+
+/**
+ * Start a plot survey of the given type: end-or-keep the active record, ask
+ * for the plotid (promptText — a keyboard does not belong in a bottom sheet),
+ * create it and open it. Called by the sheet's plot-type page after it has
+ * closed.
+ */
+export async function createPlotOfType(type: PlotType): Promise<void> {
   const ok = await ensureNoConflictingActive('plot');
   if (!ok) return;
-  const type: PlotType = idx === 0 ? 'fixed' : idx === 1 ? 'transect' : 'point_count';
   await promptPlotid(type);
 }
 
@@ -337,8 +338,6 @@ export async function importRecordPromptAndOpen(): Promise<void> {
   }
 }
 
-/** Kept for the 樣區 menu entry; it now accepts either kind of export file. */
-export const importPlotPromptAndOpen = importRecordPromptAndOpen;
 
 /** ImportError code → localized message. Exported so every import entry
  *  (including the batch species importer) reports the same way. */
@@ -816,32 +815,6 @@ export async function duplicateRecordAndOpen(
     router.push(href as Href);
   }
   return newId;
-}
-
-/** The「新增記錄」chooser (名錄 / 樣區 / 採集 / 匯入). Shared by the tab-bar
- *  ＋ button and the records tab's empty state. */
-export async function showCreateChooser(): Promise<void> {
-  const gloria = useSettings.getState().module_gloria;
-  const miren = useSettings.getState().module_miren;
-  const idx = await showActionSheet({
-    title: i18n.t('record.createChooserTitle'),
-    options: [
-      { label: i18n.t('record.kindSession') },
-      { label: i18n.t('record.kindPlot') },
-      { label: i18n.t('record.kindCollection') },
-      // Restoring an exported record is a peer of creating one from scratch;
-      // the file decides which kind it becomes.
-      { label: i18n.t('record.kindImport') },
-      ...(gloria ? [{ label: i18n.t('record.kindGloria') }] : []),
-      ...(miren ? [{ label: i18n.t('record.kindMiren') }] : []),
-    ],
-  });
-  if (idx === 0) startSessionAndOpen();
-  else if (idx === 1) createPlotPromptAndOpen();
-  else if (idx === 2) startCollectionAndOpen();
-  else if (idx === 3) importRecordPromptAndOpen();
-  else if (idx === 4 && gloria) openNewGloria();
-  else if (idx === (gloria ? 5 : 4) && miren) openMiren();
 }
 
 /** The summit chooser; the survey itself is created from there (startGloriaAndOpen). */

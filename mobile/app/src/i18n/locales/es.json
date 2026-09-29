@@ -201,7 +201,12 @@
     "imported_many": "{{count}} importados",
     "imported_other": "{{count}} importados",
     "audioAdded": "Grabación añadida",
-    "audioRemoved": "Grabación quitada"
+    "audioRemoved": "Grabación quitada",
+    "ended": "Finalizado",
+    "projectUnset": "Sin proyecto",
+    "surveyorUnset": "Sin observador",
+    "inList": "Ya en la lista",
+    "cameraAdd": "Añadir con foto"
   },
   "records": {
     "recording": "Registrando",
@@ -295,7 +300,13 @@
     "gloriaCount_many": "GLORIA {{count}} ({{summits}} cumbres)",
     "gloriaCount_other": "GLORIA {{count}} ({{summits}} cumbres)",
     "deleteRecoverable": "Las listas, parcelas y muestreos GLORIA pueden recuperarse durante 30 días desde Registros ⋯ → «Eliminados recientemente».",
-    "deletePermanent": "Las colectas eliminadas no se pueden recuperar."
+    "deletePermanent": "Las colectas eliminadas no se pueden recuperar.",
+    "activeResume": "Seguir registrando",
+    "activeSpecies": "Especies",
+    "activeElapsed": "Tiempo",
+    "thisWeek": "Esta semana",
+    "starredGroup": "Destacados",
+    "monthGroup": "{{year}}-{{month2}}"
   },
   "export": {
     "preparing": "Preparando…",
@@ -365,24 +376,21 @@
     "sites": "Sitios geográficos",
     "sitesDesc": "Puntos / líneas / polígonos en el mapa",
     "backupDesc": "Copia de seguridad y restauración de datos y fotos",
-    "favoritesDesc": "Listas de especies habituales; se pueden añadir en bloque a un registro"
+    "favoritesDesc": "Listas de especies habituales; se pueden añadir en bloque a un registro",
+    "layout": "Vista",
+    "selectMany": "Seleccionar varios",
+    "days30": "30 días",
+    "addSpecies": "Añadir especies"
   },
   "record": {
     "kindSession": "Lista rápida",
     "kindPlot": "Muestreo de parcela",
     "createChooserTitle": "Crear un registro nuevo",
-    "createMenuTitle": "Crear registro",
-    "createMenuMsg": "Elija una acción; las tres últimas cambian el comportamiento predeterminado del botón +.",
-    "defaultAsk": "Predeterminado: preguntar cada vez",
-    "defaultSession": "Predeterminado: lista rápida",
-    "defaultPlot": "Predeterminado: muestreo de parcela",
     "kindCollection": "Recolección",
-    "defaultCollection": "Predeterminado: recolección",
     "kindImport": "Importar un registro (.yml / .zip)",
     "lastUpdated": "Última modificación",
     "kindGloria": "Prospección GLORIA",
     "moreActions": "Más acciones",
-    "lessActions": "Menos acciones",
     "kindMiren": "Muestreo MIREN de carretera / sendero"
   },
   "rank": {
@@ -505,7 +513,9 @@
     "deleteSelectedTitle": "Eliminar registros de especies",
     "deleteSelectedMsg_one": "Se eliminará {{count}} registro de especie seleccionado. No se puede deshacer.",
     "deleteSelectedMsg_many": "Se eliminarán {{count}} registros de especies seleccionados. No se puede deshacer.",
-    "deleteSelectedMsg_other": "Se eliminarán {{count}} registros de especies seleccionados. No se puede deshacer."
+    "deleteSelectedMsg_other": "Se eliminarán {{count}} registros de especies seleccionados. No se puede deshacer.",
+    "taxonInfo": "Información taxonómica",
+    "coordinates": "Coordenadas"
   },
   "attr": {
     "advanced": "Avanzado (atributos de la especie)",
@@ -565,11 +575,6 @@
     "newTransect": "Nuevo transecto",
     "newPointCount": "Nuevo conteo por puntos",
     "enterPlotid": "Escriba el plotid (p. ej. {{example}})",
-    "plotMenuTitle": "Parcela",
-    "optFixed": "Parcela fija (vegetación por estratos)",
-    "optTransect": "Transecto (un solo estrato, con traza)",
-    "optPointCount": "Conteo por puntos (aves/animales, con radio)",
-    "optImport": "Importar parcela (.yml / .zip)",
     "importFailTitle": "Error al importar",
     "plotExistsTitle": "La parcela ya existe",
     "plotExistsMsg": "«{{plotid}}» ya está en este dispositivo. ¿Sobrescribir o guardar como copia nueva?",
@@ -1198,7 +1203,8 @@
     "copySciname": "Copiar el nombre científico",
     "copyCname": "Copiar el nombre común",
     "copyBoth": "Copiar nombre común + científico",
-    "copyFull": "Copiar toda la información"
+    "copyFull": "Copiar toda la información",
+    "copyMenu": "Copiar"
   },
   "transect": {
     "busyTitle": "Otro registro está grabando una traza",
@@ -4204,5 +4210,34 @@
     "recoverGo": "Recuperar",
     "recovered": "«{{name}}» recuperado",
     "recoverFail": "No se pudo recuperar"
+  },
+  "create": {
+    "descSession": "Registrar al caminar: especies, cantidades, fotos y coordenadas",
+    "descPlot": "Parcela fija, transecto o punto de conteo, cobertura por estrato",
+    "descCollection": "Números de ejemplar, etiquetas e identificación",
+    "others": "Otros",
+    "plusDefault": "Al tocar ＋",
+    "isDefault": "Predeterminado",
+    "ask": "Preguntar siempre",
+    "importFile": "Importar archivo",
+    "plotPageSubtitle": "Elige el tipo de parcela",
+    "plotFixedDesc": "Vegetación por estratos: cobertura y altura por estrato",
+    "plotTransectDesc": "Muestreo a lo largo de una línea, con traza GPS",
+    "plotPointDesc": "Conteo por puntos de aves y otros animales",
+    "traitLayers": "Estratos E1–E6",
+    "traitDefault4": "4 estratos por defecto",
+    "traitSubplots": "Admite subparcelas",
+    "traitSingleLayer": "Un estrato",
+    "traitTrack": "Con traza",
+    "traitRadius": "Con radio",
+    "importPlot": "Importar archivo de parcela",
+    "startSurvey": "Iniciar muestreo"
+  },
+  "count": {
+    "increase": "Aumentar {{name}}",
+    "decrease": "Disminuir {{name}}",
+    "presenceOnly": "Solo presencia",
+    "plusOne": "Cantidad +1",
+    "plusOneDone": "{{name}}: cantidad +1"
   }
 }

@@ -21,9 +21,8 @@ import {
   type SwipeNavPagerState,
 } from './SwipeNavigator';
 import { PhotoGrid, PhotoViewerModal } from './PhotoGrid';
-import { AudioClipList } from './AudioClipList';
+import { AudioClipRows, AudioRecordTile } from './AudioClipList';
 import { InatSyncButton, type InatSheetState } from './InatSyncButton';
-import i18n from '~/i18n';
 import { observationWebUrl } from '~/lib/inatApi';
 import { showActionSheet } from './ActionSheet';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -34,20 +33,20 @@ import { useRouter } from 'expo-router';
 import {
   endemicTagLabel,
   getKeysForScope,
-  getSynonyms,
+  searchByTaxonId,
   type IdentificationKey,
   type RecordWithTaxon,
-  type Synonym,
+  type SearchResult,
   sourceOfTaxonId,
 } from '~/db';
 import { buildSpeciesCopyText, copyToClipboard, speciesCopyActions } from '~/lib/clipboard';
 import { formatQuantityBadge } from '~/lib/dwcAbundance';
 import { alienBadge } from '~/lib/conservationColors';
-import { CollapsibleSection, SynonymStatusBadge } from './CollapsibleSection';
-import { ConservationBadge } from './ConservationBadge';
 import { RecordMetaFooter } from './RecordMetaFooter';
 import { ScientificName } from './ScientificName';
-import { TaxonomyJumpChip } from './TaxonomyJumpChip';
+import { LookupResultSheet } from './LookupResultSheet';
+import { Tag } from './ui/Tag';
+import { Button } from './ui/Button';
 import { NotesEditModal } from './NotesEditModal';
 import { KeyboardAvoidingView } from './KeyboardAvoidingView';
 import { RecordLocationMap } from './RecordLocationMap';
@@ -114,33 +113,6 @@ function parsePhotoPaths(s: string | null): string[] {
   return [];
 }
 
-function externalLinks(record: RecordWithTaxon): Array<{ label: string; url: string }> {
-  const links: Array<{ label: string; url: string }> = [];
-  if (record.taxon_id) {
-    links.push({ label: 'TaiCOL', url: `https://taicol.tw/zh-hant/taxon/${record.taxon_id}` });
-  }
-  if (record.inat_uploaded_at != null && record.inat_observation_id) {
-    // The numeric id now lives in the footer beside the uuid, so the link is
-    // free to say what it opens instead of repeating the identifier.
-    links.push({
-      label: i18n.t('species.inatObservation'),
-      url: observationWebUrl(record.inat_observation_id),
-    });
-  }
-  const sciEnc = encodeURIComponent(record.simple_name);
-  links.push({ label: 'GBIF', url: `https://www.gbif.org/species/search?q=${sciEnc}` });
-  links.push({
-    label: i18n.t('species.inatTaxon'),
-    url: `https://www.inaturalist.org/taxa/search?q=${sciEnc}`,
-  });
-  links.push({ label: 'Wikispecies', url: `https://species.wikimedia.org/wiki/${sciEnc}` });
-  if (record.kingdom === 'Plantae') {
-    links.push({ label: 'POWO', url: `https://powo.science.kew.org/?q=${sciEnc}` });
-    links.push({ label: 'IPNI', url: `https://www.ipni.org/?q=${sciEnc}` });
-  }
-  return links;
-}
-
 export function SpeciesDetailSheet({
   record,
   onClose,
@@ -165,18 +137,11 @@ export function SpeciesDetailSheet({
   const nav = usePagerNav(pager);
   const scrollRef = useRef<ScrollView>(null);
   const { t } = useTranslation();
-  const [synonyms, setSynonyms] = useState<Synonym[]>([]);
   const [notesModalOpen, setNotesModalOpen] = useState(false);
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   const [parentKeys, setParentKeys] = useState<IdentificationKey[]>([]);
-
-  useEffect(() => {
-    if (record?.taxon_id) {
-      setSynonyms(getSynonyms(record.taxon_id));
-    } else {
-      setSynonyms([]);
-    }
-  }, [record?.taxon_id]);
+  /** 分類資訊: the taxon page, opened over this sheet. */
+  const [taxonInfo, setTaxonInfo] = useState<SearchResult | null>(null);
 
   // Surface identification keys defined for the record's genus / family
   // ("one rank up"). Each key is shown as a tappable chip that closes this
@@ -208,6 +173,7 @@ export function SpeciesDetailSheet({
   useEffect(() => {
     setNotesModalOpen(false);
     setViewerIndex(null);
+    setTaxonInfo(null);
     // Stepping to a neighbour keeps the sheet mounted, so without this the new
     // record opens scrolled to wherever the previous one was left.
     scrollRef.current?.scrollTo({ y: 0, animated: false });
@@ -217,7 +183,6 @@ export function SpeciesDetailSheet({
 
   const isEndemic = record.is_endemic === 'true';
   const ab = alienBadge(record.alien_type, record.kingdom);
-  const links = externalLinks(record);
   const observedStr = isoDateTime(record.observed_at);
 
   return (
@@ -245,12 +210,13 @@ export function SpeciesDetailSheet({
             <SafeAreaView edges={['bottom']} className="flex-1">
               <SwipeNavArea nav={nav}>
                 <SwipeNavPager state={pager} grabber />
+                {/* Name — the one thing that must stay in view, so it sits
+                    above the scroll. Reordered for the field (03-screens-flow
+                    §4); what belongs to the TAXON rather than to this record
+                    lives behind 分類資訊 near the bottom. */}
                 <View className="flex-row items-start border-b border-gray-100 px-4 py-3 dark:border-gray-800">
                   <View className="flex-1">
-                    <Text
-                      selectable
-                      className="text-lg font-semibold text-gray-900 dark:text-gray-100"
-                    >
+                    <Text selectable className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                       {record.common_name_c || t('species.noChineseName')}
                     </Text>
                     <ScientificName
@@ -258,9 +224,24 @@ export function SpeciesDetailSheet({
                       rank={record.rank}
                       author={record.name_author}
                       kingdom={record.kingdom}
-                      className="text-sm text-gray-700 dark:text-gray-300"
+                      className="text-lg text-gray-800 dark:text-gray-200"
                       selectable
                     />
+                    {record.family ? (
+                      <Text className="text-sm text-gray-500 dark:text-gray-400">
+                        {record.family_c} {record.family}
+                      </Text>
+                    ) : null}
+                    <View className="mt-1.5 flex-row flex-wrap items-center gap-1.5">
+                      {isEndemic ? (
+                        <Tag kind="endemic" size="md" label={endemicTagLabel(record.taxon_id)} />
+                      ) : null}
+                      {ab ? <Tag kind={ab.kind} size="md" label={ab.longLabel} /> : null}
+                      {record.redlist ? <Tag kind="iucn" size="md" iucnCode={record.redlist} /> : null}
+                      {record.protected ? (
+                        <Tag kind="protected" size="md" label={`${t('species.protected')} ${record.protected}`} />
+                      ) : null}
+                    </View>
                     {onSaveVerbatim ? (
                       <VerbatimLabelField
                         key={record.id}
@@ -269,19 +250,27 @@ export function SpeciesDetailSheet({
                         onCommit={onSaveVerbatim}
                       />
                     ) : null}
-                    {onReplaceTaxon ? (
-                      <Pressable
-                        onPress={onReplaceTaxon}
-                        hitSlop={6}
-                        className="mt-2 flex-row items-center self-start active:opacity-70"
-                      >
-                        <Ionicons name="swap-horizontal" size={14} color={c.accent} />
-                        <Text className="ml-1 text-xs font-medium text-accent-700 dark:text-accent-300">
-                          {t('session.changeTaxon')}
-                        </Text>
-                      </Pressable>
-                    ) : null}
-                    {record.taxon_id ? <FavoriteToggle taxonId={record.taxon_id} /> : null}
+                    <View className="mt-1 flex-row flex-wrap items-center gap-2">
+                      {record.taxon_id ? <FavoriteToggle taxonId={record.taxon_id} /> : null}
+                      {/* Identification keys for the genus / family: a field
+                          tool, so they stay here rather than behind 分類資訊. */}
+                      {parentKeys.map((k) => (
+                        <Pressable
+                          key={k.id}
+                          onPress={() => {
+                            onClose();
+                            requestAnimationFrame(() => router.push(`/key/${k.id}`));
+                          }}
+                          className="flex-row items-center rounded-full bg-accent-100 px-2.5 py-1 active:bg-accent-200 dark:bg-accent-900/60 dark:active:bg-accent-800"
+                          hitSlop={4}
+                        >
+                          <Ionicons name="key" size={12} color={c.accent} />
+                          <Text className="ml-1 text-xs font-medium text-accent-700 dark:text-accent-300">
+                            {t('nav.key')} ({k.scope_name})
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
                   </View>
                   <Pressable
                     onPress={async () => {
@@ -295,180 +284,50 @@ export function SpeciesDetailSheet({
                         await copyToClipboard(buildSpeciesCopyText(record, a.mode));
                       }
                     }}
-                    hitSlop={8}
-                    className="ml-2"
+                    accessibilityRole="button"
+                    accessibilityLabel={t('clipboard.copyMenu')}
+                    className="h-11 w-11 items-center justify-center rounded-full active:bg-gray-100 dark:active:bg-gray-800"
                   >
                     <Ionicons name="copy-outline" size={20} color={c.ink2} />
                   </Pressable>
-                  <Pressable onPress={onClose} hitSlop={8} className="ml-2">
+                  <Pressable
+                    onPress={onClose}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('common.close')}
+                    className="h-11 w-11 items-center justify-center rounded-full active:bg-gray-100 dark:active:bg-gray-800"
+                  >
                     <Ionicons name="close" size={22} color={c.ink2} />
                   </Pressable>
                 </View>
 
-                {/* The sheet's only inline text field is RecordLocationMap's
-                coordinate entry. Since the this-record block was reordered
-                locate-first it usually sits high enough to clear the keyboard —
-                but the taxonomy sections above it (other names / species status /
-                conservation status / synonyms) are unbounded, so on a
-                well-annotated taxon it drops right back down.
-                `behavior="padding"` shrinks the ScrollView rather than moving
-                the sheet container, which is what keeps the header from being
-                pushed off the top edge. */}
+                {/* The sheet's inline text fields (RecordLocationMap's
+                coordinate entry, the count, the verbatim label, the altitude)
+                sit mid-sheet. `behavior="padding"` shrinks the ScrollView
+                rather than moving the sheet container, which is what keeps the
+                header from being pushed off the top edge. */}
                 <KeyboardAvoidingView className="flex-1" behavior="padding">
-                  {/* `keyboardShouldPersistTaps="handled"`: the sheet's inline
-                  TextInputs (RecordLocationMap's coordinate entry, the verbatim
-                  label) both put Cancel and OK directly under the field. RN's default 'never' spends the
-                  first tap dismissing the keyboard, so those two buttons needed
-                  two taps — a pre-existing bug the locate-first reorder makes far
-                  easier to hit. 'handled' still dismisses on taps no child takes.
-                  Both sibling sheets already set it. */}
+                  {/* `keyboardShouldPersistTaps="handled"`: RecordLocationMap's
+                  coordinate entry puts Cancel and OK directly under the field,
+                  and RN's default 'never' spends the first tap dismissing the
+                  keyboard. 'handled' still dismisses on taps no child takes. */}
                   <ScrollView
                     ref={scrollRef}
                     className="flex-1"
                     keyboardShouldPersistTaps="handled"
                   >
-                    {record.family ? (
-                      <View className="px-4 py-3">
-                        <View className="flex-row flex-wrap items-center gap-2">
-                          <TaxonomyJumpChip
-                            rank="family"
-                            lineage={{
-                              kingdom: record.kingdom,
-                              phylum: record.phylum,
-                              class: record.class,
-                              order: record.order,
-                              family: record.family,
-                            }}
-                            name={record.family}
-                            nameC={record.family_c}
-                            beforeJump={onClose}
-                          />
-                          {parentKeys.map((k) => (
-                            <Pressable
-                              key={k.id}
-                              onPress={() => {
-                                onClose();
-                                requestAnimationFrame(() => router.push(`/key/${k.id}`));
-                              }}
-                              className={`flex-row items-center rounded-full px-2.5 py-1 active:opacity-80 ${
-                                k.mode === 'multi_access'
-                                  ? 'bg-accent-100 dark:bg-accent-900/60'
-                                  : 'bg-emerald-100 dark:bg-emerald-900/60'
-                              }`}
-                              hitSlop={4}
-                            >
-                              <Ionicons
-                                name="key"
-                                size={12}
-                                color={k.mode === 'multi_access' ? c.accent : c.accent}
-                              />
-                              <Text
-                                className={`ml-1 text-xs font-medium ${
-                                  k.mode === 'multi_access'
-                                    ? 'text-accent-700 dark:text-accent-300'
-                                    : 'text-emerald-700 dark:text-emerald-300'
-                                }`}
-                              >
-                                {t('nav.key')} ({k.scope_name})
-                              </Text>
-                            </Pressable>
-                          ))}
-                        </View>
-                      </View>
-                    ) : null}
-
-                    {record.alternative_name_c ? (
-                      <Section title={t('species.otherNames')}>
-                        <Text selectable className="text-sm text-gray-700 dark:text-gray-300">
-                          {splitAltNames(record.alternative_name_c).join('、')}
-                        </Text>
-                      </Section>
-                    ) : null}
-
-                    <Section title={t('species.status')}>
-                      <View className="flex-row flex-wrap gap-2">
-                        {isEndemic ? (
-                          <Tag color="emerald" label={endemicTagLabel(record.taxon_id)} />
-                        ) : null}
-                        {ab ? (
-                          <Tag
-                            color={
-                              ab.kind === 'invasive' || ab.kind === 'naturalized'
-                                ? 'rose'
-                                : 'purple'
-                            }
-                            label={ab.longLabel}
-                          />
-                        ) : null}
-                        {record.is_hybrid === 'true' ? (
-                          <Tag color="purple" label={t('species.hybrid')} />
-                        ) : null}
-                        {record.is_terrestrial === 'true' ? (
-                          <Tag color="blue" label={t('species.terrestrial')} />
-                        ) : null}
-                        {record.is_freshwater === 'true' ? (
-                          <Tag color="blue" label={t('species.freshwater')} />
-                        ) : null}
-                        {record.is_brackish === 'true' ? (
-                          <Tag color="blue" label={t('species.brackish')} />
-                        ) : null}
-                        {record.is_marine === 'true' ? (
-                          <Tag color="blue" label={t('species.marine')} />
-                        ) : null}
-                        {record.is_fossil === 'true' ? (
-                          <Tag color="blue" label={t('species.fossil')} />
-                        ) : null}
-                      </View>
-                    </Section>
-
-                    {record.redlist || record.iucn || record.cites || record.protected ? (
-                      <Section title={t('species.conservation')}>
-                        <View className="space-y-1">
-                          <ConservationBadgeRow
-                            label={t('species.redlist')}
-                            value={record.redlist}
-                          />
-                          <ConservationBadgeRow label="IUCN" value={record.iucn} />
-                          <ConservationRow label="CITES" value={record.cites} />
-                          <ConservationRow
-                            label={t('species.protected')}
-                            value={record.protected}
-                          />
-                        </View>
-                      </Section>
-                    ) : null}
-
-                    {(() => {
-                      const nonAccepted = synonyms.filter((s) => s.status !== 'accepted');
-                      if (nonAccepted.length === 0) return null;
-                      return (
-                        <CollapsibleSection
-                          title={t('species.synonyms')}
-                          count={nonAccepted.length}
-                          defaultOpen={false}
-                        >
-                          {nonAccepted.map((s, idx) => (
-                            <View key={idx} className="flex-row flex-wrap items-baseline">
-                              <Text selectable className="text-sm text-gray-700 dark:text-gray-300">
-                                {'• '}
-                                <ScientificName
-                                  name={s.scientificName}
-                                  author={s.authorship}
-                                  kingdom={record.kingdom}
-                                  selectable
-                                />
-                              </Text>
-                              <SynonymStatusBadge status={s.status} />
-                            </View>
-                          ))}
-                        </CollapsibleSection>
-                      );
-                    })()}
-
-                    <Section title={t('species.thisRecord')}>
-                      <Text selectable className="text-sm text-gray-700 dark:text-gray-300">
+                    <View className="px-4 pt-2">
+                      <Text selectable className="mt-1 text-sm text-gray-600 dark:text-gray-400">
                         {t('species.timeLabel', { time: observedStr })}
                       </Text>
+                      {onAddPhoto ? (
+                        <PhotoGrid
+                          photos={parsePhotoPaths(record.photo_paths)}
+                          onView={(idx) => setViewerIndex(idx)}
+                          onAdd={() => onAddPhoto('camera')}
+                          onPickLibrary={() => onAddPhoto('library')}
+                          onRemove={onRemovePhoto}
+                        />
+                      ) : null}
                       {onSaveQuantity ? (
                         <CountField
                           key={record.id}
@@ -477,76 +336,94 @@ export function SpeciesDetailSheet({
                           onCommit={onSaveQuantity}
                         />
                       ) : null}
-                      {onSaveLocation ? (
-                        <Pressable
-                          onPress={async () => {
-                            // Tap to capture current GNSS; long-press handled via separate clear action.
-                            const perm = await Location.requestForegroundPermissionsAsync();
-                            if (perm.status !== 'granted') {
-                              Alert.alert(t('gnss.permTitle'), t('gnss.permMsg'));
-                              return;
-                            }
-                            try {
-                              const pos = await Location.getCurrentPositionAsync({
-                                accuracy: Location.Accuracy.Balanced,
-                              });
-                              onSaveLocation(
-                                pos.coords.latitude,
-                                pos.coords.longitude,
-                                pos.coords.accuracy ?? null,
-                              );
-                              // The fix's altitude comes along, rounded like
-                              // every other altitude in the app.
-                              if (onSaveElevation && pos.coords.altitude != null) {
-                                onSaveElevation(Math.round(pos.coords.altitude), 'gnss');
+
+                      {/* Quick actions: coordinate · audio · notes, one row. */}
+                      <View className="mt-2 flex-row gap-2">
+                        {onSaveLocation ? (
+                          <Pressable
+                            onPress={async () => {
+                              // Tap captures the current GNSS; long-press clears.
+                              const perm = await Location.requestForegroundPermissionsAsync();
+                              if (perm.status !== 'granted') {
+                                Alert.alert(t('gnss.permTitle'), t('gnss.permMsg'));
+                                return;
                               }
-                            } catch (e) {
-                              Alert.alert(
-                                t('gnss.posFailTitle'),
-                                errText(e),
-                              );
-                            }
-                          }}
-                          onLongPress={
-                            record.lat !== null
-                              ? () => {
-                                  Alert.alert('GNSS', undefined, [
-                                    { text: t('common.cancel'), style: 'cancel' },
-                                    {
-                                      text: t('species.clearCoord'),
-                                      style: 'destructive',
-                                      onPress: () => onSaveLocation(null, null, null),
-                                    },
-                                  ]);
+                              try {
+                                const pos = await Location.getCurrentPositionAsync({
+                                  accuracy: Location.Accuracy.Balanced,
+                                });
+                                onSaveLocation(
+                                  pos.coords.latitude,
+                                  pos.coords.longitude,
+                                  pos.coords.accuracy ?? null,
+                                );
+                                // The fix's altitude comes along, rounded like
+                                // every other altitude in the app.
+                                if (onSaveElevation && pos.coords.altitude != null) {
+                                  onSaveElevation(Math.round(pos.coords.altitude), 'gnss');
                                 }
-                              : undefined
-                          }
-                          className="mt-2 flex-row items-center rounded-lg border border-gray-200 px-3 py-2 active:bg-gray-50 dark:border-gray-700 dark:active:bg-gray-800"
-                        >
-                          <Ionicons
-                            name={record.lat !== null ? 'location' : 'location-outline'}
-                            size={18}
-                            color={record.lat !== null ? c.accent : '#4b5563'}
-                          />
-                          <Text
-                            className="ml-2 flex-1 text-sm text-gray-700 dark:text-gray-300"
-                            selectable
+                              } catch (e) {
+                                Alert.alert(t('gnss.posFailTitle'), errText(e));
+                              }
+                            }}
+                            onLongPress={
+                              record.lat !== null
+                                ? () => {
+                                    Alert.alert('GNSS', undefined, [
+                                      { text: t('common.cancel'), style: 'cancel' },
+                                      {
+                                        text: t('species.clearCoord'),
+                                        style: 'destructive',
+                                        onPress: () => onSaveLocation(null, null, null),
+                                      },
+                                    ]);
+                                  }
+                                : undefined
+                            }
+                            accessibilityRole="button"
+                            className="mt-2 flex-1 justify-center rounded-lg border border-line px-3 active:bg-gray-100 dark:border-line-dark dark:active:bg-gray-800"
+                            style={{ minHeight: 88 }}
                           >
-                            {record.lat !== null && record.lng !== null
-                              ? `${record.lat.toFixed(5)}, ${record.lng.toFixed(5)}${
-                                  record.accuracy !== null
-                                    ? ` (±${Math.round(record.accuracy)}m)`
-                                    : ''
-                                }`
-                              : t('species.locateSpecies')}
+                            <Ionicons
+                              name={record.lat !== null ? 'location' : 'location-outline'}
+                              size={22}
+                              color={record.lat !== null ? c.accent : c.ink2}
+                            />
+                            <Text className="mt-1 text-sm font-medium text-gray-900 dark:text-gray-100">
+                              {record.lat !== null ? t('species.coordinates') : t('species.locateSpecies')}
+                            </Text>
+                            <Text selectable numberOfLines={2} className="text-xs text-gray-500 dark:text-gray-400">
+                              {record.lat !== null && record.lng !== null
+                                ? `${record.accuracy !== null ? `±${Math.round(record.accuracy)} m` : `${record.lat.toFixed(4)}, ${record.lng.toFixed(4)}`}${
+                                    record.elevation_m != null ? ` · ${record.elevation_m} m` : ''
+                                  } · ${t('species.longPressClear')}`
+                                : t('species.tapGnss')}
+                            </Text>
+                          </Pressable>
+                        ) : null}
+                        {onAddAudio ? <AudioRecordTile onAdd={onAddAudio} /> : null}
+                        <Pressable
+                          onPress={() => setNotesModalOpen(true)}
+                          accessibilityRole="button"
+                          className="mt-2 flex-1 justify-center rounded-lg border border-line px-3 active:bg-gray-100 dark:border-line-dark dark:active:bg-gray-800"
+                          style={{ minHeight: 88 }}
+                        >
+                          <Ionicons name="create-outline" size={22} color={record.notes ? c.accent : c.ink2} />
+                          <Text className="mt-1 text-sm font-medium text-gray-900 dark:text-gray-100">
+                            {t('session.notes')}
                           </Text>
-                          <Text className="text-xs text-gray-400 dark:text-gray-500">
-                            {record.lat !== null
-                              ? t('species.longPressClear')
-                              : t('species.tapGnss')}
+                          <Text numberOfLines={2} className="text-xs text-gray-500 dark:text-gray-400">
+                            {record.notes ? record.notes : t('species.addNote')}
                           </Text>
                         </Pressable>
+                      </View>
+                      {onAddAudio ? (
+                        <AudioClipRows
+                          clips={parsePhotoPaths(record.audio_paths)}
+                          onRemove={onRemoveAudio ?? (() => {})}
+                        />
                       ) : null}
+
                       {/* Only when there is a photo and no position: a photo
                           taken at the plant carries the fix the recorder never
                           got round to saving, and reading it back beats
@@ -572,14 +449,13 @@ export function SpeciesDetailSheet({
                               Alert.alert(t('species.usePhotoGnss'), t('species.photoNoGnss'));
                               return;
                             }
-                            // No success notice: the coordinate row and the map
-                            // point below update on the spot, which says it better
-                            // than an alert the user has to dismiss.
+                            // No success notice: the coordinate tile and the map
+                            // point below update on the spot.
                             onSaveLocation(out.fix.lat, out.fix.lng, out.fix.accuracyM);
                           }}
                           className="mt-2 flex-row items-center rounded-lg border border-gray-200 px-3 py-2 active:bg-gray-50 dark:border-gray-700 dark:active:bg-gray-800"
                         >
-                          <Ionicons name="image-outline" size={18} color="#4b5563" />
+                          <Ionicons name="image-outline" size={18} color={c.ink2} />
                           <Text className="ml-2 flex-1 text-sm text-gray-700 dark:text-gray-300">
                             {t('species.usePhotoGnss')}
                           </Text>
@@ -616,32 +492,6 @@ export function SpeciesDetailSheet({
                           />
                         </View>
                       ) : null}
-                      {onAddPhoto ? (
-                        <PhotoGrid
-                          photos={parsePhotoPaths(record.photo_paths)}
-                          onView={(idx) => setViewerIndex(idx)}
-                          onAdd={() => onAddPhoto('camera')}
-                          onPickLibrary={() => onAddPhoto('library')}
-                          onRemove={onRemovePhoto}
-                        />
-                      ) : null}
-                      {onAddAudio ? (
-                        <AudioClipList
-                          clips={parsePhotoPaths(record.audio_paths)}
-                          onAdd={onAddAudio}
-                          onRemove={onRemoveAudio ?? (() => {})}
-                        />
-                      ) : null}
-                      <Pressable
-                        onPress={() => setNotesModalOpen(true)}
-                        className="mt-2 flex-row items-center rounded-lg border border-gray-200 px-3 py-2 active:bg-gray-50 dark:border-gray-700 dark:active:bg-gray-800"
-                      >
-                        <Ionicons name="create-outline" size={18} color="#4b5563" />
-                        <Text className="ml-2 flex-1 text-sm text-gray-700 dark:text-gray-300">
-                          {record.notes ? record.notes : t('species.addNote')}
-                        </Text>
-                        <Ionicons name="chevron-forward" size={16} color={c.ink3} />
-                      </Pressable>
                       {onSaveAttributes ? (
                         <View className="mt-3">
                           <SpeciesAttributesBlock
@@ -661,24 +511,43 @@ export function SpeciesDetailSheet({
                         </View>
                       ) : null}
                       {inat ? <InatSyncButton state={inat} /> : null}
-                    </Section>
+                      {/* This record's iNaturalist observation: a record-level
+                          link, so it stays here (the taxon's own links moved to
+                          分類資訊). */}
+                      {record.inat_uploaded_at != null && record.inat_observation_id ? (
+                        <Pressable
+                          onPress={() => Linking.openURL(observationWebUrl(record.inat_observation_id!))}
+                          className="mt-2 flex-row items-center self-start rounded-full bg-accent-50 px-3 py-1.5 active:bg-accent-100 dark:bg-accent-950/40 dark:active:bg-accent-900/60"
+                        >
+                          <Text className="text-xs font-medium text-accent-700 dark:text-accent-300">
+                            {t('species.inatObservation')}
+                          </Text>
+                          <Ionicons name="open-outline" size={12} color={c.accent} />
+                        </Pressable>
+                      ) : null}
 
-                    <Section title={t('species.externalLinks')}>
-                      <View className="flex-row flex-wrap gap-2">
-                        {links.map((link) => (
-                          <Pressable
-                            key={link.label}
-                            onPress={() => Linking.openURL(link.url)}
-                            className="flex-row items-center rounded-full bg-accent-50 px-3 py-1.5 active:bg-accent-100 dark:bg-accent-950/40 dark:active:bg-accent-900/60"
-                          >
-                            <Text className="text-xs font-medium text-accent-700 dark:text-accent-300">
-                              {link.label}
-                            </Text>
-                            <Ionicons name="open-outline" size={12} color={c.accent} />
-                          </Pressable>
-                        ))}
-                      </View>
-                    </Section>
+                      {/* 分類資訊: other names, status, conservation,
+                          synonyms, lineage and the taxon's links — the same
+                          page the species tab shows. */}
+                      {record.taxon_id ? (
+                        <Pressable
+                          onPress={() => {
+                            const r = searchByTaxonId(record.taxon_id);
+                            if (r) setTaxonInfo(r);
+                            else Alert.alert(t('species.taxonInfo'), t('search.noLocalMatch', { q: record.simple_name }));
+                          }}
+                          accessibilityRole="button"
+                          className="mt-4 flex-row items-center rounded-card border border-line px-4 active:bg-gray-100 dark:border-line-dark dark:active:bg-gray-800"
+                          style={{ minHeight: 52 }}
+                        >
+                          <Ionicons name="git-branch-outline" size={20} color={c.ink2} />
+                          <Text className="ml-2 flex-1 text-base font-medium text-gray-900 dark:text-gray-100">
+                            {t('species.taxonInfo')}
+                          </Text>
+                          <Ionicons name="chevron-forward" size={18} color={c.ink3} />
+                        </Pressable>
+                      ) : null}
+                    </View>
 
                     <RecordMetaFooter
                       occurrenceId={record.occurrence_id}
@@ -688,19 +557,28 @@ export function SpeciesDetailSheet({
                       }
                     />
 
-                    <View className="px-4 pb-6 pt-4">
-                      <Pressable
+                    <View className="flex-row gap-2 px-4 pb-6 pt-4">
+                      {onReplaceTaxon ? (
+                        <Button
+                          label={t('session.changeTaxon')}
+                          icon="swap-horizontal"
+                          variant="secondary"
+                          onPress={onReplaceTaxon}
+                          size="lg"
+                          className="flex-1"
+                        />
+                      ) : null}
+                      <Button
+                        label={t('session.removeFromList')}
+                        icon="trash-outline"
+                        variant="danger"
                         onPress={() => {
                           onRemove();
                           onClose();
                         }}
-                        className="flex-row items-center justify-center rounded-lg border border-red-200 bg-red-50 px-4 py-3 active:bg-red-100 dark:bg-red-950/40 dark:active:bg-red-900/60"
-                      >
-                        <Ionicons name="trash-outline" size={18} color={c.alert} />
-                        <Text className="ml-2 text-sm font-medium text-red-700 dark:text-red-400">
-                          {t('session.removeFromList')}
-                        </Text>
-                      </Pressable>
+                        size="lg"
+                        className="flex-1"
+                      />
                     </View>
                   </ScrollView>
                 </KeyboardAvoidingView>
@@ -725,6 +603,12 @@ export function SpeciesDetailSheet({
           index={viewerIndex}
           onClose={() => setViewerIndex(null)}
         />
+
+        {/* Nested in this sheet's own Modal, like the two above: a root host
+            would open behind it. No add button — the record already holds it. */}
+        {taxonInfo ? (
+          <LookupResultSheet key={taxonInfo.taxon_id} result={taxonInfo} onClose={() => setTaxonInfo(null)} />
+        ) : null}
       </View>
       {/* Toasts fired while this sheet is up (it has its own window). */}
       <ToastHost inModal />
@@ -745,6 +629,8 @@ export function SpeciesDetailSheet({
  *
  * Stepper AND keyboard: field counts are usually 1-3, where tapping ＋ beats
  * opening a keyboard, but a flock is 200 and a stepper alone would be absurd.
+ * So the redesign's CountStepper look (52 pt round keys, large figure) is used
+ * here with the figure still typeable, rather than CountStepper itself.
  */
 function CountField({
   quantity,
@@ -783,18 +669,18 @@ function CountField({
   const step = (delta: number) => onCommit(Math.max(0, (current ?? 0) + delta));
 
   return (
-    <View className="mt-2 flex-row items-center">
+    <View className="mt-3 flex-row items-center justify-center">
       <Text className="mr-3 text-sm text-gray-500 dark:text-gray-400">{t('species.count')}</Text>
       <Pressable
         onPress={() => step(-1)}
         disabled={current == null || current <= 0}
-        hitSlop={6}
+        accessibilityRole="button"
         accessibilityLabel={t('species.countMinus')}
-        className={`h-8 w-8 items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 ${
-          current == null || current <= 0 ? 'opacity-40' : 'active:bg-gray-100 dark:active:bg-gray-700'
+        className={`h-[52px] w-[52px] items-center justify-center rounded-full border border-line bg-card dark:border-line-dark dark:bg-card-dark ${
+          current == null || current <= 0 ? 'opacity-40' : 'active:bg-gray-100 dark:active:bg-gray-800'
         }`}
       >
-        <Ionicons name="remove" size={16} color="#4b5563" />
+        <Ionicons name="remove" size={26} color={c.ink} />
       </Pressable>
       <TextInput
         value={draft}
@@ -816,15 +702,16 @@ function CountField({
         keyboardType="number-pad"
         placeholder={t('species.countUnset')}
         placeholderTextColor={c.ink3}
-        className="mx-2 min-w-[56px] rounded-lg border border-gray-300 px-2 py-1 text-center text-base text-gray-900 dark:border-gray-600 dark:text-gray-100"
+        className="mx-3 min-w-[72px] rounded-lg border border-line px-2 py-1 text-center text-3xl font-bold text-gray-900 dark:border-line-dark dark:text-gray-100"
+        style={{ fontVariant: ['tabular-nums'] }}
       />
       <Pressable
         onPress={() => step(1)}
-        hitSlop={6}
+        accessibilityRole="button"
         accessibilityLabel={t('species.countPlus')}
-        className="h-8 w-8 items-center justify-center rounded-lg border border-gray-300 active:bg-gray-100 dark:border-gray-600 dark:active:bg-gray-700"
+        className="h-[52px] w-[52px] items-center justify-center rounded-full bg-accent-600 active:bg-accent-700 dark:bg-accent-400 dark:active:bg-accent-300"
       >
-        <Ionicons name="add" size={16} color="#4b5563" />
+        <Ionicons name="add" size={26} color={c.onAccent} />
       </Pressable>
       {current != null ? (
         <Pressable onPress={() => onCommit(null)} hitSlop={8} className="ml-3 active:opacity-70">
@@ -834,74 +721,3 @@ function CountField({
     </View>
   );
 }
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <View className="border-b border-gray-100 px-4 py-3 dark:border-gray-800">
-      <Text className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-        {title}
-      </Text>
-      {children}
-    </View>
-  );
-}
-
-function splitAltNames(s: string): string[] {
-  return s
-    .split(/[,、]/)
-    .map((x) => x.trim())
-    .filter(Boolean);
-}
-
-const TAG_STYLES: Record<'emerald' | 'blue' | 'purple' | 'rose', { bg: string; text: string }> = {
-  emerald: {
-    bg: 'bg-emerald-100 dark:bg-emerald-900/60',
-    text: 'text-emerald-700 dark:text-emerald-300',
-  },
-  blue: {
-    bg: 'bg-accent-100 dark:bg-accent-900/60',
-    text: 'text-accent-700 dark:text-accent-300',
-  },
-  purple: {
-    bg: 'bg-purple-100 dark:bg-purple-900/60',
-    text: 'text-purple-700 dark:text-purple-300',
-  },
-  rose: {
-    bg: 'bg-rose-100 dark:bg-rose-900/60',
-    text: 'text-rose-700 dark:text-rose-300',
-  },
-};
-
-function Tag({ color, label }: { color: 'emerald' | 'blue' | 'purple' | 'rose'; label: string }) {
-  const s = TAG_STYLES[color];
-  return (
-    <View className={`rounded-full px-2.5 py-1 ${s.bg}`}>
-      <Text className={`text-xs font-medium ${s.text}`}>{label}</Text>
-    </View>
-  );
-}
-
-// Empty means "this taxon carries no such listing", which is not the same as
-// "unknown" — a 「紅皮書：–」 row states nothing and pushes the rows that do
-// carry a listing further down. Same guard as SpeciesDetailPanel.
-function ConservationRow({ label, value }: { label: string; value: string }) {
-  if (!value) return null;
-  return (
-    <Text selectable className="text-sm text-gray-700 dark:text-gray-300">
-      {label}：<Text className="font-medium">{value}</Text>
-    </Text>
-  );
-}
-
-function ConservationBadgeRow({ label, value }: { label: string; value: string }) {
-  if (!value) return null;
-  return (
-    <View className="flex-row items-center">
-      <Text selectable className="text-sm text-gray-700 dark:text-gray-300">
-        {label}：
-      </Text>
-      <ConservationBadge code={value} />
-    </View>
-  );
-}
-

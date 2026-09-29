@@ -25,6 +25,7 @@ import { ScientificName } from './ScientificName';
 import { useSettings } from '~/stores/settings';
 import { useToast } from '~/stores/toast';
 import { useThemeColors } from '~/theme/colors';
+import { Button } from './ui/Button';
 
 /**
  * Debounce window between the last keystroke and the actual search firing.
@@ -108,6 +109,16 @@ type Props = {
    * crashes iOS. Default runs them directly.
    */
   runLookup?: LookupRunner;
+  /** Taxa already on the list being added to: their rows carry `markLabel`,
+   *  so adding the same species twice is a decision rather than a slip. */
+  markedTaxa?: ReadonlySet<string>;
+  markLabel?: string;
+  /**
+   * Dock only: a control beside the input (the checklist's camera key). It
+   * gives way to a Cancel while the input has focus — Cancel clears the query
+   * and puts the keyboard away.
+   */
+  trailing?: ReactNode;
 };
 
 /**
@@ -196,6 +207,9 @@ export function SearchBox({
   scopeGroups,
   onFocus,
   topLimit,
+  markedTaxa,
+  markLabel,
+  trailing,
 }: Props) {
   const c = useThemeColors();
   const { t } = useTranslation();
@@ -206,6 +220,7 @@ export function SearchBox({
   const [query, setQuery] = useState('');
   const [groups, setGroupsLocal] = useState<TaxonGroup[]>(scopeGroups ?? lastGroups);
   const [results, setResults] = useState<SearchResult[]>([]);
+  const [focused, setFocused] = useState(false);
   const inputRef = useRef<TextInput>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const trimmedQuery = query.trim();
@@ -350,6 +365,7 @@ export function SearchBox({
           renderItem={({ item }) => (
             <AutocompleteRow
               result={item}
+              markLabel={markedTaxa?.has(item.taxon_id) ? markLabel : undefined}
               onPress={() => handleSelect(item)}
               onLongPress={onLongPressResult ? () => onLongPressResult(item) : undefined}
               onAdopt={() => handleAdopt(item)}
@@ -404,18 +420,29 @@ export function SearchBox({
   );
 
   const input = (
-    <View className="flex-row items-center px-2 py-2">
-      <View className="flex-1 flex-row items-center rounded-full bg-gray-100 px-3 py-2 dark:bg-gray-800">
-        <Ionicons name="search" size={18} color={c.ink2} />
+    <View className="flex-row items-center gap-2 px-2 py-2">
+      <View
+        className={`flex-1 flex-row items-center rounded-full px-3 ${
+          dropdown
+            ? 'bg-gray-100 py-2 dark:bg-gray-800'
+            : 'border-[1.5px] border-gray-300 bg-paper dark:border-gray-600 dark:bg-paper-dark'
+        }`}
+        style={dropdown ? undefined : { minHeight: 48 }}
+      >
+        <Ionicons name="search" size={dropdown ? 18 : 20} color={c.ink2} />
         <TextInput
           ref={inputRef}
-          className="ml-2 flex-1 text-base text-gray-900 dark:text-gray-100"
+          className="ml-2 flex-1 py-2 text-base text-gray-900 dark:text-gray-100"
           placeholder={t('search.placeholder')}
           placeholderTextColor={c.ink3}
           value={query}
           onChangeText={setQuery}
           autoFocus={autoFocus}
-          onFocus={onFocus}
+          onFocus={() => {
+            setFocused(true);
+            onFocus?.();
+          }}
+          onBlur={() => setFocused(false)}
           autoCorrect={false}
           returnKeyType="search"
         />
@@ -425,6 +452,22 @@ export function SearchBox({
           </Pressable>
         ) : null}
       </View>
+      {trailing && !dropdown ? (
+        // Focus alone is not enough: Android's back key hides the keyboard but
+        // leaves the input focused, which would strand the camera behind Cancel.
+        focused && keyboardHeight > 0 ? (
+          <Button
+            label={t('common.cancel')}
+            variant="ghost"
+            onPress={() => {
+              setQuery('');
+              Keyboard.dismiss();
+            }}
+          />
+        ) : (
+          trailing
+        )
+      ) : null}
     </View>
   );
 
@@ -460,11 +503,14 @@ function getResultKey(r: SearchResult): string {
 
 const AutocompleteRow = memo(function AutocompleteRow({
   result,
+  markLabel,
   onPress,
   onLongPress,
   onAdopt,
 }: {
   result: SearchResult;
+  /** Set when the taxon is already on the list (e.g. 已在名錄). */
+  markLabel?: string;
   onPress: () => void;
   onLongPress?: () => void;
   onAdopt: () => void;
@@ -515,6 +561,11 @@ const AutocompleteRow = memo(function AutocompleteRow({
         {result.external_source === 'manual' ? (
           <Text className="ml-1.5 rounded bg-amber-100 px-1 text-xs font-medium text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">
             {t('manualTaxon.badge')}
+          </Text>
+        ) : null}
+        {markLabel ? (
+          <Text className="ml-1.5 rounded bg-accent-100 px-1 text-xs font-bold text-accent-700 dark:bg-accent-900 dark:text-accent-300">
+            {markLabel}
           </Text>
         ) : null}
       </View>

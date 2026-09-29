@@ -182,7 +182,12 @@
     "imported_one": "{{count}} imported",
     "imported_other": "{{count}} imported",
     "audioAdded": "Audio clip added",
-    "audioRemoved": "Audio clip removed"
+    "audioRemoved": "Audio clip removed",
+    "ended": "Ended",
+    "projectUnset": "No project",
+    "surveyorUnset": "No surveyor",
+    "inList": "In list",
+    "cameraAdd": "Add by photo"
   },
   "records": {
     "recording": "Recording",
@@ -266,7 +271,13 @@
     "gloriaCount_one": "GLORIA {{count}} ({{summits}} summits)",
     "gloriaCount_other": "GLORIA {{count}} ({{summits}} summits)",
     "deleteRecoverable": "Checklists, plot surveys and GLORIA surveys can be recovered for 30 days from Records ⋯ → “Recently deleted”.",
-    "deletePermanent": "Collections cannot be recovered once deleted."
+    "deletePermanent": "Collections cannot be recovered once deleted.",
+    "activeResume": "Continue recording",
+    "activeSpecies": "Species",
+    "activeElapsed": "Elapsed",
+    "thisWeek": "This week",
+    "starredGroup": "Starred",
+    "monthGroup": "{{year}}-{{month2}}"
   },
   "export": {
     "preparing": "Preparing…",
@@ -336,24 +347,21 @@
     "sites": "Geographic sites",
     "sitesDesc": "Points / lines / polygons on the map",
     "backupDesc": "Back up & restore data / photos",
-    "favoritesDesc": "Frequently-used species lists; add a whole list to a record at once"
+    "favoritesDesc": "Frequently-used species lists; add a whole list to a record at once",
+    "layout": "Layout",
+    "selectMany": "Select several",
+    "days30": "30 days",
+    "addSpecies": "Add species"
   },
   "record": {
     "kindSession": "Quick checklist",
     "kindPlot": "Plot survey",
     "createChooserTitle": "Create new record",
-    "createMenuTitle": "Create record",
-    "createMenuMsg": "Pick an action; the lower three change the default behavior of the + button.",
-    "defaultAsk": "Default: ask each time",
-    "defaultSession": "Default: quick checklist",
-    "defaultPlot": "Default: plot survey",
     "kindCollection": "Collection",
-    "defaultCollection": "Default: collection",
     "kindImport": "Import a record (.yml / .zip)",
     "lastUpdated": "Last updated",
     "kindGloria": "GLORIA summit survey",
     "moreActions": "More actions",
-    "lessActions": "Fewer actions",
     "kindMiren": "MIREN road / trail survey"
   },
   "rank": {
@@ -474,7 +482,9 @@
     "countPlus": "Increase by one",
     "deleteSelectedTitle": "Delete species records",
     "deleteSelectedMsg_one": "{{count}} selected species record will be deleted. This cannot be undone.",
-    "deleteSelectedMsg_other": "{{count}} selected species records will be deleted. This cannot be undone."
+    "deleteSelectedMsg_other": "{{count}} selected species records will be deleted. This cannot be undone.",
+    "taxonInfo": "Taxon info",
+    "coordinates": "Coordinates"
   },
   "attr": {
     "advanced": "Advanced (species attributes)",
@@ -533,11 +543,6 @@
     "newTransect": "New transect",
     "newPointCount": "New point count",
     "enterPlotid": "Enter plotid (e.g. {{example}})",
-    "plotMenuTitle": "Plot",
-    "optFixed": "Fixed plot (layered vegetation)",
-    "optTransect": "Transect (single layer, with track)",
-    "optPointCount": "Point count (birds/animals, with radius)",
-    "optImport": "Import plot (.yml / .zip)",
     "importFailTitle": "Import failed",
     "plotExistsTitle": "Plot already exists",
     "plotExistsMsg": "\"{{plotid}}\" already exists on this device. Overwrite, or save as a new copy?",
@@ -1128,7 +1133,8 @@
     "copySciname": "Copy scientific name",
     "copyCname": "Copy common name",
     "copyBoth": "Copy common + scientific",
-    "copyFull": "Copy full info"
+    "copyFull": "Copy full info",
+    "copyMenu": "Copy"
   },
   "transect": {
     "busyTitle": "Another record is recording a track",
@@ -4027,5 +4033,34 @@
     "recoverGo": "Recover",
     "recovered": "Recovered “{{name}}”",
     "recoverFail": "Could not recover"
+  },
+  "create": {
+    "descSession": "Walk and record: species, counts, photos and coordinates",
+    "descPlot": "Fixed plot, transect or point count, cover by layer",
+    "descCollection": "Specimen numbers, labels and identification",
+    "others": "Other",
+    "plusDefault": "When you tap ＋",
+    "isDefault": "Default",
+    "ask": "Ask",
+    "importFile": "Import file",
+    "plotPageSubtitle": "Choose a plot type",
+    "plotFixedDesc": "Layered vegetation: cover and height per layer",
+    "plotTransectDesc": "Survey along a line, with a GPS track",
+    "plotPointDesc": "Point counts for birds and other animals",
+    "traitLayers": "E1–E6 layers",
+    "traitDefault4": "4 layers by default",
+    "traitSubplots": "Subplots",
+    "traitSingleLayer": "Single layer",
+    "traitTrack": "With track",
+    "traitRadius": "With radius",
+    "importPlot": "Import plot file",
+    "startSurvey": "Start survey"
+  },
+  "count": {
+    "increase": "More {{name}}",
+    "decrease": "Fewer {{name}}",
+    "presenceOnly": "Presence only",
+    "plusOne": "Count +1",
+    "plusOneDone": "{{name}} count +1"
   }
 }

@@ -205,6 +205,11 @@ export default function PlotDetailScreen() {
                   setRev((n) => n + 1);
                   reload();
                 }}
+                edit={edit}
+                onEdited={() => {
+                  setRev((n) => n + 1);
+                  reload();
+                }}
               />
               <RecordEditButtons
                 edit={edit}
@@ -213,6 +218,7 @@ export default function PlotDetailScreen() {
                   setRev((n) => n + 1);
                   reload();
                 }}
+                inMenu
               />
               {plot.status === 'done' && !edit.locked ? null : (
               <HeaderIconButton

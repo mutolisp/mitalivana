@@ -39,7 +39,9 @@ import { Button } from '~/components/ui/Button';
 
 type Props = {
   result: SearchResult;
-  onAddToSession: () => void;
+  /** Omit to show the taxon for reading only — e.g. 分類資訊 opened from a
+   *  record that already holds it, where an add button would add it twice. */
+  onAddToSession?: () => void;
   /** Optional close button at top-right. Pass null/omit to hide. */
   onClose?: () => void;
   /** Override the add button text (e.g. for inline mode you might one day want
@@ -433,22 +435,26 @@ export function SpeciesDetailPanel({
           </View>
         ) : null}
 
-        <View className="px-4 pb-6 pt-4">
-          <Button
-            label={addButtonLabel ?? t('species.addToRecord')}
-            icon="add"
-            onPress={onAddToSession}
-            onLongPress={onAddLongPress}
-            delayLongPress={350}
-            size="lg"
-            fullWidth
-          />
-          {onAddLongPress ? (
-            <Text className="mt-1.5 text-center text-[11px] text-gray-400 dark:text-gray-500">
-              {t('addToRecord.longPressHint')}
-            </Text>
-          ) : null}
-        </View>
+        {onAddToSession ? (
+          <View className="px-4 pb-6 pt-4">
+            <Button
+              label={addButtonLabel ?? t('species.addToRecord')}
+              icon="add"
+              onPress={onAddToSession}
+              onLongPress={onAddLongPress}
+              delayLongPress={350}
+              size="lg"
+              fullWidth
+            />
+            {onAddLongPress ? (
+              <Text className="mt-1.5 text-center text-[11px] text-gray-400 dark:text-gray-500">
+                {t('addToRecord.longPressHint')}
+              </Text>
+            ) : null}
+          </View>
+        ) : (
+          <View className="h-6" />
+        )}
       </ScrollView>
     </View>
   );

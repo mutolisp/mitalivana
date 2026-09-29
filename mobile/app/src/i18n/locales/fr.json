@@ -201,7 +201,12 @@
     "imported_many": "{{count}} importés",
     "imported_other": "{{count}} importés",
     "audioAdded": "Extrait audio ajouté",
-    "audioRemoved": "Extrait audio retiré"
+    "audioRemoved": "Extrait audio retiré",
+    "ended": "Terminé",
+    "projectUnset": "Aucun projet",
+    "surveyorUnset": "Aucun observateur",
+    "inList": "Déjà listé",
+    "cameraAdd": "Ajouter par photo"
   },
   "records": {
     "recording": "Enregistrement en cours",
@@ -295,7 +300,13 @@
     "gloriaCount_many": "GLORIA {{count}} ({{summits}} sommets)",
     "gloriaCount_other": "GLORIA {{count}} ({{summits}} sommets)",
     "deleteRecoverable": "Les listes, placettes et relevés GLORIA peuvent être récupérés pendant 30 jours via Enregistrements ⋯ → « Supprimés récemment ».",
-    "deletePermanent": "Les collectes supprimées ne peuvent pas être récupérées."
+    "deletePermanent": "Les collectes supprimées ne peuvent pas être récupérées.",
+    "activeResume": "Reprendre l’enregistrement",
+    "activeSpecies": "Espèces",
+    "activeElapsed": "Durée",
+    "thisWeek": "Cette semaine",
+    "starredGroup": "Épinglés",
+    "monthGroup": "{{year}}-{{month2}}"
   },
   "export": {
     "preparing": "Préparation…",
@@ -365,24 +376,21 @@
     "sites": "Sites géographiques",
     "sitesDesc": "Points / lignes / polygones sur la carte",
     "backupDesc": "Sauvegarde et restauration des données / photos",
-    "favoritesDesc": "Listes d'espèces habituelles ; ajoutables en bloc à un relevé"
+    "favoritesDesc": "Listes d'espèces habituelles ; ajoutables en bloc à un relevé",
+    "layout": "Affichage",
+    "selectMany": "Sélection multiple",
+    "days30": "30 jours",
+    "addSpecies": "Ajouter des espèces"
   },
   "record": {
     "kindSession": "Liste d'espèces rapide",
     "kindPlot": "Inventaire de placette",
     "createChooserTitle": "Créer un enregistrement",
-    "createMenuTitle": "Créer un enregistrement",
-    "createMenuMsg": "Choisissez une action ; les trois options du bas modifient le comportement par défaut du bouton +.",
-    "defaultAsk": "Par défaut : demander à chaque fois",
-    "defaultSession": "Par défaut : liste d'espèces rapide",
-    "defaultPlot": "Par défaut : inventaire de placette",
     "kindCollection": "Enregistrement de récolte",
-    "defaultCollection": "Par défaut : enregistrement de récolte",
     "kindImport": "Importer un enregistrement (.yml / .zip)",
     "lastUpdated": "Dernière modification",
     "kindGloria": "Enquête GLORIA",
     "moreActions": "Autres actions",
-    "lessActions": "Moins d'actions",
     "kindMiren": "Relevé MIREN route / sentier"
   },
   "rank": {
@@ -505,7 +513,9 @@
     "deleteSelectedTitle": "Supprimer les observations",
     "deleteSelectedMsg_one": "{{count}} observation sélectionnée sera supprimée, sans retour possible.",
     "deleteSelectedMsg_many": "{{count}} observations sélectionnées seront supprimées, sans retour possible.",
-    "deleteSelectedMsg_other": "{{count}} observations sélectionnées seront supprimées, sans retour possible."
+    "deleteSelectedMsg_other": "{{count}} observations sélectionnées seront supprimées, sans retour possible.",
+    "taxonInfo": "Infos taxonomiques",
+    "coordinates": "Coordonnées"
   },
   "attr": {
     "advanced": "Avancé (attributs de l'espèce)",
@@ -565,11 +575,6 @@
     "newTransect": "Nouveau transect",
     "newPointCount": "Nouveau comptage par points",
     "enterPlotid": "Saisissez le plotid (ex. {{example}})",
-    "plotMenuTitle": "Placette",
-    "optFixed": "Placette fixe (végétation stratifiée)",
-    "optTransect": "Transect (strate unique, avec trace)",
-    "optPointCount": "Comptage par points (oiseaux/animaux, avec rayon)",
-    "optImport": "Importer une placette (.yml / .zip)",
     "importFailTitle": "Échec de l'import",
     "plotExistsTitle": "La placette existe déjà",
     "plotExistsMsg": "« {{plotid}} » existe déjà sur cet appareil. Écraser, ou enregistrer une nouvelle copie ?",
@@ -1198,7 +1203,8 @@
     "copySciname": "Copier le nom scientifique",
     "copyCname": "Copier le nom vernaculaire",
     "copyBoth": "Copier nom vernaculaire + scientifique",
-    "copyFull": "Copier toutes les informations"
+    "copyFull": "Copier toutes les informations",
+    "copyMenu": "Copier"
   },
   "transect": {
     "busyTitle": "Un autre enregistrement enregistre déjà une trace",
@@ -4204,5 +4210,34 @@
     "recoverGo": "Récupérer",
     "recovered": "« {{name}} » récupéré",
     "recoverFail": "Récupération impossible"
+  },
+  "create": {
+    "descSession": "Noter en marchant : espèces, effectifs, photos et coordonnées",
+    "descPlot": "Placette fixe, transect ou point d’écoute, recouvrement par strate",
+    "descCollection": "Numéros de spécimen, étiquettes et identification",
+    "others": "Autres",
+    "plusDefault": "En appuyant sur ＋",
+    "isDefault": "Par défaut",
+    "ask": "Toujours demander",
+    "importFile": "Importer un fichier",
+    "plotPageSubtitle": "Choisir le type de placette",
+    "plotFixedDesc": "Végétation stratifiée : recouvrement et hauteur par strate",
+    "plotTransectDesc": "Relevé le long d’une ligne, avec trace GPS",
+    "plotPointDesc": "Points d’écoute pour oiseaux et autres animaux",
+    "traitLayers": "Strates E1–E6",
+    "traitDefault4": "4 strates par défaut",
+    "traitSubplots": "Sous-placettes possibles",
+    "traitSingleLayer": "Une strate",
+    "traitTrack": "Avec trace",
+    "traitRadius": "Avec rayon",
+    "importPlot": "Importer un fichier de placette",
+    "startSurvey": "Commencer le relevé"
+  },
+  "count": {
+    "increase": "Augmenter {{name}}",
+    "decrease": "Diminuer {{name}}",
+    "presenceOnly": "Présence seule",
+    "plusOne": "Effectif +1",
+    "plusOneDone": "{{name}} : effectif +1"
   }
 }

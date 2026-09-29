@@ -8,53 +8,17 @@ import { Ionicons } from '@expo/vector-icons';
 import { HapticTab } from '@/components/haptic-tab';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { DARK, LIGHT, useThemeColors } from '~/theme/colors';
-import { useSettings, type FabSide, type RecordTypeDefault } from '~/stores/settings';
-import { showActionSheet } from '~/components/ActionSheet';
+import { useSettings, type FabSide } from '~/stores/settings';
+import { showCreateSheet } from '~/components/CreateRecordSheet';
 import {
   createPlotPromptAndOpen,
-  importRecordPromptAndOpen,
-  showCreateChooser,
-  openNewGloria,
-  openMiren,
   startCollectionAndOpen,
   startSessionAndOpen,
 } from '~/lib/recordCreate';
 import { perf } from '~/lib/perf';
 import { useHasDatasetUpdate } from '~/lib/datasetUpdateCheck';
 import { BAR_GAP, BAR_HEIGHT, FAB_SIZE, useTabBarMetrics } from '~/lib/tabBarLayout';
-import i18n from '~/i18n';
 
-
-async function showLongPressMenu(): Promise<void> {
-  const updateDefault = (v: RecordTypeDefault) =>
-    useSettings.getState().set('record_type_default', v);
-  // Label + action pairs, so an optional entry (GLORIA) cannot shift the
-  // index of the ones after it.
-  const actions: Array<[string, () => void]> = [
-    [i18n.t('record.kindSession'), () => void startSessionAndOpen()],
-    [i18n.t('record.kindPlot'), () => void createPlotPromptAndOpen()],
-    [i18n.t('record.kindCollection'), () => void startCollectionAndOpen()],
-    // Also here: with a record_type_default set, the ＋ button skips the
-    // chooser entirely, so this menu is the only way in.
-    [i18n.t('record.kindImport'), () => void importRecordPromptAndOpen()],
-    ...(useSettings.getState().module_gloria
-      ? ([[i18n.t('record.kindGloria'), openNewGloria]] as Array<[string, () => void]>)
-      : []),
-    ...(useSettings.getState().module_miren
-      ? ([[i18n.t('record.kindMiren'), openMiren]] as Array<[string, () => void]>)
-      : []),
-    [i18n.t('record.defaultAsk'), () => updateDefault('ask')],
-    [i18n.t('record.defaultSession'), () => updateDefault('session')],
-    [i18n.t('record.defaultPlot'), () => updateDefault('plot')],
-    [i18n.t('record.defaultCollection'), () => updateDefault('collection')],
-  ];
-  const idx = await showActionSheet({
-    title: i18n.t('record.createMenuTitle'),
-    message: i18n.t('record.createMenuMsg'),
-    options: actions.map(([label]) => ({ label })),
-  });
-  actions[idx]?.[1]();
-}
 
 function PlusButton() {
   const recordTypeDefault = useSettings((s) => s.record_type_default);
@@ -64,13 +28,15 @@ function PlusButton() {
     if (recordTypeDefault === 'session') startSessionAndOpen();
     else if (recordTypeDefault === 'plot') createPlotPromptAndOpen();
     else if (recordTypeDefault === 'collection') startCollectionAndOpen();
-    else showCreateChooser();
+    else void showCreateSheet();
   };
 
   return (
     <Pressable
       onPress={onPress}
-      onLongPress={showLongPressMenu}
+      // With a default set, a tap skips the sheet; a long press is the way
+      // back to it (and to changing that default, which the sheet carries).
+      onLongPress={() => void showCreateSheet()}
       delayLongPress={350}
       // Acorn (tailwind.config.js) is reserved for this button alone; the
       // glyph on it is ink (`onAcorn`), which white would fail against.

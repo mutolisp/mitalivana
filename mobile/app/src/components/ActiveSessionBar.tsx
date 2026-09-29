@@ -7,65 +7,25 @@
  * recently if a stale store still holds two.
  */
 import { Ionicons } from '@expo/vector-icons';
-import { useTranslation } from 'react-i18next';
 import { usePathname, useRouter, type Href } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useActivePlot } from '~/stores/activePlot';
-import { useActiveSession } from '~/stores/activeSession';
-import { useActiveGloria } from '~/modules/gloria/store';
-import { useActiveMiren } from '~/modules/miren/store';
+import { useActiveRecordSummary } from '~/lib/useActiveRecordSummary';
 
 export function ActiveSessionBar() {
-  const { t } = useTranslation();
   const router = useRouter();
   const pathname = usePathname();
-  const session = useActiveSession((s) => s.session);
-  const plot = useActivePlot((s) => s.plot);
-  const gloria = useActiveGloria((s) => s.survey);
-  const miren = useActiveMiren((s) => s.survey);
+  const active = useActiveRecordSummary();
   const insets = useSafeAreaInsets();
 
-  if (!session && !plot && !gloria && !miren) return null;
-
-  // Pick the most recently started record to display in the bar. Only one
-  // should be active (single-active invariant); if a stale store still holds
-  // two, surface whichever was last touched.
-  const sessionTs = session?.started_at ?? 0;
-  const plotTs = plot ? (plot.start_ts ?? plot.created_at ?? 0) : -1;
-  const gloriaTs = gloria ? gloria.start_ts : -1;
-  const mirenTs = miren ? miren.start_ts : -1;
-  const shown: 'miren' | 'gloria' | 'plot' | 'session' =
-    miren && mirenTs >= gloriaTs && mirenTs >= plotTs && mirenTs >= sessionTs
-      ? 'miren'
-      : gloria && gloriaTs >= plotTs && gloriaTs >= sessionTs
-        ? 'gloria'
-        : plot && plotTs >= sessionTs
-          ? 'plot'
-          : 'session';
+  if (!active) return null;
+  const { kind: shown, barLabel: label, targetPath } = active;
   const showPlot = shown === 'plot';
-
-  const label =
-    shown === 'miren'
-      ? t('activeBar.mirenRecording', { year: miren!.year })
-      : shown === 'gloria'
-        ? t('activeBar.gloriaRecording', { mocy: gloria!.mocy })
-        : showPlot
-          ? t('activeBar.plotRecording', { id: plot!.plotid })
-          : t('activeBar.recording', { name: session!.name });
   // This bar is persistent chrome rendered above the stack on EVERY screen,
   // including the record's own detail page. Tapping it must not push a second
   // copy of a screen already on the stack (that turned exiting into many
   // back-presses). Guard the no-op case, then use `navigate` (pops back to an
   // existing instance) instead of `push` (always adds a new one).
-  const targetPath =
-    shown === 'miren'
-      ? `/miren/survey/${miren!.id}`
-      : shown === 'gloria'
-        ? `/gloria/${gloria!.id}`
-        : showPlot
-          ? `/plot/${plot!.id}`
-          : `/session/${session!.id}`;
   const href: Href = targetPath as Href;
 
   // On the record's OWN detail page the full bar is 36pt spent restating what
@@ -79,7 +39,10 @@ export function ActiveSessionBar() {
   // accent there — `<SystemBars style={hasActive ? 'light' : …}>` in
   // _layout.tsx paints the status-bar icons white while any record is running,
   // so a pale inset would hide the clock and battery entirely.
-  if (pathname === targetPath) {
+  //
+  // The records tab ('/') gets the hairline too: its ActiveRecordCard already
+  // says what is recording, with more room to say it.
+  if (pathname === targetPath || pathname === '/') {
     return (
       <View className="bg-accent-600" style={{ paddingTop: insets.top }}>
         <View className="h-1" />

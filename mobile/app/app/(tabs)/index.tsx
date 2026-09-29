@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter, type Href } from 'expo-router';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
@@ -11,6 +11,7 @@ import {
   Modal,
   Pressable,
   RefreshControl,
+  ScrollView,
   Text,
   TextInput,
   View,
@@ -22,8 +23,13 @@ import {
   clearRecordDiversityCache,
   RecordGridCard,
   RecordListRow,
+  recordDiversity,
   SelectCheckbox,
 } from '~/components/RecordListItem';
+import { ActiveRecordCard } from '~/components/ActiveRecordCard';
+import { Chip } from '~/components/ui/Chip';
+import { useActiveRecordSummary } from '~/lib/useActiveRecordSummary';
+import { isoDateTime } from '~/lib/datetime';
 import {
   deleteCollectionTrip,
   deletePlotSurvey,
@@ -56,7 +62,7 @@ import {
 } from '~/lib/bundleExport';
 import { confirmExportContent } from '~/components/AnalysisExportOptions';
 import { ExportProgressOverlay } from '~/components/ExportProgressOverlay';
-import { showActionSheet } from '~/components/ActionSheet';
+
 import { pickExportLanguage } from '~/lib/pickExportLanguage';
 import { DuplicateRecordModal, type DuplicateRequest } from '~/components/DuplicateRecordModal';
 import { MergeRecordsModal, type MergeRequest } from '~/components/MergeRecordsModal';
@@ -68,11 +74,8 @@ import {
   recordMatches,
   type SearchableProject,
 } from '~/lib/recordSearch';
-import {
-  duplicateRecordAndOpen,
-  importRecordPromptAndOpen,
-  showCreateChooser,
-} from '~/lib/recordCreate';
+import { duplicateRecordAndOpen, importRecordPromptAndOpen } from '~/lib/recordCreate';
+import { showCreateSheet } from '~/components/CreateRecordSheet';
 import { nextRecordName } from '~/lib/recordName';
 import { pickFavoriteFolder } from '~/lib/pickFavoriteFolder';
 import { useFavorites } from '~/stores/favorites';
@@ -96,6 +99,7 @@ import { mergeSummary } from '~/lib/mergeSummaryText';
 import { useTabBarInset } from '~/lib/tabBarLayout';
 import { useThemeColors } from '~/theme/colors';
 import { Button } from '~/components/ui/Button';
+import { MenuButton, showMenu } from '~/components/OverflowMenu';
 
 type Filter = 'all' | RecordKind;
 type ViewMode = 'flat' | 'byProject';
@@ -264,7 +268,10 @@ function ProjectHeader({
 
 type FlatRow =
   | { kind: 'header'; group: ProjectGroup; key: string }
-  | { kind: 'row'; item: RecordItem; key: string }
+  /** Timeline group title: starred, this week, or a month. */
+  | { kind: 'dateHeader'; label: string; key: string }
+  /** `first` / `last` of its group: a group's rows share one rounded card. */
+  | { kind: 'row'; item: RecordItem; key: string; first: boolean; last: boolean }
   /** One grid line of up to `CARD_COLUMNS` records. */
   | { kind: 'cards'; items: RecordItem[]; key: string };
 
@@ -284,10 +291,12 @@ const CARD_COLUMNS = 2;
  */
 function toItemRows(items: RecordItem[], layout: RecordsLayout): FlatRow[] {
   if (layout === 'list') {
-    return items.map((item) => ({
+    return items.map((item, i) => ({
       kind: 'row' as const,
       item,
       key: `${item.kind}-${item.id}`,
+      first: i === 0,
+      last: i === items.length - 1,
     }));
   }
   const rows: FlatRow[] = [];
@@ -298,6 +307,42 @@ function toItemRows(items: RecordItem[], layout: RecordsLayout): FlatRow[] {
       items: chunk,
       key: `c-${chunk.map((x) => `${x.kind}-${x.id}`).join('+')}`,
     });
+  }
+  return rows;
+}
+
+/**
+ * The timeline view, grouped: starred records first, then this week, then one
+ * group per month, newest first.
+ *
+ * Starred records get their own group because the list sorts them to the top
+ * whatever their date; bucketing them by date would repeat a month's title.
+ * The active record is no longer forced to the top here — the card above the
+ * list already carries it.
+ */
+function buildTimelineRows(
+  items: RecordItem[],
+  layout: RecordsLayout,
+  labels: { starred: string; thisWeek: string; month: (ts: number) => string },
+): FlatRow[] {
+  const now = new Date();
+  // Monday 00:00 local.
+  const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7)).getTime();
+  const starred = items.filter((it) => it.starred);
+  const rest = items.filter((it) => !it.starred).sort((a, b) => b.startedAt - a.startedAt);
+  const buckets: { key: string; label: string; items: RecordItem[] }[] = [];
+  if (starred.length) buckets.push({ key: 'starred', label: labels.starred, items: starred });
+  for (const it of rest) {
+    const d = new Date(it.startedAt);
+    const key = it.startedAt >= weekStart ? 'week' : `${d.getFullYear()}-${d.getMonth()}`;
+    const last = buckets[buckets.length - 1];
+    if (last && last.key === key) last.items.push(it);
+    else buckets.push({ key, label: key === 'week' ? labels.thisWeek : labels.month(it.startedAt), items: [it] });
+  }
+  const rows: FlatRow[] = [];
+  for (const b of buckets) {
+    rows.push({ kind: 'dateHeader', label: b.label, key: `d-${b.key}` });
+    rows.push(...toItemRows(b.items, layout));
   }
   return rows;
 }
@@ -329,10 +374,6 @@ export default function RecordsListScreen() {
     collection: t('nav.collection'),
     gloria: t('nav.gloria'),
   };
-  const viewLabel: Record<ViewMode, string> = {
-    byProject: t('records.byProject'),
-    flat: t('records.timeline'),
-  };
   const refreshActive = useActiveSession((s) => s.refresh);
   const refreshActivePlot = useActivePlot((s) => s.refresh);
   const toast = useToast((s) => s.show);
@@ -350,8 +391,12 @@ export default function RecordsListScreen() {
   const [groups, setGroups] = useState<ProjectGroup[]>([]);
   // Search (header magnifier). Projects are loaded with the list so a query
   // can match a project's abstract / location / notes, not only its name.
-  const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
+  // Records in progress as the list knows them (title, project, counts),
+  // taken from ALL records so a kind filter cannot hide one from the card.
+  // Several, not one: a collection trip is exempt from single-active and runs
+  // alongside a checklist, so "the first active row" can be the wrong record.
+  const [activeItems, setActiveItems] = useState<RecordItem[]>([]);
   const [projects, setProjects] = useState<SearchableProject[]>([]);
   const [counts, setCounts] = useState<Record<Filter, number>>({
     all: 0,
@@ -424,6 +469,9 @@ export default function RecordsListScreen() {
     setCounts(summary.counts);
     setItems(summary.items);
     setGroups(summary.groups);
+    setActiveItems(
+      (filter === 'all' ? summary.items : listRecordsSummary('all').items).filter((it) => it.active),
+    );
     setLoaded(true);
     setProjects(listProjects());
     refreshActive();
@@ -778,80 +826,108 @@ export default function RecordsListScreen() {
   };
 
   /**
-   * 篩選 / 檢視 / 匯入 behind one ⋯.
-   *
-   * They used to be three separate controls competing with the title for
-   * header width. Folding them in costs one tap on each, and buys back the
-   * thing the icon-only chips had lost: the labels here SAY what is currently
-   * selected, which a funnel glyph never could.
+   * The header ⋯ (03-screens-flow.md §4b): view and layout switch in place —
+   * the menu stays open to show the result — and the rest are actions. The
+   * kind filter lives in the chips above the list.
    */
-  const handleHeaderMore = async () => {
-    const idx = await showActionSheet({
-      cancelLabel: t('common.cancel'),
-      options: [
-        { label: `${t('records.filterTitle')}: ${filterLabel[filter]} (${counts[filter]})` },
-        { label: `${t('records.viewTitle')}: ${viewLabel[viewMode]}` },
-        { label: t('record.kindImport') },
-        { label: t('versions.deletedTitle') },
-      ],
-    });
-    if (idx < 0) return;
-    // Recently deleted records (record versions keep them 30 days).
-    if (idx === 3) {
-      router.push('/deleted-records' as Href);
-      return;
-    }
-    // iOS will not present a second sheet in the tick the first is dismissing.
-    await new Promise((r) => setTimeout(r, 250));
-    if (idx === 0) await pickFilter();
-    else if (idx === 1) await pickView();
-    else if (idx === 2) {
+  const viewModeRef = useRef(viewMode);
+  viewModeRef.current = viewMode;
+  const handleHeaderMore = async (anchor: RefObject<View | null>) => {
+    const choice = await showMenu(anchor, () => [
+      {
+        title: t('records.viewTitle'),
+        items: [
+          {
+            kind: 'radio',
+            id: 'byProject',
+            group: 'view',
+            label: t('records.byProject'),
+            icon: 'folder-outline',
+            checked: viewModeRef.current === 'byProject',
+            onSelect: () => setViewMode('byProject'),
+          },
+          {
+            kind: 'radio',
+            id: 'flat',
+            group: 'view',
+            label: t('records.timeline'),
+            icon: 'time-outline',
+            checked: viewModeRef.current === 'flat',
+            onSelect: () => setViewMode('flat'),
+          },
+          {
+            kind: 'segmented',
+            id: 'layout',
+            label: t('menu.layout'),
+            value: useSettings.getState().records_layout,
+            options: [
+              { value: 'list', icon: 'list', label: t('records.layoutToList') },
+              { value: 'card', icon: 'grid-outline', label: t('records.layoutToCard') },
+            ],
+            onChange: (v) => setSetting('records_layout', v as RecordsLayout),
+          },
+        ],
+      },
+      {
+        items: [
+          // A way into multi-select besides long-pressing a row.
+          { kind: 'action', id: 'select', label: t('menu.selectMany'), icon: 'checkmark-circle-outline' },
+          { kind: 'action', id: 'import', label: t('record.kindImport'), icon: 'download-outline' },
+          // Recently deleted records (record versions keep them 30 days).
+          {
+            kind: 'action',
+            id: 'deleted',
+            label: t('versions.deletedTitle'),
+            icon: 'trash-outline',
+            detail: t('menu.days30'),
+          },
+        ],
+      },
+    ]);
+    if (choice === 'select') useRecordSelection.setState({ active: true, selected: new Set<string>() });
+    else if (choice === 'import') {
       await importRecordPromptAndOpen();
       reload();
-    }
+    } else if (choice === 'deleted') router.push('/deleted-records' as Href);
   };
 
-  const handleSelectionMore = async () => {
+  const handleSelectionMore = async (anchor: RefObject<View | null>) => {
     if (selectedItems.length === 0) {
       toast(t('records.noneSelected'));
       return;
     }
-    const idx = await showActionSheet({
-      title: t('records.selectedCount', { count: selectedItems.length }),
-      cancelLabel: t('common.cancel'),
-      options: [
-        { label: t('plotStats.crossTitle') },
-        { label: t('records.moveToProject') },
-        { label: t('records.merge') },
-        // Destructive last, closest to the cancel — same order the swipe
-        // actions use, so 刪除 is never where a thumb lands by habit.
-        { label: t('common.delete'), destructive: true },
-      ],
-    });
-    if (idx < 0) return;
+    const choice = await showMenu(anchor, [
+      {
+        items: [
+          { kind: 'action', id: 'stats', label: t('plotStats.crossTitle'), icon: 'stats-chart-outline' },
+          { kind: 'action', id: 'move', label: t('records.moveToProject'), icon: 'folder-open-outline' },
+          { kind: 'action', id: 'merge', label: t('records.merge'), icon: 'git-merge-outline' },
+        ],
+      },
+      // Destructive last and on its own, in red.
+      { items: [{ kind: 'action', id: 'delete', label: t('common.delete'), icon: 'trash-outline', destructive: true }] },
+    ]);
+    if (!choice) return;
     // 統計 is listed even when it cannot run, and says why.
     //
     // It used to be a bar icon that simply went grey below two selected plots,
     // which reads as "broken" rather than "not applicable" — cross-plot Chao2
     // needs ≥2 PLOTS as sampling units, so a selection of 名錄 can never
     // produce one. Telling the user beats hiding the option.
-    if (idx === 0 && selectedPlotIds.length < 2) {
+    if (choice === 'stats' && selectedPlotIds.length < 2) {
       toast(t('plotStats.crossNeedTwo'));
       return;
     }
-    // Presenting our own Modal in the same tick the system sheet is dismissing
-    // is the documented iOS no-op; let the dismissal land first.
-    await new Promise((r) => setTimeout(r, 250));
-    if (idx === 0) {
+    if (choice === 'stats') {
       setChao2Sheet(
         selectedPlotIds.map((id) => ({
           id,
           title: items.find((it) => it.kind === 'plot' && it.id === id)?.title ?? String(id),
         })),
       );
-    } else if (idx === 1) setAssigningProject(true);
-    else if (idx === 2) handleMergeSelection();
-    else if (idx === 3) handleDeleteSelection();
+    } else if (choice === 'move') setAssigningProject(true);
+    else if (choice === 'merge') handleMergeSelection();
+    else if (choice === 'delete') handleDeleteSelection();
   };
 
   /**
@@ -999,17 +1075,25 @@ export default function RecordsListScreen() {
     () =>
       viewMode === 'byProject'
         ? buildFlatRows(shownGroups, nq ? noCollapse : collapsedIds, layout)
-        : toItemRows(shownItems, layout),
-    [viewMode, shownGroups, nq, noCollapse, collapsedIds, layout, shownItems],
+        : buildTimelineRows(shownItems, layout, {
+            starred: t('records.starredGroup'),
+            thisWeek: t('records.thisWeek'),
+            // An i18n template, not Intl: Hermes on Android ships no CJK
+            // locale data, so toLocaleDateString('zh-TW') came out English.
+            month: (ts) => {
+              const d = new Date(ts);
+              return t('records.monthGroup', {
+                year: d.getFullYear(),
+                month: d.getMonth() + 1,
+                month2: String(d.getMonth() + 1).padStart(2, '0'),
+              });
+            },
+          }),
+    [viewMode, shownGroups, nq, noCollapse, collapsedIds, layout, shownItems, t],
   );
   const isEmpty = viewMode === 'flat' ? items.length === 0 : groups.length === 0;
   const noSearchMatch =
     !isEmpty && nq !== '' && (viewMode === 'flat' ? shownItems.length === 0 : shownGroups.length === 0);
-
-  const closeSearch = () => {
-    setSearchOpen(false);
-    setQuery('');
-  };
 
   // C7: pull-to-refresh. reload() is synchronous (op-sqlite executeSync), so
   // hold the spinner a beat — an instantly vanishing spinner reads as broken.
@@ -1042,24 +1126,6 @@ export default function RecordsListScreen() {
       count: perPlot.length,
     };
   }, [chao2Sheet]);
-
-  const pickFilter = async () => {
-    const opts: Filter[] = ['all', 'session', 'plot', 'collection'];
-    const idx = await showActionSheet({
-      title: t('records.filterTitle'),
-      options: opts.map((f) => ({ label: `${filterLabel[f]} (${counts[f]})` })),
-    });
-    if (idx >= 0) setFilter(opts[idx]);
-  };
-
-  const pickView = async () => {
-    const opts: ViewMode[] = ['byProject', 'flat'];
-    const idx = await showActionSheet({
-      title: t('records.viewTitle'),
-      options: opts.map((m) => ({ label: viewLabel[m] })),
-    });
-    if (idx >= 0) setViewMode(opts[idx]);
-  };
 
   const handleRefresh = () => {
     setRefreshing(true);
@@ -1112,6 +1178,63 @@ export default function RecordsListScreen() {
     return () => clearTimeout(done);
   }, [teaserKey, setSetting]);
 
+  // ── Top of the list: the record in progress, then the kind chips ──
+  const activeSummary = useActiveRecordSummary();
+  const moduleGloria = useSettings((s) => s.module_gloria);
+  const activeMatch = activeSummary
+    ? (activeItems.find((it) => it.kind === activeSummary.kind && it.id === activeSummary.id) ?? null)
+    : null;
+  const activeSpecies = useMemo(() => {
+    if (!activeSummary) return null;
+    if (activeSummary.kind === 'session' || activeSummary.kind === 'plot')
+      return recordDiversity(activeSummary.kind, activeSummary.id)?.s ?? 0;
+    // A GLORIA row's count IS its species count; MIREN has no single one.
+    if (activeSummary.kind === 'gloria') return activeMatch?.recordCount ?? null;
+    return null;
+    // `items` changes on every reload, which is also when the cache is cleared.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSummary?.kind, activeSummary?.id, activeMatch, items]);
+  // GLORIA is a module; its chip shows when the module is on or its records exist.
+  const chipFilters: Filter[] = [
+    'all',
+    'session',
+    'plot',
+    'collection',
+    ...(moduleGloria || counts.gloria > 0 ? (['gloria'] as Filter[]) : []),
+  ];
+  const chipLabel: Record<Filter, string> = { ...filterLabel, gloria: 'GLORIA' };
+  const topBlock = selectMode ? null : (
+    <View>
+      {activeSummary ? (
+        <ActiveRecordCard
+          kind={activeSummary.kind}
+          title={activeMatch?.title ?? activeSummary.barLabel}
+          subtitle={[activeMatch?.projectName, isoDateTime(activeSummary.startedAt)].filter(Boolean).join(' · ')}
+          speciesCount={activeSpecies}
+          startedAt={activeSummary.startedAt}
+          onResume={() => router.navigate(activeSummary.targetPath as Href)}
+        />
+      ) : null}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        accessibilityRole="tablist"
+        className="mb-3"
+        contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
+      >
+        {chipFilters.map((f) => (
+          <Chip
+            key={f}
+            label={chipLabel[f]}
+            count={counts[f]}
+            selected={filter === f}
+            onPress={() => setFilter(f)}
+          />
+        ))}
+      </ScrollView>
+    </View>
+  );
+
   const handleToggleStar = (item: RecordItem) => {
     setRecordStarred(item.kind, item.id, !item.starred);
     // Starring re-sorts the list, so a plain reload is the whole update.
@@ -1137,14 +1260,19 @@ export default function RecordsListScreen() {
     );
   };
 
-  const renderRow = (item: RecordItem, showProject: boolean) => {
+  const renderRow = (item: RecordItem, showProject: boolean, first: boolean, last: boolean) => {
     const key = selectionKey(item.kind, item.id);
     return (
-      // The rounded, inset frame lives OUTSIDE SwipeRowActions and clips it:
-      // the revealed 刪除 panel is a square-cornered full-height strip, so
-      // without this it would poke out past the card's corners and run to the
-      // screen edge.
-      <View className="mx-3 mb-2 overflow-hidden rounded-2xl border border-gray-200 dark:border-gray-700">
+      // A group's rows share one card: the first rounds the top, the last the
+      // bottom, the rest are split by a hairline. The frame lives OUTSIDE
+      // SwipeRowActions and clips it: the revealed 刪除 panel is a
+      // square-cornered full-height strip, so without this it would poke out
+      // past the card's corners and run to the screen edge.
+      <View
+        className={`mx-3 overflow-hidden border-x border-line dark:border-line-dark ${
+          first ? 'rounded-t-card border-t' : 'border-t border-t-gray-100 dark:border-t-gray-800'
+        } ${last ? 'mb-3 rounded-b-card border-b' : ''}`}
+      >
         <SwipeRowActions
           disabled={selectMode}
           teaser={key === teaserKey}
@@ -1235,48 +1363,20 @@ export default function RecordsListScreen() {
               {/* 統計 / 專案 / 合併 live behind the overflow: the bar keeps only
                   the two actions that apply to ANY selection, so it no longer
                   carries a control that is grey most of the time. */}
-              <Pressable
-                onPress={handleSelectionMore}
-                disabled={selected.size === 0}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel={t('common.more')}
-              >
-                <Ionicons
-                  name="ellipsis-horizontal"
-                  size={20}
-                  color={selected.size === 0 ? c.disabled : c.ink}
-                />
-              </Pressable>
+              <MenuButton variant="plain" onOpen={handleSelectionMore} />
             </View>
           </View>
         ) : (
           <View className="flex-row items-center">
             <Text
               numberOfLines={1}
-              className="flex-1 text-2xl font-bold text-gray-900 dark:text-gray-100"
+              className="flex-1 text-3xl font-bold text-gray-900 dark:text-gray-100"
             >
               {t('tab.records')}
             </Text>
-            {/* Three pills, all the same height, none of them carrying text —
-                so the header's width no longer tracks the UI language and the
-                horizontal scroller that used to absorb that growth is gone.
-                The title takes whatever is left and truncates. */}
+            {/* Two icon pills, fixed width in every language. Search became the
+                always-on field below; the list / card toggle moved into ⋯. */}
             <View className="flex-row items-center gap-2">
-              {/* A straight toggle, not a picker: with two states, a sheet
-                  would be one more tap to say what the icon already says. The
-                  icon shows the CURRENT layout; the a11y label says what
-                  tapping does. */}
-              <PillButton
-                icon="search"
-                a11yLabel={t('records.search')}
-                onPress={() => (searchOpen ? closeSearch() : setSearchOpen(true))}
-              />
-              <PillButton
-                icon={layout === 'card' ? 'grid-outline' : 'list-outline'}
-                a11yLabel={t(layout === 'card' ? 'records.layoutToList' : 'records.layoutToCard')}
-                onPress={() => setSetting('records_layout', layout === 'card' ? 'list' : 'card')}
-              />
               {/* 常用名錄. A heart, not a star: records now carry their own
                   star (加星號), and two features sharing one glyph is how you
                   end up tapping the wrong thing in the field. */}
@@ -1286,36 +1386,36 @@ export default function RecordsListScreen() {
                 a11yLabel={t('records.favorites')}
                 onPress={() => router.push('/favorites')}
               />
-              <PillButton
-                icon="ellipsis-horizontal"
-                a11yLabel={t('common.more')}
-                onPress={handleHeaderMore}
-              />
+              <MenuButton variant="pill" onOpen={handleHeaderMore} />
             </View>
           </View>
         )}
       </View>
 
-      {/* Stays up in select mode too: search a project, then select the group. */}
-      {searchOpen ? (
-        <View className="flex-row items-center border-b border-gray-200 bg-card px-4 py-2 dark:border-gray-700 dark:bg-gray-900">
-          <Ionicons name="search" size={16} color={c.ink3} />
-          <TextInput
-            value={query}
-            onChangeText={setQuery}
-            autoFocus
-            placeholder={t('records.searchPlaceholder')}
-            placeholderTextColor={c.ink3}
-            autoCapitalize="none"
-            autoCorrect={false}
-            returnKeyType="search"
-            className="ml-2 flex-1 py-1 text-base text-gray-900 dark:text-gray-100"
-          />
-          <Pressable onPress={closeSearch} hitSlop={8} accessibilityLabel={t('common.close')}>
+      {/* Always on (was behind a header pill). Stays up in select mode too:
+          search a project, then select the group. */}
+      <View
+        className="mx-4 mt-3 flex-row items-center rounded-full border border-line bg-card px-4 dark:border-line-dark dark:bg-card-dark"
+        style={{ minHeight: 44 }}
+      >
+        <Ionicons name="search" size={18} color={c.ink3} />
+        <TextInput
+          value={query}
+          onChangeText={setQuery}
+          placeholder={t('records.searchPlaceholder')}
+          placeholderTextColor={c.ink3}
+          autoCapitalize="none"
+          autoCorrect={false}
+          returnKeyType="search"
+          accessibilityLabel={t('records.search')}
+          className="ml-2 flex-1 py-2 text-base text-gray-900 dark:text-gray-100"
+        />
+        {query ? (
+          <Pressable onPress={() => setQuery('')} hitSlop={12} accessibilityLabel={t('common.clear')}>
             <Ionicons name="close-circle" size={18} color={c.ink3} />
           </Pressable>
-        </View>
-      ) : null}
+        ) : null}
+      </View>
 
       {!loaded ? (
         <View className="flex-1 items-center justify-center px-6">
@@ -1323,29 +1423,36 @@ export default function RecordsListScreen() {
           <Text className="mt-3 text-sm text-gray-500 dark:text-gray-400">{t('common.loading')}</Text>
         </View>
       ) : isEmpty ? (
-        <View className="flex-1 items-center justify-center px-6">
-          <Ionicons name="add-circle-outline" size={56} color="#cbd5e1" />
-          <Text className="mt-3 text-base font-medium text-gray-700 dark:text-gray-300">
-            {filter === 'all'
-              ? t('records.empty')
-              : t('records.emptyFiltered', { kind: filterLabel[filter] })}
-          </Text>
-          <Text className="mt-2 text-center text-sm text-gray-500 dark:text-gray-400">
-            {t('records.emptyHint')}
-          </Text>
-          <Button
-            label={t('records.emptyCreate')}
-            icon="add"
-            onPress={() => showCreateChooser()}
-            className="mt-5"
-          />
+        <View className="flex-1">
+          {/* The chips stay reachable when a kind filter leaves nothing to show. */}
+          <View className="pt-2">{topBlock}</View>
+          <View className="flex-1 items-center justify-center px-6">
+            <Ionicons name="add-circle-outline" size={56} color="#cbd5e1" />
+            <Text className="mt-3 text-base font-medium text-gray-700 dark:text-gray-300">
+              {filter === 'all'
+                ? t('records.empty')
+                : t('records.emptyFiltered', { kind: filterLabel[filter] })}
+            </Text>
+            <Text className="mt-2 text-center text-sm text-gray-500 dark:text-gray-400">
+              {t('records.emptyHint')}
+            </Text>
+            <Button
+              label={t('records.emptyCreate')}
+              icon="add"
+              onPress={() => void showCreateSheet()}
+              className="mt-5"
+            />
+          </View>
         </View>
       ) : noSearchMatch ? (
-        <View className="flex-1 items-center justify-center px-6">
-          <Ionicons name="search-outline" size={48} color="#cbd5e1" />
-          <Text className="mt-3 text-center text-sm text-gray-500 dark:text-gray-400">
-            {t('records.searchNoMatch', { q: query.trim() })}
-          </Text>
+        <View className="flex-1">
+          <View className="pt-2">{topBlock}</View>
+          <View className="flex-1 items-center justify-center px-6">
+            <Ionicons name="search-outline" size={48} color="#cbd5e1" />
+            <Text className="mt-3 text-center text-sm text-gray-500 dark:text-gray-400">
+              {t('records.searchNoMatch', { q: query.trim() })}
+            </Text>
+          </View>
         </View>
       ) : (
         <FlatList
@@ -1360,6 +1467,7 @@ export default function RecordsListScreen() {
           // — "pass a prop that is not === after updates, otherwise your UI
           // may not update on changes").
           extraData={selectionEpoch}
+          ListHeaderComponent={topBlock}
           // Bottom padding clears the floating tab bar, which overlays the
           // scene instead of reserving space below it.
           contentContainerStyle={{ paddingTop: 8, paddingBottom: tabBarInset + 16 }}
@@ -1390,7 +1498,13 @@ export default function RecordsListScreen() {
                   {row.items.length < CARD_COLUMNS ? <View className="flex-1" /> : null}
                 </View>
               );
-            return renderRow(row.item, showProject);
+            if (row.kind === 'dateHeader')
+              return (
+                <Text className="px-5 pb-1.5 pt-1 text-xs font-bold tracking-widest text-gray-500 dark:text-gray-400">
+                  {row.label}
+                </Text>
+              );
+            return renderRow(row.item, showProject, row.first, row.last);
           }}
         />
       )}

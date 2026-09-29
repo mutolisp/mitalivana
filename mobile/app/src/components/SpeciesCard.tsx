@@ -12,6 +12,7 @@ import { SynonymStatusBadge } from './CollapsibleSection';
 import { Tag } from './ui/Tag';
 import { rebaseAppFileUri } from '~/lib/appFiles';
 import { useThemeColors } from '~/theme/colors';
+import { CountStepper } from './ui/CountStepper';
 
 type Props = {
   record: RecordWithTaxon;
@@ -23,9 +24,13 @@ type Props = {
   /** Just added: the row lights up and fades back, so a species added from
    *  the search box can be found in the list. */
   flash?: boolean;
+  /** Given (and the record counts individuals, or nothing yet): the row ends
+   *  in − n ＋. Omit on a locked record. Other abundance types stay a
+   *  read-only figure; the detail sheet edits them. */
+  onCountChange?: (next: number | null) => void;
 };
 
-export function SpeciesCard({ record, onPress, onLongPress, selectMode, picked, flash }: Props) {
+export function SpeciesCard({ record, onPress, onLongPress, selectMode, picked, flash, onCountChange }: Props) {
   const c = useThemeColors();
   const { t } = useTranslation();
   const isEndemic = record.is_endemic === 'true';
@@ -120,9 +125,18 @@ export function SpeciesCard({ record, onPress, onLongPress, selectMode, picked, 
         </Text>
       </View>
       {/* The count is why it was recorded, so it belongs where the list is
-          scanned rather than only inside the detail sheet. (Phase 4 turns this
-          into a stepper for plain individual counts.) */}
-      {record.organism_quantity ? (
+          scanned rather than only inside the detail sheet. */}
+      {onCountChange &&
+      !selectMode &&
+      (record.organism_quantity_type == null || record.organism_quantity_type === 'individuals') ? (
+        <View className="ml-2 justify-center">
+          <CountStepper
+            value={Number.isFinite(Number(record.organism_quantity)) && record.organism_quantity ? Number(record.organism_quantity) : null}
+            onChange={onCountChange}
+            accessibilityName={record.common_name_c || record.simple_name}
+          />
+        </View>
+      ) : record.organism_quantity ? (
         <View className="ml-2 justify-center">
           <Text className="text-base font-bold tabular-nums text-gray-800 dark:text-gray-200">
             {formatQuantityBadge(record.organism_quantity, record.organism_quantity_type)}

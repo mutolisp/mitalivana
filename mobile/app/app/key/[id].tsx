@@ -1049,7 +1049,7 @@ function TerminalTaxon({
             name={taxon.simple_name}
             rank={taxon.rank}
             kingdom={taxon.kingdom}
-            className={`${taxon.common_name_c ? 'ml-2' : ''}text-base text-gray-800 dark:text-gray-200`}
+            className={`${taxon.common_name_c ? 'ml-2' : ''} text-base text-gray-800 dark:text-gray-200`}
           />
         </View>
         {taxon.name_author ? (
@@ -1337,7 +1337,7 @@ function CandidateRow({ c, onPress }: { c: ReachableTerminal; onPress: () => voi
             name={t.simple_name}
             rank={t.rank}
             kingdom={t.kingdom}
-            className={`${t.common_name_c ? 'ml-2' : ''}text-sm text-gray-700 dark:text-gray-300`}
+            className={`${t.common_name_c ? 'ml-2' : ''} text-sm text-gray-700 dark:text-gray-300`}
           />
         ) : (
           <Text className="font-mono text-sm text-amber-700 dark:text-amber-300">{c.taxonId}</Text>

@@ -449,7 +449,10 @@ MIREN（規劃中）→ `docs/planned/MIREN.md`；
 - [x] Phase 1：色彩 token（2026-09-28）
 - [x] Phase 2：藍色與寫死 hex 收斂、`check:palette`、導覽列 header 主題、開關（2026-09-29，細節見 `Update_log.md`）
 - [x] Phase 3：基礎元件 `Button`、`Chip`、`Tag`；改寫 `PillButton`、`HeaderIconButton`、`SpeciesCard`、`RecordListItem`；Source Serif 4（2026-09-29）
-- [ ] Phase 4：記錄首頁、建立記錄 sheet、快速名錄、物種細節（建議拆四個 PR）。**快速名錄那個 PR 帶上從 Phase 3 延過來的 `CountStepper`、`ContextChip`、`count.*` i18n key**；記錄首頁那個 PR 做「同日期放進一張卡片」
+- [x] Phase 4：記錄首頁、建立記錄 sheet、快速名錄、物種細節（2026-09-29，細節見 `Update_log.md`）
+- 待決：記錄首頁搜尋要不要也比對物種名稱（需查 DB，新功能；規格原稿有寫，這期沒做）
+- 待辦：快速名錄情境條的空間資料要顯示「起點 ±N m」得在 session 存起點精度（資料層變更，改版範圍外）
+- 待辦：批次匯入的輸入框範例文字在 Android 顯示成字面的 `\n`（既有）
 - [ ] Phase 5（選配）：中文標題宋體
 - 待決：`bg-accent-500` 上的白字對比 4.1（原 `blue-500` 3.68，略好但低於 4.5）。名錄頁的「全部」chip 已由 Phase 3 的 `Chip` 取代（改成深色底），其餘約 20 處仍是 `bg-accent-500`
 - 待辦：`key/[id].tsx` 終點的學名 className 少一個空格（`'ml-2' : ''}text-base` → `ml-2text-base`），俗名與學名黏在一起、字級也沒生效（既有 bug）

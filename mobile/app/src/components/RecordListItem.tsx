@@ -40,6 +40,43 @@ export function clearRecordDiversityCache(): void {
 }
 
 /**
+ * S / H′ / J′ for one record, through the cache above. Synchronous: one DB
+ * read on a miss, so list rows call it off the mount frame (RowDiversityLine)
+ * and a single card may call it directly. Null for 採集 and GLORIA (not a
+ * sample in that sense) and for an empty record.
+ */
+export function recordDiversity(
+  kind: RecordKind,
+  id: number,
+): { s: number; h: number | null; j: number | null } | null {
+  const key = `${kind}-${id}`;
+  const cached = rowDivCache.get(key);
+  if (cached !== undefined) return cached;
+  // Diversity of a GLORIA survey is not one number (28 units, several methods).
+  if (kind === 'collection' || kind === 'gloria') {
+    rowDivCache.set(key, null);
+    return null;
+  }
+  let v: { s: number; h: number | null; j: number | null } | null = null;
+  try {
+    const rows = kind === 'plot' ? listPlotSpecies(id) : listSessionRecords(id);
+    const d = computeDiversity(
+      rows.map((r) => ({
+        taxon_id: r.taxon_id,
+        used_scientific_name: r.used_scientific_name,
+        organism_quantity: r.organism_quantity,
+        organism_quantity_type: r.organism_quantity_type,
+      })),
+    );
+    if (d.richness > 0) v = { s: d.richness, h: d.shannonH, j: d.pielouJ };
+  } catch {
+    /* row stays without the line */
+  }
+  rowDivCache.set(key, v);
+  return v;
+}
+
+/**
  * Kind tile: the colour says what KIND of record it is (checklist moss, plot
  * and GLORIA acorn, collection cupule). Whether it is recording is carried by
  * the dot and badge beside the title, not by this tile.
@@ -60,7 +97,7 @@ export function KindIcon({
         ? { bg: 'bg-gray-100 dark:bg-gray-800', tint: c.cupule }
         : { bg: 'bg-acorn-tint dark:bg-gray-800', tint: c.acornDeep };
   const iconName =
-    kind === 'session' ? 'list' : kind === 'collection' ? 'leaf-outline' : kind === 'gloria' ? 'triangle-outline' : 'grid-outline';
+    kind === 'session' ? 'list' : kind === 'collection' ? 'pricetag-outline' : kind === 'gloria' ? 'triangle-outline' : 'grid-outline';
   const box = size === 'sm' ? 'h-7 w-7 rounded-lg' : 'h-10 w-10 rounded-xl';
   return (
     <View className={`items-center justify-center ${box} ${look.bg}`}>
@@ -138,33 +175,9 @@ export function RowDiversityLine({
       setVal(cached);
       return;
     }
-    // Diversity of a GLORIA survey is not one number (28 units, several methods).
-    if (kind === 'collection' || kind === 'gloria') {
-      rowDivCache.set(key, null);
-      setVal(null);
-      return;
-    }
     // Off the mount frame: this is one DB read per record and the records tab
     // is perf-tuned to keep reload() off the critical path.
-    const timer = setTimeout(() => {
-      let v: { s: number; h: number | null; j: number | null } | null = null;
-      try {
-        const rows = kind === 'plot' ? listPlotSpecies(id) : listSessionRecords(id);
-        const d = computeDiversity(
-          rows.map((r) => ({
-            taxon_id: r.taxon_id,
-            used_scientific_name: r.used_scientific_name,
-            organism_quantity: r.organism_quantity,
-            organism_quantity_type: r.organism_quantity_type,
-          })),
-        );
-        if (d.richness > 0) v = { s: d.richness, h: d.shannonH, j: d.pielouJ };
-      } catch {
-        /* row stays without the line */
-      }
-      rowDivCache.set(key, v);
-      setVal(v);
-    }, 0);
+    const timer = setTimeout(() => setVal(recordDiversity(kind, id)), 0);
     return () => clearTimeout(timer);
   }, [key, kind, id]);
 
