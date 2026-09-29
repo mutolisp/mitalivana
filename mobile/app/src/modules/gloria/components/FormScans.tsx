@@ -1,7 +1,7 @@
 /**
  * Scans of one paper form (Form 1, 2, 3 or 6-S; model/formScans): photos or
- * PDF, any number of files. Form 1 sits at the foot of the base-data tab, the
- * others at the foot of the overview tab. Exported under the form's sheet 01_
+ * PDF, any number of files. All four sit together under the base-data tab's
+ * 表單掃描檔 row (BaseDataTab). Exported under the form's sheet 01_
  * identifier (export/sheetRows, bundleExport).
  */
 import { useTranslation } from 'react-i18next';

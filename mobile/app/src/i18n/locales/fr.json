@@ -279,7 +279,7 @@
     "merged": "Fusionné sous « {{name}} »",
     "open": "Ouvrir",
     "star": "Épingler",
-    "unstar": "Retirer l’épingle",
+    "unstar": "Désépingler",
     "layoutToCard": "Passer en vue cartes",
     "layoutToList": "Passer en vue liste",
     "deleteSelectedTitle_one": "Supprimer {{count}} relevé ?",
@@ -306,7 +306,9 @@
     "activeElapsed": "Durée",
     "thisWeek": "Cette semaine",
     "starredGroup": "Épinglés",
-    "monthGroup": "{{year}}-{{month2}}"
+    "monthGroup": "{{year}}-{{month2}}",
+    "pinNamed": "Épingler « {{name}} »",
+    "unpinNamed": "Désépingler « {{name}} »"
   },
   "export": {
     "preparing": "Préparation…",
@@ -3329,7 +3331,17 @@
     "pending_other": "{{count}} à corriger",
     "pendingAll_one": "Tout ({{count}})",
     "pendingAll_many": "Tout ({{count}})",
-    "pendingAll_other": "Tout ({{count}})"
+    "pendingAll_other": "Tout ({{count}})",
+    "base": {
+      "points": "Points de mesure",
+      "pointsCarried": "Repris de mocy {{mocy}} ; les valeurs différentes sont en vert",
+      "hasCoords": "Coordonnées saisies",
+      "summitDetail": "Coordonnées, altitude, étage de végétation, photos",
+      "empty": "Non renseigné",
+      "scans": "Scans des formulaires",
+      "p5mTitle": "Coins p5m",
+      "p5mUnset": "Non défini"
+    }
   },
   "vernacular": {
     "title": "Langues des noms vernaculaires",

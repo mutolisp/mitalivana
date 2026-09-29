@@ -34,7 +34,7 @@ export type SwipeAction = {
    *  borrowed as a generic teal, or the next recolour of the export action
    *  silently drags an unrelated action along — which is exactly why it could
    *  not just reuse `blue` (a specimen's Duplicate action is blue too). */
-  color: 'red' | 'blue' | 'emerald' | 'purple' | 'amber' | 'inat' | 'export';
+  color: 'red' | 'blue' | 'emerald' | 'purple' | 'amber' | 'inat' | 'export' | 'acorn';
   onPress: () => void;
 };
 
@@ -46,6 +46,8 @@ const BG: Record<SwipeAction['color'], string> = {
   amber: 'bg-amber-600 active:bg-amber-700',
   inat: 'bg-[#74AB00] active:bg-[#5E8A00]',
   export: ACTION_FILL,
+  // 釘選: the deep acorn, so the white label keeps its contrast.
+  acorn: 'bg-acorn-deep active:bg-acorn-pressed',
 };
 
 type Props = {
@@ -77,6 +79,8 @@ export function SwipeRowActions({ children, actions, disabled = false, teaser = 
     };
   }, [teaser, disabled]);
 
+  const stacked = actions.length > 4;
+
   if (disabled || actions.length === 0) {
     return <View>{children}</View>;
   }
@@ -90,19 +94,37 @@ export function SwipeRowActions({ children, actions, disabled = false, teaser = 
       overshootRight={false}
       renderRightActions={() => (
         <View className="flex-row">
-          {actions.map((a) => (
-            <Pressable
-              key={a.label}
-              onPress={() => {
-                ref.current?.close();
-                a.onPress();
-              }}
-              className={`flex-row items-center justify-center px-4 ${BG[a.color]}`}
-            >
-              <Ionicons name={a.icon} size={20} color="white" />
-              <Text className="ml-1.5 text-sm font-medium text-white">{a.label}</Text>
-            </Pressable>
-          ))}
+          {actions.map((a) =>
+            // Five or more side by side run past the row's left edge (the
+            // records list: 釘選, 複製, 匯出, iNat, 刪除), so stack each label
+            // under its icon; four or fewer keep the wider one-line look.
+            stacked ? (
+              <Pressable
+                key={a.label}
+                onPress={() => {
+                  ref.current?.close();
+                  a.onPress();
+                }}
+                className={`items-center justify-center px-2.5 ${BG[a.color]}`}
+                style={{ minWidth: 64 }}
+              >
+                <Ionicons name={a.icon} size={20} color="white" />
+                <Text className="mt-1 text-xs font-medium text-white">{a.label}</Text>
+              </Pressable>
+            ) : (
+              <Pressable
+                key={a.label}
+                onPress={() => {
+                  ref.current?.close();
+                  a.onPress();
+                }}
+                className={`flex-row items-center justify-center px-4 ${BG[a.color]}`}
+              >
+                <Ionicons name={a.icon} size={20} color="white" />
+                <Text className="ml-1.5 text-sm font-medium text-white">{a.label}</Text>
+              </Pressable>
+            ),
+          )}
         </View>
       )}
     >

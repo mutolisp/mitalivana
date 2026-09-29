@@ -253,8 +253,8 @@
     "mergeFailed": "Merge failed",
     "merged": "Merged into \"{{name}}\"",
     "open": "Open",
-    "star": "Star",
-    "unstar": "Remove star",
+    "star": "Pin",
+    "unstar": "Unpin",
     "layoutToCard": "Switch to card view",
     "layoutToList": "Switch to list view",
     "deleteSelectedTitle_one": "Delete {{count}} record?",
@@ -276,8 +276,10 @@
     "activeSpecies": "Species",
     "activeElapsed": "Elapsed",
     "thisWeek": "This week",
-    "starredGroup": "Starred",
-    "monthGroup": "{{year}}-{{month2}}"
+    "starredGroup": "Pinned",
+    "monthGroup": "{{year}}-{{month2}}",
+    "pinNamed": "Pin “{{name}}”",
+    "unpinNamed": "Unpin “{{name}}”"
   },
   "export": {
     "preparing": "Preparing…",
@@ -3166,7 +3168,17 @@
     "pending_one": "{{count}} to fix",
     "pending_other": "{{count}} to fix",
     "pendingAll_one": "All {{count}}",
-    "pendingAll_other": "All {{count}}"
+    "pendingAll_other": "All {{count}}",
+    "base": {
+      "points": "Measurement points",
+      "pointsCarried": "Carried over from mocy {{mocy}}; values that differ are shown in green",
+      "hasCoords": "Coordinates set",
+      "summitDetail": "Coordinates, elevation, vegetation zone, overview photos",
+      "empty": "Not filled in",
+      "scans": "Form scans",
+      "p5mTitle": "p5m corners",
+      "p5mUnset": "Not set"
+    }
   },
   "vernacular": {
     "title": "Common name languages",

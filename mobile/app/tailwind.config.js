@@ -62,7 +62,8 @@ module.exports = {
         line: { DEFAULT: warm[200], dark: warm[700] },
         ink: { DEFAULT: warm[900], 2: warm[600], 3: warm[500] },
         cupule: '#6B5433',
-        acorn: { DEFAULT: '#E0A04A', deep: '#97561A', pressed: '#C98A36', tint: '#F3E4CB' },
+        // wash / edge: the pinned group's card (03-screens-flow.md §1).
+        acorn: { DEFAULT: '#E0A04A', deep: '#97561A', pressed: '#C98A36', tint: '#F3E4CB', wash: '#FBF3E4', edge: '#EBD3AD' },
         alert: { DEFAULT: '#A8321F', tint: '#F7E3DC', dark: '#E8876F', 'dark-tint': '#4A2A22' },
       },
       // Scientific names (<ScientificName>). RN does not switch to an italic

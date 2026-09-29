@@ -32,7 +32,6 @@
   "src/components/PlotSpeciesTab.tsx": 4,
   "src/components/PlotSpeciesValueModal.tsx": 4,
   "src/components/QrCode.tsx": 2,
-  "src/components/RecordListItem.tsx": 2,
   "src/components/RecordLocationMap.tsx": 3,
   "src/components/RecordStepBar.tsx": 2,
   "src/components/SearchBox.tsx": 2,

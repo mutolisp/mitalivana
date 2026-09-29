@@ -228,8 +228,8 @@
     "mergeFailed": "合併失敗",
     "merged": "已合併為「{{name}}」",
     "open": "開啟",
-    "star": "加星號",
-    "unstar": "取消星號",
+    "star": "釘選",
+    "unstar": "取消釘選",
     "layoutToCard": "改用卡片檢視",
     "layoutToList": "改用列表檢視",
     "deleteSelectedTitle_other": "刪除 {{count}} 筆調查記錄？",
@@ -247,8 +247,10 @@
     "activeSpecies": "物種",
     "activeElapsed": "經過時間",
     "thisWeek": "本週",
-    "starredGroup": "已加星號",
-    "monthGroup": "{{year}} 年 {{month}} 月"
+    "starredGroup": "釘選",
+    "monthGroup": "{{year}} 年 {{month}} 月",
+    "pinNamed": "釘選「{{name}}」",
+    "unpinNamed": "取消釘選「{{name}}」"
   },
   "export": {
     "preparing": "準備中…",
@@ -3003,7 +3005,17 @@
     "sas05": "5 m 區域",
     "sas10": "10 m 區域",
     "pending_other": "待處理 {{count}}",
-    "pendingAll_other": "全部 {{count}} 項"
+    "pendingAll_other": "全部 {{count}} 項",
+    "base": {
+      "points": "量測點",
+      "pointsCarried": "已從 mocy {{mocy}} 帶入；與前次不同的會標綠色",
+      "hasCoords": "已有座標",
+      "summitDetail": "座標、海拔、植被帶、環境照片",
+      "empty": "未填",
+      "scans": "表單掃描檔",
+      "p5mTitle": "p5m 角點",
+      "p5mUnset": "尚未指定"
+    }
   },
   "vernacular": {
     "title": "俗名顯示語言",

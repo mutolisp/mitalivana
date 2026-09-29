@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HeaderIconButton } from '~/components/HeaderIconButton';
 import { RecordMenuButton } from '~/components/RecordMenuButton';
@@ -15,20 +15,15 @@ import { BackHeaderLeft } from '~/lib/goBack';
 import { RecordStepBar } from '~/components/RecordStepBar';
 import { useActivePlot } from '~/stores/activePlot';
 import { useActiveSession } from '~/stores/activeSession';
-import { endGloriaSurvey, reopenGloriaSurvey, updateGloriaSurvey } from '~/modules/gloria/db';
+import { endGloriaSurvey, reopenGloriaSurvey } from '~/modules/gloria/db';
 import { useActiveGloria } from '~/modules/gloria/store';
 import { useSurvey, type SurveyState } from '~/modules/gloria/useSurvey';
 import { statusLook } from '~/modules/gloria/statusColors';
 import { EndRecordButton } from '~/components/EndRecordButton';
 import { issueText } from '~/modules/gloria/issues';
 import { QUADRAT_CODES, SAS_CODES, SQUARE_CODES, type Direction } from '~/modules/gloria/model/units';
-import { FormScans } from '~/modules/gloria/components/FormScans';
-import { PointsForm } from '~/modules/gloria/components/PointsForm';
-import { SummitForm } from '~/modules/gloria/components/SummitForm';
-import { SurveyDates } from '~/modules/gloria/components/SurveyDates';
-import { SurveyResearchers } from '~/modules/gloria/components/SurveyResearchers';
-import { TopoCarry } from '~/modules/gloria/components/TopoCarry';
 import { LoggerVisitList } from '~/modules/gloria/components/LoggerVisitList';
+import { BaseDataTab } from '~/modules/gloria/components/BaseDataTab';
 import { startPointImport } from '~/modules/gloria/summitImportFile';
 import { errText } from '~/lib/errText';
 import { P5mDiagram, SummitSchematic } from '~/modules/gloria/components/SummitSchematic';
@@ -170,43 +165,18 @@ export default function GloriaSurveyScreen() {
       />
       <ScrollView contentContainerClassName="gap-3 p-4" keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets scrollEnabled={scrollOn}>
         {tab === 'points' ? (
-          <>
-            <SummitForm state={state} reload={reload} />
-            <SurveyResearchers state={state} reload={reload} />
-            <SurveyDates state={state} reload={reload} />
-            <TopoCarry state={state} reload={reload} />
-            <Btn
-              label={t('gloria.pointImport.button')}
-              onPress={() =>
-                void startPointImport(
-                  id,
-                  () => router.push(`/gloria/${id}/points-import` as Href),
-                  (e) => Alert.alert(t('gloria.summitImport.readFail'), errText(e)),
-                )
-              }
-            />
-            <PointsForm state={state} reload={reload} onHelp={setHelp} />
-            {/* Form 1 COMMENTS; exported as the comments column of sheet 01_. */}
-            <Label>{t('gloria.notes.title')}</Label>
-            <TextInput
-              key={`notes-${state.survey.id}`}
-              defaultValue={state.survey.notes ?? ''}
-              onEndEditing={(e) => {
-                const v = e.nativeEvent.text.trim() || null;
-                if (v !== state.survey.notes) {
-                  updateGloriaSurvey(id, { notes: v });
-                  reload();
-                }
-              }}
-              placeholder={t('gloria.notes.placeholder')}
-              placeholderTextColor={tc.ink3}
-              multiline
-              accessibilityLabel={t('gloria.notes.title')}
-              className="min-h-[96px] rounded-lg border border-gray-300 bg-card p-2.5 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
-              style={{ textAlignVertical: 'top' }}
-            />
-            <FormScans state={state} reload={reload} form="1" />
-          </>
+          <BaseDataTab
+            state={state}
+            reload={reload}
+            onHelp={setHelp}
+            onPointImport={() =>
+              void startPointImport(
+                id,
+                () => router.push(`/gloria/${id}/points-import` as Href),
+                (e) => Alert.alert(t('gloria.summitImport.readFail'), errText(e)),
+              )
+            }
+          />
         ) : null}
 
         {tab === 'map' ? (
@@ -358,9 +328,6 @@ export default function GloriaSurveyScreen() {
               state={state}
               onOpen={openUnit}
             />
-            <FormScans state={state} reload={reload} form="2" />
-            <FormScans state={state} reload={reload} form="3" />
-            <FormScans state={state} reload={reload} form="6S" />
           </>
         ) : null}
 

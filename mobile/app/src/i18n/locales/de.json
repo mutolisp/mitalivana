@@ -253,8 +253,8 @@
     "mergeFailed": "Zusammenführen fehlgeschlagen",
     "merged": "Zusammengeführt zu „{{name}}“",
     "open": "Öffnen",
-    "star": "Markieren",
-    "unstar": "Markierung entfernen",
+    "star": "Anheften",
+    "unstar": "Lösen",
     "layoutToCard": "Zur Kartenansicht wechseln",
     "layoutToList": "Zur Listenansicht wechseln",
     "deleteSelectedTitle_one": "{{count}} Aufzeichnung löschen?",
@@ -276,8 +276,10 @@
     "activeSpecies": "Arten",
     "activeElapsed": "Dauer",
     "thisWeek": "Diese Woche",
-    "starredGroup": "Markiert",
-    "monthGroup": "{{year}}-{{month2}}"
+    "starredGroup": "Angeheftet",
+    "monthGroup": "{{year}}-{{month2}}",
+    "pinNamed": "„{{name}}“ anheften",
+    "unpinNamed": "„{{name}}“ lösen"
   },
   "export": {
     "preparing": "Wird vorbereitet…",
@@ -3166,7 +3168,17 @@
     "pending_one": "{{count}} offen",
     "pending_other": "{{count}} offen",
     "pendingAll_one": "Alle {{count}}",
-    "pendingAll_other": "Alle {{count}}"
+    "pendingAll_other": "Alle {{count}}",
+    "base": {
+      "points": "Messpunkte",
+      "pointsCarried": "Aus mocy {{mocy}} übernommen; Abweichungen sind grün markiert",
+      "hasCoords": "Koordinaten vorhanden",
+      "summitDetail": "Koordinaten, Höhe, Vegetationszone, Übersichtsfotos",
+      "empty": "Nicht ausgefüllt",
+      "scans": "Formular-Scans",
+      "p5mTitle": "p5m-Ecken",
+      "p5mUnset": "Nicht festgelegt"
+    }
   },
   "vernacular": {
     "title": "Sprachen der Trivialnamen",

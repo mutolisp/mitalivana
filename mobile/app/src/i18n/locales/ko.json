@@ -228,8 +228,8 @@
     "mergeFailed": "병합 실패",
     "merged": "\"{{name}}\"(으)로 병합했습니다",
     "open": "열기",
-    "star": "별표 추가",
-    "unstar": "별표 해제",
+    "star": "고정",
+    "unstar": "고정 해제",
     "layoutToCard": "카드 보기로 전환",
     "layoutToList": "목록 보기로 전환",
     "deleteSelectedTitle_other": "조사 기록 {{count}}건을 삭제할까요?",
@@ -247,8 +247,10 @@
     "activeSpecies": "종",
     "activeElapsed": "경과 시간",
     "thisWeek": "이번 주",
-    "starredGroup": "별표",
-    "monthGroup": "{{year}}년 {{month}}월"
+    "starredGroup": "고정됨",
+    "monthGroup": "{{year}}년 {{month}}월",
+    "pinNamed": "“{{name}}” 고정",
+    "unpinNamed": "“{{name}}” 고정 해제"
   },
   "export": {
     "preparing": "준비 중…",
@@ -3003,7 +3005,17 @@
     "sas05": "5 m 구역",
     "sas10": "10 m 구역",
     "pending_other": "처리 필요 {{count}}",
-    "pendingAll_other": "전체 {{count}}개"
+    "pendingAll_other": "전체 {{count}}개",
+    "base": {
+      "points": "측정점",
+      "pointsCarried": "mocy {{mocy}}에서 가져옴. 이전과 다른 값은 녹색으로 표시",
+      "hasCoords": "좌표 있음",
+      "summitDetail": "좌표, 고도, 식생대, 전경 사진",
+      "empty": "미입력",
+      "scans": "양식 스캔",
+      "p5mTitle": "p5m 모서리",
+      "p5mUnset": "미지정"
+    }
   },
   "vernacular": {
     "title": "일반명 표시 언어",

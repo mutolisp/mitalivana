@@ -268,12 +268,12 @@ function ProjectHeader({
 
 type FlatRow =
   | { kind: 'header'; group: ProjectGroup; key: string }
-  /** Timeline group title: starred, this week, or a month. */
-  | { kind: 'dateHeader'; label: string; key: string }
+  /** Group title: pinned, this week, or a month. */
+  | { kind: 'dateHeader'; label: string; key: string; pinned?: boolean }
   /** `first` / `last` of its group: a group's rows share one rounded card. */
-  | { kind: 'row'; item: RecordItem; key: string; first: boolean; last: boolean }
+  | { kind: 'row'; item: RecordItem; key: string; first: boolean; last: boolean; pinned?: boolean }
   /** One grid line of up to `CARD_COLUMNS` records. */
-  | { kind: 'cards'; items: RecordItem[]; key: string };
+  | { kind: 'cards'; items: RecordItem[]; key: string; pinned?: boolean };
 
 /** Fixed rather than derived from the window width: at phone widths a third
  *  column leaves nothing for a Chinese record name, and the records tab has no
@@ -289,14 +289,18 @@ const CARD_COLUMNS = 2;
  * those headers into the grid alongside the cards. Chunking keeps one column
  * of list rows, so both views and both layouts share one FlatList.
  */
-function toItemRows(items: RecordItem[], layout: RecordsLayout): FlatRow[] {
+function toItemRows(items: RecordItem[], layout: RecordsLayout, pinned = false): FlatRow[] {
+  // A pinned record also appears in its project group (byProject view), so
+  // its pinned copy needs a key of its own.
+  const pre = pinned ? 'p-' : '';
   if (layout === 'list') {
     return items.map((item, i) => ({
       kind: 'row' as const,
       item,
-      key: `${item.kind}-${item.id}`,
+      key: `${pre}${item.kind}-${item.id}`,
       first: i === 0,
       last: i === items.length - 1,
+      pinned,
     }));
   }
   const rows: FlatRow[] = [];
@@ -305,33 +309,39 @@ function toItemRows(items: RecordItem[], layout: RecordsLayout): FlatRow[] {
     rows.push({
       kind: 'cards',
       items: chunk,
-      key: `c-${chunk.map((x) => `${x.kind}-${x.id}`).join('+')}`,
+      key: `${pre}c-${chunk.map((x) => `${x.kind}-${x.id}`).join('+')}`,
+      pinned,
     });
   }
   return rows;
 }
 
+/** The pinned group's rows, or none when nothing is pinned. */
+function pinnedRows(pinned: RecordItem[], layout: RecordsLayout, label: string): FlatRow[] {
+  if (!pinned.length) return [];
+  return [{ kind: 'dateHeader', label, key: 'd-pinned', pinned: true }, ...toItemRows(pinned, layout, true)];
+}
+
 /**
- * The timeline view, grouped: starred records first, then this week, then one
- * group per month, newest first.
+ * The timeline view, grouped: the pinned records first, then this week, then
+ * one group per month, newest first.
  *
- * Starred records get their own group because the list sorts them to the top
- * whatever their date; bucketing them by date would repeat a month's title.
- * The active record is no longer forced to the top here — the card above the
- * list already carries it.
+ * A pinned record appears only in the pinned group, never again under its
+ * month. `pinned` is empty while searching (results are one plain list) and
+ * leaves out the record in the progress card above the list.
  */
 function buildTimelineRows(
   items: RecordItem[],
   layout: RecordsLayout,
-  labels: { starred: string; thisWeek: string; month: (ts: number) => string },
+  pinned: RecordItem[],
+  labels: { pinned: string; thisWeek: string; month: (ts: number) => string },
 ): FlatRow[] {
   const now = new Date();
   // Monday 00:00 local.
   const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7)).getTime();
-  const starred = items.filter((it) => it.starred);
-  const rest = items.filter((it) => !it.starred).sort((a, b) => b.startedAt - a.startedAt);
+  const inPinned = new Set(pinned.map((it) => `${it.kind}-${it.id}`));
+  const rest = items.filter((it) => !inPinned.has(`${it.kind}-${it.id}`)).sort((a, b) => b.startedAt - a.startedAt);
   const buckets: { key: string; label: string; items: RecordItem[] }[] = [];
-  if (starred.length) buckets.push({ key: 'starred', label: labels.starred, items: starred });
   for (const it of rest) {
     const d = new Date(it.startedAt);
     const key = it.startedAt >= weekStart ? 'week' : `${d.getFullYear()}-${d.getMonth()}`;
@@ -339,7 +349,7 @@ function buildTimelineRows(
     if (last && last.key === key) last.items.push(it);
     else buckets.push({ key, label: key === 'week' ? labels.thisWeek : labels.month(it.startedAt), items: [it] });
   }
-  const rows: FlatRow[] = [];
+  const rows: FlatRow[] = pinnedRows(pinned, layout, labels.pinned);
   for (const b of buckets) {
     rows.push({ kind: 'dateHeader', label: b.label, key: `d-${b.key}` });
     rows.push(...toItemRows(b.items, layout));
@@ -347,12 +357,16 @@ function buildTimelineRows(
   return rows;
 }
 
+/** byProject: the pinned group above every project; pinned records also stay
+ *  in their own project, which is what that view is for. */
 function buildFlatRows(
   groups: ProjectGroup[],
   collapsedIds: Set<number>,
   layout: RecordsLayout,
+  pinned: RecordItem[],
+  pinnedLabel: string,
 ): FlatRow[] {
-  const rows: FlatRow[] = [];
+  const rows: FlatRow[] = pinnedRows(pinned, layout, pinnedLabel);
   for (const g of groups) {
     rows.push({ kind: 'header', group: g, key: `h-${g.projectId}` });
     if (collapsedIds.has(g.projectId)) continue;
@@ -899,6 +913,12 @@ export default function RecordsListScreen() {
     const choice = await showMenu(anchor, [
       {
         items: [
+          { kind: 'action', id: 'pin', label: t('records.star'), icon: 'star-outline' },
+          { kind: 'action', id: 'unpin', label: t('records.unstar'), icon: 'close-circle-outline' },
+        ],
+      },
+      {
+        items: [
           { kind: 'action', id: 'stats', label: t('plotStats.crossTitle'), icon: 'stats-chart-outline' },
           { kind: 'action', id: 'move', label: t('records.moveToProject'), icon: 'folder-open-outline' },
           { kind: 'action', id: 'merge', label: t('records.merge'), icon: 'git-merge-outline' },
@@ -908,6 +928,12 @@ export default function RecordsListScreen() {
       { items: [{ kind: 'action', id: 'delete', label: t('common.delete'), icon: 'trash-outline', destructive: true }] },
     ]);
     if (!choice) return;
+    if (choice === 'pin' || choice === 'unpin') {
+      for (const it of selectedItems) setRecordStarred(it.kind, it.id, choice === 'pin');
+      selectClear();
+      reload();
+      return;
+    }
     // 統計 is listed even when it cannot run, and says why.
     //
     // It used to be a bar icon that simply went grey below two selected plots,
@@ -1071,12 +1097,25 @@ export default function RecordsListScreen() {
   );
   // While searching, a collapsed group would hide the very matches asked for.
   const noCollapse = useMemo(() => new Set<number>(), []);
+  // The pinned group: the kind chip already filtered `items`; none while
+  // searching (results are one list); never the record in the progress card.
+  const activeSummary = useActiveRecordSummary();
+  const activeKey = activeSummary ? `${activeSummary.kind}-${activeSummary.id}` : null;
+  const pinned = useMemo(
+    () =>
+      nq
+        ? []
+        : items
+            .filter((it) => it.starred && `${it.kind}-${it.id}` !== activeKey)
+            .sort((a, b) => b.startedAt - a.startedAt),
+    [items, nq, activeKey],
+  );
   const listRows = useMemo(
     () =>
       viewMode === 'byProject'
-        ? buildFlatRows(shownGroups, nq ? noCollapse : collapsedIds, layout)
-        : buildTimelineRows(shownItems, layout, {
-            starred: t('records.starredGroup'),
+        ? buildFlatRows(shownGroups, nq ? noCollapse : collapsedIds, layout, pinned, t('records.starredGroup'))
+        : buildTimelineRows(shownItems, layout, pinned, {
+            pinned: t('records.starredGroup'),
             thisWeek: t('records.thisWeek'),
             // An i18n template, not Intl: Hermes on Android ships no CJK
             // locale data, so toLocaleDateString('zh-TW') came out English.
@@ -1089,7 +1128,7 @@ export default function RecordsListScreen() {
               });
             },
           }),
-    [viewMode, shownGroups, nq, noCollapse, collapsedIds, layout, shownItems, t],
+    [viewMode, shownGroups, nq, noCollapse, collapsedIds, layout, shownItems, pinned, t],
   );
   const isEmpty = viewMode === 'flat' ? items.length === 0 : groups.length === 0;
   const noSearchMatch =
@@ -1179,7 +1218,6 @@ export default function RecordsListScreen() {
   }, [teaserKey, setSetting]);
 
   // ── Top of the list: the record in progress, then the kind chips ──
-  const activeSummary = useActiveRecordSummary();
   const moduleGloria = useSettings((s) => s.module_gloria);
   const activeMatch = activeSummary
     ? (activeItems.find((it) => it.kind === activeSummary.kind && it.id === activeSummary.id) ?? null)
@@ -1244,11 +1282,12 @@ export default function RecordsListScreen() {
   /** A record as a card, for the 2-up grid. No swipe actions: a half-width
    *  cell has nowhere to reveal them, and long-press → multi-select still
    *  reaches 匯出 / 刪除 / 合併. */
-  const renderCard = (item: RecordItem, showProject: boolean) => {
+  const renderCard = (item: RecordItem, showProject: boolean, pinnedRow = false) => {
     const key = selectionKey(item.kind, item.id);
     return (
       <RecordGridCard
         key={key}
+        pinned={pinnedRow}
         item={item}
         showProject={showProject}
         onPress={() => handleRowTap(item)}
@@ -1260,7 +1299,7 @@ export default function RecordsListScreen() {
     );
   };
 
-  const renderRow = (item: RecordItem, showProject: boolean, first: boolean, last: boolean) => {
+  const renderRow = (item: RecordItem, showProject: boolean, first: boolean, last: boolean, pinnedRow = false) => {
     const key = selectionKey(item.kind, item.id);
     return (
       // A group's rows share one card: the first rounds the top, the last the
@@ -1269,14 +1308,26 @@ export default function RecordsListScreen() {
       // square-cornered full-height strip, so without this it would poke out
       // past the card's corners and run to the screen edge.
       <View
-        className={`mx-3 overflow-hidden border-x border-line dark:border-line-dark ${
-          first ? 'rounded-t-card border-t' : 'border-t border-t-gray-100 dark:border-t-gray-800'
+        className={`mx-3 overflow-hidden border-x ${
+          pinnedRow ? 'border-acorn-edge dark:border-acorn-deep' : 'border-line dark:border-line-dark'
+        } ${
+          first
+            ? 'rounded-t-card border-t'
+            : pinnedRow
+              ? 'border-t border-t-acorn-edge dark:border-t-gray-700'
+              : 'border-t border-t-gray-100 dark:border-t-gray-800'
         } ${last ? 'mb-3 rounded-b-card border-b' : ''}`}
       >
         <SwipeRowActions
           disabled={selectMode}
           teaser={key === teaserKey}
           actions={[
+            {
+              label: t(item.starred ? 'records.unstar' : 'records.star'),
+              icon: item.starred ? 'close-circle-outline' : 'star-outline',
+              color: 'acorn',
+              onPress: () => handleToggleStar(item),
+            },
             {
               label: t('records.duplicate'),
               icon: 'copy-outline',
@@ -1311,6 +1362,7 @@ export default function RecordsListScreen() {
             selectMode={selectMode}
             selected={selected.has(key)}
             onToggleStar={() => handleToggleStar(item)}
+            pinned={pinnedRow}
           />
         </SwipeRowActions>
       </View>
@@ -1377,9 +1429,9 @@ export default function RecordsListScreen() {
             {/* Two icon pills, fixed width in every language. Search became the
                 always-on field below; the list / card toggle moved into ⋯. */}
             <View className="flex-row items-center gap-2">
-              {/* 常用名錄. A heart, not a star: records now carry their own
-                  star (加星號), and two features sharing one glyph is how you
-                  end up tapping the wrong thing in the field. */}
+              {/* 常用名錄. A heart, not a star: records carry their own star
+                  (釘選), and two features sharing one glyph is how you end up
+                  tapping the wrong thing in the field. */}
               <PillButton
                 icon="heart"
                 tone="favorite"
@@ -1473,7 +1525,8 @@ export default function RecordsListScreen() {
           contentContainerStyle={{ paddingTop: 8, paddingBottom: tabBarInset + 16 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
           renderItem={({ item: row }) => {
-            const showProject = viewMode === 'byProject';
+            // The pinned group mixes projects, so its rows name theirs.
+            const showProject = viewMode === 'byProject' && !('pinned' in row && row.pinned);
             if (row.kind === 'header')
               return (
                 <ProjectHeader
@@ -1492,19 +1545,24 @@ export default function RecordsListScreen() {
             if (row.kind === 'cards')
               return (
                 <View className="mx-3 mb-2 flex-row gap-2">
-                  {row.items.map((it) => renderCard(it, showProject))}
+                  {row.items.map((it) => renderCard(it, showProject, row.pinned))}
                   {/* Keeps a lone last card at one column's width instead of
                       letting flex stretch it across the row. */}
                   {row.items.length < CARD_COLUMNS ? <View className="flex-1" /> : null}
                 </View>
               );
             if (row.kind === 'dateHeader')
-              return (
+              return row.pinned ? (
+                <View className="flex-row items-center px-5 pb-1.5 pt-1">
+                  <Ionicons name="star" size={13} color={c.acornDeep} />
+                  <Text className="ml-1 text-xs font-bold tracking-widest text-acorn-deep dark:text-acorn">{row.label}</Text>
+                </View>
+              ) : (
                 <Text className="px-5 pb-1.5 pt-1 text-xs font-bold tracking-widest text-gray-500 dark:text-gray-400">
                   {row.label}
                 </Text>
               );
-            return renderRow(row.item, showProject, row.first, row.last);
+            return renderRow(row.item, showProject, row.first, row.last, row.pinned);
           }}
         />
       )}

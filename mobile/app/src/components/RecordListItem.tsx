@@ -116,35 +116,45 @@ export function SelectCheckbox({ checked }: { checked: boolean }) {
   );
 }
 
-/** 加星號 toggle. `onToggle` omitted ⇒ the star is shown but inert (read-only
- *  surfaces); pass it wherever the user may actually star. */
-export function StarButton({
+/**
+ * 釘選 toggle (03-screens-flow.md §1). The data is still `starred` and the
+ * glyph is still a star (user decision, 2026-09-29); only the name changed. A 44 pt target: the pin sits next to the row's
+ * own press area, so a near miss must not open the record. `onToggle`
+ * omitted ⇒ shown but inert (read-only surfaces).
+ */
+export function PinButton({
   starred,
   onToggle,
-  size = 22,
+  name,
+  size = 20,
 }: {
   starred: boolean;
   onToggle?: () => void;
+  /** The record's title, for the screen reader (「釘選「名稱」」). */
+  name: string;
   size?: number;
 }) {
   const { t } = useTranslation();
+  const c = useThemeColors();
   return (
     <Pressable
       onPress={onToggle}
       disabled={!onToggle}
-      // Generous hit area: the icon is small and sits next to the row's own
-      // press target, so a near miss must not open the record.
-      hitSlop={10}
       accessibilityRole="button"
       accessibilityState={{ selected: starred }}
-      accessibilityLabel={t(starred ? 'records.unstar' : 'records.star')}
-      className="active:opacity-60"
+      accessibilityLabel={t(starred ? 'records.unpinNamed' : 'records.pinNamed', { name })}
+      className="h-11 w-11 items-center justify-center active:opacity-60"
     >
-      <Ionicons
-        name={starred ? 'star' : 'star-outline'}
-        size={size}
-        color={starred ? '#f59e0b' : '#d1d5db'}
-      />
+      {starred ? (
+        // Filled acorn with an acorn-deep outline: two glyphs stacked, since
+        // an icon font has one colour per glyph.
+        <View>
+          <Ionicons name="star" size={size} color={c.acorn} />
+          <Ionicons name="star-outline" size={size} color={c.acornDeep} style={{ position: 'absolute' }} />
+        </View>
+      ) : (
+        <Ionicons name="star-outline" size={size} color={c.disabled} />
+      )}
     </Pressable>
   );
 }
@@ -250,8 +260,10 @@ type CommonProps = {
   onLongPress?: () => void;
   selectMode?: boolean;
   selected?: boolean;
-  /** Omit to make the star inert (e.g. a screen with no write path). */
+  /** Omit to make the pin inert (e.g. a screen with no write path). */
   onToggleStar?: () => void;
+  /** Drawn in the pinned group: the pale acorn ground marks it off. */
+  pinned?: boolean;
 };
 
 /**
@@ -269,6 +281,7 @@ export function RecordListRow({
   selectMode = false,
   selected = false,
   onToggleStar,
+  pinned = false,
 }: CommonProps) {
   const compact = useSettings((s) => s.card_density) === 'compact';
   // An auto-named session IS its own start time; printing both is just the
@@ -283,7 +296,13 @@ export function RecordListRow({
       onPress={onPress}
       onLongPress={onLongPress}
       delayLongPress={350}
-      className={`flex-row items-center px-3 ${compact ? 'py-2' : 'py-3'} active:bg-gray-100 dark:active:bg-gray-800 ${selected ? 'bg-accent-50 dark:bg-accent-950/40' : 'bg-card dark:bg-gray-900'}`}
+      className={`flex-row items-center px-3 ${compact ? 'py-2' : 'py-3'} active:bg-gray-100 dark:active:bg-gray-800 ${
+        selected
+          ? 'bg-accent-50 dark:bg-accent-950/40'
+          : pinned
+            ? 'bg-acorn-wash dark:bg-gray-800'
+            : 'bg-card dark:bg-gray-900'
+      }`}
       style={{ minHeight: 64 }}
     >
       <View className="mr-3 h-10 w-10 items-center justify-center">
@@ -315,9 +334,16 @@ export function RecordListRow({
           </Text>
         ) : null}
       </View>
-      <View className="ml-2 items-end justify-center gap-1">
+      {/* The star sits just left of the species count (user decision,
+          2026-09-29). Negative vertical margin: the 44 pt target must not
+          make the row taller. */}
+      <View className="ml-1 flex-row items-center">
+        {selectMode ? null : (
+          <View className="-my-3">
+            <PinButton starred={item.starred} onToggle={onToggleStar} name={item.title} />
+          </View>
+        )}
         <RowDiversityLine kind={item.kind} id={item.id} variant="count" />
-        {selectMode ? null : <StarButton starred={item.starred} onToggle={onToggleStar} size={20} />}
       </View>
     </Pressable>
   );
@@ -341,6 +367,7 @@ export function RecordGridCard({
   selectMode = false,
   selected = false,
   onToggleStar,
+  pinned = false,
 }: CommonProps) {
   const compact = useSettings((s) => s.card_density) === 'compact';
   return (
@@ -351,7 +378,9 @@ export function RecordGridCard({
       className={`flex-1 rounded-2xl border ${compact ? 'p-2.5' : 'p-3'} ${
         selected
           ? 'border-accent-400 bg-accent-50 dark:border-accent-600 dark:bg-accent-950/40'
-          : 'border-gray-200 bg-card active:bg-gray-100 dark:border-gray-700 dark:bg-gray-900 dark:active:bg-gray-800'
+          : pinned
+            ? 'border-acorn-edge bg-acorn-wash active:bg-acorn-tint dark:border-acorn-deep dark:bg-gray-800 dark:active:bg-gray-700'
+            : 'border-gray-200 bg-card active:bg-gray-100 dark:border-gray-700 dark:bg-gray-900 dark:active:bg-gray-800'
       }`}
     >
       <View className="mb-1 flex-row items-start">
@@ -366,7 +395,9 @@ export function RecordGridCard({
         {selectMode ? (
           <SelectCheckbox checked={selected} />
         ) : (
-          <StarButton starred={item.starred} onToggle={onToggleStar} size={18} />
+          <View className="-m-2.5">
+            <PinButton starred={item.starred} onToggle={onToggleStar} name={item.title} size={18} />
+          </View>
         )}
       </View>
 

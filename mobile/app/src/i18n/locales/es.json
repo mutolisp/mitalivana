@@ -278,8 +278,8 @@
     "mergeFailed": "Error al combinar",
     "merged": "Combinado como «{{name}}»",
     "open": "Abrir",
-    "star": "Destacar",
-    "unstar": "Quitar destacado",
+    "star": "Fijar",
+    "unstar": "Desfijar",
     "layoutToCard": "Cambiar a vista de tarjetas",
     "layoutToList": "Cambiar a vista de lista",
     "deleteSelectedTitle_one": "¿Eliminar {{count}} registro?",
@@ -305,8 +305,10 @@
     "activeSpecies": "Especies",
     "activeElapsed": "Tiempo",
     "thisWeek": "Esta semana",
-    "starredGroup": "Destacados",
-    "monthGroup": "{{year}}-{{month2}}"
+    "starredGroup": "Fijados",
+    "monthGroup": "{{year}}-{{month2}}",
+    "pinNamed": "Fijar «{{name}}»",
+    "unpinNamed": "Desfijar «{{name}}»"
   },
   "export": {
     "preparing": "Preparando…",
@@ -3329,7 +3331,17 @@
     "pending_other": "{{count}} por revisar",
     "pendingAll_one": "Todos ({{count}})",
     "pendingAll_many": "Todos ({{count}})",
-    "pendingAll_other": "Todos ({{count}})"
+    "pendingAll_other": "Todos ({{count}})",
+    "base": {
+      "points": "Puntos de medición",
+      "pointsCarried": "Traído de mocy {{mocy}}; los valores distintos se marcan en verde",
+      "hasCoords": "Coordenadas registradas",
+      "summitDetail": "Coordenadas, altitud, piso de vegetación, fotos",
+      "empty": "Sin completar",
+      "scans": "Escaneos de formularios",
+      "p5mTitle": "Esquinas p5m",
+      "p5mUnset": "Sin definir"
+    }
   },
   "vernacular": {
     "title": "Idiomas de los nombres comunes",
