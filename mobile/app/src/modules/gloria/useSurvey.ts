@@ -171,17 +171,3 @@ export function useSurvey(id: number): { state: SurveyState | null; reload: () =
   useFocusEffect(reload);
   return { state, reload };
 }
-
-export const STATUS_COLOR: Record<UnitStatus, string> = {
-  none: '#d1d5db',
-  progress: '#F9DE41',
-  done: '#059669',
-  warn: '#dc2626',
-};
-/** Label colour on a STATUS_COLOR fill: the light fills need dark text. */
-export const STATUS_TEXT: Record<UnitStatus, string> = {
-  none: '#374151',
-  progress: '#422006',
-  done: '#ffffff',
-  warn: '#ffffff',
-};

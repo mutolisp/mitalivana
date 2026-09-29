@@ -2667,7 +2667,6 @@
     "overview": "Vue d’ensemble",
     "endTitle": "Terminer ce relevé GLORIA ?",
     "endMsg": "Vous pourrez le rouvrir plus tard pour continuer.",
-    "unitsDone": "{{done}}/{{total}} unités terminées",
     "tab": {
       "points": "Données de base",
       "map": "Vue des placettes",
@@ -3320,7 +3319,17 @@
       "elevation": "Altitude",
       "notNumber": "{{label}} doit être un nombre",
       "outOfRange": "{{label}} doit être entre {{min}} et {{max}}"
-    }
+    },
+    "statusActive": "Relevé en cours · {{done}} / {{total}} unités faites",
+    "p5mCorner": "coin p5m",
+    "sas05": "zone 5 m",
+    "sas10": "zone 10 m",
+    "pending_one": "{{count}} à corriger",
+    "pending_many": "{{count}} à corriger",
+    "pending_other": "{{count}} à corriger",
+    "pendingAll_one": "Tout ({{count}})",
+    "pendingAll_many": "Tout ({{count}})",
+    "pendingAll_other": "Tout ({{count}})"
   },
   "vernacular": {
     "title": "Langues des noms vernaculaires",

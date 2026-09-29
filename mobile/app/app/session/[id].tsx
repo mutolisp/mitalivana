@@ -95,6 +95,7 @@ import { useRecordEditing } from '~/lib/useRecordEditing';
 import { chooseEndTime } from '~/lib/endTimeChoice';
 import { SurveyTimesModal } from '~/components/SurveyTimeFields';
 import { RecordEditButtons } from '~/components/RecordEditButtons';
+import { EndRecordButton } from '~/components/EndRecordButton';
 import type { SpeciesAttributesDraft } from '~/components/SpeciesAttributesBlock';
 import { saveVersionSoon } from '~/db/recordVersions';
 import { useVersionOnLeave } from '~/lib/useVersionOnLeave';
@@ -986,19 +987,7 @@ export default function SessionDetailScreen() {
               />
               <RecordEditButtons edit={edit} ended={!isActive} onChanged={reload} inMenu />
               {isActive ? (
-                // A word, not the old stop glyph: ending is the one header
-                // action that changes the record's state.
-                <Pressable
-                  onPress={() => void handleEnd()}
-                  hitSlop={4}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('session.end')}
-                  className="flex-row items-center rounded-full border-[1.5px] border-alert px-3 active:bg-alert-tint dark:border-alert-dark dark:active:bg-alert-dark-tint"
-                  style={{ minHeight: 36 }}
-                >
-                  <View className="mr-1.5 h-2.5 w-2.5 rounded-sm bg-alert dark:bg-alert-dark" />
-                  <Text className="text-sm font-bold text-alert dark:text-alert-dark">{t('session.end')}</Text>
-                </Pressable>
+                <EndRecordButton onPress={() => void handleEnd()} />
               ) : edit.locked ? (
                 <HeaderIconButton
                   icon="refresh-outline"

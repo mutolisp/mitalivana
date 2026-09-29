@@ -2383,7 +2383,6 @@
     "overview": "概要",
     "endTitle": "GLORIA 調査を終了しますか？",
     "endMsg": "あとで再開して記録を続けられます。",
-    "unitsDone": "{{done}}/{{total}} ユニット完了",
     "tab": {
       "points": "基礎データ",
       "map": "調査区の概要",
@@ -2998,7 +2997,13 @@
       "elevation": "標高",
       "notNumber": "{{label}} は数値で入力してください",
       "outOfRange": "{{label}} は {{min}}〜{{max}} の範囲です"
-    }
+    },
+    "statusActive": "調査中 · {{done}} / {{total}} 単位完了",
+    "p5mCorner": "p5m 角点",
+    "sas05": "5 m 区域",
+    "sas10": "10 m 区域",
+    "pending_other": "要対応 {{count}}",
+    "pendingAll_other": "すべて {{count}} 件"
   },
   "vernacular": {
     "title": "和名・俗名の表示言語",

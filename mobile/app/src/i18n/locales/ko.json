@@ -2383,7 +2383,6 @@
     "overview": "개요",
     "endTitle": "GLORIA 조사를 종료할까요?",
     "endMsg": "나중에 다시 열어 계속 기록할 수 있습니다.",
-    "unitsDone": "{{done}}/{{total}} 단위 완료",
     "tab": {
       "points": "기초 자료",
       "map": "조사구 개요",
@@ -2998,7 +2997,13 @@
       "elevation": "고도",
       "notNumber": "{{label}}은(는) 숫자여야 합니다",
       "outOfRange": "{{label}}은(는) {{min}}~{{max}} 사이여야 합니다"
-    }
+    },
+    "statusActive": "조사 중 · {{done}} / {{total}} 단위 완료",
+    "p5mCorner": "p5m 모서리",
+    "sas05": "5 m 구역",
+    "sas10": "10 m 구역",
+    "pending_other": "처리 필요 {{count}}",
+    "pendingAll_other": "전체 {{count}}개"
   },
   "vernacular": {
     "title": "일반명 표시 언어",

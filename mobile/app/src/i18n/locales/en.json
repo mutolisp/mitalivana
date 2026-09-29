@@ -2525,7 +2525,6 @@
     "overview": "Overview",
     "endTitle": "End this GLORIA survey?",
     "endMsg": "You can reopen it later to keep recording.",
-    "unitsDone": "{{done}}/{{total}} units done",
     "tab": {
       "points": "Base data",
       "map": "Plot overview",
@@ -3159,7 +3158,15 @@
       "elevation": "Elevation",
       "notNumber": "{{label}} must be a number",
       "outOfRange": "{{label}} must be between {{min}} and {{max}}"
-    }
+    },
+    "statusActive": "Surveying · {{done}} / {{total}} units done",
+    "p5mCorner": "p5m corner",
+    "sas05": "5 m area",
+    "sas10": "10 m area",
+    "pending_one": "{{count}} to fix",
+    "pending_other": "{{count}} to fix",
+    "pendingAll_one": "All {{count}}",
+    "pendingAll_other": "All {{count}}"
   },
   "vernacular": {
     "title": "Common name languages",

@@ -13,7 +13,9 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { visitedCount } from '../model/grid';
 import { unitTypeOf } from '../model/units';
 import { issueText } from '../issues';
-import { STATUS_COLOR, STATUS_TEXT, type SurveyState } from '../useSurvey';
+import type { SurveyState } from '../useSurvey';
+import { statusLook } from '../statusColors';
+import { useThemeColors } from '~/theme/colors';
 import { Btn } from './ui';
 
 export type UnitStep = 'cover' | 'frequency' | 'pointframe' | 'sas' | 'points';
@@ -30,6 +32,7 @@ export function OverviewPanel({
   onClose: () => void;
 }) {
   const { t } = useTranslation();
+  const tc = useThemeColors();
   const router = useRouter();
   const id = state.survey.id;
   const u = state.unit(code);
@@ -78,18 +81,26 @@ export function OverviewPanel({
   const issues = state.issues.filter((i) => i.unit === code);
 
   // Narrow, fixed-width buttons with a readable label; the 10×10 one spans two.
-  const unitBtn = (c: string, label: string, wide = false) => (
+  const unitBtn = (c: string, label: string, wide = false) => {
+    const look = statusLook(tc, state.statusOf(c));
+    return (
     <Pressable
       key={c}
       onPress={() => go(`/gloria/${id}/${c}`)}
       accessibilityRole="button"
       accessibilityLabel={c}
-      style={{ backgroundColor: STATUS_COLOR[state.statusOf(c)], width: wide ? 76 : 36 }}
+      style={{
+        backgroundColor: look.fill,
+        width: wide ? 76 : 36,
+        // The selected unit's dark frame wins over 未開始's outline.
+        ...(look.border && c !== code ? { borderWidth: 1.5, borderColor: look.border } : null),
+      }}
       className={`m-0.5 items-center rounded py-1.5 ${c === code ? 'border-2 border-gray-900 dark:border-white' : ''}`}
     >
-      <Text className="text-sm font-semibold" style={{ color: STATUS_TEXT[state.statusOf(c)] }}>{label}</Text>
+      <Text className="text-sm font-semibold" style={{ color: look.onFill }}>{label}</Text>
     </Pressable>
-  );
+    );
+  };
 
   return (
     <Pressable onPress={onClose} className="absolute inset-0 bg-black/35 px-2.5 pt-2">

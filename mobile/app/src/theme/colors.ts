@@ -11,6 +11,8 @@ export const LIGHT = {
   paper: '#F6EFE2',
   card: '#FFFBF3',
   line: '#E4D7C1',
+  /** Stronger than `line`: the outline that marks an unfilled status box (GLORIA 未開始). */
+  outline: '#CDBDA3',
   ink: '#2B2119',
   ink2: '#5A4B3D',
   ink3: '#6F5F52',
@@ -37,6 +39,7 @@ export const DARK: Record<keyof typeof LIGHT, string> = {
   paper: '#1F1814',
   card: '#2B2119',
   line: '#4A3D31',
+  outline: '#6F5F52',
   ink: '#EDE3D2',
   ink2: '#CDBDA3',
   ink3: '#A8977F',

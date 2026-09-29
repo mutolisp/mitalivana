@@ -2525,7 +2525,6 @@
     "overview": "Übersicht",
     "endTitle": "GLORIA-Aufnahme beenden?",
     "endMsg": "Sie können sie später wieder öffnen und weiter erfassen.",
-    "unitsDone": "{{done}}/{{total}} Einheiten fertig",
     "tab": {
       "points": "Grunddaten",
       "map": "Flächenübersicht",
@@ -3159,7 +3158,15 @@
       "elevation": "Höhe",
       "notNumber": "{{label}} muss eine Zahl sein",
       "outOfRange": "{{label}} muss zwischen {{min}} und {{max}} liegen"
-    }
+    },
+    "statusActive": "Aufnahme läuft · {{done}} / {{total}} Einheiten fertig",
+    "p5mCorner": "p5m-Ecke",
+    "sas05": "5-m-Bereich",
+    "sas10": "10-m-Bereich",
+    "pending_one": "{{count}} offen",
+    "pending_other": "{{count}} offen",
+    "pendingAll_one": "Alle {{count}}",
+    "pendingAll_other": "Alle {{count}}"
   },
   "vernacular": {
     "title": "Sprachen der Trivialnamen",

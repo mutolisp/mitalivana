@@ -7,7 +7,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { forwardRef, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, InputAccessoryView, Keyboard, Platform, Pressable, Text, TextInput, View } from 'react-native';
+import { Alert, InputAccessoryView, Keyboard, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useKeyboardState } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardStickyView } from '~/components/KeyboardAvoidingView';
@@ -57,6 +57,50 @@ export function Btn({
       disabled={disabled}
       accessibilityLabel={accessibilityLabel}
     />
+  );
+}
+
+/**
+ * Underlined tabs that scroll sideways (03-screens-flow.md §4e): five GLORIA
+ * tabs no longer squeeze into one 390-pt segmented control.
+ */
+export function LineTabs<T extends string>({
+  value,
+  options,
+  onChange,
+}: {
+  value: T;
+  options: Array<{ value: T; label: string }>;
+  onChange: (v: T) => void;
+}) {
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      className="grow-0 border-b border-line bg-card dark:border-line-dark dark:bg-card-dark"
+      contentContainerClassName="px-2"
+    >
+      {options.map((o) => {
+        const on = o.value === value;
+        return (
+          <Pressable
+            key={o.value}
+            onPress={() => onChange(o.value)}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: on }}
+            className="justify-center px-3"
+            style={{ minHeight: 44 }}
+          >
+            <Text
+              className={`text-sm ${on ? 'font-bold text-accent-600 dark:text-accent-400' : 'font-medium text-gray-600 dark:text-gray-400'}`}
+            >
+              {o.label}
+            </Text>
+            <View className={`absolute bottom-0 left-3 right-3 h-[2.5px] rounded-full ${on ? 'bg-accent-600 dark:bg-accent-400' : ''}`} />
+          </Pressable>
+        );
+      })}
+    </ScrollView>
   );
 }
 

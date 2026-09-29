@@ -2667,7 +2667,6 @@
     "overview": "Resumen",
     "endTitle": "¿Terminar este muestreo GLORIA?",
     "endMsg": "Puedes reabrirlo más tarde para seguir registrando.",
-    "unitsDone": "{{done}}/{{total}} unidades terminadas",
     "tab": {
       "points": "Datos base",
       "map": "Vista de parcelas",
@@ -3320,7 +3319,17 @@
       "elevation": "Altitud",
       "notNumber": "{{label}} debe ser un número",
       "outOfRange": "{{label}} debe estar entre {{min}} y {{max}}"
-    }
+    },
+    "statusActive": "Muestreo en curso · {{done}} / {{total}} unidades hechas",
+    "p5mCorner": "esquina p5m",
+    "sas05": "área de 5 m",
+    "sas10": "área de 10 m",
+    "pending_one": "{{count}} por revisar",
+    "pending_many": "{{count}} por revisar",
+    "pending_other": "{{count}} por revisar",
+    "pendingAll_one": "Todos ({{count}})",
+    "pendingAll_many": "Todos ({{count}})",
+    "pendingAll_other": "Todos ({{count}})"
   },
   "vernacular": {
     "title": "Idiomas de los nombres comunes",

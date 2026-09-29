@@ -2383,7 +2383,6 @@
     "overview": "總覽",
     "endTitle": "結束 GLORIA 調查？",
     "endMsg": "之後仍可重新開啟繼續記錄。",
-    "unitsDone": "已完成 {{done}}/{{total}} 單位",
     "tab": {
       "points": "基礎資料",
       "map": "樣區總覽",
@@ -2998,7 +2997,13 @@
       "elevation": "海拔",
       "notNumber": "{{label}}要是數字",
       "outOfRange": "{{label}}要在 {{min}} 到 {{max}} 之間"
-    }
+    },
+    "statusActive": "調查中 · {{done}} / {{total}} 單位完成",
+    "p5mCorner": "p5m 角點",
+    "sas05": "5 m 區域",
+    "sas10": "10 m 區域",
+    "pending_other": "待處理 {{count}}",
+    "pendingAll_other": "全部 {{count}} 項"
   },
   "vernacular": {
     "title": "俗名顯示語言",

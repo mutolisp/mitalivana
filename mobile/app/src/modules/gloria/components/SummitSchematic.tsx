@@ -18,7 +18,8 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Svg, { Circle, G, Line, Path, Polygon, Rect, Text as SvgText } from 'react-native-svg';
 import { useColorScheme } from 'nativewind';
 import { CORNERS, DIRECTIONS, type Direction, type P5mCorner } from '../model/units';
-import { STATUS_COLOR, type UnitStatus } from '../useSurvey';
+import type { UnitStatus } from '../useSurvey';
+import { statusLook } from '../statusColors';
 import { useThemeColors } from '~/theme/colors';
 
 const VERTEX: Record<Direction, [number, number]> = { N: [150, 66], E: [234, 150], S: [150, 234], W: [66, 150] };
@@ -50,7 +51,11 @@ const SAS_POLYS: Array<[string, string]> = DIRECTIONS.flatMap((d): Array<[string
 type Props = {
   p5m: Partial<Record<Direction, P5mCorner>>;
   statusOf: (code: string) => UnitStatus;
-  onUnit: (code: string) => void;
+  /** The direction the list below shows: its two sections get an ink frame. */
+  selected: Direction;
+  /** A summit-area section (or its label) was tapped: show that direction. */
+  onDirection: (d: Direction) => void;
+  /** A 3×3 m cluster was tapped: show that direction and open its panel. */
   onCluster: (d: Direction) => void;
   /** True while two fingers are on the drawing — the page should stop scrolling. */
   onInteract?: (active: boolean) => void;
@@ -66,7 +71,7 @@ function clampView(v: ViewBox): ViewBox {
   return { s, x: Math.min(FULL - s, Math.max(0, v.x)), y: Math.min(FULL - s, Math.max(0, v.y)) };
 }
 
-export function SummitSchematic({ p5m, statusOf, onUnit, onCluster, onInteract }: Props) {
+export function SummitSchematic({ p5m, statusOf, selected, onDirection, onCluster, onInteract }: Props) {
   const tc = useThemeColors();
   const { t } = useTranslation();
   const [view, setView] = useState<ViewBox>(HOME);
@@ -133,35 +138,50 @@ export function SummitSchematic({ p5m, statusOf, onUnit, onCluster, onInteract }
           the intersection lines to NE / SE / SW / NW and by the 5-m / 10-m
           lines; tinted by status and tappable, so their extent reads at a
           glance. */}
-      {SAS_POLYS.map(([code, pts]) => (
-        <Polygon
-          key={code}
-          points={pts}
-          fill={STATUS_COLOR[statusOf(code)]}
-          fillOpacity={statusOf(code) === 'none' ? 0.06 : 0.16}
-          onPress={() => onUnit(code)}
-        />
-      ))}
+      {SAS_POLYS.map(([code, pts]) => {
+        const st = statusOf(code);
+        // Not started is plain paper; otherwise the status colour, the 5-m
+        // section stronger than the 10-m one so the two read apart (§4e).
+        return (
+          <Polygon
+            key={code}
+            points={pts}
+            fill={st === 'none' ? tc.paper : statusLook(tc, st).fill}
+            fillOpacity={st === 'none' ? 1 : code.endsWith('05') ? 0.6 : 0.35}
+            onPress={() => onDirection(code[0] as Direction)}
+          />
+        );
+      })}
       {/* Principal measurement lines HSP → N / E / S / W run through the
           middle of each section — dashed, so they don't read as boundaries. */}
       <G stroke={axis} strokeWidth={1.2} strokeDasharray="5 4" opacity={0.7}>
-        <Line x1={150} y1={150} x2={150} y2={14} />
-        <Line x1={150} y1={150} x2={286} y2={150} />
-        <Line x1={150} y1={150} x2={150} y2={286} />
-        <Line x1={150} y1={150} x2={14} y2={150} />
+        <Line x1={150} y1={150} x2={150} y2={14} pointerEvents="none" />
+        <Line x1={150} y1={150} x2={286} y2={150} pointerEvents="none" />
+        <Line x1={150} y1={150} x2={150} y2={286} pointerEvents="none" />
+        <Line x1={150} y1={150} x2={14} y2={150} pointerEvents="none" />
       </G>
       {/* Section boundaries: the two summit-area outlines and the intersection lines. */}
+      {/* Lines only. Each shape needs pointerEvents none itself: on Android an
+          unfilled shape still hit-tests by its path's area (so the outer
+          diamond covered every section), and a <G>'s own pointerEvents is
+          not consulted (react-native-svg RenderableView / GroupView hitTest). */}
       <G fill="none" stroke={axis} strokeWidth={1.6}>
-        <Polygon points="150,14 286,150 150,286 14,150" />
-        <Polygon points="150,66 234,150 150,234 66,150" />
-        <Line x1={150} y1={150} x2={218} y2={82} />
-        <Line x1={150} y1={150} x2={218} y2={218} />
-        <Line x1={150} y1={150} x2={82} y2={218} />
-        <Line x1={150} y1={150} x2={82} y2={82} />
+        <Polygon points="150,14 286,150 150,286 14,150" pointerEvents="none" />
+        <Polygon points="150,66 234,150 150,234 66,150" pointerEvents="none" />
+        <Line x1={150} y1={150} x2={218} y2={82} pointerEvents="none" />
+        <Line x1={150} y1={150} x2={218} y2={218} pointerEvents="none" />
+        <Line x1={150} y1={150} x2={82} y2={218} pointerEvents="none" />
+        <Line x1={150} y1={150} x2={82} y2={82} pointerEvents="none" />
+      </G>
+      {/* The direction shown in the list below. */}
+      <G fill="none" stroke={tc.ink} strokeWidth={2.5} strokeLinejoin="round">
+        {SAS_POLYS.filter(([code]) => code[0] === selected).map(([code, pts]) => (
+          <Polygon key={code} points={pts} pointerEvents="none" />
+        ))}
       </G>
       {SAS_LABEL.map(([code, x, y]) => (
-        <G key={code} onPress={() => onUnit(code)}>
-          <Rect x={x - 16} y={y - 11} width={32} height={16} rx={4} fill={paper} stroke={STATUS_COLOR[statusOf(code)]} strokeWidth={1.5} />
+        <G key={code} onPress={() => onDirection(code[0] as Direction)}>
+          <Rect x={x - 16} y={y - 11} width={32} height={16} rx={4} fill={paper} stroke={statusLook(tc, statusOf(code)).border ?? statusLook(tc, statusOf(code)).fill} strokeWidth={1.5} />
           <SvgText x={x} y={y + 1} fontSize={9} fill={mute} textAnchor="middle">{code}</SvgText>
         </G>
       ))}
@@ -205,8 +225,11 @@ export function SummitSchematic({ p5m, statusOf, onUnit, onCluster, onInteract }
                   y={p[1] - CELL / 2 + 0.5}
                   width={CELL - 1}
                   height={CELL - 1}
-                  fill={STATUS_COLOR[statusOf(d + q)]}
-                  onPress={() => onUnit(d + q)}
+                  fill={statusLook(tc, statusOf(d + q)).fill}
+                  // 未開始 is card-coloured: the outline is what makes it a box.
+                  stroke={statusLook(tc, statusOf(d + q)).border ?? undefined}
+                  strokeWidth={1}
+                  onPress={() => onCluster(d)}
                 />
               );
             })}
@@ -270,26 +293,26 @@ export function SummitSchematic({ p5m, statusOf, onUnit, onCluster, onInteract }
 }
 
 /**
- * The 3×3 m cluster seen from below, HSP up (Fig. 4.1): corner quadrats
- * highlighted, the four outer corner points named p5m-/p- with their
- * measured distance and bearing, and the p5m corner ringed on the 5-m line.
+ * The 3×3 m cluster seen from below, HSP up (Fig. 4.1): all nine cells
+ * named, the four corner quadrats in their status colour, the four outer
+ * corner points named p5m-/p- with their measured distance and bearing, and
+ * the p5m corner ringed on the 5-m line.
  */
 export function P5mDiagram({
   direction,
   corner,
   measure,
+  statusOf,
 }: {
   direction: Direction;
   corner: P5mCorner;
   measure: (key: string) => { distance: number | null; compass: number | null };
+  statusOf: (code: string) => UnitStatus;
 }) {
   const c = useThemeColors();
   const dark = useColorScheme().colorScheme === 'dark';
   const ink = dark ? '#f3f4f6' : '#111827';
   const mute = c.ink2;
-  // Same light green in both themes; its labels are always dark (below).
-  const quad = '#A8D8B9';
-  const paper = dark ? '#111827' : '#ffffff';
   const L = 60, T = 34, W = 60;
   const pX = corner === '11' ? L : L + 3 * W;
   const pts: Array<[string, number, number, 'bottom' | 'top']> = [
@@ -304,10 +327,11 @@ export function P5mDiagram({
       const x = L + (col - 1) * W;
       const y = T + (3 - row) * W;
       const isCorner = col !== 2 && row !== 2;
+      const look = isCorner ? statusLook(c, statusOf(`${direction}${col}${row}`)) : null;
       cells.push(
         <G key={`${col}${row}`}>
-          <Rect x={x} y={y} width={W} height={W} fill={isCorner ? quad : paper} stroke={mute} strokeWidth={1.2} />
-          <SvgText x={x + W / 2} y={y + W / 2 + 5} fontSize={isCorner ? 15 : 13} fontWeight={isCorner ? '800' : '400'} fill={isCorner ? '#111827' : ink} textAnchor="middle">
+          <Rect x={x} y={y} width={W} height={W} fill={look ? look.fill : c.paper} stroke={mute} strokeWidth={1.2} />
+          <SvgText x={x + W / 2} y={y + W / 2 + 5} fontSize={isCorner ? 14 : 12} fontWeight={isCorner ? '800' : '400'} fill={look ? look.onFill : mute} textAnchor="middle">
             {`${direction}${col}${row}`}
           </SvgText>
         </G>,
