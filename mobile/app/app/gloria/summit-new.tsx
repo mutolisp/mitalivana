@@ -80,8 +80,11 @@ export default function NewSummitScreen() {
   const setPart = (i: number, raw: string) => {
     const p = PARTS[i];
     const v = raw.toUpperCase().replace(p.allowed, '').slice(0, p.len);
+    const was = code[p.key];
     setCode((prev) => ({ ...prev, [p.key]: v }));
-    if (v.length === p.len && i < PARTS.length - 1) refs[PARTS[i + 1].key].current?.focus();
+    // Advance only when this keystroke filled the box: typing into a box that
+    // was already full (a rejected extra character) must not move on.
+    if (v.length === p.len && was.length < p.len && i < PARTS.length - 1) refs[PARTS[i + 1].key].current?.focus();
   };
 
   /** '' → ok (optional); otherwise a message for a non-number or out-of-range entry. */
@@ -203,14 +206,14 @@ export default function NewSummitScreen() {
               className={`text-xs ${
                 wrong
                   ? 'text-alert dark:text-alert-dark'
-                  : allComplete
+                  : allComplete && !existing
                     ? 'font-medium text-accent-700 dark:text-accent-300'
                     : 'text-gray-500 dark:text-gray-400'
               }`}
             >
               {wrong
                 ? t(wrong.errKey)
-                : allComplete
+                : allComplete && !existing
                   ? t('gloria.summitNew.willCreate', { code: fullCode })
                   : t('gloria.new.codeHint')}
             </Text>

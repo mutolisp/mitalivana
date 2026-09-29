@@ -451,6 +451,9 @@ MIREN（規劃中）→ `docs/planned/MIREN.md`；
 - [x] Phase 3：基礎元件 `Button`、`Chip`、`Tag`；改寫 `PillButton`、`HeaderIconButton`、`SpeciesCard`、`RecordListItem`；Source Serif 4（2026-09-29）
 - [x] Phase 4：記錄首頁、建立記錄 sheet、快速名錄、物種細節（2026-09-29，細節見 `Update_log.md`）
 - [x] Phase 4 追加：⋯ 下拉選單（§4b）、設定頁分組卡片與搜尋（§4c，`check:settings-index`）（2026-09-29）
+- [x] Phase 4 追加：新增 GLORIA 調查與新增山峰全螢幕頁（§4d）（2026-09-29）
+- [ ] §4e GLORIA 調查中（進度列、方位切換、3×3 m 面板、狀態色）
+- [ ] §1 釘選（圖釘、專案檢視的釘選區、左滑與多選入口；文案「加星號」→「釘選」）
 - 待決：記錄首頁搜尋要不要也比對物種名稱（需查 DB，新功能；規格原稿有寫，這期沒做）
 - 待辦：快速名錄情境條的空間資料要顯示「起點 ±N m」得在 session 存起點精度（資料層變更，改版範圍外）
 - 待辦：批次匯入的輸入框範例文字在 Android 顯示成字面的 `\n`（既有）
