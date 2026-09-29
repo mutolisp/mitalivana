@@ -285,19 +285,34 @@ const subscribeStepping = (l: () => void) => {
   return () => listeners.delete(l);
 };
 
+/** 上一格 / 下一格 (05-controls.md §2.7): a chevron and the word, on a 36 pt
+ *  pill; a step that cannot go anywhere fades like a StepPager's. */
+function KbStep({ dir, onPress, disabled = false }: { dir: -1 | 1; onPress: () => void; disabled?: boolean }) {
+  const { t } = useTranslation();
+  const c = useThemeColors();
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      hitSlop={4}
+      accessibilityRole="button"
+      className={`flex-row items-center rounded-full bg-disc px-3 active:bg-disc-pressed dark:bg-disc-dark dark:active:bg-disc-dark-pressed ${disabled ? 'opacity-35' : ''}`}
+      style={{ height: 36 }}
+    >
+      {dir < 0 ? <Ionicons name="chevron-back" size={16} color={c.ink} /> : null}
+      <Text className="mx-1 text-base font-semibold text-ink dark:text-gray-100">{t(dir < 0 ? 'gloria.kb.prev' : 'gloria.kb.next')}</Text>
+      {dir > 0 ? <Ionicons name="chevron-forward" size={16} color={c.ink} /> : null}
+    </Pressable>
+  );
+}
+
 function AccessoryBar() {
   const { t } = useTranslation();
   return (
-    <View className="flex-row items-center gap-5 border-t border-gray-300 bg-gray-100 px-4 py-2 dark:border-gray-700 dark:bg-gray-800">
-      {focusedPrev || stepping ? (
-        <Pressable onPress={() => focusedPrev?.()} hitSlop={8} accessibilityRole="button">
-          <Text className="text-base font-semibold text-accent-700 dark:text-accent-300">‹ {t('gloria.kb.prev')}</Text>
-        </Pressable>
-      ) : null}
+    <View className="flex-row items-center gap-3 border-t border-line bg-card px-3 py-1.5 dark:border-line-dark dark:bg-card-dark">
+      {focusedPrev || stepping ? <KbStep dir={-1} onPress={() => focusedPrev?.()} disabled={!focusedPrev} /> : null}
       <View className="flex-1" />
-      <Pressable onPress={() => (focusedNext ? focusedNext() : Keyboard.dismiss())} hitSlop={8} accessibilityRole="button">
-        <Text className="text-base font-semibold text-accent-700 dark:text-accent-300">{t('gloria.kb.next')} ›</Text>
-      </Pressable>
+      <KbStep dir={1} onPress={() => (focusedNext ? focusedNext() : Keyboard.dismiss())} />
       <Pressable onPress={() => Keyboard.dismiss()} hitSlop={8} accessibilityRole="button">
         <Text className="text-base text-gray-700 dark:text-gray-200">{t('gloria.kb.done')}</Text>
       </Pressable>

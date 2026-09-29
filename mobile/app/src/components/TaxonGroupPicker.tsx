@@ -6,6 +6,7 @@ import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { TaxonGroup } from '~/db/types';
 import { useThemeColors } from '~/theme/colors';
+import { DropdownChevron } from '~/components/ui/Chevron';
 
 export const TAXON_GROUP_OPTIONS: Array<{ value: TaxonGroup | '' }> = [
   { value: '' },
@@ -55,7 +56,9 @@ export function TaxonGroupPicker({ value, onChange }: Props) {
         className="flex-row items-center rounded-full bg-accent-50 dark:bg-accent-950/40 px-3 py-1.5 active:bg-accent-100 dark:active:bg-accent-900/60"
       >
         <Ionicons name="filter" size={14} color={c.accent} />
-        <Ionicons name="chevron-down" size={12} color={c.accent} style={{ marginLeft: 2 }} />
+        <View style={{ marginLeft: 2 }}>
+          <DropdownChevron />
+        </View>
       </Pressable>
 
       {value.length === 0 ? (

@@ -80,6 +80,7 @@ import {
 import { stampNewRecord } from '~/lib/recordFix';
 import { useThemeColors } from '~/theme/colors';
 import { SelectMark } from '~/components/ui/SelectMark';
+import { DropdownChevron } from '~/components/ui/Chevron';
 
 type ValueModalState =
   | { mode: 'create'; taxon: SearchResult; layer: Layer; adopted?: AdoptionInput | null }
@@ -1002,7 +1003,9 @@ export function PlotSpeciesTab({
                   >
                     {subplots.find((sp) => sp.id === activeSubplotId)?.label ?? ''}
                   </Text>
-                  <Ionicons name="chevron-down" size={12} color={c.ink3} style={{ marginLeft: 2 }} />
+                  <View style={{ marginLeft: 2 }}>
+                    <DropdownChevron />
+                  </View>
                 </Pressable>
               ) : null}
               {/* The Environment↔Species swipe activates at 18px of horizontal

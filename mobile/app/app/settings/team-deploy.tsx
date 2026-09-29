@@ -40,6 +40,7 @@ import { teamSyncErrorText } from '~/lib/teamSyncText';
 import { saveAdminToken } from '~/lib/teamSyncAdmin';
 import { defaultSurveyorString } from '~/db/surveyors';
 import { useThemeColors } from '~/theme/colors';
+import { LinkChevron } from '~/components/ui/Chevron';
 
 const STEPS: DeployStep[] = ['url', 'guard', 'bucket', 'lifecycle', 'script', 'subdomain', 'schedule', 'check'];
 
@@ -244,11 +245,13 @@ export default function TeamDeployScreen() {
             </Text>
           ))}
           <Text className="pt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">{t('teamDeploy.permsNote')}</Text>
-          <Pressable onPress={() => void Linking.openURL(tokenTemplateUrl('account'))} accessibilityRole="link" className="pt-1">
-            <Text className="text-sm text-accent-700 dark:text-accent-300">{t('teamDeploy.openAccountTokens')} ›</Text>
+          <Pressable onPress={() => void Linking.openURL(tokenTemplateUrl('account'))} accessibilityRole="link" className="flex-row items-center pt-1">
+            <Text className="mr-0.5 text-sm font-semibold text-accent-600 dark:text-accent-400">{t('teamDeploy.openAccountTokens')}</Text>
+            <LinkChevron />
           </Pressable>
-          <Pressable onPress={() => void Linking.openURL(tokenTemplateUrl('user'))} accessibilityRole="link">
-            <Text className="text-xs text-accent-700 dark:text-accent-300">{t('teamDeploy.openUserTokens')} ›</Text>
+          <Pressable onPress={() => void Linking.openURL(tokenTemplateUrl('user'))} accessibilityRole="link" className="flex-row items-center">
+            <Text className="mr-0.5 text-sm font-semibold text-accent-600 dark:text-accent-400">{t('teamDeploy.openUserTokens')}</Text>
+            <LinkChevron />
           </Pressable>
         </View>
 

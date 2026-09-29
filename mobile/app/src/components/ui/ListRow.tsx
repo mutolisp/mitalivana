@@ -11,7 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import type { ReactNode } from 'react';
 import { Pressable, Text, View } from 'react-native';
-import { rebaseAppFileUri } from '~/lib/appFiles';
+import { safeAppFileUri } from '~/lib/appFiles';
 import { useThemeColors } from '~/theme/colors';
 
 export type ListRowTone = 'default' | 'fresh' | 'uploaded';
@@ -108,9 +108,11 @@ export function Thumb({
   accessibilityLabel?: string;
 }) {
   const c = useThemeColors();
-  const body = uri ? (
+  // Only files inside the app's own media folders are shown (security audit S1).
+  const src = uri ? safeAppFileUri(uri) : null;
+  const body = src ? (
     <View>
-      <Image source={{ uri: rebaseAppFileUri(uri) }} style={{ width: 48, height: 48, borderRadius: 10 }} contentFit="cover" />
+      <Image source={{ uri: src }} style={{ width: 48, height: 48, borderRadius: 10 }} contentFit="cover" />
       {count > 1 ? (
         <View className="absolute -right-1 -top-1 rounded-full bg-ink/80 px-1.5 dark:bg-gray-950/80">
           <Text className="text-[10px] font-bold text-white">{count}</Text>

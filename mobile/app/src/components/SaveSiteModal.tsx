@@ -17,6 +17,7 @@ import { promptText } from './TextPromptModal';
 import { runOverModal } from './GbifLookupHost';
 import { SITE_TYPE_LABEL, type DrawType } from '~/lib/siteLabels';
 import { useThemeColors } from '~/theme/colors';
+import { DropdownChevron } from '~/components/ui/Chevron';
 
 type Props = {
   visible: boolean;
@@ -139,7 +140,7 @@ export function SaveSiteModal({
                 className="flex-row items-center justify-between rounded border border-gray-300 dark:border-gray-600 px-3 py-2 active:bg-gray-50 dark:active:bg-gray-800"
               >
                 <Text className="text-base text-gray-900 dark:text-gray-100">{currentProject?.name ?? t('plot.uncategorized')}</Text>
-                <Ionicons name="chevron-down" size={16} color={c.ink2} />
+                <DropdownChevron />
               </Pressable>
             </Field>
 

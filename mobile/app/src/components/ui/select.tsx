@@ -66,7 +66,8 @@ function SelectTrigger({
       {...props}
     >
       <>{children}</>
-      <Ionicons name="chevron-down" size={16} color={c.ink3} />
+      {/* The dropdown glyph, as DropdownChevron draws it (05-controls.md §2.7). */}
+      <Ionicons name="chevron-down" size={16} color={c.ink2} />
     </SelectPrimitive.Trigger>
   );
 }

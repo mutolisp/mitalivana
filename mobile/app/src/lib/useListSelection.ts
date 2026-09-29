@@ -11,6 +11,7 @@ import * as Haptics from 'expo-haptics';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { BackHandler } from 'react-native';
+import { useSelectBack } from '~/lib/selectBack';
 
 export function useListSelection<K>() {
   const [selectMode, setSelectMode] = useState(false);
@@ -55,7 +56,12 @@ export function useListSelection<K>() {
         exit();
         return true;
       });
-      return () => sub.remove();
+      // The header back does the same (BackHeaderLeft reads this).
+      useSelectBack.getState().set(exit);
+      return () => {
+        sub.remove();
+        if (useSelectBack.getState().exit === exit) useSelectBack.getState().set(null);
+      };
     }, [selectMode, exit]),
   );
 

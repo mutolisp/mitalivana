@@ -10,6 +10,7 @@
 import i18n from '~/i18n';
 import { router } from 'expo-router';
 import { IconDisc } from '~/components/ui/IconDisc';
+import { useSelectBack } from '~/lib/selectBack';
 
 export function goBackOrHome(): void {
   if (router.canGoBack()) {
@@ -28,5 +29,14 @@ export function BackHeaderLeft() {
   // as the accessibility label, which is where a screen reader looks for it.
   // The button's square box is what centres the glyph — Ionicons' chevron
   // carries an asymmetric bearing, so padding alone leaves it off-centre.
-  return <IconDisc icon="back" onPress={goBackOrHome} accessibilityLabel={i18n.t('nav.back')} edge="left" />;
+  // In select mode, back leaves select mode first (05-controls.md §2.1).
+  const exitSelect = useSelectBack((s) => s.exit);
+  return (
+    <IconDisc
+      icon="back"
+      onPress={exitSelect ?? goBackOrHome}
+      accessibilityLabel={i18n.t(exitSelect ? 'common.exitSelect' : 'nav.back')}
+      edge="left"
+    />
+  );
 }

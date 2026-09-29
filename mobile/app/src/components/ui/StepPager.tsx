@@ -1,7 +1,7 @@
 /**
  * Previous / next with a position (05-controls.md §2.5): two 32 pt discs and
  * "3 / 47" between them. A disabled step fades to 0.35 and keeps its colour
- * (the old grey `#d1d5db` read as a different button, not a paused one).
+ * (the old fixed light grey read as a different button, not a paused one).
  */
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';

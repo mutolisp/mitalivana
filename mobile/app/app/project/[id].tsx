@@ -36,6 +36,7 @@ import { BackHeaderLeft } from '~/lib/goBack';
 import { useSettings } from '~/stores/settings';
 import { listMirenSurveysOfProject } from '~/modules/miren/db';
 import { useThemeColors } from '~/theme/colors';
+import { LinkChevron } from '~/components/ui/Chevron';
 
 export default function ProjectDetailScreen() {
   const tc = useThemeColors();
@@ -269,9 +270,10 @@ export default function ProjectDetailScreen() {
                 <Pressable
                   onPress={() => router.push(`/report/gloriaProject/${projectId}` as Href)}
                   accessibilityRole="button"
-                  className="mt-1 self-start active:opacity-60"
+                  className="mt-1 flex-row items-center self-start active:opacity-60"
                 >
-                  <Text className="text-xs font-medium text-accent-700 dark:text-accent-300">{t('projectDetail.gloriaReport')} ›</Text>
+                  <Text className="mr-0.5 text-sm font-semibold text-accent-600 dark:text-accent-400">{t('projectDetail.gloriaReport')}</Text>
+                  <LinkChevron />
                 </Pressable>
               ) : null}
             </View>

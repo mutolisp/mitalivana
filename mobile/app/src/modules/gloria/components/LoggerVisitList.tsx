@@ -11,6 +11,7 @@ import { isoStamp } from '~/lib/datetime';
 import { createLoggerVisit, listLoggers, listVisits, summitCycles, type LoggerVisit } from '../loggerDb';
 import { cycleOf } from '../model/loggers';
 import { Btn, Card } from './ui';
+import { Chevron } from '~/components/ui/Chevron';
 
 export function LoggerVisitList({
   summitId,
@@ -80,7 +81,7 @@ export function LoggerVisitList({
                         .filter(Boolean)
                         .join(' · ')}
                     </Text>
-                    <Text className="text-gray-400">›</Text>
+                    <Chevron />
                   </Pressable>
                 );
               })}

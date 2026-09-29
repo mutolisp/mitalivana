@@ -56,6 +56,7 @@ import type { FavoriteFolder } from '~/db';
 import { setFavoriteFolderArea } from '~/db';
 
 import { Button } from '~/components/ui/Button';
+import { DropdownChevron } from '~/components/ui/Chevron';
 
 type Step = 'filters' | 'loading' | 'result';
 
@@ -699,7 +700,7 @@ export function AreaSpeciesModal({
                   <Text className="flex-1 text-base text-gray-900 dark:text-gray-100">
                     {target.kind === 'new' ? t('areaSpecies.targetNew') : target.name}
                   </Text>
-                  <Ionicons name="chevron-down" size={16} color={colors.ink2} />
+                  <DropdownChevron />
                 </Pressable>
                 {target.kind === 'new' ? (
                   <TextInput

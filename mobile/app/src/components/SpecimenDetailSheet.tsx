@@ -47,6 +47,7 @@ import { SpeciesAttributesBlock, type SpeciesAttributesDraft } from './SpeciesAt
 import { VerbatimLabelField } from './VerbatimLabelField';
 import { ToastHost } from './ToastHost';
 import { useThemeColors } from '~/theme/colors';
+import { IconDisc } from './ui/IconDisc';
 
 export type SpecimenPatch = {
   record_number?: string;
@@ -379,9 +380,7 @@ export function SpecimenDetailSheet({
       <GestureHandlerRootView style={{ flex: 1 }}>
         <View className="flex-1 bg-gray-50 dark:bg-gray-900" style={{ paddingTop: insets.top }}>
           <View className="flex-row items-center justify-between border-b border-gray-200 bg-card px-4 py-3 dark:border-gray-700 dark:bg-gray-900">
-            <Pressable onPress={onClose} hitSlop={8} className="active:opacity-60">
-              <Ionicons name="chevron-down" size={24} color={c.ink2} />
-            </Pressable>
+            <IconDisc icon="close" onPress={onClose} accessibilityLabel={t('common.close')} edge="left" />
             <Text
               className="flex-1 px-3 text-base font-semibold text-gray-900 dark:text-gray-100"
               numberOfLines={1}
