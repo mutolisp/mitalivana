@@ -8,6 +8,9 @@ import { File, Paths } from 'expo-file-system';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { isoDateTime } from '~/lib/datetime';
+import { SelectionDock, SelectionToolbar } from '~/components/SelectionToolbar';
+import { IconDisc } from '~/components/ui/IconDisc';
+import { SelectMark } from '~/components/ui/SelectMark';
 import { Alert, BackHandler, FlatList, Pressable, Text, TextInput, View } from 'react-native';
 import { showActionSheet } from '~/components/ActionSheet';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -156,7 +159,7 @@ export default function SitesScreen() {
 
   const handleLongPress = (r: GeoRow) => {
     if (selectMode) return;
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    void Haptics.selectionAsync();
     setSelectMode(true);
     setPicked(new Set([r.key]));
   };
@@ -403,12 +406,9 @@ export default function SitesScreen() {
         className="flex-row items-center border-b border-gray-100 bg-card px-4 py-3 active:bg-gray-50 dark:border-gray-800 dark:bg-gray-900 dark:active:bg-gray-800"
       >
         {selectMode ? (
-          <Ionicons
-            name={checked ? 'checkbox' : 'square-outline'}
-            size={20}
-            color={checked ? CHROME_TINT : c.ink3}
-            style={{ marginRight: 12 }}
-          />
+          <View className="mr-3">
+            <SelectMark state={checked ? 'on' : 'off'} />
+          </View>
         ) : (
           <Ionicons name={glyph} size={20} color={tint} style={{ marginRight: 12 }} />
         )}
@@ -465,7 +465,11 @@ export default function SitesScreen() {
       <Stack.Screen
         options={{
           title: t('sites.title'),
-          headerLeft: BackHeaderLeft,
+          // While selecting, back leaves select mode first (05-controls.md §2.1).
+          headerLeft: selectMode
+            ? () => <IconDisc icon="back" onPress={exitSelect} accessibilityLabel={t('common.exitSelect')} edge="left" />
+            : BackHeaderLeft,
+          gestureEnabled: !selectMode,
           headerRight: () =>
             rows.length > 0 && !selectMode ? (
               <HeaderIconButton
@@ -491,60 +495,12 @@ export default function SitesScreen() {
       ) : (
         <>
           {selectMode ? (
-            <View className="flex-row items-center justify-between border-b border-gray-200 bg-card px-4 py-2 dark:border-gray-700 dark:bg-gray-900">
-              <Text className="text-sm text-gray-500 dark:text-gray-400">
-                {t('sites.selectedCount', { count: picked.size })}
-              </Text>
-              <View className="flex-row items-center gap-3">
-                <Pressable onPress={toggleSelectAll} hitSlop={8}>
-                  <Text className="text-sm text-accent-600 dark:text-accent-400">
-                    {allVisiblePicked ? t('sites.deselectAll') : t('sites.selectAll')}
-                  </Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => askExportFormat(chosen, 'sites')}
-                  disabled={picked.size === 0}
-                  hitSlop={8}
-                >
-                  <Text
-                    className={`text-sm font-medium ${
-                      picked.size === 0
-                        ? 'text-gray-300 dark:text-gray-600'
-                        : 'text-accent-600 dark:text-accent-400'
-                    }`}
-                  >
-                    {t('common.export')}
-                  </Text>
-                </Pressable>
-                <Pressable onPress={handleBulkAssign} disabled={picked.size === 0} hitSlop={8}>
-                  <Text
-                    className={`text-sm font-medium ${
-                      picked.size === 0
-                        ? 'text-gray-300 dark:text-gray-600'
-                        : 'text-accent-600 dark:text-accent-400'
-                    }`}
-                  >
-                    {t('sites.move')}
-                  </Text>
-                </Pressable>
-                <Pressable onPress={handleBulkDelete} disabled={picked.size === 0} hitSlop={8}>
-                  <Text
-                    className={`text-sm font-medium ${
-                      picked.size === 0
-                        ? 'text-gray-300 dark:text-gray-600'
-                        : 'text-red-600 dark:text-red-400'
-                    }`}
-                  >
-                    {t('common.delete')}
-                  </Text>
-                </Pressable>
-                <Pressable onPress={exitSelect} hitSlop={8}>
-                  <Text className="text-sm text-gray-500 dark:text-gray-400">
-                    {t('common.cancel')}
-                  </Text>
-                </Pressable>
-              </View>
-            </View>
+            <SelectionToolbar
+              count={picked.size}
+              allPicked={allVisiblePicked}
+              onToggleAll={toggleSelectAll}
+              onCancel={exitSelect}
+            />
           ) : null}
 
           {showSearch ? (
@@ -620,12 +576,15 @@ export default function SitesScreen() {
                           }
                           hitSlop={6}
                         >
-                          <Ionicons
-                            name={
-                              list.every((r) => picked.has(r.key)) ? 'checkbox' : 'square-outline'
+                          {/* The group's own select-all: mixed while partly picked. */}
+                          <SelectMark
+                            state={
+                              list.every((r) => picked.has(r.key))
+                                ? 'on'
+                                : list.some((r) => picked.has(r.key))
+                                  ? 'mixed'
+                                  : 'off'
                             }
-                            size={16}
-                            color={CHROME_TINT}
                           />
                         </Pressable>
                       ) : (
@@ -651,6 +610,16 @@ export default function SitesScreen() {
         description={t('sites.assignProjectDesc')}
         newProjectDescription={t('sites.newProjectDesc')}
       />
+      {selectMode ? (
+        <SelectionDock
+          count={picked.size}
+          actions={[
+            { label: t('common.export'), onPress: () => askExportFormat(chosen, 'sites') },
+            { label: t('sites.move'), onPress: handleBulkAssign },
+            { label: t('common.delete'), onPress: handleBulkDelete, destructive: true },
+          ]}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }

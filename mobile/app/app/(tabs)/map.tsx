@@ -105,6 +105,7 @@ import { resolveLanguage } from '~/i18n';
 import { useSettings, type MapBasemap } from '~/stores/settings';
 import { useToast } from '~/stores/toast';
 import { ACTION_FILL } from '~/lib/colors';
+import { IconDisc } from '~/components/ui/IconDisc';
 
 /** What a cluster member stands for, so a bubble can list its records. */
 type ClusterFeature =
@@ -2044,9 +2045,9 @@ export default function MapScreen() {
       >
         {searchOpen ? (
           <View className="flex-row items-center rounded-full bg-card px-3 py-2 shadow-md dark:bg-gray-900/95">
-            <Pressable onPress={closeSearch} hitSlop={8}>
-              <Ionicons name="arrow-back" size={18} color={overlayIcon} />
-            </Pressable>
+            <View className="-my-2 -ml-2">
+              <IconDisc icon="back" onPress={closeSearch} accessibilityLabel={t('common.back')} />
+            </View>
             <TextInput
               ref={searchInputRef}
               className="ml-2 flex-1 text-sm text-gray-900 dark:text-gray-100"

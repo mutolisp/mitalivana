@@ -10,6 +10,7 @@
  * Picking the last row off does not leave select mode — a stray tap should
  * not throw the user out of a half-built selection.
  */
+import { useRef, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Text, View } from 'react-native';
 import { Button } from '~/components/ui/Button';
@@ -18,7 +19,9 @@ import { SelectMark } from '~/components/ui/SelectMark';
 
 export type SelectionAction = {
   label: string;
-  onPress: () => void;
+  /** Plain action, or `onMenu` to open an OverflowMenu from this button. */
+  onPress?: () => void;
+  onMenu?: (anchor: RefObject<View | null>) => void;
   /** Destructive actions use the danger look. */
   destructive?: boolean;
   /** Enabled even with nothing picked (e.g. an action that opens a chooser). */
@@ -71,16 +74,25 @@ export function SelectionDock({
     >
       <View className="w-full flex-row flex-wrap justify-center gap-2" style={{ maxWidth: 520 }}>
         {actions.map((a) => (
-          <Button
-            key={a.label}
-            label={a.label}
-            onPress={a.onPress}
-            variant={a.destructive ? 'danger' : 'secondary'}
-            disabled={count === 0 && !a.always}
-            className="flex-grow"
-          />
+          <DockButton key={a.label} action={a} disabled={count === 0 && !a.always} />
         ))}
       </View>
+    </View>
+  );
+}
+
+function DockButton({ action: a, disabled }: { action: SelectionAction; disabled: boolean }) {
+  // A View around the button is the menu's anchor (Button takes no ref).
+  const anchor = useRef<View>(null);
+  return (
+    <View ref={anchor} collapsable={false} className="flex-grow">
+      <Button
+        label={a.label}
+        icon={a.onMenu ? 'ellipsis-horizontal' : undefined}
+        onPress={() => (a.onMenu ? a.onMenu(anchor) : a.onPress?.())}
+        variant={a.destructive ? 'danger' : 'secondary'}
+        disabled={disabled}
+      />
     </View>
   );
 }

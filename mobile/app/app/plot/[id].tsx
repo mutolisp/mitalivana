@@ -76,6 +76,7 @@ import { LockedBanner, RecordEditButtons } from '~/components/RecordEditButtons'
 import { onVersionRestored, saveVersionSoon } from '~/db/recordVersions';
 import { useVersionOnLeave } from '~/lib/useVersionOnLeave';
 import { Button } from '~/components/ui/Button';
+import { CheckboxMark } from '~/components/ui/Checkbox';
 
 export default function PlotDetailScreen() {
   const { t } = useTranslation();
@@ -1017,11 +1018,7 @@ function SubplotSection({ plot, onUpdated }: { plot: PlotSurvey; onUpdated: () =
 
       {count > 0 ? (
         <Pressable onPress={toggleUniform} className="mb-2 flex-row items-center" hitSlop={6}>
-          <Ionicons
-            name={uniform ? 'checkbox' : 'square-outline'}
-            size={20}
-            color={uniform ? c.accent : c.ink2}
-          />
+          <CheckboxMark checked={uniform} />
           <Text className="ml-2 text-sm text-gray-800 dark:text-gray-200">
             {t('plot.subplotUniform')}
           </Text>

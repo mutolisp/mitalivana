@@ -21,6 +21,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardAvoidingView } from './KeyboardAvoidingView';
 import type { MergeRecordOptions } from '~/db';
 import { useThemeColors } from '~/theme/colors';
+import { Radio } from '~/components/ui/Radio';
 
 export type MergeSource = { id: number; title: string; subtitle: string };
 
@@ -142,12 +143,7 @@ export function MergeRecordsModal({ request, onCancel, onConfirm }: Props) {
                         : 'active:bg-gray-50 dark:active:bg-gray-800'
                     }`}
                   >
-                    <Ionicons
-                      name={active ? 'radio-button-on' : 'radio-button-off'}
-                      size={20}
-                      color={active ? c.accent : c.ink3}
-                      style={{ marginRight: 12 }}
-                    />
+                    <View style={{ marginRight: 12 }}><Radio selected={active} /></View>
                     <View className="flex-1">
                       <Text
                         numberOfLines={1}

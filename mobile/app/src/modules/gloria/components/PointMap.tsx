@@ -109,7 +109,7 @@ export function PointMap({
     });
   const zoomed = view.s < FULL - 0.5;
 
-  const empty = dark ? '#374151' : '#d1d5db';
+  const empty = tc.outline;
   const edge = dark ? '#111827' : '#ffffff';
   const ink = tc.ink2;
   const fill = (i: number) => {

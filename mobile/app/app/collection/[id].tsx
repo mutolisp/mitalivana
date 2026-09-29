@@ -58,6 +58,9 @@ import { Chip } from '~/components/ui/Chip';
 import { ContextChip } from '~/components/ui/ContextChip';
 import { CountStepper } from '~/components/ui/CountStepper';
 import { CodeBadge, ListRow, Thumb } from '~/components/ui/ListRow';
+import { IconDisc } from '~/components/ui/IconDisc';
+import { SelectMark } from '~/components/ui/SelectMark';
+import { SelectionDock, SelectionToolbar } from '~/components/SelectionToolbar';
 import { RecordStepBar } from '~/components/RecordStepBar';
 import { HeaderIconButton } from '~/components/HeaderIconButton';
 import { showActionSheet } from '~/components/ActionSheet';
@@ -207,7 +210,7 @@ function SpecimenListRow({
       tone={specimen.inat_uploaded_at != null ? 'uploaded' : 'default'}
       leading={
         selectMode ? (
-          <Ionicons name={picked ? 'checkbox' : 'square-outline'} size={22} color={picked ? c.accent : c.ink3} />
+          <SelectMark state={picked ? 'on' : 'off'} />
         ) : (
           <Thumb
             uri={photos[0]}
@@ -318,11 +321,13 @@ function SpecimenCard({
         <View className="absolute left-2 top-2 rounded-md bg-black/60 px-1.5 py-0.5">
           <Text className="font-mono text-xs font-bold text-white">{specimen.record_number}</Text>
         </View>
-        <View className="absolute right-2 top-2 rounded-md bg-black/60 px-1.5 py-0.5">
-          <Text className="text-xs font-medium text-white">
-            {`${t('collection.duplicates')} ${duplicateCountOf(specimen.duplicate_count)}`}
-          </Text>
-        </View>
+        {selectMode ? null : (
+          <View className="absolute right-2 top-2 rounded-md bg-black/60 px-1.5 py-0.5">
+            <Text className="text-xs font-medium text-white">
+              {`${t('collection.duplicates')} ${duplicateCountOf(specimen.duplicate_count)}`}
+            </Text>
+          </View>
+        )}
         {photos.length ? (
           <View className="absolute bottom-2 right-2 flex-row items-center rounded-md bg-black/60 px-1.5 py-0.5">
             <Ionicons name="images-outline" size={11} color="white" />
@@ -330,8 +335,8 @@ function SpecimenCard({
           </View>
         ) : null}
         {selectMode ? (
-          <View className="absolute bottom-2 left-2">
-            <Ionicons name={picked ? 'checkmark-circle' : 'ellipse-outline'} size={24} color={picked ? c.accent : 'white'} />
+          <View className="absolute right-2 top-2">
+            <SelectMark state={picked ? 'on' : 'off'} variant="overlay" />
           </View>
         ) : null}
       </View>
@@ -622,7 +627,7 @@ export default function CollectionTripScreen() {
   // favorites and sites screens all work this way.
   const handleLongPress = (sp: SpecimenWithTaxon) => {
     if (selectMode) return;
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    void Haptics.selectionAsync();
     setSelectMode(true);
     setPicked(new Set([sp.id]));
   };
@@ -1098,7 +1103,14 @@ export default function CollectionTripScreen() {
               </View>
             </Pressable>
           ),
-          headerLeft: () => <BackHeaderLeft />,
+          // While selecting, back leaves select mode first (05-controls.md §2.1).
+          headerLeft: () =>
+            selectMode ? (
+              <IconDisc icon="back" onPress={exitSelect} accessibilityLabel={t('common.exitSelect')} edge="left" />
+            ) : (
+              <BackHeaderLeft />
+            ),
+          gestureEnabled: !selectMode,
           headerRight: () => (
             // Icon rather than the words it used to be: 名錄 and 樣區 already
             // end / resume through exactly these two glyphs, and the odd one
@@ -1135,60 +1147,14 @@ export default function CollectionTripScreen() {
             While selecting, it is replaced wholesale by the selection toolbar —
             the same swap the records tab does. */}
         {selectMode ? (
-          <View className="flex-row items-center justify-between border-b border-gray-200 bg-card px-4 py-2 dark:border-gray-700 dark:bg-gray-900">
-            <Text className="text-sm text-gray-500 dark:text-gray-400">
-              {t('collection.selectedCount', { count: picked.size })}
-            </Text>
-            <View className="flex-row items-center gap-3">
-              <Pressable
-                onPress={() =>
-                  setPicked(
-                    picked.size === display.length
-                      ? new Set()
-                      : new Set(display.map((sp) => sp.id)),
-                  )
-                }
-                hitSlop={8}
-              >
-                <Text className="text-sm text-accent-600 dark:text-accent-400">
-                  {picked.size === display.length && display.length > 0
-                    ? t('favorites.deselectAll')
-                    : t('favorites.selectAll')}
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={() => setLabelSheetOpen(true)}
-                disabled={picked.size === 0}
-                hitSlop={8}
-              >
-                <Text
-                  className={`text-sm font-medium ${
-                    picked.size === 0
-                      ? 'text-gray-300 dark:text-gray-600'
-                      : 'text-accent-600 dark:text-accent-400'
-                  }`}
-                >
-                  {t('collection.exportLabels')}
-                </Text>
-              </Pressable>
-              <Pressable onPress={handleBulkDelete} disabled={picked.size === 0} hitSlop={8}>
-                <Text
-                  className={`text-sm font-medium ${
-                    picked.size === 0
-                      ? 'text-gray-300 dark:text-gray-600'
-                      : 'text-red-600 dark:text-red-400'
-                  }`}
-                >
-                  {t('common.delete')}
-                </Text>
-              </Pressable>
-              <Pressable onPress={exitSelect} hitSlop={8}>
-                <Text className="text-sm text-gray-500 dark:text-gray-400">
-                  {t('common.cancel')}
-                </Text>
-              </Pressable>
-            </View>
-          </View>
+          <SelectionToolbar
+            count={picked.size}
+            allPicked={display.length > 0 && picked.size === display.length}
+            onToggleAll={() =>
+              setPicked(picked.size === display.length ? new Set() : new Set(display.map((sp) => sp.id)))
+            }
+            onCancel={exitSelect}
+          />
         ) : (
           <View>
             {/* Context: project · place · collector · determiner. Taps keep
@@ -1374,7 +1340,15 @@ export default function CollectionTripScreen() {
         onConfirm={handleExportLabels}
       />
 
-      {replaceTarget || (isActive && searching) ? (
+      {selectMode ? (
+        <SelectionDock
+          count={picked.size}
+          actions={[
+            { label: t('collection.exportLabels'), onPress: () => setLabelSheetOpen(true) },
+            { label: t('common.delete'), onPress: handleBulkDelete, destructive: true },
+          ]}
+        />
+      ) : replaceTarget || (isActive && searching) ? (
         // Re-identifying (also on a finished trip, so a specimen can be
         // corrected without reopening it), or adding by name.
         //

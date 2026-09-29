@@ -95,6 +95,7 @@ import { chooseEndTime } from '~/lib/endTimeChoice';
 import { saveVersionSoon } from '~/db/recordVersions';
 import { useVersionOnLeave } from '~/lib/useVersionOnLeave';
 import { useThemeColors } from '~/theme/colors';
+import { CheckboxMark } from '~/components/ui/Checkbox';
 
 const ABUNDANCE = ['r!', 'r', 's', 'c', 'd'] as const;
 const UNDO_LIMIT = 100;
@@ -712,7 +713,7 @@ export default function GloriaUnitScreen() {
           accessibilityState={{ checked: skipped, disabled: locked }}
           className="flex-row items-center gap-2"
         >
-          <Ionicons name={skipped ? 'checkbox' : 'square-outline'} size={20} color={skipped ? tc.accent : tc.ink3} />
+          <CheckboxMark checked={skipped} />
           <Text className="flex-1 text-sm text-gray-700 dark:text-gray-300">{t('gloria.unit.freqSkip')}</Text>
         </Pressable>
         {skipped ? (

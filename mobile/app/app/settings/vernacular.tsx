@@ -20,6 +20,7 @@ import { getEnabledRegions } from '~/db/regions';
 import { MAX_VERNACULAR_LANGS, VERNACULAR_LANGS } from '~/db/mergeScope';
 import { useSettings, type VernacularLang } from '~/stores/settings';
 import { useThemeColors } from '~/theme/colors';
+import { SelectMark } from '~/components/ui/SelectMark';
 
 const LABEL: Record<VernacularLang, { name: string; source: string }> = {
   'zh-TW': { name: 'vernacular.zhTW', source: 'vernacular.zhTWSource' },
@@ -72,7 +73,7 @@ export default function VernacularScreen() {
           accessibilityLabel={t(LABEL[lang].name)}
           className="flex-1 flex-row items-center"
         >
-          <Ionicons name={on ? 'checkbox' : 'square-outline'} size={22} color={on ? c.accent : c.ink3} />
+          <SelectMark state={on ? 'on' : 'off'} />
           <View className="ml-3 flex-1">
             <Text className="text-base text-gray-900 dark:text-gray-100">
               {on && chosen.length > 1 ? `${i + 1}. ` : ''}
@@ -84,10 +85,11 @@ export default function VernacularScreen() {
         {on && chosen.length > 1 ? (
           <View className="flex-row">
             <Pressable onPress={() => move(i, -1)} disabled={i === 0} hitSlop={6} accessibilityLabel={t('vernacular.moveUp')} className="p-1.5">
-              <Ionicons name="arrow-up" size={20} color={i === 0 ? '#d1d5db' : '#4b5563'} />
+              {/* Disabled fades, keeping its colour (05-controls.md §2.5). */}
+              <Ionicons name="arrow-up" size={20} color={c.ink2} style={{ opacity: i === 0 ? 0.35 : 1 }} />
             </Pressable>
             <Pressable onPress={() => move(i, 1)} disabled={i === chosen.length - 1} hitSlop={6} accessibilityLabel={t('vernacular.moveDown')} className="p-1.5">
-              <Ionicons name="arrow-down" size={20} color={i === chosen.length - 1 ? '#d1d5db' : '#4b5563'} />
+              <Ionicons name="arrow-down" size={20} color={c.ink2} style={{ opacity: i === chosen.length - 1 ? 0.35 : 1 }} />
             </Pressable>
           </View>
         ) : null}

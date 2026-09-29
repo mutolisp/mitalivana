@@ -30,6 +30,7 @@ import { applyPendingMerge, usePendingMerge, type PendingMerge } from '~/lib/tea
 import { useToast } from '~/stores/toast';
 import { fieldLabel, fmt } from '~/lib/mergeFormat';
 import { useThemeColors } from '~/theme/colors';
+import { SelectMark } from '~/components/ui/SelectMark';
 
 function rowTitle(r: MergeRow | null | undefined): string {
   if (!r) return '';
@@ -217,7 +218,7 @@ function AutoRow({ item, on, onToggle }: { item: MergeItem; on: boolean; onToggl
       accessibilityState={{ checked: on }}
       className="flex-row items-start gap-2 border-b border-gray-100 py-2 dark:border-gray-800"
     >
-      <Ionicons name={on ? 'checkbox' : 'square-outline'} size={20} color={on ? c.accent : c.ink3} />
+      <SelectMark state={on ? 'on' : 'off'} />
       <View className="flex-1">
         <Text className="text-sm text-gray-900 dark:text-gray-100">
           {rowTitle(item.remote ?? item.local)}

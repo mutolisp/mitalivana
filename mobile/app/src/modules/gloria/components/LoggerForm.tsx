@@ -32,6 +32,7 @@ import { RANGES } from '../model/ranges';
 import type { Direction } from '../model/units';
 import { Btn, Card, Chip, NumField } from './ui';
 import { useThemeColors } from '~/theme/colors';
+import { CheckboxMark } from '~/components/ui/Checkbox';
 
 const INPUT =
   'flex-1 rounded-md border border-gray-300 bg-card px-2 py-1.5 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100';
@@ -249,7 +250,7 @@ export function LoggerForm({
           accessibilityState={{ checked: ticked }}
           className="flex-row items-center gap-2"
         >
-          <Ionicons name={ticked ? 'checkbox' : 'square-outline'} size={18} color={ticked ? c.accent : c.ink3} />
+          <CheckboxMark checked={ticked} />
           <Text className="text-xs text-gray-700 dark:text-gray-300">{t(which === 'open' ? 'gloria.logger.photoOpen' : 'gloria.logger.photoClosed')}</Text>
         </Pressable>
         <PhotoGrid

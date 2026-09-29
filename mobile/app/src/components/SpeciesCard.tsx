@@ -13,6 +13,7 @@ import { Tag } from './ui/Tag';
 import { rebaseAppFileUri } from '~/lib/appFiles';
 import { useThemeColors } from '~/theme/colors';
 import { CountStepper } from './ui/CountStepper';
+import { SelectMark } from '~/components/ui/SelectMark';
 
 type Props = {
   record: RecordWithTaxon;
@@ -60,12 +61,7 @@ export function SpeciesCard({ record, onPress, onLongPress, selectMode, picked, 
         style={glowStyle}
       />
       {selectMode ? (
-        <Ionicons
-          name={picked ? 'checkbox' : 'square-outline'}
-          size={20}
-          color={picked ? c.accent : c.ink3}
-          style={{ marginRight: 10, alignSelf: 'center' }}
-        />
+        <View style={{ marginRight: 10, alignSelf: 'center' }}><SelectMark state={picked ? 'on' : 'off'} /></View>
       ) : null}
       {/* No photo, no placeholder: an empty square cost every row 56 pt of
           width for nothing. */}

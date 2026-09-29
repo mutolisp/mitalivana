@@ -1,3 +1,4 @@
+// check-controls-ignore: each photo item is a bordered chip that IS the checkbox; the glyph inside only mirrors its state.
 /**
  * Photo checklist tab — Form 1's photo checkboxes, grouped like the form:
  * per direction the cluster overview, the p5m and p10m poles and the four

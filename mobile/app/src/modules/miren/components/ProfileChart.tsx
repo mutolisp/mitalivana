@@ -6,16 +6,15 @@
 import { useState } from 'react';
 import { View } from 'react-native';
 import Svg, { Circle, Polyline, Text as SvgText } from 'react-native-svg';
-import { useColorScheme as useNwColorScheme } from 'nativewind';
 import { topElevation, type ProfilePoint, type Stop } from '../model/planner';
+import { useThemeColors } from '~/theme/colors';
 
 const H = 150;
 const PAD = { l: 8, r: 8, t: 14, b: 20 };
 
 export function ProfileChart({ points, along, stops }: { points: ProfilePoint[]; along: number[]; stops: Stop[] }) {
   const [w, setW] = useState(0);
-  const dark = useNwColorScheme().colorScheme === 'dark';
-  const ink = dark ? '#d1d5db' : '#374151';
+  const ink = useThemeColors().ink2;
   if (points.length < 2) return null;
   const total = along[along.length - 1] || 1;
   let lo = Infinity;

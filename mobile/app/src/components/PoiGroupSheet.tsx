@@ -1,3 +1,4 @@
+// check-controls-ignore: 'ellipse-outline' is the fallback icon of an unknown POI group, not a control.
 /**
  * Category switches for the mountain landmarks.
  *

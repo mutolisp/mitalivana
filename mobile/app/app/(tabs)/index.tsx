@@ -24,7 +24,6 @@ import {
   RecordGridCard,
   RecordListRow,
   recordDiversity,
-  SelectCheckbox,
 } from '~/components/RecordListItem';
 import { ActiveRecordCard } from '~/components/ActiveRecordCard';
 import { Chip } from '~/components/ui/Chip';
@@ -100,6 +99,8 @@ import { useTabBarInset } from '~/lib/tabBarLayout';
 import { useThemeColors } from '~/theme/colors';
 import { Button } from '~/components/ui/Button';
 import { MenuButton, showMenu } from '~/components/OverflowMenu';
+import { SelectionDock, SelectionToolbar } from '~/components/SelectionToolbar';
+import { SelectMark, type SelectMarkState } from '~/components/ui/SelectMark';
 
 type Filter = 'all' | RecordKind;
 type ViewMode = 'flat' | 'byProject';
@@ -178,7 +179,7 @@ function ProjectHeader({
   onToggleAll,
   onExport,
   selectMode = false,
-  groupSelected = false,
+  groupState = 'off',
   onToggleSelect,
 }: {
   group: ProjectGroup;
@@ -190,7 +191,8 @@ function ProjectHeader({
   /** Multi-select mode: tap selects / deselects the whole group instead of
    *  collapsing (collapse stays available outside select mode). */
   selectMode?: boolean;
-  groupSelected?: boolean;
+  /** The group's rows: none, some (mixed) or all picked. */
+  groupState?: SelectMarkState;
   onToggleSelect?: () => void;
 }) {
   const c = useThemeColors();
@@ -227,7 +229,7 @@ function ProjectHeader({
       <View className="flex-row items-center">
         {selectMode ? (
           <View className="mr-1">
-            <SelectCheckbox checked={groupSelected} />
+            <SelectMark state={groupState} />
           </View>
         ) : (
           <Ionicons
@@ -543,7 +545,7 @@ export default function RecordsListScreen() {
 
   const handleRowLongPress = (item: RecordItem) => {
     if (selectMode) return;
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    void Haptics.selectionAsync();
     selectEnter(selectionKey(item.kind, item.id));
   };
 
@@ -1372,53 +1374,24 @@ export default function RecordsListScreen() {
   return (
     <View className="flex-1 bg-gray-50 dark:bg-gray-950">
       <ExportProgressOverlay progress={exportProgress} />
-      <View className="border-b border-gray-200 bg-card px-4 py-4 dark:border-gray-700 dark:bg-gray-900">
-        {selectMode ? (
-          <View className="flex-row items-center justify-between">
-            <Pressable onPress={selectClear} hitSlop={8}>
-              <Text className="text-base font-medium text-accent-600 dark:text-accent-400">
-                {t('common.cancel')}
-              </Text>
-            </Pressable>
-            <Text className="text-base font-semibold text-gray-900 dark:text-gray-100">
-              {t('records.selectedCount', { count: selected.size })}
-            </Text>
-            <View className="flex-row items-center gap-4">
-              <Pressable
-                onPress={handleSaveSelectionToFavorites}
-                disabled={selected.size === 0}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel={t('records.favorites')}
-              >
-                <Ionicons
-                  name="heart-outline"
-                  size={20}
-                  color={selected.size === 0 ? c.disabled : c.acornDeep}
-                />
-              </Pressable>
-              <Pressable
-                onPress={handleExportSelection}
-                disabled={selected.size === 0 || exportBusy}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel={t('common.export')}
-              >
-                {/* Same accent as the swipe-reveal 匯出, so the two read as one
-                    action rather than two features that happen to share a name. */}
-                <Ionicons
-                  name="share-outline"
-                  size={20}
-                  color={selected.size === 0 || exportBusy ? c.disabled : c.accent}
-                />
-              </Pressable>
-              {/* 統計 / 專案 / 合併 live behind the overflow: the bar keeps only
-                  the two actions that apply to ANY selection, so it no longer
-                  carries a control that is grey most of the time. */}
-              <MenuButton variant="plain" onOpen={handleSelectionMore} />
-            </View>
-          </View>
-        ) : (
+      {selectMode ? (
+        // Select mode (05-controls.md §2.1): ✕ · count · select-all on top,
+        // the actions in the dock above the tab bar.
+        <SelectionToolbar
+          count={selected.size}
+          allPicked={shownItems.length > 0 && shownItems.every((it) => selected.has(selectionKey(it.kind, it.id)))}
+          onToggleAll={() => {
+            const keys = shownItems.map((it) => selectionKey(it.kind, it.id));
+            const all = keys.length > 0 && keys.every((k) => selected.has(k));
+            selectSetMany(keys, !all);
+          }}
+          onCancel={selectClear}
+        />
+      ) : null}
+      <View
+        className={`border-b border-gray-200 bg-card px-4 py-4 dark:border-gray-700 dark:bg-gray-900 ${selectMode ? 'hidden' : ''}`}
+      >
+        {selectMode ? null : (
           <View className="flex-row items-center">
             <Text
               numberOfLines={1}
@@ -1536,9 +1509,13 @@ export default function RecordsListScreen() {
                   onToggleAll={toggleCollapseAll}
                   onExport={selectMode ? undefined : () => handleExportProject(row.group)}
                   selectMode={selectMode}
-                  groupSelected={row.group.items.every((it) =>
-                    selected.has(selectionKey(it.kind, it.id)),
-                  )}
+                  groupState={
+                    row.group.items.every((it) => selected.has(selectionKey(it.kind, it.id)))
+                      ? 'on'
+                      : row.group.items.some((it) => selected.has(selectionKey(it.kind, it.id)))
+                        ? 'mixed'
+                        : 'off'
+                  }
                   onToggleSelect={() => handleToggleSelectGroup(row.group)}
                 />
               );
@@ -1566,6 +1543,19 @@ export default function RecordsListScreen() {
           }}
         />
       )}
+
+      {selectMode ? (
+        <SelectionDock
+          count={selected.size}
+          bottomInset={tabBarInset}
+          actions={[
+            { label: t('records.favorites'), onPress: () => void handleSaveSelectionToFavorites() },
+            { label: t('common.export'), onPress: () => void handleExportSelection() },
+            // 釘選 / 統計 / 專案 / 合併 / 刪除: the drop-down, opened from this button.
+            { label: t('common.more'), onMenu: (anchor) => void handleSelectionMore(anchor) },
+          ]}
+        />
+      ) : null}
 
       {/* 跨樣區 Chao2 sheet — ad-hoc scope from the multi-select. No text
           input, so a floating bottom sheet is fine (the full-screen rule is

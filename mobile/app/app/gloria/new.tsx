@@ -25,6 +25,8 @@ import { startSummitImport } from '~/modules/gloria/summitImportFile';
 import { listSummits, prefillSummary, type SummitWithLast } from '~/modules/gloria/db';
 import { useSummitPick } from '~/modules/gloria/store';
 import { useThemeColors } from '~/theme/colors';
+import { SelectMark } from '~/components/ui/SelectMark';
+import { DoneMark } from '~/components/ui/DoneMark';
 
 /** Region chips are keyed by country too: TW-DAS and JP-DAS are different places. */
 const regionKey = (s: Pick<SummitWithLast, 'country' | 'target_region'>) => `${s.country}-${s.target_region}`;
@@ -250,9 +252,9 @@ function SummitCard({
         </View>
       </View>
       {selected ? (
-        <Ionicons name="checkmark-circle" size={24} color={c.accent} />
+        <SelectMark state="on" />
       ) : (
-        <View className="h-6 w-6 rounded-full border-2 border-gray-300 dark:border-gray-600" />
+        <SelectMark state="off" />
       )}
     </Pressable>
   );
@@ -264,7 +266,7 @@ function CheckLine({ done, text }: { done: boolean; text: string }) {
   return (
     <View className="flex-row items-start">
       {done ? (
-        <Ionicons name="checkmark-circle" size={20} color={c.accent} />
+        <DoneMark />
       ) : (
         <View className="mt-0.5 h-[18px] w-[18px] rounded-full border-[1.5px] border-dashed border-gray-400 dark:border-gray-500" style={{ marginHorizontal: 1 }} />
       )}

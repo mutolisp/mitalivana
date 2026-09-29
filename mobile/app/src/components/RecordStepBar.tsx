@@ -103,7 +103,7 @@ function StepButton({
       className={`flex-1 flex-row items-center ${next ? 'justify-end' : 'justify-start'} px-2 py-1 active:opacity-60`}
     >
       {next ? null : (
-        <Ionicons name="chevron-back" size={16} color={item ? c.ink2 : '#d1d5db'} />
+        <Ionicons name="chevron-back" size={16} color={c.ink2} style={{ opacity: item ? 1 : 0.35 }} />
       )}
       <Text
         numberOfLines={1}
@@ -114,7 +114,7 @@ function StepButton({
         {item?.title ?? ''}
       </Text>
       {next ? (
-        <Ionicons name="chevron-forward" size={16} color={item ? c.ink2 : '#d1d5db'} />
+        <Ionicons name="chevron-forward" size={16} color={c.ink2} style={{ opacity: item ? 1 : 0.35 }} />
       ) : null}
     </Pressable>
   );

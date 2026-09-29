@@ -54,7 +54,7 @@ import { LookupResultSheet } from '~/components/LookupResultSheet';
 import { ScientificName } from '~/components/ScientificName';
 import { SpeciesSearchPanel } from '~/components/SpeciesSearchPanel';
 import { TaxonomySearchBox } from '~/components/TaxonomySearchBox';
-import { SelectionToolbar } from '~/components/SelectionToolbar';
+import { SelectionDock, SelectionToolbar } from '~/components/SelectionToolbar';
 import { TaxonNodeInfoSheet } from '~/components/TaxonNodeInfoSheet';
 import { IntermediateEditor, type EditorRequest } from '~/components/IntermediateEditor';
 import { matchScientificName } from '~/lib/sciMatch';
@@ -71,6 +71,7 @@ import { useSettings } from '~/stores/settings';
 import { useTaxonomyJump } from '~/stores/taxonomyJump';
 import { useToast } from '~/stores/toast';
 import { useThemeColors } from '~/theme/colors';
+import { SelectMark } from '~/components/ui/SelectMark';
 
 /** What a picked tree row stands for. */
 type TreePick =
@@ -1015,14 +1016,7 @@ export default function TaxonomyScreen() {
         ) : (
           <View className="flex-1">
             {selection.selectMode ? (
-              <SelectionToolbar
-                count={selection.picked.size}
-                actions={[
-                  { label: t('taxonomy.bulkAddToRecord'), onPress: () => void handleBulkAddToRecord() },
-                  { label: t('favorites.add'), onPress: () => void handleBulkFavorite() },
-                ]}
-                onCancel={selection.exit}
-              />
+              <SelectionToolbar count={selection.picked.size} onCancel={selection.exit} />
             ) : null}
             <FlatList
               ref={listRef}
@@ -1142,9 +1136,22 @@ export default function TaxonomyScreen() {
                 return <View onLayout={measure}>{row}</View>;
               }}
             />
-            <KeyboardStickyView offset={{ closed: -tabBarInset }}>
-              <TaxonomySearchBox onPick={handleSearchPick} />
-            </KeyboardStickyView>
+            {selection.selectMode ? (
+              // The actions take the search box's place, above the floating
+              // tab bar (05-controls.md §2.1).
+              <SelectionDock
+                count={selection.picked.size}
+                bottomInset={tabBarInset}
+                actions={[
+                  { label: t('taxonomy.bulkAddToRecord'), onPress: () => void handleBulkAddToRecord() },
+                  { label: t('favorites.add'), onPress: () => void handleBulkFavorite() },
+                ]}
+              />
+            ) : (
+              <KeyboardStickyView offset={{ closed: -tabBarInset }}>
+                <TaxonomySearchBox onPick={handleSearchPick} />
+              </KeyboardStickyView>
+            )}
           </View>
         )
       ) : null}
@@ -1301,12 +1308,7 @@ function TaxonRow({
     >
       {selectMode && onSelectToggle ? (
         // Same 16pt slot as the chevron, so rows keep their measured height.
-        <Ionicons
-          name={picked ? 'checkbox' : 'square-outline'}
-          size={16}
-          color={picked ? tc.accent : tc.ink3}
-          style={{ marginRight: 8 }}
-        />
+        <View style={{ marginRight: 8 }}><SelectMark state={picked ? 'on' : 'off'} /></View>
       ) : (
         <Ionicons
           name={expanded ? 'chevron-down' : 'chevron-forward'}
@@ -1419,12 +1421,7 @@ function SpeciesRow({
       {/* The checkbox takes the leaf's slot at the leaf's size, so the row keeps
           its measured height (getItemLayout depends on it). */}
       {selectMode ? (
-        <Ionicons
-          name={picked ? 'checkbox' : 'square-outline'}
-          size={14}
-          color={picked ? tc.accent : tc.ink3}
-          style={{ marginRight: 8, marginTop: 3 }}
-        />
+        <View style={{ marginRight: 8, marginTop: 3 }}><SelectMark state={picked ? 'on' : 'off'} /></View>
       ) : (
         <Ionicons name="leaf-outline" size={14} color={tc.accent} style={{ marginRight: 8, marginTop: 3 }} />
       )}

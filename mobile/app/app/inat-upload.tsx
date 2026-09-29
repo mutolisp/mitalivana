@@ -37,6 +37,7 @@ import {
 import { useExportShare } from '~/lib/useExportShare';
 import { useSettings } from '~/stores/settings';
 import { useThemeColors } from '~/theme/colors';
+import { SelectMark } from '~/components/ui/SelectMark';
 
 /** Rough transfer size for the confirm-if-large prompt; originals go up
  *  unresized, so a phone photo is a few MB. */
@@ -150,11 +151,8 @@ export default function InatUploadScreen() {
         disabled={done || running}
         className={`flex-row border-b border-gray-100 dark:border-gray-800 px-4 py-3 ${done ? 'opacity-60' : 'active:bg-gray-50 dark:active:bg-gray-800'}`}
       >
-        <Ionicons
-          name={done ? 'checkmark-circle' : checked ? 'checkbox' : 'square-outline'}
-          size={22}
-          color={done ? '#16a34a' : checked ? c.accent : c.ink3}
-        />
+        {/* Already uploaded: ticked and not selectable. */}
+        <SelectMark state={done || checked ? 'on' : 'off'} disabled={done} />
         <View className="ml-3 flex-1">
           <Text className="text-base text-gray-900 dark:text-gray-100" numberOfLines={1}>
             {r.cname ? `${r.cname} ` : ''}

@@ -1,3 +1,4 @@
+// check-controls-ignore: the match column is a status glyph (matched / ambiguous / GBIF), not a control.
 /**
  * Map area → species list → a new favourite checklist folder.
  *

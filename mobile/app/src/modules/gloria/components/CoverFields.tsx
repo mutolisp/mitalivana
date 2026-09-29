@@ -19,6 +19,7 @@ import { NumField, Req } from './ui';
 import { RANGES } from '../model/ranges';
 import { autoFillLast, exactSum } from '../model/validate';
 import { useThemeColors } from '~/theme/colors';
+import { CheckboxMark } from '~/components/ui/Checkbox';
 
 export const TOP_KEYS = [
   'cov_vascular',
@@ -144,7 +145,7 @@ function CoverStepper({
             accessibilityLabel={`${t(labelKey(k))} ${t('gloria.cover.none')}`}
             className="flex-row items-center"
           >
-            <Ionicons name={none ? 'checkbox' : 'square-outline'} size={Math.round(18 * fs)} color={none ? c.accent : c.ink3} />
+            <CheckboxMark checked={none} />
             <Text className="text-xxs text-gray-500 dark:text-gray-400">{t('gloria.cover.none')}</Text>
           </Pressable>
         </View>

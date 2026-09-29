@@ -13,6 +13,7 @@ import { useStore } from 'zustand';
 import { peopleStore } from '~/stores/surveyors';
 import type { PersonKind, Surveyor } from '~/db';
 import { useThemeColors } from '~/theme/colors';
+import { SelectMark } from '~/components/ui/SelectMark';
 
 type Props = {
   visible: boolean;
@@ -127,12 +128,7 @@ export function SurveyorAssignSheet({
           className={`flex-row items-center border-b border-gray-100 dark:border-gray-800 px-4 ${active ? 'bg-accent-50 dark:bg-accent-950/40' : 'bg-card dark:bg-gray-900'} ${isActive ? 'opacity-90' : ''}`}
         >
           <Pressable onPress={() => toggle(item.name)} className="flex-1 flex-row items-center py-3">
-            <Ionicons
-              name={active ? 'checkbox' : 'square-outline'}
-              size={20}
-              color={active ? c.accent : c.ink3}
-              style={{ marginRight: 12 }}
-            />
+            <View style={{ marginRight: 12 }}><SelectMark state={active ? 'on' : 'off'} /></View>
             <Text className="flex-1 text-base text-gray-900 dark:text-gray-100">{item.name}</Text>
           </Pressable>
           {/* Drag handle — long-press to reorder. */}
@@ -213,12 +209,7 @@ export function SurveyorAssignSheet({
                     onPress={() => toggle(name)}
                     className={`flex-row items-center border-b border-gray-100 dark:border-gray-800 px-4 py-3 ${active ? 'bg-accent-50 dark:bg-accent-950/40' : 'active:bg-gray-50 dark:active:bg-gray-800'}`}
                   >
-                    <Ionicons
-                      name={active ? 'checkbox' : 'square-outline'}
-                      size={20}
-                      color={active ? c.accent : c.ink3}
-                      style={{ marginRight: 12 }}
-                    />
+                    <View style={{ marginRight: 12 }}><SelectMark state={active ? 'on' : 'off'} /></View>
                     <Text className="flex-1 text-base text-gray-900 dark:text-gray-100">{name}</Text>
                   </Pressable>
                 );

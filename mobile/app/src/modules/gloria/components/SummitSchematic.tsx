@@ -124,7 +124,6 @@ export function SummitSchematic({ p5m, statusOf, selected, onDirection, onCluste
 
   const dark = useColorScheme().colorScheme === 'dark';
   const ink = dark ? '#f3f4f6' : '#111827';
-  const faint = dark ? '#4b5563' : '#d1d5db';
   const mute = tc.ink2;
   const paper = dark ? '#111827' : '#ffffff';
   const axis = tc.ink;

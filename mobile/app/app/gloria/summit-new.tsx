@@ -25,6 +25,7 @@ import { checkRange, RANGES, type Range } from '~/modules/gloria/model/ranges';
 import { VEG_ZONES } from '~/modules/gloria/model/vegZones';
 import { useSummitPick } from '~/modules/gloria/store';
 import { useThemeColors } from '~/theme/colors';
+import { BackHeaderLeft } from '~/lib/goBack';
 
 /** Box 6.1: country 2 letters (ISO 3166), target region and summit 3 characters. */
 const PARTS = [
@@ -159,11 +160,8 @@ export default function NewSummitScreen() {
         options={{
           title: t('gloria.new.addSummit'),
           headerTitleAlign: 'center',
-          headerLeft: () => (
-            <Pressable onPress={() => router.back()} hitSlop={10} accessibilityRole="button" className="px-2">
-              <Text className="text-base font-medium text-accent-600 dark:text-accent-400">{t('common.cancel')}</Text>
-            </Pressable>
-          ),
+          // The shared back (05-controls.md §3); leaving without saving is the cancel.
+          headerLeft: BackHeaderLeft,
         }}
       />
       <KeyboardAvoidingView className="flex-1" behavior="padding">

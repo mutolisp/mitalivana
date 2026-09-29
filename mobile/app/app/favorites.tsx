@@ -49,7 +49,11 @@ import { useToast } from '~/stores/toast';
 import { FolderAreaMap } from '~/components/FolderAreaMap';
 import { HeaderIconButton } from '~/components/HeaderIconButton';
 import { PillButton } from '~/components/PillButton';
-import { goBackOrHome } from '~/lib/goBack';
+import { BackHeaderLeft } from '~/lib/goBack';
+import { SelectionDock, SelectionToolbar } from '~/components/SelectionToolbar';
+import { Chevron } from '~/components/ui/Chevron';
+import { IconDisc } from '~/components/ui/IconDisc';
+import { SelectMark } from '~/components/ui/SelectMark';
 import { useThemeColors } from '~/theme/colors';
 
 type SortKey = 'added' | 'cname' | 'name' | 'family';
@@ -411,7 +415,7 @@ export default function FavoritesScreen() {
    *  cannot be deleted, so it enters the mode without selecting itself. */
   const handleFolderLongPress = (f: FavoriteFolder) => {
     if (folderSelectMode) return;
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    void Haptics.selectionAsync();
     setFolderSelectMode(true);
     setPickedFolders(f.id === DEFAULT_FOLDER_ID ? new Set() : new Set([f.id]));
   };
@@ -474,7 +478,7 @@ export default function FavoritesScreen() {
    *  swipe, which is also where per-row actions live on the records tab. */
   const handleLongPress = (item: FavoriteItem) => {
     if (selectMode) return;
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    void Haptics.selectionAsync();
     setSelectMode(true);
     setPicked(new Set([item.id]));
   };
@@ -510,69 +514,38 @@ export default function FavoritesScreen() {
         <Stack.Screen
           options={{
             title: t('nav.favorites'),
-            // Was the bare native back: blue, square-cornered, and a no-op when
-            // this screen was reached without history.
-            headerLeft: () => (
-              <HeaderIconButton
-                icon="chevron-back"
-                onPress={goBackOrHome}
-                label={t('nav.back')}
-                edge="left"
-              />
-            ),
+            // While selecting, back leaves select mode first (05-controls.md §2.1).
+            headerLeft: folderSelectMode
+              ? () => (
+                  <IconDisc icon="back" onPress={exitFolderSelect} accessibilityLabel={t('common.exitSelect')} edge="left" />
+                )
+              : BackHeaderLeft,
+            gestureEnabled: !folderSelectMode,
           }}
         />
-        <View className="flex-row items-center justify-between border-b border-gray-200 bg-card px-4 py-2 dark:border-gray-700 dark:bg-gray-900">
-          <Text className="text-sm text-gray-500 dark:text-gray-400">
-            {folderSelectMode
-              ? t('favorites.selectedFolders', { count: pickedFolders.size })
-              : t('favorites.folderCount', { count: folders.length })}
-          </Text>
-          {folderSelectMode ? (
-            <View className="flex-row items-center gap-3">
-              <Pressable
-                onPress={() =>
-                  setPickedFolders(
-                    pickedFolders.size === deletableFolders.length
-                      ? new Set()
-                      : new Set(deletableFolders.map((f) => f.id)),
-                  )
-                }
-                hitSlop={8}
-              >
-                <Text className="text-sm text-accent-600 dark:text-accent-400">
-                  {pickedFolders.size === deletableFolders.length && deletableFolders.length > 0
-                    ? t('favorites.deselectAll')
-                    : t('favorites.selectAll')}
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={handleBulkDeleteFolders}
-                disabled={pickedFolders.size === 0}
-                hitSlop={8}
-              >
-                <Text
-                  className={`text-sm font-medium ${
-                    pickedFolders.size === 0
-                      ? 'text-gray-300 dark:text-gray-600'
-                      : 'text-red-600 dark:text-red-400'
-                  }`}
-                >
-                  {t('common.delete')}
-                </Text>
-              </Pressable>
-              <Pressable onPress={exitFolderSelect} hitSlop={8}>
-                <Text className="text-sm text-gray-500 dark:text-gray-400">
-                  {t('common.cancel')}
-                </Text>
-              </Pressable>
-            </View>
-          ) : (
+        {folderSelectMode ? (
+          <SelectionToolbar
+            count={pickedFolders.size}
+            allPicked={deletableFolders.length > 0 && pickedFolders.size === deletableFolders.length}
+            onToggleAll={() =>
+              setPickedFolders(
+                pickedFolders.size === deletableFolders.length
+                  ? new Set()
+                  : new Set(deletableFolders.map((f) => f.id)),
+              )
+            }
+            onCancel={exitFolderSelect}
+          />
+        ) : (
+          <View className="flex-row items-center justify-between border-b border-gray-200 bg-card px-4 py-2 dark:border-gray-700 dark:bg-gray-900">
+            <Text className="text-sm text-gray-500 dark:text-gray-400">
+              {t('favorites.folderCount', { count: folders.length })}
+            </Text>
             <View className="flex-row items-center gap-2">
               <PillButton icon="add" label={t('favorites.newFolder')} onPress={handleNewFolder} />
             </View>
-          )}
-        </View>
+          </View>
+        )}
         <FlatList
           data={folders}
           keyExtractor={(f) => String(f.id)}
@@ -623,18 +596,13 @@ export default function FavoritesScreen() {
                 className="flex-row items-center border-b border-gray-100 bg-card px-4 py-3 active:bg-gray-50 dark:border-gray-800 dark:bg-gray-900 dark:active:bg-gray-800"
               >
                 {folderSelectMode ? (
-                  <Ionicons
-                    name={pickedFolders.has(f.id) ? 'checkbox' : 'square-outline'}
-                    size={20}
-                    color={
-                      f.id === DEFAULT_FOLDER_ID
-                        ? '#d1d5db'
-                        : pickedFolders.has(f.id)
-                          ? c.accent
-                          : c.ink3
-                    }
-                    style={{ marginRight: 12 }}
-                  />
+                  // The default list cannot be deleted, so it cannot be picked.
+                  <View className="mr-3">
+                    <SelectMark
+                      state={pickedFolders.has(f.id) ? 'on' : 'off'}
+                      disabled={f.id === DEFAULT_FOLDER_ID}
+                    />
+                  </View>
                 ) : null}
                 <Ionicons
                   name={f.is_default ? 'star' : 'folder-outline'}
@@ -654,14 +622,18 @@ export default function FavoritesScreen() {
                 <Text className="mr-1 text-sm text-gray-500 dark:text-gray-400">
                   {t('favorites.count', { count: f.species_count })}
                 </Text>
-                {folderSelectMode ? null : (
-                  <Ionicons name="chevron-forward" size={16} color={c.ink3} />
-                )}
+                {folderSelectMode ? null : <Chevron />}
               </Pressable>
             </SwipeRowActions>
           )}
         />
         {addRecordModal}
+        {folderSelectMode ? (
+          <SelectionDock
+            count={pickedFolders.size}
+            actions={[{ label: t('common.delete'), onPress: handleBulkDeleteFolders, destructive: true }]}
+          />
+        ) : null}
       </SafeAreaView>
     );
   }
@@ -702,14 +674,13 @@ export default function FavoritesScreen() {
           // Back means UP one level here. The native button left the feature
           // entirely, which is why the in-content 「所有名錄」 row existed —
           // that row is gone now that the header does the job.
-          headerLeft: () => (
-            <HeaderIconButton
-              icon="chevron-back"
-              onPress={() => setFolderId(null)}
-              label={t('favorites.allFolders')}
-              edge="left"
-            />
-          ),
+          headerLeft: () =>
+            selectMode ? (
+              <IconDisc icon="back" onPress={exitSelect} accessibilityLabel={t('common.exitSelect')} edge="left" />
+            ) : (
+              <IconDisc icon="back" onPress={() => setFolderId(null)} accessibilityLabel={t('favorites.allFolders')} edge="left" />
+            ),
+          gestureEnabled: !selectMode,
         }}
       />
       {/* Content (back row + toolbar + filter + list) fills above the bottom
@@ -717,46 +688,20 @@ export default function FavoritesScreen() {
           flex-1 View (not a child) so keyboard translation lifts only the
           search box, not the list — mirrors the session detail screen. */}
       <View className="flex-1">
-        <View className="flex-row items-center justify-between border-b border-gray-200 bg-card px-4 py-2 dark:border-gray-700 dark:bg-gray-900">
-          <Text className="text-sm text-gray-500 dark:text-gray-400">
-            {selectMode
-              ? t('favorites.selectedCount', { count: picked.size })
-              : t('favorites.count', { count: items.length })}
-          </Text>
-          {selectMode ? (
-            <View className="flex-row items-center gap-3">
-              <Pressable
-                onPress={() =>
-                  setPicked(
-                    picked.size === display.length ? new Set() : new Set(display.map((i) => i.id)),
-                  )
-                }
-                hitSlop={8}
-              >
-                <Text className="text-sm text-accent-600 dark:text-accent-400">
-                  {picked.size === display.length && display.length > 0
-                    ? t('favorites.deselectAll')
-                    : t('favorites.selectAll')}
-                </Text>
-              </Pressable>
-              <Pressable onPress={handleBulkDelete} disabled={picked.size === 0} hitSlop={8}>
-                <Text
-                  className={`text-sm font-medium ${
-                    picked.size === 0
-                      ? 'text-gray-300 dark:text-gray-600'
-                      : 'text-red-600 dark:text-red-400'
-                  }`}
-                >
-                  {t('common.delete')}
-                </Text>
-              </Pressable>
-              <Pressable onPress={exitSelect} hitSlop={8}>
-                <Text className="text-sm text-gray-500 dark:text-gray-400">
-                  {t('common.cancel')}
-                </Text>
-              </Pressable>
-            </View>
-          ) : (
+        {selectMode ? (
+          <SelectionToolbar
+            count={picked.size}
+            allPicked={display.length > 0 && picked.size === display.length}
+            onToggleAll={() =>
+              setPicked(picked.size === display.length ? new Set() : new Set(display.map((i) => i.id)))
+            }
+            onCancel={exitSelect}
+          />
+        ) : (
+          <View className="flex-row items-center justify-between border-b border-gray-200 bg-card px-4 py-2 dark:border-gray-700 dark:bg-gray-900">
+            <Text className="text-sm text-gray-500 dark:text-gray-400">
+              {t('favorites.count', { count: items.length })}
+            </Text>
             <View className="flex-row items-center gap-2">
               <PillButton
                 icon="download-outline"
@@ -770,8 +715,8 @@ export default function FavoritesScreen() {
                 onPress={handleSort}
               />
             </View>
-          )}
-        </View>
+          </View>
+        )}
 
         {/* Always visible, and deliberately NOT autoFocused: one area import can
             put a thousand species in here, so the search has to be findable —
@@ -846,12 +791,9 @@ export default function FavoritesScreen() {
                 className="flex-row items-center border-b border-gray-100 bg-card px-4 py-3 active:bg-gray-50 dark:border-gray-800 dark:bg-gray-900 dark:active:bg-gray-800"
               >
                 {selectMode ? (
-                  <Ionicons
-                    name={picked.has(item.id) ? 'checkbox' : 'square-outline'}
-                    size={20}
-                    color={picked.has(item.id) ? c.accent : c.ink3}
-                    style={{ marginRight: 12 }}
-                  />
+                  <View className="mr-3">
+                    <SelectMark state={picked.has(item.id) ? 'on' : 'off'} />
+                  </View>
                 ) : null}
                 <View className="flex-1">
                   {item.common_name_c ? (
@@ -879,20 +821,28 @@ export default function FavoritesScreen() {
         />
       </View>
 
-      {/* 底部貼鍵盤的 fuzzy 搜尋框：加入到「目前這個目錄」 */}
-      <KeyboardStickyView offset={{ opened: insets.bottom }}>
-        <SearchBox
-          onSelect={(r) => {
-            add(r, folderId);
-            toast(t('favorites.addedNamed', { name: r.cname || r.name }));
-          }}
-          onLongPressResult={async (r) => {
-            Keyboard.dismiss();
-            if (Platform.OS === 'ios') await new Promise((res) => setTimeout(res, 150));
-            setSelected(r);
-          }}
+      {/* Bottom fuzzy search box, pinned to the keyboard: adds to this folder.
+          While selecting, the selection actions take its place (05-controls.md §2.1). */}
+      {selectMode ? (
+        <SelectionDock
+          count={picked.size}
+          actions={[{ label: t('common.delete'), onPress: handleBulkDelete, destructive: true }]}
         />
-      </KeyboardStickyView>
+      ) : (
+        <KeyboardStickyView offset={{ opened: insets.bottom }}>
+          <SearchBox
+            onSelect={(r) => {
+              add(r, folderId);
+              toast(t('favorites.addedNamed', { name: r.cname || r.name }));
+            }}
+            onLongPressResult={async (r) => {
+              Keyboard.dismiss();
+              if (Platform.OS === 'ios') await new Promise((res) => setTimeout(res, 150));
+              setSelected(r);
+            }}
+          />
+        </KeyboardStickyView>
+      )}
 
       <LookupResultSheet
         result={selected}

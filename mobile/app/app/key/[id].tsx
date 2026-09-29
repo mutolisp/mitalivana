@@ -697,7 +697,7 @@ export default function KeyRunnerScreen() {
             onPress={goBack}
             className="flex-row items-center justify-center py-3 active:bg-gray-100 dark:active:bg-gray-700"
           >
-            <Ionicons name="arrow-back" size={16} color={tc.ink} />
+            <Ionicons name="chevron-back" size={16} color={tc.ink} />
             <Text className="ml-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">
               {tr('keys.prevStep')}
             </Text>
@@ -1223,7 +1223,7 @@ function FooterButtons({ onBack, onRestart }: { onBack: () => void; onRestart?: 
     <View className="mt-4 flex-row gap-3">
       <Button
         label={tr('keys.prevStep')}
-        icon="arrow-back"
+        icon="chevron-back"
         onPress={onBack}
         variant="secondary"
         className="flex-1"

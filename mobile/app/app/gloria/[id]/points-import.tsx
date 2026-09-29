@@ -17,6 +17,7 @@ import { diffPoints, rowsBySummitCycle, type PointChange } from '~/modules/glori
 import { usePendingPointImport } from '~/modules/gloria/summitImportFile';
 import { Btn, Card, Chip, Label } from '~/modules/gloria/components/ui';
 import { useThemeColors } from '~/theme/colors';
+import { SelectMark } from '~/components/ui/SelectMark';
 
 const FIELD: Record<PointChange['field'], string> = {
   distance_m: 'gloria.pointImport.distance',
@@ -61,7 +62,7 @@ export default function PointImportScreen() {
   const chosenPoints = diff.points.filter((p) => isOn(`pt:${p.key}`, p.fill));
   const chosenP5m = diff.p5m.filter((p) => isOn(`p5m:${p.direction}`, p.from == null));
   const problems = [...pending.problems, ...diff.problems];
-  const box = (on: boolean) => <Ionicons name={on ? 'checkbox' : 'square-outline'} size={20} color={on ? tc.accent : tc.ink3} />;
+  const box = (on: boolean) => <SelectMark state={on ? 'on' : 'off'} />;
   const cycleLabel = (m: number | null) => (m == null ? t('gloria.pointImport.noMocy') : `mocy ${m}`);
 
   return (

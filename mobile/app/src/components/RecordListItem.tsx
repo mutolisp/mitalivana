@@ -26,6 +26,7 @@ import { isoDateTime } from '~/lib/datetime';
 import { computeDiversity } from '~/lib/diversity';
 import { useSettings } from '~/stores/settings';
 import { useThemeColors } from '~/theme/colors';
+import { SelectMark } from './ui/SelectMark';
 
 /**
  * Per-row S / H′ / J′ cache.
@@ -102,16 +103,6 @@ export function KindIcon({
   return (
     <View className={`items-center justify-center ${box} ${look.bg}`}>
       <Ionicons name={iconName as never} size={size === 'sm' ? 15 : 20} color={look.tint} />
-    </View>
-  );
-}
-
-export function SelectCheckbox({ checked }: { checked: boolean }) {
-  return (
-    <View
-      className={`h-6 w-6 items-center justify-center rounded-full ${checked ? 'bg-accent-500' : 'border-2 border-gray-300 dark:border-gray-600'}`}
-    >
-      {checked ? <Ionicons name="checkmark" size={14} color="white" /> : null}
     </View>
   );
 }
@@ -306,7 +297,7 @@ export function RecordListRow({
       style={{ minHeight: 64 }}
     >
       <View className="mr-3 h-10 w-10 items-center justify-center">
-        {selectMode ? <SelectCheckbox checked={selected} /> : <KindIcon kind={item.kind} />}
+        {selectMode ? <SelectMark state={selected ? 'on' : 'off'} /> : <KindIcon kind={item.kind} />}
       </View>
       <View className="flex-1">
         <View className="flex-row items-center">
@@ -393,7 +384,7 @@ export function RecordGridCard({
           </Text>
         </View>
         {selectMode ? (
-          <SelectCheckbox checked={selected} />
+          <SelectMark state={selected ? 'on' : 'off'} />
         ) : (
           <View className="-m-2.5">
             <PinButton starred={item.starred} onToggle={onToggleStar} name={item.title} size={18} />

@@ -25,10 +25,9 @@
  * a Modal's separate native view hierarchy (the same reason
  * `SurveyorAssignSheet` carries one).
  */
-import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { createContext, useCallback, useContext, useMemo, useRef, type ReactNode } from 'react';
-import { Pressable, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { View, type StyleProp, type ViewStyle } from 'react-native';
 import {
   Gesture,
   GestureDetector,
@@ -42,7 +41,7 @@ import Animated, {
   withTiming,
   type SharedValue,
 } from 'react-native-reanimated';
-import { useThemeColors } from '~/theme/colors';
+import { StepPager } from '~/components/ui/StepPager';
 
 /** Horizontal travel before the swipe takes the gesture from the ScrollView. */
 const ACTIVATE_X = 18;
@@ -214,7 +213,7 @@ export function SwipeNavArea({
 }
 
 /**
- * The visible half of the gesture: `‹ 3 / 47 ›`.
+ * The visible half of the gesture: the StepPager row, "3 / 47" between two steps.
  *
  * A swipe nobody knows about is a swipe nobody uses, and gloved hands in the
  * field miss gestures — so every surface that accepts the swipe also shows this
@@ -228,12 +227,9 @@ export function SwipeNavPager({
   /** Draw the bottom-sheet grab handle above the row. */
   grabber?: boolean;
 }) {
-  const c = useThemeColors();
   const index = state?.index ?? 0;
   const total = state?.total ?? 0;
   const onStep = state?.onStep;
-  const hasPrev = index > 0;
-  const hasNext = index < total - 1;
   if (!onStep || total <= 1) {
     // Nothing to step through — keep the grab handle, drop the chevrons.
     return grabber ? (
@@ -245,34 +241,9 @@ export function SwipeNavPager({
   return (
     <View className="items-center pt-2">
       {grabber ? <View className="h-1 w-12 rounded-full bg-gray-300 dark:bg-gray-700" /> : null}
-      <View className="mt-1 flex-row items-center">
-        <Pressable
-          onPress={() => onStep(-1)}
-          disabled={!hasPrev}
-          hitSlop={10}
-          className="px-3 py-1"
-          accessibilityRole="button"
-        >
-          <Ionicons name="chevron-back" size={18} color={hasPrev ? c.ink2 : '#d1d5db'} />
-        </Pressable>
-        {/* Explicit style rather than min-w-16 / tabular-nums: both are
-            Tailwind-only spellings that map to nothing on React Native, so the
-            counter would jitter as the digit count changes. */}
-        <Text
-          style={{ minWidth: 64, fontVariant: ['tabular-nums'] }}
-          className="text-center text-xs text-gray-500 dark:text-gray-400"
-        >
-          {index + 1} / {total}
-        </Text>
-        <Pressable
-          onPress={() => onStep(1)}
-          disabled={!hasNext}
-          hitSlop={10}
-          className="px-3 py-1"
-          accessibilityRole="button"
-        >
-          <Ionicons name="chevron-forward" size={18} color={hasNext ? c.ink2 : '#d1d5db'} />
-        </Pressable>
+      {/* The shared pager (05-controls.md §2.5): disabled steps fade, never grey out. */}
+      <View className="mt-1">
+        <StepPager index={index} total={total} onStep={onStep} />
       </View>
     </View>
   );

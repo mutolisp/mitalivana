@@ -18,8 +18,13 @@ frontend/build/
 build/
 dist/
 
+# docs
+mobile/docs/
+mobile/archive/Code_review_v12.md
+
 # Database backups
 backend/twnamelist.db.bak.*
+backend/backup_db/
 
 # TaiCOL raw data (users download themselves)
 references/TaiCOL_*.csv

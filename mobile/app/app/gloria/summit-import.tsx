@@ -17,6 +17,7 @@ import { diffSummits, type Compared, type StoredSummit, type SummitDiff } from '
 import { usePendingSummitImport } from '~/modules/gloria/summitImportFile';
 import { Btn, Card, Label } from '~/modules/gloria/components/ui';
 import { useThemeColors } from '~/theme/colors';
+import { SelectMark } from '~/components/ui/SelectMark';
 
 const FIELD_LABEL: Record<Compared, string> = {
   name: 'gloria.summit.name',
@@ -81,7 +82,7 @@ export default function SummitImportScreen() {
         accessibilityState={{ checked: on }}
         className="flex-row items-start border-b border-gray-100 px-3 py-2.5 dark:border-gray-800"
       >
-        <Ionicons name={on ? 'checkbox' : 'square-outline'} size={20} color={on ? tc.accent : tc.ink3} />
+        <SelectMark state={on ? 'on' : 'off'} />
         <View className="ml-2.5 flex-1">
           <Text className="text-sm font-semibold text-gray-900 dark:text-gray-100">{d.item.full_code}</Text>
           {d.kind === 'changed' ? (

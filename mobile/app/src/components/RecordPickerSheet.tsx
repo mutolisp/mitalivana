@@ -14,6 +14,7 @@ import { FlatList, Modal, Pressable, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { RecordItem, RecordKind } from '~/db';
 import { useThemeColors } from '~/theme/colors';
+import { SelectMark } from '~/components/ui/SelectMark';
 
 const KIND_LABEL: Record<RecordKind, string> = {
   session: 'favorites.kindSession',
@@ -119,11 +120,7 @@ export function RecordPickerSheet({ visible, records, onCancel, onConfirm }: Pro
               onPress={toggleAll}
               className="flex-row items-center border-b border-gray-100 dark:border-gray-800 px-4 py-2 active:bg-gray-50 dark:active:bg-gray-800"
             >
-              <Ionicons
-                name={allSelected ? 'checkbox' : 'square-outline'}
-                size={20}
-                color={allSelected ? c.accent : c.ink3}
-              />
+              <SelectMark state={allSelected ? 'on' : selected.size > 0 ? 'mixed' : 'off'} />
               <Text className="ml-3 text-sm text-gray-700 dark:text-gray-300">
                 {allSelected ? t('favorites.deselectAll') : t('favorites.selectAll')}
               </Text>
@@ -139,11 +136,7 @@ export function RecordPickerSheet({ visible, records, onCancel, onConfirm }: Pro
                     onPress={() => toggle(item)}
                     className="flex-row items-center border-b border-gray-100 dark:border-gray-800 px-4 py-3 active:bg-gray-50 dark:active:bg-gray-800"
                   >
-                    <Ionicons
-                      name={on ? 'checkbox' : 'square-outline'}
-                      size={20}
-                      color={on ? c.accent : c.ink3}
-                    />
+                    <SelectMark state={on ? 'on' : 'off'} />
                     <View className="ml-3 flex-1">
                       <Text className="text-sm text-gray-900 dark:text-gray-100" numberOfLines={1}>
                         <Text className="text-gray-500 dark:text-gray-400">

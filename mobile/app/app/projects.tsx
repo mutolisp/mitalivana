@@ -4,6 +4,9 @@ import * as Haptics from 'expo-haptics';
 import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, BackHandler, FlatList, Pressable, Text, TextInput, View } from 'react-native';
+import { SelectionDock, SelectionToolbar } from '~/components/SelectionToolbar';
+import { IconDisc } from '~/components/ui/IconDisc';
+import { SelectMark } from '~/components/ui/SelectMark';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   createProject,
@@ -132,7 +135,7 @@ export default function ProjectsScreen() {
     // 未分類 is not a project the user owns — it can never be deleted, so it
     // never enters a selection either.
     if (selectMode || p.id === 0) return;
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    void Haptics.selectionAsync();
     setSelectMode(true);
     setPicked(new Set([p.id]));
   };
@@ -242,7 +245,11 @@ export default function ProjectsScreen() {
       <Stack.Screen
         options={{
           title: t('nav.projects'),
-          headerLeft: BackHeaderLeft,
+          // While selecting, back leaves select mode first (05-controls.md §2.1).
+          headerLeft: selectMode
+            ? () => <IconDisc icon="back" onPress={exitSelect} accessibilityLabel={t('common.exitSelect')} edge="left" />
+            : BackHeaderLeft,
+          gestureEnabled: !selectMode,
           headerRight: () =>
             selectMode ? null : (
               <HeaderIconButton
@@ -254,32 +261,12 @@ export default function ProjectsScreen() {
         }}
       />
       {selectMode ? (
-        <View className="flex-row items-center justify-between border-b border-gray-200 bg-card px-4 py-2 dark:border-gray-700 dark:bg-gray-900">
-          <Text className="text-sm text-gray-500 dark:text-gray-400">
-            {t('projects.selectedCount', { count: picked.size })}
-          </Text>
-          <View className="flex-row items-center gap-3">
-            <Pressable onPress={toggleSelectAll} hitSlop={8}>
-              <Text className="text-sm text-accent-600 dark:text-accent-400">
-                {allVisiblePicked ? t('projects.deselectAll') : t('projects.selectAll')}
-              </Text>
-            </Pressable>
-            <Pressable onPress={handleBulkDelete} disabled={picked.size === 0} hitSlop={8}>
-              <Text
-                className={`text-sm font-medium ${
-                  picked.size === 0
-                    ? 'text-gray-300 dark:text-gray-600'
-                    : 'text-red-600 dark:text-red-400'
-                }`}
-              >
-                {t('common.delete')}
-              </Text>
-            </Pressable>
-            <Pressable onPress={exitSelect} hitSlop={8}>
-              <Text className="text-sm text-gray-500 dark:text-gray-400">{t('common.cancel')}</Text>
-            </Pressable>
-          </View>
-        </View>
+        <SelectionToolbar
+          count={picked.size}
+          allPicked={allVisiblePicked}
+          onToggleAll={toggleSelectAll}
+          onCancel={exitSelect}
+        />
       ) : null}
       {showSearch ? (
         <View className="flex-row items-center border-b border-gray-200 bg-card px-4 py-2 dark:border-gray-700 dark:bg-gray-900">
@@ -318,18 +305,10 @@ export default function ProjectsScreen() {
                 className="flex-row items-center border-b border-gray-100 bg-card px-4 py-3 active:bg-gray-50 dark:border-gray-800 dark:bg-gray-900 dark:active:bg-gray-800"
               >
                 {selectMode ? (
-                  <Ionicons
-                    name={
-                      item.id === 0
-                        ? 'remove-circle-outline'
-                        : checked
-                          ? 'checkbox'
-                          : 'square-outline'
-                    }
-                    size={18}
-                    color={checked ? c.accent : c.ink3}
-                    style={{ marginRight: 10 }}
-                  />
+                  // 未分類 can never be picked: shown, but disabled.
+                  <View className="mr-2.5">
+                    <SelectMark state={checked ? 'on' : 'off'} disabled={item.id === 0} />
+                  </View>
                 ) : (
                   <Ionicons
                     name={item.id === 0 ? 'help-circle-outline' : 'folder-outline'}
@@ -386,6 +365,12 @@ export default function ProjectsScreen() {
       )}
       <ProjectEditModal target={editing} onCancel={() => setEditing(null)} onSave={handleSave} />
       <ExportProgressOverlay progress={progress} />
+      {selectMode ? (
+        <SelectionDock
+          count={picked.size}
+          actions={[{ label: t('common.delete'), onPress: handleBulkDelete, destructive: true }]}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }

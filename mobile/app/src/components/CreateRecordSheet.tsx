@@ -37,6 +37,7 @@ import {
 import { useSettings, type RecordTypeDefault } from '~/stores/settings';
 import { useThemeColors, type ThemeColors } from '~/theme/colors';
 import { PointCountIcon, TransectIcon } from './PlotTypeIcons';
+import { IconDisc } from '~/components/ui/IconDisc';
 
 export { showCreateSheet } from '~/lib/createSheet';
 
@@ -189,14 +190,9 @@ function SheetHeader({
   return (
     <View className="mb-3 flex-row items-center">
       {onBack ? (
-        <Pressable
-          onPress={onBack}
-          accessibilityRole="button"
-          accessibilityLabel={t('common.back')}
-          className="-ml-2 mr-1 h-11 w-11 items-center justify-center rounded-full active:bg-gray-100 dark:active:bg-gray-800"
-        >
-          <Ionicons name="chevron-back" size={24} color={c.ink2} />
-        </Pressable>
+        <View className="mr-1">
+          <IconDisc icon="back" onPress={onBack} accessibilityLabel={t('common.back')} edge="left" />
+        </View>
       ) : null}
       <View className="flex-1">
         <Text className="text-2xl font-bold text-gray-900 dark:text-gray-100">{title}</Text>

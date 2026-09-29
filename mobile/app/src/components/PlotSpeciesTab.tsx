@@ -79,6 +79,7 @@ import {
 } from '~/lib/dwcAbundance';
 import { stampNewRecord } from '~/lib/recordFix';
 import { useThemeColors } from '~/theme/colors';
+import { SelectMark } from '~/components/ui/SelectMark';
 
 type ValueModalState =
   | { mode: 'create'; taxon: SearchResult; layer: Layer; adopted?: AdoptionInput | null }
@@ -1311,12 +1312,7 @@ function SpeciesRow({
       className={`flex-row items-start border-b border-gray-100 px-4 py-3 dark:border-gray-800 ${uploaded ? 'bg-lime-50 active:bg-lime-100 dark:bg-lime-900/30 dark:active:bg-lime-900/50' : 'bg-card active:bg-gray-50 dark:bg-gray-900 dark:active:bg-gray-800'}`}
     >
       {selectMode ? (
-        <Ionicons
-          name={picked ? 'checkbox' : 'square-outline'}
-          size={20}
-          color={picked ? c.accent : c.ink3}
-          style={{ marginRight: 10, alignSelf: 'center' }}
-        />
+        <View style={{ marginRight: 10, alignSelf: 'center' }}><SelectMark state={picked ? 'on' : 'off'} /></View>
       ) : null}
       <View className="flex-1">
         <View className="flex-row items-center" style={{ flexWrap: 'wrap' }}>

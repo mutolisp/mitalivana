@@ -57,6 +57,7 @@ import { Banner, BannerText, Btn, Card, Label, NumAccessory, NumField, Seg } fro
 import { RANGES } from '~/modules/gloria/model/ranges';
 import { GLORIA_SEARCH_GROUPS } from '~/modules/gloria/useSurvey';
 import { useThemeColors } from '~/theme/colors';
+import { DoneMark } from '~/components/ui/DoneMark';
 
 type Tab = 'species' | 'plot';
 
@@ -260,7 +261,7 @@ export default function MirenPlotScreen() {
                 </Text>
               </View>
               {measures.mode === 'presence' ? (
-                <Ionicons name="checkmark-circle" size={20} color={tc.accent} />
+                <DoneMark />
               ) : (
                 <Text className="font-mono text-xs text-gray-700 dark:text-gray-300">
                   {`C ${s.cover_class ?? '–'} · A ${s.abundance_class ?? '–'}`}

@@ -36,6 +36,8 @@ import { readRecordYamlText } from '~/lib/recordImport';
 import { splitVoiceInput } from '~/lib/voiceSplit';
 import { ScientificName } from './ScientificName';
 import { useThemeColors } from '~/theme/colors';
+import { SelectMark } from '~/components/ui/SelectMark';
+import { Radio } from '~/components/ui/Radio';
 
 /** Where matched taxa land. The modal owns the dedupe + insert for each kind
  *  so callers don't reimplement it; adding a third target means one more case
@@ -392,12 +394,7 @@ export function BatchImportModal({ visible, target, onClose, onCommitted }: Prop
                       }}
                       className={`flex-row items-center border-b border-gray-100 dark:border-gray-800 px-4 py-2 ${skipped ? 'opacity-40' : ''}`}
                     >
-                      <Ionicons
-                        name={skipped ? 'square-outline' : 'checkbox'}
-                        size={20}
-                        color={skipped ? c.ink3 : c.accent}
-                        style={{ marginRight: 10 }}
-                      />
+                      <View style={{ marginRight: 10 }}><SelectMark state={!skipped ? 'on' : 'off'} /></View>
                       <View className="flex-1">
                         {m.cname ? (
                           <Text className="text-sm font-medium text-gray-900 dark:text-gray-100">{m.cname}</Text>
@@ -435,11 +432,7 @@ export function BatchImportModal({ visible, target, onClose, onCommitted }: Prop
                           }
                           className={`mb-1 flex-row items-center px-1 ${pick === null ? 'opacity-100' : 'opacity-40'}`}
                         >
-                          <Ionicons
-                            name={pick === null ? 'radio-button-on' : 'radio-button-off'}
-                            size={16}
-                            color={pick === null ? c.ink2 : c.ink3}
-                          />
+                          <Radio selected={pick === null} />
                           <Text className="ml-2 text-xs italic text-gray-600 dark:text-gray-400">{t('batchImport.skipThis')}</Text>
                         </Pressable>
                         {e.matches.slice(0, 5).map((m, mi) => {
@@ -452,11 +445,7 @@ export function BatchImportModal({ visible, target, onClose, onCommitted }: Prop
                               }
                               className={`flex-row items-center rounded px-1 py-1 ${selected ? 'bg-amber-50 dark:bg-amber-950/40' : ''}`}
                             >
-                              <Ionicons
-                                name={selected ? 'radio-button-on' : 'radio-button-off'}
-                                size={16}
-                                color={selected ? '#d97706' : c.ink3}
-                              />
+                              <Radio selected={selected} />
                               <View className="ml-2 flex-1">
                                 {m.cname ? (
                                   <Text className="text-sm text-gray-900 dark:text-gray-100">{m.cname}</Text>

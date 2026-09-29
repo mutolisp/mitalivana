@@ -14,6 +14,7 @@ import type { SurveyState } from '../useSurvey';
 import { Banner, BannerText, Card, NumField } from './ui';
 import { RANGES } from '../model/ranges';
 import { useThemeColors } from '~/theme/colors';
+import { Radio } from '~/components/ui/Radio';
 
 // Directions in the order the team works through them.
 const ORDER: readonly Direction[] = ['E', 'N', 'S', 'W'];
@@ -62,7 +63,7 @@ export function PointsForm({ state, reload, onHelp }: { state: SurveyState; relo
               accessibilityLabel={`p5m ${k}`}
               hitSlop={8}
             >
-              <Ionicons name={p.is_p5m ? 'radio-button-on' : 'radio-button-off'} size={18} color={p.is_p5m ? tc.accent : tc.ink3} />
+              <Radio selected={p.is_p5m === 1} />
             </Pressable>
           ) : null}
         </View>

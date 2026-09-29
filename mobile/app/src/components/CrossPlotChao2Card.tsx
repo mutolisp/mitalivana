@@ -20,6 +20,7 @@ import { Pressable, Text, View } from 'react-native';
 import { listPlotSpecies } from '~/db';
 import { betaSimilarity, chao2, type BetaSimilarity, type Chao2Result, type DiversityRecord } from '~/lib/diversity';
 import { useThemeColors } from '~/theme/colors';
+import { SelectMark } from '~/components/ui/SelectMark';
 
 type PlotRef = { id: number; title: string };
 
@@ -108,11 +109,7 @@ export function CrossPlotChao2Card({ plots }: { plots: PlotRef[] }) {
                   className="flex-row items-center py-1.5"
                   accessibilityLabel={plot.title}
                 >
-                  <Ionicons
-                    name={on ? 'checkbox' : 'square-outline'}
-                    size={18}
-                    color={on ? '#0284c7' : c.ink3}
-                  />
+                  <SelectMark state={on ? 'on' : 'off'} />
                   <Text className="ml-2 flex-1 text-sm text-gray-900 dark:text-gray-100" numberOfLines={1}>
                     {plot.title}
                   </Text>

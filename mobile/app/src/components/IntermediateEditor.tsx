@@ -32,6 +32,7 @@ import { ScientificName } from './ScientificName';
 import { ToastHost } from './ToastHost';
 import { useToast } from '~/stores/toast';
 import { useThemeColors } from '~/theme/colors';
+import { SelectMark } from '~/components/ui/SelectMark';
 
 export type EditorRequest =
   | { kind: 'create'; parent: TaxonNode }
@@ -306,12 +307,7 @@ export function IntermediateEditor({ request, onClose }: Props) {
                   }}
                   className="flex-row items-center border-b border-gray-100 px-4 py-3 active:bg-gray-50 dark:border-gray-800 dark:active:bg-gray-800"
                 >
-                  <Ionicons
-                    name={on ? 'checkbox' : 'square-outline'}
-                    size={22}
-                    color={on ? tc.accent : tc.ink3}
-                    style={{ marginRight: 12 }}
-                  />
+                  <View style={{ marginRight: 12 }}><SelectMark state={on ? 'on' : 'off'} /></View>
                   <View className="flex-1">
                     {c.name_c ? (
                       <Text className="text-base text-gray-900 dark:text-gray-100">{c.name_c}</Text>

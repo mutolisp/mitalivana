@@ -5,6 +5,7 @@ import { FlatList, Modal, Pressable, Text, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Slider from '@react-native-community/slider';
 import { useThemeColors } from '~/theme/colors';
+import { Radio } from '~/components/ui/Radio';
 
 /** One selectable WMTS overlay source (e.g. Academia Sinica, NLSC). */
 export type LayerSource = {
@@ -158,12 +159,7 @@ export function LayerSheet({ visible, sources, onClose }: Props) {
                   onPress={() => active.onSelect(item.id)}
                   className={`flex-row items-center border-b border-gray-100 dark:border-gray-800 px-4 py-2.5 ${isActive ? 'bg-accent-50 dark:bg-accent-950/40' : 'active:bg-gray-50 dark:active:bg-gray-800'}`}
                 >
-                  <Ionicons
-                    name={isActive ? 'radio-button-on' : 'radio-button-off'}
-                    size={16}
-                    color={isActive ? c.accent : c.ink3}
-                    style={{ marginRight: 10 }}
-                  />
+                  <View style={{ marginRight: 10 }}><Radio selected={isActive} /></View>
                   <Text
                     className={`flex-1 text-sm ${isActive ? 'font-medium text-accent-700 dark:text-accent-300' : 'text-gray-800 dark:text-gray-200'}`}
                     numberOfLines={2}

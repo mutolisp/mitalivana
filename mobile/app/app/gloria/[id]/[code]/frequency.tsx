@@ -534,7 +534,7 @@ export default function FrequencyScreen() {
                           height: cellPx,
                           backgroundColor: on ? (curTarget?.tone ?? tc.accent) : undefined,
                           borderWidth: mode === 'cell' && i === sel ? 2 : 0.5,
-                          borderColor: mode === 'cell' && i === sel ? '#d97706' : '#d1d5db',
+                          borderColor: mode === 'cell' && i === sel ? '#d97706' : tc.line,
                         }}
                         className={on ? '' : 'bg-card dark:bg-gray-900'}
                       >
