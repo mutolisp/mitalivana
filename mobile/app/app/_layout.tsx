@@ -157,6 +157,7 @@ function ThemedShell() {
             <Stack.Screen name="session/[id]" options={{ title: t('nav.session') }} />
             <Stack.Screen name="plot/[id]" options={{ title: t('nav.plot') }} />
             <Stack.Screen name="gloria/new" options={{ title: t('gloria.new.title') }} />
+            <Stack.Screen name="gloria/summit-new" options={{ title: t('gloria.new.addSummit') }} />
             <Stack.Screen name="key/[id]" options={{ title: t('nav.key') }} />
             <Stack.Screen name="projects" options={{ title: t('nav.projects') }} />
             <Stack.Screen name="sites" options={{ title: t('nav.sites') }} />

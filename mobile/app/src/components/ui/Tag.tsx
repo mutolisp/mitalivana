@@ -17,7 +17,10 @@ export type TagKind =
   | 'cultivated'
   | 'captive'
   | 'protected'
-  | 'iucn';
+  | 'iucn'
+  // Generic looks for non-taxon facts (a summit's zone and survey state).
+  | 'neutral'
+  | 'acorn';
 
 const LOOK: Record<Exclude<TagKind, 'iucn'>, { box: string; text: string }> = {
   endemic: { box: 'bg-accent-100 dark:bg-accent-900', text: 'text-accent-700 dark:text-accent-300' },
@@ -26,6 +29,8 @@ const LOOK: Record<Exclude<TagKind, 'iucn'>, { box: string; text: string }> = {
   cultivated: { box: 'bg-gray-100 dark:bg-gray-800', text: 'text-cupule dark:text-gray-300' },
   captive: { box: 'bg-gray-100 dark:bg-gray-800', text: 'text-cupule dark:text-gray-300' },
   protected: { box: 'bg-gray-100 dark:bg-gray-800', text: 'text-cupule dark:text-gray-300' },
+  neutral: { box: 'bg-gray-100 dark:bg-gray-800', text: 'text-cupule dark:text-gray-300' },
+  acorn: { box: 'bg-acorn-tint dark:bg-gray-800', text: 'text-acorn-deep dark:text-acorn' },
 };
 
 export function Tag({

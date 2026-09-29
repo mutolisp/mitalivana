@@ -53,7 +53,6 @@
   "src/modules/gloria/components/PointMap.tsx": 5,
   "src/modules/gloria/components/SummitSchematic.tsx": 12,
   "src/modules/gloria/components/WalkDiagram.tsx": 3,
-  "src/modules/gloria/components/ui.tsx": 1,
   "src/modules/gloria/useSurvey.ts": 8,
   "src/modules/miren/components/ProfileChart.tsx": 4
 }

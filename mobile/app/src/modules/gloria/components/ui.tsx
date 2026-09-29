@@ -1,8 +1,8 @@
 /**
- * Small building blocks shared by the GLORIA screens. Colours follow the app:
- * gray surfaces, the moss `accent-*` / `useThemeColors().accent` for anything
- * the user acts on (src/theme/colors.ts), emerald for done, amber / red for
- * warnings.
+ * Small building blocks shared by the GLORIA screens. `Btn` wraps the app's
+ * `Button`, and `Card` / `Banner` draw from the redesign tokens (card, line,
+ * accent, acorn, alert), so every GLORIA screen takes the new palette before
+ * its layout is redone (03-screens-flow.md §4d).
  */
 import { Ionicons } from '@expo/vector-icons';
 import { forwardRef, useEffect, useRef, useState, useSyncExternalStore } from 'react';
@@ -12,13 +12,13 @@ import { useKeyboardState } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardStickyView } from '~/components/KeyboardAvoidingView';
 import { checkRange, type Range } from '../model/ranges';
-import { ACTION_FILL } from '~/lib/colors';
+import { Button } from '~/components/ui/Button';
 import { useSettings } from '~/stores/settings';
 import { useThemeColors } from '~/theme/colors';
 
 export function Card({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
-    <View className={`rounded-xl border border-gray-200 bg-card dark:border-gray-800 dark:bg-gray-900 ${className}`}>
+    <View className={`rounded-card border border-line bg-card dark:border-line-dark dark:bg-card-dark ${className}`}>
       {children}
     </View>
   );
@@ -30,6 +30,9 @@ export function Label({ children }: { children: React.ReactNode }) {
   );
 }
 
+/** Kept as a thin wrapper so the GLORIA call sites need no change: `primary`
+ *  maps to the primary look, everything else to secondary. `small` is the md
+ *  size (40 pt), which is as small as a field button should get. */
 export function Btn({
   label,
   onPress,
@@ -45,24 +48,15 @@ export function Btn({
   small?: boolean;
   accessibilityLabel?: string;
 }) {
-  const size = small ? 'px-3 py-1.5' : 'px-4 py-2.5';
-  const look = primary
-    ? `${ACTION_FILL}`
-    : 'border border-gray-300 bg-gray-50 active:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:active:bg-gray-700';
   return (
-    <Pressable
+    <Button
+      label={label}
       onPress={onPress}
+      variant={primary ? 'primary' : 'secondary'}
+      size={small ? 'md' : 'lg'}
       disabled={disabled}
-      accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel ?? label}
-      className={`items-center justify-center rounded-lg ${size} ${look} ${disabled ? 'opacity-40' : ''}`}
-    >
-      <Text
-        className={`${small ? 'text-xs' : 'text-sm'} font-semibold ${primary ? 'text-white' : 'text-gray-900 dark:text-gray-100'}`}
-      >
-        {label}
-      </Text>
-    </Pressable>
+      accessibilityLabel={accessibilityLabel}
+    />
   );
 }
 
@@ -158,12 +152,12 @@ export function PassBanner({ text }: { text: string }) {
 
 export function Banner({ tone, children }: { tone: 'warn' | 'error' | 'info' | 'ok'; children: React.ReactNode }) {
   const cls = {
-    warn: 'border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40',
-    error: 'border-red-400 bg-red-50 dark:border-red-800 dark:bg-red-950/40',
-    info: 'border-transparent bg-accent-50 dark:bg-accent-950/40',
-    ok: 'border-emerald-400 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/40',
+    warn: 'border-acorn bg-acorn-tint dark:border-acorn-deep dark:bg-gray-800',
+    error: 'border-alert bg-alert-tint dark:border-alert-dark dark:bg-alert-dark-tint',
+    info: 'border-transparent bg-accent-100 dark:bg-accent-900',
+    ok: 'border-accent-300 bg-accent-50 dark:border-accent-700 dark:bg-accent-950',
   }[tone];
-  return <View className={`rounded-lg border px-3 py-2 ${cls}`}>{children}</View>;
+  return <View className={`rounded-xl border px-3 py-2 ${cls}`}>{children}</View>;
 }
 
 /**
@@ -185,7 +179,7 @@ export function FoldBanner({
   const c = useThemeColors();
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
-  const ink = tone === 'error' ? c.alert : '#d97706';
+  const ink = tone === 'error' ? c.alert : c.acornDeep;
   return (
     <Banner tone={tone}>
       <Pressable
@@ -210,10 +204,10 @@ export function FoldBanner({
 
 export function BannerText({ tone, children, bold }: { tone: 'warn' | 'error' | 'info' | 'ok'; children: React.ReactNode; bold?: boolean }) {
   const cls = {
-    warn: 'text-amber-800 dark:text-amber-300',
-    error: 'text-red-700 dark:text-red-300',
+    warn: 'text-acorn-deep dark:text-acorn',
+    error: 'text-alert dark:text-alert-dark',
     info: 'text-accent-800 dark:text-accent-300',
-    ok: 'text-emerald-700 dark:text-emerald-300',
+    ok: 'text-accent-700 dark:text-accent-300',
   }[tone];
   return <Text className={`text-xs ${bold ? 'font-semibold' : ''} ${cls}`}>{children}</Text>;
 }

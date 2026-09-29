@@ -1,4 +1,5 @@
 /** @type {import('tailwindcss').Config} */
+const { platformSelect } = require('nativewind/theme');
 
 // Warm neutral scale sampled from the app icon and splash colours.
 // Replaces Tailwind's cool gray everywhere in one step.
@@ -74,6 +75,9 @@ module.exports = {
         sheet: '24px',
       },
       fontFamily: {
+        // NativeWind's preset maps Android to "mono", which is not an Android
+        // family, so font-mono fell back to the proportional system font.
+        mono: platformSelect({ android: 'monospace', ios: "'Courier New'" }),
         latin: ['SourceSerif4_400Regular_Italic'],
         'latin-upright': ['SourceSerif4_400Regular'],
         'latin-semibold': ['SourceSerif4_600SemiBold_Italic'],
