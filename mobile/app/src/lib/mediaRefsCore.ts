@@ -23,6 +23,7 @@ export const MEDIA_COLUMN_KINDS: Readonly<Record<string, ColumnKind>> = {
   'plot_species_records.photo_paths': 'list',
   'plot_species_records.audio_paths': 'list',
   'plot_surveys.env_photos_json': 'list',
+  'plot_quadrats.photo_paths': 'list',
   'gloria_units.photo_paths': 'list',
   'gloria_points.photo_m2': 'single',
   'gloria_points.photo_m2f': 'single',

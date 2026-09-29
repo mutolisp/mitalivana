@@ -120,7 +120,8 @@ export const OCCURRENCE_COLS: ColSpec[] = [
 
 /**
  * Extended MeasurementOrFact (OBIS), for observations Darwin Core has no term
- * for — currently leaf phenology.
+ * for — leaf phenology, duplicate sheets, and quadrat cover / frequency /
+ * surface cover.
  *
  * **Why eMoF and not `dwc:MeasurementOrFact`**: the plain MoF extension has no
  * `occurrenceID` (checked against measurements_or_facts_2025-07-10.xml, 11
@@ -138,7 +139,24 @@ export const MEASUREMENT_COLS: ColSpec[] = [
   { key: 'occurrenceID', term: `${DWC}occurrenceID` },
   { key: 'measurementType', term: `${DWC}measurementType` },
   { key: 'measurementValue', term: `${DWC}measurementValue` },
+  // Both in extended_measurement_or_fact_2023-08-28.xml (rs.gbif.org, checked
+  // 2026-09-29): quadrat cover / frequency are percentages.
+  { key: 'measurementUnit', term: `${DWC}measurementUnit` },
+  { key: 'measurementMethod', term: `${DWC}measurementMethod` },
 ];
+
+/**
+ * Give each eMoF row its coreid: the event of the occurrence it is about. A
+ * row made on an event (quadrat surface cover) already has one. Before
+ * 2026-09-29 the occurrence-level rows (leaf phenology, duplicate count)
+ * carried none, so their coreid column was empty and linked to nothing.
+ */
+export function linkMeasurements(occurrences: readonly DwcRow[], measurements: DwcRow[]): void {
+  const eventOf = new Map(occurrences.map((o) => [String(o.occurrenceID), o.coreEventID]));
+  for (const m of measurements) {
+    if (m.coreEventID == null && m.occurrenceID) m.coreEventID = eventOf.get(String(m.occurrenceID));
+  }
+}
 
 export const HUMBOLDT_COLS: ColSpec[] = [
   { key: 'siteCount', term: `${ECO}siteCount` },

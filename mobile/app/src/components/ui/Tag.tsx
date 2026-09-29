@@ -20,7 +20,9 @@ export type TagKind =
   | 'iucn'
   // Generic looks for non-taxon facts (a summit's zone and survey state).
   | 'neutral'
-  | 'acorn';
+  | 'acorn'
+  // Something missing or wrong in a record (a quadrat without frequency).
+  | 'alert';
 
 const LOOK: Record<Exclude<TagKind, 'iucn'>, { box: string; text: string }> = {
   endemic: { box: 'bg-accent-100 dark:bg-accent-900', text: 'text-accent-700 dark:text-accent-300' },
@@ -31,6 +33,7 @@ const LOOK: Record<Exclude<TagKind, 'iucn'>, { box: string; text: string }> = {
   protected: { box: 'bg-gray-100 dark:bg-gray-800', text: 'text-cupule dark:text-gray-300' },
   neutral: { box: 'bg-gray-100 dark:bg-gray-800', text: 'text-cupule dark:text-gray-300' },
   acorn: { box: 'bg-acorn-tint dark:bg-gray-800', text: 'text-acorn-deep dark:text-acorn' },
+  alert: { box: 'bg-alert-tint dark:bg-alert-dark-tint', text: 'text-alert dark:text-alert-dark' },
 };
 
 export function Tag({

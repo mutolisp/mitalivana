@@ -37,6 +37,10 @@ eq('leave within 30 min extends the leave', planSave(v(7, 'leave', 'h1', T), 'h2
 eq('leave after 30 min is a new version', planSave(v(7, 'leave', 'h1', T), 'h2', 'leave', T + LEAVE_MERGE_MS), { kind: 'insert' });
 eq('leave never extends a done version', planSave(v(7, 'done', 'h1', T), 'h2', 'leave', T + 1000), { kind: 'insert' });
 eq('done after a leave is a new version', planSave(v(7, 'leave', 'h1', T), 'h2', 'done', T + 1000), { kind: 'insert' });
+eq('before a restore, a leave with the same content is kept under the new reason', planSave(v(7, 'leave', 'h1', T), 'h1', 'before_restore', T + 1000), { kind: 'relabel', id: 7 });
+eq('…so the next leave no longer overwrites it', planSave(v(7, 'before_restore', 'h1', T), 'h2', 'leave', T + 2000), { kind: 'insert' });
+eq('a leave with the same content is still nothing', planSave(v(7, 'leave', 'h1', T), 'h1', 'leave', T + 1000), { kind: 'skip' });
+eq('the same content under a non-leave reason is still nothing', planSave(v(7, 'done', 'h1', T), 'h1', 'before_restore', T + 1000), { kind: 'skip' });
 eq('30 min counts from the last update', planSave({ ...v(7, 'leave', 'h1', T), updated_at: T + LEAVE_MERGE_MS }, 'h2', 'leave', T + LEAVE_MERGE_MS + 1000), { kind: 'update', id: 7 });
 
 // ── pickPrune ──

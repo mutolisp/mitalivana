@@ -103,8 +103,13 @@ export function saveVersion(kind: MergeKind, id: number, reason: VersionReason, 
     const now = Date.now();
     const plan = planSave(latest, hash, reason, now);
     if (plan.kind === 'skip') return false;
-    const text = encode({ doc, media: listRecordMedia(kind, id) });
     const db = getUserDb();
+    if (plan.kind === 'relabel') {
+      // Same content, now kept under this reason so a later leave cannot overwrite it.
+      db.executeSync(`UPDATE record_versions SET reason = ?, note = COALESCE(?, note) WHERE id = ?`, [reason, note?.trim() || null, plan.id]);
+      return true;
+    }
+    const text = encode({ doc, media: listRecordMedia(kind, id) });
     if (plan.kind === 'update') {
       db.executeSync(`UPDATE record_versions SET content_hash = ?, size = ?, doc = ?, label = ?, updated_at = ? WHERE id = ?`, [hash, text.length, text, who.label, now, plan.id]);
     } else {

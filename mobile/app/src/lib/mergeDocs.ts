@@ -18,7 +18,7 @@ import { unionSurveyors } from '../db/merge';
 import type { GloriaDoc } from '../modules/gloria/export/yaml';
 import { LOGGER_FIELDS, UNIT_FIELDS } from '../modules/gloria/export/yaml';
 import { buildTrackGeoJSON, parseTrackSegments } from './track';
-import type { Combiners, MergeRow, MergeSide, Row } from './mergeEngine';
+import { defaultDecision, type Combiners, type Decision, type MergeItem, type MergeRow, type MergeSide, type Row } from './mergeEngine';
 
 export type MergeKind = 'session' | 'plot' | 'gloria';
 
@@ -59,7 +59,11 @@ const gridTicks = (a: unknown, b: unknown) => {
 
 export const COMBINERS: Record<MergeKind, Combiners> = {
   session: { record: { recorded_by: surveyors, started_at: minTime, ended_at: endTime, track_geojson: trackUnion } },
-  plot: { record: { recorded_by: surveyors, start_ts: minTime, stop_ts: endTime, track_geojson: trackUnion } },
+  plot: {
+    record: { recorded_by: surveyors, start_ts: minTime, stop_ts: endTime, track_geojson: trackUnion },
+    // A quadrat's working time spans both copies' (06-plot-quadrats.md phase D).
+    quadrat: { started_at: minTime, ended_at: maxTime },
+  },
   gloria: { survey: { recorded_by: surveyors, start_ts: minTime, stop_ts: endTime, grid_ok: gridTicks } },
 };
 
@@ -91,7 +95,12 @@ export function sessionSide(s: ImportedSession): MergeSide {
 // ── plot (樣區調查) ─────────────────────────────────────────────────────────
 
 const PLOT_COMBINED = ['recorded_by', 'start_ts', 'stop_ts', 'track_geojson'] as const;
-const PLOT_OUT = ['uuid', 'project_name', 'site', 'layers', 'subplots', 'species', 'env_photo_files', 'track_finalized', ...PLOT_COMBINED];
+const PLOT_OUT = [
+  'uuid', 'project_name', 'site', 'layers', 'subplots', 'species', 'env_photo_files', 'track_finalized',
+  // Quadrats (v77) are rows of their own below; the config is compared setting by setting.
+  'quadrat_config', 'quadrats',
+  ...PLOT_COMBINED,
+];
 const PLOT_SP_OUT = ['occurrence_id', 'name', 'family', 'photo_files', 'audio_files'];
 
 export function plotSide(p: ImportedPlot): MergeSide {
@@ -121,7 +130,114 @@ export function plotSide(p: ImportedPlot): MergeSide {
       label: r.used_scientific_name || r.name || r.taxon_id,
       group: r.subplot ?? undefined,
     })),
+    ...quadratTables(p),
   };
+}
+
+// ── plot quadrats (v77) ────────────────────────────────────────────────────
+//
+// Keyed by number, not uuid: two devices that each switched the module on
+// both made a Q1, and it is the same place in the plot. A species in a quadrat
+// is keyed by quadrat number and taxon (the table is UNIQUE on them). Each
+// setting of the config is a row of its own, so changing the grid on one
+// device and the layout on another is no conflict. Locks are shared progress,
+// carried as 1 or null like GLORIA's.
+
+/** A quadrat's size, grid and top edge: its masks are indexed by them. */
+export const QUADRAT_GEOMETRY = ['size_m', 'grid_n', 'top_edge'] as const;
+const QUADRAT_EXTRA = ['uuid', 'started_at', 'ended_at', 'photo_files'] as const;
+
+function quadratTables(p: ImportedPlot): MergeSide {
+  const quadrats = p.quadrats ?? [];
+  let config: Row | null = null;
+  try {
+    config = p.quadrat_config ? (JSON.parse(p.quadrat_config) as Row) : null;
+  } catch {
+    config = null;
+  }
+  const out: MergeSide = {};
+  // Only present tables: a plot without quadrats hashes as it did before v77.
+  // One row per setting: the engine decides per row, so the grid changed here
+  // and the layout changed there both come through without a question.
+  if (config) out.qconfig = Object.entries(config).map(([k, v]) => ({ key: k, data: { value: v }, label: k }));
+  if (quadrats.length) {
+    out.quadrat = quadrats.map((q) => {
+      const { species: _s, ...rest } = q;
+      return {
+        key: String(q.idx),
+        data: { ...omit(rest as unknown as Row, QUADRAT_EXTRA), locked: q.locked ? 1 : null },
+        extra: Object.fromEntries(QUADRAT_EXTRA.map((k) => [k, q[k] ?? null])),
+        label: q.label,
+      };
+    });
+    out.qsp = quadrats.flatMap((q) =>
+      q.species.map((s) => ({
+        key: `${q.idx}:${s.taxon_id}`,
+        data: omit(s as unknown as Row, ['name', 'cname']),
+        extra: { name: s.name ?? null, cname: s.cname ?? null },
+        label: s.cname || s.name || s.taxon_id,
+        group: q.label,
+      })),
+    );
+  }
+  return out;
+}
+
+/** Some quadrat's cells here that the sender's copy lacks (they would not fit a new grid). */
+function paintedHere(items: readonly MergeItem[], local: MergeSide, quadratKey?: string): boolean {
+  const remoteMask = new Map<string, unknown>();
+  for (const it of items) if (it.tbl === 'qsp' && it.remote) remoteMask.set(it.key, it.remote.data.freq_cells ?? null);
+  return (local.qsp ?? []).some(
+    (r) =>
+      (quadratKey == null || r.key.startsWith(`${quadratKey}:`)) &&
+      r.data.freq_cells != null &&
+      (remoteMask.get(r.key) ?? null) !== r.data.freq_cells,
+  );
+}
+
+/**
+ * After the diff: a new geometry the sender changed alone would be taken
+ * automatically, but painted cells here that the sender's copy lacks cannot
+ * survive it — so it is asked instead. The grid is the plot's (the `gridN`
+ * setting; every quadrat shares it), size and top edge are per quadrat.
+ */
+export function askQuadratGeometry(items: MergeItem[], local: MergeSide): MergeItem[] {
+  return items.map((it) => {
+    if (it.kind !== 'auto' || !it.local || !it.remote) return it;
+    if (it.tbl === 'qconfig' && it.key === 'gridN') return paintedHere(items, local) ? { ...it, kind: 'conflict' } : it;
+    if (it.tbl !== 'quadrat' || !QUADRAT_GEOMETRY.some((f) => it.fields.includes(f))) return it;
+    return paintedHere(items, local, it.key) ? { ...it, kind: 'conflict' } : it;
+  });
+}
+
+/**
+ * A quadrat whose geometry the two copies disagree on is taken whole from one
+ * side (user decision 2026-09-29): its frequency masks are indexed by that
+ * geometry, so its species cannot be picked field by field. The grid is one
+ * for the whole plot, so the side chosen for the `gridN` setting decides it
+ * for every quadrat whose grid differs; size or top edge alone go by the
+ * quadrat's own choice. Every item of such a quadrat follows its side.
+ */
+export function tieQuadratGeometry(items: readonly MergeItem[], decisions: ReadonlyMap<string, Decision>): Map<string, Decision> {
+  const out = new Map(decisions);
+  const sideOf = (it: MergeItem, fields: readonly string[]): 'local' | 'remote' => {
+    const d = out.get(it.id) ?? defaultDecision(it);
+    return d.pick === 'remote' || fields.some((f) => d.fields?.[f] === 'remote') ? 'remote' : 'local';
+  };
+  const grid = items.find((it) => it.tbl === 'qconfig' && it.key === 'gridN' && it.local && it.remote);
+  const gridSide = grid ? sideOf(grid, ['value']) : null;
+  if (grid && gridSide) out.set(grid.id, { pick: gridSide });
+  for (const it of items) {
+    if (it.tbl !== 'quadrat' || !it.local || !it.remote) continue;
+    const geo = QUADRAT_GEOMETRY.filter((f) => it.fields.includes(f));
+    if (!geo.length) continue;
+    const side = gridSide && geo.includes('grid_n') ? gridSide : sideOf(it, geo);
+    out.set(it.id, { pick: side });
+    for (const sp of items) {
+      if (sp.tbl === 'qsp' && sp.key.startsWith(`${it.key}:`)) out.set(sp.id, { pick: side });
+    }
+  }
+  return out;
 }
 
 // ── GLORIA ─────────────────────────────────────────────────────────────────

@@ -155,7 +155,8 @@ function ThemedShell() {
           <Stack screenOptions={{ headerBackButtonDisplayMode: 'minimal' }}>
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen name="session/[id]" options={{ title: t('nav.session') }} />
-            <Stack.Screen name="plot/[id]" options={{ title: t('nav.plot') }} />
+            <Stack.Screen name="plot/[id]/index" options={{ title: t('nav.plot') }} />
+            <Stack.Screen name="plot/[id]/quadrat/[qid]" options={{ title: '' }} />
             <Stack.Screen name="gloria/new" options={{ title: t('gloria.new.title') }} />
             <Stack.Screen name="gloria/summit-new" options={{ title: t('gloria.new.addSummit') }} />
             <Stack.Screen name="key/[id]" options={{ title: t('nav.key') }} />

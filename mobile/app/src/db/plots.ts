@@ -22,6 +22,8 @@ import { createSite, deleteSiteIfUnreferenced, type ImportedSite } from './sites
 import type { DuplicateRecordOptions } from './duplicate';
 import { latest, mergeOrder, unionSurveyors, unionTracks, type MergeRecordOptions } from './merge';
 import { defaultSurveyorString } from './surveyors';
+import { copyMergedQuadrats, normalizeGrid, normalizePlotFreq, writeQuadratRow, writeQuadratSpeciesRow } from './quadratsCore';
+import type { ImportedQuadrat } from '~/lib/quadratYaml';
 import i18n from '~/i18n';
 
 /** Fixed-plot vertical layers (vegetation profile, semantic labels). */
@@ -141,6 +143,8 @@ export type PlotSurvey = {
   /** Starred (v34): 0 / 1. Sorts the record above its peers in the list.
    *  Device-local organisation, deliberately not exported. */
   starred: number;
+  /** 1×1 m quadrat settings as JSON (v77, quadratsCore.parseQuadratConfig). */
+  quadrat_config: string | null;
   created_at: number;
   updated_at: number;
 };
@@ -172,6 +176,9 @@ export type PlotSpeciesRecord = {
   bb_value: string | null;
   percent: number | null;
   dbh_values_json: string | null;
+  /** Frequency over the plot grid (v78): a mask of freqGridN² cells, or a count. */
+  freq_cells: string | null;
+  freq_count: number | null;
   notes: string | null;
   photo_paths: string | null;
   observed_at: number;
@@ -1111,6 +1118,9 @@ export type ImportedSubplot = {
 export type ImportedPlotSpecies = {
   occurrence_id?: string | null;
   taxon_id: string;
+  /** Frequency over the plot grid (v78). */
+  freq_cells?: string | null;
+  freq_count?: number | null;
   /** Scientific name / family as exported. Not stored — used only to
    *  re-resolve `taxon_id` when this device's checklist doesn't have it. */
   name?: string | null;
@@ -1183,6 +1193,9 @@ export type ImportedPlot = {
   track_geojson?: string | null;
   layers?: ImportedPlotLayer[];
   subplots?: ImportedSubplot[];
+  /** 1×1 m quadrat settings as the column's JSON (v77). */
+  quadrat_config?: string | null;
+  quadrats?: ImportedQuadrat[];
   species: ImportedPlotSpecies[];
 };
 
@@ -1258,8 +1271,8 @@ function importPlotSurveyTx(
        elevation_m, elevation_source, slope_deg, aspect_deg, terrain_position,
        rock_cover_pct, gravel_cover_pct, bareland_cover_pct,
        vascular_cover_pct, bryophyte_cover_pct, lichen_cover_pct, litter_cover_pct,
-       layer_count, created_at, updated_at
-     ) VALUES (?, ?, ?, ?, 'done', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       layer_count, quadrat_config, created_at, updated_at
+     ) VALUES (?, ?, ?, ?, 'done', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       uuid,
       data.plotid,
@@ -1296,6 +1309,7 @@ function importPlotSurveyTx(
       data.lichen_cover_pct ?? null,
       data.litter_cover_pct ?? null,
       data.layer_count ?? DEFAULT_LAYER_COUNT,
+      data.plot_type === 'fixed' ? (data.quadrat_config ?? null) : null,
       now,
       now,
     ],
@@ -1337,6 +1351,21 @@ function importPlotSurveyTx(
     }
   }
 
+  // Quadrats (v77) after subplots: a quadrat names its subplot by label.
+  if (data.plot_type === 'fixed') {
+    for (const q of data.quadrats ?? []) {
+      const qid = writeQuadratRow(db, plotId, q, {
+        uuid: opts.newUuid ? generateUuid() : (q.uuid ?? generateUuid()),
+        subplotId: q.subplot ? (subplotIdByLabel.get(q.subplot) ?? null) : null,
+        photoPaths: photoPaths(q.photo_files),
+        now,
+      });
+      for (const s of q.species) writeQuadratSpeciesRow(db, qid, s, now);
+    }
+    // One grid per plot, whatever the file says.
+    normalizeGrid(db, plotId, now);
+  }
+
   const fallbackLayer: Layer = data.plot_type === 'fixed' ? 'E1' : TRANSECT_LAYER;
   for (const sp of data.species ?? []) {
     const subplotId = sp.subplot ? (subplotIdByLabel.get(sp.subplot) ?? null) : null;
@@ -1354,8 +1383,8 @@ function importPlotSurveyTx(
          reproductive_condition, leaf_phenology, degree_of_establishment,
          verbatim_identification, lat, lng, accuracy, elevation_m, elevation_source, detection_type,
          photo_paths, audio_paths, used_name_id, used_scientific_name,
-         observed_at, created_at, updated_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         observed_at, created_at, updated_at, freq_cells, freq_count
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         plotId,
         sp.taxon_id,
@@ -1389,9 +1418,13 @@ function importPlotSurveyTx(
         sp.observed_at ?? now,
         now,
         now,
+        sp.freq_cells ?? null,
+        sp.freq_count ?? null,
       ],
     );
   }
+  // Plot-grid frequency: masks that do not fit the plot's grid are dropped.
+  if (data.plot_type === 'fixed') normalizePlotFreq(db, plotId);
 
   // Site last: it needs no plot reference, but the plot needs its id.
   if (data.site) {
@@ -1823,8 +1856,8 @@ function mergePlotSurveysTx(ids: number[], opts: MergeRecordOptions): number | n
             observed_at, created_at, updated_at, degree_of_establishment,
             sex, life_stage, reproductive_condition, leaf_phenology,
             organism_quantity, organism_quantity_type, lat, lng, accuracy, elevation_m,
-            elevation_source, detection_type, used_name_id, used_scientific_name)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            elevation_source, detection_type, used_name_id, used_scientific_name, freq_cells, freq_count)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           newId,
           sp.taxon_id,
@@ -1856,9 +1889,25 @@ function mergePlotSurveysTx(ids: number[], opts: MergeRecordOptions): number | n
           sp.detection_type,
           sp.used_name_id,
           sp.used_scientific_name,
+          sp.freq_cells,
+          sp.freq_count,
         ],
       );
     }
+  }
+
+  // Quadrats (v77): settings from the primary, one source per quadrat number.
+  if (primary.plot_type === 'fixed') {
+    copyMergedQuadrats(
+      db,
+      sources.map((p) => p.id),
+      newId,
+      (srcId, oldSubplot) => subplotIdByOld.get(`${srcId}:${oldSubplot ?? -1}`) ?? null,
+      now,
+      generateUuid,
+    );
+    // A source on another plot grid keeps its species, not its cells (v78).
+    normalizePlotFreq(db, newId);
   }
 
   if (!opts.keepSources) {

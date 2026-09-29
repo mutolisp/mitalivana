@@ -27,7 +27,7 @@ import {
   rowHash,
   summarizeItems,
 } from '../src/lib/mergeEngine.ts';
-import { COMBINERS, gloriaSide, sessionSide, trackUnion } from '../src/lib/mergeDocs.ts';
+import { askQuadratGeometry, COMBINERS, gloriaSide, plotSide, sessionSide, tieQuadratGeometry, trackUnion } from '../src/lib/mergeDocs.ts';
 
 let failed = 0;
 const eq = (msg, got, want) => {
@@ -222,6 +222,75 @@ eq('blank and missing hash alike', rowHash({ a: 1, b: '' }) === rowHash({ a: 1 }
     kinds(diffSides(M1, L1, baseOf(L0), {}, stale)), ['auto:N11']);
   eq('the sender\'s base is not overridden by the fallback',
     kinds(diffSides(M1, L1, stale, {}, baseOf(L0))), ['conflict:N11']);
+}
+
+// ── 11. plot quadrats (v77) ──
+{
+  const M5 = '1'.repeat(3) + '0'.repeat(22);
+  const quad = (idx, { dev = 'a', ...over } = {}, species = []) => ({
+    idx, uuid: `u${idx}-${dev}`, label: `Q${idx}`, position: null, subplot: null, size_m: 1, grid_n: 5, top_edge: 'N',
+    lat: null, lng: null, accuracy: null, cov_vascular: null, cov_solid_rock: null, cov_scree: null, cov_lichens: null,
+    cov_bryophytes: null, cov_bare_ground: null, cov_litter: null, freq_mode: 'cells', locked: 0, started_at: 100, ended_at: null,
+    notes: null, photo_files: [], species, ...over,
+  });
+  const sp = (taxon, over = {}) => ({ taxon_id: taxon, name: taxon, cname: null, cover_pct: null, freq_cells: null, freq_count: null, height_cm: null, notes: null, ...over });
+  const plot = (quadrats, config) => ({ uuid: 'p', plotid: 'P', plot_type: 'fixed', species: [], quadrats, quadrat_config: config ?? null });
+  const cfg = (o) => JSON.stringify({ enabled: true, layout: 'cornersCenter', recordCover: true, recordFreq: true, recordSurface: true, carryPrevious: false, sizeM: 1, gridN: 5, topEdge: 'N', ...o });
+
+  eq('quadrats: a plot without them has no quadrat tables (old hashes stay)', Object.keys(plotSide(plot([]))).filter((k) => k.startsWith('q')), []);
+  // Both devices switched the module on: their Q1 is the same quadrat, whatever its uuid.
+  const A = plotSide(plot([quad(1, { dev: 'a' }, [sp('t1', { cover_pct: 20 })])], cfg({})));
+  const B = plotSide(plot([quad(1, { dev: 'b' }, [sp('t2', { cover_pct: 5 })])], cfg({})));
+  eq('quadrats keyed by number: no second Q1, the teammate\'s species is new', kinds(diffSides(A, B, null)), ['added:1:t2']);
+
+  // Settings compared one by one: grid here, layout there — no conflict.
+  const base = baseOf(plotSide(plot([quad(1)], cfg({}))));
+  const cl = plotSide(plot([quad(1)], cfg({ gridN: 6 })));
+  const cr = plotSide(plot([quad(1)], cfg({ layout: 'diagonal' })));
+  const ci = diffSides(cl, cr, base);
+  eq('config: different settings changed on each side → taken, not asked', kinds(ci), ['auto:layout']);
+  eq('config: only the teammate\'s setting is written', planOps(ci, new Map()).map((o) => [o.key, o.data]), [['layout', { value: 'diagonal' }]]);
+
+  // A lock is shared progress.
+  const lk = diffSides(plotSide(plot([quad(1)])), plotSide(plot([quad(1, { locked: 1 })])), baseOf(plotSide(plot([quad(1)]))));
+  eq('lock: the teammate\'s 完成 arrives', [kinds(lk), lk[0]?.fields], [['auto:1'], ['locked']]);
+
+  // Masks: one value each, a conflict is one field, never a cell union.
+  const b2 = baseOf(plotSide(plot([quad(1, {}, [sp('t1')])])));
+  const mi = diffSides(
+    plotSide(plot([quad(1, {}, [sp('t1', { freq_cells: M5 })])])),
+    plotSide(plot([quad(1, {}, [sp('t1', { freq_cells: '0'.repeat(24) + '1' })])])),
+    b2,
+  );
+  eq('mask: both painted → one conflict on the whole mask', [kinds(mi), mi[0]?.fields], [['conflict:1:t1'], ['freq_cells']]);
+
+  // Geometry disagreement: the quadrat and its species follow one side.
+  const g0 = plotSide(plot([quad(1, {}, [sp('t1')])]));
+  const gl = plotSide(plot([quad(1, {}, [sp('t1', { freq_cells: M5 }), sp('t3', { cover_pct: 3 })])]));
+  const gr = plotSide(plot([quad(1, { grid_n: 4 }, [sp('t1', { freq_cells: '1'.repeat(16) }), sp('t2', { cover_pct: 9 })])]));
+  const raw = diffSides(gl, gr, baseOf(g0));
+  eq('geometry: changed only there → would be taken automatically', raw.find((x) => x.tbl === 'quadrat')?.kind, 'auto');
+  const gi = askQuadratGeometry(raw, gl);
+  eq('geometry: cells painted here → asked instead', [gi.find((x) => x.tbl === 'quadrat')?.kind, gi.find((x) => x.tbl === 'quadrat')?.fields], ['conflict', ['grid_n']]);
+  const unpainted = plotSide(plot([quad(1, {}, [sp('t1', { cover_pct: 4 })])]));
+  eq('geometry: nothing painted here → still taken automatically', askQuadratGeometry(diffSides(unpainted, gr, baseOf(g0)), unpainted).find((x) => x.tbl === 'quadrat')?.kind, 'auto');
+  const pickRemoteGrid = new Map([[gi.find((x) => x.tbl === 'quadrat').id, { pick: 'local', fields: { grid_n: 'remote' } }]]);
+  const tied = tieQuadratGeometry(gi, pickRemoteGrid);
+  eq('geometry: their grid chosen → every item of the quadrat takes theirs', gi.map((x) => `${x.key}:${tied.get(x.id)?.pick}`), ['1:remote', '1:t1:remote', '1:t2:remote']);
+  const tiedLocal = tieQuadratGeometry(gi, new Map());
+  eq('geometry: kept here → their new species of that quadrat are not added', gi.map((x) => `${x.key}:${tiedLocal.get(x.id)?.pick}`), ['1:local', '1:t1:local', '1:t2:local']);
+  const ops = planOps(gi, tied);
+  eq('geometry: their grid and mask are written together', ops.filter((o) => o.op === 'update').map((o) => [o.key, o.data.grid_n ?? null, o.data.freq_cells ?? null]), [['1', 4, null], ['1:t1', null, '1'.repeat(16)]]);
+  eq('geometry: an unrelated quadrat is left to the reviewer', tieQuadratGeometry(mi, new Map()).size, 0);
+  // The grid is the plot's: the gridN setting's side decides every quadrat.
+  const cfgBase = plotSide(plot([quad(1, {}, [sp('t1')]), quad(2)], cfg({})));
+  const gL = plotSide(plot([quad(1, {}, [sp('t1', { freq_cells: M5 })]), quad(2)], cfg({ gridN: 5 })));
+  const gR = plotSide(plot([quad(1, { grid_n: 4 }, [sp('t1', { freq_cells: '1'.repeat(16) })]), quad(2, { grid_n: 4 })], cfg({ gridN: 4 })));
+  const gItems = askQuadratGeometry(diffSides(gL, gR, baseOf(cfgBase)), gL);
+  const gridItem = gItems.find((x) => x.tbl === 'qconfig' && x.key === 'gridN');
+  eq('grid setting: their grid while cells are painted here → asked', gridItem?.kind, 'conflict');
+  const gTied = tieQuadratGeometry(gItems, new Map([[gridItem.id, { pick: 'remote' }]]));
+  eq('grid setting: their grid chosen → every quadrat with another grid takes theirs', gItems.filter((x) => x.tbl !== 'qconfig').map((x) => `${x.key}:${gTied.get(x.id)?.pick}`), ['1:remote', '2:remote', '1:t1:remote']);
 }
 
 if (failed) {

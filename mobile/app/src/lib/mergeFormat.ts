@@ -5,6 +5,7 @@
  */
 import { searchByTaxonId } from '~/db/search';
 import { isoStamp } from '~/lib/datetime';
+import { LAYOUT_KEY } from '~/components/quadrat/names';
 
 /** Field → label key; fields not listed show their column name. */
 const FIELD_KEY: Record<string, string> = {
@@ -33,6 +34,8 @@ const LABELLED = new Set([
   'dist31_m', 'photo_open', 'photo_closed', 'flags', 'researcher', 'visit', 'prev_uuid',
   // A cleared GLORIA unit: no researchers (v66)
   'no_researchers',
+  // Fixed-plot quadrats (v77); a quadrat setting's row carries its `value`
+  'position', 'size_m', 'grid_n', 'top_edge', 'freq_mode', 'value',
 ]);
 /** GLORIA 完成 locks and other 1 / null flags. */
 const LOCKS = new Set(['done_locked', 'freq_locked', 'pf_locked', 'locked', 'photo_open', 'photo_closed', 'no_researchers']);
@@ -40,15 +43,61 @@ const LOCKS = new Set(['done_locked', 'freq_locked', 'pf_locked', 'locked', 'pho
 const MASKS = new Set(['freq_cells', 'point_hits', 'dist_hi1', 'dist_hi2', 'dist_hi3', 'point_surface']);
 const TIMES = /(_ts|_at)$/;
 
+/** A quadrat setting (a `qconfig` row, keyed by the setting) → its label key. */
+const QCONFIG_KEY: Record<string, string> = {
+  enabled: 'plot.quadrats.title',
+  layout: 'plot.quadrats.layout',
+  recordCover: 'plot.quadrats.recordCover',
+  recordFreq: 'plot.quadrats.frequency',
+  recordSurface: 'plot.quadrats.recordSurface',
+  carryPrevious: 'plot.quadrats.carryPrevious',
+  sizeM: 'plot.quadrats.sideLength',
+  gridN: 'plot.quadrats.gridN',
+  topEdge: 'plot.quadrats.topEdge',
+  // Frequency over the whole plot (v78).
+  freqEnabled: 'plot.quadrats.freqTitle',
+  freqGridN: 'plot.quadrats.gridN',
+  freqTopEdge: 'plot.quadrats.topEdge',
+  freqMode: 'teamMerge.field.freq_mode',
+};
+
+/** A row's title on screen: the row's own label, except a quadrat setting's key. */
+export function rowLabel(t: (k: string) => string, tbl: string, label: string): string {
+  return tbl === 'qconfig' && QCONFIG_KEY[label] ? t(QCONFIG_KEY[label]) : label;
+}
+
 export function fieldLabel(t: (k: string) => string, f: string): string {
   if (f.startsWith('cov_') || f.startsWith('sub_')) return t(`gloria.cover.${f}`);
   const k = FIELD_KEY[f] ?? (LABELLED.has(f) ? f : null);
   return k ? t(`teamMerge.field.${k}`) : f;
 }
 
-export function fmt(f: string, v: unknown): string {
-  if (LOCKS.has(f)) return v ? '✓' : '—';
+/** Where a value sits, for values that need the row to read (quadrat settings). */
+export type FmtContext = { t: (k: string, o?: Record<string, unknown>) => string; tbl: string; key: string };
+
+/** Quadrat settings and fields stored as codes (v77): shown in words. */
+function quadratValue(ctx: FmtContext, f: string, v: unknown): string | null {
+  const { t } = ctx;
+  const edge = (e: unknown) => (e === 'upslope' ? t('plot.quadrats.upslope') : String(e));
+  if (ctx.tbl === 'qconfig' && f === 'value') {
+    if (ctx.key === 'layout' && typeof v === 'string' && v in LAYOUT_KEY) return t(LAYOUT_KEY[v as keyof typeof LAYOUT_KEY]);
+    if (ctx.key === 'topEdge' || ctx.key === 'freqTopEdge') return edge(v);
+    if (ctx.key === 'freqGridN' && typeof v === 'number') return `${v} × ${v}`;
+    if (ctx.key === 'freqMode') return v === 'count' ? t('quadrat.freq.countMode') : t('plot.quadrats.freqModeCells');
+    if (ctx.key === 'sizeM' && typeof v === 'number') return `${v} m`;
+    if (ctx.key === 'gridN' && typeof v === 'number') return `${v} × ${v}`;
+    return null;
+  }
+  if (ctx.tbl === 'quadrat' && f === 'top_edge' && v != null) return edge(v);
+  if (ctx.tbl === 'quadrat' && f === 'freq_mode' && v != null) return v === 'count' ? t('quadrat.freq.countMode') : t('plot.quadrats.freqModeCells');
+  return null;
+}
+
+export function fmt(f: string, v: unknown, ctx?: FmtContext): string {
+  if (LOCKS.has(f) || typeof v === 'boolean') return v ? '✓' : '—';
   if (v === null || v === undefined || v === '') return '—';
+  const quadrat = ctx ? quadratValue(ctx, f, v) : null;
+  if (quadrat != null) return quadrat;
   if (MASKS.has(f) && typeof v === 'string') {
     const on = f === 'point_surface' ? [...v].filter((c) => c !== '.').length : [...v].filter((c) => c === '1').length;
     return `${on}/${v.length}`;

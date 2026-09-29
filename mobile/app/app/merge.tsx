@@ -28,13 +28,14 @@ import {
 } from '~/lib/mergeEngine';
 import { applyPendingMerge, usePendingMerge, type PendingMerge } from '~/lib/teamMergeFlow';
 import { useToast } from '~/stores/toast';
-import { fieldLabel, fmt } from '~/lib/mergeFormat';
+import { fieldLabel, fmt, rowLabel } from '~/lib/mergeFormat';
 import { useThemeColors } from '~/theme/colors';
 import { SelectMark } from '~/components/ui/SelectMark';
 
-function rowTitle(r: MergeRow | null | undefined): string {
+function rowTitle(t: (k: string) => string, tbl: string, r: MergeRow | null | undefined): string {
   if (!r) return '';
-  return r.group && r.group !== r.label ? `${r.group} · ${r.label}` : r.label;
+  const label = rowLabel(t, tbl, r.label);
+  return r.group && r.group !== r.label ? `${r.group} · ${label}` : label;
 }
 
 function Choice({ on, label, onPress, danger }: { on: boolean; label: string; onPress: () => void; danger?: boolean }) {
@@ -107,7 +108,7 @@ function ReviewCard({
   gloria: boolean;
 }) {
   const { t } = useTranslation();
-  const title = rowTitle(item.local ?? item.remote ?? item.dup);
+  const title = rowTitle(t, item.tbl, item.local ?? item.remote ?? item.dup);
   const table = t(`teamMerge.table.${item.tbl}`);
   const head = (
     <View className="flex-row items-center gap-2">
@@ -133,8 +134,8 @@ function ReviewCard({
           <FieldRow
             key={f}
             label={fieldLabel(t, f)}
-            local={fmt(f, item.local?.data[f])}
-            remote={fmt(f, item.remote?.data[f])}
+            local={fmt(f, item.local?.data[f], { t, tbl: item.tbl, key: item.key })}
+            remote={fmt(f, item.remote?.data[f], { t, tbl: item.tbl, key: item.key })}
             pick={pickOf(f)}
             onPick={(p) =>
               onChange({
@@ -156,8 +157,8 @@ function ReviewCard({
         {item.fields.map((f) => (
           <View key={f} className="flex-row gap-2">
             <Text className="w-24 text-xs text-gray-500">{fieldLabel(t, f)}</Text>
-            <Text className="flex-1 text-xs text-gray-800 dark:text-gray-200">{fmt(f, item.dup?.data[f])}</Text>
-            <Text className="flex-1 text-xs text-gray-800 dark:text-gray-200">{fmt(f, item.remote?.data[f])}</Text>
+            <Text className="flex-1 text-xs text-gray-800 dark:text-gray-200">{fmt(f, item.dup?.data[f], { t, tbl: item.tbl, key: item.key })}</Text>
+            <Text className="flex-1 text-xs text-gray-800 dark:text-gray-200">{fmt(f, item.remote?.data[f], { t, tbl: item.tbl, key: item.key })}</Text>
           </View>
         ))}
         <View className="flex-row flex-wrap gap-2">
@@ -208,7 +209,7 @@ function AutoRow({ item, on, onToggle }: { item: MergeItem; on: boolean; onToggl
     item.kind === 'added'
       ? t('teamMerge.addedLine')
       : [
-          ...item.fields.map((f) => `${fieldLabel(t, f)} ${fmt(f, item.local?.data[f])} → ${fmt(f, item.remote?.data[f])}`),
+          ...item.fields.map((f) => `${fieldLabel(t, f)} ${fmt(f, item.local?.data[f], { t, tbl: item.tbl, key: item.key })} → ${fmt(f, item.remote?.data[f], { t, tbl: item.tbl, key: item.key })}`),
           ...Object.keys(item.patch ?? {}).map((f) => `${fieldLabel(t, f)} ${t('teamMerge.combined')}`),
         ].join('；');
   return (
@@ -221,7 +222,7 @@ function AutoRow({ item, on, onToggle }: { item: MergeItem; on: boolean; onToggl
       <SelectMark state={on ? 'on' : 'off'} />
       <View className="flex-1">
         <Text className="text-sm text-gray-900 dark:text-gray-100">
-          {rowTitle(item.remote ?? item.local)}
+          {rowTitle(t, item.tbl, item.remote ?? item.local)}
           <Text className="text-xs text-gray-500"> · {t(`teamMerge.table.${item.tbl}`)}</Text>
         </Text>
         <Text className="text-xs text-gray-500 dark:text-gray-400" numberOfLines={3}>

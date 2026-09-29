@@ -32,6 +32,8 @@ import { listSessionRecords } from './records';
 import { getSession, type ImportedSession } from './sessions';
 import { ensureTaxonSelfSufficient } from './taxonCache';
 import { generateUuid } from './uuid';
+import { quadratsForDoc } from './quadrats';
+import { normalizeGrid, normalizePlotFreq, parseQuadratConfig } from './quadratsCore';
 
 type Scalar = string | number | null;
 
@@ -64,6 +66,7 @@ export function localPlotDoc(plotId: number): ImportedPlot | null {
     subplots: subplots.map((s) => ({ ...s, layers: getSubplotLayers(s.id) })),
     subplotLabelById: new Map(subplots.map((s) => [s.id, s.label])),
     site: null,
+    quadrats: quadratsForDoc(plotId),
   });
   return plotFromDoc(viaYaml(doc));
 }
@@ -241,5 +244,91 @@ export function applyPlotMerge(plotId: number, ops: MergeOp[], media: MergeMedia
         });
       }
     }
+    applyQuadratOps(plotId, ops, media, subplotByLabel, now);
+    // Plot-grid frequency (v78): masks from a copy on another grid are dropped.
+    normalizePlotFreq(db, plotId);
   });
+}
+
+/**
+ * Quadrats (v77): the config (one row of settings), the quadrats by number,
+ * their species by number + taxon. Runs inside applyPlotMerge's transaction,
+ * after the subplots, which quadrats name by label.
+ */
+function applyQuadratOps(plotId: number, ops: MergeOp[], media: MergeMedia, subplotByLabel: Map<string, number>, now: number): void {
+  const db = getUserDb();
+  // One row per setting. The other side having no settings at all (a version
+  // from before the module was switched on) removes the config; a single
+  // setting missing there just keeps this device's value.
+  const configOps = byTable(ops, 'qconfig');
+  const settings = configOps.filter((op) => op.op !== 'delete');
+  if (!settings.length && configOps.some((op) => op.op === 'delete' && op.key === 'enabled')) {
+    db.executeSync(`UPDATE plot_surveys SET quadrat_config = NULL WHERE id = ?`, [plotId]);
+  }
+  if (settings.length) {
+    const cur = db.executeSync(`SELECT quadrat_config FROM plot_surveys WHERE id = ?`, [plotId]).rows?.[0] as { quadrat_config: string | null } | undefined;
+    const next: Row = { ...parseQuadratConfig(cur?.quadrat_config ?? null) };
+    for (const op of settings) {
+      if (op.op === 'insert') next[op.row.key] = op.row.data.value;
+      else if (op.op === 'update' && 'value' in op.data) next[op.key] = op.data.value;
+    }
+    db.executeSync(`UPDATE plot_surveys SET quadrat_config = ? WHERE id = ?`, [JSON.stringify(parseQuadratConfig(JSON.stringify(next))), plotId]);
+  }
+
+  const quadratId = (idx: number) =>
+    (db.executeSync(`SELECT id FROM plot_quadrats WHERE plot_survey_id = ? AND idx = ?`, [plotId, idx]).rows?.[0] as { id: number } | undefined)?.id ??
+    null;
+  // File fields → columns: a subplot by label, a lock as 0 / 1; never the row's uuid or files.
+  const quadratCols = (data: Row): Row => {
+    const out: Row = { ...data };
+    if ('subplot' in data) out.subplot_id = data.subplot ? (subplotByLabel.get(String(data.subplot)) ?? null) : null;
+    if ('locked' in data) out.locked = data.locked ? 1 : 0;
+    delete out.uuid;
+    delete out.photo_files;
+    return out;
+  };
+  for (const op of byTable(ops, 'quadrat')) {
+    const idx = Number(op.op === 'insert' ? op.row.key : op.key);
+    const qid = quadratId(idx);
+    if (op.op === 'delete') {
+      if (qid != null) {
+        db.executeSync(`DELETE FROM plot_quadrat_species WHERE quadrat_id = ?`, [qid]);
+        db.executeSync(`DELETE FROM plot_quadrats WHERE id = ?`, [qid]);
+      }
+    } else if (op.op === 'update') {
+      if (qid != null) writeUpdate('plot_quadrats', quadratCols({ ...op.data, ...op.extra }), 'id = ?', [qid], true);
+    } else if (qid == null) {
+      const r = op.row;
+      writeInsert('plot_quadrats', {
+        ...quadratCols(r.data),
+        plot_survey_id: plotId,
+        idx,
+        uuid: typeof r.extra?.uuid === 'string' && r.extra.uuid ? r.extra.uuid : generateUuid(),
+        started_at: r.extra?.started_at ?? null,
+        ended_at: r.extra?.ended_at ?? null,
+        photo_paths: mediaJson(r.extra?.photo_files, media.photoUriByName),
+        created_at: now,
+        updated_at: now,
+      });
+    }
+  }
+  for (const op of byTable(ops, 'qsp')) {
+    const key = op.op === 'insert' ? op.row.key : op.key;
+    const cut = key.indexOf(':');
+    const qid = quadratId(Number(key.slice(0, cut)));
+    const taxon = key.slice(cut + 1);
+    if (qid == null || !taxon) continue;
+    if (op.op === 'delete') {
+      db.executeSync(`DELETE FROM plot_quadrat_species WHERE quadrat_id = ? AND taxon_id = ?`, [qid, taxon]);
+    } else if (op.op === 'update') {
+      writeUpdate('plot_quadrat_species', op.data, 'quadrat_id = ? AND taxon_id = ?', [qid, taxon], true);
+    } else {
+      ensureTaxonSelfSufficient(taxon);
+      db.executeSync(`DELETE FROM plot_quadrat_species WHERE quadrat_id = ? AND taxon_id = ?`, [qid, taxon]);
+      writeInsert('plot_quadrat_species', { ...op.row.data, quadrat_id: qid, taxon_id: taxon, created_at: now, updated_at: now });
+    }
+  }
+  // One grid for every quadrat of the plot (the config's); a mask that no
+  // longer fits is frequency not done, never a stretched or cut mask.
+  normalizeGrid(db, plotId, now);
 }

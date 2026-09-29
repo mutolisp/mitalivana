@@ -95,6 +95,10 @@ import { H04_TEMPERATURE_LOGGERS, loggerRows, planLoggerFiles, type ExportVisit 
 import { planFormScans } from '~/modules/gloria/model/formScans';
 import { listLoggers, listVisits, summitCycles } from '~/modules/gloria/loggerDb';
 import { cycleOf, loggerPhotoItem } from '~/modules/gloria/model/loggers';
+import { quadratsForDoc } from '~/db/quadrats';
+import { buildPlotFrequencyCsv, buildQuadratsCsv, buildQuadratSurfaceCsv } from './quadratCsv';
+import { parseQuadratConfig } from '~/db/quadrats';
+import { isoStamp } from './datetime';
 
 
 export type GeoFormat = 'geojson' | 'gpx' | 'kml';
@@ -372,12 +376,13 @@ export function plotSpeciesToMarkdownItem(
  * and mangles every Chinese name.
  */
 /**
- * 單筆記錄 zip 的 README。
+ * README of a single-record zip.
  *
- * 從實際產出的 entries 反推檔案清單，不是寫死的說明 —— 勾不勾照片、有沒有
- * 樣區小區、DwC-A 開不開，每次的檔案組合都不同，寫死的清單一定會跟產出漂移。
- * 內容固定用正體中文，與專案匯出的 README 一致（匯出文件的語言選擇只作用在
- * 名錄本身）。
+ * The file list is worked out from the entries actually produced, not written
+ * out by hand: photos on or off, subplots or not, DwC-A or not — every export
+ * holds a different set, and a fixed list would drift from what is in the zip.
+ * The text is always Traditional Chinese, like the project export's README
+ * (the export language setting applies to the checklist itself only).
  */
 const README_RULES: Array<{ match: (name: string) => boolean; desc: string }> = [
   { match: (n) => n.endsWith('.yml'), desc: '本 app 的完整格式（可從「匯入記錄」原樣讀回，含照片檔名對應）' },
@@ -387,6 +392,15 @@ const README_RULES: Array<{ match: (name: string) => boolean; desc: string }> = 
   },
   { match: (n) => n.endsWith('_env.csv'), desc: '事件層（Event）中繼資料與環境值，tall 格式（term,value）' },
   { match: (n) => n.endsWith('_subplots.csv'), desc: '小區尺寸與各層覆蓋度／高度' },
+  {
+    match: (n) => n.endsWith('_quadrats.csv'),
+    desc: '小樣方物種：一列一個小樣方中的一種物種，覆蓋度、頻度（格數與 %）與每一格是否出現（f{列}{欄}，1 起算）',
+  },
+  {
+    match: (n) => n.endsWith('_frequency.csv'),
+    desc: '樣區頻度：整個樣區一個網格，一列一筆物種記錄（物種＋層次），頻度（格數與 %）與每一格是否出現（f{列}{欄}）',
+  },
+  { match: (n) => n.endsWith('_quadrat_surface.csv'), desc: '小樣方：一列一個小樣方，地表覆蓋、位置、大小、格數與上邊方向' },
   {
     match: (n) => n.includes('/dwca/'),
     desc: 'Darwin Core Archive：event.txt（Event core）+ occurrence.txt + humboldt.txt + meta.xml + eml.xml，可直接上傳 GBIF IPT',
@@ -460,9 +474,9 @@ function buildPlotSpeciesCsv(
     r.subplot_id != null ? `${plotid}-${subplotLabelById.get(r.subplot_id) ?? r.subplot_id}` : plotid;
   const cols: Array<{ h: string; v: (r: PlotSpeciesRecordWithTaxon) => unknown }> = [
     { h: 'occurrenceID', v: (r) => r.occurrence_id },
-    // 這張表被拆出 zip 單獨開啟時也要能被當成 DwC occurrence 讀：basisOfRecord
-    // 是 GBIF 的必填欄，datasetName / recordedBy 則是事件層的資訊，不補進來就
-    // 只剩 env.csv 知道。
+    // Opened on its own outside the zip, this table must still read as DwC
+    // occurrences: basisOfRecord is required by GBIF, and datasetName /
+    // recordedBy are event-level facts that otherwise only env.csv would hold.
     { h: 'basisOfRecord', v: () => 'HumanObservation' },
     { h: 'datasetName', v: () => datasetName },
     { h: 'recordedBy', v: () => recordedBy },
@@ -594,12 +608,13 @@ function buildPlotPoints(records: PlotSpeciesRecordWithTaxon[]): { type: 'Featur
 export type BuiltZipEntry = { name: string; bytes: Uint8Array; zipOpts?: ZipOptions };
 
 /**
- * 單筆記錄的 Darwin Core Archive。
+ * Darwin Core Archive of a single record.
  *
- * 與專案匯出走同一組 row builder（`buildRecordsDwca`），差別只在餵進去的是一筆
- * 記錄而不是整個專案 —— 這樣「快速名錄自己的 DwC-A」與「專案裡同一筆記錄的
- * DwC-A」不會變成兩份各自漂移的實作。DwC-A 本身已是 deflate 流，放進外層 zip
- * 時用 level 0 存放，不再壓一次。
+ * The same row builder as the project export (`buildRecordsDwca`), fed one
+ * record instead of a whole project — so a checklist's own DwC-A and the same
+ * record's DwC-A inside a project cannot become two drifting implementations.
+ * The DwC-A is already a deflate stream, so it is stored at level 0 in the
+ * outer zip rather than compressed again.
  */
 function addDwcaEntry(
   entries: BuiltZipEntry[],
@@ -806,7 +821,7 @@ export async function buildSessionEntries(
     geoFormats: opts.geoFormats,
   });
   entries.push({ name: `${base}/manifest.json`, bytes: strToU8(JSON.stringify(manifest, null, 2)) });
-  // README 排在最後：清單是從實際產出的 entries 反推的，manifest 也要算進去。
+  // README last: its list is worked out from the entries produced, the manifest included.
   entries.push({
     name: `${base}/README.md`,
     bytes: strToU8(buildRecordReadme(session.name, entries)),
@@ -836,6 +851,8 @@ export async function buildPlotEntries(
   const namer = createPhotoNamer(base);
   let photoNames: PhotoNames = new Map();
   let envPhotoNames: string[] = [];
+  const quadrats = plot.plot_type === 'fixed' ? quadratsForDoc(plotId) : [];
+  const quadratPhotoNames = new Map<number, string[]>();
   if (opts.includePhotos) {
     const collected = await collectPhotosPlot(species, namer, progressCtx, {
       lat: plot.decimal_latitude,
@@ -864,6 +881,14 @@ export async function buildPlotEntries(
       entries.push(...envCollected.entries);
       envPhotoNames = envCollected.names;
     }
+    // Quadrat photos (v77): plotid_YYYYMMDD_Q1-N.jpg, same date as the env photos.
+    for (const q of quadrats) {
+      const uris = parseEnvPhotos(q.photo_paths);
+      if (!uris.length) continue;
+      const qc = await collectEnvPhotos(uris, base, plot.plotid, ymdString(plot.start_ts ?? plot.created_at), namer, progressCtx, sanitizeFilename(q.label));
+      entries.push(...qc.entries);
+      quadratPhotoNames.set(q.idx, qc.names);
+    }
   }
   // Clips ride the same 「包含照片」 toggle: that is the media switch the
   // size warning tells users to turn off, so audio must not slip past it.
@@ -890,6 +915,8 @@ export async function buildPlotEntries(
     photoNames,
     envPhotoNames,
     audioNames,
+    quadrats,
+    quadratPhotoNames,
   });
   // Team merge: this device's common ancestor for the record (mergeEngine.ts).
   yamlData.sync = syncBlockFor('plot', plot.uuid);
@@ -987,6 +1014,24 @@ export async function buildPlotEntries(
     entries.push({ name: `${base}/${plot.plotid}_subplots.csv`, bytes: strToU8('﻿' + lines.join('\n')) });
   }
 
+  // Frequency over the whole plot (v78): one row per species record with cells.
+  const qcfg = parseQuadratConfig(plot.quadrat_config);
+  if (plot.plot_type === 'fixed' && qcfg.freqEnabled && species.some((r) => r.freq_cells != null || r.freq_count != null)) {
+    entries.push({
+      name: `${base}/${plot.plotid}_frequency.csv`,
+      bytes: strToU8(buildPlotFrequencyCsv(plot.plotid, { n: qcfg.freqGridN, topEdge: qcfg.freqTopEdge, mode: qcfg.freqMode }, species)),
+    });
+  }
+
+  // Quadrats (v77): species × cells, and one row of surface cover per quadrat.
+  if (quadrats.length > 0) {
+    entries.push({ name: `${base}/${plot.plotid}_quadrats.csv`, bytes: strToU8(buildQuadratsCsv(plot.plotid, quadrats, subplotLabelById)) });
+    entries.push({
+      name: `${base}/${plot.plotid}_quadrat_surface.csv`,
+      bytes: strToU8(buildQuadratSurfaceCsv(plot.plotid, quadrats, subplotLabelById, isoStamp)),
+    });
+  }
+
   // Geo: per-record species points (v13 — present when observations carry
   // their own GNSS; most common for transect / point count).
   const points = buildPlotPoints(species);
@@ -1040,7 +1085,7 @@ export async function buildPlotEntries(
     geoFormats: opts.geoFormats,
   });
   entries.push({ name: `${base}/manifest.json`, bytes: strToU8(JSON.stringify(manifest, null, 2)) });
-  // README 排在最後：清單是從實際產出的 entries 反推的，manifest 也要算進去。
+  // README last: its list is worked out from the entries produced, the manifest included.
   entries.push({
     name: `${base}/README.md`,
     bytes: strToU8(buildRecordReadme(plot.plotid, entries)),
@@ -1408,7 +1453,7 @@ export async function buildCollectionEntries(
     geoFormats: opts.geoFormats,
   });
   entries.push({ name: `${base}/manifest.json`, bytes: strToU8(JSON.stringify(manifest, null, 2)) });
-  // README 排在最後：清單是從實際產出的 entries 反推的，manifest 也要算進去。
+  // README last: its list is worked out from the entries produced, the manifest included.
   entries.push({
     name: `${base}/README.md`,
     bytes: strToU8(buildRecordReadme(trip.name, entries)),
@@ -1718,6 +1763,8 @@ async function collectEnvPhotos(
   dateStr: string,
   namer: PhotoNamer,
   ctx: ProgressCtx,
+  /** Name tag before the sequence number: env photos, or a quadrat's label. */
+  tag = 'env',
 ): Promise<{ entries: BuiltZipEntry[]; names: string[] }> {
   await ensurePhotosReadAccess();
   const out: BuiltZipEntry[] = [];
@@ -1733,7 +1780,7 @@ async function collectEnvPhotos(
       const b64 = await readAsStringAsync(fileUri, { encoding: 'base64' });
       const bytes = base64ToBytes(b64);
       const ext = guessExt(fileUri);
-      const name = namer.claim(`${folder}/photos/${safePlotid}_${dateStr}_env-${i + 1}.${ext}`);
+      const name = namer.claim(`${folder}/photos/${safePlotid}_${dateStr}_${tag}-${i + 1}.${ext}`);
       out.push({ name, bytes });
       names.push(photoBasename(name));
     } catch {
@@ -1842,7 +1889,8 @@ function countPhotosPlot(records: PlotSpeciesRecordWithTaxon[]): number {
 export function countPhotosPlotWithEnv(plotId: number): number {
   const species = listPlotSpecies(plotId);
   const plot = getPlotSurvey(plotId);
-  return countPhotosPlot(species) + (plot ? parseEnvPhotos(plot.env_photos_json).length : 0);
+  const quadratPhotos = plot?.plot_type === 'fixed' ? quadratsForDoc(plotId).reduce((n, q) => n + parseEnvPhotos(q.photo_paths).length, 0) : 0;
+  return countPhotosPlot(species) + (plot ? parseEnvPhotos(plot.env_photos_json).length : 0) + quadratPhotos;
 }
 
 /** Announce the (synchronous, UI-blocking) zip step and yield one frame so the

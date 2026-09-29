@@ -2498,6 +2498,20 @@ const MIGRATIONS: Migration[] = [
       addColumnIfMissing(db, `ALTER TABLE plot_surveys ADD COLUMN quadrat_config TEXT;`);
     },
   },
+  {
+    // v78: frequency over the whole plot (user decision 2026-09-29): the plot
+    // itself is the one grid, and each plot species record (taxon + layer)
+    // gets a mask or a count, as a GLORIA quadrat species does. Same meaning
+    // as plot_quadrat_species.freq_cells / freq_count. The grid, its top edge
+    // and the method are plot settings in quadrat_config (freqEnabled,
+    // freqGridN, freqTopEdge, freqMode). Every quadrat of a plot shares one
+    // grid too (same decision), enforced in quadratsCore.
+    version: 78,
+    up: (db) => {
+      addColumnIfMissing(db, `ALTER TABLE plot_species_records ADD COLUMN freq_cells TEXT;`);
+      addColumnIfMissing(db, `ALTER TABLE plot_species_records ADD COLUMN freq_count INTEGER;`);
+    },
+  },
 ];
 
 /** Highest schema version this build knows how to produce. Backup/restore uses

@@ -310,6 +310,9 @@ export function methodsSection(t: Translate, presentIds: string[] = []): ReportS
   if (has('effort')) paras.push(t('report.methodsChao'), t('report.methodsCoverage'));
   if (has('rarefaction')) paras.push(t('report.methodsRarefaction'));
   if (has('dataQuality')) paras.push(t('report.methodsDataQuality'));
+  // Only when present: a plot without quadrats gets no quadrat methods.
+  if (present.has('quadrats')) paras.push(t('report.methodsQuadrats'));
+  if (present.has('plotFrequency')) paras.push(t('report.methodsPlotFrequency'));
 
   return {
     id: 'methods',

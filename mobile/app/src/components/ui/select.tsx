@@ -154,7 +154,9 @@ function SelectItem({
       className={`flex-row items-center justify-between gap-2 rounded-lg px-3 py-2.5 active:bg-accent-50 dark:active:bg-accent-900/40 ${props.disabled ? 'opacity-50' : ''} ${className}`}
       {...props}
     >
-      <SelectPrimitive.ItemText className="text-base text-gray-900 dark:text-gray-100" />
+      {/* shrink + two lines: a long label (a scientific name) wraps instead of
+          pushing the check mark out of the popover. */}
+      <SelectPrimitive.ItemText numberOfLines={2} className="shrink text-base text-gray-900 dark:text-gray-100" />
       <SelectPrimitive.ItemIndicator asChild>
         <View>
           <Ionicons name="checkmark" size={18} color={c.accent} />

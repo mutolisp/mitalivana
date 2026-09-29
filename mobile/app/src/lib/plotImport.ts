@@ -18,6 +18,7 @@ import type {
   ImportedSubplot,
   PlotType,
 } from '~/db';
+import { configFromYaml, quadratsFromYaml } from './quadratYaml';
 
 const PLOT_TYPES: PlotType[] = ['fixed', 'transect', 'point_count'];
 const METHODS = ['BB', 'percent', 'DBH'];
@@ -89,6 +90,8 @@ export function plotFromDoc(doc: Record<string, unknown> | null): ImportedPlot {
       degree_of_establishment: str(s.degree_of_establishment),
       verbatim_identification: str(s.verbatim_identification),
       detection_type: str(s.detection_type),
+      freq_cells: str(s.freq_cells),
+      freq_count: num(s.freq_count),
       lat: num(s.lat),
       lng: num(s.lng),
       accuracy: num(s.accuracy),
@@ -163,6 +166,9 @@ export function plotFromDoc(doc: Record<string, unknown> | null): ImportedPlot {
     site: parseSiteBlock(doc.site),
     layers,
     subplots,
+    // Fixed plots' quadrats (v77). Absent in older files: no config, no quadrats.
+    quadrat_config: configFromYaml(p.quadrat_config),
+    quadrats: quadratsFromYaml(doc.quadrats),
     species,
   };
 }

@@ -52,7 +52,6 @@ import { hasInatChanges, syncRecord, useInatSync } from '~/lib/inatUpload';
 import { inatTokenAvailableQuietly } from '~/lib/inatAuth';
 import { apiErrorMessage } from '~/lib/apiErrorMessage';
 import { KeyboardStickyView } from './KeyboardAvoidingView';
-import { RecordStepBar } from './RecordStepBar';
 import type { AdoptionInput } from '~/db';
 import { ScientificName } from './ScientificName';
 import { SearchBox } from './SearchBox';
@@ -81,6 +80,9 @@ import { stampNewRecord } from '~/lib/recordFix';
 import { useThemeColors } from '~/theme/colors';
 import { SelectMark } from '~/components/ui/SelectMark';
 import { DropdownChevron } from '~/components/ui/Chevron';
+import { parseQuadratConfig } from '~/db/quadrats';
+import { BannerText, FoldBanner } from '~/modules/gloria/components/ui';
+import { plotFreqIssueLines } from './quadrat/plotFreqIssueLines';
 
 type ValueModalState =
   | { mode: 'create'; taxon: SearchResult; layer: Layer; adopted?: AdoptionInput | null }
@@ -934,8 +936,24 @@ export function PlotSpeciesTab({
     family: tr('session.sortFamily'),
   };
 
+  // With the plot's own frequency on (v78): a record with frequency needs a
+  // dominance and one with a dominance needs frequency — the 頻度 tab's rule.
+  const freqCfg = parseQuadratConfig(plot.quadrat_config);
+  const freqIssues = freqCfg.freqEnabled ? plotFreqIssueLines(tr, allRecords, freqCfg.freqMode) : [];
+
   return (
     <View className="flex-1 bg-gray-50 dark:bg-gray-950">
+      {freqIssues.length ? (
+        <View className="px-4 pt-2">
+          <FoldBanner tone="error" title={tr('plot.quadrats.domFreqTitle')} count={freqIssues.length}>
+            {freqIssues.map((l, k) => (
+              <BannerText key={k} tone="error">
+                {l}
+              </BannerText>
+            ))}
+          </FoldBanner>
+        </View>
+      ) : null}
       <PlotDiversityCard
         allRecords={allRecords}
         subplotRecords={records}
@@ -1180,10 +1198,6 @@ export function PlotSpeciesTab({
           </Pressable>
         </View>
       ) : null}
-
-      {/* Record stepping sits ABOVE the dock: chrome below a KeyboardStickyView
-          is what its `offset.opened` compensates for. */}
-      <RecordStepBar kind="plot" id={plot.id} />
 
       {/* While selecting, the actions take the dock's place (05-controls.md §2.1). */}
       {selection.selectMode ? (

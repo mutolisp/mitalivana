@@ -69,7 +69,7 @@ export const DEFAULT_POI_GROUPS = ['peaks', 'huts', 'water', 'trees'];
 // one local file offline). It is a different view from the native basemaps, so
   // the canvas is one or the other and they cannot be stacked.
 export type MapBasemap = 'standard' | 'satellite' | 'hybrid' | 'terrain' | 'vector';
-export type PlotTab = 'env' | 'species';
+export type PlotTab = 'env' | 'species' | 'freq' | 'quadrats';
 /** Which tab of the plot detail screen was last open, and for which plot.
  *  Scoped to one plot on purpose: a brand-new survey must still open on the
  *  Environment tab, because that is the data it has none of yet. `plotId: 0` =
@@ -412,7 +412,7 @@ function readAll(): SettingsValues {
         parsed &&
         typeof parsed === 'object' &&
         typeof parsed.plotId === 'number' &&
-        (parsed.tab === 'env' || parsed.tab === 'species')
+        (parsed.tab === 'env' || parsed.tab === 'species' || parsed.tab === 'freq' || parsed.tab === 'quadrats')
       ) {
         plotLastTab = { plotId: parsed.plotId, tab: parsed.tab };
       }

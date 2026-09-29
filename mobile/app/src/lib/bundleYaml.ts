@@ -22,6 +22,7 @@ import type {
   ImportedSite,
 } from '~/db';
 import { GEODETIC_DATUM, locationTerms } from './dwcLocation';
+import { configToYaml, quadratsToYaml, type QuadratDocInput } from './quadratYaml';
 
 /**
  * The datum / altitude keys of a record or specimen yml item. Written with
@@ -343,6 +344,11 @@ export type PlotYamlInput = {
   photoNames?: PhotoNames;
   audioNames?: PhotoNames;
   envPhotoNames?: string[];
+  /** Fixed plots' quadrats (v77) with their species; [] for none. Required so
+   *  no caller builds a plot document that silently drops them. */
+  quadrats: QuadratDocInput[];
+  /** Quadrat number → its photo names in the zip. */
+  quadratPhotoNames?: Map<number, string[]>;
 };
 
 export function buildPlotYamlDoc(input: PlotYamlInput): Record<string, unknown> {
@@ -376,6 +382,9 @@ export function buildPlotYamlDoc(input: PlotYamlInput): Record<string, unknown> 
     if (r.degree_of_establishment) item.degree_of_establishment = r.degree_of_establishment;
     if (r.verbatim_identification) item.verbatim_identification = r.verbatim_identification;
     if (r.detection_type) item.detection_type = r.detection_type;
+    // Plot-grid frequency (v78).
+    if (r.freq_cells != null) item.freq_cells = r.freq_cells;
+    if (r.freq_count != null) item.freq_count = r.freq_count;
     if (r.lat !== null) item.lat = r.lat;
     if (r.lng !== null) item.lng = r.lng;
     if (r.accuracy !== null) item.accuracy = r.accuracy;
@@ -417,6 +426,8 @@ export function buildPlotYamlDoc(input: PlotYamlInput): Record<string, unknown> 
   if (input.envPhotoNames && input.envPhotoNames.length > 0) {
     plotBlock.env_photo_files = input.envPhotoNames.join('|');
   }
+  const quadratConfig = plot.plot_type === 'fixed' ? configToYaml(plot.quadrat_config) : null;
+  if (quadratConfig) plotBlock.quadrat_config = quadratConfig;
 
   const doc: Record<string, unknown> = { plot: plotBlock };
   const sb = siteBlock(site);
@@ -441,6 +452,9 @@ export function buildPlotYamlDoc(input: PlotYamlInput): Record<string, unknown> 
           height_cm: sl.height_cm,
         })),
       }));
+    }
+    if (input.quadrats.length > 0) {
+      doc.quadrats = quadratsToYaml(input.quadrats, subplotLabelById, input.quadratPhotoNames);
     }
   }
   doc.species = yamlItems;

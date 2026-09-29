@@ -421,6 +421,45 @@ const report = buildPlotReport(
   ok('point-count section present', pc.sections.map((s) => s.id).includes('pointCount'));
 }
 
+// ── quadrats and plot frequency (06-plot-quadrats §4) ─────────────────────
+{
+  const qs = (taxon, cover, cells) => ({ ...sp(taxon), organism_quantity: null, organism_quantity_type: null, cover_pct: cover, cells });
+  const surf = (v) => ({ cov_vascular: v, cov_solid_rock: 100 - v - 10, cov_scree: 10, cov_lichens: null, cov_bryophytes: null, cov_bare_ground: null, cov_litter: null });
+  const quadrats = [
+    { label: 'Q1', position: 'NW', size_m: 1, grid_n: 10, top_edge: 'N', locked: 1, ...surf(50), species: [qs('a', 20, 50), qs('x', 10, 0)] },
+    { label: 'Q2', position: 'C', size_m: 1, grid_n: 10, top_edge: 'N', locked: 0, ...surf(40), cov_scree: 0, species: [qs('a', 40, 30), qs('y', 5, 10)] },
+  ];
+  const withFreq = species.map((r, i) => ({ ...r, freq_cells: i === 0 ? '1100' : i === 1 ? '1000' : null }));
+  const qr = buildPlotReport(
+    { plot, projectName: '', layers: [], subplots: [], species: withFreq, trackSegments: [], quadrats, plotFrequency: { gridN: 2, topEdge: 'upslope', mode: 'cells' } },
+    t,
+  );
+  const ids = qr.sections.map((s) => s.id);
+  ok('quadrat sections present, in order', ['plotFrequency', 'quadrats', 'quadratCover', 'quadratSpecies', 'quadratSurface', 'quadratUnion', 'quadratOnly'].every((id, i, all) => ids.indexOf(id) >= 0 && (i === 0 || ids.indexOf(all[i - 1]) < ids.indexOf(id))));
+  const spSec = qr.sections.find((s) => s.id === 'quadratSpecies');
+  // Hand computation: a mean cover 30, mean freq 40; x 5, 0; y 2.5, 5 → sums 37.5, 45.
+  eq('quadrat species order by importance', spSec.table.rows.map((r) => r[0].replace(/\*/g, '').split(' ')[1]), ['a', 'y', 'x']);
+  const a = spSec.table.rows[0];
+  const col = (name) => spSec.table.columns.indexOf(name);
+  const cov = qr.sections.find((s) => s.id === 'quadratCover');
+  eq('cover matrix: a in both quadrats, x absent in Q2', [cov.table.columns.length, cov.table.rows[0].slice(1), cov.table.rows[2].slice(1)], [3, ['20', '40'], ['10', '–']]);
+  eq('quadrat a: means, constancy', [a[col('report.colMeanCover')], a[col('report.colMeanFreq')], a[col('report.colConstancy')]], ['30.00', '40.0', '2/2']);
+  eq('quadrat a: relative cover, relative frequency, importance', [a[col('report.colRelCover')], a[col('report.colRelFreq')], a[col('report.colImportance')]], ['80.0', '88.9', '168.9']);
+  eq('quadrat x: relative frequency 0', spSec.table.rows[2][col('report.colRelFreq')], '0.0');
+  eq('only in quadrats: a table (italics render in cells), with counts', qr.sections.find((s) => s.id === 'quadratOnly').table.rows.map((r) => r[1]), ['1', '1']);
+  const ov = qr.sections.find((s) => s.id === 'quadrats');
+  ok('overview notes the mismatch in Q1 and the surface total of Q2', ov.note?.includes('report.quadratIssueFreq') && ov.note?.includes('report.quadratIssueSurface'));
+  eq('overview: centre translated, locked shown', [ov.table.rows[1][1], ov.table.rows[0][5]], ['plot.quadrats.center', '✓']);
+  const un = qr.sections.find((s) => s.id === 'quadratUnion');
+  eq('union: plot 4, quadrats 3, shared 1, only 2, union 6', un.table.rows.map((r) => r[1]), ['4', '3', '1', '2', '6']);
+  const pf = qr.sections.find((s) => s.id === 'plotFrequency');
+  eq('plot frequency: only records with cells, by cells', pf.table.rows.map((r) => [r[2], r[3]]), [['2/4', '50.0'], ['1/4', '25.0']]);
+  const methods = qr.sections.find((s) => s.id === 'methods');
+  ok('methods explain quadrats and plot frequency', methods.paras.includes('report.methodsQuadrats') && methods.paras.includes('report.methodsPlotFrequency'));
+  ok('no quadrat sections for a plot without quadrats', !report.sections.some((s) => s.id.startsWith('quadrat') || s.id === 'plotFrequency'));
+  ok('plain report methods do not mention quadrats', !report.sections.find((s) => s.id === 'methods').paras.includes('report.methodsQuadrats'));
+}
+
 // ── empty plot must still produce a valid, honest report ───────────────────
 {
   const empty = buildPlotReport(

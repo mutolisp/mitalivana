@@ -17,10 +17,8 @@ import * as Haptics from 'expo-haptics';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Ionicons } from '@expo/vector-icons';
 import { Pressable, ScrollView, Text, View } from 'react-native';
-import { SwipeNavArea, useSwipeNav } from '~/components/SwipeNavigator';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/components/ui/select';
+import { SpeciesToggleCard, type PagerSpecies } from '~/components/quadrat/SpeciesPager';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HeaderIconButton } from '~/components/HeaderIconButton';
 import { KeyboardStickyView } from '~/components/KeyboardAvoidingView';
@@ -41,12 +39,10 @@ import { WalkDiagram } from '~/modules/gloria/components/WalkDiagram';
 import { PointMap } from '~/modules/gloria/components/PointMap';
 import { saveVersionSoon } from '~/db/recordVersions';
 import { useVersionOnLeave } from '~/lib/useVersionOnLeave';
-import { useThemeColors } from '~/theme/colors';
 
 type PointStep = { seq: number; surface: string; hits: Record<number, boolean> };
 
 export default function PointsScreen() {
-  const tc = useThemeColors();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const toast = useToast((s) => s.show);
@@ -93,11 +89,6 @@ export default function PointsScreen() {
     }
   }, [spp]);
   const curIdx = spp.length ? Math.min(cur, spp.length - 1) : 0;
-  const nav = useSwipeNav({
-    onStep: (d) => spp.length && setCur(((curIdx + d) % spp.length + spp.length) % spp.length),
-    hasPrev: spp.length > 1,
-    hasNext: spp.length > 1,
-  });
   const [panel, setPanel] = useState(false);
   const undo = useRef<PointStep[]>([]);
   const redo = useRef<PointStep[]>([]);
@@ -247,72 +238,41 @@ export default function PointsScreen() {
   };
 
   /**
-   * One species at a time, large: swipe or ‹ › to another, tap its name for the
-   * full list. Tap the card = hit here (again = not); long press = hit, record
-   * the point and go on. The card stays on its species for the next point.
+   * One species at a time, large (the shared SpeciesToggleCard, as in the
+   * frequency screens' 逐格): swipe or ‹ › to another, the dropdown for the
+   * full list. Tap the card = hit here (again = not); long press = hit,
+   * record the point and go on. The card stays on its species for the next point.
    */
+  const cards: PagerSpecies[] = spp.map((x) => ({
+    key: String(x.id),
+    name: displayName(x),
+    cname: x.common_name_c || null,
+    sci: x.simple_name || null,
+    qualifier: x.verbatim_identification,
+    layer: null,
+    cover: null,
+    cells: popcount(hits[x.id]),
+    missing: false,
+  }));
   const spCard = () => {
     const s = spp[curIdx];
     if (!s) return <Text className="py-4 text-center text-sm text-gray-400">{t('gloria.walk.noSpecies')}</Text>;
     const on = picked.has(s.id);
-    const arrow = (d: -1 | 1) => (
-      <Pressable
-        onPress={() => setCur(((curIdx + d) % spp.length + spp.length) % spp.length)}
-        disabled={spp.length < 2}
-        accessibilityRole="button"
-        accessibilityLabel={t(d < 0 ? 'gloria.freq.prevSpecies' : 'gloria.freq.nextSpecies')}
-        className="w-11 items-center justify-center self-stretch rounded-lg border border-gray-300 dark:border-gray-700"
-      >
-        <Ionicons name={d < 0 ? 'chevron-back' : 'chevron-forward'} size={22} color={tc.ink2} />
-      </Pressable>
-    );
     return (
-      <SwipeNavArea nav={nav} style={{ flex: 0 }}>
-        <View className="flex-row items-stretch gap-2">
-          {arrow(-1)}
-          <View className="flex-1 gap-1.5">
-            <Select
-              value={{ value: String(s.id), label: displayName(s) }}
-              onValueChange={(o) => o && setCur(Math.max(0, spp.findIndex((x) => String(x.id) === o.value)))}
-            >
-              <SelectTrigger className="w-full" accessibilityLabel={t('gloria.walk.pickSpecies')}>
-                <SelectValue placeholder={displayName(s)} />
-              </SelectTrigger>
-              <SelectContent>
-                {spp.map((x) => (
-                  <SelectItem key={x.id} value={String(x.id)} label={`${displayName(x)} · ${popcount(hits[x.id])}`} />
-                ))}
-              </SelectContent>
-            </Select>
-            <Pressable
-              onPress={() => !done && toggle(s.id)}
-              onLongPress={() => {
-                if (done) return;
-                commit([...new Set([...picked, s.id])], SURFACE_VASCULAR);
-              }}
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: on }}
-              accessibilityHint={t('gloria.walk.cardHint')}
-              style={on ? { backgroundColor: tc.accent, borderColor: tc.accent } : undefined}
-              className="min-h-[112px] items-center justify-center rounded-xl border-2 border-gray-300 bg-card px-3 py-3 dark:border-gray-700 dark:bg-gray-900"
-            >
-              <Text className={`text-center text-2xl font-bold ${on ? 'text-white' : 'text-gray-900 dark:text-gray-100'}`} numberOfLines={2}>
-                {displayName(s)}
-              </Text>
-              <Text className={`text-center text-xs italic ${on ? 'text-white/80' : 'text-gray-500 dark:text-gray-400'}`} numberOfLines={1}>
-                {s.simple_name}
-              </Text>
-              <Text className={`mt-1 text-[10px] ${on ? 'text-white' : 'text-accent-700 dark:text-accent-300'}`} style={{ fontVariant: ['tabular-nums'] }}>
-                {on ? t('gloria.walk.cardOn') : t('gloria.walk.cardOff')} · {t('gloria.walk.cardCount', { i: curIdx + 1, n: spp.length, hits: popcount(hits[s.id]) })}
-              </Text>
-            </Pressable>
-          </View>
-          {arrow(1)}
-        </View>
-      </SwipeNavArea>
+      <SpeciesToggleCard
+        items={cards}
+        index={curIdx}
+        onIndex={setCur}
+        on={on}
+        disabled={done}
+        onToggle={() => toggle(s.id)}
+        onLongPress={() => commit([...new Set([...picked, s.id])], SURFACE_VASCULAR)}
+        count={popcount(hits[s.id])}
+        hint={t('gloria.walk.cardHint')}
+        pickLabel={t('gloria.walk.pickSpecies')}
+      />
     );
   };
-
 
   return (
     <SafeAreaView edges={['bottom']} className="flex-1 bg-gray-50 dark:bg-gray-950">
@@ -397,6 +357,8 @@ export default function PointsScreen() {
             onInteract={(on) => setScrollOn(!on)}
           />
         </View>
+        {/* The how-to, out of the species card (which keeps to name and count). */}
+        <Text className="text-xs text-gray-500 dark:text-gray-400">{t('gloria.walk.cardHint')}</Text>
       </ScrollView>
       {adding ? (
         <KeyboardStickyView offset={{ opened: insets.bottom }}>

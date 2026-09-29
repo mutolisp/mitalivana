@@ -12,6 +12,7 @@
  * `reportFormat.ts` and the shared section builders in `reportSections.ts`;
  * this file is the three `build*Report` assemblers and their input types.
  */
+import { plotFrequencySection, quadratSections, type ReportPlotFrequency, type ReportQuadrat } from './reportQuadrats';
 import {
   betaSimilarity,
   chao1,
@@ -130,6 +131,10 @@ export type PlotReportInput = {
   subplots: Array<{ id: number; label: string; width_m: number | null; length_m: number | null }>;
   species: ReportRecord[];
   trackSegments: TrackSegment[];
+  /** Fixed plots' 1×1 m quadrats (v77); none or [] when not used. */
+  quadrats?: ReportQuadrat[];
+  /** Frequency over the whole plot (v78), when switched on. */
+  plotFrequency?: ReportPlotFrequency | null;
 };
 
 /**
@@ -418,6 +423,13 @@ export function buildPlotReport(input: PlotReportInput, t: Translate): Report {
       },
     });
   }
+
+  // 9b. Frequency over the whole plot, then the quadrats (06-plot-quadrats §4).
+  if (input.plotFrequency) {
+    const pf = plotFrequencySection(species, input.plotFrequency, t);
+    if (pf) sections.push(pf);
+  }
+  sections.push(...quadratSections(input.quadrats ?? [], species, t));
 
   // 10. Method-specific effort
   if (plot.plot_type === 'transect') {

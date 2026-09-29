@@ -164,9 +164,6 @@ const NOT_RESTORABLE = {
     project_id: 'exported by name (`project`), re-resolved on import',
     site_id: 'exported as the `site:` block + site.* sidecars',
     status: "imported records are always 'done' (single-active invariant)",
-    // Temporary: 06-plot-quadrats.md phase D puts the quadrats in the yml;
-    // this entry then fails as "the yml does carry it" and must go.
-    quadrat_config: 'quadrats (v77) are not in the yml until phase D',
     resumed_at: 'reopen bookkeeping, meaningless for a fresh import',
     starred: STARRED,
     created_at: IMPORT_TIME,
@@ -197,6 +194,20 @@ const NOT_RESTORABLE = {
     id: ROW_ID,
     plot_survey_id: 'structural — subplots live inside their plot in the yml',
     created_at: IMPORT_TIME,
+  },
+  plot_quadrats: {
+    id: ROW_ID,
+    plot_survey_id: 'structural — quadrats live inside their plot in the yml',
+    subplot_id: 'exported as the subplot LABEL (ids are per-device)',
+    photo_paths: 'exported as photo_files (filenames in the zip)',
+    created_at: IMPORT_TIME,
+    updated_at: IMPORT_TIME,
+  },
+  plot_quadrat_species: {
+    id: ROW_ID,
+    quadrat_id: 'structural — species live inside their quadrat in the yml',
+    created_at: IMPORT_TIME,
+    updated_at: IMPORT_TIME,
   },
   subplot_layers: {
     id: ROW_ID,
@@ -303,16 +314,34 @@ const plotRow = {
   bareland_cover_pct: 1, vascular_cover_pct: 80, bryophyte_cover_pct: 10,
   lichen_cover_pct: 1, litter_cover_pct: 30, layer_count: 3,
   env_photos_json: '["ph://env1"]',
+  quadrat_config: JSON.stringify({ enabled: true, layout: 'perSubplot', recordCover: true, recordFreq: true, recordSurface: false, carryPrevious: true, sizeM: 1, gridN: 5, topEdge: 'upslope', freqEnabled: true, freqGridN: 4, freqTopEdge: 'E', freqMode: 'cells' }),
   e0_cover_pct: null, e0_height_cm: null, e1_cover_pct: null, e1_height_cm: null,
   e2_cover_pct: null, e2_height_cm: null, e3_cover_pct: null, e3_height_cm: null,
   e0_method: 'BB', e1_method: 'BB', e2_method: 'BB', e3_method: 'DBH',
   created_at: 1, updated_at: 2,
 };
 
+const MASK = '1100000000000000000000011';
+const quadrats = [
+  {
+    id: 21, uuid: 'q-uuid-1', plot_survey_id: 7, subplot_id: 11, idx: 1, label: 'Q1', position: 'NW',
+    size_m: 1, grid_n: 5, top_edge: 'upslope', lat: 24.701, lng: 121.501, accuracy: 3,
+    cov_vascular: 60, cov_solid_rock: 10, cov_scree: 5, cov_lichens: 0, cov_bryophytes: 15, cov_bare_ground: 5, cov_litter: 5,
+    freq_mode: 'cells', locked: 1, started_at: 1756500500000, ended_at: 1756501500000, notes: '苔蘚多',
+    photo_paths: '["ph://q1"]', created_at: 1, updated_at: 2,
+    species: [
+      { id: 1, quadrat_id: 21, taxon_id: 't0301', cover_pct: 12.5, freq_cells: MASK, freq_count: null, height_cm: 8, notes: '開花', created_at: 1, updated_at: 2, simple_name: 'Lithocarpus konishii', common_name_c: '小西氏石櫟' },
+      { id: 2, quadrat_id: 21, taxon_id: 't0455', cover_pct: null, freq_cells: null, freq_count: 7, height_cm: null, notes: null, created_at: 1, updated_at: 2 },
+    ],
+  },
+];
+
 const plotSpecies = [
   {
     id: 1, plot_survey_id: 7, taxon_id: 't0301', occurrence_id: 'occ-1', subplot_id: 11,
     layer: 'E2', bb_value: null, percent: null, dbh_values_json: null, notes: '幼樹',
+    // Plot-grid frequency (v78); both present only to cover both columns.
+    freq_cells: '1010000000000001', freq_count: 3,
     photo_paths: '["ph://a","ph://b"]', observed_at: 1756500100000, created_at: 1,
     sex: 'unknown', life_stage: 'adult', reproductive_condition: '["flowering","fruiting"]',
     leaf_phenology: '["evergreen"]', organism_quantity: '3', organism_quantity_type: 'individuals',
@@ -372,9 +401,26 @@ console.log('check:roundtrip');
       ['occ-2', ['t0301_小西氏石櫟_3.jpg']],
     ]),
     envPhotoNames: ['PLOT_2026_001_20260830_env-1.jpg'],
+    quadrats,
+    quadratPhotoNames: new Map([[1, ['PLOT_2026_001_20260830_Q1-1.jpg']]]),
   });
 
   const back = parsePlotYaml(yaml.dump(doc, { lineWidth: -1, noRefs: true }));
+
+  // Quadrats (v77): config as settings, every quadrat field, species by taxon.
+  eq('plot.quadrat_config', JSON.parse(back.quadrat_config), JSON.parse(plotRow.quadrat_config));
+  const q0 = back.quadrats[0];
+  for (const k of ['idx', 'uuid', 'label', 'position', 'size_m', 'grid_n', 'top_edge', 'lat', 'lng', 'accuracy',
+    'cov_vascular', 'cov_solid_rock', 'cov_scree', 'cov_lichens', 'cov_bryophytes', 'cov_bare_ground', 'cov_litter',
+    'freq_mode', 'locked', 'started_at', 'ended_at', 'notes']) {
+    eq(`quadrats[0].${k}`, q0[k], quadrats[0][k]);
+  }
+  eq('quadrats[0].subplot', q0.subplot, 'S1');
+  eq('quadrats[0].photo_files', q0.photo_files, ['PLOT_2026_001_20260830_Q1-1.jpg']);
+  eq('quadrats[0].species', q0.species.map((x) => [x.taxon_id, x.cover_pct, x.freq_cells, x.freq_count, x.height_cm, x.notes]), [
+    ['t0301', 12.5, MASK, null, 8, '開花'],
+    ['t0455', null, null, 7, null, null],
+  ]);
 
   eq('plot.uuid', back.uuid, plotRow.uuid);
   eq('plot.plotid', back.plotid, plotRow.plotid);
@@ -421,6 +467,8 @@ console.log('check:roundtrip');
   // whole reason two rows can share a taxon_id; losing it merges them.
   eq('species[0].verbatim_identification', s0.verbatim_identification, 'Lauraceae sp2');
   eq('species[0].detection_type', s0.detection_type, 'seen');
+  eq('species[0].plot frequency', [s0.freq_cells, s0.freq_count], ['1010000000000001', 3]);
+  eq('species[1] has no plot frequency', [back.species[1].freq_cells, back.species[1].freq_count], [null, null]);
   eq('species[0].gnss', [s0.lat, s0.lng, s0.accuracy], [24.71, 121.51, 4]);
   eq('species[0].elevation_m', s0.elevation_m, 1350);
   eq('species[0].elevation_source', s0.elevation_source, 'gnss');
@@ -437,6 +485,8 @@ console.log('check:roundtrip');
   const ymlKeys = new Set(Object.keys(doc.plot));
   ymlKeys.add('layers').add('subplots').add('species');
   checkCoverage('plot_surveys', ymlKeys);
+  checkCoverage('plot_quadrats', new Set(Object.keys(doc.quadrats[0])));
+  checkCoverage('plot_quadrat_species', new Set(doc.quadrats[0].species.flatMap((x) => Object.keys(x))));
   checkCoverage('plot_species_records', new Set(Object.keys(doc.species[0])));
   checkCoverage('plot_survey_layers', new Set(Object.keys(doc.layers[0])));
   checkCoverage('plot_subplots', new Set(Object.keys(doc.subplots[0])));
@@ -556,6 +606,7 @@ species:
   eq('legacy.site', back.site, null);
   eq('legacy.env_photo_files', back.env_photo_files, []);
   eq('legacy.track_finalized', back.track_finalized, null);
+  eq('legacy.quadrats', [back.quadrat_config, back.quadrats], [null, []]);
   eq('legacy.species[0].photo_files', back.species[0].photo_files, []);
   // E0 is not a valid layer any more; importPlotSurvey coerces it, the parser
   // just passes it through.

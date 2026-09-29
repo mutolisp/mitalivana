@@ -61,7 +61,6 @@ import { CodeBadge, ListRow, Thumb } from '~/components/ui/ListRow';
 import { IconDisc } from '~/components/ui/IconDisc';
 import { SelectMark } from '~/components/ui/SelectMark';
 import { SelectionDock, SelectionToolbar } from '~/components/SelectionToolbar';
-import { RecordStepBar } from '~/components/RecordStepBar';
 import { HeaderIconButton } from '~/components/HeaderIconButton';
 import { showActionSheet } from '~/components/ActionSheet';
 import { useRecordEditing } from '~/lib/useRecordEditing';
@@ -1307,8 +1306,6 @@ export default function CollectionTripScreen() {
         )}
       </View>
 
-      {/* Above the dock on purpose — see RecordStepBar's header comment. */}
-
       {/* Directly above the search box it refers to, matching the checklist
         and plot screens; also puts Cancel in the thumb zone. */}
       {replaceTarget ? (
@@ -1331,7 +1328,6 @@ export default function CollectionTripScreen() {
           </Pressable>
         </View>
       ) : null}
-      <RecordStepBar kind="collection" id={tripId} />
       <LabelExportSheet
         visible={labelSheetOpen}
         count={picked.size}

@@ -461,9 +461,13 @@ MIREN（規劃中）→ `docs/planned/MIREN.md`；
 - [x] 05 選取標記與導覽按鈕統一、`check:controls`、`npm run check`（2026-09-29）
 - [x] 06 小樣方 A 期：抽共用（grid、quadratIssues、SurfaceCover、FrequencyGrid），GLORIA 改用（2026-09-29）
 - [x] 06 小樣方 B 期：v77（plot_quadrats、plot_quadrat_species、plot_surveys.quadrat_config）、DB helper（`quadratsCore.ts`／`quadrats.ts`）、record_versions／undo、刪除還原、完整性規則、媒體欄位、複製樣區、data-model 說明、`check:quadrats`（2026-09-29）
-- [ ] 06 小樣方 C 期：環境分頁設定區塊、小樣方分頁、單一小樣方畫面、物種色盤
-- [ ] 06 小樣方 D 期：樣區 yml 來回、合併模型（遮罩整筆取一方）、teamMerge 套用、團隊同步照片（`plot_quadrats.photo_paths` 進 `MEDIA_COLUMN_KINDS`）。完成時拿掉兩個暫時豁免：`check-roundtrip.mjs` 的 `plot_surveys.quadrat_config`、`check-media-refs.mjs` 的 `plot_quadrats`
-- [ ] 06 小樣方 E 期：quadrats.csv（f{列}{欄}）、quadrat_surface.csv、DwC 子事件與 MoF、報表小節
+- [x] 06 小樣方 C 期：環境分頁設定區塊、小樣方分頁、單一小樣方畫面、物種色盤（2026-09-29；`plot/[id].tsx` 移到 `plot/[id]/index.tsx`）
+- [x] 06 小樣方 D 期：yml 來回、合併模型與套用、團隊同步照片、記錄版本／最近刪除、手動合併樣區、小樣方照片、頻度畫面物種輸入（設計稿 10d）；兩個暫時豁免已拿掉（2026-09-29）
+- [x] 記錄版本：「還原前」快照在內容與最新一版相同時被略過、之後被「離開畫面」覆寫（2026-09-29 修正：改標記那一版）
+- [x] 版本／合併比對畫面：小樣方設定值與上邊、頻度方式翻譯（2026-09-29）
+- [x] 06 樣區頻度（重新設計，2026-09-29）：環境「頻度（整個樣區）」開關 → 頻度分頁；v78 `plot_species_records.freq_cells/freq_count`；共用 `FrequencyPanel`；yml／合併／匯入／手動合併；設計稿 10a、10e 更新
+- [x] 06 小樣方 E 期：quadrats.csv、quadrat_surface.csv、frequency.csv、DwC 子事件＋eMoF、報表「樣區頻度」與「小樣方」各節（HTML／DOCX／ODT，LibreOffice 渲染驗證）、小樣方資料品質提示（2026-09-29）
+- [x] 06 頻度 UI 統一：固定樣區／小樣方／GLORIA 1×1 m 頻度共用 FrequencyPanel，筆刷用下拉物種卡、逐格與樣點用 SpeciesToggleCard；固定樣區頻度可加新物種、優勢度⇄頻度檢查（2026-09-29）
 - 已決（2026-09-29）：多樣性的「樣區名錄 ∪ 小樣方物種」只用在小樣方報表小節，其他統計不變
 - [ ] 列尾 `chevron-forward` 逐步換成 `Chevron`（`check:controls` 目前警告 54 處）；多行寫法的展開箭頭尚未統一 16／ink-2
 - 待決：DwC `preparations` 目前只要有複份就寫 `sheet`；v76 回填後動物標本也會是 `sheet`，是否依界別決定

@@ -101,7 +101,7 @@ export function PlotDiversityCard({
 
   if (whole.richness === 0) return null;
   // The collapsed one-liner and its chevron moved into the screen's
-  // navigation-bar title (app/plot/[id].tsx), which was already going to be a
+  // navigation-bar title (app/plot/[id]/index.tsx), which was already going to be a
   // custom component. This card is now the expanded body alone, so a collapsed
   // card costs nothing above the species list instead of 33pt.
   if (!expanded) return null;

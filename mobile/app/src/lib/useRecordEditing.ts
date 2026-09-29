@@ -52,10 +52,17 @@ export type RecordEditing = {
   deferAudioDelete: (uri: string) => void;
 };
 
-export function useRecordEditing(kind: SnapshotKind, id: number, ended: boolean): RecordEditing {
+export function useRecordEditing(
+  kind: SnapshotKind,
+  id: number,
+  ended: boolean,
+  /** Opened from a screen of the same record that was already unlocked (a
+   *  plot's quadrat): carry the unlock over instead of asking again. */
+  startUnlocked = false,
+): RecordEditing {
   const { t } = useTranslation();
   const toast = useToast((s) => s.show);
-  const [unlocked, setUnlockedState] = useState(false);
+  const [unlocked, setUnlockedState] = useState(startUnlocked);
   const locked = ended && !unlocked;
 
   const base = useRef<RecordSnapshot | null>(null);
@@ -148,8 +155,16 @@ export function useRecordEditing(kind: SnapshotKind, id: number, ended: boolean)
     },
     undoCount,
     redoCount,
-    undo: () => step(undoStack, redoStack),
-    redo: () => step(redoStack, undoStack),
+    // A change not yet checkpointed (a settle-delayed one: frequency strokes)
+    // becomes its own step first, so undo takes back just that.
+    undo: () => {
+      checkpoint();
+      step(undoStack, redoStack);
+    },
+    redo: () => {
+      checkpoint();
+      step(redoStack, undoStack);
+    },
     deferAudioDelete: (uri) => {
       pendingAudio.current.push(uri);
     },

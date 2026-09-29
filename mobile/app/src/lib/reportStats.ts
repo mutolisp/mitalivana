@@ -48,6 +48,9 @@ export type ReportRecord = DiversityRecord & {
   protected?: string;
   layer?: string;
   detection_type?: string | null;
+  /** Frequency over the plot grid (v78); read by the plot-frequency section. */
+  freq_cells?: string | null;
+  freq_count?: number | null;
 };
 
 /** Distinct species (v28 composite key) among the given records. */

@@ -2,7 +2,6 @@ import { errText } from '~/lib/errText';
 import { Ionicons } from '@expo/vector-icons';
 import { FolderAreaMap } from '~/components/FolderAreaMap';
 import { RecordLocationMap } from '~/components/RecordLocationMap';
-import { RecordStepBar } from '~/components/RecordStepBar';
 import { HeaderIconButton } from '~/components/HeaderIconButton';
 import { RecordMenuButton } from '~/components/RecordMenuButton';
 import {
@@ -11,7 +10,7 @@ import {
   SwipeNavArea,
   useSwipeNav,
 } from '~/components/SwipeNavigator';
-import { Stack, useLocalSearchParams, useRouter, type Href } from 'expo-router';
+import { Stack, useFocusEffect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { BackHeaderLeft } from '~/lib/goBack';
 import * as Location from 'expo-location';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -77,6 +76,10 @@ import { onVersionRestored, saveVersionSoon } from '~/db/recordVersions';
 import { useVersionOnLeave } from '~/lib/useVersionOnLeave';
 import { Button } from '~/components/ui/Button';
 import { CheckboxMark } from '~/components/ui/Checkbox';
+import { PlotQuadratsTab } from '~/components/quadrat/PlotQuadratsTab';
+import { PlotFreqTab } from '~/components/quadrat/PlotFreqTab';
+import { QuadratSettings } from '~/components/quadrat/QuadratSettings';
+import { listQuadrats, parseQuadratConfig } from '~/db/quadrats';
 
 export default function PlotDetailScreen() {
   const { t } = useTranslation();
@@ -138,6 +141,9 @@ export default function PlotDetailScreen() {
   useEffect(() => {
     reload();
   }, [reload]);
+  // Back from a quadrat screen, which writes behind this one: read it again
+  // (the edit history restarts on focus anyway, see useRecordEditing).
+  useFocusEffect(refresh);
   // A version restored from the versions screen (opened over this one): read everything again.
   useEffect(
     () =>
@@ -150,6 +156,21 @@ export default function PlotDetailScreen() {
   );
 
   const ready = plot ? plotCanAcceptSpecies(plot) : false;
+  // The 小樣方 tab exists only on a fixed plot with the module switched on.
+  const qcfg = parseQuadratConfig(plot?.quadrat_config);
+  const quadratsOn = plot?.plot_type === 'fixed' && qcfg.enabled;
+  // Frequency over the whole plot (v78): a 「頻度」 tab, independent of quadrats.
+  const freqOn = plot?.plot_type === 'fixed' && qcfg.freqEnabled;
+  const freqTally = {
+    done: records.filter((r) => r.layer !== 'T' && (r.freq_cells?.includes('1') || (r.freq_count ?? 0) > 0)).length,
+    total: records.filter((r) => r.layer !== 'T').length,
+  };
+  const quadratTally = useMemo(() => {
+    const qs = plot && quadratsOn ? listQuadrats(plot.id) : [];
+    return { done: qs.filter((q) => q.locked).length, total: qs.length };
+    // `plot` is re-read after every edit and on focus, so it stands for the quadrats too.
+  }, [plot, quadratsOn]);
+  const shownTab: PlotTab = (tab === 'quadrats' && !quadratsOn) || (tab === 'freq' && !freqOn) ? 'env' : tab;
 
   // Navigation-bar title state. Declared here, above the not-found early
   // return, so the hook order stays stable.
@@ -267,13 +288,28 @@ export default function PlotDetailScreen() {
         }}
       />
       <View className="flex-row border-b border-gray-200 bg-card dark:border-gray-700 dark:bg-gray-900">
-        <TabBtn label={t('plot.tabEnv')} active={tab === 'env'} onPress={() => selectTab('env')} />
+        <TabBtn label={t('plot.tabEnv')} active={shownTab === 'env'} onPress={() => selectTab('env')} />
         <TabBtn
           label={`${t('plot.tabSpecies')} ${records.length > 0 ? records.length : ''}`}
-          active={tab === 'species'}
+          active={shownTab === 'species'}
           onPress={() => selectTab('species')}
           disabled={!ready}
         />
+        {freqOn ? (
+          <TabBtn
+            label={`${t('plot.tabFreq')} ${freqTally.done}/${freqTally.total}`}
+            active={shownTab === 'freq'}
+            onPress={() => selectTab('freq')}
+            disabled={!ready}
+          />
+        ) : null}
+        {quadratsOn ? (
+          <TabBtn
+            label={`${t('plot.tabQuadrats')} ${quadratTally.done}/${quadratTally.total}`}
+            active={shownTab === 'quadrats'}
+            onPress={() => selectTab('quadrats')}
+          />
+        ) : null}
       </View>
 
       <SwipeBlockProvider nav={tabNav}>
@@ -282,8 +318,26 @@ export default function PlotDetailScreen() {
             `react-native-keyboard-controller`) which auto-scrolls the focused
             TextInput above the keyboard. PlotSpeciesTab wraps its SearchBox
             in KeyboardStickyView so the search row follows the kbd top. */}
-          {tab === 'env' ? <EnvTab key={rev} plot={plot} onUpdated={reload} locked={edit.locked} /> : null}
-          {tab === 'species' ? (
+          {shownTab === 'env' ? <EnvTab key={rev} plot={plot} onUpdated={reload} locked={edit.locked} /> : null}
+          {shownTab === 'freq' ? (
+            ready ? (
+              <PlotFreqTab key={rev} plot={plot} locked={edit.locked} refuse={edit.refuse} onChanged={reload} onGoSpecies={() => selectTab('species')} />
+            ) : (
+              <SpeciesGateScreen />
+            )
+          ) : null}
+          {shownTab === 'quadrats' ? (
+            <PlotQuadratsTab
+              key={rev}
+              plot={plot}
+              locked={edit.locked}
+              unlocked={edit.unlocked}
+              refuse={edit.refuse}
+              onChanged={reload}
+              onSettings={() => selectTab('env')}
+            />
+          ) : null}
+          {shownTab === 'species' ? (
             ready ? (
               <PlotSpeciesTab
                 key={rev}
@@ -301,9 +355,6 @@ export default function PlotDetailScreen() {
             )
           ) : null}
         </SwipeNavArea>
-        {/* 物種 tab carries its own copy above its search dock; every other branch
-          has no dock, so the bar belongs here. */}
-        {tab === 'species' && ready ? null : <RecordStepBar kind="plot" id={plotId} />}
       </SwipeBlockProvider>
     </SafeAreaView>
   );
@@ -613,7 +664,7 @@ function EnvTab({
       {plot.plot_type === 'transect' ? <PlotBoundarySection plot={plot} /> : null}
 
       <CollapsibleSection title={t('plot.basicInfo')}>
-        {/* 穿越線不需要樣區大小 / 單位（其尺度由軌跡長度表示）。 */}
+        {/* A transect needs no plot size / unit: its track length gives its extent. */}
         {plot.plot_type !== 'transect' ? (
           <>
             <Field
@@ -677,6 +728,17 @@ function EnvTab({
       {plot.plot_type === 'fixed' ? <LayerSection plot={plot} onUpdated={onUpdated} /> : null}
 
       {plot.plot_type === 'fixed' ? <SubplotSection plot={plot} onUpdated={onUpdated} /> : null}
+
+      {plot.plot_type === 'fixed' ? (
+        // The section title is upper-cased, which would turn "1 × 1 m" into "M";
+        // the full name is on the switch inside.
+        <CollapsibleSection
+          title={t('plot.quadrats.section')}
+          defaultExpanded={parseQuadratConfig(plot.quadrat_config).enabled || parseQuadratConfig(plot.quadrat_config).freqEnabled}
+        >
+          <QuadratSettings plot={plot} onUpdated={onUpdated} />
+        </CollapsibleSection>
+      ) : null}
 
       <CollapsibleSection title={t('plot.advanced')}>
         <NumField
@@ -946,7 +1008,7 @@ function SubplotSection({ plot, onUpdated }: { plot: PlotSurvey; onUpdated: () =
   const reload = useCallback(() => setSubplots(listSubplots(plot.id)), [plot.id]);
   useEffect(() => reload(), [reload]);
 
-  // 各小區尺寸相同：開啟後只填一組寬/長套用到全部，省去逐區輸入。
+  // Subplots of one size: with this on, one width / length pair applies to all of them.
   const [uniform, setUniform] = useState(true);
   // One-time init from existing data: default ON unless subplots already differ.
   const syncedRef = useRef(false);

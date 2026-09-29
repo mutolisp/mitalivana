@@ -11,7 +11,7 @@
   "app/gloria/[id]/[code]/index.tsx": 1,
   "app/inat-upload.tsx": 7,
   "app/key/[id].tsx": 2,
-  "app/plot/[id].tsx": 3,
+  "app/plot/[id]/index.tsx": 3,
   "app/session/[id].tsx": 1,
   "app/settings/provenance.tsx": 1,
   "app/sites.tsx": 3,

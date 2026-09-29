@@ -32,6 +32,7 @@ import {
   parseEnvPhotos,
   searchByTaxonId,
   type DuplicateRecordOptions,
+  type ImportedPlot,
   type PlotType,
   type RecordItem,
 } from '~/db';
@@ -55,13 +56,14 @@ import { showActionSheet } from '~/components/ActionSheet';
 import i18n from '~/i18n';
 import { getSyncBase, setSyncBase } from '~/db/syncBase';
 import { localPlotDoc, localSessionDoc } from '~/db/teamMerge';
-import { COMBINERS, gloriaSide, plotSide, sessionSide, type MergeKind } from '~/lib/mergeDocs';
+import { askQuadratGeometry, COMBINERS, gloriaSide, plotSide, sessionSide, type MergeKind } from '~/lib/mergeDocs';
 import { baseOf, diffSides, type MergeSide, type SyncBlock } from '~/lib/mergeEngine';
 import { usePendingMerge } from '~/lib/teamMergeFlow';
 import type { ImportedPhotoBlob } from '~/lib/recordImportZip';
 import { findGloriaSurveyFor, localGloriaDoc } from '~/modules/gloria/merge';
 import { saveVersionByUuid } from '~/db/recordVersions';
 import { showCreateSheet } from '~/lib/createSheet';
+import { listQuadrats } from '~/db/quadrats';
 
 type NewRecordKind = 'session' | 'plot' | 'gloria' | 'miren';
 
@@ -382,6 +384,13 @@ export function remapUnknownTaxa(records: ImportableRecord[]): { remapped: numbe
   return { remapped, unresolved };
 }
 
+/** A plot's species list and its quadrats' species (v77) — both carry taxon ids. */
+export function remapPlotTaxa(p: ImportedPlot): { remapped: number; unresolved: number } {
+  const a = remapUnknownTaxa(p.species);
+  const b = remapUnknownTaxa((p.quadrats ?? []).flatMap((q) => q.species));
+  return { remapped: a.remapped + b.remapped, unresolved: a.unresolved + b.unresolved };
+}
+
 type ImportMode = 'merge' | 'overwrite' | 'new';
 
 /**
@@ -412,7 +421,9 @@ function openMerge(
   remote: { side: MergeSide; sync: SyncBlock | null | undefined; photos: ImportedPhotoBlob[]; audio: ImportedPhotoBlob[] },
   href: Href,
 ): void {
-  const items = diffSides(local.side, remote.side, remote.sync?.base ?? null, COMBINERS[kind], getSyncBase(kind, local.uuid));
+  const diffed = diffSides(local.side, remote.side, remote.sync?.base ?? null, COMBINERS[kind], getSyncBase(kind, local.uuid));
+  // A quadrat's new geometry would drop masks painted here: ask (mergeDocs).
+  const items = kind === 'plot' ? askQuadratGeometry(diffed, local.side) : diffed;
   if (items.length === 0) {
     setSyncBase(kind, local.uuid, baseOf(remote.side));
     Alert.alert(i18n.t('teamMerge.nothingTitle'), i18n.t('teamMerge.nothingMsg', { name: local.label }));
@@ -529,13 +540,14 @@ async function finishPlotImport(payload: Extract<ReadRecordImport, { kind: 'plot
   let newUuid = false;
   let prevPhotos = new Map<string, string[]>();
   let prevEnvPhotos: string[] = [];
+  let prevQuadratPhotos = new Map<number, string[]>();
 
   const prev = getPlotSurveyByUuid(data.uuid);
   if (prev) {
     const mode = await askImportMode('recordCreate.plotExistsTitle', 'recordCreate.plotExistsMsg', data.plotid);
     if (mode === null) return;
     if (mode === 'merge') {
-      remapUnknownTaxa(data.species);
+      remapPlotTaxa(data);
       const local = localPlotDoc(prev.id);
       if (!local) return;
       openMerge(
@@ -552,6 +564,7 @@ async function finishPlotImport(payload: Extract<ReadRecordImport, { kind: 'plot
         listPlotSpecies(prev.id).map((r) => [r.occurrence_id, parsePhotoUris(r.photo_paths)]),
       );
       prevEnvPhotos = parseEnvPhotos(prev.env_photos_json);
+      prevQuadratPhotos = new Map(listQuadrats(prev.id).map((q) => [q.idx, parseEnvPhotos(q.photo_paths)]));
     }
   }
 
@@ -567,6 +580,13 @@ async function finishPlotImport(payload: Extract<ReadRecordImport, { kind: 'plot
     (data.env_photo_files ?? []).forEach((f, i) => {
       if (prevEnvPhotos[i]) photoUriByName!.set(f, prevEnvPhotos[i]);
     });
+    // Quadrat photos the same way, per quadrat number.
+    for (const q of data.quadrats ?? []) {
+      const had = prevQuadratPhotos.get(q.idx) ?? [];
+      q.photo_files.forEach((f, i) => {
+        if (had[i]) photoUriByName!.set(f, had[i]);
+      });
+    }
   } else if (payload.photos.length > 0) {
     const written = await importPhotos(payload.photos);
     photoUriByName = written.uriByName;
@@ -577,7 +597,7 @@ async function finishPlotImport(payload: Extract<ReadRecordImport, { kind: 'plot
   // question: they are simply written into documentDirectory/audio/.
   const audioUriByName = await importAudioClips(payload.audio);
 
-  const taxa = remapUnknownTaxa(data.species);
+  const taxa = remapPlotTaxa(data);
   // Replacing this device's copy: keep a version of it first (v73).
   if (!newUuid) saveVersionByUuid('plot', data.uuid, 'before_import');
   const { plotId } = importPlotSurvey(data, {

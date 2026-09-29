@@ -22,7 +22,7 @@ import { useActivePlot } from '~/stores/activePlot';
 import { useActiveSession } from '~/stores/activeSession';
 import { importAudioClips } from './audioCapture';
 import { bundleGloria, bundlePlot, bundleSession, type BundleOptions } from './bundleExport';
-import type { MergeKind } from './mergeDocs';
+import { tieQuadratGeometry, type MergeKind } from './mergeDocs';
 import { baseOf, describeMerge, planOps, type Decision, type MergeChange, type MergeItem, type MergeOp, type MergeSide } from './mergeEngine';
 import { importPhotosToLibrary } from './photoCapture';
 import type { ImportedPhotoBlob } from './recordImportZip';
@@ -113,6 +113,8 @@ export async function applyPendingMerge(
   const backup = opts.backup ? await backupBeforeMerge(p.kind, p.localId) : null;
   // Versions around the merge (v73): what it was, what it became.
   saveVersion(p.kind, p.localId, 'before_merge');
+  // A quadrat whose geometry differs is taken whole from one side (mergeDocs).
+  if (p.kind === 'plot') decisions = tieQuadratGeometry(p.items, decisions);
   const ops = planOps(p.items, decisions);
 
   let skippedPhotos = 0;

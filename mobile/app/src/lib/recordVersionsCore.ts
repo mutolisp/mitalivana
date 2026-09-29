@@ -22,18 +22,24 @@ export const DELETED_KEEP_MS = 30 * 24 * 3600 * 1000;
 
 export type VersionMeta = { id: number; reason: VersionReason; content_hash: string; created_at: number; updated_at: number };
 
-export type SavePlan = { kind: 'skip' } | { kind: 'insert' } | { kind: 'update'; id: number };
+export type SavePlan = { kind: 'skip' } | { kind: 'insert' } | { kind: 'update'; id: number } | { kind: 'relabel'; id: number };
 
 /**
  * What to do with a new snapshot given the record's latest version:
  *   - manual: always a new version (the user marks a point, even unchanged);
- *   - same content as the latest: nothing;
+ *   - same content as a latest "leave", saved for any other reason (before a
+ *     restore, an import, a merge …): that version takes the new reason. As a
+ *     leave it would be overwritten by the next leave within 30 minutes, and
+ *     the state before the restore would be gone (2026-09-29);
+ *   - same content as the latest otherwise: nothing;
  *   - a leave within 30 minutes of a leave: that version is updated;
  *   - otherwise a new version.
  */
 export function planSave(latest: VersionMeta | null, hash: string, reason: VersionReason, now: number): SavePlan {
   if (reason === 'manual') return { kind: 'insert' };
-  if (latest && latest.content_hash === hash) return { kind: 'skip' };
+  if (latest && latest.content_hash === hash) {
+    return reason !== 'leave' && latest.reason === 'leave' ? { kind: 'relabel', id: latest.id } : { kind: 'skip' };
+  }
   if (reason === 'leave' && latest?.reason === 'leave' && now - latest.updated_at < LEAVE_MERGE_MS) return { kind: 'update', id: latest.id };
   return { kind: 'insert' };
 }

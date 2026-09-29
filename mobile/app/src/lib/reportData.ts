@@ -34,6 +34,8 @@ import {
 } from '~/modules/gloria/db';
 import type { SpeciesFieldRow, UnitKind } from '~/modules/gloria/model/stats';
 import type { GloriaCycle, GloriaProjectReportInput, GloriaReportInput } from './reportGloria';
+import { listQuadrats, listQuadratSpeciesWithTaxon, parseQuadratConfig } from '~/db/quadrats';
+import type { ReportQuadrat } from './reportQuadrats';
 
 /**
  * Everything a plot report needs, in one pass. Mirrors the assembly
@@ -63,6 +65,27 @@ export function collectPlotReportInput(plotId: number): PlotReportInput | null {
     })),
     species: listPlotSpecies(plot.id),
     trackSegments: parseTrackSegments(plot.track_geojson),
+    ...quadratReportInput(plot),
+  };
+}
+
+/** A fixed plot's quadrats and plot-grid frequency settings, as the report takes them. */
+function quadratReportInput(plot: { id: number; plot_type: string; quadrat_config: string | null }) {
+  if (plot.plot_type !== 'fixed') return {};
+  const cfg = parseQuadratConfig(plot.quadrat_config);
+  const quadrats: ReportQuadrat[] = listQuadrats(plot.id).map((q) => ({
+    ...q,
+    species: listQuadratSpeciesWithTaxon(q.id).map((s) => ({
+      ...s,
+      // Cover is its own column here; the plot-list abundance fields do not apply.
+      organism_quantity: null,
+      organism_quantity_type: null,
+      cells: q.freq_mode === 'count' ? s.freq_count : s.freq_cells != null ? [...s.freq_cells].filter((c) => c === '1').length : null,
+    })),
+  }));
+  return {
+    quadrats,
+    plotFrequency: cfg.freqEnabled ? { gridN: cfg.freqGridN, topEdge: cfg.freqTopEdge, mode: cfg.freqMode } : null,
   };
 }
 

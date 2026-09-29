@@ -60,15 +60,16 @@ export function RecordEditButtons({
   );
 }
 
-/** Shown above a locked record's fields, which then take no touches. */
-export function LockedBanner() {
+/** Shown above a locked record's fields, which then take no touches.
+ *  `text` replaces the default where the unlock is somewhere else (⋯ menu). */
+export function LockedBanner({ text }: { text?: string } = {}) {
   const c = useThemeColors();
   const { t } = useTranslation();
   return (
     <View className="mx-4 mt-3 flex-row items-center rounded-lg border border-gray-200 bg-gray-100 px-3 py-2 dark:border-gray-700 dark:bg-gray-800">
       <Ionicons name="lock-closed" size={14} color={c.ink2} />
       <Text className="ml-2 flex-1 text-xs text-gray-600 dark:text-gray-300">
-        {t('recordLock.banner')}
+        {text ?? t('recordLock.banner')}
       </Text>
     </View>
   );

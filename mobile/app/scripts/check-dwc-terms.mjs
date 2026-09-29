@@ -40,6 +40,7 @@ import {
   buildTaxonArchive,
   OCCURRENCE_COLS,
   buildDwcArchive,
+  linkMeasurements,
 } from '../src/lib/dwcArchive.ts';
 
 let failures = 0;
@@ -369,6 +370,20 @@ if (!MEASUREMENT_COLS.some((c) => c.key === 'occurrenceID')) {
     const got = publishedTaxonId(id);
     if (got === id) fail(`publishedTaxonId(${id}) returned the local id verbatim`);
   }
+}
+
+// eMoF rows reach their event through their occurrence (2026-09-29: leaf
+// phenology and duplicate count had an empty coreid and linked to nothing).
+{
+  const occ = [{ coreEventID: 'P1-Q1', occurrenceID: 'o1' }, { coreEventID: 'P1', occurrenceID: 'o2' }];
+  const m = [
+    { occurrenceID: 'o1', measurementType: 'cover' },
+    { occurrenceID: 'o2', measurementType: 'leafPhenology' },
+    { coreEventID: 'P1-Q2', occurrenceID: '', measurementType: 'surface cover: scree' },
+  ];
+  linkMeasurements(occ, m);
+  const got = m.map((x) => x.coreEventID).join();
+  if (got !== 'P1-Q1,P1,P1-Q2') fail(`linkMeasurements: coreids ${got}, want P1-Q1,P1,P1-Q2`);
 }
 
 if (failures > 0) {

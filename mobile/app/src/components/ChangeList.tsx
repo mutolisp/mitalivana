@@ -5,7 +5,7 @@
  */
 import { useTranslation } from 'react-i18next';
 import { Text, View } from 'react-native';
-import { fieldLabel, fmt } from '~/lib/mergeFormat';
+import { fieldLabel, fmt, rowLabel } from '~/lib/mergeFormat';
 import type { MergeChange } from '~/lib/mergeEngine';
 
 const ACTION_TONE: Record<MergeChange['action'], string> = {
@@ -25,12 +25,12 @@ export function ChangeList({ changes }: { changes: MergeChange[] }) {
           <Text className="text-sm text-gray-900 dark:text-gray-100">
             <Text className={`font-semibold ${ACTION_TONE[c.action]}`}>{actionLabel(c.action)}</Text>
             {'  '}
-            {c.label}
+            {rowLabel(t, c.tbl, c.label)}
             <Text className="text-xs text-gray-500"> · {t(`teamMerge.table.${c.tbl}`)}</Text>
           </Text>
           {c.fields.map((f) => (
             <Text key={f.f} className="text-xs text-gray-600 dark:text-gray-300">
-              {fieldLabel(t, f.f)}：{fmt(f.f, f.from)} → {fmt(f.f, f.to)}
+              {fieldLabel(t, f.f)}：{fmt(f.f, f.from, { t, tbl: c.tbl, key: c.label })} → {fmt(f.f, f.to, { t, tbl: c.tbl, key: c.label })}
             </Text>
           ))}
         </View>

@@ -12,7 +12,6 @@ import { HeaderIconButton } from '~/components/HeaderIconButton';
 import { RecordMenuButton } from '~/components/RecordMenuButton';
 import { HeaderTitleText } from '~/components/HeaderTitleText';
 import { BackHeaderLeft } from '~/lib/goBack';
-import { RecordStepBar } from '~/components/RecordStepBar';
 import { useActivePlot } from '~/stores/activePlot';
 import { useActiveSession } from '~/stores/activeSession';
 import { endGloriaSurvey, reopenGloriaSurvey } from '~/modules/gloria/db';
@@ -342,7 +341,6 @@ export default function GloriaSurveyScreen() {
           />
         ) : null}
       </ScrollView>
-      <RecordStepBar kind="gloria" id={id} />
       <NumAccessory />
 
       {help ? (

@@ -32,12 +32,12 @@ import { findGloriaSurveyFor, localGloriaDoc } from '~/modules/gloria/merge';
 import { ApiError, fetchText } from './apiFetch';
 import { siteToImported } from './bundleExport';
 import { buildPlotYamlDoc, buildSessionYamlDoc } from './bundleYaml';
-import { COMBINERS, gloriaSide, plotSide, sessionSide, type MergeKind } from './mergeDocs';
+import { askQuadratGeometry, COMBINERS, gloriaSide, plotSide, sessionSide, type MergeKind } from './mergeDocs';
 import { prepareRecordMedia, receiveRecordMedia, retryPendingMedia, sendRecordMedia, serverTakesFiles } from './mediaSync';
 import type { MediaEntry } from './mediaRefsCore';
 import { useSyncProgress, withSyncProgress } from '~/stores/syncProgress';
 import { baseOf, diffSides, needsReview, rowHash, type MergeChange, type MergeSide } from './mergeEngine';
-import { remapUnknownTaxa } from './recordCreate';
+import { remapPlotTaxa, remapUnknownTaxa } from './recordCreate';
 import { readRecordImportFromBytes, type ReadRecordImport } from './recordImportZip';
 import {
   aadFor,
@@ -57,6 +57,7 @@ import {
   type TeamKeys,
 } from './teamCrypto';
 import { applyPendingMerge, usePendingMerge, type PendingMerge } from './teamMergeFlow';
+import { quadratsForDoc } from '~/db/quadrats';
 
 export const DEFAULT_SERVER = 'https://sync.mitalivana.org';
 export const SYNC_API_VERSION = 1;
@@ -527,6 +528,7 @@ function recordText(kind: MergeKind, id: number, uuid: string, author: string | 
         subplots: subplots.map((s) => ({ ...s, layers: getSubplotLayers(s.id) })),
         subplotLabelById: new Map(subplots.map((s) => [s.id, s.label])),
         site: site ? siteToImported(site) : null,
+        quadrats: quadratsForDoc(id),
       });
     }
   } else {
@@ -681,7 +683,7 @@ function prepare(kind: MergeKind, localId: number, localUuid: string, payload: R
     remote = sessionSide(payload.session);
     label = d?.name ?? '';
   } else if (kind === 'plot' && payload.kind === 'plot') {
-    remapUnknownTaxa(payload.plot.species);
+    remapPlotTaxa(payload.plot);
     const d = localPlotDoc(localId);
     local = d ? plotSide(d) : null;
     remote = plotSide(payload.plot);
@@ -695,7 +697,8 @@ function prepare(kind: MergeKind, localId: number, localUuid: string, payload: R
     return 'mismatch';
   }
   if (!local) return 'mismatch';
-  const items = diffSides(local, remote, payload.sync?.base ?? null, COMBINERS[kind], getSyncBase(kind, localUuid));
+  const diffed = diffSides(local, remote, payload.sync?.base ?? null, COMBINERS[kind], getSyncBase(kind, localUuid));
+  const items = kind === 'plot' ? askQuadratGeometry(diffed, local) : diffed;
   if (items.length === 0) {
     setSyncBase(kind, localUuid, baseOf(remote));
     return 'same';
@@ -1054,7 +1057,7 @@ async function pullTeamRecordsNow(teamId: string): Promise<{ imported: number; l
       remapUnknownTaxa(payload.session.records);
       newId = importSession(payload.session, { newUuid: false }).sessionId;
     } else if (payload.kind === 'plot') {
-      remapUnknownTaxa(payload.plot.species);
+      remapPlotTaxa(payload.plot);
       newId = importPlotSurvey(payload.plot, { newUuid: false }).plotId;
     } else {
       if (validateGloriaDoc(payload.gloria).length) continue;

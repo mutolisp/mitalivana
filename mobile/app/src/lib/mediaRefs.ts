@@ -30,6 +30,8 @@ function specs(kind: MergeKind): TableSpec[] {
   if (kind === 'plot')
     return [
       { table: 'plot_species_records', key: 'occurrence_id', cols: colsOf('plot_species_records'), where: 'plot_survey_id = ?' },
+      // Quadrats (v77) by number, as the merge keys them.
+      { table: 'plot_quadrats', key: 'idx', cols: colsOf('plot_quadrats'), where: 'plot_survey_id = ?' },
       { table: 'plot_surveys', key: null, cols: colsOf('plot_surveys'), where: 'id = ?' },
     ];
   return [

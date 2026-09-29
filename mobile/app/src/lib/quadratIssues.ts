@@ -30,3 +30,37 @@ export function coverFreqIssues(species: readonly QuadratSpeciesCheck[]): CoverF
   }
   return out;
 }
+
+/**
+ * A plot species record's dominance is there when it holds any value — a
+ * cover %, a Braun-Blanquet class, a count, DBH stems. Zero and an empty
+ * stem list are not a value.
+ */
+export function hasQuantity(q: string | null | undefined): boolean {
+  if (q == null) return false;
+  const v = q.trim();
+  return v !== '' && v !== '[]' && v !== '0';
+}
+
+/**
+ * The same rule for the fixed plot's own frequency (v78): a record with
+ * frequency should have a dominance, and one with a dominance should have
+ * frequency. Only once any record has frequency at all — before that the
+ * frequency simply has not been done. Layer 'T' (transects) never has any.
+ */
+export function plotFreqIssues<R extends { organism_quantity: string | null; freq_cells: string | null; freq_count: number | null; layer: string }>(
+  records: readonly R[],
+  mode: 'cells' | 'count',
+): { domNoFreq: R[]; freqNoDom: R[] } {
+  const cellsOf = (r: R) => (mode === 'count' ? (r.freq_count ?? 0) : [...(r.freq_cells ?? '')].filter((c) => c === '1').length);
+  const rs = records.filter((r) => r.layer !== 'T');
+  const out = { domNoFreq: [] as R[], freqNoDom: [] as R[] };
+  if (!rs.some((r) => cellsOf(r) > 0)) return out;
+  for (const r of rs) {
+    const dom = hasQuantity(r.organism_quantity);
+    const cells = cellsOf(r);
+    if (dom && cells === 0) out.domNoFreq.push(r);
+    else if (!dom && cells > 0) out.freqNoDom.push(r);
+  }
+  return out;
+}

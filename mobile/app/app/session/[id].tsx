@@ -20,7 +20,6 @@ import {
   View,
 } from 'react-native';
 import { KeyboardStickyView } from '~/components/KeyboardAvoidingView';
-import { RecordStepBar } from '~/components/RecordStepBar';
 import { HeaderIconButton } from '~/components/HeaderIconButton';
 import { RecordMenuButton } from '~/components/RecordMenuButton';
 import { HeaderTitleText } from '~/components/HeaderTitleText';
@@ -1168,8 +1167,8 @@ export default function SessionDetailScreen() {
         )}
       </View>
       {/* Sits directly above the search box it is talking about ("pick one
-          below"), which also puts Cancel in the thumb zone. Like RecordStepBar
-          it must stay ABOVE the KeyboardStickyView. */}
+          below"), which also puts Cancel in the thumb zone. It must stay ABOVE
+          the KeyboardStickyView. */}
       {replaceTarget ? (
         <View className="flex-row items-center border-t border-amber-200 bg-amber-50 px-4 py-2 dark:border-amber-900 dark:bg-amber-950/40">
           <Ionicons name="swap-horizontal" size={14} color="#d97706" />
@@ -1185,9 +1184,6 @@ export default function SessionDetailScreen() {
           </Pressable>
         </View>
       ) : null}
-      {/* Above the dock on purpose — chrome BELOW a KeyboardStickyView is what
-          its `offset.opened` compensates for. */}
-      <RecordStepBar kind="session" id={sessionId} />
       {/* While selecting, the actions take the dock's place (05-controls.md §2.1). */}
       {selection.selectMode ? (
         <SelectionDock

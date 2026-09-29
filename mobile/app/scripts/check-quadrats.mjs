@@ -18,6 +18,11 @@ import { runUserMigrations } from '../src/db/migrations.ts';
 import { restoreRecordSnapshotIn, sameSnapshot, snapshotRecordIn } from '../src/db/recordSnapshotCore.ts';
 import { CASCADE_ORPHANS, NULL_DANGLING } from '../src/db/integrityRules.ts';
 import * as q from '../src/db/quadratsCore.ts';
+import { quadratProgress } from '../src/lib/quadratProgress.ts';
+import { hasQuantity, plotFreqIssues } from '../src/lib/quadratIssues.ts';
+import { compactSpeciesLabel, shortSciName } from '../src/lib/speciesLabel.ts';
+import { quadratsFromYaml } from '../src/lib/quadratYaml.ts';
+import { buildPlotFrequencyCsv, buildQuadratsCsv, buildQuadratSurfaceCsv, cellColumns, quadratEventIds } from '../src/lib/quadratCsv.ts';
 
 let failed = 0;
 const ok = (cond, msg) => {
@@ -114,8 +119,9 @@ q.setQuadratCount(db, pSub, 3, 2, uuid);
 ok(q.listQuadrats(db, pSub).map((x) => x.subplot_id).join() === subs.join(), 'perSubplot: one quadrat in each subplot, in order');
 
 // ── geometry lock, record lock, validation ───────────────────────────────
-q.updateQuadrat(db, q1.id, { grid_n: 8, top_edge: 'E', size_m: 2 }, 40);
-ok(one('SELECT grid_n, top_edge, size_m FROM plot_quadrats WHERE id = ?', q1.id).grid_n === 8, 'geometry: an empty quadrat can change');
+q.updateQuadrat(db, q1.id, { top_edge: 'E', size_m: 2 }, 40);
+ok(one('SELECT top_edge, size_m FROM plot_quadrats WHERE id = ?', q1.id).top_edge === 'E', 'geometry: an empty quadrat can change size and top edge');
+throwsCode(() => q.updateQuadrat(db, q1.id, { grid_n: 8 }, 40), 'invalid', 'geometry: one quadrat cannot take its own grid (the grid is the plot\'s)');
 throwsCode(() => q.updateQuadrat(db, q5.id, { grid_n: 8 }, 41), 'geometry-locked', 'geometry: a quadrat with species keeps its grid');
 throwsCode(() => q.updateQuadrat(db, q4.id, { top_edge: 'S' }, 41), 'geometry-locked', 'geometry: a quadrat with a note keeps its top edge');
 q.updateQuadrat(db, q5.id, { grid_n: 5, cov_vascular: 40 }, 42);
@@ -179,6 +185,184 @@ sqlite.prepare(`DELETE FROM plot_subplots WHERE id = ?`).run(subs[0]); // SET NU
 sqlite.prepare(`DELETE FROM plot_surveys WHERE id = ?`).run(pid);
 ok(one('SELECT COUNT(*) AS n FROM plot_quadrats WHERE plot_survey_id = ?', pid).n === 0, 'delete: the plot takes its quadrats');
 ok(one('SELECT COUNT(*) AS n FROM plot_quadrat_species WHERE quadrat_id = ?', q5.id).n === 0, 'delete: and their species');
+
+// ── layout / geometry changes, frequency mode, colours, previous survey ─
+const p3 = newPlot('P3');
+q.setQuadratConfig(db, p3, { enabled: true }, 1);
+q.setQuadratCount(db, p3, 3, 2, uuid);
+const s3 = [1, 2].map((i) => Number(sqlite.prepare(`INSERT INTO plot_subplots (plot_survey_id, idx, label, created_at) VALUES (?, ?, ?, 1)`).run(p3, i, `S${i}`).lastInsertRowid));
+q.setQuadratConfig(db, p3, { layout: 'perSubplot' }, 3);
+q.applyLayout(db, p3, 3);
+ok(q.listQuadrats(db, p3).map((x) => `${x.subplot_id}:${x.position}`).join() === `${s3[0]}:null,${s3[1]}:null,null:null`, 'layout: one per subplot moves them into the subplots in order');
+q.setQuadratConfig(db, p3, { layout: 'cornersCenter' }, 4);
+q.applyLayout(db, p3, 4);
+ok(q.listQuadrats(db, p3).map((x) => x.position).join() === 'NW,NE,C', 'layout: corners + centre renames them');
+const [a3, b3] = q.listQuadrats(db, p3);
+const sa = q.addQuadratSpecies(db, a3.id, 't7', 5);
+ok(q.gridChangeable(db, p3), 'grid: changeable while no quadrat has frequency data');
+q.setQuadratConfig(db, p3, { gridN: 6, topEdge: 'upslope' }, 6);
+ok(q.applyGeometryDefaults(db, p3, 6) === 1, 'geometry defaults: the quadrat with data keeps its top edge (counted)');
+ok(q.getQuadrat(db, a3.id).grid_n === 6 && q.getQuadrat(db, b3.id).grid_n === 6, 'geometry defaults: the grid reaches every quadrat');
+ok(q.getQuadrat(db, a3.id).top_edge === 'N' && q.getQuadrat(db, b3.id).top_edge === 'upslope', 'geometry defaults: top edge only on empty quadrats');
+q.updateQuadratSpecies(db, sa, { freq_cells: '1' + '0'.repeat(35) }, 7);
+ok(!q.gridChangeable(db, p3), 'grid: fixed once a quadrat has frequency data');
+q.switchFreqMode(db, a3.id, 'count', 8);
+ok(q.getQuadrat(db, a3.id).freq_mode === 'count' && one('SELECT freq_cells FROM plot_quadrat_species WHERE id = ?', sa).freq_cells === null, 'freq mode: to counts clears the cells');
+q.updateQuadratSpecies(db, sa, { freq_count: 4 }, 9);
+q.switchFreqMode(db, a3.id, 'cells', 10);
+ok(one('SELECT freq_count FROM plot_quadrat_species WHERE id = ?', sa).freq_count === null, 'freq mode: back to cells clears the counts');
+q.setQuadratLocked(db, a3.id, true, 11);
+throwsCode(() => q.switchFreqMode(db, a3.id, 'count', 12), 'locked', 'freq mode: refused when locked');
+q.addQuadratSpecies(db, b3.id, 't8', 13);
+q.addQuadratSpecies(db, b3.id, 't7', 14);
+
+sqlite.prepare(`UPDATE plot_surveys SET start_ts = 1000 WHERE id = ?`).run(p3);
+const p4 = Number(sqlite.prepare(`INSERT INTO plot_surveys (uuid, plotid, project_id, status, plot_type, start_ts, created_at, updated_at) VALUES ('u-p4', ' P3 ', 0, 'active', 'fixed', 2000, 1, 1)`).run().lastInsertRowid);
+ok(q.previousQuadratTaxa(db, p4, 1).join() === 't7' && q.previousQuadratTaxa(db, p4, 2).join() === 't8,t7', 'previous: same plotid, same quadrat number, names in order');
+ok(q.previousQuadratTaxa(db, p3, 1).length === 0, 'previous: nothing before the first survey');
+
+// ── status and list numbers (lib/quadratProgress) ───────────────────────
+const blank = { locked: 0, freq_mode: 'cells', cov_vascular: null, cov_solid_rock: null, cov_scree: null, cov_lichens: null, cov_bryophytes: null, cov_bare_ground: null, cov_litter: null };
+const on = { cover: true, freq: true };
+const sp = (name, cover_pct, cells) => ({ name, cover_pct, freq_cells: cells == null ? null : '1'.repeat(cells) + '0'.repeat(100 - cells), freq_count: null });
+ok(quadratProgress(blank, [], on).status === 'none', 'status: nothing recorded → none');
+ok(quadratProgress({ ...blank, cov_scree: 0 }, [], on).status === 'progress', 'status: a surface value alone → progress');
+ok(quadratProgress(blank, [sp('A', 30, null), sp('B', 5, null)], on).status === 'progress', 'status: cover typed, frequency not begun → no mismatch yet');
+const mix = quadratProgress(blank, [sp('A', 30, 4), sp('B', 5, null)], on);
+ok(mix.status === 'warn' && mix.missingFreq && !mix.missingCover && mix.withFreq === 1 && mix.covered === 2, 'status: both begun, one species without frequency → warn, missing frequency');
+ok(quadratProgress(blank, [sp('A', 30, 4), sp('B', 5, null)], { cover: true, freq: false }).status === 'progress', 'status: no mismatch when frequency is not recorded');
+ok(quadratProgress({ ...blank, locked: 1 }, [sp('A', 30, 4), sp('B', 5, null)], on).status === 'done', 'status: locked → done');
+ok(quadratProgress({ ...blank, freq_mode: 'count' }, [{ name: 'A', cover_pct: 3, freq_cells: null, freq_count: 7 }], on).withFreq === 1, 'status: count mode reads the counts');
+
+// ── merging plots (mergePlotSurveys): one source per quadrat number ─────
+{
+  const m1 = newPlot('M1');
+  const m2 = newPlot('M2');
+  q.setQuadratConfig(db, m1, { enabled: true, gridN: 4 }, 1);
+  q.setQuadratConfig(db, m2, { enabled: true, gridN: 7 }, 1);
+  q.setQuadratCount(db, m1, 2, 2, uuid);
+  q.setQuadratCount(db, m2, 3, 2, uuid);
+  const [m1q1] = q.listQuadrats(db, m1);
+  const [m2q1, m2q2, m2q3] = q.listQuadrats(db, m2);
+  q.addQuadratSpecies(db, m1q1.id, 'a1', 3);
+  q.addQuadratSpecies(db, m2q1.id, 'b1', 3);
+  const b2 = q.addQuadratSpecies(db, m2q2.id, 'b2', 3);
+  q.updateQuadratSpecies(db, b2, { cover_pct: 6, freq_cells: '1'.repeat(49) }, 3);
+  q.addQuadratSpecies(db, m2q3.id, 'b3', 3);
+  const m2sub = Number(sqlite.prepare(`INSERT INTO plot_subplots (plot_survey_id, idx, label, created_at) VALUES (?, 1, 'S1', 1)`).run(m2).lastInsertRowid);
+  sqlite.prepare(`UPDATE plot_quadrats SET subplot_id = ? WHERE id = ?`).run(m2sub, m2q3.id);
+  const merged = newPlot('M');
+  const msub = Number(sqlite.prepare(`INSERT INTO plot_subplots (plot_survey_id, idx, label, created_at) VALUES (?, 1, 'S1', 1)`).run(merged).lastInsertRowid);
+  q.copyMergedQuadrats(db, [m1, m2], merged, (src, old) => (src === m2 && old === m2sub ? msub : null), 9, uuid);
+  const mq = q.listQuadrats(db, merged);
+  ok(q.getQuadratConfig(db, merged).gridN === 4, 'merge plots: settings from the primary');
+  ok(mq.map((x) => `${x.idx}:${q.listQuadratSpecies(db, x.id).map((y) => y.taxon_id).join('+')}`).join() === '1:a1,2:b2,3:b3', 'merge plots: primary\'s Q1, the other\'s Q2 (primary empty) and Q3');
+  ok(mq.every((x) => x.grid_n === 4) && mq[2].subplot_id === msub, 'merge plots: one grid (the primary\'s) for every quadrat; subplot re-pointed');
+  const mb2 = q.listQuadratSpecies(db, mq[1].id)[0];
+  ok(mb2.cover_pct === 6 && mb2.freq_cells === null, 'merge plots: a quadrat from another grid keeps its cover, not its cells');
+  ok(new Set(mq.map((x) => x.uuid)).size === 3 && !mq.some((x) => [m1q1.uuid, m2q2.uuid, m2q3.uuid].includes(x.uuid)), 'merge plots: new uuids');
+}
+
+// ── one grid per plot after an import or a merge (normalizeGrid) ────────
+{
+  const pn = newPlot('N');
+  q.setQuadratConfig(db, pn, { enabled: true, gridN: 3 }, 1);
+  const qa = q.writeQuadratRow(db, pn, { idx: 1, label: 'Q1', position: null, size_m: 1, grid_n: 3, top_edge: 'N', lat: null, lng: null, accuracy: null, cov_vascular: null, cov_solid_rock: null, cov_scree: null, cov_lichens: null, cov_bryophytes: null, cov_bare_ground: null, cov_litter: null, freq_mode: 'cells', locked: 0, started_at: null, ended_at: null, notes: null }, { uuid: uuid(), subplotId: null, photoPaths: null, now: 1 });
+  const qb = q.writeQuadratRow(db, pn, { idx: 2, label: 'Q2', position: null, size_m: 1, grid_n: 5, top_edge: 'N', lat: null, lng: null, accuracy: null, cov_vascular: null, cov_solid_rock: null, cov_scree: null, cov_lichens: null, cov_bryophytes: null, cov_bare_ground: null, cov_litter: null, freq_mode: 'cells', locked: 0, started_at: null, ended_at: null, notes: null }, { uuid: uuid(), subplotId: null, photoPaths: null, now: 1 });
+  q.writeQuadratSpeciesRow(db, qa, { taxon_id: 'x', cover_pct: 2, freq_cells: '101010101', freq_count: null, height_cm: null, notes: null }, 1);
+  q.writeQuadratSpeciesRow(db, qb, { taxon_id: 'y', cover_pct: 3, freq_cells: '1'.repeat(25), freq_count: 40, height_cm: null, notes: null }, 1);
+  q.normalizeGrid(db, pn, 2);
+  ok(q.listQuadrats(db, pn).every((x) => x.grid_n === 3), 'normalize: every quadrat on the config\'s grid');
+  const [nx, ny] = [q.listQuadratSpecies(db, qa)[0], q.listQuadratSpecies(db, qb)[0]];
+  ok(nx.freq_cells === '101010101' && ny.freq_cells === null && ny.cover_pct === 3 && ny.freq_count === 9, 'normalize: fitting mask kept, other mask dropped, cover kept, count capped');
+}
+
+// ── frequency over the whole plot (v78) ─────────────────────────────────
+{
+  const pf = newPlot('F');
+  const cfg0 = q.getQuadratConfig(db, pf);
+  ok(!cfg0.freqEnabled && cfg0.freqGridN === 10 && cfg0.freqMode === 'cells', 'plot freq: off by default, 10 × 10, cells');
+  q.setQuadratConfig(db, pf, { freqEnabled: true, freqGridN: 3, freqTopEdge: 'W' }, 1);
+  const rec = (taxon, layer) => Number(sqlite.prepare(`INSERT INTO plot_species_records (plot_survey_id, taxon_id, layer, observed_at, created_at) VALUES (?, ?, ?, 1, 1)`).run(pf, taxon, layer).lastInsertRowid);
+  const r1 = rec('t1', 'E2');
+  const r2 = rec('t1', 'E3');
+  ok(q.plotFreqChangeable(db, pf), 'plot freq: grid changeable before any frequency');
+  throwsCode(() => q.setPlotSpeciesFreq(db, r1, { freq_cells: '1'.repeat(100) }, 2), 'invalid', 'plot freq: a mask for another grid refused');
+  q.setPlotSpeciesFreq(db, r1, { freq_cells: '110000001' }, 3);
+  q.setPlotSpeciesFreq(db, r2, { freq_count: 50 }, 3);
+  const got = (id) => one('SELECT freq_cells, freq_count FROM plot_species_records WHERE id = ?', id);
+  ok(got(r1).freq_cells === '110000001' && got(r2).freq_count === 9, 'plot freq: one per record (same taxon, two layers); count capped at 9');
+  ok(one('SELECT updated_at FROM plot_surveys WHERE id = ?', pf).updated_at === 3, 'plot freq: a write stamps the plot');
+  ok(!q.plotFreqChangeable(db, pf), 'plot freq: grid fixed once a record has frequency');
+  q.switchPlotFreqMode(db, pf, 'count', 4);
+  ok(q.getQuadratConfig(db, pf).freqMode === 'count' && got(r1).freq_cells === null && got(r2).freq_count === 9, 'plot freq: to counts clears the cells, keeps counts');
+  q.switchPlotFreqMode(db, pf, 'cells', 5);
+  ok(got(r2).freq_count === null, 'plot freq: back to cells clears the counts');
+  sqlite.prepare(`UPDATE plot_species_records SET freq_cells = ?, freq_count = 20 WHERE id = ?`).run('1'.repeat(16), r1);
+  q.normalizePlotFreq(db, pf);
+  ok(got(r1).freq_cells === null && got(r1).freq_count === 9, 'plot freq: after import / merge, a mask for another grid is dropped, a count capped');
+}
+
+// ── the yml parser coerces instead of throwing (lib/quadratYaml) ────────
+{
+  const parsed = quadratsFromYaml([
+    { idx: 2, grid_n: 11, top_edge: 'X', size_m: -3, cov_scree: 140, species: [{ taxon_id: 'a', cover_pct: 0, freq_cells: '1'.repeat(100), freq_count: 999 }, { taxon_id: 'a' }] },
+    { idx: 2, label: 'dup' },
+    { idx: 0 },
+    { idx: 1, grid_n: 3, locked: 1, photo_files: 'x.jpg|y.jpg', species: [{ taxon_id: 'b', freq_cells: '101010101' }] },
+  ]);
+  ok(parsed.map((x) => x.idx).join() === '1,2', 'yml: sorted, duplicate and invalid numbers dropped');
+  const [p1, p2] = parsed;
+  ok(p2.grid_n === 10 && p2.top_edge === 'N' && p2.size_m === 1 && p2.cov_scree === null, 'yml: bad grid / edge / size / cover fall back');
+  ok(p2.species.length === 1 && p2.species[0].cover_pct === null && p2.species[0].freq_cells === '1'.repeat(100) && p2.species[0].freq_count === 100, 'yml: 0 % dropped, a fitting mask kept, count clamped, duplicate taxon dropped');
+  ok(p1.species[0].freq_cells === '101010101' && p1.locked === 1 && p1.photo_files.join() === 'x.jpg,y.jpg', 'yml: mask of its own grid, lock and photos read');
+  ok(quadratsFromYaml([{ idx: 1, grid_n: 3, species: [{ taxon_id: 'c', freq_cells: '1'.repeat(100) }] }])[0].species[0].freq_cells === null, 'yml: a mask for another grid is dropped, never stretched');
+  ok(quadratsFromYaml(undefined).length === 0, 'yml: no quadrats key → none');
+}
+
+// ── CSV (lib/quadratCsv) ─────────────────────────────────────────────────
+{
+  ok(cellColumns(2).join() === 'f11,f12,f21,f22' && cellColumns(10).at(-1) === 'f1010', 'csv: cell columns f{row}{col}, 1-based (… f1010)');
+  ok(JSON.stringify(quadratEventIds('P', 'Q1', 'S2')) === JSON.stringify({ eventID: 'P-S2-Q1', parentEventID: 'P-S2' }) && quadratEventIds('P', 'Q1', null).parentEventID === 'P', 'csv: a quadrat in a subplot hangs under the subplot event');
+  const base = { idx: 1, uuid: 'u', label: 'Q1', position: 'NW', subplot_id: 7, size_m: 1, grid_n: 2, top_edge: 'N', lat: null, lng: null, accuracy: null,
+    cov_vascular: 60, cov_solid_rock: 40, cov_scree: null, cov_lichens: null, cov_bryophytes: null, cov_bare_ground: null, cov_litter: null,
+    freq_mode: 'cells', locked: 1, started_at: null, ended_at: null, notes: 'a,b', photo_paths: null,
+    species: [
+      { taxon_id: 't0001', simple_name: 'A a', common_name_c: '甲', cover_pct: 10, freq_cells: '1001', freq_count: null, height_cm: null, notes: null },
+      { taxon_id: 't0002', simple_name: 'B b', common_name_c: '乙', cover_pct: 5, freq_cells: null, freq_count: null, height_cm: null, notes: null },
+    ] };
+  const lines = buildQuadratsCsv('P', [base], new Map([[7, 'S1']])).replace(/^\uFEFF/, '').split('\n');
+  const head = lines[0].split(',');
+  const col = (line, name) => line.split(',')[head.indexOf(name)];
+  ok(head.slice(-4).join() === 'f11,f12,f21,f22', 'csv: cell columns at the end');
+  ok(col(lines[1], 'eventID') === 'P-S1-Q1' && col(lines[1], 'freq_cells') === '2' && col(lines[1], 'freq_pct') === '50', 'csv: species row with count and %');
+  ok(lines[1].endsWith(',1,0,0,1') && lines[2].endsWith(',,,,'), 'csv: cells as 1/0; no frequency → blank cells');
+  const surf = buildQuadratSurfaceCsv('P', [base], new Map([[7, 'S1']]), (ts) => String(ts)).replace(/^\uFEFF/, '').split('\n');
+  const sh = surf[0].split(',');
+  ok(surf[1].split(',')[sh.indexOf('cov_sum')] === '100' && surf[1].includes('"a,b"'), 'surface csv: sum of the seven, commas quoted');
+  const fr = buildPlotFrequencyCsv('P', { n: 2, topEdge: 'E', mode: 'cells' }, [
+    { occurrence_id: 'o1', taxon_id: 't0001', layer: 'E2', organism_quantity: '20', organism_quantity_type: '% cover', freq_cells: '0110', freq_count: null },
+    { occurrence_id: 'o2', taxon_id: 't0002', layer: 'E3', organism_quantity: null, organism_quantity_type: null, freq_cells: null, freq_count: null },
+  ]).replace(/^\uFEFF/, '').split('\n');
+  ok(fr.length === 2 && fr[1].startsWith('P,o1,') && fr[1].endsWith(',E,2,50,0,1,1,0'), 'plot frequency csv: only records with frequency; grid, edge, count, %, cells');
+}
+
+{
+  // Plot frequency ⇄ dominance (the 頻度 and 物種 tabs' banner) and the short labels of the cell chips.
+  ok(!hasQuantity(null) && !hasQuantity('') && !hasQuantity('[]') && !hasQuantity('0') && hasQuantity('+') && hasQuantity('[12.5]') && hasQuantity('3'), 'hasQuantity: BB class, stems, count count; 0 / [] / empty do not');
+  const r = (id, q, cells, count = null, layer = 'E2') => ({ id, organism_quantity: q, freq_cells: cells, freq_count: count, layer });
+  const none = plotFreqIssues([r(1, '20', '0000'), r(2, null, null)], 'cells');
+  ok(none.domNoFreq.length === 0 && none.freqNoDom.length === 0, 'plot freq issues: nothing before any frequency is recorded');
+  const got = plotFreqIssues([r(1, '20', '0000'), r(2, null, '0100'), r(3, 'r', '1000'), r(4, '5', null, null, 'T')], 'cells');
+  ok(got.domNoFreq.map((x) => x.id).join() === '1' && got.freqNoDom.map((x) => x.id).join() === '2', 'plot freq issues: dominance without cells, cells without dominance; T ignored');
+  const byCount = plotFreqIssues([r(1, '20', null, 0), r(2, null, null, 3)], 'count');
+  ok(byCount.domNoFreq.length === 1 && byCount.freqNoDom.length === 1, 'plot freq issues: count mode reads freq_count');
+  ok(shortSciName('Yushania niitakayamensis') === 'Y. niitakayamensis', 'short name: genus to an initial');
+  ok(shortSciName('Carex sp.') === 'Carex sp.' && shortSciName('Carex') === 'Carex' && shortSciName('Rubus × hybrida') === 'Rubus × hybrida', 'short name: sp., a bare genus and a hybrid stay whole');
+  ok(shortSciName('Rubus rolfei var. rolfei') === 'R. rolfei var. rolfei', 'short name: infraspecific keeps its rank');
+  ok(compactSpeciesLabel({ cname: '玉山箭竹', sci: 'Yushania niitakayamensis', fallback: 'x' }) === '玉山箭竹', 'label: vernacular name first');
+  ok(compactSpeciesLabel({ cname: null, sci: 'Carex brunnea', qualifier: 'sp.1', fallback: 'x' }) === 'C. brunnea sp.1', 'label: no vernacular → short scientific name, then the qualifier');
+}
 
 sqlite.close();
 if (failed) {

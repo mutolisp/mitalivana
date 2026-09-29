@@ -29,8 +29,9 @@ import {
   parseMultiAttribute,
   threatStatusDwcValue,
 } from './dwcMultiValue';
-import { buildDwcArchive, buildTaxonArchive, type DwcRow } from './dwcArchive';
+import { buildDwcArchive, buildTaxonArchive, linkMeasurements, type DwcRow } from './dwcArchive';
 import { locationTerms } from './dwcLocation';
+import { listQuadrats, listQuadratSpeciesWithTaxon, parseQuadratConfig, SURFACE_COLUMNS, type QuadratSpeciesWithTaxon } from '../db/quadrats';
 
 /**
  * One eMoF row per leaf-phenology value of one occurrence.
@@ -216,6 +217,119 @@ export type RecordsDwca = { records: Uint8Array; taxa: Uint8Array | null };
  * project export uses — the alternative was a second, drifting copy of the
  * Event/Occurrence/Humboldt mapping.
  */
+/** English names of the surface-cover categories, for eMoF measurementType. */
+const SURFACE_TYPE: Record<(typeof SURFACE_COLUMNS)[number], string> = {
+  cov_vascular: 'surface cover: vascular plants',
+  cov_solid_rock: 'surface cover: solid rock',
+  cov_scree: 'surface cover: scree',
+  cov_lichens: 'surface cover: lichens',
+  cov_bryophytes: 'surface cover: bryophytes',
+  cov_bare_ground: 'surface cover: bare ground',
+  cov_litter: 'surface cover: litter',
+};
+
+/**
+ * A fixed plot's quadrats (v77, 06-plot-quadrats.md §4): each is a child
+ * event — under its subplot's event when it sits in one (plot → subplot →
+ * quadrat), else under the plot's — with its species as occurrences. Cover
+ * and frequency are eMoF rows on the occurrence (unit %); surface cover is an
+ * eMoF row on the quadrat's event, with no occurrenceID, which the extension
+ * allows ("If not applicable, it should be left empty":
+ * extended_measurement_or_fact_2023-08-28.xml, checked 2026-09-29). The
+ * occurrenceID is quadrat uuid + taxon, so a re-export keeps it.
+ */
+function quadratRows(
+  p: PlotSurvey,
+  plotEventID: string,
+  subplotEventById: ReadonlyMap<number, string>,
+  uniqueEventId: (base: string) => string,
+  out: { events: DwcRow[]; occurrences: DwcRow[]; measurements: DwcRow[] },
+  collect: (r: QuadratSpeciesWithTaxon) => void,
+): void {
+  for (const q of listQuadrats(p.id)) {
+    const parent = (q.subplot_id != null ? subplotEventById.get(q.subplot_id) : null) ?? plotEventID;
+    const eventID = uniqueEventId(`${parent}-${q.label}`);
+    const n = q.grid_n;
+    out.events.push({
+      eventID,
+      parentEventID: parent,
+      eventDate: eventDateOf(q.started_at ?? p.start_ts, q.ended_at ?? p.stop_ts),
+      samplingProtocol: `quadrat ${q.size_m} × ${q.size_m} m, ${n} × ${n} cells: cover and frequency`,
+      sampleSizeValue: q.size_m * q.size_m,
+      sampleSizeUnit: 'm²',
+      decimalLatitude: q.lat,
+      decimalLongitude: q.lng,
+      coordinateUncertaintyInMeters: q.accuracy,
+      recordedBy: p.recorded_by,
+      eventRemarks: q.notes,
+    });
+    for (const c of SURFACE_COLUMNS) {
+      const v = q[c];
+      if (v == null) continue;
+      out.measurements.push({ coreEventID: eventID, measurementID: `${q.uuid}:${c}`, occurrenceID: '', measurementType: SURFACE_TYPE[c], measurementValue: String(v), measurementUnit: '%' });
+    }
+    for (const s of listQuadratSpeciesWithTaxon(q.id)) {
+      const occurrenceID = `${q.uuid}:${s.taxon_id}`;
+      out.occurrences.push({
+        coreEventID: eventID,
+        occurrenceID,
+        basisOfRecord: 'HumanObservation',
+        taxonID: publishedTaxonId(s.taxon_id),
+        scientificName: s.simple_name,
+        scientificNameAuthorship: s.name_author,
+        vernacularName: s.common_name_c,
+        family: s.family,
+        kingdom: s.kingdom,
+        taxonRank: s.rank,
+        phylum: s.phylum,
+        class: s.class,
+        order: s.order,
+        genus: s.genus,
+        occurrenceRemarks: s.notes,
+        modified: localIso(s.updated_at),
+      });
+      if (s.cover_pct != null) {
+        out.measurements.push({ coreEventID: eventID, measurementID: `${occurrenceID}:cover`, occurrenceID, measurementType: 'cover', measurementValue: String(s.cover_pct), measurementUnit: '%' });
+      }
+      const cells = q.freq_mode === 'count' ? s.freq_count : s.freq_cells != null ? [...s.freq_cells].filter((ch) => ch === '1').length : null;
+      if (cells != null) {
+        out.measurements.push({
+          coreEventID: eventID,
+          measurementID: `${occurrenceID}:frequency`,
+          occurrenceID,
+          measurementType: 'frequency',
+          measurementValue: String(Math.round((cells / (n * n)) * 10000) / 100),
+          measurementUnit: '%',
+          measurementMethod: `${cells} of ${n} × ${n} cells`,
+        });
+      }
+      collect(s);
+    }
+  }
+}
+
+/**
+ * Frequency over the whole plot (v78) as an eMoF row on the plot occurrence:
+ * the share of the plot grid's cells the record occupies, unit %.
+ */
+function plotFrequencyRows(p: PlotSurvey, r: { occurrence_id: string; freq_cells: string | null; freq_count: number | null }): DwcRow[] {
+  const cfg = parseQuadratConfig(p.quadrat_config);
+  if (p.plot_type !== 'fixed' || !cfg.freqEnabled) return [];
+  const n = cfg.freqGridN;
+  const cells = cfg.freqMode === 'count' ? r.freq_count : r.freq_cells && r.freq_cells.length === n * n ? [...r.freq_cells].filter((ch) => ch === '1').length : null;
+  if (cells == null) return [];
+  return [
+    {
+      measurementID: `${r.occurrence_id}:frequency`,
+      occurrenceID: r.occurrence_id,
+      measurementType: 'frequency',
+      measurementValue: String(Math.round((cells / (n * n)) * 10000) / 100),
+      measurementUnit: '%',
+      measurementMethod: `${cells} of ${n} × ${n} cells over the plot`,
+    },
+  ];
+}
+
 export function buildRecordsDwca({
   title,
   abstract,
@@ -332,7 +446,11 @@ export function buildRecordsDwca({
         modified: r.updated_at != null ? localIso(r.updated_at) : '',
       });
       measurements.push(...leafPhenologyRows(r.occurrence_id, r.leaf_phenology));
+      measurements.push(...plotFrequencyRows(p, r));
       collectTaxon(taxonAcc, r);
+    }
+    if (p.plot_type === 'fixed') {
+      quadratRows(p, eventID, subplotEventById, uniqueEventId, { events, occurrences, measurements }, (r) => collectTaxon(taxonAcc, { ...r, used_status: '', used_accepted_name: '' }));
     }
   }
 
@@ -464,6 +582,8 @@ export function buildRecordsDwca({
       collectTaxon(taxonAcc, sp);
     }
   }
+
+  linkMeasurements(occurrences, measurements);
 
   const now = new Date();
   const meta = {
