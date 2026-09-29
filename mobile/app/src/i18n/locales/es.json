@@ -2945,9 +2945,6 @@
       "sub_bry_below_vasc": "Briófitos · bajo vasculares",
       "sub_bry_on_rock": "Briófitos · sobre roca",
       "sub_bry_on_scree": "Briófitos · sobre pedregal",
-      "none": "No",
-      "prev": "Elemento anterior",
-      "next": "Elemento siguiente",
       "short": {
         "cov_vascular": "Vasc",
         "cov_solid_rock": "Roca",
@@ -3072,18 +3069,12 @@
     "freq": {
       "title": "{{code}} · frecuencia",
       "undo": "Deshacer",
-      "brush": "Pincel",
-      "cellMode": "Celda a celda",
       "uphill": "▲ Hacia la cumbre (cuesta arriba)",
       "gridLabel": "Cuadrícula de frecuencia 10×10",
       "hi1": "Hi1 excrementos",
       "hi2": "Hi2 ramoneo",
       "hi3": "Hi3 pisoteo",
       "newSpecies": "+ Nueva especie",
-      "fillAll": "Rellenar todo",
-      "inverse": "Marcar ausencias",
-      "inverseDone": "Terminar ausencias",
-      "clear": "Borrar",
       "brushHint": "Elige una especie o Hi y arrastra por las celdas; empezar en una celda rellena borra. Puntos grises = otras especies.",
       "inverseHint": "Las 100 celdas están rellenas. Arrastra por las que no tiene (×) y pulsa Terminar.",
       "cellTitle": "{{cell}} ({{n}}/100)",
@@ -3091,7 +3082,6 @@
       "next": "Celda siguiente ▶",
       "addedNoCover": "{{name}} añadida; falta la cobertura",
       "goCover": "Anotar cobertura",
-      "countMode": "Solo número",
       "countHint": "Para censos sin registro por celda: introduzca solo el número de celdas (entero, 0–100) de cada especie y perturbación.",
       "switchTitle": "Cambiar método de registro",
       "switchToCount": "Pasar a número borra las celdas marcadas en este cuadrado (especies y Hi1–Hi3). ¿Cambiar de todos modos?",
@@ -4349,5 +4339,21 @@
     "fabSide": "zurdo mano izquierda botón",
     "undoDuration": "deshacer segundos aviso",
     "storage": "almacenamiento espacio caché"
+  },
+  "quadrat": {
+    "cover": {
+      "prev": "Elemento anterior",
+      "next": "Elemento siguiente",
+      "none": "No"
+    },
+    "freq": {
+      "brush": "Pincel",
+      "cellMode": "Celda a celda",
+      "countMode": "Solo número",
+      "fillAll": "Rellenar todo",
+      "inverse": "Marcar ausencias",
+      "inverseDone": "Terminar ausencias",
+      "clear": "Borrar"
+    }
   }
 }

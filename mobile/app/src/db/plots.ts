@@ -70,9 +70,9 @@ export function getActiveLayers(layerCount: number): FixedLayer[] {
 
 export type PlotStatus = 'active' | 'done';
 /** Survey method.
- *  - fixed: 方形/固定樣區，分植群層 (E1..E6)，靜態 GNSS。
- *  - transect: 穿越線，錄製軌跡，不分層。
- *  - point_count: 定點計數法，靜態 GNSS + 半徑，不分層（reuses 'T' bucket）。 */
+ *  - fixed: square / fixed plot, vegetation layers (E1..E6), static GNSS.
+ *  - transect: a walked line with a recorded track, no layers.
+ *  - point_count: point count, static GNSS + radius, no layers (reuses the 'T' bucket). */
 export type PlotType = 'fixed' | 'transect' | 'point_count';
 
 /** Only fixed plots have vegetation strata (E1..E6) + plot_survey_layers rows. */
@@ -96,7 +96,7 @@ export type PlotSurvey = {
   plot_type: PlotType;
   /** Transect track as GeoJSON MultiLineString (transect only). */
   track_geojson: string | null;
-  /** 1 = 軌跡已停止儲存（不可再 append）；0 = 仍可繼續錄 / 暫停。 */
+  /** 1 = the track is finalised (no more appends); 0 = recording can continue or is paused. */
   track_finalized: number;
   project_id: number;
   site_id: number | null;
@@ -138,7 +138,7 @@ export type PlotSurvey = {
   layer_count: number;
   /** JSON array of env photo URIs ({uri, sequence?, caption?}). */
   env_photos_json: string | null;
-  /** 加星號（v34）：0 / 1. Sorts the record above its peers in the list.
+  /** Starred (v34): 0 / 1. Sorts the record above its peers in the list.
    *  Device-local organisation, deliberately not exported. */
   starred: number;
   created_at: number;
@@ -252,7 +252,7 @@ export type PlotSpeciesRecordWithTaxon = PlotSpeciesRecord &
     protected: string;
   };
 
-// 實作移到 ./uuid（SQLite CSPRNG）。這裡 re-export 讓既有 import 路徑不變。
+// Implemented in ./uuid (SQLite CSPRNG); re-exported so existing import paths keep working.
 export { generateUuid };
 
 export type CreatePlotInput = {
@@ -676,8 +676,8 @@ export function updatePlotSurvey(id: number, patch: UpdatePlotPatch): void {
 // Transect track (MultiLineString segments)
 // ─────────────────────────────────────────────────────────────────────
 
-// 純資料形狀移到 ~/lib/track（匯入解析器也要用，不能相依 DB）；re-export 讓既有
-// import 路徑不變。
+// The pure data shapes live in ~/lib/track (the import parser needs them and
+// must not depend on the DB); re-exported so existing import paths keep working.
 export { buildTrackGeoJSON, parseTrackSegments, trackLengthMeters, type TrackSegment };
 
 /** Replace the plot's track with the given segments (fast path used by UI). */
@@ -751,16 +751,25 @@ export function deletePlotSurvey(id: number): void {
   // they inherit the cleanup.
   const prev = db.executeSync(`SELECT site_id FROM plot_surveys WHERE id = ?`, [id]);
   const siteId = (prev.rows?.[0] as { site_id?: number | null } | undefined)?.site_id ?? null;
-  // 子列在 schema 裡都宣告了 ON DELETE CASCADE，而 FK 強制已於 initDb() 末尾開啟
-  // （src/db/init.ts，per-connection、整個 session 有效），所以那些 cascade 現在確實
-  // 會觸發，以下手動刪除在正常路徑上是冗餘的。保留是刻意的 belt-and-braces：delete
-  // helper 不該依賴呼叫當下的 PRAGMA 狀態，漏刪的下場是看不見卻仍佔用編號的孤兒列。
-  // subplot_layers 掛在 plot_subplots 底下，所以要先於 plot_subplots 刪。
+  // Every child row declares ON DELETE CASCADE and foreign keys are switched on
+  // at the end of initDb() (src/db/init.ts, per connection, for the whole
+  // session), so those cascades do fire and the deletes below are redundant on
+  // the normal path. They stay on purpose, belt and braces: a delete helper
+  // must not depend on the PRAGMA state at the moment it runs, and a missed
+  // delete leaves invisible orphans that still hold their numbers.
+  // subplot_layers hang under plot_subplots, so they go first.
   db.executeSync(
     `DELETE FROM subplot_layers WHERE subplot_id IN
        (SELECT id FROM plot_subplots WHERE plot_survey_id = ?)`,
     [id],
   );
+  // Quadrats (v77) before subplots: a quadrat points at its subplot.
+  db.executeSync(
+    `DELETE FROM plot_quadrat_species WHERE quadrat_id IN
+       (SELECT id FROM plot_quadrats WHERE plot_survey_id = ?)`,
+    [id],
+  );
+  db.executeSync(`DELETE FROM plot_quadrats WHERE plot_survey_id = ?`, [id]);
   db.executeSync(`DELETE FROM plot_subplots WHERE plot_survey_id = ?`, [id]);
   db.executeSync(`DELETE FROM plot_species_records WHERE plot_survey_id = ?`, [id]);
   db.executeSync(`DELETE FROM plot_survey_layers WHERE plot_survey_id = ?`, [id]);
@@ -1562,6 +1571,26 @@ function duplicatePlotSurveyTx(id: number, opts: DuplicateRecordOptions): number
     }
   }
 
+  // Quadrats (v77) are structure too: the settings and empty frames (place,
+  // size, grid, top edge) ride with the environment; nothing measured in them.
+  if (opts.includeEnv && source.plot_type === 'fixed') {
+    db.executeSync(
+      `UPDATE plot_surveys SET quadrat_config = (SELECT quadrat_config FROM plot_surveys WHERE id = ?) WHERE id = ?`,
+      [id, newId],
+    );
+    const frames = (db.executeSync(
+      `SELECT subplot_id, idx, label, position, size_m, grid_n, top_edge FROM plot_quadrats WHERE plot_survey_id = ? ORDER BY idx`,
+      [id],
+    ).rows ?? []) as Array<{ subplot_id: number | null; idx: number; label: string; position: string | null; size_m: number; grid_n: number; top_edge: string }>;
+    for (const f of frames) {
+      db.executeSync(
+        `INSERT INTO plot_quadrats (uuid, plot_survey_id, subplot_id, idx, label, position, size_m, grid_n, top_edge, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [generateUuid(), newId, subplotIdByOldId.get(f.subplot_id ?? -1) ?? null, f.idx, f.label, f.position, f.size_m, f.grid_n, f.top_edge, now, now],
+      );
+    }
+  }
+
   if (opts.includeSpecies) {
     const activeLayers = getActiveLayers(layerCount) as string[];
     const seen = new Set<string>();
@@ -1601,7 +1630,7 @@ function duplicatePlotSurveyTx(id: number, opts: DuplicateRecordOptions): number
   return newId;
 }
 
-// ── 合併樣區 (merge) ────────────────────────────────────────────────────────
+// ── Merge plots ────────────────────────────────────────────────────────
 // See src/db/merge.ts for what the merged record inherits and why.
 
 /**

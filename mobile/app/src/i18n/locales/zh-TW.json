@@ -2625,9 +2625,6 @@
       "sub_bry_below_vasc": "苔蘚 · 維管束下",
       "sub_bry_on_rock": "苔蘚 · 岩石上",
       "sub_bry_on_scree": "苔蘚 · 碎石上",
-      "none": "無",
-      "prev": "上一項",
-      "next": "下一項",
       "short": {
         "cov_vascular": "維",
         "cov_solid_rock": "岩",
@@ -2744,18 +2741,12 @@
     "freq": {
       "title": "{{code}} · 頻度",
       "undo": "復原",
-      "brush": "筆刷",
-      "cellMode": "逐格",
       "uphill": "▲ 山峰方向（上坡）",
       "gridLabel": "頻度格 10×10",
       "hi1": "Hi1 排遺",
       "hi2": "Hi2 啃食",
       "hi3": "Hi3 踐踏",
       "newSpecies": "＋ 新物種",
-      "fillAll": "全部填入",
-      "inverse": "反向填",
-      "inverseDone": "結束反向填",
-      "clear": "清空",
       "brushHint": "選一個物種或 Hi 後在格子上拖曳塗色；從已塗的格子開始拖曳就是擦除。灰點是其他物種。",
       "inverseHint": "已先填滿 100 格。拖曳標出「沒有」的格子（×），再按「結束反向填」。",
       "cellTitle": "{{cell}}（{{n}}/100）",
@@ -2763,7 +2754,6 @@
       "next": "下一格 ▶",
       "addedNoCover": "已加入 {{name}}，覆蓋度尚未填",
       "goCover": "去填覆蓋度",
-      "countMode": "直接輸入次數",
       "countHint": "過去沒有記錄格位時使用：每個物種與擾動只填出現的格數（0–100 的整數）。",
       "switchTitle": "切換記錄方式",
       "switchToCount": "改成直接輸入次數會清除這個樣區已畫的格位（物種與 Hi1–Hi3）。確定要切換？",
@@ -3977,5 +3967,21 @@
     "fabSide": "左撇子 左手 右手 按鈕",
     "undoDuration": "undo 復原 還原 秒數 提示",
     "storage": "儲存 空間 容量 清理 快取"
+  },
+  "quadrat": {
+    "cover": {
+      "prev": "上一項",
+      "next": "下一項",
+      "none": "無"
+    },
+    "freq": {
+      "brush": "筆刷",
+      "cellMode": "逐格",
+      "countMode": "直接輸入次數",
+      "fillAll": "全部填入",
+      "inverse": "反向填",
+      "inverseDone": "結束反向填",
+      "clear": "清空"
+    }
   }
 }

@@ -458,6 +458,14 @@ MIREN（規劃中）→ `docs/planned/MIREN.md`；
 - [x] §1 釘選：圖釘鍵、兩種檢視的釘選區、左滑與多選入口、文案（2026-09-29）
 - [x] 04 標本採集：ListRow／CardGrid、先給號新增（未鑑定＝Plantae）、照片格、複份至少 1（v76）（2026-09-29）
 - [ ] ListRow 逐步替換其他列表（SpeciesCard、RecordListItem、GLORIA 單位列、設定列）
+- [x] 05 選取標記與導覽按鈕統一、`check:controls`、`npm run check`（2026-09-29）
+- [x] 06 小樣方 A 期：抽共用（grid、quadratIssues、SurfaceCover、FrequencyGrid），GLORIA 改用（2026-09-29）
+- [x] 06 小樣方 B 期：v77（plot_quadrats、plot_quadrat_species、plot_surveys.quadrat_config）、DB helper（`quadratsCore.ts`／`quadrats.ts`）、record_versions／undo、刪除還原、完整性規則、媒體欄位、複製樣區、data-model 說明、`check:quadrats`（2026-09-29）
+- [ ] 06 小樣方 C 期：環境分頁設定區塊、小樣方分頁、單一小樣方畫面、物種色盤
+- [ ] 06 小樣方 D 期：樣區 yml 來回、合併模型（遮罩整筆取一方）、teamMerge 套用、團隊同步照片（`plot_quadrats.photo_paths` 進 `MEDIA_COLUMN_KINDS`）。完成時拿掉兩個暫時豁免：`check-roundtrip.mjs` 的 `plot_surveys.quadrat_config`、`check-media-refs.mjs` 的 `plot_quadrats`
+- [ ] 06 小樣方 E 期：quadrats.csv（f{列}{欄}）、quadrat_surface.csv、DwC 子事件與 MoF、報表小節
+- 已決（2026-09-29）：多樣性的「樣區名錄 ∪ 小樣方物種」只用在小樣方報表小節，其他統計不變
+- [ ] 列尾 `chevron-forward` 逐步換成 `Chevron`（`check:controls` 目前警告 54 處）；多行寫法的展開箭頭尚未統一 16／ink-2
 - 待決：DwC `preparations` 目前只要有複份就寫 `sheet`；v76 回填後動物標本也會是 `sheet`，是否依界別決定
 - 待決：記錄首頁搜尋要不要也比對物種名稱（需查 DB，新功能；規格原稿有寫，這期沒做）
 - 待辦：快速名錄情境條的空間資料要顯示「起點 ±N m」得在 session 存起點精度（資料層變更，改版範圍外）

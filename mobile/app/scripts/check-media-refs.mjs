@@ -21,8 +21,9 @@ const eq = (msg, got, want) => {
   }
 };
 
-// Collections are not team-synced; MIREN is not a sync kind yet.
-const NOT_SYNCED = ['collection_specimens', 'photo_fix', 'miren_plots'];
+// Collections are not team-synced; MIREN is not a sync kind yet. Plot
+// quadrats (v77) join team sync in phase D of 06-plot-quadrats.md §4.
+const NOT_SYNCED = ['collection_specimens', 'photo_fix', 'miren_plots', 'plot_quadrats'];
 const missing = MEDIA_COLUMNS.filter(([t, c]) => !NOT_SYNCED.includes(t) && !(`${t}.${c}` in MEDIA_COLUMN_KINDS)).map(([t, c]) => `${t}.${c}`);
 eq('every media column of a synced record kind is carried', missing, []);
 

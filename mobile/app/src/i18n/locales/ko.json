@@ -2625,9 +2625,6 @@
       "sub_bry_below_vasc": "선태류 · 관속식물 아래",
       "sub_bry_on_rock": "선태류 · 암석 위",
       "sub_bry_on_scree": "선태류 · 암설 위",
-      "none": "없음",
-      "prev": "이전 항목",
-      "next": "다음 항목",
       "short": {
         "cov_vascular": "관",
         "cov_solid_rock": "암",
@@ -2744,18 +2741,12 @@
     "freq": {
       "title": "{{code}} · 빈도",
       "undo": "실행 취소",
-      "brush": "브러시",
-      "cellMode": "칸별",
       "uphill": "▲ 정상 방향（오르막）",
       "gridLabel": "빈도 틀 10×10",
       "hi1": "Hi1 배설물",
       "hi2": "Hi2 섭식",
       "hi3": "Hi3 답압",
       "newSpecies": "＋ 새 종",
-      "fillAll": "모두 채우기",
-      "inverse": "빈칸 표시",
-      "inverseDone": "빈칸 표시 끝내기",
-      "clear": "지우기",
       "brushHint": "종이나 Hi를 고른 뒤 칸을 드래그합니다. 칠한 칸에서 시작하면 지웁니다. 회색 점은 다른 종.",
       "inverseHint": "100칸을 모두 채웠습니다. 없는 칸을 드래그해 표시（×）한 뒤 「빈칸 표시 끝내기」.",
       "cellTitle": "{{cell}}（{{n}}/100）",
@@ -2763,7 +2754,6 @@
       "next": "다음 칸 ▶",
       "addedNoCover": "{{name}} 추가됨. 피도 미입력",
       "goCover": "피도 입력",
-      "countMode": "횟수만 입력",
       "countHint": "과거 조사에 격자 기록이 없을 때 사용: 각 종과 교란에 대해 출현한 격자 수(0–100 정수)만 입력합니다.",
       "switchTitle": "기록 방식 변경",
       "switchToCount": "횟수 입력으로 바꾸면 이 방형구에 그린 격자(종과 Hi1–Hi3)가 지워집니다. 변경할까요?",
@@ -3977,5 +3967,21 @@
     "fabSide": "왼손잡이 왼손 버튼",
     "undoDuration": "되돌리기 초 알림",
     "storage": "저장 공간 용량 캐시 정리"
+  },
+  "quadrat": {
+    "cover": {
+      "prev": "이전 항목",
+      "next": "다음 항목",
+      "none": "없음"
+    },
+    "freq": {
+      "brush": "브러시",
+      "cellMode": "칸별",
+      "countMode": "횟수만 입력",
+      "fillAll": "모두 채우기",
+      "inverse": "빈칸 표시",
+      "inverseDone": "빈칸 표시 끝내기",
+      "clear": "지우기"
+    }
   }
 }

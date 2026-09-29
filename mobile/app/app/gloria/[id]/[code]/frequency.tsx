@@ -14,10 +14,9 @@ import * as Haptics from 'expo-haptics';
 import { Stack, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, AppState, Pressable, ScrollView, Text, useWindowDimensions, View, type TextInput } from 'react-native';
+import { Alert, Pressable, ScrollView, Text, useWindowDimensions, View, type TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SelectRow } from '~/components/settings/rows';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HeaderIconButton } from '~/components/HeaderIconButton';
 import { KeyboardStickyView } from '~/components/KeyboardAvoidingView';
@@ -44,15 +43,19 @@ import { OverviewPanel } from '~/modules/gloria/components/OverviewPanel';
 import { BannerText, Btn, Chip, FoldBanner, NumAccessory, NumField, Seg } from '~/modules/gloria/components/ui';
 import { RANGES } from '~/modules/gloria/model/ranges';
 import { saveVersionSoon } from '~/db/recordVersions';
+import { coverFreqIssues } from '~/lib/quadratIssues';
+import { FrequencyGrid, type FrequencyGridHandle } from '~/components/quadrat/FrequencyGrid';
 import { useVersionOnLeave } from '~/lib/useVersionOnLeave';
 import { useThemeColors } from '~/theme/colors';
 
 const CELLS = QUADRAT_N * QUADRAT_N;
 const GRAZING = [
-  { key: 'hi1', col: 'dist_hi1', countCol: 'dist_hi1_n', tone: '#a16207' },
-  { key: 'hi2', col: 'dist_hi2', countCol: 'dist_hi2_n', tone: '#be185d' },
-  { key: 'hi3', col: 'dist_hi3', countCol: 'dist_hi3_n', tone: '#7c3aed' },
+  { key: 'hi1', col: 'dist_hi1', countCol: 'dist_hi1_n' },
+  { key: 'hi2', col: 'dist_hi2', countCol: 'dist_hi2_n' },
+  { key: 'hi3', col: 'dist_hi3', countCol: 'dist_hi3_n' },
 ] as const;
+/** Grazing features as extra grid targets: a corner square in their tone. */
+const GRAZING_TONES: Record<string, string> = { hi1: '#a16207', hi2: '#be185d', hi3: '#7c3aed' };
 // Looking toward the summit from each cluster, which compass side is left / right.
 const SIDES: Record<Direction, [Direction, Direction]> = { N: ['E', 'W'], E: ['S', 'N'], S: ['W', 'E'], W: ['N', 'S'] };
 
@@ -85,7 +88,7 @@ export default function FrequencyScreen() {
   const targets: Target[] = useMemo(
     () => [
       ...spp.map((s) => ({ key: `sp${s.id}`, label: displayName(s), usid: s.id })),
-      ...GRAZING.map((g, i) => ({ key: g.key, label: t(`gloria.freq.hi${i + 1}`), tone: g.tone, col: g.col })),
+      ...GRAZING.map((g, i) => ({ key: g.key, label: t(`gloria.freq.hi${i + 1}`), tone: GRAZING_TONES[g.key], col: g.col })),
     ],
     [spp, t],
   );
@@ -117,8 +120,6 @@ export default function FrequencyScreen() {
   // Cell recording is stamped once per visit; `unit` is not reloaded per stroke.
   const cellsStarted = useRef(false);
   const [sel, setSel] = useState(0);
-  // Last cell the finger landed on, shown as e.g. "R3C7" until the next touch.
-  const [touched, setTouched] = useState<number | null>(null);
   const [inverse, setInverse] = useState(false);
   const [adding, setAdding] = useState(false);
   const [panel, setPanel] = useState(false);
@@ -145,8 +146,9 @@ export default function FrequencyScreen() {
     setUndoCount(0);
     setRedoCount(0);
   };
-  const [size, setSize] = useState(300);
-  const stroke = useRef<{ key: string; on: boolean; seen: Set<number>; before: string } | null>(null);
+  // The shared grid (components/quadrat/FrequencyGrid) owns the stroke.
+  const grid = useRef<FrequencyGridHandle>(null);
+  const flushStroke = () => grid.current?.flush();
   const cur = active ?? targets[0]?.key ?? null;
 
   const persistRef = useRef<(key: string, mask: string) => void>(() => undefined);
@@ -174,73 +176,7 @@ export default function FrequencyScreen() {
     persist(key, mask);
   };
 
-  // A stroke that is still open when the app leaves the foreground is written anyway.
-  // Writes the open stroke. The undo step was already taken when the stroke
-  // began, so this only persists. It is called from the gesture's finalize,
-  // but also before the next stroke, before undo / redo / lock, on leaving
-  // and on backgrounding: a device that does not deliver finalize must lose
-  // neither the stroke nor its undo step.
-  const flushStroke = useRef(() => {
-    const s = stroke.current;
-    stroke.current = null;
-    if (!s) return;
-    const now = masksRef.current[s.key];
-    if (now && now !== s.before) persistRef.current(s.key, now);
-  }).current;
-  useEffect(() => {
-    const sub = AppState.addEventListener('change', (st) => {
-      if (st !== 'active') flushStroke();
-    });
-    return () => {
-      sub.remove();
-      flushStroke();
-    };
-  }, [flushStroke]);
 
-  // Memoised on what cannot change mid-stroke, so a re-render while painting
-  // never swaps the gesture out from under the finger.
-  const gesture = useMemo(() => {
-    const cellAt = (x: number, y: number) => {
-      const c = Math.floor((x / size) * QUADRAT_N);
-      const r = Math.floor((y / size) * QUADRAT_N);
-      return c < 0 || r < 0 || c >= QUADRAT_N || r >= QUADRAT_N ? -1 : r * QUADRAT_N + c;
-    };
-    return Gesture.Pan()
-      .minDistance(0)
-      .runOnJS(true)
-      .onBegin((e) => {
-        const i = cellAt(e.x, e.y);
-        if (i < 0) return;
-        setTouched(i);
-        if (mode === 'cell') {
-          setSel(i);
-          return;
-        }
-        if (locked) {
-          toast(t('gloria.freq.lockedToast'));
-          return;
-        }
-        if (!cur) return;
-        flushStroke(); // a previous stroke whose finalize never came
-        const before = masksRef.current[cur] ?? emptyMask(CELLS);
-        // The first cell decides: paint where it was empty, erase where it was set.
-        const on = !getBit(before, i);
-        stroke.current = { key: cur, on, seen: new Set([i]), before };
-        pushUndo({ key: cur, mask: before });
-        setMasks({ ...masksRef.current, [cur]: setBits(before, [i], on) });
-      })
-      .onUpdate((e) => {
-        const st = stroke.current;
-        if (!st) return;
-        const i = cellAt(e.x, e.y);
-        if (i < 0 || st.seen.has(i)) return;
-        st.seen.add(i);
-        setMasks({ ...masksRef.current, [st.key]: setBits(masksRef.current[st.key] ?? emptyMask(CELLS), [i], st.on) });
-      })
-      .onFinalize(() => flushStroke());
-    // setMasks only touches refs and a state setter.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, cur, size, flushStroke, locked]);
 
   if (!state || !unit) {
     return (
@@ -251,17 +187,20 @@ export default function FrequencyScreen() {
     );
   }
 
-  const cellPx = size / QUADRAT_N;
   const curTarget = targets.find((x) => x.key === cur);
   const [leftSide, rightSide] = SIDES[code[0] as Direction];
   const byCount = unit.freq_mode === 'count';
-  const cross = spp.flatMap((s) => {
-    const n = byCount ? (s.freq_count ?? 0) : popcount(masks[`sp${s.id}`]);
-    const cov = s.cover_pct ?? 0;
-    if (cov > 0 && n === 0) return [t('gloria.issue.coverNoFreq', { name: displayName(s), cover: cov })];
-    if (n > 0 && !(cov > 0)) return [t('gloria.issue.freqNoCover', { name: displayName(s), count: n })];
-    return [];
-  });
+  const cross = coverFreqIssues(
+    spp.map((s) => ({
+      name: displayName(s),
+      cover: s.cover_pct,
+      cells: byCount ? (s.freq_count ?? 0) : popcount(masks[`sp${s.id}`]),
+    })),
+  ).map((i) =>
+    i.kind === 'cover-no-freq'
+      ? t('gloria.issue.coverNoFreq', { name: i.species, cover: i.cover })
+      : t('gloria.issue.freqNoCover', { name: i.species, count: i.cells }),
+  );
 
   // A quadrat holds cells or counts, never both: switching away from a method
   // that has data asks before clearing it.
@@ -317,7 +256,7 @@ export default function FrequencyScreen() {
       key: g.key,
       label: t(`gloria.freq.hi${i + 1}`),
       value: unit[g.countCol],
-      tone: g.tone as string | undefined,
+      tone: GRAZING_TONES[g.key] as string | undefined,
       save: (v: number | null) => updateUnit(unit.id, { [g.countCol]: v }),
     })),
   ];
@@ -474,94 +413,33 @@ export default function FrequencyScreen() {
           value={mode}
           onChange={switchMode}
           options={[
-            { value: 'brush', label: t('gloria.freq.brush') },
-            { value: 'cell', label: t('gloria.freq.cellMode') },
-            { value: 'count', label: t('gloria.freq.countMode') },
+            { value: 'brush', label: t('quadrat.freq.brush') },
+            { value: 'cell', label: t('quadrat.freq.cellMode') },
+            { value: 'count', label: t('quadrat.freq.countMode') },
           ]}
         />
         {mode !== 'count' ? (
         <>
-        <View className="flex-row items-center justify-center">
-          {touched != null ? (
-            <Text
-              accessibilityLiveRegion="polite"
-              className="absolute left-0 rounded bg-gray-800 px-1.5 py-0.5 text-xs font-bold text-white dark:bg-gray-200 dark:text-gray-900"
-              style={{ fontVariant: ['tabular-nums'] }}
-            >
-              {`R${Math.floor(touched / QUADRAT_N) + 1}C${(touched % QUADRAT_N) + 1}`}
-            </Text>
-          ) : null}
-          <Text className="text-center text-xs font-semibold text-accent-700 dark:text-accent-300">{t('gloria.freq.uphill')}</Text>
-        </View>
-        {/* The whole block (side labels, row labels, grid) is centred; the grid's
-            size comes from the row's width: 2 × 20 side labels + 22 row labels. */}
-        <View
-          className="flex-row items-center justify-center"
-          onLayout={(e) => setSize(Math.max(0, Math.min(Math.floor(e.nativeEvent.layout.width) - 62, 360)))}
-        >
-          <Text className="w-5 text-center text-[11px] font-bold text-gray-700 dark:text-gray-200" style={{ transform: [{ rotate: '-90deg' }] }}>{leftSide}</Text>
-          <View style={{ width: size + 22 }}>
-            <View className="flex-row" style={{ marginLeft: 22 }}>
-              {Array.from({ length: QUADRAT_N }, (_, c) => (
-                <Text key={c} style={{ width: cellPx }} className="text-center text-[10px] font-semibold text-gray-700 dark:text-gray-200">{`C${c + 1}`}</Text>
-              ))}
-            </View>
-            <View className="flex-row">
-              <View style={{ width: 22 }}>
-                {Array.from({ length: QUADRAT_N }, (_, r) => (
-                  <Text key={r} style={{ height: cellPx, lineHeight: cellPx }} className="text-[10px] font-semibold text-gray-700 dark:text-gray-200">{`R${r + 1}`}</Text>
-                ))}
-              </View>
-              {/* Drawn at an exact pixel size: percentage cells in a flex-wrap
-                  row under a max-width clamp wrapped at 9 columns on iPad. */}
-              <GestureDetector gesture={gesture}>
-                <View
-                  style={{ width: size, height: size }}
-                  accessibilityLabel={t('gloria.freq.gridLabel')}
-                >
-                  {Array.from({ length: CELLS }, (_, i) => {
-                    const on = mode === 'brush' && cur != null && getBit(masks[cur] ?? '', i);
-                    const others = targets.filter((tg) => tg.key !== (mode === 'brush' ? cur : '') && !tg.tone && getBit(masks[tg.key] ?? '', i)).length;
-                    const graze = mode === 'cell' || !curTarget?.tone ? targets.find((tg) => tg.tone && getBit(masks[tg.key] ?? '', i)) : undefined;
-                    return (
-                      <View
-                        key={i}
-                        style={{
-                          position: 'absolute',
-                          left: (i % QUADRAT_N) * cellPx,
-                          top: Math.floor(i / QUADRAT_N) * cellPx,
-                          width: cellPx,
-                          height: cellPx,
-                          backgroundColor: on ? (curTarget?.tone ?? tc.accent) : undefined,
-                          borderWidth: mode === 'cell' && i === sel ? 2 : 0.5,
-                          borderColor: mode === 'cell' && i === sel ? '#d97706' : tc.line,
-                        }}
-                        className={on ? '' : 'bg-card dark:bg-gray-900'}
-                      >
-                        {inverse && !on ? <Text className="text-center text-[11px] font-bold text-red-500">×</Text> : null}
-                        {others > 0 && !inverse ? (
-                          <View className="absolute bottom-0.5 left-0.5 flex-row">
-                            {Array.from({ length: Math.min(others, 4) }, (_, k) => (
-                              <View key={k} className={`mr-px h-[3px] w-[3px] rounded-full ${on ? 'bg-gray-800' : 'bg-gray-400'}`} />
-                            ))}
-                          </View>
-                        ) : null}
-                        {graze ? <View className="absolute right-0.5 top-0.5 h-[5px] w-[5px] rounded-sm" style={{ backgroundColor: graze.tone }} /> : null}
-                      </View>
-                    );
-                  })}
-                  {/* Centre lines (between C5|C6 and R5|R6) split the quadrat
-                      into quarters, the way the field frame is read. */}
-                  <View pointerEvents="none" className="absolute bottom-0 top-0 bg-gray-800 dark:bg-gray-200" style={{ left: '50%', width: 2, marginLeft: -1 }} />
-                  <View pointerEvents="none" className="absolute left-0 right-0 bg-gray-800 dark:bg-gray-200" style={{ top: '50%', height: 2, marginTop: -1 }} />
-                  {/* Frame drawn over the cells, so it takes no room from them. */}
-                  <View pointerEvents="none" className="absolute inset-0 border-2 border-gray-600 dark:border-gray-400" />
-                </View>
-              </GestureDetector>
-            </View>
-          </View>
-          <Text className="w-5 text-center text-[11px] font-bold text-gray-700 dark:text-gray-200" style={{ transform: [{ rotate: '90deg' }] }}>{rightSide}</Text>
-        </View>
+        <FrequencyGrid
+          ref={grid}
+          n={QUADRAT_N}
+          masks={masks}
+          active={cur}
+          activeColor={curTarget?.tone}
+          mode={mode}
+          sel={sel}
+          onSelectCell={setSel}
+          inverse={inverse}
+          tones={GRAZING_TONES}
+          topEdgeLabel={t('gloria.freq.uphill')}
+          leftRightLabels={[leftSide, rightSide]}
+          locked={locked}
+          onLocked={() => toast(t('gloria.freq.lockedToast'))}
+          onStrokeBegin={(key, before) => pushUndo({ key, mask: before })}
+          onPaint={(key, mask) => setMasks({ ...masksRef.current, [key]: mask })}
+          onCommit={(key, mask) => persistRef.current(key, mask)}
+          accessibilityLabel={t('gloria.freq.gridLabel')}
+        />
         </>
         ) : null}
 
@@ -601,10 +479,10 @@ export default function FrequencyScreen() {
           <>
             {targetPicker()}
             <View className="flex-row gap-2">
-              <Btn small label={t('gloria.freq.fillAll')} disabled={!cur || locked} onPress={() => cur && write(cur, fillMask(CELLS, true))} />
+              <Btn small label={t('quadrat.freq.fillAll')} disabled={!cur || locked} onPress={() => cur && write(cur, fillMask(CELLS, true))} />
               <Btn
                 small
-                label={inverse ? t('gloria.freq.inverseDone') : t('gloria.freq.inverse')}
+                label={inverse ? t('quadrat.freq.inverseDone') : t('quadrat.freq.inverse')}
                 disabled={!cur || locked}
                 onPress={() => {
                   if (!cur) return;
@@ -612,7 +490,7 @@ export default function FrequencyScreen() {
                   setInverse(!inverse);
                 }}
               />
-              <Btn small label={t('gloria.freq.clear')} disabled={!cur || locked} onPress={() => cur && write(cur, fillMask(CELLS, false))} />
+              <Btn small label={t('quadrat.freq.clear')} disabled={!cur || locked} onPress={() => cur && write(cur, fillMask(CELLS, false))} />
             </View>
             <Text className="text-xs text-gray-500 dark:text-gray-400">{inverse ? t('gloria.freq.inverseHint') : t('gloria.freq.brushHint')}</Text>
           </>

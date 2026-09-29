@@ -24,11 +24,17 @@ export function goBackOrHome(): void {
  *  always lands somewhere — falls back to home when the navigation stack has
  *  no history (e.g. screen reached via `router.replace` or a deep link). */
 export function BackHeaderLeft() {
+  // Callers pass this as `headerLeft: BackHeaderLeft`, which the navigator
+  // CALLS as a plain function inside its own render. So it must hold no hooks
+  // itself (a hook here changed the header's hook order and crashed every
+  // screen that used it); it only returns the element that does.
+  return <BackHeaderButton />;
+}
+
+function BackHeaderButton() {
   // Chevron only. The word "back" cost a third of the header's width in the
   // longer European languages and said nothing the glyph does not; it lives on
   // as the accessibility label, which is where a screen reader looks for it.
-  // The button's square box is what centres the glyph — Ionicons' chevron
-  // carries an asymmetric bearing, so padding alone leaves it off-centre.
   // In select mode, back leaves select mode first (05-controls.md §2.1).
   const exitSelect = useSelectBack((s) => s.exit);
   return (

@@ -50,7 +50,10 @@ eq('schema reached v75', all(`SELECT MAX(version) AS v FROM schema_version`)[0].
 const fixed = { sessions: { 3: { status: 'done' } }, plot_surveys: { 2: { status: 'active', plot_type: 'fixed' } }, collection_trips: {} };
 for (const t of REBUILT) {
   const want = before[t].map((r) => ({ ...r, ...(fixed[t][r.id] ?? {}) }));
-  eq(`${t}: every row and column kept`, snapshotOf(t), want);
+  // Only the columns v75 saw: later migrations may add more (v77 quadrat_config).
+  const cols = Object.keys(before[t][0] ?? {});
+  const got = snapshotOf(t).map((r) => Object.fromEntries(cols.map((c) => [c, r[c]])));
+  eq(`${t}: every row and column kept`, got, want);
   eq(`${t}: indexes kept`, indexesOf(t), idxBefore[t]);
 }
 eq('children kept', [all(`SELECT COUNT(*) AS n FROM checklist_records`)[0].n, all(`SELECT COUNT(*) AS n FROM plot_species_records`)[0].n, all(`SELECT COUNT(*) AS n FROM collection_specimens`)[0].n], [2, 1, 1]);

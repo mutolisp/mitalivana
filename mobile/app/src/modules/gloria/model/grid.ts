@@ -17,62 +17,23 @@
  * The UI labels the same cells R1–R10 / C1–C10.
  */
 
+// The mask functions are shared with the fixed plot's quadrats (src/lib/grid.ts);
+// what stays here is GLORIA's own: the 10 × 10 sheet columns and point surfaces.
+export {
+  emptyMask,
+  fillMask,
+  getBit,
+  indicesOf,
+  isMask,
+  popcount,
+  rcLabel,
+  rowCol,
+  setBits,
+} from '../../../lib/grid';
+import { rowCol } from '../../../lib/grid';
+
 export const QUADRAT_N = 10; // 10 × 10 frequency cells / point-frame crosshairs
 export const SQUARE_N = 20; // 20 lines × 20 points in a 10×10 m square
-
-export function emptyMask(size: number): string {
-  return '0'.repeat(size);
-}
-
-export function isMask(s: string | null | undefined, size: number): s is string {
-  return typeof s === 'string' && s.length === size && /^[01]*$/.test(s);
-}
-
-export function getBit(mask: string, idx: number): boolean {
-  return mask.charCodeAt(idx) === 49; // '1'
-}
-
-/** Set one or many indices to `on`. Returns the same string when nothing changed. */
-export function setBits(mask: string, indices: Iterable<number>, on: boolean): string {
-  const chars = mask.split('');
-  const v = on ? '1' : '0';
-  let changed = false;
-  for (const i of indices) {
-    if (i < 0 || i >= chars.length) throw new RangeError(`index ${i} outside mask of ${chars.length}`);
-    if (chars[i] !== v) {
-      chars[i] = v;
-      changed = true;
-    }
-  }
-  return changed ? chars.join('') : mask;
-}
-
-export function fillMask(size: number, on: boolean): string {
-  return (on ? '1' : '0').repeat(size);
-}
-
-export function popcount(mask: string | null | undefined): number {
-  if (!mask) return 0;
-  let n = 0;
-  for (let i = 0; i < mask.length; i++) if (mask.charCodeAt(i) === 49) n++;
-  return n;
-}
-
-export function indicesOf(mask: string): number[] {
-  const out: number[] = [];
-  for (let i = 0; i < mask.length; i++) if (mask.charCodeAt(i) === 49) out.push(i);
-  return out;
-}
-
-export function rowCol(idx: number, n: number): { row: number; col: number } {
-  return { row: Math.floor(idx / n), col: idx % n };
-}
-
-/** UI label, 1-based: "R1 · C1". */
-export function rcLabel(idx: number, n: number = QUADRAT_N): string {
-  const { row, col } = rowCol(idx, n);
-  return `R${row + 1} · C${col + 1}`;
-}
 
 /** Sheet 13_/14_ column name for a 10×10 cell: idx 0 → f11, 9 → f10, 90 → f01, 99 → f00. */
 export function fColumn(idx: number): string {

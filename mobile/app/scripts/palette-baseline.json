@@ -7,7 +7,7 @@
   "app/backup.tsx": 1,
   "app/collection/[id].tsx": 1,
   "app/favorites.tsx": 1,
-  "app/gloria/[id]/[code]/frequency.tsx": 4,
+  "app/gloria/[id]/[code]/frequency.tsx": 3,
   "app/gloria/[id]/[code]/index.tsx": 1,
   "app/inat-upload.tsx": 7,
   "app/key/[id].tsx": 2,

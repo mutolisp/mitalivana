@@ -11,6 +11,11 @@
  *     where SelectMark (round, selection), Checkbox (square, a value), Radio
  *     and DoneMark (status tick) own them. `accessibilityRole="checkbox"` is
  *     a role, not a glyph, and is allowed.
+ *   - a hook inside a function passed BY REFERENCE as a header option
+ *     (`headerLeft: BackHeaderLeft`): the navigator calls it as a plain
+ *     function in its own render, so a hook there changes the header's hook
+ *     order and crashes every screen using it (2026-09-29, BackHeaderLeft).
+ *     Such a function must only return an element; hooks go in that element.
  * Warns (does not fail) on `chevron-forward` outside ui/, so the remaining
  * hand-drawn row chevrons can be moved to `Chevron` bit by bit.
  *
@@ -72,6 +77,29 @@ for (const root of ROOTS) {
         if (/['"]chevron-forward['"]/.test(code)) warnings.push(at);
       }
     });
+  }
+}
+
+// Header options passed by reference must be hook-free (see header comment).
+const files = ROOTS.flatMap((r) => walk(r));
+const sources = new Map(files.map((f) => [f, readFileSync(f, 'utf8')]));
+const refs = new Set();
+for (const src of sources.values()) {
+  for (const m of src.matchAll(/header(?:Left|Right|Title|Background):\s*([A-Z][A-Za-z0-9]*)\b(?!\s*[(<])/g)) refs.add(m[1]);
+}
+for (const name of refs) {
+  for (const [file, src] of sources) {
+    const at = src.search(new RegExp(`function ${name}\\s*\\(`));
+    if (at < 0) continue;
+    const open = src.indexOf('{', src.indexOf(')', at));
+    // Body: up to the first line that is a lone closing brace.
+    const end = src.indexOf('\n}', open);
+    const body = src.slice(open, end < 0 ? undefined : end);
+    const hook = /\buse[A-Z]\w*\s*\(/.exec(body);
+    if (hook) {
+      const line = src.slice(0, open + hook.index).split('\n').length;
+      errors.push(`${relative('.', file)}:${line}  ${name} is passed as a header option by reference but calls ${hook[0].replace(/\s*\($/, '')}() — move the hook into a component it returns`);
+    }
   }
 }
 

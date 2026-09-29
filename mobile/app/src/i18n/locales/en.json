@@ -2785,9 +2785,6 @@
       "sub_bry_below_vasc": "Bryophytes · below vascular",
       "sub_bry_on_rock": "Bryophytes · on rock",
       "sub_bry_on_scree": "Bryophytes · on scree",
-      "none": "None",
-      "prev": "Previous item",
-      "next": "Next item",
       "short": {
         "cov_vascular": "Vasc",
         "cov_solid_rock": "Rock",
@@ -2908,18 +2905,12 @@
     "freq": {
       "title": "{{code}} · frequency",
       "undo": "Undo",
-      "brush": "Brush",
-      "cellMode": "Cell by cell",
       "uphill": "▲ Toward the summit (uphill)",
       "gridLabel": "Frequency grid 10×10",
       "hi1": "Hi1 droppings",
       "hi2": "Hi2 browsing",
       "hi3": "Hi3 trampling",
       "newSpecies": "+ New species",
-      "fillAll": "Fill all",
-      "inverse": "Mark absences",
-      "inverseDone": "Done marking absences",
-      "clear": "Clear",
       "brushHint": "Pick a species or Hi, then drag across cells; starting on a filled cell erases. Grey dots are other species.",
       "inverseHint": "All 100 cells are filled. Drag over the cells where it is absent (×), then tap Done.",
       "cellTitle": "{{cell}} ({{n}}/100)",
@@ -2927,7 +2918,6 @@
       "next": "Next cell ▶",
       "addedNoCover": "Added {{name}}; cover still missing",
       "goCover": "Enter cover",
-      "countMode": "Count only",
       "countHint": "For surveys that kept no cell records: enter only the number of cells (a whole number, 0–100) for each species and disturbance.",
       "switchTitle": "Change recording method",
       "switchToCount": "Switching to counts clears the cells drawn in this quadrat (species and Hi1–Hi3). Switch anyway?",
@@ -4163,5 +4153,21 @@
     "fabSide": "left-handed left hand button",
     "undoDuration": "undo seconds toast",
     "storage": "storage space cache clean"
+  },
+  "quadrat": {
+    "cover": {
+      "prev": "Previous item",
+      "next": "Next item",
+      "none": "None"
+    },
+    "freq": {
+      "brush": "Brush",
+      "cellMode": "Cell by cell",
+      "countMode": "Count only",
+      "fillAll": "Fill all",
+      "inverse": "Mark absences",
+      "inverseDone": "Done marking absences",
+      "clear": "Clear"
+    }
   }
 }

@@ -2945,9 +2945,6 @@
       "sub_bry_below_vasc": "Bryophytes · sous vasculaires",
       "sub_bry_on_rock": "Bryophytes · sur roche",
       "sub_bry_on_scree": "Bryophytes · sur éboulis",
-      "none": "Aucun",
-      "prev": "Élément précédent",
-      "next": "Élément suivant",
       "short": {
         "cov_vascular": "Vasc",
         "cov_solid_rock": "Roche",
@@ -3072,18 +3069,12 @@
     "freq": {
       "title": "{{code}} · fréquence",
       "undo": "Annuler",
-      "brush": "Pinceau",
-      "cellMode": "Cellule par cellule",
       "uphill": "▲ Vers le sommet (amont)",
       "gridLabel": "Grille de fréquence 10×10",
       "hi1": "Hi1 fèces",
       "hi2": "Hi2 abroutissement",
       "hi3": "Hi3 piétinement",
       "newSpecies": "+ Nouvelle espèce",
-      "fillAll": "Tout remplir",
-      "inverse": "Marquer les absences",
-      "inverseDone": "Fin des absences",
-      "clear": "Effacer",
       "brushHint": "Choisissez une espèce ou Hi puis glissez sur les cellules ; commencer sur une cellule remplie efface. Points gris = autres espèces.",
       "inverseHint": "Les 100 cellules sont remplies. Glissez sur celles où l’espèce est absente (×), puis « Fin ».",
       "cellTitle": "{{cell}} ({{n}}/100)",
@@ -3091,7 +3082,6 @@
       "next": "Cellule suivante ▶",
       "addedNoCover": "{{name}} ajouté ; recouvrement à saisir",
       "goCover": "Saisir le recouvrement",
-      "countMode": "Nombre seul",
       "countHint": "Pour les relevés sans données par cellule : saisissez seulement le nombre de cellules (entier, 0–100) pour chaque espèce et perturbation.",
       "switchTitle": "Changer de méthode",
       "switchToCount": "Passer au nombre efface les cellules marquées dans ce quadrat (espèces et Hi1–Hi3). Changer quand même ?",
@@ -4349,5 +4339,21 @@
     "fabSide": "gaucher main gauche bouton",
     "undoDuration": "annuler secondes",
     "storage": "stockage espace cache"
+  },
+  "quadrat": {
+    "cover": {
+      "prev": "Élément précédent",
+      "next": "Élément suivant",
+      "none": "Aucun"
+    },
+    "freq": {
+      "brush": "Pinceau",
+      "cellMode": "Cellule par cellule",
+      "countMode": "Nombre seul",
+      "fillAll": "Tout remplir",
+      "inverse": "Marquer les absences",
+      "inverseDone": "Fin des absences",
+      "clear": "Effacer"
+    }
   }
 }

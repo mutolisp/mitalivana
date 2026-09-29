@@ -28,6 +28,8 @@ export const CASCADE_ORPHANS: ReadonlyArray<readonly [string, string]> = [
   ['plot_survey_layers', 'plot_survey_id NOT IN (SELECT id FROM plot_surveys)'],
   ['plot_subplots', 'plot_survey_id NOT IN (SELECT id FROM plot_surveys)'],
   ['subplot_layers', 'subplot_id NOT IN (SELECT id FROM plot_subplots)'],
+  ['plot_quadrats', 'plot_survey_id NOT IN (SELECT id FROM plot_surveys)'],
+  ['plot_quadrat_species', 'quadrat_id NOT IN (SELECT id FROM plot_quadrats)'],
   ['gloria_points', 'survey_id NOT IN (SELECT id FROM gloria_surveys)'],
   ['gloria_photo_checks', 'survey_id NOT IN (SELECT id FROM gloria_surveys)'],
   ['gloria_units', 'survey_id NOT IN (SELECT id FROM gloria_surveys)'],
@@ -69,6 +71,8 @@ export const NULL_DANGLING: ReadonlyArray<readonly [string, string, string]> = [
   ['sites', 'session_id', 'sessions'],
   // A pointer to a deleted subplot falls back to plot-level scope.
   ['plot_species_records', 'subplot_id', 'plot_subplots'],
+  // A quadrat whose subplot is gone stays, placed in the plot directly.
+  ['plot_quadrats', 'subplot_id', 'plot_subplots'],
   ['gloria_logger_visits', 'survey_id', 'gloria_surveys'],
   ['miren_rechecks', 'new_miren_taxon_id', 'miren_taxa'],
 ];

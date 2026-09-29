@@ -164,6 +164,9 @@ const NOT_RESTORABLE = {
     project_id: 'exported by name (`project`), re-resolved on import',
     site_id: 'exported as the `site:` block + site.* sidecars',
     status: "imported records are always 'done' (single-active invariant)",
+    // Temporary: 06-plot-quadrats.md phase D puts the quadrats in the yml;
+    // this entry then fails as "the yml does carry it" and must go.
+    quadrat_config: 'quadrats (v77) are not in the yml until phase D',
     resumed_at: 'reopen bookkeeping, meaningless for a fresh import',
     starred: STARRED,
     created_at: IMPORT_TIME,

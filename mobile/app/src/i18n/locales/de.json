@@ -2785,9 +2785,6 @@
       "sub_bry_below_vasc": "Moose · unter Gefäßpfl.",
       "sub_bry_on_rock": "Moose · auf Fels",
       "sub_bry_on_scree": "Moose · auf Schutt",
-      "none": "Kein",
-      "prev": "Vorheriger Eintrag",
-      "next": "Nächster Eintrag",
       "short": {
         "cov_vascular": "Gef",
         "cov_solid_rock": "Fels",
@@ -2908,18 +2905,12 @@
     "freq": {
       "title": "{{code}} · Frequenz",
       "undo": "Rückgängig",
-      "brush": "Pinsel",
-      "cellMode": "Zelle für Zelle",
       "uphill": "▲ Richtung Gipfel (bergauf)",
       "gridLabel": "Frequenzraster 10×10",
       "hi1": "Hi1 Kot",
       "hi2": "Hi2 Verbiss",
       "hi3": "Hi3 Tritt",
       "newSpecies": "+ Neue Art",
-      "fillAll": "Alle füllen",
-      "inverse": "Fehlstellen markieren",
-      "inverseDone": "Fehlstellen fertig",
-      "clear": "Leeren",
       "brushHint": "Art oder Hi wählen und über die Zellen ziehen; auf einer gefüllten Zelle beginnen löscht. Graue Punkte = andere Arten.",
       "inverseHint": "Alle 100 Zellen gefüllt. Über die Zellen ohne Vorkommen ziehen (×), dann „Fertig“.",
       "cellTitle": "{{cell}} ({{n}}/100)",
@@ -2927,7 +2918,6 @@
       "next": "Nächste Zelle ▶",
       "addedNoCover": "{{name}} hinzugefügt; Deckung fehlt",
       "goCover": "Deckung eingeben",
-      "countMode": "Nur Anzahl",
       "countHint": "Für Aufnahmen ohne Zellendaten: pro Art und Störung nur die Anzahl der Zellen eingeben (ganze Zahl, 0–100).",
       "switchTitle": "Aufnahmemethode wechseln",
       "switchToCount": "Beim Wechsel zur Anzahl werden die in diesem Quadrat markierten Zellen (Arten und Hi1–Hi3) gelöscht. Trotzdem wechseln?",
@@ -4163,5 +4153,21 @@
     "fabSide": "Linkshänder links Taste",
     "undoDuration": "rückgängig Sekunden Hinweis",
     "storage": "Speicher Platz Cache"
+  },
+  "quadrat": {
+    "cover": {
+      "prev": "Vorheriger Eintrag",
+      "next": "Nächster Eintrag",
+      "none": "Kein"
+    },
+    "freq": {
+      "brush": "Pinsel",
+      "cellMode": "Zelle für Zelle",
+      "countMode": "Nur Anzahl",
+      "fillAll": "Alle füllen",
+      "inverse": "Fehlstellen markieren",
+      "inverseDone": "Fehlstellen fertig",
+      "clear": "Leeren"
+    }
   }
 }

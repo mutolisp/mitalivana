@@ -43,6 +43,12 @@ const SPECS: Record<SnapshotKind, Spec> = {
         where: 'subplot_id IN (SELECT id FROM plot_subplots WHERE plot_survey_id = ?)',
       },
       { table: 'plot_species_records', where: 'plot_survey_id = ?' },
+      // 1×1 m quadrats (v77), parent before its species.
+      { table: 'plot_quadrats', where: 'plot_survey_id = ?' },
+      {
+        table: 'plot_quadrat_species',
+        where: 'quadrat_id IN (SELECT id FROM plot_quadrats WHERE plot_survey_id = ?)',
+      },
     ],
   },
   collection: {

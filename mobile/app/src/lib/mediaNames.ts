@@ -39,6 +39,8 @@ export const MEDIA_COLUMNS: ReadonlyArray<readonly [table: string, column: strin
   ['plot_surveys', 'env_photos_json'],
   ['photo_fix', 'uri'],
   ['gloria_units', 'photo_paths'],
+  // Fixed-plot 1×1 m quadrats (v77).
+  ['plot_quadrats', 'photo_paths'],
   ['gloria_points', 'photo_m2'],
   ['gloria_points', 'photo_m2f'],
   ['gloria_points', 'photo_point'],

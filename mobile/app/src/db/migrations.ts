@@ -771,17 +771,18 @@ const MIGRATIONS: Migration[] = [
     },
   },
   {
-    // v23: 常用名錄改為兩層（目錄 → 物種）。
+    // v23: favourites become two levels (folder → species).
     //
-    // favorite_taxa 原本 PK 就是 taxon_id，所以同一個物種全域只能存在一次；
-    // 要讓一種可以同時出現在多個目錄，PK 必須換成代理鍵 + UNIQUE(folder_id,
-    // taxon_id)。SQLite 不能 ALTER PK，因此照 v3 的 rename + create + copy +
-    // drop 手法重建。
+    // favorite_taxa had taxon_id as its PK, so a species could exist only once
+    // overall. For one species to sit in several folders the PK must become a
+    // surrogate key + UNIQUE(folder_id, taxon_id). SQLite cannot ALTER a PK, so
+    // the table is rebuilt the v3 way: rename + create + copy + drop.
     //
-    // 既有資料全數搬進一個預設目錄，列數不得改變。
+    // All existing rows move into one default folder; the row count must not change.
     //
-    // is_default 讓 UI 用 i18n 顯示目錄名（而不是把中文烤進資料），同時保證
-    // 快速加入最愛時永遠有一個落點。使用者仍可改名。
+    // is_default lets the UI show the folder name through i18n (instead of baking
+    // Chinese into the data) and guarantees a quick add-to-favourites always has
+    // somewhere to land. The user can still rename it.
     version: 23,
     up: (db) => {
       db.executeSync(`
@@ -795,7 +796,7 @@ const MIGRATIONS: Migration[] = [
           updated_at INTEGER NOT NULL
         );
       `);
-      // 預設目錄固定 id=1，讓 DB 層不必查就能落點（比照 projects id=0 未分類）。
+      // The default folder is fixed at id=1, so the DB layer can land there without a lookup (like projects id=0 未分類).
       const now = Date.now();
       db.executeSync(
         `INSERT OR IGNORE INTO favorite_folders
@@ -804,7 +805,7 @@ const MIGRATIONS: Migration[] = [
         [now, now],
       );
 
-      // 舊表可能不存在（全新安裝在 v14 就建過，這裡一律以存在為前提處理）。
+      // The old table may be missing (a fresh install created it at v14; handled here as possibly present).
       const hasOld = db.executeSync(
         `SELECT name FROM sqlite_master WHERE type='table' AND name='favorite_taxa';`,
       );
@@ -848,17 +849,20 @@ const MIGRATIONS: Migration[] = [
     },
   },
   {
-    // v24: 外部名錄（GBIF / iNaturalist）的 taxon 快取。
+    // v24: taxon cache for external checklists (GBIF / iNaturalist).
     //
-    // 只存「本地 TaiCOL / jp_names 查無」的物種 —— 對得到的一律綁既有的
-    // t… / y… id，否則同一個物種會有兩個身分，記錄與匯出就分裂了。
+    // Only species the local TaiCOL / jp_names does not have are stored — any that
+    // match are bound to the existing t… / y… id, or one species would have two
+    // identities and records and exports would split.
     //
-    // 放在 user.db 而不是 twnamelist.db：後者是 build 產物，init.ts 用 Metro 的
-    // asset.hash 比對，bundle 換版就整個刪掉重 copy —— 寫進去的東西會在下次
-    // app 更新時消失。放這裡同時免費得到備份（VACUUM INTO 整檔）與清除語意。
+    // In user.db, not twnamelist.db: the latter is a build product that init.ts
+    // compares by Metro's asset.hash and deletes and re-copies whole when the
+    // bundle changes — anything written into it vanishes on the next app update.
+    // Here it also gets backup (VACUUM INTO of the whole file) and clear semantics
+    // for free.
     //
-    // 欄位刻意與 favorite_taxa 的反正規化欄位對齊：外部 taxon 天生沒有 bundled
-    // 列，本來就得自己帶顯示資料。
+    // The columns deliberately match favorite_taxa's denormalised columns: an
+    // external taxon has no bundled row, so it has to carry its own display data.
     version: 24,
     up: (db) => {
       db.executeSync(`
@@ -885,10 +889,11 @@ const MIGRATIONS: Migration[] = [
       db.executeSync(`CREATE INDEX IF NOT EXISTS idx_external_name ON external_taxa(simple_name);`);
     },
   },
-  // v25：常用名錄目錄記住來源。由地圖範圍建立的目錄要能說明「這是哪一塊範圍、
-  // 從哪個服務抓的」，否則使用者過幾天就無從判斷名單為何是這些物種。
-  // area_geojson 存查詢當下的範圍（GeoJSON Polygon），source 存 'inat'/'gbif'/
-  // 'manual'；兩欄皆可為 NULL，代表手動建立的目錄。
+  // v25: favourite folders remember their source. A folder built from a map area
+  // must be able to say "which area, fetched from which service", or a few days
+  // later the user cannot tell why the list holds these species.
+  // area_geojson stores the queried area (GeoJSON Polygon), source stores
+  // 'inat' / 'gbif' / 'manual'; both NULL = a folder made by hand.
   {
     version: 25,
     up: (db) => {
@@ -896,27 +901,31 @@ const MIGRATIONS: Migration[] = [
       addColumnIfMissing(db, `ALTER TABLE favorite_folders ADD COLUMN source TEXT;`);
     },
   },
-  // v26：標本各自的鑑定者（DwC identifiedBy）。採集者記的是「誰採的」，鑑定者記
-  // 的是「誰定的名」——常常不是同一個人，標本館標籤兩者都要印。可為 NULL：舊標本
-  // 沒有這個資訊，不該假造成採集者。
+  // v26: each specimen's identifier (DwC identifiedBy). The collector is who
+  // collected it, the identifier who named it — often not the same person, and a
+  // herbarium label prints both. Nullable: old specimens lack it and must not
+  // fake it as the collector.
   {
     version: 26,
     up: (db) => {
       addColumnIfMissing(db, `ALTER TABLE collection_specimens ADD COLUMN identified_by TEXT;`);
     },
   },
-  // v27：名錄的 uuid。樣區從 v5 起就有 uuid（NOT NULL UNIQUE），名錄沒有，所以匯出的
-  // .yml 回頭匯入時認不出「這是同一筆記錄」——round-trip 缺 upsert key。
+  // v27: uuid for checklists. Plots have had a uuid (NOT NULL UNIQUE) since v5,
+  // checklists had none, so an exported .yml imported back could not be
+  // recognised as the same record — the round trip lacked an upsert key.
   //
-  // ALTER TABLE 加不了 NOT NULL UNIQUE（常數 DEFAULT 會讓每一列拿到同一個值），所以
-  // 分三步：先加可為 NULL 的欄 → 回填 → 補 UNIQUE index。三步都可重跑：
-  // addColumnIfMissing 會跳過已存在的欄、UPDATE 有 WHERE 只補空值、index 用
-  // IF NOT EXISTS，migration runner 沒有 transaction 包裹，半途中斷要能自己接續。
+  // ALTER TABLE cannot add NOT NULL UNIQUE (a constant DEFAULT gives every row the
+  // same value), so it takes three steps: add a nullable column → backfill → add
+  // a UNIQUE index. All three can rerun: addColumnIfMissing skips an existing
+  // column, the UPDATE's WHERE fills only empty values, the index uses IF NOT
+  // EXISTS — the migration runner has no transaction around it, so an interrupted
+  // run must be able to pick up where it stopped.
   {
     version: 27,
     up: (db) => {
       addColumnIfMissing(db, `ALTER TABLE sessions ADD COLUMN uuid TEXT;`);
-      // 與 src/db/uuid.ts 的 runtime 產生器同格式（v4）。
+      // Same format (v4) as the runtime generator in src/db/uuid.ts.
       db.executeSync(`
         UPDATE sessions SET uuid = lower(
           hex(randomblob(4)) || '-' || hex(randomblob(2)) || '-4' ||
@@ -928,20 +937,24 @@ const MIGRATIONS: Migration[] = [
       db.executeSync(`CREATE UNIQUE INDEX IF NOT EXISTS idx_sessions_uuid ON sessions(uuid);`);
     },
   },
-  // v28：使用者採用的名字（分類見解）。
+  // v28: the name the user adopts (a taxonomic opinion).
   //
-  // TaiCOL 的 taxon_id 是「分類概念」、name_id 是「名字」——269,824 個名字掛在
-  // 96,677 個概念上，約 27.7% 的概念有異名。以前記錄只存 taxon_id，等於一律
-  // 採用 TaiCOL 的接受名；但 synonym / misapplied 常常代表另一種分類處理，
-  // 使用者可能刻意要用那個名字記錄。
+  // TaiCOL's taxon_id is a taxon concept, name_id is a name — 269,824 names hang on
+  // 96,677 concepts, and about 27.7% of the concepts have synonyms. Records used to
+  // store only taxon_id, which always meant TaiCOL's accepted name; but a synonym
+  // or misapplied name often stands for a different taxonomic treatment, and the
+  // user may deliberately record under that name.
   //
-  // 存兩欄而不是一欄：name_id 是 TaiCOL CSV 自帶的識別碼（實測 2026-02→04 兩版
-  // 之間 242,282 個共同 id 只有 13 個改了學名、3 個消失），精確；學名字串則是
-  // 自我描述的，id 查不到或對不上時還能顯示得出來，不會靜默變成別的名字。
+  // Two columns rather than one: name_id is TaiCOL's own CSV identifier (measured
+  // between the 2026-02 and 2026-04 releases: of 242,282 shared ids only 13 changed
+  // their scientific name and 3 disappeared), so it is exact; the name string is
+  // self-describing, so it still shows when the id cannot be found or does not
+  // match, and never silently turns into another name.
   //
-  // 兩欄皆 NULL＝沿用接受名，也就是既有每一列的狀態，所以不需要回填。
-  // 刻意不存 usage_status：TaiCOL 的意見會變（同兩版之間有 283 個名字換了狀態），
-  // 使用者的選擇才是要持久化的東西，狀態一律在顯示／匯出當下即時查。
+  // Both NULL = the accepted name, which is the state of every existing row, so no
+  // backfill is needed. usage_status is deliberately not stored: TaiCOL's opinion
+  // changes (283 names changed status between the same two releases); the user's
+  // choice is what persists, and the status is looked up live at display / export.
   {
     version: 28,
     up: (db) => {
@@ -949,23 +962,24 @@ const MIGRATIONS: Migration[] = [
         addColumnIfMissing(db, `ALTER TABLE ${t} ADD COLUMN used_name_id INTEGER;`);
         addColumnIfMissing(db, `ALTER TABLE ${t} ADD COLUMN used_scientific_name TEXT;`);
       }
-      // external_taxa 能誠實描述自己：它可能是使用者刻意採用的非接受名，
-      // 而不是每一列都像現在這樣自稱 accepted。
+      // Lets external_taxa describe itself honestly: a row may be a non-accepted
+      // name the user deliberately adopted, rather than every row claiming accepted.
       addColumnIfMissing(db, `ALTER TABLE external_taxa ADD COLUMN taxonomic_status TEXT;`);
       addColumnIfMissing(db, `ALTER TABLE external_taxa ADD COLUMN accepted_name TEXT;`);
       addColumnIfMissing(db, `ALTER TABLE external_taxa ADD COLUMN local_taxon_id TEXT;`);
       addColumnIfMissing(db, `ALTER TABLE external_taxa ADD COLUMN local_status TEXT;`);
       addColumnIfMissing(db, `ALTER TABLE external_taxa ADD COLUMN higher_classification TEXT;`);
-      // 1 = 使用者刻意採用（而非範圍匯入順手鑄的）。upsert 時必須保留。
+      // 1 = adopted deliberately by the user (not minted by an area import). Must survive an upsert.
       addColumnIfMissing(
         db,
         `ALTER TABLE external_taxa ADD COLUMN adopted INTEGER NOT NULL DEFAULT 0;`,
       );
     },
   },
-  // v29：錄音附件。audio_paths = JSON array of file:// URIs
-  // （documentDirectory/audio/<uuid>.m4a），與 photo_paths 同形。刻意不進
-  // export bundle / 照片備份（第一版只做 錄→播→刪→上傳 iNaturalist）。
+  // v29: audio attachments. audio_paths = JSON array of file:// URIs
+  // (documentDirectory/audio/<uuid>.m4a), the same shape as photo_paths.
+  // Deliberately left out of the export bundle / photo backup (the first version
+  // only records → plays → deletes → uploads to iNaturalist).
   {
     version: 29,
     up: (db) => {
@@ -974,17 +988,19 @@ const MIGRATIONS: Migration[] = [
       }
     },
   },
-  // v30：iNaturalist 上傳狀態。
+  // v30: iNaturalist upload state.
   //
-  // inat_observation_id：觀察建立成功即寫（媒體還沒傳完也寫）；非 NULL =
-  //   伺服器上已有這筆，重試時沿用而不再建。
-  // inat_media_done：已確認送達的媒體數（photo_paths 順序在前、audio 在後）。
-  //   重試從這裡接續——v2 的 observation_sounds 沒有 uuid 可以去重，這個游標
-  //   是「不重複上傳聲音」的唯一保證。
-  // inat_uploaded_at：觀察＋全部媒體都成功才寫；NULL 且 id 非 NULL = 半途中斷。
+  // inat_observation_id: written as soon as the observation is created (even
+  //   before its media are sent); non-NULL = the server already has it, and a
+  //   retry reuses it instead of creating another.
+  // inat_media_done: media confirmed delivered (photo_paths first, then audio).
+  //   A retry resumes from here — v2 observation_sounds have no uuid to
+  //   deduplicate, so this cursor is the only guarantee a sound is not uploaded twice.
+  // inat_uploaded_at: written only when the observation and all its media
+  //   succeeded; NULL with a non-NULL id = interrupted halfway.
   //
-  // 只存「我們做過什麼」，不存 iNat 的意見（research grade 等），依 v28 的原則：
-  // 對方會變的狀態一律顯示當下即時查。
+  // Only what we did is stored, not iNat's opinion (research grade etc.), by v28's
+  // principle: state the other side can change is always looked up live.
   {
     version: 30,
     up: (db) => {
@@ -998,9 +1014,10 @@ const MIGRATIONS: Migration[] = [
       }
     },
   },
-  // v31：iNat 同步指紋。上傳／同步成功時寫入當時送出內容的 hash（taxon、時間、
-  // 座標、描述、annotation、媒體數），詳細頁據此顯示「同步 iNat（有變更）」。
-  // NULL = 舊資料或尚未同步過，只顯示一般「同步」。
+  // v31: iNat sync fingerprint. On a successful upload / sync, a hash of what was
+  // sent (taxon, time, coordinates, description, annotations, media count) is
+  // written; the detail page uses it to show "sync iNat (changed)".
+  // NULL = old data or never synced; only the plain "sync" shows.
   {
     version: 31,
     up: (db) => {
@@ -1009,14 +1026,18 @@ const MIGRATIONS: Migration[] = [
       }
     },
   },
-  // v32：最後更新時間，顯示在物種／標本詳細頁的頁尾（連同 occurrence_id）。
+  // v32: last-updated time, shown in the footer of the species / specimen detail
+  // page (with occurrence_id).
   //
-  // 「更新」= 使用者改了這筆記錄的內容（豐度、屬性、備註、座標、照片、聲音、
-  // 分層、分類群）。iNat 上傳回寫的 inat_* 欄位刻意不算 —— 那是我們的記帳，
-  // 不是野外資料的變動，全部集中在 src/db/inatSync.ts，不碰那個檔就自動排除。
+  // "Updated" = the user changed the record's content (abundance, attributes,
+  // notes, coordinates, photos, sounds, layer, taxon). The inat_* columns written
+  // back by an iNat upload deliberately do not count — that is our bookkeeping,
+  // not a change to field data; it all lives in src/db/inatSync.ts, so leaving
+  // that file alone excludes it automatically.
   //
-  // 既有列回填成該筆已知的最早時間（記錄／採集時間），而不是 migration 執行的
-  // 當下：那會讓所有舊資料看起來像剛剛才被改過。
+  // Existing rows are backfilled with the earliest time known for them (record /
+  // collection time), not the moment the migration ran: that would make all old
+  // data look as if it had just been edited.
   {
     version: 32,
     up: (db) => {
@@ -1030,13 +1051,16 @@ const MIGRATIONS: Migration[] = [
       }
     },
   },
-  // v33：degreeOfEstablishment（野生／圈養／栽培），per-record 的 DwC 屬性。
+  // v33: degreeOfEstablishment (wild / captive / cultivated), a per-record DwC
+  // attribute.
   //
-  // 注意與 taxon 層的 alien_type 不同：那個講的是「這個分類群在臺灣是原生還是
-  // 外來」（TaiCOL 給的，整個物種一個值，匯出走 establishmentMeans）；這個講的
-  // 是「眼前這一筆個體是野生還是人為養殖／栽植」，同一個物種可以兩者都有。
+  // Not the same as the taxon-level alien_type: that says whether the taxon is
+  // native or introduced in Taiwan (from TaiCOL, one value per species, exported as
+  // establishmentMeans); this says whether this one individual is wild or kept /
+  // planted by people — one species can be both.
   //
-  // NULL = 未記錄，與明確記為 'wild' 是兩回事：前者沒說，後者說了。
+  // NULL = not recorded, which differs from an explicit 'wild': the first says
+  // nothing, the second says something.
   {
     version: 33,
     up: (db) => {
@@ -1045,16 +1069,18 @@ const MIGRATIONS: Migration[] = [
       }
     },
   },
-  // v34：加星號的記錄（starred），記錄列表排序時排在前面。
+  // v34: starred records (starred) sort to the top of the record list.
   //
-  // 0 = 沒加星（預設），1 = 加星。刻意用整數而非布林，SQLite 沒有布林型別，
-  // 且既有欄位（inat_media_done、track_finalized）都是這個慣例。
+  // 0 = not starred (default), 1 = starred. An integer rather than a boolean on
+  // purpose: SQLite has no boolean type, and existing columns (inat_media_done,
+  // track_finalized) follow this convention.
   //
-  // 與「常用名錄 favorite_taxa」是兩回事：那個收藏的是**物種**，這個標的是
-  // 整筆調查記錄。
+  // Not the same as the favourites (favorite_taxa): those collect **species**,
+  // this marks a whole survey record.
   //
-  // 不進匯出／匯入：星號是這台裝置上的整理方式，不是這次調查的觀測事實，
-  // 把它寫進 yml 會讓「同一份記錄在兩台機器上」的語意變得含糊。
+  // Not exported or imported: the star is how this device organises things, not
+  // an observed fact of the survey, and writing it into the yml would blur what
+  // "the same record on two devices" means.
   {
     version: 34,
     up: (db) => {
@@ -1064,16 +1090,19 @@ const MIGRATIONS: Migration[] = [
     },
   },
   {
-    // 名錄模組拆成可下載、可刪除的檔之後，記錄引用的 t…/y… taxon 隨時可能
-    // 「查不到」——模組還沒下載、被使用者刪掉、或跨裝置還原到沒裝該模組的機器。
+    // Once checklist modules became downloadable, deletable files, a t… / y… taxon
+    // a record points at can become unresolvable at any time — the module not yet
+    // downloaded, deleted by the user, or restored onto a device without it.
     //
-    // 這張表是 `ensureExternalCopy` 那條不變式的雙生子：pack 的 g… taxon 一寫進
-    // 記錄就複製進 external_taxa，同理 t…/y… 一寫進記錄就在這裡留一份名稱。
-    // 差別在 **taxon_id 絕對不能變**（external_taxa 會鑄造新的 g… id，那會拆散
-    // 記錄的統計與匯出），所以不能沿用那張表，得有自己的。
+    // This table is the twin of the `ensureExternalCopy` invariant: a pack's g…
+    // taxon is copied into external_taxa as soon as it is written to a record, and
+    // likewise a t… / y… taxon leaves a copy of its name here. The difference is
+    // that **the taxon_id must never change** (external_taxa mints a new g… id,
+    // which would split the record's statistics and exports), so that table cannot
+    // be reused and this one is needed.
     //
-    // 欄位刻意逐欄鏡射 `TaxonFields`（taxonLookup.ts），`resolveTaxa` 的退路才
-    // 是一個直接的 row → fields 映射，沒有特例。
+    // The columns deliberately mirror `TaxonFields` (taxonLookup.ts) one for one, so
+    // `resolveTaxa`'s fallback is a direct row → fields mapping with no special cases.
     version: 35,
     up: (db) => {
       db.executeSync(`
@@ -1115,15 +1144,18 @@ const MIGRATIONS: Migration[] = [
     },
   },
   {
-    // 物種記錄小地圖上的 iNaturalist 觀察網格圖，需要把學名換成 iNat 的 taxon id。
+    // The iNaturalist observation grid on a species record's mini map needs the
+    // scientific name turned into an iNat taxon id.
     //
-    // 這張表是那次查詢的快取。**負快取（`inat_taxon_id IS NULL`）才是重點**：
-    // 實測 30 個 TaiCOL 接受名裡有 5 個 iNat 完全沒有（隱翅蟲、閻魔蟲、扁蚜這類
-    // backbone 未收的冷門類群），約 17%。沒有負快取的話，每次打開這些物種都會
-    // 白跑一次 autocomplete，而答案永遠是「沒有」。
+    // This table caches that lookup. **The negative cache (`inat_taxon_id IS NULL`)
+    // is the point**: of 30 TaiCOL accepted names tested, 5 were missing from iNat
+    // altogether (rove beetles, clown beetles, adelgids — obscure groups its backbone
+    // lacks), about 17%. Without a negative cache every opening of those species
+    // would run an autocomplete whose answer is always "none".
     //
-    // 放 user.db 而非名錄模組：它是查詢結果，跟著備份走合理，被「清除所有資料」
-    // 一起清掉也合理。`checked_at` 讓筆數過 30 天後重驗（見 inatHeatmap.ts）。
+    // In user.db rather than a checklist module: it is a lookup result, so going
+    // along with backups is right, and being wiped by "clear all data" is right too.
+    // `checked_at` re-verifies entries after 30 days (see inatHeatmap.ts).
     version: 36,
     up: (db) => {
       db.executeSync(`
@@ -2398,6 +2430,72 @@ const MIGRATIONS: Migration[] = [
       db.executeSync(
         `UPDATE collection_specimens SET duplicate_count = 1 WHERE duplicate_count IS NULL OR duplicate_count < 1;`,
       );
+    },
+  },
+  {
+    // v77: 1×1 m quadrats in a fixed plot (docs/planned/ui-redesign/06-plot-quadrats.md §2).
+    // Their own tables, not plot_species_records: a quadrat species has a cover
+    // and a frequency mask, not a layer, and the layer CHECK and every existing
+    // export stay as they are. Masks follow src/lib/grid.ts: '0'/'1' per cell,
+    // idx = row * grid_n + col, row 0 = the top edge; NULL = frequency not done.
+    // grid_n is chosen per quadrat, 2–10 (user decision, 2026-09-29).
+    // plot_surveys.quadrat_config holds the module's settings as JSON only.
+    version: 77,
+    up: (db) => {
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS plot_quadrats (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          uuid TEXT NOT NULL UNIQUE,
+          plot_survey_id INTEGER NOT NULL,
+          subplot_id INTEGER,
+          idx INTEGER NOT NULL,
+          label TEXT NOT NULL,
+          position TEXT,
+          size_m REAL NOT NULL DEFAULT 1 CHECK (size_m > 0),
+          grid_n INTEGER NOT NULL DEFAULT 10 CHECK (grid_n BETWEEN 2 AND 10),
+          top_edge TEXT NOT NULL DEFAULT 'N' CHECK (top_edge IN ('N', 'E', 'S', 'W', 'upslope')),
+          lat REAL,
+          lng REAL,
+          accuracy REAL,
+          cov_vascular REAL,
+          cov_solid_rock REAL,
+          cov_scree REAL,
+          cov_lichens REAL,
+          cov_bryophytes REAL,
+          cov_bare_ground REAL,
+          cov_litter REAL,
+          freq_mode TEXT NOT NULL DEFAULT 'cells' CHECK (freq_mode IN ('cells', 'count')),
+          locked INTEGER NOT NULL DEFAULT 0 CHECK (locked IN (0, 1)),
+          started_at INTEGER,
+          ended_at INTEGER,
+          notes TEXT,
+          photo_paths TEXT,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          FOREIGN KEY (plot_survey_id) REFERENCES plot_surveys(id) ON DELETE CASCADE,
+          FOREIGN KEY (subplot_id) REFERENCES plot_subplots(id) ON DELETE SET NULL,
+          UNIQUE (plot_survey_id, idx)
+        );
+      `);
+      db.executeSync(`CREATE INDEX IF NOT EXISTS idx_plot_quadrats_plot ON plot_quadrats(plot_survey_id);`);
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS plot_quadrat_species (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          quadrat_id INTEGER NOT NULL,
+          taxon_id TEXT NOT NULL,
+          cover_pct REAL CHECK (cover_pct IS NULL OR (cover_pct > 0 AND cover_pct <= 100)),
+          freq_cells TEXT,
+          freq_count INTEGER CHECK (freq_count IS NULL OR freq_count >= 0),
+          height_cm REAL,
+          notes TEXT,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          FOREIGN KEY (quadrat_id) REFERENCES plot_quadrats(id) ON DELETE CASCADE,
+          UNIQUE (quadrat_id, taxon_id)
+        );
+      `);
+      db.executeSync(`CREATE INDEX IF NOT EXISTS idx_plot_quadrat_species_quadrat ON plot_quadrat_species(quadrat_id);`);
+      addColumnIfMissing(db, `ALTER TABLE plot_surveys ADD COLUMN quadrat_config TEXT;`);
     },
   },
 ];

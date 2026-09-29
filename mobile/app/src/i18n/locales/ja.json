@@ -2625,9 +2625,6 @@
       "sub_bry_below_vasc": "コケ類 · 維管束下",
       "sub_bry_on_rock": "コケ類 · 岩上",
       "sub_bry_on_scree": "コケ類 · 岩屑上",
-      "none": "なし",
-      "prev": "前の項目",
-      "next": "次の項目",
       "short": {
         "cov_vascular": "維",
         "cov_solid_rock": "岩",
@@ -2744,18 +2741,12 @@
     "freq": {
       "title": "{{code}} · 頻度",
       "undo": "元に戻す",
-      "brush": "ブラシ",
-      "cellMode": "1 マスずつ",
       "uphill": "▲ 山頂方向（上り）",
       "gridLabel": "頻度枠 10×10",
       "hi1": "Hi1 糞",
       "hi2": "Hi2 食害",
       "hi3": "Hi3 踏みつけ",
       "newSpecies": "＋ 新しい種",
-      "fillAll": "すべて塗る",
-      "inverse": "不在を塗る",
-      "inverseDone": "不在の記入を終える",
-      "clear": "消去",
       "brushHint": "種か Hi を選んでマスをなぞります。塗ったマスから始めると消去。灰色の点は他の種。",
       "inverseHint": "100 マスを塗りました。いないマスをなぞって（×）、「不在の記入を終える」を押します。",
       "cellTitle": "{{cell}}（{{n}}/100）",
@@ -2763,7 +2754,6 @@
       "next": "次のマス ▶",
       "addedNoCover": "{{name}} を追加（被度未入力）",
       "goCover": "被度を入力",
-      "countMode": "回数のみ入力",
       "countHint": "過去の調査で格子の記録がない場合に使用：各種と攪乱について出現した格数（0–100 の整数）だけを入力します。",
       "switchTitle": "記録方法の切り替え",
       "switchToCount": "回数入力に切り替えると、この方形区で描いた格子（種と Hi1–Hi3）が消去されます。切り替えますか？",
@@ -3977,5 +3967,21 @@
     "fabSide": "左利き 左手 ボタン",
     "undoDuration": "元に戻す 秒 通知",
     "storage": "ストレージ 容量 キャッシュ 削除"
+  },
+  "quadrat": {
+    "cover": {
+      "prev": "前の項目",
+      "next": "次の項目",
+      "none": "なし"
+    },
+    "freq": {
+      "brush": "ブラシ",
+      "cellMode": "1 マスずつ",
+      "countMode": "回数のみ入力",
+      "fillAll": "すべて塗る",
+      "inverse": "不在を塗る",
+      "inverseDone": "不在の記入を終える",
+      "clear": "消去"
+    }
   }
 }

@@ -28,6 +28,7 @@
 import { DIRECTIONS, quadratsOf, upperSasOf } from './units';
 import type { Direction, P5mCorner } from './units';
 import { SURFACE_UNVISITED, SURFACE_VASCULAR, popcount } from './grid';
+import { coverFreqIssues } from '../../../lib/quadratIssues';
 
 export type TopCover = {
   vascular: number | null;
@@ -183,14 +184,9 @@ export function checkQuadrat(q: QuadratInput): Issue[] {
   });
 
   if (q.freqDone) {
-    for (const s of q.species) {
-      const cells = freqOf(s);
-      if ((s.cover_pct ?? 0) > 0 && cells === 0) {
-        out.push({ unit: q.code, kind: 'cover-no-freq', species: s.name, cover: s.cover_pct as number });
-      } else if (cells > 0 && !((s.cover_pct ?? 0) > 0)) {
-        out.push({ unit: q.code, kind: 'freq-no-cover', species: s.name, cells });
-      }
-    }
+    // The rule itself is shared with the fixed plot's quadrats (lib/quadratIssues).
+    const checks = q.species.map((s) => ({ name: s.name, cover: s.cover_pct, cells: freqOf(s) }));
+    for (const i of coverFreqIssues(checks)) out.push({ unit: q.code, ...i });
   }
 
   out.push(...checkPoints(q.code, q.point_surface, q.species));
