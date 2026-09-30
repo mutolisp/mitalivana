@@ -89,9 +89,15 @@ export const FrequencyGrid = forwardRef<FrequencyGridHandle, Props>(function Fre
 ) {
   const tc = useThemeColors();
   const cells = n * n;
-  // Side of the grid: the row's width less the labels, capped (360, or the caller's cap).
+  // Side of the grid: the row's width less the labels, capped by the caller.
   const [width, setWidth] = useState(0);
-  const size = width ? Math.max(0, Math.min(width - 22 - (leftRightLabels ? 40 : 0), 360, maxSize)) : 300;
+  const sideW = leftRightLabels ? 40 : 0;
+  const fit = width ? Math.max(0, Math.min(width - 22 - sideW, maxSize)) : 300;
+  // R / C labels grow with a grid larger than 360 (10 → 14 pt); up to 360
+  // they stay 10 pt in a 22 pt column, as before.
+  const labelFs = Math.min(14, Math.max(10, Math.round((10 * fit) / 360)));
+  const labelW = Math.round(labelFs * 2.2);
+  const size = width ? Math.max(0, Math.min(width - labelW - sideW, maxSize)) : 300;
   // Last cell the finger landed on, shown as e.g. "R3C7" until the next touch.
   const [touched, setTouched] = useState<number | null>(null);
 
@@ -195,7 +201,7 @@ export const FrequencyGrid = forwardRef<FrequencyGridHandle, Props>(function Fre
         <Text className="text-center text-xs font-semibold text-accent-700 dark:text-accent-300">{topEdgeLabel}</Text>
       </View>
       {/* The whole block (side labels, row labels, grid) is centred; the grid's
-          size comes from the row's width: side labels + 22 row labels. */}
+          size comes from the row's width: side labels + the row labels. */}
       <View
         className="flex-row items-center justify-center"
         onLayout={(e) => setWidth(Math.floor(e.nativeEvent.layout.width))}
@@ -205,16 +211,16 @@ export const FrequencyGrid = forwardRef<FrequencyGridHandle, Props>(function Fre
             {leftRightLabels[0]}
           </Text>
         ) : null}
-        <View style={{ width: size + 22 }}>
-          <View className="flex-row" style={{ marginLeft: 22 }}>
+        <View style={{ width: size + labelW }}>
+          <View className="flex-row" style={{ marginLeft: labelW }}>
             {Array.from({ length: n }, (_, c) => (
-              <Text key={c} style={{ width: cellPx }} className="text-center text-[10px] font-semibold text-gray-700 dark:text-gray-200">{`C${c + 1}`}</Text>
+              <Text key={c} style={{ width: cellPx, fontSize: labelFs }} className="text-center font-semibold text-gray-700 dark:text-gray-200">{`C${c + 1}`}</Text>
             ))}
           </View>
           <View className="flex-row">
-            <View style={{ width: 22 }}>
+            <View style={{ width: labelW }}>
               {Array.from({ length: n }, (_, r) => (
-                <Text key={r} style={{ height: cellPx, lineHeight: cellPx }} className="text-[10px] font-semibold text-gray-700 dark:text-gray-200">{`R${r + 1}`}</Text>
+                <Text key={r} style={{ height: cellPx, lineHeight: cellPx, fontSize: labelFs }} className="font-semibold text-gray-700 dark:text-gray-200">{`R${r + 1}`}</Text>
               ))}
             </View>
             {/* Drawn at an exact pixel size: percentage cells in a flex-wrap

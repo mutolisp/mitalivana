@@ -420,7 +420,7 @@ export function FrequencyPanel({
               readMask={(key) => masksRef.current[key]}
               onPaint={(key, mask) => setMasks({ ...masksRef.current, [key]: mask })}
               onCommit={(key, mask) => send(key, mask)}
-              maxSize={gridMax(areaH, mode, mode === 'brush' && showPad)}
+              maxSize={gridMax(areaH, mode, mode === 'brush' && showPad, n)}
               accessibilityLabel={t('plot.quadrats.gridLabel', { n })}
             />
           </View>
@@ -540,9 +540,12 @@ const BELOW_GRID = { brush: 180, cell: 190 } as const;
 const GRID_FLOOR = { brush: 260, cell: 200 } as const;
 /** The keypad's two rows, less what the compact species card gives back. */
 const KEYPAD_H = 76;
-function gridMax(areaH: number, mode: 'brush' | 'cell', keypad: boolean): number {
+/** Largest cell on a big screen (iPad, Mac). Never caps below the phone's
+ *  360, so a small n keeps the grid it always had. */
+const MAX_CELL = 64;
+function gridMax(areaH: number, mode: 'brush' | 'cell', keypad: boolean, n: number): number {
   if (!areaH) return 360;
-  return Math.min(360, Math.max(GRID_FLOOR[mode], areaH - ABOVE_GRID - BELOW_GRID[mode] - (keypad ? KEYPAD_H : 0)));
+  return Math.min(Math.max(360, n * MAX_CELL), Math.max(GRID_FLOOR[mode], areaH - ABOVE_GRID - BELOW_GRID[mode] - (keypad ? KEYPAD_H : 0)));
 }
 
 /** Outlined pill for the frequency tools (design 10d). */

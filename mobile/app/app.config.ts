@@ -59,7 +59,7 @@ const config: ExpoConfig = {
     // `expo prebuild` regenerates the same values instead of silently
     // resetting them to 1 — which App Store Connect would reject, and which
     // Play would treat as a downgrade.
-    buildNumber: '32',
+    buildNumber: '33',
     infoPlist: {
       // App uses only standard HTTPS encryption (exempt). Declaring this
       // skips the export-compliance prompt on every App Store Connect upload.
@@ -75,7 +75,7 @@ const config: ExpoConfig = {
     // Aligned with the iOS build number so "build 21" means one thing on both
     // platforms. Nothing is published to Play yet, so raising it from 2 costs
     // nothing; versionCode only has to increase.
-    versionCode: 32,
+    versionCode: 33,
     adaptiveIcon: {
       backgroundColor: '#F5EBD9',
       foregroundImage: './assets/images/android-icon-foreground.png',

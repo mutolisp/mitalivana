@@ -21,6 +21,9 @@ import {
   latestPlotActivityAt,
   type PlotSurvey,
 } from '~/db';
+import { listPlotSpecies } from '~/db/plots';
+import { parseQuadratConfig } from '~/db/quadrats';
+import { plotFreqIssueLines } from './quadrat/plotFreqIssueLines';
 import { useActivePlot } from '~/stores/activePlot';
 import { pauseRecording, useTrackRecorder } from '~/lib/trackRecorder';
 
@@ -86,9 +89,19 @@ function maybeWarn(
   const minutes = Math.round(idleMs / (60 * 1000));
   const noun =
     plot.plot_type === 'transect' ? i18n.t('map.plotTransect') : plot.plot_type === 'point_count' ? i18n.t('map.plotPointCount') : i18n.t('nav.plot');
+  // Ending from here gets the same dominance ⇄ frequency reminder as the
+  // plot screen's end button (a note; ending stays allowed).
+  const cfg = parseQuadratConfig(plot.quadrat_config);
+  const freqIssues =
+    plot.plot_type === 'fixed' && cfg.freqEnabled ? plotFreqIssueLines(i18n.t, listPlotSpecies(plot.id), cfg.freqMode) : [];
   void showActionSheet({
     title: i18n.t('watcher.plotIdle', { noun, minutes }),
-    message: i18n.t('watcher.plotIdleMsg', { plotid: plot.plotid, minutes }),
+    message: [
+      i18n.t('watcher.plotIdleMsg', { plotid: plot.plotid, minutes }),
+      freqIssues.length ? `${i18n.t('plot.quadrats.domFreqTitle')}\n${freqIssues.join('\n')}` : null,
+    ]
+      .filter(Boolean)
+      .join('\n\n'),
     cancelLabel: i18n.t('watcher.keepRecording'),
     options: [
       { label: i18n.t('session.end'), destructive: true },
