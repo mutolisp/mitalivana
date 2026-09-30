@@ -18,6 +18,7 @@
  * small `RecorderAdapter` built from the target at startRecording().
  */
 import * as Location from 'expo-location';
+import { AppState, type NativeEventSubscription } from 'react-native';
 import { create } from 'zustand';
 import i18n from '~/i18n';
 import {
@@ -30,10 +31,25 @@ import {
   writePlotTrack,
   type TrackSegment,
 } from '~/db';
+import { useSettings, type TrackAccuracy } from '~/stores/settings';
 
-const BATCH_FLUSH_POINTS = 5;
-const MIN_DISTANCE_M = 5;
-const MIN_TIME_MS = 4000;
+/** How often the in-progress segment is written to the DB. The whole track
+ *  is one GeoJSON column, so every write re-serialises all of it; a crash
+ *  loses at most this much. Also flushed on pause and when backgrounded. */
+const FLUSH_INTERVAL_MS = 60_000;
+
+/**
+ * Settings → track accuracy. expo-location 19 maps accuracy to
+ * CLLocationAccuracy on iOS (BestForNavigation / NearestTenMeters /
+ * HundredMeters) and ignores `timeInterval` there; on Android High and
+ * BestForNavigation are both PRIORITY_HIGH_ACCURACY, so spacing is what
+ * separates high from medium.
+ */
+const TRACK_PROFILES: Record<TrackAccuracy, Location.LocationOptions> = {
+  high: { accuracy: Location.Accuracy.BestForNavigation, distanceInterval: 5, timeInterval: 4000 },
+  medium: { accuracy: Location.Accuracy.High, distanceInterval: 10, timeInterval: 10_000 },
+  low: { accuracy: Location.Accuracy.Balanced, distanceInterval: 20, timeInterval: 30_000 },
+};
 
 export type RecordTarget = { kind: 'plot' | 'session'; id: number };
 
@@ -56,6 +72,10 @@ type RecorderAdapter = {
  *  every point: a phone standing still gets no position callbacks at all. */
 const LIVE_CHECK_MS = 30_000;
 let liveTimer: ReturnType<typeof setInterval> | null = null;
+let appStateSub: NativeEventSubscription | null = null;
+/** Points in `currentSegment` already written, and when. */
+let flushedCount = 0;
+let lastFlushAt = 0;
 
 // Module-scope mutable refs
 let watchSub: Location.LocationSubscription | null = null;
@@ -159,17 +179,15 @@ async function beginWatch(target: RecordTarget): Promise<void> {
   currentTarget = target;
   currentAdapter = adapter;
   currentSegment = [];
+  flushedCount = 0;
+  lastFlushAt = Date.now();
   priorSegmentsSnapshot = adapter.loadPriorSegments();
   useTrackRecorder.setState({ recordingTarget: target, livePoints: [] });
 
   adapter.onStart?.();
 
   const sub = await Location.watchPositionAsync(
-    {
-      accuracy: Location.Accuracy.BestForNavigation,
-      distanceInterval: MIN_DISTANCE_M,
-      timeInterval: MIN_TIME_MS,
-    },
+    TRACK_PROFILES[useSettings.getState().track_accuracy] ?? TRACK_PROFILES.high,
     (pos) => {
       if (currentTarget == null) return;
       // The record was ended while recording: stop here, keep what we have.
@@ -186,10 +204,7 @@ async function beginWatch(target: RecordTarget): Promise<void> {
         adapter.onFirstFix?.(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy ?? null);
       }
 
-      // Persist every BATCH_FLUSH_POINTS points to avoid loss on crash.
-      if (currentSegment.length % BATCH_FLUSH_POINTS === 0) {
-        adapter.writeTrack([...priorSegmentsSnapshot, currentSegment.slice()]);
-      }
+      if (Date.now() - lastFlushAt >= FLUSH_INTERVAL_MS) flushSegment();
     },
   );
   // Paused while the watch was being set up: pauseRecording found nothing to
@@ -202,6 +217,18 @@ async function beginWatch(target: RecordTarget): Promise<void> {
   liveTimer = setInterval(() => {
     if (currentAdapter && !currentAdapter.isLive()) pauseRecording();
   }, LIVE_CHECK_MS);
+  // Foreground-only watch: the app may be killed once suspended.
+  appStateSub = AppState.addEventListener('change', (s) => {
+    if (s !== 'active') flushSegment();
+  });
+}
+
+/** Write the track if the current segment has points not yet persisted. */
+function flushSegment(): void {
+  lastFlushAt = Date.now();
+  if (currentAdapter == null || currentSegment.length === flushedCount) return;
+  currentAdapter.writeTrack([...priorSegmentsSnapshot, currentSegment.slice()]);
+  flushedCount = currentSegment.length;
 }
 
 /** Stop the watch and commit the in-progress segment back to the target. */
@@ -215,6 +242,8 @@ export function pauseRecording(): void {
     clearInterval(liveTimer);
     liveTimer = null;
   }
+  appStateSub?.remove();
+  appStateSub = null;
   if (currentAdapter != null && currentSegment.length > 0) {
     const next = [...priorSegmentsSnapshot, currentSegment.slice()];
     currentAdapter.writeTrack(next);

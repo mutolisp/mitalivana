@@ -47,6 +47,8 @@ const HIT_LAYERS = ['feat-marker', 'feat-line', 'feat-polygon-fill', 'feat-circl
 /** Hit-test tolerance in screen pixels. A thin line is nearly impossible to hit
  *  with a single point. */
 const HIT_SLOP = 12;
+/** Metres the device must move before the user-location puck updates. */
+const USER_LOCATION_MIN_DISPLACEMENT_M = 5;
 
 type Marker_ = Extract<MapFeature, { kind: 'marker' }>;
 
@@ -359,7 +361,9 @@ export const MapLibreCanvas = forwardRef<MapCamera, MapCanvasProps>(function Map
         </Marker>
       ))}
 
-      {showsUserLocation ? <UserLocation /> : null}
+      {/* minDisplacement > 0 also drops MapLibre's compass-heading events,
+          which otherwise re-render the puck many times a second. */}
+      {showsUserLocation ? <UserLocation minDisplacement={USER_LOCATION_MIN_DISPLACEMENT_M} /> : null}
       {children}
     </MapLibreMap>
   );

@@ -118,9 +118,10 @@ const TAB_FG = {
   dark: { active: DARK.accent, inactive: DARK.overlayIcon },
 };
 
-function TabBarPill() {
+function TabBarPill({ opaque = false }: { opaque?: boolean }) {
   const scheme = useColorScheme() ?? 'light';
   const dark = scheme === 'dark';
+  const c = useThemeColors();
   return (
     <View
       style={[
@@ -133,21 +134,27 @@ function TabBarPill() {
         },
       ]}
     >
-      <BlurView
-        intensity={BLUR_INTENSITY}
-        tint={dark ? 'dark' : 'light'}
-        style={StyleSheet.absoluteFill}
-      />
-      <View
-        style={[
-          StyleSheet.absoluteFill,
-          {
-            backgroundColor: dark
-              ? `rgba(17,24,39,${TINT_ALPHA.dark})`
-              : `rgba(255,255,255,${TINT_ALPHA.light})`,
-          },
-        ]}
-      />
+      {opaque ? (
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: c.card }]} />
+      ) : (
+        <>
+          <BlurView
+            intensity={BLUR_INTENSITY}
+            tint={dark ? 'dark' : 'light'}
+            style={StyleSheet.absoluteFill}
+          />
+          <View
+            style={[
+              StyleSheet.absoluteFill,
+              {
+                backgroundColor: dark
+                  ? `rgba(17,24,39,${TINT_ALPHA.dark})`
+                  : `rgba(255,255,255,${TINT_ALPHA.light})`,
+              },
+            ]}
+          />
+        </>
+      )}
     </View>
   );
 }
@@ -262,6 +269,9 @@ export default function TabLayout() {
               name="map"
               options={{
                 title: t('tab.map'),
+                // Opaque over the map: a blur there is re-sampled on every map
+                // redraw (pan, tiles, the location puck). Trial — see Update_log.
+                tabBarBackground: () => <TabBarPill opaque />,
                 tabBarIcon: ({ color }) => (
                   <Ionicons name="map-outline" size={22} color={color} />
                 ),

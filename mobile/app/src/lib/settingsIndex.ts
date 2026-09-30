@@ -95,6 +95,7 @@ export const SETTINGS_INDEX: SettingsEntry[] = [
   { id: 'defaultCreate', section: 'survey', labelKey: 'create.plusDefault', keywordsKey: kw('defaultCreate'), kind: 'select', icon: 'add-circle-outline' },
   { id: 'gpsSession', section: 'survey', labelKey: 'settings.gpsPerSpeciesSession', descKey: 'settings.gpsPerSpeciesSessionDesc', keywordsKey: kw('gpsSession'), kind: 'switch', icon: 'navigate-outline' },
   { id: 'gpsPlot', section: 'survey', labelKey: 'settings.gpsPerSpeciesPlot', descKey: 'settings.gpsPerSpeciesPlotDesc', keywordsKey: kw('gpsPlot'), kind: 'switch', icon: 'locate-outline' },
+  { id: 'trackAccuracy', section: 'survey', labelKey: 'settings.trackAccuracy', descKey: 'settings.trackAccuracyDesc', keywordsKey: kw('trackAccuracy'), kind: 'select', icon: 'analytics-outline' },
   { id: 'usageRank', section: 'survey', labelKey: 'settings.searchUsageRank', descKey: 'settings.searchUsageRankDesc', keywordsKey: kw('usageRank'), kind: 'switch', icon: 'trending-up-outline' },
   { id: 'collection', section: 'survey', labelKey: 'settings.sectionCollection', descKey: 'settings.collectionDesc', keywordsKey: kw('collection'), kind: 'nav', route: '/settings/collection', icon: 'pricetag-outline' },
   { id: 'collectionCollector', section: 'survey', labelKey: 'settings.defaultCollector', descKey: 'settings.defaultCollectorDesc', kind: 'nav', route: '/settings/collection', focus: 'collector', icon: 'person-outline' },

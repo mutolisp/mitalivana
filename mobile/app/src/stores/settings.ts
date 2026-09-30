@@ -44,6 +44,10 @@ export type RegionCode = 'TW' | 'JP';
  *  them; see `composeByLangs` in `~/db/mergeScope`. */
 export type VernacularLang = 'zh-TW' | 'ja';
 
+/** GNSS profile for track recording; mapped to accuracy + spacing in
+ *  lib/trackRecorder.ts (TRACK_PROFILES). */
+export type TrackAccuracy = 'high' | 'medium' | 'low';
+
 export type RecordSort = 'observed' | 'cname' | 'name' | 'family';
 /**
  * Specimen sort inside one collection trip.
@@ -198,6 +202,8 @@ type SettingsValues = {
    *  recorded is stamped regardless — the receiver is on anyway. */
   record_gps_session: boolean;
   record_gps_plot: boolean;
+  /** Track-recording accuracy. Read when a recording starts. */
+  track_accuracy: TrackAccuracy;
   /** Species search: after exact matches, list the taxa the user records most
    *  first (src/lib/usageRank.ts). */
   search_usage_rank: boolean;
@@ -333,6 +339,7 @@ const DEFAULTS: SettingsValues = {
   collection_label_family: false,
   record_gps_session: true,
   record_gps_plot: true,
+  track_accuracy: 'high',
   search_usage_rank: true,
   module_gloria: false,
   module_miren: false,
@@ -479,6 +486,7 @@ function readAll(): SettingsValues {
       map.get('record_gps_plot') == null
         ? DEFAULTS.record_gps_plot
         : map.get('record_gps_plot') === 'true',
+    track_accuracy: (map.get('track_accuracy') as TrackAccuracy) ?? DEFAULTS.track_accuracy,
     search_usage_rank:
       map.get('search_usage_rank') == null
         ? DEFAULTS.search_usage_rank

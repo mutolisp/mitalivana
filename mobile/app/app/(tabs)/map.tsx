@@ -1,6 +1,7 @@
 import { errText } from '~/lib/errText';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
+import { useIsFocused } from '@react-navigation/native';
 import { useFocusEffect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -354,6 +355,9 @@ export default function MapScreen() {
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const toast = useToast((s) => s.show);
   const router = useRouter();
+  // A tab screen stays mounted after its first visit, so an unconditional
+  // showsUserLocation kept GNSS running on every other tab too.
+  const isFocused = useIsFocused();
   const params = useLocalSearchParams<{
     draw?: string;
     session?: string;
@@ -1951,7 +1955,7 @@ export default function MapScreen() {
         // 右下角是唯一沒被佔用的角落（左上返回／搜尋、右上工具、左下比例尺）
         compassInset={{ bottom: tabBarInset + 12, right: 12 }}
         showsScale
-        showsUserLocation
+        showsUserLocation={isFocused}
         showsMyLocationButton={false}
         onMapReady={() => setMapReady(true)}
         onRegionChangeComplete={handleRegionChangeComplete}

@@ -70,6 +70,7 @@ export default function MenuScreen() {
   const recordTypeDefault = useSettings((s) => s.record_type_default);
   const gpsSession = useSettings((s) => s.record_gps_session);
   const gpsPlot = useSettings((s) => s.record_gps_plot);
+  const trackAccuracy = useSettings((s) => s.track_accuracy);
   const usageRank = useSettings((s) => s.search_usage_rank);
   const moduleGloria = useSettings((s) => s.module_gloria);
   const moduleMiren = useSettings((s) => s.module_miren);
@@ -309,6 +310,19 @@ export default function MenuScreen() {
               value={recordTypeDefault}
               options={recordTypeOptions}
               onChange={(v) => setSetting('record_type_default', v)}
+            />
+          );
+        case 'trackAccuracy':
+          return (
+            <SelectRow
+              key={e.id} {...common}
+              value={trackAccuracy}
+              options={[
+                { value: 'high' as const, label: t('settings.trackAccuracyHigh') },
+                { value: 'medium' as const, label: t('settings.trackAccuracyMedium') },
+                { value: 'low' as const, label: t('settings.trackAccuracyLow') },
+              ]}
+              onChange={(v) => setSetting('track_accuracy', v)}
             />
           );
         case 'intermediateRanks':
