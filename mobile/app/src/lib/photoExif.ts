@@ -43,6 +43,9 @@ export type PhotoMeta = {
   accuracyM: number | null;
   /** DateTimeOriginal as epoch ms, or null when unreadable. */
   takenAt: number | null;
+  /** GPSAltitude in metres, negative below the GPSAltitudeRef = 1 reference,
+   *  rounded to the metre like the app's own altitudes. Null when absent. */
+  altitudeM: number | null;
   /** Our own embedded record, when this photo came out of this app. */
   embedded: EmbeddedContext | null;
 };
@@ -249,10 +252,34 @@ function dmsToDeg(v: unknown): number | null {
   return null;
 }
 
+/** GPSAltitude (a rational, or a number from the picker) with its ref: 1
+ *  means below the reference. Rounded to the metre; null when absent or not a
+ *  number. Only meaningful beside a position — the caller drops it otherwise. */
+function altitudeOf(v: unknown, ref: unknown): number | null {
+  let m: number | null = null;
+  if (Array.isArray(v) && v.length === 2 && typeof v[0] === 'number' && typeof v[1] === 'number' && v[1]) m = v[0] / v[1];
+  else if (typeof v === 'string' && v.trim() !== '') {
+    const [a, b] = v.split('/').map(Number);
+    m = b ? a / b : a;
+  } else if (typeof v === 'number') m = v;
+  if (m === null || !Number.isFinite(m)) return null;
+  const below = ref === 1 || ref === '1' || (Array.isArray(ref) && ref[0] === 1);
+  return Math.round(below ? -Math.abs(m) : m);
+}
+
 /** Reject coordinates outside the possible range rather than recording them. */
+/**
+ * A usable coordinate pair, or none. Exactly (0, 0) is none: a photo whose
+ * position was withheld comes with the GPS tags present but blank (seen from
+ * the Android photo picker: GPSVersionID 0.0.0.0, empty latitude/longitude),
+ * which read as zero. Taken at face value it put specimens in the Gulf of
+ * Guinea — and, being "a position", kept the use-current-location fallback
+ * from ever being offered.
+ */
 function validLatLng(lat: number | null, lng: number | null): { lat: number | null; lng: number | null } {
   const okLat = lat !== null && Math.abs(lat) <= 90;
   const okLng = lng !== null && Math.abs(lng) <= 180;
+  if (okLat && okLng && lat === 0 && lng === 0) return { lat: null, lng: null };
   return okLat && okLng ? { lat, lng } : { lat: null, lng: null };
 }
 
@@ -443,6 +470,7 @@ export function metaFromExifDict(dict: ExifDictLike): PhotoMeta {
   return {
     lat,
     lng,
+    altitudeM: lat !== null ? altitudeOf(gps[G.GPSAltitude], gps[G.GPSAltitudeRef]) : null,
     // GPSHPositioningError first — it is what the camera measured. Most phones
     // never write it, so a photo this app exported falls back to the accuracy
     // it recorded alongside the fix. Both describe the same measurement.
@@ -474,6 +502,10 @@ export function metaFromPickerExif(exif: Record<string, unknown> | null | undefi
   return {
     lat,
     lng,
+    altitudeM:
+      lat !== null
+        ? altitudeOf(gps.GPSAltitude ?? gps.Altitude ?? e.GPSAltitude, gps.GPSAltitudeRef ?? gps.AltitudeRef ?? e.GPSAltitudeRef)
+        : null,
     accuracyM:
       (typeof err === 'number' && Number.isFinite(err) ? err : null) ?? embedded?.accuracy ?? null,
     takenAt: parseExifDateTime(
@@ -491,13 +523,15 @@ export function metaFromPickerExif(exif: Record<string, unknown> | null | undefi
  *  bytes first: we wrote those with `utf8ToLatin1` and can invert it exactly,
  *  whereas the platform decodes the tag by its own rules. */
 export function mergeMeta(fromBytes: PhotoMeta | null, fromPicker: PhotoMeta | null): PhotoMeta {
-  const b = fromBytes ?? { lat: null, lng: null, accuracyM: null, takenAt: null, embedded: null };
-  const p = fromPicker ?? { lat: null, lng: null, accuracyM: null, takenAt: null, embedded: null };
+  const b = fromBytes ?? { lat: null, lng: null, accuracyM: null, takenAt: null, altitudeM: null, embedded: null };
+  const p = fromPicker ?? { lat: null, lng: null, accuracyM: null, takenAt: null, altitudeM: null, embedded: null };
   const coords = p.lat !== null && p.lng !== null ? p : b;
   return {
     lat: coords.lat,
     lng: coords.lng,
     accuracyM: coords.accuracyM ?? b.accuracyM ?? p.accuracyM,
+    // With the position it belongs to; the other source only if it has one too.
+    altitudeM: coords.lat !== null ? (coords.altitudeM ?? (b.lat !== null ? b.altitudeM : null) ?? (p.lat !== null ? p.altitudeM : null)) : null,
     takenAt: p.takenAt ?? b.takenAt,
     embedded: b.embedded ?? p.embedded,
   };

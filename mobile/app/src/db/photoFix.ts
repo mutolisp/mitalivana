@@ -25,6 +25,8 @@ export type StoredPhotoFix = {
   /** Metres, when the photo stated it. Null means unknown — not zero. */
   accuracy: number | null;
   takenAt: number | null;
+  /** Metres (GPSAltitude), v79. */
+  altitude: number | null;
 };
 
 /**
@@ -36,30 +38,30 @@ export type StoredPhotoFix = {
  */
 export function rememberPhotoFix(
   uri: string,
-  fix: { lat: number | null; lng: number | null; accuracyM: number | null; takenAt: number | null },
+  fix: { lat: number | null; lng: number | null; accuracyM: number | null; takenAt: number | null; altitudeM?: number | null },
 ): void {
   if (fix.lat === null || fix.lng === null) return;
   getUserDb().executeSync(
-    `INSERT INTO photo_fix (uri, lat, lng, accuracy, taken_at, created_at)
-     VALUES (?, ?, ?, ?, ?, ?)
+    `INSERT INTO photo_fix (uri, lat, lng, accuracy, taken_at, altitude, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(uri) DO UPDATE SET
        lat = excluded.lat, lng = excluded.lng,
-       accuracy = excluded.accuracy, taken_at = excluded.taken_at`,
-    [uri, fix.lat, fix.lng, fix.accuracyM, fix.takenAt, Date.now()],
+       accuracy = excluded.accuracy, taken_at = excluded.taken_at, altitude = excluded.altitude`,
+    [uri, fix.lat, fix.lng, fix.accuracyM, fix.takenAt, fix.altitudeM ?? null, Date.now()],
   );
 }
 
 /** What this photo said, or null if it never told us. */
 export function recallPhotoFix(uri: string): StoredPhotoFix | null {
   const res = getUserDb().executeSync(
-    `SELECT lat, lng, accuracy, taken_at FROM photo_fix WHERE uri = ?`,
+    `SELECT lat, lng, accuracy, taken_at, altitude FROM photo_fix WHERE uri = ?`,
     [uri],
   );
   const row = (res.rows ?? [])[0] as
-    | { lat: number; lng: number; accuracy: number | null; taken_at: number | null }
+    | { lat: number; lng: number; accuracy: number | null; taken_at: number | null; altitude: number | null }
     | undefined;
   if (!row || row.lat === null || row.lng === null) return null;
-  return { lat: row.lat, lng: row.lng, accuracy: row.accuracy, takenAt: row.taken_at };
+  return { lat: row.lat, lng: row.lng, accuracy: row.accuracy, takenAt: row.taken_at, altitude: row.altitude ?? null };
 }
 
 /** Drop what we remembered about photos that no record references any more.

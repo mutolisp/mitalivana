@@ -624,7 +624,7 @@ export function PlotSpeciesTab({
         const gained =
           fix.kind === 'found' && (record.lat === null || record.lng === null) ? fix.fix : null;
         if (gained) {
-          updatePlotSpeciesLocation(record.id, gained.lat, gained.lng, gained.accuracyM);
+          updatePlotSpeciesLocation(record.id, gained.lat, gained.lng, gained.accuracyM, gained.altitudeM);
         }
         // Re-seed modal so PhotoGrid reflects the new entry without closing.
         setModal({
@@ -633,7 +633,12 @@ export function PlotSpeciesTab({
             ...record,
             photo_paths: JSON.stringify(merged),
             ...(gained
-              ? { lat: gained.lat, lng: gained.lng, accuracy: gained.accuracyM }
+              ? {
+                  lat: gained.lat,
+                  lng: gained.lng,
+                  accuracy: gained.accuracyM,
+                  ...(gained.altitudeM != null ? { elevation_m: gained.altitudeM, elevation_source: 'gnss' } : null),
+                }
               : null),
           },
         });
@@ -656,6 +661,9 @@ export function PlotSpeciesTab({
               fromPhotoUri: fix.fix.uri,
             },
           );
+          // Its altitude with it, unless one was entered already.
+          const alt = fix.fix.altitudeM;
+          if (alt != null) setPendingElevation((prev) => prev ?? { metres: alt, source: 'gnss' });
         }
       }
     } catch (e) {

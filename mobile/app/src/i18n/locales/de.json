@@ -1673,7 +1673,21 @@
     "filterNoPhoto_other": "Ohne Foto {{count}}",
     "filterNoPhoto_one": "Ohne Foto {{count}}",
     "photoCount_other": "{{count}} Fotos",
-    "photoCount_one": "{{count}} Foto"
+    "photoCount_one": "{{count}} Foto",
+    "addByCamera": "Foto aufnehmen",
+    "addFromPhotos": "Aus Fotos wählen",
+    "addLongPressHint": "Halten: Foto aufnehmen oder aus Fotos wählen",
+    "addLongPressTip": "„Beleg hinzufügen“ halten, um aus Fotos zu wählen",
+    "fromPhotosTitle": "{{n}} Fotos ausgewählt",
+    "fromPhotosExif": "Sammelzeit und Position stammen aus den Fotos (EXIF)",
+    "fromPhotosOne": "Ein Beleg · #{{number}} ({{n}} Fotos)",
+    "fromPhotosEach": "Ein Beleg pro Foto · #{{from}}–#{{to}} ({{n}} Belege)",
+    "fromPhotosNoGps": "Fotos von {{count}} Beleg(en) haben keine Position",
+    "fromPhotosUseHere": "Aktuellen Standort verwenden",
+    "fromPhotosLeaveEmpty": "Leer lassen, später ergänzen",
+    "fromPhotosNoFix": "Aktueller Standort nicht verfügbar; Position bleibt leer",
+    "fromPhotosMadeOne": "Beleg #{{number}} aus {{n}} Foto(s) angelegt",
+    "fromPhotosMadeMany": "{{n}} Belege angelegt #{{from}}–#{{to}}"
   },
   "areaSpecies": {
     "title": "Artensuche im Gebiet",

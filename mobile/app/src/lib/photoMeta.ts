@@ -82,6 +82,8 @@ export type PhotoFix = {
    *  the accuracy of some other fix. */
   accuracyM: number | null;
   takenAt: number | null;
+  /** Metres, when the photo stated it (GPSAltitude). */
+  altitudeM: number | null;
   uri: string;
 };
 
@@ -160,6 +162,7 @@ export async function firstPhotoFix(sources: PhotoFixSource[]): Promise<PhotoFix
           lng: meta.lng,
           accuracyM: meta.accuracyM,
           takenAt: meta.takenAt,
+          altitudeM: meta.altitudeM,
           uri,
         },
       };
@@ -174,6 +177,7 @@ export async function firstPhotoFix(sources: PhotoFixSource[]): Promise<PhotoFix
           lng: remembered.lng,
           accuracyM: remembered.accuracy,
           takenAt: remembered.takenAt,
+          altitudeM: remembered.altitude,
           uri,
         },
       };

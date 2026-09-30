@@ -66,6 +66,8 @@ export type PlannedRecord = {
   lat: number | null;
   lng: number | null;
   accuracy: number | null;
+  /** The photo's GNSS altitude (GPSAltitude), only with its own position. */
+  elevation_m: number | null;
   photo_paths: string;
 };
 
@@ -101,6 +103,7 @@ export function buildPlannedRecords(
       lat: coords.lat,
       lng: coords.lng,
       accuracy: coords.accuracy,
+      elevation_m: item.hasCoords ? item.meta.altitudeM : null,
       photo_paths: JSON.stringify([item.uri]),
     });
   }

@@ -2512,6 +2512,14 @@ const MIGRATIONS: Migration[] = [
       addColumnIfMissing(db, `ALTER TABLE plot_species_records ADD COLUMN freq_count INTEGER;`);
     },
   },
+  {
+    // v79: the altitude a photo stated (GPSAltitude, metres), cached with its
+    // position so 「用照片的 GNSS 定位」 later also restores the elevation.
+    version: 79,
+    up: (db) => {
+      addColumnIfMissing(db, `ALTER TABLE photo_fix ADD COLUMN altitude REAL;`);
+    },
+  },
 ];
 
 /** Highest schema version this build knows how to produce. Backup/restore uses

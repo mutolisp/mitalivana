@@ -1573,7 +1573,21 @@
     "countDone_other": "표본 {{count}}점",
     "filterUndetermined_other": "미동정 {{count}}",
     "filterNoPhoto_other": "사진 없음 {{count}}",
-    "photoCount_other": "사진 {{count}}장"
+    "photoCount_other": "사진 {{count}}장",
+    "addByCamera": "사진 촬영",
+    "addFromPhotos": "사진에서 선택",
+    "addLongPressHint": "길게 누르기: 촬영 또는 사진에서 선택",
+    "addLongPressTip": "‘표본 추가’를 길게 눌러 사진에서 선택",
+    "fromPhotosTitle": "사진 {{n}}장 선택됨",
+    "fromPhotosExif": "채집 시각과 좌표는 사진(EXIF)에서 가져옵니다",
+    "fromPhotosOne": "표본 1점 · #{{number}} (사진 {{n}}장)",
+    "fromPhotosEach": "사진마다 1점 · #{{from}}–#{{to}} ({{n}}점)",
+    "fromPhotosNoGps": "표본 {{count}}점의 사진에 좌표가 없습니다",
+    "fromPhotosUseHere": "현재 위치 사용",
+    "fromPhotosLeaveEmpty": "비워 두고 나중에 입력",
+    "fromPhotosNoFix": "현재 위치를 가져올 수 없어 좌표를 비워 둡니다",
+    "fromPhotosMadeOne": "사진 {{n}}장으로 표본 #{{number}}을(를) 만들었습니다",
+    "fromPhotosMadeMany": "표본 {{n}}점을 만들었습니다 #{{from}}–#{{to}}"
   },
   "areaSpecies": {
     "title": "범위 내 종 조회",

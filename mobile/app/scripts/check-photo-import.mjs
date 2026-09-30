@@ -9,6 +9,7 @@
  * Run: npm run check:photoimport
  */
 import { buildPlannedRecords, planPhotoImport } from '../src/lib/photoImport.ts';
+import { planSpecimensFromPhotos, specimensWithoutFix } from '../src/lib/specimenPhotoPlan.ts';
 
 let failures = 0;
 const eq = (label, got, want) => {
@@ -20,14 +21,14 @@ const eq = (label, got, want) => {
   }
 };
 
-const meta = (o = {}) => ({ lat: null, lng: null, accuracyM: null, takenAt: null, embedded: null, ...o });
+const meta = (o = {}) => ({ lat: null, lng: null, accuracyM: null, takenAt: null, altitudeM: null, embedded: null, ...o });
 const NOW = 1_800_000_000_000;
 
 const photos = [
   // Ours: names its own taxon, carries its own fix and time.
   { uri: 'file://a.jpg', meta: meta({ lat: 24.1, lng: 121.1, accuracyM: 5, takenAt: 300, embedded: { taxon_id: 't-own' } }) },
   // A camera JPEG: position and time, no idea what it is.
-  { uri: 'file://b.jpg', meta: meta({ lat: 24.2, lng: 121.2, takenAt: 100 }) },
+  { uri: 'file://b.jpg', meta: meta({ lat: 24.2, lng: 121.2, takenAt: 100, altitudeM: 1650 }) },
   // Shot indoors: no GNSS.
   { uri: 'file://c.jpg', meta: meta({ takenAt: 200 }) },
 ];
@@ -49,6 +50,7 @@ eq('one photo per row', rows.map((r) => JSON.parse(r.photo_paths).length), [1, 1
 // The point of the whole feature: each row keeps its OWN position.
 eq('positions are per row, not shared', rows.map((r) => r.lat), [24.2, null, 24.1]);
 eq('accuracy rides along with the position it belongs to', rows.map((r) => r.accuracy), [null, null, 5]);
+eq('altitude rides along with the photo’s own position', rows.map((r) => r.elevation_m), [1650, null, null]);
 
 // ── Absence must stay absence ─────────────────────────────────────────────
 eq('no GNSS fix means no coordinate, not 0,0', rows.find((r) => r.observed_at === 200).lat, null);
@@ -57,6 +59,7 @@ const stamped = buildPlannedRecords(plan, 't-picked', { kind: 'fixed', lat: 9, l
 eq('a supplied position only fills the gaps', stamped.map((r) => r.lat), [24.2, 9, 24.1]);
 eq('and never overwrites a photo’s own fix', stamped.find((r) => r.observed_at === 300).lat, 24.1);
 eq('a supplied position carries its own accuracy', stamped.find((r) => r.observed_at === 200).accuracy, 12);
+eq('a supplied position brings no photo altitude', stamped.find((r) => r.observed_at === 200).elevation_m, null);
 
 // ── A photo with no taxon at all is not a record ──────────────────────────
 eq('no embedded taxon and no choice → dropped', buildPlannedRecords(plan, null, { kind: 'leave-empty' }, NOW).length, 1);
@@ -70,6 +73,28 @@ eq('falls back to import time only when there is no shutter time',
 
 eq('nothing picked', planPhotoImport([]).items, []);
 eq('nothing picked builds nothing', buildPlannedRecords(planPhotoImport([]), 't-x', { kind: 'leave-empty' }, NOW), []);
+
+// Specimens from photos (collection trip, 從照片選取).
+{
+  const P = [
+    { uri: 'file://1.jpg', meta: meta({ takenAt: 300 }) },
+    { uri: 'file://2.jpg', meta: meta({ lat: 24.1, lng: 121.1, accuracyM: 8, takenAt: 200, altitudeM: 2100 }) },
+    { uri: 'file://3.jpg', meta: meta({ lat: 24.2, lng: 121.2 }) },
+  ];
+  eq('one: all photos, earliest time, first photo with a position', planSpecimensFromPhotos(P, 'one'), [
+    { uris: ['file://1.jpg', 'file://2.jpg', 'file://3.jpg'], takenAt: 200, fix: { lat: 24.1, lng: 121.1, accuracyM: 8, altitudeM: 2100 } },
+  ]);
+  eq('each: one per photo, oldest first, no time last, own time and position', planSpecimensFromPhotos(P, 'each'), [
+    { uris: ['file://2.jpg'], takenAt: 200, fix: { lat: 24.1, lng: 121.1, accuracyM: 8, altitudeM: 2100 } },
+    { uris: ['file://1.jpg'], takenAt: 300, fix: null },
+    { uris: ['file://3.jpg'], takenAt: null, fix: { lat: 24.2, lng: 121.2, accuracyM: null, altitudeM: null } },
+  ]);
+  eq('each: a photo without a position does not borrow one', specimensWithoutFix(planSpecimensFromPhotos(P, 'each')), 1);
+  eq('one: no photo has a position or time', planSpecimensFromPhotos([P[0], { uri: 'file://4.jpg', meta: meta() }].map((x, i) => (i ? x : { ...x, meta: meta() })), 'one'), [
+    { uris: ['file://1.jpg', 'file://4.jpg'], takenAt: null, fix: null },
+  ]);
+  eq('nothing picked, no specimen', planSpecimensFromPhotos([], 'one'), []);
+}
 
 if (failures > 0) {
   console.error(`✗ photo-import: ${failures} failure(s)`);

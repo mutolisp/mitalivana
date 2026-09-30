@@ -1773,7 +1773,21 @@
     "filterNoPhoto_many": "Sans photo {{count}}",
     "photoCount_other": "{{count}} photos",
     "photoCount_one": "{{count}} photo",
-    "photoCount_many": "{{count}} photos"
+    "photoCount_many": "{{count}} photos",
+    "addByCamera": "Prendre une photo",
+    "addFromPhotos": "Choisir parmi les photos",
+    "addLongPressHint": "Maintenir : prendre une photo ou choisir parmi les photos",
+    "addLongPressTip": "Maintenez « Ajouter un spécimen » pour choisir parmi les photos",
+    "fromPhotosTitle": "{{n}} photos sélectionnées",
+    "fromPhotosExif": "L’heure et la position de récolte viennent des photos (EXIF)",
+    "fromPhotosOne": "Un spécimen · #{{number}} ({{n}} photos)",
+    "fromPhotosEach": "Un par photo · #{{from}}–#{{to}} ({{n}} spécimens)",
+    "fromPhotosNoGps": "Les photos de {{count}} spécimen(s) n’ont pas de position",
+    "fromPhotosUseHere": "Utiliser la position actuelle",
+    "fromPhotosLeaveEmpty": "Laisser vide, compléter plus tard",
+    "fromPhotosNoFix": "Position actuelle indisponible ; position laissée vide",
+    "fromPhotosMadeOne": "Spécimen #{{number}} créé à partir de {{n}} photo(s)",
+    "fromPhotosMadeMany": "{{n}} spécimens créés #{{from}}–#{{to}}"
   },
   "areaSpecies": {
     "title": "Recherche d'espèces par zone",

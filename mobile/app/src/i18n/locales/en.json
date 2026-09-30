@@ -1673,7 +1673,21 @@
     "filterNoPhoto_other": "No photo {{count}}",
     "filterNoPhoto_one": "No photo {{count}}",
     "photoCount_other": "{{count}} photos",
-    "photoCount_one": "{{count}} photo"
+    "photoCount_one": "{{count}} photo",
+    "addByCamera": "Take a photo",
+    "addFromPhotos": "Choose from photos",
+    "addLongPressHint": "Hold: take a photo or choose from photos",
+    "addLongPressTip": "Hold “Add specimen” to choose from photos",
+    "fromPhotosTitle": "{{n}} photos selected",
+    "fromPhotosExif": "Collecting time and position come from the photos (EXIF)",
+    "fromPhotosOne": "One specimen · #{{number}} ({{n}} photos)",
+    "fromPhotosEach": "One per photo · #{{from}}–#{{to}} ({{n}} specimens)",
+    "fromPhotosNoGps": "Photos of {{count}} specimen(s) have no position",
+    "fromPhotosUseHere": "Use current location",
+    "fromPhotosLeaveEmpty": "Leave empty, add later",
+    "fromPhotosNoFix": "Could not get the current location; position left empty",
+    "fromPhotosMadeOne": "Specimen #{{number}} created from {{n}} photo(s)",
+    "fromPhotosMadeMany": "{{n}} specimens created #{{from}}–#{{to}}"
   },
   "areaSpecies": {
     "title": "Species in area",

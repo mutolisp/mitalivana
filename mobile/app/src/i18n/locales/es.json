@@ -1773,7 +1773,21 @@
     "filterNoPhoto_many": "Sin foto {{count}}",
     "photoCount_other": "{{count}} fotos",
     "photoCount_one": "{{count}} foto",
-    "photoCount_many": "{{count}} fotos"
+    "photoCount_many": "{{count}} fotos",
+    "addByCamera": "Tomar foto",
+    "addFromPhotos": "Elegir de las fotos",
+    "addLongPressHint": "Mantén: tomar foto o elegir de las fotos",
+    "addLongPressTip": "Mantén «Añadir ejemplar» para elegir de las fotos",
+    "fromPhotosTitle": "{{n}} fotos seleccionadas",
+    "fromPhotosExif": "La hora y la posición de recolección vienen de las fotos (EXIF)",
+    "fromPhotosOne": "Un ejemplar · #{{number}} ({{n}} fotos)",
+    "fromPhotosEach": "Uno por foto · #{{from}}–#{{to}} ({{n}} ejemplares)",
+    "fromPhotosNoGps": "Las fotos de {{count}} ejemplar(es) no tienen posición",
+    "fromPhotosUseHere": "Usar la ubicación actual",
+    "fromPhotosLeaveEmpty": "Dejar vacío y completar luego",
+    "fromPhotosNoFix": "No se pudo obtener la ubicación actual; la posición queda vacía",
+    "fromPhotosMadeOne": "Ejemplar #{{number}} creado con {{n}} foto(s)",
+    "fromPhotosMadeMany": "{{n}} ejemplares creados #{{from}}–#{{to}}"
   },
   "areaSpecies": {
     "title": "Consulta de especies por área",

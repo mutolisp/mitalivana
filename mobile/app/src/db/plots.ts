@@ -996,12 +996,18 @@ export function updatePlotSpeciesLocation(
   lat: number | null,
   lng: number | null,
   accuracy: number | null = null,
+  /** A GNSS altitude that came with this position (a photo's GPSAltitude).
+   *  Omitted or null: the elevation is left as it is. */
+  elevationGnss?: number | null,
 ): void {
   const db = getUserDb();
   db.executeSync(
     `UPDATE plot_species_records SET lat = ?, lng = ?, accuracy = ?, updated_at = ? WHERE id = ?`,
     [lat, lng, accuracy, Date.now(), id],
   );
+  if (elevationGnss != null) {
+    db.executeSync(`UPDATE plot_species_records SET elevation_m = ?, elevation_source = 'gnss' WHERE id = ?`, [elevationGnss, id]);
+  }
 }
 
 export function updatePlotSpeciesElevation(

@@ -452,6 +452,7 @@ export function SpeciesDetailSheet({
                             // No success notice: the coordinate tile and the map
                             // point below update on the spot.
                             onSaveLocation(out.fix.lat, out.fix.lng, out.fix.accuracyM);
+                            if (onSaveElevation && out.fix.altitudeM != null) onSaveElevation(out.fix.altitudeM, 'gnss');
                           }}
                           className="mt-2 flex-row items-center rounded-lg border border-gray-200 px-3 py-2 active:bg-gray-50 dark:border-gray-700 dark:active:bg-gray-800"
                         >

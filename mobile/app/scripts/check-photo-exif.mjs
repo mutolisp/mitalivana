@@ -99,6 +99,8 @@ const exifObj = {
     [piexif.GPSIFD.GPSLatitude]: piexif.GPSHelper.degToDmsRational(23.4567),
     [piexif.GPSIFD.GPSLongitudeRef]: 'E',
     [piexif.GPSIFD.GPSLongitude]: piexif.GPSHelper.degToDmsRational(120.8912),
+    [piexif.GPSIFD.GPSAltitudeRef]: 0,
+    [piexif.GPSIFD.GPSAltitude]: [23456, 10],
   },
 };
 const stamped = piexif.insert(piexif.dump(exifObj), toDataUrl(JPEG));
@@ -116,6 +118,7 @@ eq('embedded session_id', meta.embedded?.session_id, 42);
 // Most phones never write GPSHPositioningError. A photo this app exported still
 // knows the accuracy, because it wrote it into the JSON next to the fix.
 eq('accuracy falls back to the embedded value', meta.accuracyM, 5);
+eq('GPSAltitude survives the file, rounded to the metre', meta.altitudeM, 2346);
 eq('empty values are dropped, not written as null', meta.embedded?.notes, '林道旁');
 
 // ── 3. A UserComment that is not ours ──────────────────────────────────────
@@ -137,7 +140,20 @@ near('nested GPS block', metaFromPickerExif({ GPS: { GPSLatitude: 24.1, GPSLatit
 // ── 5. Refusals ────────────────────────────────────────────────────────────
 eq('out-of-range latitude is dropped, not clamped', metaFromPickerExif({ GPSLatitude: 200, GPSLatitudeRef: 'N', GPSLongitude: 10, GPSLongitudeRef: 'E' }).lat, null);
 eq('a latitude with no longitude is not half a fix', metaFromPickerExif({ GPSLatitude: 24, GPSLatitudeRef: 'N' }).lat, null);
-eq('no exif at all', metaFromPickerExif(null), { lat: null, lng: null, accuracyM: null, takenAt: null, embedded: null });
+eq('no exif at all', metaFromPickerExif(null), { lat: null, lng: null, altitudeM: null, accuracyM: null, takenAt: null, embedded: null });
+// Altitude (GPSAltitude + GPSAltitudeRef; ref 1 = below the reference).
+const at = (o) => metaFromPickerExif({ GPSLatitude: 24.1, GPSLatitudeRef: 'N', GPSLongitude: 121.1, GPSLongitudeRef: 'E', ...o });
+eq('iOS picker altitude', at({ GPSAltitude: 2345.6, GPSAltitudeRef: 0 }).altitudeM, 2346);
+eq('below the reference is negative', at({ GPSAltitude: 12.4, GPSAltitudeRef: 1 }).altitudeM, -12);
+eq('Android rational string', at({ GPSAltitude: '31000/10' }).altitudeM, 3100);
+eq('nested GPS block altitude', metaFromPickerExif({ GPS: { Latitude: 24.1, LatitudeRef: 'N', Longitude: 121.1, LongitudeRef: 'E', Altitude: 800 } }).altitudeM, 800);
+eq('no altitude tag, no altitude', at({}).altitudeM, null);
+eq('an altitude without a position is dropped', metaFromPickerExif({ GPSAltitude: 500 }).altitudeM, null);
+eq('merge keeps the altitude with the position it came with', mergeMeta({ lat: 1, lng: 2, altitudeM: 10, accuracyM: null, takenAt: null, embedded: null }, { lat: 3, lng: 4, altitudeM: 99, accuracyM: null, takenAt: null, embedded: null }).altitudeM, 99);
+
+// A withheld position (Android photo picker: tags present, values blank → 0).
+eq('blank GPS read as (0, 0) is no position', metaFromPickerExif({ GPSLatitude: 0, GPSLatitudeRef: '', GPSLongitude: 0, GPSLongitudeRef: '' }).lat, null);
+near('a real zero on one axis is kept', metaFromPickerExif({ GPSLatitude: 0, GPSLatitudeRef: 'N', GPSLongitude: 121.5, GPSLongitudeRef: 'E' }).lng, 121.5);
 eq('malformed DateTimeOriginal', parseExifDateTime('not a date'), null);
 eq('DateTimeOriginal with offset', parseExifDateTime('2026:09:20 08:30:00', '+08:00'), Date.parse('2026-09-20T08:30:00+08:00'));
 
@@ -147,7 +163,7 @@ const picker = { lat: 2, lng: 2, accuracyM: 9, takenAt: 222, embedded: { taxon_i
 eq('picker wins for coordinates', mergeMeta(bytes, picker).lat, 2);
 eq('picker wins for time', mergeMeta(bytes, picker).takenAt, 222);
 eq('bytes win for the embedded record', mergeMeta(bytes, picker).embedded.taxon_id, 'from-bytes');
-eq('a picker with no fix falls back to the bytes', mergeMeta(bytes, { lat: null, lng: null, accuracyM: null, takenAt: null, embedded: null }).lat, 1);
+eq('a picker with no fix falls back to the bytes', mergeMeta(bytes, { lat: null, lng: null, altitudeM: null, accuracyM: null, takenAt: null, embedded: null }).lat, 1);
 
 // ── 7. The same EXIF inside a HEIF container ───────────────────────────────
 // A HEIC copied off the picker keeps its position, but piexif refuses the

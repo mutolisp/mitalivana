@@ -372,6 +372,11 @@ export function SpecimenDetailSheet({
       return;
     }
     onSaveLocation(out.fix.lat, out.fix.lng, out.fix.accuracyM);
+    // The photo's altitude with it, as the live fix does.
+    if (out.fix.altitudeM != null) {
+      setElevation(String(out.fix.altitudeM));
+      onSave({ elevation_m: out.fix.altitudeM, elevation_source: 'gnss' });
+    }
   };
 
   return (

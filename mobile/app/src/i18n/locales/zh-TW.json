@@ -1573,7 +1573,21 @@
     "countDone_other": "{{count}} 份標本",
     "filterUndetermined_other": "待鑑定 {{count}}",
     "filterNoPhoto_other": "無照片 {{count}}",
-    "photoCount_other": "{{count}} 張照片"
+    "photoCount_other": "{{count}} 張照片",
+    "addByCamera": "拍照",
+    "addFromPhotos": "從照片選取",
+    "addLongPressHint": "長按：拍照或從照片選取",
+    "addLongPressTip": "長按「新增標本」：從照片選取",
+    "fromPhotosTitle": "已選 {{n}} 張照片",
+    "fromPhotosExif": "採集時間與座標取自照片（EXIF）",
+    "fromPhotosOne": "同一份標本 · #{{number}}（{{n}} 張）",
+    "fromPhotosEach": "每張一份 · #{{from}}–#{{to}}（{{n}} 份）",
+    "fromPhotosNoGps": "{{count}} 份標本的照片沒有座標",
+    "fromPhotosUseHere": "用目前位置",
+    "fromPhotosLeaveEmpty": "留空，之後再補",
+    "fromPhotosNoFix": "無法取得目前位置，座標留空",
+    "fromPhotosMadeOne": "已從 {{n}} 張照片建立標本 #{{number}}",
+    "fromPhotosMadeMany": "已建立 {{n}} 份標本 #{{from}}–#{{to}}"
   },
   "areaSpecies": {
     "title": "範圍物種查詢",

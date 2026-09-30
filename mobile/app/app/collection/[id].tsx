@@ -20,6 +20,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Image } from 'expo-image';
 import {
   addSpecimen,
+  formatRecordNumber,
   deleteSpecimen,
   withTransaction,
   duplicateRecordNumbers,
@@ -90,7 +91,8 @@ import { SwipeRowActions } from '~/components/SwipeRowActions';
 import { promptText } from '~/components/TextPromptModal';
 import { BackHeaderLeft } from '~/lib/goBack';
 import { isoDateTime } from '~/lib/datetime';
-import { firstPhotoFix, rememberPickedPhotos } from '~/lib/photoMeta';
+import { firstPhotoFix, readPhotoMeta, rememberPickedPhotos } from '~/lib/photoMeta';
+import { planSpecimensFromPhotos, specimensWithoutFix } from '~/lib/specimenPhotoPlan';
 import { useToast } from '~/stores/toast';
 import { useThemeColors } from '~/theme/colors';
 
@@ -364,6 +366,31 @@ function SpecimenCard({
   );
 }
 
+/** The current position for specimens a photo could not place: asks for
+ *  permission (the user chose this), takes a recent last-known fix first,
+ *  and gives up after 15 s rather than leaving the add waiting. */
+async function currentFix(): Promise<{ lat: number; lng: number; accuracy: number | null; altitude: number | null } | null> {
+  try {
+    const perm = await Location.requestForegroundPermissionsAsync();
+    if (!perm.granted) return null;
+    const pos =
+      (await Location.getLastKnownPositionAsync({ maxAge: 60_000 })) ??
+      (await Promise.race([
+        Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 15_000)),
+      ]));
+    if (!pos) return null;
+    return {
+      lat: pos.coords.latitude,
+      lng: pos.coords.longitude,
+      accuracy: pos.coords.accuracy ?? null,
+      altitude: pos.coords.altitude != null ? Math.round(pos.coords.altitude) : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export default function CollectionTripScreen() {
   const c = useThemeColors();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -594,6 +621,132 @@ export default function CollectionTripScreen() {
     } finally {
       setQuickBusy(false);
     }
+  };
+
+  /**
+   * 從照片選取 (long press on 新增標本; user decisions 2026-09-30): pick photos,
+   * then — for several — one specimen or one per photo. Time and position come
+   * from each photo's EXIF; where a specimen has no position the user chooses
+   * the current fix or none. Undetermined, under the next numbers, like the
+   * camera path.
+   */
+  const handleFromPhotos = async () => {
+    if (quickBusy) return;
+    setQuickBusy(true);
+    try {
+      const { pickPhotosWithExif } = await import('~/lib/photoCapture');
+      const picked = await pickPhotosWithExif();
+      if (!picked.length) return;
+      rememberPickedPhotos(picked);
+      const withMeta = [];
+      for (const p of picked) withMeta.push({ uri: p.uri, meta: await readPhotoMeta(p.uri, p.exif) });
+      const first = nextRecordNumber();
+      let mode: 'one' | 'each' = 'one';
+      if (picked.length > 1) {
+        // Numbers may be taken further on; this is the range as it stands now.
+        const last = formatRecordNumber(first.seq + picked.length - 1);
+        const i = await showActionSheet({
+          title: t('collection.fromPhotosTitle', { n: picked.length }),
+          message: t('collection.fromPhotosExif'),
+          options: [
+            { label: t('collection.fromPhotosOne', { number: first.text, n: picked.length }) },
+            { label: t('collection.fromPhotosEach', { from: first.text, to: last, n: picked.length }) },
+          ],
+        });
+        if (i < 0) return;
+        mode = i === 0 ? 'one' : 'each';
+      }
+      const plans = planSpecimensFromPhotos(withMeta, mode);
+      // Specimens the photos give no position: the current fix, or none.
+      const missing = specimensWithoutFix(plans);
+      let useHere = false;
+      if (missing > 0) {
+        const i = await showActionSheet({
+          title: t('collection.fromPhotosNoGps', { count: missing }),
+          options: [{ label: t('collection.fromPhotosUseHere') }, { label: t('collection.fromPhotosLeaveEmpty') }],
+        });
+        if (i < 0) return;
+        useHere = i === 0;
+      }
+      const now = Date.now();
+      const made: { id: number; number: string; placed: boolean }[] = [];
+      for (const plan of plans) {
+        const number = nextRecordNumber().text;
+        const id = addSpecimen({
+          trip_id: tripId,
+          taxon_id: UNDETERMINED_TAXON_ID,
+          record_number: number,
+          collected_at: plan.takenAt ?? now,
+          locality: null,
+          lat: plan.fix?.lat ?? null,
+          lng: plan.fix?.lng ?? null,
+          accuracy: plan.fix?.accuracyM ?? null,
+          elevation_m: plan.fix?.altitudeM ?? null,
+          elevation_source: plan.fix?.altitudeM != null ? 'gnss' : null,
+        });
+        if (!id) continue;
+        updateSpecimenPhotos(id, plan.uris);
+        made.push({ id, number, placed: !!plan.fix });
+      }
+      if (!made.length) return;
+      reload();
+      toast(
+        made.length === 1
+          ? t('collection.fromPhotosMadeOne', { number: made[0].number, n: picked.length })
+          : t('collection.fromPhotosMadeMany', { n: made.length, from: made[0].number, to: made[made.length - 1].number }),
+      );
+      setQuickBusy(false);
+      // One specimen: open it to name it, like the camera path does.
+      if (made.length === 1) {
+        await new Promise((r) => setTimeout(r, 450));
+        setActive((prev) => prev ?? getSpecimen(made[0].id));
+      }
+      // The current fix for those without one — after the insert, so the add
+      // never waits on the receiver (as recordFix does for checklist records).
+      // Only where the specimen still has no position: one placed by hand in
+      // the meantime wins.
+      if (useHere && made.some((m) => !m.placed)) {
+        const fix = await currentFix();
+        if (!fix) toast(t('collection.fromPhotosNoFix'));
+        else {
+          for (const m of made) {
+            if (m.placed || getSpecimen(m.id)?.lat != null) continue;
+            updateSpecimenLocation(m.id, fix.lat, fix.lng, fix.accuracy);
+            if (fix.altitude != null) updateSpecimen(m.id, { elevation_m: fix.altitude, elevation_source: 'gnss' });
+            m.placed = true;
+          }
+          refresh();
+          absorb();
+          setActive((prev) => (prev && made.some((m) => m.id === prev.id) ? getSpecimen(prev.id) : prev));
+        }
+      }
+      // Name each place from its position, in the background (needs network).
+      for (const m of made) {
+        const sp = getSpecimen(m.id);
+        if (sp?.lat == null || sp.lng == null || sp.locality) continue;
+        const place = await placeNameAt(sp.lat, sp.lng);
+        if (place && !getSpecimen(m.id)?.locality) {
+          updateSpecimen(m.id, { locality: place });
+          refresh();
+          absorb();
+          setActive((prev) => (prev?.id === m.id ? getSpecimen(m.id) : prev));
+        }
+      }
+    } catch (e) {
+      Alert.alert(t('session.photoFailTitle'), errText(e));
+    } finally {
+      setQuickBusy(false);
+    }
+  };
+
+  /** Long press on 新增標本: the camera, or photos already taken. */
+  const handleAddMenu = async () => {
+    const i = await showActionSheet({
+      title: `${t('collection.addSpecimen')} #${nextRecordNumber().text}`,
+      options: [{ label: t('collection.addByCamera') }, { label: t('collection.addFromPhotos') }],
+    });
+    if (i === 0) void handleQuickAdd();
+    else if (i === 1) void handleFromPhotos();
   };
 
   const handleDuplicate = (specimen: SpecimenWithTaxon) => {
@@ -964,7 +1117,7 @@ export default function CollectionTripScreen() {
       if (active.lat === null || active.lng === null) {
         const out = await firstPhotoFix(picked);
         if (out.kind === 'found') {
-          updateSpecimenLocation(active.id, out.fix.lat, out.fix.lng, out.fix.accuracyM);
+          updateSpecimenLocation(active.id, out.fix.lat, out.fix.lng, out.fix.accuracyM, out.fix.altitudeM);
         }
       }
       if (openAfter) refreshActive(active.id);
@@ -1386,9 +1539,12 @@ export default function CollectionTripScreen() {
           <View className="w-full flex-row items-center gap-2.5" style={{ maxWidth: 520 }}>
             <Pressable
               onPress={guard(() => void handleQuickAdd())}
+              onLongPress={guard(() => void handleAddMenu())}
+              delayLongPress={400}
               disabled={quickBusy}
               accessibilityRole="button"
               accessibilityLabel={`${t('collection.addSpecimen')} ${nextNo}`}
+              accessibilityHint={t('collection.addLongPressHint')}
               className={`flex-1 flex-row items-center justify-center rounded-full bg-accent-600 px-4 active:bg-accent-700 dark:bg-accent-400 dark:active:bg-accent-300 ${quickBusy ? 'opacity-60' : ''}`}
               style={{ minHeight: 56 }}
             >
@@ -1408,6 +1564,8 @@ export default function CollectionTripScreen() {
               <Ionicons name="search" size={22} color={c.accent} />
             </Pressable>
           </View>
+          {/* Long press is easy to miss: say it once, under the keys. */}
+          <Text className="mt-1.5 text-center text-[11px] text-gray-500 dark:text-gray-400">{t('collection.addLongPressTip')}</Text>
         </View>
       ) : null}
 

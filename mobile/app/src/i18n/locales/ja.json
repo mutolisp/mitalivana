@@ -1573,7 +1573,21 @@
     "countDone_other": "標本 {{count}} 点",
     "filterUndetermined_other": "未同定 {{count}}",
     "filterNoPhoto_other": "写真なし {{count}}",
-    "photoCount_other": "写真 {{count}} 枚"
+    "photoCount_other": "写真 {{count}} 枚",
+    "addByCamera": "撮影",
+    "addFromPhotos": "写真から選ぶ",
+    "addLongPressHint": "長押し：撮影または写真から選ぶ",
+    "addLongPressTip": "「標本を追加」を長押しで写真から選択",
+    "fromPhotosTitle": "{{n}} 枚の写真を選択",
+    "fromPhotosExif": "採集日時と座標は写真（EXIF）から取得",
+    "fromPhotosOne": "1 点の標本 · #{{number}}（{{n}} 枚）",
+    "fromPhotosEach": "1 枚ごとに 1 点 · #{{from}}–#{{to}}（{{n}} 点）",
+    "fromPhotosNoGps": "{{count}} 点の標本の写真に座標がありません",
+    "fromPhotosUseHere": "現在地を使う",
+    "fromPhotosLeaveEmpty": "空欄にして後で入力",
+    "fromPhotosNoFix": "現在地を取得できないため座標は空欄です",
+    "fromPhotosMadeOne": "{{n}} 枚の写真から標本 #{{number}} を作成しました",
+    "fromPhotosMadeMany": "標本 {{n}} 点を作成しました #{{from}}–#{{to}}"
   },
   "areaSpecies": {
     "title": "範囲内の種の検索",

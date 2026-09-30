@@ -565,13 +565,14 @@ export default function SessionDetailScreen() {
       if (activeRecord.lat === null || activeRecord.lng === null) {
         const out = await firstPhotoFix(picked);
         if (out.kind === 'found') {
-          updateRecordLocation(activeRecord.id, out.fix.lat, out.fix.lng, out.fix.accuracyM);
+          updateRecordLocation(activeRecord.id, out.fix.lat, out.fix.lng, out.fix.accuracyM, out.fix.altitudeM);
           setActiveRecord({
             ...activeRecord,
             photo_paths: JSON.stringify(next),
             lat: out.fix.lat,
             lng: out.fix.lng,
             accuracy: out.fix.accuracyM,
+            ...(out.fix.altitudeM != null ? { elevation_m: out.fix.altitudeM, elevation_source: 'gnss' } : null),
           });
           reload();
         }
@@ -1409,7 +1410,7 @@ export default function SessionDetailScreen() {
               return;
             }
             for (const r of rows) {
-              addRecord({
+              const id = addRecord({
                 session_id: sessionId,
                 taxon_id: r.taxon_id,
                 observed_at: r.observed_at,
@@ -1418,6 +1419,7 @@ export default function SessionDetailScreen() {
                 accuracy: r.accuracy,
                 photo_paths: r.photo_paths,
               });
+              if (id && r.elevation_m != null) updateRecordElevation(id, r.elevation_m, 'gnss');
             }
             reload();
             toast(t('session.imported', { count: rows.length }));
