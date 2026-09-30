@@ -17,6 +17,7 @@ import { ActionSheetHost } from '~/components/ActionSheet';
 import { CreateSheetHost } from '~/components/CreateRecordSheet';
 import { MenuHost } from '~/components/OverflowMenu';
 import { ActiveSessionBar } from '~/components/ActiveSessionBar';
+import { useTopChrome } from '~/stores/topChrome';
 import { DBProvider } from '~/components/DBProvider';
 import { DatasetSetupGate } from '~/components/DatasetSetupGate';
 import { FontScaleProvider } from '~/components/FontScaleProvider';
@@ -143,7 +144,10 @@ function ThemedShell() {
               so the recording indicator never disappears mid-task. When
               no record is active a safe-area spacer fills the notch so
               tab content / stack headers don't sit under the status bar. */}
-          {hasActive ? <ActiveSessionBar /> : fullBleedTop ? null : <TopSafeAreaSpacer />}
+          {/* Measured: where screen content starts depends on it (useTopChrome). */}
+          <View onLayout={(e) => useTopChrome.getState().setHeight(Math.round(e.nativeEvent.layout.height))}>
+            {hasActive ? <ActiveSessionBar /> : fullBleedTop ? null : <TopSafeAreaSpacer />}
+          </View>
           {/* Stale watchers run app-wide, not just on tabs, so a 13h
               session left unattended in the key runner still gets nagged. */}
           <StaleSessionWatcher />

@@ -1,8 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import { memo, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { memo, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FlatList, Keyboard, Pressable, Text, TextInput, useWindowDimensions, View } from 'react-native';
-import { HeaderHeightContext } from '@react-navigation/elements';
 import { useKeyboardState } from 'react-native-keyboard-controller';
 import {
   onDatasetsChanged,
@@ -23,6 +22,7 @@ import { lookupGbifName, manualTaxonEntry, type GbifLookupOutcome, type LookupRu
 import { TaxonGroupPicker } from './TaxonGroupPicker';
 import { ScientificName } from './ScientificName';
 import { useSettings } from '~/stores/settings';
+import { useTopChrome } from '~/stores/topChrome';
 import { useToast } from '~/stores/toast';
 import { useThemeColors } from '~/theme/colors';
 import { Button } from './ui/Button';
@@ -38,6 +38,8 @@ import { Button } from './ui/Button';
  * are what we lean on for performance.
  */
 const DEBOUNCE_MS = 250;
+/** A navigation bar's height (Material top app bar 56 dp, iOS 44 pt + margin). */
+const NAV_BAR_NOMINAL = 56;
 /** Cap on the in-memory result cache (FIFO eviction). 20 keeps the typical
  *  back-and-forth typing path warm without growing the JS heap. */
 const CACHE_LIMIT = 20;
@@ -336,16 +338,21 @@ export function SearchBox({
   const dropdown = layout === 'dropdown';
 
   // Docked, the suggestions grow UP from the input. With the keyboard up the
-  // room above is only window − keyboard − navigation header − this box's own
-  // chrome (group filter + input); a fixed max height could run the first
-  // rows in under the header (GLORIA unit screens, small phones), so cap it.
-  const headerHeight = useContext(HeaderHeightContext) ?? 0;
+  // room above is only window − keyboard − where the content starts − this
+  // box's own chrome (group filter + input), so cap it. The content starts
+  // under the app chrome above the navigator (the active-record bar, or the
+  // status-bar spacer) and a navigation bar. HeaderHeightContext is no measure
+  // of that bar: on the plot screen it read 220 dp for a ~75 dp header, which
+  // left a 96 dp list (about one row) during a survey. A nominal bar is used
+  // instead; the list is inverted, so if the room is overestimated only the
+  // tail runs under the header, never the best match.
+  const topChrome = useTopChrome((s) => s.height);
   const { height: windowHeight } = useWindowDimensions();
   const keyboardHeight = useKeyboardState((k) => (k.isVisible ? k.height : 0));
   const [chromeHeight, setChromeHeight] = useState(0);
   const listCap =
     !dropdown && keyboardHeight > 0
-      ? Math.max(96, windowHeight - (topLimit ?? headerHeight) - keyboardHeight - chromeHeight - 8)
+      ? Math.max(96, windowHeight - (topLimit ?? topChrome + NAV_BAR_NOMINAL) - keyboardHeight - chromeHeight - 8)
       : undefined;
 
   const suggestions =
@@ -354,8 +361,12 @@ export function SearchBox({
         className={`${dropdown ? 'max-h-56 border-t' : 'max-h-72 border-b'} border-gray-100 dark:border-gray-800`}
         style={listCap != null ? { maxHeight: Math.min(288, listCap) } : undefined}
       >
+        {/* Docked, the list is inverted: the best match sits right on top of the
+            input and the rest go up from there, so whatever may not fit is the
+            tail, never the first suggestion (user decision 2026-09-30). */}
         <FlatList
           data={results}
+          inverted={!dropdown}
           keyExtractor={getResultKey}
           keyboardShouldPersistTaps="handled"
           initialNumToRender={8}
