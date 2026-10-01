@@ -6,6 +6,7 @@
  * dedicated input widgets; custom types fall through to a free TEXT input.
  */
 import { errText } from '~/lib/errText';
+import { parseNum } from '~/lib/parseNum';
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -384,8 +385,8 @@ export function PlotSpeciesValueModal({
   };
 
   const addStem = () => {
-    const n = Number(stemDraft);
-    if (!Number.isFinite(n) || n <= 0) return;
+    const n = parseNum(stemDraft);
+    if (n === null || n <= 0) return;
     setStems((prev) => [...prev, n]);
     setStemDraft('');
   };
@@ -396,9 +397,9 @@ export function PlotSpeciesValueModal({
     if (currentKind === 'count')
       return numericValue.trim() !== '' && Number.isFinite(Number(numericValue));
     if (currentKind === 'percent') {
-      const n = Number(numericValue);
+      const n = parseNum(numericValue);
       // Cover estimate must be in (0, 100].
-      return numericValue.trim() !== '' && Number.isFinite(n) && n > 0 && n <= 100;
+      return n !== null && n > 0 && n <= 100;
     }
     if (currentKind === 'DBH') return stems.length > 0;
     if (currentKind === 'custom') return customValue.trim() !== '' && customType.trim() !== '';
@@ -416,7 +417,10 @@ export function PlotSpeciesValueModal({
     let quantity: string | null = null;
     let type: string | null = qtyType;
     if (currentKind === 'BB') quantity = bb;
-    else if (currentKind === 'count' || currentKind === 'percent') quantity = numericValue.trim();
+    else if (currentKind === 'count') quantity = numericValue.trim();
+    // A decimal comma is stored as a point; text without one is kept as typed
+    // so an untouched record still compares equal to what it was loaded from.
+    else if (currentKind === 'percent') quantity = numericValue.trim().replace(',', '.');
     else if (currentKind === 'DBH') quantity = serializeDbhArray(stems);
     else if (currentKind === 'custom') {
       quantity = customValue.trim();
@@ -1086,10 +1090,9 @@ function PercentInput({
         <Text className="ml-1 text-sm text-gray-500 dark:text-gray-400">%</Text>
       </View>
       {(() => {
-        const trimmed = value.trim();
-        if (trimmed === '') return null;
-        const n = Number(trimmed);
-        if (Number.isFinite(n) && n > 0 && n <= 100) return null;
+        if (value.trim() === '') return null;
+        const n = parseNum(value);
+        if (n !== null && n > 0 && n <= 100) return null;
         return <Text className="mt-1 text-xs text-red-500">{t('plotValue.coverRange')}</Text>;
       })()}
     </View>

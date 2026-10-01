@@ -486,6 +486,8 @@ export function buildPlotEnvRows(
   plot: PlotSurvey,
   projectName: string,
   layers: PlotLayer[],
+  /** The plot's stable DwC eventID (db/plots.ts plotEventId); defaults to the plotid. */
+  eventId: string = plot.plotid,
 ): Array<{ term: string; value: string }> {
   const rows: Array<{ term: string; value: string }> = [];
   const push = (term: string, v: unknown) => {
@@ -496,7 +498,7 @@ export function buildPlotEnvRows(
   };
 
   // Event / location identity
-  push('eventID', plot.plotid);
+  push('eventID', eventId);
   push('eventType', plot.plot_type); // fixed | transect | point_count
   if (projectName) push('datasetName', projectName);
   if (plot.start_ts !== null) {

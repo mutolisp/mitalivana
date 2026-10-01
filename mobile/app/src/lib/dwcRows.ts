@@ -14,6 +14,7 @@ import {
   listSessionRecords,
   listSpecimens,
   listSubplots,
+  plotEventIds,
   type CollectionTrip,
   type PlotSurvey,
   type Session,
@@ -355,8 +356,11 @@ export function buildRecordsDwca({
     return id;
   };
 
+  // Plots: the stable id (plotid, or plotid_YYYYMMDD for a later resurvey),
+  // the same one the relevé tables and the plot CSVs use.
+  const stablePlotIds = plotEventIds(plots.map((p) => p.plotid));
   for (const p of plots) {
-    const eventID = uniqueEventId(p.plotid);
+    const eventID = uniqueEventId(stablePlotIds.get(p.id) ?? p.plotid);
     if (p.recorded_by) creators.add(p.recorded_by);
     events.push({
       eventID,

@@ -61,6 +61,8 @@ export function buildQuadratsCsv(
   plotid: string,
   quadrats: readonly QuadratDocInput[],
   subplotLabelById: ReadonlyMap<number, string>,
+  /** The plot's stable DwC eventID (db/plots.ts plotEventId), the base of the quadrat eventIDs. */
+  eventBase: string = plotid,
 ): string {
   const n = quadrats[0]?.grid_n ?? 10;
   const cols = cellColumns(n);
@@ -73,7 +75,7 @@ export function buildQuadratsCsv(
   ];
   for (const q of quadrats) {
     const subplot = q.subplot_id != null ? (subplotLabelById.get(q.subplot_id) ?? null) : null;
-    const ids = quadratEventIds(plotid, q.label, subplot);
+    const ids = quadratEventIds(eventBase, q.label, subplot);
     const total = q.grid_n * q.grid_n;
     for (const s of q.species) {
       const cells = cellsOf(s, q.freq_mode);
@@ -96,6 +98,7 @@ export function buildQuadratSurfaceCsv(
   quadrats: readonly QuadratDocInput[],
   subplotLabelById: ReadonlyMap<number, string>,
   isoTime: (ts: number) => string,
+  eventBase: string = plotid,
 ): string {
   const lines = [
     [
@@ -106,7 +109,7 @@ export function buildQuadratSurfaceCsv(
   ];
   for (const q of quadrats) {
     const subplot = q.subplot_id != null ? (subplotLabelById.get(q.subplot_id) ?? null) : null;
-    const ids = quadratEventIds(plotid, q.label, subplot);
+    const ids = quadratEventIds(eventBase, q.label, subplot);
     const values = SURFACE_KEYS.map((k) => q[k]);
     const sum = values.some((v) => v != null) ? pct(values.reduce<number>((a, v) => a + (v ?? 0), 0)) : null;
     lines.push(

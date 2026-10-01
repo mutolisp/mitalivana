@@ -16,6 +16,8 @@ import type {
 } from '~/db';
 import { buildPlotEnvRows, csvEscape } from './bundleYaml';
 import { basalArea, bbRank, kindForType, parseDbhArray } from './dwcAbundanceCore';
+import { checklistIdentity } from './checklistIdentity';
+import { assignPlotEventIds } from './plotEventIds';
 
 /** Numeric representation for Braun-Blanquet codes in the matrices. 'bb'
  *  keeps the raw code (matrix cells become non-numeric — documented). */
@@ -78,7 +80,8 @@ export type RelevePlotInput = {
 
 export type Releve = {
   nr: number;
-  /** Unique row id: plotid, plotid-S1, or date/seq-suffixed on collision. */
+  /** Unique row id = the plot's DwC eventID (plotEventIds: plotid, or
+   *  plotid_YYYYMMDD for a later resurvey), plus -S1 for a subplot. */
   id: string;
   plotUuid: string;
   plotid: string;
@@ -120,7 +123,15 @@ function setTerm(rows: Array<{ term: string; value: string }>, term: string, val
   else rows.push({ term, value });
 }
 
-export function buildReleves(inputs: RelevePlotInput[]): {
+/**
+ * `eventIds`: the plots' stable DwC eventIDs (db/plots.ts plotEventIds, over
+ * every local survey sharing a plotid). Omitted, they are assigned over
+ * `inputs` alone — the same rule, so a Node check needs no DB.
+ */
+export function buildReleves(
+  inputs: RelevePlotInput[],
+  eventIds?: ReadonlyMap<number, string>,
+): {
   releves: Releve[];
   warnings: string[];
 } {
@@ -137,6 +148,8 @@ export function buildReleves(inputs: RelevePlotInput[]): {
     if (byStart !== 0) return byStart;
     return a.plot.id - b.plot.id;
   });
+
+  const ids = eventIds ?? assignPlotEventIds(inputs.map((i) => i.plot));
 
   const uniqueId = (base: string, startDate: string): string => {
     if (!usedIds.has(base)) return base;
@@ -176,10 +189,15 @@ export function buildReleves(inputs: RelevePlotInput[]): {
 
   for (const input of sorted) {
     const { plot, projectName, layers, subplots, species } = input;
-    const baseEnv = () => buildPlotEnvRows(plot, projectName, layers);
+    const ev = ids.get(plot.id) ?? plot.plotid;
+    if (ev !== plot.plotid) {
+      warnings.push(`releveId "${plot.plotid}" 重複（同 plotid 多次調查），改用 "${ev}"`);
+    }
+    // env.csv's eventID column must be the relevé / DwC id, not the bare plotid.
+    const baseEnv = () => buildPlotEnvRows(plot, projectName, layers, ev);
 
     if (subplots.length === 0) {
-      push(input, plot.plotid, null, species, baseEnv());
+      push(input, ev, null, species, baseEnv());
       continue;
     }
 
@@ -192,11 +210,11 @@ export function buildReleves(inputs: RelevePlotInput[]): {
       warnings.push(
         `樣區 ${plot.plotid} 有 ${direct.length} 筆未歸屬小區的記錄，另立母樣區列 ${plot.plotid}`,
       );
-      push(input, plot.plotid, null, direct, baseEnv());
+      push(input, ev, null, direct, baseEnv());
     }
     for (const sp of [...subplots].sort((a, b) => a.idx - b.idx)) {
       const rows = baseEnv();
-      setTerm(rows, 'eventID', `${plot.plotid}-${sp.label}`);
+      setTerm(rows, 'eventID', `${ev}-${sp.label}`);
       setTerm(rows, 'subplotLabel', sp.label);
       if (sp.width_m != null) setTerm(rows, 'subplotWidthM', String(sp.width_m));
       if (sp.length_m != null) setTerm(rows, 'subplotLengthM', String(sp.length_m));
@@ -211,7 +229,7 @@ export function buildReleves(inputs: RelevePlotInput[]): {
           setTerm(rows, `${key}Height${inM ? 'M' : 'Cm'}`, String(inM ? sl.height_cm / 100 : sl.height_cm));
         }
       }
-      push(input, `${plot.plotid}-${sp.label}`, sp.label, species.filter((r) => r.subplot_id === sp.id), rows);
+      push(input, `${ev}-${sp.label}`, sp.label, species.filter((r) => r.subplot_id === sp.id), rows);
     }
   }
 
@@ -224,8 +242,9 @@ export function buildReleves(inputs: RelevePlotInput[]): {
 // ── Species columns ─────────────────────────────────────────────────────────
 
 export type SpeciesCol = {
-  /** taxon_id|used_scientific_name — the checklist dedup key (a taxon
-   *  deliberately recorded under two names is two taxonomic opinions). */
+  /** checklistIdentity: taxon_id|used_scientific_name|verbatim_identification.
+   *  A taxon recorded under two names is two taxonomic opinions, and `sp1` /
+   *  `sp2` under one genus are two morphospecies — each its own column. */
   key: string;
   /** Column label in the matrices (unique). */
   name: string;
@@ -233,12 +252,14 @@ export type SpeciesCol = {
   scientificName: string;
   author: string;
   usedScientificName: string | null;
+  /** The morphospecies label (`sp1`), or null for a determined taxon. */
+  verbatimIdentification: string | null;
   vernacularName: string;
   family: string;
 };
 
 export function colKeyOf(r: PlotSpeciesRecordWithTaxon): string {
-  return `${r.taxon_id}|${r.used_scientific_name ?? ''}`;
+  return checklistIdentity(r);
 }
 
 export function buildSpeciesCols(releves: Releve[]): SpeciesCol[] {
@@ -247,13 +268,15 @@ export function buildSpeciesCols(releves: Releve[]): SpeciesCol[] {
     for (const r of rel.records) {
       const key = colKeyOf(r);
       if (byKey.has(key)) continue;
+      const base = r.used_scientific_name || r.simple_name || r.taxon_id;
       byKey.set(key, {
         key,
-        name: r.used_scientific_name || r.simple_name || r.taxon_id,
+        name: r.verbatim_identification ? `${base} ${r.verbatim_identification}` : base,
         taxonId: r.taxon_id,
         scientificName: r.simple_name,
         author: r.name_author,
         usedScientificName: r.used_scientific_name ?? null,
+        verbatimIdentification: r.verbatim_identification ?? null,
         vernacularName: r.common_name_c,
         family: r.family,
       });
@@ -530,6 +553,7 @@ export function buildSpeciesIndex(cols: SpeciesCol[]): CsvTable {
       'scientificName',
       'scientificNameAuthorship',
       'usedScientificName',
+      'verbatimIdentification',
       'vernacularName',
       'family',
     ],
@@ -539,6 +563,7 @@ export function buildSpeciesIndex(cols: SpeciesCol[]): CsvTable {
       c.scientificName,
       c.author,
       c.usedScientificName ?? '',
+      c.verbatimIdentification ?? '',
       c.vernacularName,
       c.family,
     ]),

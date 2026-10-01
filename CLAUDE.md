@@ -339,14 +339,14 @@ npm run check:dock                                   # 底部置底搜尋框結�
 
 ### 底部置底搜尋框（KeyboardStickyView）
 
-`offset.opened` 必須等於 dock **下方**的 chrome，因為那段 chrome 才是把 dock 頂離鍵盤的東西。只有兩種合法配對：
+offset 必須對應 dock **下方**的 chrome。只有兩種合法配對：
 
 | offset | 前提 |
 |---|---|
-| `insets.bottom` | 畫面 root 是 `<SafeAreaView edges={['bottom']}>` |
-| `tabBarHeight` | 畫面在 bottom tab navigator 內（`useBottomTabBarHeight()`） |
+| `offset={{ opened: insets.bottom }}` | 畫面 root 是 `<SafeAreaView edges={['bottom']}>` |
+| `offset={{ closed: -tabBarInset }}` | 畫面在 bottom tab navigator 內；`tabBarInset` 取自 `useTabBarInset()`（`src/lib/tabBarLayout.ts`），內容另加 `paddingBottom: tabBarInset` |
 
-只抄其中一半 → 搜尋框被推到**鍵盤後面**。這個錯已經出貨三次（KeyListView 2026-05-14、favorites 2026-06-07、collection 2026-08-29），每次都是把某個正常畫面的 offset 抄到 chrome 不同的畫面上。**新增置底搜尋框後必跑 `npm run check:dock`**（`scripts/check-bottom-dock.mjs` 檢查這個配對；純文字檢查，因為失敗樣態一定是「兩半對不上」）。結構照抄 `app/session/[id].tsx`。
+分頁列自 2026-09-18 起浮在畫面上方，舊寫法 `opened: tabBarHeight`／`useBottomTabBarHeight()` 方向與數值都錯，`check:dock` 會直接擋下。只抄其中一半 → 搜尋框被推到**鍵盤後面**。這個錯已經出貨三次（KeyListView 2026-05-14、favorites 2026-06-07、collection 2026-08-29），每次都是把某個正常畫面的 offset 抄到 chrome 不同的畫面上。**新增置底搜尋框後必跑 `npm run check:dock`**（`scripts/check-bottom-dock.mjs` 檢查這個配對；純文字檢查，因為失敗樣態一定是「兩半對不上」）。結構照抄 `app/session/[id].tsx`。
 
 其他天然跨平台 pattern（這些 OK）：
 - `KeyboardAvoidingView`：iOS `'padding'`、Android `'height'` 或 `undefined`

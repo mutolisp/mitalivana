@@ -25,6 +25,7 @@ import {
   getSession,
   getSite,
   getPlotSurvey,
+  plotEventId,
   layerIndexOf,
   listSessionRecords,
   listPlotSpecies,
@@ -456,7 +457,8 @@ function buildOccurrenceCsv(rows: Array<Record<string, unknown>>): string {
 function buildPlotSpeciesCsv(
   species: PlotSpeciesRecordWithTaxon[],
   plotType: PlotType,
-  plotid: string,
+  /** The plot's stable DwC eventID (plotEventId). */
+  eventId: string,
   subplotLabelById: Map<number, string>,
   datasetName: string,
   recordedBy: string,
@@ -468,10 +470,10 @@ function buildPlotSpeciesCsv(
   // leafPhenology (落葉/常綠) only applies to vascular plants; drop the column
   // when the plot has no vascular taxa (e.g. an all-animal point count).
   const includeLeaf = species.some((s) => s.phylum === 'Tracheophyta');
-  // DwC event hierarchy: subplot record → eventID=plotid-label, parentEventID=plotid.
+  // DwC event hierarchy: subplot record → eventID=<eventId>-label, parentEventID=<eventId>.
   const hasSubplots = species.some((s) => s.subplot_id != null);
   const eventIdOf = (r: PlotSpeciesRecordWithTaxon) =>
-    r.subplot_id != null ? `${plotid}-${subplotLabelById.get(r.subplot_id) ?? r.subplot_id}` : plotid;
+    r.subplot_id != null ? `${eventId}-${subplotLabelById.get(r.subplot_id) ?? r.subplot_id}` : eventId;
   const cols: Array<{ h: string; v: (r: PlotSpeciesRecordWithTaxon) => unknown }> = [
     { h: 'occurrenceID', v: (r) => r.occurrence_id },
     // Opened on its own outside the zip, this table must still read as DwC
@@ -482,7 +484,7 @@ function buildPlotSpeciesCsv(
     { h: 'recordedBy', v: () => recordedBy },
     { h: 'eventID', v: eventIdOf },
     ...(hasSubplots
-      ? [{ h: 'parentEventID', v: (r: PlotSpeciesRecordWithTaxon) => (r.subplot_id != null ? plotid : '') }]
+      ? [{ h: 'parentEventID', v: (r: PlotSpeciesRecordWithTaxon) => (r.subplot_id != null ? eventId : '') }]
       : []),
     { h: 'taxonID', v: (r) => r.taxon_id },
     { h: 'scientificName', v: (r) => r.simple_name },
@@ -843,6 +845,9 @@ export async function buildPlotEntries(
   const subplots = listSubplots(plot.id);
   const subplotLabelById = new Map(subplots.map((s) => [s.id, s.label]));
   const plotLayers = plot.plot_type === 'fixed' ? getPlotLayers(plotId) : [];
+  // The stable DwC eventID (plotid, or plotid_YYYYMMDD for a later resurvey):
+  // every table below and the DwC-A use it, so they join with a project export.
+  const eventId = plotEventId(plot);
 
   const base = sanitizeFilename(`${plot.plotid}_${project?.name ?? 'plot'}`);
   const entries: BuiltZipEntry[] = [];
@@ -952,7 +957,7 @@ export async function buildPlotEntries(
   // empty columns. Standard DwC location / event terms where they exist;
   // vegetation-survey columns (cover/height/method per layer) kept under
   // descriptive camelCase keys (no DwC equivalent exists).
-  const envRows = buildPlotEnvRows(plot, project?.name ?? '', plotLayers);
+  const envRows = buildPlotEnvRows(plot, project?.name ?? '', plotLayers, eventId);
   if (envRows.length > 0) {
     const envCsv = '﻿' + ['term,value', ...envRows.map((r) => `${csvEscape(r.term)},${csvEscape(r.value)}`)].join('\n');
     entries.push({ name: `${base}/${plot.plotid}_env.csv`, bytes: strToU8(envCsv) });
@@ -967,7 +972,7 @@ export async function buildPlotEntries(
   const spCsv = buildPlotSpeciesCsv(
     [...species].sort(taxonSortCompare),
     plot.plot_type,
-    plot.plotid,
+    eventId,
     subplotLabelById,
     project?.name ?? '',
     plot.recorded_by ?? '',
@@ -997,8 +1002,8 @@ export async function buildPlotEntries(
       const sl = getSubplotLayers(s.id);
       const cells: unknown[] = [
         s.label,
-        `${plot.plotid}-${s.label}`,
-        plot.plotid,
+        `${eventId}-${s.label}`,
+        eventId,
         s.width_m ?? '',
         s.length_m ?? '',
         ...aLayers.flatMap((l) => {
@@ -1025,10 +1030,10 @@ export async function buildPlotEntries(
 
   // Quadrats (v77): species × cells, and one row of surface cover per quadrat.
   if (quadrats.length > 0) {
-    entries.push({ name: `${base}/${plot.plotid}_quadrats.csv`, bytes: strToU8(buildQuadratsCsv(plot.plotid, quadrats, subplotLabelById)) });
+    entries.push({ name: `${base}/${plot.plotid}_quadrats.csv`, bytes: strToU8(buildQuadratsCsv(plot.plotid, quadrats, subplotLabelById, eventId)) });
     entries.push({
       name: `${base}/${plot.plotid}_quadrat_surface.csv`,
-      bytes: strToU8(buildQuadratSurfaceCsv(plot.plotid, quadrats, subplotLabelById, isoStamp)),
+      bytes: strToU8(buildQuadratSurfaceCsv(plot.plotid, quadrats, subplotLabelById, isoStamp, eventId)),
     });
   }
 

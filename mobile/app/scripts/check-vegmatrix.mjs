@@ -23,6 +23,7 @@ import {
   buildReleveIndex,
   buildReleves,
   buildSpeciesCols,
+  buildSpeciesIndex,
   buildSpeciesLong,
   coverScaleRows,
   tableToCsv,
@@ -35,6 +36,7 @@ import {
   OCCURRENCE_COLS,
 } from '../src/lib/dwcArchive.ts';
 import { buildPlotEnvRows } from '../src/lib/bundleYaml.ts';
+import { assignPlotEventIds } from '../src/lib/plotEventIds.ts';
 
 let failures = 0;
 const fail = (msg) => {
@@ -354,6 +356,75 @@ for (const [name, table] of [
       break;
     }
   }
+}
+
+// ── 9. morphospecies stay apart ─────────────────────────────────────────────
+// `Machilus sp1` and `sp2` share a taxon_id and differ only by the verbatim
+// label (checklistIdentity) — they are two species, so two columns / rows.
+{
+  const plotM = makePlot({ plotid: 'M' });
+  const genusRec = (label, layer, bbCode) =>
+    makeRec({
+      taxon_id: 'tG',
+      simple_name: 'Machilus',
+      rank: 'genus',
+      verbatim_identification: label,
+      layer,
+      organism_quantity: bbCode,
+      organism_quantity_type: 'Braun-Blanquet Scale',
+    });
+  const { releves: relM } = buildReleves([
+    {
+      plot: plotM,
+      projectName: 'proj',
+      layers: layers4(plotM.id),
+      subplots: [],
+      species: [genusRec('sp1', 'E1', '2'), genusRec('sp2', 'E1', '+'), genusRec('sp1', 'E2', '1')],
+    },
+  ]);
+  const colsM = buildSpeciesCols(relM);
+  eq('morphospecies: one column each', colsM.map((c) => c.name).sort(), ['Machilus sp1', 'Machilus sp2']);
+  const mM = buildMatrix(relM, colsM, 'cover');
+  const cellOf = (name) => mM.rows[0][mM.header.indexOf(name)];
+  ok('morphospecies: sp1 and sp2 cells differ', cellOf('Machilus sp1') !== cellOf('Machilus sp2'));
+  const jM = buildJuiceTable(relM, colsM, 'm');
+  ok('morphospecies: JUICE rows for sp1 and sp2',
+    jM.text.includes('Machilus sp1;') && jM.text.includes('Machilus sp2;'));
+  const idxM = buildSpeciesIndex(colsM);
+  const vCol = idxM.header.indexOf('verbatimIdentification');
+  ok('species_index has verbatimIdentification', vCol >= 0);
+  eq('species_index labels', idxM.rows.map((r) => r[vCol]).sort(), ['sp1', 'sp2']);
+}
+
+// ── 10. one eventID per survey, shared by relevés, env.csv and the DwC-A ────
+{
+  const ids = assignPlotEventIds([
+    { id: 3, plotid: 'C', start_ts: Date.UTC(2026, 4, 1, 4) },
+    { id: 1, plotid: 'C', start_ts: Date.UTC(2025, 4, 1, 4) },
+    { id: 2, plotid: 'C', start_ts: Date.UTC(2026, 4, 1, 6) },
+    { id: 4, plotid: 'A', start_ts: null },
+  ]);
+  eq('eventIds: earliest keeps the bare plotid', ids.get(1), 'C');
+  eq('eventIds: later survey dated', ids.get(3), 'C_20260501');
+  eq('eventIds: same day → sequence', ids.get(2), 'C_20260501_2');
+  eq('eventIds: lone plot', ids.get(4), 'A');
+  // Order-independent: the input order must not change who gets which id.
+  const again = assignPlotEventIds([
+    { id: 2, plotid: 'C', start_ts: Date.UTC(2026, 4, 1, 6) },
+    { id: 4, plotid: 'A', start_ts: null },
+    { id: 1, plotid: 'C', start_ts: Date.UTC(2025, 4, 1, 4) },
+    { id: 3, plotid: 'C', start_ts: Date.UTC(2026, 4, 1, 4) },
+  ]);
+  eq('eventIds: input order irrelevant', [...again.entries()].sort(), [...ids.entries()].sort());
+  // env.csv's eventID column = the relevé id (it used to stay the bare plotid).
+  const envAll = buildEnvWide(releves);
+  const evCol = envAll.header.indexOf('eventID');
+  ok('env eventID column present', evCol >= 0);
+  eq('env eventID == relevé id', envAll.rows.map((r) => r[evCol]), releves.map((r) => r.id));
+  // A DB-wide id map wins over the inputs: the later survey keeps its dated id
+  // even when exported without the earlier one.
+  const { releves: lone } = buildReleves([mkC(plotC2)], new Map([[plotC2.id, 'C_20260501']]));
+  eq('relevé id from the supplied map', lone[0].id, 'C_20260501');
 }
 
 if (failures > 0) {

@@ -1,4 +1,5 @@
 import { errText } from '~/lib/errText';
+import { parseNum } from '~/lib/parseNum';
 import { Ionicons } from '@expo/vector-icons';
 import { PlotDiversityCard } from './PlotDiversityCard';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -1515,22 +1516,17 @@ function MiniNum({
         value={draft}
         onChangeText={setDraft}
         onBlur={() => {
-          const t = draft.trim();
-          if (t === '') return onSave(null);
-          const n = Number(t);
-          if (min !== undefined || max !== undefined) {
-            const ok =
-              Number.isFinite(n) &&
-              (min === undefined || n > min) &&
-              (max === undefined || n <= max);
-            if (!ok) {
-              toast(tr('plot.numRange', { min: min ?? 0, max: max ?? 100 }));
-              setDraft(value == null ? '' : String(value)); // revert
-              return;
-            }
-            return onSave(n);
+          if (draft.trim() === '') return onSave(null);
+          // Decimal comma accepted; an unreadable entry reverts rather than
+          // clearing the stored value.
+          const n = parseNum(draft);
+          const ok = n !== null && (min === undefined || n > min) && (max === undefined || n <= max);
+          if (!ok) {
+            if (min !== undefined || max !== undefined) toast(tr('plot.numRange', { min: min ?? 0, max: max ?? 100 }));
+            setDraft(value == null ? '' : String(value)); // revert
+            return;
           }
-          onSave(Number.isFinite(n) ? n : null);
+          onSave(n);
         }}
         placeholder={placeholder}
         placeholderTextColor={c.ink3}

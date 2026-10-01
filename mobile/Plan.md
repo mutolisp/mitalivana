@@ -480,6 +480,19 @@ MIREN（規劃中）→ `docs/planned/MIREN.md`；
 - 待辦：專案匯出「壓縮中…」的轉圈仍是藍色（Phase 2 沒清到的 `ActivityIndicator` 顏色）
 - 待辦：`check:palette` 的 baseline 還有 60 檔 177 處（琥珀警示色、`#4b5563`、`#d1d5db` 等對照表外的值、模組層級常數），逐步降低；每次減少後 `npm run check:palette -- --update`
 
+### O. 模組化調查表（規劃見 `docs/planned/Modular_survey.md`）
+
+- [x] 規劃：元件盤點、模板 schema、通用表、路線圖；設計畫板 11–13（2026-10-01）
+- [x] 對照程式碼審查；修正審查發現的三個既有 bug（小數逗號、形態種矩陣、eventID 不一致）（2026-10-01，見 `Update_log.md`）
+- 已決（2026-10-01）：以 20 m 樣方為版本／復原／合併單位、1 ha 區塊為同步單位；每木回合不受 single-active 限制；樹號依區塊號段；預設一套健康代碼；Android 平板開放橫向；值表依擁有者分開並有外鍵
+- [ ] Phase 0：抽出共用元件；記錄種類清單改窮舉 switch（`Modular_survey.md` §7.3）；每木純邏輯與 `check:stemmap`
+- [ ] Phase 1：框架核心（v80）＋每木調查模板（`docs/ForestGEO/Stem_mapping.md`），含團隊合併、平板分割畫面、vegan 寬表
+- [ ] Phase 2：建表器、模板分享、checklist／plot 樣式、其餘元件、DwC-A（organismID、eMoF）
+- [ ] Phase 3：既有記錄類型逐步遷移
+- 待決：永久樣區是否也給 plot 樣式複查用；死亡個體的 DwC 表示（先查 GBIF 文件）；同步區塊大小是否依樣區大小調整
+
+---
+
 ## 技術棧
 
 | 項目 | 選擇 | 備註 |

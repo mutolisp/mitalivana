@@ -24,6 +24,7 @@ import { latest, mergeOrder, unionSurveyors, unionTracks, type MergeRecordOption
 import { defaultSurveyorString } from './surveyors';
 import { copyMergedQuadrats, normalizeGrid, normalizePlotFreq, writeQuadratRow, writeQuadratSpeciesRow } from './quadratsCore';
 import type { ImportedQuadrat } from '~/lib/quadratYaml';
+import { assignPlotEventIds, type PlotIdInput } from '~/lib/plotEventIds';
 import i18n from '~/i18n';
 
 /** Fixed-plot vertical layers (vegetation profile, semantic labels). */
@@ -613,6 +614,27 @@ export function getActivePlot(): PlotSurvey | null {
     `SELECT * FROM plot_surveys WHERE status = 'active' ORDER BY COALESCE(start_ts, created_at) DESC LIMIT 1`,
   );
   return ((res.rows?.[0] as unknown as PlotSurvey) ?? null) as PlotSurvey | null;
+}
+
+/**
+ * Stable DwC eventIDs for surveys with these plotids, assigned over every local
+ * survey sharing them (assignPlotEventIds) — so exporting one survey alone or
+ * inside a project gives it the same id.
+ */
+export function plotEventIds(plotids: readonly string[]): Map<number, string> {
+  const unique = [...new Set(plotids)];
+  if (unique.length === 0) return new Map();
+  const db = getUserDb();
+  const res = db.executeSync(
+    `SELECT id, plotid, start_ts FROM plot_surveys WHERE plotid IN (${unique.map(() => '?').join(',')})`,
+    unique,
+  );
+  return assignPlotEventIds((res.rows ?? []) as unknown as PlotIdInput[]);
+}
+
+/** The stable eventID of one survey (see plotEventIds). */
+export function plotEventId(plot: Pick<PlotSurvey, 'id' | 'plotid'>): string {
+  return plotEventIds([plot.plotid]).get(plot.id) ?? plot.plotid;
 }
 
 export function getPlotSurvey(id: number): PlotSurvey | null {

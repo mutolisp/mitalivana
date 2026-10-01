@@ -12,6 +12,7 @@ import { useKeyboardState } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardStickyView } from '~/components/KeyboardAvoidingView';
 import { checkRange, type Range } from '../model/ranges';
+import { parseNum } from '~/lib/parseNum';
 import { Button } from '~/components/ui/Button';
 import { useSettings } from '~/stores/settings';
 import { useThemeColors } from '~/theme/colors';
@@ -340,12 +341,8 @@ export function NumAccessory() {
   ) : null;
 }
 
-export function parseNum(s: string): number | null {
-  const t = s.trim().replace(',', '.');
-  if (t === '') return null;
-  const n = Number(t);
-  return Number.isFinite(n) ? n : null;
-}
+// Moved to ~/lib/parseNum so plot inputs share it; re-exported for existing callers.
+export { parseNum };
 
 const fmt = (v: number | null | undefined) => (v == null ? '' : String(v));
 

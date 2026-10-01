@@ -23,6 +23,7 @@ import {
   listSitesByProject,
   listSpecimens,
   listSubplots,
+  plotEventIds,
 } from '~/db';
 import {
   buildCollectionEntries,
@@ -220,7 +221,7 @@ export async function bundleProject(
     }));
     let built: ReturnType<typeof buildReleves>;
     try {
-      built = buildReleves(inputs);
+      built = buildReleves(inputs, plotEventIds(plots.map((p) => p.plotid)));
     } catch (e) {
       // vegMatrix stays free of ~/i18n (check:vegmatrix runs it in Node).
       if (e instanceof TooManyRelevesError) throw new Error(i18n.t('export.err.tooManyReleves', { n: e.releves, max: e.max }));
@@ -445,7 +446,7 @@ function buildReadme(
     '- `species_long.csv` — 無損長表（每筆記錄一列，含原值 quantity/quantityType 與轉換值 value）',
     '- `env.csv` — 環境表（列＝樣方、欄＝變數），與矩陣同列序',
     '- `releve_index.csv` — 樣方整數編號 ↔ 樣方 ID ↔ 樣區 UUID 對照',
-    '- `species_index.csv` — 物種欄名 ↔ taxonID ↔ 學名/俗名/科',
+    '- `species_index.csv` — 物種欄名 ↔ taxonID ↔ 學名/俗名/科；未鑑定到種的形態種（同屬 sp1、sp2）各自一欄，暫定名在 `verbatimIdentification`',
     '- `cover_scale.csv` — 本次匯出使用的 Braun-Blanquet 換算表（含出處）',
     '- 檔案為 UTF-8 **無 BOM**（R 友善）；Excel 開啟請用「資料 → 從文字/CSV」並選 UTF-8',
     '- DBH 記錄之數值化 = 斷面積合計（cm²，多莖加總）；個體數跨層/跨筆合併採加總，覆蓋度採最大值',

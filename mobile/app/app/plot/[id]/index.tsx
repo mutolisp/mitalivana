@@ -1,4 +1,5 @@
 import { errText } from '~/lib/errText';
+import { parseNum } from '~/lib/parseNum';
 import { Ionicons } from '@expo/vector-icons';
 import { FolderAreaMap } from '~/components/FolderAreaMap';
 import { RecordLocationMap } from '~/components/RecordLocationMap';
@@ -618,16 +619,12 @@ function EnvTab({
 
         {plot.plot_type === 'point_count' ? (
           <>
-            <Field
+            <NumField
               label={t('plot.radius')}
-              value={plot.point_radius_m !== null ? String(plot.point_radius_m) : ''}
+              value={plot.point_radius_m}
               placeholder={t('plot.egRadius')}
-              keyboardType="decimal-pad"
               suffix="m"
-              onSave={(v) => {
-                const n = v.trim() === '' ? null : Number(v);
-                patch({ point_radius_m: Number.isFinite(n as number) ? (n as number) : null });
-              }}
+              onSave={(n) => patch({ point_radius_m: n })}
             />
           </>
         ) : null}
@@ -674,15 +671,11 @@ function EnvTab({
         {/* A transect needs no plot size / unit: its track length gives its extent. */}
         {plot.plot_type !== 'transect' ? (
           <>
-            <Field
+            <NumField
               label={t('plot.sampleSizeValue')}
-              value={plot.sample_size_value !== null ? String(plot.sample_size_value) : ''}
+              value={plot.sample_size_value}
               placeholder={t('plot.egSampleSize')}
-              keyboardType="decimal-pad"
-              onSave={(v) => {
-                const n = v.trim() === '' ? null : Number(v);
-                patch({ sample_size_value: Number.isFinite(n as number) ? (n as number) : null });
-              }}
+              onSave={(n) => patch({ sample_size_value: n })}
             />
             <Field
               label={t('plot.sampleSizeUnit')}
@@ -1219,6 +1212,7 @@ function Field({
 function NumField({
   label,
   suffix,
+  placeholder,
   value,
   onSave,
   min,
@@ -1226,6 +1220,7 @@ function NumField({
 }: {
   label: string;
   suffix?: string;
+  placeholder?: string;
   value: number | null;
   onSave: (n: number | null) => void;
   /** Inclusive lower bound. 0 is a real value everywhere this is used —
@@ -1238,7 +1233,7 @@ function NumField({
 
   const toast = useToast((s) => s.show);
   // Bumping this remounts <Field>, resetting its draft to the last saved value
-  // (used to discard an out-of-range entry).
+  // (used to discard an out-of-range or unreadable entry).
   const [resetKey, setResetKey] = useState(0);
   const ranged = min !== undefined || max !== undefined;
   return (
@@ -1246,29 +1241,24 @@ function NumField({
       key={resetKey}
       label={label}
       value={value !== null ? String(value) : ''}
+      placeholder={placeholder}
       keyboardType="decimal-pad"
       suffix={suffix}
       onSave={(v) => {
-        const trimmed = v.trim();
-        if (trimmed === '') {
+        if (v.trim() === '') {
           onSave(null);
           return;
         }
-        const n = Number(trimmed);
-        if (ranged) {
-          const ok =
-            Number.isFinite(n) &&
-            (min === undefined || n >= min) &&
-            (max === undefined || n <= max);
-          if (!ok) {
-            toast(t('plot.numRange', { min: min ?? 0, max: max ?? 100 }));
-            setResetKey((k) => k + 1);
-            return;
-          }
-          onSave(n);
+        // An unreadable entry reverts instead of saving null: clearing the
+        // stored value because of a typo is data loss.
+        const n = parseNum(v);
+        const ok = n !== null && (min === undefined || n >= min) && (max === undefined || n <= max);
+        if (!ok) {
+          if (ranged) toast(t('plot.numRange', { min: min ?? 0, max: max ?? 100 }));
+          setResetKey((k) => k + 1);
           return;
         }
-        onSave(Number.isFinite(n) ? n : null);
+        onSave(n);
       }}
     />
   );
