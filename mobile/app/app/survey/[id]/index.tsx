@@ -228,7 +228,7 @@ export default function CensusScreen() {
         <View className="flex-row flex-wrap gap-x-3.5">
           <Text className="text-xs text-ink-2 dark:text-gray-400">
             <Text className="font-mono font-bold text-ink dark:text-gray-100">{doneCount}</Text>
-            {t('survey.census.progress', { total: work.length })}
+            {data.firstCensus ? t('survey.census.progressFirst', { total: work.length }) : t('survey.census.progress', { total: work.length })}
           </Text>
           <Text className="text-xs text-ink-2 dark:text-gray-400">
             <Text className="font-mono font-bold text-ink dark:text-gray-100">{newCount}</Text> {t('survey.chip.fresh')}
@@ -246,7 +246,7 @@ export default function CensusScreen() {
       <View className="flex-row items-center gap-2">
         <HeaderIconButton icon="chevron-back" label={t('survey.census.prevQuadrat')} disabled={qIndex <= 0} onPress={() => stepQuadrat(-1)} />
         <View className="flex-1 items-center">
-          <Text className="font-mono text-base font-bold text-ink dark:text-gray-100">{t('survey.census.quadrat', { q: quadrat, m: frame.quadrat_m })}</Text>
+          <Text style={{ fontVariant: ['tabular-nums'] }} className="text-base font-bold text-ink dark:text-gray-100">{t('survey.census.quadrat', { q: quadrat, m: frame.quadrat_m })}</Text>
           <Text className="text-xs text-ink-3 dark:text-gray-400">
             {t('survey.census.quadratProgress', { done: qWork.filter((s) => s.done).length, total: qWork.length })}
             {warnCount ? ` · ${t('survey.census.warnCount', { count: warnCount })}` : ''}
@@ -340,7 +340,7 @@ export default function CensusScreen() {
                 </Text>
               </View>
               <View className="items-end gap-1">
-                <Text className="font-mono text-xs text-ink dark:text-gray-100">{dbhLine(r, (n) => t('survey.census.stems', { count: n }))}</Text>
+                <Text style={{ fontVariant: ['tabular-nums'] }} className="text-xs text-ink dark:text-gray-100">{dbhLine(r, (n) => t('survey.census.stems', { count: n }))}</Text>
                 <Text className={`overflow-hidden rounded px-1.5 py-px text-[11px] font-bold ${CHIP_LOOK[r.chip]}`}>
                   {chip ? issueShort(t, chip) : r.chip === 'done' && r.view.stems.some((s) => s.codes.length) ? [...new Set(r.view.stems.flatMap((s) => s.codes))].join(' ') : chipText(t, r.chip)}
                 </Text>
@@ -355,7 +355,7 @@ export default function CensusScreen() {
   const map = (
     <View className="flex-1 gap-2 px-4 pb-2">
       <View className="flex-row items-center justify-between">
-        <Text className="font-mono text-sm font-bold text-ink dark:text-gray-100">
+        <Text style={{ fontVariant: ['tabular-nums'] }} className="text-sm font-bold text-ink dark:text-gray-100">
           {mode === 'quadrat' ? t('survey.map.quadratTitle', { q: quadrat, m: frame.quadrat_m }) : t('survey.map.wholeTitle', { x: frame.size_x_m, y: frame.size_y_m })}
         </Text>
         <Button label={mode === 'quadrat' ? t('survey.map.whole') : t('survey.map.quadrat')} variant="secondary" onPress={() => setMode(mode === 'quadrat' ? 'whole' : 'quadrat')} />
@@ -395,7 +395,7 @@ export default function CensusScreen() {
               {selectedRow.cname ? `${selectedRow.cname} ` : ''}
               <Text className="font-latin text-sm text-ink-2 dark:text-gray-300">{selectedRow.sci}</Text>
             </Text>
-            <Text className="font-mono text-xs text-ink-2 dark:text-gray-400">{dbhLine(selectedRow, (n) => t('survey.census.stems', { count: n }))}</Text>
+            <Text style={{ fontVariant: ['tabular-nums'] }} className="text-xs text-ink-2 dark:text-gray-400">{dbhLine(selectedRow, (n) => t('survey.census.stems', { count: n }))}</Text>
           </View>
           <Button label={t('common.edit')} onPress={() => openTree(selectedRow.view.individual.id)} />
         </View>
@@ -449,6 +449,7 @@ export default function CensusScreen() {
                 states={states}
                 recordedBy={recorder}
                 onDirtyChange={setPaneDirty}
+                onChanged={reload}
                 onSaved={(id, next) => {
                   reload();
                   if (!next) return setPane({ id, n: Date.now() });

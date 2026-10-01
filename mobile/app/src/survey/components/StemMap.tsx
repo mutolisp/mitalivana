@@ -16,7 +16,7 @@ import { memo, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, Text, View, type LayoutChangeEvent } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Svg, { Circle, Line, Path, Rect, Text as SvgText } from 'react-native-svg';
+import Svg, { Circle, Path, Rect, Text as SvgText } from 'react-native-svg';
 import type { TreeState } from '~/survey/db/stemmapCore';
 import { fgQuadratCounts, formatFgQuadratCode, parseFgQuadratCode, type FrameGeometry } from '~/survey/stemmap/coords';
 import type { TreeChip } from '~/survey/stemmap/review';
@@ -33,7 +33,8 @@ const MIN_R_PT = 2.5;
 
 export type MapMode = 'quadrat' | 'whole';
 
-type View2 = { cx: number; cy: number; w: number };
+/** What must be visible: a centre and the extents (m) to fit in both directions. */
+type View2 = { cx: number; cy: number; w: number; h: number };
 
 export type StemMapProps = {
   geometry: FrameGeometry;
@@ -53,9 +54,9 @@ export type StemMapProps = {
 const radiusM = (d2: number) => Math.sqrt(d2) / 25;
 
 function homeView(g: FrameGeometry, mode: MapMode, quadrat: string): View2 {
-  if (mode === 'whole') return { cx: g.sizeXM / 2, cy: g.sizeYM / 2, w: Math.max(g.sizeXM, g.sizeYM) * 1.04 };
+  if (mode === 'whole') return { cx: g.sizeXM / 2, cy: g.sizeYM / 2, w: g.sizeXM * 1.04, h: g.sizeYM * 1.04 };
   const q = parseFgQuadratCode(quadrat) ?? { col: 0, row: 0 };
-  return { cx: (q.col + 0.5) * g.quadratM, cy: (q.row + 0.5) * g.quadratM, w: g.quadratM * 1.15 };
+  return { cx: (q.col + 0.5) * g.quadratM, cy: (q.row + 0.5) * g.quadratM, w: g.quadratM * 1.15, h: g.quadratM * 1.15 };
 }
 
 export function StemMap(props: StemMapProps) {
@@ -74,16 +75,22 @@ export function StemMap(props: StemMapProps) {
     setView(homeView(g, mode, quadrat));
   }
 
-  const pxPerM = size.w > 0 ? size.w / view.w : 1;
-  const viewH = size.w > 0 ? (view.w * size.h) / size.w : view.w;
-  const x0 = view.cx - view.w / 2;
+  // The view fits both extents into the box, whatever its shape (it changes
+  // height when the tree card opens).
+  const fit = (v: View2) => {
+    const ew = size.w > 0 && size.h > 0 ? Math.max(v.w, (v.h * size.w) / size.h) : v.w;
+    return { ew, eh: size.w > 0 ? (ew * size.h) / size.w : v.h };
+  };
+  const { ew, eh: viewH } = fit(view);
+  const pxPerM = size.w > 0 ? size.w / ew : 1;
+  const x0 = view.cx - ew / 2;
   const y0 = view.cy - viewH / 2; // plot y of the bottom edge
   const toPlot = (px: number, py: number) => ({ x: x0 + px / pxPerM, y: y0 + viewH - py / pxPerM });
 
   const inView = useMemo(() => {
     const pad = 3;
-    return props.states.filter((s) => s.x >= x0 - pad && s.x <= x0 + view.w + pad && s.y >= y0 - pad && s.y <= y0 + viewH + pad);
-  }, [props.states, x0, y0, view.w, viewH]);
+    return props.states.filter((s) => s.x >= x0 - pad && s.x <= x0 + ew + pad && s.y >= y0 - pad && s.y <= y0 + viewH + pad);
+  }, [props.states, x0, y0, ew, viewH]);
   const overview = inView.length > MAX_DRAWN;
 
   // Pinch / drag: the view follows; start values captured at gesture start.
@@ -96,12 +103,12 @@ export function StemMap(props: StemMapProps) {
     })
     .onUpdate((e) => {
       const s = start.current;
-      const w = Math.min(Math.max(s.view.w / e.scale, g.subquadratM), Math.max(g.sizeXM, g.sizeYM) * 1.5);
+      const k = Math.min(Math.max(1 / e.scale, g.subquadratM / s.view.w), (Math.max(g.sizeXM, g.sizeYM) * 1.5) / s.view.w);
       // Keep the plot point under the fingers where it was.
-      const fx = s.view.cx - s.view.w / 2 + s.fx / (size.w / s.view.w);
-      const fy = s.view.cy + (s.view.w * size.h) / size.w / 2 - s.fy / (size.w / s.view.w);
-      const k = w / s.view.w;
-      setView({ cx: fx + (s.view.cx - fx) * k, cy: fy + (s.view.cy - fy) * k, w });
+      const f0 = fit(s.view);
+      const fx = s.view.cx - f0.ew / 2 + (s.fx * f0.ew) / size.w;
+      const fy = s.view.cy + f0.eh / 2 - (s.fy * f0.ew) / size.w;
+      setView({ cx: fx + (s.view.cx - fx) * k, cy: fy + (s.view.cy - fy) * k, w: s.view.w * k, h: s.view.h * k });
     })
     .onEnd(() => setMoving(false));
   const pan = Gesture.Pan()
@@ -113,8 +120,8 @@ export function StemMap(props: StemMapProps) {
     })
     .onUpdate((e) => {
       const s = start.current;
-      const k = s.view.w / Math.max(size.w, 1);
-      setView({ cx: s.view.cx - e.translationX * k, cy: s.view.cy + e.translationY * k, w: s.view.w });
+      const k = fit(s.view).ew / Math.max(size.w, 1);
+      setView({ ...s.view, cx: s.view.cx - e.translationX * k, cy: s.view.cy + e.translationY * k });
     })
     .onEnd(() => setMoving(false));
   const tap = Gesture.Tap()
@@ -151,13 +158,17 @@ export function StemMap(props: StemMapProps) {
     });
   const gesture = Gesture.Race(Gesture.Simultaneous(pinch, pan), tap);
 
-  const zoom = (factor: number) => setView((v) => ({ ...v, w: Math.min(Math.max(v.w * factor, g.subquadratM), Math.max(g.sizeXM, g.sizeYM) * 1.5) }));
+  const zoom = (factor: number) =>
+    setView((v) => {
+      const k = Math.min(Math.max(factor, g.subquadratM / v.w), (Math.max(g.sizeXM, g.sizeYM) * 1.5) / v.w);
+      return { ...v, w: v.w * k, h: v.h * k };
+    });
   const home = homeView(g, mode, quadrat);
   const moved = Math.abs(view.w - home.w) > 0.01 || Math.abs(view.cx - home.cx) > 0.01 || Math.abs(view.cy - home.cy) > 0.01;
 
   const onLayout = (e: LayoutChangeEvent) => setSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height });
   const svgY = (y: number) => g.sizeYM - y;
-  const viewBox = `${x0} ${svgY(y0 + viewH)} ${view.w} ${viewH}`;
+  const viewBox = `${x0} ${svgY(y0 + viewH)} ${ew} ${viewH}`;
   const unit = 1 / pxPerM; // one screen point, in metres
 
   return (
@@ -166,7 +177,7 @@ export function StemMap(props: StemMapProps) {
         <View className="flex-1" collapsable={false}>
           {size.w > 0 ? (
             <Svg width={size.w} height={size.h} viewBox={viewBox} pointerEvents="none">
-              <Grid g={g} unit={unit} c={c} quadrat={quadrat} showSub={view.w <= g.quadratM * 3} />
+              <Grid g={g} unit={unit} c={c} quadrat={quadrat} showSub={ew <= g.quadratM * 3} />
               {overview ? (
                 <Overview g={g} states={props.states} c={c} />
               ) : (
@@ -242,8 +253,6 @@ const Grid = memo(function Grid({ g, unit, c, quadrat, showSub }: { g: FrameGeom
           strokeWidth={2 * unit}
         />
       ) : null}
-      {/* y axis = the plot's main bearing */}
-      <Line x1={-4 * unit} y1={g.sizeYM} x2={-4 * unit} y2={g.sizeYM - Math.min(g.quadratM, g.sizeYM)} stroke={c.ink2} strokeWidth={unit} />
     </>
   );
 });
@@ -353,16 +362,9 @@ function TreeMark({
 }) {
   return (
     <>
-      <Circle
-        cx={x}
-        cy={y}
-        r={r}
-        fill={look.fill}
-        fillOpacity={look.fillOpacity}
-        stroke={selected ? c.acorn : look.stroke}
-        strokeWidth={(selected ? 3 : 1.2) * unit}
-        strokeDasharray={selected ? undefined : look.dash}
-      />
+      <Circle cx={x} cy={y} r={r} fill={look.fill} fillOpacity={look.fillOpacity} stroke={look.stroke} strokeWidth={1.2 * unit} strokeDasharray={look.dash} />
+      {/* Selection: a ring outside the circle, in ink — new trees are acorn already. */}
+      {selected ? <Circle cx={x} cy={y} r={r + 4 * unit} fill="none" stroke={c.ink} strokeWidth={2.5 * unit} /> : null}
       {tag ? (
         <SvgText x={x} y={y + r + 9 * unit} fontSize={9 * unit} textAnchor="middle" fill={c.ink2}>
           {tag}

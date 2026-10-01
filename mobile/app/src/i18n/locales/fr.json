@@ -4671,7 +4671,9 @@
       "deleteNotLatest": "Seul le dernier inventaire d’une placette peut être supprimé.",
       "projectCount_one": "{{count}} inventaire d’arbres",
       "projectCount_many": "{{count}} inventaires d’arbres",
-      "projectCount_other": "{{count}} inventaires d’arbres"
+      "projectCount_other": "{{count}} inventaires d’arbres",
+      "progressFirst": " / {{total}} faits",
+      "deletePermanent": "Un inventaire supprimé ne peut pas être restauré."
     },
     "chip": {
       "warn": "À vérifier",
@@ -4718,7 +4720,8 @@
       "tenfoldShort": "Dix fois",
       "notHandled": "Mesuré précédemment, pas encore traité",
       "extremeHigh": "Croissance forte : remesurer",
-      "extremeLow": "Croissance faible : remesurer"
+      "extremeLow": "Croissance faible : remesurer",
+      "extremeFew": "Trop peu dans cette classe de DHP : remesurer"
     },
     "checks": {
       "screening_one": "Contrôle {{count}}",
@@ -4822,7 +4825,8 @@
       "lastInQuadrat": "C’était le dernier arbre de ce quadrat.",
       "unsavedTitle": "Abandonner les modifications ?",
       "unsavedMsg": "Les modifications de cet arbre ne sont pas enregistrées.",
-      "discard": "Abandonner"
+      "discard": "Abandonner",
+      "errNumber": "Ces champs ne sont pas des nombres :"
     }
   }
 }

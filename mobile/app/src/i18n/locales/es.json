@@ -4671,7 +4671,9 @@
       "deleteNotLatest": "Solo se puede eliminar el censo más reciente de una parcela.",
       "projectCount_one": "{{count}} censo de árboles",
       "projectCount_many": "{{count}} censos de árboles",
-      "projectCount_other": "{{count}} censos de árboles"
+      "projectCount_other": "{{count}} censos de árboles",
+      "progressFirst": " / {{total}} hechos",
+      "deletePermanent": "Un censo eliminado no se puede restaurar."
     },
     "chip": {
       "warn": "Revisar",
@@ -4718,7 +4720,8 @@
       "tenfoldShort": "Diez veces",
       "notHandled": "Medido antes, aún no tratado",
       "extremeHigh": "Crecimiento alto: volver a medir",
-      "extremeLow": "Crecimiento bajo: volver a medir"
+      "extremeLow": "Crecimiento bajo: volver a medir",
+      "extremeFew": "Pocos en esta clase de DAP: volver a medir"
     },
     "checks": {
       "screening_one": "Revisión {{count}}",
@@ -4822,7 +4825,8 @@
       "lastInQuadrat": "Era el último árbol de este cuadrante.",
       "unsavedTitle": "¿Descartar cambios?",
       "unsavedMsg": "Los cambios de este árbol no se han guardado.",
-      "discard": "Descartar"
+      "discard": "Descartar",
+      "errNumber": "Estos campos no son números:"
     }
   }
 }

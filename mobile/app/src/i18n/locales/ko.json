@@ -4285,7 +4285,9 @@
       "noMerge": "조사 회차는 병합할 수 없습니다.",
       "deleteMsg": "\"{{title}}\"의 {{n}}차 조사를 삭제할까요? 이 회차의 측정과 이 회차에 처음 기록한 나무가 삭제되며, 이전 회차는 남습니다.",
       "deleteNotLatest": "조사구의 최신 회차만 삭제할 수 있습니다.",
-      "projectCount_other": "매목조사 {{count}}회"
+      "projectCount_other": "매목조사 {{count}}회",
+      "progressFirst": " / {{total}} 처리됨",
+      "deletePermanent": "삭제한 조사 회차는 되돌릴 수 없습니다."
     },
     "chip": {
       "warn": "확인 필요",
@@ -4332,7 +4334,8 @@
       "tenfoldShort": "10배 차이",
       "notHandled": "지난 회차 측정, 이번 회차 미처리",
       "extremeHigh": "생장률 높음: 재측정",
-      "extremeLow": "생장률 낮음: 재측정"
+      "extremeLow": "생장률 낮음: 재측정",
+      "extremeFew": "DBH 계급 개체가 적어 모두 재측정"
     },
     "checks": {
       "screening_other": "자동 점검 {{count}}",
@@ -4430,7 +4433,8 @@
       "lastInQuadrat": "이 방형구의 마지막 나무였습니다.",
       "unsavedTitle": "변경을 버릴까요?",
       "unsavedMsg": "이 나무의 변경은 저장되지 않았습니다.",
-      "discard": "버리기"
+      "discard": "버리기",
+      "errNumber": "다음 칸은 숫자가 아닙니다:"
     }
   }
 }

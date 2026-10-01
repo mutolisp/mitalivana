@@ -52,7 +52,7 @@ import {
 } from '~/survey/db/stemmap';
 import { treeBasalAreaCm2 } from '~/survey/stemmap/basal';
 import { frameGeometry } from '~/survey/db/stemmap';
-import { formDbhs, formFromView, formStemInputs, formIssues, formToDraft, locationInput, previewLocation, stemNumbers, stemTagOf, type LocForm, type TreeForm } from '~/survey/stemmap/treeForm';
+import { formDbhs, formFromView, formStemInputs, unreadableFields, formIssues, formToDraft, locationInput, previewLocation, stemNumbers, stemTagOf, type LocForm, type TreeForm } from '~/survey/stemmap/treeForm';
 import { isMultiStem } from '~/survey/stemmap/status';
 import type { StakeCorner } from '~/survey/stemmap/coords';
 import { useThemeColors } from '~/theme/colors';
@@ -71,6 +71,8 @@ export type TreeEditorProps = {
   recordedBy: string | null;
   onSaved: (individualId: number, next: boolean) => void;
   onDirtyChange?: (dirty: boolean) => void;
+  /** A correction was written (tag, species, position): the screen re-reads. */
+  onChanged?: () => void;
 };
 
 const STEM_CODES = (first: boolean) => enterableCensusCodes('stem', first).map((c) => c.code);
@@ -92,6 +94,8 @@ export function TreeEditor(props: TreeEditorProps) {
   const [photos, setPhotos] = useState<string[]>(() => (individualId == null ? [] : listTreeMedia(surveyId, individualId).map((m) => m.uri)));
   const [viewing, setViewing] = useState<number | null>(null);
   const [fixBusy, setFixBusy] = useState(false);
+  // Required fields are marked only once a save was tried.
+  const [tried, setTried] = useState(false);
 
   const isNewTree = view == null;
   const recruit = isNewTree || view.individual.first_survey_id === surveyId;
@@ -134,12 +138,19 @@ export function TreeEditor(props: TreeEditorProps) {
   const ba = treeBasalAreaCm2(formDbhs(form));
   const multi = isMultiStem({ treeCodes: form.treeCodes, stems: formStemInputs(form), existed: true, thresholdCm: frame.dbh_min_cm });
 
-  const reload = () => {
+  /** After a correction: take the corrected tag / species (and position)
+   *  into the form AND its saved baseline — a correction is already stored,
+   *  so it must not make the form look unsaved. Other typing is kept. */
+  const reload = (position = false) => {
     if (individualId == null) return;
     const v = loadTree(surveyId, individualId);
     setView(v);
-    // Keep what is typed; take the corrected tag / species / position.
-    if (v) setForm((f) => ({ ...f, tag: v.individual.tag, taxon: { taxonId: v.individual.taxon_id, usedNameId: v.individual.used_name_id, usedScientificName: v.individual.used_scientific_name, verbatimIdentification: v.individual.verbatim_identification } }));
+    if (!v) return;
+    const fresh = formFromView(v, { quadrat, geometry: g });
+    const patch: Partial<TreeForm> = { tag: fresh.tag, taxon: fresh.taxon, ...(position ? { loc: fresh.loc } : {}) };
+    setForm((f) => ({ ...f, ...patch }));
+    setBase((b) => JSON.stringify({ ...(JSON.parse(b) as TreeForm), ...patch }));
+    props.onChanged?.();
   };
 
   const askReason = () => promptText({ title: t('survey.tree.reasonTitle'), message: t('survey.tree.reasonMsg'), allowEmpty: true });
@@ -173,7 +184,7 @@ export function TreeEditor(props: TreeEditorProps) {
       return;
     }
     setLocEditing(false);
-    reload();
+    reload(true);
     toast(t('survey.tree.corrected'));
   };
 
@@ -205,6 +216,24 @@ export function TreeEditor(props: TreeEditorProps) {
 
   const save = (next: boolean) => {
     const f = { ...form, tag };
+    setTried(true);
+    const bad = unreadableFields(f, tag);
+    if (bad.length) {
+      const name = (b: (typeof bad)[number]) => {
+        switch (b.field) {
+          case 'dbh':
+            return t('survey.tree.dbhOf', { tag: b.stemTag });
+          case 'pom':
+            return t('survey.tree.pomOf', { tag: b.stemTag });
+          case 'height':
+            return t('survey.tree.height');
+          case 'position':
+            return t('survey.tree.position');
+        }
+      };
+      Alert.alert(t('survey.tree.cannotSave'), `${t('survey.tree.errNumber')}\n${bad.map((b) => `• ${name(b)}`).join('\n')}`);
+      return;
+    }
     if (!f.taxon) return toast(t('survey.tree.errSpecies'));
     if (recruit && (!preview || !preview.inside)) return toast(t('survey.tree.errPosition'));
     const errors = issues.filter((i) => i.severity === 'error');
@@ -280,7 +309,7 @@ export function TreeEditor(props: TreeEditorProps) {
           </View>
           {recruit ? (
             <Field label={t('survey.tree.tag')}>
-              <TextBox value={tag} onChange={(v) => set({ tag: v, tagTyped: true })} accessibilityLabel={t('survey.tree.tag')} autoCapitalize="none" invalid={!tag.trim()} />
+              <TextBox value={tag} onChange={(v) => set({ tag: v, tagTyped: true })} accessibilityLabel={t('survey.tree.tag')} autoCapitalize="none" invalid={tried && !tag.trim()} />
             </Field>
           ) : (
             <Pressable onPress={() => void correctTag()} accessibilityRole="button" className="self-start">
@@ -390,7 +419,7 @@ export function TreeEditor(props: TreeEditorProps) {
           ) : null}
           {locOpen ? (
             preview ? (
-              <Text className={`font-mono text-sm ${preview.inside ? 'text-accent-700 dark:text-accent-300' : 'text-alert dark:text-alert-dark'}`}>
+              <Text style={{ fontVariant: ['tabular-nums'] }} className={`text-sm ${preview.inside ? 'text-accent-700 dark:text-accent-300' : 'text-alert dark:text-alert-dark'}`}>
                 {preview.inside
                   ? t('survey.loc.preview', { x: preview.x.toFixed(1), y: preview.y.toFixed(1), q: preview.quadrat, i: preview.sub.i, j: preview.sub.j })
                   : t('survey.loc.outside')}
@@ -399,7 +428,7 @@ export function TreeEditor(props: TreeEditorProps) {
               <Hint>{t('survey.loc.incomplete')}</Hint>
             )
           ) : view ? (
-            <Text className="font-mono text-sm text-ink dark:text-gray-100">
+            <Text style={{ fontVariant: ['tabular-nums'] }} className="text-sm text-ink dark:text-gray-100">
               {t('survey.loc.current', { x: view.individual.x_m.toFixed(1), y: view.individual.y_m.toFixed(1), q: view.individual.quadrat_code })}
             </Text>
           ) : null}
@@ -457,7 +486,7 @@ export function TreeEditor(props: TreeEditorProps) {
                   ) : null}
                 </View>
                 {s.previous ? (
-                  <Text className="font-mono text-xs text-ink-3 dark:text-gray-400">
+                  <Text style={{ fontVariant: ['tabular-nums'] }} className="text-xs text-ink-3 dark:text-gray-400">
                     {t('survey.tree.previous', {
                       dbh: s.previous.stem_dead ? t('survey.tree.dead') : (s.previous.dbh_cm ?? '—'),
                       pom: s.previous.pom_m,
@@ -493,7 +522,7 @@ export function TreeEditor(props: TreeEditorProps) {
               {t('survey.tree.addStem', { tag: stemTagOf(tag, Math.max(0, ...numbers.values()) + 1) })}
             </Text>
           </Pressable>
-          <Text className="font-mono text-xs text-ink-2 dark:text-gray-400">
+          <Text style={{ fontVariant: ['tabular-nums'] }} className="text-xs text-ink-2 dark:text-gray-400">
             {t('survey.tree.size', { ba: Math.round(ba), count: form.stems.length })}
             {multi ? ` · ${t('survey.tree.multiM')}` : ''}
           </Text>

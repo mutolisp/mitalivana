@@ -219,6 +219,8 @@ function ProjectHeader({
     const summits = new Set(gloria.map((x) => x.gloria?.summit_id)).size;
     parts.push(t('records.gloriaCount', { count: gloria.length, summits }));
   }
+  const censuses = countOf('survey');
+  if (censuses > 0) parts.push(t('survey.census.projectCount', { count: censuses }));
   return (
     <Pressable
       onPress={selectMode ? onToggleSelect : onToggle}
@@ -1014,10 +1016,10 @@ export default function RecordsListScreen() {
   };
   // Checklists, plots and GLORIA surveys keep their versions 30 days after deletion (record versions);
   // collections have none, and censuses none yet.
-  const unversioned = (it: RecordItem) => it.kind === 'collection' || it.kind === 'survey';
   const recoverableNote = (items: RecordItem[]) =>
-    (items.some((it) => !unversioned(it)) ? `\n\n${t('records.deleteRecoverable')}` : '') +
-    (items.some(unversioned) ? `\n\n${t('records.deletePermanent')}` : '');
+    (items.some((it) => it.kind !== 'collection' && it.kind !== 'survey') ? `\n\n${t('records.deleteRecoverable')}` : '') +
+    (items.some((it) => it.kind === 'collection') ? `\n\n${t('records.deletePermanent')}` : '') +
+    (items.some((it) => it.kind === 'survey') ? `\n\n${t('survey.census.deletePermanent')}` : '');
   const deleteSelection = (picked: RecordItem[]) => {
     const rows = picked.reduce((sum, it) => sum + it.recordCount, 0);
     Alert.alert(

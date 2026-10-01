@@ -85,7 +85,7 @@ export default function SurveyFrameScreen() {
 
   const facts: [string, string][] = [
     [t('survey.frame.size'), t('survey.frame.sizeValue', { x: frame.size_x_m, y: frame.size_y_m, cols: q.cols, rows: q.rows })],
-    [t('survey.frame.quadratM'), t('survey.frame.quadratValue', { q: frame.quadrat_m, s: frame.subquadrat_m })],
+    [t('survey.frame.grid'), t('survey.frame.quadratValue', { q: frame.quadrat_m, s: frame.subquadrat_m })],
     [t('survey.frame.dbhMin'), t('survey.frame.dbhMinOption', { cm: frame.dbh_min_cm })],
     [t('survey.frame.tagBlock'), t('survey.frame.tagBlockValue', { q: frame.tag_block_quadrats, size: frame.tag_block_size })],
     [
@@ -120,7 +120,7 @@ export default function SurveyFrameScreen() {
             <FormCard title={frame.name ?? frame.code}>
               {facts.map(([k, v]) => (
                 <View key={k} className="flex-row">
-                  <Text className="w-28 text-sm text-ink-3 dark:text-gray-400">{k}</Text>
+                  <Text className="w-36 text-sm text-ink-3 dark:text-gray-400">{k}</Text>
                   <Text className="flex-1 text-sm text-ink dark:text-gray-100">{v}</Text>
                 </View>
               ))}

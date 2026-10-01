@@ -7,7 +7,7 @@
 import { Stack, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { View } from 'react-native';
+import { Alert, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NumAccessory } from '~/components/form/NumField';
@@ -52,6 +52,8 @@ export default function SurveyFrameEditScreen() {
   const [extremeMin, setExtremeMin] = useState(str(frame?.extreme_min ?? 3));
   const [notes, setNotes] = useState(frame?.notes ?? '');
   const [busy, setBusy] = useState(false);
+  // Required fields are marked only once a save was tried.
+  const [tried, setTried] = useState(false);
 
   const n = (s: string) => parseNum(s);
   const geomProblems: GeometryProblem[] = useMemo(() => {
@@ -94,10 +96,32 @@ export default function SurveyFrameEditScreen() {
     const declN = n(decl) ?? 0;
     const pct = n(extremePct);
     const minN = n(extremeMin);
+    setTried(true);
     const fail = (msg: string) => {
       toast(msg);
       return;
     };
+    // parseNum reads non-numbers as empty, which would turn into defaults here.
+    const numeric: [string, string][] = [
+      [t('survey.frame.sizeX'), sizeX],
+      [t('survey.frame.sizeY'), sizeY],
+      [t('survey.frame.quadratM'), quadratM],
+      [t('survey.frame.subquadratM'), subM],
+      [t('survey.frame.tagBlockQuadrats'), blockQ],
+      [t('survey.frame.tagBlockSize'), blockSize],
+      [t('survey.frame.lat'), lat],
+      [t('survey.frame.lng'), lng],
+      [t('survey.frame.accuracy'), acc],
+      [t('survey.frame.bearing'), bearing],
+      [t('survey.frame.declination'), decl],
+      [t('survey.frame.extremePct'), extremePct],
+      [t('survey.frame.extremeMin'), extremeMin],
+    ];
+    const unreadable = numeric.filter(([, v]) => v.trim() !== '' && n(v) == null).map(([label]) => label);
+    if (unreadable.length) {
+      Alert.alert(t('survey.tree.cannotSave'), `${t('survey.tree.errNumber')}\n${unreadable.map((x) => `• ${x}`).join('\n')}`);
+      return;
+    }
     if (!code.trim()) return fail(t('survey.frame.errCode'));
     if (sx == null || sy == null || geomProblems.length) return fail(t('survey.frame.errGeometry'));
     if ((latN == null) !== (lngN == null) || (latN != null && (latN < -90 || latN > 90)) || (lngN != null && (lngN < -180 || lngN > 180)))
@@ -150,7 +174,7 @@ export default function SurveyFrameEditScreen() {
       <KeyboardAwareScrollView className="flex-1" contentContainerClassName="gap-3 p-4" keyboardShouldPersistTaps="handled" bottomOffset={24}>
         <FormCard>
           <Field label={t('survey.frame.code')}>
-            <TextBox value={code} onChange={setCode} accessibilityLabel={t('survey.frame.code')} autoCapitalize="characters" invalid={!code.trim()} />
+            <TextBox value={code} onChange={setCode} accessibilityLabel={t('survey.frame.code')} autoCapitalize="characters" invalid={tried && !code.trim()} />
           </Field>
           <Field label={t('survey.frame.name')}>
             <TextBox value={name} onChange={setName} accessibilityLabel={t('survey.frame.name')} />
@@ -161,10 +185,10 @@ export default function SurveyFrameEditScreen() {
           {locked ? <Hint>{t('survey.frame.locked')}</Hint> : null}
           <View className="flex-row gap-3">
             <Field label={t('survey.frame.sizeX')} className="flex-1">
-              <DraftNum value={sizeX} onChange={setSizeX} accessibilityLabel={t('survey.frame.sizeX')} width="100%" editable={!locked} invalid={!sizeX} />
+              <DraftNum value={sizeX} onChange={setSizeX} accessibilityLabel={t('survey.frame.sizeX')} width="100%" editable={!locked} invalid={tried && !sizeX} />
             </Field>
             <Field label={t('survey.frame.sizeY')} className="flex-1">
-              <DraftNum value={sizeY} onChange={setSizeY} accessibilityLabel={t('survey.frame.sizeY')} width="100%" editable={!locked} invalid={!sizeY} />
+              <DraftNum value={sizeY} onChange={setSizeY} accessibilityLabel={t('survey.frame.sizeY')} width="100%" editable={!locked} invalid={tried && !sizeY} />
             </Field>
           </View>
           <View className="flex-row gap-3">

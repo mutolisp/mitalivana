@@ -4285,7 +4285,9 @@
       "noMerge": "每木調查的回合不能合併。",
       "deleteMsg": "刪除「{{title}}」第 {{n}} 回合？這個回合的量測，與首次在這個回合記錄的個體，會一併刪除；之前的回合不受影響。",
       "deleteNotLatest": "只能刪除這個樣區最新的回合。",
-      "projectCount_other": "{{count}} 個每木調查回合"
+      "projectCount_other": "{{count}} 個每木調查回合",
+      "progressFirst": " / {{total}} 已處理",
+      "deletePermanent": "每木調查的回合刪除後無法復原。"
     },
     "chip": {
       "warn": "待確認",
@@ -4332,7 +4334,8 @@
       "tenfoldShort": "十倍差",
       "notHandled": "上回合有量，這回合未處理",
       "extremeHigh": "生長率偏高，請複量",
-      "extremeLow": "生長率偏低，請複量"
+      "extremeLow": "生長率偏低，請複量",
+      "extremeFew": "徑級株數少，全部複量"
     },
     "checks": {
       "screening_other": "自動篩檢 {{count}}",
@@ -4415,13 +4418,13 @@
       "perStem": "逐分支填",
       "codesHint": "普查代碼（Condit 1998）。B＝待大樹組量測、P＝開問題說明；M 由程式判斷。記 A 時 POM 必填。",
       "photos": "照片與備註",
-      "photosAfterSave": "存檔後可加照片。",
+      "photosAfterSave": "儲存後可加照片。",
       "notes": "備註",
-      "saveNext": "存檔，下一株",
-      "cannotSave": "無法存檔",
+      "saveNext": "儲存，下一株",
+      "cannotSave": "無法儲存",
       "confirmTitle": "請確認",
-      "confirmMsg": "仍要存檔嗎？",
-      "saveAnyway": "仍要存檔",
+      "confirmMsg": "仍要儲存嗎？",
+      "saveAnyway": "仍要儲存",
       "errSpecies": "請選擇樹種。",
       "errPosition": "請填有效的位置（在樣區內）。",
       "errTagTaken": "樹號 {{tag}} 已經有個體。",
@@ -4429,8 +4432,9 @@
       "errTagRange": "這個區塊的樹號已用完，請手動填樹號。",
       "lastInQuadrat": "這是本樣方的最後一株。",
       "unsavedTitle": "捨棄變更？",
-      "unsavedMsg": "這株的變更還沒存檔。",
-      "discard": "捨棄"
+      "unsavedMsg": "這株的變更還沒儲存。",
+      "discard": "捨棄",
+      "errNumber": "這些欄位不是數字："
     }
   }
 }

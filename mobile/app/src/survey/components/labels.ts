@@ -78,6 +78,8 @@ export function issueText(t: TFunction, code: string): string {
       return t('survey.issue.extremeHigh');
     case 'extreme_low':
       return t('survey.issue.extremeLow');
+    case 'extreme_few':
+      return t('survey.issue.extremeFew');
     default:
       return code;
   }

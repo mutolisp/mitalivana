@@ -197,6 +197,7 @@ eq('lowest picked', picks.filter((p) => p.end === 'low').map((p) => p.id)[0], 's
 eq('highest picked', picks.filter((p) => p.end === 'high').map((p) => p.id).at(-1), 's099');
 eq('20 stems: minimum 3 per end', extremeList(items.slice(0, 20)).length, 6);
 eq('5 stems: all listed', extremeList(items.slice(0, 5)).length, 5);
+eq('…marked as too few to rank, not as low / high', [...new Set(extremeList(items.slice(0, 5)).map((p) => p.end))], ['few']);
 eq('hint: shrank', entryHints({ dbhCm: 10, pomSeq: 1, measuredAt: 0 }, { dbhCm: 9, pomSeq: 1, measuredAt: Y }), ['shrank']);
 eq('hint: tenfold', entryHints({ dbhCm: 2, pomSeq: 1, measuredAt: 0 }, { dbhCm: 20, pomSeq: 1, measuredAt: Y }), ['tenfold']);
 eq('hint: POM changed', entryHints({ dbhCm: 10, pomSeq: 1, measuredAt: 0 }, { dbhCm: 10.2, pomSeq: 2, measuredAt: Y }), ['pom_changed']);

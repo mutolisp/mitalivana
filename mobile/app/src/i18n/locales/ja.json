@@ -4285,7 +4285,9 @@
       "noMerge": "調査回は統合できません。",
       "deleteMsg": "「{{title}}」の第 {{n}} 回を削除しますか？この回の測定と、この回で初めて記録した個体が削除されます。以前の回は残ります。",
       "deleteNotLatest": "削除できるのはプロットの最新の調査回だけです。",
-      "projectCount_other": "毎木調査 {{count}} 回"
+      "projectCount_other": "毎木調査 {{count}} 回",
+      "progressFirst": " / {{total}} 処理済み",
+      "deletePermanent": "削除した調査回は元に戻せません。"
     },
     "chip": {
       "warn": "要確認",
@@ -4332,7 +4334,8 @@
       "tenfoldShort": "10 倍差",
       "notHandled": "前回測定済み、今回未処理",
       "extremeHigh": "成長率が高い：再測定",
-      "extremeLow": "成長率が低い：再測定"
+      "extremeLow": "成長率が低い：再測定",
+      "extremeFew": "DBH 階級の本数が少ないため全て再測定"
     },
     "checks": {
       "screening_other": "自動チェック {{count}}",
@@ -4430,7 +4433,8 @@
       "lastInQuadrat": "このコドラートの最後の個体でした。",
       "unsavedTitle": "変更を破棄しますか？",
       "unsavedMsg": "この個体の変更は保存されていません。",
-      "discard": "破棄"
+      "discard": "破棄",
+      "errNumber": "次の欄は数値ではありません："
     }
   }
 }

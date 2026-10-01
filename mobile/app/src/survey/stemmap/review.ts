@@ -120,7 +120,7 @@ export type WorkItem = {
   tag: string;
   quadratCode: string;
   stemNo: number | null;
-  /** Issue code, 'not_handled', or 'extreme_high' / 'extreme_low'. */
+  /** Issue code, 'not_handled', or 'extreme_high' / 'extreme_low' / 'extreme_few'. */
   code: string;
   localX: number;
   localY: number;
@@ -173,6 +173,6 @@ export function extremeWorklist(trees: readonly TreeView[], opts: { pct: number;
       index.set(id, { individualId: v.individual.id, tag: v.individual.tag, quadratCode: v.individual.quadrat_code, stemNo: s.stem.stem_no, code: '', localX: at.localX, localY: at.localY });
     }
   }
-  const picks = extremeList(items, opts.pct, opts.min).map((p) => ({ ...index.get(p.id)!, code: p.end === 'high' ? 'extreme_high' : 'extreme_low' }));
+  const picks = extremeList(items, opts.pct, opts.min).map((p) => ({ ...index.get(p.id)!, code: `extreme_${p.end}` }));
   return walkSorted(picks, opts.geometry);
 }

@@ -81,7 +81,7 @@ export default function CensusChecksScreen() {
               <Text className="w-20 font-mono text-sm font-bold text-ink dark:text-gray-100">{w.stemNo == null ? w.tag : stemTagOf(w.tag, w.stemNo)}</Text>
               <View className="flex-1">
                 <Text className="text-sm text-ink dark:text-gray-100">{issueText(t, w.code)}</Text>
-                <Text className="font-mono text-xs text-ink-3 dark:text-gray-400">{t('survey.census.quadrat', { q: w.quadratCode, m: extremeOpts?.quadratM ?? 20 })}</Text>
+                <Text style={{ fontVariant: ['tabular-nums'] }} className="text-xs text-ink-3 dark:text-gray-400">{t('survey.census.quadrat', { q: w.quadratCode, m: extremeOpts?.quadratM ?? 20 })}</Text>
               </View>
               <Chevron />
             </Pressable>

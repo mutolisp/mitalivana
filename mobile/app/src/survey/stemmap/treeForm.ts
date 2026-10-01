@@ -201,6 +201,28 @@ export function previewLocation(l: LocForm, g: FrameGeometry, treeAt: (tag: stri
   return { x: p.x, y: p.y, quadrat: at.code, sub: at.sub, inside: at.inside };
 }
 
+const unreadable = (text: string) => text.trim() !== '' && parseNum(text) == null;
+
+/**
+ * Fields holding text that is not a number. parseNum reads such text as
+ * empty, so saving it would silently drop the entry; the form refuses
+ * instead. Stems are named by their tag; the rest by key.
+ */
+export function unreadableFields(form: TreeForm, treeTag: string): { stemTag: string | null; field: 'dbh' | 'pom' | 'height' | 'position' }[] {
+  const out: { stemTag: string | null; field: 'dbh' | 'pom' | 'height' | 'position' }[] = [];
+  const numbers = stemNumbers(form);
+  for (const s of form.stems) {
+    const tag = stemTagOf(treeTag, numbers.get(s.key)!);
+    if (unreadable(s.dbh)) out.push({ stemTag: tag, field: 'dbh' });
+    if (unreadable(s.pom)) out.push({ stemTag: tag, field: 'pom' });
+  }
+  if (unreadable(form.height)) out.push({ stemTag: null, field: 'height' });
+  const l = form.loc;
+  const loc = l.method === 'grid' ? [l.lx, l.ly] : l.method === 'xy' ? [l.x, l.y] : l.method === 'polar' ? [l.dist, l.az, l.slope] : [l.lat, l.lng, l.acc];
+  if (loc.some(unreadable)) out.push({ stemTag: null, field: 'position' });
+  return out;
+}
+
 /** Number each form stem would carry: existing ones keep theirs, added ones follow. */
 export function stemNumbers(form: TreeForm): Map<string, number> {
   const out = new Map<string, number>();

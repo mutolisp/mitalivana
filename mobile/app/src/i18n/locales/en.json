@@ -4478,7 +4478,9 @@
       "deleteMsg": "Delete census {{n}} of “{{title}}”? Its measurements and the trees first recorded in it are deleted; earlier censuses stay.",
       "deleteNotLatest": "Only the latest census of a plot can be deleted.",
       "projectCount_one": "{{count}} tree census",
-      "projectCount_other": "{{count}} tree censuses"
+      "projectCount_other": "{{count}} tree censuses",
+      "progressFirst": " / {{total}} done",
+      "deletePermanent": "A deleted census cannot be restored."
     },
     "chip": {
       "warn": "To check",
@@ -4525,7 +4527,8 @@
       "tenfoldShort": "Tenfold",
       "notHandled": "Measured last census, not handled now",
       "extremeHigh": "High growth: re-measure",
-      "extremeLow": "Low growth: re-measure"
+      "extremeLow": "Low growth: re-measure",
+      "extremeFew": "Too few in this DBH class to rank: re-measure"
     },
     "checks": {
       "screening_one": "Screening {{count}}",
@@ -4626,7 +4629,8 @@
       "lastInQuadrat": "That was the last tree of this quadrat.",
       "unsavedTitle": "Discard changes?",
       "unsavedMsg": "This tree’s changes are not saved.",
-      "discard": "Discard"
+      "discard": "Discard",
+      "errNumber": "These fields are not numbers:"
     }
   }
 }

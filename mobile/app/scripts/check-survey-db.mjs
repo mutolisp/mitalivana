@@ -343,7 +343,7 @@ const scr = r.screening(s.loadCensus(ctx, C2), { ...opts2, geometry: geom });
 ok(scr.some((w) => w.individualId === t2.id && w.code === 'not_handled'), `review: a stem measured last time but not now is listed (${JSON.stringify(scr)})`);
 ok(!scr.some((w) => w.individualId === pTree.id), 'review: a tree recorded dead is not asked for its stems');
 const ext = r.extremeWorklist(s.loadCensus(ctx, C2), { pct: 0.05, min: 3, geometry: geom });
-ok(ext.length === 1 && ext[0].individualId === t1.id && ext[0].stemNo === 2, `review: only stems with a valid growth enter the extreme list (${JSON.stringify(ext)})`);
+ok(ext.length === 1 && ext[0].individualId === t1.id && ext[0].stemNo === 2 && ext[0].code === 'extreme_few', `review: only stems with a valid growth enter the extreme list; a lone stem is too few to rank (${JSON.stringify(ext)})`);
 ok(r.treeChip({ isNew: false, done: false, deadNow: false, pending: false, partial: false, prev: 'dead' }, []) === 'prevDead', 'review: dead last time is listed, not counted as work');
 ok(!r.isOpenWork('prevDead') && !r.isOpenWork('prevMissing') && r.isOpenWork('todo') && r.isOpenWork('partial'), 'review: work counts todo and partial only');
 
@@ -423,6 +423,11 @@ const pv = tf.previewLocation({ ...nf.loc, method: 'polar', refKind: 'tree', ref
 });
 ok(pv && Math.abs(pv.x - 7) < 1e-9 && pv.y === 5 && pv.quadrat === '0000', `form: polar from a tree previews where the save puts it (${JSON.stringify(pv)})`);
 ok(tf.locationInput({ ...nf.loc, method: 'xy', x: '', y: '3' }) == null, 'form: an incomplete position is not sent');
+const typo = { ...nf, height: '1O', stems: [{ ...nf.stems[0], dbh: '12.086.3' }], loc: { ...nf.loc, lx: '5,2' } };
+ok(
+  JSON.stringify(tf.unreadableFields(typo, '7')) === JSON.stringify([{ stemTag: '7-1', field: 'dbh' }, { stemTag: null, field: 'height' }]),
+  `form: text that is not a number is caught, a decimal comma is not (${JSON.stringify(tf.unreadableFields(typo, '7'))})`,
+);
 s.addTreeMedia(ctx, K2, kid, 'file:///photos/a.jpg');
 s.addTreeMedia(ctx, K2, kid, 'file:///photos/b.jpg');
 ok(s.listTreeMedia(ctx, K2, kid).map((m) => m.uri).join() === 'file:///photos/a.jpg,file:///photos/b.jpg' && s.listTreeMedia(ctx, K1, kid).length === 0, 'photos: per tree and census');

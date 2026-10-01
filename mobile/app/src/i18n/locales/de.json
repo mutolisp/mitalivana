@@ -4478,7 +4478,9 @@
       "deleteMsg": "Aufnahme {{n}} von „{{title}}“ löschen? Ihre Messungen und die darin neu erfassten Bäume werden gelöscht; frühere Aufnahmen bleiben.",
       "deleteNotLatest": "Nur die neueste Aufnahme einer Fläche lässt sich löschen.",
       "projectCount_one": "{{count}} Baumerhebung",
-      "projectCount_other": "{{count}} Baumerhebungen"
+      "projectCount_other": "{{count}} Baumerhebungen",
+      "progressFirst": " / {{total}} erledigt",
+      "deletePermanent": "Eine gelöschte Aufnahme lässt sich nicht wiederherstellen."
     },
     "chip": {
       "warn": "Prüfen",
@@ -4525,7 +4527,8 @@
       "tenfoldShort": "Zehnfach",
       "notHandled": "Zuletzt gemessen, jetzt offen",
       "extremeHigh": "Hoher Zuwachs: nachmessen",
-      "extremeLow": "Niedriger Zuwachs: nachmessen"
+      "extremeLow": "Niedriger Zuwachs: nachmessen",
+      "extremeFew": "Zu wenige in dieser BHD-Klasse: nachmessen"
     },
     "checks": {
       "screening_one": "Prüfung {{count}}",
@@ -4626,7 +4629,8 @@
       "lastInQuadrat": "Das war der letzte Baum dieses Quadrats.",
       "unsavedTitle": "Änderungen verwerfen?",
       "unsavedMsg": "Die Änderungen an diesem Baum sind nicht gespeichert.",
-      "discard": "Verwerfen"
+      "discard": "Verwerfen",
+      "errNumber": "Diese Felder sind keine Zahlen:"
     }
   }
 }

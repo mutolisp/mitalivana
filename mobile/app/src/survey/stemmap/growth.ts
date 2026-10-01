@@ -44,7 +44,8 @@ export function qaClass(dbhCm: number): number | null {
 }
 
 export type ExtremeItem = { id: string; dbhCm: number; annualCm: number };
-export type ExtremePick = { id: string; end: 'high' | 'low'; qaClass: number };
+/** `few`: the class has too few stems to rank, so all are re-measured. */
+export type ExtremePick = { id: string; end: 'high' | 'low' | 'few'; qaClass: number };
 
 /** The stems to re-measure: both ends of every dbh class. */
 export function extremeList(items: readonly ExtremeItem[], pct = 0.05, min = 3): ExtremePick[] {
@@ -59,7 +60,7 @@ export function extremeList(items: readonly ExtremeItem[], pct = 0.05, min = 3):
     const sorted = [...list].sort((a, b) => a.annualCm - b.annualCm || a.id.localeCompare(b.id));
     const n = Math.max(min, Math.ceil(pct * sorted.length));
     if (2 * n >= sorted.length) {
-      sorted.forEach((it, i) => out.push({ id: it.id, end: i < sorted.length / 2 ? 'low' : 'high', qaClass: k }));
+      sorted.forEach((it) => out.push({ id: it.id, end: 'few', qaClass: k }));
       continue;
     }
     for (const it of sorted.slice(0, n)) out.push({ id: it.id, end: 'low', qaClass: k });
