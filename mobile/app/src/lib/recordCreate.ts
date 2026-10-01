@@ -268,6 +268,12 @@ export function openMiren(): void {
   router.push('/miren' as Href);
 }
 
+/** The permanent-plot list; a tree census is started from a plot there. Not
+ *  guarded: a census is exempt from single-active (Modular_survey.md §7.1). */
+export function openSurveyFrames(): void {
+  router.push('/survey' as Href);
+}
+
 /**
  * Open the current collection trip, or start one, and navigate to it.
  *
@@ -811,7 +817,7 @@ export async function duplicateRecordAndOpen(
   item: RecordItem,
   opts: DuplicateRecordOptions,
 ): Promise<number | null> {
-  if (item.kind === 'gloria') return null; // not duplicable — see the records tab's handleDuplicate
+  if (item.kind === 'gloria' || item.kind === 'survey') return null; // not duplicable — see the records tab's handleDuplicate
   if (opts.activate && item.kind !== 'collection') {
     // 採集 sits outside the invariant; the other two must ask first.
     const ok = await ensureNoConflictingActive(item.kind);

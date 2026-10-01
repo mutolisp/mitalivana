@@ -14,7 +14,7 @@
  *
  * Pure: check:stemmap runs it under Node.
  */
-import { quadratCounts, type FrameGeometry, type XY } from './coords';
+import { fgQuadratCounts, type FrameGeometry, type XY } from './coords';
 
 export function formatStemTag(treeTag: string, stemNo: number): string {
   return `${treeTag}-${stemNo}`;
@@ -27,7 +27,7 @@ export function parseStemTag(tag: string): { tree: string; stem: number } | null
 
 /** Tag block of a plot position. `blockQuadrats` = block edge in quadrats. */
 export function tagBlockIndex(p: XY, f: FrameGeometry, blockQuadrats: number): number {
-  const { cols, rows } = quadratCounts(f);
+  const { cols, rows } = fgQuadratCounts(f);
   const blockCols = Math.ceil(cols / blockQuadrats);
   const blockRows = Math.ceil(rows / blockQuadrats);
   const side = blockQuadrats * f.quadratM;

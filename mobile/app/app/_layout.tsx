@@ -8,6 +8,7 @@ import { SystemBars } from 'react-native-edge-to-edge';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { PortalHost } from '@rn-primitives/portal';
 import { basemapIsDark } from '~/lib/basemap';
+import { unlockOrientationOnTablets } from '~/lib/orientation';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import 'react-native-reanimated';
@@ -125,6 +126,7 @@ function ThemedShell() {
   useEffect(() => {
     useActiveMiren.getState().refresh();
   }, [session, plot, gloria]);
+  useEffect(() => unlockOrientationOnTablets(), []);
   // The map draws to the top edge. Its overlays already position themselves at
   // `insets.top + 8`, so the spacer was not just letterboxing the map — it was
   // pushing those controls down by a second full inset. The recording bar still
@@ -192,6 +194,12 @@ function ThemedShell() {
             <Stack.Screen name="miren/route/[id]/plan" options={{ title: t('miren.plan.title') }} />
             <Stack.Screen name="miren/site/[id]" options={{ title: '' }} />
             <Stack.Screen name="miren/survey/[id]" options={{ title: '' }} />
+            <Stack.Screen name="survey/index" options={{ title: t('survey.frames.title') }} />
+            <Stack.Screen name="survey/frame/[id]" options={{ title: '' }} />
+            <Stack.Screen name="survey/frame/edit" options={{ title: '' }} />
+            <Stack.Screen name="survey/[id]/index" options={{ title: '' }} />
+            <Stack.Screen name="survey/[id]/tree" options={{ title: '' }} />
+            <Stack.Screen name="survey/[id]/checks" options={{ title: '' }} />
             <Stack.Screen name="miren/plot/[id]/index" options={{ title: '' }} />
             <Stack.Screen name="miren/plot/[id]/recheck" options={{ title: t('miren.recheck.title') }} />
             <Stack.Screen name="settings/collection" options={{ title: t('settings.sectionCollection') }} />

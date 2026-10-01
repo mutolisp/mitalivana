@@ -2520,6 +2520,281 @@ const MIGRATIONS: Migration[] = [
       addColumnIfMissing(db, `ALTER TABLE photo_fix ADD COLUMN altitude REAL;`);
     },
   },
+  {
+    // v80: the modular survey framework, tree census first
+    // (docs/planned/Modular_survey.md §5; docs/ForestGEO/Stem_mapping.md).
+    // Only the tables the individual style needs; the plot-style ones come
+    // with Phase 2. Columns inside a UNIQUE key are NOT NULL (an `idx` that
+    // could be NULL would let duplicates through). record_versions gains the
+    // kind 'survey_quadrat': a census is versioned per 20 m quadrat.
+    version: 80,
+    up: (db) => {
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS fw_frames (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          uuid TEXT NOT NULL UNIQUE,
+          code TEXT NOT NULL UNIQUE,
+          name TEXT,
+          project_id INTEGER NOT NULL DEFAULT 0,
+          site_id INTEGER,
+          size_x_m REAL NOT NULL CHECK (size_x_m > 0),
+          size_y_m REAL NOT NULL CHECK (size_y_m > 0),
+          quadrat_m REAL NOT NULL DEFAULT 20 CHECK (quadrat_m > 0),
+          subquadrat_m REAL NOT NULL DEFAULT 5 CHECK (subquadrat_m > 0),
+          tag_block_quadrats INTEGER NOT NULL DEFAULT 5 CHECK (tag_block_quadrats >= 1),
+          tag_block_size INTEGER NOT NULL DEFAULT 10000 CHECK (tag_block_size >= 1),
+          origin_lat REAL CHECK (origin_lat IS NULL OR origin_lat BETWEEN -90 AND 90),
+          origin_lng REAL CHECK (origin_lng IS NULL OR origin_lng BETWEEN -180 AND 180),
+          origin_accuracy_m REAL CHECK (origin_accuracy_m IS NULL OR origin_accuracy_m >= 0),
+          origin_datum TEXT NOT NULL DEFAULT 'WGS84',
+          bearing_deg REAL NOT NULL DEFAULT 0 CHECK (bearing_deg >= 0 AND bearing_deg < 360),
+          bearing_ref TEXT NOT NULL DEFAULT 'true' CHECK (bearing_ref IN ('true', 'magnetic')),
+          declination_deg REAL NOT NULL DEFAULT 0 CHECK (declination_deg BETWEEN -90 AND 90),
+          dbh_min_cm REAL NOT NULL DEFAULT 1 CHECK (dbh_min_cm IN (1, 5)),
+          extreme_pct REAL NOT NULL DEFAULT 0.05 CHECK (extreme_pct > 0 AND extreme_pct <= 0.5),
+          extreme_min INTEGER NOT NULL DEFAULT 3 CHECK (extreme_min >= 1),
+          notes TEXT,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          FOREIGN KEY (project_id) REFERENCES projects(id)
+        );
+      `);
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS fw_frame_series (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          uuid TEXT NOT NULL UNIQUE,
+          frame_id INTEGER NOT NULL,
+          template_id TEXT NOT NULL,
+          series_code TEXT NOT NULL DEFAULT '',
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          FOREIGN KEY (frame_id) REFERENCES fw_frames(id) ON DELETE CASCADE,
+          UNIQUE (frame_id, template_id),
+          UNIQUE (frame_id, series_code)
+        );
+      `);
+      // A frame that has surveys cannot be deleted: frame_id is NO ACTION.
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS fw_surveys (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          uuid TEXT NOT NULL UNIQUE,
+          frame_id INTEGER NOT NULL,
+          series_id INTEGER NOT NULL,
+          census_no INTEGER NOT NULL CHECK (census_no >= 1),
+          template_id TEXT NOT NULL,
+          template_version INTEGER NOT NULL CHECK (template_version >= 1),
+          template_snapshot TEXT NOT NULL,
+          template_hash TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'done')),
+          start_ts INTEGER NOT NULL,
+          stop_ts INTEGER,
+          investigators TEXT,
+          notes TEXT,
+          project_id INTEGER NOT NULL DEFAULT 0,
+          site_id INTEGER,
+          sync_block_quadrats INTEGER CHECK (sync_block_quadrats IS NULL OR sync_block_quadrats >= 1),
+          lat REAL,
+          lng REAL,
+          accuracy REAL,
+          starred INTEGER NOT NULL DEFAULT 0,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          FOREIGN KEY (frame_id) REFERENCES fw_frames(id),
+          FOREIGN KEY (series_id) REFERENCES fw_frame_series(id),
+          FOREIGN KEY (project_id) REFERENCES projects(id),
+          UNIQUE (series_id, census_no)
+        );
+      `);
+      db.executeSync(`CREATE INDEX IF NOT EXISTS idx_fwsurv_frame ON fw_surveys(frame_id, census_no);`);
+      db.executeSync(`CREATE INDEX IF NOT EXISTS idx_fwsurv_start ON fw_surveys(start_ts DESC);`);
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS fw_survey_quadrats (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          uuid TEXT NOT NULL UNIQUE,
+          survey_id INTEGER NOT NULL,
+          quadrat_code TEXT NOT NULL CHECK (length(quadrat_code) = 4),
+          status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'done')),
+          started_at INTEGER,
+          ended_at INTEGER,
+          recorded_by TEXT,
+          notes TEXT,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          FOREIGN KEY (survey_id) REFERENCES fw_surveys(id) ON DELETE CASCADE,
+          UNIQUE (survey_id, quadrat_code)
+        );
+      `);
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS fw_individuals (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          uuid TEXT NOT NULL UNIQUE,
+          frame_id INTEGER NOT NULL,
+          tag TEXT NOT NULL CHECK (length(trim(tag)) > 0),
+          taxon_id TEXT NOT NULL,
+          used_name_id TEXT,
+          used_scientific_name TEXT,
+          verbatim_identification TEXT,
+          x_m REAL NOT NULL,
+          y_m REAL NOT NULL,
+          quadrat_code TEXT NOT NULL CHECK (length(quadrat_code) = 4),
+          coord_method TEXT NOT NULL CHECK (coord_method IN ('grid', 'xy', 'polar', 'gps')),
+          local_x_m REAL,
+          local_y_m REAL,
+          ref_kind TEXT CHECK (ref_kind IS NULL OR ref_kind IN ('stake', 'tree')),
+          ref_code TEXT,
+          distance_m REAL CHECK (distance_m IS NULL OR distance_m >= 0),
+          azimuth_deg REAL CHECK (azimuth_deg IS NULL OR (azimuth_deg >= 0 AND azimuth_deg < 360)),
+          azimuth_ref TEXT CHECK (azimuth_ref IS NULL OR azimuth_ref IN ('magnetic', 'true')),
+          slope_deg REAL CHECK (slope_deg IS NULL OR (slope_deg >= 0 AND slope_deg < 90)),
+          lat REAL,
+          lng REAL,
+          accuracy REAL,
+          first_survey_id INTEGER,
+          notes TEXT,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          FOREIGN KEY (frame_id) REFERENCES fw_frames(id) ON DELETE CASCADE,
+          FOREIGN KEY (first_survey_id) REFERENCES fw_surveys(id) ON DELETE SET NULL,
+          UNIQUE (frame_id, tag)
+        );
+      `);
+      db.executeSync(`CREATE INDEX IF NOT EXISTS idx_fwind_quadrat ON fw_individuals(frame_id, quadrat_code);`);
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS fw_individual_history (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          uuid TEXT NOT NULL UNIQUE,
+          individual_id INTEGER NOT NULL,
+          survey_id INTEGER,
+          field TEXT NOT NULL CHECK (field IN ('taxon', 'position', 'tag')),
+          old_value TEXT,
+          new_value TEXT,
+          reason TEXT,
+          by TEXT,
+          at INTEGER NOT NULL,
+          FOREIGN KEY (individual_id) REFERENCES fw_individuals(id) ON DELETE CASCADE,
+          FOREIGN KEY (survey_id) REFERENCES fw_surveys(id) ON DELETE SET NULL
+        );
+      `);
+      db.executeSync(`CREATE INDEX IF NOT EXISTS idx_fwhist_ind ON fw_individual_history(individual_id, at);`);
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS fw_stems (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          uuid TEXT NOT NULL UNIQUE,
+          individual_id INTEGER NOT NULL,
+          stem_no INTEGER NOT NULL CHECK (stem_no >= 1),
+          first_survey_id INTEGER,
+          notes TEXT,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          FOREIGN KEY (individual_id) REFERENCES fw_individuals(id) ON DELETE CASCADE,
+          FOREIGN KEY (first_survey_id) REFERENCES fw_surveys(id) ON DELETE SET NULL,
+          UNIQUE (individual_id, stem_no)
+        );
+      `);
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS fw_stem_measures (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          uuid TEXT NOT NULL UNIQUE,
+          survey_id INTEGER NOT NULL,
+          stem_id INTEGER NOT NULL,
+          dbh_cm REAL CHECK (dbh_cm IS NULL OR dbh_cm >= 0),
+          pom_m REAL NOT NULL DEFAULT 1.3 CHECK (pom_m >= 0),
+          pom_seq INTEGER NOT NULL DEFAULT 1 CHECK (pom_seq >= 1),
+          is_main INTEGER NOT NULL DEFAULT 0 CHECK (is_main IN (0, 1)),
+          stem_dead INTEGER NOT NULL DEFAULT 0 CHECK (stem_dead IN (0, 1)),
+          pending TEXT CHECK (pending IS NULL OR pending = 'big_tree'),
+          measured_at INTEGER,
+          recorded_by TEXT,
+          notes TEXT,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          FOREIGN KEY (survey_id) REFERENCES fw_surveys(id) ON DELETE CASCADE,
+          FOREIGN KEY (stem_id) REFERENCES fw_stems(id) ON DELETE CASCADE,
+          UNIQUE (survey_id, stem_id)
+        );
+      `);
+      db.executeSync(`CREATE INDEX IF NOT EXISTS idx_fwmeas_stem ON fw_stem_measures(stem_id);`);
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS fw_stem_values (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          uuid TEXT NOT NULL UNIQUE,
+          measure_id INTEGER NOT NULL,
+          component TEXT NOT NULL,
+          field TEXT NOT NULL,
+          idx INTEGER NOT NULL DEFAULT 0,
+          value_num REAL,
+          value_text TEXT,
+          unit TEXT,
+          updated_at INTEGER NOT NULL,
+          FOREIGN KEY (measure_id) REFERENCES fw_stem_measures(id) ON DELETE CASCADE,
+          UNIQUE (measure_id, component, field, idx)
+        );
+      `);
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS fw_individual_values (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          uuid TEXT NOT NULL UNIQUE,
+          survey_id INTEGER NOT NULL,
+          individual_id INTEGER NOT NULL,
+          component TEXT NOT NULL,
+          field TEXT NOT NULL,
+          idx INTEGER NOT NULL DEFAULT 0,
+          value_num REAL,
+          value_text TEXT,
+          unit TEXT,
+          updated_at INTEGER NOT NULL,
+          FOREIGN KEY (survey_id) REFERENCES fw_surveys(id) ON DELETE CASCADE,
+          FOREIGN KEY (individual_id) REFERENCES fw_individuals(id) ON DELETE CASCADE,
+          UNIQUE (survey_id, individual_id, component, field, idx)
+        );
+      `);
+      db.executeSync(`CREATE INDEX IF NOT EXISTS idx_fwival_ind ON fw_individual_values(individual_id);`);
+      // Photos are always taken in a census; the tree / stem they show is optional.
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS fw_media (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          uuid TEXT NOT NULL UNIQUE,
+          survey_id INTEGER NOT NULL,
+          individual_id INTEGER,
+          measure_id INTEGER,
+          component TEXT NOT NULL,
+          kind TEXT NOT NULL CHECK (kind IN ('photo', 'audio')),
+          uri TEXT NOT NULL,
+          created_at INTEGER NOT NULL,
+          FOREIGN KEY (survey_id) REFERENCES fw_surveys(id) ON DELETE CASCADE,
+          FOREIGN KEY (individual_id) REFERENCES fw_individuals(id) ON DELETE CASCADE,
+          FOREIGN KEY (measure_id) REFERENCES fw_stem_measures(id) ON DELETE CASCADE
+        );
+      `);
+      db.executeSync(`CREATE INDEX IF NOT EXISTS idx_fwmedia_owner ON fw_media(survey_id, individual_id);`);
+
+      // record_versions: + 'survey_quadrat'. Same rebuild as v74 (nothing
+      // references record_versions).
+      db.executeSync(`ALTER TABLE record_versions RENAME TO record_versions_v79;`);
+      db.executeSync(`
+        CREATE TABLE record_versions (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          record_kind TEXT NOT NULL CHECK (record_kind IN ('session', 'plot', 'gloria', 'survey_quadrat')),
+          record_uuid TEXT NOT NULL,
+          label TEXT,
+          reason TEXT NOT NULL CHECK (reason IN ('done', 'leave', 'before_merge', 'after_merge', 'before_restore', 'before_import', 'before_delete', 'manual')),
+          note TEXT,
+          content_hash TEXT NOT NULL,
+          size INTEGER NOT NULL,
+          doc TEXT NOT NULL,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          deleted_at INTEGER
+        );
+      `);
+      db.executeSync(`
+        INSERT INTO record_versions (id, record_kind, record_uuid, label, reason, note, content_hash, size, doc, created_at, updated_at, deleted_at)
+        SELECT id, record_kind, record_uuid, label, reason, note, content_hash, size, doc, created_at, updated_at, deleted_at FROM record_versions_v79;
+      `);
+      db.executeSync(`DROP TABLE record_versions_v79;`);
+      db.executeSync(`CREATE INDEX IF NOT EXISTS idx_record_versions ON record_versions(record_kind, record_uuid, created_at);`);
+    },
+  },
 ];
 
 /** Highest schema version this build knows how to produce. Backup/restore uses

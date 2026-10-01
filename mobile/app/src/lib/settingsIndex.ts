@@ -44,7 +44,7 @@ export interface SettingsEntry {
   focus?: string;
   icon: ComponentProps<typeof Ionicons>['name'];
   /** Shown only while this boolean setting is on. */
-  visibleWhen?: 'module_gloria' | 'module_miren';
+  visibleWhen?: 'module_gloria' | 'module_miren' | 'module_survey';
   tone?: SettingsTone;
 }
 
@@ -85,13 +85,13 @@ export const SECTION_TONE: Record<SettingsSection, SettingsTone> = {
 const kw = (id: string) => `settingsSearch.${id}`;
 
 export const SETTINGS_INDEX: SettingsEntry[] = [
-  // 記錄
+  // Records
   { id: 'projects', section: 'records', labelKey: 'nav.projects', descKey: 'menu.projectsDesc', keywordsKey: kw('projects'), kind: 'nav', route: '/projects', icon: 'folder-outline' },
   { id: 'sites', section: 'records', labelKey: 'menu.sites', descKey: 'menu.sitesDesc', keywordsKey: kw('sites'), kind: 'nav', route: '/sites', icon: 'location-outline' },
   { id: 'favorites', section: 'records', labelKey: 'nav.favorites', descKey: 'menu.favoritesDesc', kind: 'nav', route: '/favorites', icon: 'heart-outline' },
   { id: 'surveyors', section: 'records', labelKey: 'settings.surveyors', descKey: 'settings.surveyorsDesc', keywordsKey: kw('surveyors'), kind: 'nav', route: '/surveyors', icon: 'people-outline' },
 
-  // 調查
+  // Survey
   { id: 'defaultCreate', section: 'survey', labelKey: 'create.plusDefault', keywordsKey: kw('defaultCreate'), kind: 'select', icon: 'add-circle-outline' },
   { id: 'gpsSession', section: 'survey', labelKey: 'settings.gpsPerSpeciesSession', descKey: 'settings.gpsPerSpeciesSessionDesc', keywordsKey: kw('gpsSession'), kind: 'switch', icon: 'navigate-outline' },
   { id: 'gpsPlot', section: 'survey', labelKey: 'settings.gpsPerSpeciesPlot', descKey: 'settings.gpsPerSpeciesPlotDesc', keywordsKey: kw('gpsPlot'), kind: 'switch', icon: 'locate-outline' },
@@ -104,19 +104,21 @@ export const SETTINGS_INDEX: SettingsEntry[] = [
   { id: 'collectionStart', section: 'survey', labelKey: 'collection.numberStart', keywordsKey: kw('collectionNumber'), kind: 'nav', route: '/settings/collection', focus: 'number', icon: 'pricetag-outline' },
   { id: 'collectionPad', section: 'survey', labelKey: 'collection.numberPad', keywordsKey: kw('collectionNumber'), kind: 'nav', route: '/settings/collection', focus: 'pad', icon: 'pricetag-outline' },
 
-  // 調查模組
+  // Survey modules
   { id: 'moduleGloria', section: 'modules', labelKey: 'settings.moduleGloria', descKey: 'settings.moduleGloriaDesc', keywordsKey: kw('moduleGloria'), kind: 'switch', icon: 'triangle-outline' },
   { id: 'gloriaSummits', section: 'modules', labelKey: 'gloria.summitImport.listTitle', descKey: 'gloria.summitImport.listDesc', kind: 'nav', route: '/gloria/summits', icon: 'flag-outline', visibleWhen: 'module_gloria' },
   { id: 'moduleMiren', section: 'modules', labelKey: 'settings.moduleMiren', descKey: 'settings.moduleMirenDesc', keywordsKey: kw('moduleMiren'), kind: 'switch', icon: 'trail-sign-outline' },
   { id: 'mirenRegions', section: 'modules', labelKey: 'miren.regions.title', descKey: 'miren.regions.desc', kind: 'nav', route: '/miren', icon: 'git-branch-outline', visibleWhen: 'module_miren' },
+  { id: 'moduleSurvey', section: 'modules', labelKey: 'settings.moduleSurvey', descKey: 'settings.moduleSurveyDesc', keywordsKey: kw('moduleSurvey'), kind: 'switch', icon: 'apps-outline' },
+  { id: 'surveyFrames', section: 'modules', labelKey: 'survey.frames.title', descKey: 'survey.frames.desc', kind: 'nav', route: '/survey', icon: 'map-outline', visibleWhen: 'module_survey' },
 
-  // 名錄與地圖
+  // Lists and maps
   { id: 'regionPacks', section: 'lists', labelKey: 'settings.regionPacks', descKey: 'settings.regionPacksDesc', keywordsKey: kw('regionPacks'), kind: 'nav', route: '/regionpacks', icon: 'library-outline' },
   { id: 'offlineMap', section: 'lists', labelKey: 'offlinemap.title', keywordsKey: kw('offlineMap'), kind: 'nav', route: '/settings/offlinemap', icon: 'map-outline' },
   { id: 'vernacular', section: 'lists', labelKey: 'vernacular.title', keywordsKey: kw('vernacular'), kind: 'nav', route: '/settings/vernacular', icon: 'chatbubble-ellipses-outline' },
   { id: 'intermediateRanks', section: 'lists', labelKey: 'settings.intermediateRanks', keywordsKey: kw('intermediateRanks'), kind: 'select', icon: 'git-network-outline' },
 
-  // 同步與匯出
+  // Sync and export
   { id: 'backup', section: 'sync', labelKey: 'nav.backup', descKey: 'menu.backupDesc', keywordsKey: kw('backup'), kind: 'nav', route: '/backup', icon: 'save-outline' },
   { id: 'gdrive', section: 'sync', labelKey: 'settings.gdrive', descKey: 'settings.gdriveDesc', keywordsKey: kw('gdrive'), kind: 'nav', route: '/gdrive', icon: 'cloud-outline' },
   { id: 'inaturalist', section: 'sync', labelKey: 'settings.inaturalist', descKey: 'settings.inaturalistDesc', keywordsKey: kw('inaturalist'), kind: 'nav', route: '/inaturalist', icon: 'leaf-outline' },
@@ -130,7 +132,7 @@ export const SETTINGS_INDEX: SettingsEntry[] = [
   { id: 'exportAnalysis', section: 'sync', labelKey: 'projectExport.prefSection', keywordsKey: kw('exportAnalysis'), kind: 'nav', route: '/settings/export', focus: 'analysis', icon: 'share-outline' },
   { id: 'provenance', section: 'sync', labelKey: 'settings.provenance', descKey: 'settings.provenanceDesc', keywordsKey: kw('provenance'), kind: 'nav', route: '/settings/provenance', icon: 'finger-print-outline' },
 
-  // 外觀與操作
+  // Appearance and controls
   { id: 'language', section: 'appearance', labelKey: 'settings.language', keywordsKey: kw('language'), kind: 'nav', route: '/settings/language', icon: 'language-outline' },
   { id: 'theme', section: 'appearance', labelKey: 'settings.theme', keywordsKey: kw('theme'), kind: 'select', icon: 'contrast-outline' },
   { id: 'fontSize', section: 'appearance', labelKey: 'settings.fontSize', keywordsKey: kw('fontSize'), kind: 'select', icon: 'text-outline' },
@@ -138,7 +140,7 @@ export const SETTINGS_INDEX: SettingsEntry[] = [
   { id: 'fabSide', section: 'appearance', labelKey: 'settings.fabSide', descKey: 'settings.fabSideDesc', keywordsKey: kw('fabSide'), kind: 'select', icon: 'hand-left-outline' },
   { id: 'undoDuration', section: 'appearance', labelKey: 'settings.undoDuration', keywordsKey: kw('undoDuration'), kind: 'select', icon: 'arrow-undo-outline' },
 
-  // 資料
+  // Data
   { id: 'storage', section: 'data', labelKey: 'storage.title', descKey: 'storage.menuDesc', keywordsKey: kw('storage'), kind: 'nav', route: '/settings/storage', icon: 'pie-chart-outline' },
   { id: 'integrity', section: 'data', labelKey: 'settings.integrityCheck', descKey: 'settings.integrityDesc', kind: 'action', icon: 'shield-checkmark-outline' },
   { id: 'clearHistory', section: 'data', labelKey: 'settings.clearHistory', kind: 'action', icon: 'time-outline' },

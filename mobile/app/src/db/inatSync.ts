@@ -14,8 +14,9 @@ import { getUserDb } from './init';
 import type { RecordKind } from './records_list';
 
 /** Record kinds that can hold iNaturalist uploads. GLORIA is left out on
- *  purpose: its plot data belongs in the GLORIA sheet, not on iNaturalist. */
-export type InatKind = Exclude<RecordKind, 'gloria'>;
+ *  purpose: its plot data belongs in the GLORIA sheet, not on iNaturalist;
+ *  a census's trees are tagged plot records, not observations. */
+export type InatKind = Exclude<RecordKind, 'gloria' | 'survey'>;
 
 const TABLE: Record<InatKind, string> = {
   session: 'checklist_records',

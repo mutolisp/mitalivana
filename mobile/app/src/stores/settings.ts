@@ -213,6 +213,11 @@ type SettingsValues = {
   /** MIREN road / trail survey module: shows "MIREN survey" in the create
    *  menus and the region list in settings. Existing records stay visible. */
   module_miren: boolean;
+  /** Tree census (survey framework, docs/planned/Modular_survey.md): shows
+   *  "Tree census" in the create menus and the permanent-plot list in
+   *  settings. Off by default while it is being built. Existing censuses stay
+   *  visible either way. */
+  module_survey: boolean;
   /** Direction for `last_record_sort`. Observed defaults to 'desc' (latest
    *  on top); other sorts default to 'asc'. Tapping the same sort option a
    *  second time flips this. */
@@ -343,6 +348,7 @@ const DEFAULTS: SettingsValues = {
   search_usage_rank: true,
   module_gloria: false,
   module_miren: false,
+  module_survey: false,
   last_record_sort_dir: 'desc',
   taxonomy_expanded: [],
   records_collapsed: [],
@@ -493,6 +499,7 @@ function readAll(): SettingsValues {
         : map.get('search_usage_rank') === 'true',
     module_gloria: map.get('module_gloria') === 'true',
     module_miren: map.get('module_miren') === 'true',
+    module_survey: map.get('module_survey') === 'true',
     last_record_sort_dir:
       (map.get('last_record_sort_dir') as SortDirection) ?? DEFAULTS.last_record_sort_dir,
     taxonomy_expanded: taxonomyExpanded,

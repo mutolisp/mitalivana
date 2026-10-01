@@ -31,6 +31,7 @@ import { Chip } from '~/components/ui/Chip';
 import { useActiveRecordSummary } from '~/lib/useActiveRecordSummary';
 import { isoDateTime } from '~/lib/datetime';
 import {
+  bundleItemsOf,
   deleteCollectionTrip,
   deletePlotSurvey,
   deleteSession,
@@ -52,6 +53,7 @@ import {
   type RecordItem,
   type RecordKind,
 } from '~/db';
+import { deleteCensus, deleteCensuses, setCensusProject, SurveyError } from '~/survey/db/stemmap';
 import {
   bundleCollection,
   bundleGloria,
@@ -390,14 +392,15 @@ export default function RecordsListScreen() {
     plot: t('nav.plot'),
     collection: t('nav.collection'),
     gloria: t('nav.gloria'),
+    survey: t('nav.survey'),
   };
   const refreshActive = useActiveSession((s) => s.refresh);
   const refreshActivePlot = useActivePlot((s) => s.refresh);
   const toast = useToast((s) => s.show);
   const [filter, setFilter] = useState<Filter>('all');
-  // 預設以專案分組（使用者要求 2026-09-07）；切回時間軸不持久化。
+  // Grouped by project by default (asked for 2026-09-07); switching back to the timeline is not persisted.
   const [viewMode, setViewMode] = useState<ViewMode>('byProject');
-  // 收合的專案 id（byProject 檢視），持久化到 settings（比照 taxonomy_expanded）。
+  // Collapsed project ids (byProject view), persisted in settings (like taxonomy_expanded).
   const collapsedList = useSettings((s) => s.records_collapsed);
   const setSetting = useSettings((s) => s.set);
   const collapsedIds = useMemo(() => new Set(collapsedList), [collapsedList]);
@@ -421,6 +424,7 @@ export default function RecordsListScreen() {
     plot: 0,
     collection: 0,
     gloria: 0,
+    survey: 0,
   });
   const [duplicating, setDuplicating] = useState<{
     item: RecordItem;
@@ -526,6 +530,7 @@ export default function RecordsListScreen() {
     if (item.kind === 'session') router.push(`/session/${item.id}` as Href);
     else if (item.kind === 'collection') router.push(`/collection/${item.id}` as Href);
     else if (item.kind === 'gloria') router.push(`/gloria/${item.id}` as Href);
+    else if (item.kind === 'survey') router.push(`/survey/${item.id}` as Href);
     else router.push(`/plot/${item.id}` as Href);
   };
 
@@ -551,6 +556,10 @@ export default function RecordsListScreen() {
   };
 
   const handleExportOne = async (item: RecordItem) => {
+    if (item.kind === 'survey') {
+      toast(t('survey.census.noExport'));
+      return;
+    }
     const bundleItem: BundleItem = { kind: item.kind, id: item.id };
     const est = await estimateBundleSize([bundleItem], { includePhotos });
     const proceed = await confirmIfLarge(est.totalBytes);
@@ -580,10 +589,13 @@ export default function RecordsListScreen() {
     });
   };
 
-  // 專案分組標頭的匯出：整個專案打包（records/ + 分析資料表），與
-  // /projects 的 swipe 匯出同一套（沿用持久化偏好，不開選項 sheet）。
+  // Export from a project group header: the whole project (records/ plus the
+  // analysis tables), the same as the swipe export on /projects (persisted
+  // preferences, no options sheet).
   const handleExportProject = async (group: ProjectGroup) => {
     if (exportBusy) return;
+    // bundleProject reads the project's records itself and has no censuses yet.
+    if (group.items.some((it) => it.kind === 'survey')) toast(t('survey.census.skippedInExport'));
     const okGo = await confirmExportContent(t, {
       analysisFormats,
       matrixValue,
@@ -596,10 +608,7 @@ export default function RecordsListScreen() {
       geoFormats,
     });
     if (!okGo) return;
-    const est = await estimateBundleSize(
-      group.items.map((it) => ({ kind: it.kind, id: it.id })),
-      { includePhotos },
-    );
+    const est = await estimateBundleSize(bundleItemsOf(group.items).items, { includePhotos });
     if (!(await confirmIfLarge(est.totalBytes))) return;
     const lang = await pickExportLanguage(t, 'export.language');
     if (!lang) return;
@@ -635,10 +644,14 @@ export default function RecordsListScreen() {
     // walk the latest `items` array (covers both view modes since `items` is
     // always populated by reload).
     const byKey = new Map(items.map((it) => [selectionKey(it.kind, it.id), it]));
+    const picked: RecordItem[] = [];
     for (const k of selected) {
       const it = byKey.get(k);
-      if (it) bundleItems.push({ kind: it.kind, id: it.id });
+      if (it) picked.push(it);
     }
+    const { items: exportable, skipped } = bundleItemsOf(picked);
+    bundleItems.push(...exportable);
+    if (skipped > 0) toast(t('survey.census.skippedInExport'));
     if (bundleItems.length === 0) {
       toast(t('records.noExportable'));
       return;
@@ -678,6 +691,8 @@ export default function RecordsListScreen() {
         return t('nav.gloria');
       case 'collection':
         return t('nav.collection');
+      case 'survey':
+        return t('nav.survey');
       default:
         return assertNever(kind, 'record kind');
     }
@@ -688,6 +703,11 @@ export default function RecordsListScreen() {
     // second record of the same cycle. The next cycle is started from the summit.
     if (item.kind === 'gloria') {
       toast(t('records.duplicateNoGloria'));
+      return;
+    }
+    // A census belongs to its permanent plot; the next one is started there.
+    if (item.kind === 'survey') {
+      toast(t('survey.census.noDuplicate'));
       return;
     }
     // Names of the SAME kind only: a 名錄 and a 樣區 may legitimately share one.
@@ -761,8 +781,8 @@ export default function RecordsListScreen() {
     return [...selected].map((k) => byKey.get(k)).filter((it): it is RecordItem => !!it);
   }, [items, selected]);
 
-  /** 移動到其他專案／另建專案 — one entry point, because ProjectAssignSheet's
-   *  「新建專案」row already covers the second half. */
+  /** Move to another project / a new project — one entry point, because
+   *  ProjectAssignSheet's 「新建專案」 row already covers the second half. */
   const handleAssignSelectionProject = (projectId: number) => {
     setAssigningProject(false);
     const picked = selectedItems;
@@ -772,6 +792,7 @@ export default function RecordsListScreen() {
         if (it.kind === 'session') updateSession(it.id, { project_id: projectId });
         else if (it.kind === 'plot') updatePlotSurvey(it.id, { project_id: projectId });
         else if (it.kind === 'gloria') updateGloriaSurvey(it.id, { project_id: projectId });
+        else if (it.kind === 'survey') setCensusProject(it.id, projectId);
         else updateCollectionTrip(it.id, { project_id: projectId });
       }
     });
@@ -795,10 +816,10 @@ export default function RecordsListScreen() {
   /**
    * Ended checklists, plots and collection trips are locked (src/lib/useRecordEditing).
    * Deleting or merging one here first asks to unlock it; GLORIA surveys have
-   * their own per-unit locks and are not covered.
+   * their own per-unit locks and are not covered, and censuses have no lock.
    */
   const unlockThen = (items: RecordItem[], run: () => void) => {
-    const locked = items.filter((it) => it.kind !== 'gloria' && !it.active).length;
+    const locked = items.filter((it) => it.kind !== 'gloria' && it.kind !== 'survey' && !it.active).length;
     if (locked === 0) {
       run();
       return;
@@ -828,6 +849,11 @@ export default function RecordsListScreen() {
     // GLORIA surveys are one summit × one monitoring cycle; there is nothing to merge.
     if (kind === 'gloria') {
       toast(t('records.mergeNoGloria'));
+      return;
+    }
+    // Censuses of one plot are successive, not parallel; team merge joins a census's blocks.
+    if (kind === 'survey') {
+      toast(t('survey.census.noMerge'));
       return;
     }
     if (kind === 'plot') {
@@ -972,7 +998,7 @@ export default function RecordsListScreen() {
   };
 
   /**
-   * 批次刪除，一定先問過。
+   * Batch delete, always asked first.
    *
    * The confirm names both numbers — records AND the species rows inside them —
    * because "刪除 3 筆" badly understates throwing away 400 observations, and
@@ -987,10 +1013,11 @@ export default function RecordsListScreen() {
     unlockThen(picked, () => deleteSelection(picked));
   };
   // Checklists, plots and GLORIA surveys keep their versions 30 days after deletion (record versions);
-  // collections have none.
+  // collections have none, and censuses none yet.
+  const unversioned = (it: RecordItem) => it.kind === 'collection' || it.kind === 'survey';
   const recoverableNote = (items: RecordItem[]) =>
-    (items.some((it) => it.kind !== 'collection') ? `\n\n${t('records.deleteRecoverable')}` : '') +
-    (items.some((it) => it.kind === 'collection') ? `\n\n${t('records.deletePermanent')}` : '');
+    (items.some((it) => !unversioned(it)) ? `\n\n${t('records.deleteRecoverable')}` : '') +
+    (items.some(unversioned) ? `\n\n${t('records.deletePermanent')}` : '');
   const deleteSelection = (picked: RecordItem[]) => {
     const rows = picked.reduce((sum, it) => sum + it.recordCount, 0);
     Alert.alert(
@@ -1002,14 +1029,24 @@ export default function RecordsListScreen() {
           text: t('common.delete'),
           style: 'destructive',
           onPress: () => {
-            withTransaction(() => {
-              for (const it of picked) {
-                if (it.kind === 'session') deleteSession(it.id);
-                else if (it.kind === 'collection') deleteCollectionTrip(it.id);
-                else if (it.kind === 'gloria') deleteGloriaSurvey(it.id);
-                else deletePlotSurvey(it.id);
+            try {
+              withTransaction(() => {
+                for (const it of picked) {
+                  if (it.kind === 'session') deleteSession(it.id);
+                  else if (it.kind === 'collection') deleteCollectionTrip(it.id);
+                  else if (it.kind === 'gloria') deleteGloriaSurvey(it.id);
+                  else if (it.kind === 'survey') continue;
+                  else deletePlotSurvey(it.id);
+                }
+                deleteCensuses(picked.filter((it) => it.kind === 'survey').map((it) => it.id));
+              });
+            } catch (e) {
+              if (e instanceof SurveyError && e.code === 'not_latest_census') {
+                toast(t('survey.census.deleteNotLatest'));
+                return;
               }
-            });
+              throw e;
+            }
             // reload() also refreshes both active stores, which matters here:
             // the selection may well have contained the active record.
             reload();
@@ -1053,7 +1090,9 @@ export default function RecordsListScreen() {
     const noun = nounOf(item.kind);
     Alert.alert(
       t('records.deleteTitle', { noun }),
-      t('records.deleteMsg', { title: item.title, count: item.recordCount }) + recoverableNote([item]),
+      (item.kind === 'survey'
+        ? t('survey.census.deleteMsg', { title: item.title, n: item.survey?.census_no ?? 0 })
+        : t('records.deleteMsg', { title: item.title, count: item.recordCount })) + recoverableNote([item]),
       [
         { text: t('common.cancel'), style: 'cancel' },
         {
@@ -1063,7 +1102,17 @@ export default function RecordsListScreen() {
             if (item.kind === 'session') deleteSession(item.id);
             else if (item.kind === 'collection') deleteCollectionTrip(item.id);
             else if (item.kind === 'gloria') deleteGloriaSurvey(item.id);
-            else deletePlotSurvey(item.id);
+            else if (item.kind === 'survey') {
+              try {
+                deleteCensus(item.id);
+              } catch (e) {
+                if (e instanceof SurveyError && e.code === 'not_latest_census') {
+                  toast(t('survey.census.deleteNotLatest'));
+                  return;
+                }
+                throw e;
+              }
+            } else deletePlotSurvey(item.id);
             reload();
           },
         },
@@ -1081,8 +1130,9 @@ export default function RecordsListScreen() {
     );
   };
 
-  // 長按分組標頭：全部收合／全部展開（比照分類樹的 collapseAll）。只動當前
-  // 檢視看得到的分組——其他 filter 下的收合狀態原樣保留。
+  // Long-press a group header: collapse / expand all (like the taxonomy tree's
+  // collapseAll). Only the groups visible in this view change; the collapsed
+  // state under other filters is left as it is.
   const toggleCollapseAll = () => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -1151,7 +1201,7 @@ export default function RecordsListScreen() {
 
   // C7: pull-to-refresh. reload() is synchronous (op-sqlite executeSync), so
   // hold the spinner a beat — an instantly vanishing spinner reads as broken.
-  // ── 跨樣區 Chao2（multi-select → ad-hoc scope, may span projects) ──
+  // ── Cross-plot Chao2 (multi-select → ad-hoc scope, may span projects) ──
   const selectedPlotIds = useMemo(
     () =>
       [...selected]
@@ -1234,6 +1284,7 @@ export default function RecordsListScreen() {
 
   // ── Top of the list: the record in progress, then the kind chips ──
   const moduleGloria = useSettings((s) => s.module_gloria);
+  const moduleSurvey = useSettings((s) => s.module_survey);
   const activeMatch = activeSummary
     ? (activeItems.find((it) => it.kind === activeSummary.kind && it.id === activeSummary.id) ?? null)
     : null;
@@ -1254,6 +1305,7 @@ export default function RecordsListScreen() {
     'plot',
     'collection',
     ...(moduleGloria || counts.gloria > 0 ? (['gloria'] as Filter[]) : []),
+    ...(moduleSurvey || counts.survey > 0 ? (['survey'] as Filter[]) : []),
   ];
   const chipLabel: Record<Filter, string> = { ...filterLabel, gloria: 'GLORIA' };
   const topBlock = selectMode ? null : (
@@ -1343,24 +1395,29 @@ export default function RecordsListScreen() {
               color: 'acorn',
               onPress: () => handleToggleStar(item),
             },
-            {
-              label: t('records.duplicate'),
-              icon: 'copy-outline',
-              color: 'emerald',
-              onPress: () => handleDuplicate(item),
-            },
-            {
-              label: t('common.export'),
-              icon: 'share-outline',
-              color: 'export',
-              onPress: () => handleExportOne(item),
-            },
-            {
-              label: t('records.uploadInat'),
-              icon: 'cloud-upload-outline',
-              color: 'inat',
-              onPress: () => router.push(`/inat-upload?kind=${item.kind}&id=${item.id}` as Href),
-            },
+            // A census is not duplicated, exported (yet) or sent to iNaturalist.
+            ...(item.kind === 'survey'
+              ? []
+              : ([
+                  {
+                    label: t('records.duplicate'),
+                    icon: 'copy-outline',
+                    color: 'emerald',
+                    onPress: () => handleDuplicate(item),
+                  },
+                  {
+                    label: t('common.export'),
+                    icon: 'share-outline',
+                    color: 'export',
+                    onPress: () => handleExportOne(item),
+                  },
+                  {
+                    label: t('records.uploadInat'),
+                    icon: 'cloud-upload-outline',
+                    color: 'inat',
+                    onPress: () => router.push(`/inat-upload?kind=${item.kind}&id=${item.id}` as Href),
+                  },
+                ] as const)),
             {
               label: t('common.delete'),
               icon: 'trash',

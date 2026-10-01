@@ -19,7 +19,7 @@
 import { CENSUS_CODES, censusCode, enterableCensusCodes } from '../src/survey/codesets/forestgeoCensus1998.ts';
 import { AMS_VARIABLES, amsModeConflict } from '../src/survey/codesets/forestgeoAms2021.ts';
 import {
-  formatQuadratCode, fromGps, fromGrid, fromPolar, horizontalDistance, locate, parseQuadratCode,
+  formatFgQuadratCode, fromGps, fromGrid, fromPolar, horizontalDistance, locate, parseFgQuadratCode,
   stakeXY, subquadratOf, toLatLng, trueBearing, validateGeometry,
 } from '../src/survey/stemmap/coords.ts';
 import { sortByWalk, subquadratOrder } from '../src/survey/stemmap/walkOrder.ts';
@@ -76,9 +76,9 @@ const P = plot();
 eq('valid geometry', validateGeometry(P), []);
 eq('size not a multiple of the quadrat', validateGeometry(plot({ sizeXM: 90 })), ['size_not_multiple']);
 eq('quadrat not a multiple of the subquadrat', validateGeometry(plot({ subquadratM: 6 })), ['quadrat_not_multiple']);
-eq('quadrat code', formatQuadratCode(35, 13), '3513');
-eq('parse quadrat code', parseQuadratCode('0102'), { col: 1, row: 2 });
-eq('bad quadrat code', parseQuadratCode('102'), null);
+eq('quadrat code', formatFgQuadratCode(35, 13), '3513');
+eq('parse quadrat code', parseFgQuadratCode('0102'), { col: 1, row: 2 });
+eq('bad quadrat code', parseFgQuadratCode('102'), null);
 const g1 = fromGrid('0001', 6, 7, P);
 eq('quadrat 0001 (6, 7) → (6, 27)', [g1.x, g1.y], [6, 27]);
 eq('… subquadrat 2,2', subquadratOf(6, 7, P), { i: 2, j: 2 });

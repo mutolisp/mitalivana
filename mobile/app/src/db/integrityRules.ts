@@ -10,10 +10,10 @@
  */
 
 /** Tables with a FOREIGN KEY project_id → projects. Deleting a project moves their rows to 0 (未分類). */
-export const PROJECT_FK_TABLES = ['sessions', 'plot_surveys', 'sites', 'collection_trips', 'gloria_surveys', 'miren_surveys'] as const;
+export const PROJECT_FK_TABLES = ['sessions', 'plot_surveys', 'sites', 'collection_trips', 'gloria_surveys', 'miren_surveys', 'fw_frames', 'fw_surveys'] as const;
 
 /** Tables whose site_id points at `sites` (declared FK or not). miren_plots.site_id is a MIREN site, not one of these. */
-export const SITE_REF_TABLES = ['sessions', 'plot_surveys', 'collection_trips', 'gloria_surveys', 'miren_surveys'] as const;
+export const SITE_REF_TABLES = ['sessions', 'plot_surveys', 'collection_trips', 'gloria_surveys', 'miren_surveys', 'fw_frames', 'fw_surveys'] as const;
 
 /**
  * Children of a declared ON DELETE CASCADE whose parent is gone: [table, WHERE].
@@ -43,6 +43,20 @@ export const CASCADE_ORPHANS: ReadonlyArray<readonly [string, string]> = [
   ['miren_plots', 'survey_id NOT IN (SELECT id FROM miren_surveys)'],
   ['miren_plot_species', 'plot_id NOT IN (SELECT id FROM miren_plots) OR miren_taxon_id NOT IN (SELECT id FROM miren_taxa)'],
   ['miren_rechecks', 'plot_id NOT IN (SELECT id FROM miren_plots)'],
+  // Survey framework (v80). A NULL individual_id / measure_id on fw_media is
+  // "NOT IN" → NULL, so a census-level photo is never swept.
+  ['fw_frame_series', 'frame_id NOT IN (SELECT id FROM fw_frames)'],
+  ['fw_survey_quadrats', 'survey_id NOT IN (SELECT id FROM fw_surveys)'],
+  ['fw_individuals', 'frame_id NOT IN (SELECT id FROM fw_frames)'],
+  ['fw_individual_history', 'individual_id NOT IN (SELECT id FROM fw_individuals)'],
+  ['fw_stems', 'individual_id NOT IN (SELECT id FROM fw_individuals)'],
+  ['fw_stem_measures', 'survey_id NOT IN (SELECT id FROM fw_surveys) OR stem_id NOT IN (SELECT id FROM fw_stems)'],
+  ['fw_stem_values', 'measure_id NOT IN (SELECT id FROM fw_stem_measures)'],
+  ['fw_individual_values', 'survey_id NOT IN (SELECT id FROM fw_surveys) OR individual_id NOT IN (SELECT id FROM fw_individuals)'],
+  [
+    'fw_media',
+    'survey_id NOT IN (SELECT id FROM fw_surveys) OR individual_id NOT IN (SELECT id FROM fw_individuals) OR measure_id NOT IN (SELECT id FROM fw_stem_measures)',
+  ],
 ];
 
 /**
@@ -75,4 +89,10 @@ export const NULL_DANGLING: ReadonlyArray<readonly [string, string, string]> = [
   ['plot_quadrats', 'subplot_id', 'plot_subplots'],
   ['gloria_logger_visits', 'survey_id', 'gloria_surveys'],
   ['miren_rechecks', 'new_miren_taxon_id', 'miren_taxa'],
+  ['fw_frames', 'site_id', 'sites'],
+  ['fw_surveys', 'site_id', 'sites'],
+  // The census a tree / stem first appeared in, and the census a correction was made in.
+  ['fw_individuals', 'first_survey_id', 'fw_surveys'],
+  ['fw_stems', 'first_survey_id', 'fw_surveys'],
+  ['fw_individual_history', 'survey_id', 'fw_surveys'],
 ];

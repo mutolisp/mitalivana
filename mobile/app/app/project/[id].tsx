@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next';
 import { FlatList, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
+  bundleItemsOf,
   getProject,
   listRecords,
   listSitesByProject,
@@ -28,6 +29,7 @@ import {
 import { HeaderIconButton } from '~/components/HeaderIconButton';
 import { ExportProgressOverlay } from '~/components/ExportProgressOverlay';
 import { ProjectEditModal } from '~/components/ProjectEditModal';
+import { useToast } from '~/stores/toast';
 import { ProjectExportSheet } from '~/components/ProjectExportSheet';
 import { estimateBundleSize } from '~/lib/exportSize';
 import { bundleProject } from '~/lib/projectExport';
@@ -99,7 +101,7 @@ export default function ProjectDetailScreen() {
   }, [records, layout]);
 
   const counts = useMemo(() => {
-    const c = { session: 0, plot: 0, collection: 0, gloria: 0 };
+    const c = { session: 0, plot: 0, collection: 0, gloria: 0, survey: 0 };
     for (const r of records) c[r.kind] += 1;
     return c;
   }, [records]);
@@ -115,10 +117,10 @@ export default function ProjectDetailScreen() {
     // Let the sheet finish dismissing before any Alert / progress Modal —
     // iOS silently drops a present() over a dismissing Modal.
     await new Promise((r) => setTimeout(r, 450));
-    const est = await estimateBundleSize(
-      records.map((r) => ({ kind: r.kind, id: r.id })),
-      { includePhotos },
-    );
+    // bundleProject has no censuses yet (Phase 1D).
+    const { items: exportable, skipped } = bundleItemsOf(records);
+    if (skipped > 0) useToast.getState().show(t('survey.census.skippedInExport'));
+    const est = await estimateBundleSize(exportable, { includePhotos });
     if (!(await confirmIfLarge(est.totalBytes))) return;
     const lang = await pickExportLanguage(t, 'export.language');
     if (!lang) return;
@@ -148,6 +150,7 @@ export default function ProjectDetailScreen() {
     if (item.kind === 'session') router.push(`/session/${item.id}` as Href);
     else if (item.kind === 'collection') router.push(`/collection/${item.id}` as Href);
     else if (item.kind === 'gloria') router.push(`/gloria/${item.id}` as Href);
+    else if (item.kind === 'survey') router.push(`/survey/${item.id}` as Href);
     else router.push(`/plot/${item.id}` as Href);
   };
 
@@ -265,6 +268,7 @@ export default function ProjectDetailScreen() {
                     })}`
                   : ''}
                 {mirens.length > 0 ? ` · ${t('projects.statsMiren', { n: mirens.length })}` : ''}
+                {counts.survey > 0 ? ` · ${t('survey.census.projectCount', { count: counts.survey })}` : ''}
               </Text>
               {counts.gloria > 0 ? (
                 <Pressable

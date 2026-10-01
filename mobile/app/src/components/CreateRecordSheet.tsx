@@ -30,6 +30,7 @@ import {
   createPlotOfType,
   importRecordPromptAndOpen,
   openMiren,
+  openSurveyFrames,
   openNewGloria,
   startCollectionAndOpen,
   startSessionAndOpen,
@@ -225,10 +226,12 @@ function MainPage({
   const setSetting = useSettings((s) => s.set);
   const gloria = useSettings((s) => s.module_gloria);
   const miren = useSettings((s) => s.module_miren);
+  const survey = useSettings((s) => s.module_survey);
 
   const others: { key: string; icon: keyof typeof Ionicons.glyphMap; label: string; run: () => unknown }[] = [
     ...(gloria ? [{ key: 'gloria', icon: 'triangle-outline' as const, label: 'GLORIA', run: openNewGloria }] : []),
     ...(miren ? [{ key: 'miren', icon: 'trail-sign-outline' as const, label: 'MIREN', run: openMiren }] : []),
+    ...(survey ? [{ key: 'survey', icon: 'apps-outline' as const, label: t('survey.create'), run: openSurveyFrames }] : []),
     { key: 'import', icon: 'download-outline', label: t('create.importFile'), run: importRecordPromptAndOpen },
   ];
 

@@ -100,6 +100,15 @@ export function NumAccessory() {
   ) : null;
 }
 
+/** For an input that uses the bar without being a NumField (a form kept as
+ *  text until saved): what Next / Previous do while it has focus. Null Next
+ *  closes the keyboard; without this the bar would run the last NumField's. */
+export function bindNumAccessory(next: (() => void) | null, prev: (() => void) | null = null): void {
+  focusedNext = next;
+  focusedPrev = prev;
+  setStepping(!!prev);
+}
+
 const fmt = (v: number | null | undefined) => (v == null ? '' : String(v));
 
 /**

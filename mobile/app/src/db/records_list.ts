@@ -16,8 +16,11 @@ import {
 import { listSessions, type SessionWithStats } from './sessions';
 import { listCollectionTrips, type CollectionTripWithStats } from './collections';
 import { listGloriaSurveysWithMeta, type GloriaSurveyWithMeta } from '~/modules/gloria/db';
+import { listCensuses, type CensusListRow } from '~/survey/db/stemmap';
+import type { BundleItem } from '~/lib/bundleExport';
 
-export type RecordKind = 'session' | 'plot' | 'collection' | 'gloria';
+/** 'survey': a census of the survey framework (tree census in Phase 1). */
+export type RecordKind = 'session' | 'plot' | 'collection' | 'gloria' | 'survey';
 
 /** Records-tab filter: a single kind, or every kind. */
 export type RecordFilter = 'all' | RecordKind;
@@ -51,6 +54,8 @@ export type RecordItem = {
   trip?: CollectionTripWithStats;
   /** GLORIA-only: backing survey with summit code. */
   gloria?: GloriaSurveyWithMeta;
+  /** Census-only: backing census with its permanent plot. */
+  survey?: CensusListRow;
 };
 
 function sessionToItem(s: SessionWithStats): RecordItem {
@@ -134,6 +139,37 @@ function gloriaToItem(g: GloriaSurveyWithMeta): RecordItem {
   };
 }
 
+function surveyToItem(c: CensusListRow): RecordItem {
+  const projectName = c.project_name || i18n.t('plot.uncategorized');
+  const subtitle = i18n.t('recordsList.surveySubtitle', { count: c.tree_count, n: c.census_no });
+  return {
+    kind: 'survey',
+    id: c.id,
+    title: c.frame_name ? `${c.frame_code} ${c.frame_name}` : c.frame_code,
+    subtitle,
+    subtitlePlain: subtitle,
+    active: c.status === 'active',
+    startedAt: c.start_ts,
+    recordCount: c.tree_count,
+    starred: c.starred === 1,
+    projectId: c.project_id,
+    projectName,
+    survey: c,
+  };
+}
+
+/** Record-list items as export items. A census has no export yet
+ *  (Modular_survey.md §9, Phase 1D): it is left out and counted. */
+export function bundleItemsOf(items: readonly { kind: RecordKind; id: number }[]): { items: BundleItem[]; skipped: number } {
+  const out: BundleItem[] = [];
+  let skipped = 0;
+  for (const it of items) {
+    if (it.kind === 'survey') skipped += 1;
+    else out.push({ kind: it.kind, id: it.id });
+  }
+  return { items: out, skipped };
+}
+
 export function listRecords(filter: RecordFilter = 'all'): RecordItem[] {
   const items: RecordItem[] = [];
   if (filter === 'all' || filter === 'session') {
@@ -149,6 +185,9 @@ export function listRecords(filter: RecordFilter = 'all'): RecordItem[] {
   }
   if (filter === 'all' || filter === 'gloria') {
     items.push(...listGloriaSurveysWithMeta().map(gloriaToItem));
+  }
+  if (filter === 'all' || filter === 'survey') {
+    items.push(...listCensuses().map(surveyToItem));
   }
   items.sort(byActiveThenStarredThenNewest);
   return items;
@@ -215,7 +254,7 @@ export type RecordsSummary = {
  */
 export function listRecordsSummary(filter: RecordFilter = 'all'): RecordsSummary {
   const all = listRecords('all');
-  const counts: RecordsSummary['counts'] = { all: all.length, session: 0, plot: 0, collection: 0, gloria: 0 };
+  const counts: RecordsSummary['counts'] = { all: all.length, session: 0, plot: 0, collection: 0, gloria: 0, survey: 0 };
   for (const it of all) counts[it.kind] += 1;
   const items = filter === 'all' ? all : all.filter((it) => it.kind === filter);
   return { items, groups: groupByProject(items), counts };
@@ -236,6 +275,8 @@ const TAKEN_NAMES_SQL: Record<RecordKind, string> = {
   session: `SELECT name FROM sessions`,
   gloria: `SELECT s.full_code || ' mocy ' || v.mocy AS name FROM gloria_surveys v JOIN gloria_summits s ON s.id = v.summit_id`,
   collection: `SELECT name FROM collection_trips`,
+  // Censuses are not duplicated; listed for completeness.
+  survey: `SELECT f.code AS name FROM fw_surveys s JOIN fw_frames f ON f.id = s.frame_id`,
 };
 
 export function takenRecordNames(kind: RecordKind): Set<string> {
@@ -251,10 +292,11 @@ const RECORD_TABLE: Record<RecordKind, string> = {
   plot: 'plot_surveys',
   collection: 'collection_trips',
   gloria: 'gloria_surveys',
+  survey: 'fw_surveys',
 };
 
 /**
- * 加星／取消星號.
+ * Star / unstar a record.
  *
  * A plain UPDATE rather than `updateSession` / `updatePlotSurvey` /
  * `updateCollectionTrip`: two of those three gate writes behind a key
@@ -274,6 +316,14 @@ const RECORD_SPECIES_SOURCE: Record<RecordKind, { table: string; fk: string }> =
   collection: { table: 'collection_specimens', fk: 'trip_id' },
   // The roster: every taxon the survey holds, recorded in a unit or not.
   gloria: { table: 'gloria_taxa', fk: 'survey_id' },
+  // The trees the census sees (added in it or an earlier census of its series).
+  survey: {
+    table: `(SELECT i.id, i.taxon_id, s.id AS survey_id FROM fw_surveys s
+              JOIN fw_individuals i ON i.frame_id = s.frame_id
+              LEFT JOIN fw_surveys fi ON fi.id = i.first_survey_id
+             WHERE fi.id IS NULL OR fi.series_id <> s.series_id OR fi.census_no <= s.census_no)`,
+    fk: 'survey_id',
+  },
 };
 
 /**

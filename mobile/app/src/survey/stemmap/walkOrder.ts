@@ -17,7 +17,7 @@
  *
  * Pure: check:stemmap runs it under Node.
  */
-import { quadratCounts, subquadratOf, type FrameGeometry } from './coords';
+import { fgQuadratCounts, subquadratOf, type FrameGeometry } from './coords';
 
 export type SubCell = { i: number; j: number };
 
@@ -50,7 +50,7 @@ export function subquadratOrder(perSide: number): SubCell[] {
 
 /** Sort key of a tree inside its quadrat: [subquadrat rank, clockwise angle]. */
 export function walkKey(localX: number, localY: number, f: FrameGeometry): [number, number] {
-  const n = quadratCounts(f).subPerSide;
+  const n = fgQuadratCounts(f).subPerSide;
   const order = subquadratOrder(n);
   const { i, j } = subquadratOf(localX, localY, f);
   const rank = order.findIndex((c) => c.i === i && c.j === j);

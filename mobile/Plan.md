@@ -487,6 +487,11 @@ MIREN（規劃中）→ `docs/planned/MIREN.md`；
 - 已決（2026-10-01）：以 20 m 樣方為版本／復原／合併單位、1 ha 區塊為同步單位；每木回合不受 single-active 限制；樹號依區塊號段；預設一套健康代碼；Android 平板開放橫向；值表依擁有者分開並有外鍵
 - [x] Phase 0：每木純邏輯與 `check:stemmap`；記錄種類分派改窮舉；抽出共用元件（2026-10-01，見 `Update_log.md`）。`EnvTab`／`LayerSection`／`SubplotSection` 改寫與兩份數字欄合併留到 Phase 2
 - [ ] Phase 1：框架核心（v80）＋每木調查模板（`docs/ForestGEO/Stem_mapping.md`），含團隊合併、平板分割畫面、vegan 寬表
+  - [x] 1A 資料層：v80 各表、模板型別／registry／驗證器（`check:templates`）、內建每木模板、每木資料層 `src/survey/db/stemmapCore.ts`（`check:survey-db`）（2026-10-01）
+  - [x] 1B 畫面：設定開關（預設關閉）、永久樣區、回合畫面、位置圖、單株編輯、複查、檢查清單、平板分割與 Android 平板橫向、7 種語系（2026-10-01；實機見 Device_test §77；Android 橫向要重新 build 原生）
+  - [ ] 1C 以樣方為單位的版本與復原；以區塊為單位的同步與合併（`check:media-refs` 的 `fw_media` 例外要拿掉）
+  - [ ] 1D yml／csv／vegan 寬表匯出、roundtrip
+  - [ ] 1E 2 萬株實測，修正同步區塊預設值
 - [ ] Phase 2：建表器、模板分享、checklist／plot 樣式、其餘元件、DwC-A（organismID、eMoF）
 - [ ] Phase 3：既有記錄類型逐步遷移
 - 已決（2026-10-01）：永久樣區也給樣區型調查複查用（eventID 沿用 `plotEventIds` 規則、單位配置與形態種清單存在樣區上、物種預設盲測）；死亡個體用 `dwc:vitality`（TDWG 與 GBIF 定義已核對）；同步區塊依樣區大小與密度每回合決定，樹號區塊固定且與同步區塊分開

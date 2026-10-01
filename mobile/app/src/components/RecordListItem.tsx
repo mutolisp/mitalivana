@@ -43,8 +43,8 @@ export function clearRecordDiversityCache(): void {
 /**
  * S / H′ / J′ for one record, through the cache above. Synchronous: one DB
  * read on a miss, so list rows call it off the mount frame (RowDiversityLine)
- * and a single card may call it directly. Null for 採集 and GLORIA (not a
- * sample in that sense) and for an empty record.
+ * and a single card may call it directly. Null for 採集, GLORIA and censuses
+ * (not a sample in that sense) and for an empty record.
  */
 export function recordDiversity(
   kind: RecordKind,
@@ -53,8 +53,9 @@ export function recordDiversity(
   const key = `${kind}-${id}`;
   const cached = rowDivCache.get(key);
   if (cached !== undefined) return cached;
-  // Diversity of a GLORIA survey is not one number (28 units, several methods).
-  if (kind === 'collection' || kind === 'gloria') {
+  // Diversity of a GLORIA survey is not one number (28 units, several methods);
+  // a census is a stand table, not a species sample.
+  if (kind === 'collection' || kind === 'gloria' || kind === 'survey') {
     rowDivCache.set(key, null);
     return null;
   }
@@ -82,6 +83,7 @@ const KIND_ICON: Record<RecordKind, keyof typeof Ionicons.glyphMap> = {
   plot: 'grid-outline',
   gloria: 'triangle-outline',
   collection: 'pricetag-outline',
+  survey: 'apps-outline',
 };
 
 /**

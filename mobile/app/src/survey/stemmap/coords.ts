@@ -45,7 +45,7 @@ export function trueBearing(f: FrameGeometry): number {
   return norm360(f.bearingRef === 'true' ? f.bearingDeg : f.bearingDeg + f.declinationDeg);
 }
 
-export function quadratCounts(f: FrameGeometry): { cols: number; rows: number; subPerSide: number } {
+export function fgQuadratCounts(f: FrameGeometry): { cols: number; rows: number; subPerSide: number } {
   return {
     cols: Math.round(f.sizeXM / f.quadratM),
     rows: Math.round(f.sizeYM / f.quadratM),
@@ -60,25 +60,25 @@ export function validateGeometry(f: FrameGeometry): GeometryProblem[] {
   if (!(f.sizeXM > 0 && f.sizeYM > 0 && f.quadratM > 0 && f.subquadratM > 0)) return ['not_positive'];
   if (!isMultiple(f.sizeXM, f.quadratM) || !isMultiple(f.sizeYM, f.quadratM)) out.push('size_not_multiple');
   if (!isMultiple(f.quadratM, f.subquadratM)) out.push('quadrat_not_multiple');
-  const { cols, rows } = quadratCounts(f);
+  const { cols, rows } = fgQuadratCounts(f);
   if (cols > MAX_QUADRATS_PER_AXIS || rows > MAX_QUADRATS_PER_AXIS) out.push('too_many_quadrats');
   return out;
 }
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
 
-export function formatQuadratCode(col: number, row: number): string {
+export function formatFgQuadratCode(col: number, row: number): string {
   return `${pad2(col)}${pad2(row)}`;
 }
 
-export function parseQuadratCode(code: string): { col: number; row: number } | null {
+export function parseFgQuadratCode(code: string): { col: number; row: number } | null {
   const m = /^(\d{2})(\d{2})$/.exec(code.trim());
   return m ? { col: Number(m[1]), row: Number(m[2]) } : null;
 }
 
 /** Subquadrat i,j (1-based, column then row) of a position inside a quadrat. */
 export function subquadratOf(localX: number, localY: number, f: FrameGeometry): { i: number; j: number } {
-  const n = quadratCounts(f).subPerSide;
+  const n = fgQuadratCounts(f).subPerSide;
   const idx = (v: number) => Math.min(n, Math.max(1, Math.floor(v / f.subquadratM + 1e-9) + 1));
   return { i: idx(localX), j: idx(localY) };
 }
@@ -97,21 +97,21 @@ export type Located = {
  *  a shared edge belongs to the quadrat above / to the right, except on the
  *  plot's own far edges, which stay in the last quadrat. */
 export function locate(p: XY, f: FrameGeometry): Located {
-  const { cols, rows } = quadratCounts(f);
+  const { cols, rows } = fgQuadratCounts(f);
   const inside = p.x >= -1e-9 && p.y >= -1e-9 && p.x <= f.sizeXM + 1e-9 && p.y <= f.sizeYM + 1e-9;
   const cell = (v: number, n: number) => Math.min(n - 1, Math.max(0, Math.floor(v / f.quadratM + 1e-9)));
   const col = cell(p.x, cols);
   const row = cell(p.y, rows);
   const localX = p.x - col * f.quadratM;
   const localY = p.y - row * f.quadratM;
-  return { col, row, code: formatQuadratCode(col, row), localX, localY, sub: subquadratOf(localX, localY, f), inside };
+  return { col, row, code: formatFgQuadratCode(col, row), localX, localY, sub: subquadratOf(localX, localY, f), inside };
 }
 
 /** Quadrat code + position inside it → plot-wide x,y. */
 export function fromGrid(code: string, localX: number, localY: number, f: FrameGeometry): (XY & { warnings: string[] }) | null {
-  const q = parseQuadratCode(code);
+  const q = parseFgQuadratCode(code);
   if (!q) return null;
-  const { cols, rows } = quadratCounts(f);
+  const { cols, rows } = fgQuadratCounts(f);
   const warnings: string[] = [];
   if (q.col >= cols || q.row >= rows) warnings.push('quadrat_outside_plot');
   if (localX < 0 || localY < 0 || localX > f.quadratM || localY > f.quadratM) warnings.push('local_outside_quadrat');
@@ -122,7 +122,7 @@ export type StakeCorner = 'SW' | 'NW' | 'NE' | 'SE';
 
 /** A quadrat corner stake. Corners are in plot-axis terms (N = along y). */
 export function stakeXY(code: string, corner: StakeCorner, f: FrameGeometry): XY | null {
-  const q = parseQuadratCode(code);
+  const q = parseFgQuadratCode(code);
   if (!q) return null;
   const dx = corner === 'NE' || corner === 'SE' ? 1 : 0;
   const dy = corner === 'NW' || corner === 'NE' ? 1 : 0;

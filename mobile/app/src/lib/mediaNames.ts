@@ -41,6 +41,8 @@ export const MEDIA_COLUMNS: ReadonlyArray<readonly [table: string, column: strin
   ['gloria_units', 'photo_paths'],
   // Fixed-plot 1×1 m quadrats (v77).
   ['plot_quadrats', 'photo_paths'],
+  // Survey framework (v80): one file per row.
+  ['fw_media', 'uri'],
   ['gloria_points', 'photo_m2'],
   ['gloria_points', 'photo_m2f'],
   ['gloria_points', 'photo_point'],

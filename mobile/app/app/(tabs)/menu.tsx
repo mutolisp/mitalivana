@@ -74,6 +74,7 @@ export default function MenuScreen() {
   const usageRank = useSettings((s) => s.search_usage_rank);
   const moduleGloria = useSettings((s) => s.module_gloria);
   const moduleMiren = useSettings((s) => s.module_miren);
+  const moduleSurvey = useSettings((s) => s.module_survey);
   const fabSide = useSettings((s) => s.fab_side);
   const inatLogin = useSettings((s) => s.inat_login);
   const vectorReady = useVectorInstall((x) => x.ready);
@@ -230,7 +231,7 @@ export default function MenuScreen() {
   }, [searching]);
 
   const visible = (e: SettingsEntry) =>
-    e.visibleWhen === 'module_gloria' ? moduleGloria : e.visibleWhen === 'module_miren' ? moduleMiren : true;
+    e.visibleWhen === 'module_gloria' ? moduleGloria : e.visibleWhen === 'module_miren' ? moduleMiren : e.visibleWhen === 'module_survey' ? moduleSurvey : true;
 
   // A key missing in this locale must not match: t() would return the key
   // itself, and `settingsSearch.theme` contains "theme".
@@ -284,6 +285,7 @@ export default function MenuScreen() {
     usageRank: { value: usageRank, onChange: (v) => setSetting('search_usage_rank', v) },
     moduleGloria: { value: moduleGloria, onChange: (v) => setSetting('module_gloria', v) },
     moduleMiren: { value: moduleMiren, onChange: (v) => setSetting('module_miren', v) },
+    moduleSurvey: { value: moduleSurvey, onChange: (v) => setSetting('module_survey', v) },
   };
 
   const renderEntry = (e: SettingsEntry, search: boolean) => {
