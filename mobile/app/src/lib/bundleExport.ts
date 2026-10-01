@@ -16,6 +16,7 @@ import { readAsStringAsync } from 'expo-file-system/legacy';
 import * as MediaLibrary from 'expo-media-library';
 import yaml from 'js-yaml';
 import { strFromU8, strToU8, zipSync, type Zippable, type ZipOptions } from 'fflate';
+import { assertNever } from './assertNever';
 import {
   getActiveLayers,
   getPlotLayers,
@@ -1951,9 +1952,21 @@ export async function bundleMany(items: BundleItem[], opts: BundleOptions): Prom
   let totalPhotos = 0;
   if (opts.includePhotos) {
     for (const it of items) {
-      if (it.kind === 'session') totalPhotos += countPhotosSession(listSessionRecords(it.id));
-      else if (it.kind === 'collection') totalPhotos += countPhotosSession(listSpecimens(it.id));
-      else if (it.kind === 'plot') totalPhotos += countPhotosPlotWithEnv(it.id);
+      switch (it.kind) {
+        case 'session':
+          totalPhotos += countPhotosSession(listSessionRecords(it.id));
+          break;
+        case 'collection':
+          totalPhotos += countPhotosSession(listSpecimens(it.id));
+          break;
+        case 'plot':
+          totalPhotos += countPhotosPlotWithEnv(it.id);
+          break;
+        case 'gloria':
+          break; // buildGloriaEntries takes no shared progress counter
+        default:
+          assertNever(it, 'bundle kind');
+      }
     }
   }
   const ctx = { done: 0, total: totalPhotos, onProgress: opts.onProgress };
@@ -1967,27 +1980,38 @@ export async function bundleMany(items: BundleItem[], opts: BundleOptions): Prom
     // even before photo reads kick in (photos report their own 處理照片 x/y).
     opts.onProgress?.({ label: i18n.t('export.stage.records', { current: i + 1, total: items.length }), done: i, total: items.length });
     try {
-      if (it.kind === 'session') {
-        const { entries, folderName } = await buildSessionEntries(it.id, opts, ctx);
-        allEntries.push(...entries);
-        itemMeta.push({ kind: 'session', id: it.id, folder: folderName });
-      } else if (it.kind === 'collection') {
-        const { entries, folderName } = await buildCollectionEntries(it.id, opts, ctx);
-        allEntries.push(...entries);
-        itemMeta.push({
-          kind: 'collection',
-          id: it.id,
-          uuid: getCollectionTrip(it.id)?.uuid,
-          folder: folderName,
-        });
-      } else if (it.kind === 'gloria') {
-        const { entries, folderName } = await buildGloriaEntries(it.id, opts);
-        allEntries.push(...entries);
-        itemMeta.push({ kind: 'gloria', id: it.id, folder: folderName });
-      } else {
-        const { entries, folderName } = await buildPlotEntries(it.id, opts, ctx);
-        allEntries.push(...entries);
-        itemMeta.push({ kind: 'plot', id: it.id, uuid: getPlotSurvey(it.id)?.uuid, folder: folderName });
+      switch (it.kind) {
+        case 'session': {
+          const { entries, folderName } = await buildSessionEntries(it.id, opts, ctx);
+          allEntries.push(...entries);
+          itemMeta.push({ kind: 'session', id: it.id, folder: folderName });
+          break;
+        }
+        case 'collection': {
+          const { entries, folderName } = await buildCollectionEntries(it.id, opts, ctx);
+          allEntries.push(...entries);
+          itemMeta.push({
+            kind: 'collection',
+            id: it.id,
+            uuid: getCollectionTrip(it.id)?.uuid,
+            folder: folderName,
+          });
+          break;
+        }
+        case 'gloria': {
+          const { entries, folderName } = await buildGloriaEntries(it.id, opts);
+          allEntries.push(...entries);
+          itemMeta.push({ kind: 'gloria', id: it.id, folder: folderName });
+          break;
+        }
+        case 'plot': {
+          const { entries, folderName } = await buildPlotEntries(it.id, opts, ctx);
+          allEntries.push(...entries);
+          itemMeta.push({ kind: 'plot', id: it.id, uuid: getPlotSurvey(it.id)?.uuid, folder: folderName });
+          break;
+        }
+        default:
+          assertNever(it, 'bundle kind');
       }
     } catch (e) {
       // Skip a record that fails (e.g. empty) but record it in the bundle manifest.

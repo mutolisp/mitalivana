@@ -231,16 +231,16 @@ export function listRecordsSummary(filter: RecordFilter = 'all'): RecordsSummary
  * is missing from it — and a name missing from this set is a collision the
  * dialog would fail to warn about.
  */
+const TAKEN_NAMES_SQL: Record<RecordKind, string> = {
+  plot: `SELECT plotid AS name FROM plot_surveys`,
+  session: `SELECT name FROM sessions`,
+  gloria: `SELECT s.full_code || ' mocy ' || v.mocy AS name FROM gloria_surveys v JOIN gloria_summits s ON s.id = v.summit_id`,
+  collection: `SELECT name FROM collection_trips`,
+};
+
 export function takenRecordNames(kind: RecordKind): Set<string> {
   const db = getUserDb();
-  const sql =
-    kind === 'plot'
-      ? `SELECT plotid AS name FROM plot_surveys`
-      : kind === 'session'
-        ? `SELECT name FROM sessions`
-        : kind === 'gloria'
-          ? `SELECT s.full_code || ' mocy ' || v.mocy AS name FROM gloria_surveys v JOIN gloria_summits s ON s.id = v.summit_id`
-          : `SELECT name FROM collection_trips`;
+  const sql = TAKEN_NAMES_SQL[kind];
   const rows = (db.executeSync(sql).rows ?? []) as { name?: string }[];
   return new Set(rows.map((r) => (r.name ?? '').trim()).filter(Boolean));
 }

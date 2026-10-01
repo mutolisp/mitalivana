@@ -10,7 +10,10 @@
  * of surface distance from the HSP.
  */
 
-export type Range = { min?: number; max?: number; warnMin?: number; warnMax?: number; integer?: boolean; unit: string };
+import type { Range } from '../../../lib/numberRange';
+
+// Range and checkRange moved to src/lib/numberRange.ts (Phase 0); re-exported here.
+export { checkRange, type Range, type RangeCheck } from '../../../lib/numberRange';
 
 export const RANGES = {
   bearing: { min: 0, max: 360, unit: '°' },
@@ -30,13 +33,3 @@ export const RANGES = {
   /** Form 4 note 5: hours from local time to UTC. */
   utcDiff: { min: -14, max: 14, unit: 'h' },
 } satisfies Record<string, Range>;
-
-export type RangeCheck = 'ok' | 'reject' | 'warn';
-
-export function checkRange(v: number | null, r: Range): RangeCheck {
-  if (v == null) return 'ok';
-  if ((r.min != null && v < r.min) || (r.max != null && v > r.max)) return 'reject';
-  if (r.integer && !Number.isInteger(v)) return 'reject';
-  if ((r.warnMin != null && v < r.warnMin) || (r.warnMax != null && v > r.warnMax)) return 'warn';
-  return 'ok';
-}

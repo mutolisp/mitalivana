@@ -14,6 +14,7 @@
  * leaves the team's common ancestor (sync_base) and the merge log alone — it
  * is this device's own edit, synced like any other.
  */
+import { assertNever } from '~/lib/assertNever';
 import { deflateSync, inflateSync, strFromU8, strToU8 } from 'fflate';
 import { getUserDb } from '~/db/init';
 import { applyPlotMerge, applySessionMerge, localPlotDoc, localSessionDoc } from '~/db/teamMerge';
@@ -51,13 +52,15 @@ const META = 'id, record_kind, record_uuid, label, reason, note, content_hash, s
 function localDoc(kind: MergeKind, id: number): Doc | null {
   if (kind === 'session') return localSessionDoc(id);
   if (kind === 'plot') return localPlotDoc(id);
-  return localGloriaDoc(id);
+  if (kind === 'gloria') return localGloriaDoc(id);
+  return assertNever(kind, 'merge kind');
 }
 
 function sideOf(kind: MergeKind, doc: Doc): MergeSide {
   if (kind === 'session') return sessionSide(doc as ImportedSession);
   if (kind === 'plot') return plotSide(doc as ImportedPlot);
-  return gloriaSide(doc as GloriaDoc);
+  if (kind === 'gloria') return gloriaSide(doc as GloriaDoc);
+  return assertNever(kind, 'merge kind');
 }
 
 export function uuidAndLabel(kind: MergeKind, id: number): { uuid: string; label: string } | null {
@@ -69,15 +72,19 @@ export function uuidAndLabel(kind: MergeKind, id: number): { uuid: string; label
     const p = getPlotSurvey(id);
     return p ? { uuid: p.uuid, label: p.plotid ?? '' } : null;
   }
-  const sv = getGloriaSurvey(id);
-  const sm = sv ? getSummit(sv.summit_id) : null;
-  return sv && sm ? { uuid: sv.uuid, label: `${sm.full_code} mocy ${sv.mocy}` } : null;
+  if (kind === 'gloria') {
+    const sv = getGloriaSurvey(id);
+    const sm = sv ? getSummit(sv.summit_id) : null;
+    return sv && sm ? { uuid: sv.uuid, label: `${sm.full_code} mocy ${sv.mocy}` } : null;
+  }
+  return assertNever(kind, 'merge kind');
 }
 
 export function localRecordId(kind: MergeKind, uuid: string): number | null {
   if (kind === 'session') return getSessionByUuid(uuid)?.id ?? null;
   if (kind === 'plot') return getPlotSurveyByUuid(uuid)?.id ?? null;
-  return rows<{ id: number }>(`SELECT id FROM gloria_surveys WHERE uuid = ?`, [uuid])[0]?.id ?? null;
+  if (kind === 'gloria') return rows<{ id: number }>(`SELECT id FROM gloria_surveys WHERE uuid = ?`, [uuid])[0]?.id ?? null;
+  return assertNever(kind, 'merge kind');
 }
 
 const encode = (s: Snapshot) => b64u(deflateSync(strToU8(JSON.stringify(s)), { level: 9 }));
@@ -237,12 +244,20 @@ export function recoverRecord(kind: MergeKind, uuid: string): number {
   const latest = rows<{ id: number }>(`SELECT id FROM record_versions WHERE record_kind = ? AND record_uuid = ? ORDER BY created_at DESC, id DESC LIMIT 1`, [kind, uuid])[0];
   const snap = latest ? readSnapshot(latest.id) : null;
   if (!snap) throw new Error('no version to recover from');
-  const id =
-    kind === 'session'
-      ? importSession(snap.doc as ImportedSession, { newUuid: false }).sessionId
-      : kind === 'plot'
-        ? importPlotSurvey(snap.doc as ImportedPlot, { newUuid: false }).plotId
-        : importGloriaDoc(snap.doc as GloriaDoc).surveyId;
+  let id: number;
+  switch (kind) {
+    case 'session':
+      id = importSession(snap.doc as ImportedSession, { newUuid: false }).sessionId;
+      break;
+    case 'plot':
+      id = importPlotSurvey(snap.doc as ImportedPlot, { newUuid: false }).plotId;
+      break;
+    case 'gloria':
+      id = importGloriaDoc(snap.doc as GloriaDoc).surveyId;
+      break;
+    default:
+      return assertNever(kind, 'merge kind');
+  }
   putBackMedia(kind, id, snap.media);
   getUserDb().executeSync(`UPDATE record_versions SET deleted_at = NULL WHERE record_kind = ? AND record_uuid = ?`, [kind, uuid]);
   return id;

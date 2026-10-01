@@ -19,6 +19,7 @@ import { router, type Href } from 'expo-router';
 import { strToU8 } from 'fflate';
 import yaml from 'js-yaml';
 import { getUserDb } from '~/db/init';
+import { assertNever } from '~/lib/assertNever';
 import { getPlotLayers, getPlotSurvey, getPlotSurveyByUuid, getSubplotLayers, importPlotSurvey, listPlotSpecies, listSubplots } from '~/db/plots';
 import { getProject } from '~/db/projects';
 import { listSessionRecords } from '~/db/records';
@@ -491,10 +492,13 @@ function identOf(kind: MergeKind, id: number): Ident | null {
     const p = getPlotSurvey(id);
     return p ? { uuid: p.uuid, ident: p.uuid } : null;
   }
-  const sv = getGloriaSurvey(id);
-  const summit = sv ? getSummit(sv.summit_id) : null;
-  // Summit + cycle, not uuid: two phones that each started this survey meet.
-  return sv && summit ? { uuid: sv.uuid, ident: `${summit.full_code}|${sv.mocy}` } : null;
+  if (kind === 'gloria') {
+    const sv = getGloriaSurvey(id);
+    const summit = sv ? getSummit(sv.summit_id) : null;
+    // Summit + cycle, not uuid: two phones that each started this survey meet.
+    return sv && summit ? { uuid: sv.uuid, ident: `${summit.full_code}|${sv.mocy}` } : null;
+  }
+  return assertNever(kind, 'merge kind');
 }
 
 /** The record as an export yml (no media), carrying this device's ancestor. */
@@ -531,8 +535,10 @@ function recordText(kind: MergeKind, id: number, uuid: string, author: string | 
         quadrats: quadratsForDoc(id),
       });
     }
-  } else {
+  } else if (kind === 'gloria') {
     doc = loadGloriaDoc(id) as unknown as Record<string, unknown> | null;
+  } else {
+    assertNever(kind, 'merge kind');
   }
   if (!doc) throw new TeamSyncError('noRecord');
   // The file manifest is part of the fingerprint: a new photo makes the record "changed".
@@ -598,13 +604,36 @@ export type SyncLogEntry = {
   at: number;
 };
 
+/** The merge rows of a record as stored here, or null when it is gone. */
+function storedSide(kind: MergeKind, id: number): MergeSide | null {
+  switch (kind) {
+    case 'session': {
+      const d = localSessionDoc(id);
+      return d ? sessionSide(d) : null;
+    }
+    case 'plot': {
+      const d = localPlotDoc(id);
+      return d ? plotSide(d) : null;
+    }
+    case 'gloria': {
+      const d = localGloriaDoc(id);
+      return d ? gloriaSide(d) : null;
+    }
+    default:
+      return assertNever(kind, 'merge kind');
+  }
+}
+
 /** A record's name as the lists show it: checklist name, plot id, GLORIA summit and cycle. */
 function recordLabel(kind: MergeKind, id: number): string | null {
   if (kind === 'session') return getSession(id)?.name ?? null;
   if (kind === 'plot') return getPlotSurvey(id)?.plotid ?? null;
-  const sv = getGloriaSurvey(id);
-  const sm = sv ? getSummit(sv.summit_id) : null;
-  return sv && sm ? `${sm.full_code} mocy ${sv.mocy}` : null;
+  if (kind === 'gloria') {
+    const sv = getGloriaSurvey(id);
+    const sm = sv ? getSummit(sv.summit_id) : null;
+    return sv && sm ? `${sm.full_code} mocy ${sv.mocy}` : null;
+  }
+  return assertNever(kind, 'merge kind');
 }
 
 function logSync(
@@ -724,8 +753,10 @@ export type SyncOutcome = {
 /** An unchanged record is still re-sent after this long, well inside the relay's 90-day expiry. */
 const REUPLOAD_MS = 30 * 24 * 3600 * 1000;
 
+const ROUTE_OF: Record<MergeKind, string> = { session: '/session', plot: '/plot', gloria: '/gloria' };
+
 function hrefOf(kind: MergeKind, id: number): Href {
-  return (kind === 'session' ? `/session/${id}` : kind === 'plot' ? `/plot/${id}` : `/gloria/${id}`) as Href;
+  return `${ROUTE_OF[kind]}/${id}` as Href;
 }
 
 /**
@@ -867,7 +898,8 @@ async function syncRecordNow(teamId: string, kind: MergeKind, id: number, opts: 
 export function localIdOf(kind: MergeKind, uuid: string): number | null {
   if (kind === 'session') return getSessionByUuid(uuid)?.id ?? null;
   if (kind === 'plot') return getPlotSurveyByUuid(uuid)?.id ?? null;
-  return rows<{ id: number }>(`SELECT id FROM gloria_surveys WHERE uuid = ?`, [uuid])[0]?.id ?? null;
+  if (kind === 'gloria') return rows<{ id: number }>(`SELECT id FROM gloria_surveys WHERE uuid = ?`, [uuid])[0]?.id ?? null;
+  return assertNever(kind, 'merge kind');
 }
 
 /** Send what was queued while offline. Stops at the first review. */
@@ -1059,23 +1091,17 @@ async function pullTeamRecordsNow(teamId: string): Promise<{ imported: number; l
     } else if (payload.kind === 'plot') {
       remapPlotTaxa(payload.plot);
       newId = importPlotSurvey(payload.plot, { newUuid: false }).plotId;
-    } else {
+    } else if (payload.kind === 'gloria') {
       if (validateGloriaDoc(payload.gloria).length) continue;
       newId = importGloriaDoc(withoutSenderFiles(payload.gloria)).surveyId;
+    } else {
+      return assertNever(payload, 'sync payload kind');
     }
     // The imported rows are what both sides now share.
     const who = identOf(kind, newId);
     if (!who) continue;
-    const stored = kind === 'session' ? localSessionDoc(newId) : kind === 'plot' ? localPlotDoc(newId) : localGloriaDoc(newId);
-    if (stored) {
-      const side =
-        kind === 'session'
-          ? sessionSide(stored as NonNullable<ReturnType<typeof localSessionDoc>>)
-          : kind === 'plot'
-            ? plotSide(stored as NonNullable<ReturnType<typeof localPlotDoc>>)
-            : gloriaSide(stored as NonNullable<ReturnType<typeof localGloriaDoc>>);
-      setSyncBase(kind, who.uuid, baseOf(side));
-    }
+    const side = storedSide(kind, newId);
+    if (side) setSyncBase(kind, who.uuid, baseOf(side));
     link(teamId, kind, who.uuid, rec, Date.now());
     markSeen(teamId, rec, it.dev, it.etag);
     logSync(teamId, 'import', { kind, uuid: who.uuid, id: newId }, { server: serverOf(team), bytes: it.size, detail: payload.sync?.author ?? null });

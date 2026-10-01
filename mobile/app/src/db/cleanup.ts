@@ -12,6 +12,7 @@ import { getUserDb } from './init';
 import { endActiveRecord, type ActiveKind } from './activeRecords';
 import { CASCADE_ORPHANS, NULL_DANGLING, PROJECT_FK_TABLES } from './integrityRules';
 import { DELETED_KEEP_MS } from '~/lib/recordVersionsCore';
+import type { MergeKind } from '~/lib/mergeDocs';
 
 /**
  * Enforce the single-active invariant at app start.
@@ -185,17 +186,19 @@ export function listSafetyBackups(): { name: string; uri: string; size: number }
  */
 export function sweepRecordVersions(now = Date.now()): void {
   const db = getUserDb();
-  const alive = {
-    session: `SELECT uuid FROM sessions WHERE uuid IS NOT NULL`,
-    plot: `SELECT uuid FROM plot_surveys`,
-    gloria: `SELECT uuid FROM gloria_surveys`,
-  };
-  for (const [kind, sql] of Object.entries(alive)) {
+  for (const [kind, sql] of Object.entries(LIVE_UUIDS)) {
     db.executeSync(`UPDATE record_versions SET deleted_at = ? WHERE record_kind = ? AND deleted_at IS NULL AND record_uuid NOT IN (${sql})`, [now, kind]);
     db.executeSync(`UPDATE record_versions SET deleted_at = NULL WHERE record_kind = ? AND deleted_at IS NOT NULL AND record_uuid IN (${sql})`, [kind]);
   }
   db.executeSync(`DELETE FROM record_versions WHERE deleted_at IS NOT NULL AND deleted_at < ?`, [now - DELETED_KEEP_MS]);
 }
+
+/** Uuids of the records of each synced / versioned kind that still exist. */
+const LIVE_UUIDS: Record<MergeKind, string> = {
+  session: `SELECT uuid FROM sessions WHERE uuid IS NOT NULL`,
+  plot: `SELECT uuid FROM plot_surveys`,
+  gloria: `SELECT uuid FROM gloria_surveys`,
+};
 
 export function purgeOrphanRows(): void {
   const db = getUserDb();
@@ -203,19 +206,15 @@ export function purgeOrphanRows(): void {
   // Declared ON DELETE CASCADE → the parent is gone, so the child must go too.
   const orphanDeletes: Array<readonly [string, string]> = [
     ...CASCADE_ORPHANS,
-    // Team-merge ancestors (v57) of records no longer here.
-    ['sync_base', `record_kind = 'session' AND record_uuid NOT IN (SELECT uuid FROM sessions WHERE uuid IS NOT NULL)`],
-    ['sync_base', `record_kind = 'plot' AND record_uuid NOT IN (SELECT uuid FROM plot_surveys)`],
-    ['sync_base', `record_kind = 'gloria' AND record_uuid NOT IN (SELECT uuid FROM gloria_surveys)`],
-    // Team sync (v58): links and queued sends of records no longer here.
-    ['sync_links', `record_kind = 'session' AND record_uuid NOT IN (SELECT uuid FROM sessions WHERE uuid IS NOT NULL)`],
-    ['sync_links', `record_kind = 'plot' AND record_uuid NOT IN (SELECT uuid FROM plot_surveys)`],
-    ['sync_links', `record_kind = 'gloria' AND record_uuid NOT IN (SELECT uuid FROM gloria_surveys)`],
-    // Merge log (v67) of records no longer here.
-    ['merge_log', `record_kind = 'session' AND record_uuid NOT IN (SELECT uuid FROM sessions WHERE uuid IS NOT NULL)`],
-    ['merge_log', `record_kind = 'plot' AND record_uuid NOT IN (SELECT uuid FROM plot_surveys)`],
-    ['merge_log', `record_kind = 'gloria' AND record_uuid NOT IN (SELECT uuid FROM gloria_surveys)`],
-    ['sync_queue', `record_uuid NOT IN (SELECT uuid FROM sessions WHERE uuid IS NOT NULL UNION SELECT uuid FROM plot_surveys UNION SELECT uuid FROM gloria_surveys)`],
+    // Rows keyed by (record_kind, record_uuid) whose record is no longer here:
+    // team-merge ancestors (v57), team-sync links and queued sends (v58), the
+    // merge log (v67). One rule per kind, from LIVE_UUIDS — a kind missing
+    // there is a type error, never a rule that deletes its rows wholesale.
+    ...(['sync_base', 'sync_links', 'merge_log', 'sync_queue'] as const).flatMap((table) =>
+      Object.entries(LIVE_UUIDS).map(
+        ([kind, sql]) => [table, `record_kind = '${kind}' AND record_uuid NOT IN (${sql})`] as const,
+      ),
+    ),
     // Sync log (v70): only teams still on this device, newest 500 per team.
     // Entries of deleted records stay (their label says what they were).
     ['sync_log', `team_id NOT IN (SELECT team_id FROM sync_teams)`],

@@ -10,6 +10,7 @@
  *   3. writes the ops in one transaction;
  *   4. stores the sender's rows as the new common ancestor.
  */
+import { assertNever } from './assertNever';
 import { Directory, File, Paths } from 'expo-file-system';
 import { create } from 'zustand';
 import { addMergeLog } from '~/db/mergeLog';
@@ -66,12 +67,20 @@ const BACKUP_OPTS: BundleOptions = {
 
 /** The record as it is now, as an export zip. Returns the saved file. */
 export async function backupBeforeMerge(kind: MergeKind, id: number): Promise<File> {
-  const zip =
-    kind === 'session'
-      ? await bundleSession(id, BACKUP_OPTS)
-      : kind === 'plot'
-        ? await bundlePlot(id, BACKUP_OPTS)
-        : await bundleGloria(id, BACKUP_OPTS);
+  let zip: Awaited<ReturnType<typeof bundleSession>>;
+  switch (kind) {
+    case 'session':
+      zip = await bundleSession(id, BACKUP_OPTS);
+      break;
+    case 'plot':
+      zip = await bundlePlot(id, BACKUP_OPTS);
+      break;
+    case 'gloria':
+      zip = await bundleGloria(id, BACKUP_OPTS);
+      break;
+    default:
+      return assertNever(kind, 'merge kind');
+  }
   const dir = new Directory(Paths.document, MERGE_BACKUP_DIR);
   if (!dir.exists) dir.create();
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');

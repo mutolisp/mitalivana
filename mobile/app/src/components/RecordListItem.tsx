@@ -77,6 +77,13 @@ export function recordDiversity(
   return v;
 }
 
+const KIND_ICON: Record<RecordKind, keyof typeof Ionicons.glyphMap> = {
+  session: 'list',
+  plot: 'grid-outline',
+  gloria: 'triangle-outline',
+  collection: 'pricetag-outline',
+};
+
 /**
  * Kind tile: the colour says what KIND of record it is (checklist moss, plot
  * and GLORIA acorn, collection cupule). Whether it is recording is carried by
@@ -97,8 +104,7 @@ export function KindIcon({
       : kind === 'collection'
         ? { bg: 'bg-gray-100 dark:bg-gray-800', tint: c.cupule }
         : { bg: 'bg-acorn-tint dark:bg-gray-800', tint: c.acornDeep };
-  const iconName =
-    kind === 'session' ? 'list' : kind === 'collection' ? 'pricetag-outline' : kind === 'gloria' ? 'triangle-outline' : 'grid-outline';
+  const iconName = KIND_ICON[kind];
   const box = size === 'sm' ? 'h-7 w-7 rounded-lg' : 'h-10 w-10 rounded-xl';
   return (
     <View className={`items-center justify-center ${box} ${look.bg}`}>

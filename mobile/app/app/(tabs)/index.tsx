@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { assertNever } from '~/lib/assertNever';
 import { useFocusEffect, useRouter, type Href } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -667,8 +668,20 @@ export default function RecordsListScreen() {
     selectClear();
   };
 
-  const nounOf = (kind: RecordKind): string =>
-    t(kind === 'session' ? 'nav.session' : kind === 'plot' ? 'nav.plot' : kind === 'gloria' ? 'nav.gloria' : 'nav.collection');
+  const nounOf = (kind: RecordKind): string => {
+    switch (kind) {
+      case 'session':
+        return t('nav.session');
+      case 'plot':
+        return t('nav.plot');
+      case 'gloria':
+        return t('nav.gloria');
+      case 'collection':
+        return t('nav.collection');
+      default:
+        return assertNever(kind, 'record kind');
+    }
+  };
 
   const handleDuplicate = (item: RecordItem) => {
     // A GLORIA survey is one summit × one monitoring cycle; a copy would be a

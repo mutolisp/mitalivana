@@ -39,12 +39,19 @@ export function closeActiveRecords(db: Db, now: number, keep?: { kind: ActiveKin
   );
 }
 
+/** Tables of the kinds that end by `stop_ts` (a session ends by `ended_at`). */
+const SURVEY_TABLE: Record<Exclude<ActiveKind, 'session'>, string> = {
+  plot: 'plot_surveys',
+  gloria: 'gloria_surveys',
+  miren: 'miren_surveys',
+};
+
 /** End one record of any kind. */
 export function endActiveRecord(db: Db, now: number, kind: ActiveKind, id: number): void {
   if (kind === 'session') {
     db.executeSync(`UPDATE sessions SET status = 'done', ended_at = COALESCE(ended_at, ?) WHERE id = ?`, [now, id]);
   } else {
-    const table = kind === 'plot' ? 'plot_surveys' : kind === 'gloria' ? 'gloria_surveys' : 'miren_surveys';
+    const table = SURVEY_TABLE[kind];
     db.executeSync(
       `UPDATE ${table} SET status = 'done', stop_ts = COALESCE(stop_ts, ?), updated_at = ? WHERE id = ?`,
       [now, now, id],

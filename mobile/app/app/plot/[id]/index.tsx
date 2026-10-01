@@ -1,5 +1,7 @@
 import { errText } from '~/lib/errText';
-import { parseNum } from '~/lib/parseNum';
+import { CollapsibleSection, Section } from '~/components/form/Section';
+import { LabeledField, LabeledNumField } from '~/components/form/LabeledField';
+import { captureFix } from '~/lib/gnssFix';
 import { Ionicons } from '@expo/vector-icons';
 import { FolderAreaMap } from '~/components/FolderAreaMap';
 import { RecordLocationMap } from '~/components/RecordLocationMap';
@@ -13,10 +15,9 @@ import {
 } from '~/components/SwipeNavigator';
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { BackHeaderLeft } from '~/lib/goBack';
-import * as Location from 'expo-location';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, Platform, Pressable, Text, TextInput, View } from 'react-native';
+import { Alert, Platform, Pressable, Text, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -55,7 +56,6 @@ import {
 } from '~/db';
 import { PhotoGrid, PhotoViewerModal } from '~/components/PhotoGrid';
 import { useThemeColors } from '~/theme/colors';
-import { useToast } from '~/stores/toast';
 import { PlotSpeciesTab } from '~/components/PlotSpeciesTab';
 import { plotStatsSummary } from '~/components/PlotDiversityCard';
 import { checkPlotCover } from '~/lib/plotCoverCheck';
@@ -486,24 +486,16 @@ function EnvTab({
   const coverRounded = Math.round(coverTotal * 100) / 100;
 
   const captureGps = async () => {
-    const perm = await Location.requestForegroundPermissionsAsync();
-    if (perm.status !== 'granted') {
-      Alert.alert(t('gnss.permTitle'), t('gnss.permMsg'));
-      return;
-    }
+    const fix = await captureFix();
+    if (!fix) return;
     try {
-      const pos = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.High,
-      });
       patch({
-        decimal_latitude: pos.coords.latitude,
-        decimal_longitude: pos.coords.longitude,
-        coord_uncertainty_m: pos.coords.accuracy ?? null,
+        decimal_latitude: fix.lat,
+        decimal_longitude: fix.lng,
+        coord_uncertainty_m: fix.accuracy,
         // Grab altitude (海拔) from the same GNSS fix; keep existing value if the
         // device couldn't resolve altitude (often null indoors / poor signal).
-        ...(pos.coords.altitude != null
-          ? { elevation_m: Math.round(pos.coords.altitude), elevation_source: 'gnss' }
-          : null),
+        ...(fix.altitudeM != null ? { elevation_m: Math.round(fix.altitudeM), elevation_source: 'gnss' } : null),
         start_ts: plot.start_ts ?? Date.now(),
       });
     } catch (e) {
@@ -528,7 +520,7 @@ function EnvTab({
       {locked ? <LockedBanner /> : null}
       <View pointerEvents={locked ? 'none' : 'auto'}>
       <Section title={t('plot.required')} required>
-        <Field label="Plotid" value={plot.plotid} onSave={(v) => patch({ plotid: v })} required />
+        <LabeledField label="Plotid" value={plot.plotid} onSave={(v) => patch({ plotid: v })} required />
 
         <Pressable
           onPress={() => setProjectSheetOpen(true)}
@@ -619,7 +611,7 @@ function EnvTab({
 
         {plot.plot_type === 'point_count' ? (
           <>
-            <NumField
+            <LabeledNumField
               label={t('plot.radius')}
               value={plot.point_radius_m}
               placeholder={t('plot.egRadius')}
@@ -671,13 +663,13 @@ function EnvTab({
         {/* A transect needs no plot size / unit: its track length gives its extent. */}
         {plot.plot_type !== 'transect' ? (
           <>
-            <NumField
+            <LabeledNumField
               label={t('plot.sampleSizeValue')}
               value={plot.sample_size_value}
               placeholder={t('plot.egSampleSize')}
               onSave={(n) => patch({ sample_size_value: n })}
             />
-            <Field
+            <LabeledField
               label={t('plot.sampleSizeUnit')}
               value={plot.sample_size_unit ?? ''}
               placeholder={t('plot.egSampleUnit')}
@@ -685,13 +677,13 @@ function EnvTab({
             />
           </>
         ) : null}
-        <Field
+        <LabeledField
           label={t('plot.samplingProtocol')}
           value={plot.sampling_protocol ?? ''}
           placeholder={t('plot.egProtocol')}
           onSave={(v) => patch({ sampling_protocol: v || null })}
         />
-        <NumField
+        <LabeledNumField
           label={t('plot.totalCover')}
           value={plot.total_cover_pct}
           suffix="%"
@@ -710,14 +702,14 @@ function EnvTab({
             })}
           </Text>
         ) : null}
-        <Field
+        <LabeledField
           label={t('plot.locality')}
           value={plot.locality ?? ''}
           placeholder={t('plot.egLocality')}
           onSave={(v) => patch({ locality: v || null })}
           multiline
         />
-        <Field
+        <LabeledField
           label={t('plot.fieldNote')}
           value={plot.field_note ?? ''}
           onSave={(v) => patch({ field_note: v || null })}
@@ -741,13 +733,13 @@ function EnvTab({
       ) : null}
 
       <CollapsibleSection title={t('plot.advanced')}>
-        <NumField
+        <LabeledNumField
           label={t('plot.elevation')}
           suffix="m"
           value={plot.elevation_m}
           onSave={(n) => patch({ elevation_m: n, elevation_source: n != null ? 'manual' : null })}
         />
-        <NumField
+        <LabeledNumField
           label={t('plot.slope')}
           suffix="°"
           value={plot.slope_deg}
@@ -755,7 +747,7 @@ function EnvTab({
           max={90}
           onSave={(n) => patch({ slope_deg: n })}
         />
-        <NumField
+        <LabeledNumField
           label={t('plot.aspect')}
           suffix="°"
           value={plot.aspect_deg}
@@ -763,13 +755,13 @@ function EnvTab({
           max={359}
           onSave={(n) => patch({ aspect_deg: n })}
         />
-        <Field
+        <LabeledField
           label={t('plot.terrainPosition')}
           value={plot.terrain_position ?? ''}
           placeholder="ridge / upper / mid / lower / valley / plain"
           onSave={(v) => patch({ terrain_position: v || null })}
         />
-        <NumField
+        <LabeledNumField
           label={t('plot.vascularCover')}
           suffix="%"
           value={plot.vascular_cover_pct}
@@ -777,7 +769,7 @@ function EnvTab({
           max={100}
           onSave={(n) => patchCover('vascular_cover_pct', n)}
         />
-        <NumField
+        <LabeledNumField
           label={t('plot.bryophyteCover')}
           suffix="%"
           value={plot.bryophyte_cover_pct}
@@ -785,7 +777,7 @@ function EnvTab({
           max={100}
           onSave={(n) => patchCover('bryophyte_cover_pct', n)}
         />
-        <NumField
+        <LabeledNumField
           label={t('plot.lichenCover')}
           suffix="%"
           value={plot.lichen_cover_pct}
@@ -793,7 +785,7 @@ function EnvTab({
           max={100}
           onSave={(n) => patchCover('lichen_cover_pct', n)}
         />
-        <NumField
+        <LabeledNumField
           label={t('plot.litterCover')}
           suffix="%"
           value={plot.litter_cover_pct}
@@ -801,7 +793,7 @@ function EnvTab({
           max={100}
           onSave={(n) => patchCover('litter_cover_pct', n)}
         />
-        <NumField
+        <LabeledNumField
           label={t('plot.rockCover')}
           suffix="%"
           value={plot.rock_cover_pct}
@@ -809,7 +801,7 @@ function EnvTab({
           max={100}
           onSave={(n) => patchCover('rock_cover_pct', n)}
         />
-        <NumField
+        <LabeledNumField
           label={t('plot.gravelCover')}
           suffix="%"
           value={plot.gravel_cover_pct}
@@ -817,7 +809,7 @@ function EnvTab({
           max={100}
           onSave={(n) => patchCover('gravel_cover_pct', n)}
         />
-        <NumField
+        <LabeledNumField
           label={t('plot.bareCover')}
           suffix="%"
           value={plot.bareland_cover_pct}
@@ -875,30 +867,6 @@ function EnvTab({
       />
       </View>
     </KeyboardAwareScrollView>
-  );
-}
-
-function Section({
-  title,
-  required,
-  children,
-}: {
-  title: string;
-  required?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <View className="px-4 py-3">
-      {title ? (
-        <View className="mb-2 flex-row items-center">
-          <Text className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-            {title}
-          </Text>
-          {required ? <Text className="ml-1 text-xs text-red-500">*</Text> : null}
-        </View>
-      ) : null}
-      {children}
-    </View>
   );
 }
 
@@ -967,34 +935,6 @@ function PlotBoundarySection({ plot }: { plot: PlotSurvey }) {
         {t('plot.rangeHint')}
       </Text>
     </CollapsibleSection>
-  );
-}
-
-function CollapsibleSection({
-  title,
-  defaultExpanded = false,
-  children,
-}: {
-  title: string;
-  defaultExpanded?: boolean;
-  children: React.ReactNode;
-}) {
-  const c = useThemeColors();
-  const [open, setOpen] = useState(defaultExpanded);
-  return (
-    <View className="px-4 py-3">
-      <Pressable
-        onPress={() => setOpen((o) => !o)}
-        className={`flex-row items-center ${open ? 'mb-2' : ''}`}
-        hitSlop={6}
-      >
-        <Ionicons name={open ? 'chevron-down' : 'chevron-forward'} size={16} color={c.ink2} />
-        <Text className="ml-1 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-          {title}
-        </Text>
-      </Pressable>
-      {open ? children : null}
-    </View>
   );
 }
 
@@ -1095,14 +1035,14 @@ function SubplotSection({ plot, onUpdated }: { plot: PlotSurvey; onUpdated: () =
           </Text>
           <View className="flex-row gap-3">
             <View className="flex-1">
-              <NumField
+              <LabeledNumField
                 label={t('plot.width')}
                 value={first?.width_m ?? null}
                 onSave={(n) => applyUniform({ width_m: n })}
               />
             </View>
             <View className="flex-1">
-              <NumField
+              <LabeledNumField
                 label={t('plot.length')}
                 value={first?.length_m ?? null}
                 onSave={(n) => applyUniform({ length_m: n })}
@@ -1117,7 +1057,7 @@ function SubplotSection({ plot, onUpdated }: { plot: PlotSurvey; onUpdated: () =
           key={s.id}
           className="mb-2 rounded-lg border border-gray-200 bg-card px-3 py-2 dark:border-gray-700 dark:bg-gray-900"
         >
-          <Field
+          <LabeledField
             label={t('plot.subplotName', { idx: s.idx })}
             value={s.label}
             onSave={(v) => {
@@ -1129,7 +1069,7 @@ function SubplotSection({ plot, onUpdated }: { plot: PlotSurvey; onUpdated: () =
           {!uniform ? (
             <View className="flex-row gap-3">
               <View className="flex-1">
-                <NumField
+                <LabeledNumField
                   label={t('plot.width')}
                   value={s.width_m}
                   onSave={(n) => {
@@ -1139,7 +1079,7 @@ function SubplotSection({ plot, onUpdated }: { plot: PlotSurvey; onUpdated: () =
                 />
               </View>
               <View className="flex-1">
-                <NumField
+                <LabeledNumField
                   label={t('plot.length')}
                   value={s.length_m}
                   onSave={(n) => {
@@ -1153,114 +1093,6 @@ function SubplotSection({ plot, onUpdated }: { plot: PlotSurvey; onUpdated: () =
         </View>
       ))}
     </CollapsibleSection>
-  );
-}
-
-function Field({
-  label,
-  value,
-  placeholder,
-  required,
-  multiline,
-  keyboardType,
-  suffix,
-  onSave,
-}: {
-  label: string;
-  value: string;
-  placeholder?: string;
-  required?: boolean;
-  multiline?: boolean;
-  keyboardType?: 'default' | 'decimal-pad' | 'numeric';
-  suffix?: string;
-  onSave: (v: string) => void;
-}) {
-  const c = useThemeColors();
-  const [draft, setDraft] = useState(value);
-  useEffect(() => {
-    setDraft(value);
-  }, [value]);
-  const dirty = draft !== value;
-
-  return (
-    <View className="mb-3">
-      <Text className="mb-1 text-xs font-medium text-gray-600 dark:text-gray-400">
-        {label}
-        {required ? <Text className="text-red-500"> *</Text> : null}
-      </Text>
-      <View className="flex-row items-center rounded-lg border border-gray-200 bg-card px-3 dark:border-gray-700 dark:bg-gray-900">
-        <TextInput
-          value={draft}
-          onChangeText={setDraft}
-          onBlur={() => {
-            if (dirty) onSave(draft);
-          }}
-          placeholder={placeholder}
-          placeholderTextColor={c.ink3}
-          multiline={multiline}
-          keyboardType={keyboardType}
-          className="flex-1 py-2 text-sm text-gray-900 dark:text-gray-100"
-        />
-        {suffix ? (
-          <Text className="ml-1 text-xs text-gray-500 dark:text-gray-400">{suffix}</Text>
-        ) : null}
-      </View>
-    </View>
-  );
-}
-
-function NumField({
-  label,
-  suffix,
-  placeholder,
-  value,
-  onSave,
-  min,
-  max,
-}: {
-  label: string;
-  suffix?: string;
-  placeholder?: string;
-  value: number | null;
-  onSave: (n: number | null) => void;
-  /** Inclusive lower bound. 0 is a real value everywhere this is used —
-   *  0% cover, 0° slope (flat), 0° aspect (due north) — so it must pass. */
-  min?: number;
-  /** Inclusive upper bound. */
-  max?: number;
-}) {
-  const { t } = useTranslation();
-
-  const toast = useToast((s) => s.show);
-  // Bumping this remounts <Field>, resetting its draft to the last saved value
-  // (used to discard an out-of-range or unreadable entry).
-  const [resetKey, setResetKey] = useState(0);
-  const ranged = min !== undefined || max !== undefined;
-  return (
-    <Field
-      key={resetKey}
-      label={label}
-      value={value !== null ? String(value) : ''}
-      placeholder={placeholder}
-      keyboardType="decimal-pad"
-      suffix={suffix}
-      onSave={(v) => {
-        if (v.trim() === '') {
-          onSave(null);
-          return;
-        }
-        // An unreadable entry reverts instead of saving null: clearing the
-        // stored value because of a typo is data loss.
-        const n = parseNum(v);
-        const ok = n !== null && (min === undefined || n >= min) && (max === undefined || n <= max);
-        if (!ok) {
-          if (ranged) toast(t('plot.numRange', { min: min ?? 0, max: max ?? 100 }));
-          setResetKey((k) => k + 1);
-          return;
-        }
-        onSave(n);
-      }}
-    />
   );
 }
 
@@ -1374,7 +1206,7 @@ function LayerSection({ plot, onUpdated }: { plot: PlotSurvey; onUpdated: () => 
             </Text>
             <View className="mt-2 flex-row gap-3">
               <View className="flex-1">
-                <NumField
+                <LabeledNumField
                   label="Cover"
                   suffix="%"
                   value={row?.cover_pct ?? null}
@@ -1394,7 +1226,7 @@ function LayerSection({ plot, onUpdated }: { plot: PlotSurvey; onUpdated: () => 
                         : row.height_cm;
                   return (
                     <>
-                      <NumField
+                      <LabeledNumField
                         label="Height"
                         suffix={unit}
                         value={display}

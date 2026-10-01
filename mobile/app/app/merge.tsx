@@ -233,8 +233,10 @@ function AutoRow({ item, on, onToggle }: { item: MergeItem; on: boolean; onToggl
   );
 }
 
+const ROUTE_OF: Record<PendingMerge['kind'], string> = { session: '/session', plot: '/plot', gloria: '/gloria' };
+
 function hrefOf(p: PendingMerge): Href {
-  return (p.kind === 'session' ? `/session/${p.localId}` : p.kind === 'plot' ? `/plot/${p.localId}` : `/gloria/${p.localId}`) as Href;
+  return `${ROUTE_OF[p.kind]}/${p.localId}` as Href;
 }
 
 export default function MergeReviewScreen() {

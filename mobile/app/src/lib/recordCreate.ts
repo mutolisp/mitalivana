@@ -8,6 +8,7 @@
  * kind is active prompts the user to finish / resume the active one first.
  */
 import { errText } from '~/lib/errText';
+import { assertNever } from '~/lib/assertNever';
 import { router, type Href } from 'expo-router';
 import { Alert } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
@@ -331,10 +332,22 @@ export async function importRecordPromptAndOpen(): Promise<void> {
   }
 
   try {
-    if (payload.kind === 'gloria') await finishGloriaImport(payload.gloria, payload.sync);
-    else if (payload.kind === 'plot') await finishPlotImport(payload);
-    else if (payload.kind === 'collection') await finishCollectionImport(payload);
-    else await finishSessionImport(payload);
+    switch (payload.kind) {
+      case 'gloria':
+        await finishGloriaImport(payload.gloria, payload.sync);
+        break;
+      case 'plot':
+        await finishPlotImport(payload);
+        break;
+      case 'collection':
+        await finishCollectionImport(payload);
+        break;
+      case 'session':
+        await finishSessionImport(payload);
+        break;
+      default:
+        assertNever(payload, 'import kind');
+    }
   } catch (e) {
     Alert.alert(i18n.t('recordCreate.importFailTitle'), importErrorMessage(e));
   }

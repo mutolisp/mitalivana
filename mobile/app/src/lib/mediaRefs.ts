@@ -9,6 +9,7 @@
  * visit uuid; '' is the record's own row. `updated_at` is left alone: file
  * references are this device's and are not part of what merges compare.
  */
+import { assertNever } from './assertNever';
 import { getUserDb } from '~/db/init';
 import type { MergeKind } from './mergeDocs';
 import { itemsIn, MEDIA_COLUMN_KINDS, withAddition, type FileItem, type MediaMeta, type MediaRef } from './mediaRefsCore';
@@ -34,12 +35,14 @@ function specs(kind: MergeKind): TableSpec[] {
       { table: 'plot_quadrats', key: 'idx', cols: colsOf('plot_quadrats'), where: 'plot_survey_id = ?' },
       { table: 'plot_surveys', key: null, cols: colsOf('plot_surveys'), where: 'id = ?' },
     ];
-  return [
-    { table: 'gloria_units', key: 'code', cols: colsOf('gloria_units'), where: 'survey_id = ?' },
-    { table: 'gloria_points', key: 'point_key', cols: colsOf('gloria_points'), where: 'survey_id = ?' },
-    { table: 'gloria_photo_checks', key: 'item', cols: colsOf('gloria_photo_checks'), where: 'survey_id = ?' },
-    { table: 'gloria_surveys', key: null, cols: colsOf('gloria_surveys'), where: 'id = ?' },
-  ];
+  if (kind === 'gloria')
+    return [
+      { table: 'gloria_units', key: 'code', cols: colsOf('gloria_units'), where: 'survey_id = ?' },
+      { table: 'gloria_points', key: 'point_key', cols: colsOf('gloria_points'), where: 'survey_id = ?' },
+      { table: 'gloria_photo_checks', key: 'item', cols: colsOf('gloria_photo_checks'), where: 'survey_id = ?' },
+      { table: 'gloria_surveys', key: null, cols: colsOf('gloria_surveys'), where: 'id = ?' },
+    ];
+  return assertNever(kind, 'merge kind');
 }
 
 /** Every file the record refers to, where it sits, and its note. */
