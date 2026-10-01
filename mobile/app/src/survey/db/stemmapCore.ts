@@ -416,12 +416,18 @@ export function isFirstCensus(ctx: { db: SurveyDb }, surveyId: number): boolean 
   return previousCensusId(ctx, surveyId) == null;
 }
 
-/** Delete the latest census of its series, with the trees and stems it added. */
-export function deleteCensus(ctx: Ctx, id: number): void {
+/** Throws unless this is the latest census of its series (the only one that can be deleted). */
+export function assertDeletableCensus(ctx: { db: SurveyDb }, id: number): void {
   const s = getSurvey(ctx, id);
   if (!s) throw new SurveyError('not_found', 'survey');
   const later = one(ctx, `SELECT 1 AS x FROM fw_surveys WHERE series_id = ? AND census_no > ?`, [s.series_id, s.census_no]);
   if (later) throw new SurveyError('not_latest_census');
+}
+
+/** Delete the latest census of its series, with the trees and stems it added. */
+export function deleteCensus(ctx: Ctx, id: number): void {
+  assertDeletableCensus(ctx, id);
+  const s = getSurvey(ctx, id)!;
   run(
     ctx,
     `DELETE FROM fw_stems WHERE first_survey_id = ? AND id NOT IN (SELECT stem_id FROM fw_stem_measures WHERE survey_id <> ?)`,

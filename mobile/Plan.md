@@ -489,7 +489,8 @@ MIREN（規劃中）→ `docs/planned/MIREN.md`；
 - [ ] Phase 1：框架核心（v80）＋每木調查模板（`docs/ForestGEO/Stem_mapping.md`），含團隊合併、平板分割畫面、vegan 寬表
   - [x] 1A 資料層：v80 各表、模板型別／registry／驗證器（`check:templates`）、內建每木模板、每木資料層 `src/survey/db/stemmapCore.ts`（`check:survey-db`）（2026-10-01）
   - [x] 1B 畫面：設定開關（預設關閉）、永久樣區、回合畫面、位置圖、單株編輯、複查、檢查清單、平板分割與 Android 平板橫向、7 種語系（2026-10-01；實機見 Device_test §77；Android 橫向要重新 build 原生）
-  - [ ] 1C 以樣方為單位的版本與復原；以區塊為單位的同步與合併（`check:media-refs` 的 `fw_media` 例外要拿掉）
+  - [x] 1C-a 以樣方為單位的版本、復原／重做、救回刪除的回合（2026-10-01；只在本機；實機見 Device_test §78）
+  - [ ] 1C-b 以區塊為單位的隊伍同步與合併、區塊認領、手上樹牌起始號、合併檢視虛擬化（`check:media-refs` 的 `fw_media` 例外要拿掉）
   - [ ] 1D yml／csv／vegan 寬表匯出、roundtrip
   - [ ] 1E 2 萬株實測，修正同步區塊預設值
 - [ ] Phase 2：建表器、模板分享、checklist／plot 樣式、其餘元件、DwC-A（organismID、eMoF）

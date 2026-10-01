@@ -10,8 +10,8 @@
  */
 import { Ionicons } from '@expo/vector-icons';
 import { usePreventRemove } from '@react-navigation/native';
-import { Stack, useLocalSearchParams, useNavigation, useRouter, type Href } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { Stack, useFocusEffect, useLocalSearchParams, useNavigation, useRouter, type Href } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, FlatList, Pressable, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -27,6 +27,9 @@ import { chipText } from '~/survey/components/labels';
 import { StemMap, type MapMode } from '~/survey/components/StemMap';
 import { TreeEditor } from '~/survey/components/TreeEditor';
 import { finishCensus, reopenCensus, setFgQuadratRecorder, setFgQuadratStatus, updateCensus } from '~/survey/db/stemmap';
+import { changedQuadratIds, quadratRowId } from '~/survey/db/censusVersions';
+import { saveVersionSoon } from '~/db/recordVersions';
+import { canUndo, checkpointQuadrats, clearCensusUndo, redoQuadrat, undoQuadrat, useQuadratUndo } from '~/survey/undo';
 import { isOpenWork, type TreeChip } from '~/survey/stemmap/review';
 import { allQuadratCodes, loadQuadratRows, useCensus, type TreeRowData } from '~/survey/useCensus';
 import { useThemeColors } from '~/theme/colors';
@@ -81,11 +84,34 @@ export default function CensusScreen() {
     return open?.quadratCode ?? codes[0] ?? '0000';
   };
   const [quadrat, setQuadratState] = useState<string>(() => lastQuadrat.get(surveyId) ?? firstOpen());
+  /** A version of a quadrat that holds data (Modular_survey.md §7.2: versions per quadrat). */
+  const keepQuadrat = (code: string, reason: 'leave' | 'done') => {
+    const id = quadratRowId(surveyId, code);
+    if (id != null) saveVersionSoon('survey_quadrat', id, reason);
+  };
   const setQuadrat = (q: string) => {
+    if (q !== quadrat) keepQuadrat(quadrat, 'leave');
     lastQuadrat.set(surveyId, q);
     setQuadratState(q);
     setSelected(null);
   };
+  // Leaving the screen (or opening a tree over it) keeps the quadrat being walked.
+  const walking = useRef(quadrat);
+  useEffect(() => {
+    walking.current = quadrat;
+  }, [quadrat]);
+  useFocusEffect(
+    useCallback(
+      () => () => {
+        const id = quadratRowId(surveyId, walking.current);
+        if (id != null) saveVersionSoon('survey_quadrat', id, 'leave');
+      },
+      [surveyId],
+    ),
+  );
+  // Undo history lives while the census is open.
+  useEffect(() => () => clearCensusUndo(surveyId), [surveyId]);
+  const undoStacks = useQuadratUndo((st) => st.stacks);
   const [rows, setRows] = useState<TreeRowData[]>(() => (data ? loadQuadratRows(data, quadrat) : []));
   useEffect(() => {
     if (data) setRows(loadQuadratRows(data, quadrat));
@@ -174,12 +200,22 @@ export default function CensusScreen() {
     if (next) setQuadrat(next);
   };
   const toggleQuadratDone = () => {
+    checkpointQuadrats(surveyId, [quadrat]);
     setFgQuadratStatus(surveyId, quadrat, qDone ? 'open' : 'done');
+    if (!qDone) keepQuadrat(quadrat, 'done');
     reload();
+  };
+  const steps = canUndo(undoStacks, surveyId, quadrat);
+  const stepQuadratHistory = (dir: 'undo' | 'redo') => {
+    const ok = dir === 'undo' ? undoQuadrat(surveyId, quadrat) : redoQuadrat(surveyId, quadrat);
+    if (!ok) return;
+    reload();
+    toast(dir === 'undo' ? t('survey.census.undone') : t('survey.census.redone'));
   };
   const more = async () => {
     const options = [
       { label: t('survey.census.checks') },
+      { label: t('survey.census.versions', { q: quadrat, m: frame.quadrat_m }) },
       { label: t('survey.census.investigators') },
       { label: t('survey.census.quadratRecorder', { q: quadrat, m: frame.quadrat_m }) },
       { label: t('survey.census.notes') },
@@ -188,16 +224,21 @@ export default function CensusScreen() {
     ];
     const idx = await showActionSheet({ options, cancelLabel: t('common.cancel') });
     if (idx === 0) router.push(`/survey/${surveyId}/checks` as Href);
-    if (idx === 1) setAssign('census');
-    if (idx === 2) setAssign('quadrat');
-    if (idx === 3) {
+    if (idx === 1) {
+      const rowId = quadratRowId(surveyId, quadrat);
+      if (rowId == null) toast(t('survey.census.noVersions'));
+      else router.push(`/record-versions?kind=survey_quadrat&id=${rowId}` as Href);
+    }
+    if (idx === 2) setAssign('census');
+    if (idx === 3) setAssign('quadrat');
+    if (idx === 4) {
       const v = await promptText({ title: t('survey.census.notes'), defaultValue: survey.notes ?? '', allowEmpty: true });
       if (v != null) {
         updateCensus(surveyId, { notes: v.trim() || null });
         reload();
       }
     }
-    if (idx === 4) {
+    if (idx === 5) {
       if (active) {
         Alert.alert(t('survey.census.finish'), t('survey.census.finishMsg', { open: work.length - doneCount }), [
           { text: t('common.cancel'), style: 'cancel' },
@@ -205,6 +246,7 @@ export default function CensusScreen() {
             text: t('survey.census.finish'),
             onPress: () => {
               finishCensus(surveyId);
+              for (const id of changedQuadratIds(surveyId)) saveVersionSoon('survey_quadrat', id, 'done');
               reload();
             },
           },
@@ -214,7 +256,7 @@ export default function CensusScreen() {
         reload();
       }
     }
-    if (idx === 5) router.push(`/survey/frame/${frame.id}` as Href);
+    if (idx === 6) router.push(`/survey/frame/${frame.id}` as Href);
   };
   const recorder = qRow?.recorded_by ?? survey.investigators ?? null;
 
@@ -253,6 +295,8 @@ export default function CensusScreen() {
           </Text>
         </View>
         <HeaderIconButton icon="chevron-forward" label={t('survey.census.nextQuadrat')} disabled={qIndex >= codes.length - 1} onPress={() => stepQuadrat(1)} />
+        <HeaderIconButton icon="arrow-undo-outline" label={t('recordLock.undo')} disabled={steps.undo === 0} onPress={() => stepQuadratHistory('undo')} />
+        <HeaderIconButton icon="arrow-redo-outline" label={t('recordLock.redo')} disabled={steps.redo === 0} onPress={() => stepQuadratHistory('redo')} />
         <Pressable
           onPress={toggleQuadratDone}
           accessibilityRole="checkbox"

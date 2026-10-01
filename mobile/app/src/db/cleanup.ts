@@ -6,6 +6,7 @@
  * rows stranded by deletes that relied on an inert ON DELETE CASCADE.
  * Both idempotent — running on a clean DB is a no-op.
  */
+import type { VersionKind } from './recordVersions';
 import { File, Paths } from 'expo-file-system';
 import { getDatasetDb } from './datasets';
 import { getUserDb } from './init';
@@ -186,7 +187,7 @@ export function listSafetyBackups(): { name: string; uri: string; size: number }
  */
 export function sweepRecordVersions(now = Date.now()): void {
   const db = getUserDb();
-  for (const [kind, sql] of Object.entries(LIVE_UUIDS)) {
+  for (const [kind, sql] of Object.entries(VERSION_LIVE_UUIDS)) {
     db.executeSync(`UPDATE record_versions SET deleted_at = ? WHERE record_kind = ? AND deleted_at IS NULL AND record_uuid NOT IN (${sql})`, [now, kind]);
     db.executeSync(`UPDATE record_versions SET deleted_at = NULL WHERE record_kind = ? AND deleted_at IS NOT NULL AND record_uuid IN (${sql})`, [kind]);
   }
@@ -198,6 +199,14 @@ const LIVE_UUIDS: Record<MergeKind, string> = {
   session: `SELECT uuid FROM sessions WHERE uuid IS NOT NULL`,
   plot: `SELECT uuid FROM plot_surveys`,
   gloria: `SELECT uuid FROM gloria_surveys`,
+};
+
+/** The same for record versions, which also keep a census per quadrat and
+ *  whole (its quadrats come back with it when it is recovered). */
+const VERSION_LIVE_UUIDS: Record<VersionKind, string> = {
+  ...LIVE_UUIDS,
+  survey_quadrat: `SELECT uuid FROM fw_survey_quadrats`,
+  survey: `SELECT uuid FROM fw_surveys`,
 };
 
 export function purgeOrphanRows(): void {

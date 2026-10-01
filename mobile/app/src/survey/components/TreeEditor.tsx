@@ -56,6 +56,7 @@ import { formDbhs, formFromView, formStemInputs, unreadableFields, formIssues, f
 import { isMultiStem } from '~/survey/stemmap/status';
 import type { StakeCorner } from '~/survey/stemmap/coords';
 import { useThemeColors } from '~/theme/colors';
+import { checkpointQuadrats } from '~/survey/undo';
 
 export type TreeEditorProps = {
   surveyId: number;
@@ -154,6 +155,9 @@ export function TreeEditor(props: TreeEditorProps) {
   };
 
   const askReason = () => promptText({ title: t('survey.tree.reasonTitle'), message: t('survey.tree.reasonMsg'), allowEmpty: true });
+  /** Undo point for the quadrats this tree's edit touches (its own, and where it moves to). */
+  const checkpoint = (to?: string | null) =>
+    checkpointQuadrats(surveyId, [view?.individual.quadrat_code ?? to ?? quadrat, ...(to ? [to] : [])], view ? [view.individual.uuid] : []);
 
   const onSpecies = async (taxonId: string, sci: string | null, nameId: number | null | undefined) => {
     setSearching(false);
@@ -164,6 +168,7 @@ export function TreeEditor(props: TreeEditorProps) {
     }
     const reason = await askReason();
     if (reason == null) return;
+    checkpoint();
     correctIndividual(view!.individual.id, { taxon }, { surveyId, reason: reason || null, by: recordedBy });
     reload();
     toast(t('survey.tree.corrected'));
@@ -177,6 +182,7 @@ export function TreeEditor(props: TreeEditorProps) {
     }
     const reason = await askReason();
     if (reason == null) return;
+    checkpoint(preview.quadrat);
     try {
       correctIndividual(view!.individual.id, { location: input }, { surveyId, reason: reason || null, by: recordedBy });
     } catch (e) {
@@ -193,6 +199,7 @@ export function TreeEditor(props: TreeEditorProps) {
     if (next == null || next.trim() === view!.individual.tag) return;
     const reason = await askReason();
     if (reason == null) return;
+    checkpoint();
     try {
       correctIndividual(view!.individual.id, { tag: next.trim() }, { surveyId, reason: reason || null, by: recordedBy });
     } catch (e) {
@@ -243,6 +250,7 @@ export function TreeEditor(props: TreeEditorProps) {
     }
     const write = () => {
       try {
+        checkpoint(recruit ? (preview?.quadrat ?? null) : null);
         const id = saveTreeDraft(surveyId, formToDraft(f, view, { surveyId, recordedBy }));
         setBase(JSON.stringify(form));
         props.onSaved(id, next);
@@ -281,6 +289,7 @@ export function TreeEditor(props: TreeEditorProps) {
 
   const addPhotos = (uris: string[]) => {
     if (individualId == null) return;
+    checkpoint();
     for (const u of uris) addTreeMedia(surveyId, individualId, u);
     setPhotos(listTreeMedia(surveyId, individualId).map((m) => m.uri));
   };
@@ -561,6 +570,7 @@ export function TreeEditor(props: TreeEditorProps) {
               onPickLibrary={() => void pickPhotos().then(addPhotos).catch((e) => toast(errText(e)))}
               onView={setViewing}
               onRemove={(uri) => {
+                checkpoint();
                 removeTreeMedia(surveyId, individualId, uri);
                 setPhotos(listTreeMedia(surveyId, individualId).map((m) => m.uri));
               }}

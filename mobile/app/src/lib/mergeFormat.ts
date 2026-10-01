@@ -36,6 +36,9 @@ const LABELLED = new Set([
   'no_researchers',
   // Fixed-plot quadrats (v77); a quadrat setting's row carries its `value`
   'position', 'size_m', 'grid_n', 'top_edge', 'freq_mode', 'value',
+  // Tree census (survey framework, v80)
+  'tag', 'dbh_cm', 'pom_m', 'pom_seq', 'is_main', 'stem_dead', 'pending', 'x_m', 'y_m', 'quadrat_code', 'coord_method', 'stem_no',
+  'value_num', 'value_text', 'status', 'measured_at', 'local_x_m', 'local_y_m', 'ref_kind', 'ref_code', 'azimuth_deg', 'azimuth_ref',
 ]);
 /** GLORIA 完成 locks and other 1 / null flags. */
 const LOCKS = new Set(['done_locked', 'freq_locked', 'pf_locked', 'locked', 'photo_open', 'photo_closed', 'no_researchers']);
@@ -93,11 +96,20 @@ function quadratValue(ctx: FmtContext, f: string, v: unknown): string | null {
   return null;
 }
 
+/** A census tree's position codes, in the words the tree editor shows. */
+const TREE_CODE_KEY: Record<string, Record<string, string>> = {
+  coord_method: { grid: 'survey.loc.grid', xy: 'survey.loc.xy', polar: 'survey.loc.polar', gps: 'survey.loc.gps' },
+  ref_kind: { stake: 'survey.loc.refStake', tree: 'survey.loc.refTree' },
+  azimuth_ref: { magnetic: 'survey.loc.compass', true: 'survey.frame.trueNorth' },
+};
+
 export function fmt(f: string, v: unknown, ctx?: FmtContext): string {
   if (LOCKS.has(f) || typeof v === 'boolean') return v ? '✓' : '—';
   if (v === null || v === undefined || v === '') return '—';
   const quadrat = ctx ? quadratValue(ctx, f, v) : null;
   if (quadrat != null) return quadrat;
+  const code = ctx?.tbl === 'tree' && typeof v === 'string' ? TREE_CODE_KEY[f]?.[v] : undefined;
+  if (code) return ctx!.t(code);
   if (MASKS.has(f) && typeof v === 'string') {
     const on = f === 'point_surface' ? [...v].filter((c) => c !== '.').length : [...v].filter((c) => c === '1').length;
     return `${on}/${v.length}`;

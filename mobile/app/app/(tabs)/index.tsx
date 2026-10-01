@@ -1014,12 +1014,11 @@ export default function RecordsListScreen() {
     }
     unlockThen(picked, () => deleteSelection(picked));
   };
-  // Checklists, plots and GLORIA surveys keep their versions 30 days after deletion (record versions);
-  // collections have none, and censuses none yet.
+  // Checklists, plots, GLORIA surveys and censuses keep their versions 30 days after deletion
+  // (record versions); collections have none.
   const recoverableNote = (items: RecordItem[]) =>
-    (items.some((it) => it.kind !== 'collection' && it.kind !== 'survey') ? `\n\n${t('records.deleteRecoverable')}` : '') +
-    (items.some((it) => it.kind === 'collection') ? `\n\n${t('records.deletePermanent')}` : '') +
-    (items.some((it) => it.kind === 'survey') ? `\n\n${t('survey.census.deletePermanent')}` : '');
+    (items.some((it) => it.kind !== 'collection') ? `\n\n${t('records.deleteRecoverable')}` : '') +
+    (items.some((it) => it.kind === 'collection') ? `\n\n${t('records.deletePermanent')}` : '');
   const deleteSelection = (picked: RecordItem[]) => {
     const rows = picked.reduce((sum, it) => sum + it.recordCount, 0);
     Alert.alert(

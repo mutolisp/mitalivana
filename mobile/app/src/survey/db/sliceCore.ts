@@ -1,0 +1,680 @@
+/**
+ * A census "slice": everything one census holds in a set of 20 m quadrats, as
+ * a document — the unit of quadrat versions and undo (1C-a) and of team sync
+ * blocks (1C-b). docs/planned/Modular_survey.md §7.2.
+ *
+ * - buildSlice: the document (rows keyed by uuid, foreign keys as uuids).
+ * - censusSide: the rows as the merge engine compares them. Rows the schema
+ *   makes unique by owner are keyed by owner, not by their own uuid, so two
+ *   copies of one measurement meet: a measurement by its stem, a value by its
+ *   owner + component + field + idx, a quadrat by its code.
+ * - applySliceOps: writes merge operations back (insert / partial update /
+ *   delete), uuid → local id, parents before children.
+ * - restoreSlice: makes the census equal to a slice in its scope (versions,
+ *   undo), under three rules:
+ *     · a tree or stem is deleted only if it was created after the slice was
+ *       taken (that undoes an addition); an older tree missing from the slice
+ *       moved in later and stays;
+ *     · a measurement, value or photo is deleted only if its tree was in the
+ *       slice (otherwise it belongs to a tree that moved in);
+ *     · correction history is never deleted.
+ *
+ * Takes a context (db, clock, uuid) like stemmapCore; check:survey-db runs it
+ * under node:sqlite.
+ */
+import type { Scalar } from '@op-engineering/op-sqlite';
+import { unionSurveyors } from '../../db/merge';
+import { restoreDecisions, takeVersion } from '../../lib/recordVersionsCore';
+import { baseOf, diffSides, planOps, type Combiners, type MergeOp, type MergeRow, type MergeSide, type Row } from '../../lib/mergeEngine';
+import { getSurvey, touchFgQuadrat, type Ctx, type SurveyDb } from './stemmapCore';
+
+const rows = <T>(ctx: { db: SurveyDb }, sql: string, params: Scalar[] = []) => (ctx.db.executeSync(sql, params).rows ?? []) as T[];
+const one = <T>(ctx: { db: SurveyDb }, sql: string, params: Scalar[] = []) => rows<T>(ctx, sql, params)[0];
+const run = (ctx: { db: SurveyDb }, sql: string, params: Scalar[] = []) => ctx.db.executeSync(sql, params);
+const marks = (n: number) => Array.from({ length: n }, () => '?').join(', ');
+
+// ── the document ────────────────────────────────────────────────────────────
+
+/** Frame columns carried in a slice (identity and geometry; ids left out). */
+const FRAME_COLS = [
+  'uuid', 'code', 'name', 'size_x_m', 'size_y_m', 'quadrat_m', 'subquadrat_m', 'tag_block_quadrats', 'tag_block_size',
+  'origin_lat', 'origin_lng', 'origin_accuracy_m', 'origin_datum', 'bearing_deg', 'bearing_ref', 'declination_deg',
+  'dbh_min_cm', 'extreme_pct', 'extreme_min', 'notes',
+] as const;
+const SURVEY_COLS = [
+  'uuid', 'census_no', 'template_id', 'template_version', 'template_snapshot', 'template_hash', 'status', 'start_ts', 'stop_ts',
+  'investigators', 'notes', 'sync_block_quadrats', 'lat', 'lng', 'accuracy',
+] as const;
+const QUADRAT_COLS = ['uuid', 'quadrat_code', 'status', 'started_at', 'ended_at', 'recorded_by', 'notes'] as const;
+const TREE_COLS = [
+  'uuid', 'tag', 'taxon_id', 'used_name_id', 'used_scientific_name', 'verbatim_identification', 'x_m', 'y_m', 'quadrat_code',
+  'coord_method', 'local_x_m', 'local_y_m', 'ref_kind', 'ref_code', 'distance_m', 'azimuth_deg', 'azimuth_ref', 'slope_deg',
+  'lat', 'lng', 'accuracy', 'notes',
+] as const;
+const MEASURE_COLS = ['uuid', 'dbh_cm', 'pom_m', 'pom_seq', 'is_main', 'stem_dead', 'pending', 'measured_at', 'recorded_by', 'notes'] as const;
+const VALUE_COLS = ['uuid', 'component', 'field', 'idx', 'value_num', 'value_text', 'unit'] as const;
+
+export type CensusSlice = {
+  record_type: 'census_slice';
+  schema: 1;
+  /** When the slice was read (ms): restore deletes only rows created after it. */
+  taken_at: number;
+  /** The quadrat codes asked for — what a restore covers, even if they held nothing yet. */
+  scope: string[];
+  frame: Row;
+  series: Row;
+  survey: Row;
+  quadrats: Row[];
+  trees: Row[];
+  stems: Row[];
+  measures: Row[];
+  stemValues: Row[];
+  treeValues: Row[];
+  history: Row[];
+  media: Row[];
+};
+
+const pick = (r: Row, cols: readonly string[]): Row => Object.fromEntries(cols.map((c) => [c, r[c] ?? null]));
+
+/**
+ * The census in these quadrats. `extraTrees` (uuids) adds trees that are now
+ * elsewhere — a restore must see a tree that moved out of its scope.
+ */
+export function buildSlice(ctx: Ctx, surveyId: number, codes: readonly string[], extraTrees: readonly string[] = []): CensusSlice {
+  const s = getSurvey(ctx, surveyId);
+  if (!s) throw new Error(`no census ${surveyId}`);
+  const frame = one<Row>(ctx, `SELECT * FROM fw_frames WHERE id = ?`, [s.frame_id])!;
+  const series = one<Row>(ctx, `SELECT uuid, template_id, series_code FROM fw_frame_series WHERE id = ?`, [s.series_id])!;
+  const codeList = [...new Set(codes)];
+  const trees = rows<Row & { id: number; first_uuid: string | null }>(
+    ctx,
+    `SELECT i.*, fi.uuid AS first_uuid FROM fw_individuals i
+       LEFT JOIN fw_surveys fi ON fi.id = i.first_survey_id
+      WHERE i.frame_id = ? AND (fi.id IS NULL OR fi.series_id <> ? OR fi.census_no <= ?)
+        AND (i.quadrat_code IN (${marks(codeList.length) || "''"}) OR i.uuid IN (${marks(extraTrees.length) || "''"}))
+      ORDER BY i.id`,
+    [s.frame_id, s.series_id, s.census_no, ...codeList, ...extraTrees],
+  );
+  const treeIds = trees.map((t) => t.id);
+  const inTrees = marks(treeIds.length) || 'NULL';
+  const stems = rows<Row & { id: number; individual_id: number; tree_uuid: string; first_uuid: string | null }>(
+    ctx,
+    `SELECT st.*, i.uuid AS tree_uuid, fs.uuid AS first_uuid FROM fw_stems st
+       JOIN fw_individuals i ON i.id = st.individual_id
+       LEFT JOIN fw_surveys fs ON fs.id = st.first_survey_id
+      WHERE st.individual_id IN (${inTrees}) AND (fs.id IS NULL OR fs.series_id <> ? OR fs.census_no <= ?)
+      ORDER BY st.id`,
+    [...treeIds, s.series_id, s.census_no],
+  );
+  const stemIds = stems.map((st) => st.id);
+  const inStems = marks(stemIds.length) || 'NULL';
+  const measures = rows<Row & { id: number; stem_uuid: string }>(
+    ctx,
+    `SELECT m.*, st.uuid AS stem_uuid FROM fw_stem_measures m JOIN fw_stems st ON st.id = m.stem_id
+      WHERE m.survey_id = ? AND m.stem_id IN (${inStems}) ORDER BY m.id`,
+    [surveyId, ...stemIds],
+  );
+  const measureIds = measures.map((m) => m.id);
+  const stemValues = rows<Row & { stem_uuid: string }>(
+    ctx,
+    `SELECT v.*, st.uuid AS stem_uuid FROM fw_stem_values v
+       JOIN fw_stem_measures m ON m.id = v.measure_id JOIN fw_stems st ON st.id = m.stem_id
+      WHERE v.measure_id IN (${marks(measureIds.length) || 'NULL'}) ORDER BY v.id`,
+    measureIds,
+  );
+  const treeValues = rows<Row & { tree_uuid: string }>(
+    ctx,
+    `SELECT v.*, i.uuid AS tree_uuid FROM fw_individual_values v JOIN fw_individuals i ON i.id = v.individual_id
+      WHERE v.survey_id = ? AND v.individual_id IN (${inTrees}) ORDER BY v.id`,
+    [surveyId, ...treeIds],
+  );
+  const history = rows<Row & { tree_uuid: string; survey_uuid: string | null }>(
+    ctx,
+    `SELECT h.*, i.uuid AS tree_uuid, sv.uuid AS survey_uuid FROM fw_individual_history h
+       JOIN fw_individuals i ON i.id = h.individual_id LEFT JOIN fw_surveys sv ON sv.id = h.survey_id
+      WHERE h.individual_id IN (${inTrees}) ORDER BY h.id`,
+    treeIds,
+  );
+  const media = rows<Row & { tree_uuid: string | null; stem_uuid: string | null }>(
+    ctx,
+    `SELECT md.*, i.uuid AS tree_uuid, st.uuid AS stem_uuid FROM fw_media md
+       LEFT JOIN fw_individuals i ON i.id = md.individual_id
+       LEFT JOIN fw_stem_measures m ON m.id = md.measure_id LEFT JOIN fw_stems st ON st.id = m.stem_id
+      WHERE md.survey_id = ? AND md.individual_id IN (${inTrees}) ORDER BY md.id`,
+    [surveyId, ...treeIds],
+  );
+  const quadrats = rows<Row>(
+    ctx,
+    `SELECT * FROM fw_survey_quadrats WHERE survey_id = ? AND quadrat_code IN (${marks(codeList.length) || "''"}) ORDER BY quadrat_code`,
+    [surveyId, ...codeList],
+  );
+  return {
+    record_type: 'census_slice',
+    schema: 1,
+    taken_at: ctx.now(),
+    scope: codeList,
+    frame: pick(frame, FRAME_COLS),
+    series,
+    survey: pick(s as unknown as Row, SURVEY_COLS),
+    quadrats: quadrats.map((q) => pick(q, QUADRAT_COLS)),
+    trees: trees.map((t) => ({ ...pick(t, TREE_COLS), first_survey_uuid: t.first_uuid })),
+    stems: stems.map((st) => ({ uuid: st.uuid, tree_uuid: st.tree_uuid, stem_no: st.stem_no, first_survey_uuid: st.first_uuid, notes: st.notes ?? null })),
+    measures: measures.map((m) => ({ ...pick(m, MEASURE_COLS), stem_uuid: m.stem_uuid })),
+    stemValues: stemValues.map((v) => ({ ...pick(v, VALUE_COLS), stem_uuid: v.stem_uuid })),
+    treeValues: treeValues.map((v) => ({ ...pick(v, VALUE_COLS), tree_uuid: v.tree_uuid })),
+    history: history.map((h) => ({
+      uuid: h.uuid,
+      tree_uuid: h.tree_uuid,
+      survey_uuid: h.survey_uuid,
+      field: h.field,
+      old_value: h.old_value,
+      new_value: h.new_value,
+      reason: h.reason,
+      by: h.by,
+      at: h.at,
+    })),
+    media: media.map((md) => ({ uuid: md.uuid, tree_uuid: md.tree_uuid, stem_uuid: md.stem_uuid, component: md.component, kind: md.kind, uri: md.uri })),
+  };
+}
+
+// ── as merge rows ───────────────────────────────────────────────────────────
+
+const omit = (o: Row, keys: readonly string[]): Row => Object.fromEntries(Object.entries(o).filter(([k]) => !keys.includes(k)));
+const valueKey = (owner: unknown, v: Row) => `${owner}|${v.component}|${v.field}|${v.idx}`;
+
+/** Quadrat working time spans both copies'; recorders are pooled (1C-b merges). */
+export const CENSUS_COMBINERS: Combiners = {
+  fgquadrat: {
+    started_at: (a, b) => {
+      const xs = [a, b].filter((v): v is number => typeof v === 'number');
+      return xs.length ? Math.min(...xs) : null;
+    },
+    ended_at: (a, b) => {
+      const xs = [a, b].filter((v): v is number => typeof v === 'number');
+      return xs.length ? Math.max(...xs) : null;
+    },
+    recorded_by: (a, b) => unionSurveyors([(a as string) ?? null, (b as string) ?? null]),
+  },
+};
+const QUADRAT_COMBINED = ['started_at', 'ended_at', 'recorded_by'] as const;
+
+export function censusSide(sl: CensusSlice): MergeSide {
+  const tagOf = new Map(sl.trees.map((t) => [t.uuid as string, t.tag as string]));
+  const stemLabel = (stemUuid: unknown) => {
+    const st = sl.stems.find((x) => x.uuid === stemUuid);
+    return st ? `${tagOf.get(st.tree_uuid as string) ?? '?'}-${st.stem_no}` : String(stemUuid);
+  };
+  const quadrat: MergeRow[] = sl.quadrats.map((q) => ({
+    key: q.quadrat_code as string,
+    data: omit(q, ['uuid', ...QUADRAT_COMBINED]),
+    extra: { uuid: q.uuid, ...Object.fromEntries(QUADRAT_COMBINED.map((k) => [k, q[k] ?? null])) },
+    label: q.quadrat_code as string,
+  }));
+  const tree: MergeRow[] = sl.trees.map((t) => ({
+    key: t.uuid as string,
+    data: omit(t, ['uuid']),
+    dupKey: `tag:${t.tag}`,
+    label: t.tag as string,
+    group: t.quadrat_code as string,
+  }));
+  const stem: MergeRow[] = sl.stems.map((st) => ({
+    key: st.uuid as string,
+    data: omit(st, ['uuid']),
+    dupKey: `${st.tree_uuid}|${st.stem_no}`,
+    label: stemLabel(st.uuid),
+  }));
+  const measure: MergeRow[] = sl.measures.map((m) => ({
+    key: m.stem_uuid as string,
+    data: omit(m, ['uuid', 'stem_uuid']),
+    extra: { uuid: m.uuid },
+    label: stemLabel(m.stem_uuid),
+  }));
+  const sval: MergeRow[] = sl.stemValues.map((v) => ({
+    key: valueKey(v.stem_uuid, v),
+    data: omit(v, ['uuid']),
+    extra: { uuid: v.uuid },
+    label: `${stemLabel(v.stem_uuid)} ${v.field}`,
+  }));
+  const ival: MergeRow[] = sl.treeValues.map((v) => ({
+    key: valueKey(v.tree_uuid, v),
+    data: omit(v, ['uuid']),
+    extra: { uuid: v.uuid },
+    label: `${tagOf.get(v.tree_uuid as string) ?? '?'} ${v.field}`,
+  }));
+  const history: MergeRow[] = sl.history.map((h) => ({ key: h.uuid as string, data: omit(h, ['uuid']), label: `${tagOf.get(h.tree_uuid as string) ?? '?'} ${h.field}` }));
+  const media: MergeRow[] = sl.media.map((md) => ({ key: md.uuid as string, data: omit(md, ['uuid']), label: `${tagOf.get(md.tree_uuid as string) ?? '?'} ${md.kind}` }));
+  return { fgquadrat: quadrat, tree, stem, measure, sval, ival, history, media };
+}
+
+// ── writing operations back ─────────────────────────────────────────────────
+
+/** Insert order; deletes run the other way. */
+/** Side tables; the 20 m quadrat is `fgquadrat` (`quadrat` is the plot's 1 × 1 m one, §7.8). */
+const ORDER = ['fgquadrat', 'tree', 'stem', 'measure', 'sval', 'ival', 'history', 'media'] as const;
+
+export type ApplyOptions = {
+  /** Deletions allowed for a tree or stem row, by key (restore's rules). */
+  mayDelete?: (tbl: string, key: string) => boolean;
+};
+
+type Ids = { survey: number; frame: number; series: number; censusNo: number };
+
+/**
+ * Apply merge operations to one census. Returns the quadrats touched (they are
+ * stamped). A stem inserted under a number its tree already uses (two copies
+ * each added stem 3) takes the next free number.
+ */
+export function applySliceOps(ctx: Ctx, surveyId: number, ops: readonly MergeOp[], opts: ApplyOptions = {}): string[] {
+  const s = getSurvey(ctx, surveyId);
+  if (!s) throw new Error(`no census ${surveyId}`);
+  const ids: Ids = { survey: surveyId, frame: s.frame_id, series: s.series_id, censusNo: s.census_no };
+  const now = ctx.now();
+  const touched = new Set<string>();
+  // A quadrat row this apply deleted is not stamped back into existence.
+  const removedQuadrats = new Set<string>();
+  const idOf = (tbl: 'fw_individuals' | 'fw_stems' | 'fw_surveys', uuid: unknown) =>
+    uuid == null ? null : (one<{ id: number }>(ctx, `SELECT id FROM ${tbl} WHERE uuid = ?`, [uuid as string])?.id ?? null);
+  const treeQuadrat = (treeId: number | null) => (treeId == null ? null : (one<{ q: string }>(ctx, `SELECT quadrat_code AS q FROM fw_individuals WHERE id = ?`, [treeId])?.q ?? null));
+  const touchTree = (treeId: number | null) => {
+    const q = treeQuadrat(treeId);
+    if (q) touched.add(q);
+  };
+  const measureOfStem = (stemUuid: unknown) => {
+    const stemId = idOf('fw_stems', stemUuid);
+    return stemId == null ? null : (one<{ id: number }>(ctx, `SELECT id FROM fw_stem_measures WHERE survey_id = ? AND stem_id = ?`, [surveyId, stemId])?.id ?? null);
+  };
+  const setCols = (tbl: string, where: string, whereArgs: Scalar[], data: Row, stamp: boolean) => {
+    const cols = Object.keys(data);
+    if (!cols.length && !stamp) return;
+    const sets = [...cols.map((c) => `${c} = ?`), ...(stamp ? ['updated_at = ?'] : [])];
+    run(ctx, `UPDATE ${tbl} SET ${sets.join(', ')} WHERE ${where}`, [...cols.map((c) => data[c] as Scalar), ...(stamp ? [now] : []), ...whereArgs]);
+  };
+
+  const byTable = (tbl: string) => ops.filter((o) => o.tbl === tbl);
+  for (const tbl of [...ORDER].reverse()) {
+    for (const op of byTable(tbl)) {
+      if (op.op !== 'delete') continue;
+      if (opts.mayDelete && !opts.mayDelete(tbl, op.key)) continue;
+      deleteRow(tbl, op.key);
+    }
+  }
+  for (const tbl of ORDER) {
+    for (const op of byTable(tbl)) {
+      if (op.op === 'insert') insertRow(tbl, op.row);
+      else if (op.op === 'update') updateRow(tbl, op.key, { ...op.data, ...(op.extra ?? {}) });
+    }
+  }
+  for (const q of touched) if (!removedQuadrats.has(q)) touchFgQuadrat(ctx, surveyId, q);
+  return [...touched];
+
+  function deleteRow(tbl: string, key: string) {
+    switch (tbl) {
+      case 'history':
+        return; // correction history is never deleted
+      case 'fgquadrat':
+        run(ctx, `DELETE FROM fw_survey_quadrats WHERE survey_id = ? AND quadrat_code = ?`, [surveyId, key]);
+        removedQuadrats.add(key);
+        return;
+      case 'tree': {
+        const id = idOf('fw_individuals', key);
+        touchTree(id);
+        if (id != null) run(ctx, `DELETE FROM fw_individuals WHERE id = ?`, [id]);
+        return;
+      }
+      case 'stem': {
+        const id = idOf('fw_stems', key);
+        if (id == null) return;
+        touchTree(one<{ t: number }>(ctx, `SELECT individual_id AS t FROM fw_stems WHERE id = ?`, [id])?.t ?? null);
+        run(ctx, `DELETE FROM fw_stems WHERE id = ?`, [id]);
+        return;
+      }
+      case 'measure': {
+        const mid = measureOfStem(key);
+        if (mid == null) return;
+        touchTree(idOf('fw_individuals', one<{ u: string }>(ctx, `SELECT i.uuid AS u FROM fw_stems st JOIN fw_individuals i ON i.id = st.individual_id WHERE st.uuid = ?`, [key])?.u));
+        run(ctx, `DELETE FROM fw_stem_measures WHERE id = ?`, [mid]);
+        return;
+      }
+      case 'sval': {
+        const [stemUuid, component, field, idx] = key.split('|');
+        const mid = measureOfStem(stemUuid);
+        if (mid != null) run(ctx, `DELETE FROM fw_stem_values WHERE measure_id = ? AND component = ? AND field = ? AND idx = ?`, [mid, component, field, Number(idx)]);
+        return;
+      }
+      case 'ival': {
+        const [treeUuid, component, field, idx] = key.split('|');
+        const tid = idOf('fw_individuals', treeUuid);
+        touchTree(tid);
+        if (tid != null) run(ctx, `DELETE FROM fw_individual_values WHERE survey_id = ? AND individual_id = ? AND component = ? AND field = ? AND idx = ?`, [surveyId, tid, component, field, Number(idx)]);
+        return;
+      }
+      case 'media':
+        run(ctx, `DELETE FROM fw_media WHERE uuid = ?`, [key]);
+        return;
+    }
+  }
+
+  function insertRow(tbl: string, row: MergeRow) {
+    const d = { ...row.data, ...(row.extra ?? {}) };
+    switch (tbl) {
+      case 'fgquadrat': {
+        if (one(ctx, `SELECT id FROM fw_survey_quadrats WHERE survey_id = ? AND quadrat_code = ?`, [surveyId, row.key])) return updateRow(tbl, row.key, d);
+        run(
+          ctx,
+          `INSERT INTO fw_survey_quadrats (uuid, survey_id, quadrat_code, status, started_at, ended_at, recorded_by, notes, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [(d.uuid as string) ?? ctx.uuid(), surveyId, row.key, (d.status as string) ?? 'open', d.started_at as Scalar, d.ended_at as Scalar, d.recorded_by as Scalar, d.notes as Scalar, now, now],
+        );
+        touched.add(row.key);
+        return;
+      }
+      case 'tree': {
+        if (idOf('fw_individuals', row.key) != null) return updateRow(tbl, row.key, d);
+        const cols = TREE_COLS.filter((c) => c !== 'uuid');
+        run(
+          ctx,
+          `INSERT INTO fw_individuals (uuid, frame_id, ${cols.join(', ')}, first_survey_id, created_at, updated_at) VALUES (?, ?, ${marks(cols.length)}, ?, ?, ?)`,
+          [row.key, ids.frame, ...cols.map((c) => d[c] as Scalar), idOf('fw_surveys', d.first_survey_uuid), now, now],
+        );
+        touched.add(d.quadrat_code as string);
+        return;
+      }
+      case 'stem': {
+        if (idOf('fw_stems', row.key) != null) return updateRow(tbl, row.key, d);
+        const treeId = idOf('fw_individuals', d.tree_uuid);
+        if (treeId == null) throw new Error(`stem ${row.key}: tree ${String(d.tree_uuid)} missing`);
+        let no = Number(d.stem_no);
+        if (one(ctx, `SELECT id FROM fw_stems WHERE individual_id = ? AND stem_no = ?`, [treeId, no])) {
+          no = (one<{ n: number }>(ctx, `SELECT MAX(stem_no) AS n FROM fw_stems WHERE individual_id = ?`, [treeId])?.n ?? 0) + 1;
+        }
+        run(ctx, `INSERT INTO fw_stems (uuid, individual_id, stem_no, first_survey_id, notes, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`, [
+          row.key,
+          treeId,
+          no,
+          idOf('fw_surveys', d.first_survey_uuid),
+          d.notes as Scalar,
+          now,
+          now,
+        ]);
+        touchTree(treeId);
+        return;
+      }
+      case 'measure': {
+        if (measureOfStem(row.key) != null) return updateRow(tbl, row.key, d);
+        const stemId = idOf('fw_stems', row.key);
+        if (stemId == null) throw new Error(`measure: stem ${row.key} missing`);
+        const cols = MEASURE_COLS.filter((c) => c !== 'uuid');
+        run(
+          ctx,
+          `INSERT INTO fw_stem_measures (uuid, survey_id, stem_id, ${cols.join(', ')}, created_at, updated_at) VALUES (?, ?, ?, ${marks(cols.length)}, ?, ?)`,
+          [(d.uuid as string) ?? ctx.uuid(), surveyId, stemId, ...cols.map((c) => d[c] as Scalar), now, now],
+        );
+        touchTree(one<{ t: number }>(ctx, `SELECT individual_id AS t FROM fw_stems WHERE id = ?`, [stemId])?.t ?? null);
+        return;
+      }
+      case 'sval': {
+        const mid = measureOfStem(d.stem_uuid);
+        if (mid == null) throw new Error(`value: no measurement for stem ${String(d.stem_uuid)}`);
+        run(
+          ctx,
+          `INSERT OR IGNORE INTO fw_stem_values (uuid, measure_id, component, field, idx, value_num, value_text, unit, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [(d.uuid as string) ?? ctx.uuid(), mid, d.component as Scalar, d.field as Scalar, d.idx as Scalar, d.value_num as Scalar, d.value_text as Scalar, d.unit as Scalar, now],
+        );
+        return updateRow(tbl, row.key, d);
+      }
+      case 'ival': {
+        const tid = idOf('fw_individuals', d.tree_uuid);
+        if (tid == null) throw new Error(`value: tree ${String(d.tree_uuid)} missing`);
+        run(
+          ctx,
+          `INSERT OR IGNORE INTO fw_individual_values (uuid, survey_id, individual_id, component, field, idx, value_num, value_text, unit, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [(d.uuid as string) ?? ctx.uuid(), surveyId, tid, d.component as Scalar, d.field as Scalar, d.idx as Scalar, d.value_num as Scalar, d.value_text as Scalar, d.unit as Scalar, now],
+        );
+        touchTree(tid);
+        return updateRow(tbl, row.key, d);
+      }
+      case 'history': {
+        if (one(ctx, `SELECT id FROM fw_individual_history WHERE uuid = ?`, [row.key])) return;
+        const tid = idOf('fw_individuals', d.tree_uuid);
+        if (tid == null) return;
+        run(ctx, `INSERT INTO fw_individual_history (uuid, individual_id, survey_id, field, old_value, new_value, reason, by, at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
+          row.key,
+          tid,
+          idOf('fw_surveys', d.survey_uuid),
+          d.field as Scalar,
+          d.old_value as Scalar,
+          d.new_value as Scalar,
+          d.reason as Scalar,
+          d.by as Scalar,
+          d.at as Scalar,
+        ]);
+        return;
+      }
+      case 'media': {
+        if (one(ctx, `SELECT id FROM fw_media WHERE uuid = ?`, [row.key])) return;
+        const tid = idOf('fw_individuals', d.tree_uuid);
+        run(ctx, `INSERT INTO fw_media (uuid, survey_id, individual_id, measure_id, component, kind, uri, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, [
+          row.key,
+          surveyId,
+          tid,
+          d.stem_uuid == null ? null : measureOfStem(d.stem_uuid),
+          d.component as Scalar,
+          d.kind as Scalar,
+          d.uri as Scalar,
+          now,
+        ]);
+        touchTree(tid);
+        return;
+      }
+    }
+  }
+
+  function updateRow(tbl: string, key: string, data: Row) {
+    const d = omit(data, ['uuid']);
+    switch (tbl) {
+      case 'fgquadrat':
+        setCols('fw_survey_quadrats', 'survey_id = ? AND quadrat_code = ?', [surveyId, key], pickKnown(d, QUADRAT_COLS), true);
+        touched.add(key);
+        return;
+      case 'tree': {
+        const id = idOf('fw_individuals', key);
+        if (id == null) return;
+        touchTree(id);
+        const cols = pickKnown(d, TREE_COLS);
+        if ('first_survey_uuid' in d) cols.first_survey_id = idOf('fw_surveys', d.first_survey_uuid);
+        setCols('fw_individuals', 'id = ?', [id], cols, true);
+        touchTree(id);
+        return;
+      }
+      case 'stem': {
+        const id = idOf('fw_stems', key);
+        if (id == null) return;
+        const cols: Row = {};
+        if ('notes' in d) cols.notes = d.notes;
+        setCols('fw_stems', 'id = ?', [id], cols, true);
+        return;
+      }
+      case 'measure': {
+        const mid = measureOfStem(key);
+        if (mid == null) return;
+        setCols('fw_stem_measures', 'id = ?', [mid], pickKnown(d, MEASURE_COLS), true);
+        touchTree(one<{ t: number }>(ctx, `SELECT st.individual_id AS t FROM fw_stem_measures m JOIN fw_stems st ON st.id = m.stem_id WHERE m.id = ?`, [mid])?.t ?? null);
+        return;
+      }
+      case 'sval': {
+        const [stemUuid, component, field, idx] = key.split('|');
+        const mid = measureOfStem(stemUuid);
+        if (mid == null) return;
+        setCols('fw_stem_values', 'measure_id = ? AND component = ? AND field = ? AND idx = ?', [mid, component, field, Number(idx)], pickKnown(d, ['value_num', 'value_text', 'unit']), true);
+        return;
+      }
+      case 'ival': {
+        const [treeUuid, component, field, idx] = key.split('|');
+        const tid = idOf('fw_individuals', treeUuid);
+        if (tid == null) return;
+        setCols('fw_individual_values', 'survey_id = ? AND individual_id = ? AND component = ? AND field = ? AND idx = ?', [surveyId, tid, component, field, Number(idx)], pickKnown(d, ['value_num', 'value_text', 'unit']), true);
+        touchTree(tid);
+        return;
+      }
+      default:
+        return; // history and media rows never change
+    }
+  }
+}
+
+const pickKnown = (d: Row, cols: readonly string[]): Row => Object.fromEntries(Object.entries(d).filter(([k]) => cols.includes(k) && k !== 'uuid'));
+
+// ── restore ─────────────────────────────────────────────────────────────────
+
+/** Trees and stems of the census created after `t` (ms), by uuid. */
+function createdAfter(ctx: { db: SurveyDb }, tbl: 'fw_individuals' | 'fw_stems', uuids: string[], t: number): Set<string> {
+  if (!uuids.length) return new Set();
+  return new Set(rows<{ uuid: string }>(ctx, `SELECT uuid FROM ${tbl} WHERE uuid IN (${marks(uuids.length)}) AND created_at > ?`, [...uuids, t]).map((r) => r.uuid));
+}
+
+/**
+ * Make the census equal to `target` within its quadrats (and its trees, where
+ * they are now). Returns how many operations ran. The caller runs it in a
+ * transaction.
+ */
+export function restoreSlice(ctx: Ctx, surveyId: number, target: CensusSlice): number {
+  const codes = [...(target.scope ?? []), ...target.quadrats.map((q) => q.quadrat_code as string), ...target.trees.map((t) => t.quadrat_code as string)];
+  const current = buildSlice(ctx, surveyId, codes, target.trees.map((t) => t.uuid as string));
+  const currentSide = censusSide(current);
+  const items = diffSides(currentSide, censusSide(target), baseOf(currentSide), takeVersion(CENSUS_COMBINERS));
+  const ops = planOps(items, restoreDecisions(items));
+  const targetTrees = new Set(target.trees.map((t) => t.uuid as string));
+  const stemTree = new Map(current.stems.map((st) => [st.uuid as string, st.tree_uuid as string]));
+  const newTrees = createdAfter(ctx, 'fw_individuals', current.trees.map((t) => t.uuid as string), target.taken_at);
+  const newStems = createdAfter(ctx, 'fw_stems', current.stems.map((st) => st.uuid as string), target.taken_at);
+  const ownerOf = (tbl: string, key: string): string | undefined => {
+    switch (tbl) {
+      case 'measure':
+        return stemTree.get(key);
+      case 'sval':
+        return stemTree.get(key.split('|')[0]);
+      case 'ival':
+        return key.split('|')[0];
+      case 'media':
+        return current.media.find((m) => m.uuid === key)?.tree_uuid as string | undefined;
+      default:
+        return undefined;
+    }
+  };
+  applySliceOps(ctx, surveyId, ops, {
+    mayDelete: (tbl, key) => {
+      if (tbl === 'tree') return newTrees.has(key);
+      if (tbl === 'stem') return newStems.has(key);
+      if (tbl === 'fgquadrat') return true;
+      const owner = ownerOf(tbl, key);
+      return owner == null || targetTrees.has(owner) || newTrees.has(owner);
+    },
+  });
+  return ops.length;
+}
+
+/** Census uuid and number of a census (for documents and labels). */
+export function censusIdentity(ctx: { db: SurveyDb }, surveyId: number): { uuid: string; censusNo: number; frameCode: string; frameName: string | null } | null {
+  const r = one<{ uuid: string; census_no: number; code: string; name: string | null }>(
+    ctx,
+    `SELECT s.uuid, s.census_no, f.code, f.name FROM fw_surveys s JOIN fw_frames f ON f.id = s.frame_id WHERE s.id = ?`,
+    [surveyId],
+  );
+  return r ? { uuid: r.uuid, censusNo: r.census_no, frameCode: r.code, frameName: r.name } : null;
+}
+
+
+// ── a whole census (kept when it is deleted) ────────────────────────────────
+
+/** What a deleted census needs to come back: its plot, series and census
+ *  rows, and which quadrats had data (each kept as its own slice). */
+export type CensusHeaderDoc = {
+  record_type: 'census_header';
+  schema: 1;
+  frame: Row;
+  series: Row;
+  survey: Row;
+  /** This device's project of the census (projects are local, not in slices). */
+  project_id: number;
+  quadrats: { uuid: string; quadrat_code: string }[];
+};
+
+export function censusHeaderDoc(ctx: { db: SurveyDb }, surveyId: number): CensusHeaderDoc | null {
+  const s = getSurvey(ctx, surveyId);
+  if (!s) return null;
+  const frame = one<Row>(ctx, `SELECT * FROM fw_frames WHERE id = ?`, [s.frame_id])!;
+  const series = one<Row>(ctx, `SELECT uuid, template_id, series_code FROM fw_frame_series WHERE id = ?`, [s.series_id])!;
+  return {
+    record_type: 'census_header',
+    schema: 1,
+    frame: pick(frame, FRAME_COLS),
+    series,
+    survey: pick(s as unknown as Row, SURVEY_COLS),
+    project_id: s.project_id,
+    quadrats: rows<{ uuid: string; quadrat_code: string }>(ctx, `SELECT uuid, quadrat_code FROM fw_survey_quadrats WHERE survey_id = ? ORDER BY quadrat_code`, [surveyId]),
+  };
+}
+
+export function headerSide(h: CensusHeaderDoc): MergeSide {
+  return {
+    census: [{ key: 'census', data: { ...h.survey, frame: h.frame.uuid, series: h.series.uuid, quadrats: h.quadrats.map((q) => q.uuid) }, label: String(h.survey.census_no) }],
+  };
+}
+
+export type RecoverError = 'census_no_taken' | 'frame_code_taken';
+
+export class RecoverCensusError extends Error {
+  code: RecoverError;
+  constructor(code: RecoverError) {
+    super(`recover census: ${code}`);
+    this.code = code;
+  }
+}
+
+/**
+ * Rebuild a deleted census under its own uuid: its plot and series if they
+ * are gone too (by uuid), then each quadrat's slice. It comes back finished,
+ * like other recovered records, so it never takes the active slot; its end
+ * time is kept as it was. The caller runs it in a transaction. Returns the
+ * census id.
+ */
+export function recoverCensus(ctx: Ctx, header: CensusHeaderDoc, slices: readonly CensusSlice[]): number {
+  const now = ctx.now();
+  let frameId = one<{ id: number }>(ctx, `SELECT id FROM fw_frames WHERE uuid = ?`, [header.frame.uuid as string])?.id;
+  if (frameId == null) {
+    if (one(ctx, `SELECT id FROM fw_frames WHERE code = ?`, [header.frame.code as string])) throw new RecoverCensusError('frame_code_taken');
+    const cols = FRAME_COLS as readonly string[];
+    frameId = Number(
+      run(ctx, `INSERT INTO fw_frames (${cols.join(', ')}, created_at, updated_at) VALUES (${marks(cols.length)}, ?, ?)`, [...cols.map((c) => header.frame[c] as Scalar), now, now]).insertId,
+    );
+  }
+  let seriesId = one<{ id: number }>(ctx, `SELECT id FROM fw_frame_series WHERE uuid = ?`, [header.series.uuid as string])?.id;
+  if (seriesId == null) {
+    seriesId = Number(
+      run(ctx, `INSERT INTO fw_frame_series (uuid, frame_id, template_id, series_code, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`, [
+        header.series.uuid as string,
+        frameId,
+        header.series.template_id as string,
+        header.series.series_code as string,
+        now,
+        now,
+      ]).insertId,
+    );
+  }
+  if (one(ctx, `SELECT id FROM fw_surveys WHERE series_id = ? AND census_no = ?`, [seriesId, header.survey.census_no as number])) {
+    throw new RecoverCensusError('census_no_taken');
+  }
+  const cols = SURVEY_COLS as readonly string[];
+  const project = one(ctx, `SELECT id FROM projects WHERE id = ?`, [header.project_id]) ? header.project_id : 0;
+  const surveyId = Number(
+    run(ctx, `INSERT INTO fw_surveys (${cols.join(', ')}, frame_id, series_id, project_id, created_at, updated_at) VALUES (${marks(cols.length)}, ?, ?, ?, ?, ?)`, [
+      ...cols.map((c) => (c === 'status' ? 'done' : (header.survey[c] as Scalar))),
+      frameId,
+      seriesId,
+      project,
+      now,
+      now,
+    ]).insertId,
+  );
+  for (const sl of slices) restoreSlice(ctx, surveyId, sl);
+  return surveyId;
+}

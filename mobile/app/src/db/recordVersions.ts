@@ -31,9 +31,17 @@ import { b64u, fromB64u } from '~/lib/teamCrypto';
 import { pickPrune, planSave, restoreDecisions, snapshotHash, takeVersion, type VersionMeta, type VersionReason } from '~/lib/recordVersionsCore';
 import { File } from 'expo-file-system';
 import { rebaseAppFileUri } from '~/lib/appFiles';
+import * as census from '~/survey/db/censusVersions';
+
+/**
+ * What versions are kept for: the three merge kinds, plus a census per 20 m
+ * quadrat ('survey_quadrat') and a whole census when it is deleted ('survey',
+ * recoverable). Sync still uses MergeKind; the census joins it in 1C-b.
+ */
+export type VersionKind = MergeKind | 'survey_quadrat' | 'survey';
 
 export type RecordVersion = VersionMeta & {
-  record_kind: MergeKind;
+  record_kind: VersionKind;
   record_uuid: string;
   label: string | null;
   note: string | null;
@@ -41,7 +49,7 @@ export type RecordVersion = VersionMeta & {
   deleted_at: number | null;
 };
 
-type Doc = ImportedSession | ImportedPlot | GloriaDoc;
+type Doc = ImportedSession | ImportedPlot | GloriaDoc | census.CensusSlice | census.CensusHeaderDoc;
 type Snapshot = { doc: Doc; media: Array<FileItem & { ref: MediaRef }> };
 
 const rows = <T>(sql: string, args: Array<string | number | null> = []) => (getUserDb().executeSync(sql, args).rows ?? []) as unknown as T[];
@@ -49,21 +57,46 @@ const META = 'id, record_kind, record_uuid, label, reason, note, content_hash, s
 
 // ── the record as it is ────────────────────────────────────────────────────────
 
-function localDoc(kind: MergeKind, id: number): Doc | null {
-  if (kind === 'session') return localSessionDoc(id);
-  if (kind === 'plot') return localPlotDoc(id);
-  if (kind === 'gloria') return localGloriaDoc(id);
-  return assertNever(kind, 'merge kind');
+function localDoc(kind: VersionKind, id: number): Doc | null {
+  switch (kind) {
+    case 'session':
+      return localSessionDoc(id);
+    case 'plot':
+      return localPlotDoc(id);
+    case 'gloria':
+      return localGloriaDoc(id);
+    case 'survey_quadrat':
+      return census.quadratSlice(id);
+    case 'survey':
+      return census.censusHeader(id);
+    default:
+      return assertNever(kind, 'version kind');
+  }
 }
 
-function sideOf(kind: MergeKind, doc: Doc): MergeSide {
-  if (kind === 'session') return sessionSide(doc as ImportedSession);
-  if (kind === 'plot') return plotSide(doc as ImportedPlot);
-  if (kind === 'gloria') return gloriaSide(doc as GloriaDoc);
-  return assertNever(kind, 'merge kind');
+function sideOf(kind: VersionKind, doc: Doc): MergeSide {
+  switch (kind) {
+    case 'session':
+      return sessionSide(doc as ImportedSession);
+    case 'plot':
+      return plotSide(doc as ImportedPlot);
+    case 'gloria':
+      return gloriaSide(doc as GloriaDoc);
+    case 'survey_quadrat':
+      return census.censusSide(doc as census.CensusSlice);
+    case 'survey':
+      return census.headerSide(doc as census.CensusHeaderDoc);
+    default:
+      return assertNever(kind, 'version kind');
+  }
 }
 
-export function uuidAndLabel(kind: MergeKind, id: number): { uuid: string; label: string } | null {
+const combinersOf = (kind: VersionKind) => (kind === 'survey_quadrat' || kind === 'survey' ? census.CENSUS_COMBINERS : COMBINERS[kind]);
+
+/** The census kinds keep files as fw_media rows inside the slice, not as file references. */
+const mediaOf = (kind: VersionKind, id: number) => (kind === 'survey_quadrat' || kind === 'survey' ? [] : listRecordMedia(kind, id));
+
+export function uuidAndLabel(kind: VersionKind, id: number): { uuid: string; label: string } | null {
   if (kind === 'session') {
     const s = getSession(id);
     return s?.uuid ? { uuid: s.uuid, label: s.name ?? '' } : null;
@@ -77,14 +110,18 @@ export function uuidAndLabel(kind: MergeKind, id: number): { uuid: string; label
     const sm = sv ? getSummit(sv.summit_id) : null;
     return sv && sm ? { uuid: sv.uuid, label: `${sm.full_code} mocy ${sv.mocy}` } : null;
   }
-  return assertNever(kind, 'merge kind');
+  if (kind === 'survey_quadrat') return census.quadratIdentity(id);
+  if (kind === 'survey') return census.censusIdentity(id);
+  return assertNever(kind, 'version kind');
 }
 
-export function localRecordId(kind: MergeKind, uuid: string): number | null {
+export function localRecordId(kind: VersionKind, uuid: string): number | null {
   if (kind === 'session') return getSessionByUuid(uuid)?.id ?? null;
   if (kind === 'plot') return getPlotSurveyByUuid(uuid)?.id ?? null;
   if (kind === 'gloria') return rows<{ id: number }>(`SELECT id FROM gloria_surveys WHERE uuid = ?`, [uuid])[0]?.id ?? null;
-  return assertNever(kind, 'merge kind');
+  if (kind === 'survey_quadrat') return census.quadratIdByUuid(uuid);
+  if (kind === 'survey') return census.censusIdByUuid(uuid);
+  return assertNever(kind, 'version kind');
 }
 
 const encode = (s: Snapshot) => b64u(deflateSync(strToU8(JSON.stringify(s)), { level: 9 }));
@@ -97,7 +134,7 @@ const decode = (text: string): Snapshot => JSON.parse(strFromU8(inflateSync(from
  * always). Never throws: a version is a safety net, not a reason to fail the
  * finish, merge or navigation that asked for it. Returns whether one was stored.
  */
-export function saveVersion(kind: MergeKind, id: number, reason: VersionReason, note: string | null = null): boolean {
+export function saveVersion(kind: VersionKind, id: number, reason: VersionReason, note: string | null = null): boolean {
   try {
     const who = uuidAndLabel(kind, id);
     const doc = who ? localDoc(kind, id) : null;
@@ -116,7 +153,7 @@ export function saveVersion(kind: MergeKind, id: number, reason: VersionReason, 
       db.executeSync(`UPDATE record_versions SET reason = ?, note = COALESCE(?, note) WHERE id = ?`, [reason, note?.trim() || null, plan.id]);
       return true;
     }
-    const text = encode({ doc, media: listRecordMedia(kind, id) });
+    const text = encode({ doc, media: mediaOf(kind, id) });
     if (plan.kind === 'update') {
       db.executeSync(`UPDATE record_versions SET content_hash = ?, size = ?, doc = ?, label = ?, updated_at = ? WHERE id = ?`, [hash, text.length, text, who.label, now, plan.id]);
     } else {
@@ -136,35 +173,35 @@ export function saveVersion(kind: MergeKind, id: number, reason: VersionReason, 
 }
 
 /** The same, for a record known by uuid (imports that replace it). */
-export function saveVersionByUuid(kind: MergeKind, uuid: string, reason: VersionReason): boolean {
+export function saveVersionByUuid(kind: VersionKind, uuid: string, reason: VersionReason): boolean {
   const id = localRecordId(kind, uuid);
   return id == null ? false : saveVersion(kind, id, reason);
 }
 
 /** After the current interaction settles (a screen's leave, a finish): the snapshot must not delay the UI.
  *  The delay also lets a text field that commits on blur write first. */
-export function saveVersionSoon(kind: MergeKind, id: number, reason: VersionReason): void {
+export function saveVersionSoon(kind: VersionKind, id: number, reason: VersionReason): void {
   setTimeout(() => {
     if (saveVersion(kind, id, reason)) for (const fn of listeners) fn(kind, id);
   }, 350);
 }
 
-const listeners = new Set<(kind: MergeKind, id: number) => void>();
+const listeners = new Set<(kind: VersionKind, id: number) => void>();
 
 /** Told when a deferred snapshot lands — the versions screen opens over the record, before its "leave" one. */
-export function onVersionSaved(fn: (kind: MergeKind, id: number) => void): () => void {
+export function onVersionSaved(fn: (kind: VersionKind, id: number) => void): () => void {
   listeners.add(fn);
   return () => listeners.delete(fn);
 }
 
 // ── read ──────────────────────────────────────────────────────────────────────
 
-export function listVersions(kind: MergeKind, uuid: string): RecordVersion[] {
+export function listVersions(kind: VersionKind, uuid: string): RecordVersion[] {
   return rows<RecordVersion>(`SELECT ${META} FROM record_versions WHERE record_kind = ? AND record_uuid = ? ORDER BY created_at DESC, id DESC`, [kind, uuid]);
 }
 
-function readSnapshot(versionId: number): (Snapshot & { kind: MergeKind }) | null {
-  const r = rows<{ doc: string; record_kind: MergeKind }>(`SELECT doc, record_kind FROM record_versions WHERE id = ?`, [versionId])[0];
+function readSnapshot(versionId: number): (Snapshot & { kind: VersionKind }) | null {
+  const r = rows<{ doc: string; record_kind: VersionKind }>(`SELECT doc, record_kind FROM record_versions WHERE id = ?`, [versionId])[0];
   if (!r) return null;
   try {
     return { ...decode(r.doc), kind: r.record_kind };
@@ -174,7 +211,7 @@ function readSnapshot(versionId: number): (Snapshot & { kind: MergeKind }) | nul
 }
 
 /** Rows that change going from `from` to `to` (a version id, or 'now' for the record as it is). */
-export function diffVersions(kind: MergeKind, recordId: number | null, from: number | 'now', to: number | 'now'): MergeChange[] | null {
+export function diffVersions(kind: VersionKind, recordId: number | null, from: number | 'now', to: number | 'now'): MergeChange[] | null {
   const sideAt = (v: number | 'now'): MergeSide | null => {
     if (v === 'now') {
       const d = recordId != null ? localDoc(kind, recordId) : null;
@@ -186,14 +223,15 @@ export function diffVersions(kind: MergeKind, recordId: number | null, from: num
   const a = sideAt(from);
   const b = sideAt(to);
   if (!a || !b) return null;
-  const items = diffSides(a, b, baseOf(a), takeVersion(COMBINERS[kind]));
+  const items = diffSides(a, b, baseOf(a), takeVersion(combinersOf(kind)));
   return describeMerge(items, restoreDecisions(items));
 }
 
 // ── restore / recover ──────────────────────────────────────────────────────────
 
 /** Files the snapshot referred to that are still on this device go back where they were (adding only). */
-function putBackMedia(kind: MergeKind, id: number, media: Snapshot['media']): void {
+function putBackMedia(kind: VersionKind, id: number, media: Snapshot['media']): void {
+  if (kind === 'survey_quadrat' || kind === 'survey') return; // fw_media rows travel inside the slice
   for (const m of media ?? []) {
     const here = m.uri.startsWith('file:') ? new File(rebaseAppFileUri(m.uri)).exists : true;
     if (!here) continue;
@@ -202,37 +240,57 @@ function putBackMedia(kind: MergeKind, id: number, media: Snapshot['media']): vo
 }
 
 /** Make the record equal to a version again. The current state is saved first. Returns the rows changed. */
-export function restoreVersion(kind: MergeKind, id: number, versionId: number): number {
+export function restoreVersion(kind: VersionKind, id: number, versionId: number): number {
   const snap = readSnapshot(versionId);
   const doc = localDoc(kind, id);
   if (!snap || !doc) throw new Error('version or record not found');
   saveVersion(kind, id, 'before_restore');
-  const current = sideOf(kind, doc);
-  const items = diffSides(current, sideOf(kind, snap.doc), baseOf(current), takeVersion(COMBINERS[kind]));
-  const ops = planOps(items, restoreDecisions(items));
-  if (kind === 'session') applySessionMerge(id, ops, {});
-  else if (kind === 'plot') applyPlotMerge(id, ops, {});
-  else applyGloriaMerge(id, ops);
+  let changed: number;
+  if (kind === 'survey_quadrat') {
+    // A census quadrat restores through its own rules (sliceCore.restoreSlice).
+    changed = census.restoreQuadrat(id, snap.doc as census.CensusSlice);
+  } else {
+    const current = sideOf(kind, doc);
+    const items = diffSides(current, sideOf(kind, snap.doc), baseOf(current), takeVersion(combinersOf(kind)));
+    const ops = planOps(items, restoreDecisions(items));
+    switch (kind) {
+      case 'session':
+        applySessionMerge(id, ops, {});
+        break;
+      case 'plot':
+        applyPlotMerge(id, ops, {});
+        break;
+      case 'gloria':
+        applyGloriaMerge(id, ops);
+        break;
+      case 'survey':
+        throw new Error('a census header is not restored; a deleted census is recovered');
+      default:
+        return assertNever(kind, 'version kind');
+    }
+    changed = ops.length;
+  }
   putBackMedia(kind, id, snap.media);
   for (const fn of restoredListeners) fn(kind, id);
-  return ops.length;
+  return changed;
 }
 
-const restoredListeners = new Set<(kind: MergeKind, id: number) => void>();
+const restoredListeners = new Set<(kind: VersionKind, id: number) => void>();
 
 /** Told after a restore, for a record screen that stays mounted under the versions screen and keeps its own copies. */
-export function onVersionRestored(fn: (kind: MergeKind, id: number) => void): () => void {
+export function onVersionRestored(fn: (kind: VersionKind, id: number) => void): () => void {
   restoredListeners.add(fn);
   return () => restoredListeners.delete(fn);
 }
 
-export type DeletedRecord = { kind: MergeKind; uuid: string; label: string | null; deletedAt: number; versions: number; latestId: number };
+export type DeletedRecord = { kind: VersionKind; uuid: string; label: string | null; deletedAt: number; versions: number; latestId: number };
 
-/** Records whose versions outlive them (deleted within the last 30 days). */
+/** Records whose versions outlive them (deleted within the last 30 days). A
+ *  census's quadrats are not listed: they come back with their census. */
 export function listDeletedRecords(): DeletedRecord[] {
-  return rows<{ record_kind: MergeKind; record_uuid: string; label: string | null; deleted_at: number; n: number; latest: number }>(
+  return rows<{ record_kind: VersionKind; record_uuid: string; label: string | null; deleted_at: number; n: number; latest: number }>(
     `SELECT record_kind, record_uuid, MAX(label) AS label, MAX(deleted_at) AS deleted_at, COUNT(*) AS n, MAX(id) AS latest
-       FROM record_versions WHERE deleted_at IS NOT NULL GROUP BY record_kind, record_uuid ORDER BY deleted_at DESC`,
+       FROM record_versions WHERE deleted_at IS NOT NULL AND record_kind != 'survey_quadrat' GROUP BY record_kind, record_uuid ORDER BY deleted_at DESC`,
   ).map((r) => ({ kind: r.record_kind, uuid: r.record_uuid, label: r.label, deletedAt: r.deleted_at, versions: r.n, latestId: r.latest }));
 }
 
@@ -240,12 +298,30 @@ export function listDeletedRecords(): DeletedRecord[] {
  * Rebuild a deleted record from its latest version, under its own uuid. It
  * lands finished (imports never take the single-active slot). Returns its id.
  */
-export function recoverRecord(kind: MergeKind, uuid: string): number {
-  const latest = rows<{ id: number }>(`SELECT id FROM record_versions WHERE record_kind = ? AND record_uuid = ? ORDER BY created_at DESC, id DESC LIMIT 1`, [kind, uuid])[0];
+export function recoverRecord(kind: VersionKind, uuid: string): number {
+  const latestOf = (k: VersionKind, u: string) =>
+    rows<{ id: number }>(`SELECT id FROM record_versions WHERE record_kind = ? AND record_uuid = ? ORDER BY created_at DESC, id DESC LIMIT 1`, [k, u])[0];
+  const latest = latestOf(kind, uuid);
   const snap = latest ? readSnapshot(latest.id) : null;
   if (!snap) throw new Error('no version to recover from');
   let id: number;
   switch (kind) {
+    case 'survey': {
+      // The census header names its quadrats; each comes back from its own latest version.
+      const header = snap.doc as census.CensusHeaderDoc;
+      const slices = header.quadrats
+        .map((q) => latestOf('survey_quadrat', q.uuid))
+        .map((v) => (v ? readSnapshot(v.id)?.doc : null))
+        .filter((d): d is census.CensusSlice => d != null && (d as census.CensusSlice).record_type === 'census_slice');
+      id = census.recoverCensusFrom(header, slices);
+      getUserDb().executeSync(
+        `UPDATE record_versions SET deleted_at = NULL WHERE record_kind = 'survey_quadrat' AND record_uuid IN (${header.quadrats.map(() => '?').join(', ') || "''"})`,
+        header.quadrats.map((q) => q.uuid),
+      );
+      break;
+    }
+    case 'survey_quadrat':
+      throw new Error('a census quadrat comes back with its census');
     case 'session':
       id = importSession(snap.doc as ImportedSession, { newUuid: false }).sessionId;
       break;
@@ -256,7 +332,7 @@ export function recoverRecord(kind: MergeKind, uuid: string): number {
       id = importGloriaDoc(snap.doc as GloriaDoc).surveyId;
       break;
     default:
-      return assertNever(kind, 'merge kind');
+      return assertNever(kind, 'version kind');
   }
   putBackMedia(kind, id, snap.media);
   getUserDb().executeSync(`UPDATE record_versions SET deleted_at = NULL WHERE record_kind = ? AND record_uuid = ?`, [kind, uuid]);

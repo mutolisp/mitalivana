@@ -37,6 +37,7 @@ import * as s from '../src/survey/db/stemmapCore.ts';
 import { STEMMAP_TEMPLATE } from '../src/survey/templates/stemmap.ts';
 import * as r from '../src/survey/stemmap/review.ts';
 import * as tf from '../src/survey/stemmap/treeForm.ts';
+import * as sl from '../src/survey/db/sliceCore.ts';
 import { templateHash } from '../src/survey/template/validate.ts';
 import { toLatLng } from '../src/survey/stemmap/coords.ts';
 
@@ -53,6 +54,15 @@ const throwsCode = (fn, code, msg) => {
     fn();
   } catch (e) {
     ok(e instanceof s.SurveyError && e.code === code, `${msg} (threw ${e.message})`);
+    return;
+  }
+  ok(false, `${msg} (did not throw)`);
+};
+const throwsCodeOf = (fn, Cls, code, msg) => {
+  try {
+    fn();
+  } catch (e) {
+    ok(e instanceof Cls && e.code === code, `${msg} (threw ${e.message})`);
     return;
   }
   ok(false, `${msg} (did not throw)`);
@@ -78,6 +88,16 @@ const db = {
 await runUserMigrations(db);
 sqlite.exec('PRAGMA foreign_keys = ON;');
 const one = (sql, ...a) => sqlite.prepare(sql).get(...a);
+const tx = (fn) => {
+  sqlite.exec('BEGIN');
+  try {
+    fn();
+    sqlite.exec('COMMIT');
+  } catch (e) {
+    sqlite.exec('ROLLBACK');
+    throw e;
+  }
+};
 const count = (table, where = '1', ...a) => one(`SELECT COUNT(*) AS n FROM ${table} WHERE ${where}`, ...a).n;
 let clock = 1000;
 let n = 0;
@@ -434,6 +454,75 @@ ok(s.listTreeMedia(ctx, K2, kid).map((m) => m.uri).join() === 'file:///photos/a.
 s.removeTreeMedia(ctx, K2, kid, 'file:///photos/a.jpg');
 ok(s.listTreeMedia(ctx, K2, kid).length === 1, 'photos: removed by uri');
 
+// ── slices: restore (quadrat versions, undo) ─────────────────────────────
+const R = s.createFrame(ctx, { code: 'R1', sizeXM: 40, sizeYM: 20 });
+const R1 = s.startCensus(ctx, { frameId: R, template: T });
+const xy = (x, y) => ({ method: 'xy', x, y });
+const ra = s.saveTreeDraft(ctx, R1, draft({ location: xy(2, 2), mainStemNo: 1, stems: [sd({ dbhCm: 10 })] }));
+const rb = s.saveTreeDraft(ctx, R1, draft({ location: xy(5, 5), mainStemNo: 1, stems: [sd({ dbhCm: 20 }), sd({ dbhCm: 4 })] }));
+const rc = s.saveTreeDraft(ctx, R1, draft({ location: xy(25, 5), mainStemNo: 1, stems: [sd({ dbhCm: 30 })] })); // quadrat 0100
+s.finishCensus(ctx, R1);
+const R2 = s.startCensus(ctx, { frameId: R, template: T });
+const mOfTree = (sid, tid, no = 1) => one(`SELECT m.* FROM fw_stem_measures m JOIN fw_stems st ON st.id = m.stem_id WHERE m.survey_id = ? AND st.individual_id = ? AND st.stem_no = ?`, sid, tid, no);
+s.saveTreeDraft(ctx, R2, { ...asDraft(s.loadTree(ctx, R2, ra)), stems: [sd({ stemNo: 1, dbhCm: 10.5 })], mainStemNo: 1 });
+const snap = sl.buildSlice(ctx, R2, ['0000']);
+const side = sl.censusSide(snap);
+ok(side.tree.length === 2 && side.measure.length === 1 && side.measure[0].key === snap.stems.find((st) => st.tree_uuid === s.getIndividual(ctx, ra).uuid).uuid, 'slice: quadrat 0000 holds its two trees; a measurement is keyed by its stem');
+ok(side.fgquadrat[0].key === '0000' && side.tree.every((r) => r.dupKey?.startsWith('tag:')), 'slice: quadrats keyed by code, trees carry their tag for duplicates');
+// edits after the snapshot
+s.saveTreeDraft(ctx, R2, { ...asDraft(s.loadTree(ctx, R2, ra)), stems: [sd({ stemNo: 1, dbhCm: 11 }), sd({ dbhCm: 2 })], mainStemNo: 1 }); // DBH + new stem
+s.setTreeCodes(ctx, R2, rb, ['DS']);
+s.setHeight(ctx, R2, rb, 18);
+s.correctIndividual(ctx, rb, { taxon: taxon('rb2') }, meta(R2));
+const recruitR = s.saveTreeDraft(ctx, R2, draft({ location: xy(8, 8), mainStemNo: 1, stems: [sd({ dbhCm: 3 })] }));
+s.correctIndividual(ctx, ra, { location: xy(30, 10) }, meta(R2)); // moved out to 0100
+s.correctIndividual(ctx, rc, { location: xy(15, 15) }, meta(R2)); // an older tree moved in
+tx(() => sl.restoreSlice(ctx, R2, snap));
+ok(mOfTree(R2, ra).dbh_cm === 10.5, `restore: DBH back (${mOfTree(R2, ra)?.dbh_cm})`);
+ok(count('fw_stems', 'individual_id = ?', ra) === 1, 'restore: the stem added after the snapshot is gone');
+ok(s.treeCodes(ctx, R2, rb).length === 0 && s.heightOf(ctx, R2, rb) == null, 'restore: codes and height added after it are gone');
+ok(s.getIndividual(ctx, rb).taxon_id === 'k1' && count('fw_individual_history', "individual_id = ? AND field = 'taxon'", rb) === 1, 'restore: species back; the correction stays in the history');
+ok(s.getIndividual(ctx, recruitR) == null, 'restore: a tree added after the snapshot is gone');
+ok(s.getIndividual(ctx, ra).quadrat_code === '0000' && s.getIndividual(ctx, ra).x_m === 2, 'restore: a tree that moved out comes back');
+ok(s.getIndividual(ctx, rc) != null && s.getIndividual(ctx, rc).quadrat_code === '0000', 'restore: an older tree that moved in stays');
+ok(mOfTree(R1, rb, 2).dbh_cm === 4, 'restore: other censuses untouched');
+let again = 0;
+tx(() => {
+  again = sl.restoreSlice(ctx, R2, sl.buildSlice(ctx, R2, ['0000'], [s.getIndividual(ctx, rc).uuid]));
+});
+ok(again === 0, `restore: restoring the current state changes nothing (${again} ops)`);
+ok(Object.values(sl.CENSUS_COMBINERS.fgquadrat).length === 3, 'slice: quadrat times and recorders combine');
+const emptySnap = sl.buildSlice(ctx, K2, ['0001']);
+const first = s.saveTreeDraft(ctx, K2, draft({ location: xy(4, 24), mainStemNo: 1, stems: [sd({ dbhCm: 5 })] }));
+ok(s.getIndividual(ctx, first).quadrat_code === '0001', '(first tree of an empty quadrat)');
+tx(() => sl.restoreSlice(ctx, K2, emptySnap));
+ok(s.getIndividual(ctx, first) == null && count('fw_survey_quadrats', "survey_id = ? AND quadrat_code = '0001'", K2) === 0, 'restore: undoing the first tree of an empty quadrat removes it (the slice keeps its scope)');
+
+// recovering a deleted census from its header and quadrat slices
+s.setFgQuadratStatus(ctx, R2, '0100', 'done');
+const recruitR2 = s.saveTreeDraft(ctx, R2, draft({ location: xy(28, 12), mainStemNo: 1, stems: [sd({ dbhCm: 6 })] }));
+const recruitUuid = s.getIndividual(ctx, recruitR2).uuid;
+const header = sl.censusHeaderDoc(ctx, R2);
+const kept = header.quadrats.map((q) => sl.buildSlice(ctx, R2, [q.quadrat_code]));
+const r2uuid = header.survey.uuid;
+const before = { trees: count('fw_individuals', 'frame_id = ?', R), measures: count('fw_stem_measures', 'survey_id = ?', R2) };
+ok(header.quadrats.map((q) => q.quadrat_code).join() === '0000,0100', `recover: the header lists the quadrats with data (${header.quadrats.map((q) => q.quadrat_code)})`);
+s.deleteCensus(ctx, R2);
+ok(s.getIndividual(ctx, recruitR2) == null, 'recover: (deleting took the recruit)');
+const R2b = s.startCensus(ctx, { frameId: R, template: T });
+throwsCodeOf(() => tx(() => sl.recoverCensus(ctx, header, kept)), sl.RecoverCensusError, 'census_no_taken', 'recover: refused while another census has its number');
+s.deleteCensus(ctx, R2b);
+let back = 0;
+tx(() => {
+  back = sl.recoverCensus(ctx, header, kept);
+});
+ok(s.getSurvey(ctx, back).uuid === r2uuid && s.getSurvey(ctx, back).census_no === 2, 'recover: same uuid and census number');
+ok(header.survey.status === 'active' && s.getSurvey(ctx, back).status === 'done', 'recover: a census deleted while active comes back finished');
+ok(count('fw_individuals', 'frame_id = ?', R) === before.trees && count('fw_stem_measures', 'survey_id = ?', back) === before.measures, 'recover: every tree and measurement is back');
+ok(one('SELECT first_survey_id AS f FROM fw_individuals WHERE uuid = ?', recruitUuid)?.f === back, 'recover: the recruit is back (same uuid), first seen in this census');
+ok(one(`SELECT status FROM fw_survey_quadrats WHERE survey_id = ? AND quadrat_code = '0100'`, back).status === 'done', 'recover: quadrat status kept');
+ok(one(`SELECT uuid FROM fw_survey_quadrats WHERE survey_id = ? AND quadrat_code = '0000'`, back).uuid === header.quadrats[0].uuid, 'recover: quadrats keep their uuids (their versions match again)');
+
 // ── deleting a census ────────────────────────────────────────────────────
 throwsCode(() => s.deleteCensus(ctx, C1), 'not_latest_census', 'delete: only the latest census of a series');
 const c1Measures = count('fw_stem_measures', 'survey_id = ?', C1);
@@ -454,7 +543,7 @@ for (const [table, where] of CASCADE_ORPHANS) {
 s.deleteCensus(ctx, C3);
 s.deleteCensus(ctx, C1);
 ok(
-  count('fw_individuals', 'frame_id = ?', F) === 0 && count('fw_individual_history', 'individual_id NOT IN (SELECT id FROM fw_individuals WHERE frame_id = ?)', G) === 0,
+  count('fw_individuals', 'frame_id = ?', F) === 0 && count('fw_individual_history', 'individual_id NOT IN (SELECT id FROM fw_individuals)') === 0,
   'delete: the first census takes every tree it added, with their history',
 );
 s.deleteFrame(ctx, F);

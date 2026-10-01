@@ -8,6 +8,8 @@ import { getUserDb, withTransaction } from '~/db/init';
 import { ensureTaxonSelfSufficient } from '~/db/taxonCache';
 import { generateUuid } from '~/db/uuid';
 import * as core from './stemmapCore';
+import { censusQuadratIds } from './censusVersions';
+import { saveVersion } from '~/db/recordVersions';
 import type { SurveyTemplate } from '../template/types';
 
 export {
@@ -58,8 +60,25 @@ export const finishCensus = (id: number, stopTs?: number) => core.finishCensus(c
 export const reopenCensus = (id: number) => core.reopenCensus(ctx(), id);
 export const previousCensusId = (id: number) => core.previousCensusId(ctx(), id);
 export const isFirstCensus = (id: number) => core.isFirstCensus(ctx(), id);
-export const deleteCensus = (id: number) => withTransaction(() => core.deleteCensus(ctx(), id));
-export const deleteCensuses = (ids: readonly number[]) => withTransaction(() => core.deleteCensuses(ctx(), ids));
+/** Kept before a census goes: each quadrat with data and the census itself,
+ *  so "recently deleted" can bring it back for 30 days. */
+function keepBeforeDelete(id: number): void {
+  for (const q of censusQuadratIds(id)) saveVersion('survey_quadrat', q, 'before_delete');
+  saveVersion('survey', id, 'before_delete');
+}
+
+export const deleteCensus = (id: number) =>
+  withTransaction(() => {
+    // Refused before anything is kept: only the latest census of a series can go.
+    core.assertDeletableCensus(ctx(), id);
+    keepBeforeDelete(id);
+    core.deleteCensus(ctx(), id);
+  });
+export const deleteCensuses = (ids: readonly number[]) =>
+  withTransaction(() => {
+    for (const id of ids) keepBeforeDelete(id);
+    core.deleteCensuses(ctx(), ids);
+  });
 export const setCensusProject = (id: number, projectId: number) => core.setCensusProject(ctx(), id, projectId);
 export const updateCensus = (id: number, patch: { investigators?: string | null; notes?: string | null }) => core.updateCensus(ctx(), id, patch);
 

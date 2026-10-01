@@ -10,7 +10,8 @@ import { useTranslation } from 'react-i18next';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { SettingsPage } from '~/components/settings/SettingsPage';
 import { sweepRecordVersions } from '~/db/cleanup';
-import { listDeletedRecords, recoverRecord, type DeletedRecord } from '~/db/recordVersions';
+import { listDeletedRecords, recoverRecord, type DeletedRecord, type VersionKind } from '~/db/recordVersions';
+import { RecoverCensusError } from '~/survey/db/censusVersions';
 import { isoStamp } from '~/lib/datetime';
 import { errText } from '~/lib/errText';
 import { DELETED_KEEP_MS } from '~/lib/recordVersionsCore';
@@ -31,6 +32,16 @@ export default function DeletedRecordsScreen() {
   }, []);
   useFocusEffect(load);
 
+  const hrefOf = (kind: VersionKind, id: number): Href => {
+    switch (kind) {
+      case 'survey':
+        return `/survey/${id}` as Href;
+      case 'survey_quadrat':
+        return '/survey' as Href; // never listed: quadrats come back with their census
+      default:
+        return syncedRecordHref(kind, id);
+    }
+  };
   const recover = (r: DeletedRecord) =>
     Alert.alert(t('versions.recoverTitle'), t('versions.recoverMsg', { name: r.label ?? '' }), [
       { text: t('common.cancel'), style: 'cancel' },
@@ -41,9 +52,15 @@ export default function DeletedRecordsScreen() {
             const id = recoverRecord(r.kind, r.uuid);
             load();
             toast(t('versions.recovered', { name: r.label ?? '' }));
-            router.push(syncedRecordHref(r.kind, id) as Href);
+            router.push(hrefOf(r.kind, id));
           } catch (e) {
-            Alert.alert(t('versions.recoverFail'), errText(e));
+            const why =
+              e instanceof RecoverCensusError
+                ? e.code === 'census_no_taken'
+                  ? t('survey.census.recoverNumberTaken')
+                  : t('survey.census.recoverCodeTaken')
+                : errText(e);
+            Alert.alert(t('versions.recoverFail'), why);
           }
         },
       },
