@@ -61,6 +61,84 @@ export function isCensusExport(doc: unknown): doc is CensusExportDoc {
   return !!d && d.record_type === 'census_export' && !!d.frame && !!d.series && Array.isArray(d.censuses) && d.censuses.length > 0 && Array.isArray(d.trees);
 }
 
+// ── as a file ───────────────────────────────────────────────────────────────
+
+const TREE_TABLES = ['trees', 'stems', 'history'] as const;
+const PART_TABLES = ['quadrats', 'measures', 'stemValues', 'treeValues', 'media'] as const;
+
+/** A row list in the file: the column names once, then one array per row. */
+type FileTable = { columns: string[]; rows: unknown[][] };
+
+const listText = (items: string[]) => (items.length ? `[\n${items.join(',\n')}]` : '[]');
+
+function tableText(list: Row[]): string {
+  const columns: string[] = [];
+  const seen = new Set<string>();
+  for (const r of list)
+    for (const k in r)
+      if (!seen.has(k)) {
+        seen.add(k);
+        columns.push(k);
+      }
+  return `{"columns": ${JSON.stringify(columns)}, "rows": ${listText(list.map((r) => JSON.stringify(columns.map((c) => r[c] ?? null))))}}`;
+}
+
+const fieldsText = (fields: Array<[string, string]>) => `{${fields.map(([k, v]) => `${JSON.stringify(k)}: ${v}`).join(',\n')}}`;
+
+/**
+ * The document as file text: JSON with one row per line, each row list as
+ * its column names once and one array per row. 1E: a 20 000-tree census as
+ * YAML row mappings was 29 MB, and writing, hashing, zipping and reading it
+ * back took minutes on Android; JSON.stringify and JSON.parse are native.
+ * JSON is YAML 1.2 (YAML 1.2.2 §1.2: 1.2's "primary focus was making YAML a
+ * strict superset of JSON"), so the file keeps its .yml name and any YAML
+ * reader takes it.
+ */
+export function censusExportText(doc: CensusExportDoc): string {
+  const isTable = (k: string, among: readonly string[]) => among.includes(k);
+  const part = (c: CensusPart) =>
+    fieldsText(
+      Object.entries(c).map(([k, v]): [string, string] => [
+        k,
+        isTable(k, PART_TABLES) ? tableText(v as Row[]) : k === 'base' ? listText((v as BaseEntry[]).map((e) => JSON.stringify(e))) : JSON.stringify(v),
+      ]),
+    );
+  return `${fieldsText(
+    Object.entries(doc).map(([k, v]): [string, string] => [
+      k,
+      isTable(k, TREE_TABLES) ? tableText(v as Row[]) : k === 'censuses' ? listText((v as CensusPart[]).map(part)) : JSON.stringify(v),
+    ]),
+  )}\n`;
+}
+
+const isFileTable = (v: unknown): v is FileTable => !!v && typeof v === 'object' && Array.isArray((v as FileTable).columns) && Array.isArray((v as FileTable).rows);
+
+const rowsOf = (v: unknown): unknown =>
+  isFileTable(v)
+    ? v.rows.map((r) => {
+        const o: Record<string, unknown> = {};
+        v.columns.forEach((c, i) => {
+          o[c] = r[i] ?? null;
+        });
+        return o;
+      })
+    : v;
+
+/** A document as read from its file: row tables back into rows. Anything else (another kind, rows already) passes through. */
+export function censusExportFromFile(raw: unknown): unknown {
+  const d = raw as Record<string, unknown> | null;
+  if (!d || typeof d !== 'object' || d.record_type !== 'census_export') return raw;
+  const out: Record<string, unknown> = { ...d };
+  for (const k of TREE_TABLES) out[k] = rowsOf(d[k]);
+  if (Array.isArray(d.censuses))
+    out.censuses = d.censuses.map((c: Record<string, unknown>) => {
+      const p: Record<string, unknown> = { ...c };
+      for (const k of PART_TABLES) p[k] = rowsOf(c[k]);
+      return p;
+    });
+  return out;
+}
+
 /** Every quadrat code of a frame row. */
 function allCodes(frame: Row): string[] {
   const { cols, rows: rr } = fgQuadratCounts(
@@ -86,14 +164,15 @@ export function buildCensusExport(ctx: Ctx, surveyId: number, names: (taxonId: s
   const ids = rows<{ id: number }>(ctx, `SELECT id FROM fw_surveys WHERE series_id = ? AND census_no <= ? ORDER BY census_no`, [s.series_id, s.census_no]).map((r) => r.id);
   const frame = one<Row>(ctx, `SELECT * FROM fw_frames WHERE id = ?`, [s.frame_id])!;
   const codes = allCodes(frame);
-  const slices = ids.map((id) => buildSlice(ctx, id, codes));
-  // The last census sees every tree of the earlier ones.
+  // The last census sees every tree of the earlier ones: only its slice reads the trees and stems.
+  const slices = ids.map((id, i) => buildSlice(ctx, id, codes, [], { permanent: i === ids.length - 1 }));
   const last = slices[slices.length - 1];
   const taxa: Record<string, string> = {};
   for (const t of last.trees) {
     const id = t.taxon_id as string;
+    if (!id || taxa[id]) continue;
     const name = (t.used_scientific_name as string | null) ?? names(id);
-    if (id && name && !taxa[id]) taxa[id] = name;
+    if (name) taxa[id] = name;
   }
   return {
     record_type: 'census_export',

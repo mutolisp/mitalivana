@@ -164,9 +164,10 @@ function querySynonyms(
     const tid = (r.taxon_id as string) ?? '';
     if (!tid || seen.has(tid)) continue;
     seen.add(tid);
+    // `+usage_status` keeps the taxon_id index (see resolveTaxa in taxonLookup.ts).
     const acc = db.executeSync(
       `SELECT ${CAND_COLS} FROM ${tbl}
-        WHERE taxon_id = ? AND usage_status = 'accepted' LIMIT 1`,
+        WHERE taxon_id = ? AND +usage_status = 'accepted' LIMIT 1`,
       [tid],
     );
     const a = ((acc.rows ?? []) as Record<string, unknown>[])[0];
@@ -211,8 +212,10 @@ export function matchScientificName(q: SciQuery): SciMatch {
   const variants = nameVariants(q.name);
   if (variants.length === 0) return { kind: 'unmatched' };
 
-  // 逐個可用的名錄模組（TaiCOL 優先，見 availableNameDatasets）。以前是寫死的
-  // 兩張表；現在沒安裝的模組根本不會進迴圈，兩者的順序語意不變。
+  // Go through each available checklist module (TaiCOL first, see
+  // availableNameDatasets). This used to be two hard-coded tables; now a module
+  // that is not installed never enters the loop, and the ordering semantics of
+  // the two are unchanged.
   for (const spec of availableNameDatasets()) {
     if (spec.tables.kind !== 'names') continue;
     const db = getDatasetDb(spec.id);

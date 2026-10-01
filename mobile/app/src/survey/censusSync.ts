@@ -47,7 +47,7 @@ import {
 import { useSyncProgress, withSyncProgress } from '~/stores/syncProgress';
 import { prepareMediaItems, receiveMedia, sendRecordMedia, serverTakesFiles, type PreparedMedia } from '~/lib/mediaSync';
 import type { FileItem, MediaEntry, MediaMeta, MediaRef } from '~/lib/mediaRefsCore';
-import { BYTES_PER_STEM, chooseSyncBlock, DEFAULT_STEMS_PER_HA, EDGE_CANDIDATES } from './stemmap/syncBlocks';
+import { BASE64_FACTOR, BYTES_PER_STEM, chooseSyncBlock, DEFAULT_STEMS_PER_HA, EDGE_CANDIDATES } from './stemmap/syncBlocks';
 import { fgQuadratCounts } from './stemmap/coords';
 import * as core from './db/censusSyncCore';
 import type { CensusSlice } from './db/sliceCore';
@@ -213,7 +213,7 @@ export function blockSizeOptions(surveyId: number): BlockSizeOption[] {
   return edges.map((edge) => {
     const blocks = Math.ceil(cols / edge) * Math.ceil(rr / edge);
     const ha = (Math.min(edge, cols) * g.quadratM * Math.min(edge, rr) * g.quadratM) / 10000;
-    const estimatedBytes = density * ha * BYTES_PER_STEM;
+    const estimatedBytes = density * ha * BYTES_PER_STEM * BASE64_FACTOR;
     return { edge, blocks, estimatedBytes, estimatedObjects: blocks * 1.5, recommended: edge === pick.edgeQuadrats, tooLarge: estimatedBytes > 5 * 1024 * 1024 * 0.4 };
   });
 }

@@ -11,7 +11,7 @@ import { Platform, Pressable, ScrollView, Share, Text, View } from 'react-native
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BackHeaderLeft } from '~/lib/goBack';
 import { errText } from '~/lib/errText';
-import { buildStressData, deleteStressData, runBench, stressPlot, type BenchLine } from '~/survey/stress/stressBench';
+import { buildStressData, deleteStressData, runBench, runBreakdown, stressPlot, type BenchLine } from '~/survey/stress/stressBench';
 import { STRESS_SIZES, type StressSize } from '~/survey/stress/stressCore';
 
 function Btn({ label, onPress, disabled }: { label: string; onPress: () => void; disabled?: boolean }) {
@@ -80,6 +80,7 @@ export default function StressScreen() {
         <Text className="text-sm text-ink dark:text-gray-100">{plot ? `已建立：${STRESS_SIZES[size].code}${plot.census2 ? '（2 回合）' : ''}` : '尚未建立'}</Text>
         <Btn label="建立測試樣區" disabled={busy || !!plot} onPress={go(() => buildStressData(size, progress))} />
         <Btn label="執行量測" disabled={busy || !plot?.census2} onPress={go(() => runBench(size, progress))} />
+        <Btn label="匯出／匯入分解（數分鐘）" disabled={busy || !plot?.census2} onPress={go(() => runBreakdown(size, progress))} />
         <Btn label="刪除測試樣區" disabled={busy || !plot} onPress={go(() => deleteStressData(size, progress))} />
         {status ? <Text className="text-sm text-accent-700 dark:text-accent-300">{status}</Text> : null}
         {lines.length ? (

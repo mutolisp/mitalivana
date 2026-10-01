@@ -152,7 +152,8 @@ function rowToResult(
 
 function markSensuLato(results: SearchResult[]): SearchResult[] {
   const db = getDatasetDb('tw-taicol');
-  // 模組不在就不標 s.l.——沒有資料可判斷，原樣回傳比猜好。
+  // With the module absent, mark nothing s.l. — there is no data to judge by,
+  // and returning the results unchanged beats guessing.
   if (!db) return results;
   const speciesNames = results
     .filter((r) => r.usage_status === 'accepted' && !r.is_autonym && r.name && r.name.split(' ').length === 2)
@@ -210,7 +211,7 @@ function markSensuLato(results: SearchResult[]): SearchResult[] {
 export type SearchOptions = {
   q: string;
   /** One or more taxon groups to restrict the search to (OR-combined). Empty
-   *  / undefined = 全部類群 (no restriction). */
+   *  / undefined = all groups (no restriction). */
   groups?: TaxonGroup[];
   advanced?: AdvancedFilters;
   limit?: number;
@@ -223,13 +224,14 @@ export function searchByTaxonId(taxonId: string): SearchResult | null {
   // Three namespaces, three homes. External ('g…') taxa live in user.db and
   // have no row in twnamelist.db at all — sending one to taicol_names is
   // exactly the silent-null that regions.ts warns about, and it is what made
-  // an externally-added species un-openable and un-addable from 常用名錄.
+  // an externally-added species un-openable and un-addable from Favorites.
   if (sourceOfTaxonId(taxonId) === 'external') {
     const ext = getExternalTaxon(taxonId);
     return ext ? externalToSearchResult(ext) : null;
   }
-  // 前綴 → 模組由 registry 決定（不再寫死 jp_names / taicol_names）。模組沒安裝
-  // 就回 null——這本來就是「解析不到」的既有契約，每個呼叫端都處理過。
+  // Prefix → module is decided by the registry (jp_names / taicol_names are no
+  // longer hard-coded). With the module not installed, return null — that is the
+  // existing "cannot resolve" contract, and every caller already handles it.
   const spec = datasetForTaxonId(taxonId);
   if (!spec || spec.tables.kind !== 'names') return null;
   const db = getDatasetDb(spec.id);
@@ -238,8 +240,9 @@ export function searchByTaxonId(taxonId: string): SearchResult | null {
   // accepted row; fall back to any row so synonyms still surface basic
   // metadata.
   const table = spec.tables.names;
+  // `+usage_status` keeps the taxon_id index (see resolveTaxa in taxonLookup.ts).
   let res = db.executeSync(
-    `SELECT ${SEARCH_COLUMNS} FROM ${table} WHERE taxon_id = ? AND usage_status = 'accepted' LIMIT 1`,
+    `SELECT ${SEARCH_COLUMNS} FROM ${table} WHERE taxon_id = ? AND +usage_status = 'accepted' LIMIT 1`,
     [taxonId],
   );
   let row = (res.rows ?? [])[0] as TaicolRow | undefined;
@@ -295,18 +298,22 @@ export const SEARCH_COLUMNS = [
 ].join(', ');
 
 /**
- * 名稱完全相等的接受名查詢 —— 批次匯入的快路徑。
+ * Accepted-name lookup on an exactly equal name — the fast path for batch import.
  *
- * `searchSpecies` 的 `LIKE '%q%'` 是 27 萬列全表掃描（Mac 上量到 ~95ms/次），
- * 加上結果列各自再打一次 `markSensuLato` 的 LIKE（~17ms/列）；貼 100 種按
- * 「預覽」時這些成本要付 100 遍，實機上就是使用者說的「蠻慢的」。可是批次匯入
- * 的常態是「名字本來就打對」，那種情況走 idx_taicol_common_name /
- * idx_taicol_simple_name 的等值查詢只要 ~0.03ms（實測 300 個俗名裡 279 個
- * 直接命中，再算進下面的原名亞種去重是 297 個）。
+ * `searchSpecies`'s `LIKE '%q%'` is a full scan of 270k rows (measured ~95 ms per
+ * call on a Mac), plus one more `markSensuLato` LIKE per result row (~17 ms per
+ * row); pasting 100 species and pressing "Preview" pays these costs 100 times,
+ * which on a real device is what the user called "pretty slow". But the usual
+ * batch-import case is "the names are already typed correctly", and then an
+ * equality query on idx_taicol_common_name / idx_taicol_simple_name takes only
+ * ~0.03 ms (measured: 279 of 300 common names hit directly, 297 once the
+ * nominal-infraspecific dedup below is counted).
  *
- * 只在**唯一一列**完全相等時才給答案：0 列（打錯字、同義名）或 2 列以上
- * （同俗名的不同分類群、種與其原名亞種）都回空陣列，讓呼叫端照原本的完整
- * 搜尋走，模糊比對、同義名解析、多筆候選挑選的行為一律不變。
+ * Answers only when **exactly one row** is exactly equal: 0 rows (typo, synonym)
+ * or 2+ rows (different taxa sharing a common name, a species and its nominal
+ * infraspecific) both return an empty array, so the caller takes the original
+ * full search, and fuzzy matching, synonym resolution and multi-candidate
+ * picking all behave exactly as before.
  */
 export function lookupExactAccepted(q: string): SearchResult[] {
   const trimmed = q.trim();
@@ -317,14 +324,17 @@ export function lookupExactAccepted(q: string): SearchResult[] {
   const pairs = variants.map(() => '(common_name_c = ? OR simple_name = ?)').join(' OR ');
   const params: string[] = [];
   for (const v of variants) params.push(v, v);
-  // 本函式在名錄模組化時只換了 handle，**SQL 一個字都沒動**——下面這段是量出來的。
+  // When the checklist was split into modules this function only swapped its
+  // handle; **not one character of the SQL changed** — the part below was measured.
   //
-  // `+usage_status` 的加號不是筆誤：直接寫 `usage_status = 'accepted'` 會讓
-  // SQLite 改走 idx_taicol_usage_status —— 幾乎整張表都是同一個值的低選擇性
-  // 索引，實測 0.02ms 變 20ms，快路徑等於白做。SQLite 的一元 `+` 會讓該條件
-  // 不參與索引選擇，查詢計畫就留在 MULTI-INDEX OR（idx_taicol_common_name /
-  // idx_taicol_simple_name），接受名仍然由 SQL 自己濾（LIMIT 才不會被
-  // 「馬鈴薯」這種有三百多列同名的俗名截掉）。
+  // The plus in `+usage_status` is not a typo: writing `usage_status = 'accepted'`
+  // makes SQLite switch to idx_taicol_usage_status — a low-selectivity index where
+  // almost the whole table holds the same value. Measured: 0.02 ms became 20 ms,
+  // which makes the fast path pointless. SQLite's unary `+` keeps that condition
+  // out of index selection, so the plan stays on MULTI-INDEX OR
+  // (idx_taicol_common_name / idx_taicol_simple_name), while accepted names are
+  // still filtered by SQL itself (so LIMIT does not cut off a common name like
+  // 「馬鈴薯」, which over three hundred rows share).
   const res = db.executeSync(
     `SELECT ${SEARCH_COLUMNS} FROM taicol_names WHERE (${pairs}) ` +
       `AND +usage_status = 'accepted' AND is_in_taiwan LIKE '%true%' LIMIT 5`,
@@ -339,9 +349,11 @@ export function lookupExactAccepted(q: string): SearchResult[] {
     seen.add(key);
     unique.push(row);
   }
-  // 與 `searchSpecies` 相同的「同俗名的種 + 原名亞種」去重。少了這一步，像
-  // 「豬殃殃」（Galium spurium 與 G. spurium fo. vaillantii 共用俗名）這種
-  // 常見組合會被當成多筆而白白退回全表掃描 —— 抽樣 300 個俗名裡有 6% 是這種。
+  // The same "species + nominal infraspecific sharing a common name" dedup as
+  // `searchSpecies`. Without it, a common pairing like 「豬殃殃」 (Galium spurium
+  // and G. spurium fo. vaillantii share the common name) counts as multiple rows
+  // and needlessly falls back to the full-table scan — 6% of a 300-name sample
+  // are like this.
   const cnameSpecies = new Map<string, string>();
   for (const row of unique) {
     if (row.common_name_c && row.rank === 'Species') {
@@ -381,7 +393,8 @@ export function searchSpecies({ q, groups, advanced = {}, limit = 30 }: SearchOp
     params.push(pattern, pattern, pattern, pattern, pattern);
   }
 
-  // 篩選子句與其參數獨立累積，好讓底下的「精確列補抓」套用完全相同的條件。
+  // The filter clause and its params accumulate separately, so the "exact-row
+  // top-up" below applies exactly the same conditions.
   const filterParams: (string | number)[] = [];
   let filterSql = groupFilterClause(groups, filterParams);
 
@@ -424,17 +437,21 @@ export function searchSpecies({ q, groups, advanced = {}, limit = 30 }: SearchOp
   const res = db.executeSync(sql, [...params, ...filterParams]);
   const likeRows = (res.rows ?? []) as unknown as TaicolRow[];
 
-  // 精確列補抓。上面那道 LIKE 查詢沒有 ORDER BY，命中超過 100 列時，精確匹配
-  // 那一列能不能進到這 100 列純粹取決於 SQLite 的掃描順序（實質上是 rowid），
-  // 而 rowid 每次重建 bundle DB 就會變 —— 這就是「之前搜得到、換了名錄就搜不到」
-  // 的成因：實測 47 個單字俗名中有 7 個（科蓮桃蕨梅貓菱）的精確列被截在 100 外，
-  // 排序階段根本看不到它。
+  // Exact-row top-up. The LIKE query above has no ORDER BY, so when it hits more
+  // than 100 rows, whether the exact-match row makes it into those 100 depends
+  // purely on SQLite's scan order (effectively rowid), and rowid changes every
+  // time the bundle DB is rebuilt — this is the cause of "it used to be found,
+  // then the checklist was swapped and it isn't": measured, 7 of 47
+  // single-character common names (科蓮桃蕨梅貓菱) had their exact row cut off
+  // beyond 100, so the sort stage never saw it.
   //
-  // 不用 ORDER BY 解，是因為排序會強迫 SQLite 走完全部命中列：打單一拉丁字母
-  // （輸入學名時每個按鍵都會發生）命中 20 萬列，實測從 ~0ms 變 89ms，在實機上
-  // 還會再放大數倍。改成另外發一道等值查詢，走 idx_taicol_common_name /
-  // idx_taicol_simple_name，實測 0.1ms 以內。重複的列由下游既有的 taxon_id /
-  // name_id 去重吸收。
+  // Not solved with ORDER BY because sorting forces SQLite through every hit row:
+  // a single Latin letter (typed on every keystroke while entering a scientific
+  // name) hits 200k rows, measured going from ~0 ms to 89 ms, and several times
+  // worse on a real device. Instead, issue a separate equality query on
+  // idx_taicol_common_name / idx_taicol_simple_name, measured under 0.1 ms.
+  // Duplicate rows are absorbed by the existing downstream taxon_id / name_id
+  // dedup.
   const exactPairs = variants.map(() => '(common_name_c = ? OR simple_name = ?)').join(' OR ');
   const exactParams: (string | number)[] = [];
   for (const v of variants) exactParams.push(v, v);
@@ -464,8 +481,9 @@ export function searchSpecies({ q, groups, advanced = {}, limit = 30 }: SearchOp
   if (needResolve.size > 0) {
     const ids = Array.from(needResolve.keys());
     const placeholders = ids.map(() => '?').join(',');
+    // `+usage_status` keeps the taxon_id index (see resolveTaxa in taxonLookup.ts).
     const resolved = db.executeSync(
-      `SELECT ${SEARCH_COLUMNS} FROM taicol_names WHERE taxon_id IN (${placeholders}) AND usage_status='accepted' AND is_in_taiwan LIKE '%true%'`,
+      `SELECT ${SEARCH_COLUMNS} FROM taicol_names WHERE taxon_id IN (${placeholders}) AND +usage_status='accepted' AND is_in_taiwan LIKE '%true%'`,
       ids,
     );
     for (const accRow of (resolved.rows ?? []) as unknown as TaicolRow[]) {
@@ -482,7 +500,7 @@ export function searchSpecies({ q, groups, advanced = {}, limit = 30 }: SearchOp
     unique.push([accRow, matched]);
   }
 
-  // 同俗名的 Species + nominal infraspecific 去重
+  // Dedup a Species and its nominal infraspecific that share a common name
   const cnameSpeciesMap = new Map<string, string>();
   for (const [row] of unique) {
     if (row.common_name_c && row.rank === 'Species') {
@@ -563,25 +581,29 @@ export function searchSpecies({ q, groups, advanced = {}, limit = 30 }: SearchOp
   return markSensuLato(top);
 }
 
-/** jp_import 在同名的廣義／狹義分類群和名尾端加了「広義」「狹義」以資區別
- *  （共 2,267 筆）。做精確比對時要先剝掉，否則使用者打「コタニワタリ」永遠
- *  等不到「コタニワタリ広義」。只用於比較，顯示仍保留後綴。 */
+/** jp_import appended 「広義」「狹義」 to the end of the wamei of same-named sensu
+ *  lato / sensu stricto taxa to tell them apart (2,267 rows in all). Strip it
+ *  before exact comparison, otherwise a user typing 「コタニワタリ」 never gets
+ *  「コタニワタリ広義」. Used only for comparison; the display keeps the suffix. */
 function stripSensuSuffix(cname: string): string {
   return cname.replace(/(広義|狹義)$/, '');
 }
 
 /**
- * wamei 的同義和名存放在 `alternative_name_c`（逗號分隔）而不是像 TaiCOL 那樣
- * 各占一列，因此沒有 `usage_status` 可依循 —— 命中別名時必須自己補上
- * `matched_as`，UI 既有的 `≡` 標記與「你輸入：…」那一行才會出現
- * （`SearchBox` / `SpeciesDetailPanel` 都只看這個欄位）。
+ * wamei stores synonym wamei in `alternative_name_c` (comma-separated) instead of
+ * one row each as TaiCOL does, so there is no `usage_status` to go by — on an
+ * alias hit we must fill in `matched_as` ourselves, or the UI's existing `≡`
+ * marker and the "You entered: …" line never appear (`SearchBox` /
+ * `SpeciesDetailPanel` both look only at this field).
  *
- * `acceptedHit` = 查詢字串本身就命中接受和名（Hub name），此時不算同義。
- * `pick` 決定哪個別名算命中：一般搜尋用 `includes`、模糊搜尋用與索引詞相等。
- * 回傳命中的別名，供排序把精確別名往前排。
+ * `acceptedHit` = the query string itself hits the accepted wamei (Hub name); in
+ * that case it does not count as a synonym. `pick` decides which alias counts as
+ * a hit: plain search uses `includes`, fuzzy search uses equality with the index
+ * term. Returns the alias that hit, so ranking can move exact aliases forward.
  *
- * 和名是片假名，`ScientificName` 的 `^[A-Z][a-z-]+` 開頭比對不會命中，
- * 會整串當非斜體輸出 —— 所以沿用既有的 matched_as 渲染不會誤把和名斜體化。
+ * Wamei are katakana, so `ScientificName`'s leading `^[A-Z][a-z-]+` match never
+ * hits and the whole string renders non-italic — so reusing the existing
+ * matched_as rendering never italicizes a wamei by mistake.
  */
 export function markJpAlias(
   result: SearchResult,
@@ -596,7 +618,8 @@ export function markJpAlias(
     .filter(Boolean)
     .find(pick);
   if (!alias) return null;
-  // status 沿用 TaiCOL 的 'synonym' 字彙，UI 顯示與臺灣側同義詞完全一致。
+  // status reuses TaiCOL's 'synonym' vocabulary, so the UI shows it exactly like a
+  // Taiwan-side synonym.
   result.matched_as = { name: alias, fullname: alias, status: 'synonym' };
   return alias;
 }
@@ -604,8 +627,8 @@ export function markJpAlias(
 /**
  * Search the Japan (YList) dataset in `jp_names`. Only called when the Japan
  * region is enabled. Simpler than `searchSpecies`: every row is accepted (wamei
- * 的同義和名是 `alternative_name_c` 欄位而非獨立列，見 `markJpAlias`），no
- * `is_in_taiwan` gate, and no sensu-lato marking. Same column
+ * synonyms live in the `alternative_name_c` column, not in separate rows; see
+ * `markJpAlias`), no `is_in_taiwan` gate, and no sensu-lato marking. Same column
  * projection + `rowToResult` as TaiCOL, so results slot into the shared UI; the
  * region is inferred from the 'y…' taxon_id by `rowToResult`.
  */
@@ -656,10 +679,11 @@ export function searchSpeciesJp({ q, groups, advanced = {}, limit = 30 }: Search
 
   sql += `${filterSql} LIMIT 100`;
 
-  // 精確列補抓，理由同 searchSpecies。日本側的和名還多一層：jp_import 為了區分
-  // 同名的廣義／狹義，在 common_name_c 尾端加了「広義」「狹義」（共 2,267 筆），
-  // 所以等值比對要連帶把加了後綴的那兩種寫法一起找，否則打「コタニワタリ」
-  // 永遠對不上「コタニワタリ広義」。
+  // Exact-row top-up, for the same reason as searchSpecies. Japanese wamei add one
+  // more layer: to tell same-named sensu lato / sensu stricto apart, jp_import
+  // appended 「広義」「狹義」 to the end of common_name_c (2,267 rows in all), so the
+  // equality match must also look up those two suffixed spellings, otherwise
+  // typing 「コタニワタリ」 never matches 「コタニワタリ広義」.
   const exactVariants = [trimmed, `${trimmed}広義`, `${trimmed}狹義`];
   const exactSql =
     `SELECT ${SEARCH_COLUMNS} FROM jp_names WHERE (` +
@@ -684,8 +708,10 @@ export function searchSpeciesJp({ q, groups, advanced = {}, limit = 30 }: Search
     results.push(result);
   }
 
-  // 和名 ranking: exact → prefix → contains → length。別名命中排在同層接受名之後，
-  // 但精確別名仍要贏過只是「包含」的接受名，否則異名搜尋會被淹沒在 30 筆之外。
+  // Wamei ranking: exact → prefix → contains → length. An alias hit ranks after
+  // accepted names in the same tier, but an exact alias must still beat an
+  // accepted name that merely "contains" the query, or synonym searches get
+  // buried beyond the top 30.
   results.sort((a, b) => {
     const score = (r: SearchResult): number[] => {
       const alias = r.matched_as?.name ?? '';

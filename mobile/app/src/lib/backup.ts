@@ -89,8 +89,9 @@ export async function createBackup(opts?: { includePacks?: boolean }): Promise<E
   if (snapshot.exists) snapshot.delete();
   getUserDb().executeSync(`VACUUM INTO ?;`, [uriToPath(snapshot.uri)]);
 
-  const b64 = await readAsStringAsync(snapshot.uri, { encoding: 'base64' });
-  const dbBytes = base64ToBytes(b64);
+  // Bytes, not a base64 string: a 58 MB snapshot as base64 is a 156 MB Java
+  // string, past Android's app heap limit (1E stress test, 50 000 trees).
+  const dbBytes = await snapshot.bytes();
   snapshot.delete();
 
   let packsBytes: Uint8Array | null = null;
@@ -98,9 +99,7 @@ export async function createBackup(opts?: { includePacks?: boolean }): Promise<E
     const packsSnapshot = new File(Paths.cache, `backup-packs-${ts}.db`);
     if (packsSnapshot.exists) packsSnapshot.delete();
     getPacksDb().executeSync(`VACUUM INTO ?;`, [uriToPath(packsSnapshot.uri)]);
-    packsBytes = base64ToBytes(
-      await readAsStringAsync(packsSnapshot.uri, { encoding: 'base64' }),
-    );
+    packsBytes = await packsSnapshot.bytes();
     packsSnapshot.delete();
   }
 
@@ -135,8 +134,8 @@ export function hasRegionPacks(): boolean {
  * valid backup or was made by a newer app whose schema this build can't satisfy.
  */
 export async function restoreBackup(zipUri: string): Promise<void> {
-  const b64 = await readAsStringAsync(zipUri, { encoding: 'base64' });
-  const files = unzipSync(base64ToBytes(b64));
+  // As bytes for the same reason as createBackup (the zip is in this app's cache: picker copy or Drive download).
+  const files = unzipSync(await new File(zipUri).bytes());
 
   const dbBytes = files[USER_DB_NAME];
   const manifestBytes = files['manifest.json'];

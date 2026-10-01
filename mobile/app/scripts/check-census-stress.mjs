@@ -49,8 +49,8 @@ const db = {
 await runUserMigrations(db);
 sqlite.exec('PRAGMA foreign_keys = ON;');
 let clock = 1;
-let n = 0;
-const ctx = { db, now: () => ++clock, uuid: () => `u-${++n}` };
+// Real random uuids: short sequential ones compress far better and made a block look three times smaller (1E).
+const ctx = { db, now: () => ++clock, uuid: () => crypto.randomUUID() };
 const tx = (fn) => {
   sqlite.exec('BEGIN');
   try {
@@ -109,7 +109,8 @@ const BIG = new Set(['fw_individuals', 'fw_stems', 'fw_stem_measures', 'fw_stem_
 const seen = new Set();
 const orig = db.executeSync;
 db.executeSync = (sql, params = []) => {
-  if (/^\s*SELECT\b/i.test(sql)) seen.add(sql);
+  // INSERT … SELECT too: buildSlice's tree scope is one, and it walked the plot unseen (1E).
+  if (/^\s*SELECT\b/i.test(sql) || /^\s*INSERT\b[\s\S]*\bSELECT\b/i.test(sql)) seen.add(sql);
   return orig(sql, params);
 };
 const someTree = ids.get(corner.trees[5].tag);
@@ -163,9 +164,10 @@ const stemCount = doc.slice.stems.length;
 const base = baseOf(cs.blockSide(doc.slice));
 const text = JSON.stringify({ ...doc, sync: { exported_at: Date.now(), base, author: 'A teammate with a long name' } });
 const key = new Uint8Array(randomBytes(32));
-const sealed = b64u(sealRecord(key, new Uint8Array(randomBytes(NONCE_BYTES)), text, aadFor('t'.repeat(32), 'r'.repeat(43), 'd'.repeat(43))));
+// Before base64: chooseSyncBlock adds BASE64_FACTOR itself (§7.9's formula).
+const sealed = sealRecord(key, new Uint8Array(randomBytes(NONCE_BYTES)), text, aadFor('t'.repeat(32), 'r'.repeat(43), 'd'.repeat(43)));
 const perStem = sealed.length / stemCount;
-console.log(`  1 ha block: ${doc.slice.trees.length} trees, ${stemCount} stems, ${(text.length / 1024).toFixed(0)} KB JSON → ${(sealed.length / 1024).toFixed(0)} KB sealed, ${perStem.toFixed(0)} B a stem`);
+console.log(`  1 ha block: ${doc.slice.trees.length} trees, ${stemCount} stems, ${(text.length / 1024).toFixed(0)} KB JSON → ${(sealed.length / 1024).toFixed(0)} KB sealed (${(b64u(sealed).length / 1024).toFixed(0)} KB as base64), ${perStem.toFixed(0)} B a stem`);
 ok(stemCount > 1000, `bytes: a real 1 ha block (${stemCount} stems)`);
 ok(perStem <= BYTES_PER_STEM, `bytes: BYTES_PER_STEM ${BYTES_PER_STEM} is at least the measured ${perStem.toFixed(0)} B a stem`);
 

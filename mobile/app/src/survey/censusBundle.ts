@@ -1,18 +1,17 @@
 /**
  * A tree census export's files (Modular_survey.md §7.4, §9 1D), on the app's
- * connection: the round-trip yml (censusExportCore.ts), trees / census /
+ * connection: the round-trip yml (censusExportCore.ts; JSON, which is YAML), trees / census /
  * stems CSV and a vegan table per census (stemmap/censusTables.ts), and the
  * photos. The zip itself — manifest, README, signing — is bundleExport.ts's
  * (`bundleCensus`), which passes in how to read a photo: this module must not
  * import it (bundleExport imports this one).
  */
 import { strToU8 } from 'fflate';
-import yaml from 'js-yaml';
 import { getUserDb } from '~/db/init';
 import { resolveTaxa } from '~/db/taxonLookup';
 import { generateUuid } from '~/db/uuid';
 import { toCsv } from '~/modules/gloria/export/sheetRows';
-import { buildCensusExport } from './db/censusExportCore';
+import { buildCensusExport, censusExportText } from './db/censusExportCore';
 import { getFrame, getSurvey } from './db/stemmapCore';
 import { censusTable, stemsTable, treesTable, veganBasalArea, type Names, type Table } from './stemmap/censusTables';
 
@@ -68,7 +67,7 @@ export async function buildCensusEntries(
     photos += 1;
   }
 
-  entries.push({ name: `${base}/${base}.yml`, bytes: strToU8(yaml.dump(doc, { lineWidth: -1, noRefs: true })) });
+  entries.push({ name: `${base}/${base}.yml`, bytes: strToU8(censusExportText(doc)) });
   const csv = (suffix: string, t: Table) => entries.push({ name: `${base}/${base}_${suffix}.csv`, bytes: strToU8(toCsv(t.header, t.rows)) });
   csv('trees', treesTable(doc, names));
   csv('census', censusTable(doc));

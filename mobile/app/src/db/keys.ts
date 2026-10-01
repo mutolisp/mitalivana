@@ -32,7 +32,7 @@ export type IdentificationKey = {
    *  ⚠️ Does NOT currently bridge TaiCOL genus moves (Amauropelta ↔
    *  Parathelypteris). The code that did was only reachable from a lookup the
    *  UI stopped using, and was removed with it; the shipped module has no
-   *  alias for those. Logged in `mobile/Plan.md` under 功能缺口. */
+   *  alias for those. Logged in `mobile/Plan.md` under 功能缺口 (feature gaps). */
   aliases: string | null;
   updated_at: number | null;
 };
@@ -129,7 +129,7 @@ export function listIdentificationKeys(): IdentificationKey[] {
  *  Cache once, reuse forever. */
 let CACHED_KEYS: IdentificationKey[] | null = null;
 
-/** Reverse index for TaxonRow's per-row「有沒有對應 key」lookup. Built
+/** Reverse index for TaxonRow's per-row "is there a matching key" lookup. Built
  *  alongside CACHED_KEYS in prewarmKeys / getCachedKeys. Indexing and lookup
  *  rules live in `~/lib/keyScopeIndex` (pure) so `check:keys` can exercise
  *  them against the real tw-keys module. */
@@ -145,7 +145,7 @@ export function getCachedKeys(): IdentificationKey[] {
 }
 
 /** Force-fill the cache. Called from DBProvider after splash so the first
- *  tap on 檢索表 / KeyPopup / taxonomy 樹的 key icon 是即時。SQL itself is
+ *  tap on the Key tab / KeyPopup / the taxonomy tree's key icon is instant. SQL itself is
  *  now ~5ms (plain `SELECT * FROM identification_keys` after child_count was
  *  dropped); kept as a marker so future heavy joins re-introduce the same
  *  prewarm slot. */
@@ -156,7 +156,8 @@ export function prewarmKeys(): void {
   }
 }
 
-/** 檢索表模組被安裝 / 更新 / 刪除後，整份快取與 scope 索引都不再有效。 */
+/** Once the keys module is installed / updated / deleted, the whole cache and the
+ *  scope index are no longer valid. */
 export function clearKeysCache(): void {
   CACHED_KEYS = null;
   SCOPE_INDEX = null;
@@ -251,7 +252,7 @@ export function indexCoupletsByNumber(couplets: KeyCouplet[]): Map<number, KeyCo
  *
  * Returns null when the taxon row can't be located, the rank isn't one of
  * the supported scopes, or no key exists for that scope. Callers should
- * gate the "續查屬內檢索表" button on this being non-null.
+ * gate the "Continue key within genus" button on this being non-null.
  */
 const RANK_TO_SCOPE: Record<string, string> = {
   Family: 'family',
@@ -261,14 +262,16 @@ const RANK_TO_SCOPE: Record<string, string> = {
   Subgenus: 'subgenus',
 };
 
-// ── 名錄側的查詢：唯一的縫 ───────────────────────────────────────────────────
+// ── Checklist-side queries: the single seam ──────────────────────────────────
 //
-// 檢索表與名錄是兩個獨立模組（兩個 SQLite 檔），這個 app 從不 ATTACH，所以
-// 檢索表的程式**不能**直接查 taicol_names。所有需要名錄的地方都經過下面兩支，
-// 它們自己去拿臺灣名錄模組的 handle，拿不到就回空——檢索表 UI 本來就有
-// 「找不到就不顯示」的行為。
+// Keys and the checklist are two independent modules (two SQLite files) and this
+// app never ATTACHes, so key code **must not** query taicol_names directly. Every
+// place that needs the checklist goes through the two functions below, which
+// fetch the Taiwan checklist module's handle themselves and return empty when
+// they can't get it — the key UI already behaves as "not found, not shown".
 
-/** taxon_id → 接受名的 {simple_name, rank}；沒有接受名就退而取任一列。 */
+/** taxon_id → the accepted name's {simple_name, rank}; falls back to any row
+ *  when there is no accepted name. */
 function taxonNameRow(taxonId: string): { simple_name: string; rank: string } | null {
   const db = getDatasetDb('tw-taicol');
   if (!db) return null;
@@ -351,12 +354,13 @@ export function getKeyTaxonInfo(taxonId: string): KeyTaxonInfo | null {
   const db = getDatasetDb('tw-taicol');
   if (!db) return null;
   // accepted first
+  // `+usage_status` keeps the taxon_id index (see resolveTaxa in taxonLookup.ts).
   let res = db.executeSync(
     `SELECT taxon_id, simple_name, name_author, common_name_c, alternative_name_c,
             family, family_c, rank, kingdom,
             redlist, iucn, cites, protected, is_endemic, alien_type
        FROM taicol_names
-      WHERE taxon_id = ? AND usage_status = 'accepted'
+      WHERE taxon_id = ? AND +usage_status = 'accepted'
       LIMIT 1`,
     [taxonId],
   );

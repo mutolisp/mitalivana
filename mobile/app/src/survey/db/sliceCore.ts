@@ -97,8 +97,12 @@ function fillTemp(ctx: { db: SurveyDb }, table: string, colDef: string, values: 
  * `IN (?, ?, …)` lists: a whole census of a large plot has more stems than
  * SQLite takes parameters in one statement (32 766), and an export or a merge
  * from a file reads the whole census (1E stress test).
+ *
+ * `permanent: false` leaves out the trees, stems and their history (empty
+ * lists): an export writes those once, from its last census.
  */
-export function buildSlice(ctx: Ctx, surveyId: number, codes: readonly string[], extraTrees: readonly string[] = []): CensusSlice {
+export function buildSlice(ctx: Ctx, surveyId: number, codes: readonly string[], extraTrees: readonly string[] = [], opts: { permanent?: boolean } = {}): CensusSlice {
+  const permanent = opts.permanent ?? true;
   const s = getSurvey(ctx, surveyId);
   if (!s) throw new Error(`no census ${surveyId}`);
   const frame = one<Row>(ctx, `SELECT * FROM fw_frames WHERE id = ?`, [s.frame_id])!;
@@ -109,13 +113,15 @@ export function buildSlice(ctx: Ctx, surveyId: number, codes: readonly string[],
   // Trees this census sees (not first recorded in a later census of its series), in scope.
   run(ctx, `CREATE TEMP TABLE IF NOT EXISTS slice_trees (id INTEGER PRIMARY KEY)`);
   run(ctx, `DELETE FROM temp.slice_trees`);
-  run(
-    ctx,
-    `INSERT INTO temp.slice_trees SELECT i.id FROM fw_individuals i LEFT JOIN fw_surveys fi ON fi.id = i.first_survey_id
-      WHERE i.frame_id = ? AND (fi.id IS NULL OR fi.series_id <> ? OR fi.census_no <= ?)
-        AND (i.quadrat_code IN (SELECT code FROM temp.slice_codes) OR i.uuid IN (SELECT uuid FROM temp.slice_extra))`,
-    [s.frame_id, s.series_id, s.census_no],
-  );
+  // Two statements, each led by its temp table (CROSS JOIN fixes the order): `quadrat IN (…) OR
+  // uuid IN (…)` — and the uuid half alone — made SQLite walk every tree of the plot (1E).
+  for (const from of ['temp.slice_codes c CROSS JOIN fw_individuals i ON i.quadrat_code = c.code', 'temp.slice_extra x CROSS JOIN fw_individuals i ON i.uuid = x.uuid'])
+    run(
+      ctx,
+      `INSERT OR IGNORE INTO temp.slice_trees SELECT i.id FROM ${from} LEFT JOIN fw_surveys fi ON fi.id = i.first_survey_id
+        WHERE i.frame_id = ? AND (fi.id IS NULL OR fi.series_id <> ? OR fi.census_no <= ?)`,
+      [s.frame_id, s.series_id, s.census_no],
+    );
   run(ctx, `CREATE TEMP TABLE IF NOT EXISTS slice_stems (id INTEGER PRIMARY KEY)`);
   run(ctx, `DELETE FROM temp.slice_stems`);
   run(
@@ -124,21 +130,25 @@ export function buildSlice(ctx: Ctx, surveyId: number, codes: readonly string[],
       WHERE st.individual_id IN (SELECT id FROM temp.slice_trees) AND (fs.id IS NULL OR fs.series_id <> ? OR fs.census_no <= ?)`,
     [s.series_id, s.census_no],
   );
-  const trees = rows<Row & { id: number; first_uuid: string | null }>(
-    ctx,
-    `SELECT i.*, fi.uuid AS first_uuid FROM fw_individuals i
-       LEFT JOIN fw_surveys fi ON fi.id = i.first_survey_id
-      WHERE i.id IN (SELECT id FROM temp.slice_trees)
-      ORDER BY i.id`,
-  );
-  const stems = rows<Row & { id: number; individual_id: number; tree_uuid: string; first_uuid: string | null }>(
-    ctx,
-    `SELECT st.*, i.uuid AS tree_uuid, fs.uuid AS first_uuid FROM fw_stems st
-       JOIN fw_individuals i ON i.id = st.individual_id
-       LEFT JOIN fw_surveys fs ON fs.id = st.first_survey_id
-      WHERE st.id IN (SELECT id FROM temp.slice_stems)
-      ORDER BY st.id`,
-  );
+  const trees = !permanent
+    ? []
+    : rows<Row & { id: number; first_uuid: string | null }>(
+        ctx,
+        `SELECT i.*, fi.uuid AS first_uuid FROM fw_individuals i
+           LEFT JOIN fw_surveys fi ON fi.id = i.first_survey_id
+          WHERE i.id IN (SELECT id FROM temp.slice_trees)
+          ORDER BY i.id`,
+      );
+  const stems = !permanent
+    ? []
+    : rows<Row & { id: number; individual_id: number; tree_uuid: string; first_uuid: string | null }>(
+        ctx,
+        `SELECT st.*, i.uuid AS tree_uuid, fs.uuid AS first_uuid FROM fw_stems st
+           JOIN fw_individuals i ON i.id = st.individual_id
+           LEFT JOIN fw_surveys fs ON fs.id = st.first_survey_id
+          WHERE st.id IN (SELECT id FROM temp.slice_stems)
+          ORDER BY st.id`,
+      );
   const measures = rows<Row & { id: number; stem_uuid: string }>(
     ctx,
     `SELECT m.*, st.uuid AS stem_uuid FROM fw_stem_measures m JOIN fw_stems st ON st.id = m.stem_id
@@ -158,12 +168,14 @@ export function buildSlice(ctx: Ctx, surveyId: number, codes: readonly string[],
       WHERE v.survey_id = ? AND v.individual_id IN (SELECT id FROM temp.slice_trees) ORDER BY v.id`,
     [surveyId],
   );
-  const history = rows<Row & { tree_uuid: string; survey_uuid: string | null }>(
-    ctx,
-    `SELECT h.*, i.uuid AS tree_uuid, sv.uuid AS survey_uuid FROM fw_individual_history h
-       JOIN fw_individuals i ON i.id = h.individual_id LEFT JOIN fw_surveys sv ON sv.id = h.survey_id
-      WHERE h.individual_id IN (SELECT id FROM temp.slice_trees) ORDER BY h.id`,
-  );
+  const history = !permanent
+    ? []
+    : rows<Row & { tree_uuid: string; survey_uuid: string | null }>(
+        ctx,
+        `SELECT h.*, i.uuid AS tree_uuid, sv.uuid AS survey_uuid FROM fw_individual_history h
+           JOIN fw_individuals i ON i.id = h.individual_id LEFT JOIN fw_surveys sv ON sv.id = h.survey_id
+          WHERE h.individual_id IN (SELECT id FROM temp.slice_trees) ORDER BY h.id`,
+      );
   const media = rows<Row & { tree_uuid: string | null; stem_uuid: string | null }>(
     ctx,
     `SELECT md.*, i.uuid AS tree_uuid, st.uuid AS stem_uuid FROM fw_media md

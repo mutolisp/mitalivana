@@ -103,8 +103,10 @@ export function resolveTaxa(taxonIds: string[]): Map<string, TaxonFields> {
     for (let i = 0; i < subset.length; i += 500) {
       const chunk = subset.slice(i, i + 500);
       const ph = chunk.map(() => '?').join(',');
+      // `+usage_status`: without the plus SQLite takes idx_taicol_usage_status (almost every row is
+      // 'accepted') over the taxon_id index and walks ~97 000 names per call (1E, 2026-10-02).
       const res = db.executeSync(
-        `SELECT ${TAXON_COLS} FROM ${spec.tables.names} WHERE taxon_id IN (${ph}) AND usage_status = 'accepted'`,
+        `SELECT ${TAXON_COLS} FROM ${spec.tables.names} WHERE taxon_id IN (${ph}) AND +usage_status = 'accepted'`,
         chunk,
       );
       for (const row of (res.rows ?? []) as Array<Record<string, unknown>>) {
@@ -131,9 +133,10 @@ export function resolveTaxa(taxonIds: string[]): Map<string, TaxonFields> {
     }
   }
 
-  // 退路：模組沒安裝（還沒下載、被刪掉、跨裝置還原）時，名稱從 user.db 的
-  // 快取來。只補「上面沒填到」的 id——模組在就一定以模組為準，所以快取過時
-  // 在正常狀態下完全不可見。
+  // Fallback: when the module is not installed (not downloaded yet, deleted,
+  // restored onto another device), names come from the cache in user.db. It only
+  // fills ids the query above left unfilled — whenever the module is present it
+  // always wins, so a stale cache is completely invisible in the normal state.
   const stillMissing = ids.filter((id) => !raw.has(id));
   if (stillMissing.length > 0) {
     for (const [id, row] of readNameCache(stillMissing)) raw.set(id, row);
@@ -185,7 +188,7 @@ export function resolveTaxa(taxonIds: string[]): Map<string, TaxonFields> {
   return out;
 }
 
-// ── 使用者採用的名字 ─────────────────────────────────────────────────────────
+// ── Names adopted by the user ────────────────────────────────────────────────
 
 /**
  * The name a record was deliberately recorded under.
@@ -255,9 +258,11 @@ export function resolveAdoptedNames(rows: AdoptionFields[]): Map<number, Adopted
   );
   if (ids.length === 0) return out;
 
-  // `name_id` 只有 TaiCOL 有（YList 自己鑄的 id 每次重匯都會變，不會被寫進記錄）。
-  // 模組不在就回空 map —— `applyAdoptedName` 既有的 `used_stale` 退路會顯示使用者
-  // 當初輸入的那個名字，這正是此時最該顯示的東西。
+  // Only TaiCOL has `name_id` (the ids YList mints itself change on every
+  // re-import and are never written into records). With the module absent,
+  // return an empty map — the existing `used_stale` fallback in `applyAdoptedName`
+  // shows the name the user originally entered, which is exactly what should be
+  // shown at this point.
   const db = getDatasetDb('tw-taicol');
   if (!db) return out;
   const ph = ids.map(() => '?').join(',');

@@ -24,7 +24,7 @@ import { plotFromDoc } from './plotImport';
 import { sessionFromDoc } from './sessionImport';
 import { buildTrackGeoJSON } from './track';
 import { readSyncBlock, type SyncBlock } from './mergeEngine';
-import { isCensusExport, type CensusExportDoc } from '../survey/db/censusExportCore';
+import { censusExportFromFile, isCensusExport, type CensusExportDoc } from '../survey/db/censusExportCore';
 import type {
   ImportedCollectionTrip,
   ImportedPlot,
@@ -188,6 +188,24 @@ function collectMedia(
   return out;
 }
 
+/**
+ * A record yml's document. A census export's is JSON — valid YAML, read
+ * natively here (js-yaml took half a minute on Android for a 20 000-tree
+ * census, 1E) — and its row tables become rows again.
+ */
+function loadRecordDoc(text: string): Record<string, unknown> | null {
+  let doc: unknown;
+  if (/^\s*\{/.test(text)) {
+    try {
+      doc = JSON.parse(text);
+    } catch {
+      doc = undefined; // a YAML flow mapping that is not JSON
+    }
+  }
+  if (doc === undefined) doc = yaml.load(text);
+  return censusExportFromFile(doc) as Record<string, unknown> | null;
+}
+
 function docKind(doc: Record<string, unknown> | null): 'plot' | 'session' | 'collection' | 'gloria' | 'survey' {
   // First the kinds that say what they are (`record_type`), then GLORIA: a
   // GLORIA document has none of the other kinds' keys, and an older build
@@ -261,7 +279,7 @@ export function readRecordYamlTextFromBytes(raw: Uint8Array): string {
 
 export function readRecordImportFromBytes(raw: Uint8Array): ReadRecordImport {
   if (!isZip(raw)) {
-    const doc = yaml.load(strFromU8(raw)) as Record<string, unknown> | null;
+    const doc = loadRecordDoc(strFromU8(raw));
     switch (docKind(doc)) {
       case 'gloria':
         return { sync: readSyncBlock(doc), kind: 'gloria', gloria: doc as unknown as GloriaDoc };
@@ -279,7 +297,7 @@ export function readRecordImportFromBytes(raw: Uint8Array): ReadRecordImport {
   const meta = metaEntries(raw);
   const { folder, manifestKind, ymlName } = locateRecord(meta);
 
-  const doc = yaml.load(textOf(meta, ymlName)) as Record<string, unknown> | null;
+  const doc = loadRecordDoc(textOf(meta, ymlName));
   const kind =
     manifestKind === 'plot' || manifestKind === 'session' || manifestKind === 'collection' || manifestKind === 'gloria' || manifestKind === 'survey'
       ? manifestKind

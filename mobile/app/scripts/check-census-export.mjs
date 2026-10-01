@@ -109,7 +109,14 @@ for (const c of built.censuses) for (const m of c.media) {
   m.file = 'photo1.jpg';
   delete m.uri;
 }
-const doc = yaml.load(yaml.dump(built, { lineWidth: -1, noRefs: true }));
+const text = ex.censusExportText(built);
+const doc = ex.censusExportFromFile(JSON.parse(text));
+ok(JSON.stringify(doc) === JSON.stringify(JSON.parse(JSON.stringify(built))), 'file: the document comes back as written, nulls included');
+ok(JSON.stringify(ex.censusExportFromFile(yaml.load(text))) === JSON.stringify(doc), 'file: it is YAML as well (js-yaml reads the same document)');
+ok(text.split('\n').length > doc.trees.length + doc.stems.length + doc.censuses.reduce((a, c) => a + c.measures.length, 0), 'file: one row per line');
+ok(!/"(uuid|tag|taxon_id)":/.test(text.split('"trees"')[1].split('"stems"')[0]), 'file: tree rows carry no column names (written once)');
+const older = yaml.dump(built, { lineWidth: -1, noRefs: true });
+ok(JSON.stringify(ex.censusExportFromFile(yaml.load(older))) === JSON.stringify(doc), 'file: a 1D row-mapping yml still reads');
 ok(ex.isCensusExport(doc) && doc.censuses.length === 2 && doc.trees.length === 4, 'export: census 2 with census 1, every tree once');
 ok(doc.censuses[0].media.length === 1 && doc.censuses[0].media[0].file === 'photo1.jpg', 'export: photos by file name');
 ok(doc.taxa.k1 === 'Sp k1', 'export: names to re-point unknown taxa');
@@ -178,6 +185,12 @@ ok(t1row[col(trees, 'quadrat')] === '0000' && t1row[col(trees, 'subquadrat')] ==
 ok(trees.rows.find((r) => r[col(trees, 'individual_uuid')] === u2)[col(trees, 'tag')] === '200', 'trees.csv: the corrected tag');
 const stems = tb.stemsTable(doc);
 ok(stems.rows.length === 9 && stems.rows.some((r) => r[col(stems, 'stem_tag')].endsWith('-2') && r[col(stems, 'dbh_mm')] === '310'), `stems.csv: one row per measured stem, cm and mm (${stems.rows.length})`);
+// Tag order without localeCompare (1E): the same as its numeric order on tags as people write them.
+const TAGS = ['10', '2', '1', '100', '12A', '12', '12B', 'A2', 'A10', 'B1', '9', '0099', '1-2', '1-10'];
+const tagged = { ...doc, trees: TAGS.map((tag) => ({ ...doc.trees[0], tag })) };
+const ordered = tb.treesTable(tagged, names).rows.map((r) => r[0]);
+const expected = [...TAGS].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+ok(JSON.stringify(ordered) === JSON.stringify(expected), `tags: reading order (${ordered.join(' ')} vs ${expected.join(' ')})`);
 const vegan = tb.veganBasalArea(doc, 1, names);
 const cell = (q, sp) => Number(vegan.rows.find((r) => r[0] === q)[vegan.header.indexOf(sp)]);
 ok(vegan.rows.length === 4, 'vegan: every quadrat');
@@ -185,16 +198,18 @@ ok(Math.abs(cell('0000', 'Name k1') - Math.round(basalArea([12.6, 31]) * 100) / 
 ok(cell('0101', 'Name k2') === 0, 'vegan: a dead tree adds nothing, even with a DBH written down');
 
 // ── the file as the record importer reads it ─────────────────────────────
-const asYml = readRecordImportFromBytes(strToU8(yaml.dump(doc, { lineWidth: -1, noRefs: true })));
-ok(asYml.kind === 'survey' && asYml.census.censuses.length === 2, 'reader: a census yml is a census');
+const asYml = readRecordImportFromBytes(strToU8(text));
+ok(asYml.kind === 'survey' && JSON.stringify(asYml.census) === JSON.stringify(doc), 'reader: a census yml is a census, rows restored');
+const asOlder = readRecordImportFromBytes(strToU8(older));
+ok(asOlder.kind === 'survey' && JSON.stringify(asOlder.census) === JSON.stringify(doc), 'reader: a 1D row-mapping yml too');
 const zip = zipSync({
-  'EX1_census2/EX1_census2.yml': strToU8(yaml.dump(doc, { lineWidth: -1, noRefs: true })),
+  'EX1_census2/EX1_census2.yml': strToU8(text),
   'EX1_census2/EX1_census2_trees.csv': strToU8('tag\n1\n'),
   'EX1_census2/manifest.json': strToU8(JSON.stringify({ app: 'mitalivana', kind: 'survey' })),
   'EX1_census2/photos/photo1.jpg': new Uint8Array([0xff, 0xd8, 0xff]),
 });
 const asZip = readRecordImportFromBytes(zip);
-ok(asZip.kind === 'survey' && asZip.photos.length === 1 && asZip.photos[0].name === 'photo1.jpg', 'reader: a census zip, with its photos');
+ok(asZip.kind === 'survey' && asZip.photos.length === 1 && asZip.photos[0].name === 'photo1.jpg' && JSON.stringify(asZip.census) === JSON.stringify(doc), 'reader: a census zip, with its photos');
 
 // ── import on an empty device ────────────────────────────────────────────
 const B = await phone('b');
@@ -225,7 +240,7 @@ ok(B.sqlite.prepare('PRAGMA foreign_key_check').all().length === 0, 'import: for
 for (const [table, where] of CASCADE_ORPHANS) if (table.startsWith('fw_')) ok(B.one(`SELECT COUNT(*) AS n FROM ${table} WHERE ${where}`).n === 0, `import: no ${table} orphans`);
 
 // ── import where census 1 is here ────────────────────────────────────────
-const doc1 = yaml.load(yaml.dump(ex.buildCensusExport(A.ctx, C1), { lineWidth: -1, noRefs: true }));
+const doc1 = ex.censusExportFromFile(JSON.parse(ex.censusExportText(ex.buildCensusExport(A.ctx, C1))));
 const freshWithCensus1 = async (prefix) => {
   const P = await phone(prefix);
   P.tx(() => ex.importCensusDoc(P.ctx, doc1, 'skip'));

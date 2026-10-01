@@ -40,6 +40,30 @@ const parseList = (v: unknown): string[] => {
 };
 const round = (v: number, places: number) => String(Math.round(v * 10 ** places) / 10 ** places);
 
+/**
+ * Items in tag order as people read it — digit runs by value (2 before 10,
+ * 12 before 12A), other runs by code unit. Keys are made once: localeCompare
+ * with `numeric` cost a collator call per comparison on Hermes, about a
+ * million for a 20 000-tree census (1E).
+ */
+function byTag<T>(items: readonly T[], tagOf: (x: T) => string): T[] {
+  const keyed = items.map((it) => {
+    const tag = tagOf(it);
+    return { it, tag, key: (tag.match(/\d+|\D+/g) ?? []).map((c) => (/^\d/.test(c) ? Number(c) : c)) };
+  });
+  const cmp = (a: string | number, b: string | number) => (a < b ? -1 : a > b ? 1 : 0);
+  keyed.sort((a, b) => {
+    for (let i = 0; i < Math.min(a.key.length, b.key.length); i++) {
+      const x = a.key[i];
+      const y = b.key[i];
+      if (typeof x !== typeof y) return typeof x === 'number' ? -1 : 1;
+      if (x !== y) return cmp(x, y);
+    }
+    return a.key.length - b.key.length || cmp(a.tag, b.tag);
+  });
+  return keyed.map((k) => k.it);
+}
+
 function geometryOf(frame: Row): FrameGeometry {
   return {
     sizeXM: Number(frame.size_x_m),
@@ -69,32 +93,30 @@ export function treesTable(doc: CensusExportDoc, names: Names): Table {
   const g = geometryOf(doc.frame);
   const noOf = new Map(doc.censuses.map((c) => [c.survey.uuid as string, Number(c.survey.census_no)]));
   const header = ['tag', 'individual_uuid', 'taxon_id', 'scientific_name', 'vernacular_name', 'quadrat', 'subquadrat', 'x_m', 'y_m', 'local_x_m', 'local_y_m', 'first_census', 'coord_method', 'notes'];
-  const rows = [...doc.trees]
-    .sort((a, b) => str(a.tag).localeCompare(str(b.tag), undefined, { numeric: true }))
-    .map((t) => {
-      const n = names(str(t.taxon_id));
-      const x = Number(t.x_m);
-      const y = Number(t.y_m);
-      const lx = x - Math.floor(x / g.quadratM + 1e-9) * g.quadratM;
-      const ly = y - Math.floor(y / g.quadratM + 1e-9) * g.quadratM;
-      const sub = subquadratOf(lx, ly, g);
-      return [
-        str(t.tag),
-        str(t.uuid),
-        str(t.taxon_id),
-        str(t.used_scientific_name ?? n.scientific),
-        str(n.vernacular),
-        str(t.quadrat_code),
-        `${sub.i}${sub.j}`,
-        str(t.x_m),
-        str(t.y_m),
-        round(lx, 2),
-        round(ly, 2),
-        str(noOf.get(str(t.first_survey_uuid)) ?? ''),
-        str(t.coord_method),
-        str(t.notes),
-      ];
-    });
+  const rows = byTag(doc.trees, (t) => str(t.tag)).map((t) => {
+    const n = names(str(t.taxon_id));
+    const x = Number(t.x_m);
+    const y = Number(t.y_m);
+    const lx = x - Math.floor(x / g.quadratM + 1e-9) * g.quadratM;
+    const ly = y - Math.floor(y / g.quadratM + 1e-9) * g.quadratM;
+    const sub = subquadratOf(lx, ly, g);
+    return [
+      str(t.tag),
+      str(t.uuid),
+      str(t.taxon_id),
+      str(t.used_scientific_name ?? n.scientific),
+      str(n.vernacular),
+      str(t.quadrat_code),
+      `${sub.i}${sub.j}`,
+      str(t.x_m),
+      str(t.y_m),
+      round(lx, 2),
+      round(ly, 2),
+      str(noOf.get(str(t.first_survey_uuid)) ?? ''),
+      str(t.coord_method),
+      str(t.notes),
+    ];
+  });
   return { header, rows };
 }
 
@@ -103,8 +125,12 @@ export function censusTable(doc: CensusExportDoc): Table {
   const threshold = Number(doc.frame.dbh_min_cm);
   const noOf = new Map(doc.censuses.map((c) => [c.survey.uuid as string, Number(c.survey.census_no)]));
   const stemsOf = new Map<string, Row[]>();
-  for (const st of doc.stems) stemsOf.set(str(st.tree_uuid), [...(stemsOf.get(str(st.tree_uuid)) ?? []), st]);
-  const trees = [...doc.trees].sort((a, b) => str(a.tag).localeCompare(str(b.tag), undefined, { numeric: true }));
+  for (const st of doc.stems) {
+    const list = stemsOf.get(str(st.tree_uuid));
+    if (list) list.push(st);
+    else stemsOf.set(str(st.tree_uuid), [st]);
+  }
+  const trees = byTag(doc.trees, (t) => str(t.tag));
   const rows: string[][] = [];
   doc.censuses.forEach((_, i) => {
     const ix = censusIndex(doc, i);
@@ -157,11 +183,11 @@ export function censusTable(doc: CensusExportDoc): Table {
 export function stemsTable(doc: CensusExportDoc): Table {
   const header = ['census_no', 'tag', 'stem_no', 'stem_tag', 'stem_uuid', 'dbh_cm', 'dbh_mm', 'pom_m', 'pom_seq', 'main', 'stem_dead', 'codes', 'pending', 'date', 'recorded_by'];
   const treeOf = new Map(doc.trees.map((t) => [str(t.uuid), t]));
-  const stems = [...doc.stems].sort((a, b) => {
-    const ta = str(treeOf.get(str(a.tree_uuid))?.tag);
-    const tb = str(treeOf.get(str(b.tree_uuid))?.tag);
-    return ta.localeCompare(tb, undefined, { numeric: true }) || Number(a.stem_no) - Number(b.stem_no);
-  });
+  // Stable sort: stems of one tree stay in stem order.
+  const stems = byTag(
+    [...doc.stems].sort((a, b) => Number(a.stem_no) - Number(b.stem_no)),
+    (st) => str(treeOf.get(str(st.tree_uuid))?.tag),
+  );
   const rows: string[][] = [];
   doc.censuses.forEach((_, i) => {
     const ix = censusIndex(doc, i);
@@ -204,7 +230,11 @@ export function veganBasalArea(doc: CensusExportDoc, censusIndexNo: number, name
   const treeOf = new Map(doc.trees.map((t) => [str(t.uuid), t]));
   const area = new Map<string, Map<string, number>>(); // quadrat → taxon → cm²
   const stemsOfTree = new Map<string, Row[]>();
-  for (const st of doc.stems) stemsOfTree.set(str(st.tree_uuid), [...(stemsOfTree.get(str(st.tree_uuid)) ?? []), st]);
+  for (const st of doc.stems) {
+    const list = stemsOfTree.get(str(st.tree_uuid));
+    if (list) list.push(st);
+    else stemsOfTree.set(str(st.tree_uuid), [st]);
+  }
   for (const [treeUuid, stems] of stemsOfTree) {
     const t = treeOf.get(treeUuid);
     if (!t) continue;
