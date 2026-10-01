@@ -13,6 +13,7 @@ import { File, Paths } from 'expo-file-system';
 import { safeAppFileUri } from './appFiles';
 import { syncBlockFor } from '~/db/syncBase';
 import { readAsStringAsync } from 'expo-file-system/legacy';
+import { buildCensusEntries } from '~/survey/censusBundle';
 import * as MediaLibrary from 'expo-media-library';
 import yaml from 'js-yaml';
 import { strFromU8, strToU8, zipSync, type Zippable, type ZipOptions } from 'fflate';
@@ -165,7 +166,8 @@ export type BundleItem =
   | { kind: 'session'; id: number }
   | { kind: 'plot'; id: number }
   | { kind: 'collection'; id: number }
-  | { kind: 'gloria'; id: number };
+  | { kind: 'gloria'; id: number }
+  | { kind: 'survey'; id: number };
 
 export function sanitizeFilename(name: string): string {
   // Allow Unicode letters (incl. CJK), digits, underscore, hyphen, dot. Without
@@ -410,6 +412,14 @@ const README_RULES: Array<{ match: (name: string) => boolean; desc: string }> = 
   { match: (n) => n.endsWith('_04_temperature_loggers.csv'), desc: '溫度計（Form 4）：每支溫度計每次巡查一列，讀取與新部署；非 GLORIA Sheet 原有分頁' },
   { match: (n) => n.includes('/loggers/'), desc: '溫度計資料檔（全長碼_序號_原檔名）與 Form 4 掃描檔（01_ 的表單識別碼）' },
   { match: (n) => n.includes('/forms/'), desc: 'GLORIA 紙本表單掃描檔（Form 1、2、3、6-S；檔名為 01_ 的表單識別碼，同一表單第二個檔案起加 -2、-3）' },
+  // Tree census (Modular_survey.md §7.4; columns per Condit 1998 Table 3.2.2, book p.139).
+  { match: (n) => n.endsWith('_trees.csv'), desc: '每木調查個體表：一列一株，樹號、物種、樣方、子樣方、全區 x,y（Condit 1998 Table 3.2.2 A）' },
+  {
+    match: (n) => n.endsWith('_census.csv'),
+    desc: '每木調查回合表：每回合一列一株，列出所有曾記錄的個體；DBH（mm，最大的活分支）、POM 序號、活分支數、狀態 A 存活／D 死亡／F 存活但未達門檻／P 尚未出現（空白＝這回合還沒記錄）、日期、代碼（Condit 1998 Table 3.2.2 B 與 p.166）',
+  },
+  { match: (n) => n.endsWith('_stems.csv'), desc: '每木調查分支表：每回合一列一個有量測的分支，DBH（cm 與 mm）、POM 高度與序號、主分支、分支死亡、代碼' },
+  { match: (n) => /_vegan_basal_area_census\d+\.csv$/.test(n), desc: '每木調查 vegan 群落矩陣：一回合一個檔，列為樣方、欄為物種，值為活分支的胸高斷面積（cm²）' },
   { match: (n) => n.endsWith('.md'), desc: '物種名錄文件（Markdown）' },
   { match: (n) => n.endsWith('.docx'), desc: '物種名錄文件（DOCX 排版文書檔）' },
   { match: (n) => n.endsWith('.odt'), desc: '物種名錄文件（ODT 排版文書檔）' },
@@ -1315,6 +1325,44 @@ export async function bundleLoggers(summitId: number, opts: Pick<BundleOptions, 
   return await finalizeZip(entries, base);
 }
 
+/**
+ * A tree census and the earlier censuses of its series (Modular_survey.md §9
+ * 1D): the files come from src/survey/censusBundle.ts; this adds the manifest
+ * and README like the other records.
+ */
+export async function buildCensusBundleEntries(
+  surveyId: number,
+  opts: Pick<BundleOptions, 'includePhotos' | 'onProgress'>,
+): Promise<{ entries: BuiltZipEntry[]; folderName: string }> {
+  if (opts.includePhotos) await ensurePhotosReadAccess();
+  const built = await buildCensusEntries(surveyId, {
+    includePhotos: opts.includePhotos,
+    extOf: (uri) => guessExt(uri),
+    onPhoto: (done, total) => opts.onProgress?.({ label: i18n.t('export.stage.photos'), done, total }),
+    readPhoto: async (uri) => {
+      const fileUri = await resolveAssetUri(uri);
+      if (!fileUri) return null;
+      try {
+        return base64ToBytes(await readAsStringAsync(fileUri, { encoding: 'base64' }));
+      } catch {
+        return null; // gone from the device: the yml still names it
+      }
+    },
+  });
+  const entries: BuiltZipEntry[] = [...built.entries];
+  const manifest = buildManifest({ kind: 'survey', id: surveyId, uuid: built.uuid, name: built.name, record_count: built.trees, photo_count: built.photos });
+  entries.push({ name: `${built.folderName}/manifest.json`, bytes: strToU8(JSON.stringify(manifest, null, 2)) });
+  entries.push({ name: `${built.folderName}/README.md`, bytes: strToU8(buildRecordReadme(built.folderName, entries)) });
+  return { entries, folderName: built.folderName };
+}
+
+export async function bundleCensus(surveyId: number, opts: BundleOptions): Promise<ExportFile> {
+  opts.onProgress?.({ label: i18n.t('export.preparing') });
+  const { entries, folderName } = await buildCensusBundleEntries(surveyId, opts);
+  await reportZipStage(opts.onProgress);
+  return await finalizeZip(entries, folderName);
+}
+
 export async function bundleGloria(surveyId: number, opts: BundleOptions): Promise<ExportFile> {
   opts.onProgress?.({ label: i18n.t('export.preparing') });
   const { entries, folderName } = await buildGloriaEntries(surveyId, opts);
@@ -1859,7 +1907,7 @@ export function base64ToBytes(b64: string): Uint8Array {
 }
 
 function buildManifest(meta: {
-  kind: 'session' | 'plot' | 'collection' | 'gloria' | 'bundle';
+  kind: 'session' | 'plot' | 'collection' | 'gloria' | 'survey' | 'bundle';
   id?: number;
   /** Plot survey uuid (plot_surveys.uuid) — the stable round-trip key. */
   uuid?: string;
@@ -1963,7 +2011,8 @@ export async function bundleMany(items: BundleItem[], opts: BundleOptions): Prom
           totalPhotos += countPhotosPlotWithEnv(it.id);
           break;
         case 'gloria':
-          break; // buildGloriaEntries takes no shared progress counter
+        case 'survey':
+          break; // these builders report their own photo progress
         default:
           assertNever(it, 'bundle kind');
       }
@@ -2008,6 +2057,12 @@ export async function bundleMany(items: BundleItem[], opts: BundleOptions): Prom
           const { entries, folderName } = await buildPlotEntries(it.id, opts, ctx);
           allEntries.push(...entries);
           itemMeta.push({ kind: 'plot', id: it.id, uuid: getPlotSurvey(it.id)?.uuid, folder: folderName });
+          break;
+        }
+        case 'survey': {
+          const { entries, folderName } = await buildCensusBundleEntries(it.id, opts);
+          allEntries.push(...entries);
+          itemMeta.push({ kind: 'survey', id: it.id, folder: folderName });
           break;
         }
         default:

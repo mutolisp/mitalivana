@@ -40,7 +40,7 @@ import type { SurveyTemplate } from '../template/types';
 import { templateHash, validateTemplate } from '../template/validate';
 
 export type SurveyDb = {
-  executeSync: (sql: string, params?: Scalar[]) => { rows?: unknown[]; insertId?: number };
+  executeSync: (sql: string, params?: Scalar[]) => { rows?: unknown[]; insertId?: number; rowsAffected?: number };
 };
 
 export type Ctx = { db: SurveyDb; now: () => number; uuid: () => string };
@@ -613,37 +613,85 @@ export function getIndividual(ctx: { db: SurveyDb }, id: number): IndividualRow 
   return one<IndividualRow>(ctx, `SELECT * FROM fw_individuals WHERE id = ?`, [id]) ?? null;
 }
 
-/** Tags trees gave up in tag corrections (decided 2026-10-01: never reused).
+/** Tags trees gave up in tag corrections (decided 2026-10-01: never reused),
+ *  and in team merges that found two trees to be one (`merge` rows: the tag
+ *  of the tree folded in, and the kept tree's own tag if another was kept).
  *  A tree's own former tags are not counted against it, so a wrong
  *  correction can be undone. */
 export function retiredTags(ctx: { db: SurveyDb }, frameId: number, exceptIndividualId: number | null = null): Set<string> {
-  const old = rows<{ v: string | null }>(
+  const old = rows<{ field: string; o: string | null; n: string | null }>(
     ctx,
-    `SELECT h.old_value AS v FROM fw_individual_history h JOIN fw_individuals i ON i.id = h.individual_id
-      WHERE i.frame_id = ? AND h.field = 'tag' AND h.individual_id IS NOT ?`,
+    // From the history (corrections only, small); joined the other way the
+    // planner walked every tree of the plot on each save (1E).
+    `SELECT h.field, h.old_value AS o, h.new_value AS n FROM fw_individual_history h CROSS JOIN fw_individuals i ON i.id = h.individual_id
+      WHERE i.frame_id = ? AND h.field IN ('tag', 'merge') AND h.individual_id IS NOT ?`,
     [frameId, exceptIndividualId],
   );
   const out = new Set<string>();
-  for (const r of old) {
+  const parse = (v: string | null): unknown => {
     try {
-      const t = r.v == null ? null : JSON.parse(r.v);
-      if (typeof t === 'string') out.add(t);
+      return v == null ? null : JSON.parse(v);
     } catch {
-      // a malformed history row retires nothing
+      return null; // a malformed history row retires nothing
     }
+  };
+  for (const r of old) {
+    if (r.field === 'tag') {
+      const t = parse(r.o);
+      if (typeof t === 'string') out.add(t);
+      continue;
+    }
+    const from = parse(r.o) as { tag?: unknown } | null;
+    const kept = parse(r.n) as { tag?: unknown; was?: unknown } | null;
+    for (const t of [from?.tag, kept?.was]) if (typeof t === 'string' && t !== kept?.tag) out.add(t);
   }
   return out;
 }
 
-/** The tag a new tree at this position would get. */
-export function suggestTag(ctx: { db: SurveyDb }, frame: FrameRow, p: XY): string {
+/**
+ * The tag a new tree at this position would get: the next free number of
+ * its tag block, or — when this phone carries its own roll of tags in a team
+ * (`rollStart`, decided 2026-10-01) — the lowest free number from the roll's
+ * first one on, wherever the tree stands. Used and retired numbers are skipped.
+ */
+export function suggestTag(ctx: { db: SurveyDb }, frame: FrameRow, p: XY, rollStart: number | null = null): string {
+  if (rollStart != null) {
+    const retired = retiredTags(ctx, frame.id);
+    // Upward from the roll's first number, ten thousand at a time.
+    for (let from = rollStart; ; from += 10_000) {
+      const taken = usedTagNumbers(ctx, frame.id, from, from + 9_999);
+      for (let n = from; n < from + 10_000; n++) if (!taken.has(n) && !retired.has(String(n))) return String(n);
+    }
+  }
   const block = tagBlockIndex(p, frameGeometry(frame), frame.tag_block_quadrats);
   const { first, last } = tagRange(block, frame.tag_block_size);
   // Only this block's range: a frame holds tens of thousands of tags.
-  const used = rows<{ tag: string }>(ctx, `SELECT tag FROM fw_individuals WHERE frame_id = ? AND CAST(tag AS INTEGER) BETWEEN ? AND ?`, [frame.id, first, last]).map((r) => r.tag);
+  const used = [...usedTagNumbers(ctx, frame.id, first, last)];
   const n = nextFreeTag(block, frame.tag_block_size, [...used, ...retiredTags(ctx, frame.id)]);
   if (n == null) throw new SurveyError('tag_range_full');
   return String(n);
+}
+
+/**
+ * Numbers in [first, last] used as tags in a frame. Tags are text, and a
+ * numeric range on text cannot use the (frame_id, tag) index — the form asks
+ * for a suggestion as the position is typed, so on a large plot each keystroke
+ * read every tag (1E). Digit strings of one length sort like the numbers they
+ * are, so the range is asked length by length, each an index range. A tag
+ * written with leading zeros ("007") does not hold its number.
+ */
+function usedTagNumbers(ctx: { db: SurveyDb }, frameId: number, first: number, last: number): Set<number> {
+  const out = new Set<number>();
+  for (let len = String(first).length; len <= String(last).length; len++) {
+    const lo = Math.max(first, len === 1 ? 0 : 10 ** (len - 1));
+    const hi = Math.min(last, 10 ** len - 1);
+    if (lo > hi) continue;
+    for (const r of rows<{ tag: string }>(ctx, `SELECT tag FROM fw_individuals WHERE frame_id = ? AND tag BETWEEN ? AND ? AND length(tag) = ?`, [frameId, String(lo), String(hi), len])) {
+      const n = Number(r.tag);
+      if (Number.isInteger(n) && String(n) === r.tag) out.add(n);
+    }
+  }
+  return out;
 }
 
 /** A tree first recorded in this census, with its first stem. Returns ids and tag. */
@@ -1116,10 +1164,13 @@ export function saveTreeDraft(ctx: Ctx, surveyId: number, d: TreeDraft): number 
 /** The tree's main stem in this census, else as the previous census left it. */
 export function mainStemId(ctx: { db: SurveyDb }, surveyId: number, individualId: number): number | null {
   const at = (sid: number) =>
-    one<{ id: number }>(ctx, `SELECT m.stem_id AS id FROM fw_stem_measures m JOIN fw_stems st ON st.id = m.stem_id WHERE st.individual_id = ? AND m.survey_id = ? AND m.is_main = 1`, [
-      individualId,
-      sid,
-    ])?.id ?? null;
+    // From the tree's stems (CROSS JOIN fixes the order): by survey_id alone the
+    // planner walked every measurement of the census (1E: grows with the plot).
+    one<{ id: number }>(
+      ctx,
+      `SELECT m.stem_id AS id FROM fw_stems st CROSS JOIN fw_stem_measures m ON m.stem_id = st.id AND m.survey_id = ? WHERE st.individual_id = ? AND m.is_main = 1`,
+      [sid, individualId],
+    )?.id ?? null;
   const prev = previousCensusId(ctx, surveyId);
   return at(surveyId) ?? (prev == null ? null : at(prev));
 }
@@ -1296,37 +1347,42 @@ function treeViews(ctx: { db: SurveyDb }, surveyId: number, scope: Scope): TreeV
   const treeFrom = `fw_individuals i LEFT JOIN fw_surveys fi ON fi.id = i.first_survey_id
     WHERE i.frame_id = ? AND (fi.id IS NULL OR fi.series_id <> ? OR fi.census_no <= ?) AND ${scope.sql}`;
   const treeParams: Scalar[] = [s.frame_id, s.series_id, s.census_no, ...scope.params];
-  const inds = rows<IndividualRow>(ctx, `SELECT i.* FROM ${treeFrom} ORDER BY i.tag`, treeParams);
+  // Sorted here, not ORDER BY i.tag: that made the planner walk the plot's
+  // whole (frame_id, tag) index for one quadrat (1E). Text order, as before.
+  const inds = rows<IndividualRow>(ctx, `SELECT i.* FROM ${treeFrom}`, treeParams).sort((a, b) => (a.tag < b.tag ? -1 : a.tag > b.tag ? 1 : 0));
   if (!inds.length) return [];
+  // Everything below starts from these trees (CROSS JOIN fixes the order):
+  // by survey_id the planner walked every measurement of the census.
+  const trees = `(SELECT i.id FROM ${treeFrom}) t`;
   const stems = rows<StemRow>(
     ctx,
-    `SELECT st.* FROM fw_stems st
-       JOIN (SELECT i.id FROM ${treeFrom}) t ON t.id = st.individual_id
+    `SELECT st.* FROM ${trees}
+       CROSS JOIN fw_stems st ON st.individual_id = t.id
        LEFT JOIN fw_surveys fs ON fs.id = st.first_survey_id
       WHERE ${SEEN_BY_CENSUS} ORDER BY st.individual_id, st.stem_no`,
     [...treeParams, s.series_id, s.census_no],
   );
   const measures = rows<MeasureRow>(
     ctx,
-    `SELECT m.* FROM fw_stem_measures m
-       JOIN fw_stems st ON st.id = m.stem_id
-       JOIN (SELECT i.id FROM ${treeFrom}) t ON t.id = st.individual_id
+    `SELECT m.* FROM ${trees}
+       CROSS JOIN fw_stems st ON st.individual_id = t.id
+       CROSS JOIN fw_stem_measures m ON m.stem_id = st.id
       WHERE m.survey_id IN (${inSurveys})`,
     [...treeParams, ...surveys],
   );
   const codes = rows<{ measure_id: number; v: string }>(
     ctx,
-    `SELECT v.measure_id, v.value_text AS v FROM fw_stem_values v
-       JOIN fw_stem_measures m ON m.id = v.measure_id
-       JOIN fw_stems st ON st.id = m.stem_id
-       JOIN (SELECT i.id FROM ${treeFrom}) t ON t.id = st.individual_id
+    `SELECT v.measure_id, v.value_text AS v FROM ${trees}
+       CROSS JOIN fw_stems st ON st.individual_id = t.id
+       CROSS JOIN fw_stem_measures m ON m.stem_id = st.id
+       CROSS JOIN fw_stem_values v ON v.measure_id = m.id
       WHERE m.survey_id IN (${inSurveys}) AND v.component = 'health' AND v.field = 'census_codes'`,
     [...treeParams, ...surveys],
   );
   const ivals = rows<{ survey_id: number; individual_id: number; component: string; field: string; value_num: number | null; value_text: string | null }>(
     ctx,
-    `SELECT v.survey_id, v.individual_id, v.component, v.field, v.value_num, v.value_text FROM fw_individual_values v
-       JOIN (SELECT i.id FROM ${treeFrom}) t ON t.id = v.individual_id
+    `SELECT v.survey_id, v.individual_id, v.component, v.field, v.value_num, v.value_text FROM ${trees}
+       CROSS JOIN fw_individual_values v ON v.individual_id = t.id
       WHERE v.survey_id IN (${inSurveys}) AND v.idx = 0`,
     [...treeParams, ...surveys],
   );

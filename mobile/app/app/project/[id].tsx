@@ -29,7 +29,6 @@ import {
 import { HeaderIconButton } from '~/components/HeaderIconButton';
 import { ExportProgressOverlay } from '~/components/ExportProgressOverlay';
 import { ProjectEditModal } from '~/components/ProjectEditModal';
-import { useToast } from '~/stores/toast';
 import { ProjectExportSheet } from '~/components/ProjectExportSheet';
 import { estimateBundleSize } from '~/lib/exportSize';
 import { bundleProject } from '~/lib/projectExport';
@@ -117,10 +116,7 @@ export default function ProjectDetailScreen() {
     // Let the sheet finish dismissing before any Alert / progress Modal —
     // iOS silently drops a present() over a dismissing Modal.
     await new Promise((r) => setTimeout(r, 450));
-    // bundleProject has no censuses yet (Phase 1D).
-    const { items: exportable, skipped } = bundleItemsOf(records);
-    if (skipped > 0) useToast.getState().show(t('survey.census.skippedInExport'));
-    const est = await estimateBundleSize(exportable, { includePhotos });
+    const est = await estimateBundleSize(bundleItemsOf(records), { includePhotos });
     if (!(await confirmIfLarge(est.totalBytes))) return;
     const lang = await pickExportLanguage(t, 'export.language');
     if (!lang) return;

@@ -21,6 +21,17 @@ export const SYNC_LIMITS = {
 /** Sealed payloads travel as base64url text: 4 bytes per 3. */
 export const BASE64_FACTOR = 4 / 3;
 
+/**
+ * Bytes one stem takes in a block upload — JSON, deflated, sealed, base64,
+ * with its merge base — census codes only. Measured 101 B on the 1E test plot
+ * (a 1 ha block of 1 231 stems, base as large as the rows; 2026-10-02), plus
+ * about 30 % for longer notes and names. check:census-stress fails if a block
+ * grows past it. AMS codes are not in Phase 1; measure again when they are.
+ */
+export const BYTES_PER_STEM = 130;
+/** Stems per hectare assumed before any census has data (§7.9). */
+export const DEFAULT_STEMS_PER_HA = 6000;
+
 export type SyncBlockInput = {
   quadratsX: number;
   quadratsY: number;

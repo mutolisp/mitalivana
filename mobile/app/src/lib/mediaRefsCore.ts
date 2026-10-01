@@ -38,12 +38,17 @@ export const MEDIA_COLUMN_KINDS: Readonly<Record<string, ColumnKind>> = {
   'gloria_surveys.form6s_files': 'files',
   'gloria_logger_visits.form4_files': 'files',
   'gloria_loggers.data_files': 'files',
+  // A tree census photo is a row of its own (v80): the entry's `meta.owner` says whose (censusSync.ts).
+  'fw_media.uri': 'single',
 };
 
 /** Where a file sits in a record: table, row key ('' for the record's own row), column. */
 export type MediaRef = { t: string; k: string; c: string };
-/** What goes with a file besides the file: an overview photo's viewpoint, an attachment's name. */
-export type MediaMeta = { viewpoint?: string; name?: string };
+/** A census photo's row, which the receiver creates: its tree, stem (null: the whole tree), component and kind. */
+export type MediaOwner = { tree: string; stem: string | null; component: string; kind: string };
+
+/** What goes with a file besides the file: an overview photo's viewpoint, an attachment's name, a census photo's owner. */
+export type MediaMeta = { viewpoint?: string; name?: string; owner?: MediaOwner };
 
 export type MediaEntry = {
   ref: MediaRef;
@@ -120,8 +125,17 @@ export function readMediaManifest(v: unknown): MediaEntry[] {
     const size = Number(e.size);
     if (!Number.isFinite(size) || size < 0) continue;
     const m = e.meta as Record<string, unknown> | undefined;
+    const o = m?.owner as Record<string, unknown> | undefined;
+    const owner: MediaOwner | null =
+      o && typeof o.tree === 'string' && (o.stem == null || typeof o.stem === 'string') && typeof o.component === 'string' && typeof o.kind === 'string'
+        ? { tree: o.tree, stem: (o.stem as string | null) ?? null, component: o.component, kind: o.kind }
+        : null;
     const meta: MediaMeta | undefined = m
-      ? { ...(typeof m.viewpoint === 'string' ? { viewpoint: m.viewpoint } : {}), ...(typeof m.name === 'string' ? { name: m.name } : {}) }
+      ? {
+          ...(typeof m.viewpoint === 'string' ? { viewpoint: m.viewpoint } : {}),
+          ...(typeof m.name === 'string' ? { name: m.name } : {}),
+          ...(owner ? { owner } : {}),
+        }
       : undefined;
     out.push({
       ref: { t: ref.t, k: ref.k, c: ref.c },

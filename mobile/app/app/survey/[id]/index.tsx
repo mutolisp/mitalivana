@@ -30,6 +30,13 @@ import { finishCensus, reopenCensus, setFgQuadratRecorder, setFgQuadratStatus, u
 import { changedQuadratIds, quadratRowId } from '~/survey/db/censusVersions';
 import { saveVersionSoon } from '~/db/recordVersions';
 import { canUndo, checkpointQuadrats, clearCensusUndo, redoQuadrat, undoQuadrat, useQuadratUndo } from '~/survey/undo';
+import { formatBytes } from '~/lib/exportSize';
+import { mergeSummary } from '~/lib/mergeSummaryText';
+import { pickSyncTeam } from '~/lib/teamPickPrompt';
+import { hasSecret, linkedTeams, listTeams, teamServerLabel } from '~/lib/teamSync';
+import { teamSyncErrorText } from '~/lib/teamSyncText';
+import { syncCensus, type BlockSizeOption } from '~/survey/censusSync';
+import { getTagRollStart, setTagRollStart } from '~/survey/tagRoll';
 import { isOpenWork, type TreeChip } from '~/survey/stemmap/review';
 import { allQuadratCodes, loadQuadratRows, useCensus, type TreeRowData } from '~/survey/useCensus';
 import { useThemeColors } from '~/theme/colors';
@@ -126,6 +133,14 @@ export default function CensusScreen() {
   // Tablet: what the right pane edits; `new` carries the quadrat and map point.
   const [pane, setPane] = useState<null | { id: number | null; at?: { x: number; y: number } | null; n: number }>(null);
   const [paneDirty, setPaneDirty] = useState(false);
+  // 同步 is offered once this phone holds a team key (as on records).
+  const [hasTeam, setHasTeam] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  useFocusEffect(
+    useCallback(() => {
+      void Promise.all(listTeams().map((x) => hasSecret(x.team_id))).then((keys) => setHasTeam(keys.some(Boolean)));
+    }, []),
+  );
   usePreventRemove(wide && paneDirty, ({ data: ev }) => {
     Alert.alert(t('survey.tree.unsavedTitle'), t('survey.tree.unsavedMsg'), [
       { text: t('common.cancel'), style: 'cancel' },
@@ -212,33 +227,105 @@ export default function CensusScreen() {
     reload();
     toast(dir === 'undo' ? t('survey.census.undone') : t('survey.census.redone'));
   };
+  // The first team sync fixes the block size (Modular_survey.md §7.9).
+  const chooseBlockSize = async (opts: BlockSizeOption[]): Promise<number | null> => {
+    const idx = await showActionSheet({
+      title: t('survey.sync.blockSizeTitle'),
+      message: t('survey.sync.blockSizeMsg'),
+      options: opts.map((o) => ({
+        label: [
+          t('survey.sync.blockSizeOption', { k: o.edge, m: frame.quadrat_m, blocks: o.blocks, size: formatBytes(o.estimatedBytes) }),
+          o.recommended ? t('survey.sync.recommended') : '',
+          o.tooLarge ? t('survey.sync.tooLarge') : '',
+        ]
+          .filter(Boolean)
+          .join(' · '),
+      })),
+      cancelLabel: t('common.cancel'),
+    });
+    return idx >= 0 ? (opts[idx]?.edge ?? null) : null;
+  };
+  const sync = async () => {
+    const teamId = await pickSyncTeam(linkedTeams('survey', survey.uuid));
+    if (!teamId) return;
+    const dest = listTeams().find((x) => x.team_id === teamId);
+    // Every result says where it went.
+    const where = dest ? `\n${t('teamSync.sentTo', { name: dest.name, host: teamServerLabel(dest) })}` : '';
+    setSyncing(true);
+    try {
+      const r = await syncCensus(teamId, surveyId, { chooseBlockSize });
+      useToast.getState().dismiss();
+      if (!r) return;
+      if (r.queued) toast(t('teamSync.queuedToast') + where);
+      else if (!r.review) {
+        const who = r.mergedFrom.length
+          ? t('teamSync.mergedFromToast', { names: [...new Set(r.mergedFrom)].join('、') })
+          : r.merged
+            ? t('teamSync.mergedToast', { count: r.merged })
+            : null;
+        const what = mergeSummary(t, r.changes);
+        const head = who ? (what ? t('teamSync.mergedWithSummary', { who, what }) : who) : r.blocksSent ? t('survey.sync.sentBlocks', { count: r.blocksSent }) : t('teamSync.upToDate');
+        toast(head + where, { durationMs: 6000 });
+      }
+      reload();
+    } catch (e) {
+      useToast.getState().dismiss();
+      Alert.alert(t('teamSync.failTitle'), teamSyncErrorText(e) + where);
+    } finally {
+      setSyncing(false);
+    }
+  };
+  const editTagRoll = async () => {
+    const cur = getTagRollStart(frame.uuid);
+    const v = await promptText({
+      title: t('survey.sync.tagRoll'),
+      message: t('survey.sync.tagRollMsg'),
+      defaultValue: cur == null ? '' : String(cur),
+      keyboardType: 'numeric',
+      allowEmpty: true,
+    });
+    if (v == null) return;
+    const n = Number(v.trim());
+    if (!v.trim()) setTagRollStart(frame.uuid, null);
+    else if (Number.isInteger(n) && n > 0) setTagRollStart(frame.uuid, n);
+    else return toast(t('survey.sync.tagRollBad'));
+    toast(v.trim() ? t('survey.sync.tagRollSet', { n }) : t('survey.sync.tagRollCleared'));
+  };
   const more = async () => {
-    const options = [
-      { label: t('survey.census.checks') },
-      { label: t('survey.census.versions', { q: quadrat, m: frame.quadrat_m }) },
-      { label: t('survey.census.investigators') },
-      { label: t('survey.census.quadratRecorder', { q: quadrat, m: frame.quadrat_m }) },
-      { label: t('survey.census.notes') },
-      { label: active ? t('survey.census.finish') : t('survey.census.reopen') },
-      { label: t('survey.census.frame') },
+    const roll = getTagRollStart(frame.uuid);
+    const items: { id: string; label: string }[] = [
+      ...(hasTeam && !syncing ? [{ id: 'sync', label: t('teamSync.sync') }] : []),
+      { id: 'checks', label: t('survey.census.checks') },
+      { id: 'versions', label: t('survey.census.versions', { q: quadrat, m: frame.quadrat_m }) },
+      ...(hasTeam ? [{ id: 'blocks', label: t('survey.sync.blocks') }] : []),
+      { id: 'roll', label: roll == null ? t('survey.sync.tagRoll') : t('survey.sync.tagRollNow', { n: roll }) },
+      { id: 'investigators', label: t('survey.census.investigators') },
+      { id: 'recorder', label: t('survey.census.quadratRecorder', { q: quadrat, m: frame.quadrat_m }) },
+      { id: 'notes', label: t('survey.census.notes') },
+      { id: 'finish', label: active ? t('survey.census.finish') : t('survey.census.reopen') },
+      { id: 'frame', label: t('survey.census.frame') },
     ];
-    const idx = await showActionSheet({ options, cancelLabel: t('common.cancel') });
-    if (idx === 0) router.push(`/survey/${surveyId}/checks` as Href);
-    if (idx === 1) {
+    const idx = await showActionSheet({ options: items.map(({ label }) => ({ label })), cancelLabel: t('common.cancel') });
+    const id = items[idx]?.id;
+    if (id === 'sync') void sync();
+    if (id === 'checks') router.push(`/survey/${surveyId}/checks` as Href);
+    if (id === 'versions') {
       const rowId = quadratRowId(surveyId, quadrat);
       if (rowId == null) toast(t('survey.census.noVersions'));
       else router.push(`/record-versions?kind=survey_quadrat&id=${rowId}` as Href);
     }
-    if (idx === 2) setAssign('census');
-    if (idx === 3) setAssign('quadrat');
-    if (idx === 4) {
+    if (id === 'blocks') router.push(`/survey/${surveyId}/blocks` as Href);
+    if (id === 'roll') void editTagRoll();
+    if (id === 'investigators') setAssign('census');
+    if (id === 'recorder') setAssign('quadrat');
+    if (id === 'notes') {
       const v = await promptText({ title: t('survey.census.notes'), defaultValue: survey.notes ?? '', allowEmpty: true });
       if (v != null) {
         updateCensus(surveyId, { notes: v.trim() || null });
         reload();
       }
     }
-    if (idx === 5) {
+    if (id === 'finish') {
       if (active) {
         Alert.alert(t('survey.census.finish'), t('survey.census.finishMsg', { open: work.length - doneCount }), [
           { text: t('common.cancel'), style: 'cancel' },
@@ -256,7 +343,7 @@ export default function CensusScreen() {
         reload();
       }
     }
-    if (idx === 6) router.push(`/survey/frame/${frame.id}` as Href);
+    if (id === 'frame') router.push(`/survey/frame/${frame.id}` as Href);
   };
   const recorder = qRow?.recorded_by ?? survey.investigators ?? null;
 
@@ -474,6 +561,7 @@ export default function CensusScreen() {
               </Text>
             </View>
           ),
+          // One button: a second one pushes ⋯ off a narrow header next to a long title (iOS). 同步 is in the menu, as on records.
           headerRight: () => <HeaderIconButton icon="ellipsis-horizontal" label={t('common.more')} onPress={() => void more()} />,
         }}
       />

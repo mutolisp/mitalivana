@@ -9,6 +9,7 @@
  * collection trips still ship in records/ and in the DwC-A.
  */
 import { errText } from '~/lib/errText';
+import { listCensuses, type CensusListRow } from '~/survey/db/stemmap';
 import yaml from 'js-yaml';
 import { strToU8 } from 'fflate';
 import {
@@ -26,6 +27,7 @@ import {
   plotEventIds,
 } from '~/db';
 import {
+  buildCensusBundleEntries,
   buildCollectionEntries,
   buildPlotEntries,
   buildSessionEntries,
@@ -94,8 +96,15 @@ export async function bundleProject(
   const sessions = listSessions().filter((s) => s.project_id === projectId);
   const plots = listPlotSurveys().filter((p) => p.project_id === projectId);
   const trips = listCollectionTrips().filter((c) => c.project_id === projectId);
+  // Tree censuses: one file per series, its latest census here (the file carries the earlier ones, §9 1D).
+  const latestCensus = new Map<number, CensusListRow>();
+  for (const c of listCensuses().filter((x) => x.project_id === projectId)) {
+    const cur = latestCensus.get(c.series_id);
+    if (!cur || c.census_no > cur.census_no) latestCensus.set(c.series_id, c);
+  }
+  const censuses = [...latestCensus.values()];
   const sites = listSitesByProject(projectId);
-  if (sessions.length + plots.length + trips.length + sites.length === 0) {
+  if (sessions.length + plots.length + trips.length + censuses.length + sites.length === 0) {
     throw new Error(i18n.t('export.err.projectEmpty', { name: project.name }));
   }
 
@@ -111,11 +120,11 @@ export async function bundleProject(
 
   const entries: BuiltZipEntry[] = [];
   const recordMeta: Array<Record<string, unknown>> = [];
-  const totalRecords = sessions.length + plots.length + trips.length;
+  const totalRecords = sessions.length + plots.length + trips.length + censuses.length;
   let recordIdx = 0;
 
   const addRecord = async (
-    kind: 'session' | 'plot' | 'collection',
+    kind: 'session' | 'plot' | 'collection' | 'survey',
     id: number,
     uuid: string | undefined,
     build: () => Promise<{ entries: BuiltZipEntry[]; folderName: string }>,
@@ -138,6 +147,7 @@ export async function bundleProject(
   for (const p of plots) await addRecord('plot', p.id, p.uuid, () => buildPlotEntries(p.id, recordOpts, ctx));
   for (const s of sessions) await addRecord('session', s.id, s.uuid, () => buildSessionEntries(s.id, recordOpts, ctx));
   for (const c of trips) await addRecord('collection', c.id, c.uuid, () => buildCollectionEntries(c.id, recordOpts, ctx));
+  for (const c of censuses) await addRecord('survey', c.id, c.uuid, () => buildCensusBundleEntries(c.id, recordOpts));
 
   // ── Merged checklist across every record in the project ─────────────────
   // records/ already carries one checklist per record; this is their union,

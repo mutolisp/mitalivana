@@ -158,16 +158,9 @@ function surveyToItem(c: CensusListRow): RecordItem {
   };
 }
 
-/** Record-list items as export items. A census has no export yet
- *  (Modular_survey.md §9, Phase 1D): it is left out and counted. */
-export function bundleItemsOf(items: readonly { kind: RecordKind; id: number }[]): { items: BundleItem[]; skipped: number } {
-  const out: BundleItem[] = [];
-  let skipped = 0;
-  for (const it of items) {
-    if (it.kind === 'survey') skipped += 1;
-    else out.push({ kind: it.kind, id: it.id });
-  }
-  return { items: out, skipped };
+/** Record-list items as export items. */
+export function bundleItemsOf(items: readonly { kind: RecordKind; id: number }[]): BundleItem[] {
+  return items.map((it) => ({ kind: it.kind, id: it.id }));
 }
 
 export function listRecords(filter: RecordFilter = 'all'): RecordItem[] {

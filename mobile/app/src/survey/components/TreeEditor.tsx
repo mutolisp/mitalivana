@@ -14,7 +14,7 @@
  * - The bottom dock is either the two save buttons or the species search.
  */
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Pressable, Text, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
@@ -57,6 +57,7 @@ import { isMultiStem } from '~/survey/stemmap/status';
 import type { StakeCorner } from '~/survey/stemmap/coords';
 import { useThemeColors } from '~/theme/colors';
 import { checkpointQuadrats } from '~/survey/undo';
+import { claimedByOthers } from '~/survey/censusSync';
 
 export type TreeEditorProps = {
   surveyId: number;
@@ -221,6 +222,7 @@ export function TreeEditor(props: TreeEditorProps) {
     }
   };
 
+  const claimWarned = useRef(false);
   const save = (next: boolean) => {
     const f = { ...form, tag };
     setTried(true);
@@ -273,15 +275,34 @@ export function TreeEditor(props: TreeEditorProps) {
         toast(errText(e));
       }
     };
-    const soft = issues.filter((i) => i.severity !== 'error');
-    if (soft.length) {
-      Alert.alert(t('survey.tree.confirmTitle'), `${soft.map((i) => `• ${issueLine(i.stemNo, i.code)}`).join('\n')}\n\n${t('survey.tree.confirmMsg')}`, [
+    const proceed = () => {
+      const soft = issues.filter((i) => i.severity !== 'error');
+      if (soft.length) {
+        Alert.alert(t('survey.tree.confirmTitle'), `${soft.map((i) => `• ${issueLine(i.stemNo, i.code)}`).join('\n')}\n\n${t('survey.tree.confirmMsg')}`, [
+          { text: t('common.cancel'), style: 'cancel' },
+          { text: t('survey.tree.saveAnyway'), onPress: write },
+        ]);
+        return;
+      }
+      write();
+    };
+    // A block another group claims: only a hint (decided 2026-10-01), asked once per form.
+    const where = (recruit ? preview?.quadrat : view?.individual.quadrat_code) ?? quadrat;
+    const claimers = claimWarned.current || !where ? [] : claimedByOthers(surveyId, where);
+    if (claimers.length) {
+      Alert.alert(t('survey.sync.claimedTitle'), t('survey.sync.claimedMsg', { names: claimers.join('、') }), [
         { text: t('common.cancel'), style: 'cancel' },
-        { text: t('survey.tree.saveAnyway'), onPress: write },
+        {
+          text: t('survey.sync.claimedGo'),
+          onPress: () => {
+            claimWarned.current = true;
+            proceed();
+          },
+        },
       ]);
       return;
     }
-    write();
+    proceed();
   };
 
   const issueLine = (stemNo: number | null, code: string) =>

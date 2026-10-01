@@ -14,8 +14,12 @@ const KNOWN = new Set([
   'mediaDisabled', 'mediaMismatch', 'mediaQuota', 'mediaIncomplete', 'ownerOnly',
 ]);
 
+/** A tree census's sync refusals (src/survey/db/censusSyncCore.ts CensusSyncError), by code. */
+const CENSUS = new Set(['previous_missing', 'frame_code_taken', 'block_size_differs', 'unreadable', 'undecided']);
+
 export function teamSyncErrorText(e: unknown): string {
-  if (!(e instanceof TeamSyncError)) return errText(e);
+  const code = (e as { code?: unknown } | null)?.code;
+  if (!(e instanceof TeamSyncError)) return typeof code === 'string' && CENSUS.has(code) ? i18n.t(`teamSync.err.${code}`) : errText(e);
   if (!KNOWN.has(e.code)) return i18n.t('teamSync.err.unknown', { detail: e.message });
   const limit =
     e.limit == null ? '' : BYTE_LIMITS.has(e.code) && e.limit > 1000 ? formatBytes(e.limit) : String(e.limit);

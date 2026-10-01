@@ -3475,7 +3475,9 @@
       "status": "狀態"
     },
     "from": "來自 {{name}}",
-    "fromAt": "來自 {{name}}，{{date}} 上傳"
+    "fromAt": "來自 {{name}}，{{date}} 上傳",
+    "autoFolded": "另有 {{count}} 筆只有對方新增或修改的資料，會一起套用。",
+    "showAll": "全部列出"
   },
   "mergeBackups": {
     "title": "合併前備份",
@@ -3584,7 +3586,12 @@
       "mediaMismatch": "下載的檔案內容與上傳的不一致",
       "mediaQuota": "隊伍的檔案容量已滿（上限 {{limit}}），請伺服器部署者調高",
       "mediaIncomplete": "檔案上傳不完整，請再同步一次",
-      "ownerOnly": "只有建立隊伍的那台手機（隊長）可以刪除雲端上的隊伍。"
+      "ownerOnly": "只有建立隊伍的那台手機（隊長）可以刪除雲端上的隊伍。",
+      "previous_missing": "這是第 2 回合以後的調查，這台手機沒有上一回合。請先匯入上一回合的檔案再同步。",
+      "frame_code_taken": "這台手機已有另一個代號相同的永久樣區，無法建立隊友的樣區。",
+      "block_size_differs": "隊友這個回合用的同步區塊大小和這台不同，無法合併。",
+      "unreadable": "收到無法讀取的資料（可能來自較新版的 app），已略過。",
+      "undecided": "還有重複的樹號沒有決定。"
     },
     "mergedFromToast": "已合併 {{names}} 的資料",
     "members": "隊員",
@@ -3684,7 +3691,11 @@
         "queued": "待送",
         "fail": "失敗"
       },
-      "files": "檔案 {{n}} 個"
+      "files": "檔案 {{n}} 個",
+      "skip": {
+        "block_size": "尚未決定區塊大小（請在回合畫面同步）",
+        "unreadable": "無法讀取（可能來自較新版 app）"
+      }
     },
     "sentTo": "→ {{name}}（{{host}}）",
     "aliasTitle": "伺服器名稱",
@@ -4311,8 +4322,6 @@
       "finishMsg": "還有 {{open}} 株未處理。結束後仍可重新開啟。",
       "reopen": "重新開啟回合",
       "frame": "永久樣區",
-      "noExport": "每木調查目前還不能匯出。",
-      "skippedInExport": "每木調查尚未納入匯出，已略過。",
       "noDuplicate": "每木調查的回合不能複製；下一回合請在永久樣區開始。",
       "noMerge": "每木調查的回合不能合併。",
       "deleteMsg": "刪除「{{title}}」第 {{n}} 回合？這個回合的量測，與首次在這個回合記錄的個體，會一併刪除；之前的回合不受影響。",
@@ -4472,6 +4481,55 @@
       "unsavedMsg": "這株的變更還沒儲存。",
       "discard": "捨棄",
       "errNumber": "這些欄位不是數字："
+    },
+    "sync": {
+      "blockSizeTitle": "同步區塊大小",
+      "blockSizeMsg": "第一次隊伍同步要決定回合分成幾塊上傳，之後不能改，隊友會沿用。區塊越大，物件越少，但單一物件越大，兩組改到同一塊的機會也越高。",
+      "blockSizeOption": "{{k}} × {{k}} 個樣方 · {{blocks}} 塊 · 每塊約 {{size}}",
+      "recommended": "建議",
+      "tooLarge": "可能超過上限",
+      "sentBlocks": "已送出 {{count}} 個區塊",
+      "blocks": "區塊與認領",
+      "blocksUndecided": "第一次隊伍同步時才會決定區塊大小。同步後這裡會列出各區塊，可以認領。",
+      "claimsHint": "點區塊認領給這台手機的小組，再點一次取消。認領只是告訴隊友這塊由誰負責，下次同步時送出；在別組認領的區塊新增或修改個體時會提醒。",
+      "blockA11y": "區塊 {{label}}",
+      "claimMine": "我的",
+      "claimNone": "未認領",
+      "unsent": "有未送出的變更",
+      "claimedTitle": "別組認領的區塊",
+      "claimedMsg": "這個區塊由 {{names}} 認領。仍要儲存嗎？",
+      "claimedGo": "仍要儲存",
+      "tagRoll": "我的樹牌起始號",
+      "tagRollNow": "我的樹牌起始號：{{n}}",
+      "tagRollMsg": "這台手機手上的樹牌從幾號開始。設定後，新個體的建議樹號從這個號碼往上，取第一個未用、未退役的號碼；留空則依樹號區塊。只存在這台手機。",
+      "tagRollBad": "請輸入正整數。",
+      "tagRollSet": "新個體會從 {{n}} 號起取號",
+      "tagRollCleared": "已改回依樹號區塊取號",
+      "treeLine": "{{tag}} · {{name}} · ({{x}}, {{y}}) m · 樣方 {{q}} · DBH {{dbh}}",
+      "clashesTitle": "先處理樹號",
+      "clashesIntro": "同一個樹號不能給兩株樹，這些要先決定，其他欄位才能比對。決定會寫進更正紀錄，隊友那邊會照做。",
+      "clashTagMsg": "樹號 {{tag}} 在兩邊是不同的樹（相距 {{d}} m，或樹種不同）。",
+      "clashPossibleMsg": "兩組各記了一株新個體，相距 {{d}} m、同樹種、樹號不同，可能是同一株。",
+      "renumberRemote": "改對方那株的號碼",
+      "renumberLocal": "改本機這株的號碼",
+      "sameTree": "是同一株",
+      "sameTreeTag": "同一株，用 {{tag}} 號",
+      "keepBoth": "兩株都留",
+      "newTag": "新樹號",
+      "next": "下一步",
+      "needDecision": "每個重複的樹號都要先選一個做法（改號要填新號碼）。",
+      "versionsNote": "套用前會先存這個區塊各樣方的版本，可以從樣方的版本還原。"
+    },
+    "import": {
+      "existsTitle": "手機上已有這些回合",
+      "existsMsg": "永久樣區 {{code}} 的第 {{list}} 回合已在這台手機上。檔案中其他回合會直接建立；已有的回合要怎麼處理？",
+      "skip": "略過已有的回合",
+      "created": "建立 {{count}} 個回合",
+      "overwritten": "覆蓋 {{count}} 個回合（覆蓋前已存版本）",
+      "skipped": "略過 {{count}} 個回合",
+      "merged": "合併 {{count}} 個回合",
+      "toReview": "{{count}} 個回合需要審閱合併",
+      "unresolvedTaxa": "{{count}} 個物種在這台手機的名錄中找不到，保留原代碼"
     }
   }
 }

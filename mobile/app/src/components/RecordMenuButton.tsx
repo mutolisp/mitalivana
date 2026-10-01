@@ -12,14 +12,13 @@ import { useFocusEffect, useRouter, type Href } from 'expo-router';
 import { useCallback, useRef, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, type View } from 'react-native';
-import { showActionSheet } from '~/components/ActionSheet';
 import { MenuButton, showMenu, type MenuIcon, type MenuSection } from '~/components/OverflowMenu';
 import type { RecordEditing } from '~/lib/useRecordEditing';
 import type { MergeKind } from '~/lib/mergeDocs';
 import { hasMergeLog } from '~/db/mergeLog';
 import { mergeSummary } from '~/lib/mergeSummaryText';
 import { hasSecret, linkedTeams, listTeams, recordUuid, syncRecord, teamServerLabel } from '~/lib/teamSync';
-import { confirmSwitch, planTeamPick } from '~/lib/teamPick';
+import { pickSyncTeam } from '~/lib/teamPickPrompt';
 import { teamSyncErrorText } from '~/lib/teamSyncText';
 import { useToast } from '~/stores/toast';
 
@@ -65,38 +64,10 @@ export function RecordMenuButton({
     }, [kind, id]),
   );
 
-  // With several teams the button always asks, each with its server, and
-  // switching between same-named ones asks again (src/lib/teamPick.ts): a
-  // record must not silently keep going to an old server.
+  // With several teams the button always asks (src/lib/teamPickPrompt.ts).
   const pickTeam = async (): Promise<string | null> => {
-    const teams = listTeams().map((x) => ({ team_id: x.team_id, name: x.name, host: teamServerLabel(x) }));
     const uuid = recordUuid(kind, id);
-    const linked = uuid ? linkedTeams(kind, uuid) : [];
-    const plan = planTeamPick(teams, linked);
-    let chosen: string | null;
-    if (plan.kind === 'use') chosen = plan.teamId;
-    else {
-      const idx = await showActionSheet({
-        title: t('teamSync.pickTeam'),
-        cancelLabel: t('common.cancel'),
-        options: plan.options.map((o) => ({
-          label: [o.name, o.host ? `（${o.host}）` : '', o.linked ? ` · ${t('teamSync.pickLinked')}` : ''].join(''),
-        })),
-      });
-      chosen = plan.options[idx]?.teamId ?? null;
-    }
-    if (!chosen) return null;
-    const from = confirmSwitch(teams, linked, chosen);
-    if (!from) return chosen;
-    const to = teams.find((x) => x.team_id === chosen)!;
-    const ok = await new Promise<boolean>((resolve) =>
-      Alert.alert(t('teamSync.switchTitle'), t('teamSync.switchMsg', { name: to.name, from: from.host, to: to.host }), [
-        { text: t('common.cancel'), style: 'cancel', onPress: () => resolve(false) },
-        // No host on the button: Android capitalises dialog buttons; the message names it.
-        { text: t('teamSync.switchGo'), onPress: () => resolve(true) },
-      ]),
-    );
-    return ok ? chosen : null;
+    return pickSyncTeam(uuid ? linkedTeams(kind, uuid) : []);
   };
 
   const sync = async () => {

@@ -3650,7 +3650,9 @@
       "status": "Status"
     },
     "from": "From {{name}}",
-    "fromAt": "From {{name}}, uploaded {{date}}"
+    "fromAt": "From {{name}}, uploaded {{date}}",
+    "autoFolded": "{{count}} more rows only the sender added or changed; they are applied too.",
+    "showAll": "List them all"
   },
   "mergeBackups": {
     "title": "Pre-merge backups",
@@ -3765,7 +3767,12 @@
       "mediaMismatch": "The downloaded file does not match the uploaded one",
       "mediaQuota": "The team’s file space is full (limit {{limit}}); ask whoever runs the server to raise it",
       "mediaIncomplete": "A file upload was incomplete; sync again",
-      "ownerOnly": "Only the phone that created the team (the owner) can delete it from the server."
+      "ownerOnly": "Only the phone that created the team (the owner) can delete it from the server.",
+      "previous_missing": "This is a census after the first, and this phone lacks the one before it. Import the previous census's file first, then sync.",
+      "frame_code_taken": "Another plot on this phone already uses this plot's code, so the teammate's plot cannot be created.",
+      "block_size_differs": "Teammates use another sync block size for this census; it cannot be merged.",
+      "unreadable": "Received data this app cannot read (perhaps from a newer version); skipped.",
+      "undecided": "Some repeated tags have no decision yet."
     },
     "mergedFromToast": "Merged data from {{names}}",
     "members": "Members",
@@ -3868,7 +3875,11 @@
         "queued": "Queued",
         "fail": "Failed"
       },
-      "files": "{{n}} files"
+      "files": "{{n}} files",
+      "skip": {
+        "block_size": "No block size yet (sync from the census screen)",
+        "unreadable": "Unreadable (perhaps from a newer app)"
+      }
     },
     "sentTo": "→ {{name}} ({{host}})",
     "aliasTitle": "Server name",
@@ -4503,8 +4514,6 @@
       "finishMsg": "{{open}} trees are not done. You can reopen the census later.",
       "reopen": "Reopen census",
       "frame": "Permanent plot",
-      "noExport": "Tree censuses cannot be exported yet.",
-      "skippedInExport": "Tree censuses are not exported yet and were left out.",
       "noDuplicate": "A census cannot be duplicated; start the next one from its permanent plot.",
       "noMerge": "Censuses cannot be merged.",
       "deleteMsg": "Delete census {{n}} of “{{title}}”? Its measurements and the trees first recorded in it are deleted; earlier censuses stay.",
@@ -4668,6 +4677,55 @@
       "unsavedMsg": "This tree’s changes are not saved.",
       "discard": "Discard",
       "errNumber": "These fields are not numbers:"
+    },
+    "sync": {
+      "blockSizeTitle": "Sync block size",
+      "blockSizeMsg": "The first team sync decides how the census is cut into blocks for upload. It cannot change later; teammates use the same. Larger blocks mean fewer objects, but each is bigger and two groups are more likely to edit the same one.",
+      "blockSizeOption": "{{k}} × {{k}} quadrats of {{m}} m · {{blocks}} blocks · about {{size}} each",
+      "recommended": "recommended",
+      "tooLarge": "may exceed the limit",
+      "sentBlocks": "{{count}} blocks sent",
+      "blocks": "Blocks and claims",
+      "blocksUndecided": "The block size is decided at the first team sync. After that the blocks are listed here and can be claimed.",
+      "claimsHint": "Tap a block to claim it for this phone's group; tap again to release it. A claim only tells teammates who works there and goes out with the next sync. Adding or editing a tree in a block another group claims asks first.",
+      "blockA11y": "Block {{label}}",
+      "claimMine": "Mine",
+      "claimNone": "Unclaimed",
+      "unsent": "Changes not sent",
+      "claimedTitle": "Claimed by another group",
+      "claimedMsg": "{{names}} claimed this block. Save anyway?",
+      "claimedGo": "Save anyway",
+      "tagRoll": "My tag roll starts at",
+      "tagRollNow": "My tag roll starts at {{n}}",
+      "tagRollMsg": "The first number on the tags this phone's group carries. New trees then get the lowest unused, unretired number from it upward; leave empty to use the tag blocks. Kept on this phone only.",
+      "tagRollBad": "Enter a whole number above zero.",
+      "tagRollSet": "New trees take numbers from {{n}}",
+      "tagRollCleared": "New trees take numbers from their tag blocks again",
+      "treeLine": "{{tag}} · {{name}} · ({{x}}, {{y}}) m · quadrat {{q}} · DBH {{dbh}}",
+      "clashesTitle": "Tags first",
+      "clashesIntro": "One tag cannot be on two trees, so these are decided before the other fields are compared. Decisions are written as corrections, and teammates' phones do the same.",
+      "clashTagMsg": "Tag {{tag}} is a different tree on each side ({{d}} m apart, or another species).",
+      "clashPossibleMsg": "Each group recorded a new tree {{d}} m apart, same species, different tags: perhaps one tree.",
+      "renumberRemote": "Renumber theirs",
+      "renumberLocal": "Renumber mine",
+      "sameTree": "One tree",
+      "sameTreeTag": "One tree, tag {{tag}}",
+      "keepBoth": "Keep both",
+      "newTag": "New tag",
+      "next": "Next",
+      "needDecision": "Choose what to do with every repeated tag (a renumbering needs the new number).",
+      "versionsNote": "Before applying, a version of each quadrat in this block is kept; it can be restored from the quadrat's versions."
+    },
+    "import": {
+      "existsTitle": "Some censuses are already here",
+      "existsMsg": "Census {{list}} of plot {{code}} is already on this phone. The file's other censuses are created; what about those already here?",
+      "skip": "Skip those already here",
+      "created": "{{count}} censuses created",
+      "overwritten": "{{count}} censuses overwritten (versions kept first)",
+      "skipped": "{{count}} censuses skipped",
+      "merged": "{{count}} censuses merged",
+      "toReview": "{{count}} censuses need a merge review",
+      "unresolvedTaxa": "{{count}} species are not in this phone's checklist; their codes are kept"
     }
   }
 }

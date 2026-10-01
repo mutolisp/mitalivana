@@ -23,7 +23,7 @@ const eq = (msg, got, want) => {
 
 // Collections are not team-synced; MIREN is not a sync kind yet; the tree
 // census (fw_media) syncs per block from Phase 1C — take it off then.
-const NOT_SYNCED = ['collection_specimens', 'photo_fix', 'miren_plots', 'fw_media'];
+const NOT_SYNCED = ['collection_specimens', 'photo_fix', 'miren_plots'];
 const missing = MEDIA_COLUMNS.filter(([t, c]) => !NOT_SYNCED.includes(t) && !(`${t}.${c}` in MEDIA_COLUMN_KINDS)).map(([t, c]) => `${t}.${c}`);
 eq('every media column of a synced record kind is carried', missing, []);
 
@@ -51,6 +51,11 @@ eq('manifest: unknown column, bad hashes, bad size dropped', readMediaManifest([
   null,
 ]), []);
 eq('manifest: not an array → nothing', readMediaManifest({ a: 1 }), []);
+// A census photo is a row of its own: the entry says whose it is (censusSync.ts).
+const photo = { ...good, ref: { t: 'fw_media', k: 'm-1', c: 'uri' } };
+const owner = { tree: 't-1', stem: null, component: 'photo', kind: 'tree' };
+eq('manifest: a census photo keeps its owner', readMediaManifest([{ ...photo, meta: { owner } }]), [{ ...photo, meta: { owner } }]);
+eq('manifest: a malformed owner is dropped', readMediaManifest([{ ...photo, meta: { owner: { tree: 3 } } }]), [photo]);
 eq('folders by extension', ['a.JPG', 'b.heic', 'c.m4a', 'd.pdf', 'e'].map(folderFor), ['photos', 'photos', 'audio', 'files', 'files']);
 
 if (failed) {

@@ -201,6 +201,12 @@ const LIVE_UUIDS: Record<MergeKind, string> = {
   gloria: `SELECT uuid FROM gloria_surveys`,
 };
 
+/** The same for team sync, which also links a tree census (its blocks below). */
+const SYNC_LIVE_UUIDS: Record<MergeKind | 'survey', string> = {
+  ...LIVE_UUIDS,
+  survey: `SELECT uuid FROM fw_surveys`,
+};
+
 /** The same for record versions, which also keep a census per quadrat and
  *  whole (its quadrats come back with it when it is recovered). */
 const VERSION_LIVE_UUIDS: Record<VersionKind, string> = {
@@ -220,10 +226,15 @@ export function purgeOrphanRows(): void {
     // merge log (v67). One rule per kind, from LIVE_UUIDS — a kind missing
     // there is a type error, never a rule that deletes its rows wholesale.
     ...(['sync_base', 'sync_links', 'merge_log', 'sync_queue'] as const).flatMap((table) =>
-      Object.entries(LIVE_UUIDS).map(
+      Object.entries(SYNC_LIVE_UUIDS).map(
         ([kind, sql]) => [table, `record_kind = '${kind}' AND record_uuid NOT IN (${sql})`] as const,
       ),
     ),
+    // A census's blocks are linked as '<census uuid>#<block>' (src/survey/censusSync.ts).
+    ['sync_links', `record_kind = 'survey_block' AND substr(record_uuid, 1, instr(record_uuid, '#') - 1) NOT IN (SELECT uuid FROM fw_surveys)`],
+    // Block claims per census and this phone's roll of tags per plot (settings keys).
+    ['settings', `key LIKE 'fw\\_claims:%' ESCAPE '\\' AND substr(key, 11) NOT IN (SELECT uuid FROM fw_surveys)`],
+    ['settings', `key LIKE 'fw\\_tag\\_roll:%' ESCAPE '\\' AND substr(key, 13) NOT IN (SELECT uuid FROM fw_frames)`],
     // Sync log (v70): only teams still on this device, newest 500 per team.
     // Entries of deleted records stay (their label says what they were).
     ['sync_log', `team_id NOT IN (SELECT team_id FROM sync_teams)`],

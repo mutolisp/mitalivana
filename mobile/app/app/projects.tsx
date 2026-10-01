@@ -26,7 +26,6 @@ import { bundleProject } from '~/lib/projectExport';
 import { useExportShare } from '~/lib/useExportShare';
 import { useSettings } from '~/stores/settings';
 import { bundleItemsOf, listRecords } from '~/db';
-import { useToast } from '~/stores/toast';
 import { HeaderIconButton } from '~/components/HeaderIconButton';
 import { BackHeaderLeft } from '~/lib/goBack';
 import { useThemeColors } from '~/theme/colors';
@@ -76,10 +75,7 @@ export default function ProjectsScreen() {
       geoFormats,
     });
     if (!okGo) return;
-    // bundleProject has no censuses yet (Phase 1D).
-    const { items, skipped } = bundleItemsOf(listRecords('all').filter((r) => r.projectId === project.id));
-    if (skipped > 0) useToast.getState().show(t('survey.census.skippedInExport'));
-    const est = await estimateBundleSize(items, { includePhotos });
+    const est = await estimateBundleSize(bundleItemsOf(listRecords('all').filter((r) => r.projectId === project.id)), { includePhotos });
     if (!(await confirmIfLarge(est.totalBytes))) return;
     const lang = await pickExportLanguage(t, 'export.language');
     if (!lang) return;

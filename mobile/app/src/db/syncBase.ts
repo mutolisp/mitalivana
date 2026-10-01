@@ -10,7 +10,10 @@ import type { BaseEntry, SyncBlock } from '~/lib/mergeEngine';
 import type { MergeKind } from '~/lib/mergeDocs';
 import { getUserDb, withTransaction } from './init';
 
-export function getSyncBase(kind: MergeKind, uuid: string): BaseEntry[] {
+/** A record kind, or 'survey': a tree census keeps one base for all its blocks (censusSyncCore.ts). */
+export type BaseKind = MergeKind | 'survey';
+
+export function getSyncBase(kind: BaseKind, uuid: string): BaseEntry[] {
   const res = getUserDb().executeSync(
     `SELECT tbl, row_key, hash FROM sync_base WHERE record_kind = ? AND record_uuid = ?`,
     [kind, uuid],
@@ -18,7 +21,7 @@ export function getSyncBase(kind: MergeKind, uuid: string): BaseEntry[] {
   return ((res.rows ?? []) as { tbl: string; row_key: string; hash: string }[]).map((r) => [r.tbl, r.row_key, r.hash]);
 }
 
-export function setSyncBase(kind: MergeKind, uuid: string, entries: BaseEntry[]): void {
+export function setSyncBase(kind: BaseKind, uuid: string, entries: BaseEntry[]): void {
   withTransaction(() => {
     const db = getUserDb();
     db.executeSync(`DELETE FROM sync_base WHERE record_kind = ? AND record_uuid = ?`, [kind, uuid]);
@@ -32,7 +35,7 @@ export function setSyncBase(kind: MergeKind, uuid: string, entries: BaseEntry[])
 }
 
 /** Dropped with the record: nothing else refers to it. */
-export function clearSyncBase(kind: MergeKind, uuid: string): void {
+export function clearSyncBase(kind: BaseKind, uuid: string): void {
   getUserDb().executeSync(`DELETE FROM sync_base WHERE record_kind = ? AND record_uuid = ?`, [kind, uuid]);
 }
 

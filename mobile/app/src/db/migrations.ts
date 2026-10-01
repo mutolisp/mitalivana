@@ -2827,6 +2827,40 @@ const MIGRATIONS: Migration[] = [
       db.executeSync(`CREATE INDEX IF NOT EXISTS idx_record_versions ON record_versions(record_kind, record_uuid, created_at);`);
     },
   },
+  {
+    // fw_individual_history: + field 'merge' — two trees found to be one in a
+    // team merge (Modular_survey.md §9, 1C-b, decided 2026-10-01). The row sits
+    // on the tree kept; old_value / new_value hold {uuid, tag} of the tree
+    // folded in and the one kept. It travels with the sync block, so a
+    // teammate's phone folds the same two trees without asking again.
+    // No table points at this one, so renaming the old table first is safe.
+    version: 82,
+    up: (db) => {
+      db.executeSync(`ALTER TABLE fw_individual_history RENAME TO fw_individual_history_v81;`);
+      db.executeSync(`
+        CREATE TABLE fw_individual_history (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          uuid TEXT NOT NULL UNIQUE,
+          individual_id INTEGER NOT NULL,
+          survey_id INTEGER,
+          field TEXT NOT NULL CHECK (field IN ('taxon', 'position', 'tag', 'merge')),
+          old_value TEXT,
+          new_value TEXT,
+          reason TEXT,
+          by TEXT,
+          at INTEGER NOT NULL,
+          FOREIGN KEY (individual_id) REFERENCES fw_individuals(id) ON DELETE CASCADE,
+          FOREIGN KEY (survey_id) REFERENCES fw_surveys(id) ON DELETE SET NULL
+        );
+      `);
+      db.executeSync(`
+        INSERT INTO fw_individual_history (id, uuid, individual_id, survey_id, field, old_value, new_value, reason, by, at)
+        SELECT id, uuid, individual_id, survey_id, field, old_value, new_value, reason, by, at FROM fw_individual_history_v81;
+      `);
+      db.executeSync(`DROP TABLE fw_individual_history_v81;`);
+      db.executeSync(`CREATE INDEX IF NOT EXISTS idx_fwhist_ind ON fw_individual_history(individual_id, at);`);
+    },
+  },
 ];
 
 /** Highest schema version this build knows how to produce. Backup/restore uses

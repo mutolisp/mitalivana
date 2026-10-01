@@ -3825,7 +3825,9 @@
       "status": "Estado"
     },
     "from": "De {{name}}",
-    "fromAt": "De {{name}}, subido el {{date}}"
+    "fromAt": "De {{name}}, subido el {{date}}",
+    "autoFolded": "Otras {{count}} filas que solo añadió o cambió el otro lado; también se aplican.",
+    "showAll": "Mostrar todas"
   },
   "mergeBackups": {
     "title": "Respaldos previos a combinar",
@@ -3946,7 +3948,12 @@
       "mediaMismatch": "El archivo descargado no coincide con el que se subió",
       "mediaQuota": "El espacio de archivos del equipo está lleno (límite {{limit}}); pide a quien gestiona el servidor que lo aumente",
       "mediaIncomplete": "La subida de un archivo quedó incompleta; vuelve a sincronizar",
-      "ownerOnly": "Solo el teléfono que creó el equipo (el responsable) puede eliminarlo del servidor."
+      "ownerOnly": "Solo el teléfono que creó el equipo (el responsable) puede eliminarlo del servidor.",
+      "previous_missing": "Es un censo posterior al primero y este dispositivo no tiene el anterior. Importe primero el archivo del censo anterior y luego sincronice.",
+      "frame_code_taken": "Otra parcela de este dispositivo ya usa este código; no se puede crear la parcela del equipo.",
+      "block_size_differs": "El equipo usa otro tamaño de bloque para este censo; no se puede combinar.",
+      "unreadable": "Se recibieron datos que esta app no puede leer (quizá de una versión más reciente); se omitieron.",
+      "undecided": "Hay números repetidos sin decidir."
     },
     "mergedFromToast": "Se combinaron los datos de {{names}}",
     "members": "Integrantes",
@@ -4052,7 +4059,11 @@
         "queued": "En cola",
         "fail": "Error"
       },
-      "files": "{{n}} archivos"
+      "files": "{{n}} archivos",
+      "skip": {
+        "block_size": "Sin tamaño de bloque (sincronice desde el censo)",
+        "unreadable": "Ilegible (quizá de una app más reciente)"
+      }
     },
     "sentTo": "→ {{name}} ({{host}})",
     "aliasTitle": "Nombre del servidor",
@@ -4695,8 +4706,6 @@
       "finishMsg": "Quedan {{open}} árboles por hacer. Puede reabrir el censo después.",
       "reopen": "Reabrir censo",
       "frame": "Parcela permanente",
-      "noExport": "Los censos de árboles aún no se pueden exportar.",
-      "skippedInExport": "Los censos de árboles aún no se exportan y se omitieron.",
       "noDuplicate": "Un censo no se puede duplicar; inicie el siguiente desde su parcela permanente.",
       "noMerge": "Los censos no se pueden fusionar.",
       "deleteMsg": "¿Eliminar el censo {{n}} de «{{title}}»? Se eliminan sus mediciones y los árboles registrados por primera vez en él; los censos anteriores se conservan.",
@@ -4864,6 +4873,55 @@
       "unsavedMsg": "Los cambios de este árbol no se han guardado.",
       "discard": "Descartar",
       "errNumber": "Estos campos no son números:"
+    },
+    "sync": {
+      "blockSizeTitle": "Tamaño de los bloques de sincronización",
+      "blockSizeMsg": "La primera sincronización del equipo decide en cuántos bloques se divide el censo para subirlo. Después no se puede cambiar; el equipo usa el mismo valor. Bloques más grandes son menos objetos, pero cada uno pesa más y es más probable que dos grupos editen el mismo.",
+      "blockSizeOption": "{{k}} × {{k}} cuadrantes de {{m}} m · {{blocks}} bloques · unos {{size}} cada uno",
+      "recommended": "recomendado",
+      "tooLarge": "puede superar el límite",
+      "sentBlocks": "{{count}} bloques enviados",
+      "blocks": "Bloques y asignaciones",
+      "blocksUndecided": "El tamaño de los bloques se decide en la primera sincronización del equipo. Después los bloques aparecen aquí y se pueden asignar.",
+      "claimsHint": "Toque un bloque para asignarlo al grupo de este dispositivo; tóquelo otra vez para liberarlo. Solo informa al equipo de quién trabaja dónde y se envía con la próxima sincronización. Al añadir o editar un árbol en un bloque asignado a otro grupo se pide confirmación.",
+      "blockA11y": "Bloque {{label}}",
+      "claimMine": "Mío",
+      "claimNone": "Sin asignar",
+      "unsent": "Cambios sin enviar",
+      "claimedTitle": "Bloque de otro grupo",
+      "claimedMsg": "Este bloque está asignado a {{names}}. ¿Guardar de todos modos?",
+      "claimedGo": "Guardar de todos modos",
+      "tagRoll": "Mis placas empiezan en",
+      "tagRollNow": "Mis placas empiezan en {{n}}",
+      "tagRollMsg": "El primer número de las placas que lleva el grupo de este dispositivo. Los árboles nuevos reciben el número libre y no retirado más bajo a partir de él; déjelo vacío para seguir los bloques de números. Se guarda solo en este dispositivo.",
+      "tagRollBad": "Introduzca un número entero mayor que cero.",
+      "tagRollSet": "Los árboles nuevos se numeran desde {{n}}",
+      "tagRollCleared": "Los árboles nuevos vuelven a numerarse por su bloque de números",
+      "treeLine": "{{tag}} · {{name}} · ({{x}}, {{y}}) m · cuadrante {{q}} · DAP {{dbh}}",
+      "clashesTitle": "Primero los números",
+      "clashesIntro": "Un número no puede estar en dos árboles, así que esto se decide antes de comparar los demás campos. Las decisiones se guardan como correcciones y los dispositivos del equipo hacen lo mismo.",
+      "clashTagMsg": "El número {{tag}} es un árbol distinto en cada lado (a {{d}} m, u otra especie).",
+      "clashPossibleMsg": "Cada grupo registró un árbol nuevo a {{d}} m, misma especie, números distintos: quizá el mismo árbol.",
+      "renumberRemote": "Renumerar el suyo",
+      "renumberLocal": "Renumerar el mío",
+      "sameTree": "El mismo árbol",
+      "sameTreeTag": "El mismo árbol, número {{tag}}",
+      "keepBoth": "Conservar ambos",
+      "newTag": "Número nuevo",
+      "next": "Siguiente",
+      "needDecision": "Elija qué hacer con cada número repetido (para renumerar, escriba el número nuevo).",
+      "versionsNote": "Antes de aplicar se guarda una versión de cada cuadrante de este bloque; se puede restaurar desde las versiones del cuadrante."
+    },
+    "import": {
+      "existsTitle": "Algunos censos ya están aquí",
+      "existsMsg": "El censo {{list}} de la parcela {{code}} ya está en este dispositivo. Los demás censos del archivo se crean; ¿qué hacer con los que ya están?",
+      "skip": "Omitir los que ya están",
+      "created": "{{count}} censos creados",
+      "overwritten": "{{count}} censos sobrescritos (se guardaron versiones antes)",
+      "skipped": "{{count}} censos omitidos",
+      "merged": "{{count}} censos combinados",
+      "toReview": "{{count}} censos necesitan revisar la combinación",
+      "unresolvedTaxa": "{{count}} especies no están en la lista de este dispositivo; se conservan sus códigos"
     }
   }
 }

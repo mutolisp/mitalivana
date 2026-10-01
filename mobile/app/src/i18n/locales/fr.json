@@ -3825,7 +3825,9 @@
       "status": "Statut"
     },
     "from": "De {{name}}",
-    "fromAt": "De {{name}}, envoyé le {{date}}"
+    "fromAt": "De {{name}}, envoyé le {{date}}",
+    "autoFolded": "Plus {{count}} lignes ajoutées ou modifiées seulement par l’autre côté ; elles sont aussi appliquées.",
+    "showAll": "Tout afficher"
   },
   "mergeBackups": {
     "title": "Sauvegardes avant fusion",
@@ -3946,7 +3948,12 @@
       "mediaMismatch": "Le fichier téléchargé ne correspond pas à celui envoyé",
       "mediaQuota": "L’espace fichiers de l’équipe est plein (limite {{limit}}) ; demandez à la personne qui gère le serveur de l’augmenter",
       "mediaIncomplete": "L’envoi d’un fichier est incomplet ; synchronisez à nouveau",
-      "ownerOnly": "Seul le téléphone qui a créé l’équipe (le responsable) peut la supprimer du serveur."
+      "ownerOnly": "Seul le téléphone qui a créé l’équipe (le responsable) peut la supprimer du serveur.",
+      "previous_missing": "Il s’agit d’un inventaire de suivi, et cet appareil n’a pas le précédent. Importez d’abord le fichier de l’inventaire précédent, puis synchronisez.",
+      "frame_code_taken": "Une autre placette de cet appareil utilise déjà ce code ; la placette de l’équipe ne peut pas être créée.",
+      "block_size_differs": "L’équipe utilise une autre taille de bloc pour cet inventaire ; impossible de fusionner.",
+      "unreadable": "Données illisibles reçues (peut-être d’une version plus récente) ; ignorées.",
+      "undecided": "Certains numéros en double n’ont pas encore de décision."
     },
     "mergedFromToast": "Données de {{names}} fusionnées",
     "members": "Membres",
@@ -4052,7 +4059,11 @@
         "queued": "En attente",
         "fail": "Échec"
       },
-      "files": "{{n}} fichiers"
+      "files": "{{n}} fichiers",
+      "skip": {
+        "block_size": "Taille de bloc non décidée (synchroniser depuis l’inventaire)",
+        "unreadable": "Illisible (peut-être une app plus récente)"
+      }
     },
     "sentTo": "→ {{name}} ({{host}})",
     "aliasTitle": "Nom du serveur",
@@ -4695,8 +4706,6 @@
       "finishMsg": "{{open}} arbres restent à faire. Vous pourrez rouvrir l’inventaire.",
       "reopen": "Rouvrir l’inventaire",
       "frame": "Placette permanente",
-      "noExport": "Les inventaires d’arbres ne peuvent pas encore être exportés.",
-      "skippedInExport": "Les inventaires d’arbres ne sont pas encore exportés et ont été omis.",
       "noDuplicate": "Un inventaire ne peut pas être dupliqué ; lancez le suivant depuis sa placette.",
       "noMerge": "Les inventaires ne peuvent pas être fusionnés.",
       "deleteMsg": "Supprimer l’inventaire {{n}} de « {{title}} » ? Ses mesures et les arbres qui y ont été notés pour la première fois sont supprimés ; les inventaires antérieurs restent.",
@@ -4864,6 +4873,55 @@
       "unsavedMsg": "Les modifications de cet arbre ne sont pas enregistrées.",
       "discard": "Abandonner",
       "errNumber": "Ces champs ne sont pas des nombres :"
+    },
+    "sync": {
+      "blockSizeTitle": "Taille des blocs de synchronisation",
+      "blockSizeMsg": "La première synchronisation d’équipe décide en combien de blocs l’inventaire est découpé pour l’envoi. Ce choix ne change plus ensuite ; l’équipe reprend la même valeur. Des blocs plus grands font moins d’objets, mais chacun est plus lourd et deux groupes risquent davantage de modifier le même.",
+      "blockSizeOption": "{{k}} × {{k}} quadrats de {{m}} m · {{blocks}} blocs · environ {{size}} chacun",
+      "recommended": "recommandé",
+      "tooLarge": "risque de dépasser la limite",
+      "sentBlocks": "{{count}} blocs envoyés",
+      "blocks": "Blocs et attributions",
+      "blocksUndecided": "La taille des blocs est décidée à la première synchronisation d’équipe. Les blocs apparaissent ensuite ici et peuvent être pris en charge.",
+      "claimsHint": "Touchez un bloc pour l’attribuer au groupe de cet appareil ; touchez de nouveau pour le libérer. Cela indique seulement à l’équipe qui travaille où et part avec la prochaine synchronisation. Ajouter ou modifier un arbre dans un bloc attribué à un autre groupe demande confirmation.",
+      "blockA11y": "Bloc {{label}}",
+      "claimMine": "Le mien",
+      "claimNone": "Non attribué",
+      "unsent": "Modifications non envoyées",
+      "claimedTitle": "Bloc d’un autre groupe",
+      "claimedMsg": "Ce bloc est attribué à {{names}}. Enregistrer quand même ?",
+      "claimedGo": "Enregistrer quand même",
+      "tagRoll": "Mes plaques commencent à",
+      "tagRollNow": "Mes plaques commencent à {{n}}",
+      "tagRollMsg": "Le premier numéro des plaques que porte le groupe de cet appareil. Les nouveaux arbres reçoivent alors le plus petit numéro libre et non retiré à partir de celui-ci ; laissez vide pour suivre les blocs de numéros. Enregistré sur cet appareil seulement.",
+      "tagRollBad": "Entrez un nombre entier supérieur à zéro.",
+      "tagRollSet": "Les nouveaux arbres sont numérotés à partir de {{n}}",
+      "tagRollCleared": "Les nouveaux arbres suivent de nouveau leur bloc de numéros",
+      "treeLine": "{{tag}} · {{name}} · ({{x}}, {{y}}) m · quadrat {{q}} · DHP {{dbh}}",
+      "clashesTitle": "D’abord les numéros",
+      "clashesIntro": "Un numéro ne peut pas être sur deux arbres : ces cas se règlent avant de comparer les autres champs. Les décisions sont enregistrées comme corrections et les appareils de l’équipe font de même.",
+      "clashTagMsg": "Le numéro {{tag}} désigne un arbre différent de chaque côté (à {{d}} m, ou autre espèce).",
+      "clashPossibleMsg": "Chaque groupe a noté un nouvel arbre à {{d}} m, même espèce, numéros différents : peut-être le même arbre.",
+      "renumberRemote": "Renuméroter le leur",
+      "renumberLocal": "Renuméroter le mien",
+      "sameTree": "Même arbre",
+      "sameTreeTag": "Même arbre, numéro {{tag}}",
+      "keepBoth": "Garder les deux",
+      "newTag": "Nouveau numéro",
+      "next": "Suivant",
+      "needDecision": "Choisissez une solution pour chaque numéro en double (pour renuméroter, saisissez le nouveau numéro).",
+      "versionsNote": "Avant l’application, une version de chaque quadrat de ce bloc est conservée ; on peut la restaurer depuis les versions du quadrat."
+    },
+    "import": {
+      "existsTitle": "Certains inventaires sont déjà là",
+      "existsMsg": "L’inventaire {{list}} de la placette {{code}} est déjà sur cet appareil. Les autres inventaires du fichier sont créés ; que faire de ceux déjà présents ?",
+      "skip": "Ignorer ceux déjà présents",
+      "created": "{{count}} inventaires créés",
+      "overwritten": "{{count}} inventaires écrasés (versions conservées avant)",
+      "skipped": "{{count}} inventaires ignorés",
+      "merged": "{{count}} inventaires fusionnés",
+      "toReview": "{{count}} inventaires demandent une revue de fusion",
+      "unresolvedTaxa": "{{count}} espèces absentes de la liste de cet appareil ; leurs codes sont conservés"
     }
   }
 }

@@ -196,7 +196,8 @@ export function getTeam(teamId: string): Team | null {
 }
 export const serverOf = (t: Pick<Team, 'server'>) => t.server || DEFAULT_SERVER;
 
-async function relay(
+/** The relay's HTTP call (shared with census sync, src/survey/censusSync.ts). */
+export async function relay(
   server: string,
   method: 'GET' | 'PUT' | 'POST' | 'DELETE',
   path: string,
@@ -292,7 +293,7 @@ export function listMembers(teamId: string): TeamMember[] {
   );
 }
 
-function rememberMember(teamId: string, dev: string, author: string | null | undefined, uploadedAt: number): void {
+export function rememberMember(teamId: string, dev: string, author: string | null | undefined, uploadedAt: number): void {
   const name = cleanName(author);
   if (!name) return;
   getUserDb().executeSync(
@@ -440,15 +441,14 @@ export async function moveTeam(teamId: string, newServer: string): Promise<MoveR
   // Etags and upload fingerprints from the old server mean nothing on the new one.
   getUserDb().executeSync(`DELETE FROM sync_seen WHERE team_id = ?`, [teamId]);
   getUserDb().executeSync(`UPDATE sync_links SET uploaded_hash = NULL WHERE team_id = ?`, [teamId]);
-  const linked = rows<{ record_kind: MergeKind; record_uuid: string }>(
-    `SELECT record_kind, record_uuid FROM sync_links WHERE team_id = ?`,
+  const linked = rows<{ record_kind: SyncKind; record_uuid: string }>(
+    `SELECT record_kind, record_uuid FROM sync_links WHERE team_id = ? AND record_kind <> 'survey_block'`,
     [teamId],
   );
   let sent = 0;
   for (const l of linked) {
-    const id = localIdOf(l.record_kind, l.record_uuid);
-    if (id == null) continue;
-    const r = await syncRecord(teamId, l.record_kind, id);
+    const r = await syncLinked(teamId, l.record_kind, l.record_uuid);
+    if (!r) continue;
     if (r.queued) return { sent, review: false, queued: true, oldServer };
     sent += 1;
     if (r.review) return { sent, review: true, queued: false, oldServer };
@@ -591,10 +591,12 @@ export function sameNameTeams(teamId: string): Array<Team & { linked: number }> 
 // ── sync log (v70) ─────────────────────────────────────────────────────────
 
 export type SyncLogAction = 'upload' | 'skip' | 'merge' | 'import' | 'link' | 'queued' | 'fail';
+/** What sync_links / sync_queue / sync_log name: a record kind, a tree census, or one of its blocks. */
+export type SyncKind = MergeKind | 'survey' | 'survey_block';
 export type SyncLogEntry = {
   id: number;
   team_id: string;
-  record_kind: MergeKind | null;
+  record_kind: SyncKind | null;
   record_uuid: string | null;
   label: string | null;
   action: SyncLogAction;
@@ -636,16 +638,17 @@ function recordLabel(kind: MergeKind, id: number): string | null {
   return assertNever(kind, 'merge kind');
 }
 
-function logSync(
+export function logSync(
   teamId: string,
   action: SyncLogAction,
-  rec: { kind: MergeKind; uuid: string; id?: number | null } | null,
+  rec: { kind: SyncKind; uuid: string; id?: number | null; label?: string | null } | null,
   extra: { server?: string | null; bytes?: number | null; detail?: string | null } = {},
 ): void {
   try {
+    const label = rec?.label ?? (rec?.id != null && rec.kind !== 'survey' && rec.kind !== 'survey_block' ? recordLabel(rec.kind, rec.id) : null);
     getUserDb().executeSync(
       `INSERT INTO sync_log (team_id, record_kind, record_uuid, label, action, server, bytes, detail, at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [teamId, rec?.kind ?? null, rec?.uuid ?? null, rec?.id != null ? recordLabel(rec.kind, rec.id) : null, action, extra.server ?? null, extra.bytes ?? null, extra.detail ?? null, Date.now()],
+      [teamId, rec?.kind ?? null, rec?.uuid ?? null, label, action, extra.server ?? null, extra.bytes ?? null, extra.detail ?? null, Date.now()],
     );
   } catch (e) {
     // The log must never stop a sync.
@@ -660,7 +663,7 @@ export function listSyncLog(teamId?: string | null, limit = 300): SyncLogEntry[]
     : rows<SyncLogEntry>(`SELECT * FROM sync_log ORDER BY at DESC, id DESC LIMIT ?`, [limit]);
 }
 
-export function linkedTeams(kind: MergeKind, uuid: string): string[] {
+export function linkedTeams(kind: SyncKind, uuid: string): string[] {
   return rows<{ team_id: string }>(`SELECT team_id FROM sync_links WHERE record_kind = ? AND record_uuid = ?`, [kind, uuid]).map(
     (r) => r.team_id,
   );
@@ -672,12 +675,12 @@ export function queuedCount(teamId?: string): number {
   return rows<{ n: number }>(teamId ? `SELECT COUNT(*) AS n FROM sync_queue WHERE team_id = ?` : `SELECT COUNT(*) AS n FROM sync_queue`, teamId ? [teamId] : [])[0]?.n ?? 0;
 }
 
-const seenEtag = (teamId: string, rec: string, dev: string) =>
+export const seenEtag = (teamId: string, rec: string, dev: string) =>
   rows<{ etag: string }>(`SELECT etag FROM sync_seen WHERE team_id = ? AND rec_key = ? AND dev = ?`, [teamId, rec, dev])[0]?.etag ?? null;
-function markSeen(teamId: string, rec: string, dev: string, etag: string): void {
+export function markSeen(teamId: string, rec: string, dev: string, etag: string): void {
   getUserDb().executeSync(`INSERT OR REPLACE INTO sync_seen (team_id, rec_key, dev, etag) VALUES (?, ?, ?, ?)`, [teamId, rec, dev, etag]);
 }
-function link(teamId: string, kind: MergeKind, uuid: string, rec: string, syncedAt: number | null): void {
+export function link(teamId: string, kind: SyncKind, uuid: string, rec: string, syncedAt: number | null): void {
   getUserDb().executeSync(
     `INSERT INTO sync_links (team_id, record_kind, record_uuid, rec_key, last_synced_at) VALUES (?, ?, ?, ?, ?)
      ON CONFLICT(team_id, record_kind, record_uuid) DO UPDATE SET rec_key = excluded.rec_key,
@@ -686,18 +689,33 @@ function link(teamId: string, kind: MergeKind, uuid: string, rec: string, synced
   );
 }
 
-type Item = { rec?: string; dev: string; etag: string; size: number; uploaded: number };
+export type Item = { rec?: string; dev: string; etag: string; size: number; uploaded: number };
 
-async function download(team: Team, keys: TeamKeys, rec: string, dev: string): Promise<ReadRecordImport> {
+/** A teammate's upload, opened: the plaintext (a record's yml, or a census document's JSON). */
+export async function downloadText(team: Team, keys: TeamKeys, rec: string, dev: string): Promise<string> {
   const { text } = await relay(serverOf(team), 'GET', `/v1/t/${keys.teamId}/r/${rec}/${dev}`, { token: keys.authToken });
-  let yml: string;
   try {
-    yml = openRecord(keys.encKey, fromB64u(text.trim()), aadFor(keys.teamId, rec, dev));
+    return openRecord(keys.encKey, fromB64u(text.trim()), aadFor(keys.teamId, rec, dev));
   } catch {
     // Altered, or sealed with another key: never merged.
     throw new TeamSyncError('corrupt');
   }
-  return readRecordImportFromBytes(strToU8(yml));
+}
+
+/** Every upload of the team (record names are keyed: the relay cannot tell kinds apart). */
+export async function listTeamItems(team: Team, keys: TeamKeys): Promise<Item[]> {
+  return (JSON.parse((await relay(serverOf(team), 'GET', `/v1/t/${keys.teamId}/r`, { token: keys.authToken })).text) as { items: Item[] }).items;
+}
+
+/** Seal and upload this device's copy under `rec`. Returns the bytes sent. */
+export async function putSealed(team: Team, keys: TeamKeys, rec: string, dev: string, text: string): Promise<number> {
+  const body = b64u(sealRecord(keys.encKey, randomBytes(NONCE_BYTES), text, aadFor(keys.teamId, rec, dev)));
+  await relay(serverOf(team), 'PUT', `/v1/t/${keys.teamId}/r/${rec}/${dev}`, { token: keys.authToken, body });
+  return body.length;
+}
+
+async function download(team: Team, keys: TeamKeys, rec: string, dev: string): Promise<ReadRecordImport> {
+  return readRecordImportFromBytes(strToU8(await downloadText(team, keys, rec, dev)));
 }
 
 /** This device's side of a record and a teammate's copy → merge items. */
@@ -751,7 +769,7 @@ export type SyncOutcome = {
 };
 
 /** An unchanged record is still re-sent after this long, well inside the relay's 90-day expiry. */
-const REUPLOAD_MS = 30 * 24 * 3600 * 1000;
+export const REUPLOAD_MS = 30 * 24 * 3600 * 1000;
 
 const ROUTE_OF: Record<MergeKind, string> = { session: '/session', plot: '/plot', gloria: '/gloria' };
 
@@ -895,6 +913,33 @@ async function syncRecordNow(teamId: string, kind: MergeKind, id: number, opts: 
   }
 }
 
+/**
+ * Sync one linked record, or a tree census (its blocks travel with it; census
+ * sync is in src/survey/censusSync.ts, loaded here on demand so the two
+ * modules do not import each other). Null when it is not on this device.
+ */
+async function syncLinked(teamId: string, kind: SyncKind, uuid: string, opts: { onlyIfChanged?: boolean } = {}): Promise<SyncOutcome | null> {
+  if (kind === 'survey_block') return null;
+  if (kind === 'survey') {
+    const census = await import('~/survey/censusSync');
+    return census.syncLinkedCensus(teamId, uuid);
+  }
+  const id = localIdOf(kind, uuid);
+  return id == null ? null : syncRecord(teamId, kind, id, opts);
+}
+
+/** A synced thing's local id, for the log: a census by its uuid; a census block is not opened on its own. */
+export function syncedLocalId(kind: SyncKind, uuid: string): number | null {
+  if (kind === 'survey_block') return null;
+  if (kind === 'survey') return rows<{ id: number }>(`SELECT id FROM fw_surveys WHERE uuid = ?`, [uuid])[0]?.id ?? null;
+  return localIdOf(kind, uuid);
+}
+
+/** Where a synced thing opens. */
+export function syncedHref(kind: SyncKind, id: number): Href {
+  return kind === 'survey' || kind === 'survey_block' ? (`/survey/${id}` as Href) : hrefOf(kind, id);
+}
+
 export function localIdOf(kind: MergeKind, uuid: string): number | null {
   if (kind === 'session') return getSessionByUuid(uuid)?.id ?? null;
   if (kind === 'plot') return getPlotSurveyByUuid(uuid)?.id ?? null;
@@ -904,15 +949,14 @@ export function localIdOf(kind: MergeKind, uuid: string): number | null {
 
 /** Send what was queued while offline. Stops at the first review. */
 export async function flushQueue(teamId: string): Promise<{ sent: number; review: boolean; queued: boolean }> {
-  const queued = rows<{ record_kind: MergeKind; record_uuid: string }>(`SELECT record_kind, record_uuid FROM sync_queue WHERE team_id = ?`, [teamId]);
+  const queued = rows<{ record_kind: SyncKind; record_uuid: string }>(`SELECT record_kind, record_uuid FROM sync_queue WHERE team_id = ?`, [teamId]);
   let sent = 0;
   for (const q of queued) {
-    const id = localIdOf(q.record_kind, q.record_uuid);
-    if (id == null) {
+    const r = await syncLinked(teamId, q.record_kind, q.record_uuid);
+    if (!r) {
       getUserDb().executeSync(`DELETE FROM sync_queue WHERE team_id = ? AND record_uuid = ?`, [teamId, q.record_uuid]);
       continue;
     }
-    const r = await syncRecord(teamId, q.record_kind, id);
     if (r.queued) return { sent, review: false, queued: true };
     sent += 1;
     if (r.review) return { sent, review: true, queued: false };
@@ -1008,15 +1052,14 @@ async function syncTeamNow(teamId: string, opts: { pull?: boolean } = {}): Promi
   await ensureOwnerClaim(teamId).catch(() => {});
   // Files that could not be fetched last time, for every record of the team.
   await retryPendingMedia(teamId, localIdOf).catch(() => {});
-  const linked = rows<{ record_kind: MergeKind; record_uuid: string }>(
-    `SELECT record_kind, record_uuid FROM sync_links WHERE team_id = ? ORDER BY last_synced_at`,
+  const linked = rows<{ record_kind: SyncKind; record_uuid: string }>(
+    `SELECT record_kind, record_uuid FROM sync_links WHERE team_id = ? AND record_kind <> 'survey_block' ORDER BY last_synced_at`,
     [teamId],
   );
   for (const [n, l] of linked.entries()) {
-    const id = localIdOf(l.record_kind, l.record_uuid);
-    if (id == null) continue; // deleted here; cleanup.ts drops the link
     useSyncProgress.getState().update({ recordIndex: n + 1, recordCount: linked.length });
-    const r = await syncRecord(teamId, l.record_kind, id, { onlyIfChanged: true });
+    const r = await syncLinked(teamId, l.record_kind, l.record_uuid, { onlyIfChanged: true });
+    if (!r) continue; // deleted here; cleanup.ts drops the link
     if (r.queued) return { ...out, queued: true };
     if (r.uploaded) out.sent += 1;
     out.merged += r.merged;
@@ -1047,7 +1090,12 @@ async function pullTeamRecordsNow(teamId: string): Promise<{ imported: number; l
   } catch (e) {
     throw asSyncError(e);
   }
-  const known = new Set(rows<{ rec_key: string }>(`SELECT rec_key FROM sync_links WHERE team_id = ?`, [teamId]).map((r) => r.rec_key));
+  const census = await import('~/survey/censusSync');
+  // A linked census's blocks come with its own sync, not as records.
+  const known = new Set([
+    ...rows<{ rec_key: string }>(`SELECT rec_key FROM sync_links WHERE team_id = ?`, [teamId]).map((r) => r.rec_key),
+    ...census.linkedCensusRecs(teamId, keys),
+  ]);
   const newest = new Map<string, Item>();
   for (const it of items) {
     if (!it.rec || known.has(it.rec) || it.dev === dev) continue;
@@ -1056,16 +1104,40 @@ async function pullTeamRecordsNow(teamId: string): Promise<{ imported: number; l
   }
   let imported = 0;
   let linked = 0;
-  for (const [rec, it] of newest) {
-    let payload: ReadRecordImport;
+  const newCensuses: string[] = [];
+  // Smallest first: a census header (small) names its blocks (large), which are then skipped.
+  for (const [rec, it] of [...newest].sort((a, b) => a[1].size - b[1].size)) {
+    if (known.has(rec)) continue;
+    let text: string;
     try {
-      payload = await download(team, keys, rec, it.dev);
+      text = await downloadText(team, keys, rec, it.dev);
     } catch (e) {
       if (e instanceof TeamSyncError && e.code === 'corrupt') continue;
       throw asSyncError(e);
     }
+    // A census document (JSON): its header brings the census here; its blocks wait for the census's sync.
+    const doc = census.readCensusDoc(text);
+    if (doc) {
+      if (doc.record_type === 'census_team_header') {
+        const got = census.receiveCensusHeader(teamId, keys, rec, it, doc);
+        for (const r of got.blockRecs) known.add(r);
+        if (got.result === 'imported') imported += 1;
+        else if (got.result === 'linked') linked += 1;
+        if (got.censusUuid && got.result !== 'skipped') newCensuses.push(got.censusUuid);
+      }
+      continue;
+    }
+    let payload: ReadRecordImport;
+    try {
+      payload = readRecordImportFromBytes(strToU8(text));
+    } catch {
+      // A kind this build does not read (a newer app's): left alone, not an error.
+      logSync(teamId, 'skip', null, { server: serverOf(team), detail: 'unreadable' });
+      continue;
+    }
     rememberMember(teamId, it.dev, payload.sync?.author, it.uploaded);
-    if (payload.kind === 'collection') continue;
+    // Collections are not merged; a census travels as headers and blocks, never as a whole file.
+    if (payload.kind === 'collection' || payload.kind === 'survey') continue;
     const kind: MergeKind = payload.kind;
     // Already here (same uuid, or GLORIA's same summit + cycle): link only.
     const hereId =
@@ -1108,6 +1180,11 @@ async function pullTeamRecordsNow(teamId: string): Promise<{ imported: number; l
     useSyncProgress.getState().update({ record: recordLabel(kind, newId) });
     await receiveRecordMedia(teamId, kind, who.uuid, newId, payload.sync?.media ?? []);
     imported += 1;
+  }
+  // A census brought here: fetch its blocks now (stops at a review or without signal).
+  for (const u of newCensuses) {
+    const r = await census.syncLinkedCensus(teamId, u);
+    if (r?.review || r?.queued) break;
   }
   return { imported, linked };
 }

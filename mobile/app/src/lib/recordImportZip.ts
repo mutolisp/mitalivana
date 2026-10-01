@@ -24,6 +24,7 @@ import { plotFromDoc } from './plotImport';
 import { sessionFromDoc } from './sessionImport';
 import { buildTrackGeoJSON } from './track';
 import { readSyncBlock, type SyncBlock } from './mergeEngine';
+import { isCensusExport, type CensusExportDoc } from '../survey/db/censusExportCore';
 import type {
   ImportedCollectionTrip,
   ImportedPlot,
@@ -58,6 +59,12 @@ export type ReadRecordImport = { sync?: SyncBlock | null } & (
       collection: ImportedCollectionTrip;
       photos: ImportedPhotoBlob[];
       audio: ImportedPhotoBlob[];
+    }
+  | {
+      /** A tree census and the earlier censuses of its series (censusExportCore.ts). */
+      kind: 'survey';
+      census: CensusExportDoc;
+      photos: ImportedPhotoBlob[];
     }
 );
 
@@ -181,9 +188,11 @@ function collectMedia(
   return out;
 }
 
-function docKind(doc: Record<string, unknown> | null): 'plot' | 'session' | 'collection' | 'gloria' {
-  // First: a GLORIA document has none of the other kinds' keys, and an older
-  // build would otherwise fall through to "session".
+function docKind(doc: Record<string, unknown> | null): 'plot' | 'session' | 'collection' | 'gloria' | 'survey' {
+  // First the kinds that say what they are (`record_type`), then GLORIA: a
+  // GLORIA document has none of the other kinds' keys, and an older build
+  // would otherwise fall through to "session".
+  if (isCensusExport(doc)) return 'survey';
   if (isGloriaDoc(doc)) return 'gloria';
   if (doc?.plot) return 'plot';
   // Before the generic `event` test, not after: a collection document carries
@@ -260,6 +269,8 @@ export function readRecordImportFromBytes(raw: Uint8Array): ReadRecordImport {
         return { sync: readSyncBlock(doc), kind: 'plot', plot: plotFromDoc(doc), photos: [], audio: [] };
       case 'collection':
         return { sync: readSyncBlock(doc), kind: 'collection', collection: collectionFromDoc(doc), photos: [], audio: [] };
+      case 'survey':
+        return { kind: 'survey', census: doc as unknown as CensusExportDoc, photos: [] };
       default:
         return { sync: readSyncBlock(doc), kind: 'session', session: sessionFromDoc(doc), photos: [], audio: [] };
     }
@@ -270,7 +281,7 @@ export function readRecordImportFromBytes(raw: Uint8Array): ReadRecordImport {
 
   const doc = yaml.load(textOf(meta, ymlName)) as Record<string, unknown> | null;
   const kind =
-    manifestKind === 'plot' || manifestKind === 'session' || manifestKind === 'collection' || manifestKind === 'gloria'
+    manifestKind === 'plot' || manifestKind === 'session' || manifestKind === 'collection' || manifestKind === 'gloria' || manifestKind === 'survey'
       ? manifestKind
       : docKind(doc);
   if (kind === 'gloria') {
@@ -282,6 +293,11 @@ export function readRecordImportFromBytes(raw: Uint8Array): ReadRecordImport {
   const mediaEntries = unzipSync(raw, { filter: (f) => /(^|\/)(photos|audio)\//i.test(f.name) });
   const photos = collectMedia(mediaEntries, folder, 'photos', PHOTO_EXTS);
   const audio = collectMedia(mediaEntries, folder, 'audio', AUDIO_EXTS);
+
+  if (kind === 'survey') {
+    if (!isCensusExport(doc)) throw new ImportError('unknownKind');
+    return { kind: 'survey', census: doc, photos };
+  }
 
   if (kind === 'plot') {
     const plot = plotFromDoc(doc);

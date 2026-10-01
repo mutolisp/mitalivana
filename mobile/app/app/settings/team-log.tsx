@@ -11,7 +11,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SettingsPage } from '~/components/settings/SettingsPage';
 import { isoStamp } from '~/lib/datetime';
 import { formatBytes } from '~/lib/exportSize';
-import { listSyncLog, listTeams, localIdOf, serverLabel, syncedRecordHref, type SyncLogAction, type SyncLogEntry } from '~/lib/teamSync';
+import { listSyncLog, listTeams, serverLabel, syncedHref, syncedLocalId, type SyncLogAction, type SyncLogEntry } from '~/lib/teamSync';
 
 const TONE: Record<SyncLogAction, string> = {
   upload: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300',
@@ -24,7 +24,7 @@ const TONE: Record<SyncLogAction, string> = {
 };
 
 /** The record's local id when it is still here, to open it. */
-const localId = (e: SyncLogEntry) => (e.record_kind && e.record_uuid ? localIdOf(e.record_kind, e.record_uuid) : null);
+const localId = (e: SyncLogEntry) => (e.record_kind && e.record_uuid ? syncedLocalId(e.record_kind, e.record_uuid) : null);
 
 export default function TeamLogScreen() {
   const { t } = useTranslation();
@@ -46,6 +46,8 @@ export default function TeamLogScreen() {
     const files = /^files:(\d+)$/.exec(e.detail);
     if (files) return t('teamSync.log.files', { n: Number(files[1]) });
     if (e.action === 'merge' || e.action === 'import' || e.action === 'link') return t('teamSync.log.from', { name: e.detail });
+    // A census: the block sent (its quadrats), or why it was skipped.
+    if (e.action === 'skip') return t(`teamSync.log.skip.${e.detail}`, { defaultValue: e.detail });
     return e.detail;
   };
 
@@ -70,7 +72,7 @@ export default function TeamLogScreen() {
               {header ? <Text className="pt-2 text-xs font-semibold uppercase tracking-wide text-gray-500">{header}</Text> : null}
               <Pressable
                 disabled={id == null}
-                onPress={() => id != null && e.record_kind && router.push(syncedRecordHref(e.record_kind, id))}
+                onPress={() => id != null && e.record_kind && router.push(syncedHref(e.record_kind, id))}
                 accessibilityRole={id != null ? 'button' : undefined}
                 className="flex-row items-start gap-2 rounded-lg border border-gray-200 bg-card px-3 py-2 active:bg-gray-50 dark:border-gray-800 dark:bg-gray-900"
               >

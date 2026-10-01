@@ -29,7 +29,7 @@ import { isAppMediaAllowed, rebaseAppFileUri } from './appFiles';
 import { resolveAssetUri } from './bundleExport';
 import type { MergeKind } from './mergeDocs';
 import { addRecordMedia, listRecordMedia } from './mediaRefs';
-import { extOf, folderFor, readMediaManifest, type MediaEntry } from './mediaRefsCore';
+import { extOf, folderFor, readMediaManifest, type FileItem, type MediaEntry, type MediaMeta, type MediaRef } from './mediaRefsCore';
 import { MEDIA_CHUNK_BYTES, NONCE_BYTES, chunkAad, chunkCount, mediaId, openChunk, sealChunk, type TeamKeys } from './teamCrypto';
 import { TeamSyncError, asSyncError, checkServer, keysOf, randomBytes, serverOf } from './teamSync';
 import { useSyncProgress } from '~/stores/syncProgress';
@@ -344,10 +344,15 @@ export type PreparedMedia = { entries: MediaEntry[]; sources: Map<string, string
 
 /** Hash the record's files (cached) and build its manifest; nothing is sent yet. Unreadable files are left out. */
 export async function prepareRecordMedia(keys: TeamKeys, kind: MergeKind, id: number): Promise<PreparedMedia> {
+  return prepareMediaItems(keys, listRecordMedia(kind, id));
+}
+
+/** The same for any list of files with their places (a census block's photos, censusSync.ts). */
+export async function prepareMediaItems(keys: TeamKeys, items: ReadonlyArray<FileItem & { ref: MediaRef }>): Promise<PreparedMedia> {
   const entries: MediaEntry[] = [];
   const sources = new Map<string, string>();
   const seen = new Map<string, { sha: string; size: number; name: string } | null>();
-  for (const it of listRecordMedia(kind, id)) {
+  for (const it of items) {
     if (!seen.has(it.uri)) seen.set(it.uri, await shaOfRef(it.uri));
     const h = seen.get(it.uri);
     if (!h) continue;
@@ -418,6 +423,22 @@ export async function receiveRecordMedia(
   id: number,
   manifest: unknown,
 ): Promise<{ added: number; pending: number }> {
+  return receiveMedia(teamId, kind, uuid, manifest, (ref, uri, meta, has) => addRecordMedia(kind, id, ref, uri, meta, has));
+}
+
+/**
+ * The same for anything that places a file itself (`place`: false when it is
+ * already there or its row is not here). `pendingKind` / `uuid` file what
+ * could not be fetched in media_pending (a census: 'survey' and its uuid).
+ */
+export async function receiveMedia(
+  teamId: string,
+  pendingKind: string,
+  uuid: string,
+  manifest: unknown,
+  place: (ref: MediaRef, uri: string, meta: MediaMeta | undefined, has: (uri: string) => boolean) => boolean,
+): Promise<{ added: number; pending: number }> {
+  const kind = pendingKind;
   const entries = readMediaManifest(manifest);
   if (!entries.length) return { added: 0, pending: 0 };
   const { team, keys } = await keysOf(teamId);
@@ -462,7 +483,7 @@ export async function receiveRecordMedia(
           continue;
         }
       }
-      const placed = addRecordMedia(kind, id, e.ref, uri, e.meta, (u) => shaOfStored(u) === e.sha);
+      const placed = place(e.ref, uri, e.meta, (u) => shaOfStored(u) === e.sha);
       db.executeSync(`DELETE FROM media_pending WHERE team_id = ? AND record_kind = ? AND record_uuid = ? AND entry_key = ?`, [teamId, kind, uuid, entryKey(e)]);
       if (placed) added += 1;
     }
@@ -486,6 +507,8 @@ export async function retryPendingMedia(
     : rows<{ record_kind: MergeKind; record_uuid: string; entry: string }>(`SELECT record_kind, record_uuid, entry FROM media_pending WHERE team_id = ?`, [teamId]);
   const byRecord = new Map<string, { kind: MergeKind; uuid: string; entries: unknown[] }>();
   for (const r of list) {
+    // A census's files wait for its own 同步 (censusSync.ts).
+    if (r.record_kind !== 'session' && r.record_kind !== 'plot' && r.record_kind !== 'gloria') continue;
     const k = `${r.record_kind}|${r.record_uuid}`;
     if (!byRecord.has(k)) byRecord.set(k, { kind: r.record_kind, uuid: r.record_uuid, entries: [] });
     try {

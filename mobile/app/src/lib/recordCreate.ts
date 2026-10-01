@@ -39,6 +39,7 @@ import {
 } from '~/db';
 import { parsePhotoUris } from '~/lib/bundleExport';
 import { matchScientificName } from '~/lib/sciMatch';
+import { finishCensusImport } from '~/survey/censusImport';
 import { importPhotosToLibrary } from '~/lib/photoCapture';
 import { importAudioClips } from '~/lib/audioCapture';
 import { ImportError, type ImportErrorCode } from '~/lib/importError';
@@ -350,6 +351,9 @@ export async function importRecordPromptAndOpen(): Promise<void> {
         break;
       case 'session':
         await finishSessionImport(payload);
+        break;
+      case 'survey':
+        await finishCensusImport(payload);
         break;
       default:
         assertNever(payload, 'import kind');

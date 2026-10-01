@@ -11,6 +11,7 @@ import * as core from './stemmapCore';
 import { censusQuadratIds } from './censusVersions';
 import { saveVersion } from '~/db/recordVersions';
 import type { SurveyTemplate } from '../template/types';
+import { getTagRollStart } from '../tagRoll';
 
 export {
   SurveyError,
@@ -48,6 +49,18 @@ export const deleteFrame = (id: number) => withTransaction(() => core.deleteFram
 // censuses
 export const getSurvey = (id: number) => core.getSurvey(ctx(), id);
 export const listCensuses = (frameId: number | null = null) => core.listCensuses(ctx(), frameId);
+/** Photos a census export carries (it and the earlier censuses of its series), as photo lists, and its tree count (size estimate). */
+export function censusExportSizeInput(surveyId: number): { photos: { photo_paths: string | null }[]; trees: number } {
+  const s = core.getSurvey(ctx(), surveyId);
+  if (!s) return { photos: [], trees: 0 };
+  const db = getUserDb();
+  const uris = (db.executeSync(
+    `SELECT md.uri FROM fw_media md JOIN fw_surveys sv ON sv.id = md.survey_id WHERE sv.series_id = ? AND sv.census_no <= ?`,
+    [s.series_id, s.census_no],
+  ).rows ?? []) as { uri: string }[];
+  const trees = core.listCensuses(ctx(), s.frame_id).find((c) => c.id === surveyId)?.tree_count ?? 0;
+  return { photos: uris.map((r) => ({ photo_paths: JSON.stringify([r.uri]) })), trees };
+}
 export const startCensus = (input: {
   frameId: number;
   template: SurveyTemplate;
@@ -94,7 +107,7 @@ export const censusTreeStates = (surveyId: number) => core.censusTreeStates(ctx(
 
 // trees
 export const getIndividual = (id: number) => core.getIndividual(ctx(), id);
-export const suggestTag = (frame: core.FrameRow, p: { x: number; y: number }) => core.suggestTag(ctx(), frame, p);
+export const suggestTag = (frame: core.FrameRow, p: { x: number; y: number }) => core.suggestTag(ctx(), frame, p, getTagRollStart(frame.uuid));
 export const addIndividual = (input: Parameters<typeof core.addIndividual>[1]) =>
   withTransaction(() => {
     ensureTaxonSelfSufficient(input.taxon.taxonId);

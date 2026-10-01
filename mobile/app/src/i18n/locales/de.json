@@ -3650,7 +3650,9 @@
       "status": "Status"
     },
     "from": "Von {{name}}",
-    "fromAt": "Von {{name}}, hochgeladen {{date}}"
+    "fromAt": "Von {{name}}, hochgeladen {{date}}",
+    "autoFolded": "Dazu {{count}} Zeilen, die nur die andere Seite angelegt oder geändert hat; sie werden mit übernommen.",
+    "showAll": "Alle anzeigen"
   },
   "mergeBackups": {
     "title": "Sicherungen vor dem Zusammenführen",
@@ -3765,7 +3767,12 @@
       "mediaMismatch": "Die heruntergeladene Datei stimmt nicht mit der hochgeladenen überein",
       "mediaQuota": "Der Dateispeicher des Teams ist voll (Limit {{limit}}); den Betreiber des Servers um mehr bitten",
       "mediaIncomplete": "Ein Datei-Upload war unvollständig; erneut synchronisieren",
-      "ownerOnly": "Nur das Gerät, das das Team erstellt hat (Teamleitung), kann es vom Server löschen."
+      "ownerOnly": "Nur das Gerät, das das Team erstellt hat (Teamleitung), kann es vom Server löschen.",
+      "previous_missing": "Dies ist eine Folgeerhebung, und auf diesem Gerät fehlt die vorherige. Bitte zuerst die Datei der vorherigen Erhebung importieren, dann synchronisieren.",
+      "frame_code_taken": "Eine andere Dauerfläche auf diesem Gerät nutzt bereits diesen Code; die Fläche aus dem Team kann nicht angelegt werden.",
+      "block_size_differs": "Das Team nutzt für diese Erhebung eine andere Blockgröße; sie kann nicht zusammengeführt werden.",
+      "unreadable": "Daten erhalten, die diese App nicht lesen kann (vielleicht aus einer neueren Version); übersprungen.",
+      "undecided": "Für einige doppelte Nummern fehlt noch eine Entscheidung."
     },
     "mergedFromToast": "Daten von {{names}} zusammengeführt",
     "members": "Mitglieder",
@@ -3868,7 +3875,11 @@
         "queued": "Wartet",
         "fail": "Fehler"
       },
-      "files": "{{n}} Dateien"
+      "files": "{{n}} Dateien",
+      "skip": {
+        "block_size": "Noch keine Blockgröße (über die Erhebung synchronisieren)",
+        "unreadable": "Nicht lesbar (vielleicht aus einer neueren App)"
+      }
     },
     "sentTo": "→ {{name}} ({{host}})",
     "aliasTitle": "Servername",
@@ -4503,8 +4514,6 @@
       "finishMsg": "{{open}} Bäume sind offen. Die Aufnahme lässt sich später wieder öffnen.",
       "reopen": "Aufnahme wieder öffnen",
       "frame": "Dauerfläche",
-      "noExport": "Baumerhebungen lassen sich noch nicht exportieren.",
-      "skippedInExport": "Baumerhebungen werden noch nicht exportiert und wurden ausgelassen.",
       "noDuplicate": "Eine Aufnahme lässt sich nicht duplizieren; die nächste startet in der Dauerfläche.",
       "noMerge": "Aufnahmen lassen sich nicht zusammenführen.",
       "deleteMsg": "Aufnahme {{n}} von „{{title}}“ löschen? Ihre Messungen und die darin neu erfassten Bäume werden gelöscht; frühere Aufnahmen bleiben.",
@@ -4668,6 +4677,55 @@
       "unsavedMsg": "Die Änderungen an diesem Baum sind nicht gespeichert.",
       "discard": "Verwerfen",
       "errNumber": "Diese Felder sind keine Zahlen:"
+    },
+    "sync": {
+      "blockSizeTitle": "Größe der Sync-Blöcke",
+      "blockSizeMsg": "Die erste Team-Synchronisierung legt fest, in wie viele Blöcke die Erhebung zum Hochladen geteilt wird. Das lässt sich später nicht ändern; das Team übernimmt denselben Wert. Größere Blöcke bedeuten weniger Objekte, aber jedes ist größer, und zwei Gruppen bearbeiten eher denselben Block.",
+      "blockSizeOption": "{{k}} × {{k}} Quadrate zu {{m}} m · {{blocks}} Blöcke · je etwa {{size}}",
+      "recommended": "empfohlen",
+      "tooLarge": "evtl. über dem Limit",
+      "sentBlocks": "{{count}} Blöcke gesendet",
+      "blocks": "Blöcke und Zuständigkeit",
+      "blocksUndecided": "Die Blockgröße wird bei der ersten Team-Synchronisierung festgelegt. Danach stehen die Blöcke hier und können übernommen werden.",
+      "claimsHint": "Tippen Sie auf einen Block, um ihn für die Gruppe dieses Geräts zu übernehmen; erneut tippen gibt ihn frei. Das teilt dem Team nur mit, wer wo arbeitet, und wird bei der nächsten Synchronisierung gesendet. Wer in einem Block einer anderen Gruppe einen Baum anlegt oder ändert, wird vorher gefragt.",
+      "blockA11y": "Block {{label}}",
+      "claimMine": "Meiner",
+      "claimNone": "Frei",
+      "unsent": "Ungesendete Änderungen",
+      "claimedTitle": "Block einer anderen Gruppe",
+      "claimedMsg": "{{names}} ist für diesen Block zuständig. Trotzdem speichern?",
+      "claimedGo": "Trotzdem speichern",
+      "tagRoll": "Meine Marken beginnen bei",
+      "tagRollNow": "Meine Marken beginnen bei {{n}}",
+      "tagRollMsg": "Die erste Nummer der Baummarken, die die Gruppe dieses Geräts dabeihat. Neue Bäume erhalten dann die kleinste freie, nicht stillgelegte Nummer ab dieser; leer lassen, um den Nummernblöcken zu folgen. Nur auf diesem Gerät gespeichert.",
+      "tagRollBad": "Bitte eine ganze Zahl über null eingeben.",
+      "tagRollSet": "Neue Bäume erhalten Nummern ab {{n}}",
+      "tagRollCleared": "Neue Bäume erhalten wieder Nummern aus ihrem Nummernblock",
+      "treeLine": "{{tag}} · {{name}} · ({{x}}, {{y}}) m · Quadrat {{q}} · BHD {{dbh}}",
+      "clashesTitle": "Zuerst die Nummern",
+      "clashesIntro": "Eine Nummer kann nicht an zwei Bäumen sein, darum wird dies vor dem Vergleich der übrigen Felder entschieden. Die Entscheidungen werden als Korrekturen gespeichert, und die Geräte im Team übernehmen sie.",
+      "clashTagMsg": "Nummer {{tag}} ist auf beiden Seiten ein anderer Baum ({{d}} m entfernt oder andere Art).",
+      "clashPossibleMsg": "Jede Gruppe hat einen neuen Baum erfasst, {{d}} m entfernt, gleiche Art, verschiedene Nummern: vielleicht derselbe Baum.",
+      "renumberRemote": "Ihren umnummerieren",
+      "renumberLocal": "Meinen umnummerieren",
+      "sameTree": "Derselbe Baum",
+      "sameTreeTag": "Derselbe Baum, Nummer {{tag}}",
+      "keepBoth": "Beide behalten",
+      "newTag": "Neue Nummer",
+      "next": "Weiter",
+      "needDecision": "Bitte für jede doppelte Nummer eine Lösung wählen (zum Umnummerieren die neue Nummer eingeben).",
+      "versionsNote": "Vor dem Übernehmen wird von jedem Quadrat dieses Blocks eine Version gespeichert; sie lässt sich aus den Versionen des Quadrats wiederherstellen."
+    },
+    "import": {
+      "existsTitle": "Einige Erhebungen sind schon da",
+      "existsMsg": "Erhebung {{list}} der Fläche {{code}} ist schon auf diesem Gerät. Die übrigen Erhebungen der Datei werden angelegt; was geschieht mit den vorhandenen?",
+      "skip": "Vorhandene überspringen",
+      "created": "{{count}} Erhebungen angelegt",
+      "overwritten": "{{count}} Erhebungen überschrieben (vorher als Version gesichert)",
+      "skipped": "{{count}} Erhebungen übersprungen",
+      "merged": "{{count}} Erhebungen zusammengeführt",
+      "toReview": "{{count}} Erhebungen brauchen eine Prüfung der Zusammenführung",
+      "unresolvedTaxa": "{{count}} Arten fehlen in der Artenliste dieses Geräts; ihre Codes bleiben"
     }
   }
 }

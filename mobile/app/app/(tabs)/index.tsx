@@ -56,6 +56,7 @@ import {
 import { deleteCensus, deleteCensuses, setCensusProject, SurveyError } from '~/survey/db/stemmap';
 import {
   bundleCollection,
+  bundleCensus,
   bundleGloria,
   bundleMany,
   bundlePlot,
@@ -558,10 +559,6 @@ export default function RecordsListScreen() {
   };
 
   const handleExportOne = async (item: RecordItem) => {
-    if (item.kind === 'survey') {
-      toast(t('survey.census.noExport'));
-      return;
-    }
     const bundleItem: BundleItem = { kind: item.kind, id: item.id };
     const est = await estimateBundleSize([bundleItem], { includePhotos });
     const proceed = await confirmIfLarge(est.totalBytes);
@@ -587,6 +584,7 @@ export default function RecordsListScreen() {
       if (item.kind === 'session') return bundleSession(item.id, bundleOpts);
       if (item.kind === 'collection') return bundleCollection(item.id, bundleOpts);
       if (item.kind === 'gloria') return bundleGloria(item.id, bundleOpts);
+      if (item.kind === 'survey') return bundleCensus(item.id, bundleOpts);
       return bundlePlot(item.id, bundleOpts);
     });
   };
@@ -596,8 +594,6 @@ export default function RecordsListScreen() {
   // preferences, no options sheet).
   const handleExportProject = async (group: ProjectGroup) => {
     if (exportBusy) return;
-    // bundleProject reads the project's records itself and has no censuses yet.
-    if (group.items.some((it) => it.kind === 'survey')) toast(t('survey.census.skippedInExport'));
     const okGo = await confirmExportContent(t, {
       analysisFormats,
       matrixValue,
@@ -610,7 +606,7 @@ export default function RecordsListScreen() {
       geoFormats,
     });
     if (!okGo) return;
-    const est = await estimateBundleSize(bundleItemsOf(group.items).items, { includePhotos });
+    const est = await estimateBundleSize(bundleItemsOf(group.items), { includePhotos });
     if (!(await confirmIfLarge(est.totalBytes))) return;
     const lang = await pickExportLanguage(t, 'export.language');
     if (!lang) return;
@@ -651,9 +647,7 @@ export default function RecordsListScreen() {
       const it = byKey.get(k);
       if (it) picked.push(it);
     }
-    const { items: exportable, skipped } = bundleItemsOf(picked);
-    bundleItems.push(...exportable);
-    if (skipped > 0) toast(t('survey.census.skippedInExport'));
+    bundleItems.push(...bundleItemsOf(picked));
     if (bundleItems.length === 0) {
       toast(t('records.noExportable'));
       return;
@@ -1396,9 +1390,16 @@ export default function RecordsListScreen() {
               color: 'acorn',
               onPress: () => handleToggleStar(item),
             },
-            // A census is not duplicated, exported (yet) or sent to iNaturalist.
+            // A census is exported, not duplicated or sent to iNaturalist.
             ...(item.kind === 'survey'
-              ? []
+              ? ([
+                  {
+                    label: t('common.export'),
+                    icon: 'share-outline',
+                    color: 'export',
+                    onPress: () => handleExportOne(item),
+                  },
+                ] as const)
               : ([
                   {
                     label: t('records.duplicate'),
