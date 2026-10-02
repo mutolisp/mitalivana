@@ -390,7 +390,7 @@ offset 必須對應 dock **下方**的 chrome。只有兩種合法配對：
 ### Android 上架前置（尚未完成，僅紀錄）
 
 - **Google Maps API key 已設定**（2026-05-17）：`app.json` 已改成 dynamic config `app.config.ts`，讀 `process.env.GOOGLE_MAPS_ANDROID_API_KEY` 注入 `android.config.googleMaps.apiKey`。local dev 走 `.env`、雲端 build 走 EAS secret，**都不進 git**。少了它 Android 地圖 tab 會空白。iOS 用 Apple Maps 不受影響。
-- Play Store 上架清單見 `mobile/Plan.md` 的「待辦 → F. 發布」。
+- Play Store 上架清單見 `mobile/docs/Plan.md` 的「待辦 → F. 發布」。
 
 ### Build & Test
 
@@ -431,16 +431,16 @@ tw-taicol 模組另外帶有 `taxon_tree`／`rank_bridge` 兩張表，由最新�
 
 | 檔案 | 裝什麼 |
 |---|---|
-| `mobile/Plan.md` | 待辦（A 正確性／B 匯出／C 出處驗證／D 技術債／E 功能缺口／F 發布）＋ 現行架構 |
+| `mobile/docs/Plan.md` | 待辦（A 正確性／B 匯出／C 出處驗證／D 技術債／E 功能缺口／F 發布）＋ 現行架構。**不在 git 追蹤內**（`mobile/docs/` 整個列在 `.gitignore`，2026-10-02 起），刪了救不回 |
 | `mobile/Update_log.md` | 已 ship 與踩過的坑；附錄 A–E 收了 Plan.md 原本的 sprint 推導過程 |
 | `mobile/Device_test.md` | 實機驗證清單。**驗證項不要寫回 Plan.md** |
-| `mobile/docs/` | 仍代表現況的參考文件（檢索表、樣區、iNat/GBIF、報表、物種詳細頁、地圖、i18n） |
+| `mobile/docs/` | 仍代表現況的參考文件（檢索表、樣區、iNat/GBIF、報表、物種詳細頁、地圖、i18n）；除少數早已追蹤的檔案外不進 git |
 | `mobile/docs/planned/` | 純規劃未動工（AI 辨識、P2P 協作、雲端協作） |
 | `mobile/archive/` | 已完成或被取代的設計稿與一次性稽核，**不再維護** |
 | `mobile/docs/data-model/` | 資料模型與 UML（code review／稽核用）。`semantics.md` 人工撰寫（中英對照），`schema.json`／`data-model.html` 由 `npm run data-model` 從實際 migration 產生。**改 schema 或改名函式後跑 `npm run data-model`**，`check:data-model` 會擋：新表沒寫說明、文件引用的表欄／函式／檔案不存在、產生物過期 |
 | `mobile/verify/` | 給**收資料的人**的出處簽章驗證端（Node／Python／單檔 HTML）。`verify.html` 是 `template.html` 的產物，改前者不要改後者 |
 
-每完成一個段落就更新 `Plan.md` 的待辦與 `Update_log.md`。
+每完成一個段落就更新 `mobile/docs/Plan.md` 的待辦與 `mobile/Update_log.md`。
 
 ## Key Dependencies
 

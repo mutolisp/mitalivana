@@ -53,7 +53,10 @@ import {
   type RecordItem,
   type RecordKind,
 } from '~/db';
-import { deleteCensus, deleteCensuses, setCensusProject, SurveyError } from '~/survey/db/stemmap';
+import { offerCompact } from '~/lib/dbCompact';
+import { errText } from '~/lib/errText';
+import { runTask } from '~/stores/taskProgress';
+import { assertDeletableCensuses, deleteCensuses, setCensusProject, SurveyError } from '~/survey/db/stemmap';
 import {
   bundleCollection,
   bundleCensus,
@@ -1023,34 +1026,52 @@ export default function RecordsListScreen() {
         {
           text: t('common.delete'),
           style: 'destructive',
-          onPress: () => {
-            try {
-              withTransaction(() => {
-                for (const it of picked) {
-                  if (it.kind === 'session') deleteSession(it.id);
-                  else if (it.kind === 'collection') deleteCollectionTrip(it.id);
-                  else if (it.kind === 'gloria') deleteGloriaSurvey(it.id);
-                  else if (it.kind === 'survey') continue;
-                  else deletePlotSurvey(it.id);
-                }
-                deleteCensuses(picked.filter((it) => it.kind === 'survey').map((it) => it.id));
-              });
-            } catch (e) {
-              if (e instanceof SurveyError && e.code === 'not_latest_census') {
-                toast(t('survey.census.deleteNotLatest'));
-                return;
-              }
-              throw e;
-            }
-            // reload() also refreshes both active stores, which matters here:
-            // the selection may well have contained the active record.
-            reload();
-            selectClear();
-            toast(t('records.deletedCount', { count: picked.length }));
-          },
+          onPress: () => void deletePicked(picked),
         },
       ],
     );
+  };
+
+  const deletePicked = async (picked: RecordItem[]) => {
+    const censuses = picked.filter((it) => it.kind === 'survey').map((it) => it.id);
+    try {
+      // Refused before anything goes: only the last censuses of a series.
+      assertDeletableCensuses(censuses);
+      withTransaction(() => {
+        for (const it of picked) {
+          if (it.kind === 'session') deleteSession(it.id);
+          else if (it.kind === 'collection') deleteCollectionTrip(it.id);
+          else if (it.kind === 'gloria') deleteGloriaSurvey(it.id);
+          else if (it.kind !== 'survey') deletePlotSurvey(it.id);
+        }
+      });
+      // A census keeps a version of every quadrat first: seconds for a large
+      // one, so on the progress panel, after the other records (1E).
+      if (censuses.length) await runTask((report) => deleteCensuses(censuses, report));
+    } catch (e) {
+      if (e instanceof SurveyError && e.code === 'not_latest_census') toast(t('survey.census.deleteNotLatest'));
+      else Alert.alert(t('records.deleteFailed'), errText(e));
+      reload();
+      return;
+    }
+    // reload() also refreshes both active stores, which matters here:
+    // the selection may well have contained the active record.
+    reload();
+    selectClear();
+    toast(t('records.deletedCount', { count: picked.length }));
+    if (censuses.length) await offerCompact({ afterDelete: true });
+  };
+
+  const deleteOneCensus = async (id: number) => {
+    try {
+      await runTask((report) => deleteCensuses([id], report));
+    } catch (e) {
+      if (e instanceof SurveyError && e.code === 'not_latest_census') toast(t('survey.census.deleteNotLatest'));
+      else Alert.alert(t('records.deleteFailed'), errText(e));
+      return;
+    }
+    reload();
+    await offerCompact({ afterDelete: true });
   };
 
   const handleMergeConfirm = (opts: MergeRecordOptions) => {
@@ -1098,15 +1119,8 @@ export default function RecordsListScreen() {
             else if (item.kind === 'collection') deleteCollectionTrip(item.id);
             else if (item.kind === 'gloria') deleteGloriaSurvey(item.id);
             else if (item.kind === 'survey') {
-              try {
-                deleteCensus(item.id);
-              } catch (e) {
-                if (e instanceof SurveyError && e.code === 'not_latest_census') {
-                  toast(t('survey.census.deleteNotLatest'));
-                  return;
-                }
-                throw e;
-              }
+              void deleteOneCensus(item.id);
+              return;
             } else deletePlotSurvey(item.id);
             reload();
           },

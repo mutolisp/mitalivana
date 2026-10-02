@@ -15,7 +15,7 @@
  * Usage: npm run check:manifest   (exit 1 on violation)
  */
 import { createHash } from 'node:crypto';
-import { injectFileDigests, isManifestPath, manifestFiles } from '../src/lib/manifestDigest.ts';
+import { filesToDigest, injectFileDigests, isManifestPath, manifestFiles } from '../src/lib/manifestDigest.ts';
 
 let failed = 0;
 const ok = (cond, label, detail = '') => {
@@ -118,6 +118,32 @@ const entry = (name, text) => ({ name, bytes: enc(text) });
   const entries = [entry('rec/manifest.json', 'not json at all'), entry('rec/a.yml', 'a')];
   injectFileDigests(entries, dec, enc);
   ok(dec(entries[0].bytes) === 'not json at all', 'unparseable manifest left untouched');
+}
+
+// ── 7. Hashed beforehand: the same files, the same digests ───────────────
+// The app hashes `filesToDigest` in pieces (for a progress bar) and passes the
+// results in; the files chosen must be exactly the ones the rule hashes.
+{
+  const make = () => [
+    entry('bundle_manifest.json', JSON.stringify({ app: 'mitalivana' })),
+    entry('a/manifest.json', JSON.stringify({ kind: 'plot' })),
+    entry('a/a.yml', 'a'),
+    entry('a/photos/p.jpg', 'p'),
+    entry('a/signature.json', '{}'),
+    entry('b/b.yml', 'b'),
+    entry('README.md', 'r'),
+  ];
+  const plain = make();
+  injectFileDigests(plain, dec, enc);
+  const hashed = new Set();
+  const given = make();
+  const pre = new Map(filesToDigest(given).map((e) => [e.bytes, createHash('sha256').update(e.bytes).digest('hex')]));
+  injectFileDigests(given, dec, enc, (b) => {
+    hashed.add(b);
+    return pre.get(b) ?? 'missing';
+  });
+  ok([...hashed].every((b) => pre.has(b)) && hashed.size === pre.size, 'filesToDigest picks exactly the files the manifests hash', `${pre.size} picked, ${hashed.size} hashed`);
+  ok(given.every((e, i) => dec(e.bytes) === dec(plain[i].bytes)), 'digests passed in give the same manifests');
 }
 
 if (failed > 0) {

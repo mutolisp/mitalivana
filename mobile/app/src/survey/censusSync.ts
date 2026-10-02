@@ -287,7 +287,7 @@ export type CensusSyncOptions = {
 
 export function syncCensus(teamId: string, surveyId: number, opts: CensusSyncOptions = {}): Promise<CensusSyncOutcome | null> {
   return withSyncProgress(() => {
-    useSyncProgress.getState().update({ record: censusLabel(surveyId), stage: 'record' });
+    useSyncProgress.getState().update({ record: censusLabel(surveyId), stage: 'record', blockStage: null, blockIndex: null, blockCount: null });
     return syncCensusNow(teamId, surveyId, opts);
   });
 }
@@ -411,21 +411,30 @@ async function syncCensusNow(teamId: string, surveyId: number, opts: CensusSyncO
       out.uploaded = true;
       logSync(teamId, 'upload', logRec, { server, bytes, detail: blockLabel(surveyId, block) });
     };
-    for (const [block, stamp] of core.blockStamps(c, surveyId, k)) {
+    const outgoing = [...core.blockStamps(c, surveyId, k)].filter(([block, stamp]) => {
       const lk = blockLink(teamId, censusUuid, block);
       const changedHere = stamp > (lk?.last_synced_at ?? 0);
       // Sent before but the relay may have lost it (a moved team clears the hash) or it is getting old.
       const due = lk?.uploaded_at != null && (lk.uploaded_hash == null || lk.uploaded_at < Date.now() - REUPLOAD_MS);
-      if (changedHere || due) await putBlock(block, false);
+      return changedHere || due;
+    });
+    // The strip counts blocks: a whole 25 ha census is tens of them (1E).
+    for (const [i, [block]] of outgoing.entries()) {
+      useSyncProgress.getState().update({ blockStage: 'up', blockIndex: i + 1, blockCount: outgoing.length });
+      await putBlock(block, false);
     }
 
     // 5. Teammates' changed blocks.
     const { cols, rows: rr } = fgQuadratCounts(frameGeometry(getFrame(c, getSurvey(c, surveyId)!.frame_id)!));
     const recBlock = new Map(core.allBlocks(cols, rr, k).map((b) => [blockRec(keys, ident, b), b]));
     const merged = new Set<string>();
-    for (const it of items) {
+    const incoming = items.filter((it) => {
       const block = it.rec ? recBlock.get(it.rec) : undefined;
-      if (!block || it.dev === dev || seenEtag(teamId, it.rec!, it.dev) === it.etag) continue;
+      return block && it.dev !== dev && seenEtag(teamId, it.rec!, it.dev) !== it.etag;
+    });
+    for (const [i, it] of incoming.entries()) {
+      const block = recBlock.get(it.rec!)!;
+      useSyncProgress.getState().update({ blockStage: 'down', blockIndex: i + 1, blockCount: incoming.length });
       const doc = readCensusDoc(await downloadText(team, keys, it.rec!, it.dev));
       if (!doc || doc.record_type !== 'census_block' || doc.ident !== ident || doc.block !== block || doc.block_quadrats !== k) {
         markSeen(teamId, it.rec!, it.dev, it.etag);
@@ -467,8 +476,10 @@ async function syncCensusNow(teamId: string, surveyId: number, opts: CensusSyncO
     }
 
     // 6. Merged blocks this phone also works on: their copy predates the merge (as for records).
-    for (const block of merged) {
-      if (blockLink(teamId, censusUuid, block)?.uploaded_at != null) await putBlock(block, true);
+    const again = [...merged].filter((block) => blockLink(teamId, censusUuid, block)?.uploaded_at != null);
+    for (const [i, block] of again.entries()) {
+      useSyncProgress.getState().update({ blockStage: 'up', blockIndex: i + 1, blockCount: again.length });
+      await putBlock(block, true);
     }
     if (out.merged > 0) logSync(teamId, 'merge', logRec, { server, detail: [...new Set(out.mergedFrom)].join('、') || String(out.merged) });
     const now = Date.now();

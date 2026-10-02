@@ -1,10 +1,12 @@
 /**
- * The 1E stress test on a device (app/survey/stress.tsx, development builds
- * only): build the test plot of stressCore.ts through the app's own save path,
+ * The 1E stress test on a device (app/survey/stress.tsx; release builds too
+ * while STRESS_TEST_OFFERED): build the test plot of stressCore.ts through the app's own save path,
  * then time what a census of that size costs — loading, saving, versions,
  * checks, sync blocks, export, backup, start-up clean-up — so the numbers come
  * from real hardware (an emulator can be several times faster than a phone).
  */
+import { decodeUtf8 } from '~/lib/utf8';
+import { zipInPieces } from '~/lib/zipWriter';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { File } from 'expo-file-system';
 import { deflateSync, strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
@@ -265,9 +267,17 @@ export async function runBreakdown(size: StressSize, progress: Progress): Promis
   const bytes = await step('文字 → 位元組（strToU8）', () => strToU8(text));
   await step('SHA-256', () => sha256(bytes));
   const zip = await step('zip（deflate 6）', () => zipSync({ 'census.yml': bytes }, { level: 6 }), (r) => mb(r.length));
+  {
+    progress('zip 分段');
+    await yieldUi();
+    const t = Date.now();
+    const pieces = await zipInPieces([{ name: 'census.yml', bytes }], { level: 6 });
+    out.push({ label: 'zip 分段（zipInPieces，匯出用）', ms: Date.now() - t, detail: mb(pieces.length) });
+  }
   const files = await step('解壓（unzipSync）', () => unzipSync(zip));
   const back = await step('位元組 → 文字（strFromU8）', () => strFromU8(files['census.yml']));
   if (typeof TextDecoder !== 'undefined') await step('位元組 → 文字（TextDecoder）', () => new TextDecoder().decode(files['census.yml']));
+  await step('位元組 → 文字（decodeUtf8，匯入用）', () => decodeUtf8(files['census.yml']), (r) => (r === back ? '與 strFromU8 相同' : '與 strFromU8 不同'));
   const parsed = await step('JSON.parse', () => JSON.parse(back) as unknown);
   await step('列表還原（censusExportFromFile）', () => censusExportFromFile(parsed));
   return out;

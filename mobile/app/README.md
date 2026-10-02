@@ -1,6 +1,6 @@
 # Mobile version of checklister
 
-設計與待辦見 `mobile/Plan.md`；已 ship 與踩坑紀錄見 `mobile/Update_log.md`；
+設計與待辦見 `mobile/docs/Plan.md`；已 ship 與踩坑紀錄見 `mobile/Update_log.md`；
 參考文件在 `mobile/docs/`。
 
 ## 開發

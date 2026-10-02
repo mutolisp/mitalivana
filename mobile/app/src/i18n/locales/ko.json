@@ -256,7 +256,8 @@
     "starredGroup": "고정됨",
     "monthGroup": "{{year}}년 {{month}}월",
     "pinNamed": "“{{name}}” 고정",
-    "unpinNamed": "“{{name}}” 고정 해제"
+    "unpinNamed": "“{{name}}” 고정 해제",
+    "deleteFailed": "삭제하지 못했습니다"
   },
   "export": {
     "preparing": "준비 중…",
@@ -279,7 +280,9 @@
       "mergeChecklist": "종 목록 병합 중…",
       "analysis": "분석용 표 생성 중…",
       "dwca": "Darwin Core Archive 생성 중…",
-      "report": "연구 보고서 생성 중…"
+      "report": "연구 보고서 생성 중…",
+      "hashing": "파일 해시 계산 중",
+      "writing": "파일 쓰는 중…"
     },
     "err": {
       "sessionNotFound": "기록 {{id}}을(를) 찾을 수 없습니다",
@@ -3252,7 +3255,9 @@
     "versionsDesc": "{{n}}개(데이터베이스 안). 눌러서 오래된 것 정리",
     "versionsTitle": "오래된 버전을 정리할까요?",
     "versionsConfirm": "기록마다 최신 1개와 직접 만든 버전만 남깁니다(현재 모두 {{n}}개).",
-    "versionsCleared": "버전 {{n}}개를 정리했습니다"
+    "versionsCleared": "버전 {{n}}개를 정리했습니다",
+    "compact": "데이터베이스 압축",
+    "compactDesc": "삭제한 기록이 데이터베이스에 남긴 공간"
   },
   "recordLock": {
     "undo": "실행 취소",
@@ -3720,7 +3725,13 @@
       "one": "동기화 중: {{name}}",
       "upload": "파일 업로드 {{i}}/{{n}} · {{done}}/{{total}}",
       "download": "파일 다운로드 {{i}}/{{n}} · {{done}}/{{total}}",
-      "keepOpen": "다른 화면에서 계속 작업할 수 있습니다. 아직 앱을 나가거나 화면을 잠그지 마세요"
+      "keepOpen": "다른 화면에서 계속 작업할 수 있습니다. 아직 앱을 나가거나 화면을 잠그지 마세요",
+      "blocksUp": "블록 업로드 중 {{i}}/{{n}}",
+      "blocksDown": "블록 다운로드 중 {{i}}/{{n}}",
+      "collapse": "접기",
+      "bubble": "동기화 중",
+      "bubblePct": "동기화 중 {{pct}}%",
+      "bubbleHint": "탭하면 동기화 진행 상황을 펼치고, 끌어서 옮길 수 있습니다"
     }
   },
   "teamDeploy": {
@@ -4389,7 +4400,9 @@
       "screeningHint": "측정 문제, 서로 모순되는 코드, 지난 회차에 쟀으나 이번에 처리하지 않은 줄기.",
       "extremeHint": "DBH 계급마다 생장률 상위·하위 {{pct}}%(양 끝 최소 {{min}}건)를 현장에서 다시 잽니다. Condit 1998 p.86 기준.",
       "screeningEmpty": "문제가 없습니다.",
-      "extremeEmpty": "생장을 계산할 줄기가 없습니다(같은 POM에서 두 회차의 DBH가 필요)."
+      "extremeEmpty": "생장을 계산할 줄기가 없습니다(같은 POM에서 두 회차의 DBH가 필요).",
+      "reading": "방형구 읽는 중 {{done}}/{{total}}",
+      "computing": "목록 만드는 중…"
     },
     "loc": {
       "grid": "격자",
@@ -4531,5 +4544,28 @@
       "toReview": "회차 {{count}}개는 병합 검토가 필요합니다",
       "unresolvedTaxa": "{{count}}종이 이 기기의 목록에 없어 원래 코드를 유지합니다"
     }
+  },
+  "task": {
+    "working": "처리 중…",
+    "keepOpen": "앱을 닫거나 화면을 잠그지 마세요",
+    "readingFile": "파일 읽는 중…",
+    "photos": "사진 가져오는 중",
+    "merging": "병합 중…",
+    "versions": "방형구별 버전 저장 중",
+    "deleting": "삭제 중…",
+    "snapshot": "데이터베이스 스냅숏 만드는 중…",
+    "unzipping": "압축 해제 중…",
+    "restoring": "데이터베이스 쓰는 중…",
+    "compacting": "데이터베이스 압축 중…",
+    "writingTrees_other": "{{count}}그루 기록 중…"
+  },
+  "compact": {
+    "title": "데이터베이스를 압축할까요?",
+    "msg": "데이터베이스 중 {{size}}는 삭제한 데이터가 남긴 빈 공간입니다. 압축하면 파일이 작아집니다. 큰 데이터베이스는 수십 초가 걸리니 그동안 앱을 닫지 마세요.",
+    "go": "압축",
+    "later": "나중에",
+    "done": "데이터베이스를 압축했습니다({{size}} 확보)",
+    "failed": "압축하지 못했습니다",
+    "noSpace": "기기 여유 공간이 부족합니다. 압축에는 약 {{size}}가 필요합니다"
   }
 }

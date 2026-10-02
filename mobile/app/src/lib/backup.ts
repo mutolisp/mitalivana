@@ -25,6 +25,7 @@ import { File, Paths } from 'expo-file-system';
 import { readAsStringAsync } from 'expo-file-system/legacy';
 import { strFromU8, strToU8, unzipSync } from 'fflate';
 import { closeDbs, getUserDb, initDb, parseEnvPhotos, searchByTaxonId, type SearchResult } from '~/db';
+import type { TaskReporter } from '~/stores/taskProgress';
 import { LATEST_SCHEMA_VERSION } from '~/db/migrations';
 import { BACKUP_NAME_PREFIX } from './googleDevice';
 import {
@@ -78,10 +79,13 @@ type BackupManifest = {
  * Snapshot user.db into a zip ready to share.
  *
  * Region packs are opt-in (`includePacks`): they are re-downloadable GBIF
- * data that can add tens of MB, so the default backup stays lean.
+ * data that can add tens of MB, so the default backup stays lean. `report`
+ * puts the steps on the progress panel (a 50 000-tree database takes minutes
+ * on a slow phone, 1E).
  */
-export async function createBackup(opts?: { includePacks?: boolean }): Promise<ExportFile> {
+export async function createBackup(opts?: { includePacks?: boolean; report?: TaskReporter }): Promise<ExportFile> {
   const ts = timestamp();
+  await opts?.report?.step('task.snapshot');
 
   // VACUUM INTO produces a consistent, compacted copy with no -wal/-shm
   // sidecar, sidestepping journal-mode / open-handle concerns.
@@ -116,7 +120,7 @@ export async function createBackup(opts?: { includePacks?: boolean }): Promise<E
     { name: 'manifest.json', bytes: strToU8(JSON.stringify(manifest, null, 2)) },
   ];
   if (packsBytes) entries.push({ name: PACKS_DB_NAME, bytes: packsBytes });
-  return await finalizeZip(entries, `${BACKUP_NAME_PREFIX}${ts}`);
+  return await finalizeZip(entries, `${BACKUP_NAME_PREFIX}${ts}`, opts?.report?.exportProgress);
 }
 
 /** Whether any region pack exists — drives the opt-in switch on the screen. */
@@ -133,7 +137,8 @@ export function hasRegionPacks(): boolean {
  * all current user data. Throws (before touching anything) if the zip is not a
  * valid backup or was made by a newer app whose schema this build can't satisfy.
  */
-export async function restoreBackup(zipUri: string): Promise<void> {
+export async function restoreBackup(zipUri: string, report?: TaskReporter): Promise<void> {
+  await report?.step('task.unzipping');
   // As bytes for the same reason as createBackup (the zip is in this app's cache: picker copy or Drive download).
   const files = unzipSync(await new File(zipUri).bytes());
 
@@ -165,6 +170,7 @@ export async function restoreBackup(zipUri: string): Promise<void> {
     );
   }
 
+  await report?.step('task.restoring');
   // Packs restore first: replaceUserDb() ends in an app reload, so anything
   // after it never runs. A packs file in the zip replaces the current one;
   // absence leaves the current packs untouched (they are not user data).

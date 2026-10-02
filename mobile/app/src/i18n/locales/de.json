@@ -286,7 +286,8 @@
     "starredGroup": "Angeheftet",
     "monthGroup": "{{year}}-{{month2}}",
     "pinNamed": "„{{name}}“ anheften",
-    "unpinNamed": "„{{name}}“ lösen"
+    "unpinNamed": "„{{name}}“ lösen",
+    "deleteFailed": "Löschen fehlgeschlagen"
   },
   "export": {
     "preparing": "Wird vorbereitet…",
@@ -309,7 +310,9 @@
       "mergeChecklist": "Artenliste wird zusammengeführt…",
       "analysis": "Analysetabellen werden erstellt…",
       "dwca": "Darwin Core Archive wird erstellt…",
-      "report": "Forschungsbericht wird erstellt…"
+      "report": "Forschungsbericht wird erstellt…",
+      "hashing": "Hashwerte der Dateien werden berechnet",
+      "writing": "Datei wird geschrieben…"
     },
     "err": {
       "sessionNotFound": "Aufnahme {{id}} nicht gefunden",
@@ -3422,7 +3425,9 @@
     "versionsDesc": "{{n}} in der Datenbank; antippen, um alte zu löschen",
     "versionsTitle": "Alte Versionen löschen?",
     "versionsConfirm": "Behält pro Aufnahme nur die neueste und die selbst erstellten Versionen (jetzt insgesamt {{n}}).",
-    "versionsCleared": "{{n}} Versionen gelöscht"
+    "versionsCleared": "{{n}} Versionen gelöscht",
+    "compact": "Datenbank komprimieren",
+    "compactDesc": "Platz, den gelöschte Einträge in der Datenbank hinterlassen haben"
   },
   "recordLock": {
     "undo": "Rückgängig",
@@ -3904,7 +3909,13 @@
       "one": "Synchronisiere: {{name}}",
       "upload": "Lade Datei {{i}}/{{n}} hoch · {{done}} / {{total}}",
       "download": "Lade Datei {{i}}/{{n}} herunter · {{done}} / {{total}}",
-      "keepOpen": "Andere Bildschirme sind weiter nutzbar; die App noch nicht verlassen und das Gerät nicht sperren"
+      "keepOpen": "Andere Bildschirme sind weiter nutzbar; die App noch nicht verlassen und das Gerät nicht sperren",
+      "blocksUp": "Block {{i}}/{{n}} wird hochgeladen",
+      "blocksDown": "Block {{i}}/{{n}} wird heruntergeladen",
+      "collapse": "Einklappen",
+      "bubble": "Synchronisierung läuft",
+      "bubblePct": "Synchronisierung: {{pct}} %",
+      "bubbleHint": "Tippen zeigt den Fortschritt, Ziehen verschiebt die Schaltfläche"
     }
   },
   "teamDeploy": {
@@ -4584,7 +4595,9 @@
       "screeningHint": "Messprobleme, widersprüchliche Codes und Stämme, die zuletzt gemessen, jetzt aber noch offen sind.",
       "extremeHint": "Die obersten und untersten {{pct}} % des Zuwachses je BHD-Klasse (mindestens {{min}} je Ende) zum Nachmessen. Nach Condit 1998 S. 86.",
       "screeningEmpty": "Keine Probleme gefunden.",
-      "extremeEmpty": "Kein Stamm mit berechenbarem Zuwachs (nötig: BHD zweier Aufnahmen auf gleicher Messhöhe)."
+      "extremeEmpty": "Kein Stamm mit berechenbarem Zuwachs (nötig: BHD zweier Aufnahmen auf gleicher Messhöhe).",
+      "reading": "Quadrate werden gelesen {{done}}/{{total}}",
+      "computing": "Listen werden erstellt…"
     },
     "loc": {
       "grid": "Raster",
@@ -4727,5 +4740,29 @@
       "toReview": "{{count}} Erhebungen brauchen eine Prüfung der Zusammenführung",
       "unresolvedTaxa": "{{count}} Arten fehlen in der Artenliste dieses Geräts; ihre Codes bleiben"
     }
+  },
+  "task": {
+    "working": "Wird bearbeitet…",
+    "keepOpen": "App geöffnet und Bildschirm entsperrt lassen",
+    "readingFile": "Datei wird gelesen…",
+    "photos": "Fotos werden importiert",
+    "merging": "Wird zusammengeführt…",
+    "versions": "Version jedes Quadrats wird gespeichert",
+    "deleting": "Wird gelöscht…",
+    "snapshot": "Momentaufnahme der Datenbank wird erstellt…",
+    "unzipping": "Wird entpackt…",
+    "restoring": "Datenbank wird geschrieben…",
+    "compacting": "Datenbank wird komprimiert…",
+    "writingTrees_one": "{{count}} Baum wird gespeichert…",
+    "writingTrees_other": "{{count}} Bäume werden gespeichert…"
+  },
+  "compact": {
+    "title": "Datenbank komprimieren?",
+    "msg": "{{size}} der Datenbank sind Platz, den gelöschte Daten hinterlassen haben. Komprimieren gibt ihn frei; bei einer großen Datenbank dauert das einige Dutzend Sekunden – lassen Sie die App so lange geöffnet.",
+    "go": "Komprimieren",
+    "later": "Später",
+    "done": "Datenbank komprimiert: {{size}} freigegeben",
+    "failed": "Komprimieren fehlgeschlagen",
+    "noSpace": "Nicht genug freier Speicher: Komprimieren braucht etwa {{size}}"
   }
 }

@@ -256,7 +256,8 @@
     "starredGroup": "釘選",
     "monthGroup": "{{year}} 年 {{month}} 月",
     "pinNamed": "釘選「{{name}}」",
-    "unpinNamed": "取消釘選「{{name}}」"
+    "unpinNamed": "取消釘選「{{name}}」",
+    "deleteFailed": "刪除失敗"
   },
   "export": {
     "preparing": "準備中…",
@@ -279,7 +280,9 @@
       "mergeChecklist": "合併物種名錄…",
       "analysis": "產生分析資料表…",
       "dwca": "產生 Darwin Core Archive…",
-      "report": "產生研究報表…"
+      "report": "產生研究報表…",
+      "hashing": "計算檔案雜湊值",
+      "writing": "寫入檔案…"
     },
     "err": {
       "sessionNotFound": "記錄 {{id}} 不存在",
@@ -3252,7 +3255,9 @@
     "versionsDesc": "{{n}} 份，存在資料庫內；點一下清除舊版本",
     "versionsTitle": "清除舊版本？",
     "versionsConfirm": "每筆記錄只留最新一份與手動建立的版本（目前共 {{n}} 份）。",
-    "versionsCleared": "已清除 {{n}} 份版本"
+    "versionsCleared": "已清除 {{n}} 份版本",
+    "compact": "壓縮資料庫",
+    "compactDesc": "刪除記錄後留在資料庫裡的空間"
   },
   "recordLock": {
     "undo": "復原",
@@ -3720,7 +3725,13 @@
       "one": "同步：{{name}}",
       "upload": "上傳檔案 {{i}}／{{n}} · {{done}}／{{total}}",
       "download": "下載檔案 {{i}}／{{n}} · {{done}}／{{total}}",
-      "keepOpen": "可切換到其他畫面繼續操作；請先不要離開 app 或鎖定螢幕"
+      "keepOpen": "可切換到其他畫面繼續操作；請先不要離開 app 或鎖定螢幕",
+      "blocksUp": "上傳區塊 {{i}}／{{n}}",
+      "blocksDown": "下載區塊 {{i}}／{{n}}",
+      "collapse": "收合",
+      "bubble": "同步中",
+      "bubblePct": "同步中，{{pct}}%",
+      "bubbleHint": "點一下展開同步進度，拖曳可移動位置"
     }
   },
   "teamDeploy": {
@@ -4389,7 +4400,9 @@
       "screeningHint": "量測問題、矛盾的代碼，以及上回合有量、這回合還沒處理的分支。",
       "extremeHint": "各徑級生長率最高與最低各 {{pct}}%（每端至少 {{min}} 筆），回現場複量。依 Condit 1998 p.86。",
       "screeningEmpty": "沒有發現問題。",
-      "extremeEmpty": "沒有可計算生長的分支（需要兩個回合在同一 POM 的 DBH）。"
+      "extremeEmpty": "沒有可計算生長的分支（需要兩個回合在同一 POM 的 DBH）。",
+      "reading": "讀取樣方 {{done}}／{{total}}",
+      "computing": "整理清單…"
     },
     "loc": {
       "grid": "格網",
@@ -4531,5 +4544,28 @@
       "toReview": "{{count}} 個回合需要審閱合併",
       "unresolvedTaxa": "{{count}} 個物種在這台手機的名錄中找不到，保留原代碼"
     }
+  },
+  "task": {
+    "working": "處理中…",
+    "keepOpen": "請先不要離開 app 或鎖定螢幕",
+    "readingFile": "讀取檔案…",
+    "photos": "匯入照片",
+    "merging": "合併中…",
+    "versions": "保存各樣方的版本",
+    "deleting": "刪除資料…",
+    "snapshot": "建立資料庫快照…",
+    "unzipping": "解壓縮…",
+    "restoring": "寫入資料庫…",
+    "compacting": "壓縮資料庫…",
+    "writingTrees_other": "寫入 {{count}} 株…"
+  },
+  "compact": {
+    "title": "壓縮資料庫？",
+    "msg": "資料庫裡有 {{size}} 是刪除資料後留下的空間。壓縮後檔案會變小；大的資料庫需要數十秒，期間請不要離開 app。",
+    "go": "壓縮",
+    "later": "以後再說",
+    "done": "已壓縮資料庫，釋放 {{size}}",
+    "failed": "壓縮失敗",
+    "noSpace": "裝置剩餘空間不足：壓縮過程約需 {{size}}"
   }
 }

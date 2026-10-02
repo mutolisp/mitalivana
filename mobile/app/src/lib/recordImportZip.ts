@@ -24,6 +24,7 @@ import { plotFromDoc } from './plotImport';
 import { sessionFromDoc } from './sessionImport';
 import { buildTrackGeoJSON } from './track';
 import { readSyncBlock, type SyncBlock } from './mergeEngine';
+import { decodeUtf8 } from './utf8';
 import { censusExportFromFile, isCensusExport, type CensusExportDoc } from '../survey/db/censusExportCore';
 import type {
   ImportedCollectionTrip,
@@ -116,8 +117,15 @@ function findEntry(entries: Entries, pred: (name: string) => boolean): string | 
   return Object.keys(entries).find(pred) ?? null;
 }
 
+/** A file's text: decodeUtf8 (the polyfilled TextDecoder took 7 s for a
+ *  13 MB census on the emulator, 1E), or TextDecoder's replacement rules when
+ *  it is not UTF-8. */
+function utf8Text(bytes: Uint8Array): string {
+  return decodeUtf8(bytes) ?? strFromU8(bytes);
+}
+
 function textOf(entries: Entries, name: string): string {
-  return strFromU8(entries[name]);
+  return utf8Text(entries[name]);
 }
 
 /** Geometry from `${folder}/${stem}.{geojson,gpx,kml}`, in that order —
@@ -272,14 +280,14 @@ function locateRecord(meta: Entries): { folder: string; manifestKind: string | n
  * produced iOS's "the text encoding of its contents can't be determined".
  */
 export function readRecordYamlTextFromBytes(raw: Uint8Array): string {
-  if (!isZip(raw)) return strFromU8(raw);
+  if (!isZip(raw)) return utf8Text(raw);
   const meta = metaEntries(raw);
   return textOf(meta, locateRecord(meta).ymlName);
 }
 
 export function readRecordImportFromBytes(raw: Uint8Array): ReadRecordImport {
   if (!isZip(raw)) {
-    const doc = loadRecordDoc(strFromU8(raw));
+    const doc = loadRecordDoc(utf8Text(raw));
     switch (docKind(doc)) {
       case 'gloria':
         return { sync: readSyncBlock(doc), kind: 'gloria', gloria: doc as unknown as GloriaDoc };

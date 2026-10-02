@@ -1,9 +1,9 @@
 /**
  * 1E stress test (docs/planned/Modular_survey.md §9): build a 20 000- or
  * 50 000-tree test plot, time what a census of that size costs, delete it.
- * Development builds only — reached from the permanent plot list under
- * __DEV__; its text is not translated (a tool for the developer, like
- * app/settings/team-media-test.tsx).
+ * Reached from the permanent plot list while STRESS_TEST_OFFERED (release
+ * builds too until the user's testing is done); its text is not translated
+ * (a testing tool, like app/settings/team-media-test.tsx).
  */
 import { Stack } from 'expo-router';
 import { useCallback, useState } from 'react';
@@ -13,6 +13,13 @@ import { BackHeaderLeft } from '~/lib/goBack';
 import { errText } from '~/lib/errText';
 import { buildStressData, deleteStressData, runBench, runBreakdown, stressPlot, type BenchLine } from '~/survey/stress/stressBench';
 import { STRESS_SIZES, type StressSize } from '~/survey/stress/stressCore';
+
+/** System and, where React Native knows it, the device (Android: maker and model; iOS: phone or pad only). */
+function deviceLabel(): string {
+  const k = Platform.constants as { Manufacturer?: string; Model?: string; interfaceIdiom?: string };
+  const what = Platform.OS === 'android' ? [k.Manufacturer, k.Model].filter(Boolean).join(' ') : (k.interfaceIdiom ?? '');
+  return `${Platform.OS} ${String(Platform.Version)}${what ? ` ${what}` : ''}`;
+}
 
 function Btn({ label, onPress, disabled }: { label: string; onPress: () => void; disabled?: boolean }) {
   return (
@@ -50,13 +57,13 @@ export default function StressScreen() {
     }
   };
   const report = [
-    `Mitalivana 每木壓力測試 · ${STRESS_SIZES[size].code} · ${Platform.OS} ${String(Platform.Version)} · ${new Date().toISOString().slice(0, 16)}`,
+    `Mitalivana 每木壓力測試 · ${STRESS_SIZES[size].code} · ${__DEV__ ? '開發版' : 'release'} · ${deviceLabel()} · ${new Date().toISOString().slice(0, 16)}`,
     ...lines.map((l) => `${l.label}：${l.ms != null ? `${l.ms} ms` : ''}${l.detail ? ` ${l.detail}` : ''}`),
   ].join('\n');
 
   return (
     <SafeAreaView edges={['bottom']} className="flex-1 bg-paper dark:bg-paper-dark">
-      <Stack.Screen options={{ title: '每木壓力測試（開發版）', headerLeft: BackHeaderLeft }} />
+      <Stack.Screen options={{ title: '每木壓力測試（測試用）', headerLeft: BackHeaderLeft }} />
       <ScrollView contentContainerClassName="gap-3 p-4">
         <Text className="text-xs leading-5 text-ink-2 dark:text-gray-400">
           建立測試樣區（固定亂數，每台結果相同），量測回合載入、存檔、版本、檢查清單、同步區塊、匯出、備份與啟動清理的耗時。只動測試樣區；刪除時不進「最近刪除」。

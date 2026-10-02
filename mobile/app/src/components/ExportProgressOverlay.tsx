@@ -1,6 +1,8 @@
 import { ActivityIndicator, Modal, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import type { ExportProgress } from '~/lib/bundleExport';
+import { formatBytes } from '~/lib/exportSize';
+import { useThemeColors } from '~/theme/colors';
 
 /**
  * Full-screen, non-dismissable overlay shown while an export bundle is being
@@ -10,6 +12,7 @@ import type { ExportProgress } from '~/lib/bundleExport';
  */
 export function ExportProgressOverlay({ progress }: { progress: ExportProgress | null }) {
   const { t } = useTranslation();
+  const c = useThemeColors();
   const visible = progress != null;
   const total = progress?.total ?? 0;
   const done = progress?.done ?? 0;
@@ -19,7 +22,7 @@ export function ExportProgressOverlay({ progress }: { progress: ExportProgress |
     <Modal visible={visible} transparent animationType="fade" onRequestClose={() => {}}>
       <View className="flex-1 items-center justify-center bg-black/40 px-10">
         <View className="w-full max-w-xs rounded-2xl bg-card dark:bg-gray-900 px-6 py-6">
-          <ActivityIndicator size="large" color="#3b82f6" />
+          <ActivityIndicator size="large" color={c.accent} />
           <Text className="mt-4 text-center text-base font-medium text-gray-900 dark:text-gray-100">
             {progress?.label ?? t('export.exporting')}
           </Text>
@@ -28,8 +31,8 @@ export function ExportProgressOverlay({ progress }: { progress: ExportProgress |
               <View className="mt-4 h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
                 <View className="h-2 rounded-full bg-accent-500" style={{ width: `${pct}%` }} />
               </View>
-              <Text className="mt-2 text-center text-xs text-gray-500 dark:text-gray-400">
-                {done} / {total}
+              <Text style={{ fontVariant: ['tabular-nums'] }} className="mt-2 text-center text-xs text-gray-500 dark:text-gray-400">
+                {progress?.bytes ? `${formatBytes(done)} / ${formatBytes(total)}` : `${done} / ${total}`}
               </Text>
             </>
           ) : null}

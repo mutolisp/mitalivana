@@ -11,7 +11,6 @@ import { router, type Href } from 'expo-router';
 import { Alert } from 'react-native';
 import { showActionSheet } from '~/components/ActionSheet';
 import { getUserDb, withTransaction } from '~/db/init';
-import { saveVersion } from '~/db/recordVersions';
 import { searchByTaxonId } from '~/db/search';
 import { ensureTaxonSelfSufficient } from '~/db/taxonCache';
 import { generateUuid } from '~/db/uuid';
@@ -19,10 +18,12 @@ import i18n from '~/i18n';
 import { importPhotosToLibrary } from '~/lib/photoCapture';
 import type { ImportedPhotoBlob } from '~/lib/recordImportZip';
 import { matchScientificName } from '~/lib/sciMatch';
+import { runTask } from '~/stores/taskProgress';
 import { useToast } from '~/stores/toast';
 import { censusQuadratIds } from './db/censusVersions';
 import { importCensusDoc, planCensusImport, type CensusExportDoc, type ImportChoice } from './db/censusExportCore';
 import { ALL_QUADRATS, censusIdent } from './db/censusSyncCore';
+import { keepQuadratVersions } from './db/stemmap';
 import { getSurvey } from './db/stemmapCore';
 import { mergeBlockQuietly, useCensusMerge, type CensusBlockUpload, type PendingCensusMerge } from './censusSync';
 
@@ -65,34 +66,46 @@ export async function finishCensusImport(payload: { census: CensusExportDoc; pho
     choice = idx === 0 ? 'merge' : idx === 1 ? 'overwrite' : 'skip';
   }
   const unresolved = remapTaxa(doc);
-  const { uriByName } = payload.photos.length ? await importPhotosToLibrary(payload.photos) : { uriByName: new Map<string, string>() };
-  const res = withTransaction(() => {
-    // What an overwrite replaces stays restorable (record versions, v73 reason).
-    if (choice === 'overwrite') for (const x of here) for (const id of censusQuadratIds(x.localId!)) saveVersion('survey_quadrat', id, 'before_import');
-    return importCensusDoc(ctx(), doc, choice, (file) => uriByName.get(file) ?? null);
-  });
-  for (const id of new Set(doc.trees.map((tr) => String(tr.taxon_id)))) ensureTaxonSelfSufficient(id);
+  // Writing a large census holds the JS thread for seconds (1E): on the progress panel.
+  const { res, reviews, merged } = await runTask(async (report) => {
+    let uriByName = new Map<string, string>();
+    if (payload.photos.length) {
+      await report.step('task.photos');
+      ({ uriByName } = await importPhotosToLibrary(payload.photos, (done, total) => void report.progress(done, total)));
+    }
+    // What an overwrite replaces stays restorable (record versions, v73
+    // reason). Kept before the import's transaction so the bar can move; if
+    // the import then fails they are versions of quadrats left unchanged.
+    if (choice === 'overwrite') await keepQuadratVersions(here.flatMap((x) => censusQuadratIds(x.localId!)), 'before_import', report);
+    // One transaction, so no progress inside it: the step and the spinner.
+    await report.step('task.writingTrees', { count: doc.trees.length });
+    const res = withTransaction(() => importCensusDoc(ctx(), doc, choice, (file) => uriByName.get(file) ?? null));
+    for (const id of new Set(doc.trees.map((tr) => String(tr.taxon_id)))) ensureTaxonSelfSufficient(id);
 
-  // Censuses to merge: quietly when nothing needs a person, else the review, one after another.
-  const ident = (n: number) => censusIdent(String(doc.frame.uuid), String(doc.series.uuid), n);
-  const reviews: PendingCensusMerge[] = [];
-  let merged = 0;
-  for (const m of res.merges) {
-    const s = getSurvey(ctx(), m.surveyId)!;
-    const upload: CensusBlockUpload = {
-      record_type: 'census_block',
-      schema: 1,
-      ident: ident(s.census_no),
-      block: ALL_QUADRATS,
-      block_quadrats: 0,
-      slice: m.slice,
-      sync: { base: m.base },
-    };
-    const r = mergeBlockQuietly(m.surveyId, upload, null);
-    if (r.kind === 'merged') merged += 1;
-    if (r.kind !== 'review') continue;
-    reviews.push({ surveyId: m.surveyId, censusUuid: s.uuid, label: `${code} #${s.census_no}`, doc: upload, from: null, fromAt: null });
-  }
+    // Censuses to merge: quietly when nothing needs a person, else the review, one after another.
+    const ident = (n: number) => censusIdent(String(doc.frame.uuid), String(doc.series.uuid), n);
+    const reviews: PendingCensusMerge[] = [];
+    let merged = 0;
+    if (res.merges.length) await report.step('task.merging');
+    for (const [i, m] of res.merges.entries()) {
+      await report.progress(i, res.merges.length);
+      const s = getSurvey(ctx(), m.surveyId)!;
+      const upload: CensusBlockUpload = {
+        record_type: 'census_block',
+        schema: 1,
+        ident: ident(s.census_no),
+        block: ALL_QUADRATS,
+        block_quadrats: 0,
+        slice: m.slice,
+        sync: { base: m.base },
+      };
+      const r = mergeBlockQuietly(m.surveyId, upload, null);
+      if (r.kind === 'merged') merged += 1;
+      if (r.kind !== 'review') continue;
+      reviews.push({ surveyId: m.surveyId, censusUuid: s.uuid, label: `${code} #${s.census_no}`, doc: upload, from: null, fromAt: null });
+    }
+    return { res, reviews, merged };
+  });
 
   const lines = [
     res.created.length ? t('survey.import.created', { count: res.created.length }) : '',

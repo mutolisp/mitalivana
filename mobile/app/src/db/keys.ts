@@ -32,7 +32,7 @@ export type IdentificationKey = {
    *  ⚠️ Does NOT currently bridge TaiCOL genus moves (Amauropelta ↔
    *  Parathelypteris). The code that did was only reachable from a lookup the
    *  UI stopped using, and was removed with it; the shipped module has no
-   *  alias for those. Logged in `mobile/Plan.md` under 功能缺口 (feature gaps). */
+   *  alias for those. Logged in `mobile/docs/Plan.md` under 功能缺口 (feature gaps). */
   aliases: string | null;
   updated_at: number | null;
 };

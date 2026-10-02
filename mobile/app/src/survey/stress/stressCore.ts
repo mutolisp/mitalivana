@@ -14,6 +14,14 @@
 import { correctIndividual, createFrame, saveTreeDraft, startCensus, type Ctx, type TreeDraft } from '../db/stemmapCore';
 import type { SurveyTemplate } from '../template/types';
 
+/**
+ * Whether the permanent plot list offers the stress test screen. Release
+ * builds too for now: the user measures release builds on real devices and
+ * turns this off when all testing is done (asked 2026-10-02); then it goes
+ * back to `__DEV__` (docs/Plan.md O).
+ */
+export const STRESS_TEST_OFFERED = true;
+
 /** Common trees of Taiwan's lowland forests (TaiCOL ids, accepted names). */
 export const STRESS_TAXA: ReadonlyArray<{ id: string; name: string }> = [
   { id: 't0040235', name: 'Ardisia sieboldii' },

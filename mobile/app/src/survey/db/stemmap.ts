@@ -10,6 +10,7 @@ import { generateUuid } from '~/db/uuid';
 import * as core from './stemmapCore';
 import { censusQuadratIds } from './censusVersions';
 import { saveVersion } from '~/db/recordVersions';
+import type { TaskReporter } from '~/stores/taskProgress';
 import type { SurveyTemplate } from '../template/types';
 import { getTagRollStart } from '../tagRoll';
 
@@ -30,6 +31,7 @@ export {
   type SurveyErrorCode,
   type FgQuadratRow,
   type SurveyRow,
+  TAG_ORDER,
   type TaxonInput,
   type TreeDraft,
   type TreeState,
@@ -73,25 +75,45 @@ export const finishCensus = (id: number, stopTs?: number) => core.finishCensus(c
 export const reopenCensus = (id: number) => core.reopenCensus(ctx(), id);
 export const previousCensusId = (id: number) => core.previousCensusId(ctx(), id);
 export const isFirstCensus = (id: number) => core.isFirstCensus(ctx(), id);
-/** Kept before a census goes: each quadrat with data and the census itself,
- *  so "recently deleted" can bring it back for 30 days. */
-function keepBeforeDelete(id: number): void {
-  for (const q of censusQuadratIds(id)) saveVersion('survey_quadrat', q, 'before_delete');
-  saveVersion('survey', id, 'before_delete');
-}
-
-export const deleteCensus = (id: number) =>
+export const assertDeletableCensuses = (ids: readonly number[]) => core.assertDeletableCensuses(ctx(), ids);
+/**
+ * Delete censuses (in each series only its last ones; newest first). Each
+ * quadrat with data is kept first, a version each, so "recently deleted" can
+ * bring the census back for 30 days. Those are saved outside the delete's
+ * transaction, so `report` can count them (most of the 25 s a 20 000-tree
+ * census took on the emulator, 1E); if the delete then fails they are
+ * versions of quadrats left as they were. The census versions and the delete
+ * are one transaction.
+ */
+export async function deleteCensuses(ids: readonly number[], report?: TaskReporter): Promise<void> {
+  // Refused before anything is kept.
+  core.assertDeletableCensuses(ctx(), ids);
+  await keepQuadratVersions(
+    ids.flatMap((id) => censusQuadratIds(id)),
+    'before_delete',
+    report,
+  );
+  await report?.step('task.deleting');
   withTransaction(() => {
-    // Refused before anything is kept: only the latest census of a series can go.
-    core.assertDeletableCensus(ctx(), id);
-    keepBeforeDelete(id);
-    core.deleteCensus(ctx(), id);
-  });
-export const deleteCensuses = (ids: readonly number[]) =>
-  withTransaction(() => {
-    for (const id of ids) keepBeforeDelete(id);
+    for (const id of ids) saveVersion('survey', id, 'before_delete');
     core.deleteCensuses(ctx(), ids);
   });
+}
+export const deleteCensus = (id: number, report?: TaskReporter) => deleteCensuses([id], report);
+
+/** A version of each quadrat, 20 to a transaction (one commit each would be
+ *  625 for a 25 ha census), counted on the progress panel between them. */
+export async function keepQuadratVersions(quadratIds: readonly number[], reason: 'before_delete' | 'before_import', report?: TaskReporter): Promise<void> {
+  if (!quadratIds.length) return;
+  await report?.step('task.versions');
+  for (let i = 0; i < quadratIds.length; i += 20) {
+    const part = quadratIds.slice(i, i + 20);
+    withTransaction(() => {
+      for (const q of part) saveVersion('survey_quadrat', q, reason);
+    });
+    await report?.progress(Math.min(quadratIds.length, i + 20), quadratIds.length);
+  }
+}
 export const setCensusProject = (id: number, projectId: number) => core.setCensusProject(ctx(), id, projectId);
 export const updateCensus = (id: number, patch: { investigators?: string | null; notes?: string | null }) => core.updateCensus(ctx(), id, patch);
 
@@ -103,6 +125,8 @@ export const setFgQuadratRecorder = (surveyId: number, code: string, recordedBy:
 export const loadFgQuadrat = (surveyId: number, code: string) => core.loadFgQuadrat(ctx(), surveyId, code);
 export const loadTree = (surveyId: number, individualId: number) => core.loadTree(ctx(), surveyId, individualId);
 export const loadCensus = (surveyId: number) => core.loadCensus(ctx(), surveyId);
+export const treeQuadratCodes = (surveyId: number) => core.treeQuadratCodes(ctx(), surveyId);
+export const loadCensusQuadrats = (surveyId: number, codes: readonly string[]) => core.loadCensusQuadrats(ctx(), surveyId, codes);
 export const censusTreeStates = (surveyId: number) => core.censusTreeStates(ctx(), surveyId);
 
 // trees

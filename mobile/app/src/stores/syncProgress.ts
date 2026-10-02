@@ -6,6 +6,10 @@
  *
  * Stored as keys and numbers, not text: the strip words it at render (a
  * language change must not leave a baked-in string behind).
+ *
+ * The person can fold the strip into a small button (decided 2026-10-02):
+ * `collapsed` and where the button sits outlive one sync, until the app
+ * restarts.
  */
 import { create } from 'zustand';
 
@@ -17,6 +21,10 @@ export type SyncProgress = {
   recordIndex: number | null;
   recordCount: number | null;
   stage: SyncStage;
+  /** A tree census moves in blocks (censusSync.ts): which one, and which way. */
+  blockStage: 'up' | 'down' | null;
+  blockIndex: number | null;
+  blockCount: number | null;
   /** While files move. */
   fileIndex: number | null;
   fileCount: number | null;
@@ -24,13 +32,20 @@ export type SyncProgress = {
   bytesTotal: number;
 };
 
+/** The folded strip's button: the screen edge it sits on and its top, in px. */
+export type SyncBubble = { side: 'left' | 'right'; y: number | null };
+
 type State = {
   current: SyncProgress | null;
   /** Nested syncs (a batch that syncs records) keep the strip until the outermost ends. */
   depth: number;
+  collapsed: boolean;
+  bubble: SyncBubble;
   begin: () => void;
   update: (patch: Partial<SyncProgress>) => void;
   end: () => void;
+  setCollapsed: (collapsed: boolean) => void;
+  setBubble: (bubble: SyncBubble) => void;
 };
 
 const blank: SyncProgress = {
@@ -38,6 +53,9 @@ const blank: SyncProgress = {
   recordIndex: null,
   recordCount: null,
   stage: 'record',
+  blockStage: null,
+  blockIndex: null,
+  blockCount: null,
   fileIndex: null,
   fileCount: null,
   bytesDone: 0,
@@ -47,6 +65,10 @@ const blank: SyncProgress = {
 export const useSyncProgress = create<State>((set) => ({
   current: null,
   depth: 0,
+  collapsed: false,
+  bubble: { side: 'right', y: null },
+  setCollapsed: (collapsed) => set({ collapsed }),
+  setBubble: (bubble) => set({ bubble }),
   begin: () => set((s) => ({ depth: s.depth + 1, current: s.current ?? { ...blank } })),
   update: (patch) => set((s) => (s.current ? { current: { ...s.current, ...patch } } : s)),
   end: () => set((s) => (s.depth <= 1 ? { depth: 0, current: null } : { depth: s.depth - 1 })),

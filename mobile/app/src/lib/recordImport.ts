@@ -1,10 +1,11 @@
 /**
  * Record import — the file-reading edge.
  *
- * One base64 read covers both shapes: Android hands back a `content://` URI
- * with no extension, so the magic bytes decide the format, not the filename.
+ * One read covers both shapes: Android hands back a `content://` URI with no
+ * extension, so the magic bytes decide the format, not the filename.
  * Everything after that is in `recordImportZip.ts`, which stays pure.
  */
+import { File } from 'expo-file-system';
 import { readAsStringAsync } from 'expo-file-system/legacy';
 import { base64ToBytes } from './bundleExport';
 import {
@@ -20,7 +21,13 @@ export {
 } from './recordImportZip';
 
 async function readBytes(uri: string): Promise<Uint8Array> {
-  return base64ToBytes(await readAsStringAsync(uri, { encoding: 'base64' }));
+  // Bytes, not base64: a large census zip as a base64 string is decoded in JS
+  // and can pass Android's Java heap limit (as the backup did, 1E).
+  try {
+    return await new File(uri).bytes();
+  } catch {
+    return base64ToBytes(await readAsStringAsync(uri, { encoding: 'base64' }));
+  }
 }
 
 /** The record yml as text — from a bare `.yml` or from inside an export zip. */

@@ -241,7 +241,8 @@ function readBack(entries, manifestPath = 'rec/manifest.json') {
   // because deleting the `if` would silently sign with a null identity.
   const src = readFileSync(fileURLToPath(new URL('../src/lib/bundleExport.ts', import.meta.url)), 'utf8');
   const at = src.indexOf('export async function finalizeZip');
-  const body = at === -1 ? '' : src.slice(at, at + 1400);
+  // The whole function: up to the first line that closes a top-level block.
+  const body = at === -1 ? '' : src.slice(at, src.indexOf('\n}\n', at) + 2);
   ok(at !== -1, 'finalizeZip still exists and is async');
   ok(/const active = await activeSigner\(\);/.test(body), 'finalizeZip asks for a signer');
   ok(

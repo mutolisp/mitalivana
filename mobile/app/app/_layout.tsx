@@ -30,6 +30,7 @@ import { InatTokenHost } from '~/components/InatTokenHost';
 import { TextPromptHost } from '~/components/TextPromptModal';
 import { ToastHost } from '~/components/ToastHost';
 import { SyncProgressHost } from '~/components/SyncProgressHost';
+import { TaskProgressHost } from '~/components/TaskProgressHost';
 import { useThemeSync } from '~/hooks/useThemeSync';
 import { DARK, LIGHT } from '~/theme/colors';
 import { useI18nSync } from '~/hooks/useI18nSync';
@@ -235,6 +236,7 @@ function ThemedShell() {
             still paints above it. */}
         <MenuHost />
         <SyncProgressHost />
+        <TaskProgressHost />
         <ToastHost />
         <TextPromptHost />
         <GbifLookupHost />

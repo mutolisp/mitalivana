@@ -316,7 +316,8 @@
     "starredGroup": "Fijados",
     "monthGroup": "{{year}}-{{month2}}",
     "pinNamed": "Fijar «{{name}}»",
-    "unpinNamed": "Desfijar «{{name}}»"
+    "unpinNamed": "Desfijar «{{name}}»",
+    "deleteFailed": "No se pudo eliminar"
   },
   "export": {
     "preparing": "Preparando…",
@@ -339,7 +340,9 @@
       "mergeChecklist": "Uniendo la lista de especies…",
       "analysis": "Creando tablas de análisis…",
       "dwca": "Creando Darwin Core Archive…",
-      "report": "Creando informe de investigación…"
+      "report": "Creando informe de investigación…",
+      "hashing": "Calculando los hashes de los archivos",
+      "writing": "Escribiendo el archivo…"
     },
     "err": {
       "sessionNotFound": "No se encuentra el registro {{id}}",
@@ -3592,7 +3595,9 @@
     "versionsDesc": "{{n}} en la base de datos; toca para borrar las antiguas",
     "versionsTitle": "¿Borrar versiones antiguas?",
     "versionsConfirm": "Solo se conserva la versión más reciente de cada registro y las que creaste (ahora {{n}} en total).",
-    "versionsCleared": "Se borraron {{n}} versiones"
+    "versionsCleared": "Se borraron {{n}} versiones",
+    "compact": "Compactar la base de datos",
+    "compactDesc": "Espacio que dejaron en la base los registros eliminados"
   },
   "recordLock": {
     "undo": "Deshacer",
@@ -4088,7 +4093,13 @@
       "one": "Sincronizando: {{name}}",
       "upload": "Subiendo archivo {{i}}/{{n}} · {{done}} / {{total}}",
       "download": "Descargando archivo {{i}}/{{n}} · {{done}} / {{total}}",
-      "keepOpen": "Puedes seguir trabajando en otras pantallas; aún no salgas de la app ni bloquees el teléfono"
+      "keepOpen": "Puedes seguir trabajando en otras pantallas; aún no salgas de la app ni bloquees el teléfono",
+      "blocksUp": "Subiendo bloque {{i}}/{{n}}",
+      "blocksDown": "Descargando bloque {{i}}/{{n}}",
+      "collapse": "Contraer",
+      "bubble": "Sincronizando",
+      "bubblePct": "Sincronizando: {{pct}} %",
+      "bubbleHint": "Toque para ver el progreso; arrastre para moverlo"
     }
   },
   "teamDeploy": {
@@ -4779,7 +4790,9 @@
       "screeningHint": "Problemas de medición, códigos contradictorios y tallos medidos en el censo anterior pero aún no en este.",
       "extremeHint": "El {{pct}} % de crecimiento más alto y más bajo de cada clase de DAP (al menos {{min}} por extremo), para volver a medir. Según Condit 1998 p. 86.",
       "screeningEmpty": "No se encontraron problemas.",
-      "extremeEmpty": "Ningún tallo con crecimiento calculable (hace falta el DAP de dos censos al mismo POM)."
+      "extremeEmpty": "Ningún tallo con crecimiento calculable (hace falta el DAP de dos censos al mismo POM).",
+      "reading": "Leyendo cuadrantes {{done}}/{{total}}",
+      "computing": "Creando las listas…"
     },
     "loc": {
       "grid": "Cuadrícula",
@@ -4923,5 +4936,30 @@
       "toReview": "{{count}} censos necesitan revisar la combinación",
       "unresolvedTaxa": "{{count}} especies no están en la lista de este dispositivo; se conservan sus códigos"
     }
+  },
+  "task": {
+    "working": "Procesando…",
+    "keepOpen": "Mantenga la app abierta y la pantalla desbloqueada",
+    "readingFile": "Leyendo el archivo…",
+    "photos": "Importando fotos",
+    "merging": "Combinando…",
+    "versions": "Guardando una versión de cada cuadrante",
+    "deleting": "Eliminando…",
+    "snapshot": "Creando una instantánea de la base de datos…",
+    "unzipping": "Descomprimiendo…",
+    "restoring": "Escribiendo la base de datos…",
+    "compacting": "Compactando la base de datos…",
+    "writingTrees_one": "Guardando {{count}} árbol…",
+    "writingTrees_many": "Guardando {{count}} árboles…",
+    "writingTrees_other": "Guardando {{count}} árboles…"
+  },
+  "compact": {
+    "title": "¿Compactar la base de datos?",
+    "msg": "{{size}} de la base de datos es espacio que dejaron los datos eliminados. Compactar lo libera; con una base grande tarda decenas de segundos, mantenga la app abierta mientras tanto.",
+    "go": "Compactar",
+    "later": "Ahora no",
+    "done": "Base de datos compactada: {{size}} liberados",
+    "failed": "No se pudo compactar",
+    "noSpace": "No hay suficiente espacio libre: compactar necesita unos {{size}}"
   }
 }

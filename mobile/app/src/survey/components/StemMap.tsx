@@ -306,70 +306,50 @@ const Trees = memo(function Trees({
   labels: boolean;
   c: Colors;
 }) {
+  // Three passes: every circle, then the selection ring, then every tag. A
+  // tree drawn later used to cover the tags of the trees before it.
+  const marks = trees.map((s) => {
+    const chip = chips.get(s.id);
+    const dead = s.deadNow || (!s.done && (s.prev === 'dead' || s.prev === 'missing'));
+    const look =
+      chip === 'warn'
+        ? { fill: c.alert, fillOpacity: 0.8, stroke: c.alert, dash: undefined }
+        : dead
+          ? { fill: 'none', fillOpacity: 1, stroke: c.ink2, dash: `${3 * unit} ${2 * unit}` }
+          : s.isNew
+            ? { fill: c.acorn, fillOpacity: 1, stroke: c.acornDeep, dash: undefined }
+            : s.done
+              ? { fill: c.accent, fillOpacity: 0.78, stroke: c.accentPressed, dash: undefined }
+              : { fill: c.card, fillOpacity: 1, stroke: c.accent, dash: undefined };
+    return { s, x: s.x, y: sizeY - s.y, r: Math.max(radiusM(s.d2), MIN_R_PT * unit), look };
+  });
+  const selected = marks.find((m) => m.s.id === selectedId);
   return (
     <>
-      {trees.map((s) => {
-        const r = Math.max(radiusM(s.d2), MIN_R_PT * unit);
-        const chip = chips.get(s.id);
-        const dead = s.deadNow || (!s.done && (s.prev === 'dead' || s.prev === 'missing'));
-        const look =
-          chip === 'warn'
-            ? { fill: c.alert, fillOpacity: 0.8, stroke: c.alert, dash: undefined }
-            : dead
-              ? { fill: 'none', fillOpacity: 1, stroke: c.ink2, dash: `${3 * unit} ${2 * unit}` }
-              : s.isNew
-                ? { fill: c.acorn, fillOpacity: 1, stroke: c.acornDeep, dash: undefined }
-                : s.done
-                  ? { fill: c.accent, fillOpacity: 0.78, stroke: c.accentPressed, dash: undefined }
-                  : { fill: c.card, fillOpacity: 1, stroke: c.accent, dash: undefined };
-        const cy = sizeY - s.y;
-        return (
-          <TreeMark
-            key={s.id}
-            x={s.x}
-            y={cy}
-            r={r}
-            look={look}
-            selected={s.id === selectedId}
-            tag={labels ? s.tag : null}
-            unit={unit}
-            c={c}
-          />
-        );
-      })}
+      {marks.map(({ s, x, y, r, look }) => (
+        <Circle key={s.id} cx={x} cy={y} r={r} fill={look.fill} fillOpacity={look.fillOpacity} stroke={look.stroke} strokeWidth={1.2 * unit} strokeDasharray={look.dash} />
+      ))}
+      {/* Selection: a ring outside the circle, in ink — new trees are acorn already. */}
+      {selected ? <Circle cx={selected.x} cy={selected.y} r={selected.r + 4 * unit} fill="none" stroke={c.ink} strokeWidth={2.5 * unit} /> : null}
+      {labels
+        ? marks.map(({ s, x, y, r }) => (
+            <Tag key={`t${s.id}`} x={x} y={y + r + 9 * unit} text={s.tag} unit={unit} c={c} />
+          ))
+        : null}
     </>
   );
 });
 
-function TreeMark({
-  x,
-  y,
-  r,
-  look,
-  selected,
-  tag,
-  unit,
-  c,
-}: {
-  x: number;
-  y: number;
-  r: number;
-  look: { fill: string; fillOpacity: number; stroke: string; dash: string | undefined };
-  selected: boolean;
-  tag: string | null;
-  unit: number;
-  c: Colors;
-}) {
+/** A tree's tag under its circle, with a paper-coloured outline so it reads over other circles. */
+function Tag({ x, y, text, unit, c }: { x: number; y: number; text: string; unit: number; c: Colors }) {
   return (
     <>
-      <Circle cx={x} cy={y} r={r} fill={look.fill} fillOpacity={look.fillOpacity} stroke={look.stroke} strokeWidth={1.2 * unit} strokeDasharray={look.dash} />
-      {/* Selection: a ring outside the circle, in ink — new trees are acorn already. */}
-      {selected ? <Circle cx={x} cy={y} r={r + 4 * unit} fill="none" stroke={c.ink} strokeWidth={2.5 * unit} /> : null}
-      {tag ? (
-        <SvgText x={x} y={y + r + 9 * unit} fontSize={9 * unit} textAnchor="middle" fill={c.ink2}>
-          {tag}
-        </SvgText>
-      ) : null}
+      <SvgText x={x} y={y} fontSize={9 * unit} textAnchor="middle" fill={c.paper} stroke={c.paper} strokeWidth={2.4 * unit} strokeLinejoin="round">
+        {text}
+      </SvgText>
+      <SvgText x={x} y={y} fontSize={9 * unit} textAnchor="middle" fill={c.ink2}>
+        {text}
+      </SvgText>
     </>
   );
 }

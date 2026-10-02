@@ -3,7 +3,9 @@
  * screening (problems, stems measured last census but not yet in this one)
  * and the extreme-growth list to re-measure (Condit 1998 p.86: both ends of
  * every dbh class; share and minimum from the plot). Both read the whole
- * census, so they are computed when this screen opens, not on the list.
+ * census, so they are computed when this screen opens, not on the list: 25
+ * quadrats at a time, with a bar, since a 20 000-tree census takes seconds
+ * (1E). Going back stops the reading.
  */
 import { Stack, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -13,10 +15,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LineTabs } from '~/components/form/Segmented';
 import { BackHeaderLeft } from '~/lib/goBack';
 import { issueText } from '~/survey/components/labels';
-import { loadCensus } from '~/survey/db/stemmap';
+import { frameGeometry, getFrame, getSurvey, loadCensusQuadrats, previousCensusId, TAG_ORDER, treeQuadratCodes, type TreeView } from '~/survey/db/stemmap';
 import { extremeWorklist, screening, type WorkItem } from '~/survey/stemmap/review';
 import { stemTagOf } from '~/survey/stemmap/treeForm';
-import { loadCensusData } from '~/survey/useCensus';
+import { yieldToUi } from '~/stores/taskProgress';
 import { Chevron } from '~/components/ui/Chevron';
 import { useThemeColors } from '~/theme/colors';
 
@@ -30,35 +32,70 @@ export default function CensusChecksScreen() {
   const [tab, setTab] = useState<Tab>('screen');
   const [lists, setLists] = useState<{ screen: WorkItem[]; extreme: WorkItem[] } | null>(null);
   const [extremeOpts, setExtremeOpts] = useState<{ pct: number; min: number; quadratM: number } | null>(null);
+  const [read, setRead] = useState<{ done: number; total: number } | null>(null);
 
   useEffect(() => {
-    const d = loadCensusData(surveyId);
-    if (!d) return;
-    const trees = loadCensus(surveyId);
-    const opts = { surveyId, firstCensus: d.firstCensus, thresholdCm: d.frame.dbh_min_cm, geometry: d.geometry };
-    setExtremeOpts({ pct: d.frame.extreme_pct, min: d.frame.extreme_min, quadratM: d.frame.quadrat_m });
-    setLists({
-      screen: screening(trees, opts),
-      extreme: d.firstCensus ? [] : extremeWorklist(trees, { pct: d.frame.extreme_pct, min: d.frame.extreme_min, geometry: d.geometry }),
-    });
+    let gone = false;
+    void (async () => {
+      const survey = getSurvey(surveyId);
+      const frame = survey ? getFrame(survey.frame_id) : null;
+      if (!survey || !frame) return;
+      const geometry = frameGeometry(frame);
+      const firstCensus = previousCensusId(surveyId) == null;
+      setExtremeOpts({ pct: frame.extreme_pct, min: frame.extreme_min, quadratM: frame.quadrat_m });
+      const codes = treeQuadratCodes(surveyId);
+      const trees: TreeView[] = [];
+      for (let i = 0; i < codes.length; i += 25) {
+        setRead({ done: i, total: codes.length });
+        await yieldToUi();
+        if (gone) return;
+        trees.push(...loadCensusQuadrats(surveyId, codes.slice(i, i + 25)));
+      }
+      trees.sort(TAG_ORDER);
+      setRead({ done: codes.length, total: codes.length });
+      await yieldToUi();
+      if (gone) return;
+      setLists({
+        screen: screening(trees, { surveyId, firstCensus, thresholdCm: frame.dbh_min_cm, geometry }),
+        extreme: firstCensus ? [] : extremeWorklist(trees, { pct: frame.extreme_pct, min: frame.extreme_min, geometry }),
+      });
+    })();
+    return () => {
+      gone = true;
+    };
   }, [surveyId]);
 
   const items = lists ? lists[tab] : [];
   return (
     <SafeAreaView edges={['bottom']} className="flex-1 bg-paper dark:bg-paper-dark">
       <Stack.Screen options={{ title: t('survey.census.checks'), headerLeft: BackHeaderLeft }} />
-      <View className="px-4 pb-2 pt-1">
-        <LineTabs
-          value={tab}
-          options={[
-            { value: 'screen', label: t('survey.checks.screening', { count: lists?.screen.length ?? 0 }) },
-            { value: 'extreme', label: t('survey.checks.extreme', { count: lists?.extreme.length ?? 0 }) },
-          ]}
-          onChange={setTab}
-        />
-      </View>
+      {/* Counts only once read: "0" while reading would look like a result. */}
+      {lists ? (
+        <View className="px-4 pb-2 pt-1">
+          <LineTabs
+            value={tab}
+            options={[
+              { value: 'screen', label: t('survey.checks.screening', { count: lists.screen.length }) },
+              { value: 'extreme', label: t('survey.checks.extreme', { count: lists.extreme.length }) },
+            ]}
+            onChange={setTab}
+          />
+        </View>
+      ) : null}
       {lists == null ? (
-        <ActivityIndicator className="mt-10" color={c.accent} />
+        <View className="mt-10 items-center gap-3 px-10">
+          <ActivityIndicator color={c.accent} />
+          {read && read.total > 0 ? (
+            <>
+              <View className="h-1.5 w-full overflow-hidden rounded-full bg-line dark:bg-line-dark">
+                <View className="h-1.5 rounded-full bg-accent-600 dark:bg-accent-400" style={{ width: `${Math.round((read.done / read.total) * 100)}%` }} />
+              </View>
+              <Text style={{ fontVariant: ['tabular-nums'] }} className="text-xs text-ink-3 dark:text-gray-400">
+                {read.done < read.total ? t('survey.checks.reading', { done: read.done, total: read.total }) : t('survey.checks.computing')}
+              </Text>
+            </>
+          ) : null}
+        </View>
       ) : (
         <FlatList
           data={items}

@@ -394,10 +394,8 @@ export async function bundleProject(
     ),
   });
 
-  opts.onProgress?.({ label: i18n.t('export.stage.compressing') });
-  await new Promise((r) => setTimeout(r, 0));
   const ymdStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-  return await finalizeZip(entries, `${safeName}_${ymdStr}`);
+  return await finalizeZip(entries, `${safeName}_${ymdStr}`, opts.onProgress);
 }
 
 // ── README ──────────────────────────────────────────────────────────────────

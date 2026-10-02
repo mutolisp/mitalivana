@@ -316,7 +316,8 @@
     "starredGroup": "Épinglés",
     "monthGroup": "{{year}}-{{month2}}",
     "pinNamed": "Épingler « {{name}} »",
-    "unpinNamed": "Désépingler « {{name}} »"
+    "unpinNamed": "Désépingler « {{name}} »",
+    "deleteFailed": "Échec de la suppression"
   },
   "export": {
     "preparing": "Préparation…",
@@ -339,7 +340,9 @@
       "mergeChecklist": "Fusion de la liste d’espèces…",
       "analysis": "Création des tableaux d’analyse…",
       "dwca": "Création de la Darwin Core Archive…",
-      "report": "Création du rapport de recherche…"
+      "report": "Création du rapport de recherche…",
+      "hashing": "Calcul des empreintes des fichiers",
+      "writing": "Écriture du fichier…"
     },
     "err": {
       "sessionNotFound": "Enregistrement {{id}} introuvable",
@@ -3592,7 +3595,9 @@
     "versionsDesc": "{{n}} dans la base de données ; toucher pour supprimer les anciennes",
     "versionsTitle": "Supprimer les anciennes versions ?",
     "versionsConfirm": "Ne garde que la version la plus récente de chaque enregistrement et celles que vous avez créées (actuellement {{n}} au total).",
-    "versionsCleared": "{{n}} versions supprimées"
+    "versionsCleared": "{{n}} versions supprimées",
+    "compact": "Compacter la base de données",
+    "compactDesc": "Espace laissé dans la base par des enregistrements supprimés"
   },
   "recordLock": {
     "undo": "Annuler",
@@ -4088,7 +4093,13 @@
       "one": "Synchronisation : {{name}}",
       "upload": "Envoi du fichier {{i}}/{{n}} · {{done}} / {{total}}",
       "download": "Téléchargement du fichier {{i}}/{{n}} · {{done}} / {{total}}",
-      "keepOpen": "Vous pouvez continuer sur d’autres écrans ; ne quittez pas encore l’app et ne verrouillez pas le téléphone"
+      "keepOpen": "Vous pouvez continuer sur d’autres écrans ; ne quittez pas encore l’app et ne verrouillez pas le téléphone",
+      "blocksUp": "Envoi du bloc {{i}}/{{n}}",
+      "blocksDown": "Réception du bloc {{i}}/{{n}}",
+      "collapse": "Réduire",
+      "bubble": "Synchronisation en cours",
+      "bubblePct": "Synchronisation : {{pct}} %",
+      "bubbleHint": "Touchez pour afficher la progression ; faites glisser pour la déplacer"
     }
   },
   "teamDeploy": {
@@ -4779,7 +4790,9 @@
       "screeningHint": "Problèmes de mesure, codes contradictoires, et tiges mesurées au précédent inventaire mais pas encore dans celui-ci.",
       "extremeHint": "Les {{pct}} % de croissance les plus forts et les plus faibles de chaque classe de DHP (au moins {{min}} par extrémité), à remesurer. D’après Condit 1998 p. 86.",
       "screeningEmpty": "Aucun problème trouvé.",
-      "extremeEmpty": "Aucune tige avec une croissance à classer (il faut le DHP de deux inventaires au même POM)."
+      "extremeEmpty": "Aucune tige avec une croissance à classer (il faut le DHP de deux inventaires au même POM).",
+      "reading": "Lecture des quadrats {{done}}/{{total}}",
+      "computing": "Création des listes…"
     },
     "loc": {
       "grid": "Grille",
@@ -4923,5 +4936,30 @@
       "toReview": "{{count}} inventaires demandent une revue de fusion",
       "unresolvedTaxa": "{{count}} espèces absentes de la liste de cet appareil ; leurs codes sont conservés"
     }
+  },
+  "task": {
+    "working": "Traitement…",
+    "keepOpen": "Gardez l’app ouverte et l’écran déverrouillé",
+    "readingFile": "Lecture du fichier…",
+    "photos": "Importation des photos",
+    "merging": "Fusion…",
+    "versions": "Enregistrement d’une version de chaque quadrat",
+    "deleting": "Suppression…",
+    "snapshot": "Instantané de la base de données…",
+    "unzipping": "Décompression…",
+    "restoring": "Écriture de la base de données…",
+    "compacting": "Compactage de la base de données…",
+    "writingTrees_one": "Enregistrement de {{count}} arbre…",
+    "writingTrees_many": "Enregistrement de {{count}} arbres…",
+    "writingTrees_other": "Enregistrement de {{count}} arbres…"
+  },
+  "compact": {
+    "title": "Compacter la base de données ?",
+    "msg": "{{size}} de la base de données sont de l’espace laissé par des données supprimées. Le compactage le libère ; pour une grande base, cela prend quelques dizaines de secondes, gardez l’app ouverte pendant ce temps.",
+    "go": "Compacter",
+    "later": "Plus tard",
+    "done": "Base de données compactée : {{size}} libérés",
+    "failed": "Échec du compactage",
+    "noSpace": "Espace libre insuffisant : le compactage demande environ {{size}}"
   }
 }

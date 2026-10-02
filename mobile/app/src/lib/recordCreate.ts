@@ -43,6 +43,7 @@ import { finishCensusImport } from '~/survey/censusImport';
 import { importPhotosToLibrary } from '~/lib/photoCapture';
 import { importAudioClips } from '~/lib/audioCapture';
 import { ImportError, type ImportErrorCode } from '~/lib/importError';
+import { runTask } from '~/stores/taskProgress';
 import { readRecordImport, type ReadRecordImport } from '~/lib/recordImport';
 import { useToast } from '~/stores/toast';
 import { useActivePlot } from '~/stores/activePlot';
@@ -332,7 +333,11 @@ export async function importRecordPromptAndOpen(): Promise<void> {
 
   let payload: ReadRecordImport;
   try {
-    payload = await readRecordImport(picked.assets[0].uri);
+    // A 20 000-tree census takes seconds to read (1E): on the progress panel.
+    payload = await runTask(async (report) => {
+      await report.step('task.readingFile');
+      return readRecordImport(picked.assets[0].uri);
+    });
   } catch (e) {
     Alert.alert(i18n.t('recordCreate.importFailTitle'), importErrorMessage(e));
     return;

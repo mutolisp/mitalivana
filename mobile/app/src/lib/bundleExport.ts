@@ -3,10 +3,10 @@
  * containing YAML / CSV / Markdown checklist, GeoJSON / GPX / KML for points
  * + tracks + bound site, plus photos copied from the device library.
  *
- * Uses `fflate.zipSync` for the final pack — synchronous but memory-bounded
- * because we don't keep the source strings/bytes alive once they're in the
- * input map. Photo reads are async (asset → file URI → base64 → bytes) and
- * happen serially with a progress callback so the UI can update.
+ * The final pack (`finalizeZip`) hashes and deflates in pieces with progress
+ * (`zipWriter.ts`; zipSync froze the JS thread for the whole archive, 1E).
+ * Photo reads are async (asset → file URI → base64 → bytes) and happen
+ * serially with a progress callback so the UI can update.
  */
 import { errText } from '~/lib/errText';
 import { File, Paths } from 'expo-file-system';
@@ -16,7 +16,11 @@ import { readAsStringAsync } from 'expo-file-system/legacy';
 import { buildCensusEntries } from '~/survey/censusBundle';
 import * as MediaLibrary from 'expo-media-library';
 import yaml from 'js-yaml';
-import { strFromU8, strToU8, zipSync, type Zippable, type ZipOptions } from 'fflate';
+import { strFromU8, strToU8, type ZipOptions } from 'fflate';
+import { sha256 } from '@noble/hashes/sha2.js';
+import { bytesToHex } from '@noble/hashes/utils.js';
+import { yieldToUi } from '~/stores/taskProgress';
+import { zipInPieces, type ZipProgress } from './zipWriter';
 import { assertNever } from './assertNever';
 import {
   getActiveLayers,
@@ -76,7 +80,7 @@ import type { Translate } from './reportTypes';
 import { DOC_FORMATS } from './docFormat';
 import { buildRecordsDwca, type DwcaInput } from './dwcRows';
 import { geoJsonToGpx, geoJsonToKml } from './geoSerializers';
-import { injectFileDigests, isManifestPath } from './manifestDigest';
+import { filesToDigest, injectFileDigests, isManifestPath } from './manifestDigest';
 import { injectSignatures } from './signing';
 import { activeSigner } from './signingKey';
 import {
@@ -107,8 +111,9 @@ import { isoStamp } from './datetime';
 export type GeoFormat = 'geojson' | 'gpx' | 'kml';
 
 /** Structured progress update for the export overlay. `done`/`total` (when
- *  present) drive a progress bar; `label` is the current stage caption. */
-export type ExportProgress = { label: string; done?: number; total?: number };
+ *  present) drive a progress bar; `label` is the current stage caption;
+ *  `bytes` shows them as sizes. */
+export type ExportProgress = { label: string; done?: number; total?: number; bytes?: boolean };
 
 /** Internal cumulative photo-progress context threaded through the builders. */
 type ProgressCtx = { done: number; total: number; onProgress?: (p: ExportProgress) => void };
@@ -1321,8 +1326,7 @@ export async function bundleLoggers(summitId: number, opts: Pick<BundleOptions, 
     }
   }
   entries.push({ name: `${base}/README.md`, bytes: strToU8(buildRecordReadme(base, entries)) });
-  await reportZipStage(opts.onProgress);
-  return await finalizeZip(entries, base);
+  return await finalizeZip(entries, base, opts.onProgress);
 }
 
 /**
@@ -1359,15 +1363,13 @@ export async function buildCensusBundleEntries(
 export async function bundleCensus(surveyId: number, opts: BundleOptions): Promise<ExportFile> {
   opts.onProgress?.({ label: i18n.t('export.preparing') });
   const { entries, folderName } = await buildCensusBundleEntries(surveyId, opts);
-  await reportZipStage(opts.onProgress);
-  return await finalizeZip(entries, folderName);
+  return await finalizeZip(entries, folderName, opts.onProgress);
 }
 
 export async function bundleGloria(surveyId: number, opts: BundleOptions): Promise<ExportFile> {
   opts.onProgress?.({ label: i18n.t('export.preparing') });
   const { entries, folderName } = await buildGloriaEntries(surveyId, opts);
-  await reportZipStage(opts.onProgress);
-  return await finalizeZip(entries, folderName);
+  return await finalizeZip(entries, folderName, opts.onProgress);
 }
 
 export async function buildCollectionEntries(
@@ -1947,14 +1949,6 @@ export function countPhotosPlotWithEnv(plotId: number): number {
   return countPhotosPlot(species) + (plot ? parseEnvPhotos(plot.env_photos_json).length : 0) + quadratPhotos;
 }
 
-/** Announce the (synchronous, UI-blocking) zip step and yield one frame so the
- *  overlay can paint "壓縮中…" before zipSync freezes the JS thread. */
-async function reportZipStage(onProgress?: (p: ExportProgress) => void): Promise<void> {
-  if (!onProgress) return;
-  onProgress({ label: i18n.t('export.stage.compressing') });
-  await new Promise((r) => setTimeout(r, 0));
-}
-
 export async function bundleSession(
   sessionId: number,
   opts: BundleOptions,
@@ -1964,8 +1958,7 @@ export async function bundleSession(
   const ctx = { done: 0, total, onProgress: opts.onProgress };
   opts.onProgress?.(total > 0 ? { label: i18n.t('export.stage.photos'), done: 0, total } : { label: i18n.t('export.preparing') });
   const { entries, folderName } = await buildSessionEntries(sessionId, opts, ctx);
-  await reportZipStage(opts.onProgress);
-  return await finalizeZip(entries, folderName);
+  return await finalizeZip(entries, folderName, opts.onProgress);
 }
 
 export async function bundlePlot(
@@ -1976,8 +1969,7 @@ export async function bundlePlot(
   const ctx = { done: 0, total, onProgress: opts.onProgress };
   opts.onProgress?.(total > 0 ? { label: i18n.t('export.stage.photos'), done: 0, total } : { label: i18n.t('export.preparing') });
   const { entries, folderName } = await buildPlotEntries(plotId, opts, ctx);
-  await reportZipStage(opts.onProgress);
-  return await finalizeZip(entries, folderName);
+  return await finalizeZip(entries, folderName, opts.onProgress);
 }
 
 export async function bundleCollection(
@@ -1988,8 +1980,7 @@ export async function bundleCollection(
   const ctx = { done: 0, total, onProgress: opts.onProgress };
   opts.onProgress?.(total > 0 ? { label: i18n.t('export.stage.photos'), done: 0, total } : { label: i18n.t('export.preparing') });
   const { entries, folderName } = await buildCollectionEntries(tripId, opts, ctx);
-  await reportZipStage(opts.onProgress);
-  return await finalizeZip(entries, folderName);
+  return await finalizeZip(entries, folderName, opts.onProgress);
 }
 
 export async function bundleMany(items: BundleItem[], opts: BundleOptions): Promise<ExportFile> {
@@ -2096,8 +2087,7 @@ export async function bundleMany(items: BundleItem[], opts: BundleOptions): Prom
     .toISOString()
     .replace(/[:.]/g, '-')
     .slice(0, 19);
-  await reportZipStage(opts.onProgress);
-  return await finalizeZip(allEntries, `mitalivana_bundle_${ts}`);
+  return await finalizeZip(allEntries, `mitalivana_bundle_${ts}`, opts.onProgress);
 }
 
 /**
@@ -2134,9 +2124,42 @@ function appendSignatureNote(entries: BuiltZipEntry[], orcid: string): void {
   }
 }
 
+/** Bytes hashed or zipped so far, as an overlay update, painting at most every 100 ms. */
+function bytesProgress(onProgress: ((p: ExportProgress) => void) | undefined, label: string): ZipProgress | undefined {
+  if (!onProgress) return undefined;
+  let last = 0;
+  return async (done, total) => {
+    onProgress({ label, done, total, bytes: true });
+    if (Date.now() - last < 100 && done < total) return;
+    last = Date.now();
+    await yieldToUi();
+  };
+}
+
+/** SHA-256 of what the manifests will list, a piece at a time (about 1 s a MB on the emulator, 1E). */
+async function digestsInPieces(entries: BuiltZipEntry[], report?: ZipProgress): Promise<Map<Uint8Array, string>> {
+  const todo = filesToDigest(entries);
+  const total = todo.reduce((a, e) => a + e.bytes.length, 0);
+  const out = new Map<Uint8Array, string>();
+  let done = 0;
+  for (const e of todo) {
+    if (out.has(e.bytes)) continue;
+    const h = sha256.create();
+    for (let i = 0; i < e.bytes.length; i += 256 * 1024) {
+      const piece = e.bytes.subarray(i, Math.min(e.bytes.length, i + 256 * 1024));
+      h.update(piece);
+      done += piece.length;
+      await report?.(done, total);
+    }
+    out.set(e.bytes, bytesToHex(h.digest()));
+  }
+  return out;
+}
+
 export async function finalizeZip(
   entries: BuiltZipEntry[],
   folderName: string,
+  onProgress?: (p: ExportProgress) => void,
 ): Promise<ExportFile> {
   // Signing goes through the same choke point rather than being decided per
   // export type: every zip this app writes leaves by this function, so there
@@ -2154,11 +2177,17 @@ export async function finalizeZip(
   if (active) appendSignatureNote(entries, active.signer.orcid);
   // Manifests learn what they are describing only now, when every file's
   // bytes exist. Rule lives in a pure module so the verifiers can share it.
-  injectFileDigests(entries, strFromU8, strToU8);
+  const digests = await digestsInPieces(entries, bytesProgress(onProgress, i18n.t('export.stage.hashing')));
+  injectFileDigests(entries, strFromU8, strToU8, (b) => digests.get(b) ?? bytesToHex(sha256(b)));
   if (active) injectSignatures(entries, active.signer, active.seed, strFromU8, strToU8);
-  const zippable: Zippable = {};
-  for (const e of entries) zippable[e.name] = e.zipOpts ? [e.bytes, e.zipOpts] : e.bytes;
-  const zipped = zipSync(zippable, { level: 6 });
+  // Keyed by name as zipSync's input was: a repeated name keeps its first
+  // place and its last bytes.
+  const byName: Record<string, BuiltZipEntry> = {};
+  for (const e of entries) byName[e.name] = e;
+  const files = Object.values(byName).map((e) => ({ name: e.name, bytes: e.bytes, level: e.zipOpts?.level }));
+  const zipped = await zipInPieces(files, { level: 6 }, bytesProgress(onProgress, i18n.t('export.stage.compressing')));
+  onProgress?.({ label: i18n.t('export.stage.writing') });
+  await yieldToUi();
 
   const filename = `${folderName}.zip`;
   const file = new File(Paths.cache, filename);

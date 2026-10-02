@@ -33,6 +33,7 @@ import {
 import { formatBytes } from '~/lib/exportSize';
 import { useDriveState } from '~/lib/driveState';
 import { GoogleAuthCancelled, GoogleCodeExpired } from '~/lib/googleAuth';
+import { runTask } from '~/stores/taskProgress';
 import { useToast } from '~/stores/toast';
 import { useThemeColors } from '~/theme/colors';
 import { Button } from '~/components/ui/Button';
@@ -132,7 +133,8 @@ export default function BackupScreen() {
     if (busy) return;
     try {
       setBusy('backup');
-      const file = await createBackup({ includePacks: packsExist && includePacks });
+      // The panel is a plain overlay: once it is gone the share sheet can open.
+      const file = await runTask((report) => createBackup({ includePacks: packsExist && includePacks, report }));
       await share(file);
     } catch (e) {
       Alert.alert(t('backup.backupFailed'), errText(e));
@@ -242,7 +244,7 @@ export default function BackupScreen() {
 
       setBusy('restore');
       // On success this reloads the app, so control won't return here.
-      await restoreBackup(uri);
+      await runTask((report) => restoreBackup(uri, report));
     } catch (e) {
       setBusy(null);
       Alert.alert(t('backup.restoreFailed'), errText(e));

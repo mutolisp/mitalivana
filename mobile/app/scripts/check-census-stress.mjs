@@ -128,6 +128,7 @@ tx(() => s.correctIndividual(ctx, someTree, { tag: '88888' }, { surveyId: census
 s.suggestTag(ctx, s.getFrame(ctx, made.frameId), { x: 10, y: 10 });
 s.suggestTag(ctx, s.getFrame(ctx, made.frameId), { x: 10, y: 10 }, 70001);
 s.loadFgQuadrat(ctx, census2, '0000');
+s.loadCensusQuadrats(ctx, census2, ['0000', '0001']);
 sl.buildSlice(ctx, census2, ['0000']);
 db.executeSync = orig;
 const walks = [];
@@ -154,6 +155,17 @@ for (const sql of seen) {
   }
 }
 ok(seen.size > 20, `plans: the per-tree paths ran (${seen.size} statements)`);
+
+// ── a census read in pieces is the census ────────────────────────────────
+// The checks list reads 25 quadrats at a time to show how far it is.
+{
+  const whole = s.loadCensus(ctx, census2);
+  const codes = s.treeQuadratCodes(ctx, census2);
+  const pieces = [];
+  for (let i = 0; i < codes.length; i += 3) pieces.push(...s.loadCensusQuadrats(ctx, census2, codes.slice(i, i + 3)));
+  pieces.sort(s.TAG_ORDER);
+  ok(whole.length > 500 && JSON.stringify(pieces) === JSON.stringify(whole), `pieces: quadrats read in pieces give loadCensus (${pieces.length} of ${whole.length} trees)`);
+}
 ok(walks.length === 0, `plans: no per-tree statement walks a whole census table\n    ${walks.join('\n    ')}`);
 
 // ── bytes per stem ───────────────────────────────────────────────────────

@@ -2,7 +2,9 @@
  * Storage — what the app keeps on the device and what can go (src/lib/storage).
  *
  * Only two things are deleted from here, each after a confirmation: the cache
- * (always disposable) and photos / recordings that no record points to.
+ * (always disposable) and photos / recordings that no record points to. The
+ * user's database can be compacted (the space deleted records left in it,
+ * src/lib/dbCompact.ts).
  * Downloadable data (checklists, offline map, POI), safety and pre-merge backups link to
  * the screens that already manage them; the user's own database is shown for
  * information only.
@@ -15,6 +17,7 @@ import { Alert, ScrollView, Text, View } from 'react-native';
 import { LinkRow, Section } from '~/components/settings/rows';
 import { clearOldVersions, versionsSize } from '~/db/recordVersions';
 import { SettingsPage } from '~/components/settings/SettingsPage';
+import { offerCompact, reclaimableBytes } from '~/lib/dbCompact';
 import { formatBytes } from '~/lib/exportSize';
 import {
   cacheBusy,
@@ -46,6 +49,7 @@ type Sizes = {
   audio: number;
   files: number;
   versions: { bytes: number; count: number };
+  dbFree: number;
 };
 
 function measure(): Sizes {
@@ -72,6 +76,8 @@ function measure(): Sizes {
     files: doc('files'),
     // Inside user.db (counted there too); shown for its own clean-up.
     versions: versionsSize(),
+    // Also inside user.db: the pages deleted rows left.
+    dbFree: reclaimableBytes(),
   };
 }
 
@@ -167,6 +173,15 @@ export default function StorageScreen() {
             chevron={false}
             onPress={clearVersions}
           />
+          {s.dbFree >= 1024 * 1024 ? (
+            <LinkRow
+              label={t('storage.compact')}
+              description={t('storage.compactDesc')}
+              value={formatBytes(s.dbFree)}
+              chevron={false}
+              onPress={() => void offerCompact({ afterDelete: false }).then(refresh)}
+            />
+          ) : null}
           <LinkRow
             label={t('storage.mergeBackups')}
             description={t('storage.mergeBackupsDesc', { n: s.merge.n })}

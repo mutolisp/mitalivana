@@ -424,6 +424,17 @@ export function assertDeletableCensus(ctx: { db: SurveyDb }, id: number): void {
   if (later) throw new SurveyError('not_latest_census');
 }
 
+/** Throws unless these censuses can go together: in each series, only its last ones. */
+export function assertDeletableCensuses(ctx: { db: SurveyDb }, ids: readonly number[]): void {
+  const picked = new Set(ids);
+  for (const id of ids) {
+    const s = getSurvey(ctx, id);
+    if (!s) throw new SurveyError('not_found', 'survey');
+    const later = rows<{ id: number }>(ctx, `SELECT id FROM fw_surveys WHERE series_id = ? AND census_no > ?`, [s.series_id, s.census_no]);
+    if (later.some((r) => !picked.has(r.id))) throw new SurveyError('not_latest_census');
+  }
+}
+
 /** Delete the latest census of its series, with the trees and stems it added. */
 export function deleteCensus(ctx: Ctx, id: number): void {
   assertDeletableCensus(ctx, id);
@@ -1318,6 +1329,26 @@ export type TreeView = {
 export function loadFgQuadrat(ctx: { db: SurveyDb }, surveyId: number, quadratCode: string): TreeView[] {
   return treeViews(ctx, surveyId, { sql: 'i.quadrat_code = ?', params: [quadratCode] });
 }
+
+/** The quadrats the plot has trees in, for reading a whole census in pieces (loadCensusQuadrats). */
+export function treeQuadratCodes(ctx: { db: SurveyDb }, surveyId: number): string[] {
+  const s = getSurvey(ctx, surveyId);
+  if (!s) return [];
+  return rows<{ q: string }>(ctx, `SELECT DISTINCT quadrat_code AS q FROM fw_individuals WHERE frame_id = ? ORDER BY quadrat_code`, [s.frame_id]).map((r) => r.q);
+}
+
+/**
+ * The trees of some quadrats, as loadCensus sees them. Pieces of
+ * treeQuadratCodes, joined and put in TAG_ORDER, give loadCensus — read a
+ * few at a time, a screen can show how far it is (the checks list, 1E).
+ */
+export function loadCensusQuadrats(ctx: { db: SurveyDb }, surveyId: number, codes: readonly string[]): TreeView[] {
+  if (!codes.length) return [];
+  return treeViews(ctx, surveyId, { sql: `i.quadrat_code IN (${codes.map(() => '?').join(', ')})`, params: [...codes] });
+}
+
+/** loadCensus's order: tags as text. */
+export const TAG_ORDER = (a: TreeView, b: TreeView) => (a.individual.tag < b.individual.tag ? -1 : a.individual.tag > b.individual.tag ? 1 : 0);
 
 /** One tree as this census sees it (null when the census does not see it). */
 export function loadTree(ctx: { db: SurveyDb }, surveyId: number, individualId: number): TreeView | null {

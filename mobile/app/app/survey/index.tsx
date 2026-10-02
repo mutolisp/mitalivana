@@ -10,6 +10,7 @@ import { FlatList, Pressable, Text, View } from 'react-native';
 import { HeaderIconButton } from '~/components/HeaderIconButton';
 import { SettingsPage } from '~/components/settings/SettingsPage';
 import { Button } from '~/components/ui/Button';
+import { STRESS_TEST_OFFERED } from '~/survey/stress/stressCore';
 import { listCensuses, listFrames, type CensusListRow, type FrameRow } from '~/survey/db/stemmap';
 import { Chevron } from '~/components/ui/Chevron';
 
@@ -37,8 +38,8 @@ export default function SurveyFramesScreen() {
         keyExtractor={(r) => String(r.frame.id)}
         contentContainerClassName="gap-3 p-4"
         ListHeaderComponent={<Text className="text-sm text-gray-600 dark:text-gray-400">{t('survey.frames.desc')}</Text>}
-        // The 1E stress test, development builds only (app/survey/stress.tsx).
-        ListFooterComponent={__DEV__ ? <Button label="每木壓力測試（開發版）" variant="secondary" onPress={() => router.push('/survey/stress' as Href)} /> : null}
+        // The 1E stress test (app/survey/stress.tsx); in release builds too until testing is done.
+        ListFooterComponent={STRESS_TEST_OFFERED ? <Button label="每木壓力測試（測試用）" variant="secondary" onPress={() => router.push('/survey/stress' as Href)} /> : null}
         ListEmptyComponent={
           <View className="items-center gap-3 py-10">
             <Text className="text-center text-sm text-gray-500 dark:text-gray-400">{t('survey.frames.empty')}</Text>

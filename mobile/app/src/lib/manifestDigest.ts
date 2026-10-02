@@ -36,6 +36,25 @@ export function isManifestPath(name: string): boolean {
   );
 }
 
+export const sha256Hex = (bytes: Uint8Array): string => bytesToHex(sha256(bytes));
+
+/** The folder a manifest covers: its own (`xxx/manifest.json` → `xxx/`), the root for a root one. */
+export function manifestScope(manifestPath: string): string {
+  const slash = manifestPath.lastIndexOf('/');
+  return slash === -1 ? '' : manifestPath.slice(0, slash + 1);
+}
+
+/**
+ * The files some manifest among `entries` lists — the ones `injectFileDigests`
+ * will hash. The app hashes them beforehand, in pieces, so a long hash can
+ * report progress, and passes the results in as `digest` (SHA-256 hex all the
+ * same).
+ */
+export function filesToDigest<E extends { name: string }>(entries: E[]): E[] {
+  const scopes = entries.filter((e) => isManifestPath(e.name)).map((e) => manifestScope(e.name));
+  return entries.filter((e) => !isManifestPath(e.name) && !isSignaturePath(e.name) && scopes.some((p) => e.name.startsWith(p)));
+}
+
 /**
  * The `files` list for a manifest sitting at `manifestPath`.
  *
@@ -52,15 +71,15 @@ export function isManifestPath(name: string): boolean {
 export function manifestFiles(
   manifestPath: string,
   entries: { name: string; bytes: Uint8Array }[],
+  digest: (bytes: Uint8Array) => string = sha256Hex,
 ): ManifestFile[] {
-  const slash = manifestPath.lastIndexOf('/');
-  const prefix = slash === -1 ? '' : manifestPath.slice(0, slash + 1);
+  const prefix = manifestScope(manifestPath);
   return entries
     .filter((e) => !isManifestPath(e.name) && !isSignaturePath(e.name) && e.name.startsWith(prefix))
     .map((e) => ({
       path: e.name.slice(prefix.length),
       bytes: e.bytes.length,
-      sha256: bytesToHex(sha256(e.bytes)),
+      sha256: digest(e.bytes),
     }))
     .sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
 }
@@ -79,10 +98,11 @@ export function injectFileDigests(
   entries: { name: string; bytes: Uint8Array }[],
   decode: (b: Uint8Array) => string,
   encode: (s: string) => Uint8Array,
+  digest: (bytes: Uint8Array) => string = sha256Hex,
 ): void {
   for (const m of entries) {
     if (!isManifestPath(m.name)) continue;
-    const files = manifestFiles(m.name, entries);
+    const files = manifestFiles(m.name, entries, digest);
     try {
       const doc = JSON.parse(decode(m.bytes)) as Record<string, unknown>;
       doc.files = files;

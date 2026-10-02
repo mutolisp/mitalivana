@@ -286,7 +286,8 @@
     "starredGroup": "Pinned",
     "monthGroup": "{{year}}-{{month2}}",
     "pinNamed": "Pin “{{name}}”",
-    "unpinNamed": "Unpin “{{name}}”"
+    "unpinNamed": "Unpin “{{name}}”",
+    "deleteFailed": "Could not delete"
   },
   "export": {
     "preparing": "Preparing…",
@@ -309,7 +310,9 @@
       "mergeChecklist": "Merging species checklist…",
       "analysis": "Building analysis tables…",
       "dwca": "Building Darwin Core Archive…",
-      "report": "Building research report…"
+      "report": "Building research report…",
+      "hashing": "Computing file hashes",
+      "writing": "Writing the file…"
     },
     "err": {
       "sessionNotFound": "Record {{id}} not found",
@@ -3422,7 +3425,9 @@
     "versionsDesc": "{{n}} stored in the database; tap to clear old ones",
     "versionsTitle": "Clear old versions?",
     "versionsConfirm": "Keeps only the newest version of each record and the ones you created (now {{n}} in all).",
-    "versionsCleared": "Cleared {{n}} versions"
+    "versionsCleared": "Cleared {{n}} versions",
+    "compact": "Compact the database",
+    "compactDesc": "Space deleted records left in the database"
   },
   "recordLock": {
     "undo": "Undo",
@@ -3904,7 +3909,13 @@
       "one": "Syncing: {{name}}",
       "upload": "Uploading file {{i}}/{{n}} · {{done}} / {{total}}",
       "download": "Downloading file {{i}}/{{n}} · {{done}} / {{total}}",
-      "keepOpen": "You can keep working on other screens; do not leave the app or lock the phone yet"
+      "keepOpen": "You can keep working on other screens; do not leave the app or lock the phone yet",
+      "blocksUp": "Uploading block {{i}}/{{n}}",
+      "blocksDown": "Downloading block {{i}}/{{n}}",
+      "collapse": "Hide",
+      "bubble": "Syncing",
+      "bubblePct": "Syncing, {{pct}}%",
+      "bubbleHint": "Tap to show the sync progress; drag to move it"
     }
   },
   "teamDeploy": {
@@ -4584,7 +4595,9 @@
       "screeningHint": "Measurement problems, contradicting codes, and stems measured last census but not yet in this one.",
       "extremeHint": "The top and bottom {{pct}} % of growth in each DBH class (at least {{min}} per end), to re-measure in the field. After Condit 1998 p.86.",
       "screeningEmpty": "No problems found.",
-      "extremeEmpty": "No stem has a growth to rank (it needs two censuses’ DBH at the same POM)."
+      "extremeEmpty": "No stem has a growth to rank (it needs two censuses’ DBH at the same POM).",
+      "reading": "Reading quadrats {{done}}/{{total}}",
+      "computing": "Building the lists…"
     },
     "loc": {
       "grid": "Grid",
@@ -4727,5 +4740,29 @@
       "toReview": "{{count}} censuses need a merge review",
       "unresolvedTaxa": "{{count}} species are not in this phone's checklist; their codes are kept"
     }
+  },
+  "task": {
+    "working": "Working…",
+    "keepOpen": "Keep the app open and the screen unlocked",
+    "readingFile": "Reading the file…",
+    "photos": "Importing photos",
+    "merging": "Merging…",
+    "versions": "Saving a version of each quadrat",
+    "deleting": "Deleting…",
+    "snapshot": "Taking a snapshot of the database…",
+    "unzipping": "Unzipping…",
+    "restoring": "Writing the database…",
+    "compacting": "Compacting the database…",
+    "writingTrees_one": "Writing {{count}} tree…",
+    "writingTrees_other": "Writing {{count}} trees…"
+  },
+  "compact": {
+    "title": "Compact the database?",
+    "msg": "{{size}} of the database is space left by deleted data. Compacting gives it back; a large database takes tens of seconds, so keep the app open meanwhile.",
+    "go": "Compact",
+    "later": "Not now",
+    "done": "Database compacted: {{size}} freed",
+    "failed": "Could not compact",
+    "noSpace": "Not enough free space on the device: compacting needs about {{size}}"
   }
 }
