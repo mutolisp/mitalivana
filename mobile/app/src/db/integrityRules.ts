@@ -43,8 +43,7 @@ export const CASCADE_ORPHANS: ReadonlyArray<readonly [string, string]> = [
   ['miren_plots', 'survey_id NOT IN (SELECT id FROM miren_surveys)'],
   ['miren_plot_species', 'plot_id NOT IN (SELECT id FROM miren_plots) OR miren_taxon_id NOT IN (SELECT id FROM miren_taxa)'],
   ['miren_rechecks', 'plot_id NOT IN (SELECT id FROM miren_plots)'],
-  // Survey framework (v80). A NULL individual_id / measure_id on fw_media is
-  // "NOT IN" → NULL, so a census-level photo is never swept.
+  // Survey framework (v80).
   ['fw_frame_series', 'frame_id NOT IN (SELECT id FROM fw_frames)'],
   ['fw_survey_quadrats', 'survey_id NOT IN (SELECT id FROM fw_surveys)'],
   ['fw_individuals', 'frame_id NOT IN (SELECT id FROM fw_frames)'],
@@ -53,9 +52,24 @@ export const CASCADE_ORPHANS: ReadonlyArray<readonly [string, string]> = [
   ['fw_stem_measures', 'survey_id NOT IN (SELECT id FROM fw_surveys) OR stem_id NOT IN (SELECT id FROM fw_stems)'],
   ['fw_stem_values', 'measure_id NOT IN (SELECT id FROM fw_stem_measures)'],
   ['fw_individual_values', 'survey_id NOT IN (SELECT id FROM fw_surveys) OR individual_id NOT IN (SELECT id FROM fw_individuals)'],
+  // Checklist / plot-style surveys (v83).
+  ['fw_frame_units', 'frame_id NOT IN (SELECT id FROM fw_frames)'],
+  ['fw_frame_labels', 'frame_id NOT IN (SELECT id FROM fw_frames)'],
+  ['fw_units', 'survey_id NOT IN (SELECT id FROM fw_surveys)'],
+  ['fw_occurrences', 'survey_id NOT IN (SELECT id FROM fw_surveys)'],
+  ['fw_survey_values', 'survey_id NOT IN (SELECT id FROM fw_surveys)'],
+  ['fw_unit_values', 'unit_id NOT IN (SELECT id FROM fw_units)'],
+  ['fw_occurrence_values', 'occurrence_id NOT IN (SELECT id FROM fw_occurrences)'],
+  // fw_media's owners other than the survey are optional. `NULL NOT IN
+  // (<empty>)` is true in SQLite, so each tests IS NOT NULL first; without it
+  // an empty fw_units would sweep every photo (check:integrity-rules).
   [
     'fw_media',
-    'survey_id NOT IN (SELECT id FROM fw_surveys) OR individual_id NOT IN (SELECT id FROM fw_individuals) OR measure_id NOT IN (SELECT id FROM fw_stem_measures)',
+    'survey_id NOT IN (SELECT id FROM fw_surveys)' +
+      ' OR (individual_id IS NOT NULL AND individual_id NOT IN (SELECT id FROM fw_individuals))' +
+      ' OR (measure_id IS NOT NULL AND measure_id NOT IN (SELECT id FROM fw_stem_measures))' +
+      ' OR (unit_id IS NOT NULL AND unit_id NOT IN (SELECT id FROM fw_units))' +
+      ' OR (occurrence_id IS NOT NULL AND occurrence_id NOT IN (SELECT id FROM fw_occurrences))',
   ],
 ];
 
@@ -95,4 +109,10 @@ export const NULL_DANGLING: ReadonlyArray<readonly [string, string, string]> = [
   ['fw_individuals', 'first_survey_id', 'fw_surveys'],
   ['fw_stems', 'first_survey_id', 'fw_surveys'],
   ['fw_individual_history', 'survey_id', 'fw_surveys'],
+  // A unit or frame unit whose parent is gone is left without one; an
+  // occurrence whose unit is gone is placed in the survey directly.
+  ['fw_frame_units', 'parent_id', 'fw_frame_units'],
+  ['fw_units', 'parent_id', 'fw_units'],
+  ['fw_occurrences', 'unit_id', 'fw_units'],
+  ['fw_frame_labels', 'first_survey_id', 'fw_surveys'],
 ];

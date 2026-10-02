@@ -2861,6 +2861,218 @@ const MIGRATIONS: Migration[] = [
       db.executeSync(`CREATE INDEX IF NOT EXISTS idx_fwhist_ind ON fw_individual_history(individual_id, at);`);
     },
   },
+  {
+    // v83: the checklist and plot styles (Modular_survey.md §5.2, Phase 2A).
+    //
+    // fw_surveys is rebuilt so a survey may have no permanent plot (decided
+    // 2026-10-02): frame_id, series_id and census_no become nullable, held
+    // together by CHECKs, and a tree census (style 'individual') must still
+    // have all three. `style` is a column (copied from the template snapshot
+    // at creation) so the CHECK and the census queries can see it; every row
+    // before v83 is a tree census, the only template v80–v82 could start.
+    // `blind_closed_at`: when a recheck's blind phase ended (§5.5).
+    // Seven tables point at fw_surveys, so the rebuild renames the new table,
+    // never the old one (replaceTable).
+    //
+    // New tables: user templates (built-ins stay in code), a frame's unit
+    // layout and morphospecies list, a survey's units and occurrences, and
+    // one values table per owner with a real foreign key (§5.1). Occurrence
+    // columns are plot_species_records' names, so Phase 3 copies rows across;
+    // left out: bb_value / percent / dbh_values_json (organism_quantity
+    // replaced them), photo_paths / audio_paths (fw_media), inat_* (added
+    // with iNaturalist upload). A deleted unit's occurrences and sub-units
+    // stay (SET NULL), as plot_species_records / plot_quadrats do with a
+    // deleted subplot; its photos and values go with it.
+    version: 83,
+    up: (db) => {
+      replaceTable(
+        db,
+        'fw_surveys',
+        `CREATE TABLE fw_surveys (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          uuid TEXT NOT NULL UNIQUE,
+          style TEXT NOT NULL CHECK (style IN ('checklist', 'plot', 'individual')),
+          frame_id INTEGER,
+          series_id INTEGER,
+          census_no INTEGER CHECK (census_no IS NULL OR census_no >= 1),
+          template_id TEXT NOT NULL,
+          template_version INTEGER NOT NULL CHECK (template_version >= 1),
+          template_snapshot TEXT NOT NULL,
+          template_hash TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'done')),
+          start_ts INTEGER NOT NULL,
+          stop_ts INTEGER,
+          blind_closed_at INTEGER,
+          investigators TEXT,
+          notes TEXT,
+          project_id INTEGER NOT NULL DEFAULT 0,
+          site_id INTEGER,
+          sync_block_quadrats INTEGER CHECK (sync_block_quadrats IS NULL OR sync_block_quadrats >= 1),
+          lat REAL,
+          lng REAL,
+          accuracy REAL,
+          starred INTEGER NOT NULL DEFAULT 0,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          FOREIGN KEY (frame_id) REFERENCES fw_frames(id),
+          FOREIGN KEY (series_id) REFERENCES fw_frame_series(id),
+          FOREIGN KEY (project_id) REFERENCES projects(id),
+          UNIQUE (series_id, census_no),
+          CHECK ((frame_id IS NULL) = (series_id IS NULL)),
+          CHECK ((series_id IS NULL) = (census_no IS NULL)),
+          CHECK (style <> 'individual' OR frame_id IS NOT NULL)
+        )`,
+        { style: `'individual'` },
+      );
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS survey_templates (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          template_id TEXT NOT NULL,
+          version INTEGER NOT NULL CHECK (version >= 1),
+          origin TEXT NOT NULL CHECK (origin IN ('user', 'imported')),
+          doc TEXT NOT NULL,
+          hash TEXT NOT NULL,
+          created_at INTEGER NOT NULL,
+          UNIQUE (template_id, version)
+        );
+      `);
+      // Codes are unique per level within a frame, as subplots and quadrats
+      // are per plot today (plot_subplots, plot_quadrats).
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS fw_frame_units (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          uuid TEXT NOT NULL UNIQUE,
+          frame_id INTEGER NOT NULL,
+          parent_id INTEGER,
+          level_key TEXT NOT NULL CHECK (length(trim(level_key)) > 0),
+          code TEXT NOT NULL CHECK (length(trim(code)) > 0),
+          label TEXT,
+          shape TEXT NOT NULL CHECK (shape IN ('rect', 'circle', 'line', 'point')),
+          x_m REAL,
+          y_m REAL,
+          width_m REAL CHECK (width_m IS NULL OR width_m > 0),
+          length_m REAL CHECK (length_m IS NULL OR length_m > 0),
+          radius_m REAL CHECK (radius_m IS NULL OR radius_m > 0),
+          geometry_geojson TEXT,
+          retired_at INTEGER,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          FOREIGN KEY (frame_id) REFERENCES fw_frames(id) ON DELETE CASCADE,
+          FOREIGN KEY (parent_id) REFERENCES fw_frame_units(id) ON DELETE SET NULL,
+          UNIQUE (frame_id, level_key, code)
+        );
+      `);
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS fw_frame_labels (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          uuid TEXT NOT NULL UNIQUE,
+          frame_id INTEGER NOT NULL,
+          taxon_id TEXT NOT NULL,
+          verbatim_identification TEXT NOT NULL CHECK (length(trim(verbatim_identification)) > 0),
+          note TEXT,
+          photo_uri TEXT,
+          first_survey_id INTEGER,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          FOREIGN KEY (frame_id) REFERENCES fw_frames(id) ON DELETE CASCADE,
+          FOREIGN KEY (first_survey_id) REFERENCES fw_surveys(id) ON DELETE SET NULL,
+          UNIQUE (frame_id, taxon_id, verbatim_identification)
+        );
+      `);
+      // frame_unit_id is NO ACTION: a frame unit a survey used cannot be deleted, only retired.
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS fw_units (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          uuid TEXT NOT NULL UNIQUE,
+          survey_id INTEGER NOT NULL,
+          frame_unit_id INTEGER,
+          parent_id INTEGER,
+          level_key TEXT NOT NULL CHECK (length(trim(level_key)) > 0),
+          code TEXT NOT NULL CHECK (length(trim(code)) > 0),
+          label TEXT,
+          sort INTEGER NOT NULL DEFAULT 0,
+          lat REAL,
+          lng REAL,
+          accuracy REAL,
+          geometry_geojson TEXT,
+          notes TEXT,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          FOREIGN KEY (survey_id) REFERENCES fw_surveys(id) ON DELETE CASCADE,
+          FOREIGN KEY (frame_unit_id) REFERENCES fw_frame_units(id),
+          FOREIGN KEY (parent_id) REFERENCES fw_units(id) ON DELETE SET NULL,
+          UNIQUE (survey_id, level_key, code),
+          UNIQUE (survey_id, frame_unit_id)
+        );
+      `);
+      db.executeSync(`CREATE INDEX IF NOT EXISTS idx_fwunit_frame_unit ON fw_units(frame_unit_id) WHERE frame_unit_id IS NOT NULL;`);
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS fw_occurrences (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          uuid TEXT NOT NULL UNIQUE,
+          survey_id INTEGER NOT NULL,
+          unit_id INTEGER,
+          taxon_id TEXT NOT NULL,
+          used_name_id INTEGER,
+          used_scientific_name TEXT,
+          verbatim_identification TEXT,
+          layer TEXT,
+          organism_quantity TEXT,
+          organism_quantity_type TEXT,
+          freq_cells TEXT,
+          freq_count INTEGER CHECK (freq_count IS NULL OR freq_count >= 0),
+          sex TEXT,
+          life_stage TEXT,
+          reproductive_condition TEXT,
+          leaf_phenology TEXT,
+          degree_of_establishment TEXT,
+          detection_type TEXT,
+          observed_at INTEGER NOT NULL,
+          recorded_by TEXT,
+          identified_by TEXT,
+          lat REAL,
+          lng REAL,
+          accuracy REAL,
+          elevation_m REAL,
+          elevation_source TEXT,
+          phase TEXT CHECK (phase IS NULL OR phase IN ('blind', 'recheck')),
+          notes TEXT,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          FOREIGN KEY (survey_id) REFERENCES fw_surveys(id) ON DELETE CASCADE,
+          FOREIGN KEY (unit_id) REFERENCES fw_units(id) ON DELETE SET NULL
+        );
+      `);
+      db.executeSync(`CREATE INDEX IF NOT EXISTS idx_fwocc_survey ON fw_occurrences(survey_id, unit_id);`);
+      db.executeSync(`CREATE INDEX IF NOT EXISTS idx_fwocc_unit ON fw_occurrences(unit_id) WHERE unit_id IS NOT NULL;`);
+      for (const [table, owner, parent] of [
+        ['fw_survey_values', 'survey_id', 'fw_surveys'],
+        ['fw_unit_values', 'unit_id', 'fw_units'],
+        ['fw_occurrence_values', 'occurrence_id', 'fw_occurrences'],
+      ] as const) {
+        db.executeSync(`
+          CREATE TABLE IF NOT EXISTS ${table} (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            uuid TEXT NOT NULL UNIQUE,
+            ${owner} INTEGER NOT NULL,
+            component TEXT NOT NULL,
+            field TEXT NOT NULL,
+            idx INTEGER NOT NULL DEFAULT 0,
+            value_num REAL,
+            value_text TEXT,
+            unit TEXT,
+            updated_at INTEGER NOT NULL,
+            FOREIGN KEY (${owner}) REFERENCES ${parent}(id) ON DELETE CASCADE,
+            UNIQUE (${owner}, component, field, idx)
+          );
+        `);
+      }
+      addColumnIfMissing(db, `ALTER TABLE fw_media ADD COLUMN unit_id INTEGER REFERENCES fw_units(id) ON DELETE CASCADE;`);
+      addColumnIfMissing(db, `ALTER TABLE fw_media ADD COLUMN occurrence_id INTEGER REFERENCES fw_occurrences(id) ON DELETE CASCADE;`);
+      db.executeSync(`CREATE INDEX IF NOT EXISTS idx_fwmedia_unit ON fw_media(unit_id) WHERE unit_id IS NOT NULL;`);
+      db.executeSync(`CREATE INDEX IF NOT EXISTS idx_fwmedia_occ ON fw_media(occurrence_id) WHERE occurrence_id IS NOT NULL;`);
+    },
+  },
 ];
 
 /** Highest schema version this build knows how to produce. Backup/restore uses
@@ -2898,23 +3110,44 @@ function columnsOf(db: DB, table: string): Set<string> {
  * foreign_keys OFF, as the runner has it (init.ts).
  */
 function addTableChecks(db: DB, table: string, checks: string[]): void {
-  const one = (sql: string, params: (string | number)[] = []) => db.executeSync(sql, params).rows?.[0] as Record<string, unknown> | undefined;
-  const ddl = String(one(`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?`, [table])?.sql ?? '');
-  if (!ddl) throw new Error(`addTableChecks: no table ${table}`);
+  const ddl = tableDdl(db, table);
+  const close = ddl.lastIndexOf(')');
+  replaceTable(db, table, `${ddl.slice(0, close)}, ${checks.map((c) => `CHECK (${c})`).join(', ')})`, {});
+}
+
+/** The table's CREATE TABLE statement as SQLite keeps it. */
+function tableDdl(db: DB, table: string): string {
+  const ddl = String((db.executeSync(`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?`, [table]).rows?.[0] as { sql?: unknown } | undefined)?.sql ?? '');
+  if (!ddl) throw new Error(`rebuild: no table ${table}`);
+  return ddl;
+}
+
+/**
+ * Replace `table` by a new definition, in the order addTableChecks describes:
+ * `createSql` (a CREATE TABLE under the table's own name) is created under a
+ * temporary name, the rows copied, the old table dropped, the new one renamed
+ * into place, its indexes and AUTOINCREMENT counter restored. Columns in both
+ * are copied as they are; `fill` gives each new column's value as SQL over
+ * the old row. The old table's indexes are recreated as they were.
+ */
+function replaceTable(db: DB, table: string, createSql: string, fill: Readonly<Record<string, string>>): void {
   const indexes = (db.executeSync(`SELECT sql FROM sqlite_master WHERE type = 'index' AND tbl_name = ? AND sql IS NOT NULL`, [table]).rows ?? []).map((r) =>
     String((r as { sql: unknown }).sql),
   );
-  const seq = one(`SELECT seq FROM sqlite_sequence WHERE name = ?`, [table])?.seq as number | undefined;
+  const seq = (db.executeSync(`SELECT seq FROM sqlite_sequence WHERE name = ?`, [table]).rows?.[0] as { seq?: number } | undefined)?.seq;
   const tmp = `${table}_rebuild`;
-  const close = ddl.lastIndexOf(')');
-  const created = ddl.slice(0, close).replace(new RegExp(`^CREATE TABLE\\s+(IF NOT EXISTS\\s+)?"?${table}"?`, 'i'), `CREATE TABLE ${tmp}`);
-  if (created === ddl.slice(0, close)) throw new Error(`addTableChecks: cannot rename ${table} in its DDL`);
-  const cols = [...columnsOf(db, table)].map((c) => `"${c}"`).join(', ');
-  db.executeSync(`${created}, ${checks.map((c) => `CHECK (${c})`).join(', ')})`);
-  db.executeSync(`INSERT INTO ${tmp} (${cols}) SELECT ${cols} FROM ${table}`);
+  const created = createSql.replace(new RegExp(`^\\s*CREATE TABLE\\s+(IF NOT EXISTS\\s+)?"?${table}"?`, 'i'), `CREATE TABLE ${tmp}`);
+  if (created === createSql) throw new Error(`rebuild: cannot rename ${table} in its DDL`);
+  db.executeSync(created);
+  const kept = columnsOf(db, tmp);
+  const cols = [...columnsOf(db, table)].filter((c) => kept.has(c) && !(c in fill));
+  const names = [...cols, ...Object.keys(fill)].map((c) => `"${c}"`).join(', ');
+  const values = [...cols.map((c) => `"${c}"`), ...Object.values(fill)].join(', ');
+  db.executeSync(`INSERT INTO ${tmp} (${names}) SELECT ${values} FROM ${table}`);
   db.executeSync(`DROP TABLE ${table}`);
   db.executeSync(`ALTER TABLE ${tmp} RENAME TO ${table}`);
   for (const sql of indexes) db.executeSync(sql);
+  // The copy made the new table's counter row even with no rows (seq 0).
   if (seq != null) db.executeSync(`UPDATE sqlite_sequence SET seq = MAX(seq, ?) WHERE name = ?`, [seq, table]);
 }
 

@@ -92,6 +92,22 @@ export function enforceSingleActiveOnStartup(): void {
     [now, now],
   );
 
+  // ── Step 1e: keep latest active checklist / plot-style survey (censuses are exempt) ──
+  db.executeSync(
+    `UPDATE fw_surveys
+        SET status = 'done',
+            stop_ts = COALESCE(stop_ts, ?),
+            updated_at = ?
+      WHERE status = 'active' AND style <> 'individual'
+        AND id NOT IN (
+          SELECT id FROM fw_surveys
+           WHERE status = 'active' AND style <> 'individual'
+           ORDER BY start_ts DESC
+           LIMIT 1
+        )`,
+    [now, now],
+  );
+
   // ── Step 2: cross-kind exclusion — the most recently started survives ──
   const candidates: Array<{ kind: ActiveKind; id: number; ts: number }> = [];
   const sessRow = db.executeSync(
@@ -110,6 +126,10 @@ export function enforceSingleActiveOnStartup(): void {
     `SELECT id, start_ts AS ts FROM miren_surveys WHERE status = 'active' ORDER BY start_ts DESC LIMIT 1`,
   ).rows?.[0] as { id: number; ts: number } | undefined;
   if (mirenRow) candidates.push({ kind: 'miren', ...mirenRow });
+  const surveyRow = db.executeSync(
+    `SELECT id, start_ts AS ts FROM fw_surveys WHERE status = 'active' AND style <> 'individual' ORDER BY start_ts DESC LIMIT 1`,
+  ).rows?.[0] as { id: number; ts: number } | undefined;
+  if (surveyRow) candidates.push({ kind: 'survey', ...surveyRow });
 
   if (candidates.length < 2) return;
   const keep = candidates.reduce((a, b) => (b.ts > a.ts ? b : a));

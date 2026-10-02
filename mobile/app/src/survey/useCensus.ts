@@ -17,7 +17,7 @@ import {
   previousCensusId,
   type FgQuadratRow,
   type FrameRow,
-  type SurveyRow,
+  type CensusRow,
   type TreeState,
   type TreeView,
 } from '~/survey/db/stemmap';
@@ -26,7 +26,7 @@ import { treeChip, treeFlags, treeIssues, type TreeChip, type TreeFlags, type Tr
 import { sortByWalk } from '~/survey/stemmap/walkOrder';
 
 export type CensusData = {
-  survey: SurveyRow;
+  survey: CensusRow;
   frame: FrameRow;
   geometry: FrameGeometry;
   firstCensus: boolean;

@@ -776,7 +776,7 @@ export function insertCensusFromDoc(
   const cols = SURVEY_COLS as readonly string[];
   const project = one(ctx, `SELECT id FROM projects WHERE id = ?`, [opts.projectId]) ? opts.projectId : 0;
   return Number(
-    run(ctx, `INSERT INTO fw_surveys (${cols.join(', ')}, frame_id, series_id, project_id, created_at, updated_at) VALUES (${marks(cols.length)}, ?, ?, ?, ?, ?)`, [
+    run(ctx, `INSERT INTO fw_surveys (${cols.join(', ')}, style, frame_id, series_id, project_id, created_at, updated_at) VALUES (${marks(cols.length)}, 'individual', ?, ?, ?, ?, ?)`, [
       ...cols.map((c) => (c === 'status' ? opts.status : (header.survey[c] as Scalar))),
       frameId,
       seriesId,

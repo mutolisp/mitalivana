@@ -137,10 +137,15 @@ const other = { ...T, id: 'user:other' };
 throwsCode(() => s.startCensus(ctx, { frameId: F, template: other }), 'series_code_required', 'series: a second series needs a code');
 throwsCode(() => s.startCensus(ctx, { frameId: F, template: { ...T, components: [] } }), 'template_invalid', 'census: an invalid template is refused');
 rejects(
-  `INSERT INTO fw_surveys (uuid, frame_id, series_id, census_no, template_id, template_version, template_snapshot, template_hash, start_ts, created_at, updated_at) VALUES ('dup', ?, ?, 1, 'x', 1, '{}', 'h', 1, 1, 1)`,
+  `INSERT INTO fw_surveys (uuid, style, frame_id, series_id, census_no, template_id, template_version, template_snapshot, template_hash, start_ts, created_at, updated_at) VALUES ('dup', 'individual', ?, ?, 1, 'x', 1, '{}', 'h', 1, 1, 1)`,
   [F, c1.series_id],
   'schema: one census no. 1 per series',
 );
+// The same row with census no. 9 goes in: the refusal above is the UNIQUE, not a missing column.
+sqlite.prepare(
+  `INSERT INTO fw_surveys (uuid, style, frame_id, series_id, census_no, template_id, template_version, template_snapshot, template_hash, start_ts, created_at, updated_at) VALUES ('dup', 'individual', ?, ?, 9, 'x', 1, '{}', 'h', 1, 1, 1)`,
+).run(F, c1.series_id);
+sqlite.prepare(`DELETE FROM fw_surveys WHERE uuid = 'dup'`).run();
 
 // ── trees: positions and tags ────────────────────────────────────────────
 const taxon = (id) => ({ taxonId: id, usedScientificName: `Sp ${id}` });

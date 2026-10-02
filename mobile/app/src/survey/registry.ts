@@ -5,16 +5,24 @@
  * side, so this file stays pure (check:templates runs it under Node).
  *
  * Phase 1 registers what the tree census uses: Taxon, Timestamp, Comments,
- * Investigators, Workers, Location, DBH, Height, Health, Photos. Abundance,
- * Frequency, Structure, Phenology, Traits, Environment and Audio come with
- * Phase 2.
+ * Investigators, Workers, Location, DBH, Height, Health, Photos. Phase 2A
+ * opens the four always-present ones to the checklist and plot styles (a
+ * template of those styles must be valid before any other component is);
+ * Abundance, Frequency, Structure, Phenology, Traits, Environment and Audio
+ * come with 2B.
  */
 import type { SurveyLevel, SurveyStyle } from './template/types';
 
 /** Where a field lives: a typed column, a row of an owner's values table, or fw_media. */
 export type FieldStorage =
   | { col: string }
-  | { values: 'fw_stem_values' | 'fw_individual_values'; component: string; field: string; valueType: 'num' | 'text' | 'json'; unit?: string }
+  | {
+      values: 'fw_stem_values' | 'fw_individual_values' | 'fw_survey_values' | 'fw_unit_values' | 'fw_occurrence_values';
+      component: string;
+      field: string;
+      valueType: 'num' | 'text' | 'json';
+      unit?: string;
+    }
   | { media: 'photo' | 'audio' };
 
 export type FieldDef = { field: string; storage: FieldStorage };
@@ -32,11 +40,31 @@ export type ComponentDef = {
   levels: readonly SurveyLevel[];
   styles: readonly SurveyStyle[];
   defaultLevel: SurveyLevel;
+  /** Where a style puts it when that differs from defaultLevel (Taxon: occurrence outside the census). */
+  defaultLevelFor?: Readonly<Partial<Record<SurveyStyle, SurveyLevel>>>;
   defaultParams: Readonly<Record<string, unknown>>;
   /** Problems with a parameter set (empty = valid). Codesets are checked by the validator. */
   checkParams: (params: Readonly<Record<string, unknown>>) => string[];
-  fields: (params: Readonly<Record<string, unknown>>) => FieldDef[];
+  /** Its fields and where they are stored when it sits on `level`. */
+  fields: (params: Readonly<Record<string, unknown>>, level: SurveyLevel) => FieldDef[];
   exportMap: ExportMap;
+};
+
+export function defaultLevelOf(d: ComponentDef, style: SurveyStyle): SurveyLevel {
+  return d.defaultLevelFor?.[style] ?? d.defaultLevel;
+}
+
+const ALL_STYLES: readonly SurveyStyle[] = ['checklist', 'plot', 'individual'];
+
+/** The table holding each level's own rows (its `notes` column is the level's comments). */
+const LEVEL_TABLE: Readonly<Record<SurveyLevel, string>> = {
+  frame: 'fw_frames',
+  survey: 'fw_surveys',
+  unit: 'fw_units',
+  occurrence: 'fw_occurrences',
+  quadrat: 'fw_survey_quadrats',
+  individual: 'fw_individuals',
+  stem: 'fw_stem_measures',
 };
 
 const noParams = () => [];
@@ -51,24 +79,24 @@ const DEFS: readonly ComponentDef[] = [
   {
     type: 'taxon',
     required: true,
-    levels: ['individual'],
-    styles: ['individual'],
+    levels: ['individual', 'occurrence'],
+    styles: ALL_STYLES,
     defaultLevel: 'individual',
+    defaultLevelFor: { checklist: 'occurrence', plot: 'occurrence' },
     defaultParams: {},
     checkParams: noParams,
-    fields: () => [
-      { field: 'taxon_id', storage: { col: 'fw_individuals.taxon_id' } },
-      { field: 'used_name_id', storage: { col: 'fw_individuals.used_name_id' } },
-      { field: 'used_scientific_name', storage: { col: 'fw_individuals.used_scientific_name' } },
-      { field: 'verbatim_identification', storage: { col: 'fw_individuals.verbatim_identification' } },
-    ],
+    fields: (_p, level) =>
+      ['taxon_id', 'used_name_id', 'used_scientific_name', 'verbatim_identification'].map((field) => ({
+        field,
+        storage: { col: `${LEVEL_TABLE[level]}.${field}` },
+      })),
     exportMap: { dwc: { taxon_id: 'taxonID', used_scientific_name: 'scientificName', verbatim_identification: 'verbatimIdentification' } },
   },
   {
     type: 'timestamp',
     required: true,
     levels: ['survey'],
-    styles: ['individual'],
+    styles: ALL_STYLES,
     defaultLevel: 'survey',
     defaultParams: {},
     checkParams: noParams,
@@ -81,19 +109,19 @@ const DEFS: readonly ComponentDef[] = [
   {
     type: 'comments',
     required: true,
-    levels: ['frame', 'survey', 'quadrat', 'individual', 'stem'],
-    styles: ['individual'],
+    levels: ['frame', 'survey', 'unit', 'occurrence', 'quadrat', 'individual', 'stem'],
+    styles: ALL_STYLES,
     defaultLevel: 'survey',
     defaultParams: {},
     checkParams: noParams,
-    fields: () => [{ field: 'notes', storage: { col: 'fw_surveys.notes' } }],
+    fields: (_p, level) => [{ field: 'notes', storage: { col: `${LEVEL_TABLE[level]}.notes` } }],
     exportMap: { dwc: { notes: 'eventRemarks' } },
   },
   {
     type: 'investigators',
     required: true,
     levels: ['survey'],
-    styles: ['individual'],
+    styles: ALL_STYLES,
     defaultLevel: 'survey',
     defaultParams: {},
     checkParams: noParams,

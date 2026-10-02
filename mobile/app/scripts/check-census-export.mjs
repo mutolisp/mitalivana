@@ -127,7 +127,18 @@ ok(doc.taxa.k1 === 'Sp k1', 'export: names to re-point unknown taxa');
 const NOT_CARRIED = {
   fw_frames: { id: 'local id', project_id: 'projects are per device', site_id: 'sites are per device', created_at: 'stamp', updated_at: 'stamp' },
   fw_frame_series: { id: 'local id', frame_id: 'the document has one frame', created_at: 'stamp', updated_at: 'stamp' },
-  fw_surveys: { id: 'local id', frame_id: 'frame', series_id: 'series', project_id: 'projects are per device', site_id: 'sites are per device', starred: 'pinned on this device', created_at: 'stamp', updated_at: 'stamp' },
+  fw_surveys: {
+    id: 'local id',
+    style: "always 'individual' in a census document; set on import",
+    frame_id: 'frame',
+    series_id: 'series',
+    blind_closed_at: "the plot style's blind phase; NULL on a census",
+    project_id: 'projects are per device',
+    site_id: 'sites are per device',
+    starred: 'pinned on this device',
+    created_at: 'stamp',
+    updated_at: 'stamp',
+  },
   fw_survey_quadrats: { id: 'local id', survey_id: 'its census part', created_at: 'stamp', updated_at: 'stamp' },
   fw_individuals: { id: 'local id', frame_id: 'frame', first_survey_id: 'first_survey_uuid', created_at: 'stamp', updated_at: 'stamp' },
   fw_individual_history: { id: 'local id', individual_id: 'tree_uuid', survey_id: 'survey_uuid' },
@@ -135,7 +146,26 @@ const NOT_CARRIED = {
   fw_stem_measures: { id: 'local id', survey_id: 'its census part', stem_id: 'stem_uuid', created_at: 'stamp', updated_at: 'stamp' },
   fw_stem_values: { id: 'local id', measure_id: 'stem_uuid + its census part', updated_at: 'stamp' },
   fw_individual_values: { id: 'local id', survey_id: 'its census part', individual_id: 'tree_uuid', updated_at: 'stamp' },
-  fw_media: { id: 'local id', survey_id: 'its census part', individual_id: 'tree_uuid', measure_id: 'stem_uuid', uri: 'file (the name in the zip)', created_at: 'stamp' },
+  fw_media: {
+    id: 'local id',
+    survey_id: 'its census part',
+    individual_id: 'tree_uuid',
+    measure_id: 'stem_uuid',
+    unit_id: 'plot-style owner; NULL on a census photo',
+    occurrence_id: 'plot-style owner; NULL on a census photo',
+    uri: 'file (the name in the zip)',
+    created_at: 'stamp',
+  },
+};
+/** fw_* tables a census never has rows in (checklist / plot-style surveys, v83); their export is Phase 2E. */
+const NOT_CENSUS = {
+  fw_frame_units: "a permanent plot's unit layout (plot style)",
+  fw_frame_labels: "a permanent plot's morphospecies (plot style)",
+  fw_units: 'plot-style units',
+  fw_occurrences: 'checklist / plot-style occurrences',
+  fw_survey_values: 'checklist / plot-style survey values',
+  fw_unit_values: 'plot-style unit values',
+  fw_occurrence_values: 'checklist / plot-style occurrence values',
 };
 const keysIn = (rows) => new Set(rows.flatMap((r) => Object.keys(r)));
 const DOC_ROWS = {
@@ -152,7 +182,9 @@ const DOC_ROWS = {
   fw_media: doc.censuses.flatMap((c) => c.media),
 };
 const fwTables = A.all(`SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'fw\\_%' ESCAPE '\\'`).map((r) => r.name);
+for (const table of Object.keys(NOT_CENSUS)) if (!fwTables.includes(table)) ok(false, `NOT_CENSUS.${table}: no such table (stale)`);
 for (const table of fwTables) {
+  if (table in NOT_CENSUS) continue;
   if (!(table in DOC_ROWS)) {
     ok(false, `coverage: ${table} is not in the document (add it, or say why not)`);
     continue;

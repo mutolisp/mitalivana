@@ -6,7 +6,10 @@
  *   - every FOREIGN KEY project_id → projects is in PROJECT_FK_TABLES (and back);
  *   - every site_id column pointing at `sites` (FK or not) is in SITE_REF_TABLES;
  *   - every ON DELETE CASCADE edge has an orphan rule naming that column and
- *     parent, or an exemption with a reason;
+ *     parent, or an exemption with a reason; on a nullable column the rule
+ *     tests `IS NOT NULL` first, because `NULL NOT IN (<empty>)` is true in
+ *     SQLite: with the parent table empty, every row with no parent would be
+ *     swept (v83 nearly deleted every census photo that way);
  *   - every ON DELETE SET NULL edge is in NULL_DANGLING;
  *   - every rule runs (valid SQL) on the migrated schema, and parents come
  *     before children in CASCADE_ORPHANS.
@@ -18,6 +21,7 @@ const db = await migratedDb();
 const tables = db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'`).all().map((r) => r.name);
 const fks = tables.flatMap((t) => db.prepare(`PRAGMA foreign_key_list("${t}")`).all().map((f) => ({ child: t, from: f.from, parent: f.table, onDelete: f.on_delete })));
 const cols = (t) => db.prepare(`PRAGMA table_info("${t}")`).all().map((c) => c.name);
+const nullable = (t, c) => db.prepare(`PRAGMA table_info("${t}")`).all().some((x) => x.name === c && !x.notnull && !x.pk);
 
 const errors = [];
 const projectFks = new Set(fks.filter((f) => f.parent === 'projects').map((f) => f.child));
@@ -37,6 +41,9 @@ for (const f of fks.filter((x) => x.onDelete === 'CASCADE')) {
   if (CASCADE_EXEMPT[key]) continue;
   const rule = CASCADE_ORPHANS.find(([t, w]) => t === f.child && w.includes(`${f.from} NOT IN (SELECT id FROM ${f.parent})`));
   if (!rule) errors.push(`CASCADE ${key} → ${f.parent} has no rule in CASCADE_ORPHANS (or a reason in CASCADE_EXEMPT)`);
+  else if (nullable(f.child, f.from) && !rule[1].includes(`${f.from} IS NOT NULL AND ${f.from} NOT IN (SELECT id FROM ${f.parent})`)) {
+    errors.push(`CASCADE ${key} is nullable: its rule must read "${f.from} IS NOT NULL AND ${f.from} NOT IN (…)"`);
+  }
 }
 for (const key of Object.keys(CASCADE_EXEMPT)) {
   const [t, c] = key.split('.');

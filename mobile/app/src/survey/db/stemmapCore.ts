@@ -61,7 +61,18 @@ export type SurveyErrorCode =
   | 'bad_reference'
   | 'bad_code'
   | 'recensus_only'
-  | 'not_recruit';
+  | 'not_recruit'
+  // Checklist / plot-style surveys (surveyCore, templatesCore):
+  | 'wrong_style'
+  | 'frame_not_allowed'
+  | 'bad_unit'
+  | 'unit_taken'
+  | 'frame_unit_locked'
+  | 'no_blind_phase'
+  | 'blind_open'
+  | 'label_taken'
+  | 'template_breaking'
+  | 'builtin_template';
 
 export class SurveyError extends Error {
   code: SurveyErrorCode;
@@ -275,9 +286,13 @@ export function ensureSeries(ctx: Ctx, frameId: number, templateId: string, seri
   return Number(res.insertId);
 }
 
-export type SurveyRow = {
+/** A tree census: an fw_surveys row of style 'individual', which always has a
+ *  frame, a series and a census number (v83 CHECKs). Surveys of the other
+ *  styles are surveyCore's; every census lookup here filters on the style. */
+export type CensusRow = {
   id: number;
   uuid: string;
+  style: 'individual';
   frame_id: number;
   series_id: number;
   census_no: number;
@@ -288,6 +303,8 @@ export type SurveyRow = {
   status: 'active' | 'done';
   start_ts: number;
   stop_ts: number | null;
+  /** Always NULL on a census: the blind phase is the plot style's. */
+  blind_closed_at: number | null;
   investigators: string | null;
   notes: string | null;
   project_id: number;
@@ -301,8 +318,9 @@ export type SurveyRow = {
   updated_at: number;
 };
 
-export function getSurvey(ctx: { db: SurveyDb }, id: number): SurveyRow | null {
-  return one<SurveyRow>(ctx, `SELECT * FROM fw_surveys WHERE id = ?`, [id]) ?? null;
+/** The census with this id; null for a survey of another style. */
+export function getSurvey(ctx: { db: SurveyDb }, id: number): CensusRow | null {
+  return one<CensusRow>(ctx, `SELECT * FROM fw_surveys WHERE id = ? AND style = 'individual'`, [id]) ?? null;
 }
 
 export function startCensus(
@@ -312,15 +330,16 @@ export function startCensus(
   const frame = getFrame(ctx, input.frameId);
   if (!frame) throw new SurveyError('not_found', 'frame');
   const problems = validateTemplate(input.template);
+  if (input.template.style !== 'individual') problems.push(`a census needs the individual style, not ${input.template.style}`);
   if (problems.length) throw new SurveyError('template_invalid', problems.join('; '));
   const seriesId = ensureSeries(ctx, input.frameId, input.template.id, input.seriesCode);
   const last = one<{ n: number | null }>(ctx, `SELECT MAX(census_no) AS n FROM fw_surveys WHERE series_id = ?`, [seriesId]);
   const now = ctx.now();
   const res = run(
     ctx,
-    `INSERT INTO fw_surveys (uuid, frame_id, series_id, census_no, template_id, template_version, template_snapshot, template_hash,
+    `INSERT INTO fw_surveys (uuid, style, frame_id, series_id, census_no, template_id, template_version, template_snapshot, template_hash,
        status, start_ts, investigators, project_id, site_id, sync_block_quadrats, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, 'individual', ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?)`,
     [
       ctx.uuid(),
       input.frameId,
@@ -342,7 +361,7 @@ export function startCensus(
   return Number(res.insertId);
 }
 
-export type CensusListRow = SurveyRow & {
+export type CensusListRow = CensusRow & {
   frame_code: string;
   frame_name: string | null;
   project_name: string | null;
@@ -360,7 +379,7 @@ export function listCensuses(ctx: { db: SurveyDb }, frameId: number | null = nul
        FROM fw_surveys s
        JOIN fw_frames f ON f.id = s.frame_id
        LEFT JOIN projects p ON p.id = s.project_id
-      WHERE ? IS NULL OR s.frame_id = ?
+      WHERE s.style = 'individual' AND (? IS NULL OR s.frame_id = ?)
       ORDER BY s.start_ts DESC, s.id DESC`,
     [frameId, frameId],
   );
@@ -389,7 +408,7 @@ export function setCensusProject(ctx: Ctx, id: number, projectId: number): void 
 /** Delete several censuses, newest first within each series, so a series'
  *  last censuses can go together. Throws not_latest_census otherwise. */
 export function deleteCensuses(ctx: Ctx, ids: readonly number[]): void {
-  const list = ids.map((id) => getSurvey(ctx, id)).filter((x): x is SurveyRow => x != null);
+  const list = ids.map((id) => getSurvey(ctx, id)).filter((x): x is CensusRow => x != null);
   list.sort((a, b) => b.census_no - a.census_no);
   for (const c of list) deleteCensus(ctx, c.id);
 }
@@ -935,10 +954,15 @@ const parseCodes = (v: string | null | undefined): string[] => {
   }
 };
 
-function putValue(ctx: Ctx, table: 'fw_stem_values' | 'fw_individual_values', owner: Record<string, number>, component: string, field: string, value: { num?: number | null; text?: string | null; unit?: string | null } | null): void {
+export type ValuesTable = 'fw_stem_values' | 'fw_individual_values' | 'fw_survey_values' | 'fw_unit_values' | 'fw_occurrence_values';
+
+export type ValueInput = { num?: number | null; text?: string | null; unit?: string | null };
+
+/** Write one value row; only set values are stored, so an empty value deletes its row. */
+export function putValue(ctx: Ctx, table: ValuesTable, owner: Record<string, number>, component: string, field: string, value: ValueInput | null, idx = 0): void {
   const ownerCols = Object.keys(owner);
-  const where = [...ownerCols.map((c) => `${c} = ?`), 'component = ?', 'field = ?', 'idx = 0'].join(' AND ');
-  const keyVals: Scalar[] = [...ownerCols.map((c) => owner[c]), component, field];
+  const where = [...ownerCols.map((c) => `${c} = ?`), 'component = ?', 'field = ?', 'idx = ?'].join(' AND ');
+  const keyVals: Scalar[] = [...ownerCols.map((c) => owner[c]), component, field, idx];
   if (value == null || (value.num == null && (value.text == null || value.text === ''))) {
     run(ctx, `DELETE FROM ${table} WHERE ${where}`, keyVals);
     return;
@@ -950,8 +974,8 @@ function putValue(ctx: Ctx, table: 'fw_stem_values' | 'fw_individual_values', ow
   } else {
     run(
       ctx,
-      `INSERT INTO ${table} (uuid, ${ownerCols.join(', ')}, component, field, idx, value_num, value_text, unit, updated_at) VALUES (?, ${ownerCols.map(() => '?').join(', ')}, ?, ?, 0, ?, ?, ?, ?)`,
-      [ctx.uuid(), ...ownerCols.map((c) => owner[c]), component, field, value.num ?? null, value.text ?? null, value.unit ?? null, now],
+      `INSERT INTO ${table} (uuid, ${ownerCols.join(', ')}, component, field, idx, value_num, value_text, unit, updated_at) VALUES (?, ${ownerCols.map(() => '?').join(', ')}, ?, ?, ?, ?, ?, ?, ?)`,
+      [ctx.uuid(), ...ownerCols.map((c) => owner[c]), component, field, idx, value.num ?? null, value.text ?? null, value.unit ?? null, now],
     );
   }
 }

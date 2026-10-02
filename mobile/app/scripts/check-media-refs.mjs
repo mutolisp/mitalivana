@@ -22,8 +22,10 @@ const eq = (msg, got, want) => {
 };
 
 // Collections are not team-synced; MIREN is not a sync kind yet; the tree
-// census (fw_media) syncs per block from Phase 1C — take it off then.
-const NOT_SYNCED = ['collection_specimens', 'photo_fix', 'miren_plots'];
+// census (fw_media) syncs per block from Phase 1C — take it off then. A
+// permanent plot's morphospecies list (fw_frame_labels, v83) syncs with the
+// frame from Phase 2C.
+const NOT_SYNCED = ['collection_specimens', 'photo_fix', 'miren_plots', 'fw_frame_labels'];
 const missing = MEDIA_COLUMNS.filter(([t, c]) => !NOT_SYNCED.includes(t) && !(`${t}.${c}` in MEDIA_COLUMN_KINDS)).map(([t, c]) => `${t}.${c}`);
 eq('every media column of a synced record kind is carried', missing, []);
 

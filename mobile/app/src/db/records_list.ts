@@ -314,7 +314,7 @@ const RECORD_SPECIES_SOURCE: Record<RecordKind, { table: string; fk: string }> =
     table: `(SELECT i.id, i.taxon_id, s.id AS survey_id FROM fw_surveys s
               JOIN fw_individuals i ON i.frame_id = s.frame_id
               LEFT JOIN fw_surveys fi ON fi.id = i.first_survey_id
-             WHERE fi.id IS NULL OR fi.series_id <> s.series_id OR fi.census_no <= s.census_no)`,
+             WHERE s.style = 'individual' AND (fi.id IS NULL OR fi.series_id <> s.series_id OR fi.census_no <= s.census_no))`,
     fk: 'survey_id',
   },
 };

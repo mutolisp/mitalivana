@@ -30,7 +30,7 @@ export {
   type StemView,
   type SurveyErrorCode,
   type FgQuadratRow,
-  type SurveyRow,
+  type CensusRow,
   TAG_ORDER,
   type TaxonInput,
   type TreeDraft,

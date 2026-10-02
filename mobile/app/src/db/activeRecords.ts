@@ -2,7 +2,10 @@
  * The app-wide single-active invariant, in one place.
  *
  * At most one record is open at any time across sessions, plot surveys,
- * GLORIA surveys and MIREN surveys (collection trips are exempt, see migration v19). Every
+ * GLORIA surveys, MIREN surveys and the framework's checklist / plot-style
+ * surveys (fw_surveys, 'survey'). Collection trips are exempt (migration
+ * v19), and so are tree censuses (fw_surveys style 'individual'), which run
+ * for weeks (Modular_survey.md §7.1). Every
  * create / reopen / duplicate-and-activate path used to repeat one UPDATE per
  * kind; with a third kind that became nine places to forget one. They all
  * call `closeActiveRecords` now.
@@ -11,9 +14,12 @@
  * sessions.ts / plots.ts / cleanup.ts can use it without cycles.
  */
 
-import type { DB as Db } from '@op-engineering/op-sqlite';
+import type { Scalar } from '@op-engineering/op-sqlite';
 
-export type ActiveKind = 'session' | 'plot' | 'gloria' | 'miren';
+/** The connection, or the node:sqlite shim the checks run the survey core on. */
+type Db = { executeSync: (sql: string, params?: Scalar[]) => unknown };
+
+export type ActiveKind = 'session' | 'plot' | 'gloria' | 'miren' | 'survey';
 
 /** End every open record except `keep` (the one about to be opened or reopened). */
 export function closeActiveRecords(db: Db, now: number, keep?: { kind: ActiveKind; id: number }): void {
@@ -37,6 +43,11 @@ export function closeActiveRecords(db: Db, now: number, keep?: { kind: ActiveKin
       WHERE status = 'active' AND id != ?`,
     [now, now, except('miren')],
   );
+  db.executeSync(
+    `UPDATE fw_surveys SET status = 'done', stop_ts = COALESCE(stop_ts, ?), updated_at = ?
+      WHERE status = 'active' AND style <> 'individual' AND id != ?`,
+    [now, now, except('survey')],
+  );
 }
 
 /** Tables of the kinds that end by `stop_ts` (a session ends by `ended_at`). */
@@ -44,6 +55,7 @@ const SURVEY_TABLE: Record<Exclude<ActiveKind, 'session'>, string> = {
   plot: 'plot_surveys',
   gloria: 'gloria_surveys',
   miren: 'miren_surveys',
+  survey: 'fw_surveys',
 };
 
 /** End one record of any kind. */

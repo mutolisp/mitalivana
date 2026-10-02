@@ -43,6 +43,8 @@ export const MEDIA_COLUMNS: ReadonlyArray<readonly [table: string, column: strin
   ['plot_quadrats', 'photo_paths'],
   // Survey framework (v80): one file per row.
   ['fw_media', 'uri'],
+  // A permanent plot's morphospecies photo (v83).
+  ['fw_frame_labels', 'photo_uri'],
   ['gloria_points', 'photo_m2'],
   ['gloria_points', 'photo_m2f'],
   ['gloria_points', 'photo_point'],
