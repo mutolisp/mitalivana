@@ -354,6 +354,21 @@ const resH = H.tx(() => ex.importCensusDoc(H.ctx, doc, 'skip'));
 ok(resH.created.length === 1 && H.one('SELECT COUNT(*) AS n FROM fw_surveys').n === 2, 'import: then census 2 joins it');
 ok(H.one(`SELECT first_survey_id AS f FROM fw_individuals WHERE uuid = ?`, u4).f === H.one('SELECT id FROM fw_surveys WHERE census_no = 2').id, 'import: its recruit first seen in census 2 here');
 
+// the same plot + series + number here on another census template (2026-10-03): neither merged nor overwritten
+const J = await phone('j');
+const otherTpl = JSON.parse(JSON.stringify(otherDoc));
+otherTpl.censuses[0].survey.template_id = 'user:other-census';
+J.tx(() => ex.importCensusDoc(J.ctx, otherTpl, 'skip'));
+const jHere = J.one('SELECT id, uuid FROM fw_surveys WHERE census_no = 1');
+for (const choice of ['merge', 'overwrite']) {
+  const r = J.tx(() => ex.importCensusDoc(J.ctx, doc, choice));
+  ok(
+    r.templateDiffers.length === 1 && r.templateDiffers[0] === jHere.id && !r.merges.some((m) => m.surveyId === jHere.id) && !r.overwritten.includes(jHere.id),
+    `${choice}: a census here on another template is left alone (${JSON.stringify({ d: r.templateDiffers, m: r.merges.length, o: r.overwritten })})`,
+  );
+}
+ok(J.one('SELECT template_id FROM fw_surveys WHERE id = ?', jHere.id).template_id === 'user:other-census', 'import: … and keeps its own template');
+
 // a plot code another plot holds here
 const K = await phone('k');
 s.createFrame(K.ctx, { code: 'EX1', sizeXM: 20, sizeYM: 20 });

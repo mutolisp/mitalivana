@@ -111,6 +111,7 @@ export async function finishCensusImport(payload: { census: CensusExportDoc; pho
     res.created.length ? t('survey.import.created', { count: res.created.length }) : '',
     res.overwritten.length ? t('survey.import.overwritten', { count: res.overwritten.length }) : '',
     res.skipped.length ? t('survey.import.skipped', { count: res.skipped.length }) : '',
+    res.templateDiffers.length ? t('survey.import.templateDiffers', { count: res.templateDiffers.length }) : '',
     merged ? t('survey.import.merged', { count: merged }) : '',
     reviews.length ? t('survey.import.toReview', { count: reviews.length }) : '',
     unresolved ? t('survey.import.unresolvedTaxa', { count: unresolved }) : '',

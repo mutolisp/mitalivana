@@ -343,21 +343,60 @@ export function censusCodesets(ctx: { db: SurveyDb }, id: number): string[] {
   return t ? healthCodesets(t.components) : [];
 }
 
-/**
- * The frame's census series: every census of a permanent plot is one series,
- * whichever census template it uses (a copy of the built-in, with AMS or
- * traits, carries on the trees and their earlier measurements). Null before
- * the first census.
- */
-export function censusSeriesId(ctx: { db: SurveyDb }, frameId: number): number | null {
-  return one<{ id: number }>(ctx, `SELECT series_id AS id FROM fw_surveys WHERE frame_id = ? AND style = 'individual' ORDER BY census_no DESC, id DESC LIMIT 1`, [frameId])?.id ?? null;
+/** A census series of a frame, as starting a census offers it: its latest census and that census's template. */
+export type CensusSeriesOption = {
+  seriesId: number;
+  seriesCode: string;
+  /** The template the series was started with. */
+  startedWith: string;
+  lastNo: number;
+  lastTemplateId: string;
+  lastTemplate: SurveyTemplate | null;
+  lastStartTs: number;
+};
+
+/** The frame's census series, the most recently used first. */
+export function censusSeriesOptions(ctx: { db: SurveyDb }, frameId: number): CensusSeriesOption[] {
+  return rows<{ series_id: number; series_code: string; started_with: string; census_no: number; template_id: string; template_snapshot: string; start_ts: number }>(
+    ctx,
+    `SELECT s.series_id, se.series_code, se.template_id AS started_with, s.census_no, s.template_id, s.template_snapshot, s.start_ts
+       FROM fw_surveys s JOIN fw_frame_series se ON se.id = s.series_id
+      WHERE s.frame_id = ? AND s.style = 'individual'
+        AND s.census_no = (SELECT MAX(x.census_no) FROM fw_surveys x WHERE x.series_id = s.series_id)
+      ORDER BY s.start_ts DESC, s.id DESC`,
+    [frameId],
+  ).map((r) => {
+    let lastTemplate: SurveyTemplate | null = null;
+    try {
+      lastTemplate = JSON.parse(r.template_snapshot) as SurveyTemplate;
+    } catch {
+      lastTemplate = null;
+    }
+    return { seriesId: r.series_id, seriesCode: r.series_code, startedWith: r.started_with, lastNo: r.census_no, lastTemplateId: r.template_id, lastTemplate, lastStartTs: r.start_ts };
+  });
 }
 
-/** Whether a first census on this frame needs a series code (the plot has another survey series already). */
-export function censusSeriesCodeNeeded(ctx: { db: SurveyDb }, frameId: number, templateId: string): boolean {
-  if (censusSeriesId(ctx, frameId) != null) return false;
-  if (one(ctx, `SELECT 1 AS x FROM fw_frame_series WHERE frame_id = ? AND template_id = ?`, [frameId, templateId])) return false;
-  return one(ctx, `SELECT 1 AS x FROM fw_frame_series WHERE frame_id = ?`, [frameId]) != null;
+/**
+ * Which series a census with `templateId` goes on (decided 2026-10-03):
+ *   - continue: a series whose latest census used this template, or that was
+ *     started with it — carried on without asking;
+ *   - ask: the template is new on a plot that has censuses — carry one of its
+ *     series on (the same trees: previous POM, death codes, growth checks) or
+ *     start a series of its own (a series code, census 1);
+ *   - new: the plot's first census (a code when the plot has another survey series).
+ */
+export type CensusSeriesPlan =
+  | { kind: 'continue'; seriesId: number }
+  | { kind: 'ask'; options: CensusSeriesOption[] }
+  | { kind: 'new'; codeNeeded: boolean };
+
+export function censusSeriesPlan(ctx: { db: SurveyDb }, frameId: number, templateId: string): CensusSeriesPlan {
+  const options = censusSeriesOptions(ctx, frameId);
+  const same = options.find((o) => o.lastTemplateId === templateId) ?? options.find((o) => o.startedWith === templateId);
+  if (same) return { kind: 'continue', seriesId: same.seriesId };
+  if (options.length) return { kind: 'ask', options };
+  const own = one(ctx, `SELECT 1 AS x FROM fw_frame_series WHERE frame_id = ? AND template_id = ?`, [frameId, templateId]);
+  return { kind: 'new', codeNeeded: !own && one(ctx, `SELECT 1 AS x FROM fw_frame_series WHERE frame_id = ?`, [frameId]) != null };
 }
 
 /** The census with this id; null for a survey of another style. */
@@ -367,14 +406,32 @@ export function getSurvey(ctx: { db: SurveyDb }, id: number): CensusRow | null {
 
 export function startCensus(
   ctx: Ctx,
-  input: { frameId: number; template: SurveyTemplate; seriesCode?: string; investigators?: string | null; syncBlockQuadrats?: number | null; startTs?: number },
+  input: {
+    frameId: number;
+    template: SurveyTemplate;
+    /** Carry on this series of the frame (the user chose it, censusSeriesPlan 'ask'). */
+    seriesId?: number;
+    /** A new series's code (censusSeriesPlan 'ask', or 'new' with codeNeeded). */
+    seriesCode?: string;
+    investigators?: string | null;
+    syncBlockQuadrats?: number | null;
+    startTs?: number;
+  },
 ): number {
   const frame = getFrame(ctx, input.frameId);
   if (!frame) throw new SurveyError('not_found', 'frame');
   const problems = validateTemplate(input.template);
   if (input.template.style !== 'individual') problems.push(`a census needs the individual style, not ${input.template.style}`);
   if (problems.length) throw new SurveyError('template_invalid', problems.join('; '));
-  const seriesId = censusSeriesId(ctx, input.frameId) ?? ensureSeries(ctx, input.frameId, input.template.id, input.seriesCode);
+  // A series of this template goes on; a template new on the plot opens its own series unless told which to carry on.
+  let seriesId: number;
+  if (input.seriesId != null) {
+    if (!censusSeriesOptions(ctx, input.frameId).some((o) => o.seriesId === input.seriesId)) throw new SurveyError('bad_reference', 'series');
+    seriesId = input.seriesId;
+  } else {
+    const plan = censusSeriesPlan(ctx, input.frameId, input.template.id);
+    seriesId = plan.kind === 'continue' ? plan.seriesId : ensureSeries(ctx, input.frameId, input.template.id, input.seriesCode);
+  }
   const last = one<{ n: number | null }>(ctx, `SELECT MAX(census_no) AS n FROM fw_surveys WHERE series_id = ?`, [seriesId]);
   const now = ctx.now();
   const res = run(
@@ -404,6 +461,8 @@ export function startCensus(
 }
 
 export type CensusListRow = CensusRow & {
+  /** Empty for the plot's first series. */
+  series_code: string;
   frame_code: string;
   frame_name: string | null;
   project_name: string | null;
@@ -415,11 +474,12 @@ export type CensusListRow = CensusRow & {
 export function listCensuses(ctx: { db: SurveyDb }, frameId: number | null = null): CensusListRow[] {
   return rows<CensusListRow>(
     ctx,
-    `SELECT s.*, f.code AS frame_code, f.name AS frame_name, p.name AS project_name,
+    `SELECT s.*, se.series_code, f.code AS frame_code, f.name AS frame_name, p.name AS project_name,
             (SELECT COUNT(*) FROM fw_individuals i LEFT JOIN fw_surveys fi ON fi.id = i.first_survey_id
               WHERE i.frame_id = s.frame_id AND (fi.id IS NULL OR fi.series_id <> s.series_id OR fi.census_no <= s.census_no)) AS tree_count
        FROM fw_surveys s
        JOIN fw_frames f ON f.id = s.frame_id
+       JOIN fw_frame_series se ON se.id = s.series_id
        LEFT JOIN projects p ON p.id = s.project_id
       WHERE s.style = 'individual' AND (? IS NULL OR s.frame_id = ?)
       ORDER BY s.start_ts DESC, s.id DESC`,

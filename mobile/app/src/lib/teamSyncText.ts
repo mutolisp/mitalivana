@@ -15,7 +15,7 @@ const KNOWN = new Set([
 ]);
 
 /** A tree census's sync refusals (src/survey/db/censusSyncCore.ts CensusSyncError), by code. */
-const CENSUS = new Set(['previous_missing', 'frame_code_taken', 'block_size_differs', 'unreadable', 'undecided']);
+const CENSUS = new Set(['previous_missing', 'frame_code_taken', 'block_size_differs', 'template_differs', 'unreadable', 'undecided']);
 
 export function teamSyncErrorText(e: unknown): string {
   const code = (e as { code?: unknown } | null)?.code;

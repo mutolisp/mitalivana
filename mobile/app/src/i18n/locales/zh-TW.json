@@ -3629,7 +3629,8 @@
       "frame_code_taken": "這台手機已有另一個代號相同的永久樣區，無法建立隊友的樣區。",
       "block_size_differs": "隊友這個回合用的同步區塊大小和這台不同，無法合併。",
       "unreadable": "收到無法讀取的資料（可能來自較新版的 app），已略過。",
-      "undecided": "還有重複的樹號沒有決定。"
+      "undecided": "還有重複的樹號沒有決定。",
+      "template_differs": "隊友這個回合用的每木模板和這台不同，沒有合併。"
     },
     "mergedFromToast": "已合併 {{names}} 的資料",
     "members": "隊員",
@@ -3732,7 +3733,8 @@
       "files": "檔案 {{n}} 個",
       "skip": {
         "block_size": "尚未決定區塊大小（請在回合畫面同步）",
-        "unreadable": "無法讀取（可能來自較新版 app）"
+        "unreadable": "無法讀取（可能來自較新版 app）",
+        "template_differs": "隊友用的每木模板不同，沒有合併"
       }
     },
     "sentTo": "→ {{name}}（{{host}}）",
@@ -4587,7 +4589,10 @@
       "newTag": "新樹號",
       "next": "下一步",
       "needDecision": "每個重複的樹號都要先選一個做法（改號要填新號碼）。",
-      "versionsNote": "套用前會先存這個區塊各樣方的版本，可以從樣方的版本還原。"
+      "versionsNote": "套用前會先存這個區塊各樣方的版本，可以從樣方的版本還原。",
+      "someone": "一位隊友",
+      "templateDiffersTitle": "模板不同，沒有合併",
+      "templateDiffersMsg": "{{names}} 這個回合用的每木模板和這台不同，他們的資料沒有合併進來。請大家用同一份模板；若是另一套調查，請對方刪掉這個回合，開始時改選「另開系列」。"
     },
     "import": {
       "existsTitle": "手機上已有這些回合",
@@ -4598,7 +4603,8 @@
       "skipped": "略過 {{count}} 個回合",
       "merged": "合併 {{count}} 個回合",
       "toReview": "{{count}} 個回合需要審閱合併",
-      "unresolvedTaxa": "{{count}} 個物種在這台手機的名錄中找不到，保留原代碼"
+      "unresolvedTaxa": "{{count}} 個物種在這台手機的名錄中找不到，保留原代碼",
+      "templateDiffers": "{{count}} 個回合在這台用的是另一份模板，沒有合併或覆蓋"
     },
     "component": {
       "taxon": "物種",
@@ -5156,7 +5162,13 @@
       "pickFrame": "在哪個永久樣區？",
       "openTitle": "還有進行中的回合",
       "openMsg": "這個樣區的第 {{n}} 回合還沒結束，結束後才能開始下一回合。",
-      "openGo": "開啟進行中的回合"
+      "openGo": "開啟進行中的回合",
+      "startNew": "開始新回合",
+      "seriesTitle": "「{{name}}」第一次用在這個樣區",
+      "seriesMsg": "接續：同一群樹，沿用上回合的 POM、死亡代碼與生長檢查。另開系列：從第 1 回合開始，需要系列代號。",
+      "seriesContinue": "接續第 {{n}} 回合（上回合用「{{name}}」）",
+      "seriesContinueCode": "接續系列 {{code}} 第 {{n}} 回合（上回合用「{{name}}」）",
+      "seriesNew": "另開系列（從第 1 回合開始）…"
     }
   }
 }

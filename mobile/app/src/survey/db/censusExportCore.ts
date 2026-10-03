@@ -20,7 +20,7 @@
 import type { Scalar } from '@op-engineering/op-sqlite';
 import type { BaseEntry, Row } from '../../lib/mergeEngine';
 import { fgQuadratCounts, formatFgQuadratCode } from '../stemmap/coords';
-import { censusByIdent, censusIdent, THIS_CENSUS } from './censusSyncCore';
+import { censusByIdent, censusIdent, templateDiffers, THIS_CENSUS } from './censusSyncCore';
 import { buildSlice, fillSlice, insertCensusFromDoc, restoreSlice, type CensusSlice } from './sliceCore';
 import { frameGeometry, getSurvey, type Ctx, type SurveyDb } from './stemmapCore';
 
@@ -266,6 +266,8 @@ export type ImportResult = {
   created: number[];
   overwritten: number[];
   skipped: number[];
+  /** Censuses here (same plot, series and number) on another template: left as they are (decided 2026-10-03). */
+  templateDiffers: number[];
   /** Censuses to merge (the census merge, with its clashes and review), oldest first. */
   merges: Array<{ surveyId: number; slice: CensusSlice; base: BaseEntry[] }>;
 };
@@ -280,7 +282,7 @@ export type ImportResult = {
  * versions of what it overwrites.
  */
 export function importCensusDoc(ctx: Ctx, doc: CensusExportDoc, choice: ImportChoice, mediaUri: (file: string) => string | null = () => null): ImportResult {
-  const out: ImportResult = { created: [], overwritten: [], skipped: [], merges: [] };
+  const out: ImportResult = { created: [], overwritten: [], skipped: [], templateDiffers: [], merges: [] };
   const slices = censusSlicesOf(doc, mediaUri);
   doc.censuses.forEach((c, i) => {
     const here = localCensus(ctx, doc, c.survey);
@@ -292,7 +294,13 @@ export function importCensusDoc(ctx: Ctx, doc: CensusExportDoc, choice: ImportCh
       return;
     }
     // The census here may have another uuid (started on another phone): the file's rows name it as THIS_CENSUS.
-    const localUuid = getSurvey(ctx, here)!.uuid;
+    const localSurvey = getSurvey(ctx, here)!;
+    // Another template (a teammate who started the same number with it): neither merged nor overwritten.
+    if (templateDiffers(localSurvey.template_id, c.survey)) {
+      out.templateDiffers.push(here);
+      return;
+    }
+    const localUuid = localSurvey.uuid;
     const local = swapUuid(slice, c.survey.uuid as string, localUuid);
     if (choice === 'skip') out.skipped.push(here);
     else if (choice === 'overwrite') {

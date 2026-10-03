@@ -32,6 +32,7 @@ export {
   type SurveyErrorCode,
   type FgQuadratRow,
   type CensusRow,
+  type CensusSeriesOption,
   TAG_ORDER,
   type TaxonInput,
   type TreeDraft,
@@ -53,7 +54,8 @@ export const deleteFrame = (id: number) => withTransaction(() => core.deleteFram
 export const getSurvey = (id: number) => core.getSurvey(ctx(), id);
 export const censusCodesets = (id: number) => core.censusCodesets(ctx(), id);
 export const censusTemplate = (id: number) => core.censusTemplate(ctx(), id);
-export const censusSeriesCodeNeeded = (frameId: number, templateId: string) => core.censusSeriesCodeNeeded(ctx(), frameId, templateId);
+export const censusSeriesPlan = (frameId: number, templateId: string) => core.censusSeriesPlan(ctx(), frameId, templateId);
+export const censusSeriesOptions = (frameId: number) => core.censusSeriesOptions(ctx(), frameId);
 export const listCensuses = (frameId: number | null = null) => core.listCensuses(ctx(), frameId);
 /** Photos a census export carries (it and the earlier censuses of its series), as photo lists, and its tree count (size estimate). */
 export function censusExportSizeInput(surveyId: number): { photos: { photo_paths: string | null }[]; trees: number } {
@@ -70,6 +72,7 @@ export function censusExportSizeInput(surveyId: number): { photos: { photo_paths
 export const startCensus = (input: {
   frameId: number;
   template: SurveyTemplate;
+  seriesId?: number;
   seriesCode?: string;
   investigators?: string | null;
   syncBlockQuadrats?: number | null;

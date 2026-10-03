@@ -3812,7 +3812,8 @@
       "frame_code_taken": "Eine andere Dauerfläche auf diesem Gerät nutzt bereits diesen Code; die Fläche aus dem Team kann nicht angelegt werden.",
       "block_size_differs": "Das Team nutzt für diese Erhebung eine andere Blockgröße; sie kann nicht zusammengeführt werden.",
       "unreadable": "Daten erhalten, die diese App nicht lesen kann (vielleicht aus einer neueren Version); übersprungen.",
-      "undecided": "Für einige doppelte Nummern fehlt noch eine Entscheidung."
+      "undecided": "Für einige doppelte Nummern fehlt noch eine Entscheidung.",
+      "template_differs": "Teammitglieder verwenden für diese Aufnahme eine andere Vorlage; nicht zusammengeführt."
     },
     "mergedFromToast": "Daten von {{names}} zusammengeführt",
     "members": "Mitglieder",
@@ -3918,7 +3919,8 @@
       "files": "{{n}} Dateien",
       "skip": {
         "block_size": "Noch keine Blockgröße (über die Erhebung synchronisieren)",
-        "unreadable": "Nicht lesbar (vielleicht aus einer neueren App)"
+        "unreadable": "Nicht lesbar (vielleicht aus einer neueren App)",
+        "template_differs": "Teammitglied mit anderer Vorlage; nicht zusammengeführt"
       }
     },
     "sentTo": "→ {{name}} ({{host}})",
@@ -4785,7 +4787,10 @@
       "newTag": "Neue Nummer",
       "next": "Weiter",
       "needDecision": "Bitte für jede doppelte Nummer eine Lösung wählen (zum Umnummerieren die neue Nummer eingeben).",
-      "versionsNote": "Vor dem Übernehmen wird von jedem Quadrat dieses Blocks eine Version gespeichert; sie lässt sich aus den Versionen des Quadrats wiederherstellen."
+      "versionsNote": "Vor dem Übernehmen wird von jedem Quadrat dieses Blocks eine Version gespeichert; sie lässt sich aus den Versionen des Quadrats wiederherstellen.",
+      "someone": "ein Teammitglied",
+      "templateDiffersTitle": "Andere Vorlage; nicht zusammengeführt",
+      "templateDiffersMsg": "{{names}} hat diese Aufnahme mit einer anderen Vorlage erfasst; die Daten wurden nicht zusammengeführt. Alle sollten dieselbe Vorlage verwenden. Ist es eine eigene Erhebung, sollte die andere Person diese Aufnahme löschen und beim Start „Neue Serie“ wählen."
     },
     "import": {
       "existsTitle": "Einige Erhebungen sind schon da",
@@ -4796,7 +4801,8 @@
       "skipped": "{{count}} Erhebungen übersprungen",
       "merged": "{{count}} Erhebungen zusammengeführt",
       "toReview": "{{count}} Erhebungen brauchen eine Prüfung der Zusammenführung",
-      "unresolvedTaxa": "{{count}} Arten fehlen in der Artenliste dieses Geräts; ihre Codes bleiben"
+      "unresolvedTaxa": "{{count}} Arten fehlen in der Artenliste dieses Geräts; ihre Codes bleiben",
+      "templateDiffers": "{{count}} Aufnahmen verwenden auf diesem Gerät eine andere Vorlage; weder zusammengeführt noch überschrieben"
     },
     "component": {
       "taxon": "Taxon",
@@ -5377,7 +5383,13 @@
       "pickFrame": "Auf welcher Dauerfläche?",
       "openTitle": "Eine Aufnahme ist noch offen",
       "openMsg": "Aufnahme {{n}} dieser Fläche ist noch nicht abgeschlossen. Erst abschließen, dann die nächste starten.",
-      "openGo": "Offene Aufnahme öffnen"
+      "openGo": "Offene Aufnahme öffnen",
+      "startNew": "Neue Aufnahme starten",
+      "seriesTitle": "„{{name}}“ ist neu auf dieser Fläche",
+      "seriesMsg": "Fortsetzen: dieselben Bäume, mit POM, Todescodes und Zuwachsprüfungen der letzten Aufnahme. Neue Serie: beginnt mit Aufnahme 1 und braucht ein Serienkürzel.",
+      "seriesContinue": "Als Aufnahme {{n}} fortsetzen (zuletzt „{{name}}“)",
+      "seriesContinueCode": "Serie {{code}} als Aufnahme {{n}} fortsetzen (zuletzt „{{name}}“)",
+      "seriesNew": "Neue Serie (ab Aufnahme 1)…"
     }
   }
 }

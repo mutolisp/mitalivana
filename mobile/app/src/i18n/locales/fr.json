@@ -3995,7 +3995,8 @@
       "frame_code_taken": "Une autre placette de cet appareil utilise déjà ce code ; la placette de l’équipe ne peut pas être créée.",
       "block_size_differs": "L’équipe utilise une autre taille de bloc pour cet inventaire ; impossible de fusionner.",
       "unreadable": "Données illisibles reçues (peut-être d’une version plus récente) ; ignorées.",
-      "undecided": "Certains numéros en double n’ont pas encore de décision."
+      "undecided": "Certains numéros en double n’ont pas encore de décision.",
+      "template_differs": "L’équipe utilise un autre modèle pour cet inventaire ; il n’a pas été fusionné."
     },
     "mergedFromToast": "Données de {{names}} fusionnées",
     "members": "Membres",
@@ -4104,7 +4105,8 @@
       "files": "{{n}} fichiers",
       "skip": {
         "block_size": "Taille de bloc non décidée (synchroniser depuis l’inventaire)",
-        "unreadable": "Illisible (peut-être une app plus récente)"
+        "unreadable": "Illisible (peut-être une app plus récente)",
+        "template_differs": "Membre sur un autre modèle ; non fusionné"
       }
     },
     "sentTo": "→ {{name}} ({{host}})",
@@ -4983,7 +4985,10 @@
       "newTag": "Nouveau numéro",
       "next": "Suivant",
       "needDecision": "Choisissez une solution pour chaque numéro en double (pour renuméroter, saisissez le nouveau numéro).",
-      "versionsNote": "Avant l’application, une version de chaque quadrat de ce bloc est conservée ; on peut la restaurer depuis les versions du quadrat."
+      "versionsNote": "Avant l’application, une version de chaque quadrat de ce bloc est conservée ; on peut la restaurer depuis les versions du quadrat.",
+      "someone": "un membre",
+      "templateDiffersTitle": "Autre modèle ; non fusionné",
+      "templateDiffersMsg": "{{names}} a saisi cet inventaire avec un autre modèle ; ses données n’ont pas été fusionnées. Utilisez tous le même modèle ; s’il s’agit d’un autre relevé, la personne doit supprimer cet inventaire et choisir « Nouvelle série » au démarrage."
     },
     "import": {
       "existsTitle": "Certains inventaires sont déjà là",
@@ -4994,7 +4999,8 @@
       "skipped": "{{count}} inventaires ignorés",
       "merged": "{{count}} inventaires fusionnés",
       "toReview": "{{count}} inventaires demandent une revue de fusion",
-      "unresolvedTaxa": "{{count}} espèces absentes de la liste de cet appareil ; leurs codes sont conservés"
+      "unresolvedTaxa": "{{count}} espèces absentes de la liste de cet appareil ; leurs codes sont conservés",
+      "templateDiffers": "{{count}} inventaires utilisent un autre modèle sur cet appareil ; ni fusionnés ni remplacés"
     },
     "component": {
       "taxon": "Taxon",
@@ -5598,7 +5604,13 @@
       "pickFrame": "Sur quelle placette permanente ?",
       "openTitle": "Un inventaire est encore ouvert",
       "openMsg": "L’inventaire {{n}} de cette placette n’est pas terminé. Terminez-le avant de commencer le suivant.",
-      "openGo": "Ouvrir l’inventaire en cours"
+      "openGo": "Ouvrir l’inventaire en cours",
+      "startNew": "Commencer un nouvel inventaire",
+      "seriesTitle": "« {{name}} » est nouveau sur cette placette",
+      "seriesMsg": "Continuer : les mêmes arbres, avec le POM, les codes de mort et les contrôles de croissance du dernier inventaire. Nouvelle série : commence à l’inventaire 1 et demande un code de série.",
+      "seriesContinue": "Continuer comme inventaire {{n}} (le dernier utilisait « {{name}} »)",
+      "seriesContinueCode": "Continuer la série {{code}} comme inventaire {{n}} (le dernier utilisait « {{name}} »)",
+      "seriesNew": "Nouvelle série (à partir de l’inventaire 1)…"
     }
   }
 }

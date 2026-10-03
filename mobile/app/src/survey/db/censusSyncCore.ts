@@ -65,6 +65,8 @@ export type CensusSyncErrorCode =
   | 'frame_code_taken'
   /** The teammates chose another block size for this census. */
   | 'block_size_differs'
+  /** The teammate's census of this plot, series and number uses another template (decided 2026-10-03): not merged. */
+  | 'template_differs'
   /** Not a census document this build reads. */
   | 'unreadable'
   /** A tag clash has no decision yet: one tag cannot sit on two trees. */
@@ -212,6 +214,7 @@ export function ensureCensus(ctx: Ctx, h: CensusTeamHeader): { surveyId: number;
   const found = censusByIdent(ctx, h.ident);
   if (found != null) {
     const s = getSurvey(ctx, found)!;
+    if (templateDiffers(s.template_id, h.survey)) throw new CensusSyncError('template_differs');
     if (s.sync_block_quadrats == null) setBlockSize(ctx, found, h.block_quadrats);
     else if (s.sync_block_quadrats !== h.block_quadrats) throw new CensusSyncError('block_size_differs');
     return { surveyId: found, created: false };
@@ -230,6 +233,16 @@ export function ensureCensus(ctx: Ctx, h: CensusTeamHeader): { surveyId: number;
   const status = h.survey.status === 'done' ? 'done' : 'active';
   const surveyId = insertCensusFromDoc(ctx, { frame: h.frame, series: h.series, survey: { ...h.survey, sync_block_quadrats: h.block_quadrats } }, { status, projectId: 0 });
   return { surveyId, created: true };
+}
+
+/**
+ * Whether a teammate's census (its header's or file's survey row) uses
+ * another template than this census here. The same template at another
+ * version is the same (an additive upgrade); another template id would put
+ * fields this phone's form does not show into its census.
+ */
+export function templateDiffers(hereTemplateId: string, theirs: Row): boolean {
+  return typeof theirs.template_id === 'string' && theirs.template_id !== hereTemplateId;
 }
 
 /** Fix a census's block size (first team sync, §7.9). */

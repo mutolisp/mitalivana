@@ -3995,7 +3995,8 @@
       "frame_code_taken": "Otra parcela de este dispositivo ya usa este código; no se puede crear la parcela del equipo.",
       "block_size_differs": "El equipo usa otro tamaño de bloque para este censo; no se puede combinar.",
       "unreadable": "Se recibieron datos que esta app no puede leer (quizá de una versión más reciente); se omitieron.",
-      "undecided": "Hay números repetidos sin decidir."
+      "undecided": "Hay números repetidos sin decidir.",
+      "template_differs": "El equipo usa otra plantilla para este censo; no se fusionó."
     },
     "mergedFromToast": "Se combinaron los datos de {{names}}",
     "members": "Integrantes",
@@ -4104,7 +4105,8 @@
       "files": "{{n}} archivos",
       "skip": {
         "block_size": "Sin tamaño de bloque (sincronice desde el censo)",
-        "unreadable": "Ilegible (quizá de una app más reciente)"
+        "unreadable": "Ilegible (quizá de una app más reciente)",
+        "template_differs": "Miembro con otra plantilla; no fusionado"
       }
     },
     "sentTo": "→ {{name}} ({{host}})",
@@ -4983,7 +4985,10 @@
       "newTag": "Número nuevo",
       "next": "Siguiente",
       "needDecision": "Elija qué hacer con cada número repetido (para renumerar, escriba el número nuevo).",
-      "versionsNote": "Antes de aplicar se guarda una versión de cada cuadrante de este bloque; se puede restaurar desde las versiones del cuadrante."
+      "versionsNote": "Antes de aplicar se guarda una versión de cada cuadrante de este bloque; se puede restaurar desde las versiones del cuadrante.",
+      "someone": "un miembro",
+      "templateDiffersTitle": "Otra plantilla; no se fusionó",
+      "templateDiffersMsg": "{{names}} registró este censo con otra plantilla, así que sus datos no se fusionaron. Usen todos la misma plantilla; si es un muestreo aparte, esa persona debe eliminar este censo y elegir «Nueva serie» al iniciarlo."
     },
     "import": {
       "existsTitle": "Algunos censos ya están aquí",
@@ -4994,7 +4999,8 @@
       "skipped": "{{count}} censos omitidos",
       "merged": "{{count}} censos combinados",
       "toReview": "{{count}} censos necesitan revisar la combinación",
-      "unresolvedTaxa": "{{count}} especies no están en la lista de este dispositivo; se conservan sus códigos"
+      "unresolvedTaxa": "{{count}} especies no están en la lista de este dispositivo; se conservan sus códigos",
+      "templateDiffers": "{{count}} censos usan otra plantilla en este dispositivo; no se fusionaron ni se sobrescribieron"
     },
     "component": {
       "taxon": "Taxón",
@@ -5598,7 +5604,13 @@
       "pickFrame": "¿En qué parcela permanente?",
       "openTitle": "Aún hay un censo abierto",
       "openMsg": "El censo {{n}} de esta parcela no ha terminado. Termínelo antes de iniciar el siguiente.",
-      "openGo": "Abrir el censo en curso"
+      "openGo": "Abrir el censo en curso",
+      "startNew": "Iniciar un nuevo censo",
+      "seriesTitle": "«{{name}}» es nueva en esta parcela",
+      "seriesMsg": "Continuar: los mismos árboles, con el POM, los códigos de muerte y las comprobaciones de crecimiento del censo anterior. Nueva serie: empieza en el censo 1 y requiere un código de serie.",
+      "seriesContinue": "Continuar como censo {{n}} (el anterior usó «{{name}}»)",
+      "seriesContinueCode": "Continuar la serie {{code}} como censo {{n}} (el anterior usó «{{name}}»)",
+      "seriesNew": "Nueva serie (desde el censo 1)…"
     }
   }
 }

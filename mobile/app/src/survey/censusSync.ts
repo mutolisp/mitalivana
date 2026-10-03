@@ -280,6 +280,8 @@ export type CensusSyncOutcome = SyncOutcome & {
   blocksSent: number;
   /** Not synced: no block size yet and nobody to ask (team page); open the census and sync there. */
   needsBlockSize?: boolean;
+  /** Teammates whose census here uses another template: their blocks were not merged (names, '' when unknown). */
+  templateDiffers?: string[];
 };
 
 export type CensusSyncOptions = {
@@ -330,12 +332,22 @@ async function syncCensusNow(teamId: string, surveyId: number, opts: CensusSyncO
     // 1. Teammates' headers: their claims, and the block size if this phone has none yet.
     let teamK: number | null = null;
     const needK = getSurvey(c, surveyId)!.sync_block_quadrats == null;
+    // Teammates on another template: their header stays unseen (asked again next time), their blocks are not merged.
+    const otherTemplate = new Map<string, string>();
     for (const it of items) {
       if (it.rec !== hRec || it.dev === dev) continue;
       if (!needK && seenEtag(teamId, hRec, it.dev) === it.etag) continue;
       const doc = readCensusDoc(await downloadText(team, keys, hRec, it.dev));
+      if (!doc || doc.record_type !== 'census_team_header' || doc.ident !== ident) {
+        markSeen(teamId, hRec, it.dev, it.etag);
+        continue;
+      }
+      if (core.templateDiffers(s0.template_id, doc.survey)) {
+        otherTemplate.set(it.dev, doc.author ?? '');
+        logSync(teamId, 'skip', logRec, { server, detail: 'template_differs' });
+        continue;
+      }
       markSeen(teamId, hRec, it.dev, it.etag);
-      if (!doc || doc.record_type !== 'census_team_header' || doc.ident !== ident) continue;
       rememberMember(teamId, it.dev, doc.author, it.uploaded);
       const claims = getClaims(surveyId);
       putClaims(surveyId, { ...claims, others: { ...claims.others, [it.dev]: { name: doc.author ?? null, blocks: doc.claims, at: it.uploaded } } });
@@ -432,8 +444,9 @@ async function syncCensusNow(teamId: string, surveyId: number, opts: CensusSyncO
     const merged = new Set<string>();
     const incoming = items.filter((it) => {
       const block = it.rec ? recBlock.get(it.rec) : undefined;
-      return block && it.dev !== dev && seenEtag(teamId, it.rec!, it.dev) !== it.etag;
+      return block && it.dev !== dev && !otherTemplate.has(it.dev) && seenEtag(teamId, it.rec!, it.dev) !== it.etag;
     });
+    if (otherTemplate.size) out.templateDiffers = [...otherTemplate.values()];
     for (const [i, it] of incoming.entries()) {
       const block = recBlock.get(it.rec!)!;
       useSyncProgress.getState().update({ blockStage: 'down', blockIndex: i + 1, blockCount: incoming.length });

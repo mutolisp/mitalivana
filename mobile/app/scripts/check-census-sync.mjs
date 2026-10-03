@@ -9,7 +9,8 @@
  *     write stamps its block, a tree moved across blocks stamps both;
  *   - a teammate's header creates the census here (same uuid, plot, series,
  *     block size); a later census needs the one before it; another plot
- *     holding the code, or another block size, is refused;
+ *     holding the code, another block size, or another census template for
+ *     the same census (not another version of it), is refused;
  *   - two groups in two blocks: each phone ends with both blocks; an edit on
  *     one side comes over without a question (the sender's base); edits on
  *     both sides to one value are a conflict;
@@ -129,6 +130,10 @@ ok(B.one('SELECT uuid FROM fw_frames').uuid === s.getFrame(A.ctx, FA).uuid && s.
 ok(!B.tx(() => cs.ensureCensus(B.ctx, header)).created, 'header: the second time it is found');
 ok(cs.identOfCensus(B.ctx, CB) === cs.identOfCensus(A.ctx, CA), 'header: same plot + series + number on both');
 throwsSync(() => B.tx(() => cs.ensureCensus(B.ctx, { ...header, block_quadrats: 3 })), 'block_size_differs', 'header: another block size refused');
+// Another census template for the same plot, series and number (decided 2026-10-03): refused; another version of the same template is not.
+throwsSync(() => B.tx(() => cs.ensureCensus(B.ctx, { ...header, survey: { ...header.survey, template_id: 'user:other-census' } })), 'template_differs', 'header: another template refused');
+ok(!B.tx(() => cs.ensureCensus(B.ctx, { ...header, survey: { ...header.survey, template_version: 2 } })).created, 'header: the same template at another version is the same census');
+ok(cs.templateDiffers('builtin:stemmap', { template_id: 'user:x' }) && !cs.templateDiffers('builtin:stemmap', { template_id: 'builtin:stemmap' }), 'header: templateDiffers compares template ids');
 const C = await phone('c');
 s.createFrame(C.ctx, { code: 'TS1', sizeXM: 100, sizeYM: 100 });
 throwsSync(() => C.tx(() => cs.ensureCensus(C.ctx, header)), 'frame_code_taken', 'header: a different plot here with that code refused');

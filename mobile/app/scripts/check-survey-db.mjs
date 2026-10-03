@@ -10,7 +10,9 @@
  *     cannot be deleted;
  *   - the first series of a frame needs no code, later ones do; census
  *     numbers run 1, 2…; the census keeps the template's snapshot and hash;
- *     every census of a frame is one series, whichever census template;
+ *     a census template's series goes on by itself; a template new on a
+ *     plot with censuses is asked (carry a series on, or its own series
+ *     with a code) — without an answer it opens its own;
  *   - a census template (2D-b) decides what a census stores beyond the
  *     census itself: traits on the tree (checked against their range), the
  *     template's own health code lists per stem (retired codes still read),
@@ -140,7 +142,10 @@ ok(s.getFrame(ctx, F).name === 'Fushan', 'frame: name and declination stay edita
 s.updateFrame(ctx, F, { declinationDeg: 0 });
 throwsCode(() => s.deleteFrame(ctx, F), 'frame_has_surveys', 'frame: cannot delete with censuses');
 const other = { ...T, id: 'user:other' };
-ok(s.censusSeriesId(ctx, F) === c1.series_id && !s.censusSeriesCodeNeeded(ctx, F, other.id), "series: a census with another template continues the frame's census series (no code)");
+const askOther = s.censusSeriesPlan(ctx, F, other.id);
+ok(askOther.kind === 'ask' && askOther.options.length === 1 && askOther.options[0].seriesId === c1.series_id && askOther.options[0].lastNo === 1, `series: a template new on the plot is asked about (${JSON.stringify(askOther)})`);
+ok(s.censusSeriesPlan(ctx, F, T.id).kind === 'continue', "series: the plot's own census template goes on");
+throwsCode(() => s.startCensus(ctx, { frameId: F, template: other }), 'series_code_required', 'series: unanswered, a new template opens its own series (a code)');
 throwsCode(() => s.startCensus(ctx, { frameId: F, template: { ...T, components: [] } }), 'template_invalid', 'census: an invalid template is refused');
 rejects(
   `INSERT INTO fw_surveys (uuid, style, frame_id, series_id, census_no, template_id, template_version, template_snapshot, template_hash, start_ts, created_at, updated_at) VALUES ('dup', 'individual', ?, ?, 1, 'x', 1, '{}', 'h', 1, 1, 1)`,
@@ -557,8 +562,10 @@ const TF = s.createFrame(ctx, { code: 'TPL1', sizeXM: 40, sizeYM: 40 });
 const TC1 = s.startCensus(ctx, { frameId: TF, template: T });
 const tA = s.saveTreeDraft(ctx, TC1, draft({ location: xy0(5, 5), mainStemNo: 1, stems: [sd({ dbhCm: 10 })] }));
 s.finishCensus(ctx, TC1);
-ok(!s.censusSeriesCodeNeeded(ctx, TF, TT.id), 'census template: a recensus with another template asks no series code');
-const TC2 = s.startCensus(ctx, { frameId: TF, template: TT });
+const tPlan = s.censusSeriesPlan(ctx, TF, TT.id);
+ok(tPlan.kind === 'ask' && tPlan.options[0].lastTemplateId === T.id, 'census template: a copy new on the plot asks which series');
+throwsCode(() => s.startCensus(ctx, { frameId: TF, template: TT, seriesId: c1.series_id }), 'bad_reference', "census template: another plot's series is refused");
+const TC2 = s.startCensus(ctx, { frameId: TF, template: TT, seriesId: tPlan.options[0].seriesId });
 ok(s.getSurvey(ctx, TC2).series_id === s.getSurvey(ctx, TC1).series_id && s.getSurvey(ctx, TC2).census_no === 2, 'census template: census 2 with the copy continues the series');
 ok(s.previousCensusId(ctx, TC2) === TC1 && s.loadTree(ctx, TC2, tA).stems[0].previous?.dbh_cm === 10, 'census template: … with the previous census and its measurements');
 ok(s.censusTemplate(ctx, TC2).id === TT.id && s.censusCustomLists(s.censusTemplate(ctx, TC2)).map((l) => l.id).join() === madeList.id, 'census template: the census knows its template and its own code lists');
@@ -603,9 +610,25 @@ s.addTreeMedia(ctx, TC2, tA, 'file:///photos/c1.jpg');
 throwsCode(() => s.addTreeMedia(ctx, TC2, tA, 'file:///photos/c2.jpg'), 'bad_value', 'census template: photos beyond the maximum are refused');
 s.finishCensus(ctx, TC2);
 const TC3 = s.startCensus(ctx, { frameId: TF, template: TT });
+ok(s.getSurvey(ctx, TC3).series_id === s.getSurvey(ctx, TC1).series_id && s.getSurvey(ctx, TC3).census_no === 3, 'census template: the copy goes on in the series it joined, without asking');
+ok(s.censusSeriesPlan(ctx, TF, T.id).kind === 'continue', 'census template: … and so does the built-in that started it');
 ok(s.loadTree(ctx, TC3, tA).stems[0].previousCustom[madeList.id]?.join() === '2', 'census template: the next census shows the previous codes');
 ok(Object.keys(s.loadTree(ctx, TC3, tA).traits).length === 0, "census template: … but not the previous census's traits as its own");
 s.deleteCensus(ctx, TC3);
+// A separate survey on the plot: its own series (a code), census 1, then it goes on by itself.
+const AMSONLY = { ...TT, id: 'user:census-annual' };
+const TS1 = s.startCensus(ctx, { frameId: TF, template: AMSONLY, seriesCode: 'ams' });
+const ts1 = s.getSurvey(ctx, TS1);
+ok(ts1.census_no === 1 && ts1.series_id !== s.getSurvey(ctx, TC1).series_id && s.previousCensusId(ctx, TS1) == null, 'own series: census 1 of a new series, no previous census');
+const tsPlan = s.censusSeriesPlan(ctx, TF, AMSONLY.id);
+ok(tsPlan.kind === 'continue' && tsPlan.seriesId === ts1.series_id, 'own series: its template goes on there by itself');
+ok(s.censusSeriesOptions(ctx, TF).map((o) => o.seriesCode).join() === 'ams,', `own series: the plot lists both series, latest first (${s.censusSeriesOptions(ctx, TF).map((o) => o.seriesCode)})`);
+ok(s.listCensuses(ctx, TF).find((c) => c.id === TS1).series_code === 'ams', 'own series: the census list carries the series code');
+s.finishCensus(ctx, TS1);
+const TS2 = s.startCensus(ctx, { frameId: TF, template: AMSONLY });
+ok(s.getSurvey(ctx, TS2).series_id === ts1.series_id && s.getSurvey(ctx, TS2).census_no === 2, 'own series: census 2 of that series');
+s.deleteCensus(ctx, TS2);
+s.deleteCensus(ctx, TS1);
 const noPhotos = ed.removeComponent({ ...TT, id: 'user:census-nophoto' }, 'photos');
 const NF = s.createFrame(ctx, { code: 'TPL2', sizeXM: 20, sizeYM: 20 });
 const NC1 = s.startCensus(ctx, { frameId: NF, template: noPhotos });
@@ -614,10 +637,18 @@ throwsCode(() => s.addTreeMedia(ctx, NC1, nA, 'file:///photos/n.jpg'), 'bad_comp
 // A first census on a plot that already has another series still needs a code.
 const SF = s.createFrame(ctx, { code: 'TPL3', sizeXM: 20, sizeYM: 20 });
 sqlite.prepare(`INSERT INTO fw_frame_series (uuid, frame_id, template_id, series_code, created_at, updated_at) VALUES ('ser-plot', ?, 'user:plot', '', 1, 1)`).run(SF);
-ok(s.censusSeriesCodeNeeded(ctx, SF, T.id), 'census series: a first census next to a plot-style series needs a code');
+const sPlan = s.censusSeriesPlan(ctx, SF, T.id);
+ok(sPlan.kind === 'new' && sPlan.codeNeeded, 'census series: a first census next to a plot-style series needs a code');
 throwsCode(() => s.startCensus(ctx, { frameId: SF, template: T }), 'series_code_required', 'census series: … and is refused without one');
 const SC1 = s.startCensus(ctx, { frameId: SF, template: T, seriesCode: 'tree' });
-ok(s.censusSeriesId(ctx, SF) === s.getSurvey(ctx, SC1).series_id && !s.censusSeriesCodeNeeded(ctx, SF, TT.id), 'census series: after it, censuses continue that series');
+ok(s.censusSeriesPlan(ctx, SF, T.id).kind === 'continue' && s.censusSeriesPlan(ctx, SF, TT.id).kind === 'ask', 'census series: after it, its template goes on and another is asked');
+ok(s.censusSeriesPlan(ctx, s.createFrame(ctx, { code: 'TPL4', sizeXM: 20, sizeYM: 20 }), T.id).codeNeeded === false, "census series: a plot's first series needs no code");
+// Its only census deleted, the series (and its code) stays: starting again asks for no new code and reuses it.
+s.deleteCensus(ctx, SC1);
+const emptied = s.censusSeriesPlan(ctx, SF, T.id);
+ok(emptied.kind === 'new' && !emptied.codeNeeded, `census series: a series left empty is taken up again without a code (${JSON.stringify(emptied)})`);
+const SC1b = s.startCensus(ctx, { frameId: SF, template: T });
+ok(one(`SELECT series_code AS c FROM fw_frame_series WHERE id = ?`, s.getSurvey(ctx, SC1b).series_id).c === 'tree', 'census series: … keeping its code');
 
 // ── slices: restore (quadrat versions, undo) ─────────────────────────────
 const R = s.createFrame(ctx, { code: 'R1', sizeXM: 40, sizeYM: 20 });

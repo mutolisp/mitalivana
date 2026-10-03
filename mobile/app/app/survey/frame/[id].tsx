@@ -53,6 +53,8 @@ export default function SurveyFrameScreen() {
   }
 
   const latest = censuses[0] ?? null;
+  // Several census series: the next number depends on the series the start asks for.
+  const multiSeries = new Set(censuses.map((c) => c.series_id)).size > 1;
   const q = fgQuadratCounts({ sizeXM: frame.size_x_m, sizeYM: frame.size_y_m, quadratM: frame.quadrat_m, subquadratM: frame.subquadrat_m, originLat: null, originLng: null, bearingDeg: 0, bearingRef: 'true', declinationDeg: 0 });
 
   // Continues an open census; else asks (the census template too, when the user has their own).
@@ -132,7 +134,9 @@ export default function SurveyFrameScreen() {
               label={
                 latest?.status === 'active'
                   ? t('survey.frame.continue', { n: latest.census_no })
-                  : t('survey.frame.startTitle', { n: (latest?.census_no ?? 0) + 1 })
+                  : multiSeries
+                    ? t('builder.census.startNew')
+                    : t('survey.frame.startTitle', { n: (latest?.census_no ?? 0) + 1 })
               }
               onPress={onPrimary}
             />
@@ -195,7 +199,11 @@ export default function SurveyFrameScreen() {
             className="flex-row items-center rounded-card border border-line bg-card px-4 py-3 active:opacity-70 dark:border-line-dark dark:bg-card-dark"
           >
             <View className="flex-1">
-              <Text className="text-base font-bold text-ink dark:text-gray-100">{t('survey.census.no', { n: item.census_no })}</Text>
+              <Text className="text-base font-bold text-ink dark:text-gray-100">
+                {t('survey.census.no', { n: item.census_no })}
+                {/* A plot with several census series (2D-b): which one. */}
+                {item.series_code ? ` · ${item.series_code}` : ''}
+              </Text>
               <Text className="mt-0.5 text-sm text-ink-2 dark:text-gray-400">
                 {[
                   item.stop_ts ? `${isoDate(item.start_ts)} – ${isoDate(item.stop_ts)}` : isoDate(item.start_ts),

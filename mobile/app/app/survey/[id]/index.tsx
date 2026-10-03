@@ -267,6 +267,11 @@ export default function CensusScreen() {
         const head = who ? (what ? t('teamSync.mergedWithSummary', { who, what }) : who) : r.blocksSent ? t('survey.sync.sentBlocks', { count: r.blocksSent }) : t('teamSync.upToDate');
         toast(head + where, { durationMs: 6000 });
       }
+      // Teammates on another template: said so, to be read (decided 2026-10-03).
+      if (r.templateDiffers?.length) {
+        const names = r.templateDiffers.map((n) => n || t('survey.sync.someone')).join('、');
+        Alert.alert(t('survey.sync.templateDiffersTitle'), t('survey.sync.templateDiffersMsg', { names }));
+      }
       reload();
     } catch (e) {
       useToast.getState().dismiss();

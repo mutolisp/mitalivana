@@ -3812,7 +3812,8 @@
       "frame_code_taken": "Another plot on this phone already uses this plot's code, so the teammate's plot cannot be created.",
       "block_size_differs": "Teammates use another sync block size for this census; it cannot be merged.",
       "unreadable": "Received data this app cannot read (perhaps from a newer version); skipped.",
-      "undecided": "Some repeated tags have no decision yet."
+      "undecided": "Some repeated tags have no decision yet.",
+      "template_differs": "Teammates use another census template for this census; it was not merged."
     },
     "mergedFromToast": "Merged data from {{names}}",
     "members": "Members",
@@ -3918,7 +3919,8 @@
       "files": "{{n}} files",
       "skip": {
         "block_size": "No block size yet (sync from the census screen)",
-        "unreadable": "Unreadable (perhaps from a newer app)"
+        "unreadable": "Unreadable (perhaps from a newer app)",
+        "template_differs": "Teammate on another census template; not merged"
       }
     },
     "sentTo": "→ {{name}} ({{host}})",
@@ -4785,7 +4787,10 @@
       "newTag": "New tag",
       "next": "Next",
       "needDecision": "Choose what to do with every repeated tag (a renumbering needs the new number).",
-      "versionsNote": "Before applying, a version of each quadrat in this block is kept; it can be restored from the quadrat's versions."
+      "versionsNote": "Before applying, a version of each quadrat in this block is kept; it can be restored from the quadrat's versions.",
+      "someone": "a teammate",
+      "templateDiffersTitle": "Another template; not merged",
+      "templateDiffersMsg": "{{names}} recorded this census with another census template, so their data was not merged. Use one template for everyone; if theirs is a separate survey, they should delete this census and choose “New series” when starting."
     },
     "import": {
       "existsTitle": "Some censuses are already here",
@@ -4796,7 +4801,8 @@
       "skipped": "{{count}} censuses skipped",
       "merged": "{{count}} censuses merged",
       "toReview": "{{count}} censuses need a merge review",
-      "unresolvedTaxa": "{{count}} species are not in this phone's checklist; their codes are kept"
+      "unresolvedTaxa": "{{count}} species are not in this phone's checklist; their codes are kept",
+      "templateDiffers": "{{count}} censuses use another template on this phone; neither merged nor overwritten"
     },
     "component": {
       "taxon": "Taxon",
@@ -5377,7 +5383,13 @@
       "pickFrame": "On which permanent plot?",
       "openTitle": "A census is still open",
       "openMsg": "Census {{n}} of this plot is not finished yet. Finish it before starting the next one.",
-      "openGo": "Open the census"
+      "openGo": "Open the census",
+      "startNew": "Start a new census",
+      "seriesTitle": "“{{name}}” is new on this plot",
+      "seriesMsg": "Carry on: the same trees, with the last census’s POM, death codes and growth checks. New series: starts at census 1 and needs a series code.",
+      "seriesContinue": "Carry on as census {{n}} (last census used “{{name}}”)",
+      "seriesContinueCode": "Carry on series {{code}} as census {{n}} (last census used “{{name}}”)",
+      "seriesNew": "New series (starting at census 1)…"
     }
   }
 }
