@@ -62,7 +62,8 @@ export function recordDiversity(
   }
   let v: { s: number; h: number | null; j: number | null } | null = null;
   try {
-    const rows = kind === 'plot' ? listPlotSpecies(id) : kind === 'modular' ? listOccurrences(id) : listSessionRecords(id);
+    // A survey's occurrences made only as an interaction's other side are not in its sample (2F, decided 2026-10-03).
+    const rows = kind === 'plot' ? listPlotSpecies(id) : kind === 'modular' ? listOccurrences(id).filter((o) => !o.via_interaction) : listSessionRecords(id);
     const d = computeDiversity(
       rows.map((r) => ({
         taxon_id: r.taxon_id,

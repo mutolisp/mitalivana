@@ -417,7 +417,7 @@ const README_RULES: Array<{ match: (name: string) => boolean; desc: string }> = 
   { match: (n) => n.endsWith('_quadrat_surface.csv'), desc: '小樣方：一列一個小樣方，地表覆蓋、位置、大小、格數與上邊方向' },
   {
     match: (n) => n.includes('/dwca/'),
-    desc: 'Darwin Core Archive：event.txt（Event core）+ occurrence.txt + humboldt.txt + measurementorfact.txt（量測，每木的胸徑等在此）+ meta.xml + eml.xml，可直接上傳 GBIF IPT',
+    desc: 'Darwin Core Archive：event.txt（Event core）+ occurrence.txt + humboldt.txt + measurementorfact.txt（量測，每木的胸徑等在此）+ resourcerelationship.txt（交互作用）+ meta.xml + eml.xml，可直接上傳 GBIF IPT',
   },
   { match: (n) => n.endsWith('_04_temperature_loggers.csv'), desc: '溫度計（Form 4）：每支溫度計每次巡查一列，讀取與新部署；非 GLORIA Sheet 原有分頁' },
   { match: (n) => n.includes('/loggers/'), desc: '溫度計資料檔（全長碼_序號_原檔名）與 Form 4 掃描檔（01_ 的表單識別碼）' },
@@ -433,7 +433,16 @@ const README_RULES: Array<{ match: (name: string) => boolean; desc: string }> = 
   // Checklist / plot-style surveys (Phase 2E-a, src/survey/export/surveyExportCore.ts).
   { match: (n) => n.endsWith('_survey.csv'), desc: '調查表：這次調查一列，eventID、模板與版本、永久樣區與系列代號、次數，加上調查層各元件的欄位' },
   { match: (n) => n.endsWith('_units.csv'), desc: '單位表（樣區型）：一列一個單位，eventID 與上層 parentEventID、層級、代碼，加上單位層各元件的欄位' },
-  { match: (n) => n.endsWith('_occurrences.csv'), desc: '出現記錄表：一列一筆，所在單位、物種，加上出現記錄各元件的欄位（欄名「元件 key.欄位」，自訂選項另有 _name 欄）' },
+  {
+    match: (n) => n.endsWith('_occurrences.csv'),
+    desc: '出現記錄表：一列一筆，所在單位、物種，加上出現記錄各元件的欄位（欄名「元件 key.欄位」，自訂選項另有 _name 欄）；interaction_partner 為 1 的是只因交互作用而記的物種，不在群落矩陣內',
+  },
+  {
+    match: (n) => n.endsWith('_interactions.csv'),
+    desc: '交互作用表：一列一筆，A（subject，做這件事的一方）與 B（object）的出現記錄與物種、類型、關係（OBO Relation Ontology 名稱與 IRI）、是否雙向、次數、時間、照片檔名',
+  },
+  { match: (n) => n.endsWith('_interaction_types.csv'), desc: '交互作用類型：內建與模板自訂的類型、關係名稱與 IRI、從 B 看的說法、是否雙向、是否仍提供' },
+  { match: (n) => /_interactions_[^/]+\.csv$/.test(n), desc: '交互作用矩陣：每種類型一個檔，列為 A（做這件事的一方）、欄為 B，值為次數合計（沒記次數的一筆算 1）；無 BOM，供 R 直接讀取' },
   { match: (n) => n.endsWith('_fields.csv'), desc: '欄位說明：每個元件欄位的元件名稱、單位、對應的 DwC 詞彙或量測類型' },
   { match: (n) => n.endsWith('_codelists.csv'), desc: '代碼清單：模板自己的代碼、名稱與是否停用' },
   { match: (n) => n.endsWith('_rechecks.csv'), desc: '複查結果：前次有、這次盲測沒記的物種逐一的結果' },

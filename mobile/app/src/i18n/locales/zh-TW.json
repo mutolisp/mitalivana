@@ -3399,7 +3399,8 @@
       "occval": "出現記錄欄位",
       "recheck": "複查結果",
       "funit": "單位配置",
-      "flabel": "形態種"
+      "flabel": "形態種",
+      "inter": "交互作用"
     },
     "field": {
       "latitude": "緯度",
@@ -3509,7 +3510,13 @@
       "identified_by": "鑑定者",
       "elevation_source": "海拔來源",
       "surveyUnit": "單位",
-      "measureUnit": "量測單位"
+      "measureUnit": "量測單位",
+      "viaInteraction": "交互作用對象",
+      "interSubject": "A（做這件事的一方）",
+      "interObject": "B",
+      "interType": "類型",
+      "interMutual": "雙向",
+      "interCount": "次數"
     },
     "from": "來自 {{name}}",
     "fromAt": "來自 {{name}}，{{date}} 上傳",

@@ -15,7 +15,7 @@ const ctx = () => ({ db: getUserDb(), now: Date.now, uuid: generateUuid });
 const rows = <T>(sql: string, args: (string | number)[] = []) => (getUserDb().executeSync(sql, args).rows ?? []) as unknown as T[];
 
 export type { Sealed, SurveyDoc } from './surveyDocCore';
-export { SURVEY_DOC_COMBINERS, isSurveyDoc, sealedOccurrences, surveyDocForPeer, surveyIdent, withoutSealed } from './surveyDocCore';
+export { SURVEY_DOC_COMBINERS, isSurveyDoc, sealedOccurrences, sealedOwners, surveyDocForPeer, surveyIdent, withoutSealed } from './surveyDocCore';
 
 /** The survey as a document, or null when it is gone (or a census). `previous`: carry the one before it (team sync). */
 export function surveyDoc(id: number, opts: { previous?: boolean } = {}): core.SurveyDoc | null {
@@ -30,7 +30,14 @@ export function surveyDoc(id: number, opts: { previous?: boolean } = {}): core.S
 export function surveySide(doc: core.SurveyDoc, opts: { frame?: boolean } = {}) {
   const ids = [...new Set([...doc.occurrences.map((o) => String(o.taxon_id)), ...doc.rechecks.map((r) => String(r.prev_taxon_id))])];
   const taxa = resolveTaxa(ids);
-  return core.surveyDocSide(doc, { ...opts, names: (t) => taxa.get(t)?.simple_name || null });
+  return core.surveyDocSide(doc, {
+    ...opts,
+    names: (t) => taxa.get(t)?.simple_name || null,
+    ranks: (t) => {
+      const f = taxa.get(t);
+      return f ? { rank: f.rank || null, kingdom: f.kingdom || null } : null;
+    },
+  });
 }
 
 /** uuid and a language-neutral label ("name", or "plot #n name" on a plot). */
@@ -95,7 +102,7 @@ export function applySurveyOps(id: number, ops: readonly MergeOp[]): number {
   return withTransaction(() => core.applySurveyDocOps(ctx(), id, ops));
 }
 
-/** Photo and recording rows of a version whose file is still here, back in place (not onto sealed blind records). */
+/** Photo and recording rows of a version whose file is still here, back in place (not onto sealed blind records: `sealed` holds their occurrence and interaction uuids). */
 export function putBackSurveyMedia(id: number, doc: core.SurveyDoc, sealed: ReadonlySet<string> = new Set()): number {
   return withTransaction(() => core.putBackMediaRows(ctx(), id, doc, fileHere, sealed));
 }

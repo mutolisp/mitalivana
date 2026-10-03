@@ -33,6 +33,7 @@ import * as s from '../src/survey/db/stemmapCore.ts';
 import * as c from '../src/survey/db/surveyCore.ts';
 import * as d from '../src/survey/db/surveyDocCore.ts';
 import * as x from '../src/survey/export/surveyExportCore.ts';
+import * as ix from '../src/survey/db/interactionCore.ts';
 import { withRequired } from '../src/survey/template/validate.ts';
 
 let failed = 0;
@@ -202,7 +203,7 @@ const s1 = un.rows.find((r) => r[col(un, 'unit')] === 'S1');
 const q1 = un.rows.find((r) => r[col(un, 'unit')] === 'S1/Q1');
 ok(s1[col(un, 'parentEventID')] === 'EX1_20261003' && q1[col(un, 'parentEventID')] === 'EX1_20261003-S1' && q1[col(un, 'level_name')] === '小樣方', 'tables: units under the survey, sub-units under theirs');
 ok(s1[col(un, 'where.lat')] === '24.1' && q1[col(un, 'where.lat')] === '', 'tables: a unit-level component only on its level');
-ok(tb.fields.rows.length === sv.header.length - 13 + (un.header.length - 8) + (occ.header.length - 9), `tables: the dictionary has every component column (${tb.fields.rows.length})`);
+ok(tb.fields.rows.length === sv.header.length - 13 + (un.header.length - 8) + (occ.header.length - 10), `tables: the dictionary has every component column (${tb.fields.rows.length})`);
 const dictMicro = tb.fields.rows.find((r) => r[1] === 'micro.value');
 ok(dictMicro[4] === '微棲地' && dictMicro[5] === 'Microhabitat' && dictMicro[12] === '微棲地', `tables: the dictionary names the component and the choice's measurement by its list (${dictMicro})`);
 ok(tb.fields.rows.find((r) => r[1] === 'abundance.organism_quantity')[11] === 'organismQuantity', 'tables: the dictionary gives DwC terms');
@@ -237,6 +238,81 @@ ok(expName && pmBy[expName].rows.map((r) => r[0]).join() === 'A-S1-Q1', `project
 const presName = Object.keys(pmBy).find((k) => k.endsWith('_presence') && k.includes('export'));
 ok(presName && pmBy[presName].rows.length === 3, 'project: presence takes every survey of the template');
 ok(pm.left.join() === 'B,C' && Object.keys(pmBy).filter((k) => k.includes('other')).length === 1, `project: one group per template; mixed scales left out of the scale matrices (${pm.left})`);
+
+// ── interactions (2F-b) ──────────────────────────────────────────────────
+{
+  const IT = withRequired({
+    schema: 1,
+    id: 'user:inter-export',
+    version: 1,
+    origin: 'user',
+    name: { text: '交互' },
+    style: 'plot',
+    units: [{ key: 'u1', label: { text: '小區' } }],
+    components: [
+      { key: 'inter', type: 'interaction', level: 'occurrence', required: false, params: { builtin: ['flower_visit', 'mutualism'], list: 'list_1', count: true, photos: 2 } },
+      { key: 'abundance', type: 'abundance', level: 'occurrence', required: false, params: { kinds: ['count'], default: 'count' } },
+      { key: 'spics', type: 'photos', level: 'survey', required: false, params: { max: 2 } },
+    ],
+    codelists: [{ id: 'list_1', label: { text: '自訂' }, items: [{ code: '1', label: { text: '產卵於', tr: { en: 'lays eggs on' } }, inverse: { text: '被產卵' }, iri: 'http://example.org/oviposits' }] }],
+    quick_add: false,
+  });
+  const G = await phone('g');
+  const FI = s.createFrame(G.ctx, { code: 'IXE', sizeXM: 20, sizeYM: 20 });
+  const P = c.createSurvey(G.ctx, { template: IT, frameId: FI });
+  const U = c.addUnit(G.ctx, P, { levelKey: 'u1', code: 'S1' });
+  const a = c.addOccurrence(G.ctx, P, { taxon_id: 't1', unit_id: U, organism_quantity: '2', organism_quantity_type: 'individuals' });
+  const b = c.addOccurrence(G.ctx, P, { taxon_id: 't2', unit_id: U, organism_quantity: '1', organism_quantity_type: 'individuals' });
+  const i1 = ix.addInteraction(G.ctx, { from: a, partner: { occurrenceId: b }, type: 'flower_visit', direction: 'forward', count: 3 });
+  ix.addInteraction(G.ctx, { from: a, partner: { occurrenceId: b }, type: 'flower_visit', direction: 'forward' });
+  ix.addInteraction(G.ctx, { from: a, partner: { taxonId: 't3' }, type: '1', direction: 'forward', notes: '葉背' });
+  ix.addInteraction(G.ctx, { from: b, partner: { occurrenceId: a }, type: 'mutualism', direction: 'mutual' });
+  ix.addInteractionPhoto(G.ctx, i1, 'file:///a/visit one.jpg');
+  const live = d.buildSurveyDoc(G.ctx, P);
+  const { doc: fd, files: ff } = x.docForFile(live, { names, extOf });
+  const interFile = ff.find((f) => f.uri === 'file:///a/visit one.jpg');
+  ok(interFile && interFile.file.startsWith('interaction_Alpha_one_') && safeMediaBasename(`x/photos/${interFile.file}`, ['jpg']) === interFile.file, `inter file: its photo named for the interaction, kept by the importer (${interFile?.file})`);
+  ok(fd.media[0].interaction === live.interactions[0].uuid && fd.media[0].uri === undefined, 'inter file: the photo still says its interaction');
+  // back in, on another phone
+  const H = await phone('h');
+  const onH = x.docFromFile(fd, (file) => (file === interFile.file ? 'file:///h/visit.jpg' : null), () => false);
+  const Ph = d.insertSurveyFromDoc(H.ctx, onH, { status: 'done', projectId: 0 });
+  d.putBackMediaRows(H.ctx, Ph, onH, () => true);
+  const keys = (sd) => JSON.stringify(baseOf(sd).map((r) => [r[0], r[1], r[2]]).sort());
+  ok(keys(d.surveyDocSide(live)) === keys(d.surveyDocSide(d.buildSurveyDoc(H.ctx, Ph))), 'inter import: the same survey there, interactions and the other-side flag included');
+  ok(H.one(`SELECT m.uri FROM fw_media m JOIN fw_interactions i ON i.id = m.interaction_id`)?.uri === 'file:///h/visit.jpg', 'inter import: the photo on its interaction');
+  // tables
+  const t = x.surveyTables(fd, { eventId: 'IXE', names, words });
+  const col = (tb, h) => tb.header.indexOf(h);
+  const rowOf = (tb, id) => tb.rows.find((r) => r[0] === id);
+  const it1 = rowOf(t.interactions, live.interactions[0].uuid);
+  ok(t.survey.rows[0][col(t.survey, 'spics.photos')] === '', 'inter table: an interaction’s photo is not the survey’s own');
+  ok(it1[col(t.interactions, 'relationship')] === 'visits flowers of' && it1[col(t.interactions, 'relationship_iri')] === 'http://purl.obolibrary.org/obo/RO_0002622', `inter table: the built-in relation and its IRI (${it1})`);
+  ok(it1[col(t.interactions, 'subject_scientificName')] === 'Alpha one' && it1[col(t.interactions, 'object_taxonID')] === 't2' && it1[col(t.interactions, 'count')] === '3', 'inter table: both sides, the count');
+  ok(it1[col(t.interactions, 'eventID')] === 'IXE-S1' && it1[col(t.interactions, 'photos')] === interFile.file && it1[col(t.interactions, 'type_name')] === '[survey.interaction.type.flower_visit.name]', 'inter table: its unit’s event, its photo by file, a built-in name in the app’s words');
+  const own = t.interactions.rows.find((r) => r[col(t.interactions, 'type_code')] === '1');
+  ok(own[col(t.interactions, 'relationship')] === 'lays eggs on' && own[col(t.interactions, 'relationship_iri')] === 'http://example.org/oviposits' && own[col(t.interactions, 'notes')] === '葉背', 'inter table: an own type by its English name and IRI');
+  ok(t.interactions.rows.find((r) => r[col(t.interactions, 'type_code')] === 'mutualism')[col(t.interactions, 'both_ways')] === '1', 'inter table: both ways marked');
+  const types = Object.fromEntries(t.interactionTypes.rows.map((r) => [r[0], r]));
+  ok(types.feeding[col(t.interactionTypes, 'offered')] === '0' && types.flower_visit[col(t.interactionTypes, 'offered')] === '1' && types['1'][col(t.interactionTypes, 'reads_from_object')] === '被產卵', 'inter types: every built-in (offered or not) and the own, with how they read from B');
+  const t3 = fd.occurrences.find((o) => o.taxon_id === 't3').uuid;
+  ok(rowOf(t.occurrences, t3)[col(t.occurrences, 'interaction_partner')] === '1' && rowOf(t.occurrences, live.occurrences[0].uuid)[col(t.occurrences, 'interaction_partner')] === '', 'inter table: the other-side occurrence marked in the occurrence table');
+  // community tables and the project's matrices leave it out
+  const comm2 = x.surveyCommunityTables(fd, { eventId: 'IXE', names });
+  const pres = comm2.tables.find((tb) => tb.name === 'presence').table;
+  ok(pres.header.includes('Alpha one') && !pres.header.includes('Gamma three'), `inter community: the other-side species is in no community table (${pres.header})`);
+  const pm2 = x.projectSurveyMatrices([{ doc: fd, eventId: 'IXE' }], names);
+  ok(pm2.tables.every((tb) => !tb.table.header.includes('Gamma three')) && pm2.left.length === 0, 'inter project: nor in the project’s matrices, nor does it make the scale mixed');
+  // a species × species table per type
+  const wide = Object.fromEntries(x.surveyInteractionTables(fd, { names }).map((tb) => [tb.name, tb.table]));
+  ok(Object.keys(wide).sort().join() === 'interactions_1,interactions_flower_visit,interactions_mutualism', `inter wide: one per type used (${Object.keys(wide)})`);
+  const fv = wide.interactions_flower_visit;
+  ok(fv.header.join() === 'subject,Beta two subsp. b' && fv.rows.join() === 'Alpha one,4', `inter wide: rows the one doing it, the times added (3 + an uncounted one) (${JSON.stringify(fv)})`);
+  ok(wide.interactions_1.rows[0][wide.interactions_1.header.indexOf('Gamma three')] === '1', 'inter wide: the other-side species is a column here');
+  // a survey without an Interaction component: no interaction tables
+  const plain = x.surveyTables(fileDoc, { eventId: 'E', names, words });
+  ok(plain.interactions === null && plain.interactionTypes === null && x.surveyInteractionTables(fileDoc, { names }).length === 0, 'inter: none without an Interaction component');
+}
 
 if (failed) {
   console.error(`${failed} failure(s)`);

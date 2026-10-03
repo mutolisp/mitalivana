@@ -30,6 +30,7 @@ import { BackHeaderLeft } from '~/lib/goBack';
 import { useToast } from '~/stores/toast';
 import { FormCard } from '~/survey/components/FormBits';
 import { InteractionCard } from '~/survey/components/InteractionCard';
+import { HeaderOccurrenceName } from '~/survey/components/NameText';
 import { snapshotOf } from '~/survey/db/surveyCore';
 import { deleteOccurrence, getFwSurvey, getOccurrence, interactionCountOf, listUnits, readComponent, updateOccurrence } from '~/survey/db/surveys';
 import { layerCountOf } from '~/survey/form/checks';
@@ -157,11 +158,18 @@ export default function OccurrenceScreen() {
 
   const header = (
     <FormCard>
-      <Text className="text-lg font-bold text-ink dark:text-gray-100">{o.verbatim_identification || name}</Text>
-      <ScientificName name={o.simple_name || o.taxon_id} rank={o.rank} kingdom={o.kingdom} className="text-base text-ink-2 dark:text-gray-300" />
+      {/* With neither a label nor a common name the scientific name is the title, in italics by rank. */}
+      {o.verbatim_identification || o.common_name_c ? <Text className="text-lg font-bold text-ink dark:text-gray-100">{o.verbatim_identification || o.common_name_c}</Text> : null}
+      <ScientificName
+        name={o.simple_name || o.taxon_id}
+        rank={o.rank}
+        kingdom={o.kingdom}
+        className={o.verbatim_identification || o.common_name_c ? 'text-base text-ink-2 dark:text-gray-300' : 'text-lg font-bold text-ink dark:text-gray-100'}
+      />
       <Text className="text-xs text-ink-3 dark:text-gray-400">
         {[
-          o.verbatim_identification ? name : null,
+          // The scientific name is the line above (italic): only the common name here.
+          o.verbatim_identification ? o.common_name_c : null,
           o.family,
           o.unit_id != null ? unitPath(data.units, o.unit_id) : survey.style === 'plot' ? t('surveyForm.outsideUnits') : null,
           o.phase === 'recheck' ? t('surveyForm.phase.recheck') : o.phase === 'blind' ? t('surveyForm.phase.blind') : null,
@@ -178,6 +186,8 @@ export default function OccurrenceScreen() {
       <Stack.Screen
         options={{
           title: occurrenceTitle(o),
+          // The scientific name in italics by rank (a plain title cannot).
+          headerTitle: () => <HeaderOccurrenceName o={o} plain={occurrenceTitle(o)} />,
           headerLeft: BackHeaderLeft,
           headerRight: () => <HeaderIconButton icon="ellipsis-horizontal" label={t('common.more')} onPress={() => void more()} />,
         }}

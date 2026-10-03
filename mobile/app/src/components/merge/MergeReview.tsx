@@ -5,9 +5,10 @@
  * responsive (Modular_survey.md §7.2); past AUTO_FOLD automatic rows they are
  * summed up and listed on request.
  */
-import { useMemo, useState, type ReactElement } from 'react';
+import { useMemo, useState, type ReactElement, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FlatList, Pressable, Text, View } from 'react-native';
+import { ScientificName } from '~/components/ScientificName';
 import { SelectMark } from '~/components/ui/SelectMark';
 import { defaultDecision, needsReview, type Decision, type MergeItem, type MergeRow } from '~/lib/mergeEngine';
 import { fieldLabel, fmt, rowLabel } from '~/lib/mergeFormat';
@@ -15,10 +16,20 @@ import { fieldLabel, fmt, rowLabel } from '~/lib/mergeFormat';
 /** More automatic rows than this are folded behind a summary line. */
 export const AUTO_FOLD = 100;
 
-function rowTitle(t: (k: string) => string, tbl: string, r: MergeRow | null | undefined): string {
+/** `bold`: the line around it is semibold (the scientific name takes those files too). */
+function rowTitle(t: (k: string) => string, tbl: string, r: MergeRow | null | undefined, bold = false): ReactNode {
   if (!r) return '';
-  const label = rowLabel(t, tbl, r.label);
-  return r.group && r.group !== r.label ? `${r.group} · ${label}` : label;
+  const group = r.group && r.group !== r.label ? `${r.group} · ` : '';
+  // A title with scientific names: each in italics by its rank.
+  if (r.title?.length) {
+    return (
+      <>
+        {group}
+        {r.title.map((p, i) => (typeof p === 'string' ? p : <ScientificName key={i} name={p.sci} rank={p.rank ?? ''} kingdom={p.kingdom ?? ''} className={bold ? 'font-semibold' : undefined} />))}
+      </>
+    );
+  }
+  return `${group}${rowLabel(t, tbl, r.label)}`;
 }
 
 export function Choice({ on, label, onPress, danger }: { on: boolean; label: string; onPress: () => void; danger?: boolean }) {
@@ -94,7 +105,7 @@ function ReviewCard({
   noBoth: boolean;
 }) {
   const { t } = useTranslation();
-  const title = rowTitle(t, item.tbl, item.local ?? item.remote ?? item.dup);
+  const title = rowTitle(t, item.tbl, item.local ?? item.remote ?? item.dup, true);
   const table = t(`teamMerge.table.${item.tbl}`);
   const head = (
     <View className="flex-row items-center gap-2">

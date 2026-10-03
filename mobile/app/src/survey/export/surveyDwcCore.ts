@@ -18,6 +18,13 @@
  * — is written in English when the template gives an English name, else as
  * named (decided 2026-10-03).
  *
+ * Interactions (2F-b) are ResourceRelationship rows: resourceID (the one
+ * doing it) to relatedResourceID, the type's relation and its IRI (OBO RO
+ * for the built-in types); a both-ways one is written both ways, since RO
+ * does not mark those relations symmetric. An occurrence made only as an
+ * interaction's other side stays an occurrence (both sides need an
+ * occurrenceID), its remarks saying so.
+ *
  * Taxon columns come from the caller (`taxonCols`): the checklists are on the
  * app's connection. Pure otherwise: check:survey-dwc runs it under Node.
  */
@@ -34,12 +41,12 @@ import { BUILTIN_CODESETS, componentDef, exportMapOf, healthCodesets, type Trait
 import { fgQuadratCounts, parseFgQuadratCode, toLatLng } from '../stemmap/coords';
 import { stemIsDead, vitality, type StemCensusInput } from '../stemmap/status';
 import type { ComponentInstance, Label, SurveyLevel, SurveyTemplate } from '../template/types';
-import { templateOf, unitEventId, unitPaths, type Words } from './surveyExportCore';
+import { interactionTypesOf, templateOf, unitEventId, unitPaths, type Words } from './surveyExportCore';
 
 /** An occurrence's taxon as DwC columns (taxonID, scientificName, hierarchy …). */
 export type TaxonCols = (t: { taxon_id: string; used_name_id: number | null; used_scientific_name: string | null }) => DwcRow;
 
-export type DwcParts = { events: DwcRow[]; occurrences: DwcRow[]; humboldt: DwcRow[]; measurements: DwcRow[]; creators: string[] };
+export type DwcParts = { events: DwcRow[]; occurrences: DwcRow[]; humboldt: DwcRow[]; measurements: DwcRow[]; relationships: DwcRow[]; creators: string[] };
 
 const str = (v: unknown) => (v == null ? '' : String(v));
 const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : v == null || v === '' ? null : Number.isFinite(Number(v)) ? Number(v) : null);
@@ -73,6 +80,8 @@ export const REMARKS = {
   presumedDead: '普查代碼 DN：推定死亡，樹牌與樹幹都找不到(census code DN: presumed dead, neither tag nor stem found)',
   notFound: 'AMS 存活狀態 NF：分支與樹牌都找不到(AMS survival NF: stem and tag not found)',
   absentOnRecheck: '前次調查有，本次盲測後複查未找到(recorded in the previous survey; not found on the recheck after the blind survey)',
+  interactionPartner: '交互作用對象：只因交互作用而記錄，不屬於系統性調查(recorded only as the other side of an interaction; not part of the systematic survey)',
+  count: (n: number) => `次數 ${n}(count ${n})`,
 } as const;
 
 // ── a tree census ─────────────────────────────────────────────────────────
@@ -87,7 +96,7 @@ export function censusDwcRows(
   doc: CensusExportDoc,
   opts: { eventIds: ReadonlyMap<number, string>; uniqueEventId: (base: string) => string; taxonCols: TaxonCols; words: Pick<Words, 'i18n'> },
 ): DwcParts {
-  const out: DwcParts = { events: [], occurrences: [], humboldt: [], measurements: [], creators: [] };
+  const out: DwcParts = { events: [], occurrences: [], humboldt: [], measurements: [], relationships: [], creators: [] };
   const frame = doc.frame;
   const g = frameGeometry(frame as unknown as FrameRow);
   const { cols, rows } = fgQuadratCounts(g);
@@ -301,7 +310,7 @@ type Owner = { kind: 'survey' } | { kind: 'unit'; key: string; levelKey: string 
  * surveyExportCore.surveyEventIds); units are its children.
  */
 export function surveyDwcRows(doc: SurveyDoc, opts: { eventId: string; uniqueEventId: (base: string) => string; taxonCols: TaxonCols; words: Pick<Words, 'i18n'> }): DwcParts {
-  const out: DwcParts = { events: [], occurrences: [], humboldt: [], measurements: [], creators: [] };
+  const out: DwcParts = { events: [], occurrences: [], humboldt: [], measurements: [], relationships: [], creators: [] };
   const tpl = templateOf(doc);
   const s = doc.survey;
   const paths = unitPaths(doc);
@@ -440,6 +449,7 @@ export function surveyDwcRows(doc: SurveyDoc, opts: { eventId: string; uniqueEve
   for (const o of doc.occurrences) {
     const coreEventID = (o.unit != null ? unitEvent.get(str(o.unit)) : null) ?? eventID;
     const owner: Owner = { kind: 'occurrence', uuid: str(o.uuid) };
+    const terms = dwcOf('occurrence', owner, o, OCC_DWC);
     const latO = num(o.lat);
     out.occurrences.push({
       coreEventID,
@@ -448,12 +458,37 @@ export function surveyDwcRows(doc: SurveyDoc, opts: { eventId: string; uniqueEve
       occurrenceStatus: 'present',
       ...opts.taxonCols({ taxon_id: str(o.taxon_id), used_name_id: num(o.used_name_id), used_scientific_name: o.used_scientific_name == null ? null : str(o.used_scientific_name) }),
       verbatimIdentification: str(o.verbatim_identification),
-      ...dwcOf('occurrence', owner, o, OCC_DWC),
+      ...terms,
+      // Said for one recorded only as an interaction's other side, before its own comment.
+      ...(o.via_interaction ? { occurrenceRemarks: [REMARKS.interactionPartner, terms.occurrenceRemarks].filter(Boolean).join('; ') } : {}),
       individualCount: individualCountOf(o.organism_quantity == null ? null : str(o.organism_quantity), o.organism_quantity_type == null ? null : str(o.organism_quantity_type)),
       eventDate: iso(o.observed_at),
       ...locationTerms(latO, num(o.elevation_m), o.elevation_source == null ? null : str(o.elevation_source)),
     });
     measurementsOf('occurrence', owner, o, coreEventID, str(o.uuid));
+  }
+
+  // Interactions: ResourceRelationship rows on the event where each was recorded.
+  const types = interactionTypesOf(doc);
+  const occEvent = new Map(doc.occurrences.map((o) => [str(o.uuid), (o.unit != null ? unitEvent.get(str(o.unit)) : null) ?? eventID]));
+  for (const i of doc.interactions ?? []) {
+    const ty = types.get(str(i.type_code));
+    const coreEventID = (i.unit != null ? unitEvent.get(str(i.unit)) : null) ?? occEvent.get(str(i.subject)) ?? eventID;
+    const remarks = [typeof i.count === 'number' ? REMARKS.count(i.count) : '', str(i.notes)].filter(Boolean).join('; ');
+    const row = (id: string, from: unknown, to: unknown): DwcRow => ({
+      coreEventID,
+      resourceRelationshipID: id,
+      resourceID: str(from),
+      relationshipOfResourceID: ty?.iri ?? '',
+      relatedResourceID: str(to),
+      relationshipOfResource: ty?.en ?? str(i.type_code),
+      relationshipAccordingTo: str(i.recorded_by) || investigators,
+      relationshipEstablishedDate: iso(i.observed_at),
+      relationshipRemarks: remarks,
+    });
+    out.relationships.push(row(str(i.uuid), i.subject, i.object));
+    // Both ways: RO does not declare these relations symmetric, so the other direction is said too.
+    if (i.mutual) out.relationships.push(row(`${str(i.uuid)}:reverse`, i.object, i.subject));
   }
 
   // The previous survey's species not found on the recheck: absences where they were looked for.

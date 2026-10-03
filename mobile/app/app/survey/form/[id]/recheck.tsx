@@ -127,8 +127,15 @@ export default function RecheckScreen() {
                 <View key={p.id} className="gap-2 border-t border-line pt-2 dark:border-line-dark">
                   <View className="flex-row items-start gap-2">
                     <View className="flex-1">
-                      <Text className="text-base font-semibold text-ink dark:text-gray-100">{p.verbatim_identification || p.common_name_c || p.simple_name}</Text>
-                      <ScientificName name={p.simple_name || p.taxon_id} rank={p.rank} kingdom={p.kingdom} className="text-sm text-ink-2 dark:text-gray-300" />
+                      {p.verbatim_identification || p.common_name_c ? (
+                        <Text className="text-base font-semibold text-ink dark:text-gray-100">{p.verbatim_identification || p.common_name_c}</Text>
+                      ) : null}
+                      <ScientificName
+                        name={p.simple_name || p.taxon_id}
+                        rank={p.rank}
+                        kingdom={p.kingdom}
+                        className={p.verbatim_identification || p.common_name_c ? 'text-sm text-ink-2 dark:text-gray-300' : 'text-base font-semibold text-ink dark:text-gray-100'}
+                      />
                       {prev ? <Text className="text-xs text-ink-3 dark:text-gray-400">{t('surveyForm.recheck.last', { value: prev })}</Text> : null}
                     </View>
                     {!isCandidate ? (

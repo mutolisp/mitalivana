@@ -8,7 +8,7 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Keyboard, Pressable, ScrollView, Text, View } from 'react-native';
 import { Seg } from '~/components/form/Segmented';
 import { Chip } from '~/components/ui/Chip';
 import { FormCard } from '~/survey/components/FormBits';
@@ -16,17 +16,19 @@ import { interactionTypes, type InteractionListRow } from '~/survey/db/interacti
 import { listInteractions, listOccurrences, listUnits } from '~/survey/db/surveys';
 import { typeLabel } from '~/survey/form/interactionText';
 import { unitPath } from '~/survey/form/units';
-import { occurrenceTitle, withNames } from '~/survey/form/useSurveyForm';
+import { occurrenceTitle, withNames, type Named } from '~/survey/form/useSurveyForm';
+import type { OccurrenceRow } from '~/survey/db/surveyCore';
 import type { SurveyTemplate } from '~/survey/template/types';
 import { interactionHref } from './InteractionCard';
+import { OccurrenceName } from './NameText';
 
-type Loaded = { rows: InteractionListRow[]; names: Map<number, string>; places: Map<number, string> };
+type Loaded = { rows: InteractionListRow[]; occ: Map<number, Named<OccurrenceRow>>; places: Map<number, string> };
 
 function load(surveyId: number, plot: boolean): Loaded {
   const units = plot ? listUnits(surveyId) : [];
   return {
     rows: listInteractions(surveyId),
-    names: new Map(withNames(listOccurrences(surveyId)).map((o) => [o.id, occurrenceTitle(o)])),
+    occ: new Map(withNames(listOccurrences(surveyId)).map((o) => [o.id, o])),
     places: new Map(units.map((u) => [u.id, unitPath(units, u.id)])),
   };
 }
@@ -42,7 +44,16 @@ export function InteractionSummary({ surveyId, template, unlocked }: { surveyId:
   const used = types.filter((ty) => data.rows.some((r) => r.type_code === ty.code));
   const [matrixType, setMatrixType] = useState<string | null>(null);
   const shownType = used.find((x) => x.code === matrixType) ?? used[0];
-  const name = (occ: number) => data.names.get(occ) ?? '?';
+  /** A species is told apart by its name (as written: label, or common and scientific). */
+  const name = (occ: number) => {
+    const o = data.occ.get(occ);
+    return o ? occurrenceTitle(o) : '?';
+  };
+  /** The name as shown: the scientific part in italics where its rank asks. */
+  const shown = (occ: number, bold?: boolean) => {
+    const o = data.occ.get(occ);
+    return o ? <OccurrenceName o={o} bold={bold} /> : '?';
+  };
 
   if (!data.rows.length) {
     return (
@@ -55,6 +66,9 @@ export function InteractionSummary({ surveyId, template, unlocked }: { surveyId:
   const matrix = (() => {
     if (!shownType) return null;
     const mine = data.rows.filter((r) => r.type_code === shownType.code);
+    // One occurrence per name stands for it in the headers.
+    const firstOf = new Map<string, number>();
+    for (const r of mine) for (const occ of [r.subject_occurrence_id, r.object_occurrence_id]) if (!firstOf.has(name(occ))) firstOf.set(name(occ), occ);
     const rowsOf = [...new Set(mine.map((r) => name(r.subject_occurrence_id)))].sort((x, y) => x.localeCompare(y, lang));
     const cols = [...new Set(mine.map((r) => name(r.object_occurrence_id)))].sort((x, y) => x.localeCompare(y, lang));
     const cell = new Map<string, number>();
@@ -62,7 +76,7 @@ export function InteractionSummary({ surveyId, template, unlocked }: { surveyId:
       const k = `${name(r.subject_occurrence_id)}\u0000${name(r.object_occurrence_id)}`;
       cell.set(k, (cell.get(k) ?? 0) + (r.count ?? 1));
     }
-    return { rowsOf, cols, at: (a: string, b: string) => cell.get(`${a}\u0000${b}`) ?? 0 };
+    return { rowsOf, cols, firstOf, at: (a: string, b: string) => cell.get(`${a}\u0000${b}`) ?? 0 };
   })();
 
   return (
@@ -83,13 +97,20 @@ export function InteractionSummary({ surveyId, template, unlocked }: { surveyId:
                 {mine.map((r) => (
                   <Pressable
                     key={r.id}
-                    onPress={() => router.push(interactionHref(r.id, r.subject_occurrence_id, unlocked))}
+                    onPress={() => {
+                      Keyboard.dismiss();
+                      router.push(interactionHref(r.id, r.subject_occurrence_id, unlocked));
+                    }}
                     accessibilityRole="button"
                     className="flex-row items-center gap-2 border-t border-line pt-2 active:opacity-70 dark:border-line-dark"
                     style={{ minHeight: 44 }}
                   >
                     <View className="flex-1">
-                      <Text className="text-sm font-semibold text-ink dark:text-gray-100">{`${name(r.subject_occurrence_id)} ${r.mutual ? '↔' : '→'} ${name(r.object_occurrence_id)}`}</Text>
+                      <Text className="text-sm font-semibold text-ink dark:text-gray-100">
+                        {shown(r.subject_occurrence_id, true)}
+                        {` ${r.mutual ? '↔' : '→'} `}
+                        {shown(r.object_occurrence_id, true)}
+                      </Text>
                       {r.unit_id != null ? <Text className="font-mono text-xs text-ink-3 dark:text-gray-400">{data.places.get(r.unit_id) ?? ''}</Text> : null}
                     </View>
                     {r.count != null ? <Text className="font-mono text-sm font-bold text-ink-2 dark:text-gray-300">×{r.count}</Text> : null}
@@ -113,14 +134,14 @@ export function InteractionSummary({ surveyId, template, unlocked }: { surveyId:
                 <View style={{ width: 120 }} />
                 {matrix.cols.map((col) => (
                   <Text key={col} className="px-2 py-2 text-center text-xs font-bold text-ink-2 dark:text-gray-300" style={{ width: 88 }} numberOfLines={3}>
-                    {col}
+                    {shown(matrix.firstOf.get(col)!, true)}
                   </Text>
                 ))}
               </View>
               {matrix.rowsOf.map((row) => (
                 <View key={row} className="flex-row items-center border-b border-line dark:border-line-dark">
                   <Text className="px-2 py-2 text-xs font-bold text-ink dark:text-gray-100" style={{ width: 120 }} numberOfLines={2}>
-                    {row}
+                    {shown(matrix.firstOf.get(row)!, true)}
                   </Text>
                   {matrix.cols.map((col) => {
                     const n = matrix.at(row, col);

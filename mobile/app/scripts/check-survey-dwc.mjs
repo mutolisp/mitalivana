@@ -28,7 +28,8 @@ import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 import { strFromU8, unzipSync } from 'fflate';
 import { runUserMigrations } from '../src/db/migrations.ts';
-import { buildDwcArchive, EVENT_COLS, MEASUREMENT_COLS, OCCURRENCE_COLS, HUMBOLDT_COLS, linkMeasurements } from '../src/lib/dwcArchive.ts';
+import { buildDwcArchive, EVENT_COLS, MEASUREMENT_COLS, OCCURRENCE_COLS, HUMBOLDT_COLS, RELATIONSHIP_COLS, linkMeasurements } from '../src/lib/dwcArchive.ts';
+import * as ix from '../src/survey/db/interactionCore.ts';
 import * as s from '../src/survey/db/stemmapCore.ts';
 import * as c from '../src/survey/db/surveyCore.ts';
 import * as d from '../src/survey/db/surveyDocCore.ts';
@@ -222,9 +223,59 @@ ok(absent && absent.taxonID === 't8' && absent.coreEventID === uS1.eventID && ab
 ok(sp.occurrences.filter((x) => x.occurrenceStatus === 'present').length === sdoc.occurrences.length, 'survey: every occurrence present');
 ok(sp.humboldt[0].isAbsenceReported === true && sp.humboldt[0].isAbundanceReported === true && sp.humboldt[0].isVegetationCoverReported === true && sp.humboldt[0].siteNestingDescription === '1 × Subplot; 1 × 小樣方', `survey: Humboldt says what is reported (${JSON.stringify(sp.humboldt[0])})`);
 
+// ── interactions as ResourceRelationship (2F-b) ───────────────────────────
+const IX = withRequired({
+  schema: 1,
+  id: 'user:dwc-inter',
+  version: 1,
+  origin: 'user',
+  name: { text: '交互', tr: { en: 'Interactions' } },
+  style: 'plot',
+  units: [{ key: 'u1', label: { text: '小區' } }],
+  components: [
+    { key: 'inter', type: 'interaction', level: 'occurrence', required: false, params: { builtin: ['flower_visit', 'mutualism'], list: 'list_1', count: true, photos: 0 } },
+    { key: 'onote', type: 'comments', level: 'occurrence', required: true, params: {} },
+  ],
+  codelists: [{ id: 'list_1', label: { text: '自訂' }, items: [{ code: '1', label: { text: '產卵於' } }] }],
+  quick_add: false,
+});
+const IF = s.createFrame(ctx, { code: 'RR1', sizeXM: 20, sizeYM: 20 });
+const IP = c.createSurvey(ctx, { template: IX, frameId: IF, investigators: '丙' });
+const IU = c.addUnit(ctx, IP, { levelKey: 'u1', code: 'S1' });
+const ia = c.addOccurrence(ctx, IP, { taxon_id: 't7', unit_id: IU });
+const ib = c.addOccurrence(ctx, IP, { taxon_id: 't8', unit_id: IU });
+const r1 = ix.addInteraction(ctx, { from: ia, partner: { occurrenceId: ib }, type: 'flower_visit', direction: 'forward', count: 3, notes: '清晨', recordedBy: '丁' });
+const r2 = ix.addInteraction(ctx, { from: ia, partner: { occurrenceId: ib }, type: 'mutualism', direction: 'mutual' });
+const r3 = ix.addInteraction(ctx, { from: ib, partner: { taxonId: 't9' }, type: '1', direction: 'backward' });
+const idoc = d.buildSurveyDoc(ctx, IP);
+const ip = surveyDwcRows(idoc, { eventId: 'RR1', uniqueEventId: unique(), taxonCols, words });
+checkLinks(ip, 'interactions');
+const ruuid = (id) => sqlite.prepare('SELECT uuid FROM fw_interactions WHERE id = ?').get(id).uuid;
+const ouuid = (id) => sqlite.prepare('SELECT uuid FROM fw_occurrences WHERE id = ?').get(id).uuid;
+const rr = (id) => ip.relationships.find((x) => x.resourceRelationshipID === id);
+const x1 = rr(ruuid(r1));
+ok(x1 && x1.resourceID === ouuid(ia) && x1.relatedResourceID === ouuid(ib) && x1.relationshipOfResource === 'visits flowers of' && x1.relationshipOfResourceID === 'http://purl.obolibrary.org/obo/RO_0002622', `rr: the one doing it, the other, the relation and its RO IRI (${JSON.stringify(x1)})`);
+ok(x1.coreEventID === 'RR1-S1' && x1.relationshipAccordingTo === '丁' && /^\d{4}-\d\d-\d\dT/.test(x1.relationshipEstablishedDate) && x1.relationshipRemarks === '次數 3(count 3); 清晨', `rr: on its unit's event, by its recorder, dated, the count in both languages before the note (${x1.relationshipRemarks})`);
+const back = rr(`${ruuid(r2)}:reverse`);
+ok(rr(ruuid(r2))?.resourceID === ouuid(ia) && back?.resourceID === ouuid(ib) && back.relatedResourceID === ouuid(ia), 'rr: both ways written both ways');
+const x3 = rr(ruuid(r3));
+const t9 = sqlite.prepare("SELECT uuid FROM fw_occurrences WHERE taxon_id = 't9'").get().uuid;
+ok(x3.resourceID === t9 && x3.relatedResourceID === ouuid(ib) && x3.relationshipOfResource === '產卵於' && x3.relationshipOfResourceID === '' && x3.relationshipAccordingTo === '丙', 'rr: an own type by its name (no English, no IRI); the survey’s investigators when no recorder');
+ok(ip.relationships.every((x) => ip.occurrences.some((o) => o.occurrenceID === x.resourceID) && ip.occurrences.some((o) => o.occurrenceID === x.relatedResourceID)), 'rr: both sides of every relationship are occurrences of the archive');
+const p9 = ip.occurrences.find((o) => o.occurrenceID === t9);
+ok(p9.occurrenceStatus === 'present' && p9.occurrenceRemarks === REMARKS.interactionPartner && /\(recorded only as the other side of an interaction/.test(REMARKS.interactionPartner), 'rr: the other-side occurrence is present, said so in both languages');
+ok(ip.occurrences.filter((o) => o.occurrenceRemarks === REMARKS.interactionPartner).length === 1, 'rr: only that one');
+ok(censusDwcRows(doc, { eventIds: censusEventIds(doc), uniqueEventId: unique(), taxonCols, words }).relationships.length === 0, 'rr: a census has none');
+
 // ── the archive ───────────────────────────────────────────────────────────
 {
-  const all = { events: [...parts.events, ...sp.events], occurrences: [...parts.occurrences, ...sp.occurrences], humboldt: [...parts.humboldt, ...sp.humboldt], measurements: [...parts.measurements, ...sp.measurements] };
+  const all = {
+    events: [...parts.events, ...sp.events, ...ip.events],
+    occurrences: [...parts.occurrences, ...sp.occurrences, ...ip.occurrences],
+    humboldt: [...parts.humboldt, ...sp.humboldt, ...ip.humboldt],
+    measurements: [...parts.measurements, ...sp.measurements, ...ip.measurements],
+    relationships: ip.relationships,
+  };
   linkMeasurements(all.occurrences, all.measurements);
   ok(all.measurements.every((m) => m.coreEventID), 'archive: every measurement has its core event');
   const files = unzipSync(buildDwcArchive({ meta: { title: 't', abstract: '', creator: '', pubDate: '2026-10-03', packageId: 'p' }, ...all }));
@@ -232,6 +283,9 @@ ok(sp.humboldt[0].isAbsenceReported === true && sp.humboldt[0].isAbundanceReport
   ok(header('event.txt').join() === EVENT_COLS.map((x) => x.key).join(), 'archive: event.txt has the declared columns');
   ok(header('occurrence.txt').join() === ['coreEventID', ...OCCURRENCE_COLS.map((x) => x.key)].join(), 'archive: occurrence.txt has the declared columns');
   ok(header('measurementorfact.txt').join() === ['coreEventID', ...MEASUREMENT_COLS.map((x) => x.key)].join() && header('humboldt.txt').length === HUMBOLDT_COLS.length + 1, 'archive: the extensions too');
+  const rrTxt = strFromU8(files['resourcerelationship.txt']).split('\n');
+  ok(rrTxt[0] === ['coreEventID', ...RELATIONSHIP_COLS.map((x) => x.key)].join('\t') && rrTxt.length - 1 === all.relationships.length, 'archive: resourcerelationship.txt, a line per relationship');
+  ok(strFromU8(files['meta.xml']).includes('rowType="http://rs.tdwg.org/dwc/terms/ResourceRelationship"'), 'archive: meta.xml declares it');
   const occTxt = strFromU8(files['occurrence.txt']).split('\n');
   ok(occTxt.length - 1 === all.occurrences.length && occTxt.slice(1).every((l) => l.split('\t').length === OCCURRENCE_COLS.length + 1), 'archive: a line per occurrence, no tab broken');
   const vitIdx = OCCURRENCE_COLS.findIndex((x) => x.key === 'vitality') + 1;

@@ -356,6 +356,8 @@ export function buildRecordsDwca({
   const occurrences: DwcRow[] = [];
   const humboldt: DwcRow[] = [];
   const measurements: DwcRow[] = [];
+  /** Interactions of checklist / plot-style surveys (2F-b). */
+  const relationships: DwcRow[] = [];
   const taxonAcc: TaxonAcc = { taxa: new Map(), distributions: [], classify: makeClassifier() };
   const usedIds = new Set<string>();
   const creators = new Set<string>();
@@ -652,6 +654,7 @@ export function buildRecordsDwca({
       for (const r of p.occurrences) occurrences.push(r);
       for (const r of p.humboldt) humboldt.push(r);
       for (const r of p.measurements) measurements.push(r);
+      for (const r of p.relationships) relationships.push(r);
       for (const c of p.creators) creators.add(c);
     }
   }
@@ -667,7 +670,7 @@ export function buildRecordsDwca({
     packageId,
   };
   return {
-    records: buildDwcArchive({ meta, events, occurrences, humboldt, measurements }),
+    records: buildDwcArchive({ meta, events, occurrences, humboldt, measurements, relationships }),
     // Null when nothing has a conservation status or an establishment means —
     // a taxon archive carrying only headers is noise in the bundle.
     taxa: buildTaxonArchive({

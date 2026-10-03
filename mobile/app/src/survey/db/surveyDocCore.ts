@@ -24,12 +24,17 @@
  * in a census: files reach a teammate through file sync, and a restore puts
  * back only rows whose file is still on the device (the caller checks).
  *
+ * Interactions (v87, Phase 2F-b) are rows of their own, keyed by uuid, their
+ * sides by occurrence uuid; an occurrence made only as an interaction's
+ * other side carries `via_interaction: 1` (left out when 0, so a document of
+ * a survey without interactions is the one an earlier version wrote).
+ *
  * Takes a context (db, clock, uuid) like surveyCore; check:survey-doc runs it
  * under node:sqlite.
  */
 import type { Scalar } from '@op-engineering/op-sqlite';
 import { unionSurveyors } from '../../db/merge';
-import type { Combiners, MergeOp, MergeRow, MergeSide, Row } from '../../lib/mergeEngine';
+import type { Combiners, MergeOp, MergeRow, MergeSide, Row, TitlePart } from '../../lib/mergeEngine';
 import { FRAME_COLS, pick } from './sliceCore';
 import { OCCURRENCE_FIELDS, previousSurveyId, snapshotOf, surveyOf } from './surveyCore';
 import { SurveyError, type Ctx, type SurveyDb } from './stemmapCore';
@@ -53,6 +58,7 @@ const OCC_COLS = ['uuid', ...OCCURRENCE_FIELDS.filter((c) => c !== 'unit_id'), '
 const VALUE_COLS = ['uuid', 'component', 'field', 'idx', 'value_num', 'value_text', 'unit'] as const;
 const RECHECK_COLS = ['uuid', 'prev_taxon_id', 'prev_verbatim_identification', 'outcome', 'checked_at'] as const;
 const MEDIA_COLS = ['uuid', 'component', 'kind', 'uri', 'created_at'] as const;
+const INTER_COLS = ['uuid', 'type_code', 'mutual', 'count', 'observed_at', 'recorded_by', 'notes', 'phase'] as const;
 
 export type SurveyDoc = {
   record_type: 'fw_survey';
@@ -77,8 +83,13 @@ export type SurveyDoc = {
   occurrence_values: Row[];
   /** `place`: a frame unit key or null; `occurrence`: an occurrence uuid or null. */
   rechecks: Row[];
-  /** `unit` / `occurrence`: the owner, both null for the survey's own. */
+  /** `unit` / `occurrence` / `interaction`: the owner, all null for the survey's own. */
   media: Row[];
+  /**
+   * v87: `subject` / `object`: occurrence uuids; `unit`: a unit key or null.
+   * Absent in a document written before interactions (read as none).
+   */
+  interactions?: Row[];
   /**
    * Team sync only: the survey before this one on its plot, so a teammate who
    * does not have it can still do the recheck against its list. Never in a
@@ -119,8 +130,14 @@ export function buildSurveyDoc(ctx: { db: SurveyDb }, surveyId: number, opts: { 
     (a, b) => (depth.get(a.level_key as string) ?? 99) - (depth.get(b.level_key as string) ?? 99),
   );
   const uKey = new Map(units.map((u) => [u.id, unitKey(u.level_key, u.code)]));
-  const occs = rows<Row & { id: number; unit_id: number | null }>(ctx, `SELECT * FROM fw_occurrences WHERE survey_id = ? ORDER BY id`, [surveyId]);
+  const occs = rows<Row & { id: number; unit_id: number | null; via_interaction: number }>(ctx, `SELECT * FROM fw_occurrences WHERE survey_id = ? ORDER BY id`, [surveyId]);
   const oUuid = new Map(occs.map((o) => [o.id, o.uuid as string]));
+  const inters = rows<Row & { id: number; unit_id: number | null; subject_occurrence_id: number; object_occurrence_id: number }>(
+    ctx,
+    `SELECT * FROM fw_interactions WHERE survey_id = ? ORDER BY id`,
+    [surveyId],
+  );
+  const iUuid = new Map(inters.map((i) => [i.id, i.uuid as string]));
   return {
     record_type: 'fw_survey',
     schema: 1,
@@ -131,7 +148,7 @@ export function buildSurveyDoc(ctx: { db: SurveyDb }, surveyId: number, opts: { 
     frame_labels: fLabels.map((l) => ({ ...pick(l, FRAME_LABEL_COLS), first_survey: l.first_survey ?? null })),
     survey: pick(s as unknown as Row, SURVEY_DOC_COLS),
     units: units.map((u) => ({ ...pick(u, UNIT_COLS), parent: u.parent_id == null ? null : (uKey.get(u.parent_id) ?? null), on_frame: u.frame_unit_id == null ? null : 1 })),
-    occurrences: occs.map((o) => ({ ...pick(o, OCC_COLS), unit: o.unit_id == null ? null : (uKey.get(o.unit_id) ?? null) })),
+    occurrences: occs.map((o) => ({ ...pick(o, OCC_COLS), unit: o.unit_id == null ? null : (uKey.get(o.unit_id) ?? null), ...(o.via_interaction ? { via_interaction: 1 } : {}) })),
     survey_values: rows<Row>(ctx, `SELECT * FROM fw_survey_values WHERE survey_id = ? ORDER BY id`, [surveyId]).map((v) => pick(v, VALUE_COLS)),
     unit_values: rows<Row & { unit_id: number }>(ctx, `SELECT v.* FROM fw_unit_values v JOIN fw_units u ON u.id = v.unit_id WHERE u.survey_id = ? ORDER BY v.id`, [surveyId]).map((v) => ({
       ...pick(v, VALUE_COLS),
@@ -147,11 +164,17 @@ export function buildSurveyDoc(ctx: { db: SurveyDb }, surveyId: number, opts: { 
       place: r.frame_unit_id == null ? null : (fKey.get(r.frame_unit_id) ?? null),
       occurrence: r.occurrence_id == null ? null : (oUuid.get(r.occurrence_id) ?? null),
     })),
-    // An interaction's photos are not the survey's own; interactions join the document in 2F-b.
-    media: rows<Row & { unit_id: number | null; occurrence_id: number | null }>(ctx, `SELECT * FROM fw_media WHERE survey_id = ? AND interaction_id IS NULL ORDER BY id`, [surveyId]).map((m) => ({
+    media: rows<Row & { unit_id: number | null; occurrence_id: number | null; interaction_id: number | null }>(ctx, `SELECT * FROM fw_media WHERE survey_id = ? ORDER BY id`, [surveyId]).map((m) => ({
       ...pick(m, MEDIA_COLS),
       unit: m.unit_id == null ? null : (uKey.get(m.unit_id) ?? null),
       occurrence: m.occurrence_id == null ? null : (oUuid.get(m.occurrence_id) ?? null),
+      interaction: m.interaction_id == null ? null : (iUuid.get(m.interaction_id) ?? null),
+    })),
+    interactions: inters.map((i) => ({
+      ...pick(i, INTER_COLS),
+      subject: oUuid.get(i.subject_occurrence_id) ?? null,
+      object: oUuid.get(i.object_occurrence_id) ?? null,
+      unit: i.unit_id == null ? null : (uKey.get(i.unit_id) ?? null),
     })),
     ...(prevId == null ? {} : { previous: carried(buildSurveyDoc(ctx, prevId)) }),
   };
@@ -201,13 +224,22 @@ const templateOf = (s: Row): Row => pick(s, ['template_id', 'template_version', 
 
 /** Names for row labels (the review screen): an occurrence's taxon, if known. */
 export type SideNames = (taxonId: string) => string | null;
+/** A taxon's rank and kingdom, so the review can italicise its name by rank. */
+export type SideRanks = (taxonId: string) => { rank: string | null; kingdom: string | null } | null;
 
 /** A unit key as the review shows it: its code (the level is the template's key, not a word). */
 const codeOf = (key: unknown) => (key == null ? undefined : String(key).slice(String(key).indexOf(':') + 1));
 
-export function surveyDocSide(doc: SurveyDoc, opts: { frame?: boolean; names?: SideNames } = {}): MergeSide {
+export function surveyDocSide(doc: SurveyDoc, opts: { frame?: boolean; names?: SideNames; ranks?: SideRanks } = {}): MergeSide {
   const name = (o: Row) => (o.verbatim_identification as string | null) || (o.used_scientific_name as string | null) || opts.names?.(o.taxon_id as string) || String(o.taxon_id);
   const occName = new Map(doc.occurrences.map((o) => [o.uuid as string, name(o)]));
+  /** The name as a title part: a label as it is, else the scientific name with its rank. */
+  const part = (taxonId: unknown, verbatim: unknown, used?: unknown): TitlePart => {
+    if (verbatim) return String(verbatim);
+    const r = opts.ranks?.(String(taxonId));
+    return { sci: (used as string | null) || opts.names?.(String(taxonId)) || String(taxonId), rank: r?.rank ?? null, kingdom: r?.kingdom ?? null };
+  };
+  const occPart = new Map(doc.occurrences.map((o) => [o.uuid as string, part(o.taxon_id, o.verbatim_identification, o.used_scientific_name)]));
   const side: MergeSide = {
     survey: [
       {
@@ -228,6 +260,7 @@ export function surveyDocSide(doc: SurveyDoc, opts: { frame?: boolean; names?: S
       data: omit(o, ['uuid']),
       dupKey: `${o.unit ?? ''}|${o.taxon_id}|${o.verbatim_identification ?? ''}`,
       label: name(o),
+      title: [occPart.get(o.uuid as string)!],
       group: codeOf(o.unit),
     })),
     surveyval: doc.survey_values.map((v) => ({ key: valueKey('survey', v), data: omit(v, ['uuid']), extra: { uuid: v.uuid }, label: `${v.component} ${v.field}` })),
@@ -243,12 +276,21 @@ export function surveyDocSide(doc: SurveyDoc, opts: { frame?: boolean; names?: S
       data: omit(v, ['uuid', 'occurrence']),
       extra: { uuid: v.uuid },
       label: `${occName.get(v.occurrence as string) ?? '?'} ${v.field}`,
+      title: [occPart.get(v.occurrence as string) ?? '?', ` ${v.field}`],
+    })),
+    inter: (doc.interactions ?? []).map((i) => ({
+      key: i.uuid as string,
+      data: omit(i, ['uuid']),
+      label: `${occName.get(i.subject as string) ?? '?'} ${i.mutual ? '↔' : '→'} ${occName.get(i.object as string) ?? '?'}`,
+      title: [occPart.get(i.subject as string) ?? '?', ` ${i.mutual ? '↔' : '→'} `, occPart.get(i.object as string) ?? '?'],
+      group: codeOf(i.unit),
     })),
     recheck: doc.rechecks.map((r) => ({
       key: `${r.place ?? ''}|${labelKey(r.prev_taxon_id, r.prev_verbatim_identification)}`,
       data: { outcome: r.outcome, occurrence: r.occurrence ?? null },
       extra: { uuid: r.uuid, checked_at: r.checked_at },
       label: (r.prev_verbatim_identification as string) || opts.names?.(r.prev_taxon_id as string) || String(r.prev_taxon_id),
+      title: [part(r.prev_taxon_id, r.prev_verbatim_identification)],
       group: codeOf(r.place),
     })),
   };
@@ -273,7 +315,7 @@ export function surveyDocSide(doc: SurveyDoc, opts: { frame?: boolean; names?: S
 // ── writing operations back ─────────────────────────────────────────────────
 
 /** Insert order; deletes run the other way. The plot's tables come first; deleteRow never deletes from them or the survey. */
-const ORDER = ['funit', 'flabel', 'survey', 'sunit', 'surveyval', 'unitval', 'occ', 'occval', 'recheck'] as const;
+const ORDER = ['funit', 'flabel', 'survey', 'sunit', 'surveyval', 'unitval', 'occ', 'occval', 'inter', 'recheck'] as const;
 const VALUE_TABLE = {
   surveyval: { table: 'fw_survey_values', owner: 'survey_id' },
   unitval: { table: 'fw_unit_values', owner: 'unit_id' },
@@ -417,6 +459,8 @@ export function applySurveyDocOps(ctx: Ctx, surveyId: number, ops: readonly Merg
         case 'occ': {
           const cols: Row = { ...omit(data, ['unit']) };
           if ('unit' in data) cols.unit_id = unitId(data.unit as string | null);
+          // Left out of the document when 0, so a field-by-field update may bring null.
+          if ('via_interaction' in cols) cols.via_interaction = cols.via_interaction ? 1 : 0;
           const id = occId(key);
           if (id != null) set('fw_occurrences', id, cols);
           else insert('fw_occurrences', { uuid: key, survey_id: surveyId, ...cols, observed_at: (cols.observed_at as number | null) ?? now, created_at: now, updated_at: now });
@@ -434,6 +478,23 @@ export function applySurveyDocOps(ctx: Ctx, surveyId: number, ops: readonly Merg
           const cols = omit(data, ['component', 'field', 'idx']);
           if (found) set(v.table, found.id, cols);
           else insert(v.table, { uuid: (extra.uuid as string) ?? ctx.uuid(), [v.owner]: owner, component: k.component, field: k.field, idx: k.idx, ...cols, updated_at: now });
+          written += 1;
+          break;
+        }
+        case 'inter': {
+          const cols: Row = { ...omit(data, ['subject', 'object', 'unit']) };
+          if ('subject' in data) cols.subject_occurrence_id = occId(data.subject as string | null);
+          if ('object' in data) cols.object_occurrence_id = occId(data.object as string | null);
+          if ('unit' in data) cols.unit_id = unitId(data.unit as string | null);
+          if ('mutual' in cols) cols.mutual = cols.mutual ? 1 : 0;
+          // A side that is not here (yet): the next merge brings it.
+          if (cols.subject_occurrence_id === null || cols.object_occurrence_id === null) break;
+          const found = one<{ id: number }>(ctx, `SELECT id FROM fw_interactions WHERE survey_id = ? AND uuid = ?`, [surveyId, key]);
+          if (found) set('fw_interactions', found.id, cols);
+          else {
+            if (cols.subject_occurrence_id === undefined || cols.object_occurrence_id === undefined || !cols.type_code) break;
+            insert('fw_interactions', { uuid: key, survey_id: surveyId, mutual: 0, ...cols, observed_at: (cols.observed_at as number | null) ?? now, created_at: now, updated_at: now });
+          }
           written += 1;
           break;
         }
@@ -496,9 +557,19 @@ function deleteRow(
       run(ctx, `DELETE FROM fw_units WHERE id = ?`, [id]);
       return 1;
     }
+    case 'inter': {
+      const id = one<{ id: number }>(ctx, `SELECT id FROM fw_interactions WHERE survey_id = ? AND uuid = ?`, [surveyId, key])?.id;
+      if (id == null) return 0;
+      run(ctx, `DELETE FROM fw_media WHERE interaction_id = ?`, [id]);
+      run(ctx, `DELETE FROM fw_interactions WHERE id = ?`, [id]);
+      return 1;
+    }
     case 'occ': {
       const id = ids.occId(key);
       if (id == null) return 0;
+      // Its interactions go with it (foreign keys are off during cleanup).
+      run(ctx, `DELETE FROM fw_media WHERE interaction_id IN (SELECT id FROM fw_interactions WHERE subject_occurrence_id = ? OR object_occurrence_id = ?)`, [id, id]);
+      run(ctx, `DELETE FROM fw_interactions WHERE subject_occurrence_id = ? OR object_occurrence_id = ?`, [id, id]);
       run(ctx, `DELETE FROM fw_rechecks WHERE occurrence_id = ? AND outcome = 'found'`, [id]);
       run(ctx, `UPDATE fw_rechecks SET occurrence_id = NULL WHERE occurrence_id = ?`, [id]);
       run(ctx, `DELETE FROM fw_occurrence_values WHERE occurrence_id = ?`, [id]);
@@ -614,19 +685,22 @@ export function putBackMediaRows(ctx: Ctx, surveyId: number, doc: SurveyDoc, pre
   for (const m of doc.media) {
     if (one(ctx, `SELECT 1 AS x FROM fw_media WHERE uuid = ?`, [m.uuid as string])) continue;
     if (m.occurrence != null && sealed.has(String(m.occurrence))) continue;
+    if (m.interaction != null && sealed.has(String(m.interaction))) continue;
     if (!present(String(m.uri))) continue;
     const unit = m.unit == null ? null : (() => {
       const { level, code } = splitUnitKey(String(m.unit));
       return one<{ id: number }>(ctx, `SELECT id FROM fw_units WHERE survey_id = ? AND level_key = ? AND code = ?`, [surveyId, level, code])?.id ?? null;
     })();
     const occ = m.occurrence == null ? null : (one<{ id: number }>(ctx, `SELECT id FROM fw_occurrences WHERE survey_id = ? AND uuid = ?`, [surveyId, m.occurrence as string])?.id ?? null);
+    const inter = m.interaction == null ? null : (one<{ id: number }>(ctx, `SELECT id FROM fw_interactions WHERE survey_id = ? AND uuid = ?`, [surveyId, m.interaction as string])?.id ?? null);
     // Its owner is gone: the photo has nowhere to go.
-    if ((m.unit != null && unit == null) || (m.occurrence != null && occ == null)) continue;
-    run(ctx, `INSERT INTO fw_media (uuid, survey_id, unit_id, occurrence_id, component, kind, uri, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, [
+    if ((m.unit != null && unit == null) || (m.occurrence != null && occ == null) || (m.interaction != null && inter == null)) continue;
+    run(ctx, `INSERT INTO fw_media (uuid, survey_id, unit_id, occurrence_id, interaction_id, component, kind, uri, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
       m.uuid as string,
       surveyId,
       unit,
       occ,
+      inter,
       m.component as string,
       m.kind as string,
       m.uri as string,
@@ -650,8 +724,11 @@ export function putBackMediaRows(ctx: Ctx, surveyId: number, doc: SurveyDoc, pre
   return n;
 }
 
-/** What a closed blind phase seals: blind occurrences (uuid) and the units they sit in (level:code). */
-export type Sealed = { occ: Set<string>; unit: Set<string> };
+/** What a closed blind phase seals: blind occurrences and interactions (uuid) and the units the occurrences sit in (level:code). */
+export type Sealed = { occ: Set<string>; unit: Set<string>; inter: Set<string> };
+
+/** The owners a sealed record's photos hang on (occurrence and interaction uuids), for putBackMediaRows. */
+export const sealedOwners = (s: Sealed | null | undefined): Set<string> => new Set(s ? [...s.occ, ...s.inter] : []);
 
 /**
  * The blind records a closed blind phase has sealed (§5.5): every blind
@@ -663,9 +740,10 @@ export type Sealed = { occ: Set<string>; unit: Set<string> };
  * correct theirs.
  */
 export function sealedOccurrences(here: SurveyDoc, other: SurveyDoc): Sealed {
-  const out: Sealed = { occ: new Set(), unit: new Set() };
+  const out: Sealed = { occ: new Set(), unit: new Set(), inter: new Set() };
   if (here.survey.blind_closed_at == null) return out;
   for (const o of [...here.occurrences, ...other.occurrences]) if (o.phase === 'blind') out.occ.add(String(o.uuid));
+  for (const i of [...(here.interactions ?? []), ...(other.interactions ?? [])]) if (i.phase === 'blind') out.inter.add(String(i.uuid));
   const parentOf = new Map(here.units.map((u) => [unitKey(u.level_key, u.code), (u.parent as string | null) ?? null]));
   for (const o of here.occurrences) {
     if (o.phase !== 'blind') continue;
@@ -674,12 +752,13 @@ export function sealedOccurrences(here: SurveyDoc, other: SurveyDoc): Sealed {
   return out;
 }
 
-/** Restore items without those that would touch a sealed record: its row, its values, removing its unit. */
+/** Restore items without those that would touch a sealed record: its row, its values, its interactions, removing its unit. */
 export function withoutSealed<T extends { tbl: string; key: string; dup?: { key: string }; remote: unknown }>(items: readonly T[], sealed: Sealed): T[] {
-  if (!sealed.occ.size) return [...items];
+  if (!sealed.occ.size && !sealed.inter.size) return [...items];
   const hit = (key: string | undefined, tbl: string) => key != null && sealed.occ.has(tbl === 'occval' ? key.split('|')[0] : key);
   return items.filter((it) => {
     if (it.tbl === 'occ' || it.tbl === 'occval') return !(hit(it.key, it.tbl) || hit(it.dup?.key, it.tbl));
+    if (it.tbl === 'inter') return !sealed.inter.has(it.key);
     if (it.tbl === 'sunit') return !(it.remote == null && sealed.unit.has(it.key));
     return true;
   });

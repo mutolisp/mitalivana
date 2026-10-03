@@ -457,8 +457,16 @@ export default function SurveyFormScreen() {
               className="flex-row items-center gap-2 rounded-card border border-line bg-card px-4 py-3 active:opacity-70 dark:border-line-dark dark:bg-card-dark"
             >
               <View className="flex-1">
-                <Text className="text-base font-semibold text-ink dark:text-gray-100">{o.verbatim_identification || o.common_name_c || o.simple_name || o.taxon_id}</Text>
-                <ScientificName name={o.simple_name || o.taxon_id} rank={o.rank} kingdom={o.kingdom} className="text-sm text-ink-2 dark:text-gray-300" />
+                {/* With neither a label nor a common name the scientific name is the title, in italics by rank. */}
+                {o.verbatim_identification || o.common_name_c ? (
+                  <Text className="text-base font-semibold text-ink dark:text-gray-100">{o.verbatim_identification || o.common_name_c}</Text>
+                ) : null}
+                <ScientificName
+                  name={o.simple_name || o.taxon_id}
+                  rank={o.rank}
+                  kingdom={o.kingdom}
+                  className={o.verbatim_identification || o.common_name_c ? 'text-sm text-ink-2 dark:text-gray-300' : 'text-base font-semibold text-ink dark:text-gray-100'}
+                />
                 <Text className="text-xs text-ink-3 dark:text-gray-400">
                   {[
                     pick === 'all' && o.unitPath ? o.unitPath : null,

@@ -3399,7 +3399,8 @@
       "occval": "출현 기록 항목",
       "recheck": "재확인 결과",
       "funit": "단위 배치",
-      "flabel": "형태종"
+      "flabel": "형태종",
+      "inter": "상호작용"
     },
     "field": {
       "latitude": "위도",
@@ -3509,7 +3510,13 @@
       "identified_by": "동정자",
       "elevation_source": "고도 출처",
       "surveyUnit": "단위",
-      "measureUnit": "측정 단위"
+      "measureUnit": "측정 단위",
+      "viaInteraction": "상호작용 상대",
+      "interSubject": "A(행하는 쪽)",
+      "interObject": "B",
+      "interType": "유형",
+      "interMutual": "양방향",
+      "interCount": "횟수"
     },
     "from": "{{name}}에게서",
     "fromAt": "{{name}}에게서, {{date}} 업로드",

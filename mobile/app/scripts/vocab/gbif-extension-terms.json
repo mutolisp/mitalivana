@@ -131,6 +131,23 @@
     "http://rs.tdwg.org/dwc/terms/measurementMethod",
     "http://rs.tdwg.org/dwc/terms/measurementRemarks"
    ]
+  },
+  {
+   "name": "resourcerelationship",
+   "source": "https://rs.gbif.org/extension/dwc/resource_relationship_2025-07-10.xml",
+   "retrieved": "2026-10-03",
+   "rowType": "http://rs.tdwg.org/dwc/terms/ResourceRelationship",
+   "note": "dc:issued 2026-02-12; dc:subject lists dwc:Event, so it extends this app's Event core. resourceID and relatedResourceID are required.",
+   "terms": [
+    "http://rs.tdwg.org/dwc/terms/resourceRelationshipID",
+    "http://rs.tdwg.org/dwc/terms/resourceID",
+    "http://rs.tdwg.org/dwc/terms/relationshipOfResourceID",
+    "http://rs.tdwg.org/dwc/terms/relatedResourceID",
+    "http://rs.tdwg.org/dwc/terms/relationshipOfResource",
+    "http://rs.tdwg.org/dwc/terms/relationshipAccordingTo",
+    "http://rs.tdwg.org/dwc/terms/relationshipEstablishedDate",
+    "http://rs.tdwg.org/dwc/terms/relationshipRemarks"
+   ]
   }
  ]
 }

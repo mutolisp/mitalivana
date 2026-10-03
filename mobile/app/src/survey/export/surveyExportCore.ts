@@ -15,7 +15,12 @@
  *     (decided 2026-10-03: a survey's own scale, Braun-Blanquet as cover by
  *     the tables in vegMatrix.ts), and presence;
  *   - the project's matrices: per template, per scale, only surveys that use
- *     that one scale.
+ *     that one scale;
+ *   - interactions (2F-b): a table of them with both sides and the type's
+ *     relation, the template's types, and per type a species × species
+ *     table. An occurrence made only as an interaction's other side is
+ *     marked in the occurrence table and left out of every community table
+ *     and matrix (decided 2026-10-03).
  *
  * Pure: check:survey-export runs it under Node.
  */
@@ -25,6 +30,7 @@ import { kindForType, type QuantityKind } from '../../lib/dwcAbundanceCore';
 import type { Row } from '../../lib/mergeEngine';
 import { assignPlotEventIds } from '../../lib/plotEventIds';
 import { aggregateCell, cellString, type CsvTable } from '../../lib/vegMatrix';
+import { interactionTypes, type InteractionType } from '../db/interactionCore';
 import type { SurveyDoc } from '../db/surveyDocCore';
 import { componentDef, exportMapOf, type FieldDef } from '../registry';
 import type { Label, SurveyLevel, SurveyTemplate } from '../template/types';
@@ -107,6 +113,8 @@ export function unitPaths(doc: Pick<SurveyDoc, 'units'>): Map<string, string> {
 export function docForFile(doc: SurveyDoc, opts: { names: Names; extOf: (uri: string) => string }): { doc: SurveyDoc; files: FileRef[] } {
   const paths = unitPaths(doc);
   const taxonOf = new Map(doc.occurrences.map((o) => [str(o.uuid), str(o.taxon_id)]));
+  const subjectOf = new Map((doc.interactions ?? []).map((i) => [str(i.uuid), str(i.subject)]));
+  const sciOf = (occ: string) => opts.names(taxonOf.get(occ) ?? '').scientific ?? taxonOf.get(occ) ?? 'occurrence';
   const files: FileRef[] = [];
   const taken = new Set<string>();
   const name = (stem: string, uri: string, kind: FileRef['kind']) => {
@@ -122,10 +130,12 @@ export function docForFile(doc: SurveyDoc, opts: { names: Names; extOf: (uri: st
     const uri = str(m.uri);
     const kind = m.kind === 'audio' ? 'audio' : 'photo';
     const where = m.occurrence != null
-      ? (opts.names(taxonOf.get(str(m.occurrence)) ?? '').scientific ?? taxonOf.get(str(m.occurrence)) ?? 'occurrence')
-      : m.unit != null
-        ? (paths.get(str(m.unit)) ?? str(m.unit))
-        : 'survey';
+      ? sciOf(str(m.occurrence))
+      : m.interaction != null
+        ? `interaction_${sciOf(subjectOf.get(str(m.interaction)) ?? '')}`
+        : m.unit != null
+          ? (paths.get(str(m.unit)) ?? str(m.unit))
+          : 'survey';
     const { uri: _u, ...rest } = m;
     return uri ? { ...rest, file: name(`${where}_${short(m.uuid)}`, uri, kind) } : rest;
   });
@@ -279,7 +289,13 @@ export type SurveyTables = {
   fields: CsvTable;
   codelists: CsvTable | null;
   rechecks: CsvTable | null;
+  /** 2F-b: its interactions, and the types its template offers or used; null without an Interaction component. */
+  interactions: CsvTable | null;
+  interactionTypes: CsvTable | null;
 };
+
+/** An interaction's side in its table: the occurrence and its taxon. */
+const SIDE_COLS = ['occurrenceID', 'taxonID', 'scientificName', 'vernacularName', 'verbatimIdentification'] as const;
 
 /** The survey as spreadsheet tables (a document from docForFile names photos by file). */
 export function surveyTables(doc: SurveyDoc, opts: { eventId: string; names: Names; words: Words }): SurveyTables {
@@ -341,7 +357,20 @@ export function surveyTables(doc: SurveyDoc, opts: { eventId: string; names: Nam
 
   const occCols = template ? componentColumns(doc, template, 'occurrence', 'occurrences.csv', words) : [];
   const occurrences: CsvTable = {
-    header: ['occurrenceID', 'eventID', 'unit', 'taxonID', 'scientificName', 'vernacularName', 'usedScientificName', 'verbatimIdentification', 'phase', ...occCols.map((c) => c.name)],
+    header: [
+      'occurrenceID',
+      'eventID',
+      'unit',
+      'taxonID',
+      'scientificName',
+      'vernacularName',
+      'usedScientificName',
+      'verbatimIdentification',
+      'phase',
+      // 1: recorded only as an interaction's other side (2F; not in any community table).
+      'interaction_partner',
+      ...occCols.map((c) => c.name),
+    ],
     rows: doc.occurrences.map((o) => {
       const path = o.unit != null ? (paths.get(str(o.unit)) ?? '') : '';
       const n = names(str(o.taxon_id));
@@ -355,6 +384,7 @@ export function surveyTables(doc: SurveyDoc, opts: { eventId: string; names: Nam
         str(o.used_scientific_name),
         str(o.verbatim_identification),
         str(o.phase),
+        o.via_interaction ? '1' : '',
         ...occCols.map((c) => c.value({ level: 'occurrence', uuid: str(o.uuid) }, o)),
       ];
     }),
@@ -395,7 +425,110 @@ export function surveyTables(doc: SurveyDoc, opts: { eventId: string; names: Nam
       }
     : null;
 
-  return { survey, units, occurrences, fields, codelists, rechecks };
+  const types = template ? interactionTypes(template) : [];
+  const hasInteractions = types.length > 0 || (doc.interactions ?? []).length > 0;
+  const typeOf = new Map(types.map((t) => [t.code, t]));
+  const occByUuid = new Map(doc.occurrences.map((o) => [str(o.uuid), o]));
+  const side = (uuid: unknown) => {
+    const o = occByUuid.get(str(uuid));
+    const n = names(str(o?.taxon_id));
+    return [str(uuid), str(o?.taxon_id), str(n.scientific), str(n.vernacular), str(o?.verbatim_identification)];
+  };
+  const interactions: CsvTable | null = hasInteractions
+    ? {
+        header: [
+          'interactionID',
+          'eventID',
+          'unit',
+          'type_code',
+          'type_name',
+          'relationship',
+          'relationship_iri',
+          'both_ways',
+          ...SIDE_COLS.map((h) => `subject_${h}`),
+          ...SIDE_COLS.map((h) => `object_${h}`),
+          'count',
+          'observed_at',
+          'recorded_by',
+          'notes',
+          'photos',
+          'phase',
+        ],
+        rows: (doc.interactions ?? []).map((i) => {
+          const ty = typeOf.get(str(i.type_code));
+          const path = i.unit != null ? (paths.get(str(i.unit)) ?? '') : '';
+          return [
+            str(i.uuid),
+            path ? unitEventId(eventId, path) : eventId,
+            path,
+            str(i.type_code),
+            ty ? labelParts(ty.label, words).text : '',
+            ty?.en ?? '',
+            ty?.iri ?? '',
+            i.mutual ? '1' : '0',
+            ...side(i.subject),
+            ...side(i.object),
+            str(i.count),
+            typeof i.observed_at === 'number' ? isoStamp(i.observed_at) : '',
+            str(i.recorded_by),
+            str(i.notes),
+            doc.media.filter((m) => m.interaction === i.uuid).map((m) => str(m.file ?? m.uri)).join(';'),
+            str(i.phase),
+          ];
+        }),
+      }
+    : null;
+  const interactionTypesTable: CsvTable | null = types.length
+    ? {
+        header: ['code', 'builtin', 'name', 'relationship', 'reads_from_object', 'reads_from_object_en', 'both_ways', 'relationship_iri', 'offered'],
+        rows: types.map((t) => {
+          const inv = t.inverse ? labelParts(t.inverse, words) : { text: '', en: '' };
+          return [t.code, t.builtin ? '1' : '0', labelParts(t.label, words).text, t.en, inv.text, t.builtin ? '' : inv.en, t.mutual ? '1' : '0', t.iri ?? '', t.offered ? '1' : '0'];
+        }),
+      }
+    : null;
+
+  return { survey, units, occurrences, fields, codelists, rechecks, interactions, interactionTypes: interactionTypesTable };
+}
+
+/**
+ * Per interaction type, a species × species table (decided 2026-10-03: the
+ * visitor × plant kind): subjects (A, the one doing it) by rows, objects by
+ * columns, the times added up (a row without a count is one). Named by type
+ * code; both-ways types as stored.
+ */
+export function surveyInteractionTables(doc: SurveyDoc, opts: { names: Names }): NamedTable[] {
+  const list = doc.interactions ?? [];
+  if (!list.length) return [];
+  const occ = new Map(doc.occurrences.map((o) => [str(o.uuid), o]));
+  const nameOf = (uuid: unknown) => {
+    const o = occ.get(str(uuid));
+    if (!o) return str(uuid);
+    const base = str(o.used_scientific_name) || opts.names(str(o.taxon_id)).scientific || str(o.taxon_id);
+    return o.verbatim_identification ? `${base} ${str(o.verbatim_identification)}` : base;
+  };
+  const out: NamedTable[] = [];
+  for (const code of [...new Set(list.map((i) => str(i.type_code)))].sort()) {
+    const mine = list.filter((i) => str(i.type_code) === code);
+    const rows = [...new Set(mine.map((i) => nameOf(i.subject)))].sort((a, b) => a.localeCompare(b));
+    const cols = [...new Set(mine.map((i) => nameOf(i.object)))].sort((a, b) => a.localeCompare(b));
+    const sum = new Map<string, number>();
+    for (const i of mine) {
+      const k = `${nameOf(i.subject)}\u0000${nameOf(i.object)}`;
+      sum.set(k, (sum.get(k) ?? 0) + (typeof i.count === 'number' ? i.count : 1));
+    }
+    out.push({
+      name: `interactions_${fileStem(code) || 'type'}`,
+      table: { header: ['subject', ...cols], rows: rows.map((r) => [r, ...cols.map((c) => String(sum.get(`${r}\u0000${c}`) ?? 0))]) },
+    });
+  }
+  return out;
+}
+
+/** The types a document's interactions carry, by code (its template's). */
+export function interactionTypesOf(doc: Pick<SurveyDoc, 'survey'>): Map<string, InteractionType> {
+  const t = templateOf(doc);
+  return new Map((t ? interactionTypes(t) : []).map((x) => [x.code, x]));
 }
 
 // ── community tables ──────────────────────────────────────────────────────
@@ -421,10 +554,13 @@ const occOf = (o: Row): Occ => ({
 /** A matrix row: a unit holding occurrences (or the survey for those outside units). */
 type Releve = { id: string; occs: Occ[] };
 
+/** The occurrences a community table counts: not those made only as an interaction's other side. */
+const sampled = (doc: Pick<SurveyDoc, 'occurrences'>) => doc.occurrences.filter((o) => !o.via_interaction);
+
 function relevesOf(doc: SurveyDoc, eventId: string): Releve[] {
   const paths = unitPaths(doc);
   const by = new Map<string, Occ[]>();
-  for (const o of doc.occurrences) {
+  for (const o of sampled(doc)) {
     const path = o.unit != null ? (paths.get(str(o.unit)) ?? '') : '';
     const id = path ? unitEventId(eventId, path) : eventId;
     (by.get(id) ?? by.set(id, []).get(id)!).push(occOf(o));
@@ -477,7 +613,7 @@ export type NamedTable = { name: string; table: CsvTable };
  * `customLeftOut`: occurrences whose quantity has a custom type (in no table but presence).
  */
 export function surveyCommunityTables(doc: SurveyDoc, opts: { eventId: string; names: Names }): { tables: NamedTable[]; customLeftOut: number } {
-  if (doc.survey.style !== 'plot' || !doc.occurrences.length) return { tables: [], customLeftOut: 0 };
+  if (doc.survey.style !== 'plot' || !sampled(doc).length) return { tables: [], customLeftOut: 0 };
   const releves = relevesOf(doc, opts.eventId);
   const tables: NamedTable[] = [{ name: 'presence', table: matrix(releves, opts.names, presence) }];
   for (const sc of SCALES) {
@@ -486,13 +622,13 @@ export function surveyCommunityTables(doc: SurveyDoc, opts: { eventId: string; n
       .filter((r) => r.occs.length);
     if (only.length) tables.push({ name: sc.slug, table: matrix(only, opts.names, scaleCell) });
   }
-  const customLeftOut = doc.occurrences.filter((o) => o.organism_quantity != null && o.organism_quantity !== '' && kindForType(o.organism_quantity_type == null ? null : str(o.organism_quantity_type)) === 'custom').length;
+  const customLeftOut = sampled(doc).filter((o) => o.organism_quantity != null && o.organism_quantity !== '' && kindForType(o.organism_quantity_type == null ? null : str(o.organism_quantity_type)) === 'custom').length;
   return { tables, customLeftOut };
 }
 
 /** The one abundance scale a survey's quantities use; 'none' without any, 'mixed' with several or a custom type. */
 export function surveyScale(doc: SurveyDoc): QuantityKind | 'none' | 'mixed' {
-  const kinds = new Set(doc.occurrences.filter((o) => o.organism_quantity != null && o.organism_quantity !== '').map((o) => kindForType(str(o.organism_quantity_type))));
+  const kinds = new Set(sampled(doc).filter((o) => o.organism_quantity != null && o.organism_quantity !== '').map((o) => kindForType(str(o.organism_quantity_type))));
   if (!kinds.size) return 'none';
   if (kinds.size > 1 || kinds.has('custom')) return 'mixed';
   return [...kinds][0];

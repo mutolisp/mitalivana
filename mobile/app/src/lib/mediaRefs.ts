@@ -81,13 +81,14 @@ export function listRecordMedia(kind: MergeKind, id: number): Array<FileItem & {
  * A checklist / plot-style survey's files: its photo rows (each says its
  * unit or occurrence, as the survey document keys them) and its plot's
  * morphospecies photos (keyed by taxon + label, as the merge keys them).
- * Interactions' photos travel with the interactions (2F-b), not yet.
+ * An interaction's photo says its interaction (2F-b).
  */
 function modularMedia(id: number): Array<FileItem & { ref: MediaRef }> {
   const media = rows(
-    `SELECT md.uuid, md.uri, md.component, md.kind, u.level_key, u.code, o.uuid AS occ FROM fw_media md
+    `SELECT md.uuid, md.uri, md.component, md.kind, u.level_key, u.code, o.uuid AS occ, i.uuid AS inter FROM fw_media md
        LEFT JOIN fw_units u ON u.id = md.unit_id LEFT JOIN fw_occurrences o ON o.id = md.occurrence_id
-      WHERE md.survey_id = ? AND md.interaction_id IS NULL ORDER BY md.id`,
+       LEFT JOIN fw_interactions i ON i.id = md.interaction_id
+      WHERE md.survey_id = ? ORDER BY md.id`,
     [id],
   ).map((r) => ({
     uri: String(r.uri),
@@ -96,6 +97,7 @@ function modularMedia(id: number): Array<FileItem & { ref: MediaRef }> {
       place: {
         unit: r.level_key == null ? null : unitKey(r.level_key, r.code),
         occ: (r.occ as string | null) ?? null,
+        ...(r.inter != null ? { inter: String(r.inter) } : {}),
         component: String(r.component),
         kind: String(r.kind),
       },
@@ -126,11 +128,17 @@ function addModularMedia(id: number, ref: MediaRef, uri: string, meta: MediaMeta
       occId = Number(rows(`SELECT id FROM fw_occurrences WHERE survey_id = ? AND uuid = ?`, [id, place.occ])[0]?.id ?? NaN);
       if (!Number.isFinite(occId)) return false;
     }
-    db.executeSync(`INSERT INTO fw_media (uuid, survey_id, unit_id, occurrence_id, component, kind, uri, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, [
+    let interId: number | null = null;
+    if (place.inter != null) {
+      interId = Number(rows(`SELECT id FROM fw_interactions WHERE survey_id = ? AND uuid = ?`, [id, place.inter])[0]?.id ?? NaN);
+      if (!Number.isFinite(interId)) return false; // its interaction is not merged yet
+    }
+    db.executeSync(`INSERT INTO fw_media (uuid, survey_id, unit_id, occurrence_id, interaction_id, component, kind, uri, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
       ref.k,
       id,
       unitId,
       occId,
+      interId,
       place.component,
       place.kind,
       uri,

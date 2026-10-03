@@ -173,6 +173,25 @@ export function linkMeasurements(occurrences: readonly DwcRow[], measurements: D
   }
 }
 
+/**
+ * Darwin Core ResourceRelationship (2F-b): an interaction between two
+ * occurrences of a survey — resourceID does it to relatedResourceID. The
+ * eight properties of GBIF's extension
+ * (rs.gbif.org/extension/dwc/resource_relationship_2025-07-10.xml, dc:issued
+ * 2026-02-12, checked 2026-10-03); it lists dwc:Event among its cores, and
+ * resourceID and relatedResourceID are required.
+ */
+export const RELATIONSHIP_COLS: ColSpec[] = [
+  { key: 'resourceRelationshipID', term: `${DWC}resourceRelationshipID` },
+  { key: 'resourceID', term: `${DWC}resourceID` },
+  { key: 'relationshipOfResourceID', term: `${DWC}relationshipOfResourceID` },
+  { key: 'relatedResourceID', term: `${DWC}relatedResourceID` },
+  { key: 'relationshipOfResource', term: `${DWC}relationshipOfResource` },
+  { key: 'relationshipAccordingTo', term: `${DWC}relationshipAccordingTo` },
+  { key: 'relationshipEstablishedDate', term: `${DWC}relationshipEstablishedDate` },
+  { key: 'relationshipRemarks', term: `${DWC}relationshipRemarks` },
+];
+
 export const HUMBOLDT_COLS: ColSpec[] = [
   { key: 'siteCount', term: `${ECO}siteCount` },
   { key: 'siteNestingDescription', term: `${ECO}siteNestingDescription` },
@@ -304,6 +323,11 @@ ${fieldTags(HUMBOLDT_COLS, 1)}
     <coreid index="0"/>
 ${fieldTags(MEASUREMENT_COLS, 1)}
   </extension>
+  <extension encoding="UTF-8" fieldsTerminatedBy="\\t" linesTerminatedBy="\\n" fieldsEnclosedBy="" ignoreHeaderLines="1" rowType="${DWC}ResourceRelationship">
+    <files><location>resourcerelationship.txt</location></files>
+    <coreid index="0"/>
+${fieldTags(RELATIONSHIP_COLS, 1)}
+  </extension>
 </archive>`;
 }
 
@@ -345,10 +369,12 @@ export type DwcArchiveInput = {
   humboldt: DwcRow[];
   /** Extended MeasurementOrFact rows; [] when nothing recorded one. */
   measurements: DwcRow[];
+  /** ResourceRelationship rows (interactions, 2F-b); absent or [] when none. */
+  relationships?: DwcRow[];
 };
 
 /** Assemble the archive zip bytes (event.txt + occurrence.txt + humboldt.txt
- *  + measurementorfact.txt + meta.xml + eml.xml). The caller stores these bytes into the outer bundle
+ *  + measurementorfact.txt + resourcerelationship.txt + meta.xml + eml.xml). The caller stores these bytes into the outer bundle
  *  with { level: 0 } — no point re-deflating a deflate stream. */
 export function buildDwcArchive(input: DwcArchiveInput): Uint8Array {
   return zipSync(
@@ -359,6 +385,7 @@ export function buildDwcArchive(input: DwcArchiveInput): Uint8Array {
       'occurrence.txt': strToU8(txtFile(OCCURRENCE_COLS, input.occurrences, true)),
       'humboldt.txt': strToU8(txtFile(HUMBOLDT_COLS, input.humboldt, true)),
       'measurementorfact.txt': strToU8(txtFile(MEASUREMENT_COLS, input.measurements, true)),
+      'resourcerelationship.txt': strToU8(txtFile(RELATIONSHIP_COLS, input.relationships ?? [], true)),
     },
     { level: 6 },
   );

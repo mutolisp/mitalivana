@@ -214,6 +214,8 @@ export async function bundleProject(
   const modularTaxa = resolveTaxa([...new Set(modularDocs.flatMap((d) => d.occurrences.map((o) => String(o.taxon_id))))]);
   for (const d of modularDocs) {
     for (const o of d.occurrences) {
+      // Recorded only as an interaction's other side: not what the project found (2F, decided 2026-10-03).
+      if (o.via_interaction) continue;
       const id = String(o.taxon_id);
       const f = modularTaxa.get(id);
       if (!f) continue;
@@ -478,7 +480,7 @@ function buildReadme(
     '- `analysis/` — 跨樣區分析資料表（樣方 × 物種矩陣、環境表；**只涵蓋樣區**，名錄與採集不進矩陣）',
     '- `analysis/surveys/` — 樣區型調查（模板組成的調查表）的單位 × 物種矩陣：每個模板一個有無矩陣，每種豐度尺度一個矩陣，只收全部記錄都用該尺度的調查（列名為單位的 eventID，同 records/ 內的 `_units.csv`）',
     '- `juice/` — JUICE 匯入檔（分號分隔）',
-    '- `dwca/` — Darwin Core Archive（Event core + Occurrence + Humboldt + MeasurementOrFact extension，GBIF 發布用）',
+    '- `dwca/` — Darwin Core Archive（Event core + Occurrence + Humboldt + MeasurementOrFact + ResourceRelationship extension，GBIF 發布用）',
     '- `sites/` — 專案的地理樣區幾何',
     '',
     '## analysis/（R vegan）',
@@ -534,6 +536,7 @@ function buildReadme(
     '葉候（leafPhenology）與偵測方式等非標準 DwC 欄位不在 archive 內，完整欄位見 `records/`。',
     '每木調查：每回合一個事件（`locationID` 為永久樣區），每個 20 m 樣方為子事件；每株每回合一筆出現記錄（`organismID` 為個體、`vitality` 為存活／死亡／不確定），分支的 DBH、POM、代碼等在 eMoF，`measurementRemarks` 為樹牌。',
     '名錄型／樣區型調查：每次調查一個事件、每個單位為子事件；前次有、本次盲測後複查未找到的物種以 `occurrenceStatus = absent` 列出。使用者自訂的性狀與代碼以模板的英文名稱（沒有時用原名稱）為 `measurementType`。',
+    '交互作用：一筆一列寫在 resourcerelationship.txt（resourceID＝做這件事的一方的 occurrenceID、relatedResourceID＝另一方），內建類型附 OBO Relation Ontology 的 IRI；雙向的寫兩列。只因交互作用而記的物種仍是出現記錄，occurrenceRemarks 註明，不計入物種名錄與矩陣。',
     '',
     ...(notes.length > 0 ? ['## 匯出注意事項', '', ...notes.map((n) => `- ${n}`), ''] : []),
   ];

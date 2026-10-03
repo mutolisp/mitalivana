@@ -61,6 +61,10 @@ eq('manifest: a malformed owner is dropped', readMediaManifest([{ ...photo, meta
 const place = { unit: 'quadrat:Q1', occ: null, component: 'photos', kind: 'photo' };
 eq('manifest: a survey photo keeps its place', readMediaManifest([{ ...photo, meta: { place } }]), [{ ...photo, meta: { place } }]);
 eq('manifest: a malformed place is dropped', readMediaManifest([{ ...photo, meta: { place: { unit: 1, component: 'photos', kind: 'photo' } } }]), [photo]);
+// An interaction's photo (2F-b) says its interaction; a malformed one is dropped.
+const interPlace = { unit: null, occ: null, inter: 'i-1', component: 'interaction', kind: 'photo' };
+eq('manifest: an interaction photo keeps its interaction', readMediaManifest([{ ...photo, meta: { place: interPlace } }]), [{ ...photo, meta: { place: interPlace } }]);
+eq('manifest: a malformed interaction is dropped', readMediaManifest([{ ...photo, meta: { place: { ...interPlace, inter: 5 } } }]), [photo]);
 const label = { ...good, ref: { t: 'fw_frame_labels', k: 't1|sp1', c: 'photo_uri' } };
 eq('manifest: a morphospecies photo is a known column', readMediaManifest([label]), [label]);
 eq('single: a morphospecies photo fills an empty column only', [withAddition(MEDIA_COLUMN_KINDS['fw_frame_labels.photo_uri'], null, 'x', undefined, has([])), withAddition('single', 'mine', 'x', undefined, has([]))], ['x', null]);

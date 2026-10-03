@@ -25,6 +25,7 @@
  *     each started it meet), a survey without a plot by its uuid;
  *   - a plot code another plot holds and a number the series already has are refused.
  */
+import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { runUserMigrations } from '../src/db/migrations.ts';
 import { baseOf, diffSides, planOps, defaultDecision } from '../src/lib/mergeEngine.ts';
@@ -32,6 +33,7 @@ import { restoreDecisions, takeVersion } from '../src/lib/recordVersionsCore.ts'
 import * as s from '../src/survey/db/stemmapCore.ts';
 import * as c from '../src/survey/db/surveyCore.ts';
 import * as d from '../src/survey/db/surveyDocCore.ts';
+import * as ix from '../src/survey/db/interactionCore.ts';
 import { withRequired } from '../src/survey/template/validate.ts';
 
 let failed = 0;
@@ -278,6 +280,132 @@ s.createFrame(C.ctx, { code: 'TP1', sizeXM: 20, sizeYM: 20 });
 throwsCode(() => d.insertSurveyFromDoc(C.ctx, docA, { status: 'done', projectId: 0 }), 'frame_code_taken', 'refused: another plot holds the code');
 const twin = { ...docA, survey: { ...docA.survey, uuid: 'other' } };
 throwsCode(() => d.insertSurveyFromDoc(B.ctx, twin, { status: 'done', projectId: 0 }), 'number_taken', 'refused: the series already has the number');
+
+// ── interactions (v87, 2F-b) ─────────────────────────────────────────────
+{
+  const IT = withRequired({
+    schema: 1,
+    id: 'user:inter-doc',
+    version: 1,
+    origin: 'user',
+    name: { text: 'inter' },
+    style: 'plot',
+    units: [{ key: 'u1', label: { text: '小區' } }],
+    components: [{ key: 'inter', type: 'interaction', level: 'occurrence', required: false, params: { builtin: ['feeding', 'flower_visit', 'mutualism'], count: true, photos: 2 } }],
+    codelists: [],
+    quick_add: false,
+  });
+  const D = await phone('d');
+  const FI = s.createFrame(D.ctx, { code: 'IXD', sizeXM: 20, sizeYM: 20 });
+  const P = c.createSurvey(D.ctx, { template: IT, frameId: FI });
+  const U = c.addUnit(D.ctx, P, { levelKey: 'u1', code: 'S1' });
+  const a = c.addOccurrence(D.ctx, P, { taxon_id: 'butterfly', unit_id: U });
+  const b = c.addOccurrence(D.ctx, P, { taxon_id: 'bidens', unit_id: U });
+  const i1 = ix.addInteraction(D.ctx, { from: a, partner: { occurrenceId: b }, type: 'flower_visit', direction: 'forward', count: 3, notes: '腳上有花粉' });
+  const i2 = ix.addInteraction(D.ctx, { from: a, partner: { taxonId: 'bird' }, type: 'feeding', direction: 'backward' });
+  const i3 = ix.addInteraction(D.ctx, { from: a, partner: { occurrenceId: b }, type: 'mutualism', direction: 'mutual' });
+  ix.addInteractionPhoto(D.ctx, i1, 'file:///photos/visit.jpg');
+  const uuidOf = (p, table, id) => p.one(`SELECT uuid FROM ${table} WHERE id = ?`, id).uuid;
+  const doc = d.buildSurveyDoc(D.ctx, P);
+  const [ua, ub] = [uuidOf(D, 'fw_occurrences', a), uuidOf(D, 'fw_occurrences', b)];
+  const bird = D.one(`SELECT uuid FROM fw_occurrences WHERE taxon_id = 'bird'`).uuid;
+  const iUuid = new Map([i1, i2, i3].map((id) => [id, uuidOf(D, 'fw_interactions', id)]));
+  const di = (id) => doc.interactions.find((x) => x.uuid === iUuid.get(id));
+  ok(doc.interactions.length === 3 && di(i1).subject === ua && di(i1).object === ub && di(i1).unit === 'u1:S1' && di(i1).count === 3, `inter doc: sides by occurrence uuid, unit by key (${JSON.stringify(di(i1))})`);
+  ok(di(i2).subject === bird && di(i2).object === ua && di(i3).mutual === 1, 'inter doc: stored one way, both ways as mutual');
+  const occRow = (uuid) => doc.occurrences.find((o) => o.uuid === uuid);
+  ok(occRow(bird).via_interaction === 1 && !('via_interaction' in occRow(ua)), 'inter doc: the other-side flag only where it is set (a survey without one reads as before)');
+  ok(doc.media.length === 1 && doc.media[0].interaction === di(i1).uuid && doc.media[0].occurrence == null, 'inter doc: its photo says its interaction');
+  // phone E: the same survey
+  const E = await phone('e');
+  const Pe = d.insertSurveyFromDoc(E.ctx, doc, { status: 'done', projectId: 0 });
+  d.putBackMediaRows(E.ctx, Pe, doc, () => true);
+  ok(sameSide(side(D, P), side(E, Pe)), 'inter copy: the same survey on the other phone, interactions and flags included');
+  ok(E.count('fw_interactions', 'survey_id = ?', Pe) === 3 && E.one(`SELECT via_interaction AS v FROM fw_occurrences WHERE uuid = ?`, bird).v === 1, 'inter copy: interactions and the other-side flag there');
+  ok(E.one(`SELECT i.uuid FROM fw_media m JOIN fw_interactions i ON i.id = m.interaction_id`)?.uuid === di(i1).uuid, 'inter copy: the photo on its interaction');
+  const base = baseOf(side(D, P));
+  // E: one more and a count changed; the bird recorded for itself (the flag goes)
+  const eId = (uuid, table = 'fw_occurrences') => E.one(`SELECT id FROM ${table} WHERE uuid = ?`, uuid).id;
+  const ei1 = eId(di(i1).uuid, 'fw_interactions');
+  ix.updateInteraction(E.ctx, ei1, { from: eId(ua), partner: { occurrenceId: eId(ub) }, type: 'flower_visit', direction: 'forward', count: 5, notes: '腳上有花粉' });
+  const e4 = ix.addInteraction(E.ctx, { from: eId(ub), partner: { taxonId: 'bee' }, type: 'flower_visit', direction: 'backward' });
+  c.addOccurrence(E.ctx, Pe, { taxon_id: 'bird', unit_id: E.one(`SELECT id FROM fw_units WHERE survey_id = ?`, Pe).id });
+  // D: the both-ways one deleted
+  ix.deleteInteraction(D.ctx, i3);
+  const items = mergeInto(D, P, side(E, Pe), base);
+  ok(items.some((it) => it.tbl === 'inter'), 'inter merge: interactions are compared');
+  ok(D.one(`SELECT count FROM fw_interactions WHERE id = ?`, i1).count === 5, 'inter merge: a changed count arrives');
+  const bee = E.one(`SELECT uuid FROM fw_occurrences WHERE taxon_id = 'bee'`).uuid;
+  ok(D.one(`SELECT via_interaction AS v FROM fw_occurrences WHERE uuid = ?`, bee)?.v === 1 && D.one(`SELECT i.id FROM fw_interactions i JOIN fw_occurrences o ON o.id = i.subject_occurrence_id WHERE o.uuid = ?`, bee), 'inter merge: a new interaction arrives with its new other side');
+  ok(D.one(`SELECT via_interaction AS v FROM fw_occurrences WHERE uuid = ?`, bird).v === 0, 'inter merge: recorded for itself on the other phone, the flag goes here too');
+  ok(D.count('fw_interactions', 'uuid = ?', di(i3).uuid) === 0, 'inter merge: a deletion here stays (the other phone did not change it)');
+  // ... and back: the deletion reaches E once the reviewer takes it (a deletion is never taken unasked)
+  const accept = (p, id, remote, b) => {
+    const its = diffSides(side(p, id), remote, b, d.SURVEY_DOC_COMBINERS);
+    d.applySurveyDocOps(p.ctx, id, planOps(its, new Map(its.map((it) => [it.id, it.kind === 'remoteDeleted' ? { pick: 'remote' } : defaultDecision(it)]))));
+  };
+  accept(E, Pe, side(D, P), base);
+  ok(E.count('fw_interactions', 'uuid = ?', di(i3).uuid) === 0 && E.count('fw_interactions', 'survey_id = ?', Pe) === 3, 'inter merge: a deletion travels');
+  ok(sameSide(side(D, P), side(E, Pe)), 'inter merge: both phones agree');
+  ix.deleteInteraction(D.ctx, i1);
+  // By hand, not by cascade: foreign keys are off during migrations and cleanup.
+  E.sqlite.exec('PRAGMA foreign_keys = OFF;');
+  accept(E, Pe, side(D, P), baseOf(side(E, Pe)));
+  E.sqlite.exec('PRAGMA foreign_keys = ON;');
+  ok(E.count('fw_media', 'interaction_id IS NOT NULL') === 0, 'inter merge: a deleted interaction takes its photo');
+  // a version restore, and the sealed ones
+  const before = d.buildSurveyDoc(D.ctx, P);
+  const restore = (p, id, version) => {
+    const here = d.buildSurveyDoc(p.ctx, id);
+    const cur = d.surveyDocSide(here, { frame: false });
+    const sealed = d.sealedOccurrences(here, version);
+    const its = d.withoutSealed(diffSides(cur, d.surveyDocSide(version, { frame: false }), baseOf(cur), takeVersion(d.SURVEY_DOC_COMBINERS)), sealed);
+    d.applySurveyDocOps(p.ctx, id, planOps(its, restoreDecisions(its)));
+    d.putBackMediaRows(p.ctx, id, version, () => true, d.sealedOwners(sealed));
+  };
+  const i5 = ix.addInteraction(D.ctx, { from: a, partner: { occurrenceId: b }, type: 'feeding', direction: 'forward' });
+  restore(D, P, before);
+  ok(D.count('fw_interactions', 'id = ?', i5) === 0 && sameSide(side(D, P), d.surveyDocSide(before)), 'inter restore: back to the version');
+  // a recheck: interactions recorded blind are sealed once the phase closes
+  c.finishSurvey(D.ctx, P);
+  const P2 = c.createSurvey(D.ctx, { template: IT, frameId: FI });
+  const U2 = c.listUnits(D.ctx, P2)[0].id;
+  const x = c.addOccurrence(D.ctx, P2, { taxon_id: 'butterfly', unit_id: U2 });
+  const y = c.addOccurrence(D.ctx, P2, { taxon_id: 'bidens', unit_id: U2 });
+  const blindDoc = d.buildSurveyDoc(D.ctx, P2);
+  const j1 = ix.addInteraction(D.ctx, { from: x, partner: { occurrenceId: y }, type: 'flower_visit', direction: 'forward' });
+  ix.addInteractionPhoto(D.ctx, j1, 'file:///photos/blind.jpg');
+  c.closeBlindPhase(D.ctx, P2);
+  const withBlind = d.buildSurveyDoc(D.ctx, P2);
+  const sealed = d.sealedOccurrences(withBlind, blindDoc);
+  ok(sealed.inter.has(uuidOf(D, 'fw_interactions', j1)) && d.sealedOwners(sealed).has(uuidOf(D, 'fw_interactions', j1)), 'inter sealed: a blind interaction is sealed, its photo with it');
+  restore(D, P2, blindDoc);
+  ok(D.count('fw_interactions', 'id = ?', j1) === 1 && D.count('fw_media', 'interaction_id = ?', j1) === 1, 'inter sealed: a restore to before it leaves it and its photo');
+  D.sqlite.prepare('DELETE FROM fw_media WHERE interaction_id = ?').run(j1);
+  restore(D, P2, withBlind);
+  ok(D.count('fw_media', 'interaction_id = ?', j1) === 0, 'inter sealed: nor brings back a sealed one’s photo');
+  // the teammate's copy: no photo rows, interactions kept
+  const peer = d.surveyDocForPeer(d.buildSurveyDoc(D.ctx, P2));
+  ok(peer.media.length === 0 && peer.interactions.length === 1, 'inter peer: interactions travel, photos by file sync');
+  // The review names every table a survey document has, and the interaction fields, in every language
+  // (teamMerge.table.<tbl>, and the keys mergeFormat.ts maps them to).
+  const tables = Object.keys(d.surveyDocSide(d.buildSurveyDoc(D.ctx, P2)));
+  const fields = ['viaInteraction', 'interSubject', 'interObject', 'interType', 'interMutual', 'interCount', 'surveyUnit'];
+  for (const loc of ['zh-TW', 'en', 'ja', 'ko', 'de', 'fr', 'es']) {
+    const tm = JSON.parse(readFileSync(new URL(`../src/i18n/locales/${loc}.json`, import.meta.url), 'utf8')).teamMerge;
+    const missing = [...tables.filter((t) => typeof tm.table?.[t] !== 'string').map((t) => `table.${t}`), ...fields.filter((f) => typeof tm.field?.[f] !== 'string').map((f) => `field.${f}`)];
+    ok(missing.length === 0, `review labels: ${loc} names every table and interaction field (${missing})`);
+  }
+  ok(tables.includes('inter'), 'review labels: the interaction table is among them');
+  // Row titles: scientific names as parts the review italicises by rank; a label stays text.
+  const titled = d.surveyDocSide(d.buildSurveyDoc(D.ctx, P), { names: (t) => `Sci ${t}`, ranks: (t) => ({ rank: t === 'bird' ? 'Genus' : 'Species', kingdom: 'Animalia' }) });
+  const birdRow = titled.occ.find((r) => r.data.taxon_id === 'bird');
+  ok(JSON.stringify(birdRow.title) === JSON.stringify([{ sci: 'Sci bird', rank: 'Genus', kingdom: 'Animalia' }]), `review titles: an occurrence's name with its rank (${JSON.stringify(birdRow.title)})`);
+  const interRow = titled.inter[0];
+  ok(interRow.title.length === 3 && typeof interRow.title[1] === 'string' && interRow.title[0].sci && interRow.title[2].sci, `review titles: an interaction's two names around its arrow (${JSON.stringify(interRow.title)})`);
+  const labelled = d.surveyDocSide({ ...d.buildSurveyDoc(D.ctx, P), occurrences: [{ uuid: 'o', taxon_id: 't', verbatim_identification: 'sp1', unit: null }] }, { names: () => 'X' });
+  ok(JSON.stringify(labelled.occ[0].title) === '["sp1"]', 'review titles: a morphospecies label stays text');
+}
 
 if (failed > 0) {
   console.error(`${failed} failure(s)`);

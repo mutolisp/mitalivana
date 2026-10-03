@@ -3399,7 +3399,8 @@
       "occval": "出現記録の項目",
       "recheck": "再確認の結果",
       "funit": "ユニット配置",
-      "flabel": "形態種"
+      "flabel": "形態種",
+      "inter": "相互作用"
     },
     "field": {
       "latitude": "緯度",
@@ -3509,7 +3510,13 @@
       "identified_by": "同定者",
       "elevation_source": "標高の取得元",
       "surveyUnit": "ユニット",
-      "measureUnit": "単位"
+      "measureUnit": "単位",
+      "viaInteraction": "相互作用の相手",
+      "interSubject": "A（行う側）",
+      "interObject": "B",
+      "interType": "種類",
+      "interMutual": "双方向",
+      "interCount": "回数"
     },
     "from": "{{name}} から",
     "fromAt": "{{name}} から、{{date}} アップロード",

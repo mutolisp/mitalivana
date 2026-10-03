@@ -48,9 +48,17 @@ export type MergeRow = {
   /** Same taxon in the same place under a different key → "possible duplicate". */
   dupKey?: string | null;
   label: string;
+  /**
+   * The label as the review shows it, when it holds scientific names: text
+   * and names, each name in italics by its rank (ScientificName). Display
+   * only, like `label`; logs keep `label`.
+   */
+  title?: readonly TitlePart[];
   /** Grouping for the review screen (unit code, subplot …). */
   group?: string;
 };
+
+export type TitlePart = string | { sci: string; rank?: string | null; kingdom?: string | null };
 
 export type MergeSide = Record<string, MergeRow[]>;
 

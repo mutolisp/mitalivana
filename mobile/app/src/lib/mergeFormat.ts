@@ -25,7 +25,9 @@ const FIELD_KEY: Record<string, string> = {
 };
 /** The same column meaning something else in a checklist / plot-style survey's rows (surveyDocCore.ts). */
 const TABLE_FIELD_KEY: Record<string, Record<string, string>> = {
-  occ: { unit: 'surveyUnit' },
+  occ: { unit: 'surveyUnit', via_interaction: 'viaInteraction' },
+  // Interactions (v87): A, B, the type, both ways, how many times.
+  inter: { unit: 'surveyUnit', subject: 'interSubject', object: 'interObject', type_code: 'interType', mutual: 'interMutual', count: 'interCount' },
   surveyval: { unit: 'measureUnit' },
   unitval: { unit: 'measureUnit' },
   occval: { unit: 'measureUnit' },
@@ -52,7 +54,7 @@ const LABELLED = new Set([
   'identified_by', 'elevation_source',
 ]);
 /** GLORIA 完成 locks and other 1 / null flags. */
-const LOCKS = new Set(['done_locked', 'freq_locked', 'pf_locked', 'locked', 'photo_open', 'photo_closed', 'no_researchers']);
+const LOCKS = new Set(['done_locked', 'freq_locked', 'pf_locked', 'locked', 'photo_open', 'photo_closed', 'no_researchers', 'mutual', 'via_interaction']);
 /** Grids and point strings: shown as a count, not 100–400 characters. */
 const MASKS = new Set(['freq_cells', 'point_hits', 'dist_hi1', 'dist_hi2', 'dist_hi3', 'point_surface']);
 const TIMES = /(_ts|_at)$/;

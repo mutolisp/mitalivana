@@ -3753,7 +3753,8 @@
       "occval": "Campo del registro",
       "recheck": "Reverificación",
       "funit": "Plano de unidades",
-      "flabel": "Morfoespecie"
+      "flabel": "Morfoespecie",
+      "inter": "Interacción"
     },
     "field": {
       "latitude": "Latitud",
@@ -3863,7 +3864,13 @@
       "identified_by": "Identificado por",
       "elevation_source": "Fuente de la altitud",
       "surveyUnit": "Unidad",
-      "measureUnit": "Unidad de medida"
+      "measureUnit": "Unidad de medida",
+      "viaInteraction": "Contraparte de interacción",
+      "interSubject": "A (quien lo hace)",
+      "interObject": "B",
+      "interType": "Tipo",
+      "interMutual": "En ambos sentidos",
+      "interCount": "Veces"
     },
     "from": "De {{name}}",
     "fromAt": "De {{name}}, subido el {{date}}",

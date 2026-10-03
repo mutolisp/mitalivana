@@ -3576,7 +3576,8 @@
       "occval": "Fundfeld",
       "recheck": "Nachkontrolle",
       "funit": "Einteilung",
-      "flabel": "Morphospezies"
+      "flabel": "Morphospezies",
+      "inter": "Interaktion"
     },
     "field": {
       "latitude": "Breite",
@@ -3686,7 +3687,13 @@
       "identified_by": "Bestimmt von",
       "elevation_source": "Höhenquelle",
       "surveyUnit": "Einheit",
-      "measureUnit": "Maßeinheit"
+      "measureUnit": "Maßeinheit",
+      "viaInteraction": "Interaktionspartner",
+      "interSubject": "A (wer es tut)",
+      "interObject": "B",
+      "interType": "Typ",
+      "interMutual": "Beidseitig",
+      "interCount": "Anzahl"
     },
     "from": "Von {{name}}",
     "fromAt": "Von {{name}}, hochgeladen {{date}}",

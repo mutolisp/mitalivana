@@ -36,6 +36,7 @@ import {
   HUMBOLDT_COLS,
   DISTRIBUTION_COLS,
   MEASUREMENT_COLS,
+  RELATIONSHIP_COLS,
   TAXON_COLS,
   buildTaxonArchive,
   OCCURRENCE_COLS,
@@ -104,6 +105,12 @@ checkCols(
 );
 const emof = extByName.get('emof');
 checkCols('MEASUREMENT_COLS', MEASUREMENT_COLS, new Set(emof.terms), 'Extended MeasurementOrFact');
+// Interactions (2F-b): the extension's eight properties, the two it requires among them.
+const rr = extByName.get('resourcerelationship');
+checkCols('RELATIONSHIP_COLS', RELATIONSHIP_COLS, new Set(rr.terms), 'ResourceRelationship extension');
+for (const req of ['resourceID', 'relatedResourceID']) {
+  if (!RELATIONSHIP_COLS.some((c) => c.key === req)) fail(`RELATIONSHIP_COLS must carry ${req} (required by the extension)`);
+}
 // The reason eMoF was chosen over plain MoF. If a future revision drops this,
 // every per-organism measurement silently becomes a statement about the event.
 if (!emof.terms.includes('http://rs.tdwg.org/dwc/terms/occurrenceID')) {
@@ -125,11 +132,12 @@ if (!MEASUREMENT_COLS.some((c) => c.key === 'occurrenceID')) {
     measurements: [
       { coreEventID: 'e1', occurrenceID: 'o1', measurementType: 'leafPhenology', measurementValue: 'deciduous' },
     ],
+    relationships: [{ coreEventID: 'e1', resourceID: 'o1', relatedResourceID: 'o1', relationshipOfResource: 'eats' }],
   });
   const files = unzipSync(zip);
   const metaXml = strFromU8(files['meta.xml']);
   const emitted = [...metaXml.matchAll(/term="([^"]+)"/g)].map((m) => m[1]);
-  const expected = [...EVENT_COLS, ...OCCURRENCE_COLS, ...HUMBOLDT_COLS, ...MEASUREMENT_COLS].map(
+  const expected = [...EVENT_COLS, ...OCCURRENCE_COLS, ...HUMBOLDT_COLS, ...MEASUREMENT_COLS, ...RELATIONSHIP_COLS].map(
     (c) => c.term,
   );
   // Same round-trip for the Taxon-core archive.
@@ -171,6 +179,9 @@ if (!MEASUREMENT_COLS.some((c) => c.key === 'occurrenceID')) {
   if (!eco.includes(humboldt.rowType)) {
     fail(`meta.xml rowTypes ${JSON.stringify(eco)} do not include the extension's ${humboldt.rowType}`);
   }
+  if (!eco.includes(rr.rowType)) fail(`meta.xml rowTypes ${JSON.stringify(eco)} do not include ResourceRelationship's ${rr.rowType}`);
+  const rrTxt = strFromU8(files['resourcerelationship.txt'] ?? new Uint8Array()).split('\n');
+  if (rrTxt[0] !== ['coreEventID', ...RELATIONSHIP_COLS.map((c) => c.key)].join('\t') || rrTxt.length !== 2) fail(`resourcerelationship.txt: header or rows wrong (${rrTxt.slice(0, 2)})`);
   if (typeof DWCA_INTERNALS.buildMetaXml !== 'function') fail('DWCA_INTERNALS.buildMetaXml missing');
 }
 
@@ -391,7 +402,7 @@ if (failures > 0) {
   process.exit(1);
 }
 console.log(
-  `✓ dwc-terms: ${EVENT_COLS.length + OCCURRENCE_COLS.length + HUMBOLDT_COLS.length + MEASUREMENT_COLS.length + TAXON_COLS.length + DISTRIBUTION_COLS.length} archive columns`
+  `✓ dwc-terms: ${EVENT_COLS.length + OCCURRENCE_COLS.length + HUMBOLDT_COLS.length + MEASUREMENT_COLS.length + RELATIONSHIP_COLS.length + TAXON_COLS.length + DISTRIBUTION_COLS.length} archive columns`
     + ` + ${new Set(Object.values(DWC_FIELD_MAP)).size} mapper outputs check out`
     + ` (DwC ${dwc.retrieved}, extensions ${gbif.extensions[0].retrieved})`,
 );

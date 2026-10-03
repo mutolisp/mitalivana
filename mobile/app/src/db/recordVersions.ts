@@ -39,6 +39,7 @@ import {
   putBackSurveyMedia,
   recoverSurvey,
   sealedOccurrences,
+  sealedOwners,
   surveyDoc,
   surveySide,
   withoutSealed,
@@ -295,7 +296,7 @@ export function restoreVersion(kind: VersionKind, id: number, versionId: number)
       case 'modular':
         applySurveyOps(id, ops);
         // Photos the version had whose file is still here come back (adding only).
-        putBackSurveyMedia(id, snap.doc as SurveyDoc, sealed?.occ);
+        putBackSurveyMedia(id, snap.doc as SurveyDoc, sealedOwners(sealed));
         break;
       case 'survey':
         throw new Error('a census header is not restored; a deleted census is recovered');
@@ -325,7 +326,7 @@ export function overwriteSurvey(id: number, doc: SurveyDoc): number {
   const items = withoutSealed(diffSides(current, sideOf('modular', doc), baseOf(current), takeVersion(combinersOf('modular'))), sealed);
   const ops = planOps(items, restoreDecisions(items));
   applySurveyOps(id, ops);
-  putBackSurveyMedia(id, doc, sealed.occ);
+  putBackSurveyMedia(id, doc, sealedOwners(sealed));
   for (const fn of restoredListeners) fn('modular', id);
   return ops.length;
 }

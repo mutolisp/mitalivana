@@ -19,6 +19,7 @@ import {
   docForFile,
   eventBase,
   surveyCommunityTables,
+  surveyInteractionTables,
   surveyEventIds,
   surveyTables,
   type CsvTable,
@@ -101,9 +102,11 @@ export async function buildSurveyEntries(
   csv('fields', tables.fields);
   csv('codelists', tables.codelists);
   csv('rechecks', tables.rechecks);
+  csv('interactions', tables.interactions);
+  csv('interaction_types', tables.interactionTypes);
   // R-first, as the project's analysis tables: no BOM.
-  for (const tb of surveyCommunityTables(doc, { eventId, names }).tables) {
-    entries.push({ name: `${base}/${base}_vegan_${tb.name}.csv`, bytes: strToU8(tableToCsv(tb.table)) });
+  for (const tb of [...surveyCommunityTables(doc, { eventId, names }).tables.map((t) => ({ ...t, name: `vegan_${t.name}` })), ...surveyInteractionTables(doc, { names })]) {
+    entries.push({ name: `${base}/${base}_${tb.name}.csv`, bytes: strToU8(tableToCsv(tb.table)) });
   }
   const s = live.survey;
   return {

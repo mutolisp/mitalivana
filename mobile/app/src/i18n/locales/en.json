@@ -3576,7 +3576,8 @@
       "occval": "Occurrence field",
       "recheck": "Recheck answer",
       "funit": "Unit layout",
-      "flabel": "Morphospecies"
+      "flabel": "Morphospecies",
+      "inter": "Interaction"
     },
     "field": {
       "latitude": "Latitude",
@@ -3686,7 +3687,13 @@
       "identified_by": "Identified by",
       "elevation_source": "Elevation source",
       "surveyUnit": "Unit",
-      "measureUnit": "Unit of measure"
+      "measureUnit": "Unit of measure",
+      "viaInteraction": "Interaction partner",
+      "interSubject": "A (the one doing it)",
+      "interObject": "B",
+      "interType": "Type",
+      "interMutual": "Both ways",
+      "interCount": "Times"
     },
     "from": "From {{name}}",
     "fromAt": "From {{name}}, uploaded {{date}}",

@@ -51,7 +51,8 @@ export type MediaRef = { t: string; k: string; c: string };
 export type MediaOwner = { tree: string; stem: string | null; component: string; kind: string };
 
 /** A checklist / plot-style survey photo's row: its unit (level:code) or occurrence (uuid), or neither (the survey's), component and kind. */
-export type MediaPlace = { unit: string | null; occ: string | null; component: string; kind: string };
+/** `inter` (2F-b): an interaction's photo, by the interaction's uuid; absent on a survey's other photos. */
+export type MediaPlace = { unit: string | null; occ: string | null; inter?: string | null; component: string; kind: string };
 
 /** What goes with a file besides the file: an overview photo's viewpoint, an attachment's name, a census photo's owner, a survey photo's place. */
 export type MediaMeta = { viewpoint?: string; name?: string; owner?: MediaOwner; place?: MediaPlace };
@@ -139,8 +140,14 @@ export function readMediaManifest(v: unknown): MediaEntry[] {
     const pl = m?.place as Record<string, unknown> | undefined;
     const optStr = (v: unknown) => v == null || typeof v === 'string';
     const place: MediaPlace | null =
-      pl && optStr(pl.unit) && optStr(pl.occ) && typeof pl.component === 'string' && typeof pl.kind === 'string'
-        ? { unit: (pl.unit as string | null) ?? null, occ: (pl.occ as string | null) ?? null, component: pl.component, kind: pl.kind }
+      pl && optStr(pl.unit) && optStr(pl.occ) && optStr(pl.inter) && typeof pl.component === 'string' && typeof pl.kind === 'string'
+        ? {
+            unit: (pl.unit as string | null) ?? null,
+            occ: (pl.occ as string | null) ?? null,
+            ...(typeof pl.inter === 'string' ? { inter: pl.inter } : {}),
+            component: pl.component,
+            kind: pl.kind,
+          }
         : null;
     const meta: MediaMeta | undefined = m
       ? {
