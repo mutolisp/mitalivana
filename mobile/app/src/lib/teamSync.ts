@@ -59,6 +59,18 @@ import {
 } from './teamCrypto';
 import { applyPendingMerge, usePendingMerge, type PendingMerge } from './teamMergeFlow';
 import { quadratsForDoc } from '~/db/quadrats';
+import {
+  InsertSurveyError,
+  modularIdByUuid,
+  modularIdentity,
+  modularIdForDoc,
+  modularSyncIdent,
+  receivePrevious,
+  receiveSurvey,
+  surveyDoc,
+  surveyDocForPeer,
+  surveySide,
+} from '~/survey/db/surveyDocs';
 
 export const DEFAULT_SERVER = 'https://sync.mitalivana.org';
 export const SYNC_API_VERSION = 1;
@@ -498,6 +510,8 @@ function identOf(kind: MergeKind, id: number): Ident | null {
     // Summit + cycle, not uuid: two phones that each started this survey meet.
     return sv && summit ? { uuid: sv.uuid, ident: `${summit.full_code}|${sv.mocy}` } : null;
   }
+  // On a permanent plot: plot + template + number, so two phones that each started it meet.
+  if (kind === 'modular') return modularSyncIdent(id);
   return assertNever(kind, 'merge kind');
 }
 
@@ -537,6 +551,10 @@ function recordText(kind: MergeKind, id: number, uuid: string, author: string | 
     }
   } else if (kind === 'gloria') {
     doc = loadGloriaDoc(id) as unknown as Record<string, unknown> | null;
+  } else if (kind === 'modular') {
+    // With the survey before it: a teammate without it can still recheck against its list.
+    const d = surveyDoc(id, { previous: true });
+    doc = d ? (surveyDocForPeer(d) as unknown as Record<string, unknown>) : null;
   } else {
     assertNever(kind, 'merge kind');
   }
@@ -544,7 +562,9 @@ function recordText(kind: MergeKind, id: number, uuid: string, author: string | 
   // The file manifest is part of the fingerprint: a new photo makes the record "changed".
   const sync = { ...syncBlockFor(kind, uuid), ...(author ? { author } : {}), ...(media.length ? { media } : {}) };
   const { exported_at: _at, ...stable } = sync;
-  return { text: yaml.dump({ ...doc, sync }, { lineWidth: -1, noRefs: true }), hash: rowHash({ doc, sync: stable }) };
+  // A survey document is JSON (a template snapshot and values kept exactly as stored).
+  const text = kind === 'modular' ? JSON.stringify({ ...doc, sync }) : yaml.dump({ ...doc, sync }, { lineWidth: -1, noRefs: true });
+  return { text, hash: rowHash({ doc, sync: stable }) };
 }
 
 /** The team's server without the scheme, to tell same-named teams apart. */
@@ -621,6 +641,10 @@ function storedSide(kind: MergeKind, id: number): MergeSide | null {
       const d = localGloriaDoc(id);
       return d ? gloriaSide(d) : null;
     }
+    case 'modular': {
+      const d = surveyDoc(id);
+      return d ? surveySide(d) : null;
+    }
     default:
       return assertNever(kind, 'merge kind');
   }
@@ -635,6 +659,7 @@ function recordLabel(kind: MergeKind, id: number): string | null {
     const sm = sv ? getSummit(sv.summit_id) : null;
     return sv && sm ? `${sm.full_code} mocy ${sv.mocy}` : null;
   }
+  if (kind === 'modular') return modularIdentity(id)?.label ?? null;
   return assertNever(kind, 'merge kind');
 }
 
@@ -740,6 +765,11 @@ function prepare(kind: MergeKind, localId: number, localUuid: string, payload: R
     local = d ? gloriaSide(d) : null;
     remote = gloriaSide(payload.gloria);
     label = `${payload.gloria.summit.full_code} mocy ${payload.gloria.survey.mocy}`;
+  } else if (kind === 'modular' && payload.kind === 'modular') {
+    const d = surveyDoc(localId);
+    local = d ? surveySide(d) : null;
+    remote = surveySide(surveyDocForPeer(payload.survey));
+    label = modularIdentity(localId)?.label ?? '';
   } else {
     return 'mismatch';
   }
@@ -771,7 +801,7 @@ export type SyncOutcome = {
 /** An unchanged record is still re-sent after this long, well inside the relay's 90-day expiry. */
 export const REUPLOAD_MS = 30 * 24 * 3600 * 1000;
 
-const ROUTE_OF: Record<MergeKind, string> = { session: '/session', plot: '/plot', gloria: '/gloria' };
+const ROUTE_OF: Record<MergeKind, string> = { session: '/session', plot: '/plot', gloria: '/gloria', modular: '/survey/form' };
 
 function hrefOf(kind: MergeKind, id: number): Href {
   return `${ROUTE_OF[kind]}/${id}` as Href;
@@ -848,6 +878,8 @@ async function syncRecordNow(teamId: string, kind: MergeKind, id: number, opts: 
         throw e;
       }
       rememberMember(teamId, it.dev, payload.sync?.author, it.uploaded);
+      // The survey before this one, when this device lacks it (its recheck list).
+      if (payload.kind === 'modular') receivePrevious(payload.survey);
       const prep = prepare(kind, id, who.uuid, payload);
       if (prep === 'mismatch') {
         markSeen(teamId, rec, it.dev, it.etag);
@@ -944,6 +976,7 @@ export function localIdOf(kind: MergeKind, uuid: string): number | null {
   if (kind === 'session') return getSessionByUuid(uuid)?.id ?? null;
   if (kind === 'plot') return getPlotSurveyByUuid(uuid)?.id ?? null;
   if (kind === 'gloria') return rows<{ id: number }>(`SELECT id FROM gloria_surveys WHERE uuid = ?`, [uuid])[0]?.id ?? null;
+  if (kind === 'modular') return modularIdByUuid(uuid);
   return assertNever(kind, 'merge kind');
 }
 
@@ -1139,14 +1172,17 @@ async function pullTeamRecordsNow(teamId: string): Promise<{ imported: number; l
     // Collections are not merged; a census travels as headers and blocks, never as a whole file.
     if (payload.kind === 'collection' || payload.kind === 'survey') continue;
     const kind: MergeKind = payload.kind;
-    // Already here (same uuid, or GLORIA's same summit + cycle): link only.
+    // Already here (same uuid, GLORIA's same summit + cycle, a survey's same plot + template + number): link only.
     const hereId =
       payload.kind === 'gloria'
         ? findGloriaSurveyFor(payload.gloria)
-        : localIdOf(kind, payload.kind === 'session' ? payload.session.uuid : payload.plot.uuid);
+        : payload.kind === 'modular'
+          ? modularIdForDoc(payload.survey)
+          : localIdOf(kind, payload.kind === 'session' ? payload.session.uuid : payload.plot.uuid);
     if (hereId != null) {
       const who = identOf(kind, hereId);
       if (who) {
+        if (payload.kind === 'modular') receivePrevious(payload.survey);
         link(teamId, kind, who.uuid, rec, null);
         logSync(teamId, 'link', { kind, uuid: who.uuid, id: hereId }, { server: serverOf(team), detail: payload.sync?.author ?? null });
         useSyncProgress.getState().update({ record: recordLabel(kind, hereId) });
@@ -1166,6 +1202,17 @@ async function pullTeamRecordsNow(teamId: string): Promise<{ imported: number; l
     } else if (payload.kind === 'gloria') {
       if (validateGloriaDoc(payload.gloria).length) continue;
       newId = importGloriaDoc(withoutSenderFiles(payload.gloria)).surveyId;
+    } else if (payload.kind === 'modular') {
+      try {
+        newId = receiveSurvey(payload.survey);
+      } catch (e) {
+        // Another plot here has its code (made on each phone): left alone, said in the log as a census is.
+        if (!(e instanceof InsertSurveyError)) throw e;
+        const s = payload.survey;
+        const label = s.frame ? `${String(s.frame.code ?? '')} #${String(s.survey.census_no ?? '')}` : String(s.survey.name ?? '');
+        logSync(teamId, 'fail', { kind: 'modular', uuid: String(s.survey.uuid ?? ''), label }, { server: serverOf(team), detail: e.code });
+        continue;
+      }
     } else {
       return assertNever(payload, 'sync payload kind');
     }

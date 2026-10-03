@@ -16,18 +16,16 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { showActionSheet } from '~/components/ActionSheet';
 import { HeaderIconButton } from '~/components/HeaderIconButton';
 import { Button } from '~/components/ui/Button';
-import { defaultSurveyorString } from '~/db/surveyors';
 import { isoDate } from '~/lib/datetime';
 import { BackHeaderLeft } from '~/lib/goBack';
 import { FormCard } from '~/survey/components/FormBits';
-import { deleteFrame, getFrame, listCensuses, startCensus, type CensusListRow, type FrameRow } from '~/survey/db/stemmap';
+import { deleteFrame, getFrame, listCensuses, type CensusListRow, type FrameRow } from '~/survey/db/stemmap';
 import { fgQuadratCounts } from '~/survey/stemmap/coords';
-import { STEMMAP_TEMPLATE } from '~/survey/templates/stemmap';
 import { Chevron } from '~/components/ui/Chevron';
-import { startModularSurveyAndOpen } from '~/lib/recordCreate';
 import { listFrameLabels, listFrameUnits, listSurveys } from '~/survey/db/surveys';
 import type { SurveyListRow } from '~/survey/db/surveyCore';
-import { SAMPLE_PLOT_TEMPLATE, SAMPLE_TEMPLATES_OFFERED } from '~/survey/templates/samples';
+import { SURVEY_FORMS_OFFERED } from '~/survey/templates/samples';
+import { startCensusOnFrame, startPlotTemplateOnFrame } from '~/survey/builder/start';
 
 export default function SurveyFrameScreen() {
   const { t } = useTranslation();
@@ -57,20 +55,8 @@ export default function SurveyFrameScreen() {
   const latest = censuses[0] ?? null;
   const q = fgQuadratCounts({ sizeXM: frame.size_x_m, sizeYM: frame.size_y_m, quadratM: frame.quadrat_m, subquadratM: frame.subquadrat_m, originLat: null, originLng: null, bearingDeg: 0, bearingRef: 'true', declinationDeg: 0 });
 
-  const start = () => {
-    const surveyId = startCensus({ frameId: frame.id, template: STEMMAP_TEMPLATE, investigators: defaultSurveyorString() });
-    router.push(`/survey/${surveyId}` as Href);
-  };
-  const onPrimary = () => {
-    if (latest?.status === 'active') {
-      router.push(`/survey/${latest.id}` as Href);
-      return;
-    }
-    Alert.alert(t('survey.frame.startTitle', { n: (latest?.census_no ?? 0) + 1 }), latest ? t('survey.frame.startRecensusMsg') : t('survey.frame.startFirstMsg'), [
-      { text: t('common.cancel'), style: 'cancel' },
-      { text: t('survey.frame.start'), onPress: start },
-    ]);
-  };
+  // Continues an open census; else asks (the census template too, when the user has their own).
+  const onPrimary = () => void startCensusOnFrame(frame.id);
   const more = async () => {
     const idx = await showActionSheet({
       options: [{ label: t('survey.frame.edit') }, { label: t('survey.frame.delete'), destructive: true }],
@@ -154,7 +140,7 @@ export default function SurveyFrameScreen() {
           </View>
         }
         ListFooterComponent={
-          SAMPLE_TEMPLATES_OFFERED || plotSurveys.length || layout.units || layout.labels ? (
+          SURVEY_FORMS_OFFERED || plotSurveys.length || layout.units || layout.labels ? (
             <View className="mt-4 gap-2">
               <Text className="text-xs font-semibold uppercase tracking-wide text-ink-3 dark:text-gray-400">{t('surveyForm.frame.section')}</Text>
               <FormCard>
@@ -169,7 +155,7 @@ export default function SurveyFrameScreen() {
                   <Chevron />
                 </Pressable>
               </FormCard>
-              {SAMPLE_TEMPLATES_OFFERED ? (
+              {SURVEY_FORMS_OFFERED ? (
                 <Button
                   label={t('surveyForm.frame.start')}
                   icon="add"
@@ -177,7 +163,7 @@ export default function SurveyFrameScreen() {
                   onPress={() => {
                     const open = plotSurveys.find((x) => x.status === 'active');
                     if (open) router.push(`/survey/form/${open.id}` as Href);
-                    else void startModularSurveyAndOpen(SAMPLE_PLOT_TEMPLATE, frame.id);
+                    else void startPlotTemplateOnFrame(frame.id);
                   }}
                 />
               ) : null}

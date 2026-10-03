@@ -462,10 +462,11 @@ function EnvTab({
    * clearing a value to retype it would immediately restore the old number and
    * you could never change it.
    */
-  const patchCover = (key: CoverKey, value: number | null) => {
+  const patchCover = (key: CoverKey, value: number | null, done = true) => {
     const next = { ...plot, [key]: value } as PlotSurvey;
     const blanks = COVER_KEYS.filter((k) => next[k] == null);
-    if (blanks.length === 1 && blanks[0] !== key) {
+    // Not on a half-typed number: the last blank would keep a remainder of it (LabeledField `done`).
+    if (done && blanks.length === 1 && blanks[0] !== key) {
       const filled = COVER_KEYS.filter((k) => k !== blanks[0]).reduce(
         (sum, k) => sum + (next[k] ?? 0),
         0,
@@ -767,7 +768,7 @@ function EnvTab({
           value={plot.vascular_cover_pct}
           min={0}
           max={100}
-          onSave={(n) => patchCover('vascular_cover_pct', n)}
+          onSave={(n, done) => patchCover('vascular_cover_pct', n, done)}
         />
         <LabeledNumField
           label={t('plot.bryophyteCover')}
@@ -775,7 +776,7 @@ function EnvTab({
           value={plot.bryophyte_cover_pct}
           min={0}
           max={100}
-          onSave={(n) => patchCover('bryophyte_cover_pct', n)}
+          onSave={(n, done) => patchCover('bryophyte_cover_pct', n, done)}
         />
         <LabeledNumField
           label={t('plot.lichenCover')}
@@ -783,7 +784,7 @@ function EnvTab({
           value={plot.lichen_cover_pct}
           min={0}
           max={100}
-          onSave={(n) => patchCover('lichen_cover_pct', n)}
+          onSave={(n, done) => patchCover('lichen_cover_pct', n, done)}
         />
         <LabeledNumField
           label={t('plot.litterCover')}
@@ -791,7 +792,7 @@ function EnvTab({
           value={plot.litter_cover_pct}
           min={0}
           max={100}
-          onSave={(n) => patchCover('litter_cover_pct', n)}
+          onSave={(n, done) => patchCover('litter_cover_pct', n, done)}
         />
         <LabeledNumField
           label={t('plot.rockCover')}
@@ -799,7 +800,7 @@ function EnvTab({
           value={plot.rock_cover_pct}
           min={0}
           max={100}
-          onSave={(n) => patchCover('rock_cover_pct', n)}
+          onSave={(n, done) => patchCover('rock_cover_pct', n, done)}
         />
         <LabeledNumField
           label={t('plot.gravelCover')}
@@ -807,7 +808,7 @@ function EnvTab({
           value={plot.gravel_cover_pct}
           min={0}
           max={100}
-          onSave={(n) => patchCover('gravel_cover_pct', n)}
+          onSave={(n, done) => patchCover('gravel_cover_pct', n, done)}
         />
         <LabeledNumField
           label={t('plot.bareCover')}
@@ -815,7 +816,7 @@ function EnvTab({
           value={plot.bareland_cover_pct}
           min={0}
           max={100}
-          onSave={(n) => patchCover('bareland_cover_pct', n)}
+          onSave={(n, done) => patchCover('bareland_cover_pct', n, done)}
         />
         {/* Running total for the seven ground-cover fractions. Warn rather than
             block: in the field you rarely enter them in an order that keeps the

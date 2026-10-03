@@ -81,9 +81,12 @@ export function PercentInput({
   value,
   onChange,
   compact = false,
+  autoFocus = true,
 }: {
   value: string;
   onChange: (v: string) => void;
+  /** Focused on open, as the value sheet wants; off where a whole form is shown (a template preview). */
+  autoFocus?: boolean;
   /** Beside the unit dropdown: the dropdown already names the unit, and the
    *  quick values are rendered by the caller below both. */
   compact?: boolean;
@@ -110,7 +113,7 @@ export function PercentInput({
           placeholder="0–100"
           placeholderTextColor={c.ink3}
           keyboardType="decimal-pad"
-          autoFocus
+          autoFocus={autoFocus}
           // Compact: the box above fixes the height; the input fills it.
           className={`flex-1 text-base text-gray-900 dark:text-gray-100 ${compact ? 'h-full' : 'py-3'}`}
         />
@@ -131,10 +134,12 @@ export function CountInput({
   onChange,
   suffix,
   compact = false,
+  autoFocus = true,
 }: {
   value: string;
   onChange: (v: string) => void;
   suffix: string;
+  autoFocus?: boolean;
   /** Beside the unit dropdown, which already names the unit. */
   compact?: boolean;
 }) {
@@ -160,7 +165,7 @@ export function CountInput({
           placeholder={t('plotValue.enterCount')}
           placeholderTextColor={c.ink3}
           keyboardType="numeric"
-          autoFocus
+          autoFocus={autoFocus}
           // Compact: the box above fixes the height; the input fills it.
           className={`flex-1 text-base text-gray-900 dark:text-gray-100 ${compact ? 'h-full' : 'py-3'}`}
         />
@@ -178,12 +183,14 @@ export function DBHInput({
   setStemDraft,
   onAdd,
   onRemove,
+  autoFocus = true,
 }: {
   stems: number[];
   stemDraft: string;
   setStemDraft: (s: string) => void;
   onAdd: () => void;
   onRemove: (idx: number) => void;
+  autoFocus?: boolean;
 }) {
   const c = useThemeColors();
   const { t } = useTranslation();
@@ -202,7 +209,7 @@ export function DBHInput({
           placeholderTextColor={c.ink3}
           keyboardType="decimal-pad"
           returnKeyType="done"
-          autoFocus
+          autoFocus={autoFocus}
           className="flex-1 py-3 text-base text-gray-900 dark:text-gray-100"
         />
         <Pressable onPress={onAdd} className={`rounded-md px-3 py-1.5 ${ACTION_FILL}`}>

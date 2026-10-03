@@ -118,7 +118,7 @@ function ReviewCard({
         {item.fields.map((f) => (
           <FieldRow
             key={f}
-            label={fieldLabel(t, f)}
+            label={fieldLabel(t, f, item.tbl)}
             local={fmt(f, item.local?.data[f], { t, tbl: item.tbl, key: item.key })}
             remote={fmt(f, item.remote?.data[f], { t, tbl: item.tbl, key: item.key })}
             pick={pickOf(f)}
@@ -141,7 +141,7 @@ function ReviewCard({
         <Text className="text-xs text-amber-700 dark:text-amber-400">{t('teamMerge.duplicateMsg')}</Text>
         {item.fields.map((f) => (
           <View key={f} className="flex-row gap-2">
-            <Text className="w-24 text-xs text-gray-500">{fieldLabel(t, f)}</Text>
+            <Text className="w-24 text-xs text-gray-500">{fieldLabel(t, f, item.tbl)}</Text>
             <Text className="flex-1 text-xs text-gray-800 dark:text-gray-200">{fmt(f, item.dup?.data[f], { t, tbl: item.tbl, key: item.key })}</Text>
             <Text className="flex-1 text-xs text-gray-800 dark:text-gray-200">{fmt(f, item.remote?.data[f], { t, tbl: item.tbl, key: item.key })}</Text>
           </View>
@@ -186,8 +186,8 @@ function AutoRow({ item, on, onToggle, first, last }: { item: MergeItem; on: boo
     item.kind === 'added'
       ? t('teamMerge.addedLine')
       : [
-          ...item.fields.map((f) => `${fieldLabel(t, f)} ${fmt(f, item.local?.data[f], { t, tbl: item.tbl, key: item.key })} → ${fmt(f, item.remote?.data[f], { t, tbl: item.tbl, key: item.key })}`),
-          ...Object.keys(item.patch ?? {}).map((f) => `${fieldLabel(t, f)} ${t('teamMerge.combined')}`),
+          ...item.fields.map((f) => `${fieldLabel(t, f, item.tbl)} ${fmt(f, item.local?.data[f], { t, tbl: item.tbl, key: item.key })} → ${fmt(f, item.remote?.data[f], { t, tbl: item.tbl, key: item.key })}`),
+          ...Object.keys(item.patch ?? {}).map((f) => `${fieldLabel(t, f, item.tbl)} ${t('teamMerge.combined')}`),
         ].join('；');
   return (
     <Pressable

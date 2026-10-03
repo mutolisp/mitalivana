@@ -18,10 +18,23 @@ import * as tpl from './templatesCore';
 const ctx = () => ({ db: getUserDb(), now: Date.now, uuid: generateUuid });
 
 // templates
-export const listTemplates = () => tpl.listTemplates(ctx());
+export const listTemplates = (opts?: { archived?: 'exclude' | 'include' | 'only' }) => tpl.listTemplates(ctx(), opts);
 export const getTemplate = (id: string, version?: number) => tpl.getTemplate(ctx(), id, version);
 export const saveTemplate = (t: SurveyTemplate) => tpl.saveTemplate(ctx(), t);
 export const upgradeSurvey = (surveyId: number, to: SurveyTemplate) => tpl.upgradeSurvey(ctx(), surveyId, to);
+// The builder (2D-a, v86)
+export type { TemplateDraft } from './templatesCore';
+export const getDraft = (id: string) => tpl.getDraft(ctx(), id);
+export const listDrafts = () => tpl.listDrafts(ctx());
+export const saveDraft = (t: SurveyTemplate, baseVersion: number | null) => tpl.saveDraft(ctx(), t, baseVersion);
+export const discardDraft = (id: string) => tpl.discardDraft(ctx(), id);
+export const commitDraft = (id: string) => withTransaction(() => tpl.commitDraft(ctx(), id));
+export const setTemplateArchived = (id: string, archived: boolean) => tpl.setTemplateArchived(ctx(), id, archived);
+export const isTemplateArchived = (id: string) => tpl.isTemplateArchived(ctx(), id);
+export const templateUseCounts = () => tpl.templateUseCounts(ctx());
+export const upgradableSurveys = (t: SurveyTemplate) => tpl.upgradableSurveys(ctx(), t);
+/** Move these surveys to `to` (each an additive change); returns how many moved. */
+export const upgradeSurveys = (ids: readonly number[], to: SurveyTemplate) => withTransaction(() => ids.filter((id) => tpl.upgradeSurvey(ctx(), id, to)).length);
 
 // surveys
 export const getFwSurvey = (id: number) => core.getFwSurvey(ctx(), id);
@@ -32,7 +45,11 @@ export const createSurvey = (input: core.SurveyInput) => withTransaction(() => c
 export const updateSurvey = (id: number, patch: core.SurveyPatch) => core.updateSurvey(ctx(), id, patch);
 export const finishSurvey = (id: number, stopTs?: number | null) => core.finishSurvey(ctx(), id, stopTs);
 export const reopenSurvey = (id: number) => withTransaction(() => core.reopenSurvey(ctx(), id));
-export const deleteSurvey = (id: number) => withTransaction(() => core.deleteSurvey(ctx(), id));
+/** Snapshot first, so a checklist / plot-style survey can be recovered for 30 days (record versions; lazy: they import this module's neighbours). */
+export const deleteSurvey = (id: number) => {
+  (require('~/db/recordVersions') as typeof import('~/db/recordVersions')).saveVersion('modular', id, 'before_delete');
+  withTransaction(() => core.deleteSurvey(ctx(), id));
+};
 
 // a frame's layout
 export const listFrameUnits = (frameId: number, opts?: { includeRetired?: boolean }) => core.listFrameUnits(ctx(), frameId, opts);
@@ -70,6 +87,7 @@ export const setValue = (owner: core.ValueOwner, component: string, field: strin
   core.setValue(ctx(), owner, component, field, value, idx);
 export const listValues = (owner: core.ValueOwner) => core.listValues(ctx(), owner);
 export const readComponent = (owner: core.ComponentOwner, key: string) => core.readComponent(ctx(), owner, key);
+export const environmentCarried = (owner: { kind: 'survey' | 'unit'; id: number }) => core.environmentCarried(ctx(), owner);
 export const writeComponent = (owner: core.ComponentOwner, key: string, patch: ComponentValues) => withTransaction(() => core.writeComponent(ctx(), owner, key, patch));
 export const addMedia = (owner: core.ComponentOwner, key: string, uri: string) => core.addMedia(ctx(), owner, key, uri);
 export const removeMedia = (owner: core.ComponentOwner, key: string, uri: string) => core.removeMedia(ctx(), owner, key, uri);

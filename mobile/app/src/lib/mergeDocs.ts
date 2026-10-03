@@ -17,10 +17,12 @@ import type { ImportedPlot, ImportedSession } from '../db';
 import { unionSurveyors } from '../db/merge';
 import type { GloriaDoc } from '../modules/gloria/export/yaml';
 import { LOGGER_FIELDS, UNIT_FIELDS } from '../modules/gloria/export/yaml';
+import { SURVEY_DOC_COMBINERS } from '../survey/db/surveyDocCore';
 import { buildTrackGeoJSON, parseTrackSegments } from './track';
 import { defaultDecision, type Combiners, type Decision, type MergeItem, type MergeRow, type MergeSide, type Row } from './mergeEngine';
 
-export type MergeKind = 'session' | 'plot' | 'gloria';
+/** 'modular': a checklist / plot-style survey (surveyDocCore.ts). These strings are stored and sent (sync_links, sync_base, merge_log). */
+export type MergeKind = 'session' | 'plot' | 'gloria' | 'modular';
 
 const omit = (o: Row, keys: readonly string[]): Row =>
   Object.fromEntries(Object.entries(o).filter(([k]) => !keys.includes(k)));
@@ -65,6 +67,8 @@ export const COMBINERS: Record<MergeKind, Combiners> = {
     quadrat: { started_at: minTime, ended_at: maxTime },
   },
   gloria: { survey: { recorded_by: surveyors, start_ts: minTime, stop_ts: endTime, grid_ok: gridTicks } },
+  // Its document and side are in surveyDocCore.ts.
+  modular: SURVEY_DOC_COMBINERS,
 };
 
 // ── session (快速名錄) ──────────────────────────────────────────────────────

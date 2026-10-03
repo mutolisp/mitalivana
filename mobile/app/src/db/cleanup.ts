@@ -219,6 +219,7 @@ const LIVE_UUIDS: Record<MergeKind, string> = {
   session: `SELECT uuid FROM sessions WHERE uuid IS NOT NULL`,
   plot: `SELECT uuid FROM plot_surveys`,
   gloria: `SELECT uuid FROM gloria_surveys`,
+  modular: `SELECT uuid FROM fw_surveys WHERE style <> 'individual'`,
 };
 
 /** The same for team sync, which also links a tree census (its blocks below). */

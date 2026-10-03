@@ -31,7 +31,7 @@ function load(id: number) {
   const survey = getFwSurvey(id);
   const state = survey && survey.style === 'plot' ? recheckState(id) : null;
   if (!survey || !state) return null;
-  const prevSurvey = getFwSurvey(state.previousId);
+  const prevSurvey = state.previousId == null ? null : getFwSurvey(state.previousId);
   const prevAbundance = prevSurvey ? formComponents(snapshotOf(prevSurvey), 'occurrence').find((c) => c.type === 'abundance') : undefined;
   const units = unitRows(
     snapshotOf(survey).units?.map((u) => u.key) ?? [],
@@ -110,9 +110,11 @@ export default function RecheckScreen() {
       <Stack.Screen options={{ title: t('surveyForm.recheck.title'), headerLeft: BackHeaderLeft }} />
       <ScrollView contentContainerClassName="gap-3 p-4 pb-10">
         <Text className="text-sm leading-5 text-ink-2 dark:text-gray-300">
-          {previous.length
-            ? t('surveyForm.recheck.intro', { n: data.prevSurvey?.census_no ?? 1, open: state.open })
-            : t('surveyForm.recheck.nothing')}
+          {state.previousId == null
+            ? t('surveyForm.recheck.noPrevious', { n: Math.max(1, (data.survey.census_no ?? 2) - 1) })
+            : previous.length
+              ? t('surveyForm.recheck.intro', { n: data.prevSurvey?.census_no ?? 1, open: state.open })
+              : t('surveyForm.recheck.nothing')}
         </Text>
         {[...groups.entries()].map(([group, rows]) => (
           <FormCard key={group} title={group}>

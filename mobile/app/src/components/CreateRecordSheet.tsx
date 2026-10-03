@@ -41,7 +41,12 @@ import {
   startSessionAndOpen,
 } from '~/lib/recordCreate';
 import { templateName } from '~/survey/form/text';
-import { SAMPLE_CHECKLIST_TEMPLATE, SAMPLE_PLOT_TEMPLATE, SAMPLE_TEMPLATES_OFFERED } from '~/survey/templates/samples';
+import { SURVEY_FORMS_OFFERED } from '~/survey/templates/samples';
+import { createTemplateFlow, templatesHref, userTemplates } from '~/survey/builder/drafts';
+import { startCensusWithTemplate } from '~/survey/builder/start';
+import { styleName } from '~/survey/builder/words';
+import { labelText } from '~/survey/components/editors/shared';
+import { router } from 'expo-router';
 import { useSettings, type RecordTypeDefault } from '~/stores/settings';
 import { useThemeColors, type ThemeColors } from '~/theme/colors';
 import { PointCountIcon, TransectIcon } from './PlotTypeIcons';
@@ -247,7 +252,7 @@ function MainPage({
     ...(miren ? [{ key: 'miren', icon: 'trail-sign-outline' as const, label: 'MIREN', run: openMiren }] : []),
     ...(survey
       ? [
-          SAMPLE_TEMPLATES_OFFERED
+          SURVEY_FORMS_OFFERED
             ? { key: 'survey', icon: 'albums-outline' as const, label: t('create.surveyTile'), run: onSurvey, page: true }
             : { key: 'survey', icon: 'apps-outline' as const, label: t('survey.create'), run: openSurveyFrames },
         ]
@@ -465,6 +470,8 @@ function SurveyPage({
   // took no touches). The sheet spans the window; 16 pt padding each side.
   const width = useWindowDimensions().width - 32;
   const [index, setIndex] = useState(0);
+  // Read once as the page opens (not on every render).
+  const [templates] = useState(() => userTemplates());
   const cards: {
     key: string;
     icon: keyof typeof Ionicons.glyphMap;
@@ -479,21 +486,29 @@ function SurveyPage({
       desc: t('create.surveyStemDesc'),
       actions: [{ label: t('create.surveyOpenFrames'), run: openSurveyFrames, primary: true }],
     },
+    // The user's own templates (the builder, 2D-a), each a card.
+    ...templates.map((tpl) => ({
+      key: tpl.id,
+      icon: (tpl.style === 'plot' ? 'grid-outline' : tpl.style === 'individual' ? 'apps-outline' : 'list-outline') as keyof typeof Ionicons.glyphMap,
+      title: templateName(t, i18n.language, tpl),
+      desc: [styleName(t, tpl.style), t('builder.version', { n: tpl.version }), tpl.description ? labelText(t, i18n.language, tpl.description) : null].filter(Boolean).join(' · '),
+      // A census template starts a census on a permanent plot (2D-b).
+      actions:
+        tpl.style === 'individual'
+          ? [{ label: t('builder.census.start'), run: () => startCensusWithTemplate(tpl), primary: true }]
+          : [
+              { label: t('create.startSurvey'), run: () => startModularSurveyAndOpen(tpl), primary: true },
+              ...(tpl.style === 'plot' ? [{ label: t('create.surveyOnFrame'), run: () => startModularOnFrameAndOpen(tpl) }] : []),
+            ],
+    })),
     {
-      key: 'checklist',
-      icon: 'list-outline',
-      title: templateName(t, i18n.language, SAMPLE_CHECKLIST_TEMPLATE),
-      desc: t('create.surveyChecklistDesc'),
-      actions: [{ label: t('create.startSurvey'), run: () => startModularSurveyAndOpen(SAMPLE_CHECKLIST_TEMPLATE), primary: true }],
-    },
-    {
-      key: 'plot',
-      icon: 'grid-outline',
-      title: templateName(t, i18n.language, SAMPLE_PLOT_TEMPLATE),
-      desc: t('create.surveyPlotDesc'),
+      key: 'builder',
+      icon: 'construct-outline',
+      title: t('builder.title'),
+      desc: templates.length ? t('create.builderDesc') : t('create.builderDescEmpty'),
       actions: [
-        { label: t('create.startSurvey'), run: () => startModularSurveyAndOpen(SAMPLE_PLOT_TEMPLATE), primary: true },
-        { label: t('create.surveyOnFrame'), run: () => startModularOnFrameAndOpen(SAMPLE_PLOT_TEMPLATE) },
+        { label: t('builder.create'), run: createTemplateFlow, primary: true },
+        { label: t('create.builderManage'), run: () => router.push(templatesHref) },
       ],
     },
   ];

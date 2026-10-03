@@ -24,15 +24,16 @@ import { snapshotOf } from '~/survey/db/surveyCore';
 import { addFrameUnit, deleteFrameUnit, frameUnitUsed, listFrameUnits, listSurveys, setFrameUnitRetired, updateFrameUnit } from '~/survey/db/surveys';
 import { formErrorText } from '~/survey/form/text';
 import { unitRows } from '~/survey/form/units';
-import { SAMPLE_PLOT_TEMPLATE, SAMPLE_TEMPLATES_OFFERED } from '~/survey/templates/samples';
+import { userTemplates } from '~/survey/builder/drafts';
+import { SURVEY_FORMS_OFFERED } from '~/survey/templates/samples';
 import type { UnitLevel } from '~/survey/template/types';
 
 function load(frameId: number) {
   const frame = getFrame(frameId);
   if (!frame) return null;
-  // Unit levels as the templates used on this plot name them, top first.
+  // Unit levels as the templates used on this plot name them, then the user's plot templates, top first.
   const levels: UnitLevel[] = [];
-  const templates = [...listSurveys({ frameId }).map((s) => snapshotOf(s)), ...(SAMPLE_TEMPLATES_OFFERED ? [SAMPLE_PLOT_TEMPLATE] : [])];
+  const templates = [...listSurveys({ frameId }).map((s) => snapshotOf(s)), ...(SURVEY_FORMS_OFFERED ? userTemplates().filter((x) => x.style === 'plot') : [])];
   for (const tpl of templates) for (const u of tpl.units ?? []) if (!levels.some((l) => l.key === u.key)) levels.push(u);
   const all = listFrameUnits(frameId, { includeRetired: true });
   for (const u of all) if (!levels.some((l) => l.key === u.level_key)) levels.push({ key: u.level_key, label: { text: u.level_key } });

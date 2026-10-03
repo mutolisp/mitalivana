@@ -16,6 +16,7 @@ import { getTagRollStart } from '../tagRoll';
 
 export {
   SurveyError,
+  censusCustomLists,
   type CensusListRow,
   frameGeometry,
   type FrameInput,
@@ -51,6 +52,8 @@ export const deleteFrame = (id: number) => withTransaction(() => core.deleteFram
 // censuses
 export const getSurvey = (id: number) => core.getSurvey(ctx(), id);
 export const censusCodesets = (id: number) => core.censusCodesets(ctx(), id);
+export const censusTemplate = (id: number) => core.censusTemplate(ctx(), id);
+export const censusSeriesCodeNeeded = (frameId: number, templateId: string) => core.censusSeriesCodeNeeded(ctx(), frameId, templateId);
 export const listCensuses = (frameId: number | null = null) => core.listCensuses(ctx(), frameId);
 /** Photos a census export carries (it and the earlier censuses of its series), as photo lists, and its tree count (size estimate). */
 export function censusExportSizeInput(surveyId: number): { photos: { photo_paths: string | null }[]; trees: number } {

@@ -11,21 +11,24 @@
  *   stays hidden until 結束盲測, after which the blind occurrences are sealed
  *   and every taxon of the previous survey missing from them needs an answer
  *   (recheck.tsx).
- * - A finished survey is locked until unlocked here, as 樣區 are; undo and
- *   record versions come with 2C-b.
+ * - A finished survey is locked until unlocked here, as 樣區 are. Every edit
+ *   made here is a step undo / redo in ⋯ takes back (useRecordEditing; a
+ *   closed blind phase's records excepted, recordSnapshotCore.ts); a version
+ *   is kept on leaving and on finishing, and ⋯ opens the versions and team
+ *   sync (Phase 2C-b).
  */
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { showActionSheet } from '~/components/ActionSheet';
 import { LineTabs } from '~/components/form/Segmented';
 import { NumAccessory } from '~/components/form/NumField';
-import { HeaderIconButton } from '~/components/HeaderIconButton';
 import { KeyboardStickyView } from '~/components/KeyboardAvoidingView';
 import { LockedBanner } from '~/components/RecordEditButtons';
+import { RecordMenuButton } from '~/components/RecordMenuButton';
 import { ScientificName } from '~/components/ScientificName';
 import { SearchBox } from '~/components/SearchBox';
 import { promptText } from '~/components/TextPromptModal';
@@ -33,9 +36,12 @@ import { Button } from '~/components/ui/Button';
 import { Chip } from '~/components/ui/Chip';
 import type { AdoptionInput } from '~/db/taxonLookup';
 import type { SearchResult } from '~/db';
+import { onVersionRestored, saveVersionSoon } from '~/db/recordVersions';
 import { isoStamp } from '~/lib/datetime';
 import { chooseEndTime } from '~/lib/endTimeChoice';
 import { BackHeaderLeft } from '~/lib/goBack';
+import { useRecordEditing } from '~/lib/useRecordEditing';
+import { useVersionOnLeave } from '~/lib/useVersionOnLeave';
 import { useActiveGloria } from '~/modules/gloria/store';
 import { useActiveMiren } from '~/modules/miren/store';
 import { useActivePlot } from '~/stores/activePlot';
@@ -55,13 +61,14 @@ import {
   reopenBlindPhase,
   reopenSurvey,
   updateSurvey,
+  upgradeSurvey,
 } from '~/survey/db/surveys';
 import { useActiveSurvey } from '~/survey/form/activeSurvey';
-import { occurrencesWithErrors, layerCountOf } from '~/survey/form/checks';
+import { occurrencesWithErrors } from '~/survey/form/checks';
 import { ComponentCards } from '~/survey/form/ComponentCards';
 import { labelForNew } from '~/survey/form/labelPick';
 import { blankOccurrenceHasErrors, formComponents } from '~/survey/form/occurrenceForm';
-import { formErrorText, levelLabel, templateName } from '~/survey/form/text';
+import { carriedNotes, formErrorText, levelLabel, templateName } from '~/survey/form/text';
 import { occurrenceTitle, useSurveyForm, type OccurrenceView } from '~/survey/form/useSurveyForm';
 import { setSurveyView, surveyView, type SurveyTab, type UnitPick } from '~/survey/form/viewState';
 
@@ -82,16 +89,24 @@ export default function SurveyFormScreen() {
   const insets = useSafeAreaInsets();
   const toast = useToast((s) => s.show);
   const id = Number(useLocalSearchParams<{ id: string }>().id);
-  const { data, reload } = useSurveyForm(id);
+  const { data, reload: load } = useSurveyForm(id);
   const [tab, setTabState] = useState<Tab>(() => surveyView(id)?.tab ?? 'species');
   const [unitPick, setUnitPickState] = useState<UnitPick>(() => surveyView(id)?.unit ?? 'all');
-  const [unlocked, setUnlocked] = useState(false);
   const rootRef = useRef<View>(null);
   const [rootTop, setRootTop] = useState<number | undefined>(undefined);
 
   const survey = data?.survey;
   const isPlot = survey?.style === 'plot';
-  const locked = survey?.status === 'done' && !unlocked;
+  // Lock + undo / redo: a finished survey is read-only until unlocked here; every reload after an edit is one step.
+  const edit = useRecordEditing('modular', id, survey?.status === 'done');
+  const { checkpoint, unlocked, locked } = edit;
+  const reload = useCallback(() => {
+    load();
+    checkpoint();
+  }, [load, checkpoint]);
+  useVersionOnLeave('modular', id);
+  // A version restored from the versions screen (opened over this one): read everything again.
+  useEffect(() => onVersionRestored((kind, rid) => kind === 'modular' && rid === id && load()), [id, load]);
   const blindOpen = !!data?.recheck && survey?.blind_closed_at == null;
   const unitIds = useMemo(() => new Set(data?.units.map((u) => u.unit.id) ?? []), [data]);
   const pick: UnitPick = typeof unitPick === 'number' && !unitIds.has(unitPick) ? 'all' : unitPick;
@@ -254,20 +269,39 @@ export default function SurveyFormScreen() {
     const chosen = await chooseEndTime(survey.stop_ts, { title: t('surveyForm.finish.title'), note: note || undefined, afterDialog });
     if (chosen === undefined) return;
     finishSurvey(id, chosen);
-    setUnlocked(false);
+    saveVersionSoon('modular', id, 'done');
     refreshStores();
     reload();
   };
 
+  /** The template's newer version (an additive change): new fields appear, nothing recorded changes. */
+  const upgrade = () => {
+    const to = data.upgradeTo;
+    if (!to) return;
+    Alert.alert(t('builder.upgrade.title'), t('surveyForm.upgrade.msg', { n: to.version }), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('builder.upgrade.go'),
+        onPress: () => {
+          try {
+            upgradeSurvey(id, to);
+          } catch (e) {
+            toast(formErrorText(t, e));
+          }
+          reload();
+        },
+      },
+    ]);
+  };
+
   const reopen = () => {
     reopenSurvey(id);
-    setUnlocked(false);
     refreshStores();
     reload();
   };
 
   const remove = () =>
-    Alert.alert(t('surveyForm.deleteTitle'), t('surveyForm.deleteMsg', { name: survey.name ?? '', count: data.occurrences.length }), [
+    Alert.alert(t('surveyForm.deleteTitle'), `${t('surveyForm.deleteMsg', { name: survey.name ?? '', count: data.occurrences.length })}\n\n${t('records.deleteRecoverable')}`, [
       { text: t('common.cancel'), style: 'cancel' },
       {
         text: t('common.delete'),
@@ -280,41 +314,33 @@ export default function SurveyFormScreen() {
       },
     ]);
 
-  const more = async () => {
-    const items: { label: string; destructive?: boolean; run: () => void }[] = [
-      { label: t('surveyForm.rename'), run: () => void rename() },
-      ...(blindOpen && !locked ? [{ label: t('surveyForm.blind.end'), run: endBlind }] : []),
-      ...(data.recheck && survey.blind_closed_at != null ? [{ label: t('surveyForm.recheck.open'), run: () => router.push(`/survey/form/${id}/recheck` as Href) }] : []),
-      ...(data.recheck && survey.blind_closed_at != null && !locked
-        ? [
-            {
-              label: t('surveyForm.blind.reopen'),
-              run: () => {
-                try {
-                  reopenBlindPhase(id);
-                } catch (e) {
-                  Alert.alert(t('surveyForm.blind.reopen'), formErrorText(t, e));
-                }
-                reload();
-              },
+  // ⋯: this survey's actions, then (RecordMenuButton) undo / redo, versions, merge log and team sync, then delete.
+  const menuExtra: { label: string; onPress: () => void }[] = [
+    { label: t('surveyForm.rename'), onPress: () => void rename() },
+    ...(blindOpen && !locked ? [{ label: t('surveyForm.blind.end'), onPress: endBlind }] : []),
+    ...(data.recheck && survey.blind_closed_at != null ? [{ label: t('surveyForm.recheck.open'), onPress: () => router.push(`/survey/form/${id}/recheck` as Href) }] : []),
+    ...(data.recheck && survey.blind_closed_at != null && !locked
+      ? [
+          {
+            label: t('surveyForm.blind.reopen'),
+            onPress: () => {
+              try {
+                reopenBlindPhase(id);
+              } catch (e) {
+                Alert.alert(t('surveyForm.blind.reopen'), formErrorText(t, e));
+              }
+              reload();
             },
-          ]
-        : []),
-      ...(survey.status === 'active'
-        ? [{ label: t('surveyForm.finish.title'), run: () => void finish() }]
-        : [
-            { label: unlocked ? t('recordLock.relock') : t('recordLock.unlock'), run: () => setUnlocked(!unlocked) },
-            { label: t('surveyForm.reopen'), run: reopen },
-          ]),
-      { label: t('surveyForm.deleteTitle'), destructive: true, run: remove },
-    ];
-    const idx = await showActionSheet({
-      title: survey.name ?? undefined,
-      options: items.map((x) => ({ label: x.label, destructive: x.destructive })),
-      cancelLabel: t('common.cancel'),
-    });
-    items[idx]?.run();
-  };
+          },
+        ]
+      : []),
+    ...(survey.status === 'active'
+      ? [{ label: t('surveyForm.finish.title'), onPress: () => void finish() }]
+      : [
+          { label: unlocked ? t('recordLock.relock') : t('recordLock.unlock'), onPress: () => edit.setUnlocked(!unlocked) },
+          { label: t('surveyForm.reopen'), onPress: reopen },
+        ]),
+  ];
 
   // ── tabs ───────────────────────────────────────────────────────────────────
 
@@ -350,6 +376,8 @@ export default function SurveyFormScreen() {
         readOnly={locked}
         refuse={refuse}
         onChanged={reload}
+        notes={carriedNotes(t, data.carried)}
+        codelists={template.codelists}
       />
     </ScrollView>
   );
@@ -474,11 +502,27 @@ export default function SurveyFormScreen() {
         options={{
           title: survey.name ?? '',
           headerLeft: BackHeaderLeft,
-          headerRight: () => <HeaderIconButton icon="ellipsis-horizontal" label={t('common.more')} onPress={() => void more()} />,
+          headerRight: () => (
+            <RecordMenuButton
+              kind="modular"
+              id={id}
+              extra={menuExtra}
+              last={[{ label: t('surveyForm.deleteTitle'), icon: 'trash-outline', destructive: true, onPress: remove }]}
+              edit={edit}
+              onEdited={load}
+              onSynced={reload}
+            />
+          ),
         }}
       />
       <LineTabs value={shownTab} options={tabs} onChange={setTab} />
       {locked ? <LockedBanner text={t('surveyForm.lockedBanner')} /> : null}
+      {data.upgradeTo && !locked ? (
+        <View className="mx-4 mt-3 flex-row items-center gap-3 rounded-lg border border-line bg-card px-3 py-2 dark:border-line-dark dark:bg-card-dark">
+          <Text className="flex-1 text-xs text-ink-2 dark:text-gray-300">{t('surveyForm.upgrade.banner', { n: data.upgradeTo.version })}</Text>
+          <Button label={t('builder.upgrade.go')} variant="secondary" onPress={upgrade} />
+        </View>
+      ) : null}
       {data.recheck ? (
         <View className="mx-4 mt-3 flex-row items-center gap-3 rounded-lg border border-line bg-card px-3 py-2 dark:border-line-dark dark:bg-card-dark">
           <Text className="flex-1 text-xs text-ink-2 dark:text-gray-300">

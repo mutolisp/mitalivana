@@ -32,7 +32,9 @@ export default function MergeBackupsScreen() {
         toast(t('backup.shareUnavailable'));
         return;
       }
-      await Sharing.shareAsync(f.uri, { mimeType: 'application/zip', UTI: 'public.zip-archive' });
+      // A survey's backup is its JSON document (teamMergeFlow.ts); the rest are export zips.
+      const json = f.name.endsWith('.json');
+      await Sharing.shareAsync(f.uri, json ? { mimeType: 'application/json', UTI: 'public.json' } : { mimeType: 'application/zip', UTI: 'public.zip-archive' });
     } catch (e) {
       toast(errText(e));
     }

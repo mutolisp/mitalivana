@@ -25,11 +25,11 @@ import { useToast } from '~/stores/toast';
 import { useThemeColors } from '~/theme/colors';
 import { FormCard } from '~/survey/components/FormBits';
 import { snapshotOf, unitLevelsOf } from '~/survey/db/surveyCore';
-import { addUnit, deleteUnit, getFwSurvey, getUnit, listOccurrences, listUnits, readComponent, updateUnit } from '~/survey/db/surveys';
+import { addUnit, deleteUnit, environmentCarried, getFwSurvey, getUnit, listOccurrences, listUnits, readComponent, updateUnit } from '~/survey/db/surveys';
 import { useActiveSurvey } from '~/survey/form/activeSurvey';
 import { ComponentCards } from '~/survey/form/ComponentCards';
 import { formComponents } from '~/survey/form/occurrenceForm';
-import { formErrorText, levelLabel } from '~/survey/form/text';
+import { carriedNotes, formErrorText, levelLabel } from '~/survey/form/text';
 import { childLevel, unitPath } from '~/survey/form/units';
 import { setSurveyView } from '~/survey/form/viewState';
 
@@ -49,6 +49,7 @@ function load(id: number) {
     comps,
     values: Object.fromEntries(comps.map((c) => [c.key, readComponent({ kind: 'unit', id }, c.key)])),
     species: listOccurrences(survey.id, { unitId: id }).length,
+    carried: environmentCarried({ kind: 'unit', id }),
   };
 }
 
@@ -168,7 +169,7 @@ export default function SurveyUnitScreen() {
           {unit.frame_unit_id != null ? <Text className="text-xs text-ink-3 dark:text-gray-400">{t('surveyForm.unit.onFrameNote')}</Text> : null}
           <Button label={t('surveyForm.unit.recordHere', { count: data.species })} icon="leaf-outline" onPress={recordHere} />
         </FormCard>
-        <ComponentCards owner={{ kind: 'unit', id: unit.id }} instances={data.comps} values={data.values} readOnly={locked} refuse={refuse} onChanged={reload} />
+        <ComponentCards owner={{ kind: 'unit', id: unit.id }} instances={data.comps} values={data.values} readOnly={locked} refuse={refuse} onChanged={reload} notes={carriedNotes(t, data.carried)} codelists={data.template.codelists} />
         {below ? (
           <FormCard title={levelLabel(t, i18n.language, template, below)}>
             {children.map((u) => (

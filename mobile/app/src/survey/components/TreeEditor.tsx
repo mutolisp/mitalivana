@@ -4,6 +4,10 @@
  * height, photos, notes. Used full screen (app/survey/[id]/tree.tsx) and as
  * the right pane of the tablet layout.
  *
+ * What it asks follows the census's template (2D-b): height and photos only
+ * when the template has them, its location methods, the AMS entries, its own
+ * health code lists per stem, and a card per Traits component on the tree.
+ *
  * - The form is text until saved (treeForm.ts); "Save" and "Save, next tree"
  *   write it in one transaction (saveTreeDraft).
  * - A tree first recorded in this census is edited in the form. An older
@@ -37,11 +41,16 @@ import { CodeChips } from '~/survey/components/CodeChips';
 import { DraftNum } from '~/survey/components/DraftNum';
 import { Field, FormCard, Hint, Problem, TextBox } from '~/survey/components/FormBits';
 import { codeLabel, issueText } from '~/survey/components/labels';
+import { labelText } from '~/survey/components/editors/shared';
 import { AMS_CODESET } from '~/survey/codesets/forestgeoAms2021';
+import { healthCodesets, LOCATION_METHODS } from '~/survey/registry';
+import type { Label } from '~/survey/template/types';
+import { STEMMAP_TEMPLATE } from '~/survey/templates/stemmap';
 import { AmsStemFields } from '~/survey/components/AmsStemFields';
 import {
   addTreeMedia,
-  censusCodesets,
+  censusCustomLists,
+  censusTemplate,
   correctIndividual,
   listTreeMedia,
   loadTree,
@@ -55,7 +64,24 @@ import {
 } from '~/survey/db/stemmap';
 import { treeBasalAreaCm2 } from '~/survey/stemmap/basal';
 import { frameGeometry } from '~/survey/db/stemmap';
-import { formDbhs, formFromView, formStemInputs, unreadableFields, formIssues, formToDraft, locationInput, previewLocation, stemNumbers, stemTagOf, type LocForm, type TreeForm } from '~/survey/stemmap/treeForm';
+import {
+  formDbhs,
+  formFromView,
+  formStemInputs,
+  unreadableFields,
+  formIssues,
+  formToDraft,
+  locationInput,
+  newStem,
+  previewLocation,
+  stemNumbers,
+  stemTagOf,
+  traitIssues,
+  treeTraits,
+  type LocForm,
+  type LocMethod,
+  type TreeForm,
+} from '~/survey/stemmap/treeForm';
 import { isMultiStem } from '~/survey/stemmap/status';
 import type { StakeCorner } from '~/survey/stemmap/coords';
 import { useThemeColors } from '~/theme/colors';
@@ -86,15 +112,37 @@ const CORNERS: StakeCorner[] = ['SW', 'NW', 'NE', 'SE'];
 
 export function TreeEditor(props: TreeEditorProps) {
   const { surveyId, frame, firstCensus, individualId, quadrat, states, recordedBy } = props;
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language;
   const c = useThemeColors();
   const insets = useSafeAreaInsets();
   const toast = useToast((s) => s.show);
   const g = useMemo(() => frameGeometry(frame), [frame]);
   const [view, setView] = useState<TreeView | null>(() => (individualId == null ? null : loadTree(surveyId, individualId)));
-  // The census template's code sets: with AMS, each stem gets the AMS entries and its death follows AMS survival.
-  const amsOn = useMemo(() => censusCodesets(surveyId).includes(AMS_CODESET), [surveyId]);
-  const [form, setForm] = useState<TreeForm>(() => formFromView(view, { quadrat, at: props.at, geometry: g, amsOn }));
+  // What the census template records; an unreadable snapshot reads as the built-in census.
+  const tpl = useMemo(() => censusTemplate(surveyId) ?? STEMMAP_TEMPLATE, [surveyId]);
+  const parts = useMemo(() => {
+    const comps = tpl.components;
+    const loc = comps.find((x) => x.type === 'location' && x.level === 'individual');
+    const allowed = Array.isArray(loc?.params.methods) ? (loc.params.methods as string[]) : [];
+    const methods = LOCATION_METHODS.filter((m) => !loc || allowed.includes(m));
+    return {
+      // With AMS, each stem gets the AMS entries and its death follows AMS survival.
+      ams: healthCodesets(comps).includes(AMS_CODESET),
+      height: comps.some((x) => x.type === 'height' && x.level === 'individual'),
+      photos: comps.find((x) => x.type === 'photos' && x.level === 'individual') ?? null,
+      traits: treeTraits(tpl),
+      lists: censusCustomLists(tpl),
+      methods: (methods.length ? methods : LOCATION_METHODS) as readonly LocMethod[],
+    };
+  }, [tpl]);
+  const amsOn = parts.ams;
+  /** The form of a tree as stored, its position method one the template offers. */
+  const formOf = (v: TreeView | null): TreeForm => {
+    const f = formFromView(v, { quadrat, at: props.at, geometry: g, amsOn });
+    return parts.methods.includes(f.loc.method) ? f : { ...f, loc: { ...f.loc, method: parts.methods[0] } };
+  };
+  const [form, setForm] = useState<TreeForm>(() => formOf(view));
   const [base, setBase] = useState(() => JSON.stringify(form));
   const [searching, setSearching] = useState(individualId == null);
   const [locEditing, setLocEditing] = useState(false);
@@ -142,6 +190,11 @@ export function TreeEditor(props: TreeEditorProps) {
     [form, tag, view, surveyId, firstCensus, frame.dbh_min_cm],
   );
   const numbers = stemNumbers(form);
+  const traitProblems = useMemo(() => traitIssues(form, tpl), [form, tpl]);
+  const traitName = (key: string, id: string) => {
+    const tr = parts.traits.find((x) => x.key === key)?.traits.find((x) => x.id === id);
+    return labelText(t, lang, tr?.label as Label | undefined, id);
+  };
   const ba = treeBasalAreaCm2(formDbhs(form));
   const multi = isMultiStem({ treeCodes: form.treeCodes, stems: formStemInputs(form), existed: true, thresholdCm: frame.dbh_min_cm });
 
@@ -153,7 +206,7 @@ export function TreeEditor(props: TreeEditorProps) {
     const v = loadTree(surveyId, individualId);
     setView(v);
     if (!v) return;
-    const fresh = formFromView(v, { quadrat, geometry: g, amsOn });
+    const fresh = formOf(v);
     const patch: Partial<TreeForm> = { tag: fresh.tag, taxon: fresh.taxon, ...(position ? { loc: fresh.loc } : {}) };
     setForm((f) => ({ ...f, ...patch }));
     setBase((b) => JSON.stringify({ ...(JSON.parse(b) as TreeForm), ...patch }));
@@ -243,9 +296,15 @@ export function TreeEditor(props: TreeEditorProps) {
             return t('survey.tree.height');
           case 'position':
             return t('survey.tree.position');
+          case 'trait':
+            return b.trait ? traitName(b.trait.key, b.trait.id) : '';
         }
       };
       Alert.alert(t('survey.tree.cannotSave'), `${t('survey.tree.errNumber')}\n${bad.map((b) => `• ${name(b)}`).join('\n')}`);
+      return;
+    }
+    if (traitProblems.length) {
+      Alert.alert(t('survey.tree.cannotSave'), traitProblems.map((x) => `• ${traitName(x.key, x.id)}：${traitProblemText(x.key, x.id, x.code)}`).join('\n'));
       return;
     }
     if (!f.taxon) return toast(t('survey.tree.errSpecies'));
@@ -313,12 +372,26 @@ export function TreeEditor(props: TreeEditorProps) {
   const issueLine = (stemNo: number | null, code: string) =>
     stemNo == null ? issueText(t, code) : `${stemTagOf(tag, stemNo)} ${issueText(t, code)}`;
 
+  const photoMax = Number(parts.photos?.params.max) || 0;
   const addPhotos = (uris: string[]) => {
     if (individualId == null) return;
+    // As many as the template allows; the rest are not kept.
+    const take = uris.slice(0, Math.max(0, photoMax - photos.length));
+    if (take.length < uris.length) toast(t('survey.tree.photosMax', { max: photoMax }));
+    if (!take.length) return;
     checkpoint();
-    for (const u of uris) addTreeMedia(surveyId, individualId, u);
+    for (const u of take) addTreeMedia(surveyId, individualId, u);
     setPhotos(listTreeMedia(surveyId, individualId).map((m) => m.uri));
   };
+
+  /** A trait value out of its range, said with the range. */
+  const traitProblemText = (key: string, id: string, code: string) => {
+    if (code === 'not_integer') return t('survey.tree.traitInteger');
+    const tr = parts.traits.find((x) => x.key === key)?.traits.find((x) => x.id === id);
+    const range = tr?.min != null && tr?.max != null ? `${tr.min}–${tr.max}` : tr?.min != null ? `≥ ${tr.min}` : tr?.max != null ? `≤ ${tr.max}` : '';
+    return t('survey.tree.traitRange', { range });
+  };
+  const setTrait = (key: string, id: string, v: string) => setForm((f) => ({ ...f, traits: { ...f.traits, [key]: { ...(f.traits[key] ?? {}), [id]: v } } }));
 
   const stemCodes = STEM_CODES(firstCensus);
   const methodLabel = { grid: t('survey.loc.grid'), xy: t('survey.loc.xy'), polar: t('survey.loc.polar'), gps: t('survey.loc.gps') };
@@ -367,7 +440,7 @@ export function TreeEditor(props: TreeEditorProps) {
           {!recruit ? <Hint>{t('survey.tree.positionReadOnly')}</Hint> : null}
           {locOpen ? (
             <>
-              <Seg value={form.loc.method} options={(['grid', 'xy', 'polar', 'gps'] as const).map((m) => ({ value: m, label: methodLabel[m] }))} onChange={(m) => setLoc({ method: m })} />
+              {parts.methods.length > 1 ? <Seg value={form.loc.method} options={parts.methods.map((m) => ({ value: m, label: methodLabel[m] }))} onChange={(m) => setLoc({ method: m })} /> : null}
               {form.loc.method === 'grid' ? (
                 <View className="flex-row gap-2">
                   <Field label={t('survey.loc.quadrat', { m: frame.quadrat_m })} className="flex-1">
@@ -480,11 +553,13 @@ export function TreeEditor(props: TreeEditorProps) {
         <FormCard
           title={t('survey.tree.stems', { cm: frame.dbh_min_cm })}
           right={
-            <View className="flex-row items-center gap-1.5">
-              <Text className="text-xs text-ink-2 dark:text-gray-400">{t('survey.tree.height')}</Text>
-              <DraftNum value={form.height} onChange={(v) => set({ height: v })} accessibilityLabel={t('survey.tree.height')} width={56} />
-              <Text className="text-xs text-ink-2 dark:text-gray-400">m</Text>
-            </View>
+            parts.height ? (
+              <View className="flex-row items-center gap-1.5">
+                <Text className="text-xs text-ink-2 dark:text-gray-400">{t('survey.tree.height')}</Text>
+                <DraftNum value={form.height} onChange={(v) => set({ height: v })} accessibilityLabel={t('survey.tree.height')} width={56} />
+                <Text className="text-xs text-ink-2 dark:text-gray-400">m</Text>
+              </View>
+            ) : undefined
           }
         >
           {!firstCensus ? (
@@ -537,6 +612,20 @@ export function TreeEditor(props: TreeEditorProps) {
                   <TextBox value={s.notes} onChange={(v) => patch({ notes: v })} accessibilityLabel={t('survey.tree.problemNote')} placeholder={t('survey.tree.problemNote')} />
                 ) : null}
                 {amsOn ? <AmsStemFields value={s.ams} onChange={(ams) => patch({ ams })} stemTag={stemTagOf(tag, no)} /> : null}
+                {parts.lists.map((l) => {
+                  const sel = s.custom[l.id] ?? [];
+                  // A retired code shows only where it was recorded.
+                  const offered = l.items.filter((x) => !x.deprecated || sel.includes(x.code)).map((x) => x.code);
+                  const prev = s.previousCustom[l.id] ?? [];
+                  const nameOf = (k: string) => labelText(t, lang, l.items.find((x) => x.code === k)?.label, k);
+                  return (
+                    <View key={l.id} className="gap-1">
+                      <Text className="text-xs font-bold text-ink-2 dark:text-gray-400">{labelText(t, lang, l.label, l.id)}</Text>
+                      <CodeChips codes={offered} selected={sel} named onChange={(v) => patch({ custom: { ...s.custom, [l.id]: v } })} labelOf={nameOf} />
+                      {prev.length ? <Hint>{t('survey.tree.prevTreeCodes', { codes: prev.map((k) => `${k} ${nameOf(k)}`).join(t('builder.listSep')) })}</Hint> : null}
+                    </View>
+                  );
+                })}
                 {stemIssues.map((x) => (
                   <Text key={x.code} className={`text-xs ${x.severity === 'error' ? 'text-alert dark:text-alert-dark' : 'text-acorn-deep dark:text-acorn'}`}>
                     {issueText(t, x.code)}
@@ -548,7 +637,7 @@ export function TreeEditor(props: TreeEditorProps) {
           <Pressable
             onPress={() => {
               const key = `new-${Date.now()}`;
-              set({ stems: [...form.stems, { key, stemNo: null, firstSurveyId: null, dbh: '', pom: '1.3', dead: false, codes: [], notes: '', previous: null, previousCodes: [], ams: {} }] });
+              set({ stems: [...form.stems, newStem(key)] });
             }}
             accessibilityRole="button"
             className="items-center justify-center rounded-xl border-[1.5px] border-dashed border-accent-300 active:opacity-70 dark:border-accent-700"
@@ -587,8 +676,30 @@ export function TreeEditor(props: TreeEditorProps) {
           <Hint>{t('survey.tree.codesHint')}</Hint>
         </FormCard>
 
-        <FormCard title={t('survey.tree.photos')}>
-          {individualId == null ? (
+        {parts.traits.map((comp) => (
+          <FormCard key={comp.key} title={labelText(t, lang, comp.label as Label | undefined, t('survey.component.traits'))}>
+            {comp.traits.map((tr) => {
+              const name = labelText(t, lang, tr.label as Label | undefined, tr.id);
+              const bad = traitProblems.find((x) => x.key === comp.key && x.id === tr.id);
+              return (
+                <Field key={tr.id} label={tr.unit ? `${name} (${tr.unit})` : name}>
+                  <DraftNum
+                    value={form.traits[comp.key]?.[tr.id] ?? ''}
+                    onChange={(v) => setTrait(comp.key, tr.id, v)}
+                    accessibilityLabel={name}
+                    width="100%"
+                    signed={tr.min == null || tr.min < 0}
+                    invalid={!!bad}
+                  />
+                  {bad ? <Problem>{traitProblemText(comp.key, tr.id, bad.code)}</Problem> : null}
+                </Field>
+              );
+            })}
+          </FormCard>
+        ))}
+
+        <FormCard title={parts.photos ? t('survey.tree.photos') : undefined}>
+          {!parts.photos ? null : individualId == null ? (
             <Hint>{t('survey.tree.photosAfterSave')}</Hint>
           ) : (
             <PhotoGrid

@@ -6,7 +6,8 @@
  *
  * Rows are found by the keys that travel in the synced yml: occurrence_id for
  * species rows, unit code / point key / checklist item for GLORIA, logger and
- * visit uuid; '' is the record's own row. `updated_at` is left alone: file
+ * visit uuid, a survey photo row's uuid (its unit / occurrence in the entry's
+ * `meta.place`), a morphospecies' taxon|label; '' is the record's own row. `updated_at` is left alone: file
  * references are this device's and are not part of what merges compare.
  */
 import { assertNever } from './assertNever';
@@ -15,6 +16,7 @@ import type { MergeKind } from './mergeDocs';
 import { itemsIn, MEDIA_COLUMN_KINDS, withAddition, type FileItem, type MediaMeta, type MediaRef } from './mediaRefsCore';
 import { visitsOfSurvey } from '~/modules/gloria/loggerDb';
 import { setPhotoCheck } from '~/modules/gloria/db';
+import { unitKey } from '~/survey/db/surveyDocCore';
 
 type Row = Record<string, unknown>;
 const rows = (sql: string, args: Array<string | number>) => (getUserDb().executeSync(sql, args).rows ?? []) as Row[];
@@ -42,6 +44,8 @@ function specs(kind: MergeKind): TableSpec[] {
       { table: 'gloria_photo_checks', key: 'item', cols: colsOf('gloria_photo_checks'), where: 'survey_id = ?' },
       { table: 'gloria_surveys', key: null, cols: colsOf('gloria_surveys'), where: 'id = ?' },
     ];
+  // Photos are rows of their own, and the plot's morphospecies are keyed by taxon + label: below.
+  if (kind === 'modular') return [];
   return assertNever(kind, 'merge kind');
 }
 
@@ -69,7 +73,84 @@ export function listRecordMedia(kind: MergeKind, id: number): Array<FileItem & {
       }
     }
   }
+  if (kind === 'modular') out.push(...modularMedia(id));
   return out;
+}
+
+/**
+ * A checklist / plot-style survey's files: its photo rows (each says its
+ * unit or occurrence, as the survey document keys them) and its plot's
+ * morphospecies photos (keyed by taxon + label, as the merge keys them).
+ */
+function modularMedia(id: number): Array<FileItem & { ref: MediaRef }> {
+  const media = rows(
+    `SELECT md.uuid, md.uri, md.component, md.kind, u.level_key, u.code, o.uuid AS occ FROM fw_media md
+       LEFT JOIN fw_units u ON u.id = md.unit_id LEFT JOIN fw_occurrences o ON o.id = md.occurrence_id
+      WHERE md.survey_id = ? ORDER BY md.id`,
+    [id],
+  ).map((r) => ({
+    uri: String(r.uri),
+    ref: { t: 'fw_media', k: String(r.uuid), c: 'uri' },
+    meta: {
+      place: {
+        unit: r.level_key == null ? null : unitKey(r.level_key, r.code),
+        occ: (r.occ as string | null) ?? null,
+        component: String(r.component),
+        kind: String(r.kind),
+      },
+    },
+  }));
+  const labels = rows(
+    `SELECT l.taxon_id, l.verbatim_identification, l.photo_uri FROM fw_frame_labels l JOIN fw_surveys s ON s.frame_id = l.frame_id
+      WHERE s.id = ? AND l.photo_uri IS NOT NULL ORDER BY l.id`,
+    [id],
+  ).map((r) => ({ uri: String(r.photo_uri), ref: { t: 'fw_frame_labels', k: `${r.taxon_id}|${r.verbatim_identification}`, c: 'photo_uri' } }));
+  return [...media, ...labels];
+}
+
+/** Place a teammate's survey photo (a new row) or morphospecies photo (an empty column); adding only. */
+function addModularMedia(id: number, ref: MediaRef, uri: string, meta: MediaMeta | undefined, has: (uri: string) => boolean): boolean {
+  const db = getUserDb();
+  if (ref.t === 'fw_media' && ref.c === 'uri') {
+    const place = meta?.place;
+    if (!place || rows(`SELECT id FROM fw_media WHERE uuid = ?`, [ref.k]).length) return false;
+    let unitId: number | null = null;
+    if (place.unit != null) {
+      const at = place.unit.indexOf(':');
+      unitId = Number(rows(`SELECT id FROM fw_units WHERE survey_id = ? AND level_key = ? AND code = ?`, [id, place.unit.slice(0, at), place.unit.slice(at + 1)])[0]?.id ?? NaN);
+      if (!Number.isFinite(unitId)) return false; // its unit is not merged yet
+    }
+    let occId: number | null = null;
+    if (place.occ != null) {
+      occId = Number(rows(`SELECT id FROM fw_occurrences WHERE survey_id = ? AND uuid = ?`, [id, place.occ])[0]?.id ?? NaN);
+      if (!Number.isFinite(occId)) return false;
+    }
+    db.executeSync(`INSERT INTO fw_media (uuid, survey_id, unit_id, occurrence_id, component, kind, uri, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, [
+      ref.k,
+      id,
+      unitId,
+      occId,
+      place.component,
+      place.kind,
+      uri,
+      Date.now(),
+    ]);
+    return true;
+  }
+  if (ref.t === 'fw_frame_labels' && ref.c === 'photo_uri') {
+    const bar = ref.k.indexOf('|');
+    const row = rows(
+      `SELECT l.id, l.photo_uri AS v FROM fw_frame_labels l JOIN fw_surveys s ON s.frame_id = l.frame_id
+        WHERE s.id = ? AND l.taxon_id = ? AND l.verbatim_identification = ?`,
+      [id, ref.k.slice(0, bar), ref.k.slice(bar + 1)],
+    )[0];
+    if (!row) return false;
+    const next = withAddition('single', row.v as string | null, uri, meta, has);
+    if (next == null) return false;
+    db.executeSync(`UPDATE fw_frame_labels SET photo_uri = ? WHERE id = ?`, [next, Number(row.id)]);
+    return true;
+  }
+  return false;
 }
 
 /**
@@ -80,6 +161,7 @@ export function listRecordMedia(kind: MergeKind, id: number): Array<FileItem & {
 export function addRecordMedia(kind: MergeKind, id: number, ref: MediaRef, uri: string, meta: MediaMeta | undefined, has: (uri: string) => boolean): boolean {
   const colKind = MEDIA_COLUMN_KINDS[`${ref.t}.${ref.c}`];
   if (!colKind) return false;
+  if (kind === 'modular') return addModularMedia(id, ref, uri, meta, has);
   const db = getUserDb();
   const spec = specs(kind).find((s) => s.table === ref.t);
   let where: string;

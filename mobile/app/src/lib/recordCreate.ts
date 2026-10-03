@@ -457,6 +457,10 @@ export async function importRecordPromptAndOpen(): Promise<void> {
       case 'survey':
         await finishCensusImport(payload);
         break;
+      case 'modular':
+        // Only team sync carries these so far; a file format comes with export (Phase 2E).
+        Alert.alert(i18n.t('recordCreate.importFailTitle'), i18n.t('recordImport.modularNotYet'));
+        break;
       default:
         assertNever(payload, 'import kind');
     }

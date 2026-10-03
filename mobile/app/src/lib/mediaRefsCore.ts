@@ -38,8 +38,11 @@ export const MEDIA_COLUMN_KINDS: Readonly<Record<string, ColumnKind>> = {
   'gloria_surveys.form6s_files': 'files',
   'gloria_logger_visits.form4_files': 'files',
   'gloria_loggers.data_files': 'files',
-  // A tree census photo is a row of its own (v80): the entry's `meta.owner` says whose (censusSync.ts).
+  // A tree census photo is a row of its own (v80): the entry's `meta.owner` says whose (censusSync.ts);
+  // a checklist / plot-style survey's, `meta.place` (mediaRefs.ts).
   'fw_media.uri': 'single',
+  // A permanent plot's morphospecies photo, keyed by taxon + label (surveyDocCore.ts).
+  'fw_frame_labels.photo_uri': 'single',
 };
 
 /** Where a file sits in a record: table, row key ('' for the record's own row), column. */
@@ -47,8 +50,11 @@ export type MediaRef = { t: string; k: string; c: string };
 /** A census photo's row, which the receiver creates: its tree, stem (null: the whole tree), component and kind. */
 export type MediaOwner = { tree: string; stem: string | null; component: string; kind: string };
 
-/** What goes with a file besides the file: an overview photo's viewpoint, an attachment's name, a census photo's owner. */
-export type MediaMeta = { viewpoint?: string; name?: string; owner?: MediaOwner };
+/** A checklist / plot-style survey photo's row: its unit (level:code) or occurrence (uuid), or neither (the survey's), component and kind. */
+export type MediaPlace = { unit: string | null; occ: string | null; component: string; kind: string };
+
+/** What goes with a file besides the file: an overview photo's viewpoint, an attachment's name, a census photo's owner, a survey photo's place. */
+export type MediaMeta = { viewpoint?: string; name?: string; owner?: MediaOwner; place?: MediaPlace };
 
 export type MediaEntry = {
   ref: MediaRef;
@@ -130,11 +136,18 @@ export function readMediaManifest(v: unknown): MediaEntry[] {
       o && typeof o.tree === 'string' && (o.stem == null || typeof o.stem === 'string') && typeof o.component === 'string' && typeof o.kind === 'string'
         ? { tree: o.tree, stem: (o.stem as string | null) ?? null, component: o.component, kind: o.kind }
         : null;
+    const pl = m?.place as Record<string, unknown> | undefined;
+    const optStr = (v: unknown) => v == null || typeof v === 'string';
+    const place: MediaPlace | null =
+      pl && optStr(pl.unit) && optStr(pl.occ) && typeof pl.component === 'string' && typeof pl.kind === 'string'
+        ? { unit: (pl.unit as string | null) ?? null, occ: (pl.occ as string | null) ?? null, component: pl.component, kind: pl.kind }
+        : null;
     const meta: MediaMeta | undefined = m
       ? {
           ...(typeof m.viewpoint === 'string' ? { viewpoint: m.viewpoint } : {}),
           ...(typeof m.name === 'string' ? { name: m.name } : {}),
           ...(owner ? { owner } : {}),
+          ...(place ? { place } : {}),
         }
       : undefined;
     out.push({

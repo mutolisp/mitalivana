@@ -9,7 +9,8 @@ import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { applyAdoptedName, EMPTY_TAXON_FIELDS, resolveAdoptedNames, resolveTaxa, type AdoptionStatus, type TaxonFields } from '~/db/taxonLookup';
 import { snapshotOf, unitLevelsOf, type FwSurveyRow, type OccurrenceRow, type RecheckState, type UnitRow } from '~/survey/db/surveyCore';
-import { getFwSurvey, hasBlindPhase, listOccurrences, listUnits, readComponent, recheckState } from '~/survey/db/surveys';
+import { environmentCarried, getFwSurvey, getTemplate, hasBlindPhase, listOccurrences, listUnits, readComponent, recheckState } from '~/survey/db/surveys';
+import { classifyChange } from '~/survey/template/validate';
 import type { ComponentValues } from '~/survey/registry';
 import { getFrame } from '~/survey/db/stemmap';
 import type { SurveyTemplate } from '~/survey/template/types';
@@ -38,6 +39,10 @@ export type SurveyForm = {
   recheckState: RecheckState | null;
   /** The survey-level components' values, by component key. */
   surveyValues: Record<string, ComponentValues>;
+  /** An open survey whose template has a newer version it can take (an additive change), offered on its screen. */
+  upgradeTo: SurveyTemplate | null;
+  /** Survey-level environment values that are still the previous survey's. */
+  carried: ReturnType<typeof environmentCarried>;
 };
 
 /** Rows with their taxon's display names (accepted name, or the adopted one recorded). */
@@ -46,6 +51,12 @@ export function withNames<T extends { taxon_id: string; used_name_id: number | n
   const taxa = resolveTaxa(rows.map((r) => r.taxon_id));
   const adopted = resolveAdoptedNames(rows.map((r) => ({ used_name_id: r.used_name_id, used_scientific_name: r.used_scientific_name })));
   return rows.map((r) => ({ ...r, ...applyAdoptedName(taxa.get(r.taxon_id) ?? EMPTY_TAXON_FIELDS, r, adopted) }));
+}
+
+function upgradeOf(survey: FwSurveyRow, snapshot: SurveyTemplate): SurveyTemplate | null {
+  if (survey.status !== 'active') return null;
+  const latest = getTemplate(survey.template_id);
+  return latest && latest.version > survey.template_version && classifyChange(snapshot, latest) === 'additive' ? latest : null;
 }
 
 export function loadSurveyForm(id: number): SurveyForm | null {
@@ -74,6 +85,8 @@ export function loadSurveyForm(id: number): SurveyForm | null {
     recheck,
     recheckState: recheck && sealedBlind ? recheckState(id) : null,
     surveyValues: Object.fromEntries(formComponents(template, 'survey').map((c) => [c.key, readComponent({ kind: 'survey', id }, c.key)])),
+    upgradeTo: upgradeOf(survey, template),
+    carried: environmentCarried({ kind: 'survey', id }),
   };
 }
 

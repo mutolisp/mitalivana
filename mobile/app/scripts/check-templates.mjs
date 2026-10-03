@@ -24,7 +24,10 @@
  *     removing a component, changing its level or parameters, or removing or
  *     renaming a code value is breaking (code values once used never change);
  *     unit levels must keep their keys and order;
- *   - the template hash ignores key order.
+ *   - the template hash ignores key order;
+ *   - a tree census template (2D-b) is a copy of the built-in: only height,
+ *     photos and traits on the tree come and go, Health keeps the census
+ *     codes and takes AMS and the template's lists (adding is additive).
  *
  * Run: npm run check:templates
  */
@@ -36,6 +39,7 @@ import {
   BUILTIN_CODESETS,
   COMPONENT_TYPES,
   componentDef,
+  paramsChangeOf,
   componentDefs,
   defaultLevelOf,
   defaultParamsOf,
@@ -51,6 +55,9 @@ import { STYLE_LEVELS } from '../src/survey/template/types.ts';
 import { classifyChange, templateHash, validateTemplate, withRequired } from '../src/survey/template/validate.ts';
 import { STEMMAP_TEMPLATE } from '../src/survey/templates/stemmap.ts';
 import { BUILTIN_TEMPLATES } from '../src/survey/templates/builtins.ts';
+import { SAMPLE_PLOT_TEMPLATE } from '../src/survey/templates/samples.ts';
+import * as E from '../src/survey/template/edit.ts';
+import * as S from '../src/survey/template/share.ts';
 
 let failures = 0;
 const fail = (msg) => {
@@ -64,6 +71,14 @@ const eq = (label, got, want) => {
 };
 const ok = (label, cond) => {
   if (!cond) fail(label);
+};
+const throwsTo = (label, fn) => {
+  try {
+    fn();
+  } catch {
+    return;
+  }
+  ok(`${label} (did not throw)`, false);
 };
 const has = (label, problems, needle) => ok(`${label} (problems: ${JSON.stringify(problems)})`, problems.some((p) => p.includes(needle)));
 
@@ -288,6 +303,227 @@ eq('relabel a unit level', classifyChange(plot, { ...plot, version: 2, units: [u
 eq('add a unit level', classifyChange(plot, { ...plot, version: 2, units: [...units2, { key: 'cell', label: { text: 'cell' } }] }), 'breaking');
 eq('reorder unit levels', classifyChange(plot, { ...plot, version: 2, units: [units2[1], units2[0]] }), 'breaking');
 eq('move a component to another unit level', classifyChange(onUnit('quadrat'), { ...onUnit('subplot'), version: 2 }), 'breaking');
+
+// Parameters: only widening keeps running surveys (decided 2026-10-03).
+const pc = (type, prev, next) => paramsChangeOf(componentDef(type), prev, next);
+eq('params: abundance gains a scale', pc('abundance', { kinds: ['BB'], default: 'BB' }, { kinds: ['BB', 'count'], default: 'BB' }), 'additive');
+eq('params: abundance default only', pc('abundance', { kinds: ['BB', 'count'], default: 'BB' }, { kinds: ['BB', 'count'], default: 'count' }), 'additive');
+eq('params: abundance loses a scale', pc('abundance', { kinds: ['BB', 'count'], default: 'BB' }, { kinds: ['BB'], default: 'BB' }), 'breaking');
+eq('params: same scales in another order', pc('abundance', { kinds: ['BB', 'count'], default: 'BB' }, { kinds: ['count', 'BB'], default: 'BB' }), 'additive');
+eq('params: phenology gains a field', pc('phenology', { fields: ['sex'] }, { fields: ['sex', 'life_stage'] }), 'additive');
+eq('params: environment loses a field', pc('environment', { fields: ['slope_deg', 'aspect_deg'] }, { fields: ['slope_deg'] }), 'breaking');
+eq('params: location gains a method', pc('location', { methods: ['gps'] }, { methods: ['gps', 'xy'] }), 'additive');
+eq('params: workers gain a role', pc('workers', { roles: ['recorder'] }, { roles: ['recorder', 'identifier'] }), 'additive');
+eq('params: photos more', pc('photos', { max: 4 }, { max: 6 }), 'additive');
+eq('params: photos fewer', pc('photos', { max: 6 }, { max: 4 }), 'breaking');
+eq('params: audio unchanged', pc('audio', { max: 3 }, { max: 3 }), 'same');
+const trait = (over = {}) => ({ id: 'len', label: { text: '葉長' }, unit: 'cm', min: 0, max: 50, ...over });
+eq('params: traits widened and relabelled', pc('traits', { traits: [trait()] }, { traits: [trait({ min: -1, max: 80, label: { text: '葉片長' } })] }), 'additive');
+eq('params: traits bound removed', pc('traits', { traits: [trait()] }, { traits: [trait({ max: undefined })] }), 'additive');
+eq('params: traits gains a trait', pc('traits', { traits: [trait()] }, { traits: [trait(), trait({ id: 'wid' })] }), 'additive');
+eq('params: traits narrowed', pc('traits', { traits: [trait()] }, { traits: [trait({ max: 40 })] }), 'breaking');
+eq('params: traits min raised', pc('traits', { traits: [trait()] }, { traits: [trait({ min: 1 })] }), 'breaking');
+eq('params: traits unit changed', pc('traits', { traits: [trait()] }, { traits: [trait({ unit: 'mm' })] }), 'breaking');
+eq('params: traits made integer', pc('traits', { traits: [trait()] }, { traits: [trait({ integer: true })] }), 'breaking');
+eq('params: traits loses a trait', pc('traits', { traits: [trait(), trait({ id: 'wid' })] }, { traits: [trait()] }), 'breaking');
+eq('params: frequency grid changed', pc('frequency', { mode: 'cells', n: 5, top_edge: 'N' }, { mode: 'cells', n: 10, top_edge: 'N' }), 'breaking');
+eq('params: structure gains a method (not on the list)', pc('structure', { layers: 4, methods: ['BB'] }, { layers: 4, methods: ['BB', 'percent'] }), 'breaking');
+eq('params: structure layers changed', pc('structure', { layers: 4, methods: ['BB'] }, { layers: 5, methods: ['BB'] }), 'breaking');
+const sampleV2 = { ...SAMPLE_PLOT_TEMPLATE, version: 2, components: SAMPLE_PLOT_TEMPLATE.components.map((c) => (c.key === 'abundance' ? { ...c, params: { ...c.params, kinds: [...c.params.kinds, 'count'] } } : c)) };
+eq('a template whose abundance gains a scale is additive', classifyChange(SAMPLE_PLOT_TEMPLATE, sampleV2), 'additive');
+const reorderedV2 = { ...SAMPLE_PLOT_TEMPLATE, version: 2, components: [...SAMPLE_PLOT_TEMPLATE.components].reverse() };
+eq('components moved: a change, nothing breaks', classifyChange(SAMPLE_PLOT_TEMPLATE, reorderedV2), 'additive');
+
+// ── 6. the builder's edits (template/edit.ts) ──────────────────────────────
+{
+  const name = E.makeLabel('我的名錄', 'My checklist');
+  const cl = E.blankTemplate('checklist', 'user:a', name, null);
+  const pl = E.blankTemplate('plot', 'user:b', E.makeLabel('樣區'), E.makeLabel('小區', 'Subplot'));
+  eq('blank: checklist is valid', validateTemplate(cl), []);
+  eq('blank: plot is valid', validateTemplate(pl), []);
+  eq('blank: always-present components are in', cl.components.map((c) => c.type).sort(), ['comments', 'investigators', 'taxon', 'timestamp']);
+  eq('blank: quick add on a checklist, off on a plot', [cl.quick_add, pl.quick_add], [true, false]);
+  eq('places: checklist', E.placesOf(cl), [{ level: 'survey' }, { level: 'occurrence' }]);
+  eq('places: plot (no permanent-plot level)', E.placesOf(pl).map((p) => p.level), ['survey', 'unit', 'occurrence']);
+  const occ = { level: 'occurrence' };
+  const add = E.addableTypes(cl, occ);
+  ok('addable: optional types of this style and level', add.includes('abundance') && add.includes('traits') && !add.includes('comments') && !add.includes('dbh') && !add.includes('environment'));
+  let t = E.addComponent(cl, 'abundance', occ).template;
+  t = E.addComponent(t, 'traits', occ).template;
+  const second = E.addComponent(t, 'traits', occ);
+  t = second.template;
+  eq('add: keys from the type, a second traits under traits_2', [second.key, t.components.filter((c) => c.type === 'traits').map((c) => c.key)], ['traits_2', ['traits', 'traits_2']]);
+  ok('add: one abundance per level', !E.addableTypes(t, occ).includes('abundance'));
+  throwsTo('add: refused where it cannot sit', () => E.addComponent(t, 'environment', occ));
+  eq('add: default parameters', t.components.find((c) => c.key === 'abundance').params, componentDef('abundance').defaultParams);
+  t = E.addComponent(t, 'photos', { level: 'survey' }).template;
+  eq('add: after the last of the same place', E.componentsAt(t, { level: 'survey' }).at(-1).key, 'photos');
+  {
+    // Places interleaved in the array: a new survey component lands right after the survey's last, not at the end.
+    const mixed = { ...cl, components: [cl.components.find((c) => c.type === 'timestamp'), cl.components.find((c) => c.type === 'taxon')] };
+    const added = E.addComponent(mixed, 'photos', { level: 'survey' }).template;
+    eq('add: right after its place, before other places', added.components.map((c) => c.type), ['timestamp', 'photos', 'taxon']);
+    const moved = E.moveComponent({ ...mixed, components: [...mixed.components, { key: 'photos', type: 'photos', level: 'survey', required: false, params: { max: 2 } }] }, 'photos', -1);
+    eq('move: skips components of other places', moved.components.map((c) => c.type), ['photos', 'taxon', 'timestamp']);
+  }
+  ok('valid after adding', validateTemplate(t).length === 0);
+  eq('remove: an always-present one stays', E.removeComponent(t, 'comments').components.length, t.components.length);
+  eq('remove: an optional one goes', E.removeComponent(t, 'traits_2').components.some((c) => c.key === 'traits_2'), false);
+  const order = (x) => E.componentsAt(x, occ).map((c) => c.key);
+  const before = order(t);
+  const moved = order(E.moveComponent(t, before[2], -1));
+  eq('move: swaps with the one above', moved, [before[0], before[2], before[1], ...before.slice(3)]);
+  eq('move: the first stays first', order(E.moveComponent(t, before[0], -1)), before);
+  eq('update: an always-present one stays required', E.updateComponent(t, 'comments', { required: false }).components.find((c) => c.key === 'comments').required, true);
+  eq('update: label set and dropped', [E.updateComponent(t, 'photos', { label: E.makeLabel('現場') }).components.find((c) => c.key === 'photos').label, 'label' in E.updateComponent(E.updateComponent(t, 'photos', { label: E.makeLabel('現場') }), 'photos', { label: null }).components.find((c) => c.key === 'photos')], [{ text: '現場' }, false]);
+  // traits: id from the English name while new; kept once saved
+  let tt = E.addTrait(t, 'traits');
+  eq('trait: added blank at the end', E.componentsAt(tt, occ).find((c) => c.key === 'traits').params.traits.length, 2);
+  tt = E.updateTrait(tt, 'traits', 1, { name: { text: '葉寬', en: 'Leaf width' }, unit: 'cm', min: 0 }, null);
+  const tr1 = tt.components.find((c) => c.key === 'traits').params.traits[1];
+  eq('trait: id from the English name while new', [tr1.id, tr1.label, tr1.unit, tr1.min], ['leaf_width', { text: '葉寬', tr: { en: 'Leaf width' } }, 'cm', 0]);
+  const renamed = E.updateTrait(tt, 'traits', 1, { name: { text: '葉片寬', en: 'Blade width' } }, tt).components.find((c) => c.key === 'traits').params.traits[1];
+  eq('trait: id kept once a saved version has it', renamed.id, 'leaf_width');
+  eq('trait: no English name → from the name, or "trait"', [E.keyFromName('Leaf length (mm)'), E.keyFromName('葉長'), E.keyFromName('2nd node')], ['leaf_length_mm', 'trait', 'nd_node']);
+  eq('trait: cleared min dropped', 'min' in E.updateTrait(tt, 'traits', 1, { min: null }, null).components.find((c) => c.key === 'traits').params.traits[1], false);
+  eq('trait: the last stays', E.removeTrait(E.updateTrait(t, 'traits', 0, { name: { text: 'x', en: '' } }, null), 'traits', 0).components.find((c) => c.key === 'traits').params.traits.length, 1);
+  // unit levels: positional keys, so every template on a plot shares its layout (decided 2026-10-03)
+  eq('units: a new plot starts at u1', pl.units.map((u) => u.key), ['u1']);
+  let p = E.addUnitLevel(pl, E.makeLabel('小樣方'));
+  p = E.addUnitLevel(p, E.makeLabel('樣格'));
+  eq('units: added below, keyed by position', p.units.map((u) => u.key), ['u1', 'u2', 'u3']);
+  eq('units: up to three', E.addUnitLevel(p, E.makeLabel('多')).units.length, 3);
+  p = E.addComponent(p, 'photos', { level: 'unit', unit: 'u2' }).template;
+  p = E.addComponent(p, 'environment', { level: 'unit', unit: 'u3' }).template;
+  ok('units: valid with components on levels', validateTemplate(p).length === 0);
+  const removed = E.removeUnitLevel(p, 'u2');
+  eq(
+    'units: removing a level takes its components, the levels below move up with theirs',
+    [removed.units.map((u) => `${u.key}:${u.label.text}`), removed.components.filter((c) => c.level === 'unit').map((c) => `${c.type}@${c.unit}`)],
+    [['u1:小區', 'u2:樣格'], ['environment@u2']],
+  );
+  eq('units: a plot keeps one level', E.removeUnitLevel(pl, 'u1').units.length, 1);
+  const movedLevels = E.moveUnitLevel(p, 'u3', -1);
+  eq(
+    'units: a move swaps the levels, components follow, keys stay positional',
+    [movedLevels.units.map((u) => `${u.key}:${u.label.text}`), movedLevels.components.filter((c) => c.level === 'unit').map((c) => `${c.type}@${c.unit}`).sort()],
+    [['u1:小區', 'u2:樣格', 'u3:小樣方'], ['environment@u2', 'photos@u3']],
+  );
+  ok('units: valid after moving', validateTemplate(movedLevels).length === 0);
+  const other = E.blankTemplate('plot', 'user:other', E.makeLabel('另一份'), E.makeLabel('樣區'));
+  eq('units: two templates built apart share level keys (one layout per plot)', other.units[0].key, pl.units[0].key);
+  const sampleCopy = E.copyTemplate(SAMPLE_PLOT_TEMPLATE, 'user:sc', E.makeLabel('複本'));
+  eq(
+    'units: a copy of a sample is put on the positional keys, its components following',
+    [sampleCopy.units.map((u) => u.key), sampleCopy.components.filter((c) => c.level === 'unit').map((c) => c.unit).sort()],
+    [['u1', 'u2'], ['u1', 'u2']],
+  );
+  ok('units: the copy is valid', validateTemplate(sampleCopy).length === 0);
+  // copies and labels
+  const cp = E.copyTemplate({ ...STEMMAP_TEMPLATE }, 'user:c', E.makeLabel('複本'));
+  eq('copy: own id, first version, the user\'s', [cp.id, cp.version, cp.origin, 'builtin_key' in cp, 'builtin_version' in cp], ['user:c', 1, 'user', false, false]);
+  ok('copy: a built-in\'s i18n description is dropped, the copy validates', !('description' in cp) && validateTemplate(cp).length === 0);
+  eq('label: name plus English, English dropped when the same or blank', [E.makeLabel(' 葉長 ', ' Leaf length '), E.makeLabel('Leaf', 'Leaf'), E.makeLabel('x', ' '), E.makeLabel('  ')], [{ text: '葉長', tr: { en: 'Leaf length' } }, { text: 'Leaf' }, { text: 'x' }, null]);
+  eq('label: parts', [E.labelParts({ text: 'a', tr: { en: 'b' } }), E.labelParts({ i18n: 'k' })], [{ text: 'a', en: 'b' }, { text: '', en: '' }]);
+  // what still needs the user
+  const bad = E.updateTrait(E.updateComponent({ ...p, name: { text: ' ' }, units: [{ key: 'u1', label: { text: '' } }, ...p.units.slice(1)] }, 'photos', { params: { max: 99 } }), 'photos', 0, {}, null);
+  const withTraits = E.updateTrait(E.addTrait(E.addComponent(cl, 'traits', occ).template, 'traits'), 'traits', 1, { min: 5, max: 1 }, null);
+  eq('issues: name, unit name, parameters', E.draftIssues(bad).map((i) => i.code), ['name_empty', 'unit_label_empty', 'params']);
+  eq('issues: trait without a name, min above max', E.draftIssues(withTraits).map((i) => `${i.code}:${i.trait}`), ['trait_name_empty:1', 'trait_range:1']);
+  eq('issues: none on a fresh template', [E.draftIssues(cl), E.draftIssues(pl)], [[], []]);
+}
+
+// ── 7. code lists and the choice component (2D-b) ──────────────────────────
+{
+  const occ = { level: 'occurrence' };
+  const cl = E.blankTemplate('checklist', 'user:lists', E.makeLabel('清單'), null);
+  const withChoice = E.addChoice(cl, occ, E.makeLabel('微棲地'));
+  const t1 = withChoice.template;
+  eq('choice: added with a new list when the template has none', [t1.codelists.map((l) => l.id), t1.components.find((c) => c.key === withChoice.key).params], [['list_1'], { list: 'list_1', multi: false }]);
+  const second = E.addChoice(t1, occ, E.makeLabel('不該建立'));
+  eq('choice: a second one uses the first list, no new list', [second.template.codelists.length, second.key], [1, 'choice_2']);
+  eq('issues: an empty list', E.draftIssues(t1).map((i) => i.code), ['list_no_codes']);
+  let t2 = E.addCode(E.addCode(t1, 'list_1'), 'list_1');
+  eq('codes: numbered as added', t2.codelists[0].items.map((x) => x.code), ['1', '2']);
+  eq('issues: codes need names', E.draftIssues(t2).map((i) => `${i.code}:${i.index}`), ['code_name_empty:0', 'code_name_empty:1']);
+  t2 = E.updateCode(t2, 'list_1', 0, { code: 'rock', name: { text: '岩石', en: 'Rock' } }, null);
+  t2 = E.updateCode(t2, 'list_1', 1, { code: 'rock', name: { text: '倒木', en: '' } }, null);
+  eq('issues: a duplicate code', E.draftIssues(t2).map((i) => `${i.code}:${i.index}`), ['code_duplicate:1']);
+  t2 = E.updateCode(t2, 'list_1', 1, { code: 'log' }, null);
+  eq('codes: valid once named and distinct', [E.draftIssues(t2), validateTemplate(t2)], [[], []]);
+  // once saved, a code keeps its value; removing it marks it deprecated
+  const saved = { ...t2 };
+  const renamed = E.updateCode(t2, 'list_1', 0, { code: 'stone', name: { text: '石頭', en: 'Stone' } }, saved);
+  eq('codes: a saved code is not renamed, its name changes', [renamed.codelists[0].items[0].code, renamed.codelists[0].items[0].label.text], ['rock', '石頭']);
+  const gone = E.removeCode(t2, 'list_1', 1, saved);
+  eq('codes: a saved code removed is only deprecated', [gone.codelists[0].items.length, gone.codelists[0].items[1].deprecated], [2, true]);
+  eq('codes: deprecating is additive, removing a saved code breaking', [classifyChange({ ...saved, version: 1 }, { ...gone, version: 2 }), classifyChange({ ...saved, version: 1 }, { ...saved, version: 2, codelists: [{ ...saved.codelists[0], items: [saved.codelists[0].items[0]] }] })], ['additive', 'breaking']);
+  const added = E.addCode(t2, 'list_1');
+  eq('codes: a new code is removed outright', E.removeCode(added, 'list_1', 2, saved).codelists[0].items.length, 2);
+  eq('codes: undeprecate', 'deprecated' in E.updateCode(gone, 'list_1', 1, { deprecated: false }, saved).codelists[0].items[1], false);
+  eq('lists: one in use is not removed', E.removeCodeList(t2, 'list_1').codelists.length, 1);
+  const extra = E.addCodeList(t2, E.makeLabel('另一個'));
+  eq('lists: a new list gets the next id; an unused one goes', [extra.id, E.removeCodeList(extra.template, extra.id).codelists.length], ['list_2', 1]);
+  eq('lists: users', E.codeListUsers(t2, 'list_1').map((c) => c.key), [withChoice.key]);
+  has('validator: a choice on a list the template lacks', validateTemplate({ ...t2, codelists: [] }), 'unknown code list list_1');
+  eq('choice: single is text, several are a list', [componentDef('choice').fields({ list: 'l', multi: false }, 'occurrence', 'k')[0].storage.valueType, componentDef('choice').fields({ list: 'l', multi: true }, 'unit', 'k')[0].storage.valueType], ['text', 'json']);
+  eq('choice: changing single to several needs a new survey', paramsChangeOf(componentDef('choice'), { list: 'l', multi: false }, { list: 'l', multi: true }), 'breaking');
+}
+
+// ── 8. template files (.mtpl.json, 2D-b) ───────────────────────────────────
+{
+  const src = E.addChoice(E.blankTemplate('plot', 'user:share', E.makeLabel('分享'), E.makeLabel('小區')), { level: 'occurrence' }, E.makeLabel('微棲地')).template;
+  const withCode = E.updateCode(E.addCode(src, 'list_1'), 'list_1', 0, { code: 'rock', name: { text: '岩石', en: 'Rock' } }, null);
+  const text = S.templateFileText(withCode, 1000);
+  let n = 0;
+  const newId = () => `user:new${++n}`;
+  const back = S.readTemplateFile(text, new Set(), newId);
+  ok('file: read back as an imported template, same id, version 1', back.ok && back.template.id === 'user:share' && back.template.origin === 'imported' && back.template.version === 1 && !back.renamed);
+  eq('file: structure kept (units, components, code lists)', back.ok && [back.template.units, back.template.components.length, back.template.codelists], [withCode.units, withCode.components.length, withCode.codelists]);
+  const again = S.readTemplateFile(text, new Set(['user:share']), newId);
+  ok('file: an id already here comes in under a new id, not over it', again.ok && again.template.id === 'user:new1' && again.renamed);
+  const builtin = S.readTemplateFile(S.templateFileText({ ...SAMPLE_PLOT_TEMPLATE, id: 'builtin:x', origin: 'builtin' }, 1), new Set(), newId);
+  ok('file: a built-in id never comes in as is', builtin.ok && builtin.template.id === 'user:new2' && builtin.template.origin === 'imported');
+  ok('file: units put on the positional keys', builtin.ok && builtin.template.units.map((u) => u.key).join() === 'u1,u2');
+  const newer = S.readTemplateFile(S.templateFileText({ ...withCode, components: [...withCode.components, { key: 'x', type: 'hologram', level: 'survey', required: false, params: {} }] }, 1), new Set(), newId);
+  eq('file: a component this app does not know is refused, named', newer, { ok: false, reason: 'newer_app', types: ['hologram'] });
+  eq('file: not a template', [S.readTemplateFile('{"a":1}', new Set(), newId), S.readTemplateFile('nope', new Set(), newId)].map((r) => r.ok || r.reason), ['not_a_template', 'not_a_template']);
+  const bad = S.readTemplateFile(S.templateFileText({ ...withCode, codelists: [] }, 1), new Set(), newId);
+  ok('file: an invalid template is refused with its problems', !bad.ok && bad.reason === 'invalid' && /unknown code list/.test(bad.detail));
+}
+
+// ── 9. tree census templates (2D-b) ────────────────────────────────────────
+{
+  const c0 = E.copyTemplate(STEMMAP_TEMPLATE, 'user:census', E.makeLabel('每木'));
+  ok('census: a copy of the built-in is a valid user template', c0.origin === 'user' && !c0.builtin_key && !c0.description && validateTemplate(c0).length === 0);
+  eq('census: its places are the census, quadrat, tree and stem', E.placesOf(c0).map((p) => p.level), ['survey', 'quadrat', 'individual', 'stem']);
+  eq('census: the tree takes traits only (height and photos are there)', E.addableTypes(c0, { level: 'individual' }), ['traits']);
+  eq('census: nothing to add on the census, quadrat or stem', [E.addableTypes(c0, { level: 'survey' }), E.addableTypes(c0, { level: 'quadrat' }), E.addableTypes(c0, { level: 'stem' })], [[], [], []]);
+  const fixed = c0.components.filter((c) => E.isFixedComponent(c0, c)).map((c) => c.key);
+  eq('census: all but height and photos are fixed', fixed, c0.components.map((c) => c.key).filter((k) => k !== 'height' && k !== 'photos'));
+  eq('census: removing a fixed component changes nothing', ['dbh', 'health', 'workers', 'location', 'taxon'].map((k) => E.removeComponent(c0, k) === c0), [true, true, true, true, true]);
+  const noH = E.removeComponent(E.removeComponent(c0, 'height'), 'photos');
+  eq('census: height and photos can go, and come back', [noH.components.length, E.addableTypes(noH, { level: 'individual' })], [c0.components.length - 2, ['height', 'photos', 'traits']]);
+  ok('census: required flags stay as the census sets them', E.updateComponent(c0, 'photos', { required: true }).components.find((c) => c.key === 'photos').required === false);
+  eq('census: parameters offered for Health, Location and the optional ones', c0.components.filter((c) => E.hasEditableParams(c0, c)).map((c) => c.type), ['location', 'height', 'photos', 'health']);
+  const t1 = E.addComponent(c0, 'traits', { level: 'individual' });
+  const withT = t1.template;
+  ok('census: a Traits component on the tree validates (stored per census on the tree)', validateTemplate(withT).length === 0 && withT.components.find((c) => c.key === t1.key).level === 'individual');
+  // Health code sets: the census codes stay, AMS and lists come and go.
+  const list = E.addCodeList(withT, E.makeLabel('損傷'));
+  let h = E.updateCode(E.addCode(list.template, list.id), list.id, 0, { name: { text: '蟲害', en: '' } }, null);
+  h = E.setHealthCodeset(h, 'health', 'forestgeo-census-1998', false);
+  h = E.setHealthCodeset(E.setHealthCodeset(h, 'health', 'forestgeo-ams-2021', true), 'health', list.id, true);
+  eq('census: Health takes AMS and a list, keeps the census codes', h.components.find((c) => c.key === 'health').params.codesets, ['forestgeo-census-1998', 'forestgeo-ams-2021', list.id]);
+  ok('census: the list is in use (cannot be deleted)', E.removeCodeList(h, list.id) === h);
+  eq('census: adding AMS or a list is additive; taking one away breaks', [classifyChange(withT, { ...h }), classifyChange(h, E.setHealthCodeset(h, 'health', 'forestgeo-ams-2021', false))], ['additive', 'breaking']);
+  has('census: a census template without the census codes is refused', validateTemplate({ ...c0, components: c0.components.map((c) => (c.type === 'health' ? { ...c, params: { codesets: ['forestgeo-ams-2021'] } } : c)) }), 'forestgeo-census-1998');
+  eq('census: a location method more is additive, one less breaks', [
+    classifyChange(E.updateComponent(c0, 'location', { params: { methods: ['grid', 'xy'] } }), c0),
+    classifyChange(c0, E.updateComponent(c0, 'location', { params: { methods: ['grid', 'xy'] } })),
+  ], ['additive', 'breaking']);
+  ok('census: Traits stay off the stem and the census', !E.addableTypes(c0, { level: 'stem' }).includes('traits') && validateTemplate({ ...withT, components: withT.components.map((c) => (c.key === t1.key ? { ...c, level: 'stem' } : c)) }).length > 0);
+}
 
 // ── 5. hash ─────────────────────────────────────────────────────────────────
 const reordered = Object.fromEntries(Object.entries(base).reverse());

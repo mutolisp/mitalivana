@@ -24,7 +24,7 @@ import { defaultDecision, needsReview, summarizeItems, type Decision } from '~/l
 import { applyPendingMerge, usePendingMerge, type PendingMerge } from '~/lib/teamMergeFlow';
 import { useToast } from '~/stores/toast';
 
-const ROUTE_OF: Record<PendingMerge['kind'], string> = { session: '/session', plot: '/plot', gloria: '/gloria' };
+const ROUTE_OF: Record<PendingMerge['kind'], string> = { session: '/session', plot: '/plot', gloria: '/gloria', modular: '/survey/form' };
 
 function hrefOf(p: PendingMerge): Href {
   return `${ROUTE_OF[p.kind]}/${p.localId}` as Href;
@@ -49,6 +49,8 @@ export default function MergeReviewScreen() {
     );
   }
   const gloria = pending.kind === 'gloria';
+  // Their photos and files come by file sync, not in this review (teamMergeFlow.ts).
+  const filesBySync = gloria || pending.kind === 'modular';
   const dec = (it: (typeof review)[number]) => decisions.get(it.id) ?? defaultDecision(it);
 
   const run = async (backup: boolean) => {
@@ -114,7 +116,7 @@ export default function MergeReviewScreen() {
                 review: review.length,
               })}
             </Text>
-            {gloria ? <Text className="text-xs text-gray-500 dark:text-gray-400">{t('teamMerge.gloriaMediaNote')}</Text> : null}
+            {filesBySync ? <Text className="text-xs text-gray-500 dark:text-gray-400">{t('teamMerge.gloriaMediaNote')}</Text> : null}
           </View>
         }
         footer={<Text className="text-xs text-gray-500 dark:text-gray-400">{t('teamMerge.backupNote')}</Text>}

@@ -317,6 +317,8 @@ throwsCode(() => c.deleteOccurrence(ctx, oC), 'blind_sealed', 'sealed: no remova
 throwsCode(() => c.setValue(ctx, { kind: 'occurrence', id: oC }, 'traits', 'h', { num: 1 }), 'blind_sealed', 'sealed: no values');
 throwsCode(() => c.writeComponent(ctx, { kind: 'occurrence', id: oC }, 'taxon', { verbatim_identification: 'z' }), 'blind_sealed', 'sealed: no component writes');
 ok(c.occurrenceSealed(ctx, c.getOccurrence(ctx, oC)) && !c.occurrenceSealed(ctx, c.getOccurrence(ctx, oA)), 'sealed: only blind ones after the close');
+throwsCode(() => c.deleteUnit(ctx, unitBy('Q1', u2).id), 'blind_sealed', 'sealed: its unit is not deleted (the record would move)');
+ok(c.getOccurrence(ctx, oC).unit_id === unitBy('Q1', u2).id, 'sealed: the refused unit delete moved nothing');
 // A mistaken close can be undone until recheck work exists.
 c.reopenBlindPhase(ctx, P2);
 ok(c.getFwSurvey(ctx, P2).blind_closed_at == null && c.getOccurrence(ctx, oC).phase === 'blind', 'blind: reopened before any recheck work');
@@ -397,7 +399,8 @@ ok(count('fw_media', 'survey_id = ?', P1) === 0 && count('fw_unit_values', 'unit
 ok(c.getFwSurvey(ctx, P1) == null && count('fw_units', 'survey_id = ?', P1) === 0 && count('fw_occurrences', 'survey_id = ?', P1) === 0, 'delete survey: its units and occurrences go');
 ok(count('fw_frame_labels') === labelsBefore && one(`SELECT first_survey_id AS f FROM fw_frame_labels WHERE id = ?`, L1).f == null, 'delete survey: labels stay, unlinked');
 ok(count('fw_frame_units') === frameUnitsBefore, 'delete survey: the frame layout stays');
-ok(c.previousSurveyId(ctx, P2) == null && !c.hasBlindPhase(ctx, P2), 'delete survey: the recheck has no earlier survey now');
+ok(c.previousSurveyId(ctx, P2) == null && c.hasBlindPhase(ctx, P2), 'delete survey: the recheck has no earlier survey now, but is still a recheck (by its number)');
+ok(c.recheckState(ctx, P2)?.candidates.length === 0, 'delete survey: its recheck has nothing left to confirm');
 c.deleteSurvey(ctx, K1);
 ok(count('fw_survey_values', 'survey_id = ?', K1) === 0 && count('fw_occurrence_values') === 0, 'delete survey: its values go');
 for (const [table, where] of CASCADE_ORPHANS) if (table.startsWith('fw_')) ok(count(table, where) === 0, `delete survey (foreign keys off): no ${table} orphans`);
@@ -550,6 +553,97 @@ for (const [table, where] of CASCADE_ORPHANS) {
   ok(count(table, where) === 0, `integrity: no ${table} orphans`);
 }
 ok(all('PRAGMA foreign_key_check').length === 0, 'integrity: foreign_key_check clean');
+
+// ── template drafts and archive (v86, the builder) ───────────────────────
+{
+  const id = 'user:checklist';
+  const latest = tp.getTemplate(ctx, id);
+  tp.saveDraft(ctx, { ...latest, name: { text: '草稿' } }, latest.version);
+  ok(tp.getDraft(ctx, id)?.baseVersion === latest.version && tp.getDraft(ctx, id).template.name.text === '草稿', 'draft: kept with the version it started from');
+  tp.saveDraft(ctx, { ...latest, name: { text: '草稿 2' } }, latest.version);
+  ok(count('survey_template_drafts') === 1 && tp.getDraft(ctx, id).template.name.text === '草稿 2' && tp.listDrafts(ctx).length === 1, 'draft: one per template, replaced');
+  throwsCode(() => tp.saveDraft(ctx, STEMMAP_TEMPLATE, 1), 'builtin_template', 'draft: a built-in is copied, not edited');
+  const KU = c.createSurvey(ctx, { template: latest });
+  const next = tp.commitDraft(ctx, id);
+  ok(next.version === latest.version + 1 && tp.getDraft(ctx, id) == null && tp.getTemplate(ctx, id).name.text === '草稿 2', 'draft: saved as the next version and dropped');
+  ok(JSON.stringify(tp.upgradableSurveys(ctx, next).map((x) => x.id)) === JSON.stringify([KU]), 'upgrade: the open survey on the older version is offered the new one');
+  tp.saveDraft(ctx, next, next.version);
+  ok(tp.commitDraft(ctx, id).version === next.version && count('survey_template_drafts') === 0, 'draft: saving it unchanged adds no version and drops it');
+  throwsCode(() => tp.commitDraft(ctx, id), 'not_found', 'draft: nothing to save');
+  const breaking = { ...next, components: [...next.components, { key: 'abundance', type: 'abundance', level: 'occurrence', required: true, params: { kinds: ['count'], default: 'count' } }] };
+  tp.saveDraft(ctx, breaking, next.version);
+  const v4 = tp.commitDraft(ctx, id);
+  ok(v4.version === next.version + 1 && tp.upgradableSurveys(ctx, v4).length === 0, 'upgrade: a breaking change is not offered');
+  c.finishSurvey(ctx, KU);
+  const additive = tp.saveTemplate(ctx, { ...v4, name: { text: 'v5' } });
+  ok(tp.upgradableSurveys(ctx, additive).length === 0, 'upgrade: a finished survey is not offered');
+  const uses = tp.templateUseCounts(ctx).get(id);
+  ok(uses && uses.all === count('fw_surveys', 'template_id = ?', id) && uses.active === count('fw_surveys', "template_id = ? AND status = 'active'", id), `use counts: all and open (${JSON.stringify(uses)})`);
+  tp.setTemplateArchived(ctx, id, true);
+  const ids = (o) => tp.listTemplates(ctx, o).map((t) => t.id);
+  ok(!ids().includes(id) && JSON.stringify(ids({ archived: 'only' })) === JSON.stringify([id]) && ids({ archived: 'include' }).includes(id) && tp.isTemplateArchived(ctx, id), 'archive: hidden unless asked for');
+  ok(tp.getTemplate(ctx, id)?.version === additive.version, 'archive: still readable (surveys and copies)');
+  tp.setTemplateArchived(ctx, id, false);
+  ok(ids().includes(id) && !tp.isTemplateArchived(ctx, id), 'archive: brought back');
+}
+
+// ── a recheck starts with the previous environment values (2D-a) ─────────
+{
+  const FE = s.createFrame(ctx, { code: 'ENV1', sizeXM: 20, sizeYM: 20 });
+  const ENV = tp.saveTemplate(
+    ctx,
+    bare('plot', {
+      id: 'user:env',
+      units: UNITS,
+      components: [
+        { key: 'env', type: 'environment', level: 'survey', required: false, params: { fields: ['slope_deg', 'aspect_deg'] } },
+        { key: 'uenv', type: 'environment', level: 'unit', unit: 'subplot', required: false, params: { fields: ['rock_cover_pct'] } },
+      ],
+      quick_add: false,
+    }),
+  );
+  const E1 = c.createSurvey(ctx, { template: ENV, frameId: FE });
+  const s1 = c.addUnit(ctx, E1, { levelKey: 'subplot', code: 'S1' });
+  c.writeComponent(ctx, { kind: 'survey', id: E1 }, 'env', { slope_deg: 20, aspect_deg: 180 });
+  c.writeComponent(ctx, { kind: 'unit', id: s1 }, 'uenv', { rock_cover_pct: 30 });
+  ok(Object.keys(c.environmentCarried(ctx, { kind: 'survey', id: E1 }).fields).length === 0, 'carry: nothing on a first survey');
+  c.finishSurvey(ctx, E1);
+  const E2 = c.createSurvey(ctx, { template: ENV, frameId: FE });
+  const s2 = c.listUnits(ctx, E2).find((u) => u.code === 'S1').id;
+  ok(c.readComponent(ctx, { kind: 'survey', id: E2 }, 'env').slope_deg === 20 && c.readComponent(ctx, { kind: 'unit', id: s2 }, 'uenv').rock_cover_pct === 30, 'carry: survey and unit environment values come with the recheck');
+  const carried = c.environmentCarried(ctx, { kind: 'survey', id: E2 });
+  ok(carried.census === 1 && JSON.stringify(carried.fields.env?.sort()) === JSON.stringify(['aspect_deg', 'slope_deg']), `carry: said as the previous survey's (${JSON.stringify(carried)})`);
+  c.writeComponent(ctx, { kind: 'survey', id: E2 }, 'env', { slope_deg: 25 });
+  ok(JSON.stringify(c.environmentCarried(ctx, { kind: 'survey', id: E2 }).fields.env) === JSON.stringify(['aspect_deg']), 'carry: a changed value is no longer the previous one');
+  ok(JSON.stringify(c.environmentCarried(ctx, { kind: 'unit', id: s2 }).fields.uenv) === JSON.stringify(['rock_cover_pct']), 'carry: on a unit too');
+  ok(c.readComponent(ctx, { kind: 'survey', id: E1 }, 'env').slope_deg === 20, 'carry: the previous survey keeps its own');
+  ok(count('fw_occurrences', 'survey_id = ?', E2) === 0, 'carry: no species come with it (the blind phase)');
+}
+
+// ── 自訂選項欄 (choice, 2D-b): one code as text, several as a list ──────────
+{
+  const list = { id: 'list_1', label: { text: '微棲地' }, items: [{ code: 'rock', label: { text: '岩石' } }, { code: 'log', label: { text: '倒木' } }] };
+  const CH = tp.saveTemplate(
+    ctx,
+    bare('checklist', {
+      id: 'user:choice',
+      codelists: [list],
+      components: [
+        { key: 'where', type: 'choice', level: 'survey', required: false, params: { list: 'list_1', multi: false } },
+        { key: 'on', type: 'choice', level: 'occurrence', required: false, params: { list: 'list_1', multi: true } },
+      ],
+    }),
+  );
+  const K = c.createSurvey(ctx, { template: CH });
+  const o = c.addOccurrence(ctx, K, { taxon_id: 't1' });
+  c.writeComponent(ctx, { kind: 'survey', id: K }, 'where', { value: 'rock' });
+  c.writeComponent(ctx, { kind: 'occurrence', id: o }, 'on', { value: ['rock', 'log'] });
+  ok(c.readComponent(ctx, { kind: 'survey', id: K }, 'where').value === 'rock', 'choice: one code, read back');
+  ok(JSON.stringify(c.readComponent(ctx, { kind: 'occurrence', id: o }, 'on').value) === JSON.stringify(['rock', 'log']), 'choice: several codes, read back as a list');
+  c.writeComponent(ctx, { kind: 'survey', id: K }, 'where', { value: null });
+  ok(c.readComponent(ctx, { kind: 'survey', id: K }, 'where').value == null, 'choice: cleared');
+  c.finishSurvey(ctx, K);
+}
 
 if (failed > 0) {
   console.error(`${failed} failure(s)`);

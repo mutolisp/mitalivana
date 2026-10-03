@@ -184,12 +184,12 @@ export default function OccurrenceScreen() {
       {shownTab === 'freq' ? (
         // Not a ScrollView: the grid takes every swipe that starts on it.
         <View className="gap-3 p-4">
-          <ComponentCards owner={{ kind: 'occurrence', id: o.id }} instances={grid} values={data.values} readOnly={readOnly} refuse={refuse} context={context} onChanged={reload} />
+          <ComponentCards owner={{ kind: 'occurrence', id: o.id }} instances={grid} values={data.values} readOnly={readOnly} refuse={refuse} context={context} codelists={data.template.codelists} onChanged={reload} />
         </View>
       ) : (
         <ScrollView contentContainerClassName="gap-3 p-4 pb-10" keyboardShouldPersistTaps="handled">
           {header}
-          <ComponentCards owner={{ kind: 'occurrence', id: o.id }} instances={formComps} values={data.values} readOnly={readOnly} refuse={refuse} context={context} onChanged={reload} />
+          <ComponentCards owner={{ kind: 'occurrence', id: o.id }} instances={formComps} values={data.values} readOnly={readOnly} refuse={refuse} context={context} codelists={data.template.codelists} onChanged={reload} />
         </ScrollView>
       )}
       <NumAccessory />

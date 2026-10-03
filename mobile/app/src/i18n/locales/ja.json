@@ -248,7 +248,7 @@
     "mergeNoGloria": "GLORIA 調査は 1 山頂・1 モニタリング周期の記録のため、結合できません。",
     "duplicateNoGloria": "GLORIA 調査は複製できません。次のモニタリング周期は「新規 GLORIA 調査」で同じ山頂を選んで開始してください。",
     "gloriaCount_other": "GLORIA {{count}} 件（山頂 {{summits}}）",
-    "deleteRecoverable": "種リスト・調査区・GLORIA 調査・毎木調査回は 30 日間、「記録」タブの ⋯ →「最近削除した項目」から復旧できます。",
+    "deleteRecoverable": "種リスト・調査区・GLORIA 調査・リスト型／プロット型調査・毎木調査回は 30 日間、「記録」タブの ⋯ →「最近削除した項目」から復旧できます。",
     "deletePermanent": "採集記録は削除すると元に戻せません。",
     "activeResume": "記録を続ける",
     "activeSpecies": "種",
@@ -1692,6 +1692,7 @@
   "recordImport": {
     "unsupportedBundle": "これは複数の記録をまとめたファイルです。展開してから 1 件ずつインポートしてください。",
     "unknownKind": "このファイルの記録種別を判別できません。",
+    "modularNotYet": "これはリスト型／プロット型調査のファイルです。現在はチーム同期でのみ受け渡しできます。ファイルの読み込みは今後のバージョンで対応します。",
     "sessionExistsTitle": "種リストは既に存在します",
     "sessionExistsMsg": "「{{name}}」はこの端末に既にあります。上書きしますか、それとも別の複製として保存しますか？",
     "photoConflictTitle": "この記録には既に写真があります",
@@ -3391,7 +3392,15 @@
       "sval": "幹のコード",
       "ival": "個体データ",
       "history": "訂正履歴",
-      "media": "写真"
+      "media": "写真",
+      "sunit": "調査ユニット",
+      "occ": "出現記録",
+      "surveyval": "調査の項目",
+      "unitval": "ユニットの項目",
+      "occval": "出現記録の項目",
+      "recheck": "再確認の結果",
+      "funit": "ユニット配置",
+      "flabel": "形態種"
     },
     "field": {
       "latitude": "緯度",
@@ -3487,7 +3496,21 @@
       "ref_code": "基準点",
       "azimuth_deg": "方位角 (°)",
       "azimuth_ref": "方位角の基準",
-      "status": "状態"
+      "status": "状態",
+      "parent": "上位ユニット",
+      "geometry_geojson": "範囲",
+      "shape": "形状",
+      "width_m": "幅 (m)",
+      "length_m": "長さ (m)",
+      "radius_m": "半径 (m)",
+      "retired_at": "廃止日時",
+      "phase": "段階",
+      "outcome": "結果",
+      "occurrence": "対応する記録",
+      "identified_by": "同定者",
+      "elevation_source": "標高の取得元",
+      "surveyUnit": "ユニット",
+      "measureUnit": "単位"
     },
     "from": "{{name}} から",
     "fromAt": "{{name}} から、{{date}} アップロード",
@@ -4138,7 +4161,7 @@
     "restored": "復元しました（{{n}} 件の変更）",
     "restoreFail": "復元できません",
     "deletedTitle": "最近削除した項目",
-    "deletedIntro": "削除した種リスト・調査区・GLORIA 調査・毎木調査回は、30 日間は最新のバージョンから復旧できます（完了済みの記録として）。ストレージの整理で消えた写真は戻りません。",
+    "deletedIntro": "削除した種リスト・調査区・GLORIA 調査・リスト型／プロット型調査・毎木調査回は、30 日間は最新のバージョンから復旧できます（完了済みの記録として）。ストレージの整理で消えた写真は戻りません。",
     "deletedNone": "復旧できる記録はありません",
     "deletedAt": "{{when}} に削除",
     "daysLeft": "残り {{n}} 日",
@@ -4147,7 +4170,8 @@
       "plot": "調査区",
       "gloria": "GLORIA",
       "survey": "毎木調査回",
-      "survey_quadrat": "毎木調査コドラート"
+      "survey_quadrat": "毎木調査コドラート",
+      "modular": "リスト型／プロット型調査"
     },
     "recoverTitle": "この記録を復旧しますか？",
     "recoverMsg": "「{{name}}」を最新のバージョンから完了済みの記録として再作成します。",
@@ -4180,11 +4204,12 @@
     "surveyPageSubtitle": "左右にスワイプして調査票を選ぶ",
     "surveyStemDesc": "固定プロットの毎木調査（ForestGEO）：樹木番号、位置、DBH、健全度コード。回は固定プロットから始めます。",
     "surveyOpenFrames": "固定プロットを開く",
-    "surveyChecklistDesc": "歩きながら種を記録します。項目は調査票によります（テスト用の例。種タブから直接追加できます）。",
-    "surveyPlotDesc": "小区・小方形区ごとに記録します。固定プロットでは再調査をブラインドで始め、その後前回のリストと照合します（テスト用の例）。",
     "surveyOnFrame": "固定プロットで開始…",
     "surveyNoFrames": "固定プロットがまだありません。先に「毎木調査」で追加してください。",
-    "surveyPageOf": "{{total}} 枚中 {{n}} 枚目"
+    "surveyPageOf": "{{total}} 枚中 {{n}} 枚目",
+    "builderDesc": "新しい調査票を作るか、既存のテンプレートを編集・コピーします。",
+    "builderDescEmpty": "コンポーネントを組み合わせてリスト型・プロット型の調査票を作ります。サンプルをコピーして始めることもできます。",
+    "builderManage": "テンプレートを管理"
   },
   "count": {
     "increase": "{{name}}の数を増やす",
@@ -4521,7 +4546,10 @@
       "unsavedTitle": "変更を破棄しますか？",
       "unsavedMsg": "この個体の変更は保存されていません。",
       "discard": "破棄",
-      "errNumber": "次の欄は数値ではありません："
+      "errNumber": "次の欄は数値ではありません：",
+      "photosMax": "1 本の木につき写真は {{max}} 枚まで",
+      "traitInteger": "整数で入力してください",
+      "traitRange": "範囲外です（{{range}}）"
     },
     "sync": {
       "blockSizeTitle": "同期ブロックの大きさ",
@@ -4589,7 +4617,8 @@
       "structure": "階層",
       "phenology": "フェノロジー",
       "traits": "形質",
-      "environment": "環境"
+      "environment": "環境",
+      "choice": "カスタム選択肢"
     },
     "editor": {
       "elsewhere": "この項目は記録画面で入力します。",
@@ -4644,6 +4673,10 @@
         "recorded": "記録済み",
         "stems_other": "{{count}} 幹",
         "layers_other": "{{count}} 層"
+      },
+      "choice": {
+        "noList": "この選択肢のリストが見つかりません。調査票テンプレートを確認してください。",
+        "multi": "複数選択可"
       }
     },
     "ams": {
@@ -4766,7 +4799,7 @@
     "ended": "終了時刻",
     "reopen": "再開",
     "deleteTitle": "調査を削除",
-    "deleteMsg_other": "「{{name}}」とその出現記録 {{count}} 件を削除しますか？削除すると元に戻せません。",
+    "deleteMsg_other": "「{{name}}」とその出現記録 {{count}} 件を削除しますか？",
     "noExport": "リスト型・プロット型調査はまだエクスポートできません",
     "notInProjectExport_other": "リスト型・プロット型調査 {{count}} 件はまだエクスポートできないため、今回のエクスポートには含まれません",
     "noDuplicate": "リスト型・プロット型調査はまだ複製できません",
@@ -4830,6 +4863,7 @@
       "notOpen": "再確認はブラインド終了後に行えます",
       "intro": "第 {{n}} 回調査のリスト（ユニット別）。今回のブラインドで記録されなかった種について、それぞれ結果を記録してください（未確認 {{open}} 種）。",
       "nothing": "前回の調査では種が記録されていません。",
+      "noPrevious": "この端末には前回（第 {{n}} 回）の調査がないため、前回のリストを表示できません。チーム同期で取得するか、前回の調査がある端末で再確認してください。",
       "last": "前回：{{value}}",
       "recordedBlind": "今回記録済み",
       "notChecked": "ユニット廃止",
@@ -4873,7 +4907,7 @@
       "section": "プロット型調査",
       "units": "ユニット配置",
       "labels": "形態種リスト",
-      "start": "プロット型調査を開始（テスト）",
+      "start": "プロット型調査を開始…",
       "surveyNo": "第 {{n}} 回 · {{name}}",
       "unitsTitle": "{{code}} ユニット配置",
       "unitsDesc": "プロット型調査は開始時にこれらのユニットを引き継ぎます。調査で使われたユニットは廃止のみ可能で、削除やコード変更はできません。",
@@ -4896,6 +4930,233 @@
       "removePhoto": "写真を削除"
     },
     "lockedBanner": "終了してロックされています。右上の ⋯ からロックを解除すると編集できます。",
-    "surveyNo": "第 {{n}} 回"
+    "surveyNo": "第 {{n}} 回",
+    "recoverNumberTaken": "この固定プロットには同じテンプレート・同じ回数の調査があります。先に削除してから復元してください。",
+    "upgrade": {
+      "banner": "この調査票に新しい版があります（第 {{n}} 版）",
+      "msg": "第 {{n}} 版に更新：新しい項目が表示され、記録済みのデータは変わりません。"
+    },
+    "carried": "第 {{n}} 回と同じ（開始時に引き継ぎ。確認してください）：{{fields}}"
+  },
+  "builder": {
+    "title": "調査票テンプレート",
+    "desc": "コンポーネントを組み合わせて、リスト型・プロット型の調査票を作ったり、毎木調査を調整したりします",
+    "intro": "テンプレートは、調査で記録する項目を決めます。保存済みのテンプレートを編集すると新しいバージョンとして保存されます。追加や範囲の拡大だけなら進行中の調査を更新でき、それ以外の変更はこれから始める調査に使われます。",
+    "section": {
+      "drafts": "編集中の新しいテンプレート",
+      "mine": "マイテンプレート",
+      "samples": "サンプル（コピーのみ）",
+      "builtin": "内蔵（コピーのみ）"
+    },
+    "showArchived_other": "アーカイブを表示（{{count}}）",
+    "hideArchived": "アーカイブを隠す",
+    "empty": "自分のテンプレートはまだありません。下の「テンプレートを作成」から始めるか、サンプルをコピーしてください。",
+    "version": "第 {{n}} 版",
+    "uses_other": "{{count}} 回使用",
+    "usesActive_other": "進行中 {{count}}",
+    "draftTag": "未保存の変更あり",
+    "newTemplate": "新規・未保存",
+    "untitled": "無題",
+    "create": "テンプレートを作成",
+    "action": {
+      "edit": "編集",
+      "copy": "コピー",
+      "archive": "アーカイブ",
+      "unarchive": "アーカイブを解除",
+      "copyToMine": "マイテンプレートにコピー",
+      "export": "ファイルに書き出す"
+    },
+    "archived": "「{{name}}」をアーカイブしました。これで始めた調査には影響しません。",
+    "new": {
+      "title": "テンプレートを作成",
+      "blankChecklist": "空のリスト型",
+      "blankPlot": "空のプロット型",
+      "copy": "既存のテンプレートをコピー…",
+      "copyFrom": "どれをコピーしますか？",
+      "nameTitle": "テンプレート名",
+      "nameMsg": "例：「渓流沿いの植物リスト」。あとで変更でき、英語名も付けられます。",
+      "create": "作成",
+      "firstUnit": "小区画",
+      "copyName": "{{name}} のコピー",
+      "census": "毎木調査（内蔵をコピー）"
+    },
+    "notFound": "このテンプレートの下書きが見つかりません。保存または破棄された可能性があります。",
+    "basics": "基本情報",
+    "name": "名前",
+    "nameEn": "英語名（任意）",
+    "versionNext": "第 {{n}} 版を保存済み。保存すると第 {{next}} 版になります",
+    "quickAdd": "ほかの画面からのクイック追加を許可",
+    "quickAddDesc": "この種類の調査が進行中のとき、種タブ・分類ツリー・お気に入り・検索表から種を直接追加できます。",
+    "units": "ユニットの階層",
+    "unitsDesc": "大きい順に最大 {{max}} 階層。例：「小区画 → コドラート」。",
+    "unitN": "第 {{n}} 階層",
+    "addUnit": "下の階層を追加",
+    "removeUnit": "この階層を削除",
+    "removeUnitMsg": "「{{name}}」とこの階層のコンポーネントがまとめて削除されます。",
+    "moveUp": "上へ",
+    "moveDown": "下へ",
+    "place": {
+      "survey": "調査ごと",
+      "unit": "{{name}}ごと",
+      "occurrence": "出現記録ごと",
+      "quadrat": "コドラートごと",
+      "tree": "木ごと",
+      "stem": "幹ごと"
+    },
+    "addComponent": "コンポーネントを追加",
+    "addComponentTitle": "「{{place}}」に追加",
+    "nothingToAdd": "ここに追加できるコンポーネントはもうありません",
+    "fixed": "すべての調査にあり",
+    "requiredTag": "必須",
+    "preview": "プレビュー",
+    "previewTitle": "プレビュー：{{name}}",
+    "previewIntro": "このテンプレートで始めた調査はこう表示されます。試しに入力できますが、内容は保存されません。",
+    "discard": {
+      "title": "変更を破棄しますか？",
+      "msg": "下書きは削除され、テンプレートは第 {{n}} 版のままです。",
+      "go": "変更を破棄",
+      "newTitle": "この新しいテンプレートを削除しますか？",
+      "newMsg": "まだ一度も保存されていないため、削除すると残りません。",
+      "newGo": "この新しいテンプレートを削除"
+    },
+    "save": {
+      "go": "保存",
+      "title": "第 {{n}} 版として保存しますか？",
+      "msgNew": "保存すると、このテンプレートで調査を始められます。",
+      "msgNext": "これから始める調査に新しい版が使われます。",
+      "msgAdditive": "今回は追加または範囲の拡大だけなので、進行中の調査を新しい版に更新できます。",
+      "msgBreaking": "削除または変更された項目があります。始めた調査は元の版のまま、これから始める調査は新しい版を使います。",
+      "noChange": "変更はありません",
+      "saved": "第 {{n}} 版として保存しました",
+      "fixFirst": "保存の前に直してください",
+      "invalid": "このテンプレートはまだ保存できません：\n{{detail}}"
+    },
+    "issue": {
+      "nameEmpty": "テンプレートに名前が必要です",
+      "noUnitLevel": "プロット型には少なくとも 1 階層のユニットが必要です",
+      "unitLabelEmpty": "各階層に名前が必要です",
+      "traitNameEmpty": "「{{component}}」の {{n}} 番目の形質に名前が必要です",
+      "traitRange": "「{{component}}」の {{n}} 番目の形質：最小値が最大値より大きくなっています",
+      "params": "「{{component}}」の設定に誤りがあります：{{detail}}",
+      "choiceList": "「{{component}}」にはコードリストが必要です",
+      "listNameEmpty": "コードリストには名前が必要です",
+      "listNoCodes": "コードリスト「{{list}}」にコードがありません",
+      "codeEmpty": "コードリスト「{{list}}」の {{n}} 番目のコードが空です",
+      "codeDuplicate": "コードリスト「{{list}}」の {{n}} 番目のコードが前のものと重複しています",
+      "codeNameEmpty": "コードリスト「{{list}}」の {{n}} 番目のコードに名前が必要です"
+    },
+    "upgrade": {
+      "title": "進行中の調査を更新しますか？",
+      "msg_other": "進行中の調査 {{count}} 件が古い版を使っています。第 {{n}} 版に更新できます。新しい項目が表示され、記録済みのデータは変わりません。",
+      "go": "更新",
+      "skip": "今はしない",
+      "done_other": "{{count}} 件の調査を更新しました"
+    },
+    "noPlotTemplate": {
+      "title": "プロット型のテンプレートがまだありません",
+      "msg": "先に「調査票テンプレート」でプロット型のテンプレートを作るか、サンプルをコピーしてください。"
+    },
+    "pickTemplate": "どのテンプレートを使いますか？",
+    "componentNameDesc": "空欄のときは「{{name}}」と表示されます。同じコンポーネントを 2 つ置くとき（形質を 2 組など）は名前で区別します。",
+    "required": "必須",
+    "requiredDesc": "オンにすると、未入力が不足として示され、調査の終了時に通知されます。",
+    "requiredFixed": "すべての調査にあるコンポーネントなので、オフにできません。",
+    "params": "設定",
+    "param": {
+      "kinds": "使える被度・個体数の尺度",
+      "defaultKind": "既定の尺度",
+      "modeCells": "マスごとに記録",
+      "modeCount": "出現マス数だけ記録",
+      "gridN": "1 辺のマス数",
+      "topEdge": "格子の上辺の向き",
+      "layers": "既定の階層数",
+      "layerMethods": "各階層の被度の記録方法",
+      "max": "最大数",
+      "gpsOnly": "リスト型とプロット型は GNSS 測位（緯度・経度・精度）を記録します。",
+      "none": "このコンポーネントに設定項目はありません。"
+    },
+    "traits": "形質",
+    "traitN": "形質 {{n}}",
+    "trait": {
+      "unit": "単位",
+      "min": "最小値",
+      "max": "最大値",
+      "integer": "整数のみ",
+      "remove": "この形質を削除",
+      "add": "形質を追加"
+    },
+    "removeComponent": "コンポーネントを削除",
+    "removeComponentMsg": "テンプレートから「{{name}}」を削除しますか？",
+    "changeAdditive": "保存済みの版と比べて追加または範囲の拡大だけなので、進行中の調査を更新できます。",
+    "changeBreaking": "第 {{n}} 版と比べて削除または変更があります。始めた調査は第 {{n}} 版のままです。",
+    "summary": {
+      "layers_other": "{{count}} 階層",
+      "fields_other": "{{count}} 項目",
+      "max_other": "最大 {{count}}",
+      "gps": "GNSS 測位"
+    },
+    "kind": {
+      "bb": "Braun-Blanquet",
+      "percent": "被度 %",
+      "dbh": "胸高直径（DBH）"
+    },
+    "listSep": "、",
+    "lists": "コードリスト",
+    "listsDesc": "カスタム選択欄はここのリストから選びます。記録されるのはコードで、名前は表示用です。",
+    "list": {
+      "newName": "コードリスト {{n}}",
+      "codes_other": "{{count}} 個のコード",
+      "usedBy": "使用中：{{names}}",
+      "unused": "このリストを使っている項目はまだありません",
+      "add": "コードリストを追加",
+      "remove": "リストを削除",
+      "removeMsg": "「{{name}}」を削除しますか？",
+      "codesTitle": "コード",
+      "codesDesc": "コードは記録される値で、テンプレートを保存すると変更できません。使わなくなったコードは廃止にしてください。記録済みのデータには引き続き表示されます。",
+      "codeFixed": "コード {{code}}（保存済みのため変更不可）",
+      "code": "コード",
+      "deprecated": "廃止",
+      "deprecatedDesc": "選択肢に表示されなくなります。記録済みのデータには表示されます",
+      "removeCode": "このコードを削除",
+      "addCode": "コードを追加"
+    },
+    "choice": {
+      "single": "単一選択",
+      "multi": "複数選択",
+      "list": "コードリスト",
+      "noList": "未選択",
+      "change": "変更",
+      "editList": "このリストを編集",
+      "multiSwitch": "複数選択を許可"
+    },
+    "import": {
+      "fromFile": "ファイルから読み込む…",
+      "failTitle": "読み込めません",
+      "newerApp": "このテンプレートには、このバージョンのアプリが知らない項目（{{types}}）が含まれています。先にアプリを更新してください。",
+      "invalid": "ファイルの内容に誤りがあります：{{detail}}",
+      "notTemplate": "Mitalivana のテンプレートファイル（.mtpl.json）ではありません。",
+      "done": "「{{name}}」を読み込みました",
+      "doneRenamed": "「{{name}}」を読み込みました。同じテンプレートがすでにあるため、新しいテンプレートとして保存しました。"
+    },
+    "health": {
+      "title": "健全度コード",
+      "desc": "各幹で記録するコードです。ForestGEO センサスコードは毎木調査の基礎なので外せません。AMS と独自のコードリストを追加できます。",
+      "census": "ForestGEO センサスコード（Condit 1998）",
+      "ams": "ForestGEO 枯死・損傷（AMS）",
+      "amsDesc": "AMS を加えると、各幹で AMS の項目も記録し、幹の枯死は AMS の生存状態で判定します。"
+    },
+    "census": {
+      "intro": "毎木調査テンプレート：樹高・写真・形質を追加または削除でき、健全度コードに AMS と独自のコードリストを加えられます。その他は毎木調査の流れに従います。",
+      "requiredFixed": "毎木調査の必須項目は調査の流れで決まっており、変更できません。",
+      "paramsFixed": "毎木調査はこの項目をそのまま使います。設定できる項目はありません。",
+      "listsDesc": "健全度コードにここのリストを加えられます。各幹でリストからコードを選びます。",
+      "start": "固定プロットで調査回を開始…",
+      "pick": "どの毎木調査テンプレートを使いますか？",
+      "lastUsed": "{{name}}（前回使用）",
+      "pickFrame": "どの固定プロットで？",
+      "openTitle": "進行中の調査回があります",
+      "openMsg": "このプロットの第 {{n}} 回がまだ終わっていません。終えてから次の回を開始してください。",
+      "openGo": "進行中の回を開く"
+    }
   }
 }

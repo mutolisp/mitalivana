@@ -9,7 +9,7 @@ import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { Text, View } from 'react-native';
 import type { ComponentValues, FieldValue, Problem } from '~/survey/registry';
-import type { ComponentInstance, Label } from '~/survey/template/types';
+import type { CodeList, ComponentInstance, Label } from '~/survey/template/types';
 
 export type EditorContext = {
   /** Phenology shows plant or animal fields by the taxon's kingdom and class. */
@@ -20,6 +20,10 @@ export type EditorContext = {
   /** Photos and audio are rows of their own: the host adds and removes them. */
   onAddMedia?: (uri: string) => void;
   onRemoveMedia?: (uri: string) => void;
+  /** No input takes the focus on its own (a whole template's preview, not one record). */
+  noAutoFocus?: boolean;
+  /** The template's own code lists (a choice's codes). */
+  codelists?: readonly CodeList[];
 };
 
 export type EditorProps = {

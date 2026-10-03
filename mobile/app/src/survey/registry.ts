@@ -81,6 +81,7 @@ export const COMPONENT_TYPES = [
   'phenology',
   'traits',
   'environment',
+  'choice',
 ] as const;
 export type ComponentType = (typeof COMPONENT_TYPES)[number];
 
@@ -107,7 +108,62 @@ export type ComponentDef = {
   exportMap: ExportMap | ((params: Params, level: SurveyLevel) => ExportMap);
   /** i18n key of its name (built-ins; a template's own label overrides it). */
   labelKey: string;
+  /**
+   * Which parameter changes a running survey can take (decided 2026-10-03:
+   * only those that add choices or widen a range). Left out: any change needs
+   * a new survey. Called only when the parameters differ.
+   */
+  paramsChange?: (prev: Params, next: Params) => ParamsChange;
 };
+
+export type ParamsChange = 'same' | 'additive' | 'breaking';
+
+const sameJson = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+const asList = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
+
+/** Lists under `grow` may gain items (any order); keys under `free` may change; anything else must stay. */
+const growing =
+  (grow: readonly string[], free: readonly string[] = []) =>
+  (prev: Params, next: Params): ParamsChange => {
+    for (const k of new Set([...Object.keys(prev), ...Object.keys(next)])) {
+      if (grow.includes(k)) {
+        const n = asList(next[k]);
+        if (!asList(prev[k]).every((x) => n.includes(x))) return 'breaking';
+      } else if (!free.includes(k) && !sameJson(prev[k], next[k])) return 'breaking';
+    }
+    return 'additive';
+  };
+
+/** A count may go up, not down (photos, recordings). */
+const notLower =
+  (key: string) =>
+  (prev: Params, next: Params): ParamsChange => {
+    for (const k of new Set([...Object.keys(prev), ...Object.keys(next)])) {
+      if (k === key) {
+        if (!(Number(next[k]) >= Number(prev[k]))) return 'breaking';
+      } else if (!sameJson(prev[k], next[k])) return 'breaking';
+    }
+    return 'additive';
+  };
+
+/** Traits may be added, relabelled, or have their range widened; unit, integer and id stay. */
+function traitsChange(prev: Params, next: Params): ParamsChange {
+  const nextTraits = asList(next.traits) as TraitDef[];
+  for (const p of asList(prev.traits) as TraitDef[]) {
+    const n = nextTraits.find((x) => x?.id === p?.id);
+    if (!n || (n.unit ?? null) !== (p.unit ?? null) || !!n.integer !== !!p.integer) return 'breaking';
+    if (n.min != null && (p.min == null || n.min > p.min)) return 'breaking';
+    if (n.max != null && (p.max == null || n.max < p.max)) return 'breaking';
+  }
+  for (const k of new Set([...Object.keys(prev), ...Object.keys(next)])) if (k !== 'traits' && !sameJson(prev[k], next[k])) return 'breaking';
+  return 'additive';
+}
+
+/** How a component's parameters changed between two template versions. */
+export function paramsChangeOf(d: ComponentDef, prev: Params, next: Params): ParamsChange {
+  if (sameJson(prev, next)) return 'same';
+  return d.paramsChange ? d.paramsChange(prev, next) : 'breaking';
+}
 
 export function defaultLevelOf(d: ComponentDef, style: SurveyStyle): SurveyLevel {
   return d.defaultLevelFor?.[style] ?? d.defaultLevel;
@@ -135,11 +191,12 @@ export const LEVEL_TABLE: Readonly<Record<SurveyLevel, string>> = {
   stem: 'fw_stem_measures',
 };
 
-/** The values table of the levels that have one outside the census. */
+/** The values table of each level that has one (a census tree's: per census, fw_individual_values). */
 const VALUES_TABLE: Readonly<Partial<Record<SurveyLevel, ValuesTable>>> = {
   survey: 'fw_survey_values',
   unit: 'fw_unit_values',
   occurrence: 'fw_occurrence_values',
+  individual: 'fw_individual_values',
 };
 
 const col = (level: SurveyLevel, field: string, valueType: ValueType, rule?: FieldRule): FieldDef => ({
@@ -392,6 +449,7 @@ const DEFS: readonly ComponentDef[] = [
     },
     exportMap: { dwc: { recorded_by: 'recordedBy', identified_by: 'identifiedBy' } },
     labelKey: 'survey.component.workers',
+    paramsChange: growing(['roles']),
   },
   {
     type: 'location',
@@ -429,6 +487,7 @@ const DEFS: readonly ComponentDef[] = [
             },
           },
     labelKey: 'survey.component.location',
+    paramsChange: growing(['methods']),
   },
   {
     type: 'dbh',
@@ -510,6 +569,8 @@ const DEFS: readonly ComponentDef[] = [
       ),
     }),
     labelKey: 'survey.component.health',
+    // Adding a code set (AMS, a code list of the template's) only adds fields.
+    paramsChange: growing(['codesets']),
   },
   {
     type: 'photos',
@@ -524,6 +585,7 @@ const DEFS: readonly ComponentDef[] = [
     fields: () => [{ field: 'photos', storage: { media: 'photo' } }],
     exportMap: { dwc: { photos: 'associatedMedia' } },
     labelKey: 'survey.component.photos',
+    paramsChange: notLower('max'),
   },
   {
     type: 'audio',
@@ -537,6 +599,7 @@ const DEFS: readonly ComponentDef[] = [
     fields: () => [{ field: 'audio', storage: { media: 'audio' } }],
     exportMap: { dwc: { audio: 'associatedMedia' } },
     labelKey: 'survey.component.audio',
+    paramsChange: notLower('max'),
   },
   {
     type: 'abundance',
@@ -554,6 +617,8 @@ const DEFS: readonly ComponentDef[] = [
     check: (p, v) => abundanceProblems(p, v),
     exportMap: { dwc: { organism_quantity: 'organismQuantity', organism_quantity_type: 'organismQuantityType' } },
     labelKey: 'survey.component.abundance',
+    // The default scale is only what the form opens on.
+    paramsChange: growing(['kinds'], ['default']),
   },
   {
     type: 'frequency',
@@ -650,14 +715,17 @@ const DEFS: readonly ComponentDef[] = [
       mof: { leaf_phenology: { measurementType: 'leafPhenology' } },
     },
     labelKey: 'survey.component.phenology',
+    paramsChange: growing(['fields']),
   },
   {
     type: 'traits',
     required: false,
     cardinality: 'many',
-    levels: ['occurrence'],
-    styles: NEW_STYLES,
+    // On a census tree too (2D-b): measured each census, like its height.
+    levels: ['occurrence', 'individual'],
+    styles: ALL_STYLES,
     defaultLevel: 'occurrence',
+    defaultLevelFor: { individual: 'individual' },
     // An example for the builder (2D) to start from; a template writes its own labels.
     defaultParams: { traits: [{ id: 'leaf_length', label: { text: '葉長', tr: { en: 'Leaf length' } }, unit: 'cm', min: 0 }] },
     checkParams: (p) => {
@@ -682,6 +750,7 @@ const DEFS: readonly ComponentDef[] = [
       ),
     }),
     labelKey: 'survey.component.traits',
+    paramsChange: traitsChange,
   },
   {
     type: 'environment',
@@ -714,8 +783,35 @@ const DEFS: readonly ComponentDef[] = [
       },
     },
     labelKey: 'survey.component.environment',
+    paramsChange: growing(['fields']),
+  },
+  {
+    // 自訂選項欄 (2D-b): one code, or several, from one of the template's own
+    // code lists — the user's categories (microhabitat, substrate …). The
+    // validator checks the list exists; codes keep their value once used
+    // (classifyChange on code lists).
+    type: 'choice',
+    required: false,
+    cardinality: 'many',
+    levels: ['survey', 'unit', 'occurrence'],
+    styles: NEW_STYLES,
+    defaultLevel: 'occurrence',
+    defaultParams: { list: 'list_1', multi: false },
+    checkParams: (p) => {
+      const out: string[] = [];
+      if (typeof p.list !== 'string' || !p.list.trim()) out.push("list must name one of the template's code lists");
+      if (typeof p.multi !== 'boolean') out.push('multi must be true or false');
+      return out;
+    },
+    fields: (p, level, key) => [val(level, key, 'value', p.multi ? 'json' : 'text')],
+    // The list's own name says what was measured; 2E writes it from the template.
+    exportMap: (p) => ({ mof: { value: { measurementType: String(p.list) } } }),
+    labelKey: 'survey.component.choice',
   },
 ];
+
+/** A choice's parameters: which of the template's code lists, one code or several. */
+export type ChoiceParams = { list: string; multi: boolean };
 
 const BY_TYPE = new Map<string, ComponentDef>(DEFS.map((d) => [d.type, d]));
 

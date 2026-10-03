@@ -26,6 +26,7 @@ import { buildTrackGeoJSON } from './track';
 import { readSyncBlock, type SyncBlock } from './mergeEngine';
 import { decodeUtf8 } from './utf8';
 import { censusExportFromFile, isCensusExport, type CensusExportDoc } from '../survey/db/censusExportCore';
+import { isSurveyDoc, type SurveyDoc } from '../survey/db/surveyDocCore';
 import type {
   ImportedCollectionTrip,
   ImportedPlot,
@@ -66,6 +67,11 @@ export type ReadRecordImport = { sync?: SyncBlock | null } & (
       kind: 'survey';
       census: CensusExportDoc;
       photos: ImportedPhotoBlob[];
+    }
+  | {
+      /** A checklist / plot-style survey as one document (surveyDocCore.ts); team sync only so far. */
+      kind: 'modular';
+      survey: SurveyDoc;
     }
 );
 
@@ -214,11 +220,12 @@ function loadRecordDoc(text: string): Record<string, unknown> | null {
   return censusExportFromFile(doc) as Record<string, unknown> | null;
 }
 
-function docKind(doc: Record<string, unknown> | null): 'plot' | 'session' | 'collection' | 'gloria' | 'survey' {
+function docKind(doc: Record<string, unknown> | null): 'plot' | 'session' | 'collection' | 'gloria' | 'survey' | 'modular' {
   // First the kinds that say what they are (`record_type`), then GLORIA: a
   // GLORIA document has none of the other kinds' keys, and an older build
   // would otherwise fall through to "session".
   if (isCensusExport(doc)) return 'survey';
+  if (isSurveyDoc(doc)) return 'modular';
   if (isGloriaDoc(doc)) return 'gloria';
   if (doc?.plot) return 'plot';
   // Before the generic `event` test, not after: a collection document carries
@@ -297,6 +304,8 @@ export function readRecordImportFromBytes(raw: Uint8Array): ReadRecordImport {
         return { sync: readSyncBlock(doc), kind: 'collection', collection: collectionFromDoc(doc), photos: [], audio: [] };
       case 'survey':
         return { kind: 'survey', census: doc as unknown as CensusExportDoc, photos: [] };
+      case 'modular':
+        return { sync: readSyncBlock(doc), kind: 'modular', survey: doc as unknown as SurveyDoc };
       default:
         return { sync: readSyncBlock(doc), kind: 'session', session: sessionFromDoc(doc), photos: [], audio: [] };
     }
@@ -313,6 +322,10 @@ export function readRecordImportFromBytes(raw: Uint8Array): ReadRecordImport {
   if (kind === 'gloria') {
     if (!isGloriaDoc(doc)) throw new ImportError('unknownKind');
     return { sync: readSyncBlock(doc), kind: 'gloria', gloria: doc };
+  }
+  if (kind === 'modular') {
+    if (!isSurveyDoc(doc)) throw new ImportError('unknownKind');
+    return { sync: readSyncBlock(doc), kind: 'modular', survey: doc };
   }
 
   // Pass 2 — the media bytes, now that the kind is known and accepted.

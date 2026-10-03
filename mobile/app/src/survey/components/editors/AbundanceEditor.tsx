@@ -16,7 +16,8 @@ import { ProblemLines, type EditorProps } from './shared';
 
 type Kind = (typeof ABUNDANCE_KINDS)[number];
 
-export function AbundanceEditor({ instance, values, onChange, problems, readOnly }: EditorProps) {
+export function AbundanceEditor({ instance, values, onChange, problems, readOnly, context }: EditorProps) {
+  const autoFocus = !context?.noAutoFocus;
   const { t } = useTranslation();
   const kinds = (Array.isArray(instance.params.kinds) ? instance.params.kinds : ['BB']) as Kind[];
   const type = typeof values.organism_quantity_type === 'string' ? values.organism_quantity_type : null;
@@ -61,13 +62,14 @@ export function AbundanceEditor({ instance, values, onChange, problems, readOnly
       ) : null}
       {kind === 'percent' ? (
         <>
-          <PercentInput value={text} onChange={(v) => typed(v, 'percent')} />
+          <PercentInput value={text} onChange={(v) => typed(v, 'percent')} autoFocus={autoFocus} />
           <PercentQuickValues onPick={(v) => typed(v, 'percent')} />
         </>
       ) : null}
-      {kind === 'count' ? <CountInput value={text} onChange={(v) => typed(v, 'count')} suffix={t('survey.editor.abundance.countSuffix')} /> : null}
+      {kind === 'count' ? <CountInput value={text} onChange={(v) => typed(v, 'count')} suffix={t('survey.editor.abundance.countSuffix')} autoFocus={autoFocus} /> : null}
       {kind === 'DBH' ? (
         <DBHInput
+          autoFocus={autoFocus}
           stems={stems}
           stemDraft={dbhDraft}
           setStemDraft={setDbhDraft}

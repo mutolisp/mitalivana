@@ -30,7 +30,7 @@ export function ChangeList({ changes }: { changes: MergeChange[] }) {
           </Text>
           {c.fields.map((f) => (
             <Text key={f.f} className="text-xs text-gray-600 dark:text-gray-300">
-              {fieldLabel(t, f.f)}：{fmt(f.f, f.from, { t, tbl: c.tbl, key: c.label })} → {fmt(f.f, f.to, { t, tbl: c.tbl, key: c.label })}
+              {fieldLabel(t, f.f, c.tbl)}：{fmt(f.f, f.from, { t, tbl: c.tbl, key: c.label })} → {fmt(f.f, f.to, { t, tbl: c.tbl, key: c.label })}
             </Text>
           ))}
         </View>

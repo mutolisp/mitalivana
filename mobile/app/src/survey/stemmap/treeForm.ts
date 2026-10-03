@@ -7,10 +7,11 @@
  * Pure: check:survey-db runs it under Node.
  */
 import type { LocationInput, MeasureRow, StemView, TaxonInput, TreeDraft, TreeView } from '../db/stemmapCore';
+import type { SurveyTemplate } from '../template/types';
 import { parseNum } from '../../lib/parseNum';
 import { AMS_CODESET, AMS_VARIABLES, amsField, amsStemDead, type AmsValues } from '../codesets/forestgeoAms2021';
 import { componentProblems } from '../componentRules';
-import { componentDef } from '../registry';
+import { componentDef, type TraitDef } from '../registry';
 import { formatStemTag } from './tags';
 import { fromGps, fromGrid, fromPolar, locate, stakeXY, type FrameGeometry, type StakeCorner, type XY } from './coords';
 import { treeIssues, type TreeIssue } from './review';
@@ -53,6 +54,9 @@ export type StemForm = {
   previousCodes: string[];
   /** AMS values as typed: numbers stay text until saved (markers like '?' kept). */
   ams: AmsForm;
+  /** Codes from the census template's own health code lists, per list id; the previous census's beside them. */
+  custom: Readonly<Record<string, readonly string[]>>;
+  previousCustom: Readonly<Record<string, readonly string[]>>;
 };
 
 /** One stem's AMS entries: a code, a list of codes, or text for a number. */
@@ -66,6 +70,8 @@ export type TreeForm = {
   loc: LocForm;
   notes: string;
   height: string;
+  /** Trait values as typed, per Traits component key and trait id. */
+  traits: Readonly<Record<string, Readonly<Record<string, string>>>>;
   treeCodes: string[];
   /** One set of codes for every stem (design 13c "全部分支相同"). */
   same: boolean;
@@ -106,7 +112,7 @@ export function emptyLoc(quadrat: string, at?: XY | null, g?: FrameGeometry): Lo
 export function formFromView(v: TreeView | null, opts: { quadrat: string; at?: XY | null; geometry: FrameGeometry; amsOn?: boolean }): TreeForm {
   const amsOn = opts.amsOn ?? false;
   if (!v) {
-    const stem: StemForm = { key: 'new-1', stemNo: null, firstSurveyId: null, dbh: '', pom: '1.3', dead: false, codes: [], notes: '', previous: null, previousCodes: [], ams: {} };
+    const stem = newStem('new-1');
     return {
       tag: '',
       tagTyped: false,
@@ -114,6 +120,7 @@ export function formFromView(v: TreeView | null, opts: { quadrat: string; at?: X
       loc: emptyLoc(opts.quadrat, opts.at, opts.geometry),
       notes: '',
       height: '',
+      traits: {},
       treeCodes: [],
       same: true,
       allCodes: [],
@@ -136,6 +143,8 @@ export function formFromView(v: TreeView | null, opts: { quadrat: string; at?: X
     previous: s.previous,
     previousCodes: s.previousCodes,
     ams: amsToForm(s.ams),
+    custom: s.custom,
+    previousCustom: s.previousCustom,
   }));
   const main = v.stems.find((s) => (s.measure ?? s.previous)?.is_main === 1) ?? v.stems[0];
   const first = stems[0]?.codes ?? [];
@@ -147,6 +156,7 @@ export function formFromView(v: TreeView | null, opts: { quadrat: string; at?: X
     loc,
     notes: i.notes ?? '',
     height: str(v.heightM),
+    traits: Object.fromEntries(Object.entries(v.traits).map(([k, vals]) => [k, Object.fromEntries(Object.entries(vals).map(([id, n]) => [id, String(n)]))])),
     treeCodes: [...v.treeCodes],
     same,
     allCodes: same ? [...first] : [],
@@ -154,6 +164,11 @@ export function formFromView(v: TreeView | null, opts: { quadrat: string; at?: X
     mainKey: main ? String(main.stem.stem_no) : (stems[0]?.key ?? ''),
     amsOn,
   };
+}
+
+/** A stem added in the form. */
+export function newStem(key: string): StemForm {
+  return { key, stemNo: null, firstSurveyId: null, dbh: '', pom: '1.3', dead: false, codes: [], notes: '', previous: null, previousCodes: [], ams: {}, custom: {}, previousCustom: {} };
 }
 
 /** A stored AMS value as the form shows it. */
@@ -248,8 +263,10 @@ const unreadable = (text: string) => text.trim() !== '' && parseNum(text) == nul
  * empty, so saving it would silently drop the entry; the form refuses
  * instead. Stems are named by their tag; the rest by key.
  */
-export function unreadableFields(form: TreeForm, treeTag: string): { stemTag: string | null; field: 'dbh' | 'pom' | 'height' | 'position' }[] {
-  const out: { stemTag: string | null; field: 'dbh' | 'pom' | 'height' | 'position' }[] = [];
+export type UnreadableField = { stemTag: string | null; field: 'dbh' | 'pom' | 'height' | 'position' | 'trait'; trait?: { key: string; id: string } };
+
+export function unreadableFields(form: TreeForm, treeTag: string): UnreadableField[] {
+  const out: UnreadableField[] = [];
   const numbers = stemNumbers(form);
   for (const s of form.stems) {
     const tag = stemTagOf(treeTag, numbers.get(s.key)!);
@@ -257,6 +274,9 @@ export function unreadableFields(form: TreeForm, treeTag: string): { stemTag: st
     if (unreadable(s.pom)) out.push({ stemTag: tag, field: 'pom' });
   }
   if (unreadable(form.height)) out.push({ stemTag: null, field: 'height' });
+  for (const [key, vals] of Object.entries(form.traits)) {
+    for (const [id, text] of Object.entries(vals)) if (unreadable(text)) out.push({ stemTag: null, field: 'trait', trait: { key, id } });
+  }
   const l = form.loc;
   const loc = l.method === 'grid' ? [l.lx, l.ly] : l.method === 'xy' ? [l.x, l.y] : l.method === 'polar' ? [l.dist, l.az, l.slope] : [l.lat, l.lng, l.acc];
   if (loc.some(unreadable)) out.push({ stemTag: null, field: 'position' });
@@ -312,6 +332,7 @@ function asView(form: TreeForm, v: TreeView | null, surveyId: number): TreeView 
     treeCodes: form.treeCodes,
     previousTreeCodes: v?.previousTreeCodes ?? [],
     heightM: parseNum(form.height),
+    traits: traitNumbers(form),
     stems: form.stems.map((s, i): StemView => {
       const codes = codesOf(form, s);
       const dbh = parseNum(s.dbh);
@@ -344,9 +365,46 @@ function asView(form: TreeForm, v: TreeView | null, surveyId: number): TreeView 
         codes,
         previousCodes: s.previousCodes,
         ams,
+        custom: s.custom,
+        previousCustom: s.previousCustom,
       };
     }),
   };
+}
+
+/** The trait values as numbers; an empty entry is null (it clears the stored value). */
+function traitNumbers(form: TreeForm): Record<string, Record<string, number>> {
+  const out: Record<string, Record<string, number>> = {};
+  for (const [key, vals] of Object.entries(form.traits)) {
+    for (const [id, text] of Object.entries(vals)) {
+      const n = parseNum(text);
+      if (n != null) (out[key] ??= {})[id] = n;
+    }
+  }
+  return out;
+}
+
+/** The census template's Traits components on the tree, with their traits (the form's trait card). */
+export function treeTraits(t: SurveyTemplate | null): { key: string; label: unknown; traits: TraitDef[] }[] {
+  return (t?.components ?? [])
+    .filter((c) => c.type === 'traits' && c.level === 'individual')
+    .map((c) => ({ key: c.key, label: c.label, traits: Array.isArray(c.params.traits) ? (c.params.traits as TraitDef[]) : [] }));
+}
+
+/**
+ * Trait values outside their trait's range (or not whole where it must be),
+ * by the registry's own rules: an error each, blocking the save.
+ */
+export function traitIssues(form: TreeForm, t: SurveyTemplate | null): { key: string; id: string; code: string }[] {
+  const def = componentDef('traits')!;
+  const values = traitNumbers(form);
+  const out: { key: string; id: string; code: string }[] = [];
+  for (const c of (t?.components ?? []).filter((x) => x.type === 'traits' && x.level === 'individual')) {
+    for (const p of componentProblems(def, c.params, 'individual', c.key, values[c.key] ?? {})) {
+      if (p.severity === 'error' && p.field != null) out.push({ key: c.key, id: p.field, code: p.code });
+    }
+  }
+  return out;
 }
 
 /**
@@ -406,6 +464,7 @@ export function formToDraft(form: TreeForm, v: TreeView | null, opts: { surveyId
     location: recruit ? locationInput(form.loc) : null,
     notes: form.notes.trim() || null,
     heightM: parseNum(form.height),
+    traits: Object.fromEntries(Object.entries(form.traits).map(([k, vals]) => [k, Object.fromEntries(Object.entries(vals).map(([id, text]) => [id, parseNum(text)]))])),
     treeCodes: form.treeCodes,
     mainStemNo: numbers.get(form.mainKey) ?? 1,
     stems: form.stems.map((s) => ({
@@ -416,6 +475,7 @@ export function formToDraft(form: TreeForm, v: TreeView | null, opts: { surveyId
       codes: codesOf(form, s),
       notes: s.notes.trim() || null,
       ...(form.amsOn ? { ams: amsFromForm(s.ams) } : {}),
+      custom: s.custom,
     })),
     recordedBy: opts.recordedBy,
   };

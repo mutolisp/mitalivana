@@ -248,7 +248,7 @@
     "mergeNoGloria": "GLORIA 調查是單一山峰的單次監測週期，不能合併。",
     "duplicateNoGloria": "GLORIA 調查不能複製。下一個監測週期請從「新增 GLORIA 調查」選同一個山峰開始。",
     "gloriaCount_other": "GLORIA {{count}} 筆（{{summits}} 座山峰）",
-    "deleteRecoverable": "名錄、樣區、GLORIA 調查與每木調查回合 30 天內可從記錄分頁 ⋯ →「最近刪除」救回。",
+    "deleteRecoverable": "名錄、樣區、GLORIA 調查、名錄型／樣區型調查與每木調查回合 30 天內可從記錄分頁 ⋯ →「最近刪除」救回。",
     "deletePermanent": "採集記錄刪除後無法復原。",
     "activeResume": "繼續記錄",
     "activeSpecies": "物種",
@@ -1692,6 +1692,7 @@
   "recordImport": {
     "unsupportedBundle": "這是多筆記錄的打包檔，請先解壓縮後逐一匯入。",
     "unknownKind": "無法辨識這個檔案的記錄類型。",
+    "modularNotYet": "這是名錄型／樣區型調查的檔案，目前只能透過隊伍同步傳遞；檔案匯入將在後續版本提供。",
     "sessionExistsTitle": "名錄已存在",
     "sessionExistsMsg": "「{{name}}」已在裝置中。要覆蓋更新，還是另存成新副本？",
     "photoConflictTitle": "這筆記錄已有照片",
@@ -3391,7 +3392,15 @@
       "sval": "分支代碼",
       "ival": "個體資料",
       "history": "更正紀錄",
-      "media": "照片"
+      "media": "照片",
+      "sunit": "調查單位",
+      "occ": "出現記錄",
+      "surveyval": "調查欄位",
+      "unitval": "單位欄位",
+      "occval": "出現記錄欄位",
+      "recheck": "複查結果",
+      "funit": "單位配置",
+      "flabel": "形態種"
     },
     "field": {
       "latitude": "緯度",
@@ -3487,7 +3496,21 @@
       "ref_code": "參考點",
       "azimuth_deg": "方位角 (°)",
       "azimuth_ref": "方位角基準",
-      "status": "狀態"
+      "status": "狀態",
+      "parent": "上層單位",
+      "geometry_geojson": "範圍",
+      "shape": "形狀",
+      "width_m": "寬 (m)",
+      "length_m": "長 (m)",
+      "radius_m": "半徑 (m)",
+      "retired_at": "停用時間",
+      "phase": "階段",
+      "outcome": "結果",
+      "occurrence": "對應記錄",
+      "identified_by": "鑑定者",
+      "elevation_source": "海拔來源",
+      "surveyUnit": "單位",
+      "measureUnit": "量測單位"
     },
     "from": "來自 {{name}}",
     "fromAt": "來自 {{name}}，{{date}} 上傳",
@@ -4138,7 +4161,7 @@
     "restored": "已還原（{{n}} 項變更）",
     "restoreFail": "無法還原",
     "deletedTitle": "最近刪除",
-    "deletedIntro": "刪除的名錄、樣區調查、GLORIA 調查與每木調查回合，30 天內可從最後一個版本救回（落成已結束的記錄）。照片若已被儲存空間清理刪掉就無法找回。",
+    "deletedIntro": "刪除的名錄、樣區調查、GLORIA 調查、名錄型／樣區型調查與每木調查回合，30 天內可從最後一個版本救回（落成已結束的記錄）。照片若已被儲存空間清理刪掉就無法找回。",
     "deletedNone": "沒有可救回的記錄",
     "deletedAt": "刪除於 {{when}}",
     "daysLeft": "還可保留 {{n}} 天",
@@ -4147,7 +4170,8 @@
       "plot": "樣區調查",
       "gloria": "GLORIA",
       "survey": "每木調查回合",
-      "survey_quadrat": "每木調查樣方"
+      "survey_quadrat": "每木調查樣方",
+      "modular": "名錄型／樣區型調查"
     },
     "recoverTitle": "救回這筆記錄？",
     "recoverMsg": "用最後一個版本重建「{{name}}」，落成已結束的記錄。",
@@ -4180,11 +4204,12 @@
     "surveyPageSubtitle": "左右滑動選擇調查表",
     "surveyStemDesc": "永久樣區的每木位置調查（ForestGEO）：樹號、位置、DBH 與健康代碼。回合從永久樣區開始。",
     "surveyOpenFrames": "開啟永久樣區",
-    "surveyChecklistDesc": "邊走邊記物種，欄位依調查表而定（測試用範例；可從物種分頁直接加入）。",
-    "surveyPlotDesc": "依小區、小樣方逐一記錄；在永久樣區上可複查，先盲測再對照前次清單（測試用範例）。",
     "surveyOnFrame": "在永久樣區上開始…",
     "surveyNoFrames": "還沒有永久樣區。請先在「每木調查」新增一個。",
-    "surveyPageOf": "第 {{n}} 張，共 {{total}} 張"
+    "surveyPageOf": "第 {{n}} 張，共 {{total}} 張",
+    "builderDesc": "建立新的調查表，或修改、複製已有的模板。",
+    "builderDescEmpty": "用元件組出自己的名錄型或樣區型調查表；也可以從範例複製後修改。",
+    "builderManage": "管理模板"
   },
   "count": {
     "increase": "增加{{name}}數量",
@@ -4521,7 +4546,10 @@
       "unsavedTitle": "捨棄變更？",
       "unsavedMsg": "這株的變更還沒儲存。",
       "discard": "捨棄",
-      "errNumber": "這些欄位不是數字："
+      "errNumber": "這些欄位不是數字：",
+      "photosMax": "每棵樹最多 {{max}} 張照片",
+      "traitInteger": "須為整數",
+      "traitRange": "超出範圍（{{range}}）"
     },
     "sync": {
       "blockSizeTitle": "同步區塊大小",
@@ -4589,7 +4617,8 @@
       "structure": "分層",
       "phenology": "物候",
       "traits": "性狀",
-      "environment": "環境"
+      "environment": "環境",
+      "choice": "自訂選項"
     },
     "editor": {
       "elsewhere": "這個元件在記錄畫面上輸入。",
@@ -4644,6 +4673,10 @@
         "recorded": "已記錄",
         "stems_other": "{{count}} 分枝",
         "layers_other": "{{count}} 層"
+      },
+      "choice": {
+        "noList": "這個選項欄的清單不見了，請到調查表模板檢查。",
+        "multi": "可複選"
       }
     },
     "ams": {
@@ -4766,7 +4799,7 @@
     "ended": "結束時間",
     "reopen": "重新開始",
     "deleteTitle": "刪除調查",
-    "deleteMsg_other": "刪除「{{name}}」與其中 {{count}} 筆出現記錄？刪除後無法救回。",
+    "deleteMsg_other": "刪除「{{name}}」與其中 {{count}} 筆出現記錄？",
     "noExport": "名錄型、樣區型調查還不能匯出",
     "notInProjectExport_other": "{{count}} 筆名錄型、樣區型調查還不能匯出，不會包含在這次匯出中",
     "noDuplicate": "名錄型、樣區型調查還不能複製",
@@ -4830,6 +4863,7 @@
       "notOpen": "盲測結束後才能複查",
       "intro": "第 {{n}} 次調查的清單，依單位排列。這次盲測沒記到的物種，請逐一記下結果（還有 {{open}} 種待確認）。",
       "nothing": "前次調查沒有記錄物種。",
+      "noPrevious": "這台手機沒有前次（第 {{n}} 次）調查，無法列出前次清單；可從隊伍同步取得，或在有前次調查的手機上複查。",
       "last": "前次：{{value}}",
       "recordedBlind": "本次已記",
       "notChecked": "單位已停用",
@@ -4873,7 +4907,7 @@
       "section": "樣區型調查",
       "units": "單位配置",
       "labels": "形態種清單",
-      "start": "開始樣區型調查（測試用）",
+      "start": "開始樣區型調查…",
       "surveyNo": "第 {{n}} 次 · {{name}}",
       "unitsTitle": "{{code}} 單位配置",
       "unitsDesc": "樣區型調查開始時帶入這些單位。調查用過的單位只能停用，不能刪除或改代號。",
@@ -4896,6 +4930,233 @@
       "removePhoto": "移除照片"
     },
     "lockedBanner": "已結束並鎖定。從右上角 ⋯ 解鎖後才能編輯。",
-    "surveyNo": "第 {{n}} 次"
+    "surveyNo": "第 {{n}} 次",
+    "recoverNumberTaken": "這個永久樣區已有同一模板、同一次數的調查，請先刪除它再救回。",
+    "upgrade": {
+      "banner": "這份調查表有新版本（第 {{n}} 版）",
+      "msg": "升級到第 {{n}} 版：新增的欄位會出現，已記的資料不變。"
+    },
+    "carried": "與第 {{n}} 次相同（開始時帶入，請確認）：{{fields}}"
+  },
+  "builder": {
+    "title": "調查表模板",
+    "desc": "用元件組出自己的名錄型、樣區型調查表，或調整每木調查",
+    "intro": "模板決定一份調查要記哪些欄位。修改已存的模板會存成新版本；只是增加或放寬的修改，進行中的調查可以升級，其他修改只用在之後開始的調查。",
+    "section": {
+      "drafts": "編輯中的新模板",
+      "mine": "我的模板",
+      "samples": "範例（只能複製）",
+      "builtin": "內建（只能複製）"
+    },
+    "showArchived_other": "顯示已封存（{{count}}）",
+    "hideArchived": "隱藏已封存",
+    "empty": "還沒有自己的模板。按下方「建立模板」開始，或複製一個範例。",
+    "version": "第 {{n}} 版",
+    "uses_other": "用過 {{count}} 次",
+    "usesActive_other": "進行中 {{count}}",
+    "draftTag": "有未儲存的修改",
+    "newTemplate": "新模板，尚未儲存",
+    "untitled": "未命名",
+    "create": "建立模板",
+    "action": {
+      "edit": "編輯",
+      "copy": "複製",
+      "archive": "封存",
+      "unarchive": "取消封存",
+      "copyToMine": "複製成我的模板",
+      "export": "匯出成檔案"
+    },
+    "archived": "已封存「{{name}}」。用它開始過的調查不受影響。",
+    "new": {
+      "title": "建立模板",
+      "blankChecklist": "空白的名錄型",
+      "blankPlot": "空白的樣區型",
+      "copy": "複製現有的模板…",
+      "copyFrom": "要複製哪一個？",
+      "nameTitle": "模板名稱",
+      "nameMsg": "例如「溪流兩岸植物名錄」。之後可以修改，也可以加上英文名稱。",
+      "create": "建立",
+      "firstUnit": "小區",
+      "copyName": "{{name}} 的複本",
+      "census": "每木調查（複製內建的）"
+    },
+    "notFound": "找不到這份模板的草稿，可能已經儲存或放棄。",
+    "basics": "基本資料",
+    "name": "名稱",
+    "nameEn": "英文名稱（選填）",
+    "versionNext": "已存第 {{n}} 版，儲存後成為第 {{next}} 版",
+    "quickAdd": "允許從別處快速加入物種",
+    "quickAddDesc": "這種調查進行中時，物種分頁、分類樹、常用名錄與檢索表可以直接把物種加進去。",
+    "units": "單位層級",
+    "unitsDesc": "由大到小，最多 {{max}} 層，例如「小區 → 小樣方」。",
+    "unitN": "第 {{n}} 層",
+    "addUnit": "新增下一層",
+    "removeUnit": "移除這一層",
+    "removeUnitMsg": "「{{name}}」和放在這一層的元件會一起移除。",
+    "moveUp": "上移",
+    "moveDown": "下移",
+    "place": {
+      "survey": "每次調查",
+      "unit": "每個{{name}}",
+      "occurrence": "每筆出現記錄",
+      "quadrat": "每個樣方",
+      "tree": "每棵樹",
+      "stem": "每個分支"
+    },
+    "addComponent": "加入元件",
+    "addComponentTitle": "加入到「{{place}}」",
+    "nothingToAdd": "這裡已經沒有可以再加的元件",
+    "fixed": "每份調查都有",
+    "requiredTag": "必填",
+    "preview": "預覽",
+    "previewTitle": "預覽：{{name}}",
+    "previewIntro": "照這份模板開始的調查會長這樣。可以試填，內容不會保存。",
+    "discard": {
+      "title": "放棄修改？",
+      "msg": "草稿會刪掉，模板維持第 {{n}} 版。",
+      "go": "放棄修改",
+      "newTitle": "刪除這個新模板？",
+      "newMsg": "它還沒有儲存過，刪掉後就沒有了。",
+      "newGo": "刪除這個新模板"
+    },
+    "save": {
+      "go": "儲存",
+      "title": "儲存為第 {{n}} 版？",
+      "msgNew": "儲存後就能用它開始調查。",
+      "msgNext": "之後開始的調查會用新版本。",
+      "msgAdditive": "這次只是增加或放寬，進行中的調查可以升級到新版本。",
+      "msgBreaking": "這次有移除或變更的項目：已經開始的調查繼續用原本的版本，之後開始的調查用新版本。",
+      "noChange": "沒有修改",
+      "saved": "已儲存為第 {{n}} 版",
+      "fixFirst": "儲存前請先處理",
+      "invalid": "這份模板還不能儲存：\n{{detail}}"
+    },
+    "issue": {
+      "nameEmpty": "模板需要名稱",
+      "noUnitLevel": "樣區型至少要有一層單位",
+      "unitLabelEmpty": "每一層單位都需要名稱",
+      "traitNameEmpty": "「{{component}}」的第 {{n}} 個性狀需要名稱",
+      "traitRange": "「{{component}}」的第 {{n}} 個性狀，最小值大於最大值",
+      "params": "「{{component}}」的設定有誤：{{detail}}",
+      "choiceList": "「{{component}}」需要選一份代碼清單",
+      "listNameEmpty": "每份代碼清單都需要名稱",
+      "listNoCodes": "代碼清單「{{list}}」還沒有代碼",
+      "codeEmpty": "代碼清單「{{list}}」的第 {{n}} 個代碼是空的",
+      "codeDuplicate": "代碼清單「{{list}}」的第 {{n}} 個代碼與前面的重複",
+      "codeNameEmpty": "代碼清單「{{list}}」的第 {{n}} 個代碼需要名稱"
+    },
+    "upgrade": {
+      "title": "升級進行中的調查？",
+      "msg_other": "有 {{count}} 次進行中的調查用的是舊版本，可以升級到第 {{n}} 版：新增的欄位會出現，已記的資料不變。",
+      "go": "升級",
+      "skip": "不用",
+      "done_other": "已升級 {{count}} 次調查"
+    },
+    "noPlotTemplate": {
+      "title": "還沒有樣區型模板",
+      "msg": "先在「調查表模板」建立一個樣區型模板，或複製範例。"
+    },
+    "pickTemplate": "用哪一份模板？",
+    "componentNameDesc": "留空就顯示「{{name}}」。同一種元件放兩次時（例如兩組性狀），用名稱區分。",
+    "required": "必填",
+    "requiredDesc": "開啟後，沒填的會標示為缺漏，結束調查時會提醒。",
+    "requiredFixed": "每份調查都有的元件，不能取消。",
+    "params": "設定",
+    "param": {
+      "kinds": "可用的豐度尺度",
+      "defaultKind": "預設尺度",
+      "modeCells": "逐格記錄",
+      "modeCount": "只記出現格數",
+      "gridN": "每邊格數",
+      "topEdge": "格網上邊朝向",
+      "layers": "預設分層數",
+      "layerMethods": "各層覆蓋度的記法",
+      "max": "最多幾個",
+      "gpsOnly": "名錄型與樣區型記 GNSS 定位（緯度、經度、精度）。",
+      "none": "這個元件沒有可設定的項目。"
+    },
+    "traits": "性狀",
+    "traitN": "第 {{n}} 個性狀",
+    "trait": {
+      "unit": "單位",
+      "min": "最小值",
+      "max": "最大值",
+      "integer": "只能填整數",
+      "remove": "移除這個性狀",
+      "add": "新增性狀"
+    },
+    "removeComponent": "移除元件",
+    "removeComponentMsg": "從模板移除「{{name}}」？",
+    "changeAdditive": "和已存的版本相比只是增加或放寬，進行中的調查可以升級。",
+    "changeBreaking": "和第 {{n}} 版相比有移除或變更：已經開始的調查會繼續用第 {{n}} 版。",
+    "summary": {
+      "layers_other": "{{count}} 層",
+      "fields_other": "{{count}} 項",
+      "max_other": "最多 {{count}} 個",
+      "gps": "GNSS 定位"
+    },
+    "kind": {
+      "bb": "Braun-Blanquet",
+      "percent": "覆蓋度 %",
+      "dbh": "胸徑（DBH）"
+    },
+    "listSep": "、",
+    "lists": "代碼清單",
+    "listsDesc": "自訂選項欄從這裡的清單選擇。代碼是記錄下來的值，名稱只用於顯示。",
+    "list": {
+      "newName": "代碼清單 {{n}}",
+      "codes_other": "{{count}} 個代碼",
+      "usedBy": "使用中：{{names}}",
+      "unused": "目前沒有元件使用這份清單",
+      "add": "新增代碼清單",
+      "remove": "刪除清單",
+      "removeMsg": "刪除「{{name}}」？",
+      "codesTitle": "代碼",
+      "codesDesc": "代碼是記錄下來的值，模板儲存後就不能再改。不再使用的代碼請設為停用，已記錄的資料仍會顯示。",
+      "codeFixed": "代碼 {{code}}（已儲存，不能修改）",
+      "code": "代碼",
+      "deprecated": "停用",
+      "deprecatedDesc": "不再出現在選項中；已記錄的資料仍會顯示",
+      "removeCode": "移除這個代碼",
+      "addCode": "新增代碼"
+    },
+    "choice": {
+      "single": "單選",
+      "multi": "複選",
+      "list": "代碼清單",
+      "noList": "尚未選擇",
+      "change": "更換",
+      "editList": "編輯這份清單",
+      "multiSwitch": "可以複選"
+    },
+    "import": {
+      "fromFile": "從檔案匯入…",
+      "failTitle": "無法匯入",
+      "newerApp": "這份模板用到這個版本的 app 還不認得的元件（{{types}}），請先更新 app。",
+      "invalid": "檔案內容有誤：{{detail}}",
+      "notTemplate": "這不是 Mitalivana 的模板檔（.mtpl.json）。",
+      "done": "已匯入「{{name}}」",
+      "doneRenamed": "已匯入「{{name}}」。這裡已有同一份模板，匯入的另存成新的一份。"
+    },
+    "health": {
+      "title": "健康代碼",
+      "desc": "每個分支記錄哪些代碼。ForestGEO 普查代碼是每木調查的基礎，不能取消；可以加上 AMS 與自己的代碼清單。",
+      "census": "ForestGEO 普查代碼（Condit 1998）",
+      "ams": "ForestGEO 死亡與損傷（AMS）",
+      "amsDesc": "加上 AMS 後，每個分支多記 AMS 的欄位，分支是否死亡依 AMS 存活狀態判定。"
+    },
+    "census": {
+      "intro": "每木調查模板：可以加減樹高、照片與性狀；健康代碼可加上 AMS 與自己的代碼清單。其餘沿用每木調查的流程。",
+      "requiredFixed": "每木調查的必填項目由調查流程決定，不能修改。",
+      "paramsFixed": "每木調查固定使用這個元件，沒有可調整的設定。",
+      "listsDesc": "健康代碼可以加上這裡的清單，每個分支從清單中選代碼。",
+      "start": "在永久樣區開始回合…",
+      "pick": "用哪一份每木調查模板？",
+      "lastUsed": "{{name}}（上回合使用）",
+      "pickFrame": "在哪個永久樣區？",
+      "openTitle": "還有進行中的回合",
+      "openMsg": "這個樣區的第 {{n}} 回合還沒結束，結束後才能開始下一回合。",
+      "openGo": "開啟進行中的回合"
+    }
   }
 }

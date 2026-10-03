@@ -3124,6 +3124,59 @@ const MIGRATIONS: Migration[] = [
       db.executeSync(`CREATE INDEX IF NOT EXISTS idx_fwrecheck_occ ON fw_rechecks(occurrence_id) WHERE occurrence_id IS NOT NULL;`);
     },
   },
+  {
+    // record_versions: + 'modular', a checklist / plot-style survey kept as one
+    // document (Phase 2C-b; src/survey/db/surveyDocCore.ts) — its versions,
+    // and recovery for 30 days after it is deleted.
+    version: 85,
+    up: (db) => {
+      replaceTable(
+        db,
+        'record_versions',
+        `CREATE TABLE record_versions (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          record_kind TEXT NOT NULL CHECK (record_kind IN ('session', 'plot', 'gloria', 'survey_quadrat', 'survey', 'modular')),
+          record_uuid TEXT NOT NULL,
+          label TEXT,
+          reason TEXT NOT NULL CHECK (reason IN ('done', 'leave', 'before_merge', 'after_merge', 'before_restore', 'before_import', 'before_delete', 'manual')),
+          note TEXT,
+          content_hash TEXT NOT NULL,
+          size INTEGER NOT NULL,
+          doc TEXT NOT NULL,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          deleted_at INTEGER
+        )`,
+        {},
+      );
+    },
+  },
+  {
+    // The template builder (Phase 2D-a). A template being edited is a draft
+    // until it is saved as its next version (survey_templates); the builder
+    // keeps it here so leaving a screen, or the app, loses nothing. A
+    // template is archived rather than deleted: surveys keep their own copy,
+    // so an archived one only stops being offered. Both device-local, not
+    // synced; one row per template id. No foreign keys: built-in and sample
+    // templates live in code.
+    version: 86,
+    up: (db) => {
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS survey_template_drafts (
+          template_id TEXT PRIMARY KEY,
+          base_version INTEGER,
+          doc TEXT NOT NULL,
+          updated_at INTEGER NOT NULL
+        );
+      `);
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS survey_template_archive (
+          template_id TEXT PRIMARY KEY,
+          archived_at INTEGER NOT NULL
+        );
+      `);
+    },
+  },
 ];
 
 /** Highest schema version this build knows how to produce. Backup/restore uses

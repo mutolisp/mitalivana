@@ -278,7 +278,7 @@
     "duplicateNoGloria": "GLORIA surveys can't be duplicated. Start the next monitoring cycle from New GLORIA survey and pick the same summit.",
     "gloriaCount_one": "GLORIA {{count}} ({{summits}} summits)",
     "gloriaCount_other": "GLORIA {{count}} ({{summits}} summits)",
-    "deleteRecoverable": "Checklists, plot surveys, GLORIA surveys and tree censuses can be recovered for 30 days from Records ⋯ → “Recently deleted”.",
+    "deleteRecoverable": "Checklists, plot surveys, GLORIA surveys, checklist / plot-style surveys and tree censuses can be recovered for 30 days from Records ⋯ → “Recently deleted”.",
     "deletePermanent": "Collections cannot be recovered once deleted.",
     "activeResume": "Continue recording",
     "activeSpecies": "Species",
@@ -1807,6 +1807,7 @@
   "recordImport": {
     "unsupportedBundle": "This is a multi-record bundle; unzip it and import each record separately.",
     "unknownKind": "Can't tell what kind of record this file holds.",
+    "modularNotYet": "This file holds a checklist / plot-style survey. For now these travel only by team sync; importing the file comes in a later version.",
     "sessionExistsTitle": "Checklist already exists",
     "sessionExistsMsg": "\"{{name}}\" is already on this device. Overwrite it, or save as a new copy?",
     "photoConflictTitle": "This record already has photos",
@@ -3568,7 +3569,15 @@
       "sval": "Stem codes",
       "ival": "Tree data",
       "history": "Corrections",
-      "media": "Photos"
+      "media": "Photos",
+      "sunit": "Survey unit",
+      "occ": "Occurrence",
+      "surveyval": "Survey field",
+      "unitval": "Unit field",
+      "occval": "Occurrence field",
+      "recheck": "Recheck answer",
+      "funit": "Unit layout",
+      "flabel": "Morphospecies"
     },
     "field": {
       "latitude": "Latitude",
@@ -3664,7 +3673,21 @@
       "ref_code": "Reference point",
       "azimuth_deg": "Bearing (°)",
       "azimuth_ref": "Bearing reference",
-      "status": "Status"
+      "status": "Status",
+      "parent": "Parent unit",
+      "geometry_geojson": "Outline",
+      "shape": "Shape",
+      "width_m": "Width (m)",
+      "length_m": "Length (m)",
+      "radius_m": "Radius (m)",
+      "retired_at": "Retired",
+      "phase": "Phase",
+      "outcome": "Answer",
+      "occurrence": "Occurrence",
+      "identified_by": "Identified by",
+      "elevation_source": "Elevation source",
+      "surveyUnit": "Unit",
+      "measureUnit": "Unit of measure"
     },
     "from": "From {{name}}",
     "fromAt": "From {{name}}, uploaded {{date}}",
@@ -4327,7 +4350,7 @@
     "restored": "Restored ({{n}} changes)",
     "restoreFail": "Could not restore",
     "deletedTitle": "Recently deleted",
-    "deletedIntro": "Deleted checklists, plot surveys, GLORIA surveys and tree censuses can be recovered from their latest version for 30 days (as finished records). Photos already removed by the storage clean-up cannot come back.",
+    "deletedIntro": "Deleted checklists, plot surveys, GLORIA surveys, checklist / plot-style surveys and tree censuses can be recovered from their latest version for 30 days (as finished records). Photos already removed by the storage clean-up cannot come back.",
     "deletedNone": "Nothing to recover",
     "deletedAt": "deleted {{when}}",
     "daysLeft": "{{n}} days left",
@@ -4336,7 +4359,8 @@
       "plot": "Plot survey",
       "gloria": "GLORIA",
       "survey": "Tree census",
-      "survey_quadrat": "Tree census quadrat"
+      "survey_quadrat": "Tree census quadrat",
+      "modular": "Checklist / plot-style survey"
     },
     "recoverTitle": "Recover this record?",
     "recoverMsg": "“{{name}}” is rebuilt from its latest version, as a finished record.",
@@ -4369,11 +4393,12 @@
     "surveyPageSubtitle": "Swipe left or right to choose a form",
     "surveyStemDesc": "Tree census on a permanent plot (ForestGEO): tags, positions, DBH and condition codes. Censuses start from the plot.",
     "surveyOpenFrames": "Open permanent plots",
-    "surveyChecklistDesc": "Record species as you walk; the fields follow the form (a test template; species can be added straight from the species tab).",
-    "surveyPlotDesc": "Record subplot by subplot, quadrat by quadrat; on a permanent plot a recheck starts blind, then compares with the last list (a test template).",
     "surveyOnFrame": "Start on a permanent plot…",
     "surveyNoFrames": "There is no permanent plot yet. Add one under Tree census first.",
-    "surveyPageOf": "Card {{n}} of {{total}}"
+    "surveyPageOf": "Card {{n}} of {{total}}",
+    "builderDesc": "Make a new form, or edit or copy one you have.",
+    "builderDescEmpty": "Build your own checklist or plot-style form from components, or start from a copy of a sample.",
+    "builderManage": "Manage templates"
   },
   "count": {
     "increase": "More {{name}}",
@@ -4719,7 +4744,10 @@
       "unsavedTitle": "Discard changes?",
       "unsavedMsg": "This tree’s changes are not saved.",
       "discard": "Discard",
-      "errNumber": "These fields are not numbers:"
+      "errNumber": "These fields are not numbers:",
+      "photosMax": "At most {{max}} photos per tree",
+      "traitInteger": "Must be a whole number",
+      "traitRange": "Out of range ({{range}})"
     },
     "sync": {
       "blockSizeTitle": "Sync block size",
@@ -4787,7 +4815,8 @@
       "structure": "Layers",
       "phenology": "Phenology",
       "traits": "Traits",
-      "environment": "Environment"
+      "environment": "Environment",
+      "choice": "Custom choice"
     },
     "editor": {
       "elsewhere": "This component is entered on the record screen.",
@@ -4844,6 +4873,10 @@
         "stems_other": "{{count}} stems",
         "layers_one": "{{count}} layer",
         "layers_other": "{{count}} layers"
+      },
+      "choice": {
+        "noList": "This choice’s list is missing; check the form template.",
+        "multi": "Several can be chosen"
       }
     },
     "ams": {
@@ -4967,8 +5000,8 @@
     "ended": "Ended",
     "reopen": "Resume",
     "deleteTitle": "Delete survey",
-    "deleteMsg_one": "Delete “{{name}}” and its {{count}} occurrence? It cannot be recovered.",
-    "deleteMsg_other": "Delete “{{name}}” and its {{count}} occurrences? It cannot be recovered.",
+    "deleteMsg_one": "Delete “{{name}}” and its {{count}} occurrence?",
+    "deleteMsg_other": "Delete “{{name}}” and its {{count}} occurrences?",
     "noExport": "Checklist and plot-style surveys cannot be exported yet",
     "notInProjectExport_one": "{{count}} checklist / plot-style survey cannot be exported yet and is left out of this export",
     "notInProjectExport_other": "{{count}} checklist / plot-style surveys cannot be exported yet and are left out of this export",
@@ -5040,6 +5073,7 @@
       "notOpen": "The recheck opens when the blind phase ends",
       "intro": "The list of survey {{n}}, by unit. Record an answer for each species this blind phase did not record ({{open}} still to confirm).",
       "nothing": "The previous survey recorded no species.",
+      "noPrevious": "This phone does not have the previous survey (survey {{n}}), so its list cannot be shown; get it through team sync, or do the recheck on a phone that has it.",
       "last": "Last time: {{value}}",
       "recordedBlind": "Recorded this time",
       "notChecked": "Unit retired",
@@ -5085,7 +5119,7 @@
       "section": "Plot-style surveys",
       "units": "Unit layout",
       "labels": "Morphospecies",
-      "start": "Start a plot-style survey (test)",
+      "start": "Start a plot-style survey…",
       "surveyNo": "Survey {{n}} · {{name}}",
       "unitsTitle": "{{code}} unit layout",
       "unitsDesc": "A plot-style survey starts with these units. A unit a survey has used can only be retired, not deleted or recoded.",
@@ -5108,6 +5142,242 @@
       "removePhoto": "Remove photo"
     },
     "lockedBanner": "Finished and locked. Unlock it from ⋯ at the top right to edit.",
-    "surveyNo": "survey {{n}}"
+    "surveyNo": "survey {{n}}",
+    "recoverNumberTaken": "This permanent plot already has a survey with the same template and number; delete it first, then recover.",
+    "upgrade": {
+      "banner": "This form has a new version (version {{n}})",
+      "msg": "Upgrade to version {{n}}: the new fields appear, nothing recorded changes."
+    },
+    "carried": "Same as survey {{n}} (carried over at the start; please check): {{fields}}"
+  },
+  "builder": {
+    "title": "Form templates",
+    "desc": "Build your own checklist or plot-style forms from components, or adjust the tree census",
+    "intro": "A template decides which fields a survey records. Editing a saved template saves a new version; when the change only adds or widens, surveys in progress can upgrade to it, otherwise it applies to surveys started afterwards.",
+    "section": {
+      "drafts": "New templates being edited",
+      "mine": "My templates",
+      "samples": "Samples (copy only)",
+      "builtin": "Built-in (copy only)"
+    },
+    "showArchived_one": "Show archived ({{count}})",
+    "showArchived_other": "Show archived ({{count}})",
+    "hideArchived": "Hide archived",
+    "empty": "No templates of your own yet. Tap “New template” below, or copy a sample.",
+    "version": "version {{n}}",
+    "uses_one": "used {{count}} time",
+    "uses_other": "used {{count}} times",
+    "usesActive_one": "{{count}} in progress",
+    "usesActive_other": "{{count}} in progress",
+    "draftTag": "unsaved changes",
+    "newTemplate": "new, not saved yet",
+    "untitled": "Untitled",
+    "create": "New template",
+    "action": {
+      "edit": "Edit",
+      "copy": "Copy",
+      "archive": "Archive",
+      "unarchive": "Unarchive",
+      "copyToMine": "Copy to my templates",
+      "export": "Export as a file"
+    },
+    "archived": "Archived “{{name}}”. Surveys started with it are not affected.",
+    "new": {
+      "title": "New template",
+      "blankChecklist": "Blank checklist",
+      "blankPlot": "Blank plot-style",
+      "copy": "Copy an existing template…",
+      "copyFrom": "Copy which one?",
+      "nameTitle": "Template name",
+      "nameMsg": "For example “Riparian plants”. You can change it later and add an English name.",
+      "create": "Create",
+      "firstUnit": "Subplot",
+      "copyName": "Copy of {{name}}",
+      "census": "Tree census (copy of the built-in)"
+    },
+    "notFound": "This template’s draft is gone; it may have been saved or discarded.",
+    "basics": "Basics",
+    "name": "Name",
+    "nameEn": "English name (optional)",
+    "versionNext": "Version {{n}} saved; saving makes version {{next}}",
+    "quickAdd": "Allow quick adding from elsewhere",
+    "quickAddDesc": "While such a survey is in progress, the species tab, the taxonomy tree, favorites and keys can add species straight into it.",
+    "units": "Unit levels",
+    "unitsDesc": "Largest first, up to {{max}} levels, for example “subplot → quadrat”.",
+    "unitN": "Level {{n}}",
+    "addUnit": "Add a level below",
+    "removeUnit": "Remove this level",
+    "removeUnitMsg": "“{{name}}” and the components on this level are removed together.",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
+    "place": {
+      "survey": "Each survey",
+      "unit": "Each {{name}}",
+      "occurrence": "Each occurrence",
+      "quadrat": "Each quadrat",
+      "tree": "Each tree",
+      "stem": "Each stem"
+    },
+    "addComponent": "Add component",
+    "addComponentTitle": "Add to “{{place}}”",
+    "nothingToAdd": "Nothing more can be added here",
+    "fixed": "in every survey",
+    "requiredTag": "required",
+    "preview": "Preview",
+    "previewTitle": "Preview: {{name}}",
+    "previewIntro": "A survey started with this template looks like this. Try filling it in; nothing is kept.",
+    "discard": {
+      "title": "Discard changes?",
+      "msg": "The draft is deleted; the template stays at version {{n}}.",
+      "go": "Discard changes",
+      "newTitle": "Delete this new template?",
+      "newMsg": "It has never been saved, so it will be gone.",
+      "newGo": "Delete this new template"
+    },
+    "save": {
+      "go": "Save",
+      "title": "Save as version {{n}}?",
+      "msgNew": "Once saved, you can start surveys with it.",
+      "msgNext": "Surveys started afterwards use the new version.",
+      "msgAdditive": "This only adds or widens: surveys in progress can upgrade to the new version.",
+      "msgBreaking": "Something was removed or changed: surveys already started keep their version, surveys started afterwards use the new one.",
+      "noChange": "No changes",
+      "saved": "Saved as version {{n}}",
+      "fixFirst": "Fix before saving",
+      "invalid": "This template cannot be saved yet:\n{{detail}}"
+    },
+    "issue": {
+      "nameEmpty": "The template needs a name",
+      "noUnitLevel": "A plot-style template needs at least one unit level",
+      "unitLabelEmpty": "Every unit level needs a name",
+      "traitNameEmpty": "Trait {{n}} of “{{component}}” needs a name",
+      "traitRange": "Trait {{n}} of “{{component}}”: the minimum is above the maximum",
+      "params": "“{{component}}” is set up wrongly: {{detail}}",
+      "choiceList": "“{{component}}” needs a code list",
+      "listNameEmpty": "Every code list needs a name",
+      "listNoCodes": "Code list “{{list}}” has no codes yet",
+      "codeEmpty": "Code {{n}} of list “{{list}}” is empty",
+      "codeDuplicate": "Code {{n}} of list “{{list}}” repeats an earlier one",
+      "codeNameEmpty": "Code {{n}} of list “{{list}}” needs a name"
+    },
+    "upgrade": {
+      "title": "Upgrade surveys in progress?",
+      "msg_one": "{{count}} survey in progress uses an older version and can upgrade to version {{n}}: the new fields appear, nothing recorded changes.",
+      "msg_other": "{{count}} surveys in progress use an older version and can upgrade to version {{n}}: the new fields appear, nothing recorded changes.",
+      "go": "Upgrade",
+      "skip": "Not now",
+      "done_one": "Upgraded {{count}} survey",
+      "done_other": "Upgraded {{count}} surveys"
+    },
+    "noPlotTemplate": {
+      "title": "No plot-style template yet",
+      "msg": "Create a plot-style template in “Form templates” first, or copy a sample."
+    },
+    "pickTemplate": "Which template?",
+    "componentNameDesc": "Left blank, it shows as “{{name}}”. Name it when the same component appears twice (two sets of traits, say).",
+    "required": "Required",
+    "requiredDesc": "When on, a missing value is marked and finishing the survey reminds you.",
+    "requiredFixed": "Every survey has this component; it cannot be turned off.",
+    "params": "Settings",
+    "param": {
+      "kinds": "Abundance scales offered",
+      "defaultKind": "Default scale",
+      "modeCells": "Cell by cell",
+      "modeCount": "Count of cells only",
+      "gridN": "Cells per side",
+      "topEdge": "Grid top faces",
+      "layers": "Default number of layers",
+      "layerMethods": "How layer cover is recorded",
+      "max": "At most",
+      "gpsOnly": "Checklist and plot-style surveys record a GNSS fix (latitude, longitude, accuracy).",
+      "none": "This component has nothing to set."
+    },
+    "traits": "Traits",
+    "traitN": "Trait {{n}}",
+    "trait": {
+      "unit": "Unit",
+      "min": "Minimum",
+      "max": "Maximum",
+      "integer": "Whole numbers only",
+      "remove": "Remove this trait",
+      "add": "Add a trait"
+    },
+    "removeComponent": "Remove component",
+    "removeComponentMsg": "Remove “{{name}}” from the template?",
+    "changeAdditive": "Compared with the saved version this only adds or widens; surveys in progress can upgrade.",
+    "changeBreaking": "Compared with version {{n}} something was removed or changed: surveys already started keep version {{n}}.",
+    "summary": {
+      "layers_one": "{{count}} layer",
+      "layers_other": "{{count}} layers",
+      "fields_one": "{{count}} field",
+      "fields_other": "{{count}} fields",
+      "max_one": "up to {{count}}",
+      "max_other": "up to {{count}}",
+      "gps": "GNSS fix"
+    },
+    "kind": {
+      "bb": "Braun-Blanquet",
+      "percent": "Cover %",
+      "dbh": "DBH"
+    },
+    "listSep": ", ",
+    "lists": "Code lists",
+    "listsDesc": "Custom choice fields pick from these lists. The code is what gets recorded; the name is only shown.",
+    "list": {
+      "newName": "Code list {{n}}",
+      "codes_one": "{{count}} code",
+      "codes_other": "{{count}} codes",
+      "usedBy": "Used by: {{names}}",
+      "unused": "No component uses this list yet",
+      "add": "Add a code list",
+      "remove": "Delete list",
+      "removeMsg": "Delete “{{name}}”?",
+      "codesTitle": "Codes",
+      "codesDesc": "A code is the value that gets recorded and cannot change once the template is saved. Mark codes you no longer use as retired; data already recorded still shows them.",
+      "codeFixed": "Code {{code}} (saved, cannot change)",
+      "code": "Code",
+      "deprecated": "Retired",
+      "deprecatedDesc": "No longer offered; data already recorded still shows it",
+      "removeCode": "Remove this code",
+      "addCode": "Add a code"
+    },
+    "choice": {
+      "single": "Single choice",
+      "multi": "Multiple choice",
+      "list": "Code list",
+      "noList": "Not chosen yet",
+      "change": "Change",
+      "editList": "Edit this list",
+      "multiSwitch": "Allow several choices"
+    },
+    "import": {
+      "fromFile": "Import from a file…",
+      "failTitle": "Cannot import",
+      "newerApp": "This template uses components this version of the app does not know ({{types}}). Please update the app first.",
+      "invalid": "The file is not valid: {{detail}}",
+      "notTemplate": "This is not a Mitalivana template file (.mtpl.json).",
+      "done": "Imported “{{name}}”",
+      "doneRenamed": "Imported “{{name}}”. The same template is already here, so the import was kept as a new one."
+    },
+    "health": {
+      "title": "Health codes",
+      "desc": "Which codes each stem records. The ForestGEO census codes underlie the tree census and stay; AMS and your own code lists can be added.",
+      "census": "ForestGEO census codes (Condit 1998)",
+      "ams": "ForestGEO mortality and damage (AMS)",
+      "amsDesc": "With AMS, each stem also records the AMS fields, and whether a stem is dead follows its AMS survival status."
+    },
+    "census": {
+      "intro": "Tree census template: height, photos and traits can be added or removed; health codes can take AMS and your own code lists. Everything else follows the tree census.",
+      "requiredFixed": "The tree census decides what is required; it cannot change here.",
+      "paramsFixed": "The tree census uses this component as it is; there is nothing to set.",
+      "listsDesc": "Health codes can take these lists; each stem picks codes from them.",
+      "start": "Start a census on a permanent plot…",
+      "pick": "Which tree census template?",
+      "lastUsed": "{{name}} (used last census)",
+      "pickFrame": "On which permanent plot?",
+      "openTitle": "A census is still open",
+      "openMsg": "Census {{n}} of this plot is not finished yet. Finish it before starting the next one.",
+      "openGo": "Open the census"
+    }
   }
 }

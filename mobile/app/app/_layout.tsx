@@ -210,6 +210,11 @@ function ThemedShell() {
             <Stack.Screen name="survey/form/unit/[id]" options={{ title: '' }} />
             <Stack.Screen name="survey/frame/units" options={{ title: '' }} />
             <Stack.Screen name="survey/frame/labels" options={{ title: '' }} />
+            <Stack.Screen name="survey/templates/index" options={{ title: '' }} />
+            <Stack.Screen name="survey/templates/[id]/index" options={{ title: '' }} />
+            <Stack.Screen name="survey/templates/[id]/component/[key]" options={{ title: '' }} />
+            <Stack.Screen name="survey/templates/[id]/preview" options={{ title: '' }} />
+            <Stack.Screen name="survey/templates/[id]/list/[listId]" options={{ title: '' }} />
             <Stack.Screen name="miren/plot/[id]/index" options={{ title: '' }} />
             <Stack.Screen name="miren/plot/[id]/recheck" options={{ title: t('miren.recheck.title') }} />
             <Stack.Screen name="settings/collection" options={{ title: t('settings.sectionCollection') }} />

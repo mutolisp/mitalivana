@@ -326,15 +326,38 @@ export type CensusRow = {
   updated_at: number;
 };
 
+/** The template the census was started with (its frozen snapshot); null for an unreadable one. */
+export function censusTemplate(ctx: { db: SurveyDb }, id: number): SurveyTemplate | null {
+  const s = getSurvey(ctx, id);
+  if (!s) return null;
+  try {
+    return JSON.parse(s.template_snapshot) as SurveyTemplate;
+  } catch {
+    return null;
+  }
+}
+
 /** The code sets the census's template records (Health component), from its snapshot. */
 export function censusCodesets(ctx: { db: SurveyDb }, id: number): string[] {
-  const s = getSurvey(ctx, id);
-  if (!s) return [];
-  try {
-    return healthCodesets((JSON.parse(s.template_snapshot) as SurveyTemplate).components);
-  } catch {
-    return [];
-  }
+  const t = censusTemplate(ctx, id);
+  return t ? healthCodesets(t.components) : [];
+}
+
+/**
+ * The frame's census series: every census of a permanent plot is one series,
+ * whichever census template it uses (a copy of the built-in, with AMS or
+ * traits, carries on the trees and their earlier measurements). Null before
+ * the first census.
+ */
+export function censusSeriesId(ctx: { db: SurveyDb }, frameId: number): number | null {
+  return one<{ id: number }>(ctx, `SELECT series_id AS id FROM fw_surveys WHERE frame_id = ? AND style = 'individual' ORDER BY census_no DESC, id DESC LIMIT 1`, [frameId])?.id ?? null;
+}
+
+/** Whether a first census on this frame needs a series code (the plot has another survey series already). */
+export function censusSeriesCodeNeeded(ctx: { db: SurveyDb }, frameId: number, templateId: string): boolean {
+  if (censusSeriesId(ctx, frameId) != null) return false;
+  if (one(ctx, `SELECT 1 AS x FROM fw_frame_series WHERE frame_id = ? AND template_id = ?`, [frameId, templateId])) return false;
+  return one(ctx, `SELECT 1 AS x FROM fw_frame_series WHERE frame_id = ?`, [frameId]) != null;
 }
 
 /** The census with this id; null for a survey of another style. */
@@ -351,7 +374,7 @@ export function startCensus(
   const problems = validateTemplate(input.template);
   if (input.template.style !== 'individual') problems.push(`a census needs the individual style, not ${input.template.style}`);
   if (problems.length) throw new SurveyError('template_invalid', problems.join('; '));
-  const seriesId = ensureSeries(ctx, input.frameId, input.template.id, input.seriesCode);
+  const seriesId = censusSeriesId(ctx, input.frameId) ?? ensureSeries(ctx, input.frameId, input.template.id, input.seriesCode);
   const last = one<{ n: number | null }>(ctx, `SELECT MAX(census_no) AS n FROM fw_surveys WHERE series_id = ?`, [seriesId]);
   const now = ctx.now();
   const res = run(
@@ -1076,6 +1099,61 @@ export function setHeight(ctx: Ctx, surveyId: number, individualId: number, heig
   if (ind) touchFgQuadrat(ctx, surveyId, ind.quadrat_code);
 }
 
+/** A census template's Traits components on the tree (2D-b), by key. */
+function treeTraitComponents(t: SurveyTemplate | null): Map<string, { params: Record<string, unknown> }> {
+  return new Map((t?.components ?? []).filter((c) => c.type === 'traits' && c.level === 'individual').map((c) => [c.key, { params: { ...c.params } }]));
+}
+
+/**
+ * A tree's trait values in this census (the template's Traits components on
+ * the tree): per component key, trait id → number, null clearing it. Traits
+ * the template does not have, and numbers outside a trait's range, are refused.
+ */
+export function setTreeTraits(ctx: Ctx, surveyId: number, individualId: number, traits: Readonly<Record<string, Readonly<Record<string, number | null>>>>): void {
+  const comps = treeTraitComponents(censusTemplate(ctx, surveyId));
+  const def = componentDef('traits')!;
+  for (const [key, values] of Object.entries(traits)) {
+    const comp = comps.get(key);
+    if (!comp) throw new SurveyError('bad_component', key);
+    const fields = new Map(def.fields(comp.params, 'individual', key).map((f) => [f.field, f]));
+    for (const id of Object.keys(values)) if (!fields.has(id)) throw new SurveyError('bad_component', `${key}.${id}`);
+    const bad = storeBlockers(def, comp.params, 'individual', key, values);
+    if (bad.length) throw new SurveyError('bad_value', bad.map((b) => `${key}.${b.field}: ${b.code}`).join('; '));
+    for (const [id, n] of Object.entries(values)) {
+      const f = fields.get(id)!;
+      const unit = 'values' in f.storage ? (f.storage.unit ?? null) : null;
+      putValue(ctx, 'fw_individual_values', { survey_id: surveyId, individual_id: individualId }, key, id, n == null ? null : { num: n, unit });
+    }
+  }
+  const ind = getIndividual(ctx, individualId);
+  if (ind) touchFgQuadrat(ctx, surveyId, ind.quadrat_code);
+}
+
+/** The census template's own health code lists (Health code sets that are not built in), in its order. */
+export function censusCustomLists(t: SurveyTemplate | null): SurveyTemplate['codelists'] {
+  const sets = healthCodesets(t?.components ?? []);
+  return sets.map((id) => t?.codelists.find((l) => l.id === id)).filter((l): l is SurveyTemplate['codelists'][number] => l != null);
+}
+
+/**
+ * A stem's codes from the census template's own health code lists (2D-b),
+ * per list id; lists left out stay as they are, an empty list clears. A code
+ * must be one of the list's (a retired one too: it may have been recorded).
+ */
+export function setStemCustom(ctx: Ctx, measureId: number, custom: Readonly<Record<string, readonly string[]>>): void {
+  const m = getMeasure(ctx, measureId);
+  if (!m) throw new SurveyError('not_found', 'measure');
+  const lists = new Map(censusCustomLists(censusTemplate(ctx, m.survey_id)).map((l) => [l.id, new Set(l.items.map((x) => x.code))]));
+  for (const [id, codes] of Object.entries(custom)) {
+    const known = lists.get(id);
+    if (!known) throw new SurveyError('bad_component', `codes_${id}`);
+    const unique = [...new Set(codes)];
+    for (const c of unique) if (!known.has(c)) throw new SurveyError('bad_code', `${id}: ${c}`);
+    putValue(ctx, 'fw_stem_values', { measure_id: measureId }, 'health', `codes_${id}`, unique.length ? { text: JSON.stringify(unique) } : null);
+  }
+  touchFgQuadrat(ctx, m.survey_id, fgQuadratOfStem(ctx, m.stem_id));
+}
+
 // ── photos ──────────────────────────────────────────────────────────────────
 
 export type MediaRow = { id: number; uuid: string; survey_id: number; individual_id: number | null; measure_id: number | null; component: string; kind: 'photo' | 'audio'; uri: string; created_at: number };
@@ -1086,6 +1164,12 @@ export function listTreeMedia(ctx: { db: SurveyDb }, surveyId: number, individua
 }
 
 export function addTreeMedia(ctx: Ctx, surveyId: number, individualId: number, uri: string): number {
+  // As many as the census template's Photos component on the tree allows (none without one).
+  const photos = censusTemplate(ctx, surveyId)?.components.find((c) => c.type === 'photos' && c.level === 'individual');
+  if (!photos) throw new SurveyError('bad_component', 'photos');
+  const max = Number(photos.params.max);
+  const have = one<{ n: number }>(ctx, `SELECT COUNT(*) AS n FROM fw_media WHERE survey_id = ? AND individual_id = ? AND kind = 'photo'`, [surveyId, individualId])!.n;
+  if (Number.isInteger(max) && have >= max) throw new SurveyError('bad_value', `photos: at most ${max}`);
   const res = run(ctx, `INSERT INTO fw_media (uuid, survey_id, individual_id, component, kind, uri, created_at) VALUES (?, ?, ?, 'photos', 'photo', ?, ?)`, [
     ctx.uuid(),
     surveyId,
@@ -1159,6 +1243,8 @@ export type StemDraft = {
   notes: string | null;
   /** AMS values (census template with the AMS code set); every variable, unrecorded ones absent. Undefined leaves AMS rows alone. */
   ams?: AmsValues;
+  /** Codes from the template's own health code lists, per list id (setStemCustom). Undefined leaves them alone. */
+  custom?: Readonly<Record<string, readonly string[]>>;
 };
 
 export type TreeDraft = {
@@ -1171,6 +1257,8 @@ export type TreeDraft = {
   location: LocationInput | null;
   notes: string | null;
   heightM: number | null;
+  /** Trait values per Traits component key (setTreeTraits). Undefined leaves them alone. */
+  traits?: Readonly<Record<string, Readonly<Record<string, number | null>>>>;
   treeCodes: string[];
   /** Number of the main stem; for a new tree, the position in `stems` (1-based). */
   mainStemNo: number;
@@ -1180,7 +1268,13 @@ export type TreeDraft = {
 
 /** Anything entered on a stem; the POM counts when it differs from where it was. */
 const stemTouched = (d: StemDraft, basePomM: number) =>
-  d.dbhCm != null || d.stemDead || d.codes.length > 0 || !!d.notes || d.pomM !== basePomM || (d.ams != null && Object.keys(d.ams).length > 0);
+  d.dbhCm != null ||
+  d.stemDead ||
+  d.codes.length > 0 ||
+  !!d.notes ||
+  d.pomM !== basePomM ||
+  (d.ams != null && Object.keys(d.ams).length > 0) ||
+  (d.custom != null && Object.values(d.custom).some((x) => x.length > 0));
 
 /**
  * Write the tree form of one census in one go; the caller runs it in a
@@ -1234,9 +1328,11 @@ export function saveTreeDraft(ctx: Ctx, surveyId: number, d: TreeDraft): number 
     });
     setStemCodes(ctx, mid, sd.codes);
     if (sd.ams !== undefined) setStemAms(ctx, mid, sd.ams);
+    if (sd.custom !== undefined) setStemCustom(ctx, mid, sd.custom);
   });
   setTreeCodes(ctx, surveyId, id, d.treeCodes);
   setHeight(ctx, surveyId, id, d.heightM);
+  if (d.traits !== undefined) setTreeTraits(ctx, surveyId, id, d.traits);
   const mainId = stemIds.get(d.mainStemNo);
   if (mainId != null && stemIds.size > 1 && mainStemId(ctx, surveyId, id) !== mainId) setMainStem(ctx, surveyId, id, mainId);
   return id;
@@ -1383,6 +1479,9 @@ export type StemView = {
   previousCodes: string[];
   /** AMS values of this census (empty without the AMS code set). */
   ams: AmsValues;
+  /** Codes from the template's own health code lists, per list id: this census, and the previous one. */
+  custom: Readonly<Record<string, readonly string[]>>;
+  previousCustom: Readonly<Record<string, readonly string[]>>;
 };
 
 export type TreeView = {
@@ -1391,6 +1490,8 @@ export type TreeView = {
   treeCodes: string[];
   previousTreeCodes: string[];
   heightM: number | null;
+  /** This census's trait values, per Traits component key and trait id. */
+  traits: Readonly<Record<string, Readonly<Record<string, number>>>>;
 };
 
 /**
@@ -1479,7 +1580,7 @@ function treeViews(ctx: { db: SurveyDb }, surveyId: number, scope: Scope): TreeV
        CROSS JOIN fw_stems st ON st.individual_id = t.id
        CROSS JOIN fw_stem_measures m ON m.stem_id = st.id
        CROSS JOIN fw_stem_values v ON v.measure_id = m.id
-      WHERE m.survey_id IN (${inSurveys}) AND v.component = 'health' AND (v.field = 'census_codes' OR v.field GLOB 'ams_*')`,
+      WHERE m.survey_id IN (${inSurveys}) AND v.component = 'health' AND (v.field = 'census_codes' OR v.field GLOB 'ams_*' OR v.field GLOB 'codes_*')`,
     [...treeParams, ...surveys],
   );
   const ivals = rows<{ survey_id: number; individual_id: number; component: string; field: string; value_num: number | null; value_text: string | null }>(
@@ -1499,6 +1600,20 @@ function treeViews(ctx: { db: SurveyDb }, surveyId: number, scope: Scope): TreeV
     const got = amsBy.get(c.measure_id) ?? {};
     got[variable.field] = value;
     amsBy.set(c.measure_id, got);
+  }
+  const customBy = new Map<number, Record<string, readonly string[]>>();
+  for (const c of codes) {
+    if (!c.field.startsWith('codes_')) continue;
+    const got = customBy.get(c.measure_id) ?? {};
+    got[c.field.slice(6)] = parseCodes(c.v);
+    customBy.set(c.measure_id, got);
+  }
+  const traitsBy = new Map<number, Record<string, Record<string, number>>>();
+  for (const v of ivals) {
+    if (v.survey_id !== surveyId || v.value_num == null || v.component === 'health' || v.component === 'height') continue;
+    const got = traitsBy.get(v.individual_id) ?? {};
+    (got[v.component] ??= {})[v.field] = v.value_num;
+    traitsBy.set(v.individual_id, got);
   }
   const measureBy = new Map(measures.map((m) => [`${m.survey_id}:${m.stem_id}`, m]));
   const stemsBy = new Map<number, StemRow[]>();
@@ -1521,10 +1636,13 @@ function treeViews(ctx: { db: SurveyDb }, surveyId: number, scope: Scope): TreeV
         codes: measure ? (codeBy.get(measure.id) ?? []) : [],
         previousCodes: previous ? (codeBy.get(previous.id) ?? []) : [],
         ams: (measure && amsBy.get(measure.id)) || {},
+        custom: (measure && customBy.get(measure.id)) || {},
+        previousCustom: (previous && customBy.get(previous.id)) || {},
       };
     }),
     treeCodes: parseCodes(pick(surveyId, individual.id, 'health', 'census_tree_codes')?.value_text),
     previousTreeCodes: parseCodes(pick(prev, individual.id, 'health', 'census_tree_codes')?.value_text),
     heightM: pick(surveyId, individual.id, 'height', 'height_m')?.value_num ?? null,
+    traits: traitsBy.get(individual.id) ?? {},
   }));
 }

@@ -1,5 +1,5 @@
 /**
- * The record header's ⋯ (checklist, plot survey, GLORIA). Tapping it unfolds
+ * The record header's ⋯ (checklist, plot survey, GLORIA, checklist / plot-style survey). Tapping it unfolds
  * the actions in place, to its left, instead of opening a sheet: 研究報告,
  * and 同步 once this device holds a team key. The ⋯ turns into a chevron that
  * folds them back; running an action or leaving the screen folds them too.
@@ -28,16 +28,20 @@ export function RecordMenuButton({
   reportHref,
   onSynced,
   extra = [],
+  last = [],
   edit,
   onEdited,
 }: {
   kind: MergeKind;
   id: number;
-  reportHref: Href;
+  /** The record's research report; a kind without one (a checklist / plot-style survey, until Phase 2E) leaves it out. */
+  reportHref?: Href;
   onSynced?: () => void;
   /** Screen-specific actions, listed after undo / redo and grouped by
    *  `section` (the checklist's 加入物種: batch and photo import). */
-  extra?: { label: string; onPress: () => void; icon?: MenuIcon; section?: string }[];
+  extra?: { label: string; onPress: () => void; icon?: MenuIcon; section?: string; destructive?: boolean }[];
+  /** After everything else, in a section of their own (deleting the record). */
+  last?: { label: string; onPress: () => void; icon?: MenuIcon; destructive?: boolean }[];
   /** Given (and the record unlocked): undo / redo head the menu, and the
    *  screen passes `inMenu` to RecordEditButtons so the header drops them. */
   edit?: RecordEditing;
@@ -106,11 +110,11 @@ export function RecordMenuButton({
 
   // The menu rebuilds itself after undo / redo (it stays open), so it reads
   // the latest props through a ref rather than this render's closure.
-  const latest = useRef({ edit, extra, hasLog, hasTeam, busy });
-  latest.current = { edit, extra, hasLog, hasTeam, busy };
+  const latest = useRef({ edit, extra, last, hasLog, hasTeam, busy });
+  latest.current = { edit, extra, last, hasLog, hasTeam, busy };
 
   const sections = (): MenuSection[] => {
-    const { edit: e, extra: x, hasLog: log, hasTeam: team, busy: syncing } = latest.current;
+    const { edit: e, extra: x, last: z, hasLog: log, hasTeam: team, busy: syncing } = latest.current;
     const out: MenuSection[] = [];
     if (e && !e.locked) {
       out.push({
@@ -148,12 +152,12 @@ export function RecordMenuButton({
         items: x
           .map((a, i) => ({ a, i }))
           .filter(({ a }) => (a.section ?? '') === title)
-          .map(({ a, i }) => ({ kind: 'action' as const, id: `extra-${i}`, label: a.label, icon: a.icon })),
+          .map(({ a, i }) => ({ kind: 'action' as const, id: `extra-${i}`, label: a.label, icon: a.icon, destructive: a.destructive })),
       });
     }
     out.push({
       items: [
-        { kind: 'action', id: 'report', label: t('report.navTitle'), icon: 'bar-chart-outline' },
+        ...(reportHref ? [{ kind: 'action' as const, id: 'report', label: t('report.navTitle'), icon: 'bar-chart-outline' as const }] : []),
         // Record versions (v73): snapshots, comparison, restore.
         { kind: 'action', id: 'versions', label: t('versions.title'), icon: 'time-outline' },
         ...(log ? [{ kind: 'action' as const, id: 'mergeLog', label: t('mergeLog.title'), icon: 'git-merge-outline' as const }] : []),
@@ -162,6 +166,7 @@ export function RecordMenuButton({
           : []),
       ],
     });
+    if (z.length) out.push({ items: z.map((a, i) => ({ kind: 'action' as const, id: `last-${i}`, label: a.label, icon: a.icon, destructive: a.destructive })) });
     return out;
   };
 
@@ -169,7 +174,8 @@ export function RecordMenuButton({
     const choice = await showMenu(anchor, sections);
     if (!choice) return;
     if (choice.startsWith('extra-')) latest.current.extra[Number(choice.slice('extra-'.length))]?.onPress();
-    else if (choice === 'report') router.push(reportHref);
+    else if (choice.startsWith('last-')) latest.current.last[Number(choice.slice('last-'.length))]?.onPress();
+    else if (choice === 'report' && reportHref) router.push(reportHref);
     else if (choice === 'versions')
       router.push({ pathname: '/record-versions', params: { kind, id: String(id) } } as Href);
     else if (choice === 'mergeLog') openLog();

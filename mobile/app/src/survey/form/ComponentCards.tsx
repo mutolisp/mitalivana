@@ -15,7 +15,7 @@ import { FormCard } from '~/survey/components/FormBits';
 import type { ComponentOwner } from '~/survey/db/surveyCore';
 import { addMedia, removeMedia, writeComponent } from '~/survey/db/surveys';
 import { componentDef, type ComponentValues, type FieldValue } from '~/survey/registry';
-import type { ComponentInstance } from '~/survey/template/types';
+import type { CodeList, ComponentInstance } from '~/survey/template/types';
 import { formErrorText } from './text';
 
 export function ComponentCards({
@@ -26,6 +26,8 @@ export function ComponentCards({
   context,
   onChanged,
   refuse,
+  notes,
+  codelists,
 }: {
   owner: ComponentOwner;
   instances: readonly ComponentInstance[];
@@ -35,6 +37,10 @@ export function ComponentCards({
   onChanged: () => void;
   /** Called instead of writing while read-only (a locked record says why). */
   refuse?: () => void;
+  /** A line under a component's card, by component key (environment values carried from the previous survey). */
+  notes?: Readonly<Record<string, string>>;
+  /** The template's code lists (a choice's codes). */
+  codelists?: readonly CodeList[];
 }) {
   const { t, i18n } = useTranslation();
   const [refused, setRefused] = useState<Record<string, string>>({});
@@ -59,6 +65,7 @@ export function ComponentCards({
         const problems = def ? componentProblems(def, c.params, c.level, c.key, v) : [];
         return (
           <FormCard key={c.key} title={componentLabel(t, i18n.language, c)}>
+            {notes?.[c.key] ? <Text className="text-xs leading-4 text-ink-2 dark:text-gray-300">{notes[c.key]}</Text> : null}
             <ComponentEditor
               instance={c}
               values={v}
@@ -67,6 +74,7 @@ export function ComponentCards({
               onChange={(patch: Record<string, FieldValue>) => attempt(c.key, () => writeComponent(owner, c.key, patch))}
               context={{
                 ...context,
+                codelists,
                 onAddMedia: (uri) => attempt(c.key, () => void addMedia(owner, c.key, uri)),
                 onRemoveMedia: (uri) => attempt(c.key, () => removeMedia(owner, c.key, uri)),
               }}

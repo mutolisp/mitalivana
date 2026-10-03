@@ -308,7 +308,7 @@
     "gloriaCount_one": "GLORIA {{count}} ({{summits}} cumbres)",
     "gloriaCount_many": "GLORIA {{count}} ({{summits}} cumbres)",
     "gloriaCount_other": "GLORIA {{count}} ({{summits}} cumbres)",
-    "deleteRecoverable": "Las listas, parcelas, muestreos GLORIA y censos de árboles pueden recuperarse durante 30 días desde Registros ⋯ → «Eliminados recientemente».",
+    "deleteRecoverable": "Las listas, parcelas, muestreos GLORIA, muestreos tipo lista / parcela y censos de árboles pueden recuperarse durante 30 días desde Registros ⋯ → «Eliminados recientemente».",
     "deletePermanent": "Las colectas eliminadas no se pueden recuperar.",
     "activeResume": "Seguir registrando",
     "activeSpecies": "Especies",
@@ -1922,6 +1922,7 @@
   "recordImport": {
     "unsupportedBundle": "Este es un paquete con varios registros; descomprímalo e importe cada registro por separado.",
     "unknownKind": "No se puede determinar qué tipo de registro contiene este archivo.",
+    "modularNotYet": "Este archivo contiene un muestreo tipo lista / parcela. Por ahora solo se transmiten mediante la sincronización de equipo; la importación de archivos llegará en una versión posterior.",
     "sessionExistsTitle": "La lista de especies ya existe",
     "sessionExistsMsg": "«{{name}}» ya está en este dispositivo. ¿Sobrescribirla o guardarla como copia nueva?",
     "photoConflictTitle": "Este registro ya tiene fotos",
@@ -3745,7 +3746,15 @@
       "sval": "Códigos del tallo",
       "ival": "Datos del árbol",
       "history": "Correcciones",
-      "media": "Fotos"
+      "media": "Fotos",
+      "sunit": "Unidad del muestreo",
+      "occ": "Registro de presencia",
+      "surveyval": "Campo del muestreo",
+      "unitval": "Campo de la unidad",
+      "occval": "Campo del registro",
+      "recheck": "Reverificación",
+      "funit": "Plano de unidades",
+      "flabel": "Morfoespecie"
     },
     "field": {
       "latitude": "Latitud",
@@ -3841,7 +3850,21 @@
       "ref_code": "Punto de referencia",
       "azimuth_deg": "Rumbo (°)",
       "azimuth_ref": "Referencia del rumbo",
-      "status": "Estado"
+      "status": "Estado",
+      "parent": "Unidad superior",
+      "geometry_geojson": "Contorno",
+      "shape": "Forma",
+      "width_m": "Ancho (m)",
+      "length_m": "Largo (m)",
+      "radius_m": "Radio (m)",
+      "retired_at": "Retirada el",
+      "phase": "Fase",
+      "outcome": "Respuesta",
+      "occurrence": "Registro",
+      "identified_by": "Identificado por",
+      "elevation_source": "Fuente de la altitud",
+      "surveyUnit": "Unidad",
+      "measureUnit": "Unidad de medida"
     },
     "from": "De {{name}}",
     "fromAt": "De {{name}}, subido el {{date}}",
@@ -4516,7 +4539,7 @@
     "restored": "Restaurado ({{n}} cambios)",
     "restoreFail": "No se pudo restaurar",
     "deletedTitle": "Eliminados recientemente",
-    "deletedIntro": "Las listas, parcelas, muestreos GLORIA y censos de árboles eliminados pueden recuperarse desde su última versión durante 30 días (como registros terminados). Las fotos ya borradas por la limpieza de almacenamiento no vuelven.",
+    "deletedIntro": "Las listas, parcelas, muestreos GLORIA, muestreos tipo lista / parcela y censos de árboles eliminados pueden recuperarse desde su última versión durante 30 días (como registros terminados). Las fotos ya borradas por la limpieza de almacenamiento no vuelven.",
     "deletedNone": "Nada que recuperar",
     "deletedAt": "eliminado el {{when}}",
     "daysLeft": "quedan {{n}} días",
@@ -4525,7 +4548,8 @@
       "plot": "Parcela",
       "gloria": "GLORIA",
       "survey": "Censo de árboles",
-      "survey_quadrat": "Cuadrante del censo"
+      "survey_quadrat": "Cuadrante del censo",
+      "modular": "Muestreo tipo lista / parcela"
     },
     "recoverTitle": "¿Recuperar este registro?",
     "recoverMsg": "«{{name}}» se reconstruye desde su última versión como registro terminado.",
@@ -4558,11 +4582,12 @@
     "surveyPageSubtitle": "Deslice a izquierda o derecha para elegir un formulario",
     "surveyStemDesc": "Censo de árboles en una parcela permanente (ForestGEO): números, posiciones, DAP y códigos de estado. Los censos empiezan desde la parcela.",
     "surveyOpenFrames": "Abrir parcelas permanentes",
-    "surveyChecklistDesc": "Registre especies mientras camina; los campos siguen el formulario (plantilla de prueba; se pueden añadir desde la pestaña Especies).",
-    "surveyPlotDesc": "Registre subparcela por subparcela; en una parcela permanente la remedición empieza a ciegas y luego se compara con la lista anterior (plantilla de prueba).",
     "surveyOnFrame": "Empezar en una parcela permanente…",
     "surveyNoFrames": "Aún no hay parcelas permanentes. Añada una en Censo de árboles.",
-    "surveyPageOf": "Tarjeta {{n}} de {{total}}"
+    "surveyPageOf": "Tarjeta {{n}} de {{total}}",
+    "builderDesc": "Crear un formulario nuevo, o editar o copiar una plantilla existente.",
+    "builderDescEmpty": "Arme sus propios formularios de lista o de parcela con componentes, o empiece con la copia de un ejemplo.",
+    "builderManage": "Administrar plantillas"
   },
   "count": {
     "increase": "Aumentar {{name}}",
@@ -4917,7 +4942,10 @@
       "unsavedTitle": "¿Descartar cambios?",
       "unsavedMsg": "Los cambios de este árbol no se han guardado.",
       "discard": "Descartar",
-      "errNumber": "Estos campos no son números:"
+      "errNumber": "Estos campos no son números:",
+      "photosMax": "Como máximo {{max}} fotos por árbol",
+      "traitInteger": "Debe ser un número entero",
+      "traitRange": "Fuera de rango ({{range}})"
     },
     "sync": {
       "blockSizeTitle": "Tamaño de los bloques de sincronización",
@@ -4985,7 +5013,8 @@
       "structure": "Estratos",
       "phenology": "Fenología",
       "traits": "Rasgos",
-      "environment": "Ambiente"
+      "environment": "Ambiente",
+      "choice": "Opción personalizada"
     },
     "editor": {
       "elsewhere": "Este elemento se introduce en la pantalla del registro.",
@@ -5044,6 +5073,10 @@
         "layers_one": "{{count}} estrato",
         "layers_many": "{{count}} estratos",
         "layers_other": "{{count}} estratos"
+      },
+      "choice": {
+        "noList": "Falta la lista de esta opción; revise la plantilla de formulario.",
+        "multi": "Se pueden elegir varias"
       }
     },
     "ams": {
@@ -5168,9 +5201,9 @@
     "ended": "Fin",
     "reopen": "Reanudar",
     "deleteTitle": "Eliminar muestreo",
-    "deleteMsg_one": "¿Eliminar «{{name}}» y su {{count}} registro de presencia? No se podrá recuperar.",
+    "deleteMsg_one": "¿Eliminar «{{name}}» y su {{count}} registro de presencia?",
     "deleteMsg_many": "¿Eliminar «{{name}}» y sus {{count}} registros de presencia? No se podrá recuperar.",
-    "deleteMsg_other": "¿Eliminar «{{name}}» y sus {{count}} registros de presencia? No se podrá recuperar.",
+    "deleteMsg_other": "¿Eliminar «{{name}}» y sus {{count}} registros de presencia?",
     "noExport": "Los muestreos tipo lista y parcela aún no se pueden exportar",
     "notInProjectExport_one": "{{count}} muestreo tipo lista / parcela aún no se puede exportar y queda fuera de esta exportación",
     "notInProjectExport_many": "{{count}} muestreos tipo lista / parcela aún no se pueden exportar y quedan fuera de esta exportación",
@@ -5250,6 +5283,7 @@
       "notOpen": "La reverificación se abre al terminar el registro a ciegas",
       "intro": "La lista del muestreo {{n}}, por unidad. Registre una respuesta para cada especie que este registro a ciegas no tiene ({{open}} por confirmar).",
       "nothing": "El muestreo anterior no registró especies.",
+      "noPrevious": "Este dispositivo no tiene el muestreo anterior (muestreo {{n}}), así que su lista no puede mostrarse; obténgalo con la sincronización de equipo o haga la reverificación en un dispositivo que lo tenga.",
       "last": "La vez anterior: {{value}}",
       "recordedBlind": "Registrada esta vez",
       "notChecked": "Unidad retirada",
@@ -5297,7 +5331,7 @@
       "section": "Muestreos de parcela",
       "units": "Plano de unidades",
       "labels": "Morfoespecies",
-      "start": "Iniciar muestreo de parcela (prueba)",
+      "start": "Iniciar muestreo de parcela…",
       "surveyNo": "Muestreo {{n}} · {{name}}",
       "unitsTitle": "Plano de unidades {{code}}",
       "unitsDesc": "Un muestreo de parcela empieza con estas unidades. Una unidad que un muestreo ya usó solo se puede retirar, no eliminar ni recodificar.",
@@ -5320,6 +5354,251 @@
       "removePhoto": "Quitar foto"
     },
     "lockedBanner": "Terminado y bloqueado. Desbloquéelo desde ⋯ arriba a la derecha para editarlo.",
-    "surveyNo": "muestreo {{n}}"
+    "surveyNo": "muestreo {{n}}",
+    "recoverNumberTaken": "Esta parcela permanente ya tiene un muestreo con la misma plantilla y número; elimínelo primero y luego recupere.",
+    "upgrade": {
+      "banner": "Este formulario tiene una versión nueva (versión {{n}})",
+      "msg": "Pasar a la versión {{n}}: aparecen los campos nuevos y lo registrado no cambia."
+    },
+    "carried": "Igual que en el muestreo {{n}} (traído al inicio; verifíquelo): {{fields}}"
+  },
+  "builder": {
+    "title": "Plantillas de formulario",
+    "desc": "Arme sus propios formularios de lista o de parcela con componentes, o ajuste el censo de árboles",
+    "intro": "Una plantilla decide qué campos registra un muestreo. Al modificar una plantilla guardada se crea una versión nueva; si el cambio solo agrega o amplía, los muestreos en curso pueden pasar a ella; si no, se aplica a los muestreos que se inicien después.",
+    "section": {
+      "drafts": "Plantillas nuevas en edición",
+      "mine": "Mis plantillas",
+      "samples": "Ejemplos (solo para copiar)",
+      "builtin": "Integrados (solo para copiar)"
+    },
+    "showArchived_one": "Mostrar archivadas ({{count}})",
+    "showArchived_other": "Mostrar archivadas ({{count}})",
+    "showArchived_many": "Mostrar archivadas ({{count}})",
+    "hideArchived": "Ocultar archivadas",
+    "empty": "Aún no tiene plantillas propias. Toque «Nueva plantilla» abajo o copie un ejemplo.",
+    "version": "versión {{n}}",
+    "uses_one": "usada {{count}} vez",
+    "uses_other": "usada {{count}} veces",
+    "uses_many": "usada {{count}} veces",
+    "usesActive_one": "{{count}} en curso",
+    "usesActive_other": "{{count}} en curso",
+    "usesActive_many": "{{count}} en curso",
+    "draftTag": "cambios sin guardar",
+    "newTemplate": "nueva, aún sin guardar",
+    "untitled": "Sin nombre",
+    "create": "Nueva plantilla",
+    "action": {
+      "edit": "Editar",
+      "copy": "Copiar",
+      "archive": "Archivar",
+      "unarchive": "Desarchivar",
+      "copyToMine": "Copiar a mis plantillas",
+      "export": "Exportar como archivo"
+    },
+    "archived": "«{{name}}» archivada. Los muestreos iniciados con ella no cambian.",
+    "new": {
+      "title": "Nueva plantilla",
+      "blankChecklist": "Lista en blanco",
+      "blankPlot": "Parcela en blanco",
+      "copy": "Copiar una plantilla existente…",
+      "copyFrom": "¿Cuál copiar?",
+      "nameTitle": "Nombre de la plantilla",
+      "nameMsg": "Por ejemplo «Plantas de ribera». Se puede cambiar después y añadir un nombre en inglés.",
+      "create": "Crear",
+      "firstUnit": "Subparcela",
+      "copyName": "Copia de {{name}}",
+      "census": "Censo de árboles (copia del integrado)"
+    },
+    "notFound": "El borrador de esta plantilla ya no existe; quizá se guardó o se descartó.",
+    "basics": "Datos básicos",
+    "name": "Nombre",
+    "nameEn": "Nombre en inglés (opcional)",
+    "versionNext": "Versión {{n}} guardada; al guardar se crea la versión {{next}}",
+    "quickAdd": "Permitir añadir rápido desde otras pantallas",
+    "quickAddDesc": "Mientras un muestreo así esté en curso, la pestaña Especies, el árbol taxonómico, los favoritos y las claves pueden añadirle especies directamente.",
+    "units": "Niveles de unidades",
+    "unitsDesc": "De mayor a menor, hasta {{max}} niveles, por ejemplo «subparcela → cuadrante».",
+    "unitN": "Nivel {{n}}",
+    "addUnit": "Añadir un nivel debajo",
+    "removeUnit": "Quitar este nivel",
+    "removeUnitMsg": "Se quitan juntos «{{name}}» y los componentes de este nivel.",
+    "moveUp": "Subir",
+    "moveDown": "Bajar",
+    "place": {
+      "survey": "Cada muestreo",
+      "unit": "Cada unidad «{{name}}»",
+      "occurrence": "Cada registro de presencia",
+      "quadrat": "Cada cuadrante",
+      "tree": "Cada árbol",
+      "stem": "Cada tallo"
+    },
+    "addComponent": "Añadir componente",
+    "addComponentTitle": "Añadir a «{{place}}»",
+    "nothingToAdd": "Aquí ya no se puede añadir nada",
+    "fixed": "en todo muestreo",
+    "requiredTag": "obligatorio",
+    "preview": "Vista previa",
+    "previewTitle": "Vista previa: {{name}}",
+    "previewIntro": "Así se ve un muestreo iniciado con esta plantilla. Puede probar a llenarlo; no se guarda nada.",
+    "discard": {
+      "title": "¿Descartar los cambios?",
+      "msg": "El borrador se elimina; la plantilla queda en la versión {{n}}.",
+      "go": "Descartar los cambios",
+      "newTitle": "¿Eliminar esta plantilla nueva?",
+      "newMsg": "Nunca se guardó, así que desaparecerá.",
+      "newGo": "Eliminar esta plantilla nueva"
+    },
+    "save": {
+      "go": "Guardar",
+      "title": "¿Guardar como versión {{n}}?",
+      "msgNew": "Una vez guardada, podrá iniciar muestreos con ella.",
+      "msgNext": "Los muestreos iniciados después usan la versión nueva.",
+      "msgAdditive": "Solo se agrega o amplía: los muestreos en curso pueden pasar a la versión nueva.",
+      "msgBreaking": "Se quitó o cambió algo: los muestreos ya iniciados conservan su versión y los que se inicien después usan la nueva.",
+      "noChange": "Sin cambios",
+      "saved": "Guardada como versión {{n}}",
+      "fixFirst": "Corrija antes de guardar",
+      "invalid": "Esta plantilla aún no se puede guardar:\n{{detail}}"
+    },
+    "issue": {
+      "nameEmpty": "La plantilla necesita un nombre",
+      "noUnitLevel": "Una plantilla de parcela necesita al menos un nivel de unidades",
+      "unitLabelEmpty": "Cada nivel de unidades necesita un nombre",
+      "traitNameEmpty": "El rasgo {{n}} de «{{component}}» necesita un nombre",
+      "traitRange": "Rasgo {{n}} de «{{component}}»: el mínimo supera el máximo",
+      "params": "«{{component}}» está mal configurado: {{detail}}",
+      "choiceList": "«{{component}}» necesita una lista de códigos",
+      "listNameEmpty": "Cada lista de códigos necesita un nombre",
+      "listNoCodes": "La lista «{{list}}» aún no tiene códigos",
+      "codeEmpty": "El código {{n}} de la lista «{{list}}» está vacío",
+      "codeDuplicate": "El código {{n}} de la lista «{{list}}» repite uno anterior",
+      "codeNameEmpty": "El código {{n}} de la lista «{{list}}» necesita un nombre"
+    },
+    "upgrade": {
+      "title": "¿Actualizar los muestreos en curso?",
+      "msg_one": "{{count}} muestreo en curso usa una versión anterior y puede pasar a la versión {{n}}: aparecen los campos nuevos y lo registrado no cambia.",
+      "msg_other": "{{count}} muestreos en curso usan una versión anterior y pueden pasar a la versión {{n}}: aparecen los campos nuevos y lo registrado no cambia.",
+      "msg_many": "{{count}} muestreos en curso usan una versión anterior y pueden pasar a la versión {{n}}: aparecen los campos nuevos y lo registrado no cambia.",
+      "go": "Actualizar",
+      "skip": "Ahora no",
+      "done_one": "{{count}} muestreo actualizado",
+      "done_other": "{{count}} muestreos actualizados",
+      "done_many": "{{count}} muestreos actualizados"
+    },
+    "noPlotTemplate": {
+      "title": "Aún no hay plantillas de parcela",
+      "msg": "Primero cree una plantilla de parcela en «Plantillas de formulario» o copie un ejemplo."
+    },
+    "pickTemplate": "¿Qué plantilla?",
+    "componentNameDesc": "Si se deja vacío, se muestra «{{name}}». Póngale nombre cuando el mismo componente aparezca dos veces (dos grupos de rasgos, por ejemplo).",
+    "required": "Obligatorio",
+    "requiredDesc": "Si está activo, un valor faltante se marca y al terminar el muestreo se avisa.",
+    "requiredFixed": "Todo muestreo tiene este componente; no se puede desactivar.",
+    "params": "Ajustes",
+    "param": {
+      "kinds": "Escalas de abundancia ofrecidas",
+      "defaultKind": "Escala predeterminada",
+      "modeCells": "Celda por celda",
+      "modeCount": "Solo el número de celdas",
+      "gridN": "Celdas por lado",
+      "topEdge": "Borde superior de la cuadrícula hacia",
+      "layers": "Número de estratos predeterminado",
+      "layerMethods": "Cómo se anota la cobertura de los estratos",
+      "max": "Como máximo",
+      "gpsOnly": "Los muestreos de lista y de parcela registran una posición GNSS (latitud, longitud, precisión).",
+      "none": "Este componente no tiene nada que ajustar."
+    },
+    "traits": "Rasgos",
+    "traitN": "Rasgo {{n}}",
+    "trait": {
+      "unit": "Unidad",
+      "min": "Mínimo",
+      "max": "Máximo",
+      "integer": "Solo números enteros",
+      "remove": "Quitar este rasgo",
+      "add": "Añadir un rasgo"
+    },
+    "removeComponent": "Quitar componente",
+    "removeComponentMsg": "¿Quitar «{{name}}» de la plantilla?",
+    "changeAdditive": "Frente a la versión guardada solo se agrega o amplía; los muestreos en curso pueden pasar a la nueva.",
+    "changeBreaking": "Frente a la versión {{n}} se quitó o cambió algo: los muestreos ya iniciados conservan la versión {{n}}.",
+    "summary": {
+      "layers_one": "{{count}} estrato",
+      "layers_other": "{{count}} estratos",
+      "layers_many": "{{count}} estratos",
+      "fields_one": "{{count}} campo",
+      "fields_other": "{{count}} campos",
+      "fields_many": "{{count}} campos",
+      "max_one": "hasta {{count}}",
+      "max_other": "hasta {{count}}",
+      "max_many": "hasta {{count}}",
+      "gps": "Posición GNSS"
+    },
+    "kind": {
+      "bb": "Braun-Blanquet",
+      "percent": "Cobertura %",
+      "dbh": "DAP"
+    },
+    "listSep": ", ",
+    "lists": "Listas de códigos",
+    "listsDesc": "Los campos de opciones personalizados eligen de estas listas. Se registra el código; el nombre solo se muestra.",
+    "list": {
+      "newName": "Lista de códigos {{n}}",
+      "codes_one": "{{count}} código",
+      "codes_other": "{{count}} códigos",
+      "codes_many": "{{count}} códigos",
+      "usedBy": "La usan: {{names}}",
+      "unused": "Ningún componente usa esta lista todavía",
+      "add": "Añadir una lista de códigos",
+      "remove": "Eliminar lista",
+      "removeMsg": "¿Eliminar «{{name}}»?",
+      "codesTitle": "Códigos",
+      "codesDesc": "El código es el valor que se registra y no puede cambiarse una vez guardada la plantilla. Marque como retirados los códigos que ya no use; los datos ya registrados los siguen mostrando.",
+      "codeFixed": "Código {{code}} (guardado, no se puede cambiar)",
+      "code": "Código",
+      "deprecated": "Retirado",
+      "deprecatedDesc": "Ya no se ofrece; los datos ya registrados lo siguen mostrando",
+      "removeCode": "Quitar este código",
+      "addCode": "Añadir un código"
+    },
+    "choice": {
+      "single": "Opción única",
+      "multi": "Opción múltiple",
+      "list": "Lista de códigos",
+      "noList": "Sin elegir",
+      "change": "Cambiar",
+      "editList": "Editar esta lista",
+      "multiSwitch": "Permitir varias opciones"
+    },
+    "import": {
+      "fromFile": "Importar desde un archivo…",
+      "failTitle": "No se puede importar",
+      "newerApp": "Esta plantilla usa componentes que esta versión de la app no conoce ({{types}}). Actualice primero la app.",
+      "invalid": "El archivo no es válido: {{detail}}",
+      "notTemplate": "Este no es un archivo de plantilla de Mitalivana (.mtpl.json).",
+      "done": "Se importó «{{name}}»",
+      "doneRenamed": "Se importó «{{name}}». La misma plantilla ya estaba aquí, así que la importación se guardó como una nueva."
+    },
+    "health": {
+      "title": "Códigos de estado",
+      "desc": "Qué códigos registra cada tallo. Los códigos de censo ForestGEO son la base del censo de árboles y se mantienen; se pueden añadir AMS y sus propias listas de códigos.",
+      "census": "Códigos de censo ForestGEO (Condit 1998)",
+      "ams": "Mortalidad y daños ForestGEO (AMS)",
+      "amsDesc": "Con AMS, cada tallo registra también los campos AMS, y si un tallo está muerto depende de su estado de supervivencia AMS."
+    },
+    "census": {
+      "intro": "Plantilla de censo de árboles: se pueden añadir o quitar altura, fotos y rasgos; los códigos de estado pueden incluir AMS y sus propias listas de códigos. Lo demás sigue el censo de árboles.",
+      "requiredFixed": "El censo de árboles decide qué es obligatorio; no se puede cambiar aquí.",
+      "paramsFixed": "El censo de árboles usa este componente tal cual; no hay nada que ajustar.",
+      "listsDesc": "Los códigos de estado pueden incluir estas listas; cada tallo elige códigos de ellas.",
+      "start": "Iniciar un censo en una parcela permanente…",
+      "pick": "¿Qué plantilla de censo de árboles?",
+      "lastUsed": "{{name}} (usada en el censo anterior)",
+      "pickFrame": "¿En qué parcela permanente?",
+      "openTitle": "Aún hay un censo abierto",
+      "openMsg": "El censo {{n}} de esta parcela no ha terminado. Termínelo antes de iniciar el siguiente.",
+      "openGo": "Abrir el censo en curso"
+    }
   }
 }

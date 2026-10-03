@@ -21,11 +21,10 @@ const eq = (msg, got, want) => {
   }
 };
 
-// Collections are not team-synced; MIREN is not a sync kind yet; the tree
-// census (fw_media) syncs per block from Phase 1C — take it off then. A
-// permanent plot's morphospecies list (fw_frame_labels, v83) syncs with the
-// frame from Phase 2C.
-const NOT_SYNCED = ['collection_specimens', 'photo_fix', 'miren_plots', 'fw_frame_labels'];
+// Collections are not team-synced; MIREN is not a sync kind yet. A
+// permanent plot's morphospecies photos (fw_frame_labels) travel with its
+// checklist / plot-style surveys (Phase 2C-b).
+const NOT_SYNCED = ['collection_specimens', 'photo_fix', 'miren_plots'];
 const missing = MEDIA_COLUMNS.filter(([t, c]) => !NOT_SYNCED.includes(t) && !(`${t}.${c}` in MEDIA_COLUMN_KINDS)).map(([t, c]) => `${t}.${c}`);
 eq('every media column of a synced record kind is carried', missing, []);
 
@@ -58,6 +57,13 @@ const photo = { ...good, ref: { t: 'fw_media', k: 'm-1', c: 'uri' } };
 const owner = { tree: 't-1', stem: null, component: 'photo', kind: 'tree' };
 eq('manifest: a census photo keeps its owner', readMediaManifest([{ ...photo, meta: { owner } }]), [{ ...photo, meta: { owner } }]);
 eq('manifest: a malformed owner is dropped', readMediaManifest([{ ...photo, meta: { owner: { tree: 3 } } }]), [photo]);
+// A checklist / plot-style survey's photo row says its unit or occurrence (mediaRefs.ts).
+const place = { unit: 'quadrat:Q1', occ: null, component: 'photos', kind: 'photo' };
+eq('manifest: a survey photo keeps its place', readMediaManifest([{ ...photo, meta: { place } }]), [{ ...photo, meta: { place } }]);
+eq('manifest: a malformed place is dropped', readMediaManifest([{ ...photo, meta: { place: { unit: 1, component: 'photos', kind: 'photo' } } }]), [photo]);
+const label = { ...good, ref: { t: 'fw_frame_labels', k: 't1|sp1', c: 'photo_uri' } };
+eq('manifest: a morphospecies photo is a known column', readMediaManifest([label]), [label]);
+eq('single: a morphospecies photo fills an empty column only', [withAddition(MEDIA_COLUMN_KINDS['fw_frame_labels.photo_uri'], null, 'x', undefined, has([])), withAddition('single', 'mine', 'x', undefined, has([]))], ['x', null]);
 eq('folders by extension', ['a.JPG', 'b.heic', 'c.m4a', 'd.pdf', 'e'].map(folderFor), ['photos', 'photos', 'audio', 'files', 'files']);
 
 if (failed) {

@@ -67,8 +67,8 @@ export function TraitsEditor({ instance, values, onChange, problems, readOnly }:
   );
 }
 
-/** Each environment field's name: the plot screen's own labels (literal keys, so check:i18n sees them). */
-function envLabel(t: TFunction, f: EnvironmentField): string {
+/** Each environment field's name: the plot screen's own labels (literal keys, so check:i18n sees them). Also the builder's. */
+export function envLabel(t: TFunction, f: EnvironmentField): string {
   switch (f) {
     case 'elevation_m':
       return t('plot.elevation');
@@ -101,11 +101,11 @@ export function EnvironmentEditor({ instance, values, onChange, problems, readOn
   const fields = (Array.isArray(instance.params.fields) ? instance.params.fields : []) as EnvironmentField[];
   const covers = COVER_FIELDS.filter((f) => fields.includes(f));
   const total = Math.round(covers.reduce((s, f) => s + (num(values[f]) ?? 0), 0) * 100) / 100;
-  const setCover = (field: EnvironmentField, v: number | null) => {
+  const setCover = (field: EnvironmentField, v: number | null, done: boolean) => {
     const next: Record<string, number | null> = { [field]: v };
-    // The last blank cover takes what is left, when there is room (never past 100 %).
+    // The last blank cover takes what is left, when there is room (never past 100 %) — once the number is typed in full.
     const blanks = covers.filter((f) => f !== field && num(values[f]) == null);
-    if (v != null && blanks.length === 1) {
+    if (done && v != null && blanks.length === 1) {
       const filled = covers.filter((f) => f !== blanks[0]).reduce((s, f) => s + (f === field ? v : (num(values[f]) ?? 0)), 0);
       const rest = Math.round((100 - filled) * 100) / 100;
       if (rest >= 0) next[blanks[0]] = rest;
@@ -129,7 +129,7 @@ export function EnvironmentEditor({ instance, values, onChange, problems, readOn
             value={num(values[f])}
             min={min}
             max={max}
-            onSave={(v) => (cover ? setCover(f, v) : onChange({ [f]: v }))}
+            onSave={(v, done) => (cover ? setCover(f, v, done) : onChange({ [f]: v }))}
           />
         );
       })}

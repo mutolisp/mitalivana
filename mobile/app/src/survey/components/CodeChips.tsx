@@ -1,7 +1,7 @@
 /**
  * Census codes as toggle chips (design 13c): the code in monospace, filled
  * when on. `single` makes them a radio group (the four whole-tree death codes
- * are alternatives).
+ * are alternatives); `named` adds each code's name (a template's own codes).
  */
 import { Pressable, Text, View } from 'react-native';
 
@@ -12,6 +12,7 @@ export function CodeChips({
   single,
   disabled,
   labelOf,
+  named,
 }: {
   codes: readonly string[];
   selected: readonly string[];
@@ -20,6 +21,8 @@ export function CodeChips({
   disabled?: boolean;
   /** Spoken label of a code. */
   labelOf: (code: string) => string;
+  /** Show the label after the code (a template's own codes, which the user named). */
+  named?: boolean;
 }) {
   return (
     <View className="flex-row flex-wrap gap-1.5">
@@ -44,7 +47,10 @@ export function CodeChips({
             } ${disabled ? 'opacity-40' : ''}`}
             style={{ height: 36 }}
           >
-            <Text className={`font-mono text-sm font-bold ${on ? 'text-white dark:text-gray-950' : 'text-ink dark:text-gray-100'}`}>{code}</Text>
+            <View className="flex-row items-center gap-1">
+              <Text className={`font-mono text-sm font-bold ${on ? 'text-white dark:text-gray-950' : 'text-ink dark:text-gray-100'}`}>{code}</Text>
+              {named ? <Text className={`text-sm ${on ? 'text-white dark:text-gray-950' : 'text-ink-2 dark:text-gray-300'}`}>{labelOf(code)}</Text> : null}
+            </View>
           </Pressable>
         );
       })}

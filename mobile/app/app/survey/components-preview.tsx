@@ -1,33 +1,17 @@
 /**
- * Development only: every survey component's input on one page (Phase 2B,
- * before the checklist and plot-style screens of 2C exist). The values are
- * written through surveyCore.writeComponent into a scratch database built
- * with the real migrations, then read back and shown, so the round trip runs
- * on op-sqlite itself. user.db is not touched; the scratch file is deleted on
- * leaving the page.
+ * Development only: every survey component's input on one page (Phase 2B),
+ * through the builder's preview (src/survey/builder/TemplatePreview.tsx): the
+ * values go into a scratch database built with the real migrations and are
+ * read back, with each one's summary and raw values shown.
  */
-import { open, type DB } from '@op-engineering/op-sqlite';
-import { File, Paths } from 'expo-file-system';
 import { Stack } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BackHeaderLeft } from '~/lib/goBack';
 import { NumAccessory } from '~/components/form/NumField';
-import { runUserMigrations } from '~/db/migrations';
-import { generateUuid } from '~/db/uuid';
-import { errText } from '~/lib/errText';
-import { componentProblems } from '~/survey/componentRules';
-import type { Ctx } from '~/survey/db/stemmapCore';
-import * as core from '~/survey/db/surveyCore';
-import { ComponentEditor, componentLabel, componentSummary } from '~/survey/components/editors/ComponentEditor';
-import { FormCard } from '~/survey/components/FormBits';
-import { componentDef, type ComponentValues, type FieldValue } from '~/survey/registry';
-import type { ComponentInstance, SurveyTemplate } from '~/survey/template/types';
+import { TemplatePreview } from '~/survey/builder/TemplatePreview';
+import type { SurveyTemplate } from '~/survey/template/types';
 import { withRequired } from '~/survey/template/validate';
-
-const PREVIEW_DB = 'component-preview.db';
 
 const TEMPLATE: SurveyTemplate = withRequired({
   schema: 1,
@@ -62,71 +46,7 @@ const TEMPLATE: SurveyTemplate = withRequired({
   quick_add: false,
 });
 
-type Scratch = { db: DB; ctx: Ctx; owners: Record<string, core.ComponentOwner> };
-
-async function openScratch(): Promise<Scratch> {
-  const file = new File(Paths.document, PREVIEW_DB);
-  if (file.exists) file.delete();
-  const db = open({ name: PREVIEW_DB, location: Paths.document.uri });
-  await runUserMigrations(db);
-  db.executeSync('PRAGMA foreign_keys = ON;');
-  const ctx: Ctx = { db, now: Date.now, uuid: generateUuid };
-  // add-guard: a scratch database, not user.db; nothing there is active.
-  const survey = core.createSurvey(ctx, { template: TEMPLATE });
-  const subplot = core.addUnit(ctx, survey, { levelKey: 'subplot', code: 'A' });
-  const quadrat = core.addUnit(ctx, survey, { levelKey: 'quadrat', code: 'A1', parentId: subplot });
-  // A placeholder taxon: the species search is the record screens' (2C).
-  const occurrence = core.addOccurrence(ctx, survey, { taxon_id: 'preview', unit_id: quadrat });
-  return {
-    db,
-    ctx,
-    owners: { survey: { kind: 'survey', id: survey }, subplot: { kind: 'unit', id: subplot }, quadrat: { kind: 'unit', id: quadrat }, occurrence: { kind: 'occurrence', id: occurrence } },
-  };
-}
-
-const ownerOf = (s: Scratch, c: ComponentInstance) => (c.level === 'unit' ? s.owners[c.unit ?? ''] : s.owners[c.level]);
-
 export default function ComponentsPreview() {
-  const { t, i18n } = useTranslation();
-  const [scratch, setScratch] = useState<Scratch | null>(null);
-  const [failure, setFailure] = useState<string | null>(null);
-  const [values, setValues] = useState<Record<string, ComponentValues>>({});
-  const [refused, setRefused] = useState<Record<string, string>>({});
-
-  useEffect(() => {
-    let s: Scratch | null = null;
-    openScratch()
-      .then((x) => {
-        s = x;
-        setScratch(x);
-        setValues(Object.fromEntries(TEMPLATE.components.filter((c) => ownerOf(x, c)).map((c) => [c.key, core.readComponent(x.ctx, ownerOf(x, c), c.key)])));
-      })
-      .catch((e) => setFailure(errText(e)));
-    return () => {
-      s?.db.close();
-      const file = new File(Paths.document, PREVIEW_DB);
-      if (file.exists) file.delete();
-    };
-  }, []);
-
-  const shown = useMemo(() => (scratch ? TEMPLATE.components.filter((c) => ownerOf(scratch, c)) : []), [scratch]);
-
-  const reread = (c: ComponentInstance) => {
-    if (!scratch) return;
-    setValues((v) => ({ ...v, [c.key]: core.readComponent(scratch.ctx, ownerOf(scratch, c), c.key) }));
-  };
-  const write = (c: ComponentInstance, patch: Record<string, FieldValue>) => {
-    if (!scratch) return;
-    try {
-      core.writeComponent(scratch.ctx, ownerOf(scratch, c), c.key, patch);
-      setRefused((r) => ({ ...r, [c.key]: '' }));
-    } catch (e) {
-      // What the store refuses is shown as is: the forms are expected to stop it first.
-      setRefused((r) => ({ ...r, [c.key]: errText(e) }));
-    }
-    reread(c);
-  };
-
   return (
     <SafeAreaView edges={['bottom']} className="flex-1 bg-paper dark:bg-paper-dark">
       <Stack.Screen options={{ title: '元件預覽（開發版）', headerLeft: BackHeaderLeft }} />
@@ -134,49 +54,7 @@ export default function ComponentsPreview() {
         <Text className="text-xs leading-5 text-ink-2 dark:text-gray-400">
           每個元件寫進暫存資料庫（實際 migration），再讀回顯示；離開頁面即刪除。不動使用者資料。
         </Text>
-        {failure ? <Text className="text-sm text-alert dark:text-alert-dark">{failure}</Text> : null}
-        {scratch
-          ? shown.map((c) => {
-              const def = componentDef(c.type);
-              const v = values[c.key] ?? {};
-              const problems = def ? componentProblems(def, c.params, c.level, c.key, v) : [];
-              const owner = ownerOf(scratch, c);
-              const summary = componentSummary(t, i18n.language, c, v);
-              return (
-                <FormCard key={c.key} title={`${componentLabel(t, i18n.language, c)} · ${c.level}${c.unit ? `:${c.unit}` : ''}`}>
-                  <ComponentEditor
-                    instance={c}
-                    values={v}
-                    problems={problems}
-                    onChange={(patch) => write(c, patch)}
-                    context={{
-                      kingdom: 'Plantae',
-                      layerCount: 4,
-                      onAddMedia: (uri) => {
-                        try {
-                          core.addMedia(scratch.ctx, owner, c.key, uri);
-                        } catch (e) {
-                          setRefused((r) => ({ ...r, [c.key]: errText(e) }));
-                        }
-                        reread(c);
-                      },
-                      onRemoveMedia: (uri) => {
-                        core.removeMedia(scratch.ctx, owner, c.key, uri);
-                        reread(c);
-                      },
-                    }}
-                  />
-                  {refused[c.key] ? <Text className="text-xs text-alert dark:text-alert-dark">{refused[c.key]}</Text> : null}
-                  <View className="gap-0.5 border-t border-line pt-1.5 dark:border-line-dark">
-                    <Text className="text-[11px] text-ink-3 dark:text-gray-400">摘要：{summary || '—'}</Text>
-                    <Text className="text-[11px] text-ink-3 dark:text-gray-400">
-                      讀回：{JSON.stringify(v)}
-                    </Text>
-                  </View>
-                </FormCard>
-              );
-            })
-          : null}
+        <TemplatePreview template={TEMPLATE} raw />
       </ScrollView>
       <NumAccessory />
     </SafeAreaView>

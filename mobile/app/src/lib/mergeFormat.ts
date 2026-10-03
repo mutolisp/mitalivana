@@ -21,6 +21,14 @@ const FIELD_KEY: Record<string, string> = {
   field_note: 'notes',
   used_name_id: 'usedName',
   used_scientific_name: 'usedName',
+  note: 'notes',
+};
+/** The same column meaning something else in a checklist / plot-style survey's rows (surveyDocCore.ts). */
+const TABLE_FIELD_KEY: Record<string, Record<string, string>> = {
+  occ: { unit: 'surveyUnit' },
+  surveyval: { unit: 'measureUnit' },
+  unitval: { unit: 'measureUnit' },
+  occval: { unit: 'measureUnit' },
 };
 const LABELLED = new Set([
   'name', 'type', 'notes', 'gps_mode', 'taxon_id', 'observed_at', 'elevation_m', 'organism_quantity',
@@ -39,6 +47,9 @@ const LABELLED = new Set([
   // Tree census (survey framework, v80)
   'tag', 'dbh_cm', 'pom_m', 'pom_seq', 'is_main', 'stem_dead', 'pending', 'x_m', 'y_m', 'quadrat_code', 'coord_method', 'stem_no',
   'value_num', 'value_text', 'status', 'measured_at', 'local_x_m', 'local_y_m', 'ref_kind', 'ref_code', 'azimuth_deg', 'azimuth_ref',
+  // Checklist / plot-style surveys (v83–v84)
+  'parent', 'geometry_geojson', 'shape', 'width_m', 'length_m', 'radius_m', 'retired_at', 'phase', 'outcome', 'occurrence',
+  'identified_by', 'elevation_source',
 ]);
 /** GLORIA 完成 locks and other 1 / null flags. */
 const LOCKS = new Set(['done_locked', 'freq_locked', 'pf_locked', 'locked', 'photo_open', 'photo_closed', 'no_researchers']);
@@ -69,9 +80,10 @@ export function rowLabel(t: (k: string) => string, tbl: string, label: string): 
   return tbl === 'qconfig' && QCONFIG_KEY[label] ? t(QCONFIG_KEY[label]) : label;
 }
 
-export function fieldLabel(t: (k: string) => string, f: string): string {
+/** `tbl`: the row's table, for a column whose meaning depends on it. */
+export function fieldLabel(t: (k: string) => string, f: string, tbl?: string): string {
   if (f.startsWith('cov_') || f.startsWith('sub_')) return t(`gloria.cover.${f}`);
-  const k = FIELD_KEY[f] ?? (LABELLED.has(f) ? f : null);
+  const k = (tbl ? TABLE_FIELD_KEY[tbl]?.[f] : undefined) ?? FIELD_KEY[f] ?? (LABELLED.has(f) ? f : null);
   return k ? t(`teamMerge.field.${k}`) : f;
 }
 
@@ -110,6 +122,9 @@ export function fmt(f: string, v: unknown, ctx?: FmtContext): string {
   if (quadrat != null) return quadrat;
   const code = ctx?.tbl === 'tree' && typeof v === 'string' ? TREE_CODE_KEY[f]?.[v] : undefined;
   if (code) return ctx!.t(code);
+  // A survey occurrence's phase and a recheck answer, in the words the survey screens use.
+  if (ctx?.tbl === 'occ' && f === 'phase' && (v === 'blind' || v === 'recheck')) return ctx.t(`surveyForm.phase.${v}`);
+  if (ctx?.tbl === 'recheck' && f === 'outcome' && typeof v === 'string') return ctx.t(`surveyForm.recheck.${v}`);
   if (MASKS.has(f) && typeof v === 'string') {
     const on = f === 'point_surface' ? [...v].filter((c) => c !== '.').length : [...v].filter((c) => c === '1').length;
     return `${on}/${v.length}`;

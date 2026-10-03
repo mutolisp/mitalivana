@@ -14,8 +14,9 @@ import { useTranslation } from 'react-i18next';
 import { Text, View } from 'react-native';
 import { parseDbhArray } from '~/lib/dwcAbundanceCore';
 import { componentDef, type ComponentType, type ComponentValues, type TraitDef } from '~/survey/registry';
-import type { ComponentInstance, Label } from '~/survey/template/types';
+import type { CodeList, ComponentInstance, Label } from '~/survey/template/types';
 import { AbundanceEditor } from './AbundanceEditor';
+import { ChoiceEditor, choiceList, codeLabel } from './ChoiceEditor';
 import { EnvironmentEditor, PhenologyEditor, TraitsEditor } from './AttributeEditors';
 import {
   AudioEditor,
@@ -73,6 +74,8 @@ export function ComponentEditor(props: EditorProps) {
     case 'location':
       // On a census tree the position is the tree form's (grid, x,y, polar, GNSS).
       return props.instance.level === 'individual' ? <ElsewhereNote /> : <LocationEditor {...props} />;
+    case 'choice':
+      return <ChoiceEditor {...props} />;
     case 'taxon':
     case 'dbh':
     case 'health':
@@ -96,7 +99,8 @@ const str = (v: unknown): string => (typeof v === 'string' ? v : '');
 const list = (v: unknown): string[] => (Array.isArray(v) ? v.map(String) : []);
 
 /** What a component holds, in a few words ('' when nothing is recorded). */
-export function componentSummary(t: TFunction, lang: string, instance: ComponentInstance, v: ComponentValues): string {
+/** `codelists`: the template's, so a choice reads as its codes' names. */
+export function componentSummary(t: TFunction, lang: string, instance: ComponentInstance, v: ComponentValues, codelists?: readonly CodeList[]): string {
   const type = instance.type as ComponentType;
   switch (type) {
     case 'abundance': {
@@ -154,6 +158,11 @@ export function componentSummary(t: TFunction, lang: string, instance: Component
     }
     case 'height':
       return num(v.height_m) == null ? '' : `${num(v.height_m)} m`;
+    case 'choice': {
+      const codes = choiceList(codelists, instance.params.list);
+      const chosen = Array.isArray(v.value) ? v.value.map(String) : typeof v.value === 'string' && v.value ? [v.value] : [];
+      return chosen.map((code) => codeLabel(t, lang, codes?.items.find((it) => it.code === code), code)).join(t('builder.listSep'));
+    }
     case 'timestamp':
     case 'taxon':
     case 'dbh':

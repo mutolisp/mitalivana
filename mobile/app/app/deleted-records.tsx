@@ -1,6 +1,7 @@
 /**
  * Recently deleted records (record versions, v73): for 30 days after a
- * checklist, plot survey or GLORIA survey is deleted, its versions stay and
+ * checklist, plot survey, GLORIA survey, checklist / plot-style survey or
+ * tree census is deleted, its versions stay and
  * the record can be rebuilt from the latest one (recoverRecord), under its own
  * uuid and finished. Photos come back only if their files are still here.
  */
@@ -12,6 +13,7 @@ import { SettingsPage } from '~/components/settings/SettingsPage';
 import { sweepRecordVersions } from '~/db/cleanup';
 import { listDeletedRecords, recoverRecord, type DeletedRecord, type VersionKind } from '~/db/recordVersions';
 import { RecoverCensusError } from '~/survey/db/censusVersions';
+import { InsertSurveyError } from '~/survey/db/surveyDocs';
 import { isoStamp } from '~/lib/datetime';
 import { errText } from '~/lib/errText';
 import { DELETED_KEEP_MS } from '~/lib/recordVersionsCore';
@@ -59,7 +61,11 @@ export default function DeletedRecordsScreen() {
                 ? e.code === 'census_no_taken'
                   ? t('survey.census.recoverNumberTaken')
                   : t('survey.census.recoverCodeTaken')
-                : errText(e);
+                : e instanceof InsertSurveyError
+                  ? e.code === 'number_taken'
+                    ? t('surveyForm.recoverNumberTaken')
+                    : t('survey.census.recoverCodeTaken')
+                  : errText(e);
             Alert.alert(t('versions.recoverFail'), why);
           }
         },

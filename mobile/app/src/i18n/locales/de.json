@@ -278,7 +278,7 @@
     "duplicateNoGloria": "GLORIA-Aufnahmen lassen sich nicht kopieren. Den nächsten Monitoringzyklus unter „Neue GLORIA-Aufnahme“ mit demselben Gipfel beginnen.",
     "gloriaCount_one": "GLORIA {{count}} ({{summits}} Gipfel)",
     "gloriaCount_other": "GLORIA {{count}} ({{summits}} Gipfel)",
-    "deleteRecoverable": "Artenlisten, Probeflächen-, GLORIA-Aufnahmen und Baumerhebungen lassen sich 30 Tage lang unter Datensätze ⋯ → „Zuletzt gelöscht“ wiederherstellen.",
+    "deleteRecoverable": "Artenlisten, Probeflächen-, GLORIA-, Listen- / Flächenaufnahmen und Baumerhebungen lassen sich 30 Tage lang unter Datensätze ⋯ → „Zuletzt gelöscht“ wiederherstellen.",
     "deletePermanent": "Sammlungen lassen sich nach dem Löschen nicht wiederherstellen.",
     "activeResume": "Erfassung fortsetzen",
     "activeSpecies": "Arten",
@@ -1807,6 +1807,7 @@
   "recordImport": {
     "unsupportedBundle": "Dies ist ein Paket mit mehreren Datensätzen; entpacken Sie es und importieren Sie die Datensätze einzeln.",
     "unknownKind": "Der Datensatztyp dieser Datei lässt sich nicht bestimmen.",
+    "modularNotYet": "Diese Datei enthält eine Listen- / Flächenaufnahme. Solche Aufnahmen werden derzeit nur per Team-Synchronisierung übertragen; der Dateiimport folgt in einer späteren Version.",
     "sessionExistsTitle": "Artenliste existiert bereits",
     "sessionExistsMsg": "„{{name}}“ ist bereits auf diesem Gerät vorhanden. Überschreiben oder als neue Kopie speichern?",
     "photoConflictTitle": "Dieser Datensatz hat bereits Fotos",
@@ -3568,7 +3569,15 @@
       "sval": "Stammcodes",
       "ival": "Baumdaten",
       "history": "Korrekturen",
-      "media": "Fotos"
+      "media": "Fotos",
+      "sunit": "Aufnahmeeinheit",
+      "occ": "Fund",
+      "surveyval": "Aufnahmefeld",
+      "unitval": "Einheitsfeld",
+      "occval": "Fundfeld",
+      "recheck": "Nachkontrolle",
+      "funit": "Einteilung",
+      "flabel": "Morphospezies"
     },
     "field": {
       "latitude": "Breite",
@@ -3664,7 +3673,21 @@
       "ref_code": "Bezugspunkt",
       "azimuth_deg": "Richtung (°)",
       "azimuth_ref": "Richtungsbezug",
-      "status": "Status"
+      "status": "Status",
+      "parent": "Übergeordnete Einheit",
+      "geometry_geojson": "Umriss",
+      "shape": "Form",
+      "width_m": "Breite (m)",
+      "length_m": "Länge (m)",
+      "radius_m": "Radius (m)",
+      "retired_at": "Stillgelegt am",
+      "phase": "Phase",
+      "outcome": "Ergebnis",
+      "occurrence": "Fund",
+      "identified_by": "Bestimmt von",
+      "elevation_source": "Höhenquelle",
+      "surveyUnit": "Einheit",
+      "measureUnit": "Maßeinheit"
     },
     "from": "Von {{name}}",
     "fromAt": "Von {{name}}, hochgeladen {{date}}",
@@ -4327,7 +4350,7 @@
     "restored": "Wiederhergestellt ({{n}} Änderungen)",
     "restoreFail": "Wiederherstellen nicht möglich",
     "deletedTitle": "Zuletzt gelöscht",
-    "deletedIntro": "Gelöschte Artenlisten, Probeflächen-Aufnahmen, GLORIA-Aufnahmen und Baumerhebungen lassen sich 30 Tage lang aus ihrer neuesten Version wiederherstellen (als abgeschlossene Aufnahme). Von der Speicherbereinigung entfernte Fotos kommen nicht zurück.",
+    "deletedIntro": "Gelöschte Artenlisten, Probeflächen-Aufnahmen, GLORIA-Aufnahmen, Listen- / Flächenaufnahmen und Baumerhebungen lassen sich 30 Tage lang aus ihrer neuesten Version wiederherstellen (als abgeschlossene Aufnahme). Von der Speicherbereinigung entfernte Fotos kommen nicht zurück.",
     "deletedNone": "Nichts wiederherzustellen",
     "deletedAt": "gelöscht {{when}}",
     "daysLeft": "noch {{n}} Tage",
@@ -4336,7 +4359,8 @@
       "plot": "Probefläche",
       "gloria": "GLORIA",
       "survey": "Baumerhebung",
-      "survey_quadrat": "Quadrat der Baumerhebung"
+      "survey_quadrat": "Quadrat der Baumerhebung",
+      "modular": "Listen- / Flächenaufnahme"
     },
     "recoverTitle": "Diese Aufnahme wiederherstellen?",
     "recoverMsg": "„{{name}}“ wird aus der neuesten Version als abgeschlossene Aufnahme neu angelegt.",
@@ -4369,11 +4393,12 @@
     "surveyPageSubtitle": "Nach links oder rechts wischen, um ein Formular zu wählen",
     "surveyStemDesc": "Baumerhebung auf einer Dauerfläche (ForestGEO): Nummern, Lage, BHD und Zustandscodes. Aufnahmen beginnen auf der Fläche.",
     "surveyOpenFrames": "Dauerflächen öffnen",
-    "surveyChecklistDesc": "Arten unterwegs erfassen; die Felder richten sich nach dem Formular (Testvorlage; Arten lassen sich direkt aus dem Artenreiter hinzufügen).",
-    "surveyPlotDesc": "Teilfläche für Teilfläche erfassen; auf einer Dauerfläche beginnt die Wiederholung blind und wird dann mit der früheren Liste verglichen (Testvorlage).",
     "surveyOnFrame": "Auf einer Dauerfläche beginnen …",
     "surveyNoFrames": "Noch keine Dauerfläche. Lege zuerst eine unter „Baumerhebung“ an.",
-    "surveyPageOf": "Karte {{n}} von {{total}}"
+    "surveyPageOf": "Karte {{n}} von {{total}}",
+    "builderDesc": "Ein neues Formular anlegen oder eine vorhandene Vorlage bearbeiten oder kopieren.",
+    "builderDescEmpty": "Eigene Listen- oder Flächenformulare aus Bausteinen zusammenstellen oder mit einer Kopie eines Beispiels beginnen.",
+    "builderManage": "Vorlagen verwalten"
   },
   "count": {
     "increase": "{{name}} erhöhen",
@@ -4719,7 +4744,10 @@
       "unsavedTitle": "Änderungen verwerfen?",
       "unsavedMsg": "Die Änderungen an diesem Baum sind nicht gespeichert.",
       "discard": "Verwerfen",
-      "errNumber": "Diese Felder sind keine Zahlen:"
+      "errNumber": "Diese Felder sind keine Zahlen:",
+      "photosMax": "Höchstens {{max}} Fotos pro Baum",
+      "traitInteger": "Muss eine ganze Zahl sein",
+      "traitRange": "Außerhalb des Bereichs ({{range}})"
     },
     "sync": {
       "blockSizeTitle": "Größe der Sync-Blöcke",
@@ -4787,7 +4815,8 @@
       "structure": "Schichten",
       "phenology": "Phänologie",
       "traits": "Merkmale",
-      "environment": "Umwelt"
+      "environment": "Umwelt",
+      "choice": "Eigene Auswahl"
     },
     "editor": {
       "elsewhere": "Dieses Element wird auf der Erfassungsseite eingegeben.",
@@ -4844,6 +4873,10 @@
         "stems_other": "{{count}} Stämme",
         "layers_one": "{{count}} Schicht",
         "layers_other": "{{count}} Schichten"
+      },
+      "choice": {
+        "noList": "Die Liste dieser Auswahl fehlt; bitte die Formularvorlage prüfen.",
+        "multi": "Mehrfachauswahl möglich"
       }
     },
     "ams": {
@@ -4967,8 +5000,8 @@
     "ended": "Ende",
     "reopen": "Fortsetzen",
     "deleteTitle": "Aufnahme löschen",
-    "deleteMsg_one": "„{{name}}“ und den {{count}} Fund darin löschen? Das lässt sich nicht rückgängig machen.",
-    "deleteMsg_other": "„{{name}}“ und die {{count}} Funde darin löschen? Das lässt sich nicht rückgängig machen.",
+    "deleteMsg_one": "„{{name}}“ und den {{count}} Fund darin löschen?",
+    "deleteMsg_other": "„{{name}}“ und die {{count}} Funde darin löschen?",
     "noExport": "Listen- und Flächenaufnahmen lassen sich noch nicht exportieren",
     "notInProjectExport_one": "{{count}} Listen- / Flächenaufnahme lässt sich noch nicht exportieren und fehlt in diesem Export",
     "notInProjectExport_other": "{{count}} Listen- / Flächenaufnahmen lassen sich noch nicht exportieren und fehlen in diesem Export",
@@ -5040,6 +5073,7 @@
       "notOpen": "Die Nachkontrolle beginnt nach der Blindaufnahme",
       "intro": "Die Liste von Aufnahme {{n}}, nach Einheiten. Erfasse für jede Art, die diese Blindaufnahme nicht hat, ein Ergebnis ({{open}} noch offen).",
       "nothing": "Die frühere Aufnahme hat keine Arten.",
+      "noPrevious": "Auf diesem Gerät fehlt die frühere Aufnahme (Aufnahme {{n}}), daher kann ihre Liste nicht angezeigt werden; holen Sie sie per Team-Synchronisierung oder kontrollieren Sie auf einem Gerät nach, das sie hat.",
       "last": "Letztes Mal: {{value}}",
       "recordedBlind": "Diesmal erfasst",
       "notChecked": "Einheit stillgelegt",
@@ -5085,7 +5119,7 @@
       "section": "Flächenaufnahmen",
       "units": "Einteilung",
       "labels": "Morphospezies",
-      "start": "Flächenaufnahme beginnen (Test)",
+      "start": "Flächenaufnahme beginnen…",
       "surveyNo": "Aufnahme {{n}} · {{name}}",
       "unitsTitle": "Einteilung {{code}}",
       "unitsDesc": "Eine Flächenaufnahme beginnt mit diesen Einheiten. Eine von einer Aufnahme benutzte Einheit lässt sich nur stilllegen, nicht löschen oder umbenennen.",
@@ -5108,6 +5142,242 @@
       "removePhoto": "Foto entfernen"
     },
     "lockedBanner": "Beendet und gesperrt. Über ⋯ oben rechts entsperren, um zu bearbeiten.",
-    "surveyNo": "Aufnahme {{n}}"
+    "surveyNo": "Aufnahme {{n}}",
+    "recoverNumberTaken": "Diese Dauerfläche hat schon eine Aufnahme mit derselben Vorlage und Nummer; zuerst löschen, dann wiederherstellen.",
+    "upgrade": {
+      "banner": "Für dieses Formular gibt es eine neue Version (Version {{n}})",
+      "msg": "Auf Version {{n}} umstellen: neue Felder erscheinen, Erfasstes bleibt unverändert."
+    },
+    "carried": "Wie bei Aufnahme {{n}} (zu Beginn übernommen, bitte prüfen): {{fields}}"
+  },
+  "builder": {
+    "title": "Formularvorlagen",
+    "desc": "Eigene Listen- und Flächenformulare aus Bausteinen zusammenstellen oder die Baumerhebung anpassen",
+    "intro": "Eine Vorlage legt fest, welche Felder eine Aufnahme erfasst. Wird eine gespeicherte Vorlage bearbeitet, entsteht eine neue Version. Kommt nur etwas hinzu oder wird ein Bereich erweitert, können laufende Aufnahmen umsteigen; andere Änderungen gelten für danach begonnene Aufnahmen.",
+    "section": {
+      "drafts": "Neue Vorlagen in Bearbeitung",
+      "mine": "Meine Vorlagen",
+      "samples": "Beispiele (nur zum Kopieren)",
+      "builtin": "Eingebaut (nur zum Kopieren)"
+    },
+    "showArchived_one": "Archivierte zeigen ({{count}})",
+    "showArchived_other": "Archivierte zeigen ({{count}})",
+    "hideArchived": "Archivierte ausblenden",
+    "empty": "Noch keine eigenen Vorlagen. Unten mit „Neue Vorlage“ beginnen oder ein Beispiel kopieren.",
+    "version": "Version {{n}}",
+    "uses_one": "{{count}}-mal verwendet",
+    "uses_other": "{{count}}-mal verwendet",
+    "usesActive_one": "{{count}} laufend",
+    "usesActive_other": "{{count}} laufend",
+    "draftTag": "ungespeicherte Änderungen",
+    "newTemplate": "neu, noch nicht gespeichert",
+    "untitled": "Ohne Namen",
+    "create": "Neue Vorlage",
+    "action": {
+      "edit": "Bearbeiten",
+      "copy": "Kopieren",
+      "archive": "Archivieren",
+      "unarchive": "Aus dem Archiv holen",
+      "copyToMine": "In meine Vorlagen kopieren",
+      "export": "Als Datei exportieren"
+    },
+    "archived": "„{{name}}“ archiviert. Damit begonnene Aufnahmen bleiben unberührt.",
+    "new": {
+      "title": "Neue Vorlage",
+      "blankChecklist": "Leere Listenaufnahme",
+      "blankPlot": "Leere Flächenaufnahme",
+      "copy": "Vorhandene Vorlage kopieren…",
+      "copyFrom": "Welche kopieren?",
+      "nameTitle": "Name der Vorlage",
+      "nameMsg": "Zum Beispiel „Pflanzen am Bachufer“. Lässt sich später ändern, auch ein englischer Name ist möglich.",
+      "create": "Anlegen",
+      "firstUnit": "Teilfläche",
+      "copyName": "Kopie von {{name}}",
+      "census": "Baumerhebung (Kopie der eingebauten)"
+    },
+    "notFound": "Der Entwurf dieser Vorlage ist nicht mehr da; vielleicht wurde er gespeichert oder verworfen.",
+    "basics": "Grunddaten",
+    "name": "Name",
+    "nameEn": "Englischer Name (optional)",
+    "versionNext": "Version {{n}} gespeichert; Speichern ergibt Version {{next}}",
+    "quickAdd": "Schnelles Hinzufügen von anderswo erlauben",
+    "quickAddDesc": "Läuft eine solche Aufnahme, können Artenreiter, Taxonomiebaum, Favoriten und Bestimmungsschlüssel Arten direkt hinzufügen.",
+    "units": "Einheitsebenen",
+    "unitsDesc": "Größte zuerst, bis zu {{max}} Ebenen, etwa „Teilfläche → Quadrat“.",
+    "unitN": "Ebene {{n}}",
+    "addUnit": "Ebene darunter hinzufügen",
+    "removeUnit": "Diese Ebene entfernen",
+    "removeUnitMsg": "„{{name}}“ und die Bausteine auf dieser Ebene werden zusammen entfernt.",
+    "moveUp": "Nach oben",
+    "moveDown": "Nach unten",
+    "place": {
+      "survey": "Jede Aufnahme",
+      "unit": "Jede Einheit „{{name}}“",
+      "occurrence": "Jeder Fund",
+      "quadrat": "Je Quadrat",
+      "tree": "Je Baum",
+      "stem": "Je Stamm"
+    },
+    "addComponent": "Baustein hinzufügen",
+    "addComponentTitle": "Zu „{{place}}“ hinzufügen",
+    "nothingToAdd": "Hier lässt sich nichts mehr hinzufügen",
+    "fixed": "in jeder Aufnahme",
+    "requiredTag": "Pflicht",
+    "preview": "Vorschau",
+    "previewTitle": "Vorschau: {{name}}",
+    "previewIntro": "So sieht eine Aufnahme mit dieser Vorlage aus. Probeweise ausfüllen; nichts wird gespeichert.",
+    "discard": {
+      "title": "Änderungen verwerfen?",
+      "msg": "Der Entwurf wird gelöscht; die Vorlage bleibt bei Version {{n}}.",
+      "go": "Änderungen verwerfen",
+      "newTitle": "Diese neue Vorlage löschen?",
+      "newMsg": "Sie wurde nie gespeichert und ist danach weg.",
+      "newGo": "Diese neue Vorlage löschen"
+    },
+    "save": {
+      "go": "Speichern",
+      "title": "Als Version {{n}} speichern?",
+      "msgNew": "Nach dem Speichern lassen sich damit Aufnahmen beginnen.",
+      "msgNext": "Danach begonnene Aufnahmen verwenden die neue Version.",
+      "msgAdditive": "Es kommt nur etwas hinzu oder wird erweitert: laufende Aufnahmen können auf die neue Version umsteigen.",
+      "msgBreaking": "Etwas wurde entfernt oder geändert: begonnene Aufnahmen behalten ihre Version, danach begonnene verwenden die neue.",
+      "noChange": "Keine Änderungen",
+      "saved": "Als Version {{n}} gespeichert",
+      "fixFirst": "Vor dem Speichern beheben",
+      "invalid": "Diese Vorlage lässt sich noch nicht speichern:\n{{detail}}"
+    },
+    "issue": {
+      "nameEmpty": "Die Vorlage braucht einen Namen",
+      "noUnitLevel": "Eine Flächenvorlage braucht mindestens eine Einheitsebene",
+      "unitLabelEmpty": "Jede Einheitsebene braucht einen Namen",
+      "traitNameEmpty": "Merkmal {{n}} von „{{component}}“ braucht einen Namen",
+      "traitRange": "Merkmal {{n}} von „{{component}}“: das Minimum liegt über dem Maximum",
+      "params": "„{{component}}“ ist falsch eingestellt: {{detail}}",
+      "choiceList": "„{{component}}“ braucht eine Codeliste",
+      "listNameEmpty": "Jede Codeliste braucht einen Namen",
+      "listNoCodes": "Codeliste „{{list}}“ hat noch keine Codes",
+      "codeEmpty": "Code {{n}} der Liste „{{list}}“ ist leer",
+      "codeDuplicate": "Code {{n}} der Liste „{{list}}“ wiederholt einen früheren",
+      "codeNameEmpty": "Code {{n}} der Liste „{{list}}“ braucht einen Namen"
+    },
+    "upgrade": {
+      "title": "Laufende Aufnahmen umstellen?",
+      "msg_one": "{{count}} laufende Aufnahme verwendet eine ältere Version und kann auf Version {{n}} umsteigen: neue Felder erscheinen, Erfasstes bleibt unverändert.",
+      "msg_other": "{{count}} laufende Aufnahmen verwenden eine ältere Version und können auf Version {{n}} umsteigen: neue Felder erscheinen, Erfasstes bleibt unverändert.",
+      "go": "Umstellen",
+      "skip": "Nicht jetzt",
+      "done_one": "{{count}} Aufnahme umgestellt",
+      "done_other": "{{count}} Aufnahmen umgestellt"
+    },
+    "noPlotTemplate": {
+      "title": "Noch keine Flächenvorlage",
+      "msg": "Zuerst unter „Formularvorlagen“ eine Flächenvorlage anlegen oder ein Beispiel kopieren."
+    },
+    "pickTemplate": "Welche Vorlage?",
+    "componentNameDesc": "Leer erscheint „{{name}}“. Einen Namen geben, wenn derselbe Baustein zweimal vorkommt (etwa zwei Merkmalsgruppen).",
+    "required": "Pflicht",
+    "requiredDesc": "Eingeschaltet wird ein fehlender Wert markiert, und beim Abschließen der Aufnahme kommt ein Hinweis.",
+    "requiredFixed": "Jede Aufnahme hat diesen Baustein; er lässt sich nicht abschalten.",
+    "params": "Einstellungen",
+    "param": {
+      "kinds": "Angebotene Abundanzskalen",
+      "defaultKind": "Standardskala",
+      "modeCells": "Zelle für Zelle",
+      "modeCount": "Nur Anzahl der Zellen",
+      "gridN": "Zellen je Seite",
+      "topEdge": "Oberkante des Rasters zeigt nach",
+      "layers": "Standardanzahl Schichten",
+      "layerMethods": "Wie die Schichtdeckung erfasst wird",
+      "max": "Höchstens",
+      "gpsOnly": "Listen- und Flächenaufnahmen erfassen eine GNSS-Position (Breite, Länge, Genauigkeit).",
+      "none": "Dieser Baustein hat nichts einzustellen."
+    },
+    "traits": "Merkmale",
+    "traitN": "Merkmal {{n}}",
+    "trait": {
+      "unit": "Einheit",
+      "min": "Minimum",
+      "max": "Maximum",
+      "integer": "Nur ganze Zahlen",
+      "remove": "Dieses Merkmal entfernen",
+      "add": "Merkmal hinzufügen"
+    },
+    "removeComponent": "Baustein entfernen",
+    "removeComponentMsg": "„{{name}}“ aus der Vorlage entfernen?",
+    "changeAdditive": "Gegenüber der gespeicherten Version kommt nur etwas hinzu oder wird erweitert; laufende Aufnahmen können umsteigen.",
+    "changeBreaking": "Gegenüber Version {{n}} wurde etwas entfernt oder geändert: begonnene Aufnahmen behalten Version {{n}}.",
+    "summary": {
+      "layers_one": "{{count}} Schicht",
+      "layers_other": "{{count}} Schichten",
+      "fields_one": "{{count}} Feld",
+      "fields_other": "{{count}} Felder",
+      "max_one": "bis zu {{count}}",
+      "max_other": "bis zu {{count}}",
+      "gps": "GNSS-Position"
+    },
+    "kind": {
+      "bb": "Braun-Blanquet",
+      "percent": "Deckung %",
+      "dbh": "BHD"
+    },
+    "listSep": ", ",
+    "lists": "Codelisten",
+    "listsDesc": "Eigene Auswahlfelder wählen aus diesen Listen. Erfasst wird der Code; der Name dient nur der Anzeige.",
+    "list": {
+      "newName": "Codeliste {{n}}",
+      "codes_one": "{{count}} Code",
+      "codes_other": "{{count}} Codes",
+      "usedBy": "Verwendet von: {{names}}",
+      "unused": "Noch keine Komponente verwendet diese Liste",
+      "add": "Codeliste hinzufügen",
+      "remove": "Liste löschen",
+      "removeMsg": "„{{name}}“ löschen?",
+      "codesTitle": "Codes",
+      "codesDesc": "Ein Code ist der erfasste Wert und lässt sich nach dem Speichern der Vorlage nicht mehr ändern. Nicht mehr benutzte Codes als stillgelegt markieren; bereits erfasste Daten zeigen sie weiter an.",
+      "codeFixed": "Code {{code}} (gespeichert, nicht änderbar)",
+      "code": "Code",
+      "deprecated": "Stillgelegt",
+      "deprecatedDesc": "Wird nicht mehr angeboten; bereits erfasste Daten zeigen ihn weiter an",
+      "removeCode": "Diesen Code entfernen",
+      "addCode": "Code hinzufügen"
+    },
+    "choice": {
+      "single": "Einfachauswahl",
+      "multi": "Mehrfachauswahl",
+      "list": "Codeliste",
+      "noList": "Noch nicht gewählt",
+      "change": "Ändern",
+      "editList": "Diese Liste bearbeiten",
+      "multiSwitch": "Mehrere Auswahlen erlauben"
+    },
+    "import": {
+      "fromFile": "Aus Datei importieren…",
+      "failTitle": "Import nicht möglich",
+      "newerApp": "Diese Vorlage verwendet Komponenten, die diese App-Version nicht kennt ({{types}}). Bitte zuerst die App aktualisieren.",
+      "invalid": "Die Datei ist ungültig: {{detail}}",
+      "notTemplate": "Dies ist keine Mitalivana-Vorlagendatei (.mtpl.json).",
+      "done": "„{{name}}“ importiert",
+      "doneRenamed": "„{{name}}“ importiert. Dieselbe Vorlage ist bereits vorhanden, daher wurde der Import als neue Vorlage gespeichert."
+    },
+    "health": {
+      "title": "Zustandscodes",
+      "desc": "Welche Codes jeder Stamm erhält. Die ForestGEO-Aufnahmecodes sind die Grundlage der Baumerhebung und bleiben; AMS und eigene Codelisten lassen sich hinzufügen.",
+      "census": "ForestGEO-Aufnahmecodes (Condit 1998)",
+      "ams": "ForestGEO Mortalität und Schäden (AMS)",
+      "amsDesc": "Mit AMS erfasst jeder Stamm auch die AMS-Felder, und ob ein Stamm tot ist, folgt seinem AMS-Überlebensstatus."
+    },
+    "census": {
+      "intro": "Vorlage für die Baumerhebung: Höhe, Fotos und Merkmale lassen sich hinzufügen oder entfernen; die Zustandscodes können AMS und eigene Codelisten aufnehmen. Alles andere folgt der Baumerhebung.",
+      "requiredFixed": "Was Pflicht ist, legt die Baumerhebung fest; hier nicht änderbar.",
+      "paramsFixed": "Die Baumerhebung verwendet diesen Baustein unverändert; es gibt nichts einzustellen.",
+      "listsDesc": "Die Zustandscodes können diese Listen aufnehmen; jeder Stamm wählt Codes daraus.",
+      "start": "Aufnahme auf einer Dauerfläche starten…",
+      "pick": "Welche Vorlage für die Baumerhebung?",
+      "lastUsed": "{{name}} (zuletzt verwendet)",
+      "pickFrame": "Auf welcher Dauerfläche?",
+      "openTitle": "Eine Aufnahme ist noch offen",
+      "openMsg": "Aufnahme {{n}} dieser Fläche ist noch nicht abgeschlossen. Erst abschließen, dann die nächste starten.",
+      "openGo": "Offene Aufnahme öffnen"
+    }
   }
 }

@@ -9,7 +9,9 @@
  *     would cascade into them);
  *   - columns written elsewhere (inat_*, starred, a running track, the
  *     record's own end state) keep their current values;
- *   - redo (restoring the snapshot taken before undo) returns to the edit.
+ *   - redo (restoring the snapshot taken before undo) returns to the edit;
+ *   - a checklist / plot-style survey undoes as a whole, but a closed blind
+ *     phase's records (and the units they sit in) are left as they are.
  */
 import { DatabaseSync } from 'node:sqlite';
 import { runUserMigrations } from '../src/db/migrations.ts';
@@ -130,6 +132,45 @@ const cBefore = snapshotRecordIn(db, 'collection', cid);
 sqlite.prepare('DELETE FROM collection_specimens WHERE id = ?').run(c1);
 restoreRecordSnapshotIn(db, cBefore, tx);
 ok(one('SELECT record_number FROM collection_specimens WHERE id = ?', c1)?.record_number === 'L-1', 'collection: deleted specimen returns with its number');
+
+// ── modular survey: units, values, occurrences, photos ──────────────────
+const mId = insert('fw_surveys', { uuid: 'ms-1', style: 'plot', status: 'active', name: 'M' });
+const mu1 = insert('fw_units', { uuid: 'mu-1', survey_id: mId, level_key: 'quadrat', code: 'Q1' });
+const mo1 = insert('fw_occurrences', { uuid: 'mo-1', survey_id: mId, unit_id: mu1, taxon_id: 'm1', phase: 'blind' });
+const mv1 = insert('fw_occurrence_values', { uuid: 'mv-1', occurrence_id: mo1, component: 'traits', field: 'h', idx: 0, value_num: 1 });
+insert('fw_survey_values', { uuid: 'sv-1', survey_id: mId, component: 'env', field: 'slope', idx: 0, value_num: 10 });
+const mBefore = snapshotRecordIn(db, 'modular', mId);
+sqlite.prepare("UPDATE fw_surveys SET name = 'M2' WHERE id = ?").run(mId);
+sqlite.prepare('UPDATE fw_survey_values SET value_num = 20 WHERE survey_id = ?').run(mId);
+const mu2 = insert('fw_units', { uuid: 'mu-2', survey_id: mId, level_key: 'quadrat', code: 'Q2' });
+const mo2 = insert('fw_occurrences', { uuid: 'mo-2', survey_id: mId, unit_id: mu2, taxon_id: 'm2', phase: 'blind' });
+insert('fw_media', { uuid: 'mm-2', survey_id: mId, occurrence_id: mo2, component: 'photos', kind: 'photo', uri: 'x.jpg', created_at: 1 });
+restoreRecordSnapshotIn(db, mBefore, tx);
+const mNow = one('SELECT name FROM fw_surveys WHERE id = ?', mId);
+ok(mNow.name === 'M' && one('SELECT value_num FROM fw_survey_values WHERE survey_id = ?', mId).value_num === 10, 'modular: the name and a survey value revert');
+ok(!one('SELECT id FROM fw_units WHERE id = ?', mu2) && !one('SELECT id FROM fw_occurrences WHERE id = ?', mo2) && !one("SELECT id FROM fw_media WHERE uuid = 'mm-2'"), 'modular: a unit, an occurrence and its photo added since are removed');
+ok(sameSnapshot(mBefore, snapshotRecordIn(db, 'modular', mId)), 'modular: state equals the snapshot');
+
+// A closed blind phase seals its records (Modular_survey.md §5.5): undo leaves them alone.
+const mOpen = snapshotRecordIn(db, 'modular', mId);
+const mu3 = insert('fw_units', { uuid: 'mu-3', survey_id: mId, level_key: 'quadrat', code: 'Q3' });
+const mo3 = insert('fw_occurrences', { uuid: 'mo-3', survey_id: mId, unit_id: mu3, taxon_id: 'm3', phase: 'blind' });
+const mv3 = insert('fw_occurrence_values', { uuid: 'mv-3', occurrence_id: mo3, component: 'traits', field: 'h', idx: 0, value_num: 3 });
+sqlite.prepare('UPDATE fw_occurrence_values SET value_num = 5 WHERE id = ?').run(mv1);
+sqlite.prepare("UPDATE fw_units SET label = 'renamed' WHERE id = ?").run(mu1);
+sqlite.prepare('UPDATE fw_surveys SET blind_closed_at = 1000 WHERE id = ?').run(mId);
+const mo4 = insert('fw_occurrences', { uuid: 'mo-4', survey_id: mId, taxon_id: 'm4', phase: 'recheck' });
+restoreRecordSnapshotIn(db, mOpen, tx);
+ok(one('SELECT id FROM fw_occurrences WHERE id = ?', mo3) && one('SELECT value_num FROM fw_occurrence_values WHERE id = ?', mv3)?.value_num === 3, 'sealed: a blind record added before the close stays, with its value');
+ok(one('SELECT unit_id FROM fw_occurrences WHERE id = ?', mo3).unit_id === mu3 && one('SELECT id FROM fw_units WHERE id = ?', mu3), 'sealed: its unit stays, so the record does not move');
+ok(one('SELECT value_num FROM fw_occurrence_values WHERE id = ?', mv1).value_num === 5, 'sealed: a blind value is not reverted');
+ok(!one('SELECT id FROM fw_occurrences WHERE id = ?', mo4), 'sealed: a recheck occurrence still undoes');
+ok(one('SELECT label FROM fw_units WHERE id = ?', mu1).label == null, 'sealed: a unit that was there before still reverts (only removal is held back)');
+ok(one('SELECT blind_closed_at FROM fw_surveys WHERE id = ?', mId).blind_closed_at === 1000, 'sealed: the blind phase stays closed');
+const mSealed = snapshotRecordIn(db, 'modular', mId);
+sqlite.prepare('DELETE FROM fw_occurrences WHERE id = ?').run(mo1); // a teammate's correction from before their close, merged
+restoreRecordSnapshotIn(db, mSealed, tx);
+ok(!one('SELECT id FROM fw_occurrences WHERE id = ?', mo1), 'sealed: a blind record gone since is not brought back');
 
 sqlite.close();
 if (failed) {

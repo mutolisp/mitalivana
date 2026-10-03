@@ -21,7 +21,7 @@ export type SnapshotDb = {
   executeSync: (sql: string, params?: Scalar[]) => { rows?: unknown[] };
 };
 
-export type SnapshotKind = 'session' | 'plot' | 'collection';
+export type SnapshotKind = 'session' | 'plot' | 'collection' | 'modular';
 
 type Row = Record<string, unknown>;
 type Child = { table: string; where: string };
@@ -55,6 +55,21 @@ const SPECS: Record<SnapshotKind, Spec> = {
     parent: 'collection_trips',
     children: [{ table: 'collection_specimens', where: 'trip_id = ?' }],
   },
+  // A checklist / plot-style survey (Modular_survey.md). Its permanent plot's
+  // layout and morphospecies are the plot's, shared with its other surveys:
+  // not part of it (as in its record versions).
+  modular: {
+    parent: 'fw_surveys',
+    children: [
+      { table: 'fw_units', where: 'survey_id = ?' },
+      { table: 'fw_survey_values', where: 'survey_id = ?' },
+      { table: 'fw_unit_values', where: 'unit_id IN (SELECT id FROM fw_units WHERE survey_id = ?)' },
+      { table: 'fw_occurrences', where: 'survey_id = ?' },
+      { table: 'fw_occurrence_values', where: 'occurrence_id IN (SELECT id FROM fw_occurrences WHERE survey_id = ?)' },
+      { table: 'fw_rechecks', where: 'survey_id = ?' },
+      { table: 'fw_media', where: 'survey_id = ?' },
+    ],
+  },
 };
 
 /** Written elsewhere, or by the lock itself; kept as they are now on restore.
@@ -66,6 +81,12 @@ const KEEP_PARENT = new Set([
   'track_geojson',
   'gps_mode',
   'track_finalized',
+  // A survey's blind phase and template are its lifecycle, not edits.
+  'blind_closed_at',
+  'template_id',
+  'template_version',
+  'template_snapshot',
+  'template_hash',
 ]);
 
 function kept(col: string, parent: boolean): boolean {
@@ -121,6 +142,41 @@ export function sameSnapshot(a: RecordSnapshot, b: RecordSnapshot): boolean {
   return comparable(a) === comparable(b);
 }
 
+/**
+ * Rows a restore leaves as they are, by table. A closed blind phase seals its
+ * records (Modular_survey.md §5.5): undo neither removes, changes nor brings
+ * back a blind occurrence, its values or its photos — whether it is here now
+ * or only in the snapshot.
+ */
+function sealedRows(db: SnapshotDb, snap: RecordSnapshot): Record<string, Set<number>> {
+  if (snap.kind !== 'modular') return {};
+  const select = (sql: string, args: Scalar[]) => selectIn(db, sql, args);
+  if (select(`SELECT blind_closed_at FROM fw_surveys WHERE id = ?`, [snap.id])[0]?.blind_closed_at == null) return {};
+  const occ = new Set<number>([
+    ...select(`SELECT id FROM fw_occurrences WHERE survey_id = ? AND phase = 'blind'`, [snap.id]).map((r) => r.id as number),
+    ...snap.children.fw_occurrences.filter((r) => r.phase === 'blind').map((r) => r.id as number),
+  ]);
+  const ofOcc = (table: string) =>
+    new Set<number>(
+      [
+        ...select(`SELECT id, occurrence_id FROM ${table} WHERE occurrence_id IN (SELECT id FROM fw_occurrences WHERE survey_id = ?)`, [snap.id]),
+        ...snap.children[table],
+      ]
+        .filter((r) => occ.has(r.occurrence_id as number))
+        .map((r) => r.id as number),
+    );
+  // The units they sit in, and those units' parents, are not removed either:
+  // that would move a sealed record (SET NULL). Only units the restore would
+  // remove are listed, so one in the snapshot still gets its old values back.
+  const parentOf = new Map(select(`SELECT id, parent_id FROM fw_units WHERE survey_id = ?`, [snap.id]).map((r) => [r.id as number, r.parent_id as number | null]));
+  const units = new Set<number>();
+  for (const r of select(`SELECT unit_id FROM fw_occurrences WHERE survey_id = ? AND phase = 'blind' AND unit_id IS NOT NULL`, [snap.id])) {
+    for (let u: number | null = r.unit_id as number; u != null && !units.has(u); u = parentOf.get(u) ?? null) units.add(u);
+  }
+  for (const r of snap.children.fw_units) units.delete(r.id as number);
+  return { fw_occurrences: occ, fw_occurrence_values: ofOcc('fw_occurrence_values'), fw_media: ofOcc('fw_media'), fw_units: units };
+}
+
 /** `transaction` runs its argument atomically (the app's withTransaction). */
 export function restoreRecordSnapshotIn(
   db: SnapshotDb,
@@ -130,6 +186,8 @@ export function restoreRecordSnapshotIn(
   const spec = SPECS[snap.kind];
   const select = (sql: string, args: Scalar[]) => selectIn(db, sql, args);
   transaction(() => {
+    const sealed = sealedRows(db, snap);
+    const isSealed = (table: string, rid: number) => sealed[table]?.has(rid) ?? false;
     const update = (table: string, row: Row, parent: boolean) => {
       const cols = Object.keys(row).filter((c) => !kept(c, parent));
       if (!cols.length) return;
@@ -151,13 +209,14 @@ export function restoreRecordSnapshotIn(
     for (const c of [...spec.children].reverse()) {
       const keep = new Set(snap.children[c.table].map((r) => r.id as number));
       for (const rid of current[c.table]) {
-        if (!keep.has(rid)) db.executeSync(`DELETE FROM ${c.table} WHERE id = ?`, [rid]);
+        if (!keep.has(rid) && !isSealed(c.table, rid)) db.executeSync(`DELETE FROM ${c.table} WHERE id = ?`, [rid]);
       }
     }
     // 2. The record itself, then its children in order: update or re-insert.
     update(spec.parent, snap.parent, true);
     for (const c of spec.children) {
       for (const row of snap.children[c.table]) {
+        if (isSealed(c.table, row.id as number)) continue;
         if (current[c.table].has(row.id as number)) {
           update(c.table, row, false);
         } else {

@@ -32,11 +32,24 @@ import { pickPrune, planSave, restoreDecisions, snapshotHash, takeVersion, type 
 import { File } from 'expo-file-system';
 import { rebaseAppFileUri } from '~/lib/appFiles';
 import * as census from '~/survey/db/censusVersions';
+import {
+  applySurveyOps,
+  modularIdByUuid,
+  modularIdentity,
+  putBackSurveyMedia,
+  recoverSurvey,
+  sealedOccurrences,
+  surveyDoc,
+  surveySide,
+  withoutSealed,
+  type SurveyDoc,
+} from '~/survey/db/surveyDocs';
 
 /**
- * What versions are kept for: the three merge kinds, plus a census per 20 m
- * quadrat ('survey_quadrat') and a whole census when it is deleted ('survey',
- * recoverable). Sync still uses MergeKind; the census joins it in 1C-b.
+ * What versions are kept for: the merge kinds (a checklist / plot-style survey,
+ * 'modular', is one of them: one document, surveyDocCore.ts), plus a census
+ * per 20 m quadrat ('survey_quadrat') and a whole census when it is deleted
+ * ('survey', recoverable). These strings are stored (record_versions).
  */
 export type VersionKind = MergeKind | 'survey_quadrat' | 'survey';
 
@@ -49,7 +62,7 @@ export type RecordVersion = VersionMeta & {
   deleted_at: number | null;
 };
 
-type Doc = ImportedSession | ImportedPlot | GloriaDoc | census.CensusSlice | census.CensusHeaderDoc;
+type Doc = ImportedSession | ImportedPlot | GloriaDoc | census.CensusSlice | census.CensusHeaderDoc | SurveyDoc;
 type Snapshot = { doc: Doc; media: Array<FileItem & { ref: MediaRef }> };
 
 const rows = <T>(sql: string, args: Array<string | number | null> = []) => (getUserDb().executeSync(sql, args).rows ?? []) as unknown as T[];
@@ -65,6 +78,8 @@ function localDoc(kind: VersionKind, id: number): Doc | null {
       return localPlotDoc(id);
     case 'gloria':
       return localGloriaDoc(id);
+    case 'modular':
+      return surveyDoc(id);
     case 'survey_quadrat':
       return census.quadratSlice(id);
     case 'survey':
@@ -82,6 +97,9 @@ function sideOf(kind: VersionKind, doc: Doc): MergeSide {
       return plotSide(doc as ImportedPlot);
     case 'gloria':
       return gloriaSide(doc as GloriaDoc);
+    case 'modular':
+      // One survey's rows: the plot's layout and morphospecies are left out (another survey may use them).
+      return surveySide(doc as SurveyDoc, { frame: false });
     case 'survey_quadrat':
       return census.censusSide(doc as census.CensusSlice);
     case 'survey':
@@ -93,8 +111,8 @@ function sideOf(kind: VersionKind, doc: Doc): MergeSide {
 
 const combinersOf = (kind: VersionKind) => (kind === 'survey_quadrat' || kind === 'survey' ? census.CENSUS_COMBINERS : COMBINERS[kind]);
 
-/** The census kinds keep files as fw_media rows inside the slice, not as file references. */
-const mediaOf = (kind: VersionKind, id: number) => (kind === 'survey_quadrat' || kind === 'survey' ? [] : listRecordMedia(kind, id));
+/** The census kinds and a modular survey keep files as fw_media rows inside their document, not as file references. */
+const mediaOf = (kind: VersionKind, id: number) => (kind === 'survey_quadrat' || kind === 'survey' || kind === 'modular' ? [] : listRecordMedia(kind, id));
 
 export function uuidAndLabel(kind: VersionKind, id: number): { uuid: string; label: string } | null {
   if (kind === 'session') {
@@ -110,6 +128,7 @@ export function uuidAndLabel(kind: VersionKind, id: number): { uuid: string; lab
     const sm = sv ? getSummit(sv.summit_id) : null;
     return sv && sm ? { uuid: sv.uuid, label: `${sm.full_code} mocy ${sv.mocy}` } : null;
   }
+  if (kind === 'modular') return modularIdentity(id);
   if (kind === 'survey_quadrat') return census.quadratIdentity(id);
   if (kind === 'survey') return census.censusIdentity(id);
   return assertNever(kind, 'version kind');
@@ -119,6 +138,7 @@ export function localRecordId(kind: VersionKind, uuid: string): number | null {
   if (kind === 'session') return getSessionByUuid(uuid)?.id ?? null;
   if (kind === 'plot') return getPlotSurveyByUuid(uuid)?.id ?? null;
   if (kind === 'gloria') return rows<{ id: number }>(`SELECT id FROM gloria_surveys WHERE uuid = ?`, [uuid])[0]?.id ?? null;
+  if (kind === 'modular') return modularIdByUuid(uuid);
   if (kind === 'survey_quadrat') return census.quadratIdByUuid(uuid);
   if (kind === 'survey') return census.censusIdByUuid(uuid);
   return assertNever(kind, 'version kind');
@@ -223,7 +243,13 @@ export function diffVersions(kind: VersionKind, recordId: number | null, from: n
   const a = sideAt(from);
   const b = sideAt(to);
   if (!a || !b) return null;
-  const items = diffSides(a, b, baseOf(a), takeVersion(combinersOf(kind)));
+  let items = diffSides(a, b, baseOf(a), takeVersion(combinersOf(kind)));
+  // From the survey as it is: what a restore would do, which leaves sealed blind records alone.
+  if (kind === 'modular' && from === 'now' && to !== 'now' && recordId != null) {
+    const here = localDoc(kind, recordId) as SurveyDoc | null;
+    const there = readSnapshot(to)?.doc as SurveyDoc | undefined;
+    if (here && there) items = withoutSealed(items, sealedOccurrences(here, there));
+  }
   return describeMerge(items, restoreDecisions(items));
 }
 
@@ -231,7 +257,7 @@ export function diffVersions(kind: VersionKind, recordId: number | null, from: n
 
 /** Files the snapshot referred to that are still on this device go back where they were (adding only). */
 function putBackMedia(kind: VersionKind, id: number, media: Snapshot['media']): void {
-  if (kind === 'survey_quadrat' || kind === 'survey') return; // fw_media rows travel inside the slice
+  if (kind === 'survey_quadrat' || kind === 'survey' || kind === 'modular') return; // fw_media rows travel inside the document
   for (const m of media ?? []) {
     const here = m.uri.startsWith('file:') ? new File(rebaseAppFileUri(m.uri)).exists : true;
     if (!here) continue;
@@ -251,7 +277,10 @@ export function restoreVersion(kind: VersionKind, id: number, versionId: number)
     changed = census.restoreQuadrat(id, snap.doc as census.CensusSlice);
   } else {
     const current = sideOf(kind, doc);
-    const items = diffSides(current, sideOf(kind, snap.doc), baseOf(current), takeVersion(combinersOf(kind)));
+    let items = diffSides(current, sideOf(kind, snap.doc), baseOf(current), takeVersion(combinersOf(kind)));
+    // A closed blind phase's records stay as they are (sealed, Modular_survey.md §5.5).
+    const sealed = kind === 'modular' ? sealedOccurrences(doc as SurveyDoc, snap.doc as SurveyDoc) : null;
+    if (sealed) items = withoutSealed(items, sealed);
     const ops = planOps(items, restoreDecisions(items));
     switch (kind) {
       case 'session':
@@ -262,6 +291,11 @@ export function restoreVersion(kind: VersionKind, id: number, versionId: number)
         break;
       case 'gloria':
         applyGloriaMerge(id, ops);
+        break;
+      case 'modular':
+        applySurveyOps(id, ops);
+        // Photos the version had whose file is still here come back (adding only).
+        putBackSurveyMedia(id, snap.doc as SurveyDoc, sealed?.occ);
         break;
       case 'survey':
         throw new Error('a census header is not restored; a deleted census is recovered');
@@ -330,6 +364,9 @@ export function recoverRecord(kind: VersionKind, uuid: string): number {
       break;
     case 'gloria':
       id = importGloriaDoc(snap.doc as GloriaDoc).surveyId;
+      break;
+    case 'modular':
+      id = recoverSurvey(snap.doc as SurveyDoc);
       break;
     default:
       return assertNever(kind, 'version kind');

@@ -10,6 +10,11 @@
  *     cannot be deleted;
  *   - the first series of a frame needs no code, later ones do; census
  *     numbers run 1, 2…; the census keeps the template's snapshot and hash;
+ *     every census of a frame is one series, whichever census template;
+ *   - a census template (2D-b) decides what a census stores beyond the
+ *     census itself: traits on the tree (checked against their range), the
+ *     template's own health code lists per stem (retired codes still read),
+ *     how many photos; they read back, clear, and restore with the quadrat;
  *   - grid / x,y / polar (stake or tree) / GPS positions land on the right
  *     x,y and quadrat, with what was entered kept; positions outside the
  *     plot and unknown references are refused;
@@ -38,7 +43,8 @@ import { STEMMAP_TEMPLATE } from '../src/survey/templates/stemmap.ts';
 import * as r from '../src/survey/stemmap/review.ts';
 import * as tf from '../src/survey/stemmap/treeForm.ts';
 import * as sl from '../src/survey/db/sliceCore.ts';
-import { templateHash } from '../src/survey/template/validate.ts';
+import * as ed from '../src/survey/template/edit.ts';
+import { templateHash, validateTemplate } from '../src/survey/template/validate.ts';
 import { toLatLng } from '../src/survey/stemmap/coords.ts';
 
 let failed = 0;
@@ -134,7 +140,7 @@ ok(s.getFrame(ctx, F).name === 'Fushan', 'frame: name and declination stay edita
 s.updateFrame(ctx, F, { declinationDeg: 0 });
 throwsCode(() => s.deleteFrame(ctx, F), 'frame_has_surveys', 'frame: cannot delete with censuses');
 const other = { ...T, id: 'user:other' };
-throwsCode(() => s.startCensus(ctx, { frameId: F, template: other }), 'series_code_required', 'series: a second series needs a code');
+ok(s.censusSeriesId(ctx, F) === c1.series_id && !s.censusSeriesCodeNeeded(ctx, F, other.id), "series: a census with another template continues the frame's census series (no code)");
 throwsCode(() => s.startCensus(ctx, { frameId: F, template: { ...T, components: [] } }), 'template_invalid', 'census: an invalid template is refused');
 rejects(
   `INSERT INTO fw_surveys (uuid, style, frame_id, series_id, census_no, template_id, template_version, template_snapshot, template_hash, start_ts, created_at, updated_at) VALUES ('dup', 'individual', ?, ?, 1, 'x', 1, '{}', 'h', 1, 1, 1)`,
@@ -519,6 +525,99 @@ s.saveTreeDraft(ctx, A1, tf.formToDraft({ ...af, stems: af.stems.map((x, i) => (
 ok(JSON.stringify(s.loadTree(ctx, A1, aid).stems[0].ams) === '{"survival_status":"A"}', 'ams: variables left out of the form are cleared');
 const plain = tf.formToDraft(tf.formFromView(s.loadTree(ctx, A1, aid), { quadrat: '0000', geometry: ag }), s.loadTree(ctx, A1, aid), { surveyId: A1, recordedBy: 'A' });
 ok(plain.stems.every((x) => !('ams' in x)), 'ams: a form without AMS sends no AMS (its rows stay)');
+
+// ── census templates (2D-b) ──────────────────────────────────────────────
+// A user's copy of the built-in, made with the builder's own edits: no height,
+// one photo, AMS and a code list in Health, a trait on the tree.
+let TT = ed.copyTemplate(T, 'user:census-copy', { text: '每木＋冠幅' });
+TT = ed.removeComponent(TT, 'height');
+TT = ed.updateComponent(TT, 'photos', { params: { max: 1 } });
+TT = ed.removeComponent(TT, 'dbh');
+ok(TT.components.some((c) => c.key === 'dbh'), 'census template: DBH cannot be removed');
+const addedTraits = ed.addComponent(TT, 'traits', { level: 'individual' });
+TT = ed.updateComponent(addedTraits.template, addedTraits.key, {
+  params: { traits: [{ id: 'crown_width', label: { text: '冠幅' }, unit: 'm', min: 0, max: 40 }] },
+});
+const madeList = ed.addCodeList(TT, { text: '損傷' });
+TT = madeList.template;
+for (let i = 0; i < 3; i++) TT = ed.addCode(TT, madeList.id);
+TT = ed.updateCode(TT, madeList.id, 0, { name: { text: '蟲害', en: '' } }, null);
+TT = ed.updateCode(TT, madeList.id, 1, { name: { text: '折枝', en: '' } }, null);
+TT = ed.updateCode(TT, madeList.id, 2, { code: '9', name: { text: '舊碼', en: '' }, deprecated: true }, null);
+TT = ed.setHealthCodeset(TT, 'health', 'forestgeo-ams-2021', true);
+TT = ed.setHealthCodeset(TT, 'health', madeList.id, true);
+TT = ed.setHealthCodeset(TT, 'health', 'forestgeo-census-1998', false);
+ok(validateTemplate(TT).length === 0, `census template: the copy is valid (${validateTemplate(TT)})`);
+ok(
+  TT.components.find((c) => c.key === 'health').params.codesets.join() === `forestgeo-census-1998,forestgeo-ams-2021,${madeList.id}`,
+  'census template: Health takes AMS and the list; the census codes stay',
+);
+const xy0 = (x, y) => ({ method: 'xy', x, y });
+const TF = s.createFrame(ctx, { code: 'TPL1', sizeXM: 40, sizeYM: 40 });
+const TC1 = s.startCensus(ctx, { frameId: TF, template: T });
+const tA = s.saveTreeDraft(ctx, TC1, draft({ location: xy0(5, 5), mainStemNo: 1, stems: [sd({ dbhCm: 10 })] }));
+s.finishCensus(ctx, TC1);
+ok(!s.censusSeriesCodeNeeded(ctx, TF, TT.id), 'census template: a recensus with another template asks no series code');
+const TC2 = s.startCensus(ctx, { frameId: TF, template: TT });
+ok(s.getSurvey(ctx, TC2).series_id === s.getSurvey(ctx, TC1).series_id && s.getSurvey(ctx, TC2).census_no === 2, 'census template: census 2 with the copy continues the series');
+ok(s.previousCensusId(ctx, TC2) === TC1 && s.loadTree(ctx, TC2, tA).stems[0].previous?.dbh_cm === 10, 'census template: … with the previous census and its measurements');
+ok(s.censusTemplate(ctx, TC2).id === TT.id && s.censusCustomLists(s.censusTemplate(ctx, TC2)).map((l) => l.id).join() === madeList.id, 'census template: the census knows its template and its own code lists');
+const tdraft = (traits, custom) => ({ ...asDraft(s.loadTree(ctx, TC2, tA)), mainStemNo: 1, stems: [sd({ stemNo: 1, dbhCm: 11, custom })], traits });
+s.saveTreeDraft(ctx, TC2, tdraft({ [addedTraits.key]: { crown_width: 5.5 } }, { [madeList.id]: ['1', '2'] }));
+let tv = s.loadTree(ctx, TC2, tA);
+ok(tv.traits[addedTraits.key]?.crown_width === 5.5, `census template: a trait reads back (${JSON.stringify(tv.traits)})`);
+ok(one(`SELECT unit FROM fw_individual_values WHERE survey_id = ? AND individual_id = ? AND field = 'crown_width'`, TC2, tA).unit === 'm', 'census template: … with its unit');
+ok(tv.stems[0].custom[madeList.id]?.join() === '1,2', `census template: a stem's own codes read back (${JSON.stringify(tv.stems[0].custom)})`);
+throwsCode(() => s.setTreeTraits(ctx, TC2, tA, { traits_9: { crown_width: 1 } }), 'bad_component', 'census template: a Traits component the template lacks is refused');
+throwsCode(() => s.setTreeTraits(ctx, TC2, tA, { [addedTraits.key]: { girth: 1 } }), 'bad_component', 'census template: a trait the template lacks is refused');
+throwsCode(() => s.setTreeTraits(ctx, TC2, tA, { [addedTraits.key]: { crown_width: 50 } }), 'bad_value', 'census template: a trait above its maximum is refused');
+throwsCode(() => s.setTreeTraits(ctx, TC1, tA, { [addedTraits.key]: { crown_width: 1 } }), 'bad_component', 'census template: a census on the built-in takes no traits');
+const tm = tv.stems[0].measure.id;
+throwsCode(() => s.setStemCustom(ctx, tm, { [madeList.id]: ['7'] }), 'bad_code', 'census template: a code outside the list is refused');
+throwsCode(() => s.setStemCustom(ctx, tm, { list_9: ['1'] }), 'bad_component', 'census template: a list Health does not name is refused');
+s.setStemCustom(ctx, tm, { [madeList.id]: ['9'] });
+ok(s.loadTree(ctx, TC2, tA).stems[0].custom[madeList.id]?.join() === '9', 'census template: a retired code is still accepted (it may have been recorded)');
+// The form: what the template has, read and written.
+let tform = tf.formFromView(s.loadTree(ctx, TC2, tA), { quadrat: '0000', geometry: s.frameGeometry(s.getFrame(ctx, TF)), amsOn: true });
+ok(tform.traits[addedTraits.key]?.crown_width === '5.5' && tform.stems[0].custom[madeList.id]?.join() === '9', 'census template: the form opens with traits and codes');
+const tooWide = { ...tform, traits: { [addedTraits.key]: { crown_width: '50' } } };
+const tIssues = tf.traitIssues(tooWide, TT);
+ok(tIssues.length === 1 && tIssues[0].id === 'crown_width' && tIssues[0].code === 'above_max', `census template: the form flags a trait out of range (${JSON.stringify(tIssues)})`);
+ok(tf.traitIssues(tooWide, T).length === 0, 'census template: … not on the built-in (no traits)');
+ok(tf.unreadableFields({ ...tform, traits: { [addedTraits.key]: { crown_width: 'abc' } } }, '1').some((u) => u.field === 'trait' && u.trait?.id === 'crown_width'), 'census template: text in a trait is unreadable');
+const tSaved = tf.formToDraft({ ...tform, traits: { [addedTraits.key]: { crown_width: '' } }, stems: tform.stems.map((x) => ({ ...x, custom: { [madeList.id]: ['2'] } })) }, s.loadTree(ctx, TC2, tA), { surveyId: TC2, recordedBy: 'A' });
+s.saveTreeDraft(ctx, TC2, tSaved);
+tv = s.loadTree(ctx, TC2, tA);
+ok(tv.traits[addedTraits.key] == null && count('fw_individual_values', "survey_id = ? AND field = 'crown_width'", TC2) === 0, 'census template: an emptied trait is cleared');
+ok(tv.stems[0].custom[madeList.id]?.join() === '2', 'census template: the form writes the stem codes');
+// Undo / versions: the quadrat slice carries traits and codes.
+s.setTreeTraits(ctx, TC2, tA, { [addedTraits.key]: { crown_width: 6 } });
+const tSnap = sl.buildSlice(ctx, TC2, [s.getIndividual(ctx, tA).quadrat_code]);
+s.setTreeTraits(ctx, TC2, tA, { [addedTraits.key]: { crown_width: 7 } });
+s.setStemCustom(ctx, tm, { [madeList.id]: [] });
+tx(() => sl.restoreSlice(ctx, TC2, tSnap));
+tv = s.loadTree(ctx, TC2, tA);
+ok(tv.traits[addedTraits.key]?.crown_width === 6 && tv.stems[0].custom[madeList.id]?.join() === '2', `census template: restoring a quadrat brings traits and codes back (${JSON.stringify(tv.traits)} ${JSON.stringify(tv.stems[0].custom)})`);
+// Photos: as many as the template allows; none without a Photos component.
+s.addTreeMedia(ctx, TC2, tA, 'file:///photos/c1.jpg');
+throwsCode(() => s.addTreeMedia(ctx, TC2, tA, 'file:///photos/c2.jpg'), 'bad_value', 'census template: photos beyond the maximum are refused');
+s.finishCensus(ctx, TC2);
+const TC3 = s.startCensus(ctx, { frameId: TF, template: TT });
+ok(s.loadTree(ctx, TC3, tA).stems[0].previousCustom[madeList.id]?.join() === '2', 'census template: the next census shows the previous codes');
+ok(Object.keys(s.loadTree(ctx, TC3, tA).traits).length === 0, "census template: … but not the previous census's traits as its own");
+s.deleteCensus(ctx, TC3);
+const noPhotos = ed.removeComponent({ ...TT, id: 'user:census-nophoto' }, 'photos');
+const NF = s.createFrame(ctx, { code: 'TPL2', sizeXM: 20, sizeYM: 20 });
+const NC1 = s.startCensus(ctx, { frameId: NF, template: noPhotos });
+const nA = s.saveTreeDraft(ctx, NC1, draft({ location: xy0(5, 5), mainStemNo: 1, stems: [sd({ dbhCm: 4 })] }));
+throwsCode(() => s.addTreeMedia(ctx, NC1, nA, 'file:///photos/n.jpg'), 'bad_component', 'census template: no photos without a Photos component');
+// A first census on a plot that already has another series still needs a code.
+const SF = s.createFrame(ctx, { code: 'TPL3', sizeXM: 20, sizeYM: 20 });
+sqlite.prepare(`INSERT INTO fw_frame_series (uuid, frame_id, template_id, series_code, created_at, updated_at) VALUES ('ser-plot', ?, 'user:plot', '', 1, 1)`).run(SF);
+ok(s.censusSeriesCodeNeeded(ctx, SF, T.id), 'census series: a first census next to a plot-style series needs a code');
+throwsCode(() => s.startCensus(ctx, { frameId: SF, template: T }), 'series_code_required', 'census series: … and is refused without one');
+const SC1 = s.startCensus(ctx, { frameId: SF, template: T, seriesCode: 'tree' });
+ok(s.censusSeriesId(ctx, SF) === s.getSurvey(ctx, SC1).series_id && !s.censusSeriesCodeNeeded(ctx, SF, TT.id), 'census series: after it, censuses continue that series');
 
 // ── slices: restore (quadrat versions, undo) ─────────────────────────────
 const R = s.createFrame(ctx, { code: 'R1', sizeXM: 40, sizeYM: 20 });

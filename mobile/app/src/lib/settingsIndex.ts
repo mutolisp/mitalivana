@@ -15,6 +15,7 @@
  */
 import type { Ionicons } from '@expo/vector-icons';
 import type { ComponentProps } from 'react';
+import { SURVEY_FORMS_OFFERED } from '../survey/templates/samples';
 
 export type SettingsSection =
   | 'records'
@@ -111,6 +112,10 @@ export const SETTINGS_INDEX: SettingsEntry[] = [
   { id: 'mirenRegions', section: 'modules', labelKey: 'miren.regions.title', descKey: 'miren.regions.desc', kind: 'nav', route: '/miren', icon: 'git-branch-outline', visibleWhen: 'module_miren' },
   { id: 'moduleSurvey', section: 'modules', labelKey: 'settings.moduleSurvey', descKey: 'settings.moduleSurveyDesc', keywordsKey: kw('moduleSurvey'), kind: 'switch', icon: 'apps-outline' },
   { id: 'surveyFrames', section: 'modules', labelKey: 'survey.frames.title', descKey: 'survey.frames.desc', kind: 'nav', route: '/survey', icon: 'map-outline', visibleWhen: 'module_survey' },
+  // The builder (2D-a), offered with the checklist / plot-style surveys.
+  ...(SURVEY_FORMS_OFFERED
+    ? [{ id: 'surveyTemplates', section: 'modules', labelKey: 'builder.title', descKey: 'builder.desc', kind: 'nav', route: '/survey/templates', icon: 'construct-outline', visibleWhen: 'module_survey' } as const]
+    : []),
 
   // Lists and maps
   { id: 'regionPacks', section: 'lists', labelKey: 'settings.regionPacks', descKey: 'settings.regionPacksDesc', keywordsKey: kw('regionPacks'), kind: 'nav', route: '/regionpacks', icon: 'library-outline' },

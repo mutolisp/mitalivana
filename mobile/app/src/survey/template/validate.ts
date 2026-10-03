@@ -11,7 +11,7 @@
  *
  * Pure: check:templates runs it under Node.
  */
-import { BUILTIN_CODESETS, componentDef, componentDefs, defaultLevelOf, defaultParamsOf, type TraitDef } from '../registry';
+import { BUILTIN_CODESETS, componentDef, componentDefs, defaultLevelOf, defaultParamsOf, paramsChangeOf, type TraitDef } from '../registry';
 import { rowHash } from '../../lib/mergeEngine';
 import { MAX_UNIT_LEVELS, STYLE_LEVELS, type ComponentInstance, type Label, type SurveyTemplate } from './types';
 
@@ -127,7 +127,10 @@ export function validateTemplate(t: SurveyTemplate): string[] {
     }
   }
   for (const c of t.components) {
+    if (c.type === 'choice' && typeof c.params.list === 'string' && !listIds.has(c.params.list)) out.push(`${c.key}: unknown code list ${c.params.list}`);
     if (c.type !== 'health' || !Array.isArray(c.params.codesets)) continue;
+    // The census's own rules (status, POM, M) read the ForestGEO census codes: a census template keeps them.
+    if (t.style === 'individual' && !c.params.codesets.includes('forestgeo-census-1998')) out.push(`${c.key}: a census keeps the forestgeo-census-1998 code set`);
     for (const id of c.params.codesets as unknown[]) {
       if (typeof id === 'string' && !(BUILTIN_CODESETS as readonly string[]).includes(id) && !listIds.has(id)) {
         out.push(`${c.key}: unknown code set ${id}`);
@@ -148,8 +151,9 @@ const sameJson = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringif
 
 /**
  * Whether `next` may replace `prev` under a running survey: every component
- * kept with the same type and level and unchanged parameters (labels may
- * change), only optional components added, no code value removed or renamed.
+ * kept with the same type and level, its parameters unchanged or only widened
+ * as its registry entry allows (labels may change), only optional components
+ * added, no code value removed or renamed.
  */
 export function classifyChange(prev: SurveyTemplate, next: SurveyTemplate): ChangeKind {
   if (prev.id !== next.id || prev.style !== next.style) return 'breaking';
@@ -161,7 +165,12 @@ export function classifyChange(prev: SurveyTemplate, next: SurveyTemplate): Chan
   if (!sameJson(pu, nu)) changed = true;
   for (const p of prev.components) {
     const n = next.components.find((c) => c.key === p.key);
-    if (!n || n.type !== p.type || n.level !== p.level || n.unit !== p.unit || !sameJson(n.params, p.params)) return 'breaking';
+    if (!n || n.type !== p.type || n.level !== p.level || n.unit !== p.unit) return 'breaking';
+    // Parameters: only the widening each component allows (registry paramsChange).
+    const def = componentDef(n.type);
+    const pc = def ? paramsChangeOf(def, p.params, n.params) : sameJson(p.params, n.params) ? 'same' : 'breaking';
+    if (pc === 'breaking') return 'breaking';
+    if (pc === 'additive') changed = true;
     if (n.required !== p.required) {
       if (n.required) return 'breaking';
       changed = true;
@@ -173,6 +182,9 @@ export function classifyChange(prev: SurveyTemplate, next: SurveyTemplate): Chan
     if (n.required) return 'breaking';
     changed = true;
   }
+  // The order components show in (the builder moves them): a change, nothing breaks.
+  const kept = (a: SurveyTemplate, b: SurveyTemplate) => a.components.filter((c) => b.components.some((x) => x.key === c.key)).map((c) => c.key);
+  if (!sameJson(kept(prev, next), kept(next, prev))) changed = true;
   for (const pl of prev.codelists) {
     const nl = next.codelists.find((l) => l.id === pl.id);
     if (!nl) return 'breaking';

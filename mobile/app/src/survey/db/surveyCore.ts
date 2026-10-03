@@ -161,8 +161,93 @@ export function createSurvey(ctx: Ctx, input: SurveyInput): number {
       ],
     ).insertId,
   );
-  if (frame) copyFrameUnits(ctx, id, frame.id, t.units ?? []);
+  if (frame) {
+    copyFrameUnits(ctx, id, frame.id, t.units ?? []);
+    carryEnvironment(ctx, id, t);
+  }
   return id;
+}
+
+/**
+ * A recheck starts with the previous survey's environment values (decided
+ * 2026-10-03): slope, aspect and covers change slowly, and the user confirms
+ * or corrects them (the survey screens say which values are the previous
+ * survey's: environmentCarried). Environment components only, by key — a
+ * series keeps one template — on the survey and on each unit of the plot's
+ * layout; fields the template no longer has stay behind.
+ */
+function carryEnvironment(ctx: Ctx, surveyId: number, t: SurveyTemplate): void {
+  const prev = previousSurveyId(ctx, surveyId);
+  if (prev == null) return;
+  const now = ctx.now();
+  const copy = (table: string, owner: string, from: number, to: number, key: string, fields: string[]) => {
+    for (const r of rows<ValueRow>(
+      ctx,
+      `SELECT * FROM ${table} WHERE ${owner} = ? AND component = ? AND field IN (${fields.map(() => '?').join(', ')})`,
+      [from, key, ...fields],
+    )) {
+      run(ctx, `INSERT OR IGNORE INTO ${table} (uuid, ${owner}, component, field, idx, value_num, value_text, unit, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
+        ctx.uuid(),
+        to,
+        r.component,
+        r.field,
+        r.idx,
+        r.value_num,
+        r.value_text,
+        r.unit,
+        now,
+      ]);
+    }
+  };
+  for (const c of t.components) {
+    if (c.type !== 'environment') continue;
+    const fields = Array.isArray(c.params.fields) ? (c.params.fields as string[]) : [];
+    if (!fields.length) continue;
+    if (c.level === 'survey') copy('fw_survey_values', 'survey_id', prev, surveyId, c.key, fields);
+    else if (c.level === 'unit') {
+      // Unit to unit through the plot's layout: the same place in both surveys.
+      for (const u of rows<{ id: number; prev_id: number }>(
+        ctx,
+        `SELECT u.id, p.id AS prev_id FROM fw_units u JOIN fw_units p ON p.frame_unit_id = u.frame_unit_id AND p.survey_id = ?
+          WHERE u.survey_id = ? AND u.level_key = ? AND u.frame_unit_id IS NOT NULL`,
+        [prev, surveyId, c.unit ?? ''],
+      ))
+        copy('fw_unit_values', 'unit_id', u.prev_id, u.id, c.key, fields);
+    }
+  }
+}
+
+/**
+ * The environment fields of an owner whose values are those of the previous
+ * survey (carried at its start and not changed since, or measured the same),
+ * by component key; empty for a first survey. Says on the screen which
+ * numbers are the previous survey's.
+ */
+export function environmentCarried(ctx: { db: SurveyDb }, owner: { kind: 'survey' | 'unit'; id: number }): { census: number | null; fields: Record<string, string[]> } {
+  const unit = owner.kind === 'unit' ? getUnit(ctx, owner.id) : null;
+  const surveyId = owner.kind === 'survey' ? owner.id : (unit?.survey_id ?? null);
+  const prev = surveyId == null ? null : previousSurveyId(ctx, surveyId);
+  if (surveyId == null || prev == null) return { census: null, fields: {} };
+  let prevOwner: number | null = prev;
+  if (owner.kind === 'unit') {
+    prevOwner = unit?.frame_unit_id == null ? null : (one<{ id: number }>(ctx, `SELECT id FROM fw_units WHERE survey_id = ? AND frame_unit_id = ?`, [prev, unit.frame_unit_id])?.id ?? null);
+  }
+  if (prevOwner == null) return { census: null, fields: {} };
+  const table = owner.kind === 'survey' ? 'fw_survey_values' : 'fw_unit_values';
+  const col = owner.kind === 'survey' ? 'survey_id' : 'unit_id';
+  const template = snapshotOf(surveyOf(ctx, surveyId));
+  const envKeys = template.components.filter((c) => c.type === 'environment' && c.level === owner.kind).map((c) => c.key);
+  const out: Record<string, string[]> = {};
+  for (const key of envKeys) {
+    const now = rows<ValueRow>(ctx, `SELECT field, idx, value_num, value_text FROM ${table} WHERE ${col} = ? AND component = ?`, [owner.id, key]);
+    const before = new Map(rows<ValueRow>(ctx, `SELECT field, idx, value_num, value_text FROM ${table} WHERE ${col} = ? AND component = ?`, [prevOwner, key]).map((r) => [`${r.field}|${r.idx}`, r]));
+    const same = now.filter((r) => {
+      const b = before.get(`${r.field}|${r.idx}`);
+      return b != null && b.value_num === r.value_num && b.value_text === r.value_text;
+    });
+    if (same.length) out[key] = [...new Set(same.map((r) => r.field))];
+  }
+  return { census: one<{ n: number | null }>(ctx, `SELECT census_no AS n FROM fw_surveys WHERE id = ?`, [prev])?.n ?? null, fields: out };
 }
 
 /** `YYYY-MM-DD HH:MM` in local time, as a new checklist session is named (sessions.ts). */
@@ -556,6 +641,9 @@ export function updateUnit(ctx: Ctx, id: number, patch: UnitPatch): void {
 export function deleteUnit(ctx: Ctx, id: number): void {
   const u = getUnit(ctx, id);
   if (!u) throw new SurveyError('not_found', 'unit');
+  // Its occurrences would move up: not a sealed blind one (v84).
+  const blind = one<Pick<OccurrenceRow, 'survey_id' | 'phase'>>(ctx, `SELECT survey_id, phase FROM fw_occurrences WHERE unit_id = ? AND phase = 'blind' LIMIT 1`, [id]);
+  if (blind && occurrenceSealed(ctx, blind)) throw new SurveyError('blind_sealed');
   const now = ctx.now();
   run(ctx, `UPDATE fw_units SET parent_id = ?, updated_at = ? WHERE parent_id = ?`, [u.parent_id, now, id]);
   run(ctx, `UPDATE fw_occurrences SET unit_id = ?, updated_at = ? WHERE unit_id = ?`, [u.parent_id, now, id]);
@@ -601,7 +689,7 @@ export type OccurrenceRow = {
 };
 
 /** Columns an occurrence is written through (by name: the same names as plot_species_records). */
-const OCCURRENCE_FIELDS = [
+export const OCCURRENCE_FIELDS = [
   'unit_id',
   'taxon_id',
   'used_name_id',
@@ -763,10 +851,14 @@ export function previousSurveyId(ctx: { db: SurveyDb }, surveyId: number): numbe
   return one<{ id: number }>(ctx, `SELECT id FROM fw_surveys WHERE series_id = ? AND census_no < ? ORDER BY census_no DESC LIMIT 1`, [s.series_id, s.census_no])?.id ?? null;
 }
 
-/** A plot-style recheck starts blind; a first survey and a checklist do not. */
+/**
+ * A plot-style recheck starts blind; a first survey and a checklist do not.
+ * Told by the survey's own number, not by finding the earlier survey here: a
+ * teammate's phone may have received this survey without it (team sync).
+ */
 export function hasBlindPhase(ctx: { db: SurveyDb }, surveyId: number): boolean {
   const s = getFwSurvey(ctx, surveyId);
-  return s?.style === 'plot' && previousSurveyId(ctx, surveyId) != null;
+  return s?.style === 'plot' && s.series_id != null && (s.census_no ?? 1) > 1;
 }
 
 /** End the blind phase: from now on new occurrences are 'recheck', and the earlier list can be shown. */
@@ -828,7 +920,8 @@ export function listRechecks(ctx: { db: SurveyDb }, surveyId: number): RecheckRo
 
 export type RecheckCandidate = PreviousOccurrence & Sighting & { key: string; /** This survey's unit at the same place. */ unitId: number | null };
 
-export type RecheckState = { previousId: number; candidates: RecheckCandidate[]; answers: RecheckRow[]; open: number };
+/** `previousId` null: the earlier survey is not on this device (a teammate's copy, or deleted); nothing to compare. */
+export type RecheckState = { previousId: number | null; candidates: RecheckCandidate[]; answers: RecheckRow[]; open: number };
 
 const answerOf = (r: RecheckRow): RecheckAnswer => ({
   key: recheckKey({ frameUnitId: r.frame_unit_id, taxonId: r.prev_taxon_id, verbatim: r.prev_verbatim_identification || null }),
@@ -844,8 +937,8 @@ const answerOf = (r: RecheckRow): RecheckAnswer => ({
  */
 export function recheckState(ctx: { db: SurveyDb }, surveyId: number): RecheckState | null {
   const s = surveyOf(ctx, surveyId);
+  if (!hasBlindPhase(ctx, surveyId) || s.blind_closed_at == null) return null;
   const previousId = previousSurveyId(ctx, surveyId);
-  if (s.style !== 'plot' || previousId == null || s.blind_closed_at == null) return null;
   const units = rows<{ id: number; frame_unit_id: number | null }>(ctx, `SELECT id, frame_unit_id FROM fw_units WHERE survey_id = ?`, [surveyId]);
   const unitAt = new Map<number | null, number | null>([[null, null]]);
   for (const u of units) if (u.frame_unit_id != null) unitAt.set(u.frame_unit_id, u.id);

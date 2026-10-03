@@ -21,6 +21,8 @@ import { applyGloriaMerge } from '~/modules/gloria/merge';
 import { useActiveGloria } from '~/modules/gloria/store';
 import { useActivePlot } from '~/stores/activePlot';
 import { useActiveSession } from '~/stores/activeSession';
+import { applySurveyOps, surveyDoc } from '~/survey/db/surveyDocs';
+import { useActiveSurvey } from '~/survey/form/activeSurvey';
 import { importAudioClips } from './audioCapture';
 import { bundleGloria, bundlePlot, bundleSession, type BundleOptions } from './bundleExport';
 import { tieQuadratGeometry, type MergeKind } from './mergeDocs';
@@ -65,27 +67,38 @@ const BACKUP_OPTS: BundleOptions = {
   includeDwca: false,
 };
 
-/** The record as it is now, as an export zip. Returns the saved file. */
+/** The record as it is now, as an export zip (a survey: its document, JSON). Returns the saved file. */
 export async function backupBeforeMerge(kind: MergeKind, id: number): Promise<File> {
-  let zip: Awaited<ReturnType<typeof bundleSession>>;
-  switch (kind) {
-    case 'session':
-      zip = await bundleSession(id, BACKUP_OPTS);
-      break;
-    case 'plot':
-      zip = await bundlePlot(id, BACKUP_OPTS);
-      break;
-    case 'gloria':
-      zip = await bundleGloria(id, BACKUP_OPTS);
-      break;
-    default:
-      return assertNever(kind, 'merge kind');
-  }
   const dir = new Directory(Paths.document, MERGE_BACKUP_DIR);
   if (!dir.exists) dir.create();
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const dest = new File(dir, `${stamp}_${zip.filename}`);
-  new File(zip.uri).copy(dest);
+  const copyZip = (zip: { uri: string; filename: string }) => {
+    const f = new File(dir, `${stamp}_${zip.filename}`);
+    new File(zip.uri).copy(f);
+    return f;
+  };
+  let dest: File;
+  switch (kind) {
+    case 'session':
+      dest = copyZip(await bundleSession(id, BACKUP_OPTS));
+      break;
+    case 'plot':
+      dest = copyZip(await bundlePlot(id, BACKUP_OPTS));
+      break;
+    case 'gloria':
+      dest = copyZip(await bundleGloria(id, BACKUP_OPTS));
+      break;
+    case 'modular': {
+      // No export format yet (Phase 2E): the document itself, as record versions keep it.
+      const doc = surveyDoc(id);
+      if (!doc) throw new Error('survey not found');
+      dest = new File(dir, `${stamp}_survey_${String(doc.survey.uuid).slice(0, 8)}.json`);
+      dest.write(JSON.stringify(doc));
+      break;
+    }
+    default:
+      return assertNever(kind, 'merge kind');
+  }
   // Keep the newest few; names start with the timestamp.
   const all = dir
     .list()
@@ -129,7 +142,8 @@ export async function applyPendingMerge(
   let skippedPhotos = 0;
   let photoUriByName: Map<string, string> | undefined;
   let audioUriByName: Map<string, string> | undefined;
-  if (p.kind !== 'gloria') {
+  // GLORIA and survey files come by file sync (mediaSync.ts), not with the rows.
+  if (p.kind === 'session' || p.kind === 'plot') {
     const wantPhotos = mediaWanted(ops, 'photo_files');
     const photos = p.photos.filter((ph) => wantPhotos.has(ph.name));
     if (photos.length) {
@@ -142,9 +156,22 @@ export async function applyPendingMerge(
     if (clips.length) audioUriByName = await importAudioClips(clips);
   }
 
-  if (p.kind === 'session') applySessionMerge(p.localId, ops, { photoUriByName, audioUriByName });
-  else if (p.kind === 'plot') applyPlotMerge(p.localId, ops, { photoUriByName, audioUriByName });
-  else applyGloriaMerge(p.localId, ops);
+  switch (p.kind) {
+    case 'session':
+      applySessionMerge(p.localId, ops, { photoUriByName, audioUriByName });
+      break;
+    case 'plot':
+      applyPlotMerge(p.localId, ops, { photoUriByName, audioUriByName });
+      break;
+    case 'gloria':
+      applyGloriaMerge(p.localId, ops);
+      break;
+    case 'modular':
+      applySurveyOps(p.localId, ops);
+      break;
+    default:
+      assertNever(p.kind, 'merge kind');
+  }
 
   setSyncBase(p.kind, p.localUuid, baseOf(p.remoteSide));
   saveVersion(p.kind, p.localId, 'after_merge');
@@ -154,5 +181,6 @@ export async function applyPendingMerge(
   useActiveSession.getState().refresh();
   useActivePlot.getState().refresh();
   useActiveGloria.getState().refresh();
+  useActiveSurvey.getState().refresh();
   return { ops: ops.length, backup, skippedPhotos, changes };
 }

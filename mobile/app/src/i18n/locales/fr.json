@@ -308,7 +308,7 @@
     "gloriaCount_one": "GLORIA {{count}} ({{summits}} sommets)",
     "gloriaCount_many": "GLORIA {{count}} ({{summits}} sommets)",
     "gloriaCount_other": "GLORIA {{count}} ({{summits}} sommets)",
-    "deleteRecoverable": "Les listes, placettes, relevés GLORIA et inventaires d’arbres peuvent être récupérés pendant 30 jours via Enregistrements ⋯ → « Supprimés récemment ».",
+    "deleteRecoverable": "Les listes, placettes, relevés GLORIA, relevés de type liste / placette et inventaires d’arbres peuvent être récupérés pendant 30 jours via Enregistrements ⋯ → « Supprimés récemment ».",
     "deletePermanent": "Les collectes supprimées ne peuvent pas être récupérées.",
     "activeResume": "Reprendre l’enregistrement",
     "activeSpecies": "Espèces",
@@ -1922,6 +1922,7 @@
   "recordImport": {
     "unsupportedBundle": "Ceci est une archive regroupant plusieurs enregistrements ; décompressez-la et importez chaque enregistrement séparément.",
     "unknownKind": "Impossible de déterminer le type d'enregistrement contenu dans ce fichier.",
+    "modularNotYet": "Ce fichier contient un relevé de type liste / placette. Pour l'instant, ces relevés ne circulent que par la synchronisation d'équipe ; l'import de fichier arrivera dans une version ultérieure.",
     "sessionExistsTitle": "La liste d'espèces existe déjà",
     "sessionExistsMsg": "« {{name}} » est déjà présente sur cet appareil. L'écraser, ou enregistrer une nouvelle copie ?",
     "photoConflictTitle": "Cet enregistrement contient déjà des photos",
@@ -3745,7 +3746,15 @@
       "sval": "Codes de tige",
       "ival": "Données de l’arbre",
       "history": "Corrections",
-      "media": "Photos"
+      "media": "Photos",
+      "sunit": "Unité du relevé",
+      "occ": "Occurrence",
+      "surveyval": "Champ du relevé",
+      "unitval": "Champ de l’unité",
+      "occval": "Champ de l’occurrence",
+      "recheck": "Revérification",
+      "funit": "Plan des unités",
+      "flabel": "Morpho-espèce"
     },
     "field": {
       "latitude": "Latitude",
@@ -3841,7 +3850,21 @@
       "ref_code": "Point de référence",
       "azimuth_deg": "Azimut (°)",
       "azimuth_ref": "Référence de l’azimut",
-      "status": "Statut"
+      "status": "Statut",
+      "parent": "Unité parente",
+      "geometry_geojson": "Contour",
+      "shape": "Forme",
+      "width_m": "Largeur (m)",
+      "length_m": "Longueur (m)",
+      "radius_m": "Rayon (m)",
+      "retired_at": "Retirée le",
+      "phase": "Phase",
+      "outcome": "Réponse",
+      "occurrence": "Occurrence",
+      "identified_by": "Identifié par",
+      "elevation_source": "Source de l’altitude",
+      "surveyUnit": "Unité",
+      "measureUnit": "Unité de mesure"
     },
     "from": "De {{name}}",
     "fromAt": "De {{name}}, envoyé le {{date}}",
@@ -4516,7 +4539,7 @@
     "restored": "Restauré ({{n}} modifications)",
     "restoreFail": "Restauration impossible",
     "deletedTitle": "Supprimés récemment",
-    "deletedIntro": "Les listes, relevés de placette, relevés GLORIA et inventaires d’arbres supprimés peuvent être récupérés depuis leur dernière version pendant 30 jours (comme enregistrements terminés). Les photos déjà effacées par le nettoyage du stockage ne reviennent pas.",
+    "deletedIntro": "Les listes, relevés de placette, relevés GLORIA, relevés de type liste / placette et inventaires d’arbres supprimés peuvent être récupérés depuis leur dernière version pendant 30 jours (comme enregistrements terminés). Les photos déjà effacées par le nettoyage du stockage ne reviennent pas.",
     "deletedNone": "Rien à récupérer",
     "deletedAt": "supprimé le {{when}}",
     "daysLeft": "encore {{n}} jours",
@@ -4525,7 +4548,8 @@
       "plot": "Placette",
       "gloria": "GLORIA",
       "survey": "Inventaire d’arbres",
-      "survey_quadrat": "Quadrat d’inventaire"
+      "survey_quadrat": "Quadrat d’inventaire",
+      "modular": "Relevé de type liste / placette"
     },
     "recoverTitle": "Récupérer cet enregistrement ?",
     "recoverMsg": "« {{name}} » est reconstruit depuis sa dernière version, comme enregistrement terminé.",
@@ -4558,11 +4582,12 @@
     "surveyPageSubtitle": "Balayez à gauche ou à droite pour choisir un formulaire",
     "surveyStemDesc": "Inventaire des arbres d’une placette permanente (ForestGEO) : numéros, positions, DHP et codes d’état. Les inventaires partent de la placette.",
     "surveyOpenFrames": "Ouvrir les placettes permanentes",
-    "surveyChecklistDesc": "Notez les espèces en marchant ; les champs suivent le formulaire (modèle de test ; ajout direct depuis l’onglet Espèces).",
-    "surveyPlotDesc": "Notez sous-placette par sous-placette ; sur une placette permanente, le relevé suivant commence à l’aveugle puis se compare à la liste précédente (modèle de test).",
     "surveyOnFrame": "Commencer sur une placette permanente…",
     "surveyNoFrames": "Aucune placette permanente pour l’instant. Ajoutez-en une dans Inventaire des arbres.",
-    "surveyPageOf": "Carte {{n}} sur {{total}}"
+    "surveyPageOf": "Carte {{n}} sur {{total}}",
+    "builderDesc": "Créer un nouveau formulaire, ou modifier ou copier un modèle existant.",
+    "builderDescEmpty": "Composez vos propres formulaires de liste ou de placette à partir de composants, ou partez de la copie d’un exemple.",
+    "builderManage": "Gérer les modèles"
   },
   "count": {
     "increase": "Augmenter {{name}}",
@@ -4917,7 +4942,10 @@
       "unsavedTitle": "Abandonner les modifications ?",
       "unsavedMsg": "Les modifications de cet arbre ne sont pas enregistrées.",
       "discard": "Abandonner",
-      "errNumber": "Ces champs ne sont pas des nombres :"
+      "errNumber": "Ces champs ne sont pas des nombres :",
+      "photosMax": "Au plus {{max}} photos par arbre",
+      "traitInteger": "Doit être un nombre entier",
+      "traitRange": "Hors limites ({{range}})"
     },
     "sync": {
       "blockSizeTitle": "Taille des blocs de synchronisation",
@@ -4985,7 +5013,8 @@
       "structure": "Strates",
       "phenology": "Phénologie",
       "traits": "Traits",
-      "environment": "Environnement"
+      "environment": "Environnement",
+      "choice": "Choix personnalisé"
     },
     "editor": {
       "elsewhere": "Cet élément se saisit sur l’écran de l’enregistrement.",
@@ -5044,6 +5073,10 @@
         "layers_one": "{{count}} strate",
         "layers_many": "{{count}} strates",
         "layers_other": "{{count}} strates"
+      },
+      "choice": {
+        "noList": "La liste de ce choix est introuvable ; vérifiez le modèle de formulaire.",
+        "multi": "Plusieurs choix possibles"
       }
     },
     "ams": {
@@ -5168,9 +5201,9 @@
     "ended": "Fin",
     "reopen": "Reprendre",
     "deleteTitle": "Supprimer le relevé",
-    "deleteMsg_one": "Supprimer « {{name}} » et son occurrence ({{count}}) ? Ce sera définitif.",
+    "deleteMsg_one": "Supprimer « {{name}} » et son occurrence ({{count}}) ?",
     "deleteMsg_many": "Supprimer « {{name}} » et ses {{count}} occurrences ? Ce sera définitif.",
-    "deleteMsg_other": "Supprimer « {{name}} » et ses {{count}} occurrences ? Ce sera définitif.",
+    "deleteMsg_other": "Supprimer « {{name}} » et ses {{count}} occurrences ?",
     "noExport": "Les relevés de type liste et placette ne s’exportent pas encore",
     "notInProjectExport_one": "{{count}} relevé de type liste / placette ne s’exporte pas encore et manque à cet export",
     "notInProjectExport_many": "{{count}} relevés de type liste / placette ne s’exportent pas encore et manquent à cet export",
@@ -5250,6 +5283,7 @@
       "notOpen": "La revérification s’ouvre à la fin du relevé à l’aveugle",
       "intro": "La liste du relevé {{n}}, par unité. Notez une réponse pour chaque espèce absente de ce relevé à l’aveugle ({{open}} encore à confirmer).",
       "nothing": "Le relevé précédent ne compte aucune espèce.",
+      "noPrevious": "Cet appareil n’a pas le relevé précédent (relevé {{n}}) : sa liste ne peut pas s’afficher. Récupérez-le par la synchronisation d’équipe ou faites la revérification sur un appareil qui l’a.",
       "last": "La dernière fois : {{value}}",
       "recordedBlind": "Notée cette fois",
       "notChecked": "Unité retirée",
@@ -5297,7 +5331,7 @@
       "section": "Relevés de placette",
       "units": "Plan des unités",
       "labels": "Morpho-espèces",
-      "start": "Commencer un relevé de placette (test)",
+      "start": "Commencer un relevé de placette…",
       "surveyNo": "Relevé {{n}} · {{name}}",
       "unitsTitle": "Plan des unités {{code}}",
       "unitsDesc": "Un relevé de placette commence avec ces unités. Une unité utilisée par un relevé peut seulement être retirée, ni supprimée ni recodée.",
@@ -5320,6 +5354,251 @@
       "removePhoto": "Retirer la photo"
     },
     "lockedBanner": "Terminé et verrouillé. Déverrouillez-le depuis ⋯ en haut à droite pour le modifier.",
-    "surveyNo": "relevé {{n}}"
+    "surveyNo": "relevé {{n}}",
+    "recoverNumberTaken": "Cette placette permanente a déjà un relevé avec le même modèle et le même numéro ; supprimez-le d’abord, puis restaurez.",
+    "upgrade": {
+      "banner": "Ce formulaire a une nouvelle version (version {{n}})",
+      "msg": "Passer à la version {{n}} : les nouveaux champs apparaissent, rien de ce qui est noté ne change."
+    },
+    "carried": "Comme au relevé {{n}} (repris au début, à vérifier) : {{fields}}"
+  },
+  "builder": {
+    "title": "Modèles de formulaire",
+    "desc": "Composez vos propres formulaires de liste ou de placette à partir de composants, ou ajustez l’inventaire des arbres",
+    "intro": "Un modèle décide des champs qu’un relevé enregistre. Modifier un modèle enregistré crée une nouvelle version ; si la modification ne fait qu’ajouter ou élargir, les relevés en cours peuvent passer à cette version, sinon elle s’applique aux relevés commencés ensuite.",
+    "section": {
+      "drafts": "Nouveaux modèles en cours de modification",
+      "mine": "Mes modèles",
+      "samples": "Exemples (copie seulement)",
+      "builtin": "Intégrés (copie seulement)"
+    },
+    "showArchived_one": "Afficher les archivés ({{count}})",
+    "showArchived_other": "Afficher les archivés ({{count}})",
+    "showArchived_many": "Afficher les archivés ({{count}})",
+    "hideArchived": "Masquer les archivés",
+    "empty": "Pas encore de modèle à vous. Touchez « Nouveau modèle » ci-dessous ou copiez un exemple.",
+    "version": "version {{n}}",
+    "uses_one": "utilisé {{count}} fois",
+    "uses_other": "utilisé {{count}} fois",
+    "uses_many": "utilisé {{count}} fois",
+    "usesActive_one": "{{count}} en cours",
+    "usesActive_other": "{{count}} en cours",
+    "usesActive_many": "{{count}} en cours",
+    "draftTag": "modifications non enregistrées",
+    "newTemplate": "nouveau, pas encore enregistré",
+    "untitled": "Sans nom",
+    "create": "Nouveau modèle",
+    "action": {
+      "edit": "Modifier",
+      "copy": "Copier",
+      "archive": "Archiver",
+      "unarchive": "Désarchiver",
+      "copyToMine": "Copier dans mes modèles",
+      "export": "Exporter en fichier"
+    },
+    "archived": "« {{name}} » archivé. Les relevés commencés avec ce modèle ne changent pas.",
+    "new": {
+      "title": "Nouveau modèle",
+      "blankChecklist": "Liste vierge",
+      "blankPlot": "Placette vierge",
+      "copy": "Copier un modèle existant…",
+      "copyFrom": "Copier lequel ?",
+      "nameTitle": "Nom du modèle",
+      "nameMsg": "Par exemple « Plantes des berges ». Modifiable plus tard ; un nom anglais peut s’ajouter.",
+      "create": "Créer",
+      "firstUnit": "Sous-placette",
+      "copyName": "Copie de {{name}}",
+      "census": "Inventaire des arbres (copie de l’intégré)"
+    },
+    "notFound": "Le brouillon de ce modèle n’existe plus ; il a peut-être été enregistré ou abandonné.",
+    "basics": "Généralités",
+    "name": "Nom",
+    "nameEn": "Nom anglais (facultatif)",
+    "versionNext": "Version {{n}} enregistrée ; enregistrer crée la version {{next}}",
+    "quickAdd": "Autoriser l’ajout rapide depuis ailleurs",
+    "quickAddDesc": "Pendant un tel relevé, l’onglet Espèces, l’arbre taxonomique, les favoris et les clés peuvent y ajouter des espèces directement.",
+    "units": "Niveaux d’unités",
+    "unitsDesc": "Du plus grand au plus petit, jusqu’à {{max}} niveaux, par exemple « sous-placette → quadrat ».",
+    "unitN": "Niveau {{n}}",
+    "addUnit": "Ajouter un niveau en dessous",
+    "removeUnit": "Retirer ce niveau",
+    "removeUnitMsg": "« {{name}} » et les composants de ce niveau sont retirés ensemble.",
+    "moveUp": "Monter",
+    "moveDown": "Descendre",
+    "place": {
+      "survey": "Chaque relevé",
+      "unit": "Chaque unité « {{name}} »",
+      "occurrence": "Chaque occurrence",
+      "quadrat": "Chaque quadrat",
+      "tree": "Chaque arbre",
+      "stem": "Chaque tige"
+    },
+    "addComponent": "Ajouter un composant",
+    "addComponentTitle": "Ajouter à « {{place}} »",
+    "nothingToAdd": "Plus rien ne peut être ajouté ici",
+    "fixed": "dans chaque relevé",
+    "requiredTag": "obligatoire",
+    "preview": "Aperçu",
+    "previewTitle": "Aperçu : {{name}}",
+    "previewIntro": "Un relevé commencé avec ce modèle ressemble à ceci. Essayez de le remplir ; rien n’est conservé.",
+    "discard": {
+      "title": "Abandonner les modifications ?",
+      "msg": "Le brouillon est supprimé ; le modèle reste à la version {{n}}.",
+      "go": "Abandonner les modifications",
+      "newTitle": "Supprimer ce nouveau modèle ?",
+      "newMsg": "Il n’a jamais été enregistré : il disparaîtra.",
+      "newGo": "Supprimer ce nouveau modèle"
+    },
+    "save": {
+      "go": "Enregistrer",
+      "title": "Enregistrer comme version {{n}} ?",
+      "msgNew": "Une fois enregistré, vous pourrez commencer des relevés avec.",
+      "msgNext": "Les relevés commencés ensuite utilisent la nouvelle version.",
+      "msgAdditive": "Cela ne fait qu’ajouter ou élargir : les relevés en cours peuvent passer à la nouvelle version.",
+      "msgBreaking": "Quelque chose a été retiré ou changé : les relevés déjà commencés gardent leur version, ceux commencés ensuite utilisent la nouvelle.",
+      "noChange": "Aucune modification",
+      "saved": "Enregistré comme version {{n}}",
+      "fixFirst": "À corriger avant d’enregistrer",
+      "invalid": "Ce modèle ne peut pas encore être enregistré :\n{{detail}}"
+    },
+    "issue": {
+      "nameEmpty": "Le modèle a besoin d’un nom",
+      "noUnitLevel": "Un modèle de placette a besoin d’au moins un niveau d’unités",
+      "unitLabelEmpty": "Chaque niveau d’unités a besoin d’un nom",
+      "traitNameEmpty": "Le trait {{n}} de « {{component}} » a besoin d’un nom",
+      "traitRange": "Trait {{n}} de « {{component}} » : le minimum dépasse le maximum",
+      "params": "« {{component}} » est mal réglé : {{detail}}",
+      "choiceList": "« {{component}} » a besoin d’une liste de codes",
+      "listNameEmpty": "Chaque liste de codes a besoin d’un nom",
+      "listNoCodes": "La liste « {{list}} » n’a pas encore de codes",
+      "codeEmpty": "Le code {{n}} de la liste « {{list}} » est vide",
+      "codeDuplicate": "Le code {{n}} de la liste « {{list}} » répète un code précédent",
+      "codeNameEmpty": "Le code {{n}} de la liste « {{list}} » a besoin d’un nom"
+    },
+    "upgrade": {
+      "title": "Mettre à niveau les relevés en cours ?",
+      "msg_one": "{{count}} relevé en cours utilise une version antérieure et peut passer à la version {{n}} : les nouveaux champs apparaissent, rien de ce qui est noté ne change.",
+      "msg_other": "{{count}} relevés en cours utilisent une version antérieure et peuvent passer à la version {{n}} : les nouveaux champs apparaissent, rien de ce qui est noté ne change.",
+      "msg_many": "{{count}} relevés en cours utilisent une version antérieure et peuvent passer à la version {{n}} : les nouveaux champs apparaissent, rien de ce qui est noté ne change.",
+      "go": "Mettre à niveau",
+      "skip": "Pas maintenant",
+      "done_one": "{{count}} relevé mis à niveau",
+      "done_other": "{{count}} relevés mis à niveau",
+      "done_many": "{{count}} relevés mis à niveau"
+    },
+    "noPlotTemplate": {
+      "title": "Pas encore de modèle de placette",
+      "msg": "Créez d’abord un modèle de placette dans « Modèles de formulaire », ou copiez un exemple."
+    },
+    "pickTemplate": "Quel modèle ?",
+    "componentNameDesc": "Laissé vide, il s’affiche « {{name}} ». Nommez-le quand le même composant apparaît deux fois (deux jeux de traits, par exemple).",
+    "required": "Obligatoire",
+    "requiredDesc": "Activé, une valeur manquante est signalée et la clôture du relevé le rappelle.",
+    "requiredFixed": "Chaque relevé a ce composant ; il ne peut pas être désactivé.",
+    "params": "Réglages",
+    "param": {
+      "kinds": "Échelles d’abondance proposées",
+      "defaultKind": "Échelle par défaut",
+      "modeCells": "Case par case",
+      "modeCount": "Nombre de cases seulement",
+      "gridN": "Cases par côté",
+      "topEdge": "Haut de la grille orienté vers",
+      "layers": "Nombre de strates par défaut",
+      "layerMethods": "Notation du recouvrement des strates",
+      "max": "Au plus",
+      "gpsOnly": "Les relevés de liste et de placette notent une position GNSS (latitude, longitude, précision).",
+      "none": "Ce composant n’a rien à régler."
+    },
+    "traits": "Traits",
+    "traitN": "Trait {{n}}",
+    "trait": {
+      "unit": "Unité",
+      "min": "Minimum",
+      "max": "Maximum",
+      "integer": "Nombres entiers seulement",
+      "remove": "Retirer ce trait",
+      "add": "Ajouter un trait"
+    },
+    "removeComponent": "Retirer le composant",
+    "removeComponentMsg": "Retirer « {{name}} » du modèle ?",
+    "changeAdditive": "Par rapport à la version enregistrée, cela ne fait qu’ajouter ou élargir ; les relevés en cours peuvent passer à la nouvelle version.",
+    "changeBreaking": "Par rapport à la version {{n}}, quelque chose a été retiré ou changé : les relevés déjà commencés gardent la version {{n}}.",
+    "summary": {
+      "layers_one": "{{count}} strate",
+      "layers_other": "{{count}} strates",
+      "layers_many": "{{count}} strates",
+      "fields_one": "{{count}} champ",
+      "fields_other": "{{count}} champs",
+      "fields_many": "{{count}} champs",
+      "max_one": "jusqu’à {{count}}",
+      "max_other": "jusqu’à {{count}}",
+      "max_many": "jusqu’à {{count}}",
+      "gps": "Position GNSS"
+    },
+    "kind": {
+      "bb": "Braun-Blanquet",
+      "percent": "Recouvrement %",
+      "dbh": "DHP"
+    },
+    "listSep": ", ",
+    "lists": "Listes de codes",
+    "listsDesc": "Les champs de choix personnalisés puisent dans ces listes. Le code est la valeur enregistrée ; le nom sert seulement à l’affichage.",
+    "list": {
+      "newName": "Liste de codes {{n}}",
+      "codes_one": "{{count}} code",
+      "codes_other": "{{count}} codes",
+      "codes_many": "{{count}} codes",
+      "usedBy": "Utilisée par : {{names}}",
+      "unused": "Aucun composant n’utilise encore cette liste",
+      "add": "Ajouter une liste de codes",
+      "remove": "Supprimer la liste",
+      "removeMsg": "Supprimer « {{name}} » ?",
+      "codesTitle": "Codes",
+      "codesDesc": "Le code est la valeur enregistrée et ne peut plus changer une fois le modèle enregistré. Marquez comme retirés les codes que vous n’utilisez plus ; les données déjà saisies les affichent toujours.",
+      "codeFixed": "Code {{code}} (enregistré, non modifiable)",
+      "code": "Code",
+      "deprecated": "Retiré",
+      "deprecatedDesc": "N’est plus proposé ; les données déjà saisies l’affichent toujours",
+      "removeCode": "Retirer ce code",
+      "addCode": "Ajouter un code"
+    },
+    "choice": {
+      "single": "Choix unique",
+      "multi": "Choix multiple",
+      "list": "Liste de codes",
+      "noList": "Pas encore choisie",
+      "change": "Changer",
+      "editList": "Modifier cette liste",
+      "multiSwitch": "Autoriser plusieurs choix"
+    },
+    "import": {
+      "fromFile": "Importer depuis un fichier…",
+      "failTitle": "Import impossible",
+      "newerApp": "Ce modèle utilise des composants que cette version de l’app ne connaît pas ({{types}}). Mettez d’abord l’app à jour.",
+      "invalid": "Le fichier n’est pas valide : {{detail}}",
+      "notTemplate": "Ce n’est pas un fichier de modèle Mitalivana (.mtpl.json).",
+      "done": "« {{name}} » importé",
+      "doneRenamed": "« {{name}} » importé. Le même modèle existe déjà ici ; l’import a été gardé comme nouveau modèle."
+    },
+    "health": {
+      "title": "Codes d’état",
+      "desc": "Les codes que reçoit chaque tige. Les codes d’inventaire ForestGEO sont la base de l’inventaire et restent ; l’AMS et vos propres listes de codes peuvent s’ajouter.",
+      "census": "Codes d’inventaire ForestGEO (Condit 1998)",
+      "ams": "Mortalité et dommages ForestGEO (AMS)",
+      "amsDesc": "Avec l’AMS, chaque tige reçoit aussi les champs AMS, et la mort d’une tige suit son état de survie AMS."
+    },
+    "census": {
+      "intro": "Modèle d’inventaire des arbres : hauteur, photos et traits peuvent être ajoutés ou retirés ; les codes d’état peuvent recevoir l’AMS et vos propres listes de codes. Le reste suit l’inventaire des arbres.",
+      "requiredFixed": "L’inventaire des arbres fixe ce qui est obligatoire ; non modifiable ici.",
+      "paramsFixed": "L’inventaire des arbres utilise ce composant tel quel ; rien à régler.",
+      "listsDesc": "Les codes d’état peuvent recevoir ces listes ; chaque tige y choisit ses codes.",
+      "start": "Commencer un inventaire sur une placette permanente…",
+      "pick": "Quel modèle d’inventaire des arbres ?",
+      "lastUsed": "{{name}} (utilisé la dernière fois)",
+      "pickFrame": "Sur quelle placette permanente ?",
+      "openTitle": "Un inventaire est encore ouvert",
+      "openMsg": "L’inventaire {{n}} de cette placette n’est pas terminé. Terminez-le avant de commencer le suivant.",
+      "openGo": "Ouvrir l’inventaire en cours"
+    }
   }
 }
