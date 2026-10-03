@@ -34,7 +34,13 @@
  *   - values are stored only when set; clearing one deletes its row;
  *   - deleting a unit keeps its occurrences and sub-units, moved up to its
  *     parent; deleting a survey takes its units, occurrences, values and
- *     media with it.
+ *     media with it;
+ *   - an occurrence made only as the other side of an interaction (v87,
+ *     `via_interaction`; interactionCore.ts) is not counted as a species of
+ *     the survey and not carried into the next survey's recheck; recording
+ *     the same taxon here for itself turns it into an ordinary occurrence,
+ *     and it goes when its last interaction goes and nothing else was
+ *     recorded on it.
  */
 import type { Scalar } from '@op-engineering/op-sqlite';
 import { closeActiveRecords } from '../../db/activeRecords';
@@ -266,7 +272,7 @@ export type SurveyListRow = FwSurveyRow & {
   frame_code: string | null;
   project_name: string | null;
   occurrence_count: number;
-  /** Distinct taxa (with their labels: `sp1` and `sp2` of a genus are two). */
+  /** Distinct taxa (with their labels: `sp1` and `sp2` of a genus are two); not those recorded only as the other side of an interaction. */
   species_count: number;
 };
 
@@ -276,7 +282,7 @@ export function listSurveys(ctx: { db: SurveyDb }, opts: { frameId?: number } = 
     ctx,
     `SELECT s.*, f.code AS frame_code, p.name AS project_name,
             (SELECT COUNT(*) FROM fw_occurrences o WHERE o.survey_id = s.id) AS occurrence_count,
-            (SELECT COUNT(*) FROM (SELECT DISTINCT o.taxon_id, IFNULL(o.verbatim_identification, '') FROM fw_occurrences o WHERE o.survey_id = s.id)) AS species_count
+            (SELECT COUNT(*) FROM (SELECT DISTINCT o.taxon_id, IFNULL(o.verbatim_identification, '') FROM fw_occurrences o WHERE o.survey_id = s.id AND o.via_interaction = 0)) AS species_count
        FROM fw_surveys s
        LEFT JOIN fw_frames f ON f.id = s.frame_id
        LEFT JOIN projects p ON p.id = s.project_id
@@ -362,6 +368,7 @@ export function deleteSurvey(ctx: Ctx, id: number): void {
   surveyOf(ctx, id);
   // Children by hand: foreign keys are off during migrations and cleanup.
   run(ctx, `DELETE FROM fw_media WHERE survey_id = ?`, [id]);
+  run(ctx, `DELETE FROM fw_interactions WHERE survey_id = ?`, [id]);
   run(ctx, `DELETE FROM fw_rechecks WHERE survey_id = ?`, [id]);
   run(ctx, `DELETE FROM fw_occurrence_values WHERE occurrence_id IN (SELECT id FROM fw_occurrences WHERE survey_id = ?)`, [id]);
   run(ctx, `DELETE FROM fw_occurrences WHERE survey_id = ?`, [id]);
@@ -647,6 +654,7 @@ export function deleteUnit(ctx: Ctx, id: number): void {
   const now = ctx.now();
   run(ctx, `UPDATE fw_units SET parent_id = ?, updated_at = ? WHERE parent_id = ?`, [u.parent_id, now, id]);
   run(ctx, `UPDATE fw_occurrences SET unit_id = ?, updated_at = ? WHERE unit_id = ?`, [u.parent_id, now, id]);
+  run(ctx, `UPDATE fw_interactions SET unit_id = ?, updated_at = ? WHERE unit_id = ?`, [u.parent_id, now, id]);
   run(ctx, `DELETE FROM fw_unit_values WHERE unit_id = ?`, [id]);
   run(ctx, `DELETE FROM fw_media WHERE unit_id = ?`, [id]);
   run(ctx, `DELETE FROM fw_units WHERE id = ?`, [id]);
@@ -684,6 +692,8 @@ export type OccurrenceRow = {
   elevation_source: string | null;
   phase: 'blind' | 'recheck' | null;
   notes: string | null;
+  /** v87: 1 when made only as the other side of an interaction. */
+  via_interaction: number;
   created_at: number;
   updated_at: number;
 };
@@ -734,35 +744,61 @@ function checkOccurrenceUnit(ctx: { db: SurveyDb }, s: FwSurveyRow, unitId: numb
   if (getUnit(ctx, unitId)?.survey_id !== s.id) throw new SurveyError('bad_unit', 'not a unit of this survey');
 }
 
-/** The phase a new occurrence gets: blind / recheck in a recheck, none otherwise. */
-function phaseNow(ctx: { db: SurveyDb }, s: FwSurveyRow): 'blind' | 'recheck' | null {
+/** The phase a new occurrence (or interaction) gets: blind / recheck in a recheck, none otherwise. */
+export function phaseNow(ctx: { db: SurveyDb }, s: FwSurveyRow): 'blind' | 'recheck' | null {
   if (!hasBlindPhase(ctx, s.id)) return null;
   return s.blind_closed_at == null ? 'blind' : 'recheck';
 }
 
-export function addOccurrence(ctx: Ctx, surveyId: number, fields: OccurrenceFields & { taxon_id: string }): number {
+/**
+ * Record a taxon. `via`: only as the other side of an interaction
+ * (interactionCore.ts). Recorded for itself where the same taxon and label
+ * were made that way, the one made is taken over as an ordinary occurrence
+ * (unless sealed: then a new one is added).
+ */
+export function addOccurrence(ctx: Ctx, surveyId: number, fields: OccurrenceFields & { taxon_id: string }, opts: { via?: boolean } = {}): number {
   const s = surveyOf(ctx, surveyId);
   if (!fields.taxon_id?.trim()) throw new SurveyError('not_found', 'taxon');
   checkOccurrenceUnit(ctx, s, fields.unit_id);
   const now = ctx.now();
+  if (!opts.via) {
+    const via = one<OccurrenceRow>(
+      ctx,
+      `SELECT * FROM fw_occurrences WHERE survey_id = ? AND unit_id IS ? AND taxon_id = ? AND IFNULL(verbatim_identification, '') = ? AND via_interaction = 1 ORDER BY id LIMIT 1`,
+      [surveyId, fields.unit_id ?? null, fields.taxon_id, fields.verbatim_identification?.trim() ?? ''],
+    );
+    if (via && !occurrenceSealed(ctx, via)) {
+      const cols = OCCURRENCE_FIELDS.filter((c) => c !== 'observed_at' && fields[c] !== undefined);
+      run(ctx, `UPDATE fw_occurrences SET ${cols.map((c) => `${c} = ?, `).join('')}via_interaction = 0, updated_at = ? WHERE id = ?`, [
+        ...cols.map((c) => fields[c] as Scalar),
+        now,
+        via.id,
+      ]);
+      return via.id;
+    }
+  }
   // taxon_id is always among them.
   const cols = OCCURRENCE_FIELDS.filter((c) => c !== 'observed_at' && fields[c] !== undefined);
   return Number(
     run(
       ctx,
-      `INSERT INTO fw_occurrences (uuid, survey_id, ${cols.join(', ')}, observed_at, phase, created_at, updated_at)
-       VALUES (?, ?, ${marks(cols.length)}, ?, ?, ?, ?)`,
-      [ctx.uuid(), surveyId, ...cols.map((c) => fields[c] as Scalar), fields.observed_at ?? now, phaseNow(ctx, s), now, now],
+      `INSERT INTO fw_occurrences (uuid, survey_id, ${cols.join(', ')}, observed_at, phase, via_interaction, created_at, updated_at)
+       VALUES (?, ?, ${marks(cols.length)}, ?, ?, ?, ?, ?)`,
+      [ctx.uuid(), surveyId, ...cols.map((c) => fields[c] as Scalar), fields.observed_at ?? now, phaseNow(ctx, s), opts.via ? 1 : 0, now, now],
     ).insertId,
   );
 }
 
-/** The same taxon and label already recorded in this unit (null: outside any unit), if any. */
+/**
+ * The same taxon and label already recorded in this unit (null: outside any
+ * unit), if any. One made only as an interaction's other side is not
+ * recorded yet: adding the taxon takes it over (addOccurrence).
+ */
 export function findOccurrence(ctx: { db: SurveyDb }, surveyId: number, unitId: number | null, taxonId: string, verbatim: string | null): OccurrenceRow | null {
   return (
     one<OccurrenceRow>(
       ctx,
-      `SELECT * FROM fw_occurrences WHERE survey_id = ? AND unit_id IS ? AND taxon_id = ? AND IFNULL(verbatim_identification, '') = ? ORDER BY id LIMIT 1`,
+      `SELECT * FROM fw_occurrences WHERE survey_id = ? AND unit_id IS ? AND taxon_id = ? AND IFNULL(verbatim_identification, '') = ? AND via_interaction = 0 ORDER BY id LIMIT 1`,
       [surveyId, unitId, taxonId, verbatim?.trim() ?? ''],
     ) ?? null
   );
@@ -794,14 +830,73 @@ export function updateOccurrence(ctx: Ctx, id: number, patch: OccurrenceFields):
   ]);
 }
 
+/** Deleting it takes its interactions with it; an occurrence made only as their other side goes too when nothing else holds it. */
 export function deleteOccurrence(ctx: Ctx, id: number): void {
   unsealed(ctx, id);
   // A 'found' answer is the occurrence it added; a re-identification that named it needs answering again.
   run(ctx, `DELETE FROM fw_rechecks WHERE occurrence_id = ? AND outcome = 'found'`, [id]);
   run(ctx, `UPDATE fw_rechecks SET occurrence_id = NULL, updated_at = ? WHERE occurrence_id = ?`, [ctx.now(), id]);
+  const partners = dropInteractionsOf(ctx, id);
   run(ctx, `DELETE FROM fw_occurrence_values WHERE occurrence_id = ?`, [id]);
   run(ctx, `DELETE FROM fw_media WHERE occurrence_id = ?`, [id]);
   run(ctx, `DELETE FROM fw_occurrences WHERE id = ?`, [id]);
+  for (const p of partners) pruneViaOccurrence(ctx, p);
+}
+
+/** How many interactions an occurrence takes part in (what deleting it also deletes). */
+export function interactionCountOf(ctx: { db: SurveyDb }, occurrenceId: number): number {
+  return one<{ n: number }>(ctx, `SELECT COUNT(*) AS n FROM fw_interactions WHERE subject_occurrence_id = ? OR object_occurrence_id = ?`, [occurrenceId, occurrenceId])?.n ?? 0;
+}
+
+/** Delete an occurrence's interactions and their photos; returns the occurrences on their other side. */
+function dropInteractionsOf(ctx: Ctx, occurrenceId: number): number[] {
+  const rows_ = rows<{ id: number; subject_occurrence_id: number; object_occurrence_id: number }>(
+    ctx,
+    `SELECT id, subject_occurrence_id, object_occurrence_id FROM fw_interactions WHERE subject_occurrence_id = ? OR object_occurrence_id = ?`,
+    [occurrenceId, occurrenceId],
+  );
+  for (const r of rows_) {
+    run(ctx, `DELETE FROM fw_media WHERE interaction_id = ?`, [r.id]);
+    run(ctx, `DELETE FROM fw_interactions WHERE id = ?`, [r.id]);
+  }
+  return [...new Set(rows_.map((r) => (r.subject_occurrence_id === occurrenceId ? r.object_occurrence_id : r.subject_occurrence_id)))];
+}
+
+/** Columns that hold something recorded on an occurrence, beyond its taxon, place and time. */
+const OCCURRENCE_DATA = [
+  'layer',
+  'organism_quantity',
+  'organism_quantity_type',
+  'freq_cells',
+  'freq_count',
+  'sex',
+  'life_stage',
+  'reproductive_condition',
+  'leaf_phenology',
+  'degree_of_establishment',
+  'detection_type',
+  'lat',
+  'lng',
+  'accuracy',
+  'elevation_m',
+  'notes',
+] as const;
+
+/**
+ * An occurrence made only as an interaction's other side goes once no
+ * interaction holds it and nothing else was recorded on it (no value, photo,
+ * recheck answer or field of its own) — decided 2026-10-03. Returns whether it went.
+ */
+export function pruneViaOccurrence(ctx: Ctx, id: number): boolean {
+  const o = getOccurrence(ctx, id);
+  if (!o || o.via_interaction !== 1 || occurrenceSealed(ctx, o)) return false;
+  if (interactionCountOf(ctx, id) > 0) return false;
+  if (OCCURRENCE_DATA.some((c) => o[c] != null && o[c] !== '')) return false;
+  if (one(ctx, `SELECT 1 AS x FROM fw_occurrence_values WHERE occurrence_id = ? LIMIT 1`, [id])) return false;
+  if (one(ctx, `SELECT 1 AS x FROM fw_media WHERE occurrence_id = ? LIMIT 1`, [id])) return false;
+  if (one(ctx, `SELECT 1 AS x FROM fw_rechecks WHERE occurrence_id = ? LIMIT 1`, [id])) return false;
+  run(ctx, `DELETE FROM fw_occurrences WHERE id = ?`, [id]);
+  return true;
 }
 
 // ── component values ────────────────────────────────────────────────────────
@@ -876,14 +971,19 @@ export function reopenBlindPhase(ctx: Ctx, surveyId: number): void {
   if (s.blind_closed_at == null) return;
   const begun =
     one(ctx, `SELECT 1 AS x FROM fw_rechecks WHERE survey_id = ? LIMIT 1`, [surveyId]) != null ||
-    one(ctx, `SELECT 1 AS x FROM fw_occurrences WHERE survey_id = ? AND phase = 'recheck' LIMIT 1`, [surveyId]) != null;
+    one(ctx, `SELECT 1 AS x FROM fw_occurrences WHERE survey_id = ? AND phase = 'recheck' LIMIT 1`, [surveyId]) != null ||
+    one(ctx, `SELECT 1 AS x FROM fw_interactions WHERE survey_id = ? AND phase = 'recheck' LIMIT 1`, [surveyId]) != null;
   if (begun) throw new SurveyError('recheck_begun');
   run(ctx, `UPDATE fw_surveys SET blind_closed_at = NULL, updated_at = ? WHERE id = ?`, [ctx.now(), surveyId]);
 }
 
 export type PreviousOccurrence = OccurrenceRow & { unit_level_key: string | null; unit_code: string | null; frame_unit_id: number | null };
 
-/** The earlier survey's occurrences, with their unit for matching; refused while the blind phase is open. */
+/**
+ * The earlier survey's occurrences, with their unit for matching; refused
+ * while the blind phase is open. Not those made only as an interaction's
+ * other side: nobody looked for them there (decided 2026-10-03).
+ */
 export function previousOccurrences(ctx: { db: SurveyDb }, surveyId: number): PreviousOccurrence[] {
   const s = surveyOf(ctx, surveyId);
   if (hasBlindPhase(ctx, surveyId) && s.blind_closed_at == null) throw new SurveyError('blind_open');
@@ -893,7 +993,7 @@ export function previousOccurrences(ctx: { db: SurveyDb }, surveyId: number): Pr
     ctx,
     `SELECT o.*, u.level_key AS unit_level_key, u.code AS unit_code, u.frame_unit_id
        FROM fw_occurrences o LEFT JOIN fw_units u ON u.id = o.unit_id
-      WHERE o.survey_id = ? ORDER BY o.observed_at, o.id`,
+      WHERE o.survey_id = ? AND o.via_interaction = 0 ORDER BY o.observed_at, o.id`,
     [prev],
   );
 }
@@ -988,7 +1088,10 @@ export function answerRecheck(ctx: Ctx, surveyId: number, candidate: Sighting, o
     [surveyId, c.frameUnitId, c.taxonId, label],
   );
   if (old?.outcome === 'found' && outcome === 'found' && old.occurrence_id != null) return old.occurrence_id;
-  if (old?.outcome === 'found' && old.occurrence_id != null) {
+  if (old?.outcome === 'found' && old.occurrence_id != null && interactionCountOf(ctx, old.occurrence_id) > 0) {
+    // Its interactions keep it, as their other side only.
+    run(ctx, `UPDATE fw_occurrences SET via_interaction = 1, updated_at = ? WHERE id = ? AND phase = 'recheck'`, [ctx.now(), old.occurrence_id]);
+  } else if (old?.outcome === 'found' && old.occurrence_id != null) {
     run(ctx, `DELETE FROM fw_occurrence_values WHERE occurrence_id = ?`, [old.occurrence_id]);
     run(ctx, `DELETE FROM fw_media WHERE occurrence_id = ?`, [old.occurrence_id]);
     run(ctx, `DELETE FROM fw_occurrences WHERE id = ? AND phase = 'recheck'`, [old.occurrence_id]);
@@ -1255,8 +1358,11 @@ export type FwMediaRow = {
 };
 
 /** Photos or recordings of one owner (of one component, when given), oldest first. */
+/** A survey's own photos: not its units', occurrences' or interactions'. */
+const SURVEY_MEDIA = 'survey_id = ? AND unit_id IS NULL AND occurrence_id IS NULL AND interaction_id IS NULL';
+
 export function listMedia(ctx: { db: SurveyDb }, owner: ComponentOwner, component?: string, kind?: 'photo' | 'audio'): FwMediaRow[] {
-  const where = owner.kind === 'survey' ? 'survey_id = ? AND unit_id IS NULL AND occurrence_id IS NULL' : `${MEDIA_OWNER_COL[owner.kind]} = ?`;
+  const where = owner.kind === 'survey' ? SURVEY_MEDIA : `${MEDIA_OWNER_COL[owner.kind]} = ?`;
   return rows<FwMediaRow>(
     ctx,
     `SELECT id, uuid, survey_id, unit_id, occurrence_id, component, kind, uri, created_at FROM fw_media
@@ -1293,7 +1399,7 @@ export function addMedia(ctx: Ctx, owner: ComponentOwner, key: string, uri: stri
 
 export function removeMedia(ctx: Ctx, owner: ComponentOwner, key: string, uri: string): void {
   if (owner.kind === 'occurrence') unsealed(ctx, owner.id);
-  const where = owner.kind === 'survey' ? 'survey_id = ? AND unit_id IS NULL AND occurrence_id IS NULL' : `${MEDIA_OWNER_COL[owner.kind]} = ?`;
+  const where = owner.kind === 'survey' ? SURVEY_MEDIA : `${MEDIA_OWNER_COL[owner.kind]} = ?`;
   run(ctx, `DELETE FROM fw_media WHERE ${where} AND component = ? AND uri = ?`, [owner.id, key, uri]);
   run(ctx, `UPDATE ${ownerSql(owner)} SET updated_at = ? WHERE id = ?`, [ctx.now(), owner.id]);
 }

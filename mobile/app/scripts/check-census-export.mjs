@@ -156,6 +156,7 @@ const NOT_CARRIED = {
     measure_id: 'stem_uuid',
     unit_id: 'plot-style owner; NULL on a census photo',
     occurrence_id: 'plot-style owner; NULL on a census photo',
+    interaction_id: 'plot-style owner (v87); NULL on a census photo',
     uri: 'file (the name in the zip)',
     created_at: 'stamp',
   },
@@ -170,6 +171,7 @@ const NOT_CENSUS = {
   fw_unit_values: 'plot-style unit values',
   fw_occurrence_values: 'checklist / plot-style occurrence values',
   fw_rechecks: 'recheck answers of a plot-style survey (v84)',
+  fw_interactions: 'interactions between checklist / plot-style occurrences (v87)',
 };
 const keysIn = (rows) => new Set(rows.flatMap((r) => Object.keys(r)));
 const DOC_ROWS = {

@@ -4,10 +4,12 @@
  * types (registry COMPONENT_TYPES): a new component without an input is a
  * type error.
  *
- * Three have their input elsewhere, on purpose:
+ * Four have their input elsewhere, on purpose:
  *   - taxon: the record screens' species search (2C) and the tree form;
  *   - dbh and health: the tree form (TreeEditor), which checks a stem's DBH
- *     against its state (status.ts) and shows the AMS entries.
+ *     against its state (status.ts) and shows the AMS entries;
+ *   - interaction: rows of its own, listed on the occurrence screen and
+ *     recorded on a screen of their own (2F).
  */
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
@@ -80,16 +82,18 @@ export function ComponentEditor(props: EditorProps) {
     case 'dbh':
     case 'health':
       return <ElsewhereNote />;
+    case 'interaction':
+      return <ElsewhereNote textKey="survey.editor.interactionElsewhere" />;
     default:
       return assertNever(type);
   }
 }
 
-function ElsewhereNote() {
+function ElsewhereNote({ textKey = 'survey.editor.elsewhere' }: { textKey?: string }) {
   const { t } = useTranslation();
   return (
     <View>
-      <Text className="text-xs text-ink-3 dark:text-gray-400">{t('survey.editor.elsewhere')}</Text>
+      <Text className="text-xs text-ink-3 dark:text-gray-400">{t(textKey)}</Text>
     </View>
   );
 }
@@ -167,6 +171,7 @@ export function componentSummary(t: TFunction, lang: string, instance: Component
     case 'taxon':
     case 'dbh':
     case 'health':
+    case 'interaction':
       return '';
     default:
       return assertNever(type);

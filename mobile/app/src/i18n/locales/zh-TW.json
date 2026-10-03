@@ -4623,7 +4623,8 @@
       "phenology": "物候",
       "traits": "性狀",
       "environment": "環境",
-      "choice": "自訂選項"
+      "choice": "自訂選項",
+      "interaction": "交互作用"
     },
     "editor": {
       "elsewhere": "這個元件在記錄畫面上輸入。",
@@ -4682,7 +4683,8 @@
       "choice": {
         "noList": "這個選項欄的清單不見了，請到調查表模板檢查。",
         "multi": "可複選"
-      }
+      },
+      "interactionElsewhere": "在每筆出現記錄的頁面新增交互作用。"
     },
     "ams": {
       "title": "AMS 死亡與損傷",
@@ -4766,6 +4768,77 @@
         "c_S": "邊坡崩塌",
         "c_W": "風倒"
       }
+    },
+    "interaction": {
+      "type": {
+        "feeding": {
+          "name": "捕食／攝食",
+          "verb": "攝食",
+          "inverse": "被攝食"
+        },
+        "flower_visit": {
+          "name": "訪花",
+          "verb": "訪花",
+          "inverse": "花被造訪"
+        },
+        "parasitism": {
+          "name": "寄生",
+          "verb": "寄生於",
+          "inverse": "被寄生"
+        },
+        "mutualism": {
+          "name": "互利共生",
+          "verb": "互利共生"
+        },
+        "commensalism": {
+          "name": "片利共生",
+          "verb": "片利共生於",
+          "inverse": "被片利共生"
+        }
+      },
+      "line": {
+        "forward": "{{verb}} {{partner}}",
+        "backward": "{{inverse}}：{{partner}}",
+        "byPartner": "{{partner}} {{verb}} 本物種"
+      },
+      "sentence": {
+        "forward": "{{a}} {{verb}} {{b}}",
+        "backward": "{{b}} {{verb}} {{a}}（從 {{a}} 的頁面記下，存成 {{b}} → {{a}}）",
+        "mutual": "{{a}} 與 {{b}}：{{verb}}（雙向，匯出時寫兩列）"
+      },
+      "count_other": "{{count}} 筆",
+      "photos_other": "照片 {{count}}",
+      "bothPages": "同一筆交互作用在兩端的頁面都看得到；箭頭與說法依目前這一筆換邊。",
+      "add": "新增交互作用",
+      "viaTag": "交互作用對象",
+      "deleteWith_other": "也會刪除它參與的 {{count}} 筆交互作用。",
+      "needPartner": "請選 B：這裡已記的物種，或搜尋其他物種。",
+      "deleteTitle": "刪除交互作用",
+      "addTitle": "新增交互作用",
+      "editTitle": "交互作用",
+      "aIs": "A＝{{name}}",
+      "kind": "類型",
+      "direction": "方向",
+      "dir": {
+        "forward": "A → B",
+        "backward": "A ← B",
+        "mutual": "A ↔ B"
+      },
+      "mutualOnly": "雙向類型只能選 A ↔ B；匯出時寫成兩列。",
+      "partner": "B：這裡已記的物種",
+      "noneHere": "這裡還沒有其他物種，可從下方搜尋。",
+      "addedToRecord": "儲存時同時加入本次記錄（交互作用對象，不計入物種數）",
+      "other": "其他物種（同時加入本次記錄）",
+      "times": "次數",
+      "less": "減一",
+      "more": "加一",
+      "photoTitle_other": "照片（最多 {{count}} 張）",
+      "photoLimit_other": "最多 {{count}} 張照片",
+      "empty": "還沒有交互作用。在出現記錄的頁面新增。",
+      "byType": "依類型",
+      "matrix": "矩陣",
+      "matrixDesc": "{{type}}：列是 A（做這件事的一方），欄是 B，格內是次數合計。",
+      "searchBelow": "不在這裡的物種，用下方的搜尋加入。"
     }
   },
   "task": {
@@ -4828,7 +4901,8 @@
       "data": "資料",
       "units_other": "單位 {{count}}",
       "species_other": "物種 {{count}}",
-      "freq": "頻度"
+      "freq": "頻度",
+      "interactions_other": "交互作用 {{count}}"
     },
     "phase": {
       "blind": "盲測",
@@ -5046,7 +5120,9 @@
       "listNoCodes": "代碼清單「{{list}}」還沒有代碼",
       "codeEmpty": "代碼清單「{{list}}」的第 {{n}} 個代碼是空的",
       "codeDuplicate": "代碼清單「{{list}}」的第 {{n}} 個代碼與前面的重複",
-      "codeNameEmpty": "代碼清單「{{list}}」的第 {{n}} 個代碼需要名稱"
+      "codeNameEmpty": "代碼清單「{{list}}」的第 {{n}} 個代碼需要名稱",
+      "interactionNone": "「{{component}}」至少要提供一種類型",
+      "interactionCode": "「{{component}}」的自訂類型代碼 {{code}} 與內建類型相同"
     },
     "upgrade": {
       "title": "升級進行中的調查？",
@@ -5096,7 +5172,9 @@
       "layers_other": "{{count}} 層",
       "fields_other": "{{count}} 項",
       "max_other": "最多 {{count}} 個",
-      "gps": "GNSS 定位"
+      "gps": "GNSS 定位",
+      "interactionTypes_other": "{{count}} 種類型",
+      "photos_other": "照片 {{count}}"
     },
     "kind": {
       "bb": "Braun-Blanquet",
@@ -5166,6 +5244,29 @@
       "seriesContinue": "接續第 {{n}} 回合（上回合用「{{name}}」）",
       "seriesContinueCode": "接續系列 {{code}} 第 {{n}} 回合（上回合用「{{name}}」）",
       "seriesNew": "另開系列（從第 1 回合開始）…"
+    },
+    "interaction": {
+      "count": "記錄次數",
+      "countDesc": "看到幾次、幾隻",
+      "photos": "照片上限（0 為不拍）",
+      "builtin": "內建類型",
+      "builtinDesc": "名稱跟著 app 的語言；匯出時寫 OBO Relation Ontology 的關係名稱與 ID。",
+      "mutual": "雙向",
+      "oneWay": "單向",
+      "mutualLong": "雙向（A ↔ B）",
+      "oneWayLong": "單向（A → B）",
+      "own": "自訂類型",
+      "editOwn": "編輯自訂類型",
+      "addOwn": "新增自訂類型",
+      "listName": "交互作用類型",
+      "listDesc": "每個類型可設方向性（存過就不能改）、從 B 看的說法，與 RO 關係 IRI（選填）。匯出時寫英文名稱。",
+      "direction": "方向性",
+      "directionFixed": "方向性：{{dir}}（存過的類型不能改）",
+      "inverse": "從 B 看的說法",
+      "inverseHint": "例：被產卵",
+      "inverseEn": "從 B 看的英文說法",
+      "iri": "RO 關係 IRI（選填）",
+      "iriBad": "IRI 要以 http:// 或 https:// 開頭，不能有空格"
     }
   },
   "surveyImport": {

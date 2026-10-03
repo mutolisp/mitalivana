@@ -11,6 +11,7 @@ import { generateUuid } from '~/db/uuid';
 import type { Sighting, RecheckOutcome } from '../form/recheck';
 import type { ComponentValues } from '../registry';
 import type { SurveyTemplate } from '../template/types';
+import * as inter from './interactionCore';
 import * as core from './surveyCore';
 import type { ValueInput } from './stemmapCore';
 import * as tpl from './templatesCore';
@@ -83,6 +84,7 @@ export const updateOccurrence = (id: number, patch: core.OccurrenceFields) =>
     core.updateOccurrence(ctx(), id, patch);
   });
 export const deleteOccurrence = (id: number) => withTransaction(() => core.deleteOccurrence(ctx(), id));
+export const interactionCountOf = (occurrenceId: number) => core.interactionCountOf(ctx(), occurrenceId);
 export const setValue = (owner: core.ValueOwner, component: string, field: string, value: ValueInput | null, idx = 0) =>
   core.setValue(ctx(), owner, component, field, value, idx);
 export const listValues = (owner: core.ValueOwner) => core.listValues(ctx(), owner);
@@ -108,3 +110,23 @@ export const addFrameLabel = (frameId: number, input: Parameters<typeof core.add
     return core.addFrameLabel(ctx(), frameId, input);
   });
 export const updateFrameLabel = (id: number, patch: { note?: string | null; photoUri?: string | null }) => core.updateFrameLabel(ctx(), id, patch);
+
+// interactions (2F, v87)
+export type { Direction, InteractionInput, InteractionListRow, InteractionRow, InteractionType, Partner } from './interactionCore';
+export const listInteractions = (surveyId: number, opts?: { occurrenceId?: number }) => inter.listInteractions(ctx(), surveyId, opts);
+export const getInteraction = (id: number) => inter.getInteraction(ctx(), id);
+export const interactionSealed = (r: Pick<inter.InteractionRow, 'survey_id' | 'phase'>) => inter.interactionSealed(ctx(), r);
+export const addInteraction = (input: inter.InteractionInput) =>
+  withTransaction(() => {
+    if ('taxonId' in input.partner) ensureTaxonSelfSufficient(input.partner.taxonId);
+    return inter.addInteraction(ctx(), input);
+  });
+export const updateInteraction = (id: number, input: inter.InteractionInput) =>
+  withTransaction(() => {
+    if ('taxonId' in input.partner) ensureTaxonSelfSufficient(input.partner.taxonId);
+    inter.updateInteraction(ctx(), id, input);
+  });
+export const deleteInteraction = (id: number) => withTransaction(() => inter.deleteInteraction(ctx(), id));
+export const listInteractionPhotos = (id: number) => inter.listInteractionPhotos(ctx(), id);
+export const addInteractionPhoto = (id: number, uri: string) => inter.addInteractionPhoto(ctx(), id, uri);
+export const removeInteractionPhoto = (id: number, uri: string) => inter.removeInteractionPhoto(ctx(), id, uri);

@@ -150,6 +150,16 @@ const mNow = one('SELECT name FROM fw_surveys WHERE id = ?', mId);
 ok(mNow.name === 'M' && one('SELECT value_num FROM fw_survey_values WHERE survey_id = ?', mId).value_num === 10, 'modular: the name and a survey value revert');
 ok(!one('SELECT id FROM fw_units WHERE id = ?', mu2) && !one('SELECT id FROM fw_occurrences WHERE id = ?', mo2) && !one("SELECT id FROM fw_media WHERE uuid = 'mm-2'"), 'modular: a unit, an occurrence and its photo added since are removed');
 ok(sameSnapshot(mBefore, snapshotRecordIn(db, 'modular', mId)), 'modular: state equals the snapshot');
+// Interactions (v87): undone and redone with their photos.
+const mo5 = insert('fw_occurrences', { uuid: 'mo-5', survey_id: mId, taxon_id: 'm5', phase: 'blind', via_interaction: 1 });
+const mi1 = insert('fw_interactions', { uuid: 'mi-1', survey_id: mId, unit_id: mu1, subject_occurrence_id: mo5, object_occurrence_id: mo1, type_code: 'feeding', observed_at: 1, phase: 'blind', created_at: 1, updated_at: 1 });
+insert('fw_media', { uuid: 'mm-i', survey_id: mId, interaction_id: mi1, component: 'inter', kind: 'photo', uri: 'i.jpg', created_at: 1 });
+const mWith = snapshotRecordIn(db, 'modular', mId);
+restoreRecordSnapshotIn(db, mBefore, tx);
+ok(!one('SELECT id FROM fw_interactions WHERE id = ?', mi1) && !one("SELECT id FROM fw_media WHERE uuid = 'mm-i'") && !one('SELECT id FROM fw_occurrences WHERE id = ?', mo5), 'modular: an interaction, its photo and its other side added since are removed');
+restoreRecordSnapshotIn(db, mWith, tx);
+ok(one('SELECT object_occurrence_id FROM fw_interactions WHERE id = ?', mi1)?.object_occurrence_id === mo1 && one("SELECT interaction_id FROM fw_media WHERE uuid = 'mm-i'")?.interaction_id === mi1, 'modular: redo brings the interaction and its photo back');
+ok(sameSnapshot(mWith, snapshotRecordIn(db, 'modular', mId)), 'modular: state equals the snapshot with the interaction');
 
 // A closed blind phase seals its records (Modular_survey.md §5.5): undo leaves them alone.
 const mOpen = snapshotRecordIn(db, 'modular', mId);
@@ -158,9 +168,15 @@ const mo3 = insert('fw_occurrences', { uuid: 'mo-3', survey_id: mId, unit_id: mu
 const mv3 = insert('fw_occurrence_values', { uuid: 'mv-3', occurrence_id: mo3, component: 'traits', field: 'h', idx: 0, value_num: 3 });
 sqlite.prepare('UPDATE fw_occurrence_values SET value_num = 5 WHERE id = ?').run(mv1);
 sqlite.prepare("UPDATE fw_units SET label = 'renamed' WHERE id = ?").run(mu1);
+const mi3 = insert('fw_interactions', { uuid: 'mi-3', survey_id: mId, subject_occurrence_id: mo3, object_occurrence_id: mo1, type_code: 'feeding', observed_at: 2, phase: 'blind', created_at: 2, updated_at: 2 });
 sqlite.prepare('UPDATE fw_surveys SET blind_closed_at = 1000 WHERE id = ?').run(mId);
 const mo4 = insert('fw_occurrences', { uuid: 'mo-4', survey_id: mId, taxon_id: 'm4', phase: 'recheck' });
+const mi2 = insert('fw_interactions', { uuid: 'mi-2', survey_id: mId, subject_occurrence_id: mo3, object_occurrence_id: mo1, type_code: 'feeding', observed_at: 2, phase: 'recheck', created_at: 2, updated_at: 2 });
+sqlite.prepare("UPDATE fw_interactions SET notes = 'changed' WHERE id = ?").run(mi1);
 restoreRecordSnapshotIn(db, mOpen, tx);
+ok(one('SELECT notes FROM fw_interactions WHERE id = ?', mi1)?.notes === 'changed' && one("SELECT id FROM fw_media WHERE uuid = 'mm-i'"), 'sealed: a blind interaction and its photo are left as they are');
+ok(!one('SELECT id FROM fw_interactions WHERE id = ?', mi2), 'sealed: an interaction recorded after the close still undoes');
+ok(one('SELECT id FROM fw_interactions WHERE id = ?', mi3), 'sealed: a blind interaction added before the close stays');
 ok(one('SELECT id FROM fw_occurrences WHERE id = ?', mo3) && one('SELECT value_num FROM fw_occurrence_values WHERE id = ?', mv3)?.value_num === 3, 'sealed: a blind record added before the close stays, with its value');
 ok(one('SELECT unit_id FROM fw_occurrences WHERE id = ?', mo3).unit_id === mu3 && one('SELECT id FROM fw_units WHERE id = ?', mu3), 'sealed: its unit stays, so the record does not move');
 ok(one('SELECT value_num FROM fw_occurrence_values WHERE id = ?', mv1).value_num === 5, 'sealed: a blind value is not reverted');

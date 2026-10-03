@@ -48,6 +48,7 @@ import {
   PHENOLOGY_FIELDS,
 } from '../src/survey/registry.ts';
 import { AMS_VARIABLES } from '../src/survey/codesets/forestgeoAms2021.ts';
+import { BUILTIN_INTERACTIONS } from '../src/survey/codesets/interactions.ts';
 import { kindForType } from '../src/lib/dwcAbundanceCore.ts';
 import { componentProblems, storeBlockers } from '../src/survey/componentRules.ts';
 import { migratedDb, schemaColumns } from './schema-columns.mjs';
@@ -116,6 +117,8 @@ const DWC_TERMS = new Set(JSON.parse(readFileSync(new URL('./vocab/dwc-current-t
 const zh = JSON.parse(readFileSync(new URL('../src/i18n/locales/zh-TW.json', import.meta.url), 'utf8'));
 const i18nHas = (key) => key.split('.').reduce((o, k) => (o && typeof o === 'object' ? o[k] : undefined), zh) !== undefined;
 const MEDIA_OWNER = { survey: 'survey_id', unit: 'unit_id', occurrence: 'occurrence_id', individual: 'individual_id', stem: 'measure_id' };
+/** Components whose records are rows of their own table, not fields of their owner (exported on their own). */
+const OWN_ROWS = { interaction: 'fw_interactions' };
 const NUM_TYPES = ['INTEGER', 'REAL'];
 
 for (const d of componentDefs()) {
@@ -133,7 +136,8 @@ for (const d of componentDefs()) {
     const variants = [defaultParamsOf(d, level), ...(VARIANTS[d.type] ?? [])].filter((p) => d.checkParams(p, level).length === 0);
     for (const params of variants) {
       const fields = d.fields(params, level, 'k');
-      ok(`${d.type}@${level}: declares fields`, fields.length > 0);
+      if (OWN_ROWS[d.type]) ok(`${d.type}: its table ${OWN_ROWS[d.type]} exists`, schema.has(OWN_ROWS[d.type]));
+      else ok(`${d.type}@${level}: declares fields`, fields.length > 0);
       eq(`${d.type}@${level}: field names distinct`, fields.length, new Set(fields.map((f) => f.field)).size);
       for (const f of fields) {
         fieldNames.add(f.field);
@@ -151,7 +155,7 @@ for (const d of componentDefs()) {
         }
       }
       const map = exportMapOf(d, params, level);
-      ok(`${d.type}@${level}: has an export mapping`, Object.keys(map.dwc ?? {}).length + Object.keys(map.mof ?? {}).length > 0);
+      if (!OWN_ROWS[d.type]) ok(`${d.type}@${level}: has an export mapping`, Object.keys(map.dwc ?? {}).length + Object.keys(map.mof ?? {}).length > 0);
       for (const term of Object.values(map.dwc ?? {})) ok(`${d.type}: dwc:${term} is a current Darwin Core term`, DWC_TERMS.has(`http://rs.tdwg.org/dwc/terms/${term}`));
     }
   }
@@ -523,6 +527,72 @@ eq('components moved: a change, nothing breaks', classifyChange(SAMPLE_PLOT_TEMP
     classifyChange(c0, E.updateComponent(c0, 'location', { params: { methods: ['grid', 'xy'] } })),
   ], ['additive', 'breaking']);
   ok('census: Traits stay off the stem and the census', !E.addableTypes(c0, { level: 'stem' }).includes('traits') && validateTemplate({ ...withT, components: withT.components.map((c) => (c.key === t1.key ? { ...c, level: 'stem' } : c)) }).length > 0);
+}
+
+// ── 10. interactions (2F) ──────────────────────────────────────────────────
+{
+  const occ = { level: 'occurrence' };
+  const cl = E.blankTemplate('checklist', 'user:inter', E.makeLabel('交互'), null);
+  ok('interaction: offered on the occurrence level only', E.addableTypes(cl, occ).includes('interaction') && !E.addableTypes(cl, { level: 'survey' }).includes('interaction'));
+  const a = E.addComponent(cl, 'interaction', occ);
+  const t0 = a.template;
+  eq('interaction: added with every built-in type, the count and two photos', t0.components.find((c) => c.key === a.key).params, { builtin: BUILTIN_INTERACTIONS.map((b) => b.code), count: true, photos: 2 });
+  eq('interaction: valid as added', [validateTemplate(t0), E.draftIssues(t0)], [[], []]);
+  ok('interaction: once per occurrence', !E.addableTypes(t0, occ).includes('interaction'));
+  ok('interaction: not in a census', !E.addableTypes(E.copyTemplate(STEMMAP_TEMPLATE, 'user:c', E.makeLabel('c')), { level: 'individual' }).includes('interaction'));
+  // built-in types on and off
+  let t1 = E.setInteractionBuiltin(t0, a.key, 'parasitism', false);
+  t1 = E.setInteractionBuiltin(t1, a.key, 'parasitism', true);
+  eq('interaction: built-ins keep the app’s order whatever the order ticked', t1.components.find((c) => c.key === a.key).params.builtin, BUILTIN_INTERACTIONS.map((b) => b.code));
+  let none = t0;
+  for (const b of BUILTIN_INTERACTIONS) none = E.setInteractionBuiltin(none, a.key, b.code, false);
+  eq('interaction: no type at all is an issue and refused', [E.draftIssues(none).map((i) => i.code), validateTemplate(none).some((p) => p.includes('offers no interaction type'))], [['interaction_none'], true]);
+  // its own types: a list made on the first one
+  const own = E.addInteractionType(none, a.key, E.makeLabel('交互作用類型'));
+  let t2 = own.template;
+  eq('interaction: the first own type makes the list and names it', [t2.codelists.map((l) => l.id), t2.components.find((c) => c.key === a.key).params.list, E.isInteractionList(t2, own.listId)], [[own.listId], own.listId, true]);
+  t2 = E.updateCode(t2, own.listId, own.index, { name: { text: '產卵於', en: 'lays eggs on' }, inverse: { text: '被產卵', en: '' }, iri: ' ' }, null);
+  eq('interaction: an own type with its name and reading from B', t2.codelists[0].items[0], { code: '1', label: { text: '產卵於', tr: { en: 'lays eggs on' } }, inverse: { text: '被產卵' } });
+  eq('interaction: one own type is enough', [E.draftIssues(t2), validateTemplate(t2)], [[], []]);
+  eq('interaction: its list is in use (cannot be deleted)', [E.codeListUsers(t2, own.listId).map((c) => c.key), E.removeCodeList(t2, own.listId) === t2], [[a.key], true]);
+  const both = E.updateCode(t2, own.listId, 0, { mutual: true }, null);
+  eq('interaction: both ways drops the reading from B', [both.codelists[0].items[0].mutual, 'inverse' in both.codelists[0].items[0]], [true, false]);
+  const saved = { ...t2 };
+  ok('interaction: a saved type keeps its direction', !E.updateCode(t2, own.listId, 0, { mutual: true }, saved).codelists[0].items[0].mutual);
+  eq('interaction: turning a type both ways breaks; renaming it does not', [classifyChange(saved, both), classifyChange(saved, E.updateCode(t2, own.listId, 0, { name: { text: '產卵', en: '' } }, saved))], ['breaking', 'additive']);
+  has('interaction: an IRI must be an address', validateTemplate(E.updateCode(t2, own.listId, 0, { iri: 'RO_0002470' }, null)), 'iri must be an http(s) address');
+  eq('interaction: an http(s) IRI passes', validateTemplate(E.updateCode(t2, own.listId, 0, { iri: 'http://purl.obolibrary.org/obo/RO_0002470' }, null)), []);
+  const clash = E.updateCode(t2, own.listId, 0, { code: 'feeding' }, null);
+  eq('interaction: an own code may not be a built-in one', [E.draftIssues(clash).map((i) => i.code), validateTemplate(clash).some((p) => p.includes('is a built-in interaction type'))], [['interaction_code'], true]);
+  has('interaction: a list the template lacks', validateTemplate({ ...t2, codelists: [] }), 'unknown code list');
+  // what a running survey can take
+  const d = componentDef('interaction');
+  const p0 = { builtin: ['feeding'], count: false, photos: 1 };
+  eq('interaction: more types, a list where there was none, the count on, more photos — additive', [
+    paramsChangeOf(d, p0, { ...p0, builtin: ['feeding', 'flower_visit'] }),
+    paramsChangeOf(d, p0, { ...p0, list: 'list_1' }),
+    paramsChangeOf(d, p0, { ...p0, count: true }),
+    paramsChangeOf(d, p0, { ...p0, photos: 3 }),
+  ], ['additive', 'additive', 'additive', 'additive']);
+  eq('interaction: a type less, another list, the count off, fewer photos — breaking', [
+    paramsChangeOf(d, p0, { ...p0, builtin: [] }),
+    paramsChangeOf(d, { ...p0, list: 'list_1' }, { ...p0, list: 'list_2' }),
+    paramsChangeOf(d, { ...p0, count: true }, p0),
+    paramsChangeOf(d, p0, { ...p0, photos: 0 }),
+  ], ['breaking', 'breaking', 'breaking', 'breaking']);
+  has('interaction: parameters are checked', d.checkParams({ builtin: ['eats'], count: 1, photos: 30 }, 'occurrence'), 'builtin must list built-in types');
+  // Built-in names are i18n keys built at run time: every language has them.
+  const LOCALES = ['zh-TW', 'en', 'ja', 'ko', 'de', 'fr', 'es'];
+  for (const loc of LOCALES) {
+    const tree = JSON.parse(readFileSync(new URL(`../src/i18n/locales/${loc}.json`, import.meta.url), 'utf8'));
+    const at = (key) => key.split('.').reduce((o, k) => (o && typeof o === 'object' ? o[k] : undefined), tree);
+    const keys = [
+      ...BUILTIN_INTERACTIONS.flatMap((b) => ['name', 'verb', ...(b.mutual ? [] : ['inverse'])].map((part) => `survey.interaction.type.${b.code}.${part}`)),
+      ...['forward', 'backward', 'mutual'].flatMap((d2) => [`survey.interaction.dir.${d2}`, `survey.interaction.sentence.${d2}`]),
+    ];
+    const missing = keys.filter((k) => typeof at(k) !== 'string');
+    eq(`interaction: ${loc} names every built-in type, direction and sentence`, missing, []);
+  }
 }
 
 // ── 5. hash ─────────────────────────────────────────────────────────────────

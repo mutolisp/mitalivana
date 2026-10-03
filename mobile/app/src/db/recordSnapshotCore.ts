@@ -67,6 +67,8 @@ const SPECS: Record<SnapshotKind, Spec> = {
       { table: 'fw_occurrences', where: 'survey_id = ?' },
       { table: 'fw_occurrence_values', where: 'occurrence_id IN (SELECT id FROM fw_occurrences WHERE survey_id = ?)' },
       { table: 'fw_rechecks', where: 'survey_id = ?' },
+      // v87, before the photos that may name one.
+      { table: 'fw_interactions', where: 'survey_id = ?' },
       { table: 'fw_media', where: 'survey_id = ?' },
     ],
   },
@@ -174,7 +176,16 @@ function sealedRows(db: SnapshotDb, snap: RecordSnapshot): Record<string, Set<nu
     for (let u: number | null = r.unit_id as number; u != null && !units.has(u); u = parentOf.get(u) ?? null) units.add(u);
   }
   for (const r of snap.children.fw_units) units.delete(r.id as number);
-  return { fw_occurrences: occ, fw_occurrence_values: ofOcc('fw_occurrence_values'), fw_media: ofOcc('fw_media'), fw_units: units };
+  // Interactions recorded blind are sealed with them (v87), and so are their photos.
+  const inter = new Set<number>([
+    ...select(`SELECT id FROM fw_interactions WHERE survey_id = ? AND phase = 'blind'`, [snap.id]).map((r) => r.id as number),
+    ...(snap.children.fw_interactions ?? []).filter((r) => r.phase === 'blind').map((r) => r.id as number),
+  ]);
+  const media = ofOcc('fw_media');
+  for (const r of [...select(`SELECT id, interaction_id FROM fw_media WHERE survey_id = ? AND interaction_id IS NOT NULL`, [snap.id]), ...snap.children.fw_media]) {
+    if (inter.has(r.interaction_id as number)) media.add(r.id as number);
+  }
+  return { fw_occurrences: occ, fw_occurrence_values: ofOcc('fw_occurrence_values'), fw_interactions: inter, fw_media: media, fw_units: units };
 }
 
 /** `transaction` runs its argument atomically (the app's withTransaction). */

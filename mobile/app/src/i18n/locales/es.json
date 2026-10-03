@@ -5019,7 +5019,8 @@
       "phenology": "Fenología",
       "traits": "Rasgos",
       "environment": "Ambiente",
-      "choice": "Opción personalizada"
+      "choice": "Opción personalizada",
+      "interaction": "Interacciones"
     },
     "editor": {
       "elsewhere": "Este elemento se introduce en la pantalla del registro.",
@@ -5082,7 +5083,8 @@
       "choice": {
         "noList": "Falta la lista de esta opción; revise la plantilla de formulario.",
         "multi": "Se pueden elegir varias"
-      }
+      },
+      "interactionElsewhere": "Las interacciones se registran en la página de cada registro de presencia."
     },
     "ams": {
       "title": "AMS mortalidad y daños",
@@ -5166,6 +5168,87 @@
         "c_S": "Deslizamiento",
         "c_W": "Derribo por viento"
       }
+    },
+    "interaction": {
+      "type": {
+        "feeding": {
+          "name": "Alimentación",
+          "verb": "come",
+          "inverse": "comido por"
+        },
+        "flower_visit": {
+          "name": "Visita floral",
+          "verb": "visita las flores de",
+          "inverse": "flores visitadas por"
+        },
+        "parasitism": {
+          "name": "Parasitismo",
+          "verb": "parásito de",
+          "inverse": "parasitado por"
+        },
+        "mutualism": {
+          "name": "Mutualismo",
+          "verb": "mutualista con"
+        },
+        "commensalism": {
+          "name": "Comensalismo",
+          "verb": "comensal de",
+          "inverse": "hospedador del comensal"
+        }
+      },
+      "line": {
+        "forward": "{{verb}} {{partner}}",
+        "backward": "{{inverse}} {{partner}}",
+        "byPartner": "{{partner}} {{verb}} este"
+      },
+      "sentence": {
+        "forward": "{{a}} {{verb}} {{b}}",
+        "backward": "{{b}} {{verb}} {{a}} (registrado desde {{a}}, guardado como {{b}} → {{a}})",
+        "mutual": "{{a}} y {{b}}: {{verb}} (en ambos sentidos; dos filas al exportar)"
+      },
+      "count_one": "{{count}} interacción",
+      "count_many": "{{count}} interacciones",
+      "count_other": "{{count}} interacciones",
+      "photos_one": "{{count}} foto",
+      "photos_many": "{{count}} fotos",
+      "photos_other": "{{count}} fotos",
+      "bothPages": "Cada interacción aparece en las páginas de ambos lados; la flecha y la redacción siguen la página abierta.",
+      "add": "Añadir interacción",
+      "viaTag": "contraparte de interacción",
+      "deleteWith_one": "También se eliminará su interacción ({{count}}).",
+      "deleteWith_many": "También se eliminarán sus {{count}} interacciones.",
+      "deleteWith_other": "También se eliminarán sus {{count}} interacciones.",
+      "needPartner": "Elija B: una especie registrada aquí o busque otra.",
+      "deleteTitle": "Eliminar interacción",
+      "addTitle": "Añadir interacción",
+      "editTitle": "Interacción",
+      "aIs": "A = {{name}}",
+      "kind": "Tipo",
+      "direction": "Sentido",
+      "dir": {
+        "forward": "A → B",
+        "backward": "A ← B",
+        "mutual": "A ↔ B"
+      },
+      "mutualOnly": "Un tipo bidireccional es siempre A ↔ B; se exporta en dos filas.",
+      "partner": "B: especies registradas aquí",
+      "noneHere": "Aún no hay otra especie registrada aquí; busque abajo.",
+      "addedToRecord": "Se añade a este registro al guardar (como contraparte de interacción, no cuenta como especie)",
+      "other": "Otra especie (se añade a este registro)",
+      "times": "Veces",
+      "less": "Uno menos",
+      "more": "Uno más",
+      "photoTitle_one": "Foto (hasta {{count}})",
+      "photoTitle_many": "Fotos (hasta {{count}})",
+      "photoTitle_other": "Fotos (hasta {{count}})",
+      "photoLimit_one": "Como máximo {{count}} foto",
+      "photoLimit_many": "Como máximo {{count}} fotos",
+      "photoLimit_other": "Como máximo {{count}} fotos",
+      "empty": "Aún no hay interacciones. Añádalas en la página de un registro de presencia.",
+      "byType": "Por tipo",
+      "matrix": "Matriz",
+      "matrixDesc": "{{type}}: filas = A (quien lo hace), columnas = B; las celdas suman las veces.",
+      "searchBelow": "Para una especie no registrada aquí, use la búsqueda de abajo."
     }
   },
   "task": {
@@ -5240,7 +5323,10 @@
       "species_one": "Especies {{count}}",
       "species_many": "Especies {{count}}",
       "species_other": "Especies {{count}}",
-      "freq": "Frecuencia"
+      "freq": "Frecuencia",
+      "interactions_one": "Interacciones {{count}}",
+      "interactions_many": "Interacciones {{count}}",
+      "interactions_other": "Interacciones {{count}}"
     },
     "phase": {
       "blind": "A ciegas",
@@ -5474,7 +5560,9 @@
       "listNoCodes": "La lista «{{list}}» aún no tiene códigos",
       "codeEmpty": "El código {{n}} de la lista «{{list}}» está vacío",
       "codeDuplicate": "El código {{n}} de la lista «{{list}}» repite uno anterior",
-      "codeNameEmpty": "El código {{n}} de la lista «{{list}}» necesita un nombre"
+      "codeNameEmpty": "El código {{n}} de la lista «{{list}}» necesita un nombre",
+      "interactionNone": "«{{component}}» necesita al menos un tipo",
+      "interactionCode": "«{{component}}»: el código {{code}} de un tipo propio coincide con el de un tipo integrado"
     },
     "upgrade": {
       "title": "¿Actualizar los muestreos en curso?",
@@ -5534,7 +5622,13 @@
       "max_one": "hasta {{count}}",
       "max_other": "hasta {{count}}",
       "max_many": "hasta {{count}}",
-      "gps": "Posición GNSS"
+      "gps": "Posición GNSS",
+      "interactionTypes_one": "{{count}} tipo",
+      "interactionTypes_many": "{{count}} tipos",
+      "interactionTypes_other": "{{count}} tipos",
+      "photos_one": "{{count}} foto",
+      "photos_many": "{{count}} fotos",
+      "photos_other": "{{count}} fotos"
     },
     "kind": {
       "bb": "Braun-Blanquet",
@@ -5606,6 +5700,29 @@
       "seriesContinue": "Continuar como censo {{n}} (el anterior usó «{{name}}»)",
       "seriesContinueCode": "Continuar la serie {{code}} como censo {{n}} (el anterior usó «{{name}}»)",
       "seriesNew": "Nueva serie (desde el censo 1)…"
+    },
+    "interaction": {
+      "count": "Registrar el número de veces",
+      "countDesc": "Cuántas veces o cuántos individuos",
+      "photos": "Fotos como máximo (0: ninguna)",
+      "builtin": "Tipos integrados",
+      "builtinDesc": "Con el nombre en el idioma de la app; la exportación escribe la relación de la OBO Relation Ontology y su ID.",
+      "mutual": "bidireccional",
+      "oneWay": "unidireccional",
+      "mutualLong": "Bidireccional (A ↔ B)",
+      "oneWayLong": "Unidireccional (A → B)",
+      "own": "Tipos propios",
+      "editOwn": "Editar tipos propios",
+      "addOwn": "Añadir un tipo",
+      "listName": "Tipos de interacción",
+      "listDesc": "Cada tipo tiene un sentido (fijo una vez guardado), cómo se lee desde B y, opcionalmente, el IRI de una relación RO. La exportación escribe su nombre en inglés.",
+      "direction": "Sentido",
+      "directionFixed": "Sentido: {{dir}} (fijo una vez guardado)",
+      "inverse": "Visto desde B",
+      "inverseHint": "p. ej., recibe la puesta de",
+      "inverseEn": "Visto desde B, en inglés",
+      "iri": "IRI de relación RO (opcional)",
+      "iriBad": "Un IRI empieza por http:// o https:// y no lleva espacios"
     }
   },
   "surveyImport": {

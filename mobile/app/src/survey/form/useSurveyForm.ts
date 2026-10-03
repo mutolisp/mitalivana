@@ -9,7 +9,7 @@ import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { applyAdoptedName, EMPTY_TAXON_FIELDS, resolveAdoptedNames, resolveTaxa, type AdoptionStatus, type TaxonFields } from '~/db/taxonLookup';
 import { snapshotOf, unitLevelsOf, type FwSurveyRow, type OccurrenceRow, type RecheckState, type UnitRow } from '~/survey/db/surveyCore';
-import { environmentCarried, getFwSurvey, getTemplate, hasBlindPhase, listOccurrences, listUnits, readComponent, recheckState } from '~/survey/db/surveys';
+import { environmentCarried, getFwSurvey, getTemplate, hasBlindPhase, listInteractions, listOccurrences, listUnits, readComponent, recheckState } from '~/survey/db/surveys';
 import { classifyChange } from '~/survey/template/validate';
 import type { ComponentValues } from '~/survey/registry';
 import { getFrame } from '~/survey/db/stemmap';
@@ -43,6 +43,8 @@ export type SurveyForm = {
   upgradeTo: SurveyTemplate | null;
   /** Survey-level environment values that are still the previous survey's. */
   carried: ReturnType<typeof environmentCarried>;
+  /** How many interactions it holds; null when its template has no Interaction component (2F). */
+  interactions: number | null;
 };
 
 /** Rows with their taxon's display names (accepted name, or the adopted one recorded). */
@@ -87,6 +89,7 @@ export function loadSurveyForm(id: number): SurveyForm | null {
     surveyValues: Object.fromEntries(formComponents(template, 'survey').map((c) => [c.key, readComponent({ kind: 'survey', id }, c.key)])),
     upgradeTo: upgradeOf(survey, template),
     carried: environmentCarried({ kind: 'survey', id }),
+    interactions: template.components.some((c) => c.type === 'interaction') ? listInteractions(id).length : null,
   };
 }
 

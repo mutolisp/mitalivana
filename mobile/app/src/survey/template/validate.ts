@@ -11,6 +11,7 @@
  *
  * Pure: check:templates runs it under Node.
  */
+import { BUILTIN_INTERACTION_CODES, INTERACTION_IRI } from '../codesets/interactions';
 import { BUILTIN_CODESETS, componentDef, componentDefs, defaultLevelOf, defaultParamsOf, paramsChangeOf, type TraitDef } from '../registry';
 import { rowHash } from '../../lib/mergeEngine';
 import { MAX_UNIT_LEVELS, STYLE_LEVELS, type ComponentInstance, type Label, type SurveyTemplate } from './types';
@@ -123,11 +124,23 @@ export function validateTemplate(t: SurveyTemplate): string[] {
       out.push(
         ...labelProblems(`code list ${l.id} code ${it.code}`, it.label, builtin),
         ...labelProblems(`code list ${l.id} code ${it.code} description`, it.description, builtin, true),
+        ...labelProblems(`code list ${l.id} code ${it.code} inverse`, it.inverse, builtin, true),
       );
+      // An interaction type's own parts (2F).
+      if (it.mutual !== undefined && typeof it.mutual !== 'boolean') out.push(`code list ${l.id} code ${it.code}: mutual must be true or false`);
+      if (it.iri !== undefined && (typeof it.iri !== 'string' || !INTERACTION_IRI.test(it.iri))) out.push(`code list ${l.id} code ${it.code}: iri must be an http(s) address`);
     }
   }
   for (const c of t.components) {
     if (c.type === 'choice' && typeof c.params.list === 'string' && !listIds.has(c.params.list)) out.push(`${c.key}: unknown code list ${c.params.list}`);
+    if (c.type === 'interaction') {
+      // A stored type is its code alone: the template's own may not take a built-in's.
+      const own = typeof c.params.list === 'string' ? t.codelists.find((l) => l.id === c.params.list) : undefined;
+      if (typeof c.params.list === 'string' && !own) out.push(`${c.key}: unknown code list ${c.params.list}`);
+      for (const it of own?.items ?? []) if (BUILTIN_INTERACTION_CODES.includes(it.code)) out.push(`${c.key}: code ${it.code} is a built-in interaction type`);
+      const offered = (Array.isArray(c.params.builtin) ? c.params.builtin.length : 0) + (own?.items.filter((it) => !it.deprecated).length ?? 0);
+      if (!offered) out.push(`${c.key}: offers no interaction type`);
+    }
     if (c.type !== 'health' || !Array.isArray(c.params.codesets)) continue;
     // The census's own rules (status, POM, M) read the ForestGEO census codes: a census template keeps them.
     if (t.style === 'individual' && !c.params.codesets.includes('forestgeo-census-1998')) out.push(`${c.key}: a census keeps the forestgeo-census-1998 code set`);
@@ -191,6 +204,8 @@ export function classifyChange(prev: SurveyTemplate, next: SurveyTemplate): Chan
     for (const it of pl.items) {
       const ni = nl.items.find((x) => x.code === it.code);
       if (!ni) return 'breaking';
+      // An interaction type turned both ways (or one way) changes what its records mean.
+      if (!!ni.mutual !== !!it.mutual) return 'breaking';
       if (!sameJson(ni, it)) changed = true;
     }
     if (nl.items.length !== pl.items.length) changed = true;

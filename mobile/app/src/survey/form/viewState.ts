@@ -3,7 +3,7 @@
  * coming back to a survey (or a unit screen sending the user to record
  * species in that unit) lands where the user was.
  */
-export type SurveyTab = 'data' | 'units' | 'species';
+export type SurveyTab = 'data' | 'units' | 'species' | 'interactions';
 /** The unit chips: every occurrence, those outside any unit, or one unit. */
 export type UnitPick = 'all' | 'none' | number;
 

@@ -4821,7 +4821,8 @@
       "phenology": "Phenology",
       "traits": "Traits",
       "environment": "Environment",
-      "choice": "Custom choice"
+      "choice": "Custom choice",
+      "interaction": "Interactions"
     },
     "editor": {
       "elsewhere": "This component is entered on the record screen.",
@@ -4882,7 +4883,8 @@
       "choice": {
         "noList": "This choice’s list is missing; check the form template.",
         "multi": "Several can be chosen"
-      }
+      },
+      "interactionElsewhere": "Interactions are recorded on each occurrence's page."
     },
     "ams": {
       "title": "AMS mortality and damage",
@@ -4966,6 +4968,82 @@
         "c_S": "Slope failure",
         "c_W": "Wind-throw"
       }
+    },
+    "interaction": {
+      "type": {
+        "feeding": {
+          "name": "Feeding",
+          "verb": "eats",
+          "inverse": "eaten by"
+        },
+        "flower_visit": {
+          "name": "Flower visit",
+          "verb": "visits flowers of",
+          "inverse": "flowers visited by"
+        },
+        "parasitism": {
+          "name": "Parasitism",
+          "verb": "parasite of",
+          "inverse": "parasitized by"
+        },
+        "mutualism": {
+          "name": "Mutualism",
+          "verb": "mutualistic with"
+        },
+        "commensalism": {
+          "name": "Commensalism",
+          "verb": "commensal on",
+          "inverse": "host of commensal"
+        }
+      },
+      "line": {
+        "forward": "{{verb}} {{partner}}",
+        "backward": "{{inverse}} {{partner}}",
+        "byPartner": "{{partner}} {{verb}} this one"
+      },
+      "sentence": {
+        "forward": "{{a}} {{verb}} {{b}}",
+        "backward": "{{b}} {{verb}} {{a}} (recorded from {{a}}, stored as {{b}} → {{a}})",
+        "mutual": "{{a}} and {{b}}: {{verb}} (both ways; exported as two rows)"
+      },
+      "count_one": "{{count}} interaction",
+      "count_other": "{{count}} interactions",
+      "photos_one": "{{count}} photo",
+      "photos_other": "{{count}} photos",
+      "bothPages": "Each interaction shows on both sides' pages; the arrow and wording follow the page you are on.",
+      "add": "Add interaction",
+      "viaTag": "interaction partner",
+      "deleteWith_one": "Its {{count}} interaction is deleted too.",
+      "deleteWith_other": "Its {{count}} interactions are deleted too.",
+      "needPartner": "Choose B: a species recorded here, or search for another.",
+      "deleteTitle": "Delete interaction",
+      "addTitle": "Add interaction",
+      "editTitle": "Interaction",
+      "aIs": "A = {{name}}",
+      "kind": "Type",
+      "direction": "Direction",
+      "dir": {
+        "forward": "A → B",
+        "backward": "A ← B",
+        "mutual": "A ↔ B"
+      },
+      "mutualOnly": "A two-way type is always A ↔ B; it is exported as two rows.",
+      "partner": "B: species recorded here",
+      "noneHere": "No other species recorded here yet; search below.",
+      "addedToRecord": "Added to this record on saving (as an interaction partner, not counted as a species)",
+      "other": "Another species (added to this record)",
+      "times": "Times",
+      "less": "One fewer",
+      "more": "One more",
+      "photoTitle_one": "Photo (up to {{count}})",
+      "photoTitle_other": "Photos (up to {{count}})",
+      "photoLimit_one": "Up to {{count}} photo",
+      "photoLimit_other": "Up to {{count}} photos",
+      "empty": "No interactions yet. Add them on an occurrence's page.",
+      "byType": "By type",
+      "matrix": "Matrix",
+      "matrixDesc": "{{type}}: rows are A (the one doing it), columns B; cells add up the times.",
+      "searchBelow": "For a species not recorded here, use the search below."
     }
   },
   "task": {
@@ -5034,7 +5112,9 @@
       "units_other": "Units {{count}}",
       "species_one": "Species {{count}}",
       "species_other": "Species {{count}}",
-      "freq": "Frequency"
+      "freq": "Frequency",
+      "interactions_one": "Interactions {{count}}",
+      "interactions_other": "Interactions {{count}}"
     },
     "phase": {
       "blind": "Blind",
@@ -5260,7 +5340,9 @@
       "listNoCodes": "Code list “{{list}}” has no codes yet",
       "codeEmpty": "Code {{n}} of list “{{list}}” is empty",
       "codeDuplicate": "Code {{n}} of list “{{list}}” repeats an earlier one",
-      "codeNameEmpty": "Code {{n}} of list “{{list}}” needs a name"
+      "codeNameEmpty": "Code {{n}} of list “{{list}}” needs a name",
+      "interactionNone": "“{{component}}” needs at least one type",
+      "interactionCode": "“{{component}}”: your type code {{code}} is a built-in type's"
     },
     "upgrade": {
       "title": "Upgrade surveys in progress?",
@@ -5315,7 +5397,11 @@
       "fields_other": "{{count}} fields",
       "max_one": "up to {{count}}",
       "max_other": "up to {{count}}",
-      "gps": "GNSS fix"
+      "gps": "GNSS fix",
+      "interactionTypes_one": "{{count}} type",
+      "interactionTypes_other": "{{count}} types",
+      "photos_one": "{{count}} photo",
+      "photos_other": "{{count}} photos"
     },
     "kind": {
       "bb": "Braun-Blanquet",
@@ -5386,6 +5472,29 @@
       "seriesContinue": "Carry on as census {{n}} (last census used “{{name}}”)",
       "seriesContinueCode": "Carry on series {{code}} as census {{n}} (last census used “{{name}}”)",
       "seriesNew": "New series (starting at census 1)…"
+    },
+    "interaction": {
+      "count": "Record how many times",
+      "countDesc": "How many times, or how many animals",
+      "photos": "Photos at most (0: none)",
+      "builtin": "Built-in types",
+      "builtinDesc": "Named in the app's language; exports write the OBO Relation Ontology relation and its ID.",
+      "mutual": "two-way",
+      "oneWay": "one-way",
+      "mutualLong": "Two-way (A ↔ B)",
+      "oneWayLong": "One-way (A → B)",
+      "own": "Your own types",
+      "editOwn": "Edit your types",
+      "addOwn": "Add a type",
+      "listName": "Interaction types",
+      "listDesc": "Each type has a direction (fixed once saved), how it reads from B, and an optional RO relation IRI. Exports write its English name.",
+      "direction": "Direction",
+      "directionFixed": "Direction: {{dir}} (fixed once saved)",
+      "inverse": "As seen from B",
+      "inverseHint": "e.g. has eggs laid on it by",
+      "inverseEn": "As seen from B, in English",
+      "iri": "RO relation IRI (optional)",
+      "iriBad": "An IRI starts with http:// or https:// and has no spaces"
     }
   },
   "surveyImport": {

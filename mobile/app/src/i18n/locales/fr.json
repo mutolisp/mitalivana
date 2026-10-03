@@ -5019,7 +5019,8 @@
       "phenology": "Phénologie",
       "traits": "Traits",
       "environment": "Environnement",
-      "choice": "Choix personnalisé"
+      "choice": "Choix personnalisé",
+      "interaction": "Interactions"
     },
     "editor": {
       "elsewhere": "Cet élément se saisit sur l’écran de l’enregistrement.",
@@ -5082,7 +5083,8 @@
       "choice": {
         "noList": "La liste de ce choix est introuvable ; vérifiez le modèle de formulaire.",
         "multi": "Plusieurs choix possibles"
-      }
+      },
+      "interactionElsewhere": "Les interactions se saisissent sur la page de chaque occurrence."
     },
     "ams": {
       "title": "AMS mortalité et dommages",
@@ -5166,6 +5168,87 @@
         "c_S": "Glissement de terrain",
         "c_W": "Chablis"
       }
+    },
+    "interaction": {
+      "type": {
+        "feeding": {
+          "name": "Alimentation",
+          "verb": "mange",
+          "inverse": "mangé par"
+        },
+        "flower_visit": {
+          "name": "Visite florale",
+          "verb": "visite les fleurs de",
+          "inverse": "fleurs visitées par"
+        },
+        "parasitism": {
+          "name": "Parasitisme",
+          "verb": "parasite de",
+          "inverse": "parasité par"
+        },
+        "mutualism": {
+          "name": "Mutualisme",
+          "verb": "mutualiste avec"
+        },
+        "commensalism": {
+          "name": "Commensalisme",
+          "verb": "commensal de",
+          "inverse": "hôte du commensal"
+        }
+      },
+      "line": {
+        "forward": "{{verb}} {{partner}}",
+        "backward": "{{inverse}} {{partner}}",
+        "byPartner": "{{partner}} {{verb}} celui-ci"
+      },
+      "sentence": {
+        "forward": "{{a}} {{verb}} {{b}}",
+        "backward": "{{b}} {{verb}} {{a}} (saisi depuis {{a}}, enregistré comme {{b}} → {{a}})",
+        "mutual": "{{a}} et {{b}} : {{verb}} (réciproque ; deux lignes à l’export)"
+      },
+      "count_one": "{{count}} interaction",
+      "count_many": "{{count}} interactions",
+      "count_other": "{{count}} interactions",
+      "photos_one": "{{count}} photo",
+      "photos_many": "{{count}} photos",
+      "photos_other": "{{count}} photos",
+      "bothPages": "Chaque interaction apparaît sur les pages des deux côtés ; la flèche et la formulation suivent la page ouverte.",
+      "add": "Ajouter une interaction",
+      "viaTag": "partenaire d’interaction",
+      "deleteWith_one": "Son interaction ({{count}}) sera aussi supprimée.",
+      "deleteWith_many": "Ses {{count}} interactions seront aussi supprimées.",
+      "deleteWith_other": "Ses {{count}} interactions seront aussi supprimées.",
+      "needPartner": "Choisissez B : une espèce notée ici, ou cherchez-en une autre.",
+      "deleteTitle": "Supprimer l’interaction",
+      "addTitle": "Ajouter une interaction",
+      "editTitle": "Interaction",
+      "aIs": "A = {{name}}",
+      "kind": "Type",
+      "direction": "Sens",
+      "dir": {
+        "forward": "A → B",
+        "backward": "A ← B",
+        "mutual": "A ↔ B"
+      },
+      "mutualOnly": "Un type réciproque est toujours A ↔ B ; il est exporté en deux lignes.",
+      "partner": "B : espèces notées ici",
+      "noneHere": "Aucune autre espèce notée ici ; cherchez ci-dessous.",
+      "addedToRecord": "Ajouté à ce relevé à l’enregistrement (partenaire d’interaction, non compté comme espèce)",
+      "other": "Autre espèce (ajoutée à ce relevé)",
+      "times": "Nombre de fois",
+      "less": "Un de moins",
+      "more": "Un de plus",
+      "photoTitle_one": "Photo (jusqu’à {{count}})",
+      "photoTitle_many": "Photos (jusqu’à {{count}})",
+      "photoTitle_other": "Photos (jusqu’à {{count}})",
+      "photoLimit_one": "{{count}} photo au maximum",
+      "photoLimit_many": "{{count}} photos au maximum",
+      "photoLimit_other": "{{count}} photos au maximum",
+      "empty": "Aucune interaction pour l’instant. Ajoutez-en depuis la page d’une occurrence.",
+      "byType": "Par type",
+      "matrix": "Matrice",
+      "matrixDesc": "{{type}} : lignes = A (celui qui agit), colonnes = B ; les cases additionnent le nombre de fois.",
+      "searchBelow": "Pour une espèce non notée ici, utilisez la recherche ci-dessous."
     }
   },
   "task": {
@@ -5240,7 +5323,10 @@
       "species_one": "Espèces {{count}}",
       "species_many": "Espèces {{count}}",
       "species_other": "Espèces {{count}}",
-      "freq": "Fréquence"
+      "freq": "Fréquence",
+      "interactions_one": "Interactions {{count}}",
+      "interactions_many": "Interactions {{count}}",
+      "interactions_other": "Interactions {{count}}"
     },
     "phase": {
       "blind": "À l’aveugle",
@@ -5474,7 +5560,9 @@
       "listNoCodes": "La liste « {{list}} » n’a pas encore de codes",
       "codeEmpty": "Le code {{n}} de la liste « {{list}} » est vide",
       "codeDuplicate": "Le code {{n}} de la liste « {{list}} » répète un code précédent",
-      "codeNameEmpty": "Le code {{n}} de la liste « {{list}} » a besoin d’un nom"
+      "codeNameEmpty": "Le code {{n}} de la liste « {{list}} » a besoin d’un nom",
+      "interactionNone": "« {{component}} » doit proposer au moins un type",
+      "interactionCode": "« {{component}} » : le code {{code}} d’un type personnalisé est celui d’un type intégré"
     },
     "upgrade": {
       "title": "Mettre à niveau les relevés en cours ?",
@@ -5534,7 +5622,13 @@
       "max_one": "jusqu’à {{count}}",
       "max_other": "jusqu’à {{count}}",
       "max_many": "jusqu’à {{count}}",
-      "gps": "Position GNSS"
+      "gps": "Position GNSS",
+      "interactionTypes_one": "{{count}} type",
+      "interactionTypes_many": "{{count}} types",
+      "interactionTypes_other": "{{count}} types",
+      "photos_one": "{{count}} photo",
+      "photos_many": "{{count}} photos",
+      "photos_other": "{{count}} photos"
     },
     "kind": {
       "bb": "Braun-Blanquet",
@@ -5606,6 +5700,29 @@
       "seriesContinue": "Continuer comme inventaire {{n}} (le dernier utilisait « {{name}} »)",
       "seriesContinueCode": "Continuer la série {{code}} comme inventaire {{n}} (le dernier utilisait « {{name}} »)",
       "seriesNew": "Nouvelle série (à partir de l’inventaire 1)…"
+    },
+    "interaction": {
+      "count": "Noter le nombre de fois",
+      "countDesc": "Combien de fois, ou combien d’individus",
+      "photos": "Photos au maximum (0 : aucune)",
+      "builtin": "Types intégrés",
+      "builtinDesc": "Nommés dans la langue de l’app ; l’export écrit la relation de l’OBO Relation Ontology et son ID.",
+      "mutual": "réciproque",
+      "oneWay": "à sens unique",
+      "mutualLong": "Réciproque (A ↔ B)",
+      "oneWayLong": "À sens unique (A → B)",
+      "own": "Types personnalisés",
+      "editOwn": "Modifier les types personnalisés",
+      "addOwn": "Ajouter un type",
+      "listName": "Types d’interaction",
+      "listDesc": "Chaque type a un sens (figé une fois enregistré), une formulation vue de B et, au besoin, l’IRI d’une relation RO. L’export écrit son nom anglais.",
+      "direction": "Sens",
+      "directionFixed": "Sens : {{dir}} (figé une fois enregistré)",
+      "inverse": "Vu de B",
+      "inverseHint": "p. ex. reçoit la ponte de",
+      "inverseEn": "Vu de B, en anglais",
+      "iri": "IRI de relation RO (facultatif)",
+      "iriBad": "Une IRI commence par http:// ou https:// et ne contient pas d’espace"
     }
   },
   "surveyImport": {

@@ -34,7 +34,15 @@
  *     survey takes its units, occurrences, values and photos, never the
  *     frame's layout or labels, nor any census row;
  *   - nothing is left for the integrity sweep; an empty fw_units does not make
- *     the fw_media rule sweep census photos.
+ *     the fw_media rule sweep census photos;
+ *   - interactions (v87, 2F): stored one way (A ← B as B → A, ↔ as mutual);
+ *     a type's direction and the template's offer are kept; B picked as a
+ *     species not recorded here is recorded as the interaction's other side
+ *     (not a species of the survey, not in the next recheck), taken over
+ *     when recorded for itself, gone with its last interaction when nothing
+ *     else is on it; deleting an occurrence takes its interactions and their
+ *     photos; a unit's go up a level; blind ones are sealed, and a sealed
+ *     occurrence still takes new ones.
  *
  * Run: npm run check:survey-core
  */
@@ -45,6 +53,7 @@ import { CASCADE_ORPHANS } from '../src/db/integrityRules.ts';
 import * as s from '../src/survey/db/stemmapCore.ts';
 import * as c from '../src/survey/db/surveyCore.ts';
 import * as tp from '../src/survey/db/templatesCore.ts';
+import * as ix from '../src/survey/db/interactionCore.ts';
 import { STEMMAP_TEMPLATE } from '../src/survey/templates/stemmap.ts';
 import { withRequired } from '../src/survey/template/validate.ts';
 import { childLevel, unitPath, unitRows } from '../src/survey/form/units.ts';
@@ -643,6 +652,165 @@ ok(all('PRAGMA foreign_key_check').length === 0, 'integrity: foreign_key_check c
   c.writeComponent(ctx, { kind: 'survey', id: K }, 'where', { value: null });
   ok(c.readComponent(ctx, { kind: 'survey', id: K }, 'where').value == null, 'choice: cleared');
   c.finishSurvey(ctx, K);
+}
+
+// ── interactions (v87, 2F) ───────────────────────────────────────────────
+{
+  const IT = withRequired({
+    schema: 1,
+    id: 'user:inter',
+    version: 1,
+    origin: 'user',
+    name: { text: '交互作用' },
+    style: 'plot',
+    units: [
+      { key: 'u1', label: { text: '小區' } },
+      { key: 'u2', label: { text: '小樣方' } },
+    ],
+    components: [
+      { key: 'inter', type: 'interaction', level: 'occurrence', required: false, params: { builtin: ['feeding', 'flower_visit', 'mutualism'], list: 'list_1', count: true, photos: 1 } },
+      { key: 'onote', type: 'comments', level: 'occurrence', required: true, params: {} },
+    ],
+    codelists: [
+      {
+        id: 'list_1',
+        label: { text: '自訂' },
+        items: [
+          { code: '1', label: { text: '產卵於', tr: { en: 'lays eggs on' } }, inverse: { text: '被產卵' } },
+          { code: '2', label: { text: '舊型' }, deprecated: true },
+        ],
+      },
+    ],
+    quick_add: false,
+  });
+  ok(validateTemplate(IT).length === 0, `interaction: the test template is valid (${validateTemplate(IT)})`);
+  const types = ix.interactionTypes(IT);
+  ok(
+    JSON.stringify(types.filter((x) => x.offered).map((x) => x.code)) === JSON.stringify(['feeding', 'flower_visit', 'mutualism', '1']) &&
+      types.find((x) => x.code === '1').en === 'lays eggs on' &&
+      types.find((x) => x.code === 'flower_visit').iri.endsWith('RO_0002622'),
+    `interaction: offered types, own English name, built-in IRI (${types.filter((x) => x.offered).map((x) => x.code)})`,
+  );
+  const FI = s.createFrame(ctx, { code: 'IX1', sizeXM: 20, sizeYM: 20 });
+  const P1 = c.createSurvey(ctx, { template: IT, frameId: FI });
+  const S0 = c.addUnit(ctx, P1, { levelKey: 'u1', code: 'S1' });
+  const S1 = c.addUnit(ctx, P1, { levelKey: 'u2', code: 'Q1', parentId: S0 });
+  const A = c.addOccurrence(ctx, P1, { taxon_id: 'butterfly', unit_id: S1 });
+  const B = c.addOccurrence(ctx, P1, { taxon_id: 'bidens', unit_id: S1 });
+  const C = c.addOccurrence(ctx, P1, { taxon_id: 'lantana' });
+  const row = (id) => one('SELECT * FROM fw_interactions WHERE id = ?', id);
+  const i1 = ix.addInteraction(ctx, { from: A, partner: { occurrenceId: B }, type: 'flower_visit', direction: 'forward', count: 3 });
+  ok(row(i1).subject_occurrence_id === A && row(i1).object_occurrence_id === B && row(i1).mutual === 0 && row(i1).count === 3 && row(i1).unit_id === S1 && row(i1).phase === null, 'interaction: A → B stored as recorded, in A’s unit');
+  const i2 = ix.addInteraction(ctx, { from: B, partner: { occurrenceId: A }, type: 'flower_visit', direction: 'backward' });
+  ok(row(i2).subject_occurrence_id === A && row(i2).object_occurrence_id === B, 'interaction: B ← A from B’s page is stored A → B (one way of writing it)');
+  ok(JSON.stringify(ix.asSeenFrom(row(i2), B)) === JSON.stringify({ direction: 'backward', partner: A }) && ix.asSeenFrom(row(i2), A).direction === 'forward', 'interaction: read from either side');
+  const i3 = ix.addInteraction(ctx, { from: A, partner: { occurrenceId: C }, type: 'mutualism', direction: 'mutual' });
+  ok(row(i3).mutual === 1 && ix.asSeenFrom(row(i3), C).direction === 'mutual', 'interaction: both ways is mutual from either side');
+  throwsCode(() => ix.addInteraction(ctx, { from: A, partner: { occurrenceId: C }, type: 'mutualism', direction: 'forward' }), 'bad_value', 'interaction: a both-ways type only goes ↔');
+  throwsCode(() => ix.addInteraction(ctx, { from: A, partner: { occurrenceId: C }, type: 'feeding', direction: 'mutual' }), 'bad_value', 'interaction: a one-way type never goes ↔');
+  throwsCode(() => ix.addInteraction(ctx, { from: A, partner: { occurrenceId: C }, type: 'parasitism', direction: 'forward' }), 'bad_value', 'interaction: a built-in the template does not offer');
+  throwsCode(() => ix.addInteraction(ctx, { from: A, partner: { occurrenceId: C }, type: '2', direction: 'forward' }), 'bad_value', 'interaction: a deprecated own type is not offered for new ones');
+  throwsCode(() => ix.addInteraction(ctx, { from: A, partner: { occurrenceId: C }, type: 'feeding', direction: 'forward', count: 0 }), 'bad_value', 'interaction: a count is at least 1');
+  throwsCode(() => ix.addInteraction(ctx, { from: A, partner: { occurrenceId: A }, type: 'feeding', direction: 'forward' }), 'bad_value', 'interaction: not with itself');
+  rejects(`UPDATE fw_interactions SET object_occurrence_id = subject_occurrence_id WHERE id = ${i1}`, 'interaction: the table refuses one occurrence on both sides');
+  // B as a species not recorded here
+  const before = c.listSurveys(ctx).find((x) => x.id === P1).species_count;
+  const i4 = ix.addInteraction(ctx, { from: A, partner: { taxonId: 'bird' }, type: 'feeding', direction: 'backward' });
+  const V = row(i4).subject_occurrence_id;
+  const v = c.getOccurrence(ctx, V);
+  ok(v.taxon_id === 'bird' && v.via_interaction === 1 && v.unit_id === S1 && row(i4).object_occurrence_id === A, 'interaction: a new species is recorded in A’s unit as the other side (bird eats butterfly)');
+  ok(c.listSurveys(ctx).find((x) => x.id === P1).species_count === before && c.findOccurrence(ctx, P1, S1, 'bird', null) === null, 'interaction: not a species of the survey, not found as one');
+  const i5 = ix.addInteraction(ctx, { from: A, partner: { taxonId: 'bird' }, type: 'feeding', direction: 'backward' });
+  ok(row(i5).subject_occurrence_id === V && count('fw_occurrences', 'survey_id = ? AND taxon_id = ?', P1, 'bird') === 1, 'interaction: the same species again is the same occurrence');
+  const i6 = ix.addInteraction(ctx, { from: C, partner: { taxonId: 'bidens' }, type: 'feeding', direction: 'forward' });
+  ok(c.getOccurrence(ctx, row(i6).object_occurrence_id).via_interaction === 1 && row(i6).object_occurrence_id !== B, 'interaction: a species recorded in another unit is recorded again where A is');
+  // taken over when recorded for itself
+  ok(c.addOccurrence(ctx, P1, { taxon_id: 'bird', unit_id: S1, organism_quantity: '2', organism_quantity_type: 'individuals' }) === V && c.getOccurrence(ctx, V).via_interaction === 0 && c.getOccurrence(ctx, V).organism_quantity === '2', 'interaction: recording it for itself takes the occurrence over');
+  ok(c.listSurveys(ctx).find((x) => x.id === P1).species_count === before + 1, 'interaction: then it counts');
+  // the other side goes with its last interaction, unless something else is on it
+  const i7 = ix.addInteraction(ctx, { from: B, partner: { taxonId: 'bee' }, type: 'flower_visit', direction: 'backward' });
+  const bee = row(i7).subject_occurrence_id;
+  ix.deleteInteraction(ctx, i7);
+  ok(c.getOccurrence(ctx, bee) === null, 'interaction: an occurrence made only for it goes with it');
+  // still held by another interaction: stays
+  const iHold1 = ix.addInteraction(ctx, { from: B, partner: { taxonId: 'hoverfly' }, type: 'flower_visit', direction: 'backward' });
+  const hover = row(iHold1).subject_occurrence_id;
+  const iHold2 = ix.addInteraction(ctx, { from: A, partner: { occurrenceId: hover }, type: 'feeding', direction: 'backward' });
+  ix.deleteInteraction(ctx, iHold1);
+  ok(c.getOccurrence(ctx, hover) != null && row(iHold2) != null, 'interaction: a made-for-it occurrence another interaction holds stays');
+  ix.deleteInteraction(ctx, iHold2);
+  ok(c.getOccurrence(ctx, hover) === null, 'interaction: and goes with the last one');
+  const i8 = ix.addInteraction(ctx, { from: B, partner: { taxonId: 'bee' }, type: 'flower_visit', direction: 'backward' });
+  const bee2 = row(i8).subject_occurrence_id;
+  c.updateOccurrence(ctx, bee2, { notes: '腳上有花粉' });
+  ix.deleteInteraction(ctx, i8);
+  ok(c.getOccurrence(ctx, bee2)?.via_interaction === 1, 'interaction: one with a note of its own stays');
+  // changing B leaves a made-for-it occurrence behind only while something holds it
+  const i9 = ix.addInteraction(ctx, { from: B, partner: { taxonId: 'moth' }, type: 'flower_visit', direction: 'backward' });
+  const moth = row(i9).subject_occurrence_id;
+  ix.updateInteraction(ctx, i9, { from: B, partner: { occurrenceId: A }, type: 'flower_visit', direction: 'backward', count: 2 });
+  ok(row(i9).subject_occurrence_id === A && row(i9).count === 2 && c.getOccurrence(ctx, moth) === null, 'interaction: B changed; the one made for it goes');
+  throwsCode(() => ix.updateInteraction(ctx, i9, { from: C, partner: { occurrenceId: A }, type: 'flower_visit', direction: 'forward' }), 'bad_value', 'interaction: changed only from one of its sides');
+  // an own type no longer offered still holds where it was recorded
+  const i10 = ix.addInteraction(ctx, { from: A, partner: { occurrenceId: B }, type: '1', direction: 'forward' });
+  sqlite.prepare(`UPDATE fw_interactions SET type_code = '2' WHERE id = ?`).run(i10);
+  ix.updateInteraction(ctx, i10, { from: A, partner: { occurrenceId: B }, type: '2', direction: 'forward', notes: '舊型' });
+  ok(row(i10).notes === '舊型', 'interaction: a deprecated type stays on the one that has it');
+  // photos
+  ix.addInteractionPhoto(ctx, i1, 'file:///p/visit.jpg');
+  throwsCode(() => ix.addInteractionPhoto(ctx, i1, 'file:///p/visit2.jpg'), 'bad_value', 'interaction: photos up to the template’s limit');
+  ok(c.listMedia(ctx, { kind: 'survey', id: P1 }).length === 0 && JSON.stringify(ix.listInteractionPhotos(ctx, i1)) === JSON.stringify(['file:///p/visit.jpg']), 'interaction: its photo is not the survey’s');
+  ok(ix.listInteractions(ctx, P1, { occurrenceId: B }).find((r) => r.id === i1)?.photos === 1, 'interaction: listed with its photo count');
+  ok(c.interactionCountOf(ctx, A) === ix.listInteractions(ctx, P1, { occurrenceId: A }).length, 'interaction: counted per occurrence');
+  // a unit's interactions go up with its occurrences
+  c.deleteUnit(ctx, S1);
+  ok(row(i1)?.unit_id === S0 && c.getOccurrence(ctx, A).unit_id === S0, 'interaction: deleting its unit moves it up a level, with its occurrences');
+  // deleting an occurrence: a made-for-it other side goes too
+  const iFly = ix.addInteraction(ctx, { from: C, partner: { taxonId: 'fly' }, type: 'feeding', direction: 'backward' });
+  const fly = row(iFly).subject_occurrence_id;
+  c.deleteOccurrence(ctx, C);
+  ok(c.getOccurrence(ctx, fly) === null && row(iFly) === undefined, 'interaction: deleting an occurrence takes a made-for-it other side with it');
+  // deleting an occurrence takes its interactions and their photos
+  const n = c.interactionCountOf(ctx, A);
+  c.deleteOccurrence(ctx, A);
+  ok(n > 0 && count('fw_interactions', 'subject_occurrence_id = ? OR object_occurrence_id = ?', A, A) === 0 && count('fw_media', 'interaction_id = ?', i1) === 0, 'interaction: deleting an occurrence takes its interactions and photos');
+  // the next survey: blind, sealed, and the made-for-it ones left out of the recheck
+  const viaLeft = ix.addInteraction(ctx, { from: B, partner: { taxonId: 'wasp' }, type: 'flower_visit', direction: 'backward' });
+  ok(row(viaLeft) != null, 'interaction: one more made-for-it occurrence on the first survey');
+  c.finishSurvey(ctx, P1);
+  const P2 = c.createSurvey(ctx, { template: IT, frameId: FI });
+  const S2 = c.listUnits(ctx, P2).find((u) => u.code === 'S1').id;
+  const D = c.addOccurrence(ctx, P2, { taxon_id: 'bidens', unit_id: S2 });
+  const j1 = ix.addInteraction(ctx, { from: D, partner: { taxonId: 'beetle' }, type: 'feeding', direction: 'backward' });
+  ok(row(j1).phase === 'blind' && c.getOccurrence(ctx, row(j1).subject_occurrence_id).phase === 'blind', 'interaction: recorded blind with its new occurrence');
+  c.closeBlindPhase(ctx, P2);
+  ok(ix.interactionSealed(ctx, row(j1)), 'interaction: sealed once the blind phase closes');
+  throwsCode(() => ix.updateInteraction(ctx, j1, { from: D, partner: { taxonId: 'beetle' }, type: 'feeding', direction: 'backward', notes: 'x' }), 'blind_sealed', 'interaction: a sealed one is not changed');
+  throwsCode(() => ix.deleteInteraction(ctx, j1), 'blind_sealed', 'interaction: nor deleted');
+  throwsCode(() => ix.addInteractionPhoto(ctx, j1, 'file:///p/x.jpg'), 'blind_sealed', 'interaction: nor given photos');
+  const beetle = row(j1).subject_occurrence_id;
+  const j0 = ix.addInteraction(ctx, { from: D, partner: { occurrenceId: beetle }, type: 'flower_visit', direction: 'backward' });
+  ok(row(j0).phase === 'recheck' && count('fw_occurrences', "survey_id = ? AND phase = 'recheck'", P2) === 0, 'interaction: two sealed occurrences still take a new one, after the blind phase');
+  throwsCode(() => c.reopenBlindPhase(ctx, P2), 'recheck_begun', 'interaction: one recorded after the blind phase is recheck work');
+  const j2 = ix.addInteraction(ctx, { from: D, partner: { taxonId: 'ant' }, type: 'flower_visit', direction: 'backward' });
+  ok(row(j2).phase === 'recheck', 'interaction: and with a new species');
+  const prev = c.previousOccurrences(ctx, P2).map((o) => o.taxon_id);
+  ok(!prev.includes('wasp') && prev.includes('bidens'), `interaction: the next recheck leaves out the made-for-it occurrences (${prev})`);
+  ok(!c.recheckState(ctx, P2).candidates.some((x) => x.taxonId === 'wasp'), 'interaction: so nobody is asked to look for them');
+  // a 'found' answer's occurrence that has interactions stays, as their other side, when the answer changes
+  const bird = c.recheckState(ctx, P2).candidates.find((x) => x.taxonId === 'bird');
+  const found = c.answerRecheck(ctx, P2, bird, 'found');
+  ix.addInteraction(ctx, { from: found, partner: { occurrenceId: D }, type: 'feeding', direction: 'forward' });
+  c.answerRecheck(ctx, P2, bird, 'not_found');
+  ok(c.getOccurrence(ctx, found)?.via_interaction === 1 && c.interactionCountOf(ctx, found) === 1, 'interaction: a found occurrence with an interaction stays as its other side when the answer changes');
+  // deleting the surveys takes everything — by hand, as cleanup runs with foreign keys off
+  sqlite.exec('PRAGMA foreign_keys = OFF;');
+  c.deleteSurvey(ctx, P2);
+  c.deleteSurvey(ctx, P1);
+  sqlite.exec('PRAGMA foreign_keys = ON;');
+  ok(count('fw_interactions', 'survey_id IN (?, ?)', P1, P2) === 0 && count('fw_occurrences', 'survey_id IN (?, ?)', P1, P2) === 0, 'interaction: deleting a survey takes its interactions');
+  for (const [table, where] of CASCADE_ORPHANS) if (table.startsWith('fw_')) ok(count(table, where) === 0, `interaction: no ${table} orphans`);
+  ok(all('PRAGMA foreign_key_check').length === 0, 'interaction: foreign_key_check clean');
 }
 
 if (failed > 0) {

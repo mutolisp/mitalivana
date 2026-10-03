@@ -4623,7 +4623,8 @@
       "phenology": "フェノロジー",
       "traits": "形質",
       "environment": "環境",
-      "choice": "カスタム選択肢"
+      "choice": "カスタム選択肢",
+      "interaction": "相互作用"
     },
     "editor": {
       "elsewhere": "この項目は記録画面で入力します。",
@@ -4682,7 +4683,8 @@
       "choice": {
         "noList": "この選択肢のリストが見つかりません。調査票テンプレートを確認してください。",
         "multi": "複数選択可"
-      }
+      },
+      "interactionElsewhere": "相互作用は各出現記録のページで記録します。"
     },
     "ams": {
       "title": "AMS 枯死と損傷",
@@ -4766,6 +4768,77 @@
         "c_S": "斜面崩壊",
         "c_W": "風倒"
       }
+    },
+    "interaction": {
+      "type": {
+        "feeding": {
+          "name": "捕食・摂食",
+          "verb": "摂食",
+          "inverse": "摂食される"
+        },
+        "flower_visit": {
+          "name": "訪花",
+          "verb": "訪花",
+          "inverse": "花を訪れられる"
+        },
+        "parasitism": {
+          "name": "寄生",
+          "verb": "寄生する",
+          "inverse": "寄生される"
+        },
+        "mutualism": {
+          "name": "相利共生",
+          "verb": "相利共生"
+        },
+        "commensalism": {
+          "name": "片利共生",
+          "verb": "片利共生する",
+          "inverse": "片利共生される"
+        }
+      },
+      "line": {
+        "forward": "{{verb}}：{{partner}}",
+        "backward": "{{inverse}}：{{partner}}",
+        "byPartner": "{{partner}}が{{verb}}"
+      },
+      "sentence": {
+        "forward": "{{a}} → {{b}}：{{verb}}",
+        "backward": "{{b}} → {{a}}：{{verb}}（{{a}} のページで記録、{{b}} → {{a}} として保存）",
+        "mutual": "{{a}} と {{b}}：{{verb}}（双方向、エクスポートでは 2 行）"
+      },
+      "count_other": "{{count}} 件",
+      "photos_other": "写真 {{count}}",
+      "bothPages": "同じ相互作用は双方のページに表示され、矢印と表現は表示中の記録に合わせて変わります。",
+      "add": "相互作用を追加",
+      "viaTag": "相互作用の相手",
+      "deleteWith_other": "関わる相互作用 {{count}} 件も削除されます。",
+      "needPartner": "B を選んでください：ここで記録済みの種、または他の種を検索。",
+      "deleteTitle": "相互作用を削除",
+      "addTitle": "相互作用を追加",
+      "editTitle": "相互作用",
+      "aIs": "A＝{{name}}",
+      "kind": "種類",
+      "direction": "方向",
+      "dir": {
+        "forward": "A → B",
+        "backward": "A ← B",
+        "mutual": "A ↔ B"
+      },
+      "mutualOnly": "双方向の種類は A ↔ B のみ。エクスポートでは 2 行になります。",
+      "partner": "B：ここで記録済みの種",
+      "noneHere": "ここには他の種がまだありません。下で検索できます。",
+      "addedToRecord": "保存時にこの記録へ追加（相互作用の相手として、種数には含めません）",
+      "other": "他の種（この記録にも追加）",
+      "times": "回数",
+      "less": "1 減らす",
+      "more": "1 増やす",
+      "photoTitle_other": "写真（最大 {{count}} 枚）",
+      "photoLimit_other": "写真は最大 {{count}} 枚",
+      "empty": "相互作用はまだありません。出現記録のページで追加します。",
+      "byType": "種類別",
+      "matrix": "行列",
+      "matrixDesc": "{{type}}：行は A（行う側）、列は B、セルは回数の合計。",
+      "searchBelow": "ここにない種は、下の検索で追加します。"
     }
   },
   "task": {
@@ -4828,7 +4901,8 @@
       "data": "データ",
       "units_other": "ユニット {{count}}",
       "species_other": "種 {{count}}",
-      "freq": "頻度"
+      "freq": "頻度",
+      "interactions_other": "相互作用 {{count}}"
     },
     "phase": {
       "blind": "ブラインド",
@@ -5046,7 +5120,9 @@
       "listNoCodes": "コードリスト「{{list}}」にコードがありません",
       "codeEmpty": "コードリスト「{{list}}」の {{n}} 番目のコードが空です",
       "codeDuplicate": "コードリスト「{{list}}」の {{n}} 番目のコードが前のものと重複しています",
-      "codeNameEmpty": "コードリスト「{{list}}」の {{n}} 番目のコードに名前が必要です"
+      "codeNameEmpty": "コードリスト「{{list}}」の {{n}} 番目のコードに名前が必要です",
+      "interactionNone": "「{{component}}」には少なくとも 1 つの種類が必要です",
+      "interactionCode": "「{{component}}」：独自の種類のコード {{code}} が組み込みの種類と同じです"
     },
     "upgrade": {
       "title": "進行中の調査を更新しますか？",
@@ -5096,7 +5172,9 @@
       "layers_other": "{{count}} 階層",
       "fields_other": "{{count}} 項目",
       "max_other": "最大 {{count}}",
-      "gps": "GNSS 測位"
+      "gps": "GNSS 測位",
+      "interactionTypes_other": "{{count}} 種類",
+      "photos_other": "写真 {{count}}"
     },
     "kind": {
       "bb": "Braun-Blanquet",
@@ -5166,6 +5244,29 @@
       "seriesContinue": "第 {{n}} 回として続ける（前回は「{{name}}」）",
       "seriesContinueCode": "シリーズ {{code}} の第 {{n}} 回として続ける（前回は「{{name}}」）",
       "seriesNew": "新しいシリーズ（第 1 回から）…"
+    },
+    "interaction": {
+      "count": "回数を記録",
+      "countDesc": "何回・何匹見たか",
+      "photos": "写真の上限（0 は撮らない）",
+      "builtin": "組み込みの種類",
+      "builtinDesc": "名称はアプリの言語に従い、エクスポートでは OBO Relation Ontology の関係名と ID を書き出します。",
+      "mutual": "双方向",
+      "oneWay": "一方向",
+      "mutualLong": "双方向（A ↔ B）",
+      "oneWayLong": "一方向（A → B）",
+      "own": "独自の種類",
+      "editOwn": "独自の種類を編集",
+      "addOwn": "種類を追加",
+      "listName": "相互作用の種類",
+      "listDesc": "各種類に方向性（保存後は変更不可）、B から見た表現、RO 関係 IRI（任意）を設定します。エクスポートでは英語名を書き出します。",
+      "direction": "方向性",
+      "directionFixed": "方向性：{{dir}}（保存済みの種類は変更不可）",
+      "inverse": "B から見た表現",
+      "inverseHint": "例：産卵される",
+      "inverseEn": "B から見た英語の表現",
+      "iri": "RO 関係 IRI（任意）",
+      "iriBad": "IRI は http:// または https:// で始まり、空白を含めません"
     }
   },
   "surveyImport": {

@@ -168,6 +168,16 @@ export function paramsSummary(t: TFunction, lang: string, c: ComponentInstance, 
       return list(p.codesets)
         .map((x) => codesetName(t, lang, template, x))
         .join(t('builder.listSep'));
+    case 'interaction': {
+      const own = template?.codelists.find((x) => x.id === p.list)?.items.filter((it) => !it.deprecated).length ?? 0;
+      return [
+        t('builder.summary.interactionTypes', { count: list(p.builtin).length + own }),
+        p.count === true ? t('builder.interaction.count') : null,
+        Number(p.photos) > 0 ? t('builder.summary.photos', { count: Number(p.photos) }) : null,
+      ]
+        .filter(Boolean)
+        .join(' · ');
+    }
     default:
       return '';
   }
@@ -205,5 +215,9 @@ export function issueText(t: TFunction, lang: string, template: SurveyTemplate, 
       return t('builder.issue.codeDuplicate', { list: listName(issue.list), n: issue.index + 1 });
     case 'code_name_empty':
       return t('builder.issue.codeNameEmpty', { list: listName(issue.list), n: issue.index + 1 });
+    case 'interaction_none':
+      return t('builder.issue.interactionNone', { component: compName(issue.component) });
+    case 'interaction_code':
+      return t('builder.issue.interactionCode', { component: compName(issue.component), code: issue.typeCode });
   }
 }

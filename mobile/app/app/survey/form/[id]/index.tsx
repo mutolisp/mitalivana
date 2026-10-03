@@ -11,6 +11,9 @@
  *   stays hidden until 結束盲測, after which the blind occurrences are sealed
  *   and every taxon of the previous survey missing from them needs an answer
  *   (recheck.tsx).
+ * - Interactions (2F) have a tab of their own when the template has them;
+ *   an occurrence made only as an interaction's other side is listed after
+ *   the others, marked, and not counted as a species of the survey.
  * - A finished survey is locked until unlocked here, as 樣區 are. Every edit
  *   made here is a step undo / redo in ⋯ takes back (useRecordEditing; a
  *   closed blind phase's records excepted, recordSnapshotCore.ts); a version
@@ -50,6 +53,7 @@ import { useToast } from '~/stores/toast';
 import { useThemeColors } from '~/theme/colors';
 import { componentSummary } from '~/survey/components/editors/ComponentEditor';
 import { FormCard } from '~/survey/components/FormBits';
+import { InteractionSummary } from '~/survey/components/InteractionSummary';
 import {
   addOccurrence,
   addUnit,
@@ -58,6 +62,7 @@ import {
   deleteSurvey,
   findOccurrence,
   finishSurvey,
+  interactionCountOf,
   reopenBlindPhase,
   reopenSurvey,
   updateSurvey,
@@ -141,12 +146,13 @@ export default function SurveyFormScreen() {
 
   const shown = useMemo(() => {
     const all = data?.occurrences ?? [];
-    if (pick === 'all') return all;
-    if (pick === 'none') return all.filter((o) => o.unit_id == null);
-    return all.filter((o) => o.unit_id === pick);
+    const here = pick === 'all' ? all : pick === 'none' ? all.filter((o) => o.unit_id == null) : all.filter((o) => o.unit_id === pick);
+    // Those made only as an interaction's other side come last (2F).
+    return [...here.filter((o) => !o.via_interaction), ...here.filter((o) => o.via_interaction)];
   }, [data, pick]);
   const taken = useMemo(
-    () => new Set((data?.occurrences ?? []).filter((o) => o.unit_id === dest && !o.verbatim_identification).map((o) => o.taxon_id)),
+    // One made only as an interaction's other side is not in the list yet: adding it takes it over.
+    () => new Set((data?.occurrences ?? []).filter((o) => o.unit_id === dest && !o.verbatim_identification && !o.via_interaction).map((o) => o.taxon_id)),
     [data, dest],
   );
   const abundance = data ? formComponents(data.template, 'occurrence').find((c) => c.type === 'abundance') : undefined;
@@ -201,8 +207,10 @@ export default function SurveyFormScreen() {
       toast(t('surveyForm.err.blindSealed'));
       return;
     }
+    const linked = interactionCountOf(o.id);
     const idx = await showActionSheet({
       title: occurrenceTitle(o),
+      ...(linked ? { message: t('survey.interaction.deleteWith', { count: linked }) } : {}),
       options: [{ label: t('common.delete'), destructive: true }],
       cancelLabel: t('common.cancel'),
     });
@@ -386,7 +394,7 @@ export default function SurveyFormScreen() {
     <ScrollView contentContainerClassName="gap-2 p-4 pb-10">
       {data.units.length === 0 ? <Text className="text-sm text-ink-3 dark:text-gray-400">{t('surveyForm.unit.empty')}</Text> : null}
       {data.units.map(({ unit, depth, path }) => {
-        const n = data.occurrences.filter((o) => o.unit_id === unit.id).length;
+        const n = data.occurrences.filter((o) => o.unit_id === unit.id && !o.via_interaction).length;
         return (
           <Pressable
             key={unit.id}
@@ -417,11 +425,13 @@ export default function SurveyFormScreen() {
     </ScrollView>
   );
 
+  // Counts leave out those made only as an interaction's other side (2F).
+  const recorded = data.occurrences.filter((o) => !o.via_interaction);
   const unitChips: { key: string; pick: UnitPick; label: string; count: number }[] = isPlot
     ? [
-        { key: 'all', pick: 'all', label: t('surveyForm.allUnits'), count: data.occurrences.length },
-        { key: 'none', pick: 'none', label: t('surveyForm.outsideUnits'), count: data.occurrences.filter((o) => o.unit_id == null).length },
-        ...data.units.map((u) => ({ key: String(u.unit.id), pick: u.unit.id as UnitPick, label: u.path, count: data.occurrences.filter((o) => o.unit_id === u.unit.id).length })),
+        { key: 'all', pick: 'all', label: t('surveyForm.allUnits'), count: recorded.length },
+        { key: 'none', pick: 'none', label: t('surveyForm.outsideUnits'), count: recorded.filter((o) => o.unit_id == null).length },
+        ...data.units.map((u) => ({ key: String(u.unit.id), pick: u.unit.id as UnitPick, label: u.path, count: recorded.filter((o) => o.unit_id === u.unit.id).length })),
       ]
     : [];
 
@@ -453,6 +463,7 @@ export default function SurveyFormScreen() {
                   {[
                     pick === 'all' && o.unitPath ? o.unitPath : null,
                     o.phase === 'recheck' ? t('surveyForm.phase.recheck') : o.phase === 'blind' && survey.blind_closed_at != null ? t('surveyForm.phase.blind') : null,
+                    o.via_interaction ? t('survey.interaction.viaTag') : null,
                   ]
                     .filter(Boolean)
                     .join(' · ')}
@@ -487,9 +498,10 @@ export default function SurveyFormScreen() {
   const tabs: { value: Tab; label: string }[] = [
     { value: 'data', label: t('surveyForm.tab.data') },
     ...(isPlot ? [{ value: 'units' as Tab, label: t('surveyForm.tab.units', { count: data.units.length }) }] : []),
-    { value: 'species', label: t('surveyForm.tab.species', { count: data.occurrences.length }) },
+    { value: 'species', label: t('surveyForm.tab.species', { count: recorded.length }) },
+    ...(data.interactions != null ? [{ value: 'interactions' as Tab, label: t('surveyForm.tab.interactions', { count: data.interactions }) }] : []),
   ];
-  const shownTab: Tab = tab === 'units' && !isPlot ? 'species' : tab;
+  const shownTab: Tab = (tab === 'units' && !isPlot) || (tab === 'interactions' && data.interactions == null) ? 'species' : tab;
 
   return (
     <SafeAreaView
@@ -535,7 +547,7 @@ export default function SurveyFormScreen() {
           )}
         </View>
       ) : null}
-      {shownTab === 'data' ? dataTab : shownTab === 'units' ? unitsTab : speciesTab}
+      {shownTab === 'data' ? dataTab : shownTab === 'units' ? unitsTab : shownTab === 'interactions' ? <InteractionSummary surveyId={id} template={template} unlocked={unlocked} /> : speciesTab}
       <NumAccessory />
     </SafeAreaView>
   );

@@ -11,6 +11,11 @@
  * In a tree census template (2D-b) the census fixes most of it: only the
  * optional tree components are removed, Health takes the AMS code set and the
  * template's code lists, Location its methods; required flags and order stay.
+ *
+ * Interaction (2F; canvas 12e): the built-in types it offers, its own types
+ * (a code list of the template, each with a direction, how it reads from B
+ * and an optional relation IRI — edited on the list's screen), whether it
+ * asks how many times, and how many photos.
  */
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import type { TFunction } from 'i18next';
@@ -44,6 +49,7 @@ import {
 } from '~/survey/registry';
 import {
   addCodeList,
+  addInteractionType,
   addTrait,
   CENSUS_CODESET,
   componentsAt,
@@ -56,10 +62,12 @@ import {
   removeComponent,
   removeTrait,
   setHealthCodeset,
+  setInteractionBuiltin,
   updateComponent,
   updateTrait,
 } from '~/survey/template/edit';
 import { AMS_CODESET } from '~/survey/codesets/forestgeoAms2021';
+import { BUILTIN_INTERACTIONS } from '~/survey/codesets/interactions';
 import type { ComponentInstance, Label } from '~/survey/template/types';
 
 const list = (v: unknown): string[] => (Array.isArray(v) ? v.map(String) : []);
@@ -165,6 +173,7 @@ function ParamsEditor({ t, c, set }: { t: TFunction; c: ComponentInstance; set: 
     case 'traits':
     case 'choice':
     case 'health':
+    case 'interaction':
       return null; // their own sections below
     default:
       return <Text className="text-sm text-ink-3 dark:text-gray-400">{t('builder.param.none')}</Text>;
@@ -224,6 +233,19 @@ export default function TemplateComponentScreen() {
     if (made) router.push(listHref(id, made));
   };
   const sets = Array.isArray(comp.params.codesets) ? (comp.params.codesets as string[]) : [];
+  const builtinTypes = Array.isArray(comp.params.builtin) ? (comp.params.builtin as string[]) : [];
+  const ownTypes = comp.type === 'interaction' ? tpl.codelists.find((l) => l.id === comp.params.list) : undefined;
+  /** A type of the template's own: added to its list (made on the first one), then edited there. */
+  const newInteractionType = () => {
+    let made: string | null = null;
+    update((x) => {
+      const r = addInteractionType(x, key, makeLabel(t('builder.interaction.listName'))!);
+      if (!r) return x;
+      made = r.listId;
+      return r.template;
+    });
+    if (made) router.push(listHref(id, made));
+  };
   /** A new code list, used by this Health component at once. */
   const newHealthList = () => {
     let made: string | null = null;
@@ -263,6 +285,8 @@ export default function TemplateComponentScreen() {
           <Text className="text-xs leading-4 text-ink-3 dark:text-gray-400">{t('builder.componentNameDesc', { name: typeName(t, comp.type) })}</Text>
         </FormCard>
 
+        {/* An interaction is recorded when one is seen: there is nothing to miss. */}
+        {comp.type === 'interaction' ? null : (
         <FormCard>
           <View className="flex-row items-center gap-3">
             <View className="flex-1">
@@ -274,6 +298,7 @@ export default function TemplateComponentScreen() {
             <Switch value={comp.required} disabled={fixed || census} onValueChange={(v) => set({ required: v })} accessibilityLabel={t('builder.required')} />
           </View>
         </FormCard>
+        )}
 
         {comp.type === 'choice' ? (
           <FormCard title={t('builder.params')}>
@@ -309,6 +334,41 @@ export default function TemplateComponentScreen() {
             {sets.includes(AMS_CODESET) ? <Text className="text-xs leading-4 text-ink-3 dark:text-gray-400">{t('builder.health.amsDesc')}</Text> : null}
             <Button label={t('builder.list.add')} icon="add" variant="secondary" onPress={newHealthList} />
           </FormCard>
+        ) : comp.type === 'interaction' ? (
+          <>
+            <FormCard title={t('builder.interaction.builtin')}>
+              <Text className="text-xs leading-4 text-ink-3 dark:text-gray-400">{t('builder.interaction.builtinDesc')}</Text>
+              {BUILTIN_INTERACTIONS.map((b) => (
+                <View key={b.code}>
+                  <Checkbox
+                    checked={builtinTypes.includes(b.code)}
+                    label={`${t(`survey.interaction.type.${b.code}.name`)}（${t(b.mutual ? 'builder.interaction.mutual' : 'builder.interaction.oneWay')}）`}
+                    onChange={(next) => update((x) => setInteractionBuiltin(x, key, b.code, next))}
+                  />
+                  <Text className="-mt-1 pb-1 pl-9 font-mono text-xs text-ink-3 dark:text-gray-400">{`${b.en} · ${b.iri.slice(b.iri.lastIndexOf('/') + 1)}`}</Text>
+                </View>
+              ))}
+            </FormCard>
+            <FormCard title={t('builder.interaction.own')}>
+              {(ownTypes?.items ?? []).map((it, i) => (
+                <Text key={`${i}`} className={`text-base ${it.deprecated ? 'text-ink-3 line-through dark:text-gray-500' : 'text-ink dark:text-gray-100'}`}>
+                  {`${labelText(t, lang, it.label, it.code) || '—'}（${t(it.mutual ? 'builder.interaction.mutual' : 'builder.interaction.oneWay')}）`}
+                </Text>
+              ))}
+              {ownTypes ? <Button label={t('builder.interaction.editOwn')} icon="create-outline" variant="secondary" onPress={() => router.push(listHref(id, ownTypes.id))} /> : null}
+              <Button label={t('builder.interaction.addOwn')} icon="add" variant="secondary" onPress={newInteractionType} />
+            </FormCard>
+            <FormCard title={t('builder.params')}>
+              <View className="flex-row items-center gap-3" style={{ minHeight: 44 }}>
+                <View className="flex-1">
+                  <Text className="text-base text-ink dark:text-gray-100">{t('builder.interaction.count')}</Text>
+                  <Text className="text-xs leading-4 text-ink-3 dark:text-gray-400">{t('builder.interaction.countDesc')}</Text>
+                </View>
+                <Switch value={comp.params.count === true} onValueChange={(v) => set({ params: { ...comp.params, count: v } })} accessibilityLabel={t('builder.interaction.count')} />
+              </View>
+              <Stepper label={t('builder.interaction.photos')} value={Number(comp.params.photos) || 0} min={0} max={20} onChange={(n) => set({ params: { ...comp.params, photos: n } })} />
+            </FormCard>
+          </>
         ) : comp.type !== 'traits' ? (
           <FormCard title={t('builder.params')}>
             {hasEditableParams(tpl, comp) ? (

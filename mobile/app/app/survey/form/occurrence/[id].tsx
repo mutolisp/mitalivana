@@ -10,6 +10,10 @@
  *
  * A blind occurrence is sealed once the survey's blind phase is closed, as in
  * MIREN. `?unlocked=1`: opened from a finished survey unlocked on its screen.
+ *
+ * Interactions (2F) have a card of their own below the components: it lists
+ * them from this occurrence's side and opens the screen that records one; a
+ * sealed occurrence still takes new ones.
  */
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
@@ -25,8 +29,9 @@ import { ScientificName } from '~/components/ScientificName';
 import { BackHeaderLeft } from '~/lib/goBack';
 import { useToast } from '~/stores/toast';
 import { FormCard } from '~/survey/components/FormBits';
+import { InteractionCard } from '~/survey/components/InteractionCard';
 import { snapshotOf } from '~/survey/db/surveyCore';
-import { deleteOccurrence, getFwSurvey, getOccurrence, listUnits, readComponent, updateOccurrence } from '~/survey/db/surveys';
+import { deleteOccurrence, getFwSurvey, getOccurrence, interactionCountOf, listUnits, readComponent, updateOccurrence } from '~/survey/db/surveys';
 import { layerCountOf } from '~/survey/form/checks';
 import { ComponentCards } from '~/survey/form/ComponentCards';
 import { labelForEdit } from '~/survey/form/labelPick';
@@ -47,13 +52,19 @@ function load(id: number) {
   if (!row || !survey || survey.style === 'individual') return null;
   const template = snapshotOf(survey);
   const occurrence = withNames([row])[0];
-  const comps = formComponents(template, 'occurrence');
+  const all = formComponents(template, 'occurrence');
+  // Interactions are rows of their own (InteractionCard), not values of this occurrence.
+  const comps = all.filter((c) => c.type !== 'interaction');
+  const interaction = all.find((c) => c.type === 'interaction') ?? null;
   const surveyComps = formComponents(template, 'survey');
   return {
     occurrence,
     survey,
     template,
     comps,
+    interaction,
+    /** What deleting it also deletes. */
+    linked: interactionCountOf(id),
     units: survey.style === 'plot' ? listUnits(survey.id) : [],
     values: Object.fromEntries(comps.map((c) => [c.key, readComponent({ kind: 'occurrence', id }, c.key)])),
     surveyValues: Object.fromEntries(surveyComps.map((c) => [c.key, readComponent({ kind: 'survey', id: survey.id }, c.key)])),
@@ -117,7 +128,7 @@ export default function OccurrenceScreen() {
     reload();
   };
   const remove = () =>
-    Alert.alert(t('surveyForm.occ.deleteTitle'), occurrenceTitle(o), [
+    Alert.alert(t('surveyForm.occ.deleteTitle'), [occurrenceTitle(o), data.linked ? t('survey.interaction.deleteWith', { count: data.linked }) : ''].filter(Boolean).join('\n\n'), [
       { text: t('common.cancel'), style: 'cancel' },
       {
         text: t('common.delete'),
@@ -154,6 +165,7 @@ export default function OccurrenceScreen() {
           o.family,
           o.unit_id != null ? unitPath(data.units, o.unit_id) : survey.style === 'plot' ? t('surveyForm.outsideUnits') : null,
           o.phase === 'recheck' ? t('surveyForm.phase.recheck') : o.phase === 'blind' ? t('surveyForm.phase.blind') : null,
+          o.via_interaction ? t('survey.interaction.viaTag') : null,
         ]
           .filter(Boolean)
           .join(' · ')}
@@ -190,6 +202,17 @@ export default function OccurrenceScreen() {
         <ScrollView contentContainerClassName="gap-3 p-4 pb-10" keyboardShouldPersistTaps="handled">
           {header}
           <ComponentCards owner={{ kind: 'occurrence', id: o.id }} instances={formComps} values={data.values} readOnly={readOnly} refuse={refuse} context={context} codelists={data.template.codelists} onChanged={reload} />
+          {data.interaction ? (
+            <InteractionCard
+              surveyId={survey.id}
+              occurrenceId={o.id}
+              instance={data.interaction}
+              template={template}
+              locked={locked}
+              unlocked={params.unlocked === '1'}
+              refuse={() => toast(t('surveyForm.lockedToast'))}
+            />
+          ) : null}
         </ScrollView>
       )}
       <NumAccessory />

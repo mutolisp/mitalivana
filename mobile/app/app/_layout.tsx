@@ -207,6 +207,7 @@ function ThemedShell() {
             <Stack.Screen name="survey/form/[id]/index" options={{ title: '' }} />
             <Stack.Screen name="survey/form/[id]/recheck" options={{ title: '' }} />
             <Stack.Screen name="survey/form/occurrence/[id]" options={{ title: '' }} />
+            <Stack.Screen name="survey/form/interaction/[id]" options={{ title: '' }} />
             <Stack.Screen name="survey/form/unit/[id]" options={{ title: '' }} />
             <Stack.Screen name="survey/frame/units" options={{ title: '' }} />
             <Stack.Screen name="survey/frame/labels" options={{ title: '' }} />

@@ -3177,6 +3177,57 @@ const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    // Interactions (Phase 2F; Modular_survey.md §5.6, decided 2026-10-03).
+    //
+    // `fw_interactions`: A does something to B (or with B), both occurrences
+    // of the same survey. Stored one way only: subject does it to object
+    // (A ← B is saved as B → A); `mutual` = 1 for both ways (A ↔ B).
+    // `type_code`: a built-in type (src/survey/codesets/interactions.ts) or a
+    // code of the template's own list. `unit_id`: where it was recorded (the
+    // unit of the occurrence it was recorded from); deleting the unit moves
+    // it to the parent, as its occurrences. `phase`: as an occurrence's, so
+    // one recorded blind is sealed with the blind list.
+    //
+    // `fw_occurrences.via_interaction`: an occurrence made only because it
+    // was picked as B; species counts, community tables and the next
+    // survey's recheck leave it out. `fw_media.interaction_id`: an
+    // interaction's photos.
+    version: 87,
+    up: (db) => {
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS fw_interactions (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          uuid TEXT NOT NULL UNIQUE,
+          survey_id INTEGER NOT NULL,
+          unit_id INTEGER,
+          subject_occurrence_id INTEGER NOT NULL,
+          object_occurrence_id INTEGER NOT NULL,
+          type_code TEXT NOT NULL CHECK (length(trim(type_code)) > 0),
+          mutual INTEGER NOT NULL DEFAULT 0 CHECK (mutual IN (0, 1)),
+          count INTEGER CHECK (count IS NULL OR count >= 1),
+          observed_at INTEGER NOT NULL,
+          recorded_by TEXT,
+          notes TEXT,
+          phase TEXT CHECK (phase IS NULL OR phase IN ('blind', 'recheck')),
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          CHECK (subject_occurrence_id <> object_occurrence_id),
+          FOREIGN KEY (survey_id) REFERENCES fw_surveys(id) ON DELETE CASCADE,
+          FOREIGN KEY (unit_id) REFERENCES fw_units(id) ON DELETE SET NULL,
+          FOREIGN KEY (subject_occurrence_id) REFERENCES fw_occurrences(id) ON DELETE CASCADE,
+          FOREIGN KEY (object_occurrence_id) REFERENCES fw_occurrences(id) ON DELETE CASCADE
+        );
+      `);
+      db.executeSync(`CREATE INDEX IF NOT EXISTS idx_fwinter_survey ON fw_interactions(survey_id);`);
+      db.executeSync(`CREATE INDEX IF NOT EXISTS idx_fwinter_subject ON fw_interactions(subject_occurrence_id);`);
+      db.executeSync(`CREATE INDEX IF NOT EXISTS idx_fwinter_object ON fw_interactions(object_occurrence_id);`);
+      db.executeSync(`CREATE INDEX IF NOT EXISTS idx_fwinter_unit ON fw_interactions(unit_id) WHERE unit_id IS NOT NULL;`);
+      addColumnIfMissing(db, `ALTER TABLE fw_occurrences ADD COLUMN via_interaction INTEGER NOT NULL DEFAULT 0 CHECK (via_interaction IN (0, 1));`);
+      addColumnIfMissing(db, `ALTER TABLE fw_media ADD COLUMN interaction_id INTEGER REFERENCES fw_interactions(id) ON DELETE CASCADE;`);
+      db.executeSync(`CREATE INDEX IF NOT EXISTS idx_fwmedia_inter ON fw_media(interaction_id) WHERE interaction_id IS NOT NULL;`);
+    },
+  },
 ];
 
 /** Highest schema version this build knows how to produce. Backup/restore uses

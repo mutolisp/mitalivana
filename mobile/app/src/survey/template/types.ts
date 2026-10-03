@@ -25,7 +25,22 @@ export const MAX_UNIT_LEVELS = 3;
 /** User-written text is content, not an i18n key; built-ins use a key. */
 export type Label = { text: string; tr?: Readonly<Record<string, string>> } | { i18n: string };
 
-export type CodeItem = { code: string; label: Label; description?: Label; source?: string; deprecated?: boolean };
+export type CodeItem = {
+  code: string;
+  label: Label;
+  description?: Label;
+  source?: string;
+  deprecated?: boolean;
+  /**
+   * An interaction type (Phase 2F; Modular_survey.md §5.6), in a list an
+   * Interaction component names: both ways (A ↔ B) rather than one way, how
+   * it reads from B's side (one way only), and its relation IRI (optional;
+   * the OBO Relation Ontology's, as the built-in types).
+   */
+  mutual?: boolean;
+  inverse?: Label;
+  iri?: string;
+};
 
 export type CodeList = { id: string; label: Label; items: readonly CodeItem[] };
 

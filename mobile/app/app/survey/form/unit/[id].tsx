@@ -48,7 +48,8 @@ function load(id: number) {
     levelKeys: unitLevelsOf(survey).map((u) => u.key),
     comps,
     values: Object.fromEntries(comps.map((c) => [c.key, readComponent({ kind: 'unit', id }, c.key)])),
-    species: listOccurrences(survey.id, { unitId: id }).length,
+    // Not those made only as an interaction's other side (2F).
+    species: listOccurrences(survey.id, { unitId: id }).filter((o) => !o.via_interaction).length,
     carried: environmentCarried({ kind: 'unit', id }),
   };
 }

@@ -23,6 +23,7 @@
  *   added or removed; Health takes the AMS code set and the template's own
  *   code lists beside the ForestGEO census codes, which stay.
  */
+import { BUILTIN_INTERACTION_CODES } from '../codesets/interactions';
 import { componentDef, componentDefs, defaultParamsOf, type ComponentType, type TraitDef } from '../registry';
 import { MAX_UNIT_LEVELS, type CodeItem, type CodeList, type ComponentInstance, type Label, type SurveyLevel, type SurveyStyle, type SurveyTemplate, type UnitLevel } from './types';
 import { withRequired } from './validate';
@@ -325,10 +326,17 @@ function freeId(base: string, taken: Set<string>): string {
 
 const listOf = (t: SurveyTemplate | null | undefined, id: string): CodeList | undefined => t?.codelists.find((l) => l.id === id);
 
-/** The components that use list `id` (a choice's list, a health component's code sets). */
+/** The components that use list `id` (a choice's list, a health component's code sets, an interaction's own types). */
 export function codeListUsers(t: SurveyTemplate, id: string): ComponentInstance[] {
-  return t.components.filter((c) => (c.type === 'choice' && c.params.list === id) || (c.type === 'health' && Array.isArray(c.params.codesets) && c.params.codesets.includes(id)));
+  return t.components.filter(
+    (c) =>
+      ((c.type === 'choice' || c.type === 'interaction') && c.params.list === id) ||
+      (c.type === 'health' && Array.isArray(c.params.codesets) && c.params.codesets.includes(id)),
+  );
 }
+
+/** Whether list `id` holds an interaction component's own types (its codes then have a direction, a reading from B and an IRI). */
+export const isInteractionList = (t: SurveyTemplate, id: string) => t.components.some((c) => c.type === 'interaction' && c.params.list === id);
 
 export function addCodeList(t: SurveyTemplate, label: Label): { template: SurveyTemplate; id: string } {
   const id = freeId('list', new Set(t.codelists.map((l) => l.id)));
@@ -360,12 +368,17 @@ export function addCode(t: SurveyTemplate, id: string): SurveyTemplate {
   return setItems(t, id, [...l.items, { code: String(n), label: { text: '' } }]);
 }
 
-/** Change code `index`: its name, its deprecation, and its value while the saved version (`saved`) does not have it. */
+/**
+ * Change code `index`: its name, its deprecation, and its value while the
+ * saved version (`saved`) does not have it. An interaction type (2F) also
+ * has its direction — fixed once saved, as its value — how it reads from B
+ * (empty drops it) and its IRI (empty drops it).
+ */
 export function updateCode(
   t: SurveyTemplate,
   id: string,
   index: number,
-  patch: { code?: string; name?: { text: string; en: string }; deprecated?: boolean },
+  patch: { code?: string; name?: { text: string; en: string }; deprecated?: boolean; mutual?: boolean; inverse?: { text: string; en: string }; iri?: string },
   saved: SurveyTemplate | null,
 ): SurveyTemplate {
   const l = listOf(t, id);
@@ -375,6 +388,23 @@ export function updateCode(
   const isSaved = !!listOf(saved, id)?.items.some((x) => x.code === cur.code);
   if (patch.code !== undefined && !isSaved) next.code = patch.code.trim();
   if (patch.name) next.label = makeLabel(patch.name.text, patch.name.en) ?? { text: '' };
+  if (patch.mutual !== undefined && !isSaved) {
+    if (patch.mutual) {
+      next.mutual = true;
+      // Both ways reads the same from either side.
+      delete next.inverse;
+    } else delete next.mutual;
+  }
+  if (patch.inverse) {
+    const inv = next.mutual ? null : makeLabel(patch.inverse.text, patch.inverse.en);
+    if (inv) next.inverse = inv;
+    else delete next.inverse;
+  }
+  if (patch.iri !== undefined) {
+    const iri = patch.iri.trim();
+    if (iri) next.iri = iri;
+    else delete next.iri;
+  }
   if (patch.deprecated !== undefined) {
     if (patch.deprecated) next.deprecated = true;
     else delete next.deprecated;
@@ -417,6 +447,34 @@ export function addChoice(t: SurveyTemplate, place: Place, newList: Label): { te
   return { template: updateComponent(added.template, added.key, { params: { list: listId, multi: false } }), key: added.key };
 }
 
+// ── interaction types (2F) ──────────────────────────────────────────────────
+
+/** Offer a built-in interaction type, or stop offering it (in the order the app lists them). */
+export function setInteractionBuiltin(t: SurveyTemplate, key: string, code: string, on: boolean): SurveyTemplate {
+  const c = t.components.find((x) => x.key === key);
+  if (!c || c.type !== 'interaction' || !BUILTIN_INTERACTION_CODES.includes(code)) return t;
+  const cur = Array.isArray(c.params.builtin) ? (c.params.builtin as string[]) : [];
+  if (on === cur.includes(code)) return t;
+  const next = BUILTIN_INTERACTION_CODES.filter((x) => (x === code ? on : cur.includes(x)));
+  return updateComponent(t, key, { params: { ...c.params, builtin: next } });
+}
+
+/** A type of the template's own: a new code in the component's list, made (named `newList`) when it has none. */
+export function addInteractionType(t: SurveyTemplate, key: string, newList: Label): { template: SurveyTemplate; listId: string; index: number } | null {
+  const c = t.components.find((x) => x.key === key);
+  if (!c || c.type !== 'interaction') return null;
+  let base = t;
+  let listId = typeof c.params.list === 'string' && listOf(t, c.params.list) ? c.params.list : null;
+  if (!listId) {
+    const made = addCodeList(t, newList);
+    listId = made.id;
+    base = updateComponent(made.template, key, { params: { ...c.params, list: listId } });
+  }
+  const added = addCode(base, listId);
+  const index = (listOf(added, listId)?.items.length ?? 1) - 1;
+  return { template: added, listId, index };
+}
+
 // ── what still needs the user ──────────────────────────────────────────────
 
 export type DraftIssue =
@@ -431,7 +489,9 @@ export type DraftIssue =
   | { code: 'code_empty'; list: string; index: number }
   | { code: 'code_duplicate'; list: string; index: number }
   | { code: 'code_name_empty'; list: string; index: number }
-  | { code: 'choice_list'; component: string };
+  | { code: 'choice_list'; component: string }
+  | { code: 'interaction_none'; component: string }
+  | { code: 'interaction_code'; component: string; typeCode: string };
 
 /** What the builder asks the user to fix before saving (the validator still runs on save). */
 export function draftIssues(t: SurveyTemplate): DraftIssue[] {
@@ -453,6 +513,12 @@ export function draftIssues(t: SurveyTemplate): DraftIssue[] {
     if (c.type === 'choice' && !t.codelists.some((l) => l.id === c.params.list)) {
       out.push({ code: 'choice_list', component: c.key });
       continue;
+    }
+    if (c.type === 'interaction') {
+      const own = typeof c.params.list === 'string' ? listOf(t, c.params.list) : undefined;
+      const builtin = Array.isArray(c.params.builtin) ? c.params.builtin.length : 0;
+      if (!builtin && !own?.items.some((it) => !it.deprecated)) out.push({ code: 'interaction_none', component: c.key });
+      for (const it of own?.items ?? []) if (BUILTIN_INTERACTION_CODES.includes(it.code)) out.push({ code: 'interaction_code', component: c.key, typeCode: it.code });
     }
     const problems = def.checkParams(c.params, c.level).filter((p) => c.type !== 'traits' || !/min above max/.test(p));
     if (problems.length) out.push({ code: 'params', component: c.key, detail: problems.join('; ') });

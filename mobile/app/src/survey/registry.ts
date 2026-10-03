@@ -17,6 +17,7 @@
  */
 import { bbRank, kindForType } from '../lib/dwcAbundanceCore';
 import { AMS_CODESET, AMS_VARIABLES, amsField } from './codesets/forestgeoAms2021';
+import { BUILTIN_INTERACTION_CODES } from './codesets/interactions';
 import type { SurveyLevel, SurveyStyle } from './template/types';
 
 export type ValueType = 'num' | 'text' | 'json';
@@ -82,6 +83,7 @@ export const COMPONENT_TYPES = [
   'traits',
   'environment',
   'choice',
+  'interaction',
 ] as const;
 export type ComponentType = (typeof COMPONENT_TYPES)[number];
 
@@ -156,6 +158,27 @@ function traitsChange(prev: Params, next: Params): ParamsChange {
     if (n.max != null && (p.max == null || n.max < p.max)) return 'breaking';
   }
   for (const k of new Set([...Object.keys(prev), ...Object.keys(next)])) if (k !== 'traits' && !sameJson(prev[k], next[k])) return 'breaking';
+  return 'additive';
+}
+
+/**
+ * Interaction (2F): built-in types may be added, the template's own list
+ * named where there was none, the count switched on and the photo limit
+ * raised; the list's types follow the code-list rules (classifyChange).
+ */
+function interactionChange(prev: Params, next: Params): ParamsChange {
+  for (const k of new Set([...Object.keys(prev), ...Object.keys(next)])) {
+    if (k === 'builtin') {
+      const n = asList(next.builtin);
+      if (!asList(prev.builtin).every((x) => n.includes(x))) return 'breaking';
+    } else if (k === 'list') {
+      if (prev.list !== undefined && prev.list !== next.list) return 'breaking';
+    } else if (k === 'count') {
+      if (prev.count === true && next.count !== true) return 'breaking';
+    } else if (k === 'photos') {
+      if (!(Number(next.photos) >= Number(prev.photos ?? 0))) return 'breaking';
+    } else if (!sameJson(prev[k], next[k])) return 'breaking';
+  }
   return 'additive';
 }
 
@@ -808,6 +831,40 @@ const DEFS: readonly ComponentDef[] = [
     // The list's own name says what was measured; 2E writes it from the template.
     exportMap: (p) => ({ mof: { value: { measurementType: String(p.list) } } }),
     labelKey: 'survey.component.choice',
+  },
+  {
+    // 交互作用 (Phase 2F; Modular_survey.md §5.6): what one occurrence does
+    // to another of the same survey, or with it. Its rows are its own
+    // (fw_interactions, v87; interactionCore.ts), not fields of the
+    // occurrence: an occurrence page lists them and opens the screen that
+    // records one. `builtin`: the built-in types offered
+    // (codesets/interactions.ts); `list`: the template's code list with its
+    // own types; `count`: ask how many times; `photos`: at most this many per
+    // interaction (0: none).
+    type: 'interaction',
+    required: false,
+    cardinality: 'one',
+    levels: ['occurrence'],
+    styles: NEW_STYLES,
+    defaultLevel: 'occurrence',
+    defaultParams: { builtin: [...BUILTIN_INTERACTION_CODES], count: true, photos: 2 },
+    checkParams: (p) => {
+      const out: string[] = [];
+      const b = p.builtin;
+      if (!Array.isArray(b) || new Set(b).size !== b.length || !b.every((x) => BUILTIN_INTERACTION_CODES.includes(x as string))) {
+        out.push(`builtin must list built-in types (${BUILTIN_INTERACTION_CODES.join(', ')}) once each`);
+      }
+      if (p.list !== undefined && (typeof p.list !== 'string' || !p.list.trim())) out.push("list must name one of the template's code lists");
+      if (typeof p.count !== 'boolean') out.push('count must be true or false');
+      const n = Number(p.photos);
+      if (!Number.isInteger(n) || n < 0 || n > 20) out.push('photos must be a whole number from 0 to 20');
+      return out;
+    },
+    fields: () => [],
+    // Darwin Core ResourceRelationship rows of their own (2F-b), not occurrence terms.
+    exportMap: {},
+    labelKey: 'survey.component.interaction',
+    paramsChange: interactionChange,
   },
 ];
 

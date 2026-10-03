@@ -147,7 +147,8 @@ export function buildSurveyDoc(ctx: { db: SurveyDb }, surveyId: number, opts: { 
       place: r.frame_unit_id == null ? null : (fKey.get(r.frame_unit_id) ?? null),
       occurrence: r.occurrence_id == null ? null : (oUuid.get(r.occurrence_id) ?? null),
     })),
-    media: rows<Row & { unit_id: number | null; occurrence_id: number | null }>(ctx, `SELECT * FROM fw_media WHERE survey_id = ? ORDER BY id`, [surveyId]).map((m) => ({
+    // An interaction's photos are not the survey's own; interactions join the document in 2F-b.
+    media: rows<Row & { unit_id: number | null; occurrence_id: number | null }>(ctx, `SELECT * FROM fw_media WHERE survey_id = ? AND interaction_id IS NULL ORDER BY id`, [surveyId]).map((m) => ({
       ...pick(m, MEDIA_COLS),
       unit: m.unit_id == null ? null : (uKey.get(m.unit_id) ?? null),
       occurrence: m.occurrence_id == null ? null : (oUuid.get(m.occurrence_id) ?? null),

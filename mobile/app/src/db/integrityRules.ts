@@ -61,6 +61,13 @@ export const CASCADE_ORPHANS: ReadonlyArray<readonly [string, string]> = [
   ['fw_unit_values', 'unit_id NOT IN (SELECT id FROM fw_units)'],
   ['fw_occurrence_values', 'occurrence_id NOT IN (SELECT id FROM fw_occurrences)'],
   ['fw_rechecks', 'survey_id NOT IN (SELECT id FROM fw_surveys)'],
+  // Interactions (v87): both sides are occurrences of the survey.
+  [
+    'fw_interactions',
+    'survey_id NOT IN (SELECT id FROM fw_surveys)' +
+      ' OR subject_occurrence_id NOT IN (SELECT id FROM fw_occurrences)' +
+      ' OR object_occurrence_id NOT IN (SELECT id FROM fw_occurrences)',
+  ],
   // fw_media's owners other than the survey are optional. `NULL NOT IN
   // (<empty>)` is true in SQLite, so each tests IS NOT NULL first; without it
   // an empty fw_units would sweep every photo (check:integrity-rules).
@@ -70,7 +77,8 @@ export const CASCADE_ORPHANS: ReadonlyArray<readonly [string, string]> = [
       ' OR (individual_id IS NOT NULL AND individual_id NOT IN (SELECT id FROM fw_individuals))' +
       ' OR (measure_id IS NOT NULL AND measure_id NOT IN (SELECT id FROM fw_stem_measures))' +
       ' OR (unit_id IS NOT NULL AND unit_id NOT IN (SELECT id FROM fw_units))' +
-      ' OR (occurrence_id IS NOT NULL AND occurrence_id NOT IN (SELECT id FROM fw_occurrences))',
+      ' OR (occurrence_id IS NOT NULL AND occurrence_id NOT IN (SELECT id FROM fw_occurrences))' +
+      ' OR (interaction_id IS NOT NULL AND interaction_id NOT IN (SELECT id FROM fw_interactions))',
   ],
 ];
 
@@ -118,4 +126,6 @@ export const NULL_DANGLING: ReadonlyArray<readonly [string, string, string]> = [
   ['fw_frame_labels', 'first_survey_id', 'fw_surveys'],
   // A recheck answer whose occurrence is gone (a re-identification then needs answering again).
   ['fw_rechecks', 'occurrence_id', 'fw_occurrences'],
+  // An interaction whose unit is gone stays, placed in the survey directly.
+  ['fw_interactions', 'unit_id', 'fw_units'],
 ];

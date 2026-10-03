@@ -359,7 +359,8 @@ const RECORD_SPECIES_SOURCE: Record<RecordKind, { table: string; fk: string }> =
              WHERE s.style = 'individual' AND (fi.id IS NULL OR fi.series_id <> s.series_id OR fi.census_no <= s.census_no))`,
     fk: 'survey_id',
   },
-  modular: { table: 'fw_occurrences', fk: 'survey_id' },
+  // Not those made only as an interaction's other side (v87).
+  modular: { table: '(SELECT id, taxon_id, survey_id FROM fw_occurrences WHERE via_interaction = 0)', fk: 'survey_id' },
 };
 
 /**

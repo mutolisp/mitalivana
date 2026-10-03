@@ -4623,7 +4623,8 @@
       "phenology": "물후",
       "traits": "형질",
       "environment": "환경",
-      "choice": "사용자 선택 항목"
+      "choice": "사용자 선택 항목",
+      "interaction": "상호작용"
     },
     "editor": {
       "elsewhere": "이 항목은 기록 화면에서 입력합니다.",
@@ -4682,7 +4683,8 @@
       "choice": {
         "noList": "이 선택 항목의 목록이 없습니다. 조사표 템플릿을 확인하세요.",
         "multi": "여러 개 선택 가능"
-      }
+      },
+      "interactionElsewhere": "상호작용은 각 출현 기록 페이지에서 기록합니다."
     },
     "ams": {
       "title": "AMS 고사와 손상",
@@ -4766,6 +4768,77 @@
         "c_S": "사면 붕괴",
         "c_W": "풍도"
       }
+    },
+    "interaction": {
+      "type": {
+        "feeding": {
+          "name": "포식·섭식",
+          "verb": "섭식",
+          "inverse": "섭식됨"
+        },
+        "flower_visit": {
+          "name": "방화",
+          "verb": "방화",
+          "inverse": "꽃이 방문됨"
+        },
+        "parasitism": {
+          "name": "기생",
+          "verb": "기생",
+          "inverse": "기생당함"
+        },
+        "mutualism": {
+          "name": "상리공생",
+          "verb": "상리공생"
+        },
+        "commensalism": {
+          "name": "편리공생",
+          "verb": "편리공생",
+          "inverse": "편리공생됨"
+        }
+      },
+      "line": {
+        "forward": "{{verb}}: {{partner}}",
+        "backward": "{{inverse}}: {{partner}}",
+        "byPartner": "{{partner}}이(가) {{verb}}"
+      },
+      "sentence": {
+        "forward": "{{a}} → {{b}}: {{verb}}",
+        "backward": "{{b}} → {{a}}: {{verb}} ({{a}} 페이지에서 기록, {{b}} → {{a}}(으)로 저장)",
+        "mutual": "{{a}}와(과) {{b}}: {{verb}} (양방향, 내보내기 시 2행)"
+      },
+      "count_other": "{{count}}건",
+      "photos_other": "사진 {{count}}",
+      "bothPages": "같은 상호작용은 양쪽 페이지에 모두 표시되며, 화살표와 표현은 현재 기록 기준으로 바뀝니다.",
+      "add": "상호작용 추가",
+      "viaTag": "상호작용 상대",
+      "deleteWith_other": "관련된 상호작용 {{count}}건도 삭제됩니다.",
+      "needPartner": "B를 선택하세요: 여기에 기록된 종 또는 다른 종 검색.",
+      "deleteTitle": "상호작용 삭제",
+      "addTitle": "상호작용 추가",
+      "editTitle": "상호작용",
+      "aIs": "A = {{name}}",
+      "kind": "유형",
+      "direction": "방향",
+      "dir": {
+        "forward": "A → B",
+        "backward": "A ← B",
+        "mutual": "A ↔ B"
+      },
+      "mutualOnly": "양방향 유형은 A ↔ B만 선택할 수 있으며, 내보내기 시 2행으로 기록됩니다.",
+      "partner": "B: 여기에 기록된 종",
+      "noneHere": "아직 다른 종이 없습니다. 아래에서 검색하세요.",
+      "addedToRecord": "저장 시 이 기록에 추가(상호작용 상대로, 종 수에는 포함하지 않음)",
+      "other": "다른 종(이 기록에도 추가)",
+      "times": "횟수",
+      "less": "1 감소",
+      "more": "1 증가",
+      "photoTitle_other": "사진(최대 {{count}}장)",
+      "photoLimit_other": "사진은 최대 {{count}}장",
+      "empty": "아직 상호작용이 없습니다. 출현 기록 페이지에서 추가하세요.",
+      "byType": "유형별",
+      "matrix": "행렬",
+      "matrixDesc": "{{type}}: 행은 A(행하는 쪽), 열은 B, 칸은 횟수 합계입니다.",
+      "searchBelow": "여기에 없는 종은 아래 검색으로 추가하세요."
     }
   },
   "task": {
@@ -4828,7 +4901,8 @@
       "data": "자료",
       "units_other": "단위 {{count}}",
       "species_other": "종 {{count}}",
-      "freq": "빈도"
+      "freq": "빈도",
+      "interactions_other": "상호작용 {{count}}"
     },
     "phase": {
       "blind": "블라인드",
@@ -5046,7 +5120,9 @@
       "listNoCodes": "코드 목록 “{{list}}”에 코드가 없습니다",
       "codeEmpty": "코드 목록 “{{list}}”의 {{n}}번째 코드가 비어 있습니다",
       "codeDuplicate": "코드 목록 “{{list}}”의 {{n}}번째 코드가 앞의 코드와 겹칩니다",
-      "codeNameEmpty": "코드 목록 “{{list}}”의 {{n}}번째 코드에 이름이 필요합니다"
+      "codeNameEmpty": "코드 목록 “{{list}}”의 {{n}}번째 코드에 이름이 필요합니다",
+      "interactionNone": "“{{component}}”에는 유형이 하나 이상 필요합니다",
+      "interactionCode": "“{{component}}”: 사용자 유형 코드 {{code}}가 기본 유형과 같습니다"
     },
     "upgrade": {
       "title": "진행 중인 조사를 업그레이드할까요?",
@@ -5096,7 +5172,9 @@
       "layers_other": "{{count}}층",
       "fields_other": "{{count}}개 항목",
       "max_other": "최대 {{count}}개",
-      "gps": "GNSS 위치"
+      "gps": "GNSS 위치",
+      "interactionTypes_other": "{{count}}개 유형",
+      "photos_other": "사진 {{count}}"
     },
     "kind": {
       "bb": "Braun-Blanquet",
@@ -5166,6 +5244,29 @@
       "seriesContinue": "{{n}}차로 이어서 하기(지난 회차는 “{{name}}”)",
       "seriesContinueCode": "시리즈 {{code}}의 {{n}}차로 이어서 하기(지난 회차는 “{{name}}”)",
       "seriesNew": "새 시리즈(1차부터)…"
+    },
+    "interaction": {
+      "count": "횟수 기록",
+      "countDesc": "몇 번, 몇 마리",
+      "photos": "사진 최대(0: 없음)",
+      "builtin": "기본 유형",
+      "builtinDesc": "이름은 앱 언어를 따르며, 내보내기에는 OBO Relation Ontology의 관계 이름과 ID가 기록됩니다.",
+      "mutual": "양방향",
+      "oneWay": "단방향",
+      "mutualLong": "양방향 (A ↔ B)",
+      "oneWayLong": "단방향 (A → B)",
+      "own": "사용자 유형",
+      "editOwn": "사용자 유형 편집",
+      "addOwn": "유형 추가",
+      "listName": "상호작용 유형",
+      "listDesc": "각 유형에 방향성(저장 후 변경 불가), B에서 본 표현, RO 관계 IRI(선택)를 지정합니다. 내보내기에는 영어 이름이 기록됩니다.",
+      "direction": "방향성",
+      "directionFixed": "방향성: {{dir}} (저장된 유형은 변경 불가)",
+      "inverse": "B에서 본 표현",
+      "inverseHint": "예: 산란당함",
+      "inverseEn": "B에서 본 영어 표현",
+      "iri": "RO 관계 IRI(선택)",
+      "iriBad": "IRI는 http:// 또는 https://로 시작하며 공백이 없어야 합니다"
     }
   },
   "surveyImport": {

@@ -4821,7 +4821,8 @@
       "phenology": "Phänologie",
       "traits": "Merkmale",
       "environment": "Umwelt",
-      "choice": "Eigene Auswahl"
+      "choice": "Eigene Auswahl",
+      "interaction": "Interaktionen"
     },
     "editor": {
       "elsewhere": "Dieses Element wird auf der Erfassungsseite eingegeben.",
@@ -4882,7 +4883,8 @@
       "choice": {
         "noList": "Die Liste dieser Auswahl fehlt; bitte die Formularvorlage prüfen.",
         "multi": "Mehrfachauswahl möglich"
-      }
+      },
+      "interactionElsewhere": "Interaktionen werden auf der Seite des jeweiligen Vorkommens erfasst."
     },
     "ams": {
       "title": "AMS Mortalität und Schäden",
@@ -4966,6 +4968,82 @@
         "c_S": "Hangrutsch",
         "c_W": "Windwurf"
       }
+    },
+    "interaction": {
+      "type": {
+        "feeding": {
+          "name": "Fressen",
+          "verb": "frisst",
+          "inverse": "gefressen von"
+        },
+        "flower_visit": {
+          "name": "Blütenbesuch",
+          "verb": "besucht Blüten von",
+          "inverse": "Blüten besucht von"
+        },
+        "parasitism": {
+          "name": "Parasitismus",
+          "verb": "parasitiert",
+          "inverse": "parasitiert von"
+        },
+        "mutualism": {
+          "name": "Mutualismus",
+          "verb": "mutualistisch mit"
+        },
+        "commensalism": {
+          "name": "Kommensalismus",
+          "verb": "kommensal bei",
+          "inverse": "Wirt des Kommensalen"
+        }
+      },
+      "line": {
+        "forward": "{{verb}} {{partner}}",
+        "backward": "{{inverse}} {{partner}}",
+        "byPartner": "{{partner}} {{verb}} dieses"
+      },
+      "sentence": {
+        "forward": "{{a}} {{verb}} {{b}}",
+        "backward": "{{b}} {{verb}} {{a}} (bei {{a}} erfasst, gespeichert als {{b}} → {{a}})",
+        "mutual": "{{a}} und {{b}}: {{verb}} (beidseitig; im Export zwei Zeilen)"
+      },
+      "count_one": "{{count}} Interaktion",
+      "count_other": "{{count}} Interaktionen",
+      "photos_one": "{{count}} Foto",
+      "photos_other": "{{count}} Fotos",
+      "bothPages": "Jede Interaktion erscheint auf den Seiten beider Beteiligten; Pfeil und Formulierung richten sich nach der geöffneten Seite.",
+      "add": "Interaktion hinzufügen",
+      "viaTag": "Interaktionspartner",
+      "deleteWith_one": "Auch seine {{count}} Interaktion wird gelöscht.",
+      "deleteWith_other": "Auch seine {{count}} Interaktionen werden gelöscht.",
+      "needPartner": "B wählen: eine hier erfasste Art oder eine andere suchen.",
+      "deleteTitle": "Interaktion löschen",
+      "addTitle": "Interaktion hinzufügen",
+      "editTitle": "Interaktion",
+      "aIs": "A = {{name}}",
+      "kind": "Typ",
+      "direction": "Richtung",
+      "dir": {
+        "forward": "A → B",
+        "backward": "A ← B",
+        "mutual": "A ↔ B"
+      },
+      "mutualOnly": "Ein beidseitiger Typ ist immer A ↔ B und wird als zwei Zeilen exportiert.",
+      "partner": "B: hier erfasste Arten",
+      "noneHere": "Hier ist noch keine andere Art erfasst; unten suchen.",
+      "addedToRecord": "Wird beim Speichern diesem Datensatz hinzugefügt (als Interaktionspartner, nicht als Art gezählt)",
+      "other": "Andere Art (wird diesem Datensatz hinzugefügt)",
+      "times": "Anzahl",
+      "less": "Eins weniger",
+      "more": "Eins mehr",
+      "photoTitle_one": "Foto (bis zu {{count}})",
+      "photoTitle_other": "Fotos (bis zu {{count}})",
+      "photoLimit_one": "Höchstens {{count}} Foto",
+      "photoLimit_other": "Höchstens {{count}} Fotos",
+      "empty": "Noch keine Interaktionen. Auf der Seite eines Vorkommens hinzufügen.",
+      "byType": "Nach Typ",
+      "matrix": "Matrix",
+      "matrixDesc": "{{type}}: Zeilen sind A (wer es tut), Spalten B; Zellen summieren die Anzahl.",
+      "searchBelow": "Für eine hier nicht erfasste Art die Suche unten verwenden."
     }
   },
   "task": {
@@ -5034,7 +5112,9 @@
       "units_other": "Einheiten {{count}}",
       "species_one": "Arten {{count}}",
       "species_other": "Arten {{count}}",
-      "freq": "Frequenz"
+      "freq": "Frequenz",
+      "interactions_one": "Interaktionen {{count}}",
+      "interactions_other": "Interaktionen {{count}}"
     },
     "phase": {
       "blind": "Blind",
@@ -5260,7 +5340,9 @@
       "listNoCodes": "Codeliste „{{list}}“ hat noch keine Codes",
       "codeEmpty": "Code {{n}} der Liste „{{list}}“ ist leer",
       "codeDuplicate": "Code {{n}} der Liste „{{list}}“ wiederholt einen früheren",
-      "codeNameEmpty": "Code {{n}} der Liste „{{list}}“ braucht einen Namen"
+      "codeNameEmpty": "Code {{n}} der Liste „{{list}}“ braucht einen Namen",
+      "interactionNone": "„{{component}}“ braucht mindestens einen Typ",
+      "interactionCode": "„{{component}}“: Der Code {{code}} eines eigenen Typs gehört einem vorgegebenen Typ"
     },
     "upgrade": {
       "title": "Laufende Aufnahmen umstellen?",
@@ -5315,7 +5397,11 @@
       "fields_other": "{{count}} Felder",
       "max_one": "bis zu {{count}}",
       "max_other": "bis zu {{count}}",
-      "gps": "GNSS-Position"
+      "gps": "GNSS-Position",
+      "interactionTypes_one": "{{count}} Typ",
+      "interactionTypes_other": "{{count}} Typen",
+      "photos_one": "{{count}} Foto",
+      "photos_other": "{{count}} Fotos"
     },
     "kind": {
       "bb": "Braun-Blanquet",
@@ -5386,6 +5472,29 @@
       "seriesContinue": "Als Aufnahme {{n}} fortsetzen (zuletzt „{{name}}“)",
       "seriesContinueCode": "Serie {{code}} als Aufnahme {{n}} fortsetzen (zuletzt „{{name}}“)",
       "seriesNew": "Neue Serie (ab Aufnahme 1)…"
+    },
+    "interaction": {
+      "count": "Anzahl erfassen",
+      "countDesc": "Wie oft oder wie viele Tiere",
+      "photos": "Fotos höchstens (0: keine)",
+      "builtin": "Vorgegebene Typen",
+      "builtinDesc": "Benannt in der Sprache der App; der Export schreibt die Relation der OBO Relation Ontology und ihre ID.",
+      "mutual": "beidseitig",
+      "oneWay": "einseitig",
+      "mutualLong": "Beidseitig (A ↔ B)",
+      "oneWayLong": "Einseitig (A → B)",
+      "own": "Eigene Typen",
+      "editOwn": "Eigene Typen bearbeiten",
+      "addOwn": "Typ hinzufügen",
+      "listName": "Interaktionstypen",
+      "listDesc": "Jeder Typ hat eine Richtung (nach dem Speichern fest), eine Formulierung aus Sicht von B und optional eine RO-Relations-IRI. Der Export schreibt den englischen Namen.",
+      "direction": "Richtung",
+      "directionFixed": "Richtung: {{dir}} (nach dem Speichern fest)",
+      "inverse": "Aus Sicht von B",
+      "inverseHint": "z. B. belegt von",
+      "inverseEn": "Aus Sicht von B, auf Englisch",
+      "iri": "RO-Relations-IRI (optional)",
+      "iriBad": "Eine IRI beginnt mit http:// oder https:// und enthält keine Leerzeichen"
     }
   },
   "surveyImport": {

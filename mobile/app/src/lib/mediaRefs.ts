@@ -81,12 +81,13 @@ export function listRecordMedia(kind: MergeKind, id: number): Array<FileItem & {
  * A checklist / plot-style survey's files: its photo rows (each says its
  * unit or occurrence, as the survey document keys them) and its plot's
  * morphospecies photos (keyed by taxon + label, as the merge keys them).
+ * Interactions' photos travel with the interactions (2F-b), not yet.
  */
 function modularMedia(id: number): Array<FileItem & { ref: MediaRef }> {
   const media = rows(
     `SELECT md.uuid, md.uri, md.component, md.kind, u.level_key, u.code, o.uuid AS occ FROM fw_media md
        LEFT JOIN fw_units u ON u.id = md.unit_id LEFT JOIN fw_occurrences o ON o.id = md.occurrence_id
-      WHERE md.survey_id = ? ORDER BY md.id`,
+      WHERE md.survey_id = ? AND md.interaction_id IS NULL ORDER BY md.id`,
     [id],
   ).map((r) => ({
     uri: String(r.uri),
