@@ -13,7 +13,9 @@
  *     a tree's first census, D when dead, F alive under the threshold, A; dbh
  *     in mm is the largest live stem; trees.csv gives the subquadrat; stems.csv
  *     one row per measured stem; the vegan table sums live basal area per
- *     quadrat and species;
+ *     quadrat and species; census.csv and stems.csv carry each census's
+ *     eventID (plot code plus series code, the plot rule) and the census
+ *     template's traits and own code lists (2D-b) after the earlier columns;
  *   - importing where censuses are here: skip leaves them, overwrite makes
  *     them equal to the file (what was added here since goes), merge hands
  *     them to the census merge; a census created from the file only adds rows
@@ -220,6 +222,38 @@ ok(trees.rows.find((r) => r[col(trees, 'individual_uuid')] === u2)[col(trees, 't
 const stems = tb.stemsTable(doc);
 ok(stems.rows.length === 9 && stems.rows.some((r) => r[col(stems, 'stem_tag')].endsWith('-2') && r[col(stems, 'dbh_mm')] === '310'), `stems.csv: one row per measured stem, cm and mm (${stems.rows.length})`);
 ok(!stems.header.some((h) => h.startsWith('ams_')), 'stems.csv: no AMS columns for a census-codes-only file');
+// eventIDs (§7.4): the plot rule inside the series, base plot code (+ series code).
+{
+  const ev = tb.censusEventIds(doc);
+  const code = String(doc.frame.code);
+  ok(ev.get(1) === code && ev.get(2)?.startsWith(`${code}_`), `eventID: census 1 the plot code, census 2 dated (${[...ev.values()]})`);
+  ok(row(census, 2, u1)[col(census, 'eventID')] === ev.get(2) && stems.rows.every((r) => r[col(stems, 'eventID')] === ev.get(Number(r[col(stems, 'census_no')]))), 'census.csv / stems.csv: each row its census’s eventID');
+  const coded = JSON.parse(JSON.stringify(doc));
+  coded.series.series_code = 'ams';
+  ok(tb.censusEventIds(coded).get(1) === `${code}_ams`, 'eventID: a later series adds its code');
+}
+// A census template's traits and own code list (2D-b): columns of their own, values as recorded.
+{
+  const withT = JSON.parse(JSON.stringify(doc));
+  const last = withT.censuses[withT.censuses.length - 1];
+  const tpl = JSON.parse(last.survey.template_snapshot);
+  tpl.codelists = [{ id: 'list_1', label: { text: '損傷' }, items: [{ code: '1', label: { text: '蟲害' } }, { code: '2', label: { text: '折枝' } }] }];
+  tpl.components = [
+    ...tpl.components.map((c) => (c.type === 'health' ? { ...c, params: { codesets: ['forestgeo-census-1998', 'list_1'] } } : c)),
+    { key: 'traits', type: 'traits', level: 'individual', required: false, params: { traits: [{ id: 'crown_width', label: { text: '冠幅' }, unit: 'm' }] } },
+  ];
+  last.survey.template_snapshot = JSON.stringify(tpl);
+  const treeUuid = last.treeValues[0]?.tree_uuid ?? withT.trees[0].uuid;
+  const stemUuid = last.measures[0].stem_uuid;
+  last.treeValues.push({ uuid: 'tv-1', tree_uuid: treeUuid, component: 'traits', field: 'crown_width', idx: 0, value_num: 5.5, value_text: null, unit: 'm' });
+  last.stemValues.push({ uuid: 'sv-1', stem_uuid: stemUuid, component: 'health', field: 'codes_list_1', idx: 0, value_num: null, value_text: '["1","2"]', unit: null });
+  const ct = tb.censusTable(withT);
+  const st = tb.stemsTable(withT);
+  const n = String(last.survey.census_no);
+  ok(ct.header.at(-1) === 'traits.crown_width' && ct.header.slice(0, census.header.length).join() === census.header.join(), `census.csv: a trait column after the others (${ct.header.slice(-2)})`);
+  ok(ct.rows.find((r) => r[col(ct, 'individual_uuid')] === treeUuid && r[col(ct, 'census_no')] === n)[col(ct, 'traits.crown_width')] === '5.5', 'census.csv: the trait value');
+  ok(st.header.includes('codes_list_1') && st.rows.find((r) => r[col(st, 'stem_uuid')] === stemUuid && r[col(st, 'census_no')] === n)[col(st, 'codes_list_1')] === '1;2', 'stems.csv: the code list column, codes joined with ;');
+}
 // The same file as an AMS census would write it (2B): AMS columns, values as written.
 {
   const withAms = JSON.parse(JSON.stringify(doc));

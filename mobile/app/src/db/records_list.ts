@@ -152,7 +152,9 @@ function gloriaToItem(g: GloriaSurveyWithMeta): RecordItem {
 
 function surveyToItem(c: CensusListRow): RecordItem {
   const projectName = c.project_name || i18n.t('plot.uncategorized');
-  const subtitle = i18n.t('recordsList.surveySubtitle', { count: c.tree_count, n: c.census_no });
+  // A plot with several census series (2D-b): which one, after the number.
+  const base = i18n.t('recordsList.surveySubtitle', { count: c.tree_count, n: c.census_no });
+  const subtitle = c.series_code ? `${base} · ${c.series_code}` : base;
   return {
     kind: 'perm_survey',
     id: c.id,
@@ -193,9 +195,9 @@ function modularToItem(s: SurveyListRow): RecordItem {
   };
 }
 
-/** Record-list items as export items. Checklist / plot-style surveys have no export yet (Phase 2E) and are left out. */
+/** Record-list items as export items. */
 export function bundleItemsOf(items: readonly { kind: RecordKind; id: number }[]): BundleItem[] {
-  return items.flatMap((it) => (it.kind === 'modular' ? [] : [{ kind: it.kind, id: it.id }]));
+  return items.map((it) => ({ kind: it.kind, id: it.id }));
 }
 
 export function listRecords(filter: RecordFilter = 'all'): RecordItem[] {

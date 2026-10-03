@@ -25,8 +25,9 @@ import type { CensusExportDoc } from '../db/censusExportCore';
 import { fgQuadratCounts, formatFgQuadratCode, subquadratOf, type FrameGeometry } from './coords';
 import { stemIsDead, treeStatus, type StemCensusInput } from './status';
 import { AMS_CODESET, AMS_VARIABLES, amsField, amsValueOf } from '../codesets/forestgeoAms2021';
-import { healthCodesets } from '../registry';
+import { BUILTIN_CODESETS, healthCodesets, type TraitDef } from '../registry';
 import type { SurveyTemplate } from '../template/types';
+import { eventBase, surveyEventIds } from '../export/surveyExportCore';
 
 export type Names = (taxonId: string) => { scientific: string | null; vernacular: string | null };
 
@@ -95,25 +96,60 @@ function censusIndex(doc: CensusExportDoc, i: number) {
   }
   const treeCodes = new Map<string, string[]>();
   const height = new Map<string, number>();
+  // Other tree values by tree|component|field: the templates' traits.
+  const traits = new Map<string, number>();
   for (const v of c.treeValues) {
     if (v.component === 'health' && v.field === 'census_tree_codes') treeCodes.set(v.tree_uuid as string, parseList(v.value_text));
-    if (v.component === 'height' && v.field === 'height_m' && v.value_num != null) height.set(v.tree_uuid as string, Number(v.value_num));
+    else if (v.component === 'height' && v.field === 'height_m' && v.value_num != null) height.set(v.tree_uuid as string, Number(v.value_num));
+    else if (v.value_num != null) traits.set(`${str(v.tree_uuid)}|${str(v.component)}|${str(v.field)}`, Number(v.value_num));
   }
+  // The template's own code lists on each stem, by stem|list.
+  const custom = new Map<string, string[]>();
+  for (const v of c.stemValues) if (v.component === 'health' && str(v.field).startsWith('codes_')) custom.set(`${str(v.stem_uuid)}|${str(v.field).slice(6)}`, parseList(v.value_text));
   const quadratDate = new Map(c.quadrats.map((q) => [q.quadrat_code as string, (q.started_at as number | null) ?? null]));
-  return { c, measureOf, stemCodes, ams, treeCodes, height, quadratDate };
+  return { c, measureOf, stemCodes, ams, treeCodes, height, traits, custom, quadratDate };
 }
 
 const AMS_VAR = new Map(AMS_VARIABLES.map((v) => [amsField(v.field), v]));
 
+const snapshotOf = (c: { survey: Row }): SurveyTemplate | null => {
+  try {
+    return JSON.parse(str(c.survey.template_snapshot)) as SurveyTemplate;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Each census's eventID (Modular_survey.md §7.4): the plot rule inside the
+ * series, its base the plot code plus the series code; by census number.
+ */
+export function censusEventIds(doc: CensusExportDoc): Map<number, string> {
+  const base = eventBase({ frameCode: str(doc.frame.code), seriesCode: str(doc.series.series_code), name: null, uuid: str(doc.frame.uuid) });
+  return surveyEventIds(doc.censuses.map((c) => ({ id: Number(c.survey.census_no), base, startTs: (c.survey.start_ts as number | null) ?? null })));
+}
+
+/** The census templates' traits on the tree (2D-b), as columns `key.trait`, in the order first met. */
+function traitColumns(doc: CensusExportDoc): { key: string; id: string }[] {
+  const out: { key: string; id: string }[] = [];
+  for (const c of doc.censuses) {
+    for (const comp of snapshotOf(c)?.components ?? []) {
+      if (comp.type !== 'traits' || comp.level !== 'individual' || !Array.isArray(comp.params.traits)) continue;
+      for (const tr of comp.params.traits as TraitDef[]) if (!out.some((x) => x.key === comp.key && x.id === tr.id)) out.push({ key: comp.key, id: tr.id });
+    }
+  }
+  return out;
+}
+
+/** The census templates' own health code lists (2D-b), as columns `codes_<list>`. */
+function customListColumns(doc: CensusExportDoc): string[] {
+  const builtin = new Set<string>(BUILTIN_CODESETS);
+  return [...new Set(doc.censuses.flatMap((c) => healthCodesets(snapshotOf(c)?.components ?? []).filter((x) => !builtin.has(x))))];
+}
+
 /** Whether any census in the file records the AMS code set (its template snapshot's Health component). */
 function docUsesAms(doc: CensusExportDoc): boolean {
-  return doc.censuses.some((c) => {
-    try {
-      return healthCodesets((JSON.parse(str(c.survey.template_snapshot)) as SurveyTemplate).components).includes(AMS_CODESET);
-    } catch {
-      return false;
-    }
-  });
+  return doc.censuses.some((c) => healthCodesets(snapshotOf(c)?.components ?? []).includes(AMS_CODESET));
 }
 
 export function treesTable(doc: CensusExportDoc, names: Names): Table {
@@ -148,7 +184,10 @@ export function treesTable(doc: CensusExportDoc, names: Names): Table {
 }
 
 export function censusTable(doc: CensusExportDoc): Table {
-  const header = ['census_no', 'tag', 'individual_uuid', 'dbh_mm', 'pom', 'pom_m', 'stems', 'status', 'date', 'codes', 'height_m'];
+  // eventID and the templates' traits come last, so earlier files' columns keep their places.
+  const traits = traitColumns(doc);
+  const events = censusEventIds(doc);
+  const header = ['census_no', 'tag', 'individual_uuid', 'dbh_mm', 'pom', 'pom_m', 'stems', 'status', 'date', 'codes', 'height_m', 'eventID', ...traits.map((x) => `${x.key}.${x.id}`)];
   const threshold = Number(doc.frame.dbh_min_cm);
   const noOf = new Map(doc.censuses.map((c) => [c.survey.uuid as string, Number(c.survey.census_no)]));
   const stemsOf = new Map<string, Row[]>();
@@ -201,6 +240,8 @@ export function censusTable(doc: CensusExportDoc): Table {
         when != null ? isoDate(when) : '',
         codes.join(';'),
         str(ix.height.get(str(t.uuid))),
+        events.get(n) ?? '',
+        ...traits.map((x) => str(ix.traits.get(`${str(t.uuid)}|${x.key}|${x.id}`))),
       ]);
     }
   });
@@ -210,8 +251,13 @@ export function censusTable(doc: CensusExportDoc): Table {
 export function stemsTable(doc: CensusExportDoc): Table {
   // AMS columns only when a census records the AMS code set, so a census-codes-only file keeps its columns.
   const withAms = docUsesAms(doc);
+  const lists = customListColumns(doc);
+  const events = censusEventIds(doc);
   const header = [
     'census_no', 'tag', 'stem_no', 'stem_tag', 'stem_uuid', 'dbh_cm', 'dbh_mm', 'pom_m', 'pom_seq', 'main', 'stem_dead', 'codes', 'pending', 'date', 'recorded_by',
+    // After the earlier files' columns (they keep their places), before the AMS block.
+    'eventID',
+    ...lists.map((l) => `codes_${l}`),
     ...(withAms ? AMS_VARIABLES.map((v) => amsField(v.field)) : []),
   ];
   const treeOf = new Map(doc.trees.map((t) => [str(t.uuid), t]));
@@ -244,6 +290,8 @@ export function stemsTable(doc: CensusExportDoc): Table {
         str(m.pending),
         m.measured_at != null ? isoDate(Number(m.measured_at)) : '',
         str(m.recorded_by),
+        events.get(Number(ix.c.survey.census_no)) ?? '',
+        ...lists.map((l) => (ix.custom.get(`${str(st.uuid)}|${l}`) ?? []).join(';')),
         ...(withAms ? AMS_VARIABLES.map((v) => ix.ams.get(str(st.uuid))?.get(v.field) ?? '') : []),
       ]);
     }

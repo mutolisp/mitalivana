@@ -1922,7 +1922,6 @@
   "recordImport": {
     "unsupportedBundle": "Ceci est une archive regroupant plusieurs enregistrements ; décompressez-la et importez chaque enregistrement séparément.",
     "unknownKind": "Impossible de déterminer le type d'enregistrement contenu dans ce fichier.",
-    "modularNotYet": "Ce fichier contient un relevé de type liste / placette. Pour l'instant, ces relevés ne circulent que par la synchronisation d'équipe ; l'import de fichier arrivera dans une version ultérieure.",
     "sessionExistsTitle": "La liste d'espèces existe déjà",
     "sessionExistsMsg": "« {{name}} » est déjà présente sur cet appareil. L'écraser, ou enregistrer une nouvelle copie ?",
     "photoConflictTitle": "Cet enregistrement contient déjà des photos",
@@ -5210,10 +5209,6 @@
     "deleteMsg_one": "Supprimer « {{name}} » et son occurrence ({{count}}) ?",
     "deleteMsg_many": "Supprimer « {{name}} » et ses {{count}} occurrences ? Ce sera définitif.",
     "deleteMsg_other": "Supprimer « {{name}} » et ses {{count}} occurrences ?",
-    "noExport": "Les relevés de type liste et placette ne s’exportent pas encore",
-    "notInProjectExport_one": "{{count}} relevé de type liste / placette ne s’exporte pas encore et manque à cet export",
-    "notInProjectExport_many": "{{count}} relevés de type liste / placette ne s’exportent pas encore et manquent à cet export",
-    "notInProjectExport_other": "{{count}} relevés de type liste / placette ne s’exportent pas encore et manquent à cet export",
     "noDuplicate": "Les relevés de type liste et placette ne se dupliquent pas encore",
     "noMerge": "Les relevés de type liste et placette ne se fusionnent pas encore",
     "projectCount_one": "{{count}} relevé de type liste / placette",
@@ -5612,5 +5607,20 @@
       "seriesContinueCode": "Continuer la série {{code}} comme inventaire {{n}} (le dernier utilisait « {{name}} »)",
       "seriesNew": "Nouvelle série (à partir de l’inventaire 1)…"
     }
+  },
+  "surveyImport": {
+    "existsTitle": "Ce relevé est déjà ici",
+    "existsMsg": "« {{name}} » est déjà sur cet appareil (le même relevé, ou le même numéro sur la même placette permanente et le même modèle). Fusionner, ou le remplacer par le fichier ?",
+    "invalid": "Le relevé du fichier est illisible : {{detail}}",
+    "newerApp": "Ce relevé utilise des composants que cette version de l’app ne connaît pas ({{types}}). Mettez d’abord l’app à jour.",
+    "numberTaken": "« {{name}} » : cette série de la placette permanente a déjà ici un autre relevé avec ce numéro ; import impossible.",
+    "done": "« {{name}} » importé",
+    "overwrittenTitle": "Remplacé",
+    "overwrittenMsg_one": "« {{name}} » contient maintenant le contenu du fichier ({{count}} ligne modifiée). L’ancien contenu est gardé comme version, restaurable depuis Versions.",
+    "overwrittenMsg_other": "« {{name}} » contient maintenant le contenu du fichier ({{count}} lignes modifiées). L’ancien contenu est gardé comme version, restaurable depuis Versions.",
+    "overwrittenMsg_many": "« {{name}} » contient maintenant le contenu du fichier ({{count}} lignes modifiées). L’ancien contenu est gardé comme version, restaurable depuis Versions.",
+    "photosSkipped_one": "{{count}} photo n’a pas pu être enregistrée dans la photothèque et n’a pas été importée",
+    "photosSkipped_other": "{{count}} photos n’ont pas pu être enregistrées dans la photothèque et n’ont pas été importées",
+    "photosSkipped_many": "{{count}} photos n’ont pas pu être enregistrées dans la photothèque et n’ont pas été importées"
   }
 }

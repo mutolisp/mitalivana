@@ -14,6 +14,7 @@ import { safeAppFileUri } from './appFiles';
 import { syncBlockFor } from '~/db/syncBase';
 import { readAsStringAsync } from 'expo-file-system/legacy';
 import { buildCensusEntries } from '~/survey/censusBundle';
+import { buildSurveyEntries } from '~/survey/surveyBundle';
 import * as MediaLibrary from 'expo-media-library';
 import yaml from 'js-yaml';
 import { strFromU8, strToU8, type ZipOptions } from 'fflate';
@@ -173,7 +174,9 @@ export type BundleItem =
   | { kind: 'collection'; id: number }
   | { kind: 'gloria'; id: number }
   /** A tree census. Its files still say 'survey' (manifest kind), as older ones do. */
-  | { kind: 'perm_survey'; id: number };
+  | { kind: 'perm_survey'; id: number }
+  /** A checklist / plot-style survey (Phase 2E-a); its manifest kind is 'modular'. */
+  | { kind: 'modular'; id: number };
 
 export function sanitizeFilename(name: string): string {
   // Allow Unicode letters (incl. CJK), digits, underscore, hyphen, dot. Without
@@ -426,6 +429,17 @@ const README_RULES: Array<{ match: (name: string) => boolean; desc: string }> = 
   },
   { match: (n) => n.endsWith('_stems.csv'), desc: '每木調查分支表：每回合一列一個有量測的分支，DBH（cm 與 mm）、POM 高度與序號、主分支、分支死亡、代碼' },
   { match: (n) => /_vegan_basal_area_census\d+\.csv$/.test(n), desc: '每木調查 vegan 群落矩陣：一回合一個檔，列為樣方、欄為物種，值為活分支的胸高斷面積（cm²）' },
+  // Checklist / plot-style surveys (Phase 2E-a, src/survey/export/surveyExportCore.ts).
+  { match: (n) => n.endsWith('_survey.csv'), desc: '調查表：這次調查一列，eventID、模板與版本、永久樣區與系列代號、次數，加上調查層各元件的欄位' },
+  { match: (n) => n.endsWith('_units.csv'), desc: '單位表（樣區型）：一列一個單位，eventID 與上層 parentEventID、層級、代碼，加上單位層各元件的欄位' },
+  { match: (n) => n.endsWith('_occurrences.csv'), desc: '出現記錄表：一列一筆，所在單位、物種，加上出現記錄各元件的欄位（欄名「元件 key.欄位」，自訂選項另有 _name 欄）' },
+  { match: (n) => n.endsWith('_fields.csv'), desc: '欄位說明：每個元件欄位的元件名稱、單位、對應的 DwC 詞彙或量測類型' },
+  { match: (n) => n.endsWith('_codelists.csv'), desc: '代碼清單：模板自己的代碼、名稱與是否停用' },
+  { match: (n) => n.endsWith('_rechecks.csv'), desc: '複查結果：前次有、這次盲測沒記的物種逐一的結果' },
+  {
+    match: (n) => /_vegan_(presence|bb_cover_pct|percent_cover|count|basal_area_cm2)\.csv$/.test(n),
+    desc: 'vegan 群落矩陣（樣區型）：列為單位、欄為物種；presence 為有無，其餘一種豐度尺度一個檔，只含用該尺度的記錄（Braun-Blanquet 換算為覆蓋度 %：r=1、+=2、1=3、2=15、3=38、4=63、5=88，出處同專案匯出的 cover_scale.csv；同格多筆取最大；個體數相加；胸徑為胸高斷面積 cm²）；無 BOM，供 R 直接讀取',
+  },
   { match: (n) => n.endsWith('.md'), desc: '物種名錄文件（Markdown）' },
   { match: (n) => n.endsWith('.docx'), desc: '物種名錄文件（DOCX 排版文書檔）' },
   { match: (n) => n.endsWith('.odt'), desc: '物種名錄文件（ODT 排版文書檔）' },
@@ -1367,6 +1381,43 @@ export async function bundleCensus(surveyId: number, opts: BundleOptions): Promi
   return await finalizeZip(entries, folderName, opts.onProgress);
 }
 
+/**
+ * A checklist / plot-style survey (Phase 2E-a): the files come from
+ * src/survey/surveyBundle.ts; this adds the manifest and README. Photos and
+ * recordings ride on `includePhotos`, as the other kinds' do.
+ */
+export async function buildModularBundleEntries(
+  surveyId: number,
+  opts: Pick<BundleOptions, 'includePhotos' | 'onProgress'>,
+): Promise<{ entries: BuiltZipEntry[]; folderName: string }> {
+  if (opts.includePhotos) await ensurePhotosReadAccess();
+  const built = await buildSurveyEntries(surveyId, {
+    includePhotos: opts.includePhotos,
+    extOf: (uri) => guessExt(uri),
+    onFile: (done, total) => opts.onProgress?.({ label: i18n.t('export.stage.photos'), done, total }),
+    readFile: async (ref) => {
+      const fileUri = ref.kind === 'audio' ? safeAppFileUri(ref.uri) : await resolveAssetUri(ref.uri);
+      if (!fileUri) return null;
+      try {
+        return base64ToBytes(await readAsStringAsync(fileUri, { encoding: 'base64' }));
+      } catch {
+        return null; // gone from the device: the document still names it
+      }
+    },
+  });
+  const entries: BuiltZipEntry[] = [...built.entries];
+  const manifest = buildManifest({ kind: 'modular', id: surveyId, uuid: built.uuid, name: built.name, record_count: built.occurrences, photo_count: built.files });
+  entries.push({ name: `${built.folderName}/manifest.json`, bytes: strToU8(JSON.stringify(manifest, null, 2)) });
+  entries.push({ name: `${built.folderName}/README.md`, bytes: strToU8(buildRecordReadme(built.folderName, entries)) });
+  return { entries, folderName: built.folderName };
+}
+
+export async function bundleModular(surveyId: number, opts: BundleOptions): Promise<ExportFile> {
+  opts.onProgress?.({ label: i18n.t('export.preparing') });
+  const { entries, folderName } = await buildModularBundleEntries(surveyId, opts);
+  return await finalizeZip(entries, folderName, opts.onProgress);
+}
+
 export async function bundleGloria(surveyId: number, opts: BundleOptions): Promise<ExportFile> {
   opts.onProgress?.({ label: i18n.t('export.preparing') });
   const { entries, folderName } = await buildGloriaEntries(surveyId, opts);
@@ -1910,7 +1961,7 @@ export function base64ToBytes(b64: string): Uint8Array {
 }
 
 function buildManifest(meta: {
-  kind: 'session' | 'plot' | 'collection' | 'gloria' | 'survey' | 'bundle';
+  kind: 'session' | 'plot' | 'collection' | 'gloria' | 'survey' | 'modular' | 'bundle';
   id?: number;
   /** Plot survey uuid (plot_surveys.uuid) — the stable round-trip key. */
   uuid?: string;
@@ -2004,6 +2055,7 @@ export async function bundleMany(items: BundleItem[], opts: BundleOptions): Prom
           break;
         case 'gloria':
         case 'perm_survey':
+        case 'modular':
           break; // these builders report their own photo progress
         default:
           assertNever(it, 'bundle kind');
@@ -2056,6 +2108,12 @@ export async function bundleMany(items: BundleItem[], opts: BundleOptions): Prom
           allEntries.push(...entries);
           // The file format's word for a census.
           itemMeta.push({ kind: 'survey', id: it.id, folder: folderName });
+          break;
+        }
+        case 'modular': {
+          const { entries, folderName } = await buildModularBundleEntries(it.id, opts);
+          allEntries.push(...entries);
+          itemMeta.push({ kind: 'modular', id: it.id, folder: folderName });
           break;
         }
         default:

@@ -62,6 +62,7 @@ import { useActiveSurvey } from '~/survey/form/activeSurvey';
 import {
   bundleCollection,
   bundleCensus,
+  bundleModular,
   bundleGloria,
   bundleMany,
   bundlePlot,
@@ -570,11 +571,6 @@ export default function RecordsListScreen() {
   };
 
   const handleExportOne = async (item: RecordItem) => {
-    // Checklist / plot-style surveys are exported from Phase 2E on.
-    if (item.kind === 'modular') {
-      toast(t('surveyForm.noExport'));
-      return;
-    }
     const bundleItem: BundleItem = { kind: item.kind, id: item.id };
     const est = await estimateBundleSize([bundleItem], { includePhotos });
     const proceed = await confirmIfLarge(est.totalBytes);
@@ -601,6 +597,7 @@ export default function RecordsListScreen() {
       if (item.kind === 'collection') return bundleCollection(item.id, bundleOpts);
       if (item.kind === 'gloria') return bundleGloria(item.id, bundleOpts);
       if (item.kind === 'perm_survey') return bundleCensus(item.id, bundleOpts);
+      if (item.kind === 'modular') return bundleModular(item.id, bundleOpts);
       return bundlePlot(item.id, bundleOpts);
     });
   };
@@ -610,8 +607,6 @@ export default function RecordsListScreen() {
   // preferences, no options sheet).
   const handleExportProject = async (group: ProjectGroup) => {
     if (exportBusy) return;
-    const modular = group.items.filter((it) => it.kind === 'modular').length;
-    if (modular > 0) toast(t('surveyForm.notInProjectExport', { count: modular }));
     const okGo = await confirmExportContent(t, {
       analysisFormats,
       matrixValue,
@@ -664,10 +659,6 @@ export default function RecordsListScreen() {
     for (const k of selected) {
       const it = byKey.get(k);
       if (it) picked.push(it);
-    }
-    if (picked.some((it) => it.kind === 'modular')) {
-      toast(t('surveyForm.noExport'));
-      return;
     }
     bundleItems.push(...bundleItemsOf(picked));
     if (bundleItems.length === 0) {
@@ -1437,11 +1428,9 @@ export default function RecordsListScreen() {
               color: 'acorn',
               onPress: () => handleToggleStar(item),
             },
-            // A census is exported, not duplicated or sent to iNaturalist; a
-            // checklist / plot-style survey has none of the three yet (2E).
-            ...(item.kind === 'modular'
-              ? []
-              : item.kind === 'perm_survey'
+            // A census and a checklist / plot-style survey are exported, not
+            // duplicated or sent to iNaturalist.
+            ...(item.kind === 'perm_survey' || item.kind === 'modular'
               ? ([
                   {
                     label: t('common.export'),

@@ -4,6 +4,31 @@
  */
 import type { TFunction } from 'i18next';
 import type { TreeChip } from '~/survey/stemmap/review';
+import type { TraitDef } from '~/survey/registry';
+import type { Label, SurveyTemplate } from '~/survey/template/types';
+import { amsLabelKey } from './AmsStemFields';
+import { labelText } from './editors/shared';
+
+/**
+ * A census value's name (a stem's or a tree's, in one census): height, the
+ * census codes, an AMS variable, one of the template's traits or code lists.
+ * The census merge review shows these instead of the stored field names.
+ */
+export function censusValueName(t: TFunction, lang: string, template: SurveyTemplate | null, component: string, field: string): string {
+  if (component === 'height' && field === 'height_m') return t('survey.tree.height');
+  if (component === 'health') {
+    if (field === 'census_codes') return t('survey.tree.codes');
+    if (field === 'census_tree_codes') return t('survey.tree.wholeDead');
+    if (field.startsWith('ams_')) return `AMS ${t(amsLabelKey(field.slice(4)))}`;
+    if (field.startsWith('codes_')) return labelText(t, lang, template?.codelists.find((l) => l.id === field.slice(6))?.label, field.slice(6));
+  }
+  const traits = template?.components.find((c) => c.key === component && c.type === 'traits');
+  if (traits && Array.isArray(traits.params.traits)) {
+    const tr = (traits.params.traits as TraitDef[]).find((x) => x.id === field);
+    if (tr) return labelText(t, lang, tr.label as Label, field);
+  }
+  return field;
+}
 
 /** Meaning of a census code (Condit 1998 Tables 2.2.1 / 2.5.1, in the UI language). */
 export function codeLabel(t: TFunction, code: string): string {

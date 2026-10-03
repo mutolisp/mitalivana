@@ -40,6 +40,7 @@ import {
 import { parsePhotoUris } from '~/lib/bundleExport';
 import { matchScientificName } from '~/lib/sciMatch';
 import { finishCensusImport } from '~/survey/censusImport';
+import { finishModularImport } from '~/survey/surveyImport';
 import { importPhotosToLibrary } from '~/lib/photoCapture';
 import { importAudioClips } from '~/lib/audioCapture';
 import { ImportError, type ImportErrorCode } from '~/lib/importError';
@@ -458,8 +459,7 @@ export async function importRecordPromptAndOpen(): Promise<void> {
         await finishCensusImport(payload);
         break;
       case 'modular':
-        // Only team sync carries these so far; a file format comes with export (Phase 2E).
-        Alert.alert(i18n.t('recordCreate.importFailTitle'), i18n.t('recordImport.modularNotYet'));
+        await finishModularImport({ survey: payload.survey, photos: payload.photos, audio: payload.audio, sync: payload.sync });
         break;
       default:
         assertNever(payload, 'import kind');

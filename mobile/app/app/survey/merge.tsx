@@ -23,13 +23,14 @@ import { isoStamp } from '~/lib/datetime';
 import { errText } from '~/lib/errText';
 import { BackHeaderLeft } from '~/lib/goBack';
 import { mergeSummary } from '~/lib/mergeSummaryText';
-import { needsReview, summarizeItems, type Decision, type MergeItem } from '~/lib/mergeEngine';
+import { needsReview, summarizeItems, type Decision, type MergeItem, type MergeRow } from '~/lib/mergeEngine';
 import { getTeam } from '~/lib/teamSync';
 import { useToast } from '~/stores/toast';
 import { applyCensusMerge, openCensusMerge, settleCensusMerge, useCensusMerge } from '~/survey/censusSync';
 import type { CensusSlice } from '~/survey/db/sliceCore';
 import type { Collision, CollisionDecision, TreeBrief } from '~/survey/db/censusSyncCore';
-import { getSurvey, getFrame, suggestTag } from '~/survey/db/stemmap';
+import { censusTemplate, getSurvey, getFrame, suggestTag } from '~/survey/db/stemmap';
+import { censusValueName } from '~/survey/components/labels';
 import { useThemeColors } from '~/theme/colors';
 
 function TreeLine({ who, tree }: { who: string; tree: TreeBrief }) {
@@ -117,12 +118,24 @@ const toDecision = (d: Draft | undefined, c: Collision): CollisionDecision | nul
 };
 
 export default function CensusMergeScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const toast = useToast((s) => s.show);
   const pending = useCensusMerge((s) => s.pending);
   const [clashes, setClashes] = useState<Collision[] | null>(null);
   const [drafts, setDrafts] = useState<Map<string, Draft>>(new Map());
   const [settled, setSettled] = useState<{ items: MergeItem[]; remote: CensusSlice } | null>(null);
+  // A stem's or tree's value named in words (height, codes, AMS, a trait or code list), not by its stored field.
+  const shownItems = useMemo(() => {
+    if (!settled) return [];
+    const tpl = pending ? censusTemplate(pending.surveyId) : null;
+    const named = (tbl: string, r: MergeRow | null): MergeRow | null => {
+      if (!r || (tbl !== 'sval' && tbl !== 'ival')) return r;
+      const field = String(r.data.field ?? '');
+      const prefix = r.label.endsWith(` ${field}`) ? r.label.slice(0, -(field.length + 1)) : r.label;
+      return { ...r, label: `${prefix} ${censusValueName(t, i18n.language, tpl, String(r.data.component ?? ''), field)}` };
+    };
+    return settled.items.map((it) => ({ ...it, local: named(it.tbl, it.local), remote: named(it.tbl, it.remote) }));
+  }, [settled, pending, t, i18n.language]);
   const [decisions, setDecisions] = useState<Map<string, Decision>>(new Map());
   const [busy, setBusy] = useState(false);
   const by = pending?.teamId ? (getTeam(pending.teamId)?.member_name ?? null) : null;
@@ -269,7 +282,7 @@ export default function CensusMergeScreen() {
       <Stack.Screen options={{ title: t('teamMerge.title'), headerLeft: BackHeaderLeft }} />
       {settled ? (
         <MergeItemList
-          items={settled.items}
+          items={shownItems}
           decisions={decisions}
           onDecisions={setDecisions}
           header={head}

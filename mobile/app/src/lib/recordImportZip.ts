@@ -69,9 +69,11 @@ export type ReadRecordImport = { sync?: SyncBlock | null } & (
       photos: ImportedPhotoBlob[];
     }
   | {
-      /** A checklist / plot-style survey as one document (surveyDocCore.ts); team sync only so far. */
+      /** A checklist / plot-style survey as one document (surveyDocCore.ts): an export zip (Phase 2E-a), a teammate's copy, or a merge backup. */
       kind: 'modular';
       survey: SurveyDoc;
+      photos: ImportedPhotoBlob[];
+      audio: ImportedPhotoBlob[];
     }
 );
 
@@ -305,7 +307,7 @@ export function readRecordImportFromBytes(raw: Uint8Array): ReadRecordImport {
       case 'survey':
         return { kind: 'survey', census: doc as unknown as CensusExportDoc, photos: [] };
       case 'modular':
-        return { sync: readSyncBlock(doc), kind: 'modular', survey: doc as unknown as SurveyDoc };
+        return { sync: readSyncBlock(doc), kind: 'modular', survey: doc as unknown as SurveyDoc, photos: [], audio: [] };
       default:
         return { sync: readSyncBlock(doc), kind: 'session', session: sessionFromDoc(doc), photos: [], audio: [] };
     }
@@ -316,22 +318,21 @@ export function readRecordImportFromBytes(raw: Uint8Array): ReadRecordImport {
 
   const doc = loadRecordDoc(textOf(meta, ymlName));
   const kind =
-    manifestKind === 'plot' || manifestKind === 'session' || manifestKind === 'collection' || manifestKind === 'gloria' || manifestKind === 'survey'
+    manifestKind === 'plot' || manifestKind === 'session' || manifestKind === 'collection' || manifestKind === 'gloria' || manifestKind === 'survey' || manifestKind === 'modular'
       ? manifestKind
       : docKind(doc);
   if (kind === 'gloria') {
     if (!isGloriaDoc(doc)) throw new ImportError('unknownKind');
     return { sync: readSyncBlock(doc), kind: 'gloria', gloria: doc };
   }
-  if (kind === 'modular') {
-    if (!isSurveyDoc(doc)) throw new ImportError('unknownKind');
-    return { sync: readSyncBlock(doc), kind: 'modular', survey: doc };
-  }
+  if (kind === 'modular' && !isSurveyDoc(doc)) throw new ImportError('unknownKind');
 
   // Pass 2 — the media bytes, now that the kind is known and accepted.
   const mediaEntries = unzipSync(raw, { filter: (f) => /(^|\/)(photos|audio)\//i.test(f.name) });
   const photos = collectMedia(mediaEntries, folder, 'photos', PHOTO_EXTS);
   const audio = collectMedia(mediaEntries, folder, 'audio', AUDIO_EXTS);
+
+  if (kind === 'modular') return { sync: readSyncBlock(doc), kind: 'modular', survey: doc as unknown as SurveyDoc, photos, audio };
 
   if (kind === 'survey') {
     if (!isCensusExport(doc)) throw new ImportError('unknownKind');

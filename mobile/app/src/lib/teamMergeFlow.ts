@@ -21,7 +21,8 @@ import { applyGloriaMerge } from '~/modules/gloria/merge';
 import { useActiveGloria } from '~/modules/gloria/store';
 import { useActivePlot } from '~/stores/activePlot';
 import { useActiveSession } from '~/stores/activeSession';
-import { applySurveyOps, surveyDoc } from '~/survey/db/surveyDocs';
+import { applySurveyOps, surveyDoc, type SurveyDoc } from '~/survey/db/surveyDocs';
+import { addSurveyFileMedia } from '~/survey/surveyFileMedia';
 import { useActiveSurvey } from '~/survey/form/activeSurvey';
 import { importAudioClips } from './audioCapture';
 import { bundleGloria, bundlePlot, bundleSession, type BundleOptions } from './bundleExport';
@@ -46,6 +47,8 @@ export type PendingMerge = {
   /** Team sync: who sent this copy and when they uploaded it (shown in the review header). */
   from?: string | null;
   fromAt?: number | null;
+  /** A checklist / plot-style survey file (Phase 2E-a): its photos and recordings come after the rows. */
+  surveyFile?: SurveyDoc;
 };
 
 export const usePendingMerge = create<{ pending: PendingMerge | null; set: (p: PendingMerge | null) => void }>((set) => ({
@@ -168,6 +171,8 @@ export async function applyPendingMerge(
       break;
     case 'modular':
       applySurveyOps(p.localId, ops);
+      // From a file: its photos and recordings not here yet, where their rows now are (team sync's come by file sync).
+      if (p.surveyFile) await addSurveyFileMedia(p.localId, p.surveyFile, p.photos, p.audio);
       break;
     default:
       assertNever(p.kind, 'merge kind');

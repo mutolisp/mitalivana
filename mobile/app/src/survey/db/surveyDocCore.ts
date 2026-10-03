@@ -604,8 +604,9 @@ export function insertSurveyFromDoc(ctx: Ctx, doc: SurveyDoc, opts: { status: 'a
 
 /**
  * Put back the document's photo and recording rows that are missing here and
- * whose file is still on this device (`present`), adding only. Returns how
- * many came back.
+ * whose file is still on this device (`present`), adding only; and a
+ * morphospecies' photo where its label here has none. Returns how many came
+ * back.
  */
 export function putBackMediaRows(ctx: Ctx, surveyId: number, doc: SurveyDoc, present: (uri: string) => boolean, sealed: ReadonlySet<string> = new Set()): number {
   let n = 0;
@@ -631,6 +632,19 @@ export function putBackMediaRows(ctx: Ctx, surveyId: number, doc: SurveyDoc, pre
       (m.created_at as number | null) ?? ctx.now(),
     ]);
     n += 1;
+  }
+  const frameId = one<{ f: number | null }>(ctx, `SELECT frame_id AS f FROM fw_surveys WHERE id = ?`, [surveyId])?.f ?? null;
+  if (frameId != null) {
+    for (const l of doc.frame_labels) {
+      const uri = l.photo_uri == null ? '' : String(l.photo_uri);
+      if (!uri || !present(uri)) continue;
+      const res = run(
+        ctx,
+        `UPDATE fw_frame_labels SET photo_uri = ?, updated_at = ? WHERE frame_id = ? AND taxon_id = ? AND verbatim_identification = ? AND photo_uri IS NULL`,
+        [uri, ctx.now(), frameId, l.taxon_id as string, l.verbatim_identification as string],
+      );
+      n += res.rowsAffected ?? 0;
+    }
   }
   return n;
 }

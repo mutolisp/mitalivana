@@ -84,7 +84,7 @@ export function modularIdByUuid(uuid: string): number | null {
 }
 
 /** A version's photo is put back only if it is still here, in the media folders (security audit S1). */
-const fileHere = (uri: string) => {
+export const fileHere = (uri: string) => {
   if (!uri.startsWith('file:')) return true;
   const safe = safeAppFileUri(uri);
   return safe != null && new File(safe).exists;

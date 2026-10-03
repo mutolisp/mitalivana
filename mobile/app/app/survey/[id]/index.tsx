@@ -26,7 +26,7 @@ import { useToast } from '~/stores/toast';
 import { chipText } from '~/survey/components/labels';
 import { StemMap, type MapMode } from '~/survey/components/StemMap';
 import { TreeEditor } from '~/survey/components/TreeEditor';
-import { finishCensus, reopenCensus, setFgQuadratRecorder, setFgQuadratStatus, updateCensus } from '~/survey/db/stemmap';
+import { censusSeriesCode, finishCensus, reopenCensus, setFgQuadratRecorder, setFgQuadratStatus, updateCensus } from '~/survey/db/stemmap';
 import { changedQuadratIds, quadratRowId } from '~/survey/db/censusVersions';
 import { saveVersionSoon } from '~/db/recordVersions';
 import { canUndo, checkpointQuadrats, clearCensusUndo, redoQuadrat, undoQuadrat, useQuadratUndo } from '~/survey/undo';
@@ -157,6 +157,8 @@ export default function CensusScreen() {
   }
   const { survey, frame, states } = data;
   const active = survey.status === 'active';
+  // A plot with several census series: which one (2D-b).
+  const seriesCode = censusSeriesCode(survey.id);
 
   // Progress over the plot (problems are counted per quadrat, below).
   const work = states.filter((s) => s.done || (s.prev !== 'dead' && s.prev !== 'missing'));
@@ -560,6 +562,7 @@ export default function CensusScreen() {
             <View>
               <Text className={`text-xs font-bold ${active ? 'text-accent-600 dark:text-accent-400' : 'text-ink-3 dark:text-gray-400'}`}>
                 {active ? t('survey.census.statusActive', { n: survey.census_no }) : t('survey.census.statusDone', { n: survey.census_no })}
+                {seriesCode ? ` · ${seriesCode}` : ''}
               </Text>
               <Text className="text-base font-bold text-ink dark:text-gray-100" numberOfLines={1}>
                 {frame.name ? `${frame.code} ${frame.name}` : frame.code}

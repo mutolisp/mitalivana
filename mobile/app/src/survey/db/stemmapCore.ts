@@ -399,6 +399,11 @@ export function censusSeriesPlan(ctx: { db: SurveyDb }, frameId: number, templat
   return { kind: 'new', codeNeeded: !own && one(ctx, `SELECT 1 AS x FROM fw_frame_series WHERE frame_id = ?`, [frameId]) != null };
 }
 
+/** The census's series code (empty for a plot's first series). */
+export function censusSeriesCode(ctx: { db: SurveyDb }, id: number): string {
+  return one<{ c: string }>(ctx, `SELECT se.series_code AS c FROM fw_surveys s JOIN fw_frame_series se ON se.id = s.series_id WHERE s.id = ?`, [id])?.c ?? '';
+}
+
 /** The census with this id; null for a survey of another style. */
 export function getSurvey(ctx: { db: SurveyDb }, id: number): CensusRow | null {
   return one<CensusRow>(ctx, `SELECT * FROM fw_surveys WHERE id = ? AND style = 'individual'`, [id]) ?? null;

@@ -54,6 +54,7 @@ export const deleteFrame = (id: number) => withTransaction(() => core.deleteFram
 export const getSurvey = (id: number) => core.getSurvey(ctx(), id);
 export const censusCodesets = (id: number) => core.censusCodesets(ctx(), id);
 export const censusTemplate = (id: number) => core.censusTemplate(ctx(), id);
+export const censusSeriesCode = (id: number) => core.censusSeriesCode(ctx(), id);
 export const censusSeriesPlan = (frameId: number, templateId: string) => core.censusSeriesPlan(ctx(), frameId, templateId);
 export const censusSeriesOptions = (frameId: number) => core.censusSeriesOptions(ctx(), frameId);
 export const listCensuses = (frameId: number | null = null) => core.listCensuses(ctx(), frameId);

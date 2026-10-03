@@ -53,6 +53,7 @@
     "check:survey-db": "node --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-survey-db.mjs",
     "check:survey-core": "node --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-survey-core.mjs",
     "check:survey-doc": "node --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-survey-doc.mjs",
+    "check:survey-export": "node --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-survey-export.mjs",
     "check:census-sync": "node --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-census-sync.mjs",
     "check:census-export": "node --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-census-export.mjs",
     "check:census-stress": "node --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-census-stress.mjs",

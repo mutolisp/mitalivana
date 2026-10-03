@@ -10,6 +10,11 @@
  */
 import { errText } from '~/lib/errText';
 import { listCensuses, type CensusListRow } from '~/survey/db/stemmap';
+import { getUserDb } from '~/db/init';
+import { resolveTaxa } from '~/db/taxonLookup';
+import { buildSurveyDoc } from '~/survey/db/surveyDocCore';
+import { projectSurveyMatrices } from '~/survey/export/surveyExportCore';
+import { modularEventIds, surveyNames } from '~/survey/surveyBundle';
 import yaml from 'js-yaml';
 import { strToU8 } from 'fflate';
 import {
@@ -28,6 +33,7 @@ import {
 } from '~/db';
 import {
   buildCensusBundleEntries,
+  buildModularBundleEntries,
   buildCollectionEntries,
   buildPlotEntries,
   buildSessionEntries,
@@ -38,6 +44,7 @@ import {
   orderLevels,
   plotSpeciesToMarkdownItem,
   recordToMarkdownItem,
+  taxonToMarkdownItem,
   sanitizeFilename,
   specimenToMarkdownItem,
   type BuiltZipEntry,
@@ -103,8 +110,13 @@ export async function bundleProject(
     if (!cur || c.census_no > cur.census_no) latestCensus.set(c.series_id, c);
   }
   const censuses = [...latestCensus.values()];
+  // Checklist / plot-style surveys (Phase 2E-a): each its own file (it carries the one before it).
+  const modulars = (getUserDb().executeSync(`SELECT id, uuid FROM fw_surveys WHERE style <> 'individual' AND project_id = ? ORDER BY start_ts, id`, [projectId]).rows ?? []) as {
+    id: number;
+    uuid: string;
+  }[];
   const sites = listSitesByProject(projectId);
-  if (sessions.length + plots.length + trips.length + censuses.length + sites.length === 0) {
+  if (sessions.length + plots.length + trips.length + censuses.length + modulars.length + sites.length === 0) {
     throw new Error(i18n.t('export.err.projectEmpty', { name: project.name }));
   }
 
@@ -120,11 +132,11 @@ export async function bundleProject(
 
   const entries: BuiltZipEntry[] = [];
   const recordMeta: Array<Record<string, unknown>> = [];
-  const totalRecords = sessions.length + plots.length + trips.length + censuses.length;
+  const totalRecords = sessions.length + plots.length + trips.length + censuses.length + modulars.length;
   let recordIdx = 0;
 
   const addRecord = async (
-    kind: 'session' | 'plot' | 'collection' | 'survey',
+    kind: 'session' | 'plot' | 'collection' | 'survey' | 'modular',
     id: number,
     uuid: string | undefined,
     build: () => Promise<{ entries: BuiltZipEntry[]; folderName: string }>,
@@ -148,6 +160,7 @@ export async function bundleProject(
   for (const s of sessions) await addRecord('session', s.id, s.uuid, () => buildSessionEntries(s.id, recordOpts, ctx));
   for (const c of trips) await addRecord('collection', c.id, c.uuid, () => buildCollectionEntries(c.id, recordOpts, ctx));
   for (const c of censuses) await addRecord('survey', c.id, c.uuid, () => buildCensusBundleEntries(c.id, recordOpts));
+  for (const m of modulars) await addRecord('modular', m.id, m.uuid, () => buildModularBundleEntries(m.id, recordOpts));
 
   // ── Merged checklist across every record in the project ─────────────────
   // records/ already carries one checklist per record; this is their union,
@@ -186,6 +199,18 @@ export async function bundleProject(
   }
   for (const c of trips) {
     for (const sp of listSpecimens(c.id)) addSpecies(sp, () => specimenToMarkdownItem(sp));
+  }
+  // Checklist / plot-style surveys: their occurrences, by the taxon as the checklists have it.
+  const modularDocs = modulars.map((m) => buildSurveyDoc({ db: getUserDb() }, m.id));
+  const modularTaxa = resolveTaxa([...new Set(modularDocs.flatMap((d) => d.occurrences.map((o) => String(o.taxon_id))))]);
+  for (const d of modularDocs) {
+    for (const o of d.occurrences) {
+      const id = String(o.taxon_id);
+      const f = modularTaxa.get(id);
+      if (!f) continue;
+      const r = { taxon_id: id, used_scientific_name: (o.used_scientific_name as string | null) ?? null, verbatim_identification: (o.verbatim_identification as string | null) ?? null };
+      addSpecies(r, () => taxonToMarkdownItem(id, f));
+    }
   }
 
   if (checklistItems.length > 0) {
@@ -272,6 +297,15 @@ export async function bundleProject(
     }
   }
 
+  // ── Plot-style surveys' matrices (decided 2026-10-03: per template, per scale) ──
+  if (wantVegan && modularDocs.some((d) => d.survey.style === 'plot')) {
+    const ids = modularEventIds();
+    const items = modularDocs.map((doc, i) => ({ doc, eventId: ids.get(modulars[i].id) ?? String(doc.survey.uuid) }));
+    const built = projectSurveyMatrices(items, surveyNames(modularDocs.flatMap((d) => d.occurrences.map((o) => String(o.taxon_id)))));
+    for (const tb of built.tables) entries.push({ name: `analysis/surveys/${tb.name}.csv`, bytes: strToU8(tableToCsv(tb.table)) });
+    if (built.left.length) readmeNotes.push(`樣區型調查用了多種或自訂豐度尺度，只在有無矩陣中（不進尺度矩陣）：${built.left.join('、')}`);
+  }
+
   // ── Darwin Core Archive (all three record kinds) ─────────────────────────
   if (wantDwca && totalRecords > 0) {
     opts.onProgress?.({ label: i18n.t('export.stage.dwca') });
@@ -315,6 +349,7 @@ export async function bundleProject(
     sessions: sessions.length,
     plots: plots.length,
     collections: trips.length,
+    surveys: modulars.length,
     sites: sites.length,
     releves: releves.length,
     taxa: cols.length,
@@ -420,16 +455,17 @@ function buildReadme(
   const lines = [
     `# ${projectName} — 專案匯出`,
     '',
-    `統計：名錄 ${stats.sessions}、樣區 ${stats.plots}（樣方 ${stats.releves}）、採集 ${stats.collections}、地理樣區 ${stats.sites}、物種欄 ${stats.taxa}`,
+    `統計：名錄 ${stats.sessions}、樣區 ${stats.plots}（樣方 ${stats.releves}）、採集 ${stats.collections}、名錄型／樣區型調查 ${stats.surveys}、地理樣區 ${stats.sites}、物種欄 ${stats.taxa}`,
     '',
     '## 內容結構',
     '',
     '- `records/` — 逐筆記錄的完整匯出（yml / csv / md / geo / 照片），與單筆匯出格式相同，可個別重新匯入 app'
       + '；DwC-A 只在本包最外層的 `dwca/` 出一份（涵蓋全部記錄），逐筆資料夾內不重複產生',
     `- \`checklist/\` — **全專案合併物種名錄**（${checklistFormats}）：`
-      + '樣區、名錄、採集三種記錄的物種聯集去重，'
+      + '樣區、名錄、採集與名錄型／樣區型調查的物種聯集去重，'
       + '不含各筆記錄的豐度與備註（同一種可能在多個樣區有不同值）',
     '- `analysis/` — 跨樣區分析資料表（樣方 × 物種矩陣、環境表；**只涵蓋樣區**，名錄與採集不進矩陣）',
+    '- `analysis/surveys/` — 樣區型調查（模板組成的調查表）的單位 × 物種矩陣：每個模板一個有無矩陣，每種豐度尺度一個矩陣，只收全部記錄都用該尺度的調查（列名為單位的 eventID，同 records/ 內的 `_units.csv`）',
     '- `juice/` — JUICE 匯入檔（分號分隔）',
     '- `dwca/` — Darwin Core Archive（Event core + Occurrence + Humboldt extension，GBIF 發布用）',
     '- `sites/` — 專案的地理樣區幾何',
@@ -485,6 +521,7 @@ function buildReadme(
     '`*_dwca.zip` 為完整 Darwin Core Archive（TAB 分隔 + meta.xml + eml.xml），可直接上傳 GBIF IPT 或以',
     'GBIF data validator 檢驗。Event 階層：樣區為母事件、小區為子事件（parentEventID）；名錄與採集各自成事件。',
     '葉候（leafPhenology）與偵測方式等非標準 DwC 欄位不在 archive 內，完整欄位見 `records/`。',
+    '每木調查與名錄型／樣區型調查尚未納入 archive，資料見 `records/`。',
     '',
     ...(notes.length > 0 ? ['## 匯出注意事項', '', ...notes.map((n) => `- ${n}`), ''] : []),
   ];

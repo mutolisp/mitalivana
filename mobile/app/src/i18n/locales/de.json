@@ -1807,7 +1807,6 @@
   "recordImport": {
     "unsupportedBundle": "Dies ist ein Paket mit mehreren Datensätzen; entpacken Sie es und importieren Sie die Datensätze einzeln.",
     "unknownKind": "Der Datensatztyp dieser Datei lässt sich nicht bestimmen.",
-    "modularNotYet": "Diese Datei enthält eine Listen- / Flächenaufnahme. Solche Aufnahmen werden derzeit nur per Team-Synchronisierung übertragen; der Dateiimport folgt in einer späteren Version.",
     "sessionExistsTitle": "Artenliste existiert bereits",
     "sessionExistsMsg": "„{{name}}“ ist bereits auf diesem Gerät vorhanden. Überschreiben oder als neue Kopie speichern?",
     "photoConflictTitle": "Dieser Datensatz hat bereits Fotos",
@@ -5008,9 +5007,6 @@
     "deleteTitle": "Aufnahme löschen",
     "deleteMsg_one": "„{{name}}“ und den {{count}} Fund darin löschen?",
     "deleteMsg_other": "„{{name}}“ und die {{count}} Funde darin löschen?",
-    "noExport": "Listen- und Flächenaufnahmen lassen sich noch nicht exportieren",
-    "notInProjectExport_one": "{{count}} Listen- / Flächenaufnahme lässt sich noch nicht exportieren und fehlt in diesem Export",
-    "notInProjectExport_other": "{{count}} Listen- / Flächenaufnahmen lassen sich noch nicht exportieren und fehlen in diesem Export",
     "noDuplicate": "Listen- und Flächenaufnahmen lassen sich noch nicht duplizieren",
     "noMerge": "Listen- und Flächenaufnahmen lassen sich noch nicht zusammenführen",
     "projectCount_one": "{{count}} Listen- / Flächenaufnahme",
@@ -5391,5 +5387,18 @@
       "seriesContinueCode": "Serie {{code}} als Aufnahme {{n}} fortsetzen (zuletzt „{{name}}“)",
       "seriesNew": "Neue Serie (ab Aufnahme 1)…"
     }
+  },
+  "surveyImport": {
+    "existsTitle": "Diese Erhebung ist schon da",
+    "existsMsg": "„{{name}}“ ist schon auf diesem Gerät (dieselbe Erhebung oder dieselbe Nummer auf derselben Dauerfläche mit derselben Vorlage). Zusammenführen oder mit der Datei überschreiben?",
+    "invalid": "Die Erhebung in der Datei ist nicht lesbar: {{detail}}",
+    "newerApp": "Diese Erhebung verwendet Bausteine, die diese App-Version nicht kennt ({{types}}). Bitte zuerst die App aktualisieren.",
+    "numberTaken": "„{{name}}“: Diese Serie der Dauerfläche hat hier schon eine andere Erhebung mit dieser Nummer; Import nicht möglich.",
+    "done": "„{{name}}“ importiert",
+    "overwrittenTitle": "Überschrieben",
+    "overwrittenMsg_one": "„{{name}}“ hat jetzt den Inhalt der Datei ({{count}} Zeile geändert). Der vorige Inhalt ist als Version gespeichert und unter „Versionen“ wiederherstellbar.",
+    "overwrittenMsg_other": "„{{name}}“ hat jetzt den Inhalt der Datei ({{count}} Zeilen geändert). Der vorige Inhalt ist als Version gespeichert und unter „Versionen“ wiederherstellbar.",
+    "photosSkipped_one": "{{count}} Foto konnte nicht in die Mediathek geschrieben werden und wurde nicht importiert",
+    "photosSkipped_other": "{{count}} Fotos konnten nicht in die Mediathek geschrieben werden und wurden nicht importiert"
   }
 }

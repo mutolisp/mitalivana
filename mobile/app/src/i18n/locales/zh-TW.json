@@ -1692,7 +1692,6 @@
   "recordImport": {
     "unsupportedBundle": "這是多筆記錄的打包檔，請先解壓縮後逐一匯入。",
     "unknownKind": "無法辨識這個檔案的記錄類型。",
-    "modularNotYet": "這是名錄型／樣區型調查的檔案，目前只能透過隊伍同步傳遞；檔案匯入將在後續版本提供。",
     "sessionExistsTitle": "名錄已存在",
     "sessionExistsMsg": "「{{name}}」已在裝置中。要覆蓋更新，還是另存成新副本？",
     "photoConflictTitle": "這筆記錄已有照片",
@@ -4806,8 +4805,6 @@
     "reopen": "重新開始",
     "deleteTitle": "刪除調查",
     "deleteMsg_other": "刪除「{{name}}」與其中 {{count}} 筆出現記錄？",
-    "noExport": "名錄型、樣區型調查還不能匯出",
-    "notInProjectExport_other": "{{count}} 筆名錄型、樣區型調查還不能匯出，不會包含在這次匯出中",
     "noDuplicate": "名錄型、樣區型調查還不能複製",
     "noMerge": "名錄型、樣區型調查還不能合併",
     "projectCount_other": "{{count}} 筆名錄型／樣區型調查",
@@ -5170,5 +5167,16 @@
       "seriesContinueCode": "接續系列 {{code}} 第 {{n}} 回合（上回合用「{{name}}」）",
       "seriesNew": "另開系列（從第 1 回合開始）…"
     }
+  },
+  "surveyImport": {
+    "existsTitle": "這份調查已在這台",
+    "existsMsg": "「{{name}}」已在這台（同一份調查，或同一永久樣區、同一模板的同一次）。要合併，還是用檔案覆蓋？",
+    "invalid": "檔案裡的調查無法讀取：{{detail}}",
+    "newerApp": "這份調查用到這個版本的 app 還不認得的元件（{{types}}），請先更新 app。",
+    "numberTaken": "「{{name}}」：這個永久樣區的這個系列在這台已有同一次的另一份調查，無法匯入。",
+    "done": "已匯入「{{name}}」",
+    "overwrittenTitle": "已覆蓋",
+    "overwrittenMsg_other": "「{{name}}」已改成檔案的內容（{{count}} 列變動）。原本的內容存成版本，可在「版本」還原。",
+    "photosSkipped_other": "{{count}} 張照片無法寫入相簿，沒有匯入"
   }
 }

@@ -1922,7 +1922,6 @@
   "recordImport": {
     "unsupportedBundle": "Este es un paquete con varios registros; descomprímalo e importe cada registro por separado.",
     "unknownKind": "No se puede determinar qué tipo de registro contiene este archivo.",
-    "modularNotYet": "Este archivo contiene un muestreo tipo lista / parcela. Por ahora solo se transmiten mediante la sincronización de equipo; la importación de archivos llegará en una versión posterior.",
     "sessionExistsTitle": "La lista de especies ya existe",
     "sessionExistsMsg": "«{{name}}» ya está en este dispositivo. ¿Sobrescribirla o guardarla como copia nueva?",
     "photoConflictTitle": "Este registro ya tiene fotos",
@@ -5210,10 +5209,6 @@
     "deleteMsg_one": "¿Eliminar «{{name}}» y su {{count}} registro de presencia?",
     "deleteMsg_many": "¿Eliminar «{{name}}» y sus {{count}} registros de presencia? No se podrá recuperar.",
     "deleteMsg_other": "¿Eliminar «{{name}}» y sus {{count}} registros de presencia?",
-    "noExport": "Los muestreos tipo lista y parcela aún no se pueden exportar",
-    "notInProjectExport_one": "{{count}} muestreo tipo lista / parcela aún no se puede exportar y queda fuera de esta exportación",
-    "notInProjectExport_many": "{{count}} muestreos tipo lista / parcela aún no se pueden exportar y quedan fuera de esta exportación",
-    "notInProjectExport_other": "{{count}} muestreos tipo lista / parcela aún no se pueden exportar y quedan fuera de esta exportación",
     "noDuplicate": "Los muestreos tipo lista y parcela aún no se pueden duplicar",
     "noMerge": "Los muestreos tipo lista y parcela aún no se pueden combinar",
     "projectCount_one": "{{count}} muestreo tipo lista / parcela",
@@ -5612,5 +5607,20 @@
       "seriesContinueCode": "Continuar la serie {{code}} como censo {{n}} (el anterior usó «{{name}}»)",
       "seriesNew": "Nueva serie (desde el censo 1)…"
     }
+  },
+  "surveyImport": {
+    "existsTitle": "Este muestreo ya está aquí",
+    "existsMsg": "«{{name}}» ya está en este dispositivo (el mismo muestreo, o el mismo número en la misma parcela permanente y plantilla). ¿Fusionar o sobrescribirlo con el archivo?",
+    "invalid": "No se puede leer el muestreo del archivo: {{detail}}",
+    "newerApp": "Este muestreo usa componentes que esta versión de la app no conoce ({{types}}). Actualice primero la app.",
+    "numberTaken": "«{{name}}»: esta serie de la parcela permanente ya tiene aquí otro muestreo con ese número; no se puede importar.",
+    "done": "Se importó «{{name}}»",
+    "overwrittenTitle": "Sobrescrito",
+    "overwrittenMsg_one": "«{{name}}» ahora tiene el contenido del archivo ({{count}} fila cambiada). Lo anterior se guardó como versión y puede restaurarse desde Versiones.",
+    "overwrittenMsg_other": "«{{name}}» ahora tiene el contenido del archivo ({{count}} filas cambiadas). Lo anterior se guardó como versión y puede restaurarse desde Versiones.",
+    "overwrittenMsg_many": "«{{name}}» ahora tiene el contenido del archivo ({{count}} filas cambiadas). Lo anterior se guardó como versión y puede restaurarse desde Versiones.",
+    "photosSkipped_one": "{{count}} foto no se pudo guardar en la fototeca y no se importó",
+    "photosSkipped_other": "{{count}} fotos no se pudieron guardar en la fototeca y no se importaron",
+    "photosSkipped_many": "{{count}} fotos no se pudieron guardar en la fototeca y no se importaron"
   }
 }

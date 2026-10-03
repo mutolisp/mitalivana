@@ -12,6 +12,7 @@
  *    record. We never block on these because they're dwarfed by photos.
  */
 import { censusExportSizeInput } from '~/survey/db/stemmap';
+import { getUserDb } from '~/db/init';
 import { File } from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
 import { listPlotSpecies, listSessionRecords, listSpecimens } from '~/db';
@@ -89,6 +90,15 @@ export async function estimateBundleSize(
   let recordCount = 0;
 
   for (const it of items) {
+    if (it.kind === 'modular') {
+      // A checklist / plot-style survey: an occurrence stands for a record; photos and recordings are fw_media rows.
+      const db = getUserDb();
+      recordCount += Number((db.executeSync(`SELECT COUNT(*) AS n FROM fw_occurrences WHERE survey_id = ?`, [it.id]).rows?.[0] as { n: number } | undefined)?.n ?? 0);
+      const media = (db.executeSync(`SELECT uri FROM fw_media WHERE survey_id = ? AND kind = 'photo'`, [it.id]).rows ?? []) as { uri: string }[];
+      photoCount += media.length;
+      if (opts.includePhotos) totalPhotoBytes += await recordsPhotoBytes(media.map((m) => ({ photo_paths: JSON.stringify([m.uri]) })));
+      continue;
+    }
     if (it.kind === 'perm_survey') {
       // A census: its photos are rows of their own; a tree stands for a record.
       const c = censusExportSizeInput(it.id);

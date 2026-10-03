@@ -309,6 +309,27 @@ export function restoreVersion(kind: VersionKind, id: number, versionId: number)
   return changed;
 }
 
+/**
+ * Make a checklist / plot-style survey equal to a document brought in from a
+ * file (覆蓋, Phase 2E-a), as a restore does: the current state is saved first
+ * (`before_import`), sealed blind records stay, and the document's photos and
+ * recordings whose file is here (written by the import) are added. Returns
+ * the rows changed.
+ */
+export function overwriteSurvey(id: number, doc: SurveyDoc): number {
+  const here = localDoc('modular', id) as SurveyDoc | null;
+  if (!here) throw new Error('survey not found');
+  saveVersion('modular', id, 'before_import');
+  const current = sideOf('modular', here);
+  const sealed = sealedOccurrences(here, doc);
+  const items = withoutSealed(diffSides(current, sideOf('modular', doc), baseOf(current), takeVersion(combinersOf('modular'))), sealed);
+  const ops = planOps(items, restoreDecisions(items));
+  applySurveyOps(id, ops);
+  putBackSurveyMedia(id, doc, sealed.occ);
+  for (const fn of restoredListeners) fn('modular', id);
+  return ops.length;
+}
+
 const restoredListeners = new Set<(kind: VersionKind, id: number) => void>();
 
 /** Told after a restore, for a record screen that stays mounted under the versions screen and keeps its own copies. */

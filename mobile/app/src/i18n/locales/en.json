@@ -1807,7 +1807,6 @@
   "recordImport": {
     "unsupportedBundle": "This is a multi-record bundle; unzip it and import each record separately.",
     "unknownKind": "Can't tell what kind of record this file holds.",
-    "modularNotYet": "This file holds a checklist / plot-style survey. For now these travel only by team sync; importing the file comes in a later version.",
     "sessionExistsTitle": "Checklist already exists",
     "sessionExistsMsg": "\"{{name}}\" is already on this device. Overwrite it, or save as a new copy?",
     "photoConflictTitle": "This record already has photos",
@@ -5008,9 +5007,6 @@
     "deleteTitle": "Delete survey",
     "deleteMsg_one": "Delete “{{name}}” and its {{count}} occurrence?",
     "deleteMsg_other": "Delete “{{name}}” and its {{count}} occurrences?",
-    "noExport": "Checklist and plot-style surveys cannot be exported yet",
-    "notInProjectExport_one": "{{count}} checklist / plot-style survey cannot be exported yet and is left out of this export",
-    "notInProjectExport_other": "{{count}} checklist / plot-style surveys cannot be exported yet and are left out of this export",
     "noDuplicate": "Checklist and plot-style surveys cannot be duplicated yet",
     "noMerge": "Checklist and plot-style surveys cannot be merged yet",
     "projectCount_one": "{{count}} checklist / plot-style survey",
@@ -5391,5 +5387,18 @@
       "seriesContinueCode": "Carry on series {{code}} as census {{n}} (last census used “{{name}}”)",
       "seriesNew": "New series (starting at census 1)…"
     }
+  },
+  "surveyImport": {
+    "existsTitle": "This survey is already here",
+    "existsMsg": "“{{name}}” is already on this phone (the same survey, or the same number on the same permanent plot and template). Merge, or overwrite it with the file?",
+    "invalid": "The survey in the file cannot be read: {{detail}}",
+    "newerApp": "This survey uses components this version of the app does not know ({{types}}). Please update the app first.",
+    "numberTaken": "“{{name}}”: this series of the permanent plot already has another survey with that number here; it cannot be imported.",
+    "done": "Imported “{{name}}”",
+    "overwrittenTitle": "Overwritten",
+    "overwrittenMsg_one": "“{{name}}” now holds the file’s content ({{count}} row changed). What it held is kept as a version; restore it from Versions.",
+    "overwrittenMsg_other": "“{{name}}” now holds the file’s content ({{count}} rows changed). What it held is kept as a version; restore it from Versions.",
+    "photosSkipped_one": "{{count}} photo could not be saved to the library and was not imported",
+    "photosSkipped_other": "{{count}} photos could not be saved to the library and were not imported"
   }
 }
