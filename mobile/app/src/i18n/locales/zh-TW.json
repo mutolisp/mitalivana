@@ -4175,7 +4175,16 @@
     "traitTrack": "含軌跡",
     "traitRadius": "含半徑",
     "importPlot": "匯入樣區檔案",
-    "startSurvey": "開始調查"
+    "startSurvey": "開始調查",
+    "surveyTile": "模組化調查",
+    "surveyPageSubtitle": "左右滑動選擇調查表",
+    "surveyStemDesc": "永久樣區的每木位置調查（ForestGEO）：樹號、位置、DBH 與健康代碼。回合從永久樣區開始。",
+    "surveyOpenFrames": "開啟永久樣區",
+    "surveyChecklistDesc": "邊走邊記物種，欄位依調查表而定（測試用範例；可從物種分頁直接加入）。",
+    "surveyPlotDesc": "依小區、小樣方逐一記錄；在永久樣區上可複查，先盲測再對照前次清單（測試用範例）。",
+    "surveyOnFrame": "在永久樣區上開始…",
+    "surveyNoFrames": "還沒有永久樣區。請先在「每木調查」新增一個。",
+    "surveyPageOf": "第 {{n}} 張，共 {{total}} 張"
   },
   "count": {
     "increase": "增加{{name}}數量",
@@ -4857,7 +4866,8 @@
       "newTitle": "「{{label}}」不在形態種清單",
       "newMsg": "加入清單後，之後的調查都用同一個標籤指這個形態種。",
       "addToList": "加入清單",
-      "onlyHere": "只用在這筆"
+      "onlyHere": "只用在這筆",
+      "pickMsgNone": "形態種清單裡還沒有這個分類群的標籤。"
     },
     "frame": {
       "section": "樣區型調查",
@@ -4884,6 +4894,8 @@
       "takePhoto": "拍照",
       "pickPhoto": "從相簿選取",
       "removePhoto": "移除照片"
-    }
+    },
+    "lockedBanner": "已結束並鎖定。從右上角 ⋯ 解鎖後才能編輯。",
+    "surveyNo": "第 {{n}} 次"
   }
 }

@@ -4553,7 +4553,16 @@
     "traitTrack": "Con traza",
     "traitRadius": "Con radio",
     "importPlot": "Importar archivo de parcela",
-    "startSurvey": "Iniciar muestreo"
+    "startSurvey": "Iniciar muestreo",
+    "surveyTile": "Formularios",
+    "surveyPageSubtitle": "Deslice a izquierda o derecha para elegir un formulario",
+    "surveyStemDesc": "Censo de árboles en una parcela permanente (ForestGEO): números, posiciones, DAP y códigos de estado. Los censos empiezan desde la parcela.",
+    "surveyOpenFrames": "Abrir parcelas permanentes",
+    "surveyChecklistDesc": "Registre especies mientras camina; los campos siguen el formulario (plantilla de prueba; se pueden añadir desde la pestaña Especies).",
+    "surveyPlotDesc": "Registre subparcela por subparcela; en una parcela permanente la remedición empieza a ciegas y luego se compara con la lista anterior (plantilla de prueba).",
+    "surveyOnFrame": "Empezar en una parcela permanente…",
+    "surveyNoFrames": "Aún no hay parcelas permanentes. Añada una en Censo de árboles.",
+    "surveyPageOf": "Tarjeta {{n}} de {{total}}"
   },
   "count": {
     "increase": "Aumentar {{name}}",
@@ -5281,7 +5290,8 @@
       "newTitle": "«{{label}}» no está en la lista de morfoespecies",
       "newMsg": "En la lista, la misma etiqueta designa esta morfoespecie en todos los muestreos siguientes.",
       "addToList": "Añadir a la lista",
-      "onlyHere": "Solo para este registro"
+      "onlyHere": "Solo para este registro",
+      "pickMsgNone": "La lista de morfoespecies aún no tiene etiquetas para este taxón."
     },
     "frame": {
       "section": "Muestreos de parcela",
@@ -5308,6 +5318,8 @@
       "takePhoto": "Tomar foto",
       "pickPhoto": "Elegir de la fototeca",
       "removePhoto": "Quitar foto"
-    }
+    },
+    "lockedBanner": "Terminado y bloqueado. Desbloquéelo desde ⋯ arriba a la derecha para editarlo.",
+    "surveyNo": "muestreo {{n}}"
   }
 }

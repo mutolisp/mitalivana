@@ -180,7 +180,7 @@ export default function OccurrenceScreen() {
           onChange={setTab}
         />
       ) : null}
-      {locked ? <LockedBanner /> : data.sealed ? <LockedBanner text={t('surveyForm.err.blindSealed')} /> : null}
+      {locked ? <LockedBanner text={t('surveyForm.lockedBanner')} /> : data.sealed ? <LockedBanner text={t('surveyForm.err.blindSealed')} /> : null}
       {shownTab === 'freq' ? (
         // Not a ScrollView: the grid takes every swipe that starts on it.
         <View className="gap-3 p-4">

@@ -56,7 +56,7 @@ export function recordDiversity(
   if (cached !== undefined) return cached;
   // Diversity of a GLORIA survey is not one number (28 units, several methods);
   // a census is a stand table, not a species sample.
-  if (kind === 'collection' || kind === 'gloria' || kind === 'survey') {
+  if (kind === 'collection' || kind === 'gloria' || kind === 'perm_survey') {
     rowDivCache.set(key, null);
     return null;
   }
@@ -84,7 +84,7 @@ const KIND_ICON: Record<RecordKind, keyof typeof Ionicons.glyphMap> = {
   plot: 'grid-outline',
   gloria: 'triangle-outline',
   collection: 'pricetag-outline',
-  survey: 'apps-outline',
+  perm_survey: 'apps-outline',
   modular: 'clipboard-outline',
 };
 

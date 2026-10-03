@@ -9,8 +9,10 @@
  * (`<CreateSheetHost />`) is mounted once in app/_layout.tsx; its state lives
  * in src/lib/createSheet.ts.
  *
- * Two pages. 樣區調查 does not close the sheet: it slides in the plot-type page
- * (replacing the ActionSheet createPlotPromptAndOpen used to show).
+ * Pages. 樣區調查 does not close the sheet: it slides in the plot-type page
+ * (replacing the ActionSheet createPlotPromptAndOpen used to show). The
+ * survey-framework tile does the same while the test templates are offered:
+ * one entry, its forms side by side (swipe left / right).
  *
  * An option that creates something CLOSES the sheet first and runs its action
  * only after the Modal has finished dismissing. Several actions open a Modal
@@ -20,7 +22,8 @@
  */
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Modal, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import Animated, { SlideInLeft, SlideInRight } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -33,8 +36,12 @@ import {
   openSurveyFrames,
   openNewGloria,
   startCollectionAndOpen,
+  startModularOnFrameAndOpen,
+  startModularSurveyAndOpen,
   startSessionAndOpen,
 } from '~/lib/recordCreate';
+import { templateName } from '~/survey/form/text';
+import { SAMPLE_CHECKLIST_TEMPLATE, SAMPLE_PLOT_TEMPLATE, SAMPLE_TEMPLATES_OFFERED } from '~/survey/templates/samples';
 import { useSettings, type RecordTypeDefault } from '~/stores/settings';
 import { useThemeColors, type ThemeColors } from '~/theme/colors';
 import { PointCountIcon, TransectIcon } from './PlotTypeIcons';
@@ -143,7 +150,7 @@ export function CreateSheetHost() {
       transparent
       animationType="slide"
       // Android back: second page → first page; first page → close.
-      onRequestClose={() => (page === 'plot' ? setPage('main') : close())}
+      onRequestClose={() => (page !== 'main' ? setPage('main') : close())}
     >
       <View className="flex-1 justify-end">
         <Pressable
@@ -164,9 +171,13 @@ export function CreateSheetHost() {
             <Animated.View key="plot" entering={SlideInRight.duration(PAGE_MS)}>
               <PlotPage onBack={() => setPage('main')} onClose={close} choose={choose} />
             </Animated.View>
+          ) : page === 'survey' ? (
+            <Animated.View key="survey" entering={SlideInRight.duration(PAGE_MS)}>
+              <SurveyPage onBack={() => setPage('main')} onClose={close} choose={choose} />
+            </Animated.View>
           ) : (
             <Animated.View key="main" entering={visible ? SlideInLeft.duration(PAGE_MS) : undefined}>
-              <MainPage onPlot={() => setPage('plot')} onClose={close} choose={choose} />
+              <MainPage onPlot={() => setPage('plot')} onSurvey={() => setPage('survey')} onClose={close} choose={choose} />
             </Animated.View>
           )}
         </SafeAreaView>
@@ -213,10 +224,12 @@ function SheetHeader({
 
 function MainPage({
   onPlot,
+  onSurvey,
   onClose,
   choose,
 }: {
   onPlot: () => void;
+  onSurvey: () => void;
   onClose: () => void;
   choose: (run: () => unknown) => void;
 }) {
@@ -228,10 +241,17 @@ function MainPage({
   const miren = useSettings((s) => s.module_miren);
   const survey = useSettings((s) => s.module_survey);
 
-  const others: { key: string; icon: keyof typeof Ionicons.glyphMap; label: string; run: () => unknown }[] = [
+  // `page`: opens a page of the sheet instead of creating at once.
+  const others: { key: string; icon: keyof typeof Ionicons.glyphMap; label: string; run: () => unknown; page?: boolean }[] = [
     ...(gloria ? [{ key: 'gloria', icon: 'triangle-outline' as const, label: 'GLORIA', run: openNewGloria }] : []),
     ...(miren ? [{ key: 'miren', icon: 'trail-sign-outline' as const, label: 'MIREN', run: openMiren }] : []),
-    ...(survey ? [{ key: 'survey', icon: 'apps-outline' as const, label: t('survey.create'), run: openSurveyFrames }] : []),
+    ...(survey
+      ? [
+          SAMPLE_TEMPLATES_OFFERED
+            ? { key: 'survey', icon: 'albums-outline' as const, label: t('create.surveyTile'), run: onSurvey, page: true }
+            : { key: 'survey', icon: 'apps-outline' as const, label: t('survey.create'), run: openSurveyFrames },
+        ]
+      : []),
     { key: 'import', icon: 'download-outline', label: t('create.importFile'), run: importRecordPromptAndOpen },
   ];
 
@@ -287,7 +307,7 @@ function MainPage({
         {others.map((o) => (
           <Pressable
             key={o.key}
-            onPress={() => choose(o.run)}
+            onPress={() => (o.page ? o.run() : choose(o.run))}
             accessibilityRole="button"
             accessibilityLabel={o.label}
             className="flex-1 items-center justify-center rounded-card border border-line bg-paper active:bg-gray-100 dark:border-line-dark dark:bg-paper-dark dark:active:bg-gray-800"
@@ -420,5 +440,107 @@ function PlotPage({
         <Text className="ml-1 text-sm text-gray-500 dark:text-gray-400">· .yml / .zip</Text>
       </Pressable>
     </ScrollView>
+  );
+}
+
+/**
+ * The survey framework's forms, one card each, side by side: swipe left /
+ * right to choose (asked 2026-10-03). 每木調查 opens the permanent plots
+ * (a census starts from its plot); the test templates start a survey here
+ * (a plot-style one also on a permanent plot). Until the builder (2D).
+ */
+function SurveyPage({
+  onBack,
+  onClose,
+  choose,
+}: {
+  onBack: () => void;
+  onClose: () => void;
+  choose: (run: () => unknown) => void;
+}) {
+  const { t, i18n } = useTranslation();
+  const c = useThemeColors();
+  // The page width from the window, not from a layout pass: measuring first
+  // left the pager a sliver tall on Android (the cards drew outside it and
+  // took no touches). The sheet spans the window; 16 pt padding each side.
+  const width = useWindowDimensions().width - 32;
+  const [index, setIndex] = useState(0);
+  const cards: {
+    key: string;
+    icon: keyof typeof Ionicons.glyphMap;
+    title: string;
+    desc: string;
+    actions: { label: string; run: () => unknown; primary?: boolean }[];
+  }[] = [
+    {
+      key: 'stemmap',
+      icon: 'apps-outline',
+      title: t('survey.create'),
+      desc: t('create.surveyStemDesc'),
+      actions: [{ label: t('create.surveyOpenFrames'), run: openSurveyFrames, primary: true }],
+    },
+    {
+      key: 'checklist',
+      icon: 'list-outline',
+      title: templateName(t, i18n.language, SAMPLE_CHECKLIST_TEMPLATE),
+      desc: t('create.surveyChecklistDesc'),
+      actions: [{ label: t('create.startSurvey'), run: () => startModularSurveyAndOpen(SAMPLE_CHECKLIST_TEMPLATE), primary: true }],
+    },
+    {
+      key: 'plot',
+      icon: 'grid-outline',
+      title: templateName(t, i18n.language, SAMPLE_PLOT_TEMPLATE),
+      desc: t('create.surveyPlotDesc'),
+      actions: [
+        { label: t('create.startSurvey'), run: () => startModularSurveyAndOpen(SAMPLE_PLOT_TEMPLATE), primary: true },
+        { label: t('create.surveyOnFrame'), run: () => startModularOnFrameAndOpen(SAMPLE_PLOT_TEMPLATE) },
+      ],
+    },
+  ];
+  return (
+    <View style={{ padding: 16, paddingTop: 12 }}>
+      <SheetHeader title={t('create.surveyTile')} subtitle={t('create.surveyPageSubtitle')} onBack={onBack} onClose={onClose} />
+      <ScrollView
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        style={{ flexGrow: 0 }}
+        onMomentumScrollEnd={(e) => setIndex(Math.round(e.nativeEvent.contentOffset.x / width))}
+      >
+        {cards.map((card) => (
+          <View key={card.key} style={{ width }} className="pr-0.5">
+            <View className="gap-3 rounded-card border border-line bg-paper p-4 dark:border-line-dark dark:bg-paper-dark" style={{ minHeight: 232 }}>
+              <View className="flex-row items-center gap-3">
+                <View className="h-12 w-12 items-center justify-center rounded-xl bg-acorn-tint dark:bg-gray-800">
+                  <Ionicons name={card.icon} size={24} color={c.acornDeep} />
+                </View>
+                <Text className="flex-1 text-lg font-bold text-gray-900 dark:text-gray-100">{card.title}</Text>
+              </View>
+              <Text className="text-sm leading-5 text-gray-600 dark:text-gray-300">{card.desc}</Text>
+              <View className="mt-auto gap-2">
+                {card.actions.map((a) => (
+                  <Pressable
+                    key={a.label}
+                    onPress={() => choose(a.run)}
+                    accessibilityRole="button"
+                    className={`items-center justify-center rounded-full ${
+                      a.primary ? 'bg-accent-600 active:bg-accent-700' : 'border border-line active:bg-gray-100 dark:border-line-dark dark:active:bg-gray-800'
+                    }`}
+                    style={{ minHeight: 48 }}
+                  >
+                    <Text className={`text-base font-bold ${a.primary ? 'text-white' : 'text-gray-900 dark:text-gray-100'}`}>{a.label}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+          </View>
+        ))}
+      </ScrollView>
+      <View className="mt-3 flex-row justify-center gap-2" accessibilityLabel={t('create.surveyPageOf', { n: index + 1, total: cards.length })}>
+        {cards.map((card, i) => (
+          <View key={card.key} className={`h-2 rounded-full ${i === index ? 'w-5 bg-accent-600 dark:bg-accent-400' : 'w-2 bg-gray-300 dark:bg-gray-600'}`} />
+        ))}
+      </View>
+    </View>
   );
 }

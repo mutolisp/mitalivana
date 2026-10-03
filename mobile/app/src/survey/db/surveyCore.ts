@@ -268,7 +268,7 @@ export function finishSurvey(ctx: Ctx, id: number, stopTs?: number | null): void
 export function reopenSurvey(ctx: Ctx, id: number): void {
   surveyOf(ctx, id);
   const now = ctx.now();
-  closeActiveRecords(ctx.db, now, { kind: 'survey', id });
+  closeActiveRecords(ctx.db, now, { kind: 'modular', id });
   run(ctx, `UPDATE fw_surveys SET status = 'active', stop_ts = NULL, updated_at = ? WHERE id = ?`, [now, id]);
 }
 

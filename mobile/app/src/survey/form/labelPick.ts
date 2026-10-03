@@ -63,7 +63,7 @@ export async function labelForEdit(survey: FwSurveyRow, taxon: Taxon, current: s
 async function chooseLabel(survey: FwSurveyRow, taxon: Taxon, listed: string[], current: string | null): Promise<string | null | undefined> {
   const idx = await showActionSheet({
     title: i18n.t('surveyForm.label.pickTitle', { name: taxon.name }),
-    message: i18n.t('surveyForm.label.pickMsg'),
+    message: i18n.t(listed.length ? 'surveyForm.label.pickMsg' : 'surveyForm.label.pickMsgNone'),
     options: [
       { label: i18n.t('surveyForm.label.none', { name: taxon.name }) },
       ...listed.map((l) => ({ label: l === current ? `${l} ✓` : l })),

@@ -129,7 +129,7 @@ export function enforceSingleActiveOnStartup(): void {
   const surveyRow = db.executeSync(
     `SELECT id, start_ts AS ts FROM fw_surveys WHERE status = 'active' AND style <> 'individual' ORDER BY start_ts DESC LIMIT 1`,
   ).rows?.[0] as { id: number; ts: number } | undefined;
-  if (surveyRow) candidates.push({ kind: 'survey', ...surveyRow });
+  if (surveyRow) candidates.push({ kind: 'modular', ...surveyRow });
 
   if (candidates.length < 2) return;
   const keep = candidates.reduce((a, b) => (b.ts > a.ts ? b : a));

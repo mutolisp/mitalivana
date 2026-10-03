@@ -225,7 +225,7 @@ function ProjectHeader({
     const summits = new Set(gloria.map((x) => x.gloria?.summit_id)).size;
     parts.push(t('records.gloriaCount', { count: gloria.length, summits }));
   }
-  const censuses = countOf('survey');
+  const censuses = countOf('perm_survey');
   if (censuses > 0) parts.push(t('survey.census.projectCount', { count: censuses }));
   const modular = countOf('modular');
   if (modular > 0) parts.push(t('surveyForm.projectCount', { count: modular }));
@@ -402,7 +402,7 @@ export default function RecordsListScreen() {
     plot: t('nav.plot'),
     collection: t('nav.collection'),
     gloria: t('nav.gloria'),
-    survey: t('nav.survey'),
+    perm_survey: t('nav.survey'),
     modular: t('record.kindModular'),
   };
   const refreshActive = useActiveSession((s) => s.refresh);
@@ -435,7 +435,7 @@ export default function RecordsListScreen() {
     plot: 0,
     collection: 0,
     gloria: 0,
-    survey: 0,
+    perm_survey: 0,
     modular: 0,
   });
   const [duplicating, setDuplicating] = useState<{
@@ -543,7 +543,7 @@ export default function RecordsListScreen() {
     if (item.kind === 'session') router.push(`/session/${item.id}` as Href);
     else if (item.kind === 'collection') router.push(`/collection/${item.id}` as Href);
     else if (item.kind === 'gloria') router.push(`/gloria/${item.id}` as Href);
-    else if (item.kind === 'survey') router.push(`/survey/${item.id}` as Href);
+    else if (item.kind === 'perm_survey') router.push(`/survey/${item.id}` as Href);
     else if (item.kind === 'modular') router.push(`/survey/form/${item.id}` as Href);
     else router.push(`/plot/${item.id}` as Href);
   };
@@ -600,7 +600,7 @@ export default function RecordsListScreen() {
       if (item.kind === 'session') return bundleSession(item.id, bundleOpts);
       if (item.kind === 'collection') return bundleCollection(item.id, bundleOpts);
       if (item.kind === 'gloria') return bundleGloria(item.id, bundleOpts);
-      if (item.kind === 'survey') return bundleCensus(item.id, bundleOpts);
+      if (item.kind === 'perm_survey') return bundleCensus(item.id, bundleOpts);
       return bundlePlot(item.id, bundleOpts);
     });
   };
@@ -709,7 +709,7 @@ export default function RecordsListScreen() {
         return t('nav.gloria');
       case 'collection':
         return t('nav.collection');
-      case 'survey':
+      case 'perm_survey':
         return t('nav.survey');
       case 'modular':
         return t('record.kindModular');
@@ -726,7 +726,7 @@ export default function RecordsListScreen() {
       return;
     }
     // A census belongs to its permanent plot; the next one is started there.
-    if (item.kind === 'survey') {
+    if (item.kind === 'perm_survey') {
       toast(t('survey.census.noDuplicate'));
       return;
     }
@@ -817,7 +817,7 @@ export default function RecordsListScreen() {
         if (it.kind === 'session') updateSession(it.id, { project_id: projectId });
         else if (it.kind === 'plot') updatePlotSurvey(it.id, { project_id: projectId });
         else if (it.kind === 'gloria') updateGloriaSurvey(it.id, { project_id: projectId });
-        else if (it.kind === 'survey' || it.kind === 'modular') setCensusProject(it.id, projectId);
+        else if (it.kind === 'perm_survey' || it.kind === 'modular') setCensusProject(it.id, projectId);
         else updateCollectionTrip(it.id, { project_id: projectId });
       }
     });
@@ -844,7 +844,7 @@ export default function RecordsListScreen() {
    * their own per-unit locks and are not covered, and censuses have no lock.
    */
   const unlockThen = (items: RecordItem[], run: () => void) => {
-    const locked = items.filter((it) => it.kind !== 'gloria' && it.kind !== 'survey' && !it.active).length;
+    const locked = items.filter((it) => it.kind !== 'gloria' && it.kind !== 'perm_survey' && !it.active).length;
     if (locked === 0) {
       run();
       return;
@@ -877,7 +877,7 @@ export default function RecordsListScreen() {
       return;
     }
     // Censuses of one plot are successive, not parallel; team merge joins a census's blocks.
-    if (kind === 'survey') {
+    if (kind === 'perm_survey') {
       toast(t('survey.census.noMerge'));
       return;
     }
@@ -1064,7 +1064,7 @@ export default function RecordsListScreen() {
   };
 
   const deletePicked = async (picked: RecordItem[]) => {
-    const censuses = picked.filter((it) => it.kind === 'survey').map((it) => it.id);
+    const censuses = picked.filter((it) => it.kind === 'perm_survey').map((it) => it.id);
     try {
       // Refused before anything goes: only the last censuses of a series.
       assertDeletableCensuses(censuses);
@@ -1074,7 +1074,7 @@ export default function RecordsListScreen() {
           else if (it.kind === 'collection') deleteCollectionTrip(it.id);
           else if (it.kind === 'gloria') deleteGloriaSurvey(it.id);
           else if (it.kind === 'modular') deleteSurvey(it.id);
-          else if (it.kind !== 'survey') deletePlotSurvey(it.id);
+          else if (it.kind !== 'perm_survey') deletePlotSurvey(it.id);
         }
       });
       // A census keeps a version of every quadrat first: seconds for a large
@@ -1138,7 +1138,7 @@ export default function RecordsListScreen() {
     const noun = nounOf(item.kind);
     Alert.alert(
       t('records.deleteTitle', { noun }),
-      (item.kind === 'survey'
+      (item.kind === 'perm_survey'
         ? t('survey.census.deleteMsg', { title: item.title, n: item.survey?.census_no ?? 0 })
         : t('records.deleteMsg', { title: item.title, count: item.recordCount })) + recoverableNote([item]),
       [
@@ -1150,7 +1150,7 @@ export default function RecordsListScreen() {
             if (item.kind === 'session') deleteSession(item.id);
             else if (item.kind === 'collection') deleteCollectionTrip(item.id);
             else if (item.kind === 'gloria') deleteGloriaSurvey(item.id);
-            else if (item.kind === 'survey') {
+            else if (item.kind === 'perm_survey') {
               void deleteOneCensus(item.id);
               return;
             } else if (item.kind === 'modular') deleteSurvey(item.id);
@@ -1347,7 +1347,7 @@ export default function RecordsListScreen() {
     'plot',
     'collection',
     ...(moduleGloria || counts.gloria > 0 ? (['gloria'] as Filter[]) : []),
-    ...(moduleSurvey || counts.survey > 0 ? (['survey'] as Filter[]) : []),
+    ...(moduleSurvey || counts.perm_survey > 0 ? (['perm_survey'] as Filter[]) : []),
     ...(counts.modular > 0 ? (['modular'] as Filter[]) : []),
   ];
   const chipLabel: Record<Filter, string> = { ...filterLabel, gloria: 'GLORIA' };
@@ -1442,7 +1442,7 @@ export default function RecordsListScreen() {
             // checklist / plot-style survey has none of the three yet (2E).
             ...(item.kind === 'modular'
               ? []
-              : item.kind === 'survey'
+              : item.kind === 'perm_survey'
               ? ([
                   {
                     label: t('common.export'),

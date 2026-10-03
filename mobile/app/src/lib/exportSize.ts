@@ -89,7 +89,7 @@ export async function estimateBundleSize(
   let recordCount = 0;
 
   for (const it of items) {
-    if (it.kind === 'survey') {
+    if (it.kind === 'perm_survey') {
       // A census: its photos are rows of their own; a tree stands for a record.
       const c = censusExportSizeInput(it.id);
       recordCount += c.trees;

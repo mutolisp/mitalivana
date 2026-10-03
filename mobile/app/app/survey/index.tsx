@@ -13,10 +13,6 @@ import { Button } from '~/components/ui/Button';
 import { STRESS_TEST_OFFERED } from '~/survey/stress/stressCore';
 import { listCensuses, listFrames, type CensusListRow, type FrameRow } from '~/survey/db/stemmap';
 import { Chevron } from '~/components/ui/Chevron';
-import { showActionSheet } from '~/components/ActionSheet';
-import { startModularSurveyAndOpen } from '~/lib/recordCreate';
-import { templateName } from '~/survey/form/text';
-import { SAMPLE_TEMPLATES, SAMPLE_TEMPLATES_OFFERED } from '~/survey/templates/samples';
 
 type Row = { frame: FrameRow; last: CensusListRow | null; censuses: number };
 
@@ -29,19 +25,11 @@ function load(): Row[] {
 }
 
 export default function SurveyFramesScreen() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const router = useRouter();
   const [rows, setRows] = useState<Row[]>(load);
   useFocusEffect(useCallback(() => setRows(load()), []));
   const newFrame = () => router.push('/survey/frame/edit' as Href);
-  const startSample = async () => {
-    const idx = await showActionSheet({
-      options: SAMPLE_TEMPLATES.map((x) => ({ label: templateName(t, i18n.language, x) })),
-      cancelLabel: t('common.cancel'),
-    });
-    const template = SAMPLE_TEMPLATES[idx];
-    if (template) await startModularSurveyAndOpen(template);
-  };
 
   return (
     <SettingsPage headerRight={() => <HeaderIconButton icon="add" label={t('survey.frame.new')} onPress={newFrame} />}>
@@ -51,11 +39,10 @@ export default function SurveyFramesScreen() {
         contentContainerClassName="gap-3 p-4"
         ListHeaderComponent={<Text className="text-sm text-gray-600 dark:text-gray-400">{t('survey.frames.desc')}</Text>}
         // The 1E stress test (app/survey/stress.tsx); in release builds too until testing is done.
-        // The component preview (app/survey/components-preview.tsx, 2B) and the
-        // checklist / plot-style test templates (2C) in development builds only.
+        // The component preview (app/survey/components-preview.tsx, 2B) in development builds only.
+        // The checklist / plot-style test templates start from the create sheet (＋ → 模組化調查).
         ListFooterComponent={
           <View className="gap-2">
-            {SAMPLE_TEMPLATES_OFFERED ? <Button label="名錄型／樣區型調查（開發版）" variant="secondary" onPress={() => void startSample()} /> : null}
             {STRESS_TEST_OFFERED ? <Button label="每木壓力測試（測試用）" variant="secondary" onPress={() => router.push('/survey/stress' as Href)} /> : null}
             {__DEV__ ? <Button label="元件預覽（開發版）" variant="secondary" onPress={() => router.push('/survey/components-preview' as Href)} /> : null}
           </View>

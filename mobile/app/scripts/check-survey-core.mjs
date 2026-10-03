@@ -50,7 +50,7 @@ import { withRequired } from '../src/survey/template/validate.ts';
 import { childLevel, unitPath, unitRows } from '../src/survey/form/units.ts';
 import { recheckCandidates, recheckKey, recheckOpen } from '../src/survey/form/recheck.ts';
 import { blankOccurrenceHasErrors, formComponents } from '../src/survey/form/occurrenceForm.ts';
-import { SAMPLE_TEMPLATES, SAMPLE_TEMPLATES_OFFERED } from '../src/survey/templates/samples.ts';
+import { SAMPLE_TEMPLATES } from '../src/survey/templates/samples.ts';
 import { validateTemplate } from '../src/survey/template/validate.ts';
 
 let failed = 0;
@@ -536,7 +536,6 @@ ok(
   'recheck model: per place, taxon and label; once each; places this survey lacks are skipped',
 );
 ok(recheckOpen(cand, [{ key: recheckKey(prevS[2]), outcome: 'not_found', occurrenceId: null }, { key: recheckKey(prevS[3]), outcome: 'reidentified', occurrenceId: null }]) === 2, 'recheck model: a re-identification without its occurrence is still open');
-ok(SAMPLE_TEMPLATES_OFFERED === false, 'samples: not offered outside a development build');
 for (const t of SAMPLE_TEMPLATES) {
   ok(validateTemplate(t).length === 0, `samples: ${t.id} is valid (${validateTemplate(t)})`);
   ok(!blankOccurrenceHasErrors(t), `samples: ${t.id} quick adds without opening the form`);

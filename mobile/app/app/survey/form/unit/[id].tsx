@@ -152,7 +152,7 @@ export default function SurveyUnitScreen() {
           headerRight: () => <HeaderIconButton icon="ellipsis-horizontal" label={t('common.more')} onPress={() => void more()} />,
         }}
       />
-      {locked ? <LockedBanner /> : null}
+      {locked ? <LockedBanner text={t('surveyForm.lockedBanner')} /> : null}
       <ScrollView contentContainerClassName="gap-3 p-4 pb-10" keyboardShouldPersistTaps="handled">
         <FormCard title={level}>
           <View className="flex-row">

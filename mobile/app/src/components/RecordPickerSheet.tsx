@@ -21,7 +21,7 @@ const KIND_LABEL: Record<RecordKind, string> = {
   plot: 'favorites.kindPlot',
   collection: 'favorites.kindCollection',
   gloria: 'favorites.kindGloria',
-  survey: 'favorites.kindSurvey',
+  perm_survey: 'favorites.kindSurvey',
   modular: 'favorites.kindModular',
 };
 

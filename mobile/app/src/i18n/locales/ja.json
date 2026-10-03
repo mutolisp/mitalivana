@@ -4175,7 +4175,16 @@
     "traitTrack": "軌跡あり",
     "traitRadius": "半径あり",
     "importPlot": "調査区ファイルを読み込む",
-    "startSurvey": "調査を開始"
+    "startSurvey": "調査を開始",
+    "surveyTile": "モジュール調査",
+    "surveyPageSubtitle": "左右にスワイプして調査票を選ぶ",
+    "surveyStemDesc": "固定プロットの毎木調査（ForestGEO）：樹木番号、位置、DBH、健全度コード。回は固定プロットから始めます。",
+    "surveyOpenFrames": "固定プロットを開く",
+    "surveyChecklistDesc": "歩きながら種を記録します。項目は調査票によります（テスト用の例。種タブから直接追加できます）。",
+    "surveyPlotDesc": "小区・小方形区ごとに記録します。固定プロットでは再調査をブラインドで始め、その後前回のリストと照合します（テスト用の例）。",
+    "surveyOnFrame": "固定プロットで開始…",
+    "surveyNoFrames": "固定プロットがまだありません。先に「毎木調査」で追加してください。",
+    "surveyPageOf": "{{total}} 枚中 {{n}} 枚目"
   },
   "count": {
     "increase": "{{name}}の数を増やす",
@@ -4857,7 +4866,8 @@
       "newTitle": "「{{label}}」は形態種リストにありません",
       "newMsg": "リストに加えると、以後の調査でも同じラベルがこの形態種を指します。",
       "addToList": "リストに追加",
-      "onlyHere": "この記録だけ"
+      "onlyHere": "この記録だけ",
+      "pickMsgNone": "形態種リストにはこの分類群のラベルがまだありません。"
     },
     "frame": {
       "section": "プロット型調査",
@@ -4884,6 +4894,8 @@
       "takePhoto": "撮影",
       "pickPhoto": "ライブラリから選択",
       "removePhoto": "写真を削除"
-    }
+    },
+    "lockedBanner": "終了してロックされています。右上の ⋯ からロックを解除すると編集できます。",
+    "surveyNo": "第 {{n}} 回"
   }
 }

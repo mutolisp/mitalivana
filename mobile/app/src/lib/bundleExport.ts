@@ -172,7 +172,8 @@ export type BundleItem =
   | { kind: 'plot'; id: number }
   | { kind: 'collection'; id: number }
   | { kind: 'gloria'; id: number }
-  | { kind: 'survey'; id: number };
+  /** A tree census. Its files still say 'survey' (manifest kind), as older ones do. */
+  | { kind: 'perm_survey'; id: number };
 
 export function sanitizeFilename(name: string): string {
   // Allow Unicode letters (incl. CJK), digits, underscore, hyphen, dot. Without
@@ -2002,7 +2003,7 @@ export async function bundleMany(items: BundleItem[], opts: BundleOptions): Prom
           totalPhotos += countPhotosPlotWithEnv(it.id);
           break;
         case 'gloria':
-        case 'survey':
+        case 'perm_survey':
           break; // these builders report their own photo progress
         default:
           assertNever(it, 'bundle kind');
@@ -2050,9 +2051,10 @@ export async function bundleMany(items: BundleItem[], opts: BundleOptions): Prom
           itemMeta.push({ kind: 'plot', id: it.id, uuid: getPlotSurvey(it.id)?.uuid, folder: folderName });
           break;
         }
-        case 'survey': {
+        case 'perm_survey': {
           const { entries, folderName } = await buildCensusBundleEntries(it.id, opts);
           allEntries.push(...entries);
+          // The file format's word for a census.
           itemMeta.push({ kind: 'survey', id: it.id, folder: folderName });
           break;
         }
@@ -2062,7 +2064,7 @@ export async function bundleMany(items: BundleItem[], opts: BundleOptions): Prom
     } catch (e) {
       // Skip a record that fails (e.g. empty) but record it in the bundle manifest.
       itemMeta.push({
-        kind: it.kind,
+        kind: it.kind === 'perm_survey' ? 'survey' : it.kind,
         id: it.id,
         error: errText(e),
       });

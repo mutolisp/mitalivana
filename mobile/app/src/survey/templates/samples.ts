@@ -2,8 +2,9 @@
  * Two test templates for the checklist and plot styles (Phase 2C-a). Until the
  * builder (2D) exists there is no other way to start a survey of these
  * styles; the real built-in templates come with Phase 3, when the existing
- * record kinds move onto the framework (decided 2026-10-03). Development
- * builds only, so users meet no record kind that duplicates 快速名錄 and 樣區.
+ * record kinds move onto the framework (decided 2026-10-03). Offered for
+ * testing only (SAMPLE_TEMPLATES_OFFERED), so users meet no record kind that
+ * duplicates 快速名錄 and 樣區.
  *
  * One of each quick-add rule: the checklist takes species from the species
  * tab, the taxonomy tree and favorites; the plot does not (they are recorded
@@ -12,8 +13,12 @@
 import type { SurveyTemplate } from '../template/types';
 import { withRequired } from '../template/validate';
 
-/** Whether the screens offer them. `__DEV__` is undefined under Node (the checks). */
-export const SAMPLE_TEMPLATES_OFFERED: boolean = typeof __DEV__ !== 'undefined' && __DEV__;
+/**
+ * Whether the screens offer them. In release builds too while the user tests
+ * (asked 2026-10-03, as the stress test); back to `__DEV__` when testing is
+ * done (docs/Plan.md O).
+ */
+export const SAMPLE_TEMPLATES_OFFERED = true;
 
 export const SAMPLE_CHECKLIST_TEMPLATE: SurveyTemplate = withRequired({
   schema: 1,

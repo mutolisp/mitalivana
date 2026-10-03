@@ -478,7 +478,7 @@ export default function SurveyFormScreen() {
         }}
       />
       <LineTabs value={shownTab} options={tabs} onChange={setTab} />
-      {locked ? <LockedBanner /> : null}
+      {locked ? <LockedBanner text={t('surveyForm.lockedBanner')} /> : null}
       {data.recheck ? (
         <View className="mx-4 mt-3 flex-row items-center gap-3 rounded-lg border border-line bg-card px-3 py-2 dark:border-line-dark dark:bg-card-dark">
           <Text className="flex-1 text-xs text-ink-2 dark:text-gray-300">

@@ -7,7 +7,8 @@
  */
 import { create } from 'zustand';
 
-export type CreateSheetPage = 'main' | 'plot';
+/** 'survey': the survey framework's forms, side by side (每木調查, and the test templates). */
+export type CreateSheetPage = 'main' | 'plot' | 'survey';
 
 type SheetState = {
   /** Non-null while open; resolves the pending showCreateSheet(). */

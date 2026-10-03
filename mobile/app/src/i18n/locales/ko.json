@@ -4175,7 +4175,16 @@
     "traitTrack": "궤적 포함",
     "traitRadius": "반경 포함",
     "importPlot": "조사구 파일 가져오기",
-    "startSurvey": "조사 시작"
+    "startSurvey": "조사 시작",
+    "surveyTile": "모듈형 조사",
+    "surveyPageSubtitle": "좌우로 밀어 조사표 선택",
+    "surveyStemDesc": "영구 조사구의 매목조사(ForestGEO): 수목 번호, 위치, DBH, 건강 코드. 회차는 영구 조사구에서 시작합니다.",
+    "surveyOpenFrames": "영구 조사구 열기",
+    "surveyChecklistDesc": "걸으면서 종을 기록합니다. 항목은 조사표에 따릅니다(테스트용 예시, 종 탭에서 바로 추가 가능).",
+    "surveyPlotDesc": "소구·소방형구별로 기록합니다. 영구 조사구에서는 재조사를 블라인드로 시작한 뒤 지난 목록과 대조합니다(테스트용 예시).",
+    "surveyOnFrame": "영구 조사구에서 시작…",
+    "surveyNoFrames": "아직 영구 조사구가 없습니다. 먼저 「매목조사」에서 추가하세요.",
+    "surveyPageOf": "{{total}}장 중 {{n}}번째"
   },
   "count": {
     "increase": "{{name}} 수 늘리기",
@@ -4857,7 +4866,8 @@
       "newTitle": "「{{label}}」은 형태종 목록에 없습니다",
       "newMsg": "목록에 넣으면 이후 조사에서도 같은 라벨이 이 형태종을 가리킵니다.",
       "addToList": "목록에 추가",
-      "onlyHere": "이 기록에만"
+      "onlyHere": "이 기록에만",
+      "pickMsgNone": "형태종 목록에 이 분류군의 라벨이 아직 없습니다."
     },
     "frame": {
       "section": "조사구형 조사",
@@ -4884,6 +4894,8 @@
       "takePhoto": "사진 촬영",
       "pickPhoto": "앨범에서 선택",
       "removePhoto": "사진 삭제"
-    }
+    },
+    "lockedBanner": "끝나서 잠겨 있습니다. 오른쪽 위 ⋯ 에서 잠금을 해제해야 편집할 수 있습니다.",
+    "surveyNo": "{{n}}차"
   }
 }

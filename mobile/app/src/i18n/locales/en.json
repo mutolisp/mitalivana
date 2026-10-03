@@ -4364,7 +4364,16 @@
     "traitTrack": "With track",
     "traitRadius": "With radius",
     "importPlot": "Import plot file",
-    "startSurvey": "Start survey"
+    "startSurvey": "Start survey",
+    "surveyTile": "Survey forms",
+    "surveyPageSubtitle": "Swipe left or right to choose a form",
+    "surveyStemDesc": "Tree census on a permanent plot (ForestGEO): tags, positions, DBH and condition codes. Censuses start from the plot.",
+    "surveyOpenFrames": "Open permanent plots",
+    "surveyChecklistDesc": "Record species as you walk; the fields follow the form (a test template; species can be added straight from the species tab).",
+    "surveyPlotDesc": "Record subplot by subplot, quadrat by quadrat; on a permanent plot a recheck starts blind, then compares with the last list (a test template).",
+    "surveyOnFrame": "Start on a permanent plot…",
+    "surveyNoFrames": "There is no permanent plot yet. Add one under Tree census first.",
+    "surveyPageOf": "Card {{n}} of {{total}}"
   },
   "count": {
     "increase": "More {{name}}",
@@ -5069,7 +5078,8 @@
       "newTitle": "“{{label}}” is not on the morphospecies list",
       "newMsg": "On the list, the same label names this morphospecies in every later survey.",
       "addToList": "Add to the list",
-      "onlyHere": "Only for this record"
+      "onlyHere": "Only for this record",
+      "pickMsgNone": "The morphospecies list has no label for this taxon yet."
     },
     "frame": {
       "section": "Plot-style surveys",
@@ -5096,6 +5106,8 @@
       "takePhoto": "Take photo",
       "pickPhoto": "Choose from library",
       "removePhoto": "Remove photo"
-    }
+    },
+    "lockedBanner": "Finished and locked. Unlock it from ⋯ at the top right to edit.",
+    "surveyNo": "survey {{n}}"
   }
 }

@@ -17,7 +17,7 @@ import type { RecordKind } from './records_list';
  *  purpose: its plot data belongs in the GLORIA sheet, not on iNaturalist;
  *  a census's trees are tagged plot records, not observations. Checklist /
  *  plot-style surveys have no upload state (inat_* columns) yet. */
-export type InatKind = Exclude<RecordKind, 'gloria' | 'survey' | 'modular'>;
+export type InatKind = Exclude<RecordKind, 'gloria' | 'perm_survey' | 'modular'>;
 
 const TABLE: Record<InatKind, string> = {
   session: 'checklist_records',

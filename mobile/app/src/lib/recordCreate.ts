@@ -69,6 +69,7 @@ import { showCreateSheet } from '~/lib/createSheet';
 import { listQuadrats } from '~/db/quadrats';
 import { defaultSurveyorString } from '~/db/surveyors';
 import { createSurvey, finishSurvey, seriesCodeNeeded } from '~/survey/db/surveys';
+import { listFrames } from '~/survey/db/stemmap';
 import { useActiveSurvey } from '~/survey/form/activeSurvey';
 import type { SurveyTemplate } from '~/survey/template/types';
 
@@ -348,6 +349,22 @@ export async function startModularSurveyAndOpen(template: SurveyTemplate, frameI
   useActivePlot.getState().refresh();
   useActiveSession.getState().refresh();
   router.push(`/survey/form/${id}` as Href);
+}
+
+/** A plot-style survey on a permanent plot picked from the list (the create sheet's survey page). */
+export async function startModularOnFrameAndOpen(template: SurveyTemplate): Promise<void> {
+  const frames = listFrames();
+  if (!frames.length) {
+    Alert.alert(i18n.t('create.surveyOnFrame'), i18n.t('create.surveyNoFrames'));
+    return;
+  }
+  const idx = await showActionSheet({
+    title: i18n.t('create.surveyOnFrame'),
+    options: frames.map((f) => ({ label: f.name ? `${f.code} ${f.name}` : f.code })),
+    cancelLabel: i18n.t('common.cancel'),
+  });
+  const frame = frames[idx];
+  if (frame) await startModularSurveyAndOpen(template, frame.id);
 }
 
 /** The permanent-plot list; a tree census is started from a plot there. Not
@@ -906,7 +923,7 @@ export async function duplicateRecordAndOpen(
   item: RecordItem,
   opts: DuplicateRecordOptions,
 ): Promise<number | null> {
-  if (item.kind === 'gloria' || item.kind === 'survey' || item.kind === 'modular') return null; // not duplicable — see the records tab's handleDuplicate
+  if (item.kind === 'gloria' || item.kind === 'perm_survey' || item.kind === 'modular') return null; // not duplicable — see the records tab's handleDuplicate
   if (opts.activate && item.kind !== 'collection') {
     // 採集 sits outside the invariant; the other two must ask first.
     const ok = await ensureNoConflictingActive(item.kind);

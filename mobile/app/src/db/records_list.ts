@@ -21,10 +21,15 @@ import { listSurveys } from '~/survey/db/surveys';
 import type { SurveyListRow } from '~/survey/db/surveyCore';
 import type { BundleItem } from '~/lib/bundleExport';
 
-/** 'survey': a tree census of the survey framework; 'modular': its checklist /
- *  plot-style surveys (Phase 2C; same table, fw_surveys, but nothing a census
- *  path does applies to them). */
-export type RecordKind = 'session' | 'plot' | 'collection' | 'gloria' | 'survey' | 'modular';
+/**
+ * 'perm_survey': a tree census on a permanent plot; 'modular': a checklist /
+ * plot-style survey of the survey framework (Phase 2C; same table, fw_surveys,
+ * but nothing a census path does applies to them). Renamed from 'survey'
+ * 2026-10-03; what is stored or sent keeps 'survey' (record_versions,
+ * sync_links, team-sync objects, export manifests), so files and teammates on
+ * older versions still read.
+ */
+export type RecordKind = 'session' | 'plot' | 'collection' | 'gloria' | 'perm_survey' | 'modular';
 
 /** Records-tab filter: a single kind, or every kind. */
 export type RecordFilter = 'all' | RecordKind;
@@ -149,7 +154,7 @@ function surveyToItem(c: CensusListRow): RecordItem {
   const projectName = c.project_name || i18n.t('plot.uncategorized');
   const subtitle = i18n.t('recordsList.surveySubtitle', { count: c.tree_count, n: c.census_no });
   return {
-    kind: 'survey',
+    kind: 'perm_survey',
     id: c.id,
     title: c.frame_name ? `${c.frame_code} ${c.frame_name}` : c.frame_code,
     subtitle,
@@ -166,7 +171,12 @@ function surveyToItem(c: CensusListRow): RecordItem {
 
 function modularToItem(s: SurveyListRow): RecordItem {
   const projectName = s.project_name || i18n.t('plot.uncategorized');
-  const subtitle = i18n.t('recordsList.modularSubtitle', { count: s.species_count, style: i18n.t(`surveyForm.style.${s.style}`) });
+  // Surveys of one permanent plot share its code as their name; the number tells them apart.
+  const style = i18n.t(`surveyForm.style.${s.style}`);
+  const subtitle = i18n.t('recordsList.modularSubtitle', {
+    count: s.species_count,
+    style: s.census_no == null ? style : `${style} · ${i18n.t('surveyForm.surveyNo', { n: s.census_no })}`,
+  });
   return {
     kind: 'modular',
     id: s.id,
@@ -204,7 +214,7 @@ export function listRecords(filter: RecordFilter = 'all'): RecordItem[] {
   if (filter === 'all' || filter === 'gloria') {
     items.push(...listGloriaSurveysWithMeta().map(gloriaToItem));
   }
-  if (filter === 'all' || filter === 'survey') {
+  if (filter === 'all' || filter === 'perm_survey') {
     items.push(...listCensuses().map(surveyToItem));
   }
   if (filter === 'all' || filter === 'modular') {
@@ -275,7 +285,7 @@ export type RecordsSummary = {
  */
 export function listRecordsSummary(filter: RecordFilter = 'all'): RecordsSummary {
   const all = listRecords('all');
-  const counts: RecordsSummary['counts'] = { all: all.length, session: 0, plot: 0, collection: 0, gloria: 0, survey: 0, modular: 0 };
+  const counts: RecordsSummary['counts'] = { all: all.length, session: 0, plot: 0, collection: 0, gloria: 0, perm_survey: 0, modular: 0 };
   for (const it of all) counts[it.kind] += 1;
   const items = filter === 'all' ? all : all.filter((it) => it.kind === filter);
   return { items, groups: groupByProject(items), counts };
@@ -297,7 +307,7 @@ const TAKEN_NAMES_SQL: Record<RecordKind, string> = {
   gloria: `SELECT s.full_code || ' mocy ' || v.mocy AS name FROM gloria_surveys v JOIN gloria_summits s ON s.id = v.summit_id`,
   collection: `SELECT name FROM collection_trips`,
   // Censuses are not duplicated; listed for completeness.
-  survey: `SELECT f.code AS name FROM fw_surveys s JOIN fw_frames f ON f.id = s.frame_id`,
+  perm_survey: `SELECT f.code AS name FROM fw_surveys s JOIN fw_frames f ON f.id = s.frame_id`,
   modular: `SELECT name FROM fw_surveys WHERE style <> 'individual'`,
 };
 
@@ -314,7 +324,7 @@ const RECORD_TABLE: Record<RecordKind, string> = {
   plot: 'plot_surveys',
   collection: 'collection_trips',
   gloria: 'gloria_surveys',
-  survey: 'fw_surveys',
+  perm_survey: 'fw_surveys',
   modular: 'fw_surveys',
 };
 
@@ -340,7 +350,7 @@ const RECORD_SPECIES_SOURCE: Record<RecordKind, { table: string; fk: string }> =
   // The roster: every taxon the survey holds, recorded in a unit or not.
   gloria: { table: 'gloria_taxa', fk: 'survey_id' },
   // The trees the census sees (added in it or an earlier census of its series).
-  survey: {
+  perm_survey: {
     table: `(SELECT i.id, i.taxon_id, s.id AS survey_id FROM fw_surveys s
               JOIN fw_individuals i ON i.frame_id = s.frame_id
               LEFT JOIN fw_surveys fi ON fi.id = i.first_survey_id

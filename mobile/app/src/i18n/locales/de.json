@@ -4364,7 +4364,16 @@
     "traitTrack": "Mit Track",
     "traitRadius": "Mit Radius",
     "importPlot": "Flächendatei importieren",
-    "startSurvey": "Erhebung starten"
+    "startSurvey": "Erhebung starten",
+    "surveyTile": "Formulare",
+    "surveyPageSubtitle": "Nach links oder rechts wischen, um ein Formular zu wählen",
+    "surveyStemDesc": "Baumerhebung auf einer Dauerfläche (ForestGEO): Nummern, Lage, BHD und Zustandscodes. Aufnahmen beginnen auf der Fläche.",
+    "surveyOpenFrames": "Dauerflächen öffnen",
+    "surveyChecklistDesc": "Arten unterwegs erfassen; die Felder richten sich nach dem Formular (Testvorlage; Arten lassen sich direkt aus dem Artenreiter hinzufügen).",
+    "surveyPlotDesc": "Teilfläche für Teilfläche erfassen; auf einer Dauerfläche beginnt die Wiederholung blind und wird dann mit der früheren Liste verglichen (Testvorlage).",
+    "surveyOnFrame": "Auf einer Dauerfläche beginnen …",
+    "surveyNoFrames": "Noch keine Dauerfläche. Lege zuerst eine unter „Baumerhebung“ an.",
+    "surveyPageOf": "Karte {{n}} von {{total}}"
   },
   "count": {
     "increase": "{{name}} erhöhen",
@@ -5069,7 +5078,8 @@
       "newTitle": "„{{label}}“ steht nicht auf der Morphospezies-Liste",
       "newMsg": "Auf der Liste meint dieselbe Bezeichnung diese Morphospezies auch in allen späteren Aufnahmen.",
       "addToList": "Zur Liste hinzufügen",
-      "onlyHere": "Nur für diesen Eintrag"
+      "onlyHere": "Nur für diesen Eintrag",
+      "pickMsgNone": "Die Morphospezies-Liste hat noch keine Bezeichnung für dieses Taxon."
     },
     "frame": {
       "section": "Flächenaufnahmen",
@@ -5096,6 +5106,8 @@
       "takePhoto": "Foto aufnehmen",
       "pickPhoto": "Aus Mediathek wählen",
       "removePhoto": "Foto entfernen"
-    }
+    },
+    "lockedBanner": "Beendet und gesperrt. Über ⋯ oben rechts entsperren, um zu bearbeiten.",
+    "surveyNo": "Aufnahme {{n}}"
   }
 }

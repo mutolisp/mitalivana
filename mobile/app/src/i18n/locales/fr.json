@@ -4553,7 +4553,16 @@
     "traitTrack": "Avec trace",
     "traitRadius": "Avec rayon",
     "importPlot": "Importer un fichier de placette",
-    "startSurvey": "Commencer le relevé"
+    "startSurvey": "Commencer le relevé",
+    "surveyTile": "Formulaires",
+    "surveyPageSubtitle": "Balayez à gauche ou à droite pour choisir un formulaire",
+    "surveyStemDesc": "Inventaire des arbres d’une placette permanente (ForestGEO) : numéros, positions, DHP et codes d’état. Les inventaires partent de la placette.",
+    "surveyOpenFrames": "Ouvrir les placettes permanentes",
+    "surveyChecklistDesc": "Notez les espèces en marchant ; les champs suivent le formulaire (modèle de test ; ajout direct depuis l’onglet Espèces).",
+    "surveyPlotDesc": "Notez sous-placette par sous-placette ; sur une placette permanente, le relevé suivant commence à l’aveugle puis se compare à la liste précédente (modèle de test).",
+    "surveyOnFrame": "Commencer sur une placette permanente…",
+    "surveyNoFrames": "Aucune placette permanente pour l’instant. Ajoutez-en une dans Inventaire des arbres.",
+    "surveyPageOf": "Carte {{n}} sur {{total}}"
   },
   "count": {
     "increase": "Augmenter {{name}}",
@@ -5281,7 +5290,8 @@
       "newTitle": "« {{label}} » ne figure pas dans la liste des morpho-espèces",
       "newMsg": "Dans la liste, la même étiquette désignera cette morpho-espèce dans tous les relevés suivants.",
       "addToList": "Ajouter à la liste",
-      "onlyHere": "Pour cette occurrence seulement"
+      "onlyHere": "Pour cette occurrence seulement",
+      "pickMsgNone": "La liste des morpho-espèces n’a pas encore d’étiquette pour ce taxon."
     },
     "frame": {
       "section": "Relevés de placette",
@@ -5308,6 +5318,8 @@
       "takePhoto": "Prendre une photo",
       "pickPhoto": "Choisir dans la photothèque",
       "removePhoto": "Retirer la photo"
-    }
+    },
+    "lockedBanner": "Terminé et verrouillé. Déverrouillez-le depuis ⋯ en haut à droite pour le modifier.",
+    "surveyNo": "relevé {{n}}"
   }
 }
