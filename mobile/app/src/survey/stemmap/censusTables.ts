@@ -24,6 +24,9 @@ import type { Row } from '../../lib/mergeEngine';
 import type { CensusExportDoc } from '../db/censusExportCore';
 import { fgQuadratCounts, formatFgQuadratCode, subquadratOf, type FrameGeometry } from './coords';
 import { stemIsDead, treeStatus, type StemCensusInput } from './status';
+import { AMS_CODESET, AMS_VARIABLES, amsField, amsValueOf } from '../codesets/forestgeoAms2021';
+import { healthCodesets } from '../registry';
+import type { SurveyTemplate } from '../template/types';
 
 export type Names = (taxonId: string) => { scientific: string | null; vernacular: string | null };
 
@@ -79,6 +82,17 @@ function censusIndex(doc: CensusExportDoc, i: number) {
   const measureOf = new Map(c.measures.map((m) => [m.stem_uuid as string, m]));
   const stemCodes = new Map<string, string[]>();
   for (const v of c.stemValues) if (v.component === 'health' && v.field === 'census_codes') stemCodes.set(v.stem_uuid as string, parseList(v.value_text));
+  // AMS values as CSV cells: lists joined with ';', numbers and markers as written.
+  const ams = new Map<string, Map<string, string>>();
+  for (const v of c.stemValues) {
+    const variable = v.component === 'health' ? AMS_VAR.get(str(v.field)) : undefined;
+    if (!variable) continue;
+    const value = amsValueOf(variable, v.value_num == null ? null : Number(v.value_num), v.value_text == null ? null : str(v.value_text));
+    if (value == null) continue;
+    const of = ams.get(v.stem_uuid as string) ?? new Map<string, string>();
+    of.set(variable.field, Array.isArray(value) ? value.join(';') : String(value));
+    ams.set(v.stem_uuid as string, of);
+  }
   const treeCodes = new Map<string, string[]>();
   const height = new Map<string, number>();
   for (const v of c.treeValues) {
@@ -86,7 +100,20 @@ function censusIndex(doc: CensusExportDoc, i: number) {
     if (v.component === 'height' && v.field === 'height_m' && v.value_num != null) height.set(v.tree_uuid as string, Number(v.value_num));
   }
   const quadratDate = new Map(c.quadrats.map((q) => [q.quadrat_code as string, (q.started_at as number | null) ?? null]));
-  return { c, measureOf, stemCodes, treeCodes, height, quadratDate };
+  return { c, measureOf, stemCodes, ams, treeCodes, height, quadratDate };
+}
+
+const AMS_VAR = new Map(AMS_VARIABLES.map((v) => [amsField(v.field), v]));
+
+/** Whether any census in the file records the AMS code set (its template snapshot's Health component). */
+function docUsesAms(doc: CensusExportDoc): boolean {
+  return doc.censuses.some((c) => {
+    try {
+      return healthCodesets((JSON.parse(str(c.survey.template_snapshot)) as SurveyTemplate).components).includes(AMS_CODESET);
+    } catch {
+      return false;
+    }
+  });
 }
 
 export function treesTable(doc: CensusExportDoc, names: Names): Table {
@@ -181,7 +208,12 @@ export function censusTable(doc: CensusExportDoc): Table {
 }
 
 export function stemsTable(doc: CensusExportDoc): Table {
-  const header = ['census_no', 'tag', 'stem_no', 'stem_tag', 'stem_uuid', 'dbh_cm', 'dbh_mm', 'pom_m', 'pom_seq', 'main', 'stem_dead', 'codes', 'pending', 'date', 'recorded_by'];
+  // AMS columns only when a census records the AMS code set, so a census-codes-only file keeps its columns.
+  const withAms = docUsesAms(doc);
+  const header = [
+    'census_no', 'tag', 'stem_no', 'stem_tag', 'stem_uuid', 'dbh_cm', 'dbh_mm', 'pom_m', 'pom_seq', 'main', 'stem_dead', 'codes', 'pending', 'date', 'recorded_by',
+    ...(withAms ? AMS_VARIABLES.map((v) => amsField(v.field)) : []),
+  ];
   const treeOf = new Map(doc.trees.map((t) => [str(t.uuid), t]));
   // Stable sort: stems of one tree stay in stem order.
   const stems = byTag(
@@ -212,6 +244,7 @@ export function stemsTable(doc: CensusExportDoc): Table {
         str(m.pending),
         m.measured_at != null ? isoDate(Number(m.measured_at)) : '',
         str(m.recorded_by),
+        ...(withAms ? AMS_VARIABLES.map((v) => ix.ams.get(str(st.uuid))?.get(v.field) ?? '') : []),
       ]);
     }
   });

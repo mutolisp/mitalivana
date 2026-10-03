@@ -4392,7 +4392,16 @@
       "notHandled": "前回測定済み、今回未処理",
       "extremeHigh": "成長率が高い：再測定",
       "extremeLow": "成長率が低い：再測定",
-      "extremeFew": "DBH 階級の本数が少ないため全て再測定"
+      "extremeFew": "DBH 階級の本数が少ないため全て再測定",
+      "stemDeadButAmsAlive": "幹は枯死とされていますが、AMS では生存です",
+      "amsModeBAndS": "AMS 状態：折損（B）と直立（S）は両立しません",
+      "amsUprootedNeedsLeaning": "AMS 根返り（U）のときは傾きを記入",
+      "amsOkButDamaged": "AMS は OK ですが、折損または根返りです",
+      "amsOkButCrownLost": "AMS は OK ですが、残存樹冠が 90% 未満です",
+      "amsXWithLivingLength": "AMS は X（地上部枯死）ですが、生存部の長さがあります",
+      "amsNotANumber": "AMS の値が数値ではありません",
+      "amsNotAllowed": "AMS コードがコード表にありません",
+      "amsOutOfRange": "AMS の値が範囲外です"
     },
     "checks": {
       "screening_other": "自動チェック {{count}}",
@@ -4543,6 +4552,163 @@
       "merged": "{{count}} 回分を統合しました",
       "toReview": "{{count}} 回分は統合の確認が必要です",
       "unresolvedTaxa": "{{count}} 種がこの端末の名録にないため、元のコードのままです"
+    },
+    "component": {
+      "taxon": "分類群",
+      "timestamp": "日時",
+      "comments": "備考",
+      "investigators": "調査者",
+      "workers": "記録者と同定者",
+      "location": "位置",
+      "dbh": "胸高直径",
+      "height": "高さ",
+      "health": "健全度コード",
+      "photos": "写真",
+      "audio": "録音",
+      "abundance": "被度・個体数",
+      "frequency": "頻度",
+      "structure": "階層",
+      "phenology": "フェノロジー",
+      "traits": "形質",
+      "environment": "環境"
+    },
+    "editor": {
+      "elsewhere": "この項目は記録画面で入力します。",
+      "problem": {
+        "required": "必須",
+        "notANumber": "数値ではありません",
+        "outOfRange": "範囲外です",
+        "notInteger": "整数で入力してください",
+        "notAllowed": "選べる値ではありません",
+        "malformed": "形式が正しくありません",
+        "endsBeforeStart": "終了が開始より前です",
+        "coversOver100": "地表被覆の合計が 100% を超えています",
+        "layerOutOfRange": "階層数を超えています"
+      },
+      "abundance": {
+        "count": "個体数",
+        "countSuffix": "個体"
+      },
+      "frequency": {
+        "count": "出現マス数（{{n}}×{{n}}、全 {{cells}} マス）",
+        "grid": "{{n}}×{{n}} の頻度グリッド",
+        "cells": "{{k}} / {{cells}} マス"
+      },
+      "structure": {
+        "fewer": "1 層減らす",
+        "more": "1 層増やす",
+        "cover": "被度",
+        "height": "高さ"
+      },
+      "environment": {
+        "coverTotal": "地表被覆の合計 {{total}}%"
+      },
+      "timestamp": {
+        "start": "開始",
+        "stop": "終了",
+        "setStop": "終了時刻を記録"
+      },
+      "people": {
+        "none": "未指定"
+      },
+      "workers": {
+        "recorder": "記録者",
+        "identifier": "同定者"
+      },
+      "location": {
+        "fix": "{{lat}}, {{lng}}（±{{acc}} m）",
+        "none": "まだ測位していません",
+        "clear": "消去"
+      },
+      "summary": {
+        "count": "{{n}} 個体",
+        "recorded": "記録済み",
+        "stems_other": "{{count}} 幹",
+        "layers_other": "{{count}} 層"
+      }
+    },
+    "ams": {
+      "title": "AMS 枯死と損傷",
+      "unsure": "判断できない",
+      "yes": "あり",
+      "no": "なし",
+      "deathHint": "幹の枯死は AMS の生存状態（X または D）で判定します。",
+      "survival_status": {
+        "label": "生存状態",
+        "c_OK": "健全（主軸が完全で直立、樹冠 90% 以上）",
+        "c_A": "幹が生存",
+        "c_D": "個体が枯死",
+        "c_X": "この幹は地上部が枯死、個体は生存",
+        "c_NF": "幹も番号札も見つからない"
+      },
+      "mode": {
+        "label": "状態",
+        "c_S": "直立（主軸が完全）",
+        "c_B": "折損",
+        "c_U": "根返り（根が地上に出る）"
+      },
+      "living_length_m": {
+        "label": "生存部の長さ",
+        "c_belowPom": "POM 未満"
+      },
+      "remaining_crown_pct": {
+        "label": "残存樹冠",
+        "c_NA": "該当なし（枝がない）"
+      },
+      "crown_illumination": {
+        "label": "樹冠の受光",
+        "c_5": "全面受光（垂直と側方）",
+        "c_4": "上方から受光 90% 以上",
+        "c_3": "上方から受光 10–90%",
+        "c_2": "側方から受光（上方 10% 未満）",
+        "c_1": "直射光なし"
+      },
+      "leaning_deg": {
+        "label": "傾き"
+      },
+      "liana": {
+        "label": "つる・絞め殺し",
+        "c_L": "つるが樹冠の 50% 超を覆う",
+        "c_S": "主軸の肥大を妨げる（絞め殺し）"
+      },
+      "fungi": {
+        "label": "菌類"
+      },
+      "wounded_main_axis": {
+        "label": "主軸の傷",
+        "c_1": "小（DBH×DBH 未満）",
+        "c_2": "大（DBH×DBH 超）",
+        "c_3": "極大（断面積または生存部長の 50% 超）"
+      },
+      "canker": {
+        "label": "がんしゅ・こぶ・奇形",
+        "c_1": "小（DBH×DBH 未満）",
+        "c_2": "大（DBH×DBH 超）",
+        "c_3": "極大（断面積または生存部長の 50% 超）"
+      },
+      "rotting_trunk": {
+        "label": "幹の腐朽",
+        "c_1": "小（DBH×DBH 未満）",
+        "c_2": "大（DBH×DBH 超）",
+        "c_3": "極大（断面積または生存部長の 50% 超）"
+      },
+      "leaves_pct": {
+        "label": "残存葉量"
+      },
+      "leaf_damage": {
+        "label": "葉の損傷"
+      },
+      "comment_codes": {
+        "label": "その他の状況",
+        "c_L": "落雷",
+        "c_G": "ギャップ",
+        "c_F": "火災",
+        "c_H": "幹の空洞",
+        "c_HB": "根元の空洞",
+        "c_R": "根の損傷",
+        "c_S": "斜面崩壊",
+        "c_W": "風倒"
+      }
     }
   },
   "task": {

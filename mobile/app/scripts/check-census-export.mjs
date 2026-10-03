@@ -217,6 +217,26 @@ ok(t1row[col(trees, 'quadrat')] === '0000' && t1row[col(trees, 'subquadrat')] ==
 ok(trees.rows.find((r) => r[col(trees, 'individual_uuid')] === u2)[col(trees, 'tag')] === '200', 'trees.csv: the corrected tag');
 const stems = tb.stemsTable(doc);
 ok(stems.rows.length === 9 && stems.rows.some((r) => r[col(stems, 'stem_tag')].endsWith('-2') && r[col(stems, 'dbh_mm')] === '310'), `stems.csv: one row per measured stem, cm and mm (${stems.rows.length})`);
+ok(!stems.header.some((h) => h.startsWith('ams_')), 'stems.csv: no AMS columns for a census-codes-only file');
+// The same file as an AMS census would write it (2B): AMS columns, values as written.
+{
+  const withAms = JSON.parse(JSON.stringify(doc));
+  const last = withAms.censuses[withAms.censuses.length - 1];
+  const tpl = JSON.parse(last.survey.template_snapshot);
+  tpl.components = tpl.components.map((c) => (c.type === 'health' ? { ...c, params: { codesets: ['forestgeo-census-1998', 'forestgeo-ams-2021'] } } : c));
+  last.survey.template_snapshot = JSON.stringify(tpl);
+  const stemUuid = last.measures[0].stem_uuid;
+  const v = (field, value_num, value_text) => ({ uuid: `v-${field}`, stem_uuid: stemUuid, component: 'health', field, idx: 0, value_num, value_text, unit: null });
+  last.stemValues.push(v('ams_survival_status', null, 'A'), v('ams_mode', null, '["B","U"]'), v('ams_leaning_deg', 12, null), v('ams_living_length_m', null, '<POM'));
+  const at = tb.stemsTable(withAms);
+  const amsCols = at.header.filter((h) => h.startsWith('ams_'));
+  ok(amsCols.length === 14 && at.header.slice(0, stems.header.length).join() === stems.header.join(), `stems.csv: an AMS census adds the 14 AMS columns after the others (${amsCols.length})`);
+  const row = at.rows.find((r) => r[col(at, 'stem_uuid')] === stemUuid && r[col(at, 'census_no')] === String(last.survey.census_no));
+  ok(
+    row && row[col(at, 'ams_survival_status')] === 'A' && row[col(at, 'ams_mode')] === 'B;U' && row[col(at, 'ams_leaning_deg')] === '12' && row[col(at, 'ams_living_length_m')] === '<POM',
+    `stems.csv: AMS values as written, lists joined with ; (${row && amsCols.map((h) => row[col(at, h)]).join('|')})`,
+  );
+}
 // Tag order without localeCompare (1E): the same as its numeric order on tags as people write them.
 const TAGS = ['10', '2', '1', '100', '12A', '12', '12B', 'A2', 'A10', 'B1', '9', '0099', '1-2', '1-10'];
 const tagged = { ...doc, trees: TAGS.map((tag) => ({ ...doc.trees[0], tag })) };

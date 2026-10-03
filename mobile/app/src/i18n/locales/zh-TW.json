@@ -4392,7 +4392,16 @@
       "notHandled": "上回合有量，這回合未處理",
       "extremeHigh": "生長率偏高，請複量",
       "extremeLow": "生長率偏低，請複量",
-      "extremeFew": "徑級株數少，全部複量"
+      "extremeFew": "徑級株數少，全部複量",
+      "stemDeadButAmsAlive": "分支標為死亡，但 AMS 為存活",
+      "amsModeBAndS": "AMS 型態：斷裂（B）與直立（S）不能並存",
+      "amsUprootedNeedsLeaning": "AMS 型態為翻倒（U）時要填傾斜角度",
+      "amsOkButDamaged": "AMS 為 OK，但型態為斷裂或翻倒",
+      "amsOkButCrownLost": "AMS 為 OK，但剩餘樹冠低於 90%",
+      "amsXWithLivingLength": "AMS 為 X（地上部全死），但有活組織長度",
+      "amsNotANumber": "AMS 欄位不是數字",
+      "amsNotAllowed": "AMS 代碼不在代碼表中",
+      "amsOutOfRange": "AMS 數值超出範圍"
     },
     "checks": {
       "screening_other": "自動篩檢 {{count}}",
@@ -4543,6 +4552,163 @@
       "merged": "合併 {{count}} 個回合",
       "toReview": "{{count}} 個回合需要審閱合併",
       "unresolvedTaxa": "{{count}} 個物種在這台手機的名錄中找不到，保留原代碼"
+    },
+    "component": {
+      "taxon": "物種",
+      "timestamp": "時間",
+      "comments": "備註",
+      "investigators": "調查者",
+      "workers": "記錄者與鑑定者",
+      "location": "位置",
+      "dbh": "胸高直徑",
+      "height": "高度",
+      "health": "健康代碼",
+      "photos": "照片",
+      "audio": "錄音",
+      "abundance": "豐度",
+      "frequency": "頻度",
+      "structure": "分層",
+      "phenology": "物候",
+      "traits": "性狀",
+      "environment": "環境"
+    },
+    "editor": {
+      "elsewhere": "這個元件在記錄畫面上輸入。",
+      "problem": {
+        "required": "必填",
+        "notANumber": "不是數字",
+        "outOfRange": "超出範圍",
+        "notInteger": "需為整數",
+        "notAllowed": "不在可選的值中",
+        "malformed": "格式不正確",
+        "endsBeforeStart": "結束時間早於開始時間",
+        "coversOver100": "地表覆蓋合計超過 100%",
+        "layerOutOfRange": "超出分層數"
+      },
+      "abundance": {
+        "count": "個體數",
+        "countSuffix": "個體"
+      },
+      "frequency": {
+        "count": "出現格數（{{n}}×{{n}}，共 {{cells}} 格）",
+        "grid": "{{n}}×{{n}} 頻度格",
+        "cells": "{{k}} / {{cells}} 格"
+      },
+      "structure": {
+        "fewer": "減少一層",
+        "more": "增加一層",
+        "cover": "覆蓋度",
+        "height": "高度"
+      },
+      "environment": {
+        "coverTotal": "地表覆蓋合計 {{total}}%"
+      },
+      "timestamp": {
+        "start": "開始",
+        "stop": "結束",
+        "setStop": "記下結束時間"
+      },
+      "people": {
+        "none": "未指定"
+      },
+      "workers": {
+        "recorder": "記錄者",
+        "identifier": "鑑定者"
+      },
+      "location": {
+        "fix": "{{lat}}, {{lng}}（±{{acc}} m）",
+        "none": "尚未定位",
+        "clear": "清除"
+      },
+      "summary": {
+        "count": "{{n}} 個體",
+        "recorded": "已記錄",
+        "stems_other": "{{count}} 分枝",
+        "layers_other": "{{count}} 層"
+      }
+    },
+    "ams": {
+      "title": "AMS 死亡與損傷",
+      "unsure": "無法判斷",
+      "yes": "有",
+      "no": "無",
+      "deathHint": "分支死亡依 AMS 存活狀態判定（X 或 D）。",
+      "survival_status": {
+        "label": "存活狀態",
+        "c_OK": "健康完整（主軸直立完整、樹冠 ≥90%）",
+        "c_A": "分支存活",
+        "c_D": "個體死亡",
+        "c_X": "此分支地上部全死、個體存活",
+        "c_NF": "分支與樹牌都找不到"
+      },
+      "mode": {
+        "label": "型態",
+        "c_S": "直立（主軸完整）",
+        "c_B": "斷裂",
+        "c_U": "翻倒（根部翻出地面）"
+      },
+      "living_length_m": {
+        "label": "活組織長度",
+        "c_belowPom": "低於 POM"
+      },
+      "remaining_crown_pct": {
+        "label": "剩餘樹冠",
+        "c_NA": "不適用（原本就無分枝）"
+      },
+      "crown_illumination": {
+        "label": "樹冠受光",
+        "c_5": "完全受光（垂直與側向）",
+        "c_4": "上方受光 ≥90%",
+        "c_3": "上方受光 10–90%",
+        "c_2": "側向受光（上方 <10%）",
+        "c_1": "無直射光"
+      },
+      "leaning_deg": {
+        "label": "傾斜角度"
+      },
+      "liana": {
+        "label": "藤本／絞殺",
+        "c_L": "藤本覆蓋樹冠 >50%",
+        "c_S": "限制主軸生長（絞殺）"
+      },
+      "fungi": {
+        "label": "真菌"
+      },
+      "wounded_main_axis": {
+        "label": "主軸傷口",
+        "c_1": "小（小於 DBH×DBH）",
+        "c_2": "大（大於 DBH×DBH）",
+        "c_3": "極大（超過 50% 斷面積或活組織長度）"
+      },
+      "canker": {
+        "label": "潰瘍、腫脹、畸形",
+        "c_1": "小（小於 DBH×DBH）",
+        "c_2": "大（大於 DBH×DBH）",
+        "c_3": "極大（超過 50% 斷面積或活組織長度）"
+      },
+      "rotting_trunk": {
+        "label": "樹幹腐朽",
+        "c_1": "小（小於 DBH×DBH）",
+        "c_2": "大（大於 DBH×DBH）",
+        "c_3": "極大（超過 50% 斷面積或活組織長度）"
+      },
+      "leaves_pct": {
+        "label": "剩餘葉量"
+      },
+      "leaf_damage": {
+        "label": "葉片損傷"
+      },
+      "comment_codes": {
+        "label": "其他狀況",
+        "c_L": "雷擊",
+        "c_G": "孔隙",
+        "c_F": "火燒",
+        "c_H": "中空樹幹",
+        "c_HB": "基部中空",
+        "c_R": "根部損傷",
+        "c_S": "邊坡崩塌",
+        "c_W": "風倒"
+      }
     }
   },
   "task": {

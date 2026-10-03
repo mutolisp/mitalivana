@@ -4778,7 +4778,16 @@
       "notHandled": "Medido antes, aún no tratado",
       "extremeHigh": "Crecimiento alto: volver a medir",
       "extremeLow": "Crecimiento bajo: volver a medir",
-      "extremeFew": "Pocos en esta clase de DAP: volver a medir"
+      "extremeFew": "Pocos en esta clase de DAP: volver a medir",
+      "stemDeadButAmsAlive": "Tallo marcado muerto, pero AMS dice vivo",
+      "amsModeBAndS": "Modo AMS: roto (B) y en pie (S) no pueden ir juntos",
+      "amsUprootedNeedsLeaning": "AMS desarraigado (U) requiere inclinación",
+      "amsOkButDamaged": "AMS OK, pero roto o desarraigado",
+      "amsOkButCrownLost": "AMS OK, pero queda menos del 90 % de copa",
+      "amsXWithLivingLength": "AMS X (muerto sobre el suelo), pero hay longitud viva",
+      "amsNotANumber": "Un valor AMS no es un número",
+      "amsNotAllowed": "Un código AMS no está en el conjunto",
+      "amsOutOfRange": "Un valor AMS está fuera de rango"
     },
     "checks": {
       "screening_one": "Revisión {{count}}",
@@ -4935,6 +4944,167 @@
       "merged": "{{count}} censos combinados",
       "toReview": "{{count}} censos necesitan revisar la combinación",
       "unresolvedTaxa": "{{count}} especies no están en la lista de este dispositivo; se conservan sus códigos"
+    },
+    "component": {
+      "taxon": "Taxón",
+      "timestamp": "Hora",
+      "comments": "Comentarios",
+      "investigators": "Investigadores",
+      "workers": "Registradores e identificadores",
+      "location": "Ubicación",
+      "dbh": "DAP",
+      "height": "Altura",
+      "health": "Códigos de estado",
+      "photos": "Fotos",
+      "audio": "Grabaciones",
+      "abundance": "Abundancia",
+      "frequency": "Frecuencia",
+      "structure": "Estratos",
+      "phenology": "Fenología",
+      "traits": "Rasgos",
+      "environment": "Ambiente"
+    },
+    "editor": {
+      "elsewhere": "Este elemento se introduce en la pantalla del registro.",
+      "problem": {
+        "required": "Obligatorio",
+        "notANumber": "No es un número",
+        "outOfRange": "Fuera de rango",
+        "notInteger": "Debe ser un número entero",
+        "notAllowed": "No es un valor permitido",
+        "malformed": "Formato incorrecto",
+        "endsBeforeStart": "Termina antes de empezar",
+        "coversOver100": "Las coberturas del suelo superan el 100 %",
+        "layerOutOfRange": "Más allá del número de estratos"
+      },
+      "abundance": {
+        "count": "Recuento",
+        "countSuffix": "individuos"
+      },
+      "frequency": {
+        "count": "Celdas ocupadas ({{n}}×{{n}}, {{cells}} celdas)",
+        "grid": "Cuadrícula de frecuencia {{n}}×{{n}}",
+        "cells": "{{k}} / {{cells}} celdas"
+      },
+      "structure": {
+        "fewer": "Un estrato menos",
+        "more": "Un estrato más",
+        "cover": "Cobertura",
+        "height": "Altura"
+      },
+      "environment": {
+        "coverTotal": "Coberturas del suelo: {{total}} %"
+      },
+      "timestamp": {
+        "start": "Inicio",
+        "stop": "Fin",
+        "setStop": "Anotar la hora de fin"
+      },
+      "people": {
+        "none": "Ninguno"
+      },
+      "workers": {
+        "recorder": "Registrador",
+        "identifier": "Identificador"
+      },
+      "location": {
+        "fix": "{{lat}}, {{lng}} (±{{acc}} m)",
+        "none": "Aún sin posición",
+        "clear": "Borrar"
+      },
+      "summary": {
+        "count": "{{n}} individuos",
+        "recorded": "Registrado",
+        "stems_one": "{{count}} tallo",
+        "stems_many": "{{count}} tallos",
+        "stems_other": "{{count}} tallos",
+        "layers_one": "{{count}} estrato",
+        "layers_many": "{{count}} estratos",
+        "layers_other": "{{count}} estratos"
+      }
+    },
+    "ams": {
+      "title": "AMS mortalidad y daños",
+      "unsure": "No se puede saber",
+      "yes": "Sí",
+      "no": "No",
+      "deathHint": "La muerte de un tallo sigue su estado de supervivencia AMS (X o D).",
+      "survival_status": {
+        "label": "Estado de supervivencia",
+        "c_OK": "Sano (eje principal completo y en pie, ≥90 % de copa)",
+        "c_A": "Tallo vivo",
+        "c_D": "Individuo muerto",
+        "c_X": "Tallo muerto sobre el suelo, individuo vivo",
+        "c_NF": "Tallo y placa no encontrados"
+      },
+      "mode": {
+        "label": "Modo",
+        "c_S": "En pie (eje principal completo)",
+        "c_B": "Roto",
+        "c_U": "Desarraigado (raíces fuera del suelo)"
+      },
+      "living_length_m": {
+        "label": "Longitud viva",
+        "c_belowPom": "Bajo el punto de medida"
+      },
+      "remaining_crown_pct": {
+        "label": "Copa restante",
+        "c_NA": "No aplica (sin ramas)"
+      },
+      "crown_illumination": {
+        "label": "Iluminación de copa",
+        "c_5": "Luz plena (vertical y lateral)",
+        "c_4": "Luz cenital, ≥90 %",
+        "c_3": "Algo de luz cenital, 10–90 %",
+        "c_2": "Luz lateral (<10 % cenital)",
+        "c_1": "Sin luz directa"
+      },
+      "leaning_deg": {
+        "label": "Inclinación"
+      },
+      "liana": {
+        "label": "Liana / estrangulador",
+        "c_L": "Liana sobre más del 50 % de la copa",
+        "c_S": "Limita el eje principal (estrangulador)"
+      },
+      "fungi": {
+        "label": "Hongos"
+      },
+      "wounded_main_axis": {
+        "label": "Eje principal herido",
+        "c_1": "Pequeño (menos de DAP × DAP)",
+        "c_2": "Grande (más de DAP × DAP)",
+        "c_3": "Masivo (más del 50 % del área basal o de la longitud viva)"
+      },
+      "canker": {
+        "label": "Cancro, hinchazón, deformidad",
+        "c_1": "Pequeño (menos de DAP × DAP)",
+        "c_2": "Grande (más de DAP × DAP)",
+        "c_3": "Masivo (más del 50 % del área basal o de la longitud viva)"
+      },
+      "rotting_trunk": {
+        "label": "Tronco podrido",
+        "c_1": "Pequeño (menos de DAP × DAP)",
+        "c_2": "Grande (más de DAP × DAP)",
+        "c_3": "Masivo (más del 50 % del área basal o de la longitud viva)"
+      },
+      "leaves_pct": {
+        "label": "Hojas"
+      },
+      "leaf_damage": {
+        "label": "Daño foliar"
+      },
+      "comment_codes": {
+        "label": "Otros indicadores",
+        "c_L": "Rayo",
+        "c_G": "Claro",
+        "c_F": "Fuego",
+        "c_H": "Tronco hueco",
+        "c_HB": "Base hueca",
+        "c_R": "Daño en raíces",
+        "c_S": "Deslizamiento",
+        "c_W": "Derribo por viento"
+      }
     }
   },
   "task": {

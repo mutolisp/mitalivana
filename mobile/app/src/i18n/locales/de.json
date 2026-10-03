@@ -4585,7 +4585,16 @@
       "notHandled": "Zuletzt gemessen, jetzt offen",
       "extremeHigh": "Hoher Zuwachs: nachmessen",
       "extremeLow": "Niedriger Zuwachs: nachmessen",
-      "extremeFew": "Zu wenige in dieser BHD-Klasse: nachmessen"
+      "extremeFew": "Zu wenige in dieser BHD-Klasse: nachmessen",
+      "stemDeadButAmsAlive": "Stamm als tot markiert, AMS sagt lebend",
+      "amsModeBAndS": "AMS-Modus: gebrochen (B) und stehend (S) schließen sich aus",
+      "amsUprootedNeedsLeaning": "AMS entwurzelt (U) braucht eine Neigung",
+      "amsOkButDamaged": "AMS OK, aber gebrochen oder entwurzelt",
+      "amsOkButCrownLost": "AMS OK, aber unter 90 % Krone",
+      "amsXWithLivingLength": "AMS X (oberirdisch tot), aber lebende Länge angegeben",
+      "amsNotANumber": "Ein AMS-Wert ist keine Zahl",
+      "amsNotAllowed": "Ein AMS-Code ist nicht im Codesatz",
+      "amsOutOfRange": "Ein AMS-Wert liegt außerhalb des Bereichs"
     },
     "checks": {
       "screening_one": "Prüfung {{count}}",
@@ -4739,6 +4748,165 @@
       "merged": "{{count}} Erhebungen zusammengeführt",
       "toReview": "{{count}} Erhebungen brauchen eine Prüfung der Zusammenführung",
       "unresolvedTaxa": "{{count}} Arten fehlen in der Artenliste dieses Geräts; ihre Codes bleiben"
+    },
+    "component": {
+      "taxon": "Taxon",
+      "timestamp": "Zeit",
+      "comments": "Bemerkungen",
+      "investigators": "Erhebende",
+      "workers": "Erfassende und Bestimmende",
+      "location": "Ort",
+      "dbh": "BHD",
+      "height": "Höhe",
+      "health": "Zustandscodes",
+      "photos": "Fotos",
+      "audio": "Aufnahmen",
+      "abundance": "Abundanz",
+      "frequency": "Frequenz",
+      "structure": "Schichten",
+      "phenology": "Phänologie",
+      "traits": "Merkmale",
+      "environment": "Umwelt"
+    },
+    "editor": {
+      "elsewhere": "Dieses Element wird auf der Erfassungsseite eingegeben.",
+      "problem": {
+        "required": "Erforderlich",
+        "notANumber": "Keine Zahl",
+        "outOfRange": "Außerhalb des Bereichs",
+        "notInteger": "Muss eine ganze Zahl sein",
+        "notAllowed": "Kein zulässiger Wert",
+        "malformed": "Ungültiges Format",
+        "endsBeforeStart": "Ende liegt vor dem Beginn",
+        "coversOver100": "Bodenbedeckungen ergeben über 100 %",
+        "layerOutOfRange": "Über der Schichtzahl"
+      },
+      "abundance": {
+        "count": "Anzahl",
+        "countSuffix": "Individuen"
+      },
+      "frequency": {
+        "count": "Besetzte Zellen ({{n}}×{{n}}, {{cells}} Zellen)",
+        "grid": "{{n}}×{{n}}-Frequenzraster",
+        "cells": "{{k}} / {{cells}} Zellen"
+      },
+      "structure": {
+        "fewer": "Eine Schicht weniger",
+        "more": "Eine Schicht mehr",
+        "cover": "Deckung",
+        "height": "Höhe"
+      },
+      "environment": {
+        "coverTotal": "Bodenbedeckungen gesamt {{total}} %"
+      },
+      "timestamp": {
+        "start": "Beginn",
+        "stop": "Ende",
+        "setStop": "Endzeit setzen"
+      },
+      "people": {
+        "none": "Keine"
+      },
+      "workers": {
+        "recorder": "Erfassende Person",
+        "identifier": "Bestimmende Person"
+      },
+      "location": {
+        "fix": "{{lat}}, {{lng}} (±{{acc}} m)",
+        "none": "Noch keine Position",
+        "clear": "Löschen"
+      },
+      "summary": {
+        "count": "{{n}} Individuen",
+        "recorded": "Erfasst",
+        "stems_one": "{{count}} Stamm",
+        "stems_other": "{{count}} Stämme",
+        "layers_one": "{{count}} Schicht",
+        "layers_other": "{{count}} Schichten"
+      }
+    },
+    "ams": {
+      "title": "AMS Mortalität und Schäden",
+      "unsure": "Nicht feststellbar",
+      "yes": "Ja",
+      "no": "Nein",
+      "deathHint": "Ob ein Stamm tot ist, folgt aus dem AMS-Überlebensstatus (X oder D).",
+      "survival_status": {
+        "label": "Überlebensstatus",
+        "c_OK": "Gesund (Hauptachse vollständig, ≥90 % Krone)",
+        "c_A": "Stamm lebend",
+        "c_D": "Individuum tot",
+        "c_X": "Stamm oberirdisch tot, Individuum lebend",
+        "c_NF": "Stamm und Marke nicht gefunden"
+      },
+      "mode": {
+        "label": "Modus",
+        "c_S": "Stehend (Hauptachse vollständig)",
+        "c_B": "Gebrochen",
+        "c_U": "Entwurzelt (Wurzeln über dem Boden)"
+      },
+      "living_length_m": {
+        "label": "Lebende Länge",
+        "c_belowPom": "Unter dem POM"
+      },
+      "remaining_crown_pct": {
+        "label": "Verbliebene Krone",
+        "c_NA": "Nicht zutreffend (keine Äste)"
+      },
+      "crown_illumination": {
+        "label": "Kronenbelichtung",
+        "c_5": "Volles Licht (senkrecht und seitlich)",
+        "c_4": "Licht von oben, ≥90 %",
+        "c_3": "Etwas Licht von oben, 10–90 %",
+        "c_2": "Seitliches Licht (<10 % von oben)",
+        "c_1": "Kein direktes Licht"
+      },
+      "leaning_deg": {
+        "label": "Neigung"
+      },
+      "liana": {
+        "label": "Liane / Würger",
+        "c_L": "Liane über 50 % der Krone",
+        "c_S": "Begrenzt die Hauptachse (Würger)"
+      },
+      "fungi": {
+        "label": "Pilze"
+      },
+      "wounded_main_axis": {
+        "label": "Verwundete Hauptachse",
+        "c_1": "Klein (unter BHD × BHD)",
+        "c_2": "Groß (über BHD × BHD)",
+        "c_3": "Massiv (über 50 % der Basalfläche oder lebenden Länge)"
+      },
+      "canker": {
+        "label": "Krebs, Schwellung, Verformung",
+        "c_1": "Klein (unter BHD × BHD)",
+        "c_2": "Groß (über BHD × BHD)",
+        "c_3": "Massiv (über 50 % der Basalfläche oder lebenden Länge)"
+      },
+      "rotting_trunk": {
+        "label": "Faulender Stamm",
+        "c_1": "Klein (unter BHD × BHD)",
+        "c_2": "Groß (über BHD × BHD)",
+        "c_3": "Massiv (über 50 % der Basalfläche oder lebenden Länge)"
+      },
+      "leaves_pct": {
+        "label": "Laub"
+      },
+      "leaf_damage": {
+        "label": "Blattschäden"
+      },
+      "comment_codes": {
+        "label": "Weitere Hinweise",
+        "c_L": "Blitz",
+        "c_G": "Lücke",
+        "c_F": "Feuer",
+        "c_H": "Hohler Stamm",
+        "c_HB": "Hohle Basis",
+        "c_R": "Wurzelschaden",
+        "c_S": "Hangrutsch",
+        "c_W": "Windwurf"
+      }
     }
   },
   "task": {

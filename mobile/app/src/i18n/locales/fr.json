@@ -4778,7 +4778,16 @@
       "notHandled": "Mesuré précédemment, pas encore traité",
       "extremeHigh": "Croissance forte : remesurer",
       "extremeLow": "Croissance faible : remesurer",
-      "extremeFew": "Trop peu dans cette classe de DHP : remesurer"
+      "extremeFew": "Trop peu dans cette classe de DHP : remesurer",
+      "stemDeadButAmsAlive": "Tige marquée morte, mais AMS la dit vivante",
+      "amsModeBAndS": "Mode AMS : cassé (B) et debout (S) sont incompatibles",
+      "amsUprootedNeedsLeaning": "AMS déraciné (U) : saisir l’inclinaison",
+      "amsOkButDamaged": "AMS OK, mais cassé ou déraciné",
+      "amsOkButCrownLost": "AMS OK, mais moins de 90 % de houppier",
+      "amsXWithLivingLength": "AMS X (mort en surface), mais une longueur vivante est saisie",
+      "amsNotANumber": "Une valeur AMS n’est pas un nombre",
+      "amsNotAllowed": "Un code AMS n’est pas dans le jeu de codes",
+      "amsOutOfRange": "Une valeur AMS est hors limites"
     },
     "checks": {
       "screening_one": "Contrôle {{count}}",
@@ -4935,6 +4944,167 @@
       "merged": "{{count}} inventaires fusionnés",
       "toReview": "{{count}} inventaires demandent une revue de fusion",
       "unresolvedTaxa": "{{count}} espèces absentes de la liste de cet appareil ; leurs codes sont conservés"
+    },
+    "component": {
+      "taxon": "Taxon",
+      "timestamp": "Heure",
+      "comments": "Commentaires",
+      "investigators": "Observateurs",
+      "workers": "Observateurs et déterminateurs",
+      "location": "Position",
+      "dbh": "DHP",
+      "height": "Hauteur",
+      "health": "Codes sanitaires",
+      "photos": "Photos",
+      "audio": "Enregistrements",
+      "abundance": "Abondance",
+      "frequency": "Fréquence",
+      "structure": "Strates",
+      "phenology": "Phénologie",
+      "traits": "Traits",
+      "environment": "Environnement"
+    },
+    "editor": {
+      "elsewhere": "Cet élément se saisit sur l’écran de l’enregistrement.",
+      "problem": {
+        "required": "Obligatoire",
+        "notANumber": "Pas un nombre",
+        "outOfRange": "Hors limites",
+        "notInteger": "Doit être un nombre entier",
+        "notAllowed": "Valeur non autorisée",
+        "malformed": "Format incorrect",
+        "endsBeforeStart": "La fin précède le début",
+        "coversOver100": "Les recouvrements du sol dépassent 100 %",
+        "layerOutOfRange": "Au-delà du nombre de strates"
+      },
+      "abundance": {
+        "count": "Effectif",
+        "countSuffix": "individus"
+      },
+      "frequency": {
+        "count": "Cellules occupées ({{n}}×{{n}}, {{cells}} cellules)",
+        "grid": "Grille de fréquence {{n}}×{{n}}",
+        "cells": "{{k}} / {{cells}} cellules"
+      },
+      "structure": {
+        "fewer": "Une strate de moins",
+        "more": "Une strate de plus",
+        "cover": "Recouvrement",
+        "height": "Hauteur"
+      },
+      "environment": {
+        "coverTotal": "Recouvrements du sol : {{total}} %"
+      },
+      "timestamp": {
+        "start": "Début",
+        "stop": "Fin",
+        "setStop": "Noter l’heure de fin"
+      },
+      "people": {
+        "none": "Aucun"
+      },
+      "workers": {
+        "recorder": "Observateur",
+        "identifier": "Déterminateur"
+      },
+      "location": {
+        "fix": "{{lat}}, {{lng}} (±{{acc}} m)",
+        "none": "Pas encore de position",
+        "clear": "Effacer"
+      },
+      "summary": {
+        "count": "{{n}} individus",
+        "recorded": "Saisi",
+        "stems_one": "{{count}} tige",
+        "stems_many": "{{count}} tiges",
+        "stems_other": "{{count}} tiges",
+        "layers_one": "{{count}} strate",
+        "layers_many": "{{count}} strates",
+        "layers_other": "{{count}} strates"
+      }
+    },
+    "ams": {
+      "title": "AMS mortalité et dommages",
+      "unsure": "Impossible à dire",
+      "yes": "Oui",
+      "no": "Non",
+      "deathHint": "La mort d’une tige suit son statut de survie AMS (X ou D).",
+      "survival_status": {
+        "label": "Statut de survie",
+        "c_OK": "Sain (axe principal complet et debout, ≥90 % de houppier)",
+        "c_A": "Tige vivante",
+        "c_D": "Individu mort",
+        "c_X": "Tige morte en surface, individu vivant",
+        "c_NF": "Tige et étiquette introuvables"
+      },
+      "mode": {
+        "label": "Mode",
+        "c_S": "Debout (axe principal complet)",
+        "c_B": "Cassé",
+        "c_U": "Déraciné (racines hors du sol)"
+      },
+      "living_length_m": {
+        "label": "Longueur vivante",
+        "c_belowPom": "Sous le point de mesure"
+      },
+      "remaining_crown_pct": {
+        "label": "Houppier restant",
+        "c_NA": "Sans objet (pas de branches)"
+      },
+      "crown_illumination": {
+        "label": "Éclairement du houppier",
+        "c_5": "Pleine lumière (verticale et latérale)",
+        "c_4": "Lumière d’en haut, ≥90 %",
+        "c_3": "Un peu de lumière d’en haut, 10–90 %",
+        "c_2": "Lumière latérale (<10 % d’en haut)",
+        "c_1": "Pas de lumière directe"
+      },
+      "leaning_deg": {
+        "label": "Inclinaison"
+      },
+      "liana": {
+        "label": "Liane / étrangleur",
+        "c_L": "Liane sur plus de 50 % du houppier",
+        "c_S": "Limite l’axe principal (étrangleur)"
+      },
+      "fungi": {
+        "label": "Champignons"
+      },
+      "wounded_main_axis": {
+        "label": "Axe principal blessé",
+        "c_1": "Petit (moins de DHP × DHP)",
+        "c_2": "Grand (plus de DHP × DHP)",
+        "c_3": "Massif (plus de 50 % de la surface terrière ou de la longueur vivante)"
+      },
+      "canker": {
+        "label": "Chancre, renflement, difformité",
+        "c_1": "Petit (moins de DHP × DHP)",
+        "c_2": "Grand (plus de DHP × DHP)",
+        "c_3": "Massif (plus de 50 % de la surface terrière ou de la longueur vivante)"
+      },
+      "rotting_trunk": {
+        "label": "Tronc pourrissant",
+        "c_1": "Petit (moins de DHP × DHP)",
+        "c_2": "Grand (plus de DHP × DHP)",
+        "c_3": "Massif (plus de 50 % de la surface terrière ou de la longueur vivante)"
+      },
+      "leaves_pct": {
+        "label": "Feuillage"
+      },
+      "leaf_damage": {
+        "label": "Dommages foliaires"
+      },
+      "comment_codes": {
+        "label": "Autres indicateurs",
+        "c_L": "Foudre",
+        "c_G": "Trouée",
+        "c_F": "Feu",
+        "c_H": "Tronc creux",
+        "c_HB": "Base creuse",
+        "c_R": "Racines endommagées",
+        "c_S": "Glissement de terrain",
+        "c_W": "Chablis"
+      }
     }
   },
   "task": {

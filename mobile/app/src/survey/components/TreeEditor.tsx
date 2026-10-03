@@ -37,8 +37,11 @@ import { CodeChips } from '~/survey/components/CodeChips';
 import { DraftNum } from '~/survey/components/DraftNum';
 import { Field, FormCard, Hint, Problem, TextBox } from '~/survey/components/FormBits';
 import { codeLabel, issueText } from '~/survey/components/labels';
+import { AMS_CODESET } from '~/survey/codesets/forestgeoAms2021';
+import { AmsStemFields } from '~/survey/components/AmsStemFields';
 import {
   addTreeMedia,
+  censusCodesets,
   correctIndividual,
   listTreeMedia,
   loadTree,
@@ -89,7 +92,9 @@ export function TreeEditor(props: TreeEditorProps) {
   const toast = useToast((s) => s.show);
   const g = useMemo(() => frameGeometry(frame), [frame]);
   const [view, setView] = useState<TreeView | null>(() => (individualId == null ? null : loadTree(surveyId, individualId)));
-  const [form, setForm] = useState<TreeForm>(() => formFromView(view, { quadrat, at: props.at, geometry: g }));
+  // The census template's code sets: with AMS, each stem gets the AMS entries and its death follows AMS survival.
+  const amsOn = useMemo(() => censusCodesets(surveyId).includes(AMS_CODESET), [surveyId]);
+  const [form, setForm] = useState<TreeForm>(() => formFromView(view, { quadrat, at: props.at, geometry: g, amsOn }));
   const [base, setBase] = useState(() => JSON.stringify(form));
   const [searching, setSearching] = useState(individualId == null);
   const [locEditing, setLocEditing] = useState(false);
@@ -148,7 +153,7 @@ export function TreeEditor(props: TreeEditorProps) {
     const v = loadTree(surveyId, individualId);
     setView(v);
     if (!v) return;
-    const fresh = formFromView(v, { quadrat, geometry: g });
+    const fresh = formFromView(v, { quadrat, geometry: g, amsOn });
     const patch: Partial<TreeForm> = { tag: fresh.tag, taxon: fresh.taxon, ...(position ? { loc: fresh.loc } : {}) };
     setForm((f) => ({ ...f, ...patch }));
     setBase((b) => JSON.stringify({ ...(JSON.parse(b) as TreeForm), ...patch }));
@@ -524,13 +529,14 @@ export function TreeEditor(props: TreeEditorProps) {
                     })}
                   </Text>
                 ) : null}
-                {!firstCensus && s.stemNo != null ? (
+                {!amsOn && !firstCensus && s.stemNo != null ? (
                   <Checkbox checked={s.dead} onChange={(v) => patch({ dead: v })} label={t('survey.tree.stemDead')} />
                 ) : null}
                 {!form.same ? <CodeChips codes={stemCodes} selected={s.codes} onChange={(v) => patch({ codes: v })} labelOf={(k) => codeLabel(t, k)} /> : null}
                 {codes.includes('P') ? (
                   <TextBox value={s.notes} onChange={(v) => patch({ notes: v })} accessibilityLabel={t('survey.tree.problemNote')} placeholder={t('survey.tree.problemNote')} />
                 ) : null}
+                {amsOn ? <AmsStemFields value={s.ams} onChange={(ams) => patch({ ams })} stemTag={stemTagOf(tag, no)} /> : null}
                 {stemIssues.map((x) => (
                   <Text key={x.code} className={`text-xs ${x.severity === 'error' ? 'text-alert dark:text-alert-dark' : 'text-acorn-deep dark:text-acorn'}`}>
                     {issueText(t, x.code)}
@@ -542,7 +548,7 @@ export function TreeEditor(props: TreeEditorProps) {
           <Pressable
             onPress={() => {
               const key = `new-${Date.now()}`;
-              set({ stems: [...form.stems, { key, stemNo: null, firstSurveyId: null, dbh: '', pom: '1.3', dead: false, codes: [], notes: '', previous: null, previousCodes: [] }] });
+              set({ stems: [...form.stems, { key, stemNo: null, firstSurveyId: null, dbh: '', pom: '1.3', dead: false, codes: [], notes: '', previous: null, previousCodes: [], ams: {} }] });
             }}
             accessibilityRole="button"
             className="items-center justify-center rounded-xl border-[1.5px] border-dashed border-accent-300 active:opacity-70 dark:border-accent-700"

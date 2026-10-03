@@ -7,11 +7,12 @@
  */
 import { Stack } from 'expo-router';
 import { useCallback, useState } from 'react';
+import { Checkbox } from '~/components/ui/Checkbox';
 import { Platform, Pressable, ScrollView, Share, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BackHeaderLeft } from '~/lib/goBack';
 import { errText } from '~/lib/errText';
-import { buildStressData, deleteStressData, runBench, runBreakdown, stressPlot, type BenchLine } from '~/survey/stress/stressBench';
+import { buildStressData, deleteStressData, runBench, runBreakdown, stressPlot, stressPlotHasAms, type BenchLine } from '~/survey/stress/stressBench';
 import { STRESS_SIZES, type StressSize } from '~/survey/stress/stressCore';
 
 /** System and, where React Native knows it, the device (Android: maker and model; iOS: phone or pad only). */
@@ -36,6 +37,8 @@ function Btn({ label, onPress, disabled }: { label: string; onPress: () => void;
 
 export default function StressScreen() {
   const [size, setSize] = useState<StressSize>('20k');
+  // Every stem also gets every AMS variable (2B): the most an AMS census stores, for the sync block sizes.
+  const [withAms, setWithAms] = useState(false);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('');
   const [lines, setLines] = useState<BenchLine[]>([]);
@@ -57,7 +60,7 @@ export default function StressScreen() {
     }
   };
   const report = [
-    `Mitalivana 每木壓力測試 · ${STRESS_SIZES[size].code} · ${__DEV__ ? '開發版' : 'release'} · ${deviceLabel()} · ${new Date().toISOString().slice(0, 16)}`,
+    `Mitalivana 每木壓力測試 · ${STRESS_SIZES[size].code}${stressPlotHasAms(size) ? '（含 AMS）' : ''} · ${__DEV__ ? '開發版' : 'release'} · ${deviceLabel()} · ${new Date().toISOString().slice(0, 16)}`,
     ...lines.map((l) => `${l.label}：${l.ms != null ? `${l.ms} ms` : ''}${l.detail ? ` ${l.detail}` : ''}`),
   ].join('\n');
 
@@ -84,8 +87,11 @@ export default function StressScreen() {
             </Pressable>
           ))}
         </View>
-        <Text className="text-sm text-ink dark:text-gray-100">{plot ? `已建立：${STRESS_SIZES[size].code}${plot.census2 ? '（2 回合）' : ''}` : '尚未建立'}</Text>
-        <Btn label="建立測試樣區" disabled={busy || !!plot} onPress={go(() => buildStressData(size, progress))} />
+        {!plot ? <Checkbox checked={withAms} onChange={setWithAms} label="每個分支也填 AMS 全部變數" /> : null}
+        <Text className="text-sm text-ink dark:text-gray-100">
+          {plot ? `已建立：${STRESS_SIZES[size].code}${plot.census2 ? '（2 回合）' : ''}${stressPlotHasAms(size) ? '，含 AMS' : ''}` : '尚未建立'}
+        </Text>
+        <Btn label="建立測試樣區" disabled={busy || !!plot} onPress={go(() => buildStressData(size, progress, withAms))} />
         <Btn label="執行量測" disabled={busy || !plot?.census2} onPress={go(() => runBench(size, progress))} />
         <Btn label="匯出／匯入分解（數分鐘）" disabled={busy || !plot?.census2} onPress={go(() => runBreakdown(size, progress))} />
         <Btn label="刪除測試樣區" disabled={busy || !plot} onPress={go(() => deleteStressData(size, progress))} />

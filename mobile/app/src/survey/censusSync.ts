@@ -47,11 +47,11 @@ import {
 import { useSyncProgress, withSyncProgress } from '~/stores/syncProgress';
 import { prepareMediaItems, receiveMedia, sendRecordMedia, serverTakesFiles, type PreparedMedia } from '~/lib/mediaSync';
 import type { FileItem, MediaEntry, MediaMeta, MediaRef } from '~/lib/mediaRefsCore';
-import { BASE64_FACTOR, BYTES_PER_STEM, chooseSyncBlock, DEFAULT_STEMS_PER_HA, EDGE_CANDIDATES } from './stemmap/syncBlocks';
+import { BASE64_FACTOR, bytesPerStemFor, chooseSyncBlock, DEFAULT_STEMS_PER_HA, EDGE_CANDIDATES } from './stemmap/syncBlocks';
 import { fgQuadratCounts } from './stemmap/coords';
 import * as core from './db/censusSyncCore';
 import type { CensusSlice } from './db/sliceCore';
-import { frameGeometry, getFrame, getSurvey, type Ctx } from './db/stemmapCore';
+import { censusCodesets, frameGeometry, getFrame, getSurvey, type Ctx } from './db/stemmapCore';
 
 const ctx = (): Ctx => ({ db: getUserDb(), now: Date.now, uuid: generateUuid });
 const rows = <T>(sql: string, args: (string | number)[] = []) => (getUserDb().executeSync(sql, args).rows ?? []) as unknown as T[];
@@ -208,12 +208,14 @@ export function blockSizeOptions(surveyId: number): BlockSizeOption[] {
   for (const r of stems) perBlock.set(core.blockOf(r.q, 5), (perBlock.get(core.blockOf(r.q, 5)) ?? 0) + r.n);
   const haOf5 = (25 * g.quadratM * g.quadratM) / 10000;
   const density = Math.max(DEFAULT_STEMS_PER_HA, ...[...perBlock.values()].map((n) => n / haOf5));
-  const pick = chooseSyncBlock({ quadratsX: cols, quadratsY: rr, quadratM: g.quadratM, stemsPerHa: density, bytesPerStem: BYTES_PER_STEM });
+  // With AMS each stem carries its AMS values too (BYTES_PER_STEM_AMS).
+  const bytesPerStem = bytesPerStemFor(censusCodesets(c, surveyId));
+  const pick = chooseSyncBlock({ quadratsX: cols, quadratsY: rr, quadratM: g.quadratM, stemsPerHa: density, bytesPerStem });
   const edges = [...new Set([Math.max(cols, rr), ...EDGE_CANDIDATES.filter((k) => k < Math.max(cols, rr))])];
   return edges.map((edge) => {
     const blocks = Math.ceil(cols / edge) * Math.ceil(rr / edge);
     const ha = (Math.min(edge, cols) * g.quadratM * Math.min(edge, rr) * g.quadratM) / 10000;
-    const estimatedBytes = density * ha * BYTES_PER_STEM * BASE64_FACTOR;
+    const estimatedBytes = density * ha * bytesPerStem * BASE64_FACTOR;
     return { edge, blocks, estimatedBytes, estimatedObjects: blocks * 1.5, recommended: edge === pick.edgeQuadrats, tooLarge: estimatedBytes > 5 * 1024 * 1024 * 0.4 };
   });
 }

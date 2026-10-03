@@ -108,3 +108,30 @@ export type AmsSurvival = 'OK' | 'A' | 'D' | 'X' | 'NF' | typeof AMS_UNSURE;
 export function amsModeConflict(mode: readonly string[]): boolean {
   return mode.includes('S') && mode.includes('B');
 }
+
+export const AMS_CODESET = 'forestgeo-ams-2021';
+
+/** A stem's AMS values by protocol variable: a code, a list of codes (multi),
+ *  a number, or a marker ('?', '<POM', 'NA'). Unrecorded variables are absent. */
+export type AmsValues = Readonly<Record<string, string | number | readonly string[]>>;
+
+/** Stored field of a variable (fw_stem_values, component 'health'). */
+export const amsField = (variable: string) => `ams_${variable}`;
+
+/** A stored row back to its value. */
+export function amsValueOf(v: AmsVariable, num: number | null, text: string | null): string | number | readonly string[] | null {
+  if (v.kind === 'number') return num ?? text;
+  if (v.kind === 'multi') {
+    if (text == null) return null;
+    try {
+      const list = JSON.parse(text);
+      return Array.isArray(list) ? list.map(String) : null;
+    } catch {
+      return null;
+    }
+  }
+  return text;
+}
+
+/** The stem died: AMS X (dead stem, living individual) or D (dead individual) (p.3). */
+export const amsStemDead = (ams: AmsValues | null | undefined) => ams?.survival_status === 'X' || ams?.survival_status === 'D';

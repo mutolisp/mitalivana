@@ -76,7 +76,7 @@ export function vitality(t: TreeCensusInput): Vitality | null {
   return status === 'D' ? 'dead' : 'alive';
 }
 
-export type Conflict = 'tree_dead_but_stem_alive' | 'ams_dead_individual_but_stem_alive' | 'dead_stem_with_dbh';
+export type Conflict = 'tree_dead_but_stem_alive' | 'ams_dead_individual_but_stem_alive' | 'dead_stem_with_dbh' | 'stem_dead_but_ams_alive';
 
 /** Combinations that contradict each other — listed by the automatic screening. */
 export function conflicts(t: TreeCensusInput): Conflict[] {
@@ -86,6 +86,8 @@ export function conflicts(t: TreeCensusInput): Conflict[] {
   // AMS D is "dead individual, which necessarily implies dead stem(s)" (p.3).
   if (t.stems.some((s) => s.amsSurvival === 'D') && t.stems.some(amsAlive)) out.push('ams_dead_individual_but_stem_alive');
   if (t.stems.some((s) => stemIsDead(s, t.treeCodes) && s.dbhCm != null && s.dbhCm > 0)) out.push('dead_stem_with_dbh');
+  // When both code sets are on, survival follows AMS (§8.5): the app's stem-death switch set on a stem AMS calls alive.
+  if (t.stems.some((s) => s.stemDead === true && amsAlive(s))) out.push('stem_dead_but_ams_alive');
   return out;
 }
 

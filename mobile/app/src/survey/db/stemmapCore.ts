@@ -23,7 +23,10 @@
  *   - every write stamps its quadrat row, so versions and sync see it.
  */
 import type { Scalar } from '@op-engineering/op-sqlite';
+import { AMS_CODESET, AMS_VARIABLES, amsField, amsValueOf, type AmsValues } from '../codesets/forestgeoAms2021';
 import { censusCode } from '../codesets/forestgeoCensus1998';
+import { storeBlockers } from '../componentRules';
+import { componentDef, healthCodesets } from '../registry';
 import {
   fromGps,
   fromGrid,
@@ -72,7 +75,9 @@ export type SurveyErrorCode =
   | 'blind_open'
   | 'label_taken'
   | 'template_breaking'
-  | 'builtin_template';
+  | 'builtin_template'
+  | 'bad_component'
+  | 'bad_value';
 
 export class SurveyError extends Error {
   code: SurveyErrorCode;
@@ -317,6 +322,17 @@ export type CensusRow = {
   created_at: number;
   updated_at: number;
 };
+
+/** The code sets the census's template records (Health component), from its snapshot. */
+export function censusCodesets(ctx: { db: SurveyDb }, id: number): string[] {
+  const s = getSurvey(ctx, id);
+  if (!s) return [];
+  try {
+    return healthCodesets((JSON.parse(s.template_snapshot) as SurveyTemplate).components);
+  } catch {
+    return [];
+  }
+}
 
 /** The census with this id; null for a survey of another style. */
 export function getSurvey(ctx: { db: SurveyDb }, id: number): CensusRow | null {
@@ -984,6 +1000,29 @@ export function stemCodes(ctx: { db: SurveyDb }, measureId: number): string[] {
   return parseCodes(one<{ v: string | null }>(ctx, `SELECT value_text AS v FROM fw_stem_values WHERE measure_id = ? AND component = 'health' AND field = 'census_codes' AND idx = 0`, [measureId])?.v);
 }
 
+const AMS_BY_FIELD = new Map(AMS_VARIABLES.map((v) => [amsField(v.field), v]));
+
+/**
+ * A stem's AMS values in this census (Arellano et al. 2021 protocol), replacing
+ * what was there: variables left out are cleared. Codes and numbers are checked
+ * against the code set (bad_code). Stem death follows survival in the tree
+ * form (X or D), so the census progress and lists need nothing new.
+ */
+export function setStemAms(ctx: Ctx, measureId: number, ams: AmsValues): void {
+  if (!getMeasure(ctx, measureId)) throw new SurveyError('not_found', 'measure');
+  const health = componentDef('health')!;
+  const params = { codesets: [AMS_CODESET] };
+  const stored = Object.fromEntries(Object.entries(ams).map(([k, v]) => [amsField(k), v]));
+  for (const k of Object.keys(ams)) if (!AMS_BY_FIELD.has(amsField(k))) throw new SurveyError('bad_code', `AMS ${k}`);
+  const bad = storeBlockers(health, params, 'stem', 'health', stored);
+  if (bad.length) throw new SurveyError('bad_code', bad.map((b) => `${b.field}: ${b.code}`).join('; '));
+  for (const v of AMS_VARIABLES) {
+    const x = ams[v.field];
+    const value = x == null || x === '' ? null : Array.isArray(x) ? (x.length ? { text: JSON.stringify(x) } : null) : typeof x === 'number' ? { num: x, unit: v.kind === 'number' ? v.unit : null } : { text: String(x) };
+    putValue(ctx, 'fw_stem_values', { measure_id: measureId }, 'health', amsField(v.field), value);
+  }
+}
+
 /** A stem's census codes in this census. Recording C (POM changed) makes the
  *  POM number the previous census's plus one; removing it puts it back. */
 export function setStemCodes(ctx: Ctx, measureId: number, codes: readonly string[]): void {
@@ -1115,6 +1154,8 @@ export type StemDraft = {
   stemDead: boolean;
   codes: string[];
   notes: string | null;
+  /** AMS values (census template with the AMS code set); every variable, unrecorded ones absent. Undefined leaves AMS rows alone. */
+  ams?: AmsValues;
 };
 
 export type TreeDraft = {
@@ -1135,7 +1176,8 @@ export type TreeDraft = {
 };
 
 /** Anything entered on a stem; the POM counts when it differs from where it was. */
-const stemTouched = (d: StemDraft, basePomM: number) => d.dbhCm != null || d.stemDead || d.codes.length > 0 || !!d.notes || d.pomM !== basePomM;
+const stemTouched = (d: StemDraft, basePomM: number) =>
+  d.dbhCm != null || d.stemDead || d.codes.length > 0 || !!d.notes || d.pomM !== basePomM || (d.ams != null && Object.keys(d.ams).length > 0);
 
 /**
  * Write the tree form of one census in one go; the caller runs it in a
@@ -1188,6 +1230,7 @@ export function saveTreeDraft(ctx: Ctx, surveyId: number, d: TreeDraft): number 
       notes: sd.notes,
     });
     setStemCodes(ctx, mid, sd.codes);
+    if (sd.ams !== undefined) setStemAms(ctx, mid, sd.ams);
   });
   setTreeCodes(ctx, surveyId, id, d.treeCodes);
   setHeight(ctx, surveyId, id, d.heightM);
@@ -1335,6 +1378,8 @@ export type StemView = {
   previous: MeasureRow | null;
   codes: string[];
   previousCodes: string[];
+  /** AMS values of this census (empty without the AMS code set). */
+  ams: AmsValues;
 };
 
 export type TreeView = {
@@ -1425,13 +1470,13 @@ function treeViews(ctx: { db: SurveyDb }, surveyId: number, scope: Scope): TreeV
       WHERE m.survey_id IN (${inSurveys})`,
     [...treeParams, ...surveys],
   );
-  const codes = rows<{ measure_id: number; v: string }>(
+  const codes = rows<{ measure_id: number; field: string; n: number | null; v: string | null }>(
     ctx,
-    `SELECT v.measure_id, v.value_text AS v FROM ${trees}
+    `SELECT v.measure_id, v.field, v.value_num AS n, v.value_text AS v FROM ${trees}
        CROSS JOIN fw_stems st ON st.individual_id = t.id
        CROSS JOIN fw_stem_measures m ON m.stem_id = st.id
        CROSS JOIN fw_stem_values v ON v.measure_id = m.id
-      WHERE m.survey_id IN (${inSurveys}) AND v.component = 'health' AND v.field = 'census_codes'`,
+      WHERE m.survey_id IN (${inSurveys}) AND v.component = 'health' AND (v.field = 'census_codes' OR v.field GLOB 'ams_*')`,
     [...treeParams, ...surveys],
   );
   const ivals = rows<{ survey_id: number; individual_id: number; component: string; field: string; value_num: number | null; value_text: string | null }>(
@@ -1441,7 +1486,17 @@ function treeViews(ctx: { db: SurveyDb }, surveyId: number, scope: Scope): TreeV
       WHERE v.survey_id IN (${inSurveys}) AND v.idx = 0`,
     [...treeParams, ...surveys],
   );
-  const codeBy = new Map(codes.map((c) => [c.measure_id, parseCodes(c.v)]));
+  const codeBy = new Map(codes.filter((c) => c.field === 'census_codes').map((c) => [c.measure_id, parseCodes(c.v)]));
+  const amsBy = new Map<number, Record<string, string | number | readonly string[]>>();
+  for (const c of codes) {
+    const variable = c.field.startsWith('ams_') ? AMS_BY_FIELD.get(c.field) : undefined;
+    if (!variable) continue;
+    const value = amsValueOf(variable, c.n, c.v);
+    if (value == null) continue;
+    const got = amsBy.get(c.measure_id) ?? {};
+    got[variable.field] = value;
+    amsBy.set(c.measure_id, got);
+  }
   const measureBy = new Map(measures.map((m) => [`${m.survey_id}:${m.stem_id}`, m]));
   const stemsBy = new Map<number, StemRow[]>();
   for (const st of stems) {
@@ -1462,6 +1517,7 @@ function treeViews(ctx: { db: SurveyDb }, surveyId: number, scope: Scope): TreeV
         previous,
         codes: measure ? (codeBy.get(measure.id) ?? []) : [],
         previousCodes: previous ? (codeBy.get(previous.id) ?? []) : [],
+        ams: (measure && amsBy.get(measure.id)) || {},
       };
     }),
     treeCodes: parseCodes(pick(surveyId, individual.id, 'health', 'census_tree_codes')?.value_text),

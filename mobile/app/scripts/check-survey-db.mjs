@@ -459,6 +459,67 @@ ok(s.listTreeMedia(ctx, K2, kid).map((m) => m.uri).join() === 'file:///photos/a.
 s.removeTreeMedia(ctx, K2, kid, 'file:///photos/a.jpg');
 ok(s.listTreeMedia(ctx, K2, kid).length === 1, 'photos: removed by uri');
 
+// ── AMS on census stems (2B) ─────────────────────────────────────────────
+const AMS_T = { ...T, id: 'test:stemmap-ams', components: T.components.map((c) => (c.type === 'health' ? { ...c, params: { codesets: ['forestgeo-census-1998', 'forestgeo-ams-2021'] } } : c)) };
+const AF = s.createFrame(ctx, { code: 'AMS1', sizeXM: 40, sizeYM: 40 });
+const A1 = s.startCensus(ctx, { frameId: AF, template: AMS_T });
+ok(s.censusCodesets(ctx, A1).join() === 'forestgeo-census-1998,forestgeo-ams-2021' && s.censusCodesets(ctx, K1).join() === 'forestgeo-census-1998', 'ams: a census knows its code sets');
+const ag = s.frameGeometry(s.getFrame(ctx, AF));
+const amsForm = (stems, at = { x: 3, y: 3 }) => {
+  const f = tf.formFromView(null, { quadrat: '0000', at, geometry: ag, amsOn: true });
+  return { ...f, taxon: taxon('a1'), stems: stems.map((x, i) => ({ ...f.stems[0], key: `new-${i + 1}`, ...x })) };
+};
+const amsIssues = (f, v = null) => tf.formIssues(f, v, { surveyId: A1, firstCensus: true, thresholdCm: 1 });
+const okAms = { survival_status: 'OK', mode: ['S'], remaining_crown_pct: '95', living_length_m: '<POM', crown_illumination: '4', fungi: 'N', comment_codes: ['G', 'H'] };
+let af = amsForm([{ dbh: '20', ams: okAms }, { dbh: '', ams: { survival_status: 'X', mode: ['B'], living_length_m: '0' } }]);
+ok(amsIssues(af).filter((i) => i.severity === 'error').length === 0, `ams: a complete form has no errors (${JSON.stringify(amsIssues(af))})`);
+const aid = s.saveTreeDraft(ctx, A1, tf.formToDraft(af, null, { surveyId: A1, recordedBy: 'A' }));
+let av = s.loadTree(ctx, A1, aid);
+ok(
+  JSON.stringify(av.stems[0].ams) ===
+    JSON.stringify({ comment_codes: ['G', 'H'], crown_illumination: '4', fungi: 'N', living_length_m: '<POM', mode: ['S'], remaining_crown_pct: 95, survival_status: 'OK' }),
+  `ams: codes, lists, a number and a marker read back (${JSON.stringify(av.stems[0].ams)})`,
+);
+ok(one(`SELECT value_num AS n, unit FROM fw_stem_values WHERE measure_id = ? AND field = 'ams_remaining_crown_pct'`, av.stems[0].measure.id).unit === '%', 'ams: a number keeps its unit');
+ok(av.stems[1].measure.stem_dead === 1 && av.stems[0].measure.stem_dead === 0, 'ams: X makes the stem dead, OK keeps it alive (the form derives stem death)');
+ok(tf.formFromView(av, { quadrat: '0000', geometry: ag, amsOn: true }).stems[0].ams.remaining_crown_pct === '95', 'ams: the form opens with the stored values');
+// The protocol's rules (registry Health, pages in forestgeoAms2021.ts).
+const codesOf = (stems) => amsIssues(amsForm(stems)).map((i) => i.code);
+ok(codesOf([{ dbh: '5', ams: { survival_status: 'A', mode: ['S', 'B'] } }]).includes('ams_mode_b_and_s'), 'ams: B with S is an error (p.4)');
+ok(codesOf([{ dbh: '5', ams: { survival_status: 'A', mode: ['U'] } }]).includes('ams_uprooted_needs_leaning'), 'ams: U needs a leaning (p.4)');
+ok(!codesOf([{ dbh: '5', ams: { survival_status: 'A', mode: ['U', 'B'], leaning_deg: '?' } }]).includes('ams_uprooted_needs_leaning'), 'ams: … "?" counts as filled; U with B is fine');
+ok(codesOf([{ dbh: '5', ams: { survival_status: 'OK', mode: ['B'], remaining_crown_pct: '60' } }]).filter((c) => c.startsWith('ams_ok')).length === 2, 'ams: OK with damage or a lost crown is to confirm (p.3)');
+ok(codesOf([{ dbh: '', ams: { survival_status: 'X', living_length_m: '3' } }]).includes('ams_x_with_living_length'), 'ams: X with a living length is to confirm (p.3)');
+ok(codesOf([{ dbh: '5', ams: { survival_status: 'A', leaves_pct: 'lots' } }]).includes('ams_not_a_number'), 'ams: text in a number is an error');
+ok(codesOf([{ dbh: '5', ams: { survival_status: 'A', leaves_pct: '120' } }]).includes('ams_above_max'), 'ams: a percent above 100 is an error');
+ok(codesOf([{ dbh: '5', ams: { survival_status: 'A', remaining_crown_pct: 'NA' } }]).length === 0, 'ams: NA is a valid remaining crown (no crown, p.6)');
+const am = av.stems[0].measure.id;
+throwsCode(() => s.setStemAms(ctx, am, { survival_status: 'Z' }), 'bad_code', 'ams: an unknown survival code is refused');
+throwsCode(() => s.setStemAms(ctx, am, { crown_illumination: '6' }), 'bad_code', 'ams: an illumination outside 1–5 is refused');
+throwsCode(() => s.setStemAms(ctx, am, { colour: 'red' }), 'bad_code', 'ams: an unknown variable is refused');
+throwsCode(() => s.setStemAms(ctx, am, { leaves_pct: -5 }), 'bad_code', 'ams: a negative percent is refused');
+// Overview and lists agree on an AMS census (stem death from AMS).
+const a2 = s.saveTreeDraft(ctx, A1, tf.formToDraft(amsForm([{ dbh: '', ams: { survival_status: 'D', mode: ['S'] } }], { x: 7, y: 7 }), null, { surveyId: A1, recordedBy: 'A' }));
+const aSql = new Map(s.censusTreeStates(ctx, A1).map((t) => [t.id, t]));
+for (const v of s.loadCensus(ctx, A1)) {
+  const f = r.treeFlags(v, A1, false);
+  const q = aSql.get(v.individual.id);
+  ok(f.done === q.done && f.deadNow === q.deadNow && f.isNew === q.isNew, `ams: flags of tree ${v.individual.tag} agree with SQL (${JSON.stringify(f)} vs ${JSON.stringify(q)})`);
+}
+ok(aSql.get(a2).deadNow && aSql.get(a2).done, 'ams: a tree whose only stem is AMS D is dead and done');
+// Conflicts reach the screening: AMS D on one stem, A on another; the stem-death switch on an AMS-alive stem.
+const conflictCodes = (id) => r.treeIssues(s.loadTree(ctx, A1, id), { surveyId: A1, firstCensus: true, thresholdCm: 1 }).map((i) => i.code);
+const a3 = s.saveTreeDraft(ctx, A1, tf.formToDraft(amsForm([{ dbh: '', ams: { survival_status: 'D' } }, { dbh: '4', ams: { survival_status: 'A' } }], { x: 9, y: 9 }), null, { surveyId: A1, recordedBy: 'A' }));
+ok(conflictCodes(a3).includes('ams_dead_individual_but_stem_alive'), 'ams: D on one stem and A on another is a conflict');
+s.updateMeasure(ctx, s.loadTree(ctx, A1, a3).stems[1].measure.id, { stemDead: true });
+ok(conflictCodes(a3).includes('stem_dead_but_ams_alive'), 'ams: the stem-death switch on a stem AMS calls alive is a conflict');
+// Clearing, and a census without AMS leaving AMS rows alone.
+af = tf.formFromView(s.loadTree(ctx, A1, aid), { quadrat: '0000', geometry: ag, amsOn: true });
+s.saveTreeDraft(ctx, A1, tf.formToDraft({ ...af, stems: af.stems.map((x, i) => (i === 0 ? { ...x, ams: { survival_status: 'A' } } : x)) }, s.loadTree(ctx, A1, aid), { surveyId: A1, recordedBy: 'A' }));
+ok(JSON.stringify(s.loadTree(ctx, A1, aid).stems[0].ams) === '{"survival_status":"A"}', 'ams: variables left out of the form are cleared');
+const plain = tf.formToDraft(tf.formFromView(s.loadTree(ctx, A1, aid), { quadrat: '0000', geometry: ag }), s.loadTree(ctx, A1, aid), { surveyId: A1, recordedBy: 'A' });
+ok(plain.stems.every((x) => !('ams' in x)), 'ams: a form without AMS sends no AMS (its rows stay)');
+
 // ── slices: restore (quadrat versions, undo) ─────────────────────────────
 const R = s.createFrame(ctx, { code: 'R1', sizeXM: 40, sizeYM: 20 });
 const R1 = s.startCensus(ctx, { frameId: R, template: T });

@@ -19,7 +19,7 @@ import * as s from '../src/survey/db/stemmapCore.ts';
 import * as sl from '../src/survey/db/sliceCore.ts';
 import * as cs from '../src/survey/db/censusSyncCore.ts';
 import * as st from '../src/survey/stress/stressCore.ts';
-import { BYTES_PER_STEM } from '../src/survey/stemmap/syncBlocks.ts';
+import { BYTES_PER_STEM, BYTES_PER_STEM_AMS, bytesPerStemFor } from '../src/survey/stemmap/syncBlocks.ts';
 import { aadFor, b64u, NONCE_BYTES, sealRecord } from '../src/lib/teamCrypto.ts';
 import { baseOf } from '../src/lib/mergeEngine.ts';
 import { STEMMAP_TEMPLATE } from '../src/survey/templates/stemmap.ts';
@@ -182,6 +182,27 @@ const perStem = sealed.length / stemCount;
 console.log(`  1 ha block: ${doc.slice.trees.length} trees, ${stemCount} stems, ${(text.length / 1024).toFixed(0)} KB JSON → ${(sealed.length / 1024).toFixed(0)} KB sealed (${(b64u(sealed).length / 1024).toFixed(0)} KB as base64), ${perStem.toFixed(0)} B a stem`);
 ok(stemCount > 1000, `bytes: a real 1 ha block (${stemCount} stems)`);
 ok(perStem <= BYTES_PER_STEM, `bytes: BYTES_PER_STEM ${BYTES_PER_STEM} is at least the measured ${perStem.toFixed(0)} B a stem`);
+
+// ── bytes per stem with every AMS variable filled (2B) ───────────────────
+// The same corner on its own frame, censused with census codes and AMS.
+const sealedPerStem = (censusId) => {
+  tx(() => cs.setBlockSize(ctx, censusId, 5));
+  const d = cs.buildBlockDoc(ctx, censusId, 'b0_0');
+  const t = JSON.stringify({ ...d, sync: { exported_at: Date.now(), base: baseOf(cs.blockSide(d.slice)), author: 'A teammate with a long name' } });
+  const out = sealRecord(key, new Uint8Array(randomBytes(NONCE_BYTES)), t, aadFor('t'.repeat(32), 'r'.repeat(43), 'd'.repeat(43)));
+  return { stems: d.slice.stems.length, values: d.slice.stemValues.length, perStem: out.length / d.slice.stems.length };
+};
+const amsPlot = tx(() => st.createStressPlot(ctx, '50k', st.STRESS_AMS_TEMPLATE));
+const amsIds = new Map();
+tx(() => st.writeCensus1(ctx, amsPlot.census1, corner, 0, corner.trees.length, amsIds, true));
+s.finishCensus(ctx, amsPlot.census1);
+const amsCensus2 = s.startCensus(ctx, { frameId: amsPlot.frameId, template: st.STRESS_AMS_TEMPLATE });
+tx(() => st.writeCensus2(ctx, amsCensus2, corner, 0, corner.trees.length, amsIds, true, true));
+const ams = sealedPerStem(amsCensus2);
+console.log(`  1 ha block with AMS: ${ams.stems} stems, ${ams.values} stem values, ${ams.perStem.toFixed(0)} B a stem`);
+ok(ams.values > ams.stems * 10, `bytes (AMS): every AMS variable stored (${ams.values} values for ${ams.stems} stems)`);
+ok(ams.perStem <= BYTES_PER_STEM_AMS, `bytes: BYTES_PER_STEM_AMS ${BYTES_PER_STEM_AMS} is at least the measured ${ams.perStem.toFixed(0)} B a stem`);
+ok(bytesPerStemFor(['forestgeo-census-1998', 'forestgeo-ams-2021']) === BYTES_PER_STEM_AMS && bytesPerStemFor(['forestgeo-census-1998']) === BYTES_PER_STEM, 'bytes: a census with AMS sizes its blocks with the AMS figure');
 
 if (failed > 0) {
   console.error(`${failed} failure(s)`);

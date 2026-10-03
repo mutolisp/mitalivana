@@ -30,6 +30,17 @@ export const BASE64_FACTOR = 4 / 3;
  * block grows past it. AMS codes are not in Phase 1; measure again when they are.
  */
 export const BYTES_PER_STEM = 320;
+/**
+ * The same with every AMS variable recorded on every stem: measured 828 B on
+ * the same 1 ha block (2B, 2026-10-03; each value is its own row with a uuid),
+ * plus about 30 % as above. Replaces §7.9's assumed 600 B.
+ */
+export const BYTES_PER_STEM_AMS = 1100;
+
+/** Bytes a stem takes for a census recording these code sets. */
+export function bytesPerStemFor(codesets: readonly string[]): number {
+  return codesets.includes('forestgeo-ams-2021') ? BYTES_PER_STEM_AMS : BYTES_PER_STEM;
+}
 /** Stems per hectare assumed before any census has data (§7.9). */
 export const DEFAULT_STEMS_PER_HA = 6000;
 

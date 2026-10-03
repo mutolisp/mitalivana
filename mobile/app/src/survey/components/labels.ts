@@ -80,6 +80,25 @@ export function issueText(t: TFunction, code: string): string {
       return t('survey.issue.extremeLow');
     case 'extreme_few':
       return t('survey.issue.extremeFew');
+    case 'stem_dead_but_ams_alive':
+      return t('survey.issue.stemDeadButAmsAlive');
+    case 'ams_mode_b_and_s':
+      return t('survey.issue.amsModeBAndS');
+    case 'ams_uprooted_needs_leaning':
+      return t('survey.issue.amsUprootedNeedsLeaning');
+    case 'ams_ok_but_damaged':
+      return t('survey.issue.amsOkButDamaged');
+    case 'ams_ok_but_crown_lost':
+      return t('survey.issue.amsOkButCrownLost');
+    case 'ams_x_with_living_length':
+      return t('survey.issue.amsXWithLivingLength');
+    case 'ams_not_a_number':
+      return t('survey.issue.amsNotANumber');
+    case 'ams_not_allowed':
+      return t('survey.issue.amsNotAllowed');
+    case 'ams_below_min':
+    case 'ams_above_max':
+      return t('survey.issue.amsOutOfRange');
     default:
       return code;
   }

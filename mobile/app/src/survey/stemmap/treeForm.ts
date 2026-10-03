@@ -8,6 +8,9 @@
  */
 import type { LocationInput, MeasureRow, StemView, TaxonInput, TreeDraft, TreeView } from '../db/stemmapCore';
 import { parseNum } from '../../lib/parseNum';
+import { AMS_CODESET, AMS_VARIABLES, amsField, amsStemDead, type AmsValues } from '../codesets/forestgeoAms2021';
+import { componentProblems } from '../componentRules';
+import { componentDef } from '../registry';
 import { formatStemTag } from './tags';
 import { fromGps, fromGrid, fromPolar, locate, stakeXY, type FrameGeometry, type StakeCorner, type XY } from './coords';
 import { treeIssues, type TreeIssue } from './review';
@@ -48,7 +51,12 @@ export type StemForm = {
   notes: string;
   previous: MeasureRow | null;
   previousCodes: string[];
+  /** AMS values as typed: numbers stay text until saved (markers like '?' kept). */
+  ams: AmsForm;
 };
+
+/** One stem's AMS entries: a code, a list of codes, or text for a number. */
+export type AmsForm = Readonly<Record<string, string | readonly string[]>>;
 
 export type TreeForm = {
   tag: string;
@@ -64,6 +72,8 @@ export type TreeForm = {
   allCodes: string[];
   stems: StemForm[];
   mainKey: string;
+  /** The census template records the AMS code set; stem death then follows AMS survival. */
+  amsOn: boolean;
 };
 
 const str = (v: number | null | undefined) => (v == null ? '' : String(v));
@@ -93,9 +103,10 @@ export function emptyLoc(quadrat: string, at?: XY | null, g?: FrameGeometry): Lo
 }
 
 /** The form as it opens: an existing tree's current values, or a blank new tree. */
-export function formFromView(v: TreeView | null, opts: { quadrat: string; at?: XY | null; geometry: FrameGeometry }): TreeForm {
+export function formFromView(v: TreeView | null, opts: { quadrat: string; at?: XY | null; geometry: FrameGeometry; amsOn?: boolean }): TreeForm {
+  const amsOn = opts.amsOn ?? false;
   if (!v) {
-    const stem: StemForm = { key: 'new-1', stemNo: null, firstSurveyId: null, dbh: '', pom: '1.3', dead: false, codes: [], notes: '', previous: null, previousCodes: [] };
+    const stem: StemForm = { key: 'new-1', stemNo: null, firstSurveyId: null, dbh: '', pom: '1.3', dead: false, codes: [], notes: '', previous: null, previousCodes: [], ams: {} };
     return {
       tag: '',
       tagTyped: false,
@@ -108,6 +119,7 @@ export function formFromView(v: TreeView | null, opts: { quadrat: string; at?: X
       allCodes: [],
       stems: [stem],
       mainKey: stem.key,
+      amsOn,
     };
   }
   const i = v.individual;
@@ -123,6 +135,7 @@ export function formFromView(v: TreeView | null, opts: { quadrat: string; at?: X
     notes: s.measure?.notes ?? '',
     previous: s.previous,
     previousCodes: s.previousCodes,
+    ams: amsToForm(s.ams),
   }));
   const main = v.stems.find((s) => (s.measure ?? s.previous)?.is_main === 1) ?? v.stems[0];
   const first = stems[0]?.codes ?? [];
@@ -139,8 +152,35 @@ export function formFromView(v: TreeView | null, opts: { quadrat: string; at?: X
     allCodes: same ? [...first] : [],
     stems,
     mainKey: main ? String(main.stem.stem_no) : (stems[0]?.key ?? ''),
+    amsOn,
   };
 }
+
+/** A stored AMS value as the form shows it. */
+function amsToForm(ams: AmsValues): AmsForm {
+  return Object.fromEntries(Object.entries(ams).map(([k, v]) => [k, typeof v === 'number' ? String(v) : v]));
+}
+
+const AMS_MARKERS = new Set(['?', '<POM', 'NA']);
+
+/** The form's AMS entries as stored: numbers read with parseNum (unreadable text kept, so the check flags it), empties left out. */
+export function amsFromForm(ams: AmsForm): AmsValues {
+  const out: Record<string, string | number | readonly string[]> = {};
+  for (const v of AMS_VARIABLES) {
+    const x = ams[v.field];
+    if (x == null || x === '' || (Array.isArray(x) && x.length === 0)) continue;
+    if (v.kind === 'number' && typeof x === 'string') {
+      const t = x.trim();
+      out[v.field] = AMS_MARKERS.has(t) ? t : (parseNum(t) ?? t);
+    } else {
+      out[v.field] = x;
+    }
+  }
+  return out;
+}
+
+/** A stem's death: from AMS survival when the AMS code set is on, else the stem-death switch. */
+const stemDeadOf = (form: TreeForm, s: StemForm) => (form.amsOn ? amsStemDead(amsFromForm(s.ams)) : s.dead);
 
 /** The position as the core takes it, or null while a needed field is empty. */
 export function locationInput(l: LocForm): LocationInput | null {
@@ -275,7 +315,9 @@ function asView(form: TreeForm, v: TreeView | null, surveyId: number): TreeView 
     stems: form.stems.map((s, i): StemView => {
       const codes = codesOf(form, s);
       const dbh = parseNum(s.dbh);
-      const touched = dbh != null || s.dead || codes.length > 0;
+      const dead = stemDeadOf(form, s);
+      const ams = form.amsOn ? amsFromForm(s.ams) : {};
+      const touched = dbh != null || dead || codes.length > 0 || Object.keys(ams).length > 0;
       const no = numbers.get(s.key)!;
       return {
         stem: { id: -1 - i, uuid: '', individual_id: ind.id, stem_no: no, first_survey_id: s.stemNo == null ? surveyId : s.firstSurveyId, notes: null },
@@ -289,8 +331,8 @@ function asView(form: TreeForm, v: TreeView | null, surveyId: number): TreeView 
               pom_m: parseNum(s.pom) ?? 1.3,
               pom_seq: (s.previous?.pom_seq ?? 1) + (s.previous && codes.includes('C') ? 1 : 0),
               is_main: s.key === form.mainKey ? 1 : 0,
-              stem_dead: s.dead ? 1 : 0,
-              pending: codes.includes('B') && dbh == null && !s.dead ? 'big_tree' : null,
+              stem_dead: dead ? 1 : 0,
+              pending: codes.includes('B') && dbh == null && !dead ? 'big_tree' : null,
               // Only order matters to the checks (growth is not computed here).
               measured_at: (s.previous?.measured_at ?? 0) + 1,
               recorded_by: null,
@@ -301,6 +343,7 @@ function asView(form: TreeForm, v: TreeView | null, surveyId: number): TreeView 
         previous: s.previous,
         codes,
         previousCodes: s.previousCodes,
+        ams,
       };
     }),
   };
@@ -314,6 +357,18 @@ function asView(form: TreeForm, v: TreeView | null, surveyId: number): TreeView 
 export function formIssues(form: TreeForm, v: TreeView | null, opts: { surveyId: number; firstCensus: boolean; thresholdCm: number }): TreeIssue[] {
   const view = asView(form, v, opts.surveyId);
   const out = treeIssues(view, opts);
+  if (form.amsOn) {
+    // The AMS code set's own rules (registry Health): codes, numbers, B with S, U without leaning, OK with damage.
+    const health = componentDef('health')!;
+    view.stems.forEach((s) => {
+      if (Object.keys(s.ams).length === 0) return;
+      const stored = Object.fromEntries(Object.entries(s.ams).map(([k, x]) => [amsField(k), x]));
+      for (const p of componentProblems(health, { codesets: [AMS_CODESET] }, 'stem', 'health', stored)) {
+        if (p.field != null && !p.field.startsWith('ams_')) continue;
+        out.push({ stemNo: s.stem.stem_no, code: p.code === 'not_a_number' || p.code === 'not_allowed' || p.code === 'below_min' || p.code === 'above_max' ? `ams_${p.code}` : p.code, severity: p.severity });
+      }
+    });
+  }
   view.stems.forEach((s) => {
     const isNew = s.stem.first_survey_id === opts.surveyId;
     const handled = s.measure != null && (s.measure.dbh_cm != null || s.measure.stem_dead === 1 || s.measure.pending != null);
@@ -326,12 +381,17 @@ export function formIssues(form: TreeForm, v: TreeView | null, opts: { surveyId:
 
 /** Each live stem's DBH as typed (else last census's), for the size line. */
 export function formDbhs(form: TreeForm): (number | null)[] {
-  return form.stems.map((s) => (s.dead ? null : (parseNum(s.dbh) ?? (s.previous && s.previous.stem_dead === 0 ? s.previous.dbh_cm : null))));
+  return form.stems.map((s) => (stemDeadOf(form, s) ? null : (parseNum(s.dbh) ?? (s.previous && s.previous.stem_dead === 0 ? s.previous.dbh_cm : null))));
 }
 
 /** The stems as the status rules read them (for the derived code M). */
 export function formStemInputs(form: TreeForm): StemCensusInput[] {
-  return form.stems.map((s) => ({ censusCodes: form.same ? form.allCodes : s.codes, stemDead: s.dead, dbhCm: parseNum(s.dbh) }));
+  return form.stems.map((s) => ({
+    censusCodes: form.same ? form.allCodes : s.codes,
+    stemDead: stemDeadOf(form, s),
+    dbhCm: parseNum(s.dbh),
+    ...(form.amsOn ? { amsSurvival: (amsFromForm(s.ams).survival_status as StemCensusInput['amsSurvival']) ?? null } : {}),
+  }));
 }
 
 /** The draft to save. Taxon / position / tag go in only for a tree first
@@ -352,9 +412,10 @@ export function formToDraft(form: TreeForm, v: TreeView | null, opts: { surveyId
       stemNo: s.stemNo,
       dbhCm: parseNum(s.dbh),
       pomM: parseNum(s.pom) ?? 1.3,
-      stemDead: s.dead,
+      stemDead: stemDeadOf(form, s),
       codes: codesOf(form, s),
       notes: s.notes.trim() || null,
+      ...(form.amsOn ? { ams: amsFromForm(s.ams) } : {}),
     })),
     recordedBy: opts.recordedBy,
   };

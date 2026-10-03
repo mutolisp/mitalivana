@@ -54,6 +54,8 @@ type Props = {
   /** Override the collapsible header's text. The header stays collapsible
    *  either way; omit to use the default "advanced (species attributes)". */
   headerLabel?: string;
+  /** Only these attributes (a survey template's Phenology fields); all when omitted. */
+  fields?: readonly (keyof SpeciesAttributesDraft)[];
 };
 
 export function SpeciesAttributesBlock({
@@ -63,11 +65,13 @@ export function SpeciesAttributesBlock({
   onChange,
   defaultOpen,
   headerLabel,
+  fields,
 }: Props) {
   const { t } = useTranslation();
   const initial = defaultOpen ?? hasAttributes(value);
   const [open, setOpen] = useState(initial);
 
+  const shown = (f: keyof SpeciesAttributesDraft) => !fields || fields.includes(f);
   const isPlant = (kingdom || '').toLowerCase() === 'plantae';
   const isAnimal = (kingdom || '').toLowerCase() === 'animalia';
 
@@ -107,23 +111,27 @@ export function SpeciesAttributesBlock({
 
       {open ? (
         <View className="mt-2 gap-3">
-          <FieldRow label={t('attr.establishmentLabel')}>
-            <SingleChipGroup
-              options={establishmentOptions()}
-              value={value.degree_of_establishment}
-              onChange={(v) => setSingle('degree_of_establishment', v)}
-            />
-          </FieldRow>
+          {shown('degree_of_establishment') ? (
+            <FieldRow label={t('attr.establishmentLabel')}>
+              <SingleChipGroup
+                options={establishmentOptions()}
+                value={value.degree_of_establishment}
+                onChange={(v) => setSingle('degree_of_establishment', v)}
+              />
+            </FieldRow>
+          ) : null}
 
-          <FieldRow label={t('attr.sexLabel')}>
-            <SingleChipGroup
-              options={sexOptions()}
-              value={value.sex}
-              onChange={(v) => setSingle('sex', v)}
-            />
-          </FieldRow>
+          {shown('sex') ? (
+            <FieldRow label={t('attr.sexLabel')}>
+              <SingleChipGroup
+                options={sexOptions()}
+                value={value.sex}
+                onChange={(v) => setSingle('sex', v)}
+              />
+            </FieldRow>
+          ) : null}
 
-          {isAnimal ? (
+          {isAnimal && shown('life_stage') ? (
             <FieldRow label={t('attr.lifeStageLabel')}>
               <SingleChipGroup
                 options={lifeStageOptions(className)}
@@ -135,20 +143,24 @@ export function SpeciesAttributesBlock({
 
           {isPlant ? (
             <>
-              <FieldRow label={t('attr.reproLabel')}>
-                <MultiChipGroup
-                  options={reproductiveOptions()}
-                  value={value.reproductive_condition}
-                  onToggle={(v) => toggleMulti('reproductive_condition', v)}
-                />
-              </FieldRow>
-              <FieldRow label={t('attr.leafLabel')}>
-                <MultiChipGroup
-                  options={leafPhenologyOptions()}
-                  value={value.leaf_phenology}
-                  onToggle={(v) => toggleMulti('leaf_phenology', v)}
-                />
-              </FieldRow>
+              {shown('reproductive_condition') ? (
+                <FieldRow label={t('attr.reproLabel')}>
+                  <MultiChipGroup
+                    options={reproductiveOptions()}
+                    value={value.reproductive_condition}
+                    onToggle={(v) => toggleMulti('reproductive_condition', v)}
+                  />
+                </FieldRow>
+              ) : null}
+              {shown('leaf_phenology') ? (
+                <FieldRow label={t('attr.leafLabel')}>
+                  <MultiChipGroup
+                    options={leafPhenologyOptions()}
+                    value={value.leaf_phenology}
+                    onToggle={(v) => toggleMulti('leaf_phenology', v)}
+                  />
+                </FieldRow>
+              ) : null}
             </>
           ) : null}
         </View>

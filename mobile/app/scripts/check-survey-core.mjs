@@ -24,6 +24,11 @@
  *     the blind phase is closed, the earlier list is refused until then; a
  *     first survey and a checklist have no phase;
  *   - values: set, change in place, clear (row gone), per index;
+ *   - components (2B): every component a plot can hold writes and reads back
+ *     on its owner (columns, values tables per layer, media), two Traits
+ *     components stay apart, writing stamps the owner; values that cannot be
+ *     stored, components of another level or unit level, unknown fields and
+ *     media outside addMedia are refused;
  *   - morphospecies: listed / new / none, no duplicates;
  *   - deleting a unit moves its occurrences and sub-units up; deleting a
  *     survey takes its units, occurrences, values and photos, never the
@@ -327,6 +332,100 @@ ok(tp.upgradeSurvey(ctx, P2, relabelled) && c.getFwSurvey(ctx, P2).template_vers
 ok(tp.upgradeSurvey(ctx, P2, { ...relabelled, version: 3 }) === false, 'upgrade: same content, nothing to do');
 throwsCode(() => tp.upgradeSurvey(ctx, P2, { ...relabelled, version: 3, units: [UNITS[0]] }), 'template_breaking', 'upgrade: a breaking change is refused');
 throwsCode(() => tp.upgradeSurvey(ctx, P2, { ...relabelled, version: 1, name: { text: 'old' } }), 'template_invalid', 'upgrade: only to a newer version');
+
+// ── component values (2B) ────────────────────────────────────────────────
+// A plot template with every component a plot can hold, written and read back.
+const FULL = tp.saveTemplate(ctx, {
+  ...bare('plot', { id: 'user:full', units: UNITS }),
+  components: [
+    { key: 'abundance', type: 'abundance', level: 'occurrence', required: false, params: { kinds: ['BB', 'percent', 'count', 'DBH', 'custom'], default: 'BB' } },
+    { key: 'freq', type: 'frequency', level: 'occurrence', required: false, params: { mode: 'cells', n: 3, top_edge: 'N' } },
+    { key: 'layers', type: 'structure', level: 'survey', required: false, params: { layers: 4, methods: ['BB', 'percent'] } },
+    { key: 'layer', type: 'structure', level: 'occurrence', required: false, params: { layers: 4, methods: ['BB'] } },
+    { key: 'sublayers', type: 'structure', level: 'unit', unit: 'subplot', required: false, params: { layers: 4, methods: ['BB'] } },
+    { key: 'pheno', type: 'phenology', level: 'occurrence', required: false, params: { fields: ['sex', 'reproductive_condition', 'leaf_phenology'] } },
+    { key: 'leaf', type: 'traits', level: 'occurrence', required: false, params: { traits: [{ id: 'length_cm', label: { text: '葉長' }, unit: 'cm', min: 0, max: 50 }, { id: 'count', label: { text: '葉數' }, integer: true }] } },
+    { key: 'seed', type: 'traits', level: 'occurrence', required: false, params: { traits: [{ id: 'length_cm', label: { text: '種子長' }, unit: 'cm' }] } },
+    { key: 'env', type: 'environment', level: 'survey', required: false, params: { fields: ['elevation_m', 'slope_deg', 'terrain_position', 'rock_cover_pct', 'litter_cover_pct'] } },
+    { key: 'qenv', type: 'environment', level: 'unit', unit: 'quadrat', required: false, params: { fields: ['slope_deg'] } },
+    { key: 'audio', type: 'audio', level: 'occurrence', required: false, params: { max: 2 } },
+    { key: 'photos', type: 'photos', level: 'occurrence', required: false, params: { max: 6 } },
+    { key: 'qphotos', type: 'photos', level: 'unit', unit: 'quadrat', required: false, params: { max: 6 } },
+    { key: 'workers', type: 'workers', level: 'occurrence', required: false, params: { roles: ['recorder', 'identifier'] } },
+    { key: 'subworkers', type: 'workers', level: 'unit', unit: 'subplot', required: false, params: { roles: ['recorder'] } },
+    { key: 'where', type: 'location', level: 'occurrence', required: false, params: { methods: ['gps'] } },
+    { key: 'qwhere', type: 'location', level: 'unit', unit: 'quadrat', required: false, params: { methods: ['gps'] } },
+    { key: 'height', type: 'height', level: 'occurrence', required: false, params: {} },
+  ],
+});
+const V = c.createSurvey(ctx, { template: FULL });
+const vSub = c.addUnit(ctx, V, { levelKey: 'subplot', code: 'A' });
+const quad = c.addUnit(ctx, V, { levelKey: 'quadrat', code: 'A1', parentId: vSub });
+const occ = c.addOccurrence(ctx, V, { taxon_id: 't20', unit_id: quad });
+const O = { kind: 'occurrence', id: occ };
+const S = { kind: 'survey', id: V };
+const U = { kind: 'unit', id: vSub };
+const Q = { kind: 'unit', id: quad };
+const roundTrip = (owner, key, patch, label) => {
+  c.writeComponent(ctx, owner, key, patch);
+  const got = c.readComponent(ctx, owner, key);
+  for (const [f, v] of Object.entries(patch)) ok(JSON.stringify(got[f]) === JSON.stringify(v), `values ${label}: ${key}.${f} round-trips (${JSON.stringify(got[f])} vs ${JSON.stringify(v)})`);
+};
+roundTrip(O, 'abundance', { organism_quantity: '3', organism_quantity_type: 'Braun-Blanquet Scale' }, 'abundance BB');
+roundTrip(O, 'abundance', { organism_quantity: '[12.5,8]', organism_quantity_type: 'DBH (cm)' }, 'abundance DBH');
+ok(c.getOccurrence(ctx, occ).organism_quantity === '[12.5,8]', 'values: abundance lands on the occurrence columns');
+roundTrip(O, 'freq', { freq_cells: '010010001' }, 'frequency');
+roundTrip(S, 'layers', { layer_count: 3, cover_pct: { 1: 80, 2: 30, 3: 5 }, height_cm: { 1: 1500 }, height_unit: { 1: 'm' }, method: { 1: 'BB', 2: 'percent' } }, 'structure (survey)');
+ok(count('fw_survey_values', `survey_id = ? AND component = 'layers' AND field = 'cover_pct'`, V) === 3, 'values: one row per layer');
+c.writeComponent(ctx, S, 'layers', { cover_pct: { 2: null } });
+ok(JSON.stringify(c.readComponent(ctx, S, 'layers').cover_pct) === JSON.stringify({ 1: 80, 3: 5 }), 'values: a layer cleared on its own');
+c.writeComponent(ctx, S, 'layers', { cover_pct: null });
+ok(c.readComponent(ctx, S, 'layers').cover_pct == null, 'values: every layer cleared at once');
+roundTrip(O, 'layer', { layer: 'E2' }, 'structure (occurrence)');
+roundTrip(U, 'sublayers', { cover_pct: { 1: 60, 2: 20 }, height_cm: { 1: 300 } }, 'structure (unit)');
+roundTrip(O, 'pheno', { sex: 'female', reproductive_condition: ['flowering', 'fruiting'], leaf_phenology: ['green'] }, 'phenology');
+ok(c.getOccurrence(ctx, occ).reproductive_condition === '["flowering","fruiting"]', 'values: multi-value columns are JSON arrays');
+roundTrip(O, 'leaf', { length_cm: 12.5, count: 7 }, 'traits');
+roundTrip(O, 'seed', { length_cm: 0.4 }, 'second traits component');
+ok(c.readComponent(ctx, O, 'leaf').length_cm === 12.5, 'values: two traits components with the same trait id stay apart');
+roundTrip(S, 'env', { elevation_m: 1520, slope_deg: 25, terrain_position: 'ridge', rock_cover_pct: 10 }, 'environment (survey)');
+roundTrip(Q, 'qenv', { slope_deg: 31 }, 'environment (unit)');
+roundTrip(O, 'workers', { recorded_by: 'A', identified_by: 'B' }, 'workers (occurrence)');
+roundTrip(U, 'subworkers', { recorded_by: 'C' }, 'workers (unit)');
+roundTrip(O, 'where', { lat: 24.12, lng: 121.3, accuracy: 4, elevation_m: 1501, elevation_source: 'gnss' }, 'location (occurrence)');
+roundTrip(Q, 'qwhere', { lat: 24.13, lng: 121.31, accuracy: 3 }, 'location (unit)');
+roundTrip(O, 'height', { height_m: 0.35 }, 'height');
+const before = c.getOccurrence(ctx, occ).updated_at;
+c.writeComponent(ctx, O, 'leaf', { count: 8 });
+ok(c.getOccurrence(ctx, occ).updated_at > before, 'values: writing stamps the owner');
+// Refusals: what cannot be stored, components that sit elsewhere, media through their own path.
+throwsCode(() => c.writeComponent(ctx, O, 'leaf', { length_cm: 80 }), 'bad_value', 'values: above a trait maximum is refused');
+throwsCode(() => c.writeComponent(ctx, O, 'leaf', { count: 7.5 }), 'bad_value', 'values: a non-integer count is refused');
+throwsCode(() => c.writeComponent(ctx, O, 'layer', { layer: 'E9' }), 'bad_value', 'values: an unknown layer is refused');
+throwsCode(() => c.writeComponent(ctx, S, 'env', { slope_deg: 'steep' }), 'bad_value', 'values: text in a number is refused');
+throwsCode(() => c.writeComponent(ctx, O, 'pheno', { reproductive_condition: 'flowering' }), 'bad_value', 'values: a multi-value field needs a list');
+throwsCode(() => c.writeComponent(ctx, O, 'leaf', { width_cm: 1 }), 'bad_value', 'values: a field the component does not have is refused');
+throwsCode(() => c.writeComponent(ctx, O, 'env', { slope_deg: 3 }), 'bad_component', 'values: a survey-level component is not written on an occurrence');
+throwsCode(() => c.writeComponent(ctx, Q, 'sublayers', { cover_pct: { 1: 5 } }), 'bad_component', 'values: a subplot component is not written on a quadrat');
+throwsCode(() => c.writeComponent(ctx, O, 'nope', { x: 1 }), 'bad_component', 'values: an unknown component key is refused');
+throwsCode(() => c.writeComponent(ctx, O, 'photos', { photos: ['x'] }), 'bad_value', 'values: media go through addMedia');
+c.writeComponent(ctx, O, 'abundance', { organism_quantity: '60', organism_quantity_type: '% cover' });
+ok(c.readComponent(ctx, O, 'abundance').organism_quantity === '60', 'values: abundance switches scale (the form checks the value against it)');
+// Media.
+c.addMedia(ctx, O, 'photos', 'file:///photos/o1.jpg');
+c.addMedia(ctx, O, 'audio', 'file:///audio/a1.m4a');
+c.addMedia(ctx, O, 'audio', 'file:///audio/a2.m4a');
+throwsCode(() => c.addMedia(ctx, O, 'audio', 'file:///audio/a3.m4a'), 'bad_value', 'media: at most the component maximum');
+throwsCode(() => c.addMedia(ctx, O, 'leaf', 'file:///photos/x.jpg'), 'bad_value', 'media: only on a media component');
+c.addMedia(ctx, Q, 'qphotos', 'file:///photos/q1.jpg');
+const read = c.readComponent(ctx, O, 'audio');
+ok(JSON.stringify(read.audio) === JSON.stringify(['file:///audio/a1.m4a', 'file:///audio/a2.m4a']), 'media: read back in order');
+ok(one(`SELECT kind FROM fw_media WHERE uri = 'file:///audio/a1.m4a'`).kind === 'audio' && one(`SELECT occurrence_id AS o FROM fw_media WHERE uri = 'file:///photos/q1.jpg'`).o == null, 'media: kind and owner columns');
+ok(JSON.stringify(c.readComponent(ctx, O, 'photos').photos) === JSON.stringify(['file:///photos/o1.jpg']), 'media: per component');
+c.removeMedia(ctx, O, 'audio', 'file:///audio/a1.m4a');
+ok(c.listMedia(ctx, O, 'audio').length === 1, 'media: removed');
+c.deleteSurvey(ctx, V);
+ok(count('fw_occurrence_values', 'occurrence_id = ?', occ) === 0 && count('fw_media', 'survey_id = ?', V) === 0 && count('fw_unit_values', 'unit_id IN (?, ?)', vSub, quad) === 0, 'values: a deleted survey takes its component values and media');
 
 // ── the census and the integrity sweep ───────────────────────────────────
 ok(JSON.stringify(censusRows()) === JSON.stringify(censusBefore), `census: untouched (${censusRows()} vs ${censusBefore})`);

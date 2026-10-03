@@ -11,8 +11,10 @@
  *
  * Pure: check:census-stress runs it under Node.
  */
+import { AMS_CODESET, type AmsValues } from '../codesets/forestgeoAms2021';
 import { correctIndividual, createFrame, saveTreeDraft, startCensus, type Ctx, type TreeDraft } from '../db/stemmapCore';
 import type { SurveyTemplate } from '../template/types';
+import { STEMMAP_TEMPLATE } from '../templates/stemmap';
 
 /**
  * Whether the permanent plot list offers the stress test screen. Release
@@ -121,7 +123,46 @@ export function buildStressPlan(size: StressSize, seed = 20261001): StressPlan {
 /** Census 2 covers the first half of the quadrats (column-major), as a census under way. */
 export const inRecensus = (size: StressSize, t: { x: number }) => t.x < STRESS_SIZES[size].xM / 2;
 
-const newTree = (t: TreeSpec): TreeDraft => ({
+/**
+ * The census template with both code sets (census codes and AMS), for the AMS
+ * option: no real census uses AMS before the template builder (2D), so it
+ * lives here, not among the built-in templates.
+ */
+export const STRESS_AMS_TEMPLATE: SurveyTemplate = {
+  ...STEMMAP_TEMPLATE,
+  id: 'stress:stemmap-ams',
+  components: STEMMAP_TEMPLATE.components.map((c) => (c.type === 'health' ? { ...c, params: { codesets: ['forestgeo-census-1998', AMS_CODESET] } } : c)),
+};
+
+/**
+ * Every AMS variable filled, as on the protocol's form where each row is
+ * "filled out completely" (p.3): the most an AMS stem can take, for the
+ * bytes-per-stem measurement. Values from their own seed (tree tag, stem,
+ * census), so the plan of the census-codes test is unchanged.
+ */
+export function stressAms(tag: string, stem: number, census: number, dead: boolean): AmsValues {
+  const r = prng(Number(tag) * 31 + stem * 7 + census);
+  const ok = !dead && r() < 0.7;
+  const pick = <T>(xs: readonly T[]) => xs[Math.floor(r() * xs.length)];
+  return {
+    survival_status: dead ? 'D' : ok ? 'OK' : 'A',
+    mode: dead ? [pick(['S', 'B'])] : ok ? ['S'] : [pick(['S', 'S', 'B'])],
+    living_length_m: round1(1 + r() * 25),
+    remaining_crown_pct: ok ? 90 + Math.floor(r() * 11) : Math.floor(r() * 100),
+    crown_illumination: pick(['1', '2', '3', '4', '5']),
+    leaning_deg: Math.floor(r() * 30),
+    ...(r() < 0.2 ? { liana: ['L'] } : {}),
+    fungi: r() < 0.05 ? 'Y' : 'N',
+    wounded_main_axis: pick(['1', '2', '3']),
+    canker: pick(['1', '2', '3']),
+    rotting_trunk: pick(['1', '2', '3']),
+    leaves_pct: Math.floor(r() * 101),
+    leaf_damage: r() < 0.1 ? 'Y' : 'N',
+    ...(r() < 0.1 ? { comment_codes: [pick(['G', 'H', 'W'])] } : {}),
+  };
+}
+
+const newTree = (t: TreeSpec, ams = false): TreeDraft => ({
   individualId: null,
   tag: t.tag,
   taxon: { taxonId: t.taxon.id, usedScientificName: t.taxon.name },
@@ -130,7 +171,7 @@ const newTree = (t: TreeSpec): TreeDraft => ({
   heightM: t.heightM,
   treeCodes: [],
   mainStemNo: 1,
-  stems: t.stems.map((s) => ({ stemNo: null, dbhCm: s.dbh, pomM: 1.3, stemDead: false, codes: s.codes, notes: null })),
+  stems: t.stems.map((s, k) => ({ stemNo: null, dbhCm: s.dbh, pomM: 1.3, stemDead: false, codes: s.codes, notes: null, ...(ams ? { ams: stressAms(t.tag, k + 1, 1, false) } : {}) })),
   recordedBy: 'stress',
 });
 
@@ -141,8 +182,8 @@ export function createStressPlot(ctx: Ctx, size: StressSize, template: SurveyTem
 }
 
 /** Census 1: trees [from, to) of the plan. Returns tree ids by tag. In a transaction. */
-export function writeCensus1(ctx: Ctx, census1: number, plan: StressPlan, from: number, to: number, ids: Map<string, number>): void {
-  for (const t of plan.trees.slice(from, to)) ids.set(t.tag, saveTreeDraft(ctx, census1, newTree(t)));
+export function writeCensus1(ctx: Ctx, census1: number, plan: StressPlan, from: number, to: number, ids: Map<string, number>, ams = false): void {
+  for (const t of plan.trees.slice(from, to)) ids.set(t.tag, saveTreeDraft(ctx, census1, newTree(t, ams)));
 }
 
 /**
@@ -150,13 +191,13 @@ export function writeCensus1(ctx: Ctx, census1: number, plan: StressPlan, from: 
  * (0–6 %), dead (code DS) or not reached; then the recruits and a few species
  * corrections (`last` chunk). In a transaction.
  */
-export function writeCensus2(ctx: Ctx, census2: number, plan: StressPlan, from: number, to: number, ids: Map<string, number>, last: boolean): void {
+export function writeCensus2(ctx: Ctx, census2: number, plan: StressPlan, from: number, to: number, ids: Map<string, number>, last: boolean, ams = false): void {
   const r = prng(from + 7);
   for (const t of plan.trees.slice(from, to)) {
     if (!inRecensus(plan.size, t) || t.fate === 'missed') continue;
     const id = ids.get(t.tag)!;
     saveTreeDraft(ctx, census2, {
-      ...newTree(t),
+      ...newTree(t, ams),
       individualId: id,
       tag: null,
       taxon: null,
@@ -166,14 +207,16 @@ export function writeCensus2(ctx: Ctx, census2: number, plan: StressPlan, from: 
         stemNo: k + 1,
         dbhCm: t.fate === 'die' ? null : round1(s.dbh * (1 + r() * 0.06)),
         pomM: 1.3,
-        stemDead: false,
+        // With AMS, a dead tree's stems are AMS D, which the form turns into stem death.
+        stemDead: ams && t.fate === 'die',
         codes: t.fate === 'die' ? [] : s.codes,
         notes: null,
+        ...(ams ? { ams: stressAms(t.tag, k + 1, 2, t.fate === 'die') } : {}),
       })),
     });
   }
   if (!last) return;
-  for (const t of plan.recruits) if (inRecensus(plan.size, t)) ids.set(t.tag, saveTreeDraft(ctx, census2, newTree(t)));
+  for (const t of plan.recruits) if (inRecensus(plan.size, t)) ids.set(t.tag, saveTreeDraft(ctx, census2, newTree(t, ams)));
   const step = Math.max(1, Math.floor(plan.trees.length / Math.max(1, plan.corrections)));
   for (let i = 0; i < plan.trees.length; i += step) {
     const t = plan.trees[i];

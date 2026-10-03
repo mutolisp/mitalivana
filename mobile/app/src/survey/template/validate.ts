@@ -11,14 +11,19 @@
  *
  * Pure: check:templates runs it under Node.
  */
-import { BUILTIN_CODESETS, componentDef, componentDefs, defaultLevelOf } from '../registry';
+import { BUILTIN_CODESETS, componentDef, componentDefs, defaultLevelOf, defaultParamsOf, type TraitDef } from '../registry';
 import { rowHash } from '../../lib/mergeEngine';
 import { MAX_UNIT_LEVELS, STYLE_LEVELS, type ComponentInstance, type Label, type SurveyTemplate } from './types';
+
+const COMPONENT_KEY = /^[a-z][a-z0-9_]{0,31}$/;
 
 export function withRequired(t: SurveyTemplate): SurveyTemplate {
   const missing = componentDefs()
     .filter((d) => d.required && d.styles.includes(t.style) && !t.components.some((c) => c.type === d.type))
-    .map((d): ComponentInstance => ({ key: d.type, type: d.type, level: defaultLevelOf(d, t.style), required: true, params: { ...d.defaultParams } }));
+    .map((d): ComponentInstance => {
+      const level = defaultLevelOf(d, t.style);
+      return { key: d.type, type: d.type, level, required: true, params: { ...defaultParamsOf(d, level) } };
+    });
   return missing.length ? { ...t, components: [...t.components, ...missing] } : t;
 }
 
@@ -69,9 +74,13 @@ export function validateTemplate(t: SurveyTemplate): string[] {
     out.push(...labelProblems(`unit level ${u.key}`, u.label, builtin));
   }
   const keys = new Set<string>();
+  // A component stored in columns or under fixed keys can sit once per level (and unit level).
+  const placed = new Set<string>();
   for (const c of t.components) {
     if (keys.has(c.key)) out.push(`duplicate component key ${c.key}`);
     keys.add(c.key);
+    // The key names its rows in the values tables.
+    if (typeof c.key !== 'string' || !COMPONENT_KEY.test(c.key)) out.push(`component key ${JSON.stringify(c.key)} must be lower-case letters, digits or _ (up to 32)`);
     const def = componentDef(c.type);
     if (!def) {
       out.push(`${c.key}: unknown component type ${c.type}`);
@@ -85,8 +94,14 @@ export function validateTemplate(t: SurveyTemplate): string[] {
       out.push(`${c.key}: only a component on the unit level names a unit level`);
     }
     if (def.required && !c.required) out.push(`${c.key}: ${c.type} is always required`);
+    const at = `${c.type}@${c.level}${c.level === 'unit' ? `:${String(c.unit)}` : ''}`;
+    if (def.cardinality === 'one' && placed.has(at)) out.push(`${c.key}: ${c.type} sits on this level twice`);
+    placed.add(at);
     out.push(...labelProblems(c.key, c.label, builtin, true));
-    for (const p of def.checkParams(c.params)) out.push(`${c.key}: ${p}`);
+    for (const p of def.checkParams(c.params, c.level)) out.push(`${c.key}: ${p}`);
+    if (c.type === 'traits' && Array.isArray(c.params.traits)) {
+      for (const tr of c.params.traits as TraitDef[]) out.push(...labelProblems(`${c.key} trait ${String(tr?.id)}`, tr?.label as Label | undefined, builtin));
+    }
   }
   for (const d of componentDefs()) {
     if (d.required && d.styles.includes(t.style) && !t.components.some((c) => c.type === d.type)) {

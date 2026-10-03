@@ -10,6 +10,7 @@
  * Pure: runs under Node.
  */
 import type { MeasureRow, StemView, TreeView } from '../db/stemmapCore';
+import type { AmsSurvival } from '../codesets/forestgeoAms2021';
 import { conflicts, validateStem, type StemCensusInput } from './status';
 import { entryHints, extremeList, growth, type Measure } from './growth';
 import { locate, type FrameGeometry } from './coords';
@@ -55,7 +56,14 @@ export function treeFlags(v: TreeView, surveyId: number, hasPrevious: boolean): 
 const measureOf = (m: MeasureRow | null): Measure | null => (m ? { dbhCm: m.dbh_cm, pomSeq: m.pom_seq, measuredAt: m.measured_at } : null);
 
 function stemInput(s: StemView): StemCensusInput {
-  return { censusCodes: s.codes, stemDead: s.measure?.stem_dead === 1, dbhCm: s.measure?.dbh_cm ?? null, pending: s.measure?.pending ?? null };
+  const survival = s.ams.survival_status;
+  return {
+    censusCodes: s.codes,
+    stemDead: s.measure?.stem_dead === 1,
+    dbhCm: s.measure?.dbh_cm ?? null,
+    pending: s.measure?.pending ?? null,
+    ...(typeof survival === 'string' ? { amsSurvival: survival as AmsSurvival } : {}),
+  };
 }
 
 export type TreeIssue = {

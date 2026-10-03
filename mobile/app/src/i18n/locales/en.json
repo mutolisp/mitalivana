@@ -4585,7 +4585,16 @@
       "notHandled": "Measured last census, not handled now",
       "extremeHigh": "High growth: re-measure",
       "extremeLow": "Low growth: re-measure",
-      "extremeFew": "Too few in this DBH class to rank: re-measure"
+      "extremeFew": "Too few in this DBH class to rank: re-measure",
+      "stemDeadButAmsAlive": "Stem marked dead, but AMS says alive",
+      "amsModeBAndS": "AMS mode: broken (B) and standing (S) cannot go together",
+      "amsUprootedNeedsLeaning": "AMS uprooted (U) needs a leaning",
+      "amsOkButDamaged": "AMS OK, but broken or uprooted",
+      "amsOkButCrownLost": "AMS OK, but under 90% of the crown remains",
+      "amsXWithLivingLength": "AMS X (dead above ground), but a living length is given",
+      "amsNotANumber": "An AMS value is not a number",
+      "amsNotAllowed": "An AMS code is not in the code set",
+      "amsOutOfRange": "An AMS value is out of range"
     },
     "checks": {
       "screening_one": "Screening {{count}}",
@@ -4739,6 +4748,165 @@
       "merged": "{{count}} censuses merged",
       "toReview": "{{count}} censuses need a merge review",
       "unresolvedTaxa": "{{count}} species are not in this phone's checklist; their codes are kept"
+    },
+    "component": {
+      "taxon": "Taxon",
+      "timestamp": "Time",
+      "comments": "Comments",
+      "investigators": "Investigators",
+      "workers": "Recorders and identifiers",
+      "location": "Location",
+      "dbh": "DBH",
+      "height": "Height",
+      "health": "Health codes",
+      "photos": "Photos",
+      "audio": "Recordings",
+      "abundance": "Abundance",
+      "frequency": "Frequency",
+      "structure": "Layers",
+      "phenology": "Phenology",
+      "traits": "Traits",
+      "environment": "Environment"
+    },
+    "editor": {
+      "elsewhere": "This component is entered on the record screen.",
+      "problem": {
+        "required": "Required",
+        "notANumber": "Not a number",
+        "outOfRange": "Out of range",
+        "notInteger": "Must be a whole number",
+        "notAllowed": "Not one of the allowed values",
+        "malformed": "Malformed value",
+        "endsBeforeStart": "Ends before it starts",
+        "coversOver100": "Ground covers add up to more than 100%",
+        "layerOutOfRange": "Beyond the number of layers"
+      },
+      "abundance": {
+        "count": "Count",
+        "countSuffix": "individuals"
+      },
+      "frequency": {
+        "count": "Cells occupied ({{n}}×{{n}}, {{cells}} cells)",
+        "grid": "{{n}}×{{n}} frequency grid",
+        "cells": "{{k}} / {{cells}} cells"
+      },
+      "structure": {
+        "fewer": "One layer fewer",
+        "more": "One layer more",
+        "cover": "Cover",
+        "height": "Height"
+      },
+      "environment": {
+        "coverTotal": "Ground covers total {{total}}%"
+      },
+      "timestamp": {
+        "start": "Start",
+        "stop": "End",
+        "setStop": "Set the end time"
+      },
+      "people": {
+        "none": "None"
+      },
+      "workers": {
+        "recorder": "Recorder",
+        "identifier": "Identifier"
+      },
+      "location": {
+        "fix": "{{lat}}, {{lng}} (±{{acc}} m)",
+        "none": "No position yet",
+        "clear": "Clear"
+      },
+      "summary": {
+        "count": "{{n}} individuals",
+        "recorded": "Recorded",
+        "stems_one": "{{count}} stem",
+        "stems_other": "{{count}} stems",
+        "layers_one": "{{count}} layer",
+        "layers_other": "{{count}} layers"
+      }
+    },
+    "ams": {
+      "title": "AMS mortality and damage",
+      "unsure": "Can’t tell",
+      "yes": "Yes",
+      "no": "No",
+      "deathHint": "A stem’s death follows its AMS survival status (X or D).",
+      "survival_status": {
+        "label": "Survival status",
+        "c_OK": "Healthy (complete standing main axis, ≥90% crown)",
+        "c_A": "Stem alive",
+        "c_D": "Individual dead",
+        "c_X": "Stem dead above ground, individual alive",
+        "c_NF": "Stem and tag not found"
+      },
+      "mode": {
+        "label": "Mode",
+        "c_S": "Standing (complete main axis)",
+        "c_B": "Broken",
+        "c_U": "Uprooted (roots out of the ground)"
+      },
+      "living_length_m": {
+        "label": "Living length",
+        "c_belowPom": "Below the POM"
+      },
+      "remaining_crown_pct": {
+        "label": "Remaining crown",
+        "c_NA": "Not applicable (no branches)"
+      },
+      "crown_illumination": {
+        "label": "Crown illumination",
+        "c_5": "Full light (vertical and lateral)",
+        "c_4": "Overhead light, ≥90%",
+        "c_3": "Some overhead light, 10–90%",
+        "c_2": "Lateral light (<10% overhead)",
+        "c_1": "No direct light"
+      },
+      "leaning_deg": {
+        "label": "Leaning"
+      },
+      "liana": {
+        "label": "Liana / strangler",
+        "c_L": "Liana over 50% of the crown",
+        "c_S": "Limiting the main axis (strangler)"
+      },
+      "fungi": {
+        "label": "Fungi"
+      },
+      "wounded_main_axis": {
+        "label": "Wounded main axis",
+        "c_1": "Small (under DBH × DBH)",
+        "c_2": "Large (over DBH × DBH)",
+        "c_3": "Massive (over 50% of basal area or living length)"
+      },
+      "canker": {
+        "label": "Canker, swelling, deformity",
+        "c_1": "Small (under DBH × DBH)",
+        "c_2": "Large (over DBH × DBH)",
+        "c_3": "Massive (over 50% of basal area or living length)"
+      },
+      "rotting_trunk": {
+        "label": "Rotting trunk",
+        "c_1": "Small (under DBH × DBH)",
+        "c_2": "Large (over DBH × DBH)",
+        "c_3": "Massive (over 50% of basal area or living length)"
+      },
+      "leaves_pct": {
+        "label": "Leaves"
+      },
+      "leaf_damage": {
+        "label": "Leaf damage"
+      },
+      "comment_codes": {
+        "label": "Other indicators",
+        "c_L": "Lightning",
+        "c_G": "Gap",
+        "c_F": "Fire",
+        "c_H": "Hollow trunk",
+        "c_HB": "Hollow base",
+        "c_R": "Root damage",
+        "c_S": "Slope failure",
+        "c_W": "Wind-throw"
+      }
     }
   },
   "task": {

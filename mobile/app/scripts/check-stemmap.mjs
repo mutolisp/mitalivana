@@ -170,6 +170,8 @@ eq('vitality of P is none', vitality(tree([stem()], { existed: false })), null);
 eq('AMS A + census DS conflict', conflicts(tree([stem({ amsSurvival: 'A', dbhCm: null })], { treeCodes: ['DS'] })), ['tree_dead_but_stem_alive']);
 eq('dead tree still carrying a DBH', conflicts(tree([stem()], { treeCodes: ['DS'] })), ['dead_stem_with_dbh']);
 eq('AMS D on one stem, A on another', conflicts(tree([stem({ amsSurvival: 'D', dbhCm: null }), stem({ amsSurvival: 'A' })])), ['ams_dead_individual_but_stem_alive']);
+eq('stem-death switch on a stem AMS calls alive', conflicts(tree([stem({ amsSurvival: 'OK', stemDead: true, dbhCm: null }), stem()])), ['stem_dead_but_ams_alive']);
+eq('stem-death switch with AMS X agrees', conflicts(tree([stem({ amsSurvival: 'X', stemDead: true, dbhCm: null }), stem()])), []);
 
 const v = (over, extra = {}) =>
   validateStem({ stem: stem(over), treeCodes: [], isNew: false, firstCensus: false, thresholdCm: 5, pomM: 1.3, ...extra }).map((i) => i.code);

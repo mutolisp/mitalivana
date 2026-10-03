@@ -39,7 +39,13 @@ export default function SurveyFramesScreen() {
         contentContainerClassName="gap-3 p-4"
         ListHeaderComponent={<Text className="text-sm text-gray-600 dark:text-gray-400">{t('survey.frames.desc')}</Text>}
         // The 1E stress test (app/survey/stress.tsx); in release builds too until testing is done.
-        ListFooterComponent={STRESS_TEST_OFFERED ? <Button label="每木壓力測試（測試用）" variant="secondary" onPress={() => router.push('/survey/stress' as Href)} /> : null}
+        // The component preview (app/survey/components-preview.tsx, 2B) in development builds only.
+        ListFooterComponent={
+          <View className="gap-2">
+            {STRESS_TEST_OFFERED ? <Button label="每木壓力測試（測試用）" variant="secondary" onPress={() => router.push('/survey/stress' as Href)} /> : null}
+            {__DEV__ ? <Button label="元件預覽（開發版）" variant="secondary" onPress={() => router.push('/survey/components-preview' as Href)} /> : null}
+          </View>
+        }
         ListEmptyComponent={
           <View className="items-center gap-3 py-10">
             <Text className="text-center text-sm text-gray-500 dark:text-gray-400">{t('survey.frames.empty')}</Text>

@@ -32,7 +32,8 @@ import { checkpointQuadrats } from '../undo';
 import { extremeWorklist, screening } from '../stemmap/review';
 import { fgQuadratCounts } from '../stemmap/coords';
 import { loadCensusData, loadQuadratRows } from '../useCensus';
-import { buildStressPlan, createStressPlot, STRESS_SIZES, writeCensus1, writeCensus2, type StressSize } from './stressCore';
+import { AMS_CODESET } from '../codesets/forestgeoAms2021';
+import { buildStressPlan, createStressPlot, STRESS_AMS_TEMPLATE, STRESS_SIZES, writeCensus1, writeCensus2, type StressSize } from './stressCore';
 
 const ctx = (): core.Ctx => ({ db: getUserDb(), now: Date.now, uuid: generateUuid });
 const rows = <T>(sql: string, args: (string | number)[] = []) => (getUserDb().executeSync(sql, args).rows ?? []) as unknown as T[];
@@ -64,27 +65,34 @@ function plotByCode(code: string): { frameId: number; census1: number | null; ce
   return { frameId: f.id, census1: cs2.find((c) => c.census_no === 1)?.id ?? null, census2: cs2.find((c) => c.census_no === 2)?.id ?? null };
 }
 
-/** Build the test plot (≈ 1–5 minutes on a phone). */
-export async function buildStressData(size: StressSize, progress: Progress): Promise<BenchLine[]> {
+/** Whether the test plot was built with every AMS variable (its census template records the AMS code set). */
+export function stressPlotHasAms(size: StressSize): boolean {
+  const census1 = stressPlot(size)?.census1;
+  return census1 != null && core.censusCodesets(ctx(), census1).includes(AMS_CODESET);
+}
+
+/** Build the test plot (≈ 1–5 minutes on a phone); `ams`: every stem also gets every AMS variable. */
+export async function buildStressData(size: StressSize, progress: Progress, ams = false): Promise<BenchLine[]> {
   const out: BenchLine[] = [];
   const plan = buildStressPlan(size);
   const c = ctx();
   const t0 = Date.now();
-  const made = withTransaction(() => createStressPlot(c, size, STEMMAP_TEMPLATE));
+  const template = ams ? STRESS_AMS_TEMPLATE : STEMMAP_TEMPLATE;
+  const made = withTransaction(() => createStressPlot(c, size, template));
   const ids = new Map<string, number>();
   const CHUNK = 250;
   for (let i = 0; i < plan.trees.length; i += CHUNK) {
-    withTransaction(() => writeCensus1(c, made.census1, plan, i, Math.min(plan.trees.length, i + CHUNK), ids));
+    withTransaction(() => writeCensus1(c, made.census1, plan, i, Math.min(plan.trees.length, i + CHUNK), ids, ams));
     progress('第 1 回合', Math.min(plan.trees.length, i + CHUNK), plan.trees.length);
     await yieldUi();
   }
   core.finishCensus(c, made.census1);
   const t1 = Date.now();
   out.push({ label: '建立第 1 回合', ms: t1 - t0, detail: `${plan.trees.length} 株，每株 ${((t1 - t0) / plan.trees.length).toFixed(2)} ms` });
-  const census2 = core.startCensus(c, { frameId: made.frameId, template: STEMMAP_TEMPLATE });
+  const census2 = core.startCensus(c, { frameId: made.frameId, template });
   for (let i = 0; i < plan.trees.length; i += CHUNK) {
     const end = Math.min(plan.trees.length, i + CHUNK);
-    withTransaction(() => writeCensus2(c, census2, plan, i, end, ids, end === plan.trees.length));
+    withTransaction(() => writeCensus2(c, census2, plan, i, end, ids, end === plan.trees.length, ams));
     progress('第 2 回合', end, plan.trees.length);
     await yieldUi();
   }

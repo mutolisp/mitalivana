@@ -4392,7 +4392,16 @@
       "notHandled": "지난 회차 측정, 이번 회차 미처리",
       "extremeHigh": "생장률 높음: 재측정",
       "extremeLow": "생장률 낮음: 재측정",
-      "extremeFew": "DBH 계급 개체가 적어 모두 재측정"
+      "extremeFew": "DBH 계급 개체가 적어 모두 재측정",
+      "stemDeadButAmsAlive": "줄기가 고사로 표시되었으나 AMS는 생존",
+      "amsModeBAndS": "AMS 형태: 부러짐(B)과 직립(S)은 함께 쓸 수 없음",
+      "amsUprootedNeedsLeaning": "AMS 뿌리째 뽑힘(U)이면 기울기 필요",
+      "amsOkButDamaged": "AMS OK이나 부러짐 또는 뿌리째 뽑힘",
+      "amsOkButCrownLost": "AMS OK이나 잔존 수관 90% 미만",
+      "amsXWithLivingLength": "AMS X(지상부 고사)이나 생존 길이가 있음",
+      "amsNotANumber": "AMS 값이 숫자가 아님",
+      "amsNotAllowed": "AMS 코드가 코드표에 없음",
+      "amsOutOfRange": "AMS 값이 범위를 벗어남"
     },
     "checks": {
       "screening_other": "자동 점검 {{count}}",
@@ -4543,6 +4552,163 @@
       "merged": "회차 {{count}}개를 병합했습니다",
       "toReview": "회차 {{count}}개는 병합 검토가 필요합니다",
       "unresolvedTaxa": "{{count}}종이 이 기기의 목록에 없어 원래 코드를 유지합니다"
+    },
+    "component": {
+      "taxon": "분류군",
+      "timestamp": "시간",
+      "comments": "비고",
+      "investigators": "조사자",
+      "workers": "기록자와 동정자",
+      "location": "위치",
+      "dbh": "흉고직경",
+      "height": "높이",
+      "health": "건강 코드",
+      "photos": "사진",
+      "audio": "녹음",
+      "abundance": "풍부도",
+      "frequency": "빈도",
+      "structure": "층위",
+      "phenology": "물후",
+      "traits": "형질",
+      "environment": "환경"
+    },
+    "editor": {
+      "elsewhere": "이 항목은 기록 화면에서 입력합니다.",
+      "problem": {
+        "required": "필수",
+        "notANumber": "숫자가 아닙니다",
+        "outOfRange": "범위를 벗어났습니다",
+        "notInteger": "정수여야 합니다",
+        "notAllowed": "허용된 값이 아닙니다",
+        "malformed": "형식이 올바르지 않습니다",
+        "endsBeforeStart": "종료가 시작보다 이릅니다",
+        "coversOver100": "지표 피복 합계가 100%를 넘습니다",
+        "layerOutOfRange": "층위 수를 넘습니다"
+      },
+      "abundance": {
+        "count": "개체 수",
+        "countSuffix": "개체"
+      },
+      "frequency": {
+        "count": "출현 칸 수 ({{n}}×{{n}}, 총 {{cells}}칸)",
+        "grid": "{{n}}×{{n}} 빈도 격자",
+        "cells": "{{k}} / {{cells}}칸"
+      },
+      "structure": {
+        "fewer": "한 층 줄이기",
+        "more": "한 층 늘리기",
+        "cover": "피도",
+        "height": "높이"
+      },
+      "environment": {
+        "coverTotal": "지표 피복 합계 {{total}}%"
+      },
+      "timestamp": {
+        "start": "시작",
+        "stop": "종료",
+        "setStop": "종료 시각 기록"
+      },
+      "people": {
+        "none": "지정 안 됨"
+      },
+      "workers": {
+        "recorder": "기록자",
+        "identifier": "동정자"
+      },
+      "location": {
+        "fix": "{{lat}}, {{lng}} (±{{acc}} m)",
+        "none": "아직 위치가 없습니다",
+        "clear": "지우기"
+      },
+      "summary": {
+        "count": "{{n}} 개체",
+        "recorded": "기록됨",
+        "stems_other": "{{count}}개 줄기",
+        "layers_other": "{{count}}개 층위"
+      }
+    },
+    "ams": {
+      "title": "AMS 고사와 손상",
+      "unsure": "판단 불가",
+      "yes": "있음",
+      "no": "없음",
+      "deathHint": "줄기 고사는 AMS 생존 상태(X 또는 D)로 판정합니다.",
+      "survival_status": {
+        "label": "생존 상태",
+        "c_OK": "건전 (주축 완전·직립, 수관 90% 이상)",
+        "c_A": "줄기 생존",
+        "c_D": "개체 고사",
+        "c_X": "이 줄기 지상부 고사, 개체 생존",
+        "c_NF": "줄기와 표찰 모두 찾지 못함"
+      },
+      "mode": {
+        "label": "형태",
+        "c_S": "직립 (주축 완전)",
+        "c_B": "부러짐",
+        "c_U": "뿌리째 뽑힘 (뿌리 노출)"
+      },
+      "living_length_m": {
+        "label": "생존 길이",
+        "c_belowPom": "POM 미만"
+      },
+      "remaining_crown_pct": {
+        "label": "잔존 수관",
+        "c_NA": "해당 없음 (가지 없음)"
+      },
+      "crown_illumination": {
+        "label": "수관 수광",
+        "c_5": "완전 수광 (수직·측면)",
+        "c_4": "위쪽 수광 90% 이상",
+        "c_3": "위쪽 수광 10–90%",
+        "c_2": "측면 수광 (위쪽 10% 미만)",
+        "c_1": "직사광 없음"
+      },
+      "leaning_deg": {
+        "label": "기울기"
+      },
+      "liana": {
+        "label": "덩굴 / 교살",
+        "c_L": "덩굴이 수관 50% 초과 덮음",
+        "c_S": "주축 생장 제한 (교살)"
+      },
+      "fungi": {
+        "label": "균류"
+      },
+      "wounded_main_axis": {
+        "label": "주축 상처",
+        "c_1": "작음 (DBH×DBH 미만)",
+        "c_2": "큼 (DBH×DBH 초과)",
+        "c_3": "매우 큼 (흉고단면적 또는 생존 길이의 50% 초과)"
+      },
+      "canker": {
+        "label": "궤양·부종·기형",
+        "c_1": "작음 (DBH×DBH 미만)",
+        "c_2": "큼 (DBH×DBH 초과)",
+        "c_3": "매우 큼 (흉고단면적 또는 생존 길이의 50% 초과)"
+      },
+      "rotting_trunk": {
+        "label": "줄기 부후",
+        "c_1": "작음 (DBH×DBH 미만)",
+        "c_2": "큼 (DBH×DBH 초과)",
+        "c_3": "매우 큼 (흉고단면적 또는 생존 길이의 50% 초과)"
+      },
+      "leaves_pct": {
+        "label": "잔존 잎"
+      },
+      "leaf_damage": {
+        "label": "잎 손상"
+      },
+      "comment_codes": {
+        "label": "기타 상황",
+        "c_L": "낙뢰",
+        "c_G": "숲틈",
+        "c_F": "화재",
+        "c_H": "줄기 공동",
+        "c_HB": "밑동 공동",
+        "c_R": "뿌리 손상",
+        "c_S": "사면 붕괴",
+        "c_W": "풍도"
+      }
     }
   },
   "task": {

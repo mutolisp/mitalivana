@@ -30,7 +30,10 @@
  */
 import type { Scalar } from '@op-engineering/op-sqlite';
 import { closeActiveRecords } from '../../db/activeRecords';
-import type { SurveyStyle, SurveyTemplate, UnitLevel } from '../template/types';
+import { parseMultiAttribute, serializeMultiAttribute } from '../../lib/dwcMultiValue';
+import { storeBlockers } from '../componentRules';
+import { componentDef, type ComponentValues, type FieldValue } from '../registry';
+import type { ComponentInstance, SurveyStyle, SurveyTemplate, UnitLevel } from '../template/types';
 import { templateHash, validateTemplate } from '../template/validate';
 import { ensureSeries, getFrame, putValue, SurveyError, type Ctx, type SurveyDb, type ValueInput } from './stemmapCore';
 
@@ -768,4 +771,217 @@ export function updateFrameLabel(ctx: Ctx, id: number, patch: { note?: string | 
   }
   if (!sets.length) return;
   run(ctx, `UPDATE fw_frame_labels SET ${sets.join(', ')}, updated_at = ? WHERE id = ?`, [...vals, ctx.now(), id]);
+}
+
+// ── component values (2B) ───────────────────────────────────────────────────
+
+/** Where a component's values live: a survey, one of its units, or one of its occurrences. */
+export type ComponentOwner = ValueOwner;
+
+const OWNER_TABLE = { survey: 'fw_surveys', unit: 'fw_units', occurrence: 'fw_occurrences' } as const;
+const MEDIA_OWNER_COL = { survey: 'survey_id', unit: 'unit_id', occurrence: 'occurrence_id' } as const;
+
+/** The survey an owner belongs to (a checklist / plot-style one), and the owner's unit level when it is a unit. */
+function ownerContext(ctx: { db: SurveyDb }, owner: ComponentOwner): { survey: FwSurveyRow; unitLevel: string | null } {
+  if (owner.kind === 'survey') return { survey: surveyOf(ctx, owner.id), unitLevel: null };
+  if (owner.kind === 'unit') {
+    const u = getUnit(ctx, owner.id);
+    if (!u) throw new SurveyError('not_found', 'unit');
+    return { survey: surveyOf(ctx, u.survey_id), unitLevel: u.level_key };
+  }
+  const o = getOccurrence(ctx, owner.id);
+  if (!o) throw new SurveyError('not_found', 'occurrence');
+  return { survey: surveyOf(ctx, o.survey_id), unitLevel: null };
+}
+
+/** The template component `key` of the owner's survey, which must sit on the owner's level. */
+function placedComponent(ctx: { db: SurveyDb }, owner: ComponentOwner, key: string) {
+  const { survey, unitLevel } = ownerContext(ctx, owner);
+  const instance = snapshotOf(survey).components.find((c) => c.key === key);
+  const def = instance ? componentDef(instance.type) : undefined;
+  if (!instance || !def) throw new SurveyError('bad_component', `no component ${key}`);
+  if (instance.level !== owner.kind || (owner.kind === 'unit' && instance.unit !== unitLevel)) {
+    throw new SurveyError('bad_component', `${key} sits on ${instance.level}${instance.unit ? `:${instance.unit}` : ''}, not here`);
+  }
+  return { instance, def, survey };
+}
+
+const ownerSql = (owner: ComponentOwner) => `${OWNER_TABLE[owner.kind]}`;
+
+/** One stored value as the registry describes it (a 'num' field may hold a marker text). */
+function readValue(valueType: 'num' | 'text' | 'json', num: number | null, text: string | null): FieldValue {
+  if (valueType === 'num') return num ?? text;
+  if (valueType === 'json') {
+    if (text == null) return null;
+    try {
+      const v = JSON.parse(text);
+      return Array.isArray(v) ? v.map(String) : null;
+    } catch {
+      return null;
+    }
+  }
+  return text;
+}
+
+/** A component's values on one owner, field by field (media fields list their file URIs). */
+export function readComponent(ctx: { db: SurveyDb }, owner: ComponentOwner, key: string): ComponentValues {
+  const { instance, def } = placedComponent(ctx, owner, key);
+  const out: Record<string, FieldValue> = {};
+  const fields = def.fields(instance.params, instance.level, instance.key);
+  const cols = fields.filter((f) => 'col' in f.storage);
+  if (cols.length) {
+    const row = one<Record<string, unknown>>(ctx, `SELECT ${cols.map((f) => f.field).join(', ')} FROM ${ownerSql(owner)} WHERE id = ?`, [owner.id]) ?? {};
+    for (const f of cols) {
+      const raw = row[f.field] as string | number | null | undefined;
+      const s = f.storage as { valueType: 'num' | 'text' | 'json' };
+      out[f.field] = s.valueType === 'json' ? (raw == null ? null : parseMultiAttribute(String(raw))) : (raw ?? null);
+    }
+  }
+  const valueFields = fields.filter((f) => 'values' in f.storage);
+  if (valueFields.length) {
+    const v = VALUE_TABLE[owner.kind];
+    const got = rows<{ field: string; idx: number; value_num: number | null; value_text: string | null }>(
+      ctx,
+      `SELECT field, idx, value_num, value_text FROM ${v.table} WHERE ${v.owner} = ? AND component = ? ORDER BY field, idx`,
+      [owner.id, instance.key],
+    );
+    for (const f of valueFields) {
+      const s = f.storage as { valueType: 'num' | 'text' | 'json'; repeat?: boolean };
+      const mine = got.filter((r) => r.field === f.field);
+      if (s.repeat) {
+        const per: Record<number, number | string> = {};
+        for (const r of mine) {
+          const x = readValue(s.valueType, r.value_num, r.value_text);
+          if (x != null && !Array.isArray(x)) per[r.idx] = x as number | string;
+        }
+        out[f.field] = Object.keys(per).length ? per : null;
+      } else {
+        const r = mine.find((x) => x.idx === 0);
+        out[f.field] = r ? readValue(s.valueType, r.value_num, r.value_text) : null;
+      }
+    }
+  }
+  for (const f of fields.filter((x) => 'media' in x.storage)) {
+    const kind = (f.storage as { media: 'photo' | 'audio' }).media;
+    out[f.field] = listMedia(ctx, owner, instance.key, kind).map((m) => m.uri);
+  }
+  return out;
+}
+
+/**
+ * Write some of a component's fields on one owner; null clears a field. Values
+ * of the wrong kind or outside what a field accepts are refused (bad_value);
+ * missing values and rules across fields are the form's to show. Media go
+ * through addMedia / removeMedia.
+ */
+export function writeComponent(ctx: Ctx, owner: ComponentOwner, key: string, patch: ComponentValues): void {
+  const { instance, def } = placedComponent(ctx, owner, key);
+  const fields = def.fields(instance.params, instance.level, instance.key);
+  const byName = new Map(fields.map((f) => [f.field, f]));
+  for (const name of Object.keys(patch)) {
+    const f = byName.get(name);
+    if (!f) throw new SurveyError('bad_value', `${key} has no field ${name}`);
+    if ('media' in f.storage) throw new SurveyError('bad_value', `${name} is a media field (addMedia)`);
+  }
+  const blockers = storeBlockers(def, instance.params, instance.level, instance.key, patch);
+  if (blockers.length) throw new SurveyError('bad_value', blockers.map((b) => `${b.field}${b.idx != null ? `[${b.idx}]` : ''}: ${b.code}`).join('; '));
+  const now = ctx.now();
+  const sets: string[] = [];
+  const vals: Scalar[] = [];
+  for (const [name, value] of Object.entries(patch)) {
+    const f = byName.get(name)!;
+    const s = f.storage;
+    if ('col' in s) {
+      sets.push(`${name} = ?`);
+      vals.push(s.valueType === 'json' ? serializeMultiAttribute(Array.isArray(value) ? [...value] : null) : ((value as Scalar | undefined) ?? null));
+      continue;
+    }
+    if (!('values' in s)) continue;
+    const v = VALUE_TABLE[owner.kind];
+    const put = (x: FieldValue | undefined, idx: number) =>
+      putValue(
+        ctx,
+        v.table,
+        { [v.owner]: owner.id },
+        instance.key,
+        name,
+        x == null || x === ''
+          ? null
+          : s.valueType === 'json'
+            ? Array.isArray(x) && x.length
+              ? { text: JSON.stringify(x) }
+              : null
+            : typeof x === 'number'
+              ? { num: x, unit: s.unit ?? null }
+              : { text: String(x), unit: s.unit ?? null },
+        idx,
+      );
+    if (s.repeat) {
+      if (value == null) run(ctx, `DELETE FROM ${v.table} WHERE ${v.owner} = ? AND component = ? AND field = ?`, [owner.id, instance.key, name]);
+      else for (const [idx, x] of Object.entries(value as Record<number, number | string | null>)) put(x, Number(idx));
+    } else {
+      put(value, 0);
+    }
+  }
+  if (sets.length) run(ctx, `UPDATE ${ownerSql(owner)} SET ${sets.join(', ')}, updated_at = ? WHERE id = ?`, [...vals, now, owner.id]);
+  else run(ctx, `UPDATE ${ownerSql(owner)} SET updated_at = ? WHERE id = ?`, [now, owner.id]);
+}
+
+export type FwMediaRow = {
+  id: number;
+  uuid: string;
+  survey_id: number;
+  unit_id: number | null;
+  occurrence_id: number | null;
+  component: string;
+  kind: 'photo' | 'audio';
+  uri: string;
+  created_at: number;
+};
+
+/** Photos or recordings of one owner (of one component, when given), oldest first. */
+export function listMedia(ctx: { db: SurveyDb }, owner: ComponentOwner, component?: string, kind?: 'photo' | 'audio'): FwMediaRow[] {
+  const where = owner.kind === 'survey' ? 'survey_id = ? AND unit_id IS NULL AND occurrence_id IS NULL' : `${MEDIA_OWNER_COL[owner.kind]} = ?`;
+  return rows<FwMediaRow>(
+    ctx,
+    `SELECT id, uuid, survey_id, unit_id, occurrence_id, component, kind, uri, created_at FROM fw_media
+      WHERE ${where} ${component ? 'AND component = ?' : ''} ${kind ? 'AND kind = ?' : ''} ORDER BY id`,
+    [owner.id, ...(component ? [component] : []), ...(kind ? [kind] : [])],
+  );
+}
+
+/** Add a photo or recording to an owner, for the template component `key` (which must be a media field there). */
+export function addMedia(ctx: Ctx, owner: ComponentOwner, key: string, uri: string): number {
+  const { instance, def, survey } = placedComponent(ctx, owner, key);
+  const media = def.fields(instance.params, instance.level, instance.key).find((f) => 'media' in f.storage);
+  if (!media || !('media' in media.storage)) throw new SurveyError('bad_value', `${key} holds no media`);
+  const max = Number(instance.params.max);
+  if (Number.isInteger(max) && listMedia(ctx, owner, key, media.storage.media).length >= max) throw new SurveyError('bad_value', `${key}: at most ${max}`);
+  const res = run(
+    ctx,
+    `INSERT INTO fw_media (uuid, survey_id, unit_id, occurrence_id, component, kind, uri, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      ctx.uuid(),
+      survey.id,
+      owner.kind === 'unit' ? owner.id : null,
+      owner.kind === 'occurrence' ? owner.id : null,
+      key,
+      media.storage.media,
+      uri,
+      ctx.now(),
+    ],
+  );
+  run(ctx, `UPDATE ${ownerSql(owner)} SET updated_at = ? WHERE id = ?`, [ctx.now(), owner.id]);
+  return Number(res.insertId);
+}
+
+export function removeMedia(ctx: Ctx, owner: ComponentOwner, key: string, uri: string): void {
+  const where = owner.kind === 'survey' ? 'survey_id = ? AND unit_id IS NULL AND occurrence_id IS NULL' : `${MEDIA_OWNER_COL[owner.kind]} = ?`;
+  run(ctx, `DELETE FROM fw_media WHERE ${where} AND component = ? AND uri = ?`, [owner.id, key, uri]);
+  run(ctx, `UPDATE ${ownerSql(owner)} SET updated_at = ? WHERE id = ?`, [ctx.now(), owner.id]);
+}
+
+/** The component instance `key` of a survey's template (what the screens render). */
+export function surveyComponent(ctx: { db: SurveyDb }, surveyId: number, key: string): ComponentInstance | null {
+  return snapshotOf(surveyOf(ctx, surveyId)).components.find((c) => c.key === key) ?? null;
 }
