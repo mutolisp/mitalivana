@@ -99,7 +99,8 @@
     "nSpeciesInThem_other": "その中の {{count}} 種",
     "addedCount_other": "{{count}} 種をお気に入りに追加しました",
     "kindGloria": "GLORIA",
-    "kindSurvey": "毎木調査"
+    "kindSurvey": "毎木調査",
+    "kindModular": "リスト型／プロット型調査"
   },
   "gnss": {
     "permTitle": "位置情報の許可が必要です",
@@ -345,7 +346,8 @@
     "lastUpdated": "最終更新",
     "kindGloria": "GLORIA 山頂調査",
     "moreActions": "その他の操作",
-    "kindMiren": "MIREN 道路・登山道調査"
+    "kindMiren": "MIREN 道路・登山道調査",
+    "kindModular": "リスト型／プロット型調査"
   },
   "rank": {
     "kingdom": "界",
@@ -548,7 +550,13 @@
     "addedToGloria_other": "GLORIA 山頂リストに {{count}} 種を追加しました。各ユニットの画面で記録してください。",
     "mirenActiveTitle": "MIREN 調査中",
     "mirenActiveMsg": "{{year}} 年の MIREN 調査はまだ終了していません。ここから種を追加すると種リストが始まり、MIREN 調査が終了します。MIREN の種は調査のプロットで記録してください。ほかの種を記録するには、先に MIREN 調査を終了してください。",
-    "goToMiren": "MIREN 調査へ"
+    "goToMiren": "MIREN 調査へ",
+    "surveyNoQuickTitle": "調査が進行中です",
+    "surveyNoQuickMsg": "「{{name}}」の調査票はここから種を追加できません。調査画面で記録してください。ほかの種を記録するには、先にこの調査を終了してください。",
+    "addedToSurvey": "調査に追加しました：{{name}}",
+    "addedManyToSurvey_other": "{{count}} 種を調査に追加しました",
+    "goToSurvey": "調査へ",
+    "toSurvey": "現在の調査に追加"
   },
   "endSession": {
     "minutes": "{{count}} 分",
@@ -1441,7 +1449,8 @@
     "sessionSubtitleNoProject_other": "{{count}} 件",
     "collectionSubtitleNoProject_other": "標本 {{count}} 点",
     "gloriaSubtitle_other": "mocy {{mocy}} · {{count}} 種 · {{units}}/28 ユニット",
-    "surveySubtitle_other": "第 {{n}} 回 · {{count}} 本"
+    "surveySubtitle_other": "第 {{n}} 回 · {{count}} 本",
+    "modularSubtitle_other": "{{style}} · {{count}} 種"
   },
   "plotImport": {
     "invalidYml": "有効な調査区 yml ではありません（plot ブロックがありません）",
@@ -1453,7 +1462,8 @@
     "recording": "記録中：{{name}}",
     "plotRecording": "調査区を記録中：{{id}}",
     "gloriaRecording": "GLORIA 調査中 · mocy {{mocy}}",
-    "mirenRecording": "MIREN 調査中 · {{year}}"
+    "mirenRecording": "MIREN 調査中 · {{year}}",
+    "surveyRecording": "調査中：{{name}}"
   },
   "speciesSearch": {
     "hint": "下の欄に一般名 / 学名 / 科名を入力して種を検索し、{{br}}選択するとここに詳細が表示されます。"
@@ -4733,5 +4743,147 @@
     "done": "データベースを圧縮しました（{{size}} 解放）",
     "failed": "圧縮できませんでした",
     "noSpace": "端末の空き容量が足りません。圧縮には約 {{size}} 必要です"
+  },
+  "surveyForm": {
+    "notFound": "この調査が見つかりません",
+    "lockedToast": "この調査は終了してロックされています。右上の ⋯ からロックを解除すると編集できます",
+    "inList": "記録済み",
+    "about": "調査",
+    "name": "名前",
+    "rename": "名前を変更",
+    "template": "調査票",
+    "frameLabel": "固定プロット",
+    "frameValue": "{{code}} · 第 {{n}} 回",
+    "ended": "終了時刻",
+    "reopen": "再開",
+    "deleteTitle": "調査を削除",
+    "deleteMsg_other": "「{{name}}」とその出現記録 {{count}} 件を削除しますか？削除すると元に戻せません。",
+    "noExport": "リスト型・プロット型調査はまだエクスポートできません",
+    "notInProjectExport_other": "リスト型・プロット型調査 {{count}} 件はまだエクスポートできないため、今回のエクスポートには含まれません",
+    "noDuplicate": "リスト型・プロット型調査はまだ複製できません",
+    "noMerge": "リスト型・プロット型調査はまだ統合できません",
+    "projectCount_other": "リスト型／プロット型調査 {{count}} 件",
+    "speciesCount_other": "{{count}} 種",
+    "newPlotTitle": "新しいプロット型調査",
+    "seriesCodeTitle": "シリーズコード",
+    "seriesCodeMsg": "この固定プロットにはほかの調査シリーズがあります。このシリーズに短いコード（例：veg）を付けてください。eventID の区別に使います。",
+    "startFailed": "調査を開始できません",
+    "noSpecies": "まだ種がありません。下の検索から追加してください。",
+    "allUnits": "すべて",
+    "outsideUnits": "ユニットなし",
+    "addingTo": "追加先：{{unit}}",
+    "addingAfterBlind": "ブラインドは終了しました。これから追加する種は再確認で見つかった種として記録されます",
+    "moveTitle": "別のユニットへ移動",
+    "style": {
+      "checklist": "リスト型",
+      "plot": "プロット型",
+      "individual": "毎木調査"
+    },
+    "tab": {
+      "data": "データ",
+      "units_other": "ユニット {{count}}",
+      "species_other": "種 {{count}}",
+      "freq": "頻度"
+    },
+    "phase": {
+      "blind": "ブラインド",
+      "recheck": "再確認で発見"
+    },
+    "occ": {
+      "deleteTitle": "この出現記録を削除しますか？",
+      "label": "ラベル"
+    },
+    "err": {
+      "unitTaken": "コード {{code}} はすでに使われています",
+      "frameUnitLocked": "このユニットは調査で使われたため、コードと位置は変更できません",
+      "blindSealed": "ブラインドは終了しました。その間の記録は変更できません",
+      "recheckBegun": "再確認が始まっている（回答または追加記録がある）ため、ブラインドを再開できません",
+      "labelTaken": "ラベル「{{label}}」はすでにリストにあります",
+      "badValue": "この値は保存できません"
+    },
+    "finish": {
+      "title": "調査を終了",
+      "blindOpen": "ブラインドがまだ終わっておらず、前回のリストを再確認していません。",
+      "recheckOpen_other": "前回の種のうち {{count}} 種に再確認の結果がありません。",
+      "errors_other": "出現記録 {{count}} 件にまだエラーがあります。"
+    },
+    "blind": {
+      "banner": "ブラインド中：前回の種リストはブラインド終了後に表示されます。",
+      "end": "ブラインド記録を終える",
+      "endTitle": "ブラインドを終了しますか？",
+      "endMsg": "終了すると前回のリストが表示され、ブラインド中に記録した種は変更・削除できなくなります。以後に追加する種は再確認で見つかった種として記録されます。",
+      "reopen": "ブラインドを再開"
+    },
+    "recheck": {
+      "title": "再確認",
+      "open": "前回のリストと再確認",
+      "banner_other": "再確認：前回の種のうち {{count}} 種が未確認",
+      "notOpen": "再確認はブラインド終了後に行えます",
+      "intro": "第 {{n}} 回調査のリスト（ユニット別）。今回のブラインドで記録されなかった種について、それぞれ結果を記録してください（未確認 {{open}} 種）。",
+      "nothing": "前回の調査では種が記録されていません。",
+      "last": "前回：{{value}}",
+      "recordedBlind": "今回記録済み",
+      "notChecked": "ユニット廃止",
+      "retiredUnit": "{{code}}（廃止）",
+      "found": "見つかった",
+      "not_found": "いない",
+      "reidentified": "別名で記録…",
+      "pickTitle": "「{{name}}」は今回どの記録ですか？",
+      "pickMsg": "同じ個体を今回別の名前で記録した場合、その出現記録を選んでください。",
+      "noneToPick": "このユニットにはほかの出現記録がまだありません",
+      "openFound": "追加しました。出現記録を開く",
+      "sameAs": "今回の記録：{{name}}",
+      "targetGone": "対応する出現記録が削除されました。選び直してください"
+    },
+    "unit": {
+      "empty": "まだユニットがありません。",
+      "addTitle": "{{level}}を追加",
+      "codeMsg": "コードを入力（同じ階層内で重複不可）",
+      "code": "コード",
+      "label": "名前",
+      "onFrame": "固定プロットのユニット配置に属します",
+      "onFrameNote": "固定プロットのユニット配置に属します。調査で使われた後はコードを変更できません。",
+      "recordHere_other": "このユニットで種を記録（{{count}} 種）",
+      "deleteTitle": "{{path}} を削除しますか？",
+      "deleteMsg_other": "出現記録 {{count}} 件と下位ユニットは一つ上の階層へ移り、このユニット自体のデータと写真は削除されます。"
+    },
+    "label": {
+      "title": "{{name}} のラベル",
+      "msg": "例：sp1。空欄ならラベルなし。",
+      "pickTitle": "{{name}}：ラベル",
+      "pickMsg": "固定プロットの形態種リストにあるラベルです。",
+      "none": "ラベルなし（{{name}} として記録）",
+      "new": "新しいラベル…",
+      "newTitle": "「{{label}}」は形態種リストにありません",
+      "newMsg": "リストに加えると、以後の調査でも同じラベルがこの形態種を指します。",
+      "addToList": "リストに追加",
+      "onlyHere": "この記録だけ"
+    },
+    "frame": {
+      "section": "プロット型調査",
+      "units": "ユニット配置",
+      "labels": "形態種リスト",
+      "start": "プロット型調査を開始（テスト）",
+      "surveyNo": "第 {{n}} 回 · {{name}}",
+      "unitsTitle": "{{code}} ユニット配置",
+      "unitsDesc": "プロット型調査は開始時にこれらのユニットを引き継ぎます。調査で使われたユニットは廃止のみ可能で、削除やコード変更はできません。",
+      "addUnit": "ユニットを追加",
+      "noLevels": "ユニット階層を定義したプロット型調査票がまだありません",
+      "pickParent": "どの{{level}}の下に置きますか？",
+      "noParent": "上位の下に置かない",
+      "retire": "廃止",
+      "unretire": "使用を再開",
+      "retired": "廃止済み",
+      "usedNote": "調査で使われたユニット：名前の変更か廃止のみ"
+    },
+    "labels": {
+      "title": "{{code}} 形態種",
+      "desc": "同じラベルはどの回の調査でも同じ形態種を指します。ラベルは記録時に追加されます。ここでは説明と写真を補えます。",
+      "empty": "まだ形態種がありません。",
+      "note": "説明",
+      "takePhoto": "撮影",
+      "pickPhoto": "ライブラリから選択",
+      "removePhoto": "写真を削除"
+    }
   }
 }

@@ -23,6 +23,14 @@
  *     blind: occurrences are 'blind' until the blind phase is closed and
  *     'recheck' after, and the earlier survey's list is refused until then. A
  *     first survey and a checklist have no phases;
+ *   - once the blind phase is closed the blind occurrences are sealed (no
+ *     edit, no removal), as in MIREN; it can be opened again only while no
+ *     recheck work exists. Every taxon of the previous survey missing from the
+ *     blind list of the same unit gets an answer (fw_rechecks, v84): found
+ *     (adds a 'recheck' occurrence), not found, or re-identified as an
+ *     occurrence of this survey;
+ *   - a survey always has a name: the frame code on a frame, else the start
+ *     time as a checklist session is named;
  *   - values are stored only when set; clearing one deletes its row;
  *   - deleting a unit keeps its occurrences and sub-units, moved up to its
  *     parent; deleting a survey takes its units, occurrences, values and
@@ -35,6 +43,7 @@ import { storeBlockers } from '../componentRules';
 import { componentDef, type ComponentValues, type FieldValue } from '../registry';
 import type { ComponentInstance, SurveyStyle, SurveyTemplate, UnitLevel } from '../template/types';
 import { templateHash, validateTemplate } from '../template/validate';
+import { recheckCandidates, recheckKey, recheckOpen, type RecheckAnswer, type RecheckOutcome, type Sighting } from '../form/recheck';
 import { ensureSeries, getFrame, putValue, SurveyError, type Ctx, type SurveyDb, type ValueInput } from './stemmapCore';
 
 const rows = <T>(ctx: { db: SurveyDb }, sql: string, params: Scalar[] = []) => (ctx.db.executeSync(sql, params).rows ?? []) as T[];
@@ -60,6 +69,8 @@ export type FwSurveyRow = {
   start_ts: number;
   stop_ts: number | null;
   blind_closed_at: number | null;
+  /** v84; NULL for a census. */
+  name: string | null;
   investigators: string | null;
   notes: string | null;
   project_id: number;
@@ -78,7 +89,7 @@ export function getFwSurvey(ctx: { db: SurveyDb }, id: number): FwSurveyRow | nu
 }
 
 /** The checklist / plot-style survey with this id; throws for a census or a missing one. */
-function surveyOf(ctx: { db: SurveyDb }, id: number): FwSurveyRow {
+export function surveyOf(ctx: { db: SurveyDb }, id: number): FwSurveyRow {
   const s = getFwSurvey(ctx, id);
   if (!s) throw new SurveyError('not_found', 'survey');
   if (s.style === 'individual') throw new SurveyError('wrong_style', 'a tree census');
@@ -96,6 +107,8 @@ export function unitLevelsOf(s: Pick<FwSurveyRow, 'template_snapshot'>): readonl
 
 export type SurveyInput = {
   template: SurveyTemplate;
+  /** Default: the frame code, else the start time (`YYYY-MM-DD HH:MM`). */
+  name?: string | null;
   /** Plot style only: the permanent plot this survey revisits. */
   frameId?: number | null;
   /** A frame's second and later series need a short code (eventIDs, §7.4). */
@@ -119,16 +132,19 @@ export function createSurvey(ctx: Ctx, input: SurveyInput): number {
   const seriesId = frame ? ensureSeries(ctx, frame.id, t.id, input.seriesCode) : null;
   const censusNo = seriesId == null ? null : (one<{ n: number | null }>(ctx, `SELECT MAX(census_no) AS n FROM fw_surveys WHERE series_id = ?`, [seriesId])?.n ?? 0) + 1;
   const now = ctx.now();
+  const startTs = input.startTs ?? now;
+  const name = input.name?.trim() || (frame ? frame.code : defaultSurveyName(startTs));
   closeActiveRecords(ctx.db, now);
   const id = Number(
     run(
       ctx,
-      `INSERT INTO fw_surveys (uuid, style, frame_id, series_id, census_no, template_id, template_version, template_snapshot, template_hash,
+      `INSERT INTO fw_surveys (uuid, style, name, frame_id, series_id, census_no, template_id, template_version, template_snapshot, template_hash,
          status, start_ts, investigators, project_id, site_id, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?)`,
       [
         ctx.uuid(),
         t.style,
+        name,
         frameId,
         seriesId,
         censusNo,
@@ -136,7 +152,7 @@ export function createSurvey(ctx: Ctx, input: SurveyInput): number {
         t.version,
         JSON.stringify(t),
         templateHash(t),
-        input.startTs ?? now,
+        startTs,
         input.investigators ?? null,
         frame ? frame.project_id : (input.projectId ?? 0),
         frame ? frame.site_id : (input.siteId ?? null),
@@ -147,6 +163,48 @@ export function createSurvey(ctx: Ctx, input: SurveyInput): number {
   );
   if (frame) copyFrameUnits(ctx, id, frame.id, t.units ?? []);
   return id;
+}
+
+/** `YYYY-MM-DD HH:MM` in local time, as a new checklist session is named (sessions.ts). */
+export function defaultSurveyName(ts: number): string {
+  const d = new Date(ts);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/** The open checklist / plot-style survey, if any (single-active: at most one). */
+export function getActiveSurvey(ctx: { db: SurveyDb }): FwSurveyRow | null {
+  return one<FwSurveyRow>(ctx, `SELECT * FROM fw_surveys WHERE status = 'active' AND style <> 'individual' ORDER BY start_ts DESC, id DESC LIMIT 1`) ?? null;
+}
+
+export type SurveyListRow = FwSurveyRow & {
+  frame_code: string | null;
+  project_name: string | null;
+  occurrence_count: number;
+  /** Distinct taxa (with their labels: `sp1` and `sp2` of a genus are two). */
+  species_count: number;
+};
+
+/** Checklist / plot-style surveys, newest first; `frameId` narrows to one permanent plot. */
+export function listSurveys(ctx: { db: SurveyDb }, opts: { frameId?: number } = {}): SurveyListRow[] {
+  return rows<SurveyListRow>(
+    ctx,
+    `SELECT s.*, f.code AS frame_code, p.name AS project_name,
+            (SELECT COUNT(*) FROM fw_occurrences o WHERE o.survey_id = s.id) AS occurrence_count,
+            (SELECT COUNT(*) FROM (SELECT DISTINCT o.taxon_id, IFNULL(o.verbatim_identification, '') FROM fw_occurrences o WHERE o.survey_id = s.id)) AS species_count
+       FROM fw_surveys s
+       LEFT JOIN fw_frames f ON f.id = s.frame_id
+       LEFT JOIN projects p ON p.id = s.project_id
+      WHERE s.style <> 'individual' AND (? IS NULL OR s.frame_id = ?)
+      ORDER BY s.start_ts DESC, s.id DESC`,
+    [opts.frameId ?? null, opts.frameId ?? null],
+  );
+}
+
+/** Whether starting this template on the frame opens a second (or later) series, which needs a short code (§7.4). */
+export function seriesCodeNeeded(ctx: { db: SurveyDb }, frameId: number, templateId: string): boolean {
+  if (one(ctx, `SELECT 1 AS x FROM fw_frame_series WHERE frame_id = ? AND template_id = ?`, [frameId, templateId])) return false;
+  return one(ctx, `SELECT 1 AS x FROM fw_frame_series WHERE frame_id = ?`, [frameId]) != null;
 }
 
 /** A new survey on a frame starts with the frame's layout on the template's unit levels. */
@@ -167,6 +225,7 @@ function copyFrameUnits(ctx: Ctx, surveyId: number, frameId: number, levels: rea
 }
 
 export type SurveyPatch = {
+  name?: string;
   investigators?: string | null;
   notes?: string | null;
   startTs?: number;
@@ -176,6 +235,7 @@ export type SurveyPatch = {
 };
 
 const SURVEY_COLUMN: Readonly<Record<keyof SurveyPatch, string>> = {
+  name: 'name',
   investigators: 'investigators',
   notes: 'notes',
   startTs: 'start_ts',
@@ -186,19 +246,23 @@ const SURVEY_COLUMN: Readonly<Record<keyof SurveyPatch, string>> = {
 
 export function updateSurvey(ctx: Ctx, id: number, patch: SurveyPatch): void {
   surveyOf(ctx, id);
+  if (patch.name !== undefined && !patch.name.trim()) throw new SurveyError('bad_value', 'empty name');
   const keys = (Object.keys(patch) as (keyof SurveyPatch)[]).filter((k) => patch[k] !== undefined);
   if (!keys.length) return;
   run(ctx, `UPDATE fw_surveys SET ${keys.map((k) => `${SURVEY_COLUMN[k]} = ?`).join(', ')}, updated_at = ? WHERE id = ?`, [
-    ...keys.map((k) => patch[k] as Scalar),
+    ...keys.map((k) => (k === 'name' ? (patch.name as string).trim() : (patch[k] as Scalar))),
     ctx.now(),
     id,
   ]);
 }
 
-export function finishSurvey(ctx: Ctx, id: number, stopTs?: number): void {
+/** End a survey. `stopTs`: the end time chosen (chooseEndTime); null keeps the one recorded, or none; omitted, now unless one is recorded. */
+export function finishSurvey(ctx: Ctx, id: number, stopTs?: number | null): void {
   surveyOf(ctx, id);
   const now = ctx.now();
-  run(ctx, `UPDATE fw_surveys SET status = 'done', stop_ts = COALESCE(stop_ts, ?), updated_at = ? WHERE id = ?`, [stopTs ?? now, now, id]);
+  if (stopTs === undefined) run(ctx, `UPDATE fw_surveys SET status = 'done', stop_ts = COALESCE(stop_ts, ?), updated_at = ? WHERE id = ?`, [now, now, id]);
+  else if (stopTs === null) run(ctx, `UPDATE fw_surveys SET status = 'done', updated_at = ? WHERE id = ?`, [now, id]);
+  else run(ctx, `UPDATE fw_surveys SET status = 'done', stop_ts = ?, updated_at = ? WHERE id = ?`, [stopTs, now, id]);
 }
 
 export function reopenSurvey(ctx: Ctx, id: number): void {
@@ -213,6 +277,7 @@ export function deleteSurvey(ctx: Ctx, id: number): void {
   surveyOf(ctx, id);
   // Children by hand: foreign keys are off during migrations and cleanup.
   run(ctx, `DELETE FROM fw_media WHERE survey_id = ?`, [id]);
+  run(ctx, `DELETE FROM fw_rechecks WHERE survey_id = ?`, [id]);
   run(ctx, `DELETE FROM fw_occurrence_values WHERE occurrence_id IN (SELECT id FROM fw_occurrences WHERE survey_id = ?)`, [id]);
   run(ctx, `DELETE FROM fw_occurrences WHERE survey_id = ?`, [id]);
   run(ctx, `DELETE FROM fw_unit_values WHERE unit_id IN (SELECT id FROM fw_units WHERE survey_id = ?)`, [id]);
@@ -604,9 +669,32 @@ export function addOccurrence(ctx: Ctx, surveyId: number, fields: OccurrenceFiel
   );
 }
 
-export function updateOccurrence(ctx: Ctx, id: number, patch: OccurrenceFields): void {
+/** The same taxon and label already recorded in this unit (null: outside any unit), if any. */
+export function findOccurrence(ctx: { db: SurveyDb }, surveyId: number, unitId: number | null, taxonId: string, verbatim: string | null): OccurrenceRow | null {
+  return (
+    one<OccurrenceRow>(
+      ctx,
+      `SELECT * FROM fw_occurrences WHERE survey_id = ? AND unit_id IS ? AND taxon_id = ? AND IFNULL(verbatim_identification, '') = ? ORDER BY id LIMIT 1`,
+      [surveyId, unitId, taxonId, verbatim?.trim() ?? ''],
+    ) ?? null
+  );
+}
+
+/** A blind occurrence once its survey's blind phase is closed: sealed, as in MIREN. */
+export function occurrenceSealed(ctx: { db: SurveyDb }, o: Pick<OccurrenceRow, 'survey_id' | 'phase'>): boolean {
+  if (o.phase !== 'blind') return false;
+  return getFwSurvey(ctx, o.survey_id)?.blind_closed_at != null;
+}
+
+function unsealed(ctx: { db: SurveyDb }, id: number): OccurrenceRow {
   const o = getOccurrence(ctx, id);
   if (!o) throw new SurveyError('not_found', 'occurrence');
+  if (occurrenceSealed(ctx, o)) throw new SurveyError('blind_sealed');
+  return o;
+}
+
+export function updateOccurrence(ctx: Ctx, id: number, patch: OccurrenceFields): void {
+  const o = unsealed(ctx, id);
   if (patch.taxon_id !== undefined && !patch.taxon_id.trim()) throw new SurveyError('not_found', 'taxon');
   checkOccurrenceUnit(ctx, surveyOf(ctx, o.survey_id), patch.unit_id);
   const cols = OCCURRENCE_FIELDS.filter((c) => patch[c] !== undefined);
@@ -619,6 +707,10 @@ export function updateOccurrence(ctx: Ctx, id: number, patch: OccurrenceFields):
 }
 
 export function deleteOccurrence(ctx: Ctx, id: number): void {
+  unsealed(ctx, id);
+  // A 'found' answer is the occurrence it added; a re-identification that named it needs answering again.
+  run(ctx, `DELETE FROM fw_rechecks WHERE occurrence_id = ? AND outcome = 'found'`, [id]);
+  run(ctx, `UPDATE fw_rechecks SET occurrence_id = NULL, updated_at = ? WHERE occurrence_id = ?`, [ctx.now(), id]);
   run(ctx, `DELETE FROM fw_occurrence_values WHERE occurrence_id = ?`, [id]);
   run(ctx, `DELETE FROM fw_media WHERE occurrence_id = ?`, [id]);
   run(ctx, `DELETE FROM fw_occurrences WHERE id = ?`, [id]);
@@ -651,6 +743,7 @@ export function setValue(ctx: Ctx, owner: ValueOwner, component: string, field: 
   const v = VALUE_TABLE[owner.kind];
   if (!one(ctx, `SELECT 1 AS x FROM ${v.parent} WHERE id = ?`, [owner.id])) throw new SurveyError('not_found', owner.kind);
   if (owner.kind === 'survey') surveyOf(ctx, owner.id);
+  if (owner.kind === 'occurrence') unsealed(ctx, owner.id);
   putValue(ctx, v.table, { [v.owner]: owner.id }, component, field, value, idx);
 }
 
@@ -685,6 +778,17 @@ export function closeBlindPhase(ctx: Ctx, surveyId: number): void {
   run(ctx, `UPDATE fw_surveys SET blind_closed_at = ?, updated_at = ? WHERE id = ?`, [now, now, surveyId]);
 }
 
+/** Open the blind phase again after a mistaken close; refused once recheck work exists (as MIREN reopenBlind). */
+export function reopenBlindPhase(ctx: Ctx, surveyId: number): void {
+  const s = surveyOf(ctx, surveyId);
+  if (s.blind_closed_at == null) return;
+  const begun =
+    one(ctx, `SELECT 1 AS x FROM fw_rechecks WHERE survey_id = ? LIMIT 1`, [surveyId]) != null ||
+    one(ctx, `SELECT 1 AS x FROM fw_occurrences WHERE survey_id = ? AND phase = 'recheck' LIMIT 1`, [surveyId]) != null;
+  if (begun) throw new SurveyError('recheck_begun');
+  run(ctx, `UPDATE fw_surveys SET blind_closed_at = NULL, updated_at = ? WHERE id = ?`, [ctx.now(), surveyId]);
+}
+
 export type PreviousOccurrence = OccurrenceRow & { unit_level_key: string | null; unit_code: string | null; frame_unit_id: number | null };
 
 /** The earlier survey's occurrences, with their unit for matching; refused while the blind phase is open. */
@@ -700,6 +804,123 @@ export function previousOccurrences(ctx: { db: SurveyDb }, surveyId: number): Pr
       WHERE o.survey_id = ? ORDER BY o.observed_at, o.id`,
     [prev],
   );
+}
+
+// ── recheck answers (v84) ───────────────────────────────────────────────────
+
+export type RecheckRow = {
+  id: number;
+  uuid: string;
+  survey_id: number;
+  frame_unit_id: number | null;
+  prev_taxon_id: string;
+  /** '' for none (the unique key needs a value). */
+  prev_verbatim_identification: string;
+  outcome: RecheckOutcome;
+  occurrence_id: number | null;
+  checked_at: number;
+  updated_at: number;
+};
+
+export function listRechecks(ctx: { db: SurveyDb }, surveyId: number): RecheckRow[] {
+  return rows<RecheckRow>(ctx, `SELECT * FROM fw_rechecks WHERE survey_id = ? ORDER BY id`, [surveyId]);
+}
+
+export type RecheckCandidate = PreviousOccurrence & Sighting & { key: string; /** This survey's unit at the same place. */ unitId: number | null };
+
+export type RecheckState = { previousId: number; candidates: RecheckCandidate[]; answers: RecheckRow[]; open: number };
+
+const answerOf = (r: RecheckRow): RecheckAnswer => ({
+  key: recheckKey({ frameUnitId: r.frame_unit_id, taxonId: r.prev_taxon_id, verbatim: r.prev_verbatim_identification || null }),
+  outcome: r.outcome,
+  occurrenceId: r.occurrence_id,
+});
+
+/**
+ * What the recheck shows once the blind phase is closed: the previous
+ * survey's taxa missing from the blind list of the same unit, the answers so
+ * far, and how many are still open. Null when the survey has no blind phase
+ * or it is still open.
+ */
+export function recheckState(ctx: { db: SurveyDb }, surveyId: number): RecheckState | null {
+  const s = surveyOf(ctx, surveyId);
+  const previousId = previousSurveyId(ctx, surveyId);
+  if (s.style !== 'plot' || previousId == null || s.blind_closed_at == null) return null;
+  const units = rows<{ id: number; frame_unit_id: number | null }>(ctx, `SELECT id, frame_unit_id FROM fw_units WHERE survey_id = ?`, [surveyId]);
+  const unitAt = new Map<number | null, number | null>([[null, null]]);
+  for (const u of units) if (u.frame_unit_id != null) unitAt.set(u.frame_unit_id, u.id);
+  // Compared with the blind list only: a taxon found in the recheck stays a candidate, so its answer stays visible.
+  const blind = rows<{ frame_unit_id: number | null; taxon_id: string; verbatim_identification: string | null }>(
+    ctx,
+    `SELECT u.frame_unit_id, o.taxon_id, o.verbatim_identification FROM fw_occurrences o LEFT JOIN fw_units u ON u.id = o.unit_id
+      WHERE o.survey_id = ? AND o.phase = 'blind'`,
+    [surveyId],
+  ).map((r) => ({ frameUnitId: r.frame_unit_id, taxonId: r.taxon_id, verbatim: r.verbatim_identification }));
+  const previous = previousOccurrences(ctx, surveyId).map((p) => ({
+    ...p,
+    frameUnitId: p.frame_unit_id,
+    taxonId: p.taxon_id,
+    verbatim: p.verbatim_identification,
+  }));
+  const candidates = recheckCandidates(previous, blind, new Set(unitAt.keys())).map((c) => ({
+    ...c,
+    key: recheckKey(c),
+    unitId: unitAt.get(c.frameUnitId) ?? null,
+  }));
+  const answers = listRechecks(ctx, surveyId);
+  return { previousId, candidates, answers, open: recheckOpen(candidates, answers.map(answerOf)) };
+}
+
+/**
+ * Answer one recheck candidate (answering again replaces the answer):
+ *   found         the taxon is added in the same unit as a 'recheck' occurrence; returns its id
+ *   not_found     looked for and not there
+ *   reidentified  recorded under another name this time: `occurrenceId` is that occurrence
+ * The occurrence an earlier 'found' added goes when the answer changes.
+ */
+export function answerRecheck(ctx: Ctx, surveyId: number, candidate: Sighting, outcome: RecheckOutcome, occurrenceId: number | null = null): number | null {
+  const state = recheckState(ctx, surveyId);
+  if (!state) throw new SurveyError(hasBlindPhase(ctx, surveyId) ? 'blind_open' : 'no_blind_phase');
+  const key = recheckKey(candidate);
+  const c = state.candidates.find((x) => x.key === key);
+  if (!c) throw new SurveyError('not_found', 'recheck candidate');
+  if (outcome === 'reidentified') {
+    const target = occurrenceId == null ? null : getOccurrence(ctx, occurrenceId);
+    if (!target || target.survey_id !== surveyId) throw new SurveyError('not_found', 'occurrence');
+  }
+  const label = c.verbatim?.trim() ?? '';
+  const old = one<RecheckRow>(
+    ctx,
+    `SELECT * FROM fw_rechecks WHERE survey_id = ? AND frame_unit_id IS ? AND prev_taxon_id = ? AND prev_verbatim_identification = ?`,
+    [surveyId, c.frameUnitId, c.taxonId, label],
+  );
+  if (old?.outcome === 'found' && outcome === 'found' && old.occurrence_id != null) return old.occurrence_id;
+  if (old?.outcome === 'found' && old.occurrence_id != null) {
+    run(ctx, `DELETE FROM fw_occurrence_values WHERE occurrence_id = ?`, [old.occurrence_id]);
+    run(ctx, `DELETE FROM fw_media WHERE occurrence_id = ?`, [old.occurrence_id]);
+    run(ctx, `DELETE FROM fw_occurrences WHERE id = ? AND phase = 'recheck'`, [old.occurrence_id]);
+  }
+  const target =
+    outcome === 'found'
+      ? // One added by hand in the recheck phase is taken as the find.
+        (findOccurrence(ctx, surveyId, c.unitId, c.taxonId, c.verbatim)?.id ??
+        addOccurrence(ctx, surveyId, { taxon_id: c.taxonId, verbatim_identification: c.verbatim?.trim() || null, unit_id: c.unitId }))
+      : outcome === 'reidentified'
+        ? occurrenceId
+        : null;
+  const now = ctx.now();
+  if (old) {
+    run(ctx, `UPDATE fw_rechecks SET outcome = ?, occurrence_id = ?, checked_at = ?, updated_at = ? WHERE id = ?`, [outcome, target, now, now, old.id]);
+  } else {
+    run(
+      ctx,
+      `INSERT INTO fw_rechecks (uuid, survey_id, frame_unit_id, prev_taxon_id, prev_verbatim_identification, outcome, occurrence_id, checked_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [ctx.uuid(), surveyId, c.frameUnitId, c.taxonId, label, outcome, target, now, now],
+    );
+  }
+  run(ctx, `UPDATE fw_surveys SET updated_at = ? WHERE id = ?`, [now, surveyId]);
+  return outcome === 'found' ? target : null;
 }
 
 // ── morphospecies of a permanent plot (§5.5 #7) ─────────────────────────────
@@ -876,6 +1097,7 @@ export function readComponent(ctx: { db: SurveyDb }, owner: ComponentOwner, key:
  */
 export function writeComponent(ctx: Ctx, owner: ComponentOwner, key: string, patch: ComponentValues): void {
   const { instance, def } = placedComponent(ctx, owner, key);
+  if (owner.kind === 'occurrence') unsealed(ctx, owner.id);
   const fields = def.fields(instance.params, instance.level, instance.key);
   const byName = new Map(fields.map((f) => [f.field, f]));
   for (const name of Object.keys(patch)) {
@@ -953,6 +1175,7 @@ export function listMedia(ctx: { db: SurveyDb }, owner: ComponentOwner, componen
 /** Add a photo or recording to an owner, for the template component `key` (which must be a media field there). */
 export function addMedia(ctx: Ctx, owner: ComponentOwner, key: string, uri: string): number {
   const { instance, def, survey } = placedComponent(ctx, owner, key);
+  if (owner.kind === 'occurrence') unsealed(ctx, owner.id);
   const media = def.fields(instance.params, instance.level, instance.key).find((f) => 'media' in f.storage);
   if (!media || !('media' in media.storage)) throw new SurveyError('bad_value', `${key} holds no media`);
   const max = Number(instance.params.max);
@@ -976,6 +1199,7 @@ export function addMedia(ctx: Ctx, owner: ComponentOwner, key: string, uri: stri
 }
 
 export function removeMedia(ctx: Ctx, owner: ComponentOwner, key: string, uri: string): void {
+  if (owner.kind === 'occurrence') unsealed(ctx, owner.id);
   const where = owner.kind === 'survey' ? 'survey_id = ? AND unit_id IS NULL AND occurrence_id IS NULL' : `${MEDIA_OWNER_COL[owner.kind]} = ?`;
   run(ctx, `DELETE FROM fw_media WHERE ${where} AND component = ? AND uri = ?`, [owner.id, key, uri]);
   run(ctx, `UPDATE ${ownerSql(owner)} SET updated_at = ? WHERE id = ?`, [ctx.now(), owner.id]);

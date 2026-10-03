@@ -45,6 +45,7 @@ import { useToast } from '~/stores/toast';
 import { useActivePlot } from '~/stores/activePlot';
 import { useActiveGloria } from '~/modules/gloria/store';
 import { useActiveMiren } from '~/modules/miren/store';
+import { useActiveSurvey } from '~/survey/form/activeSurvey';
 import { useActiveSession } from '~/stores/activeSession';
 import { useTabBarInset } from '~/lib/tabBarLayout';
 import { useThemeColors } from '~/theme/colors';
@@ -196,6 +197,7 @@ export default function MenuScreen() {
                     useActivePlot.getState().refresh();
                     useActiveGloria.getState().refresh();
                     useActiveMiren.getState().refresh();
+                    useActiveSurvey.getState().refresh();
                     toast(t('settings.allCleared'));
                     router.replace('/');
                   } catch (e) {

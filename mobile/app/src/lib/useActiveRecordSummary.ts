@@ -5,15 +5,19 @@
  *
  * Only one record should be active (single-active invariant); if a stale store
  * still holds two, the most recently started one wins.
+ *
+ * 'modular': a checklist / plot-style survey of the survey framework (the
+ * records list's kind for them; tree censuses are exempt from single-active).
  */
 import { useTranslation } from 'react-i18next';
 
 import { useActiveGloria } from '~/modules/gloria/store';
 import { useActiveMiren } from '~/modules/miren/store';
+import { useActiveSurvey } from '~/survey/form/activeSurvey';
 import { useActivePlot } from '~/stores/activePlot';
 import { useActiveSession } from '~/stores/activeSession';
 
-export type ActiveRecordKind = 'session' | 'plot' | 'gloria' | 'miren';
+export type ActiveRecordKind = 'session' | 'plot' | 'gloria' | 'miren' | 'modular';
 
 export type ActiveRecordSummary = {
   kind: ActiveRecordKind;
@@ -31,13 +35,25 @@ export function useActiveRecordSummary(): ActiveRecordSummary | null {
   const plot = useActivePlot((s) => s.plot);
   const gloria = useActiveGloria((s) => s.survey);
   const miren = useActiveMiren((s) => s.survey);
+  const fw = useActiveSurvey((s) => s.survey);
 
-  if (!session && !plot && !gloria && !miren) return null;
+  if (!session && !plot && !gloria && !miren && !fw) return null;
 
   const sessionTs = session?.started_at ?? 0;
   const plotTs = plot ? (plot.start_ts ?? plot.created_at ?? 0) : -1;
   const gloriaTs = gloria ? gloria.start_ts : -1;
   const mirenTs = miren ? miren.start_ts : -1;
+  const fwTs = fw ? fw.start_ts : -1;
+
+  if (fw && fwTs >= mirenTs && fwTs >= gloriaTs && fwTs >= plotTs && fwTs >= sessionTs) {
+    return {
+      kind: 'modular',
+      id: fw.id,
+      barLabel: t('activeBar.surveyRecording', { name: fw.name ?? '' }),
+      startedAt: fwTs,
+      targetPath: `/survey/form/${fw.id}`,
+    };
+  }
 
   if (miren && mirenTs >= gloriaTs && mirenTs >= plotTs && mirenTs >= sessionTs) {
     return {

@@ -8,10 +8,11 @@
  * survey).
  *
  * Priority: active GLORIA → its roster; active plot → open
- * PlotSpeciesValueModal (enter abundance) → addPlotSpecies. Otherwise active
- * session (or a freshly started one) → addRecord — except while a MIREN survey
- * is active, which blocks with a prompt (blockIfMirenActive). Returns the
- * modal element so the host screen can render it.
+ * PlotSpeciesValueModal (enter abundance) → addPlotSpecies; an open checklist /
+ * plot-style survey takes it or refuses it (takenByActiveSurvey). Otherwise
+ * active session (or a freshly started one) → addRecord — except while a MIREN
+ * survey is active, which blocks with a prompt (blockIfMirenActive). Returns
+ * the modal element so the host screen can render it.
  */
 import { useState } from 'react';
 import { useRouter, type Href } from 'expo-router';
@@ -31,6 +32,8 @@ import {
 } from '~/db';
 import type { AdoptionInput } from '~/db';
 import { blockIfMirenActive } from '~/lib/mirenGuard';
+import { takenByActiveSurvey } from '~/survey/form/quickAdd';
+import { useActiveSurvey } from '~/survey/form/activeSurvey';
 import { useActivePlot } from '~/stores/activePlot';
 import { useActiveSession } from '~/stores/activeSession';
 import { useActiveGloria } from '~/modules/gloria/store';
@@ -101,12 +104,15 @@ export function useAddToActiveRecord(): {
   const plot = useActivePlot((s) => s.plot);
   const gloria = useActiveGloria((s) => s.survey);
   const session = useActiveSession((s) => s.session);
+  const fwSurvey = useActiveSurvey((s) => s.survey);
   const startSession = useActiveSession((s) => s.start);
   const [plotTarget, setPlotTarget] = useState<PlotTarget | null>(null);
 
   const targetLabel = gloria
     ? t('addToRecord.toGloria')
-    : plot
+    : fwSurvey
+      ? t('addToRecord.toSurvey')
+      : plot
       ? t('addToRecord.toPlot') : session ? t('addToRecord.toSession') : t('addToRecord.newSession');
 
   const addSpecies = (sp: SearchResult, adopted?: AdoptionInput | null) => {
@@ -124,6 +130,7 @@ export function useAddToActiveRecord(): {
       setPlotTarget({ sp, plotId: activePlot.id, plotType: activePlot.plot_type, layer, adopted });
       return;
     }
+    if (takenByActiveSurvey([sp], adopted)) return;
     // Session path (or start a fresh one — never over a MIREN survey).
     if (!session && blockIfMirenActive()) return;
     const target = session ?? startSession();
@@ -202,6 +209,7 @@ export function useAddToActiveRecord(): {
       );
       return;
     }
+    if (takenByActiveSurvey(valid)) return;
     if (!session && blockIfMirenActive()) return;
     const target = session ?? startSession();
     const fresh = valid.filter((sp) => !isTaxonInSession(target.id, sp.taxon_id));

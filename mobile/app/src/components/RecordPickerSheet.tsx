@@ -22,6 +22,7 @@ const KIND_LABEL: Record<RecordKind, string> = {
   collection: 'favorites.kindCollection',
   gloria: 'favorites.kindGloria',
   survey: 'favorites.kindSurvey',
+  modular: 'favorites.kindModular',
 };
 
 type Props = {

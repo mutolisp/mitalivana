@@ -117,7 +117,8 @@
     "addedCount_one": "{{count}} Art zu den Favoriten hinzugefügt",
     "addedCount_other": "{{count}} Arten zu den Favoriten hinzugefügt",
     "kindGloria": "GLORIA",
-    "kindSurvey": "Baumerhebung"
+    "kindSurvey": "Baumerhebung",
+    "kindModular": "Listen- / Flächenaufnahme"
   },
   "gnss": {
     "permTitle": "Standortberechtigung erforderlich",
@@ -375,7 +376,8 @@
     "lastUpdated": "Zuletzt geändert",
     "kindGloria": "GLORIA-Gipfelaufnahme",
     "moreActions": "Weitere Aktionen",
-    "kindMiren": "MIREN-Straßen- / Wegerhebung"
+    "kindMiren": "MIREN-Straßen- / Wegerhebung",
+    "kindModular": "Listen- / Flächenaufnahme"
   },
   "rank": {
     "kingdom": "Reich",
@@ -585,7 +587,14 @@
     "addedToGloria_other": "{{count}} Taxa zur GLORIA-Gipfelliste hinzugefügt. In den Einheiten erfassen.",
     "mirenActiveTitle": "MIREN-Erhebung läuft",
     "mirenActiveMsg": "Die MIREN-Erhebung {{year}} ist noch nicht beendet. Eine Art hier hinzuzufügen würde eine Artenliste beginnen und die MIREN-Erhebung beenden. Arten für MIREN werden in den Plots der Erhebung erfasst; für alles andere zuerst die MIREN-Erhebung beenden.",
-    "goToMiren": "Zur MIREN-Erhebung"
+    "goToMiren": "Zur MIREN-Erhebung",
+    "surveyNoQuickTitle": "Eine Aufnahme läuft",
+    "surveyNoQuickMsg": "Das Formular von „{{name}}“ nimmt hier keine Arten an; erfasse sie in der Aufnahme. Um andere Arten zu erfassen, beende zuerst diese Aufnahme.",
+    "addedToSurvey": "Zur Aufnahme hinzugefügt: {{name}}",
+    "addedManyToSurvey_one": "{{count}} Art zur Aufnahme hinzugefügt",
+    "addedManyToSurvey_other": "{{count}} Arten zur Aufnahme hinzugefügt",
+    "goToSurvey": "Zur Aufnahme",
+    "toSurvey": "Zur laufenden Aufnahme hinzufügen"
   },
   "endSession": {
     "minutes": "{{count}} Min.",
@@ -1534,7 +1543,9 @@
     "gloriaSubtitle_one": "mocy {{mocy}} · {{count}} Taxon · {{units}}/28 Einheiten",
     "gloriaSubtitle_other": "mocy {{mocy}} · {{count}} Taxa · {{units}}/28 Einheiten",
     "surveySubtitle_one": "Aufnahme {{n}} · {{count}} Baum",
-    "surveySubtitle_other": "Aufnahme {{n}} · {{count}} Bäume"
+    "surveySubtitle_other": "Aufnahme {{n}} · {{count}} Bäume",
+    "modularSubtitle_one": "{{style}} · {{count}} Art",
+    "modularSubtitle_other": "{{style}} · {{count}} Arten"
   },
   "plotImport": {
     "invalidYml": "Keine gültige Probeflächen-yml (Block plot fehlt)",
@@ -1546,7 +1557,8 @@
     "recording": "Erfassung: {{name}}",
     "plotRecording": "Probeflächenerfassung: {{id}}",
     "gloriaRecording": "GLORIA-Aufnahme läuft · mocy {{mocy}}",
-    "mirenRecording": "MIREN-Erhebung läuft · {{year}}"
+    "mirenRecording": "MIREN-Erhebung läuft · {{year}}",
+    "surveyRecording": "Aufnahme läuft: {{name}}"
   },
   "speciesSearch": {
     "hint": "Unten Arten nach Trivial-, wissenschaftlichem oder Familiennamen suchen,{{br}}nach der Auswahl erscheinen hier die Details."
@@ -4932,5 +4944,158 @@
     "done": "Datenbank komprimiert: {{size}} freigegeben",
     "failed": "Komprimieren fehlgeschlagen",
     "noSpace": "Nicht genug freier Speicher: Komprimieren braucht etwa {{size}}"
+  },
+  "surveyForm": {
+    "notFound": "Aufnahme nicht gefunden",
+    "lockedToast": "Diese Aufnahme ist beendet und gesperrt; über ⋯ oben rechts entsperren, um sie zu bearbeiten",
+    "inList": "Erfasst",
+    "about": "Aufnahme",
+    "name": "Name",
+    "rename": "Umbenennen",
+    "template": "Formular",
+    "frameLabel": "Dauerfläche",
+    "frameValue": "{{code}} · Aufnahme {{n}}",
+    "ended": "Ende",
+    "reopen": "Fortsetzen",
+    "deleteTitle": "Aufnahme löschen",
+    "deleteMsg_one": "„{{name}}“ und den {{count}} Fund darin löschen? Das lässt sich nicht rückgängig machen.",
+    "deleteMsg_other": "„{{name}}“ und die {{count}} Funde darin löschen? Das lässt sich nicht rückgängig machen.",
+    "noExport": "Listen- und Flächenaufnahmen lassen sich noch nicht exportieren",
+    "notInProjectExport_one": "{{count}} Listen- / Flächenaufnahme lässt sich noch nicht exportieren und fehlt in diesem Export",
+    "notInProjectExport_other": "{{count}} Listen- / Flächenaufnahmen lassen sich noch nicht exportieren und fehlen in diesem Export",
+    "noDuplicate": "Listen- und Flächenaufnahmen lassen sich noch nicht duplizieren",
+    "noMerge": "Listen- und Flächenaufnahmen lassen sich noch nicht zusammenführen",
+    "projectCount_one": "{{count}} Listen- / Flächenaufnahme",
+    "projectCount_other": "{{count}} Listen- / Flächenaufnahmen",
+    "speciesCount_one": "{{count}} Art",
+    "speciesCount_other": "{{count}} Arten",
+    "newPlotTitle": "Neue Flächenaufnahme",
+    "seriesCodeTitle": "Serienkürzel",
+    "seriesCodeMsg": "Diese Dauerfläche hat schon eine andere Aufnahmeserie. Gib dieser Serie ein kurzes Kürzel (z. B. veg); es hält die eventIDs auseinander.",
+    "startFailed": "Aufnahme konnte nicht beginnen",
+    "noSpecies": "Noch keine Arten. Füge sie mit der Suche unten hinzu.",
+    "allUnits": "Alle",
+    "outsideUnits": "Ohne Einheit",
+    "addingTo": "Hinzufügen zu: {{unit}}",
+    "addingAfterBlind": "Blindaufnahme beendet: jetzt hinzugefügte Arten gelten als bei der Nachkontrolle gefunden",
+    "moveTitle": "In andere Einheit verschieben",
+    "style": {
+      "checklist": "Liste",
+      "plot": "Fläche",
+      "individual": "Baumerhebung"
+    },
+    "tab": {
+      "data": "Daten",
+      "units_one": "Einheiten {{count}}",
+      "units_other": "Einheiten {{count}}",
+      "species_one": "Arten {{count}}",
+      "species_other": "Arten {{count}}",
+      "freq": "Frequenz"
+    },
+    "phase": {
+      "blind": "Blind",
+      "recheck": "Bei Nachkontrolle gefunden"
+    },
+    "occ": {
+      "deleteTitle": "Diesen Fund löschen?",
+      "label": "Bezeichnung"
+    },
+    "err": {
+      "unitTaken": "Kürzel {{code}} ist schon vergeben",
+      "frameUnitLocked": "Eine Aufnahme hat diese Einheit benutzt; Kürzel und Lage lassen sich nicht mehr ändern",
+      "blindSealed": "Die Blindaufnahme ist beendet; ihre Einträge lassen sich nicht mehr ändern",
+      "recheckBegun": "Die Nachkontrolle hat begonnen (Antworten oder dabei gefundene Arten vorhanden); die Blindaufnahme lässt sich nicht wieder öffnen",
+      "labelTaken": "Bezeichnung „{{label}}“ steht schon auf der Liste",
+      "badValue": "Dieser Wert lässt sich nicht speichern"
+    },
+    "finish": {
+      "title": "Aufnahme beenden",
+      "blindOpen": "Die Blindaufnahme ist nicht beendet; die frühere Liste wurde nicht nachkontrolliert.",
+      "recheckOpen_one": "{{count}} Art der früheren Aufnahme hat keine Antwort der Nachkontrolle.",
+      "recheckOpen_other": "{{count}} Arten der früheren Aufnahme haben keine Antwort der Nachkontrolle.",
+      "errors_one": "{{count}} Fund hat noch Fehler.",
+      "errors_other": "{{count}} Funde haben noch Fehler."
+    },
+    "blind": {
+      "banner": "Blindaufnahme: die frühere Artenliste erscheint erst, wenn sie beendet ist.",
+      "end": "Blindaufnahme beenden",
+      "endTitle": "Blindaufnahme beenden?",
+      "endMsg": "Danach erscheint die frühere Liste, und die blind erfassten Arten lassen sich nicht mehr ändern oder löschen. Später hinzugefügte Arten gelten als bei der Nachkontrolle gefunden.",
+      "reopen": "Blindaufnahme wieder öffnen"
+    },
+    "recheck": {
+      "title": "Nachkontrolle",
+      "open": "Frühere Liste und Nachkontrolle",
+      "banner_one": "Nachkontrolle: {{count}} Art der früheren Aufnahme offen",
+      "banner_other": "Nachkontrolle: {{count}} Arten der früheren Aufnahme offen",
+      "notOpen": "Die Nachkontrolle beginnt nach der Blindaufnahme",
+      "intro": "Die Liste von Aufnahme {{n}}, nach Einheiten. Erfasse für jede Art, die diese Blindaufnahme nicht hat, ein Ergebnis ({{open}} noch offen).",
+      "nothing": "Die frühere Aufnahme hat keine Arten.",
+      "last": "Letztes Mal: {{value}}",
+      "recordedBlind": "Diesmal erfasst",
+      "notChecked": "Einheit stillgelegt",
+      "retiredUnit": "{{code}} (stillgelegt)",
+      "found": "Gefunden",
+      "not_found": "Nicht da",
+      "reidentified": "Erfasst als …",
+      "pickTitle": "Welcher Eintrag ist „{{name}}“ diesmal?",
+      "pickMsg": "Wurde derselbe Organismus diesmal unter einem anderen Namen erfasst, wähle diesen Fund.",
+      "noneToPick": "Diese Einheit hat noch keine anderen Funde",
+      "openFound": "Hinzugefügt; Fund öffnen",
+      "sameAs": "Diesmal erfasst als: {{name}}",
+      "targetGone": "Der zugeordnete Fund wurde gelöscht; neu wählen"
+    },
+    "unit": {
+      "empty": "Noch keine Einheiten.",
+      "addTitle": "{{level}} hinzufügen",
+      "codeMsg": "Kürzel eingeben (auf dieser Ebene eindeutig)",
+      "code": "Kürzel",
+      "label": "Name",
+      "onFrame": "Teil der Einteilung der Dauerfläche",
+      "onFrameNote": "Teil der Einteilung der Dauerfläche; nachdem eine Aufnahme sie benutzt hat, bleibt das Kürzel fest.",
+      "recordHere_one": "Arten in dieser Einheit erfassen ({{count}})",
+      "recordHere_other": "Arten in dieser Einheit erfassen ({{count}})",
+      "deleteTitle": "{{path}} löschen?",
+      "deleteMsg_one": "Ihr {{count}} Fund und ihre Untereinheiten rücken eine Ebene hoch; die eigenen Daten und Fotos der Einheit werden gelöscht.",
+      "deleteMsg_other": "Ihre {{count}} Funde und Untereinheiten rücken eine Ebene hoch; die eigenen Daten und Fotos der Einheit werden gelöscht."
+    },
+    "label": {
+      "title": "Bezeichnung für {{name}}",
+      "msg": "Zum Beispiel sp1. Leer lassen für keine Bezeichnung.",
+      "pickTitle": "{{name}}: Bezeichnung",
+      "pickMsg": "Diese Bezeichnungen stehen auf der Morphospezies-Liste der Dauerfläche.",
+      "none": "Keine Bezeichnung (als {{name}} erfassen)",
+      "new": "Neue Bezeichnung …",
+      "newTitle": "„{{label}}“ steht nicht auf der Morphospezies-Liste",
+      "newMsg": "Auf der Liste meint dieselbe Bezeichnung diese Morphospezies auch in allen späteren Aufnahmen.",
+      "addToList": "Zur Liste hinzufügen",
+      "onlyHere": "Nur für diesen Eintrag"
+    },
+    "frame": {
+      "section": "Flächenaufnahmen",
+      "units": "Einteilung",
+      "labels": "Morphospezies",
+      "start": "Flächenaufnahme beginnen (Test)",
+      "surveyNo": "Aufnahme {{n}} · {{name}}",
+      "unitsTitle": "Einteilung {{code}}",
+      "unitsDesc": "Eine Flächenaufnahme beginnt mit diesen Einheiten. Eine von einer Aufnahme benutzte Einheit lässt sich nur stilllegen, nicht löschen oder umbenennen.",
+      "addUnit": "Einheit hinzufügen",
+      "noLevels": "Noch kein Flächenformular legt Einheitenebenen fest",
+      "pickParent": "Unter welche {{level}}?",
+      "noParent": "Ohne übergeordnete Einheit",
+      "retire": "Stilllegen",
+      "unretire": "Wieder verwenden",
+      "retired": "Stillgelegt",
+      "usedNote": "Von einer Aufnahme benutzt: nur Name ändern oder stilllegen"
+    },
+    "labels": {
+      "title": "Morphospezies {{code}}",
+      "desc": "Eine Bezeichnung meint in jeder Aufnahme dieselbe Morphospezies. Bezeichnungen kommen beim Erfassen dazu; hier lassen sich Notizen und Fotos ergänzen.",
+      "empty": "Noch keine Morphospezies.",
+      "note": "Notiz",
+      "takePhoto": "Foto aufnehmen",
+      "pickPhoto": "Aus Mediathek wählen",
+      "removePhoto": "Foto entfernen"
+    }
   }
 }

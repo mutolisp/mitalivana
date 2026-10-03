@@ -38,6 +38,7 @@ import { useDatasetUpdateCheck } from '~/lib/datasetUpdateCheck';
 import { useActivePlot } from '~/stores/activePlot';
 import { useActiveGloria } from '~/modules/gloria/store';
 import { useActiveMiren } from '~/modules/miren/store';
+import { useActiveSurvey } from '~/survey/form/activeSurvey';
 import { useActiveSession } from '~/stores/activeSession';
 import { useSettings } from '~/stores/settings';
 
@@ -119,13 +120,15 @@ function ThemedShell() {
   const plot = useActivePlot((s) => s.plot);
   const gloria = useActiveGloria((s) => s.survey);
   const miren = useActiveMiren((s) => s.survey);
-  const hasActive = Boolean(session || plot || gloria || miren);
-  // Starting any other record ends an active MIREN survey in the DB
-  // (closeActiveRecords), but most of those paths refresh only their own
-  // store. Re-reading MIREN whenever another active record changes keeps the
-  // bar from showing a survey that has already ended.
+  const fwSurvey = useActiveSurvey((s) => s.survey);
+  const hasActive = Boolean(session || plot || gloria || miren || fwSurvey);
+  // Starting any other record ends an active MIREN survey or checklist /
+  // plot-style survey in the DB (closeActiveRecords), but most of those paths
+  // refresh only their own store. Re-reading them whenever another active
+  // record changes keeps the bar from showing a survey that has already ended.
   useEffect(() => {
     useActiveMiren.getState().refresh();
+    useActiveSurvey.getState().refresh();
   }, [session, plot, gloria]);
   useEffect(() => unlockOrientationOnTablets(), []);
   // The map draws to the top edge. Its overlays already position themselves at
@@ -201,6 +204,12 @@ function ThemedShell() {
             <Stack.Screen name="survey/[id]/index" options={{ title: '' }} />
             <Stack.Screen name="survey/[id]/tree" options={{ title: '' }} />
             <Stack.Screen name="survey/[id]/checks" options={{ title: '' }} />
+            <Stack.Screen name="survey/form/[id]/index" options={{ title: '' }} />
+            <Stack.Screen name="survey/form/[id]/recheck" options={{ title: '' }} />
+            <Stack.Screen name="survey/form/occurrence/[id]" options={{ title: '' }} />
+            <Stack.Screen name="survey/form/unit/[id]" options={{ title: '' }} />
+            <Stack.Screen name="survey/frame/units" options={{ title: '' }} />
+            <Stack.Screen name="survey/frame/labels" options={{ title: '' }} />
             <Stack.Screen name="miren/plot/[id]/index" options={{ title: '' }} />
             <Stack.Screen name="miren/plot/[id]/recheck" options={{ title: t('miren.recheck.title') }} />
             <Stack.Screen name="settings/collection" options={{ title: t('settings.sectionCollection') }} />

@@ -135,7 +135,8 @@
     "addedCount_many": "{{count}} taxons ajoutés aux favoris",
     "addedCount_other": "{{count}} taxons ajoutés aux favoris",
     "kindGloria": "GLORIA",
-    "kindSurvey": "Inventaire des arbres"
+    "kindSurvey": "Inventaire des arbres",
+    "kindModular": "Relevé de type liste / placette"
   },
   "gnss": {
     "permTitle": "Autorisation de localisation requise",
@@ -405,7 +406,8 @@
     "lastUpdated": "Dernière modification",
     "kindGloria": "Enquête GLORIA",
     "moreActions": "Autres actions",
-    "kindMiren": "Relevé MIREN route / sentier"
+    "kindMiren": "Relevé MIREN route / sentier",
+    "kindModular": "Relevé de type liste / placette"
   },
   "rank": {
     "kingdom": "Règne",
@@ -622,7 +624,15 @@
     "addedToGloria_other": "{{count}} taxons ajoutés à la liste du sommet GLORIA. Saisissez-les dans les unités.",
     "mirenActiveTitle": "Relevé MIREN en cours",
     "mirenActiveMsg": "Le relevé MIREN {{year}} n’est pas terminé. Ajouter une espèce ici commencerait une liste et terminerait le relevé MIREN. Les espèces MIREN se notent dans les placettes du relevé ; pour noter autre chose, terminez d’abord le relevé MIREN.",
-    "goToMiren": "Aller au relevé MIREN"
+    "goToMiren": "Aller au relevé MIREN",
+    "surveyNoQuickTitle": "Un relevé est en cours",
+    "surveyNoQuickMsg": "Le formulaire de « {{name}} » n’accepte pas d’espèces depuis ici ; notez-les dans le relevé. Pour noter d’autres espèces, terminez d’abord ce relevé.",
+    "addedToSurvey": "Ajoutée au relevé : {{name}}",
+    "addedManyToSurvey_one": "{{count}} espèce ajoutée au relevé",
+    "addedManyToSurvey_many": "{{count}} espèces ajoutées au relevé",
+    "addedManyToSurvey_other": "{{count}} espèces ajoutées au relevé",
+    "goToSurvey": "Aller au relevé",
+    "toSurvey": "Ajouter au relevé en cours"
   },
   "endSession": {
     "minutes": "{{count}} min",
@@ -1627,7 +1637,10 @@
     "gloriaSubtitle_other": "mocy {{mocy}} · {{count}} taxons · {{units}}/28 unités",
     "surveySubtitle_one": "Inventaire {{n}} · {{count}} arbre",
     "surveySubtitle_many": "Inventaire {{n}} · {{count}} arbres",
-    "surveySubtitle_other": "Inventaire {{n}} · {{count}} arbres"
+    "surveySubtitle_other": "Inventaire {{n}} · {{count}} arbres",
+    "modularSubtitle_one": "{{style}} · {{count}} espèce",
+    "modularSubtitle_many": "{{style}} · {{count}} espèces",
+    "modularSubtitle_other": "{{style}} · {{count}} espèces"
   },
   "plotImport": {
     "invalidYml": "Ce n'est pas un yml de placette valide (bloc plot manquant)",
@@ -1639,7 +1652,8 @@
     "recording": "Enregistrement : {{name}}",
     "plotRecording": "Placette en cours : {{id}}",
     "gloriaRecording": "Relevé GLORIA en cours · mocy {{mocy}}",
-    "mirenRecording": "Relevé MIREN en cours · {{year}}"
+    "mirenRecording": "Relevé MIREN en cours · {{year}}",
+    "surveyRecording": "Relevé en cours : {{name}}"
   },
   "speciesSearch": {
     "hint": "Recherchez une espèce par nom vernaculaire / scientifique / de famille ci-dessous,{{br}}puis consultez ici les détails après sélection."
@@ -5131,5 +5145,169 @@
     "done": "Base de données compactée : {{size}} libérés",
     "failed": "Échec du compactage",
     "noSpace": "Espace libre insuffisant : le compactage demande environ {{size}}"
+  },
+  "surveyForm": {
+    "notFound": "Relevé introuvable",
+    "lockedToast": "Ce relevé est terminé et verrouillé ; déverrouillez-le depuis ⋯ en haut à droite pour le modifier",
+    "inList": "Notée",
+    "about": "Relevé",
+    "name": "Nom",
+    "rename": "Renommer",
+    "template": "Formulaire",
+    "frameLabel": "Placette permanente",
+    "frameValue": "{{code}} · relevé {{n}}",
+    "ended": "Fin",
+    "reopen": "Reprendre",
+    "deleteTitle": "Supprimer le relevé",
+    "deleteMsg_one": "Supprimer « {{name}} » et son occurrence ({{count}}) ? Ce sera définitif.",
+    "deleteMsg_many": "Supprimer « {{name}} » et ses {{count}} occurrences ? Ce sera définitif.",
+    "deleteMsg_other": "Supprimer « {{name}} » et ses {{count}} occurrences ? Ce sera définitif.",
+    "noExport": "Les relevés de type liste et placette ne s’exportent pas encore",
+    "notInProjectExport_one": "{{count}} relevé de type liste / placette ne s’exporte pas encore et manque à cet export",
+    "notInProjectExport_many": "{{count}} relevés de type liste / placette ne s’exportent pas encore et manquent à cet export",
+    "notInProjectExport_other": "{{count}} relevés de type liste / placette ne s’exportent pas encore et manquent à cet export",
+    "noDuplicate": "Les relevés de type liste et placette ne se dupliquent pas encore",
+    "noMerge": "Les relevés de type liste et placette ne se fusionnent pas encore",
+    "projectCount_one": "{{count}} relevé de type liste / placette",
+    "projectCount_many": "{{count}} relevés de type liste / placette",
+    "projectCount_other": "{{count}} relevés de type liste / placette",
+    "speciesCount_one": "{{count}} espèce",
+    "speciesCount_many": "{{count}} espèces",
+    "speciesCount_other": "{{count}} espèces",
+    "newPlotTitle": "Nouveau relevé de placette",
+    "seriesCodeTitle": "Code de série",
+    "seriesCodeMsg": "Cette placette permanente a déjà une autre série de relevés. Donnez à celle-ci un code court (p. ex. veg) ; il distingue les eventID.",
+    "startFailed": "Impossible de commencer le relevé",
+    "noSpecies": "Aucune espèce pour l’instant. Ajoutez-en avec la recherche ci-dessous.",
+    "allUnits": "Toutes",
+    "outsideUnits": "Sans unité",
+    "addingTo": "Ajout dans : {{unit}}",
+    "addingAfterBlind": "Relevé à l’aveugle terminé : les espèces ajoutées maintenant sont marquées trouvées à la revérification",
+    "moveTitle": "Déplacer vers une autre unité",
+    "style": {
+      "checklist": "Liste",
+      "plot": "Placette",
+      "individual": "Inventaire des arbres"
+    },
+    "tab": {
+      "data": "Données",
+      "units_one": "Unités {{count}}",
+      "units_many": "Unités {{count}}",
+      "units_other": "Unités {{count}}",
+      "species_one": "Espèces {{count}}",
+      "species_many": "Espèces {{count}}",
+      "species_other": "Espèces {{count}}",
+      "freq": "Fréquence"
+    },
+    "phase": {
+      "blind": "À l’aveugle",
+      "recheck": "Trouvée à la revérification"
+    },
+    "occ": {
+      "deleteTitle": "Supprimer cette occurrence ?",
+      "label": "Étiquette"
+    },
+    "err": {
+      "unitTaken": "Le code {{code}} est déjà utilisé",
+      "frameUnitLocked": "Un relevé a utilisé cette unité ; son code et sa position ne peuvent plus changer",
+      "blindSealed": "Le relevé à l’aveugle est terminé ; ses données ne peuvent plus changer",
+      "recheckBegun": "La revérification a commencé (réponses ou espèces trouvées) ; le relevé à l’aveugle ne peut plus être rouvert",
+      "labelTaken": "L’étiquette « {{label}} » figure déjà dans la liste",
+      "badValue": "Cette valeur ne peut pas être enregistrée"
+    },
+    "finish": {
+      "title": "Terminer le relevé",
+      "blindOpen": "Le relevé à l’aveugle n’est pas terminé ; la liste précédente n’a pas été revérifiée.",
+      "recheckOpen_one": "{{count}} espèce du relevé précédent n’a pas de réponse de revérification.",
+      "recheckOpen_many": "{{count}} espèces du relevé précédent n’ont pas de réponse de revérification.",
+      "recheckOpen_other": "{{count}} espèces du relevé précédent n’ont pas de réponse de revérification.",
+      "errors_one": "{{count}} occurrence comporte encore des erreurs.",
+      "errors_many": "{{count}} occurrences comportent encore des erreurs.",
+      "errors_other": "{{count}} occurrences comportent encore des erreurs."
+    },
+    "blind": {
+      "banner": "Relevé à l’aveugle : la liste précédente apparaît une fois celui-ci terminé.",
+      "end": "Terminer le relevé à l’aveugle",
+      "endTitle": "Terminer le relevé à l’aveugle ?",
+      "endMsg": "La liste précédente apparaît alors, et les espèces notées à l’aveugle ne peuvent plus être modifiées ni supprimées. Les espèces ajoutées ensuite sont marquées trouvées à la revérification.",
+      "reopen": "Rouvrir le relevé à l’aveugle"
+    },
+    "recheck": {
+      "title": "Revérification",
+      "open": "Liste précédente et revérification",
+      "banner_one": "Revérification : {{count}} espèce du relevé précédent à confirmer",
+      "banner_many": "Revérification : {{count}} espèces du relevé précédent à confirmer",
+      "banner_other": "Revérification : {{count}} espèces du relevé précédent à confirmer",
+      "notOpen": "La revérification s’ouvre à la fin du relevé à l’aveugle",
+      "intro": "La liste du relevé {{n}}, par unité. Notez une réponse pour chaque espèce absente de ce relevé à l’aveugle ({{open}} encore à confirmer).",
+      "nothing": "Le relevé précédent ne compte aucune espèce.",
+      "last": "La dernière fois : {{value}}",
+      "recordedBlind": "Notée cette fois",
+      "notChecked": "Unité retirée",
+      "retiredUnit": "{{code}} (retirée)",
+      "found": "Trouvée",
+      "not_found": "Absente",
+      "reidentified": "Notée comme…",
+      "pickTitle": "Quelle occurrence est « {{name}} » cette fois ?",
+      "pickMsg": "Si le même organisme a été noté sous un autre nom cette fois, choisissez cette occurrence.",
+      "noneToPick": "Cette unité n’a pas encore d’autre occurrence",
+      "openFound": "Ajoutée ; ouvrir l’occurrence",
+      "sameAs": "Notée cette fois comme : {{name}}",
+      "targetGone": "L’occurrence associée a été supprimée ; choisissez à nouveau"
+    },
+    "unit": {
+      "empty": "Aucune unité pour l’instant.",
+      "addTitle": "Ajouter : {{level}}",
+      "codeMsg": "Saisissez un code (unique à ce niveau)",
+      "code": "Code",
+      "label": "Nom",
+      "onFrame": "Fait partie du plan de la placette permanente",
+      "onFrameNote": "Fait partie du plan de la placette permanente ; une fois utilisée par un relevé, son code ne change plus.",
+      "recordHere_one": "Noter des espèces dans cette unité ({{count}})",
+      "recordHere_many": "Noter des espèces dans cette unité ({{count}})",
+      "recordHere_other": "Noter des espèces dans cette unité ({{count}})",
+      "deleteTitle": "Supprimer {{path}} ?",
+      "deleteMsg_one": "Son occurrence ({{count}}) et ses sous-unités remontent d’un niveau ; les données et photos propres à l’unité sont supprimées.",
+      "deleteMsg_many": "Ses {{count}} occurrences et ses sous-unités remontent d’un niveau ; les données et photos propres à l’unité sont supprimées.",
+      "deleteMsg_other": "Ses {{count}} occurrences et ses sous-unités remontent d’un niveau ; les données et photos propres à l’unité sont supprimées."
+    },
+    "label": {
+      "title": "Étiquette de {{name}}",
+      "msg": "Par exemple sp1. Laissez vide pour aucune étiquette.",
+      "pickTitle": "{{name}} : étiquette",
+      "pickMsg": "Ces étiquettes figurent dans la liste des morpho-espèces de la placette permanente.",
+      "none": "Sans étiquette (noter comme {{name}})",
+      "new": "Nouvelle étiquette…",
+      "newTitle": "« {{label}} » ne figure pas dans la liste des morpho-espèces",
+      "newMsg": "Dans la liste, la même étiquette désignera cette morpho-espèce dans tous les relevés suivants.",
+      "addToList": "Ajouter à la liste",
+      "onlyHere": "Pour cette occurrence seulement"
+    },
+    "frame": {
+      "section": "Relevés de placette",
+      "units": "Plan des unités",
+      "labels": "Morpho-espèces",
+      "start": "Commencer un relevé de placette (test)",
+      "surveyNo": "Relevé {{n}} · {{name}}",
+      "unitsTitle": "Plan des unités {{code}}",
+      "unitsDesc": "Un relevé de placette commence avec ces unités. Une unité utilisée par un relevé peut seulement être retirée, ni supprimée ni recodée.",
+      "addUnit": "Ajouter une unité",
+      "noLevels": "Aucun formulaire de placette ne définit encore de niveaux d’unités",
+      "pickParent": "Sous quelle unité ({{level}}) ?",
+      "noParent": "Sans unité parente",
+      "retire": "Retirer",
+      "unretire": "Remettre en service",
+      "retired": "Retirée",
+      "usedNote": "Utilisée par un relevé : seul le nom peut changer, ou elle peut être retirée"
+    },
+    "labels": {
+      "title": "Morpho-espèces {{code}}",
+      "desc": "Une étiquette désigne la même morpho-espèce dans chaque relevé. Les étiquettes s’ajoutent pendant le relevé ; ajoutez ici notes et photos.",
+      "empty": "Aucune morpho-espèce pour l’instant.",
+      "note": "Note",
+      "takePhoto": "Prendre une photo",
+      "pickPhoto": "Choisir dans la photothèque",
+      "removePhoto": "Retirer la photo"
+    }
   }
 }

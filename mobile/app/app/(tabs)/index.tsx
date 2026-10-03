@@ -57,6 +57,8 @@ import { offerCompact } from '~/lib/dbCompact';
 import { errText } from '~/lib/errText';
 import { runTask } from '~/stores/taskProgress';
 import { assertDeletableCensuses, deleteCensuses, setCensusProject, SurveyError } from '~/survey/db/stemmap';
+import { deleteSurvey } from '~/survey/db/surveys';
+import { useActiveSurvey } from '~/survey/form/activeSurvey';
 import {
   bundleCollection,
   bundleCensus,
@@ -225,6 +227,8 @@ function ProjectHeader({
   }
   const censuses = countOf('survey');
   if (censuses > 0) parts.push(t('survey.census.projectCount', { count: censuses }));
+  const modular = countOf('modular');
+  if (modular > 0) parts.push(t('surveyForm.projectCount', { count: modular }));
   return (
     <Pressable
       onPress={selectMode ? onToggleSelect : onToggle}
@@ -399,6 +403,7 @@ export default function RecordsListScreen() {
     collection: t('nav.collection'),
     gloria: t('nav.gloria'),
     survey: t('nav.survey'),
+    modular: t('record.kindModular'),
   };
   const refreshActive = useActiveSession((s) => s.refresh);
   const refreshActivePlot = useActivePlot((s) => s.refresh);
@@ -431,6 +436,7 @@ export default function RecordsListScreen() {
     collection: 0,
     gloria: 0,
     survey: 0,
+    modular: 0,
   });
   const [duplicating, setDuplicating] = useState<{
     item: RecordItem;
@@ -504,6 +510,7 @@ export default function RecordsListScreen() {
     refreshActive();
     refreshActivePlot();
     useActiveGloria.getState().refresh();
+    useActiveSurvey.getState().refresh();
   }, [filter, refreshActive, refreshActivePlot]);
 
   useFocusEffect(
@@ -537,6 +544,7 @@ export default function RecordsListScreen() {
     else if (item.kind === 'collection') router.push(`/collection/${item.id}` as Href);
     else if (item.kind === 'gloria') router.push(`/gloria/${item.id}` as Href);
     else if (item.kind === 'survey') router.push(`/survey/${item.id}` as Href);
+    else if (item.kind === 'modular') router.push(`/survey/form/${item.id}` as Href);
     else router.push(`/plot/${item.id}` as Href);
   };
 
@@ -562,6 +570,11 @@ export default function RecordsListScreen() {
   };
 
   const handleExportOne = async (item: RecordItem) => {
+    // Checklist / plot-style surveys are exported from Phase 2E on.
+    if (item.kind === 'modular') {
+      toast(t('surveyForm.noExport'));
+      return;
+    }
     const bundleItem: BundleItem = { kind: item.kind, id: item.id };
     const est = await estimateBundleSize([bundleItem], { includePhotos });
     const proceed = await confirmIfLarge(est.totalBytes);
@@ -597,6 +610,8 @@ export default function RecordsListScreen() {
   // preferences, no options sheet).
   const handleExportProject = async (group: ProjectGroup) => {
     if (exportBusy) return;
+    const modular = group.items.filter((it) => it.kind === 'modular').length;
+    if (modular > 0) toast(t('surveyForm.notInProjectExport', { count: modular }));
     const okGo = await confirmExportContent(t, {
       analysisFormats,
       matrixValue,
@@ -650,6 +665,10 @@ export default function RecordsListScreen() {
       const it = byKey.get(k);
       if (it) picked.push(it);
     }
+    if (picked.some((it) => it.kind === 'modular')) {
+      toast(t('surveyForm.noExport'));
+      return;
+    }
     bundleItems.push(...bundleItemsOf(picked));
     if (bundleItems.length === 0) {
       toast(t('records.noExportable'));
@@ -692,6 +711,8 @@ export default function RecordsListScreen() {
         return t('nav.collection');
       case 'survey':
         return t('nav.survey');
+      case 'modular':
+        return t('record.kindModular');
       default:
         return assertNever(kind, 'record kind');
     }
@@ -707,6 +728,11 @@ export default function RecordsListScreen() {
     // A census belongs to its permanent plot; the next one is started there.
     if (item.kind === 'survey') {
       toast(t('survey.census.noDuplicate'));
+      return;
+    }
+    // Checklist / plot-style surveys: not yet (a permanent plot's next survey is started there).
+    if (item.kind === 'modular') {
+      toast(t('surveyForm.noDuplicate'));
       return;
     }
     // Names of the SAME kind only: a 名錄 and a 樣區 may legitimately share one.
@@ -791,7 +817,7 @@ export default function RecordsListScreen() {
         if (it.kind === 'session') updateSession(it.id, { project_id: projectId });
         else if (it.kind === 'plot') updatePlotSurvey(it.id, { project_id: projectId });
         else if (it.kind === 'gloria') updateGloriaSurvey(it.id, { project_id: projectId });
-        else if (it.kind === 'survey') setCensusProject(it.id, projectId);
+        else if (it.kind === 'survey' || it.kind === 'modular') setCensusProject(it.id, projectId);
         else updateCollectionTrip(it.id, { project_id: projectId });
       }
     });
@@ -853,6 +879,10 @@ export default function RecordsListScreen() {
     // Censuses of one plot are successive, not parallel; team merge joins a census's blocks.
     if (kind === 'survey') {
       toast(t('survey.census.noMerge'));
+      return;
+    }
+    if (kind === 'modular') {
+      toast(t('surveyForm.noMerge'));
       return;
     }
     if (kind === 'plot') {
@@ -1014,8 +1044,9 @@ export default function RecordsListScreen() {
   // Checklists, plots, GLORIA surveys and censuses keep their versions 30 days after deletion
   // (record versions); collections have none.
   const recoverableNote = (items: RecordItem[]) =>
-    (items.some((it) => it.kind !== 'collection') ? `\n\n${t('records.deleteRecoverable')}` : '') +
-    (items.some((it) => it.kind === 'collection') ? `\n\n${t('records.deletePermanent')}` : '');
+    // Checklist / plot-style surveys keep no version before deletion until Phase 2C-b.
+    (items.some((it) => it.kind !== 'collection' && it.kind !== 'modular') ? `\n\n${t('records.deleteRecoverable')}` : '') +
+    (items.some((it) => it.kind === 'collection' || it.kind === 'modular') ? `\n\n${t('records.deletePermanent')}` : '');
   const deleteSelection = (picked: RecordItem[]) => {
     const rows = picked.reduce((sum, it) => sum + it.recordCount, 0);
     Alert.alert(
@@ -1042,6 +1073,7 @@ export default function RecordsListScreen() {
           if (it.kind === 'session') deleteSession(it.id);
           else if (it.kind === 'collection') deleteCollectionTrip(it.id);
           else if (it.kind === 'gloria') deleteGloriaSurvey(it.id);
+          else if (it.kind === 'modular') deleteSurvey(it.id);
           else if (it.kind !== 'survey') deletePlotSurvey(it.id);
         }
       });
@@ -1121,7 +1153,8 @@ export default function RecordsListScreen() {
             else if (item.kind === 'survey') {
               void deleteOneCensus(item.id);
               return;
-            } else deletePlotSurvey(item.id);
+            } else if (item.kind === 'modular') deleteSurvey(item.id);
+            else deletePlotSurvey(item.id);
             reload();
           },
         },
@@ -1299,7 +1332,7 @@ export default function RecordsListScreen() {
     : null;
   const activeSpecies = useMemo(() => {
     if (!activeSummary) return null;
-    if (activeSummary.kind === 'session' || activeSummary.kind === 'plot')
+    if (activeSummary.kind === 'session' || activeSummary.kind === 'plot' || activeSummary.kind === 'modular')
       return recordDiversity(activeSummary.kind, activeSummary.id)?.s ?? 0;
     // A GLORIA row's count IS its species count; MIREN has no single one.
     if (activeSummary.kind === 'gloria') return activeMatch?.recordCount ?? null;
@@ -1315,6 +1348,7 @@ export default function RecordsListScreen() {
     'collection',
     ...(moduleGloria || counts.gloria > 0 ? (['gloria'] as Filter[]) : []),
     ...(moduleSurvey || counts.survey > 0 ? (['survey'] as Filter[]) : []),
+    ...(counts.modular > 0 ? (['modular'] as Filter[]) : []),
   ];
   const chipLabel: Record<Filter, string> = { ...filterLabel, gloria: 'GLORIA' };
   const topBlock = selectMode ? null : (
@@ -1404,8 +1438,11 @@ export default function RecordsListScreen() {
               color: 'acorn',
               onPress: () => handleToggleStar(item),
             },
-            // A census is exported, not duplicated or sent to iNaturalist.
-            ...(item.kind === 'survey'
+            // A census is exported, not duplicated or sent to iNaturalist; a
+            // checklist / plot-style survey has none of the three yet (2E).
+            ...(item.kind === 'modular'
+              ? []
+              : item.kind === 'survey'
               ? ([
                   {
                     label: t('common.export'),

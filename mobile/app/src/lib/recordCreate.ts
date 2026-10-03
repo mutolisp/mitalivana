@@ -67,8 +67,13 @@ import { findGloriaSurveyFor, localGloriaDoc } from '~/modules/gloria/merge';
 import { saveVersionByUuid } from '~/db/recordVersions';
 import { showCreateSheet } from '~/lib/createSheet';
 import { listQuadrats } from '~/db/quadrats';
+import { defaultSurveyorString } from '~/db/surveyors';
+import { createSurvey, finishSurvey, seriesCodeNeeded } from '~/survey/db/surveys';
+import { useActiveSurvey } from '~/survey/form/activeSurvey';
+import type { SurveyTemplate } from '~/survey/template/types';
 
-type NewRecordKind = 'session' | 'plot' | 'gloria' | 'miren';
+/** 'modular': a checklist / plot-style survey of the survey framework. */
+type NewRecordKind = 'session' | 'plot' | 'gloria' | 'miren' | 'modular';
 
 type ActiveConflict = {
   kind: NewRecordKind;
@@ -83,6 +88,18 @@ type ActiveConflict = {
  * both somehow coexist (it's the heavier-weight record).
  */
 function findActiveConflict(): ActiveConflict | null {
+  const fw = useActiveSurvey.getState().survey;
+  if (fw) {
+    return {
+      kind: 'modular',
+      label: fw.name ?? i18n.t('record.kindModular'),
+      href: `/survey/form/${fw.id}` as Href,
+      end: () => {
+        finishSurvey(fw.id);
+        useActiveSurvey.getState().refresh();
+      },
+    };
+  }
   const miren = useActiveMiren.getState().survey;
   if (miren) {
     return {
@@ -137,7 +154,20 @@ function findActiveConflict(): ActiveConflict | null {
 }
 
 function nounOf(k: NewRecordKind): string {
-  return i18n.t(k === 'session' ? 'nav.session' : k === 'plot' ? 'nav.plot' : k === 'gloria' ? 'nav.gloria' : 'nav.miren');
+  switch (k) {
+    case 'session':
+      return i18n.t('nav.session');
+    case 'plot':
+      return i18n.t('nav.plot');
+    case 'gloria':
+      return i18n.t('nav.gloria');
+    case 'miren':
+      return i18n.t('nav.miren');
+    case 'modular':
+      return i18n.t('record.kindModular');
+    default:
+      return assertNever(k, 'record kind');
+  }
 }
 
 /**
@@ -179,6 +209,7 @@ export async function ensureNoConflictingActive(wanted: NewRecordKind): Promise<
   useActivePlot.getState().refresh();
   useActiveGloria.getState().refresh();
   useActiveMiren.getState().refresh();
+  useActiveSurvey.getState().refresh();
 
   const conflict = findActiveConflict();
   if (!conflict) return true;
@@ -268,6 +299,55 @@ export async function startMirenAndOpen(
 /** The MIREN region list; surveys are started from a route there. */
 export function openMiren(): void {
   router.push('/miren' as Href);
+}
+
+/**
+ * Start a checklist / plot-style survey from a template and open it (test
+ * templates until the builder, 2D). Same single-active guard as the other
+ * kinds. A plot-style survey without a permanent plot is named like a plot
+ * (asked for); on a plot, a second series asks for its short code (§7.4).
+ */
+export async function startModularSurveyAndOpen(template: SurveyTemplate, frameId: number | null = null): Promise<void> {
+  const ok = await ensureNoConflictingActive('modular');
+  if (!ok) return;
+  let name: string | undefined;
+  if (template.style === 'plot' && frameId == null) {
+    const raw = await promptText({
+      title: i18n.t('surveyForm.newPlotTitle'),
+      message: i18n.t('recordCreate.enterPlotid', { example: 'PLOT_2026_001' }),
+      placeholder: 'PLOT_2026_001',
+      autoCapitalize: 'none',
+      confirmText: i18n.t('create.startSurvey'),
+    });
+    name = raw?.trim();
+    if (!name) return;
+  }
+  let seriesCode: string | undefined;
+  if (frameId != null && seriesCodeNeeded(frameId, template.id)) {
+    const raw = await promptText({
+      title: i18n.t('surveyForm.seriesCodeTitle'),
+      message: i18n.t('surveyForm.seriesCodeMsg'),
+      placeholder: 'veg',
+      autoCapitalize: 'none',
+      confirmText: i18n.t('create.startSurvey'),
+    });
+    seriesCode = raw?.trim();
+    if (!seriesCode) return;
+  }
+  let id: number;
+  try {
+    // add-guard: ensureNoConflictingActive() at the top of this function
+    id = createSurvey({ template, frameId, seriesCode, name, investigators: defaultSurveyorString() });
+  } catch (e) {
+    Alert.alert(i18n.t('surveyForm.startFailed'), errText(e));
+    return;
+  }
+  useActiveSurvey.getState().refresh();
+  useActiveMiren.getState().refresh();
+  useActiveGloria.getState().refresh();
+  useActivePlot.getState().refresh();
+  useActiveSession.getState().refresh();
+  router.push(`/survey/form/${id}` as Href);
 }
 
 /** The permanent-plot list; a tree census is started from a plot there. Not
@@ -826,7 +906,7 @@ export async function duplicateRecordAndOpen(
   item: RecordItem,
   opts: DuplicateRecordOptions,
 ): Promise<number | null> {
-  if (item.kind === 'gloria' || item.kind === 'survey') return null; // not duplicable — see the records tab's handleDuplicate
+  if (item.kind === 'gloria' || item.kind === 'survey' || item.kind === 'modular') return null; // not duplicable — see the records tab's handleDuplicate
   if (opts.activate && item.kind !== 'collection') {
     // 採集 sits outside the invariant; the other two must ask first.
     const ok = await ensureNoConflictingActive(item.kind);

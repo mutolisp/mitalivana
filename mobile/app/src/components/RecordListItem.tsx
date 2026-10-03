@@ -22,6 +22,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, Text, View } from 'react-native';
 import { listPlotSpecies, listSessionRecords, type RecordItem, type RecordKind } from '~/db';
+import { listOccurrences } from '~/survey/db/surveys';
 import { isoDateTime } from '~/lib/datetime';
 import { computeDiversity } from '~/lib/diversity';
 import { useSettings } from '~/stores/settings';
@@ -61,7 +62,7 @@ export function recordDiversity(
   }
   let v: { s: number; h: number | null; j: number | null } | null = null;
   try {
-    const rows = kind === 'plot' ? listPlotSpecies(id) : listSessionRecords(id);
+    const rows = kind === 'plot' ? listPlotSpecies(id) : kind === 'modular' ? listOccurrences(id) : listSessionRecords(id);
     const d = computeDiversity(
       rows.map((r) => ({
         taxon_id: r.taxon_id,
@@ -84,6 +85,7 @@ const KIND_ICON: Record<RecordKind, keyof typeof Ionicons.glyphMap> = {
   gloria: 'triangle-outline',
   collection: 'pricetag-outline',
   survey: 'apps-outline',
+  modular: 'clipboard-outline',
 };
 
 /**

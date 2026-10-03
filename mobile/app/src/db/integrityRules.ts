@@ -60,6 +60,7 @@ export const CASCADE_ORPHANS: ReadonlyArray<readonly [string, string]> = [
   ['fw_survey_values', 'survey_id NOT IN (SELECT id FROM fw_surveys)'],
   ['fw_unit_values', 'unit_id NOT IN (SELECT id FROM fw_units)'],
   ['fw_occurrence_values', 'occurrence_id NOT IN (SELECT id FROM fw_occurrences)'],
+  ['fw_rechecks', 'survey_id NOT IN (SELECT id FROM fw_surveys)'],
   // fw_media's owners other than the survey are optional. `NULL NOT IN
   // (<empty>)` is true in SQLite, so each tests IS NOT NULL first; without it
   // an empty fw_units would sweep every photo (check:integrity-rules).
@@ -115,4 +116,6 @@ export const NULL_DANGLING: ReadonlyArray<readonly [string, string, string]> = [
   ['fw_units', 'parent_id', 'fw_units'],
   ['fw_occurrences', 'unit_id', 'fw_units'],
   ['fw_frame_labels', 'first_survey_id', 'fw_surveys'],
+  // A recheck answer whose occurrence is gone (a re-identification then needs answering again).
+  ['fw_rechecks', 'occurrence_id', 'fw_occurrences'],
 ];

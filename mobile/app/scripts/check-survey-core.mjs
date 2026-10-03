@@ -47,6 +47,11 @@ import * as c from '../src/survey/db/surveyCore.ts';
 import * as tp from '../src/survey/db/templatesCore.ts';
 import { STEMMAP_TEMPLATE } from '../src/survey/templates/stemmap.ts';
 import { withRequired } from '../src/survey/template/validate.ts';
+import { childLevel, unitPath, unitRows } from '../src/survey/form/units.ts';
+import { recheckCandidates, recheckKey, recheckOpen } from '../src/survey/form/recheck.ts';
+import { blankOccurrenceHasErrors, formComponents } from '../src/survey/form/occurrenceForm.ts';
+import { SAMPLE_TEMPLATES, SAMPLE_TEMPLATES_OFFERED } from '../src/survey/templates/samples.ts';
+import { validateTemplate } from '../src/survey/template/validate.ts';
 
 let failed = 0;
 const ok = (cond, msg) => {
@@ -147,6 +152,8 @@ const K1 = c.createSurvey(ctx, { template: CL2, investigators: 'A' });
 const k1 = c.getFwSurvey(ctx, K1);
 ok(k1.style === 'checklist' && k1.frame_id == null && k1.series_id == null && k1.census_no == null && k1.status === 'active', 'survey: checklist without frame, series or number');
 ok(k1.template_snapshot === JSON.stringify(CL2), 'survey: keeps the template snapshot');
+ok(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(k1.name ?? ''), `name (v84): without a frame, the start time as a session is named (${k1.name})`);
+ok(c.getActiveSurvey(ctx)?.id === K1, 'active: the open checklist survey');
 ok(statusOf('sessions', 1) === 'done' && statusOf('plot_surveys', 1) === 'done', 'single-active: starting a survey ends the open session and plot');
 ok(statusOf('fw_surveys', C1) === 'active', 'single-active: the tree census stays open');
 const K2 = c.createSurvey(ctx, { template: CL2 });
@@ -155,10 +162,25 @@ c.reopenSurvey(ctx, K1);
 ok(statusOf('fw_surveys', K1) === 'active' && statusOf('fw_surveys', K2) === 'done' && statusOf('fw_surveys', C1) === 'active', 'single-active: reopening ends the other survey, not the census');
 closeActiveRecords(db, ctx.now());
 ok(statusOf('fw_surveys', K1) === 'done' && statusOf('fw_surveys', C1) === 'active', 'single-active: a new session or plot ends an open survey, not the census');
+ok(c.getActiveSurvey(ctx) == null, 'active: an open census is not the open survey');
+// The end time a finish records (chooseEndTime): none given, now unless one exists; null, as it is; a time, that time.
+c.reopenSurvey(ctx, K2);
+c.finishSurvey(ctx, K2, null);
+ok(statusOf('fw_surveys', K2) === 'done' && c.getFwSurvey(ctx, K2).stop_ts == null, 'finish: null leaves the end time blank');
+c.reopenSurvey(ctx, K2);
+c.finishSurvey(ctx, K2, 4242);
+ok(c.getFwSurvey(ctx, K2).stop_ts === 4242, 'finish: a chosen time is recorded');
+c.reopenSurvey(ctx, K2);
+const beforeFinish = clock;
+c.finishSurvey(ctx, K2);
+ok(c.getFwSurvey(ctx, K2).stop_ts > beforeFinish, 'finish: none given records now (reopening cleared the old one)');
 ok(s.getSurvey(ctx, K1) == null, 'census code: a checklist survey is not a census');
 throwsCode(() => c.updateSurvey(ctx, C1, { notes: 'x' }), 'wrong_style', 'survey code: a census is not its business');
 c.updateSurvey(ctx, K1, { notes: '晴', lat: 24.1 });
 ok(c.getFwSurvey(ctx, K1).notes === '晴' && c.getFwSurvey(ctx, K1).lat === 24.1, 'survey: notes and position update');
+c.updateSurvey(ctx, K1, { name: ' 晨間名錄 ' });
+ok(c.getFwSurvey(ctx, K1).name === '晨間名錄', 'name: renamed, trimmed');
+throwsCode(() => c.updateSurvey(ctx, K1, { name: '  ' }), 'bad_value', 'name: never empty');
 
 // ── checklist occurrences ────────────────────────────────────────────────
 throwsCode(() => c.addUnit(ctx, K1, { levelKey: 'subplot', code: '1' }), 'wrong_style', 'units: a checklist has none');
@@ -199,8 +221,11 @@ throwsCode(() => fu('S1', 'subplot'), 'unit_taken', 'frame units: code unique pe
 ok(fu('S1', 'quadrat') > 0, 'frame units: the same code on another level is fine');
 throwsCode(() => c.addFrameUnit(ctx, F, { levelKey: 'quadrat', code: 'Q7', parentId: 9999 }), 'bad_unit', 'frame units: the parent is in the same frame');
 throwsCode(() => c.createSurvey(ctx, { template: PL, frameId: F }), 'series_code_required', 'plot survey: a second series on a frame needs a code');
+ok(c.seriesCodeNeeded(ctx, F, PL.id) && !c.seriesCodeNeeded(ctx, F, STEMMAP_TEMPLATE.id), 'series: a new template on a used frame needs a code, the census series does not');
 const P1 = c.createSurvey(ctx, { template: PL, frameId: F, seriesCode: 'veg' });
 const p1 = c.getFwSurvey(ctx, P1);
+ok(!c.seriesCodeNeeded(ctx, F, PL.id), 'series: once it exists, no code is asked');
+ok(p1.name === 'P1' && c.getActiveSurvey(ctx)?.id === P1, 'name: on a frame, the frame code; the open survey is it');
 ok(p1.style === 'plot' && p1.frame_id === F && p1.series_id !== S0 && p1.census_no === 1, 'plot survey: own series on the frame, number 1');
 ok(statusOf('fw_surveys', C1) === 'active' && statusOf('fw_surveys', K2) === 'done', 'plot survey: single-active spares the census');
 ok(s.listCensuses(ctx, F).every((x) => x.style === 'individual') && s.listCensuses(ctx, F).length === 1, 'census code: a plot survey on the frame is not listed as a census');
@@ -258,6 +283,13 @@ throwsCode(() => c.addFrameLabel(ctx, F, { taxonId: 't8', verbatim: 'sp1' }), 'l
 c.updateFrameLabel(ctx, L1, { note: '葉背有毛', photoUri: 'file:///photos/sp1.jpg' });
 ok(c.listFrameLabels(ctx, F)[0].note === '葉背有毛', 'labels: note and photo update');
 
+const oX = c.addOccurrence(ctx, P1, { taxon_id: 't9' });
+c.addOccurrence(ctx, P1, { taxon_id: 't10', unit_id: unitBy('S1').id });
+const listed = c.listSurveys(ctx, { frameId: F });
+ok(listed.length === 1 && listed[0].id === P1 && listed[0].species_count === 4 && listed[0].occurrence_count === 4 && listed[0].frame_code === 'P1', 'list: a frame’s plot-style surveys with counts, no census');
+ok(c.listSurveys(ctx).every((x) => x.style !== 'individual') && c.listSurveys(ctx).length === 3, 'list: every checklist / plot-style survey');
+ok(c.findOccurrence(ctx, P1, unitBy('S2').id, 't8', ' sp1 ')?.id === oB && c.findOccurrence(ctx, P1, null, 't8', 'sp1') == null, 'find: same taxon and label in the same unit only');
+
 // ── a recheck: blind, then recheck ───────────────────────────────────────
 c.finishSurvey(ctx, P1);
 c.setFrameUnitRetired(ctx, FS1, true);
@@ -271,19 +303,66 @@ ok(
 ok(c.hasBlindPhase(ctx, P2), 'recheck: starts blind');
 throwsCode(() => c.previousOccurrences(ctx, P2), 'blind_open', 'recheck: the earlier list is refused while blind');
 const oC = c.addOccurrence(ctx, P2, { taxon_id: 't7', unit_id: unitBy('Q1', u2).id });
+c.updateOccurrence(ctx, oC, { notes: 'x' });
+ok(c.getOccurrence(ctx, oC).phase === 'blind', 'recheck: an edit keeps the phase');
+ok(c.recheckState(ctx, P2) == null, 'recheck state: none while blind');
+throwsCode(() => c.answerRecheck(ctx, P2, { frameUnitId: null, taxonId: 't9', verbatim: null }, 'not_found'), 'blind_open', 'recheck answers: refused while blind');
 c.closeBlindPhase(ctx, P2);
 const closedAt = c.getFwSurvey(ctx, P2).blind_closed_at;
 c.closeBlindPhase(ctx, P2);
 ok(closedAt != null && c.getFwSurvey(ctx, P2).blind_closed_at === closedAt, 'recheck: closing twice keeps the first time');
+// Sealed (v84, as MIREN): a blind occurrence after the close takes no change at all.
+throwsCode(() => c.updateOccurrence(ctx, oC, { notes: 'y' }), 'blind_sealed', 'sealed: no edit');
+throwsCode(() => c.deleteOccurrence(ctx, oC), 'blind_sealed', 'sealed: no removal');
+throwsCode(() => c.setValue(ctx, { kind: 'occurrence', id: oC }, 'traits', 'h', { num: 1 }), 'blind_sealed', 'sealed: no values');
+throwsCode(() => c.writeComponent(ctx, { kind: 'occurrence', id: oC }, 'taxon', { verbatim_identification: 'z' }), 'blind_sealed', 'sealed: no component writes');
+ok(c.occurrenceSealed(ctx, c.getOccurrence(ctx, oC)) && !c.occurrenceSealed(ctx, c.getOccurrence(ctx, oA)), 'sealed: only blind ones after the close');
+// A mistaken close can be undone until recheck work exists.
+c.reopenBlindPhase(ctx, P2);
+ok(c.getFwSurvey(ctx, P2).blind_closed_at == null && c.getOccurrence(ctx, oC).phase === 'blind', 'blind: reopened before any recheck work');
+c.closeBlindPhase(ctx, P2);
 const oD = c.addOccurrence(ctx, P2, { taxon_id: 't8', verbatim_identification: 'sp1', unit_id: unitBy('S2', u2).id });
 ok(c.getOccurrence(ctx, oC).phase === 'blind' && c.getOccurrence(ctx, oD).phase === 'recheck', 'recheck: blind before closing, recheck after');
-c.updateOccurrence(ctx, oC, { notes: 'x' });
-ok(c.getOccurrence(ctx, oC).phase === 'blind', 'recheck: an edit keeps the phase');
+c.updateOccurrence(ctx, oD, { notes: '補記' });
+ok(c.getOccurrence(ctx, oD).notes === '補記', 'sealed: a recheck occurrence stays editable');
+throwsCode(() => c.reopenBlindPhase(ctx, P2), 'recheck_begun', 'blind: not reopened once a recheck occurrence exists');
 const prev = c.previousOccurrences(ctx, P2);
 ok(
-  prev.length === 2 && prev.find((p) => p.taxon_id === 't7').unit_code === 'Q1' && prev.find((p) => p.taxon_id === 't7').frame_unit_id === FQ1,
+  prev.length === 4 && prev.find((p) => p.taxon_id === 't7').unit_code === 'Q1' && prev.find((p) => p.taxon_id === 't7').frame_unit_id === FQ1,
   'recheck: after closing, the earlier list with its units (matched by frame unit)',
 );
+// Answers (v84 fw_rechecks): every earlier taxon missing from the blind list of its unit.
+const st0 = c.recheckState(ctx, P2);
+const keys0 = st0.candidates.map((x) => `${x.taxon_id}@${x.frame_unit_id ?? '-'}`).sort();
+ok(
+  st0.previousId === P1 && JSON.stringify(keys0) === JSON.stringify([`t8@${FS2}`, 't9@-']) && st0.open === 2,
+  `recheck state: t7 was recorded blind, t10's unit is retired; t8 (S2) and t9 (no unit) need answers (${keys0})`,
+);
+ok(st0.candidates.find((x) => x.taxon_id === 't8').unitId === unitBy('S2', u2).id, 'recheck state: a candidate knows this survey’s unit at its place');
+const T8 = { frameUnitId: FS2, taxonId: 't8', verbatim: 'sp1' };
+const T9 = { frameUnitId: null, taxonId: 't9', verbatim: null };
+ok(c.answerRecheck(ctx, P2, T8, 'found') === oD, 'answer found: the recheck occurrence already there is the find');
+const oF = c.answerRecheck(ctx, P2, T9, 'found');
+ok(c.getOccurrence(ctx, oF).phase === 'recheck' && c.getOccurrence(ctx, oF).unit_id == null && c.recheckState(ctx, P2).open === 0, 'answer found: adds a recheck occurrence at the same place');
+ok(c.answerRecheck(ctx, P2, T9, 'found') === oF && count('fw_rechecks', 'survey_id = ?', P2) === 2, 'answer found again: same occurrence, one answer');
+c.answerRecheck(ctx, P2, T9, 'not_found');
+ok(c.getOccurrence(ctx, oF) == null && c.recheckState(ctx, P2).open === 0, 'answer changed: the found occurrence goes, not found still answers');
+throwsCode(() => c.answerRecheck(ctx, P2, T9, 'reidentified'), 'not_found', 'answer reidentified: needs an occurrence of this survey');
+throwsCode(() => c.answerRecheck(ctx, P2, T9, 'reidentified', o1), 'not_found', 'answer reidentified: not one of another survey');
+throwsCode(() => c.answerRecheck(ctx, P2, { frameUnitId: FQ1, taxonId: 't7', verbatim: null }, 'not_found'), 'not_found', 'answer: only candidates');
+const oG = c.addOccurrence(ctx, P2, { taxon_id: 't11', unit_id: unitBy('Q1', u2).id });
+c.answerRecheck(ctx, P2, T9, 'reidentified', oG);
+ok(c.recheckState(ctx, P2).open === 0 && c.listRechecks(ctx, P2).find((r) => r.prev_taxon_id === 't9').occurrence_id === oG, 'answer reidentified: names the occurrence');
+c.deleteOccurrence(ctx, oG);
+ok(c.recheckState(ctx, P2).open === 1 && c.listRechecks(ctx, P2).find((r) => r.prev_taxon_id === 't9').occurrence_id == null, 'answer reidentified: its occurrence deleted, it needs answering again');
+const oF2 = c.answerRecheck(ctx, P2, T9, 'found');
+c.deleteOccurrence(ctx, oF2);
+ok(c.listRechecks(ctx, P2).every((r) => r.prev_taxon_id !== 't9') && c.recheckState(ctx, P2).open === 1, 'answer found: deleting its occurrence removes the answer');
+c.answerRecheck(ctx, P2, T9, 'reidentified', oC);
+ok(c.recheckState(ctx, P2).open === 0, 'answer reidentified: a sealed blind occurrence may be the one');
+rejects(`INSERT INTO fw_rechecks (uuid, survey_id, frame_unit_id, prev_taxon_id, prev_verbatim_identification, outcome, checked_at, updated_at) VALUES ('dup', ${P2}, ${FS2}, 't8', 'sp1', 'found', 1, 1)`, 'schema: one answer per place, taxon and label');
+rejects(`INSERT INTO fw_rechecks (uuid, survey_id, prev_taxon_id, outcome, checked_at, updated_at) VALUES ('dup2', ${P2}, 't9', 'not_found', 1, 1)`, 'schema: one answer per place, taxon and label (no unit)');
+rejects(`INSERT INTO fw_rechecks (uuid, survey_id, prev_taxon_id, outcome, checked_at, updated_at) VALUES ('bad', ${P2}, 't99', 'maybe', 1, 1)`, 'schema: outcome is one of three');
 ok(c.previousSurveyId(ctx, P2) === P1 && c.previousSurveyId(ctx, K1) == null, 'recheck: previous survey in the series only');
 
 // ── deletes ──────────────────────────────────────────────────────────────
@@ -426,6 +505,44 @@ c.removeMedia(ctx, O, 'audio', 'file:///audio/a1.m4a');
 ok(c.listMedia(ctx, O, 'audio').length === 1, 'media: removed');
 c.deleteSurvey(ctx, V);
 ok(count('fw_occurrence_values', 'occurrence_id = ?', occ) === 0 && count('fw_media', 'survey_id = ?', V) === 0 && count('fw_unit_values', 'unit_id IN (?, ?)', vSub, quad) === 0, 'values: a deleted survey takes its component values and media');
+
+ok(count('fw_rechecks', 'survey_id = ?', P2) > 0, 'recheck answers exist before the delete');
+// Foreign keys off, as in migrations and the startup sweep: the delete must not rely on the cascade.
+sqlite.exec('PRAGMA foreign_keys = OFF;');
+c.deleteSurvey(ctx, P2);
+sqlite.exec('PRAGMA foreign_keys = ON;');
+ok(count('fw_rechecks', 'survey_id = ?', P2) === 0, 'delete survey: its recheck answers go');
+
+// ── pure modules of the screens (2C-a) ───────────────────────────────────
+const mkU = (id, parent_id, level_key, code, sort = 0) => ({ id, parent_id, level_key, code, sort });
+const rowsU = unitRows(['subplot', 'quadrat'], [mkU(4, 1, 'quadrat', 'A10'), mkU(3, 1, 'quadrat', 'A2'), mkU(1, null, 'subplot', 'A'), mkU(2, null, 'subplot', 'B'), mkU(5, 99, 'quadrat', 'Z1'), mkU(6, 6, 'quadrat', 'S')]);
+ok(
+  JSON.stringify(rowsU.map((r) => `${r.path}:${r.depth}`)) === JSON.stringify(['A:0', 'A / A2:1', 'A / A10:1', 'B:0', 'S:0', 'Z1:0']),
+  `units: walking order, numeric codes, an orphan and a self-parent at the top (${rowsU.map((r) => `${r.path}:${r.depth}`)})`,
+);
+ok(unitPath([mkU(1, null, 's', 'A'), mkU(3, 1, 'q', 'A2')], 3) === 'A / A2' && unitPath([], null) === '', 'units: path of codes');
+ok(childLevel(['subplot', 'quadrat'], 'subplot') === 'quadrat' && childLevel(['subplot', 'quadrat'], 'quadrat') == null, 'units: the level below');
+const prevS = [
+  { frameUnitId: 1, taxonId: 'a', verbatim: null },
+  { frameUnitId: 1, taxonId: 'a', verbatim: null },
+  { frameUnitId: 1, taxonId: 'b', verbatim: 'sp1' },
+  { frameUnitId: 2, taxonId: 'a', verbatim: null },
+  { frameUnitId: 9, taxonId: 'c', verbatim: null },
+  { frameUnitId: null, taxonId: 'd', verbatim: ' ' },
+];
+const cand = recheckCandidates(prevS, [{ frameUnitId: 1, taxonId: 'a', verbatim: '' }, { frameUnitId: 1, taxonId: 'b', verbatim: 'sp2' }], new Set([1, 2, null]));
+ok(
+  JSON.stringify(cand.map(recheckKey)) === JSON.stringify([recheckKey(prevS[2]), recheckKey(prevS[3]), recheckKey(prevS[5])]),
+  'recheck model: per place, taxon and label; once each; places this survey lacks are skipped',
+);
+ok(recheckOpen(cand, [{ key: recheckKey(prevS[2]), outcome: 'not_found', occurrenceId: null }, { key: recheckKey(prevS[3]), outcome: 'reidentified', occurrenceId: null }]) === 2, 'recheck model: a re-identification without its occurrence is still open');
+ok(SAMPLE_TEMPLATES_OFFERED === false, 'samples: not offered outside a development build');
+for (const t of SAMPLE_TEMPLATES) {
+  ok(validateTemplate(t).length === 0, `samples: ${t.id} is valid (${validateTemplate(t)})`);
+  ok(!blankOccurrenceHasErrors(t), `samples: ${t.id} quick adds without opening the form`);
+  ok(formComponents(t, 'occurrence').every((x) => x.type !== 'taxon') && formComponents(t, 'survey').some((x) => x.type === 'timestamp'), `samples: ${t.id} form components per level`);
+}
+ok(SAMPLE_TEMPLATES.some((t) => t.quick_add) && SAMPLE_TEMPLATES.some((t) => !t.quick_add), 'samples: one of each quick-add rule');
 
 // ── the census and the integrity sweep ───────────────────────────────────
 ok(JSON.stringify(censusRows()) === JSON.stringify(censusBefore), `census: untouched (${censusRows()} vs ${censusBefore})`);

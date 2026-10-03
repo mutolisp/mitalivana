@@ -2,6 +2,11 @@
  * One permanent plot: its geometry, its censuses, and where the next census
  * starts. A new census carries every tree's position; measurements start
  * blank and the previous census's values are shown beside them.
+ *
+ * Below the censuses, the plot as plot-style surveys use it (Phase 2C-a): its
+ * unit layout, its morphospecies list and those surveys. Starting one is
+ * offered only with the test templates (development builds) until the
+ * builder (2D); the section shows whenever the plot already has any of it.
  */
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useCallback, useState } from 'react';
@@ -19,6 +24,10 @@ import { deleteFrame, getFrame, listCensuses, startCensus, type CensusListRow, t
 import { fgQuadratCounts } from '~/survey/stemmap/coords';
 import { STEMMAP_TEMPLATE } from '~/survey/templates/stemmap';
 import { Chevron } from '~/components/ui/Chevron';
+import { startModularSurveyAndOpen } from '~/lib/recordCreate';
+import { listFrameLabels, listFrameUnits, listSurveys } from '~/survey/db/surveys';
+import type { SurveyListRow } from '~/survey/db/surveyCore';
+import { SAMPLE_PLOT_TEMPLATE, SAMPLE_TEMPLATES_OFFERED } from '~/survey/templates/samples';
 
 export default function SurveyFrameScreen() {
   const { t } = useTranslation();
@@ -26,10 +35,14 @@ export default function SurveyFrameScreen() {
   const id = Number(useLocalSearchParams<{ id: string }>().id);
   const [frame, setFrame] = useState<FrameRow | null>(() => getFrame(id));
   const [censuses, setCensuses] = useState<CensusListRow[]>(() => listCensuses(id));
+  const [plotSurveys, setPlotSurveys] = useState<SurveyListRow[]>(() => listSurveys({ frameId: id }));
+  const [layout, setLayout] = useState(() => ({ units: listFrameUnits(id).length, labels: listFrameLabels(id).length }));
   useFocusEffect(
     useCallback(() => {
       setFrame(getFrame(id));
       setCensuses(listCensuses(id));
+      setPlotSurveys(listSurveys({ frameId: id }));
+      setLayout({ units: listFrameUnits(id).length, labels: listFrameLabels(id).length });
     }, [id]),
   );
 
@@ -65,7 +78,7 @@ export default function SurveyFrameScreen() {
     });
     if (idx === 0) router.push(`/survey/frame/edit?id=${frame.id}` as Href);
     if (idx === 1) {
-      if (censuses.length > 0) {
+      if (censuses.length > 0 || plotSurveys.length > 0) {
         Alert.alert(t('survey.frame.delete'), t('survey.frame.deleteHasCensus'));
         return;
       }
@@ -139,6 +152,55 @@ export default function SurveyFrameScreen() {
             />
             {censuses.length ? <Text className="mt-2 text-xs font-semibold uppercase tracking-wide text-ink-3 dark:text-gray-400">{t('survey.frame.censuses')}</Text> : null}
           </View>
+        }
+        ListFooterComponent={
+          SAMPLE_TEMPLATES_OFFERED || plotSurveys.length || layout.units || layout.labels ? (
+            <View className="mt-4 gap-2">
+              <Text className="text-xs font-semibold uppercase tracking-wide text-ink-3 dark:text-gray-400">{t('surveyForm.frame.section')}</Text>
+              <FormCard>
+                <Pressable onPress={() => router.push(`/survey/frame/units?id=${frame.id}` as Href)} accessibilityRole="button" className="min-h-11 flex-row items-center">
+                  <Text className="flex-1 text-base text-ink dark:text-gray-100">{t('surveyForm.frame.units')}</Text>
+                  <Text className="mr-2 text-sm text-ink-3 dark:text-gray-400">{layout.units}</Text>
+                  <Chevron />
+                </Pressable>
+                <Pressable onPress={() => router.push(`/survey/frame/labels?id=${frame.id}` as Href)} accessibilityRole="button" className="min-h-11 flex-row items-center">
+                  <Text className="flex-1 text-base text-ink dark:text-gray-100">{t('surveyForm.frame.labels')}</Text>
+                  <Text className="mr-2 text-sm text-ink-3 dark:text-gray-400">{layout.labels}</Text>
+                  <Chevron />
+                </Pressable>
+              </FormCard>
+              {SAMPLE_TEMPLATES_OFFERED ? (
+                <Button
+                  label={t('surveyForm.frame.start')}
+                  icon="add"
+                  variant="secondary"
+                  onPress={() => {
+                    const open = plotSurveys.find((x) => x.status === 'active');
+                    if (open) router.push(`/survey/form/${open.id}` as Href);
+                    else void startModularSurveyAndOpen(SAMPLE_PLOT_TEMPLATE, frame.id);
+                  }}
+                />
+              ) : null}
+              {plotSurveys.map((x) => (
+                <Pressable
+                  key={x.id}
+                  onPress={() => router.push(`/survey/form/${x.id}` as Href)}
+                  accessibilityRole="button"
+                  className="flex-row items-center rounded-card border border-line bg-card px-4 py-3 active:opacity-70 dark:border-line-dark dark:bg-card-dark"
+                >
+                  <View className="flex-1">
+                    <Text className="text-base font-bold text-ink dark:text-gray-100">{t('surveyForm.frame.surveyNo', { n: x.census_no ?? 1, name: x.name ?? '' })}</Text>
+                    <Text className="mt-0.5 text-sm text-ink-2 dark:text-gray-400">
+                      {[isoDate(x.start_ts), x.status === 'active' ? t('records.inProgress') : null, t('surveyForm.speciesCount', { count: x.species_count })]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </Text>
+                  </View>
+                  <Chevron />
+                </Pressable>
+              ))}
+            </View>
+          ) : null
         }
         renderItem={({ item }) => (
           <Pressable

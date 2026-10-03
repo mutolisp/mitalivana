@@ -56,6 +56,7 @@ import { useActiveSession } from '~/stores/activeSession';
 import { useActiveGloria } from '~/modules/gloria/store';
 import { ensureRosterTaxon } from '~/modules/gloria/db';
 import { blockIfMirenActive } from '~/lib/mirenGuard';
+import { takenByActiveSurvey } from '~/survey/form/quickAdd';
 import {
   getKeyRunnerState,
   pushRecentKey,
@@ -472,6 +473,8 @@ export default function KeyRunnerScreen() {
         });
         return;
       }
+      // An open checklist / plot-style survey takes it or refuses it.
+      if (takenByActiveSurvey([{ taxon_id: taxonId, cname: taxon.common_name_c, name: taxon.simple_name }])) return;
       // Session path: start a fresh session if none active (same pattern
       // as SpeciesSearchPanel) — never over a MIREN survey.
       if (!activeSession && blockIfMirenActive()) return;

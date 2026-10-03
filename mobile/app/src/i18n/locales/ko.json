@@ -99,7 +99,8 @@
     "nSpeciesInThem_other": "그 안의 {{count}}종",
     "addedCount_other": "{{count}}종을 즐겨찾기에 추가했습니다",
     "kindGloria": "GLORIA",
-    "kindSurvey": "매목조사"
+    "kindSurvey": "매목조사",
+    "kindModular": "목록형／조사구형 조사"
   },
   "gnss": {
     "permTitle": "위치 권한이 필요합니다",
@@ -345,7 +346,8 @@
     "lastUpdated": "마지막 수정",
     "kindGloria": "GLORIA 정상 조사",
     "moreActions": "추가 작업",
-    "kindMiren": "MIREN 도로/탐방로 조사"
+    "kindMiren": "MIREN 도로/탐방로 조사",
+    "kindModular": "목록형／조사구형 조사"
   },
   "rank": {
     "kingdom": "계",
@@ -548,7 +550,13 @@
     "addedToGloria_other": "GLORIA 정상 목록에 {{count}}종을 추가했습니다. 각 단위 화면에서 기록하세요.",
     "mirenActiveTitle": "MIREN 조사 진행 중",
     "mirenActiveMsg": "{{year}}년 MIREN 조사가 아직 끝나지 않았습니다. 여기서 종을 추가하면 종 목록이 시작되고 MIREN 조사가 종료됩니다. MIREN 종은 조사의 플롯에서 기록하세요. 다른 종을 기록하려면 먼저 MIREN 조사를 끝내세요.",
-    "goToMiren": "MIREN 조사로 이동"
+    "goToMiren": "MIREN 조사로 이동",
+    "surveyNoQuickTitle": "조사가 진행 중입니다",
+    "surveyNoQuickMsg": "「{{name}}」의 조사표는 여기에서 종을 추가할 수 없습니다. 조사 화면에서 기록하세요. 다른 종을 기록하려면 먼저 이 조사를 끝내세요.",
+    "addedToSurvey": "조사에 추가함: {{name}}",
+    "addedManyToSurvey_other": "{{count}}종을 조사에 추가함",
+    "goToSurvey": "조사로 이동",
+    "toSurvey": "현재 조사에 추가"
   },
   "endSession": {
     "minutes": "{{count}}분",
@@ -1441,7 +1449,8 @@
     "sessionSubtitleNoProject_other": "{{count}}건",
     "collectionSubtitleNoProject_other": "표본 {{count}}점",
     "gloriaSubtitle_other": "mocy {{mocy}} · {{count}}종 · {{units}}/28 단위",
-    "surveySubtitle_other": "{{n}}차 · {{count}}그루"
+    "surveySubtitle_other": "{{n}}차 · {{count}}그루",
+    "modularSubtitle_other": "{{style}} · {{count}}종"
   },
   "plotImport": {
     "invalidYml": "유효한 조사구 yml이 아닙니다 (plot 블록 없음)",
@@ -1453,7 +1462,8 @@
     "recording": "기록 중: {{name}}",
     "plotRecording": "조사구 기록 중: {{id}}",
     "gloriaRecording": "GLORIA 조사 중 · mocy {{mocy}}",
-    "mirenRecording": "MIREN 조사 중 · {{year}}"
+    "mirenRecording": "MIREN 조사 중 · {{year}}",
+    "surveyRecording": "조사 중: {{name}}"
   },
   "speciesSearch": {
     "hint": "아래에서 일반명 / 학명 / 과명으로 종을 검색하고,{{br}}결과를 선택하면 여기에 상세 정보가 표시됩니다."
@@ -4733,5 +4743,147 @@
     "done": "데이터베이스를 압축했습니다({{size}} 확보)",
     "failed": "압축하지 못했습니다",
     "noSpace": "기기 여유 공간이 부족합니다. 압축에는 약 {{size}}가 필요합니다"
+  },
+  "surveyForm": {
+    "notFound": "이 조사를 찾을 수 없습니다",
+    "lockedToast": "이 조사는 끝나서 잠겨 있습니다. 오른쪽 위 ⋯ 에서 잠금을 해제해야 편집할 수 있습니다",
+    "inList": "기록됨",
+    "about": "조사",
+    "name": "이름",
+    "rename": "이름 바꾸기",
+    "template": "조사표",
+    "frameLabel": "영구 조사구",
+    "frameValue": "{{code}} · {{n}}차",
+    "ended": "종료 시각",
+    "reopen": "다시 시작",
+    "deleteTitle": "조사 삭제",
+    "deleteMsg_other": "「{{name}}」과 출현 기록 {{count}}건을 삭제할까요? 삭제하면 되돌릴 수 없습니다.",
+    "noExport": "목록형·조사구형 조사는 아직 내보낼 수 없습니다",
+    "notInProjectExport_other": "목록형·조사구형 조사 {{count}}건은 아직 내보낼 수 없어 이번 내보내기에 포함되지 않습니다",
+    "noDuplicate": "목록형·조사구형 조사는 아직 복제할 수 없습니다",
+    "noMerge": "목록형·조사구형 조사는 아직 병합할 수 없습니다",
+    "projectCount_other": "목록형／조사구형 조사 {{count}}건",
+    "speciesCount_other": "{{count}}종",
+    "newPlotTitle": "새 조사구형 조사",
+    "seriesCodeTitle": "시리즈 코드",
+    "seriesCodeMsg": "이 영구 조사구에는 다른 조사 시리즈가 있습니다. 이 시리즈에 짧은 코드(예: veg)를 붙여 주세요. eventID를 구분하는 데 쓰입니다.",
+    "startFailed": "조사를 시작할 수 없습니다",
+    "noSpecies": "아직 종이 없습니다. 아래 검색으로 추가하세요.",
+    "allUnits": "전체",
+    "outsideUnits": "단위 없음",
+    "addingTo": "추가 위치: {{unit}}",
+    "addingAfterBlind": "블라인드가 끝났습니다. 지금 추가하는 종은 재확인에서 찾은 종으로 표시됩니다",
+    "moveTitle": "다른 단위로 이동",
+    "style": {
+      "checklist": "목록형",
+      "plot": "조사구형",
+      "individual": "매목조사"
+    },
+    "tab": {
+      "data": "자료",
+      "units_other": "단위 {{count}}",
+      "species_other": "종 {{count}}",
+      "freq": "빈도"
+    },
+    "phase": {
+      "blind": "블라인드",
+      "recheck": "재확인에서 찾음"
+    },
+    "occ": {
+      "deleteTitle": "이 출현 기록을 삭제할까요?",
+      "label": "라벨"
+    },
+    "err": {
+      "unitTaken": "코드 {{code}}는 이미 사용 중입니다",
+      "frameUnitLocked": "조사에서 사용한 단위라서 코드와 위치를 바꿀 수 없습니다",
+      "blindSealed": "블라인드가 끝나서 그동안의 기록은 바꿀 수 없습니다",
+      "recheckBegun": "재확인이 시작되어(결과나 추가 기록이 있음) 블라인드를 다시 열 수 없습니다",
+      "labelTaken": "라벨 「{{label}}」은 이미 목록에 있습니다",
+      "badValue": "이 값은 저장할 수 없습니다"
+    },
+    "finish": {
+      "title": "조사 끝내기",
+      "blindOpen": "블라인드가 아직 끝나지 않았고 지난 목록을 재확인하지 않았습니다.",
+      "recheckOpen_other": "지난 조사의 종 {{count}}종에 재확인 결과가 없습니다.",
+      "errors_other": "출현 기록 {{count}}건에 아직 오류가 있습니다."
+    },
+    "blind": {
+      "banner": "블라인드 중: 지난 종 목록은 블라인드가 끝난 뒤에 나타납니다.",
+      "end": "블라인드 기록 끝내기",
+      "endTitle": "블라인드를 끝낼까요?",
+      "endMsg": "끝내면 지난 목록이 나타나고, 블라인드 중에 기록한 종은 수정하거나 삭제할 수 없습니다. 이후 추가하는 종은 재확인에서 찾은 종으로 표시됩니다.",
+      "reopen": "블라인드 다시 열기"
+    },
+    "recheck": {
+      "title": "재확인",
+      "open": "지난 목록과 재확인",
+      "banner_other": "재확인: 지난 조사의 종 {{count}}종 확인 필요",
+      "notOpen": "재확인은 블라인드가 끝난 뒤에 할 수 있습니다",
+      "intro": "{{n}}차 조사의 목록(단위별)입니다. 이번 블라인드에서 기록되지 않은 종마다 결과를 기록하세요(남은 확인 {{open}}종).",
+      "nothing": "지난 조사에는 기록된 종이 없습니다.",
+      "last": "지난번: {{value}}",
+      "recordedBlind": "이번에 기록됨",
+      "notChecked": "단위 폐지됨",
+      "retiredUnit": "{{code}}(폐지됨)",
+      "found": "찾음",
+      "not_found": "없음",
+      "reidentified": "다른 이름으로 기록…",
+      "pickTitle": "「{{name}}」은 이번에 어느 기록인가요?",
+      "pickMsg": "같은 개체를 이번에 다른 이름으로 기록했다면 그 출현 기록을 고르세요.",
+      "noneToPick": "이 단위에는 아직 다른 출현 기록이 없습니다",
+      "openFound": "추가함. 출현 기록 열기",
+      "sameAs": "이번 기록: {{name}}",
+      "targetGone": "연결된 출현 기록이 삭제되었습니다. 다시 고르세요"
+    },
+    "unit": {
+      "empty": "아직 단위가 없습니다.",
+      "addTitle": "{{level}} 추가",
+      "codeMsg": "코드를 입력하세요(같은 계층에서 중복 불가)",
+      "code": "코드",
+      "label": "이름",
+      "onFrame": "영구 조사구의 단위 배치에 속함",
+      "onFrameNote": "영구 조사구의 단위 배치에 속합니다. 조사에서 사용한 뒤에는 코드를 바꿀 수 없습니다.",
+      "recordHere_other": "이 단위에서 종 기록({{count}}종)",
+      "deleteTitle": "{{path}}를 삭제할까요?",
+      "deleteMsg_other": "출현 기록 {{count}}건과 하위 단위는 한 단계 위로 옮겨지고, 이 단위 자체의 자료와 사진은 삭제됩니다."
+    },
+    "label": {
+      "title": "{{name}}의 라벨",
+      "msg": "예: sp1. 비워 두면 라벨이 없습니다.",
+      "pickTitle": "{{name}}: 라벨",
+      "pickMsg": "영구 조사구의 형태종 목록에 있는 라벨입니다.",
+      "none": "라벨 없음({{name}}(으)로 기록)",
+      "new": "새 라벨…",
+      "newTitle": "「{{label}}」은 형태종 목록에 없습니다",
+      "newMsg": "목록에 넣으면 이후 조사에서도 같은 라벨이 이 형태종을 가리킵니다.",
+      "addToList": "목록에 추가",
+      "onlyHere": "이 기록에만"
+    },
+    "frame": {
+      "section": "조사구형 조사",
+      "units": "단위 배치",
+      "labels": "형태종 목록",
+      "start": "조사구형 조사 시작(테스트)",
+      "surveyNo": "{{n}}차 · {{name}}",
+      "unitsTitle": "{{code}} 단위 배치",
+      "unitsDesc": "조사구형 조사는 시작할 때 이 단위들을 가져옵니다. 조사에서 사용한 단위는 폐지만 할 수 있고 삭제하거나 코드를 바꿀 수 없습니다.",
+      "addUnit": "단위 추가",
+      "noLevels": "단위 계층을 정의한 조사구형 조사표가 아직 없습니다",
+      "pickParent": "어느 {{level}} 아래에 둘까요?",
+      "noParent": "상위 아래에 두지 않음",
+      "retire": "폐지",
+      "unretire": "다시 사용",
+      "retired": "폐지됨",
+      "usedNote": "조사에서 사용한 단위: 이름 변경이나 폐지만 가능"
+    },
+    "labels": {
+      "title": "{{code}} 형태종",
+      "desc": "같은 라벨은 모든 조사에서 같은 형태종을 가리킵니다. 라벨은 기록할 때 추가되며, 여기서는 설명과 사진을 보탤 수 있습니다.",
+      "empty": "아직 형태종이 없습니다.",
+      "note": "설명",
+      "takePhoto": "사진 촬영",
+      "pickPhoto": "앨범에서 선택",
+      "removePhoto": "사진 삭제"
+    }
   }
 }

@@ -71,6 +71,7 @@ async function openScratch(): Promise<Scratch> {
   await runUserMigrations(db);
   db.executeSync('PRAGMA foreign_keys = ON;');
   const ctx: Ctx = { db, now: Date.now, uuid: generateUuid };
+  // add-guard: a scratch database, not user.db; nothing there is active.
   const survey = core.createSurvey(ctx, { template: TEMPLATE });
   const subplot = core.addUnit(ctx, survey, { levelKey: 'subplot', code: 'A' });
   const quadrat = core.addUnit(ctx, survey, { levelKey: 'quadrat', code: 'A1', parentId: subplot });

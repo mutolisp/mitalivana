@@ -135,7 +135,8 @@
     "addedCount_many": "{{count}} especies añadidas a favoritos",
     "addedCount_other": "{{count}} especies añadidas a favoritos",
     "kindGloria": "GLORIA",
-    "kindSurvey": "Censo de árboles"
+    "kindSurvey": "Censo de árboles",
+    "kindModular": "Muestreo tipo lista / parcela"
   },
   "gnss": {
     "permTitle": "Se necesita permiso de ubicación",
@@ -405,7 +406,8 @@
     "lastUpdated": "Última modificación",
     "kindGloria": "Prospección GLORIA",
     "moreActions": "Más acciones",
-    "kindMiren": "Muestreo MIREN de carretera / sendero"
+    "kindMiren": "Muestreo MIREN de carretera / sendero",
+    "kindModular": "Muestreo tipo lista / parcela"
   },
   "rank": {
     "kingdom": "Reino",
@@ -622,7 +624,15 @@
     "addedToGloria_other": "Se añadieron {{count}} taxones a la lista de la cumbre GLORIA. Regístralos en las unidades.",
     "mirenActiveTitle": "Muestreo MIREN en curso",
     "mirenActiveMsg": "El muestreo MIREN de {{year}} no ha terminado. Añadir una especie aquí iniciaría una lista y terminaría el muestreo MIREN. Las especies de MIREN se registran en las parcelas del muestreo; para registrar otra cosa, termina primero el muestreo MIREN.",
-    "goToMiren": "Ir al muestreo MIREN"
+    "goToMiren": "Ir al muestreo MIREN",
+    "surveyNoQuickTitle": "Hay un muestreo en curso",
+    "surveyNoQuickMsg": "El formulario de «{{name}}» no admite especies desde aquí; regístrelas en el muestreo. Para registrar otras especies, termine antes este muestreo.",
+    "addedToSurvey": "Añadida al muestreo: {{name}}",
+    "addedManyToSurvey_one": "{{count}} especie añadida al muestreo",
+    "addedManyToSurvey_many": "{{count}} especies añadidas al muestreo",
+    "addedManyToSurvey_other": "{{count}} especies añadidas al muestreo",
+    "goToSurvey": "Ir al muestreo",
+    "toSurvey": "Añadir al muestreo en curso"
   },
   "endSession": {
     "minutes": "{{count}} min",
@@ -1627,7 +1637,10 @@
     "gloriaSubtitle_other": "mocy {{mocy}} · {{count}} taxones · {{units}}/28 unidades",
     "surveySubtitle_one": "Censo {{n}} · {{count}} árbol",
     "surveySubtitle_many": "Censo {{n}} · {{count}} árboles",
-    "surveySubtitle_other": "Censo {{n}} · {{count}} árboles"
+    "surveySubtitle_other": "Censo {{n}} · {{count}} árboles",
+    "modularSubtitle_one": "{{style}} · {{count}} especie",
+    "modularSubtitle_many": "{{style}} · {{count}} especies",
+    "modularSubtitle_other": "{{style}} · {{count}} especies"
   },
   "plotImport": {
     "invalidYml": "No es un yml de parcela válido (falta el bloque plot)",
@@ -1639,7 +1652,8 @@
     "recording": "Registrando: {{name}}",
     "plotRecording": "Registrando la parcela: {{id}}",
     "gloriaRecording": "Muestreo GLORIA en curso · mocy {{mocy}}",
-    "mirenRecording": "Muestreo MIREN en curso · {{year}}"
+    "mirenRecording": "Muestreo MIREN en curso · {{year}}",
+    "surveyRecording": "Muestreo en curso: {{name}}"
   },
   "speciesSearch": {
     "hint": "Busque especies abajo por nombre común / científico / de familia{{br}}y consulte aquí los detalles del resultado elegido."
@@ -5131,5 +5145,169 @@
     "done": "Base de datos compactada: {{size}} liberados",
     "failed": "No se pudo compactar",
     "noSpace": "No hay suficiente espacio libre: compactar necesita unos {{size}}"
+  },
+  "surveyForm": {
+    "notFound": "No se encontró el muestreo",
+    "lockedToast": "Este muestreo está terminado y bloqueado; desbloquéelo desde ⋯ arriba a la derecha para editarlo",
+    "inList": "Registrada",
+    "about": "Muestreo",
+    "name": "Nombre",
+    "rename": "Cambiar nombre",
+    "template": "Formulario",
+    "frameLabel": "Parcela permanente",
+    "frameValue": "{{code}} · muestreo {{n}}",
+    "ended": "Fin",
+    "reopen": "Reanudar",
+    "deleteTitle": "Eliminar muestreo",
+    "deleteMsg_one": "¿Eliminar «{{name}}» y su {{count}} registro de presencia? No se podrá recuperar.",
+    "deleteMsg_many": "¿Eliminar «{{name}}» y sus {{count}} registros de presencia? No se podrá recuperar.",
+    "deleteMsg_other": "¿Eliminar «{{name}}» y sus {{count}} registros de presencia? No se podrá recuperar.",
+    "noExport": "Los muestreos tipo lista y parcela aún no se pueden exportar",
+    "notInProjectExport_one": "{{count}} muestreo tipo lista / parcela aún no se puede exportar y queda fuera de esta exportación",
+    "notInProjectExport_many": "{{count}} muestreos tipo lista / parcela aún no se pueden exportar y quedan fuera de esta exportación",
+    "notInProjectExport_other": "{{count}} muestreos tipo lista / parcela aún no se pueden exportar y quedan fuera de esta exportación",
+    "noDuplicate": "Los muestreos tipo lista y parcela aún no se pueden duplicar",
+    "noMerge": "Los muestreos tipo lista y parcela aún no se pueden combinar",
+    "projectCount_one": "{{count}} muestreo tipo lista / parcela",
+    "projectCount_many": "{{count}} muestreos tipo lista / parcela",
+    "projectCount_other": "{{count}} muestreos tipo lista / parcela",
+    "speciesCount_one": "{{count}} especie",
+    "speciesCount_many": "{{count}} especies",
+    "speciesCount_other": "{{count}} especies",
+    "newPlotTitle": "Nuevo muestreo de parcela",
+    "seriesCodeTitle": "Código de serie",
+    "seriesCodeMsg": "Esta parcela permanente ya tiene otra serie de muestreos. Dé a esta serie un código corto (p. ej., veg); distingue los eventID.",
+    "startFailed": "No se pudo iniciar el muestreo",
+    "noSpecies": "Aún no hay especies. Añádalas con la búsqueda de abajo.",
+    "allUnits": "Todas",
+    "outsideUnits": "Sin unidad",
+    "addingTo": "Añadir en: {{unit}}",
+    "addingAfterBlind": "Registro a ciegas terminado: las especies añadidas ahora se marcan como halladas en la reverificación",
+    "moveTitle": "Mover a otra unidad",
+    "style": {
+      "checklist": "Lista",
+      "plot": "Parcela",
+      "individual": "Censo de árboles"
+    },
+    "tab": {
+      "data": "Datos",
+      "units_one": "Unidades {{count}}",
+      "units_many": "Unidades {{count}}",
+      "units_other": "Unidades {{count}}",
+      "species_one": "Especies {{count}}",
+      "species_many": "Especies {{count}}",
+      "species_other": "Especies {{count}}",
+      "freq": "Frecuencia"
+    },
+    "phase": {
+      "blind": "A ciegas",
+      "recheck": "Hallada en la reverificación"
+    },
+    "occ": {
+      "deleteTitle": "¿Eliminar este registro de presencia?",
+      "label": "Etiqueta"
+    },
+    "err": {
+      "unitTaken": "El código {{code}} ya está en uso",
+      "frameUnitLocked": "Un muestreo ya usó esta unidad; su código y posición ya no pueden cambiar",
+      "blindSealed": "El registro a ciegas terminó; sus registros ya no pueden cambiar",
+      "recheckBegun": "La reverificación ya empezó (hay respuestas o especies halladas); no se puede reabrir el registro a ciegas",
+      "labelTaken": "La etiqueta «{{label}}» ya está en la lista",
+      "badValue": "Este valor no se puede guardar"
+    },
+    "finish": {
+      "title": "Terminar muestreo",
+      "blindOpen": "El registro a ciegas no ha terminado; la lista anterior no se ha reverificado.",
+      "recheckOpen_one": "{{count}} especie del muestreo anterior no tiene respuesta de reverificación.",
+      "recheckOpen_many": "{{count}} especies del muestreo anterior no tienen respuesta de reverificación.",
+      "recheckOpen_other": "{{count}} especies del muestreo anterior no tienen respuesta de reverificación.",
+      "errors_one": "{{count}} registro de presencia aún tiene errores.",
+      "errors_many": "{{count}} registros de presencia aún tienen errores.",
+      "errors_other": "{{count}} registros de presencia aún tienen errores."
+    },
+    "blind": {
+      "banner": "Registro a ciegas: la lista anterior aparece al terminarlo.",
+      "end": "Terminar el registro a ciegas",
+      "endTitle": "¿Terminar el registro a ciegas?",
+      "endMsg": "Entonces aparece la lista anterior, y las especies registradas a ciegas ya no se pueden editar ni eliminar. Las especies añadidas después se marcan como halladas en la reverificación.",
+      "reopen": "Reabrir el registro a ciegas"
+    },
+    "recheck": {
+      "title": "Reverificación",
+      "open": "Lista anterior y reverificación",
+      "banner_one": "Reverificación: {{count}} especie del muestreo anterior por confirmar",
+      "banner_many": "Reverificación: {{count}} especies del muestreo anterior por confirmar",
+      "banner_other": "Reverificación: {{count}} especies del muestreo anterior por confirmar",
+      "notOpen": "La reverificación se abre al terminar el registro a ciegas",
+      "intro": "La lista del muestreo {{n}}, por unidad. Registre una respuesta para cada especie que este registro a ciegas no tiene ({{open}} por confirmar).",
+      "nothing": "El muestreo anterior no registró especies.",
+      "last": "La vez anterior: {{value}}",
+      "recordedBlind": "Registrada esta vez",
+      "notChecked": "Unidad retirada",
+      "retiredUnit": "{{code}} (retirada)",
+      "found": "Hallada",
+      "not_found": "No está",
+      "reidentified": "Registrada como…",
+      "pickTitle": "¿Qué registro es «{{name}}» esta vez?",
+      "pickMsg": "Si el mismo organismo se registró esta vez con otro nombre, elija ese registro de presencia.",
+      "noneToPick": "Esta unidad aún no tiene otros registros de presencia",
+      "openFound": "Añadida; abrir el registro",
+      "sameAs": "Registrada esta vez como: {{name}}",
+      "targetGone": "El registro asociado se eliminó; elija de nuevo"
+    },
+    "unit": {
+      "empty": "Aún no hay unidades.",
+      "addTitle": "Añadir: {{level}}",
+      "codeMsg": "Escriba un código (único en este nivel)",
+      "code": "Código",
+      "label": "Nombre",
+      "onFrame": "Parte del plano de la parcela permanente",
+      "onFrameNote": "Parte del plano de la parcela permanente; una vez usada por un muestreo, su código ya no cambia.",
+      "recordHere_one": "Registrar especies en esta unidad ({{count}})",
+      "recordHere_many": "Registrar especies en esta unidad ({{count}})",
+      "recordHere_other": "Registrar especies en esta unidad ({{count}})",
+      "deleteTitle": "¿Eliminar {{path}}?",
+      "deleteMsg_one": "Su {{count}} registro de presencia y sus subunidades suben un nivel; los datos y fotos propios de la unidad se eliminan.",
+      "deleteMsg_many": "Sus {{count}} registros de presencia y sus subunidades suben un nivel; los datos y fotos propios de la unidad se eliminan.",
+      "deleteMsg_other": "Sus {{count}} registros de presencia y sus subunidades suben un nivel; los datos y fotos propios de la unidad se eliminan."
+    },
+    "label": {
+      "title": "Etiqueta de {{name}}",
+      "msg": "Por ejemplo sp1. Déjelo vacío para no poner etiqueta.",
+      "pickTitle": "{{name}}: etiqueta",
+      "pickMsg": "Estas etiquetas están en la lista de morfoespecies de la parcela permanente.",
+      "none": "Sin etiqueta (registrar como {{name}})",
+      "new": "Etiqueta nueva…",
+      "newTitle": "«{{label}}» no está en la lista de morfoespecies",
+      "newMsg": "En la lista, la misma etiqueta designa esta morfoespecie en todos los muestreos siguientes.",
+      "addToList": "Añadir a la lista",
+      "onlyHere": "Solo para este registro"
+    },
+    "frame": {
+      "section": "Muestreos de parcela",
+      "units": "Plano de unidades",
+      "labels": "Morfoespecies",
+      "start": "Iniciar muestreo de parcela (prueba)",
+      "surveyNo": "Muestreo {{n}} · {{name}}",
+      "unitsTitle": "Plano de unidades {{code}}",
+      "unitsDesc": "Un muestreo de parcela empieza con estas unidades. Una unidad que un muestreo ya usó solo se puede retirar, no eliminar ni recodificar.",
+      "addUnit": "Añadir unidad",
+      "noLevels": "Aún ningún formulario de parcela define niveles de unidades",
+      "pickParent": "¿Bajo qué unidad ({{level}})?",
+      "noParent": "Sin unidad superior",
+      "retire": "Retirar",
+      "unretire": "Volver a usar",
+      "retired": "Retirada",
+      "usedNote": "Usada por un muestreo: solo se puede cambiar el nombre o retirarla"
+    },
+    "labels": {
+      "title": "Morfoespecies {{code}}",
+      "desc": "Una etiqueta designa la misma morfoespecie en cada muestreo. Las etiquetas se añaden al registrar; aquí se pueden añadir notas y fotos.",
+      "empty": "Aún no hay morfoespecies.",
+      "note": "Nota",
+      "takePhoto": "Tomar foto",
+      "pickPhoto": "Elegir de la fototeca",
+      "removePhoto": "Quitar foto"
+    }
   }
 }

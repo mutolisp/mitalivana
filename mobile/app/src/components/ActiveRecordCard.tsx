@@ -20,6 +20,7 @@ const KIND_LABEL: Record<ActiveRecordKind, string> = {
   plot: 'record.kindPlot',
   gloria: 'record.kindGloria',
   miren: 'record.kindMiren',
+  modular: 'record.kindModular',
 };
 
 export function ActiveRecordCard({

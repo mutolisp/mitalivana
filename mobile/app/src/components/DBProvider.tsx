@@ -21,6 +21,7 @@ import { perf } from '~/lib/perf';
 import { useActivePlot } from '~/stores/activePlot';
 import { useActiveGloria } from '~/modules/gloria/store';
 import { useActiveMiren } from '~/modules/miren/store';
+import { useActiveSurvey } from '~/survey/form/activeSurvey';
 import { useActiveSession } from '~/stores/activeSession';
 import { useFavorites } from '~/stores/favorites';
 import { useSurveyors } from '~/stores/surveyors';
@@ -38,6 +39,7 @@ export function DBProvider({ children }: Props) {
   const refreshActivePlot = useActivePlot((s) => s.refresh);
   const refreshActiveGloria = useActiveGloria((s) => s.refresh);
   const refreshActiveMiren = useActiveMiren((s) => s.refresh);
+  const refreshActiveSurvey = useActiveSurvey((s) => s.refresh);
   const refreshFavorites = useFavorites((s) => s.refresh);
   const refreshSurveyors = useSurveyors((s) => s.refresh);
   const loadSettings = useSettings((s) => s.load);
@@ -74,6 +76,7 @@ export function DBProvider({ children }: Props) {
           refreshActivePlot();
           refreshActiveGloria();
           refreshActiveMiren();
+          refreshActiveSurvey();
           refreshFavorites();
           refreshSurveyors();
           // A plain-text GBIF password left by an older build moves into
@@ -136,7 +139,7 @@ export function DBProvider({ children }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [loadSettings, refreshActiveSession, refreshActivePlot, refreshActiveGloria, refreshActiveMiren, refreshFavorites, refreshSurveyors]);
+  }, [loadSettings, refreshActiveSession, refreshActivePlot, refreshActiveGloria, refreshActiveMiren, refreshActiveSurvey, refreshFavorites, refreshSurveyors]);
 
   if (error) {
     return (

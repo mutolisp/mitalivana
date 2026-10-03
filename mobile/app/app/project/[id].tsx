@@ -100,7 +100,7 @@ export default function ProjectDetailScreen() {
   }, [records, layout]);
 
   const counts = useMemo(() => {
-    const c = { session: 0, plot: 0, collection: 0, gloria: 0, survey: 0 };
+    const c = { session: 0, plot: 0, collection: 0, gloria: 0, survey: 0, modular: 0 };
     for (const r of records) c[r.kind] += 1;
     return c;
   }, [records]);
@@ -147,6 +147,7 @@ export default function ProjectDetailScreen() {
     else if (item.kind === 'collection') router.push(`/collection/${item.id}` as Href);
     else if (item.kind === 'gloria') router.push(`/gloria/${item.id}` as Href);
     else if (item.kind === 'survey') router.push(`/survey/${item.id}` as Href);
+    else if (item.kind === 'modular') router.push(`/survey/form/${item.id}` as Href);
     else router.push(`/plot/${item.id}` as Href);
   };
 
@@ -265,6 +266,7 @@ export default function ProjectDetailScreen() {
                   : ''}
                 {mirens.length > 0 ? ` · ${t('projects.statsMiren', { n: mirens.length })}` : ''}
                 {counts.survey > 0 ? ` · ${t('survey.census.projectCount', { count: counts.survey })}` : ''}
+                {counts.modular > 0 ? ` · ${t('surveyForm.projectCount', { count: counts.modular })}` : ''}
               </Text>
               {counts.gloria > 0 ? (
                 <Pressable

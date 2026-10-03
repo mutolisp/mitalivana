@@ -77,7 +77,10 @@ export type SurveyErrorCode =
   | 'template_breaking'
   | 'builtin_template'
   | 'bad_component'
-  | 'bad_value';
+  | 'bad_value'
+  // 2C-a: a blind occurrence after the blind phase closed; a recheck already begun.
+  | 'blind_sealed'
+  | 'recheck_begun';
 
 export class SurveyError extends Error {
   code: SurveyErrorCode;

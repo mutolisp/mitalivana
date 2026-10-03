@@ -117,7 +117,8 @@
     "addedCount_one": "Added {{count}} taxon to favorites",
     "addedCount_other": "Added {{count}} taxa to favorites",
     "kindGloria": "GLORIA",
-    "kindSurvey": "Tree census"
+    "kindSurvey": "Tree census",
+    "kindModular": "Checklist / plot-style survey"
   },
   "gnss": {
     "permTitle": "Location permission needed",
@@ -375,7 +376,8 @@
     "lastUpdated": "Last updated",
     "kindGloria": "GLORIA summit survey",
     "moreActions": "More actions",
-    "kindMiren": "MIREN road / trail survey"
+    "kindMiren": "MIREN road / trail survey",
+    "kindModular": "Checklist / plot-style survey"
   },
   "rank": {
     "kingdom": "Kingdom",
@@ -585,7 +587,14 @@
     "addedToGloria_other": "Added {{count}} taxa to the GLORIA summit list. Record them on the unit screens.",
     "mirenActiveTitle": "MIREN survey in progress",
     "mirenActiveMsg": "The {{year}} MIREN survey has not ended. Adding a species here would start a checklist and end the MIREN survey. Record MIREN species in the survey's plots; to record anything else, end the MIREN survey first.",
-    "goToMiren": "Go to MIREN survey"
+    "goToMiren": "Go to MIREN survey",
+    "surveyNoQuickTitle": "A survey is in progress",
+    "surveyNoQuickMsg": "The form of “{{name}}” does not take species from here; record them on the survey screen. To record other species, finish this survey first.",
+    "addedToSurvey": "Added to the survey: {{name}}",
+    "addedManyToSurvey_one": "Added {{count}} species to the survey",
+    "addedManyToSurvey_other": "Added {{count}} species to the survey",
+    "goToSurvey": "Go to survey",
+    "toSurvey": "Add to current survey"
   },
   "endSession": {
     "minutes": "{{count}} min",
@@ -1534,7 +1543,9 @@
     "gloriaSubtitle_one": "mocy {{mocy}} · {{count}} taxon · {{units}}/28 units",
     "gloriaSubtitle_other": "mocy {{mocy}} · {{count}} taxa · {{units}}/28 units",
     "surveySubtitle_one": "Census {{n}} · {{count}} tree",
-    "surveySubtitle_other": "Census {{n}} · {{count}} trees"
+    "surveySubtitle_other": "Census {{n}} · {{count}} trees",
+    "modularSubtitle_one": "{{style}} · {{count}} species",
+    "modularSubtitle_other": "{{style}} · {{count}} species"
   },
   "plotImport": {
     "invalidYml": "Not a valid plot yml (missing plot block)",
@@ -1546,7 +1557,8 @@
     "recording": "Recording: {{name}}",
     "plotRecording": "Plot recording: {{id}}",
     "gloriaRecording": "GLORIA survey in progress · mocy {{mocy}}",
-    "mirenRecording": "MIREN survey in progress · {{year}}"
+    "mirenRecording": "MIREN survey in progress · {{year}}",
+    "surveyRecording": "Surveying: {{name}}"
   },
   "speciesSearch": {
     "hint": "Search species by common / scientific / family name below,{{br}}then view details here after selecting."
@@ -4932,5 +4944,158 @@
     "done": "Database compacted: {{size}} freed",
     "failed": "Could not compact",
     "noSpace": "Not enough free space on the device: compacting needs about {{size}}"
+  },
+  "surveyForm": {
+    "notFound": "Survey not found",
+    "lockedToast": "This survey is finished and locked; unlock it from ⋯ at the top right to edit",
+    "inList": "Recorded",
+    "about": "Survey",
+    "name": "Name",
+    "rename": "Rename",
+    "template": "Form",
+    "frameLabel": "Permanent plot",
+    "frameValue": "{{code}} · survey {{n}}",
+    "ended": "Ended",
+    "reopen": "Resume",
+    "deleteTitle": "Delete survey",
+    "deleteMsg_one": "Delete “{{name}}” and its {{count}} occurrence? It cannot be recovered.",
+    "deleteMsg_other": "Delete “{{name}}” and its {{count}} occurrences? It cannot be recovered.",
+    "noExport": "Checklist and plot-style surveys cannot be exported yet",
+    "notInProjectExport_one": "{{count}} checklist / plot-style survey cannot be exported yet and is left out of this export",
+    "notInProjectExport_other": "{{count}} checklist / plot-style surveys cannot be exported yet and are left out of this export",
+    "noDuplicate": "Checklist and plot-style surveys cannot be duplicated yet",
+    "noMerge": "Checklist and plot-style surveys cannot be merged yet",
+    "projectCount_one": "{{count}} checklist / plot-style survey",
+    "projectCount_other": "{{count}} checklist / plot-style surveys",
+    "speciesCount_one": "{{count}} species",
+    "speciesCount_other": "{{count}} species",
+    "newPlotTitle": "New plot-style survey",
+    "seriesCodeTitle": "Series code",
+    "seriesCodeMsg": "This permanent plot already has another survey series. Give this series a short code (e.g. veg); it keeps the eventIDs apart.",
+    "startFailed": "Could not start the survey",
+    "noSpecies": "No species yet. Add them with the search below.",
+    "allUnits": "All",
+    "outsideUnits": "No unit",
+    "addingTo": "Adding to: {{unit}}",
+    "addingAfterBlind": "Blind phase ended: species added now are marked as found in the recheck",
+    "moveTitle": "Move to another unit",
+    "style": {
+      "checklist": "Checklist",
+      "plot": "Plot",
+      "individual": "Tree census"
+    },
+    "tab": {
+      "data": "Data",
+      "units_one": "Units {{count}}",
+      "units_other": "Units {{count}}",
+      "species_one": "Species {{count}}",
+      "species_other": "Species {{count}}",
+      "freq": "Frequency"
+    },
+    "phase": {
+      "blind": "Blind",
+      "recheck": "Found in recheck"
+    },
+    "occ": {
+      "deleteTitle": "Delete this occurrence?",
+      "label": "Label"
+    },
+    "err": {
+      "unitTaken": "Code {{code}} is already in use",
+      "frameUnitLocked": "A survey has used this unit; its code and position can no longer change",
+      "blindSealed": "The blind phase has ended; records made during it can no longer change",
+      "recheckBegun": "The recheck has begun (answers or species found in it exist); the blind phase cannot be reopened",
+      "labelTaken": "Label “{{label}}” is already on the list",
+      "badValue": "This value cannot be stored"
+    },
+    "finish": {
+      "title": "Finish survey",
+      "blindOpen": "The blind phase has not ended; the previous list has not been rechecked.",
+      "recheckOpen_one": "{{count}} species from the previous survey has no recheck answer.",
+      "recheckOpen_other": "{{count}} species from the previous survey have no recheck answer.",
+      "errors_one": "{{count}} occurrence still has errors.",
+      "errors_other": "{{count}} occurrences still have errors."
+    },
+    "blind": {
+      "banner": "Blind phase: the previous species list appears once the blind phase ends.",
+      "end": "End blind phase",
+      "endTitle": "End the blind phase?",
+      "endMsg": "The previous list then appears, and species recorded during the blind phase can no longer be edited or removed. Species added afterwards are marked as found in the recheck.",
+      "reopen": "Reopen blind phase"
+    },
+    "recheck": {
+      "title": "Recheck",
+      "open": "Previous list and recheck",
+      "banner_one": "Recheck: {{count}} species from the previous survey to confirm",
+      "banner_other": "Recheck: {{count}} species from the previous survey to confirm",
+      "notOpen": "The recheck opens when the blind phase ends",
+      "intro": "The list of survey {{n}}, by unit. Record an answer for each species this blind phase did not record ({{open}} still to confirm).",
+      "nothing": "The previous survey recorded no species.",
+      "last": "Last time: {{value}}",
+      "recordedBlind": "Recorded this time",
+      "notChecked": "Unit retired",
+      "retiredUnit": "{{code}} (retired)",
+      "found": "Found",
+      "not_found": "Not found",
+      "reidentified": "Recorded as…",
+      "pickTitle": "Which record is “{{name}}” this time?",
+      "pickMsg": "When the same organism was recorded under another name this time, pick that occurrence.",
+      "noneToPick": "This unit has no other occurrences yet",
+      "openFound": "Added; open the occurrence",
+      "sameAs": "Recorded this time as: {{name}}",
+      "targetGone": "The occurrence it pointed to was deleted; choose again"
+    },
+    "unit": {
+      "empty": "No units yet.",
+      "addTitle": "Add {{level}}",
+      "codeMsg": "Enter a code (unique on this level)",
+      "code": "Code",
+      "label": "Name",
+      "onFrame": "Part of the permanent plot’s layout",
+      "onFrameNote": "Part of the permanent plot’s layout; once a survey has used it, its code cannot change.",
+      "recordHere_one": "Record species in this unit ({{count}})",
+      "recordHere_other": "Record species in this unit ({{count}})",
+      "deleteTitle": "Delete {{path}}?",
+      "deleteMsg_one": "Its {{count}} occurrence and its sub-units move up to the parent; this unit’s own data and photos are deleted.",
+      "deleteMsg_other": "Its {{count}} occurrences and its sub-units move up to the parent; this unit’s own data and photos are deleted."
+    },
+    "label": {
+      "title": "Label for {{name}}",
+      "msg": "For example sp1. Leave it empty for no label.",
+      "pickTitle": "{{name}}: label",
+      "pickMsg": "The permanent plot’s morphospecies list has these labels.",
+      "none": "No label (record as {{name}})",
+      "new": "New label…",
+      "newTitle": "“{{label}}” is not on the morphospecies list",
+      "newMsg": "On the list, the same label names this morphospecies in every later survey.",
+      "addToList": "Add to the list",
+      "onlyHere": "Only for this record"
+    },
+    "frame": {
+      "section": "Plot-style surveys",
+      "units": "Unit layout",
+      "labels": "Morphospecies",
+      "start": "Start a plot-style survey (test)",
+      "surveyNo": "Survey {{n}} · {{name}}",
+      "unitsTitle": "{{code}} unit layout",
+      "unitsDesc": "A plot-style survey starts with these units. A unit a survey has used can only be retired, not deleted or recoded.",
+      "addUnit": "Add unit",
+      "noLevels": "No plot-style form defines unit levels yet",
+      "pickParent": "Under which {{level}}?",
+      "noParent": "Not under a parent",
+      "retire": "Retire",
+      "unretire": "Bring back",
+      "retired": "Retired",
+      "usedNote": "Used by a survey: only its name can change, or it can be retired"
+    },
+    "labels": {
+      "title": "{{code}} morphospecies",
+      "desc": "A label names the same morphospecies in every survey. Labels join the list while recording; add notes and photos here.",
+      "empty": "No morphospecies yet.",
+      "note": "Note",
+      "takePhoto": "Take photo",
+      "pickPhoto": "Choose from library",
+      "removePhoto": "Remove photo"
+    }
   }
 }

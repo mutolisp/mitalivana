@@ -133,6 +133,7 @@ const NOT_CARRIED = {
     frame_id: 'frame',
     series_id: 'series',
     blind_closed_at: "the plot style's blind phase; NULL on a census",
+    name: 'checklist / plot-style name (v84); NULL on a census, named by frame code and number',
     project_id: 'projects are per device',
     site_id: 'sites are per device',
     starred: 'pinned on this device',
@@ -166,6 +167,7 @@ const NOT_CENSUS = {
   fw_survey_values: 'checklist / plot-style survey values',
   fw_unit_values: 'plot-style unit values',
   fw_occurrence_values: 'checklist / plot-style occurrence values',
+  fw_rechecks: 'recheck answers of a plot-style survey (v84)',
 };
 const keysIn = (rows) => new Set(rows.flatMap((r) => Object.keys(r)));
 const DOC_ROWS = {

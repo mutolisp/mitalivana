@@ -99,7 +99,8 @@
     "nSpeciesInThem_other": "其中的 {{count}} 個物種",
     "addedCount_other": "已將 {{count}} 種加入常用名錄",
     "kindGloria": "GLORIA",
-    "kindSurvey": "每木調查"
+    "kindSurvey": "每木調查",
+    "kindModular": "名錄型／樣區型調查"
   },
   "gnss": {
     "permTitle": "需要定位權限",
@@ -345,7 +346,8 @@
     "lastUpdated": "最後更新",
     "kindGloria": "GLORIA 山峰調查",
     "moreActions": "更多動作",
-    "kindMiren": "MIREN 道路／步道調查"
+    "kindMiren": "MIREN 道路／步道調查",
+    "kindModular": "名錄型／樣區型調查"
   },
   "rank": {
     "kingdom": "界",
@@ -548,7 +550,13 @@
     "addedToGloria_other": "已加入 GLORIA 山峰名錄 {{count}} 種，請到各單位畫面記錄。",
     "mirenActiveTitle": "MIREN 調查進行中",
     "mirenActiveMsg": "{{year}} 年的 MIREN 調查尚未結束。從這裡加入物種會開始一筆名錄，並把 MIREN 調查結束。MIREN 的物種請在調查的樣區內記錄；要記其他物種，請先結束 MIREN 調查。",
-    "goToMiren": "前往 MIREN 調查"
+    "goToMiren": "前往 MIREN 調查",
+    "surveyNoQuickTitle": "調查進行中",
+    "surveyNoQuickMsg": "「{{name}}」的調查表不接受從這裡加入物種，請在調查畫面裡記錄。要記其他物種，請先結束這次調查。",
+    "addedToSurvey": "已加入調查：{{name}}",
+    "addedManyToSurvey_other": "已加入 {{count}} 種到調查",
+    "goToSurvey": "前往調查",
+    "toSurvey": "加入目前調查"
   },
   "endSession": {
     "minutes": "{{count}} 分鐘",
@@ -1441,7 +1449,8 @@
     "sessionSubtitleNoProject_other": "{{count}} 筆",
     "collectionSubtitleNoProject_other": "{{count}} 份標本",
     "gloriaSubtitle_other": "mocy {{mocy}} · {{count}} 種 · {{units}}/28 單位",
-    "surveySubtitle_other": "第 {{n}} 回合 · {{count}} 株"
+    "surveySubtitle_other": "第 {{n}} 回合 · {{count}} 株",
+    "modularSubtitle_other": "{{style}} · {{count}} 種"
   },
   "plotImport": {
     "invalidYml": "不是有效的樣區 yml（缺 plot 區塊）",
@@ -1453,7 +1462,8 @@
     "recording": "記錄中：{{name}}",
     "plotRecording": "樣區記錄中：{{id}}",
     "gloriaRecording": "GLORIA 調查中 · mocy {{mocy}}",
-    "mirenRecording": "MIREN 調查中 · {{year}}"
+    "mirenRecording": "MIREN 調查中 · {{year}}",
+    "surveyRecording": "調查中：{{name}}"
   },
   "speciesSearch": {
     "hint": "下方輸入俗名 / 學名 / 科名搜尋物種，{{br}}選擇結果後在此檢視詳細資訊。"
@@ -4733,5 +4743,147 @@
     "done": "已壓縮資料庫，釋放 {{size}}",
     "failed": "壓縮失敗",
     "noSpace": "裝置剩餘空間不足：壓縮過程約需 {{size}}"
+  },
+  "surveyForm": {
+    "notFound": "找不到這筆調查",
+    "lockedToast": "此調查已結束並鎖定；從右上角 ⋯ 解鎖後才能編輯",
+    "inList": "已記錄",
+    "about": "調查",
+    "name": "名稱",
+    "rename": "重新命名",
+    "template": "調查表",
+    "frameLabel": "永久樣區",
+    "frameValue": "{{code}} · 第 {{n}} 次",
+    "ended": "結束時間",
+    "reopen": "重新開始",
+    "deleteTitle": "刪除調查",
+    "deleteMsg_other": "刪除「{{name}}」與其中 {{count}} 筆出現記錄？刪除後無法救回。",
+    "noExport": "名錄型、樣區型調查還不能匯出",
+    "notInProjectExport_other": "{{count}} 筆名錄型、樣區型調查還不能匯出，不會包含在這次匯出中",
+    "noDuplicate": "名錄型、樣區型調查還不能複製",
+    "noMerge": "名錄型、樣區型調查還不能合併",
+    "projectCount_other": "{{count}} 筆名錄型／樣區型調查",
+    "speciesCount_other": "{{count}} 種",
+    "newPlotTitle": "新的樣區型調查",
+    "seriesCodeTitle": "系列代號",
+    "seriesCodeMsg": "這個永久樣區已有其他調查系列。請給這個系列一個簡短代號（例：veg），用來區分 eventID。",
+    "startFailed": "無法開始調查",
+    "noSpecies": "還沒有物種。用下方的搜尋加入。",
+    "allUnits": "全部",
+    "outsideUnits": "不分單位",
+    "addingTo": "加入到：{{unit}}",
+    "addingAfterBlind": "盲測已結束，新加入的物種標為複查補記",
+    "moveTitle": "移到其他單位",
+    "style": {
+      "checklist": "名錄型",
+      "plot": "樣區型",
+      "individual": "每木調查"
+    },
+    "tab": {
+      "data": "資料",
+      "units_other": "單位 {{count}}",
+      "species_other": "物種 {{count}}",
+      "freq": "頻度"
+    },
+    "phase": {
+      "blind": "盲測",
+      "recheck": "複查補記"
+    },
+    "occ": {
+      "deleteTitle": "刪除這筆出現記錄？",
+      "label": "標籤"
+    },
+    "err": {
+      "unitTaken": "代號 {{code}} 已在使用",
+      "frameUnitLocked": "這個單位已在調查中使用，代號與位置不能再改",
+      "blindSealed": "盲測已結束，盲測期間的記錄不能再改",
+      "recheckBegun": "已開始複查（已有複查結果或補記），不能重新開啟盲測",
+      "labelTaken": "標籤「{{label}}」已在清單中",
+      "badValue": "這個值無法儲存"
+    },
+    "finish": {
+      "title": "結束調查",
+      "blindOpen": "盲測還沒結束，前次清單還沒複查。",
+      "recheckOpen_other": "還有 {{count}} 種前次物種沒有複查結果。",
+      "errors_other": "有 {{count}} 筆出現記錄還有錯誤。"
+    },
+    "blind": {
+      "banner": "盲測中：前次的物種清單在結束盲測後才會顯示。",
+      "end": "結束盲測",
+      "endTitle": "結束盲測？",
+      "endMsg": "結束後就會顯示前次清單，盲測期間記的物種不能再修改或刪除。之後新加入的物種標為複查補記。",
+      "reopen": "重新開啟盲測"
+    },
+    "recheck": {
+      "title": "複查",
+      "open": "前次清單與複查",
+      "banner_other": "複查：還有 {{count}} 種前次物種待確認",
+      "notOpen": "盲測結束後才能複查",
+      "intro": "第 {{n}} 次調查的清單，依單位排列。這次盲測沒記到的物種，請逐一記下結果（還有 {{open}} 種待確認）。",
+      "nothing": "前次調查沒有記錄物種。",
+      "last": "前次：{{value}}",
+      "recordedBlind": "本次已記",
+      "notChecked": "單位已停用",
+      "retiredUnit": "{{code}}（已停用）",
+      "found": "找到",
+      "not_found": "沒找到",
+      "reidentified": "改記為…",
+      "pickTitle": "「{{name}}」這次記成哪一筆？",
+      "pickMsg": "同一個體這次用了其他名稱記錄時，選那一筆出現記錄。",
+      "noneToPick": "這個單位還沒有其他出現記錄",
+      "openFound": "已補記，開啟這筆出現記錄",
+      "sameAs": "這次記為：{{name}}",
+      "targetGone": "對應的出現記錄已刪除，請重新選擇"
+    },
+    "unit": {
+      "empty": "還沒有單位。",
+      "addTitle": "新增{{level}}",
+      "codeMsg": "輸入代號（同一層內不重複）",
+      "code": "代號",
+      "label": "名稱",
+      "onFrame": "屬於永久樣區的單位配置",
+      "onFrameNote": "屬於永久樣區的單位配置；調查用過後代號不能再改。",
+      "recordHere_other": "在這個單位記錄物種（{{count}} 種）",
+      "deleteTitle": "刪除 {{path}}？",
+      "deleteMsg_other": "其中 {{count}} 筆出現記錄與下層單位會移到上一層，這個單位本身的資料與照片會刪除。"
+    },
+    "label": {
+      "title": "{{name}} 的標籤",
+      "msg": "例如 sp1。留空表示不加標籤。",
+      "pickTitle": "{{name}}：標籤",
+      "pickMsg": "永久樣區的形態種清單裡有這些標籤。",
+      "none": "不加標籤（記為 {{name}}）",
+      "new": "新標籤…",
+      "newTitle": "「{{label}}」不在形態種清單",
+      "newMsg": "加入清單後，之後的調查都用同一個標籤指這個形態種。",
+      "addToList": "加入清單",
+      "onlyHere": "只用在這筆"
+    },
+    "frame": {
+      "section": "樣區型調查",
+      "units": "單位配置",
+      "labels": "形態種清單",
+      "start": "開始樣區型調查（測試用）",
+      "surveyNo": "第 {{n}} 次 · {{name}}",
+      "unitsTitle": "{{code}} 單位配置",
+      "unitsDesc": "樣區型調查開始時帶入這些單位。調查用過的單位只能停用，不能刪除或改代號。",
+      "addUnit": "新增單位",
+      "noLevels": "還沒有定義單位層級的樣區型調查表",
+      "pickParent": "放在哪個{{level}}之下？",
+      "noParent": "不放在上一層之下",
+      "retire": "停用",
+      "unretire": "恢復使用",
+      "retired": "已停用",
+      "usedNote": "調查用過的單位：只能改名稱或停用"
+    },
+    "labels": {
+      "title": "{{code}} 形態種",
+      "desc": "同一個標籤在每次調查都指同一個形態種。標籤在記錄時加入；這裡可補說明與照片。",
+      "empty": "還沒有形態種。",
+      "note": "說明",
+      "takePhoto": "拍照",
+      "pickPhoto": "從相簿選取",
+      "removePhoto": "移除照片"
+    }
   }
 }

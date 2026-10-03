@@ -3073,6 +3073,57 @@ const MIGRATIONS: Migration[] = [
       db.executeSync(`CREATE INDEX IF NOT EXISTS idx_fwmedia_occ ON fw_media(occurrence_id) WHERE occurrence_id IS NOT NULL;`);
     },
   },
+  {
+    // v84: the checklist / plot-style screens (Phase 2C-a, decided 2026-10-03).
+    //
+    // `fw_surveys.name`: what the records list, the title and the eventID of a
+    // checklist / plot-style survey show. A census keeps NULL (its name is the
+    // frame code and census number). Rows from v83 get the frame code, or the
+    // start time as a checklist session is named.
+    //
+    // `fw_rechecks`: the answer for each taxon the previous survey of a
+    // permanent plot had in a unit and this survey's blind list has not, as in
+    // MIREN (miren_rechecks): found, not found, or re-identified as an
+    // occurrence of this survey. It tells "looked for, not there" from "not
+    // looked for". The key is the frame unit (NULL: recorded outside any unit)
+    // and the previous taxon and label; the label is '' rather than NULL so
+    // the unique key holds (Modular_survey.md §5.1). `occurrence_id`: the
+    // recheck occurrence a 'found' added, or the occurrence a 'reidentified'
+    // names; SET NULL when that occurrence is deleted.
+    version: 84,
+    up: (db) => {
+      addColumnIfMissing(db, `ALTER TABLE fw_surveys ADD COLUMN name TEXT;`);
+      db.executeSync(
+        `UPDATE fw_surveys SET name = (SELECT code FROM fw_frames WHERE fw_frames.id = fw_surveys.frame_id)
+          WHERE style <> 'individual' AND name IS NULL AND frame_id IS NOT NULL`,
+      );
+      db.executeSync(
+        `UPDATE fw_surveys SET name = strftime('%Y-%m-%d %H:%M', start_ts / 1000, 'unixepoch', 'localtime')
+          WHERE style <> 'individual' AND name IS NULL`,
+      );
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS fw_rechecks (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          uuid TEXT NOT NULL UNIQUE,
+          survey_id INTEGER NOT NULL,
+          frame_unit_id INTEGER,
+          prev_taxon_id TEXT NOT NULL,
+          prev_verbatim_identification TEXT NOT NULL DEFAULT '',
+          outcome TEXT NOT NULL CHECK (outcome IN ('found', 'not_found', 'reidentified')),
+          occurrence_id INTEGER,
+          checked_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          FOREIGN KEY (survey_id) REFERENCES fw_surveys(id) ON DELETE CASCADE,
+          FOREIGN KEY (frame_unit_id) REFERENCES fw_frame_units(id),
+          FOREIGN KEY (occurrence_id) REFERENCES fw_occurrences(id) ON DELETE SET NULL
+        );
+      `);
+      db.executeSync(
+        `CREATE UNIQUE INDEX IF NOT EXISTS idx_fwrecheck_key ON fw_rechecks(survey_id, IFNULL(frame_unit_id, 0), prev_taxon_id, prev_verbatim_identification);`,
+      );
+      db.executeSync(`CREATE INDEX IF NOT EXISTS idx_fwrecheck_occ ON fw_rechecks(occurrence_id) WHERE occurrence_id IS NOT NULL;`);
+    },
+  },
 ];
 
 /** Highest schema version this build knows how to produce. Backup/restore uses

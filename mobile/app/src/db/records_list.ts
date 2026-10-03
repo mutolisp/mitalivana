@@ -17,10 +17,14 @@ import { listSessions, type SessionWithStats } from './sessions';
 import { listCollectionTrips, type CollectionTripWithStats } from './collections';
 import { listGloriaSurveysWithMeta, type GloriaSurveyWithMeta } from '~/modules/gloria/db';
 import { listCensuses, type CensusListRow } from '~/survey/db/stemmap';
+import { listSurveys } from '~/survey/db/surveys';
+import type { SurveyListRow } from '~/survey/db/surveyCore';
 import type { BundleItem } from '~/lib/bundleExport';
 
-/** 'survey': a census of the survey framework (tree census in Phase 1). */
-export type RecordKind = 'session' | 'plot' | 'collection' | 'gloria' | 'survey';
+/** 'survey': a tree census of the survey framework; 'modular': its checklist /
+ *  plot-style surveys (Phase 2C; same table, fw_surveys, but nothing a census
+ *  path does applies to them). */
+export type RecordKind = 'session' | 'plot' | 'collection' | 'gloria' | 'survey' | 'modular';
 
 /** Records-tab filter: a single kind, or every kind. */
 export type RecordFilter = 'all' | RecordKind;
@@ -56,6 +60,8 @@ export type RecordItem = {
   gloria?: GloriaSurveyWithMeta;
   /** Census-only: backing census with its permanent plot. */
   survey?: CensusListRow;
+  /** Checklist / plot-style survey only. */
+  modular?: SurveyListRow;
 };
 
 function sessionToItem(s: SessionWithStats): RecordItem {
@@ -158,9 +164,28 @@ function surveyToItem(c: CensusListRow): RecordItem {
   };
 }
 
-/** Record-list items as export items. */
+function modularToItem(s: SurveyListRow): RecordItem {
+  const projectName = s.project_name || i18n.t('plot.uncategorized');
+  const subtitle = i18n.t('recordsList.modularSubtitle', { count: s.species_count, style: i18n.t(`surveyForm.style.${s.style}`) });
+  return {
+    kind: 'modular',
+    id: s.id,
+    title: s.name ?? '',
+    subtitle,
+    subtitlePlain: subtitle,
+    active: s.status === 'active',
+    startedAt: s.start_ts,
+    recordCount: s.species_count,
+    starred: s.starred === 1,
+    projectId: s.project_id,
+    projectName,
+    modular: s,
+  };
+}
+
+/** Record-list items as export items. Checklist / plot-style surveys have no export yet (Phase 2E) and are left out. */
 export function bundleItemsOf(items: readonly { kind: RecordKind; id: number }[]): BundleItem[] {
-  return items.map((it) => ({ kind: it.kind, id: it.id }));
+  return items.flatMap((it) => (it.kind === 'modular' ? [] : [{ kind: it.kind, id: it.id }]));
 }
 
 export function listRecords(filter: RecordFilter = 'all'): RecordItem[] {
@@ -181,6 +206,9 @@ export function listRecords(filter: RecordFilter = 'all'): RecordItem[] {
   }
   if (filter === 'all' || filter === 'survey') {
     items.push(...listCensuses().map(surveyToItem));
+  }
+  if (filter === 'all' || filter === 'modular') {
+    items.push(...listSurveys().map(modularToItem));
   }
   items.sort(byActiveThenStarredThenNewest);
   return items;
@@ -247,7 +275,7 @@ export type RecordsSummary = {
  */
 export function listRecordsSummary(filter: RecordFilter = 'all'): RecordsSummary {
   const all = listRecords('all');
-  const counts: RecordsSummary['counts'] = { all: all.length, session: 0, plot: 0, collection: 0, gloria: 0, survey: 0 };
+  const counts: RecordsSummary['counts'] = { all: all.length, session: 0, plot: 0, collection: 0, gloria: 0, survey: 0, modular: 0 };
   for (const it of all) counts[it.kind] += 1;
   const items = filter === 'all' ? all : all.filter((it) => it.kind === filter);
   return { items, groups: groupByProject(items), counts };
@@ -270,6 +298,7 @@ const TAKEN_NAMES_SQL: Record<RecordKind, string> = {
   collection: `SELECT name FROM collection_trips`,
   // Censuses are not duplicated; listed for completeness.
   survey: `SELECT f.code AS name FROM fw_surveys s JOIN fw_frames f ON f.id = s.frame_id`,
+  modular: `SELECT name FROM fw_surveys WHERE style <> 'individual'`,
 };
 
 export function takenRecordNames(kind: RecordKind): Set<string> {
@@ -286,6 +315,7 @@ const RECORD_TABLE: Record<RecordKind, string> = {
   collection: 'collection_trips',
   gloria: 'gloria_surveys',
   survey: 'fw_surveys',
+  modular: 'fw_surveys',
 };
 
 /**
@@ -317,6 +347,7 @@ const RECORD_SPECIES_SOURCE: Record<RecordKind, { table: string; fk: string }> =
              WHERE s.style = 'individual' AND (fi.id IS NULL OR fi.series_id <> s.series_id OR fi.census_no <= s.census_no))`,
     fk: 'survey_id',
   },
+  modular: { table: 'fw_occurrences', fk: 'survey_id' },
 };
 
 /**
