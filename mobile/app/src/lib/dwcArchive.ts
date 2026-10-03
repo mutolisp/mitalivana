@@ -34,6 +34,8 @@ export const EVENT_COLS: ColSpec[] = [
   { key: 'samplingProtocol', term: `${DWC}samplingProtocol` },
   { key: 'sampleSizeValue', term: `${DWC}sampleSizeValue` },
   { key: 'sampleSizeUnit', term: `${DWC}sampleSizeUnit` },
+  // A permanent plot's uuid: every census and survey on it share it (Modular_survey.md §7.4).
+  { key: 'locationID', term: `${DWC}locationID` },
   { key: 'locality', term: `${DWC}locality` },
   { key: 'decimalLatitude', term: `${DWC}decimalLatitude` },
   { key: 'decimalLongitude', term: `${DWC}decimalLongitude` },
@@ -50,7 +52,15 @@ export const EVENT_COLS: ColSpec[] = [
 
 export const OCCURRENCE_COLS: ColSpec[] = [
   { key: 'occurrenceID', term: `${DWC}occurrenceID` },
+  // A census tree is one organism seen in every census (§7.4): its uuid.
+  { key: 'organismID', term: `${DWC}organismID` },
   { key: 'basisOfRecord', term: `${DWC}basisOfRecord` },
+  // GBIF's present / absent (its Occurrence definition still uses them; TDWG's
+  // newer detected / notDetected waits for GBIF, Modular_survey.md §10). An
+  // absence is a species of the previous survey not found on the recheck.
+  { key: 'occurrenceStatus', term: `${DWC}occurrenceStatus` },
+  // alive / dead / uncertain of a census tree (§7.4; status.ts vitality).
+  { key: 'vitality', term: `${DWC}vitality` },
   { key: 'taxonID', term: `${DWC}taxonID` },
   { key: 'scientificName', term: `${DWC}scientificName` },
   { key: 'scientificNameAuthorship', term: `${DWC}scientificNameAuthorship` },
@@ -142,7 +152,12 @@ export const MEASUREMENT_COLS: ColSpec[] = [
   // Both in extended_measurement_or_fact_2023-08-28.xml (rs.gbif.org, checked
   // 2026-09-29): quadrat cover / frequency are percentages.
   { key: 'measurementUnit', term: `${DWC}measurementUnit` },
+  // The census: when and by whom a stem was measured, and its full tag (§7.4).
+  // All three in the same extension file (13 properties).
+  { key: 'measurementDeterminedDate', term: `${DWC}measurementDeterminedDate` },
+  { key: 'measurementDeterminedBy', term: `${DWC}measurementDeterminedBy` },
   { key: 'measurementMethod', term: `${DWC}measurementMethod` },
+  { key: 'measurementRemarks', term: `${DWC}measurementRemarks` },
 ];
 
 /**

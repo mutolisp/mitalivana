@@ -11,7 +11,7 @@ import { getUserDb } from '~/db/init';
 import { resolveTaxa } from '~/db/taxonLookup';
 import { generateUuid } from '~/db/uuid';
 import { toCsv } from '~/modules/gloria/export/sheetRows';
-import { buildCensusExport, censusExportText } from './db/censusExportCore';
+import { buildCensusExport, censusExportText, type CensusExportDoc } from './db/censusExportCore';
 import { getFrame, getSurvey } from './db/stemmapCore';
 import { censusTable, stemsTable, treesTable, veganBasalArea, type Names, type Table } from './stemmap/censusTables';
 
@@ -37,7 +37,7 @@ export async function buildCensusEntries(
     extOf: (uri: string) => string;
     onPhoto?: (done: number, total: number) => void;
   },
-): Promise<{ entries: CensusEntry[]; folderName: string; uuid: string; name: string; trees: number; photos: number }> {
+): Promise<{ entries: CensusEntry[]; folderName: string; uuid: string; name: string; trees: number; photos: number; doc: CensusExportDoc }> {
   const c = ctx();
   const s = getSurvey(c, surveyId);
   if (!s) throw new Error(`census ${surveyId} not found`);
@@ -73,5 +73,5 @@ export async function buildCensusEntries(
   csv('census', censusTable(doc));
   csv('stems', stemsTable(doc));
   doc.censuses.forEach((part, i) => csv(`vegan_basal_area_census${part.survey.census_no}`, veganBasalArea(doc, i, names)));
-  return { entries, folderName: base, uuid: s.uuid, name: `${frame.code} #${s.census_no}`, trees: doc.trees.length, photos };
+  return { entries, folderName: base, uuid: s.uuid, name: `${frame.code} #${s.census_no}`, trees: doc.trees.length, photos, doc };
 }

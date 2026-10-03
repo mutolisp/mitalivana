@@ -412,7 +412,8 @@ const DEFS: readonly ComponentDef[] = [
     defaultParams: {},
     checkParams: noParams,
     fields: (_p, level) => [col(level, 'notes', 'text')],
-    exportMap: { dwc: { notes: 'eventRemarks' } },
+    // An occurrence's comment is about the organism; the others are about their event.
+    exportMap: (_p, level) => ({ dwc: { notes: level === 'occurrence' ? 'occurrenceRemarks' : 'eventRemarks' } }),
     labelKey: 'survey.component.comments',
   },
   {

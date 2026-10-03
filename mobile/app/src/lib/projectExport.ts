@@ -10,6 +10,7 @@
  */
 import { errText } from '~/lib/errText';
 import { listCensuses, type CensusListRow } from '~/survey/db/stemmap';
+import type { CensusExportDoc } from '~/survey/db/censusExportCore';
 import { getUserDb } from '~/db/init';
 import { resolveTaxa } from '~/db/taxonLookup';
 import { buildSurveyDoc } from '~/survey/db/surveyDocCore';
@@ -159,7 +160,15 @@ export async function bundleProject(
   for (const p of plots) await addRecord('plot', p.id, p.uuid, () => buildPlotEntries(p.id, recordOpts, ctx));
   for (const s of sessions) await addRecord('session', s.id, s.uuid, () => buildSessionEntries(s.id, recordOpts, ctx));
   for (const c of trips) await addRecord('collection', c.id, c.uuid, () => buildCollectionEntries(c.id, recordOpts, ctx));
-  for (const c of censuses) await addRecord('survey', c.id, c.uuid, () => buildCensusBundleEntries(c.id, recordOpts));
+  // Their documents again for the archive below (built once, Phase 2E-b).
+  const censusDocs: CensusExportDoc[] = [];
+  for (const c of censuses) {
+    await addRecord('survey', c.id, c.uuid, async () => {
+      const built = await buildCensusBundleEntries(c.id, recordOpts);
+      censusDocs.push(built.doc);
+      return built;
+    });
+  }
   for (const m of modulars) await addRecord('modular', m.id, m.uuid, () => buildModularBundleEntries(m.id, recordOpts));
 
   // ── Merged checklist across every record in the project ─────────────────
@@ -298,9 +307,9 @@ export async function bundleProject(
   }
 
   // ── Plot-style surveys' matrices (decided 2026-10-03: per template, per scale) ──
+  const modularIds = modularEventIds();
   if (wantVegan && modularDocs.some((d) => d.survey.style === 'plot')) {
-    const ids = modularEventIds();
-    const items = modularDocs.map((doc, i) => ({ doc, eventId: ids.get(modulars[i].id) ?? String(doc.survey.uuid) }));
+    const items = modularDocs.map((doc, i) => ({ doc, eventId: modularIds.get(modulars[i].id) ?? String(doc.survey.uuid) }));
     const built = projectSurveyMatrices(items, surveyNames(modularDocs.flatMap((d) => d.occurrences.map((o) => String(o.taxon_id)))));
     for (const tb of built.tables) entries.push({ name: `analysis/surveys/${tb.name}.csv`, bytes: strToU8(tableToCsv(tb.table)) });
     if (built.left.length) readmeNotes.push(`樣區型調查用了多種或自訂豐度尺度，只在有無矩陣中（不進尺度矩陣）：${built.left.join('、')}`);
@@ -316,6 +325,8 @@ export async function bundleProject(
       plots,
       sessions,
       trips,
+      censuses: censusDocs,
+      surveys: modularDocs.map((doc, i) => ({ doc, eventId: modularIds.get(modulars[i].id) ?? String(doc.survey.uuid) })),
     });
     entries.push({
       name: `dwca/${safeName}_dwca.zip`,
@@ -467,7 +478,7 @@ function buildReadme(
     '- `analysis/` — 跨樣區分析資料表（樣方 × 物種矩陣、環境表；**只涵蓋樣區**，名錄與採集不進矩陣）',
     '- `analysis/surveys/` — 樣區型調查（模板組成的調查表）的單位 × 物種矩陣：每個模板一個有無矩陣，每種豐度尺度一個矩陣，只收全部記錄都用該尺度的調查（列名為單位的 eventID，同 records/ 內的 `_units.csv`）',
     '- `juice/` — JUICE 匯入檔（分號分隔）',
-    '- `dwca/` — Darwin Core Archive（Event core + Occurrence + Humboldt extension，GBIF 發布用）',
+    '- `dwca/` — Darwin Core Archive（Event core + Occurrence + Humboldt + MeasurementOrFact extension，GBIF 發布用）',
     '- `sites/` — 專案的地理樣區幾何',
     '',
     '## analysis/（R vegan）',
@@ -521,7 +532,8 @@ function buildReadme(
     '`*_dwca.zip` 為完整 Darwin Core Archive（TAB 分隔 + meta.xml + eml.xml），可直接上傳 GBIF IPT 或以',
     'GBIF data validator 檢驗。Event 階層：樣區為母事件、小區為子事件（parentEventID）；名錄與採集各自成事件。',
     '葉候（leafPhenology）與偵測方式等非標準 DwC 欄位不在 archive 內，完整欄位見 `records/`。',
-    '每木調查與名錄型／樣區型調查尚未納入 archive，資料見 `records/`。',
+    '每木調查：每回合一個事件（`locationID` 為永久樣區），每個 20 m 樣方為子事件；每株每回合一筆出現記錄（`organismID` 為個體、`vitality` 為存活／死亡／不確定），分支的 DBH、POM、代碼等在 eMoF，`measurementRemarks` 為樹牌。',
+    '名錄型／樣區型調查：每次調查一個事件、每個單位為子事件；前次有、本次盲測後複查未找到的物種以 `occurrenceStatus = absent` 列出。使用者自訂的性狀與代碼以模板的英文名稱（沒有時用原名稱）為 `measurementType`。',
     '',
     ...(notes.length > 0 ? ['## 匯出注意事項', '', ...notes.map((n) => `- ${n}`), ''] : []),
   ];

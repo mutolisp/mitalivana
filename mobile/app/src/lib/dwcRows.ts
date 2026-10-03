@@ -33,6 +33,12 @@ import {
 import { buildDwcArchive, buildTaxonArchive, linkMeasurements, type DwcRow } from './dwcArchive';
 import { locationTerms } from './dwcLocation';
 import { listQuadrats, listQuadratSpeciesWithTaxon, parseQuadratConfig, SURFACE_COLUMNS, type QuadratSpeciesWithTaxon } from '../db/quadrats';
+import { applyAdoptedName, resolveAdoptedNames, resolveTaxa } from '../db/taxonLookup';
+import i18n from '~/i18n';
+import type { CensusExportDoc } from '~/survey/db/censusExportCore';
+import type { SurveyDoc } from '~/survey/db/surveyDocCore';
+import { censusDwcRows, surveyDwcRows, type DwcParts, type TaxonCols } from '~/survey/export/surveyDwcCore';
+import { censusEventIds } from '~/survey/stemmap/censusTables';
 
 /**
  * One eMoF row per leaf-phenology value of one occurrence.
@@ -203,6 +209,10 @@ export type DwcaInput = {
   plots: PlotSurvey[];
   sessions: Session[];
   trips: CollectionTrip[];
+  /** Tree census files (each carries its series' censuses up to it), Phase 2E-b. */
+  censuses?: CensusExportDoc[];
+  /** Checklist / plot-style surveys with their eventIDs (2E-a), Phase 2E-b. */
+  surveys?: { doc: SurveyDoc; eventId: string }[];
 };
 
 /** Two archives: the Event-core records, and the Taxon core that carries what
@@ -275,6 +285,7 @@ function quadratRows(
         coreEventID: eventID,
         occurrenceID,
         basisOfRecord: 'HumanObservation',
+        occurrenceStatus: 'present',
         taxonID: publishedTaxonId(s.taxon_id),
         scientificName: s.simple_name,
         scientificNameAuthorship: s.name_author,
@@ -338,6 +349,8 @@ export function buildRecordsDwca({
   plots,
   sessions,
   trips,
+  censuses = [],
+  surveys = [],
 }: DwcaInput): RecordsDwca {
   const events: DwcRow[] = [];
   const occurrences: DwcRow[] = [];
@@ -414,6 +427,7 @@ export function buildRecordsDwca({
         coreEventID: (r.subplot_id != null ? subplotEventById.get(r.subplot_id) : null) ?? eventID,
         occurrenceID: r.occurrence_id,
         basisOfRecord: 'HumanObservation',
+        occurrenceStatus: 'present',
         taxonID: publishedTaxonId(r.taxon_id),
         scientificName: r.used_scientific_name || r.simple_name,
         scientificNameAuthorship: r.name_author,
@@ -486,6 +500,7 @@ export function buildRecordsDwca({
         coreEventID: eventID,
         occurrenceID: r.occurrence_id,
         basisOfRecord: 'HumanObservation',
+        occurrenceStatus: 'present',
         taxonID: publishedTaxonId(r.taxon_id),
         scientificName: r.used_scientific_name || r.simple_name,
         scientificNameAuthorship: r.name_author,
@@ -541,6 +556,7 @@ export function buildRecordsDwca({
         coreEventID: eventID,
         occurrenceID: sp.occurrence_id,
         basisOfRecord: 'PreservedSpecimen',
+        occurrenceStatus: 'present',
         taxonID: publishedTaxonId(sp.taxon_id),
         scientificName: sp.used_scientific_name || sp.simple_name,
         scientificNameAuthorship: sp.name_author,
@@ -584,6 +600,59 @@ export function buildRecordsDwca({
       measurements.push(...leafPhenologyRows(sp.occurrence_id, sp.leaf_phenology));
       measurements.push(...duplicateCountRows(sp.occurrence_id, sp.duplicate_count));
       collectTaxon(taxonAcc, sp);
+    }
+  }
+
+  // Tree censuses and checklist / plot-style surveys (Phase 2E-b): rows from
+  // their documents (survey/export/surveyDwcCore.ts), taxa as the others'.
+  if (censuses.length || surveys.length) {
+    const refs = [
+      ...censuses.flatMap((d) => d.trees.map((t) => ({ taxon_id: String(t.taxon_id), used_name_id: t.used_name_id, used_scientific_name: t.used_scientific_name }))),
+      ...surveys.flatMap(({ doc }) => [
+        ...doc.occurrences.map((o) => ({ taxon_id: String(o.taxon_id), used_name_id: o.used_name_id, used_scientific_name: o.used_scientific_name })),
+        ...doc.rechecks.map((r) => ({ taxon_id: String(r.prev_taxon_id), used_name_id: null, used_scientific_name: null })),
+      ]),
+    ];
+    const taxa = resolveTaxa([...new Set(refs.map((r) => r.taxon_id))]);
+    const adopted = resolveAdoptedNames(refs.map((r) => ({ used_name_id: r.used_name_id == null || r.used_name_id === '' ? null : Number(r.used_name_id), used_scientific_name: (r.used_scientific_name as string | null) ?? null })));
+    const taxonCols: TaxonCols = (t) => {
+      const f = taxa.get(t.taxon_id);
+      // Never the id as a name (taxonLookup.TaxonFields.unresolved).
+      if (!f || f.unresolved) return { taxonID: publishedTaxonId(t.taxon_id), scientificName: t.used_scientific_name ?? '' };
+      const r = { ...applyAdoptedName(f, { used_name_id: t.used_name_id, used_scientific_name: t.used_scientific_name }, adopted), taxon_id: t.taxon_id };
+      collectTaxon(taxonAcc, r);
+      return {
+        taxonID: publishedTaxonId(t.taxon_id),
+        scientificName: r.simple_name,
+        scientificNameAuthorship: r.name_author,
+        vernacularName: r.common_name_c,
+        family: r.family,
+        kingdom: r.kingdom,
+        taxonRank: r.rank,
+        ...taxonomyCols(taxonAcc.classify, r),
+        phylum: r.phylum,
+        class: r.class,
+        order: r.order,
+        genus: r.genus,
+        taxonomicStatus: r.used_status,
+        acceptedNameUsage: r.used_accepted_name,
+        acceptedNameUsageID: r.used_status ? publishedTaxonId(t.taxon_id) : '',
+        establishmentMeans: establishmentMeansDwcValue(r.alien_type, r.is_endemic),
+      };
+    };
+    const words = { i18n: (k: string) => i18n.t(k) };
+    const parts: DwcParts[] = [
+      ...censuses.map((d) => censusDwcRows(d, { eventIds: censusEventIds(d), uniqueEventId, taxonCols, words })),
+      ...surveys.map(({ doc, eventId }) => surveyDwcRows(doc, { eventId, uniqueEventId, taxonCols, words })),
+    ];
+    // One row at a time: a large census has hundreds of thousands of
+    // measurements, too many to spread as arguments (Hermes: call stack exceeded).
+    for (const p of parts) {
+      for (const r of p.events) events.push(r);
+      for (const r of p.occurrences) occurrences.push(r);
+      for (const r of p.humboldt) humboldt.push(r);
+      for (const r of p.measurements) measurements.push(r);
+      for (const c of p.creators) creators.add(c);
     }
   }
 

@@ -1,0 +1,256 @@
+/**
+ * Darwin Core rows of a tree census and of a checklist / plot-style survey
+ * (src/survey/export/surveyDwcCore.ts, Phase 2E-b), on the real migrated
+ * schema, zipped by the archive writer (lib/dwcArchive.ts).
+ *
+ * What must hold:
+ *   - a census: an event per census with the permanent plot as locationID
+ *     and its centre when the plot has an origin; a child event per quadrat
+ *     holding trees; an occurrence per tree handled in that census only
+ *     (a tree left untouched has none), organismID its uuid, occurrenceID
+ *     tree + census, vitality alive / dead / uncertain (DN, NF) with the
+ *     reason in English beside the Chinese; a stem's measurements only for
+ *     stems handled, each with its tag, date and recorder; AMS, the template's
+ *     traits and code lists named in English when the template gives it;
+ *   - a survey: an event, a child per unit under its parent; occurrences
+ *     with their components' DwC terms (organismQuantity, sex, lifeStage …,
+ *     occurrenceRemarks for an occurrence's comment); the other values as
+ *     measurements on the occurrence or the event (frequency as %, a layer's
+ *     cover per layer, a choice by its code's name); a previous species not
+ *     found on the recheck as an absence; Humboldt says what is reported;
+ *   - every id is unique, every measurement names an occurrence that exists
+ *     or sits on an existing event, and the zipped archive's txt files have
+ *     the columns meta.xml declares.
+ *
+ * Run: npm run check:survey-dwc
+ */
+import { DatabaseSync } from 'node:sqlite';
+import { readFileSync } from 'node:fs';
+import { strFromU8, unzipSync } from 'fflate';
+import { runUserMigrations } from '../src/db/migrations.ts';
+import { buildDwcArchive, EVENT_COLS, MEASUREMENT_COLS, OCCURRENCE_COLS, HUMBOLDT_COLS, linkMeasurements } from '../src/lib/dwcArchive.ts';
+import * as s from '../src/survey/db/stemmapCore.ts';
+import * as c from '../src/survey/db/surveyCore.ts';
+import * as d from '../src/survey/db/surveyDocCore.ts';
+import { buildCensusExport } from '../src/survey/db/censusExportCore.ts';
+import { censusDwcRows, surveyDwcRows, REMARKS } from '../src/survey/export/surveyDwcCore.ts';
+import { censusEventIds } from '../src/survey/stemmap/censusTables.ts';
+import { STEMMAP_TEMPLATE } from '../src/survey/templates/stemmap.ts';
+import { withRequired } from '../src/survey/template/validate.ts';
+
+let failed = 0;
+const ok = (cond, msg) => {
+  if (!cond) {
+    failed++;
+    console.error(`✗ ${msg}`);
+  }
+};
+
+const sqlite = new DatabaseSync(':memory:', { enableForeignKeyConstraints: false });
+const db = {
+  executeSync(sql, params = []) {
+    const stmt = sqlite.prepare(sql);
+    if (/^\s*(SELECT|PRAGMA|WITH)\b/i.test(sql)) return { rows: stmt.all(...params) };
+    const res = stmt.run(...params);
+    return { rows: [], insertId: Number(res.lastInsertRowid), rowsAffected: res.changes };
+  },
+};
+await runUserMigrations(db);
+sqlite.exec('PRAGMA foreign_keys = ON;');
+let clock = Date.UTC(2026, 9, 3, 1, 0, 0);
+let n = 0;
+const ctx = { db, now: () => (clock += 60_000), uuid: () => `u-${++n}` };
+const words = { i18n: (k) => `[${k}]` };
+const taxonCols = (t) => ({ taxonID: t.taxon_id, scientificName: t.used_scientific_name || `Name ${t.taxon_id}` });
+const unique = () => {
+  const used = new Set();
+  return (base) => {
+    let id = base;
+    for (let k = 2; used.has(id); k++) id = `${base}_${k}`;
+    used.add(id);
+    return id;
+  };
+};
+const checkLinks = (parts, label) => {
+  const events = new Set(parts.events.map((e) => e.eventID));
+  const occs = new Set(parts.occurrences.map((o) => o.occurrenceID));
+  ok(events.size === parts.events.length, `${label}: eventIDs unique`);
+  ok(occs.size === parts.occurrences.length, `${label}: occurrenceIDs unique`);
+  ok(new Set(parts.measurements.map((m) => m.measurementID)).size === parts.measurements.length, `${label}: measurementIDs unique`);
+  ok(parts.events.every((e) => !e.parentEventID || events.has(e.parentEventID)), `${label}: every parentEventID exists`);
+  ok(parts.occurrences.every((o) => events.has(o.coreEventID)), `${label}: every occurrence sits on an event`);
+  ok(parts.measurements.every((m) => (m.occurrenceID ? occs.has(m.occurrenceID) : events.has(m.coreEventID))), `${label}: every measurement names an occurrence or an event`);
+};
+
+// ── a tree census ─────────────────────────────────────────────────────────
+const tpl = {
+  ...STEMMAP_TEMPLATE,
+  id: 'user:census-dwc',
+  origin: 'user',
+  name: { text: '每木＋' },
+  description: undefined,
+  builtin_key: undefined,
+  builtin_version: undefined,
+  components: [
+    ...STEMMAP_TEMPLATE.components.map((x) => (x.type === 'health' ? { ...x, params: { codesets: ['forestgeo-census-1998', 'forestgeo-ams-2021', 'list_1'] } } : x)),
+    { key: 'traits', type: 'traits', level: 'individual', required: false, params: { traits: [{ id: 'crown', label: { text: '冠幅', tr: { en: 'Crown width' } }, unit: 'm' }, { id: 'bark', label: { text: '樹皮厚' }, unit: 'mm' }] } },
+  ],
+  codelists: [{ id: 'list_1', label: { text: '損傷', tr: { en: 'Damage' } }, items: [{ code: '1', label: { text: '蟲害', tr: { en: 'Insect' } } }, { code: '2', label: { text: '折枝' } }] }],
+};
+const F = s.createFrame(ctx, { code: 'DW1', name: 'dwc plot', sizeXM: 40, sizeYM: 40, originLat: 24, originLng: 121, originAccuracyM: 3 });
+const C1 = s.startCensus(ctx, { frameId: F, template: tpl, investigators: '甲' });
+const sd = (over) => ({ stemNo: null, dbhCm: null, pomM: 1.3, stemDead: false, codes: [], notes: null, ...over });
+const draft = (over) => ({ individualId: null, tag: null, taxon: { taxonId: 't1', usedScientificName: null }, location: { method: 'xy', x: 5, y: 5 }, notes: null, heightM: null, treeCodes: [], mainStemNo: 1, stems: [sd({ dbhCm: 10 })], recordedBy: 'A', ...over });
+const alive = s.saveTreeDraft(ctx, C1, draft({ heightM: 12, stems: [sd({ dbhCm: 22, ams: { survival_status: 'A', mode: ['B', 'U'] }, custom: { list_1: ['1', '2'] } }), sd({ dbhCm: 3 })], traits: { traits: { crown: 4.5, bark: 7 } } }));
+const two = s.saveTreeDraft(ctx, C1, draft({ location: { method: 'xy', x: 25, y: 5 }, taxon: { taxonId: 't2', usedScientificName: null } }));
+const three = s.saveTreeDraft(ctx, C1, draft({ location: { method: 'xy', x: 6, y: 25 }, taxon: { taxonId: 't3', usedScientificName: null }, stems: [sd({ dbhCm: 8, ams: { survival_status: 'NF' } })] }));
+const untouched = s.saveTreeDraft(ctx, C1, draft({ location: { method: 'xy', x: 35, y: 35 }, taxon: { taxonId: 't4', usedScientificName: null }, stems: [sd({ dbhCm: 4 })] }));
+s.finishCensus(ctx, C1);
+const C2 = s.startCensus(ctx, { frameId: F, template: tpl, investigators: '乙' });
+const view = (id) => s.loadTree(ctx, C2, id);
+const again = (id, patch) => s.saveTreeDraft(ctx, C2, { ...draft({}), individualId: id, taxon: null, location: null, stems: view(id).stems.map((x) => sd({ stemNo: x.stem.stem_no, dbhCm: null, pomM: x.previous?.pom_m ?? 1.3 })), ...patch });
+again(alive, { stems: [sd({ stemNo: 1, dbhCm: 23 }), sd({ stemNo: 2, dbhCm: null })] });
+again(two, { treeCodes: ['DS'], stems: [sd({ stemNo: 1 })] });
+again(three, { treeCodes: ['DN'], stems: [sd({ stemNo: 1 })] });
+// `untouched` is not handled in census 2.
+s.finishCensus(ctx, C2);
+const doc = buildCensusExport(ctx, C2);
+const parts = censusDwcRows(doc, { eventIds: censusEventIds(doc), uniqueEventId: unique(), taxonCols, words });
+checkLinks(parts, 'census');
+const frameUuid = s.getFrame(ctx, F).uuid;
+const cEvents = parts.events.filter((e) => !e.parentEventID);
+ok(cEvents.length === 2 && cEvents.every((e) => e.locationID === frameUuid && e.sampleSizeValue === 1600 && /\//.test(e.eventDate)), `census: an event per census on the plot (${cEvents.map((e) => e.eventID)})`);
+ok(cEvents[0].eventID === 'DW1' && cEvents[0].decimalLatitude > 24 && cEvents[0].coordinateUncertaintyInMeters >= 29 && cEvents[0].geodeticDatum, `census: the plot's centre and reach (${cEvents[0].decimalLatitude} ±${cEvents[0].coordinateUncertaintyInMeters})`);
+ok(/ForestGEO tree census; ForestGEO tree mortality and damage \(AMS\)/.test(cEvents[0].samplingProtocol), 'census: the protocol says AMS when the template has it');
+const qEvents = parts.events.filter((e) => e.parentEventID);
+ok(qEvents.every((e) => e.sampleSizeValue === 400 && e.decimalLatitude != null) && qEvents.some((e) => e.eventID === 'DW1-0000'), `census: quadrats as child events (${qEvents.map((e) => e.eventID)})`);
+const occ = (tree, no) => parts.occurrences.find((o) => o.organismID === s.getIndividual(ctx, tree).uuid && o.occurrenceID.endsWith(`:${no}`));
+ok(occ(untouched, 1) && !occ(untouched, 2), 'census: a tree left untouched has no occurrence that census');
+ok(occ(alive, 1).vitality === 'alive' && occ(two, 2).vitality === 'dead' && occ(three, 2).vitality === 'uncertain', 'census: vitality alive / dead / uncertain (DN)');
+ok(occ(three, 1).vitality === 'uncertain' && occ(three, 1).occurrenceRemarks.includes('(AMS survival NF'), 'census: AMS NF on every stem is uncertain, said in English too');
+ok(occ(three, 2).occurrenceRemarks === REMARKS.presumedDead && /\(census code DN/.test(REMARKS.presumedDead), 'census: DN said, with English beside');
+ok(occ(alive, 1).occurrenceStatus === 'present' && occ(alive, 1).individualCount === 1 && occ(alive, 1).basisOfRecord === 'HumanObservation', 'census: present, one individual');
+ok(occ(alive, 1).coreEventID === 'DW1-0000' && occ(two, 1).coreEventID === 'DW1-0100', 'census: on the quadrat event');
+ok(occ(alive, 1).decimalLatitude > 24 && occ(alive, 1).coordinateUncertaintyInMeters === 3, 'census: a tree’s position from the plot origin');
+const ms = (o) => parts.measurements.filter((m) => m.occurrenceID === o.occurrenceID);
+const a1 = ms(occ(alive, 1));
+const tagA = `${s.getIndividual(ctx, alive).tag}-1`;
+const dbh = a1.find((m) => m.measurementType === 'DBH' && m.measurementRemarks === tagA);
+ok(dbh && dbh.measurementValue === '22' && dbh.measurementUnit === 'cm' && dbh.measurementDeterminedBy === 'A' && /^\d{4}-\d\d-\d\dT/.test(dbh.measurementDeterminedDate), `census: DBH with the stem's tag, date, recorder (${JSON.stringify(dbh)})`);
+ok(a1.filter((m) => m.measurementType === 'ForestGEO AMS mode').map((m) => m.measurementValue).join('|') === 'B|U', 'census: an AMS list, a row per value');
+ok(a1.find((m) => m.measurementType === 'Damage' && m.measurementValue === 'Insect') && a1.find((m) => m.measurementType === 'Damage' && m.measurementValue === '折枝'), 'census: a code list by its English name, codes by theirs (else as named)');
+ok(a1.find((m) => m.measurementType === 'Crown width' && m.measurementValue === '4.5' && m.measurementUnit === 'm') && a1.find((m) => m.measurementType === '樹皮厚'), 'census: traits by their English name, else as named');
+ok(a1.find((m) => m.measurementType === 'tree height' && m.measurementValue === '12') && a1.find((m) => m.measurementType === 'plot x'), 'census: height and plot position');
+const a2 = ms(occ(alive, 2));
+ok(a2.some((m) => m.measurementRemarks === tagA) && !a2.some((m) => m.measurementRemarks === `${s.getIndividual(ctx, alive).tag}-2`), 'census: only stems handled in the census have rows');
+ok(ms(occ(two, 2)).find((m) => m.measurementType === 'ForestGEO census code' && m.measurementValue === 'DS'), 'census: whole-tree codes');
+ok(parts.humboldt.length === 2 && parts.humboldt[0].siteCount === 4 && parts.humboldt[0].isAbundanceReported === true, 'census: Humboldt per census');
+// Without an origin: no coordinates anywhere.
+s.updateFrame(ctx, F, { originLat: null, originLng: null });
+const bare = censusDwcRows(buildCensusExport(ctx, C2), { eventIds: censusEventIds(doc), uniqueEventId: unique(), taxonCols, words });
+ok(bare.events.every((e) => e.decimalLatitude == null && e.coordinateUncertaintyInMeters == null) && bare.occurrences.every((o) => o.decimalLatitude == null && o.coordinateUncertaintyInMeters == null && !o.geodeticDatum), 'census: no origin, no coordinates');
+
+// ── a plot-style survey ───────────────────────────────────────────────────
+const T = withRequired({
+  schema: 1,
+  id: 'user:survey-dwc',
+  version: 2,
+  origin: 'user',
+  name: { text: '溪谷樣區', tr: { en: 'Valley plots' } },
+  style: 'plot',
+  units: [
+    { key: 'u1', label: { text: '小區', tr: { en: 'Subplot' } } },
+    { key: 'u2', label: { text: '小樣方' } },
+  ],
+  components: [
+    { key: 'layers', type: 'structure', level: 'survey', required: false, params: { layers: 3, methods: ['BB', 'percent'] } },
+    { key: 'env', type: 'environment', level: 'survey', required: false, params: { fields: ['elevation_m', 'slope_deg'] } },
+    { key: 'where', type: 'location', level: 'unit', unit: 'u1', required: false, params: { methods: ['gps'] } },
+    { key: 'abundance', type: 'abundance', level: 'occurrence', required: false, params: { kinds: ['BB', 'count'], default: 'BB' } },
+    { key: 'pheno', type: 'phenology', level: 'occurrence', required: false, params: { fields: ['sex', 'life_stage', 'reproductive_condition', 'leaf_phenology'] } },
+    { key: 'freq', type: 'frequency', level: 'occurrence', required: false, params: { mode: 'cells', n: 2, top_edge: 'N' } },
+    { key: 'micro', type: 'choice', level: 'occurrence', required: false, params: { list: 'list_1', multi: true } },
+    { key: 'leaf', type: 'traits', level: 'occurrence', required: false, params: { traits: [{ id: 'len', label: { text: '葉長', tr: { en: 'Leaf length' } }, unit: 'cm' }] } },
+    { key: 'onote', type: 'comments', level: 'occurrence', required: true, params: {} },
+  ],
+  codelists: [{ id: 'list_1', label: { text: '微棲地', tr: { en: 'Microhabitat' } }, items: [{ code: 'rock', label: { text: '岩石', tr: { en: 'Rock' } } }, { code: 'log', label: { text: '倒木' } }] }],
+  quick_add: false,
+});
+const PF = s.createFrame(ctx, { code: 'VP1', sizeXM: 20, sizeYM: 20 });
+const P1 = c.createSurvey(ctx, { template: T, frameId: PF, investigators: '甲' });
+const S1 = c.addUnit(ctx, P1, { levelKey: 'u1', code: 'S1' });
+c.addOccurrence(ctx, P1, { taxon_id: 't7', unit_id: S1 });
+c.addOccurrence(ctx, P1, { taxon_id: 't8', unit_id: S1 });
+c.finishSurvey(ctx, P1);
+const P2 = c.createSurvey(ctx, { template: T, frameId: PF, investigators: '乙' });
+const u = Object.fromEntries(c.listUnits(ctx, P2).map((r) => [r.code, r.id]));
+const Q1 = c.addUnit(ctx, P2, { levelKey: 'u2', code: 'Q1', parentId: u.S1 });
+c.writeComponent(ctx, { kind: 'survey', id: P2 }, 'layers', { layer_count: 3, cover_pct: { 1: 40, 2: 10 } });
+c.writeComponent(ctx, { kind: 'survey', id: P2 }, 'env', { elevation_m: 820, slope_deg: 25 });
+c.writeComponent(ctx, { kind: 'unit', id: u.S1 }, 'where', { lat: 24.5, lng: 121.5, accuracy: 6 });
+const o1 = c.addOccurrence(ctx, P2, { taxon_id: 't7', unit_id: Q1, organism_quantity: '5', organism_quantity_type: 'individuals' });
+c.writeComponent(ctx, { kind: 'occurrence', id: o1 }, 'pheno', { sex: 'female', life_stage: 'adult', reproductive_condition: ['flowering', 'fruiting'], leaf_phenology: ['green'] });
+c.writeComponent(ctx, { kind: 'occurrence', id: o1 }, 'freq', { freq_cells: '1010' });
+c.writeComponent(ctx, { kind: 'occurrence', id: o1 }, 'micro', { value: ['rock', 'log'] });
+c.writeComponent(ctx, { kind: 'occurrence', id: o1 }, 'leaf', { len: 6.2 });
+c.writeComponent(ctx, { kind: 'occurrence', id: o1 }, 'onote', { notes: '葉背有毛' });
+c.closeBlindPhase(ctx, P2);
+const cand = c.recheckState(ctx, P2).candidates;
+c.answerRecheck(ctx, P2, cand.find((x) => x.taxonId === 't8'), 'not_found');
+c.answerRecheck(ctx, P2, cand.find((x) => x.taxonId === 't7') ?? cand[0], 'found');
+const sdoc = d.buildSurveyDoc(ctx, P2);
+const sp = surveyDwcRows(sdoc, { eventId: 'VP1_20261003', uniqueEventId: unique(), taxonCols, words });
+checkLinks(sp, 'survey');
+const ev = sp.events[0];
+ok(ev.eventID === 'VP1_20261003' && ev.locationID === s.getFrame(ctx, PF).uuid && ev.minimumElevationInMeters === 820 && ev.recordedBy === '乙', `survey: its event, plot, elevation, recorder (${JSON.stringify(ev)})`);
+ok(/^Valley plots \(Mitalivana survey template user:survey-dwc v2\)$/.test(ev.samplingProtocol), `survey: the protocol is the template, English name first (${ev.samplingProtocol})`);
+const uS1 = sp.events.find((e) => e.eventID === 'VP1_20261003-S1');
+const uQ1 = sp.events.find((e) => e.eventID === 'VP1_20261003-S1-Q1');
+ok(uS1?.parentEventID === ev.eventID && uQ1?.parentEventID === uS1.eventID && uS1.decimalLatitude === '24.5', `survey: units as children of their parents, with their location (${JSON.stringify(uS1)})`);
+const oc = sp.occurrences.find((x) => x.occurrenceID === sdoc.occurrences.find((y) => y.organism_quantity === '5').uuid);
+ok(oc.coreEventID === uQ1.eventID && oc.organismQuantity === '5' && oc.organismQuantityType === 'individuals' && oc.individualCount === '5', `survey: abundance terms (${JSON.stringify(oc)})`);
+ok(oc.sex === 'female' && oc.reproductiveCondition === 'flowering|fruiting' && oc.lifeStage === 'adult' && oc.occurrenceRemarks === '葉背有毛' && !oc.eventRemarks, 'survey: phenology terms; an occurrence’s comment is occurrenceRemarks');
+const om = sp.measurements.filter((m) => m.occurrenceID === oc.occurrenceID);
+ok(om.find((m) => m.measurementType === 'frequency' && m.measurementValue === '50' && m.measurementUnit === '%'), `survey: frequency as % (${JSON.stringify(om.filter((m) => m.measurementType === 'frequency'))})`);
+ok(om.filter((m) => m.measurementType === 'Microhabitat').map((m) => m.measurementValue).join() === 'Rock,倒木', 'survey: a choice by its list’s English name, a row per code by its name');
+ok(om.find((m) => m.measurementType === 'Leaf length' && m.measurementUnit === 'cm') && om.find((m) => m.measurementType === 'leafPhenology' && m.measurementValue === 'green'), 'survey: traits and leaf phenology on the occurrence');
+const em = sp.measurements.filter((m) => !m.occurrenceID);
+ok(em.filter((m) => m.measurementType === 'layer cover').map((m) => `${m.measurementRemarks}=${m.measurementValue}`).join() === 'E1=40,E2=10' && em.every((m) => m.coreEventID === ev.eventID), 'survey: a layer’s cover per layer, on the event');
+ok(em.find((m) => m.measurementType === 'slope' && m.measurementUnit === 'degrees') && !em.some((m) => m.measurementType === 'minimumElevationInMeters'), 'survey: environment on the event (elevation as a term, not a measurement)');
+const absent = sp.occurrences.find((x) => x.occurrenceStatus === 'absent');
+ok(absent && absent.taxonID === 't8' && absent.coreEventID === uS1.eventID && absent.occurrenceRemarks === REMARKS.absentOnRecheck && /\(recorded in the previous survey/.test(REMARKS.absentOnRecheck), `survey: a species not found on the recheck is an absence where it was looked for (${JSON.stringify(absent)})`);
+ok(sp.occurrences.filter((x) => x.occurrenceStatus === 'present').length === sdoc.occurrences.length, 'survey: every occurrence present');
+ok(sp.humboldt[0].isAbsenceReported === true && sp.humboldt[0].isAbundanceReported === true && sp.humboldt[0].isVegetationCoverReported === true && sp.humboldt[0].siteNestingDescription === '1 × Subplot; 1 × 小樣方', `survey: Humboldt says what is reported (${JSON.stringify(sp.humboldt[0])})`);
+
+// ── the archive ───────────────────────────────────────────────────────────
+{
+  const all = { events: [...parts.events, ...sp.events], occurrences: [...parts.occurrences, ...sp.occurrences], humboldt: [...parts.humboldt, ...sp.humboldt], measurements: [...parts.measurements, ...sp.measurements] };
+  linkMeasurements(all.occurrences, all.measurements);
+  ok(all.measurements.every((m) => m.coreEventID), 'archive: every measurement has its core event');
+  const files = unzipSync(buildDwcArchive({ meta: { title: 't', abstract: '', creator: '', pubDate: '2026-10-03', packageId: 'p' }, ...all }));
+  const header = (name) => strFromU8(files[name]).split('\n')[0].split('\t');
+  ok(header('event.txt').join() === EVENT_COLS.map((x) => x.key).join(), 'archive: event.txt has the declared columns');
+  ok(header('occurrence.txt').join() === ['coreEventID', ...OCCURRENCE_COLS.map((x) => x.key)].join(), 'archive: occurrence.txt has the declared columns');
+  ok(header('measurementorfact.txt').join() === ['coreEventID', ...MEASUREMENT_COLS.map((x) => x.key)].join() && header('humboldt.txt').length === HUMBOLDT_COLS.length + 1, 'archive: the extensions too');
+  const occTxt = strFromU8(files['occurrence.txt']).split('\n');
+  ok(occTxt.length - 1 === all.occurrences.length && occTxt.slice(1).every((l) => l.split('\t').length === OCCURRENCE_COLS.length + 1), 'archive: a line per occurrence, no tab broken');
+  const vitIdx = OCCURRENCE_COLS.findIndex((x) => x.key === 'vitality') + 1;
+  ok(new Set(occTxt.slice(1).map((l) => l.split('\t')[vitIdx]).filter(Boolean)).size === 3, 'archive: vitality written');
+}
+
+// ── the rows into the archive ─────────────────────────────────────────────
+// A 20 000-tree census has hundreds of thousands of measurements: spread as
+// arguments (push(...rows)) they overflow Hermes's stack ("Maximum call stack
+// size exceeded", seen on the emulator 2026-10-03). dwcRows.ts runs on the
+// app's connection, so its source is checked.
+{
+  const src = readFileSync(new URL('../src/lib/dwcRows.ts', import.meta.url), 'utf8');
+  const spread = src.match(/\.push\(\.\.\.(?:p|parts?)\.\w+\)/g) ?? [];
+  ok(spread.length === 0, `dwcRows: a census's rows are not spread into push (${spread.join(', ')})`);
+}
+
+if (failed) {
+  console.error(`${failed} failure(s)`);
+  process.exit(1);
+}
+console.log('✓ survey-dwc: censuses and surveys become events, occurrences and measurements that link up');

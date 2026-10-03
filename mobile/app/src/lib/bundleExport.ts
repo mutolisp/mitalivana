@@ -14,6 +14,7 @@ import { safeAppFileUri } from './appFiles';
 import { syncBlockFor } from '~/db/syncBase';
 import { readAsStringAsync } from 'expo-file-system/legacy';
 import { buildCensusEntries } from '~/survey/censusBundle';
+import type { CensusExportDoc } from '~/survey/db/censusExportCore';
 import { buildSurveyEntries } from '~/survey/surveyBundle';
 import * as MediaLibrary from 'expo-media-library';
 import yaml from 'js-yaml';
@@ -416,7 +417,7 @@ const README_RULES: Array<{ match: (name: string) => boolean; desc: string }> = 
   { match: (n) => n.endsWith('_quadrat_surface.csv'), desc: '小樣方：一列一個小樣方，地表覆蓋、位置、大小、格數與上邊方向' },
   {
     match: (n) => n.includes('/dwca/'),
-    desc: 'Darwin Core Archive：event.txt（Event core）+ occurrence.txt + humboldt.txt + meta.xml + eml.xml，可直接上傳 GBIF IPT',
+    desc: 'Darwin Core Archive：event.txt（Event core）+ occurrence.txt + humboldt.txt + measurementorfact.txt（量測，每木的胸徑等在此）+ meta.xml + eml.xml，可直接上傳 GBIF IPT',
   },
   { match: (n) => n.endsWith('_04_temperature_loggers.csv'), desc: '溫度計（Form 4）：每支溫度計每次巡查一列，讀取與新部署；非 GLORIA Sheet 原有分頁' },
   { match: (n) => n.includes('/loggers/'), desc: '溫度計資料檔（全長碼_序號_原檔名）與 Form 4 掃描檔（01_ 的表單識別碼）' },
@@ -654,7 +655,7 @@ function addDwcaEntry(
   base: string,
   title: string,
   abstract: string,
-  records: Pick<DwcaInput, 'plots' | 'sessions' | 'trips'>,
+  records: Pick<DwcaInput, 'plots' | 'sessions' | 'trips' | 'censuses' | 'surveys'>,
 ): void {
   const dwca = buildRecordsDwca({
     ...records,
@@ -1351,8 +1352,8 @@ export async function bundleLoggers(summitId: number, opts: Pick<BundleOptions, 
  */
 export async function buildCensusBundleEntries(
   surveyId: number,
-  opts: Pick<BundleOptions, 'includePhotos' | 'onProgress'>,
-): Promise<{ entries: BuiltZipEntry[]; folderName: string }> {
+  opts: Pick<BundleOptions, 'includePhotos' | 'onProgress'> & { includeDwca?: boolean },
+): Promise<{ entries: BuiltZipEntry[]; folderName: string; doc: CensusExportDoc }> {
   if (opts.includePhotos) await ensurePhotosReadAccess();
   const built = await buildCensusEntries(surveyId, {
     includePhotos: opts.includePhotos,
@@ -1369,10 +1370,12 @@ export async function buildCensusBundleEntries(
     },
   });
   const entries: BuiltZipEntry[] = [...built.entries];
+  // Every census the file carries (Phase 2E-b), as the yml.
+  if (opts.includeDwca) addDwcaEntry(entries, built.folderName, built.name, '', { plots: [], sessions: [], trips: [], censuses: [built.doc] });
   const manifest = buildManifest({ kind: 'survey', id: surveyId, uuid: built.uuid, name: built.name, record_count: built.trees, photo_count: built.photos });
   entries.push({ name: `${built.folderName}/manifest.json`, bytes: strToU8(JSON.stringify(manifest, null, 2)) });
   entries.push({ name: `${built.folderName}/README.md`, bytes: strToU8(buildRecordReadme(built.folderName, entries)) });
-  return { entries, folderName: built.folderName };
+  return { entries, folderName: built.folderName, doc: built.doc };
 }
 
 export async function bundleCensus(surveyId: number, opts: BundleOptions): Promise<ExportFile> {
@@ -1388,7 +1391,7 @@ export async function bundleCensus(surveyId: number, opts: BundleOptions): Promi
  */
 export async function buildModularBundleEntries(
   surveyId: number,
-  opts: Pick<BundleOptions, 'includePhotos' | 'onProgress'>,
+  opts: Pick<BundleOptions, 'includePhotos' | 'onProgress'> & { includeDwca?: boolean },
 ): Promise<{ entries: BuiltZipEntry[]; folderName: string }> {
   if (opts.includePhotos) await ensurePhotosReadAccess();
   const built = await buildSurveyEntries(surveyId, {
@@ -1406,6 +1409,7 @@ export async function buildModularBundleEntries(
     },
   });
   const entries: BuiltZipEntry[] = [...built.entries];
+  if (opts.includeDwca) addDwcaEntry(entries, built.folderName, built.name, '', { plots: [], sessions: [], trips: [], surveys: [{ doc: built.doc, eventId: built.eventId }] });
   const manifest = buildManifest({ kind: 'modular', id: surveyId, uuid: built.uuid, name: built.name, record_count: built.occurrences, photo_count: built.files });
   entries.push({ name: `${built.folderName}/manifest.json`, bytes: strToU8(JSON.stringify(manifest, null, 2)) });
   entries.push({ name: `${built.folderName}/README.md`, bytes: strToU8(buildRecordReadme(built.folderName, entries)) });
