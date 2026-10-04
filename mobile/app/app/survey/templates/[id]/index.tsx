@@ -1,8 +1,11 @@
 /**
  * The builder (Phase 2D-a; canvas 12a–12c): one template's draft. Its name
- * (plus an optional English name), quick add, the unit levels of a plot, and
- * the components on each place — the survey, each unit level, each
- * occurrence. A component opens its own page (component/[key].tsx).
+ * (plus an optional English name) and quick add, then — since 2026-10-04, the
+ * four groups the survey screen shows — the survey's components on the cards
+ * 基本資料, 時間資料, 空間資料 and 調查法 (each card adding only its own
+ * types; on a plot 調查法 also holds the 小區劃分: the unit levels and what
+ * each asks), then 物種 (what each occurrence asks). A component opens its
+ * own page (component/[key].tsx).
  *
  * Every change is stored in the draft at once (survey_template_drafts).
  * 儲存 makes it the template's next version; when the change only adds or
@@ -13,7 +16,8 @@
  * census, each quadrat, tree and stem.
  */
 import { Ionicons } from '@expo/vector-icons';
-import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -26,15 +30,20 @@ import { BackHeaderLeft } from '~/lib/goBack';
 import { useToast } from '~/stores/toast';
 import { useThemeColors } from '~/theme/colors';
 import { componentHref, listHref, previewHref, useTemplateDraft } from '~/survey/builder/drafts';
-import { issueText, paramsSummary, placeTitle, styleName, typeName } from '~/survey/builder/words';
+import { fieldSummary, issueText, paramsSummary, placeTitle, styleName, typeName } from '~/survey/builder/words';
 import { labelText } from '~/survey/components/editors/shared';
 import { FormCard } from '~/survey/components/FormBits';
-import { commitDraft, discardDraft, templateUseCounts, upgradableSurveys, upgradeSurveys } from '~/survey/db/surveys';
-import type { ComponentType } from '~/survey/registry';
+import { commitDraft, discardDraft, fieldLibrary, listFields, storeLibraryWrites, templateUseCounts, upgradableSurveys, upgradeSurveys } from '~/survey/db/surveys';
+import { convertLegacyComponents } from '~/survey/template/legacyFields';
+import { newFieldFor } from '~/survey/builder/fieldReturn';
+import { componentLabel } from '~/survey/components/editors/ComponentEditor';
+import { syncTemplateFields, type ObsFieldDef } from '~/survey/template/obsField';
+import { GROUP_TITLE } from '~/survey/form/SurveyGroupViews';
+import { groupOfType, type ComponentType, type SurveyGroupKey } from '~/survey/registry';
 import {
-  addChoice,
   addCodeList,
   addComponent,
+  addField as addFieldTo,
   addableTypes,
   codeListUsers,
   addUnitLevel,
@@ -49,8 +58,13 @@ import {
   updateUnitLevel,
   type Place,
 } from '~/survey/template/edit';
-import { MAX_UNIT_LEVELS, type SurveyTemplate } from '~/survey/template/types';
+import { MAX_UNIT_LEVELS, type ComponentInstance, type SurveyTemplate } from '~/survey/template/types';
 import { classifyChange, validateTemplate, withRequired } from '~/survey/template/validate';
+
+const SURVEY: Place = { level: 'survey' };
+const OCCURRENCE: Place = { level: 'occurrence' };
+/** The builder's cards for the survey's own components, in the survey screen's order. */
+const SURVEY_GROUPS: readonly SurveyGroupKey[] = ['basic', 'time', 'space', 'method'];
 
 export default function TemplateEditorScreen() {
   const { t, i18n } = useTranslation();
@@ -58,6 +72,22 @@ export default function TemplateEditorScreen() {
   const toast = useToast((s) => s.show);
   const id = String(useLocalSearchParams<{ id: string }>().id);
   const { draft, saved, update } = useTemplateDraft(id);
+  // Each time the builder shows: a template's 自訂選項 and Traits turned into 自訂欄位 (2026-10-04, once:
+  // they are not offered any more), then its fields' copies brought up to the library (a field edited meanwhile).
+  useFocusEffect(
+    useCallback(() => {
+      let converted = 0;
+      update((x) => {
+        const conv = convertLegacyComponents(x, fieldLibrary());
+        if (conv.converted) {
+          storeLibraryWrites(conv.writes);
+          converted = conv.converted;
+        }
+        return syncTemplateFields(conv.template, fieldLibrary());
+      });
+      if (converted) toast(t('fieldLib.converted', { count: converted }));
+    }, [update, t, toast]),
+  );
 
   if (!draft) {
     return (
@@ -76,24 +106,61 @@ export default function TemplateEditorScreen() {
 
   const setName = (text: string, en: string) => update((x) => ({ ...x, name: makeLabel(text, en) ?? { text: '' } }));
 
-  const addTo = async (place: Place) => {
-    const types = addableTypes(tpl, place);
+  /** A 自訂欄位 on `place`: one of the library's (not already there), or a new one made for it. */
+  const addField = async (place: Place) => {
+    const here = new Set(componentsAt(tpl, place).filter((x) => x.type === 'field').map((x) => String(x.params.key)));
+    const offered = listFields().filter((r) => !here.has(r.def.key));
+    const idx = await showActionSheet({
+      title: t('fieldLib.addTitle', { place: placeTitle(t, lang, tpl, place) }),
+      options: [
+        ...offered.map((r) => ({ label: r.def.name, description: `${fieldSummary(t, lang, r.def)} · ${r.def.key}`, keywords: [r.def.key, r.def.name_en ?? ''].join(' ') })),
+        { label: t('fieldLib.newField'), icon: 'add' as const },
+      ],
+      cancelLabel: t('common.cancel'),
+    });
+    if (idx < 0) return;
+    const put = (def: ObsFieldDef) => {
+      let key: string | null = null;
+      update((x) => {
+        const added = addFieldTo(x, place, def);
+        key = added.key;
+        return added.template;
+      });
+      return key;
+    };
+    if (idx === offered.length) {
+      newFieldFor((def) => {
+        const key = put(def);
+        if (key) router.push(componentHref(id, key));
+      });
+      return;
+    }
+    const key = offered[idx] ? put(offered[idx].def) : null;
+    if (key) router.push(componentHref(id, key));
+  };
+
+  const addTo = async (place: Place, group?: SurveyGroupKey) => {
+    const types = addableTypes(tpl, place, group);
     if (!types.length) {
       toast(t('builder.nothingToAdd'));
       return;
     }
     const idx = await showActionSheet({
-      title: t('builder.addComponentTitle', { place: placeTitle(t, lang, tpl, place) }),
+      // A card's add names the card (基本資料…); a unit level or the species, its place.
+      title: t('builder.addComponentTitle', { place: group ? t(GROUP_TITLE[group]) : placeTitle(t, lang, tpl, place) }),
       options: types.map((type) => ({ label: typeName(t, type) })),
       cancelLabel: t('common.cancel'),
     });
     const type: ComponentType | undefined = types[idx];
     if (!type) return;
+    if (type === 'field') {
+      await addField(place);
+      return;
+    }
     // On the stored draft (update reads it), keeping the new key for the page it opens.
     let key: string | null = null;
     update((x) => {
-      // A choice needs a code list: the first one, or a new one when there is none yet.
-      const added = type === 'choice' ? addChoice(x, place, makeLabel(t('builder.list.newName', { n: x.codelists.length + 1 }))!) : addComponent(x, type, place);
+      const added = addComponent(x, type, place);
       key = added.key;
       return added.template;
     });
@@ -176,6 +243,73 @@ export default function TemplateEditorScreen() {
     ]);
   };
 
+  /** A component's row: its name, what it is set to, whether every survey has it; it opens its page. */
+  const componentRow = (comp: ComponentInstance) => {
+    const fixed = isFixedComponent(tpl, comp);
+    const summary = paramsSummary(t, lang, comp, tpl);
+    return (
+      <Pressable
+        key={comp.key}
+        onPress={() => router.push(componentHref(id, comp.key))}
+        accessibilityRole="button"
+        className="flex-row items-center gap-2 border-t border-line pt-2 active:opacity-70 dark:border-line-dark"
+      >
+        <View className="flex-1">
+          <Text className="text-sm font-semibold text-ink dark:text-gray-100">{componentLabel(t, lang, comp)}</Text>
+          <Text className="text-xs text-ink-3 dark:text-gray-400" numberOfLines={2}>
+            {[comp.label || comp.type === 'field' ? typeName(t, comp.type) : null, summary || null, fixed ? t('builder.fixed') : comp.required ? t('builder.requiredTag') : null].filter(Boolean).join(' · ')}
+          </Text>
+        </View>
+        {fixed ? <Ionicons name="lock-closed-outline" size={14} color={c.ink3} /> : null}
+        <Ionicons name="chevron-forward" size={18} color={c.ink3} />
+      </Pressable>
+    );
+  };
+
+  /**
+   * 調查法's 小區劃分 on a plot: the unit levels, largest first (小區 → 小樣方),
+   * each with its name, its place in the order and the components every unit
+   * of it asks.
+   */
+  const subdivision = (
+    <View className="gap-2 border-t border-line pt-3 dark:border-line-dark">
+      <Text className="text-sm font-bold text-ink dark:text-gray-100">{t('builder.subdivision')}</Text>
+      <Text className="text-xs leading-4 text-ink-3 dark:text-gray-400">{t('builder.unitsDesc', { max: MAX_UNIT_LEVELS })}</Text>
+      {(tpl.units ?? []).map((u, i, all) => {
+        const parts = labelParts(u.label);
+        const place: Place = { level: 'unit', unit: u.key };
+        return (
+          <View key={u.key} className="gap-2 rounded-xl border border-line px-3 py-2.5 dark:border-line-dark">
+            <Text className="text-xs font-bold text-ink-2 dark:text-gray-400">{t('builder.unitN', { n: i + 1 })}</Text>
+            <LabeledField label={t('builder.name')} value={parts.text} required onSave={(v) => update((x) => updateUnitLevel(x, u.key, makeLabel(v, parts.en) ?? { text: '' }))} />
+            <LabeledField label={t('builder.nameEn')} value={parts.en} onSave={(v) => update((x) => updateUnitLevel(x, u.key, makeLabel(parts.text, v) ?? { text: '' }))} />
+            <View className="flex-row flex-wrap gap-2">
+              {/* A saved level keeps its place: its key is its position, shared with the plot's layout. */}
+              {!saved ? (
+                <>
+                  <Button label={t('builder.moveUp')} icon="arrow-up" variant="ghost" disabled={i === 0} onPress={() => update((x) => moveUnitLevel(x, u.key, -1))} />
+                  <Button label={t('builder.moveDown')} icon="arrow-down" variant="ghost" disabled={i === all.length - 1} onPress={() => update((x) => moveUnitLevel(x, u.key, 1))} />
+                </>
+              ) : null}
+              {all.length > 1 ? <Button label={t('builder.removeUnit')} icon="trash-outline" variant="ghost" onPress={() => removeLevel(u.key)} /> : null}
+            </View>
+            <Text className="text-xs font-semibold text-ink-2 dark:text-gray-400">{placeTitle(t, lang, tpl, place)}</Text>
+            {componentsAt(tpl, place).map(componentRow)}
+            <Button label={t('builder.addComponent')} icon="add" variant="secondary" onPress={() => void addTo(place)} />
+          </View>
+        );
+      })}
+      {(tpl.units ?? []).length < MAX_UNIT_LEVELS ? (
+        <Button
+          label={t('builder.addUnit')}
+          icon="add"
+          variant="secondary"
+          onPress={() => update((x) => addUnitLevel(x, makeLabel(t('builder.unitN', { n: (x.units ?? []).length + 1 }))!))}
+        />
+      ) : null}
+    </View>
+  );
+
   return (
     <SafeAreaView edges={['bottom']} className="flex-1 bg-paper dark:bg-paper-dark">
       <Stack.Screen
@@ -186,7 +320,7 @@ export default function TemplateEditorScreen() {
         }}
       />
       <ScrollView contentContainerClassName="gap-3 p-4 pb-10" keyboardShouldPersistTaps="handled">
-        <FormCard title={t('builder.basics')}>
+        <FormCard title={t('builder.templateCard')}>
           <LabeledField label={t('builder.name')} value={name.text} required onSave={(v) => setName(v, name.en)} />
           <LabeledField label={t('builder.nameEn')} value={name.en} onSave={(v) => setName(name.text, v)} />
           <Text className="text-sm text-ink-2 dark:text-gray-300">
@@ -205,70 +339,36 @@ export default function TemplateEditorScreen() {
           )}
         </FormCard>
 
-        {tpl.style === 'plot' ? (
-          <FormCard title={t('builder.units')}>
-            <Text className="text-xs leading-4 text-ink-3 dark:text-gray-400">{t('builder.unitsDesc', { max: MAX_UNIT_LEVELS })}</Text>
-            {(tpl.units ?? []).map((u, i, all) => {
-              const parts = labelParts(u.label);
+        {census ? (
+          // A census keeps its places as they are: the census, each quadrat, tree and stem.
+          placesOf(tpl).map((place) => (
+            <FormCard key={place.level === 'unit' ? `unit:${place.unit}` : place.level} title={placeTitle(t, lang, tpl, place)}>
+              {componentsAt(tpl, place).map(componentRow)}
+              {/* A census offers only what its screens ask, on the tree. */}
+              {addableTypes(tpl, place).length ? <Button label={t('builder.addComponent')} icon="add" variant="secondary" onPress={() => void addTo(place)} /> : null}
+            </FormCard>
+          ))
+        ) : (
+          <>
+            {/* The survey's components in the four 調查資料 groups the survey screen shows (2026-10-04). */}
+            {SURVEY_GROUPS.map((g) => {
+              const here = componentsAt(tpl, SURVEY).filter((x) => groupOfType(x.type) === g);
+              const canAdd = addableTypes(tpl, SURVEY, g).length > 0;
               return (
-                <View key={u.key} className="gap-1 border-t border-line pt-2 dark:border-line-dark">
-                  <Text className="text-xs font-bold text-ink-2 dark:text-gray-400">{t('builder.unitN', { n: i + 1 })}</Text>
-                  <LabeledField label={t('builder.name')} value={parts.text} required onSave={(v) => update((x) => updateUnitLevel(x, u.key, makeLabel(v, parts.en) ?? { text: '' }))} />
-                  <LabeledField label={t('builder.nameEn')} value={parts.en} onSave={(v) => update((x) => updateUnitLevel(x, u.key, makeLabel(parts.text, v) ?? { text: '' }))} />
-                  <View className="flex-row gap-2">
-                    {/* A saved level keeps its place: its key is its position, shared with the plot's layout. */}
-                    {!saved ? (
-                      <>
-                        <Button label={t('builder.moveUp')} icon="arrow-up" variant="ghost" disabled={i === 0} onPress={() => update((x) => moveUnitLevel(x, u.key, -1))} />
-                        <Button label={t('builder.moveDown')} icon="arrow-down" variant="ghost" disabled={i === all.length - 1} onPress={() => update((x) => moveUnitLevel(x, u.key, 1))} />
-                      </>
-                    ) : null}
-                    {all.length > 1 ? <Button label={t('builder.removeUnit')} icon="trash-outline" variant="ghost" onPress={() => removeLevel(u.key)} /> : null}
-                  </View>
-                </View>
+                <FormCard key={g} title={t(GROUP_TITLE[g])}>
+                  {here.map(componentRow)}
+                  {canAdd ? <Button label={t('builder.addComponent')} icon="add" variant="secondary" onPress={() => void addTo(SURVEY, g)} /> : null}
+                  {g === 'method' && tpl.style === 'plot' ? subdivision : null}
+                </FormCard>
               );
             })}
-            {(tpl.units ?? []).length < MAX_UNIT_LEVELS ? (
-              <Button
-                label={t('builder.addUnit')}
-                icon="add"
-                variant="secondary"
-                onPress={() => update((x) => addUnitLevel(x, makeLabel(t('builder.unitN', { n: (x.units ?? []).length + 1 }))!))}
-              />
-            ) : null}
-          </FormCard>
-        ) : null}
-
-        {placesOf(tpl).map((place) => {
-          const here = componentsAt(tpl, place);
-          return (
-            <FormCard key={place.level === 'unit' ? `unit:${place.unit}` : place.level} title={placeTitle(t, lang, tpl, place)}>
-              {here.map((comp) => {
-                const fixed = isFixedComponent(tpl, comp);
-                const summary = paramsSummary(t, lang, comp, tpl);
-                return (
-                  <Pressable
-                    key={comp.key}
-                    onPress={() => router.push(componentHref(id, comp.key))}
-                    accessibilityRole="button"
-                    className="flex-row items-center gap-2 border-t border-line pt-2 active:opacity-70 dark:border-line-dark"
-                  >
-                    <View className="flex-1">
-                      <Text className="text-sm font-semibold text-ink dark:text-gray-100">{labelText(t, lang, comp.label, typeName(t, comp.type))}</Text>
-                      <Text className="text-xs text-ink-3 dark:text-gray-400" numberOfLines={2}>
-                        {[comp.label ? typeName(t, comp.type) : null, summary || null, fixed ? t('builder.fixed') : comp.required ? t('builder.requiredTag') : null].filter(Boolean).join(' · ')}
-                      </Text>
-                    </View>
-                    {fixed ? <Ionicons name="lock-closed-outline" size={14} color={c.ink3} /> : null}
-                    <Ionicons name="chevron-forward" size={18} color={c.ink3} />
-                  </Pressable>
-                );
-              })}
-              {/* A census offers only what its screens ask, on the tree. */}
-              {!census || addableTypes(tpl, place).length ? <Button label={t('builder.addComponent')} icon="add" variant="secondary" onPress={() => void addTo(place)} /> : null}
+            <FormCard title={t('tab.species')}>
+              <Text className="text-xs leading-4 text-ink-3 dark:text-gray-400">{placeTitle(t, lang, tpl, OCCURRENCE)}</Text>
+              {componentsAt(tpl, OCCURRENCE).map(componentRow)}
+              <Button label={t('builder.addComponent')} icon="add" variant="secondary" onPress={() => void addTo(OCCURRENCE)} />
             </FormCard>
-          );
-        })}
+          </>
+        )}
 
         <FormCard title={t('builder.lists')}>
           <Text className="text-xs leading-4 text-ink-3 dark:text-gray-400">{census ? t('builder.census.listsDesc') : t('builder.listsDesc')}</Text>

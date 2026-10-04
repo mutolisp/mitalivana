@@ -44,6 +44,8 @@ export function TextBox({
   autoCapitalize,
   invalid,
   onBlur,
+  mono,
+  keyboardType,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -55,6 +57,10 @@ export function TextBox({
   multiline?: boolean;
   autoCapitalize?: 'none' | 'sentences' | 'characters';
   invalid?: boolean;
+  /** Monospaced (a DNA sequence). */
+  mono?: boolean;
+  /** 'visible-password': no word composing, for text the app rewrites as it is saved (upper case). 'numbers-and-punctuation': a number that may be negative. */
+  keyboardType?: 'default' | 'visible-password' | 'numbers-and-punctuation';
 }) {
   const c = useThemeColors();
   return (
@@ -69,7 +75,8 @@ export function TextBox({
       multiline={multiline}
       autoCapitalize={autoCapitalize}
       autoCorrect={false}
-      className={`rounded-lg border px-3 py-2 text-base text-gray-900 dark:text-gray-100 ${
+      keyboardType={keyboardType}
+      className={`rounded-lg border px-3 py-2 text-base text-gray-900 dark:text-gray-100 ${mono ? 'font-mono ' : ''}${
         invalid ? 'border-alert bg-alert-tint dark:border-alert-dark dark:bg-alert-dark-tint' : 'border-gray-300 bg-card dark:border-gray-700 dark:bg-gray-900'
       } ${editable ? '' : 'opacity-60'}`}
       style={multiline ? { minHeight: 72, textAlignVertical: 'top' } : undefined}

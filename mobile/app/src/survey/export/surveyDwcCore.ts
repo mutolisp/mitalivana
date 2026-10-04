@@ -42,6 +42,7 @@ import { BUILTIN_CODESETS, componentDef, exportMapOf, healthCodesets, type Trait
 import { fgQuadratCounts, parseFgQuadratCode, toLatLng } from '../stemmap/coords';
 import { stemIsDead, vitality, type StemCensusInput } from '../stemmap/status';
 import { parseSnapshot } from '../template/normalize';
+import { allowedEn, fieldDefOf } from '../template/obsField';
 import type { ComponentInstance, Label, SurveyLevel, SurveyTemplate } from '../template/types';
 import { interactionTypesOf, surveyComponentValues, templateOf, unitEventId, unitPaths, unitSizeOf, type Words } from './surveyExportCore';
 
@@ -84,6 +85,7 @@ export const REMARKS = {
   absentOnRecheck: '前次調查有，本次盲測後複查未找到(recorded in the previous survey; not found on the recheck after the blind survey)',
   interactionPartner: '交互作用對象：只因交互作用而記錄，不屬於系統性調查(recorded only as the other side of an interaction; not part of the systematic survey)',
   count: (n: number) => `次數 ${n}(count ${n})`,
+  fieldTaxon: (id: string) => `物種代碼 ${id}(taxon ID ${id})`,
 } as const;
 
 // ── a tree census ─────────────────────────────────────────────────────────
@@ -358,6 +360,26 @@ export function surveyDwcRows(doc: SurveyDoc, opts: { eventId: string; uniqueEve
     for (const c of components) {
       const def = componentDef(c.type);
       if (!def || !placed(c, level, o)) continue;
+      if (c.type === 'field') {
+        // 自訂欄位 (2026-10-04): its English name (else its name), an allowed value's English name,
+        // one row per value chosen; a taxon as its scientific name, the id in the remarks.
+        const fd = fieldDefOf(c.params);
+        const mine = fd ? valuesOf(o).filter((x) => x.component === c.key) : [];
+        const v = mine.find((x) => x.field === 'value');
+        if (!fd || !v) continue;
+        const type = fd.name_en || fd.name;
+        if (fd.datatype === 'taxon') {
+          const id = str(v.value_text);
+          const name = str(mine.find((x) => x.field === 'name')?.value_text);
+          if (id) push(`${c.key}.value`, { measurementType: type, measurementValue: name || id, measurementUnit: '', measurementRemarks: REMARKS.fieldTaxon(id) });
+          continue;
+        }
+        const values = fd.multi ? listOf(v.value_text) : [str(v.value_num ?? v.value_text)];
+        for (const x of values.filter(Boolean)) {
+          push(fd.multi ? `${c.key}.value:${x}` : `${c.key}.value`, { measurementType: type, measurementValue: fd.allowed ? allowedEn(fd, x) : x, measurementUnit: fd.unit ?? '' });
+        }
+        continue;
+      }
       const mof = exportMapOf(def, c.params, level).mof ?? {};
       for (const f of def.fields(c.params, level, c.key)) {
         const spec = mof[f.field];

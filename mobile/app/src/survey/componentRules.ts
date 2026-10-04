@@ -5,6 +5,7 @@
  * Pure: check:templates runs it under Node; the forms (2C) and the tree form
  * show what it finds, and surveyCore refuses values that cannot be stored.
  */
+import { formatOk } from './template/obsField';
 import { componentDef, fixedAt, type ComponentDef, type ComponentValues, type FieldDef, type FieldValue, type Params, type Problem } from './registry';
 import type { ComponentInstance, SurveyLevel } from './template/types';
 
@@ -29,6 +30,7 @@ function checkScalar(f: FieldDef, x: unknown, idx: number | undefined, out: Prob
     return;
   }
   if (r.oneOf && !r.oneOf.includes(String(x))) out.push({ ...at, code: 'not_allowed', severity });
+  if (r.format && !(typeof x === 'string' && formatOk(r.format, x))) out.push({ ...at, code: 'bad_format', severity });
 }
 
 /** Problems of one component's values on one owner. */
@@ -63,7 +65,7 @@ export function componentProblems(def: ComponentDef, params: Params, level: Surv
 }
 
 /** Field-level codes a store refuses; 'required' and the rules across fields are not among them. */
-const FIELD_CODES = new Set(['not_a_number', 'below_min', 'above_max', 'not_integer', 'not_allowed', 'not_a_list', 'not_per_layer']);
+const FIELD_CODES = new Set(['not_a_number', 'below_min', 'above_max', 'not_integer', 'not_allowed', 'not_a_list', 'not_per_layer', 'bad_format']);
 
 /**
  * Whether a template's author made the component 必填 (2G-e; decided

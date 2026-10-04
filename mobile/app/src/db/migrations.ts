@@ -3279,6 +3279,39 @@ export const MIGRATIONS: Migration[] = [
       addColumnIfMissing(db, `ALTER TABLE fw_units ADD COLUMN done_at INTEGER;`);
     },
   },
+  {
+    // 自訂欄位庫 (six-item plan C, 2026-10-04; src/survey/template/obsField.ts):
+    // the app's own fields, after iNaturalist's observation fields, added to
+    // any template. A template carries a copy of each field it uses, so
+    // surveys, files and exports never read this table; it is where a field
+    // is defined and edited. `allowed_json`: a text field's allowed values,
+    // [{value, en?, deprecated?}]. Device-local, not synced; a field used by a
+    // template keeps its key and type (fieldsCore.ts).
+    version: 90,
+    up: (db) => {
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS observation_fields (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          uuid TEXT NOT NULL UNIQUE,
+          key TEXT NOT NULL UNIQUE CHECK (length(key) BETWEEN 1 AND 64 AND key GLOB '[a-z]*' AND key NOT GLOB '*[^a-z0-9_]*'),
+          name TEXT NOT NULL CHECK (length(trim(name)) > 0),
+          name_en TEXT,
+          description TEXT,
+          datatype TEXT NOT NULL CHECK (datatype IN ('text', 'numeric', 'date', 'time', 'datetime', 'taxon', 'dna')),
+          allowed_json TEXT CHECK (allowed_json IS NULL OR datatype = 'text'),
+          multi INTEGER NOT NULL DEFAULT 0 CHECK (multi IN (0, 1)),
+          numeric_kind TEXT CHECK (numeric_kind IS NULL OR (datatype = 'numeric' AND numeric_kind IN ('integer', 'float'))),
+          min REAL,
+          max REAL,
+          unit TEXT,
+          deprecated INTEGER NOT NULL DEFAULT 0 CHECK (deprecated IN (0, 1)),
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          CHECK (min IS NULL OR max IS NULL OR min <= max)
+        );
+      `);
+    },
+  },
 ];
 
 /** Highest schema version this build knows how to produce. Backup/restore uses

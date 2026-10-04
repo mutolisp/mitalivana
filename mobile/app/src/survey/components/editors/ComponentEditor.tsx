@@ -17,6 +17,7 @@ import { Text, View } from 'react-native';
 import { parseDbhArray } from '~/lib/dwcAbundanceCore';
 import { CUSTOM_METHOD, methodKey, methodOf } from '~/survey/codesets/samplingMethods';
 import { componentDef, type ComponentType, type ComponentValues, type TraitDef } from '~/survey/registry';
+import { fieldDefOf, fieldLabel } from '~/survey/template/obsField';
 import type { CodeList, ComponentInstance, Label } from '~/survey/template/types';
 import { AbundanceEditor } from './AbundanceEditor';
 import { ChoiceEditor, choiceList, codeLabel } from './ChoiceEditor';
@@ -31,6 +32,7 @@ import {
   TimestampEditor,
   WorkersEditor,
 } from './BasicEditors';
+import { allowedText, FieldEditor } from './FieldEditor';
 import { FrequencyEditor } from './FrequencyEditor';
 import { MethodEditor, methodName } from './MethodEditor';
 import { labelText, type EditorProps } from './shared';
@@ -40,10 +42,11 @@ const assertNever = (x: never): never => {
   throw new Error(`no input for component type ${String(x)}`);
 };
 
-/** The component's name: the template's label, else the built-in name. */
+/** The component's name: the template's label, else a 自訂欄位's own name, else the built-in name. */
 export function componentLabel(t: TFunction, lang: string, instance: ComponentInstance): string {
   const def = componentDef(instance.type);
-  return labelText(t, lang, instance.label as Label | undefined, def ? t(def.labelKey) : instance.type);
+  const field = instance.type === 'field' ? fieldDefOf(instance.params) : null;
+  return labelText(t, lang, (instance.label as Label | undefined) ?? (field ? fieldLabel(field) : undefined), def ? t(def.labelKey) : instance.type);
 }
 
 export function ComponentEditor(props: EditorProps) {
@@ -82,6 +85,8 @@ export function ComponentEditor(props: EditorProps) {
       return <ChoiceEditor {...props} />;
     case 'method':
       return <MethodEditor {...props} />;
+    case 'field':
+      return <FieldEditor {...props} />;
     case 'taxon':
     case 'dbh':
     case 'health':
@@ -186,6 +191,14 @@ export function componentSummary(t: TFunction, lang: string, instance: Component
       const lat = num(v.lat);
       const lng = num(v.lng);
       return lat != null && lng != null ? `${lat.toFixed(5)}, ${lng.toFixed(5)}` : '';
+    }
+    case 'field': {
+      const def = fieldDefOf(instance.params);
+      if (!def) return '';
+      if (def.datatype === 'taxon') return [str(v.cname), str(v.name)].filter(Boolean).join(' ');
+      if (def.datatype === 'numeric') return num(v.value) == null ? '' : `${num(v.value)}${def.unit ? ` ${def.unit}` : ''}`;
+      const values = Array.isArray(v.value) ? list(v.value) : str(v.value) ? [str(v.value)] : [];
+      return values.map((x) => (def.allowed ? allowedText(def, x, lang) : x)).join(t('builder.listSep')).slice(0, 60);
     }
     case 'timestamp':
     case 'taxon':

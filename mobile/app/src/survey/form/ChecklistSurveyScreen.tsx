@@ -480,7 +480,22 @@ export function ChecklistSurveyScreen({ id, openId }: { id: number; openId?: num
           refuse={() => toast(t(activeOcc.sealed ? 'surveyForm.err.blindSealed' : 'recordLock.lockedToast'))}
           onChanged={reload}
           codelists={template.codelists}
-          context={{ kingdom: active.kingdom || null, className: active.class || null, layerCount: layerCountOf(template, data.surveyValues), noAutoFocus: true }}
+          context={{
+            kingdom: active.kingdom || null,
+            className: active.class || null,
+            layerCount: layerCountOf(template, data.surveyValues),
+            noAutoFocus: true,
+            // The sheet is an RN Modal: closed while a field's own screen is open, then opened again.
+            aroundNavigate: async (go) => {
+              const keep = active.id;
+              setActiveId(null);
+              try {
+                return await go();
+              } finally {
+                setActiveId(keep);
+              }
+            },
+          }}
           onAudioRemoved={edit.deferAudioDelete}
         />
         {mods.interaction ? (

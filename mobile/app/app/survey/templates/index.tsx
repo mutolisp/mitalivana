@@ -25,7 +25,8 @@ import { startCensusWithTemplate } from '~/survey/builder/start';
 import { BUILTIN_TEMPLATES } from '~/survey/templates/builtins';
 import { labelText } from '~/survey/components/editors/shared';
 import { styleName } from '~/survey/builder/words';
-import { deleteTemplate, discardDraft, listDrafts, setTemplateArchived, templateDeleteBlocker, templateUseCounts } from '~/survey/db/surveys';
+import { fieldsHref } from '~/survey/builder/fieldReturn';
+import { deleteTemplate, discardDraft, listDrafts, listFields, setTemplateArchived, templateDeleteBlocker, templateUseCounts } from '~/survey/db/surveys';
 import { templateHash } from '~/survey/template/validate';
 import { templateName } from '~/survey/form/text';
 import type { SurveyTemplate } from '~/survey/template/types';
@@ -49,6 +50,7 @@ function load() {
     newDrafts: drafts.filter((d) => !savedIds.has(d.template.id)).map((d) => d.template),
     drafting: new Set(drafts.map((d) => d.template.id)),
     uses: templateUseCounts(),
+    fields: listFields().length,
   };
 }
 
@@ -154,6 +156,10 @@ export default function TemplatesScreen() {
       <Stack.Screen options={{ title: t('builder.title'), headerLeft: BackHeaderLeft }} />
       <ScrollView contentContainerClassName="pb-6">
         <Text className="px-4 pt-3 text-xs leading-5 text-ink-2 dark:text-gray-400">{t('builder.intro')}</Text>
+        {/* The app-wide 自訂欄位庫 the templates draw their own fields from (2026-10-04). */}
+        <View className="mt-3 border-y border-line dark:border-line-dark">
+          <ListRow title={t('fieldLib.title')} meta={t('fieldLib.count', { count: data.fields })} onPress={() => router.push(fieldsHref)} divider={false} />
+        </View>
         {data.newDrafts.length ? (
           <>
             {heading(t('builder.section.drafts'))}

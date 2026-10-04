@@ -14,6 +14,7 @@
 import { BUILTIN_INTERACTION_CODES, INTERACTION_IRI } from '../codesets/interactions';
 import { BUILTIN_CODESETS, componentDef, componentDefs, defaultLevelOf, defaultParamsOf, fixedAt, paramsChangeOf, type ComponentDef, type TraitDef } from '../registry';
 import { rowHash } from '../../lib/mergeEngine';
+import { fieldDefOf } from './obsField';
 import { MAX_UNIT_LEVELS, STYLE_LEVELS, type ComponentInstance, type Label, type SurveyTemplate } from './types';
 
 const COMPONENT_KEY = /^[a-z][a-z0-9_]{0,31}$/;
@@ -111,6 +112,15 @@ export function validateTemplate(t: SurveyTemplate): string[] {
     if (c.type === 'traits' && Array.isArray(c.params.traits)) {
       for (const tr of c.params.traits as TraitDef[]) out.push(...labelProblems(`${c.key} trait ${String(tr?.id)}`, tr?.label as Label | undefined, builtin));
     }
+  }
+  // 自訂欄位: every copy of one field in a template is the same definition (the builder keeps them so).
+  const fieldCopies = new Map<string, string>();
+  for (const c of t.components) {
+    if (c.type !== 'field') continue;
+    const k = String(c.params.key);
+    const def = JSON.stringify(fieldDefOf(c.params));
+    if (fieldCopies.has(k) && fieldCopies.get(k) !== def) out.push(`${c.key}: field ${k} differs from its other copy in this template`);
+    fieldCopies.set(k, def);
   }
   for (const d of componentDefs()) {
     if (d.required && d.styles.includes(t.style) && !hasFixed(t, d)) {

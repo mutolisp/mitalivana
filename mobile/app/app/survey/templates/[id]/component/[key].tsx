@@ -30,8 +30,10 @@ import { Radio } from '~/components/ui/Radio';
 import { Switch } from '~/components/ui/Switch';
 import { BackHeaderLeft } from '~/lib/goBack';
 import { listHref, useTemplateDraft } from '~/survey/builder/drafts';
+import { fieldHref } from '~/survey/builder/fieldReturn';
+import { fieldDefOf } from '~/survey/template/obsField';
 import { showActionSheet } from '~/components/ActionSheet';
-import { abundanceKindLabel, codesetName, envLabel, frequencyModeLabel, locationMethodLabel, phenologyLabel, placeTitle, roleLabel, topEdgeName, typeName } from '~/survey/builder/words';
+import { abundanceKindLabel, codesetName, envLabel, fieldSummary, frequencyModeLabel, locationMethodLabel, phenologyLabel, placeTitle, roleLabel, topEdgeName, typeName } from '~/survey/builder/words';
 import { labelText } from '~/survey/components/editors/shared';
 import { FormCard } from '~/survey/components/FormBits';
 import {
@@ -259,12 +261,12 @@ export default function TemplateComponentScreen() {
   // Against the saved version: can open surveys still take this component as it is now?
   const change = before ? paramsChangeOf(def, before.params, comp.params) : 'same';
   const traits = Array.isArray(comp.params.traits) ? (comp.params.traits as TraitDef[]) : [];
+  const field = comp.type === 'field' ? fieldDefOf(comp.params) : null;
 
   const set = (patch: Parameters<typeof updateComponent>[2]) => update((x) => updateComponent(x, key, patch));
-  const chosenList = comp.type === 'choice' ? tpl.codelists.find((l) => l.id === comp.params.list) : undefined;
   const opennessList = comp.type === 'environment' ? tpl.codelists.find((l) => l.id === comp.params.openness_list) : undefined;
-  /** A choice's list (or 開闊度's grades): one of the template's, or a new one. */
-  const pickList = async (param: 'list' | 'openness_list' = 'list') => {
+  /** 開闊度's grades: one of the template's lists, or a new one. */
+  const pickList = async (param: 'openness_list') => {
     const idx = await showActionSheet({
       title: t('builder.choice.list'),
       options: [...tpl.codelists.map((l) => ({ label: labelText(t, lang, l.label, t('builder.untitled')) })), { label: t('builder.list.add') }],
@@ -308,7 +310,7 @@ export default function TemplateComponentScreen() {
     if (made) router.push(listHref(id, made));
   };
   const remove = () =>
-    Alert.alert(t('builder.removeComponent'), t('builder.removeComponentMsg', { name: labelText(t, lang, comp.label, typeName(t, comp.type)) }), [
+    Alert.alert(t('builder.removeComponent'), t('builder.removeComponentMsg', { name: field ? field.name : labelText(t, lang, comp.label, typeName(t, comp.type)) }), [
       { text: t('common.cancel'), style: 'cancel' },
       {
         text: t('builder.removeComponent'),
@@ -325,6 +327,16 @@ export default function TemplateComponentScreen() {
       <Stack.Screen options={{ title: typeName(t, comp.type), headerLeft: BackHeaderLeft }} />
       <ScrollView contentContainerClassName="gap-3 p-4 pb-10" keyboardShouldPersistTaps="handled">
         <Text className="text-xs text-ink-3 dark:text-gray-400">{placeTitle(t, lang, tpl, place)}</Text>
+        {field ? (
+          // A 自訂欄位 is defined in the library, the same in every template that uses it.
+          <FormCard title={field.name_en ? `${field.name}（${field.name_en}）` : field.name}>
+            <Text className="text-sm leading-5 text-ink-2 dark:text-gray-300">{fieldSummary(t, lang, field)}</Text>
+            {field.description ? <Text className="text-sm leading-5 text-ink dark:text-gray-100">{field.description}</Text> : null}
+            <Text className="font-mono text-xs text-ink-3 dark:text-gray-400">{field.key}</Text>
+            <Text className="text-xs leading-4 text-ink-3 dark:text-gray-400">{t('fieldLib.definedInLibrary')}</Text>
+            <Button label={t('fieldLib.editInLibrary')} icon="create-outline" variant="secondary" onPress={() => router.push(fieldHref(field.key))} />
+          </FormCard>
+        ) : (
         <FormCard>
           <LabeledField
             label={t('builder.name')}
@@ -335,6 +347,7 @@ export default function TemplateComponentScreen() {
           <LabeledField label={t('builder.nameEn')} value={own.en} onSave={(v) => set({ label: makeLabel(own.text, v) })} />
           <Text className="text-xs leading-4 text-ink-3 dark:text-gray-400">{t('builder.componentNameDesc', { name: typeName(t, comp.type) })}</Text>
         </FormCard>
+        )}
 
         {/* An interaction is recorded when one is seen: there is nothing to miss. */}
         {comp.type === 'interaction' ? null : (
@@ -352,22 +365,7 @@ export default function TemplateComponentScreen() {
         </FormCard>
         )}
 
-        {comp.type === 'choice' ? (
-          <FormCard title={t('builder.params')}>
-            <Pressable onPress={() => void pickList()} accessibilityRole="button" className="flex-row items-center gap-2" style={{ minHeight: 44 }}>
-              <View className="flex-1">
-                <Text className="text-xs font-bold text-ink-2 dark:text-gray-400">{t('builder.choice.list')}</Text>
-                <Text className="text-base text-ink dark:text-gray-100">{chosenList ? labelText(t, lang, chosenList.label, t('builder.untitled')) : t('builder.choice.noList')}</Text>
-              </View>
-              <Text className="text-sm font-semibold text-accent-700 dark:text-accent-300">{t('builder.choice.change')}</Text>
-            </Pressable>
-            {chosenList ? <Button label={t('builder.choice.editList')} icon="create-outline" variant="secondary" onPress={() => router.push(listHref(id, chosenList.id))} /> : null}
-            <View className="flex-row items-center gap-3" style={{ minHeight: 44 }}>
-              <Text className="flex-1 text-base text-ink dark:text-gray-100">{t('builder.choice.multiSwitch')}</Text>
-              <Switch value={comp.params.multi === true} onValueChange={(v) => set({ params: { ...comp.params, multi: v } })} accessibilityLabel={t('builder.choice.multiSwitch')} />
-            </View>
-          </FormCard>
-        ) : comp.type === 'health' ? (
+        {comp.type === 'health' ? (
           <FormCard title={t('builder.health.title')}>
             <Text className="text-xs leading-4 text-ink-3 dark:text-gray-400">{t('builder.health.desc')}</Text>
             {[CENSUS_CODESET, AMS_CODESET, ...tpl.codelists.map((l) => l.id)].map((set) => {
@@ -421,7 +419,7 @@ export default function TemplateComponentScreen() {
               <Stepper label={t('builder.interaction.photos')} value={Number(comp.params.photos) || 0} min={0} max={20} onChange={(n) => set({ params: { ...comp.params, photos: n } })} />
             </FormCard>
           </>
-        ) : comp.type !== 'traits' ? (
+        ) : comp.type === 'field' ? null : comp.type !== 'traits' ? (
           <>
             <FormCard title={t('builder.params')}>
               {hasEditableParams(tpl, comp) ? (

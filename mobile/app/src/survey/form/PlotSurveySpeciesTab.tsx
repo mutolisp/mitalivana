@@ -54,7 +54,7 @@ import { componentLabel } from '~/survey/components/editors/ComponentEditor';
 import { InteractionCard } from '~/survey/components/InteractionCard';
 import { InteractionSummary } from '~/survey/components/InteractionSummary';
 import { addMedia, addOccurrence, deleteOccurrence, readComponent, removeMedia, updateOccurrence, writeComponent } from '~/survey/db/surveys';
-import type { FieldValue } from '~/survey/registry';
+import { ABUNDANCE_TYPE, type FieldValue } from '~/survey/registry';
 import { layerCountOf } from './checks';
 import { ComponentCards } from './ComponentCards';
 import { labelForEdit, labelForNew } from './labelPick';
@@ -433,6 +433,20 @@ export function PlotSurveySpeciesTab({
   );
   const modalLayer: Layer = modal?.mode === 'create' ? modal.layer : ((editOcc?.layer as Layer | null) ?? 'T');
   const layerMethod = (l: Layer) => (l === 'T' ? null : legacyMethodToType(surveyLayers.find((x) => x.layer_index === layerIndexOf(l as FixedLayer))?.method ?? null));
+  const allowedKinds = mods.abundance && Array.isArray(mods.abundance.params.kinds) ? (mods.abundance.params.kinds as PlotValueKinds) : undefined;
+  /**
+   * The scale a new value opens on: the layer's cover method when the
+   * template's abundance allows it, else the template's default scale — not
+   * the sheet's own guess from the kingdom (Braun-Blanquet for a plant), which
+   * showed BB on a template that asks for % cover only (2026-10-04).
+   */
+  const openType = (l: Layer): string | null => {
+    const m = layerMethod(l);
+    if (m && (!allowedKinds || allowedKinds.includes(kindForType(m)))) return m;
+    const d = mods.abundance?.params.default;
+    if (d === 'custom') return '';
+    return typeof d === 'string' && d in ABUNDANCE_TYPE ? ABUNDANCE_TYPE[d as keyof typeof ABUNDANCE_TYPE] : null;
+  };
   const header =
     modal?.mode === 'create'
       ? {
@@ -494,7 +508,22 @@ export function PlotSurveySpeciesTab({
           refuse={refuseOcc}
           onChanged={onChanged}
           codelists={template.codelists}
-          context={{ kingdom: editOcc.kingdom || null, className: editOcc.class || null, layerCount, noAutoFocus: true }}
+          context={{
+            kingdom: editOcc.kingdom || null,
+            className: editOcc.class || null,
+            layerCount,
+            noAutoFocus: true,
+            // The value sheet is an RN Modal: closed while a field's own screen is open, then opened again.
+            aroundNavigate: async (go) => {
+              const keep = modal;
+              setModal(null);
+              try {
+                return await go();
+              } finally {
+                setModal(keep);
+              }
+            },
+          }}
           onAudioRemoved={edit.deferAudioDelete}
         />
         {mods.interaction ? (
@@ -683,10 +712,10 @@ export function PlotSurveySpeciesTab({
           initial={initial}
           kingdom={header.kingdom || null}
           className={header.class_name || null}
-          defaultType={initial?.organism_quantity_type ?? layerMethod(modalLayer)}
+          defaultType={initial?.organism_quantity_type ?? openType(modalLayer)}
           showDetection={false}
           showAbundance={!!mods.abundance}
-          allowedKinds={mods.abundance && Array.isArray(mods.abundance.params.kinds) ? (mods.abundance.params.kinds as PlotValueKinds) : undefined}
+          allowedKinds={allowedKinds}
           showNotes={!!mods.comments}
           showAttributes={!!mods.phenology}
           attributeFields={mods.phenologyFields}

@@ -7,10 +7,12 @@ import type { TFunction } from 'i18next';
 import { topEdgeName } from '~/components/quadrat/names';
 import { methodOf, SAMPLING_METHODS } from '~/survey/codesets/samplingMethods';
 import { envLabel } from '~/survey/components/editors/AttributeEditors';
+import { componentLabel } from '~/survey/components/editors/ComponentEditor';
 import { methodName } from '~/survey/components/editors/MethodEditor';
 import { labelText } from '~/survey/components/editors/shared';
 import { levelLabel } from '~/survey/form/text';
 import { componentDef, type EnvironmentField, type TraitDef } from '~/survey/registry';
+import { fieldDefOf, type FieldDatatype, type ObsFieldDef } from '~/survey/template/obsField';
 import type { DraftIssue, Place } from '~/survey/template/edit';
 import type { ComponentInstance, Label, SurveyStyle, SurveyTemplate } from '~/survey/template/types';
 
@@ -190,9 +192,69 @@ export function paramsSummary(t: TFunction, lang: string, c: ComponentInstance, 
         .filter(Boolean)
         .join(' · ');
     }
+    case 'field': {
+      const def = fieldDefOf(p);
+      return def ? fieldSummary(t, lang, def) : '';
+    }
     default:
       return '';
   }
+}
+
+/** A 自訂欄位's data type in words. */
+export function datatypeName(t: TFunction, dt: FieldDatatype): string {
+  switch (dt) {
+    case 'text':
+      return t('fieldLib.type.text');
+    case 'numeric':
+      return t('fieldLib.type.numeric');
+    case 'date':
+      return t('fieldLib.type.date');
+    case 'time':
+      return t('fieldLib.type.time');
+    case 'datetime':
+      return t('fieldLib.type.datetime');
+    case 'taxon':
+      return t('fieldLib.type.taxon');
+    case 'dna':
+      return t('fieldLib.type.dna');
+  }
+}
+
+/** What a data type takes, as the field screen explains it. */
+export function datatypeDesc(t: TFunction, dt: FieldDatatype): string {
+  switch (dt) {
+    case 'text':
+      return t('fieldLib.typeDesc.text');
+    case 'numeric':
+      return t('fieldLib.typeDesc.numeric');
+    case 'date':
+      return t('fieldLib.typeDesc.date');
+    case 'time':
+      return t('fieldLib.typeDesc.time');
+    case 'datetime':
+      return t('fieldLib.typeDesc.datetime');
+    case 'taxon':
+      return t('fieldLib.typeDesc.taxon');
+    case 'dna':
+      return t('fieldLib.typeDesc.dna');
+  }
+}
+
+/** What a field takes, in a few words: its type, then its values, range and unit. */
+export function fieldSummary(t: TFunction, lang: string, def: ObsFieldDef): string {
+  const live = (def.allowed ?? []).filter((a) => !a.deprecated);
+  const range = def.min != null && def.max != null ? `${def.min}–${def.max}` : def.min != null ? `≥ ${def.min}` : def.max != null ? `≤ ${def.max}` : '';
+  return [
+    datatypeName(t, def.datatype),
+    live.length ? live.map((a) => (lang.startsWith('en') ? a.en || a.value : a.value)).join(' | ') : null,
+    def.multi ? t('fieldLib.multi') : null,
+    def.datatype === 'numeric' ? t(def.numeric_kind === 'integer' ? 'fieldLib.integer' : 'fieldLib.decimal') : null,
+    range || null,
+    def.unit ?? null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
 }
 
 /** A draft's issue as a sentence. */
@@ -200,7 +262,7 @@ export function issueText(t: TFunction, lang: string, template: SurveyTemplate, 
   const listName = (id: string) => labelText(t, lang, template.codelists.find((l) => l.id === id)?.label, t('builder.untitled'));
   const compName = (key: string) => {
     const c = template.components.find((x) => x.key === key);
-    return c ? labelText(t, lang, c.label, typeName(t, c.type)) : key;
+    return c ? componentLabel(t, lang, c) : key;
   };
   switch (issue.code) {
     case 'name_empty':

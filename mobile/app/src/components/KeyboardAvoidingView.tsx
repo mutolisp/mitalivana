@@ -20,22 +20,71 @@
  * Platform split: iOS = RN's built-in KAV; Android = lib's KAV (RN's no-ops
  * under API 35 edge-to-edge).
  */
-import { useCallback, useRef, useState, type ComponentProps } from 'react';
+import { useCallback, useRef, useState, type ComponentProps, type PropsWithChildren } from 'react';
 import {
   KeyboardAvoidingView as RNKeyboardAvoidingView,
   Platform,
   View,
   type LayoutChangeEvent,
+  type ViewProps,
 } from 'react-native';
 import {
   KeyboardAvoidingView as KCKeyboardAvoidingView,
-  KeyboardStickyView,
+  KeyboardController,
+  useKeyboardHandler,
 } from 'react-native-keyboard-controller';
+import Reanimated, { interpolate, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 
-// Re-export for callers who need a "sticky above the keyboard" element (e.g.
-// a search box that should follow the keyboard top regardless of the kbd's
-// own accessory bar height changes). Cross-platform and offset-free.
-export { KeyboardStickyView };
+type StickyProps = ViewProps & {
+  /** Extra translateY with the keyboard closed / open (the library's KeyboardStickyView `offset`). */
+  offset?: { closed?: number; opened?: number };
+};
+
+/**
+ * An element that rides on top of the keyboard (a docked search box, an
+ * accessory bar): the library's KeyboardStickyView, same props, on Reanimated.
+ *
+ * The library's one moves through RN Animated's native driver. On Fabric a
+ * React commit can overwrite what that driver set, and the box stayed at the
+ * keyboard's height after it closed (iOS, 2026-10-04, the interaction
+ * screen: picking a species from its search closes the keyboard while the
+ * screen above grows a row; the third time this was seen). Reanimated keeps
+ * the shadow tree in step, and onMove follows the keyboard frame by frame on
+ * both platforms.
+ */
+export function KeyboardStickyView({ offset: { closed = 0, opened = 0 } = {}, style, children, ...rest }: PropsWithChildren<StickyProps>) {
+  // Mounted with the keyboard up: start where it is, not behind it.
+  const height = useSharedValue(KeyboardController.isVisible() ? KeyboardController.state().height : 0);
+  const progress = useSharedValue(KeyboardController.isVisible() ? 1 : 0);
+  useKeyboardHandler(
+    {
+      onMove: (e) => {
+        'worklet';
+        height.value = e.height;
+        progress.value = e.progress;
+      },
+      onInteractive: (e) => {
+        'worklet';
+        height.value = e.height;
+        progress.value = e.progress;
+      },
+      onEnd: (e) => {
+        'worklet';
+        height.value = e.height;
+        progress.value = e.progress;
+      },
+    },
+    [],
+  );
+  const follow = useAnimatedStyle(() => ({
+    transform: [{ translateY: -height.value + interpolate(progress.value, [0, 1], [closed, opened]) }],
+  }));
+  return (
+    <Reanimated.View style={[follow, style]} {...rest}>
+      {children}
+    </Reanimated.View>
+  );
+}
 
 type Props = ComponentProps<typeof RNKeyboardAvoidingView> & {
   className?: string;

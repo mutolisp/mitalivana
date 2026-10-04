@@ -24,7 +24,8 @@
  *   code lists beside the ForestGEO census codes, which stay.
  */
 import { BUILTIN_INTERACTION_CODES } from '../codesets/interactions';
-import { componentDef, componentDefs, defaultParamsOf, fixedAt, SPATIAL_TYPES, type ComponentType, type TraitDef } from '../registry';
+import { componentDef, componentDefs, defaultParamsOf, fixedAt, SPATIAL_TYPES, type ComponentType, type SurveyGroupKey, type TraitDef } from '../registry';
+import type { ObsFieldDef } from './obsField';
 import { MAX_UNIT_LEVELS, type CodeItem, type CodeList, type ComponentInstance, type Label, type SurveyLevel, type SurveyStyle, type SurveyTemplate, type UnitLevel } from './types';
 import { TEMPLATE_SCHEMA } from './normalize';
 import { withRequired } from './validate';
@@ -73,22 +74,49 @@ export function componentsAt(t: SurveyTemplate, place: Place): ComponentInstance
   });
 }
 
-/** Component types that may be added here: optional, offered in this style and on this level, not already here when there can be only one. */
-export function addableTypes(t: SurveyTemplate, place: Place): ComponentType[] {
+/**
+ * Component types that may be added here: optional, offered in this style and
+ * on this level, not already here when there can be only one. `group`: on the
+ * survey level, only that 調查資料 group's types (the builder's cards,
+ * 2026-10-04: 基本資料, 時間資料, 空間資料, 調查法).
+ */
+export function addableTypes(t: SurveyTemplate, place: Place, group?: SurveyGroupKey): ComponentType[] {
   const here = componentsAt(t, place);
   const census = t.style === 'individual' ? (CENSUS_OPTIONAL[place.level] ?? []) : null;
   return componentDefs()
     // Always-present types only where they are not (a species' or a unit's comments).
-    .filter((d) => !fixedAt(d, place.level as SurveyLevel) && d.styles.includes(t.style) && d.levels.includes(place.level as SurveyLevel))
+    .filter((d) => !fixedAt(d, place.level as SurveyLevel) && (d.offeredIn ?? d.styles).includes(t.style) && d.levels.includes(place.level as SurveyLevel))
     .filter((d) => !census || census.includes(d.type))
+    .filter((d) => !group || place.level !== 'survey' || (d.group ?? 'basic') === group)
     .filter((d) => d.cardinality === 'many' || !here.some((c) => c.type === d.type))
     .map((d) => d.type);
 }
 
-function nextKey(t: SurveyTemplate, base: string): string {
+/** `base`, or `base_2`, `base_3`… — the first key no component of `t` has. */
+export function nextKey(t: Pick<SurveyTemplate, 'components'>, base: string): string {
   const taken = new Set(t.components.map((c) => c.key));
   if (!taken.has(base)) return base;
   for (let i = 2; ; i++) if (!taken.has(`${base}_${i}`)) return `${base}_${i}`;
+}
+
+/**
+ * Add a 自訂欄位 (2026-10-04): the library's field `def` on `place`, its
+ * definition carried in the parameters, under the field's key (with a suffix
+ * when the template already has that key, e.g. the same field on a unit and a
+ * species).
+ */
+export function addField(t: SurveyTemplate, place: Place, def: ObsFieldDef): { template: SurveyTemplate; key: string } {
+  if (!addableTypes(t, place).includes('field')) throw new Error('a field cannot be added here');
+  const key = nextKey(t, def.key);
+  const c: ComponentInstance = {
+    key,
+    type: 'field',
+    level: place.level,
+    ...(place.level === 'unit' ? { unit: place.unit } : {}),
+    required: false,
+    params: { ...def },
+  };
+  return { template: insertAtPlace(t, place, c), key };
 }
 
 export function addComponent(t: SurveyTemplate, type: ComponentType, place: Place): { template: SurveyTemplate; key: string } {
@@ -103,14 +131,18 @@ export function addComponent(t: SurveyTemplate, type: ComponentType, place: Plac
     required: false,
     params: { ...defaultParamsOf(def, place.level) },
   };
-  // After the last component of the same place, so the order on screen is the order added.
+  return { template: insertAtPlace(t, place, c), key };
+}
+
+/** `c` after the last component of the same place, so the order on screen is the order added. */
+function insertAtPlace(t: SurveyTemplate, place: Place, c: ComponentInstance): SurveyTemplate {
   const last = t.components.reduce((at, x, i) => {
     const p = placeOf(x);
     return p && samePlace(p, place) ? i : at;
   }, -1);
   const components = [...t.components];
   components.splice(last < 0 ? components.length : last + 1, 0, c);
-  return { template: { ...t, components }, key };
+  return { ...t, components };
 }
 
 /** Always-present components stay (the validator would put them back anyway), and a census's fixed ones. */
@@ -439,19 +471,6 @@ export function setHealthCodeset(t: SurveyTemplate, key: string, set: string, on
   const sets = Array.isArray(c.params.codesets) ? (c.params.codesets as string[]) : [];
   if (on === sets.includes(set)) return t;
   return updateComponent(t, key, { params: { ...c.params, codesets: on ? [...sets, set] : sets.filter((x) => x !== set) } });
-}
-
-/** A choice here, on the first code list — a new one (named `newList`) when the template has none. */
-export function addChoice(t: SurveyTemplate, place: Place, newList: Label): { template: SurveyTemplate; key: string } {
-  let base = t;
-  let listId = t.codelists[0]?.id;
-  if (!listId) {
-    const made = addCodeList(t, newList);
-    base = made.template;
-    listId = made.id;
-  }
-  const added = addComponent(base, 'choice', place);
-  return { template: updateComponent(added.template, added.key, { params: { list: listId, multi: false } }), key: added.key };
 }
 
 // ── interaction types (2F) ──────────────────────────────────────────────────

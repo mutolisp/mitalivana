@@ -19,6 +19,7 @@ import { bbRank, kindForType } from '../lib/dwcAbundanceCore';
 import { AMS_CODESET, AMS_VARIABLES, amsField } from './codesets/forestgeoAms2021';
 import { BUILTIN_INTERACTION_CODES } from './codesets/interactions';
 import { CUSTOM_METHOD, METHOD_KEYS, SIZE_UNITS } from './codesets/samplingMethods';
+import { checkFieldDef, fieldChange, fieldDefOf, formatOf, type ValueFormat } from './template/obsField';
 import type { SurveyLevel, SurveyStyle } from './template/types';
 
 export type ValueType = 'num' | 'text' | 'json';
@@ -44,6 +45,8 @@ export type FieldRule = {
   integer?: boolean;
   oneOf?: readonly string[];
   markers?: readonly string[];
+  /** Text of a given form (自訂欄位: date, time, datetime, DNA; template/obsField.ts). */
+  format?: ValueFormat;
   /** Default 'error'. */
   severity?: 'error' | 'warning';
 };
@@ -90,11 +93,21 @@ export const COMPONENT_TYPES = [
   'centre',
   'site',
   'track',
+  // 自訂欄位 (2026-10-04): one field of the app-wide library, its definition carried in the parameters.
+  'field',
 ] as const;
 export type ComponentType = (typeof COMPONENT_TYPES)[number];
 
+/**
+ * The 調查資料 group a survey-level component belongs to (2G-f; since
+ * 2026-10-04 also the builder's cards): 基本資料, 時間資料, 空間資料, 調查法.
+ */
+export type SurveyGroupKey = 'basic' | 'time' | 'space' | 'method';
+
 export type ComponentDef = {
   type: ComponentType;
+  /** Its 調查資料 group on the survey level (default: 基本資料). The builder's cards and the survey screen both read it. */
+  group?: SurveyGroupKey;
   /** Always present; the validator adds it when a template leaves it out. */
   required: boolean;
   /**
@@ -113,6 +126,12 @@ export type ComponentDef = {
   cardinality: 'one' | 'many';
   levels: readonly SurveyLevel[];
   styles: readonly SurveyStyle[];
+  /**
+   * The styles whose builder offers it (default: `styles`). 自訂選項 and the
+   * checklist / plot styles' Traits gave way to 自訂欄位 (2026-10-04): a
+   * template that has one still works, and the builder turns it into fields.
+   */
+  offeredIn?: readonly SurveyStyle[];
   defaultLevel: SurveyLevel;
   /** Where a style puts it when that differs from defaultLevel (Taxon: occurrence outside the census). */
   defaultLevelFor?: Readonly<Partial<Record<SurveyStyle, SurveyLevel>>>;
@@ -449,6 +468,7 @@ const DEFS: readonly ComponentDef[] = [
   },
   {
     type: 'timestamp',
+    group: 'time',
     required: true,
     cardinality: 'one',
     levels: ['survey'],
@@ -714,6 +734,7 @@ const DEFS: readonly ComponentDef[] = [
   },
   {
     type: 'structure',
+    group: 'method',
     required: false,
     cardinality: 'one',
     levels: ['survey', 'unit', 'occurrence'],
@@ -788,6 +809,7 @@ const DEFS: readonly ComponentDef[] = [
     // On a census tree too (2D-b): measured each census, like its height.
     levels: ['occurrence', 'individual'],
     styles: ALL_STYLES,
+    offeredIn: ['individual'],
     defaultLevel: 'occurrence',
     defaultLevelFor: { individual: 'individual' },
     // An example for the builder (2D) to start from; a template writes its own labels.
@@ -873,6 +895,7 @@ const DEFS: readonly ComponentDef[] = [
     cardinality: 'many',
     levels: ['survey', 'unit', 'occurrence'],
     styles: NEW_STYLES,
+    offeredIn: [],
     defaultLevel: 'occurrence',
     defaultParams: { list: 'list_1', multi: false },
     checkParams: (p) => {
@@ -929,6 +952,7 @@ const DEFS: readonly ComponentDef[] = [
     // of one's own may be typed. Quadrat width / length: the size every
     // quadrat (the second unit level) takes unless it has its own.
     type: 'method',
+    group: 'method',
     required: false,
     cardinality: 'one',
     levels: ['survey'],
@@ -973,6 +997,7 @@ const DEFS: readonly ComponentDef[] = [
   // event and its geo files export them as before.
   {
     type: 'centre',
+    group: 'space',
     required: false,
     rowFixed: true,
     cardinality: 'one',
@@ -988,6 +1013,7 @@ const DEFS: readonly ComponentDef[] = [
   },
   {
     type: 'site',
+    group: 'space',
     required: false,
     rowFixed: true,
     cardinality: 'one',
@@ -1003,6 +1029,7 @@ const DEFS: readonly ComponentDef[] = [
   },
   {
     type: 'track',
+    group: 'space',
     required: false,
     rowFixed: true,
     cardinality: 'one',
@@ -1016,6 +1043,51 @@ const DEFS: readonly ComponentDef[] = [
     exportMap: {},
     labelKey: 'survey.component.track',
   },
+  {
+    // 自訂欄位 (six-item plan C, 2026-10-04; template/obsField.ts): one field of
+    // the app-wide library, its definition carried whole in the parameters so a
+    // survey's snapshot, a template file and the exports stand on their own.
+    // `value` holds it: text (a list when several values may be chosen), a
+    // number, a date / time / datetime / DNA text of its form, or a taxon id —
+    // with the taxon as it was picked (`name`, `cname`, and the `rank` and
+    // `kingdom` its italics follow), since the export writes the scientific
+    // name and the record must read the same offline.
+    type: 'field',
+    required: false,
+    cardinality: 'many',
+    levels: ['survey', 'unit', 'occurrence'],
+    styles: NEW_STYLES,
+    defaultLevel: 'occurrence',
+    defaultParams: { key: 'custom_field', name: '自訂欄位', datatype: 'text' },
+    checkParams: (p) => checkFieldDef(p),
+    fields: (p, level, key) => {
+      const def = fieldDefOf(p);
+      if (!def) return [];
+      switch (def.datatype) {
+        case 'text': {
+          const oneOf = def.allowed?.map((a) => a.value);
+          return [val(level, key, 'value', def.multi ? 'json' : 'text', { rule: oneOf ? { oneOf } : {} })];
+        }
+        case 'numeric':
+          return [val(level, key, 'value', 'num', { unit: def.unit, rule: { min: def.min, max: def.max, integer: def.numeric_kind === 'integer' } })];
+        case 'taxon':
+          return ['value', 'name', 'cname', 'rank', 'kingdom'].map((f) => val(level, key, f, 'text'));
+        default:
+          return [val(level, key, 'value', 'text', { rule: { format: formatOf(def.datatype) } })];
+      }
+    },
+    // Its name says what was measured (the English one when given); surveyDwcCore writes the values.
+    exportMap: (p) => {
+      const def = fieldDefOf(p);
+      return def ? { mof: { value: { measurementType: def.name_en || def.name, ...(def.unit ? { unit: def.unit } : {}) } } } : {};
+    },
+    labelKey: 'survey.component.field',
+    paramsChange: (prev, next) => {
+      const a = fieldDefOf(prev);
+      const b = fieldDefOf(next);
+      return a && b ? fieldChange(a, b) : 'breaking';
+    },
+  },
 ];
 
 /** The 空間資料 module types, in the order the group shows them. */
@@ -1028,6 +1100,11 @@ export const fixedAt = (def: Pick<ComponentDef, 'required' | 'alwaysAt'>, level:
 export type ChoiceParams = { list: string; multi: boolean };
 
 const BY_TYPE = new Map<string, ComponentDef>(DEFS.map((d) => [d.type, d]));
+
+/** A type's 調查資料 group on the survey level. */
+export function groupOfType(type: string): SurveyGroupKey {
+  return componentDef(type)?.group ?? 'basic';
+}
 
 export function componentDef(type: string): ComponentDef | undefined {
   return BY_TYPE.get(type);

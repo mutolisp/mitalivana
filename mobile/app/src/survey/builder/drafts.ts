@@ -21,7 +21,8 @@ import i18n from '~/i18n';
 import { decodeUtf8 } from '~/lib/utf8';
 import { shareThenDelete } from '~/lib/shareFile';
 import { useToast } from '~/stores/toast';
-import { discardDraft, getDraft, getTemplate, listTemplates, saveDraft, saveTemplate, templateUseCounts, type TemplateDraft } from '~/survey/db/surveys';
+import { discardDraft, fieldLibrary, getDraft, getTemplate, listTemplates, saveDraft, saveTemplate, storeLibraryWrites, templateUseCounts, type TemplateDraft } from '~/survey/db/surveys';
+import { fitTemplateFields } from '~/survey/template/legacyFields';
 import { readTemplateFile, TEMPLATE_FILE_EXT, templateFileText } from '~/survey/template/share';
 import { blankTemplate, copyTemplate, labelParts, makeLabel, type BuilderStyle } from '~/survey/template/edit';
 import type { SurveyTemplate } from '~/survey/template/types';
@@ -143,8 +144,12 @@ export async function importTemplateFile(): Promise<void> {
     Alert.alert(i18n.t('builder.import.failTitle'), msg);
     return;
   }
-  const saved = saveTemplate(read.template);
+  // Its 自訂欄位 join the library: merged with a field of the same key, or under `key_2` when they differ (2026-10-04).
+  const fit = fitTemplateFields(read.template, fieldLibrary());
+  storeLibraryWrites(fit.writes);
+  const saved = saveTemplate(fit.template);
   useToast.getState().show(i18n.t(read.renamed ? 'builder.import.doneRenamed' : 'builder.import.done', { name: templateName(i18n.t, i18n.language, saved) }));
+  if (fit.renamed.length) Alert.alert(i18n.t('fieldLib.importRenamedTitle'), i18n.t('fieldLib.importRenamed', { keys: fit.renamed.join(i18n.t('builder.listSep')) }));
 }
 
 /** A template kind's icon, wherever templates are listed. */

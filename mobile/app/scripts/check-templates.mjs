@@ -49,6 +49,7 @@ import {
   LEVEL_TABLE,
   PHENOLOGY_FIELDS,
   SPATIAL_TYPES,
+  groupOfType,
 } from '../src/survey/registry.ts';
 import { AMS_VARIABLES } from '../src/survey/codesets/forestgeoAms2021.ts';
 import { BUILTIN_INTERACTIONS } from '../src/survey/codesets/interactions.ts';
@@ -359,12 +360,16 @@ eq('components moved: a change, nothing breaks', classifyChange(SAMPLE_PLOT_TEMP
   eq('places: plot (no permanent-plot level)', E.placesOf(pl).map((p) => p.level), ['survey', 'unit', 'occurrence']);
   const occ = { level: 'occurrence' };
   const add = E.addableTypes(cl, occ);
-  ok('addable: optional types of this style and level', add.includes('abundance') && add.includes('traits') && !add.includes('comments') && !add.includes('dbh') && !add.includes('environment'));
+  ok('addable: optional types of this style and level', add.includes('abundance') && add.includes('field') && !add.includes('comments') && !add.includes('dbh') && !add.includes('environment'));
+  // 自訂選項 and Traits gave way to 自訂欄位 (2026-10-04): no longer offered here, still valid in a template.
+  ok('addable: 自訂選項 and Traits are not offered any more', !add.includes('traits') && !add.includes('choice') && !E.addableTypes(cl, { level: 'survey' }).includes('choice'));
   let t = E.addComponent(cl, 'abundance', occ).template;
-  t = E.addComponent(t, 'traits', occ).template;
-  const second = E.addComponent(t, 'traits', occ);
-  t = second.template;
-  eq('add: keys from the type, a second traits under traits_2', [second.key, t.components.filter((c) => c.type === 'traits').map((c) => c.key)], ['traits_2', ['traits', 'traits_2']]);
+  const f1 = E.addComponent(t, 'field', occ);
+  const f2 = E.addComponent(f1.template, 'field', occ);
+  eq('add: keys from the type, a second under _2', [f1.key, f2.key], ['field', 'field_2']);
+  // Traits as an older template has them (the trait edits below are a census tree's too).
+  const traitsComp = (key) => ({ key, type: 'traits', level: 'occurrence', required: false, params: { ...componentDef('traits').defaultParams } });
+  t = { ...t, components: [...t.components, traitsComp('traits'), traitsComp('traits_2')] };
   ok('add: one abundance per level', !E.addableTypes(t, occ).includes('abundance'));
   throwsTo('add: refused where it cannot sit', () => E.addComponent(t, 'environment', occ));
   eq('add: default parameters', t.components.find((c) => c.key === 'abundance').params, componentDef('abundance').defaultParams);
@@ -439,7 +444,7 @@ eq('components moved: a change, nothing breaks', classifyChange(SAMPLE_PLOT_TEMP
   eq('label: parts', [E.labelParts({ text: 'a', tr: { en: 'b' } }), E.labelParts({ i18n: 'k' })], [{ text: 'a', en: 'b' }, { text: '', en: '' }]);
   // what still needs the user
   const bad = E.updateTrait(E.updateComponent({ ...p, name: { text: ' ' }, units: [{ key: 'u1', label: { text: '' } }, ...p.units.slice(1)] }, 'photos', { params: { max: 99 } }), 'photos', 0, {}, null);
-  const withTraits = E.updateTrait(E.addTrait(E.addComponent(cl, 'traits', occ).template, 'traits'), 'traits', 1, { min: 5, max: 1 }, null);
+  const withTraits = E.updateTrait(E.addTrait({ ...cl, components: [...cl.components, traitsComp('traits')] }, 'traits'), 'traits', 1, { min: 5, max: 1 }, null);
   eq('issues: name, unit name, parameters', E.draftIssues(bad).map((i) => i.code), ['name_empty', 'unit_label_empty', 'params']);
   eq('issues: trait without a name, min above max', E.draftIssues(withTraits).map((i) => `${i.code}:${i.trait}`), ['trait_name_empty:1', 'trait_range:1']);
   eq('issues: none on a fresh template', [E.draftIssues(cl), E.draftIssues(pl)], [[], []]);
@@ -449,11 +454,11 @@ eq('components moved: a change, nothing breaks', classifyChange(SAMPLE_PLOT_TEMP
 {
   const occ = { level: 'occurrence' };
   const cl = E.blankTemplate('checklist', 'user:lists', E.makeLabel('清單'), null);
-  const withChoice = E.addChoice(cl, occ, E.makeLabel('微棲地'));
+  // A 自訂選項 as an older template has it (the builder no longer adds one: 2026-10-04).
+  const listed = E.addCodeList(cl, E.makeLabel('微棲地'));
+  const withChoice = { key: 'choice', template: { ...listed.template, components: [...listed.template.components, { key: 'choice', type: 'choice', level: 'occurrence', required: false, params: { list: listed.id, multi: false } }] } };
   const t1 = withChoice.template;
-  eq('choice: added with a new list when the template has none', [t1.codelists.map((l) => l.id), t1.components.find((c) => c.key === withChoice.key).params], [['list_1'], { list: 'list_1', multi: false }]);
-  const second = E.addChoice(t1, occ, E.makeLabel('不該建立'));
-  eq('choice: a second one uses the first list, no new list', [second.template.codelists.length, second.key], [1, 'choice_2']);
+  eq('choice: on the template\'s first list', [t1.codelists.map((l) => l.id), t1.components.find((c) => c.key === withChoice.key).params], [['list_1'], { list: 'list_1', multi: false }]);
   eq('issues: an empty list', E.draftIssues(t1).map((i) => i.code), ['list_no_codes']);
   let t2 = E.addCode(E.addCode(t1, 'list_1'), 'list_1');
   eq('codes: numbered as added', t2.codelists[0].items.map((x) => x.code), ['1', '2']);
@@ -484,7 +489,8 @@ eq('components moved: a change, nothing breaks', classifyChange(SAMPLE_PLOT_TEMP
 
 // ── 8. template files (.mtpl.json, 2D-b) ───────────────────────────────────
 {
-  const src = E.addChoice(E.blankTemplate('plot', 'user:share', E.makeLabel('分享'), E.makeLabel('小區')), { level: 'occurrence' }, E.makeLabel('微棲地')).template;
+  const shareBase = E.addCodeList(E.blankTemplate('plot', 'user:share', E.makeLabel('分享'), E.makeLabel('小區')), E.makeLabel('微棲地')).template;
+  const src = { ...shareBase, components: [...shareBase.components, { key: 'choice', type: 'choice', level: 'occurrence', required: false, params: { list: 'list_1', multi: false } }] };
   const withCode = E.updateCode(E.addCode(src, 'list_1'), 'list_1', 0, { code: 'rock', name: { text: '岩石', en: 'Rock' } }, null);
   const text = S.templateFileText(withCode, 1000);
   let n = 0;
@@ -698,6 +704,25 @@ eq('components moved: a change, nothing breaks', classifyChange(SAMPLE_PLOT_TEMP
     if (/(?<!normalizeTemplate\()JSON\.parse\([^)]*\)\s*as\s*SurveyTemplate/.test(text) || /JSON\.parse\([^;]*template_snapshot/.test(text)) raw.push(f);
   }
   eq('normalize: no template is parsed around it', raw, []);
+}
+
+// ── 12. the builder's cards (2026-10-04) ───────────────────────────────────
+// The survey's components on the four 調查資料 groups the survey screen shows;
+// each card adds only its own types; unit levels and occurrences take all.
+{
+  const S = { level: 'survey' };
+  const cl = E.blankTemplate('checklist', 'user:cards', E.makeLabel('卡'), null);
+  const groupsOf = (types) => [...new Set(types.map(groupOfType))].sort().join();
+  ok('cards: 基本資料 adds only its own types', groupsOf(E.addableTypes(cl, S, 'basic')) === 'basic' && E.addableTypes(cl, S, 'basic').includes('environment'));
+  eq('cards: 時間資料 has nothing to add (the time is every survey\'s)', E.addableTypes(cl, S, 'time'), []);
+  eq('cards: 空間資料 offers nothing while all three modules are there', E.addableTypes(cl, S, 'space'), []);
+  eq('cards: 空間資料 offers back what was removed', E.addableTypes(E.removeComponent(cl, 'site'), S, 'space'), ['site']);
+  eq('cards: 調查法 adds the method and the layers', [...E.addableTypes(cl, S, 'method')].sort(), ['method', 'structure']);
+  eq('cards: every survey-level type is on exactly one card', [...E.addableTypes(cl, S)].sort(), [...['basic', 'time', 'space', 'method'].flatMap((g) => E.addableTypes(cl, S, g))].sort());
+  eq('cards: the group does not limit a species or a unit level', E.addableTypes(cl, { level: 'occurrence' }, 'space'), E.addableTypes(cl, { level: 'occurrence' }));
+  eq('cards: the groups the registry gives', ['timestamp', 'centre', 'site', 'track', 'method', 'structure', 'environment', 'comments', 'investigators'].map((x) => `${x}:${groupOfType(x)}`), [
+    'timestamp:time', 'centre:space', 'site:space', 'track:space', 'method:method', 'structure:method', 'environment:basic', 'comments:basic', 'investigators:basic',
+  ]);
 }
 
 // ── 5. hash ─────────────────────────────────────────────────────────────────

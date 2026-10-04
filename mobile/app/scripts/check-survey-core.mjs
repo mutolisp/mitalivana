@@ -636,8 +636,18 @@ ok(SAMPLE_TEMPLATES.some((t) => t.quick_add) && SAMPLE_TEMPLATES.some((t) => !t.
     ],
   });
   const gp = surveyGroups(withMore('plot'));
-  ok(gp.map((g) => `${g.key}:${g.components.map((x) => x.key).join('+')}`).join() === 'basic:env+sph+cmt,time:ts,space:ctr+ste+trk,method:met', `groups: by type; a plot's survey layers in none; 空間資料 in its own order (${gp.map((g) => `${g.key}:${g.components.map((x) => x.key).join('+')}`)})`);
-  ok(surveyGroups(withMore('checklist'))[0].components.some((x) => x.key === 'lay'), 'groups: a checklist survey’s layers are 基本資料');
+  ok(gp.map((g) => `${g.key}:${g.components.map((x) => x.key).join('+')}`).join() === 'basic:env+sph+cmt,time:ts,space:ctr+ste+trk,method:lay+met', `groups: by type; the survey's layers in 調查法 with the method (2026-10-04); 空間資料 in its own order (${gp.map((g) => `${g.key}:${g.components.map((x) => x.key).join('+')}`)})`);
+  const gc = surveyGroups(withMore('checklist'));
+  ok(!gc[0].components.some((x) => x.key === 'lay') && gc.find((g) => g.key === 'method')?.components.some((x) => x.key === 'lay'), 'groups: a checklist survey’s layers are 調查法 too');
+  // A plot's first unit level is its 小區, in 調查法 (moved from the environment tab, 2026-10-04).
+  const units = [{ key: 'u1', label: { text: '小區' } }, { key: 'u2', label: { text: '小樣方' } }];
+  const gu = surveyGroups({ ...withMore('plot'), units }).find((g) => g.key === 'method');
+  ok(gu?.subplots === 'u1' && gu.components.map((x) => x.key).join() === 'lay,met', `groups: 調查法 on a plot holds its first unit level as 小區 (${gu?.subplots})`);
+  const gst = (n) => groupStatus(gu, { lay: { layer_count: 4 }, met: { protocol: 'inventory' } }, { ...facts, subplot_count: n });
+  ok(gst(0).total === 3 && gst(0).filled === 2 && gst(2).filled === 3, `groups: 調查法 counts the layers set and the 小區 made (${JSON.stringify([gst(0), gst(2)])})`);
+  const onlyUnits = { ...mk(['count']), style: 'plot', units };
+  ok(surveyGroups(onlyUnits).map((g) => g.key).join() === 'basic,time,method' && surveyGroups(onlyUnits)[2].components.length === 0, 'groups: a plot with 小區 has 調查法 even without a method or layers');
+  ok(!surveyGroups({ ...withMore('checklist'), units }).find((g) => g.key === 'method')?.subplots, 'groups: only a plot shows 小區');
   ok(surveyGroups(mk(['count'])).map((g) => g.key).join() === 'basic,time', 'groups: no 空間資料 without its modules, no 調查法 without a Method');
   const onlyTrack = { ...withMore('plot'), components: withMore('plot').components.filter((x) => x.key !== 'ctr' && x.key !== 'ste') };
   const ot = surveyGroups(onlyTrack).find((g) => g.key === 'space');
@@ -653,7 +663,7 @@ ok(SAMPLE_TEMPLATES.some((t) => t.quick_add) && SAMPLE_TEMPLATES.some((t) => !t.
   ok(groupStatus({ key: 'method', components: [comp('met', 'method', 'survey', { methods: [], fixed: 'point_count', custom: false })] }, {}, facts).filled === 1, 'groups: a method the template fixes counts as filled');
   ok(groupStatus(gp[0], { env: { cover_pct: {} } }, { ...facts, investigators: null }).filled === 0, 'groups: an empty per-layer value is not filled');
   const sum = surveyDataStatus(withMore('plot'), vals, facts);
-  ok(sum.filled === 4 && sum.total === 10, `groups: the chip counts every group (${JSON.stringify(sum)})`);
+  ok(sum.filled === 4 && sum.total === 11, `groups: the chip counts every group (${JSON.stringify(sum)})`);
   // 必填 (2G-e): the author's, on a component they may leave out; fixed ones are every survey's anyway.
   const r = (x) => ({ ...x, required: true });
   ok(requiredByAuthor(r(comp('e', 'environment', 'survey'))) && !requiredByAuthor(comp('e', 'environment', 'survey')) && !requiredByAuthor(r(comp('c', 'comments', 'survey'))) && !requiredByAuthor(r(comp('t', 'timestamp', 'survey'))), 'required: only the author’s, never a fixed component');

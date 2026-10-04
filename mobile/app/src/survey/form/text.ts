@@ -28,6 +28,12 @@ export function formErrorText(t: TFunction, e: unknown): string {
       return t('surveyForm.err.labelTaken', { label: e.detail ?? '' });
     case 'bad_value':
       return t('surveyForm.err.badValue');
+    case 'field_key_taken':
+      return t('fieldLib.err.keyTaken', { key: e.detail ?? '' });
+    case 'field_in_use':
+      return t('fieldLib.err.inUse');
+    case 'field_invalid':
+      return t('fieldLib.err.invalid');
     default:
       return errText(e);
   }

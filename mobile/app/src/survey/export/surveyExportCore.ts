@@ -35,6 +35,7 @@ import type { SurveyDoc } from '../db/surveyDocCore';
 import { methodDwc, methodZh } from '../codesets/samplingMethods';
 import { componentDef, exportMapOf, type FieldDef } from '../registry';
 import { parseSnapshot } from '../template/normalize';
+import { allowedEn, fieldDefOf } from '../template/obsField';
 import type { Label, SurveyLevel, SurveyTemplate } from '../template/types';
 
 export type { CsvTable };
@@ -203,7 +204,26 @@ type Owner = { level: 'survey' } | { level: 'unit'; key: string; levelKey: strin
 type Column = { name: string; value: (owner: Owner, row: Row) => string; dict: Row };
 
 const STAMP_COLS = new Set(['start_ts', 'stop_ts', 'observed_at']);
-const DICT_HEADER = ['file', 'column', 'component_key', 'component_type', 'component_name', 'component_name_en', 'level', 'unit_level', 'field', 'value_type', 'unit', 'dwc_term', 'measurement_type'];
+// The last four describe a 自訂欄位 (2026-10-04): its key, data type, description and allowed values (`value=English`, by |).
+const DICT_HEADER = [
+  'file',
+  'column',
+  'component_key',
+  'component_type',
+  'component_name',
+  'component_name_en',
+  'level',
+  'unit_level',
+  'field',
+  'value_type',
+  'unit',
+  'dwc_term',
+  'measurement_type',
+  'field_key',
+  'field_datatype',
+  'field_description',
+  'allowed_values',
+];
 
 function listOf(v: unknown): string[] {
   try {
@@ -241,7 +261,9 @@ function componentColumns(doc: SurveyDoc, template: SurveyTemplate, level: 'surv
     const def = componentDef(c.type);
     // 空間資料 modules: their values are the survey row's own columns, already in survey.csv.
     if (!def || def.rowFixed) continue;
-    const name = labelParts(c.label, words);
+    const fd = c.type === 'field' ? fieldDefOf(c.params) : null;
+    // A 自訂欄位 is named by its definition unless the template names it.
+    const name = c.label || !fd ? labelParts(c.label, words) : { text: fd.name, en: fd.name_en ?? '' };
     const map = exportMapOf(def, c.params, c.level as SurveyLevel);
     const applies = (o: Owner) => o.level !== 'unit' || c.unit == null || o.levelKey === c.unit;
     const dict = (column: string, f: FieldDef, extra: Row = {}): Row => ({
@@ -258,6 +280,14 @@ function componentColumns(doc: SurveyDoc, template: SurveyTemplate, level: 'surv
       unit: 'values' in f.storage ? (f.storage.unit ?? '') : '',
       dwc_term: map.dwc?.[f.field] ?? '',
       measurement_type: c.type === 'choice' ? (labelParts(lists.get(String(c.params.list))?.label, words).text || String(c.params.list)) : (map.mof?.[f.field]?.measurementType ?? ''),
+      ...(fd
+        ? {
+            field_key: fd.key,
+            field_datatype: fd.datatype,
+            field_description: fd.description ?? '',
+            allowed_values: (fd.allowed ?? []).map((a) => `${a.value}${a.en ? `=${a.en}` : ''}${a.deprecated ? ' (deprecated)' : ''}`).join('|'),
+          }
+        : {}),
       ...extra,
     });
     for (const f of def.fields(c.params, c.level as SurveyLevel, c.key)) {
@@ -293,6 +323,14 @@ function componentColumns(doc: SurveyDoc, template: SurveyTemplate, level: 'surv
               { name: `${column}_zh`, value: (o) => (applies(o) ? methodZh(named(o), c.params) : ''), dict: dict(`${column}_zh`, f, { value_type: 'text', dwc_term: '' }) },
               { name: `${column}_en`, value: (o) => (applies(o) ? methodDwc(named(o), c.params).samplingProtocol : ''), dict: dict(`${column}_en`, f, { value_type: 'text' }) },
             );
+          }
+          if (fd?.allowed && f.field === 'value' && fd.allowed.some((a) => a.en)) {
+            // The values' English names beside them (as DwC writes them).
+            out.push({
+              name: `${column}_en`,
+              value: (o) => get(o).split(';').filter(Boolean).map((x) => allowedEn(fd, x)).join(';'),
+              dict: dict(`${column}_en`, f, { value_type: 'text' }),
+            });
           }
           if (c.type === 'choice') {
             const list = lists.get(String(c.params.list));

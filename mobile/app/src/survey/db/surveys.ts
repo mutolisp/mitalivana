@@ -16,6 +16,8 @@ import * as inter from './interactionCore';
 import * as core from './surveyCore';
 import type { ValueInput } from './stemmapCore';
 import * as tpl from './templatesCore';
+import * as fld from './fieldsCore';
+import type { LibraryWrite, ObsFieldDef } from '../template/obsField';
 
 // By the id a call is about: a preview's ids live in its scratch file (previewDb.ts, 2G-e).
 const ctx = (id?: number | null) => ({ db: dbFor(id), now: Date.now, uuid: generateUuid });
@@ -41,6 +43,16 @@ export const isTemplateArchived = (id: string) => tpl.isTemplateArchived(ctx(), 
 export const templateDeleteBlocker = (id: string) => tpl.templateDeleteBlocker(ctx(), id);
 export const deleteTemplate = (id: string) => withTransaction(() => tpl.deleteTemplate(ctx(), id));
 export const templateUseCounts = () => tpl.templateUseCounts(ctx());
+// 自訂欄位庫 (v90, fieldsCore.ts)
+export type { ObsFieldRow } from './fieldsCore';
+export const listFields = (opts?: { deprecated?: boolean }) => fld.listFields(ctx(), opts);
+export const getField = (key: string) => fld.getField(ctx(), key);
+export const fieldLibrary = () => fld.fieldLibrary(ctx());
+export const fieldUseCounts = () => fld.fieldUseCounts(ctx());
+export const saveField = (def: ObsFieldDef, prevKey?: string) => withTransaction(() => fld.saveField(ctx(), def, prevKey));
+export const setFieldDeprecated = (key: string, deprecated: boolean) => fld.setFieldDeprecated(ctx(), key, deprecated);
+export const deleteField = (key: string) => fld.deleteField(ctx(), key);
+export const storeLibraryWrites = (writes: readonly LibraryWrite[]) => withTransaction(() => fld.storeLibraryWrites(ctx(), writes));
 export const upgradableSurveys = (t: SurveyTemplate) => tpl.upgradableSurveys(ctx(), t);
 /** Move these surveys to `to` (each an additive change); returns how many moved. */
 export const upgradeSurveys = (ids: readonly number[], to: SurveyTemplate) => withTransaction(() => ids.filter((id) => tpl.upgradeSurvey(ctx(), id, to)).length);

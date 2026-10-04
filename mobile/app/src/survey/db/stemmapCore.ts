@@ -83,7 +83,11 @@ export type SurveyErrorCode =
   | 'blind_sealed'
   | 'recheck_begun'
   // 2G-d (v89): a unit marked done, as a fixed plot's locked quadrat.
-  | 'unit_done';
+  | 'unit_done'
+  // 自訂欄位庫 (v90, fieldsCore): a key another field has; a change a template using the field cannot take; a definition that is not valid.
+  | 'field_key_taken'
+  | 'field_in_use'
+  | 'field_invalid';
 
 export class SurveyError extends Error {
   code: SurveyErrorCode;

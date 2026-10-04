@@ -11,7 +11,9 @@
  *   - 空間資料: the centre card (GNSS, the map to place it, the boundary), the
  *     地理樣區 and the track;
  *   - 調查法: the Method editor (with the quadrats' size when the template
- *     has quadrats).
+ *     has quadrats), the survey's Structure — on a plot the fixed plot's 分層
+ *     section — and on a plot its 小區 section (PlotMethodSections.tsx; moved
+ *     from the end of the environment tab on 2026-10-04).
  */
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, type Href } from 'expo-router';
@@ -43,7 +45,8 @@ import type { ComponentOwner } from '~/survey/db/surveyCore';
 import { addMedia, removeMedia, updateSurvey, writeComponent } from '~/survey/db/surveys';
 import type { FieldValue } from '~/survey/registry';
 import type { ComponentInstance } from '~/survey/template/types';
-import { groupStatus, surveyGroups, type GroupKey, type GroupStatus } from './surveyGroups';
+import { PlotLayerSection, PlotSubplotSection } from './PlotMethodSections';
+import { groupStatus, surveyGroups, type GroupKey, type GroupStatus, type SurveyFacts, type SurveyGroup } from './surveyGroups';
 import { carriedNotes, formErrorText } from './text';
 import type { SurveyForm } from './useSurveyForm';
 
@@ -85,6 +88,12 @@ function GroupTitleRow({ group, st }: { group: GroupKey; st: GroupStatus }) {
   );
 }
 
+/** The survey row as the groups count it, with the 小區 the 調查法 group shows. */
+const factsOf = (data: SurveyForm, g?: SurveyGroup): SurveyFacts => ({
+  ...data.survey,
+  subplot_count: g?.subplots ? data.units.filter((u) => u.unit.level_key === g.subplots).length : 0,
+});
+
 const groupA11y = (t: TFunction, group: GroupKey, st: GroupStatus) =>
   [t(GROUP_TITLE[group]), t('surveyForm.dataFilled', { filled: st.filled, total: st.total }), st.missing ? t('surveyForm.group.missing', { count: st.missing }) : ''].filter(Boolean).join(', ');
 
@@ -94,8 +103,9 @@ export function SurveyGroupList({ data, onOpen }: { data: SurveyForm; onOpen: (g
   const { t, i18n } = useTranslation();
   const { survey, template } = data;
   const groups = surveyGroups(template);
-  const summary = (key: GroupKey, comps: readonly ComponentInstance[]): string => {
-    switch (key) {
+  const summary = (g: SurveyGroup): string => {
+    const comps = g.components;
+    switch (g.key) {
       case 'basic':
         return [
           ...comps.map((x) => {
@@ -120,15 +130,22 @@ export function SurveyGroupList({ data, onOpen }: { data: SurveyForm; onOpen: (g
           .filter(Boolean)
           .join(' · ');
       }
-      case 'method':
-        return comps.map((x) => componentSummary(t, i18n.language, x, data.surveyValues[x.key] ?? {}, template.codelists)).join(' · ');
+      case 'method': {
+        const subplots = factsOf(data, g).subplot_count ?? 0;
+        return [
+          ...comps.map((x) => componentSummary(t, i18n.language, x, data.surveyValues[x.key] ?? {}, template.codelists)),
+          g.subplots && subplots ? t('surveyForm.group.subplots', { count: subplots }) : '',
+        ]
+          .filter(Boolean)
+          .join(' · ');
+      }
     }
   };
   return (
     <View className="mx-4 my-3 overflow-hidden rounded-card border border-line bg-card dark:border-line-dark dark:bg-card-dark">
       {groups.map((g, i) => {
-        const st = groupStatus(g, data.surveyValues, survey);
-        const line = summary(g.key, g.components);
+        const st = groupStatus(g, data.surveyValues, factsOf(data, g));
+        const line = summary(g);
         return (
           <Pressable
             key={g.key}
@@ -164,7 +181,7 @@ export function SurveyGroupSections({ data, edit, onChanged }: { data: SurveyFor
   return (
     <>
       {surveyGroups(data.template).map((g, i) => {
-        const st = groupStatus(g, data.surveyValues, data.survey);
+        const st = groupStatus(g, data.surveyValues, factsOf(data, g));
         return (
           <View key={g.key}>
             <View
@@ -209,7 +226,8 @@ export function SurveyGroupBody({ data, edit, group, onChanged }: { data: Survey
       return null;
     }
   }, [site]);
-  const comps = surveyGroups(template).find((g) => g.key === group)?.components ?? [];
+  const here = surveyGroups(template).find((g) => g.key === group);
+  const comps = here?.components ?? [];
   const carried = carriedNotes(t, data.carried);
   const label = (c: ComponentInstance) => componentLabel(t, i18n.language, c);
   const ownLabel = (c: ComponentInstance) => (c.label ? label(c) : undefined);
@@ -424,7 +442,16 @@ export function SurveyGroupBody({ data, edit, group, onChanged }: { data: Survey
           })}
         </View>
       ) : null}
-      {group === 'method' ? comps.map(section) : null}
+      {group === 'method' ? (
+        <>
+          {/* The method first; on a plot its layers and 小區 as the fixed plot draws them. */}
+          {comps.filter((c) => !(template.style === 'plot' && c.type === 'structure')).map(section)}
+          {template.style === 'plot'
+            ? comps.filter((c) => c.type === 'structure').map((c) => <PlotLayerSection key={c.key} data={data} edit={edit} onChanged={onChanged} component={c} />)
+            : null}
+          {here?.subplots ? <PlotSubplotSection data={data} edit={edit} onChanged={onChanged} level={here.subplots} /> : null}
+        </>
+      ) : null}
       <View className="h-12" />
 
       <SurveyorAssignSheet

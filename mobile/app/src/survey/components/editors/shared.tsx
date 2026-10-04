@@ -28,6 +28,13 @@ export type EditorContext = {
   quadrats?: boolean;
   /** Structure on a unit: the cm / m the survey gives each layer (its own Structure's height_unit). */
   heightUnitOf?: (layerIdx: number) => 'cm' | 'm';
+  /**
+   * An input that opens a screen of its own (a 自訂欄位's species search)
+   * runs it through this. A host showing the input in an RN Modal closes the
+   * Modal first (iOS presents a pushed screen under it) and opens it again
+   * once the screen is left. Left out: nothing in the way.
+   */
+  aroundNavigate?: <T>(go: () => Promise<T>) => Promise<T>;
 };
 
 export type EditorProps = {
@@ -69,6 +76,8 @@ export function problemText(t: TFunction, p: Problem): string {
     case 'not_per_layer':
     case 'not_a_mask':
       return t('survey.editor.problem.malformed');
+    case 'bad_format':
+      return t('survey.editor.problem.badFormat');
     case 'ends_before_start':
       return t('survey.editor.problem.endsBeforeStart');
     case 'covers_over_100':
