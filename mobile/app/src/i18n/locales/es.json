@@ -398,6 +398,14 @@
     "records": "Registros",
     "species": "Especies"
   },
+  "tabBubble": {
+    "label": "Pestañas (actual: {{tab}})",
+    "hint": "Toque para abrir el menú de pestañas, arrastre para moverlo y mantenga presionado para restaurar la barra de pestañas",
+    "closeMenu": "Cerrar el menú de pestañas",
+    "unfold": "Restaurar la barra de pestañas",
+    "folded": "Barra de pestañas plegada en un botón. Mantenga presionado el botón para restaurarla",
+    "unfolded": "Barra de pestañas restaurada. Mantenga presionada una pestaña para plegarla de nuevo"
+  },
   "menu": {
     "projectsDesc": "Proyectos y sus listas de especies / parcelas",
     "sites": "Sitios geográficos",
@@ -889,6 +897,10 @@
     "fabSideDesc": "Muévelo a la izquierda si eres zurdo; el orden de pestañas se ajusta",
     "fabSideRight": "Derecha",
     "fabSideLeft": "Izquierda",
+    "tabBarMode": "Barra de pestañas",
+    "tabBarModeDesc": "Plegada en un botón redondo deja más espacio en la pantalla. También puede mantener presionada una pestaña para plegarla y mantener presionado el botón para restaurarla",
+    "tabBarModeBar": "Barra completa",
+    "tabBarModeBubble": "Botón redondo",
     "undoSeconds": "{{count}} s",
     "gpsPerSpeciesSession": "Lista rápida: ubicar cada especie",
     "gpsPerSpeciesSessionDesc": "Registra la posición GNSS y la altitud al introducir cada especie; siempre mientras se graba un recorrido. Requiere permiso de ubicación.",
@@ -899,6 +911,10 @@
     "trackAccuracyHigh": "Alta",
     "trackAccuracyMedium": "Media",
     "trackAccuracyLow": "Baja",
+    "surveyDataLayout": "Presentación de los datos del muestreo",
+    "surveyDataLayoutDesc": "Datos de los muestreos de tipo lista y parcela: por grupos (una lista y luego una página por grupo) o en una sola página (todos los grupos seguidos). También se cambia desde ⋯ en el muestreo.",
+    "surveyDataLayoutGrouped": "Por grupos",
+    "surveyDataLayoutSingle": "En una página",
     "createAsk": "Preguntar cada vez",
     "off": "Desactivado",
     "surveyors": "Observadores",
@@ -1676,6 +1692,7 @@
   },
   "locMap": {
     "tapToPlace": "Toque el mapa para situar el punto",
+    "previewHint": "Toque el mapa para abrirlo a pantalla completa y situar o mover allí el punto",
     "dragHint": "Arrastre el marcador para ajustarlo con precisión",
     "zoomIn": "Acercar",
     "zoomOut": "Alejar",
@@ -4627,6 +4644,7 @@
     "defaultCreate": "nuevo crear predeterminado más",
     "gpsSession": "gps gnss ubicación coordenadas altitud",
     "trackAccuracy": "recorrido precisión batería gps gnss ubicación",
+    "surveyDataLayout": "datos del muestreo presentación una página grupos lista datos básicos diseño",
     "gpsPlot": "gps gnss ubicación coordenadas altitud",
     "usageRank": "orden frecuente búsqueda",
     "collection": "espécimen etiqueta número",
@@ -4652,6 +4670,7 @@
     "fontSize": "fuente texto más grande",
     "cardDensity": "compacto espaciado lista",
     "fabSide": "zurdo mano izquierda botón",
+    "tabBarMode": "barra de pestañas pestañas plegar botón redondo flotante navegación",
     "undoDuration": "deshacer segundos aviso",
     "storage": "almacenamiento espacio caché",
     "moduleSurvey": "árbol mapeo dinámica forestal ForestGEO DAP DBH recenso placa"
@@ -5044,7 +5063,10 @@
       "environment": "Ambiente",
       "choice": "Opción personalizada",
       "interaction": "Interacciones",
-      "method": "Método de muestreo"
+      "method": "Método de muestreo",
+      "centre": "Punto central",
+      "site": "Sitio geográfico",
+      "track": "Traza"
     },
     "editor": {
       "elsewhere": "Este elemento se introduce en la pantalla del registro.",
@@ -5480,6 +5502,10 @@
     },
     "carried": "Igual que en el muestreo {{n}} (traído al inicio; verifíquelo): {{fields}}",
     "surveyData": "Datos del muestreo",
+    "layout": {
+      "toSingle": "Mostrar en una página",
+      "toGrouped": "Mostrar por grupos"
+    },
     "dataLocked": "Terminado y bloqueado. Vuelva al muestreo y toque el candado arriba a la derecha para editar.",
     "dataFilled": "{{filled}} de {{total}} completados",
     "track": "Traza",
@@ -5573,9 +5599,15 @@
       "archive": "Archivar",
       "unarchive": "Desarchivar",
       "copyToMine": "Copiar a mis plantillas",
-      "export": "Exportar como archivo"
+      "export": "Exportar como archivo",
+      "delete": "Eliminar"
     },
     "archived": "«{{name}}» archivada. Los muestreos iniciados con ella no cambian.",
+    "delete": {
+      "title": "Eliminar plantilla",
+      "msg": "¿Eliminar «{{name}}»? Se eliminan todas las versiones y el borrador; no se puede deshacer. (Ningún muestreo ha usado esta plantilla.)",
+      "done": "«{{name}}» eliminada."
+    },
     "new": {
       "title": "Nueva plantilla",
       "blankChecklist": "Lista en blanco",

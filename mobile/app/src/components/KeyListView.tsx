@@ -20,7 +20,7 @@
  *    legitimate.
  */
 import { Ionicons } from '@expo/vector-icons';
-import { useTabBarInset } from '~/lib/tabBarLayout';
+import { useTabDock } from '~/lib/tabBarLayout';
 import { useRouter, type Href } from 'expo-router';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -34,7 +34,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { KeyboardStickyView } from './KeyboardAvoidingView';
+import { TabDock } from './TabDock';
 import { getCachedKeys, type IdentificationKey } from '~/db';
 import { useSettings } from '~/stores/settings';
 import { ScientificName } from './ScientificName';
@@ -110,15 +110,12 @@ export function KeyListView({ initialQuery, prefillNonce }: Props = {}) {
   const router = useRouter();
   const colors = useThemeColors();
   const recentIds = useSettings((s) => s.key_recent_ids);
-  // Used as KeyboardStickyView opened-offset so the bar sits flush against
-  // the keyboard (see same comment in taxonomy.tsx tree segment).
   // The tab bar floats over the scene, so this dock's natural laid-out position
-  // is the SCREEN bottom — behind the pill. It has to be lifted by the bar's
-  // clearance while the keyboard is closed; once the keyboard is open,
-  // KeyboardStickyView's own translation already puts it flush against it.
-  // (Before the bar floated the compensation ran the other way round:
-  // `offset.opened = tabBarHeight`.) See src/lib/tabBarLayout.ts.
-  const tabBarInset = useTabBarInset();
+  // is the SCREEN bottom — behind the pill. TabDock lifts it clear of the bar
+  // while the keyboard is closed (or drops it beside the folded bar's button);
+  // `dockLift` is how much of the content above it the lifted dock covers.
+  // See src/lib/tabBarLayout.ts.
+  const { lift: dockLift } = useTabDock();
   const [keys, setKeys] = useState<IdentificationKey[]>([]);
   const [query, setQuery] = useState<string>(initialQuery ?? '');
   const [debouncedQuery, setDebouncedQuery] = useState<string>(initialQuery ?? '');
@@ -249,10 +246,10 @@ export function KeyListView({ initialQuery, prefillNonce }: Props = {}) {
             data={results}
             keyExtractor={getRowKey}
             keyboardShouldPersistTaps="handled"
-            // The dock below is lifted by `tabBarInset` to clear the floating
-            // pill, so it overlays that much of this list. Without the
+            // The dock below is lifted by `dockLift` to clear the tab bar, so
+            // it overlays that much of this list. Without the
             // reservation the last row sits behind the search box.
-            contentContainerStyle={{ paddingBottom: tabBarInset }}
+            contentContainerStyle={{ paddingBottom: dockLift }}
             renderItem={renderRow}
             initialNumToRender={10}
             maxToRenderPerBatch={8}
@@ -264,7 +261,7 @@ export function KeyListView({ initialQuery, prefillNonce }: Props = {}) {
 
       {/* Sticky panel: chips (when no query) + search box. Follows the kbd
           top via KeyboardStickyView regardless of accessory-bar changes. */}
-      <KeyboardStickyView offset={{ closed: -tabBarInset }}>
+      <TabDock>
         <View className="border-t border-gray-200 dark:border-gray-700 bg-card dark:bg-gray-900">
           {showChips ? (
             <ScrollView
@@ -297,7 +294,7 @@ export function KeyListView({ initialQuery, prefillNonce }: Props = {}) {
             </View>
           </View>
         </View>
-      </KeyboardStickyView>
+      </TabDock>
     </View>
   );
 }

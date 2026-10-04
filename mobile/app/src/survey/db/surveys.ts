@@ -38,6 +38,8 @@ export const discardDraft = (id: string) => tpl.discardDraft(ctx(), id);
 export const commitDraft = (id: string) => withTransaction(() => tpl.commitDraft(ctx(), id));
 export const setTemplateArchived = (id: string, archived: boolean) => tpl.setTemplateArchived(ctx(), id, archived);
 export const isTemplateArchived = (id: string) => tpl.isTemplateArchived(ctx(), id);
+export const templateDeleteBlocker = (id: string) => tpl.templateDeleteBlocker(ctx(), id);
+export const deleteTemplate = (id: string) => withTransaction(() => tpl.deleteTemplate(ctx(), id));
 export const templateUseCounts = () => tpl.templateUseCounts(ctx());
 export const upgradableSurveys = (t: SurveyTemplate) => tpl.upgradableSurveys(ctx(), t);
 /** Move these surveys to `to` (each an additive change); returns how many moved. */

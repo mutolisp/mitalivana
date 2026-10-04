@@ -121,6 +121,7 @@ export function PlotSurveyScreen({ id }: { id: number }) {
   );
 
   const statsExpanded = useSettings((s) => s.plot_stats_expanded);
+  const dataLayout = useSettings((s) => s.survey_data_layout);
   const setSetting = useSettings((s) => s.set);
   const statsLine = useMemo(() => plotStatsSummary((data?.occurrences ?? []).filter((o) => !o.via_interaction)), [data]);
   const tabNav = useSwipeNav({ onStep: (dir) => selectTab(dir === 1 ? 'species' : 'env'), hasPrev: tab === 'species', hasNext: tab === 'env' });
@@ -237,6 +238,16 @@ export function PlotSurveyScreen({ id }: { id: number }) {
 
   const menuExtra = [
     { label: t('surveyForm.rename'), onPress: () => void rename() },
+    // 調查資料 is on the environment tab: one page, or a list of group pages (shared setting).
+    ...(shownTab === 'env'
+      ? [
+          {
+            label: t(dataLayout === 'single' ? 'surveyForm.layout.toGrouped' : 'surveyForm.layout.toSingle'),
+            icon: dataLayout === 'single' ? ('list-outline' as const) : ('reader-outline' as const),
+            onPress: () => setSetting('survey_data_layout', dataLayout === 'single' ? 'grouped' : 'single'),
+          },
+        ]
+      : []),
     ...(blindOpen && !edit.locked ? [{ label: t('surveyForm.blind.end'), onPress: endBlind }] : []),
     ...(data.recheck && survey.blind_closed_at != null ? [{ label: t('surveyForm.recheck.open'), onPress: () => router.push(`/survey/form/${id}/recheck` as Href) }] : []),
     ...(data.recheck && survey.blind_closed_at != null && !edit.locked

@@ -10,6 +10,7 @@
  */
 import type { SurveyTemplate } from '../template/types';
 import { withRequired } from '../template/validate';
+import { normalizeTemplate } from '../template/normalize';
 
 /**
  * Whether the screens offer checklist / plot-style surveys at all — the
@@ -20,7 +21,7 @@ import { withRequired } from '../template/validate';
  */
 export const SURVEY_FORMS_OFFERED = true;
 
-export const SAMPLE_CHECKLIST_TEMPLATE: SurveyTemplate = withRequired({
+export const SAMPLE_CHECKLIST_TEMPLATE: SurveyTemplate = withRequired(normalizeTemplate({
   schema: 1,
   id: 'sample:checklist',
   version: 1,
@@ -37,9 +38,9 @@ export const SAMPLE_CHECKLIST_TEMPLATE: SurveyTemplate = withRequired({
   ],
   codelists: [],
   quick_add: true,
-});
+}));
 
-export const SAMPLE_PLOT_TEMPLATE: SurveyTemplate = withRequired({
+export const SAMPLE_PLOT_TEMPLATE: SurveyTemplate = withRequired(normalizeTemplate({
   schema: 1,
   id: 'sample:plot',
   version: 1,
@@ -62,6 +63,6 @@ export const SAMPLE_PLOT_TEMPLATE: SurveyTemplate = withRequired({
   ],
   codelists: [],
   quick_add: false,
-});
+}));
 
 export const SAMPLE_TEMPLATES: readonly SurveyTemplate[] = [SAMPLE_CHECKLIST_TEMPLATE, SAMPLE_PLOT_TEMPLATE];

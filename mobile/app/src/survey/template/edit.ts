@@ -24,8 +24,9 @@
  *   code lists beside the ForestGEO census codes, which stay.
  */
 import { BUILTIN_INTERACTION_CODES } from '../codesets/interactions';
-import { componentDef, componentDefs, defaultParamsOf, type ComponentType, type TraitDef } from '../registry';
+import { componentDef, componentDefs, defaultParamsOf, fixedAt, SPATIAL_TYPES, type ComponentType, type TraitDef } from '../registry';
 import { MAX_UNIT_LEVELS, type CodeItem, type CodeList, type ComponentInstance, type Label, type SurveyLevel, type SurveyStyle, type SurveyTemplate, type UnitLevel } from './types';
+import { TEMPLATE_SCHEMA } from './normalize';
 import { withRequired } from './validate';
 
 /** Where a component sits in the builder: the survey, one unit level, the occurrences; in a census, each quadrat, tree and stem. */
@@ -54,7 +55,8 @@ export function placesOf(t: SurveyTemplate): Place[] {
 
 /** Whether the builder keeps `c` as it is (no removing): always-present components, and in a census all but its optional ones. */
 export function isFixedComponent(t: SurveyTemplate, c: ComponentInstance): boolean {
-  if (componentDef(c.type)?.required) return true;
+  const def = componentDef(c.type);
+  if (def && fixedAt(def, c.level)) return true;
   return t.style === 'individual' && !(CENSUS_OPTIONAL[c.level] ?? []).includes(c.type as ComponentType);
 }
 
@@ -76,7 +78,8 @@ export function addableTypes(t: SurveyTemplate, place: Place): ComponentType[] {
   const here = componentsAt(t, place);
   const census = t.style === 'individual' ? (CENSUS_OPTIONAL[place.level] ?? []) : null;
   return componentDefs()
-    .filter((d) => !d.required && d.styles.includes(t.style) && d.levels.includes(place.level as SurveyLevel))
+    // Always-present types only where they are not (a species' or a unit's comments).
+    .filter((d) => !fixedAt(d, place.level as SurveyLevel) && d.styles.includes(t.style) && d.levels.includes(place.level as SurveyLevel))
     .filter((d) => !census || census.includes(d.type))
     .filter((d) => d.cardinality === 'many' || !here.some((c) => c.type === d.type))
     .map((d) => d.type);
@@ -142,7 +145,7 @@ export function updateComponent(t: SurveyTemplate, key: string, patch: { params?
       if (c.key !== key) return c;
       const next: ComponentInstance = { ...c };
       if (patch.params) next.params = patch.params;
-      if (patch.required !== undefined && !componentDef(c.type)?.required && t.style !== 'individual') next.required = patch.required;
+      if (patch.required !== undefined && !isFixedComponent(t, c) && t.style !== 'individual') next.required = patch.required;
       if (patch.label !== undefined) {
         if (patch.label) next.label = patch.label;
         else delete next.label;
@@ -202,14 +205,18 @@ export function moveUnitLevel(t: SurveyTemplate, key: string, dir: -1 | 1): Surv
 /** An empty checklist or plot-style template (a plot with one unit level). */
 export function blankTemplate(style: BuilderStyle, id: string, name: Label, firstUnit: Label): SurveyTemplate {
   return withRequired({
-    schema: 1,
+    schema: TEMPLATE_SCHEMA,
     id,
     version: 1,
     origin: 'user',
     name,
     style,
     ...(style === 'plot' ? { units: [{ key: unitKeyAt(0), label: firstUnit }] } : {}),
-    components: [],
+    // As a survey has had them: the three 空間資料 modules and a species' comments (all removable).
+    components: [
+      ...SPATIAL_TYPES.map((type): ComponentInstance => ({ key: type, type, level: 'survey', required: false, params: {} })),
+      { key: 'occ_notes', type: 'comments', level: 'occurrence', required: false, params: {} },
+    ],
     codelists: [],
     // A checklist takes species from the species tab and the taxonomy tree; a plot records them unit by unit.
     quick_add: style === 'checklist',

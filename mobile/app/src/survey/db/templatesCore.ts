@@ -17,6 +17,7 @@
  *     deleted (surveys carry their own copy), and an archived one is listed
  *     only when asked for.
  */
+import { normalizeTemplate, parseSnapshot } from '../template/normalize';
 import type { SurveyTemplate } from '../template/types';
 import { classifyChange, templateHash, validateTemplate, withRequired } from '../template/validate';
 import { BUILTIN_TEMPLATES } from '../templates/builtins';
@@ -35,7 +36,7 @@ export function getTemplate(ctx: { db: SurveyDb }, id: string, version?: number)
     version == null
       ? one<{ doc: string }>(ctx, `SELECT doc FROM survey_templates WHERE template_id = ? ORDER BY version DESC LIMIT 1`, [id])
       : one<{ doc: string }>(ctx, `SELECT doc FROM survey_templates WHERE template_id = ? AND version = ?`, [id, version]);
-  return row ? (JSON.parse(row.doc) as SurveyTemplate) : null;
+  return row ? normalizeTemplate(JSON.parse(row.doc) as SurveyTemplate) : null;
 }
 
 /**
@@ -52,7 +53,7 @@ export function listTemplates(ctx: { db: SurveyDb }, opts: { archived?: 'exclude
       WHERE t.version = (SELECT MAX(version) FROM survey_templates WHERE template_id = t.template_id) ${where}
       ORDER BY (SELECT MIN(created_at) FROM survey_templates WHERE template_id = t.template_id), t.template_id`,
   );
-  return [...(archived === 'only' ? [] : BUILTIN_TEMPLATES), ...stored.map((r) => JSON.parse(r.doc) as SurveyTemplate)];
+  return [...(archived === 'only' ? [] : BUILTIN_TEMPLATES), ...stored.map((r) => normalizeTemplate(JSON.parse(r.doc) as SurveyTemplate))];
 }
 
 // ── drafts (v86) ───────────────────────────────────────────────────────────
@@ -62,13 +63,13 @@ export type TemplateDraft = { template: SurveyTemplate; baseVersion: number | nu
 
 export function getDraft(ctx: { db: SurveyDb }, id: string): TemplateDraft | null {
   const r = one<{ doc: string; base_version: number | null; updated_at: number }>(ctx, `SELECT doc, base_version, updated_at FROM survey_template_drafts WHERE template_id = ?`, [id]);
-  return r ? { template: JSON.parse(r.doc) as SurveyTemplate, baseVersion: r.base_version, updatedAt: r.updated_at } : null;
+  return r ? { template: normalizeTemplate(JSON.parse(r.doc) as SurveyTemplate), baseVersion: r.base_version, updatedAt: r.updated_at } : null;
 }
 
 /** Every draft, newest first. */
 export function listDrafts(ctx: { db: SurveyDb }): TemplateDraft[] {
   return rows<{ doc: string; base_version: number | null; updated_at: number }>(ctx, `SELECT doc, base_version, updated_at FROM survey_template_drafts ORDER BY updated_at DESC`).map((r) => ({
-    template: JSON.parse(r.doc) as SurveyTemplate,
+    template: normalizeTemplate(JSON.parse(r.doc) as SurveyTemplate),
     baseVersion: r.base_version,
     updatedAt: r.updated_at,
   }));
@@ -108,6 +109,33 @@ export function setTemplateArchived(ctx: Ctx, id: string, archived: boolean): vo
   else ctx.db.executeSync(`DELETE FROM survey_template_archive WHERE template_id = ?`, [id]);
 }
 
+/**
+ * Why template `id` cannot be deleted (asked 2026-10-04: one no survey uses
+ * may go): a built-in or a sample, or used by a survey (any status) or by a
+ * permanent plot's series. null: it may be deleted.
+ */
+export function templateDeleteBlocker(ctx: { db: SurveyDb }, id: string): 'builtin' | 'in_use' | null {
+  if (builtinOf(id) || id.startsWith('builtin:') || id.startsWith('sample:')) return 'builtin';
+  const used =
+    one(ctx, `SELECT 1 AS x FROM fw_surveys WHERE template_id = ? LIMIT 1`, [id]) != null ||
+    one(ctx, `SELECT 1 AS x FROM fw_frame_series WHERE template_id = ? LIMIT 1`, [id]) != null;
+  return used ? 'in_use' : null;
+}
+
+/**
+ * Delete template `id` for good: every saved version, its draft and its
+ * archive mark. Refused while templateDeleteBlocker says why not. Surveys
+ * carry their own copy of their template, so nothing else needs it.
+ */
+export function deleteTemplate(ctx: { db: SurveyDb }, id: string): void {
+  const blocker = templateDeleteBlocker(ctx, id);
+  if (blocker === 'builtin') throw new SurveyError('builtin_template', id);
+  if (blocker === 'in_use') throw new SurveyError('template_in_use', id);
+  ctx.db.executeSync(`DELETE FROM survey_templates WHERE template_id = ?`, [id]);
+  ctx.db.executeSync(`DELETE FROM survey_template_drafts WHERE template_id = ?`, [id]);
+  ctx.db.executeSync(`DELETE FROM survey_template_archive WHERE template_id = ?`, [id]);
+}
+
 export function isTemplateArchived(ctx: { db: SurveyDb }, id: string): boolean {
   return one(ctx, `SELECT 1 AS x FROM survey_template_archive WHERE template_id = ?`, [id]) != null;
 }
@@ -131,7 +159,7 @@ export function upgradableSurveys(ctx: { db: SurveyDb }, t: SurveyTemplate): { i
     `SELECT id, name, template_version, template_snapshot FROM fw_surveys WHERE template_id = ? AND template_version < ? AND status = 'active' ORDER BY id`,
     [t.id, t.version],
   )
-    .filter((r) => classifyChange(JSON.parse(r.template_snapshot) as SurveyTemplate, t) === 'additive')
+    .filter((r) => classifyChange(parseSnapshot(r.template_snapshot), t) === 'additive')
     .map((r) => ({ id: r.id, name: r.name, version: r.template_version }));
 }
 
@@ -143,7 +171,7 @@ export function upgradableSurveys(ctx: { db: SurveyDb }, t: SurveyTemplate): { i
 export function saveTemplate(ctx: Ctx, t: SurveyTemplate): SurveyTemplate {
   if (builtinOf(t.id) || t.origin === 'builtin') throw new SurveyError('builtin_template', t.id);
   const latest = getTemplate(ctx, t.id);
-  const next: SurveyTemplate = { ...withRequired(t), version: (latest?.version ?? 0) + 1 };
+  const next: SurveyTemplate = { ...withRequired(normalizeTemplate(t)), version: (latest?.version ?? 0) + 1 };
   const problems = validateTemplate(next);
   if (problems.length) throw new SurveyError('template_invalid', problems.join('; '));
   if (latest && classifyChange(latest, next) === 'same') return latest;
@@ -166,7 +194,7 @@ export function saveTemplate(ctx: Ctx, t: SurveyTemplate): SurveyTemplate {
 export function upgradeSurvey(ctx: Ctx, surveyId: number, to: SurveyTemplate): boolean {
   const row = one<{ template_snapshot: string }>(ctx, `SELECT template_snapshot FROM fw_surveys WHERE id = ?`, [surveyId]);
   if (!row) throw new SurveyError('not_found', 'survey');
-  const from = JSON.parse(row.template_snapshot) as SurveyTemplate;
+  const from = parseSnapshot(row.template_snapshot);
   const kind = classifyChange(from, to);
   if (kind === 'same') return false;
   if (kind === 'breaking') throw new SurveyError('template_breaking');

@@ -22,6 +22,7 @@ import { LockedBanner } from '~/components/RecordEditButtons';
 import { getActiveLayers, getProject, MAX_LAYER_COUNT, type AbundanceMethod } from '~/db';
 import { withTransaction } from '~/db/init';
 import type { RecordEditing } from '~/lib/useRecordEditing';
+import { useSettings } from '~/stores/settings';
 import { useToast } from '~/stores/toast';
 import type { ComponentOwner, UnitRow } from '~/survey/db/surveyCore';
 import { addUnit, deleteUnit, getFrameUnit, listUnits, updateFrameUnit, updateSurvey, updateUnit, writeComponent } from '~/survey/db/surveys';
@@ -31,7 +32,7 @@ import { layerCountOf } from './checks';
 import { formComponents } from './occurrenceForm';
 import { surveyModules } from './moduleMap';
 import { layerRows, nextUnitCode } from './plotStyle';
-import { SurveyGroupList } from './SurveyGroupViews';
+import { SurveyGroupList, SurveyGroupSections } from './SurveyGroupViews';
 import { formErrorText } from './text';
 import { unitRows } from './units';
 import type { SurveyForm } from './useSurveyForm';
@@ -45,6 +46,7 @@ export function PlotSurveyEnvTab({ data, edit, onChanged }: { data: SurveyForm; 
   const owner: ComponentOwner = { kind: 'survey', id };
   const [projectOpen, setProjectOpen] = useState(false);
   const project = getProject(survey.project_id);
+  const layout = useSettings((s) => s.survey_data_layout);
 
   const smods = surveyModules(template);
   const structure = smods.data.find((c) => c.type === 'structure') ?? null;
@@ -147,8 +149,13 @@ export function PlotSurveyEnvTab({ data, edit, onChanged }: { data: SurveyForm; 
           <ProjectRow project={project && project.id !== 0 ? project : null} onPress={() => (edit.refuse() ? undefined : setProjectOpen(true))} />
         </Section>
       </View>
-      {/* Not locked out: the group pages say why on their own. */}
-      <SurveyGroupList data={data} onOpen={(g) => router.push(`/survey/form/${id}/group/${g}${edit.unlocked ? '?unlocked=1' : ''}` as Href)} />
+      {layout === 'single' ? (
+        // Every group on this tab, where the list would be (the user's choice from ⋯).
+        <SurveyGroupSections data={data} edit={edit} onChanged={onChanged} />
+      ) : (
+        // Not locked out: the group pages say why on their own.
+        <SurveyGroupList data={data} onOpen={(g) => router.push(`/survey/form/${id}/group/${g}${edit.unlocked ? '?unlocked=1' : ''}` as Href)} />
+      )}
       <View pointerEvents={edit.locked ? 'none' : 'auto'}>
         {structure ? layerSection(structure) : null}
         {subplotSection}

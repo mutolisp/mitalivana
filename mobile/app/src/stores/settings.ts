@@ -5,6 +5,7 @@ import { parseVernacularLangs } from '~/db/mergeScope';
 import type { TaxonGroup } from '~/db/types';
 import type { ConservationField } from '~/lib/markdown';
 import type { MatrixValueMode } from '~/lib/vegMatrix';
+import { parsePlace, type TabBubblePlace } from '~/lib/tabBubbleCore';
 
 export type { MatrixValueMode };
 
@@ -47,6 +48,8 @@ export type VernacularLang = 'zh-TW' | 'ja';
 /** GNSS profile for track recording; mapped to accuracy + spacing in
  *  lib/trackRecorder.ts (TRACK_PROFILES). */
 export type TrackAccuracy = 'high' | 'medium' | 'low';
+/** 調查資料 of a checklist / plot-style survey: the four groups as a list of pages, or all on one page. */
+export type SurveyDataLayout = 'grouped' | 'single';
 
 export type RecordSort = 'observed' | 'cname' | 'name' | 'family';
 /**
@@ -85,6 +88,9 @@ export type RecordTypeDefault = 'session' | 'plot' | 'collection' | 'ask';
  *  reach the left edge with their thumb; the tab order mirrors with it so the
  *  whole assembly reads outward from the ＋. */
 export type FabSide = 'right' | 'left';
+
+/** The tab bar as a bar, or folded into one round button (decided 2026-10-04; src/lib/tabBubbleCore.ts). */
+export type TabBarMode = 'bar' | 'bubble';
 export type AnalysisFormat = 'vegan' | 'juice' | 'dwca';
 
 /** File format(s) the project bundle's research report is written as.
@@ -204,6 +210,8 @@ type SettingsValues = {
   record_gps_plot: boolean;
   /** Track-recording accuracy. Read when a recording starts. */
   track_accuracy: TrackAccuracy;
+  /** How 調查資料 shows (asked 2026-10-04): switched from the survey screen's ⋯, shared by every survey. */
+  survey_data_layout: SurveyDataLayout;
   /** Species search: after exact matches, list the taxa the user records most
    *  first (src/lib/usageRank.ts). */
   search_usage_rank: boolean;
@@ -242,6 +250,10 @@ type SettingsValues = {
   plot_last_tab: PlotTabState;
   record_type_default: RecordTypeDefault;
   fab_side: FabSide;
+  /** Long-press a tab to fold the bar, long-press the button to unfold it; also a settings row. */
+  tab_bar_mode: TabBarMode;
+  /** Where the folded tab bar's button was put. */
+  tab_bubble: TabBubblePlace;
   /** Collection number (DwC recordNumber) prefix, e.g. 'CTL-'. '' for none. */
   collection_number_prefix: string;
   /** Floor for the collection number series, so an existing career series can
@@ -348,6 +360,7 @@ const DEFAULTS: SettingsValues = {
   record_gps_session: true,
   record_gps_plot: true,
   track_accuracy: 'high',
+  survey_data_layout: 'grouped',
   search_usage_rank: true,
   module_gloria: false,
   module_miren: false,
@@ -364,6 +377,8 @@ const DEFAULTS: SettingsValues = {
   plot_last_tab: { plotId: 0, tab: 'env' },
   record_type_default: 'ask',
   fab_side: 'right',
+  tab_bar_mode: 'bar',
+  tab_bubble: { side: null, bottom: null },
   collection_number_prefix: '',
   collection_number_start: 1,
   collection_number_pad: 4,
@@ -497,6 +512,7 @@ function readAll(): SettingsValues {
         ? DEFAULTS.record_gps_plot
         : map.get('record_gps_plot') === 'true',
     track_accuracy: (map.get('track_accuracy') as TrackAccuracy) ?? DEFAULTS.track_accuracy,
+    survey_data_layout: map.get('survey_data_layout') === 'single' ? 'single' : DEFAULTS.survey_data_layout,
     search_usage_rank:
       map.get('search_usage_rank') == null
         ? DEFAULTS.search_usage_rank
@@ -518,6 +534,8 @@ function readAll(): SettingsValues {
     record_type_default:
       (map.get('record_type_default') as RecordTypeDefault) ?? DEFAULTS.record_type_default,
     fab_side: (map.get('fab_side') as FabSide) ?? DEFAULTS.fab_side,
+    tab_bar_mode: map.get('tab_bar_mode') === 'bubble' ? 'bubble' : DEFAULTS.tab_bar_mode,
+    tab_bubble: parsePlace(map.get('tab_bubble')),
     collection_number_prefix:
       map.get('collection_number_prefix') ?? DEFAULTS.collection_number_prefix,
     collection_number_start:

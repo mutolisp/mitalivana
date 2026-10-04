@@ -334,6 +334,14 @@
     "records": "기록",
     "species": "종"
   },
+  "tabBubble": {
+    "label": "탭 (현재: {{tab}})",
+    "hint": "탭하면 탭 메뉴, 끌어서 이동, 길게 누르면 탭 바로 돌아갑니다",
+    "closeMenu": "탭 메뉴 닫기",
+    "unfold": "탭 바로 되돌리기",
+    "folded": "탭 바를 버튼으로 접었습니다. 버튼을 길게 누르면 되돌립니다",
+    "unfolded": "탭 바로 되돌렸습니다. 탭을 길게 누르면 다시 접습니다"
+  },
   "menu": {
     "projectsDesc": "프로젝트와 그 아래 종 목록／조사구",
     "sites": "지리 사이트",
@@ -807,6 +815,10 @@
     "fabSideDesc": "왼손잡이는 왼쪽으로. 탭 순서도 함께 바뀝니다",
     "fabSideRight": "오른쪽",
     "fabSideLeft": "왼쪽",
+    "tabBarMode": "탭 바",
+    "tabBarModeDesc": "둥근 버튼으로 접으면 화면을 더 넓게 쓸 수 있습니다. 탭을 길게 눌러 접고 버튼을 길게 눌러 되돌릴 수도 있습니다",
+    "tabBarModeBar": "막대",
+    "tabBarModeBubble": "둥근 버튼",
     "undoSeconds": "{{count}}초",
     "gpsPerSpeciesSession": "빠른 종 목록: 종마다 자동 위치 기록",
     "gpsPerSpeciesSessionDesc": "종을 입력할 때 GNSS 좌표와 해발고도를 기록합니다. 궤적 기록 중에는 항상 기록합니다. 위치 권한이 필요합니다.",
@@ -817,6 +829,10 @@
     "trackAccuracyHigh": "높음",
     "trackAccuracyMedium": "보통",
     "trackAccuracyLow": "낮음",
+    "surveyDataLayout": "조사 자료 표시 방식",
+    "surveyDataLayoutDesc": "목록형·조사구형 조사의 조사 자료: 그룹(목록에서 각 그룹 페이지로) 또는 한 페이지(모든 그룹을 한 페이지에). 조사 화면의 ⋯에서도 바꿀 수 있습니다.",
+    "surveyDataLayoutGrouped": "그룹으로 표시",
+    "surveyDataLayoutSingle": "한 페이지로 표시",
     "createAsk": "매번 묻기",
     "off": "끔",
     "surveyors": "조사자",
@@ -1482,6 +1498,7 @@
   },
   "locMap": {
     "tapToPlace": "지도를 탭해 지점을 놓으세요",
+    "previewHint": "지도를 탭하면 전체 화면으로 열리며, 그곳에서 지점을 놓거나 옮깁니다",
     "dragHint": "마커를 끌어 위치를 미세 조정하세요",
     "zoomIn": "확대",
     "zoomOut": "축소",
@@ -4245,6 +4262,7 @@
     "defaultCreate": "새로 만들기 기본값 플러스",
     "gpsSession": "gps gnss 위치 좌표 고도",
     "trackAccuracy": "궤적 정확도 배터리 절전 gps gnss 위치",
+    "surveyDataLayout": "조사 자료 표시 한 페이지 그룹 목록 기본 자료 레이아웃",
     "gpsPlot": "gps gnss 위치 좌표 고도",
     "usageRank": "정렬 자주 검색",
     "collection": "표본 라벨 채집 번호 동정",
@@ -4270,6 +4288,7 @@
     "fontSize": "글꼴 텍스트 크게",
     "cardDensity": "촘촘 간격 목록",
     "fabSide": "왼손잡이 왼손 버튼",
+    "tabBarMode": "탭 바 탭 접기 둥근 버튼 플로팅 내비게이션",
     "undoDuration": "되돌리기 초 알림",
     "storage": "저장 공간 용량 캐시 정리",
     "moduleSurvey": "매목 조사구 산림동태 ForestGEO 흉고직경 DBH 재조사 번호표"
@@ -4644,7 +4663,10 @@
       "environment": "환경",
       "choice": "사용자 선택 항목",
       "interaction": "상호작용",
-      "method": "조사법"
+      "method": "조사법",
+      "centre": "중심점",
+      "site": "지리 사이트",
+      "track": "이동경로"
     },
     "editor": {
       "elsewhere": "이 항목은 기록 화면에서 입력합니다.",
@@ -5040,6 +5062,10 @@
     },
     "carried": "{{n}}차와 같음(시작할 때 가져옴, 확인하세요): {{fields}}",
     "surveyData": "조사 자료",
+    "layout": {
+      "toSingle": "한 페이지로 보기",
+      "toGrouped": "그룹으로 보기"
+    },
     "dataLocked": "종료되어 잠겨 있습니다. 편집하려면 조사 화면으로 돌아가 오른쪽 위의 자물쇠를 누르세요.",
     "dataFilled": "입력 {{filled}}/{{total}}",
     "track": "이동경로",
@@ -5125,9 +5151,15 @@
       "archive": "보관",
       "unarchive": "보관 해제",
       "copyToMine": "내 템플릿으로 복사",
-      "export": "파일로 내보내기"
+      "export": "파일로 내보내기",
+      "delete": "삭제"
     },
     "archived": "「{{name}}」을(를) 보관했습니다. 이 템플릿으로 시작한 조사에는 영향이 없습니다.",
+    "delete": {
+      "title": "템플릿 삭제",
+      "msg": "「{{name}}」을(를) 삭제할까요? 모든 버전과 초안이 삭제되며 되돌릴 수 없습니다. (이 템플릿을 사용한 조사는 없습니다.)",
+      "done": "「{{name}}」을(를) 삭제했습니다."
+    },
     "new": {
       "title": "템플릿 만들기",
       "blankChecklist": "빈 목록형",

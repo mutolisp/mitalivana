@@ -1,3 +1,5 @@
+import { BottomTabBar } from '@react-navigation/bottom-tabs';
+import * as Haptics from 'expo-haptics';
 import { Tabs } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -9,34 +11,23 @@ import { HapticTab } from '@/components/haptic-tab';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { DARK, LIGHT, useThemeColors } from '~/theme/colors';
 import { useSettings, type FabSide } from '~/stores/settings';
-import { showCreateSheet } from '~/components/CreateRecordSheet';
-import {
-  createPlotPromptAndOpen,
-  startCollectionAndOpen,
-  startSessionAndOpen,
-} from '~/lib/recordCreate';
+import { useToast } from '~/stores/toast';
+import { longPressPlus, pressPlus } from '~/components/plusAction';
+import { TabBubble } from '~/components/TabBubble';
 import { perf } from '~/lib/perf';
 import { useHasDatasetUpdate } from '~/lib/datasetUpdateCheck';
 import { BAR_GAP, BAR_HEIGHT, FAB_SIZE, useTabBarMetrics } from '~/lib/tabBarLayout';
 
 
 function PlusButton() {
-  const recordTypeDefault = useSettings((s) => s.record_type_default);
   const c = useThemeColors();
-
-  const onPress = () => {
-    if (recordTypeDefault === 'session') startSessionAndOpen();
-    else if (recordTypeDefault === 'plot') createPlotPromptAndOpen();
-    else if (recordTypeDefault === 'collection') startCollectionAndOpen();
-    else void showCreateSheet();
-  };
 
   return (
     <Pressable
-      onPress={onPress}
+      onPress={pressPlus}
       // With a default set, a tap skips the sheet; a long press is the way
       // back to it (and to changing that default, which the sheet carries).
-      onLongPress={() => void showCreateSheet()}
+      onLongPress={longPressPlus}
       delayLongPress={350}
       // Acorn (tailwind.config.js) is reserved for this button alone; the
       // glyph on it is ink (`onAcorn`), which white would fail against.
@@ -194,10 +185,26 @@ export default function TabLayout() {
   //    src/lib/tabBarLayout.ts; `npm run check:dock` enforces the dock half.
   const insets = useSafeAreaInsets();
   const { pill, fabOnLeft } = useTabBarMetrics();
+  const order = TAB_ORDER[fabOnLeft ? 'left' : 'right'];
+  // Folded into one round button (decided 2026-10-04): src/components/TabBubble.tsx.
+  const folded = useSettings((s) => s.tab_bar_mode) === 'bubble';
+  const setSetting = useSettings((s) => s.set);
 
   return (
     <View className="flex-1">
       <Tabs
+        tabBar={(props) => (folded ? <TabBubble {...props} order={order} /> : <BottomTabBar {...props} />)}
+        // A long press on a tab folds the bar, and the pressed tab becomes the
+        // current one, so the button shows it. The ＋ draws its own button and
+        // keeps its long press (the create sheet).
+        screenListeners={({ navigation, route }) => ({
+          tabLongPress: () => {
+            void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            navigation.navigate(route.name);
+            setSetting('tab_bar_mode', 'bubble');
+            useToast.getState().show(t('tabBubble.folded'));
+          },
+        })}
         screenOptions={{
           tabBarActiveTintColor: fg.active,
           tabBarInactiveTintColor: fg.inactive,
@@ -247,7 +254,7 @@ export default function TabLayout() {
         }}
       >
         {/* `plots` is not a tab (href: null) and stays out of the order. */}
-        {TAB_ORDER[fabOnLeft ? 'left' : 'right'].map((name) =>
+        {order.map((name) =>
           name === 'plus' ? (
             <Tabs.Screen
               key="plus"

@@ -366,6 +366,14 @@
     "records": "Datensätze",
     "species": "Arten"
   },
+  "tabBubble": {
+    "label": "Reiter (aktuell: {{tab}})",
+    "hint": "Tippen öffnet das Reitermenü, Ziehen verschiebt, langes Drücken holt die Reiterleiste zurück",
+    "closeMenu": "Reitermenü schließen",
+    "unfold": "Reiterleiste zurückholen",
+    "folded": "Reiterleiste zu einer Taste eingeklappt. Taste lange drücken, um sie zurückzuholen",
+    "unfolded": "Reiterleiste ist zurück. Einen Reiter lange drücken, um sie wieder einzuklappen"
+  },
   "menu": {
     "projectsDesc": "Projekte mit ihren Artenlisten / Probeflächen",
     "sites": "Geografische Standorte",
@@ -848,6 +856,10 @@
     "fabSideDesc": "Für Linkshänder nach links; die Tab-Reihenfolge passt sich an",
     "fabSideRight": "Rechts",
     "fabSideLeft": "Links",
+    "tabBarMode": "Reiterleiste",
+    "tabBarModeDesc": "Als runde Taste eingeklappt bleibt mehr Platz auf dem Bildschirm. Sie können auch einen Reiter lange drücken, um sie einzuklappen, und die Taste lange drücken, um sie zurückzuholen",
+    "tabBarModeBar": "Ganze Leiste",
+    "tabBarModeBubble": "Runde Taste",
     "undoSeconds": "{{count}} s",
     "gpsPerSpeciesSession": "Schnelle Artenliste: jede Art verorten",
     "gpsPerSpeciesSessionDesc": "Speichert beim Erfassen einer Art die GNSS-Position und Höhe; während einer Trackaufzeichnung immer. Erfordert Standortberechtigung.",
@@ -858,6 +870,10 @@
     "trackAccuracyHigh": "Hoch",
     "trackAccuracyMedium": "Mittel",
     "trackAccuracyLow": "Niedrig",
+    "surveyDataLayout": "Darstellung der Aufnahmedaten",
+    "surveyDataLayoutDesc": "Aufnahmedaten von Listen- und Flächenaufnahmen: in Gruppen (Liste, dann eine Seite je Gruppe) oder auf einer Seite (alle Gruppen nacheinander). Auch über ⋯ in der Aufnahme umschaltbar.",
+    "surveyDataLayoutGrouped": "In Gruppen",
+    "surveyDataLayoutSingle": "Auf einer Seite",
     "createAsk": "Jedes Mal fragen",
     "off": "Aus",
     "surveyors": "Erfasser",
@@ -1579,6 +1595,7 @@
   },
   "locMap": {
     "tapToPlace": "Tippen Sie auf die Karte, um den Punkt zu setzen",
+    "previewHint": "Tippen Sie auf die Karte, um sie im Vollbild zu öffnen und dort den Punkt zu setzen oder zu verschieben",
     "dragHint": "Markierung ziehen zur Feinjustierung",
     "zoomIn": "Vergrößern",
     "zoomOut": "Verkleinern",
@@ -4436,6 +4453,7 @@
     "defaultCreate": "neu erstellen Standard Plus",
     "gpsSession": "gps gnss Standort Koordinaten Höhe",
     "trackAccuracy": "track genauigkeit akku batterie gps gnss standort",
+    "surveyDataLayout": "aufnahmedaten darstellung eine seite gruppen liste grunddaten layout",
     "gpsPlot": "gps gnss Standort Koordinaten Höhe",
     "usageRank": "Sortierung häufig Suche",
     "collection": "Beleg Etikett Nummer Bestimmer",
@@ -4461,6 +4479,7 @@
     "fontSize": "Schrift Text größer",
     "cardDensity": "kompakt Abstand Liste",
     "fabSide": "Linkshänder links Taste",
+    "tabBarMode": "Reiterleiste Reiter Tabs einklappen runde Taste schwebend Navigation",
     "undoDuration": "rückgängig Sekunden Hinweis",
     "storage": "Speicher Platz Cache",
     "moduleSurvey": "Baum Stammkartierung Walddynamik ForestGEO BHD DBH Wiederholung Nummer"
@@ -4844,7 +4863,10 @@
       "environment": "Umwelt",
       "choice": "Eigene Auswahl",
       "interaction": "Interaktionen",
-      "method": "Erhebungsmethode"
+      "method": "Erhebungsmethode",
+      "centre": "Mittelpunkt",
+      "site": "Geografischer Standort",
+      "track": "Track"
     },
     "editor": {
       "elsewhere": "Dieses Element wird auf der Erfassungsseite eingegeben.",
@@ -5260,6 +5282,10 @@
     },
     "carried": "Wie bei Aufnahme {{n}} (zu Beginn übernommen, bitte prüfen): {{fields}}",
     "surveyData": "Aufnahmedaten",
+    "layout": {
+      "toSingle": "Auf einer Seite anzeigen",
+      "toGrouped": "In Gruppen anzeigen"
+    },
     "dataLocked": "Abgeschlossen und gesperrt. Zum Bearbeiten zur Aufnahme zurückkehren und oben rechts auf das Schloss tippen.",
     "dataFilled": "{{filled}} von {{total}} ausgefüllt",
     "track": "Track",
@@ -5349,9 +5375,15 @@
       "archive": "Archivieren",
       "unarchive": "Aus dem Archiv holen",
       "copyToMine": "In meine Vorlagen kopieren",
-      "export": "Als Datei exportieren"
+      "export": "Als Datei exportieren",
+      "delete": "Löschen"
     },
     "archived": "„{{name}}“ archiviert. Damit begonnene Aufnahmen bleiben unberührt.",
+    "delete": {
+      "title": "Vorlage löschen",
+      "msg": "„{{name}}“ löschen? Alle Versionen und der Entwurf werden gelöscht; das lässt sich nicht rückgängig machen. (Keine Aufnahme hat diese Vorlage verwendet.)",
+      "done": "„{{name}}“ gelöscht."
+    },
     "new": {
       "title": "Neue Vorlage",
       "blankChecklist": "Leere Listenaufnahme",

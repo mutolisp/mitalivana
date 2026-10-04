@@ -114,7 +114,11 @@ export const SETTINGS_INDEX: SettingsEntry[] = [
   { id: 'surveyFrames', section: 'modules', labelKey: 'survey.frames.title', descKey: 'survey.frames.desc', kind: 'nav', route: '/survey', icon: 'map-outline', visibleWhen: 'module_survey' },
   // The builder (2D-a), offered with the checklist / plot-style surveys.
   ...(SURVEY_FORMS_OFFERED
-    ? [{ id: 'surveyTemplates', section: 'modules', labelKey: 'builder.title', descKey: 'builder.desc', kind: 'nav', route: '/survey/templates', icon: 'construct-outline', visibleWhen: 'module_survey' } as const]
+    ? [
+        { id: 'surveyTemplates', section: 'modules', labelKey: 'builder.title', descKey: 'builder.desc', kind: 'nav', route: '/survey/templates', icon: 'construct-outline', visibleWhen: 'module_survey' } as const,
+        // 調查資料 as group pages or one page; also switched from the survey screen's ⋯ (2026-10-04).
+        { id: 'surveyDataLayout', section: 'modules', labelKey: 'settings.surveyDataLayout', descKey: 'settings.surveyDataLayoutDesc', keywordsKey: kw('surveyDataLayout'), kind: 'select', icon: 'reader-outline', visibleWhen: 'module_survey' } as const,
+      ]
     : []),
 
   // Lists and maps
@@ -143,6 +147,7 @@ export const SETTINGS_INDEX: SettingsEntry[] = [
   { id: 'fontSize', section: 'appearance', labelKey: 'settings.fontSize', keywordsKey: kw('fontSize'), kind: 'select', icon: 'text-outline' },
   { id: 'cardDensity', section: 'appearance', labelKey: 'settings.cardDensity', keywordsKey: kw('cardDensity'), kind: 'select', icon: 'reorder-four-outline' },
   { id: 'fabSide', section: 'appearance', labelKey: 'settings.fabSide', descKey: 'settings.fabSideDesc', keywordsKey: kw('fabSide'), kind: 'select', icon: 'hand-left-outline' },
+  { id: 'tabBarMode', section: 'appearance', labelKey: 'settings.tabBarMode', descKey: 'settings.tabBarModeDesc', keywordsKey: kw('tabBarMode'), kind: 'select', icon: 'contract-outline' },
   { id: 'undoDuration', section: 'appearance', labelKey: 'settings.undoDuration', keywordsKey: kw('undoDuration'), kind: 'select', icon: 'arrow-undo-outline' },
 
   // Data

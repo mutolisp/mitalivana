@@ -86,6 +86,7 @@ export const MapLibreCanvas = forwardRef<MapCamera, MapCanvasProps>(function Map
     onMapReady,
     onRegionChangeComplete,
     onPress,
+    gestures = true,
     style,
     children,
   },
@@ -235,6 +236,10 @@ export const MapLibreCanvas = forwardRef<MapCamera, MapCanvasProps>(function Map
       // engine is the one iOS shows briefly during a zoom, which is different
         // semantics anyway.
       scaleBar={false}
+      dragPan={gestures}
+      touchZoom={gestures}
+      touchRotate={gestures}
+      touchPitch={gestures}
       attribution
       logo={false}
       onDidFinishLoadingMap={onMapReady}

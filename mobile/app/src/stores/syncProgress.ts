@@ -74,6 +74,13 @@ export const useSyncProgress = create<State>((set) => ({
   end: () => set((s) => (s.depth <= 1 ? { depth: 0, current: null } : { depth: s.depth - 1 })),
 }));
 
+/** How far the sync is, when it can tell: bytes of the file moving, else blocks of the census. */
+export function syncRatio(p: SyncProgress): number | null {
+  if (p.stage !== 'record' && p.fileCount != null && p.bytesTotal > 0) return Math.min(1, p.bytesDone / p.bytesTotal);
+  if (p.blockStage && p.blockIndex != null && p.blockCount) return Math.min(1, (p.blockIndex - 1) / p.blockCount);
+  return null;
+}
+
 /** Run `fn` with the strip shown (and the screen kept awake by the host). */
 export async function withSyncProgress<T>(fn: () => Promise<T>): Promise<T> {
   useSyncProgress.getState().begin();

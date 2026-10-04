@@ -61,7 +61,7 @@ export type ComponentInstance = {
 };
 
 export type SurveyTemplate = {
-  schema: 1;
+  schema: 1 | 2;
   id: string;
   version: number;
   origin: 'builtin' | 'user' | 'imported';

@@ -366,6 +366,14 @@
     "records": "Records",
     "species": "Species"
   },
+  "tabBubble": {
+    "label": "Tabs (current: {{tab}})",
+    "hint": "Tap to open the tab menu, drag to move, long-press to bring back the tab bar",
+    "closeMenu": "Close tab menu",
+    "unfold": "Bring back the tab bar",
+    "folded": "Tab bar folded into a button. Long-press the button to bring it back",
+    "unfolded": "Tab bar is back. Long-press any tab to fold it again"
+  },
   "menu": {
     "projectsDesc": "Projects and their checklists / plots",
     "sites": "Geographic sites",
@@ -848,6 +856,10 @@
     "fabSideDesc": "Move it to the left for left-handed use; the tab order follows",
     "fabSideRight": "Right",
     "fabSideLeft": "Left",
+    "tabBarMode": "Tab bar",
+    "tabBarModeDesc": "Fold it into a round button for more room on screen. You can also long-press any tab to fold it and long-press the button to bring it back",
+    "tabBarModeBar": "Full bar",
+    "tabBarModeBubble": "Round button",
     "undoSeconds": "{{count}} s",
     "gpsPerSpeciesSession": "Quick checklist: locate each species",
     "gpsPerSpeciesSessionDesc": "Records the GNSS position and altitude when a species is entered; always while a track is recording. Needs location permission.",
@@ -858,6 +870,10 @@
     "trackAccuracyHigh": "High",
     "trackAccuracyMedium": "Medium",
     "trackAccuracyLow": "Low",
+    "surveyDataLayout": "Survey data layout",
+    "surveyDataLayoutDesc": "Survey data of checklist- and plot-style surveys: as groups (a list, then a page per group) or on one page (all groups in turn). Also switched from ⋯ on the survey screen.",
+    "surveyDataLayoutGrouped": "Groups",
+    "surveyDataLayoutSingle": "One page",
     "createAsk": "Ask each time",
     "off": "Off",
     "surveyors": "Surveyors",
@@ -1579,6 +1595,7 @@
   },
   "locMap": {
     "tapToPlace": "Tap the map to place the point",
+    "previewHint": "Tap the map to open it full screen and place or move the point there",
     "dragHint": "Drag the marker to fine-tune",
     "zoomIn": "Zoom in",
     "zoomOut": "Zoom out",
@@ -4436,6 +4453,7 @@
     "defaultCreate": "new create default plus",
     "gpsSession": "gps gnss location coordinates altitude",
     "trackAccuracy": "track accuracy battery power gps gnss location",
+    "surveyDataLayout": "survey data layout one page single groups list basic data",
     "gpsPlot": "gps gnss location coordinates altitude",
     "usageRank": "sort common frequent search ranking",
     "collection": "specimen label voucher number",
@@ -4461,6 +4479,7 @@
     "fontSize": "font text larger smaller",
     "cardDensity": "compact spacing list",
     "fabSide": "left-handed left hand button",
+    "tabBarMode": "tab bar tabs fold collapse round button floating navigation",
     "undoDuration": "undo seconds toast",
     "storage": "storage space cache clean",
     "moduleSurvey": "tree census stem mapping forest dynamics ForestGEO DBH recensus tag"
@@ -4844,7 +4863,10 @@
       "environment": "Environment",
       "choice": "Custom choice",
       "interaction": "Interactions",
-      "method": "Survey method"
+      "method": "Survey method",
+      "centre": "Centre point",
+      "site": "Geographic site",
+      "track": "Track"
     },
     "editor": {
       "elsewhere": "This component is entered on the record screen.",
@@ -5260,6 +5282,10 @@
     },
     "carried": "Same as survey {{n}} (carried over at the start; please check): {{fields}}",
     "surveyData": "Survey data",
+    "layout": {
+      "toSingle": "Show on one page",
+      "toGrouped": "Show as groups"
+    },
     "dataLocked": "Finished and locked. Go back to the survey and tap the lock at the top right to edit.",
     "dataFilled": "{{filled}} of {{total}} filled",
     "track": "Track",
@@ -5349,9 +5375,15 @@
       "archive": "Archive",
       "unarchive": "Unarchive",
       "copyToMine": "Copy to my templates",
-      "export": "Export as a file"
+      "export": "Export as a file",
+      "delete": "Delete"
     },
     "archived": "Archived “{{name}}”. Surveys started with it are not affected.",
+    "delete": {
+      "title": "Delete template",
+      "msg": "Delete “{{name}}”? Every version and the draft are deleted; this cannot be undone. (No survey has used this template.)",
+      "done": "Deleted “{{name}}”."
+    },
     "new": {
       "title": "New template",
       "blankChecklist": "Blank checklist",

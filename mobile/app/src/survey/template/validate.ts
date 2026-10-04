@@ -12,18 +12,26 @@
  * Pure: check:templates runs it under Node.
  */
 import { BUILTIN_INTERACTION_CODES, INTERACTION_IRI } from '../codesets/interactions';
-import { BUILTIN_CODESETS, componentDef, componentDefs, defaultLevelOf, defaultParamsOf, paramsChangeOf, type TraitDef } from '../registry';
+import { BUILTIN_CODESETS, componentDef, componentDefs, defaultLevelOf, defaultParamsOf, fixedAt, paramsChangeOf, type ComponentDef, type TraitDef } from '../registry';
 import { rowHash } from '../../lib/mergeEngine';
 import { MAX_UNIT_LEVELS, STYLE_LEVELS, type ComponentInstance, type Label, type SurveyTemplate } from './types';
 
 const COMPONENT_KEY = /^[a-z][a-z0-9_]{0,31}$/;
 
+/** Whether `t` has the always-present component `d` where it is always present (comments: on the survey level). */
+const hasFixed = (t: SurveyTemplate, d: ComponentDef) => t.components.some((c) => c.type === d.type && fixedAt(d, c.level));
+
 export function withRequired(t: SurveyTemplate): SurveyTemplate {
+  const taken = new Set(t.components.map((c) => c.key));
   const missing = componentDefs()
-    .filter((d) => d.required && d.styles.includes(t.style) && !t.components.some((c) => c.type === d.type))
+    .filter((d) => d.required && d.styles.includes(t.style) && !hasFixed(t, d))
     .map((d): ComponentInstance => {
       const level = defaultLevelOf(d, t.style);
-      return { key: d.type, type: d.type, level, required: true, params: { ...defaultParamsOf(d, level) } };
+      // A species' own comments may already hold the type's name as its key.
+      let key: string = d.type;
+      for (let i = 2; taken.has(key); i++) key = `${d.type}_${i}`;
+      taken.add(key);
+      return { key, type: d.type, level, required: true, params: { ...defaultParamsOf(d, level) } };
     });
   return missing.length ? { ...t, components: [...t.components, ...missing] } : t;
 }
@@ -50,7 +58,7 @@ function labelProblems(where: string, l: Label | undefined, builtin: boolean, op
 
 export function validateTemplate(t: SurveyTemplate): string[] {
   const out: string[] = [];
-  if (t.schema !== 1) out.push('schema must be 1');
+  if (t.schema !== 1 && t.schema !== 2) out.push('schema must be 1 or 2');
   if (!t.id) out.push('id is empty');
   if (!Number.isInteger(t.version) || t.version < 1) out.push('version must be an integer ≥ 1');
   if (!['builtin', 'user', 'imported'].includes(t.origin)) out.push(`unknown origin ${String(t.origin)}`);
@@ -94,7 +102,7 @@ export function validateTemplate(t: SurveyTemplate): string[] {
     } else if (c.unit !== undefined) {
       out.push(`${c.key}: only a component on the unit level names a unit level`);
     }
-    if (def.required && !c.required) out.push(`${c.key}: ${c.type} is always required`);
+    if (fixedAt(def, c.level) && !c.required) out.push(`${c.key}: ${c.type} is always required`);
     const at = `${c.type}@${c.level}${c.level === 'unit' ? `:${String(c.unit)}` : ''}`;
     if (def.cardinality === 'one' && placed.has(at)) out.push(`${c.key}: ${c.type} sits on this level twice`);
     placed.add(at);
@@ -105,7 +113,7 @@ export function validateTemplate(t: SurveyTemplate): string[] {
     }
   }
   for (const d of componentDefs()) {
-    if (d.required && d.styles.includes(t.style) && !t.components.some((c) => c.type === d.type)) {
+    if (d.required && d.styles.includes(t.style) && !hasFixed(t, d)) {
       out.push(`missing required component ${d.type}`);
     }
   }

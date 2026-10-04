@@ -10,9 +10,9 @@
  */
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { useTabBarInset } from '~/lib/tabBarLayout';
+import { useTabDock } from '~/lib/tabBarLayout';
 import { Keyboard, Text, View } from 'react-native';
-import { KeyboardStickyView } from './KeyboardAvoidingView';
+import { TabDock } from './TabDock';
 import { addSearchHistory, type SearchResult } from '~/db';
 import { useSpeciesSearchPanel } from '~/stores/speciesSearchPanel';
 import { useAddToActiveRecord } from '~/lib/useAddToActiveRecord';
@@ -32,12 +32,11 @@ export function SpeciesSearchPanel({ autoFocus = false }: Props) {
   // While a GLORIA survey is active, a pick here lands in its species roster.
   const gloriaActive = useActiveGloria((s) => s.survey != null);
   // The tab bar floats over the scene, so this dock's natural laid-out position
-  // is the SCREEN bottom — behind the pill. It has to be lifted by the bar's
-  // clearance while the keyboard is closed; once the keyboard is open,
-  // KeyboardStickyView's own translation already puts it flush against it.
-  // (Before the bar floated the compensation ran the other way round:
-  // `offset.opened = tabBarHeight`.) See src/lib/tabBarLayout.ts.
-  const tabBarInset = useTabBarInset();
+  // is the SCREEN bottom — behind the pill. TabDock lifts it clear of the bar
+  // while the keyboard is closed (or drops it beside the folded bar's button);
+  // `dockLift` is how much of the content above it the lifted dock covers.
+  // See src/lib/tabBarLayout.ts.
+  const { lift: dockLift } = useTabDock();
   // `active` lives in a module-level store so it survives segment switches
   // inside the species tab. Without persistence, tapping a rank chip on the
   // inline detail forces the segment to 'tree' (cross-screen jump), which
@@ -67,14 +66,14 @@ export function SpeciesSearchPanel({ autoFocus = false }: Props) {
 
   return (
     <View className="flex-1">
-      {/* The dock below is translated UP by `tabBarInset` to clear the floating
-          pill, so it overlays exactly that much of this box. Padding (inside
+      {/* The dock below is translated UP by `dockLift` to clear the tab bar,
+          so it overlays exactly that much of this box. Padding (inside
           the view, so the white background still reaches the dock) keeps the
           panel's last element — the add-to-record button — above it. Same
           reservation the tree segment makes via contentContainerStyle. */}
       <View
         className="flex-1 bg-card dark:bg-gray-900"
-        style={{ paddingBottom: tabBarInset }}
+        style={{ paddingBottom: dockLift }}
       >
         {active ? (
           <SpeciesDetailPanel
@@ -97,7 +96,7 @@ export function SpeciesSearchPanel({ autoFocus = false }: Props) {
           </View>
         )}
       </View>
-      <KeyboardStickyView offset={{ closed: -tabBarInset }}>
+      <TabDock>
         <SearchBox
           onSelect={handleSelect}
           onLongPressResult={handleLongPress}
@@ -105,7 +104,7 @@ export function SpeciesSearchPanel({ autoFocus = false }: Props) {
           afterSelect="dismiss"
           scopeGroups={gloriaActive ? GLORIA_SEARCH_GROUPS : undefined}
         />
-      </KeyboardStickyView>
+      </TabDock>
       {modal}
     </View>
   );

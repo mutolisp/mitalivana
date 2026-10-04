@@ -85,6 +85,10 @@ export function ComponentEditor(props: EditorProps) {
     case 'taxon':
     case 'dbh':
     case 'health':
+    // 空間資料: the centre card, the site row and the track control (SurveyGroupViews).
+    case 'centre':
+    case 'site':
+    case 'track':
       return <ElsewhereNote />;
     case 'interaction':
       return <ElsewhereNote textKey="survey.editor.interactionElsewhere" />;
@@ -178,11 +182,18 @@ export function componentSummary(t: TFunction, lang: string, instance: Component
       const l = num(v.length_m);
       return [name, w != null && l != null ? `${w} × ${l} m` : ''].filter(Boolean).join(' · ');
     }
+    case 'centre': {
+      const lat = num(v.lat);
+      const lng = num(v.lng);
+      return lat != null && lng != null ? `${lat.toFixed(5)}, ${lng.toFixed(5)}` : '';
+    }
     case 'timestamp':
     case 'taxon':
     case 'dbh':
     case 'health':
     case 'interaction':
+    case 'site':
+    case 'track':
       return '';
     default:
       return assertNever(type);

@@ -12,14 +12,18 @@
  *
  * So `tabBarHeight` is no longer the space the bar occupies — it is short by
  * `insets.bottom + BAR_GAP`. Anything positioned against the bottom of a tab
- * screen must use `useTabBarInset()` instead. Getting this wrong is this
- * codebase's most-repeated shipped bug (KeyListView 2026-05-14, favorites
- * 2026-06-07, collection 2026-08-29), which is why `npm run check:dock`
- * enforces the pairing rather than trusting a comment.
+ * screen must use the hooks below instead (`useTabBarInset`, or
+ * `useTabBarCorners` for one corner, or `<TabDock>` for a docked search box),
+ * which also follow the bar when it is folded into a round button. Getting
+ * this wrong is this codebase's most-repeated shipped bug (KeyListView
+ * 2026-05-14, favorites 2026-06-07, collection 2026-08-29), which is why
+ * `npm run check:dock` enforces the pairing rather than trusting a comment.
  */
 import { useWindowDimensions } from 'react-native';
+import { useKeyboardState } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { atBottomSlot, bottomClearance } from '~/lib/tabBubbleCore';
 import { useSettings } from '~/stores/settings';
 
 /** Pill height. Icon (24) + label (~13) + breathing room, rounded to a value
@@ -40,16 +44,54 @@ export const BAR_SIDE_RATIO = 0.1;
 export const FAB_SIZE = 42;
 
 /**
- * Bottom clearance a tab screen must leave: everything from the screen's
- * bottom edge up to the top of the floating pill.
+ * The bar may be folded into one round button (2026-10-04, tabBubbleCore.ts),
+ * so what a screen leaves clear depends on that and on where the button sits.
+ */
+function useClearance(keyboardUp = false) {
+  const insets = useSafeAreaInsets();
+  const folded = useSettings((s) => s.tab_bar_mode) === 'bubble';
+  const place = useSettings((s) => s.tab_bubble);
+  const fabSide = useSettings((s) => s.fab_side);
+  return bottomClearance({
+    folded,
+    insetBottom: insets.bottom,
+    barInset: insets.bottom + BAR_GAP + BAR_HEIGHT,
+    side: place.side ?? fabSide,
+    atBottom: atBottomSlot(place, insets.bottom),
+    keyboardUp,
+  });
+}
+
+/**
+ * Bottom clearance for what spans a tab screen's width: everything from the
+ * screen's bottom edge up to the top of the floating pill — or, with the bar
+ * folded, of the round button when it sits in the bottom slot.
  *
- * Use it for scroll `contentContainerStyle.paddingBottom`, for anything
- * absolutely positioned against the bottom of a tab screen, and as the
- * `closed` offset of a `KeyboardStickyView` dock.
+ * Use it for scroll `contentContainerStyle.paddingBottom` and for anything
+ * absolutely positioned across the bottom of a tab screen. A docked search
+ * box is `<TabDock>` (its list underneath pads by `useTabDock().lift`); a
+ * control in one bottom corner uses `useTabBarCorners()`.
  */
 export function useTabBarInset(): number {
-  const insets = useSafeAreaInsets();
-  return insets.bottom + BAR_GAP + BAR_HEIGHT;
+  return useClearance().inset;
+}
+
+/** Bottom clearance in each corner: only the button's corner has to clear it when the bar is folded. */
+export function useTabBarCorners(): { left: number; right: number } {
+  const c = useClearance();
+  return { left: c.left, right: c.right };
+}
+
+/**
+ * A docked search box: how far it is lifted over the content above it while
+ * the keyboard is closed, its own bottom padding down to the screen edge, and
+ * the room it leaves at each side for the folded bar's button. `TabDock`
+ * applies them; the list above the dock pads its bottom by `lift`.
+ */
+export function useTabDock(): { lift: number; pad: number; left: number; right: number } {
+  const keyboardUp = useKeyboardState((k) => k.isVisible);
+  const c = useClearance(keyboardUp);
+  return { lift: c.dockLift, pad: c.dockPad, left: c.dockLeft, right: c.dockRight };
 }
 
 /**

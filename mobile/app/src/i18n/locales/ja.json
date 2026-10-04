@@ -334,6 +334,14 @@
     "records": "記録",
     "species": "種"
   },
+  "tabBubble": {
+    "label": "タブ（現在：{{tab}}）",
+    "hint": "タップでタブメニュー、ドラッグで移動、長押しでタブバーに戻します",
+    "closeMenu": "タブメニューを閉じる",
+    "unfold": "タブバーに戻す",
+    "folded": "タブバーをボタンに折りたたみました。ボタンを長押しすると戻ります",
+    "unfolded": "タブバーに戻しました。タブを長押しすると再び折りたためます"
+  },
   "menu": {
     "projectsDesc": "プロジェクトとその種リスト／調査区",
     "sites": "地理サイト",
@@ -807,6 +815,10 @@
     "fabSideDesc": "左利きの方は左側へ。タブの順序も合わせて変わります",
     "fabSideRight": "右側",
     "fabSideLeft": "左側",
+    "tabBarMode": "タブバー",
+    "tabBarModeDesc": "丸いボタンに折りたたむと画面を広く使えます。タブの長押しで折りたたみ、ボタンの長押しで戻すこともできます",
+    "tabBarModeBar": "バー",
+    "tabBarModeBubble": "丸いボタン",
     "undoSeconds": "{{count}} 秒",
     "gpsPerSpeciesSession": "クイック種リスト：種ごとに自動測位",
     "gpsPerSpeciesSessionDesc": "種を入力した時点の GNSS 座標と標高を記録します。軌跡の記録中は常に記録します。位置情報の許可が必要です。",
@@ -817,6 +829,10 @@
     "trackAccuracyHigh": "高",
     "trackAccuracyMedium": "中",
     "trackAccuracyLow": "低",
+    "surveyDataLayout": "調査データの表示",
+    "surveyDataLayoutDesc": "リスト型・プロット型調査の調査データ：グループ表示（一覧から各グループのページへ）または1ページ表示（全グループを1ページに）。調査画面の ⋯ からも切り替えられます。",
+    "surveyDataLayoutGrouped": "グループ表示",
+    "surveyDataLayoutSingle": "1ページ表示",
     "createAsk": "毎回確認",
     "off": "オフ",
     "surveyors": "調査者",
@@ -1482,6 +1498,7 @@
   },
   "locMap": {
     "tapToPlace": "地図をタップして位置を置きます",
+    "previewHint": "地図をタップすると全画面で開き、そこで位置を置いたり動かしたりできます",
     "dragHint": "マーカーをドラッグして微調整",
     "zoomIn": "拡大",
     "zoomOut": "縮小",
@@ -4245,6 +4262,7 @@
     "defaultCreate": "新規 作成 既定 プラス",
     "gpsSession": "gps gnss 位置 座標 標高",
     "trackAccuracy": "軌跡 精度 電池 省電力 gps gnss 位置",
+    "surveyDataLayout": "調査データ 表示 1ページ グループ 一覧 基本データ レイアウト",
     "gpsPlot": "gps gnss 位置 座標 標高",
     "usageRank": "並び順 よく使う 検索",
     "collection": "標本 ラベル 採集番号 同定",
@@ -4270,6 +4288,7 @@
     "fontSize": "フォント 文字 拡大",
     "cardDensity": "コンパクト 間隔 一覧",
     "fabSide": "左利き 左手 ボタン",
+    "tabBarMode": "タブバー タブ 折りたたみ 丸いボタン フローティング ナビゲーション",
     "undoDuration": "元に戻す 秒 通知",
     "storage": "ストレージ 容量 キャッシュ 削除",
     "moduleSurvey": "毎木 プロット 森林動態 ForestGEO 胸高直径 DBH 再調査 番号"
@@ -4644,7 +4663,10 @@
       "environment": "環境",
       "choice": "カスタム選択肢",
       "interaction": "相互作用",
-      "method": "調査法"
+      "method": "調査法",
+      "centre": "中心点",
+      "site": "地理サイト",
+      "track": "軌跡"
     },
     "editor": {
       "elsewhere": "この項目は記録画面で入力します。",
@@ -5040,6 +5062,10 @@
     },
     "carried": "第 {{n}} 回と同じ（開始時に引き継ぎ。確認してください）：{{fields}}",
     "surveyData": "調査データ",
+    "layout": {
+      "toSingle": "1ページで表示",
+      "toGrouped": "グループで表示"
+    },
     "dataLocked": "終了してロックされています。調査画面に戻り、右上の鍵をタップすると編集できます。",
     "dataFilled": "入力済み {{filled}}/{{total}}",
     "track": "軌跡",
@@ -5125,9 +5151,15 @@
       "archive": "アーカイブ",
       "unarchive": "アーカイブを解除",
       "copyToMine": "マイテンプレートにコピー",
-      "export": "ファイルに書き出す"
+      "export": "ファイルに書き出す",
+      "delete": "削除"
     },
     "archived": "「{{name}}」をアーカイブしました。これで始めた調査には影響しません。",
+    "delete": {
+      "title": "テンプレートを削除",
+      "msg": "「{{name}}」を削除しますか？すべてのバージョンと下書きが削除され、元に戻せません。（このテンプレートを使った調査はありません。）",
+      "done": "「{{name}}」を削除しました。"
+    },
     "new": {
       "title": "テンプレートを作成",
       "blankChecklist": "空のリスト型",

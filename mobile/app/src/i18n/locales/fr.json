@@ -398,6 +398,14 @@
     "records": "Enregistrements",
     "species": "Espèces"
   },
+  "tabBubble": {
+    "label": "Onglets (actuel : {{tab}})",
+    "hint": "Touchez pour ouvrir le menu des onglets, faites glisser pour déplacer, appui long pour rétablir la barre d'onglets",
+    "closeMenu": "Fermer le menu des onglets",
+    "unfold": "Rétablir la barre d'onglets",
+    "folded": "Barre d'onglets repliée en bouton. Appui long sur le bouton pour la rétablir",
+    "unfolded": "Barre d'onglets rétablie. Appui long sur un onglet pour la replier"
+  },
   "menu": {
     "projectsDesc": "Projets et leurs listes d'espèces / placettes",
     "sites": "Sites géographiques",
@@ -889,6 +897,10 @@
     "fabSideDesc": "À gauche pour les gauchers ; l’ordre des onglets suit",
     "fabSideRight": "Droite",
     "fabSideLeft": "Gauche",
+    "tabBarMode": "Barre d'onglets",
+    "tabBarModeDesc": "Repliée en bouton rond, elle laisse plus de place à l'écran. Un appui long sur un onglet la replie aussi, et un appui long sur le bouton la rétablit",
+    "tabBarModeBar": "Barre complète",
+    "tabBarModeBubble": "Bouton rond",
     "undoSeconds": "{{count}} s",
     "gpsPerSpeciesSession": "Liste d'espèces rapide : localiser chaque espèce",
     "gpsPerSpeciesSessionDesc": "Enregistre la position GNSS et l'altitude à la saisie de chaque espèce ; toujours pendant l'enregistrement d'une trace. Nécessite l'autorisation de localisation.",
@@ -899,6 +911,10 @@
     "trackAccuracyHigh": "Haute",
     "trackAccuracyMedium": "Moyenne",
     "trackAccuracyLow": "Basse",
+    "surveyDataLayout": "Affichage des données du relevé",
+    "surveyDataLayoutDesc": "Données des relevés de type liste et placette : par groupes (une liste, puis une page par groupe) ou sur une seule page (tous les groupes à la suite). Aussi modifiable depuis ⋯ dans le relevé.",
+    "surveyDataLayoutGrouped": "Par groupes",
+    "surveyDataLayoutSingle": "Sur une page",
     "createAsk": "Demander à chaque fois",
     "off": "Désactivé",
     "surveyors": "Observateurs",
@@ -1676,6 +1692,7 @@
   },
   "locMap": {
     "tapToPlace": "Touchez la carte pour placer le point",
+    "previewHint": "Touchez la carte pour l’ouvrir en plein écran et y placer ou déplacer le point",
     "dragHint": "Faites glisser le repère pour affiner la position",
     "zoomIn": "Zoom avant",
     "zoomOut": "Zoom arrière",
@@ -4627,6 +4644,7 @@
     "defaultCreate": "nouveau créer défaut plus",
     "gpsSession": "gps gnss position coordonnées altitude",
     "trackAccuracy": "trace précision batterie gps gnss position",
+    "surveyDataLayout": "données du relevé affichage une page groupes liste données de base mise en page",
     "gpsPlot": "gps gnss position coordonnées altitude",
     "usageRank": "tri fréquent recherche",
     "collection": "spécimen étiquette numéro",
@@ -4652,6 +4670,7 @@
     "fontSize": "police texte plus grand",
     "cardDensity": "compact espacement liste",
     "fabSide": "gaucher main gauche bouton",
+    "tabBarMode": "barre d'onglets onglets replier bouton rond flottant navigation",
     "undoDuration": "annuler secondes",
     "storage": "stockage espace cache",
     "moduleSurvey": "arbre cartographie dynamique forestière ForestGEO DHP DBH réinventaire étiquette"
@@ -5044,7 +5063,10 @@
       "environment": "Environnement",
       "choice": "Choix personnalisé",
       "interaction": "Interactions",
-      "method": "Méthode d'inventaire"
+      "method": "Méthode d'inventaire",
+      "centre": "Point central",
+      "site": "Site géographique",
+      "track": "Trace"
     },
     "editor": {
       "elsewhere": "Cet élément se saisit sur l’écran de l’enregistrement.",
@@ -5480,6 +5502,10 @@
     },
     "carried": "Comme au relevé {{n}} (repris au début, à vérifier) : {{fields}}",
     "surveyData": "Données du relevé",
+    "layout": {
+      "toSingle": "Afficher sur une page",
+      "toGrouped": "Afficher par groupes"
+    },
     "dataLocked": "Terminé et verrouillé. Revenez au relevé et touchez le cadenas en haut à droite pour modifier.",
     "dataFilled": "{{filled}} sur {{total}} remplis",
     "track": "Trace",
@@ -5573,9 +5599,15 @@
       "archive": "Archiver",
       "unarchive": "Désarchiver",
       "copyToMine": "Copier dans mes modèles",
-      "export": "Exporter en fichier"
+      "export": "Exporter en fichier",
+      "delete": "Supprimer"
     },
     "archived": "« {{name}} » archivé. Les relevés commencés avec ce modèle ne changent pas.",
+    "delete": {
+      "title": "Supprimer le modèle",
+      "msg": "Supprimer « {{name}} » ? Toutes les versions et le brouillon sont supprimés ; impossible d’annuler. (Aucun relevé n’a utilisé ce modèle.)",
+      "done": "« {{name}} » supprimé."
+    },
     "new": {
       "title": "Nouveau modèle",
       "blankChecklist": "Liste vierge",

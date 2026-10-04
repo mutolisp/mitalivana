@@ -5,7 +5,7 @@
  * Pure: check:templates runs it under Node; the forms (2C) and the tree form
  * show what it finds, and surveyCore refuses values that cannot be stored.
  */
-import { componentDef, type ComponentDef, type ComponentValues, type FieldDef, type FieldValue, type Params, type Problem } from './registry';
+import { componentDef, fixedAt, type ComponentDef, type ComponentValues, type FieldDef, type FieldValue, type Params, type Problem } from './registry';
 import type { ComponentInstance, SurveyLevel } from './template/types';
 
 export const isEmpty = (v: FieldValue | undefined) =>
@@ -69,10 +69,12 @@ const FIELD_CODES = new Set(['not_a_number', 'below_min', 'above_max', 'not_inte
  * Whether a template's author made the component 必填 (2G-e; decided
  * 2026-10-04): the four every survey has (taxon, time, comments, surveyors)
  * are `required` because they always exist, not because they must be filled,
- * so they take no part.
+ * so they take no part — comments only on the survey level, where it always
+ * is; a species' or a unit's comments is a module like any other.
  */
-export function requiredByAuthor(c: Pick<ComponentInstance, 'type' | 'required'>): boolean {
-  return c.required && !componentDef(c.type)?.required;
+export function requiredByAuthor(c: Pick<ComponentInstance, 'type' | 'required' | 'level'>): boolean {
+  const def = componentDef(c.type);
+  return c.required && !(def && fixedAt(def, c.level));
 }
 
 /**

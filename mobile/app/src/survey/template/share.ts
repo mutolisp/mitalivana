@@ -13,6 +13,7 @@
  */
 import { componentDef } from '../registry';
 import { rekeyUnits } from './edit';
+import { normalizeTemplate } from './normalize';
 import type { SurveyTemplate } from './types';
 import { validateTemplate, withRequired } from './validate';
 
@@ -50,7 +51,8 @@ export function readTemplateFile(text: string, taken: ReadonlySet<string>, newId
   if (unknown.length) return { ok: false, reason: 'newer_app', types: unknown };
   const clash = typeof t.id !== 'string' || !t.id || taken.has(t.id) || t.origin === 'builtin' || t.id.startsWith('builtin:');
   const { builtin_key: _k, builtin_version: _v, ...rest } = t;
-  const template = rekeyUnits(withRequired({ ...rest, id: clash ? newId() : t.id, version: 1, origin: 'imported', codelists: Array.isArray(t.codelists) ? t.codelists : [] }));
+  // A file from before schema 2 says what it meant the schema-2 way (normalize.ts).
+  const template = rekeyUnits(withRequired(normalizeTemplate({ ...rest, id: clash ? newId() : t.id, version: 1, origin: 'imported', codelists: Array.isArray(t.codelists) ? t.codelists : [] })));
   const problems = validateTemplate(template);
   if (problems.length) return { ok: false, reason: 'invalid', detail: problems.join('\n') };
   return { ok: true, template, renamed: clash };

@@ -41,6 +41,7 @@ import type { SurveyDoc } from '../db/surveyDocCore';
 import { BUILTIN_CODESETS, componentDef, exportMapOf, healthCodesets, type TraitDef } from '../registry';
 import { fgQuadratCounts, parseFgQuadratCode, toLatLng } from '../stemmap/coords';
 import { stemIsDead, vitality, type StemCensusInput } from '../stemmap/status';
+import { parseSnapshot } from '../template/normalize';
 import type { ComponentInstance, Label, SurveyLevel, SurveyTemplate } from '../template/types';
 import { interactionTypesOf, surveyComponentValues, templateOf, unitEventId, unitPaths, unitSizeOf, type Words } from './surveyExportCore';
 
@@ -63,7 +64,7 @@ const listOf = (v: unknown): string[] => {
 };
 const snapshot = (survey: Row): SurveyTemplate | null => {
   try {
-    return JSON.parse(str(survey.template_snapshot)) as SurveyTemplate;
+    return parseSnapshot(str(survey.template_snapshot));
   } catch {
     return null;
   }

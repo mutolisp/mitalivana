@@ -7,7 +7,13 @@
  * way. Two valid pairings exist in this app:
  *
  *   offset={{ opened: insets.bottom }}  ⟺  screen root is <SafeAreaView edges={['bottom']}>
- *   offset={{ closed: -tabBarInset }}   ⟺  screen is inside the bottom tab navigator
+ *   <TabDock> (offset={{ closed: -dock.lift, opened: dock.pad }})  ⟺  screen is inside the bottom tab navigator
+ *
+ * Tab-screen docks go through <TabDock> since the tab bar can fold into a round
+ * button (2026-10-04): the lift then depends on whether the bar is folded and
+ * where the button sits, and the dock leaves the button room beside it. The
+ * old `closed: -tabBarInset` is still right for a bar, wrong for a folded one,
+ * so it is rejected and the message names TabDock.
  *
  * The tab-screen pairing INVERTED when the tab bar started floating (2026-09-18).
  * An in-flow bar ends the scene above itself, so the dock sat too high with the
@@ -35,6 +41,7 @@ import { join, relative } from 'node:path';
 
 const ROOTS = ['src', 'app'];
 const SELF = 'src/components/KeyboardAvoidingView.tsx'; // re-export site, not a caller
+const TAB_DOCK = 'src/components/TabDock.tsx'; // the one tab-screen KeyboardStickyView
 
 function walk(dir, out = []) {
   for (const name of readdirSync(dir)) {
@@ -51,7 +58,34 @@ for (const root of ROOTS) {
     const rel = relative('.', file);
     if (rel === SELF) continue;
     const src = readFileSync(file, 'utf8');
+
+    // The content above a tab dock: lifting the dock does not shrink it — the
+    // dock is translated, so it OVERLAYS exactly the lift's px of whatever was
+    // laid out above, and that content has to reserve as much. Shipped twice on
+    // 2026-09-22 (the species tab's Search and Key segments both hid their last
+    // element, the add-to-record button and the last key row).
+    // Comments name <TabDock> too (tabBarLayout.ts); only code counts.
+    const code = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+    if (rel !== TAB_DOCK && /<TabDock[\s>]/.test(code)) {
+      if (!/useTabDock\(\)/.test(src) || !/paddingBottom:\s*dockLift/.test(src)) {
+        problems.push(
+          `${rel}\n    <TabDock> but nothing reserves the dock's lift under the content above it.\n` +
+            `    Fix: const { lift: dockLift } = useTabDock()  // ~/lib/tabBarLayout\n` +
+            `         contentContainerStyle={{ paddingBottom: dockLift }} on the list,\n` +
+            `         or style={{ paddingBottom: dockLift }} on the content container.`,
+        );
+      }
+    }
     if (!/<KeyboardStickyView/.test(src)) continue;
+    if (rel === TAB_DOCK) {
+      if (!/offset=\{\{\s*closed:\s*-dock\.lift,\s*opened:\s*dock\.pad\s*\}\}/.test(src) || !/paddingBottom:\s*dock\.pad/.test(src) || !/useTabDock\(\)/.test(src)) {
+        problems.push(
+          `${rel}\n    TabDock must lift by useTabDock().lift and hide its own bottom padding behind\n` +
+            `    the keyboard: offset={{ closed: -dock.lift, opened: dock.pad }} with paddingBottom: dock.pad.`,
+        );
+      }
+      continue;
+    }
 
     const usesInsets = /offset=\{\{\s*opened:\s*insets\.bottom\s*\}\}/.test(src);
     const usesTabBar = /offset=\{\{\s*closed:\s*-tabBarInset\s*\}\}/.test(src);
@@ -74,35 +108,21 @@ for (const root of ROOTS) {
         `${rel}\n    Uses the pre-floating-tab-bar pairing (offset={{ opened: tabBarHeight }}\n` +
           `    and/or useBottomTabBarHeight()). The bar now floats over the scene, so that\n` +
           `    offset is both the wrong direction and the wrong magnitude.\n` +
-          `    Fix: const tabBarInset = useTabBarInset()  // ~/lib/tabBarLayout\n` +
-          `         offset={{ closed: -tabBarInset }}`,
+          `    Fix: wrap the dock in <TabDock> (~/components/TabDock).`,
       );
     }
-    if (usesTabBar && !/useTabBarInset/.test(src)) {
+    if (usesTabBar) {
       problems.push(
-        `${rel}\n    offset={{ closed: -tabBarInset }} without useTabBarInset().`,
-      );
-    }
-    // The other half of the same number. Lifting the dock does not shrink the
-    // content above it — the dock is translated, so it OVERLAYS exactly
-    // `tabBarInset` px of whatever was laid out above. The content therefore
-    // has to reserve that much too. Shipped twice on 2026-09-22 (the species
-    // tab's Search and Key segments both hid their last element, the
-    // add-to-record button and the last key row), which is why the pairing is
-    // checked on the content side as well and not only on the dock's offset.
-    if (usesTabBar && !/paddingBottom:\s*tabBarInset/.test(src)) {
-      problems.push(
-        `${rel}\n    offset={{ closed: -tabBarInset }} but nothing reserves paddingBottom:\n` +
-          `    tabBarInset. The dock is translated up over the content, so the\n` +
-          `    bottom tabBarInset px of that content are hidden behind the search box.\n` +
-          `    Fix: contentContainerStyle={{ paddingBottom: tabBarInset }} on the list,\n` +
-          `         or style={{ paddingBottom: tabBarInset }} on the content container.`,
+        `${rel}\n    offset={{ closed: -tabBarInset }}: right for the tab bar, wrong once it is\n` +
+          `    folded into its round button (the dock should drop beside the button).\n` +
+          `    Fix: wrap the dock in <TabDock> (~/components/TabDock) and pad the content\n` +
+          `         above it by useTabDock().lift.`,
       );
     }
     if (!usesInsets && !usesTabBar && !usesStaleTabBar) {
       problems.push(
         `${rel}\n    <KeyboardStickyView> with an unrecognised offset. The two supported\n` +
-          `    pairings are insets.bottom (+ SafeAreaView edges) and -tabBarInset (+ tab screen).\n` +
+          `    pairings are insets.bottom (+ SafeAreaView edges) and <TabDock> (tab screens).\n` +
           `    If this dock genuinely has no chrome below it, use offset={{ opened: 0 }} and say why.`,
       );
     }
@@ -114,4 +134,4 @@ if (problems.length) {
   for (const p of problems) console.error('  ' + p + '\n');
   process.exit(1);
 }
-console.log('✓ bottom-dock invariant holds for every KeyboardStickyView caller');
+console.log('✓ bottom-dock invariant holds for every KeyboardStickyView caller and TabDock');

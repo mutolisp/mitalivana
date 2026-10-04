@@ -100,7 +100,7 @@ import {
 } from '~/db/rudypoi';
 import { describeVectorInstall, vectorStyleUri } from '~/lib/vectormap';
 import { useVectorInstall } from '~/lib/vectormapInstall';
-import { useTabBarInset } from '~/lib/tabBarLayout';
+import { useTabBarCorners } from '~/lib/tabBarLayout';
 import { useThemeColors } from '~/theme/colors';
 import { resolveLanguage } from '~/i18n';
 import { useSettings, type MapBasemap } from '~/stores/settings';
@@ -432,7 +432,9 @@ export default function MapScreen() {
   const [distSheetOpen, setDistSheetOpen] = useState(false);
   const [pois, setPois] = useState<RudyPoi[]>([]);
 
-  const tabBarInset = useTabBarInset();
+  // The bottom corners clear the tab bar, or with the bar folded only the
+  // round button's corner does (src/lib/tabBarLayout.ts).
+  const corner = useTabBarCorners();
   const vectorInstalled = useVectorInstall((s) => s.installed);
   const vectorReady = useVectorInstall((s) => s.ready);
   const vectorStyleRev = useVectorInstall((s) => s.styleRev);
@@ -1673,17 +1675,18 @@ export default function MapScreen() {
   };
 
   /**
-   * 所有要畫在地圖上的圖徵，攤平成引擎中性的陣列。
+   * Every feature drawn on the map, flattened into an engine-neutral array.
    *
-   * **陣列順序就是掛載順序**，而 iOS 的疊圖先後只看掛載順序（zIndex 在
-   * react-native-maps 的 tile overlay 上無效）。所以這裡的排列必須與重構前的
-   * JSX 順序逐項相同，不要「順手」重排。
+   * **The array order is the mount order**, and iOS stacks overlays by mount
+   * order alone (zIndex does nothing on react-native-maps' tile overlays). So
+   * the order here must match the pre-refactor JSX item for item; do not
+   * reorder it "while you are at it".
    *
-   * zIndex「未指定」也有語意 —— site 與所有繪製中的圖徵本來就沒有指定，
-   * 補一個預設值會改變層序。
+   * An unset zIndex means something too: sites and every feature being drawn
+   * never had one, and giving them a default would change the stacking.
    */
   const mapFeatures: MapFeature[] = [
-    // 山域地標（魯地圖 POI）。zIndex 最低 —— 它是背景參考資訊，不該蓋住使用者的記錄。
+    // Mountain landmarks (RudyMap 魯地圖 POI). Lowest zIndex: background reference that must not cover the user's records.
     ...pois.map((poi) => {
       const tags = parsePoiTags(poi.data);
       const name = poiDisplayName(tags);
@@ -1701,7 +1704,7 @@ export default function MapScreen() {
       };
     }),
 
-    // 名錄 session：軌跡 + 起點。進行中的那筆是綠色；它的逐筆物種點另外畫。
+    // 名錄 sessions: track + start point. The active one is green; its per-species points are drawn separately.
     ...sessionRenderItems.flatMap(({ session, segments }) => {
       if (hiddenKeys.has(`sess-${session.id}`)) return [];
       const isActive = activeSession?.id === session.id;
@@ -1746,12 +1749,13 @@ export default function MapScreen() {
         zIndex: 4,
       })),
 
-    // 既有地理樣區 —— Multi* geometry 會展開成多個 primitive
+    // Existing 地理樣區 — Multi* geometries expand into several primitives
     ...siteRenderItems.flatMap(({ site: s, primitives }) => {
-      // 綁在樣區上的 site 就是那個樣區的邊界，所以穿樣區的顏色 —— 否則藍色形狀
-      // 圍著紫色圖釘，卻沒有任何東西說它們是同一筆記錄。
+      // A site bound to a plot IS that plot's boundary, so it wears the plot's
+      // colour — otherwise a blue shape surrounds a purple pin with nothing to
+      // say they are the same record.
       const owner = plotBySiteId.get(s.id);
-      // 邊界跟著它的擁有者一起聚合，因為兩者代表的是同一筆記錄。
+      // The boundary clusters with its owner, since both stand for one record.
       if (hiddenKeys.has(owner ? `plot-${owner.id}` : `site-${s.id}`)) return [];
       const sessionOwner = owner ? null : sessionBySiteId.get(s.id);
       const stroke = owner
@@ -1800,18 +1804,20 @@ export default function MapScreen() {
       });
     }),
 
-    // 既有樣區 —— fixed/point_count 圖釘（+ 半徑圓）、穿越線軌跡。
-    // 編輯中的那個樣區在這裡隱藏，由下面可拖曳的圖釘接手。
+    // Existing plots — fixed/point_count pins (+ radius circle), transect tracks.
+    // The plot being edited is hidden here; the draggable pin below takes over.
     ...plotRenderItems.flatMap(({ plot, segments }): MapFeature[] => {
       if (editPlot && editPlot.id === plot.id) return [];
       if (hiddenKeys.has(`plot-${plot.id}`)) return [];
       const color = plot.status === 'active' ? PLOT_ACTIVE_COLOR : PLOT_COLOR;
       if (usesTrack(plot)) {
         const drawable = segments.filter((seg) => seg.length >= 2);
-        // 軌跡還沒開始、只有一個定位點、或被清掉的穿越線在這裡沒東西可畫 ——
-        // 而提早 return 會讓整個樣區從地圖上消失，即使它有中心點。這很常見不是
-        // 邊界情況：recorder 會把第一個定位寫進 decimal_latitude/longitude，
-        // 所以剛開始的穿越線一定有中心點和一個單點 segment。往下走到圖釘。
+        // A transect whose track has not started, has one fix, or was cleared has
+        // nothing to draw here — and returning early would drop the whole plot
+        // from the map even though it has a centre. That is common, not an edge
+        // case: the recorder writes the first fix into decimal_latitude/longitude,
+        // so a transect just started always has a centre and a one-point
+        // segment. Fall through to the pin.
         if (drawable.length > 0) {
           return drawable.map((seg, i) => ({
             kind: 'line' as const,
@@ -1859,12 +1865,13 @@ export default function MapScreen() {
       return out;
     }),
 
-    // 每個擁擠格子一個泡泡；它代表的圖徵在上面被跳過。
+    // One bubble per crowded cell; the features it stands for are skipped above.
     //
-    // 聚合在所有模式下都保持開啟。繪製或編輯時關掉它，等於一次 session 內把整組
-    // marker 換掉兩次 —— 每個被聚合的記錄進入時各自掛載成一個 annotation、離開時
-    // 再全部卸載 —— 那是一次點擊要付的大量原生工作。只拿掉 press handler，讓點擊
-    // 穿透到地圖去放頂點。
+    // Clustering stays on in every mode. Turning it off while drawing or editing
+    // would swap the whole marker set twice per session — every clustered record
+    // mounting as its own annotation on the way in and all of them unmounting on
+    // the way out — a lot of native work for one tap. Only the press handler is
+    // dropped, so a tap goes through to the map to place a vertex.
     ...clusters.map(
       (c): MapFeature => ({
         kind: 'marker',
@@ -1889,7 +1896,7 @@ export default function MapScreen() {
       }),
     ),
 
-    // 繪製中 —— 頂點可拖曳；點一下刪除
+    // Drawing — vertices can be dragged; a tap deletes one
     ...((drawMode || editMode) && drawPoints.length > 0
       ? drawPoints.map(
           (pt, i): MapFeature => ({
@@ -1906,7 +1913,7 @@ export default function MapScreen() {
               setDrawPoints(next);
             },
             onPress: () => {
-              // 編輯樣區的單一點位：只能拖，不能刪。
+              // A plot's single point being edited: drag only, no delete.
               if (editMode === 'point') return;
               Alert.alert(t('map.editPointTitle'), t('map.pointN', { n: i + 1 }), [
                 { text: t('common.cancel'), style: 'cancel' },
@@ -1946,9 +1953,10 @@ export default function MapScreen() {
         ]
       : []),
 
-    // 物種查詢：兩種形狀都要畫，因為兩個來源用的不一樣 —— 填色的框是問
-    // iNaturalist 的範圍，外框線是問 GBIF 的範圍。只畫一個會誤導使用者
-    // 之後選了哪個來源。
+    // Species lookup: both shapes are drawn because the two sources use different
+    // ones — the filled box is the extent asked of iNaturalist, the outline the
+    // extent asked of GBIF. Drawing only one would mislead whichever source the
+    // user picks next.
     ...(drawPurpose === 'species' && drawPoints.length >= 2
       ? [
           {
@@ -1994,7 +2002,7 @@ export default function MapScreen() {
   return (
     <View className="flex-1 bg-gray-100 dark:bg-gray-800">
       <MapCanvas
-        // 樣式只在掛載時讀一次，換版後要重掛才看得到（styleUri 字串不變）。
+        // The style is read only at mount; a new version shows only after a remount (the styleUri string does not change).
         key={`map-${vectorStyleRev}`}
         ref={mapRef}
         style={StyleSheet.absoluteFill}
@@ -2008,8 +2016,10 @@ export default function MapScreen() {
         vectorStyle={vectorStyle}
         mapType={basemapToMapType(currentBasemap)}
         showsCompass
-        // 右下角是唯一沒被佔用的角落（左上返回／搜尋、右上工具、左下比例尺）
-        compassInset={{ bottom: tabBarInset + 12, right: 12 }}
+        // Bottom right is the only free corner (back/search top left, tools top
+        // right, scale bar bottom left); it sits above the folded tab bar's
+        // button when that is in this corner.
+        compassInset={{ bottom: corner.right + 12, right: 12 }}
         showsScale
         showsUserLocation={isFocused}
         showsMyLocationButton={false}
@@ -2042,8 +2052,8 @@ export default function MapScreen() {
             : []),
           ...(inatTileUrl ? [{ ...INAT_GRID_LAYER, urlTemplate: inatTileUrl }] : []),
         ]}
-        // 切底圖時強制疊圖重新掛載，讓它們重新加到離線圖磚之上
-        // （iOS 的疊圖先後只看掛載順序）。
+        // Switching basemap forces the overlays to remount so they are added on
+        // top of the offline tiles again (iOS stacks overlays by mount order alone).
         overlayGeneration={currentBasemap}
       />
 
@@ -2059,9 +2069,10 @@ export default function MapScreen() {
         onClose={() => setPoiSheetOpen(false)}
       />
 
-      {/* 比例尺。不用 <MapView showsScale>：那是 iOS Apple Maps 專用、Android
-          不支援，而且只在縮放手勢期間短暫出現。野外判讀距離要常駐。 */}
-      <MapScaleBar region={viewRegion} screenWidth={windowWidth} bottom={tabBarInset + 6} />
+      {/* Scale bar. Not <MapView showsScale>: that is iOS Apple Maps only, not
+          on Android, and it shows only briefly during a zoom gesture. Reading
+          distances in the field needs it on screen all the time. */}
+      <MapScaleBar region={viewRegion} screenWidth={windowWidth} bottom={corner.left + 6} />
 
       {/* Locate, on its own above the compass rather than buried in the tools
           menu: centring on yourself is the one map action taken mid-stride,
@@ -2074,7 +2085,7 @@ export default function MapScreen() {
         <View
           className="absolute right-3"
           style={{
-            bottom: tabBarInset + 12 + (vectorOn ? MAPLIBRE_COMPASS_SIZE : NORTH_ARROW_SIZE) + 10,
+            bottom: corner.right + 12 + (vectorOn ? MAPLIBRE_COMPASS_SIZE : NORTH_ARROW_SIZE) + 10,
           }}
         >
           <FabButton icon="locate" onPress={handleLocateMe} accent a11yLabel={t('map.locate')} />
@@ -2464,19 +2475,20 @@ export default function MapScreen() {
 }
 
 /**
- * Cluster 的數字泡泡（只有視覺）。
+ * A cluster's count bubble (visual only).
  *
- * 原本這裡還管著 `tracksViewChanges` 的 true→false 生命週期，那是
- * react-native-maps 專屬的 —— 已經移進 `engines/RNMapsCanvas.tsx`，由引擎依
- * feature 的 `renderKey` 決定何時重新擷取。
+ * It used to manage the `tracksViewChanges` true→false life cycle as well,
+ * which is react-native-maps specific — that moved into
+ * `engines/RNMapsCanvas.tsx`, where the engine decides from the feature's
+ * `renderKey` when to capture again.
  */
 function ClusterBubble({ count }: { count: number }) {
   return (
     <View
       className="items-center justify-center rounded-full border-2 border-white shadow"
       style={{
-        // 數量越多泡泡略大，讓大群一眼看得出來，但有上限 ——
-        // 300 筆的泡泡不能把地圖蓋住。
+        // Bigger counts get a slightly bigger bubble so large groups stand out,
+        // but capped: a 300-record bubble must not cover the map.
         width: count >= 100 ? 46 : count >= 10 ? 40 : 34,
         height: count >= 100 ? 46 : count >= 10 ? 40 : 34,
         backgroundColor: CLUSTER_COLOR,

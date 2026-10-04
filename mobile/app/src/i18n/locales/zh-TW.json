@@ -334,6 +334,14 @@
     "records": "記錄",
     "species": "物種"
   },
+  "tabBubble": {
+    "label": "導覽列（目前：{{tab}}）",
+    "hint": "點一下開啟分頁選單，拖曳可移動，長按恢復整列",
+    "closeMenu": "關閉分頁選單",
+    "unfold": "恢復整列導覽列",
+    "folded": "導覽列已收合成圓鈕，長按圓鈕可恢復",
+    "unfolded": "導覽列已恢復，長按任一分頁可再收合"
+  },
   "menu": {
     "projectsDesc": "專案及其下的名錄/樣區",
     "sites": "地理樣區",
@@ -807,6 +815,10 @@
     "fabSideDesc": "左撇子可改放左側，分頁順序一併調整",
     "fabSideRight": "右側",
     "fabSideLeft": "左側",
+    "tabBarMode": "導覽列",
+    "tabBarModeDesc": "收合成圓鈕可多出畫面空間；也可長按任一分頁收合、長按圓鈕恢復",
+    "tabBarModeBar": "整列",
+    "tabBarModeBubble": "收合成圓鈕",
     "undoSeconds": "{{count}} 秒",
     "gpsPerSpeciesSession": "快速名錄：每筆物種自動定位",
     "gpsPerSpeciesSessionDesc": "輸入物種時記錄當下的 GNSS 座標與海拔；有開軌跡時一律記錄。需已允許定位。",
@@ -817,6 +829,10 @@
     "trackAccuracyHigh": "高",
     "trackAccuracyMedium": "中",
     "trackAccuracyLow": "低",
+    "surveyDataLayout": "調查資料顯示方式",
+    "surveyDataLayoutDesc": "名錄型與樣區型調查的調查資料：分組（先看清單，再進各組頁）或單頁（各組接在同一頁）。調查畫面的 ⋯ 也可切換。",
+    "surveyDataLayoutGrouped": "分組顯示",
+    "surveyDataLayoutSingle": "單頁顯示",
     "createAsk": "每次詢問",
     "off": "關閉",
     "surveyors": "調查者",
@@ -1482,6 +1498,7 @@
   },
   "locMap": {
     "tapToPlace": "點一下地圖放置位置",
+    "previewHint": "點一下地圖開啟全螢幕，在那裡放置或移動位置",
     "dragHint": "拖曳標記微調位置",
     "zoomIn": "放大",
     "zoomOut": "縮小",
@@ -4245,6 +4262,7 @@
     "defaultCreate": "新增 建立 預設 加號",
     "gpsSession": "gps gnss 座標 海拔 定位 經緯度",
     "trackAccuracy": "軌跡 精度 耗電 省電 gps gnss 定位 電池",
+    "surveyDataLayout": "調查資料 顯示 單頁 分組 清單 基本資料 版面",
     "gpsPlot": "gps gnss 座標 海拔 定位 經緯度",
     "usageRank": "排序 常見 搜尋 常用",
     "collection": "標本 採集號 標籤 鑑定",
@@ -4270,6 +4288,7 @@
     "fontSize": "字體 字型 文字 放大 縮小",
     "cardDensity": "緊湊 寬鬆 間距 列表",
     "fabSide": "左撇子 左手 右手 按鈕",
+    "tabBarMode": "導覽列 分頁 收合 圓鈕 浮動 按鈕",
     "undoDuration": "undo 復原 還原 秒數 提示",
     "storage": "儲存 空間 容量 清理 快取",
     "moduleSurvey": "每木 樣區 森林動態 ForestGEO 胸高直徑 DBH 複查 樹號"
@@ -4644,7 +4663,10 @@
       "environment": "環境",
       "choice": "自訂選項",
       "interaction": "交互作用",
-      "method": "調查法"
+      "method": "調查法",
+      "centre": "中心點",
+      "site": "地理樣區",
+      "track": "軌跡"
     },
     "editor": {
       "elsewhere": "這個元件在記錄畫面上輸入。",
@@ -5040,6 +5062,10 @@
     },
     "carried": "與第 {{n}} 次相同（開始時帶入，請確認）：{{fields}}",
     "surveyData": "調查資料",
+    "layout": {
+      "toSingle": "改為單頁顯示",
+      "toGrouped": "改為分組顯示"
+    },
     "dataLocked": "已結束並鎖定。回到調查畫面按右上角鎖頭解鎖後才能編輯。",
     "dataFilled": "已填 {{filled}}/{{total}}",
     "track": "軌跡",
@@ -5125,9 +5151,15 @@
       "archive": "封存",
       "unarchive": "取消封存",
       "copyToMine": "複製成我的模板",
-      "export": "匯出成檔案"
+      "export": "匯出成檔案",
+      "delete": "刪除"
     },
     "archived": "已封存「{{name}}」。用它開始過的調查不受影響。",
+    "delete": {
+      "title": "刪除模板",
+      "msg": "刪除「{{name}}」？所有版本與草稿都會刪除，無法復原。（沒有任何調查用過這份模板。）",
+      "done": "已刪除「{{name}}」。"
+    },
     "new": {
       "title": "建立模板",
       "blankChecklist": "空白的名錄型",

@@ -115,6 +115,7 @@ export function TrackControlView({
   onStart,
   onPause,
   onStop,
+  mapPreview = false,
 }: {
   label: string;
   required?: boolean;
@@ -129,6 +130,8 @@ export function TrackControlView({
   onPause: () => void;
   /** Omit for a track without a stopped state. */
   onStop?: () => void;
+  /** The small map as a still preview that opens full screen (inside a scrolling page). */
+  mapPreview?: boolean;
 }) {
   const { t } = useTranslation();
   const persistedSegments = segments;
@@ -193,7 +196,7 @@ export function TrackControlView({
         ) : null}
       </View>
 
-      <TrackMiniMap segments={previewSegments} follow={recording} />
+      <TrackMiniMap segments={previewSegments} follow={recording} preview={mapPreview} />
     </View>
   );
 }

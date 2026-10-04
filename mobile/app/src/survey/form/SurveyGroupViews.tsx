@@ -16,6 +16,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, type Href } from 'expo-router';
 import { useMemo, useState } from 'react';
+import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { Alert, Pressable, Text, View } from 'react-native';
 import { Section } from '~/components/form/Section';
@@ -42,7 +43,7 @@ import type { ComponentOwner } from '~/survey/db/surveyCore';
 import { addMedia, removeMedia, updateSurvey, writeComponent } from '~/survey/db/surveys';
 import type { FieldValue } from '~/survey/registry';
 import type { ComponentInstance } from '~/survey/template/types';
-import { groupStatus, surveyGroups, type GroupKey } from './surveyGroups';
+import { groupStatus, surveyGroups, type GroupKey, type GroupStatus } from './surveyGroups';
 import { carriedNotes, formErrorText } from './text';
 import type { SurveyForm } from './useSurveyForm';
 
@@ -61,6 +62,31 @@ const GROUP_ICON: Readonly<Record<GroupKey, keyof typeof Ionicons.glyphMap>> = {
 };
 
 const stamp = (ts: number | null) => (ts == null ? '' : isoStamp(ts).slice(0, 16));
+
+/** A group's icon disc, in the list row and at the head of its single-page section. */
+function GroupDisc({ group }: { group: GroupKey }) {
+  const c = useThemeColors();
+  return (
+    <View className="h-10 w-10 items-center justify-center rounded-full bg-disc dark:bg-disc-dark">
+      <Ionicons name={GROUP_ICON[group]} size={20} color={c.ink2} />
+    </View>
+  );
+}
+
+/** A group's name, how much of it is filled and its 必填未填 count. */
+function GroupTitleRow({ group, st }: { group: GroupKey; st: GroupStatus }) {
+  const { t } = useTranslation();
+  return (
+    <View className="flex-row flex-wrap items-baseline gap-2">
+      <Text className="text-base font-bold text-ink dark:text-gray-100">{t(GROUP_TITLE[group])}</Text>
+      <Text className="text-xs text-ink-3 dark:text-gray-400">{`${st.filled}/${st.total}`}</Text>
+      {st.missing ? <Text className="text-xs font-semibold text-alert dark:text-alert-dark">{t('surveyForm.group.missing', { count: st.missing })}</Text> : null}
+    </View>
+  );
+}
+
+const groupA11y = (t: TFunction, group: GroupKey, st: GroupStatus) =>
+  [t(GROUP_TITLE[group]), t('surveyForm.dataFilled', { filled: st.filled, total: st.total }), st.missing ? t('surveyForm.group.missing', { count: st.missing }) : ''].filter(Boolean).join(', ');
 
 /** The list: a row per group with how much of it is filled and what it holds. */
 export function SurveyGroupList({ data, onOpen }: { data: SurveyForm; onOpen: (g: GroupKey) => void }) {
@@ -108,18 +134,12 @@ export function SurveyGroupList({ data, onOpen }: { data: SurveyForm; onOpen: (g
             key={g.key}
             onPress={() => onOpen(g.key)}
             accessibilityRole="button"
-            accessibilityLabel={[t(GROUP_TITLE[g.key]), t('surveyForm.dataFilled', { filled: st.filled, total: st.total }), st.missing ? t('surveyForm.group.missing', { count: st.missing }) : ''].filter(Boolean).join(', ')}
+            accessibilityLabel={groupA11y(t, g.key, st)}
             className={`min-h-[76px] flex-row items-center gap-3 px-4 py-3 active:opacity-70 ${i ? 'border-t border-line dark:border-line-dark' : ''}`}
           >
-            <View className="h-10 w-10 items-center justify-center rounded-full bg-disc dark:bg-disc-dark">
-              <Ionicons name={GROUP_ICON[g.key]} size={20} color={c.ink2} />
-            </View>
+            <GroupDisc group={g.key} />
             <View className="flex-1 gap-0.5">
-              <View className="flex-row flex-wrap items-baseline gap-2">
-                <Text className="text-base font-bold text-ink dark:text-gray-100">{t(GROUP_TITLE[g.key])}</Text>
-                <Text className="text-xs text-ink-3 dark:text-gray-400">{`${st.filled}/${st.total}`}</Text>
-                {st.missing ? <Text className="text-xs font-semibold text-alert dark:text-alert-dark">{t('surveyForm.group.missing', { count: st.missing })}</Text> : null}
-              </View>
+              <GroupTitleRow group={g.key} st={st} />
               {line ? (
                 <Text className="text-xs leading-4 text-ink-2 dark:text-gray-300" numberOfLines={2}>
                   {line}
@@ -131,6 +151,37 @@ export function SurveyGroupList({ data, onOpen }: { data: SurveyForm; onOpen: (g
         );
       })}
     </View>
+  );
+}
+
+/**
+ * 調查資料 on one page (`survey_data_layout` 'single', asked 2026-10-04): every
+ * group in turn, under a heading with its fill count, each with the same body
+ * as its own page. `onChanged` as for SurveyGroupBody.
+ */
+export function SurveyGroupSections({ data, edit, onChanged }: { data: SurveyForm; edit: RecordEditing; onChanged: () => void }) {
+  const { t } = useTranslation();
+  return (
+    <>
+      {surveyGroups(data.template).map((g, i) => {
+        const st = groupStatus(g, data.surveyValues, data.survey);
+        return (
+          <View key={g.key}>
+            <View
+              accessibilityRole="header"
+              accessibilityLabel={groupA11y(t, g.key, st)}
+              className={`flex-row items-center gap-3 px-4 pb-1 pt-4 ${i ? 'mt-3 border-t border-line dark:border-line-dark' : ''}`}
+            >
+              <GroupDisc group={g.key} />
+              <View className="flex-1">
+                <GroupTitleRow group={g.key} st={st} />
+              </View>
+            </View>
+            <SurveyGroupBody data={data} edit={edit} group={g.key} onChanged={onChanged} />
+          </View>
+        );
+      })}
+    </>
   );
 }
 
@@ -316,32 +367,61 @@ export function SurveyGroupBody({ data, edit, group, onChanged }: { data: Survey
         </View>
       ) : null}
       {group === 'space' ? (
+        // The template's 空間資料 modules, each with its 必填未填 line (modules since 2026-10-04).
         <View className="px-4 py-3">
-          <CentreLocationCard
-            required={false}
-            lat={survey.lat}
-            lng={survey.lng}
-            accuracy={survey.accuracy}
-            elevation={survey.elevation_m}
-            boundary={boundary}
-            onCapture={() => void captureGps()}
-            // Hand-placed arrives as null; an undo restores the measured value that was there before.
-            onPlace={(lat, lng, accuracy) => write(() => updateSurvey(id, { lat, lng, accuracy }))}
-            onDrawBoundary={() => router.push(`/(tabs)/map?draw=Polygon&survey=${id}` as Href)}
-          />
-          <SiteRow name={site?.name ?? null} onPress={() => (edit.refuse() ? undefined : setSiteOpen(true))} />
-          <TrackControlView
-            label={t('surveyForm.track')}
-            segments={segments}
-            recording={recording}
-            livePoints={livePoints}
-            disabled={survey.status === 'done'}
-            onStart={() => void startTrack()}
-            onPause={() => {
-              pauseRecording();
-              onChanged();
-            }}
-          />
+          {comps.map((c) => {
+            const missingLine = <RequiredMissingLine problems={instanceProblems(c, data.surveyValues[c.key] ?? {})} />;
+            switch (c.type) {
+              case 'centre':
+                return (
+                  <View key={c.key}>
+                    {missingLine}
+                    <CentreLocationCard
+                      required={false}
+                      // Previews: the page scrolls over them (asked 2026-10-04).
+                      mapPreview
+                      lat={survey.lat}
+                      lng={survey.lng}
+                      accuracy={survey.accuracy}
+                      elevation={survey.elevation_m}
+                      boundary={boundary}
+                      onCapture={() => void captureGps()}
+                      // Hand-placed arrives as null; an undo restores the measured value that was there before.
+                      onPlace={(lat, lng, accuracy) => write(() => updateSurvey(id, { lat, lng, accuracy }))}
+                      onDrawBoundary={() => router.push(`/(tabs)/map?draw=Polygon&survey=${id}` as Href)}
+                    />
+                  </View>
+                );
+              case 'site':
+                return (
+                  <View key={c.key}>
+                    {missingLine}
+                    <SiteRow name={site?.name ?? null} onPress={() => (edit.refuse() ? undefined : setSiteOpen(true))} />
+                  </View>
+                );
+              case 'track':
+                return (
+                  <View key={c.key}>
+                    {missingLine}
+                    <TrackControlView
+                      mapPreview
+                      label={t('surveyForm.track')}
+                      segments={segments}
+                      recording={recording}
+                      livePoints={livePoints}
+                      disabled={survey.status === 'done'}
+                      onStart={() => void startTrack()}
+                      onPause={() => {
+                        pauseRecording();
+                        onChanged();
+                      }}
+                    />
+                  </View>
+                );
+              default:
+                return null;
+            }
+          })}
         </View>
       ) : null}
       {group === 'method' ? comps.map(section) : null}

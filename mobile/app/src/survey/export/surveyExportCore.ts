@@ -34,6 +34,7 @@ import { interactionTypes, type InteractionType } from '../db/interactionCore';
 import type { SurveyDoc } from '../db/surveyDocCore';
 import { methodDwc, methodZh } from '../codesets/samplingMethods';
 import { componentDef, exportMapOf, type FieldDef } from '../registry';
+import { parseSnapshot } from '../template/normalize';
 import type { Label, SurveyLevel, SurveyTemplate } from '../template/types';
 
 export type { CsvTable };
@@ -52,7 +53,7 @@ const fileStem = (s: string) => s.replace(/[^\p{L}\p{N}_-]+/gu, '_').slice(0, 60
 
 export function templateOf(doc: Pick<SurveyDoc, 'survey'>): SurveyTemplate | null {
   try {
-    return JSON.parse(str(doc.survey.template_snapshot)) as SurveyTemplate;
+    return parseSnapshot(str(doc.survey.template_snapshot));
   } catch {
     return null;
   }
@@ -238,7 +239,8 @@ function componentColumns(doc: SurveyDoc, template: SurveyTemplate, level: 'surv
   for (const c of template.components) {
     if (c.level !== level || c.type === 'taxon') continue;
     const def = componentDef(c.type);
-    if (!def) continue;
+    // 空間資料 modules: their values are the survey row's own columns, already in survey.csv.
+    if (!def || def.rowFixed) continue;
     const name = labelParts(c.label, words);
     const map = exportMapOf(def, c.params, c.level as SurveyLevel);
     const applies = (o: Owner) => o.level !== 'unit' || c.unit == null || o.levelKey === c.unit;

@@ -72,11 +72,13 @@ export default function MenuScreen() {
   const gpsSession = useSettings((s) => s.record_gps_session);
   const gpsPlot = useSettings((s) => s.record_gps_plot);
   const trackAccuracy = useSettings((s) => s.track_accuracy);
+  const surveyDataLayout = useSettings((s) => s.survey_data_layout);
   const usageRank = useSettings((s) => s.search_usage_rank);
   const moduleGloria = useSettings((s) => s.module_gloria);
   const moduleMiren = useSettings((s) => s.module_miren);
   const moduleSurvey = useSettings((s) => s.module_survey);
   const fabSide = useSettings((s) => s.fab_side);
+  const tabBarMode = useSettings((s) => s.tab_bar_mode);
   const inatLogin = useSettings((s) => s.inat_login);
   const vectorReady = useVectorInstall((x) => x.ready);
   const poiReady = usePoiInstall((x) => x.ready);
@@ -329,6 +331,18 @@ export default function MenuScreen() {
               onChange={(v) => setSetting('track_accuracy', v)}
             />
           );
+        case 'surveyDataLayout':
+          return (
+            <SelectRow
+              key={e.id} {...common}
+              value={surveyDataLayout}
+              options={[
+                { value: 'grouped' as const, label: t('settings.surveyDataLayoutGrouped') },
+                { value: 'single' as const, label: t('settings.surveyDataLayoutSingle') },
+              ]}
+              onChange={(v) => setSetting('survey_data_layout', v)}
+            />
+          );
         case 'intermediateRanks':
           return (
             <SelectRow
@@ -360,6 +374,18 @@ export default function MenuScreen() {
                 { value: 'left' as const, label: t('settings.fabSideLeft') },
               ]}
               onChange={(v) => setSetting('fab_side', v)}
+            />
+          );
+        case 'tabBarMode':
+          return (
+            <SelectRow
+              key={e.id} {...common}
+              value={tabBarMode}
+              options={[
+                { value: 'bar' as const, label: t('settings.tabBarModeBar') },
+                { value: 'bubble' as const, label: t('settings.tabBarModeBubble') },
+              ]}
+              onChange={(v) => setSetting('tab_bar_mode', v)}
             />
           );
         case 'undoDuration':

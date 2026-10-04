@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useTabBarInset } from '~/lib/tabBarLayout';
+import { useTabBarInset, useTabDock } from '~/lib/tabBarLayout';
 import { useFocusEffect } from 'expo-router';
 import { useIsFocused } from '@react-navigation/native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -14,7 +14,7 @@ import {
   View,
 } from 'react-native';
 import { KeyboardController } from 'react-native-keyboard-controller';
-import { KeyboardStickyView } from '~/components/KeyboardAvoidingView';
+import { TabDock } from '~/components/TabDock';
 import {
   keysAvailable,
   taxonomyScopeSig,
@@ -159,17 +159,21 @@ export default function TaxonomyScreen() {
   const persistedExpanded = useSettings((s) => s.taxonomy_expanded);
   const setSetting = useSettings((s) => s.set);
   const settingsLoaded = useSettings((s) => s.loaded);
-  // 檢索表是臺灣名錄的內容：臺灣關掉、或檢索表模組沒裝，整個分頁就消失。
-  // 檢索表能不能用有兩個軸：使用者有沒有開臺灣、模組有沒有安裝。兩個 store 都
-  // 訂閱（settings 管前者、useInstalledDatasets 管後者），實際判斷交給
-  // `keysAvailable()`——它一次涵蓋 模組已裝 ∧ 相依的臺灣名錄在 ∧ TW 已啟用。
+  // The keys (檢索表) are Taiwan checklist content: with Taiwan off, or the keys
+  // module not installed, the whole segment disappears.
+  // Whether the keys can be used has two axes: has the user turned Taiwan on,
+  // and is the module installed. Both stores are subscribed (settings for the
+  // first, useInstalledDatasets for the second); the decision itself is left to
+  // `keysAvailable()`, which covers module installed ∧ the Taiwan checklist it
+  // depends on present ∧ TW enabled in one place.
   const twRequested = useSettings((s) => s.enabled_regions.includes('TW'));
   const datasetInstalls = useInstalledDatasets((s) => s.installs);
   const twOn = useMemo(
     () => twRequested && keysAvailable(),
-    // 下面這個 dep 不是被讀取的值，而是**重算的觸發點**：安裝或刪除檢索表模組時
-    // installs 會換成新陣列。判斷本身仍交給 keysAvailable()（單一權威），才不會
-    // 在 UI 裡重寫一次可用性規則。
+    // The dep below is not a value read here but the **trigger to recompute**:
+    // installing or removing the keys module replaces `installs` with a new
+    // array. The decision still belongs to keysAvailable() (the single
+    // authority), so the availability rule is not rewritten in the UI.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [twRequested, datasetInstalls],
   );
@@ -240,12 +244,13 @@ export default function TaxonomyScreen() {
     checkScope();
   }, [regionsSig, checkScope]);
   // The tab bar floats over the scene, so this dock's natural laid-out position
-  // is the SCREEN bottom — behind the pill. It has to be lifted by the bar's
-  // clearance while the keyboard is closed; once the keyboard is open,
-  // KeyboardStickyView's own translation already puts it flush against it.
-  // (Before the bar floated the compensation ran the other way round:
-  // `offset.opened = tabBarHeight`.) See src/lib/tabBarLayout.ts.
+  // is the SCREEN bottom — behind the pill. TabDock lifts it clear of the bar
+  // while the keyboard is closed (or drops it beside the folded bar's button);
+  // `dockLift` is how much of the tree above it the lifted dock covers. The
+  // selection dock that replaces it spans the width: `tabBarInset`.
+  // See src/lib/tabBarLayout.ts.
   const tabBarInset = useTabBarInset();
+  const { lift: dockLift } = useTabDock();
 
   const [segment, setSegment] = useState<'tree' | 'key' | 'search'>('tree');
 
@@ -298,13 +303,17 @@ export default function TaxonomyScreen() {
   // resolves it against the latest flatItems and runs a multi-attempt scroll
   // (FlatList virtualization can delay the target row's mount; one-shot
   // scrollToIndex would land on the wrong offset via the fallback estimate).
-  // 捲動目標。種階層命中時要捲到「那一列物種」而不是它所屬的屬節點 ——
-  // 屬底下可能有數百種（jp_names 的 Carex 有 550 種，カンスゲ 排第 300），
-  // 捲到屬節點等於只看得到最前面幾種，這正是使用者回報的症狀。
+  // The scroll target. A species-rank hit must scroll to that species' row, not
+  // to the genus node it sits under: a genus can hold hundreds of species
+  // (Carex has 550 in jp_names, カンスゲ is number 300), and scrolling to the
+  // genus node shows only the first few, which is exactly what the user
+  // reported.
   //
-  // 用學名而不是 taxon_id 比對：日本區開啟時 getSpeciesUnder 會把 TW/JP 共有種
-  // 收合成一列並**保留 TaiCOL 的 taxon_id**（全域 5,969 種、光 Carex 就 82 種），
-  // 所以 JP 搜尋命中帶的 y… id 對不上樹上那一列。學名才是兩邊共同的鍵。
+  // Matched by scientific name, not taxon_id: with the Japan region on,
+  // getSpeciesUnder folds species shared by TW and JP into one row and **keeps
+  // TaiCOL's taxon_id** (5,969 species overall, 82 in Carex alone), so a JP
+  // search hit's y… id does not match that row. The scientific name is the key
+  // both sides share.
   const [pendingScrollTarget, setPendingScrollTarget] = useState<{
     speciesName?: string;
     nodeKey: string;
@@ -322,8 +331,9 @@ export default function TaxonomyScreen() {
   // native ScrollView received its child views and laid them out (good proxy
   // for "user sees something").
   const flatListMarkedRef = useRef({ layout: false, firstRow: false, content: false });
-  // 樹的實際可視高度（FlatList onLayout 量得）。捲動定位要用它換算 viewPosition，
-  // 寫死的 600 在現在的手機上普遍偏小，會讓目標落在比預期更下面的位置。
+  // The tree's real visible height (measured by FlatList onLayout). Scroll
+  // positioning converts viewPosition with it; the hard-coded 600 is too small
+  // on today's phones and put the target lower than intended.
   const treeViewportHeightRef = useRef(0);
 
   useFocusEffect(
@@ -662,7 +672,7 @@ export default function TaxonomyScreen() {
       // recomputed against the new state — virtualization needs the new
       // children rows mounted before scrollToIndex can land. Direct rAF
       // here would race the FlatList re-render.
-      // 種階層命中時優先捲到那一列物種，找不到才退回屬節點。
+      // A species-rank hit scrolls to that species' row first, the genus node only when it is not found.
       setPendingScrollTarget({ speciesName, nodeKey: targetKey });
 
       if (toastLabel) toast(t('taxonomy.expanded', { label: toastLabel }));
@@ -706,7 +716,7 @@ export default function TaxonomyScreen() {
   useEffect(() => {
     if (!pendingScrollTarget) return;
     const { speciesName, nodeKey } = pendingScrollTarget;
-    // 先找物種列（比對學名，見 pendingScrollTarget 的說明），找不到才退回屬節點。
+    // The species row first (matched by scientific name, see pendingScrollTarget), else the genus node.
     let idx = speciesName
       ? flatItems.findIndex(
           (item) => item.kind === 'species' && item.species.simple_name === speciesName,
@@ -714,10 +724,11 @@ export default function TaxonomyScreen() {
       : -1;
     if (idx < 0) idx = flatItems.findIndex((item) => item.key === nodeKey);
     if (idx < 0) {
-      // 找不到目標就必須把請求清掉。原本只 return 不清，它會永遠停在非 null，
-      // 於是底下「切換 segment 時還原捲動位置」那段的
-      // `if (pendingScrollTarget || pendingJumpPath) return;` 被永久短路 ——
-      // 一次失敗的定位會污染這個 session 之後所有的捲動還原。
+      // No target: the request must be cleared. It used to just return, which
+      // left it non-null for good, so the "restore the scroll position on a
+      // segment switch" code below hit
+      // `if (pendingScrollTarget || pendingJumpPath) return;` every time: one
+      // failed jump spoiled every later scroll restore in the session.
       if (__DEV__)
         console.log(`[scroll] no candidate in flatItems: ${speciesName ?? ''} | ${nodeKey}`);
       setPendingScrollTarget(null);
@@ -728,14 +739,15 @@ export default function TaxonomyScreen() {
     let n = 0;
     const MAX_ATTEMPTS = 8;
     const INTERVAL_MS = 220;
-    // 用 FlatList onLayout 量到的真實高度；還沒量到才退回粗估值。
+    // The real height FlatList onLayout measured; the rough estimate only until it has.
     const VIEWPORT_FALLBACK = 600;
     const VIEW_POSITION = 0.25;
 
     const tick = () => {
       if (cancelled) return;
-      // 每次重試都讀當下最新的前綴和表：這一輪捲動又量到了一批真實行高，
-      // 估計值會逐次收斂。effect 不依賴 rowLayout，所以不會重啟計數器。
+      // Each retry reads the latest prefix sums: this round of scrolling measured
+      // more real row heights, so the estimate converges. The effect does not
+      // depend on rowLayout, so the counter does not restart.
       const { offsets, lengths } = rowLayoutRef.current;
       const offset = offsets[idx] ?? 0;
       const length = lengths[idx] ?? 0;
@@ -1031,7 +1043,7 @@ export default function TaxonomyScreen() {
               extraData={selection.picked}
               keyExtractor={(item) => item.key}
               // Padding only — getItemLayout stays a pure function of index.
-              contentContainerStyle={{ paddingBottom: tabBarInset }}
+              contentContainerStyle={{ paddingBottom: dockLift }}
               getItemLayout={getItemLayout}
               onScroll={(e) => {
                 // Record last-known offset so we can restore on segment
@@ -1040,7 +1052,7 @@ export default function TaxonomyScreen() {
               }}
               scrollEventThrottle={32}
               onLayout={(e) => {
-                // 真實可視高度，供捲動定位計算 viewPosition 用（取代寫死的 600）。
+                // The real visible height, for scroll positioning's viewPosition (replaces the hard-coded 600).
                 treeViewportHeightRef.current = e.nativeEvent.layout.height;
                 if (flatListMarkedRef.current.layout) return;
                 flatListMarkedRef.current.layout = true;
@@ -1152,9 +1164,9 @@ export default function TaxonomyScreen() {
                 ]}
               />
             ) : (
-              <KeyboardStickyView offset={{ closed: -tabBarInset }}>
+              <TabDock>
                 <TaxonomySearchBox onPick={handleSearchPick} />
-              </KeyboardStickyView>
+              </TabDock>
             )}
           </View>
         )
@@ -1281,17 +1293,21 @@ function TaxonRow({
     .join(' · ');
 
   // 0/1/2 matching keys per scope; rank_key is 'kingdom'/'phylum'/.../'genus'.
-  // 日本 / pack 的同名屬不能冒出臺灣的檢索表，所以這裡也要 gate。
-  // 檢索表能不能用有兩個軸：使用者有沒有開臺灣、模組有沒有安裝。兩個 store 都
-  // 訂閱（settings 管前者、useInstalledDatasets 管後者），實際判斷交給
-  // `keysAvailable()`——它一次涵蓋 模組已裝 ∧ 相依的臺灣名錄在 ∧ TW 已啟用。
+  // A Japanese or pack genus of the same name must not surface a Taiwan key, so
+  // this is gated too.
+  // Whether the keys can be used has two axes: has the user turned Taiwan on,
+  // and is the module installed. Both stores are subscribed (settings for the
+  // first, useInstalledDatasets for the second); the decision itself is left to
+  // `keysAvailable()`, which covers module installed ∧ the Taiwan checklist it
+  // depends on present ∧ TW enabled in one place.
   const rowTwRequested = useSettings((s) => s.enabled_regions.includes('TW'));
   const rowInstalls = useInstalledDatasets((s) => s.installs);
   const rowTwOn = useMemo(
     () => rowTwRequested && keysAvailable(),
-    // 下面這個 dep 不是被讀取的值，而是**重算的觸發點**：安裝或刪除檢索表模組時
-    // installs 會換成新陣列。判斷本身仍交給 keysAvailable()（單一權威），才不會
-    // 在 UI 裡重寫一次可用性規則。
+    // The dep below is not a value read here but the **trigger to recompute**:
+    // installing or removing the keys module replaces `installs` with a new
+    // array. The decision still belongs to keysAvailable() (the single
+    // authority), so the availability rule is not rewritten in the UI.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [rowTwRequested, rowInstalls],
   );

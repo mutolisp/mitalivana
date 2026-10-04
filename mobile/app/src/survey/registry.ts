@@ -86,6 +86,10 @@ export const COMPONENT_TYPES = [
   'choice',
   'interaction',
   'method',
+  // 空間資料 (asked 2026-10-04): each its own module; the values stay on the survey row.
+  'centre',
+  'site',
+  'track',
 ] as const;
 export type ComponentType = (typeof COMPONENT_TYPES)[number];
 
@@ -93,6 +97,18 @@ export type ComponentDef = {
   type: ComponentType;
   /** Always present; the validator adds it when a template leaves it out. */
   required: boolean;
+  /**
+   * The levels where `required` holds (default: every level it sits on).
+   * Comments: every survey has one, while one on a unit or a species is a
+   * module the author adds, removes or makes 必填 (asked 2026-10-04).
+   */
+  alwaysAt?: readonly SurveyLevel[];
+  /**
+   * Its fields are the owner row's own columns, exported with that row (the
+   * survey's lat / lng, site and track): no per-component export columns and
+   * no export map of its own.
+   */
+  rowFixed?: true;
   /** 'one': at most once per level (its fields are columns or fixed keys); 'many': any number, under distinct keys. */
   cardinality: 'one' | 'many';
   levels: readonly SurveyLevel[];
@@ -451,6 +467,7 @@ const DEFS: readonly ComponentDef[] = [
   {
     type: 'comments',
     required: true,
+    alwaysAt: ['survey'],
     cardinality: 'one',
     levels: ['frame', 'survey', 'unit', 'occurrence', 'quadrat', 'individual', 'stem'],
     styles: ALL_STYLES,
@@ -949,7 +966,63 @@ const DEFS: readonly ComponentDef[] = [
     labelKey: 'survey.component.method',
     paramsChange: methodChange,
   },
+  // 空間資料 (asked 2026-10-04): the centre card (GNSS point, accuracy and
+  // elevation, small map, boundary), the 地理樣區 and the track, each a module
+  // a template may leave out. Their values are the survey row's own columns
+  // (v88), declared here so 必填 and the fill count can read them; the survey
+  // event and its geo files export them as before.
+  {
+    type: 'centre',
+    required: false,
+    rowFixed: true,
+    cardinality: 'one',
+    levels: ['survey'],
+    styles: NEW_STYLES,
+    defaultLevel: 'survey',
+    defaultParams: {},
+    checkParams: noParams,
+    fields: (_p, level) => [col(level, 'lat', 'num'), col(level, 'lng', 'num'), col(level, 'accuracy', 'num')],
+    // The survey event already carries the point (surveyDwcCore).
+    exportMap: {},
+    labelKey: 'survey.component.centre',
+  },
+  {
+    type: 'site',
+    required: false,
+    rowFixed: true,
+    cardinality: 'one',
+    levels: ['survey'],
+    styles: NEW_STYLES,
+    defaultLevel: 'survey',
+    defaultParams: {},
+    checkParams: noParams,
+    fields: (_p, level) => [col(level, 'site_id', 'num')],
+    // Exported as the survey's site geo file, not a Darwin Core term.
+    exportMap: {},
+    labelKey: 'survey.component.site',
+  },
+  {
+    type: 'track',
+    required: false,
+    rowFixed: true,
+    cardinality: 'one',
+    levels: ['survey'],
+    styles: NEW_STYLES,
+    defaultLevel: 'survey',
+    defaultParams: {},
+    checkParams: noParams,
+    fields: (_p, level) => [col(level, 'track_geojson', 'text')],
+    // Exported as the survey's track geo file.
+    exportMap: {},
+    labelKey: 'survey.component.track',
+  },
 ];
+
+/** The 空間資料 module types, in the order the group shows them. */
+export const SPATIAL_TYPES = ['centre', 'site', 'track'] as const satisfies readonly ComponentType[];
+
+/** Whether `def` is always present (not the author's to add, remove or make 必填) on `level`. */
+export const fixedAt = (def: Pick<ComponentDef, 'required' | 'alwaysAt'>, level: SurveyLevel): boolean => def.required && (!def.alwaysAt || def.alwaysAt.includes(level));
 
 /** A choice's parameters: which of the template's code lists, one code or several. */
 export type ChoiceParams = { list: string; multi: boolean };

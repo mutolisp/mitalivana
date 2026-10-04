@@ -201,6 +201,7 @@ export const RNMapsCanvas = forwardRef<MapCamera, MapCanvasProps>(function RNMap
     onMapReady,
     onRegionChangeComplete,
     onPress,
+    gestures = true,
     style,
     children,
   },
@@ -245,6 +246,10 @@ export const RNMapsCanvas = forwardRef<MapCamera, MapCanvasProps>(function RNMap
       showsUserLocation={showsUserLocation}
       showsMyLocationButton={showsMyLocationButton}
       toolbarEnabled={toolbarEnabled}
+      scrollEnabled={gestures}
+      zoomEnabled={gestures}
+      pitchEnabled={gestures}
+      rotateEnabled={gestures}
       onMapReady={() => {
         if (showsCompass) readHeading();
         onMapReady?.();

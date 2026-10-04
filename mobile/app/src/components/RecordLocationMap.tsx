@@ -84,6 +84,12 @@ type Props = {
    *  centre and boundary instead of two native maps on one screen — and it
    *  shows at a glance whether the centre sits inside the boundary. */
   area?: GeoJSONGeometry | null;
+  /**
+   * A preview inside a scrolling page (調查資料, asked 2026-10-04): the small
+   * map takes no touch at all — a swipe over it scrolls the page — and a tap
+   * opens the full-screen map, where the point is placed and the map moved.
+   */
+  preview?: boolean;
 };
 
 /** The boundary as map features. Taps fall through to the map (nothing here
@@ -130,6 +136,7 @@ export function RecordLocationMap({
   reference,
   taxon,
   area,
+  preview = false,
 }: Props) {
   const c = useThemeColors();
   const { t } = useTranslation();
@@ -311,23 +318,42 @@ export function RecordLocationMap({
     ? [{ ...INAT_GRID_LAYER, urlTemplate: inatTileUrl }]
     : undefined;
 
+  const inline = (
+    <EditableMap
+      lat={shownLat}
+      lng={shownLng}
+      initialRegion={initialRegion}
+      onChange={guardedCommit}
+      reference={reference}
+      extraFeatures={shapes}
+      basemap={basemap}
+      onCycleBasemap={cycleBasemap}
+      onType={openEntry}
+      rounded
+      onExpand={() => setFullscreen(true)}
+      rasterOverlays={inatOverlays}
+      inat={taxon ? { on: gridOn, toggle: () => setSetting('inat_grid_overlay', !gridOn) } : undefined}
+      preview={preview}
+    />
+  );
   return (
     <View className="mt-2">
-      <EditableMap
-        lat={shownLat}
-        lng={shownLng}
-        initialRegion={initialRegion}
-        onChange={guardedCommit}
-        reference={reference}
-        extraFeatures={shapes}
-        basemap={basemap}
-        onCycleBasemap={cycleBasemap}
-        onType={openEntry}
-        rounded
-        onExpand={() => setFullscreen(true)}
-        rasterOverlays={inatOverlays}
-        inat={taxon ? { on: gridOn, toggle: () => setSetting('inat_grid_overlay', !gridOn) } : undefined}
-      />
+      {preview ? (
+        <View>
+          {/* No touch reaches the native map, so it cannot hold the page's scroll. */}
+          <View pointerEvents="none">{inline}</View>
+          <Pressable
+            onPress={() => setFullscreen(true)}
+            accessibilityRole="button"
+            accessibilityLabel={t('locMap.expand')}
+            className="absolute inset-0 items-end p-1.5"
+          >
+            <CtrlButton icon="expand-outline" onPress={() => setFullscreen(true)} label={t('locMap.expand')} />
+          </Pressable>
+        </View>
+      ) : (
+        inline
+      )}
       {taxon ? (
         <InatStatusLine state={inatState} on={gridOn} resolved={inatResolved} asked={taxon.name} />
       ) : null}
@@ -367,7 +393,7 @@ export function RecordLocationMap({
         </View>
       ) : (
         <Text className="mt-1 text-[11px] text-gray-400 dark:text-gray-500">
-          {hasPoint ? t('locMap.dragHint') : t('locMap.tapToPlace')}
+          {preview ? t('locMap.previewHint') : hasPoint ? t('locMap.dragHint') : t('locMap.tapToPlace')}
         </Text>
       )}
 
@@ -463,6 +489,7 @@ function EditableMap({
   onExpand,
   rasterOverlays,
   inat,
+  preview = false,
 }: {
   lat: number | null;
   lng: number | null;
@@ -479,6 +506,8 @@ function EditableMap({
   rasterOverlays?: RasterOverlay[];
   /** 給了才畫 iNat 切換鈕。`undefined` = 這張地圖沒有物種脈絡。 */
   inat?: { on: boolean; toggle: () => void };
+  /** A still preview: no gestures, no controls (RecordLocationMap draws its own expand). */
+  preview?: boolean;
 }) {
   const tc = useThemeColors();
   const { t } = useTranslation();
@@ -533,6 +562,7 @@ function EditableMap({
           regionRef.current = r;
         }}
         onPress={place}
+        gestures={!preview}
         rasterOverlays={rasterOverlays}
         overlayGeneration={basemap}
         showsUserLocation
@@ -584,31 +614,36 @@ function EditableMap({
         ] satisfies MapFeature[]}
       />
 
-      {/* 圖層控制（左上）。iNat 疊圖放這裡而不是右欄：184px 高的地圖右側已經排了
-          五個鈕，第六個會被裁掉；而且「要顯示什麼」與底圖切換本來就是同一類。 */}
-      <View className="absolute left-1.5 top-1.5 gap-1.5">
-        <BasemapToggle basemap={basemap} onPress={onCycleBasemap} />
-        {inat ? (
-          <View className="self-start">
-            <CtrlButton
-              icon={inat.on ? 'grid' : 'grid-outline'}
-              onPress={inat.toggle}
-              label={t('inatGrid.toggle')}
-            />
-          </View>
-        ) : null}
-      </View>
+      {/* A preview shows no controls: nothing on it takes a touch. */}
+      {preview ? null : (
+        <>
+        {/* 圖層控制（左上）。iNat 疊圖放這裡而不是右欄：184px 高的地圖右側已經排了
+            五個鈕，第六個會被裁掉；而且「要顯示什麼」與底圖切換本來就是同一類。 */}
+        <View className="absolute left-1.5 top-1.5 gap-1.5">
+          <BasemapToggle basemap={basemap} onPress={onCycleBasemap} />
+          {inat ? (
+            <View className="self-start">
+              <CtrlButton
+                icon={inat.on ? 'grid' : 'grid-outline'}
+                onPress={inat.toggle}
+                label={t('inatGrid.toggle')}
+              />
+            </View>
+          ) : null}
+        </View>
 
-      {/* Zoom + expand controls (top-right) */}
-      <View className="absolute right-1.5 top-1.5 gap-1.5">
-        {onExpand ? (
-          <CtrlButton icon="expand-outline" onPress={onExpand} label={t('locMap.expand')} />
-        ) : null}
-        <CtrlButton icon="add" onPress={() => zoom(1 / ZOOM_FACTOR)} label={t('locMap.zoomIn')} />
-        <CtrlButton icon="remove" onPress={() => zoom(ZOOM_FACTOR)} label={t('locMap.zoomOut')} />
-        <CtrlButton icon="locate" onPress={handleLocate} label={t('locMap.locateMe')} />
-        <CtrlButton icon="keypad-outline" onPress={onType} label={t('locMap.enterTitle')} />
-      </View>
+        {/* Zoom + expand controls (top-right) */}
+        <View className="absolute right-1.5 top-1.5 gap-1.5">
+          {onExpand ? (
+            <CtrlButton icon="expand-outline" onPress={onExpand} label={t('locMap.expand')} />
+          ) : null}
+          <CtrlButton icon="add" onPress={() => zoom(1 / ZOOM_FACTOR)} label={t('locMap.zoomIn')} />
+          <CtrlButton icon="remove" onPress={() => zoom(ZOOM_FACTOR)} label={t('locMap.zoomOut')} />
+          <CtrlButton icon="locate" onPress={handleLocate} label={t('locMap.locateMe')} />
+          <CtrlButton icon="keypad-outline" onPress={onType} label={t('locMap.enterTitle')} />
+        </View>
+        </>
+      )}
     </View>
   );
 }

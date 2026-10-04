@@ -75,6 +75,7 @@ export type SurveyErrorCode =
   | 'blind_open'
   | 'label_taken'
   | 'template_breaking'
+  | 'template_in_use'
   | 'builtin_template'
   | 'bad_component'
   | 'bad_value'

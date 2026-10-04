@@ -629,12 +629,22 @@ ok(SAMPLE_TEMPLATES.some((t) => t.quick_add) && SAMPLE_TEMPLATES.some((t) => !t.
       comp('lay', 'structure', 'survey', { layers: 4, methods: ['BB'] }),
       comp('met', 'method', 'survey', { methods: [], fixed: null, custom: true }),
       comp('cmt', 'comments', 'survey'),
+      // 空間資料 modules (2026-10-04), out of order on purpose: the group shows centre, site, track.
+      comp('trk', 'track', 'survey'),
+      comp('ctr', 'centre', 'survey'),
+      comp('ste', 'site', 'survey'),
     ],
   });
   const gp = surveyGroups(withMore('plot'));
-  ok(gp.map((g) => `${g.key}:${g.components.map((x) => x.key).join('+')}`).join() === 'basic:env+sph+cmt,time:ts,space:,method:met', `groups: by type; a plot's survey layers in none (${gp.map((g) => `${g.key}:${g.components.map((x) => x.key).join('+')}`)})`);
+  ok(gp.map((g) => `${g.key}:${g.components.map((x) => x.key).join('+')}`).join() === 'basic:env+sph+cmt,time:ts,space:ctr+ste+trk,method:met', `groups: by type; a plot's survey layers in none; 空間資料 in its own order (${gp.map((g) => `${g.key}:${g.components.map((x) => x.key).join('+')}`)})`);
   ok(surveyGroups(withMore('checklist'))[0].components.some((x) => x.key === 'lay'), 'groups: a checklist survey’s layers are 基本資料');
-  ok(surveyGroups(mk(['count'])).map((g) => g.key).join() === 'basic,time,space', 'groups: no 調查法 group without a Method');
+  ok(surveyGroups(mk(['count'])).map((g) => g.key).join() === 'basic,time', 'groups: no 空間資料 without its modules, no 調查法 without a Method');
+  const onlyTrack = { ...withMore('plot'), components: withMore('plot').components.filter((x) => x.key !== 'ctr' && x.key !== 'ste') };
+  const ot = surveyGroups(onlyTrack).find((g) => g.key === 'space');
+  ok(ot?.components.map((x) => x.key).join() === 'trk' && groupStatus(ot, {}, { investigators: null, start_ts: 1, stop_ts: null, lat: 24, site_id: 3, track_geojson: null }).total === 1, 'groups: 空間資料 counts only the modules the template has');
+  const reqSpace = { key: 'space', components: [{ ...comp('ctr', 'centre', 'survey'), required: true }, { ...comp('trk', 'track', 'survey'), required: true }] };
+  const rs = groupStatus(reqSpace, {}, { investigators: null, start_ts: 1, stop_ts: null, lat: 24, site_id: null, track_geojson: null });
+  ok(rs.filled === 1 && rs.total === 2 && rs.missing === 1, `groups: a 必填 spatial module without its value is missing (${JSON.stringify(rs)})`);
   const vals = { env: { slope_deg: 3, aspect_deg: null }, sph: { photos: [] }, cmt: { notes: '' }, met: {} };
   const status = Object.fromEntries(gp.map((g) => [g.key, groupStatus(g, vals, facts)]));
   ok(status.basic.filled === 2 && status.basic.total === 4, `groups: 基本資料 counts its components with something in them, and the surveyors (${JSON.stringify(status.basic)})`);
@@ -725,6 +735,30 @@ ok(all('PRAGMA foreign_key_check').length === 0, 'integrity: foreign_key_check c
   ok(tp.getTemplate(ctx, id)?.version === additive.version, 'archive: still readable (surveys and copies)');
   tp.setTemplateArchived(ctx, id, false);
   ok(ids().includes(id) && !tp.isTemplateArchived(ctx, id), 'archive: brought back');
+}
+
+// ── deleting a template no survey uses (asked 2026-10-04) ──────────────────
+{
+  const del = tp.saveTemplate(ctx, { ...tp.getTemplate(ctx, 'user:checklist'), id: 'user:to-delete', name: { text: '要刪的' } });
+  tp.saveTemplate(ctx, { ...del, name: { text: '要刪的 v2' } });
+  tp.saveDraft(ctx, { ...del, name: { text: '草稿' } }, 2);
+  tp.setTemplateArchived(ctx, 'user:to-delete', true);
+  ok(tp.templateDeleteBlocker(ctx, 'user:to-delete') === null, 'delete: an unused template may go');
+  tp.deleteTemplate(ctx, 'user:to-delete');
+  ok(count('survey_templates', 'template_id = ?', 'user:to-delete') === 0 && count('survey_template_drafts', 'template_id = ?', 'user:to-delete') === 0 && count('survey_template_archive', 'template_id = ?', 'user:to-delete') === 0, 'delete: every version, the draft and the archive mark go');
+  ok(tp.getTemplate(ctx, 'user:to-delete') == null && !tp.listTemplates(ctx, { archived: 'include' }).some((x) => x.id === 'user:to-delete'), 'delete: gone from the lists');
+  ok(tp.templateDeleteBlocker(ctx, 'user:checklist') === 'in_use', 'delete: not while a survey uses it');
+  throwsCode(() => tp.deleteTemplate(ctx, 'user:checklist'), 'template_in_use', 'delete: refused while in use');
+  ok(tp.getTemplate(ctx, 'user:checklist') != null, 'delete: a refused delete leaves it');
+  // A permanent plot's series alone keeps it too.
+  const onSeries = tp.saveTemplate(ctx, { ...del, id: 'user:series-only', name: { text: '系列' } });
+  const frameId = one('SELECT id FROM fw_frames LIMIT 1')?.id;
+  ok(frameId != null, 'delete: a frame for the series test');
+  sqlite.prepare(`INSERT INTO fw_frame_series (uuid, frame_id, template_id, series_code, created_at, updated_at) VALUES ('ser-del', ?, ?, 'ZZ', 1, 1)`).run(frameId, onSeries.id);
+  ok(tp.templateDeleteBlocker(ctx, onSeries.id) === 'in_use', 'delete: not while a permanent plot\'s series names it');
+  sqlite.prepare(`DELETE FROM fw_frame_series WHERE uuid = 'ser-del'`).run();
+  ok(tp.templateDeleteBlocker(ctx, STEMMAP_TEMPLATE.id) === 'builtin' && tp.templateDeleteBlocker(ctx, 'sample:checklist') === 'builtin', 'delete: never a built-in or a sample');
+  throwsCode(() => tp.deleteTemplate(ctx, STEMMAP_TEMPLATE.id), 'builtin_template', 'delete: a built-in is refused');
 }
 
 // ── a recheck starts with the previous environment values (2D-a) ─────────

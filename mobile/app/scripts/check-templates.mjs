@@ -31,7 +31,8 @@
  *
  * Run: npm run check:templates
  */
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
+const readdirRecursive = (dir) => readdirSync(dir).flatMap((n) => (statSync(`${dir}/${n}`).isDirectory() ? readdirRecursive(`${dir}/${n}`) : [`${dir}/${n}`]));
 import {
   ABUNDANCE_KINDS,
   ABUNDANCE_TYPE,
@@ -44,8 +45,10 @@ import {
   defaultLevelOf,
   defaultParamsOf,
   exportMapOf,
+  fixedAt,
   LEVEL_TABLE,
   PHENOLOGY_FIELDS,
+  SPATIAL_TYPES,
 } from '../src/survey/registry.ts';
 import { AMS_VARIABLES } from '../src/survey/codesets/forestgeoAms2021.ts';
 import { BUILTIN_INTERACTIONS } from '../src/survey/codesets/interactions.ts';
@@ -55,6 +58,8 @@ import { componentProblems, storeBlockers } from '../src/survey/componentRules.t
 import { migratedDb, schemaColumns } from './schema-columns.mjs';
 import { STYLE_LEVELS } from '../src/survey/template/types.ts';
 import { classifyChange, templateHash, validateTemplate, withRequired } from '../src/survey/template/validate.ts';
+import { normalizeTemplate, parseSnapshot } from '../src/survey/template/normalize.ts';
+import { requiredByAuthor } from '../src/survey/componentRules.ts';
 import { STEMMAP_TEMPLATE } from '../src/survey/templates/stemmap.ts';
 import { BUILTIN_TEMPLATES } from '../src/survey/templates/builtins.ts';
 import { SAMPLE_PLOT_TEMPLATE } from '../src/survey/templates/samples.ts';
@@ -156,7 +161,8 @@ for (const d of componentDefs()) {
         }
       }
       const map = exportMapOf(d, params, level);
-      if (!OWN_ROWS[d.type]) ok(`${d.type}@${level}: has an export mapping`, Object.keys(map.dwc ?? {}).length + Object.keys(map.mof ?? {}).length > 0);
+      // A row-fixed module (the 空間資料 three) is exported with its owner row instead.
+      if (!OWN_ROWS[d.type] && !d.rowFixed) ok(`${d.type}@${level}: has an export mapping`, Object.keys(map.dwc ?? {}).length + Object.keys(map.mof ?? {}).length > 0);
       for (const term of Object.values(map.dwc ?? {})) ok(`${d.type}: dwc:${term} is a current Darwin Core term`, DWC_TERMS.has(`http://rs.tdwg.org/dwc/terms/${term}`));
     }
   }
@@ -346,7 +352,8 @@ eq('components moved: a change, nothing breaks', classifyChange(SAMPLE_PLOT_TEMP
   const pl = E.blankTemplate('plot', 'user:b', E.makeLabel('樣區'), E.makeLabel('小區', 'Subplot'));
   eq('blank: checklist is valid', validateTemplate(cl), []);
   eq('blank: plot is valid', validateTemplate(pl), []);
-  eq('blank: always-present components are in', cl.components.map((c) => c.type).sort(), ['comments', 'investigators', 'taxon', 'timestamp']);
+  eq('blank: always-present components, the 空間資料 modules and a species\' comments', cl.components.map((c) => c.type).sort(), ['centre', 'comments', 'comments', 'investigators', 'site', 'taxon', 'timestamp', 'track']);
+  ok('blank: the species\' comments is an optional module, schema 2', cl.components.some((c) => c.type === 'comments' && c.level === 'occurrence' && !c.required) && cl.schema === 2);
   eq('blank: quick add on a checklist, off on a plot', [cl.quick_add, pl.quick_add], [true, false]);
   eq('places: checklist', E.placesOf(cl), [{ level: 'survey' }, { level: 'occurrence' }]);
   eq('places: plot (no permanent-plot level)', E.placesOf(pl).map((p) => p.level), ['survey', 'unit', 'occurrence']);
@@ -624,6 +631,73 @@ eq('components moved: a change, nothing breaks', classifyChange(SAMPLE_PLOT_TEMP
   eq('openness: environment changing from % to grades needs a new survey', pc('environment', { fields: ['openness'] }, { fields: ['openness'], openness_list: 'o' }), 'breaking');
   const T = withRequired({ ...base, id: 'user:open', version: 1, style: 'plot', units: [], components: [{ key: 'env', type: 'environment', level: 'survey', required: false, params: { fields: ['openness'], openness_list: 'missing' } }], codelists: [] });
   ok('openness: an unknown list is refused', validateTemplate(T).some((e) => /unknown code list missing/.test(e)));
+}
+
+// ── 11. schema 2: 空間資料 modules and comments by level (2026-10-04) ──────
+{
+  const v1 = {
+    schema: 1,
+    id: 'user:old',
+    version: 3,
+    origin: 'user',
+    name: { text: '舊模板' },
+    style: 'checklist',
+    components: [
+      { key: 'site', type: 'choice', level: 'survey', required: false, params: { list: 'l', multi: false } },
+      { key: 'occ_notes', type: 'comments', level: 'occurrence', required: true, params: {} },
+    ],
+    codelists: [{ id: 'l', label: { text: 'L' }, items: [{ code: 'a', label: { text: 'A' } }, { code: 'b', label: { text: 'B' } }] }],
+    quick_add: true,
+  };
+  const n = normalizeTemplate(withRequired(v1));
+  eq('normalize: schema 2', n.schema, 2);
+  eq(
+    'normalize: the three modules added on the survey level, after the rest; a taken key gets a suffix',
+    n.components.filter((c) => SPATIAL_TYPES.includes(c.type)).map((c) => `${c.type}:${c.key}:${c.level}:${c.required}`),
+    ['centre:centre:survey:false', 'site:site_2:survey:false', 'track:track:survey:false'],
+  );
+  ok('normalize: a schema-1 species comment was fixed, not 必填', n.components.find((c) => c.key === 'occ_notes').required === false && !requiredByAuthor(n.components.find((c) => c.key === 'occ_notes')));
+  ok('normalize: idempotent and deterministic', JSON.stringify(normalizeTemplate(n)) === JSON.stringify(n) && JSON.stringify(normalizeTemplate(withRequired(v1))) === JSON.stringify(n));
+  eq('normalize: valid', validateTemplate(n), []);
+  ok('normalize: a census template is left as it is', normalizeTemplate(STEMMAP_TEMPLATE) === STEMMAP_TEMPLATE);
+  ok('normalize: a schema-2 template is left as it is', normalizeTemplate(n) === n || JSON.stringify(normalizeTemplate(n)) === JSON.stringify(n));
+  eq('parseSnapshot: the stored text, normalized', parseSnapshot(JSON.stringify(v1)).components.filter((c) => SPATIAL_TYPES.includes(c.type)).length, 3);
+  // Dropping a module the old template implicitly had: not a change a running survey can take.
+  eq('normalize: removing the centre from a schema-1 template is breaking', classifyChange(n, { ...n, version: 4, components: n.components.filter((c) => c.type !== 'centre') }), 'breaking');
+  eq('normalize: the same template saved as schema 2 is the same', classifyChange(n, { ...n, version: 4 }), 'same');
+  // comments: always present on the survey level only
+  ok('fixedAt: comments on the survey level only', fixedAt(componentDef('comments'), 'survey') && !fixedAt(componentDef('comments'), 'occurrence') && !fixedAt(componentDef('comments'), 'unit'));
+  ok('fixedAt: taxon wherever it sits', fixedAt(componentDef('taxon'), 'occurrence') && fixedAt(componentDef('taxon'), 'individual'));
+  const occR = { ...n, components: n.components.map((c) => (c.key === 'occ_notes' ? { ...c, required: true } : c)) };
+  eq('comments: a species\' comments may be 必填', validateTemplate(occR), []);
+  ok('comments: … and then is the author\'s', requiredByAuthor(occR.components.find((c) => c.key === 'occ_notes')));
+  ok('comments: never the survey\'s', !requiredByAuthor(n.components.find((c) => c.type === 'comments' && c.level === 'survey')));
+  const noSurveyNotes = { ...n, components: n.components.filter((c) => !(c.type === 'comments' && c.level === 'survey')) };
+  ok('comments: missing on the survey level is reported even with a species\' comments', validateTemplate(noSurveyNotes).includes('missing required component comments'));
+  const back = withRequired(noSurveyNotes);
+  ok('comments: withRequired puts the survey\'s back, under a free key', back.components.filter((c) => c.type === 'comments' && c.level === 'survey').length === 1 && new Set(back.components.map((c) => c.key)).size === back.components.length);
+  ok('comments: the survey\'s cannot be optional', validateTemplate({ ...n, components: n.components.map((c) => (c.type === 'comments' && c.level === 'survey' ? { ...c, required: false } : c)) }).some((p) => p.includes('is always required')));
+  const bare = { ...n, components: n.components.filter((c) => c.key !== 'occ_notes') };
+  ok('comments: addable on a species and a unit, not on the survey', E.addableTypes(bare, { level: 'occurrence' }).includes('comments') && !E.addableTypes(bare, { level: 'survey' }).includes('comments'));
+  const plotT = E.blankTemplate('plot', 'user:p', E.makeLabel('P'), E.makeLabel('小區'));
+  ok('comments: addable on a unit level', E.addableTypes(plotT, { level: 'unit', unit: plotT.units[0].key }).includes('comments'));
+  ok('comments: a species\' comments can be removed and made 必填; the survey\'s cannot', !E.isFixedComponent(occR, occR.components.find((c) => c.key === 'occ_notes')) && E.isFixedComponent(n, n.components.find((c) => c.type === 'comments' && c.level === 'survey')) && E.updateComponent(n, 'occ_notes', { required: true }).components.find((c) => c.key === 'occ_notes').required === true);
+  // spatial modules in the builder
+  const noSpace = { ...n, components: n.components.filter((c) => !SPATIAL_TYPES.includes(c.type)) };
+  ok('spatial: addable on the survey level of a checklist / plot template', SPATIAL_TYPES.every((type) => E.addableTypes(noSpace, { level: 'survey' }).includes(type)));
+  ok('spatial: once each', SPATIAL_TYPES.every((type) => !E.addableTypes(n, { level: 'survey' }).includes(type)));
+  ok('spatial: not in a census', SPATIAL_TYPES.every((type) => !componentDef(type).styles.includes('individual')));
+  ok('spatial: removable', E.removeComponent(n, 'centre').components.every((c) => c.type !== 'centre'));
+  ok('spatial: the survey row\'s columns, no export map of their own', SPATIAL_TYPES.every((type) => componentDef(type).rowFixed === true));
+  // Every template read goes through normalize: no other parse of a template (the census keeps schema 1).
+  const PARSE_OK = new Set(['src/survey/template/normalize.ts', 'src/survey/db/stemmapCore.ts', 'src/survey/stemmap/censusTables.ts', 'src/db/migrations.ts']);
+  const raw = [];
+  for (const f of readdirRecursive('src')) {
+    if (PARSE_OK.has(f) || !/\.(ts|tsx)$/.test(f)) continue;
+    const text = readFileSync(f, 'utf8');
+    if (/(?<!normalizeTemplate\()JSON\.parse\([^)]*\)\s*as\s*SurveyTemplate/.test(text) || /JSON\.parse\([^;]*template_snapshot/.test(text)) raw.push(f);
+  }
+  eq('normalize: no template is parsed around it', raw, []);
 }
 
 // ── 5. hash ─────────────────────────────────────────────────────────────────

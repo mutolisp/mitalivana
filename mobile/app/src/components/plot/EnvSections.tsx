@@ -63,6 +63,7 @@ export function CentreLocationCard({
   onPlace,
   onDrawBoundary,
   required = true,
+  mapPreview = false,
 }: {
   lat: number | null;
   lng: number | null;
@@ -76,6 +77,8 @@ export function CentreLocationCard({
   onPlace: (lat: number, lng: number, accuracy: number | null) => void;
   /** Absent: no boundary link (a survey with no boundary of its own). */
   onDrawBoundary?: () => void;
+  /** The small map as a still preview that opens full screen (inside a scrolling page). */
+  mapPreview?: boolean;
 }) {
   const c = useThemeColors();
   const { t } = useTranslation();
@@ -112,7 +115,7 @@ export function CentreLocationCard({
           draws the plot boundary: one map for centre and boundary, instead
           of a second native map in its own section below. */}
       <SwipeBlockedArea>
-        <RecordLocationMap lat={lat} lng={lng} accuracy={accuracy} area={boundary} onChange={onPlace} />
+        <RecordLocationMap lat={lat} lng={lng} accuracy={accuracy} area={boundary} onChange={onPlace} preview={mapPreview} />
       </SwipeBlockedArea>
       {onDrawBoundary ? (
         <>

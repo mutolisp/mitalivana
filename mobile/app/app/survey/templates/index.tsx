@@ -11,11 +11,12 @@
 import { router, Stack, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { showActionSheet } from '~/components/ActionSheet';
 import { Button } from '~/components/ui/Button';
 import { ListRow } from '~/components/ui/ListRow';
+import { errText } from '~/lib/errText';
 import { BackHeaderLeft } from '~/lib/goBack';
 import { startModularOnFrameAndOpen, startModularSurveyAndOpen } from '~/lib/recordCreate';
 import { useToast } from '~/stores/toast';
@@ -24,7 +25,7 @@ import { startCensusWithTemplate } from '~/survey/builder/start';
 import { BUILTIN_TEMPLATES } from '~/survey/templates/builtins';
 import { labelText } from '~/survey/components/editors/shared';
 import { styleName } from '~/survey/builder/words';
-import { discardDraft, listDrafts, setTemplateArchived, templateUseCounts } from '~/survey/db/surveys';
+import { deleteTemplate, discardDraft, listDrafts, setTemplateArchived, templateDeleteBlocker, templateUseCounts } from '~/survey/db/surveys';
 import { templateHash } from '~/survey/template/validate';
 import { templateName } from '~/survey/form/text';
 import type { SurveyTemplate } from '~/survey/template/types';
@@ -73,6 +74,34 @@ export default function TemplatesScreen() {
       .join(' · ');
   };
 
+  /** 刪除, offered only while no survey uses the template (asked 2026-10-04); archiving stays for those that are used. */
+  const deleteItem = (tpl: SurveyTemplate) =>
+    templateDeleteBlocker(tpl.id) === null
+      ? [
+          {
+            label: t('builder.action.delete'),
+            destructive: true,
+            run: () =>
+              Alert.alert(t('builder.delete.title'), t('builder.delete.msg', { name: name(tpl) }), [
+                { text: t('common.cancel'), style: 'cancel' },
+                {
+                  text: t('builder.action.delete'),
+                  style: 'destructive',
+                  onPress: () => {
+                    try {
+                      deleteTemplate(tpl.id);
+                      toast(t('builder.delete.done', { name: name(tpl) }));
+                    } catch (e) {
+                      Alert.alert(t('builder.delete.title'), errText(e));
+                    }
+                    reload();
+                  },
+                },
+              ]),
+          },
+        ]
+      : [];
+
   const mineMenu = async (tpl: SurveyTemplate) => {
     const items: { label: string; destructive?: boolean; run: () => unknown }[] = [
       ...(tpl.style === 'individual'
@@ -91,6 +120,7 @@ export default function TemplatesScreen() {
           reload();
         },
       },
+      ...deleteItem(tpl),
     ];
     const idx = await showActionSheet({ title: name(tpl), options: items.map((x) => ({ label: x.label, destructive: x.destructive })), cancelLabel: t('common.cancel') });
     await items[idx]?.run();
@@ -106,8 +136,9 @@ export default function TemplatesScreen() {
         },
       },
       { label: t('builder.action.copy'), run: () => copyTemplateAndEdit(tpl) },
+      ...deleteItem(tpl),
     ];
-    const idx = await showActionSheet({ title: name(tpl), options: items.map((x) => ({ label: x.label })), cancelLabel: t('common.cancel') });
+    const idx = await showActionSheet({ title: name(tpl), options: items.map((x) => ({ label: x.label, destructive: 'destructive' in x ? x.destructive : undefined })), cancelLabel: t('common.cancel') });
     await items[idx]?.run();
   };
 

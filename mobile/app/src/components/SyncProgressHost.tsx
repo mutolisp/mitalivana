@@ -11,7 +11,9 @@
  * or down and to either edge. The right edge by default: map controls sit at
  * the top and bottom right, and iOS's back swipe starts at the left edge.
  * Folded stays folded, and the button where it was put, until the app
- * restarts.
+ * restarts. While the tab bar is folded into its own round button and that
+ * button is on screen, the progress is drawn as its ring instead (TabBubble,
+ * 2026-10-04), so there is one button, not two.
  */
 import { Ionicons } from '@expo/vector-icons';
 import { useKeepAwake } from 'expo-keep-awake';
@@ -23,7 +25,8 @@ import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withSpring } from 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
 import { formatBytes } from '~/lib/exportSize';
-import { useSyncProgress, type SyncProgress } from '~/stores/syncProgress';
+import { syncRatio, useSyncProgress } from '~/stores/syncProgress';
+import { useTabChrome } from '~/stores/tabChrome';
 
 const SIZE = 48;
 /** Off the edge: Android's back swipe starts within the first ~20 dp. */
@@ -32,13 +35,6 @@ const RING = 4;
 
 function KeepAwake() {
   useKeepAwake('team-sync');
-  return null;
-}
-
-/** How far the sync is, when it can tell: bytes of the file moving, else blocks of the census. */
-function ratioOf(p: SyncProgress): number | null {
-  if (p.stage !== 'record' && p.fileCount != null && p.bytesTotal > 0) return Math.min(1, p.bytesDone / p.bytesTotal);
-  if (p.blockStage && p.blockIndex != null && p.blockCount) return Math.min(1, (p.blockIndex - 1) / p.blockCount);
   return null;
 }
 
@@ -134,14 +130,16 @@ export function SyncProgressHost() {
   const p = useSyncProgress((s) => s.current);
   const collapsed = useSyncProgress((s) => s.collapsed);
   const setCollapsed = useSyncProgress((s) => s.setCollapsed);
+  // The folded tab bar's button draws this progress as its ring while it is on screen.
+  const inTabButton = useTabChrome((s) => s.bubbleShown);
   if (!p) return null;
-  const ratio = ratioOf(p);
+  const ratio = syncRatio(p);
 
   if (collapsed) {
     return (
       <View pointerEvents="box-none" className="absolute inset-0">
         <KeepAwake />
-        <Bubble ratio={ratio} />
+        {inTabButton ? null : <Bubble ratio={ratio} />}
       </View>
     );
   }

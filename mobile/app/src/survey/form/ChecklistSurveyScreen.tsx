@@ -613,8 +613,15 @@ export function ChecklistSurveyScreen({ id, openId }: { id: number; openId?: num
   const site = survey.site_id !== null ? getSite(survey.site_id) : null;
   const project = getProject(survey.project_id);
 
+  // The 空間資料 modules the template has (each optional since 2026-10-04).
+  const spaceMods = {
+    site: template.components.some((c) => c.type === 'site'),
+    centre: template.components.some((c) => c.type === 'centre'),
+    track: template.components.some((c) => c.type === 'track'),
+  };
   const handleSpatialMenu = () =>
     showSpatialMenu({
+      modules: spaceMods,
       siteName: survey.site_id !== null ? (site?.name ?? '') : null,
       hasPoint: survey.lat !== null && survey.lng !== null,
       trackHasData: trackCount > 0 || (survey.track_geojson ?? '').length > 0,
@@ -787,13 +794,15 @@ export function ChecklistSurveyScreen({ id, openId }: { id: number; openId?: num
             set={!!project && project.id !== 0}
             onPress={guard(() => setProjectSheetOpen(true))}
           />
-          <ContextChip
-            icon={site ? 'pin' : 'location-outline'}
-            label={tracking ? t('session.trackBadge', { count: trackCount }) : site ? site.name : survey.lat !== null ? t('session.located') : t('session.spatial')}
-            set={tracking || !!site || survey.lat !== null}
-            tone={tracking ? 'live' : 'default'}
-            onPress={isActive ? () => void handleSpatialMenu() : guard(() => setSiteSheetOpen(true))}
-          />
+          {spaceMods.site || spaceMods.centre || spaceMods.track ? (
+            <ContextChip
+              icon={site ? 'pin' : 'location-outline'}
+              label={tracking ? t('session.trackBadge', { count: trackCount }) : site ? site.name : survey.lat !== null ? t('session.located') : t('session.spatial')}
+              set={tracking || !!site || survey.lat !== null}
+              tone={tracking ? 'live' : 'default'}
+              onPress={isActive ? () => void handleSpatialMenu() : guard(() => (spaceMods.site ? setSiteSheetOpen(true) : void handleSpatialMenu()))}
+            />
+          ) : null}
           <ContextChip
             icon="time-outline"
             label={survey.stop_ts ? `${isoTime(survey.start_ts)}–${isoTime(survey.stop_ts)}` : isoTime(survey.start_ts)}

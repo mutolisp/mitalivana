@@ -344,7 +344,7 @@ offset 必須對應 dock **下方**的 chrome。只有兩種合法配對：
 | offset | 前提 |
 |---|---|
 | `offset={{ opened: insets.bottom }}` | 畫面 root 是 `<SafeAreaView edges={['bottom']}>` |
-| `offset={{ closed: -tabBarInset }}` | 畫面在 bottom tab navigator 內；`tabBarInset` 取自 `useTabBarInset()`（`src/lib/tabBarLayout.ts`），內容另加 `paddingBottom: tabBarInset` |
+| `<TabDock>`（`src/components/TabDock.tsx`，內部是 `offset={{ closed: -dock.lift }}`） | 畫面在 bottom tab navigator 內；上方內容另加 `paddingBottom: useTabDock().lift`。2026-10-04 起導覽列可收合成圓鈕，抬升量與兩側讓位跟著收合狀態變，所以舊寫法 `closed: -tabBarInset` 會被 `check:dock` 擋下 |
 
 分頁列自 2026-09-18 起浮在畫面上方，舊寫法 `opened: tabBarHeight`／`useBottomTabBarHeight()` 方向與數值都錯，`check:dock` 會直接擋下。只抄其中一半 → 搜尋框被推到**鍵盤後面**。這個錯已經出貨三次（KeyListView 2026-05-14、favorites 2026-06-07、collection 2026-08-29），每次都是把某個正常畫面的 offset 抄到 chrome 不同的畫面上。**新增置底搜尋框後必跑 `npm run check:dock`**（`scripts/check-bottom-dock.mjs` 檢查這個配對；純文字檢查，因為失敗樣態一定是「兩半對不上」）。結構照抄 `app/session/[id].tsx`。
 

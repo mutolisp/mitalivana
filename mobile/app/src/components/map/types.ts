@@ -152,6 +152,12 @@ export type MapCanvasProps = {
   onMapReady?: () => void;
   onRegionChangeComplete?: (region: Region) => void;
   onPress?: (coord: LatLng) => void;
+  /**
+   * false: the map does not pan, zoom, tilt or turn — a preview inside a
+   * scrolling page, so a swipe over it scrolls the page (asked 2026-10-04).
+   * Taps still arrive. Default true.
+   */
+  gestures?: boolean;
   style?: object;
   children?: ReactNode;
 };

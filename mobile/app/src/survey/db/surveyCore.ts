@@ -48,6 +48,7 @@ import { closeActiveRecords } from '../../db/activeRecords';
 import { parseMultiAttribute, serializeMultiAttribute } from '../../lib/dwcMultiValue';
 import { storeBlockers } from '../componentRules';
 import { componentDef, type ComponentValues, type FieldDef, type FieldValue } from '../registry';
+import { parseSnapshot } from '../template/normalize';
 import type { ComponentInstance, SurveyStyle, SurveyTemplate, UnitLevel } from '../template/types';
 import { templateHash, validateTemplate } from '../template/validate';
 import { recheckCandidates, recheckKey, recheckOpen, type RecheckAnswer, type RecheckOutcome, type Sighting } from '../form/recheck';
@@ -113,7 +114,7 @@ export function surveyOf(ctx: { db: SurveyDb }, id: number): FwSurveyRow {
 }
 
 export function snapshotOf(s: Pick<FwSurveyRow, 'template_snapshot'>): SurveyTemplate {
-  return JSON.parse(s.template_snapshot) as SurveyTemplate;
+  return parseSnapshot(s.template_snapshot);
 }
 
 /** The survey's unit levels, top first (empty for a checklist). */

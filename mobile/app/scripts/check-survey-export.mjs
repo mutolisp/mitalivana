@@ -198,6 +198,8 @@ const sv = tb.survey;
 ok(col(sv, 'layers.cover_pct[1]') >= 0 && col(sv, 'layers.cover_pct[3]') >= 0 && col(sv, 'layers.cover_pct[2]') < 0, `tables: a repeated field per index present (${sv.header.filter((h) => h.startsWith('layers'))})`);
 ok(sv.rows[0][col(sv, 'layers.cover_pct[1]')] === '40' && sv.rows[0][col(sv, 'template_name')] === '匯出測試' && sv.rows[0][col(sv, 'plot_code')] === 'EX1', 'tables: the survey row');
 ok(/^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d$/.test(sv.rows[0][col(sv, 'timestamp.start_ts')]), `tables: times as local stamps (${sv.rows[0][col(sv, 'timestamp.start_ts')]})`);
+// 空間資料 modules (2026-10-04; a schema-1 snapshot reads with all three): no columns of their own — survey.csv has the row's.
+ok(!sv.header.some((h) => /^(centre|site|track)\./.test(h)) && col(sv, 'lat') >= 0 && col(sv, 'gps_mode') >= 0, `tables: 空間資料 modules add no columns (${sv.header.filter((h) => /^(centre|site|track)\.|^lat$/.test(h))})`);
 const un = tb.units;
 const s1 = un.rows.find((r) => r[col(un, 'unit')] === 'S1');
 const q1 = un.rows.find((r) => r[col(un, 'unit')] === 'S1/Q1');
