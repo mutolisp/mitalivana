@@ -407,6 +407,73 @@ throwsCode(() => d.insertSurveyFromDoc(B.ctx, twin, { status: 'done', projectId:
   ok(JSON.stringify(labelled.occ[0].title) === '["sp1"]', 'review titles: a morphospecies label stays text');
 }
 
+// ── 2G-b: track, GPS mode and elevations (v88) travel only when set ───────
+{
+  const G1 = await phone('g');
+  const G = c.createSurvey(G1.ctx, { template: PL, investigators: '甲' });
+  const plain = d.buildSurveyDoc(G1.ctx, G);
+  ok(d.SURVEY_DOC_OPTIONAL_COLS.every((k) => !(k in plain.survey)), 'v88 doc: a survey without a track or elevation has none of the new keys (its document reads as before)');
+  const trackA = '{"type":"MultiLineString","coordinates":[[[121,24],[121.001,24.001]]]}';
+  c.updateSurvey(G1.ctx, G, { trackGeojson: trackA, gpsMode: 'full_track' });
+  c.noteTrackAltitude(G1.ctx, G, 1500);
+  c.noteTrackAltitude(G1.ctx, G, 1560);
+  const doc = d.buildSurveyDoc(G1.ctx, G);
+  ok(doc.survey.track_geojson === trackA && doc.survey.gps_mode === 'full_track' && doc.survey.elevation_m === 1500 && doc.survey.elevation_min_m === 1500 && doc.survey.elevation_max_m === 1560, `v88 doc: set ones are carried (${JSON.stringify(d.SURVEY_DOC_OPTIONAL_COLS.map((k) => doc.survey[k]))})`);
+  const G2 = await phone('h');
+  const Gb = d.insertSurveyFromDoc(G2.ctx, doc, { status: 'done', projectId: 0 });
+  const row = (p, id) => p.one(`SELECT track_geojson, gps_mode, elevation_m, elevation_source, elevation_min_m, elevation_max_m FROM fw_surveys WHERE id = ?`, id);
+  ok(JSON.stringify(row(G2, Gb)) === JSON.stringify(row(G1, G)), `v88 copy: the same on the other phone (${JSON.stringify(row(G2, Gb))})`);
+  const base = baseOf(side(G1, G));
+  // The other phone walks on: a second segment and a higher point.
+  const trackB = '{"type":"MultiLineString","coordinates":[[[121.01,24.01],[121.02,24.02]]]}';
+  c.updateSurvey(G2.ctx, Gb, { trackGeojson: trackB });
+  c.noteTrackAltitude(G2.ctx, Gb, 1640);
+  // This phone a lower one.
+  c.noteTrackAltitude(G1.ctx, G, 1450);
+  const items = mergeInto(G1, G, side(G2, Gb), base);
+  const after = row(G1, G);
+  ok(!items.some((it) => it.kind === 'conflict'), 'v88 merge: the walks and the ranges combine, never asked about');
+  ok(JSON.parse(after.track_geojson).coordinates.length === 2, `v88 merge: both phones' segments kept (${after.track_geojson})`);
+  ok(after.elevation_min_m === 1450 && after.elevation_max_m === 1640, `v88 merge: the range spans both phones (${after.elevation_min_m}–${after.elevation_max_m})`);
+  ok(after.gps_mode === 'full_track' && after.elevation_m === 1500, 'v88 merge: mode and the survey\'s elevation unchanged');
+  // A typed elevation on the other phone is a change like any other: taken when only it changed.
+  const base2 = baseOf(side(G1, G));
+  const G3 = await phone('i');
+  const Gc = d.insertSurveyFromDoc(G3.ctx, d.buildSurveyDoc(G1.ctx, G), { status: 'done', projectId: 0 });
+  c.updateSurvey(G3.ctx, Gc, { elevationM: 1525, elevationSource: 'manual' });
+  mergeInto(G1, G, side(G3, Gc), base2);
+  ok(row(G1, G).elevation_m === 1525 && row(G1, G).elevation_source === 'manual', 'v88 merge: a typed elevation from the other phone arrives');
+}
+
+// ── 2G-d: a subplot's size and a quadrat marked done (v89) travel only when set ──
+{
+  const U1 = await phone('u');
+  const S = c.createSurvey(U1.ctx, { template: PL, investigators: '甲' });
+  const sub = c.addUnit(U1.ctx, S, { levelKey: 'subplot', code: 'A' });
+  const q = c.addUnit(U1.ctx, S, { levelKey: 'quadrat', code: 'A1', parentId: sub });
+  const plain = d.buildSurveyDoc(U1.ctx, S);
+  ok(plain.units.every((u) => d.UNIT_DOC_OPTIONAL_COLS.every((k) => !(k in u))), 'v89 doc: units without a size or 完成 have none of the new keys (the document reads as before)');
+  c.updateUnit(U1.ctx, sub, { widthM: 10, lengthM: 5 });
+  c.setUnitDone(U1.ctx, q, true);
+  const doc = d.buildSurveyDoc(U1.ctx, S);
+  const du = (code) => doc.units.find((u) => u.code === code);
+  ok(du('A').width_m === 10 && du('A').length_m === 5 && typeof du('A1').done_at === 'number' && !('width_m' in du('A1')), `v89 doc: set ones are carried (${JSON.stringify(doc.units)})`);
+  const U2 = await phone('w');
+  const Sb = d.insertSurveyFromDoc(U2.ctx, doc, { status: 'done', projectId: 0 });
+  const unitRow = (p, id, code) => p.one(`SELECT width_m, length_m, done_at FROM fw_units WHERE survey_id = ? AND code = ?`, id, code);
+  ok(JSON.stringify([unitRow(U2, Sb, 'A'), unitRow(U2, Sb, 'A1')]) === JSON.stringify([unitRow(U1, S, 'A'), unitRow(U1, S, 'A1')]), 'v89 copy: the same on the other phone');
+  // The other phone clears the subplot's length and opens the quadrat again; this phone has not touched them.
+  const base = baseOf(side(U1, S));
+  const sbSub = U2.one(`SELECT id FROM fw_units WHERE survey_id = ? AND code = 'A'`, Sb).id;
+  const sbQ = U2.one(`SELECT id FROM fw_units WHERE survey_id = ? AND code = 'A1'`, Sb).id;
+  c.updateUnit(U2.ctx, sbSub, { lengthM: null });
+  c.setUnitDone(U2.ctx, sbQ, false);
+  const items = mergeInto(U1, S, side(U2, Sb), base);
+  ok(!items.some((it) => it.kind === 'conflict'), 'v89 merge: a change only the other phone made is not asked about');
+  ok(unitRow(U1, S, 'A').length_m == null && unitRow(U1, S, 'A').width_m === 10, `v89 merge: a cleared length arrives, the width stays (${JSON.stringify(unitRow(U1, S, 'A'))})`);
+  ok(unitRow(U1, S, 'A1').done_at == null, 'v89 merge: the quadrat opened again on the other phone is open here');
+}
+
 if (failed > 0) {
   console.error(`${failed} failure(s)`);
   process.exit(1);

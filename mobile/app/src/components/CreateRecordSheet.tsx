@@ -5,9 +5,10 @@
  *   await showCreateSheet();                  // first page
  *   await showCreateSheet({ page: 'plot' });  // straight to the plot types
  *
- * Imperative API + root host, like ActionSheet / TextPromptModal: the host
+ * Imperative API + root host, like TextPromptModal: the host
  * (`<CreateSheetHost />`) is mounted once in app/_layout.tsx; its state lives
- * in src/lib/createSheet.ts.
+ * in src/lib/createSheet.ts. Drawn in the 15C card sheet's frame
+ * (ChoiceSheet.tsx, 07-action-sheet.md §3), its pages its own.
  *
  * Pages. 樣區調查 does not close the sheet: it slides in the plot-type page
  * (replacing the ActionSheet createPlotPromptAndOpen used to show). The
@@ -23,9 +24,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useState } from 'react';
-import { Modal, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
+import { Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import Animated, { SlideInLeft, SlideInRight } from 'react-native-reanimated';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { PlotType } from '~/db';
 import { useCreateSheet } from '~/lib/createSheet';
@@ -42,7 +42,7 @@ import {
 } from '~/lib/recordCreate';
 import { templateName } from '~/survey/form/text';
 import { SURVEY_FORMS_OFFERED } from '~/survey/templates/samples';
-import { createTemplateFlow, templatesHref, userTemplates } from '~/survey/builder/drafts';
+import { createTemplateFlow, templateIcon, templatesHref, userTemplates } from '~/survey/builder/drafts';
 import { startCensusWithTemplate } from '~/survey/builder/start';
 import { styleName } from '~/survey/builder/words';
 import { labelText } from '~/survey/components/editors/shared';
@@ -50,12 +50,10 @@ import { router } from 'expo-router';
 import { useSettings, type RecordTypeDefault } from '~/stores/settings';
 import { useThemeColors, type ThemeColors } from '~/theme/colors';
 import { PointCountIcon, TransectIcon } from './PlotTypeIcons';
-import { IconDisc } from '~/components/ui/IconDisc';
+import { CHOICE_SHEET_MAX_WIDTH, ChoiceSheetFrame, ChoiceSheetHeader as SheetHeader, DISMISS_MS } from './ChoiceSheet';
 
 export { showCreateSheet } from '~/lib/createSheet';
 
-/** Long enough for the slide-out to finish on both platforms. */
-const DISMISS_MS = 450;
 /** Page-to-page slide. */
 const PAGE_MS = 220;
 
@@ -138,7 +136,6 @@ const DEFAULTS: { value: RecordTypeDefault; label: string }[] = [
 ];
 
 export function CreateSheetHost() {
-  const { t } = useTranslation();
   const visible = useCreateSheet((s) => s.resolve != null);
   const page = useCreateSheet((s) => s.page);
   const setPage = useCreateSheet((s) => s.setPage);
@@ -150,80 +147,29 @@ export function CreateSheetHost() {
   };
 
   return (
-    <Modal
+    <ChoiceSheetFrame
       visible={visible}
-      transparent
-      animationType="slide"
       // Android back: second page → first page; first page → close.
-      onRequestClose={() => (page !== 'main' ? setPage('main') : close())}
+      onBack={() => (page !== 'main' ? setPage('main') : close())}
+      onClose={close}
     >
-      <View className="flex-1 justify-end">
-        <Pressable
-          onPress={close}
-          className="absolute inset-0 bg-black/40"
-          accessibilityRole="button"
-          accessibilityLabel={t('common.close')}
-        />
-        <SafeAreaView edges={['bottom']} className="overflow-hidden rounded-t-sheet bg-card dark:bg-card-dark">
-          {/* Grabber: says "sheet", even though it is not draggable. */}
-          <View className="items-center pt-2">
-            <View className="h-1.5 w-10 rounded-full bg-gray-300 dark:bg-gray-600" />
-          </View>
-          {/* Keyed by page, so each page slides in as it mounts: the plot page
-              from the right, the first page back from the left. The sheet's
-              height follows whichever is showing. */}
-          {page === 'plot' ? (
-            <Animated.View key="plot" entering={SlideInRight.duration(PAGE_MS)}>
-              <PlotPage onBack={() => setPage('main')} onClose={close} choose={choose} />
-            </Animated.View>
-          ) : page === 'survey' ? (
-            <Animated.View key="survey" entering={SlideInRight.duration(PAGE_MS)}>
-              <SurveyPage onBack={() => setPage('main')} onClose={close} choose={choose} />
-            </Animated.View>
-          ) : (
-            <Animated.View key="main" entering={visible ? SlideInLeft.duration(PAGE_MS) : undefined}>
-              <MainPage onPlot={() => setPage('plot')} onSurvey={() => setPage('survey')} onClose={close} choose={choose} />
-            </Animated.View>
-          )}
-        </SafeAreaView>
-      </View>
-    </Modal>
-  );
-}
-
-function SheetHeader({
-  title,
-  subtitle,
-  onBack,
-  onClose,
-}: {
-  title: string;
-  subtitle?: string;
-  onBack?: () => void;
-  onClose: () => void;
-}) {
-  const { t } = useTranslation();
-  const c = useThemeColors();
-  return (
-    <View className="mb-3 flex-row items-center">
-      {onBack ? (
-        <View className="mr-1">
-          <IconDisc icon="back" onPress={onBack} accessibilityLabel={t('common.back')} edge="left" />
-        </View>
-      ) : null}
-      <View className="flex-1">
-        <Text className="text-2xl font-bold text-gray-900 dark:text-gray-100">{title}</Text>
-        {subtitle ? <Text className="text-sm text-gray-500 dark:text-gray-400">{subtitle}</Text> : null}
-      </View>
-      <Pressable
-        onPress={onClose}
-        accessibilityRole="button"
-        accessibilityLabel={t('common.close')}
-        className="h-11 w-11 items-center justify-center rounded-full active:bg-gray-100 dark:active:bg-gray-800"
-      >
-        <Ionicons name="close" size={24} color={c.ink2} />
-      </Pressable>
-    </View>
+      {/* Keyed by page, so each page slides in as it mounts: the plot page
+          from the right, the first page back from the left. The sheet's
+          height follows whichever is showing. */}
+      {page === 'plot' ? (
+        <Animated.View key="plot" entering={SlideInRight.duration(PAGE_MS)}>
+          <PlotPage onBack={() => setPage('main')} onClose={close} choose={choose} />
+        </Animated.View>
+      ) : page === 'survey' ? (
+        <Animated.View key="survey" entering={SlideInRight.duration(PAGE_MS)}>
+          <SurveyPage onBack={() => setPage('main')} onClose={close} choose={choose} />
+        </Animated.View>
+      ) : (
+        <Animated.View key="main" entering={visible ? SlideInLeft.duration(PAGE_MS) : undefined}>
+          <MainPage onPlot={() => setPage('plot')} onSurvey={() => setPage('survey')} onClose={close} choose={choose} />
+        </Animated.View>
+      )}
+    </ChoiceSheetFrame>
   );
 }
 
@@ -467,8 +413,8 @@ function SurveyPage({
   const c = useThemeColors();
   // The page width from the window, not from a layout pass: measuring first
   // left the pager a sliver tall on Android (the cards drew outside it and
-  // took no touches). The sheet spans the window; 16 pt padding each side.
-  const width = useWindowDimensions().width - 32;
+  // took no touches). The sheet spans the window (up to its 640 pt); 16 pt padding each side.
+  const width = Math.min(useWindowDimensions().width, CHOICE_SHEET_MAX_WIDTH) - 32;
   const [index, setIndex] = useState(0);
   // Read once as the page opens (not on every render).
   const [templates] = useState(() => userTemplates());
@@ -489,7 +435,7 @@ function SurveyPage({
     // The user's own templates (the builder, 2D-a), each a card.
     ...templates.map((tpl) => ({
       key: tpl.id,
-      icon: (tpl.style === 'plot' ? 'grid-outline' : tpl.style === 'individual' ? 'apps-outline' : 'list-outline') as keyof typeof Ionicons.glyphMap,
+      icon: templateIcon(tpl.style),
       title: templateName(t, i18n.language, tpl),
       desc: [styleName(t, tpl.style), t('builder.version', { n: tpl.version }), tpl.description ? labelText(t, i18n.language, tpl.description) : null].filter(Boolean).join(' · '),
       // A census template starts a census on a permanent plot (2D-b).

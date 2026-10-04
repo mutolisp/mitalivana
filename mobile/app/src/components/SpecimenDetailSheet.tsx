@@ -26,7 +26,7 @@ import {
   usePagerNav,
   type SwipeNavPagerState,
 } from './SwipeNavigator';
-import { showActionSheet } from './ActionSheet';
+import { ActionSheetLayer, sheetBack, showActionSheet } from './ActionSheet';
 import { DateTimeField } from './DateTimeField';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { isRecordNumberTaken, nextRecordNumber, type SpecimenWithTaxon } from '~/db';
@@ -380,7 +380,7 @@ export function SpecimenDetailSheet({
   };
 
   return (
-    <Modal visible animationType="slide" onRequestClose={onClose}>
+    <Modal visible animationType="slide" onRequestClose={sheetBack(onClose)}>
       {/* gesture-handler needs its own root inside a Modal's view hierarchy. */}
       <GestureHandlerRootView style={{ flex: 1 }}>
         <View className="flex-1 bg-gray-50 dark:bg-gray-900" style={{ paddingTop: insets.top }}>
@@ -775,6 +775,7 @@ export function SpecimenDetailSheet({
       />
       {/* Toasts fired while this sheet is up (it has its own window). */}
       <ToastHost inModal />
+      <ActionSheetLayer />
     </Modal>
   );
 }

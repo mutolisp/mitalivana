@@ -34,6 +34,7 @@ import { locationTerms } from '../../lib/dwcLocation';
 import { establishmentDwcValue, individualCountOf } from '../../lib/dwcMultiValue';
 import type { Row } from '../../lib/mergeEngine';
 import { AMS_VARIABLES, amsField, amsValueOf, type AmsSurvival } from '../codesets/forestgeoAms2021';
+import { methodDwc } from '../codesets/samplingMethods';
 import type { CensusExportDoc } from '../db/censusExportCore';
 import { frameGeometry, type FrameRow } from '../db/stemmapCore';
 import type { SurveyDoc } from '../db/surveyDocCore';
@@ -41,7 +42,7 @@ import { BUILTIN_CODESETS, componentDef, exportMapOf, healthCodesets, type Trait
 import { fgQuadratCounts, parseFgQuadratCode, toLatLng } from '../stemmap/coords';
 import { stemIsDead, vitality, type StemCensusInput } from '../stemmap/status';
 import type { ComponentInstance, Label, SurveyLevel, SurveyTemplate } from '../template/types';
-import { interactionTypesOf, templateOf, unitEventId, unitPaths, type Words } from './surveyExportCore';
+import { interactionTypesOf, surveyComponentValues, templateOf, unitEventId, unitPaths, unitSizeOf, type Words } from './surveyExportCore';
 
 /** An occurrence's taxon as DwC columns (taxonID, scientificName, hierarchy …). */
 export type TaxonCols = (t: { taxon_id: string; used_name_id: number | null; used_scientific_name: string | null }) => DwcRow;
@@ -317,11 +318,15 @@ export function surveyDwcRows(doc: SurveyDoc, opts: { eventId: string; uniqueEve
   const lists = new Map((tpl?.codelists ?? []).map((l) => [l.id, l]));
   const components = tpl?.components ?? [];
   const tName = tpl ? enOr(tpl.name, opts.words, str(s.template_id)) : str(s.template_id);
-  const protocol = `${tName} (Mitalivana survey template ${str(s.template_id)} v${str(s.template_version)})`;
+  const templateRef = `${tName} (Mitalivana survey template ${str(s.template_id)} v${str(s.template_version)})`;
+  // 調查法 (2G-f): its English name is the protocol; the template is then where it is described.
+  const methodComp = components.find((c) => c.type === 'method' && c.level === 'survey');
+  const method = methodComp ? methodDwc(surveyComponentValues(doc, methodComp.key), methodComp.params) : null;
+  const protocol = method?.samplingProtocol || templateRef;
+  const protocolDescriptions = method?.samplingProtocol ? [method.description, templateRef].filter(Boolean).join('; ') : '';
   const eventID = opts.uniqueEventId(opts.eventId);
   const investigators = str(s.investigators);
   if (investigators) out.creators.push(investigators);
-  const frameUnit = new Map(doc.frame_units.map((u) => [`${str(u.level_key)}:${str(u.code)}`, u]));
 
   const valuesOf = (o: Owner): Row[] =>
     o.kind === 'survey' ? doc.survey_values : o.kind === 'unit' ? doc.unit_values.filter((v) => v.unit === o.key) : doc.occurrence_values.filter((v) => v.occurrence === o.uuid);
@@ -401,18 +406,30 @@ export function surveyDwcRows(doc: SurveyDoc, opts: { eventId: string; uniqueEve
   };
 
   // The survey's event.
-  const elevation = doc.survey_values.find((v) => v.field === 'elevation_m' && v.value_num != null)?.value_num;
   const lat = num(s.lat);
+  // The survey's elevation and the range a recorded track went through (v88); a
+  // document from before v88 keeps it among the environment values.
+  const elevations = [s.elevation_m, s.elevation_min_m, s.elevation_max_m].map(num).filter((x): x is number => x != null);
+  const legacyElevation = num(doc.survey_values.find((v) => v.field === 'elevation_m' && v.value_num != null)?.value_num);
+  const elevationTerms = elevations.length
+    ? {
+        ...locationTerms(lat, Math.min(...elevations), s.elevation_source != null ? str(s.elevation_source) : s.elevation_min_m != null ? 'gnss' : null),
+        maximumElevationInMeters: Math.max(...elevations),
+      }
+    : locationTerms(lat, legacyElevation, null);
   out.events.push({
     eventID,
     eventDate: dateRange(s.start_ts, s.stop_ts),
     samplingProtocol: protocol,
+    sampleSizeValue: method?.sampleSizeValue ?? null,
+    sampleSizeUnit: method?.sampleSizeUnit ?? '',
+    samplingEffort: method?.samplingEffort ?? '',
     locationID: str(doc.frame?.uuid),
     locality: str(doc.frame?.name) || str(doc.frame?.code) || str(s.name),
     decimalLatitude: lat,
     decimalLongitude: num(s.lng),
     coordinateUncertaintyInMeters: num(s.accuracy),
-    ...locationTerms(lat, num(elevation), null),
+    ...elevationTerms,
     recordedBy: investigators,
     eventRemarks: str(s.notes),
   });
@@ -424,10 +441,7 @@ export function surveyDwcRows(doc: SurveyDoc, opts: { eventId: string; uniqueEve
     const key = `${str(u.level_key)}:${str(u.code)}`;
     const id = opts.uniqueEventId(unitEventId(eventID, paths.get(key) ?? str(u.code)));
     unitEvent.set(key, id);
-    const fu = u.on_frame ? frameUnit.get(key) : undefined;
-    const w = num(fu?.width_m);
-    const l = num(fu?.length_m);
-    const r = num(fu?.radius_m);
+    const { w, l, r } = unitSizeOf(doc, tpl, u);
     const size = w != null && l != null ? w * l : r != null ? Math.round(Math.PI * r * r * 100) / 100 : null;
     const owner: Owner = { kind: 'unit', key, levelKey: str(u.level_key) };
     out.events.push({
@@ -520,6 +534,7 @@ export function surveyDwcRows(doc: SurveyDoc, opts: { eventId: string; uniqueEve
     eventDurationValue: minutes,
     eventDurationUnit: minutes != null ? 'minutes' : null,
     protocolNames: protocol,
+    protocolDescriptions,
     samplingPerformedBy: investigators,
     isAbundanceReported: !!abundance,
     isVegetationCoverReported: kinds.includes('BB') || kinds.includes('percent') || components.some((c) => c.type === 'structure'),

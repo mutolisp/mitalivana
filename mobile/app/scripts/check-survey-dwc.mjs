@@ -204,6 +204,19 @@ const sp = surveyDwcRows(sdoc, { eventId: 'VP1_20261003', uniqueEventId: unique(
 checkLinks(sp, 'survey');
 const ev = sp.events[0];
 ok(ev.eventID === 'VP1_20261003' && ev.locationID === s.getFrame(ctx, PF).uuid && ev.minimumElevationInMeters === 820 && ev.recordedBy === '乙', `survey: its event, plot, elevation, recorder (${JSON.stringify(ev)})`);
+ok(ev.maximumElevationInMeters === 820, 'survey: one elevation is both the minimum and the maximum');
+// A recorded track's altitudes (v88): the event spans them, its own elevation included.
+{
+  const ranged = { ...sdoc, survey: { ...sdoc.survey, elevation_min_m: 790, elevation_max_m: 905 } };
+  const re = surveyDwcRows(ranged, { eventId: 'VP1_20261003', uniqueEventId: unique(), taxonCols, words }).events[0];
+  ok(re.minimumElevationInMeters === 790 && re.maximumElevationInMeters === 905, `survey: a track's range of altitudes (${re.minimumElevationInMeters}–${re.maximumElevationInMeters})`);
+  const low = surveyDwcRows({ ...sdoc, survey: { ...sdoc.survey, elevation_min_m: 850, elevation_max_m: 870 } }, { eventId: 'VP1_20261003', uniqueEventId: unique(), taxonCols, words }).events[0];
+  ok(low.minimumElevationInMeters === 820 && low.maximumElevationInMeters === 870, `survey: the survey's own elevation stays inside the range (${low.minimumElevationInMeters}–${low.maximumElevationInMeters})`);
+  // A document from before v88 keeps the survey's elevation among the environment values.
+  const old = { ...sdoc, survey: { ...sdoc.survey, elevation_m: undefined }, survey_values: [...sdoc.survey_values, { uuid: 'x', component: 'env', field: 'elevation_m', idx: 0, value_num: 700, value_text: null, unit: 'm' }] };
+  const oe = surveyDwcRows(old, { eventId: 'VP1_20261003', uniqueEventId: unique(), taxonCols, words }).events[0];
+  ok(oe.minimumElevationInMeters === 700, `survey: an older document's environment elevation (${oe.minimumElevationInMeters})`);
+}
 ok(/^Valley plots \(Mitalivana survey template user:survey-dwc v2\)$/.test(ev.samplingProtocol), `survey: the protocol is the template, English name first (${ev.samplingProtocol})`);
 const uS1 = sp.events.find((e) => e.eventID === 'VP1_20261003-S1');
 const uQ1 = sp.events.find((e) => e.eventID === 'VP1_20261003-S1-Q1');
@@ -222,6 +235,63 @@ const absent = sp.occurrences.find((x) => x.occurrenceStatus === 'absent');
 ok(absent && absent.taxonID === 't8' && absent.coreEventID === uS1.eventID && absent.occurrenceRemarks === REMARKS.absentOnRecheck && /\(recorded in the previous survey/.test(REMARKS.absentOnRecheck), `survey: a species not found on the recheck is an absence where it was looked for (${JSON.stringify(absent)})`);
 ok(sp.occurrences.filter((x) => x.occurrenceStatus === 'present').length === sdoc.occurrences.length, 'survey: every occurrence present');
 ok(sp.humboldt[0].isAbsenceReported === true && sp.humboldt[0].isAbundanceReported === true && sp.humboldt[0].isVegetationCoverReported === true && sp.humboldt[0].siteNestingDescription === '1 × Subplot; 1 × 小樣方', `survey: Humboldt says what is reported (${JSON.stringify(sp.humboldt[0])})`);
+
+// ── 調查法 and 開闊度 (2G-f): the event's protocol, size and effort; unit sizes ──
+{
+  const MT = withRequired({
+    schema: 1,
+    id: 'user:dwc-method',
+    version: 1,
+    origin: 'user',
+    name: { text: '方法', tr: { en: 'Methods' } },
+    style: 'plot',
+    units: [
+      { key: 'u1', label: { text: '小區' } },
+      { key: 'u2', label: { text: '小樣方' } },
+    ],
+    components: [
+      { key: 'method', type: 'method', level: 'survey', required: false, params: { methods: [], fixed: null, custom: true } },
+      { key: 'env', type: 'environment', level: 'survey', required: false, params: { fields: ['slope_deg', 'openness'] } },
+      { key: 'genv', type: 'environment', level: 'unit', unit: 'u1', required: false, params: { fields: ['openness'], openness_list: 'open' } },
+    ],
+    codelists: [{ id: 'open', label: { text: '開闊度等級', tr: { en: 'Openness grade' } }, items: [{ code: '1', label: { text: '封閉' } }, { code: '5', label: { text: '開闊' } }] }],
+    quick_add: false,
+  });
+  const M = c.createSurvey(ctx, { template: MT, investigators: '戊' });
+  const sub = c.addUnit(ctx, M, { levelKey: 'u1', code: 'S1' });
+  c.updateUnit(ctx, sub, { widthM: 10, lengthM: 10 });
+  const q1 = c.addUnit(ctx, M, { levelKey: 'u2', code: 'Q1', parentId: sub });
+  const q2 = c.addUnit(ctx, M, { levelKey: 'u2', code: 'Q2', parentId: sub });
+  c.updateUnit(ctx, q2, { widthM: 2, lengthM: 2 });
+  c.writeComponent(ctx, { kind: 'survey', id: M }, 'method', { protocol: 'plot_survey', width_m: 20, length_m: 20, description: '沿等高線', quadrat_w_m: 1, quadrat_l_m: 1 });
+  c.writeComponent(ctx, { kind: 'survey', id: M }, 'env', { slope_deg: 10, openness_pct: 35 });
+  c.writeComponent(ctx, { kind: 'unit', id: sub }, 'genv', { openness_grade: '5' });
+  const run = (doc) => surveyDwcRows(doc, { eventId: 'M1', uniqueEventId: unique(), taxonCols, words });
+  const mdoc = d.buildSurveyDoc(ctx, M);
+  const mp = run(mdoc);
+  const me = mp.events[0];
+  ok(me.samplingProtocol === 'plot survey' && me.sampleSizeValue === 400 && me.sampleSizeUnit === 'm²' && !me.samplingEffort, `method: the protocol is the method's English name, its area the sample size (${JSON.stringify(me)})`);
+  ok(mp.humboldt[0].protocolNames === 'plot survey' && /^沿等高線; Methods \(Mitalivana survey template user:dwc-method v1\)$/.test(mp.humboldt[0].protocolDescriptions), `method: Humboldt names it and describes it, with the template (${mp.humboldt[0].protocolDescriptions})`);
+  const size = (code) => mp.events.find((e) => e.eventID.endsWith(`-${code}`))?.sampleSizeValue;
+  ok(size('S1') === 100 && size('S1-Q1') === 1 && size('S1-Q2') === 4, `method: a unit's own size, else (a quadrat) the method's shared one (${size('S1')}, ${size('S1-Q1')}, ${size('S1-Q2')})`);
+  const om = mp.measurements.filter((m) => m.measurementType === 'sky openness');
+  ok(om.some((m) => m.measurementValue === '35' && m.measurementUnit === '%' && m.coreEventID === me.eventID) && om.some((m) => m.measurementValue === '5' && !m.measurementUnit), `openness: a percentage on the survey, a grade on the subplot (${JSON.stringify(om)})`);
+  // Other methods: an effort with its unit; one's own name and a duration; the one the template fixes.
+  const withValues = (vals, params = MT.components[0].params) => {
+    const comp = { ...MT.components[0], params };
+    const tpl = { ...MT, components: [comp, ...MT.components.slice(1)] };
+    const values = Object.entries(vals).map(([field, v]) => ({ uuid: `m-${field}`, component: 'method', field, idx: 0, value_num: typeof v === 'number' ? v : null, value_text: typeof v === 'string' ? v : null, unit: null }));
+    return run({ ...mdoc, survey: { ...mdoc.survey, template_snapshot: JSON.stringify(tpl) }, survey_values: values }).events[0];
+  };
+  const cam = withValues({ protocol: 'camera_trap', effort_value: 1000, effort_unit: 'camera-hours' });
+  ok(cam.samplingProtocol === 'camera trap' && cam.samplingEffort === '1000 camera-hours' && cam.sampleSizeValue == null, `method: an effort with its unit (${JSON.stringify(cam)})`);
+  const own = withValues({ protocol: 'custom', protocol_name: '手撈網', size_value: 30, size_unit: 'min' });
+  ok(own.samplingProtocol === '手撈網' && own.sampleSizeValue === 30 && own.sampleSizeUnit === 'min', `method: one's own, with a duration (${JSON.stringify(own)})`);
+  const fixed = withValues({}, { methods: [], fixed: 'point_count', custom: false });
+  ok(fixed.samplingProtocol === 'point count', `method: the one the template fixes when none was recorded (${fixed.samplingProtocol})`);
+  const none = withValues({});
+  ok(/^Methods \(Mitalivana survey template/.test(none.samplingProtocol) && none.sampleSizeValue == null, `method: nothing recorded, the template is the protocol as before (${none.samplingProtocol})`);
+}
 
 // ── interactions as ResourceRelationship (2F-b) ───────────────────────────
 const IX = withRequired({

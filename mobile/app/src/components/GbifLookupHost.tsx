@@ -66,6 +66,7 @@ import { matchScientificName } from '~/lib/sciMatch';
 
 import { useThemeColors } from '~/theme/colors';
 import { Button } from '~/components/ui/Button';
+import { ActionSheetLayer, sheetBack } from '~/components/ActionSheet';
 
 /** What the caller gets back: a taxon that is now usable, plus whether it
  *  turned out to be a LOCAL one GBIF led us to (no external taxon minted). */
@@ -522,7 +523,7 @@ export function GbifLookupHost() {
   };
 
   return (
-    <Modal visible={query !== null} animationType="slide" onRequestClose={onClose}>
+    <Modal visible={query !== null} animationType="slide" onRequestClose={sheetBack(onClose)}>
       <View
         className="flex-1 bg-card dark:bg-gray-900"
         style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
@@ -962,6 +963,7 @@ export function GbifLookupHost() {
           </KeyboardAvoidingView>
         ) : null}
       </View>
+      <ActionSheetLayer visible={query !== null} />
     </Modal>
   );
 }

@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import type { TaxonGroup } from '~/db/types';
 import { useThemeColors } from '~/theme/colors';
 import { DropdownChevron } from '~/components/ui/Chevron';
+import { ActionSheetLayer, sheetBack } from '~/components/ActionSheet';
 
 export const TAXON_GROUP_OPTIONS: Array<{ value: TaxonGroup | '' }> = [
   { value: '' },
@@ -92,7 +93,7 @@ export function TaxonGroupPicker({ value, onChange }: Props) {
         </ScrollView>
       )}
 
-      <Modal visible={open} animationType="slide" transparent onRequestClose={() => setOpen(false)}>
+      <Modal visible={open} animationType="slide" transparent onRequestClose={sheetBack(() => setOpen(false))}>
         <Pressable onPress={() => setOpen(false)} className="flex-1 bg-black/40">
           <Pressable className="mt-auto rounded-t-2xl bg-card dark:bg-gray-900 pb-6">
             <SafeAreaView edges={['bottom']}>
@@ -134,6 +135,7 @@ export function TaxonGroupPicker({ value, onChange }: Props) {
             </SafeAreaView>
           </Pressable>
         </Pressable>
+        <ActionSheetLayer visible={open} />
       </Modal>
     </View>
   );

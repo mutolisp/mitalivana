@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next';
 import i18n from '~/i18n';
 import { useThemeColors } from '~/theme/colors';
 import { DropdownChevron } from '~/components/ui/Chevron';
+import { ActionSheetLayer, sheetBack } from '~/components/ActionSheet';
 
 type Props = {
   visible: boolean;
@@ -51,7 +52,7 @@ export function EndSessionModal({ visible, session, recordCount, onCancel, onCon
   const isEmpty = recordCount === 0;
 
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onCancel}>
+    <Modal visible={visible} animationType="slide" onRequestClose={sheetBack(onCancel)}>
       <View className="flex-1 bg-card dark:bg-gray-900" style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}>
         <View className="flex-row items-center justify-between border-b border-gray-200 dark:border-gray-700 px-4 py-3">
           <Pressable onPress={onCancel} hitSlop={8}>
@@ -121,7 +122,7 @@ export function EndSessionModal({ visible, session, recordCount, onCancel, onCon
         </KeyboardAvoidingView>
       </View>
 
-      <Modal visible={showProjectPicker} transparent animationType="slide" onRequestClose={() => setShowProjectPicker(false)}>
+      <Modal visible={showProjectPicker} transparent animationType="slide" onRequestClose={sheetBack(() => setShowProjectPicker(false))}>
         <Pressable onPress={() => setShowProjectPicker(false)} className="flex-1 bg-black/40">
           <Pressable className="mt-auto rounded-t-2xl bg-card dark:bg-gray-900" style={{ paddingBottom: insets.bottom + 8 }}>
             <View className="border-b border-gray-200 dark:border-gray-700 px-4 py-3">
@@ -149,7 +150,9 @@ export function EndSessionModal({ visible, session, recordCount, onCancel, onCon
             </ScrollView>
           </Pressable>
         </Pressable>
+        <ActionSheetLayer visible={showProjectPicker} />
       </Modal>
+      <ActionSheetLayer visible={visible} />
     </Modal>
   );
 }

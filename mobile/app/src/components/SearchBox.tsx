@@ -18,6 +18,7 @@ import { onPackContentChanged } from '~/db/regionpacks';
 import type { TaxonGroup } from '~/db/types';
 import { applyChoice, chooseNameUsage } from '~/lib/adoptName';
 import { alienBadge } from '~/lib/conservationColors';
+import { familyChineseFirst } from '~/lib/familyLabel';
 import { lookupGbifName, manualTaxonEntry, type GbifLookupOutcome, type LookupRunner } from './GbifLookupHost';
 import { TaxonGroupPicker } from './TaxonGroupPicker';
 import { ScientificName } from './ScientificName';
@@ -573,6 +574,11 @@ const AutocompleteRow = memo(function AutocompleteRow({
           <Text className="ml-1.5 rounded bg-amber-100 px-1 text-xs font-medium text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">
             {t('manualTaxon.badge')}
           </Text>
+        ) : result.external_source ? (
+          // Taken from GBIF / iNat, not from a checklist — the same badge as the taxonomy tree's row.
+          <Text className="ml-1.5 rounded bg-sky-100 px-1 text-xs font-medium text-sky-700 dark:bg-sky-900/50 dark:text-sky-300">
+            {result.external_source === 'gbif' ? 'GBIF' : 'iNat'}
+          </Text>
         ) : null}
         {markLabel ? (
           <Text className="ml-1.5 rounded bg-accent-100 px-1 text-xs font-bold text-accent-700 dark:bg-accent-900 dark:text-accent-300">
@@ -605,7 +611,7 @@ const AutocompleteRow = memo(function AutocompleteRow({
       ) : null}
       {result.family_cname || result.family ? (
         <Text className="mt-0.5 text-xs text-gray-500 dark:text-gray-400" numberOfLines={1}>
-          {result.family_cname} {result.family}
+          {familyChineseFirst(result.family, result.family_cname)}
         </Text>
       ) : null}
     </Pressable>

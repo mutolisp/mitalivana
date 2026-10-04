@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { ExportProgress } from '~/lib/bundleExport';
 import { formatBytes } from '~/lib/exportSize';
 import { useThemeColors } from '~/theme/colors';
+import { ActionSheetLayer, sheetBack } from '~/components/ActionSheet';
 
 /**
  * Full-screen, non-dismissable overlay shown while an export bundle is being
@@ -19,7 +20,7 @@ export function ExportProgressOverlay({ progress }: { progress: ExportProgress |
   const pct = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0;
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={() => {}}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={sheetBack(() => {})}>
       <View className="flex-1 items-center justify-center bg-black/40 px-10">
         <View className="w-full max-w-xs rounded-2xl bg-card dark:bg-gray-900 px-6 py-6">
           <ActivityIndicator size="large" color={c.accent} />
@@ -38,6 +39,7 @@ export function ExportProgressOverlay({ progress }: { progress: ExportProgress |
           ) : null}
         </View>
       </View>
+      <ActionSheetLayer visible={visible} />
     </Modal>
   );
 }

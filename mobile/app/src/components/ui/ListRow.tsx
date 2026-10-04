@@ -10,7 +10,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import type { ReactNode } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, Text, View, type AccessibilityRole, type AccessibilityState } from 'react-native';
 import { safeAppFileUri } from '~/lib/appFiles';
 import { useThemeColors } from '~/theme/colors';
 
@@ -35,7 +35,10 @@ export function ListRow({
   selected = false,
   tone = 'default',
   divider = true,
+  disabled = false,
   accessibilityLabel,
+  accessibilityRole,
+  accessibilityState,
 }: {
   /** Checkbox, Thumb, CodeBadge or an icon tile. */
   leading?: ReactNode;
@@ -52,17 +55,24 @@ export function ListRow({
   selected?: boolean;
   tone?: ListRowTone;
   divider?: boolean;
+  /** Faded and inert (07-action-sheet.md: an option that cannot be picked now). */
+  disabled?: boolean;
   accessibilityLabel?: string;
+  accessibilityRole?: AccessibilityRole;
+  accessibilityState?: AccessibilityState;
 }) {
   return (
     <Pressable
       onPress={onPress}
       onLongPress={onLongPress}
       delayLongPress={350}
+      disabled={disabled}
       accessibilityLabel={accessibilityLabel}
+      accessibilityRole={accessibilityRole}
+      accessibilityState={disabled ? { ...accessibilityState, disabled: true } : accessibilityState}
       className={`flex-row items-center pl-4 active:bg-gray-100 dark:active:bg-gray-800 ${
         selected ? 'bg-accent-50 dark:bg-accent-950' : TONE[tone]
-      }`}
+      } ${disabled ? 'opacity-40' : ''}`}
       style={{ minHeight: 56 }}
     >
       {leading ? <View className="mr-3">{leading}</View> : null}

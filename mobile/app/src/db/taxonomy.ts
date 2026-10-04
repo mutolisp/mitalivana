@@ -30,6 +30,7 @@ import {
 } from './regionpacks';
 import { mergeScopeNodes } from './mergeScope';
 import {
+  externalTreePath,
   INCOMPLETE_PHYLUM,
   manualKingdoms,
   manualScopeSig,
@@ -897,6 +898,8 @@ export type TaxonSpecies = {
   /** ISO country code of the region pack this row came from (GBIF-derived,
    *  not checklist-verified) — drives the provenance badge. */
   pack_country?: string;
+  /** The user's own taxon (external_taxa): where it came from — the 自建 / GBIF / iNat badge. */
+  external_source?: 'gbif' | 'inat' | 'manual';
 };
 
 /** Merge preference when the same scientific name appears in several sources:
@@ -1163,14 +1166,19 @@ export function trailForHit(hit: TaxonSearchHit): TaxonNode[] {
  *  so the taxonomy tree can expand to it. The ancestor `path` is built from
  *  the accepted row's hierarchy columns. */
 function resultToTaxonHit(r: SearchResult): TaxonSearchHit {
-  const levelVals: Record<Rank, string> = {
-    kingdom: r.kingdom,
-    phylum: r.phylum,
-    class: r.class_name,
-    order: r.order,
-    family: r.family,
-    genus: r.genus,
-  };
+  // The user's own taxa hang where the tree put them (on the checklist's
+  // hierarchy, or the incomplete bucket), not on their own chain.
+  const placed = r.external_source ? externalTreePath(r.taxon_id) : null;
+  const levelVals: Record<Rank, string> = placed
+    ? { kingdom: placed.kingdom ?? '', phylum: placed.phylum ?? '', class: placed.class ?? '', order: placed.order ?? '', family: placed.family ?? '', genus: placed.genus ?? '' }
+    : {
+        kingdom: r.kingdom,
+        phylum: r.phylum,
+        class: r.class_name,
+        order: r.order,
+        family: r.family,
+        genus: r.genus,
+      };
   const path: Array<{ rank: Rank; value: string }> = [];
   for (const level of RANK_ORDER) {
     const val = levelVals[level];

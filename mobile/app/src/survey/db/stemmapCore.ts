@@ -80,7 +80,9 @@ export type SurveyErrorCode =
   | 'bad_value'
   // 2C-a: a blind occurrence after the blind phase closed; a recheck already begun.
   | 'blind_sealed'
-  | 'recheck_begun';
+  | 'recheck_begun'
+  // 2G-d (v89): a unit marked done, as a fixed plot's locked quadrat.
+  | 'unit_done';
 
 export class SurveyError extends Error {
   code: SurveyErrorCode;

@@ -74,6 +74,7 @@ import { clearSearchResultCache } from '~/components/SearchBox';
 import { ACTION_FILL } from '~/lib/colors';
 import { useThemeColors } from '~/theme/colors';
 import { Button } from '~/components/ui/Button';
+import { ActionSheetLayer, sheetBack } from '~/components/ActionSheet';
 
 export default function RegionPacksScreen() {
   const c = useThemeColors();
@@ -809,7 +810,7 @@ function CountryPickerModal({
   }, [q, zh, i18n.language]);
 
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible} animationType="slide" onRequestClose={sheetBack(onClose)}>
       <View style={{ paddingTop: insets.top }} className="flex-1 bg-card dark:bg-gray-900">
         <View className="flex-row items-center border-b border-gray-100 px-4 py-3 dark:border-gray-800">
           <Text className="flex-1 text-base font-semibold text-gray-900 dark:text-gray-100">
@@ -846,6 +847,7 @@ function CountryPickerModal({
           )}
         />
       </View>
+      <ActionSheetLayer visible={visible} />
     </Modal>
   );
 }
@@ -868,7 +870,7 @@ function GroupChooserModal({
   const insets = useSafeAreaInsets();
   const coarse = chosen.has('Reptilia') || chosen.has('Actinopterygii');
   return (
-    <Modal visible={country != null} animationType="slide" onRequestClose={onCancel}>
+    <Modal visible={country != null} animationType="slide" onRequestClose={sheetBack(onCancel)}>
       <View style={{ paddingTop: insets.top }} className="flex-1 bg-card dark:bg-gray-900">
         <View className="flex-row items-center border-b border-gray-100 px-4 py-3 dark:border-gray-800">
           <Text className="flex-1 text-base font-semibold text-gray-900 dark:text-gray-100">
@@ -920,6 +922,7 @@ function GroupChooserModal({
           <Button label={t('regionPacks.startDownload')} onPress={onConfirm} size="lg" fullWidth />
         </View>
       </View>
+      <ActionSheetLayer visible={country != null} />
     </Modal>
   );
 }

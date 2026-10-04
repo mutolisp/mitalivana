@@ -100,19 +100,29 @@ export function externalTaxonId(source: ExternalTaxonSource, sourceKey: string):
  */
 /**
  * Listeners told whenever an external taxon is written or deleted. The
- * taxonomy tab needs it: user-created taxa live in its tree, and a create /
+ * taxonomy tab needs it: the user's own taxa live in its tree, and a create /
  * edit / delete usually happens without the tab ever losing focus (its own
  * search segment, or the species popup over the tree) — the focus-time scope
  * check alone left the tree stale until the app restarted.
  */
 const manualTaxaListeners = new Set<() => void>();
-/** Fires on user-created (manual) taxon create / edit / delete. */
+/** Fires on user-created (manual) taxon create / edit / delete, and after GBIF / iNat taxa are written. */
 export function onManualTaxaChanged(fn: () => void): () => void {
   manualTaxaListeners.add(fn);
   return () => manualTaxaListeners.delete(fn);
 }
 function notifyManualTaxaChanged(): void {
   for (const fn of manualTaxaListeners) fn();
+}
+let notifyPending = false;
+/** Once per batch: a pack or area import copies thousands of rows in one go. */
+function notifySoon(): void {
+  if (notifyPending) return;
+  notifyPending = true;
+  setTimeout(() => {
+    notifyPending = false;
+    notifyManualTaxaChanged();
+  }, 0);
 }
 
 export function upsertExternalTaxon(input: ExternalTaxonInput): string {
@@ -175,10 +185,11 @@ export function upsertExternalTaxon(input: ExternalTaxonInput): string {
       input.adopted ?? 0,
     ],
   );
-  // Only user-created taxa are in the tree. GBIF / iNat / pack copies are
-  // written in bulk (a batch add can copy thousands), and each notification
-  // costs the tree a scope-signature query for nothing.
+  // GBIF / iNat copies are in the tree too (2026-10-04), but are written in
+  // bulk (a batch add can copy thousands): one notification after the batch,
+  // not a scope-signature query per row.
   if (input.source === 'manual') notifyManualTaxaChanged();
+  else notifySoon();
   return taxonId;
 }
 
@@ -419,16 +430,21 @@ export function externalToSearchResult(t: ExternalTaxon): SearchResult {
  * main query — `searchWithFuzzyFallback` merges this in afterwards. The table
  * is user-accumulated (tens of rows, not 300k) and `idx_external_name` covers
  * the scientific name, so a LIKE sweep is cheap.
+ *
+ * `groupSql`／`groupParams`: the search box's taxon-group filter, built by
+ * search.ts's `groupFilterClause` (` AND (…)` on kingdom／phylum／class, which
+ * this table has too); the caller builds it because importing search.ts here
+ * would cycle. Without it every external taxon matched under any filter.
  */
-export function searchExternalTaxa(q: string, limit = 10): SearchResult[] {
+export function searchExternalTaxa(q: string, limit = 10, groupSql = '', groupParams: (string | number)[] = []): SearchResult[] {
   const trimmed = q.trim();
   if (!trimmed) return [];
   const like = `%${escapeLike(trimmed)}%`;
   const res = getUserDb().executeSync(
     `SELECT * FROM external_taxa
-      WHERE simple_name LIKE ? ESCAPE "\\" OR common_name_c LIKE ? ESCAPE "\\"
+      WHERE (simple_name LIKE ? ESCAPE "\\" OR common_name_c LIKE ? ESCAPE "\\")${groupSql}
       ORDER BY simple_name LIMIT ?;`,
-    [like, like, limit],
+    [like, like, ...groupParams, limit],
   );
   return ((res.rows ?? []) as unknown as ExternalTaxon[]).map(externalToSearchResult);
 }

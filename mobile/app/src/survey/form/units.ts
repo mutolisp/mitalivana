@@ -65,3 +65,10 @@ export function childLevel(levelKeys: readonly string[], parentLevel: string): s
   const i = levelKeys.indexOf(parentLevel);
   return i >= 0 && i + 1 < levelKeys.length ? levelKeys[i + 1] : null;
 }
+
+/** A unit and every unit below it (the unit first): what deleting a quadrat takes. */
+export function unitSubtree<U extends { id: number; parent_id: number | null }>(units: readonly U[], id: number): number[] {
+  const ids = [id];
+  for (let i = 0; i < ids.length; i++) for (const u of units) if (u.parent_id === ids[i]) ids.push(u.id);
+  return ids;
+}

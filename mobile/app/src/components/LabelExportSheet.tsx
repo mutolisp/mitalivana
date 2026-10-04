@@ -16,6 +16,7 @@ import { useThemeColors } from '~/theme/colors';
 import { useSettings } from '~/stores/settings';
 
 import { Button } from '~/components/ui/Button';
+import { ActionSheetLayer, sheetBack } from '~/components/ActionSheet';
 
 type Props = {
   visible: boolean;
@@ -51,7 +52,7 @@ export function LabelExportSheet({ visible, count, busy, onCancel, onConfirm }: 
   };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onCancel}>
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={sheetBack(onCancel)}>
       <KeyboardAvoidingView behavior="padding" className="flex-1 justify-end">
         <Pressable
           onPress={onCancel}
@@ -126,6 +127,7 @@ export function LabelExportSheet({ visible, count, busy, onCancel, onConfirm }: 
           </ScrollView>
         </View>
       </KeyboardAvoidingView>
+      <ActionSheetLayer visible={visible} />
     </Modal>
   );
 }

@@ -323,17 +323,17 @@ iOS 與 Android 都要支援。以下 API 是 **iOS-only**，禁止直接呼叫�
 | iOS-only API | 統一替代 |
 |--------------|---------|
 | `Alert.prompt` | `promptText(opts): Promise<string \| null>` from `src/components/TextPromptModal.tsx` |
-| `ActionSheetIOS.showActionSheetWithOptions` | `showActionSheet(opts): Promise<number>` from `src/components/ActionSheet.tsx`（iOS 內部仍走 native ActionSheetIOS 保 HIG，Android 走 Modal bottom sheet）|
+| `ActionSheetIOS.showActionSheetWithOptions` | `showActionSheet(opts): Promise<number>` from `src/components/ActionSheet.tsx`（2026-10 起 iOS／Android 同一套 15A 底部清單 sheet，不再呼叫 ActionSheetIOS；規格見 `docs/planned/ui-redesign/07-action-sheet.md`）|
 | `DateTimePicker` 直接使用 | `<DateTimeField value onChange />` from `src/components/DateTimeField.tsx`（`IOSMode` 有 `'datetime'`、`AndroidMode` 只有 `'date' \| 'time'`，Android 必須串兩段對話框）。**刻意是元件而非 `pickDateTime()` 命令式 API**：iOS 的 picker 只能是 view 或 Modal，而 iOS 不允許在既有 Modal 之上再開 Modal，命令式版本在 sheet 內會靜默不跳 |
 
-兩個元件都是 **imperative API + module-level zustand store + host component**（`<TextPromptHost />` / `<ActionSheetHost />`）掛在 `app/_layout.tsx`，整 app 共用。**禁止用 `Platform.OS === 'ios'` if/else 模式**寫多平台分支（除非是 KeyboardAvoidingView behavior 等天然差異）— 之前的 Alert.alert fallback 多次被發現選項數或可用功能在 Android 上退化。
+兩個元件都是 **imperative API + module-level zustand store + host**（`<TextPromptHost />` / `<ActionSheetLayer />`）掛在 `app/_layout.tsx`，整 app 共用。action sheet 不是 RN Modal，畫在 `<ActionSheetLayer />` 這個一般 overlay 裡；**每個 render RN `<Modal>` 的元件都要在 Modal 最後放一個 `<ActionSheetLayer />`（Modal 有 `visible={…}` 就傳同一個值：`<ActionSheetLayer visible={…} />`），`onRequestClose` 包 `sheetBack(…)`**（Android 返回鍵在 Modal 內只送到 onRequestClose；iOS 關閉中的 Modal 要等滑出結束才卸載子元件，圖層沒拿到 `visible` 會把「關掉 Modal 再問」的 action sheet 畫進正在消失的 Modal 並靜默取消），`npm run check:sheet-layer` 會擋。**禁止用 `Platform.OS === 'ios'` if/else 模式**寫多平台分支（除非是 KeyboardAvoidingView behavior 等天然差異）— 之前的 Alert.alert fallback 多次被發現選項數或可用功能在 Android 上退化。
 
 Audit 流程（任何新增彈出/選擇 UI 後跑）：
 
 ```bash
 cd mobile/app
-grep -rn "Alert.prompt\|ActionSheetIOS" src/ app/   # 只應該出現在 ActionSheet.tsx / TextPromptModal.tsx 內部
-grep -rn "Platform.OS === 'ios'" src/ app/          # 只應出現在跨平台 wrapper 內部（ActionSheet / DateTimeField / KeyboardAvoidingView）+ iOS Modal-before-keyboard 等待
+grep -rn "Alert.prompt\|ActionSheetIOS" src/ app/   # Alert.prompt 只應該出現在 TextPromptModal.tsx 內部；ActionSheetIOS 不應出現（check:sheet-layer）
+grep -rn "Platform.OS === 'ios'" src/ app/          # 只應出現在跨平台 wrapper 內部（DateTimeField / KeyboardAvoidingView）+ iOS Modal-before-keyboard 等待
 npm run check:dock                                   # 底部置底搜尋框結構（見下）
 ```
 
@@ -382,7 +382,7 @@ offset 必須對應 dock **下方**的 chrome。只有兩種合法配對：
 ### 共用 UI 元件
 
 - `TextPromptModal` (`promptText()`)：跨平台文字輸入提示，取代 `Alert.prompt`
-- `ActionSheet` (`showActionSheet()`)：跨平台底部選單，取代 `ActionSheetIOS`；iOS 走 native ActionSheetIOS、Android 走 Modal bottom sheet
+- `ActionSheet` (`showActionSheet()`)：跨平台底部清單 sheet（15A），取代 `ActionSheetIOS`；選項可帶 icon／description／section／selected／keywords，多項時有搜尋、篩選 chip、「最近用過」。建立新東西的起點用 `ChoiceSheet`（`showChoiceSheet()`，15C 卡片 sheet）
 - `ProjectAssignSheet`：sheet 同時給 session / plot 用，文案泛化為「本次記錄」
 - `SpeciesAttributesBlock`：DwC 屬性摺疊區，依 kingdom / class 動態顯示欄位
 - `PlotSpeciesValueModal`：通用豐度輸入（BB / % cover / individuals / DBH / 自定義）

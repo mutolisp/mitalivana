@@ -5,8 +5,9 @@
  *
  * On a permanent plot the unit is the frame's layout too (fw_frame_units): its
  * code is fixed once a survey used it, and deleting it here leaves the frame
- * unit (retire it on the plot's layout screen). Deleting a unit keeps its
- * species and sub-units, moved up to its parent.
+ * unit (retire it on the plot's layout screen). Deleting a subplot keeps its
+ * species and sub-units, moved up to its parent; deleting a quadrat (second
+ * level and below) takes them with it, as the fixed plot does.
  */
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
@@ -25,12 +26,14 @@ import { useToast } from '~/stores/toast';
 import { useThemeColors } from '~/theme/colors';
 import { FormCard } from '~/survey/components/FormBits';
 import { snapshotOf, unitLevelsOf } from '~/survey/db/surveyCore';
-import { addUnit, deleteUnit, environmentCarried, getFwSurvey, getUnit, listOccurrences, listUnits, readComponent, updateUnit } from '~/survey/db/surveys';
+import { addUnit, deleteUnit, deleteUnitWithContents, environmentCarried, getFwSurvey, getUnit, listOccurrences, listUnits, readComponent, updateUnit } from '~/survey/db/surveys';
 import { useActiveSurvey } from '~/survey/form/activeSurvey';
 import { ComponentCards } from '~/survey/form/ComponentCards';
+import { layerCountOf } from '~/survey/form/checks';
 import { formComponents } from '~/survey/form/occurrenceForm';
+import { layerHeightUnit } from '~/survey/form/plotStyle';
 import { carriedNotes, formErrorText, levelLabel } from '~/survey/form/text';
-import { childLevel, unitPath } from '~/survey/form/units';
+import { childLevel, unitPath, unitSubtree } from '~/survey/form/units';
 import { setSurveyView } from '~/survey/form/viewState';
 
 function load(id: number) {
@@ -40,6 +43,11 @@ function load(id: number) {
   const template = snapshotOf(survey);
   const units = listUnits(survey.id);
   const comps = formComponents(template, { unit: unit.level_key });
+  // A unit's layers follow the survey's: how many, and the unit each layer's height is shown in.
+  const structure = formComponents(template, 'survey').find((c) => c.type === 'structure');
+  const surveyLayers = structure ? readComponent({ kind: 'survey', id: survey.id }, structure.key) : undefined;
+  const occurrences = listOccurrences(survey.id);
+  const subtree = new Set(unitSubtree(units, id));
   return {
     unit,
     survey,
@@ -49,8 +57,14 @@ function load(id: number) {
     comps,
     values: Object.fromEntries(comps.map((c) => [c.key, readComponent({ kind: 'unit', id }, c.key)])),
     // Not those made only as an interaction's other side (2F).
-    species: listOccurrences(survey.id, { unitId: id }).filter((o) => !o.via_interaction).length,
+    species: occurrences.filter((o) => o.unit_id === id && !o.via_interaction).length,
+    // In it or in a unit below it: what deleting a quadrat takes.
+    inside: occurrences.filter((o) => o.unit_id != null && subtree.has(o.unit_id) && !o.via_interaction).length,
     carried: environmentCarried({ kind: 'unit', id }),
+    layers: {
+      layerCount: layerCountOf(template, structure && surveyLayers ? { [structure.key]: surveyLayers } : {}),
+      heightUnitOf: layerHeightUnit(surveyLayers),
+    },
   };
 }
 
@@ -117,18 +131,29 @@ export default function SurveyUnitScreen() {
     }
     reload();
   };
+  const quadrat = data.levelKeys.indexOf(unit.level_key) >= 1;
   const remove = () =>
-    Alert.alert(t('surveyForm.unit.deleteTitle', { path }), t('surveyForm.unit.deleteMsg', { count: data.species }), [
-      { text: t('common.cancel'), style: 'cancel' },
-      {
-        text: t('common.delete'),
-        style: 'destructive',
-        onPress: () => {
-          deleteUnit(unit.id);
-          router.back();
+    Alert.alert(
+      t('surveyForm.unit.deleteTitle', { path }),
+      quadrat ? t('surveyForm.unit.deleteAllMsg', { count: data.inside }) : t('surveyForm.unit.deleteMsg', { count: data.species }),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('common.delete'),
+          style: 'destructive',
+          onPress: () => {
+            try {
+              if (quadrat) deleteUnitWithContents(unit.id);
+              else deleteUnit(unit.id);
+            } catch (e) {
+              toast(formErrorText(t, e));
+              return;
+            }
+            router.back();
+          },
         },
-      },
-    ]);
+      ],
+    );
   const recordHere = () => {
     setSurveyView(survey.id, { tab: 'species', unit: unit.id });
     if (survey.status === 'active') useActiveSurvey.getState().setUnit(survey.id, unit.id);
@@ -170,7 +195,17 @@ export default function SurveyUnitScreen() {
           {unit.frame_unit_id != null ? <Text className="text-xs text-ink-3 dark:text-gray-400">{t('surveyForm.unit.onFrameNote')}</Text> : null}
           <Button label={t('surveyForm.unit.recordHere', { count: data.species })} icon="leaf-outline" onPress={recordHere} />
         </FormCard>
-        <ComponentCards owner={{ kind: 'unit', id: unit.id }} instances={data.comps} values={data.values} readOnly={locked} refuse={refuse} onChanged={reload} notes={carriedNotes(t, data.carried)} codelists={data.template.codelists} />
+        <ComponentCards
+          owner={{ kind: 'unit', id: unit.id }}
+          instances={data.comps}
+          values={data.values}
+          readOnly={locked}
+          refuse={refuse}
+          onChanged={reload}
+          notes={carriedNotes(t, data.carried)}
+          codelists={data.template.codelists}
+          context={data.layers}
+        />
         {below ? (
           <FormCard title={levelLabel(t, i18n.language, template, below)}>
             {children.map((u) => (

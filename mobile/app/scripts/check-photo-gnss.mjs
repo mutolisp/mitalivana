@@ -63,8 +63,9 @@ for (const { file, what, handler, write, libraryOnly } of GUARDED) {
   if (start === -1) continue;
   const body = src.slice(start, start + 4000);
 
+  // Directly, or through the shared species-photo helper (2G), which is held to the same rule below.
   ok(
-    body.includes('pickPhotosWithExif'),
+    body.includes('pickPhotosWithExif') || body.includes('takeSpeciesPhotos('),
     `${what}: picks with EXIF`,
     'the picker must keep asset.exif — the only legible source for a HEIC',
   );
@@ -96,6 +97,14 @@ for (const { file, what, handler, write, libraryOnly } of GUARDED) {
       'a camera photo here carries the plot centre, not the plant',
     );
   }
+}
+
+// ── The shared species-photo helper (src/lib/speciesPhotos.ts, 2G) ────────
+{
+  const helper = readFileSync(fileURLToPath(new URL('../src/lib/speciesPhotos.ts', import.meta.url)), 'utf8');
+  ok(helper.includes('pickPhotosWithExif()'), 'takeSpeciesPhotos: picks with EXIF');
+  ok(!/\bpickPhotos\s*\(/.test(helper), 'takeSpeciesPhotos: does not fall back to the EXIF-dropping picker');
+  ok(/rememberPickedPhotos\(picked\)/.test(helper), 'takeSpeciesPhotos: remembers the picked photos\' positions');
 }
 
 // ── Adding a plot species offers the same fields as editing one ──────────

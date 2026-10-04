@@ -24,6 +24,16 @@
     "selectedCount_one": "{{count}} selected",
     "selectedCount_other": "{{count}} selected"
   },
+  "actionSheet": {
+    "close": "Close",
+    "search": "Search",
+    "searchPlaceholder_one": "Search {{count}} option",
+    "searchPlaceholder_other": "Search {{count}} options",
+    "noMatch": "No options match “{{q}}”",
+    "recent": "Recently used",
+    "all_one": "All {{count}}",
+    "all_other": "All {{count}}"
+  },
   "group": {
     "plantae": "Plants",
     "aves": "Birds",
@@ -808,7 +818,11 @@
       "keypadHide": "Hide the keypad",
       "moreBelow": "More below"
     },
-    "tabFreq": "Frequency"
+    "tabFreq": "Frequency",
+    "numMin": "Value must be at least {{min}}",
+    "numMax": "Value must be at most {{max}}",
+    "numAbove": "Value must be greater than {{min}}",
+    "numAboveMax": "Value must be greater than {{min}} and at most {{max}}"
   },
   "settings": {
     "sectionAppearance": "Appearance & interaction",
@@ -937,7 +951,7 @@
     "collapseAll": "Collapse all",
     "tree": "Tree",
     "search": "Search",
-    "incompleteBucket": "Incomplete classification (user-created)",
+    "incompleteBucket": "Incomplete classification",
     "bulkNodeTitle": "Selected taxa: {{names}}",
     "bulkTooManyTitle": "Too many",
     "bulkTooManyMsg": "There are {{count}} taxa under these, over the limit of {{max}} per batch. Pick lower-ranked taxa instead.",
@@ -1136,6 +1150,7 @@
     "import": "Import",
     "drawingLabel": "Drawing {{type}} · {{count}} pts",
     "handoffHint": "Create a geographic site for record #{{id}}; auto-assigned when done",
+    "surveyHandoffHint": "Create a geographic site for “{{name}}”; auto-assigned when done",
     "editTrackHint": "Edit track · drag / tap vertex to delete",
     "editPosHint": "Edit location · drag marker",
     "nlsc": "NLSC (Taiwan)",
@@ -1333,7 +1348,6 @@
   "plotSpecies": {
     "addPhotoFail": "Add photo failed",
     "changeLayer": "Change layer",
-    "currentSuffix": "(current)",
     "movedTo": "Moved to {{layer}}",
     "pointCountRecord": "Point count records",
     "transectRecord": "Transect records",
@@ -4829,7 +4843,8 @@
       "traits": "Traits",
       "environment": "Environment",
       "choice": "Custom choice",
-      "interaction": "Interactions"
+      "interaction": "Interactions",
+      "method": "Survey method"
     },
     "editor": {
       "elsewhere": "This component is entered on the record screen.",
@@ -4842,7 +4857,8 @@
         "malformed": "Malformed value",
         "endsBeforeStart": "Ends before it starts",
         "coversOver100": "Ground covers add up to more than 100%",
-        "layerOutOfRange": "Beyond the number of layers"
+        "layerOutOfRange": "Beyond the number of layers",
+        "requiredMissing": "Required, not filled in"
       },
       "abundance": {
         "count": "Count",
@@ -4865,7 +4881,8 @@
       "timestamp": {
         "start": "Start",
         "stop": "End",
-        "setStop": "Set the end time"
+        "setStop": "Set the end time",
+        "setStart": "Set the start time"
       },
       "people": {
         "none": "None"
@@ -5115,8 +5132,6 @@
     },
     "tab": {
       "data": "Data",
-      "units_one": "Units {{count}}",
-      "units_other": "Units {{count}}",
       "species_one": "Species {{count}}",
       "species_other": "Species {{count}}",
       "freq": "Frequency",
@@ -5137,7 +5152,8 @@
       "blindSealed": "The blind phase has ended; records made during it can no longer change",
       "recheckBegun": "The recheck has begun (answers or species found in it exist); the blind phase cannot be reopened",
       "labelTaken": "Label “{{label}}” is already on the list",
-      "badValue": "This value cannot be stored"
+      "badValue": "This value cannot be stored",
+      "unitDone": "“{{code}}” is marked done; mark it not done to change it."
     },
     "finish": {
       "title": "Finish survey",
@@ -5145,7 +5161,9 @@
       "recheckOpen_one": "{{count}} species from the previous survey has no recheck answer.",
       "recheckOpen_other": "{{count}} species from the previous survey have no recheck answer.",
       "errors_one": "{{count}} occurrence still has errors.",
-      "errors_other": "{{count}} occurrences still have errors."
+      "errors_other": "{{count}} occurrences still have errors.",
+      "dataMissing_one": "{{count}} required survey item is not filled in.",
+      "dataMissing_other": "{{count}} required survey items are not filled in."
     },
     "blind": {
       "banner": "Blind phase: the previous species list appears once the blind phase ends.",
@@ -5189,7 +5207,9 @@
       "recordHere_other": "Record species in this unit ({{count}})",
       "deleteTitle": "Delete {{path}}?",
       "deleteMsg_one": "Its {{count}} occurrence and its sub-units move up to the parent; this unit’s own data and photos are deleted.",
-      "deleteMsg_other": "Its {{count}} occurrences and its sub-units move up to the parent; this unit’s own data and photos are deleted."
+      "deleteMsg_other": "Its {{count}} occurrences and its sub-units move up to the parent; this unit’s own data and photos are deleted.",
+      "deleteAllMsg_one": "Its {{count}} occurrence and its sub-units are deleted with it, as are this unit’s own data and photos.",
+      "deleteAllMsg_other": "Its {{count}} occurrences and its sub-units are deleted with it, as are this unit’s own data and photos."
     },
     "label": {
       "title": "Label for {{name}}",
@@ -5202,7 +5222,8 @@
       "newMsg": "On the list, the same label names this morphospecies in every later survey.",
       "addToList": "Add to the list",
       "onlyHere": "Only for this record",
-      "pickMsgNone": "The morphospecies list has no label for this taxon yet."
+      "pickMsgNone": "The morphospecies list has no label for this taxon yet.",
+      "field": "Label"
     },
     "frame": {
       "section": "Plot-style surveys",
@@ -5237,7 +5258,67 @@
       "banner": "This form has a new version (version {{n}})",
       "msg": "Upgrade to version {{n}}: the new fields appear, nothing recorded changes."
     },
-    "carried": "Same as survey {{n}} (carried over at the start; please check): {{fields}}"
+    "carried": "Same as survey {{n}} (carried over at the start; please check): {{fields}}",
+    "surveyData": "Survey data",
+    "dataLocked": "Finished and locked. Go back to the survey and tap the lock at the top right to edit.",
+    "dataFilled": "{{filled}} of {{total}} filled",
+    "track": "Track",
+    "extrasAfterSave": "The other fields can be filled in once it is saved.",
+    "trackNotStarted": "Track recording not started",
+    "gnssNotYet": "Not fetched yet",
+    "noLayer": "No layer",
+    "quadrat": {
+      "addWhere": "Which {{level}} does {{code}} go in?",
+      "fromUnitList": "From the {{unit}} list",
+      "unitFields": "Other fields",
+      "size": "Size",
+      "sizeShared": "Shared (survey method)",
+      "sizeOwn": "This quadrat's own size (clear it to use the shared one)"
+    },
+    "env": {
+      "openness": "Openness",
+      "opennessPct": "Sky openness"
+    },
+    "method": {
+      "title": "Method",
+      "none": "Not chosen",
+      "custom": "Custom method",
+      "customPick": "Custom method…",
+      "customName": "Method name",
+      "size": "Size",
+      "effortAny": "Effort",
+      "effortUnit": "Effort unit",
+      "effort": {
+        "cameraHours": "Camera hours",
+        "trapNights": "Trap-nights",
+        "netHours": "Net hours",
+        "personHours": "Person-hours",
+        "trapHours": "Trap hours",
+        "trapDays": "Trap-days",
+        "recorderHours": "Recorder hours"
+      },
+      "quadratSize": "Quadrat size",
+      "description": "Method notes",
+      "source": "Method names follow the Ministry of Environment's guidelines for animal and plant ecological assessment (Taiwan, 2026 edition).",
+      "group": {
+        "vegetation": "Vegetation",
+        "birds": "Birds",
+        "mammals": "Mammals",
+        "herps": "Amphibians and reptiles",
+        "insects": "Insects",
+        "general": "General"
+      }
+    },
+    "group": {
+      "basic": "Basic data",
+      "time": "Time",
+      "space": "Location",
+      "method": "Method",
+      "pageOf": "Survey data · {{n}} / {{total}}",
+      "people": "People",
+      "missing_one": "{{count}} required item missing",
+      "missing_other": "{{count}} required items missing"
+    }
   },
   "builder": {
     "title": "Form templates",
@@ -5275,14 +5356,22 @@
       "title": "New template",
       "blankChecklist": "Blank checklist",
       "blankPlot": "Blank plot-style",
-      "copy": "Copy an existing template…",
       "copyFrom": "Copy which one?",
       "nameTitle": "Template name",
       "nameMsg": "For example “Riparian plants”. You can change it later and add an English name.",
       "create": "Create",
       "firstUnit": "Subplot",
       "copyName": "Copy of {{name}}",
-      "census": "Tree census (copy of the built-in)"
+      "subtitle": "Pick a starting point — you can change everything later",
+      "blankChecklistDesc": "A species checklist from scratch",
+      "blankPlotDesc": "Layers, cover, subplots",
+      "censusDesc": "A copy of the built-in tree census template",
+      "copyShort": "Copy an existing one",
+      "copyDesc": "Mine, built-in or shared by the team",
+      "importDesc": "Import from a file (.mtpl.json)",
+      "sectionMine": "My templates",
+      "sectionBuiltin": "Built-in",
+      "sectionTeam": "Shared by the team"
     },
     "notFound": "This template’s draft is gone; it may have been saved or discarded.",
     "basics": "Basics",
@@ -5315,6 +5404,7 @@
     "preview": "Preview",
     "previewTitle": "Preview: {{name}}",
     "previewIntro": "A survey started with this template looks like this. Try filling it in; nothing is kept.",
+    "previewNoTrack": "A preview does not record a track.",
     "discard": {
       "title": "Discard changes?",
       "msg": "The draft is deleted; the template stays at version {{n}}.",
@@ -5408,7 +5498,9 @@
       "interactionTypes_one": "{{count}} type",
       "interactionTypes_other": "{{count}} types",
       "photos_one": "{{count}} photo",
-      "photos_other": "{{count}} photos"
+      "photos_other": "{{count}} photos",
+      "methods_one": "{{count}} method offered",
+      "methods_other": "{{count}} methods offered"
     },
     "kind": {
       "bb": "Braun-Blanquet",
@@ -5446,7 +5538,6 @@
       "multiSwitch": "Allow several choices"
     },
     "import": {
-      "fromFile": "Import from a file…",
       "failTitle": "Cannot import",
       "newerApp": "This template uses components this version of the app does not know ({{types}}). Please update the app first.",
       "invalid": "The file is not valid: {{detail}}",
@@ -5502,6 +5593,19 @@
       "inverseEn": "As seen from B, in English",
       "iri": "RO relation IRI (optional)",
       "iriBad": "An IRI starts with http:// or https:// and has no spaces"
+    },
+    "method": {
+      "choose": "Surveyor picks from a list",
+      "fixed": "One fixed method",
+      "all": "Offer every method",
+      "method": "Method",
+      "custom": "Custom methods allowed",
+      "customDesc": "The surveyor may type a method not on the list."
+    },
+    "openness": {
+      "pct": "Sky openness (%)",
+      "grades": "Own grades",
+      "list": "Grade list"
     }
   },
   "surveyImport": {

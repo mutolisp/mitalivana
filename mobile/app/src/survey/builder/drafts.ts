@@ -13,14 +13,15 @@ import { File, Paths } from 'expo-file-system';
 import { router, useFocusEffect, type Href } from 'expo-router';
 import { Alert } from 'react-native';
 import { useCallback, useState } from 'react';
-import { showActionSheet } from '~/components/ActionSheet';
+import { showActionSheet, type ActionSheetOption } from '~/components/ActionSheet';
+import { showChoiceSheet } from '~/components/ChoiceSheet';
 import { promptText } from '~/components/TextPromptModal';
 import { generateUuid } from '~/db/uuid';
 import i18n from '~/i18n';
 import { decodeUtf8 } from '~/lib/utf8';
 import { shareThenDelete } from '~/lib/shareFile';
 import { useToast } from '~/stores/toast';
-import { discardDraft, getDraft, getTemplate, listTemplates, saveDraft, saveTemplate, type TemplateDraft } from '~/survey/db/surveys';
+import { discardDraft, getDraft, getTemplate, listTemplates, saveDraft, saveTemplate, templateUseCounts, type TemplateDraft } from '~/survey/db/surveys';
 import { readTemplateFile, TEMPLATE_FILE_EXT, templateFileText } from '~/survey/template/share';
 import { blankTemplate, copyTemplate, labelParts, makeLabel, type BuilderStyle } from '~/survey/template/edit';
 import type { SurveyTemplate } from '~/survey/template/types';
@@ -28,6 +29,9 @@ import { SAMPLE_TEMPLATES } from '~/survey/templates/samples';
 import { BUILTIN_TEMPLATES } from '~/survey/templates/builtins';
 import { STEMMAP_TEMPLATE } from '~/survey/templates/stemmap';
 import { templateName } from '~/survey/form/text';
+import { isoStamp } from '~/lib/datetime';
+import type { Ionicons } from '@expo/vector-icons';
+import { styleName } from './words';
 
 export const templatesHref = '/survey/templates' as Href;
 export const templateHref = (id: string) => `/survey/templates/${encodeURIComponent(id)}` as Href;
@@ -143,40 +147,76 @@ export async function importTemplateFile(): Promise<void> {
   useToast.getState().show(i18n.t(read.renamed ? 'builder.import.doneRenamed' : 'builder.import.done', { name: templateName(i18n.t, i18n.language, saved) }));
 }
 
+/** A template kind's icon, wherever templates are listed. */
+export function templateIcon(style: SurveyTemplate['style']): keyof typeof Ionicons.glyphMap {
+  return style === 'plot' ? 'grid-outline' : style === 'individual' ? 'apps-outline' : 'list-outline';
+}
+
+/** A template as a list-sheet option: its kind's icon; kind · the day it was last used. */
+export function templateOption(tpl: SurveyTemplate, lastUsed?: number | null): ActionSheetOption {
+  return {
+    key: tpl.id,
+    label: templateName(i18n.t, i18n.language, tpl),
+    icon: templateIcon(tpl.style),
+    description: [styleName(i18n.t, tpl.style), lastUsed ? isoStamp(lastUsed).slice(0, 10) : null].filter(Boolean).join(' · '),
+  };
+}
+
 /**
- * 建立模板: blank (checklist or plot), a tree census (a copy of the built-in:
- * a census template is never blank), a copy of a sample, built-in or one of
- * the user's, or a file.
+ * 建立模板 (the 15C card sheet): blank (checklist or plot), a tree census (a
+ * copy of the built-in: a census template is never blank), a copy of a
+ * sample, built-in or one of the user's, or a file.
  */
 export async function createTemplateFlow(onImported?: () => void): Promise<void> {
-  const sources = [...SAMPLE_TEMPLATES, ...BUILTIN_TEMPLATES, ...userTemplates()];
-  const pick = await showActionSheet({
+  const pick = await showChoiceSheet({
     title: i18n.t('builder.new.title'),
-    options: [
-      { label: i18n.t('builder.new.blankChecklist') },
-      { label: i18n.t('builder.new.blankPlot') },
-      { label: i18n.t('builder.new.census') },
-      { label: i18n.t('builder.new.copy') },
-      { label: i18n.t('builder.import.fromFile') },
+    subtitle: i18n.t('builder.new.subtitle'),
+    cards: [
+      { key: 'checklist', title: i18n.t('builder.new.blankChecklist'), description: i18n.t('builder.new.blankChecklistDesc'), icon: 'list-outline', tone: 'primary' },
+      { key: 'plot', title: i18n.t('builder.new.blankPlot'), description: i18n.t('builder.new.blankPlotDesc'), icon: 'grid-outline', tone: 'primary' },
+      { key: 'census', title: i18n.t('surveyForm.style.individual'), description: i18n.t('builder.new.censusDesc'), icon: 'apps-outline' },
+      { key: 'copy', title: i18n.t('builder.new.copyShort'), description: i18n.t('builder.new.copyDesc'), icon: 'copy-outline' },
     ],
-    cancelLabel: i18n.t('common.cancel'),
+    secondary: [{ key: 'import', label: i18n.t('builder.new.importDesc'), icon: 'download-outline' }],
   });
-  if (pick === 0) return createBlankTemplate('checklist');
-  if (pick === 1) return createBlankTemplate('plot');
-  if (pick === 2) return copyTemplateAndEdit(STEMMAP_TEMPLATE);
-  if (pick === 4) {
+  if (pick === 'checklist') return createBlankTemplate('checklist');
+  if (pick === 'plot') return createBlankTemplate('plot');
+  if (pick === 'census') return copyTemplateAndEdit(STEMMAP_TEMPLATE);
+  if (pick === 'import') {
     await importTemplateFile();
     onImported?.();
     return;
   }
-  if (pick !== 3) return;
+  if (pick !== 'copy') return;
+  const src = await pickTemplateToCopy();
+  if (src) await copyTemplateAndEdit(src);
+}
+
+/**
+ * 要複製哪一個？ (15A, many options): the user's own, the built-in ones and
+ * samples, and those imported from a file (shared by a teammate), with the
+ * last copied on top.
+ */
+async function pickTemplateToCopy(): Promise<SurveyTemplate | null> {
+  const mine = userTemplates();
+  const groups: { section: string; list: readonly SurveyTemplate[] }[] = [
+    { section: i18n.t('builder.new.sectionMine'), list: mine.filter((t) => t.origin !== 'imported') },
+    { section: i18n.t('builder.new.sectionBuiltin'), list: [...SAMPLE_TEMPLATES, ...BUILTIN_TEMPLATES] },
+    { section: i18n.t('builder.new.sectionTeam'), list: mine.filter((t) => t.origin === 'imported') },
+  ];
+  const uses = templateUseCounts();
+  const sources = groups.flatMap((g) => g.list);
+  const options = groups.flatMap((g) => g.list.map((t) => ({ ...templateOption(t, uses.get(t.id)?.last), section: g.section })));
+  // A chip per group with something in it, when there is more than one.
+  const filled = groups.filter((g) => g.list.length);
   const idx = await showActionSheet({
     title: i18n.t('builder.new.copyFrom'),
-    options: sources.map((t) => ({ label: templateName(i18n.t, i18n.language, t) })),
+    options,
+    filters: filled.length > 1 ? filled.map((g) => ({ label: g.section, match: (o) => o.section === g.section })) : undefined,
+    recentKey: 'templateCopy',
     cancelLabel: i18n.t('common.cancel'),
   });
-  const src = sources[idx];
-  if (src) await copyTemplateAndEdit(src);
+  return sources[idx] ?? null;
 }
 
 /** Open a saved template in the builder: its draft, or a new draft of its latest version. */

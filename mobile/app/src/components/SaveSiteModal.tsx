@@ -18,6 +18,7 @@ import { runOverModal } from './GbifLookupHost';
 import { SITE_TYPE_LABEL, type DrawType } from '~/lib/siteLabels';
 import { useThemeColors } from '~/theme/colors';
 import { DropdownChevron } from '~/components/ui/Chevron';
+import { ActionSheetLayer, sheetBack } from '~/components/ActionSheet';
 
 type Props = {
   visible: boolean;
@@ -93,7 +94,7 @@ export function SaveSiteModal({
   const canSave = name.trim().length > 0;
 
   return (
-    <Modal visible={visible && !steppedAside} animationType="slide" onRequestClose={onCancel}>
+    <Modal visible={visible && !steppedAside} animationType="slide" onRequestClose={sheetBack(onCancel)}>
       <View
         className="flex-1 bg-card dark:bg-gray-900"
         style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
@@ -163,7 +164,7 @@ export function SaveSiteModal({
         visible={showProjectPicker}
         transparent
         animationType="slide"
-        onRequestClose={() => setShowProjectPicker(false)}
+        onRequestClose={sheetBack(() => setShowProjectPicker(false))}
       >
         <View className="flex-1">
           <Pressable
@@ -217,7 +218,9 @@ export function SaveSiteModal({
             </ScrollView>
           </View>
         </View>
+        <ActionSheetLayer visible={showProjectPicker} />
       </Modal>
+      <ActionSheetLayer visible={visible && !steppedAside} />
     </Modal>
   );
 }

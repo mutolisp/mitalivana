@@ -6,6 +6,7 @@
 import { searchByTaxonId } from '~/db/search';
 import { isoStamp } from '~/lib/datetime';
 import { LAYOUT_KEY } from '~/components/quadrat/names';
+import type { TitlePart } from '~/lib/mergeEngine';
 
 /** Field → label key; fields not listed show their column name. */
 const FIELD_KEY: Record<string, string> = {
@@ -116,6 +117,21 @@ const TREE_CODE_KEY: Record<string, Record<string, string>> = {
   ref_kind: { stake: 'survey.loc.refStake', tree: 'survey.loc.refTree' },
   azimuth_ref: { magnetic: 'survey.loc.compass', true: 'survey.frame.trueNorth' },
 };
+
+/**
+ * A value that is a scientific name, as title parts for the review to set in
+ * italics by rank (components/merge/MergeText.tsx); null for any other value.
+ * `taxonId`: the row's taxon, for the rank of a name stored as text.
+ */
+export function nameParts(f: string, v: unknown, taxonId?: unknown): TitlePart[] | null {
+  if (typeof v !== 'string' || !v) return null;
+  if (f === 'taxon_id') {
+    const hit = searchByTaxonId(v);
+    return hit ? [...(hit.cname ? [`${hit.cname} `] : []), { sci: hit.name, rank: hit.rank || null, kingdom: hit.kingdom || null }] : null;
+  }
+  if (f === 'used_scientific_name') return [{ sci: v, ...(typeof taxonId === 'string' && taxonId ? { taxonId } : {}) }];
+  return null;
+}
 
 export function fmt(f: string, v: unknown, ctx?: FmtContext): string {
   if (LOCKS.has(f) || typeof v === 'boolean') return v ? '✓' : '—';

@@ -18,14 +18,17 @@ import { unionSurveyors } from '../db/merge';
 import type { GloriaDoc } from '../modules/gloria/export/yaml';
 import { LOGGER_FIELDS, UNIT_FIELDS } from '../modules/gloria/export/yaml';
 import { SURVEY_DOC_COMBINERS } from '../survey/db/surveyDocCore';
-import { buildTrackGeoJSON, parseTrackSegments } from './track';
-import { defaultDecision, type Combiners, type Decision, type MergeItem, type MergeRow, type MergeSide, type Row } from './mergeEngine';
+import { trackUnion } from './track';
+import { defaultDecision, type Combiners, type Decision, type MergeItem, type MergeRow, type MergeSide, type Row, type TitlePart } from './mergeEngine';
 
 /** 'modular': a checklist / plot-style survey (surveyDocCore.ts). These strings are stored and sent (sync_links, sync_base, merge_log). */
 export type MergeKind = 'session' | 'plot' | 'gloria' | 'modular';
 
 const omit = (o: Row, keys: readonly string[]): Row =>
   Object.fromEntries(Object.entries(o).filter(([k]) => !keys.includes(k)));
+
+/** A row's name as the review shows it: the scientific name, italic by rank (looked up there); without one, the taxon id as text. */
+const sciTitle = (sci: string | null | undefined, taxonId: string): TitlePart[] => [sci ? { sci, taxonId } : taxonId];
 
 // ── combiners ──────────────────────────────────────────────────────────────
 
@@ -40,17 +43,8 @@ const maxTime = (a: unknown, b: unknown) => {
 /** This device still recording (no end) stays open; otherwise the later end. */
 const endTime = (local: unknown, remote: unknown) => (local == null ? null : maxTime(local, remote));
 const surveyors = (a: unknown, b: unknown) => unionSurveyors([(a as string) ?? null, (b as string) ?? null]);
-/** Segment union without repeats, so merging the same file twice adds nothing. */
-export function trackUnion(a: unknown, b: unknown): string | null {
-  const seen = new Set<string>();
-  const segs = [...parseTrackSegments((a as string) ?? null), ...parseTrackSegments((b as string) ?? null)].filter((s) => {
-    const k = JSON.stringify(s);
-    if (s.length === 0 || seen.has(k)) return false;
-    seen.add(k);
-    return true;
-  });
-  return segs.length ? buildTrackGeoJSON(segs) : null;
-}
+// Segment union without repeats (src/lib/track.ts; a modular survey's track merges the same way).
+export { trackUnion };
 
 /** 3×3 m grid checks per aspect: ticked on either side stays ticked. */
 const gridTicks = (a: unknown, b: unknown) => {
@@ -92,6 +86,7 @@ export function sessionSide(s: ImportedSession): MergeSide {
       extra: { photo_files: r.photo_files ?? [], audio_files: r.audio_files ?? [], name: r.name ?? null, family: r.family ?? null },
       dupKey: `${r.taxon_id}|${r.used_scientific_name ?? ''}`,
       label: r.used_scientific_name || r.name || r.taxon_id,
+      title: sciTitle(r.used_scientific_name || r.name, r.taxon_id),
     })),
   };
 }
@@ -132,6 +127,7 @@ export function plotSide(p: ImportedPlot): MergeSide {
       extra: { photo_files: r.photo_files ?? [], audio_files: r.audio_files ?? [], name: r.name ?? null, family: r.family ?? null },
       dupKey: `${r.taxon_id}|${r.layer ?? ''}|${r.subplot ?? ''}|${r.used_scientific_name ?? ''}`,
       label: r.used_scientific_name || r.name || r.taxon_id,
+      title: sciTitle(r.used_scientific_name || r.name, r.taxon_id),
       group: r.subplot ?? undefined,
     })),
     ...quadratTables(p),
@@ -180,6 +176,8 @@ function quadratTables(p: ImportedPlot): MergeSide {
         data: omit(s as unknown as Row, ['name', 'cname']),
         extra: { name: s.name ?? null, cname: s.cname ?? null },
         label: s.cname || s.name || s.taxon_id,
+        // A common name is text; else the scientific name.
+        title: s.cname ? [s.cname] : sciTitle(s.name, s.taxon_id),
         group: q.label,
       })),
     );
@@ -314,6 +312,7 @@ export function gloriaSide(d: GloriaDoc): MergeSide {
         },
         dupKey: `${s.unit}|${taxonId}|${t?.verbatim_identification ?? ''}`,
         label: [t?.scientific_name || t?.used_scientific_name || taxonId, t?.verbatim_identification].filter(Boolean).join(' '),
+        title: [...sciTitle(t?.scientific_name || t?.used_scientific_name, taxonId), ...(t?.verbatim_identification ? [` ${t.verbatim_identification}`] : [])],
         group: s.unit,
       };
     }),

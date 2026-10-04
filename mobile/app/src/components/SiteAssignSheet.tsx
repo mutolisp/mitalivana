@@ -8,6 +8,7 @@ import { listSites, type SiteWithProject } from '~/db';
 import { SITE_TYPE_ICON, SITE_TYPE_LABEL, type DrawType } from '~/lib/siteLabels';
 import { useThemeColors } from '~/theme/colors';
 import { Button } from '~/components/ui/Button';
+import { ActionSheetLayer, sheetBack } from '~/components/ActionSheet';
 
 export type { DrawType } from '~/lib/siteLabels';
 
@@ -53,7 +54,7 @@ export function SiteAssignSheet({
   });
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onCancel}>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={sheetBack(onCancel)}>
       <View className="flex-1">
         <Pressable
           onPress={onCancel}
@@ -170,6 +171,7 @@ export function SiteAssignSheet({
           </ScrollView>
         </View>
       </View>
+      <ActionSheetLayer visible={visible} />
     </Modal>
   );
 }

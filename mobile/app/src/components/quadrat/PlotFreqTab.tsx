@@ -171,10 +171,11 @@ export function PlotFreqTab({
               const i = await showActionSheet({
                 title: t('plot.quadrats.filter'),
                 options: opts.map((l) => ({
-                  label: `${layer === l ? '✓ ' : ''}${t('plot.quadrats.filterLayer', {
+                  label: t('plot.quadrats.filterLayer', {
                     layer: l ?? t('plot.quadrats.all'),
                     n: l ? items.filter((x) => x.layer === l).length : items.length,
-                  })}`,
+                  }),
+                  selected: layer === l,
                 })),
               });
               if (i >= 0) setLayer(opts[i]);

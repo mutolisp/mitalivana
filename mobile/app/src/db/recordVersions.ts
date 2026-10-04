@@ -17,6 +17,7 @@
 import { assertNever } from '~/lib/assertNever';
 import { deflateSync, inflateSync, strFromU8, strToU8 } from 'fflate';
 import { getUserDb } from '~/db/init';
+import { isPreviewId } from '~/db/previewDb';
 import { applyPlotMerge, applySessionMerge, localPlotDoc, localSessionDoc } from '~/db/teamMerge';
 import { importPlotSurvey, getPlotSurvey, getPlotSurveyByUuid, type ImportedPlot } from '~/db/plots';
 import { importSession, getSession, getSessionByUuid, type ImportedSession } from '~/db/sessions';
@@ -156,6 +157,8 @@ const decode = (text: string): Snapshot => JSON.parse(strFromU8(inflateSync(from
  * finish, merge or navigation that asked for it. Returns whether one was stored.
  */
 export function saveVersion(kind: VersionKind, id: number, reason: VersionReason, note: string | null = null): boolean {
+  // A builder preview keeps nothing (previewDb.ts).
+  if (isPreviewId(id)) return false;
   try {
     const who = uuidAndLabel(kind, id);
     const doc = who ? localDoc(kind, id) : null;

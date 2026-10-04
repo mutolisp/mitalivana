@@ -56,3 +56,15 @@ export function trackLengthMeters(segments: TrackSegment[]): number {
   }
   return total;
 }
+
+/** Segment union without repeats, so merging the same file twice adds nothing. */
+export function trackUnion(a: unknown, b: unknown): string | null {
+  const seen = new Set<string>();
+  const segs = [...parseTrackSegments((a as string) ?? null), ...parseTrackSegments((b as string) ?? null)].filter((s) => {
+    const k = JSON.stringify(s);
+    if (s.length === 0 || seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+  return segs.length ? buildTrackGeoJSON(segs) : null;
+}

@@ -24,6 +24,10 @@ export type EditorContext = {
   noAutoFocus?: boolean;
   /** The template's own code lists (a choice's codes). */
   codelists?: readonly CodeList[];
+  /** The template has quadrats (a second unit level): Method asks their size. */
+  quadrats?: boolean;
+  /** Structure on a unit: the cm / m the survey gives each layer (its own Structure's height_unit). */
+  heightUnitOf?: (layerIdx: number) => 'cm' | 'm';
 };
 
 export type EditorProps = {
@@ -49,6 +53,8 @@ export function problemText(t: TFunction, p: Problem): string {
   switch (p.code) {
     case 'required':
       return t('survey.editor.problem.required');
+    case 'required_missing':
+      return t('survey.editor.problem.requiredMissing');
     case 'not_a_number':
       return t('survey.editor.problem.notANumber');
     case 'below_min':
@@ -72,6 +78,18 @@ export function problemText(t: TFunction, p: Problem): string {
     default:
       return p.code;
   }
+}
+
+/**
+ * 必填未填 (2G-e) belongs to the whole card, so the card shows it: editors
+ * place field problems their own way, and some show none. Callers pass the
+ * editor the other problems.
+ */
+export const isRequiredMissing = (p: Problem) => p.code === 'required_missing';
+export function RequiredMissingLine({ problems }: { problems: readonly Problem[] }) {
+  const { t } = useTranslation();
+  if (!problems.some(isRequiredMissing)) return null;
+  return <Text className="text-xs font-semibold text-alert dark:text-alert-dark">{t('survey.editor.problem.requiredMissing')}</Text>;
 }
 
 /** The problems of one field (all of them when `field` is omitted), one line each. */

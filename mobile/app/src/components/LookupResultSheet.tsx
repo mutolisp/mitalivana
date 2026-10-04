@@ -18,6 +18,7 @@ import { editManualTaxon, runOverModal } from './GbifLookupHost';
 import { clearSearchResultCache } from './SearchBox';
 import { SpeciesDetailPanel } from './SpeciesDetailPanel';
 import { ToastHost } from './ToastHost';
+import { ActionSheetLayer, sheetBack } from '~/components/ActionSheet';
 
 type Props = {
   result: SearchResult | null;
@@ -69,7 +70,7 @@ export function LookupResultSheet({
   if (!currentResult) return null;
 
   return (
-    <Modal visible={!steppedAside} animationType="slide" transparent onRequestClose={onClose}>
+    <Modal visible={!steppedAside} animationType="slide" transparent onRequestClose={sheetBack(onClose)}>
       <View className="flex-1">
         <Pressable
           onPress={onClose}
@@ -110,6 +111,7 @@ export function LookupResultSheet({
       </View>
       {/* Toasts fired while this sheet is up (it has its own window). */}
       <ToastHost inModal />
+      <ActionSheetLayer visible={!steppedAside} />
     </Modal>
   );
 }

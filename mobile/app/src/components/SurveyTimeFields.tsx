@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DateTimeField } from '~/components/DateTimeField';
 import { isoStamp } from '~/lib/datetime';
 import { useThemeColors } from '~/theme/colors';
+import { ActionSheetLayer, sheetBack } from '~/components/ActionSheet';
 
 type Props = {
   start: number | null;
@@ -109,7 +110,7 @@ export function SurveyTimesModal({
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible} animationType="slide" onRequestClose={sheetBack(onClose)}>
       <View className="flex-1 bg-gray-50 dark:bg-gray-950" style={{ paddingTop: insets.top }}>
         <View className="flex-row items-center border-b border-gray-200 px-4 py-3 dark:border-gray-800">
           <Text className="flex-1 text-base font-semibold text-gray-900 dark:text-gray-100">
@@ -123,6 +124,7 @@ export function SurveyTimesModal({
           <SurveyTimeFields {...fields} />
         </ScrollView>
       </View>
+      <ActionSheetLayer visible={visible} />
     </Modal>
   );
 }

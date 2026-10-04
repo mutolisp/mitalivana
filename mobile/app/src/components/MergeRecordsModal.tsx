@@ -22,6 +22,7 @@ import { KeyboardAvoidingView } from './KeyboardAvoidingView';
 import type { MergeRecordOptions } from '~/db';
 import { useThemeColors } from '~/theme/colors';
 import { Radio } from '~/components/ui/Radio';
+import { ActionSheetLayer, sheetBack } from '~/components/ActionSheet';
 
 export type MergeSource = { id: number; title: string; subtitle: string };
 
@@ -66,7 +67,7 @@ export function MergeRecordsModal({ request, onCancel, onConfirm }: Props) {
   const canConfirm = trimmed.length > 0 && primaryId > 0;
 
   return (
-    <Modal visible={request !== null} animationType="slide" onRequestClose={onCancel}>
+    <Modal visible={request !== null} animationType="slide" onRequestClose={sheetBack(onCancel)}>
       <View
         className="flex-1 bg-card dark:bg-gray-900"
         style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
@@ -192,6 +193,7 @@ export function MergeRecordsModal({ request, onCancel, onConfirm }: Props) {
           </ScrollView>
         </KeyboardAvoidingView>
       </View>
+      <ActionSheetLayer visible={request !== null} />
     </Modal>
   );
 }

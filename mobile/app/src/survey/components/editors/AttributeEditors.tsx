@@ -12,9 +12,11 @@ import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { Text, View } from 'react-native';
 import { LabeledField, LabeledNumField } from '~/components/form/LabeledField';
+import { Chip } from '~/components/ui/Chip';
 import { SpeciesAttributesBlock, type SpeciesAttributesDraft } from '~/components/SpeciesAttributesBlock';
 import { COVER_FIELDS, type EnvironmentField, type TraitDef } from '~/survey/registry';
 import type { Label } from '~/survey/template/types';
+import { choiceList, codeLabel } from './ChoiceEditor';
 import { labelText, ProblemLines, type EditorProps } from './shared';
 
 const list = (v: unknown): string[] => (Array.isArray(v) ? v.map(String) : []);
@@ -76,6 +78,8 @@ export function envLabel(t: TFunction, f: EnvironmentField): string {
       return t('plot.slope');
     case 'aspect_deg':
       return t('plot.aspect');
+    case 'openness':
+      return t('surveyForm.env.openness');
     case 'terrain_position':
       return t('plot.terrainPosition');
     case 'vascular_cover_pct':
@@ -96,8 +100,8 @@ export function envLabel(t: TFunction, f: EnvironmentField): string {
 }
 const RANGE: Readonly<Partial<Record<EnvironmentField, [number, number]>>> = { slope_deg: [0, 90], aspect_deg: [0, 359] };
 
-export function EnvironmentEditor({ instance, values, onChange, problems, readOnly }: EditorProps) {
-  const { t } = useTranslation();
+export function EnvironmentEditor({ instance, values, onChange, problems, context, readOnly }: EditorProps) {
+  const { t, i18n } = useTranslation();
   const fields = (Array.isArray(instance.params.fields) ? instance.params.fields : []) as EnvironmentField[];
   const covers = COVER_FIELDS.filter((f) => fields.includes(f));
   const total = Math.round(covers.reduce((s, f) => s + (num(values[f]) ?? 0), 0) * 100) / 100;
@@ -119,6 +123,28 @@ export function EnvironmentEditor({ instance, values, onChange, problems, readOn
         if (f === 'terrain_position') {
           return <LabeledField key={f} label={label} value={text(values[f]) ?? ''} onSave={(v) => onChange({ [f]: v.trim() || null })} />;
         }
+        if (f === 'openness') {
+          // A grade from the template's own list, else sky openness in % (2G-f).
+          const grades = typeof instance.params.openness_list === 'string' ? choiceList(context?.codelists, instance.params.openness_list) : undefined;
+          if (grades) {
+            const chosen = text(values.openness_grade);
+            return (
+              <View key={f} className="gap-2 py-1">
+                <Text className="text-sm text-ink dark:text-gray-100">{label}</Text>
+                <View className="flex-row flex-wrap gap-2">
+                  {grades.items
+                    .filter((it) => !it.deprecated || it.code === chosen)
+                    .map((it) => (
+                      <Chip key={it.code} label={codeLabel(t, i18n.language, it, it.code)} selected={chosen === it.code} onPress={() => onChange({ openness_grade: chosen === it.code ? null : it.code })} />
+                    ))}
+                </View>
+              </View>
+            );
+          }
+          return (
+            <LabeledNumField key={f} label={t('surveyForm.env.opennessPct')} suffix="%" value={num(values.openness_pct)} min={0} max={100} onSave={(v) => onChange({ openness_pct: v })} />
+          );
+        }
         const cover = (COVER_FIELDS as readonly string[]).includes(f);
         const [min, max] = RANGE[f] ?? (cover ? [0, 100] : [undefined, undefined]);
         return (
@@ -129,7 +155,12 @@ export function EnvironmentEditor({ instance, values, onChange, problems, readOn
             value={num(values[f])}
             min={min}
             max={max}
-            onSave={(v, done) => (cover ? setCover(f, v, done) : onChange({ [f]: v }))}
+            onSave={(v, done) =>
+              cover
+                ? setCover(f, v, done)
+                : // The survey's own elevation says where it came from (v88): typed here, as on a fixed plot.
+                  onChange(f === 'elevation_m' && instance.level === 'survey' ? { elevation_m: v, elevation_source: v == null ? null : 'manual' } : { [f]: v })
+            }
           />
         );
       })}

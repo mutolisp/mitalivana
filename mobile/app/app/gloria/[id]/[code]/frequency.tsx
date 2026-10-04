@@ -45,6 +45,7 @@ import { saveVersionSoon } from '~/db/recordVersions';
 import { coverFreqIssues } from '~/lib/quadratIssues';
 import type { FrequencyGridHandle } from '~/components/quadrat/FrequencyGrid';
 import { useVersionOnLeave } from '~/lib/useVersionOnLeave';
+import { speciesParts } from '~/lib/nameParts';
 
 const CELLS = QUADRAT_N * QUADRAT_N;
 const GRAZING = [
@@ -296,7 +297,7 @@ export default function FrequencyScreen() {
         onSwitchMode={switchMode}
         searchGroups={GLORIA_SEARCH_GROUPS}
         onAdd={async (r) => {
-          const label = await pickMorphoLabel(t, unit.survey_id, r.taxon_id, r.rank, r.cname || r.name);
+          const label = await pickMorphoLabel(t, unit.survey_id, r.taxon_id, r.rank, speciesParts(r.cname, r.name, r.rank, r.kingdom));
           if (label === undefined) return null;
           const usid = addUnitSpecies(unit.id, r.taxon_id, label);
           if (unit.freq_mode == null) startFrequency(unit.id);

@@ -39,6 +39,7 @@ import { WalkDiagram } from '~/modules/gloria/components/WalkDiagram';
 import { PointMap } from '~/modules/gloria/components/PointMap';
 import { saveVersionSoon } from '~/db/recordVersions';
 import { useVersionOnLeave } from '~/lib/useVersionOnLeave';
+import { speciesParts } from '~/lib/nameParts';
 
 type PointStep = { seq: number; surface: string; hits: Record<number, boolean> };
 
@@ -372,7 +373,7 @@ export default function PointsScreen() {
             scopeGroups={GLORIA_SEARCH_GROUPS}
             onSelect={async (r) => {
               if (!r.taxon_id) return;
-              const label = await pickMorphoLabel(t, unit.survey_id, r.taxon_id, r.rank, r.cname || r.name);
+              const label = await pickMorphoLabel(t, unit.survey_id, r.taxon_id, r.rank, speciesParts(r.cname, r.name, r.rank, r.kingdom));
               if (label === undefined) return;
               if (unit.point_surface == null) startPoints(unit.id, size);
               const usid = addUnitSpecies(unit.id, r.taxon_id, label);

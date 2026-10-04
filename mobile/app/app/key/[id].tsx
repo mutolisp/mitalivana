@@ -67,8 +67,10 @@ import { useToast } from '~/stores/toast';
 import { ACTION_FILL } from '~/lib/colors';
 import { useInstalledDatasets } from '~/lib/datasetInstall';
 import { stampNewRecord } from '~/lib/recordFix';
+import { familyChineseFirst } from '~/lib/familyLabel';
 import { useThemeColors } from '~/theme/colors';
 import { Button } from '~/components/ui/Button';
+import { ActionSheetLayer, sheetBack } from '~/components/ActionSheet';
 
 type LeadKey = 'a' | 'b';
 
@@ -1062,7 +1064,7 @@ function TerminalTaxon({
         ) : null}
         {taxon.family_c || taxon.family ? (
           <Text className="mt-1 text-sm text-gray-700 dark:text-gray-300">
-            {taxon.family_c} {taxon.family}
+            {familyChineseFirst(taxon.family, taxon.family_c)}
           </Text>
         ) : null}
         {tags.length > 0 || taxon.redlist || status ? (
@@ -1272,7 +1274,7 @@ function CandidatesSheet({
   }, [candidates]);
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={sheetBack(onClose)}>
       <View className="flex-1">
         <Pressable
           onPress={onClose}
@@ -1317,6 +1319,7 @@ function CandidatesSheet({
           </SafeAreaView>
         </View>
       </View>
+      <ActionSheetLayer visible={visible} />
     </Modal>
   );
 }
@@ -1393,7 +1396,7 @@ function CoupletPreviewPopup({
   const { t: tr } = useTranslation();
   if (!couplet) return null;
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
+    <Modal visible transparent animationType="fade" onRequestClose={sheetBack(onClose)}>
       <Pressable
         onPress={onClose}
         style={{
@@ -1431,6 +1434,7 @@ function CoupletPreviewPopup({
           </Text>
         </Pressable>
       </Pressable>
+      <ActionSheetLayer />
     </Modal>
   );
 }

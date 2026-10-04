@@ -60,6 +60,7 @@ import { ScientificName } from './ScientificName';
 import { stampNewRecord } from '~/lib/recordFix';
 import { useThemeColors } from '~/theme/colors';
 import { Button } from '~/components/ui/Button';
+import { ActionSheetLayer, sheetBack } from '~/components/ActionSheet';
 
 type Props = {
   keyId: number;
@@ -522,7 +523,7 @@ function StatePickerSheet({
   if (!feature) return null;
 
   return (
-    <Modal visible animationType="slide" transparent onRequestClose={onClose}>
+    <Modal visible animationType="slide" transparent onRequestClose={sheetBack(onClose)}>
       <View className="flex-1">
         <Pressable
           onPress={onClose}
@@ -566,6 +567,7 @@ function StatePickerSheet({
           </SafeAreaView>
         </View>
       </View>
+      <ActionSheetLayer />
     </Modal>
   );
 }

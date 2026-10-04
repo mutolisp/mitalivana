@@ -34,6 +34,8 @@ export const EVENT_COLS: ColSpec[] = [
   { key: 'samplingProtocol', term: `${DWC}samplingProtocol` },
   { key: 'sampleSizeValue', term: `${DWC}sampleSizeValue` },
   { key: 'sampleSizeUnit', term: `${DWC}sampleSizeUnit` },
+  // A survey's 調查法 effort, e.g. "1000 camera-hours" (2G-f).
+  { key: 'samplingEffort', term: `${DWC}samplingEffort` },
   // A permanent plot's uuid: every census and survey on it share it (Modular_survey.md §7.4).
   { key: 'locationID', term: `${DWC}locationID` },
   { key: 'locality', term: `${DWC}locality` },
@@ -200,6 +202,7 @@ export const HUMBOLDT_COLS: ColSpec[] = [
   { key: 'eventDurationValue', term: `${ECO}eventDurationValue` },
   { key: 'eventDurationUnit', term: `${ECO}eventDurationUnit` },
   { key: 'protocolNames', term: `${ECO}protocolNames` },
+  { key: 'protocolDescriptions', term: `${ECO}protocolDescriptions` },
   { key: 'samplingPerformedBy', term: `${ECO}samplingPerformedBy` },
   { key: 'isAbundanceReported', term: `${ECO}isAbundanceReported` },
   { key: 'isVegetationCoverReported', term: `${ECO}isVegetationCoverReported` },

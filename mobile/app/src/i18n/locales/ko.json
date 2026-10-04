@@ -23,6 +23,14 @@
     "next": "다음",
     "selectedCount_other": "{{count}}개 선택됨"
   },
+  "actionSheet": {
+    "close": "닫기",
+    "search": "검색",
+    "searchPlaceholder_other": "선택지 {{count}}개 검색",
+    "noMatch": "「{{q}}」에 맞는 선택지가 없습니다",
+    "recent": "최근 사용",
+    "all_other": "전체 {{count}}"
+  },
   "group": {
     "plantae": "식물",
     "aves": "조류",
@@ -769,7 +777,11 @@
       "keypadHide": "숫자 키 숨기기",
       "moreBelow": "아래에 더 있습니다"
     },
-    "tabFreq": "빈도"
+    "tabFreq": "빈도",
+    "numMin": "값은 {{min}} 이상이어야 합니다",
+    "numMax": "값은 {{max}} 이하여야 합니다",
+    "numAbove": "값은 {{min}}보다 커야 합니다",
+    "numAboveMax": "값은 {{min}}보다 크고 {{max}} 이하여야 합니다"
   },
   "settings": {
     "sectionAppearance": "외관과 조작",
@@ -891,7 +903,7 @@
     "collapseAll": "모두 접기",
     "tree": "분류 트리",
     "search": "검색",
-    "incompleteBucket": "분류 미완성(직접 만든 종)",
+    "incompleteBucket": "분류 미완성",
     "bulkNodeTitle": "선택한 분류군: {{names}}",
     "bulkTooManyTitle": "너무 많습니다",
     "bulkTooManyMsg": "이 분류군 아래에 {{count}}건이 있어 1회 한도 {{max}}건을 넘습니다. 더 낮은 계급의 분류군을 선택하세요.",
@@ -1074,6 +1086,7 @@
     "import": "가져오기",
     "drawingLabel": "{{type}} 그리는 중 · {{count}}점",
     "handoffHint": "기록 #{{id}}의 사이트를 만듭니다. 완료되면 자동으로 지정됩니다",
+    "surveyHandoffHint": "「{{name}}」의 사이트를 만듭니다. 완료되면 자동으로 지정됩니다",
     "editTrackHint": "이동경로 편집 · 꼭짓점 끌기 / 눌러서 삭제",
     "editPosHint": "위치 편집 · 마커 끌기",
     "nlsc": "NLSC(대만)",
@@ -1258,7 +1271,6 @@
   "plotSpecies": {
     "addPhotoFail": "사진 추가 실패",
     "changeLayer": "층위 변경",
-    "currentSuffix": "(현재)",
     "movedTo": "{{layer}}(으)로 옮겼습니다",
     "pointCountRecord": "정점 조사 기록",
     "transectRecord": "트랜섹트 기록",
@@ -4631,7 +4643,8 @@
       "traits": "형질",
       "environment": "환경",
       "choice": "사용자 선택 항목",
-      "interaction": "상호작용"
+      "interaction": "상호작용",
+      "method": "조사법"
     },
     "editor": {
       "elsewhere": "이 항목은 기록 화면에서 입력합니다.",
@@ -4644,7 +4657,8 @@
         "malformed": "형식이 올바르지 않습니다",
         "endsBeforeStart": "종료가 시작보다 이릅니다",
         "coversOver100": "지표 피복 합계가 100%를 넘습니다",
-        "layerOutOfRange": "층위 수를 넘습니다"
+        "layerOutOfRange": "층위 수를 넘습니다",
+        "requiredMissing": "필수 항목 미입력"
       },
       "abundance": {
         "count": "개체 수",
@@ -4667,7 +4681,8 @@
       "timestamp": {
         "start": "시작",
         "stop": "종료",
-        "setStop": "종료 시각 기록"
+        "setStop": "종료 시각 기록",
+        "setStart": "시작 시각 기록"
       },
       "people": {
         "none": "지정 안 됨"
@@ -4906,7 +4921,6 @@
     },
     "tab": {
       "data": "자료",
-      "units_other": "단위 {{count}}",
       "species_other": "종 {{count}}",
       "freq": "빈도",
       "interactions_other": "상호작용 {{count}}"
@@ -4925,13 +4939,15 @@
       "blindSealed": "블라인드가 끝나서 그동안의 기록은 바꿀 수 없습니다",
       "recheckBegun": "재확인이 시작되어(결과나 추가 기록이 있음) 블라인드를 다시 열 수 없습니다",
       "labelTaken": "라벨 「{{label}}」은 이미 목록에 있습니다",
-      "badValue": "이 값은 저장할 수 없습니다"
+      "badValue": "이 값은 저장할 수 없습니다",
+      "unitDone": "“{{code}}”은(는) 완료로 표시되어 있습니다. 완료를 해제해야 수정할 수 있습니다."
     },
     "finish": {
       "title": "조사 끝내기",
       "blindOpen": "블라인드가 아직 끝나지 않았고 지난 목록을 재확인하지 않았습니다.",
       "recheckOpen_other": "지난 조사의 종 {{count}}종에 재확인 결과가 없습니다.",
-      "errors_other": "출현 기록 {{count}}건에 아직 오류가 있습니다."
+      "errors_other": "출현 기록 {{count}}건에 아직 오류가 있습니다.",
+      "dataMissing_other": "조사 자료의 필수 항목 {{count}}개가 비어 있습니다."
     },
     "blind": {
       "banner": "블라인드 중: 지난 종 목록은 블라인드가 끝난 뒤에 나타납니다.",
@@ -4972,7 +4988,8 @@
       "onFrameNote": "영구 조사구의 단위 배치에 속합니다. 조사에서 사용한 뒤에는 코드를 바꿀 수 없습니다.",
       "recordHere_other": "이 단위에서 종 기록({{count}}종)",
       "deleteTitle": "{{path}}를 삭제할까요?",
-      "deleteMsg_other": "출현 기록 {{count}}건과 하위 단위는 한 단계 위로 옮겨지고, 이 단위 자체의 자료와 사진은 삭제됩니다."
+      "deleteMsg_other": "출현 기록 {{count}}건과 하위 단위는 한 단계 위로 옮겨지고, 이 단위 자체의 자료와 사진은 삭제됩니다.",
+      "deleteAllMsg_other": "출현 기록 {{count}}건과 하위 단위도 함께 삭제되며, 이 단위 자체의 자료와 사진도 삭제됩니다."
     },
     "label": {
       "title": "{{name}}의 라벨",
@@ -4985,7 +5002,8 @@
       "newMsg": "목록에 넣으면 이후 조사에서도 같은 라벨이 이 형태종을 가리킵니다.",
       "addToList": "목록에 추가",
       "onlyHere": "이 기록에만",
-      "pickMsgNone": "형태종 목록에 이 분류군의 라벨이 아직 없습니다."
+      "pickMsgNone": "형태종 목록에 이 분류군의 라벨이 아직 없습니다.",
+      "field": "라벨"
     },
     "frame": {
       "section": "조사구형 조사",
@@ -5020,7 +5038,66 @@
       "banner": "이 조사표에 새 판이 있습니다({{n}}판)",
       "msg": "{{n}}판으로 업그레이드: 새 항목이 나타나고 기록된 데이터는 바뀌지 않습니다."
     },
-    "carried": "{{n}}차와 같음(시작할 때 가져옴, 확인하세요): {{fields}}"
+    "carried": "{{n}}차와 같음(시작할 때 가져옴, 확인하세요): {{fields}}",
+    "surveyData": "조사 자료",
+    "dataLocked": "종료되어 잠겨 있습니다. 편집하려면 조사 화면으로 돌아가 오른쪽 위의 자물쇠를 누르세요.",
+    "dataFilled": "입력 {{filled}}/{{total}}",
+    "track": "이동경로",
+    "extrasAfterSave": "다른 항목은 저장한 뒤 입력할 수 있습니다.",
+    "trackNotStarted": "이동경로 기록을 시작하지 않았습니다",
+    "gnssNotYet": "아직 가져오지 않음",
+    "noLayer": "층위 없음",
+    "quadrat": {
+      "addWhere": "{{code}}을(를) 어느 {{level}}에 둘까요?",
+      "fromUnitList": "{{unit}} 목록에서",
+      "unitFields": "기타 항목",
+      "size": "크기",
+      "sizeShared": "조사법 공통",
+      "sizeOwn": "이 소방형구만의 크기(비우면 공통 값 사용)"
+    },
+    "env": {
+      "openness": "개방도",
+      "opennessPct": "하늘 개방도"
+    },
+    "method": {
+      "title": "조사 방법",
+      "none": "선택 안 함",
+      "custom": "사용자 정의 방법",
+      "customPick": "사용자 정의 방법…",
+      "customName": "방법 이름",
+      "size": "크기",
+      "effortAny": "노력량",
+      "effortUnit": "노력량 단위",
+      "effort": {
+        "cameraHours": "카메라 작동 시간",
+        "trapNights": "트랩 야수",
+        "netHours": "그물 설치 시간",
+        "personHours": "인시",
+        "trapHours": "유인 시간",
+        "trapDays": "트랩 일수",
+        "recorderHours": "녹음 시간"
+      },
+      "quadratSize": "소방형구 크기",
+      "description": "방법 설명",
+      "source": "방법 이름은 대만 환경부 「동물·식물 생태 평가 기술 규범」(2026년판)을 따릅니다.",
+      "group": {
+        "vegetation": "식생",
+        "birds": "조류",
+        "mammals": "포유류",
+        "herps": "양서파충류",
+        "insects": "곤충",
+        "general": "공통"
+      }
+    },
+    "group": {
+      "basic": "기본 자료",
+      "time": "시간 자료",
+      "space": "공간 자료",
+      "method": "조사법",
+      "pageOf": "조사 자료 · {{n}} / {{total}}",
+      "people": "인원",
+      "missing_other": "필수 {{count}}개 미입력"
+    }
   },
   "builder": {
     "title": "조사표 템플릿",
@@ -5055,14 +5132,22 @@
       "title": "템플릿 만들기",
       "blankChecklist": "빈 목록형",
       "blankPlot": "빈 조사구형",
-      "copy": "기존 템플릿 복사…",
       "copyFrom": "어느 것을 복사할까요?",
       "nameTitle": "템플릿 이름",
       "nameMsg": "예: 「계류변 식물 목록」. 나중에 바꿀 수 있고 영어 이름도 붙일 수 있습니다.",
       "create": "만들기",
       "firstUnit": "소구획",
       "copyName": "{{name}} 사본",
-      "census": "매목조사(기본 제공 복사)"
+      "subtitle": "시작점을 고르세요. 나중에 모두 바꿀 수 있습니다",
+      "blankChecklistDesc": "처음부터 만드는 종 목록",
+      "blankPlotDesc": "층위·피도·소구획",
+      "censusDesc": "기본 제공 매목조사 템플릿 복사",
+      "copyShort": "기존 템플릿 복사",
+      "copyDesc": "내 템플릿·기본 제공·팀 공유",
+      "importDesc": "파일에서 가져오기(.mtpl.json)",
+      "sectionMine": "내 템플릿",
+      "sectionBuiltin": "기본 제공",
+      "sectionTeam": "팀 공유"
     },
     "notFound": "이 템플릿의 초안을 찾을 수 없습니다. 저장되었거나 버려졌을 수 있습니다.",
     "basics": "기본 정보",
@@ -5095,6 +5180,7 @@
     "preview": "미리 보기",
     "previewTitle": "미리 보기: {{name}}",
     "previewIntro": "이 템플릿으로 시작한 조사는 이렇게 보입니다. 시험 삼아 입력해 볼 수 있으며 내용은 저장되지 않습니다.",
+    "previewNoTrack": "미리보기에서는 이동경로를 기록하지 않습니다.",
     "discard": {
       "title": "변경을 버릴까요?",
       "msg": "초안이 삭제되고 템플릿은 {{n}}판으로 유지됩니다.",
@@ -5181,7 +5267,8 @@
       "max_other": "최대 {{count}}개",
       "gps": "GNSS 위치",
       "interactionTypes_other": "{{count}}개 유형",
-      "photos_other": "사진 {{count}}"
+      "photos_other": "사진 {{count}}",
+      "methods_other": "{{count}}개 방법 중 선택"
     },
     "kind": {
       "bb": "Braun-Blanquet",
@@ -5218,7 +5305,6 @@
       "multiSwitch": "여러 개 선택 허용"
     },
     "import": {
-      "fromFile": "파일에서 가져오기…",
       "failTitle": "가져올 수 없음",
       "newerApp": "이 템플릿에는 현재 버전의 앱이 모르는 항목({{types}})이 있습니다. 먼저 앱을 업데이트하세요.",
       "invalid": "파일 내용이 올바르지 않습니다: {{detail}}",
@@ -5274,6 +5360,19 @@
       "inverseEn": "B에서 본 영어 표현",
       "iri": "RO 관계 IRI(선택)",
       "iriBad": "IRI는 http:// 또는 https://로 시작하며 공백이 없어야 합니다"
+    },
+    "method": {
+      "choose": "조사자가 목록에서 선택",
+      "fixed": "하나로 고정",
+      "all": "모든 방법 제공",
+      "method": "방법",
+      "custom": "사용자 정의 방법 허용",
+      "customDesc": "조사자가 목록에 없는 방법 이름을 입력할 수 있습니다."
+    },
+    "openness": {
+      "pct": "하늘 개방도(%)",
+      "grades": "사용자 정의 등급",
+      "list": "등급 목록"
     }
   },
   "surveyImport": {

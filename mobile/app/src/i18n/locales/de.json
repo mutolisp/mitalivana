@@ -24,6 +24,16 @@
     "selectedCount_one": "{{count}} ausgewählt",
     "selectedCount_other": "{{count}} ausgewählt"
   },
+  "actionSheet": {
+    "close": "Schließen",
+    "search": "Suchen",
+    "searchPlaceholder_one": "{{count}} Option durchsuchen",
+    "searchPlaceholder_other": "{{count}} Optionen durchsuchen",
+    "noMatch": "Keine Option passt zu „{{q}}“",
+    "recent": "Zuletzt verwendet",
+    "all_one": "Alle {{count}}",
+    "all_other": "Alle {{count}}"
+  },
   "group": {
     "plantae": "Pflanzen",
     "aves": "Vögel",
@@ -808,7 +818,11 @@
       "keypadHide": "Tasten ausblenden",
       "moreBelow": "Weiter unten geht es weiter"
     },
-    "tabFreq": "Frequenz"
+    "tabFreq": "Frequenz",
+    "numMin": "Der Wert muss mindestens {{min}} betragen",
+    "numMax": "Der Wert darf höchstens {{max}} betragen",
+    "numAbove": "Der Wert muss größer als {{min}} sein",
+    "numAboveMax": "Der Wert muss größer als {{min}} und höchstens {{max}} sein"
   },
   "settings": {
     "sectionAppearance": "Darstellung & Bedienung",
@@ -937,7 +951,7 @@
     "collapseAll": "Alle einklappen",
     "tree": "Baum",
     "search": "Suche",
-    "incompleteBucket": "Unvollständige Einordnung (selbst angelegt)",
+    "incompleteBucket": "Unvollständige Einordnung",
     "bulkNodeTitle": "Ausgewählte Taxa: {{names}}",
     "bulkTooManyTitle": "Zu viele",
     "bulkTooManyMsg": "Darunter liegen {{count}} Taxa – mehr als das Limit von {{max}} pro Vorgang. Bitte niedrigere Ränge wählen.",
@@ -1136,6 +1150,7 @@
     "import": "Importieren",
     "drawingLabel": "{{type}} zeichnen · {{count}} Pkt.",
     "handoffHint": "Geografischen Standort für Datensatz #{{id}} anlegen; wird nach Abschluss automatisch zugeordnet",
+    "surveyHandoffHint": "Geografischen Standort für „{{name}}“ anlegen; wird nach Abschluss automatisch zugeordnet",
     "editTrackHint": "Track bearbeiten · ziehen / Stützpunkt antippen zum Löschen",
     "editPosHint": "Position bearbeiten · Markierung ziehen",
     "nlsc": "NLSC (Taiwan)",
@@ -1333,7 +1348,6 @@
   "plotSpecies": {
     "addPhotoFail": "Foto konnte nicht hinzugefügt werden",
     "changeLayer": "Schicht ändern",
-    "currentSuffix": "(aktuell)",
     "movedTo": "Verschoben nach {{layer}}",
     "pointCountRecord": "Datensätze der Punktzählung",
     "transectRecord": "Transekt-Datensätze",
@@ -4829,7 +4843,8 @@
       "traits": "Merkmale",
       "environment": "Umwelt",
       "choice": "Eigene Auswahl",
-      "interaction": "Interaktionen"
+      "interaction": "Interaktionen",
+      "method": "Erhebungsmethode"
     },
     "editor": {
       "elsewhere": "Dieses Element wird auf der Erfassungsseite eingegeben.",
@@ -4842,7 +4857,8 @@
         "malformed": "Ungültiges Format",
         "endsBeforeStart": "Ende liegt vor dem Beginn",
         "coversOver100": "Bodenbedeckungen ergeben über 100 %",
-        "layerOutOfRange": "Über der Schichtzahl"
+        "layerOutOfRange": "Über der Schichtzahl",
+        "requiredMissing": "Pflichtfeld nicht ausgefüllt"
       },
       "abundance": {
         "count": "Anzahl",
@@ -4865,7 +4881,8 @@
       "timestamp": {
         "start": "Beginn",
         "stop": "Ende",
-        "setStop": "Endzeit setzen"
+        "setStop": "Endzeit setzen",
+        "setStart": "Beginnzeit setzen"
       },
       "people": {
         "none": "Keine"
@@ -5115,8 +5132,6 @@
     },
     "tab": {
       "data": "Daten",
-      "units_one": "Einheiten {{count}}",
-      "units_other": "Einheiten {{count}}",
       "species_one": "Arten {{count}}",
       "species_other": "Arten {{count}}",
       "freq": "Frequenz",
@@ -5137,7 +5152,8 @@
       "blindSealed": "Die Blindaufnahme ist beendet; ihre Einträge lassen sich nicht mehr ändern",
       "recheckBegun": "Die Nachkontrolle hat begonnen (Antworten oder dabei gefundene Arten vorhanden); die Blindaufnahme lässt sich nicht wieder öffnen",
       "labelTaken": "Bezeichnung „{{label}}“ steht schon auf der Liste",
-      "badValue": "Dieser Wert lässt sich nicht speichern"
+      "badValue": "Dieser Wert lässt sich nicht speichern",
+      "unitDone": "„{{code}}“ ist als fertig markiert; zum Ändern die Markierung aufheben."
     },
     "finish": {
       "title": "Aufnahme beenden",
@@ -5145,7 +5161,9 @@
       "recheckOpen_one": "{{count}} Art der früheren Aufnahme hat keine Antwort der Nachkontrolle.",
       "recheckOpen_other": "{{count}} Arten der früheren Aufnahme haben keine Antwort der Nachkontrolle.",
       "errors_one": "{{count}} Fund hat noch Fehler.",
-      "errors_other": "{{count}} Funde haben noch Fehler."
+      "errors_other": "{{count}} Funde haben noch Fehler.",
+      "dataMissing_one": "{{count}} Pflichtangabe der Erhebung fehlt.",
+      "dataMissing_other": "{{count}} Pflichtangaben der Erhebung fehlen."
     },
     "blind": {
       "banner": "Blindaufnahme: die frühere Artenliste erscheint erst, wenn sie beendet ist.",
@@ -5189,7 +5207,9 @@
       "recordHere_other": "Arten in dieser Einheit erfassen ({{count}})",
       "deleteTitle": "{{path}} löschen?",
       "deleteMsg_one": "Ihr {{count}} Fund und ihre Untereinheiten rücken eine Ebene hoch; die eigenen Daten und Fotos der Einheit werden gelöscht.",
-      "deleteMsg_other": "Ihre {{count}} Funde und Untereinheiten rücken eine Ebene hoch; die eigenen Daten und Fotos der Einheit werden gelöscht."
+      "deleteMsg_other": "Ihre {{count}} Funde und Untereinheiten rücken eine Ebene hoch; die eigenen Daten und Fotos der Einheit werden gelöscht.",
+      "deleteAllMsg_one": "Ihr {{count}} Fund und ihre Untereinheiten werden mitgelöscht, ebenso die eigenen Daten und Fotos der Einheit.",
+      "deleteAllMsg_other": "Ihre {{count}} Funde und Untereinheiten werden mitgelöscht, ebenso die eigenen Daten und Fotos der Einheit."
     },
     "label": {
       "title": "Bezeichnung für {{name}}",
@@ -5202,7 +5222,8 @@
       "newMsg": "Auf der Liste meint dieselbe Bezeichnung diese Morphospezies auch in allen späteren Aufnahmen.",
       "addToList": "Zur Liste hinzufügen",
       "onlyHere": "Nur für diesen Eintrag",
-      "pickMsgNone": "Die Morphospezies-Liste hat noch keine Bezeichnung für dieses Taxon."
+      "pickMsgNone": "Die Morphospezies-Liste hat noch keine Bezeichnung für dieses Taxon.",
+      "field": "Bezeichnung"
     },
     "frame": {
       "section": "Flächenaufnahmen",
@@ -5237,7 +5258,67 @@
       "banner": "Für dieses Formular gibt es eine neue Version (Version {{n}})",
       "msg": "Auf Version {{n}} umstellen: neue Felder erscheinen, Erfasstes bleibt unverändert."
     },
-    "carried": "Wie bei Aufnahme {{n}} (zu Beginn übernommen, bitte prüfen): {{fields}}"
+    "carried": "Wie bei Aufnahme {{n}} (zu Beginn übernommen, bitte prüfen): {{fields}}",
+    "surveyData": "Aufnahmedaten",
+    "dataLocked": "Abgeschlossen und gesperrt. Zum Bearbeiten zur Aufnahme zurückkehren und oben rechts auf das Schloss tippen.",
+    "dataFilled": "{{filled}} von {{total}} ausgefüllt",
+    "track": "Track",
+    "extrasAfterSave": "Die übrigen Felder lassen sich nach dem Speichern ausfüllen.",
+    "trackNotStarted": "Track-Aufzeichnung noch nicht gestartet",
+    "gnssNotYet": "Noch nicht abgerufen",
+    "noLayer": "Ohne Schicht",
+    "quadrat": {
+      "addWhere": "{{level}} für {{code}} wählen",
+      "fromUnitList": "Aus der Artenliste von {{unit}}",
+      "unitFields": "Weitere Felder",
+      "size": "Größe",
+      "sizeShared": "Gemeinsam (Methode)",
+      "sizeOwn": "Eigene Größe dieses Quadrats (leer: die gemeinsame)"
+    },
+    "env": {
+      "openness": "Offenheit",
+      "opennessPct": "Himmelsoffenheit"
+    },
+    "method": {
+      "title": "Methode",
+      "none": "Nicht gewählt",
+      "custom": "Eigene Methode",
+      "customPick": "Eigene Methode …",
+      "customName": "Name der Methode",
+      "size": "Größe",
+      "effortAny": "Aufwand",
+      "effortUnit": "Einheit des Aufwands",
+      "effort": {
+        "cameraHours": "Kamerastunden",
+        "trapNights": "Fallennächte",
+        "netHours": "Netzstunden",
+        "personHours": "Personenstunden",
+        "trapHours": "Fallenstunden",
+        "trapDays": "Fallentage",
+        "recorderHours": "Rekorderstunden"
+      },
+      "quadratSize": "Größe der Quadrate",
+      "description": "Hinweise zur Methode",
+      "source": "Die Methodennamen folgen den Richtlinien des taiwanischen Umweltministeriums zur ökologischen Bewertung von Tieren und Pflanzen (Ausgabe 2026).",
+      "group": {
+        "vegetation": "Vegetation",
+        "birds": "Vögel",
+        "mammals": "Säugetiere",
+        "herps": "Amphibien und Reptilien",
+        "insects": "Insekten",
+        "general": "Allgemein"
+      }
+    },
+    "group": {
+      "basic": "Grunddaten",
+      "time": "Zeit",
+      "space": "Ort",
+      "method": "Methode",
+      "pageOf": "Erhebungsdaten · {{n}} / {{total}}",
+      "people": "Personen",
+      "missing_one": "{{count}} Pflichtangabe fehlt",
+      "missing_other": "{{count}} Pflichtangaben fehlen"
+    }
   },
   "builder": {
     "title": "Formularvorlagen",
@@ -5275,14 +5356,22 @@
       "title": "Neue Vorlage",
       "blankChecklist": "Leere Listenaufnahme",
       "blankPlot": "Leere Flächenaufnahme",
-      "copy": "Vorhandene Vorlage kopieren…",
       "copyFrom": "Welche kopieren?",
       "nameTitle": "Name der Vorlage",
       "nameMsg": "Zum Beispiel „Pflanzen am Bachufer“. Lässt sich später ändern, auch ein englischer Name ist möglich.",
       "create": "Anlegen",
       "firstUnit": "Teilfläche",
       "copyName": "Kopie von {{name}}",
-      "census": "Baumerhebung (Kopie der eingebauten)"
+      "subtitle": "Wählen Sie einen Ausgangspunkt – alles lässt sich später ändern",
+      "blankChecklistDesc": "Eine Artenliste von Grund auf",
+      "blankPlotDesc": "Schichten, Deckung, Teilflächen",
+      "censusDesc": "Kopie der eingebauten Baumerhebungsvorlage",
+      "copyShort": "Vorhandene kopieren",
+      "copyDesc": "Eigene, eingebaute oder vom Team geteilte",
+      "importDesc": "Aus Datei importieren (.mtpl.json)",
+      "sectionMine": "Meine Vorlagen",
+      "sectionBuiltin": "Eingebaut",
+      "sectionTeam": "Vom Team geteilt"
     },
     "notFound": "Der Entwurf dieser Vorlage ist nicht mehr da; vielleicht wurde er gespeichert oder verworfen.",
     "basics": "Grunddaten",
@@ -5315,6 +5404,7 @@
     "preview": "Vorschau",
     "previewTitle": "Vorschau: {{name}}",
     "previewIntro": "So sieht eine Aufnahme mit dieser Vorlage aus. Probeweise ausfüllen; nichts wird gespeichert.",
+    "previewNoTrack": "In der Vorschau wird kein Track aufgezeichnet.",
     "discard": {
       "title": "Änderungen verwerfen?",
       "msg": "Der Entwurf wird gelöscht; die Vorlage bleibt bei Version {{n}}.",
@@ -5408,7 +5498,9 @@
       "interactionTypes_one": "{{count}} Typ",
       "interactionTypes_other": "{{count}} Typen",
       "photos_one": "{{count}} Foto",
-      "photos_other": "{{count}} Fotos"
+      "photos_other": "{{count}} Fotos",
+      "methods_one": "{{count}} Methode zur Wahl",
+      "methods_other": "{{count}} Methoden zur Wahl"
     },
     "kind": {
       "bb": "Braun-Blanquet",
@@ -5446,7 +5538,6 @@
       "multiSwitch": "Mehrere Auswahlen erlauben"
     },
     "import": {
-      "fromFile": "Aus Datei importieren…",
       "failTitle": "Import nicht möglich",
       "newerApp": "Diese Vorlage verwendet Komponenten, die diese App-Version nicht kennt ({{types}}). Bitte zuerst die App aktualisieren.",
       "invalid": "Die Datei ist ungültig: {{detail}}",
@@ -5502,6 +5593,19 @@
       "inverseEn": "Aus Sicht von B, auf Englisch",
       "iri": "RO-Relations-IRI (optional)",
       "iriBad": "Eine IRI beginnt mit http:// oder https:// und enthält keine Leerzeichen"
+    },
+    "method": {
+      "choose": "Erheber wählt aus einer Liste",
+      "fixed": "Eine feste Methode",
+      "all": "Alle Methoden anbieten",
+      "method": "Methode",
+      "custom": "Eigene Methoden erlaubt",
+      "customDesc": "Der Erheber kann eine Methode eingeben, die nicht in der Liste steht."
+    },
+    "openness": {
+      "pct": "Himmelsoffenheit (%)",
+      "grades": "Eigene Stufen",
+      "list": "Stufenliste"
     }
   },
   "surveyImport": {

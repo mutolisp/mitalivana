@@ -35,6 +35,7 @@
 import type { Scalar } from '@op-engineering/op-sqlite';
 import { unionSurveyors } from '../../db/merge';
 import type { Combiners, MergeOp, MergeRow, MergeSide, Row, TitlePart } from '../../lib/mergeEngine';
+import { trackUnion } from '../../lib/track';
 import { FRAME_COLS, pick } from './sliceCore';
 import { OCCURRENCE_FIELDS, previousSurveyId, snapshotOf, surveyOf } from './surveyCore';
 import { SurveyError, type Ctx, type SurveyDb } from './stemmapCore';
@@ -51,9 +52,18 @@ export const SURVEY_DOC_COLS = [
   'uuid', 'style', 'name', 'census_no', 'template_id', 'template_version', 'template_snapshot', 'template_hash', 'status',
   'start_ts', 'stop_ts', 'blind_closed_at', 'investigators', 'notes', 'lat', 'lng', 'accuracy',
 ] as const;
+/**
+ * v88 (2G-b): the track, its GPS mode and the elevations — written into the
+ * document only when set, so a survey without them keeps the document (and
+ * the team's sync base) it had before.
+ */
+export const SURVEY_DOC_OPTIONAL_COLS = ['track_geojson', 'gps_mode', 'elevation_m', 'elevation_source', 'elevation_min_m', 'elevation_max_m'] as const;
+const present = (o: Row, keys: readonly string[]): Row => Object.fromEntries(keys.filter((k) => o[k] != null).map((k) => [k, o[k]]));
 const FRAME_UNIT_COLS = ['uuid', 'level_key', 'code', 'label', 'shape', 'x_m', 'y_m', 'width_m', 'length_m', 'radius_m', 'geometry_geojson', 'retired_at'] as const;
 const FRAME_LABEL_COLS = ['uuid', 'taxon_id', 'verbatim_identification', 'note', 'photo_uri'] as const;
 const UNIT_COLS = ['uuid', 'level_key', 'code', 'label', 'sort', 'lat', 'lng', 'accuracy', 'geometry_geojson', 'notes'] as const;
+/** v89 (2G-d): a subplot's size and a quadrat's 完成, written only when set (the document of a survey without them is as before). */
+export const UNIT_DOC_OPTIONAL_COLS = ['width_m', 'length_m', 'done_at'] as const;
 const OCC_COLS = ['uuid', ...OCCURRENCE_FIELDS.filter((c) => c !== 'unit_id'), 'phase'] as const;
 const VALUE_COLS = ['uuid', 'component', 'field', 'idx', 'value_num', 'value_text', 'unit'] as const;
 const RECHECK_COLS = ['uuid', 'prev_taxon_id', 'prev_verbatim_identification', 'outcome', 'checked_at'] as const;
@@ -146,8 +156,8 @@ export function buildSurveyDoc(ctx: { db: SurveyDb }, surveyId: number, opts: { 
     series: series ? pick(series, SERIES_COLS) : null,
     frame_units: fUnits.map((u) => ({ ...pick(u, FRAME_UNIT_COLS), parent: u.parent_id == null ? null : (fKey.get(u.parent_id) ?? null) })),
     frame_labels: fLabels.map((l) => ({ ...pick(l, FRAME_LABEL_COLS), first_survey: l.first_survey ?? null })),
-    survey: pick(s as unknown as Row, SURVEY_DOC_COLS),
-    units: units.map((u) => ({ ...pick(u, UNIT_COLS), parent: u.parent_id == null ? null : (uKey.get(u.parent_id) ?? null), on_frame: u.frame_unit_id == null ? null : 1 })),
+    survey: { ...pick(s as unknown as Row, SURVEY_DOC_COLS), ...present(s as unknown as Row, SURVEY_DOC_OPTIONAL_COLS) },
+    units: units.map((u) => ({ ...pick(u, UNIT_COLS), ...present(u, UNIT_DOC_OPTIONAL_COLS), parent: u.parent_id == null ? null : (uKey.get(u.parent_id) ?? null), on_frame: u.frame_unit_id == null ? null : 1 })),
     occurrences: occs.map((o) => ({ ...pick(o, OCC_COLS), unit: o.unit_id == null ? null : (uKey.get(o.unit_id) ?? null), ...(o.via_interaction ? { via_interaction: 1 } : {}) })),
     survey_values: rows<Row>(ctx, `SELECT * FROM fw_survey_values WHERE survey_id = ? ORDER BY id`, [surveyId]).map((v) => pick(v, VALUE_COLS)),
     unit_values: rows<Row & { unit_id: number }>(ctx, `SELECT v.* FROM fw_unit_values v JOIN fw_units u ON u.id = v.unit_id WHERE u.survey_id = ? ORDER BY v.id`, [surveyId]).map((v) => ({
@@ -215,9 +225,15 @@ export const SURVEY_DOC_COMBINERS: Combiners = {
     stop_ts: (a, b) => (a == null ? null : nums(a, b).length ? Math.max(...nums(a, b)) : null),
     blind_closed_at: (a, b) => (nums(a, b).length ? Math.min(...nums(a, b)) : null),
     template: newerTemplate,
+    // Each phone's walk is kept (as on 快速名錄); a track on either makes it a tracked survey.
+    track_geojson: trackUnion,
+    gps_mode: (a, b) => (a === 'full_track' || b === 'full_track' ? 'full_track' : ((a ?? b ?? null) as string | null)),
+    // The range of altitudes walked through, on either phone.
+    elevation_min_m: (a, b) => (nums(a, b).length ? Math.min(...nums(a, b)) : null),
+    elevation_max_m: (a, b) => (nums(a, b).length ? Math.max(...nums(a, b)) : null),
   },
 };
-const SURVEY_COMBINED = ['investigators', 'start_ts', 'stop_ts', 'blind_closed_at'] as const;
+const SURVEY_COMBINED = ['investigators', 'start_ts', 'stop_ts', 'blind_closed_at', 'track_geojson', 'gps_mode', 'elevation_min_m', 'elevation_max_m'] as const;
 /** Identity and per-device state, not compared. */
 const SURVEY_OUT = ['uuid', 'style', 'census_no', 'status', 'template_id', 'template_version', 'template_snapshot', 'template_hash', ...SURVEY_COMBINED];
 const templateOf = (s: Row): Row => pick(s, ['template_id', 'template_version', 'template_snapshot', 'template_hash']);
@@ -658,6 +674,7 @@ export function insertSurveyFromDoc(ctx: Ctx, doc: SurveyDoc, opts: { status: 'a
       );
     if (one(ctx, `SELECT id FROM fw_surveys WHERE series_id = ? AND census_no = ?`, [seriesId, doc.survey.census_no as number])) throw new InsertSurveyError('number_taken');
   }
+  // The v88 columns come with applySurveyDocOps below (data and combined fields).
   const cols = SURVEY_DOC_COLS as readonly string[];
   const project = one(ctx, `SELECT id FROM projects WHERE id = ?`, [opts.projectId]) ? opts.projectId : 0;
   const surveyId = Number(

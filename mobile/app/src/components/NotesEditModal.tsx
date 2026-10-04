@@ -4,6 +4,7 @@ import { Modal, Platform, Pressable, Text, TextInput, View } from 'react-native'
 import { KeyboardAvoidingView } from './KeyboardAvoidingView';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeColors } from '~/theme/colors';
+import { ActionSheetLayer, sheetBack } from '~/components/ActionSheet';
 
 type Props = {
   visible: boolean;
@@ -25,7 +26,7 @@ export function NotesEditModal({ visible, initialValue, title, onCancel, onSave 
   }, [visible, initialValue]);
 
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onCancel}>
+    <Modal visible={visible} animationType="slide" onRequestClose={sheetBack(onCancel)}>
       <View className="flex-1 bg-card dark:bg-gray-900" style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}>
         <View className="flex-row items-center justify-between border-b border-gray-200 dark:border-gray-700 px-4 py-3">
           <Pressable onPress={onCancel} hitSlop={8}>
@@ -49,6 +50,7 @@ export function NotesEditModal({ visible, initialValue, title, onCancel, onSave 
           />
         </KeyboardAvoidingView>
       </View>
+      <ActionSheetLayer visible={visible} />
     </Modal>
   );
 }

@@ -99,8 +99,10 @@ export function FrequencyPanel({
   refused: () => boolean;
   onMask: (key: string, mask: string) => void;
   onCount: (key: string, count: number | null) => void;
-  /** Store the other method (clearing the one left); false when refused. */
-  onSwitchMode: (toCount: boolean) => boolean;
+  /** Store the other method (clearing the one left); false when refused. Omit
+   *  where the method is fixed (a survey template's Frequency, 2G-d3): only
+   *  the inputs of the stored method are offered. */
+  onSwitchMode?: (toCount: boolean) => boolean;
   /** Given: 「＋ 新物種」 adds the searched species and returns its key (null = not added). */
   onAdd?: (r: SearchResult, adopted?: AdoptionInput | null) => string | null | Promise<string | null>;
   /** Groups the search is kept to. */
@@ -228,7 +230,7 @@ export function FrequencyPanel({
     if (refused()) return;
     const loses = toCount ? hasCells : hasCounts;
     const apply = () => {
-      if (onSwitchMode(toCount)) go();
+      if (onSwitchMode?.(toCount)) go();
     };
     if (!loses) return apply();
     Alert.alert(t('plot.quadrats.switchTitle'), toCount ? t('plot.quadrats.switchToCount') : t('plot.quadrats.switchToCells'), [
@@ -297,17 +299,17 @@ export function FrequencyPanel({
     </FoldBanner>
   ) : null;
 
-  const top = (
-    <Seg
-      value={mode}
-      onChange={switchMode}
-      options={[
-        { value: 'brush', label: t('quadrat.freq.brush') },
-        { value: 'cell', label: t('quadrat.freq.cellMode') },
-        { value: 'count', label: t('quadrat.freq.countMode') },
-      ]}
-    />
-  );
+  const inputs: { value: Input; label: string }[] = [
+    ...(onSwitchMode || storedMode === 'cells'
+      ? [
+          { value: 'brush' as const, label: t('quadrat.freq.brush') },
+          { value: 'cell' as const, label: t('quadrat.freq.cellMode') },
+        ]
+      : []),
+    ...(onSwitchMode || storedMode === 'count' ? [{ value: 'count' as const, label: t('quadrat.freq.countMode') }] : []),
+  ];
+  // One way left (a fixed count): nothing to switch.
+  const top = inputs.length > 1 ? <Seg value={mode} onChange={switchMode} options={inputs} /> : null;
 
   const brushTools = (
     <>

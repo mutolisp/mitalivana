@@ -72,6 +72,7 @@ import { useTaxonomyJump } from '~/stores/taxonomyJump';
 import { useToast } from '~/stores/toast';
 import { useThemeColors } from '~/theme/colors';
 import { SelectMark } from '~/components/ui/SelectMark';
+import { joinParts, sentenceParts, slot, speciesParts } from '~/lib/nameParts';
 
 /** What a picked tree row stands for. */
 type TreePick =
@@ -894,8 +895,11 @@ export default function TaxonomyScreen() {
       0,
     );
     const idx = await showActionSheet({
-      title: t('taxonomy.bulkNodeTitle', {
-        names: nodes.map((nd) => nd.name_c || nd.name).join('、'),
+      titleParts: sentenceParts(t('taxonomy.bulkNodeTitle', { names: slot('names') }), {
+        names: joinParts(
+          nodes.map((nd) => speciesParts(nd.name_c, nd.name, nd.rank)),
+          '、',
+        ),
       }),
       options: [
         { label: t('taxonomy.bulkNodeSelf', { count: nodes.length }) },
@@ -1454,11 +1458,17 @@ function SpeciesRow({
           // YList is_endemic means Japan-endemic — the label must follow the id.
           <Text className="text-xs font-medium text-emerald-700 dark:text-emerald-300">{endemicTagLabel(species.taxon_id)}</Text>
         ) : null}
-        {species.taxon_id.startsWith('gm') ? (
+        {species.external_source === 'manual' ? (
           // User-created taxon: nothing in it was checked against a checklist,
           // so the row says where it came from.
           <Text className="ml-1.5 rounded bg-amber-100 px-1 text-xs font-medium text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">
             {t('manualTaxon.badge')}
+          </Text>
+        ) : species.external_source ? (
+          // Taken from GBIF / iNat, not from a checklist (placed on the
+          // checklist's hierarchy by its genus, externalTreeCore.ts).
+          <Text className="ml-1.5 rounded bg-sky-100 px-1 text-xs font-medium text-sky-700 dark:bg-sky-900/50 dark:text-sky-300">
+            {species.external_source === 'gbif' ? 'GBIF' : 'iNat'}
           </Text>
         ) : null}
         {species.pack_country ? (

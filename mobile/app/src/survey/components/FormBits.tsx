@@ -43,9 +43,12 @@ export function TextBox({
   multiline,
   autoCapitalize,
   invalid,
+  onBlur,
 }: {
   value: string;
   onChange: (v: string) => void;
+  /** The field is left (a pending typed value is saved then). */
+  onBlur?: () => void;
   accessibilityLabel: string;
   placeholder?: string;
   editable?: boolean;
@@ -58,6 +61,7 @@ export function TextBox({
     <TextInput
       value={value}
       onChangeText={onChange}
+      onBlur={onBlur}
       accessibilityLabel={accessibilityLabel}
       placeholder={placeholder}
       placeholderTextColor={c.ink3}

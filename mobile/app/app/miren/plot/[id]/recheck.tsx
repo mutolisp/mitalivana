@@ -12,7 +12,7 @@ import { useTranslation } from 'react-i18next';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScientificName } from '~/components/ScientificName';
-import { showActionSheet } from '~/components/ActionSheet';
+import { nameOption, showActionSheet } from '~/components/ActionSheet';
 import { useToast } from '~/stores/toast';
 import {
   answerRecheck,
@@ -29,6 +29,7 @@ import { formatPlotCode } from '~/modules/miren/model/codes';
 import { plotMeasures } from '~/modules/miren/model/scales';
 import { taxonKey, type RecheckOutcome } from '~/modules/miren/model/compare';
 import { Banner, BannerText, Btn, Card } from '~/modules/gloria/components/ui';
+import { morphoParts, sentenceParts, slot, speciesParts, type NamePart } from '~/lib/nameParts';
 
 const OUTCOMES: RecheckOutcome[] = ['found', 'not_found', 'reidentified'];
 
@@ -56,7 +57,6 @@ export default function MirenRecheckScreen() {
   const answerOf = (c: PrevSpecies) => state.answers.find((a) => taxonKey({ taxonId: a.prev_taxon_id, verbatim: a.prev_verbatim_identification }) === taxonKey(c));
   const rowFor = (c: PrevSpecies) =>
     species.find((s) => s.phase === 'recheck' && s.taxon_id === c.taxonId && (s.verbatim_identification ?? '') === (c.verbatim ?? ''));
-  const nameOf = (c: { verbatim?: string | null; simple_name?: string; taxonId?: string }) => c.verbatim || c.simple_name || c.taxonId || '';
 
   const answer = async (c: PrevSpecies, outcome: RecheckOutcome) => {
     if (finished) return;
@@ -71,10 +71,13 @@ export default function MirenRecheckScreen() {
       Alert.alert(t('miren.recheck.reidentified'), t('miren.recheck.noneToPick'));
       return;
     }
+    // A region morphospecies name (Acacia MTN1) or a scientific name, the genus in italics.
+    const parts = (verbatim: string | null | undefined, x: { simple_name?: string; rank?: string; kingdom?: string }, id: string): NamePart[] =>
+      verbatim ? morphoParts(verbatim, x.simple_name, x.rank, x.kingdom) : speciesParts(null, x.simple_name, x.rank, x.kingdom, id);
     const idx = await showActionSheet({
-      title: t('miren.recheck.pickTitle', { name: nameOf(c) }),
+      titleParts: sentenceParts(t('miren.recheck.pickTitle', { name: slot('name') }), { name: parts(c.verbatim, c, c.taxonId) }),
       message: t('miren.recheck.pickMsg'),
-      options: blind.map((s) => ({ label: s.verbatim_identification || s.simple_name || s.taxon_id })),
+      options: blind.map((s) => nameOption(parts(s.verbatim_identification, s, s.taxon_id))),
       cancelLabel: t('common.cancel'),
     });
     const target = blind[idx];

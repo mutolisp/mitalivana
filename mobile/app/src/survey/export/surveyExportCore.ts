@@ -32,6 +32,7 @@ import { assignPlotEventIds } from '../../lib/plotEventIds';
 import { aggregateCell, cellString, type CsvTable } from '../../lib/vegMatrix';
 import { interactionTypes, type InteractionType } from '../db/interactionCore';
 import type { SurveyDoc } from '../db/surveyDocCore';
+import { methodDwc, methodZh } from '../codesets/samplingMethods';
 import { componentDef, exportMapOf, type FieldDef } from '../registry';
 import type { Label, SurveyLevel, SurveyTemplate } from '../template/types';
 
@@ -82,6 +83,31 @@ export function surveyEventIds(inputs: readonly { id: number; base: string; star
 
 /** A unit's own event: the survey's eventID and the unit's path. */
 export const unitEventId = (eventId: string, path: string) => `${eventId}-${path.replace(/\//g, '-')}`;
+
+const numOf = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+
+/** A component's values on the survey, by field (one value each). */
+export function surveyComponentValues(doc: Pick<SurveyDoc, 'survey_values'>, key: string): Record<string, number | string | null> {
+  const out: Record<string, number | string | null> = {};
+  for (const v of doc.survey_values) if (v.component === key && Number(v.idx ?? 0) === 0) out[str(v.field)] = (v.value_num as number | null) ?? (v.value_text as string | null) ?? null;
+  return out;
+}
+
+/**
+ * A unit's size: its own (v89), else the permanent plot layout's, else — a
+ * quadrat (the second unit level) — the size the survey's 調查法 gives every
+ * quadrat (2G-f). A frame unit may be a circle instead.
+ */
+export function unitSizeOf(doc: Pick<SurveyDoc, 'frame_units' | 'survey_values'>, template: SurveyTemplate | null, u: Row): { w: number | null; l: number | null; r: number | null } {
+  const fu = u.on_frame ? doc.frame_units.find((f) => f.level_key === u.level_key && f.code === u.code) : undefined;
+  const method = template && template.units?.[1]?.key === u.level_key ? template.components.find((c) => c.type === 'method' && c.level === 'survey') : undefined;
+  const shared = method ? surveyComponentValues(doc, method.key) : {};
+  return {
+    w: numOf(u.width_m) ?? numOf(fu?.width_m) ?? numOf(shared.quadrat_w_m),
+    l: numOf(u.length_m) ?? numOf(fu?.length_m) ?? numOf(shared.quadrat_l_m),
+    r: numOf(fu?.radius_m),
+  };
+}
 
 // ── the round-trip file ───────────────────────────────────────────────────
 
@@ -258,6 +284,14 @@ function componentColumns(doc: SurveyDoc, template: SurveyTemplate, level: 'surv
         } else {
           const get = one(0);
           out.push({ name: column, value: (o) => get(o), dict: dict(column, f) });
+          if (c.type === 'method' && f.field === 'protocol') {
+            // The method's names next to its key (2G-f): the regulation's Chinese, the English DwC gets; a custom one as typed.
+            const named = (o: Owner) => Object.fromEntries(valuesOf(o).filter((v) => v.component === c.key).map((v) => [str(v.field), v.value_num ?? v.value_text]));
+            out.push(
+              { name: `${column}_zh`, value: (o) => (applies(o) ? methodZh(named(o), c.params) : ''), dict: dict(`${column}_zh`, f, { value_type: 'text', dwc_term: '' }) },
+              { name: `${column}_en`, value: (o) => (applies(o) ? methodDwc(named(o), c.params).samplingProtocol : ''), dict: dict(`${column}_en`, f, { value_type: 'text' }) },
+            );
+          }
           if (c.type === 'choice') {
             const list = lists.get(String(c.params.list));
             const nameOf = (code: string) => labelParts(list?.items.find((x) => x.code === code)?.label, words).text || code;
@@ -307,7 +341,11 @@ export function surveyTables(doc: SurveyDoc, opts: { eventId: string; names: Nam
   const s = doc.survey;
 
   const surveyCols = template ? componentColumns(doc, template, 'survey', 'survey.csv', words) : [];
-  const surveyHeader = ['eventID', 'survey_uuid', 'name', 'style', 'template_id', 'template_version', 'template_name', 'plot_code', 'plot_name', 'series_code', 'survey_no', 'status', 'blind_closed_at'];
+  const surveyHeader = [
+    'eventID', 'survey_uuid', 'name', 'style', 'template_id', 'template_version', 'template_name', 'plot_code', 'plot_name', 'series_code', 'survey_no', 'status', 'blind_closed_at',
+    // Where it was (2G-b, v88): the located point, the survey's elevation and a recorded track's range.
+    'lat', 'lng', 'accuracy', 'gps_mode', 'elevation_m', 'elevation_source', 'elevation_min_m', 'elevation_max_m',
+  ];
   const survey: CsvTable = {
     header: [...surveyHeader, ...surveyCols.map((c) => c.name)],
     rows: [
@@ -325,6 +363,14 @@ export function surveyTables(doc: SurveyDoc, opts: { eventId: string; names: Nam
         str(s.census_no),
         str(s.status),
         typeof s.blind_closed_at === 'number' ? isoStamp(s.blind_closed_at) : '',
+        str(s.lat),
+        str(s.lng),
+        str(s.accuracy),
+        str(s.gps_mode),
+        str(s.elevation_m),
+        str(s.elevation_source),
+        str(s.elevation_min_m),
+        str(s.elevation_max_m),
         ...surveyCols.map((c) => c.value({ level: 'survey' }, s)),
       ],
     ],
@@ -334,9 +380,10 @@ export function surveyTables(doc: SurveyDoc, opts: { eventId: string; names: Nam
   const unitCols = template && s.style === 'plot' ? componentColumns(doc, template, 'unit', 'units.csv', words) : [];
   if (s.style === 'plot') {
     units = {
-      header: ['eventID', 'parentEventID', 'unit', 'level_key', 'level_name', 'code', 'label', 'on_plot', ...unitCols.map((c) => c.name)],
+      header: ['eventID', 'parentEventID', 'unit', 'level_key', 'level_name', 'code', 'label', 'on_plot', 'width_m', 'length_m', 'done_at', ...unitCols.map((c) => c.name)],
       rows: doc.units.map((u) => {
         const key = `${str(u.level_key)}:${str(u.code)}`;
+        const size = unitSizeOf(doc, template, u);
         const path = paths.get(key) ?? str(u.code);
         const parent = u.parent != null ? paths.get(str(u.parent)) : null;
         const owner: Owner = { level: 'unit', key, levelKey: str(u.level_key) };
@@ -349,6 +396,9 @@ export function surveyTables(doc: SurveyDoc, opts: { eventId: string; names: Nam
           str(u.code),
           str(u.label),
           u.on_frame ? '1' : '0',
+          str(size.w),
+          str(size.l),
+          typeof u.done_at === 'number' ? isoStamp(u.done_at) : '',
           ...unitCols.map((c) => c.value(owner, u)),
         ];
       }),

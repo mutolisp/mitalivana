@@ -257,6 +257,9 @@ type SettingsValues = {
   /** Per-key runner state, keyed by `String(keyId)`. Only kept for keys in
    *  `key_recent_ids` — older entries are evicted by `pushRecentKey`. */
   key_runner_states: Record<string, KeyRunnerStateLite>;
+  /** The last picks of each list sheet that asks for them (showActionSheet's
+   *  `recentKey`): option keys, most recent first, at most 3 per sheet. */
+  action_sheet_recent: Record<string, string[]>;
   /** Whether to bias AI species identification with current GNSS (geomodel
    *  filter). On = predictions skewed to species likely at this location;
    *  off = vision-only. Default on, per user request. */
@@ -366,6 +369,7 @@ const DEFAULTS: SettingsValues = {
   collection_number_pad: 4,
   key_recent_ids: [],
   key_runner_states: {},
+  action_sheet_recent: {},
   inat_grid_overlay: false,
   export_geo_formats: ['kml'],
   export_include_photos: true,
@@ -527,6 +531,7 @@ function readAll(): SettingsValues {
     })(),
     key_recent_ids: keyRecentIds,
     key_runner_states: keyRunnerStates,
+    action_sheet_recent: parseSheetRecent(map.get('action_sheet_recent')),
     inat_grid_overlay:
       map.get('inat_grid_overlay') == null
         ? DEFAULTS.inat_grid_overlay
@@ -583,6 +588,22 @@ const LANGUAGE_KEYS = new Set<Language>([
 ]);
 function parseLanguage(raw: string | undefined): Language {
   return raw != null && LANGUAGE_KEYS.has(raw as Language) ? (raw as Language) : DEFAULTS.language;
+}
+
+function parseSheetRecent(raw: string | undefined): Record<string, string[]> {
+  if (!raw) return DEFAULTS.action_sheet_recent;
+  try {
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return DEFAULTS.action_sheet_recent;
+    return Object.fromEntries(
+      Object.entries(parsed as Record<string, unknown>)
+        .filter(([, v]) => Array.isArray(v))
+        .map(([k, v]) => [k, (v as unknown[]).filter((x): x is string => typeof x === 'string')]),
+    );
+  } catch {
+    // ignore corrupt setting
+    return DEFAULTS.action_sheet_recent;
+  }
 }
 
 const REGION_KEYS = new Set<RegionCode>(['TW', 'JP']);

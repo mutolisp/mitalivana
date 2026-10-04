@@ -21,6 +21,7 @@ import * as Location from 'expo-location';
 import { AppState, type NativeEventSubscription } from 'react-native';
 import { create } from 'zustand';
 import i18n from '~/i18n';
+import { isPreviewId } from '~/db/previewDb';
 import {
   buildTrackGeoJSON,
   getPlotSurvey,
@@ -32,6 +33,7 @@ import {
   type TrackSegment,
 } from '~/db';
 import { useSettings, type TrackAccuracy } from '~/stores/settings';
+import { getFwSurvey, noteTrackAltitude, updateSurvey } from '~/survey/db/surveys';
 
 /** How often the in-progress segment is written to the DB. The whole track
  *  is one GeoJSON column, so every write re-serialises all of it; a crash
@@ -51,7 +53,8 @@ const TRACK_PROFILES: Record<TrackAccuracy, Location.LocationOptions> = {
   low: { accuracy: Location.Accuracy.Balanced, distanceInterval: 20, timeInterval: 30_000 },
 };
 
-export type RecordTarget = { kind: 'plot' | 'session'; id: number };
+/** 'modular': a checklist or plot-style survey built from a template (fw_surveys, v88). */
+export type RecordTarget = { kind: 'plot' | 'session' | 'modular'; id: number };
 
 type RecorderAdapter = {
   /** Persisted segments at start, used to resume (append a new segment). */
@@ -62,6 +65,8 @@ type RecorderAdapter = {
   onStart?: () => void;
   /** On the first fix of a fresh recording (plot co-opts gate fields). */
   onFirstFix?: (lat: number, lng: number, accuracy: number | null) => void;
+  /** Every fix that states an altitude (a modular survey keeps its elevation range). */
+  onAltitude?: (altitude: number) => void;
   /** Whether the record is still open. Once it has been ended — by any path,
    *  including the DB-level single-active safety nets that cannot reach the
    *  recorder — the recorder pauses itself (see `LIVE_CHECK_MS`). */
@@ -138,6 +143,18 @@ function buildAdapter(target: RecordTarget): RecorderAdapter {
       },
     };
   }
+  if (target.kind === 'modular') {
+    // As a session: track only, its located point untouched. Each fix's
+    // altitude widens the survey's elevation range and fills an empty
+    // elevation (noteTrackAltitude; asked 2026-10-04).
+    const survey = getFwSurvey(target.id);
+    return {
+      loadPriorSegments: () => parseTrackSegments(survey?.track_geojson ?? null),
+      writeTrack: (segs) => updateSurvey(target.id, { trackGeojson: buildTrackGeoJSON(segs), gpsMode: 'full_track' }),
+      isLive: () => getFwSurvey(target.id)?.status === 'active',
+      onAltitude: (altitude) => noteTrackAltitude(target.id, altitude),
+    };
+  }
   // session: track only; start_lat/start_lng are a separate "drop point"
   // feature and must NOT be overwritten by the track.
   const session = getSession(target.id);
@@ -158,6 +175,8 @@ function buildAdapter(target: RecordTarget): RecorderAdapter {
 
 /** Start watching GNSS and appending to a new segment on the given target. */
 export async function startRecording(target: RecordTarget): Promise<void> {
+  // A builder preview (previewDb.ts) is gone when the preview closes: nothing to record into.
+  if (target.kind === 'modular' && isPreviewId(target.id)) throw new Error(i18n.t('builder.previewNoTrack'));
   if (watchSub || starting) return; // already recording, or about to be
   starting = true;
   startCancelled = false;
@@ -203,6 +222,7 @@ async function beginWatch(target: RecordTarget): Promise<void> {
       if (priorSegmentsSnapshot.length === 0 && currentSegment.length === 1) {
         adapter.onFirstFix?.(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy ?? null);
       }
+      if (pos.coords.altitude != null) adapter.onAltitude?.(pos.coords.altitude);
 
       if (Date.now() - lastFlushAt >= FLUSH_INTERVAL_MS) flushSegment();
     },
@@ -271,6 +291,8 @@ export function isRecordingTarget(t: RecordTarget): boolean {
  *  that bypass recordCreate.ts, so the GNSS always belongs to the active
  *  record and never writes to a now-ended one. */
 export function pauseIfNot(keep: RecordTarget | null): void {
+  // Reopening a builder preview makes nothing active outside its scratch file.
+  if (keep?.kind === 'modular' && isPreviewId(keep.id)) return;
   const rt = useTrackRecorder.getState().recordingTarget;
   if (rt && (!keep || rt.kind !== keep.kind || rt.id !== keep.id)) {
     pauseRecording();

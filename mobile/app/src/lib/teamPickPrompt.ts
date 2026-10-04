@@ -21,7 +21,10 @@ export async function pickSyncTeam(linked: string[]): Promise<string | null> {
       title: t('teamSync.pickTeam'),
       cancelLabel: t('common.cancel'),
       options: plan.options.map((o) => ({
-        label: [o.name, o.host ? `（${o.host}）` : '', o.linked ? ` · ${t('teamSync.pickLinked')}` : ''].join(''),
+        label: o.name,
+        icon: 'people-outline' as const,
+        description: [o.host, o.linked ? t('teamSync.pickLinked') : null].filter(Boolean).join(' · ') || undefined,
+        selected: o.linked,
       })),
     });
     chosen = plan.options[idx]?.teamId ?? null;

@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { TaxonNode } from '~/db';
 import { buildTaxonCopyText, copyToClipboard, taxonCopyActions } from '~/lib/clipboard';
 import { useThemeColors } from '~/theme/colors';
+import { ActionSheetLayer, sheetBack } from '~/components/ActionSheet';
 
 type Props = {
   node: TaxonNode | null;
@@ -41,7 +42,7 @@ export function TaxonNodeInfoSheet({
     .map(([k, v]) => `${t('rank.' + k)} ${v}`)
     .join(' · ');
   return (
-    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
+    <Modal visible transparent animationType="slide" onRequestClose={sheetBack(onClose)}>
       <View className="flex-1">
         <Pressable
           onPress={onClose}
@@ -120,6 +121,7 @@ export function TaxonNodeInfoSheet({
           ))}
         </View>
       </View>
+      <ActionSheetLayer />
     </Modal>
   );
 }

@@ -25,6 +25,18 @@
     "selectedCount_many": "{{count}} seleccionados",
     "selectedCount_other": "{{count}} seleccionados"
   },
+  "actionSheet": {
+    "close": "Cerrar",
+    "search": "Buscar",
+    "searchPlaceholder_one": "Buscar entre {{count}} opción",
+    "searchPlaceholder_many": "Buscar entre {{count}} opciones",
+    "searchPlaceholder_other": "Buscar entre {{count}} opciones",
+    "noMatch": "Ninguna opción coincide con «{{q}}»",
+    "recent": "Usados recientemente",
+    "all_one": "Todo {{count}}",
+    "all_many": "Todo {{count}}",
+    "all_other": "Todo {{count}}"
+  },
   "group": {
     "plantae": "Plantas",
     "aves": "Aves",
@@ -847,7 +859,11 @@
       "keypadHide": "Ocultar el teclado",
       "moreBelow": "Hay más abajo"
     },
-    "tabFreq": "Frecuencia"
+    "tabFreq": "Frecuencia",
+    "numMin": "El valor debe ser al menos {{min}}",
+    "numMax": "El valor debe ser como máximo {{max}}",
+    "numAbove": "El valor debe ser mayor que {{min}}",
+    "numAboveMax": "El valor debe ser mayor que {{min}} y como máximo {{max}}"
   },
   "settings": {
     "sectionAppearance": "Apariencia e interacción",
@@ -983,7 +999,7 @@
     "collapseAll": "Contraer todo",
     "tree": "Árbol",
     "search": "Buscar",
-    "incompleteBucket": "Clasificación incompleta (creada por usted)",
+    "incompleteBucket": "Clasificación incompleta",
     "bulkNodeTitle": "Taxones seleccionados: {{names}}",
     "bulkTooManyTitle": "Demasiados",
     "bulkTooManyMsg": "Hay {{count}} taxones debajo, más que el límite de {{max}} por lote. Elija taxones de rango inferior.",
@@ -1198,6 +1214,7 @@
     "import": "Importar",
     "drawingLabel": "Dibujando {{type}} · {{count}} pts",
     "handoffHint": "Cree un sitio geográfico para el registro n.º {{id}}; se asignará automáticamente al terminar",
+    "surveyHandoffHint": "Cree un sitio geográfico para «{{name}}»; se asignará automáticamente al terminar",
     "editTrackHint": "Editar la traza · arrastre o toque un vértice para eliminarlo",
     "editPosHint": "Editar la ubicación · arrastre el marcador",
     "nlsc": "NLSC (Taiwán)",
@@ -1408,7 +1425,6 @@
   "plotSpecies": {
     "addPhotoFail": "No se pudo añadir la foto",
     "changeLayer": "Cambiar de estrato",
-    "currentSuffix": "(actual)",
     "movedTo": "Movida a {{layer}}",
     "pointCountRecord": "Registros del conteo por puntos",
     "transectRecord": "Registros del transecto",
@@ -5027,7 +5043,8 @@
       "traits": "Rasgos",
       "environment": "Ambiente",
       "choice": "Opción personalizada",
-      "interaction": "Interacciones"
+      "interaction": "Interacciones",
+      "method": "Método de muestreo"
     },
     "editor": {
       "elsewhere": "Este elemento se introduce en la pantalla del registro.",
@@ -5040,7 +5057,8 @@
         "malformed": "Formato incorrecto",
         "endsBeforeStart": "Termina antes de empezar",
         "coversOver100": "Las coberturas del suelo superan el 100 %",
-        "layerOutOfRange": "Más allá del número de estratos"
+        "layerOutOfRange": "Más allá del número de estratos",
+        "requiredMissing": "Obligatorio, sin completar"
       },
       "abundance": {
         "count": "Recuento",
@@ -5063,7 +5081,8 @@
       "timestamp": {
         "start": "Inicio",
         "stop": "Fin",
-        "setStop": "Anotar la hora de fin"
+        "setStop": "Anotar la hora de fin",
+        "setStart": "Anotar la hora de inicio"
       },
       "people": {
         "none": "Ninguno"
@@ -5324,9 +5343,6 @@
     },
     "tab": {
       "data": "Datos",
-      "units_one": "Unidades {{count}}",
-      "units_many": "Unidades {{count}}",
-      "units_other": "Unidades {{count}}",
       "species_one": "Especies {{count}}",
       "species_many": "Especies {{count}}",
       "species_other": "Especies {{count}}",
@@ -5349,7 +5365,8 @@
       "blindSealed": "El registro a ciegas terminó; sus registros ya no pueden cambiar",
       "recheckBegun": "La reverificación ya empezó (hay respuestas o especies halladas); no se puede reabrir el registro a ciegas",
       "labelTaken": "La etiqueta «{{label}}» ya está en la lista",
-      "badValue": "Este valor no se puede guardar"
+      "badValue": "Este valor no se puede guardar",
+      "unitDone": "«{{code}}» está marcado como terminado; quite la marca para modificarlo."
     },
     "finish": {
       "title": "Terminar muestreo",
@@ -5359,7 +5376,10 @@
       "recheckOpen_other": "{{count}} especies del muestreo anterior no tienen respuesta de reverificación.",
       "errors_one": "{{count}} registro de presencia aún tiene errores.",
       "errors_many": "{{count}} registros de presencia aún tienen errores.",
-      "errors_other": "{{count}} registros de presencia aún tienen errores."
+      "errors_other": "{{count}} registros de presencia aún tienen errores.",
+      "dataMissing_one": "Falta {{count}} dato obligatorio del muestreo.",
+      "dataMissing_many": "Faltan {{count}} datos obligatorios del muestreo.",
+      "dataMissing_other": "Faltan {{count}} datos obligatorios del muestreo."
     },
     "blind": {
       "banner": "Registro a ciegas: la lista anterior aparece al terminarlo.",
@@ -5406,7 +5426,10 @@
       "deleteTitle": "¿Eliminar {{path}}?",
       "deleteMsg_one": "Su {{count}} registro de presencia y sus subunidades suben un nivel; los datos y fotos propios de la unidad se eliminan.",
       "deleteMsg_many": "Sus {{count}} registros de presencia y sus subunidades suben un nivel; los datos y fotos propios de la unidad se eliminan.",
-      "deleteMsg_other": "Sus {{count}} registros de presencia y sus subunidades suben un nivel; los datos y fotos propios de la unidad se eliminan."
+      "deleteMsg_other": "Sus {{count}} registros de presencia y sus subunidades suben un nivel; los datos y fotos propios de la unidad se eliminan.",
+      "deleteAllMsg_one": "Su {{count}} registro de presencia y sus subunidades se eliminan con ella, igual que los datos y fotos propios de la unidad.",
+      "deleteAllMsg_many": "Sus {{count}} registros de presencia y sus subunidades se eliminan con ella, igual que los datos y fotos propios de la unidad.",
+      "deleteAllMsg_other": "Sus {{count}} registros de presencia y sus subunidades se eliminan con ella, igual que los datos y fotos propios de la unidad."
     },
     "label": {
       "title": "Etiqueta de {{name}}",
@@ -5419,7 +5442,8 @@
       "newMsg": "En la lista, la misma etiqueta designa esta morfoespecie en todos los muestreos siguientes.",
       "addToList": "Añadir a la lista",
       "onlyHere": "Solo para este registro",
-      "pickMsgNone": "La lista de morfoespecies aún no tiene etiquetas para este taxón."
+      "pickMsgNone": "La lista de morfoespecies aún no tiene etiquetas para este taxón.",
+      "field": "Etiqueta"
     },
     "frame": {
       "section": "Muestreos de parcela",
@@ -5454,7 +5478,68 @@
       "banner": "Este formulario tiene una versión nueva (versión {{n}})",
       "msg": "Pasar a la versión {{n}}: aparecen los campos nuevos y lo registrado no cambia."
     },
-    "carried": "Igual que en el muestreo {{n}} (traído al inicio; verifíquelo): {{fields}}"
+    "carried": "Igual que en el muestreo {{n}} (traído al inicio; verifíquelo): {{fields}}",
+    "surveyData": "Datos del muestreo",
+    "dataLocked": "Terminado y bloqueado. Vuelva al muestreo y toque el candado arriba a la derecha para editar.",
+    "dataFilled": "{{filled}} de {{total}} completados",
+    "track": "Traza",
+    "extrasAfterSave": "Los demás campos se rellenan después de guardar.",
+    "trackNotStarted": "La grabación de la traza no ha comenzado",
+    "gnssNotYet": "Aún sin obtener",
+    "noLayer": "Sin estrato",
+    "quadrat": {
+      "addWhere": "¿En qué {{level}} va {{code}}?",
+      "fromUnitList": "Desde la lista de {{unit}}",
+      "unitFields": "Otros campos",
+      "size": "Tamaño",
+      "sizeShared": "Común (método)",
+      "sizeOwn": "Tamaño propio de este cuadrante (vacío: el común)"
+    },
+    "env": {
+      "openness": "Apertura",
+      "opennessPct": "Apertura del cielo"
+    },
+    "method": {
+      "title": "Método",
+      "none": "Sin elegir",
+      "custom": "Método propio",
+      "customPick": "Método propio…",
+      "customName": "Nombre del método",
+      "size": "Tamaño",
+      "effortAny": "Esfuerzo",
+      "effortUnit": "Unidad de esfuerzo",
+      "effort": {
+        "cameraHours": "Horas-cámara",
+        "trapNights": "Noches-trampa",
+        "netHours": "Horas-red",
+        "personHours": "Horas-persona",
+        "trapHours": "Horas-trampa",
+        "trapDays": "Días-trampa",
+        "recorderHours": "Horas de grabación"
+      },
+      "quadratSize": "Tamaño de los cuadrantes",
+      "description": "Notas del método",
+      "source": "Los nombres de los métodos siguen las directrices del Ministerio de Medio Ambiente de Taiwán para la evaluación ecológica de fauna y flora (edición 2026).",
+      "group": {
+        "vegetation": "Vegetación",
+        "birds": "Aves",
+        "mammals": "Mamíferos",
+        "herps": "Anfibios y reptiles",
+        "insects": "Insectos",
+        "general": "General"
+      }
+    },
+    "group": {
+      "basic": "Datos básicos",
+      "time": "Tiempo",
+      "space": "Ubicación",
+      "method": "Método",
+      "pageOf": "Datos del muestreo · {{n}} / {{total}}",
+      "people": "Personas",
+      "missing_one": "Falta {{count}} dato obligatorio",
+      "missing_many": "Faltan {{count}} datos obligatorios",
+      "missing_other": "Faltan {{count}} datos obligatorios"
+    }
   },
   "builder": {
     "title": "Plantillas de formulario",
@@ -5495,14 +5580,22 @@
       "title": "Nueva plantilla",
       "blankChecklist": "Lista en blanco",
       "blankPlot": "Parcela en blanco",
-      "copy": "Copiar una plantilla existente…",
       "copyFrom": "¿Cuál copiar?",
       "nameTitle": "Nombre de la plantilla",
       "nameMsg": "Por ejemplo «Plantas de ribera». Se puede cambiar después y añadir un nombre en inglés.",
       "create": "Crear",
       "firstUnit": "Subparcela",
       "copyName": "Copia de {{name}}",
-      "census": "Censo de árboles (copia del integrado)"
+      "subtitle": "Elija un punto de partida; todo se puede cambiar después",
+      "blankChecklistDesc": "Una lista de especies desde cero",
+      "blankPlotDesc": "Estratos, cobertura, subparcelas",
+      "censusDesc": "Copia de la plantilla integrada de censo de árboles",
+      "copyShort": "Copiar una existente",
+      "copyDesc": "Mías, integradas o compartidas por el equipo",
+      "importDesc": "Importar desde un archivo (.mtpl.json)",
+      "sectionMine": "Mis plantillas",
+      "sectionBuiltin": "Integradas",
+      "sectionTeam": "Compartidas por el equipo"
     },
     "notFound": "El borrador de esta plantilla ya no existe; quizá se guardó o se descartó.",
     "basics": "Datos básicos",
@@ -5535,6 +5628,7 @@
     "preview": "Vista previa",
     "previewTitle": "Vista previa: {{name}}",
     "previewIntro": "Así se ve un muestreo iniciado con esta plantilla. Puede probar a llenarlo; no se guarda nada.",
+    "previewNoTrack": "La vista previa no graba trazas.",
     "discard": {
       "title": "¿Descartar los cambios?",
       "msg": "El borrador se elimina; la plantilla queda en la versión {{n}}.",
@@ -5635,7 +5729,10 @@
       "interactionTypes_other": "{{count}} tipos",
       "photos_one": "{{count}} foto",
       "photos_many": "{{count}} fotos",
-      "photos_other": "{{count}} fotos"
+      "photos_other": "{{count}} fotos",
+      "methods_one": "{{count}} método disponible",
+      "methods_many": "{{count}} métodos disponibles",
+      "methods_other": "{{count}} métodos disponibles"
     },
     "kind": {
       "bb": "Braun-Blanquet",
@@ -5674,7 +5771,6 @@
       "multiSwitch": "Permitir varias opciones"
     },
     "import": {
-      "fromFile": "Importar desde un archivo…",
       "failTitle": "No se puede importar",
       "newerApp": "Esta plantilla usa componentes que esta versión de la app no conoce ({{types}}). Actualice primero la app.",
       "invalid": "El archivo no es válido: {{detail}}",
@@ -5730,6 +5826,19 @@
       "inverseEn": "Visto desde B, en inglés",
       "iri": "IRI de relación RO (opcional)",
       "iriBad": "Un IRI empieza por http:// o https:// y no lleva espacios"
+    },
+    "method": {
+      "choose": "El observador elige de una lista",
+      "fixed": "Un método fijo",
+      "all": "Ofrecer todos los métodos",
+      "method": "Método",
+      "custom": "Se permiten métodos propios",
+      "customDesc": "El observador puede escribir un método que no está en la lista."
+    },
+    "openness": {
+      "pct": "Apertura del cielo (%)",
+      "grades": "Grados propios",
+      "list": "Lista de grados"
     }
   },
   "surveyImport": {

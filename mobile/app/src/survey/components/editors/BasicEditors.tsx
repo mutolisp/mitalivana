@@ -3,6 +3,7 @@
  * removed by the host), comments, start and end time, investigators and
  * workers (the saved surveyor / identifier lists), a GNSS fix, and height.
  */
+import { useDraftValue } from '~/lib/useDraftValue';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, Text, View } from 'react-native';
@@ -45,16 +46,23 @@ export function PhotosEditor({ values, context, readOnly, problems }: EditorProp
 
 export function AudioEditor({ values, context, readOnly }: EditorProps) {
   const clips = uris(values.audio);
+  // Locked: the recordings still play; nothing is recorded or removed.
   return (
-    <View pointerEvents={readOnly ? 'none' : 'auto'}>
-      <AudioClipList clips={clips} onAdd={(u) => context?.onAddMedia?.(u)} onRemove={(u) => context?.onRemoveMedia?.(u)} />
-    </View>
+    <AudioClipList
+      clips={clips}
+      onAdd={readOnly ? undefined : (u) => context?.onAddMedia?.(u)}
+      onRemove={readOnly ? undefined : (u) => context?.onRemoveMedia?.(u)}
+    />
   );
 }
 
 export function CommentsEditor({ values, onChange, readOnly }: EditorProps) {
   const { t } = useTranslation();
-  return <TextBox value={text(values.notes)} onChange={(v) => onChange({ notes: v || null })} accessibilityLabel={t('survey.component.comments')} multiline editable={!readOnly} />;
+  // Written once typing pauses or the field is left, not letter by letter (2G-e).
+  const draft = useDraftValue(text(values.notes), (v) => onChange({ notes: v || null }));
+  return (
+    <TextBox value={draft.value} onChange={draft.change} onBlur={draft.flush} accessibilityLabel={t('survey.component.comments')} multiline editable={!readOnly} />
+  );
 }
 
 export function TimestampEditor({ values, onChange, problems, readOnly }: EditorProps) {
@@ -64,7 +72,14 @@ export function TimestampEditor({ values, onChange, problems, readOnly }: Editor
   return (
     <View className="gap-2" pointerEvents={readOnly ? 'none' : 'auto'}>
       <Field label={t('survey.editor.timestamp.start')}>
-        <DateTimeField value={start ?? Date.now()} onChange={(v) => onChange({ start_ts: v })} />
+        {/* Unset is shown as unset, not as the current time (2G-e). */}
+        {start == null ? (
+          <Pressable onPress={() => onChange({ start_ts: Date.now() })} accessibilityRole="button" className="self-start">
+            <Text className="text-sm font-semibold text-accent-600 dark:text-accent-400">{t('survey.editor.timestamp.setStart')}</Text>
+          </Pressable>
+        ) : (
+          <DateTimeField value={start} onChange={(v) => onChange({ start_ts: v })} />
+        )}
       </Field>
       <Field label={t('survey.editor.timestamp.stop')}>
         {stop == null ? (
@@ -178,10 +193,10 @@ export function LocationEditor({ instance, values, onChange, problems, readOnly 
   );
 }
 
-export function HeightEditor({ values, onChange, problems }: EditorProps) {
+export function HeightEditor({ values, onChange, problems, readOnly }: EditorProps) {
   const { t } = useTranslation();
   return (
-    <View>
+    <View pointerEvents={readOnly ? 'none' : 'auto'}>
       <LabeledNumField label={t('survey.component.height')} suffix="m" value={num(values.height_m)} min={0} onSave={(v) => onChange({ height_m: v })} />
       <ProblemLines problems={problems} />
     </View>

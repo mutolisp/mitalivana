@@ -16,6 +16,7 @@ import { readAsStringAsync } from 'expo-file-system/legacy';
 import { buildCensusEntries } from '~/survey/censusBundle';
 import type { CensusExportDoc } from '~/survey/db/censusExportCore';
 import { buildSurveyEntries } from '~/survey/surveyBundle';
+import { getFwSurvey } from '~/survey/db/surveys';
 import * as MediaLibrary from 'expo-media-library';
 import yaml from 'js-yaml';
 import { strFromU8, strToU8, type ZipOptions } from 'fflate';
@@ -1400,7 +1401,7 @@ export async function bundleCensus(surveyId: number, opts: BundleOptions): Promi
  */
 export async function buildModularBundleEntries(
   surveyId: number,
-  opts: Pick<BundleOptions, 'includePhotos' | 'onProgress'> & { includeDwca?: boolean },
+  opts: Pick<BundleOptions, 'includePhotos' | 'onProgress'> & { includeDwca?: boolean; geoFormats?: GeoFormat[] },
 ): Promise<{ entries: BuiltZipEntry[]; folderName: string }> {
   if (opts.includePhotos) await ensurePhotosReadAccess();
   const built = await buildSurveyEntries(surveyId, {
@@ -1418,6 +1419,19 @@ export async function buildModularBundleEntries(
     },
   });
   const entries: BuiltZipEntry[] = [...built.entries];
+  // Geo, as a session's and a plot's (2G-b): the track it recorded, and its place.
+  const formats = opts.geoFormats ?? [];
+  if (formats.length) {
+    const track = parseGeoJsonSafe((built.doc.survey.track_geojson as string | null | undefined) ?? null);
+    if (track) addGeoEntries(entries, built.folderName, 'track', track as never, formats);
+    const siteId = getFwSurvey(surveyId)?.site_id ?? null;
+    const site = siteId != null ? getSite(siteId) : null;
+    const geom = site ? parseGeoJsonSafe(site.geometry_geojson) : null;
+    if (site && geom) {
+      const fc = { type: 'FeatureCollection' as const, features: [{ type: 'Feature' as const, geometry: geom as never, properties: { name: site.name, description: site.notes ?? '' } }] };
+      addGeoEntries(entries, built.folderName, 'site', fc, formats);
+    }
+  }
   if (opts.includeDwca) addDwcaEntry(entries, built.folderName, built.name, '', { plots: [], sessions: [], trips: [], surveys: [{ doc: built.doc, eventId: built.eventId }] });
   const manifest = buildManifest({ kind: 'modular', id: surveyId, uuid: built.uuid, name: built.name, record_count: built.occurrences, photo_count: built.files });
   entries.push({ name: `${built.folderName}/manifest.json`, bytes: strToU8(JSON.stringify(manifest, null, 2)) });

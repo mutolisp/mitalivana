@@ -23,7 +23,7 @@ export function FrequencyEditor({ instance, values, onChange, problems, readOnly
   const grid = useRef<FrequencyGridHandle>(null);
   if (instance.params.mode === 'count') {
     return (
-      <View className="gap-1">
+      <View className="gap-1" pointerEvents={readOnly ? 'none' : 'auto'}>
         <LabeledNumField
           label={t('survey.editor.frequency.count', { n, cells })}
           value={typeof values.freq_count === 'number' ? values.freq_count : null}

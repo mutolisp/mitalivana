@@ -293,6 +293,34 @@ eq('blank and missing hash alike', rowHash({ a: 1, b: '' }) === rowHash({ a: 1 }
   eq('grid setting: their grid chosen → every quadrat with another grid takes theirs', gItems.filter((x) => x.tbl !== 'qconfig').map((x) => `${x.key}:${gTied.get(x.id)?.pick}`), ['1:remote', '2:remote', '1:t1:remote']);
 }
 
+// ── review titles: scientific names as parts the review italicises (rank looked up by taxon) ──
+{
+  const rec = (taxon_id, over = {}) => ({ occurrence_id: `o-${taxon_id}`, taxon_id, name: null, family: null, used_scientific_name: null, ...over });
+  const ss = sessionSide({ ...S('甲', 1, null, null), records: [rec('t1', { name: 'Litsea' }), rec('t2', { name: 'Rubus', used_scientific_name: 'Rubus croceacanthus var. croceacanthus' }), rec('t3')] });
+  eq('titles: a checklist row is its scientific name, with the taxon for its rank', ss.rec.map((r) => r.title), [
+    [{ sci: 'Litsea', taxonId: 't1' }],
+    [{ sci: 'Rubus croceacanthus var. croceacanthus', taxonId: 't2' }],
+    ['t3'],
+  ]);
+  eq('titles: the label (merge log text) is unchanged', ss.rec.map((r) => r.label), ['Litsea', 'Rubus croceacanthus var. croceacanthus', 't3']);
+  eq('titles: never part of a row\'s hash', baseOf(ss), baseOf({ ...ss, rec: ss.rec.map(({ title: _t, ...r }) => r) }));
+  const ps = plotSide({ uuid: 'p', plotid: 'P', plot_type: 'fixed', species: [{ occurrence_id: 'o1', taxon_id: 't1', name: 'Litsea', layer: 1, subplot: 'A' }], quadrats: [
+    { idx: 1, label: 'Q1', species: [{ taxon_id: 't1', name: 'Litsea', cname: null }, { taxon_id: 't2', name: 'Rubus', cname: '懸鉤子' }] },
+  ] });
+  eq('titles: a plot species row', ps.sp[0].title, [{ sci: 'Litsea', taxonId: 't1' }]);
+  eq('titles: a quadrat species is its common name as text, else its scientific name', ps.qsp.map((r) => r.title), [[{ sci: 'Litsea', taxonId: 't1' }], ['懸鉤子']]);
+  const gs = gloriaSide(gdoc([unit('N11', 30)], [us('N11', 1, 'o1', 30), us('N11', 2, 'o2', 30)], [
+    { ...taxon(1, 'tC'), scientific_name: 'Carex' , verbatim_identification: 'sp1' },
+    taxon(2, 'tD'),
+  ]));
+  eq('titles: a GLORIA species keeps its morphospecies label after the name', gs.sp.map((r) => r.title), [[{ sci: 'Carex', taxonId: 'tC' }, ' sp1'], ['tD']]);
+  // The merge log keeps the parts, with the group in front as the label has it.
+  const added = describeMerge(diffSides(plotSide({ ...ps, species: [] }), ps, null), new Map());
+  const spAdded = added.find((x) => x.tbl === 'sp');
+  eq('titles: the merge log carries them, group first', [spAdded.label, spAdded.title], ['A · Litsea', ['A · ', { sci: 'Litsea', taxonId: 't1' }]]);
+  eq('titles: a row without names has none in the log', 'title' in added.find((x) => x.tbl === 'quadrat'), false);
+}
+
 if (failed) {
   console.error(`check:merge — ${failed} failed`);
   process.exit(1);

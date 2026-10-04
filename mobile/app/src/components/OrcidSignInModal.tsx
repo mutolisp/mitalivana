@@ -24,6 +24,7 @@ import {
   type OrcidAuthRequest,
   type OrcidIdentity,
 } from '~/lib/orcidAuth';
+import { ActionSheetLayer, sheetBack } from '~/components/ActionSheet';
 
 export type OrcidSignInResult =
   | { kind: 'ok'; identity: OrcidIdentity }
@@ -67,7 +68,7 @@ export function OrcidSignInModal({ config, onDone }: Props) {
   };
 
   return (
-    <Modal visible animationType="slide" onRequestClose={() => onDone({ kind: 'cancelled' })}>
+    <Modal visible animationType="slide" onRequestClose={sheetBack(() => onDone({ kind: 'cancelled' }))}>
       <View className="flex-1 bg-card dark:bg-gray-900" style={{ paddingTop: insets.top }}>
         <View className="flex-row items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-700">
           <Pressable onPress={() => onDone({ kind: 'cancelled' })} hitSlop={8}>
@@ -104,6 +105,7 @@ export function OrcidSignInModal({ config, onDone }: Props) {
           />
         )}
       </View>
+      <ActionSheetLayer />
     </Modal>
   );
 }

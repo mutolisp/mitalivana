@@ -38,6 +38,7 @@ import { ScientificName } from './ScientificName';
 import { useThemeColors } from '~/theme/colors';
 import { SelectMark } from '~/components/ui/SelectMark';
 import { Radio } from '~/components/ui/Radio';
+import { ActionSheetLayer, sheetBack } from '~/components/ActionSheet';
 
 /** Where matched taxa land. The modal owns the dedupe + insert for each kind
  *  so callers don't reimplement it; adding a third target means one more case
@@ -255,7 +256,7 @@ export function BatchImportModal({ visible, target, onClose, onCommitted }: Prop
     (resolved?.ambiguous.filter((_, i) => ambiguousPicks.get(i) !== null).length ?? 0);
 
   return (
-    <Modal visible={visible && !steppedAside} animationType="slide" onRequestClose={handleClose}>
+    <Modal visible={visible && !steppedAside} animationType="slide" onRequestClose={sheetBack(handleClose)}>
       <View
         className="flex-1 bg-card dark:bg-gray-900"
         style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
@@ -523,6 +524,7 @@ export function BatchImportModal({ visible, target, onClose, onCommitted }: Prop
           </View>
         ) : null}
       </View>
+      <ActionSheetLayer visible={visible && !steppedAside} />
     </Modal>
   );
 }

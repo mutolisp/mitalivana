@@ -11,12 +11,13 @@ import { showActionSheet } from '~/components/ActionSheet';
 import { promptText } from '~/components/TextPromptModal';
 import { defaultSurveyorString } from '~/db/surveyors';
 import i18n from '~/i18n';
-import { startModularSurveyAndOpen } from '~/lib/recordCreate';
+import { frameOption, startModularSurveyAndOpen } from '~/lib/recordCreate';
 import { censusSeriesOptions, censusSeriesPlan, listCensuses, listFrames, startCensus } from '~/survey/db/stemmap';
 import { templateName } from '~/survey/form/text';
+import { templateUseCounts } from '~/survey/db/surveys';
 import type { SurveyTemplate } from '~/survey/template/types';
 import { STEMMAP_TEMPLATE } from '~/survey/templates/stemmap';
-import { templatesHref, userTemplates } from './drafts';
+import { templateOption, templatesHref, userTemplates } from './drafts';
 
 /** A new plot-style survey on permanent plot `frameId`, with the template the user picks. */
 export async function startPlotTemplateOnFrame(frameId: number): Promise<void> {
@@ -29,9 +30,10 @@ export async function startPlotTemplateOnFrame(frameId: number): Promise<void> {
     return;
   }
   if (plots.length === 1) return startModularSurveyAndOpen(plots[0], frameId);
+  const uses = templateUseCounts();
   const idx = await showActionSheet({
     title: i18n.t('builder.pickTemplate'),
-    options: plots.map((t) => ({ label: templateName(i18n.t, i18n.language, t) })),
+    options: plots.map((t) => templateOption(t, uses.get(t.id)?.last)),
     cancelLabel: i18n.t('common.cancel'),
   });
   if (plots[idx]) await startModularSurveyAndOpen(plots[idx], frameId);
@@ -82,9 +84,13 @@ export async function startCensusOnFrame(frameId: number, template?: SurveyTempl
     const list = censusTemplates();
     if (list.length === 1) tpl = list[0];
     else {
+      const uses = templateUseCounts();
       const idx = await showActionSheet({
         title: i18n.t('builder.census.pick'),
-        options: list.map((x) => ({ label: x.id === latest?.template_id ? i18n.t('builder.census.lastUsed', { name: nameOf(x) }) : nameOf(x) })),
+        options: list.map((x) => ({
+          ...templateOption(x, uses.get(x.id)?.last),
+          label: x.id === latest?.template_id ? i18n.t('builder.census.lastUsed', { name: nameOf(x) }) : nameOf(x),
+        })),
         cancelLabel: i18n.t('common.cancel'),
       });
       tpl = list[idx];
@@ -143,7 +149,7 @@ export async function startCensusWithTemplate(template: SurveyTemplate): Promise
   }
   const idx = await showActionSheet({
     title: i18n.t('builder.census.pickFrame'),
-    options: frames.map((f) => ({ label: f.name ? `${f.code} ${f.name}` : f.code })),
+    options: frames.map(frameOption),
     cancelLabel: i18n.t('common.cancel'),
   });
   const frame = frames[idx];

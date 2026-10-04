@@ -8,6 +8,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { View } from 'react-native';
 import { BBInput, CountInput, CustomInput, DBHInput, PercentInput, PercentQuickValues } from '~/components/abundance/AbundanceInputs';
+import { useDraftValue } from '~/lib/useDraftValue';
 import { Seg } from '~/components/form/Segmented';
 import { kindForType, parseDbhArray, serializeDbhArray } from '~/lib/dwcAbundanceCore';
 import { parseNum } from '~/lib/parseNum';
@@ -23,9 +24,17 @@ export function AbundanceEditor({ instance, values, onChange, problems, readOnly
   const type = typeof values.organism_quantity_type === 'string' ? values.organism_quantity_type : null;
   const stored = typeof values.organism_quantity === 'string' ? values.organism_quantity : values.organism_quantity == null ? '' : String(values.organism_quantity);
   const kind: Kind = type ? kindForType(type) : ((instance.params.default as Kind) ?? kinds[0]);
-  const [text, setText] = useState(stored);
+  // Typed values are written once typing pauses, not letter by letter (2G-e).
+  const customType = useDraftValue(type && kind === 'custom' ? type : '', (v) => onChange({ organism_quantity_type: v.trim() || null }));
+  const draft = useDraftValue(stored, (v) => {
+    if (kind === 'custom') {
+      onChange({ organism_quantity: v.trim() || null, organism_quantity_type: customType.value.trim() || null });
+      return;
+    }
+    const n = parseNum(v);
+    onChange({ organism_quantity: v.trim() === '' ? null : n == null ? v : String(n), organism_quantity_type: ABUNDANCE_TYPE[kind === 'count' ? 'count' : 'percent'] });
+  });
   const [dbhDraft, setDbhDraft] = useState('');
-  const [customType, setCustomType] = useState(type && kind === 'custom' ? type : '');
 
   const label = (k: Kind) => {
     switch (k) {
@@ -43,14 +52,9 @@ export function AbundanceEditor({ instance, values, onChange, problems, readOnly
   };
   const pick = (k: Kind) => {
     if (readOnly || k === kind) return;
-    setText('');
-    onChange({ organism_quantity: null, organism_quantity_type: k === 'custom' ? customType || null : ABUNDANCE_TYPE[k] });
-  };
-  /** A number typed: the text stays as typed, the value is what it reads as. */
-  const typed = (v: string, k: Exclude<Kind, 'BB' | 'DBH' | 'custom'>) => {
-    setText(v);
-    const n = parseNum(v);
-    onChange({ organism_quantity: v.trim() === '' ? null : n == null ? v : String(n), organism_quantity_type: ABUNDANCE_TYPE[k] });
+    draft.flush();
+    customType.flush();
+    onChange({ organism_quantity: null, organism_quantity_type: k === 'custom' ? customType.value || null : ABUNDANCE_TYPE[k] });
   };
   const stems = kind === 'DBH' ? parseDbhArray(stored) : [];
 
@@ -62,11 +66,16 @@ export function AbundanceEditor({ instance, values, onChange, problems, readOnly
       ) : null}
       {kind === 'percent' ? (
         <>
-          <PercentInput value={text} onChange={(v) => typed(v, 'percent')} autoFocus={autoFocus} />
-          <PercentQuickValues onPick={(v) => typed(v, 'percent')} />
+          <PercentInput value={draft.value} onChange={draft.change} autoFocus={autoFocus} />
+          <PercentQuickValues
+            onPick={(v) => {
+              draft.change(v);
+              draft.flush();
+            }}
+          />
         </>
       ) : null}
-      {kind === 'count' ? <CountInput value={text} onChange={(v) => typed(v, 'count')} suffix={t('survey.editor.abundance.countSuffix')} autoFocus={autoFocus} /> : null}
+      {kind === 'count' ? <CountInput value={draft.value} onChange={draft.change} suffix={t('survey.editor.abundance.countSuffix')} autoFocus={autoFocus} /> : null}
       {kind === 'DBH' ? (
         <DBHInput
           autoFocus={autoFocus}
@@ -84,16 +93,10 @@ export function AbundanceEditor({ instance, values, onChange, problems, readOnly
       ) : null}
       {kind === 'custom' ? (
         <CustomInput
-          typeValue={customType}
-          setTypeValue={(v) => {
-            setCustomType(v);
-            onChange({ organism_quantity_type: v.trim() || null });
-          }}
-          quantityValue={text}
-          setQuantityValue={(v) => {
-            setText(v);
-            onChange({ organism_quantity: v.trim() || null, organism_quantity_type: customType.trim() || null });
-          }}
+          typeValue={customType.value}
+          setTypeValue={customType.change}
+          quantityValue={draft.value}
+          setQuantityValue={draft.change}
         />
       ) : null}
       <ProblemLines problems={problems} />

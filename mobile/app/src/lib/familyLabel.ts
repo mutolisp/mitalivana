@@ -15,6 +15,18 @@ export function familyLatinFirst(family: string, familyC: string): string {
 }
 
 /**
+ * `樟科 Lauraceae` — Chinese first, the order of the search results, species
+ * cards and detail sheets. Either name alone when the other is missing (a GBIF
+ * / iNat taxon has no Chinese family name), with no stray space before it.
+ */
+export function familyChineseFirst(family: string | null | undefined, familyC: string | null | undefined): string {
+  const latin = (family ?? '').trim();
+  const chinese = (familyC ?? '').trim();
+  if (latin && chinese) return `${chinese} ${latin}`;
+  return chinese || latin;
+}
+
+/**
  * `Moraceae (桑科)` — Latin first, Chinese in parentheses.
  *
  * The label's own form, distinct from `familyLatinFirst`'s space-separated

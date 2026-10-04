@@ -107,7 +107,7 @@ export default function TeamDeployScreen() {
     const idx = await showActionSheet({
       title: t('teamDeploy.pickAccount'),
       cancelLabel: t('common.cancel'),
-      options: accounts.map((a) => ({ label: a.name })),
+      options: accounts.map((a) => ({ label: a.name, icon: 'cloud-outline' as const, description: a.id })),
     });
     return accounts[idx] ?? null;
   };

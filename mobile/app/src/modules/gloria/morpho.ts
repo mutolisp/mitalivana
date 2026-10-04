@@ -4,10 +4,11 @@
  * one. Shared by every GLORIA screen that adds species from the search.
  */
 import type { TFunction } from 'i18next';
-import { showActionSheet } from '~/components/ActionSheet';
+import { nameOption, showActionSheet } from '~/components/ActionSheet';
 import { isSpeciesLevelRank } from '~/lib/dataQuality';
 import { rosterEntriesOf, setRosterLabel } from './db';
 import { planNewMorpho } from './model/morpho';
+import { sentenceParts, slot, type NamePart } from '~/lib/nameParts';
 
 /**
  * The label to add `taxonId` under: null = unlabelled (the usual case — the
@@ -20,19 +21,23 @@ export async function pickMorphoLabel(
   surveyId: number,
   taxonId: string,
   rank: string | null | undefined,
-  name: string,
+  /** The species as titled: its common name, else its scientific name (nameParts.speciesParts). */
+  name: readonly NamePart[],
 ): Promise<string | null | undefined> {
   if (isSpeciesLevelRank(rank)) return null;
   const entries = rosterEntriesOf(surveyId, taxonId);
   if (entries.length === 0) return null;
   const plan = planNewMorpho(entries.map((e) => e.label));
+  const sci = name;
   const idx = await showActionSheet({
-    title: t('gloria.morpho.pickTitle', { name }),
+    titleParts: sentenceParts(t('gloria.morpho.pickTitle', { name: slot('name') }), { name: sci }),
     message: plan.relabel ? t('gloria.morpho.relabelNote', { label: plan.relabel }) : t('gloria.morpho.pickMsg'),
     cancelLabel: t('common.cancel'),
     options: [
-      ...entries.map((e) => ({ label: e.label ? `${name} ${e.label}` : t('gloria.morpho.unlabelled', { name }) })),
-      { label: t('gloria.morpho.addNew', { name, label: plan.label }) },
+      ...entries.map((e) =>
+        nameOption(e.label ? [...sci, ` ${e.label}`] : sentenceParts(t('gloria.morpho.unlabelled', { name: slot('name') }), { name: sci })),
+      ),
+      nameOption(sentenceParts(t('gloria.morpho.addNew', { name: slot('name'), label: plan.label }), { name: sci })),
     ],
   });
   if (idx < 0 || idx > entries.length) return undefined;

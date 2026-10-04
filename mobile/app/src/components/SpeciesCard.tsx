@@ -11,6 +11,7 @@ import { ScientificName } from './ScientificName';
 import { SynonymStatusBadge } from './CollapsibleSection';
 import { Tag } from './ui/Tag';
 import { rebaseAppFileUri } from '~/lib/appFiles';
+import { familyChineseFirst } from '~/lib/familyLabel';
 import { useThemeColors } from '~/theme/colors';
 import { CountStepper } from './ui/CountStepper';
 import { SelectMark } from '~/components/ui/SelectMark';
@@ -29,9 +30,15 @@ type Props = {
    *  in − n ＋. Omit on a locked record. Other abundance types stay a
    *  read-only figure; the detail sheet edits them. */
   onCountChange?: (next: number | null) => void;
+  /** A survey's own marks after the family (recheck phase, made only as an interaction's other side). */
+  meta?: string;
+  /** A blind occurrence sealed once its survey's blind phase closed: a lock at the end. */
+  sealed?: boolean;
+  /** Something to fix, in the alert colour after the name (a survey occurrence's 必填未填, 2G-e). */
+  alert?: string;
 };
 
-export function SpeciesCard({ record, onPress, onLongPress, selectMode, picked, flash, onCountChange }: Props) {
+export function SpeciesCard({ record, onPress, onLongPress, selectMode, picked, flash, onCountChange, meta, sealed, alert }: Props) {
   const c = useThemeColors();
   const { t } = useTranslation();
   const isEndemic = record.is_endemic === 'true';
@@ -99,6 +106,7 @@ export function SpeciesCard({ record, onPress, onLongPress, selectMode, picked, 
           {ab ? <Tag kind={ab.kind} label={ab.shortLabel} /> : null}
           {record.protected ? <Tag kind="protected" label={record.protected} /> : null}
           {record.redlist ? <Tag kind="iucn" iucnCode={record.redlist} /> : null}
+          {alert ? <Tag kind="alert" label={alert} /> : null}
         </View>
         <View className="mt-0.5 flex-row items-center">
           <ScientificName
@@ -117,7 +125,7 @@ export function SpeciesCard({ record, onPress, onLongPress, selectMode, picked, 
           ) : null}
         </View>
         <Text className="mt-0.5 text-xs text-gray-500 dark:text-gray-400" numberOfLines={1}>
-          {record.family_c} {record.family}
+          {[familyChineseFirst(record.family, record.family_c), meta].filter(Boolean).join(' · ')}
         </Text>
       </View>
       {/* The count is why it was recorded, so it belongs where the list is
@@ -137,6 +145,11 @@ export function SpeciesCard({ record, onPress, onLongPress, selectMode, picked, 
           <Text className="text-base font-bold tabular-nums text-gray-800 dark:text-gray-200">
             {formatQuantityBadge(record.organism_quantity, record.organism_quantity_type)}
           </Text>
+        </View>
+      ) : null}
+      {sealed ? (
+        <View className="ml-2 justify-center">
+          <Ionicons name="lock-closed" size={14} color={c.ink3} accessibilityLabel={t('surveyForm.err.blindSealed')} />
         </View>
       ) : null}
     </Pressable>

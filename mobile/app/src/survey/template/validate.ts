@@ -133,6 +133,8 @@ export function validateTemplate(t: SurveyTemplate): string[] {
   }
   for (const c of t.components) {
     if (c.type === 'choice' && typeof c.params.list === 'string' && !listIds.has(c.params.list)) out.push(`${c.key}: unknown code list ${c.params.list}`);
+    // 開闊度 as grades (2G-f): from one of the template's lists.
+    if (c.type === 'environment' && typeof c.params.openness_list === 'string' && !listIds.has(c.params.openness_list)) out.push(`${c.key}: unknown code list ${c.params.openness_list}`);
     if (c.type === 'interaction') {
       // A stored type is its code alone: the template's own may not take a built-in's.
       const own = typeof c.params.list === 'string' ? t.codelists.find((l) => l.id === c.params.list) : undefined;

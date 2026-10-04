@@ -24,7 +24,10 @@ export async function pickExportLanguage(
   const idx = await showActionSheet({
     title: t(titleKey),
     options: ordered.map((l, i) => ({
-      label: i === 0 ? `${l.native} · ${t('report.currentLanguage')}` : l.native,
+      label: l.native,
+      description: i === 0 ? t('report.currentLanguage') : undefined,
+      selected: i === 0,
+      keywords: `${l.english} ${l.value}`,
     })),
   });
   if (idx < 0) return null;

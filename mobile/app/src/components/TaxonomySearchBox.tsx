@@ -3,7 +3,7 @@ import { memo, useEffect, useRef, useState } from 'react';
 import i18next from '~/i18n';
 import { useTranslation } from 'react-i18next';
 import { FlatList, Keyboard, Pressable, Text, TextInput, View } from 'react-native';
-import { searchTaxonomy, type TaxonSearchHit } from '~/db';
+import { INCOMPLETE_PHYLUM, searchTaxonomy, type TaxonSearchHit } from '~/db';
 import { rankColor } from '~/lib/rankColors';
 import { ScientificName } from './ScientificName';
 import { useThemeColors } from '~/theme/colors';
@@ -100,7 +100,8 @@ export function TaxonomySearchBox({ onPick }: Props) {
 
 const HitRow = memo(function HitRow({ hit, onPress }: { hit: TaxonSearchHit; onPress: () => void }) {
   const { t } = useTranslation();
-  const pathPreview = hit.path.map((p) => p.value).join(' › ');
+  // The incomplete bucket's name is a sentinel, never shown (as in the tree).
+  const pathPreview = hit.path.map((p) => (p.value === INCOMPLETE_PHYLUM ? t('taxonomy.incompleteBucket') : p.value)).join(' › ');
   const c = rankColor(hit.rank);
   const isSynonym = !!hit.matched_as;
   const isFuzzy = !!hit.fuzzy_match;

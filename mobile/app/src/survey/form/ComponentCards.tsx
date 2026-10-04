@@ -8,14 +8,16 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Text } from 'react-native';
-import { componentProblems } from '~/survey/componentRules';
+import { instanceProblems, requiredByAuthor } from '~/survey/componentRules';
 import { ComponentEditor, componentLabel } from '~/survey/components/editors/ComponentEditor';
-import type { EditorContext } from '~/survey/components/editors/shared';
+import { isRequiredMissing, RequiredMissingLine, type EditorContext } from '~/survey/components/editors/shared';
 import { FormCard } from '~/survey/components/FormBits';
 import type { ComponentOwner } from '~/survey/db/surveyCore';
 import { addMedia, removeMedia, writeComponent } from '~/survey/db/surveys';
-import { componentDef, type ComponentValues, type FieldValue } from '~/survey/registry';
+import type { ComponentValues, FieldValue } from '~/survey/registry';
 import type { CodeList, ComponentInstance } from '~/survey/template/types';
+import { mediaUriReferenced } from '~/db';
+import { deleteAudioFile } from '~/lib/audioCapture';
 import { formErrorText } from './text';
 
 export function ComponentCards({
@@ -28,6 +30,7 @@ export function ComponentCards({
   refuse,
   notes,
   codelists,
+  onAudioRemoved,
 }: {
   owner: ComponentOwner;
   instances: readonly ComponentInstance[];
@@ -41,6 +44,12 @@ export function ComponentCards({
   notes?: Readonly<Record<string, string>>;
   /** The template's code lists (a choice's codes). */
   codelists?: readonly CodeList[];
+  /**
+   * A recording taken off a component: the screen's undo defers deleting its
+   * file (useRecordEditing.deferAudioDelete, as on 快速名錄). Without one the
+   * file goes at once, unless another record still uses it.
+   */
+  onAudioRemoved?: (uri: string) => void;
 }) {
   const { t, i18n } = useTranslation();
   const [refused, setRefused] = useState<Record<string, string>>({});
@@ -60,23 +69,30 @@ export function ComponentCards({
   return (
     <>
       {instances.map((c) => {
-        const def = componentDef(c.type);
         const v = values[c.key] ?? {};
-        const problems = def ? componentProblems(def, c.params, c.level, c.key, v) : [];
+        // With 必填未填 when the template's author made it required (2G-e).
+        const problems = instanceProblems(c, v);
         return (
-          <FormCard key={c.key} title={componentLabel(t, i18n.language, c)}>
+          <FormCard key={c.key} title={`${componentLabel(t, i18n.language, c)}${requiredByAuthor(c) ? ' *' : ''}`}>
             {notes?.[c.key] ? <Text className="text-xs leading-4 text-ink-2 dark:text-gray-300">{notes[c.key]}</Text> : null}
+            <RequiredMissingLine problems={problems} />
             <ComponentEditor
               instance={c}
               values={v}
-              problems={problems}
+              problems={problems.filter((p) => !isRequiredMissing(p))}
               readOnly={readOnly}
               onChange={(patch: Record<string, FieldValue>) => attempt(c.key, () => writeComponent(owner, c.key, patch))}
               context={{
                 ...context,
                 codelists,
                 onAddMedia: (uri) => attempt(c.key, () => void addMedia(owner, c.key, uri)),
-                onRemoveMedia: (uri) => attempt(c.key, () => removeMedia(owner, c.key, uri)),
+                onRemoveMedia: (uri) =>
+                  attempt(c.key, () => {
+                    removeMedia(owner, c.key, uri);
+                    if (c.type !== 'audio') return;
+                    if (onAudioRemoved) onAudioRemoved(uri);
+                    else if (!mediaUriReferenced(uri)) void deleteAudioFile(uri);
+                  }),
               }}
             />
             {refused[c.key] ? <Text className="text-xs text-alert dark:text-alert-dark">{refused[c.key]}</Text> : null}

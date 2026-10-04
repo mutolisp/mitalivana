@@ -16,6 +16,7 @@ import {
 } from '~/lib/geoConverters';
 import { useThemeColors } from '~/theme/colors';
 import { Button } from '~/components/ui/Button';
+import { ActionSheetLayer, sheetBack } from '~/components/ActionSheet';
 
 type Props = {
   visible: boolean;
@@ -203,7 +204,7 @@ export function GeoImportModal({ visible, defaultProjectId = 0, onClose, onCommi
   const currentProject = projects.find((p) => p.id === projectId);
 
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={handleClose}>
+    <Modal visible={visible} animationType="slide" onRequestClose={sheetBack(handleClose)}>
       <View
         className="flex-1 bg-card dark:bg-gray-900"
         style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
@@ -377,6 +378,7 @@ export function GeoImportModal({ visible, defaultProjectId = 0, onClose, onCommi
           </View>
         ) : null}
       </View>
+      <ActionSheetLayer visible={visible} />
     </Modal>
   );
 }

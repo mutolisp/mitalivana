@@ -5,13 +5,14 @@
  * responsive (Modular_survey.md §7.2); past AUTO_FOLD automatic rows they are
  * summed up and listed on request.
  */
-import { useMemo, useState, type ReactElement, type ReactNode } from 'react';
+import { Fragment, useMemo, useState, type ReactElement, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FlatList, Pressable, Text, View } from 'react-native';
-import { ScientificName } from '~/components/ScientificName';
+import { MergeValue } from '~/components/merge/MergeText';
+import { NameParts } from '~/components/NameParts';
 import { SelectMark } from '~/components/ui/SelectMark';
 import { defaultDecision, needsReview, type Decision, type MergeItem, type MergeRow } from '~/lib/mergeEngine';
-import { fieldLabel, fmt, rowLabel } from '~/lib/mergeFormat';
+import { fieldLabel, rowLabel } from '~/lib/mergeFormat';
 
 /** More automatic rows than this are folded behind a summary line. */
 export const AUTO_FOLD = 100;
@@ -25,7 +26,7 @@ function rowTitle(t: (k: string) => string, tbl: string, r: MergeRow | null | un
     return (
       <>
         {group}
-        {r.title.map((p, i) => (typeof p === 'string' ? p : <ScientificName key={i} name={p.sci} rank={p.rank ?? ''} kingdom={p.kingdom ?? ''} className={bold ? 'font-semibold' : undefined} />))}
+        <NameParts parts={r.title} bold={bold} />
       </>
     );
   }
@@ -62,12 +63,12 @@ function FieldRow({
   onPick,
 }: {
   label: string;
-  local: string;
-  remote: string;
+  local: ReactNode;
+  remote: ReactNode;
   pick: 'local' | 'remote';
   onPick: (p: 'local' | 'remote') => void;
 }) {
-  const cell = (side: 'local' | 'remote', value: string) => (
+  const cell = (side: 'local' | 'remote', value: ReactNode) => (
     <Pressable
       onPress={() => onPick(side)}
       accessibilityRole="radio"
@@ -130,8 +131,8 @@ function ReviewCard({
           <FieldRow
             key={f}
             label={fieldLabel(t, f, item.tbl)}
-            local={fmt(f, item.local?.data[f], { t, tbl: item.tbl, key: item.key })}
-            remote={fmt(f, item.remote?.data[f], { t, tbl: item.tbl, key: item.key })}
+            local={<MergeValue f={f} v={item.local?.data[f]} ctx={{ t, tbl: item.tbl, key: item.key }} taxonId={item.local?.data.taxon_id} />}
+            remote={<MergeValue f={f} v={item.remote?.data[f]} ctx={{ t, tbl: item.tbl, key: item.key }} taxonId={item.remote?.data.taxon_id} />}
             pick={pickOf(f)}
             onPick={(p) =>
               onChange({
@@ -153,8 +154,12 @@ function ReviewCard({
         {item.fields.map((f) => (
           <View key={f} className="flex-row gap-2">
             <Text className="w-24 text-xs text-gray-500">{fieldLabel(t, f, item.tbl)}</Text>
-            <Text className="flex-1 text-xs text-gray-800 dark:text-gray-200">{fmt(f, item.dup?.data[f], { t, tbl: item.tbl, key: item.key })}</Text>
-            <Text className="flex-1 text-xs text-gray-800 dark:text-gray-200">{fmt(f, item.remote?.data[f], { t, tbl: item.tbl, key: item.key })}</Text>
+            <Text className="flex-1 text-xs text-gray-800 dark:text-gray-200">
+              <MergeValue f={f} v={item.dup?.data[f]} ctx={{ t, tbl: item.tbl, key: item.key }} taxonId={item.dup?.data.taxon_id} />
+            </Text>
+            <Text className="flex-1 text-xs text-gray-800 dark:text-gray-200">
+              <MergeValue f={f} v={item.remote?.data[f]} ctx={{ t, tbl: item.tbl, key: item.key }} taxonId={item.remote?.data.taxon_id} />
+            </Text>
           </View>
         ))}
         <View className="flex-row flex-wrap gap-2">
@@ -193,13 +198,22 @@ function ReviewCard({
 
 function AutoRow({ item, on, onToggle, first, last }: { item: MergeItem; on: boolean; onToggle: () => void; first: boolean; last: boolean }) {
   const { t } = useTranslation();
-  const detail =
+  const ctx = { t, tbl: item.tbl, key: item.key };
+  // Field by field, joined with '；'; a scientific name in italics.
+  const detail: ReactNode =
     item.kind === 'added'
       ? t('teamMerge.addedLine')
       : [
-          ...item.fields.map((f) => `${fieldLabel(t, f, item.tbl)} ${fmt(f, item.local?.data[f], { t, tbl: item.tbl, key: item.key })} → ${fmt(f, item.remote?.data[f], { t, tbl: item.tbl, key: item.key })}`),
-          ...Object.keys(item.patch ?? {}).map((f) => `${fieldLabel(t, f, item.tbl)} ${t('teamMerge.combined')}`),
-        ].join('；');
+          ...item.fields.map((f) => (
+            <Fragment key={f}>
+              {`${fieldLabel(t, f, item.tbl)} `}
+              <MergeValue f={f} v={item.local?.data[f]} ctx={ctx} taxonId={item.local?.data.taxon_id} />
+              {' → '}
+              <MergeValue f={f} v={item.remote?.data[f]} ctx={ctx} taxonId={item.remote?.data.taxon_id} />
+            </Fragment>
+          )),
+          ...Object.keys(item.patch ?? {}).map((f) => <Fragment key={`patch:${f}`}>{`${fieldLabel(t, f, item.tbl)} ${t('teamMerge.combined')}`}</Fragment>),
+        ].flatMap((node, i) => (i ? [<Fragment key={`sep${i}`}>；</Fragment>, node] : [node]));
   return (
     <Pressable
       onPress={onToggle}

@@ -3,7 +3,8 @@
  *   - the survey: how many layers (E1–E6) and each layer's cover, height and
  *     abundance method — the plot screen's LayerSection, written against
  *     props instead of plot_survey_layers;
- *   - a unit: each layer's cover and height (SubplotSection's layers);
+ *   - a unit: each layer's cover and height (SubplotSection's layers), the
+ *     height in the unit the survey gives that layer;
  *   - an occurrence: which layer it is in.
  * Heights are stored in cm; the unit is how the layer shows it (v17).
  */
@@ -70,7 +71,8 @@ export function StructureEditor({ instance, values, onChange, problems, context,
         </View>
       ) : null}
       {Array.from({ length: count }, (_, k) => k + 1).map((i) => {
-        const u = unit[i] === 'm' ? 'm' : 'cm';
+        // A unit's layer shows its height in the unit the survey gives that layer, as the fixed plot's subplots do.
+        const u = onSurvey ? (unit[i] === 'm' ? 'm' : 'cm') : (context?.heightUnitOf?.(i) ?? 'cm');
         const h = typeof height[i] === 'number' ? (height[i] as number) : null;
         return (
           <View key={i} className="gap-1 rounded-lg border border-line bg-card px-3 py-2 dark:border-line-dark dark:bg-card-dark">

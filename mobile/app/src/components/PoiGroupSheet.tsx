@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { POI_GROUPS } from '~/db/rudypoi';
 import { useThemeColors } from '~/theme/colors';
+import { ActionSheetLayer, sheetBack } from '~/components/ActionSheet';
 
 const ICON: Record<string, keyof typeof Ionicons.glyphMap> = {
   peaks: 'triangle-outline',
@@ -39,7 +40,7 @@ export function PoiGroupSheet({ visible, enabled, available, onToggle, onClose }
   const insets = useSafeAreaInsets();
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={sheetBack(onClose)}>
       <Pressable className="flex-1 bg-black/40" onPress={onClose} />
       <View
         style={{ paddingBottom: insets.bottom + 12 }}
@@ -92,6 +93,7 @@ export function PoiGroupSheet({ visible, enabled, available, onToggle, onClose }
           </>
         )}
       </View>
+      <ActionSheetLayer visible={visible} />
     </Modal>
   );
 }

@@ -5,7 +5,9 @@
  */
 import type { TFunction } from 'i18next';
 import { topEdgeName } from '~/components/quadrat/names';
+import { methodOf, SAMPLING_METHODS } from '~/survey/codesets/samplingMethods';
 import { envLabel } from '~/survey/components/editors/AttributeEditors';
+import { methodName } from '~/survey/components/editors/MethodEditor';
 import { labelText } from '~/survey/components/editors/shared';
 import { levelLabel } from '~/survey/form/text';
 import { componentDef, type EnvironmentField, type TraitDef } from '~/survey/registry';
@@ -174,6 +176,16 @@ export function paramsSummary(t: TFunction, lang: string, c: ComponentInstance, 
         t('builder.summary.interactionTypes', { count: list(p.builtin).length + own }),
         p.count === true ? t('builder.interaction.count') : null,
         Number(p.photos) > 0 ? t('builder.summary.photos', { count: Number(p.photos) }) : null,
+      ]
+        .filter(Boolean)
+        .join(' · ');
+    }
+    case 'method': {
+      // The one it fixes, else how many it offers; and whether one's own may be typed.
+      const fixed = methodOf(p.fixed);
+      return [
+        fixed ? methodName(fixed, lang) : t('builder.summary.methods', { count: list(p.methods).length || SAMPLING_METHODS.length }),
+        p.custom === true ? t('builder.method.custom') : null,
       ]
         .filter(Boolean)
         .join(' · ');

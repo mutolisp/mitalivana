@@ -22,9 +22,10 @@
  */
 import { getDatasetDb, searchByTaxonId, type SearchResult } from '~/db';
 import type { AdoptionInput } from '~/db';
-import { showActionSheet } from '~/components/ActionSheet';
+import { nameOption, showActionSheet } from '~/components/ActionSheet';
 import { lookupGbifName, type LookupRunner } from '~/components/GbifLookupHost';
 import i18n from '~/i18n';
+import { sentenceParts, slot, type NamePart } from '~/lib/nameParts';
 
 export type AdoptionChoice =
   /** File under the accepted name — nothing changes. */
@@ -83,27 +84,36 @@ export async function chooseNameUsage(
     ? ['accepted', 'ownTaxon', 'sameTaxon']
     : ['accepted', 'sameTaxon', 'ownTaxon'];
 
+  // The names in italics by rank (the typed name is a synonym of the same rank).
+  const sci = (name: string): NamePart[] => [{ sci: name, rank: result.rank, kingdom: result.kingdom }];
+  const names = { name: sci(m.name), accepted: sci(result.name), typed: sci(m.name) };
   const labelFor = (kind: string) =>
     kind === 'accepted'
-      ? i18n.t('adoptName.useAccepted', { name: result.name })
+      ? sentenceParts(i18n.t('adoptName.useAccepted', { name: slot('accepted') }), names)
       : kind === 'sameTaxon'
-        ? i18n.t(misapplied ? 'adoptName.useMineSameTaxonMisapplied' : 'adoptName.useMineSameTaxon', {
-            name: m.name,
-            accepted: result.name,
-          })
-        : i18n.t('adoptName.useMineOwnTaxon', { name: m.name });
+        ? sentenceParts(
+            i18n.t(misapplied ? 'adoptName.useMineSameTaxonMisapplied' : 'adoptName.useMineSameTaxon', {
+              name: slot('name'),
+              accepted: slot('accepted'),
+            }),
+            names,
+          )
+        : sentenceParts(i18n.t('adoptName.useMineOwnTaxon', { name: slot('name') }), names);
 
   const options = [
-    ...order.map((k) => ({ label: labelFor(k) })),
+    ...order.map((k) => nameOption(labelFor(k))),
     ...others.map(() => ({ label: i18n.t('adoptName.useOtherConcept') })),
   ];
 
   const idx = await showActionSheet({
     title: i18n.t('adoptName.title'),
-    message: i18n.t(misapplied ? 'adoptName.messageMisapplied' : 'adoptName.message', {
-      typed: m.name,
-      accepted: result.name,
-    }),
+    messageParts: sentenceParts(
+      i18n.t(misapplied ? 'adoptName.messageMisapplied' : 'adoptName.message', {
+        typed: slot('typed'),
+        accepted: slot('accepted'),
+      }),
+      names,
+    ),
     cancelLabel: i18n.t('common.cancel'),
     options,
   });

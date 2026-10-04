@@ -388,7 +388,8 @@ export function searchWithFuzzyFallback(opts: {
   const local = searchBundledChecklists(opts);
   let external: SearchResult[] = [];
   try {
-    external = searchExternalTaxa(opts.q);
+    const groupParams: (string | number)[] = [];
+    external = searchExternalTaxa(opts.q, 10, groupFilterClause(opts.groups, groupParams), groupParams);
   } catch (e) {
     // eslint-disable-next-line no-console
     console.warn('[search] external taxa search failed:', e);

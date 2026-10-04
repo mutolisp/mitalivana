@@ -5,7 +5,7 @@ type Migration = {
   up: (db: DB) => void;
 };
 
-const MIGRATIONS: Migration[] = [
+export const MIGRATIONS: Migration[] = [
   {
     version: 1,
     up: (db) => {
@@ -3226,6 +3226,57 @@ const MIGRATIONS: Migration[] = [
       addColumnIfMissing(db, `ALTER TABLE fw_occurrences ADD COLUMN via_interaction INTEGER NOT NULL DEFAULT 0 CHECK (via_interaction IN (0, 1));`);
       addColumnIfMissing(db, `ALTER TABLE fw_media ADD COLUMN interaction_id INTEGER REFERENCES fw_interactions(id) ON DELETE CASCADE;`);
       db.executeSync(`CREATE INDEX IF NOT EXISTS idx_fwmedia_inter ON fw_media(interaction_id) WHERE interaction_id IS NOT NULL;`);
+    },
+  },
+  {
+    // A checklist / plot-style survey has what 快速名錄 and the fixed plot
+    // have (2G-b): a track and its GPS mode, and one elevation for the survey
+    // (GNSS or typed, like plot_surveys.elevation_m) — plus the range of
+    // altitudes a recorded track went through. The environment component's
+    // survey-level elevation now lives here, so the value moves over.
+    version: 88,
+    up: (db) => {
+      addColumnIfMissing(db, `ALTER TABLE fw_surveys ADD COLUMN track_geojson TEXT;`);
+      addColumnIfMissing(db, `ALTER TABLE fw_surveys ADD COLUMN gps_mode TEXT CHECK (gps_mode IS NULL OR gps_mode IN ('single_point', 'full_track'));`);
+      addColumnIfMissing(db, `ALTER TABLE fw_surveys ADD COLUMN elevation_m REAL;`);
+      addColumnIfMissing(db, `ALTER TABLE fw_surveys ADD COLUMN elevation_source TEXT CHECK (elevation_source IS NULL OR elevation_source IN ('gnss', 'manual'));`);
+      addColumnIfMissing(db, `ALTER TABLE fw_surveys ADD COLUMN elevation_min_m REAL;`);
+      addColumnIfMissing(db, `ALTER TABLE fw_surveys ADD COLUMN elevation_max_m REAL;`);
+      const surveys = (db.executeSync(`SELECT id, template_snapshot FROM fw_surveys WHERE style IN ('checklist', 'plot') AND elevation_m IS NULL`).rows ?? []) as {
+        id: number;
+        template_snapshot: string;
+      }[];
+      for (const s of surveys) {
+        let keys: string[] = [];
+        try {
+          const t = JSON.parse(s.template_snapshot) as { components?: { key: string; type: string; level: string; params?: { fields?: unknown } }[] };
+          keys = (t.components ?? [])
+            .filter((c) => c.type === 'environment' && c.level === 'survey' && Array.isArray(c.params?.fields) && c.params.fields.includes('elevation_m'))
+            .map((c) => c.key);
+        } catch {
+          keys = [];
+        }
+        for (const key of keys) {
+          const v = (db.executeSync(`SELECT id, value_num FROM fw_survey_values WHERE survey_id = ? AND component = ? AND field = 'elevation_m'`, [s.id, key]).rows ?? [])[0] as
+            | { id: number; value_num: number | null }
+            | undefined;
+          if (!v) continue;
+          if (v.value_num != null) db.executeSync(`UPDATE fw_surveys SET elevation_m = ?, elevation_source = 'manual' WHERE id = ?`, [v.value_num, s.id]);
+          db.executeSync(`DELETE FROM fw_survey_values WHERE id = ?`, [v.id]);
+        }
+      }
+    },
+  },
+  {
+    // A plot-style survey's units drawn as the fixed plot's (2G-d, decided
+    // 2026-10-04): a subplot's width and length (plot_subplots has them; on a
+    // permanent plot the frame unit's own size applies), and a quadrat marked
+    // done, which locks it as plot_quadrats.locked does.
+    version: 89,
+    up: (db) => {
+      addColumnIfMissing(db, `ALTER TABLE fw_units ADD COLUMN width_m REAL CHECK (width_m IS NULL OR width_m > 0);`);
+      addColumnIfMissing(db, `ALTER TABLE fw_units ADD COLUMN length_m REAL CHECK (length_m IS NULL OR length_m > 0);`);
+      addColumnIfMissing(db, `ALTER TABLE fw_units ADD COLUMN done_at INTEGER;`);
     },
   },
 ];

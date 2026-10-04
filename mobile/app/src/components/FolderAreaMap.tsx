@@ -29,6 +29,7 @@ import {
   zoomBy,
 } from './MapControls';
 import { useThemeColors } from '~/theme/colors';
+import { ActionSheetLayer, sheetBack } from '~/components/ActionSheet';
 
 const INLINE_HEIGHT = 160;
 
@@ -121,7 +122,7 @@ export function FolderAreaMap({
         </Pressable>
       </View>
 
-      <Modal visible={fullscreen} animationType="slide" onRequestClose={() => setFullscreen(false)}>
+      <Modal visible={fullscreen} animationType="slide" onRequestClose={sheetBack(() => setFullscreen(false))}>
         {/* SafeAreaView reports 0 insets inside a Modal (separate view
             hierarchy, no provider) — apply the top inset by hand. */}
         <View className="flex-1 bg-black" style={{ paddingTop: insets.top }}>
@@ -145,6 +146,7 @@ export function FolderAreaMap({
             />
           ) : null}
         </View>
+        <ActionSheetLayer visible={fullscreen} />
       </Modal>
     </View>
   );

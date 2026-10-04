@@ -49,6 +49,7 @@ import {
 } from '../src/survey/registry.ts';
 import { AMS_VARIABLES } from '../src/survey/codesets/forestgeoAms2021.ts';
 import { BUILTIN_INTERACTIONS } from '../src/survey/codesets/interactions.ts';
+import { CUSTOM_METHOD, METHOD_GROUPS, SAMPLING_METHODS, SIZE_UNITS } from '../src/survey/codesets/samplingMethods.ts';
 import { kindForType } from '../src/lib/dwcAbundanceCore.ts';
 import { componentProblems, storeBlockers } from '../src/survey/componentRules.ts';
 import { migratedDb, schemaColumns } from './schema-columns.mjs';
@@ -593,6 +594,36 @@ eq('components moved: a change, nothing breaks', classifyChange(SAMPLE_PLOT_TEMP
     const missing = keys.filter((k) => typeof at(k) !== 'string');
     eq(`interaction: ${loc} names every built-in type, direction and sentence`, missing, []);
   }
+}
+
+// ── 4b. 調查法 and 開闊度 (2G-f) ──────────────────────────────────────────────
+{
+  const keys = SAMPLING_METHODS.map((m) => m.key);
+  eq('method: built-in keys distinct', keys.length, new Set(keys).size);
+  eq('method: Chinese names distinct', SAMPLING_METHODS.length, new Set(SAMPLING_METHODS.map((m) => m.zh)).size);
+  ok('method: every group has methods, every method a known group', METHOD_GROUPS.every((g) => SAMPLING_METHODS.some((m) => m.group === g)) && SAMPLING_METHODS.every((m) => METHOD_GROUPS.includes(m.group)));
+  ok('method: a size names units, an effort a unit', SAMPLING_METHODS.every((m) => (!m.size || SIZE_UNITS[m.size]?.length) && (m.effort == null || /^[a-z]+-[a-z]+$/.test(m.effort))));
+  ok('method: the custom key is not a built-in', !keys.includes(CUSTOM_METHOD));
+  const md = componentDef('method');
+  eq('method: default parameters pass', md.checkParams(md.defaultParams, 'survey'), []);
+  ok('method: an unknown method is refused', md.checkParams({ methods: ['nope'], fixed: null, custom: true }, 'survey').length === 1);
+  ok('method: a fixed method must be built in', md.checkParams({ methods: [], fixed: 'custom', custom: true }, 'survey').length === 1);
+  const all = { methods: [], fixed: null, custom: true };
+  eq('method: from all to some narrows it', pc('method', all, { ...all, methods: ['plot_survey'] }), 'breaking');
+  eq('method: more methods widen it', pc('method', { ...all, methods: ['plot_survey'] }, { ...all, methods: ['plot_survey', 'inventory'] }), 'additive');
+  eq('method: from some to all widens it', pc('method', { ...all, methods: ['plot_survey'] }, all), 'additive');
+  eq('method: fewer methods narrow it', pc('method', { ...all, methods: ['plot_survey', 'inventory'] }, { ...all, methods: ['inventory'] }), 'breaking');
+  eq('method: fixing a method changes it', pc('method', all, { ...all, fixed: 'plot_survey' }), 'breaking');
+  eq('method: no longer allowing one’s own narrows it', pc('method', all, { ...all, custom: false }), 'breaking');
+  eq('method: allowing one’s own widens it', pc('method', { ...all, custom: false }, all), 'additive');
+  const env = componentDef('environment');
+  const names = (p) => env.fields(p, 'survey', 'env').map((f) => f.field);
+  ok('openness: a percentage by default', names({ fields: ['openness'] }).join() === 'openness_pct');
+  ok('openness: a grade when a list is named', names({ fields: ['openness'], openness_list: 'o' }).join() === 'openness_grade');
+  ok('openness: the export follows the field', exportMapOf(env, { fields: ['openness'], openness_list: 'o' }, 'survey').mof.openness_grade && !exportMapOf(env, { fields: ['openness'] }, 'survey').mof.openness_grade);
+  eq('openness: environment changing from % to grades needs a new survey', pc('environment', { fields: ['openness'] }, { fields: ['openness'], openness_list: 'o' }), 'breaking');
+  const T = withRequired({ ...base, id: 'user:open', version: 1, style: 'plot', units: [], components: [{ key: 'env', type: 'environment', level: 'survey', required: false, params: { fields: ['openness'], openness_list: 'missing' } }], codelists: [] });
+  ok('openness: an unknown list is refused', validateTemplate(T).some((e) => /unknown code list missing/.test(e)));
 }
 
 // ── 5. hash ─────────────────────────────────────────────────────────────────

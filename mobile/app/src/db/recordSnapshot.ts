@@ -2,7 +2,7 @@
  * Record snapshots on the app's database; the logic and its rules are in
  * recordSnapshotCore.ts (kept free of native imports so a Node check can run it).
  */
-import { getUserDb, withTransaction } from './init';
+import { dbFor, transactionFor } from './previewDb';
 import {
   restoreRecordSnapshotIn,
   snapshotRecordIn,
@@ -13,9 +13,11 @@ import {
 export { sameSnapshot, type RecordSnapshot, type SnapshotKind } from './recordSnapshotCore';
 
 export function snapshotRecord(kind: SnapshotKind, id: number): RecordSnapshot | null {
-  return snapshotRecordIn(getUserDb(), kind, id);
+  // A builder preview's survey is undone in its scratch file (previewDb.ts).
+  return snapshotRecordIn(kind === 'modular' ? dbFor(id) : dbFor(null), kind, id);
 }
 
 export function restoreRecordSnapshot(snap: RecordSnapshot): void {
-  restoreRecordSnapshotIn(getUserDb(), snap, (fn) => withTransaction(fn));
+  const id = snap.kind === 'modular' ? snap.id : null;
+  restoreRecordSnapshotIn(dbFor(id), snap, (fn) => transactionFor(id, fn));
 }

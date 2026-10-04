@@ -1,4 +1,5 @@
 import { errText } from '~/lib/errText';
+import { rangeText } from '~/lib/numRangeText';
 import { parseNum } from '~/lib/parseNum';
 import { Ionicons } from '@expo/vector-icons';
 import { PlotDiversityCard } from './PlotDiversityCard';
@@ -54,15 +55,13 @@ import { inatTokenAvailableQuietly } from '~/lib/inatAuth';
 import { apiErrorMessage } from '~/lib/apiErrorMessage';
 import { KeyboardStickyView } from './KeyboardAvoidingView';
 import type { AdoptionInput } from '~/db';
-import { ScientificName } from './ScientificName';
 import { SearchBox } from './SearchBox';
 import { SwipeRowActions } from './SwipeRowActions';
 import { SelectionDock, SelectionToolbar } from './SelectionToolbar';
 import { useListSelection } from '~/lib/useListSelection';
 import { router, type Href } from 'expo-router';
-import { TaxonomyJumpChip } from './TaxonomyJumpChip';
+import { LayerChip, PlotSpeciesRow } from './plot/PlotSpeciesRow';
 import { PlotSpeciesValueModal, type PlotValueDraft } from './PlotSpeciesValueModal';
-import { alienBadge } from '~/lib/conservationColors';
 import { parseMultiAttribute, serializeMultiAttribute } from '~/lib/dwcAttributes';
 import { useSettings, type RecordSort, type SortDirection } from '~/stores/settings';
 import { useFavorites } from '~/stores/favorites';
@@ -72,14 +71,11 @@ import { useToast } from '~/stores/toast';
 import { showActionSheet } from './ActionSheet';
 import { SwipeBlockedArea } from './SwipeNavigator';
 import {
-  formatQuantityBadge,
   kindForType,
   legacyMethodToType,
-  parseDbhArray,
 } from '~/lib/dwcAbundance';
 import { stampNewRecord } from '~/lib/recordFix';
 import { useThemeColors } from '~/theme/colors';
-import { SelectMark } from '~/components/ui/SelectMark';
 import { DropdownChevron } from '~/components/ui/Chevron';
 import { parseQuadratConfig } from '~/db/quadrats';
 import { BannerText, FoldBanner } from '~/modules/gloria/components/ui';
@@ -342,9 +338,10 @@ export function PlotSpeciesTab({
       title: tr('plotSpecies.subplot'),
       options: subplots.map((sp) => {
         const n = subplotCounts.get(sp.id) ?? 0;
-        const label = n > 0 ? `${sp.label} (${n})` : sp.label;
         return {
-          label: sp.id === activeSubplotId ? `${label}${tr('plotSpecies.currentSuffix')}` : label,
+          label: sp.label,
+          description: n > 0 ? tr('plotStats.sppCount', { count: n }) : undefined,
+          selected: sp.id === activeSubplotId,
         };
       }),
     });
@@ -772,9 +769,7 @@ export function PlotSpeciesTab({
     const idx = await showActionSheet({
       title: tr('plotSpecies.changeLayer'),
       cancelLabel: tr('common.cancel'),
-      options: activeLayers.map((l) => ({
-        label: `${layerLabel(l)}${l === r.layer ? tr('plotSpecies.currentSuffix') : ''}`,
-      })),
+      options: activeLayers.map((l) => ({ label: layerLabel(l), selected: l === r.layer })),
     });
     if (idx < 0 || idx >= activeLayers.length) return;
     const next = activeLayers[idx];
@@ -1155,7 +1150,7 @@ export function PlotSpeciesTab({
                 },
               ]}
             >
-              <SpeciesRow
+              <PlotSpeciesRow
                 record={item.record}
                 onPress={() =>
                   selection.selectMode
@@ -1310,181 +1305,6 @@ export function PlotSpeciesTab({
   );
 }
 
-function SpeciesRow({
-  record,
-  onPress,
-  onLongPress,
-  onAdjust,
-  selectMode,
-  picked,
-}: {
-  record: PlotSpeciesRecordWithTaxon;
-  onPress: () => void;
-  onLongPress: () => void;
-  onAdjust?: (delta: number) => void;
-  selectMode: boolean;
-  picked: boolean;
-}) {
-  const c = useThemeColors();
-  const { t: tr } = useTranslation();
-  const ab = alienBadge(record.alien_type, record.kingdom);
-  // Already on iNaturalist → tinted row (see migrations.ts v30).
-  const uploaded = record.inat_uploaded_at != null;
-  return (
-    <Pressable
-      onPress={onPress}
-      onLongPress={onLongPress}
-      delayLongPress={350}
-      className={`flex-row items-start border-b border-gray-100 px-4 py-3 dark:border-gray-800 ${uploaded ? 'bg-lime-50 active:bg-lime-100 dark:bg-lime-900/30 dark:active:bg-lime-900/50' : 'bg-card active:bg-gray-50 dark:bg-gray-900 dark:active:bg-gray-800'}`}
-    >
-      {selectMode ? (
-        <View style={{ marginRight: 10, alignSelf: 'center' }}><SelectMark state={picked ? 'on' : 'off'} /></View>
-      ) : null}
-      <View className="flex-1">
-        <View className="flex-row items-center" style={{ flexWrap: 'wrap' }}>
-          <Text className="text-sm font-medium text-gray-900 dark:text-gray-100" numberOfLines={1}>
-            {record.common_name_c || tr('species.noChineseName')}
-            {/* The field determination, when it is finer than the taxon can be
-                (v39). Two rows sharing a family's taxon_id are two morphospecies
-                and this is the only thing that tells them apart — so it belongs
-                on the name line. Mirrors SpeciesCard. */}
-            {record.verbatim_identification ? (
-              <Text className="font-normal text-gray-500 dark:text-gray-400">
-                {` · ${record.verbatim_identification}`}
-              </Text>
-            ) : null}
-          </Text>
-          {record.is_endemic === 'true' ? (
-            <Text className="ml-1.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-300">
-              {tr('species.endemicShort')}
-            </Text>
-          ) : null}
-          {ab ? (
-            <Text className={`ml-1.5 text-[11px] font-medium ${ab.textClass}`}>
-              {ab.shortLabel}
-            </Text>
-          ) : null}
-          {record.is_hybrid === 'true' ? (
-            <Text className="ml-1.5 text-[11px] font-medium text-purple-700 dark:text-purple-300">
-              {tr('plotSpecies.hybridShort')}
-            </Text>
-          ) : null}
-        </View>
-        <ScientificName
-          name={record.simple_name}
-          rank={record.rank}
-          author={record.name_author}
-          kingdom={record.kingdom}
-          className="mt-0.5 text-xs text-gray-700 dark:text-gray-300"
-          numberOfLines={1}
-        />
-        {record.family ? (
-          <View className="mt-1 self-start">
-            <TaxonomyJumpChip
-              rank="family"
-              lineage={{
-                kingdom: record.kingdom,
-                phylum: record.phylum,
-                class: record.class,
-                order: record.order,
-                family: record.family,
-              }}
-              name={record.family}
-              nameC={record.family_c}
-              compact
-            />
-          </View>
-        ) : null}
-        {record.notes ? (
-          <Text
-            className="mt-0.5 text-[11px] italic text-gray-500 dark:text-gray-400"
-            numberOfLines={1}
-          >
-            {record.notes}
-          </Text>
-        ) : null}
-      </View>
-      <View className="ml-3 items-end">
-        <ValueBadge record={record} onAdjust={onAdjust} />
-      </View>
-    </Pressable>
-  );
-}
-
-function ValueBadge({
-  record,
-  onAdjust,
-}: {
-  record: PlotSpeciesRecordWithTaxon;
-  onAdjust?: (delta: number) => void;
-}) {
-  const kind = kindForType(record.organism_quantity_type);
-  const badge = formatQuantityBadge(record.organism_quantity, record.organism_quantity_type);
-
-  // Individuals (count): inline +/- stepper for quick field tallying without
-  // opening the value modal. Other kinds keep the static badge.
-  if (kind === 'count' && onAdjust) {
-    return (
-      <View className="flex-row items-center">
-        <Pressable
-          onPress={() => onAdjust(-1)}
-          hitSlop={10}
-          className="px-1.5 py-1 active:opacity-50"
-        >
-          <Ionicons name="remove-circle-outline" size={22} color="#ea580c" />
-        </Pressable>
-        <View className="min-w-[40px] items-center rounded-md bg-slate-100 px-2 py-1.5 dark:bg-slate-800">
-          <Text className="text-sm font-semibold text-slate-700 dark:text-slate-200">{badge}</Text>
-        </View>
-        <Pressable
-          onPress={() => onAdjust(1)}
-          hitSlop={10}
-          className="px-1.5 py-1 active:opacity-50"
-        >
-          <Ionicons name="add-circle-outline" size={22} color="#ea580c" />
-        </Pressable>
-      </View>
-    );
-  }
-
-  // Tone by kind
-  const tone =
-    kind === 'BB'
-      ? {
-          bg: 'bg-emerald-100 dark:bg-emerald-900/60',
-          text: 'text-emerald-700 dark:text-emerald-300',
-        }
-      : kind === 'percent'
-        ? { bg: 'bg-accent-100 dark:bg-accent-900/60', text: 'text-accent-700 dark:text-accent-300' }
-        : kind === 'DBH'
-          ? { bg: 'bg-amber-100 dark:bg-amber-900/60', text: 'text-amber-800 dark:text-amber-300' }
-          : { bg: 'bg-slate-100', text: 'text-slate-700' };
-
-  if (kind === 'DBH') {
-    const stems = parseDbhArray(record.organism_quantity);
-    const ba = stems.reduce((s, d) => s + Math.PI * (d / 2) ** 2, 0);
-    return (
-      <View className={`items-end rounded-md px-2.5 py-1.5 ${tone.bg}`}>
-        <Text className={`text-sm font-semibold ${tone.text}`}>{badge}</Text>
-        {stems.length > 0 ? (
-          <Text className={`text-[10px] ${tone.text}`}>{ba.toFixed(1)} cm²</Text>
-        ) : null}
-        {stems.length > 0 ? (
-          <Text className={`text-[10px] ${tone.text}`} numberOfLines={1}>
-            {stems.map((d) => d.toFixed(1)).join(', ')}
-          </Text>
-        ) : null}
-      </View>
-    );
-  }
-
-  return (
-    <View className={`rounded-md px-2.5 py-1.5 ${tone.bg}`}>
-      <Text className={`text-sm font-semibold ${tone.text}`}>{badge}</Text>
-    </View>
-  );
-}
-
 /** Compact numeric input for the per-subplot cover/height rows. */
 function MiniNum({
   value,
@@ -1522,7 +1342,8 @@ function MiniNum({
           const n = parseNum(draft);
           const ok = n !== null && (min === undefined || n > min) && (max === undefined || n <= max);
           if (!ok) {
-            if (min !== undefined || max !== undefined) toast(tr('plot.numRange', { min: min ?? 0, max: max ?? 100 }));
+            const msg = rangeText(tr, min, max, true);
+            if (msg) toast(msg);
             setDraft(value == null ? '' : String(value)); // revert
             return;
           }
@@ -1553,11 +1374,41 @@ function SubplotLayerInputs({
   plotLayers: PlotLayer[];
   onChanged: () => void;
 }) {
-  const c = useThemeColors();
-  const { t: tr } = useTranslation();
   const [rows, setRows] = useState<SubplotLayer[]>([]);
   const reload = useCallback(() => setRows(getSubplotLayers(subplotId)), [subplotId]);
   useEffect(() => reload(), [reload]);
+  return (
+    <SubplotLayerInputsView
+      activeLayers={activeLayers}
+      rows={rows}
+      heightUnitOf={(idx) => plotLayers.find((p) => p.layer_index === idx)?.height_unit ?? 'cm'}
+      onPatch={(idx, fields) => {
+        updateSubplotLayer(subplotId, idx, fields);
+        reload();
+        onChanged();
+      }}
+    />
+  );
+}
+
+/**
+ * The per-subplot cover / height rows themselves, for whoever stores them: a
+ * fixed plot's subplot_layers, or a plot-style survey's unit-level Structure
+ * (2G-d). Heights are entered in the layer's unit and passed on in cm.
+ */
+export function SubplotLayerInputsView({
+  activeLayers,
+  rows,
+  heightUnitOf,
+  onPatch,
+}: {
+  activeLayers: readonly FixedLayer[];
+  rows: readonly { layer_index: number; cover_pct: number | null; height_cm: number | null }[];
+  heightUnitOf: (layerIdx: number) => 'cm' | 'm';
+  onPatch: (layerIdx: number, fields: { cover_pct?: number | null; height_cm?: number | null }) => void;
+}) {
+  const c = useThemeColors();
+  const { t: tr } = useTranslation();
   const [open, setOpen] = useState(false);
   if (activeLayers.length === 0) return null;
   return (
@@ -1575,8 +1426,7 @@ function SubplotLayerInputs({
       {open
         ? activeLayers.map((l) => {
             const idx = layerIndexOf(l);
-            const cfg = plotLayers.find((p) => p.layer_index === idx);
-            const unit = cfg?.height_unit ?? 'cm';
+            const unit = heightUnitOf(idx);
             const row = rows.find((r) => r.layer_index === idx);
             const heightDisplay =
               row?.height_cm == null ? null : unit === 'm' ? row.height_cm / 100 : row.height_cm;
@@ -1589,76 +1439,18 @@ function SubplotLayerInputs({
                   suffix="%"
                   min={0}
                   max={100}
-                  onSave={(n) => {
-                    updateSubplotLayer(subplotId, idx, { cover_pct: n });
-                    reload();
-                    onChanged();
-                  }}
+                  onSave={(n) => onPatch(idx, { cover_pct: n })}
                 />
                 <MiniNum
                   value={heightDisplay}
                   placeholder={tr('plotSpecies.height')}
                   suffix={unit}
-                  onSave={(n) => {
-                    updateSubplotLayer(subplotId, idx, {
-                      height_cm: n == null ? null : unit === 'm' ? n * 100 : n,
-                    });
-                    reload();
-                    onChanged();
-                  }}
+                  onSave={(n) => onPatch(idx, { height_cm: n == null ? null : unit === 'm' ? n * 100 : n })}
                 />
               </View>
             );
           })
         : null}
     </View>
-  );
-}
-
-/**
- * Layer chip — which layer the next species is recorded into.
- *
- * Same shape as the checklist screen's filter Chip, emerald rather than blue:
- * emerald is this screen's accent, and the colour difference is the cheapest
- * way to say these are not filters.
- *
- * A layer with no records still gets a chip. That is the opposite of the
- * checklist screen, which hides empty groups because filtering to an empty one
- * is pointless — here the empty layer is precisely the one you are about to
- * record into, so hiding it would make the layer unreachable.
- */
-function LayerChip({
-  label,
-  a11yLabel,
-  active,
-  onPress,
-  onLongPress,
-}: {
-  label: string;
-  a11yLabel: string;
-  active: boolean;
-  onPress: () => void;
-  onLongPress?: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      onLongPress={onLongPress}
-      delayLongPress={300}
-      accessibilityRole="button"
-      accessibilityLabel={a11yLabel}
-      accessibilityState={{ selected: active }}
-      className={`mr-2 rounded-full border px-3 py-1.5 ${
-        active
-          ? 'border-emerald-500 bg-emerald-500'
-          : 'border-gray-300 bg-card dark:border-gray-600 dark:bg-gray-900'
-      }`}
-    >
-      <Text
-        className={`text-xs font-medium ${active ? 'text-white' : 'text-gray-700 dark:text-gray-300'}`}
-      >
-        {label}
-      </Text>
-    </Pressable>
   );
 }

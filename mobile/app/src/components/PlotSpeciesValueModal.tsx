@@ -8,7 +8,7 @@
 import { errText } from '~/lib/errText';
 import { parseNum } from '~/lib/parseNum';
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSettings } from '~/stores/settings';
 import {
@@ -63,6 +63,7 @@ import {
   parseDbhArray,
   serializeDbhArray,
 } from '~/lib/dwcAbundance';
+import type { QuantityKind } from '~/lib/dwcAbundanceCore';
 import { ElevationField } from './ElevationField';
 import { useThemeColors } from '~/theme/colors';
 import { Button } from '~/components/ui/Button';
@@ -75,6 +76,7 @@ import {
   PercentInput,
   PercentQuickValues,
 } from './abundance/AbundanceInputs';
+import { ActionSheetLayer, sheetBack } from '~/components/ActionSheet';
 
 /** Name of the <PortalHost> this modal renders inside, for its own popovers. */
 const VALUE_MODAL_PORTAL = 'plot-species-value-modal';
@@ -218,6 +220,22 @@ type Props = {
     onChangeLayer?: () => void;
     onDelete: () => void;
   };
+  /**
+   * A survey built from a template (2G): only the abundance kinds it allows
+   * (the type in use always stays listed). Absent: every kind, as on a plot.
+   */
+  allowedKinds?: readonly QuantityKind[];
+  /** The abundance section at all (a template without an Abundance component). Default true. */
+  showAbundance?: boolean;
+  /** The attribute block at all, and which of its fields (a template's Phenology). Default: all. */
+  showAttributes?: boolean;
+  attributeFields?: readonly (keyof SpeciesAttributesDraft)[];
+  /** A template's other components for this record, after the existing fields (2G). */
+  extra?: ReactNode;
+  /** The notes field (a template without a Comments component on its occurrences hides it). Default true. */
+  showNotes?: boolean;
+  /** The label field (on a permanent plot a survey picks labels from the plot's list instead). Default true. */
+  showVerbatim?: boolean;
 };
 
 export function PlotSpeciesValueModal({
@@ -253,6 +271,13 @@ export function PlotSpeciesValueModal({
   onSave,
   pager,
   recordActions,
+  allowedKinds,
+  showAbundance = true,
+  showAttributes = true,
+  attributeFields,
+  extra,
+  showNotes = true,
+  showVerbatim = true,
 }: Props) {
   const c = useThemeColors();
   const { t } = useTranslation();
@@ -347,9 +372,10 @@ export function PlotSpeciesValueModal({
     () =>
       quantityTypes().filter(
         (opt) =>
-          opt.value === qtyType || !(hideBbDbh && (opt.kind === 'BB' || opt.kind === 'DBH')),
+          opt.value === qtyType ||
+          (!(hideBbDbh && (opt.kind === 'BB' || opt.kind === 'DBH')) && (!allowedKinds || allowedKinds.includes(opt.kind))),
       ),
-    [qtyType, hideBbDbh],
+    [qtyType, hideBbDbh, allowedKinds],
   );
 
   /** `__custom__` is the sentinel `handleSwitchType` already understood; as a
@@ -358,9 +384,9 @@ export function PlotSpeciesValueModal({
   const typeOptions = useMemo(
     () => [
       ...unitOptions.map((o) => ({ value: o.value, label: o.label })),
-      { value: '__custom__', label: t('plotValue.custom') },
+      ...(!allowedKinds || allowedKinds.includes('custom') ? [{ value: '__custom__', label: t('plotValue.custom') }] : []),
     ],
-    [unitOptions, t],
+    [unitOptions, t, allowedKinds],
   );
   const selectedType = currentKind === 'custom' ? '__custom__' : qtyType;
 
@@ -471,7 +497,7 @@ export function PlotSpeciesValueModal({
   const insets = useSafeAreaInsets();
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onCancel}>
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={sheetBack(onCancel)}>
       {/* gesture-handler needs its own root inside a Modal's view hierarchy. */}
       <GestureHandlerRootView style={{ flex: 1 }}>
         <KeyboardAvoidingView behavior="padding" className="flex-1 justify-end">
@@ -553,7 +579,7 @@ export function PlotSpeciesValueModal({
                     ) : null}
                     {/* Folded into the draft, not written on the spot: this
                         modal persists everything through its own Save. */}
-                    {header ? (
+                    {header && showVerbatim ? (
                       <VerbatimLabelField
                         key={`${occurrenceId ?? ''}|${header.taxonId}`}
                         rank={header.rank}
@@ -633,6 +659,8 @@ export function PlotSpeciesValueModal({
                       </Text>
                     ) : null}
                   </View>
+{showAbundance ? (
+<>
                   {/* Unit + value on one row. Five wrapped pills cost two lines
                       above the field they describe, on the screen a surveyor
                       uses most; a dropdown is one line whatever the label
@@ -704,6 +732,10 @@ export function PlotSpeciesValueModal({
                     ) : null}
                   </View>
 
+</>
+) : null}
+
+                  {showNotes ? (
                   <View className="mt-4">
                     <Text className="mb-1 text-xs font-medium text-gray-600 dark:text-gray-400">
                       {t('endSession.notesOptional')}
@@ -717,15 +749,19 @@ export function PlotSpeciesValueModal({
                       className="min-h-[60px] rounded-lg border border-gray-200 bg-card px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
                     />
                   </View>
+                  ) : null}
 
-                  <View className="mt-4">
-                    <SpeciesAttributesBlock
-                      kingdom={kingdom ?? null}
-                      className={className ?? null}
-                      value={attrs}
-                      onChange={setAttrs}
-                    />
-                  </View>
+                  {showAttributes ? (
+                    <View className="mt-4">
+                      <SpeciesAttributesBlock
+                        kingdom={kingdom ?? null}
+                        className={className ?? null}
+                        value={attrs}
+                        onChange={setAttrs}
+                        fields={attributeFields}
+                      />
+                    </View>
+                  ) : null}
 
                   {showDetection ? (
                     <View className="mt-4">
@@ -935,6 +971,7 @@ export function PlotSpeciesValueModal({
                       ) : null}
                     </View>
                   ) : null}
+                  {extra}
                   {inat ? <InatSyncButton state={inat} /> : null}
 
                   <RecordMetaFooter
@@ -992,6 +1029,7 @@ export function PlotSpeciesValueModal({
       />
       {/* Toasts fired while this sheet is up (it has its own window). */}
       <ToastHost inModal />
+      <ActionSheetLayer visible={visible} />
     </Modal>
   );
 }

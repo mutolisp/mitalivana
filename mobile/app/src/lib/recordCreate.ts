@@ -56,7 +56,7 @@ import { createGloriaSurvey, endGloriaSurvey, getGloriaSurvey, gloriaSurveyUuidE
 import { validateGloriaDoc, type GloriaDoc } from '~/modules/gloria/export/yaml';
 import { isRecordingTarget, pauseIfNot, pauseRecording as pauseTrackRecording } from '~/lib/trackRecorder';
 import { promptText } from '~/components/TextPromptModal';
-import { showActionSheet } from '~/components/ActionSheet';
+import { showActionSheet, type ActionSheetOption } from '~/components/ActionSheet';
 import i18n from '~/i18n';
 import { getSyncBase, setSyncBase } from '~/db/syncBase';
 import { localPlotDoc, localSessionDoc } from '~/db/teamMerge';
@@ -71,6 +71,7 @@ import { listQuadrats } from '~/db/quadrats';
 import { defaultSurveyorString } from '~/db/surveyors';
 import { createSurvey, finishSurvey, seriesCodeNeeded } from '~/survey/db/surveys';
 import { listFrames } from '~/survey/db/stemmap';
+import type { FrameRow } from '~/survey/db/stemmapCore';
 import { useActiveSurvey } from '~/survey/form/activeSurvey';
 import type { SurveyTemplate } from '~/survey/template/types';
 
@@ -219,6 +220,39 @@ export async function ensureNoConflictingActive(wanted: NewRecordKind): Promise<
 }
 
 /**
+ * Before a finished record is opened again (快速名錄's 繼續編輯; a
+ * checklist-style survey, 2G-c): an open record of any kind is ended first,
+ * after asking, in 快速名錄's words. True = go ahead.
+ */
+export function confirmReopenOver(): Promise<boolean> {
+  useActiveSession.getState().refresh();
+  useActivePlot.getState().refresh();
+  useActiveGloria.getState().refresh();
+  useActiveMiren.getState().refresh();
+  useActiveSurvey.getState().refresh();
+  const conflict = findActiveConflict();
+  if (!conflict) return Promise.resolve(true);
+  return new Promise((resolve) =>
+    Alert.alert(
+      i18n.t('session.otherActiveTitle'),
+      i18n.t('session.otherActiveMsg', { name: conflict.label }),
+      [
+        { text: i18n.t('common.cancel'), style: 'cancel', onPress: () => resolve(false) },
+        {
+          text: i18n.t('session.endOldAndReopen'),
+          style: 'destructive',
+          onPress: () => {
+            conflict.end();
+            resolve(true);
+          },
+        },
+      ],
+      { onDismiss: () => resolve(false) },
+    ),
+  );
+}
+
+/**
  * Start (or resume) the user's checklist session and navigate to it.
  * Prompts (cancel / go to existing / end + new) when any record is already
  * active.
@@ -361,11 +395,16 @@ export async function startModularOnFrameAndOpen(template: SurveyTemplate): Prom
   }
   const idx = await showActionSheet({
     title: i18n.t('create.surveyOnFrame'),
-    options: frames.map((f) => ({ label: f.name ? `${f.code} ${f.name}` : f.code })),
+    options: frames.map(frameOption),
     cancelLabel: i18n.t('common.cancel'),
   });
   const frame = frames[idx];
   if (frame) await startModularSurveyAndOpen(template, frame.id);
+}
+
+/** A permanent plot as a list-sheet option: code and name, its size below. */
+export function frameOption(f: FrameRow): ActionSheetOption {
+  return { key: f.uuid, label: f.name ? `${f.code} ${f.name}` : f.code, icon: 'location-outline', description: `${f.size_x_m} × ${f.size_y_m} m` };
 }
 
 /** The permanent-plot list; a tree census is started from a plot there. Not

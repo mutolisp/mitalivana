@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { createProject, listProjects, type Project } from '~/db';
 import { promptText } from './TextPromptModal';
 import { useThemeColors } from '~/theme/colors';
+import { ActionSheetLayer, sheetBack } from '~/components/ActionSheet';
 
 type Props = {
   visible: boolean;
@@ -63,7 +64,7 @@ export function ProjectAssignSheet({
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onCancel}>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={sheetBack(onCancel)}>
       <View className="flex-1">
         <Pressable
           onPress={onCancel}
@@ -125,6 +126,7 @@ export function ProjectAssignSheet({
           </ScrollView>
         </View>
       </View>
+      <ActionSheetLayer visible={visible} />
     </Modal>
   );
 }

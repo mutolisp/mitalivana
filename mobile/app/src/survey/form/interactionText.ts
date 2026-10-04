@@ -10,20 +10,8 @@ import { asSeenFrom, type Direction, type InteractionRow, type InteractionType }
 
 export const ARROW: Readonly<Record<Direction, string>> = { forward: '→', backward: '←', mutual: '↔' };
 
-/**
- * A place for a name inside a translated sentence. Names are not plain text:
- * a scientific name is italic by its rank (ScientificName), so the screen
- * puts a component where the slot is (NameText.withSlots).
- */
-export const slot = (name: string) => `\uE000${name}\uE001`;
-
-/** A sentence cut at its slots: text pieces, and the slot names between them. */
-export function splitSlots(text: string): Array<{ text: string } | { slot: string }> {
-  return text
-    .split(/(\uE000\w+\uE001)/)
-    .filter(Boolean)
-    .map((part) => (part.startsWith('\uE000') ? { slot: part.slice(1, -1) } : { text: part }));
-}
+// A name's place in a translated sentence (shared with the action sheets).
+export { slot, splitSlots } from '~/lib/nameParts';
 
 export const typeLabel = (t: TFunction, lang: string, ty: InteractionType | undefined, code: string) => (ty ? labelText(t, lang, ty.label, code) : code);
 

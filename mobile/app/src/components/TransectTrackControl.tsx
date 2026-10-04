@@ -83,6 +83,55 @@ export function TransectTrackControl({ plot, onUpdated }: Props) {
     onUpdated();
   };
 
+  return (
+    <TrackControlView
+      label={t('transect.label')}
+      required
+      segments={persistedSegments}
+      recording={recording}
+      livePoints={livePoints}
+      finalized={finalized}
+      disabled={plotDone}
+      onStart={() => void handleStart()}
+      onPause={handlePause}
+      onStop={handleStop}
+    />
+  );
+}
+
+/**
+ * The track card itself — state line, ▶／⏸ and ⏹, the mini map — for whoever
+ * owns the track: a transect plot, or a plot-style survey (2G-d, where there
+ * is no ⏹: its track is never marked stopped, as on 快速名錄).
+ */
+export function TrackControlView({
+  label,
+  required = false,
+  segments,
+  recording,
+  livePoints,
+  finalized = false,
+  disabled = false,
+  onStart,
+  onPause,
+  onStop,
+}: {
+  label: string;
+  required?: boolean;
+  /** The saved segments. */
+  segments: ReturnType<typeof parseTrackSegments>;
+  /** This owner's track is being recorded now. */
+  recording: boolean;
+  livePoints: ReturnType<typeof useTrackRecorder.getState>['livePoints'];
+  finalized?: boolean;
+  disabled?: boolean;
+  onStart: () => void;
+  onPause: () => void;
+  /** Omit for a track without a stopped state. */
+  onStop?: () => void;
+}) {
+  const { t } = useTranslation();
+  const persistedSegments = segments;
   // Visual state
   const persistedPointCount = persistedSegments.reduce((n, s) => n + s.length, 0);
   const totalPoints = persistedPointCount + (recording ? livePoints.length : 0);
@@ -97,7 +146,7 @@ export function TransectTrackControl({ plot, onUpdated }: Props) {
     <View className="mt-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-card dark:bg-gray-900 p-3">
       <View className="flex-row items-center justify-between">
         <Text className="text-xs font-medium text-gray-600 dark:text-gray-400">
-          {t('transect.label')} <Text className="text-red-500">*</Text>
+          {label} {required ? <Text className="text-red-500">*</Text> : null}
         </Text>
         {recording ? (
           <View className="flex-row items-center">
@@ -116,30 +165,32 @@ export function TransectTrackControl({ plot, onUpdated }: Props) {
           {t('transect.summary', { count: totalSegments, points: totalPoints, length: lengthStr })}
         </Text>
       ) : (
-        <Text className="mt-1 text-xs text-gray-400 dark:text-gray-500">{t('transect.notStarted')}</Text>
+        <Text className="mt-1 text-xs text-gray-400 dark:text-gray-500">{required ? t('transect.notStarted') : t('surveyForm.trackNotStarted')}</Text>
       )}
 
       <View className="mt-3 flex-row gap-2">
         {recording ? (
-          <ControlButton icon="pause" label={t('transect.pause')} tone="amber" onPress={handlePause} />
+          <ControlButton icon="pause" label={t('transect.pause')} tone="amber" onPress={onPause} />
         ) : (
           <ControlButton
             icon="play"
             label={totalSegments > 0 ? t('transect.resume') : t('transect.start')}
             tone="emerald"
-            onPress={handleStart}
-            disabled={plotDone}
+            onPress={onStart}
+            disabled={disabled}
           />
         )}
-        <ControlButton
-          icon="stop"
-          label={t('transect.stop')}
-          tone="red"
-          onPress={handleStop}
-          // Stoppable while recording or paused; not before anything was
-          // recorded, and not twice.
-          disabled={finalized || (!recording && totalSegments === 0)}
-        />
+        {onStop ? (
+          <ControlButton
+            icon="stop"
+            label={t('transect.stop')}
+            tone="red"
+            onPress={onStop}
+            // Stoppable while recording or paused; not before anything was
+            // recorded, and not twice.
+            disabled={finalized || (!recording && totalSegments === 0)}
+          />
+        ) : null}
       </View>
 
       <TrackMiniMap segments={previewSegments} follow={recording} />

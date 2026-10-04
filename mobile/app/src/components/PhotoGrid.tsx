@@ -17,6 +17,7 @@ import { useTranslation } from 'react-i18next';
 import { Alert, Dimensions, FlatList, Modal, Pressable, Text, View } from 'react-native';
 import { rebaseAppFileUri } from '~/lib/appFiles';
 import { useThemeColors } from '~/theme/colors';
+import { ActionSheetLayer, sheetBack } from '~/components/ActionSheet';
 
 export function PhotoGrid({
   photos,
@@ -97,7 +98,7 @@ export function PhotoViewerModal({
   if (index === null || photos.length === 0) return null;
 
   return (
-    <Modal visible animationType="fade" transparent onRequestClose={onClose}>
+    <Modal visible animationType="fade" transparent onRequestClose={sheetBack(onClose)}>
       <View className="flex-1 bg-black">
         <FlatList
           ref={listRef}
@@ -134,6 +135,7 @@ export function PhotoViewerModal({
           </View>
         ) : null}
       </View>
+      <ActionSheetLayer />
     </Modal>
   );
 }

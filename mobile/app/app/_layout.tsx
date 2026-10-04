@@ -14,8 +14,9 @@ import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-cont
 import 'react-native-reanimated';
 import '../global.css';
 
-import { ActionSheetHost } from '~/components/ActionSheet';
+import { ActionSheetLayer } from '~/components/ActionSheet';
 import { CreateSheetHost } from '~/components/CreateRecordSheet';
+import { ChoiceSheetHost } from '~/components/ChoiceSheet';
 import { MenuHost } from '~/components/OverflowMenu';
 import { ActiveSessionBar } from '~/components/ActiveSessionBar';
 import { useTopChrome } from '~/stores/topChrome';
@@ -206,6 +207,9 @@ function ThemedShell() {
             <Stack.Screen name="survey/[id]/checks" options={{ title: '' }} />
             <Stack.Screen name="survey/form/[id]/index" options={{ title: '' }} />
             <Stack.Screen name="survey/form/[id]/recheck" options={{ title: '' }} />
+            <Stack.Screen name="survey/form/[id]/data" options={{ title: '' }} />
+            <Stack.Screen name="survey/form/[id]/quadrat/[uid]" options={{ title: '' }} />
+            <Stack.Screen name="survey/form/[id]/group/[g]" options={{ title: '' }} />
             <Stack.Screen name="survey/form/occurrence/[id]" options={{ title: '' }} />
             <Stack.Screen name="survey/form/interaction/[id]" options={{ title: '' }} />
             <Stack.Screen name="survey/form/unit/[id]" options={{ title: '' }} />
@@ -252,13 +256,16 @@ function ThemedShell() {
         <MenuHost />
         <SyncProgressHost />
         <TaskProgressHost />
+        {/* Action sheets (not a Modal): above every screen and menu, below
+            the toast. Each RN Modal carries a layer of its own. */}
+        <ActionSheetLayer />
         <ToastHost />
         <TextPromptHost />
         <GbifLookupHost />
         <InatTokenHost />
         <GoogleDeviceCodeHost />
-        <ActionSheetHost />
         <CreateSheetHost />
+        <ChoiceSheetHost />
       </FontScaleProvider>
       {/* Active record → green ActiveSessionBar covers status bar → need
           'light' icons. On the full-bleed map the aerial basemaps put dark

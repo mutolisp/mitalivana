@@ -141,6 +141,13 @@ const NOT_CARRIED = {
     starred: 'pinned on this device',
     created_at: 'stamp',
     updated_at: 'stamp',
+    // v88: a checklist / plot-style survey's track and elevations; a census has neither.
+    track_geojson: 'checklist / plot-style only (v88); NULL on a census',
+    gps_mode: 'checklist / plot-style only (v88); NULL on a census',
+    elevation_m: 'checklist / plot-style only (v88); NULL on a census',
+    elevation_source: 'checklist / plot-style only (v88); NULL on a census',
+    elevation_min_m: 'checklist / plot-style only (v88); NULL on a census',
+    elevation_max_m: 'checklist / plot-style only (v88); NULL on a census',
   },
   fw_survey_quadrats: { id: 'local id', survey_id: 'its census part', created_at: 'stamp', updated_at: 'stamp' },
   fw_individuals: { id: 'local id', frame_id: 'frame', first_survey_id: 'first_survey_uuid', created_at: 'stamp', updated_at: 'stamp' },

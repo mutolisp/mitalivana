@@ -7,7 +7,8 @@
  *
  *   - the template allows quick add: the species becomes an occurrence in the
  *     unit the survey's screen has selected; when the template requires a
- *     field the add leaves empty, the occurrence's form opens;
+ *     field the add leaves empty, the occurrence's form opens (a
+ *     checklist-style survey's: its detail sheet on the survey's screen);
  *   - it does not: the user is told and offered the survey, as with MIREN.
  *
  * check:add-guard keeps every implicit checklist start behind it.
@@ -71,7 +72,9 @@ export function takenByActiveSurvey(list: readonly QuickAddSpecies[], adopted?: 
   if (list.length === 1) {
     const label = list[0].cname || list[0].name;
     if (!added.length) toast(t('addToRecord.alreadyInRecord', { name: label }));
-    else if (blankOccurrenceHasErrors(template)) router.push(`/survey/form/occurrence/${added[0]}` as Href);
+    // A checklist-style survey opens the species' detail sheet on its own screen (2G-c).
+    else if (blankOccurrenceHasErrors(template))
+      router.push((survey.style === 'checklist' ? `/survey/form/${survey.id}?open=${added[0]}` : `/survey/form/occurrence/${added[0]}`) as Href);
     else toast(t('addToRecord.addedToSurvey', { name: label }), goTo);
     return true;
   }

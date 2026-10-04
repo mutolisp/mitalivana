@@ -32,7 +32,7 @@ import {
 import type { PickedPhoto } from '~/lib/photoCapture';
 import { runOverModal } from './GbifLookupHost';
 import { SearchBox } from './SearchBox';
-import { showActionSheet } from './ActionSheet';
+import { ActionSheetLayer, sheetBack, showActionSheet } from './ActionSheet';
 import { ToastHost } from './ToastHost';
 import { useThemeColors } from '~/theme/colors';
 
@@ -127,7 +127,7 @@ export function PhotoImportModal({ picked, onCancel, onConfirm }: Props) {
       : `${policy.lat.toFixed(4)}, ${policy.lng.toFixed(4)}`;
 
   return (
-    <Modal visible={!steppedAside} animationType="slide" onRequestClose={onCancel}>
+    <Modal visible={!steppedAside} animationType="slide" onRequestClose={sheetBack(onCancel)}>
       <View
         className="flex-1 bg-card dark:bg-gray-900"
         style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
@@ -248,6 +248,7 @@ export function PhotoImportModal({ picked, onCancel, onConfirm }: Props) {
       </View>
       {/* Toasts fired while this sheet is up (it has its own window). */}
       <ToastHost inModal />
+      <ActionSheetLayer visible={!steppedAside} />
     </Modal>
   );
 }

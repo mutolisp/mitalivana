@@ -13,7 +13,7 @@
     "clear": "清除",
     "export": "匯出",
     "continue": "繼續",
-    "undo": "UNDO",
+    "undo": "復原",
     "remove": "移除",
     "loading": "載入中...",
     "more": "更多",
@@ -22,6 +22,14 @@
     "previous": "上一筆",
     "next": "下一筆",
     "selectedCount_other": "已選 {{count}} 項"
+  },
+  "actionSheet": {
+    "close": "關閉",
+    "search": "搜尋",
+    "searchPlaceholder_other": "搜尋 {{count}} 個選項",
+    "noMatch": "沒有符合「{{q}}」的選項",
+    "recent": "最近用過",
+    "all_other": "全部 {{count}}"
   },
   "group": {
     "plantae": "植物",
@@ -769,7 +777,11 @@
       "keypadHide": "收起數字鍵盤",
       "moreBelow": "下方還有內容"
     },
-    "tabFreq": "頻度"
+    "tabFreq": "頻度",
+    "numMin": "數值須大於或等於 {{min}}",
+    "numMax": "數值須小於或等於 {{max}}",
+    "numAbove": "數值須大於 {{min}}",
+    "numAboveMax": "數值須大於 {{min}}，且小於或等於 {{max}}"
   },
   "settings": {
     "sectionAppearance": "外觀與操作",
@@ -891,7 +903,7 @@
     "collapseAll": "全部收合",
     "tree": "分類樹",
     "search": "搜尋",
-    "incompleteBucket": "未完整分類（自建）",
+    "incompleteBucket": "未完整分類",
     "bulkNodeTitle": "已選取分類群：{{names}}",
     "bulkTooManyTitle": "數量過多",
     "bulkTooManyMsg": "這些分類群以下共有 {{count}} 筆，超過單次上限 {{max}} 筆。請改選較低階層的分類群。",
@@ -1074,6 +1086,7 @@
     "import": "匯入",
     "drawingLabel": "繪製{{type}} · {{count}} 點",
     "handoffHint": "為記錄 #{{id}} 建立地理樣區，完成後自動指派",
+    "surveyHandoffHint": "為「{{name}}」建立地理樣區，完成後自動指派",
     "editTrackHint": "編輯軌跡 · 拖動/點頂點刪除",
     "editPosHint": "編輯位置 · 拖動標記",
     "nlsc": "國土測繪中心",
@@ -1258,7 +1271,6 @@
   "plotSpecies": {
     "addPhotoFail": "加照片失敗",
     "changeLayer": "變更分層",
-    "currentSuffix": "（目前）",
     "movedTo": "已移至 {{layer}}",
     "pointCountRecord": "定點計數記錄",
     "transectRecord": "穿越線記錄",
@@ -4631,7 +4643,8 @@
       "traits": "性狀",
       "environment": "環境",
       "choice": "自訂選項",
-      "interaction": "交互作用"
+      "interaction": "交互作用",
+      "method": "調查法"
     },
     "editor": {
       "elsewhere": "這個元件在記錄畫面上輸入。",
@@ -4644,7 +4657,8 @@
         "malformed": "格式不正確",
         "endsBeforeStart": "結束時間早於開始時間",
         "coversOver100": "地表覆蓋合計超過 100%",
-        "layerOutOfRange": "超出分層數"
+        "layerOutOfRange": "超出分層數",
+        "requiredMissing": "必填未填"
       },
       "abundance": {
         "count": "個體數",
@@ -4667,7 +4681,8 @@
       "timestamp": {
         "start": "開始",
         "stop": "結束",
-        "setStop": "記下結束時間"
+        "setStop": "記下結束時間",
+        "setStart": "記下開始時間"
       },
       "people": {
         "none": "未指定"
@@ -4906,7 +4921,6 @@
     },
     "tab": {
       "data": "資料",
-      "units_other": "單位 {{count}}",
       "species_other": "物種 {{count}}",
       "freq": "頻度",
       "interactions_other": "交互作用 {{count}}"
@@ -4925,13 +4939,15 @@
       "blindSealed": "盲測已結束，盲測期間的記錄不能再改",
       "recheckBegun": "已開始複查（已有複查結果或補記），不能重新開啟盲測",
       "labelTaken": "標籤「{{label}}」已在清單中",
-      "badValue": "這個值無法儲存"
+      "badValue": "這個值無法儲存",
+      "unitDone": "「{{code}}」已標記完成；取消完成後才能修改。"
     },
     "finish": {
       "title": "結束調查",
       "blindOpen": "盲測還沒結束，前次清單還沒複查。",
       "recheckOpen_other": "還有 {{count}} 種前次物種沒有複查結果。",
-      "errors_other": "有 {{count}} 筆出現記錄還有錯誤。"
+      "errors_other": "有 {{count}} 筆出現記錄還有錯誤。",
+      "dataMissing_other": "調查資料有 {{count}} 項必填未填。"
     },
     "blind": {
       "banner": "盲測中：前次的物種清單在結束盲測後才會顯示。",
@@ -4972,7 +4988,8 @@
       "onFrameNote": "屬於永久樣區的單位配置；調查用過後代號不能再改。",
       "recordHere_other": "在這個單位記錄物種（{{count}} 種）",
       "deleteTitle": "刪除 {{path}}？",
-      "deleteMsg_other": "其中 {{count}} 筆出現記錄與下層單位會移到上一層，這個單位本身的資料與照片會刪除。"
+      "deleteMsg_other": "其中 {{count}} 筆出現記錄與下層單位會移到上一層，這個單位本身的資料與照片會刪除。",
+      "deleteAllMsg_other": "其中 {{count}} 筆出現記錄與下層單位會一起刪除，這個單位本身的資料與照片也會刪除。"
     },
     "label": {
       "title": "{{name}} 的標籤",
@@ -4985,7 +5002,8 @@
       "newMsg": "加入清單後，之後的調查都用同一個標籤指這個形態種。",
       "addToList": "加入清單",
       "onlyHere": "只用在這筆",
-      "pickMsgNone": "形態種清單裡還沒有這個分類群的標籤。"
+      "pickMsgNone": "形態種清單裡還沒有這個分類群的標籤。",
+      "field": "標籤"
     },
     "frame": {
       "section": "樣區型調查",
@@ -5020,7 +5038,66 @@
       "banner": "這份調查表有新版本（第 {{n}} 版）",
       "msg": "升級到第 {{n}} 版：新增的欄位會出現，已記的資料不變。"
     },
-    "carried": "與第 {{n}} 次相同（開始時帶入，請確認）：{{fields}}"
+    "carried": "與第 {{n}} 次相同（開始時帶入，請確認）：{{fields}}",
+    "surveyData": "調查資料",
+    "dataLocked": "已結束並鎖定。回到調查畫面按右上角鎖頭解鎖後才能編輯。",
+    "dataFilled": "已填 {{filled}}/{{total}}",
+    "track": "軌跡",
+    "extrasAfterSave": "其他欄位存檔後再填。",
+    "trackNotStarted": "尚未開始記錄軌跡",
+    "gnssNotYet": "尚未抓取",
+    "noLayer": "未分層",
+    "quadrat": {
+      "addWhere": "{{code}} 放在哪個{{level}}？",
+      "fromUnitList": "從 {{unit}} 名錄帶入",
+      "unitFields": "其他欄位",
+      "size": "大小",
+      "sizeShared": "調查法共用",
+      "sizeOwn": "此小樣方自己的大小（清空就用調查法共用的）"
+    },
+    "env": {
+      "openness": "開闊度",
+      "opennessPct": "天空開闊度"
+    },
+    "method": {
+      "title": "調查方法",
+      "none": "未選",
+      "custom": "自訂方法",
+      "customPick": "自訂方法…",
+      "customName": "方法名稱",
+      "size": "大小",
+      "effortAny": "努力量",
+      "effortUnit": "努力量單位",
+      "effort": {
+        "cameraHours": "相機工作時數",
+        "trapNights": "捕捉器夜數",
+        "netHours": "網具時數",
+        "personHours": "人時",
+        "trapHours": "誘引時數",
+        "trapDays": "陷阱日數",
+        "recorderHours": "錄音時數"
+      },
+      "quadratSize": "小樣方大小",
+      "description": "方法說明",
+      "source": "方法名稱依環境部動物、植物生態評估技術規範（115 年版）。",
+      "group": {
+        "vegetation": "植群",
+        "birds": "鳥類",
+        "mammals": "哺乳類",
+        "herps": "兩棲爬行類",
+        "insects": "昆蟲",
+        "general": "通用"
+      }
+    },
+    "group": {
+      "basic": "基本資料",
+      "time": "時間資料",
+      "space": "空間資料",
+      "method": "調查法",
+      "pageOf": "調查資料 · {{n}} / {{total}}",
+      "people": "人員",
+      "missing_other": "{{count}} 項必填未填"
+    }
   },
   "builder": {
     "title": "調查表模板",
@@ -5055,14 +5132,22 @@
       "title": "建立模板",
       "blankChecklist": "空白的名錄型",
       "blankPlot": "空白的樣區型",
-      "copy": "複製現有的模板…",
       "copyFrom": "要複製哪一個？",
       "nameTitle": "模板名稱",
       "nameMsg": "例如「溪流兩岸植物名錄」。之後可以修改，也可以加上英文名稱。",
       "create": "建立",
       "firstUnit": "小區",
       "copyName": "{{name}} 的複本",
-      "census": "每木調查（複製內建的）"
+      "subtitle": "選一個起點，之後都可以修改",
+      "blankChecklistDesc": "從零開始的物種名錄",
+      "blankPlotDesc": "分層、覆蓋度、小區",
+      "censusDesc": "複製內建的每木模板",
+      "copyShort": "複製現有的",
+      "copyDesc": "我的、內建或團隊共享",
+      "importDesc": "從檔案匯入（.mtpl.json）",
+      "sectionMine": "我的模板",
+      "sectionBuiltin": "內建",
+      "sectionTeam": "團隊共享"
     },
     "notFound": "找不到這份模板的草稿，可能已經儲存或放棄。",
     "basics": "基本資料",
@@ -5095,6 +5180,7 @@
     "preview": "預覽",
     "previewTitle": "預覽：{{name}}",
     "previewIntro": "照這份模板開始的調查會長這樣。可以試填，內容不會保存。",
+    "previewNoTrack": "預覽不錄製軌跡。",
     "discard": {
       "title": "放棄修改？",
       "msg": "草稿會刪掉，模板維持第 {{n}} 版。",
@@ -5181,7 +5267,8 @@
       "max_other": "最多 {{count}} 個",
       "gps": "GNSS 定位",
       "interactionTypes_other": "{{count}} 種類型",
-      "photos_other": "照片 {{count}}"
+      "photos_other": "照片 {{count}}",
+      "methods_other": "{{count}} 種方法可選"
     },
     "kind": {
       "bb": "Braun-Blanquet",
@@ -5218,7 +5305,6 @@
       "multiSwitch": "可以複選"
     },
     "import": {
-      "fromFile": "從檔案匯入…",
       "failTitle": "無法匯入",
       "newerApp": "這份模板用到這個版本的 app 還不認得的元件（{{types}}），請先更新 app。",
       "invalid": "檔案內容有誤：{{detail}}",
@@ -5274,6 +5360,19 @@
       "inverseEn": "從 B 看的英文說法",
       "iri": "RO 關係 IRI（選填）",
       "iriBad": "IRI 要以 http:// 或 https:// 開頭，不能有空格"
+    },
+    "method": {
+      "choose": "讓調查者從清單選",
+      "fixed": "固定一種",
+      "all": "提供全部方法",
+      "method": "方法",
+      "custom": "允許自訂方法",
+      "customDesc": "調查者可輸入清單以外的方法名稱。"
+    },
+    "openness": {
+      "pct": "天空開闊度（%）",
+      "grades": "自訂等級",
+      "list": "等級清單"
     }
   },
   "surveyImport": {

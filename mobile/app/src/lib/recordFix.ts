@@ -23,9 +23,12 @@
 import * as Location from 'expo-location';
 import { stampPlotSpeciesFix, stampRecordFix } from '~/db';
 import { useSettings } from '~/stores/settings';
+import { occurrencesLocated } from '~/survey/db/surveyCore';
+import { getFwSurvey, stampOccurrenceFix } from '~/survey/db/surveys';
 import { isRecordingTarget } from './trackRecorder';
 
-export type RecordKind = 'session' | 'plot';
+/** 'modular': an occurrence of a checklist / plot-style survey (2G-b), under the setting of the record it matches. */
+export type RecordKind = 'session' | 'plot' | 'modular';
 
 type Fix = { lat: number; lng: number; accuracy: number | null; elevation_m: number | null };
 
@@ -34,6 +37,15 @@ const TRACK_FIX_MAX_AGE_MS = 15_000;
 const FIX_TIMEOUT_MS = 15_000;
 
 export function wantsRecordFix(kind: RecordKind, parentId: number): boolean {
+  if (kind === 'modular') {
+    // Only where the template shows a species' own position; a checklist-style
+    // survey follows 快速名錄's setting, a plot-style one the plot's.
+    const survey = getFwSurvey(parentId);
+    if (!survey || !occurrencesLocated(survey)) return false;
+    if (isRecordingTarget({ kind, id: parentId })) return true;
+    const s = useSettings.getState();
+    return survey.style === 'plot' ? s.record_gps_plot : s.record_gps_session;
+  }
   if (isRecordingTarget({ kind, id: parentId })) return true;
   const s = useSettings.getState();
   return kind === 'session' ? s.record_gps_session : s.record_gps_plot;
@@ -82,7 +94,7 @@ export function stampNewRecord(
       const fix = await takeFix(tracking);
       if (!fix) return;
       const wrote =
-        kind === 'session' ? stampRecordFix(recordId, fix) : stampPlotSpeciesFix(recordId, fix);
+        kind === 'session' ? stampRecordFix(recordId, fix) : kind === 'modular' ? stampOccurrenceFix(recordId, fix) : stampPlotSpeciesFix(recordId, fix);
       if (wrote) onStamped?.();
     } catch {
       // No fix (receiver off, timeout, record deleted) — it stays unlocated,

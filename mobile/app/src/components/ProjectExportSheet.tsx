@@ -13,6 +13,7 @@ import { AnalysisExportOptions, exportContentItems } from './AnalysisExportOptio
 
 import { useThemeColors } from '~/theme/colors';
 import { Button } from '~/components/ui/Button';
+import { ActionSheetLayer, sheetBack } from '~/components/ActionSheet';
 
 type Props = {
   visible: boolean;
@@ -53,7 +54,7 @@ export function ProjectExportSheet({ visible, onClose, onExport }: Props) {
   });
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={sheetBack(onClose)}>
       <View className="flex-1">
         <Pressable
           onPress={onClose}
@@ -117,6 +118,7 @@ export function ProjectExportSheet({ visible, onClose, onExport }: Props) {
           </SafeAreaView>
         </View>
       </View>
+      <ActionSheetLayer visible={visible} />
     </Modal>
   );
 }

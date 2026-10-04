@@ -203,7 +203,57 @@ const s1 = un.rows.find((r) => r[col(un, 'unit')] === 'S1');
 const q1 = un.rows.find((r) => r[col(un, 'unit')] === 'S1/Q1');
 ok(s1[col(un, 'parentEventID')] === 'EX1_20261003' && q1[col(un, 'parentEventID')] === 'EX1_20261003-S1' && q1[col(un, 'level_name')] === '小樣方', 'tables: units under the survey, sub-units under theirs');
 ok(s1[col(un, 'where.lat')] === '24.1' && q1[col(un, 'where.lat')] === '', 'tables: a unit-level component only on its level');
-ok(tb.fields.rows.length === sv.header.length - 13 + (un.header.length - 8) + (occ.header.length - 10), `tables: the dictionary has every component column (${tb.fields.rows.length})`);
+ok(tb.fields.rows.length === sv.header.length - 21 + (un.header.length - 11) + (occ.header.length - 10), `tables: the dictionary has every component column (${tb.fields.rows.length})`);
+// A unit's size and 完成 (v89): on a permanent plot the layout's size, else its own.
+{
+  const sized = {
+    ...fileDoc,
+    frame_units: fileDoc.frame_units.map((f) => (f.code === 'S1' ? { ...f, width_m: 10, length_m: 20 } : f)),
+    units: fileDoc.units.map((u) => (u.code === 'Q1' ? { ...u, on_frame: null, width_m: 1, length_m: 1, done_at: Date.UTC(2026, 9, 4, 2) } : u)),
+  };
+  const ut = x.surveyTables(sized, { eventId: 'EX1_20261003', names, words }).units;
+  const at = (code) => ut.rows.find((r) => r[col(ut, 'code')] === code);
+  ok(at('S1')[col(ut, 'width_m')] === '10' && at('S1')[col(ut, 'length_m')] === '20' && at('S1')[col(ut, 'done_at')] === '', `tables: a unit on the plot takes the layout's size (${at('S1').slice(7, 11)})`);
+  ok(at('Q1')[col(ut, 'width_m')] === '1' && /^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d$/.test(at('Q1')[col(ut, 'done_at')]), `tables: its own size and when it was marked done (${at('Q1').slice(7, 11)})`);
+}
+// 調查法 (2G-f): the method's names beside its key; a quadrat without its own size takes the method's.
+{
+  const MT = withRequired({
+    schema: 1,
+    id: 'user:csv-method',
+    version: 1,
+    origin: 'user',
+    name: { text: '方法' },
+    style: 'plot',
+    units: [
+      { key: 'u1', label: { text: '小區' } },
+      { key: 'u2', label: { text: '小樣方' } },
+    ],
+    components: [{ key: 'method', type: 'method', level: 'survey', required: false, params: { methods: [], fixed: null, custom: true } }],
+    codelists: [],
+    quick_add: false,
+  });
+  const M = c.createSurvey(A.ctx, { template: MT });
+  const sub = c.addUnit(A.ctx, M, { levelKey: 'u1', code: 'S1' });
+  c.addUnit(A.ctx, M, { levelKey: 'u2', code: 'Q1', parentId: sub });
+  const q2 = c.addUnit(A.ctx, M, { levelKey: 'u2', code: 'Q2', parentId: sub });
+  c.updateUnit(A.ctx, q2, { widthM: 2, lengthM: 3 });
+  c.writeComponent(A.ctx, { kind: 'survey', id: M }, 'method', { protocol: 'line_transect', size_value: 1.2, size_unit: 'km', quadrat_w_m: 1, quadrat_l_m: 1 });
+  const mt = x.surveyTables(d.buildSurveyDoc(A.ctx, M), { eventId: 'MT1', names, words });
+  const sr = mt.survey.rows[0];
+  ok(sr[col(mt.survey, 'method.protocol')] === 'line_transect' && sr[col(mt.survey, 'method.protocol_zh')] === '穿越線法' && sr[col(mt.survey, 'method.protocol_en')] === 'line transect', `tables: the method's key, its regulation name and its English (${sr.slice(-12).join('|')})`);
+  ok(sr[col(mt.survey, 'method.size_value')] === '1.2' && sr[col(mt.survey, 'method.size_unit')] === 'km', 'tables: the method’s size and unit');
+  const at = (code) => mt.units.rows.find((r) => r[col(mt.units, 'code')] === code);
+  ok(at('Q1')[col(mt.units, 'width_m')] === '1' && at('Q2')[col(mt.units, 'width_m')] === '2' && at('Q2')[col(mt.units, 'length_m')] === '3' && at('S1')[col(mt.units, 'width_m')] === '', `tables: a quadrat's own size, else the method's; a subplot does not take it (${['S1', 'Q1', 'Q2'].map((k) => at(k).slice(8, 10).join('×'))})`);
+  ok(mt.fields.rows.find((r) => r[1] === 'method.protocol')[11] === 'samplingProtocol', 'tables: the dictionary gives the method’s DwC term');
+}
+// The survey row says where it was (v88): position, elevation and a track's range, empty when unset.
+ok(['lat', 'lng', 'accuracy', 'gps_mode', 'elevation_m', 'elevation_source', 'elevation_min_m', 'elevation_max_m'].every((h) => col(sv, h) >= 0), 'tables: the survey row has its position and elevation columns');
+{
+  const placed = x.surveyTables({ ...fileDoc, survey: { ...fileDoc.survey, lat: 24.5, gps_mode: 'full_track', elevation_m: 1500, elevation_source: 'gnss', elevation_min_m: 1490, elevation_max_m: 1610 } }, { eventId: 'EX1_20261003', names, words }).survey;
+  const r = placed.rows[0];
+  ok(r[col(placed, 'lat')] === '24.5' && r[col(placed, 'gps_mode')] === 'full_track' && r[col(placed, 'elevation_min_m')] === '1490' && r[col(placed, 'elevation_max_m')] === '1610', `tables: they carry the survey's values (${r.slice(13, 21)})`);
+}
 const dictMicro = tb.fields.rows.find((r) => r[1] === 'micro.value');
 ok(dictMicro[4] === '微棲地' && dictMicro[5] === 'Microhabitat' && dictMicro[12] === '微棲地', `tables: the dictionary names the component and the choice's measurement by its list (${dictMicro})`);
 ok(tb.fields.rows.find((r) => r[1] === 'abundance.organism_quantity')[11] === 'organismQuantity', 'tables: the dictionary gives DwC terms');

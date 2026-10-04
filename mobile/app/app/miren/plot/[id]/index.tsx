@@ -58,6 +58,7 @@ import { RANGES } from '~/modules/gloria/model/ranges';
 import { GLORIA_SEARCH_GROUPS } from '~/modules/gloria/useSurvey';
 import { useThemeColors } from '~/theme/colors';
 import { DoneMark } from '~/components/ui/DoneMark';
+import { morphoParts, speciesParts } from '~/lib/nameParts';
 
 type Tab = 'species' | 'plot';
 
@@ -173,7 +174,10 @@ export default function MirenPlotScreen() {
       return;
     }
     const idx = await showActionSheet({
-      title: s.verbatim_identification || s.simple_name || s.taxon_id,
+      // The region morphospecies name (Acacia MTN1) or the scientific name.
+      titleParts: s.verbatim_identification
+        ? morphoParts(s.verbatim_identification, s.simple_name, s.rank, s.kingdom)
+        : speciesParts(null, s.simple_name, s.rank, s.kingdom, s.taxon_id),
       options: [{ label: t('common.remove'), destructive: true }],
       cancelLabel: t('common.cancel'),
     });

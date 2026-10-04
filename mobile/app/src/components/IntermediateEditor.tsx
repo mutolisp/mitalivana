@@ -33,6 +33,7 @@ import { ToastHost } from './ToastHost';
 import { useToast } from '~/stores/toast';
 import { useThemeColors } from '~/theme/colors';
 import { SelectMark } from '~/components/ui/SelectMark';
+import { ActionSheetLayer, sheetBack } from '~/components/ActionSheet';
 
 export type EditorRequest =
   | { kind: 'create'; parent: TaxonNode }
@@ -196,7 +197,7 @@ export function IntermediateEditor({ request, onClose }: Props) {
     );
 
   return (
-    <Modal visible animationType="slide" onRequestClose={onClose}>
+    <Modal visible animationType="slide" onRequestClose={sheetBack(onClose)}>
       <View
         className="flex-1 bg-card dark:bg-gray-900"
         style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
@@ -351,6 +352,7 @@ export function IntermediateEditor({ request, onClose }: Props) {
         ) : null}
       </View>
       <ToastHost inModal />
+      <ActionSheetLayer />
     </Modal>
   );
 }

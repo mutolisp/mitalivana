@@ -25,6 +25,18 @@
     "selectedCount_many": "{{count}} sélectionnés",
     "selectedCount_other": "{{count}} sélectionnés"
   },
+  "actionSheet": {
+    "close": "Fermer",
+    "search": "Rechercher",
+    "searchPlaceholder_one": "Rechercher parmi {{count}} option",
+    "searchPlaceholder_many": "Rechercher parmi {{count}} options",
+    "searchPlaceholder_other": "Rechercher parmi {{count}} options",
+    "noMatch": "Aucune option ne correspond à « {{q}} »",
+    "recent": "Utilisés récemment",
+    "all_one": "Tout {{count}}",
+    "all_many": "Tout {{count}}",
+    "all_other": "Tout {{count}}"
+  },
   "group": {
     "plantae": "Plantes",
     "aves": "Oiseaux",
@@ -847,7 +859,11 @@
       "keypadHide": "Masquer le clavier",
       "moreBelow": "Suite plus bas"
     },
-    "tabFreq": "Fréquence"
+    "tabFreq": "Fréquence",
+    "numMin": "La valeur doit être au moins {{min}}",
+    "numMax": "La valeur doit être au plus {{max}}",
+    "numAbove": "La valeur doit être supérieure à {{min}}",
+    "numAboveMax": "La valeur doit être supérieure à {{min}} et au plus {{max}}"
   },
   "settings": {
     "sectionAppearance": "Apparence et interaction",
@@ -983,7 +999,7 @@
     "collapseAll": "Tout replier",
     "tree": "Arbre",
     "search": "Recherche",
-    "incompleteBucket": "Classification incomplète (créée par vous)",
+    "incompleteBucket": "Classification incomplète",
     "bulkNodeTitle": "Taxons sélectionnés : {{names}}",
     "bulkTooManyTitle": "Trop nombreux",
     "bulkTooManyMsg": "{{count}} taxons se trouvent en dessous, au-delà de la limite de {{max}} par lot. Choisissez des taxons de rang inférieur.",
@@ -1198,6 +1214,7 @@
     "import": "Importer",
     "drawingLabel": "Tracé {{type}} · {{count}} pts",
     "handoffHint": "Créez un site géographique pour l'enregistrement #{{id}} ; il sera affecté automatiquement une fois terminé",
+    "surveyHandoffHint": "Créez un site géographique pour « {{name}} » ; il sera affecté automatiquement une fois terminé",
     "editTrackHint": "Modifier la trace · faites glisser / touchez un sommet pour le supprimer",
     "editPosHint": "Modifier l'emplacement · faites glisser le repère",
     "nlsc": "NLSC (Taïwan)",
@@ -1408,7 +1425,6 @@
   "plotSpecies": {
     "addPhotoFail": "Échec de l'ajout de la photo",
     "changeLayer": "Changer de strate",
-    "currentSuffix": "(actuelle)",
     "movedTo": "Déplacé vers {{layer}}",
     "pointCountRecord": "Enregistrements de comptage par points",
     "transectRecord": "Enregistrements du transect",
@@ -5027,7 +5043,8 @@
       "traits": "Traits",
       "environment": "Environnement",
       "choice": "Choix personnalisé",
-      "interaction": "Interactions"
+      "interaction": "Interactions",
+      "method": "Méthode d'inventaire"
     },
     "editor": {
       "elsewhere": "Cet élément se saisit sur l’écran de l’enregistrement.",
@@ -5040,7 +5057,8 @@
         "malformed": "Format incorrect",
         "endsBeforeStart": "La fin précède le début",
         "coversOver100": "Les recouvrements du sol dépassent 100 %",
-        "layerOutOfRange": "Au-delà du nombre de strates"
+        "layerOutOfRange": "Au-delà du nombre de strates",
+        "requiredMissing": "Obligatoire, non rempli"
       },
       "abundance": {
         "count": "Effectif",
@@ -5063,7 +5081,8 @@
       "timestamp": {
         "start": "Début",
         "stop": "Fin",
-        "setStop": "Noter l’heure de fin"
+        "setStop": "Noter l’heure de fin",
+        "setStart": "Noter l’heure de début"
       },
       "people": {
         "none": "Aucun"
@@ -5324,9 +5343,6 @@
     },
     "tab": {
       "data": "Données",
-      "units_one": "Unités {{count}}",
-      "units_many": "Unités {{count}}",
-      "units_other": "Unités {{count}}",
       "species_one": "Espèces {{count}}",
       "species_many": "Espèces {{count}}",
       "species_other": "Espèces {{count}}",
@@ -5349,7 +5365,8 @@
       "blindSealed": "Le relevé à l’aveugle est terminé ; ses données ne peuvent plus changer",
       "recheckBegun": "La revérification a commencé (réponses ou espèces trouvées) ; le relevé à l’aveugle ne peut plus être rouvert",
       "labelTaken": "L’étiquette « {{label}} » figure déjà dans la liste",
-      "badValue": "Cette valeur ne peut pas être enregistrée"
+      "badValue": "Cette valeur ne peut pas être enregistrée",
+      "unitDone": "« {{code}} » est marqué comme terminé ; retirez la marque pour le modifier."
     },
     "finish": {
       "title": "Terminer le relevé",
@@ -5359,7 +5376,10 @@
       "recheckOpen_other": "{{count}} espèces du relevé précédent n’ont pas de réponse de revérification.",
       "errors_one": "{{count}} occurrence comporte encore des erreurs.",
       "errors_many": "{{count}} occurrences comportent encore des erreurs.",
-      "errors_other": "{{count}} occurrences comportent encore des erreurs."
+      "errors_other": "{{count}} occurrences comportent encore des erreurs.",
+      "dataMissing_one": "{{count}} donnée obligatoire de l'inventaire n'est pas remplie.",
+      "dataMissing_many": "{{count}} données obligatoires de l'inventaire ne sont pas remplies.",
+      "dataMissing_other": "{{count}} données obligatoires de l'inventaire ne sont pas remplies."
     },
     "blind": {
       "banner": "Relevé à l’aveugle : la liste précédente apparaît une fois celui-ci terminé.",
@@ -5406,7 +5426,10 @@
       "deleteTitle": "Supprimer {{path}} ?",
       "deleteMsg_one": "Son occurrence ({{count}}) et ses sous-unités remontent d’un niveau ; les données et photos propres à l’unité sont supprimées.",
       "deleteMsg_many": "Ses {{count}} occurrences et ses sous-unités remontent d’un niveau ; les données et photos propres à l’unité sont supprimées.",
-      "deleteMsg_other": "Ses {{count}} occurrences et ses sous-unités remontent d’un niveau ; les données et photos propres à l’unité sont supprimées."
+      "deleteMsg_other": "Ses {{count}} occurrences et ses sous-unités remontent d’un niveau ; les données et photos propres à l’unité sont supprimées.",
+      "deleteAllMsg_one": "Son occurrence ({{count}}) et ses sous-unités sont supprimées avec elle, ainsi que les données et photos propres à l’unité.",
+      "deleteAllMsg_many": "Ses {{count}} occurrences et ses sous-unités sont supprimées avec elle, ainsi que les données et photos propres à l’unité.",
+      "deleteAllMsg_other": "Ses {{count}} occurrences et ses sous-unités sont supprimées avec elle, ainsi que les données et photos propres à l’unité."
     },
     "label": {
       "title": "Étiquette de {{name}}",
@@ -5419,7 +5442,8 @@
       "newMsg": "Dans la liste, la même étiquette désignera cette morpho-espèce dans tous les relevés suivants.",
       "addToList": "Ajouter à la liste",
       "onlyHere": "Pour cette occurrence seulement",
-      "pickMsgNone": "La liste des morpho-espèces n’a pas encore d’étiquette pour ce taxon."
+      "pickMsgNone": "La liste des morpho-espèces n’a pas encore d’étiquette pour ce taxon.",
+      "field": "Étiquette"
     },
     "frame": {
       "section": "Relevés de placette",
@@ -5454,7 +5478,68 @@
       "banner": "Ce formulaire a une nouvelle version (version {{n}})",
       "msg": "Passer à la version {{n}} : les nouveaux champs apparaissent, rien de ce qui est noté ne change."
     },
-    "carried": "Comme au relevé {{n}} (repris au début, à vérifier) : {{fields}}"
+    "carried": "Comme au relevé {{n}} (repris au début, à vérifier) : {{fields}}",
+    "surveyData": "Données du relevé",
+    "dataLocked": "Terminé et verrouillé. Revenez au relevé et touchez le cadenas en haut à droite pour modifier.",
+    "dataFilled": "{{filled}} sur {{total}} remplis",
+    "track": "Trace",
+    "extrasAfterSave": "Les autres champs se remplissent après l’enregistrement.",
+    "trackNotStarted": "Enregistrement de la trace non démarré",
+    "gnssNotYet": "Pas encore obtenues",
+    "noLayer": "Sans strate",
+    "quadrat": {
+      "addWhere": "Où placer {{code}} ? ({{level}})",
+      "fromUnitList": "Depuis la liste de {{unit}}",
+      "unitFields": "Autres champs",
+      "size": "Taille",
+      "sizeShared": "Commune (méthode)",
+      "sizeOwn": "Taille propre à ce quadrat (vide : la taille commune)"
+    },
+    "env": {
+      "openness": "Ouverture",
+      "opennessPct": "Ouverture du ciel"
+    },
+    "method": {
+      "title": "Méthode",
+      "none": "Non choisie",
+      "custom": "Méthode personnalisée",
+      "customPick": "Méthode personnalisée…",
+      "customName": "Nom de la méthode",
+      "size": "Taille",
+      "effortAny": "Effort",
+      "effortUnit": "Unité d'effort",
+      "effort": {
+        "cameraHours": "Heures-caméra",
+        "trapNights": "Nuits-pièges",
+        "netHours": "Heures-filet",
+        "personHours": "Heures-personne",
+        "trapHours": "Heures-piège",
+        "trapDays": "Jours-pièges",
+        "recorderHours": "Heures d'enregistrement"
+      },
+      "quadratSize": "Taille des quadrats",
+      "description": "Notes sur la méthode",
+      "source": "Les noms des méthodes suivent les directives du ministère de l'Environnement de Taïwan pour l'évaluation écologique de la faune et de la flore (édition 2026).",
+      "group": {
+        "vegetation": "Végétation",
+        "birds": "Oiseaux",
+        "mammals": "Mammifères",
+        "herps": "Amphibiens et reptiles",
+        "insects": "Insectes",
+        "general": "Général"
+      }
+    },
+    "group": {
+      "basic": "Données de base",
+      "time": "Temps",
+      "space": "Lieu",
+      "method": "Méthode",
+      "pageOf": "Données d'inventaire · {{n}} / {{total}}",
+      "people": "Personnes",
+      "missing_one": "{{count}} donnée obligatoire manquante",
+      "missing_many": "{{count}} données obligatoires manquantes",
+      "missing_other": "{{count}} données obligatoires manquantes"
+    }
   },
   "builder": {
     "title": "Modèles de formulaire",
@@ -5495,14 +5580,22 @@
       "title": "Nouveau modèle",
       "blankChecklist": "Liste vierge",
       "blankPlot": "Placette vierge",
-      "copy": "Copier un modèle existant…",
       "copyFrom": "Copier lequel ?",
       "nameTitle": "Nom du modèle",
       "nameMsg": "Par exemple « Plantes des berges ». Modifiable plus tard ; un nom anglais peut s’ajouter.",
       "create": "Créer",
       "firstUnit": "Sous-placette",
       "copyName": "Copie de {{name}}",
-      "census": "Inventaire des arbres (copie de l’intégré)"
+      "subtitle": "Choisissez un point de départ ; tout reste modifiable ensuite",
+      "blankChecklistDesc": "Une liste d’espèces à partir de zéro",
+      "blankPlotDesc": "Strates, recouvrement, sous-placettes",
+      "censusDesc": "Copie du modèle intégré d’inventaire des arbres",
+      "copyShort": "Copier un existant",
+      "copyDesc": "Les miens, intégrés ou partagés par l’équipe",
+      "importDesc": "Importer depuis un fichier (.mtpl.json)",
+      "sectionMine": "Mes modèles",
+      "sectionBuiltin": "Intégrés",
+      "sectionTeam": "Partagés par l’équipe"
     },
     "notFound": "Le brouillon de ce modèle n’existe plus ; il a peut-être été enregistré ou abandonné.",
     "basics": "Généralités",
@@ -5535,6 +5628,7 @@
     "preview": "Aperçu",
     "previewTitle": "Aperçu : {{name}}",
     "previewIntro": "Un relevé commencé avec ce modèle ressemble à ceci. Essayez de le remplir ; rien n’est conservé.",
+    "previewNoTrack": "L’aperçu n’enregistre pas de trace.",
     "discard": {
       "title": "Abandonner les modifications ?",
       "msg": "Le brouillon est supprimé ; le modèle reste à la version {{n}}.",
@@ -5635,7 +5729,10 @@
       "interactionTypes_other": "{{count}} types",
       "photos_one": "{{count}} photo",
       "photos_many": "{{count}} photos",
-      "photos_other": "{{count}} photos"
+      "photos_other": "{{count}} photos",
+      "methods_one": "{{count}} méthode proposée",
+      "methods_many": "{{count}} méthodes proposées",
+      "methods_other": "{{count}} méthodes proposées"
     },
     "kind": {
       "bb": "Braun-Blanquet",
@@ -5674,7 +5771,6 @@
       "multiSwitch": "Autoriser plusieurs choix"
     },
     "import": {
-      "fromFile": "Importer depuis un fichier…",
       "failTitle": "Import impossible",
       "newerApp": "Ce modèle utilise des composants que cette version de l’app ne connaît pas ({{types}}). Mettez d’abord l’app à jour.",
       "invalid": "Le fichier n’est pas valide : {{detail}}",
@@ -5730,6 +5826,19 @@
       "inverseEn": "Vu de B, en anglais",
       "iri": "IRI de relation RO (facultatif)",
       "iriBad": "Une IRI commence par http:// ou https:// et ne contient pas d’espace"
+    },
+    "method": {
+      "choose": "L'observateur choisit dans une liste",
+      "fixed": "Une méthode fixe",
+      "all": "Proposer toutes les méthodes",
+      "method": "Méthode",
+      "custom": "Méthodes personnalisées autorisées",
+      "customDesc": "L'observateur peut saisir une méthode absente de la liste."
+    },
+    "openness": {
+      "pct": "Ouverture du ciel (%)",
+      "grades": "Classes personnalisées",
+      "list": "Liste des classes"
     }
   },
   "surveyImport": {

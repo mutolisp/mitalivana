@@ -59,6 +59,7 @@ import {
   type InatGridTaxon,
 } from '~/lib/useInatGrid';
 import { useThemeColors } from '~/theme/colors';
+import { ActionSheetLayer, sheetBack } from '~/components/ActionSheet';
 
 type Reference = { center?: { lat: number; lng: number } | null; radiusM?: number | null };
 
@@ -379,7 +380,7 @@ export function RecordLocationMap({
         </View>
       ) : null}
 
-      <Modal visible={fullscreen} animationType="slide" onRequestClose={() => setFullscreen(false)}>
+      <Modal visible={fullscreen} animationType="slide" onRequestClose={sheetBack(() => setFullscreen(false))}>
         {/* SafeAreaView from the context lib reports 0 insets inside a Modal
             (separate view hierarchy, no provider) — apply the top inset by hand. */}
         <View className="flex-1 bg-black" style={{ paddingTop: insets.top }}>
@@ -442,6 +443,7 @@ export function RecordLocationMap({
             />
           ) : null}
         </View>
+        <ActionSheetLayer visible={fullscreen} />
       </Modal>
     </View>
   );

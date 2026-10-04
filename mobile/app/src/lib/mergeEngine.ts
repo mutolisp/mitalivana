@@ -36,6 +36,7 @@
  * value must still look "changed here" to the sender next time, so the
  * reviewer's choice reaches them instead of being mistaken for their own.
  */
+import type { NamePart } from './nameParts';
 
 export type Row = Record<string, unknown>;
 
@@ -58,7 +59,8 @@ export type MergeRow = {
   group?: string;
 };
 
-export type TitlePart = string | { sci: string; rank?: string | null; kingdom?: string | null };
+/** A row title's text and scientific names (src/lib/nameParts.ts). */
+export type TitlePart = NamePart;
 
 export type MergeSide = Record<string, MergeRow[]>;
 
@@ -342,12 +344,17 @@ export type MergeChange = {
   tbl: string;
   /** Row title as the review screen shows it (group · label). */
   label: string;
+  /** The same with its scientific names as parts (MergeRow.title), when the row has them. */
+  title?: TitlePart[];
   action: 'added' | 'changed' | 'deleted';
   /** changed: each field with its old and new value (raw, formatted when shown). */
   fields: Array<{ f: string; from: unknown; to: unknown }>;
 };
 
 const titleOf = (r: MergeRow | null | undefined) => (!r ? '' : r.group && r.group !== r.label ? `${r.group} · ${r.label}` : r.label);
+/** label and, for a row with names, its title parts (group first, as titleOf). */
+const named = (r: MergeRow | null | undefined): { label: string; title?: TitlePart[] } =>
+  r?.title?.length ? { label: titleOf(r), title: [...(r.group && r.group !== r.label ? [`${r.group} · `] : []), ...r.title] } : { label: titleOf(r) };
 
 /**
  * What a merge did, row by row — the same decisions as planOps, read back as
@@ -358,13 +365,13 @@ export function describeMerge(items: MergeItem[], decisions: Map<string, Decisio
   const changed = (it: MergeItem, fields: string[], from: MergeRow | null | undefined) => {
     const fs: MergeChange['fields'] = fields.map((f) => ({ f, from: from?.data[f] ?? null, to: it.remote?.data[f] ?? null }));
     for (const [k, v] of Object.entries(it.patch ?? {})) if (!fields.includes(k)) fs.push({ f: k, from: (from?.extra?.[k] ?? from?.data[k] ?? null) as unknown, to: v as unknown });
-    if (fs.length) out.push({ tbl: it.tbl, label: titleOf(it.remote ?? from), action: 'changed', fields: fs });
+    if (fs.length) out.push({ tbl: it.tbl, ...named(it.remote ?? from), action: 'changed', fields: fs });
   };
   for (const it of items) {
     const d = decisions.get(it.id) ?? defaultDecision(it);
     switch (it.kind) {
       case 'added':
-        if (d.pick !== 'local') out.push({ tbl: it.tbl, label: titleOf(it.remote), action: 'added', fields: [] });
+        if (d.pick !== 'local') out.push({ tbl: it.tbl, ...named(it.remote), action: 'added', fields: [] });
         break;
       case 'auto':
         changed(it, d.pick === 'local' ? [] : it.fields, it.local);
@@ -373,15 +380,15 @@ export function describeMerge(items: MergeItem[], decisions: Map<string, Decisio
         changed(it, d.pick === 'remote' ? it.fields : it.fields.filter((f) => (d.fields ?? {})[f] === 'remote'), it.local);
         break;
       case 'duplicate':
-        if (d.pick === 'both') out.push({ tbl: it.tbl, label: titleOf(it.remote), action: 'added', fields: [] });
+        if (d.pick === 'both') out.push({ tbl: it.tbl, ...named(it.remote), action: 'added', fields: [] });
         else if (d.pick === 'remote') changed(it, it.fields, it.dup);
         break;
       case 'remoteDeleted':
-        if (d.pick === 'remote') out.push({ tbl: it.tbl, label: titleOf(it.local), action: 'deleted', fields: [] });
+        if (d.pick === 'remote') out.push({ tbl: it.tbl, ...named(it.local), action: 'deleted', fields: [] });
         break;
       case 'deleteConflict':
         if (d.pick === 'remote')
-          out.push(it.remote ? { tbl: it.tbl, label: titleOf(it.remote), action: 'added', fields: [] } : { tbl: it.tbl, label: titleOf(it.local), action: 'deleted', fields: [] });
+          out.push(it.remote ? { tbl: it.tbl, ...named(it.remote), action: 'added', fields: [] } : { tbl: it.tbl, ...named(it.local), action: 'deleted', fields: [] });
         break;
     }
   }

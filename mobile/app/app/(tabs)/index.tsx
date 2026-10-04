@@ -111,6 +111,7 @@ import { Button } from '~/components/ui/Button';
 import { MenuButton, showMenu } from '~/components/OverflowMenu';
 import { SelectionDock, SelectionToolbar } from '~/components/SelectionToolbar';
 import { SelectMark, type SelectMarkState } from '~/components/ui/SelectMark';
+import { ActionSheetLayer, sheetBack } from '~/components/ActionSheet';
 
 type Filter = 'all' | RecordKind;
 type ViewMode = 'flat' | 'byProject';
@@ -1675,7 +1676,7 @@ export default function RecordsListScreen() {
         visible={chao2Sheet != null}
         transparent
         animationType="slide"
-        onRequestClose={() => setChao2Sheet(null)}
+        onRequestClose={sheetBack(() => setChao2Sheet(null))}
       >
         <Pressable className="flex-1 bg-black/40" onPress={() => setChao2Sheet(null)} />
         <View
@@ -1713,6 +1714,7 @@ export default function RecordsListScreen() {
             {t('plotStats.lowerBoundNote')}
           </Text>
         </View>
+        <ActionSheetLayer visible={chao2Sheet != null} />
       </Modal>
       <DuplicateRecordModal
         request={duplicating?.request ?? null}

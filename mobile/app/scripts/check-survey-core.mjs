@@ -47,7 +47,7 @@
  * Run: npm run check:survey-core
  */
 import { DatabaseSync } from 'node:sqlite';
-import { runUserMigrations } from '../src/db/migrations.ts';
+import { MIGRATIONS, runUserMigrations } from '../src/db/migrations.ts';
 import { closeActiveRecords } from '../src/db/activeRecords.ts';
 import { CASCADE_ORPHANS } from '../src/db/integrityRules.ts';
 import * as s from '../src/survey/db/stemmapCore.ts';
@@ -56,9 +56,16 @@ import * as tp from '../src/survey/db/templatesCore.ts';
 import * as ix from '../src/survey/db/interactionCore.ts';
 import { STEMMAP_TEMPLATE } from '../src/survey/templates/stemmap.ts';
 import { withRequired } from '../src/survey/template/validate.ts';
-import { childLevel, unitPath, unitRows } from '../src/survey/form/units.ts';
+import { childLevel, unitPath, unitRows, unitSubtree } from '../src/survey/form/units.ts';
 import { recheckCandidates, recheckKey, recheckOpen } from '../src/survey/form/recheck.ts';
-import { blankOccurrenceHasErrors, formComponents } from '../src/survey/form/occurrenceForm.ts';
+import { blankOccurrenceHasErrors, formComponents, occurrenceErrorIds } from '../src/survey/form/occurrenceForm.ts';
+import { instanceProblems, requiredByAuthor } from '../src/survey/componentRules.ts';
+import { rangeText } from '../src/lib/numRangeText.ts';
+import { isPreviewId, PREVIEW_ID_BASE, raisePreviewIds } from '../src/db/previewIds.ts';
+import { isIndividuals, occurrenceModules, surveyModules } from '../src/survey/form/moduleMap.ts';
+import { groupStatus, surveyDataStatus, surveyGroups } from '../src/survey/form/surveyGroups.ts';
+import { layerRows, nextUnitCode } from '../src/survey/form/plotStyle.ts';
+import { coverOf, herbLayer, quadratLike, quadratSetup, taxaNotInPlotList } from '../src/survey/form/quadratModel.ts';
 import { SAMPLE_TEMPLATES } from '../src/survey/templates/samples.ts';
 import { validateTemplate } from '../src/survey/template/validate.ts';
 
@@ -480,6 +487,11 @@ roundTrip(O, 'leaf', { length_cm: 12.5, count: 7 }, 'traits');
 roundTrip(O, 'seed', { length_cm: 0.4 }, 'second traits component');
 ok(c.readComponent(ctx, O, 'leaf').length_cm === 12.5, 'values: two traits components with the same trait id stay apart');
 roundTrip(S, 'env', { elevation_m: 1520, slope_deg: 25, terrain_position: 'ridge', rock_cover_pct: 10 }, 'environment (survey)');
+// The survey's elevation is one value on the survey row (v88, as a fixed plot's), not an environment value.
+ok(one(`SELECT elevation_m FROM fw_surveys WHERE id = ?`, V).elevation_m === 1520 && count('fw_survey_values', `survey_id = ? AND field = 'elevation_m'`, V) === 0, 'values: the environment\'s survey-level elevation is the survey\'s column');
+// Typed in the environment card, it says so (the editor sends the source with it), as on a fixed plot.
+c.writeComponent(ctx, S, 'env', { elevation_m: 1530, elevation_source: 'manual' });
+ok(one(`SELECT elevation_m, elevation_source FROM fw_surveys WHERE id = ?`, V).elevation_source === 'manual', 'values: a typed survey elevation is marked manual');
 roundTrip(Q, 'qenv', { slope_deg: 31 }, 'environment (unit)');
 roundTrip(O, 'workers', { recorded_by: 'A', identified_by: 'B' }, 'workers (occurrence)');
 roundTrip(U, 'subworkers', { recorded_by: 'C' }, 'workers (unit)');
@@ -515,6 +527,30 @@ ok(one(`SELECT kind FROM fw_media WHERE uri = 'file:///audio/a1.m4a'`).kind === 
 ok(JSON.stringify(c.readComponent(ctx, O, 'photos').photos) === JSON.stringify(['file:///photos/o1.jpg']), 'media: per component');
 c.removeMedia(ctx, O, 'audio', 'file:///audio/a1.m4a');
 ok(c.listMedia(ctx, O, 'audio').length === 1, 'media: removed');
+{
+  const om = c.occurrenceMediaOf(ctx, V);
+  ok(
+    om.size === 1 && JSON.stringify(om.get(O.id)) === JSON.stringify({ photo: ['file:///photos/o1.jpg'], audio: ['file:///audio/a2.m4a'] }),
+    `media: every occurrence's own in one read, the quadrat's left out (${JSON.stringify([...om])})`,
+  );
+}
+// Every occurrence's values in one read (2G-e, the list's 必填未填 markers): the same as reading each alone.
+{
+  const bare2 = c.addOccurrence(ctx, V, { taxon_id: 't21' });
+  const batch = c.occurrenceValuesOf(ctx, V);
+  const keys = FULL.components.filter((x) => x.level === 'occurrence' && x.type !== 'taxon').map((x) => x.key);
+  ok(batch.size === 2 && keys.length > 10, `values in one read: every occurrence (${batch.size}, ${keys.length} components)`);
+  for (const id of [occ, bare2])
+    for (const k of keys) {
+      const a = JSON.stringify(batch.get(id)?.[k]);
+      const b = JSON.stringify(c.readComponent(ctx, { kind: 'occurrence', id }, k));
+      ok(a === b, `values in one read: ${k} of occurrence ${id} as read alone (${a} vs ${b})`);
+    }
+  ok(occurrenceErrorIds(FULL, batch).size === 0, 'required: nothing missing when the author made nothing 必填');
+  const req = { ...FULL, components: FULL.components.map((x) => (x.key === 'seed' || x.key === 'audio' ? { ...x, required: true } : x)) };
+  ok(JSON.stringify([...occurrenceErrorIds(req, batch)]) === JSON.stringify([bare2]), `required: the occurrence with a 必填 component empty, not the one with it filled (${[...occurrenceErrorIds(req, batch)]})`);
+  ok(occurrenceErrorIds(FULL, new Map([[7, { leaf: { length_cm: 80 } }]])).has(7), 'required: a value that does not fit is an error too');
+}
 c.deleteSurvey(ctx, V);
 ok(count('fw_occurrence_values', 'occurrence_id = ?', occ) === 0 && count('fw_media', 'survey_id = ?', V) === 0 && count('fw_unit_values', 'unit_id IN (?, ?)', vSub, quad) === 0, 'values: a deleted survey takes its component values and media');
 
@@ -554,6 +590,99 @@ for (const t of SAMPLE_TEMPLATES) {
   ok(formComponents(t, 'occurrence').every((x) => x.type !== 'taxon') && formComponents(t, 'survey').some((x) => x.type === 'timestamp'), `samples: ${t.id} form components per level`);
 }
 ok(SAMPLE_TEMPLATES.some((t) => t.quick_add) && SAMPLE_TEMPLATES.some((t) => !t.quick_add), 'samples: one of each quick-add rule');
+// Which existing screen block shows each component (2G-c, moduleMap.ts).
+{
+  const comp = (key, type, level, params = {}) => ({ key, type, level, params });
+  const base = SAMPLE_TEMPLATES.find((t) => t.style === 'checklist');
+  const mk = (abundanceKinds) => ({
+    ...base,
+    components: [
+      comp('ts', 'timestamp', 'survey'),
+      comp('inv', 'investigators', 'survey'),
+      comp('env', 'environment', 'survey', { fields: ['slope_deg'] }),
+      comp('sph', 'photos', 'survey', { max: 3 }),
+      comp('tx', 'taxon', 'occurrence'),
+      comp('ab', 'abundance', 'occurrence', { kinds: abundanceKinds, default: abundanceKinds[0] }),
+      comp('ph', 'phenology', 'occurrence', { fields: ['leaf_phenology', 'sex'] }),
+      comp('tr', 'traits', 'occurrence', { traits: [{ id: 'leaf_length', unit: 'cm' }] }),
+      comp('it', 'interaction', 'occurrence', { builtin: ['feeding'] }),
+      comp('ch', 'choice', 'occurrence', { list: 'l', multi: false }),
+      comp('op', 'photos', 'occurrence', { max: 6 }),
+    ],
+  });
+  const m = occurrenceModules(mk(['count']));
+  ok(m.counts && m.countOnly, 'module map: individuals only is the sheet’s own count');
+  ok(occurrenceModules(mk(['BB', 'count'])).counts && !occurrenceModules(mk(['BB', 'count'])).countOnly && !occurrenceModules(mk(['BB'])).counts, 'module map: other scales take the scale picker; − n ＋ only where individuals are one of them');
+  ok(m.phenologyFields.join() === 'sex,leaf_phenology', `module map: the attributes asked, in the block's order (${m.phenologyFields})`);
+  ok(m.photos?.key === 'op' && m.interaction?.key === 'it' && !m.location && !m.comments && !m.audio, 'module map: the sheet’s own fields, by type, on the occurrence only');
+  ok(m.extras.map((x) => x.key).join() === 'tr,ch', `module map: the rest follow in template order (${m.extras.map((x) => x.key)})`);
+  const sm = surveyModules(mk(['count']));
+  ok(sm.timestamp?.key === 'ts' && sm.investigators?.key === 'inv' && sm.data.map((x) => x.key).join() === 'env,sph', `module map: time and investigators are chips, the rest 調查資料 (${sm.data.map((x) => x.key)})`);
+  ok(isIndividuals(null) && isIndividuals('') && isIndividuals('individuals') && !isIndividuals('% cover'), 'module map: what the row’s − n ＋ steps');
+  // 調查資料 in four groups (2G-f, surveyGroups.ts).
+  const facts = { investigators: '甲', start_ts: 1, stop_ts: null, lat: 24, site_id: null, track_geojson: null };
+  const withMore = (style) => ({
+    ...mk(['count']),
+    style,
+    components: [
+      ...mk(['count']).components,
+      comp('lay', 'structure', 'survey', { layers: 4, methods: ['BB'] }),
+      comp('met', 'method', 'survey', { methods: [], fixed: null, custom: true }),
+      comp('cmt', 'comments', 'survey'),
+    ],
+  });
+  const gp = surveyGroups(withMore('plot'));
+  ok(gp.map((g) => `${g.key}:${g.components.map((x) => x.key).join('+')}`).join() === 'basic:env+sph+cmt,time:ts,space:,method:met', `groups: by type; a plot's survey layers in none (${gp.map((g) => `${g.key}:${g.components.map((x) => x.key).join('+')}`)})`);
+  ok(surveyGroups(withMore('checklist'))[0].components.some((x) => x.key === 'lay'), 'groups: a checklist survey’s layers are 基本資料');
+  ok(surveyGroups(mk(['count'])).map((g) => g.key).join() === 'basic,time,space', 'groups: no 調查法 group without a Method');
+  const vals = { env: { slope_deg: 3, aspect_deg: null }, sph: { photos: [] }, cmt: { notes: '' }, met: {} };
+  const status = Object.fromEntries(gp.map((g) => [g.key, groupStatus(g, vals, facts)]));
+  ok(status.basic.filled === 2 && status.basic.total === 4, `groups: 基本資料 counts its components with something in them, and the surveyors (${JSON.stringify(status.basic)})`);
+  ok(status.time.filled === 1 && status.time.total === 2 && status.space.filled === 1 && status.space.total === 3, `groups: time is start and end, space the point, place and track (${JSON.stringify([status.time, status.space])})`);
+  ok(status.method.filled === 0 && groupStatus(gp[3], { met: { protocol: 'inventory' } }, facts).filled === 1, 'groups: 調查法 filled once a method is chosen');
+  ok(groupStatus({ key: 'method', components: [comp('met', 'method', 'survey', { methods: [], fixed: 'point_count', custom: false })] }, {}, facts).filled === 1, 'groups: a method the template fixes counts as filled');
+  ok(groupStatus(gp[0], { env: { cover_pct: {} } }, { ...facts, investigators: null }).filled === 0, 'groups: an empty per-layer value is not filled');
+  const sum = surveyDataStatus(withMore('plot'), vals, facts);
+  ok(sum.filled === 4 && sum.total === 10, `groups: the chip counts every group (${JSON.stringify(sum)})`);
+  // 必填 (2G-e): the author's, on a component they may leave out; fixed ones are every survey's anyway.
+  const r = (x) => ({ ...x, required: true });
+  ok(requiredByAuthor(r(comp('e', 'environment', 'survey'))) && !requiredByAuthor(comp('e', 'environment', 'survey')) && !requiredByAuthor(r(comp('c', 'comments', 'survey'))) && !requiredByAuthor(r(comp('t', 'timestamp', 'survey'))), 'required: only the author’s, never a fixed component');
+  const envR = r(comp('e', 'environment', 'survey', { fields: ['slope_deg', 'aspect_deg'] }));
+  const missingOf = (x, v) => instanceProblems(x, v).filter((p) => p.code === 'required_missing').length;
+  ok(missingOf(envR, {}) === 1 && missingOf(envR, { slope_deg: null, aspect_deg: '' }) === 1 && missingOf(envR, { slope_deg: 0 }) === 0, 'required: missing until one of its fields holds something (0 does)');
+  ok(missingOf(comp('e', 'environment', 'survey', { fields: ['slope_deg'] }), {}) === 0 && missingOf(r(comp('c', 'comments', 'survey')), {}) === 0, 'required: nothing missing on an optional or a fixed component');
+  const bad = instanceProblems(envR, { slope_deg: 120 });
+  ok(bad.length > 0 && bad.every((p) => p.code !== 'required_missing'), `required: a value out of range is its own problem, not 必填未填 (${bad.map((p) => p.code)})`);
+  const occT = (required) => ({ ...mk(['count']), components: [...mk(['count']).components, { ...comp('tr', 'traits', 'occurrence', { traits: [{ id: 'n', label: { text: 'n' } }] }), required }] });
+  ok(blankOccurrenceHasErrors(occT(true)) && !blankOccurrenceHasErrors(occT(false)), 'required: quick add opens the form when a new occurrence starts with a 必填 component empty');
+  const gReq = { ...withMore('plot'), components: withMore('plot').components.map((x) => (x.key === 'env' || x.key === 'met' || x.key === 'cmt' ? r(x) : x)) };
+  const gq = surveyGroups(gReq);
+  const miss = gq.map((g) => groupStatus(g, { env: {}, met: {} }, facts).missing).join();
+  ok(miss === '1,0,0,1', `required: each group counts its 必填 components left empty, a fixed one not (${miss})`);
+  ok(groupStatus(gq[0], { env: { slope_deg: 3 } }, facts).missing === 0 && groupStatus(gq[3], { met: { protocol: 'inventory' } }, facts).missing === 0, 'required: filled, nothing missing');
+  ok(groupStatus({ key: 'method', components: [r(comp('met', 'method', 'survey', { methods: [], fixed: 'point_count', custom: false }))] }, {}, facts).missing === 0, 'required: a method the template fixes is never missing');
+  ok(surveyDataStatus(gReq, {}, facts).missing === 2, 'required: the chip sums what is missing');
+  // A number field's range text: both bounds, one, or one exclusive (numRangeText.ts).
+  const tr = (k, o) => `${k}${JSON.stringify(o)}`;
+  ok(
+    rangeText(tr, 0, 100) === 'plot.numRange{"min":0,"max":100}' && rangeText(tr, 0, undefined) === 'plot.numMin{"min":0}' && rangeText(tr, undefined, 50) === 'plot.numMax{"max":50}' &&
+      rangeText(tr, 0, undefined, true) === 'plot.numAbove{"min":0}' && rangeText(tr, 0, 100, true) === 'plot.numAboveMax{"min":0,"max":100}' && rangeText(tr, undefined, undefined) === null,
+    'range text: which bounds a field has',
+  );
+  // The fixed plot's blocks from a Structure's values (2G-d, plotStyle.ts).
+  const lr = layerRows({ layer_count: 3, cover_pct: { 1: 40, 3: 5 }, height_cm: { 1: 1200 }, height_unit: { 1: 'm', 2: 'ft' }, method: { 2: 'BB', 3: 'count' } }, 3);
+  ok(
+    JSON.stringify(lr) ===
+      JSON.stringify([
+        { layer_index: 1, cover_pct: 40, height_cm: 1200, height_unit: 'm', method: null },
+        { layer_index: 2, cover_pct: null, height_cm: null, height_unit: null, method: 'BB' },
+        { layer_index: 3, cover_pct: 5, height_cm: null, height_unit: null, method: null },
+      ]),
+    `plot style: a Structure's values as the fixed plot's layer rows, unknown units and methods left out (${JSON.stringify(lr)})`,
+  );
+  ok(layerRows({}, 2).length === 2 && layerRows({}, 2).every((r) => r.cover_pct == null), 'plot style: an empty Structure gives empty rows');
+  ok(nextUnitCode([]) === 'S1' && nextUnitCode(['S1', 'S3', 'A']) === 'S2' && nextUnitCode(['S1', 'S2']) === 'S3', 'plot style: the next subplot code is the first free S<n>');
+}
 
 // ── the census and the integrity sweep ───────────────────────────────────
 ok(JSON.stringify(censusRows()) === JSON.stringify(censusBefore), `census: untouched (${censusRows()} vs ${censusBefore})`);
@@ -588,6 +717,8 @@ ok(all('PRAGMA foreign_key_check').length === 0, 'integrity: foreign_key_check c
   ok(tp.upgradableSurveys(ctx, additive).length === 0, 'upgrade: a finished survey is not offered');
   const uses = tp.templateUseCounts(ctx).get(id);
   ok(uses && uses.all === count('fw_surveys', 'template_id = ?', id) && uses.active === count('fw_surveys', "template_id = ? AND status = 'active'", id), `use counts: all and open (${JSON.stringify(uses)})`);
+  const lastStart = ctx.db.executeSync('SELECT MAX(start_ts) AS m FROM fw_surveys WHERE template_id = ?', [id]).rows[0].m;
+  ok(uses && lastStart != null && uses.last === lastStart, `use counts: the latest start, for the copy list's date (${uses?.last} vs ${lastStart})`);
   tp.setTemplateArchived(ctx, id, true);
   const ids = (o) => tp.listTemplates(ctx, o).map((t) => t.id);
   ok(!ids().includes(id) && JSON.stringify(ids({ archived: 'only' })) === JSON.stringify([id]) && ids({ archived: 'include' }).includes(id) && tp.isTemplateArchived(ctx, id), 'archive: hidden unless asked for');
@@ -700,6 +831,11 @@ ok(all('PRAGMA foreign_key_check').length === 0, 'integrity: foreign_key_check c
   const C = c.addOccurrence(ctx, P1, { taxon_id: 'lantana' });
   const row = (id) => one('SELECT * FROM fw_interactions WHERE id = ?', id);
   const i1 = ix.addInteraction(ctx, { from: A, partner: { occurrenceId: B }, type: 'flower_visit', direction: 'forward', count: 3 });
+  // 2G-d (v89): a quadrat marked done takes no new interaction from its occurrences, nor a change to one recorded there.
+  c.setUnitDone(ctx, S1, true);
+  throwsCode(() => ix.addInteraction(ctx, { from: A, partner: { occurrenceId: C }, type: 'feeding', direction: 'forward' }), 'unit_done', 'interaction: none from an occurrence in a unit marked done (v89)');
+  throwsCode(() => ix.deleteInteraction(ctx, i1), 'unit_done', 'interaction: one recorded in a unit marked done stays (v89)');
+  c.setUnitDone(ctx, S1, false);
   ok(row(i1).subject_occurrence_id === A && row(i1).object_occurrence_id === B && row(i1).mutual === 0 && row(i1).count === 3 && row(i1).unit_id === S1 && row(i1).phase === null, 'interaction: A → B stored as recorded, in A’s unit');
   const i2 = ix.addInteraction(ctx, { from: B, partner: { occurrenceId: A }, type: 'flower_visit', direction: 'backward' });
   ok(row(i2).subject_occurrence_id === A && row(i2).object_occurrence_id === B, 'interaction: B ← A from B’s page is stored A → B (one way of writing it)');
@@ -811,6 +947,251 @@ ok(all('PRAGMA foreign_key_check').length === 0, 'integrity: foreign_key_check c
   ok(count('fw_interactions', 'survey_id IN (?, ?)', P1, P2) === 0 && count('fw_occurrences', 'survey_id IN (?, ?)', P1, P2) === 0, 'interaction: deleting a survey takes its interactions');
   for (const [table, where] of CASCADE_ORPHANS) if (table.startsWith('fw_')) ok(count(table, where) === 0, `interaction: no ${table} orphans`);
   ok(all('PRAGMA foreign_key_check').length === 0, 'interaction: foreign_key_check clean');
+}
+
+// ── 2G-b: a track, a place and elevations, as 快速名錄 and the fixed plot have (v88) ──
+{
+  const G = c.createSurvey(ctx, { template: FULL });
+  const GS = { kind: 'survey', id: G };
+  const elev = () => one(`SELECT elevation_m, elevation_source, elevation_min_m, elevation_max_m FROM fw_surveys WHERE id = ?`, G);
+  const site = Number(sqlite.prepare(`INSERT INTO sites (name, geometry_type, geometry_geojson, project_id, created_at, updated_at) VALUES ('s', 'Point', '{"type":"Point","coordinates":[121,24]}', 0, 1, 1)`).run().lastInsertRowid);
+  c.updateSurvey(ctx, G, { siteId: site, trackGeojson: '{"type":"MultiLineString","coordinates":[[[121,24],[121.1,24.1]]]}', gpsMode: 'full_track' });
+  const g = c.getFwSurvey(ctx, G);
+  ok(g.site_id === site && g.gps_mode === 'full_track' && g.track_geojson.includes('MultiLineString'), '2G-b: a survey takes its place and its track');
+  rejects(`UPDATE fw_surveys SET gps_mode = 'walk' WHERE id = ${G}`, '2G-b schema: gps_mode is single_point or full_track');
+  rejects(`UPDATE fw_surveys SET elevation_source = 'guess' WHERE id = ${G}`, '2G-b schema: elevation_source is gnss or manual');
+  // A track's fixes (asked 2026-10-04): the range widens; the survey's own elevation takes the first while empty.
+  c.noteTrackAltitude(ctx, G, 1520.4);
+  let r = elev();
+  ok(r.elevation_m === 1520 && r.elevation_source === 'gnss' && r.elevation_min_m === 1520 && r.elevation_max_m === 1520, `2G-b track altitude: the first fills the elevation and the range (${JSON.stringify(r)})`);
+  for (const a of [1490, 1601.6, 1550]) c.noteTrackAltitude(ctx, G, a);
+  r = elev();
+  ok(r.elevation_min_m === 1490 && r.elevation_max_m === 1602 && r.elevation_m === 1520, `2G-b track altitude: the range widens, the elevation stays (${JSON.stringify(r)})`);
+  c.noteTrackAltitude(ctx, G, Number.NaN);
+  ok(JSON.stringify(elev()) === JSON.stringify(r), '2G-b track altitude: a fix without a usable altitude changes nothing');
+  // A typed elevation (through the environment component) is never overwritten by the track.
+  c.writeComponent(ctx, GS, 'env', { elevation_m: 1555, elevation_source: 'manual' });
+  c.noteTrackAltitude(ctx, G, 1400);
+  r = elev();
+  ok(r.elevation_m === 1555 && r.elevation_source === 'manual' && r.elevation_min_m === 1400, `2G-b track altitude: a typed elevation stays (${JSON.stringify(r)})`);
+  ok(c.readComponent(ctx, GS, 'env').elevation_m === 1555, '2G-b: the environment component reads the survey\'s elevation');
+  // A species' own fix (recordFix): only where it has none, never on a sealed one.
+  const o1 = c.addOccurrence(ctx, G, { taxon_id: 'tA' });
+  ok(c.stampOccurrenceFix(ctx, o1, { lat: 24, lng: 121, accuracy: 5, elevation_m: 1500 }) && c.getOccurrence(ctx, o1).elevation_source === 'gnss', '2G-b stamp: an unlocated species takes the fix');
+  ok(!c.stampOccurrenceFix(ctx, o1, { lat: 25, lng: 122, accuracy: 1, elevation_m: null }) && c.getOccurrence(ctx, o1).lat === 24, '2G-b stamp: a located one keeps its position');
+  const o2 = c.addOccurrence(ctx, G, { taxon_id: 'tB' });
+  c.stampOccurrenceFix(ctx, o2, { lat: 24.5, lng: 121.5, accuracy: 8, elevation_m: null });
+  ok(c.getOccurrence(ctx, o2).elevation_source == null, '2G-b stamp: no altitude, no elevation source');
+  const unlocated = { template_snapshot: JSON.stringify({ components: [{ key: 'qwhere', type: 'location', level: 'unit' }] }) };
+  ok(c.occurrencesLocated(g) && !c.occurrencesLocated(unlocated), '2G-b stamp: only a template with Location on its occurrences is stamped');
+  // v88 moved an environment component's survey-level elevation onto the survey row.
+  sqlite.prepare(`UPDATE fw_surveys SET elevation_m = NULL, elevation_source = NULL WHERE id = ?`).run(G);
+  sqlite.prepare(`INSERT INTO fw_survey_values (uuid, survey_id, component, field, idx, value_num, updated_at) VALUES ('mv1', ?, 'env', 'elevation_m', 0, 1777, 1)`).run(G);
+  sqlite.prepare(`INSERT INTO fw_survey_values (uuid, survey_id, component, field, idx, value_num, updated_at) VALUES ('mv2', ?, 'other', 'elevation_m', 0, 9, 1)`).run(G);
+  MIGRATIONS.find((m) => m.version === 88).up(db);
+  r = elev();
+  ok(r.elevation_m === 1777 && r.elevation_source === 'manual' && count('fw_survey_values', `uuid = 'mv1'`) === 0, `2G-b v88: the environment's survey elevation moves to the survey row (${JSON.stringify(r)})`);
+  ok(count('fw_survey_values', `uuid = 'mv2'`) === 1, '2G-b v88: a value of another component stays');
+}
+
+// ── 2G-d: a subplot's size and a quadrat marked done, as the fixed plot has them (v89) ──
+{
+  const D = c.createSurvey(ctx, { template: FULL });
+  const sub = c.addUnit(ctx, D, { levelKey: 'subplot', code: 'A' });
+  const q = c.addUnit(ctx, D, { levelKey: 'quadrat', code: 'A1', parentId: sub });
+  const q2 = c.addUnit(ctx, D, { levelKey: 'quadrat', code: 'A2', parentId: sub });
+  const inQ = c.addOccurrence(ctx, D, { taxon_id: 'tq' });
+  c.updateOccurrence(ctx, inQ, { unit_id: q });
+  const outside = c.addOccurrence(ctx, D, { taxon_id: 'tout' });
+  rejects(`UPDATE fw_units SET width_m = 0 WHERE id = ${sub}`, '2G-d schema: a width is above 0');
+  rejects(`UPDATE fw_units SET length_m = -1 WHERE id = ${sub}`, '2G-d schema: a length is above 0');
+  c.updateUnit(ctx, sub, { widthM: 10, lengthM: 5 });
+  ok(c.getUnit(ctx, sub).width_m === 10 && c.getUnit(ctx, sub).length_m === 5, '2G-d: a subplot keeps its size');
+  c.setUnitDone(ctx, q, true);
+  ok(c.getUnit(ctx, q).done_at != null, '2G-d: a quadrat is marked done');
+  const QO = { kind: 'unit', id: q };
+  throwsCode(() => c.addOccurrence(ctx, D, { taxon_id: 'tnew', unit_id: q }), 'unit_done', '2G-d done: no species added to it');
+  throwsCode(() => c.updateOccurrence(ctx, inQ, { notes: 'x' }), 'unit_done', '2G-d done: its species do not change');
+  throwsCode(() => c.updateOccurrence(ctx, outside, { unit_id: q }), 'unit_done', '2G-d done: nothing moves into it');
+  throwsCode(() => c.deleteOccurrence(ctx, inQ), 'unit_done', '2G-d done: its species are not deleted');
+  throwsCode(() => c.writeComponent(ctx, { kind: 'occurrence', id: inQ }, 'leaf', { count: 3 }), 'unit_done', '2G-d done: its species\' values do not change');
+  throwsCode(() => c.writeComponent(ctx, QO, 'qenv', { slope_deg: 10 }), 'unit_done', '2G-d done: its own values do not change');
+  throwsCode(() => c.addMedia(ctx, QO, 'qphotos', 'file:///q.jpg'), 'unit_done', '2G-d done: no photo added');
+  throwsCode(() => c.updateUnit(ctx, q, { label: 'x' }), 'unit_done', '2G-d done: the unit itself does not change');
+  throwsCode(() => c.deleteUnit(ctx, q), 'unit_done', '2G-d done: it is not deleted');
+  ok(!c.stampOccurrenceFix(ctx, inQ, { lat: 24, lng: 121, accuracy: 3, elevation_m: null }) && c.getOccurrence(ctx, inQ).lat == null, '2G-d done: a late GNSS fix is not written into it');
+  c.addOccurrence(ctx, D, { taxon_id: 'tq2', unit_id: q2 });
+  c.updateOccurrence(ctx, outside, { notes: 'still open' });
+  ok(c.listOccurrences(ctx, D, { unitId: q2 }).length === 1 && c.getOccurrence(ctx, outside).notes === 'still open', '2G-d done: the other quadrats and the rest of the survey stay open');
+  c.setUnitDone(ctx, sub, true);
+  throwsCode(() => c.addUnit(ctx, D, { levelKey: 'quadrat', code: 'A3', parentId: sub }), 'unit_done', '2G-d done: no sub-unit added under it');
+  c.setUnitDone(ctx, sub, false);
+  c.setUnitDone(ctx, q, false);
+  c.updateOccurrence(ctx, inQ, { notes: 'reopened' });
+  ok(c.getUnit(ctx, q).done_at == null && c.getOccurrence(ctx, inQ).notes === 'reopened', '2G-d done: opened again, it takes changes');
+}
+
+// ── 2G-d4: the second unit level as the fixed plot's quadrats (quadratModel.ts) ──
+{
+  const comp = (key, type, level, params, unit) => ({ key, type, level, ...(unit ? { unit } : {}), required: false, params });
+  const QT = {
+    units: [
+      { key: 'sub', label: 'S' },
+      { key: 'quad', label: 'Q' },
+    ],
+    components: [
+      comp('ab', 'abundance', 'occurrence', { kinds: ['BB', 'percent'], default: 'BB' }),
+      comp('fr', 'frequency', 'occurrence', { n: 5, mode: 'count', top_edge: 'upslope' }),
+      comp('se', 'environment', 'unit', { fields: ['rock_cover_pct'] }, 'sub'),
+      comp('qe', 'environment', 'unit', { fields: ['slope_deg', 'litter_cover_pct', 'vascular_cover_pct'] }, 'quad'),
+      comp('qp', 'photos', 'unit', {}, 'quad'),
+    ],
+  };
+  const q = quadratSetup(QT);
+  ok(
+    q?.level === 'quad' && q.recordCover && q.freq?.key === 'fr' && q.n === 5 && q.mode === 'count' && q.topEdge === 'upslope' && q.env?.key === 'qe' && q.photos?.key === 'qp',
+    `quadrats: the second level, a cover when the abundance takes %, the frequency's grid and method, that level's environment and photos (${JSON.stringify(q && { ...q, abundance: q.abundance?.key, freq: q.freq?.key, env: q.env?.key, photos: q.photos?.key })})`,
+  );
+  ok(q?.surface.join() === 'vascular_cover_pct,litter_cover_pct', `quadrats: the ground covers that level's environment asks for, in the fixed plot's order (${q?.surface})`);
+  ok(quadratSetup({ ...QT, units: [QT.units[0]] }) === null, 'quadrats: none without a second level');
+  const noPct = quadratSetup({ ...QT, components: [comp('ab', 'abundance', 'occurrence', { kinds: ['BB'], default: 'BB' })] });
+  ok(noPct && !noPct.recordCover && !noPct.freq && noPct.n === 10 && noPct.mode === 'cells' && noPct.topEdge === 'N' && noPct.surface.length === 0, 'quadrats: no cover without %, the defaults without a frequency');
+  ok(coverOf({ organism_quantity: '12.5', organism_quantity_type: '% cover' }) === 12.5, 'quadrats: a % abundance is the cover');
+  ok(coverOf({ organism_quantity: '3', organism_quantity_type: 'Braun-Blanquet' }) == null && coverOf({ organism_quantity: null, organism_quantity_type: '% cover' }) == null && coverOf({ organism_quantity: 'x', organism_quantity_type: '% cover' }) == null, 'quadrats: no cover from another scale, an empty or a broken value');
+  const ql = quadratLike(true, 'count', { vascular_cover_pct: 30, litter_cover_pct: 'x' });
+  ok(ql.locked === 1 && ql.freq_mode === 'count' && ql.cov_vascular === 30 && ql.cov_litter === null && ql.cov_scree === null, `quadrats: done, the method and the covers under GLORIA's keys (${JSON.stringify(ql)})`);
+  ok(quadratLike(false, 'cells', {}).locked === 0, 'quadrats: not done');
+  ok(herbLayer(1) === 'E1' && herbLayer(2) === 'E2' && herbLayer(6) === 'E2', 'quadrats: species go to the herb layer (the moss layer with one layer)');
+  ok(nextUnitCode(['Q1', 'Q3', 'S2'], 'Q') === 'Q2' && nextUnitCode([], 'Q') === 'Q1' && nextUnitCode(['Q1']) === 'S1', 'quadrats: the next quadrat code is the first free Q<n>; subplots still S<n>');
+  const units = [
+    { id: 1, parent_id: null, level_key: 'sub' },
+    { id: 2, parent_id: 1, level_key: 'quad' },
+    { id: 3, parent_id: null, level_key: 'quad' },
+    { id: 4, parent_id: 2, level_key: 'cell' },
+  ];
+  const occ = (taxon_id, unit_id, via_interaction = 0) => ({ taxon_id, unit_id, via_interaction });
+  const miss = taxaNotInPlotList(
+    units,
+    [occ('a', 1), occ('a', 2), occ('b', 2), occ('c', 3), occ('d', 4), occ('e', null), occ('e', 2), occ('f', 2, 1), occ('b', 3)],
+    ['sub', 'quad', 'cell'],
+  );
+  ok(
+    JSON.stringify(miss) === JSON.stringify([{ taxon_id: 'b', parentId: 1 }, { taxon_id: 'c', parentId: null }, { taxon_id: 'd', parentId: 1 }]),
+    `quadrats: species in a quadrat (or below) missing from the plot list, each with its subplot; an interaction's other side does not count (${JSON.stringify(miss)})`,
+  );
+  // A quadrat may stand without a subplot, as on the fixed plot.
+  const D = c.createSurvey(ctx, { template: FULL });
+  const lone = c.addUnit(ctx, D, { levelKey: 'quadrat', code: 'Q1' });
+  ok(c.getUnit(ctx, lone).parent_id == null, 'quadrats: one without a subplot is allowed');
+}
+
+// ── 2G-d4: deleting a quadrat takes what is in it, as the fixed plot does (asked 2026-10-04) ──
+{
+  const QD = withRequired({
+    schema: 1,
+    id: 'user:qdel',
+    version: 1,
+    origin: 'user',
+    name: { text: '刪除小樣方' },
+    style: 'plot',
+    units: [
+      { key: 'u1', label: { text: '小區' } },
+      { key: 'u2', label: { text: '小樣方' } },
+      { key: 'u3', label: { text: '細格' } },
+    ],
+    components: [
+      { key: 'inter', type: 'interaction', level: 'occurrence', required: false, params: { builtin: ['feeding'], count: false, photos: 1 } },
+      { key: 'qenv', type: 'environment', level: 'unit', unit: 'u2', required: false, params: { fields: ['slope_deg'] } },
+      { key: 'qph', type: 'photos', level: 'unit', unit: 'u2', required: false, params: { max: 4 } },
+      { key: 'oph', type: 'photos', level: 'occurrence', required: false, params: { max: 4 } },
+    ],
+    codelists: [],
+    quick_add: false,
+  });
+  ok(validateTemplate(QD).length === 0, `quadrat delete: the test template is valid (${validateTemplate(QD)})`);
+  const D = c.createSurvey(ctx, { template: QD });
+  const S = c.addUnit(ctx, D, { levelKey: 'u1', code: 'S1' });
+  const Q = c.addUnit(ctx, D, { levelKey: 'u2', code: 'Q1', parentId: S });
+  const Q2 = c.addUnit(ctx, D, { levelKey: 'u2', code: 'Q2', parentId: S });
+  const cell = c.addUnit(ctx, D, { levelKey: 'u3', code: 'Q1a', parentId: Q });
+  ok(JSON.stringify(unitSubtree(c.listUnits(ctx, D), Q)) === JSON.stringify([Q, cell]) && unitSubtree(c.listUnits(ctx, D), Q2).length === 1, 'quadrat delete: the unit and the units below it');
+  const inQ = c.addOccurrence(ctx, D, { taxon_id: 'tq', unit_id: Q });
+  const inCell = c.addOccurrence(ctx, D, { taxon_id: 'tc', unit_id: cell });
+  const inQ2 = c.addOccurrence(ctx, D, { taxon_id: 'tq2', unit_id: Q2 });
+  const inS = c.addOccurrence(ctx, D, { taxon_id: 'ts', unit_id: S });
+  c.writeComponent(ctx, { kind: 'unit', id: Q }, 'qenv', { slope_deg: 12 });
+  c.addMedia(ctx, { kind: 'unit', id: Q }, 'qph', 'file:///q1.jpg');
+  c.addMedia(ctx, { kind: 'occurrence', id: inQ }, 'oph', 'file:///o1.jpg');
+  // From the quadrat to a taxon not recorded: its other side is made there (via_interaction).
+  const viaI = ix.addInteraction(ctx, { from: inQ, partner: { taxonId: 'tvia' }, type: 'feeding', direction: 'forward' });
+  const via = c.getOccurrence(ctx, one('SELECT subject_occurrence_id AS a, object_occurrence_id AS b FROM fw_interactions WHERE id = ?', viaI).b);
+  // From outside to one inside; and one recorded here between two outside (moved up when it goes).
+  const crossI = ix.addInteraction(ctx, { from: inS, partner: { occurrenceId: inCell }, type: 'feeding', direction: 'forward' });
+  const outI = ix.addInteraction(ctx, { from: inS, partner: { occurrenceId: inQ2 }, type: 'feeding', direction: 'forward' });
+  sqlite.prepare('UPDATE fw_interactions SET unit_id = ? WHERE id = ?').run(Q, outI);
+  c.setUnitDone(ctx, cell, true);
+  throwsCode(() => c.deleteUnitWithContents(ctx, Q), 'unit_done', 'quadrat delete: refused while a unit below it is done');
+  ok(c.getUnit(ctx, Q) != null && c.getOccurrence(ctx, inQ) != null, 'quadrat delete: refused before anything went');
+  c.setUnitDone(ctx, cell, false);
+  // Children removed by hand, as the app runs with foreign keys off (see the survey delete above).
+  sqlite.exec('PRAGMA foreign_keys = OFF;');
+  c.deleteUnitWithContents(ctx, Q);
+  ok(c.getUnit(ctx, Q) == null && c.getUnit(ctx, cell) == null, 'quadrat delete: the quadrat and the units below it go');
+  ok(c.getOccurrence(ctx, inQ) == null && c.getOccurrence(ctx, inCell) == null && c.getOccurrence(ctx, via.id) == null, 'quadrat delete: its occurrences go (with an interaction partner made only for it)');
+  ok(count('fw_unit_values', 'unit_id = ?', Q) === 0 && count('fw_media', 'unit_id = ? OR occurrence_id = ?', Q, inQ) === 0 && count('fw_occurrence_values', 'occurrence_id IN (?, ?)', inQ, inCell) === 0, 'quadrat delete: its values and photos, and its occurrences\', go');
+  ok(count('fw_interactions', 'id IN (?, ?)', viaI, crossI) === 0, 'quadrat delete: interactions with its occurrences go');
+  ok(one('SELECT unit_id AS u FROM fw_interactions WHERE id = ?', outI)?.u === S, 'quadrat delete: an interaction recorded there between occurrences elsewhere stays, one level up');
+  ok(c.getUnit(ctx, S) != null && c.getUnit(ctx, Q2) != null && c.getOccurrence(ctx, inS)?.unit_id === S && c.getOccurrence(ctx, inQ2)?.unit_id === Q2, 'quadrat delete: the subplot, the other quadrat and their species stay');
+  c.setUnitDone(ctx, Q2, true);
+  throwsCode(() => c.deleteUnitWithContents(ctx, Q2), 'unit_done', 'quadrat delete: not a quadrat marked done');
+  throwsCode(() => c.deleteUnitWithContents(ctx, 999999), 'not_found', 'quadrat delete: an unknown unit');
+  for (const [table, where] of CASCADE_ORPHANS) if (table.startsWith('fw_')) ok(count(table, where) === 0, `quadrat delete: no ${table} orphans`);
+  sqlite.exec('PRAGMA foreign_keys = ON;');
+}
+
+// ── 2G-e: a builder preview's scratch file: every id it hands out is a preview id (previewIds.ts) ──
+{
+  const sq = new DatabaseSync(':memory:', { enableForeignKeyConstraints: false });
+  const pdb = {
+    executeSync(sql, params = []) {
+      const stmt = sq.prepare(sql);
+      if (/^\s*(SELECT|PRAGMA|WITH)\b/i.test(sql)) return { rows: stmt.all(...params) };
+      const res = stmt.run(...params);
+      return { rows: [], insertId: Number(res.lastInsertRowid), rowsAffected: res.changes };
+    },
+  };
+  await runUserMigrations(pdb);
+  sq.exec('PRAGMA foreign_keys = ON;');
+  raisePreviewIds(pdb);
+  const pctx = { db: pdb, now: () => ++clock, uuid: () => `p-${++n}` };
+  const PT = withRequired({
+    schema: 1,
+    id: 'user:preview',
+    version: 1,
+    origin: 'user',
+    name: { text: '預覽' },
+    style: 'plot',
+    units: [{ key: 'sub', label: { text: '小區' } }],
+    components: [
+      { key: 'inter', type: 'interaction', level: 'occurrence', required: false, params: { builtin: ['feeding'], count: false, photos: 1 } },
+      { key: 'oph', type: 'photos', level: 'occurrence', required: false, params: { max: 4 } },
+    ],
+    codelists: [],
+    quick_add: false,
+  });
+  const sv = c.createSurvey(pctx, { template: PT });
+  const su = c.addUnit(pctx, sv, { levelKey: 'sub', code: 'S1' });
+  const o1 = c.addOccurrence(pctx, sv, { taxon_id: 'pa', unit_id: su });
+  const o2 = c.addOccurrence(pctx, sv, { taxon_id: 'pb', unit_id: su });
+  const pi = ix.addInteraction(pctx, { from: o1, partner: { occurrenceId: o2 }, type: 'feeding', direction: 'forward' });
+  c.addMedia(pctx, { kind: 'occurrence', id: o1 }, 'oph', 'file:///p1.jpg');
+  const pm = sq.prepare('SELECT id FROM fw_media').get().id;
+  ok([sv, su, o1, o2, pi, pm].every(isPreviewId), `preview: survey, unit, occurrence, interaction and media ids are preview ids (${[sv, su, o1, o2, pi, pm]})`);
+  ok(isPreviewId(PREVIEW_ID_BASE) && !isPreviewId(PREVIEW_ID_BASE - 1) && !isPreviewId(null) && !isPreviewId(undefined) && !isPreviewId(sv - PREVIEW_ID_BASE), 'preview: the id range');
+  // A table the survey screens pass ids of, made without AUTOINCREMENT, would hand out user.db-sized ids.
+  for (const tbl of ['fw_surveys', 'fw_units', 'fw_occurrences', 'fw_interactions', 'fw_media', 'fw_rechecks'])
+    ok(/AUTOINCREMENT/i.test(sq.prepare(`SELECT sql FROM sqlite_master WHERE name = ?`).get(tbl)?.sql ?? ''), `preview: ${tbl} ids come from sqlite_sequence`);
+  ok(c.listSurveys(ctx).every((x) => !isPreviewId(x.id)), 'preview: user.db ids are never preview ids');
 }
 
 if (failed > 0) {

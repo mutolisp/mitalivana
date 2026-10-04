@@ -7,14 +7,15 @@
  */
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
+import { isPreviewId } from '~/db/previewDb';
 import { applyAdoptedName, EMPTY_TAXON_FIELDS, resolveAdoptedNames, resolveTaxa, type AdoptionStatus, type TaxonFields } from '~/db/taxonLookup';
 import { snapshotOf, unitLevelsOf, type FwSurveyRow, type OccurrenceRow, type RecheckState, type UnitRow } from '~/survey/db/surveyCore';
-import { environmentCarried, getFwSurvey, getTemplate, hasBlindPhase, listInteractions, listOccurrences, listUnits, readComponent, recheckState } from '~/survey/db/surveys';
+import { environmentCarried, getFwSurvey, getTemplate, hasBlindPhase, listInteractions, listOccurrences, listUnits, occurrenceMediaOf, occurrenceValuesOf, readComponent, recheckState } from '~/survey/db/surveys';
 import { classifyChange } from '~/survey/template/validate';
 import type { ComponentValues } from '~/survey/registry';
 import { getFrame } from '~/survey/db/stemmap';
 import type { SurveyTemplate } from '~/survey/template/types';
-import { formComponents } from './occurrenceForm';
+import { formComponents, occurrenceErrorIds } from './occurrenceForm';
 import { unitRows, type UnitRowOf } from './units';
 
 export type Named<T> = T & TaxonFields & AdoptionStatus;
@@ -24,6 +25,9 @@ export type OccurrenceView = Named<OccurrenceRow> & {
   unitPath: string;
   /** Its Abundance values, for the list's summary (read here, not while rendering). */
   abundance: ComponentValues | null;
+  /** Its own photos and recordings (the list's thumbnail, the detail sheet). */
+  photos: string[];
+  audio: string[];
 };
 
 export type SurveyForm = {
@@ -45,6 +49,8 @@ export type SurveyForm = {
   carried: ReturnType<typeof environmentCarried>;
   /** How many interactions it holds; null when its template has no Interaction component (2F). */
   interactions: number | null;
+  /** Its occurrences with an error (a value that does not fit, or 必填未填; 2G-e): the rows' markers, the finish reminder. */
+  errorIds: ReadonlySet<number>;
 };
 
 /** Rows with their taxon's display names (accepted name, or the adopted one recorded). */
@@ -56,7 +62,8 @@ export function withNames<T extends { taxon_id: string; used_name_id: number | n
 }
 
 function upgradeOf(survey: FwSurveyRow, snapshot: SurveyTemplate): SurveyTemplate | null {
-  if (survey.status !== 'active') return null;
+  // A preview runs the draft itself, never a saved version of it.
+  if (survey.status !== 'active' || isPreviewId(survey.id)) return null;
   const latest = getTemplate(survey.template_id);
   return latest && latest.version > survey.template_version && classifyChange(snapshot, latest) === 'additive' ? latest : null;
 }
@@ -70,11 +77,14 @@ export function loadSurveyForm(id: number): SurveyForm | null {
   const pathOf = new Map(units.map((u) => [u.unit.id, u.path]));
   const sealedBlind = survey.blind_closed_at != null;
   const abundance = formComponents(template, 'occurrence').find((c) => c.type === 'abundance');
+  const media = occurrenceMediaOf(id);
   const occurrences = withNames(listOccurrences(id)).map((o) => ({
     ...o,
     sealed: sealedBlind && o.phase === 'blind',
     unitPath: o.unit_id == null ? '' : (pathOf.get(o.unit_id) ?? ''),
     abundance: abundance ? readComponent({ kind: 'occurrence', id: o.id }, abundance.key) : null,
+    photos: media.get(o.id)?.photo ?? [],
+    audio: media.get(o.id)?.audio ?? [],
   }));
   const recheck = hasBlindPhase(id);
   return {
@@ -90,6 +100,7 @@ export function loadSurveyForm(id: number): SurveyForm | null {
     upgradeTo: upgradeOf(survey, template),
     carried: environmentCarried({ kind: 'survey', id }),
     interactions: template.components.some((c) => c.type === 'interaction') ? listInteractions(id).length : null,
+    errorIds: occurrenceErrorIds(template, occurrenceValuesOf(id)),
   };
 }
 

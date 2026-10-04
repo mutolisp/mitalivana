@@ -29,6 +29,7 @@ import { KeyboardAvoidingView } from './KeyboardAvoidingView';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { create } from 'zustand';
 import { useThemeColors } from '~/theme/colors';
+import { ActionSheetLayer, sheetBack } from '~/components/ActionSheet';
 
 type PromptOptions = {
   title: string;
@@ -94,7 +95,7 @@ export function TextPromptHost() {
   };
 
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={handleCancel}>
+    <Modal visible transparent animationType="fade" onRequestClose={sheetBack(handleCancel)}>
       <KeyboardAvoidingView behavior="padding" className="flex-1">
         <Pressable
           onPress={handleCancel}
@@ -152,6 +153,7 @@ export function TextPromptHost() {
           </View>
         </SafeAreaView>
       </KeyboardAvoidingView>
+      <ActionSheetLayer />
     </Modal>
   );
 }

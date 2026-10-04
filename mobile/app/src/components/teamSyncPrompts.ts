@@ -39,7 +39,7 @@ export async function pickServer(t: TFunction, title: string, exclude?: string):
     title,
     message: t('teamSync.serverMsg'),
     cancelLabel: t('common.cancel'),
-    options: [...choices.map((u) => ({ label: labelOf(u) })), { label: t('teamSync.serverOther') }],
+    options: [...choices.map((u) => ({ label: labelOf(u), icon: 'server-outline' as const })), { label: t('teamSync.serverOther'), icon: 'create-outline' as const }],
   });
   if (idx < 0 || idx > choices.length) return undefined;
   if (idx < choices.length) return choices[idx];

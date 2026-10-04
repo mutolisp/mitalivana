@@ -114,13 +114,13 @@ export function isTemplateArchived(ctx: { db: SurveyDb }, id: string): boolean {
 
 // ── use by surveys ─────────────────────────────────────────────────────────
 
-/** How many surveys and censuses use each template id. */
-export function templateUseCounts(ctx: { db: SurveyDb }): Map<string, { all: number; active: number }> {
+/** How many surveys and censuses use each template id, how many are open, and when the latest was started. */
+export function templateUseCounts(ctx: { db: SurveyDb }): Map<string, { all: number; active: number; last: number | null }> {
   return new Map(
-    rows<{ template_id: string; n: number; a: number }>(
+    rows<{ template_id: string; n: number; a: number; last: number | null }>(
       ctx,
-      `SELECT template_id, COUNT(*) AS n, SUM(status = 'active') AS a FROM fw_surveys GROUP BY template_id`,
-    ).map((r) => [r.template_id, { all: r.n, active: r.a ?? 0 }]),
+      `SELECT template_id, COUNT(*) AS n, SUM(status = 'active') AS a, MAX(start_ts) AS last FROM fw_surveys GROUP BY template_id`,
+    ).map((r) => [r.template_id, { all: r.n, active: r.a ?? 0, last: r.last ?? null }]),
   );
 }
 

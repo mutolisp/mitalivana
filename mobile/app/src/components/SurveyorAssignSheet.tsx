@@ -14,6 +14,7 @@ import { peopleStore } from '~/stores/surveyors';
 import type { PersonKind, Surveyor } from '~/db';
 import { useThemeColors } from '~/theme/colors';
 import { SelectMark } from '~/components/ui/SelectMark';
+import { ActionSheetLayer, sheetBack } from '~/components/ActionSheet';
 
 type Props = {
   visible: boolean;
@@ -145,7 +146,7 @@ export function SurveyorAssignSheet({
   // GestureHandlerRootView because gesture-handler / reanimated (DraggableFlatList)
   // do NOT work inside a RN Modal without their own root.
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onCancel}>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={sheetBack(onCancel)}>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <KeyboardAvoidingView behavior="padding" className="flex-1 justify-end">
           <Pressable
@@ -235,6 +236,7 @@ export function SurveyorAssignSheet({
           </View>
         </KeyboardAvoidingView>
       </GestureHandlerRootView>
+      <ActionSheetLayer visible={visible} />
     </Modal>
   );
 }

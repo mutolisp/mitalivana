@@ -221,14 +221,14 @@ export function searchSettings(
 }
 
 /** [before, match, after] segments of `text` for the first hit of `query`. */
-export function splitMatch(text: string, query: string): [string, string, string] | null {
-  const q = fold(query.trim());
+export function splitMatch(text: string, query: string, f: (s: string) => string = fold): [string, string, string] | null {
+  const q = f(query.trim());
   if (!q) return null;
-  const i = fold(text).indexOf(q);
+  const i = f(text).indexOf(q);
   if (i < 0) return null;
-  // fold() is index-preserving per code point; slice by code points to match.
+  // `f` is index-preserving per code point; slice by code points to match.
   const chars = Array.from(text);
   const qLen = Array.from(q).length;
-  const at = Array.from(fold(text).slice(0, i)).length;
+  const at = Array.from(f(text).slice(0, i)).length;
   return [chars.slice(0, at).join(''), chars.slice(at, at + qLen).join(''), chars.slice(at + qLen).join('')];
 }

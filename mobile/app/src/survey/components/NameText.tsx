@@ -6,7 +6,8 @@
  */
 import { Fragment, type ReactNode } from 'react';
 import { Pressable, Text } from 'react-native';
-import { ScientificName } from '~/components/ScientificName';
+import { NameParts as NamePartsText } from '~/components/NameParts';
+import { occurrenceParts } from '~/lib/nameParts';
 import { useToast } from '~/stores/toast';
 import { splitSlots } from '~/survey/form/interactionText';
 
@@ -21,13 +22,7 @@ export type NameParts = {
 
 /** `bold`: the scientific name takes the semibold files (a bold line around it). */
 export function OccurrenceName({ o, bold }: { o: NameParts; bold?: boolean }) {
-  if (o.verbatim_identification) return <>{o.verbatim_identification}</>;
-  return (
-    <>
-      {o.common_name_c ? `${o.common_name_c} ` : ''}
-      <ScientificName name={o.simple_name || o.taxon_id} rank={o.rank ?? ''} kingdom={o.kingdom ?? ''} className={bold ? 'font-semibold' : undefined} />
-    </>
-  );
+  return <NamePartsText parts={occurrenceParts(o)} bold={bold} />;
 }
 
 /** A translated sentence with components where its slots are (interactionText.slot). */

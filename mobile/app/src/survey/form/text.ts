@@ -22,6 +22,8 @@ export function formErrorText(t: TFunction, e: unknown): string {
       return t('surveyForm.err.blindSealed');
     case 'recheck_begun':
       return t('surveyForm.err.recheckBegun');
+    case 'unit_done':
+      return t('surveyForm.err.unitDone', { code: e.detail ?? '' });
     case 'label_taken':
       return t('surveyForm.err.labelTaken', { label: e.detail ?? '' });
     case 'bad_value':

@@ -16,6 +16,7 @@ import { MenuButton, showMenu, type MenuIcon, type MenuSection } from '~/compone
 import type { RecordEditing } from '~/lib/useRecordEditing';
 import type { MergeKind } from '~/lib/mergeDocs';
 import { hasMergeLog } from '~/db/mergeLog';
+import { isPreviewId } from '~/db/previewDb';
 import { mergeSummary } from '~/lib/mergeSummaryText';
 import { hasSecret, linkedTeams, listTeams, recordUuid, syncRecord, teamServerLabel } from '~/lib/teamSync';
 import { pickSyncTeam } from '~/lib/teamPickPrompt';
@@ -60,12 +61,15 @@ export function RecordMenuButton({
   };
   // Only teams this device holds the key for: a team restored from a backup
   // without its key cannot sync, so it must not bring up the button.
+  // A builder preview's survey (previewDb.ts) has no versions, merge log or team to send to.
+  const preview = kind === 'modular' && isPreviewId(id);
   useFocusEffect(
     useCallback(() => {
+      if (preview) return;
       void Promise.all(listTeams().map((x) => hasSecret(x.team_id))).then((keys) => setHasTeam(keys.some(Boolean)));
       const uuid = recordUuid(kind, id);
       setHasLog(!!uuid && hasMergeLog(kind, uuid));
-    }, [kind, id]),
+    }, [kind, id, preview]),
   );
 
   // With several teams the button always asks (src/lib/teamPickPrompt.ts).
@@ -155,7 +159,7 @@ export function RecordMenuButton({
           .map(({ a, i }) => ({ kind: 'action' as const, id: `extra-${i}`, label: a.label, icon: a.icon, destructive: a.destructive })),
       });
     }
-    out.push({
+    if (!preview) out.push({
       items: [
         ...(reportHref ? [{ kind: 'action' as const, id: 'report', label: t('report.navTitle'), icon: 'bar-chart-outline' as const }] : []),
         // Record versions (v73): snapshots, comparison, restore.

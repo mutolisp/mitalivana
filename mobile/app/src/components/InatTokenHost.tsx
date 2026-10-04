@@ -39,6 +39,7 @@ import {
 } from '~/lib/inatAuth';
 import { parseTokenText } from '~/lib/inatJwt';
 import { useThemeColors } from '~/theme/colors';
+import { ActionSheetLayer, sheetBack } from '~/components/ActionSheet';
 
 const INAT_ORIGIN = 'https://www.inaturalist.org';
 
@@ -182,7 +183,7 @@ function FlowWebView() {
   }
 
   return (
-    <Modal visible animationType="slide" onRequestClose={() => settle(null)}>
+    <Modal visible animationType="slide" onRequestClose={sheetBack(() => settle(null))}>
       <View style={{ flex: 1, paddingTop: insets.top }} className="bg-card dark:bg-gray-900">
         <View className="flex-row items-center border-b border-gray-200 dark:border-gray-800 px-2 py-2">
           <Pressable onPress={() => settle(null)} hitSlop={10} className="p-2" accessibilityLabel={t('common.cancel')}>
@@ -194,6 +195,7 @@ function FlowWebView() {
         <Text className="px-4 py-2 text-xs text-gray-500 dark:text-gray-400">{t('inat.loginHint')}</Text>
         <View style={{ flex: 1 }}>{webview}</View>
       </View>
+      <ActionSheetLayer />
     </Modal>
   );
 }

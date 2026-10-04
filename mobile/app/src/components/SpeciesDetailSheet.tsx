@@ -2,7 +2,7 @@ import { errText } from '~/lib/errText';
 import { FavoriteToggle } from './FavoriteToggle';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   Alert,
   Linking,
@@ -24,7 +24,7 @@ import { PhotoGrid, PhotoViewerModal } from './PhotoGrid';
 import { AudioClipRows, AudioRecordTile } from './AudioClipList';
 import { InatSyncButton, type InatSheetState } from './InatSyncButton';
 import { observationWebUrl } from '~/lib/inatApi';
-import { showActionSheet } from './ActionSheet';
+import { ActionSheetLayer, sheetBack, showActionSheet } from './ActionSheet';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { useSettings } from '~/stores/settings';
@@ -57,13 +57,16 @@ import { parseMultiAttribute } from '~/lib/dwcAttributes';
 import { ToastHost } from './ToastHost';
 import { ElevationField } from './ElevationField';
 import { useThemeColors } from '~/theme/colors';
+import { speciesParts } from '~/lib/nameParts';
+import { familyChineseFirst } from '~/lib/familyLabel';
 
 type Props = {
   record: RecordWithTaxon | null;
   onClose: () => void;
   onRemove: () => void;
-  /** Called when user saves new notes for the current record. The sheet handles its own NotesEditModal. */
-  onSaveNotes: (newNotes: string) => void;
+  /** Called when user saves new notes for the current record. The sheet handles its own NotesEditModal.
+   *  Omit to hide the notes tile (a survey whose template has no comment on its species). */
+  onSaveNotes?: (newNotes: string) => void;
   /** Save / clear per-record GNSS coordinates. Pass null to clear. */
   onSaveLocation?: (lat: number | null, lng: number | null, accuracy: number | null) => void;
   /** Live-commit a coordinate edited on the inline map (no toast). Manual map
@@ -84,6 +87,8 @@ type Props = {
   inat?: InatSheetState;
   /** Save species attribute changes (sex / lifeStage / reproductive / leaf). */
   onSaveAttributes?: (next: SpeciesAttributesDraft) => void;
+  /** Only these attributes (a survey's phenology component asks for some); all when omitted. */
+  attributeFields?: readonly (keyof SpeciesAttributesDraft)[];
   /** Re-identify: hand the docked SearchBox over to replacing this record's
    *  taxon. Optional — callers without a search box simply omit it. */
   onReplaceTaxon?: () => void;
@@ -100,6 +105,13 @@ type Props = {
   /** Position of this record in the caller's ON-SCREEN order, so the sheet can
    *  step to the neighbouring one by swipe or chevron. Omit to disable. */
   pager?: SwipeNavPagerState;
+  /**
+   * A survey built from a template (2G): its abundance input in place of the
+   * individual count (a template may allow cover, BB …), and its other
+   * components for the record after the existing fields.
+   */
+  quantity?: ReactNode;
+  extra?: ReactNode;
 };
 
 function parsePhotoPaths(s: string | null): string[] {
@@ -127,10 +139,13 @@ export function SpeciesDetailSheet({
   onRemoveAudio,
   inat,
   onSaveAttributes,
+  attributeFields,
   onReplaceTaxon,
   onSaveQuantity,
   onSaveVerbatim,
   pager,
+  quantity,
+  extra,
 }: Props) {
   const c = useThemeColors();
   const router = useRouter();
@@ -186,7 +201,7 @@ export function SpeciesDetailSheet({
   const observedStr = isoDateTime(record.observed_at);
 
   return (
-    <Modal visible animationType="slide" transparent onRequestClose={onClose}>
+    <Modal visible animationType="slide" transparent onRequestClose={sheetBack(onClose)}>
       <View className="flex-1">
         <Pressable
           onPress={onClose}
@@ -229,7 +244,7 @@ export function SpeciesDetailSheet({
                     />
                     {record.family ? (
                       <Text className="text-sm text-gray-500 dark:text-gray-400">
-                        {record.family_c} {record.family}
+                        {familyChineseFirst(record.family, record.family_c)}
                       </Text>
                     ) : null}
                     <View className="mt-1.5 flex-row flex-wrap items-center gap-1.5">
@@ -276,7 +291,7 @@ export function SpeciesDetailSheet({
                     onPress={async () => {
                       const actions = speciesCopyActions(record);
                       const idx = await showActionSheet({
-                        title: record.common_name_c || record.simple_name,
+                        titleParts: speciesParts(record.common_name_c, record.simple_name, record.rank, record.kingdom),
                         options: actions.map((a) => ({ label: a.label })),
                       });
                       if (idx >= 0 && idx < actions.length) {
@@ -328,7 +343,8 @@ export function SpeciesDetailSheet({
                           onRemove={onRemovePhoto}
                         />
                       ) : null}
-                      {onSaveQuantity ? (
+                      {quantity ?? null}
+                      {!quantity && onSaveQuantity ? (
                         <CountField
                           key={record.id}
                           quantity={record.organism_quantity}
@@ -402,6 +418,7 @@ export function SpeciesDetailSheet({
                           </Pressable>
                         ) : null}
                         {onAddAudio ? <AudioRecordTile onAdd={onAddAudio} /> : null}
+                        {onSaveNotes ? (
                         <Pressable
                           onPress={() => setNotesModalOpen(true)}
                           accessibilityRole="button"
@@ -416,6 +433,7 @@ export function SpeciesDetailSheet({
                             {record.notes ? record.notes : t('species.addNote')}
                           </Text>
                         </Pressable>
+                        ) : null}
                       </View>
                       {onAddAudio ? (
                         <AudioClipRows
@@ -508,9 +526,11 @@ export function SpeciesDetailSheet({
                               degree_of_establishment: record.degree_of_establishment ?? null,
                             }}
                             onChange={onSaveAttributes}
+                            fields={attributeFields}
                           />
                         </View>
                       ) : null}
+                      {extra}
                       {inat ? <InatSyncButton state={inat} /> : null}
                       {/* This record's iNaturalist observation: a record-level
                           link, so it stays here (the taxon's own links moved to
@@ -594,7 +614,7 @@ export function SpeciesDetailSheet({
           title={record.common_name_c || record.simple_name || t('session.notes')}
           onCancel={() => setNotesModalOpen(false)}
           onSave={(newNotes) => {
-            onSaveNotes(newNotes);
+            onSaveNotes?.(newNotes);
             setNotesModalOpen(false);
           }}
         />
@@ -613,6 +633,7 @@ export function SpeciesDetailSheet({
       </View>
       {/* Toasts fired while this sheet is up (it has its own window). */}
       <ToastHost inModal />
+      <ActionSheetLayer />
     </Modal>
   );
 }

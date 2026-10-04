@@ -32,9 +32,10 @@
  *   - a survey always has a name: the frame code on a frame, else the start
  *     time as a checklist session is named;
  *   - values are stored only when set; clearing one deletes its row;
- *   - deleting a unit keeps its occurrences and sub-units, moved up to its
- *     parent; deleting a survey takes its units, occurrences, values and
- *     media with it;
+ *   - deleting a subplot (a first-level unit) keeps its occurrences and
+ *     sub-units, moved up to its parent; deleting a quadrat (a lower unit)
+ *     takes everything in it, as the fixed plot does; deleting a survey takes
+ *     its units, occurrences, values and media with it;
  *   - an occurrence made only as the other side of an interaction (v87,
  *     `via_interaction`; interactionCore.ts) is not counted as a species of
  *     the survey and not carried into the next survey's recheck; recording
@@ -46,7 +47,7 @@ import type { Scalar } from '@op-engineering/op-sqlite';
 import { closeActiveRecords } from '../../db/activeRecords';
 import { parseMultiAttribute, serializeMultiAttribute } from '../../lib/dwcMultiValue';
 import { storeBlockers } from '../componentRules';
-import { componentDef, type ComponentValues, type FieldValue } from '../registry';
+import { componentDef, type ComponentValues, type FieldDef, type FieldValue } from '../registry';
 import type { ComponentInstance, SurveyStyle, SurveyTemplate, UnitLevel } from '../template/types';
 import { templateHash, validateTemplate } from '../template/validate';
 import { recheckCandidates, recheckKey, recheckOpen, type RecheckAnswer, type RecheckOutcome, type Sighting } from '../form/recheck';
@@ -85,6 +86,15 @@ export type FwSurveyRow = {
   lat: number | null;
   lng: number | null;
   accuracy: number | null;
+  /** v88 (2G-b): a recorded track (MultiLineString GeoJSON) and how the survey was located, as on 快速名錄. */
+  track_geojson: string | null;
+  gps_mode: 'single_point' | 'full_track' | null;
+  /** v88: the survey's one elevation (the centre's fix, or typed), as on a fixed plot. */
+  elevation_m: number | null;
+  elevation_source: 'gnss' | 'manual' | null;
+  /** v88: the lowest and highest altitude a recorded track went through. */
+  elevation_min_m: number | null;
+  elevation_max_m: number | null;
   starred: number;
   created_at: number;
   updated_at: number;
@@ -323,6 +333,15 @@ export type SurveyPatch = {
   lat?: number | null;
   lng?: number | null;
   accuracy?: number | null;
+  /** 2G-b: the project and the place (地理樣區), as on 快速名錄 and the fixed plot. */
+  projectId?: number;
+  siteId?: number | null;
+  elevationM?: number | null;
+  elevationSource?: 'gnss' | 'manual' | null;
+  elevationMinM?: number | null;
+  elevationMaxM?: number | null;
+  trackGeojson?: string | null;
+  gpsMode?: 'single_point' | 'full_track' | null;
 };
 
 const SURVEY_COLUMN: Readonly<Record<keyof SurveyPatch, string>> = {
@@ -333,6 +352,14 @@ const SURVEY_COLUMN: Readonly<Record<keyof SurveyPatch, string>> = {
   lat: 'lat',
   lng: 'lng',
   accuracy: 'accuracy',
+  projectId: 'project_id',
+  siteId: 'site_id',
+  elevationM: 'elevation_m',
+  elevationSource: 'elevation_source',
+  elevationMinM: 'elevation_min_m',
+  elevationMaxM: 'elevation_max_m',
+  trackGeojson: 'track_geojson',
+  gpsMode: 'gps_mode',
 };
 
 export function updateSurvey(ctx: Ctx, id: number, patch: SurveyPatch): void {
@@ -345,6 +372,26 @@ export function updateSurvey(ctx: Ctx, id: number, patch: SurveyPatch): void {
     ctx.now(),
     id,
   ]);
+}
+
+/**
+ * One GNSS fix of a track being recorded, with its altitude (2G-b, asked
+ * 2026-10-04): the range walked through widens to take it in, and the
+ * survey's own elevation, while still empty, takes the first one. A typed
+ * elevation (or the centre's fix) is never overwritten.
+ */
+export function noteTrackAltitude(ctx: Ctx, id: number, altitude: number): void {
+  if (!Number.isFinite(altitude)) return;
+  const s = surveyOf(ctx, id);
+  const a = Math.round(altitude);
+  const patch: SurveyPatch = {};
+  if (s.elevation_min_m == null || a < s.elevation_min_m) patch.elevationMinM = a;
+  if (s.elevation_max_m == null || a > s.elevation_max_m) patch.elevationMaxM = a;
+  if (s.elevation_m == null) {
+    patch.elevationM = a;
+    patch.elevationSource = 'gnss';
+  }
+  if (Object.keys(patch).length) updateSurvey(ctx, id, patch);
 }
 
 /** End a survey. `stopTs`: the end time chosen (chooseEndTime); null keeps the one recorded, or none; omitted, now unless one is recorded. */
@@ -537,9 +584,32 @@ export type UnitRow = {
   accuracy: number | null;
   geometry_geojson: string | null;
   notes: string | null;
+  /** v89 (2G-d): a subplot's size, as plot_subplots has it (on a permanent plot the frame unit's size applies). */
+  width_m: number | null;
+  length_m: number | null;
+  /** v89: marked done (a quadrat's 完成); nothing in it changes until it is opened again. */
+  done_at: number | null;
   created_at: number;
   updated_at: number;
 };
+
+/**
+ * Refuse a change inside a unit marked done, as a fixed plot refuses one in a
+ * locked quadrat: its own values and photos, its occurrences, its sub-units.
+ * Merges, undo and restores write past it (they put back what was recorded).
+ */
+export function openUnit(ctx: { db: SurveyDb }, unitId: number | null | undefined): void {
+  if (unitId == null) return;
+  const u = one<{ code: string; done_at: number | null }>(ctx, `SELECT code, done_at FROM fw_units WHERE id = ?`, [unitId]);
+  if (u?.done_at != null) throw new SurveyError('unit_done', u.code);
+}
+
+/** Mark a unit done (a quadrat's 完成) or open it again. */
+export function setUnitDone(ctx: Ctx, id: number, done: boolean): void {
+  if (!getUnit(ctx, id)) throw new SurveyError('not_found', 'unit');
+  const now = ctx.now();
+  run(ctx, `UPDATE fw_units SET done_at = ?, updated_at = ? WHERE id = ?`, [done ? now : null, now, id]);
+}
 
 export function getUnit(ctx: { db: SurveyDb }, id: number): UnitRow | null {
   return one<UnitRow>(ctx, `SELECT * FROM fw_units WHERE id = ?`, [id]) ?? null;
@@ -578,6 +648,7 @@ export function addUnit(ctx: Ctx, surveyId: number, input: UnitInput): number {
     const parentDepth = parent ? levels.findIndex((u) => u.key === parent.level_key) : -1;
     if (!parent || parent.survey_id !== surveyId || parentDepth < 0 || parentDepth >= depth) throw new SurveyError('bad_unit', 'parent');
   }
+  openUnit(ctx, parent?.id);
   if (one(ctx, `SELECT 1 AS x FROM fw_units WHERE survey_id = ? AND level_key = ? AND code = ?`, [surveyId, input.levelKey, code])) {
     throw new SurveyError('unit_taken', code);
   }
@@ -610,6 +681,9 @@ export type UnitPatch = {
   lng?: number | null;
   accuracy?: number | null;
   geometry?: string | null;
+  /** v89: a subplot's size (a unit on a permanent plot takes the frame unit's instead). */
+  widthM?: number | null;
+  lengthM?: number | null;
 };
 
 const UNIT_COLUMN: Readonly<Record<keyof UnitPatch, string>> = {
@@ -621,12 +695,15 @@ const UNIT_COLUMN: Readonly<Record<keyof UnitPatch, string>> = {
   lng: 'lng',
   accuracy: 'accuracy',
   geometry: 'geometry_geojson',
+  widthM: 'width_m',
+  lengthM: 'length_m',
 };
 
 /** A unit on a frame keeps the frame unit's code; the rest is this survey's. */
 export function updateUnit(ctx: Ctx, id: number, patch: UnitPatch): void {
   const u = getUnit(ctx, id);
   if (!u) throw new SurveyError('not_found', 'unit');
+  openUnit(ctx, id);
   const keys = (Object.keys(patch) as (keyof UnitPatch)[]).filter((k) => patch[k] !== undefined);
   if (patch.code !== undefined) {
     const code = patch.code.trim();
@@ -648,6 +725,7 @@ export function updateUnit(ctx: Ctx, id: number, patch: UnitPatch): void {
 export function deleteUnit(ctx: Ctx, id: number): void {
   const u = getUnit(ctx, id);
   if (!u) throw new SurveyError('not_found', 'unit');
+  openUnit(ctx, id);
   // Its occurrences would move up: not a sealed blind one (v84).
   const blind = one<Pick<OccurrenceRow, 'survey_id' | 'phase'>>(ctx, `SELECT survey_id, phase FROM fw_occurrences WHERE unit_id = ? AND phase = 'blind' LIMIT 1`, [id]);
   if (blind && occurrenceSealed(ctx, blind)) throw new SurveyError('blind_sealed');
@@ -658,6 +736,37 @@ export function deleteUnit(ctx: Ctx, id: number): void {
   run(ctx, `DELETE FROM fw_unit_values WHERE unit_id = ?`, [id]);
   run(ctx, `DELETE FROM fw_media WHERE unit_id = ?`, [id]);
   run(ctx, `DELETE FROM fw_units WHERE id = ?`, [id]);
+}
+
+/**
+ * Delete a quadrat (a unit below the first level) with everything in it, as
+ * the fixed plot deletes a quadrat with its species (asked 2026-10-04): the
+ * units below it, every occurrence in any of them (each as deleteOccurrence
+ * deletes one: its values, photos and interactions), and their own values and
+ * photos. A unit below it marked done, or a sealed blind record in one,
+ * refuses the whole delete (the caller's transaction undoes what went). A
+ * first-level unit (a subplot) keeps deleteUnit's rule.
+ */
+export function deleteUnitWithContents(ctx: Ctx, id: number): void {
+  const u = getUnit(ctx, id);
+  if (!u) throw new SurveyError('not_found', 'unit');
+  // The unit, then every unit below it.
+  const ids = [id];
+  for (let i = 0; i < ids.length; i++) {
+    for (const r of rows<{ id: number }>(ctx, `SELECT id FROM fw_units WHERE parent_id = ?`, [ids[i]])) ids.push(r.id);
+  }
+  for (const uid of ids) openUnit(ctx, uid);
+  const marks = ids.map(() => '?').join(', ');
+  const occ = rows<{ id: number }>(ctx, `SELECT id FROM fw_occurrences WHERE unit_id IN (${marks})`, ids);
+  // One may already be gone: the other side of an interaction deleted just before.
+  for (const o of occ) if (getOccurrence(ctx, o.id)) deleteOccurrence(ctx, o.id);
+  // An interaction recorded here between occurrences elsewhere stays, one level up.
+  run(ctx, `UPDATE fw_interactions SET unit_id = ?, updated_at = ? WHERE unit_id IN (${marks})`, [u.parent_id, ctx.now(), ...ids]);
+  for (const uid of [...ids].reverse()) {
+    run(ctx, `DELETE FROM fw_unit_values WHERE unit_id = ?`, [uid]);
+    run(ctx, `DELETE FROM fw_media WHERE unit_id = ?`, [uid]);
+    run(ctx, `DELETE FROM fw_units WHERE id = ?`, [uid]);
+  }
 }
 
 // ── occurrences ─────────────────────────────────────────────────────────────
@@ -760,6 +869,7 @@ export function addOccurrence(ctx: Ctx, surveyId: number, fields: OccurrenceFiel
   const s = surveyOf(ctx, surveyId);
   if (!fields.taxon_id?.trim()) throw new SurveyError('not_found', 'taxon');
   checkOccurrenceUnit(ctx, s, fields.unit_id);
+  openUnit(ctx, fields.unit_id);
   const now = ctx.now();
   if (!opts.via) {
     const via = one<OccurrenceRow>(
@@ -814,6 +924,7 @@ function unsealed(ctx: { db: SurveyDb }, id: number): OccurrenceRow {
   const o = getOccurrence(ctx, id);
   if (!o) throw new SurveyError('not_found', 'occurrence');
   if (occurrenceSealed(ctx, o)) throw new SurveyError('blind_sealed');
+  openUnit(ctx, o.unit_id);
   return o;
 }
 
@@ -821,6 +932,7 @@ export function updateOccurrence(ctx: Ctx, id: number, patch: OccurrenceFields):
   const o = unsealed(ctx, id);
   if (patch.taxon_id !== undefined && !patch.taxon_id.trim()) throw new SurveyError('not_found', 'taxon');
   checkOccurrenceUnit(ctx, surveyOf(ctx, o.survey_id), patch.unit_id);
+  openUnit(ctx, patch.unit_id);
   const cols = OCCURRENCE_FIELDS.filter((c) => patch[c] !== undefined);
   if (!cols.length) return;
   run(ctx, `UPDATE fw_occurrences SET ${cols.map((c) => `${c} = ?`).join(', ')}, updated_at = ? WHERE id = ?`, [
@@ -828,6 +940,33 @@ export function updateOccurrence(ctx: Ctx, id: number, patch: OccurrenceFields):
     ctx.now(),
     id,
   ]);
+}
+
+/** Whether the survey's template places a Location component on its occurrences (where a species' own fix is shown). */
+export function occurrencesLocated(s: Pick<FwSurveyRow, 'template_snapshot'>): boolean {
+  return (snapshotOf(s).components ?? []).some((c) => c.type === 'location' && c.level === 'occurrence');
+}
+
+/**
+ * A species just entered gets the phone's fix (recordFix.ts, as on 快速名錄
+ * and the fixed plot) — only while it still has no coordinate, so a point
+ * placed by hand or read off a photo meanwhile wins; never on a sealed one.
+ * True when it was written.
+ */
+export function stampOccurrenceFix(ctx: Ctx, id: number, fix: { lat: number; lng: number; accuracy: number | null; elevation_m: number | null }): boolean {
+  const o = getOccurrence(ctx, id);
+  if (!o || o.lat != null || occurrenceSealed(ctx, o)) return false;
+  if (o.unit_id != null && getUnit(ctx, o.unit_id)?.done_at != null) return false;
+  run(ctx, `UPDATE fw_occurrences SET lat = ?, lng = ?, accuracy = ?, elevation_m = ?, elevation_source = ?, updated_at = ? WHERE id = ? AND lat IS NULL`, [
+    fix.lat,
+    fix.lng,
+    fix.accuracy,
+    fix.elevation_m,
+    fix.elevation_m != null ? 'gnss' : null,
+    ctx.now(),
+    id,
+  ]);
+  return true;
 }
 
 /** Deleting it takes its interactions with it; an occurrence made only as their other side goes too when nothing else holds it. */
@@ -1240,47 +1379,84 @@ function readValue(valueType: 'num' | 'text' | 'json', num: number | null, text:
   return text;
 }
 
-/** A component's values on one owner, field by field (media fields list their file URIs). */
-export function readComponent(ctx: { db: SurveyDb }, owner: ComponentOwner, key: string): ComponentValues {
-  const { instance, def } = placedComponent(ctx, owner, key);
+type StoredValue = { field: string; idx: number; value_num: number | null; value_text: string | null };
+
+/** One component's values from its owner's row, its value rows and its media URIs, field by field. */
+function assembleValues(fields: readonly FieldDef[], row: Record<string, unknown>, got: readonly StoredValue[], media: (kind: 'photo' | 'audio') => string[]): ComponentValues {
   const out: Record<string, FieldValue> = {};
-  const fields = def.fields(instance.params, instance.level, instance.key);
-  const cols = fields.filter((f) => 'col' in f.storage);
-  if (cols.length) {
-    const row = one<Record<string, unknown>>(ctx, `SELECT ${cols.map((f) => f.field).join(', ')} FROM ${ownerSql(owner)} WHERE id = ?`, [owner.id]) ?? {};
-    for (const f of cols) {
+  for (const f of fields) {
+    const st = f.storage;
+    if ('col' in st) {
       const raw = row[f.field] as string | number | null | undefined;
-      const s = f.storage as { valueType: 'num' | 'text' | 'json' };
-      out[f.field] = s.valueType === 'json' ? (raw == null ? null : parseMultiAttribute(String(raw))) : (raw ?? null);
-    }
-  }
-  const valueFields = fields.filter((f) => 'values' in f.storage);
-  if (valueFields.length) {
-    const v = VALUE_TABLE[owner.kind];
-    const got = rows<{ field: string; idx: number; value_num: number | null; value_text: string | null }>(
-      ctx,
-      `SELECT field, idx, value_num, value_text FROM ${v.table} WHERE ${v.owner} = ? AND component = ? ORDER BY field, idx`,
-      [owner.id, instance.key],
-    );
-    for (const f of valueFields) {
-      const s = f.storage as { valueType: 'num' | 'text' | 'json'; repeat?: boolean };
+      out[f.field] = st.valueType === 'json' ? (raw == null ? null : parseMultiAttribute(String(raw))) : (raw ?? null);
+    } else if ('values' in st) {
       const mine = got.filter((r) => r.field === f.field);
-      if (s.repeat) {
+      if (st.repeat) {
         const per: Record<number, number | string> = {};
         for (const r of mine) {
-          const x = readValue(s.valueType, r.value_num, r.value_text);
+          const x = readValue(st.valueType, r.value_num, r.value_text);
           if (x != null && !Array.isArray(x)) per[r.idx] = x as number | string;
         }
         out[f.field] = Object.keys(per).length ? per : null;
       } else {
         const r = mine.find((x) => x.idx === 0);
-        out[f.field] = r ? readValue(s.valueType, r.value_num, r.value_text) : null;
+        out[f.field] = r ? readValue(st.valueType, r.value_num, r.value_text) : null;
       }
+    } else {
+      out[f.field] = media(st.media);
     }
   }
-  for (const f of fields.filter((x) => 'media' in x.storage)) {
-    const kind = (f.storage as { media: 'photo' | 'audio' }).media;
-    out[f.field] = listMedia(ctx, owner, instance.key, kind).map((m) => m.uri);
+  return out;
+}
+
+/** A component's values on one owner, field by field (media fields list their file URIs). */
+export function readComponent(ctx: { db: SurveyDb }, owner: ComponentOwner, key: string): ComponentValues {
+  const { instance, def } = placedComponent(ctx, owner, key);
+  const fields = def.fields(instance.params, instance.level, instance.key);
+  const cols = fields.filter((f) => 'col' in f.storage);
+  const row = cols.length ? (one<Record<string, unknown>>(ctx, `SELECT ${cols.map((f) => f.field).join(', ')} FROM ${ownerSql(owner)} WHERE id = ?`, [owner.id]) ?? {}) : {};
+  const v = VALUE_TABLE[owner.kind];
+  const got = fields.some((f) => 'values' in f.storage)
+    ? rows<StoredValue>(ctx, `SELECT field, idx, value_num, value_text FROM ${v.table} WHERE ${v.owner} = ? AND component = ? ORDER BY field, idx`, [owner.id, instance.key])
+    : [];
+  return assembleValues(fields, row, got, (kind) => listMedia(ctx, owner, instance.key, kind).map((m) => m.uri));
+}
+
+/**
+ * Every occurrence's values of a survey, by occurrence id and component key,
+ * read in three queries (its rows, its value rows, its media) instead of one
+ * per occurrence and component: what a long species list's 必填未填 markers
+ * need (2G-e).
+ */
+export function occurrenceValuesOf(ctx: { db: SurveyDb }, surveyId: number): Map<number, Record<string, ComponentValues>> {
+  const comps = snapshotOf(surveyOf(ctx, surveyId)).components.filter((c) => c.level === 'occurrence' && c.type !== 'taxon');
+  const occs = rows<Record<string, unknown> & { id: number }>(ctx, `SELECT * FROM fw_occurrences WHERE survey_id = ?`, [surveyId]);
+  const vals = rows<StoredValue & { occurrence_id: number; component: string }>(
+    ctx,
+    `SELECT v.occurrence_id, v.component, v.field, v.idx, v.value_num, v.value_text FROM fw_occurrence_values v
+      JOIN fw_occurrences o ON o.id = v.occurrence_id WHERE o.survey_id = ? ORDER BY v.field, v.idx`,
+    [surveyId],
+  );
+  const media = rows<{ occurrence_id: number; component: string; kind: string; uri: string }>(
+    ctx,
+    `SELECT occurrence_id, component, kind, uri FROM fw_media WHERE survey_id = ? AND occurrence_id IS NOT NULL ORDER BY id`,
+    [surveyId],
+  );
+  // Rows by occurrence and component first: a long list must not scan every row per occurrence.
+  const keyOf = (occ: number, comp: string) => `${occ}:${comp}`;
+  const valuesBy = new Map<string, StoredValue[]>();
+  for (const r of vals) (valuesBy.get(keyOf(r.occurrence_id, r.component)) ?? valuesBy.set(keyOf(r.occurrence_id, r.component), []).get(keyOf(r.occurrence_id, r.component))!).push(r);
+  const mediaBy = new Map<string, { kind: string; uri: string }[]>();
+  for (const m of media) (mediaBy.get(keyOf(m.occurrence_id, m.component)) ?? mediaBy.set(keyOf(m.occurrence_id, m.component), []).get(keyOf(m.occurrence_id, m.component))!).push(m);
+  const fieldsOf = new Map(comps.map((c) => [c.key, componentDef(c.type)?.fields(c.params, c.level, c.key) ?? []]));
+  const out = new Map<number, Record<string, ComponentValues>>();
+  for (const o of occs) {
+    const byComp: Record<string, ComponentValues> = {};
+    for (const c of comps) {
+      const k = keyOf(o.id, c.key);
+      byComp[c.key] = assembleValues(fieldsOf.get(c.key) ?? [], o, valuesBy.get(k) ?? [], (kind) => (mediaBy.get(k) ?? []).filter((m) => m.kind === kind).map((m) => m.uri));
+    }
+    out.set(o.id, byComp);
   }
   return out;
 }
@@ -1294,6 +1470,7 @@ export function readComponent(ctx: { db: SurveyDb }, owner: ComponentOwner, key:
 export function writeComponent(ctx: Ctx, owner: ComponentOwner, key: string, patch: ComponentValues): void {
   const { instance, def } = placedComponent(ctx, owner, key);
   if (owner.kind === 'occurrence') unsealed(ctx, owner.id);
+  if (owner.kind === 'unit') openUnit(ctx, owner.id);
   const fields = def.fields(instance.params, instance.level, instance.key);
   const byName = new Map(fields.map((f) => [f.field, f]));
   for (const name of Object.keys(patch)) {
@@ -1371,10 +1548,26 @@ export function listMedia(ctx: { db: SurveyDb }, owner: ComponentOwner, componen
   );
 }
 
+/** Every occurrence's own photos and recordings in one read (a list's thumbnails), oldest first. An interaction's photos have no occurrence. */
+export function occurrenceMediaOf(ctx: { db: SurveyDb }, surveyId: number): Map<number, { photo: string[]; audio: string[] }> {
+  const out = new Map<number, { photo: string[]; audio: string[] }>();
+  for (const r of rows<{ occurrence_id: number; kind: 'photo' | 'audio'; uri: string }>(
+    ctx,
+    `SELECT occurrence_id, kind, uri FROM fw_media WHERE survey_id = ? AND occurrence_id IS NOT NULL ORDER BY id`,
+    [surveyId],
+  )) {
+    const m = out.get(r.occurrence_id) ?? { photo: [], audio: [] };
+    m[r.kind].push(r.uri);
+    out.set(r.occurrence_id, m);
+  }
+  return out;
+}
+
 /** Add a photo or recording to an owner, for the template component `key` (which must be a media field there). */
 export function addMedia(ctx: Ctx, owner: ComponentOwner, key: string, uri: string): number {
   const { instance, def, survey } = placedComponent(ctx, owner, key);
   if (owner.kind === 'occurrence') unsealed(ctx, owner.id);
+  if (owner.kind === 'unit') openUnit(ctx, owner.id);
   const media = def.fields(instance.params, instance.level, instance.key).find((f) => 'media' in f.storage);
   if (!media || !('media' in media.storage)) throw new SurveyError('bad_value', `${key} holds no media`);
   const max = Number(instance.params.max);
@@ -1399,6 +1592,7 @@ export function addMedia(ctx: Ctx, owner: ComponentOwner, key: string, uri: stri
 
 export function removeMedia(ctx: Ctx, owner: ComponentOwner, key: string, uri: string): void {
   if (owner.kind === 'occurrence') unsealed(ctx, owner.id);
+  if (owner.kind === 'unit') openUnit(ctx, owner.id);
   const where = owner.kind === 'survey' ? SURVEY_MEDIA : `${MEDIA_OWNER_COL[owner.kind]} = ?`;
   run(ctx, `DELETE FROM fw_media WHERE ${where} AND component = ? AND uri = ?`, [owner.id, key, uri]);
   run(ctx, `UPDATE ${ownerSql(owner)} SET updated_at = ? WHERE id = ?`, [ctx.now(), owner.id]);

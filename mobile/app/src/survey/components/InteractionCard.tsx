@@ -48,6 +48,7 @@ export function InteractionCard({
   locked,
   unlocked,
   refuse,
+  beforeOpen,
 }: {
   surveyId: number;
   occurrenceId: number;
@@ -56,6 +57,8 @@ export function InteractionCard({
   locked: boolean;
   unlocked: boolean;
   refuse: () => void;
+  /** Shown in a Modal (快速名錄's detail sheet, 2G-c): close it before the interaction screen is pushed under it. */
+  beforeOpen?: () => void;
 }) {
   const { t, i18n } = useTranslation();
   const c = useThemeColors();
@@ -66,6 +69,7 @@ export function InteractionCard({
   const open = (id: number | 'new') => {
     if (locked && id === 'new') return refuse();
     Keyboard.dismiss();
+    beforeOpen?.();
     router.push(interactionHref(id, occurrenceId, unlocked));
   };
 

@@ -4,7 +4,6 @@ import { LabeledField, LabeledNumField } from '~/components/form/LabeledField';
 import { captureFix } from '~/lib/gnssFix';
 import { Ionicons } from '@expo/vector-icons';
 import { FolderAreaMap } from '~/components/FolderAreaMap';
-import { RecordLocationMap } from '~/components/RecordLocationMap';
 import { HeaderIconButton } from '~/components/HeaderIconButton';
 import { RecordMenuButton } from '~/components/RecordMenuButton';
 import {
@@ -15,10 +14,12 @@ import {
 } from '~/components/SwipeNavigator';
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { BackHeaderLeft } from '~/lib/goBack';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Platform, Pressable, Text, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
+import { PlotHeaderTitle } from '~/components/plot/PlotHeaderTitle';
+import { TabBtn } from '~/components/plot/TabBtn';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   endPlotSurvey,
@@ -29,7 +30,6 @@ import {
   getSite,
   parseGeometry,
   type GeoJSONGeometry,
-  layerIndexOf,
   layerKeyForIndex,
   listPlotSpecies,
   parseEnvPhotos,
@@ -43,19 +43,13 @@ import {
   setSubplotCount,
   updateSubplot,
   type Subplot,
-  type AbundanceMethod,
-  type HeightUnit,
-  type FixedLayer,
   type PlotLayer,
   type PlotSpeciesRecordWithTaxon,
   type PlotSurvey,
   type Project,
   type Site,
-  layerLabel,
   MAX_LAYER_COUNT,
 } from '~/db';
-import { PhotoGrid, PhotoViewerModal } from '~/components/PhotoGrid';
-import { useThemeColors } from '~/theme/colors';
 import { PlotSpeciesTab } from '~/components/PlotSpeciesTab';
 import { plotStatsSummary } from '~/components/PlotDiversityCard';
 import { checkPlotCover } from '~/lib/plotCoverCheck';
@@ -67,19 +61,25 @@ import { useSettings, type PlotTab } from '~/stores/settings';
 import { useActivePlot } from '~/stores/activePlot';
 import { useActiveGloria } from '~/modules/gloria/store';
 import { useActiveSession } from '~/stores/activeSession';
-import { captureEnvPhoto, pickPhotos } from '~/lib/photoCapture';
 
 import { useRecordEditing } from '~/lib/useRecordEditing';
 import { chooseEndTime } from '~/lib/endTimeChoice';
-import { SurveyTimeFields } from '~/components/SurveyTimeFields';
 import { LockedBanner, RecordEditButtons } from '~/components/RecordEditButtons';
 import { onVersionRestored, saveVersionSoon } from '~/db/recordVersions';
 import { useVersionOnLeave } from '~/lib/useVersionOnLeave';
-import { Button } from '~/components/ui/Button';
-import { CheckboxMark } from '~/components/ui/Checkbox';
 import { PlotQuadratsTab } from '~/components/quadrat/PlotQuadratsTab';
 import { PlotFreqTab } from '~/components/quadrat/PlotFreqTab';
 import { QuadratSettings } from '~/components/quadrat/QuadratSettings';
+import {
+  CentreLocationCard,
+  EnvAdvancedSection,
+  EnvPhotoSectionView,
+  LayerSectionView,
+  ProjectRow,
+  SubplotSectionView,
+  SurveyorRow,
+  SurveyTimeBox,
+} from '~/components/plot/EnvSections';
 import { listQuadrats, parseQuadratConfig } from '~/db/quadrats';
 import { plotFreqIssueLines } from '~/components/quadrat/plotFreqIssueLines';
 
@@ -368,58 +368,9 @@ export default function PlotDetailScreen() {
   );
 }
 
-function TabBtn({
-  label,
-  active,
-  disabled,
-  onPress,
-}: {
-  label: string;
-  active: boolean;
-  disabled?: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={disabled ? undefined : onPress}
-      // py-2, not py-3: this bar sits on the screen with the least vertical room
-      // in the app. Not tighter than that, though — the row directly beneath it
-      // is also tappable, and a mis-tap here swaps the whole page. 8 + 20 + 8
-      // keeps the target honest while giving back 8pt.
-      className={`flex-1 items-center justify-center py-2 ${active ? 'border-b-2 border-emerald-500' : ''}`}
-    >
-      <Text
-        className={`text-sm font-medium ${
-          disabled
-            ? 'text-gray-300'
-            : active
-              ? 'text-emerald-700 dark:text-emerald-300'
-              : 'text-gray-600 dark:text-gray-400'
-        }`}
-      >
-        {label}
-      </Text>
-    </Pressable>
-  );
-}
-
 // ─────────────────────────────────────────────────────────────────────
 // Env Tab
 // ─────────────────────────────────────────────────────────────────────
-
-/** The ground-cover fractions that must add up to 100%. `total_cover_pct` is
- *  NOT one of them — that field lives in 基本資料 and means vegetation cover
- *  overall, not a share of the ground surface. */
-const COVER_KEYS = [
-  'vascular_cover_pct',
-  'bryophyte_cover_pct',
-  'lichen_cover_pct',
-  'litter_cover_pct',
-  'rock_cover_pct',
-  'gravel_cover_pct',
-  'bareland_cover_pct',
-] as const;
-type CoverKey = (typeof COVER_KEYS)[number];
 
 function EnvTab({
   plot,
@@ -431,7 +382,6 @@ function EnvTab({
   /** Finished and not unlocked: shown, not editable (touches still scroll). */
   locked: boolean;
 }) {
-  const c = useThemeColors();
   const router = useRouter();
   const boundary = usePlotBoundary(plot.site_id);
   const coverCheck = useMemo(
@@ -453,39 +403,6 @@ function EnvTab({
     onUpdated();
   };
 
-  /**
-   * Save one ground-cover fraction, then fill in the last blank one if this
-   * completes the other six — 維管束 65 + 岩石 5 + 碎石 3 + 裸露 2 + 苔蘚 10 +
-   * 地衣 10 leaves 枯落物 = 5.
-   *
-   * The auto-fill deliberately never targets the field just edited: otherwise
-   * clearing a value to retype it would immediately restore the old number and
-   * you could never change it.
-   */
-  const patchCover = (key: CoverKey, value: number | null, done = true) => {
-    const next = { ...plot, [key]: value } as PlotSurvey;
-    const blanks = COVER_KEYS.filter((k) => next[k] == null);
-    // Not on a half-typed number: the last blank would keep a remainder of it (LabeledField `done`).
-    if (done && blanks.length === 1 && blanks[0] !== key) {
-      const filled = COVER_KEYS.filter((k) => k !== blanks[0]).reduce(
-        (sum, k) => sum + (next[k] ?? 0),
-        0,
-      );
-      // Only when there is actually room left; an over-100 total is a data
-      // problem for the user to resolve, not something to paper over.
-      const remainder = Math.round((100 - filled) * 100) / 100;
-      if (remainder >= 0) {
-        patch({ [key]: value, [blanks[0]]: remainder });
-        return;
-      }
-    }
-    patch({ [key]: value });
-  };
-
-  const coverTotal = COVER_KEYS.reduce((sum, k) => sum + (plot[k] ?? 0), 0);
-  const coverFilled = COVER_KEYS.filter((k) => plot[k] != null).length;
-  const coverRounded = Math.round(coverTotal * 100) / 100;
-
   const captureGps = async () => {
     const fix = await captureFix();
     if (!fix) return;
@@ -504,14 +421,6 @@ function EnvTab({
     }
   };
 
-  /** A coordinate exists, however it was obtained. */
-  const hasCoord = plot.decimal_latitude !== null && plot.decimal_longitude !== null;
-  /** A coordinate that came from the GNSS, so it carries an accuracy. A point
-   *  placed by hand on the map has none — which is why the two are separate:
-   *  gating the readout on `hasGps` would make a hand-placed point look like no
-   *  point at all. */
-  const hasGps = hasCoord && plot.coord_uncertainty_m !== null;
-
   return (
     <KeyboardAwareScrollView
       className="flex-1"
@@ -523,91 +432,29 @@ function EnvTab({
       <Section title={t('plot.required')} required>
         <LabeledField label="Plotid" value={plot.plotid} onSave={(v) => patch({ plotid: v })} required />
 
-        <Pressable
-          onPress={() => setProjectSheetOpen(true)}
-          className="mt-3 flex-row items-center rounded-lg border border-gray-200 bg-card px-3 py-3 active:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:active:bg-gray-800"
-        >
-          <Ionicons name="folder-outline" size={18} color="#4b5563" />
-          <View className="ml-2 flex-1">
-            <Text className="text-xs text-gray-500 dark:text-gray-400">{t('plot.project')}</Text>
-            <Text
-              className={`text-sm ${project?.id === 0 ? 'italic text-gray-500 dark:text-gray-400' : 'text-gray-900 dark:text-gray-100'}`}
-              numberOfLines={1}
-            >
-              {project?.name ?? t('plot.uncategorized')}
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={16} color={c.ink3} />
-        </Pressable>
+        <ProjectRow project={project} onPress={() => setProjectSheetOpen(true)} />
 
         {plot.plot_type === 'transect' ? (
           <TransectTrackControl plot={plot} onUpdated={onUpdated} />
         ) : (
-          <View className="mt-3 rounded-lg border border-gray-200 bg-card p-3 dark:border-gray-700 dark:bg-gray-900">
-            <View className="flex-row items-center">
-              <Text className="flex-1 text-xs font-medium text-gray-600 dark:text-gray-400">
-                {t('plot.gnssLabel')} <Text className="text-red-500">*</Text>
-              </Text>
-              <Button
-                label={hasGps ? t('plot.refetchGnss') : t('plot.fetchGnss')}
-                icon="locate"
-                onPress={captureGps}
-              />
-            </View>
-            {hasCoord ? (
-              <Text selectable className="mt-2 text-sm text-gray-900 dark:text-gray-100">
-                {plot.decimal_latitude?.toFixed(6)}, {plot.decimal_longitude?.toFixed(6)}
-                {'  '}
-                <Text className="text-xs text-gray-500 dark:text-gray-400">
-                  {plot.coord_uncertainty_m != null
-                    ? `±${plot.coord_uncertainty_m.toFixed(1)} m`
-                    : t('plot.manualCoord')}
-                  {plot.elevation_m != null ? t('plot.elevSuffix', { m: plot.elevation_m }) : ''}
-                </Text>
-              </Text>
-            ) : (
-              <Text className="mt-2 text-xs text-gray-400 dark:text-gray-500">
-                {t('plot.gnssNotYet')}
-              </Text>
-            )}
-            {/* Same mini-map as the species record sheet — tap or drag to place
-                the plot centre when the GNSS fix is unavailable or wrong, and zoom /
-                locate / switch basemap to check it against the terrain. It also
-                draws the plot boundary: one map for centre and boundary, instead
-                of a second native map in its own section below. */}
-            <SwipeBlockedArea>
-              <RecordLocationMap
-                lat={plot.decimal_latitude}
-                lng={plot.decimal_longitude}
-                accuracy={plot.coord_uncertainty_m}
-                area={boundary}
-                onChange={(lat, lng, accuracy) =>
-                  patch({
-                    decimal_latitude: lat,
-                    decimal_longitude: lng,
-                    // Hand-placed arrives as null; an undo restores the measured
-                    // value that was there before.
-                    coord_uncertainty_m: accuracy,
-                  })
-                }
-              />
-            </SwipeBlockedArea>
-            {/* Drawing stays on the map screen — the only place with vertex
-                handles — and comes back via router.replace. */}
-            <Pressable
-              onPress={() => router.push(`/(tabs)/map?draw=Polygon&plot=${plot.id}` as Href)}
-              className="mt-2 flex-row items-center rounded-lg border border-gray-200 px-3 py-2 active:bg-gray-50 dark:border-gray-700 dark:active:bg-gray-800"
-            >
-              <Ionicons name="shapes-outline" size={18} color={boundary ? c.accent : '#4b5563'} />
-              <Text className="ml-2 flex-1 text-sm text-gray-700 dark:text-gray-300">
-                {boundary ? t('plot.editRange') : t('plot.drawRange')}
-              </Text>
-              <Ionicons name="chevron-forward" size={16} color={c.ink3} />
-            </Pressable>
-            <Text className="mt-1 text-[11px] text-gray-400 dark:text-gray-500">
-              {t('plot.rangeHint')}
-            </Text>
-          </View>
+          <CentreLocationCard
+            lat={plot.decimal_latitude}
+            lng={plot.decimal_longitude}
+            accuracy={plot.coord_uncertainty_m}
+            elevation={plot.elevation_m}
+            boundary={boundary}
+            onCapture={captureGps}
+            onPlace={(lat, lng, accuracy) =>
+              patch({
+                decimal_latitude: lat,
+                decimal_longitude: lng,
+                // Hand-placed arrives as null; an undo restores the measured
+                // value that was there before.
+                coord_uncertainty_m: accuracy,
+              })
+            }
+            onDrawBoundary={() => router.push(`/(tabs)/map?draw=Polygon&plot=${plot.id}` as Href)}
+          />
         )}
 
         {plot.plot_type === 'point_count' ? (
@@ -623,37 +470,15 @@ function EnvTab({
         ) : null}
         {/* Start / end: typed by hand for old field sheets, or set to now. For a
             point count they are the count's own time. */}
-        <View className="mt-3 rounded-lg border border-gray-200 bg-card p-3 dark:border-gray-700 dark:bg-gray-900">
-          <Text className="mb-2 text-xs font-medium text-gray-600 dark:text-gray-400">
-            {plot.plot_type === 'point_count' ? t('plot.countTime') : t('surveyTime.title')}
-          </Text>
-          {/* Locked: plain text, like the checklist and collection time sheets —
-              an ⓧ that cannot be pressed looked like it could (Device_test 38-11). */}
-          <SurveyTimeFields
-            start={plot.start_ts}
-            end={plot.stop_ts}
-            readOnly={locked}
-            onChange={(which, ts) => patch(which === 'start' ? { start_ts: ts } : { stop_ts: ts })}
-          />
-        </View>
+        <SurveyTimeBox
+          title={plot.plot_type === 'point_count' ? t('plot.countTime') : t('surveyTime.title')}
+          start={plot.start_ts}
+          end={plot.stop_ts}
+          readOnly={locked}
+          onChange={(which, ts) => patch(which === 'start' ? { start_ts: ts } : { stop_ts: ts })}
+        />
 
-        <View className="mb-3">
-          <Text className="mb-1 text-xs font-medium text-gray-600 dark:text-gray-400">
-            {t('plot.recordedBy')}
-          </Text>
-          <Pressable
-            onPress={() => setSurveyorSheetOpen(true)}
-            className="flex-row items-center justify-between rounded-lg border border-gray-200 bg-card px-3 py-2.5 active:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:active:bg-gray-800"
-          >
-            <Text
-              className={`flex-1 text-sm ${plot.recorded_by ? 'text-gray-900 dark:text-gray-100' : 'text-gray-400 dark:text-gray-500'}`}
-              numberOfLines={1}
-            >
-              {plot.recorded_by || t('plot.assignSurveyor')}
-            </Text>
-            <Ionicons name="people-outline" size={16} color={c.ink3} />
-          </Pressable>
-        </View>
+        <SurveyorRow value={plot.recorded_by} onPress={() => setSurveyorSheetOpen(true)} />
       </Section>
 
       {/* A transect has no centre-point map to carry the boundary, so it keeps
@@ -733,116 +558,11 @@ function EnvTab({
         </CollapsibleSection>
       ) : null}
 
-      <CollapsibleSection title={t('plot.advanced')}>
-        <LabeledNumField
-          label={t('plot.elevation')}
-          suffix="m"
-          value={plot.elevation_m}
-          onSave={(n) => patch({ elevation_m: n, elevation_source: n != null ? 'manual' : null })}
-        />
-        <LabeledNumField
-          label={t('plot.slope')}
-          suffix="°"
-          value={plot.slope_deg}
-          min={0}
-          max={90}
-          onSave={(n) => patch({ slope_deg: n })}
-        />
-        <LabeledNumField
-          label={t('plot.aspect')}
-          suffix="°"
-          value={plot.aspect_deg}
-          min={0}
-          max={359}
-          onSave={(n) => patch({ aspect_deg: n })}
-        />
-        <LabeledField
-          label={t('plot.terrainPosition')}
-          value={plot.terrain_position ?? ''}
-          placeholder="ridge / upper / mid / lower / valley / plain"
-          onSave={(v) => patch({ terrain_position: v || null })}
-        />
-        <LabeledNumField
-          label={t('plot.vascularCover')}
-          suffix="%"
-          value={plot.vascular_cover_pct}
-          min={0}
-          max={100}
-          onSave={(n, done) => patchCover('vascular_cover_pct', n, done)}
-        />
-        <LabeledNumField
-          label={t('plot.bryophyteCover')}
-          suffix="%"
-          value={plot.bryophyte_cover_pct}
-          min={0}
-          max={100}
-          onSave={(n, done) => patchCover('bryophyte_cover_pct', n, done)}
-        />
-        <LabeledNumField
-          label={t('plot.lichenCover')}
-          suffix="%"
-          value={plot.lichen_cover_pct}
-          min={0}
-          max={100}
-          onSave={(n, done) => patchCover('lichen_cover_pct', n, done)}
-        />
-        <LabeledNumField
-          label={t('plot.litterCover')}
-          suffix="%"
-          value={plot.litter_cover_pct}
-          min={0}
-          max={100}
-          onSave={(n, done) => patchCover('litter_cover_pct', n, done)}
-        />
-        <LabeledNumField
-          label={t('plot.rockCover')}
-          suffix="%"
-          value={plot.rock_cover_pct}
-          min={0}
-          max={100}
-          onSave={(n, done) => patchCover('rock_cover_pct', n, done)}
-        />
-        <LabeledNumField
-          label={t('plot.gravelCover')}
-          suffix="%"
-          value={plot.gravel_cover_pct}
-          min={0}
-          max={100}
-          onSave={(n, done) => patchCover('gravel_cover_pct', n, done)}
-        />
-        <LabeledNumField
-          label={t('plot.bareCover')}
-          suffix="%"
-          value={plot.bareland_cover_pct}
-          min={0}
-          max={100}
-          onSave={(n, done) => patchCover('bareland_cover_pct', n, done)}
-        />
-        {/* Running total for the seven ground-cover fractions. Warn rather than
-            block: in the field you rarely enter them in an order that keeps the
-            running sum valid, and a hard gate would fight the auto-fill. */}
-        <View className="px-4 pb-3 pt-1">
-          <Text
-            className={`text-xs ${
-              coverFilled < COVER_KEYS.length
-                ? 'text-gray-500 dark:text-gray-400'
-                : coverRounded === 100
-                  ? 'text-emerald-600 dark:text-emerald-400'
-                  : 'text-amber-600 dark:text-amber-500'
-            }`}
-          >
-            {coverFilled < COVER_KEYS.length
-              ? t('plot.coverPartial', {
-                  filled: coverFilled,
-                  total: COVER_KEYS.length,
-                  sum: coverRounded,
-                })
-              : coverRounded === 100
-                ? t('plot.coverOk')
-                : t('plot.coverMismatch', { sum: coverRounded })}
-          </Text>
-        </View>
-      </CollapsibleSection>
+      <EnvAdvancedSection
+        values={plot}
+        // A typed elevation is a manual one (GNSS fixes set their own source).
+        onPatch={(p) => patch('elevation_m' in p ? { ...p, elevation_source: p.elevation_m != null ? 'manual' : null } : p)}
+      />
 
       <EnvPhotoSection plot={plot} onUpdated={onUpdated} />
 
@@ -939,161 +659,24 @@ function PlotBoundarySection({ plot }: { plot: PlotSurvey }) {
   );
 }
 
+/** 小區 on a fixed plot: its `plot_subplots` rows through SubplotSectionView. */
 function SubplotSection({ plot, onUpdated }: { plot: PlotSurvey; onUpdated: () => void }) {
-  const c = useThemeColors();
-  const { t } = useTranslation();
-
-  // +/- icons sit on a dark button in dark mode — use a bright glyph there.
-  const stepIcon = c.ink;
   const [subplots, setSubplots] = useState<Subplot[]>([]);
   const reload = useCallback(() => setSubplots(listSubplots(plot.id)), [plot.id]);
   useEffect(() => reload(), [reload]);
-
-  // Subplots of one size: with this on, one width / length pair applies to all of them.
-  const [uniform, setUniform] = useState(true);
-  // One-time init from existing data: default ON unless subplots already differ.
-  const syncedRef = useRef(false);
-  useEffect(() => {
-    if (syncedRef.current || subplots.length === 0) return;
-    syncedRef.current = true;
-    const { width_m: w, length_m: l } = subplots[0];
-    setUniform(subplots.every((s) => s.width_m === w && s.length_m === l));
-  }, [subplots]);
-
-  /** Write the same width/length to every subplot. */
-  const applyUniform = (fields: { width_m?: number | null; length_m?: number | null }) => {
-    for (const s of subplots) updateSubplot(s.id, fields);
-    reload();
-    onUpdated();
-  };
-
-  const count = subplots.length;
-  const setCount = (n: number) => {
-    if (n < 0) return;
-    setSubplotCount(plot.id, n);
-    const fresh = listSubplots(plot.id);
-    // In uniform mode, newly-added subplots inherit the shared size.
-    if (uniform && fresh.length > 0) {
-      const { width_m: w, length_m: l } = fresh[0];
-      for (const s of fresh) updateSubplot(s.id, { width_m: w, length_m: l });
-    }
-    setSubplots(listSubplots(plot.id));
-    onUpdated();
-  };
-
-  const toggleUniform = () => {
-    const next = !uniform;
-    setUniform(next);
-    // Turning ON: propagate the first subplot's size to all so they match.
-    if (next && subplots.length > 0) {
-      applyUniform({ width_m: subplots[0].width_m, length_m: subplots[0].length_m });
-    }
-  };
-
-  const first = subplots[0];
-
   return (
-    <CollapsibleSection title={t('plot.subplots')}>
-      <Text className="mb-2 text-[11px] text-gray-500 dark:text-gray-400">
-        {t('plot.subplotsDesc')}
-      </Text>
-      <View className="mb-3 flex-row items-center">
-        <Pressable
-          onPress={() => setCount(count - 1)}
-          disabled={count <= 0}
-          className={`h-9 w-9 items-center justify-center rounded-full ${count <= 0 ? 'bg-gray-100 dark:bg-gray-800' : 'bg-gray-200 active:bg-gray-300 dark:bg-gray-700 dark:active:bg-gray-600'}`}
-        >
-          <Ionicons name="remove" size={18} color={count <= 0 ? c.ink3 : stepIcon} />
-        </Pressable>
-        <Text className="mx-4 min-w-[24px] text-center text-lg font-semibold text-gray-900 dark:text-gray-100">
-          {count}
-        </Text>
-        <Pressable
-          onPress={() => setCount(count + 1)}
-          className="h-9 w-9 items-center justify-center rounded-full bg-gray-200 active:bg-gray-300 dark:bg-gray-700 dark:active:bg-gray-600"
-        >
-          <Ionicons name="add" size={18} color={stepIcon} />
-        </Pressable>
-        <Text className="ml-3 text-[11px] text-gray-500 dark:text-gray-400">
-          {t('plot.subplotCount')}
-        </Text>
-      </View>
-
-      {count > 0 ? (
-        <Pressable onPress={toggleUniform} className="mb-2 flex-row items-center" hitSlop={6}>
-          <CheckboxMark checked={uniform} />
-          <Text className="ml-2 text-sm text-gray-800 dark:text-gray-200">
-            {t('plot.subplotUniform')}
-          </Text>
-        </Pressable>
-      ) : null}
-
-      {/* Uniform mode: one shared 寬/長 pair applied to all subplots. */}
-      {uniform && count > 0 ? (
-        <View className="mb-2 rounded-lg border border-gray-200 bg-card px-3 py-2 dark:border-gray-700 dark:bg-gray-900">
-          <Text className="mb-1 text-[11px] text-gray-500 dark:text-gray-400">
-            {t('plot.subplotSharedSize')}
-          </Text>
-          <View className="flex-row gap-3">
-            <View className="flex-1">
-              <LabeledNumField
-                label={t('plot.width')}
-                value={first?.width_m ?? null}
-                onSave={(n) => applyUniform({ width_m: n })}
-              />
-            </View>
-            <View className="flex-1">
-              <LabeledNumField
-                label={t('plot.length')}
-                value={first?.length_m ?? null}
-                onSave={(n) => applyUniform({ length_m: n })}
-              />
-            </View>
-          </View>
-        </View>
-      ) : null}
-
-      {subplots.map((s) => (
-        <View
-          key={s.id}
-          className="mb-2 rounded-lg border border-gray-200 bg-card px-3 py-2 dark:border-gray-700 dark:bg-gray-900"
-        >
-          <LabeledField
-            label={t('plot.subplotName', { idx: s.idx })}
-            value={s.label}
-            onSave={(v) => {
-              updateSubplot(s.id, { label: v });
-              reload();
-            }}
-          />
-          {/* Per-subplot 寬/長 only when sizes are independent. */}
-          {!uniform ? (
-            <View className="flex-row gap-3">
-              <View className="flex-1">
-                <LabeledNumField
-                  label={t('plot.width')}
-                  value={s.width_m}
-                  onSave={(n) => {
-                    updateSubplot(s.id, { width_m: n });
-                    reload();
-                  }}
-                />
-              </View>
-              <View className="flex-1">
-                <LabeledNumField
-                  label={t('plot.length')}
-                  value={s.length_m}
-                  onSave={(n) => {
-                    updateSubplot(s.id, { length_m: n });
-                    reload();
-                  }}
-                />
-              </View>
-            </View>
-          ) : null}
-        </View>
-      ))}
-    </CollapsibleSection>
+    <SubplotSectionView
+      subplots={subplots}
+      setCount={(n) => {
+        setSubplotCount(plot.id, n);
+        return listSubplots(plot.id);
+      }}
+      update={(id, fields) => updateSubplot(id, fields)}
+      onChanged={() => {
+        reload();
+        onUpdated();
+      }}
+    />
   );
 }
 
@@ -1114,181 +697,28 @@ function SpeciesGateScreen() {
 // Layer section (rendered inside EnvTab for fixed plots)
 // ─────────────────────────────────────────────────────────────────────
 
+/** 分層 on a fixed plot: its `plot_survey_layers` rows through LayerSectionView. */
 function LayerSection({ plot, onUpdated }: { plot: PlotSurvey; onUpdated: () => void }) {
-  const c = useThemeColors();
-  const { t } = useTranslation();
-
-  // +/- icons sit on a dark button in dark mode — use a bright glyph there.
-  const stepIcon = c.ink;
   const [layers, setLayers] = useState<PlotLayer[]>([]);
   useEffect(() => {
     setLayers(getPlotLayers(plot.id));
   }, [plot.id, plot.layer_count]);
-
-  const activeLayers = getActiveLayers(plot.layer_count);
-
-  const patchLayer = (
-    layerIdx: number,
-    fields: {
-      cover_pct?: number | null;
-      height_cm?: number | null;
-      height_unit?: HeightUnit;
-      method?: AbundanceMethod;
-    },
-  ) => {
-    updatePlotLayer(plot.id, layerIdx, fields);
-    setLayers(getPlotLayers(plot.id));
-    onUpdated();
-  };
-
-  const decrement = () => {
-    if (plot.layer_count <= 1) return;
-    setPlotLayerCount(plot.id, plot.layer_count - 1);
-    onUpdated();
-  };
-  const increment = () => {
-    if (plot.layer_count >= MAX_LAYER_COUNT) return;
-    setPlotLayerCount(plot.id, plot.layer_count + 1);
-    onUpdated();
-  };
-
   return (
-    <CollapsibleSection title={t('plot.layerSection')}>
-      <View className="mb-3 rounded-lg border border-gray-200 bg-card px-3 py-3 dark:border-gray-700 dark:bg-gray-900">
-        <Text className="text-xs font-medium text-gray-600 dark:text-gray-400">
-          {t('plot.layerCount')}
-        </Text>
-        <View className="mt-2 flex-row items-center">
-          <Pressable
-            onPress={decrement}
-            disabled={plot.layer_count <= 1}
-            className={`h-9 w-9 items-center justify-center rounded-full ${plot.layer_count <= 1 ? 'bg-gray-100 dark:bg-gray-800' : 'bg-gray-200 active:bg-gray-300 dark:bg-gray-700 dark:active:bg-gray-600'}`}
-          >
-            <Ionicons
-              name="remove"
-              size={18}
-              color={plot.layer_count <= 1 ? c.ink3 : stepIcon}
-            />
-          </Pressable>
-          <Text className="mx-4 min-w-[24px] text-center text-lg font-semibold text-gray-900 dark:text-gray-100">
-            {plot.layer_count}
-          </Text>
-          <Pressable
-            onPress={increment}
-            disabled={plot.layer_count >= MAX_LAYER_COUNT}
-            className={`h-9 w-9 items-center justify-center rounded-full ${plot.layer_count >= MAX_LAYER_COUNT ? 'bg-gray-100 dark:bg-gray-800' : 'bg-gray-200 active:bg-gray-300 dark:bg-gray-700 dark:active:bg-gray-600'}`}
-          >
-            <Ionicons
-              name="add"
-              size={18}
-              color={plot.layer_count >= MAX_LAYER_COUNT ? c.ink3 : stepIcon}
-            />
-          </Pressable>
-        </View>
-        {/* Own line, not squeezed into the stepper row: the hint names all six
-            layers and was being clipped mid-string there. */}
-        <Text className="mt-2 text-[11px] leading-4 text-gray-500 dark:text-gray-400">
-          {t('plot.layerHint', { max: MAX_LAYER_COUNT })}
-        </Text>
-      </View>
-      <Text className="mb-2 text-[11px] text-gray-500 dark:text-gray-400">
-        {t('plot.layerDesc')}
-      </Text>
-      {activeLayers.map((layerKey) => {
-        const idx = layerIndexOf(layerKey as FixedLayer);
-        const row = layers.find((l) => l.layer_index === idx) ?? null;
-        return (
-          <View
-            key={layerKey}
-            className="mb-2 rounded-lg border border-gray-200 bg-card px-3 py-3 dark:border-gray-700 dark:bg-gray-900"
-          >
-            <Text className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-              {layerLabel(layerKey)}
-            </Text>
-            <View className="mt-2 flex-row gap-3">
-              <View className="flex-1">
-                <LabeledNumField
-                  label="Cover"
-                  suffix="%"
-                  value={row?.cover_pct ?? null}
-                  min={0}
-                  max={100}
-                  onSave={(n) => patchLayer(idx, { cover_pct: n })}
-                />
-              </View>
-              <View className="flex-1">
-                {(() => {
-                  const unit: HeightUnit = row?.height_unit ?? 'cm';
-                  const display =
-                    row?.height_cm == null
-                      ? null
-                      : unit === 'm'
-                        ? row.height_cm / 100
-                        : row.height_cm;
-                  return (
-                    <>
-                      <LabeledNumField
-                        label="Height"
-                        suffix={unit}
-                        value={display}
-                        onSave={(n) =>
-                          patchLayer(idx, {
-                            height_cm: n == null ? null : unit === 'm' ? n * 100 : n,
-                          })
-                        }
-                      />
-                      <View className="-mt-1 flex-row gap-1">
-                        {(['cm', 'm'] as HeightUnit[]).map((u) => {
-                          const on = unit === u;
-                          return (
-                            <Pressable
-                              key={u}
-                              onPress={() => patchLayer(idx, { height_unit: u })}
-                              className={`rounded px-2 py-0.5 ${on ? 'bg-emerald-500' : 'bg-gray-100 dark:bg-gray-800'}`}
-                            >
-                              <Text
-                                className={`text-[11px] font-medium ${on ? 'text-white' : 'text-gray-600 dark:text-gray-300'}`}
-                              >
-                                {u}
-                              </Text>
-                            </Pressable>
-                          );
-                        })}
-                      </View>
-                    </>
-                  );
-                })()}
-              </View>
-            </View>
-            <Text className="mt-1 text-xs font-medium text-gray-600 dark:text-gray-400">
-              {t('plot.defaultAbundanceUnit')}
-            </Text>
-            <View className="mt-1 flex-row gap-2">
-              {(['percent', 'BB', 'DBH'] as AbundanceMethod[]).map((m) => {
-                const on = row?.method === m;
-                return (
-                  <Pressable
-                    key={m}
-                    onPress={() => patchLayer(idx, { method: m })}
-                    className={`rounded-full px-3 py-1.5 ${on ? 'bg-emerald-500' : 'bg-gray-100 dark:bg-gray-800'}`}
-                  >
-                    <Text
-                      className={`text-xs font-medium ${on ? 'text-white' : 'text-gray-700 dark:text-gray-300'}`}
-                    >
-                      {m === 'BB'
-                        ? 'Braun-Blanquet'
-                        : m === 'percent'
-                          ? t('plot.percentUnit')
-                          : 'DBH'}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </View>
-        );
-      })}
-    </CollapsibleSection>
+    <LayerSectionView
+      layerCount={plot.layer_count}
+      maxLayers={MAX_LAYER_COUNT}
+      activeLayers={getActiveLayers(plot.layer_count)}
+      layers={layers}
+      onLayerCount={(n) => {
+        setPlotLayerCount(plot.id, n);
+        onUpdated();
+      }}
+      onPatchLayer={(layerIdx, fields) => {
+        updatePlotLayer(plot.id, layerIdx, fields);
+        setLayers(getPlotLayers(plot.id));
+        onUpdated();
+      }}
+    />
   );
 }
 
@@ -1298,133 +728,22 @@ function LayerSection({ plot, onUpdated }: { plot: PlotSurvey; onUpdated: () => 
 
 function EnvPhotoSection({ plot, onUpdated }: { plot: PlotSurvey; onUpdated: () => void }) {
   const { t } = useTranslation();
-
   const photos = parseEnvPhotos(plot.env_photos_json);
-  const [viewerIndex, setViewerIndex] = useState<number | null>(null);
-
-  const append = (uris: string[]) => {
-    if (uris.length === 0) return;
-    updatePlotEnvPhotos(plot.id, [...photos, ...uris]);
-    onUpdated();
-  };
-  const remove = (uri: string) => {
-    updatePlotEnvPhotos(
-      plot.id,
-      photos.filter((u) => u !== uri),
-    );
-    onUpdated();
-  };
-
-  const handleTake = async () => {
-    try {
-      const uri = await captureEnvPhoto();
-      if (uri) append([uri]);
-    } catch (e) {
-      Alert.alert(t('plot.takePhotoFail'), errText(e));
-    }
-  };
-  const handlePick = async () => {
-    try {
-      const uris = await pickPhotos();
-      append(uris);
-    } catch (e) {
-      Alert.alert(t('plot.pickPhotoFail'), errText(e));
-    }
-  };
-
   return (
-    <View className="px-4 py-3">
-      <View className="mb-2 flex-row items-center">
-        <Text className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-          {t('plot.envPhotos')}
-        </Text>
-        {photos.length > 0 ? (
-          <Text className="ml-2 text-xs text-gray-500 dark:text-gray-400">({photos.length})</Text>
-        ) : null}
-      </View>
-      <Text className="mb-2 text-[11px] text-gray-500 dark:text-gray-400">
-        {t('plot.envPhotoNaming', { plotid: plot.plotid || '<plotid>' })}
-      </Text>
-      <PhotoGrid
-        photos={photos}
-        onAdd={handleTake}
-        onPickLibrary={handlePick}
-        onView={(idx) => setViewerIndex(idx)}
-        onRemove={remove}
-      />
-      <PhotoViewerModal photos={photos} index={viewerIndex} onClose={() => setViewerIndex(null)} />
-    </View>
-  );
-}
-
-/**
- * Two-line navigation-bar title: the plot id over the live diversity one-liner.
- * Tapping it toggles the expanded stats card in the species list — that card's
- * own collapsed row used to live above the list and cost 33pt there.
- *
- * Sizes are pinned in `style`, not via `text-sm` / `text-xs`: those resolve
- * through FontScaleProvider, and at the largest font scale two scaled lines
- * would overflow the native header's fixed height. The collection screen's
- * custom title pins its size for the same reason. The trade is deliberate —
- * every number here is also printed at full size one tap away.
- */
-function PlotHeaderTitle({
-  plotid,
-  stats,
-  expanded,
-  onToggle,
-}: {
-  plotid: string;
-  stats: string | null;
-  expanded: boolean;
-  onToggle: () => void;
-}) {
-  const c = useThemeColors();
-  const { t } = useTranslation();
-
-  if (stats === null) {
-    return (
-      <Text
-        className="font-semibold text-gray-900 dark:text-gray-100"
-        style={{ fontSize: 17, maxWidth: 200 }}
-        numberOfLines={1}
-      >
-        {plotid}
-      </Text>
-    );
-  }
-
-  return (
-    <Pressable
-      onPress={onToggle}
-      hitSlop={8}
-      accessibilityRole="button"
-      accessibilityLabel={t('plotStats.title')}
-      accessibilityState={{ expanded }}
-      className="items-center active:opacity-60"
-    >
-      <Text
-        className="font-semibold text-gray-900 dark:text-gray-100"
-        style={{ fontSize: 15, lineHeight: 18, maxWidth: 200 }}
-        numberOfLines={1}
-      >
-        {plotid}
-      </Text>
-      <View className="flex-row items-center">
-        <Text
-          className="text-emerald-700 dark:text-emerald-300"
-          style={{ fontSize: 11, lineHeight: 14, maxWidth: 184 }}
-          numberOfLines={1}
-        >
-          {stats}
-        </Text>
-        <Ionicons
-          name={expanded ? 'chevron-up' : 'chevron-down'}
-          size={11}
-          color={c.accent}
-          style={{ marginLeft: 3 }}
-        />
-      </View>
-    </Pressable>
+    <EnvPhotoSectionView
+      photos={photos}
+      hint={t('plot.envPhotoNaming', { plotid: plot.plotid || '<plotid>' })}
+      onAppend={(uris) => {
+        updatePlotEnvPhotos(plot.id, [...photos, ...uris]);
+        onUpdated();
+      }}
+      onRemove={(uri) => {
+        updatePlotEnvPhotos(
+          plot.id,
+          photos.filter((u) => u !== uri),
+        );
+        onUpdated();
+      }}
+    />
   );
 }

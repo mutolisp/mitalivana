@@ -5,10 +5,10 @@
  * Pure: check:templates runs it under Node; the forms (2C) and the tree form
  * show what it finds, and surveyCore refuses values that cannot be stored.
  */
-import type { ComponentDef, ComponentValues, FieldDef, FieldValue, Params, Problem } from './registry';
-import type { SurveyLevel } from './template/types';
+import { componentDef, type ComponentDef, type ComponentValues, type FieldDef, type FieldValue, type Params, type Problem } from './registry';
+import type { ComponentInstance, SurveyLevel } from './template/types';
 
-const isEmpty = (v: FieldValue | undefined) =>
+export const isEmpty = (v: FieldValue | undefined) =>
   v == null || v === '' || (Array.isArray(v) && v.length === 0) || (typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length === 0);
 
 const numeric = (f: FieldDef) => ('col' in f.storage || 'values' in f.storage) && f.storage.valueType === 'num';
@@ -64,6 +64,30 @@ export function componentProblems(def: ComponentDef, params: Params, level: Surv
 
 /** Field-level codes a store refuses; 'required' and the rules across fields are not among them. */
 const FIELD_CODES = new Set(['not_a_number', 'below_min', 'above_max', 'not_integer', 'not_allowed', 'not_a_list', 'not_per_layer']);
+
+/**
+ * Whether a template's author made the component 必填 (2G-e; decided
+ * 2026-10-04): the four every survey has (taxon, time, comments, surveyors)
+ * are `required` because they always exist, not because they must be filled,
+ * so they take no part.
+ */
+export function requiredByAuthor(c: Pick<ComponentInstance, 'type' | 'required'>): boolean {
+  return c.required && !componentDef(c.type)?.required;
+}
+
+/**
+ * A component's problems on one owner, with 必填未填 (`required_missing`, an
+ * error) when its author made it required and nothing is in it. An error
+ * here is counted when the record is finished and marked on lists; it never
+ * stops a value being stored (storeBlockers only looks at fields).
+ */
+export function instanceProblems(c: ComponentInstance, values: ComponentValues): Problem[] {
+  const def = componentDef(c.type);
+  if (!def) return [];
+  const out = componentProblems(def, c.params, c.level, c.key, values);
+  if (requiredByAuthor(c) && !Object.values(values).some((v) => !isEmpty(v))) out.push({ field: null, code: 'required_missing', severity: 'error' });
+  return out;
+}
 
 /** Problems a store must refuse: values of the wrong kind or outside what a
  *  field accepts. Missing values and rules across fields are left to the forms

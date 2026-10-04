@@ -6,9 +6,8 @@ import { Stack, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { BackHeaderLeft, goBackOrHome } from '~/lib/goBack';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { isoDate, isoDateTime, isoTime } from '~/lib/datetime';
-import { useElapsed } from '~/lib/useElapsed';
-import { ContextChip } from '~/components/ui/ContextChip';
+import { isoDateTime, isoTime } from '~/lib/datetime';
+import { ContextChip, ContextStrip } from '~/components/ui/ContextChip';
 import {
   Alert,
   FlatList,
@@ -23,6 +22,7 @@ import { KeyboardStickyView } from '~/components/KeyboardAvoidingView';
 import { HeaderIconButton } from '~/components/HeaderIconButton';
 import { RecordMenuButton } from '~/components/RecordMenuButton';
 import { HeaderTitleText } from '~/components/HeaderTitleText';
+import { RecordStatusLine } from '~/components/RecordStatusLine';
 import { showActionSheet } from '~/components/ActionSheet';
 import { hasInatChanges, syncRecord, useInatSync } from '~/lib/inatUpload';
 import { inatTokenAvailableQuietly } from '~/lib/inatAuth';
@@ -70,12 +70,13 @@ import { SiteAssignSheet } from '~/components/SiteAssignSheet';
 import { BatchImportModal } from '~/components/BatchImportModal';
 import { PhotoImportModal } from '~/components/PhotoImportModal';
 import { pickPhotosWithExif, takePhotoWithExif, type PickedPhoto } from '~/lib/photoCapture';
+import { takeSpeciesPhotos } from '~/lib/speciesPhotos';
 import { computeDiversity } from '~/lib/diversity';
 import { firstPhotoFix, rememberPickedPhotos } from '~/lib/photoMeta';
 import { SwipeRowActions } from '~/components/SwipeRowActions';
 import { SelectionDock, SelectionToolbar } from '~/components/SelectionToolbar';
 import { useListSelection } from '~/lib/useListSelection';
-import { useSettings, type RecordSort, type SortDirection } from '~/stores/settings';
+import { useSettings } from '~/stores/settings';
 import { useToast } from '~/stores/toast';
 import { useActiveSession } from '~/stores/activeSession';
 import { useActivePlot } from '~/stores/activePlot';
@@ -90,6 +91,7 @@ import {
   useTrackRecorder,
 } from '~/lib/trackRecorder';
 import { stampNewRecord } from '~/lib/recordFix';
+import { showSpatialMenu } from '~/lib/spatialMenu';
 import { useRecordEditing } from '~/lib/useRecordEditing';
 import { chooseEndTime } from '~/lib/endTimeChoice';
 import { SurveyTimesModal } from '~/components/SurveyTimeFields';
@@ -100,50 +102,10 @@ import { saveVersionSoon } from '~/db/recordVersions';
 import { useVersionOnLeave } from '~/lib/useVersionOnLeave';
 import { useThemeColors } from '~/theme/colors';
 import { Chip } from '~/components/ui/Chip';
+import { sentenceParts, slot, speciesParts } from '~/lib/nameParts';
+import { HIGH_LEVEL_GROUPS, sortRecords } from '~/lib/recordList';
+import { RecordSortControls } from '~/components/RecordSortControls';
 
-function sortRecords(
-  rs: RecordWithTaxon[],
-  order: RecordSort,
-  direction: SortDirection,
-): RecordWithTaxon[] {
-  const cmp = (a: string, b: string) => a.localeCompare(b);
-  const arr = [...rs];
-  const sorted = (() => {
-    switch (order) {
-      case 'cname':
-        return arr.sort((a, b) =>
-          cmp(a.common_name_c || a.simple_name, b.common_name_c || b.simple_name),
-        );
-      case 'name':
-        return arr.sort((a, b) => cmp(a.simple_name, b.simple_name));
-      case 'family':
-        return arr.sort((a, b) => {
-          const f = cmp(a.family || '', b.family || '');
-          if (f !== 0) return f;
-          return cmp(a.simple_name, b.simple_name);
-        });
-      case 'observed':
-      default:
-        return arr.sort((a, b) => a.observed_at - b.observed_at);
-    }
-  })();
-  return direction === 'desc' ? sorted.reverse() : sorted;
-}
-
-const HIGH_LEVEL_GROUPS: Array<{
-  key: string;
-  field: 'kingdom' | 'phylum' | 'class' | 'order';
-  value: string;
-}> = [
-  { key: 'plantae', field: 'kingdom', value: 'Plantae' },
-  { key: 'aves', field: 'class', value: 'Aves' },
-  { key: 'mammalia', field: 'class', value: 'Mammalia' },
-  { key: 'reptilia', field: 'class', value: 'Reptilia' },
-  { key: 'amphibia', field: 'class', value: 'Amphibia' },
-  { key: 'insecta', field: 'class', value: 'Insecta' },
-  { key: 'fish', field: 'class', value: 'Actinopterygii' },
-  { key: 'fungi', field: 'kingdom', value: 'Fungi' },
-];
 
 export default function SessionDetailScreen() {
   const c = useThemeColors();
@@ -152,12 +114,6 @@ export default function SessionDetailScreen() {
   useVersionOnLeave('session', sessionId);
   const router = useRouter();
   const { t } = useTranslation();
-  const sortLabel: Record<RecordSort, string> = {
-    observed: t('session.sortObserved'),
-    cname: t('session.sortCname'),
-    name: t('session.sortName'),
-    family: t('session.sortFamily'),
-  };
   const toast = useToast((s) => s.show);
   const refreshActive = useActiveSession((s) => s.refresh);
   const refreshActivePlot = useActivePlot((s) => s.refresh);
@@ -195,7 +151,6 @@ export default function SessionDetailScreen() {
     persistedSegs.reduce((n, s) => n + s.length, 0) + (tracking ? livePoints.length : 0);
   const sortOrder = useSettings((s) => s.last_record_sort);
   const sortDir = useSettings((s) => s.last_record_sort_dir);
-  const setSetting = useSettings((s) => s.set);
 
   // Lock + undo / redo (src/lib/useRecordEditing): an ended checklist is
   // read-only until unlocked here; every reload after an edit is one step.
@@ -412,7 +367,9 @@ export default function SessionDetailScreen() {
         { label: t('session.addAnyway') },
       ];
       const choice = await showActionSheet({
-        title: t('session.alreadyExists', { name: result.cname || result.name }),
+        titleParts: sentenceParts(t('session.alreadyExists', { name: slot('name') }), {
+          name: speciesParts(result.cname, result.name, result.rank, result.kingdom),
+        }),
         message: t('session.duplicateHint'),
         cancelLabel: t('common.cancel'),
         options,
@@ -529,28 +486,9 @@ export default function SessionDetailScreen() {
   const handleAddPhoto = async (mode: 'camera' | 'library') => {
     if (!activeRecord) return;
     try {
-      const { captureAndSavePhoto, pickPhotosWithExif, buildContext } = await import(
-        '~/lib/photoCapture'
-      );
-      const ctx = buildContext(activeRecord);
-      let picked: PickedPhoto[] = [];
-      if (mode === 'camera') {
-        const uri = await captureAndSavePhoto(ctx);
-        // The camera path already stamps a fresh fix into the file it writes,
-        // so its EXIF is on disk and readable; nothing to carry separately.
-        if (uri) picked = [{ uri, exif: null }];
-      } else {
-        // `pickPhotosWithExif`, not `pickPhotos`: adding a photo to an existing
-        // record used to throw the EXIF away, so a record created first and
-        // photographed second never got the coordinate that the SAME photo
-        // would have supplied through the import flow. The picker's exif map is
-        // also the only place a HEIC's position is legible.
-        picked = await pickPhotosWithExif();
-      }
+      const { buildContext } = await import('~/lib/photoCapture');
+      const picked = await takeSpeciesPhotos(buildContext(activeRecord), mode);
       if (picked.length === 0) return;
-      // Unconditional: see rememberPickedPhotos for why this cannot live inside
-      // the 'record has no coordinate' branch below.
-      rememberPickedPhotos(picked);
       const newUris = picked.map((p) => p.uri);
       const existing = parsePhotoPaths(activeRecord.photo_paths);
       const next = [...existing, ...newUris];
@@ -804,42 +742,19 @@ export default function SessionDetailScreen() {
 
   const handleSpatialMenu = async () => {
     if (!session) return;
-    const trackHasData = trackCount > 0 || (session.track_geojson ?? '').length > 0;
-    const hasPoint = session.start_lat !== null && session.start_lng !== null;
-    const hasSite = session.site_id !== null;
-    const hasAnySpatial = hasPoint || hasSite || trackHasData;
-
-    const options: Array<{ label: string; action: () => void; destructive?: boolean }> = [
-      {
-        label: hasSite
-          ? t('session.assignSiteCurrent', { name: site?.name ?? '' })
-          : t('session.assignOrCreateSite'),
-        action: () => setSiteSheetOpen(true),
-      },
-      {
-        label: t('session.createPointSiteFromGnss'),
-        action: handleCreatePointSiteFromGps,
-      },
-      {
-        label: hasPoint ? t('session.relocateStart') : t('session.locateNoSite'),
-        action: handleDropPoint,
-      },
-      tracking
-        ? { label: t('session.stopTrack', { count: trackCount }), action: handleStopTrack }
-        : {
-            label: trackHasData ? t('session.resumeTrack') : t('session.startTrack'),
-            action: handleStartTrack,
-          },
-    ];
-    if (hasAnySpatial) {
-      options.push({ label: t('session.clearSpatial'), action: handleClearGps, destructive: true });
-    }
-
-    const idx = await showActionSheet({
-      title: t('session.spatialMenuTitle'),
-      options: options.map((o) => ({ label: o.label, destructive: o.destructive })),
+    await showSpatialMenu({
+      siteName: session.site_id !== null ? (site?.name ?? '') : null,
+      hasPoint: session.start_lat !== null && session.start_lng !== null,
+      trackHasData: trackCount > 0 || (session.track_geojson ?? '').length > 0,
+      tracking,
+      trackCount,
+      onAssignSite: () => setSiteSheetOpen(true),
+      onCreatePointSite: handleCreatePointSiteFromGps,
+      onDropPoint: handleDropPoint,
+      onStartTrack: handleStartTrack,
+      onStopTrack: handleStopTrack,
+      onClear: handleClearGps,
     });
-    if (idx >= 0 && idx < options.length) options[idx].action();
   };
 
   const handleAssignSite = (siteId: number | null) => {
@@ -896,32 +811,6 @@ export default function SessionDetailScreen() {
     }
   };
 
-  const handlePickSort = async () => {
-    const orders: RecordSort[] = ['observed', 'cname', 'name', 'family'];
-    const idx = await showActionSheet({
-      title: t('session.sortTitle'),
-      options: orders.map((o) => ({
-        label:
-          o === sortOrder ? t('session.sortActiveHint', { label: sortLabel[o] }) : sortLabel[o],
-      })),
-    });
-    if (idx < 0 || idx >= orders.length) return;
-    const picked = orders[idx];
-    if (picked === sortOrder) {
-      // Tap the active sort again → flip direction.
-      setSetting('last_record_sort_dir', sortDir === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSetting('last_record_sort', picked);
-      // Reset direction to that sort's natural default — observed goes
-      // newest-first; everything else goes A→Z.
-      setSetting('last_record_sort_dir', picked === 'observed' ? 'desc' : 'asc');
-    }
-  };
-
-  const handleToggleSortDir = () => {
-    setSetting('last_record_sort_dir', sortDir === 'asc' ? 'desc' : 'asc');
-  };
-
   if (!session) {
     return (
       <View className="flex-1 items-center justify-center bg-card dark:bg-gray-900">
@@ -943,7 +832,7 @@ export default function SessionDetailScreen() {
             <HeaderTitleText
               text={session.name}
               subtitle={
-                <SessionStatusLine
+                <RecordStatusLine
                   active={isActive}
                   startedAt={session.started_at}
                   endedAt={session.ended_at}
@@ -1003,12 +892,7 @@ export default function SessionDetailScreen() {
         {/* Context strip — project · place · survey time · surveyor. Every
             chip keeps the tap it had as a bare icon; unset ones are dashed so
             what is still missing before ending shows at a glance. */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          className="grow-0 border-b border-gray-200 bg-card dark:border-gray-700 dark:bg-gray-900"
-          contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 8, gap: 8 }}
-        >
+        <ContextStrip>
           <ContextChip
             icon="folder-outline"
             label={project && project.id !== 0 ? project.name : t('session.projectUnset')}
@@ -1048,7 +932,7 @@ export default function SessionDetailScreen() {
             set={!!session.recorded_by}
             onPress={guard(() => setSurveyorSheetOpen(true))}
           />
-        </ScrollView>
+        </ContextStrip>
         {/* Row 2 — filter chips (scrollable) + sort + batch import. While
             selecting, the selection bar takes its place (row 1 stays). */}
         {selection.selectMode ? (
@@ -1092,34 +976,8 @@ export default function SessionDetailScreen() {
                 );
               })}
             </ScrollView>
-            {/* Sort and its direction, each a real 44 pt target. Batch and
-                photo import moved to the header's ⋯. */}
-            <View className="flex-row items-center pr-1">
-              <Pressable
-                onPress={handlePickSort}
-                accessibilityRole="button"
-                accessibilityLabel={`${t('session.sortTitle')}: ${sortLabel[sortOrder]}`}
-                className="flex-row items-center rounded-full px-2 active:bg-gray-100 dark:active:bg-gray-800"
-                style={{ minHeight: 44 }}
-              >
-                <Ionicons name="swap-vertical" size={18} color={c.ink2} />
-                <Text className="ml-0.5 text-xs text-gray-600 dark:text-gray-400">
-                  {sortLabel[sortOrder]}
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={handleToggleSortDir}
-                accessibilityRole="button"
-                accessibilityLabel={t('session.sortActiveHint', { label: sortLabel[sortOrder] })}
-                className="h-11 w-11 items-center justify-center rounded-full active:bg-gray-100 dark:active:bg-gray-800"
-              >
-                <Ionicons
-                  name={sortDir === 'desc' ? 'arrow-down' : 'arrow-up'}
-                  size={16}
-                  color={c.ink2}
-                />
-              </Pressable>
-            </View>
+            {/* Sort and its direction. Batch and photo import moved to the header's ⋯. */}
+            <RecordSortControls />
           </View>
         )}
         {filtered.length === 0 ? (
@@ -1445,39 +1303,5 @@ export default function SessionDetailScreen() {
         }}
       />
     </SafeAreaView>
-  );
-}
-
-/**
- * Under the checklist's title: a moss dot and 記錄中 · elapsed · species while
- * recording; a grey dot and 已結束 · date once ended. Elapsed ticks once a
- * minute (useElapsed).
- */
-function SessionStatusLine({
-  active,
-  startedAt,
-  endedAt,
-  species,
-}: {
-  active: boolean;
-  startedAt: number;
-  endedAt: number | null;
-  species: number;
-}) {
-  const { t } = useTranslation();
-  const elapsed = useElapsed(startedAt);
-  return (
-    <View className="flex-row items-center">
-      <View className={`mr-1.5 h-2 w-2 rounded-full ${active ? 'bg-accent-600 dark:bg-accent-400' : 'bg-gray-400'}`} />
-      <Text
-        numberOfLines={1}
-        className={`text-xs font-medium ${active ? 'text-accent-600 dark:text-accent-400' : 'text-gray-500 dark:text-gray-400'}`}
-        style={{ fontVariant: ['tabular-nums'] }}
-      >
-        {active
-          ? `${t('records.recording')} · ${elapsed} · ${t('plotStats.sppCount', { count: species })}`
-          : `${t('session.ended')} · ${endedAt ? isoDate(endedAt) : ''}`}
-      </Text>
-    </View>
   );
 }

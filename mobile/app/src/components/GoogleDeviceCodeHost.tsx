@@ -24,6 +24,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useGoogleDeviceFlow } from '~/lib/googleAuth';
 import { useThemeColors } from '~/theme/colors';
 import { Button } from '~/components/ui/Button';
+import { ActionSheetLayer, sheetBack } from '~/components/ActionSheet';
 
 export function GoogleDeviceCodeHost() {
   const pending = useGoogleDeviceFlow((s) => s.pending);
@@ -64,7 +65,7 @@ function DeviceCodeSheet() {
   const { code, cancel } = pending;
 
   return (
-    <Modal visible animationType="slide" onRequestClose={cancel}>
+    <Modal visible animationType="slide" onRequestClose={sheetBack(cancel)}>
       <View style={{ flex: 1, paddingTop: insets.top }} className="bg-card dark:bg-gray-900">
         <View className="flex-row items-center border-b border-gray-200 px-2 py-2 dark:border-gray-800">
           <Pressable onPress={cancel} hitSlop={10} className="p-2" accessibilityLabel={t('common.cancel')}>
@@ -126,6 +127,7 @@ function DeviceCodeSheet() {
           </Text>
         </View>
       </View>
+      <ActionSheetLayer />
     </Modal>
   );
 }

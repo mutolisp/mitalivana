@@ -27,7 +27,7 @@ import {
 import { Switch } from '~/components/ui/Switch';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardAvoidingView } from './KeyboardAvoidingView';
-import { showActionSheet } from './ActionSheet';
+import { ActionSheetLayer, nameOption, sheetBack, showActionSheet } from './ActionSheet';
 import { ScientificName } from './ScientificName';
 import { useThemeColors } from '~/theme/colors';
 import { ApiError } from '~/lib/apiFetch';
@@ -57,6 +57,7 @@ import { setFavoriteFolderArea } from '~/db';
 
 import { Button } from '~/components/ui/Button';
 import { DropdownChevron } from '~/components/ui/Chevron';
+import { partsText, type NamePart } from '~/lib/nameParts';
 
 type Step = 'filters' | 'loading' | 'result';
 
@@ -294,13 +295,15 @@ export function AreaSpeciesModal({
     const e = entries[index];
     if (e.match.kind !== 'ambiguous') return;
     const idx = await showActionSheet({
-      title: e.src.name,
+      titleParts: [{ sci: e.src.name, rank: e.src.rank, kingdom: e.src.kingdom }],
       message: t('areaSpecies.pickMsg'),
-      options: e.match.candidates.map((c) => ({
-        label: `${c.simple_name}${c.name_author ? ` ${c.name_author}` : ''}${
-          c.common_name_c ? ` · ${c.common_name_c}` : ''
-        }`,
-      })),
+      // The common name first when there is one; the search also finds the scientific name.
+      options: e.match.candidates.map((c) => {
+        const sci: NamePart[] = [{ sci: c.simple_name, rank: c.rank, kingdom: c.kingdom }, ...(c.name_author ? [` ${c.name_author}`] : [])];
+        return c.common_name_c
+          ? { label: c.common_name_c, description: partsText(sci), descriptionParts: sci, keywords: c.simple_name }
+          : nameOption(sci, { keywords: c.simple_name });
+      }),
     });
     if (idx < 0) return;
     const chosen = e.match.candidates[idx];
@@ -357,7 +360,7 @@ export function AreaSpeciesModal({
     importable > 0 && !busy && (target.kind === 'existing' || folderName.trim().length > 0);
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={handleClose}>
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={sheetBack(handleClose)}>
       {/* Structure copied from PlotSpeciesValueModal, and it has to be: the
           KeyboardAvoidingView wrapper puts the caller's className on the OUTER
           measured View and gives its inner KAV `flex: 1`. Without `flex-1`
@@ -727,6 +730,7 @@ export function AreaSpeciesModal({
           ) : null}
         </View>
       </KeyboardAvoidingView>
+      <ActionSheetLayer visible={visible} />
     </Modal>
   );
 }

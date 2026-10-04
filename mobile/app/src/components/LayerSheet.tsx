@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Slider from '@react-native-community/slider';
 import { useThemeColors } from '~/theme/colors';
 import { Radio } from '~/components/ui/Radio';
+import { ActionSheetLayer, sheetBack } from '~/components/ActionSheet';
 
 /** One selectable WMTS overlay source (e.g. Academia Sinica, NLSC). */
 export type LayerSource = {
@@ -54,7 +55,7 @@ export function LayerSheet({ visible, sources, onClose }: Props) {
     (active.layers.find((l) => l.id === active.selectedId)?.title ?? active.selectedId);
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={sheetBack(onClose)}>
       <View className="flex-1">
         <Pressable
           onPress={onClose}
@@ -177,6 +178,7 @@ export function LayerSheet({ visible, sources, onClose }: Props) {
           />
         </View>
       </View>
+      <ActionSheetLayer visible={visible} />
     </Modal>
   );
 }

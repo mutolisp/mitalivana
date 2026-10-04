@@ -41,6 +41,7 @@ import { formErrorText } from '~/survey/form/text';
 import { unitPath } from '~/survey/form/units';
 import { occurrenceTitle, withNames } from '~/survey/form/useSurveyForm';
 import type { ComponentInstance } from '~/survey/template/types';
+import { occurrenceParts } from '~/lib/nameParts';
 
 type Tab = 'data' | 'freq';
 
@@ -152,7 +153,7 @@ export default function OccurrenceScreen() {
       ...(survey.style === 'plot' ? [{ label: t('surveyForm.moveTitle'), run: () => void move() }] : []),
       { label: t('common.delete'), destructive: true, run: remove },
     ];
-    const idx = await showActionSheet({ title: occurrenceTitle(o), options: items.map((x) => ({ label: x.label, destructive: x.destructive })), cancelLabel: t('common.cancel') });
+    const idx = await showActionSheet({ titleParts: occurrenceParts(o), options: items.map((x) => ({ label: x.label, destructive: x.destructive })), cancelLabel: t('common.cancel') });
     items[idx]?.run();
   };
 

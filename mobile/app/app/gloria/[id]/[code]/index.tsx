@@ -96,6 +96,7 @@ import { saveVersionSoon } from '~/db/recordVersions';
 import { useVersionOnLeave } from '~/lib/useVersionOnLeave';
 import { useThemeColors } from '~/theme/colors';
 import { CheckboxMark } from '~/components/ui/Checkbox';
+import { speciesParts, type NamePart } from '~/lib/nameParts';
 
 const ABUNDANCE = ['r!', 'r', 's', 'c', 'd'] as const;
 const UNDO_LIMIT = 100;
@@ -286,13 +287,13 @@ export default function GloriaUnitScreen() {
     setReplaceId(null);
     toast(t('gloria.unit.replaced', { name }));
   };
-  const addTaxon = async (taxonId: string, rank: string | undefined, name: string) => {
+  const addTaxon = async (taxonId: string, rank: string | undefined, name: string, parts: readonly NamePart[]) => {
     if (locked) {
       toast(t('gloria.unit.lockedToast'));
       return;
     }
     // A genus already on the roster: which morphospecies (sp1, sp2, new)?
-    const label = await pickMorphoLabel(t, state.survey.id, taxonId, rank, name);
+    const label = await pickMorphoLabel(t, state.survey.id, taxonId, rank, parts);
     if (label === undefined) return;
     let usid: number | null = null;
     const done = track(() => {
@@ -305,7 +306,11 @@ export default function GloriaUnitScreen() {
   };
   const speciesMenu = async (s: SurveySpecies) => {
     const idx = await showActionSheet({
-      title: displayName(s),
+      // displayName, the scientific name in italics.
+      titleParts: [
+        ...speciesParts(s.common_name_c, s.simple_name, s.rank, s.kingdom, s.taxon_id),
+        ...(s.verbatim_identification ? [` ${s.verbatim_identification}`] : []),
+      ],
       options: [
         { label: t('gloria.unit.openDetail') },
         { label: t('gloria.unit.replace') },
@@ -1104,7 +1109,7 @@ export default function GloriaUnitScreen() {
               onSelect={(r) => {
                 if (!r.taxon_id) return;
                 if (replaceId != null) replaceTaxon(replaceId, r.taxon_id, r.cname || r.name);
-                else void addTaxon(r.taxon_id, r.rank, r.cname || r.name);
+                else void addTaxon(r.taxon_id, r.rank, r.cname || r.name, speciesParts(r.cname, r.name, r.rank, r.kingdom));
               }}
               onFocus={
                 type === 'quadrat'

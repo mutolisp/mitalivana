@@ -15,6 +15,7 @@ import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { Text, View } from 'react-native';
 import { parseDbhArray } from '~/lib/dwcAbundanceCore';
+import { CUSTOM_METHOD, methodKey, methodOf } from '~/survey/codesets/samplingMethods';
 import { componentDef, type ComponentType, type ComponentValues, type TraitDef } from '~/survey/registry';
 import type { CodeList, ComponentInstance, Label } from '~/survey/template/types';
 import { AbundanceEditor } from './AbundanceEditor';
@@ -31,6 +32,7 @@ import {
   WorkersEditor,
 } from './BasicEditors';
 import { FrequencyEditor } from './FrequencyEditor';
+import { MethodEditor, methodName } from './MethodEditor';
 import { labelText, type EditorProps } from './shared';
 import { StructureEditor } from './StructureEditor';
 
@@ -78,6 +80,8 @@ export function ComponentEditor(props: EditorProps) {
       return props.instance.level === 'individual' ? <ElsewhereNote /> : <LocationEditor {...props} />;
     case 'choice':
       return <ChoiceEditor {...props} />;
+    case 'method':
+      return <MethodEditor {...props} />;
     case 'taxon':
     case 'dbh':
     case 'health':
@@ -166,6 +170,13 @@ export function componentSummary(t: TFunction, lang: string, instance: Component
       const codes = choiceList(codelists, instance.params.list);
       const chosen = Array.isArray(v.value) ? v.value.map(String) : typeof v.value === 'string' && v.value ? [v.value] : [];
       return chosen.map((code) => codeLabel(t, lang, codes?.items.find((it) => it.code === code), code)).join(t('builder.listSep'));
+    }
+    case 'method': {
+      const m = methodOf(methodKey(v, instance.params));
+      const name = methodKey(v, instance.params) === CUSTOM_METHOD ? str(v.protocol_name) : m ? methodName(m, lang) : '';
+      const w = num(v.width_m);
+      const l = num(v.length_m);
+      return [name, w != null && l != null ? `${w} × ${l} m` : ''].filter(Boolean).join(' · ');
     }
     case 'timestamp':
     case 'taxon':

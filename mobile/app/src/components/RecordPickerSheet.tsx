@@ -15,6 +15,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { RecordItem, RecordKind } from '~/db';
 import { useThemeColors } from '~/theme/colors';
 import { SelectMark } from '~/components/ui/SelectMark';
+import { ActionSheetLayer, sheetBack } from '~/components/ActionSheet';
 
 const KIND_LABEL: Record<RecordKind, string> = {
   session: 'favorites.kindSession',
@@ -64,7 +65,7 @@ export function RecordPickerSheet({ visible, records, onCancel, onConfirm }: Pro
     .reduce((sum, r) => sum + r.recordCount, 0);
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onCancel}>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={sheetBack(onCancel)}>
       <View className="flex-1 justify-end">
         <Pressable
           onPress={onCancel}
@@ -160,6 +161,7 @@ export function RecordPickerSheet({ visible, records, onCancel, onConfirm }: Pro
           </SafeAreaView>
         </View>
       </View>
+      <ActionSheetLayer visible={visible} />
     </Modal>
   );
 }

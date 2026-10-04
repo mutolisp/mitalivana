@@ -107,6 +107,8 @@ import { useSettings, type MapBasemap } from '~/stores/settings';
 import { useToast } from '~/stores/toast';
 import { ACTION_FILL } from '~/lib/colors';
 import { IconDisc } from '~/components/ui/IconDisc';
+import { getFwSurvey, updateSurvey } from '~/survey/db/surveys';
+import type { FwSurveyRow } from '~/survey/db/surveyCore';
 
 /** What a cluster member stands for, so a bubble can list its records. */
 type ClusterFeature =
@@ -366,6 +368,8 @@ export default function MapScreen() {
     plot?: string;
     /** MIREN site id: measure from its planned point, then offer to record the distance. */
     measureSite?: string;
+    /** A checklist / plot-style survey (2G-b): its place, or a plot-style one's boundary. */
+    survey?: string;
   }>();
   /** When set, after saving the next drawn site we bind it to this session and bounce back. */
   const handoffSessionId = useRef<number | null>(null);
@@ -374,6 +378,10 @@ export default function MapScreen() {
   const [plotHandoff, setPlotHandoff] = useState<{ plot: PlotSurvey; site: Site | null } | null>(
     null,
   );
+  /** A checklist / plot-style survey to bind the drawn site to (2G-b): a
+   *  plot-style one's boundary is redrawn in place like a plot's; a
+   *  checklist-style one gets a new site, like 快速名錄. */
+  const [surveyHandoff, setSurveyHandoff] = useState<{ survey: FwSurveyRow; site: Site | null } | null>(null);
   const activeSession = useActiveSession((s) => s.session);
   /**
    * Which session's species points are drawn.
@@ -629,7 +637,8 @@ export default function MapScreen() {
     const siteParam = params.site;
     const plotParam = params.plot;
     const measureParam = params.measureSite;
-    if (!drawParam && !sessionParam && !favParam && !siteParam && !plotParam && !measureParam) return;
+    const surveyParam = params.survey;
+    if (!drawParam && !sessionParam && !favParam && !siteParam && !plotParam && !measureParam && !surveyParam) return;
 
     if (typeof measureParam === 'string') {
       const msid = parseInt(measureParam, 10);
@@ -680,8 +689,30 @@ export default function MapScreen() {
       }
     }
 
+    // A survey's place: centred like a plot's boundary (its place, else its position).
+    let surveyTarget: { survey: FwSurveyRow; site: Site | null } | null = null;
+    if (typeof surveyParam === 'string') {
+      const id = parseInt(surveyParam, 10);
+      const survey = Number.isNaN(id) ? null : getFwSurvey(id);
+      if (survey) {
+        const bound = survey.site_id !== null ? (getSite(survey.site_id) ?? null) : null;
+        surveyTarget = { survey, site: bound };
+        let region: Region | null = null;
+        if (bound) {
+          try {
+            region = geometryBounds(parseGeometry(bound));
+          } catch {
+            region = null;
+          }
+        }
+        if (!region && survey.lat != null && survey.lng != null) region = { latitude: survey.lat, longitude: survey.lng, latitudeDelta: 0.004, longitudeDelta: 0.004 };
+        if (region) focusRegion(region);
+      }
+    }
+
     if (drawParam === 'Point' || drawParam === 'LineString' || drawParam === 'Polygon') {
       if (plotTarget) setPlotHandoff(plotTarget);
+      if (surveyTarget) setSurveyHandoff(surveyTarget);
       if (typeof sessionParam === 'string') {
         const sid = parseInt(sessionParam, 10);
         if (!Number.isNaN(sid)) handoffSessionId.current = sid;
@@ -706,6 +737,7 @@ export default function MapScreen() {
       site: undefined,
       plot: undefined,
       measureSite: undefined,
+      survey: undefined,
     });
   }, [
     params.draw,
@@ -714,6 +746,7 @@ export default function MapScreen() {
     params.site,
     params.plot,
     params.measureSite,
+    params.survey,
     router,
     toast,
     t,
@@ -1012,6 +1045,7 @@ export default function MapScreen() {
     favoriteAreaId.current = null;
     measureSiteId.current = null;
     setPlotHandoff(null);
+    setSurveyHandoff(null);
   };
 
   const handleMapPress = (coord: LatLng) => {
@@ -1173,6 +1207,28 @@ export default function MapScreen() {
       reloadPlots();
       toast(t('map.boundPlotSite'));
       router.replace(`/plot/${plot.id}` as Href);
+      return;
+    }
+
+    // A checklist / plot-style survey: a plot-style one's boundary is redrawn in
+    // place when the survey is its only owner (as a plot's); a checklist-style
+    // one gets a new site each time (as 快速名錄).
+    if (surveyHandoff) {
+      const { survey } = surveyHandoff;
+      const existing = surveyHandoff.site ? getSite(surveyHandoff.site.id) : null;
+      let siteId: number;
+      if (survey.style === 'plot' && existing && countSiteReferences(existing.id) <= 1) {
+        updateSite(existing.id, { ...data, geometry_type: geometry.type, geometry_geojson: JSON.stringify(geometry) });
+        siteId = existing.id;
+      } else {
+        siteId = createSite({ ...data, geometry, session_id: null });
+      }
+      updateSurvey(survey.id, { siteId });
+      cancelDraw();
+      setSaveSiteOpen(false);
+      reloadSites();
+      toast(t(survey.style === 'plot' ? 'map.boundPlotSite' : 'map.boundSite'));
+      router.replace(`/survey/form/${survey.id}` as Href);
       return;
     }
 
@@ -2261,6 +2317,16 @@ export default function MapScreen() {
               </Text>
             </View>
           ) : null}
+          {surveyHandoff ? (
+            <View className="mt-2 rounded-full bg-emerald-500 px-3 py-1.5 shadow-md">
+              <Text className="text-center text-xs font-medium text-white">
+                {t(surveyHandoff.survey.style === 'plot' ? 'map.plotHandoffHint' : 'map.surveyHandoffHint', {
+                  plotid: surveyHandoff.survey.name ?? '',
+                  name: surveyHandoff.survey.name ?? '',
+                })}
+              </Text>
+            </View>
+          ) : null}
           {handoffSessionId.current !== null ? (
             <View className="mt-2 rounded-full bg-emerald-500 px-3 py-1.5 shadow-md">
               <Text className="text-center text-xs font-medium text-white">
@@ -2348,14 +2414,14 @@ export default function MapScreen() {
           visible={saveSiteOpen}
           geometryType={drawMode}
           vertexCount={drawPoints.length}
-          title={plotHandoff ? t('map.saveRangeTitle') : undefined}
+          title={plotHandoff || surveyHandoff?.survey.style === 'plot' ? t('map.saveRangeTitle') : undefined}
           defaultName={
             plotHandoff
               ? (plotHandoff.site?.name ??
                 t('map.rangeDefaultName', { plotid: plotHandoff.plot.plotid }))
               : ''
           }
-          defaultProjectId={plotHandoff?.plot.project_id ?? 0}
+          defaultProjectId={plotHandoff?.plot.project_id ?? surveyHandoff?.survey.project_id ?? 0}
           defaultNotes={plotHandoff?.site?.notes ?? ''}
           onCancel={() => setSaveSiteOpen(false)}
           onConfirm={handleSaveSite}

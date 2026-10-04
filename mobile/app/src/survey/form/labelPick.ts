@@ -6,12 +6,13 @@
  * offers them; a label not on the list is added to it only after asking.
  * Without a permanent plot a label is free text.
  */
-import { showActionSheet } from '~/components/ActionSheet';
+import { nameOption, showActionSheet } from '~/components/ActionSheet';
 import { promptText } from '~/components/TextPromptModal';
 import i18n from '~/i18n';
 import { isSpeciesLevelRank } from '~/lib/dataQuality';
 import type { FwSurveyRow } from '~/survey/db/surveyCore';
 import { addFrameLabel, listFrameLabels } from '~/survey/db/surveys';
+import { sentenceParts, slot, type NamePart } from '~/lib/nameParts';
 
 type Taxon = { taxon_id: string; rank?: string | null; name: string };
 
@@ -61,12 +62,13 @@ export async function labelForEdit(survey: FwSurveyRow, taxon: Taxon, current: s
 }
 
 async function chooseLabel(survey: FwSurveyRow, taxon: Taxon, listed: string[], current: string | null): Promise<string | null | undefined> {
+  const name: NamePart[] = [{ sci: taxon.name, rank: taxon.rank ?? null }];
   const idx = await showActionSheet({
-    title: i18n.t('surveyForm.label.pickTitle', { name: taxon.name }),
+    titleParts: sentenceParts(i18n.t('surveyForm.label.pickTitle', { name: slot('name') }), { name }),
     message: i18n.t(listed.length ? 'surveyForm.label.pickMsg' : 'surveyForm.label.pickMsgNone'),
     options: [
-      { label: i18n.t('surveyForm.label.none', { name: taxon.name }) },
-      ...listed.map((l) => ({ label: l === current ? `${l} ✓` : l })),
+      nameOption(sentenceParts(i18n.t('surveyForm.label.none', { name: slot('name') }), { name })),
+      ...listed.map((l) => ({ label: l, selected: l === current })),
       { label: i18n.t('surveyForm.label.new') },
     ],
     cancelLabel: i18n.t('common.cancel'),

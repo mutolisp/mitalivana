@@ -68,6 +68,8 @@ import {
 } from '~/survey/template/edit';
 import { AMS_CODESET } from '~/survey/codesets/forestgeoAms2021';
 import { BUILTIN_INTERACTIONS } from '~/survey/codesets/interactions';
+import { METHOD_KEYS, methodOf, SAMPLING_METHODS } from '~/survey/codesets/samplingMethods';
+import { METHOD_GROUP_KEY, methodName } from '~/survey/components/editors/MethodEditor';
 import type { ComponentInstance, Label } from '~/survey/template/types';
 
 const list = (v: unknown): string[] => (Array.isArray(v) ? v.map(String) : []);
@@ -111,6 +113,7 @@ function Stepper({ value, min, max, label, onChange }: { value: number; min: num
 }
 
 function ParamsEditor({ t, c, set }: { t: TFunction; c: ComponentInstance; set: (params: Params) => void }) {
+  const { i18n } = useTranslation();
   const p = c.params;
   switch (c.type) {
     case 'abundance': {
@@ -170,6 +173,53 @@ function ParamsEditor({ t, c, set }: { t: TFunction; c: ComponentInstance; set: 
       ) : (
         <Text className="text-sm leading-5 text-ink-2 dark:text-gray-300">{t('builder.param.gpsOnly')}</Text>
       );
+    case 'method': {
+      // 調查法 (2G-f): the surveyor picks from the methods offered (none ticked: all), or the template fixes one.
+      const fixed = methodOf(p.fixed);
+      const offered = list(p.methods);
+      const pickFixed = async () => {
+        const i = await showActionSheet({
+          title: t('builder.method.method'),
+          options: SAMPLING_METHODS.map((m) => ({ key: m.key, label: methodName(m, i18n.language), section: t(METHOD_GROUP_KEY[m.group]), keywords: `${m.zh} ${m.en}`, selected: fixed?.key === m.key })),
+        });
+        if (i >= 0) set({ ...p, fixed: SAMPLING_METHODS[i].key });
+      };
+      return (
+        <View className="gap-2">
+          <Seg
+            value={fixed ? 'fixed' : 'choose'}
+            options={[
+              { value: 'choose', label: t('builder.method.choose') },
+              { value: 'fixed', label: t('builder.method.fixed') },
+            ]}
+            onChange={(m) => set({ ...p, fixed: m === 'fixed' ? (offered[0] ?? SAMPLING_METHODS[0].key) : null })}
+          />
+          {fixed ? (
+            <Pressable onPress={() => void pickFixed()} accessibilityRole="button" className="flex-row items-center gap-2" style={{ minHeight: 44 }}>
+              <View className="flex-1">
+                <Text className="text-xs font-bold text-ink-2 dark:text-gray-400">{t('builder.method.method')}</Text>
+                <Text className="text-base text-ink dark:text-gray-100">{methodName(fixed, i18n.language)}</Text>
+              </View>
+              <Text className="text-sm font-semibold text-accent-700 dark:text-accent-300">{t('builder.choice.change')}</Text>
+            </Pressable>
+          ) : (
+            <>
+              <Checkbox checked={offered.length === 0} label={t('builder.method.all')} onChange={(v) => set({ ...p, methods: v ? [] : METHOD_KEYS.slice() })} />
+              {offered.length ? (
+                <TickList options={METHOD_KEYS} value={offered} label={(k) => { const m = methodOf(k); return m ? methodName(m, i18n.language) : k; }} onChange={(next) => set({ ...p, methods: next })} />
+              ) : null}
+            </>
+          )}
+          <View className="flex-row items-center gap-3" style={{ minHeight: 44 }}>
+            <View className="flex-1">
+              <Text className="text-base text-ink dark:text-gray-100">{t('builder.method.custom')}</Text>
+              <Text className="text-xs leading-4 text-ink-3 dark:text-gray-400">{t('builder.method.customDesc')}</Text>
+            </View>
+            <Switch value={p.custom === true} onValueChange={(v) => set({ ...p, custom: v })} accessibilityLabel={t('builder.method.custom')} />
+          </View>
+        </View>
+      );
+    }
     case 'traits':
     case 'choice':
     case 'health':
@@ -212,8 +262,9 @@ export default function TemplateComponentScreen() {
 
   const set = (patch: Parameters<typeof updateComponent>[2]) => update((x) => updateComponent(x, key, patch));
   const chosenList = comp.type === 'choice' ? tpl.codelists.find((l) => l.id === comp.params.list) : undefined;
-  /** A choice's list: one of the template's, or a new one. */
-  const pickList = async () => {
+  const opennessList = comp.type === 'environment' ? tpl.codelists.find((l) => l.id === comp.params.openness_list) : undefined;
+  /** A choice's list (or 開闊度's grades): one of the template's, or a new one. */
+  const pickList = async (param: 'list' | 'openness_list' = 'list') => {
     const idx = await showActionSheet({
       title: t('builder.choice.list'),
       options: [...tpl.codelists.map((l) => ({ label: labelText(t, lang, l.label, t('builder.untitled')) })), { label: t('builder.list.add') }],
@@ -221,14 +272,14 @@ export default function TemplateComponentScreen() {
     });
     if (idx < 0 || idx > tpl.codelists.length) return;
     if (idx < tpl.codelists.length) {
-      set({ params: { ...comp.params, list: tpl.codelists[idx].id } });
+      set({ params: { ...comp.params, [param]: tpl.codelists[idx].id } });
       return;
     }
     let made: string | null = null;
     update((x) => {
       const r = addCodeList(x, makeLabel(t('builder.list.newName', { n: x.codelists.length + 1 }))!);
       made = r.id;
-      return updateComponent(r.template, key, { params: { ...comp.params, list: r.id } });
+      return updateComponent(r.template, key, { params: { ...comp.params, [param]: r.id } });
     });
     if (made) router.push(listHref(id, made));
   };
@@ -295,7 +346,8 @@ export default function TemplateComponentScreen() {
                 {census ? t('builder.census.requiredFixed') : fixed ? t('builder.requiredFixed') : t('builder.requiredDesc')}
               </Text>
             </View>
-            <Switch value={comp.required} disabled={fixed || census} onValueChange={(v) => set({ required: v })} accessibilityLabel={t('builder.required')} />
+            {/* 必填 is the author's only for a component they may leave out (2G-e). */}
+            {fixed || census ? null : <Switch value={comp.required} onValueChange={(v) => set({ required: v })} accessibilityLabel={t('builder.required')} />}
           </View>
         </FormCard>
         )}
@@ -370,13 +422,40 @@ export default function TemplateComponentScreen() {
             </FormCard>
           </>
         ) : comp.type !== 'traits' ? (
-          <FormCard title={t('builder.params')}>
-            {hasEditableParams(tpl, comp) ? (
-              <ParamsEditor t={t} c={comp} set={(next) => set({ params: next })} />
-            ) : (
-              <Text className="text-sm leading-5 text-ink-2 dark:text-gray-300">{t('builder.census.paramsFixed')}</Text>
-            )}
-          </FormCard>
+          <>
+            <FormCard title={t('builder.params')}>
+              {hasEditableParams(tpl, comp) ? (
+                <ParamsEditor t={t} c={comp} set={(next) => set({ params: next })} />
+              ) : (
+                <Text className="text-sm leading-5 text-ink-2 dark:text-gray-300">{t('builder.census.paramsFixed')}</Text>
+              )}
+            </FormCard>
+            {comp.type === 'environment' && list(comp.params.fields).includes('openness') ? (
+              // 開闊度 (2G-f): sky openness in %, or grades from one of the template's lists.
+              <FormCard title={t('surveyForm.env.openness')}>
+                <Seg
+                  value={typeof comp.params.openness_list === 'string' ? 'grades' : 'pct'}
+                  options={[
+                    { value: 'pct', label: t('builder.openness.pct') },
+                    { value: 'grades', label: t('builder.openness.grades') },
+                  ]}
+                  onChange={(m) => (m === 'pct' ? set({ params: Object.fromEntries(Object.entries(comp.params).filter(([k]) => k !== 'openness_list')) }) : void pickList('openness_list'))}
+                />
+                {opennessList ? (
+                  <>
+                    <Pressable onPress={() => void pickList('openness_list')} accessibilityRole="button" className="flex-row items-center gap-2" style={{ minHeight: 44 }}>
+                      <View className="flex-1">
+                        <Text className="text-xs font-bold text-ink-2 dark:text-gray-400">{t('builder.openness.list')}</Text>
+                        <Text className="text-base text-ink dark:text-gray-100">{labelText(t, lang, opennessList.label, t('builder.untitled'))}</Text>
+                      </View>
+                      <Text className="text-sm font-semibold text-accent-700 dark:text-accent-300">{t('builder.choice.change')}</Text>
+                    </Pressable>
+                    <Button label={t('builder.choice.editList')} icon="create-outline" variant="secondary" onPress={() => router.push(listHref(id, opennessList.id))} />
+                  </>
+                ) : null}
+              </FormCard>
+            ) : null}
+          </>
         ) : (
           <FormCard title={t('builder.traits')}>
             {traits.map((tr, i) => {

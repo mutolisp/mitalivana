@@ -18,6 +18,7 @@
 import { bbRank, kindForType } from '../lib/dwcAbundanceCore';
 import { AMS_CODESET, AMS_VARIABLES, amsField } from './codesets/forestgeoAms2021';
 import { BUILTIN_INTERACTION_CODES } from './codesets/interactions';
+import { CUSTOM_METHOD, METHOD_KEYS, SIZE_UNITS } from './codesets/samplingMethods';
 import type { SurveyLevel, SurveyStyle } from './template/types';
 
 export type ValueType = 'num' | 'text' | 'json';
@@ -84,6 +85,7 @@ export const COMPONENT_TYPES = [
   'environment',
   'choice',
   'interaction',
+  'method',
 ] as const;
 export type ComponentType = (typeof COMPONENT_TYPES)[number];
 
@@ -276,13 +278,19 @@ export const COVER_FIELDS = [
   'gravel_cover_pct',
   'bareland_cover_pct',
 ] as const;
-export const ENVIRONMENT_FIELDS = ['elevation_m', 'slope_deg', 'aspect_deg', 'terrain_position', ...COVER_FIELDS] as const;
+/**
+ * `openness` (開闊度, 2G-f; asked 2026-10-04): sky openness as a percentage,
+ * or a grade from one of the template's code lists when the component names
+ * one (`openness_list`).
+ */
+export const ENVIRONMENT_FIELDS = ['elevation_m', 'slope_deg', 'aspect_deg', 'openness', 'terrain_position', ...COVER_FIELDS] as const;
 export type EnvironmentField = (typeof ENVIRONMENT_FIELDS)[number];
 
 const ENVIRONMENT_RULE: Readonly<Record<EnvironmentField, FieldRule>> = {
   elevation_m: { min: -500, max: 9000 },
   slope_deg: { min: 0, max: 90 },
   aspect_deg: { min: 0, max: 359 },
+  openness: pct,
   terrain_position: {},
   vascular_cover_pct: pct,
   bryophyte_cover_pct: pct,
@@ -385,6 +393,21 @@ function abundanceProblems(p: Params, v: ComponentValues): Problem[] {
     case 'custom':
       return [];
   }
+}
+
+/**
+ * A Method's parameters on a running survey: offering more methods (or all,
+ * from some: an empty list), or letting a method of one's own be typed, only
+ * widens the choice; narrowing it, or fixing another method, does not.
+ */
+function methodChange(prev: Params, next: Params): ParamsChange {
+  const pm = asList(prev.methods).map(String);
+  const nm = asList(next.methods).map(String);
+  const widened = nm.length === 0 || (pm.length > 0 && pm.every((m) => nm.includes(m)));
+  if (!widened) return 'breaking';
+  if (!sameJson(prev.fixed ?? null, next.fixed ?? null)) return 'breaking';
+  if (prev.custom === true && next.custom !== true) return 'breaking';
+  return 'additive';
 }
 
 const DEFS: readonly ComponentDef[] = [
@@ -784,28 +807,42 @@ const DEFS: readonly ComponentDef[] = [
     styles: NEW_STYLES,
     defaultLevel: 'survey',
     defaultParams: { fields: [...ENVIRONMENT_FIELDS] },
-    checkParams: (p) => (subsetOf(p.fields, ENVIRONMENT_FIELDS) ? [] : [`fields must be a non-empty subset of ${ENVIRONMENT_FIELDS.join(', ')}`]),
+    checkParams: (p) => {
+      const out = subsetOf(p.fields, ENVIRONMENT_FIELDS) ? [] : [`fields must be a non-empty subset of ${ENVIRONMENT_FIELDS.join(', ')}`];
+      if (p.openness_list !== undefined && (typeof p.openness_list !== 'string' || !p.openness_list.trim())) out.push("openness_list must name one of the template's code lists");
+      return out;
+    },
     fields: (p, level, key) =>
-      (Array.isArray(p.fields) ? (p.fields as EnvironmentField[]) : []).map((f) =>
-        val(level, key, f, f === 'terrain_position' ? 'text' : 'num', {
-          unit: f.endsWith('_pct') ? '%' : f.endsWith('_deg') ? '°' : f === 'elevation_m' ? 'm' : undefined,
-          rule: ENVIRONMENT_RULE[f],
-        }),
+      (Array.isArray(p.fields) ? (p.fields as EnvironmentField[]) : []).flatMap((f) =>
+        // The survey's own elevation is one value on the survey row, GNSS or
+        // typed, as on a fixed plot (v88): the centre's fix fills it too.
+        f === 'elevation_m' && level === 'survey'
+          ? [col(level, 'elevation_m', 'num', ENVIRONMENT_RULE.elevation_m), col(level, 'elevation_source', 'text')]
+          : f === 'openness'
+            ? [typeof p.openness_list === 'string' ? val(level, key, 'openness_grade', 'text') : val(level, key, 'openness_pct', 'num', { unit: '%', rule: pct })]
+            : [
+              val(level, key, f, f === 'terrain_position' ? 'text' : 'num', {
+                unit: f.endsWith('_pct') ? '%' : f.endsWith('_deg') ? '°' : f === 'elevation_m' ? 'm' : undefined,
+                rule: ENVIRONMENT_RULE[f],
+              }),
+            ],
       ),
     // The ground covers share the surface; over 100 % is the user's to resolve (the plot screen's rule).
     check: (_p, v) => {
       const sum = COVER_FIELDS.reduce((s, f) => s + (typeof v[f] === 'number' ? (v[f] as number) : 0), 0);
       return Math.round(sum * 100) / 100 > 100 ? [{ field: null, code: 'covers_over_100', severity: 'warning' }] : [];
     },
-    exportMap: {
+    exportMap: (p) => ({
       dwc: { elevation_m: 'minimumElevationInMeters' },
       mof: {
         slope_deg: { measurementType: 'slope', unit: 'degrees' },
         aspect_deg: { measurementType: 'aspect', unit: 'degrees' },
+        // 開闊度: the field the parameters give it (a grade, or a percentage).
+        ...(typeof p.openness_list === 'string' ? { openness_grade: { measurementType: 'sky openness' } } : { openness_pct: { measurementType: 'sky openness', unit: '%' } }),
         terrain_position: { measurementType: 'terrain position' },
         ...Object.fromEntries(COVER_FIELDS.map((f) => [f, { measurementType: COVER_TYPE[f], unit: '%' }])),
       },
-    },
+    }),
     labelKey: 'survey.component.environment',
     paramsChange: growing(['fields']),
   },
@@ -865,6 +902,52 @@ const DEFS: readonly ComponentDef[] = [
     exportMap: {},
     labelKey: 'survey.component.interaction',
     paramsChange: interactionChange,
+  },
+  {
+    // 調查法 (2G-f; canvas 16j–16k, asked 2026-10-04): how the survey was
+    // done — a built-in method (codesets/samplingMethods.ts, the Ministry of
+    // Environment's regulations) or the surveyor's own, with its size and
+    // effort. `methods`: those offered (empty: all); `fixed`: the one the
+    // template sets (the surveyor does not choose); `custom`: whether a method
+    // of one's own may be typed. Quadrat width / length: the size every
+    // quadrat (the second unit level) takes unless it has its own.
+    type: 'method',
+    required: false,
+    cardinality: 'one',
+    levels: ['survey'],
+    styles: NEW_STYLES,
+    defaultLevel: 'survey',
+    defaultParams: { methods: [], fixed: null, custom: true },
+    checkParams: (p) => {
+      const out: string[] = [];
+      if (!Array.isArray(p.methods) || !p.methods.every((m) => METHOD_KEYS.includes(m as string)) || new Set(p.methods).size !== p.methods.length) {
+        out.push(`methods must list built-in methods (${METHOD_KEYS.join(', ')}) once each`);
+      }
+      if (p.fixed != null && !METHOD_KEYS.includes(p.fixed as string)) out.push('fixed must be null or a built-in method');
+      if (typeof p.custom !== 'boolean') out.push('custom must be true or false');
+      return out;
+    },
+    fields: (_p, level, key) => {
+      const size = { min: 0, max: 1e7 };
+      return [
+        val(level, key, 'protocol', 'text', { rule: { oneOf: [...METHOD_KEYS, CUSTOM_METHOD] } }),
+        val(level, key, 'protocol_name', 'text'),
+        val(level, key, 'width_m', 'num', { unit: 'm', rule: size }),
+        val(level, key, 'length_m', 'num', { unit: 'm', rule: size }),
+        val(level, key, 'size_value', 'num', { rule: size }),
+        val(level, key, 'size_unit', 'text', { rule: { oneOf: [...new Set(Object.values(SIZE_UNITS).flat())] } }),
+        val(level, key, 'effort_value', 'num', { rule: size }),
+        val(level, key, 'effort_unit', 'text'),
+        val(level, key, 'description', 'text'),
+        val(level, key, 'quadrat_w_m', 'num', { unit: 'm', rule: size }),
+        val(level, key, 'quadrat_l_m', 'num', { unit: 'm', rule: size }),
+      ];
+    },
+    // The terms the survey event gets; the values are methodDwc's
+    // (surveyDwcCore.ts): the method's English name, width × length, effort with its unit.
+    exportMap: { dwc: { protocol: 'samplingProtocol', size_value: 'sampleSizeValue', size_unit: 'sampleSizeUnit', effort_value: 'samplingEffort' } },
+    labelKey: 'survey.component.method',
+    paramsChange: methodChange,
   },
 ];
 

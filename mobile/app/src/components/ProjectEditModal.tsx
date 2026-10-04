@@ -13,6 +13,7 @@ import { KeyboardAvoidingView } from './KeyboardAvoidingView';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Project, ProjectInput } from '~/db';
 import { useThemeColors } from '~/theme/colors';
+import { ActionSheetLayer, sheetBack } from '~/components/ActionSheet';
 
 const EMPTY: ProjectInput = { name: '', abstract: null, location_description: null, notes: null };
 
@@ -60,7 +61,7 @@ export function ProjectEditModal({
   const canSave = name.trim().length > 0;
 
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onCancel}>
+    <Modal visible={visible} animationType="slide" onRequestClose={sheetBack(onCancel)}>
       <View
         className="flex-1 bg-card dark:bg-gray-900"
         style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
@@ -127,6 +128,7 @@ export function ProjectEditModal({
           </ScrollView>
         </KeyboardAvoidingView>
       </View>
+      <ActionSheetLayer visible={visible} />
     </Modal>
   );
 }

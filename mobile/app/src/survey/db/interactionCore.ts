@@ -26,7 +26,7 @@ import type { Scalar } from '@op-engineering/op-sqlite';
 import { BUILTIN_INTERACTIONS } from '../codesets/interactions';
 import type { ComponentInstance, Label, SurveyTemplate } from '../template/types';
 import { SurveyError, type Ctx, type SurveyDb } from './stemmapCore';
-import { addOccurrence, getFwSurvey, getOccurrence, phaseNow, pruneViaOccurrence, snapshotOf, surveyOf, type OccurrenceRow } from './surveyCore';
+import { addOccurrence, getFwSurvey, getOccurrence, openUnit, phaseNow, pruneViaOccurrence, snapshotOf, surveyOf, type OccurrenceRow } from './surveyCore';
 
 const rows = <T>(ctx: { db: SurveyDb }, sql: string, params: Scalar[] = []) => (ctx.db.executeSync(sql, params).rows ?? []) as T[];
 const one = <T>(ctx: { db: SurveyDb }, sql: string, params: Scalar[] = []) => rows<T>(ctx, sql, params)[0];
@@ -181,6 +181,8 @@ type Checked = { a: OccurrenceRow; type: InteractionType; component: ComponentIn
 function check(ctx: { db: SurveyDb }, input: InteractionInput, current: string | null): Checked {
   const a = getOccurrence(ctx, input.from);
   if (!a) throw new SurveyError('not_found', 'occurrence');
+  // Not in a unit marked done (v89): it is recorded in A's unit.
+  openUnit(ctx, a.unit_id);
   const t = snapshotOf(surveyOf(ctx, a.survey_id));
   const component = interactionComponent(t);
   if (!component) throw new SurveyError('bad_component', 'no interaction component');
@@ -258,6 +260,7 @@ function unsealed(ctx: { db: SurveyDb }, id: number): InteractionRow {
   const r = getInteraction(ctx, id);
   if (!r) throw new SurveyError('not_found', 'interaction');
   if (interactionSealed(ctx, r)) throw new SurveyError('blind_sealed');
+  openUnit(ctx, r.unit_id);
   return r;
 }
 

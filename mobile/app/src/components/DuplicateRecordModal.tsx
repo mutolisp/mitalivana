@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardAvoidingView } from './KeyboardAvoidingView';
 import type { DuplicateRecordOptions } from '~/db';
 import { useThemeColors } from '~/theme/colors';
+import { ActionSheetLayer, sheetBack } from '~/components/ActionSheet';
 
 export type DuplicateRequest = {
   /** Name to pre-fill (already advanced past every taken name). */
@@ -62,7 +63,7 @@ export function DuplicateRecordModal({ request, onCancel, onConfirm }: Props) {
   const canConfirm = trimmed.length > 0;
 
   return (
-    <Modal visible={request !== null} animationType="slide" onRequestClose={onCancel}>
+    <Modal visible={request !== null} animationType="slide" onRequestClose={sheetBack(onCancel)}>
       {/* Full-screen with a manual top inset — NOT a floating bottom sheet.
           A sheet anchored to the bottom gets pushed up by the keyboard, and on
           a short screen its top runs off the display (the header ends up under
@@ -159,6 +160,7 @@ export function DuplicateRecordModal({ request, onCancel, onConfirm }: Props) {
           </ScrollView>
         </KeyboardAvoidingView>
       </View>
+      <ActionSheetLayer visible={request !== null} />
     </Modal>
   );
 }

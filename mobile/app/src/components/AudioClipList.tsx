@@ -108,7 +108,8 @@ export function AudioRecordTile({ onAdd }: { onAdd: (uri: string) => void }) {
 }
 
 /** Recorded clips, one row each. Renders nothing when there are none. */
-export function AudioClipRows({ clips, onRemove }: { clips: string[]; onRemove: (uri: string) => void }) {
+/** `onRemove` left out: the clips play but are not removed (a locked record). */
+export function AudioClipRows({ clips, onRemove }: { clips: string[]; onRemove?: (uri: string) => void }) {
   const c = useThemeColors();
   const { t } = useTranslation();
   const [playingUri, setPlayingUri] = useState<string | null>(null);
@@ -116,6 +117,7 @@ export function AudioClipRows({ clips, onRemove }: { clips: string[]; onRemove: 
   if (clips.length === 0) return null;
 
   const confirmRemove = (uri: string) => {
+    if (!onRemove) return;
     Alert.alert(t('species.removeAudio'), undefined, [
       { text: t('common.cancel'), style: 'cancel' },
       {
@@ -200,18 +202,19 @@ function ClipProgress({ uri, onFinished }: { uri: string; onFinished: () => void
   );
 }
 
+/** Without `onAdd` / `onRemove` (a locked record) the clips still play. */
 export function AudioClipList({
   clips,
   onAdd,
   onRemove,
 }: {
   clips: string[];
-  onAdd: (uri: string) => void;
-  onRemove: (uri: string) => void;
+  onAdd?: (uri: string) => void;
+  onRemove?: (uri: string) => void;
 }) {
   return (
     <View>
-      <AudioRecordTile onAdd={onAdd} />
+      {onAdd ? <AudioRecordTile onAdd={onAdd} /> : null}
       <AudioClipRows clips={clips} onRemove={onRemove} />
     </View>
   );

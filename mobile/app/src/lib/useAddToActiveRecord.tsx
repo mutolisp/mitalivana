@@ -49,6 +49,7 @@ import {
 } from '~/components/PlotSpeciesValueModal';
 import type { PlotType } from '~/db';
 import { stampNewRecord } from './recordFix';
+import { speciesParts } from '~/lib/nameParts';
 
 type PlotTarget = {
   sp: SearchResult;
@@ -248,7 +249,7 @@ export function useAddToActiveRecord(): {
     // every scroll and expand.
     const activeTrip = getActiveCollectionTrip();
     const idx = await showActionSheet({
-      title: sp.cname || sp.name,
+      titleParts: speciesParts(sp.cname, sp.name, sp.rank, sp.kingdom),
       options: [
         { label: targetLabel },
         {

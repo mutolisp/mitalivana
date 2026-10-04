@@ -11,7 +11,7 @@ import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { showActionSheet } from '~/components/ActionSheet';
+import { nameOption, showActionSheet } from '~/components/ActionSheet';
 import { ScientificName } from '~/components/ScientificName';
 import { BackHeaderLeft } from '~/lib/goBack';
 import { useToast } from '~/stores/toast';
@@ -24,6 +24,7 @@ import { recheckKey, type RecheckOutcome } from '~/survey/form/recheck';
 import { formErrorText } from '~/survey/form/text';
 import { unitRows } from '~/survey/form/units';
 import { occurrenceTitle, withNames } from '~/survey/form/useSurveyForm';
+import { occurrenceParts, sentenceParts, slot } from '~/lib/nameParts';
 
 const OUTCOMES: RecheckOutcome[] = ['found', 'not_found', 'reidentified'];
 
@@ -89,9 +90,9 @@ export default function RecheckScreen() {
         return;
       }
       const idx = await showActionSheet({
-        title: t('surveyForm.recheck.pickTitle', { name: occurrenceTitle(p) }),
+        titleParts: sentenceParts(t('surveyForm.recheck.pickTitle', { name: slot('name') }), { name: occurrenceParts(p) }),
         message: t('surveyForm.recheck.pickMsg'),
-        options: here.map((o) => ({ label: occurrenceTitle(o) })),
+        options: here.map((o) => nameOption(occurrenceParts(o))),
         cancelLabel: t('common.cancel'),
       });
       if (idx < 0 || idx >= here.length) return;

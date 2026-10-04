@@ -1,6 +1,7 @@
 /**
  * A template's forms, filled in for real but on a scratch database (the
- * builder's 預覽, Phase 2D-a; the development component preview of 2B). The
+ * development component preview of 2B; the builder's 預覽 until 2G-e, which
+ * opens the real survey screen instead, previewSurvey.ts). The
  * scratch file is built with the real migrations, gets one survey of the
  * template — on a plot, one unit per level (A, A1, A1a) — and one occurrence
  * in the lowest unit; every input writes through surveyCore and reads back,
@@ -15,12 +16,13 @@ import { Text, View } from 'react-native';
 import { runUserMigrations } from '~/db/migrations';
 import { generateUuid } from '~/db/uuid';
 import { errText } from '~/lib/errText';
-import { componentProblems } from '~/survey/componentRules';
+import { instanceProblems } from '~/survey/componentRules';
 import type { Ctx } from '~/survey/db/stemmapCore';
 import * as core from '~/survey/db/surveyCore';
 import { ComponentEditor, componentLabel, componentSummary } from '~/survey/components/editors/ComponentEditor';
 import { FormCard } from '~/survey/components/FormBits';
-import { componentDef, type ComponentValues, type FieldValue } from '~/survey/registry';
+import { isRequiredMissing, RequiredMissingLine } from '~/survey/components/editors/shared';
+import type { ComponentValues, FieldValue } from '~/survey/registry';
 import { componentsAt, placesOf, type Place } from '~/survey/template/edit';
 import type { ComponentInstance, SurveyTemplate } from '~/survey/template/types';
 import { placeTitle } from './words';
@@ -111,16 +113,16 @@ export function TemplatePreview({ template, raw = false }: { template: SurveyTem
           <View key={placeKey(place)} className="gap-2">
             <Text className="pt-1 text-xs font-bold text-ink-2 dark:text-gray-400">{placeTitle(t, i18n.language, template, place)}</Text>
             {here.map((c) => {
-              const def = componentDef(c.type);
               const v = values[c.key] ?? {};
-              const problems = def ? componentProblems(def, c.params, c.level, c.key, v) : [];
+              const problems = instanceProblems(c, v);
               const owner = ownerOf(scratch, c)!;
               return (
                 <FormCard key={c.key} title={componentLabel(t, i18n.language, c)}>
+                  <RequiredMissingLine problems={problems} />
                   <ComponentEditor
                     instance={c}
                     values={v}
-                    problems={problems}
+                    problems={problems.filter((p) => !isRequiredMissing(p))}
                     onChange={(patch) => write(c, patch)}
                     context={{
                       noAutoFocus: true,

@@ -23,6 +23,14 @@
     "next": "次へ",
     "selectedCount_other": "{{count}} 件選択"
   },
+  "actionSheet": {
+    "close": "閉じる",
+    "search": "検索",
+    "searchPlaceholder_other": "{{count}} 件の選択肢を検索",
+    "noMatch": "「{{q}}」に一致する選択肢はありません",
+    "recent": "最近使ったもの",
+    "all_other": "すべて {{count}}"
+  },
   "group": {
     "plantae": "植物",
     "aves": "鳥類",
@@ -769,7 +777,11 @@
       "keypadHide": "数字キーを隠す",
       "moreBelow": "下に続きがあります"
     },
-    "tabFreq": "頻度"
+    "tabFreq": "頻度",
+    "numMin": "値は {{min}} 以上で入力してください",
+    "numMax": "値は {{max}} 以下で入力してください",
+    "numAbove": "値は {{min}} より大きくしてください",
+    "numAboveMax": "値は {{min}} より大きく {{max}} 以下で入力してください"
   },
   "settings": {
     "sectionAppearance": "外観と操作",
@@ -891,7 +903,7 @@
     "collapseAll": "すべて折りたたむ",
     "tree": "分類ツリー",
     "search": "検索",
-    "incompleteBucket": "分類が未完成（自作）",
+    "incompleteBucket": "分類が未完成",
     "bulkNodeTitle": "選択した分類群：{{names}}",
     "bulkTooManyTitle": "件数が多すぎます",
     "bulkTooManyMsg": "これらの下には {{count}} 件あり、1回の上限 {{max}} 件を超えています。より下位の分類群を選んでください。",
@@ -1074,6 +1086,7 @@
     "import": "インポート",
     "drawingLabel": "{{type}} を描画中 · {{count}} 点",
     "handoffHint": "記録 #{{id}} 用のサイトを作成します。完了後に自動で割り当てられます",
+    "surveyHandoffHint": "「{{name}}」用のサイトを作成します。完了後に自動で割り当てられます",
     "editTrackHint": "軌跡を編集 · 頂点をドラッグ／タップで削除",
     "editPosHint": "位置を編集 · マーカーをドラッグ",
     "nlsc": "NLSC（台湾）",
@@ -1258,7 +1271,6 @@
   "plotSpecies": {
     "addPhotoFail": "写真の追加に失敗しました",
     "changeLayer": "階層を変更",
-    "currentSuffix": "（現在）",
     "movedTo": "{{layer}} に移動しました",
     "pointCountRecord": "ポイントセンサスの記録",
     "transectRecord": "トランセクトの記録",
@@ -4631,7 +4643,8 @@
       "traits": "形質",
       "environment": "環境",
       "choice": "カスタム選択肢",
-      "interaction": "相互作用"
+      "interaction": "相互作用",
+      "method": "調査法"
     },
     "editor": {
       "elsewhere": "この項目は記録画面で入力します。",
@@ -4644,7 +4657,8 @@
         "malformed": "形式が正しくありません",
         "endsBeforeStart": "終了が開始より前です",
         "coversOver100": "地表被覆の合計が 100% を超えています",
-        "layerOutOfRange": "階層数を超えています"
+        "layerOutOfRange": "階層数を超えています",
+        "requiredMissing": "必須・未入力"
       },
       "abundance": {
         "count": "個体数",
@@ -4667,7 +4681,8 @@
       "timestamp": {
         "start": "開始",
         "stop": "終了",
-        "setStop": "終了時刻を記録"
+        "setStop": "終了時刻を記録",
+        "setStart": "開始時刻を記録"
       },
       "people": {
         "none": "未指定"
@@ -4906,7 +4921,6 @@
     },
     "tab": {
       "data": "データ",
-      "units_other": "ユニット {{count}}",
       "species_other": "種 {{count}}",
       "freq": "頻度",
       "interactions_other": "相互作用 {{count}}"
@@ -4925,13 +4939,15 @@
       "blindSealed": "ブラインドは終了しました。その間の記録は変更できません",
       "recheckBegun": "再確認が始まっている（回答または追加記録がある）ため、ブラインドを再開できません",
       "labelTaken": "ラベル「{{label}}」はすでにリストにあります",
-      "badValue": "この値は保存できません"
+      "badValue": "この値は保存できません",
+      "unitDone": "「{{code}}」は完了済みです。完了を解除すると変更できます。"
     },
     "finish": {
       "title": "調査を終了",
       "blindOpen": "ブラインドがまだ終わっておらず、前回のリストを再確認していません。",
       "recheckOpen_other": "前回の種のうち {{count}} 種に再確認の結果がありません。",
-      "errors_other": "出現記録 {{count}} 件にまだエラーがあります。"
+      "errors_other": "出現記録 {{count}} 件にまだエラーがあります。",
+      "dataMissing_other": "調査データの必須項目が {{count}} 件未入力です。"
     },
     "blind": {
       "banner": "ブラインド中：前回の種リストはブラインド終了後に表示されます。",
@@ -4972,7 +4988,8 @@
       "onFrameNote": "固定プロットのユニット配置に属します。調査で使われた後はコードを変更できません。",
       "recordHere_other": "このユニットで種を記録（{{count}} 種）",
       "deleteTitle": "{{path}} を削除しますか？",
-      "deleteMsg_other": "出現記録 {{count}} 件と下位ユニットは一つ上の階層へ移り、このユニット自体のデータと写真は削除されます。"
+      "deleteMsg_other": "出現記録 {{count}} 件と下位ユニットは一つ上の階層へ移り、このユニット自体のデータと写真は削除されます。",
+      "deleteAllMsg_other": "出現記録 {{count}} 件と下位ユニットも一緒に削除され、このユニット自体のデータと写真も削除されます。"
     },
     "label": {
       "title": "{{name}} のラベル",
@@ -4985,7 +5002,8 @@
       "newMsg": "リストに加えると、以後の調査でも同じラベルがこの形態種を指します。",
       "addToList": "リストに追加",
       "onlyHere": "この記録だけ",
-      "pickMsgNone": "形態種リストにはこの分類群のラベルがまだありません。"
+      "pickMsgNone": "形態種リストにはこの分類群のラベルがまだありません。",
+      "field": "ラベル"
     },
     "frame": {
       "section": "プロット型調査",
@@ -5020,7 +5038,66 @@
       "banner": "この調査票に新しい版があります（第 {{n}} 版）",
       "msg": "第 {{n}} 版に更新：新しい項目が表示され、記録済みのデータは変わりません。"
     },
-    "carried": "第 {{n}} 回と同じ（開始時に引き継ぎ。確認してください）：{{fields}}"
+    "carried": "第 {{n}} 回と同じ（開始時に引き継ぎ。確認してください）：{{fields}}",
+    "surveyData": "調査データ",
+    "dataLocked": "終了してロックされています。調査画面に戻り、右上の鍵をタップすると編集できます。",
+    "dataFilled": "入力済み {{filled}}/{{total}}",
+    "track": "軌跡",
+    "extrasAfterSave": "その他の項目は保存後に入力できます。",
+    "trackNotStarted": "軌跡の記録が未開始です",
+    "gnssNotYet": "未取得",
+    "noLayer": "階層なし",
+    "quadrat": {
+      "addWhere": "{{code}} をどの{{level}}に置きますか？",
+      "fromUnitList": "{{unit}} の種リストから",
+      "unitFields": "その他の項目",
+      "size": "大きさ",
+      "sizeShared": "調査法で共通",
+      "sizeOwn": "この小方形区だけの大きさ（空にすると共通の値）"
+    },
+    "env": {
+      "openness": "開空度",
+      "opennessPct": "開空度"
+    },
+    "method": {
+      "title": "調査方法",
+      "none": "未選択",
+      "custom": "独自の方法",
+      "customPick": "独自の方法…",
+      "customName": "方法の名前",
+      "size": "大きさ",
+      "effortAny": "努力量",
+      "effortUnit": "努力量の単位",
+      "effort": {
+        "cameraHours": "カメラ稼働時間",
+        "trapNights": "トラップ夜数",
+        "netHours": "網の設置時間",
+        "personHours": "人時",
+        "trapHours": "誘引時間",
+        "trapDays": "トラップ日数",
+        "recorderHours": "録音時間"
+      },
+      "quadratSize": "小方形区の大きさ",
+      "description": "方法の説明",
+      "source": "方法名は台湾環境部「動物・植物生態評估技術規範」（2026 年版）に基づきます。",
+      "group": {
+        "vegetation": "植生",
+        "birds": "鳥類",
+        "mammals": "哺乳類",
+        "herps": "両生類・爬虫類",
+        "insects": "昆虫",
+        "general": "共通"
+      }
+    },
+    "group": {
+      "basic": "基本データ",
+      "time": "時間",
+      "space": "位置",
+      "method": "調査法",
+      "pageOf": "調査データ · {{n}} / {{total}}",
+      "people": "人員",
+      "missing_other": "必須 {{count}} 件未入力"
+    }
   },
   "builder": {
     "title": "調査票テンプレート",
@@ -5055,14 +5132,22 @@
       "title": "テンプレートを作成",
       "blankChecklist": "空のリスト型",
       "blankPlot": "空のプロット型",
-      "copy": "既存のテンプレートをコピー…",
       "copyFrom": "どれをコピーしますか？",
       "nameTitle": "テンプレート名",
       "nameMsg": "例：「渓流沿いの植物リスト」。あとで変更でき、英語名も付けられます。",
       "create": "作成",
       "firstUnit": "小区画",
       "copyName": "{{name}} のコピー",
-      "census": "毎木調査（内蔵をコピー）"
+      "subtitle": "出発点を選んでください。あとからすべて変更できます",
+      "blankChecklistDesc": "ゼロから作る種リスト",
+      "blankPlotDesc": "階層・被度・小区画",
+      "censusDesc": "内蔵の毎木調査テンプレートをコピー",
+      "copyShort": "既存のものをコピー",
+      "copyDesc": "自分のもの・内蔵・チーム共有",
+      "importDesc": "ファイルから読み込む（.mtpl.json）",
+      "sectionMine": "自分のテンプレート",
+      "sectionBuiltin": "内蔵",
+      "sectionTeam": "チーム共有"
     },
     "notFound": "このテンプレートの下書きが見つかりません。保存または破棄された可能性があります。",
     "basics": "基本情報",
@@ -5095,6 +5180,7 @@
     "preview": "プレビュー",
     "previewTitle": "プレビュー：{{name}}",
     "previewIntro": "このテンプレートで始めた調査はこう表示されます。試しに入力できますが、内容は保存されません。",
+    "previewNoTrack": "プレビューでは軌跡を記録しません。",
     "discard": {
       "title": "変更を破棄しますか？",
       "msg": "下書きは削除され、テンプレートは第 {{n}} 版のままです。",
@@ -5181,7 +5267,8 @@
       "max_other": "最大 {{count}}",
       "gps": "GNSS 測位",
       "interactionTypes_other": "{{count}} 種類",
-      "photos_other": "写真 {{count}}"
+      "photos_other": "写真 {{count}}",
+      "methods_other": "{{count}} 種の方法から選択"
     },
     "kind": {
       "bb": "Braun-Blanquet",
@@ -5218,7 +5305,6 @@
       "multiSwitch": "複数選択を許可"
     },
     "import": {
-      "fromFile": "ファイルから読み込む…",
       "failTitle": "読み込めません",
       "newerApp": "このテンプレートには、このバージョンのアプリが知らない項目（{{types}}）が含まれています。先にアプリを更新してください。",
       "invalid": "ファイルの内容に誤りがあります：{{detail}}",
@@ -5274,6 +5360,19 @@
       "inverseEn": "B から見た英語の表現",
       "iri": "RO 関係 IRI（任意）",
       "iriBad": "IRI は http:// または https:// で始まり、空白を含めません"
+    },
+    "method": {
+      "choose": "調査者がリストから選ぶ",
+      "fixed": "1 つに固定",
+      "all": "すべての方法を提示",
+      "method": "方法",
+      "custom": "独自の方法を許可",
+      "customDesc": "リストにない方法名を調査者が入力できます。"
+    },
+    "openness": {
+      "pct": "開空度（%）",
+      "grades": "独自の段階",
+      "list": "段階リスト"
     }
   },
   "surveyImport": {

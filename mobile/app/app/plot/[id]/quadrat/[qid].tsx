@@ -23,16 +23,13 @@ import { KeyboardStickyView } from '~/components/KeyboardAvoidingView';
 import { ScientificName } from '~/components/ScientificName';
 import { SearchBox } from '~/components/SearchBox';
 import type { FrequencyGridHandle } from '~/components/quadrat/FrequencyGrid';
-import { StatusBadge } from '~/components/quadrat/PlotQuadratsTab';
+import { PickChips, QuadratHeaderTitle, QuadratPhotos, QuadratViewSeg, type QuadratView } from '~/components/quadrat/QuadratParts';
 import { SurfaceCover } from '~/components/quadrat/SurfaceCover';
 import { quadratName, topEdgeName } from '~/components/quadrat/names';
 import { StepPager } from '~/components/ui/StepPager';
 import { Button } from '~/components/ui/Button';
 import { FrequencyPanel, type FreqItem } from '~/components/quadrat/FrequencyPanel';
 import { getPlotSurvey, layerLabel, listPlotSpecies, listSubplots, parseEnvPhotos, type PlotSurvey } from '~/db/plots';
-import { PhotoGrid, PhotoViewerModal } from '~/components/PhotoGrid';
-import { captureEnvPhoto, pickPhotos } from '~/lib/photoCapture';
-import { errText } from '~/lib/errText';
 import {
   addQuadratSpecies,
   deleteQuadrat,
@@ -61,14 +58,12 @@ import { autoFillLast, exactSum } from '~/modules/gloria/model/validate';
 import { useToast } from '~/stores/toast';
 import { useThemeColors } from '~/theme/colors';
 import { useSettledCall } from '~/lib/useSettledCall';
-
-type View_ = 'cover' | 'freq';
+import { speciesParts } from '~/lib/nameParts';
 
 const nameOf = (s: { common_name_c?: string; simple_name?: string; taxon_id: string }) => s.common_name_c || s.simple_name || s.taxon_id;
 const keyOf = (s: { id: number }) => `s${s.id}`;
 
 export default function QuadratScreen() {
-  const c = useThemeColors();
   const { t } = useTranslation();
   const router = useRouter();
   const toast = useToast((s) => s.show);
@@ -99,7 +94,7 @@ export default function QuadratScreen() {
   useEffect(() => load(), [load]);
 
   const cfg = useMemo(() => parseQuadratConfig(plot?.quadrat_config), [plot?.quadrat_config]);
-  const [view, setView] = useState<View_>(() => (cfg.recordCover ? 'cover' : 'freq'));
+  const [view, setView] = useState<QuadratView>(() => (cfg.recordCover ? 'cover' : 'freq'));
   const locked = quadrat?.locked === 1;
   // Say so once on arrival; the header lock shows it from then on.
   const toastedLock = useRef(false);
@@ -247,7 +242,7 @@ export default function QuadratScreen() {
   };
 
   const both = cfg.recordCover && cfg.recordFreq;
-  const shown: View_ = !cfg.recordFreq ? 'cover' : !cfg.recordCover ? 'freq' : view;
+  const shown: QuadratView = !cfg.recordFreq ? 'cover' : !cfg.recordCover ? 'freq' : view;
   const cross = progress.issues;
   const noFreq = cross.filter((i) => i.kind === 'cover-no-freq').map((i) => i.species);
   const noCover = cross.filter((i) => i.kind === 'freq-no-cover').map((i) => i.species);
@@ -259,24 +254,13 @@ export default function QuadratScreen() {
         options={{
           headerLeft: BackHeaderLeft,
           headerTitle: () => (
-            <View>
-              <View className="flex-row items-center gap-1.5">
-                <StatusBadge label={quadrat.label} status={progress.status} size="sm" />
-                <Text className="font-semibold text-ink dark:text-gray-100" style={{ fontSize: 15, maxWidth: 150 }} numberOfLines={1}>
-                  {name.slice(quadrat.label.length).trim() || quadrat.label}
-                </Text>
-                {locked ? <Ionicons name="lock-closed" size={13} color={c.ink2} /> : null}
-              </View>
-              <Text className="text-ink-2 dark:text-gray-300" style={{ fontSize: 11 }} numberOfLines={1}>
-                {[
-                  plot.plotid,
-                  `${quadrat.size_m} × ${quadrat.size_m} m`,
-                  t('plot.quadrats.gridCells', { n: quadrat.grid_n }),
-                ]
-                  .filter(Boolean)
-                  .join(' · ')}
-              </Text>
-            </View>
+            <QuadratHeaderTitle
+              code={quadrat.label}
+              status={progress.status}
+              title={name.slice(quadrat.label.length).trim() || quadrat.label}
+              locked={locked}
+              subtitle={[plot.plotid, `${quadrat.size_m} × ${quadrat.size_m} m`, t('plot.quadrats.gridCells', { n: quadrat.grid_n })].filter(Boolean).join(' · ')}
+            />
           ),
           headerRight: () => (
             <View className="flex-row items-center gap-2">
@@ -290,7 +274,7 @@ export default function QuadratScreen() {
       {edit.locked ? <LockedBanner text={t('plot.quadrats.plotLocked')} /> : null}
       {both ? (
         <View className="px-4 pt-3">
-          <ViewSeg
+          <QuadratViewSeg
             value={shown}
             onChange={(v) => {
               flushStroke();
@@ -365,42 +349,6 @@ function plotLayers(plotId: number, stamp: number): Map<string, string> {
   return out;
 }
 
-/** 覆蓋度 ｜ 頻度 n/m (design 10d): the badge is alert-toned until every species has cells. */
-function ViewSeg({ value, onChange, freq }: { value: View_; onChange: (v: View_) => void; freq: { done: number; total: number } }) {
-  const { t } = useTranslation();
-  const complete = freq.total > 0 && freq.done === freq.total;
-  const tab = (v: View_, label: string, badge?: React.ReactNode) => {
-    const on = value === v;
-    return (
-      <Pressable
-        onPress={() => onChange(v)}
-        accessibilityRole="tab"
-        accessibilityState={{ selected: on }}
-        className={`flex-1 flex-row items-center justify-center gap-1.5 rounded-md py-1.5 ${on ? 'bg-card dark:bg-gray-700' : ''}`}
-      >
-        <Text className={`text-sm ${on ? 'font-semibold text-ink dark:text-gray-100' : 'text-ink-2 dark:text-gray-400'}`}>{label}</Text>
-        {badge}
-      </Pressable>
-    );
-  };
-  return (
-    <View className="flex-row rounded-lg bg-disc p-0.5 dark:bg-disc-dark" accessibilityRole="tablist">
-      {tab('cover', t('plot.quadrats.cover'))}
-      {tab(
-        'freq',
-        t('plot.quadrats.frequency'),
-        freq.total > 0 ? (
-          <View className={`rounded-full px-1.5 ${complete ? 'bg-accent-100 dark:bg-accent-900' : 'bg-alert-tint dark:bg-alert-dark-tint'}`}>
-            <Text className={`text-xs font-bold ${complete ? 'text-accent-700 dark:text-accent-300' : 'text-alert dark:text-alert-dark'}`}>
-              {`${freq.done}/${freq.total}`}
-            </Text>
-          </View>
-        ) : null,
-      )}
-    </View>
-  );
-}
-
 type CoverProps = {
   plot: PlotSurvey;
   quadrat: Quadrat;
@@ -465,30 +413,12 @@ function CoverBody({ plot, quadrat, species, cfg, ro, run, onFinish }: CoverProp
     ? null
     : exactSum(SURFACE_COLUMNS.reduce((a, k) => a + (quadrat[k] ?? 0), 0));
   const speciesSum = exactSum(species.reduce((a, s) => a + (s.cover_pct ?? 0), 0));
+  // The quadrat's photos (v77 photo_paths), kept as one JSON list.
+  const savePhotos = (uris: string[]) => run(() => updateQuadrat(quadrat.id, { photo_paths: uris.length ? JSON.stringify(uris) : null }));
   const cells = quadrat.grid_n * quadrat.grid_n;
 
-  const chips = (list: { taxon_id: string; name: string }[], label: string) => {
-    const left = list.filter((x) => !have.has(x.taxon_id));
-    if (!left.length || ro) return null;
-    return (
-      <View className="gap-1.5">
-        <Text className="text-xs font-semibold text-gray-500 dark:text-gray-400">{label}</Text>
-        <View className="flex-row flex-wrap gap-1.5">
-          {left.map((x) => (
-            <Pressable
-              key={x.taxon_id}
-              onPress={() => add(x.taxon_id)}
-              accessibilityRole="button"
-              className="flex-row items-center rounded-full border-[1.5px] border-dashed border-gray-400 px-3 py-1.5 active:bg-gray-100 dark:border-gray-500 dark:active:bg-gray-800"
-            >
-              <Ionicons name="add" size={14} color={c.accent} />
-              <Text className="ml-0.5 text-sm text-ink dark:text-gray-100">{x.name}</Text>
-            </Pressable>
-          ))}
-        </View>
-      </View>
-    );
-  };
+  const chips = (list: { taxon_id: string; name: string }[], label: string) =>
+    ro ? null : <PickChips items={list.filter((x) => !have.has(x.taxon_id))} label={label} onPick={add} />;
 
   return (
     <>
@@ -536,7 +466,7 @@ function CoverBody({ plot, quadrat, species, cfg, ro, run, onFinish }: CoverProp
                 key={s.id}
                 onLongPress={async () => {
                   if (ro) return;
-                  const k = await showActionSheet({ title: nameOf(s), options: [{ label: t('plot.quadrats.removeSpecies'), destructive: true }] });
+                  const k = await showActionSheet({ titleParts: speciesParts(s.common_name_c, s.simple_name, s.rank, s.kingdom, s.taxon_id), options: [{ label: t('plot.quadrats.removeSpecies'), destructive: true }] });
                   if (k === 0) run(() => deleteQuadratSpecies(s.id));
                 }}
                 delayLongPress={350}
@@ -587,7 +517,13 @@ function CoverBody({ plot, quadrat, species, cfg, ro, run, onFinish }: CoverProp
         {chips(fromPlot, t('plot.quadrats.fromPlotList'))}
         {chips(previous, t('plot.quadrats.fromPrevious'))}
 
-        <QuadratPhotos quadrat={quadrat} ro={ro} run={run} />
+        <QuadratPhotos
+          photos={parseEnvPhotos(quadrat.photo_paths)}
+          ro={ro}
+          onRefused={() => void run(() => undefined)}
+          onAdd={(uris) => savePhotos([...parseEnvPhotos(quadrat.photo_paths), ...uris])}
+          onRemove={(uri) => savePhotos(parseEnvPhotos(quadrat.photo_paths).filter((u) => u !== uri))}
+        />
 
         {onFinish && !ro ? (
           <Btn label={t('plot.quadrats.finishLock', { label: quadrat.label })} onPress={onFinish} />
@@ -601,44 +537,6 @@ function CoverBody({ plot, quadrat, species, cfg, ro, run, onFinish }: CoverProp
         </KeyboardStickyView>
       ) : null}
     </>
-  );
-}
-
-/** The quadrat's photos (v77 photo_paths), taken like the plot's environment photos. */
-function QuadratPhotos({ quadrat, ro, run }: { quadrat: Quadrat; ro: boolean; run: Run }) {
-  const { t } = useTranslation();
-  const toast = useToast((s) => s.show);
-  const photos = parseEnvPhotos(quadrat.photo_paths);
-  const [viewer, setViewer] = useState<number | null>(null);
-  const save = (uris: string[]) => run(() => updateQuadrat(quadrat.id, { photo_paths: uris.length ? JSON.stringify(uris) : null }));
-  const add = (uris: string[]) => uris.length && save([...photos, ...uris]);
-  return (
-    <View>
-      <Text className="text-xs font-bold uppercase text-gray-500 dark:text-gray-400" style={{ letterSpacing: 0.96 }}>
-        {t('plot.quadrats.photos')}
-        {photos.length ? ` (${photos.length})` : ''}
-      </Text>
-      <PhotoGrid
-        photos={photos}
-        onAdd={() => {
-          if (ro) return void run(() => undefined);
-          void captureEnvPhoto()
-            .then((uri) => uri && add([uri]))
-            .catch((e) => toast(errText(e)));
-        }}
-        onPickLibrary={
-          ro
-            ? undefined
-            : () =>
-                void pickPhotos()
-                  .then(add)
-                  .catch((e) => toast(errText(e)))
-        }
-        onView={setViewer}
-        onRemove={ro ? undefined : (uri) => save(photos.filter((u) => u !== uri))}
-      />
-      <PhotoViewerModal photos={photos} index={viewer} onClose={() => setViewer(null)} />
-    </View>
   );
 }
 

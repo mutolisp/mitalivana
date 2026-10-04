@@ -62,6 +62,7 @@ import { ScientificName } from './ScientificName';
 import { runOverModal } from './GbifLookupHost';
 import { SearchBox } from './SearchBox';
 import { useThemeColors } from '~/theme/colors';
+import { ActionSheetLayer, sheetBack } from '~/components/ActionSheet';
 
 /** A taxon resolved all the way to something the map can draw. */
 export type InatGridSelection = {
@@ -329,7 +330,7 @@ export function SpeciesDistributionSheet({
   const showEmptyHint = !busy && !confirm && !notice && !inatHits;
 
   return (
-    <Modal visible={visible && !steppedAside} transparent animationType="fade" onRequestClose={close}>
+    <Modal visible={visible && !steppedAside} transparent animationType="fade" onRequestClose={sheetBack(close)}>
       <Pressable
         style={StyleSheet.absoluteFill}
         className="bg-black/30"
@@ -625,6 +626,7 @@ export function SpeciesDistributionSheet({
           ) : null}
         </View>
       </View>
+      <ActionSheetLayer visible={visible && !steppedAside} />
     </Modal>
   );
 }

@@ -17,6 +17,7 @@ import { useTranslation } from 'react-i18next';
 import { Keyboard, Text, TextInput, View } from 'react-native';
 import { parseNum } from '~/lib/parseNum';
 import { useToast } from '~/stores/toast';
+import { rangeText } from '~/lib/numRangeText';
 import { useThemeColors } from '~/theme/colors';
 
 /** How long typing pauses before the value is saved. */
@@ -156,7 +157,6 @@ export function LabeledNumField({
   // Bumping this remounts <LabeledField>, resetting its draft to the last saved value
   // (used to discard an out-of-range or unreadable entry).
   const [resetKey, setResetKey] = useState(0);
-  const ranged = min !== undefined || max !== undefined;
   return (
     <LabeledField
       key={resetKey}
@@ -177,7 +177,8 @@ export function LabeledNumField({
         const ok = n !== null && (min === undefined || n >= min) && (max === undefined || n <= max);
         if (!ok) {
           if (!done) return;
-          if (ranged) toast(t('plot.numRange', { min: min ?? 0, max: max ?? 100 }));
+          const msg = rangeText(t, min, max);
+          if (msg) toast(msg);
           setResetKey((k) => k + 1);
           return;
         }

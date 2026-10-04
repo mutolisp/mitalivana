@@ -119,7 +119,14 @@ export function PlotQuadratsTab({
       <ScrollView className="flex-1" contentContainerClassName="gap-3 p-4">
         {/* Where the quadrats sit in the plot, north up. */}
         <View className="flex-row gap-4 rounded-card border border-line bg-card p-4 dark:border-line-dark dark:bg-card-dark">
-          <Diagram rows={rows} layout={cfg.layout} onOpen={open} />
+          <QuadratDiagram
+            items={rows.map((r) => ({ id: r.q.id, label: r.q.label, position: r.q.position, status: r.progress.status }))}
+            layout={cfg.layout}
+            onOpen={(id) => {
+              const q = rows.find((r) => r.q.id === id)?.q;
+              if (q) open(q);
+            }}
+          />
           <View className="flex-1 justify-between">
             <View className="gap-1">
               <Info label={t('plot.quadrats.size')} value={`${fmtM(cfg.sizeM)} × ${fmtM(cfg.sizeM)} m`} />
@@ -244,38 +251,40 @@ export function StatusBadge({ label, status, size = 'md' }: { label: string; sta
   );
 }
 
+export type DiagramItem = { id: number; label: string; position: string | null; status: QuadratProgress['status'] };
+
 /**
  * Plot frame with the quadrats as boxes, north up. Corners + centre use the
  * five named spots, the diagonal runs NW → SE, anything else is laid out in a
  * grid by number. A box opens its quadrat.
  */
-function Diagram({ rows, layout, onOpen }: { rows: Row[]; layout: QuadratConfig['layout']; onOpen: (q: Quadrat) => void }) {
+export function QuadratDiagram({ items, layout, onOpen }: { items: readonly DiagramItem[]; layout: QuadratConfig['layout']; onOpen: (id: number) => void }) {
   const c = useThemeColors();
   const size = 132;
-  const spot = (r: Row, i: number): [number, number] => {
+  const spot = (r: DiagramItem, i: number): [number, number] => {
     const named: Record<string, [number, number]> = { NW: [0.16, 0.16], NE: [0.84, 0.16], C: [0.5, 0.5], SW: [0.16, 0.84], SE: [0.84, 0.84] };
-    if (r.q.position && named[r.q.position]) return named[r.q.position];
+    if (r.position && named[r.position]) return named[r.position];
     if (layout === 'diagonal') {
-      const f = (i + 1) / (rows.length + 1);
+      const f = (i + 1) / (items.length + 1);
       return [f, f];
     }
-    const cols = Math.ceil(Math.sqrt(rows.length));
-    const lines = Math.ceil(rows.length / cols);
+    const cols = Math.ceil(Math.sqrt(items.length));
+    const lines = Math.ceil(items.length / cols);
     return [((i % cols) + 0.5) / cols, (Math.floor(i / cols) + 0.5) / lines];
   };
   return (
     <View className="items-center">
       <Text className="text-xs font-bold text-ink-2 dark:text-gray-300">N ↑</Text>
       <View style={{ width: size, height: size }} className="mt-1 rounded-sm border-2 border-gray-500 dark:border-gray-400">
-        {rows.map((r, i) => {
+        {items.map((r, i) => {
           const [x, y] = spot(r, i);
-          const look = statusLook(c, r.progress.status);
+          const look = statusLook(c, r.status);
           return (
             <Pressable
-              key={r.q.id}
-              onPress={() => onOpen(r.q)}
+              key={r.id}
+              onPress={() => onOpen(r.id)}
               accessibilityRole="button"
-              accessibilityLabel={r.q.label}
+              accessibilityLabel={r.label}
               hitSlop={4}
               className="absolute items-center justify-center rounded-sm"
               style={{
@@ -289,7 +298,7 @@ function Diagram({ rows, layout, onOpen }: { rows: Row[]; layout: QuadratConfig[
               }}
             >
               <Text className="font-mono text-[10px] font-bold" style={{ color: look.onFill }}>
-                {r.q.label}
+                {r.label}
               </Text>
             </Pressable>
           );
@@ -299,7 +308,7 @@ function Diagram({ rows, layout, onOpen }: { rows: Row[]; layout: QuadratConfig[
   );
 }
 
-function Info({ label, value }: { label: string; value: string }) {
+export function Info({ label, value }: { label: string; value: string }) {
   return (
     <View className="flex-row">
       <Text className="w-20 text-xs text-gray-500 dark:text-gray-400">{label}</Text>
@@ -308,7 +317,7 @@ function Info({ label, value }: { label: string; value: string }) {
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+export function Stat({ label, value }: { label: string; value: string }) {
   return (
     <View className="flex-1">
       <Text className="text-xs text-gray-500 dark:text-gray-400">{label}</Text>

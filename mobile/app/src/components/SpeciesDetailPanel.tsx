@@ -36,6 +36,7 @@ import { clearSearchResultCache } from './SearchBox';
 import { TaxonomyJumpChip } from './TaxonomyJumpChip';
 import { useThemeColors } from '~/theme/colors';
 import { Button } from '~/components/ui/Button';
+import { speciesParts } from '~/lib/nameParts';
 
 type Props = {
   result: SearchResult;
@@ -228,7 +229,7 @@ export function SpeciesDetailPanel({
           onPress={async () => {
             const actions = speciesCopyActions(result);
             const idx = await showActionSheet({
-              title: result.cname || result.name,
+              titleParts: speciesParts(result.cname, result.name, result.rank, result.kingdom),
               options: actions.map((a) => ({ label: a.label })),
             });
             if (idx >= 0 && idx < actions.length) {
