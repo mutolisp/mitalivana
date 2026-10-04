@@ -603,10 +603,21 @@ const pickKnown = (d: Row, cols: readonly string[]): Row => Object.fromEntries(O
 
 // ── restore ─────────────────────────────────────────────────────────────────
 
-/** Trees and stems of the census created after `t` (ms), by uuid. */
-function createdAfter(ctx: { db: SurveyDb }, tbl: 'fw_individuals' | 'fw_stems', uuids: string[], t: number): Set<string> {
+/**
+ * Trees and stems first recorded in this census and created after `t` (ms),
+ * by uuid: the ones a restore may remove. A tree another series recorded in
+ * the same quadrats since is not this census's to remove (code review H1,
+ * 2026-10-04). Through a temp table, as buildSlice: a whole census has more
+ * stems than one statement takes parameters (code review M5).
+ */
+function createdAfter(ctx: { db: SurveyDb }, tbl: 'fw_individuals' | 'fw_stems', surveyId: number, uuids: string[], t: number): Set<string> {
   if (!uuids.length) return new Set();
-  return new Set(rows<{ uuid: string }>(ctx, `SELECT uuid FROM ${tbl} WHERE uuid IN (${marks(uuids.length)}) AND created_at > ?`, [...uuids, t]).map((r) => r.uuid));
+  fillTemp(ctx, 'temp.slice_new', 'uuid TEXT', uuids);
+  return new Set(
+    rows<{ uuid: string }>(ctx, `SELECT x.uuid FROM temp.slice_new n CROSS JOIN ${tbl} x ON x.uuid = n.uuid WHERE x.created_at > ? AND x.first_survey_id = ?`, [t, surveyId]).map(
+      (r) => r.uuid,
+    ),
+  );
 }
 
 /**
@@ -622,8 +633,8 @@ export function restoreSlice(ctx: Ctx, surveyId: number, target: CensusSlice): n
   const ops = planOps(items, restoreDecisions(items));
   const targetTrees = new Set(target.trees.map((t) => t.uuid as string));
   const stemTree = new Map(current.stems.map((st) => [st.uuid as string, st.tree_uuid as string]));
-  const newTrees = createdAfter(ctx, 'fw_individuals', current.trees.map((t) => t.uuid as string), target.taken_at);
-  const newStems = createdAfter(ctx, 'fw_stems', current.stems.map((st) => st.uuid as string), target.taken_at);
+  const newTrees = createdAfter(ctx, 'fw_individuals', surveyId, current.trees.map((t) => t.uuid as string), target.taken_at);
+  const newStems = createdAfter(ctx, 'fw_stems', surveyId, current.stems.map((st) => st.uuid as string), target.taken_at);
   const ownerOf = (tbl: string, key: string): string | undefined => {
     switch (tbl) {
       case 'measure':

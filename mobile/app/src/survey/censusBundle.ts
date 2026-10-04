@@ -13,7 +13,7 @@ import { generateUuid } from '~/db/uuid';
 import { toCsv } from '~/modules/gloria/export/sheetRows';
 import { buildCensusExport, censusExportText, type CensusExportDoc } from './db/censusExportCore';
 import { getFrame, getSurvey } from './db/stemmapCore';
-import { censusTable, stemsTable, treesTable, veganBasalArea, type Names, type Table } from './stemmap/censusTables';
+import { censusFolderBase, censusTable, stemsTable, treesTable, veganBasalArea, type Names, type Table } from './stemmap/censusTables';
 
 export type CensusEntry = { name: string; bytes: Uint8Array };
 
@@ -44,7 +44,7 @@ export async function buildCensusEntries(
   const frame = getFrame(c, s.frame_id)!;
   const doc = buildCensusExport(c, surveyId, (id) => resolveTaxa([id]).get(id)?.simple_name ?? null);
   const names = censusNames(doc.trees.map((t) => String(t.taxon_id)));
-  const base = clean(`${frame.code}_census${s.census_no}`);
+  const base = clean(censusFolderBase(doc, s.census_no));
   const entries: CensusEntry[] = [];
 
   // Photos: named by tree, stem and census, so a person can find them without the yml.

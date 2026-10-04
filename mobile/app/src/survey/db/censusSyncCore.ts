@@ -374,6 +374,8 @@ export type OpenedBlock = {
   /** Same tag, same place, same species: folded without asking. */
   sameTree: Fold[];
   collisions: Collision[];
+  /** How many of their folds were carried out here (written already). */
+  folded: number;
 };
 
 type LocalTree = { id: number; uuid: string; tag: string; taxon_id: string; used_scientific_name: string | null; x_m: number; y_m: number; quadrat_code: string; first_survey_id: number | null };
@@ -542,8 +544,11 @@ export function openBlock(ctx: Ctx, surveyId: number, sent: CensusSlice): Opened
     if (u != null && u !== THIS_CENSUS && !one(ctx, `SELECT id FROM fw_surveys WHERE uuid = ?`, [u as string])) throw new CensusSyncError('previous_missing');
   }
   // Their decisions first: a tree they folded into another is folded here too.
+  let folded = 0;
   for (const f of foldsIn(sent.history)) {
-    if (localTree(ctx, f.loser)) foldLocally(ctx, surveyId, f, sliceStemsByNo(sent, f.winner));
+    if (!localTree(ctx, f.loser)) continue;
+    foldLocally(ctx, surveyId, f, sliceStemsByNo(sent, f.winner));
+    folded += 1;
   }
   // This device's decisions on their copy: trees folded here are folded there.
   let remote = sent;
@@ -579,7 +584,7 @@ export function openBlock(ctx: Ctx, surveyId: number, sent: CensusSlice): Opened
     ).filter((l) => Math.hypot(l.x_m - Number(t.x_m), l.y_m - Number(t.y_m)) <= POSSIBLE_DUPLICATE_M);
     if (near[0]) collisions.push({ id: `possible:${t.uuid}`, kind: 'possible', local: briefOfLocal(ctx, surveyId, near[0]), remote: briefOfRemote(remote, t) });
   }
-  return { remote, sent, sameTree, collisions };
+  return { remote, sent, sameTree, collisions, folded };
 }
 
 /** The smaller uuid stays, so both phones keep the same one. */

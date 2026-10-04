@@ -21,6 +21,7 @@ import { matchScientificName } from '~/lib/sciMatch';
 import { runTask } from '~/stores/taskProgress';
 import { useToast } from '~/stores/toast';
 import { censusQuadratIds } from './db/censusVersions';
+import { clearCensusUndo } from './undo';
 import { importCensusDoc, planCensusImport, type CensusExportDoc, type ImportChoice } from './db/censusExportCore';
 import { ALL_QUADRATS, censusIdent } from './db/censusSyncCore';
 import { keepQuadratVersions } from './db/stemmap';
@@ -80,6 +81,8 @@ export async function finishCensusImport(payload: { census: CensusExportDoc; pho
     // One transaction, so no progress inside it: the step and the spinner.
     await report.step('task.writingTrees', { count: doc.trees.length });
     const res = withTransaction(() => importCensusDoc(ctx(), doc, choice, (file) => uriByName.get(file) ?? null));
+    // Undo steps from before the file came in would take its trees out again (code review H1).
+    for (const x of here) clearCensusUndo(x.localId!);
     for (const id of new Set(doc.trees.map((tr) => String(tr.taxon_id)))) ensureTaxonSelfSufficient(id);
 
     // Censuses to merge: quietly when nothing needs a person, else the review, one after another.

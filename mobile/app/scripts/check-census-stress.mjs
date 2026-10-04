@@ -99,6 +99,25 @@ try {
   ok(false, `slice: 40 000 extra trees refused (${e.message})`);
 }
 ok(slice && slice.trees.length > 0, 'slice: 40 000 extra trees go through a temp table, not parameters');
+// Restoring a whole census (an overwrite import) binds no parameter per tree either (code review M5):
+// at 50 ha its stems alone pass SQLite's 32 766.
+{
+  const codes = db.executeSync(`SELECT DISTINCT quadrat_code AS c FROM fw_individuals WHERE frame_id = ?`, [made.frameId]).rows.map((r) => r.c);
+  const whole = sl.buildSlice(ctx, census2, codes);
+  let most = 0;
+  const plain = db.executeSync;
+  db.executeSync = (sql, params = []) => {
+    most = Math.max(most, params.length);
+    return plain(sql, params);
+  };
+  let ops = -1;
+  try {
+    ops = tx(() => sl.restoreSlice(ctx, census2, whole));
+  } finally {
+    db.executeSync = plain;
+  }
+  ok(whole.trees.length > 500 && ops === 0 && most <= 400, `slice: restoring ${whole.trees.length} trees binds at most ${most} parameters a statement`);
+}
 
 // ── per-tree work does not walk the whole census ─────────────────────────
 // Saving, correcting, opening a quadrat, its version slice and a tag

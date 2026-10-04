@@ -291,6 +291,22 @@ eq('blank and missing hash alike', rowHash({ a: 1, b: '' }) === rowHash({ a: 1 }
   eq('grid setting: their grid while cells are painted here → asked', gridItem?.kind, 'conflict');
   const gTied = tieQuadratGeometry(gItems, new Map([[gridItem.id, { pick: 'remote' }]]));
   eq('grid setting: their grid chosen → every quadrat with another grid takes theirs', gItems.filter((x) => x.tbl !== 'qconfig').map((x) => `${x.key}:${gTied.get(x.id)?.pick}`), ['1:remote', '2:remote', '1:t1:remote']);
+
+  // The plot's own frequency grid (v78): taken quietly it would drop every mask here (code review H2).
+  const psp = (o) => ({ occurrence_id: 'o1', taxon_id: 't1', name: 't1', freq_cells: null, freq_count: null, cover_pct: null, ...o });
+  const pplot = (species, config) => ({ ...plot([], config), species });
+  const pBase = plotSide(pplot([psp({})], cfg({ freqGridN: 5 })));
+  const pLocal = plotSide(pplot([psp({ freq_cells: M5 })], cfg({ freqGridN: 5 })));
+  const pRemote = plotSide(pplot([psp({ cover_pct: 8 })], cfg({ freqGridN: 4 })));
+  eq('plot frequency grid: theirs while masks are painted here → asked', askQuadratGeometry(diffSides(pLocal, pRemote, baseOf(pBase)), pLocal).find((x) => x.key === 'freqGridN')?.kind, 'conflict');
+  eq('plot frequency grid: nothing painted here → taken', askQuadratGeometry(diffSides(pBase, pRemote, baseOf(pBase)), pBase).find((x) => x.key === 'freqGridN')?.kind, 'auto');
+  const pCount = plotSide(pplot([psp({ freq_count: 12 })], cfg({ freqGridN: 5, freqMode: 'cells' })));
+  eq('plot frequency way: their switch while counts are here → asked', askQuadratGeometry(diffSides(pCount, plotSide(pplot([psp({})], cfg({ freqGridN: 5, freqMode: 'count' }))), baseOf(plotSide(pplot([psp({})], cfg({ freqGridN: 5, freqMode: 'cells' }))))), pCount).find((x) => x.key === 'freqMode')?.kind, 'conflict');
+  const p2 = askQuadratGeometry(diffSides(pLocal, plotSide(pplot([psp({ freq_cells: '1'.repeat(16) })], cfg({ freqGridN: 4 }))), baseOf(pBase)), pLocal);
+  const f2 = p2.find((x) => x.key === 'freqGridN');
+  const spMasks = (d) => planOps(p2, d).filter((o) => o.tbl === 'sp' && o.data.freq_cells != null).map((o) => o.data.freq_cells);
+  eq('plot frequency grid: theirs chosen → their masks come with it', spMasks(tieQuadratGeometry(p2, new Map([[f2.id, { pick: 'remote' }]]))), ['1'.repeat(16)]);
+  eq('plot frequency grid: ours kept → ours stay', spMasks(tieQuadratGeometry(p2, new Map())), []);
 }
 
 // ── review titles: scientific names as parts the review italicises (rank looked up by taxon) ──

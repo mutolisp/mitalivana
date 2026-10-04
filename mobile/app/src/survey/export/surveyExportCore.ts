@@ -146,7 +146,10 @@ export function docForFile(doc: SurveyDoc, opts: { names: Names; extOf: (uri: st
   const files: FileRef[] = [];
   const taken = new Set<string>();
   const name = (stem: string, uri: string, kind: FileRef['kind']) => {
-    const ext = (opts.extOf(uri) || (kind === 'audio' ? 'm4a' : 'jpg')).toLowerCase();
+    // A clip keeps its own extension: `extOf` is the photo rule, which names anything it does not know .jpg,
+    // and an import takes audio only by its audio extensions (code review H3, 2026-10-04).
+    const own = /\.([A-Za-z0-9]{1,5})(?:\?|$)/.exec(uri)?.[1];
+    const ext = (kind === 'audio' ? own || 'm4a' : opts.extOf(uri) || 'jpg').toLowerCase();
     const base = fileStem(stem) || kind;
     let file = `${base}.${ext}`;
     for (let n = 2; taken.has(file); n++) file = `${base}_${n}.${ext}`;

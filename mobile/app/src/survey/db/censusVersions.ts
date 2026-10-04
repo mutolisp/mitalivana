@@ -5,6 +5,7 @@
  */
 import { getUserDb, withTransaction } from '~/db/init';
 import { generateUuid } from '~/db/uuid';
+import { clearCensusUndo } from '../undo';
 import * as sl from './sliceCore';
 
 const ctx = () => ({ db: getUserDb(), now: Date.now, uuid: generateUuid });
@@ -47,7 +48,10 @@ export function quadratSlice(id: number): sl.CensusSlice | null {
 export function restoreQuadrat(id: number, slice: sl.CensusSlice): number {
   const q = quadratRef(id);
   if (!q) throw new Error('quadrat not found');
-  return withTransaction(() => sl.restoreSlice(ctx(), q.survey_id, slice));
+  const n = withTransaction(() => sl.restoreSlice(ctx(), q.survey_id, slice));
+  // Undo steps from before the restore would undo it in part (code review H1).
+  clearCensusUndo(q.survey_id);
+  return n;
 }
 
 export function censusIdentity(surveyId: number): { uuid: string; label: string } | null {

@@ -1204,12 +1204,34 @@ export function recheckState(ctx: { db: SurveyDb }, surveyId: number): RecheckSt
   return { previousId, candidates, answers, open: recheckOpen(candidates, answers.map(answerOf)) };
 }
 
+/** Occurrence columns an answer leaves empty: any of them filled means someone recorded something on it. */
+const RECORDED_ON = OCCURRENCE_FIELDS.filter((c) => c !== 'unit_id' && c !== 'taxon_id' && c !== 'verbatim_identification' && c !== 'observed_at');
+
+/**
+ * Whether a 'found' answer's occurrence is the answer's own and nothing more:
+ * added by it (not there before it, by hand or through an interaction) and not
+ * filled in since. Only such an occurrence goes when the answer changes; any
+ * other stays an ordinary occurrence of the recheck (code review H6,
+ * 2026-10-04: changing an answer deleted one added by hand, abundance and
+ * photos with it). A second's grace: the answer adds it and is stamped in the
+ * same call.
+ */
+function answerOnly(ctx: { db: SurveyDb }, old: RecheckRow): boolean {
+  const o = old.occurrence_id == null ? null : getOccurrence(ctx, old.occurrence_id);
+  if (!o || o.created_at < old.checked_at - 1000) return false;
+  if (RECORDED_ON.some((c) => o[c] != null)) return false;
+  return (
+    !one(ctx, `SELECT 1 AS x FROM fw_occurrence_values WHERE occurrence_id = ? LIMIT 1`, [o.id]) &&
+    !one(ctx, `SELECT 1 AS x FROM fw_media WHERE occurrence_id = ? LIMIT 1`, [o.id])
+  );
+}
+
 /**
  * Answer one recheck candidate (answering again replaces the answer):
  *   found         the taxon is added in the same unit as a 'recheck' occurrence; returns its id
  *   not_found     looked for and not there
  *   reidentified  recorded under another name this time: `occurrenceId` is that occurrence
- * The occurrence an earlier 'found' added goes when the answer changes.
+ * The occurrence an earlier 'found' added goes when the answer changes, if nothing was recorded on it (answerOnly).
  */
 export function answerRecheck(ctx: Ctx, surveyId: number, candidate: Sighting, outcome: RecheckOutcome, occurrenceId: number | null = null): number | null {
   const state = recheckState(ctx, surveyId);
@@ -1231,7 +1253,7 @@ export function answerRecheck(ctx: Ctx, surveyId: number, candidate: Sighting, o
   if (old?.outcome === 'found' && old.occurrence_id != null && interactionCountOf(ctx, old.occurrence_id) > 0) {
     // Its interactions keep it, as their other side only.
     run(ctx, `UPDATE fw_occurrences SET via_interaction = 1, updated_at = ? WHERE id = ? AND phase = 'recheck'`, [ctx.now(), old.occurrence_id]);
-  } else if (old?.outcome === 'found' && old.occurrence_id != null) {
+  } else if (old?.outcome === 'found' && old.occurrence_id != null && answerOnly(ctx, old)) {
     run(ctx, `DELETE FROM fw_occurrence_values WHERE occurrence_id = ?`, [old.occurrence_id]);
     run(ctx, `DELETE FROM fw_media WHERE occurrence_id = ?`, [old.occurrence_id]);
     run(ctx, `DELETE FROM fw_occurrences WHERE id = ? AND phase = 'recheck'`, [old.occurrence_id]);

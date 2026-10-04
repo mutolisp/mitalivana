@@ -10,6 +10,7 @@
  */
 import { errText } from '~/lib/errText';
 import { File, Paths } from 'expo-file-system';
+import { guessExt } from './photoExt';
 import { safeAppFileUri } from './appFiles';
 import { syncBlockFor } from '~/db/syncBase';
 import { readAsStringAsync } from 'expo-file-system/legacy';
@@ -1968,10 +1969,7 @@ async function collectPhotosPlot(
   return { entries: out, names };
 }
 
-export function guessExt(uri: string): string {
-  const m = uri.toLowerCase().match(/\.(jpg|jpeg|png|heic|webp)(?:\?|$)/);
-  return m ? m[1] : 'jpg';
-}
+export { guessExt };
 
 export function base64ToBytes(b64: string): Uint8Array {
   // Hermes doesn't have atob in older builds; expo's runtime has it but to be
@@ -2268,9 +2266,16 @@ export async function finalizeZip(
   injectFileDigests(entries, strFromU8, strToU8, (b) => digests.get(b) ?? bytesToHex(sha256(b)));
   if (active) injectSignatures(entries, active.signer, active.seed, strFromU8, strToU8);
   // Keyed by name as zipSync's input was: a repeated name keeps its first
-  // place and its last bytes.
+  // place. Two different files under one name would lose one of them without
+  // a word (two series' census folders did, code review H4): refused.
   const byName: Record<string, BuiltZipEntry> = {};
-  for (const e of entries) byName[e.name] = e;
+  for (const e of entries) {
+    const had = byName[e.name];
+    if (had && had.bytes !== e.bytes && (had.bytes.length !== e.bytes.length || had.bytes.some((b, i) => b !== e.bytes[i]))) {
+      throw new Error(`two different files would be written as ${e.name}`);
+    }
+    byName[e.name] = e;
+  }
   const files = Object.values(byName).map((e) => ({ name: e.name, bytes: e.bytes, level: e.zipOpts?.level }));
   const zipped = await zipInPieces(files, { level: 6 }, bytesProgress(onProgress, i18n.t('export.stage.compressing')));
   onProgress?.({ label: i18n.t('export.stage.writing') });

@@ -230,8 +230,16 @@ type Props = {
   /** The attribute block at all, and which of its fields (a template's Phenology). Default: all. */
   showAttributes?: boolean;
   attributeFields?: readonly (keyof SpeciesAttributesDraft)[];
-  /** A template's other components for this record, after the existing fields (2G). */
-  extra?: ReactNode;
+  /**
+   * A template's other components for this record, after the existing fields
+   * (2G). As a function it gets `saveFirst`: what is on screen written now,
+   * before something takes the sheet away (a field's own screen, a question
+   * the sheet steps aside for) — coming back, the sheet starts again from the
+   * record, so an unsaved value would be gone (code review M21).
+   */
+  extra?: ReactNode | ((saveFirst: () => void) => ReactNode);
+  /** Write the record without closing (`saveFirst`); absent: `saveFirst` does nothing. */
+  onCommit?: (v: PlotValueDraft) => void;
   /** The notes field (a template without a Comments component on its occurrences hides it). Default true. */
   showNotes?: boolean;
   /** The label field (on a permanent plot a survey picks labels from the plot's list instead). Default true. */
@@ -269,6 +277,7 @@ export function PlotSpeciesValueModal({
   inat,
   onCancel,
   onSave,
+  onCommit,
   pager,
   recordActions,
   allowedKinds,
@@ -455,6 +464,10 @@ export function PlotSpeciesValueModal({
   };
 
   const handleSave = () => onSave(buildDraft());
+  /** By the swipe's rule below: a changed, complete value is written; an untouched or incomplete one is not. */
+  const saveFirst = () => {
+    if (onCommit && canSave && !sameDraft(buildDraft(), { ...EMPTY, ...(initial ?? {}) })) onCommit(buildDraft());
+  };
 
   /**
    * Swiping to the next species commits what is on screen first.
@@ -971,7 +984,7 @@ export function PlotSpeciesValueModal({
                       ) : null}
                     </View>
                   ) : null}
-                  {extra}
+                  {typeof extra === 'function' ? extra(saveFirst) : extra}
                   {inat ? <InatSyncButton state={inat} /> : null}
 
                   <RecordMetaFooter

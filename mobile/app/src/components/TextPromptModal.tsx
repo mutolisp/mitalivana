@@ -62,8 +62,14 @@ const usePromptStore = create<PromptStoreState>((set, get) => ({
   open: (req) => set({ pending: req }),
   resolve: (value) => {
     const p = get().pending;
-    if (p) p.resolve(value);
     set({ pending: null });
+    // The caller often asks the next question at once (a new label: add it to
+    // the plot's list?). Resolved in the same tick, that action sheet went to
+    // the layer inside this prompt, still mounted, and was cancelled when the
+    // prompt went: the label was never written (found 2026-10-04 while
+    // checking code review H5). After this prompt has gone, it lands where it
+    // should.
+    if (p) setTimeout(() => p.resolve(value), 0);
   },
 }));
 

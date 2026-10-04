@@ -29,6 +29,7 @@ import { strToU8, zipSync } from 'fflate';
 import { runUserMigrations } from '../src/db/migrations.ts';
 import { baseOf } from '../src/lib/mergeEngine.ts';
 import { readRecordImportFromBytes, safeMediaBasename } from '../src/lib/recordImportZip.ts';
+import { guessExt } from '../src/lib/photoExt.ts';
 import * as s from '../src/survey/db/stemmapCore.ts';
 import * as c from '../src/survey/db/surveyCore.ts';
 import * as d from '../src/survey/db/surveyDocCore.ts';
@@ -130,7 +131,8 @@ const live = d.buildSurveyDoc(A.ctx, P2, { previous: true });
 ok(live.previous && live.previous.occurrences.length === 1, 'file: the survey before it comes along (n−1)');
 
 // ── the file: named media, through the real importer ─────────────────────
-const extOf = (uri) => (/\.([A-Za-z0-9]+)$/.exec(uri)?.[1] ?? '');
+// The app's own photo rule (bundleExport passes it): anything it does not know is named .jpg (code review H3).
+const extOf = guessExt;
 const { doc: fileDoc, files } = x.docForFile(live, { names, extOf });
 ok(files.length === 4 && fileDoc.media.every((m) => m.uri === undefined && typeof m.file === 'string'), `file: media named by file, no device paths (${files.map((f) => f.file)})`);
 ok(fileDoc.frame_labels[0].photo_file && fileDoc.frame_labels[0].photo_uri === undefined, 'file: the morphospecies photo named by file');

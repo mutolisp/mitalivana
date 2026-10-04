@@ -52,6 +52,7 @@ import { fgQuadratCounts } from './stemmap/coords';
 import * as core from './db/censusSyncCore';
 import type { CensusSlice } from './db/sliceCore';
 import { censusCodesets, frameGeometry, getFrame, getSurvey, type Ctx } from './db/stemmapCore';
+import { clearCensusUndo } from './undo';
 
 const ctx = (): Ctx => ({ db: getUserDb(), now: Date.now, uuid: generateUuid });
 const rows = <T>(sql: string, args: (string | number)[] = []) => (getUserDb().executeSync(sql, args).rows ?? []) as unknown as T[];
@@ -541,8 +542,11 @@ function blockQuadratRows(surveyId: number, block: string): number[] {
 export function mergeBlockQuietly(surveyId: number, doc: CensusBlockUpload, by: string | null): { kind: 'same' } | { kind: 'review' } | { kind: 'merged'; changes: MergeChange[] } {
   const c = ctx();
   const censusUuid = getSurvey(c, surveyId)!.uuid;
-  return withTransaction(() => {
+  // Undo steps taken before a teammate's trees came in would take them out again (code review H1).
+  let changedHere = false;
+  const out = withTransaction(() => {
     const opened = core.openBlock(c, surveyId, doc.slice);
+    changedHere = opened.folded > 0 || opened.sameTree.length > 0;
     if (opened.collisions.length) return { kind: 'review' as const };
     const remote = core.settleCollisions(c, surveyId, opened, new Map(), by);
     const localBase = getSyncBase('survey', censusUuid);
@@ -557,6 +561,8 @@ export function mergeBlockQuietly(surveyId: number, doc: CensusBlockUpload, by: 
     setSyncBase('survey', censusUuid, core.baseAfterMerge(localBase, doc.slice));
     return { kind: 'merged' as const, changes };
   });
+  if (changedHere || out.kind === 'merged') clearCensusUndo(surveyId);
+  return out;
 }
 
 /** Versions of the block's quadrats before and after a merge (v73 reasons). */
@@ -597,7 +603,10 @@ export const useCensusMerge = create<{ pending: PendingCensusMerge | null; set: 
 
 /** Step 1 on screen: carry out their folds, and list the clashes that need a person. */
 export function openCensusMerge(p: PendingCensusMerge): core.Collision[] {
-  return withTransaction(() => core.openBlock(ctx(), p.surveyId, p.doc.slice).collisions);
+  const collisions = withTransaction(() => core.openBlock(ctx(), p.surveyId, p.doc.slice).collisions);
+  // Their folds are written: undo steps from before them are gone (code review H1).
+  clearCensusUndo(p.surveyId);
+  return collisions;
 }
 
 /** Step 2: write the clash decisions; returns the field items and their block in this phone's terms. */
@@ -625,6 +634,7 @@ export function applyCensusMerge(p: PendingCensusMerge, remote: CensusSlice, ite
     setSyncBase('survey', p.censusUuid, core.baseAfterMerge(localBase, p.doc.slice));
     return ch;
   });
+  clearCensusUndo(p.surveyId);
   p.afterApply?.();
   if (p.teamId && p.rec) {
     // A block this phone also works on stays "changed here": the next 同步 sends

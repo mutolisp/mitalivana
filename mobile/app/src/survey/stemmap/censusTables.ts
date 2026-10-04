@@ -124,6 +124,16 @@ const snapshotOf = (c: { survey: Row }): SurveyTemplate | null => {
  * Each census's eventID (Modular_survey.md §7.4): the plot rule inside the
  * series, its base the plot code plus the series code; by census number.
  */
+/**
+ * The folder a census is exported under: the plot's event base — with the
+ * series code, as its eventIDs — and the census number. A plot's second series
+ * numbers its censuses from 1 again; without the code two folders shared a
+ * name and a project export kept only one of them (code review H4).
+ */
+export function censusFolderBase(doc: CensusExportDoc, censusNo: number): string {
+  return `${eventBase({ frameCode: str(doc.frame.code), seriesCode: str(doc.series.series_code), name: null, uuid: str(doc.frame.uuid) })}_census${censusNo}`;
+}
+
 export function censusEventIds(doc: CensusExportDoc): Map<number, string> {
   const base = eventBase({ frameCode: str(doc.frame.code), seriesCode: str(doc.series.series_code), name: null, uuid: str(doc.frame.uuid) });
   return surveyEventIds(doc.censuses.map((c) => ({ id: Number(c.survey.census_no), base, startTs: (c.survey.start_ts as number | null) ?? null })));

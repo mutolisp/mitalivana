@@ -365,6 +365,18 @@ ok(c.getOccurrence(ctx, oF).phase === 'recheck' && c.getOccurrence(ctx, oF).unit
 ok(c.answerRecheck(ctx, P2, T9, 'found') === oF && count('fw_rechecks', 'survey_id = ?', P2) === 2, 'answer found again: same occurrence, one answer');
 c.answerRecheck(ctx, P2, T9, 'not_found');
 ok(c.getOccurrence(ctx, oF) == null && c.recheckState(ctx, P2).open === 0, 'answer changed: the found occurrence goes, not found still answers');
+// Changing the answer keeps an occurrence the answer did not add, or one recorded on since (code review H6).
+const oH = c.addOccurrence(ctx, P2, { taxon_id: 't9', unit_id: null });
+clock += 5000; // the answer comes a while after it was added by hand
+ok(c.answerRecheck(ctx, P2, T9, 'found') === oH, '(found: takes the one added by hand)');
+c.answerRecheck(ctx, P2, T9, 'not_found');
+ok(c.getOccurrence(ctx, oH) != null, 'answer changed: an occurrence added by hand stays');
+c.deleteOccurrence(ctx, oH);
+const oI = c.answerRecheck(ctx, P2, T9, 'found');
+c.updateOccurrence(ctx, oI, { organism_quantity: '3', organism_quantity_type: 'individuals' });
+c.answerRecheck(ctx, P2, T9, 'not_found');
+ok(c.getOccurrence(ctx, oI)?.organism_quantity === '3', 'answer changed: its own occurrence stays once something is recorded on it');
+c.deleteOccurrence(ctx, oI);
 throwsCode(() => c.answerRecheck(ctx, P2, T9, 'reidentified'), 'not_found', 'answer reidentified: needs an occurrence of this survey');
 throwsCode(() => c.answerRecheck(ctx, P2, T9, 'reidentified', o1), 'not_found', 'answer reidentified: not one of another survey');
 throwsCode(() => c.answerRecheck(ctx, P2, { frameUnitId: FQ1, taxonId: 't7', verbatim: null }, 'not_found'), 'not_found', 'answer: only candidates');

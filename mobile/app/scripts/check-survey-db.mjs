@@ -673,7 +673,11 @@ s.correctIndividual(ctx, rb, { taxon: taxon('rb2') }, meta(R2));
 const recruitR = s.saveTreeDraft(ctx, R2, draft({ location: xy(8, 8), mainStemNo: 1, stems: [sd({ dbhCm: 3 })] }));
 s.correctIndividual(ctx, ra, { location: xy(30, 10) }, meta(R2)); // moved out to 0100
 s.correctIndividual(ctx, rc, { location: xy(15, 15) }, meta(R2)); // an older tree moved in
+// Another series recording the same quadrat since the snapshot: its tree is not this census's to take out (code review H1).
+const RB = s.startCensus(ctx, { frameId: R, template: TT, seriesCode: 'b' });
+const otherSeries = s.saveTreeDraft(ctx, RB, draft({ location: xy(3, 3), mainStemNo: 1, stems: [sd({ dbhCm: 7 })] }));
 tx(() => sl.restoreSlice(ctx, R2, snap));
+ok(s.getIndividual(ctx, otherSeries) != null && count('fw_stems', 'individual_id = ?', otherSeries) === 1, "restore: a tree another series recorded in the quadrat since stays, with its stem");
 ok(mOfTree(R2, ra).dbh_cm === 10.5, `restore: DBH back (${mOfTree(R2, ra)?.dbh_cm})`);
 ok(count('fw_stems', 'individual_id = ?', ra) === 1, 'restore: the stem added after the snapshot is gone');
 ok(s.treeCodes(ctx, R2, rb).length === 0 && s.heightOf(ctx, R2, rb) == null, 'restore: codes and height added after it are gone');

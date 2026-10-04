@@ -28,6 +28,7 @@ import { KeyboardStickyView } from '~/components/KeyboardAvoidingView';
 import { LayerChip, PlotSpeciesRow } from '~/components/plot/PlotSpeciesRow';
 import { PlotDiversityCard } from '~/components/PlotDiversityCard';
 import { SubplotLayerInputsView } from '~/components/PlotSpeciesTab';
+import { runOverModal } from '~/components/GbifLookupHost';
 import { PlotSpeciesValueModal, type PlotValueDraft } from '~/components/PlotSpeciesValueModal';
 import { RecordSortControls } from '~/components/RecordSortControls';
 import { SearchBox } from '~/components/SearchBox';
@@ -113,6 +114,8 @@ export function PlotSurveySpeciesTab({
     if (stratified && activeLayers.length && !activeLayers.includes(layer as FixedLayer)) setLayer(activeLayers[0]);
   }, [stratified, activeLayers, layer]);
   const [showInter, setShowInter] = useState(false);
+  // The value sheet stepping aside for a root-hosted question (runOverModal): its record stays.
+  const [sheetAside, setSheetAside] = useState(false);
   const [modal, setModal] = useState<SheetState | null>(null);
   const [pending, setPending] = useState<Pending>(EMPTY);
   const [replaceTarget, setReplaceTarget] = useState<OccurrenceView | null>(null);
@@ -204,9 +207,7 @@ export function PlotSurveySpeciesTab({
     setModal({ mode: 'create', taxon, layer, adopted, label });
   };
 
-  const handleSave = (v: PlotValueDraft) => {
-    if (!modal) return;
-    const fields = {
+  const fieldsOf = (v: PlotValueDraft) => ({
       organism_quantity: mods.abundance ? v.organism_quantity : undefined,
       organism_quantity_type: mods.abundance ? v.organism_quantity_type : undefined,
       notes: mods.comments ? v.notes : undefined,
@@ -220,7 +221,14 @@ export function PlotSurveySpeciesTab({
           }
         : {}),
       ...(survey.frame_id == null ? { verbatim_identification: v.verbatim_identification } : {}),
-    };
+  });
+  /** The sheet's on-screen value written before it is taken away (saveFirst; code review M21). */
+  const commitDraft = (v: PlotValueDraft) => {
+    if (modal?.mode === 'edit' && !readOnly) write(() => updateOccurrence(modal.id, fieldsOf(v)));
+  };
+  const handleSave = (v: PlotValueDraft) => {
+    if (!modal) return;
+    const fields = fieldsOf(v);
     if (modal.mode === 'edit') {
       if (write(() => updateOccurrence(modal.id, fields))) setModal(null);
       return;
@@ -483,14 +491,18 @@ export function PlotSurveySpeciesTab({
   const readOnly = edit.locked || sealed;
   const refuseOcc = () => toast(t(sealed ? 'surveyForm.err.blindSealed' : 'recordLock.lockedToast'));
 
-  const extra =
+  const extra = (saveFirst: () => void) =>
     editOcc && editRec ? (
       <View className="mt-3 gap-3">
         {survey.frame_id != null ? (
           <Pressable
             onPress={async () => {
               if (readOnly) return refuseOcc();
-              const label = await labelForEdit(survey, { taxon_id: editOcc.taxon_id, rank: editOcc.rank, name: editOcc.common_name_c || editOcc.simple_name }, editOcc.verbatim_identification);
+              saveFirst();
+              // A new label is asked in a root-hosted prompt, which iOS cannot present over this sheet (code review H5).
+              const label = await runOverModal(setSheetAside, () =>
+                labelForEdit(survey, { taxon_id: editOcc.taxon_id, rank: editOcc.rank, name: editOcc.common_name_c || editOcc.simple_name }, editOcc.verbatim_identification),
+              );
               if (label !== undefined) write(() => updateOccurrence(editOcc.id, { verbatim_identification: label }));
             }}
             accessibilityRole="button"
@@ -515,6 +527,7 @@ export function PlotSurveySpeciesTab({
             noAutoFocus: true,
             // The value sheet is an RN Modal: closed while a field's own screen is open, then opened again.
             aroundNavigate: async (go) => {
+              saveFirst();
               const keep = modal;
               setModal(null);
               try {
@@ -535,7 +548,10 @@ export function PlotSurveySpeciesTab({
             locked={edit.locked}
             unlocked={edit.unlocked}
             refuse={() => toast(t('recordLock.lockedToast'))}
-            beforeOpen={() => setModal(null)}
+            beforeOpen={() => {
+              saveFirst();
+              setModal(null);
+            }}
           />
         ) : null}
         <NumAccessory />
@@ -705,7 +721,7 @@ export function PlotSurveySpeciesTab({
       )}
       {modal && header ? (
         <PlotSpeciesValueModal
-          visible
+          visible={!sheetAside}
           layer={modalLayer}
           title={`${header.cname} ${header.name}`.trim()}
           header={header}
@@ -797,6 +813,7 @@ export function PlotSurveySpeciesTab({
               : undefined
           }
           extra={extra}
+          onCommit={commitDraft}
           onCancel={cancelModal}
           onSave={(v) => (modal.mode === 'edit' && readOnly ? refuseOcc() : handleSave(v))}
         />

@@ -240,6 +240,8 @@ ok(!stems.header.some((h) => h.startsWith('ams_')), 'stems.csv: no AMS columns f
   const coded = JSON.parse(JSON.stringify(doc));
   coded.series.series_code = 'ams';
   ok(tb.censusEventIds(coded).get(1) === `${code}_ams`, 'eventID: a later series adds its code');
+  // Folders: census 1 of two series of one plot are two folders (code review H4).
+  ok(tb.censusFolderBase(doc, 1) === `${code}_census1` && tb.censusFolderBase(coded, 1) === `${code}_ams_census1`, `folder: the first series keeps its name, a later one adds its code (${tb.censusFolderBase(coded, 1)})`);
 }
 // A census template's traits and own code list (2D-b): columns of their own, values as recorded.
 {

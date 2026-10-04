@@ -185,15 +185,22 @@ function quadratTables(p: ImportedPlot): MergeSide {
   return out;
 }
 
-/** Some quadrat's cells here that the sender's copy lacks (they would not fit a new grid). */
-function paintedHere(items: readonly MergeItem[], local: MergeSide, quadratKey?: string): boolean {
-  const remoteMask = new Map<string, unknown>();
-  for (const it of items) if (it.tbl === 'qsp' && it.remote) remoteMask.set(it.key, it.remote.data.freq_cells ?? null);
-  return (local.qsp ?? []).some(
+const FREQ_FIELDS = ['freq_cells', 'freq_count'] as const;
+const freqOf = (d: Row) => JSON.stringify([d.freq_cells ?? null, d.freq_count ?? null]);
+
+/**
+ * Frequency here (cells or counts) that the sender's copy lacks, in rows of
+ * `tbl` — `qsp` a quadrat's species, `sp` the plot's (v78) — whose key starts
+ * with `prefix`: it would not fit their new grid or way.
+ */
+function freqHere(items: readonly MergeItem[], local: MergeSide, tbl: 'qsp' | 'sp', prefix?: string): boolean {
+  const remote = new Map<string, string>();
+  for (const it of items) if (it.tbl === tbl && it.remote) remote.set(it.key, freqOf(it.remote.data));
+  return (local[tbl] ?? []).some(
     (r) =>
-      (quadratKey == null || r.key.startsWith(`${quadratKey}:`)) &&
-      r.data.freq_cells != null &&
-      (remoteMask.get(r.key) ?? null) !== r.data.freq_cells,
+      (prefix == null || r.key.startsWith(prefix)) &&
+      FREQ_FIELDS.some((f) => r.data[f] != null) &&
+      (remote.get(r.key) ?? freqOf({})) !== freqOf(r.data),
   );
 }
 
@@ -206,11 +213,17 @@ function paintedHere(items: readonly MergeItem[], local: MergeSide, quadratKey?:
 export function askQuadratGeometry(items: MergeItem[], local: MergeSide): MergeItem[] {
   return items.map((it) => {
     if (it.kind !== 'auto' || !it.local || !it.remote) return it;
-    if (it.tbl === 'qconfig' && it.key === 'gridN') return paintedHere(items, local) ? { ...it, kind: 'conflict' } : it;
-    if (it.tbl !== 'quadrat' || !QUADRAT_GEOMETRY.some((f) => it.fields.includes(f))) return it;
-    return paintedHere(items, local, it.key) ? { ...it, kind: 'conflict' } : it;
+    if (it.tbl === 'qconfig' && it.key === 'gridN') return freqHere(items, local, 'qsp') ? { ...it, kind: 'conflict' } : it;
+    // The plot's own frequency grid and way (v78): taken quietly, normalizePlotFreq
+    // would drop every mask here on the old grid (code review H2, 2026-10-04).
+    if (it.tbl === 'qconfig' && PLOT_FREQ_KEYS.includes(it.key)) return freqHere(items, local, 'sp') ? { ...it, kind: 'conflict' } : it;
+    if (it.tbl !== 'quadrat' || ![...QUADRAT_GEOMETRY, 'freq_mode'].some((f) => it.fields.includes(f))) return it;
+    return freqHere(items, local, 'qsp', `${it.key}:`) ? { ...it, kind: 'conflict' } : it;
   });
 }
+
+/** The quadrat config settings the plot species' frequencies (v78) are read by. */
+const PLOT_FREQ_KEYS = ['freqGridN', 'freqMode'];
 
 /**
  * A quadrat whose geometry the two copies disagree on is taken whole from one
@@ -229,6 +242,19 @@ export function tieQuadratGeometry(items: readonly MergeItem[], decisions: Reado
   const grid = items.find((it) => it.tbl === 'qconfig' && it.key === 'gridN' && it.local && it.remote);
   const gridSide = grid ? sideOf(grid, ['value']) : null;
   if (grid && gridSide) out.set(grid.id, { pick: gridSide });
+  // The plot's frequency grid and way decide its species' frequencies the same way (code review H2).
+  const plotFreq = items.filter((it) => it.tbl === 'qconfig' && PLOT_FREQ_KEYS.includes(it.key) && it.local && it.remote);
+  if (plotFreq.length) {
+    const side = plotFreq.some((it) => sideOf(it, ['value']) === 'remote') ? 'remote' : 'local';
+    for (const it of plotFreq) out.set(it.id, { pick: side });
+    for (const sp of items) {
+      if (sp.tbl !== 'sp' || !sp.local || !sp.remote || !FREQ_FIELDS.some((f) => sp.fields.includes(f))) continue;
+      const d = out.get(sp.id) ?? defaultDecision(sp);
+      const fromRemote = new Set(d.pick === 'remote' ? sp.fields : sp.fields.filter((f) => d.fields?.[f] === 'remote'));
+      for (const f of FREQ_FIELDS) if (sp.fields.includes(f)) (side === 'remote' ? fromRemote.add(f) : fromRemote.delete(f));
+      out.set(sp.id, { pick: 'local', fields: Object.fromEntries([...fromRemote].map((f) => [f, 'remote' as const])) });
+    }
+  }
   for (const it of items) {
     if (it.tbl !== 'quadrat' || !it.local || !it.remote) continue;
     const geo = QUADRAT_GEOMETRY.filter((f) => it.fields.includes(f));

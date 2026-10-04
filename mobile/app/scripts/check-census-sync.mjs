@@ -254,6 +254,7 @@ ok(s.retiredTags(A.ctx, FA).has('602') && !s.retiredTags(A.ctx, FA).has('601'), 
 // Their phone has 602 on its tree: no tag in common, so only the merge row can tell it.
 r = receive(B, CB, send(A, CA, 'b0_0'));
 ok(B.count('fw_individuals', "taxon_id = 'k4'") === 1 && tree(B, keep4)?.tag === '601' && r.opened.collisions.length === 0, 'possible duplicate: their phone folds the same two without asking');
+ok(r.opened.folded === 1, `possible duplicate: openBlock says it folded one (${r.opened.folded}) — the census screen drops its undo steps on it`);
 
 // they had our tree and tagged it again next to it: still a possible duplicate, asked once
 const a7 = A.tx(() => s.saveTreeDraft(A.ctx, CA, draft({ tag: '701', location: xy(55, 55), taxon: taxon('k7') })));
