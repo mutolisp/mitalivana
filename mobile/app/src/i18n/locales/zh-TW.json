@@ -3619,6 +3619,7 @@
     "deleteCloudMsg": "刪除「{{name}}」在伺服器上的全部資料，並離開隊伍。隊友之後無法再同步，各自手機上的記錄不受影響。",
     "loading": "處理中…",
     "failTitle": "無法完成",
+    "someFailed_other": "{{count}} 筆記錄這次沒同步成功（其他照常同步）：{{reason}}每筆的原因在同步紀錄。",
     "inviteTitle": "邀請隊友",
     "inviteHow": "隊友用手機內建相機掃描，就會開啟 Mitalivana 的加入畫面。也可以把下方的邀請碼傳給隊友貼上。",
     "shareCode": "分享邀請碼",

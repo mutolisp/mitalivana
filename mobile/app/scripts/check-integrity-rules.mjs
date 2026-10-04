@@ -12,10 +12,13 @@
  *     swept (v83 nearly deleted every census photo that way);
  *   - every ON DELETE SET NULL edge is in NULL_DANGLING;
  *   - every rule runs (valid SQL) on the migrated schema, and parents come
- *     before children in CASCADE_ORPHANS.
+ *     before children in CASCADE_ORPHANS;
+ *   - every table keyed by a record is in SYNC_RECORD_TABLES (or exempt), and
+ *     every table keyed by a team in TEAM_TABLES; their pending files are retried.
  */
 import { migratedDb } from './schema-columns.mjs';
-import { CASCADE_EXEMPT, CASCADE_ORPHANS, NULL_DANGLING, PROJECT_FK_TABLES, SITE_REF_TABLES } from '../src/db/integrityRules.ts';
+import { readFileSync } from 'node:fs';
+import { CASCADE_EXEMPT, CASCADE_ORPHANS, NULL_DANGLING, PROJECT_FK_TABLES, SITE_REF_TABLES, SYNC_RECORD_EXEMPT, SYNC_RECORD_TABLES, TEAM_TABLES } from '../src/db/integrityRules.ts';
 
 const db = await migratedDb();
 const tables = db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'`).all().map((r) => r.name);
@@ -74,6 +77,29 @@ for (const [i, [t, w]] of CASCADE_ORPHANS.entries()) {
     const at = order.indexOf(m[1]);
     if (at > i) errors.push(`CASCADE_ORPHANS: ${t} comes before its parent ${m[1]}`);
   }
+}
+
+// ── Rows keyed by a record or a team (code review M14, 2026-10-04) ──
+// media_pending was in neither list: a deleted record's or a left team's
+// files stayed counted on the team page.
+{
+  const has = (t, ...cs) => cs.every((c) => cols(t).includes(c));
+  for (const t of tables) {
+    if (has(t, 'record_kind', 'record_uuid') && !SYNC_RECORD_TABLES.includes(t) && !(t in SYNC_RECORD_EXEMPT)) {
+      errors.push(`${t} is keyed by (record_kind, record_uuid) but is neither in SYNC_RECORD_TABLES (purged with its record) nor in SYNC_RECORD_EXEMPT`);
+    }
+    if (has(t, 'team_id') && !TEAM_TABLES.includes(t)) errors.push(`${t} has team_id but is not in TEAM_TABLES (leaveTeam leaves its rows)`);
+  }
+  for (const t of SYNC_RECORD_TABLES) if (!has(t, 'record_kind', 'record_uuid')) errors.push(`SYNC_RECORD_TABLES has ${t}, which is not keyed by a record`);
+  for (const t of TEAM_TABLES) if (!has(t, 'team_id')) errors.push(`TEAM_TABLES has ${t}, which has no team_id`);
+  const src = (f) => readFileSync(new URL(`../src/${f}`, import.meta.url), 'utf8');
+  if (!/\.\.\.SYNC_RECORD_TABLES\.flatMap/.test(src('db/cleanup.ts'))) errors.push('purgeOrphanRows does not sweep SYNC_RECORD_TABLES');
+  if (!/\['media_pending', `team_id NOT IN \(SELECT team_id FROM sync_teams\)`\]/.test(src('db/cleanup.ts'))) errors.push('purgeOrphanRows keeps media_pending of a team no longer here');
+  if (!/for \(const t of TEAM_TABLES\) db\.executeSync\(`DELETE FROM \$\{t\} WHERE team_id = \?`/.test(src('lib/teamSync.ts'))) errors.push('leaveTeam does not delete from TEAM_TABLES');
+  // Every kind that files wait under is retried: the records' (mediaSync) and a census's (censusSync).
+  const retry = src('lib/mediaSync.ts').match(/export async function retryPendingMedia[\s\S]*?\n\}/)?.[0] ?? '';
+  for (const k of ['session', 'plot', 'gloria', 'modular']) if (!retry.includes(`'${k}'`)) errors.push(`retryPendingMedia skips the files of a ${k}`);
+  for (const f of ['lib/teamSync.ts', '../app/settings/team/[id].tsx']) if (!src(f).includes('retryCensusMedia(teamId)')) errors.push(`${f} does not retry a census's files (retryCensusMedia)`);
 }
 db.close();
 

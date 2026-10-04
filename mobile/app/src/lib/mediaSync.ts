@@ -507,8 +507,10 @@ export async function retryPendingMedia(
     : rows<{ record_kind: MergeKind; record_uuid: string; entry: string }>(`SELECT record_kind, record_uuid, entry FROM media_pending WHERE team_id = ?`, [teamId]);
   const byRecord = new Map<string, { kind: MergeKind; uuid: string; entries: unknown[] }>();
   for (const r of list) {
-    // A census's files wait for its own 同步 (censusSync.ts).
-    if (r.record_kind !== 'session' && r.record_kind !== 'plot' && r.record_kind !== 'gloria') continue;
+    // A census's files are placed by its blocks (censusSync.retryCensusMedia).
+    // A checklist- or plot-style survey's were skipped too, so the team page's
+    // count never went down (code review M14).
+    if (r.record_kind !== 'session' && r.record_kind !== 'plot' && r.record_kind !== 'gloria' && r.record_kind !== 'modular') continue;
     const k = `${r.record_kind}|${r.record_uuid}`;
     if (!byRecord.has(k)) byRecord.set(k, { kind: r.record_kind, uuid: r.record_uuid, entries: [] });
     try {

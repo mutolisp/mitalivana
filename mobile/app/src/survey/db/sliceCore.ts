@@ -621,13 +621,26 @@ function createdAfter(ctx: { db: SurveyDb }, tbl: 'fw_individuals' | 'fw_stems',
 }
 
 /**
+ * The census as restoring `target` reaches it: its quadrats, and its trees
+ * wherever they are now — not the quadrats those trees are in now. This is
+ * also the version kept before a restore (code review M11, 2026-10-04): it
+ * holds a tree that has moved out since, and restoring that version must
+ * reach the tree, not the whole quadrat it moved to. A slice from before
+ * slices had a scope reaches its trees' quadrats.
+ */
+export function sliceForRestore(ctx: Ctx, surveyId: number, target: CensusSlice): CensusSlice {
+  const quadrats = target.quadrats.map((q) => q.quadrat_code as string);
+  const codes = target.scope ? [...target.scope, ...quadrats] : [...quadrats, ...target.trees.map((t) => t.quadrat_code as string)];
+  return buildSlice(ctx, surveyId, codes, target.trees.map((t) => t.uuid as string));
+}
+
+/**
  * Make the census equal to `target` within its quadrats (and its trees, where
  * they are now). Returns how many operations ran. The caller runs it in a
  * transaction.
  */
 export function restoreSlice(ctx: Ctx, surveyId: number, target: CensusSlice): number {
-  const codes = [...(target.scope ?? []), ...target.quadrats.map((q) => q.quadrat_code as string), ...target.trees.map((t) => t.quadrat_code as string)];
-  const current = buildSlice(ctx, surveyId, codes, target.trees.map((t) => t.uuid as string));
+  const current = sliceForRestore(ctx, surveyId, target);
   const currentSide = censusSide(current);
   const items = diffSides(currentSide, censusSide(target), baseOf(currentSide), takeVersion(CENSUS_COMBINERS));
   const ops = planOps(items, restoreDecisions(items));
@@ -661,13 +674,61 @@ export function restoreSlice(ctx: Ctx, surveyId: number, target: CensusSlice): n
   return ops.length;
 }
 
+/** A slice with some stems under other uuids (`to`: old → new), their measurements, values and photos with them. */
+function renameStems(sl: CensusSlice, to: ReadonlyMap<string, string>): CensusSlice {
+  const sm = (v: unknown) => (typeof v === 'string' ? (to.get(v) ?? v) : v);
+  return {
+    ...sl,
+    stems: sl.stems.map((st) => ({ ...st, uuid: sm(st.uuid) })),
+    measures: sl.measures.map((m) => ({ ...m, stem_uuid: sm(m.stem_uuid) })),
+    stemValues: sl.stemValues.map((v) => ({ ...v, stem_uuid: sm(v.stem_uuid) })),
+    media: sl.media.map((md) => ({ ...md, stem_uuid: sm(md.stem_uuid) })),
+  };
+}
+
+/**
+ * Stems another phone added to a tree under a number one of ours already
+ * has: one stem, under the smaller uuid on both phones (as a tree fold keeps
+ * the smaller uuid). Ours is renamed here when theirs is smaller; theirs in
+ * the returned slice when ours is. They used to come in as a duplicate (kept
+ * out, its measurement had no stem and the merge threw) or a new stem under
+ * the next free number, each phone its own way (code review M9, 2026-10-04).
+ * A stem of ours they know under another number is left to the merge.
+ */
+export function joinStems(ctx: Ctx, surveyId: number, sl: CensusSlice): { slice: CensusSlice; joined: number } {
+  const theirStems = new Set(sl.stems.map((st) => st.uuid as string));
+  const kept = new Map<string, string>();
+  const now = ctx.now();
+  let joined = 0;
+  for (const st of sl.stems) {
+    const theirs = st.uuid as string;
+    if (one(ctx, `SELECT id FROM fw_stems WHERE uuid = ?`, [theirs])) continue;
+    const ours = one<{ id: number; uuid: string; q: string }>(
+      ctx,
+      `SELECT st.id, st.uuid, i.quadrat_code AS q FROM fw_stems st JOIN fw_individuals i ON i.id = st.individual_id WHERE i.uuid = ? AND st.stem_no = ?`,
+      [st.tree_uuid as string, Number(st.stem_no)],
+    );
+    if (!ours || theirStems.has(ours.uuid)) continue;
+    const keep = ours.uuid < theirs ? ours.uuid : theirs;
+    if (keep !== ours.uuid) {
+      run(ctx, `UPDATE fw_stems SET uuid = ?, updated_at = ? WHERE id = ?`, [keep, now, ours.id]);
+      touchFgQuadrat(ctx, surveyId, ours.q);
+    }
+    if (keep !== theirs) kept.set(theirs, keep);
+    joined += 1;
+  }
+  return { slice: kept.size ? renameStems(sl, kept) : sl, joined };
+}
+
 /**
  * Add what a slice has and the census lacks, changing and deleting nothing:
  * a census created from a file (censusExportCore.ts). Trees are shared by
  * every census, so the file's copy of a tree already here must not undo a
  * correction made here since. Returns how many rows were added.
  */
-export function fillSlice(ctx: Ctx, surveyId: number, target: CensusSlice): number {
+export function fillSlice(ctx: Ctx, surveyId: number, file: CensusSlice): number {
+  // A stem the file's phone added under a number one of ours has is that stem (M9).
+  const target = joinStems(ctx, surveyId, file).slice;
   const codes = [...(target.scope ?? []), ...target.quadrats.map((q) => q.quadrat_code as string), ...target.trees.map((t) => t.quadrat_code as string)];
   const current = censusSide(buildSlice(ctx, surveyId, codes, target.trees.map((t) => t.uuid as string)));
   const items = diffSides(current, censusSide(target), baseOf(current), {}).filter((it) => it.kind === 'added');

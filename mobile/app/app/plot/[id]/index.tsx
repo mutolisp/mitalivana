@@ -64,6 +64,7 @@ import { useActiveSession } from '~/stores/activeSession';
 
 import { useRecordEditing } from '~/lib/useRecordEditing';
 import { chooseEndTime } from '~/lib/endTimeChoice';
+import { confirmReopenOver } from '~/lib/recordCreate';
 import { LockedBanner, RecordEditButtons } from '~/components/RecordEditButtons';
 import { onVersionRestored, saveVersionSoon } from '~/db/recordVersions';
 import { useVersionOnLeave } from '~/lib/useVersionOnLeave';
@@ -256,16 +257,20 @@ export default function PlotDetailScreen() {
                 label={plot.status === 'done' ? t('plot.reopen') : t('session.end')}
                 onPress={() => {
                   if (plot.status === 'done') {
-                    // Reopen force-ends any other active record DB-side; stop a
-                    // GNSS watch that belongs to something other than this plot.
-                    pauseIfNot({ kind: 'plot', id: plot.id });
-                    reopenPlotSurvey(plot.id);
-                    // Reopen force-ends any active session DB-side too; refresh
-                    // both stores so the UI bars + watchers reflect reality.
-                    refreshActivePlot();
-                    refreshActiveSession();
-                    useActiveGloria.getState().refresh();
-                    reload();
+                    // Reopen force-ends any other active record DB-side: ask
+                    // first (code review N2, as 快速名錄's 繼續編輯, M24).
+                    void confirmReopenOver().then((go) => {
+                      if (!go) return;
+                      // Stop a GNSS watch that belongs to something other than this plot.
+                      pauseIfNot({ kind: 'plot', id: plot.id });
+                      reopenPlotSurvey(plot.id);
+                      // Reopen force-ends any active session DB-side too; refresh
+                      // both stores so the UI bars + watchers reflect reality.
+                      refreshActivePlot();
+                      refreshActiveSession();
+                      useActiveGloria.getState().refresh();
+                      reload();
+                    });
                   } else {
                     // The end-time choice doubles as the confirmation; the
                     // cover warning the old Alert carried rides along as a note.

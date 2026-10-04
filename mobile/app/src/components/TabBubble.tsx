@@ -202,6 +202,11 @@ export function TabBubble({ state, descriptors, navigation, order }: BottomTabBa
   const tap = Gesture.Tap().onEnd((_e, success) => {
     if (success) runOnJS(toggle)();
   });
+  // Dragging and the long press race: the hold unfolds the bar after 500 ms,
+  // finger still down. Exclusive(pan, longPress, tap) made the long press wait
+  // for the drag to fail, which a still finger does only when lifted (code
+  // review M23, 2026-10-04). The tap waits for both.
+  const gesture = Gesture.Exclusive(Gesture.Race(pan, longPress), tap);
 
   const current = state.routes[state.index];
   const iconOf = (key: string, color: string, isFocused: boolean) =>
@@ -303,7 +308,7 @@ export function TabBubble({ state, descriptors, navigation, order }: BottomTabBa
         </>
       ) : null}
       {shown && area ? (
-        <GestureDetector gesture={Gesture.Exclusive(pan, longPress, tap)}>
+        <GestureDetector gesture={gesture}>
           <Animated.View
             style={[{ position: 'absolute', left: 0, top: 0, width: BUBBLE_SIZE, height: BUBBLE_SIZE, borderRadius: BUBBLE_SIZE / 2 }, moveStyle]}
             className="items-center justify-center bg-accent-700 shadow-lg"

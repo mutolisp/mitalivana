@@ -21,7 +21,7 @@ import { router, type Href } from 'expo-router';
 import { create } from 'zustand';
 import { getUserDb, withTransaction } from '~/db/init';
 import { saveVersion } from '~/db/recordVersions';
-import { getSyncBase, setSyncBase } from '~/db/syncBase';
+import { getSyncBase, patchSyncBase } from '~/db/syncBase';
 import { generateUuid } from '~/db/uuid';
 import { defaultDecision, describeMerge, needsReview, rowHash, type BaseEntry, type Decision, type MergeChange, type MergeItem, type Row } from '~/lib/mergeEngine';
 import { deviceKey, recordKey, type TeamKeys } from '~/lib/teamCrypto';
@@ -51,6 +51,7 @@ import { BASE64_FACTOR, bytesPerStemFor, chooseSyncBlock, DEFAULT_STEMS_PER_HA, 
 import { fgQuadratCounts } from './stemmap/coords';
 import * as core from './db/censusSyncCore';
 import type { CensusSlice } from './db/sliceCore';
+import { quadratRowId, quadratSlice } from './db/censusVersions';
 import { censusCodesets, frameGeometry, getFrame, getSurvey, type Ctx } from './db/stemmapCore';
 import { clearCensusUndo } from './undo';
 
@@ -263,7 +264,7 @@ function placeCensusMedia(surveyId: number): (ref: MediaRef, uri: string, meta: 
 }
 
 /** Fetch and place the files of a teammate's block (and those that could not be fetched before). */
-async function receiveCensusMedia(teamId: string, surveyId: number, censusUuid: string, manifest: unknown): Promise<void> {
+async function receiveCensusMedia(teamId: string, surveyId: number, censusUuid: string, manifest: unknown): Promise<{ added: number; pending: number }> {
   const pending = rows<{ entry: string }>(`SELECT entry FROM media_pending WHERE team_id = ? AND record_kind = 'survey' AND record_uuid = ?`, [teamId, censusUuid]).flatMap((r) => {
     try {
       return [JSON.parse(r.entry) as unknown];
@@ -272,7 +273,28 @@ async function receiveCensusMedia(teamId: string, surveyId: number, censusUuid: 
     }
   });
   const all = [...(Array.isArray(manifest) ? manifest : []), ...pending];
-  if (all.length) await receiveMedia(teamId, 'survey', censusUuid, all, placeCensusMedia(surveyId));
+  return all.length ? receiveMedia(teamId, 'survey', censusUuid, all, placeCensusMedia(surveyId)) : { added: 0, pending: 0 };
+}
+
+/**
+ * The team's census files that could not be fetched before, without waiting
+ * for a teammate's block (the team page's 待抓檔案, a team 同步): the retry for
+ * records skipped them, and the count never went down (code review M14).
+ */
+export async function retryCensusMedia(teamId: string): Promise<{ added: number; pending: number }> {
+  let added = 0;
+  let pending = 0;
+  for (const r of rows<{ record_uuid: string }>(`SELECT DISTINCT record_uuid FROM media_pending WHERE team_id = ? AND record_kind = 'survey'`, [teamId])) {
+    const id = rows<{ id: number }>(`SELECT id FROM fw_surveys WHERE uuid = ?`, [r.record_uuid])[0]?.id;
+    if (id == null) {
+      getUserDb().executeSync(`DELETE FROM media_pending WHERE team_id = ? AND record_kind = 'survey' AND record_uuid = ?`, [teamId, r.record_uuid]);
+      continue;
+    }
+    const x = await receiveCensusMedia(teamId, id, r.record_uuid, []);
+    added += x.added;
+    pending += x.pending;
+  }
+  return { added, pending };
 }
 
 // ── one 同步 ────────────────────────────────────────────────────────────────
@@ -396,9 +418,12 @@ async function syncCensusNow(teamId: string, surveyId: number, opts: CensusSyncO
 
     // 4. Blocks changed here since the last sync (or sent before and due again).
     const takesFiles = await serverTakesFiles(server);
+    // Read once, not per block: a 25 ha census's base is 100 000 rows (code
+    // review M6). Sending changes no base; merging does, so step 6 reads again.
+    let censusBase = getSyncBase('survey', censusUuid);
     const putBlock = async (block: string, force: boolean) => {
       const doc = core.buildBlockDoc(c, surveyId, block);
-      const base = core.baseForSlice(getSyncBase('survey', censusUuid), doc.slice);
+      const base = core.baseForSlice(censusBase, doc.slice);
       const prepared: PreparedMedia | null = takesFiles ? await prepareMediaItems(keys, blockMedia(surveyId, block)) : null;
       // A new photo is a change of the block (photo rows are not in the merge rows).
       const files = (prepared?.entries ?? []).map((e) => `${e.ref.k}:${e.sha}`);
@@ -486,13 +511,15 @@ async function syncCensusNow(teamId: string, surveyId: number, opts: CensusSyncO
       if (res.kind === 'merged') {
         merged.add(block);
         out.merged += 1;
-        out.changes.push(...res.changes);
+        // One by one: a large census's first exchange has hundreds of thousands (code review M7).
+        for (const ch of res.changes) out.changes.push(ch);
         if (from) out.mergedFrom.push(from);
       }
     }
 
     // 6. Merged blocks this phone also works on: their copy predates the merge (as for records).
     const again = [...merged].filter((block) => blockLink(teamId, censusUuid, block)?.uploaded_at != null);
+    if (again.length) censusBase = getSyncBase('survey', censusUuid);
     for (const [i, block] of again.entries()) {
       useSyncProgress.getState().update({ blockStage: 'up', blockIndex: i + 1, blockCount: again.length });
       await putBlock(block, true);
@@ -526,13 +553,33 @@ export function blockLabel(surveyId: number, block: string): string {
   return codes.length ? (codes.length === 1 ? codes[0] : `${codes[0]}–${codes[codes.length - 1]}`) : block;
 }
 
-/** Quadrat rows of a block (for versions around a merge). */
-function blockQuadratRows(surveyId: number, block: string): number[] {
-  const s = getSurvey(ctx(), surveyId)!;
-  const codes = core.censusBlockCodes(ctx(), surveyId, s.sync_block_quadrats, block);
-  if (!codes.length) return [];
-  return rows<{ id: number }>(`SELECT id FROM fw_survey_quadrats WHERE survey_id = ? AND quadrat_code IN (${codes.map(() => '?').join(', ')})`, [surveyId, ...codes]).map((r) => r.id);
+/** Census quadrats as they are now, by their fw_survey_quadrats row: versions to keep before a merge. */
+type QuadratDocs = [number, CensusSlice][];
+
+function quadratDocs(surveyId: number, codes: readonly string[]): QuadratDocs {
+  const out: QuadratDocs = [];
+  for (const code of new Set(codes)) {
+    const id = quadratRowId(surveyId, code);
+    const doc = id != null ? quadratSlice(id) : null;
+    if (id != null && doc) out.push([id, doc]);
+  }
+  return out;
 }
+
+const blockCodes = (surveyId: number, block: string) => core.censusBlockCodes(ctx(), surveyId, getSurvey(ctx(), surveyId)!.sync_block_quadrats, block);
+
+/**
+ * Keep them as before_merge. Taken before the merge writes anything: openBlock
+ * folds trees away first, and a version saved after it lacked them, so a merge
+ * could not be undone from the versions (code review M10, 2026-10-04). The
+ * same content again is not kept twice (planSave).
+ */
+function keepBeforeMerge(docs: QuadratDocs): void {
+  for (const [id, doc] of docs) saveVersion('survey_quadrat', id, 'before_merge', null, { doc });
+}
+
+/** The quadrats as they were when a reviewed merge was opened (openCensusMerge folds). */
+const beforeOpened = new WeakMap<PendingCensusMerge, QuadratDocs>();
 
 /**
  * Merge a teammate's block when nothing needs a person (only their additions
@@ -544,30 +591,37 @@ export function mergeBlockQuietly(surveyId: number, doc: CensusBlockUpload, by: 
   const censusUuid = getSurvey(c, surveyId)!.uuid;
   // Undo steps taken before a teammate's trees came in would take them out again (code review H1).
   let changedHere = false;
+  // Their folds (openBlock) write first: the quadrats they take are read before.
+  const takes = core.quadratsTheirFoldsTake(c, doc.slice);
+  let before: QuadratDocs | null = takes.length ? quadratDocs(surveyId, [...blockCodes(surveyId, doc.block), ...takes]) : null;
+  const keepBefore = () => keepBeforeMerge((before ??= quadratDocs(surveyId, blockCodes(surveyId, doc.block))));
   const out = withTransaction(() => {
     const opened = core.openBlock(c, surveyId, doc.slice);
-    changedHere = opened.folded > 0 || opened.sameTree.length > 0;
+    // A stem renamed here (two phones, one number: M9) is a change here too: undo steps name it.
+    changedHere = opened.folded > 0 || opened.sameTree.length > 0 || opened.stemsJoined > 0;
+    // Before the folds found here (settleCollisions) are written too.
+    if (changedHere) keepBefore();
     if (opened.collisions.length) return { kind: 'review' as const };
     const remote = core.settleCollisions(c, surveyId, opened, new Map(), by);
     const localBase = getSyncBase('survey', censusUuid);
     const items = core.blockItems(c, surveyId, doc.block, remote, doc.sync?.base ?? null, localBase);
     if (items.some(needsReview)) return { kind: 'review' as const };
     if (!items.length) {
-      setSyncBase('survey', censusUuid, core.baseAfterMerge(localBase, doc.slice));
+      patchSyncBase('survey', censusUuid, core.baseChangeAfterMerge(localBase, doc.slice));
       return { kind: 'same' as const };
     }
     const decisions = new Map(items.map((it) => [it.id, defaultDecision(it)]));
-    const changes = applyAround(surveyId, doc.block, () => core.applyBlockItems(c, surveyId, items, decisions, remote), items, decisions);
-    setSyncBase('survey', censusUuid, core.baseAfterMerge(localBase, doc.slice));
+    keepBefore();
+    const changes = applyAround(surveyId, () => core.applyBlockItems(c, surveyId, items, decisions, remote), items, decisions);
+    patchSyncBase('survey', censusUuid, core.baseChangeAfterMerge(localBase, doc.slice));
     return { kind: 'merged' as const, changes };
   });
   if (changedHere || out.kind === 'merged') clearCensusUndo(surveyId);
   return out;
 }
 
-/** Versions of the block's quadrats before and after a merge (v73 reasons). */
-function applyAround(surveyId: number, block: string, apply: () => string[], items: MergeItem[], decisions: Map<string, Decision>): MergeChange[] {
-  for (const id of blockQuadratRows(surveyId, block)) saveVersion('survey_quadrat', id, 'before_merge');
+/** Apply, then keep the quadrats it wrote as after_merge (before_merge is kept by the caller: keepBeforeMerge). */
+function applyAround(surveyId: number, apply: () => string[], items: MergeItem[], decisions: Map<string, Decision>): MergeChange[] {
   const changes = describeMerge(items, decisions);
   const touched = apply();
   const s = getSurvey(ctx(), surveyId)!;
@@ -603,44 +657,57 @@ export const useCensusMerge = create<{ pending: PendingCensusMerge | null; set: 
 
 /** Step 1 on screen: carry out their folds, and list the clashes that need a person. */
 export function openCensusMerge(p: PendingCensusMerge): core.Collision[] {
+  const takes = core.quadratsTheirFoldsTake(ctx(), p.doc.slice);
+  const before = quadratDocs(p.surveyId, [...blockCodes(p.surveyId, p.doc.block), ...takes]);
+  beforeOpened.set(p, before);
+  // Their folds are written now, before anything is asked: the version first (code review M10).
+  if (takes.length) keepBeforeMerge(before);
   const collisions = withTransaction(() => core.openBlock(ctx(), p.surveyId, p.doc.slice).collisions);
   // Their folds are written: undo steps from before them are gone (code review H1).
   clearCensusUndo(p.surveyId);
   return collisions;
 }
 
-/** Step 2: write the clash decisions; returns the field items and their block in this phone's terms. */
-export function settleCensusMerge(
-  p: PendingCensusMerge,
-  decisions: Map<string, core.CollisionDecision>,
-  by: string | null,
-): { items: MergeItem[]; remote: CensusSlice } {
+/** What step 2 settled: the field items, their block in this phone's terms, and whether the decisions changed their copy. */
+export type SettledCensusMerge = { items: MergeItem[]; remote: CensusSlice; correctsTheirs: boolean };
+
+/** Step 2: write the clash decisions. */
+export function settleCensusMerge(p: PendingCensusMerge, decisions: Map<string, core.CollisionDecision>, by: string | null): SettledCensusMerge {
   const c = ctx();
   return withTransaction(() => {
-    for (const id of blockQuadratRows(p.surveyId, p.doc.block)) saveVersion('survey_quadrat', id, 'before_merge');
     const opened = core.openBlock(c, p.surveyId, p.doc.slice);
+    // As the block was when the review opened, and our trees a decision takes
+    // elsewhere (one tree, a new number for ours): before any of it is written.
+    const ours = opened.collisions.filter((col) => {
+      const d = decisions.get(col.id);
+      return d?.kind === 'same' || (d?.kind === 'renumber' && d.which === 'local');
+    });
+    const opening = beforeOpened.get(p) ?? quadratDocs(p.surveyId, blockCodes(p.surveyId, p.doc.block));
+    const have = new Set(opening.map(([id]) => id));
+    keepBeforeMerge([...opening, ...quadratDocs(p.surveyId, ours.map((col) => col.local.quadrat)).filter(([id]) => !have.has(id))]);
     const remote = core.settleCollisions(c, p.surveyId, opened, decisions, by);
     const items = core.blockItems(c, p.surveyId, p.doc.block, remote, p.doc.sync?.base ?? null, getSyncBase('survey', p.censusUuid));
-    return { items, remote };
+    return { items, remote, correctsTheirs: core.decisionsCorrectTheirs(opened, decisions) };
   });
 }
 
 /** Step 3: apply the reviewed items. Returns the rows written. */
-export function applyCensusMerge(p: PendingCensusMerge, remote: CensusSlice, items: MergeItem[], decisions: Map<string, Decision>): { changes: MergeChange[] } {
+export function applyCensusMerge(p: PendingCensusMerge, { remote, items, correctsTheirs }: SettledCensusMerge, decisions: Map<string, Decision>): { changes: MergeChange[] } {
   const c = ctx();
   const changes = withTransaction(() => {
     const localBase = getSyncBase('survey', p.censusUuid);
-    const ch = applyAround(p.surveyId, p.doc.block, () => core.applyBlockItems(c, p.surveyId, items, decisions, remote), items, decisions);
-    setSyncBase('survey', p.censusUuid, core.baseAfterMerge(localBase, p.doc.slice));
+    const ch = applyAround(p.surveyId, () => core.applyBlockItems(c, p.surveyId, items, decisions, remote), items, decisions);
+    patchSyncBase('survey', p.censusUuid, core.baseChangeAfterMerge(localBase, p.doc.slice));
     return ch;
   });
   clearCensusUndo(p.surveyId);
   p.afterApply?.();
   if (p.teamId && p.rec) {
     // A block this phone also works on stays "changed here": the next 同步 sends
-    // the merged copy (what the quiet merge does at once). A block it only
-    // receives is marked synced, so the merge itself is not sent back.
-    const contributes = blockLink(p.teamId, p.censusUuid, p.doc.block)?.uploaded_at != null;
+    // the merged copy (what the quiet merge does at once). So does one whose
+    // copy the decisions changed (a new number for their tree, a fold). A
+    // block it only receives is marked synced, so the merge itself is not sent back.
+    const contributes = correctsTheirs || blockLink(p.teamId, p.censusUuid, p.doc.block)?.uploaded_at != null;
     link(p.teamId, 'survey_block', blockLinkUuid(p.censusUuid, p.doc.block), p.rec, contributes ? null : Date.now());
   }
   return { changes };

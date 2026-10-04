@@ -676,6 +676,13 @@ s.correctIndividual(ctx, rc, { location: xy(15, 15) }, meta(R2)); // an older tr
 // Another series recording the same quadrat since the snapshot: its tree is not this census's to take out (code review H1).
 const RB = s.startCensus(ctx, { frameId: R, template: TT, seriesCode: 'b' });
 const otherSeries = s.saveTreeDraft(ctx, RB, draft({ location: xy(3, 3), mainStemNo: 1, stems: [sd({ dbhCm: 7 })] }));
+// What the restore reaches, kept first as the before_restore version (code review M11): ra has moved out to 0100.
+const beforeRestore = sl.sliceForRestore(ctx, R2, snap);
+const recruitU = s.getIndividual(ctx, recruitR).uuid;
+const narrowBefore = sl.buildSlice(ctx, R2, ['0000']);
+ok(beforeRestore.trees.some((t) => t.uuid === s.getIndividual(ctx, ra).uuid) && !narrowBefore.trees.some((t) => t.uuid === s.getIndividual(ctx, ra).uuid), 'restore: the version before it holds the tree that moved out (the quadrat alone does not)');
+const q0100 = () => count('fw_survey_quadrats', "survey_id = ? AND quadrat_code = '0100'", R2);
+const had0100 = q0100();
 tx(() => sl.restoreSlice(ctx, R2, snap));
 ok(s.getIndividual(ctx, otherSeries) != null && count('fw_stems', 'individual_id = ?', otherSeries) === 1, "restore: a tree another series recorded in the quadrat since stays, with its stem");
 ok(mOfTree(R2, ra).dbh_cm === 10.5, `restore: DBH back (${mOfTree(R2, ra)?.dbh_cm})`);
@@ -691,6 +698,19 @@ tx(() => {
   again = sl.restoreSlice(ctx, R2, sl.buildSlice(ctx, R2, ['0000'], [s.getIndividual(ctx, rc).uuid]));
 });
 ok(again === 0, `restore: restoring the current state changes nothing (${again} ops)`);
+{
+  // Restoring the version kept before the restore undoes it, the tree that had moved out included (code review M11).
+  tx(() => sl.restoreSlice(ctx, R2, beforeRestore));
+  const back = s.getIndividual(ctx, ra);
+  ok(
+    back.quadrat_code === '0100' && back.x_m === 30 && mOfTree(R2, ra).dbh_cm === 11 && count('fw_stems', 'individual_id = ?', ra) === 2,
+    `restore: the version before it brings the moved tree back where it was, with its later measurements (${back.quadrat_code}, ${mOfTree(R2, ra)?.dbh_cm}, ${count('fw_stems', 'individual_id = ?', ra)} stems)`,
+  );
+  ok(one('SELECT id FROM fw_individuals WHERE uuid = ?', recruitU) != null && s.treeCodes(ctx, R2, rb).length === 1 && s.heightOf(ctx, R2, rb) === 18, 'restore: and the quadrat as it was (the new tree, by its uuid; codes; height)');
+  ok(q0100() === had0100 && s.getIndividual(ctx, otherSeries) != null, `restore: it reaches the tree, not the quadrat it moved to (0100 rows ${had0100} → ${q0100()})`);
+  // Back to the snapshot for the checks below.
+  tx(() => sl.restoreSlice(ctx, R2, snap));
+}
 ok(Object.values(sl.CENSUS_COMBINERS.fgquadrat).length === 3, 'slice: quadrat times and recorders combine');
 const emptySnap = sl.buildSlice(ctx, K2, ['0001']);
 const first = s.saveTreeDraft(ctx, K2, draft({ location: xy(4, 24), mainStemNo: 1, stems: [sd({ dbhCm: 5 })] }));

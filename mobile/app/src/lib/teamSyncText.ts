@@ -25,3 +25,9 @@ export function teamSyncErrorText(e: unknown): string {
     e.limit == null ? '' : BYTE_LIMITS.has(e.code) && e.limit > 1000 ? formatBytes(e.limit) : String(e.limit);
   return i18n.t(`teamSync.err.${e.code}`, { limit, detail: e.message });
 }
+
+/** What a team sync that went on past records it could not do says about them; null when there were none (code review M1). */
+export function syncFailuresText(failed: readonly { error: unknown }[]): string | null {
+  if (!failed.length) return null;
+  return i18n.t('teamSync.someFailed', { count: failed.length, reason: teamSyncErrorText(failed[0].error) });
+}

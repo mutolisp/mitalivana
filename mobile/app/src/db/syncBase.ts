@@ -34,6 +34,19 @@ export function setSyncBase(kind: BaseKind, uuid: string, entries: BaseEntry[]):
   });
 }
 
+/** Part of a base replaced: `drop`'s entries go, `put`'s come (a census block, code review M6). */
+export function patchSyncBase(kind: BaseKind, uuid: string, { drop, put }: { drop: readonly BaseEntry[]; put: readonly BaseEntry[] }): void {
+  withTransaction(() => {
+    const db = getUserDb();
+    for (const [tbl, key] of drop) {
+      db.executeSync(`DELETE FROM sync_base WHERE record_kind = ? AND record_uuid = ? AND tbl = ? AND row_key = ?`, [kind, uuid, tbl, key]);
+    }
+    for (const [tbl, key, hash] of put) {
+      db.executeSync(`INSERT OR REPLACE INTO sync_base (record_kind, record_uuid, tbl, row_key, hash) VALUES (?, ?, ?, ?, ?)`, [kind, uuid, tbl, key, hash]);
+    }
+  });
+}
+
 /** Dropped with the record: nothing else refers to it. */
 export function clearSyncBase(kind: BaseKind, uuid: string): void {
   getUserDb().executeSync(`DELETE FROM sync_base WHERE record_kind = ? AND record_uuid = ?`, [kind, uuid]);

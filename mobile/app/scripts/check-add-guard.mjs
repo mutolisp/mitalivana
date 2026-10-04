@@ -57,8 +57,28 @@ for (const f of files) {
     }
   });
 }
+// Reopening a finished record ends the open one too: ask first, with
+// confirmReopenOver() (src/lib/recordCreate.ts). 快速名錄's 繼續編輯 asked only
+// about another checklist and ended a plot, GLORIA, MIREN or survey without a
+// word (code review M24, 2026-10-04); so did a plot's, GLORIA's and MIREN's (N2).
+const REOPEN = /\b(reopenSession|reopenPlotSurvey|reopenGloriaSurvey|reopenMirenSurvey|reopenSurvey)\(/;
+const ASKS = /\bconfirmReopenOver\(/;
+let reopens = 0;
+for (const f of files) {
+  if (NOT_CALLERS.has(f)) continue;
+  const lines = readFileSync(f, 'utf8').split('\n');
+  lines.forEach((line, i) => {
+    if (/^\s*(\/\/|\*)/.test(line) || /^\s*import\b/.test(line) || /function reopen\w*\(/.test(line)) return;
+    if (!REOPEN.test(line)) return;
+    reopens++;
+    if (!ASKS.test(lines.slice(Math.max(0, i - WINDOW), i + 1).join('\n'))) {
+      errors.push(`${f}:${i + 1}: reopens a record without confirmReopenOver() just before it\n    ${line.trim()}`);
+    }
+  });
+}
+
 if (errors.length) {
   for (const e of errors) console.error(`✖ ${e}`);
   process.exit(1);
 }
-console.log(`✓ add guard: ${calls} implicit record starts, each behind the conflict guard or the MIREN and survey guards`);
+console.log(`✓ add guard: ${calls} implicit record starts, each behind the conflict guard or the MIREN and survey guards; ${reopens} reopens ask first`);

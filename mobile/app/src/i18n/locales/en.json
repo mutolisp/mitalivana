@@ -3803,6 +3803,8 @@
     "deleteCloudMsg": "Delete everything “{{name}}” has on the server and leave the team. Teammates can no longer sync; the records on their phones stay.",
     "loading": "Working…",
     "failTitle": "Could not finish",
+    "someFailed_one": "1 record could not be synced (the rest went through): {{reason}} The sync log has the reason for each record.",
+    "someFailed_other": "{{count}} records could not be synced (the rest went through): {{reason}} The sync log has the reason for each record.",
     "inviteTitle": "Invite teammates",
     "inviteHow": "A teammate scans this with the phone’s own camera, which opens Mitalivana’s join screen. You can also send them the code below to paste.",
     "shareCode": "Share the code",

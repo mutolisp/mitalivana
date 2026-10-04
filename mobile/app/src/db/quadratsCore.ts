@@ -453,13 +453,21 @@ export function applyGeometryDefaults(db: QuadratDb, plotId: number, now: number
  * Make every quadrat of the plot use one grid, after something that could mix
  * them (an import, a merge, merging plots). The grid is the config's, or the
  * first quadrat's when there is no config. A mask that does not fit is
- * frequency not done — never stretched — and a count is capped at the cells.
+ * frequency not done — never stretched. So is a count from a quadrat on
+ * another grid: 20 of 5 × 5 is 80 %, the same 20 of 10 × 10 would read 20 %
+ * (code review M15, 2026-10-04). A count on the plot's grid is capped at the cells.
  */
 export function normalizeGrid(db: QuadratDb, plotId: number, now: number): void {
   const cfgRow = rows<{ quadrat_config: string | null }>(db, `SELECT quadrat_config FROM plot_surveys WHERE id = ?`, [plotId])[0];
   const first = listQuadrats(db, plotId)[0];
   if (!first) return;
   const n = cfgRow?.quadrat_config ? parseQuadratConfig(cfgRow.quadrat_config).gridN : first.grid_n;
+  // Before the grid changes: the counts of the quadrats it changes for.
+  db.executeSync(
+    `UPDATE plot_quadrat_species SET freq_count = NULL
+     WHERE freq_count IS NOT NULL AND quadrat_id IN (SELECT id FROM plot_quadrats WHERE plot_survey_id = ? AND grid_n != ?)`,
+    [plotId, n],
+  );
   db.executeSync(`UPDATE plot_quadrats SET grid_n = ?, updated_at = ? WHERE plot_survey_id = ? AND grid_n != ?`, [n, now, plotId, n]);
   db.executeSync(
     `UPDATE plot_quadrat_species SET

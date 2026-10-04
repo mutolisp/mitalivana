@@ -19,6 +19,7 @@ import { router, type Href } from 'expo-router';
 import { strToU8 } from 'fflate';
 import yaml from 'js-yaml';
 import { getUserDb } from '~/db/init';
+import { TEAM_TABLES } from '~/db/integrityRules';
 import { assertNever } from '~/lib/assertNever';
 import { getPlotLayers, getPlotSurvey, getPlotSurveyByUuid, getSubplotLayers, importPlotSurvey, listPlotSpecies, listSubplots } from '~/db/plots';
 import { getProject } from '~/db/projects';
@@ -393,7 +394,7 @@ export async function leaveTeam(teamId: string): Promise<void> {
   await SecureStore.deleteItemAsync(secretKey(teamId));
   await forgetOwnerToken(teamId);
   const db = getUserDb();
-  for (const t of ['sync_teams', 'sync_links', 'sync_seen', 'sync_queue', 'sync_members', 'sync_log']) db.executeSync(`DELETE FROM ${t} WHERE team_id = ?`, [teamId]);
+  for (const t of TEAM_TABLES) db.executeSync(`DELETE FROM ${t} WHERE team_id = ?`, [teamId]);
 }
 
 export async function keysOf(teamId: string): Promise<{ team: Team; keys: TeamKeys }> {
@@ -896,7 +897,7 @@ async function syncRecordNow(teamId: string, kind: MergeKind, id: number, opts: 
         // Only additions and one-sided edits: applied like the review's
         // defaults, without a backup (nothing is overwritten that was changed here).
         const res = await applyPendingMerge({ ...prep, afterApply: onApplied, from: payload.sync?.author ?? null }, new Map(), { backup: false });
-        out.changes.push(...res.changes);
+        for (const ch of res.changes) out.changes.push(ch);
         out.merged += 1;
         if (payload.sync?.author) out.mergedFrom.push(payload.sync.author);
         // After the rows: a photo of a species row new here needs that row.
@@ -981,21 +982,31 @@ export function localIdOf(kind: MergeKind, uuid: string): number | null {
 }
 
 /** Send what was queued while offline. Stops at the first review. */
-export async function flushQueue(teamId: string): Promise<{ sent: number; review: boolean; queued: boolean }> {
+export async function flushQueue(teamId: string): Promise<{ sent: number; review: boolean; queued: boolean; failed: SyncFailure[] }> {
   const queued = rows<{ record_kind: SyncKind; record_uuid: string }>(`SELECT record_kind, record_uuid FROM sync_queue WHERE team_id = ?`, [teamId]);
   let sent = 0;
+  const failed: SyncFailure[] = [];
   for (const q of queued) {
-    const r = await syncLinked(teamId, q.record_kind, q.record_uuid);
+    let r: SyncOutcome | null;
+    try {
+      r = await syncLinked(teamId, q.record_kind, q.record_uuid);
+    } catch (error) {
+      failed.push({ kind: q.record_kind, uuid: q.record_uuid, error });
+      continue;
+    }
     if (!r) {
       getUserDb().executeSync(`DELETE FROM sync_queue WHERE team_id = ? AND record_uuid = ?`, [teamId, q.record_uuid]);
       continue;
     }
-    if (r.queued) return { sent, review: false, queued: true };
+    if (r.queued) return { sent, review: false, queued: true, failed };
     sent += 1;
-    if (r.review) return { sent, review: true, queued: false };
+    if (r.review) return { sent, review: true, queued: false, failed };
   }
-  return { sent, review: false, queued: false };
+  return { sent, review: false, queued: false, failed };
 }
+
+/** A record a team sync could not do (logged as 'fail' in the sync log); the others went on (code review M1). */
+export type SyncFailure = { kind: SyncKind; uuid: string; error: unknown };
 
 export type TeamSyncOutcome = {
   /** Records whose changes were uploaded (unchanged ones are only checked for teammates' changes). */
@@ -1009,6 +1020,8 @@ export type TeamSyncOutcome = {
   review: boolean;
   /** Stopped for lack of a connection (the rest wait for the next sync). */
   queued: boolean;
+  /** Records that could not be synced; one of them no longer stops the others (code review M1). */
+  failed: SyncFailure[];
 };
 
 /**
@@ -1034,7 +1047,7 @@ export async function syncAllTeams(): Promise<(TeamSyncOutcome & { teams: number
   allRunning = true;
   try {
     return await withSyncProgress(async () => {
-      const out = { sent: 0, merged: 0, mergedFrom: [] as string[], changes: [] as TeamSyncOutcome['changes'], imported: 0, review: false, queued: false, teams: 0 };
+      const out = { sent: 0, merged: 0, mergedFrom: [] as string[], changes: [] as TeamSyncOutcome['changes'], imported: 0, review: false, queued: false, failed: [] as SyncFailure[], teams: 0 };
       for (const team of listTeams()) {
         if (!(await hasSecret(team.team_id))) continue;
         const linked = rows<{ n: number }>(`SELECT COUNT(*) AS n FROM sync_links WHERE team_id = ?`, [team.team_id])[0]?.n ?? 0;
@@ -1043,8 +1056,10 @@ export async function syncAllTeams(): Promise<(TeamSyncOutcome & { teams: number
         const r = await syncTeamNow(team.team_id, { pull: false });
         out.sent += r.sent;
         out.merged += r.merged;
-        out.mergedFrom.push(...r.mergedFrom);
-        out.changes.push(...r.changes);
+        // One by one: a large census's first exchange has hundreds of thousands of changes (2E-b, code review M7).
+        for (const x of r.mergedFrom) out.mergedFrom.push(x);
+        for (const ch of r.changes) out.changes.push(ch);
+        for (const f of r.failed) out.failed.push(f);
         if (r.queued || r.review) return { ...out, queued: r.queued, review: r.review };
       }
       return out;
@@ -1081,23 +1096,33 @@ async function ensureOwnerClaim(teamId: string): Promise<void> {
 }
 
 async function syncTeamNow(teamId: string, opts: { pull?: boolean } = {}): Promise<TeamSyncOutcome> {
-  const out: TeamSyncOutcome = { sent: 0, merged: 0, mergedFrom: [], changes: [], imported: 0, review: false, queued: false };
+  const out: TeamSyncOutcome = { sent: 0, merged: 0, mergedFrom: [], changes: [], imported: 0, review: false, queued: false, failed: [] };
   await ensureOwnerClaim(teamId).catch(() => {});
   // Files that could not be fetched last time, for every record of the team.
   await retryPendingMedia(teamId, localIdOf).catch(() => {});
+  await import('~/survey/censusSync').then((census) => census.retryCensusMedia(teamId)).catch(() => {});
   const linked = rows<{ record_kind: SyncKind; record_uuid: string }>(
     `SELECT record_kind, record_uuid FROM sync_links WHERE team_id = ? AND record_kind <> 'survey_block' ORDER BY last_synced_at`,
     [teamId],
   );
   for (const [n, l] of linked.entries()) {
     useSyncProgress.getState().update({ recordIndex: n + 1, recordCount: linked.length });
-    const r = await syncLinked(teamId, l.record_kind, l.record_uuid, { onlyIfChanged: true });
+    let r: SyncOutcome | null;
+    try {
+      r = await syncLinked(teamId, l.record_kind, l.record_uuid, { onlyIfChanged: true });
+    } catch (error) {
+      // Logged as 'fail' where it happened. A census that cannot be merged
+      // here (another block size, …) used to stop every sync of the team,
+      // and it sorts first (code review M1): the others go on.
+      out.failed.push({ kind: l.record_kind, uuid: l.record_uuid, error });
+      continue;
+    }
     if (!r) continue; // deleted here; cleanup.ts drops the link
     if (r.queued) return { ...out, queued: true };
     if (r.uploaded) out.sent += 1;
     out.merged += r.merged;
-    out.mergedFrom.push(...r.mergedFrom);
-    out.changes.push(...r.changes);
+    for (const x of r.mergedFrom) out.mergedFrom.push(x);
+    for (const ch of r.changes) out.changes.push(ch);
     if (r.review) return { ...out, review: true };
   }
   if (opts.pull !== false) out.imported = (await pullTeamRecords(teamId)).imported;

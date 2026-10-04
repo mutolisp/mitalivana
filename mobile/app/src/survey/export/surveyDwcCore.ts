@@ -8,7 +8,11 @@
  * child event per 20 m quadrat; an occurrence per tree handled in the census
  * (measured, coded dead, or waiting for the big-tree team — decided
  * 2026-10-03), `organismID` its uuid, `vitality` by status.ts; each stem's
- * measurements on it, with the stem's tag, date and recorder.
+ * measurements on it, with the stem's tag, date and recorder. Its
+ * `occurrenceID` is `<tree uuid>:<census no>`, and `<tree uuid>:<series
+ * code>:<census no>` for a plot's later series, whose censuses count from 1
+ * again (code review M2, 2026-10-04: the same tree in census 1 of two series
+ * had one ID in a project's archive).
  *
  * A checklist / plot-style survey: an event, a child event per unit; each
  * occurrence with the DwC terms its components declare (registry exportMap),
@@ -118,6 +122,8 @@ export function censusDwcRows(
 
   for (const c of doc.censuses) {
     const no = Number(c.survey.census_no);
+    const seriesCode = str(doc.series.series_code);
+    const occOf = (treeUuid: string) => (seriesCode ? `${treeUuid}:${seriesCode}:${no}` : `${treeUuid}:${no}`);
     const tpl = snapshot(c.survey);
     const sets = healthCodesets(tpl?.components ?? []);
     const ams = sets.includes('forestgeo-ams-2021');
@@ -214,7 +220,7 @@ export function censusDwcRows(
       const main = stemInputs.find((x) => x.m.is_main === 1 || x.m.is_main === true) ?? stemInputs[0];
       const quadrat = quadratOf.get(str(t.quadrat_code));
       const at = toLatLng({ x: Number(t.x_m), y: Number(t.y_m) }, g);
-      const occurrenceID = `${tu}:${no}`;
+      const occurrenceID = occOf(tu);
       const remarks = [
         treeCodes.includes('DN') ? REMARKS.presumedDead : '',
         stemInputs.length && stemInputs.every((x) => x.amsSurvival === 'NF') ? REMARKS.notFound : '',
@@ -475,7 +481,10 @@ export function surveyDwcRows(doc: SurveyDoc, opts: { eventId: string; uniqueEve
       sampleSizeUnit: size != null ? 'm²' : '',
       locationID: str(doc.frame?.uuid),
       recordedBy: investigators,
-      ...locationTerms(num(u.lat), null, null),
+      // A unit's elevation is an 環境 value (no source recorded: typed in, so
+      // verticalDatum 'not recorded'). Elevation terms are dcterms:Location
+      // terms the GBIF Event core carries (code review M12, 2026-10-04).
+      ...locationTerms(num(u.lat), num(doc.unit_values.find((v) => v.unit === key && v.field === 'elevation_m' && v.value_num != null)?.value_num), null),
       // The unit's own location, recorder and comment (its components) over the survey's.
       ...dwcOf('unit', owner, u, EVENT_DWC),
     });

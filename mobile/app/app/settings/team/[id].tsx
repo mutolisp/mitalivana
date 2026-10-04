@@ -40,7 +40,8 @@ import {
 } from '~/lib/teamSync';
 import { adminTokenFor, setTeamLimits } from '~/lib/teamSyncAdmin';
 import { pendingMediaCount, retryPendingMedia } from '~/lib/mediaSync';
-import { teamSyncErrorText } from '~/lib/teamSyncText';
+import { retryCensusMedia } from '~/survey/censusSync';
+import { syncFailuresText, teamSyncErrorText } from '~/lib/teamSyncText';
 import { useToast } from '~/stores/toast';
 
 const when = (ms: number | null | undefined) => (ms ? isoStamp(ms).slice(0, 16) : null);
@@ -126,6 +127,8 @@ export default function TeamScreen() {
         ].filter(Boolean);
         toast(parts.length ? parts.join('；') : t('teamSync.teamNothing'));
       }
+      const failed = syncFailuresText(r.failed);
+      if (failed) Alert.alert(t('teamSync.failTitle'), failed);
     } catch (e) {
       Alert.alert(t('teamSync.failTitle'), teamSyncErrorText(e));
     } finally {
@@ -139,6 +142,8 @@ export default function TeamScreen() {
       const r = await flushQueue(teamId);
       if (r.queued) toast(t('teamSync.stillOffline'));
       else if (!r.review) toast(t('teamSync.flushDone', { count: r.sent }));
+      const failed = syncFailuresText(r.failed);
+      if (failed) Alert.alert(t('teamSync.failTitle'), failed);
     });
 
   const adjustLimits = async () => {
@@ -329,7 +334,9 @@ export default function TeamScreen() {
               description={t('teamSync.pendingFilesDesc')}
               onPress={() =>
                 void run(t('teamSync.loading'), async () => {
-                  const r = await retryPendingMedia(teamId, localIdOf);
+                  const a = await retryPendingMedia(teamId, localIdOf);
+                  const b = await retryCensusMedia(teamId);
+                  const r = { added: a.added + b.added, pending: a.pending + b.pending };
                   toast(r.pending ? t('teamSync.pendingLeft', { added: r.added, n: r.pending }) : t('teamSync.pendingDone', { added: r.added }));
                 })
               }

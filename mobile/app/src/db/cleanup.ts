@@ -11,7 +11,7 @@ import { File, Paths } from 'expo-file-system';
 import { getDatasetDb } from './datasets';
 import { getUserDb } from './init';
 import { endActiveRecord, type ActiveKind } from './activeRecords';
-import { CASCADE_ORPHANS, NULL_DANGLING, PROJECT_FK_TABLES } from './integrityRules';
+import { CASCADE_ORPHANS, NULL_DANGLING, PROJECT_FK_TABLES, SYNC_RECORD_TABLES } from './integrityRules';
 import { DELETED_KEEP_MS } from '~/lib/recordVersionsCore';
 import type { MergeKind } from '~/lib/mergeDocs';
 
@@ -244,9 +244,9 @@ export function purgeOrphanRows(): void {
     ...CASCADE_ORPHANS,
     // Rows keyed by (record_kind, record_uuid) whose record is no longer here:
     // team-merge ancestors (v57), team-sync links and queued sends (v58), the
-    // merge log (v67). One rule per kind, from LIVE_UUIDS — a kind missing
+    // merge log (v67), files still to fetch (v72). One rule per kind, from LIVE_UUIDS — a kind missing
     // there is a type error, never a rule that deletes its rows wholesale.
-    ...(['sync_base', 'sync_links', 'merge_log', 'sync_queue'] as const).flatMap((table) =>
+    ...SYNC_RECORD_TABLES.flatMap((table) =>
       Object.entries(SYNC_LIVE_UUIDS).map(
         ([kind, sql]) => [table, `record_kind = '${kind}' AND record_uuid NOT IN (${sql})`] as const,
       ),
@@ -259,6 +259,8 @@ export function purgeOrphanRows(): void {
     // Sync log (v70): only teams still on this device, newest 500 per team.
     // Entries of deleted records stay (their label says what they were).
     ['sync_log', `team_id NOT IN (SELECT team_id FROM sync_teams)`],
+    // Files to fetch for a team no longer on this device (code review M14).
+    ['media_pending', `team_id NOT IN (SELECT team_id FROM sync_teams)`],
     ['sync_log', `id IN (SELECT id FROM (SELECT id, ROW_NUMBER() OVER (PARTITION BY team_id ORDER BY at DESC, id DESC) AS rn FROM sync_log) WHERE rn > 500)`],
   ];
   for (const [table, where] of orphanDeletes) {

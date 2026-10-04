@@ -102,7 +102,7 @@ import { selectionKey, useRecordSelection } from '~/stores/recordSelection';
 import { useSettings, type RecordsLayout } from '~/stores/settings';
 import { useToast } from '~/stores/toast';
 import { syncAllTeams } from '~/lib/teamSync';
-import { teamSyncErrorText } from '~/lib/teamSyncText';
+import { syncFailuresText, teamSyncErrorText } from '~/lib/teamSyncText';
 import { mergeSummary } from '~/lib/mergeSummaryText';
 
 import { useTabBarInset } from '~/lib/tabBarLayout';
@@ -1294,6 +1294,8 @@ export default function RecordsListScreen() {
         ].filter(Boolean);
         toast(parts.length ? parts.join('；') : t('teamSync.teamNothing'));
       }
+      const failed = syncFailuresText(r.failed);
+      if (failed) Alert.alert(t('teamSync.failTitle'), failed);
     } catch (e) {
       Alert.alert(t('teamSync.failTitle'), teamSyncErrorText(e));
     }

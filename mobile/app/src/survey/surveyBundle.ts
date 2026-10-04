@@ -9,6 +9,7 @@
 import { strToU8 } from 'fflate';
 import i18n from '~/i18n';
 import { getUserDb } from '~/db/init';
+import { syncBlockFor } from '~/db/syncBase';
 import { resolveTaxa } from '~/db/taxonLookup';
 import { generateUuid } from '~/db/uuid';
 import { tableToCsv } from '~/lib/vegMatrix';
@@ -89,9 +90,12 @@ export async function buildSurveyEntries(
     }
   }
 
-  // The project id is this device's: a file carries none.
+  // The project id is this device's: a file carries none. The sync block is
+  // this device's common ancestor, as every other record's file carries: a
+  // merge from the file then knows what a teammate deleted (code review M13).
   const { project_id: _p, ...fileDoc } = doc;
-  entries.push({ name: `${base}/${base}.yml`, bytes: strToU8(JSON.stringify(fileDoc)) });
+  const sync = syncBlockFor('modular', String(live.survey.uuid));
+  entries.push({ name: `${base}/${base}.yml`, bytes: strToU8(JSON.stringify({ ...fileDoc, sync })) });
   const tables = surveyTables(doc, { eventId, names, words: surveyWords() });
   const csv = (suffix: string, t: CsvTable | null) => {
     if (t) entries.push({ name: `${base}/${base}_${suffix}.csv`, bytes: strToU8(toCsv(t.header, t.rows)) });

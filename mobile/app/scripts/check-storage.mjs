@@ -6,6 +6,7 @@
  *
  * Run: npm run check:storage
  */
+import { readFileSync } from 'node:fs';
 import { MEDIA_COLUMNS, NOT_MEDIA, mediaNamesIn } from '../src/lib/mediaNames.ts';
 import { schemaColumns } from './schema-columns.mjs';
 
@@ -50,6 +51,26 @@ eq('empty', mediaNamesIn(''), []);
     if (!schema.get(t)?.has(c)) {
       failures += 1;
       console.error(`  ✗ MEDIA_COLUMNS lists ${key}, which the schema does not have`);
+    }
+  }
+}
+
+// ── The photo backup (src/lib/backup.ts) collects every file column (code review M4, 2026-10-04) ──
+// It missed the quadrats, the survey framework, morphospecies and MIREN photos.
+{
+  const src = readFileSync(new URL('../src/lib/backup.ts', import.meta.url), 'utf8');
+  const NOT_IN_PHOTO_BACKUP = {
+    'checklist_records.audio_paths': 'recordings are left out of the photo backup by design',
+    'plot_species_records.audio_paths': 'recordings are left out of the photo backup by design',
+    'collection_specimens.audio_paths': 'recordings are left out of the photo backup by design',
+    'photo_fix.uri': 'a cache of where library photos were taken, not a file of the app',
+  };
+  for (const [t, c] of MEDIA_COLUMNS) {
+    const key = `${t}.${c}`;
+    if (key in NOT_IN_PHOTO_BACKUP) continue;
+    if (!new RegExp(`\\b${t}\\b`).test(src) || !new RegExp(`\\b${c}\\b`).test(src)) {
+      failures += 1;
+      console.error(`  ✗ ${key} holds files the photo backup (src/lib/backup.ts collectPhotoSources) does not collect`);
     }
   }
 }

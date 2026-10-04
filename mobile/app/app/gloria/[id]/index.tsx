@@ -30,6 +30,7 @@ import { SpeciesMatrix } from '~/modules/gloria/components/SpeciesMatrix';
 import { missingRequiredPhotos, PhotoChecklist } from '~/modules/gloria/components/PhotoChecklist';
 import { Btn, Card, Label, LineTabs, NumAccessory } from '~/modules/gloria/components/ui';
 import { chooseEndTime } from '~/lib/endTimeChoice';
+import { confirmReopenOver } from '~/lib/recordCreate';
 import { saveVersionSoon } from '~/db/recordVersions';
 import { useVersionOnLeave } from '~/lib/useVersionOnLeave';
 import { useThemeColors } from '~/theme/colors';
@@ -83,8 +84,10 @@ export default function GloriaSurveyScreen() {
     useActivePlot.getState().refresh();
     useActiveSession.getState().refresh();
   };
-  const toggleEnd = () => {
+  const toggleEnd = async () => {
     if (!active) {
+      // Reopening ends any open record: ask first (code review N2).
+      if (!(await confirmReopenOver())) return;
       reopenGloriaSurvey(id);
       refreshStores();
       reload();

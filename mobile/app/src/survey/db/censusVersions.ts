@@ -45,6 +45,12 @@ export function quadratSlice(id: number): sl.CensusSlice | null {
   return q ? sl.buildSlice(ctx(), q.survey_id, [q.quadrat_code]) : null;
 }
 
+/** What restoring `target` reaches, kept as the version before it (code review M11). */
+export function quadratSliceForRestore(id: number, target: sl.CensusSlice): sl.CensusSlice | null {
+  const q = quadratRef(id);
+  return q ? sl.sliceForRestore(ctx(), q.survey_id, target) : null;
+}
+
 export function restoreQuadrat(id: number, slice: sl.CensusSlice): number {
   const q = quadratRef(id);
   if (!q) throw new Error('quadrat not found');

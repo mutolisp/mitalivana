@@ -32,6 +32,7 @@ import { runUserMigrations } from '../src/db/migrations.ts';
 import { CASCADE_ORPHANS } from '../src/db/integrityRules.ts';
 import * as s from '../src/survey/db/stemmapCore.ts';
 import * as cs from '../src/survey/db/censusSyncCore.ts';
+import * as sl from '../src/survey/db/sliceCore.ts';
 import { defaultDecision, needsReview } from '../src/lib/mergeEngine.ts';
 import { STEMMAP_TEMPLATE } from '../src/survey/templates/stemmap.ts';
 
@@ -81,7 +82,8 @@ async function phone(prefix) {
   const one = (sql, ...a) => sqlite.prepare(sql).get(...a);
   const count = (table, where = '1', ...a) => one(`SELECT COUNT(*) AS n FROM ${table} WHERE ${where}`, ...a).n;
   // The merge base of the census, as sync_base keeps it.
-  return { sqlite, db, ctx, tx, one, count, base: [], name: prefix };
+  // base: the census's sync base (baseAfterMerge); stored: the same as the phone keeps it, change by change (patchSyncBase).
+  return { sqlite, db, ctx, tx, one, count, base: [], stored: new Map(), name: prefix };
 }
 
 const A = await phone('a');
@@ -150,17 +152,35 @@ const send = (P, sid, block) => {
   const doc = cs.buildBlockDoc(P.ctx, sid, block);
   return JSON.parse(JSON.stringify({ ...doc, base: cs.baseForSlice(P.base, doc.slice) }));
 };
+/** Receives where the quadrats read before openBlock missed a tree it folded away (M10). */
+const foldTakes = [];
+let foldsSeen = 0;
+/** Blocks after which the stored base (patched) differs from the whole base rewritten. */
+const baseDrift = [];
 /** Receive a block: open, settle, items, apply (decisions: collision id → decision, item id → decision). */
 function receive(P, sid, doc, { collisions = new Map(), items: pick = () => null, expect } = {}) {
   return P.tx(() => {
+    // What the app reads before openBlock to keep as before_merge (code review M10): the
+    // quadrats of trees their folds take here, before they are folded away.
+    const takes = cs.quadratsTheirFoldsTake(P.ctx, doc.slice);
+    const takenTrees = P.sqlite.prepare(`SELECT uuid FROM fw_individuals WHERE quadrat_code IN (${takes.map(() => '?').join(', ') || "''"})`).all(...takes).map((t) => t.uuid);
     const opened = cs.openBlock(P.ctx, sid, doc.slice);
+    const gone = takenTrees.filter((u) => !P.one('SELECT id FROM fw_individuals WHERE uuid = ?', u));
+    foldsSeen += opened.folded;
+    if ((takes.length > 0) !== (opened.folded > 0) || gone.length !== opened.folded) foldTakes.push(`${P.name} ${doc.block}: ${takes} / folded ${opened.folded}, gone ${gone.length}`);
     if (expect) expect(opened);
     const remote = cs.settleCollisions(P.ctx, sid, opened, collisions, P.name);
     const items = cs.blockItems(P.ctx, sid, doc.block, remote, doc.base, P.base);
     const decisions = new Map(items.map((it) => [it.id, pick(it) ?? defaultDecision(it)]));
     cs.applyBlockItems(P.ctx, sid, items, decisions, remote);
+    const change = cs.baseChangeAfterMerge(P.base, opened.sent);
     P.base = cs.baseAfterMerge(P.base, opened.sent);
-    return { opened, items };
+    // What the phone writes: DELETE the dropped keys, INSERT OR REPLACE the put ones (code review M6).
+    for (const [t, k] of change.drop) P.stored.delete(`${t}\u0000${k}`);
+    for (const [t, k, h] of change.put) P.stored.set(`${t}\u0000${k}`, h);
+    const whole = new Map(P.base.map(([t, k, h]) => [`${t}\u0000${k}`, h]));
+    if (whole.size !== P.stored.size || [...whole].some(([k, h]) => P.stored.get(k) !== h)) baseDrift.push(`${P.name} ${doc.block}`);
+    return { opened, items, change };
   });
 }
 
@@ -176,6 +196,21 @@ ok(r.items.every((it) => !needsReview(it)) && tree(B, a1u)?.tag === s.getIndivid
 ok(dbhOf(B, CB, a1u, 2) === 4 && B.count('fw_stems', 'individual_id = ?', tree(B, a1u).id) === 2, 'blocks: with its stems and measurements');
 r = receive(A, CA, send(B, CB, 'b1_0'));
 ok(tree(A, b1u)?.taxon_id === 'k2' && dbhOf(A, CA, b1u) === 30, 'blocks: and the other way');
+{
+  const back = receive(A, CA, send(B, CB, 'b0_0'));
+  const keys = [...back.change.drop, ...back.change.put].map(([, k]) => k.split('|')[0]);
+  ok(A.base.some(([, k]) => k === b1u) && keys.includes(a1u) && !keys.includes(b1u), 'base: a block rewrites only its own rows, not the census (code review M6)');
+}
+// A tree another series recorded first (a census this phone does not have) comes in without it, not refused (code review M1).
+{
+  const other = A.tx(() => s.saveTreeDraft(A.ctx, CA, draft({ location: xy(12, 12), stems: [sd({ dbhCm: 8 })] })));
+  const otherU = s.getIndividual(A.ctx, other).uuid;
+  const doc = send(A, CA, 'b0_0');
+  for (const t of doc.slice.trees) if (t.uuid === otherU) t.first_survey_uuid = 'a-census-of-another-series';
+  for (const st of doc.slice.stems) if (st.tree_uuid === otherU) st.first_survey_uuid = 'a-census-of-another-series';
+  receive(B, CB, doc);
+  ok(tree(B, otherU) != null && tree(B, otherU).first_survey_id == null, 'blocks: a tree first recorded in a census not here comes in, with no first census');
+}
 
 // a photo row carries a path on their phone: it is not merged (files come through the file manifest)
 A.tx(() => s.addTreeMedia(A.ctx, CA, a1, 'file:///phone-a/photo1.jpg'));
@@ -222,6 +257,15 @@ try {
 ok(threw instanceof s.SurveyError && threw.code === 'tag_taken', 'clash: a new number already in use refused');
 r = receive(A, CA, docB, { collisions: new Map([[`tag:${b2u}`, { kind: 'renumber', which: 'remote', tag: '888' }]]) });
 ok(tree(A, b2u)?.tag === '888' && tree(A, a5u).tag === '901', 'clash: renumber theirs → their tree here as 888');
+{
+  const all = (d) => new Map(r.opened.collisions.map((c) => [c.id, d]));
+  ok(
+    r.opened.collisions.length === 1 &&
+      cs.decisionsCorrectTheirs(r.opened, all({ kind: 'renumber', which: 'remote', tag: '888' })) &&
+      !cs.decisionsCorrectTheirs(r.opened, all({ kind: 'renumber', which: 'local', tag: '888' })),
+    'clash: a new number for their tree sends their block back, one for ours does not (code review M8)',
+  );
+}
 ok(A.count('fw_individual_history', "field = 'tag' AND individual_id = ?", tree(A, b2u).id) === 1, 'clash: the renumbering is a tag correction');
 r = receive(B, CB, send(A, CA, 'b0_0'));
 ok(tree(B, b2u).tag === '888' && tree(B, a5u)?.tag === '901', 'clash: their phone takes the new number and our 901');
@@ -249,6 +293,10 @@ const b4u = s.getIndividual(B.ctx, b4).uuid;
 const keep4 = a4u < b4u ? a4u : b4u;
 r = receive(A, CA, send(B, CB, 'b0_0'), { collisions: new Map([[`possible:${b4u}`, { kind: 'same', tag: '601' }]]) });
 ok(r.opened.collisions.some((c) => c.kind === 'possible' && c.local.uuid === a4u), 'possible duplicate: asked');
+ok(
+  cs.decisionsCorrectTheirs(r.opened, new Map([[`possible:${b4u}`, { kind: 'same', tag: '601' }]])) && !cs.decisionsCorrectTheirs(r.opened, new Map([[`possible:${b4u}`, { kind: 'both' }]])),
+  'possible duplicate: "one tree" sends their block back, "keep both" does not (code review M8)',
+);
 ok(A.count('fw_individuals', "taxon_id = 'k4'") === 1 && tree(A, keep4)?.tag === '601', 'possible duplicate: "one tree" keeps one, under the tag chosen');
 ok(s.retiredTags(A.ctx, FA).has('602') && !s.retiredTags(A.ctx, FA).has('601'), 'possible duplicate: the tag given up is retired, the one kept is not');
 // Their phone has 602 on its tree: no tag in common, so only the merge row can tell it.
@@ -299,11 +347,59 @@ A.tx(() => s.touchFgQuadrat(A.ctx, CA, '0500'));
 r = receive(B, CB, send(A, CA, 'b1_0'), { items: (it) => (it.kind === 'remoteDeleted' ? { pick: 'remote' } : null) });
 ok(dbhOf(B, CB, a1u, 1) == null && tree(B, a1u) != null, 'removed: taken → the measurement goes, the tree stays');
 
+// ── one stem number added on both phones (code review M9) ────────────────
+{
+  const t9 = A.tx(() => s.saveTreeDraft(A.ctx, CA, draft({ tag: '990', location: xy(62, 62), stems: [sd({ dbhCm: 15 })] })));
+  const t9u = s.getIndividual(A.ctx, t9).uuid;
+  receive(B, CB, send(A, CA, 'b0_0'));
+  const stemsOf = (P) =>
+    P.sqlite
+      .prepare(`SELECT st.stem_no AS n, st.uuid AS u FROM fw_stems st JOIN fw_individuals i ON i.id = st.individual_id WHERE i.uuid = ? ORDER BY st.stem_no`)
+      .all(t9u)
+      .map((r) => `${r.n}:${r.u}`)
+      .join();
+  A.tx(() => s.addStem(A.ctx, t9, CA));
+  B.tx(() => s.addStem(B.ctx, tree(B, t9u).id, CB));
+  ok(stemsOf(A) !== stemsOf(B), '(both phones added stem 2, each its own)');
+  let threw = null;
+  let r9 = null;
+  try {
+    r9 = receive(B, CB, send(A, CA, 'b0_0'));
+  } catch (e) {
+    threw = e;
+  }
+  ok(!threw && r9.opened.stemsJoined === 1, `same stem number: their stem 2 is the same stem as ours, no error (${threw?.message ?? r9.opened.stemsJoined})`);
+  receive(A, CA, send(B, CB, 'b0_0'));
+  ok(stemsOf(A) === stemsOf(B) && stemsOf(A).split(',').length === 2, `same stem number: one stem 2 on both phones, under one uuid (${stemsOf(A)} / ${stemsOf(B)})`);
+  // A census made from a file (fillSlice) follows the same rule.
+  A.tx(() => s.addStem(A.ctx, t9, CA));
+  B.tx(() => s.addStem(B.ctx, tree(B, t9u).id, CB));
+  B.tx(() => sl.fillSlice(B.ctx, CB, cs.buildBlockDoc(A.ctx, CA, 'b0_0').slice));
+  const nos = stemsOf(B).split(',').map((x) => x.split(':')[0]).join();
+  const third = (P) => stemsOf(P).split(',')[2];
+  ok(nos === '1,2,3' && third(A).split(':')[1] <= third(B).split(':')[1] === (third(A) === third(B)), `file: a stem the file's phone added under a number ours has is that stem, not a 4th (${stemsOf(B)})`);
+}
+{
+  // A stem whose tree a decision keeps out stays out with it, its measurement too, instead of failing the merge.
+  const ops = [
+    { op: 'insert', tbl: 'stem', row: { key: 'st-x', data: { tree_uuid: 'no-such-tree', stem_no: 1 } } },
+    { op: 'insert', tbl: 'measure', row: { key: 'st-x', data: {} } },
+    { op: 'insert', tbl: 'sval', row: { key: 'st-x|c|f|0', data: { stem_uuid: 'st-x' } } },
+    { op: 'insert', tbl: 'ival', row: { key: 'no-such-tree|c|f|0', data: { tree_uuid: 'no-such-tree' } } },
+    { op: 'update', tbl: 'tree', key: 'whatever', data: {} },
+  ];
+  const kept = cs.withParents(A.ctx, ops);
+  ok(kept.length === 1 && kept[0].op === 'update', `merge: rows without their tree or stem are left out (${kept.map((o) => `${o.op} ${o.tbl}`)})`);
+}
+
 // ── this phone's roll of tags ────────────────────────────────────────────
 const fa = s.getFrame(A.ctx, FA);
 ok(s.suggestTag(A.ctx, fa, { x: 150, y: 50 }, 7001) === '7001', 'roll: a new tree takes the roll\'s first number, wherever it stands');
 ok(s.suggestTag(A.ctx, fa, { x: 5, y: 5 }, 601) === '603', 'roll: used (601) and retired (602) numbers are skipped');
 ok(s.suggestTag(A.ctx, fa, { x: 150, y: 50 }) !== '7001', 'roll: without one, the tag block decides');
+
+ok(foldsSeen > 0 && foldTakes.length === 0, `merge versions: the quadrats read before a block is opened hold every tree its folds take (${foldsSeen} folds; ${foldTakes.join('; ') || 'none missed'}) (code review M10)`);
+ok(baseDrift.length === 0, `base: patched block by block, the same as rewriting the whole census (${baseDrift.join(', ') || 'every block'})`);
 
 // ── integrity ────────────────────────────────────────────────────────────
 for (const P of [A, B]) {

@@ -176,6 +176,19 @@ ok(bAfter.every((it) => it.kind !== 'conflict'), 'merge back: no conflicts');
 ok(c.readComponent(B.ctx, { kind: 'occurrence', id: B.one(`SELECT id FROM fw_occurrences WHERE survey_id = ? AND taxon_id = 't4'`, P2b).id }, 'leaf').len === 5, 'merge back: their value arrives');
 void oB;
 
+// ── a document's keys become column names: only a table's own data columns pass (code review M3) ──
+{
+  const t = JSON.parse(JSON.stringify(d.buildSurveyDoc(B.ctx, P2b)));
+  t.survey.name = 'renamed';
+  t.survey["status = 'done', name"] = 'x';
+  t.units[0].from_a_newer_app = 1;
+  t.occurrences.push({ ...t.occurrences[0], uuid: 'tamper-occ', taxon_id: 't8', survey_id: 9999 });
+  mergeInto(B, P2b, d.surveyDocSide(t), baseOf(side(B, P2b)));
+  const sv = c.getFwSurvey(B.ctx, P2b);
+  ok(sv.name === 'renamed' && sv.status === 'active', `doc keys: a key that is no column changes nothing, a newer app's column is left out (status ${sv.status})`);
+  ok(B.one(`SELECT survey_id AS s FROM fw_occurrences WHERE uuid = 'tamper-occ'`)?.s === P2b, 'doc keys: a new occurrence stays in the survey it merges into');
+}
+
 // ── a teammate deletes; the plot's tables are never deleted from ────────
 const removed = side(B, P2b);
 removed.funit = [];

@@ -8,6 +8,7 @@ import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { chooseEndTime } from '~/lib/endTimeChoice';
+import { confirmReopenOver } from '~/lib/recordCreate';
 import {
   deleteMirenSurvey,
   endMirenSurvey,
@@ -63,7 +64,11 @@ export default function MirenSurveyScreen() {
       const chosen = await chooseEndTime(survey.stop_ts);
       if (chosen === undefined) return;
       endMirenSurvey(survey.id, chosen);
-    } else reopenMirenSurvey(survey.id);
+    } else {
+      // Reopening ends any open record: ask first (code review N2).
+      if (!(await confirmReopenOver())) return;
+      reopenMirenSurvey(survey.id);
+    }
     reload();
   };
   const remove = () =>

@@ -271,11 +271,15 @@ ok(quadratProgress({ ...blank, freq_mode: 'count' }, [{ name: 'A', cover_pct: 3,
   const qa = q.writeQuadratRow(db, pn, { idx: 1, label: 'Q1', position: null, size_m: 1, grid_n: 3, top_edge: 'N', lat: null, lng: null, accuracy: null, cov_vascular: null, cov_solid_rock: null, cov_scree: null, cov_lichens: null, cov_bryophytes: null, cov_bare_ground: null, cov_litter: null, freq_mode: 'cells', locked: 0, started_at: null, ended_at: null, notes: null }, { uuid: uuid(), subplotId: null, photoPaths: null, now: 1 });
   const qb = q.writeQuadratRow(db, pn, { idx: 2, label: 'Q2', position: null, size_m: 1, grid_n: 5, top_edge: 'N', lat: null, lng: null, accuracy: null, cov_vascular: null, cov_solid_rock: null, cov_scree: null, cov_lichens: null, cov_bryophytes: null, cov_bare_ground: null, cov_litter: null, freq_mode: 'cells', locked: 0, started_at: null, ended_at: null, notes: null }, { uuid: uuid(), subplotId: null, photoPaths: null, now: 1 });
   q.writeQuadratSpeciesRow(db, qa, { taxon_id: 'x', cover_pct: 2, freq_cells: '101010101', freq_count: null, height_cm: null, notes: null }, 1);
-  q.writeQuadratSpeciesRow(db, qb, { taxon_id: 'y', cover_pct: 3, freq_cells: '1'.repeat(25), freq_count: 40, height_cm: null, notes: null }, 1);
+  q.writeQuadratSpeciesRow(db, qb, { taxon_id: 'y', cover_pct: 3, freq_cells: '1'.repeat(25), freq_count: 20, height_cm: null, notes: null }, 1);
+  q.writeQuadratSpeciesRow(db, qa, { taxon_id: 'z', cover_pct: 1, freq_cells: null, freq_count: 12, height_cm: null, notes: null }, 1);
   q.normalizeGrid(db, pn, 2);
   ok(q.listQuadrats(db, pn).every((x) => x.grid_n === 3), 'normalize: every quadrat on the config\'s grid');
-  const [nx, ny] = [q.listQuadratSpecies(db, qa)[0], q.listQuadratSpecies(db, qb)[0]];
-  ok(nx.freq_cells === '101010101' && ny.freq_cells === null && ny.cover_pct === 3 && ny.freq_count === 9, 'normalize: fitting mask kept, other mask dropped, cover kept, count capped');
+  const sp = (qid, taxon) => q.listQuadratSpecies(db, qid).find((x) => x.taxon_id === taxon);
+  const [nx, ny, nz] = [sp(qa, 'x'), sp(qb, 'y'), sp(qa, 'z')];
+  ok(nx.freq_cells === '101010101' && ny.freq_cells === null && ny.cover_pct === 3, 'normalize: fitting mask kept, other mask dropped, cover kept');
+  // 20 of 5 × 5 is 80 %; on 3 × 3 it would read 100 % (capped) — not done instead (code review M15).
+  ok(ny.freq_count === null && nz.freq_count === 9, `normalize: a count from another grid is not done, one on this grid capped (${ny.freq_count}, ${nz.freq_count})`);
 }
 
 // ── frequency over the whole plot (v78) ─────────────────────────────────

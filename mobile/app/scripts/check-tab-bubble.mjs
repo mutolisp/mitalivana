@@ -126,6 +126,10 @@ ok(/<KeepAwake \/>\s*\{inTabButton/.test(host), 'SyncProgressHost still keeps th
 const bubble = readFileSync('src/components/TabBubble.tsx', 'utf8');
 ok(/useTabChrome\.setState\(\{ bubbleShown: shown \}\)/.test(bubble), 'TabBubble says when it is on screen');
 ok(/menuOrder\(order\)/.test(bubble), 'TabBubble lists the menu in menuOrder');
+ok(
+  /Gesture\.Exclusive\(Gesture\.Race\(pan, longPress\), tap\)/.test(bubble) && !/Gesture\.Exclusive\(pan, longPress/.test(bubble),
+  'TabBubble: the long press races the drag (fires while held, not on release); the tap waits for both (code review M23)',
+);
 // An `active:` class makes NativeWind turn that view into its own touch target: a tap on a
 // menu row's icon then never reaches the row (2026-10-04). The pressed look comes from the Pressable.
 const bubbleCode = bubble.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');

@@ -16,6 +16,22 @@ export const PROJECT_FK_TABLES = ['sessions', 'plot_surveys', 'sites', 'collecti
 export const SITE_REF_TABLES = ['sessions', 'plot_surveys', 'collection_trips', 'gloria_surveys', 'miren_surveys', 'fw_frames', 'fw_surveys'] as const;
 
 /**
+ * Tables keyed by (record_kind, record_uuid) whose rows go with their record
+ * (purgeOrphanRows). media_pending was missing: files still to fetch for a
+ * deleted record stayed counted on the team page (code review M14).
+ */
+export const SYNC_RECORD_TABLES = ['sync_base', 'sync_links', 'merge_log', 'sync_queue', 'media_pending'] as const;
+
+/** Keyed by (record_kind, record_uuid) but kept when the record goes: why. */
+export const SYNC_RECORD_EXEMPT: Readonly<Record<string, string>> = {
+  sync_log: "a deleted record's entries stay, their label says what they were",
+  record_versions: 'kept for 最近刪除 (Recently deleted); its own rule (VERSION_LIVE_UUIDS)',
+};
+
+/** Tables keyed by team_id: leaving a team deletes its rows from each (code review M14). */
+export const TEAM_TABLES = ['sync_teams', 'sync_links', 'sync_seen', 'sync_queue', 'sync_members', 'sync_log', 'media_pending'] as const;
+
+/**
  * Children of a declared ON DELETE CASCADE whose parent is gone: [table, WHERE].
  * Parent before child — FK enforcement is off during the sweep, so nothing
  * cascades, and deleting the parent level first lets the child level catch

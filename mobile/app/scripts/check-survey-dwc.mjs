@@ -133,6 +133,19 @@ ok(occ(three, 2).occurrenceRemarks === REMARKS.presumedDead && /\(census code DN
 ok(occ(alive, 1).occurrenceStatus === 'present' && occ(alive, 1).individualCount === 1 && occ(alive, 1).basisOfRecord === 'HumanObservation', 'census: present, one individual');
 ok(occ(alive, 1).coreEventID === 'DW1-0000' && occ(two, 1).coreEventID === 'DW1-0100', 'census: on the quadrat event');
 ok(occ(alive, 1).decimalLatitude > 24 && occ(alive, 1).coordinateUncertaintyInMeters === 3, 'census: a tree’s position from the plot origin');
+// A plot's later series counts its censuses from 1 again: its IDs are its own (code review M2).
+{
+  const coded = JSON.parse(JSON.stringify(doc));
+  coded.series.series_code = 'b';
+  const p2 = censusDwcRows(coded, { eventIds: censusEventIds(coded), uniqueEventId: unique(), taxonCols, words });
+  const firstOcc = new Set(parts.occurrences.map((o) => o.occurrenceID));
+  const firstM = new Set(parts.measurements.map((m) => m.measurementID));
+  ok(
+    p2.occurrences.length === parts.occurrences.length && p2.occurrences.every((o) => !firstOcc.has(o.occurrenceID)) && p2.measurements.every((m) => !firstM.has(m.measurementID)),
+    `census: a later series' occurrence and measurement IDs differ from the first's (${p2.occurrences[0]?.occurrenceID})`,
+  );
+  ok(parts.occurrences.every((o) => /^[^:]+:\d+$/.test(o.occurrenceID)), "census: the first series' IDs keep their form (tree uuid:census)");
+}
 const ms = (o) => parts.measurements.filter((m) => m.occurrenceID === o.occurrenceID);
 const a1 = ms(occ(alive, 1));
 const tagA = `${s.getIndividual(ctx, alive).tag}-1`;
@@ -231,6 +244,18 @@ ok(om.find((m) => m.measurementType === 'Leaf length' && m.measurementUnit === '
 const em = sp.measurements.filter((m) => !m.occurrenceID);
 ok(em.filter((m) => m.measurementType === 'layer cover').map((m) => `${m.measurementRemarks}=${m.measurementValue}`).join() === 'E1=40,E2=10' && em.every((m) => m.coreEventID === ev.eventID), 'survey: a layer’s cover per layer, on the event');
 ok(em.find((m) => m.measurementType === 'slope' && m.measurementUnit === 'degrees') && !em.some((m) => m.measurementType === 'minimumElevationInMeters'), 'survey: environment on the event (elevation as a term, not a measurement)');
+{
+  // A unit's 環境 elevation (a value, not a column) on its event (code review M12).
+  const withUnitElev = { ...sdoc, unit_values: [...sdoc.unit_values, { uuid: 'ue', unit: 'u1:S1', component: 'uenv', field: 'elevation_m', idx: 0, value_num: 1234, value_text: null }] };
+  const ue = surveyDwcRows(withUnitElev, { eventId: 'VP1_20261003', uniqueEventId: unique(), taxonCols, words });
+  const eS1 = ue.events.find((e) => e.eventID === 'VP1_20261003-S1');
+  const eQ1 = ue.events.find((e) => e.eventID === 'VP1_20261003-S1-Q1');
+  ok(
+    eS1?.minimumElevationInMeters === 1234 && eS1.maximumElevationInMeters === 1234 && eS1.verticalDatum === 'not recorded' && eQ1?.minimumElevationInMeters === '',
+    `unit: its environment elevation on its event, typed in (${eS1?.minimumElevationInMeters}, ${eS1?.verticalDatum}; Q1 ${JSON.stringify(eQ1?.minimumElevationInMeters)})`,
+  );
+  ok(!ue.measurements.some((m) => m.measurementType === 'minimumElevationInMeters'), 'unit: the elevation as a term, not a measurement');
+}
 const absent = sp.occurrences.find((x) => x.occurrenceStatus === 'absent');
 ok(absent && absent.taxonID === 't8' && absent.coreEventID === uS1.eventID && absent.occurrenceRemarks === REMARKS.absentOnRecheck && /\(recorded in the previous survey/.test(REMARKS.absentOnRecheck), `survey: a species not found on the recheck is an absence where it was looked for (${JSON.stringify(absent)})`);
 ok(sp.occurrences.filter((x) => x.occurrenceStatus === 'present').length === sdoc.occurrences.length, 'survey: every occurrence present');

@@ -236,6 +236,8 @@ export const SURVEY_DOC_COMBINERS: Combiners = {
 const SURVEY_COMBINED = ['investigators', 'start_ts', 'stop_ts', 'blind_closed_at', 'track_geojson', 'gps_mode', 'elevation_min_m', 'elevation_max_m'] as const;
 /** Identity and per-device state, not compared. */
 const SURVEY_OUT = ['uuid', 'style', 'census_no', 'status', 'template_id', 'template_version', 'template_snapshot', 'template_hash', ...SURVEY_COMBINED];
+/** Columns a document never writes on its own: identity, owner, state, template (applySurveyDocOps.clean). */
+const DOC_KEPT = new Set(['id', 'uuid', 'survey_id', 'frame_id', 'series_id', 'project_id', 'status', 'style', 'census_no', 'template_id', 'template_version', 'template_snapshot', 'template_hash', 'created_at', 'updated_at']);
 const templateOf = (s: Row): Row => pick(s, ['template_id', 'template_version', 'template_snapshot', 'template_hash']);
 
 /** Names for row labels (the review screen): an occurrence's taxon, if known. */
@@ -370,13 +372,32 @@ export function applySurveyDocOps(ctx: Ctx, surveyId: number, ops: readonly Merg
     uuid == null ? null : (one<{ id: number }>(ctx, `SELECT id FROM fw_occurrences WHERE survey_id = ? AND uuid = ?`, [surveyId, uuid])?.id ?? null);
   const surveyIdOf = (uuid: string | null | undefined): number | null =>
     uuid == null ? null : (one<{ id: number }>(ctx, `SELECT id FROM fw_surveys WHERE uuid = ?`, [uuid])?.id ?? null);
+  // A document's keys come from a file or a teammate, and become column names
+  // here: only a table's own data columns pass — not its identity, owner,
+  // state or template, and not the references this code works out itself
+  // (`drop`). A key that is not a column at all was SQL in the statement
+  // (code review M3, 2026-10-04).
+  const columns = new Map<string, Set<string>>();
+  const known = (table: string): Set<string> => {
+    let c = columns.get(table);
+    if (!c) columns.set(table, (c = new Set(rows<{ name: string }>(ctx, `PRAGMA table_info(${table})`).map((r) => r.name))));
+    return c;
+  };
+  const clean = (table: string, data: Row, drop: readonly string[] = []): Row =>
+    Object.fromEntries(Object.entries(data).filter(([k]) => known(table).has(k) && !DOC_KEPT.has(k) && !drop.includes(k)));
+  const columnsOnly = (table: string, keys: readonly string[]) => {
+    const bad = keys.find((k) => !known(table).has(k));
+    if (bad !== undefined) throw new Error(`${table} has no column ${JSON.stringify(bad)}`);
+  };
   const set = (table: string, id: number, cols: Row) => {
     const keys = Object.keys(cols);
     if (!keys.length) return;
+    columnsOnly(table, keys);
     run(ctx, `UPDATE ${table} SET ${keys.map((k) => `${k} = ?`).join(', ')}, updated_at = ? WHERE id = ?`, [...keys.map((k) => cols[k] as Scalar), now, id]);
   };
   const insert = (table: string, cols: Row) => {
     const keys = Object.keys(cols);
+    columnsOnly(table, keys);
     return Number(run(ctx, `INSERT INTO ${table} (${keys.join(', ')}) VALUES (${marks(keys.length)})`, keys.map((k) => cols[k] as Scalar)).insertId);
   };
   let written = 0;
@@ -399,7 +420,7 @@ export function applySurveyDocOps(ctx: Ctx, surveyId: number, ops: readonly Merg
         case 'funit': {
           if (s.frame_id == null) break;
           const { level, code } = splitUnitKey(key);
-          const cols: Row = { ...omit(data, ['parent']), parent_id: data.parent === undefined ? undefined : frameUnitId(data.parent as string | null) };
+          const cols: Row = { ...clean('fw_frame_units', data, ['parent_id']), parent_id: data.parent === undefined ? undefined : frameUnitId(data.parent as string | null) };
           if (cols.parent_id === undefined) delete cols.parent_id;
           const id = frameUnitId(key);
           if (id != null) set('fw_frame_units', id, cols);
@@ -427,7 +448,7 @@ export function applySurveyDocOps(ctx: Ctx, surveyId: number, ops: readonly Merg
             taxonId,
             verbatim,
           ]);
-          if (found) set('fw_frame_labels', found.id, data);
+          if (found) set('fw_frame_labels', found.id, clean('fw_frame_labels', data, ['taxon_id', 'verbatim_identification', 'photo_uri', 'first_survey_id']));
           else
             insert('fw_frame_labels', {
               uuid: (extra.uuid as string) ?? ctx.uuid(),
@@ -445,7 +466,7 @@ export function applySurveyDocOps(ctx: Ctx, surveyId: number, ops: readonly Merg
           break;
         }
         case 'survey': {
-          const cols: Row = { ...data };
+          const cols: Row = clean('fw_surveys', data, ['site_id']);
           for (const f of SURVEY_COMBINED) if (f in extra) cols[f] = extra[f];
           // A closed blind phase stays closed: the previous list has been seen (reopenBlindPhase has its own rule).
           if (cols.blind_closed_at == null && s.blind_closed_at != null) delete cols.blind_closed_at;
@@ -457,7 +478,7 @@ export function applySurveyDocOps(ctx: Ctx, surveyId: number, ops: readonly Merg
         }
         case 'sunit': {
           const { level, code } = splitUnitKey(key);
-          const cols: Row = { ...omit(data, ['parent']) };
+          const cols: Row = clean('fw_units', data, ['parent_id', 'frame_unit_id', 'level_key', 'code']);
           if ('parent' in data) cols.parent_id = unitId(data.parent as string | null);
           if ('sort' in extra) cols.sort = extra.sort;
           const id = unitId(key);
@@ -473,7 +494,7 @@ export function applySurveyDocOps(ctx: Ctx, surveyId: number, ops: readonly Merg
           break;
         }
         case 'occ': {
-          const cols: Row = { ...omit(data, ['unit']) };
+          const cols: Row = clean('fw_occurrences', data, ['unit_id']);
           if ('unit' in data) cols.unit_id = unitId(data.unit as string | null);
           // Left out of the document when 0, so a field-by-field update may bring null.
           if ('via_interaction' in cols) cols.via_interaction = cols.via_interaction ? 1 : 0;
@@ -491,14 +512,14 @@ export function applySurveyDocOps(ctx: Ctx, surveyId: number, ops: readonly Merg
           const owner = tbl === 'surveyval' ? surveyId : tbl === 'unitval' ? unitId(k.owner) : occId(k.owner);
           if (owner == null) break;
           const found = one<{ id: number }>(ctx, `SELECT id FROM ${v.table} WHERE ${v.owner} = ? AND component = ? AND field = ? AND idx = ?`, [owner, k.component, k.field, k.idx]);
-          const cols = omit(data, ['component', 'field', 'idx']);
+          const cols = clean(v.table, data, ['component', 'field', 'idx', v.owner]);
           if (found) set(v.table, found.id, cols);
           else insert(v.table, { uuid: (extra.uuid as string) ?? ctx.uuid(), [v.owner]: owner, component: k.component, field: k.field, idx: k.idx, ...cols, updated_at: now });
           written += 1;
           break;
         }
         case 'inter': {
-          const cols: Row = { ...omit(data, ['subject', 'object', 'unit']) };
+          const cols: Row = clean('fw_interactions', data, ['subject_occurrence_id', 'object_occurrence_id', 'unit_id']);
           if ('subject' in data) cols.subject_occurrence_id = occId(data.subject as string | null);
           if ('object' in data) cols.object_occurrence_id = occId(data.object as string | null);
           if ('unit' in data) cols.unit_id = unitId(data.unit as string | null);

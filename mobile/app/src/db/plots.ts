@@ -22,7 +22,7 @@ import { createSite, deleteSiteIfUnreferenced, type ImportedSite } from './sites
 import type { DuplicateRecordOptions } from './duplicate';
 import { latest, mergeOrder, unionSurveyors, unionTracks, type MergeRecordOptions } from './merge';
 import { defaultSurveyorString } from './surveyors';
-import { copyMergedQuadrats, normalizeGrid, normalizePlotFreq, writeQuadratRow, writeQuadratSpeciesRow } from './quadratsCore';
+import { copyMergedQuadrats, getQuadratConfig, normalizeGrid, normalizePlotFreq, writeQuadratRow, writeQuadratSpeciesRow } from './quadratsCore';
 import type { ImportedQuadrat } from '~/lib/quadratYaml';
 import { assignPlotEventIds, type PlotIdInput } from '~/lib/plotEventIds';
 import i18n from '~/i18n';
@@ -1867,7 +1867,13 @@ function mergePlotSurveysTx(ids: number[], opts: MergeRecordOptions): number | n
 
   const activeLayers = getActiveLayers(layerCount) as string[];
   const seen = new Set<string>();
+  // The merged plot takes the primary's plot-frequency grid (copyMergedQuadrats);
+  // a count made on another grid means another share of the plot: not done
+  // (code review M15). A mask on another grid is dropped by normalizePlotFreq.
+  const freqGridOf = (id: number) => getQuadratConfig(db, id).freqGridN;
+  const primaryFreqGrid = freqGridOf(primary.id);
   for (const [src, rows] of speciesBySource) {
+    const sameFreqGrid = freqGridOf(src.id) === primaryFreqGrid;
     for (const sp of rows) {
       const layer: Layer =
         sp.layer === TRANSECT_LAYER || activeLayers.includes(sp.layer) ? sp.layer : 'E1';
@@ -1918,7 +1924,7 @@ function mergePlotSurveysTx(ids: number[], opts: MergeRecordOptions): number | n
           sp.used_name_id,
           sp.used_scientific_name,
           sp.freq_cells,
-          sp.freq_count,
+          sameFreqGrid ? sp.freq_count : null,
         ],
       );
     }

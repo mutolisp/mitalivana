@@ -23,11 +23,10 @@ import { isoStamp } from '~/lib/datetime';
 import { errText } from '~/lib/errText';
 import { BackHeaderLeft } from '~/lib/goBack';
 import { mergeSummary } from '~/lib/mergeSummaryText';
-import { needsReview, summarizeItems, type Decision, type MergeItem, type MergeRow } from '~/lib/mergeEngine';
+import { needsReview, summarizeItems, type Decision, type MergeRow } from '~/lib/mergeEngine';
 import { getTeam } from '~/lib/teamSync';
 import { useToast } from '~/stores/toast';
-import { applyCensusMerge, openCensusMerge, settleCensusMerge, useCensusMerge } from '~/survey/censusSync';
-import type { CensusSlice } from '~/survey/db/sliceCore';
+import { applyCensusMerge, openCensusMerge, settleCensusMerge, useCensusMerge, type SettledCensusMerge } from '~/survey/censusSync';
 import type { Collision, CollisionDecision, TreeBrief } from '~/survey/db/censusSyncCore';
 import { censusTemplate, getSurvey, getFrame, suggestTag } from '~/survey/db/stemmap';
 import { censusValueName } from '~/survey/components/labels';
@@ -123,7 +122,7 @@ export default function CensusMergeScreen() {
   const pending = useCensusMerge((s) => s.pending);
   const [clashes, setClashes] = useState<Collision[] | null>(null);
   const [drafts, setDrafts] = useState<Map<string, Draft>>(new Map());
-  const [settled, setSettled] = useState<{ items: MergeItem[]; remote: CensusSlice } | null>(null);
+  const [settled, setSettled] = useState<SettledCensusMerge | null>(null);
   // A stem's or tree's value named in words (height, codes, AMS, a trait or code list), not by its stored field.
   const shownItems = useMemo(() => {
     if (!settled) return [];
@@ -212,7 +211,7 @@ export default function CensusMergeScreen() {
     if (!settled) return;
     setBusy(true);
     try {
-      const { changes } = applyCensusMerge(pending, settled.remote, settled.items, decisions);
+      const { changes } = applyCensusMerge(pending, settled, decisions);
       const what = mergeSummary(t, changes);
       toast(what ? t('teamSync.mergedWithSummary', { who: pending.from ?? t('teamMerge.remote'), what }) : t('teamMerge.doneMsg', { count: changes.length }), { durationMs: 6000 });
       // A file with several censuses here: the next one, on this screen.

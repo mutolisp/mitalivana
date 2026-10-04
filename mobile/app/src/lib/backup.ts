@@ -390,6 +390,45 @@ function collectPhotoSources(): PhotoSource[] {
     if (refs.length) out.push({ folder: sanitizeFilename(String(r.folder)), taxonId: null, uris: refs.map((f) => f.uri), names: refs.map((f) => f.name) });
   }
 
+  // Added with v77–v83 and MIREN, and missed here until code review M4 (2026-10-04):
+  // a fixed plot's 1×1 m quadrats, the survey framework's photos (occurrences,
+  // units, the survey, interactions — one file a row), a permanent plot's
+  // morphospecies photos and MIREN plot photos. check:storage keeps this list
+  // and MEDIA_COLUMNS together.
+  const quadrats = db.executeSync(
+    `SELECT p.id AS owner_id, p.plotid AS owner_name, q.label AS label, q.photo_paths AS photo_paths
+       FROM plot_quadrats q JOIN plot_surveys p ON p.id = q.plot_survey_id
+      WHERE q.photo_paths IS NOT NULL AND q.photo_paths != ''`,
+  );
+  for (const r of (quadrats.rows ?? []) as Array<Record<string, unknown>>) {
+    const uris = parsePhotoUris(r.photo_paths as string);
+    if (uris.length) out.push({ folder: `plot_${r.owner_id}_${sanitizeFilename(String(r.owner_name ?? ''))}/${sanitizeFilename(String(r.label ?? 'quadrat'))}`, taxonId: null, uris });
+  }
+  const fwMedia = db.executeSync(
+    `SELECT m.uri AS uri, s.id AS owner_id, s.name AS owner_name, o.taxon_id AS taxon_id
+       FROM fw_media m JOIN fw_surveys s ON s.id = m.survey_id LEFT JOIN fw_occurrences o ON o.id = m.occurrence_id
+      WHERE m.kind = 'photo' AND m.uri IS NOT NULL AND m.uri != ''`,
+  );
+  for (const r of (fwMedia.rows ?? []) as Array<Record<string, unknown>>) {
+    out.push({ folder: `survey_${r.owner_id}_${sanitizeFilename(String(r.owner_name ?? ''))}`, taxonId: (r.taxon_id as string) ?? null, uris: [String(r.uri)] });
+  }
+  const labels = db.executeSync(
+    `SELECT f.id AS owner_id, f.code AS owner_name, l.taxon_id AS taxon_id, l.photo_uri AS uri
+       FROM fw_frame_labels l JOIN fw_frames f ON f.id = l.frame_id
+      WHERE l.photo_uri IS NOT NULL AND l.photo_uri != ''`,
+  );
+  for (const r of (labels.rows ?? []) as Array<Record<string, unknown>>) {
+    out.push({ folder: `frame_${r.owner_id}_${sanitizeFilename(String(r.owner_name ?? ''))}/labels`, taxonId: (r.taxon_id as string) ?? null, uris: [String(r.uri)] });
+  }
+  const miren = db.executeSync(
+    `SELECT p.survey_id AS owner_id, p.id AS plot_id, p.plot_no AS plot_no, p.visit AS visit, p.photo_paths AS photo_paths
+       FROM miren_plots p WHERE p.photo_paths IS NOT NULL AND p.photo_paths != ''`,
+  );
+  for (const r of (miren.rows ?? []) as Array<Record<string, unknown>>) {
+    const uris = parsePhotoUris(r.photo_paths as string);
+    if (uris.length) out.push({ folder: `miren_${r.owner_id}/plot_${r.plot_id}_${r.plot_no}_v${r.visit}`, taxonId: null, uris });
+  }
+
   return out;
 }
 

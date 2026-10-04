@@ -42,6 +42,7 @@ import {
   CENSUS_COMBINERS,
   FRAME_COLS,
   insertCensusFromDoc,
+  joinStems,
   pick,
   SURVEY_COLS,
   type CensusSlice,
@@ -344,6 +345,16 @@ export function baseAfterMerge(base: readonly BaseEntry[], sent: CensusSlice): B
   return [...base.filter(([t, k]) => !about.has(`${t}\u0000${k}`)), ...baseOf(blockSide(sent))];
 }
 
+/**
+ * baseAfterMerge as a change: the entries about the block go, the block's
+ * rows come. Stored as such (syncBase.patchSyncBase), a block writes its own
+ * rows instead of the whole census's base again (code review M6, 2026-10-04:
+ * 100 000 rows a block at 25 ha).
+ */
+export function baseChangeAfterMerge(base: readonly BaseEntry[], sent: CensusSlice): { drop: BaseEntry[]; put: BaseEntry[] } {
+  return { drop: baseForSlice(base, sent), put: baseOf(blockSide(sent)) };
+}
+
 // ── receiving a block: folds and clashes ────────────────────────────────────
 
 export type TreeBrief = { uuid: string; tag: string; taxonId: string; name: string | null; x: number; y: number; quadrat: string; dbh: number | null };
@@ -376,6 +387,8 @@ export type OpenedBlock = {
   collisions: Collision[];
   /** How many of their folds were carried out here (written already). */
   folded: number;
+  /** Stems both phones added to a tree under one number, made one (M9); a stem renamed here is written already. */
+  stemsJoined: number;
 };
 
 type LocalTree = { id: number; uuid: string; tag: string; taxon_id: string; used_scientific_name: string | null; x_m: number; y_m: number; quadrat_code: string; first_survey_id: number | null };
@@ -400,6 +413,24 @@ function foldsIn(history: readonly Row[]): Fold[] {
     if (typeof from?.uuid === 'string' && typeof into?.uuid === 'string') out.push({ loser: from.uuid, winner: into.uuid, tag: String(into.tag ?? '') });
   }
   return out;
+}
+
+/**
+ * Codes of this phone's quadrats holding a tree their folds take (the tree
+ * folded away here, and the one kept): openBlock folds before anything is
+ * asked, so the version before the merge is kept from these first (code
+ * review M10, 2026-10-04). Empty exactly when openBlock folds nothing.
+ */
+export function quadratsTheirFoldsTake(ctx: { db: SurveyDb }, sent: CensusSlice): string[] {
+  const out = new Set<string>();
+  for (const f of foldsIn(sent.history)) {
+    const loser = localTree(ctx, f.loser);
+    if (!loser) continue;
+    out.add(loser.quadrat_code);
+    const winner = localTree(ctx, f.winner);
+    if (winner) out.add(winner.quadrat_code);
+  }
+  return [...out];
 }
 
 function localFolds(ctx: { db: SurveyDb }, frameId: number): Fold[] {
@@ -538,11 +569,12 @@ function briefOfRemote(sl: CensusSlice, t: Row): TreeBrief {
  */
 export function openBlock(ctx: Ctx, surveyId: number, sent: CensusSlice): OpenedBlock {
   const s = getSurvey(ctx, surveyId)!;
-  // Earlier censuses their trees came from must be here (an imported file, 1D).
-  for (const t of [...sent.trees, ...sent.stems]) {
-    const u = t.first_survey_uuid;
-    if (u != null && u !== THIS_CENSUS && !one(ctx, `SELECT id FROM fw_surveys WHERE uuid = ?`, [u as string])) throw new CensusSyncError('previous_missing');
-  }
+  // A tree first recorded in a census this phone does not have comes in
+  // without one (first_survey_id NULL, as fillSlice does). This series'
+  // earlier censuses are always here (ensureCensus, startCensus); the others
+  // are another series' — the plot's trees are shared, but a file carries
+  // only its own series (1D) — and refusing them stopped the census for good
+  // (code review M1, 2026-10-04).
   // Their decisions first: a tree they folded into another is folded here too.
   let folded = 0;
   for (const f of foldsIn(sent.history)) {
@@ -557,6 +589,10 @@ export function openBlock(ctx: Ctx, surveyId: number, sent: CensusSlice): Opened
       remote = foldInSlice(remote, f, stemsByNo(ctx, f.winner));
     }
   }
+  // Both phones added a stem to one tree under one number: one stem (code review M9).
+  const joined = joinStems(ctx, surveyId, remote);
+  remote = joined.slice;
+  const stemsJoined = joined.joined;
   const sameTree: Fold[] = [];
   const collisions: Collision[] = [];
   const inRemote = new Map(remote.trees.map((t) => [t.uuid as string, t]));
@@ -584,7 +620,7 @@ export function openBlock(ctx: Ctx, surveyId: number, sent: CensusSlice): Opened
     ).filter((l) => Math.hypot(l.x_m - Number(t.x_m), l.y_m - Number(t.y_m)) <= POSSIBLE_DUPLICATE_M);
     if (near[0]) collisions.push({ id: `possible:${t.uuid}`, kind: 'possible', local: briefOfLocal(ctx, surveyId, near[0]), remote: briefOfRemote(remote, t) });
   }
-  return { remote, sent, sameTree, collisions, folded };
+  return { remote, sent, sameTree, collisions, folded, stemsJoined };
 }
 
 /** The smaller uuid stays, so both phones keep the same one. */
@@ -670,6 +706,22 @@ export function settleCollisions(ctx: Ctx, surveyId: number, opened: OpenedBlock
 }
 
 /**
+ * Whether the clash decisions change their copy of the block: their tree takes
+ * a new number, or two trees become one. Their phone learns that only from
+ * this phone's copy of the block, so the block goes back even when this phone
+ * does not work on it; else the next time they meet the clash they may decide
+ * otherwise, and the tags part for good (code review M8, 2026-10-04). A number
+ * for this phone's own tree, or a fold found without a person (both phones
+ * find the same), travels anyway: the tree's own block is stamped.
+ */
+export function decisionsCorrectTheirs(opened: OpenedBlock, decisions: ReadonlyMap<string, CollisionDecision>): boolean {
+  return opened.collisions.some((c) => {
+    const d = decisions.get(c.id);
+    return d?.kind === 'same' || (d?.kind === 'renumber' && d.which === 'remote');
+  });
+}
+
+/**
  * Rows a merge may delete: never a tree, stem, quadrat row or history row (a
  * tree missing from their block may have moved to another block); a
  * measurement or value only when its tree is in their block.
@@ -731,6 +783,22 @@ export function localizeOps(ops: readonly MergeOp[], censusUuid: string): MergeO
  * their block. Returns the quadrats touched. In a transaction.
  */
 export function applyBlockItems(ctx: Ctx, surveyId: number, items: MergeItem[], decisions: Map<string, Decision>, remote: CensusSlice): string[] {
-  const ops = localizeOps(planOps(items, decisions), censusUuidOf(ctx, surveyId));
+  const ops = withParents(ctx, localizeOps(planOps(items, decisions), censusUuidOf(ctx, surveyId)));
   return applySliceOps(ctx, surveyId, ops, { mayDelete: deletableIn(ctx, surveyId, remote) });
+}
+
+/**
+ * Their rows whose tree or stem neither is here nor comes in with this merge
+ * (a decision kept it out) stay out with it: inserted, they failed the whole
+ * merge (code review M9, 2026-10-04).
+ */
+export function withParents(ctx: { db: SurveyDb }, ops: readonly MergeOp[]): MergeOp[] {
+  const inserted = (tbl: string, list: readonly MergeOp[]) => new Set(list.flatMap((o) => (o.op === 'insert' && o.tbl === tbl ? [o.row.key] : [])));
+  const here = (table: 'fw_individuals' | 'fw_stems', uuid: unknown) => typeof uuid === 'string' && !!one(ctx, `SELECT id FROM ${table} WHERE uuid = ?`, [uuid]);
+  const trees = inserted('tree', ops);
+  const hasTree = (u: unknown) => trees.has(u as string) || here('fw_individuals', u);
+  const withTrees = ops.filter((o) => !(o.op === 'insert' && (o.tbl === 'stem' || o.tbl === 'ival') && !hasTree(o.row.data.tree_uuid)));
+  const stems = inserted('stem', withTrees);
+  const hasStem = (u: unknown) => stems.has(u as string) || here('fw_stems', u);
+  return withTrees.filter((o) => !(o.op === 'insert' && ((o.tbl === 'measure' && !hasStem(o.row.key)) || (o.tbl === 'sval' && !hasStem(o.row.data.stem_uuid)))));
 }

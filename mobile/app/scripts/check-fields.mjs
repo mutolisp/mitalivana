@@ -124,6 +124,18 @@ const a1 = E.addField(blank, occ, yesNo);
 const a2 = E.addField(a1.template, { level: 'survey' }, yesNo);
 ok(a1.key === 'flowering' && a2.key === 'flowering_2', `template: keyed by the field, a suffix the second time (${a1.key}, ${a2.key})`);
 ok(eq(a2.template.components.find((x) => x.key === 'flowering').params, yesNo), 'template: the definition is carried whole');
+{
+  // A field's key may be 64 long, a component's 32 (code review M16).
+  const long = { key: suggestKey('Distance to nearest water source in meters', new Set()), name: '離水源距離', datatype: 'numeric' };
+  const l1 = E.addField(blank, occ, long);
+  const l2 = E.addField(l1.template, { level: 'survey' }, long);
+  const lt = withRequired(l2.template);
+  ok(
+    long.key.length > 32 && l1.key.length === 32 && l2.key.length <= 32 && l2.key.endsWith('_2') && l1.key !== l2.key && validateTemplate(lt).length === 0,
+    `template: a long field key is cut to fit the component's (${l1.key}, ${l2.key}; ${validateTemplate(lt)})`,
+  );
+  ok(lt.components.filter((x) => x.type === 'field').every((x) => x.params.key === long.key), 'template: the field keeps its own key');
+}
 const v1 = withRequired(a2.template);
 ok(validateTemplate(v1).length === 0, `template: valid (${validateTemplate(v1)})`);
 const odd = { ...v1, components: v1.components.map((x) => (x.key === 'flowering_2' ? { ...x, params: { ...yesNo, name: '別名' } } : x)) };
@@ -307,6 +319,17 @@ ok(dget('field_datatype') === 'text' && dget('allowed_values') === '是=yes|否=
   ok(classifyChange({ ...legacy, version: 1 }, { ...T2, version: 2 }) === 'breaking', 'convert: a breaking change (surveys started stay on their version)');
   const after = new Map(conv.writes.map((w) => [w.def.key, w.def]));
   ok(convertLegacyComponents(T2, after).template === T2 && convertLegacyComponents(T2, after).converted === 0, 'convert: once');
+  {
+    // A long English list name keys the field (up to 48); the component's key is cut to 32 (code review M16).
+    const water = withRequired({
+      ...base,
+      codelists: [{ id: 'list_9', label: { text: '水源距離', tr: { en: 'Distance class to the nearest permanent water source' } }, items: [{ code: 'a', label: { text: '近' } }, { code: 'b', label: { text: '遠' } }] }],
+      components: [...base.components, { key: 'water', type: 'choice', level: 'occurrence', required: false, params: { list: 'list_9' } }],
+    });
+    const wt = convertLegacyComponents(water, new Map()).template;
+    const wf = wt.components.find((c) => c.type === 'field');
+    ok(wf && wf.params.key.length > 32 && wf.key.length <= 32 && validateTemplate(wt).length === 0, `convert: a long field key, a component key that fits (${wf?.params.key}, ${wf?.key}; ${validateTemplate(wt)})`);
+  }
   const stem = E.copyTemplate({ ...STEMMAP_TEMPLATE }, 'user:census', E.makeLabel('普查'));
   const census = E.addComponent(stem, 'traits', { level: 'individual' }).template;
   ok(census.components.some((c) => c.type === 'traits') && convertLegacyComponents(census, new Map()).template === census, 'convert: a tree census keeps its Traits');

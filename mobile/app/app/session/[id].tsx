@@ -35,7 +35,6 @@ import {
   withTransaction,
   deleteSession,
   endSession,
-  getActiveSession,
   getProject,
   getSession,
   getSite,
@@ -94,6 +93,7 @@ import { stampNewRecord } from '~/lib/recordFix';
 import { showSpatialMenu } from '~/lib/spatialMenu';
 import { useRecordEditing } from '~/lib/useRecordEditing';
 import { chooseEndTime } from '~/lib/endTimeChoice';
+import { confirmReopenOver } from '~/lib/recordCreate';
 import { SurveyTimesModal } from '~/components/SurveyTimeFields';
 import { RecordEditButtons } from '~/components/RecordEditButtons';
 import { EndRecordButton } from '~/components/EndRecordButton';
@@ -772,43 +772,24 @@ export default function SessionDetailScreen() {
     router.push(`/(tabs)/map?draw=${drawType}&session=${session.id}`);
   };
 
-  const handleReopen = () => {
+  const handleReopen = async () => {
     if (!session) return;
-    const otherActive = getActiveSession();
-    const proceed = () => {
-      // Reopen force-ends any other active record DB-side; stop a GNSS watch
-      // that belongs to something other than this session so it can't keep
-      // writing to a now-ended record.
-      pauseIfNot({ kind: 'session', id: session.id });
-      reopenSession(session.id);
-      // Reopen force-ends any active plot DB-side too, so refresh both stores
-      // — otherwise activePlot store keeps the stale plot reference and the
-      // ActiveSessionBar / StalePlotWatcher misbehave until the next nav.
-      refreshActive();
-      refreshActivePlot();
-      useActiveGloria.getState().refresh();
-      reload();
-      toast(t('session.reopened'));
-    };
-    if (otherActive && otherActive.id !== session.id) {
-      Alert.alert(
-        t('session.otherActiveTitle'),
-        t('session.otherActiveMsg', { name: otherActive.name }),
-        [
-          { text: t('common.cancel'), style: 'cancel' },
-          {
-            text: t('session.endOldAndReopen'),
-            style: 'destructive',
-            onPress: () => {
-              endSession(otherActive.id);
-              proceed();
-            },
-          },
-        ],
-      );
-    } else {
-      proceed();
-    }
+    // reopenSession ends any open record, of any kind: ask first. Asking only
+    // about another checklist ended a plot, GLORIA, MIREN or survey without a
+    // word (code review M24, 2026-10-04).
+    if (!(await confirmReopenOver())) return;
+    // Stop a GNSS watch that belongs to something other than this session so
+    // it can't keep writing to a now-ended record.
+    pauseIfNot({ kind: 'session', id: session.id });
+    reopenSession(session.id);
+    // Reopen force-ends any active plot DB-side too, so refresh both stores
+    // — otherwise activePlot store keeps the stale plot reference and the
+    // ActiveSessionBar / StalePlotWatcher misbehave until the next nav.
+    refreshActive();
+    refreshActivePlot();
+    useActiveGloria.getState().refresh();
+    reload();
+    toast(t('session.reopened'));
   };
 
   if (!session) {

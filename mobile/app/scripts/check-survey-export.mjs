@@ -24,6 +24,7 @@
  *
  * Run: npm run check:survey-export
  */
+import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { strToU8, zipSync } from 'fflate';
 import { runUserMigrations } from '../src/db/migrations.ts';
@@ -142,10 +143,20 @@ ok(
 );
 ok(new Set(files.map((f) => f.file)).size === files.length, 'file: names are unique');
 const base = 'EX1';
-const zipEntries = { [`${base}/${base}.yml`]: strToU8(JSON.stringify(fileDoc)), [`${base}/manifest.json`]: strToU8(JSON.stringify({ kind: 'modular' })) };
+// As surveyBundle writes it: the document and this device's sync block (code review M13).
+const fileBase = baseOf(d.surveyDocSide(live));
+const zipEntries = {
+  [`${base}/${base}.yml`]: strToU8(JSON.stringify({ ...fileDoc, sync: { exported_at: 1, base: fileBase } })),
+  [`${base}/manifest.json`]: strToU8(JSON.stringify({ kind: 'modular' })),
+};
 for (const f of files) zipEntries[`${base}/${f.kind === 'audio' ? 'audio' : 'photos'}/${f.file}`] = strToU8(`bytes of ${f.file}`);
 const read = readRecordImportFromBytes(zipSync(zipEntries));
 ok(read.kind === 'modular' && read.photos.length === 3 && read.audio.length === 1, `file: the importer reads a modular zip with its photos and recordings (${read.kind} ${read.photos?.length} ${read.audio?.length})`);
+ok(read.sync?.base?.length === fileBase.length && fileBase.length > 0, `file: its sync block comes through, so a merge from it knows what was deleted (${read.sync?.base?.length} of ${fileBase.length})`);
+{
+  const bundle = readFileSync(new URL('../src/survey/surveyBundle.ts', import.meta.url), 'utf8');
+  ok(/syncBlockFor\('modular'/.test(bundle) && /JSON\.stringify\(\{ \.\.\.fileDoc, sync \}\)/.test(bundle), 'file: surveyBundle writes the sync block into the document (code review M13)');
+}
 const plain = readRecordImportFromBytes(strToU8(JSON.stringify(fileDoc)));
 ok(plain.kind === 'modular' && plain.photos.length === 0, 'file: a bare document (a merge backup) reads as one too');
 

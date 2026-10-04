@@ -3803,6 +3803,8 @@
     "deleteCloudMsg": "Alles von „{{name}}“ auf dem Server löschen und das Team verlassen. Das Team kann nicht mehr synchronisieren; die Datensätze auf den Telefonen bleiben.",
     "loading": "Wird ausgeführt…",
     "failTitle": "Nicht abgeschlossen",
+    "someFailed_one": "1 Datensatz ließ sich nicht synchronisieren (die übrigen schon): {{reason}} Das Sync-Protokoll nennt den Grund je Datensatz.",
+    "someFailed_other": "{{count}} Datensätze ließen sich nicht synchronisieren (die übrigen schon): {{reason}} Das Sync-Protokoll nennt den Grund je Datensatz.",
     "inviteTitle": "Teammitglieder einladen",
     "inviteHow": "Ein Teammitglied scannt dies mit der Kamera des Telefons; das öffnet den Beitrittsbildschirm von Mitalivana. Der Code unten kann auch zum Einfügen geschickt werden.",
     "shareCode": "Code teilen",

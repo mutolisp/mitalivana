@@ -92,11 +92,20 @@ export function addableTypes(t: SurveyTemplate, place: Place, group?: SurveyGrou
     .map((d) => d.type);
 }
 
-/** `base`, or `base_2`, `base_3`… — the first key no component of `t` has. */
+/** The longest component key (validate.ts COMPONENT_KEY). */
+const COMPONENT_KEY_MAX = 32;
+
+/**
+ * `base`, or `base_2`, `base_3`… — the first key no component of `t` has, cut
+ * to fit a component key. A field's key may be twice as long (up to 64, made
+ * from its English name): taken whole, the template could never be saved
+ * (code review M16, 2026-10-04).
+ */
 export function nextKey(t: Pick<SurveyTemplate, 'components'>, base: string): string {
   const taken = new Set(t.components.map((c) => c.key));
-  if (!taken.has(base)) return base;
-  for (let i = 2; ; i++) if (!taken.has(`${base}_${i}`)) return `${base}_${i}`;
+  const fit = (suffix: string) => base.slice(0, COMPONENT_KEY_MAX - suffix.length).replace(/_+$/, '') + suffix;
+  if (!taken.has(fit(''))) return fit('');
+  for (let i = 2; ; i++) if (!taken.has(fit(`_${i}`))) return fit(`_${i}`);
 }
 
 /**

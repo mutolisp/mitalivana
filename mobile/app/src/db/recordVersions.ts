@@ -156,12 +156,12 @@ const decode = (text: string): Snapshot => JSON.parse(strFromU8(inflateSync(from
  * always). Never throws: a version is a safety net, not a reason to fail the
  * finish, merge or navigation that asked for it. Returns whether one was stored.
  */
-export function saveVersion(kind: VersionKind, id: number, reason: VersionReason, note: string | null = null): boolean {
+export function saveVersion(kind: VersionKind, id: number, reason: VersionReason, note: string | null = null, opts: { doc?: Doc | null } = {}): boolean {
   // A builder preview keeps nothing (previewDb.ts).
   if (isPreviewId(id)) return false;
   try {
     const who = uuidAndLabel(kind, id);
-    const doc = who ? localDoc(kind, id) : null;
+    const doc = who ? (opts.doc ?? localDoc(kind, id)) : null;
     if (!who || !doc) return false;
     const hash = snapshotHash(sideOf(kind, doc));
     const latest = rows<VersionMeta>(
@@ -274,7 +274,9 @@ export function restoreVersion(kind: VersionKind, id: number, versionId: number)
   const snap = readSnapshot(versionId);
   const doc = localDoc(kind, id);
   if (!snap || !doc) throw new Error('version or record not found');
-  saveVersion(kind, id, 'before_restore');
+  // A census quadrat: what the restore reaches, a tree that moved out since
+  // included — else restoring this version could not undo the restore (code review M11).
+  saveVersion(kind, id, 'before_restore', null, kind === 'survey_quadrat' ? { doc: census.quadratSliceForRestore(id, snap.doc as census.CensusSlice) } : {});
   let changed: number;
   if (kind === 'survey_quadrat') {
     // A census quadrat restores through its own rules (sliceCore.restoreSlice).
