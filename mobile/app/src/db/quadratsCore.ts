@@ -121,7 +121,7 @@ export type QuadratSpecies = {
 };
 
 /** A refused write; `code` is what the screen explains. */
-export type QuadratErrorCode = 'locked' | 'geometry-locked' | 'invalid';
+export type QuadratErrorCode = 'locked' | 'geometry-locked' | 'invalid' | 'full';
 export class QuadratError extends Error {
   code: QuadratErrorCode;
   constructor(code: QuadratErrorCode) {
@@ -226,6 +226,9 @@ export function addQuadrat(
 ): number {
   const cfg = getQuadratConfig(db, plotId);
   const taken = new Set(listQuadrats(db, plotId).map((q) => q.idx));
+  // At most MAX_QUADRATS, as the count setting: a 26th made that setting
+  // delete the last empty one when it was next touched (code review L11).
+  if (taken.size >= MAX_QUADRATS) throw new QuadratError('full');
   let idx = 1;
   while (taken.has(idx)) idx++;
   const res = db.executeSync(
@@ -318,10 +321,11 @@ export function setFreqMode(db: QuadratDb, id: number, mode: FreqMode, now: numb
   touch(db, id, now);
 }
 
-/** Delete a quadrat and its species (explicitly: foreign keys may be off). */
+/** Delete a quadrat and its species (explicitly: foreign keys may be off). A locked one is unlocked first (code review L10). */
 export function deleteQuadrat(db: QuadratDb, id: number, now: number): void {
   const q = getQuadrat(db, id);
   if (!q) return;
+  if (q.locked) throw new QuadratError('locked');
   db.executeSync(`DELETE FROM plot_quadrat_species WHERE quadrat_id = ?`, [id]);
   db.executeSync(`DELETE FROM plot_quadrats WHERE id = ?`, [id]);
   db.executeSync(`UPDATE plot_surveys SET updated_at = ? WHERE id = ?`, [now, q.plot_survey_id]);

@@ -6,7 +6,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, Pressable, Text, View } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HeaderIconButton } from '~/components/HeaderIconButton';
 import { RecordMenuButton } from '~/components/RecordMenuButton';
@@ -165,7 +166,7 @@ export default function GloriaSurveyScreen() {
           { value: 'loggers', label: t('gloria.tab.loggers') },
         ]}
       />
-      <ScrollView contentContainerClassName="gap-3 p-4" keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets scrollEnabled={scrollOn}>
+      <KeyboardAwareScrollView contentContainerClassName="gap-3 p-4" keyboardShouldPersistTaps="handled" scrollEnabled={scrollOn} bottomOffset={24}>
         {tab === 'points' ? (
           <BaseDataTab
             state={state}
@@ -343,7 +344,7 @@ export default function GloriaSurveyScreen() {
             researchers={state.survey.recorded_by}
           />
         ) : null}
-      </ScrollView>
+      </KeyboardAwareScrollView>
       <NumAccessory />
 
       {help ? (

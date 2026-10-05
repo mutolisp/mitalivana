@@ -19,10 +19,10 @@ import {
   createSite,
   deleteSite,
   getProject,
-  listCollectionTrips,
   listPlotSurveysWithMeta,
   listSessions,
   listSites,
+  referencedSiteIds,
   updateSite,
   withTransaction,
   type Site,
@@ -127,7 +127,7 @@ export default function SitesScreen() {
   const reload = useCallback(
     () =>
       setRows(
-        buildGeoRows(listSites(), listPlotSurveysWithMeta(), listSessions(), listCollectionTrips()),
+        buildGeoRows(listSites(), listPlotSurveysWithMeta(), listSessions(), referencedSiteIds()),
       ),
     [],
   );

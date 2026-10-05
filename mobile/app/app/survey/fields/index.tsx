@@ -42,7 +42,7 @@ export default function FieldLibraryScreen() {
     return (
       <ListRow
         key={r.def.key}
-        title={r.def.name_en ? `${r.def.name}（${r.def.name_en}）` : r.def.name}
+        title={r.def.name_en ? t('common.withParen', { main: r.def.name, extra: r.def.name_en }) : r.def.name}
         meta={[fieldSummary(t, lang, r.def), r.def.key, n ? t('fieldLib.usedBy', { count: n }) : t('fieldLib.unused')].join(' · ')}
         onPress={() => router.push(fieldHref(r.def.key))}
         divider={i < all.length - 1}

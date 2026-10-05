@@ -49,7 +49,12 @@ export default function MirenRecheckScreen() {
   useFocusEffect(reload);
   const ctx = plot ? surveyContext(plot.survey_id) : null;
   if (!plot || !ctx || !state) {
-    return <Text className="p-4 text-gray-500">{t('miren.recheck.notOpen')}</Text>;
+    // A background in both themes, as the screen's own (code review L30).
+    return (
+      <View className="flex-1 bg-gray-50 dark:bg-gray-950">
+        <Text className="p-4 text-gray-500 dark:text-gray-400">{t('miren.recheck.notOpen')}</Text>
+      </View>
+    );
   }
   const code = formatPlotCode({ region: ctx.regionCode, route: ctx.route.code, site: plot.site_no, plot: plot.plot_no, suffix: plot.suffix });
   const measures = plotMeasures(ctx.route.kind, plot.plot_no);
@@ -184,7 +189,7 @@ export default function MirenRecheckScreen() {
         {!finished ? (
           <Btn primary disabled={!state.complete} label={t('miren.recheck.finishCount', { done: answered, total: state.candidates.length })} onPress={finish} />
         ) : (
-          <Text className="text-center text-sm text-emerald-700">{t('miren.plot.banner_done')}</Text>
+          <Text className="text-center text-sm text-emerald-700 dark:text-emerald-300">{t('miren.plot.banner_done')}</Text>
         )}
       </ScrollView>
     </SafeAreaView>

@@ -28,6 +28,13 @@ export const SYNC_RECORD_EXEMPT: Readonly<Record<string, string>> = {
   record_versions: 'kept for 最近刪除 (Recently deleted); its own rule (VERSION_LIVE_UUIDS)',
 };
 
+/**
+ * Tables holding an adopted name (used_name_id, used_scientific_name): the
+ * integrity report checks each against the checklist. fw_occurrences and
+ * miren_taxa were missing, and fw_individuals (code review L9).
+ */
+export const ADOPTION_TABLES = ['checklist_records', 'plot_species_records', 'collection_specimens', 'gloria_taxa', 'miren_taxa', 'fw_occurrences', 'fw_individuals'] as const;
+
 /** Tables keyed by team_id: leaving a team deletes its rows from each (code review M14). */
 export const TEAM_TABLES = ['sync_teams', 'sync_links', 'sync_seen', 'sync_queue', 'sync_members', 'sync_log', 'media_pending'] as const;
 

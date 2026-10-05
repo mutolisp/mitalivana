@@ -2,7 +2,8 @@
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ScrollView, Text } from 'react-native';
+import { Text } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { SettingsPage } from '~/components/settings/SettingsPage';
 import { getSummit } from '~/modules/gloria/db';
 import { SummitFields } from '~/modules/gloria/components/SummitForm';
@@ -23,7 +24,7 @@ export default function GloriaSummitScreen() {
   const { shareBundle, progress, onProgress } = useExportShare();
   return (
     <SettingsPage title={summit?.full_code ?? ''}>
-      <ScrollView contentContainerClassName="gap-3 p-4" keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
+      <KeyboardAwareScrollView contentContainerClassName="gap-3 p-4" keyboardShouldPersistTaps="handled" bottomOffset={24}>
         {summit ? <SummitFields summit={summit} onChanged={reload} /> : <Text className="text-gray-500">{t('gloria.notFound')}</Text>}
         {/* Loggers are read and changed between monitoring cycles too: no survey needed here. */}
         {summit ? (
@@ -34,7 +35,7 @@ export default function GloriaSummitScreen() {
             <Btn label={t('gloria.logger.export')} onPress={() => void shareBundle(() => bundleLoggers(summit.id, { includePhotos, onProgress }))} />
           </>
         ) : null}
-      </ScrollView>
+      </KeyboardAwareScrollView>
       <NumAccessory />
       <ExportProgressOverlay progress={progress} />
     </SettingsPage>

@@ -21,7 +21,9 @@
     "exitSelect": "선택 종료",
     "previous": "이전",
     "next": "다음",
-    "selectedCount_other": "{{count}}개 선택됨"
+    "selectedCount_other": "{{count}}개 선택됨",
+    "labelValue": "{{label}}: {{value}}",
+    "withParen": "{{main}} ({{extra}})"
   },
   "actionSheet": {
     "close": "닫기",
@@ -303,6 +305,11 @@
       "projectEmpty": "“{{name}}”에 기록이 없어 내보낼 수 없습니다",
       "noneSelected": "선택한 기록이 없습니다",
       "tooManyReleves": "조사구 수 {{n}}이(가) JUICE 상한 {{max}}을(를) 초과합니다"
+    },
+    "formula": {
+      "title": "스프레드시트에서 수식으로 처리될 수 있는 값이 있습니다",
+      "guarded_other": "Excel용 표의 값 {{count}}개가 = + - @ 등으로 시작하여, 수식으로 실행되지 않도록 앞에 작은따옴표(')를 붙였습니다.",
+      "raw_other": "R·GBIF용 파일(vegan 행렬, DwC-A)의 값 {{count}}개가 = + - @ 등으로 시작하며 그대로 두었습니다. 이 파일을 Excel로 열면 수식으로 처리될 수 있습니다."
     }
   },
   "nav": {
@@ -326,7 +333,8 @@
     "gloria": "GLORIA 정상 조사",
     "privacy": "개인정보 처리방침",
     "miren": "MIREN 조사",
-    "survey": "매목조사"
+    "survey": "매목조사",
+    "addRecords": "기록 추가"
   },
   "tab": {
     "menu": "설정",
@@ -1002,7 +1010,7 @@
     "statsCollections": "채집 {{n}}",
     "statsGloria": "GLORIA {{n}}",
     "statsMiren": "MIREN {{n}}",
-    "deleteOthers": "채집·GLORIA·MIREN 기록 {{n}}건도 「미분류」로 돌아갑니다."
+    "deleteOthers": "다른 종류의 기록 {{n}}건도 「미분류」로 돌아갑니다."
   },
   "sites": {
     "typePoint": "점",
@@ -1721,6 +1729,7 @@
   "recordImport": {
     "unsupportedBundle": "여러 기록이 묶인 파일입니다. 압축을 푼 뒤 하나씩 가져오세요.",
     "unknownKind": "이 파일의 기록 종류를 판별할 수 없습니다.",
+    "newerFormat": "이 파일은 이 앱보다 새로운 형식입니다. 앱을 업데이트한 뒤 다시 가져오세요.",
     "sessionExistsTitle": "종 목록이 이미 있습니다",
     "sessionExistsMsg": "“{{name}}”이(가) 이 기기에 이미 있습니다. 덮어쓸까요, 새 사본으로 저장할까요?",
     "photoConflictTitle": "이 기록에는 이미 사진이 있습니다",
@@ -2996,7 +3005,8 @@
       "cellEmpty": "(비어 있음)",
       "cellHas": "✓ 이 칸에 {{name}} 있음(탭하면 제거)",
       "cellAdd": "이 칸에 {{name}} 추가",
-      "redo": "다시 실행"
+      "redo": "다시 실행",
+      "skipped": "이 방형구는 「관목: 빈도·포인트 프레임법 생략」으로 표시되어 있어 여기 데이터는 보기만 가능합니다. 편집하려면 방형구 화면에서 체크를 해제하세요."
     },
     "walk": {
       "titleQuadrat": "{{code}} · 포인트 프레임",
@@ -3766,7 +3776,7 @@
         "queued": "대기",
         "fail": "실패"
       },
-      "files": "파일 {{n}}개",
+      "files_other": "파일 {{count}}개",
       "skip": {
         "block_size": "블록 크기 미정(회차 화면에서 동기화)",
         "unreadable": "읽을 수 없음(새 버전 앱일 수 있음)",
@@ -3983,7 +3993,8 @@
       "relocateMsg": "이전 지점을 재조사할 수 없으면 근처 새 지점을 {{code}}(으)로 합니다. 이전 조사는 옛 지점에 남습니다. 제출 시 새 지점임을 데이터 관리자에게 알리세요.",
       "relocateExists": "이 지점은 이미 이전되었습니다.",
       "deleteTitle": "조사 지점 삭제",
-      "deleteUsed": "조사에 사용 중이라 삭제할 수 없습니다."
+      "deleteUsed": "조사에 사용 중이라 삭제할 수 없습니다.",
+      "deleteMsg": "이 조사 지점을 삭제합니다. 되돌릴 수 없습니다."
     },
     "survey": {
       "active": "진행 중",
@@ -4065,6 +4076,7 @@
       "toRecheck": "이전 조사와 재확인",
       "reopenBlindTitle": "블라인드 기록 종료 취소",
       "reopenBlindRefused": "재확인이 시작되어 블라인드 기록으로 돌아갈 수 없습니다.",
+      "reopenBlindSeen": "이 플롯은 이전 조사의 종이 이미 표시되었습니다. 취소해도 기록한 종은 수정할 수 있지만, 이후 추가하는 종은 모두 재확인에서 발견(Found after recheck)으로 기록됩니다.",
       "finished": "플롯 완료.",
       "unfinish": "플롯 다시 열기",
       "sampled": "조사함",
@@ -4597,7 +4609,7 @@
       "blockSizeOption": "{{m}} m 방형구 {{k}} × {{k}} · {{blocks}}개 블록 · 블록당 약 {{size}}",
       "recommended": "권장",
       "tooLarge": "한도를 넘을 수 있음",
-      "sentBlocks": "블록 {{count}}개를 보냈습니다",
+      "sentBlocks_other": "블록 {{count}}개를 보냈습니다",
       "blocks": "블록과 담당",
       "blocksUndecided": "블록 크기는 첫 팀 동기화 때 정해집니다. 동기화 후 여기에서 각 블록을 보고 담당할 수 있습니다.",
       "claimsHint": "블록을 누르면 이 기기 조의 담당이 되고, 다시 누르면 해제됩니다. 담당은 누가 어디를 맡는지 팀원에게 알리는 것일 뿐이며 다음 동기화 때 전송됩니다. 다른 조가 담당한 블록에서 개체를 추가하거나 고칠 때는 먼저 묻습니다.",
@@ -4630,7 +4642,9 @@
       "versionsNote": "적용하기 전에 이 블록의 각 방형구 버전을 저장합니다. 방형구 버전에서 되돌릴 수 있습니다.",
       "someone": "팀원",
       "templateDiffersTitle": "템플릿이 달라 병합하지 않음",
-      "templateDiffersMsg": "{{names}}이(가) 이 회차를 다른 매목조사 템플릿으로 기록해 데이터를 병합하지 않았습니다. 모두 같은 템플릿을 사용하세요. 별도의 조사라면 상대방이 이 회차를 삭제하고 시작할 때 “새 시리즈”를 고르게 하세요."
+      "templateDiffersMsg": "{{names}}이(가) 이 회차를 다른 매목조사 템플릿으로 기록해 데이터를 병합하지 않았습니다. 모두 같은 템플릿을 사용하세요. 별도의 조사라면 상대방이 이 회차를 삭제하고 시작할 때 “새 시리즈”를 고르게 하세요.",
+      "tooLargeTitle": "너무 커서 보내지 못한 블록이 있습니다",
+      "tooLargeMsg": "{{blocks}}의 데이터가 서버의 건당 한도({{limit}})를 넘어 이번에는 보내지 않았습니다. 다른 블록은 평소대로 동기화되었으며 다음 동기화 때 다시 시도합니다. 계속 한도를 넘으면 서버 관리자에게 한도(MAX_OBJECT_BYTES)를 올려 달라고 요청하세요."
     },
     "import": {
       "existsTitle": "이미 있는 조사 회차",
@@ -4960,6 +4974,8 @@
     },
     "err": {
       "unitTaken": "코드 {{code}}는 이미 사용 중입니다",
+      "unitCodeChar": "코드에 | 또는 /를 쓸 수 없습니다",
+      "seriesCodeTaken": "이 영구 조사구에는 코드 {{code}}인 계열이 이미 있습니다. 다른 코드를 쓰세요",
       "frameUnitLocked": "조사에서 사용한 단위라서 코드와 위치를 바꿀 수 없습니다",
       "blindSealed": "블라인드가 끝나서 그동안의 기록은 바꿀 수 없습니다",
       "recheckBegun": "재확인이 시작되어(결과나 추가 기록이 있음) 블라인드를 다시 열 수 없습니다",
@@ -5409,7 +5425,8 @@
       "pct": "하늘 개방도(%)",
       "grades": "사용자 정의 등급",
       "list": "등급 목록"
-    }
+    },
+    "previewNoAssign": "미리보기에서는 프로젝트나 사이트를 지정하거나 사이트를 새로 만들 수 없습니다(미리보기 데이터는 남지 않습니다)."
   },
   "fieldLib": {
     "title": "사용자 항목 라이브러리",
@@ -5507,5 +5524,13 @@
     "overwrittenTitle": "덮어썼습니다",
     "overwrittenMsg_other": "“{{name}}”을(를) 파일 내용으로 바꿨습니다({{count}}개 행 변경). 원래 내용은 버전으로 저장되어 “버전”에서 되돌릴 수 있습니다.",
     "photosSkipped_other": "사진 {{count}}장을 앨범에 저장하지 못해 가져오지 않았습니다"
+  },
+  "synonymAdd": {
+    "title": "같은 종이 이미 있습니다",
+    "message": "여기에 이미 {{here}}이(가) 있으며, 선택한 {{picked}}와(과) 같은 분류군(동물이명)입니다. 기존 기록에 합칠까요, 아니면 의도적으로 따로 기록할까요?",
+    "merge": "기존 {{here}}에 합치기",
+    "separate": "{{picked}}(으)로 따로 기록",
+    "acceptedOnlyTitle": "여기서는 정명만 사용",
+    "acceptedOnly": "여기 기록은 정명만 저장할 수 있습니다. 선택한 {{typed}}은(는) {{accepted}}(으)로 기록됩니다."
   }
 }

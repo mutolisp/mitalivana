@@ -55,6 +55,7 @@ export type SurveyErrorCode =
   | 'frame_locked'
   | 'frame_has_surveys'
   | 'series_code_required'
+  | 'series_code_taken'
   | 'template_invalid'
   | 'not_latest_census'
   | 'outside_plot'
@@ -69,6 +70,7 @@ export type SurveyErrorCode =
   | 'wrong_style'
   | 'frame_not_allowed'
   | 'bad_unit'
+  | 'unit_code_char'
   | 'unit_taken'
   | 'frame_unit_locked'
   | 'no_blind_phase'
@@ -279,7 +281,17 @@ export function updateFrame(ctx: Ctx, id: number, patch: FramePatch): void {
 
 export function deleteFrame(ctx: Ctx, id: number): void {
   if (frameHasSurveys(ctx, id)) throw new SurveyError('frame_has_surveys');
+  // Children by hand, deepest first: foreign keys are off during migrations
+  // and cleanup, and the cascade is not to be relied on (code review L6).
+  const trees = `SELECT id FROM fw_individuals WHERE frame_id = ?`;
+  const stems = `SELECT id FROM fw_stems WHERE individual_id IN (${trees})`;
+  run(ctx, `DELETE FROM fw_stem_values WHERE measure_id IN (SELECT id FROM fw_stem_measures WHERE stem_id IN (${stems}))`, [id]);
+  run(ctx, `DELETE FROM fw_stem_measures WHERE stem_id IN (${stems})`, [id]);
+  run(ctx, `DELETE FROM fw_stems WHERE individual_id IN (${trees})`, [id]);
+  for (const tbl of ['fw_individual_values', 'fw_individual_history', 'fw_media']) run(ctx, `DELETE FROM ${tbl} WHERE individual_id IN (${trees})`, [id]);
   run(ctx, `DELETE FROM fw_individuals WHERE frame_id = ?`, [id]);
+  run(ctx, `DELETE FROM fw_frame_labels WHERE frame_id = ?`, [id]);
+  run(ctx, `DELETE FROM fw_frame_units WHERE frame_id = ?`, [id]);
   run(ctx, `DELETE FROM fw_frame_series WHERE frame_id = ?`, [id]);
   run(ctx, `DELETE FROM fw_frames WHERE id = ?`, [id]);
 }
@@ -292,6 +304,8 @@ export function ensureSeries(ctx: Ctx, frameId: number, templateId: string, seri
   const first = !one(ctx, `SELECT 1 AS x FROM fw_frame_series WHERE frame_id = ?`, [frameId]);
   const code = first ? '' : (seriesCode ?? '').trim();
   if (!first && !code) throw new SurveyError('series_code_required');
+  // Said, not left to the UNIQUE constraint: starting a census threw it unhandled (code review L7).
+  if (!first && one(ctx, `SELECT 1 AS x FROM fw_frame_series WHERE frame_id = ? AND series_code = ?`, [frameId, code])) throw new SurveyError('series_code_taken', code);
   const now = ctx.now();
   const res = run(
     ctx,

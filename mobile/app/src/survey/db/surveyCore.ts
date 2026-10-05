@@ -218,7 +218,15 @@ function carryEnvironment(ctx: Ctx, surveyId: number, t: SurveyTemplate): void {
   };
   for (const c of t.components) {
     if (c.type !== 'environment') continue;
-    const fields = Array.isArray(c.params.fields) ? (c.params.fields as string[]) : [];
+    // The fields as stored, not as the component lists them: 開闊度 is
+    // openness_pct or openness_grade, and the survey's elevation a column of
+    // the survey row since v88 — neither came over (code review L2).
+    const defs = componentDef('environment')?.fields(c.params, c.level, c.key) ?? [];
+    const fields = defs.flatMap((f) => ('values' in f.storage ? [f.storage.field] : []));
+    if (c.level === 'survey' && defs.some((f) => 'col' in f.storage && f.field === 'elevation_m')) {
+      const p = one<{ e: number | null; src: string | null }>(ctx, `SELECT elevation_m AS e, elevation_source AS src FROM fw_surveys WHERE id = ?`, [prev]);
+      if (p?.e != null) run(ctx, `UPDATE fw_surveys SET elevation_m = ?, elevation_source = ? WHERE id = ? AND elevation_m IS NULL`, [p.e, p.src, surveyId]);
+    }
     if (!fields.length) continue;
     if (c.level === 'survey') copy('fw_survey_values', 'survey_id', prev, surveyId, c.key, fields);
     else if (c.level === 'unit') {
@@ -412,8 +420,31 @@ export function reopenSurvey(ctx: Ctx, id: number): void {
 }
 
 /** Delete a survey with everything recorded in it. The frame, its layout and morphospecies stay. */
+/**
+ * Throws not_latest_census unless these surveys can go together: on a
+ * permanent plot, only the last ones of a series, as for a tree census
+ * (stemmapCore.assertDeletableCensuses). Deleting one in the middle made the
+ * next one's recheck compare with an earlier survey, its answers no longer
+ * matching and nothing said (code review M17, 2026-10-05; the user chose this
+ * over "a gap means no previous survey").
+ */
+export function assertDeletableSurveys(ctx: { db: SurveyDb }, ids: readonly number[]): void {
+  const picked = new Set(ids);
+  for (const id of ids) {
+    const s = surveyOf(ctx, id);
+    if (s.series_id == null || s.census_no == null) continue;
+    const later = rows<{ id: number }>(ctx, `SELECT id FROM fw_surveys WHERE series_id = ? AND census_no > ?`, [s.series_id, s.census_no]);
+    if (later.some((r) => !picked.has(r.id))) throw new SurveyError('not_latest_census');
+  }
+}
+
+/** Ids newest first within each series: the order assertDeletableSurveys lets them go in. */
+export function newestFirst(ctx: { db: SurveyDb }, ids: readonly number[]): number[] {
+  return [...ids].sort((a, b) => (surveyOf(ctx, b).census_no ?? 0) - (surveyOf(ctx, a).census_no ?? 0));
+}
+
 export function deleteSurvey(ctx: Ctx, id: number): void {
-  surveyOf(ctx, id);
+  assertDeletableSurveys(ctx, [id]);
   // Children by hand: foreign keys are off during migrations and cleanup.
   run(ctx, `DELETE FROM fw_media WHERE survey_id = ?`, [id]);
   run(ctx, `DELETE FROM fw_interactions WHERE survey_id = ?`, [id]);
@@ -479,11 +510,21 @@ export function frameUnitUsed(ctx: { db: SurveyDb }, id: number): boolean {
   return one(ctx, `SELECT 1 AS x FROM fw_units WHERE frame_unit_id = ? LIMIT 1`, [id]) != null;
 }
 
+/**
+ * A unit code is free text but for '|' and '/': the merge keys and the unit
+ * paths are built with them (code review L4, 2026-10-05). Codes made before
+ * keep working (the keys are read from the right).
+ */
+function assertUnitCode(code: string): void {
+  if (/[|/]/.test(code)) throw new SurveyError('unit_code_char', code);
+}
+
 export function addFrameUnit(ctx: Ctx, frameId: number, input: FrameUnitInput): number {
   if (!getFrame(ctx, frameId)) throw new SurveyError('not_found', 'frame');
   const levelKey = input.levelKey.trim();
   const code = input.code.trim();
   if (!levelKey || !code) throw new SurveyError('bad_unit', 'empty level or code');
+  assertUnitCode(code);
   if (input.parentId != null && getFrameUnit(ctx, input.parentId)?.frame_id !== frameId) throw new SurveyError('bad_unit', 'parent');
   if (one(ctx, `SELECT 1 AS x FROM fw_frame_units WHERE frame_id = ? AND level_key = ? AND code = ?`, [frameId, levelKey, code])) {
     throw new SurveyError('unit_taken', code);
@@ -540,6 +581,7 @@ export function updateFrameUnit(ctx: Ctx, id: number, patch: FrameUnitPatch): vo
   if (patch.code !== undefined) {
     const code = patch.code.trim();
     if (!code) throw new SurveyError('bad_unit', 'empty code');
+    assertUnitCode(code);
     if (one(ctx, `SELECT 1 AS x FROM fw_frame_units WHERE frame_id = ? AND level_key = ? AND code = ? AND id <> ?`, [fu.frame_id, fu.level_key, code, id])) {
       throw new SurveyError('unit_taken', code);
     }
@@ -644,6 +686,7 @@ export function addUnit(ctx: Ctx, surveyId: number, input: UnitInput): number {
   if (depth < 0) throw new SurveyError('bad_unit', `no unit level ${input.levelKey}`);
   const code = input.code.trim();
   if (!code) throw new SurveyError('bad_unit', 'empty code');
+  assertUnitCode(code);
   const parent = input.parentId == null ? null : getUnit(ctx, input.parentId);
   if (input.parentId != null) {
     const parentDepth = parent ? levels.findIndex((u) => u.key === parent.level_key) : -1;
@@ -710,6 +753,7 @@ export function updateUnit(ctx: Ctx, id: number, patch: UnitPatch): void {
     const code = patch.code.trim();
     if (!code) throw new SurveyError('bad_unit', 'empty code');
     if (u.frame_unit_id != null && code !== u.code) throw new SurveyError('frame_unit_locked');
+    if (code !== u.code) assertUnitCode(code);
     if (one(ctx, `SELECT 1 AS x FROM fw_units WHERE survey_id = ? AND level_key = ? AND code = ? AND id <> ?`, [u.survey_id, u.level_key, code, id])) {
       throw new SurveyError('unit_taken', code);
     }

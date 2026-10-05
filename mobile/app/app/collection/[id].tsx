@@ -12,7 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import type { AdoptionInput } from '~/db';
 import * as Location from 'expo-location';
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
-import { useCallback, useMemo, useRef, useState, type RefObject } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, BackHandler, FlatList, Keyboard, Pressable, ScrollView, Text, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
@@ -841,8 +841,11 @@ export default function CollectionTripScreen() {
 
   // ⋯ stays open through undo / redo and the sort radios, rebuilding itself,
   // so it reads the latest values through a ref (as RecordMenuButton does).
+  // After each render, not during it (code review L23).
   const latestMenu = useRef({ edit, sortKey, sortDir });
-  latestMenu.current = { edit, sortKey, sortDir };
+  useLayoutEffect(() => {
+    latestMenu.current = { edit, sortKey, sortDir };
+  });
   const menuSections = (): MenuSection[] => {
     const { edit: e, sortKey: k, sortDir: d } = latestMenu.current;
     const out: MenuSection[] = [];
@@ -1117,7 +1120,8 @@ export default function CollectionTripScreen() {
       if (active.lat === null || active.lng === null) {
         const out = await firstPhotoFix(picked);
         if (out.kind === 'found') {
-          updateSpecimenLocation(active.id, out.fix.lat, out.fix.lng, out.fix.accuracyM, out.fix.altitudeM);
+          // A typed-in elevation stays too (code review N3, as M26 on plots).
+          updateSpecimenLocation(active.id, out.fix.lat, out.fix.lng, out.fix.accuracyM, active.elevation_m == null ? out.fix.altitudeM : null);
         }
       }
       if (openAfter) refreshActive(active.id);

@@ -34,7 +34,7 @@ import {
 import { morphoName, nextRegionNumber, isMorphoName, LIFE_FORMS } from '../src/modules/miren/model/morpho.ts';
 import { statusFromTaicol, templateStatus } from '../src/modules/miren/model/status.ts';
 import { checkPlot, checkSitePriority, additionalDataOk } from '../src/modules/miren/model/validate.ts';
-import { recheckCandidates, recheckComplete, taxonKey, foundAfterRecheck } from '../src/modules/miren/model/compare.ts';
+import { recheckCandidates, recheckComplete, taxonKey, foundAfterRecheck, newSpeciesPhase } from '../src/modules/miren/model/compare.ts';
 import { currentSites, planSurveyPlots, plotState, nextPlot } from '../src/modules/miren/model/survey.ts';
 
 let failures = 0;
@@ -220,6 +220,16 @@ const kinds = (issues) => issues.map((i) => i.kind);
   eq('complete',
     recheckComplete(cand, [{ key: taxonKey(cand[0]), outcome: 'not_found' }, { key: taxonKey(cand[1]), outcome: 'reidentified', newTaxon: { taxonId: 's9', verbatim: null } }]), true);
   eq('Found after recheck column', [foundAfterRecheck('blind'), foundAfterRecheck('recheck')], [0, 1]);
+  // Reopened after the previous list was shown: what is added then is a recheck find (code review M19).
+  eq(
+    'phase of a new species: blind, recheck after the close, recheck after a reopen that followed the previous list',
+    [
+      newSpeciesPhase({ blind_closed_at: null, blind_reopened_at: null }),
+      newSpeciesPhase({ blind_closed_at: 1, blind_reopened_at: null }),
+      newSpeciesPhase({ blind_closed_at: null, blind_reopened_at: 5 }),
+    ],
+    ['blind', 'recheck', 'recheck'],
+  );
 }
 
 // ── new survey: plots and what is carried ─────────────────────────────────

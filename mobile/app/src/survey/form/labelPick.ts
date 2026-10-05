@@ -12,14 +12,22 @@ import i18n from '~/i18n';
 import { isSpeciesLevelRank } from '~/lib/dataQuality';
 import type { FwSurveyRow } from '~/survey/db/surveyCore';
 import { addFrameLabel, listFrameLabels } from '~/survey/db/surveys';
-import { sentenceParts, slot, type NamePart } from '~/lib/nameParts';
+import { sentenceParts, slot, speciesParts, type NamePart } from '~/lib/nameParts';
 
-type Taxon = { taxon_id: string; rank?: string | null; name: string };
+/**
+ * The taxon's common and scientific names apart: "the common or the
+ * scientific name" in one field set a Chinese name in the italic Latin face
+ * (code review L25).
+ */
+type Taxon = { taxon_id: string; rank?: string | null; kingdom?: string | null; cname?: string | null; sci?: string | null };
+
+/** As plain text (a prompt's title). */
+const plainName = (taxon: Taxon) => taxon.cname || taxon.sci || taxon.taxon_id;
 
 /** A new label typed by the user; on a frame, asked whether it joins the list. Undefined = cancelled. */
 async function typeLabel(survey: FwSurveyRow, taxon: Taxon, current: string | null): Promise<string | null | undefined> {
   const raw = await promptText({
-    title: i18n.t('surveyForm.label.title', { name: taxon.name }),
+    title: i18n.t('surveyForm.label.title', { name: plainName(taxon) }),
     message: i18n.t('surveyForm.label.msg'),
     placeholder: 'sp1',
     defaultValue: current ?? '',
@@ -62,7 +70,7 @@ export async function labelForEdit(survey: FwSurveyRow, taxon: Taxon, current: s
 }
 
 async function chooseLabel(survey: FwSurveyRow, taxon: Taxon, listed: string[], current: string | null): Promise<string | null | undefined> {
-  const name: NamePart[] = [{ sci: taxon.name, rank: taxon.rank ?? null }];
+  const name: NamePart[] = speciesParts(taxon.cname, taxon.sci, taxon.rank, taxon.kingdom, taxon.taxon_id);
   const idx = await showActionSheet({
     titleParts: sentenceParts(i18n.t('surveyForm.label.pickTitle', { name: slot('name') }), { name }),
     message: i18n.t(listed.length ? 'surveyForm.label.pickMsg' : 'surveyForm.label.pickMsgNone'),

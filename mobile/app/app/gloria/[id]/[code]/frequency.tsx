@@ -46,6 +46,7 @@ import { coverFreqIssues } from '~/lib/quadratIssues';
 import type { FrequencyGridHandle } from '~/components/quadrat/FrequencyGrid';
 import { useVersionOnLeave } from '~/lib/useVersionOnLeave';
 import { speciesParts } from '~/lib/nameParts';
+import { acceptedNameOnly } from '~/lib/synonymAdd';
 
 const CELLS = QUADRAT_N * QUADRAT_N;
 const GRAZING = [
@@ -70,8 +71,12 @@ export default function FrequencyScreen() {
   const unit = state?.unit(code);
   // Marked done: nothing on this screen may change the data until reopened.
   const locked = unit?.freq_locked === 1;
-  // Say so once on arrival; the header lock shows it from then on.
-  const lockedOnOpen = useRef(locked);
+  // A shrub quadrat (manual §5.1.2) has no frequency: what is stored stays as
+  // it is until the box is unticked on the quadrat (code review V10).
+  const skipped = unit?.freq_skipped === 1;
+  // Say so once on arrival; the header lock shows it from then on (a shrub
+  // quadrat's note says why instead).
+  const lockedOnOpen = useRef(locked && !skipped);
   useEffect(() => {
     if (lockedOnOpen.current) toast(t('gloria.freq.lockedToast'));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -133,16 +138,21 @@ export default function FrequencyScreen() {
   }
 
   const refused = () => {
-    if (locked) toast(t('gloria.freq.lockedToast'));
-    return locked;
+    if (skipped) toast(t('gloria.freq.skipped'));
+    else if (locked) toast(t('gloria.freq.lockedToast'));
+    return locked || skipped;
   };
   const persist = (key: string, mask: string) => {
-    if (!cellsStarted.current && unit.freq_mode !== 'cells') startFrequency(unit.id);
+    // The first stroke switches the quadrat to cells: read it again, or the
+    // screen keeps the mode it had (code review M20).
+    const starting = !cellsStarted.current && unit.freq_mode !== 'cells';
+    if (starting) startFrequency(unit.id);
     cellsStarted.current = true;
     const g = GRAZING.find((x) => x.key === key);
     if (g) updateUnit(unit.id, { [g.col]: mask });
     else updateUnitSpecies(Number(key.slice(2)), { freq_cells: mask });
     touchFrequency(unit.id);
+    if (starting) reload();
   };
   const write = (key: string, mask: string, record = true) => {
     if (refused()) return;
@@ -200,13 +210,14 @@ export default function FrequencyScreen() {
   const hasCounts = byCount && (spp.some((s) => s.freq_count != null) || GRAZING.some((g) => unit[g.countCol] != null));
   const switchMode = (toCount: boolean) => {
     const loses = toCount ? hasCells : hasCounts;
-    if (loses) {
-      setFrequencyMode(unit.id, toCount ? 'count' : 'cells', { discard: true });
-      cellsStarted.current = false;
-    }
+    // Written and read again even with nothing to clear: the screen showed the
+    // new way while the quadrat kept the old one, its counts read 0 and both
+    // kinds could end up stored (code review M20).
+    setFrequencyMode(unit.id, toCount ? 'count' : 'cells', { discard: loses });
+    cellsStarted.current = false;
     // Undo steps are cell masks: none of them belong across a switch.
     clearUndo();
-    if (loses) reload();
+    reload();
     return true;
   };
   const writeCount = (key: string, v: number | null) => {
@@ -228,7 +239,7 @@ export default function FrequencyScreen() {
           headerLeft: BackHeaderLeft,
           headerRight: () => (
             <View className="flex-row items-center gap-3">
-              {!locked ? (
+              {!locked && !skipped ? (
                 <HeaderIconButton
                   icon="arrow-undo-outline"
                   label={t('gloria.freq.undo')}
@@ -244,7 +255,7 @@ export default function FrequencyScreen() {
                   }}
                 />
               ) : null}
-              {!locked ? (
+              {!locked && !skipped ? (
                 <HeaderIconButton
                   icon="arrow-redo-outline"
                   label={t('gloria.freq.redo')}
@@ -261,42 +272,47 @@ export default function FrequencyScreen() {
                 />
               ) : null}
               <HeaderIconButton icon="grid-outline" label={t('gloria.overview')} onPress={() => setPanel(true)} />
-              <HeaderIconButton
-                icon={locked ? 'lock-closed' : 'checkmark-done-outline'}
-                label={locked ? t('gloria.freq.unlock') : t('gloria.freq.done')}
-                onPress={async () => {
-                  flushStroke();
-                  let endTs: number | null = null;
-                  if (!locked) {
-                    const chosen = await chooseEndTime(unit.freq_stop_ts);
-                    if (chosen === undefined) return;
-                    endTs = chosen;
-                  }
-                  setFrequencyLocked(unit.id, !locked, endTs);
-                  if (!locked) saveVersionSoon('gloria', id, 'done');
-                  clearUndo();
-                  reload();
-                  toast(locked ? t('gloria.freq.unlocked') : t('gloria.freq.lockedDone'));
-                }}
-              />
+              {skipped ? null : (
+                <HeaderIconButton
+                  icon={locked ? 'lock-closed' : 'checkmark-done-outline'}
+                  label={locked ? t('gloria.freq.unlock') : t('gloria.freq.done')}
+                  onPress={async () => {
+                    flushStroke();
+                    let endTs: number | null = null;
+                    if (!locked) {
+                      const chosen = await chooseEndTime(unit.freq_stop_ts);
+                      if (chosen === undefined) return;
+                      endTs = chosen;
+                    }
+                    setFrequencyLocked(unit.id, !locked, endTs);
+                    if (!locked) saveVersionSoon('gloria', id, 'done');
+                    clearUndo();
+                    reload();
+                    toast(locked ? t('gloria.freq.unlocked') : t('gloria.freq.lockedDone'));
+                  }}
+                />
+              )}
             </View>
           ),
         }}
       />
+      {skipped ? <Text className="px-4 pt-3 text-xs text-gray-500 dark:text-gray-400">{t('gloria.freq.skipped')}</Text> : null}
       <FrequencyPanel
         items={items}
         n={QUADRAT_N}
         storedMode={byCount ? 'count' : 'cells'}
         topEdgeLabel={t('gloria.freq.uphill')}
         leftRightLabels={[leftSide, rightSide]}
-        ro={locked}
+        ro={locked || skipped}
         layer={null}
         refused={refused}
         onMask={(key, mask) => write(key, mask)}
         onCount={writeCount}
         onSwitchMode={switchMode}
         searchGroups={GLORIA_SEARCH_GROUPS}
-        onAdd={async (r) => {
+        onAdd={async (r, adopted) => {
+          // GLORIA keeps the accepted name: a name chosen in the search is confirmed away (code review V4).
+          if (!(await acceptedNameOnly({ accepted: r.name, rank: r.rank, kingdom: r.kingdom }, adopted))) return null;
           const label = await pickMorphoLabel(t, unit.survey_id, r.taxon_id, r.rank, speciesParts(r.cname, r.name, r.rank, r.kingdom));
           if (label === undefined) return null;
           const usid = addUnitSpecies(unit.id, r.taxon_id, label);

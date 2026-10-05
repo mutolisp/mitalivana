@@ -22,7 +22,9 @@
     "previous": "Zurück",
     "next": "Weiter",
     "selectedCount_one": "{{count}} ausgewählt",
-    "selectedCount_other": "{{count}} ausgewählt"
+    "selectedCount_other": "{{count}} ausgewählt",
+    "labelValue": "{{label}}: {{value}}",
+    "withParen": "{{main}} ({{extra}})"
   },
   "actionSheet": {
     "close": "Schließen",
@@ -335,6 +337,13 @@
       "projectEmpty": "„{{name}}“ enthält keine Aufnahmen zum Exportieren",
       "noneSelected": "Keine Aufnahmen ausgewählt",
       "tooManyReleves": "{{n}} Vegetationsaufnahmen überschreiten das JUICE-Limit von {{max}}"
+    },
+    "formula": {
+      "title": "Manche Werte könnten als Tabellenformeln ausgeführt werden",
+      "guarded_one": "{{count}} Wert in den Tabellen für Excel beginnt mit = + - @ o. Ä. und wurde mit vorangestelltem Apostroph (') geschrieben, damit er nicht als Formel ausgeführt wird.",
+      "guarded_other": "{{count}} Werte in den Tabellen für Excel beginnen mit = + - @ o. Ä. und wurden mit vorangestelltem Apostroph (') geschrieben, damit sie nicht als Formeln ausgeführt werden.",
+      "raw_one": "{{count}} Wert in den Dateien für R und GBIF (vegan-Matrizen, DwC-A) beginnt mit = + - @ o. Ä. und blieb unverändert; in Excel geöffnet, kann er als Formel ausgeführt werden.",
+      "raw_other": "{{count}} Werte in den Dateien für R und GBIF (vegan-Matrizen, DwC-A) beginnen mit = + - @ o. Ä. und blieben unverändert; in Excel geöffnet, können sie als Formeln ausgeführt werden."
     }
   },
   "nav": {
@@ -358,7 +367,8 @@
     "gloria": "GLORIA-Gipfel",
     "privacy": "Datenschutzerklärung",
     "miren": "MIREN-Erhebung",
-    "survey": "Baumerhebung"
+    "survey": "Baumerhebung",
+    "addRecords": "Datensätze hinzufügen"
   },
   "tab": {
     "menu": "Einstellungen",
@@ -1057,7 +1067,7 @@
     "statsCollections": "Sammlungen {{n}}",
     "statsGloria": "GLORIA {{n}}",
     "statsMiren": "MIREN {{n}}",
-    "deleteOthers": "Weitere {{n}} Sammlungs-, GLORIA- oder MIREN-Datensätze kommen ebenfalls zu „Nicht zugeordnet“."
+    "deleteOthers": "Weitere {{n}} Datensätze anderer Art kommen ebenfalls zu „Nicht zugeordnet“."
   },
   "sites": {
     "typePoint": "Punkt",
@@ -1838,6 +1848,7 @@
   "recordImport": {
     "unsupportedBundle": "Dies ist ein Paket mit mehreren Datensätzen; entpacken Sie es und importieren Sie die Datensätze einzeln.",
     "unknownKind": "Der Datensatztyp dieser Datei lässt sich nicht bestimmen.",
+    "newerFormat": "Diese Datei hat ein neueres Format, als diese App lesen kann. Bitte die App aktualisieren und erneut importieren.",
     "sessionExistsTitle": "Artenliste existiert bereits",
     "sessionExistsMsg": "„{{name}}“ ist bereits auf diesem Gerät vorhanden. Überschreiben oder als neue Kopie speichern?",
     "photoConflictTitle": "Dieser Datensatz hat bereits Fotos",
@@ -3165,7 +3176,8 @@
       "cellEmpty": "(leer)",
       "cellHas": "✓ {{name}} in dieser Zelle (tippen zum Entfernen)",
       "cellAdd": "{{name}} zu dieser Zelle hinzufügen",
-      "redo": "Wiederholen"
+      "redo": "Wiederholen",
+      "skipped": "Dieses Quadrat ist als „Sträucher: keine Frequenz und kein Point-Framing“ markiert; die Daten hier sind nur lesbar. Zum Bearbeiten das Häkchen beim Quadrat entfernen."
     },
     "walk": {
       "titleQuadrat": "{{code}} · Punktrahmen",
@@ -3955,7 +3967,8 @@
         "queued": "Wartet",
         "fail": "Fehler"
       },
-      "files": "{{n}} Dateien",
+      "files_one": "{{count}} Datei",
+      "files_other": "{{count}} Dateien",
       "skip": {
         "block_size": "Noch keine Blockgröße (über die Erhebung synchronisieren)",
         "unreadable": "Nicht lesbar (vielleicht aus einer neueren App)",
@@ -4175,7 +4188,8 @@
       "relocateMsg": "Kann der alte Standort nicht wiederholt werden, wird ein neuer in der Nähe zu {{code}}. Frühere Erhebungen behalten den alten; teilen Sie den Datenverwaltern den neuen Standort mit.",
       "relocateExists": "Dieser Standort wurde bereits verlegt.",
       "deleteTitle": "Standort löschen",
-      "deleteUsed": "Eine Erhebung nutzt diesen Standort; er kann nicht gelöscht werden."
+      "deleteUsed": "Eine Erhebung nutzt diesen Standort; er kann nicht gelöscht werden.",
+      "deleteMsg": "Der Standort wird gelöscht. Das lässt sich nicht rückgängig machen."
     },
     "survey": {
       "active": "Läuft",
@@ -4257,6 +4271,7 @@
       "toRecheck": "Nachkontrolle mit früherer Erhebung",
       "reopenBlindTitle": "Ende der Blindaufnahme zurücknehmen",
       "reopenBlindRefused": "Die Nachkontrolle hat begonnen; die Blindaufnahme kann nicht wieder geöffnet werden.",
+      "reopenBlindSeen": "Für diesen Plot wurden die Arten der früheren Erhebung bereits angezeigt. Nach dem Zurücknehmen bleibt die Blindliste bearbeitbar, aber jede ab jetzt hinzugefügte Art gilt als bei der Nachkontrolle gefunden (Found after recheck).",
       "finished": "Plot fertig.",
       "unfinish": "Plot wieder öffnen",
       "sampled": "Erhoben",
@@ -4798,7 +4813,8 @@
       "blockSizeOption": "{{k}} × {{k}} Quadrate zu {{m}} m · {{blocks}} Blöcke · je etwa {{size}}",
       "recommended": "empfohlen",
       "tooLarge": "evtl. über dem Limit",
-      "sentBlocks": "{{count}} Blöcke gesendet",
+      "sentBlocks_one": "{{count}} Block gesendet",
+      "sentBlocks_other": "{{count}} Blöcke gesendet",
       "blocks": "Blöcke und Zuständigkeit",
       "blocksUndecided": "Die Blockgröße wird bei der ersten Team-Synchronisierung festgelegt. Danach stehen die Blöcke hier und können übernommen werden.",
       "claimsHint": "Tippen Sie auf einen Block, um ihn für die Gruppe dieses Geräts zu übernehmen; erneut tippen gibt ihn frei. Das teilt dem Team nur mit, wer wo arbeitet, und wird bei der nächsten Synchronisierung gesendet. Wer in einem Block einer anderen Gruppe einen Baum anlegt oder ändert, wird vorher gefragt.",
@@ -4831,7 +4847,9 @@
       "versionsNote": "Vor dem Übernehmen wird von jedem Quadrat dieses Blocks eine Version gespeichert; sie lässt sich aus den Versionen des Quadrats wiederherstellen.",
       "someone": "ein Teammitglied",
       "templateDiffersTitle": "Andere Vorlage; nicht zusammengeführt",
-      "templateDiffersMsg": "{{names}} hat diese Aufnahme mit einer anderen Vorlage erfasst; die Daten wurden nicht zusammengeführt. Alle sollten dieselbe Vorlage verwenden. Ist es eine eigene Erhebung, sollte die andere Person diese Aufnahme löschen und beim Start „Neue Serie“ wählen."
+      "templateDiffersMsg": "{{names}} hat diese Aufnahme mit einer anderen Vorlage erfasst; die Daten wurden nicht zusammengeführt. Alle sollten dieselbe Vorlage verwenden. Ist es eine eigene Erhebung, sollte die andere Person diese Aufnahme löschen und beim Start „Neue Serie“ wählen.",
+      "tooLargeTitle": "Einige Blöcke waren zu groß zum Senden",
+      "tooLargeMsg": "{{blocks}} überschritt das Limit des Servers pro Datensatz ({{limit}}) und wurde diesmal nicht gesendet; die übrigen Blöcke wurden wie üblich synchronisiert, die nächste Synchronisierung versucht es erneut. Wenn das Limit weiter überschritten wird, bitten Sie den Serveradministrator, es zu erhöhen (MAX_OBJECT_BYTES)."
     },
     "import": {
       "existsTitle": "Einige Erhebungen sind schon da",
@@ -5174,6 +5192,8 @@
     },
     "err": {
       "unitTaken": "Kürzel {{code}} ist schon vergeben",
+      "unitCodeChar": "Ein Kürzel darf weder | noch / enthalten",
+      "seriesCodeTaken": "Diese Dauerfläche hat schon eine Serie mit dem Kürzel {{code}}; bitte ein anderes wählen",
       "frameUnitLocked": "Eine Aufnahme hat diese Einheit benutzt; Kürzel und Lage lassen sich nicht mehr ändern",
       "blindSealed": "Die Blindaufnahme ist beendet; ihre Einträge lassen sich nicht mehr ändern",
       "recheckBegun": "Die Nachkontrolle hat begonnen (Antworten oder dabei gefundene Arten vorhanden); die Blindaufnahme lässt sich nicht wieder öffnen",
@@ -5644,7 +5664,8 @@
       "pct": "Himmelsoffenheit (%)",
       "grades": "Eigene Stufen",
       "list": "Stufenliste"
-    }
+    },
+    "previewNoAssign": "Eine Vorschau kann keinem Projekt oder Standort zugeordnet werden und keinen Standort anlegen (nichts aus einer Vorschau bleibt erhalten)."
   },
   "fieldLib": {
     "title": "Feldbibliothek",
@@ -5750,5 +5771,13 @@
     "overwrittenMsg_other": "„{{name}}“ hat jetzt den Inhalt der Datei ({{count}} Zeilen geändert). Der vorige Inhalt ist als Version gespeichert und unter „Versionen“ wiederherstellbar.",
     "photosSkipped_one": "{{count}} Foto konnte nicht in die Mediathek geschrieben werden und wurde nicht importiert",
     "photosSkipped_other": "{{count}} Fotos konnten nicht in die Mediathek geschrieben werden und wurden nicht importiert"
+  },
+  "synonymAdd": {
+    "title": "Diese Art ist schon hier",
+    "message": "{{here}} ist schon hier – dasselbe Taxon wie {{picked}}, der gewählte Name (ein Synonym). Zum vorhandenen Eintrag hinzufügen oder bewusst einen zweiten anlegen?",
+    "merge": "Zu {{here}} hinzufügen (zusammenführen)",
+    "separate": "Zweiter Eintrag als {{picked}}",
+    "acceptedOnlyTitle": "Hier nur akzeptierte Namen",
+    "acceptedOnly": "Einträge hier behalten nur den akzeptierten Namen: {{typed}}, der gewählte Name, wird als {{accepted}} erfasst."
   }
 }

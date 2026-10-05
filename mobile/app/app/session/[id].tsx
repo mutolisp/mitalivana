@@ -503,14 +503,16 @@ export default function SessionDetailScreen() {
       if (activeRecord.lat === null || activeRecord.lng === null) {
         const out = await firstPhotoFix(picked);
         if (out.kind === 'found') {
-          updateRecordLocation(activeRecord.id, out.fix.lat, out.fix.lng, out.fix.accuracyM, out.fix.altitudeM);
+          // A typed-in elevation stays too (code review N3, as M26 on plots).
+          const altitude = activeRecord.elevation_m == null ? out.fix.altitudeM : null;
+          updateRecordLocation(activeRecord.id, out.fix.lat, out.fix.lng, out.fix.accuracyM, altitude);
           setActiveRecord({
             ...activeRecord,
             photo_paths: JSON.stringify(next),
             lat: out.fix.lat,
             lng: out.fix.lng,
             accuracy: out.fix.accuracyM,
-            ...(out.fix.altitudeM != null ? { elevation_m: out.fix.altitudeM, elevation_source: 'gnss' } : null),
+            ...(altitude != null ? { elevation_m: altitude, elevation_source: 'gnss' } : null),
           });
           reload();
         }
@@ -748,6 +750,7 @@ export default function SessionDetailScreen() {
       trackHasData: trackCount > 0 || (session.track_geojson ?? '').length > 0,
       tracking,
       trackCount,
+      canTrack: session.status === 'active',
       onAssignSite: () => setSiteSheetOpen(true),
       onCreatePointSite: handleCreatePointSiteFromGps,
       onDropPoint: handleDropPoint,

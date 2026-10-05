@@ -8,6 +8,8 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { isPreviewId } from '~/db/previewDb';
+import { getProject, type Project } from '~/db/projects';
+import { getSite, type Site } from '~/db/sites';
 import { applyAdoptedName, EMPTY_TAXON_FIELDS, resolveAdoptedNames, resolveTaxa, type AdoptionStatus, type TaxonFields } from '~/db/taxonLookup';
 import { snapshotOf, unitLevelsOf, type FwSurveyRow, type OccurrenceRow, type RecheckState, type UnitRow } from '~/survey/db/surveyCore';
 import { environmentCarried, getFwSurvey, getTemplate, hasBlindPhase, listInteractions, listOccurrences, listUnits, occurrenceMediaOf, occurrenceValuesOf, readComponent, recheckState } from '~/survey/db/surveys';
@@ -51,6 +53,9 @@ export type SurveyForm = {
   interactions: number | null;
   /** Its occurrences with an error (a value that does not fit, or 必填未填; 2G-e): the rows' markers, the finish reminder. */
   errorIds: ReadonlySet<number>;
+  /** Its project and 地理樣區, read here: read while rendering, a name changed elsewhere stayed old under the compiler (code review L23). */
+  project: Project | null;
+  site: Site | null;
 };
 
 /** Rows with their taxon's display names (accepted name, or the adopted one recorded). */
@@ -101,6 +106,8 @@ export function loadSurveyForm(id: number): SurveyForm | null {
     carried: environmentCarried({ kind: 'survey', id }),
     interactions: template.components.some((c) => c.type === 'interaction') ? listInteractions(id).length : null,
     errorIds: occurrenceErrorIds(template, occurrenceValuesOf(id)),
+    project: getProject(survey.project_id),
+    site: survey.site_id != null ? getSite(survey.site_id) : null,
   };
 }
 

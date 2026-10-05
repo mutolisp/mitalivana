@@ -50,7 +50,7 @@ import { promptText } from '~/components/TextPromptModal';
 import { Button } from '~/components/ui/Button';
 import { Chip } from '~/components/ui/Chip';
 import { ContextChip, ContextStrip } from '~/components/ui/ContextChip';
-import { getProject, getSite, parseTrackSegments, type AdoptionInput, type RecordWithTaxon, type SearchResult } from '~/db';
+import { parseTrackSegments, type AdoptionInput, type RecordWithTaxon, type SearchResult } from '~/db';
 import { withTransaction } from '~/db/init';
 import { onVersionRestored, saveVersionSoon } from '~/db/recordVersions';
 import { isoDateTime, isoTime } from '~/lib/datetime';
@@ -88,6 +88,7 @@ import {
   addOccurrence,
   closeBlindPhase,
   deleteOccurrence,
+  assertDeletableSurveys,
   deleteSurvey,
   finishSurvey,
   readComponent,
@@ -300,6 +301,10 @@ export function ChecklistSurveyScreen({ id, openId }: { id: number; openId?: num
       }
       fn(...a);
     };
+  // A preview's scratch database has no projects or sites of user.db: assigning
+  // one would fail on its foreign key, and a new site would be left in user.db (code review V5).
+  const preview = isPreviewId(id);
+  const refusePreview = () => toast(t('builder.previewNoAssign'));
 
   // ── species ────────────────────────────────────────────────────────────────
 
@@ -327,7 +332,7 @@ export function ChecklistSurveyScreen({ id, openId }: { id: number; openId?: num
       },
     });
 
-  const handleAdd = async (result: SearchResult, adopted?: AdoptionInput | null) => {
+  const handleAdd = async (result: SearchResult, adopted?: AdoptionInput | null, opts: { fromSheet?: boolean } = {}) => {
     if (!result.taxon_id) {
       toast(t('session.noTaxonId'));
       return;
@@ -381,9 +386,13 @@ export function ChecklistSurveyScreen({ id, openId }: { id: number; openId?: num
     setFlashId(occ);
     reload();
     // A field the template requires and the add left empty: its sheet opens to fill it in.
+    // Not in the same tick: iOS presents no Modal while the keyboard (or a
+    // composing IME) is still up, nor over the lookup sheet that is closing
+    // (code review M22). The search box does not refocus for it (afterSelect).
     if (blankOccurrenceHasErrors(template)) {
       Keyboard.dismiss();
-      setActiveId(occ);
+      const wait = opts.fromSheet ? 450 : Platform.OS === 'ios' ? 150 : 0;
+      setTimeout(() => setActiveId(occ), wait);
       return;
     }
     undoToast(t('session.added', { name }));
@@ -606,6 +615,7 @@ export function ChecklistSurveyScreen({ id, openId }: { id: number; openId?: num
     ]);
 
   const handleCreatePointSiteFromGps = async () => {
+    if (preview) return refusePreview();
     if (!(await ensureForegroundPermission())) return;
     try {
       const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
@@ -625,8 +635,7 @@ export function ChecklistSurveyScreen({ id, openId }: { id: number; openId?: num
     }
   };
 
-  const site = survey.site_id !== null ? getSite(survey.site_id) : null;
-  const project = getProject(survey.project_id);
+  const { site, project } = data;
 
   // The 空間資料 modules the template has (each optional since 2026-10-04).
   const spaceMods = {
@@ -642,7 +651,8 @@ export function ChecklistSurveyScreen({ id, openId }: { id: number; openId?: num
       trackHasData: trackCount > 0 || (survey.track_geojson ?? '').length > 0,
       tracking,
       trackCount,
-      onAssignSite: () => setSiteSheetOpen(true),
+      canTrack: isActive,
+      onAssignSite: () => (preview ? refusePreview() : setSiteSheetOpen(true)),
       onCreatePointSite: () => void handleCreatePointSiteFromGps(),
       onDropPoint: () => void handleDropPoint(),
       onStartTrack: () => void handleStartTrack(),
@@ -726,7 +736,14 @@ export function ChecklistSurveyScreen({ id, openId }: { id: number; openId?: num
     ]);
   };
 
-  const remove = () =>
+  const remove = () => {
+    // Only the last survey of a plot's series can go (code review M17): said before asking.
+    try {
+      assertDeletableSurveys([id]);
+    } catch (e) {
+      toast(formErrorText(t, e));
+      return;
+    }
     Alert.alert(t('surveyForm.deleteTitle'), `${t('surveyForm.deleteMsg', { name: survey.name ?? '', count: data.occurrences.length })}\n\n${t('records.deleteRecoverable')}`, [
       { text: t('common.cancel'), style: 'cancel' },
       {
@@ -740,6 +757,7 @@ export function ChecklistSurveyScreen({ id, openId }: { id: number; openId?: num
         },
       },
     ]);
+  };
 
   const menuExtra = [
     { label: t('surveyForm.rename'), onPress: () => void rename() },
@@ -807,7 +825,7 @@ export function ChecklistSurveyScreen({ id, openId }: { id: number; openId?: num
             icon="folder-outline"
             label={project && project.id !== 0 ? project.name : t('session.projectUnset')}
             set={!!project && project.id !== 0}
-            onPress={guard(() => setProjectSheetOpen(true))}
+            onPress={guard(() => (preview ? refusePreview() : setProjectSheetOpen(true)))}
           />
           {spaceMods.site || spaceMods.centre || spaceMods.track ? (
             <ContextChip
@@ -815,7 +833,7 @@ export function ChecklistSurveyScreen({ id, openId }: { id: number; openId?: num
               label={tracking ? t('session.trackBadge', { count: trackCount }) : site ? site.name : survey.lat !== null ? t('session.located') : t('session.spatial')}
               set={tracking || !!site || survey.lat !== null}
               tone={tracking ? 'live' : 'default'}
-              onPress={isActive ? () => void handleSpatialMenu() : guard(() => (spaceMods.site ? setSiteSheetOpen(true) : void handleSpatialMenu()))}
+              onPress={isActive ? () => void handleSpatialMenu() : guard(() => (spaceMods.site && !preview ? setSiteSheetOpen(true) : void handleSpatialMenu()))}
             />
           ) : null}
           <ContextChip
@@ -967,6 +985,7 @@ export function ChecklistSurveyScreen({ id, openId }: { id: number; openId?: num
             ) : null}
             <SearchBox
               onSelect={(r, adopted) => void handleAdd(r, adopted)}
+              afterSelect={blankOccurrenceHasErrors(template) ? 'dismiss' : 'refocus'}
               markedTaxa={takenTaxa}
               markLabel={t('session.inList')}
               trailing={
@@ -1164,7 +1183,7 @@ export function ChecklistSurveyScreen({ id, openId }: { id: number; openId?: num
         result={searchPreview}
         onClose={() => setSearchPreview(null)}
         onAddToSession={() => {
-          if (searchPreview) void handleAdd(searchPreview);
+          if (searchPreview) void handleAdd(searchPreview, null, { fromSheet: true });
         }}
       />
     </SafeAreaView>

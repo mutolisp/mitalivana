@@ -24,7 +24,7 @@ import { CommonActions, useIsFocused } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { BackHandler, Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
+import { BackHandler, Pressable, ScrollView, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useKeyboardState } from 'react-native-keyboard-controller';
 import Animated, { FadeIn, FadeOut, runOnJS, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
@@ -37,6 +37,7 @@ import {
   MENU_GAP,
   bottomRange,
   clampBottom,
+  menuMaxHeight,
   menuOpensUp,
   menuOrder,
   sideOf,
@@ -117,6 +118,7 @@ export function TabBubble({ state, descriptors, navigation, order }: BottomTabBa
   const setSyncFolded = useSyncProgress((s) => s.setCollapsed);
   const [size, setSize] = useState<{ width: number; height: number } | null>(null);
   const [open, setOpen] = useState(false);
+  const menuScroll = useRef<ScrollView>(null);
 
   const shown = focused && !keyboardUp;
   useEffect(() => {
@@ -228,14 +230,15 @@ export function TabBubble({ state, descriptors, navigation, order }: BottomTabBa
   const syncLabel = pct == null ? t('teamSync.progress.bubble') : t('teamSync.progress.bubblePct', { pct });
 
   let menuStyle: ViewStyle | null = null;
+  const up = area ? menuOpensUp(area, bottom) : true;
   if (area) {
-    const up = menuOpensUp(area, bottom);
     const edge = BUBBLE_MARGIN + (BUBBLE_SIZE - ITEM) / 2;
     menuStyle = {
       position: 'absolute',
-      ...(side === 'right' ? { right: edge, alignItems: 'flex-end' } : { left: edge, alignItems: 'flex-start' }),
-      ...(up ? { bottom: bottom + BUBBLE_SIZE + MENU_GAP, flexDirection: 'column-reverse' } : { top: area.height - bottom + MENU_GAP, flexDirection: 'column' }),
-      gap: 12,
+      ...(side === 'right' ? { right: edge } : { left: edge }),
+      ...(up ? { bottom: bottom + BUBBLE_SIZE + MENU_GAP } : { top: area.height - bottom + MENU_GAP }),
+      // The room on that side: past it the rows scroll (code review L27).
+      maxHeight: menuMaxHeight(area, bottom),
     };
   }
 
@@ -258,6 +261,17 @@ export function TabBubble({ state, descriptors, navigation, order }: BottomTabBa
             className="bg-black/30"
           />
           <Animated.View entering={FadeIn.duration(120)} exiting={FadeOut.duration(90)} style={menuStyle} accessibilityRole="menu">
+            <ScrollView
+              ref={menuScroll}
+              style={{ flexGrow: 0, flexShrink: 1 }}
+              contentContainerStyle={{ flexDirection: up ? 'column-reverse' : 'column', gap: 12, alignItems: side === 'right' ? 'flex-end' : 'flex-start' }}
+              bounces={false}
+              showsVerticalScrollIndicator={false}
+              // Opening upward, the rows nearest the button (＋ first) are at the bottom: start there.
+              onContentSizeChange={() => {
+                if (up) menuScroll.current?.scrollToEnd({ animated: false });
+              }}
+            >
             {menuOrder(order).map((name) => {
               if (name === 'plus') {
                 return (
@@ -304,6 +318,7 @@ export function TabBubble({ state, descriptors, navigation, order }: BottomTabBa
                 }}
               />
             ) : null}
+            </ScrollView>
           </Animated.View>
         </>
       ) : null}

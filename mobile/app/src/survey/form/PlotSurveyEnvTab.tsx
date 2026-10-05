@@ -18,9 +18,9 @@ import { Section } from '~/components/form/Section';
 import { ProjectRow } from '~/components/plot/EnvSections';
 import { ProjectAssignSheet } from '~/components/ProjectAssignSheet';
 import { LockedBanner } from '~/components/RecordEditButtons';
-import { getProject } from '~/db';
 import type { RecordEditing } from '~/lib/useRecordEditing';
 import { useSettings } from '~/stores/settings';
+import { isPreviewId } from '~/db/previewDb';
 import { useToast } from '~/stores/toast';
 import { updateSurvey } from '~/survey/db/surveys';
 import { SurveyGroupList, SurveyGroupSections } from './SurveyGroupViews';
@@ -34,7 +34,7 @@ export function PlotSurveyEnvTab({ data, edit, onChanged }: { data: SurveyForm; 
   const { survey } = data;
   const id = survey.id;
   const [projectOpen, setProjectOpen] = useState(false);
-  const project = getProject(survey.project_id);
+  const { project } = data;
   const layout = useSettings((s) => s.survey_data_layout);
 
   /** One edit: refused while locked; a value the store refuses is told. */
@@ -54,7 +54,11 @@ export function PlotSurveyEnvTab({ data, edit, onChanged }: { data: SurveyForm; 
       <View pointerEvents={edit.locked ? 'none' : 'auto'}>
         <Section title={t('surveyForm.about')}>
           <LabeledField label={t('surveyForm.name')} value={survey.name ?? ''} onSave={(v) => v.trim() && write(() => updateSurvey(id, { name: v }))} />
-          <ProjectRow project={project && project.id !== 0 ? project : null} onPress={() => (edit.refuse() ? undefined : setProjectOpen(true))} />
+          <ProjectRow
+            project={project && project.id !== 0 ? project : null}
+            // A preview has no projects of user.db to file under (code review V5).
+            onPress={() => (edit.refuse() ? undefined : isPreviewId(id) ? toast(t('builder.previewNoAssign')) : setProjectOpen(true))}
+          />
         </Section>
       </View>
       {layout === 'single' ? (

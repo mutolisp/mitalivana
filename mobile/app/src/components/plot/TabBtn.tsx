@@ -24,7 +24,7 @@ export function TabBtn({
       <Text
         className={`text-sm font-medium ${
           disabled
-            ? 'text-gray-300'
+            ? 'text-gray-300 dark:text-gray-600'
             : active
               ? 'text-emerald-700 dark:text-emerald-300'
               : 'text-gray-600 dark:text-gray-400'

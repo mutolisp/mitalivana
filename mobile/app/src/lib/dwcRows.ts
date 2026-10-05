@@ -271,6 +271,8 @@ function quadratRows(
       decimalLatitude: q.lat,
       decimalLongitude: q.lng,
       coordinateUncertaintyInMeters: q.accuracy,
+      // The datum with its coordinate, as every exported location (code review L13).
+      ...locationTerms(q.lat, null, null),
       recordedBy: p.recorded_by,
       eventRemarks: q.notes,
     });

@@ -24,6 +24,7 @@
  *
  * Run: npm run check:census-export
  */
+import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import yaml from 'js-yaml';
 import { runUserMigrations } from '../src/db/migrations.ts';
@@ -297,6 +298,18 @@ ok(Math.abs(cell('0000', 'Name k1') - Math.round(basalArea([12.6, 31]) * 100) / 
 ok(cell('0101', 'Name k2') === 0, 'vegan: a dead tree adds nothing, even with a DBH written down');
 
 // ── the file as the record importer reads it ─────────────────────────────
+{
+  // A later format is refused, not read as the first one (code review L16).
+  const newer = JSON.parse(text);
+  newer.schema = 2;
+  let code = null;
+  try {
+    readRecordImportFromBytes(strToU8(JSON.stringify(newer)));
+  } catch (e) {
+    code = e.code ?? String(e);
+  }
+  ok(code === 'newerFormat', `reader: a census file of a later schema is refused (${code})`);
+}
 const asYml = readRecordImportFromBytes(strToU8(text));
 ok(asYml.kind === 'survey' && JSON.stringify(asYml.census) === JSON.stringify(doc), 'reader: a census yml is a census, rows restored');
 const asOlder = readRecordImportFromBytes(strToU8(older));
@@ -418,6 +431,12 @@ ok(J.one('SELECT template_id FROM fw_surveys WHERE id = ?', jHere.id).template_i
 const K = await phone('k');
 s.createFrame(K.ctx, { code: 'EX1', sizeXM: 20, sizeYM: 20 });
 ok(ex.planCensusImport(K.ctx, doc).frameCodeTaken, 'plan: another plot with the code here is refused');
+
+// The vegan matrix is R-first, as every other vegan table: no BOM (code review L15).
+{
+  const bundle = readFileSync(new URL('../src/survey/censusBundle.ts', import.meta.url), 'utf8');
+  ok(/vegan_basal_area_census[^\n]*tableToCsv\(veganBasalArea/.test(bundle), 'files: the basal-area matrix is written without a BOM (tableToCsv)');
+}
 
 if (failed > 0) {
   console.error(`${failed} failure(s)`);

@@ -18,7 +18,7 @@
  * switching layout never re-reads what has already been computed.
  */
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, Text, View } from 'react-native';
 import { listPlotSpecies, listSessionRecords, type RecordItem, type RecordKind } from '~/db';
@@ -37,8 +37,23 @@ import { SelectMark } from './ui/SelectMark';
  */
 const rowDivCache = new Map<string, { s: number; h: number | null; j: number | null } | null>();
 
+// Bumped by every clear: rows already on screen compute again. Their effect
+// was keyed on the record alone, so a refresh left the old count up until the
+// row scrolled away and back (code review M25, 2026-10-05).
+let rowDivEpoch = 0;
+const rowDivListeners = new Set<() => void>();
+const subscribeRowDiv = (fn: () => void) => {
+  rowDivListeners.add(fn);
+  return () => {
+    rowDivListeners.delete(fn);
+  };
+};
+const rowDivEpochNow = () => rowDivEpoch;
+
 export function clearRecordDiversityCache(): void {
   rowDivCache.clear();
+  rowDivEpoch += 1;
+  for (const fn of rowDivListeners) fn();
 }
 
 /**
@@ -180,6 +195,7 @@ export function RowDiversityLine({
   const { t } = useTranslation();
   const key = `${kind}-${id}`;
   const [val, setVal] = useState(() => rowDivCache.get(key) ?? null);
+  const epoch = useSyncExternalStore(subscribeRowDiv, rowDivEpochNow);
 
   useEffect(() => {
     const cached = rowDivCache.get(key);
@@ -191,7 +207,7 @@ export function RowDiversityLine({
     // is perf-tuned to keep reload() off the critical path.
     const timer = setTimeout(() => setVal(recordDiversity(kind, id)), 0);
     return () => clearTimeout(timer);
-  }, [key, kind, id]);
+  }, [key, kind, id, epoch]);
 
   if (!val) return null;
   if (variant === 'count') {

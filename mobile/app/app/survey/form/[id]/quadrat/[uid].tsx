@@ -41,6 +41,7 @@ import { BackHeaderLeft } from '~/lib/goBack';
 import { speciesParts } from '~/lib/nameParts';
 import { freqCells } from '~/lib/quadratProgress';
 import { useRecordEditing } from '~/lib/useRecordEditing';
+import { synonymAlreadyHere } from '~/lib/synonymAdd';
 import { useSettledCall } from '~/lib/useSettledCall';
 import { useVersionOnLeave } from '~/lib/useVersionOnLeave';
 import { BannerText, Btn, FoldBanner, NumAccessory, NumField } from '~/modules/gloria/components/ui';
@@ -309,9 +310,17 @@ export default function SurveyQuadratScreen() {
   const sizeText = unit.size.w != null && unit.size.l != null ? `${unit.size.w} × ${unit.size.l} m` : null;
 
   /** Into this quadrat (its herb layer when the template has layers); the one already here when it is. */
-  const add = (taxonId: string, adopted?: AdoptionInput | null): number | null => {
-    const same = row.species.find((o) => o.taxon_id === taxonId && !o.verbatim_identification);
-    if (same) return same.id;
+  const add = async (taxonId: string, adopted?: AdoptionInput | null): Promise<number | null> => {
+    const here = row.species.filter((o) => o.taxon_id === taxonId && !o.verbatim_identification);
+    const exact = here.find((o) => (o.used_scientific_name || null) === (adopted?.scientific_name || null));
+    if (exact) return exact.id;
+    // Here under another of its names: the recorder says which (code review V4).
+    if (here[0]) {
+      const h = here[0];
+      const ans = await synonymAlreadyHere({ accepted: h.used_accepted_name || h.simple_name, rank: h.rank, kingdom: h.kingdom }, h.used_scientific_name, adopted);
+      if (ans === null) return null;
+      if (ans !== 'separate') return h.id;
+    }
     let id = 0;
     const ok = run(() => {
       id = addOccurrence(surveyId, {
@@ -384,7 +393,8 @@ export default function SurveyQuadratScreen() {
           onAdd={add}
           onChanged={reload}
           onFinish={locked ? undefined : finish}
-          onBelow={() => router.push(`/survey/form/unit/${uid}${params.unlocked === '1' ? '?unlocked=1' : ''}` as Href)}
+          // The lock as it is on this screen now, not as the route opened it (code review L22).
+          onBelow={() => router.push(`/survey/form/unit/${uid}${edit.unlocked ? '?unlocked=1' : ''}` as Href)}
           onSize={(p) => run(() => updateUnit(uid, p))}
           belowLabel={data.levelKeys[2] ? `${levelLabel(t, i18n.language, data.template, data.levelKeys[2])} ${data.units.filter((u) => u.unit.parent_id === uid).length}` : null}
         />
@@ -419,9 +429,9 @@ export default function SurveyQuadratScreen() {
             const id = Number(key.slice(1));
             if (setup.freq) runQuiet(() => writeComponent({ kind: 'occurrence', id }, setup.freq!.key, { freq_count: v }), { id, freq_count: v });
           }}
-          onAdd={(r, adopted) => {
+          onAdd={async (r, adopted) => {
             if (!r.taxon_id) return null;
-            const id = add(r.taxon_id, adopted);
+            const id = await add(r.taxon_id, adopted);
             if (id == null) return null;
             setLayer(null);
             return `o${id}`;
@@ -456,7 +466,7 @@ type CoverProps = {
   ro: boolean;
   run: Run;
   refused: () => boolean;
-  onAdd: (taxonId: string, adopted?: AdoptionInput | null) => number | null;
+  onAdd: (taxonId: string, adopted?: AdoptionInput | null) => Promise<number | null>;
   onChanged: () => void;
   onFinish?: () => void;
   /** The unit page, for the level below (its units). */
@@ -488,8 +498,8 @@ function CoverBody({ data, row, setup, parts, ro, run, refused, onAdd, onChanged
     field.focus();
   });
 
-  const add = (taxonId: string, adopted?: AdoptionInput | null) => {
-    const id = onAdd(taxonId, adopted);
+  const add = async (taxonId: string, adopted?: AdoptionInput | null) => {
+    const id = await onAdd(taxonId, adopted);
     if (id != null && setup.recordCover) {
       focusId.current = id;
       coverRefs.current.get(id)?.focus();

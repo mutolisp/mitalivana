@@ -190,14 +190,21 @@ export default function PlotDetailScreen() {
   // the end-of-survey confirmation: a reminder there, ending still allowed.
   const freqIssues = freqOn ? plotFreqIssueLines(t, records, qcfg.freqMode) : [];
 
-  /** Environment ↔ Species by horizontal swipe, mirroring the two tab buttons
-   *  exactly — including the Species tab staying shut until the survey can
-   *  accept species. Declared before the not-found early return so the hook
-   *  order is stable. */
+  /** The tabs by horizontal swipe, in the bar's order, mirroring its buttons
+   *  exactly — Species and 頻度 stay shut until the survey can accept species.
+   *  Only Environment and Species were reachable (code review L20). Declared
+   *  before the not-found early return so the hook order is stable. */
+  const tabOrder = (['env', 'species', ...(freqOn ? ['freq'] : []), ...(quadratsOn ? ['quadrats'] : [])] as PlotTab[]).filter(
+    (x) => x === 'env' || x === 'quadrats' || ready,
+  );
+  const tabAt = tabOrder.indexOf(shownTab);
   const tabNav = useSwipeNav({
-    onStep: (dir) => selectTab(dir === 1 ? 'species' : 'env'),
-    hasPrev: tab === 'species',
-    hasNext: tab === 'env' && ready,
+    onStep: (dir) => {
+      const next = tabOrder[tabAt + dir];
+      if (next) selectTab(next);
+    },
+    hasPrev: tabAt > 0,
+    hasNext: tabAt >= 0 && tabAt < tabOrder.length - 1,
   });
 
   if (!plot) {

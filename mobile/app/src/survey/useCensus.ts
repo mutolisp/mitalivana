@@ -38,6 +38,9 @@ export type TreeRowData = {
   view: TreeView;
   cname: string;
   sci: string;
+  /** For ScientificName: italic by rank, not the whole string (code review L24). */
+  rank: string;
+  kingdom: string;
   flags: TreeFlags;
   issues: TreeIssue[];
   chip: TreeChip;
@@ -75,6 +78,8 @@ export function loadQuadratRows(d: CensusData, code: string): TreeRowData[] {
       view: v,
       cname: (f?.common_name_c || '') + qualifier,
       sci: v.individual.used_scientific_name || f?.simple_name || v.individual.taxon_id,
+      rank: f?.rank ?? '',
+      kingdom: f?.kingdom ?? '',
       flags,
       issues,
       chip: treeChip(flags, issues),

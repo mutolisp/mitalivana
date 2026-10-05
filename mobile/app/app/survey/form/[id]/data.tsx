@@ -62,7 +62,8 @@ export default function SurveyDataScreen() {
   const { survey, template } = data;
   const locked = survey.status === 'done' && params.unlocked !== '1';
   const status = surveyDataStatus(template, data.surveyValues, survey);
-  const suffix = params.unlocked === '1' ? '?unlocked=1' : '';
+  // The lock as it is on this screen now (unlock / relock here), not as the route opened it (code review L22).
+  const suffix = edit.unlocked ? '?unlocked=1' : '';
 
   return (
     <SafeAreaView edges={['bottom']} className="flex-1 bg-paper dark:bg-paper-dark">

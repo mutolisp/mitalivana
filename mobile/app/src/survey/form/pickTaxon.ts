@@ -11,11 +11,15 @@ export type PickedTaxon = { taxonId: string; name: string; cname: string | null;
 
 let pending: ((p: PickedTaxon | null) => void) | null = null;
 
-/** Open the picker; resolves with the taxon, or null when the screen is left without one. */
+/** How long the picker's screen takes to pop: a caller's sheet (an RN Modal) opened
+ *  again during the pop may not present on iOS (code review V1). */
+const POP_MS = 450;
+
+/** Open the picker; resolves with the taxon, or null when the screen is left without one, once the screen has gone. */
 export function pickTaxon(title?: string): Promise<PickedTaxon | null> {
   pending?.(null);
   return new Promise((resolve) => {
-    pending = resolve;
+    pending = (p) => setTimeout(() => resolve(p), POP_MS);
     // A screen with a docked search must be entered with the keyboard closed (it latches otherwise).
     Keyboard.dismiss();
     router.push({ pathname: '/survey/pick-taxon', params: title ? { title } : {} });

@@ -91,8 +91,9 @@ export function buildGeoRows(
   sites: SiteWithProject[],
   plots: PlotSurveyWithMeta[],
   sessions: SessionBinding[] = [],
-  /** Collection trips pin a site too (v43); without them a site used only by
-   *  a trip showed as unbound and could be deleted without a warning. */
+  /** Every other record holding a site (sites.referencedSiteIds: trips,
+   *  GLORIA, MIREN, permanent plots, surveys); without them a site used only
+   *  by one showed as unbound (v43 trips; code review L31 the rest). */
   trips: { site_id: number | null }[] = [],
 ): GeoRow[] {
   const rows: GeoRow[] = [];

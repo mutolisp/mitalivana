@@ -11,7 +11,7 @@ import { File, Paths } from 'expo-file-system';
 import { getDatasetDb } from './datasets';
 import { getUserDb } from './init';
 import { endActiveRecord, type ActiveKind } from './activeRecords';
-import { CASCADE_ORPHANS, NULL_DANGLING, PROJECT_FK_TABLES, SYNC_RECORD_TABLES } from './integrityRules';
+import { ADOPTION_TABLES, CASCADE_ORPHANS, NULL_DANGLING, PROJECT_FK_TABLES, SYNC_RECORD_TABLES } from './integrityRules';
 import { DELETED_KEEP_MS } from '~/lib/recordVersionsCore';
 import type { MergeKind } from '~/lib/mergeDocs';
 
@@ -337,7 +337,6 @@ export type IntegrityReport = {
  * are published DwC identifiers, so re-minting them would break any export
  * already handed over. The user needs the actual numbers to decide.
  */
-const ADOPTION_TABLES = ['checklist_records', 'plot_species_records', 'collection_specimens', 'gloria_taxa'];
 
 /**
  * Rows whose stored adopted name the checklist no longer confirms — the id is

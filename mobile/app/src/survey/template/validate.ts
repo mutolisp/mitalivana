@@ -229,6 +229,9 @@ export function classifyChange(prev: SurveyTemplate, next: SurveyTemplate): Chan
       if (!sameJson(ni, it)) changed = true;
     }
     if (nl.items.length !== pl.items.length) changed = true;
+    // A list renamed or its codes reordered is a change too: it was taken for
+    // none, and the builder dropped the draft as unchanged (code review L1).
+    if (!sameJson(nl.label, pl.label) || !sameJson(nl.items.map((x) => x.code), pl.items.map((x) => x.code))) changed = true;
   }
   if (next.codelists.length !== prev.codelists.length) changed = true;
   if (!sameJson(next.name, prev.name) || !sameJson(next.description, prev.description) || next.quick_add !== prev.quick_add) changed = true;

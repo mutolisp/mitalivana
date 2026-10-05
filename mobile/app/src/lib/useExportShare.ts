@@ -13,6 +13,7 @@ import { Alert } from 'react-native';
 import * as Sharing from 'expo-sharing';
 import { shareThenDelete } from '~/lib/shareFile';
 import type { ExportProgress } from '~/lib/bundleExport';
+import type { FormulaTally } from '~/lib/csvFormula';
 import { formatBytes } from '~/lib/exportSize';
 import { useToast } from '~/stores/toast';
 
@@ -34,6 +35,7 @@ export function useExportShare() {
          *  extension — but naming it is what makes "Open in Word" appear
          *  first rather than a generic file handler. */
         UTI?: string;
+        formulaCells?: FormulaTally;
       }>,
     ) => {
       if (busy) return;
@@ -57,6 +59,19 @@ export function useExportShare() {
           });
         }
         toast(t('export.done', { filename: file.filename }));
+        // Values a spreadsheet would run as formulas (code review L17).
+        const fc = file.formulaCells;
+        if (fc && fc.guarded + fc.raw > 0) {
+          Alert.alert(
+            t('export.formula.title'),
+            [
+              fc.guarded > 0 ? t('export.formula.guarded', { count: fc.guarded }) : null,
+              fc.raw > 0 ? t('export.formula.raw', { count: fc.raw }) : null,
+            ]
+              .filter(Boolean)
+              .join('\n\n'),
+          );
+        }
       } catch (e) {
         Alert.alert(t('export.failed'), errText(e));
       } finally {

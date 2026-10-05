@@ -7,7 +7,8 @@
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, ScrollView, Text, TextInput, View } from 'react-native';
+import { Alert, Text, TextInput, View } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { DateTimeField } from '~/components/DateTimeField';
 import { HeaderIconButton } from '~/components/HeaderIconButton';
@@ -78,7 +79,7 @@ export default function LoggerVisitScreen() {
           ),
         }}
       />
-      <ScrollView contentContainerClassName="gap-3 p-4 pb-10" keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
+      <KeyboardAwareScrollView contentContainerClassName="gap-3 p-4 pb-10" keyboardShouldPersistTaps="handled" bottomOffset={24}>
         {locked ? (
           <Banner tone="info">
             <BannerText tone="info">{t('gloria.logger.lockedBanner')}</BannerText>
@@ -200,7 +201,7 @@ export default function LoggerVisitScreen() {
             }
           />
         ) : null}
-      </ScrollView>
+      </KeyboardAwareScrollView>
       <NumAccessory />
     </SafeAreaView>
   );

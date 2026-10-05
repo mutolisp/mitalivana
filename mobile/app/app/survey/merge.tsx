@@ -30,24 +30,30 @@ import { applyCensusMerge, openCensusMerge, settleCensusMerge, useCensusMerge, t
 import type { Collision, CollisionDecision, TreeBrief } from '~/survey/db/censusSyncCore';
 import { censusTemplate, getSurvey, getFrame, suggestTag } from '~/survey/db/stemmap';
 import { censusValueName } from '~/survey/components/labels';
+import { slot } from '~/lib/nameParts';
+import { OccurrenceName, withSlots } from '~/survey/components/NameText';
 import { useThemeColors } from '~/theme/colors';
 
 function TreeLine({ who, tree }: { who: string; tree: TreeBrief }) {
   const { t } = useTranslation();
   const f = resolveTaxa([tree.taxonId]).get(tree.taxonId);
-  const name = [f?.common_name_c, tree.name ?? f?.simple_name].filter(Boolean).join(' ') || tree.taxonId;
+  // The name inside the line, italic by rank (code review L24): it was one plain string.
+  const name = <OccurrenceName o={{ common_name_c: f?.common_name_c, simple_name: tree.name ?? f?.simple_name, taxon_id: tree.taxonId, rank: f?.rank, kingdom: f?.kingdom }} />;
   return (
     <View className="flex-row gap-2">
-      <Text className="w-12 text-xs font-semibold text-gray-500">{who}</Text>
+      <Text className="w-12 text-xs font-semibold text-gray-500 dark:text-gray-400">{who}</Text>
       <Text style={{ fontVariant: ['tabular-nums'] }} className="flex-1 text-xs text-gray-800 dark:text-gray-200">
-        {t('survey.sync.treeLine', {
-          tag: tree.tag,
-          name,
-          x: tree.x.toFixed(1),
-          y: tree.y.toFixed(1),
-          q: tree.quadrat,
-          dbh: tree.dbh ?? '—',
-        })}
+        {withSlots(
+          t('survey.sync.treeLine', {
+            tag: tree.tag,
+            name: slot('name'),
+            x: tree.x.toFixed(1),
+            y: tree.y.toFixed(1),
+            q: tree.quadrat,
+            dbh: tree.dbh ?? '—',
+          }),
+          { name },
+        )}
       </Text>
     </View>
   );
@@ -84,7 +90,7 @@ function ClashCard({ c, draft, onChange }: { c: Collision; draft: Draft | undefi
       </View>
       {pick === 'renumberLocal' || pick === 'renumberRemote' ? (
         <View className="flex-row items-center gap-2">
-          <Text className="text-xs text-gray-500">{t('survey.sync.newTag')}</Text>
+          <Text className="text-xs text-gray-500 dark:text-gray-400">{t('survey.sync.newTag')}</Text>
           <TextInput
             value={draft?.tag ?? ''}
             onChangeText={(v) => onChange({ kind: pick, tag: v })}
@@ -167,7 +173,7 @@ export default function CensusMergeScreen() {
     return (
       <SafeAreaView edges={['bottom']} className="flex-1 items-center justify-center bg-gray-50 dark:bg-gray-950">
         <Stack.Screen options={{ title: t('teamMerge.title'), headerLeft: BackHeaderLeft }} />
-        <Text className="text-sm text-gray-500">{t('teamMerge.none')}</Text>
+        <Text className="text-sm text-gray-500 dark:text-gray-400">{t('teamMerge.none')}</Text>
       </SafeAreaView>
     );
   }

@@ -735,7 +735,16 @@ export async function listTeamItems(team: Team, keys: TeamKeys): Promise<Item[]>
 
 /** Seal and upload this device's copy under `rec`. Returns the bytes sent. */
 export async function putSealed(team: Team, keys: TeamKeys, rec: string, dev: string, text: string): Promise<number> {
-  const body = b64u(sealRecord(keys.encKey, randomBytes(NONCE_BYTES), text, aadFor(keys.teamId, rec, dev)));
+  return putSealedBody(team, keys, rec, dev, sealForRelay(keys, rec, dev, text));
+}
+
+/** A record as the relay stores it (sealed, base64url): its length is what the relay's size limit counts. */
+export function sealForRelay(keys: TeamKeys, rec: string, dev: string, text: string): string {
+  return b64u(sealRecord(keys.encKey, randomBytes(NONCE_BYTES), text, aadFor(keys.teamId, rec, dev)));
+}
+
+/** Send a body from sealForRelay; returns its size. */
+export async function putSealedBody(team: Team, keys: TeamKeys, rec: string, dev: string, body: string): Promise<number> {
   await relay(serverOf(team), 'PUT', `/v1/t/${keys.teamId}/r/${rec}/${dev}`, { token: keys.authToken, body });
   return body.length;
 }

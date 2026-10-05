@@ -3312,6 +3312,16 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    // MIREN: when blind recording of a plot was reopened after its previous
+    // survey's list had been shown (code review M19, 2026-10-05). Species
+    // added after that are recheck finds (Found after recheck = 1), not blind
+    // ones (src/modules/miren/model/compare.ts newSpeciesPhase).
+    version: 91,
+    up: (db) => {
+      addColumnIfMissing(db, `ALTER TABLE miren_plots ADD COLUMN blind_reopened_at INTEGER;`);
+    },
+  },
 ];
 
 /** Highest schema version this build knows how to produce. Backup/restore uses

@@ -23,6 +23,9 @@ export type ProjectWithCounts = Project & {
   collection_count: number;
   gloria_count: number;
   miren_count: number;
+  /** Checklist / plot-style surveys and tree censuses (code review L8: a project with only these read "0 · 0"). */
+  survey_count: number;
+  census_count: number;
 };
 
 export function listProjectsWithCounts(): ProjectWithCounts[] {
@@ -33,7 +36,9 @@ export function listProjectsWithCounts(): ProjectWithCounts[] {
             (SELECT COUNT(*) FROM plot_surveys ps WHERE ps.project_id = p.id) AS plot_count,
             (SELECT COUNT(*) FROM collection_trips ct WHERE ct.project_id = p.id) AS collection_count,
             (SELECT COUNT(*) FROM gloria_surveys gs WHERE gs.project_id = p.id) AS gloria_count,
-            (SELECT COUNT(*) FROM miren_surveys ms WHERE ms.project_id = p.id) AS miren_count
+            (SELECT COUNT(*) FROM miren_surveys ms WHERE ms.project_id = p.id) AS miren_count,
+            (SELECT COUNT(*) FROM fw_surveys fs WHERE fs.project_id = p.id AND fs.style <> 'individual') AS survey_count,
+            (SELECT COUNT(*) FROM fw_surveys fs WHERE fs.project_id = p.id AND fs.style = 'individual') AS census_count
        FROM projects p
    ORDER BY p.id ASC`,
   );

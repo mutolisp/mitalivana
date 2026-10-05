@@ -154,19 +154,22 @@ export default function ProjectsScreen() {
     setEditing(null);
   };
 
-  // Collections, GLORIA and MIREN surveys also belong to projects: counted on
-  // the list and named when a delete moves them to 未分類, like the rest.
+  // Collections, GLORIA and MIREN, checklist / plot-style surveys and tree
+  // censuses also belong to projects: counted on the list and named when a
+  // delete moves them to 未分類, like the rest.
   const statsLine = (p: ProjectWithCounts) =>
     [
       t('projects.stats', { sessions: p.session_count, plots: p.plot_count }),
       p.collection_count ? t('projects.statsCollections', { n: p.collection_count }) : '',
       p.gloria_count ? t('projects.statsGloria', { n: p.gloria_count }) : '',
       p.miren_count ? t('projects.statsMiren', { n: p.miren_count }) : '',
+      p.survey_count ? `${t('record.kindModular')} ${p.survey_count}` : '',
+      p.census_count ? `${t('nav.survey')} ${p.census_count}` : '',
     ]
       .filter(Boolean)
       .join(' · ');
   const othersNote = (ps: ProjectWithCounts[]) => {
-    const n = ps.reduce((sum, p) => sum + p.collection_count + p.gloria_count + p.miren_count, 0);
+    const n = ps.reduce((sum, p) => sum + p.collection_count + p.gloria_count + p.miren_count + p.survey_count + p.census_count, 0);
     return n ? `\n\n${t('projects.deleteOthers', { n })}` : '';
   };
 

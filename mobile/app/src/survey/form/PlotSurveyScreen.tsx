@@ -39,7 +39,7 @@ import { useActivePlot } from '~/stores/activePlot';
 import { useActiveSession } from '~/stores/activeSession';
 import { useSettings } from '~/stores/settings';
 import { useToast } from '~/stores/toast';
-import { closeBlindPhase, deleteSurvey, finishSurvey, reopenBlindPhase, reopenSurvey, updateSurvey, upgradeSurvey } from '~/survey/db/surveys';
+import { assertDeletableSurveys, closeBlindPhase, deleteSurvey, finishSurvey, reopenBlindPhase, reopenSurvey, updateSurvey, upgradeSurvey } from '~/survey/db/surveys';
 import { useActiveSurvey } from './activeSurvey';
 import { surveyDataStatus } from './surveyGroups';
 import { PlotSurveyEnvTab } from './PlotSurveyEnvTab';
@@ -221,7 +221,14 @@ export function PlotSurveyScreen({ id }: { id: number }) {
     ]);
   };
 
-  const remove = () =>
+  const remove = () => {
+    // Only the last survey of a plot's series can go (code review M17): said before asking.
+    try {
+      assertDeletableSurveys([id]);
+    } catch (e) {
+      toast(formErrorText(t, e));
+      return;
+    }
     Alert.alert(t('surveyForm.deleteTitle'), `${t('surveyForm.deleteMsg', { name: survey.name ?? '', count: data.occurrences.length })}\n\n${t('records.deleteRecoverable')}`, [
       { text: t('common.cancel'), style: 'cancel' },
       {
@@ -235,6 +242,7 @@ export function PlotSurveyScreen({ id }: { id: number }) {
         },
       },
     ]);
+  };
 
   const menuExtra = [
     { label: t('surveyForm.rename'), onPress: () => void rename() },

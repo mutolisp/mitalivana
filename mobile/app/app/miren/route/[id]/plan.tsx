@@ -16,7 +16,8 @@ import { File } from 'expo-file-system';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, ScrollView, Text, View } from 'react-native';
+import { Alert, Text, View } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { SettingsPage } from '~/components/settings/SettingsPage';
 import { detectFormat, parseGeoFile } from '~/lib/geoConverters';
 import { errText } from '~/lib/errText';
@@ -117,7 +118,7 @@ export default function MirenPlanScreen() {
 
   return (
     <SettingsPage>
-      <ScrollView contentContainerClassName="gap-3 p-4" keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
+      <KeyboardAwareScrollView contentContainerClassName="gap-3 p-4" keyboardShouldPersistTaps="handled" bottomOffset={24}>
         <Text className="text-xs text-gray-500 dark:text-gray-400">{t(isRoad ? 'miren.plan.introRoad' : 'miren.plan.introTrail')}</Text>
         <Btn primary={points.length === 0} label={t(points.length ? 'miren.plan.reimport' : 'miren.plan.import')} onPress={() => void importTrack()} />
         {points.length >= 2 ? (
@@ -181,7 +182,7 @@ export default function MirenPlanScreen() {
             <Btn primary disabled={stops.length === 0} label={t('miren.plan.write')} onPress={write} />
           </>
         ) : null}
-      </ScrollView>
+      </KeyboardAwareScrollView>
       <NumAccessory />
     </SettingsPage>
   );

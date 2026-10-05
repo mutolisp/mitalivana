@@ -23,7 +23,9 @@
     "next": "Siguiente",
     "selectedCount_one": "{{count}} seleccionado",
     "selectedCount_many": "{{count}} seleccionados",
-    "selectedCount_other": "{{count}} seleccionados"
+    "selectedCount_other": "{{count}} seleccionados",
+    "labelValue": "{{label}}: {{value}}",
+    "withParen": "{{main}} ({{extra}})"
   },
   "actionSheet": {
     "close": "Cerrar",
@@ -367,6 +369,15 @@
       "projectEmpty": "«{{name}}» no tiene registros para exportar",
       "noneSelected": "No hay registros seleccionados",
       "tooManyReleves": "El número de inventarios ({{n}}) supera el límite de JUICE ({{max}})"
+    },
+    "formula": {
+      "title": "Algunos valores podrían ejecutarse como fórmulas",
+      "guarded_one": "{{count}} valor de las tablas para Excel empieza por = + - @ o similar; se escribió con un apóstrofo inicial (') para que no se ejecute como fórmula.",
+      "guarded_other": "{{count}} valores de las tablas para Excel empiezan por = + - @ o similar; se escribieron con un apóstrofo inicial (') para que no se ejecuten como fórmulas.",
+      "guarded_many": "{{count}} valores de las tablas para Excel empiezan por = + - @ o similar; se escribieron con un apóstrofo inicial (') para que no se ejecuten como fórmulas.",
+      "raw_one": "{{count}} valor de los archivos para R y GBIF (matrices vegan, DwC-A) empieza por = + - @ o similar y se dejó tal cual; abierto en Excel, puede ejecutarse como fórmula.",
+      "raw_other": "{{count}} valores de los archivos para R y GBIF (matrices vegan, DwC-A) empiezan por = + - @ o similar y se dejaron tal cual; abiertos en Excel, pueden ejecutarse como fórmulas.",
+      "raw_many": "{{count}} valores de los archivos para R y GBIF (matrices vegan, DwC-A) empiezan por = + - @ o similar y se dejaron tal cual; abiertos en Excel, pueden ejecutarse como fórmulas."
     }
   },
   "nav": {
@@ -390,7 +401,8 @@
     "gloria": "prospección GLORIA",
     "privacy": "Política de privacidad",
     "miren": "Muestreo MIREN",
-    "survey": "Censo de árboles"
+    "survey": "Censo de árboles",
+    "addRecords": "Añadir registros"
   },
   "tab": {
     "menu": "Ajustes",
@@ -1112,7 +1124,7 @@
     "statsCollections": "Colectas {{n}}",
     "statsGloria": "GLORIA {{n}}",
     "statsMiren": "MIREN {{n}}",
-    "deleteOthers": "Otros {{n}} registros de colecta, GLORIA o MIREN también vuelven a «Sin clasificar»."
+    "deleteOthers": "Otros {{n}} registros de otros tipos también vuelven a «Sin clasificar»."
   },
   "sites": {
     "typePoint": "Punto",
@@ -1955,6 +1967,7 @@
   "recordImport": {
     "unsupportedBundle": "Este es un paquete con varios registros; descomprímalo e importe cada registro por separado.",
     "unknownKind": "No se puede determinar qué tipo de registro contiene este archivo.",
+    "newerFormat": "Este archivo usa un formato más reciente del que lee esta app. Actualice la app y vuelva a importarlo.",
     "sessionExistsTitle": "La lista de especies ya existe",
     "sessionExistsMsg": "«{{name}}» ya está en este dispositivo. ¿Sobrescribirla o guardarla como copia nueva?",
     "photoConflictTitle": "Este registro ya tiene fotos",
@@ -3334,7 +3347,8 @@
       "cellEmpty": "(vacía)",
       "cellHas": "✓ {{name}} en esta celda (toque para quitar)",
       "cellAdd": "Añadir {{name}} a esta celda",
-      "redo": "Rehacer"
+      "redo": "Rehacer",
+      "skipped": "Este cuadrante está marcado como «Arbustos: sin frecuencia ni point-framing», así que los datos aquí son de solo lectura. Desmarque la casilla en el cuadrante para editarlos."
     },
     "walk": {
       "titleQuadrat": "{{code}} · point-frame",
@@ -4144,7 +4158,9 @@
         "queued": "En cola",
         "fail": "Error"
       },
-      "files": "{{n}} archivos",
+      "files_one": "{{count}} archivo",
+      "files_many": "{{count}} archivos",
+      "files_other": "{{count}} archivos",
       "skip": {
         "block_size": "Sin tamaño de bloque (sincronice desde el censo)",
         "unreadable": "Ilegible (quizá de una app más reciente)",
@@ -4367,7 +4383,8 @@
       "relocateMsg": "Si el sitio anterior no puede remuestrearse, uno nuevo cercano pasa a ser {{code}}. Los muestreos anteriores conservan el antiguo; avise a los gestores de datos.",
       "relocateExists": "Este sitio ya se reubicó.",
       "deleteTitle": "Eliminar sitio",
-      "deleteUsed": "Un muestreo usa este sitio; no se puede eliminar."
+      "deleteUsed": "Un muestreo usa este sitio; no se puede eliminar.",
+      "deleteMsg": "Se eliminará el sitio. No se puede deshacer."
     },
     "survey": {
       "active": "En curso",
@@ -4449,6 +4466,7 @@
       "toRecheck": "Reverificar con el muestreo anterior",
       "reopenBlindTitle": "Deshacer el fin del registro a ciegas",
       "reopenBlindRefused": "La reverificación ya empezó; no se puede reabrir el registro a ciegas.",
+      "reopenBlindSeen": "Las especies del muestreo anterior ya se mostraron para esta parcela. Al deshacerlo, la lista a ciegas sigue editable, pero toda especie que se añada desde ahora se registra como hallada en la reverificación (Found after recheck).",
       "finished": "Parcela terminada.",
       "unfinish": "Reabrir parcela",
       "sampled": "Muestreada",
@@ -4999,7 +5017,9 @@
       "blockSizeOption": "{{k}} × {{k}} cuadrantes de {{m}} m · {{blocks}} bloques · unos {{size}} cada uno",
       "recommended": "recomendado",
       "tooLarge": "puede superar el límite",
-      "sentBlocks": "{{count}} bloques enviados",
+      "sentBlocks_one": "{{count}} bloque enviado",
+      "sentBlocks_many": "{{count}} bloques enviados",
+      "sentBlocks_other": "{{count}} bloques enviados",
       "blocks": "Bloques y asignaciones",
       "blocksUndecided": "El tamaño de los bloques se decide en la primera sincronización del equipo. Después los bloques aparecen aquí y se pueden asignar.",
       "claimsHint": "Toque un bloque para asignarlo al grupo de este dispositivo; tóquelo otra vez para liberarlo. Solo informa al equipo de quién trabaja dónde y se envía con la próxima sincronización. Al añadir o editar un árbol en un bloque asignado a otro grupo se pide confirmación.",
@@ -5032,7 +5052,9 @@
       "versionsNote": "Antes de aplicar se guarda una versión de cada cuadrante de este bloque; se puede restaurar desde las versiones del cuadrante.",
       "someone": "un miembro",
       "templateDiffersTitle": "Otra plantilla; no se fusionó",
-      "templateDiffersMsg": "{{names}} registró este censo con otra plantilla, así que sus datos no se fusionaron. Usen todos la misma plantilla; si es un muestreo aparte, esa persona debe eliminar este censo y elegir «Nueva serie» al iniciarlo."
+      "templateDiffersMsg": "{{names}} registró este censo con otra plantilla, así que sus datos no se fusionaron. Usen todos la misma plantilla; si es un muestreo aparte, esa persona debe eliminar este censo y elegir «Nueva serie» al iniciarlo.",
+      "tooLargeTitle": "Algunos bloques eran demasiado grandes para enviarse",
+      "tooLargeMsg": "{{blocks}} superó el límite por registro del servidor ({{limit}}) y no se envió esta vez; los demás bloques se sincronizaron con normalidad y la próxima sincronización lo intentará de nuevo. Si sigue superando el límite, pida al administrador del servidor que lo aumente (MAX_OBJECT_BYTES)."
     },
     "import": {
       "existsTitle": "Algunos censos ya están aquí",
@@ -5388,6 +5410,8 @@
     },
     "err": {
       "unitTaken": "El código {{code}} ya está en uso",
+      "unitCodeChar": "Un código no puede contener | ni /",
+      "seriesCodeTaken": "Esta parcela permanente ya tiene una serie con el código {{code}}; elija otro código",
       "frameUnitLocked": "Un muestreo ya usó esta unidad; su código y posición ya no pueden cambiar",
       "blindSealed": "El registro a ciegas terminó; sus registros ya no pueden cambiar",
       "recheckBegun": "La reverificación ya empezó (hay respuestas o especies halladas); no se puede reabrir el registro a ciegas",
@@ -5879,7 +5903,8 @@
       "pct": "Apertura del cielo (%)",
       "grades": "Grados propios",
       "list": "Lista de grados"
-    }
+    },
+    "previewNoAssign": "Una vista previa no puede asignarse a un proyecto ni a un sitio, ni crear un sitio (nada de una vista previa se conserva)."
   },
   "fieldLib": {
     "title": "Biblioteca de campos",
@@ -5993,5 +6018,13 @@
     "photosSkipped_one": "{{count}} foto no se pudo guardar en la fototeca y no se importó",
     "photosSkipped_other": "{{count}} fotos no se pudieron guardar en la fototeca y no se importaron",
     "photosSkipped_many": "{{count}} fotos no se pudieron guardar en la fototeca y no se importaron"
+  },
+  "synonymAdd": {
+    "title": "Esta especie ya está aquí",
+    "message": "{{here}} ya está aquí, el mismo taxón que {{picked}}, el nombre elegido (un sinónimo). ¿Añadirlo al registro existente o mantener a propósito un segundo registro?",
+    "merge": "Añadir a {{here}} (fusionar)",
+    "separate": "Un segundo registro como {{picked}}",
+    "acceptedOnlyTitle": "Aquí solo nombres aceptados",
+    "acceptedOnly": "Los registros aquí solo guardan el nombre aceptado: {{typed}}, el nombre elegido, se registra como {{accepted}}."
   }
 }

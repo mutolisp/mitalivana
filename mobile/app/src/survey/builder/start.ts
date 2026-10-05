@@ -13,7 +13,7 @@ import { defaultSurveyorString } from '~/db/surveyors';
 import i18n from '~/i18n';
 import { frameOption, startModularSurveyAndOpen } from '~/lib/recordCreate';
 import { censusSeriesOptions, censusSeriesPlan, listCensuses, listFrames, startCensus } from '~/survey/db/stemmap';
-import { templateName } from '~/survey/form/text';
+import { formErrorText, templateName } from '~/survey/form/text';
 import { templateUseCounts } from '~/survey/db/surveys';
 import type { SurveyTemplate } from '~/survey/template/types';
 import { STEMMAP_TEMPLATE } from '~/survey/templates/stemmap';
@@ -136,7 +136,14 @@ export async function startCensusOnFrame(frameId: number, template?: SurveyTempl
       if (!seriesCode) return;
     }
   }
-  const id = startCensus({ frameId, template: tpl, seriesId, seriesCode, investigators: defaultSurveyorString() });
+  let id: number;
+  try {
+    id = startCensus({ frameId, template: tpl, seriesId, seriesCode, investigators: defaultSurveyorString() });
+  } catch (e) {
+    // A series code this plot already has, said rather than thrown away (code review L7).
+    Alert.alert(i18n.t('surveyForm.startFailed'), formErrorText(i18n.t, e));
+    return;
+  }
   router.push(`/survey/${id}` as Href);
 }
 

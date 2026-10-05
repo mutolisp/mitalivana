@@ -198,7 +198,7 @@ export function PlotSurveySpeciesTab({
     }
     if (edit.refuse()) return;
     // On a permanent plot a label comes from the plot's list (labelPick.ts).
-    const label = await labelForNew(survey, { taxon_id: taxon.taxon_id, rank: taxon.rank, name });
+    const label = await labelForNew(survey, { taxon_id: taxon.taxon_id, rank: taxon.rank, kingdom: taxon.kingdom, cname: taxon.cname, sci: taxon.name });
     if (label === undefined) return;
     // iOS will not present a Modal while the keyboard / IME composition is still up.
     Keyboard.dismiss();
@@ -501,14 +501,14 @@ export function PlotSurveySpeciesTab({
               saveFirst();
               // A new label is asked in a root-hosted prompt, which iOS cannot present over this sheet (code review H5).
               const label = await runOverModal(setSheetAside, () =>
-                labelForEdit(survey, { taxon_id: editOcc.taxon_id, rank: editOcc.rank, name: editOcc.common_name_c || editOcc.simple_name }, editOcc.verbatim_identification),
+                labelForEdit(survey, { taxon_id: editOcc.taxon_id, rank: editOcc.rank, kingdom: editOcc.kingdom, cname: editOcc.common_name_c, sci: editOcc.simple_name }, editOcc.verbatim_identification),
               );
               if (label !== undefined) write(() => updateOccurrence(editOcc.id, { verbatim_identification: label }));
             }}
             accessibilityRole="button"
             className="flex-row items-center rounded-lg border border-gray-200 px-3 py-2.5 active:bg-gray-50 dark:border-gray-700 dark:active:bg-gray-800"
           >
-            <Text className="flex-1 text-sm text-gray-900 dark:text-gray-100">{`${t('surveyForm.label.field')}：${editOcc.verbatim_identification ?? '—'}`}</Text>
+            <Text className="flex-1 text-sm text-gray-900 dark:text-gray-100">{t('common.labelValue', { label: t('surveyForm.label.field'), value: editOcc.verbatim_identification ?? '—' })}</Text>
             <Ionicons name="chevron-forward" size={16} color={c.ink3} />
           </Pressable>
         ) : null}

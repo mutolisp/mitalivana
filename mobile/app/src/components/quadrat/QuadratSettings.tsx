@@ -8,6 +8,7 @@
  * quadrats that can take it: lowering the count removes only empty quadrats,
  * and size / grid / top edge only reach quadrats that hold nothing yet.
  */
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Text, View } from 'react-native';
 import { SelectRow, SwitchRow } from '~/components/settings/rows';
@@ -84,7 +85,10 @@ export function QuadratSettings({ plot, onUpdated }: { plot: Pick<PlotSurvey, 'i
     if (kept > 0) toast(t('plot.quadrats.geometryKept', { n: kept }));
     onUpdated();
   };
-  const sizeChoice = cfg.sizeM === 1 ? '1' : cfg.sizeM === 2 ? '2' : 'custom';
+  // 自訂 opens the length field only; nothing is written until a length is
+  // typed (it wrote 0.5 m at once, to every empty quadrat: code review L12).
+  const [customOpen, setCustomOpen] = useState(false);
+  const sizeChoice = customOpen ? 'custom' : cfg.sizeM === 1 ? '1' : cfg.sizeM === 2 ? '2' : 'custom';
 
   return (
     <View className="overflow-hidden rounded-card bg-card dark:bg-card-dark">
@@ -152,9 +156,8 @@ export function QuadratSettings({ plot, onUpdated }: { plot: Pick<PlotSurvey, 'i
               <Seg
                 value={sizeChoice}
                 onChange={(v) => {
+                  setCustomOpen(v === 'custom');
                   if (v === '1' || v === '2') setCfg({ sizeM: Number(v) });
-                  // 自訂 keeps the current side until a length is typed.
-                  else if (sizeChoice !== 'custom') setCfg({ sizeM: 0.5 });
                 }}
                 options={[
                   { value: '1', label: '1×1 m' },

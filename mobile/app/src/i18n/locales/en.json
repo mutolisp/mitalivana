@@ -22,7 +22,9 @@
     "previous": "Previous",
     "next": "Next",
     "selectedCount_one": "{{count}} selected",
-    "selectedCount_other": "{{count}} selected"
+    "selectedCount_other": "{{count}} selected",
+    "labelValue": "{{label}}: {{value}}",
+    "withParen": "{{main}} ({{extra}})"
   },
   "actionSheet": {
     "close": "Close",
@@ -335,6 +337,13 @@
       "projectEmpty": "“{{name}}” has no records to export",
       "noneSelected": "No records selected",
       "tooManyReleves": "{{n}} relevés exceed the JUICE limit of {{max}}"
+    },
+    "formula": {
+      "title": "Some values could run as spreadsheet formulas",
+      "guarded_one": "{{count}} value in the tables meant for Excel starts with = + - @ or similar, so it was written with a leading apostrophe (') to keep it from running as a formula.",
+      "guarded_other": "{{count}} values in the tables meant for Excel start with = + - @ or similar, so they were written with a leading apostrophe (') to keep them from running as formulas.",
+      "raw_one": "{{count}} value in the files for R and GBIF (vegan matrices, DwC-A) starts with = + - @ or similar and was kept as it is; opened in Excel, it may run as a formula.",
+      "raw_other": "{{count}} values in the files for R and GBIF (vegan matrices, DwC-A) start with = + - @ or similar and were kept as they are; opened in Excel, they may run as formulas."
     }
   },
   "nav": {
@@ -358,7 +367,8 @@
     "gloria": "GLORIA summit",
     "privacy": "Privacy policy",
     "miren": "MIREN survey",
-    "survey": "Tree census"
+    "survey": "Tree census",
+    "addRecords": "Add records"
   },
   "tab": {
     "menu": "Settings",
@@ -1057,7 +1067,7 @@
     "statsCollections": "Collections {{n}}",
     "statsGloria": "GLORIA {{n}}",
     "statsMiren": "MIREN {{n}}",
-    "deleteOthers": "{{n}} more collection, GLORIA or MIREN records also move to \"Uncategorized\"."
+    "deleteOthers": "{{n}} more records of other kinds also move to \"Uncategorized\"."
   },
   "sites": {
     "typePoint": "Point",
@@ -1838,6 +1848,7 @@
   "recordImport": {
     "unsupportedBundle": "This is a multi-record bundle; unzip it and import each record separately.",
     "unknownKind": "Can't tell what kind of record this file holds.",
+    "newerFormat": "This file uses a newer format than this app reads. Update the app, then import it again.",
     "sessionExistsTitle": "Checklist already exists",
     "sessionExistsMsg": "\"{{name}}\" is already on this device. Overwrite it, or save as a new copy?",
     "photoConflictTitle": "This record already has photos",
@@ -3165,7 +3176,8 @@
       "cellEmpty": "(empty)",
       "cellHas": "✓ {{name}} is in this cell (tap to remove)",
       "cellAdd": "Add {{name}} to this cell",
-      "redo": "Redo"
+      "redo": "Redo",
+      "skipped": "This quadrat is marked \"Shrubs: no frequency or point-framing\", so the data here is view-only. Untick it on the quadrat to edit."
     },
     "walk": {
       "titleQuadrat": "{{code}} · point-frame",
@@ -3955,7 +3967,8 @@
         "queued": "Queued",
         "fail": "Failed"
       },
-      "files": "{{n}} files",
+      "files_one": "{{count}} file",
+      "files_other": "{{count}} files",
       "skip": {
         "block_size": "No block size yet (sync from the census screen)",
         "unreadable": "Unreadable (perhaps from a newer app)",
@@ -4175,7 +4188,8 @@
       "relocateMsg": "When the old site cannot be resurveyed, a new one nearby becomes {{code}}. Earlier surveys keep the old site; tell the data managers it is a new site.",
       "relocateExists": "This site has already been relocated.",
       "deleteTitle": "Delete site",
-      "deleteUsed": "A survey uses this site; it cannot be deleted."
+      "deleteUsed": "A survey uses this site; it cannot be deleted.",
+      "deleteMsg": "The site is deleted. This cannot be undone."
     },
     "survey": {
       "active": "In progress",
@@ -4257,6 +4271,7 @@
       "toRecheck": "Recheck with the previous survey",
       "reopenBlindTitle": "Undo end of blind recording",
       "reopenBlindRefused": "The recheck has begun, so blind recording cannot be reopened.",
+      "reopenBlindSeen": "This plot has already shown the previous survey's species. After undoing, the blind list stays editable, but every species added from now on is recorded as found after the recheck (Found after recheck).",
       "finished": "Plot finished.",
       "unfinish": "Reopen plot",
       "sampled": "Sampled",
@@ -4798,7 +4813,8 @@
       "blockSizeOption": "{{k}} × {{k}} quadrats of {{m}} m · {{blocks}} blocks · about {{size}} each",
       "recommended": "recommended",
       "tooLarge": "may exceed the limit",
-      "sentBlocks": "{{count}} blocks sent",
+      "sentBlocks_one": "{{count}} block sent",
+      "sentBlocks_other": "{{count}} blocks sent",
       "blocks": "Blocks and claims",
       "blocksUndecided": "The block size is decided at the first team sync. After that the blocks are listed here and can be claimed.",
       "claimsHint": "Tap a block to claim it for this phone's group; tap again to release it. A claim only tells teammates who works there and goes out with the next sync. Adding or editing a tree in a block another group claims asks first.",
@@ -4831,7 +4847,9 @@
       "versionsNote": "Before applying, a version of each quadrat in this block is kept; it can be restored from the quadrat's versions.",
       "someone": "a teammate",
       "templateDiffersTitle": "Another template; not merged",
-      "templateDiffersMsg": "{{names}} recorded this census with another census template, so their data was not merged. Use one template for everyone; if theirs is a separate survey, they should delete this census and choose “New series” when starting."
+      "templateDiffersMsg": "{{names}} recorded this census with another census template, so their data was not merged. Use one template for everyone; if theirs is a separate survey, they should delete this census and choose “New series” when starting.",
+      "tooLargeTitle": "Some blocks were too large to send",
+      "tooLargeMsg": "{{blocks}} exceeded the server's per-record limit ({{limit}}) and was not sent this time; the other blocks synced as usual, and the next sync tries again. If it keeps exceeding the limit, ask the server's administrator to raise it (MAX_OBJECT_BYTES)."
     },
     "import": {
       "existsTitle": "Some censuses are already here",
@@ -5174,6 +5192,8 @@
     },
     "err": {
       "unitTaken": "Code {{code}} is already in use",
+      "unitCodeChar": "A code cannot contain | or /",
+      "seriesCodeTaken": "This permanent plot already has a series coded {{code}}; choose another code",
       "frameUnitLocked": "A survey has used this unit; its code and position can no longer change",
       "blindSealed": "The blind phase has ended; records made during it can no longer change",
       "recheckBegun": "The recheck has begun (answers or species found in it exist); the blind phase cannot be reopened",
@@ -5644,7 +5664,8 @@
       "pct": "Sky openness (%)",
       "grades": "Own grades",
       "list": "Grade list"
-    }
+    },
+    "previewNoAssign": "A preview cannot be filed under a project or a site, nor create a site (nothing in a preview is kept)."
   },
   "fieldLib": {
     "title": "Field library",
@@ -5750,5 +5771,13 @@
     "overwrittenMsg_other": "“{{name}}” now holds the file’s content ({{count}} rows changed). What it held is kept as a version; restore it from Versions.",
     "photosSkipped_one": "{{count}} photo could not be saved to the library and was not imported",
     "photosSkipped_other": "{{count}} photos could not be saved to the library and were not imported"
+  },
+  "synonymAdd": {
+    "title": "This species is already here",
+    "message": "{{here}} is already here, the same taxon as {{picked}}, the name you picked (a synonym). Add to the record here, or keep a second record on purpose?",
+    "merge": "Add to {{here}} (merge)",
+    "separate": "A second record as {{picked}}",
+    "acceptedOnlyTitle": "Accepted names only here",
+    "acceptedOnly": "Records here keep the accepted name only: {{typed}}, the name you picked, is recorded as {{accepted}}."
   }
 }

@@ -9,7 +9,7 @@
  * rules (battery, no signal).
  */
 import { useFocusEffect, useRouter, type Href } from 'expo-router';
-import { useCallback, useRef, useState, type RefObject } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, type View } from 'react-native';
 import { MenuButton, showMenu, type MenuIcon, type MenuSection } from '~/components/OverflowMenu';
@@ -114,8 +114,11 @@ export function RecordMenuButton({
 
   // The menu rebuilds itself after undo / redo (it stays open), so it reads
   // the latest props through a ref rather than this render's closure.
+  // After each render, not during it (code review L23).
   const latest = useRef({ edit, extra, last, hasLog, hasTeam, busy });
-  latest.current = { edit, extra, last, hasLog, hasTeam, busy };
+  useLayoutEffect(() => {
+    latest.current = { edit, extra, last, hasLog, hasTeam, busy };
+  });
 
   const sections = (): MenuSection[] => {
     const { edit: e, extra: x, last: z, hasLog: log, hasTeam: team, busy: syncing } = latest.current;

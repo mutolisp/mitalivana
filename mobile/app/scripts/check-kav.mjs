@@ -57,6 +57,16 @@ for (const root of ROOTS) {
       );
     }
 
+    // A form in a plain ScrollView with automaticallyAdjustKeyboardInsets: that
+    // prop is iOS-only, and on Android the focused field stays under the
+    // keyboard (seen on the emulator 2026-10-05, GLORIA species notes; code
+    // review V8). Forms use KeyboardAwareScrollView (react-native-keyboard-controller).
+    for (const m of src.matchAll(/<ScrollView\b[^>]*>/g)) {
+      if (/automaticallyAdjustKeyboardInsets/.test(m[0])) {
+        problems.push(`${rel}  a ScrollView relies on automaticallyAdjustKeyboardInsets (iOS-only): use KeyboardAwareScrollView`);
+      }
+    }
+
     // Each opening tag up to its '>' — attributes may span several lines.
     for (const m of src.matchAll(/<KeyboardAvoidingView\b[^>]*>/g)) {
       const tag = m[0];

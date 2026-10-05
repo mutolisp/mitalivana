@@ -9,7 +9,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, Pressable, Text, View } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { SettingsPage } from '~/components/settings/SettingsPage';
 import { SelectRow } from '~/components/settings/rows';
 import {
@@ -95,7 +96,7 @@ export default function MirenRouteScreen() {
 
   return (
     <SettingsPage title={`${regionCode}.${route.code}`}>
-      <ScrollView contentContainerClassName="gap-3 p-4" keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
+      <KeyboardAwareScrollView contentContainerClassName="gap-3 p-4" keyboardShouldPersistTaps="handled" bottomOffset={24}>
         <Label>{t(isRoad ? 'miren.kind.road' : 'miren.kind.trail')}</Label>
         <Card className="gap-0.5 p-3">
           <FieldRow label={t('miren.route.name')}>
@@ -224,7 +225,7 @@ export default function MirenRouteScreen() {
         <Btn primary={sites.length > 0} disabled={sites.length === 0} label={t('miren.route.newSurvey')} onPress={() => void promptStartSurvey(route.id)} />
         {sites.length === 0 ? <Text className="text-xs text-gray-500 dark:text-gray-400">{t('miren.route.noSites')}</Text> : null}
         <Btn label={t('miren.route.deleteTitle')} onPress={remove} />
-      </ScrollView>
+      </KeyboardAwareScrollView>
       <NumAccessory />
     </SettingsPage>
   );

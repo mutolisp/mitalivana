@@ -99,6 +99,7 @@ ok(list.map((x) => `${x.label}:${x.position}`).join() === 'Q1:NW,Q2:NE,Q3:C,Q4:S
 ok(list.every((x) => x.grid_n === 5 && x.top_edge === 'upslope' && x.size_m === 1), 'count: new quadrats take the configured grid / edge / size');
 q.setQuadratCount(db, pid, 99, 21, uuid);
 ok(q.listQuadrats(db, pid).length === q.MAX_QUADRATS, 'count: clamped to 25');
+throwsCode(() => q.addQuadrat(db, pid, uuid(), 21), 'full', 'add: not a 26th either (code review L11)');
 q.setQuadratCount(db, pid, 5, 22, uuid);
 
 const [, , , q4, q5] = q.listQuadrats(db, pid);
@@ -144,6 +145,7 @@ ok(one('SELECT locked, ended_at FROM plot_quadrats WHERE id = ?', q5.id).ended_a
 throwsCode(() => q.updateQuadratSpecies(db, s5, { cover_pct: 20 }, 51), 'locked', 'lock: species values refused');
 throwsCode(() => q.addQuadratSpecies(db, q5.id, 't2', 51), 'locked', 'lock: new species refused');
 throwsCode(() => q.updateQuadrat(db, q5.id, { notes: 'x' }, 51), 'locked', 'lock: quadrat fields refused');
+throwsCode(() => q.deleteQuadrat(db, q5.id, 51), 'locked', 'lock: not deleted either until unlocked (code review L10)');
 throwsCode(() => q.setFreqMode(db, q5.id, 'count', 51), 'locked', 'lock: mode switch refused');
 q.setQuadratLocked(db, q5.id, false, 52);
 q.setQuadratLocked(db, q5.id, true, 53);
@@ -402,6 +404,34 @@ ok(quadratProgress({ ...blank, freq_mode: 'count' }, [{ name: 'A', cover_pct: 3,
   ok(run([['tap', R(0)], ['long', C(0)], ['tap', R(1)]]).cells.join() === '10', 'keypad: a long press drops a waiting tap');
   ok(run([['tap', R(0)], ['tap', C(1)]], 4).cells.join() === '1' && run([['tap', R(2)], ['tap', C(3)]], 4).cells.join() === '11', 'keypad: a 4 × 4 grid (R3C4 = 11)');
   ok(run([['tap', R(5)], ['tap', C(0)]], 4).cells.length === 0, 'keypad: a button past the grid does nothing');
+}
+
+// ── adding a species under another of its names (code review V4) ─────────
+// Where the record keeps the name chosen in the search, a species already
+// there under another name asks merge or separate; where only the accepted
+// name is kept (fixed-plot quadrats, GLORIA, MIREN), the chosen name is
+// confirmed away. Each SearchBox / FrequencyPanel add in those screens says so.
+{
+  const { readFileSync, readdirSync } = await import('node:fs');
+  const read = (f) => readFileSync(new URL(`../${f}`, import.meta.url), 'utf8');
+  for (const f of ['src/components/quadrat/PlotFreqTab.tsx', 'src/survey/form/PlotSurveyFreqTab.tsx', 'app/survey/form/[id]/quadrat/[uid].tsx']) {
+    const src = read(f);
+    ok(/await synonymAlreadyHere\(/.test(src) && /used_scientific_name \|\| null\) === \(adopted\?\.scientific_name \|\| null\)/.test(src), `V4: ${f} asks before painting a record under another name`);
+  }
+  const walk = (dir) => readdirSync(new URL(`../${dir}`, import.meta.url), { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(`${dir}/${e.name}`) : e.name.endsWith('.tsx') ? [`${dir}/${e.name}`] : []));
+  for (const f of ['app/plot/[id]/quadrat/[qid].tsx', ...walk('app/gloria'), ...walk('app/miren')]) {
+    const src = read(f);
+    const adds = (src.match(/<SearchBox[\s\S]*?onSelect=|onAdd=\{async \(r/g) ?? []).length;
+    const asks = (src.match(/await acceptedNameOnly\(/g) ?? []).length;
+    ok(asks >= adds, `V4: ${f}: every species search add confirms a chosen name away (${asks} of ${adds})`);
+  }
+}
+// The pager's swipe is made once and calls the latest step: a filter switch changes the
+// list without the index or count, and a memo keyed on those stepped the old list (code review V7).
+{
+  const { readFileSync } = await import('node:fs');
+  const src = readFileSync(new URL('../src/components/quadrat/SpeciesPager.tsx', import.meta.url), 'utf8');
+  ok(/stepRef\.current = step;/.test(src) && /stepRef\.current\(1\)/.test(src) && !/exhaustive-deps/.test(src), 'V7: the pager swipe reads the step of the latest render');
 }
 
 sqlite.close();

@@ -100,9 +100,12 @@ export function safeMediaBasename(entryName: string, allowed: string[]): string 
   if (!m) return null;
   const ext = m[2].toLowerCase();
   if (!allowed.includes(ext)) return null;
-  // Keep letters/digits/._- (the same shape sanitizeFilename emits), collapse
-  // anything else — including the '.' and '/' a traversal needs.
-  const stem = m[1].replace(/[^\p{L}\p{N}_-]+/gu, '_').replace(/^_+|_+$/g, '');
+  // Keep letters/digits/._- (the same shape sanitizeFilename emits) and
+  // collapse anything else; the path is gone already (basename), and leading
+  // or trailing dots are dropped, so no '.', '..' or hidden name is left. A
+  // '.' inside stays: an export names a photo after tree 1001.1 or plot
+  // TW.01, and collapsing it here lost the photo on import (code review L14).
+  const stem = m[1].replace(/[^\p{L}\p{N}._-]+/gu, '_').replace(/^[._]+|[._]+$/g, '');
   if (!stem) return null;
   return `${stem}.${ext}`;
 }
@@ -222,6 +225,12 @@ function loadRecordDoc(text: string): Record<string, unknown> | null {
   return censusExportFromFile(doc) as Record<string, unknown> | null;
 }
 
+/** A tree-census file this app can read: schema 1. A later one is refused, not read as 1 (code review L16). */
+function readableCensus(doc: CensusExportDoc): CensusExportDoc {
+  if (doc.schema !== 1) throw new ImportError('newerFormat');
+  return doc;
+}
+
 function docKind(doc: Record<string, unknown> | null): 'plot' | 'session' | 'collection' | 'gloria' | 'survey' | 'modular' {
   // First the kinds that say what they are (`record_type`), then GLORIA: a
   // GLORIA document has none of the other kinds' keys, and an older build
@@ -305,7 +314,7 @@ export function readRecordImportFromBytes(raw: Uint8Array): ReadRecordImport {
       case 'collection':
         return { sync: readSyncBlock(doc), kind: 'collection', collection: collectionFromDoc(doc), photos: [], audio: [] };
       case 'survey':
-        return { kind: 'survey', census: doc as unknown as CensusExportDoc, photos: [] };
+        return { kind: 'survey', census: readableCensus(doc as unknown as CensusExportDoc), photos: [] };
       case 'modular':
         return { sync: readSyncBlock(doc), kind: 'modular', survey: doc as unknown as SurveyDoc, photos: [], audio: [] };
       default:
@@ -336,7 +345,7 @@ export function readRecordImportFromBytes(raw: Uint8Array): ReadRecordImport {
 
   if (kind === 'survey') {
     if (!isCensusExport(doc)) throw new ImportError('unknownKind');
-    return { kind: 'survey', census: doc, photos };
+    return { kind: 'survey', census: readableCensus(doc), photos };
   }
 
   if (kind === 'plot') {

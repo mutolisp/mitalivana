@@ -60,6 +60,18 @@ export function menuOpensUp(a: BubbleArea, bottom: number): boolean {
 }
 
 /**
+ * The height the menu has on the side it opens to, inside the safe area: on
+ * a short screen its rows (sync last, the only way to unfold sync progress)
+ * ran past the top edge; capped, it scrolls (code review L27).
+ */
+export function menuMaxHeight(a: BubbleArea, bottom: number): number {
+  const room = menuOpensUp(a, bottom)
+    ? a.height - a.insetTop - BUBBLE_MARGIN - (bottom + BUBBLE_SIZE + MENU_GAP)
+    : bottom - MENU_GAP - a.insetBottom - BUBBLE_MARGIN;
+  return Math.max(BUBBLE_SIZE, room);
+}
+
+/**
  * The menu's items, nearest the button first: ＋, then the tabs in the bar's
  * order going away from the ＋ — so the menu reads like the bar folded up at
  * the ＋ end. `barOrder` is the bar's left-to-right order, with 'plus' at

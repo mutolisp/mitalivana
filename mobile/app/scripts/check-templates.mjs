@@ -310,6 +310,13 @@ const withList = { ...base, codelists: [myList] };
 eq('deprecate a code', classifyChange(withList, { ...withList, version: 2, codelists: [{ ...myList, items: [{ ...myList.items[0], deprecated: true }] }] }), 'additive');
 eq('remove a code', classifyChange(withList, { ...withList, version: 2, codelists: [{ ...myList, items: [] }] }), 'breaking');
 eq('rename a code', classifyChange(withList, { ...withList, version: 2, codelists: [{ ...myList, items: [{ ...myList.items[0], code: 'AX' }] }] }), 'breaking');
+// The list's own name, and the order of its codes: a change (code review L1).
+eq('rename a list', classifyChange(withList, { ...withList, version: 2, codelists: [{ ...myList, label: { text: '別名清單' } }] }), 'additive');
+{
+  const two = { ...myList, items: [myList.items[0], { code: 'ZZ', label: { text: '另一個' } }] };
+  const w2 = { ...base, codelists: [two] };
+  eq('reorder a list\'s codes', classifyChange(w2, { ...w2, version: 2, codelists: [{ ...two, items: [...two.items].reverse() }] }), 'additive');
+}
 eq('other template', classifyChange(base, { ...base, id: 'other' }), 'breaking');
 eq('relabel a unit level', classifyChange(plot, { ...plot, version: 2, units: [units2[0], { ...units2[1], label: { text: '樣方' } }] }), 'additive');
 eq('add a unit level', classifyChange(plot, { ...plot, version: 2, units: [...units2, { key: 'cell', label: { text: 'cell' } }] }), 'breaking');

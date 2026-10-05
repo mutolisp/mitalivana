@@ -16,6 +16,10 @@ export function formErrorText(t: TFunction, e: unknown): string {
   switch (e.code) {
     case 'unit_taken':
       return t('surveyForm.err.unitTaken', { code: e.detail ?? '' });
+    case 'unit_code_char':
+      return t('surveyForm.err.unitCodeChar');
+    case 'series_code_taken':
+      return t('surveyForm.err.seriesCodeTaken', { code: e.detail ?? '' });
     case 'frame_unit_locked':
       return t('surveyForm.err.frameUnitLocked');
     case 'blind_sealed':
@@ -34,6 +38,8 @@ export function formErrorText(t: TFunction, e: unknown): string {
       return t('fieldLib.err.inUse');
     case 'field_invalid':
       return t('fieldLib.err.invalid');
+    case 'not_latest_census':
+      return t('survey.census.deleteNotLatest');
     default:
       return errText(e);
   }

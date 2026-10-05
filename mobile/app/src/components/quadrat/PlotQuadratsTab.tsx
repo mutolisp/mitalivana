@@ -25,6 +25,7 @@ import {
   getQuadratConfig,
   listQuadrats,
   listQuadratSpeciesWithTaxon,
+  MAX_QUADRATS,
   quadratTaxaNotInPlot,
   type Quadrat,
   type QuadratConfig,
@@ -215,6 +216,7 @@ export function PlotQuadratsTab({
             <View className="flex-1" />
           )}
           <Pressable
+            disabled={rows.length >= MAX_QUADRATS}
             onPress={() => {
               if (refuse()) return;
               const id = addQuadrat(plot.id);
@@ -223,7 +225,7 @@ export function PlotQuadratsTab({
             }}
             accessibilityRole="button"
             accessibilityLabel={t('plot.quadrats.add')}
-            className="h-14 w-14 items-center justify-center rounded-full bg-accent-600 active:bg-accent-700 dark:bg-accent-500"
+            className={`h-14 w-14 items-center justify-center rounded-full bg-accent-600 active:bg-accent-700 dark:bg-accent-500 ${rows.length >= MAX_QUADRATS ? 'opacity-40' : ''}`}
           >
             <Ionicons name="add" size={28} color={c.onAccent} />
           </Pressable>

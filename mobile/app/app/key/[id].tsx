@@ -713,14 +713,17 @@ export default function KeyRunnerScreen() {
       <LookupResultSheet
         result={detailResult}
         onClose={() => setDetailResult(null)}
-        onAddToSession={() => {
+        onAddToSession={async () => {
           // Smart routing from the detail sheet — same as TerminalTaxon's
           // primary button, but we have to resolve the cached taxon by id.
-          if (state.terminal?.kind === 'taxon') {
-            const t = taxonCache.get(state.terminal.taxonId) ?? null;
-            addTaxonToActiveRecord(state.terminal.taxonId, t);
-          }
+          // The sheet closes first: the abundance modal (or a survey's form)
+          // that may follow cannot be presented while it slides out on iOS
+          // (code review V11; KeyMatrixRunner does the same).
+          const taxonId = state.terminal?.kind === 'taxon' ? state.terminal.taxonId : null;
           setDetailResult(null);
+          if (taxonId == null) return;
+          await new Promise((r) => setTimeout(r, 450));
+          addTaxonToActiveRecord(taxonId, taxonCache.get(taxonId) ?? null);
         }}
       />
 

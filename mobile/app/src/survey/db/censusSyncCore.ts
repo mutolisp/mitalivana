@@ -32,6 +32,7 @@
  * on two node:sqlite databases.
  */
 import type { Scalar } from '@op-engineering/op-sqlite';
+import { unionSurveyors } from '../../db/merge';
 import { baseOf, diffSides, planOps, type BaseEntry, type Decision, type MergeItem, type MergeOp, type MergeSide, type Row } from '../../lib/mergeEngine';
 import { fgQuadratCounts, parseFgQuadratCode } from '../stemmap/coords';
 import { tagConflict } from '../stemmap/tags';
@@ -216,8 +217,9 @@ export function ensureCensus(ctx: Ctx, h: CensusTeamHeader): { surveyId: number;
   if (found != null) {
     const s = getSurvey(ctx, found)!;
     if (templateDiffers(s.template_id, h.survey)) throw new CensusSyncError('template_differs');
+    // Another block size here: the census sync settles it (teamBlockSize; code review M1).
     if (s.sync_block_quadrats == null) setBlockSize(ctx, found, h.block_quadrats);
-    else if (s.sync_block_quadrats !== h.block_quadrats) throw new CensusSyncError('block_size_differs');
+    mergeCensusHeader(ctx, found, h.survey);
     return { surveyId: found, created: false };
   }
   const censusNo = Number(h.survey.census_no);
@@ -236,6 +238,47 @@ export function ensureCensus(ctx: Ctx, h: CensusTeamHeader): { surveyId: number;
   return { surveyId, created: true };
 }
 
+/** Lines of `theirs` that `here` does not have yet, added after it (trimmed comparison). */
+function unionLines(here: string | null, theirs: string | null): string | null {
+  if (!theirs?.trim()) return here;
+  if (!here?.trim()) return theirs;
+  const have = new Set(here.split('\n').map((l) => l.trim()));
+  const added = theirs.split('\n').filter((l) => {
+    const k = l.trim();
+    if (!k || have.has(k)) return false;
+    have.add(k);
+    return true;
+  });
+  return added.length ? `${here}\n${added.join('\n')}` : here;
+}
+
+/**
+ * A teammate's census header into the census here (code review V12): what
+ * the round itself records, combined as team merge combines a survey and
+ * never asked about. Investigators pooled, the earlier start, the later end
+ * (still open here stays open), and the teammate's note lines added to the
+ * ones here (a line deleted on one phone comes back from the other). The
+ * status stays this phone's own. Returns whether anything changed.
+ */
+export function mergeCensusHeader(ctx: Ctx, surveyId: number, theirs: Row): boolean {
+  const s = getSurvey(ctx, surveyId);
+  if (!s) return false;
+  const nums = (a: unknown, b: unknown) => [a, b].filter((v): v is number => typeof v === 'number');
+  const starts = nums(s.start_ts, theirs.start_ts);
+  const stops = nums(s.stop_ts, theirs.stop_ts);
+  const next: Record<'investigators' | 'start_ts' | 'stop_ts' | 'notes', Scalar> = {
+    investigators: unionSurveyors([s.investigators, (theirs.investigators as string | null) ?? null]),
+    start_ts: starts.length ? Math.min(...starts) : null,
+    stop_ts: s.stop_ts == null ? null : Math.max(...stops),
+    notes: unionLines(s.notes, (theirs.notes as string | null) ?? null),
+  };
+  const here = s as unknown as Row;
+  const changed = (Object.keys(next) as (keyof typeof next)[]).filter((k) => next[k] !== (here[k] ?? null));
+  if (!changed.length) return false;
+  run(ctx, `UPDATE fw_surveys SET ${changed.map((k) => `${k} = ?`).join(', ')}, updated_at = ? WHERE id = ?`, [...changed.map((k) => next[k]), ctx.now(), surveyId]);
+  return true;
+}
+
 /**
  * Whether a teammate's census (its header's or file's survey row) uses
  * another template than this census here. The same template at another
@@ -244,6 +287,29 @@ export function ensureCensus(ctx: Ctx, h: CensusTeamHeader): { surveyId: number;
  */
 export function templateDiffers(hereTemplateId: string, theirs: Row): boolean {
   return typeof theirs.template_id === 'string' && theirs.template_id !== hereTemplateId;
+}
+
+/**
+ * The team's block size: the smallest any phone has. Two phones that chose
+ * apart before either saw the other's header settle on it (code review M1);
+ * every block that fitted the relay at the larger size fits at the smaller.
+ */
+export function teamBlockSize(here: number | null, others: readonly (number | null | undefined)[]): number | null {
+  const ks = [here, ...others].filter((k): k is number => typeof k === 'number' && Number.isInteger(k) && k >= 1);
+  return ks.length ? Math.min(...ks) : null;
+}
+
+/** Block ids at block size `fromK` as the blocks at `toK` they overlap (claims across a change of size, M1). */
+export function regroupBlocks(ids: readonly string[], cols: number, rows: number, fromK: number, toK: number): string[] {
+  const out = new Set<string>();
+  for (const id of ids) for (const q of blockQuadratCodes(cols, rows, fromK, id)) out.add(blockOf(q, toK));
+  return [...out].sort();
+}
+
+/** Change a census's block size to the team's (M1); the caller resends its blocks. */
+export function changeBlockSize(ctx: Ctx, surveyId: number, k: number): void {
+  if (!Number.isInteger(k) || k < 1) throw new Error(`bad block size ${k}`);
+  run(ctx, `UPDATE fw_surveys SET sync_block_quadrats = ?, updated_at = ? WHERE id = ?`, [k, ctx.now(), surveyId]);
 }
 
 /** Fix a census's block size (first team sync, §7.9). */

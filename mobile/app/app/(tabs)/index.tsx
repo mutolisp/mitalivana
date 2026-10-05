@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { assertNever } from '~/lib/assertNever';
 import { useFocusEffect, useRouter, type Href } from 'expo-router';
-import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
@@ -57,7 +57,7 @@ import { offerCompact } from '~/lib/dbCompact';
 import { errText } from '~/lib/errText';
 import { runTask } from '~/stores/taskProgress';
 import { assertDeletableCensuses, deleteCensuses, setCensusProject, SurveyError } from '~/survey/db/stemmap';
-import { deleteSurvey } from '~/survey/db/surveys';
+import { assertDeletableSurveys, deleteSurvey, deleteSurveys } from '~/survey/db/surveys';
 import { useActiveSurvey } from '~/survey/form/activeSurvey';
 import {
   bundleCollection,
@@ -906,8 +906,11 @@ export default function RecordsListScreen() {
    * the menu stays open to show the result — and the rest are actions. The
    * kind filter lives in the chips above the list.
    */
+  // After each render, not during it (code review L23).
   const viewModeRef = useRef(viewMode);
-  viewModeRef.current = viewMode;
+  useLayoutEffect(() => {
+    viewModeRef.current = viewMode;
+  });
   const handleHeaderMore = async (anchor: RefObject<View | null>) => {
     const choice = await showMenu(anchor, () => [
       {
@@ -1056,17 +1059,19 @@ export default function RecordsListScreen() {
 
   const deletePicked = async (picked: RecordItem[]) => {
     const censuses = picked.filter((it) => it.kind === 'perm_survey').map((it) => it.id);
+    const surveys = picked.filter((it) => it.kind === 'modular').map((it) => it.id);
     try {
-      // Refused before anything goes: only the last censuses of a series.
+      // Refused before anything goes: only the last censuses / surveys of a series (M17).
       assertDeletableCensuses(censuses);
+      assertDeletableSurveys(surveys);
       withTransaction(() => {
         for (const it of picked) {
           if (it.kind === 'session') deleteSession(it.id);
           else if (it.kind === 'collection') deleteCollectionTrip(it.id);
           else if (it.kind === 'gloria') deleteGloriaSurvey(it.id);
-          else if (it.kind === 'modular') deleteSurvey(it.id);
-          else if (it.kind !== 'perm_survey') deletePlotSurvey(it.id);
+          else if (it.kind !== 'perm_survey' && it.kind !== 'modular') deletePlotSurvey(it.id);
         }
+        deleteSurveys(surveys);
       });
       // A census keeps a version of every quadrat first: seconds for a large
       // one, so on the progress panel, after the other records (1E).
@@ -1144,8 +1149,15 @@ export default function RecordsListScreen() {
             else if (item.kind === 'perm_survey') {
               void deleteOneCensus(item.id);
               return;
-            } else if (item.kind === 'modular') deleteSurvey(item.id);
-            else deletePlotSurvey(item.id);
+            } else if (item.kind === 'modular') {
+              try {
+                deleteSurvey(item.id);
+              } catch (e) {
+                if (e instanceof SurveyError && e.code === 'not_latest_census') toast(t('survey.census.deleteNotLatest'));
+                else Alert.alert(t('records.deleteFailed'), errText(e));
+                return;
+              }
+            } else deletePlotSurvey(item.id);
             reload();
           },
         },

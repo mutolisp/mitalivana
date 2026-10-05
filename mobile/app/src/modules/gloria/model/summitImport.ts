@@ -15,6 +15,7 @@
  * A blank cell means "no data here", never "clear the stored value".
  */
 import { normalizeVegZone } from './vegZones';
+import { unguardFormula } from '../../../lib/csvFormula';
 
 export type ImportedSummit = {
   line: number;
@@ -32,7 +33,9 @@ export type ImportProblem = { line: number; message: string; value?: string };
 export type ParsedSummits = { items: ImportedSummit[]; problems: ImportProblem[] };
 
 /** RFC 4180 CSV: quoted fields, doubled quotes, CRLF, a leading BOM. Tab or
- *  semicolon separated files are recognised from the first line. */
+ *  semicolon separated files are recognised from the first line. The leading
+ *  apostrophe this app's own export puts on formula-like values is dropped
+ *  (code review L17), so an exported table reads back as it was. */
 export function parseCsv(text: string): string[][] {
   const src = text.replace(/^﻿/, '');
   const first = src.split(/\r?\n/, 1)[0] ?? '';
@@ -67,7 +70,7 @@ export function parseCsv(text: string): string[][] {
     row.push(cell);
     rows.push(row);
   }
-  return rows.filter((r) => r.some((c) => c.trim() !== ''));
+  return rows.filter((r) => r.some((c) => c.trim() !== '')).map((r) => r.map(unguardFormula));
 }
 
 type Field = 'full_code' | 'country' | 'target_region' | 'summit' | 'name' | 'lat' | 'lon' | 'elevation' | 'veg_zone';

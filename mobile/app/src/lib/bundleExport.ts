@@ -21,6 +21,7 @@ import { getFwSurvey } from '~/survey/db/surveys';
 import * as MediaLibrary from 'expo-media-library';
 import yaml from 'js-yaml';
 import { strFromU8, strToU8, type ZipOptions } from 'fflate';
+import { excelCell, formulaTally, type FormulaTally } from './csvFormula';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
 import { yieldToUi } from '~/stores/taskProgress';
@@ -71,7 +72,6 @@ import {
   buildPlotEnvRows,
   buildPlotYamlDoc,
   buildSessionYamlDoc,
-  csvEscape,
   localIso,
   multiToPipe,
   recordToYamlItem,
@@ -169,6 +169,8 @@ export type ExportFile = {
   uri: string;
   filename: string;
   mimeType: string;
+  /** Formula-like values in the zip's tables (finalizeZip; code review L17). */
+  formulaCells?: FormulaTally;
 };
 
 export type BundleItem =
@@ -475,6 +477,13 @@ function buildRecordReadme(title: string, entries: BuiltZipEntry[]): string {
         : e.name.slice(e.name.indexOf('/') + 1);
     lines.push(`- \`${shown}\` — ${rule.desc}`);
   }
+  if (entries.some((e) => e.name.endsWith('.csv'))) {
+    // Code review L17 (src/lib/csvFormula.ts).
+    lines.push(
+      '',
+      '表格中以 = + - @ 等字元開頭、又不是數字的值：有 UTF-8 BOM、給 Excel 開的表格在前面加了單引號（\'），以免被試算表當成公式；給 R 與 GBIF 的檔案（無 BOM 的矩陣、DwC-A）保留原值。',
+    );
+  }
   lines.push('', '由 Mitalivana 匯出。');
   return lines.join('\n');
 }
@@ -490,7 +499,7 @@ function buildOccurrenceCsv(rows: Array<Record<string, unknown>>): string {
     }
   }
   const lines = [keys.join(',')];
-  for (const row of rows) lines.push(keys.map((k) => csvEscape(row[k])).join(','));
+  for (const row of rows) lines.push(keys.map((k) => excelCell(row[k])).join(','));
   return '﻿' + lines.join('\n');
 }
 
@@ -570,7 +579,7 @@ function buildPlotSpeciesCsv(
   ];
   const lines = [cols.map((c) => c.h).join(',')];
   for (const r of species) {
-    lines.push(cols.map((c) => csvEscape(c.v(r))).join(','));
+    lines.push(cols.map((c) => excelCell(c.v(r))).join(','));
   }
   return '﻿' + lines.join('\n');
 }
@@ -724,7 +733,7 @@ export async function buildSessionEntries(
   let photoNames: PhotoNames = new Map();
   if (opts.includePhotos) {
     const collected = await collectPhotos(records, namer, progressCtx, buildContext);
-    entries.push(...collected.entries);
+    for (const e of collected.entries) entries.push(e);
     photoNames = collected.names;
   }
   // Clips ride the same 「包含照片」 toggle: that is the media switch the
@@ -732,7 +741,7 @@ export async function buildSessionEntries(
   let audioNames: PhotoNames = new Map();
   if (opts.includePhotos) {
     const collectedAudio = await collectAudio(records, createPhotoNamer(base, 'audio'));
-    entries.push(...collectedAudio.entries);
+    for (const e of collectedAudio.entries) entries.push(e);
     audioNames = collectedAudio.names;
   }
 
@@ -772,7 +781,7 @@ export async function buildSessionEntries(
   if (session.start_lat !== null) pushEnv('decimalLatitude', session.start_lat);
   if (session.start_lng !== null) pushEnv('decimalLongitude', session.start_lng);
   if (session.start_lat !== null) pushEnv('geodeticDatum', GEODETIC_DATUM);
-  const envCsv = '﻿' + ['term,value', ...envRows.map((r) => `${csvEscape(r.term)},${csvEscape(r.value)}`)].join('\n');
+  const envCsv = '﻿' + ['term,value', ...envRows.map((r) => `${excelCell(r.term)},${excelCell(r.value)}`)].join('\n');
   entries.push({
     name: `${base}/${sanitizeFilename(session.name)}_env.csv`,
     bytes: strToU8(envCsv),
@@ -907,7 +916,7 @@ export async function buildPlotEntries(
       lng: plot.decimal_longitude,
       accuracyM: plot.coord_uncertainty_m,
     });
-    entries.push(...collected.entries);
+    for (const e of collected.entries) entries.push(e);
     photoNames = collected.names;
     // Plot environment context photos. Filename: plotid_YYYYMMDD_env-N.jpg
     // where YYYYMMDD is the plot start date (fallback today). Sequence is the
@@ -926,7 +935,7 @@ export async function buildPlotEntries(
         namer,
         progressCtx,
       );
-      entries.push(...envCollected.entries);
+      for (const e of envCollected.entries) entries.push(e);
       envPhotoNames = envCollected.names;
     }
     // Quadrat photos (v77): plotid_YYYYMMDD_Q1-N.jpg, same date as the env photos.
@@ -934,7 +943,7 @@ export async function buildPlotEntries(
       const uris = parseEnvPhotos(q.photo_paths);
       if (!uris.length) continue;
       const qc = await collectEnvPhotos(uris, base, plot.plotid, ymdString(plot.start_ts ?? plot.created_at), namer, progressCtx, sanitizeFilename(q.label));
-      entries.push(...qc.entries);
+      for (const e of qc.entries) entries.push(e);
       quadratPhotoNames.set(q.idx, qc.names);
     }
   }
@@ -943,7 +952,7 @@ export async function buildPlotEntries(
   let audioNames: PhotoNames = new Map();
   if (opts.includePhotos) {
     const collectedAudio = await collectAudio(species, createPhotoNamer(base, 'audio'));
-    entries.push(...collectedAudio.entries);
+    for (const e of collectedAudio.entries) entries.push(e);
     audioNames = collectedAudio.names;
   }
 
@@ -1002,7 +1011,7 @@ export async function buildPlotEntries(
   // descriptive camelCase keys (no DwC equivalent exists).
   const envRows = buildPlotEnvRows(plot, project?.name ?? '', plotLayers, eventId);
   if (envRows.length > 0) {
-    const envCsv = '﻿' + ['term,value', ...envRows.map((r) => `${csvEscape(r.term)},${csvEscape(r.value)}`)].join('\n');
+    const envCsv = '﻿' + ['term,value', ...envRows.map((r) => `${excelCell(r.term)},${excelCell(r.value)}`)].join('\n');
     entries.push({ name: `${base}/${plot.plotid}_env.csv`, bytes: strToU8(envCsv) });
   }
 
@@ -1057,7 +1066,7 @@ export async function buildPlotEntries(
           return [row?.cover_pct ?? '', h];
         }),
       ];
-      lines.push(cells.map(csvEscape).join(','));
+      lines.push(cells.map(excelCell).join(','));
     }
     entries.push({ name: `${base}/${plot.plotid}_subplots.csv`, bytes: strToU8('﻿' + lines.join('\n')) });
   }
@@ -1476,7 +1485,7 @@ export async function buildCollectionEntries(
   let photoNames: PhotoNames = new Map();
   if (opts.includePhotos) {
     const collected = await collectPhotos(specimens, namer, progressCtx, buildContextFromSpecimen);
-    entries.push(...collected.entries);
+    for (const e of collected.entries) entries.push(e);
     photoNames = collected.names;
   }
   // Clips ride the same 「包含照片」 toggle: that is the media switch the
@@ -1484,7 +1493,7 @@ export async function buildCollectionEntries(
   let audioNames: PhotoNames = new Map();
   if (opts.includePhotos) {
     const collectedAudio = await collectAudio(specimens, createPhotoNamer(base, 'audio'));
-    entries.push(...collectedAudio.entries);
+    for (const e of collectedAudio.entries) entries.push(e);
     audioNames = collectedAudio.names;
   }
 
@@ -1524,7 +1533,7 @@ export async function buildCollectionEntries(
   pushEnv('eventRemarks', trip.notes);
   const envCsv =
     '﻿' +
-    ['term,value', ...envRows.map((r) => `${csvEscape(r.term)},${csvEscape(r.value)}`)].join('\n');
+    ['term,value', ...envRows.map((r) => `${excelCell(r.term)},${excelCell(r.value)}`)].join('\n');
   entries.push({ name: `${base}/${sanitizeFilename(trip.name)}_env.csv`, bytes: strToU8(envCsv) });
 
   // _occurrence_dwc.csv — DwC occurrence rows, ordered taxonomically (the yml
@@ -2090,6 +2099,9 @@ export async function bundleMany(items: BundleItem[], opts: BundleOptions): Prom
   const ctx = { done: 0, total: totalPhotos, onProgress: opts.onProgress };
   opts.onProgress?.({ label: i18n.t('export.preparing') });
 
+  // Entries are appended one at a time here and in the builders, never as
+  // push(...list): a large census has one entry per photo, and a spread that
+  // long can pass the engine's argument limit (code review V2).
   const allEntries: BuiltZipEntry[] = [];
   const itemMeta: Array<Record<string, unknown>> = [];
   for (let i = 0; i < items.length; i++) {
@@ -2101,13 +2113,13 @@ export async function bundleMany(items: BundleItem[], opts: BundleOptions): Prom
       switch (it.kind) {
         case 'session': {
           const { entries, folderName } = await buildSessionEntries(it.id, opts, ctx);
-          allEntries.push(...entries);
+          for (const e of entries) allEntries.push(e);
           itemMeta.push({ kind: 'session', id: it.id, folder: folderName });
           break;
         }
         case 'collection': {
           const { entries, folderName } = await buildCollectionEntries(it.id, opts, ctx);
-          allEntries.push(...entries);
+          for (const e of entries) allEntries.push(e);
           itemMeta.push({
             kind: 'collection',
             id: it.id,
@@ -2118,26 +2130,26 @@ export async function bundleMany(items: BundleItem[], opts: BundleOptions): Prom
         }
         case 'gloria': {
           const { entries, folderName } = await buildGloriaEntries(it.id, opts);
-          allEntries.push(...entries);
+          for (const e of entries) allEntries.push(e);
           itemMeta.push({ kind: 'gloria', id: it.id, folder: folderName });
           break;
         }
         case 'plot': {
           const { entries, folderName } = await buildPlotEntries(it.id, opts, ctx);
-          allEntries.push(...entries);
+          for (const e of entries) allEntries.push(e);
           itemMeta.push({ kind: 'plot', id: it.id, uuid: getPlotSurvey(it.id)?.uuid, folder: folderName });
           break;
         }
         case 'perm_survey': {
           const { entries, folderName } = await buildCensusBundleEntries(it.id, opts);
-          allEntries.push(...entries);
+          for (const e of entries) allEntries.push(e);
           // The file format's word for a census.
           itemMeta.push({ kind: 'survey', id: it.id, folder: folderName });
           break;
         }
         case 'modular': {
           const { entries, folderName } = await buildModularBundleEntries(it.id, opts);
-          allEntries.push(...entries);
+          for (const e of entries) allEntries.push(e);
           itemMeta.push({ kind: 'modular', id: it.id, folder: folderName });
           break;
         }
@@ -2277,6 +2289,9 @@ export async function finalizeZip(
     byName[e.name] = e;
   }
   const files = Object.values(byName).map((e) => ({ name: e.name, bytes: e.bytes, level: e.zipOpts?.level }));
+  // Formula-like values in the tables (code review L17), counted from the
+  // bytes that ship so every table is covered whichever writer made it.
+  const formulaCells = formulaTally(files.map((f) => ({ name: f.name, text: () => strFromU8(f.bytes) })));
   const zipped = await zipInPieces(files, { level: 6 }, bytesProgress(onProgress, i18n.t('export.stage.compressing')));
   onProgress?.({ label: i18n.t('export.stage.writing') });
   await yieldToUi();
@@ -2287,5 +2302,5 @@ export async function finalizeZip(
   file.create();
   file.write(zipped);
 
-  return { uri: file.uri, filename, mimeType: 'application/zip' };
+  return { uri: file.uri, filename, mimeType: 'application/zip', formulaCells };
 }

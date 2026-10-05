@@ -8,7 +8,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, Pressable, Text, View } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { SettingsPage } from '~/components/settings/SettingsPage';
 import { deleteRegion, getRegion, listRoutes, setRegionCode, updateRegion, type RegionPatch } from '~/modules/miren/db';
 import { promptNewRoute } from '~/modules/miren/prompts';
@@ -70,7 +71,7 @@ export default function MirenRegionScreen() {
 
   return (
     <SettingsPage title={title}>
-      <ScrollView contentContainerClassName="gap-3 p-4" keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
+      <KeyboardAwareScrollView contentContainerClassName="gap-3 p-4" keyboardShouldPersistTaps="handled" bottomOffset={24}>
         <Label>{t('miren.region.base')}</Label>
         <Card className="gap-0.5 p-3">
           <FieldRow label={t('miren.region.codeRoad')} hint={t('miren.region.codeRoadHint')}>
@@ -131,7 +132,7 @@ export default function MirenRegionScreen() {
         )}
         <Btn primary label={t('miren.region.newRoute')} onPress={() => void addRoute()} />
         <Btn label={t('miren.region.deleteTitle')} onPress={remove} />
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </SettingsPage>
   );
 }

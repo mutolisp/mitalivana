@@ -16,11 +16,13 @@ import {
   BUBBLE_MARGIN,
   BUBBLE_SIZE,
   DOCK_GAP,
+  MENU_GAP,
   SNAP_BAND,
   atBottomSlot,
   bottomClearance,
   bottomRange,
   clampBottom,
+  menuMaxHeight,
   menuOpensUp,
   menuOrder,
   parsePlace,
@@ -62,6 +64,17 @@ ok(sideOf(A, mid - 1) === 'left' && sideOf(A, mid) === 'right', 'the centre line
 // ── the menu opens away from the near screen edge ──
 ok(menuOpensUp(A, r.min), 'at the bottom: the menu opens upward');
 ok(!menuOpensUp(A, r.max), 'at the top: the menu opens downward');
+// It fits in the room on that side, inside the safe area (code review L27: a short screen cut the sync row off).
+{
+  const short = { width: 640, height: 360, insetTop: 0, insetBottom: 21 };
+  const rs = bottomRange(short);
+  for (const b of [rs.min, (rs.min + rs.max) / 2, rs.max]) {
+    const h = menuMaxHeight(short, b);
+    const top = menuOpensUp(short, b) ? short.height - (b + BUBBLE_SIZE + MENU_GAP) - h : short.height - b + MENU_GAP;
+    ok(top >= short.insetTop && top + h <= short.height - short.insetBottom, `menu room: within the screen at ${b} (top ${top}, height ${h})`);
+  }
+  ok(menuMaxHeight(A, r.min) > 600, 'menu room: a tall screen leaves the menu its full height');
+}
 
 // ── the menu's order against the bar's real order ──
 const layout = readFileSync('app/(tabs)/_layout.tsx', 'utf8');

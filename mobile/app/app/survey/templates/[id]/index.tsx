@@ -27,6 +27,7 @@ import { HeaderIconButton } from '~/components/HeaderIconButton';
 import { Button } from '~/components/ui/Button';
 import { Switch } from '~/components/ui/Switch';
 import { BackHeaderLeft } from '~/lib/goBack';
+import { errText } from '~/lib/errText';
 import { useToast } from '~/stores/toast';
 import { useThemeColors } from '~/theme/colors';
 import { componentHref, listHref, previewHref, useTemplateDraft } from '~/survey/builder/drafts';
@@ -77,14 +78,21 @@ export default function TemplateEditorScreen() {
   useFocusEffect(
     useCallback(() => {
       let converted = 0;
-      update((x) => {
-        const conv = convertLegacyComponents(x, fieldLibrary());
-        if (conv.converted) {
-          storeLibraryWrites(conv.writes);
-          converted = conv.converted;
-        }
-        return syncTemplateFields(conv.template, fieldLibrary());
-      });
+      // A definition the library refuses must not take the builder down with
+      // it (it threw on opening: code review L5); the template stays as it was.
+      try {
+        update((x) => {
+          const conv = convertLegacyComponents(x, fieldLibrary());
+          if (conv.converted) {
+            storeLibraryWrites(conv.writes);
+            converted = conv.converted;
+          }
+          return syncTemplateFields(conv.template, fieldLibrary());
+        });
+      } catch (e) {
+        toast(errText(e));
+        return;
+      }
       if (converted) toast(t('fieldLib.converted', { count: converted }));
     }, [update, t, toast]),
   );

@@ -83,8 +83,27 @@ export function surveyEventIds(inputs: readonly { id: number; base: string; star
   return assignPlotEventIds(inputs.map((i) => ({ id: i.id, plotid: i.base, start_ts: i.startTs })));
 }
 
-/** A unit's own event: the survey's eventID and the unit's path. */
+/** A unit's own event: the survey's eventID and the unit's path (its suffix from unitEventSuffixes). */
 export const unitEventId = (eventId: string, path: string) => `${eventId}-${path.replace(/\//g, '-')}`;
+
+/**
+ * Each unit's event suffix, by unit key: its path with '/' as '-'. Two paths
+ * that read the same that way ("S-1/Q" and "S/1-Q": a unit code is free text)
+ * get _2, _3… in unit-key order, so no two units share an eventID; every
+ * other one is as before (code review L4, 2026-10-05).
+ */
+export function unitEventSuffixes(doc: Pick<SurveyDoc, 'units'>): Map<string, string> {
+  const paths = unitPaths(doc);
+  const out = new Map<string, string>();
+  const seen = new Map<string, number>();
+  for (const key of [...paths.keys()].sort()) {
+    const base = paths.get(key)!.replace(/\//g, '-');
+    const n = (seen.get(base) ?? 0) + 1;
+    seen.set(base, n);
+    out.set(key, n === 1 ? base : `${base}_${n}`);
+  }
+  return out;
+}
 
 const numOf = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
 
@@ -379,6 +398,7 @@ export function surveyTables(doc: SurveyDoc, opts: { eventId: string; names: Nam
   const template = templateOf(doc);
   const { words, names, eventId } = opts;
   const paths = unitPaths(doc);
+  const evOf = unitEventSuffixes(doc);
   const levelName = new Map((template?.units ?? []).map((u) => [u.key, labelParts(u.label, words).text || u.key]));
   const tName = labelParts(template?.name, words);
   const s = doc.survey;
@@ -431,8 +451,8 @@ export function surveyTables(doc: SurveyDoc, opts: { eventId: string; names: Nam
         const parent = u.parent != null ? paths.get(str(u.parent)) : null;
         const owner: Owner = { level: 'unit', key, levelKey: str(u.level_key) };
         return [
-          unitEventId(eventId, path),
-          parent ? unitEventId(eventId, parent) : eventId,
+          unitEventId(eventId, evOf.get(key) ?? path),
+          parent ? unitEventId(eventId, evOf.get(str(u.parent)) ?? parent) : eventId,
           path,
           str(u.level_key),
           levelName.get(str(u.level_key)) ?? str(u.level_key),
@@ -469,7 +489,7 @@ export function surveyTables(doc: SurveyDoc, opts: { eventId: string; names: Nam
       const n = names(str(o.taxon_id));
       return [
         str(o.uuid),
-        path ? unitEventId(eventId, path) : eventId,
+        path ? unitEventId(eventId, evOf.get(str(o.unit)) ?? path) : eventId,
         path,
         str(o.taxon_id),
         str(n.scientific),
@@ -552,7 +572,7 @@ export function surveyTables(doc: SurveyDoc, opts: { eventId: string; names: Nam
           const path = i.unit != null ? (paths.get(str(i.unit)) ?? '') : '';
           return [
             str(i.uuid),
-            path ? unitEventId(eventId, path) : eventId,
+            path ? unitEventId(eventId, evOf.get(str(i.unit)) ?? path) : eventId,
             path,
             str(i.type_code),
             ty ? labelParts(ty.label, words).text : '',
@@ -652,10 +672,11 @@ const sampled = (doc: Pick<SurveyDoc, 'occurrences'>) => doc.occurrences.filter(
 
 function relevesOf(doc: SurveyDoc, eventId: string): Releve[] {
   const paths = unitPaths(doc);
+  const evOf = unitEventSuffixes(doc);
   const by = new Map<string, Occ[]>();
   for (const o of sampled(doc)) {
     const path = o.unit != null ? (paths.get(str(o.unit)) ?? '') : '';
-    const id = path ? unitEventId(eventId, path) : eventId;
+    const id = path ? unitEventId(eventId, evOf.get(str(o.unit)) ?? path) : eventId;
     (by.get(id) ?? by.set(id, []).get(id)!).push(occOf(o));
   }
   return [...by].map(([id, occs]) => ({ id, occs })).sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));

@@ -35,7 +35,7 @@ import { isoDate } from '~/lib/datetime';
 import { validRegionCode, validRouteCode, type RouteKind } from './model/codes';
 import { planSurveyPlots, type PrevPlot } from './model/survey';
 import { statusFromTaicol, type MirenStatus } from './model/status';
-import { recheckCandidates, recheckComplete, taxonKey, type RecheckOutcome, type TaxonKey } from './model/compare';
+import { newSpeciesPhase, recheckCandidates, recheckComplete, taxonKey, type RecheckOutcome, type TaxonKey } from './model/compare';
 import type { Stop } from './model/planner';
 
 // ── Row types ─────────────────────────────────────────────────────────────
@@ -161,6 +161,8 @@ export type MirenPlot = {
   trampling_type: string | null;
   comments: string | null;
   blind_closed_at: number | null;
+  /** Blind recording reopened after the previous list was shown (v91): later species are recheck finds. */
+  blind_reopened_at: number | null;
   compared_at: number | null;
   photo_paths: string | null;
   created_at: number;
@@ -718,7 +720,7 @@ export function getPlot(id: number): MirenPlotWithSite | null {
 }
 
 export type PlotPatch = Partial<
-  Omit<MirenPlot, 'id' | 'uuid' | 'survey_id' | 'site_id' | 'plot_no' | 'visit' | 'blind_closed_at' | 'compared_at' | 'created_at' | 'updated_at'>
+  Omit<MirenPlot, 'id' | 'uuid' | 'survey_id' | 'site_id' | 'plot_no' | 'visit' | 'blind_closed_at' | 'blind_reopened_at' | 'compared_at' | 'created_at' | 'updated_at'>
 >;
 
 export function updatePlot(id: number, patch: PlotPatch): void {
@@ -804,7 +806,7 @@ export function addPlotSpecies(plotId: number, taxonId: string, label: string | 
     const res = db.executeSync(
       `INSERT INTO miren_plot_species (plot_id, miren_taxon_id, occurrence_id, presence, phase, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [plotId, mid, generateUuid(), kind === 'trail' && plot.plot_no === 1 ? 1 : null, plot.blind_closed_at == null ? 'blind' : 'recheck', now, now],
+      [plotId, mid, generateUuid(), kind === 'trail' && plot.plot_no === 1 ? 1 : null, newSpeciesPhase(plot), now, now],
     );
     markPlotStarted(plotId);
     touchSurveyOfPlot(plotId);
@@ -866,15 +868,30 @@ export function closeBlind(plotId: number): void {
   touchSurveyOfPlot(plotId);
 }
 
-/** Undo a mistaken close — only while the recheck has not begun. */
+/**
+ * Undo a mistaken close — only while the recheck has not begun. When the
+ * previous survey's list has been shown (closing opens it), species added
+ * from now on are recheck finds: the plot remembers it (code review M19).
+ */
 export function reopenBlind(plotId: number): boolean {
   const db = getUserDb();
   const begun =
     rows(db.executeSync(`SELECT 1 FROM miren_rechecks WHERE plot_id = ? LIMIT 1`, [plotId])).length > 0 ||
     rows(db.executeSync(`SELECT 1 FROM miren_plot_species WHERE plot_id = ? AND phase = 'recheck' LIMIT 1`, [plotId])).length > 0;
   if (begun) return false;
-  db.executeSync(`UPDATE miren_plots SET blind_closed_at = NULL, compared_at = NULL, updated_at = ? WHERE id = ?`, [Date.now(), plotId]);
+  const now = Date.now();
+  const seen = previousListShown(plotId) ? now : null;
+  db.executeSync(`UPDATE miren_plots SET blind_closed_at = NULL, compared_at = NULL, blind_reopened_at = COALESCE(blind_reopened_at, ?), updated_at = ? WHERE id = ?`, [
+    seen,
+    now,
+    plotId,
+  ]);
   return true;
+}
+
+/** Whether closing blind recording showed this plot a previous survey's species (the recheck page lists them). */
+export function previousListShown(plotId: number): boolean {
+  return (previousPlotSpecies(plotId)?.species.length ?? 0) > 0;
 }
 
 export type PrevSpecies = TaxonKey & {

@@ -329,7 +329,7 @@ export default function TemplateComponentScreen() {
         <Text className="text-xs text-ink-3 dark:text-gray-400">{placeTitle(t, lang, tpl, place)}</Text>
         {field ? (
           // A 自訂欄位 is defined in the library, the same in every template that uses it.
-          <FormCard title={field.name_en ? `${field.name}（${field.name_en}）` : field.name}>
+          <FormCard title={field.name_en ? t('common.withParen', { main: field.name, extra: field.name_en }) : field.name}>
             <Text className="text-sm leading-5 text-ink-2 dark:text-gray-300">{fieldSummary(t, lang, field)}</Text>
             {field.description ? <Text className="text-sm leading-5 text-ink dark:text-gray-100">{field.description}</Text> : null}
             <Text className="font-mono text-xs text-ink-3 dark:text-gray-400">{field.key}</Text>
@@ -392,7 +392,7 @@ export default function TemplateComponentScreen() {
                 <View key={b.code}>
                   <Checkbox
                     checked={builtinTypes.includes(b.code)}
-                    label={`${t(`survey.interaction.type.${b.code}.name`)}（${t(b.mutual ? 'builder.interaction.mutual' : 'builder.interaction.oneWay')}）`}
+                    label={t('common.withParen', { main: t(`survey.interaction.type.${b.code}.name`), extra: t(b.mutual ? 'builder.interaction.mutual' : 'builder.interaction.oneWay') })}
                     onChange={(next) => update((x) => setInteractionBuiltin(x, key, b.code, next))}
                   />
                   <Text className="-mt-1 pb-1 pl-9 font-mono text-xs text-ink-3 dark:text-gray-400">{`${b.en} · ${b.iri.slice(b.iri.lastIndexOf('/') + 1)}`}</Text>
@@ -402,7 +402,7 @@ export default function TemplateComponentScreen() {
             <FormCard title={t('builder.interaction.own')}>
               {(ownTypes?.items ?? []).map((it, i) => (
                 <Text key={`${i}`} className={`text-base ${it.deprecated ? 'text-ink-3 line-through dark:text-gray-500' : 'text-ink dark:text-gray-100'}`}>
-                  {`${labelText(t, lang, it.label, it.code) || '—'}（${t(it.mutual ? 'builder.interaction.mutual' : 'builder.interaction.oneWay')}）`}
+                  {t('common.withParen', { main: labelText(t, lang, it.label, it.code) || '—', extra: t(it.mutual ? 'builder.interaction.mutual' : 'builder.interaction.oneWay') })}
                 </Text>
               ))}
               {ownTypes ? <Button label={t('builder.interaction.editOwn')} icon="create-outline" variant="secondary" onPress={() => router.push(listHref(id, ownTypes.id))} /> : null}

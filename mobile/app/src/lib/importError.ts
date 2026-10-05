@@ -16,7 +16,9 @@ export type ImportErrorCode =
   /** a multi-record `bundleMany` zip — ambiguous, refuse rather than guess */
   | 'unsupportedBundle'
   /** neither a plot nor a session document */
-  | 'unknownKind';
+  | 'unknownKind'
+  /** a document of a later format than this app reads (a tree census of schema 2…) */
+  | 'newerFormat';
 
 export class ImportError extends Error {
   // A plain field, not a `readonly` constructor parameter: the import parsers

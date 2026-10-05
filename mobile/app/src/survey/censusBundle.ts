@@ -10,6 +10,7 @@ import { strToU8 } from 'fflate';
 import { getUserDb } from '~/db/init';
 import { resolveTaxa } from '~/db/taxonLookup';
 import { generateUuid } from '~/db/uuid';
+import { tableToCsv } from '~/lib/vegMatrix';
 import { toCsv } from '~/modules/gloria/export/sheetRows';
 import { buildCensusExport, censusExportText, type CensusExportDoc } from './db/censusExportCore';
 import { getFrame, getSurvey } from './db/stemmapCore';
@@ -72,6 +73,9 @@ export async function buildCensusEntries(
   csv('trees', treesTable(doc, names));
   csv('census', censusTable(doc));
   csv('stems', stemsTable(doc));
-  doc.censuses.forEach((part, i) => csv(`vegan_basal_area_census${part.survey.census_no}`, veganBasalArea(doc, i, names)));
+  // R-first, as every other vegan table: no BOM (tableToCsv; code review L15).
+  doc.censuses.forEach((part, i) =>
+    entries.push({ name: `${base}/${base}_vegan_basal_area_census${part.survey.census_no}.csv`, bytes: strToU8(tableToCsv(veganBasalArea(doc, i, names))) }),
+  );
   return { entries, folderName: base, uuid: s.uuid, name: `${frame.code} #${s.census_no}`, trees: doc.trees.length, photos, doc };
 }

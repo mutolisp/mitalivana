@@ -18,6 +18,7 @@ import { speciesCoverSum, vascularCoverOk, type TopCover } from '../model/valida
 import { linePoint, walkOrder, type WalkOption } from '../model/walk';
 import { bySpeciesOrder } from '../model/speciesOrder';
 import { formScanIds, type ScanColumn } from '../model/formScans';
+import { excelCell } from '../../../lib/csvFormula';
 import {
   DISTURBANCES,
   H00_PLOT_COORDINATES,
@@ -439,11 +440,8 @@ export function buildPointHitRows(d: GloriaExportData): string[][] {
   return out;
 }
 
-export function csvCell(v: string): string {
-  return /[",\n\r]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
-}
-
-/** UTF-8 BOM CSV, like the other exports. */
+/** UTF-8 BOM CSV, like the other exports. Excel-bound, so formula-like values
+ *  get a leading apostrophe (code review L17). */
 export function toCsv(header: readonly string[], rows: string[][]): string {
-  return '﻿' + [header, ...rows].map((r) => r.map(csvCell).join(',')).join('\n') + '\n';
+  return '﻿' + [header, ...rows].map((r) => r.map(excelCell).join(',')).join('\n') + '\n';
 }

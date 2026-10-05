@@ -23,9 +23,13 @@
  */
 import { locationTerms, sourceFromVerticalDatum } from '../src/lib/dwcLocation.ts';
 import yaml from 'js-yaml';
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { strToU8, zipSync } from 'fflate';
 import {
   buildCollectionYamlDoc,
+  csvEscape,
   buildPlotYamlDoc,
   buildSessionYamlDoc,
   recordToYamlItem,
@@ -43,6 +47,9 @@ import {
   readRecordYamlTextFromBytes,
   safeMediaBasename,
 } from '../src/lib/recordImportZip.ts';
+import { excelCell, formulaLike, formulaTally, guardFormula, unguardFormula } from '../src/lib/csvFormula.ts';
+import { toCsv } from '../src/modules/gloria/export/sheetRows.ts';
+import { parseCsv } from '../src/modules/gloria/model/summitImport.ts';
 
 let failures = 0;
 const fail = (msg) => {
@@ -691,6 +698,13 @@ checklist:
   eq('traversal + non-media entries dropped', read.audio.length, 1);
   eq('safeMediaBasename rejects traversal', safeMediaBasename('audio/../../user.db', ['m4a']), null);
   eq('safeMediaBasename rejects foreign ext', safeMediaBasename('audio/evil.sh', ['m4a']), null);
+  // A '.' inside a name stays, as the exporters write it (tree 1001.1, plot TW.01: code review L14);
+  // leading or trailing dots do not, so nothing hidden, '.' or '..' is left.
+  // A lone carriage return is a line break to a CSV reader: the cell is quoted (code review L17).
+  eq('csvEscape quotes a lone \\r', csvEscape('a\rb'), '"a\rb"');
+  eq('safeMediaBasename keeps an inner dot', safeMediaBasename('TW.01/photos/1001.1-2_c1_ab12cd34.jpg', ['jpg']), '1001.1-2_c1_ab12cd34.jpg');
+  eq('safeMediaBasename drops leading dots', safeMediaBasename('photos/.hidden.jpg', ['jpg']), 'hidden.jpg');
+  eq('safeMediaBasename refuses a name of dots', safeMediaBasename('photos/...jpg', ['jpg']), null);
   // The batch species importer takes this path.
   if (!readRecordYamlTextFromBytes(zip).includes('t0455')) fail('zip → yml text lost the checklist');
   // A bare .yml must still work through the same entry point.
@@ -925,6 +939,50 @@ checklist:
   eq('gloria: bare yml detected as gloria', readRecordImportFromBytes(bytes).kind, 'gloria');
   eq('gloria: zipped yml detected as gloria',
      readRecordImportFromBytes(zipSync({ 'G/G.yml': bytes, 'G/manifest.json': strToU8('{"kind":"gloria"}') })).kind, 'gloria');
+}
+
+// ── 7. CSV formula injection (code review L17) ────────────────────────────
+// Excel-bound tables (BOM) put an apostrophe in front of formula-like values;
+// numbers and one-character codes are values. The R / GBIF files keep the
+// value and the export counts what is in them.
+{
+  const yes = ['=1+2', '@SUM(A1)', '+cmd', '-x', '\tab', '\rx', '\nx', '＝1', '＋a', '－a', '＠a', '+886 2 1234'];
+  const no = ['', '+', '-', '=', '-12.5', '+3', '.5', '-1e-3', '1e-3', 'abc', ' =1', 'r'];
+  for (const s of yes) if (!formulaLike(s)) fail(`formulaLike(${JSON.stringify(s)}) should be true`);
+  for (const s of no) if (formulaLike(s)) fail(`formulaLike(${JSON.stringify(s)}) should be false`);
+  // OWASP's two examples (CSV_Injection.md, "Escaped Output").
+  eq('excelCell OWASP 1', excelCell('=1+2";=1+2'), `"'=1+2"";=1+2"`);
+  eq('excelCell OWASP 2', excelCell(`=1+2'" ;,=1+2`), `"'=1+2'"" ;,=1+2"`);
+  eq('excelCell leaves numbers and codes', [-12.5, '+', '-', null, undefined, 'a,b'].map(excelCell), ['-12.5', '+', '-', '', '', '"a,b"']);
+  for (const s of [...yes, ...no, "'abc", "'=x"]) eq(`unguard(guard(${JSON.stringify(s)}))`, unguardFormula(guardFormula(s)), s);
+  eq('unguard leaves a plain apostrophe', unguardFormula("'abc"), "'abc");
+  // GLORIA tables go through toCsv and come back through parseCsv.
+  const csv = toCsv(['name', 'cover'], [['=HYPERLINK("x")', '+'], ['-5', '-2.5']]);
+  if (!csv.includes(`"'=HYPERLINK(""x"")"`)) fail(`toCsv did not guard a formula: ${JSON.stringify(csv)}`);
+  if (!csv.includes('\n-5,-2.5\n') || !csv.includes(',+\n')) fail(`toCsv changed a number or a code: ${JSON.stringify(csv)}`);
+  eq('toCsv → parseCsv reads the value back', parseCsv(csv).slice(1), [['=HYPERLINK("x")', '+'], ['-5', '-2.5']]);
+  // The tally reads the shipped bytes: quoted cells whole (a comma inside is
+  // not a new cell), DwC-A .txt as TSV, other .txt not at all.
+  const files = [
+    { name: 'R/R_occurrence_dwc.csv', text: '\ufeffa,b\n"\'=x",1\n"a,=b","\'@y"\n' },
+    { name: 'R/R_vegan.csv', text: 'site,sp\n-note,3\n"=q","x\n=y"\n' },
+    { name: 'D/meta.xml', text: '<archive/>' },
+    { name: 'D/occurrence.txt', text: 'id\tremarks\n1\t=z\n2\t-4\n' },
+    { name: 'R/README.txt', text: '=not a table\n' },
+  ].map((f) => ({ name: f.name, text: () => f.text }));
+  eq('formulaTally', formulaTally(files), { guarded: 2, raw: 3 });
+  // A table with a UTF-8 BOM is one meant for Excel, so it must be written
+  // with excelCell, not the plain csvEscape the R / GBIF tables use.
+  const walk = (dir) => readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
+    e.isDirectory() ? walk(join(dir, e.name)) : /\.tsx?$/.test(e.name) ? [join(dir, e.name)] : []);
+  const srcRoot = fileURLToPath(new URL('../src', import.meta.url));
+  for (const f of walk(srcRoot)) {
+    const text = readFileSync(f, 'utf8');
+    const bom = text.includes('\ufeff') || text.includes('\\ufeff');
+    if (bom && /import\s*\{[^}]*\bcsvEscape\b[^}]*\}\s*from\s*'[./~a-zA-Z]*bundleYaml'/.test(text)) {
+      fail(`${f.slice(srcRoot.length + 1)} writes a BOM table with csvEscape; Excel-bound tables use excelCell (code review L17)`);
+    }
+  }
 }
 
 // ── Summary ──────────────────────────────────────────────────────────────

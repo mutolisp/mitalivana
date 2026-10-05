@@ -97,6 +97,7 @@ import { useVersionOnLeave } from '~/lib/useVersionOnLeave';
 import { useThemeColors } from '~/theme/colors';
 import { CheckboxMark } from '~/components/ui/Checkbox';
 import { speciesParts, type NamePart } from '~/lib/nameParts';
+import { acceptedNameOnly } from '~/lib/synonymAdd';
 
 const ABUNDANCE = ['r!', 'r', 's', 'c', 'd'] as const;
 const UNDO_LIMIT = 100;
@@ -1106,8 +1107,10 @@ export default function GloriaUnitScreen() {
             <SearchBox
               scopeGroups={GLORIA_SEARCH_GROUPS}
               topLimit={rootTop}
-              onSelect={(r) => {
+              onSelect={async (r, adopted) => {
                 if (!r.taxon_id) return;
+                // GLORIA keeps the accepted name: a name chosen in the search is confirmed away (code review V4).
+                if (!(await acceptedNameOnly({ accepted: r.name, rank: r.rank, kingdom: r.kingdom }, adopted))) return;
                 if (replaceId != null) replaceTaxon(replaceId, r.taxon_id, r.cname || r.name);
                 else void addTaxon(r.taxon_id, r.rank, r.cname || r.name, speciesParts(r.cname, r.name, r.rank, r.kingdom));
               }}

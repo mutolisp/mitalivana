@@ -24,6 +24,9 @@ export async function showSpatialMenu(o: {
   onClear: () => void;
   /** Which of the site, the start point and the track this record has (default: all). */
   modules?: { site: boolean; centre: boolean; track: boolean };
+  /** Whether a track can be started: not on an ended record, unlocked or not —
+   *  it paused at its first point, so the entry did nothing (code review L26). */
+  canTrack?: boolean;
 }): Promise<void> {
   const t = i18n.t.bind(i18n);
   const m = o.modules ?? { site: true, centre: true, track: true };
@@ -39,12 +42,9 @@ export async function showSpatialMenu(o: {
         ]
       : []),
     ...(m.centre ? [{ label: o.hasPoint ? t('session.relocateStart') : t('session.locateNoSite'), action: o.onDropPoint }] : []),
-    ...(m.track
-      ? [
-          o.tracking
-            ? { label: t('session.stopTrack', { count: o.trackCount }), action: o.onStopTrack }
-            : { label: o.trackHasData ? t('session.resumeTrack') : t('session.startTrack'), action: o.onStartTrack },
-        ]
+    ...(m.track && o.tracking ? [{ label: t('session.stopTrack', { count: o.trackCount }), action: o.onStopTrack }] : []),
+    ...(m.track && !o.tracking && o.canTrack !== false
+      ? [{ label: o.trackHasData ? t('session.resumeTrack') : t('session.startTrack'), action: o.onStartTrack }]
       : []),
   ];
   if (o.hasPoint || hasSite || o.trackHasData) options.push({ label: t('session.clearSpatial'), action: o.onClear, destructive: true });

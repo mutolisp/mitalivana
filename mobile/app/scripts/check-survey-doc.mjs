@@ -34,7 +34,9 @@ import * as s from '../src/survey/db/stemmapCore.ts';
 import * as c from '../src/survey/db/surveyCore.ts';
 import * as d from '../src/survey/db/surveyDocCore.ts';
 import * as ix from '../src/survey/db/interactionCore.ts';
-import { withRequired } from '../src/survey/template/validate.ts';
+import { templateHash, withRequired } from '../src/survey/template/validate.ts';
+import * as tp from '../src/survey/db/templatesCore.ts';
+import { normalizeTemplate } from '../src/survey/template/normalize.ts';
 
 let failed = 0;
 const ok = (cond, msg) => {
@@ -419,6 +421,38 @@ throwsCode(() => d.insertSurveyFromDoc(B.ctx, twin, { status: 'done', projectId:
   const labelled = d.surveyDocSide({ ...d.buildSurveyDoc(D.ctx, P), occurrences: [{ uuid: 'o', taxon_id: 't', verbatim_identification: 'sp1', unit: null }] }, { names: () => 'X' });
   ok(JSON.stringify(labelled.occ[0].title) === '["sp1"]', 'review titles: a morphospecies label stays text');
 }
+{
+  // A unit a merge deletes: its interactions move up with its occurrences, as deleteUnit (code review L3).
+  const IT2 = withRequired({
+    schema: 1,
+    id: 'user:inter-units',
+    version: 1,
+    origin: 'user',
+    name: { text: 'inter units' },
+    style: 'plot',
+    units: [{ key: 'u1', label: { text: '小區' } }, { key: 'u2', label: { text: '小樣方' } }],
+    components: [{ key: 'inter', type: 'interaction', level: 'occurrence', required: false, params: { builtin: ['feeding'], count: false, photos: 0 } }],
+    codelists: [],
+    quick_add: false,
+  });
+  const G = await phone('g');
+  const FG = s.createFrame(G.ctx, { code: 'IXU', sizeXM: 20, sizeYM: 20 });
+  const PG = c.createSurvey(G.ctx, { template: IT2, frameId: FG });
+  const S1 = c.addUnit(G.ctx, PG, { levelKey: 'u1', code: 'S1' });
+  const Q1 = c.addUnit(G.ctx, PG, { levelKey: 'u2', code: 'Q1', parentId: S1 });
+  const x = c.addOccurrence(G.ctx, PG, { taxon_id: 'moth', unit_id: Q1 });
+  const y = c.addOccurrence(G.ctx, PG, { taxon_id: 'flower', unit_id: Q1 });
+  const iq = ix.addInteraction(G.ctx, { from: x, partner: { occurrenceId: y }, type: 'feeding', direction: 'forward' });
+  const qKey = d.buildSurveyDoc(G.ctx, PG).units.find((u) => u.code === 'Q1');
+  ok(G.one('SELECT unit_id AS u FROM fw_interactions WHERE id = ?', iq).u === Q1, '(the interaction is in Q1)');
+  d.applySurveyDocOps(G.ctx, PG, [{ op: 'delete', tbl: 'sunit', key: `${qKey.level_key}:${qKey.code}` }]);
+  ok(G.one('SELECT unit_id AS u FROM fw_interactions WHERE id = ?', iq)?.u === S1 && G.one('SELECT unit_id AS u FROM fw_occurrences WHERE id = ?', x).u === S1, 'merge delete of a unit: its interaction moves to the unit above, with its occurrences');
+  // A code made before | was refused: its values' merge key is read from the right (code review L4).
+  const old = c.addUnit(G.ctx, PG, { levelKey: 'u1', code: 'AB' });
+  G.sqlite.prepare(`UPDATE fw_units SET code = 'A|B' WHERE id = ?`).run(old);
+  d.applySurveyDocOps(G.ctx, PG, [{ op: 'insert', tbl: 'unitval', row: { key: 'u1:A|B|uenv|slope_deg|0', data: { value_num: 12, value_text: null, unit: '°' } } }]);
+  ok(G.one('SELECT unit_id AS u, field FROM fw_unit_values WHERE value_num = 12')?.u === old, 'merge keys: a unit code holding | still finds its unit');
+}
 
 // ── 2G-b: track, GPS mode and elevations (v88) travel only when set ───────
 {
@@ -485,6 +519,44 @@ throwsCode(() => d.insertSurveyFromDoc(B.ctx, twin, { status: 'done', projectId:
   ok(!items.some((it) => it.kind === 'conflict'), 'v89 merge: a change only the other phone made is not asked about');
   ok(unitRow(U1, S, 'A').length_m == null && unitRow(U1, S, 'A').width_m === 10, `v89 merge: a cleared length arrives, the width stays (${JSON.stringify(unitRow(U1, S, 'A'))})`);
   ok(unitRow(U1, S, 'A1').done_at == null, 'v89 merge: the quadrat opened again on the other phone is open here');
+}
+
+// ── V13: version numbers count per phone; the template merges by content ──
+{
+  const T1 = await phone('t');
+  const S = c.createSurvey(T1.ctx, { template: PL, investigators: '甲' });
+  const T2 = await phone('v');
+  const Sb = d.insertSurveyFromDoc(T2.ctx, d.buildSurveyDoc(T1.ctx, S), { status: 'done', projectId: 0 });
+  const base = baseOf(side(T1, S));
+  const PLn = withRequired(normalizeTemplate(PL));
+  const plus = (key, type, params) => withRequired({ ...PLn, version: 2, components: [...PLn.components, { key, type, level: 'occurrence', required: false, params }] });
+  // Each phone edits its own copy to "version 2": the same number, other content.
+  const onA = plus('extra_photos', 'photos', { max: 2 });
+  const onB = plus('extra_note', 'comments', {});
+  tp.upgradeSurvey(T1.ctx, S, onA);
+  T2.sqlite.prepare(`UPDATE fw_surveys SET status = 'active' WHERE id = ?`).run(Sb);
+  tp.upgradeSurvey(T2.ctx, Sb, onB);
+  const hash = (p, id) => p.one('SELECT template_hash AS h FROM fw_surveys WHERE id = ?', id).h;
+  ok(hash(T1, S) !== hash(T2, Sb), 'V13 setup: two version-2 copies differ');
+  const sideA = side(T1, S);
+  const sideB = side(T2, Sb);
+  mergeInto(T1, S, sideB, base);
+  mergeInto(T2, Sb, sideA, base);
+  ok(hash(T1, S) === hash(T2, Sb), `V13: same version, other content: both phones settle on one copy (${hash(T1, S)} / ${hash(T2, Sb)})`);
+  // A copy that holds the other as an additive change wins whatever its number.
+  const both = withRequired({ ...onA, version: 2, components: [...onA.components, onB.components.at(-1)] });
+  const aRow = { template_id: PL.id, template_version: 3, template_snapshot: JSON.stringify(onA), template_hash: templateHash(onA) };
+  const bothRow = { template_id: PL.id, template_version: 2, template_snapshot: JSON.stringify(both), template_hash: templateHash(both) };
+  ok(d.newerTemplate(aRow, bothRow) === bothRow && d.newerTemplate(bothRow, aRow) === bothRow, 'V13: the copy holding the other wins over a higher number');
+  const v1Row = { template_id: PL.id, template_version: 1, template_snapshot: JSON.stringify(PLn), template_hash: templateHash(PLn) };
+  ok(d.newerTemplate(v1Row, aRow) === aRow && d.newerTemplate(aRow, v1Row) === aRow, 'V13: one line of edits: the newer wins as before');
+  // Restoring an older version keeps the template the survey has now.
+  const S2 = c.createSurvey(T1.ctx, { template: PL, investigators: '甲' });
+  const before = side(T1, S2);
+  tp.upgradeSurvey(T1.ctx, S2, onA);
+  const items = diffSides(side(T1, S2), before, baseOf(side(T1, S2)), takeVersion(d.SURVEY_DOC_COMBINERS));
+  d.applySurveyDocOps(T1.ctx, S2, planOps(items, restoreDecisions(items)));
+  ok(hash(T1, S2) === templateHash(onA), 'V13: a restored version-1 snapshot does not take the survey back to template version 1');
 }
 
 if (failed > 0) {

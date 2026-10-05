@@ -397,6 +397,18 @@ ok(censusDwcRows(doc, { eventIds: censusEventIds(doc), uniqueEventId: unique(), 
   const spread = src.match(/\.push\(\.\.\.(?:p|parts?)\.\w+\)/g) ?? [];
   ok(spread.length === 0, `dwcRows: a census's rows are not spread into push (${spread.join(', ')})`);
 }
+// The zip entries likewise: one per photo, so a census's photos (code review V2).
+for (const f of ['../src/lib/bundleExport.ts', '../src/lib/projectExport.ts']) {
+  const src = readFileSync(new URL(f, import.meta.url), 'utf8');
+  const spread = src.match(/\b\w*[eE]ntries\.push\(\.\.\.[^)]*\)/g) ?? [];
+  ok(spread.length === 0, `${f.split('/').pop()}: zip entries are not spread into push (${spread.join(', ')})`);
+}
+// Every coordinate written carries its datum (locationTerms; §19): the quadrat events had none (code review L13).
+for (const f of ['../src/lib/dwcRows.ts', '../src/survey/export/surveyDwcCore.ts']) {
+  const lines = readFileSync(new URL(f, import.meta.url), 'utf8').split('\n');
+  const bare = lines.flatMap((l, i) => (/decimalLatitude:/.test(l) && !lines.slice(i, i + 9).some((x) => /locationTerms\(|\.\.\.elevationTerms/.test(x)) ? [`${f.split('/').pop()}:${i + 1}`] : []));
+  ok(bare.length === 0, `datum: each decimalLatitude has locationTerms with it (${bare.join(', ') || f.split('/').pop()})`);
+}
 
 if (failed) {
   console.error(`${failed} failure(s)`);

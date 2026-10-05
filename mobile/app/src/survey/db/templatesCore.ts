@@ -111,26 +111,34 @@ export function setTemplateArchived(ctx: Ctx, id: string, archived: boolean): vo
 
 /**
  * Why template `id` cannot be deleted (asked 2026-10-04: one no survey uses
- * may go): a built-in or a sample, or used by a survey (any status) or by a
- * permanent plot's series. null: it may be deleted.
+ * may go): a built-in or a sample, or used by a survey (any status), also
+ * through a permanent plot's series. A series whose censuses were all
+ * deleted does not count (code review V15). null: it may be deleted.
  */
 export function templateDeleteBlocker(ctx: { db: SurveyDb }, id: string): 'builtin' | 'in_use' | null {
   if (builtinOf(id) || id.startsWith('builtin:') || id.startsWith('sample:')) return 'builtin';
   const used =
     one(ctx, `SELECT 1 AS x FROM fw_surveys WHERE template_id = ? LIMIT 1`, [id]) != null ||
-    one(ctx, `SELECT 1 AS x FROM fw_frame_series WHERE template_id = ? LIMIT 1`, [id]) != null;
+    one(
+      ctx,
+      `SELECT 1 AS x FROM fw_frame_series s WHERE s.template_id = ? AND EXISTS (SELECT 1 FROM fw_surveys v WHERE v.series_id = s.id) LIMIT 1`,
+      [id],
+    ) != null;
   return used ? 'in_use' : null;
 }
 
 /**
  * Delete template `id` for good: every saved version, its draft and its
- * archive mark. Refused while templateDeleteBlocker says why not. Surveys
- * carry their own copy of their template, so nothing else needs it.
+ * archive mark, and the series left empty by deleted censuses (restoring
+ * one from 最近刪除 makes its series again, from the census's own copy).
+ * Refused while templateDeleteBlocker says why not. Surveys carry their own
+ * copy of their template, so nothing else needs it.
  */
 export function deleteTemplate(ctx: { db: SurveyDb }, id: string): void {
   const blocker = templateDeleteBlocker(ctx, id);
   if (blocker === 'builtin') throw new SurveyError('builtin_template', id);
   if (blocker === 'in_use') throw new SurveyError('template_in_use', id);
+  ctx.db.executeSync(`DELETE FROM fw_frame_series WHERE template_id = ? AND NOT EXISTS (SELECT 1 FROM fw_surveys v WHERE v.series_id = fw_frame_series.id)`, [id]);
   ctx.db.executeSync(`DELETE FROM survey_templates WHERE template_id = ?`, [id]);
   ctx.db.executeSync(`DELETE FROM survey_template_drafts WHERE template_id = ?`, [id]);
   ctx.db.executeSync(`DELETE FROM survey_template_archive WHERE template_id = ?`, [id]);

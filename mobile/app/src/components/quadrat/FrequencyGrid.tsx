@@ -16,7 +16,7 @@
  * the caller's undo / redo / lock, so a device that never delivers the
  * gesture's finalize loses neither the stroke nor its undo step.
  */
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { AppState, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useSwipeBlock } from '~/components/SwipeNavigator';
@@ -105,8 +105,13 @@ export const FrequencyGrid = forwardRef<FrequencyGridHandle, Props>(function Fre
   // stale render's props.
   const stroke = useRef<{ key: string; on: boolean; seen: Set<number>; before: string; mask: string } | null>(null);
   // Latest callbacks and masks for callbacks bound in an earlier render.
+  // Updated after each render, not during it: a component that writes a ref
+  // in render is left uncompiled, and the grid redrew whole while scrolling
+  // (code review L23). Gestures only start after a commit.
   const latest = useRef({ masks, readMask, onCommit, onPaint, onStrokeBegin, onLocked, onSelectCell });
-  latest.current = { masks, readMask, onCommit, onPaint, onStrokeBegin, onLocked, onSelectCell };
+  useLayoutEffect(() => {
+    latest.current = { masks, readMask, onCommit, onPaint, onStrokeBegin, onLocked, onSelectCell };
+  });
   const flush = useRef(() => {
     const s = stroke.current;
     stroke.current = null;

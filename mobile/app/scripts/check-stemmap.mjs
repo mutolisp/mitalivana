@@ -223,6 +223,9 @@ eq('0.8 ha: whole plot', [small.wholePlot, small.blocks], [true, 1]);
 const dense = chooseSyncBlock({ ...fiftyHa, stemsPerHa: 6240, bytesPerStem: 1200 });
 eq('denser data → smaller blocks', dense.edgeQuadrats, 2);
 ok('2-quadrat blocks over 50 ha exceed the object budget', dense.overObjectBudget);
+// The relay's own limit (code review V6): a server with a larger record limit takes larger blocks.
+const roomy = chooseSyncBlock({ ...fiftyHa, bytesPerStem: 600, limits: { maxObjectBytes: 4 * SYNC_LIMITS.maxObjectBytes, maxTeamObjects: SYNC_LIMITS.maxTeamObjects } });
+ok(`a 4× record limit: larger blocks (${roomy.edgeQuadrats} > ${ams.edgeQuadrats})`, roomy.edgeQuadrats > ams.edgeQuadrats);
 
 if (failures > 0) {
   console.error(`${failures} failure(s)`);

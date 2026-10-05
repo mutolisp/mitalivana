@@ -468,7 +468,8 @@ export function buildPlotYamlDoc(input: PlotYamlInput): Record<string, unknown> 
 export function csvEscape(v: unknown): string {
   if (v === null || v === undefined) return '';
   const s = String(v);
-  if (s.includes(',') || s.includes('"') || s.includes('\n')) return `"${s.replace(/"/g, '""')}"`;
+  // A lone \r ends a line too (RFC 4180 CRLF): quoted as \n is (code review L17).
+  if (/[,"\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
   return s;
 }
 

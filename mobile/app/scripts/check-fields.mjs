@@ -330,6 +330,24 @@ ok(dget('field_datatype') === 'text' && dget('allowed_values') === '是=yes|否=
     const wf = wt.components.find((c) => c.type === 'field');
     ok(wf && wf.params.key.length > 32 && wf.key.length <= 32 && validateTemplate(wt).length === 0, `convert: a long field key, a component key that fits (${wf?.params.key}, ${wf?.key}; ${validateTemplate(wt)})`);
   }
+  {
+    // A list or trait name longer than a field's (80): cut to fit, not refused by the library (code review L5).
+    const longName = '很長的名稱'.repeat(20);
+    const lt = withRequired({
+      ...base,
+      codelists: [{ id: 'list_8', label: { text: longName }, items: [{ code: 'a', label: { text: '甲' } }, { code: 'b', label: { text: '乙' } }] }],
+      components: [
+        ...base.components,
+        { key: 'longc', type: 'choice', level: 'occurrence', required: false, params: { list: 'list_8' } },
+        { key: 'longt', type: 'traits', level: 'occurrence', required: false, params: { traits: [{ id: 'girth', label: { text: longName } }] } },
+      ],
+    });
+    const lconv = convertLegacyComponents(lt, new Map());
+    ok(
+      lconv.writes.length === 2 && lconv.writes.every((w) => w.def.name.length <= 80 && checkFieldDef(w.def).length === 0),
+      `convert: a name longer than a field's is cut to fit (${lconv.writes.map((w) => `${w.def.name.length}: ${checkFieldDef(w.def)}`)})`,
+    );
+  }
   const stem = E.copyTemplate({ ...STEMMAP_TEMPLATE }, 'user:census', E.makeLabel('普查'));
   const census = E.addComponent(stem, 'traits', { level: 'individual' }).template;
   ok(census.components.some((c) => c.type === 'traits') && convertLegacyComponents(census, new Map()).template === census, 'convert: a tree census keeps its Traits');
@@ -378,6 +396,18 @@ ok(dget('field_datatype') === 'text' && dget('allowed_values') === '是=yes|否=
   const again = fitTemplateFields(fileT, lib2);
   ok(again.writes.length === 0 && eq(again.template.components.filter((c) => c.type === 'field').map((c) => c.params.key), ['flowering_2', 'stage']), 'import: the same file again adds nothing');
   ok(fitTemplateFields(base, libX).template === base, 'import: a template without fields as it is');
+}
+
+// A template file's fields and the template are stored in one transaction:
+// a template that fails to save must not leave its fields behind (code review V14).
+{
+  const { readFileSync } = await import('node:fs');
+  const read = (f) => readFileSync(new URL(f, import.meta.url), 'utf8');
+  const wrapper = read('../src/survey/db/surveys.ts');
+  ok(/importTemplateWithFields = [^\n]*\n\s*withTransaction\(\(\) => \{\s*fld\.storeLibraryWrites\(ctx\(\), writes\);\s*return tpl\.saveTemplate\(ctx\(\), t\);/.test(wrapper),
+    'import: library writes and the template save share one withTransaction');
+  const drafts = read('../src/survey/builder/drafts.ts');
+  ok(drafts.includes('importTemplateWithFields(') && !/\bstoreLibraryWrites\(|\bsaveTemplate\(/.test(drafts), 'import: drafts.ts stores through importTemplateWithFields only');
 }
 
 if (failed > 0) {

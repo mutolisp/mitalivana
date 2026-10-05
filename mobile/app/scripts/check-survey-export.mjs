@@ -184,6 +184,19 @@ const backup = x.docFromFile(live, () => null, (uri) => uri.includes('one'));
 ok(backup.media.length === 1 && backup.media[0].uri === 'file:///a/photo one.jpg' && backup.frame_labels[0].photo_uri === null, 'import: a document naming paths keeps those still here');
 
 // ── eventIDs ─────────────────────────────────────────────────────────────
+{
+  // Two paths that read the same with '/' as '-' (code review L4): each its own eventID; the rest unchanged.
+  const units = [
+    { level_key: 'u1', code: 'S-1', parent: null },
+    { level_key: 'u2', code: 'Q', parent: 'u1:S-1' },
+    { level_key: 'u1', code: 'S', parent: null },
+    { level_key: 'u2', code: '1-Q', parent: 'u1:S' },
+    { level_key: 'u1', code: 'T', parent: null },
+  ];
+  const ev = x.unitEventSuffixes({ units });
+  const ids = [...ev.values()];
+  ok(new Set(ids).size === ids.length && ev.get('u1:T') === 'T' && ev.get('u2:1-Q') === 'S-1-Q' && ev.get('u2:Q') === 'S-1-Q_2', `eventIDs: units whose paths read alike get their own (${JSON.stringify([...ev])})`);
+}
 const day = (y, m, dd) => new Date(y, m - 1, dd, 9).getTime();
 const ids = x.surveyEventIds([
   { id: 1, base: x.eventBase({ frameCode: 'EX1', seriesCode: '', name: null, uuid: 'u1' }), startTs: day(2026, 1, 1) },

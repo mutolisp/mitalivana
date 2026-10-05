@@ -22,7 +22,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as SelectPrimitive from '@rn-primitives/select';
 import * as Haptics from 'expo-haptics';
-import { useMemo } from 'react';
+import { useLayoutEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -85,24 +85,27 @@ function SpeciesMenu({
 }
 
 /** Horizontal swipe to step, so a vertical scroll of the page still passes through. */
-function useSideSwipe(step: (dir: -1 | 1) => void, deps: unknown[]) {
+function useSideSwipe(step: (dir: -1 | 1) => void) {
   // The screen's own sideways swipe (a plot's tabs) waits for this one.
   const block = useSwipeBlock();
-  return useMemo(
-    () => {
-      const pan = Gesture.Pan()
-        .runOnJS(true)
-        .activeOffsetX([-16, 16])
-        .failOffsetY([-12, 12])
-        .onEnd((e) => {
-          if (e.translationX < -40) step(1);
-          else if (e.translationX > 40) step(-1);
-        });
-      return block ? pan.blocksExternalGesture(block) : pan;
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [...deps, block],
-  );
+  // The gesture is made once and calls this render's step: its list, index
+  // and onIndex. A filter switch changes the list without the index or the
+  // count, and the swipe stepped through the list before it (code review V7).
+  const stepRef = useRef(step);
+  useLayoutEffect(() => {
+    stepRef.current = step;
+  });
+  return useMemo(() => {
+    const pan = Gesture.Pan()
+      .runOnJS(true)
+      .activeOffsetX([-16, 16])
+      .failOffsetY([-12, 12])
+      .onEnd((e) => {
+        if (e.translationX < -40) stepRef.current(1);
+        else if (e.translationX > 40) stepRef.current(-1);
+      });
+    return block ? pan.blocksExternalGesture(block) : pan;
+  }, [block]);
 }
 
 function Arrow({ dir, off, onPress }: { dir: -1 | 1; off: boolean; onPress: () => void }) {
@@ -151,7 +154,7 @@ function useStepper(count: number, index: number, onIndex: (i: number) => void, 
     void Haptics.selectionAsync();
     onIndex(next);
   };
-  const swipe = useSideSwipe(step, [index, count]);
+  const swipe = useSideSwipe(step);
   const off = (dir: -1 | 1) => count < 2 || (!wrap && (dir < 0 ? index <= 0 : index >= count - 1));
   return { step, swipe, off };
 }

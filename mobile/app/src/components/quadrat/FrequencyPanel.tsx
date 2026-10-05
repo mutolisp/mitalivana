@@ -123,8 +123,9 @@ export function FrequencyPanel({
   const [mode, setMode] = useState<Input>(() => (storedMode === 'count' ? 'count' : 'brush'));
   // The mode as of right now: a count field blurring while it unmounts
   // commits after the switch, and must not write any more.
+  // Set where the mode changes, not while rendering (the compiler skips a
+  // component that writes a ref in render: code review L23).
   const modeRef = useRef(mode);
-  modeRef.current = mode;
   const [active, setActive] = useState<string | null>(null);
   const [inverse, setInverse] = useState(false);
   const [sel, setSel] = useState(0);
@@ -223,6 +224,7 @@ export function FrequencyPanel({
     const fromCount = mode === 'count';
     const go = () => {
       setInverse(false);
+      modeRef.current = next;
       setMode(next);
     };
     // Brush ⇄ cell only changes how the same cells are entered.

@@ -31,6 +31,7 @@ import { SearchBox } from '~/components/SearchBox';
 import { promptText } from '~/components/TextPromptModal';
 import { Button } from '~/components/ui/Button';
 import { Checkbox } from '~/components/ui/Checkbox';
+import { ScientificName } from '~/components/ScientificName';
 import { resolveTaxa } from '~/db/taxonLookup';
 import { errText } from '~/lib/errText';
 import { captureFix } from '~/lib/gnssFix';
@@ -182,7 +183,7 @@ export function TreeEditor(props: TreeEditorProps) {
     const id = form.taxon?.taxonId;
     if (!id) return null;
     const f = resolveTaxa([id]).get(id);
-    return { cname: f?.common_name_c || '', sci: form.taxon?.usedScientificName || f?.simple_name || id };
+    return { cname: f?.common_name_c || '', sci: form.taxon?.usedScientificName || f?.simple_name || id, rank: f?.rank ?? '', kingdom: f?.kingdom ?? '' };
   }, [form.taxon]);
 
   const issues = useMemo(
@@ -304,7 +305,7 @@ export function TreeEditor(props: TreeEditorProps) {
       return;
     }
     if (traitProblems.length) {
-      Alert.alert(t('survey.tree.cannotSave'), traitProblems.map((x) => `• ${traitName(x.key, x.id)}：${traitProblemText(x.key, x.id, x.code)}`).join('\n'));
+      Alert.alert(t('survey.tree.cannotSave'), traitProblems.map((x) => `• ${t('common.labelValue', { label: traitName(x.key, x.id), value: traitProblemText(x.key, x.id, x.code) })}`).join('\n'));
       return;
     }
     if (!f.taxon) return toast(t('survey.tree.errSpecies'));
@@ -354,7 +355,7 @@ export function TreeEditor(props: TreeEditorProps) {
     const where = (recruit ? preview?.quadrat : view?.individual.quadrat_code) ?? quadrat;
     const claimers = claimWarned.current || !where ? [] : claimedByOthers(surveyId, where);
     if (claimers.length) {
-      Alert.alert(t('survey.sync.claimedTitle'), t('survey.sync.claimedMsg', { names: claimers.join('、') }), [
+      Alert.alert(t('survey.sync.claimedTitle'), t('survey.sync.claimedMsg', { names: claimers.join(t('builder.listSep')) }), [
         { text: t('common.cancel'), style: 'cancel' },
         {
           text: t('survey.sync.claimedGo'),
@@ -407,7 +408,7 @@ export function TreeEditor(props: TreeEditorProps) {
               {names ? (
                 <Text className="text-base text-ink dark:text-gray-100">
                   {names.cname ? `${names.cname} ` : ''}
-                  <Text className="font-latin text-sm text-ink-2 dark:text-gray-300">{names.sci}</Text>
+                  <ScientificName name={names.sci} rank={names.rank} kingdom={names.kingdom} className="text-sm text-ink-2 dark:text-gray-300" />
                 </Text>
               ) : (
                 <Text className="text-sm text-alert dark:text-alert-dark">{t('survey.tree.noSpecies')}</Text>

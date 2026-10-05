@@ -131,11 +131,60 @@ ok(got.created && s.getSurvey(B.ctx, CB).uuid === s.getSurvey(A.ctx, CA).uuid &&
 ok(B.one('SELECT uuid FROM fw_frames').uuid === s.getFrame(A.ctx, FA).uuid && s.getSurvey(B.ctx, CB).project_id === 0, 'header: with its plot; unfiled here');
 ok(!B.tx(() => cs.ensureCensus(B.ctx, header)).created, 'header: the second time it is found');
 ok(cs.identOfCensus(B.ctx, CB) === cs.identOfCensus(A.ctx, CA), 'header: same plot + series + number on both');
-throwsSync(() => B.tx(() => cs.ensureCensus(B.ctx, { ...header, block_quadrats: 3 })), 'block_size_differs', 'header: another block size refused');
+// Another block size (two phones chose apart, code review M1): linked, not refused; the census sync settles on the smaller.
+ok(!B.tx(() => cs.ensureCensus(B.ctx, { ...header, block_quadrats: 3 })).created && s.getSurvey(B.ctx, CB).sync_block_quadrats === 5, 'header M1: another block size is linked, the size here kept until the sync');
+ok(cs.teamBlockSize(5, [3, undefined, 4]) === 3 && cs.teamBlockSize(null, [undefined]) === null && cs.teamBlockSize(2, [5]) === 2, 'header M1: the team\'s block size is the smallest any phone has');
+// A 10 × 5 quadrat plot: block b1_0 at size 5 is quadrats 5–9 × 0–4, the blocks b1_0, b2_0, b3_0, b1_1… at size 2.
+ok(JSON.stringify(cs.regroupBlocks(['b1_0'], 10, 5, 5, 2)) === JSON.stringify(['b2_0', 'b2_1', 'b2_2', 'b3_0', 'b3_1', 'b3_2', 'b4_0', 'b4_1', 'b4_2']), `header M1: claims regroup onto the blocks they overlap (${cs.regroupBlocks(['b1_0'], 10, 5, 5, 2)})`);
+B.tx(() => cs.changeBlockSize(B.ctx, CB, 3));
+ok(s.getSurvey(B.ctx, CB).sync_block_quadrats === 3, 'header M1: the block size changes to the team\'s');
+B.tx(() => cs.changeBlockSize(B.ctx, CB, 5));
+{
+  const app = (await import('node:fs')).readFileSync(new URL('../src/survey/censusSync.ts', import.meta.url), 'utf8');
+  ok(/else if \(teamK != null && teamK < k\) \{\s*switchBlockSize\(/.test(app) && !/block_size_differs/.test(app), 'header M1: the sync takes a smaller team size instead of failing');
+  ok(/if \(doc\?\.record_type === 'census_block' && doc\.ident === ident && doc\.block_quadrats !== k\) continue;/.test(app), 'header M1: a teammate block at another size is not marked seen');
+  ok(/DELETE FROM sync_links WHERE record_kind = 'survey_block'/.test(app) && /DELETE FROM sync_seen WHERE team_id = \? AND rec_key = \?/.test(app), 'header M1: a switch resends every block and reads the teammates\' again');
+}
 // Another census template for the same plot, series and number (decided 2026-10-03): refused; another version of the same template is not.
 throwsSync(() => B.tx(() => cs.ensureCensus(B.ctx, { ...header, survey: { ...header.survey, template_id: 'user:other-census' } })), 'template_differs', 'header: another template refused');
 ok(!B.tx(() => cs.ensureCensus(B.ctx, { ...header, survey: { ...header.survey, template_version: 2 } })).created, 'header: the same template at another version is the same census');
 ok(cs.templateDiffers('builtin:stemmap', { template_id: 'user:x' }) && !cs.templateDiffers('builtin:stemmap', { template_id: 'builtin:stemmap' }), 'header: templateDiffers compares template ids');
+// The round's own fields come with a teammate's header (code review V12): never asked about.
+{
+  const sv = (id) => B.one('SELECT investigators, start_ts, stop_ts, notes FROM fw_surveys WHERE id = ?', id);
+  const b0 = sv(CB);
+  B.sqlite.prepare(`UPDATE fw_surveys SET investigators = '乙', notes = '北側陡坡\n草本層稀疏' WHERE id = ?`).run(CB);
+  const theirs = { ...header.survey, investigators: '甲,丙', start_ts: b0.start_ts - 1000, stop_ts: b0.start_ts + 5000, notes: '北側陡坡\n樣樁 3 號遺失' };
+  ok(B.tx(() => cs.mergeCensusHeader(B.ctx, CB, theirs)), 'header V12: a teammate\'s round fields change the census here');
+  const after = sv(CB);
+  ok(after.investigators === '乙,甲,丙', `header V12: investigators pooled (${after.investigators})`);
+  ok(after.start_ts === b0.start_ts - 1000, 'header V12: the earlier start');
+  ok(after.stop_ts == null, 'header V12: still open here stays open');
+  ok(after.notes === '北側陡坡\n草本層稀疏\n樣樁 3 號遺失', `header V12: the teammate's note lines added once, these kept (${JSON.stringify(after.notes)})`);
+  ok(!B.tx(() => cs.mergeCensusHeader(B.ctx, CB, theirs)), 'header V12: the same header again changes nothing');
+  B.sqlite.prepare(`UPDATE fw_surveys SET stop_ts = ? WHERE id = ?`).run(b0.start_ts + 100, CB);
+  B.tx(() => cs.mergeCensusHeader(B.ctx, CB, theirs));
+  ok(sv(CB).stop_ts === b0.start_ts + 5000, 'header V12: ended here too: the later end');
+  B.sqlite.prepare(`UPDATE fw_surveys SET investigators = '乙' WHERE id = ?`).run(CB);
+  B.tx(() => cs.ensureCensus(B.ctx, { ...header, survey: theirs }));
+  ok(sv(CB).investigators === '乙,甲,丙', 'header V12: ensureCensus merges the header of a census already here');
+  B.sqlite.prepare(`UPDATE fw_surveys SET investigators = ?, start_ts = ?, stop_ts = ?, notes = ? WHERE id = ?`).run(b0.investigators, b0.start_ts, b0.stop_ts, b0.notes, CB);
+  // The sync itself reads every teammate's header through it (src/survey/censusSync.ts runs on the device).
+  const app = (await import('node:fs')).readFileSync(new URL('../src/survey/censusSync.ts', import.meta.url), 'utf8');
+  ok(/withTransaction\(\(\) => core\.mergeCensusHeader\(c, surveyId, doc\.survey\)\)/.test(app), 'header V12: the census sync merges each teammate header it reads');
+}
+// A block over the relay's record limit (code review V6): measured before its photos or
+// itself go, skipped while the others still go; block sizes are offered against the same limit.
+{
+  const app = (await import('node:fs')).readFileSync(new URL('../src/survey/censusSync.ts', import.meta.url), 'utf8');
+  const put = app.slice(app.indexOf('const putBlock = async'), app.indexOf('const sendBlock = async'));
+  const at = (x) => put.indexOf(x);
+  ok(at('const body = sealForRelay(') > -1 && at('body.length > limits.maxObjectBytes') > at('const body = sealForRelay(') && at('sendRecordMedia(') > at('body.length > limits.maxObjectBytes') && at('putSealedBody(') > at('sendRecordMedia('),
+    'V6: a block is measured against the relay limit before its photos and itself are sent');
+  ok((app.match(/await putBlock\(/g) ?? []).length === 1 && (app.match(/await sendBlock\(/g) ?? []).length === 2, 'V6: every block goes through sendBlock, so one too large does not stop the rest');
+  ok(/if \(err\.code !== 'objectTooLarge'\) throw e;/.test(app), 'V6: only a block too large is skipped; other failures still stop the sync');
+  ok(/blockSizeOptions\(surveyId, limits\)/.test(app) && /chooseSyncBlock\(\{[^}]*\blimits \}\)/.test(app) && /tooLarge: estimatedBytes > limits\.maxObjectBytes/.test(app), 'V6: block sizes are offered against the relay limit');
+}
 const C = await phone('c');
 s.createFrame(C.ctx, { code: 'TS1', sizeXM: 100, sizeYM: 100 });
 throwsSync(() => C.tx(() => cs.ensureCensus(C.ctx, header)), 'frame_code_taken', 'header: a different plot here with that code refused');

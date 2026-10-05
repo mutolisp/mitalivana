@@ -149,7 +149,7 @@ export function componentSummary(t: TFunction, lang: string, instance: Component
       return traits
         .filter((tr) => num(v[tr.id]) != null)
         .map((tr) => `${labelText(t, lang, tr.label as Label, tr.id)} ${num(v[tr.id])}${tr.unit ? ` ${tr.unit}` : ''}`)
-        .join('、');
+        .join(t('builder.listSep'));
     }
     case 'environment': {
       const parts: string[] = [];

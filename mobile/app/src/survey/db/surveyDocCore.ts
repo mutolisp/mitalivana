@@ -38,6 +38,7 @@ import type { Combiners, MergeOp, MergeRow, MergeSide, Row, TitlePart } from '..
 import { trackUnion } from '../../lib/track';
 import { FRAME_COLS, pick } from './sliceCore';
 import { OCCURRENCE_FIELDS, previousSurveyId, snapshotOf, surveyOf } from './surveyCore';
+import { classifyChange } from '../template/validate';
 import { SurveyError, type Ctx, type SurveyDb } from './stemmapCore';
 
 const rows = <T>(ctx: { db: SurveyDb }, sql: string, params: Scalar[] = []) => (ctx.db.executeSync(sql, params).rows ?? []) as T[];
@@ -206,11 +207,30 @@ const omit = (o: Row, keys: readonly string[]): Row => Object.fromEntries(Object
 const valueKey = (owner: unknown, v: Row) => `${owner}|${v.component}|${v.field}|${v.idx}`;
 const nums = (a: unknown, b: unknown) => [a, b].filter((v): v is number => typeof v === 'number');
 
-/** The newer template of the two (an additive upgrade on either phone). */
-const newerTemplate = (a: unknown, b: unknown) => {
-  const va = Number((a as Row | null)?.template_version ?? 0);
-  const vb = Number((b as Row | null)?.template_version ?? 0);
-  return vb > va ? b : a;
+/**
+ * The newer template of the two (an additive upgrade on either phone).
+ * Version numbers count on each phone, so the same version can be two
+ * different edits of one template (code review V13): the copy that holds the
+ * other as an additive change wins, then the higher version, then the larger
+ * content hash, so both phones settle on the same copy.
+ */
+export const newerTemplate = (a: unknown, b: unknown) => {
+  const ra = a as Row | null;
+  const rb = b as Row | null;
+  if (!ra || !rb) return ra ? a : b;
+  if (ra.template_hash === rb.template_hash) return a;
+  try {
+    const ta = snapshotOf({ template_snapshot: String(ra.template_snapshot) });
+    const tb = snapshotOf({ template_snapshot: String(rb.template_snapshot) });
+    if (classifyChange(ta, tb) === 'additive') return b;
+    if (classifyChange(tb, ta) === 'additive') return a;
+  } catch {
+    // An unreadable snapshot: the version and the hash decide.
+  }
+  const va = Number(ra.template_version ?? 0);
+  const vb = Number(rb.template_version ?? 0);
+  if (va !== vb) return vb > va ? b : a;
+  return String(rb.template_hash ?? '') > String(ra.template_hash ?? '') ? b : a;
 };
 
 /**
@@ -341,9 +361,12 @@ const VALUE_TABLE = {
 } as const;
 
 const splitValueKey = (key: string) => {
-  // owner|component|field|idx, where the owner may itself hold '|' (never: unit keys and uuids do not).
-  const [owner, component, field, idx] = key.split('|');
-  return { owner, component, field, idx: Number(idx) };
+  // owner|component|field|idx, read from the right: a unit's key holds its
+  // code, free text that could have a '|' (code review L4); components and
+  // fields never do.
+  const parts = key.split('|');
+  const [component, field, idx] = parts.slice(-3);
+  return { owner: parts.slice(0, -3).join('|'), component, field, idx: Number(idx) };
 };
 const splitUnitKey = (key: string) => {
   const at = key.indexOf(':');
@@ -471,7 +494,11 @@ export function applySurveyDocOps(ctx: Ctx, surveyId: number, ops: readonly Merg
           // A closed blind phase stays closed: the previous list has been seen (reopenBlindPhase has its own rule).
           if (cols.blind_closed_at == null && s.blind_closed_at != null) delete cols.blind_closed_at;
           const t = extra.template as Row | undefined;
-          if (t && Number(t.template_version) > s.template_version && t.template_id === s.template_id) Object.assign(cols, templateOf(t));
+          // Only a copy that beats the one here by newerTemplate's rule (by content, not the version alone:
+          // code review V13); a restored older version keeps the template the survey has now.
+          if (t && t.template_id === s.template_id && t.template_hash !== s.template_hash && newerTemplate(templateOf(s as unknown as Row), t) === t) {
+            Object.assign(cols, templateOf(t));
+          }
           set('fw_surveys', surveyId, cols);
           written += 1;
           break;
@@ -585,10 +612,12 @@ function deleteRow(
     case 'sunit': {
       const id = ids.unitId(key);
       if (id == null) return 0;
-      // As deleteUnit: its occurrences and sub-units move up, its own values and photos go.
+      // As deleteUnit: its occurrences, interactions and sub-units move up, its own values and photos go.
       const parent = one<{ parent_id: number | null }>(ctx, `SELECT parent_id FROM fw_units WHERE id = ?`, [id])?.parent_id ?? null;
       run(ctx, `UPDATE fw_units SET parent_id = ? WHERE parent_id = ?`, [parent, id]);
       run(ctx, `UPDATE fw_occurrences SET unit_id = ? WHERE unit_id = ?`, [parent, id]);
+      // Left out, an interaction kept a deleted unit (NULL with foreign keys on): code review L3.
+      run(ctx, `UPDATE fw_interactions SET unit_id = ? WHERE unit_id = ?`, [parent, id]);
       run(ctx, `DELETE FROM fw_unit_values WHERE unit_id = ?`, [id]);
       run(ctx, `DELETE FROM fw_media WHERE unit_id = ?`, [id]);
       run(ctx, `DELETE FROM fw_units WHERE id = ?`, [id]);

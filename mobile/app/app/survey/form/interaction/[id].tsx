@@ -152,7 +152,7 @@ export default function InteractionScreen() {
   /** A species found by search: the occurrence here when it is already recorded in A's unit. */
   const pickSearched = async (r: SearchResult, adopted?: AdoptionInput | null) => {
     if (!r.taxon_id) return;
-    const label = await labelForNew(survey, { taxon_id: r.taxon_id, rank: r.rank, name: r.cname || r.name });
+    const label = await labelForNew(survey, { taxon_id: r.taxon_id, rank: r.rank, kingdom: r.kingdom, cname: r.cname, sci: r.name });
     if (label === undefined) return;
     const same = data.here.find((o) => o.taxon_id === r.taxon_id && (o.verbatim_identification ?? null) === label);
     if (same) setPartner({ kind: 'occ', id: same.id });

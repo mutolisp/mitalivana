@@ -51,6 +51,7 @@ import {
 import { resolveTaxa } from '~/db/taxonLookup';
 import { BackHeaderLeft } from '~/lib/goBack';
 import { freqCells, quadratProgress } from '~/lib/quadratProgress';
+import { acceptedNameOnly } from '~/lib/synonymAdd';
 import { useRecordEditing } from '~/lib/useRecordEditing';
 import { useVersionOnLeave } from '~/lib/useVersionOnLeave';
 import { Btn, FoldBanner, BannerText, NumAccessory, NumField } from '~/modules/gloria/components/ui';
@@ -78,11 +79,16 @@ export default function QuadratScreen() {
   const [all, setAll] = useState<Quadrat[]>([]);
   const [species, setSpecies] = useState<QuadratSpeciesWithTaxon[]>([]);
   const quadrat = all.find((q) => q.id === qid) ?? null;
+  // Which quadrat the lists are of: until it is this one, the screen says it
+  // is loading — it said "not found", and a page turn showed the previous
+  // quadrat's species for a frame (code review L21).
+  const [loadedFor, setLoadedFor] = useState<number | null>(null);
 
   const load = useCallback(() => {
     setPlot(getPlotSurvey(plotId));
     setAll(listQuadrats(plotId));
     setSpecies(listQuadratSpeciesWithTaxon(qid));
+    setLoadedFor(qid);
   }, [plotId, qid]);
   const { checkpoint } = edit;
   /** After a write: read again, and the change becomes one undo step. */
@@ -159,11 +165,11 @@ export default function QuadratScreen() {
     ? quadratProgress(quadrat, species.map((s) => ({ ...s, name: nameOf(s) })), { cover: cfg.recordCover, freq: cfg.recordFreq })
     : null;
 
-  if (!plot || !quadrat || !progress) {
+  if (loadedFor !== qid || !plot || !quadrat || !progress) {
     return (
       <SafeAreaView className="flex-1 items-center justify-center bg-gray-50 dark:bg-gray-950">
         <Stack.Screen options={{ title: '', headerLeft: BackHeaderLeft }} />
-        <Text className="text-gray-500 dark:text-gray-400">{t('plot.quadrats.notFound')}</Text>
+        <Text className="text-gray-500 dark:text-gray-400">{loadedFor !== qid ? t('common.loading') : t('plot.quadrats.notFound')}</Text>
       </SafeAreaView>
     );
   }
@@ -211,7 +217,8 @@ export default function QuadratScreen() {
       );
       if (edit.undoCount > 0) items.push({ label: t('recordLock.undo'), run: () => { edit.undo(); load(); } });
       if (edit.redoCount > 0) items.push({ label: t('recordLock.redo'), run: () => { edit.redo(); load(); } });
-      items.push({
+      // A finished, locked quadrat is not deleted without unlocking it first (code review L10).
+      if (!locked) items.push({
         label: t('plot.quadrats.delete'),
         destructive: true,
         run: () =>
@@ -371,6 +378,8 @@ function CoverBody({ plot, quadrat, species, cfg, ro, run, onFinish }: CoverProp
   const focusTaxon = useRef<string | null>(null);
   // Bumped to reset a cover field whose entry was refused (a 0).
   const [resetN, setResetN] = useState(0);
+  // The species row opened (its 移除 shows).
+  const [openSp, setOpenSp] = useState<number | null>(null);
   const [surfaceOpen, setSurfaceOpen] = useState(true);
   const [dockH, setDockH] = useState(0);
 
@@ -462,15 +471,12 @@ function CoverBody({ plot, quadrat, species, cfg, ro, run, onFinish }: CoverProp
             <Text className="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">{t('plot.quadrats.noSpecies')}</Text>
           ) : (
             species.map((s, i) => (
+              // A tap opens the row with its 移除: a long press was the only way, and hidden (code review L19).
+              <View key={s.id} className={i < species.length - 1 ? 'border-b border-line dark:border-line-dark' : ''}>
               <Pressable
-                key={s.id}
-                onLongPress={async () => {
-                  if (ro) return;
-                  const k = await showActionSheet({ titleParts: speciesParts(s.common_name_c, s.simple_name, s.rank, s.kingdom, s.taxon_id), options: [{ label: t('plot.quadrats.removeSpecies'), destructive: true }] });
-                  if (k === 0) run(() => deleteQuadratSpecies(s.id));
-                }}
-                delayLongPress={350}
-                className={`flex-row items-center px-4 py-2.5 ${i < species.length - 1 ? 'border-b border-line dark:border-line-dark' : ''}`}
+                onPress={ro ? undefined : () => setOpenSp(openSp === s.id ? null : s.id)}
+                accessibilityState={{ expanded: openSp === s.id }}
+                className="flex-row items-center px-4 py-2.5"
               >
                 <View className="flex-1 pr-2">
                   <Text className="text-base text-ink dark:text-gray-100" numberOfLines={1}>
@@ -510,6 +516,22 @@ function CoverBody({ plot, quadrat, species, cfg, ro, run, onFinish }: CoverProp
                   />
                 ) : null}
               </Pressable>
+              {openSp === s.id && !ro ? (
+                <View className="items-start px-4 pb-3">
+                  <Button
+                    label={t('plot.quadrats.removeSpecies')}
+                    icon="trash-outline"
+                    variant="danger"
+                    onPress={async () => {
+                      const k = await showActionSheet({ titleParts: speciesParts(s.common_name_c, s.simple_name, s.rank, s.kingdom, s.taxon_id), options: [{ label: t('plot.quadrats.removeSpecies'), destructive: true }] });
+                      if (k !== 0) return;
+                      setOpenSp(null);
+                      run(() => deleteQuadratSpecies(s.id));
+                    }}
+                  />
+                </View>
+              ) : null}
+              </View>
             ))
           )}
         </View>
@@ -532,7 +554,12 @@ function CoverBody({ plot, quadrat, species, cfg, ro, run, onFinish }: CoverProp
       {!ro ? (
         <KeyboardStickyView offset={{ opened: insets.bottom }}>
           <View onLayout={(e) => setDockH(e.nativeEvent.layout.height)}>
-            <SearchBox onSelect={(r) => r.taxon_id && add(r.taxon_id)} />
+            <SearchBox
+              onSelect={async (r, adopted) => {
+                // The accepted name only here: a name chosen in the search is confirmed away (code review V4).
+                if (r.taxon_id && (await acceptedNameOnly({ accepted: r.name, rank: r.rank, kingdom: r.kingdom }, adopted))) add(r.taxon_id);
+              }}
+            />
           </View>
         </KeyboardStickyView>
       ) : null}
@@ -603,7 +630,9 @@ function FreqBody({
         if (id != null) runQuiet(() => updateQuadratSpecies(id, { freq_count: v }), undefined, { id, freq_count: v });
       }}
       onSwitchMode={(toCount) => run(() => switchFreqMode(quadrat.id, toCount ? 'count' : 'cells'))}
-      onAdd={(r) => {
+      onAdd={async (r, adopted) => {
+        // A quadrat keeps the accepted name only: a name chosen in the search is confirmed away (code review V4).
+        if (!(await acceptedNameOnly({ accepted: r.name, rank: r.rank, kingdom: r.kingdom }, adopted))) return null;
         let id = 0;
         if (!run(() => void (id = addQuadratSpecies(quadrat.id, r.taxon_id)))) return null;
         onLayer(null);

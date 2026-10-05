@@ -48,7 +48,7 @@ import { stemIsDead, vitality, type StemCensusInput } from '../stemmap/status';
 import { parseSnapshot } from '../template/normalize';
 import { allowedEn, fieldDefOf } from '../template/obsField';
 import type { ComponentInstance, Label, SurveyLevel, SurveyTemplate } from '../template/types';
-import { interactionTypesOf, surveyComponentValues, templateOf, unitEventId, unitPaths, unitSizeOf, type Words } from './surveyExportCore';
+import { interactionTypesOf, surveyComponentValues, templateOf, unitEventId, unitEventSuffixes, unitPaths, unitSizeOf, type Words } from './surveyExportCore';
 
 /** An occurrence's taxon as DwC columns (taxonID, scientificName, hierarchy …). */
 export type TaxonCols = (t: { taxon_id: string; used_name_id: number | null; used_scientific_name: string | null }) => DwcRow;
@@ -324,6 +324,7 @@ export function surveyDwcRows(doc: SurveyDoc, opts: { eventId: string; uniqueEve
   const tpl = templateOf(doc);
   const s = doc.survey;
   const paths = unitPaths(doc);
+  const evOf = unitEventSuffixes(doc);
   const lists = new Map((tpl?.codelists ?? []).map((l) => [l.id, l]));
   const components = tpl?.components ?? [];
   const tName = tpl ? enOr(tpl.name, opts.words, str(s.template_id)) : str(s.template_id);
@@ -468,7 +469,7 @@ export function surveyDwcRows(doc: SurveyDoc, opts: { eventId: string; uniqueEve
   const unitEvent = new Map<string, string>();
   for (const u of doc.units) {
     const key = `${str(u.level_key)}:${str(u.code)}`;
-    const id = opts.uniqueEventId(unitEventId(eventID, paths.get(key) ?? str(u.code)));
+    const id = opts.uniqueEventId(unitEventId(eventID, evOf.get(key) ?? paths.get(key) ?? str(u.code)));
     unitEvent.set(key, id);
     const { w, l, r } = unitSizeOf(doc, tpl, u);
     const size = w != null && l != null ? w * l : r != null ? Math.round(Math.PI * r * r * 100) / 100 : null;

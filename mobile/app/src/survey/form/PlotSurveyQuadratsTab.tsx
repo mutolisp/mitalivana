@@ -142,7 +142,7 @@ export function PlotSurveyQuadratsTab({ data, edit, onChanged }: { data: SurveyF
             rows
               .filter((r) => r.unit.parent_id === s.id)
               .map((r) => r.unit.code)
-              .join('、') || undefined,
+              .join(t('builder.listSep')) || undefined,
         })),
       });
       if (i < 0) return;

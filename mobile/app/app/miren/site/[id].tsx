@@ -7,7 +7,8 @@
 import { useFocusEffect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, ScrollView, Text, View } from 'react-native';
+import { Alert, Text, View } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { SettingsPage } from '~/components/settings/SettingsPage';
 import { SelectRow } from '~/components/settings/rows';
 import { deleteSite, getRegion, getRoute, getSite, regionCodeFor, relocateSite, setSiteClearance, updateSite, type SitePatch } from '~/modules/miren/db';
@@ -54,14 +55,23 @@ export default function MirenSiteScreen() {
         },
       },
     ]);
-  const remove = () => {
-    if (deleteSite(site.id)) router.back();
-    else Alert.alert(t('miren.site.deleteTitle'), t('miren.site.deleteUsed'));
-  };
+  // Asked first, as a route or region is: MIREN keeps no versions to undo it (code review L18).
+  const remove = () =>
+    Alert.alert(t('miren.site.deleteTitle'), t('miren.site.deleteMsg'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('common.delete'),
+        style: 'destructive',
+        onPress: () => {
+          if (deleteSite(site.id)) router.back();
+          else Alert.alert(t('miren.site.deleteTitle'), t('miren.site.deleteUsed'));
+        },
+      },
+    ]);
 
   return (
     <SettingsPage title={formatSiteCode(regionCode, route.code, site.site_no, site.suffix)}>
-      <ScrollView contentContainerClassName="gap-3 p-4" keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
+      <KeyboardAwareScrollView contentContainerClassName="gap-3 p-4" keyboardShouldPersistTaps="handled" bottomOffset={24}>
         <Label>{t('miren.site.planned')}</Label>
         <Card className="gap-0.5 p-3">
           <FieldRow label={t('miren.site.lat')}>
@@ -147,7 +157,7 @@ export default function MirenSiteScreen() {
 
         {site.suffix === '' ? <Btn label={t('miren.site.relocate')} onPress={relocate} /> : null}
         <Btn label={t('miren.site.deleteTitle')} onPress={remove} />
-      </ScrollView>
+      </KeyboardAwareScrollView>
       <NumAccessory />
     </SettingsPage>
   );

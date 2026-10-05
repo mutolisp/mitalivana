@@ -769,6 +769,25 @@ ok(
 s.deleteFrame(ctx, F);
 ok(s.getFrame(ctx, F) == null && count('fw_frame_series', 'frame_id = ?', F) === 0, 'frame: deleted once it has no census');
 ok(count('fw_individuals', 'frame_id = ?', G) === 4, 'frame: other frames untouched');
+{
+  // Its children by hand, foreign keys off as in migrations and cleanup (code review L6):
+  // a tree no census claims (first census unknown), its stem and history, the layout and a morphospecies.
+  const H = s.createFrame(ctx, { code: 'DELH', sizeXM: 20, sizeYM: 20 });
+  const CH = s.startCensus(ctx, { frameId: H, template: T });
+  const th = s.saveTreeDraft(ctx, CH, draft({ location: xy(3, 3), mainStemNo: 1, stems: [sd({ dbhCm: 9 })] }));
+  sqlite.prepare('UPDATE fw_individuals SET first_survey_id = NULL WHERE id = ?').run(th);
+  sqlite.prepare('UPDATE fw_stems SET first_survey_id = NULL WHERE individual_id = ?').run(th);
+  sqlite.prepare(`INSERT INTO fw_individual_history (uuid, individual_id, survey_id, field, old_value, new_value, at) VALUES ('h-delh', ?, NULL, 'tag', '"1"', '"2"', 1)`).run(th);
+  sqlite.prepare(`INSERT INTO fw_frame_units (uuid, frame_id, level_key, code, shape, created_at, updated_at) VALUES ('fu-delh', ?, 'quadrat', 'Q1', 'rect', 1, 1)`).run(H);
+  sqlite.prepare(`INSERT INTO fw_frame_labels (uuid, frame_id, taxon_id, verbatim_identification, created_at, updated_at) VALUES ('fl-delh', ?, 'k1', 'sp1', 1, 1)`).run(H);
+  s.deleteCensus(ctx, CH);
+  ok(count('fw_individuals', 'frame_id = ?', H) === 1 && count('fw_stems', 'individual_id = ?', th) === 1, '(a tree and its stem stay without a census)');
+  sqlite.exec('PRAGMA foreign_keys = OFF;');
+  s.deleteFrame(ctx, H);
+  sqlite.exec('PRAGMA foreign_keys = ON;');
+  const left = CASCADE_ORPHANS.filter(([table]) => table.startsWith('fw_')).filter(([table, where]) => count(table, where) > 0).map(([table]) => table);
+  ok(s.getFrame(ctx, H) == null && left.length === 0, `frame: deleted with its trees, stems, history, layout and morphospecies, foreign keys off (${left})`);
+}
 for (const [table, where] of CASCADE_ORPHANS) {
   if (!table.startsWith('fw_')) continue;
   ok(count(table, where) === 0, `integrity: no ${table} orphans after deletes`);

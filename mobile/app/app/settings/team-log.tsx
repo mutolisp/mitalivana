@@ -44,7 +44,7 @@ export default function TeamLogScreen() {
     if (e.action === 'fail') return t(`teamSync.err.${e.detail}`, { defaultValue: e.detail, limit: '', detail: '' });
     // Files sent with an upload, or added from a teammate's copy.
     const files = /^files:(\d+)$/.exec(e.detail);
-    if (files) return t('teamSync.log.files', { n: Number(files[1]) });
+    if (files) return t('teamSync.log.files', { count: Number(files[1]) });
     if (e.action === 'merge' || e.action === 'import' || e.action === 'link') return t('teamSync.log.from', { name: e.detail });
     // A census: the block sent (its quadrats), or why it was skipped.
     if (e.action === 'skip') return t(`teamSync.log.skip.${e.detail}`, { defaultValue: e.detail });

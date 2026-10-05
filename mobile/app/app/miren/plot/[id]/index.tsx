@@ -17,9 +17,11 @@ import * as Location from 'expo-location';
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, Pressable, Text, View } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardStickyView } from '~/components/KeyboardAvoidingView';
+import { Button } from '~/components/ui/Button';
 import { SearchBox } from '~/components/SearchBox';
 import { ScientificName } from '~/components/ScientificName';
 import { SelectRow, SwitchRow } from '~/components/settings/rows';
@@ -37,6 +39,7 @@ import {
   listPlotSpecies,
   markPlotStarted,
   removePlotSpecies,
+  previousListShown,
   reopenBlind,
   surveyContext,
   unfinishPlot,
@@ -59,6 +62,7 @@ import { GLORIA_SEARCH_GROUPS } from '~/modules/gloria/useSurvey';
 import { useThemeColors } from '~/theme/colors';
 import { DoneMark } from '~/components/ui/DoneMark';
 import { morphoParts, speciesParts } from '~/lib/nameParts';
+import { acceptedNameOnly } from '~/lib/synonymAdd';
 
 type Tab = 'species' | 'plot';
 
@@ -108,6 +112,8 @@ export default function MirenPlotScreen() {
   const id = Number(useLocalSearchParams<{ id: string }>().id);
   const [plot, setPlot] = useState(() => getPlot(id));
   const [species, setSpecies] = useState<MirenPlotSpeciesWithTaxon[]>(() => listPlotSpecies(id));
+  // The docked search's height: a focused field is scrolled above it, not only above the keyboard (code review V8).
+  const [dockH, setDockH] = useState(0);
   const [tab, setTab] = useState<Tab>('species');
   const [openId, setOpenId] = useState<number | null>(null);
   const rootRef = useRef<View>(null);
@@ -120,7 +126,12 @@ export default function MirenPlotScreen() {
 
   const ctx = plot ? surveyContext(plot.survey_id) : null;
   if (!plot || !ctx) {
-    return <Text className="p-4 text-gray-500">{t('miren.notFound')}</Text>;
+    // A background in both themes, as the screen's own (code review L30).
+    return (
+      <View className="flex-1 bg-gray-50 dark:bg-gray-950">
+        <Text className="p-4 text-gray-500 dark:text-gray-400">{t('miren.notFound')}</Text>
+      </View>
+    );
   }
   const { route, region, regionCode } = ctx;
   const code = formatPlotCode({ region: regionCode, route: route.code, site: plot.site_no, plot: plot.plot_no, suffix: plot.suffix });
@@ -210,8 +221,16 @@ export default function MirenPlotScreen() {
       },
     ]);
   const undoBlind = () => {
-    if (reopenBlind(plot.id)) reload();
-    else Alert.alert(t('miren.plot.reopenBlindTitle'), t('miren.plot.reopenBlindRefused'));
+    const reopen = () => {
+      if (reopenBlind(plot.id)) reload();
+      else Alert.alert(t('miren.plot.reopenBlindTitle'), t('miren.plot.reopenBlindRefused'));
+    };
+    // The previous list has been shown: what is added from now on is a recheck find (code review M19).
+    if (!previousListShown(plot.id)) return reopen();
+    Alert.alert(t('miren.plot.reopenBlindTitle'), t('miren.plot.reopenBlindSeen'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('miren.plot.reopenBlindTitle'), onPress: reopen },
+    ]);
   };
   const locate = async () => {
     const perm = await Location.requestForegroundPermissionsAsync();
@@ -243,14 +262,15 @@ export default function MirenPlotScreen() {
       {species.length === 0 ? <Text className="text-sm text-gray-500 dark:text-gray-400">{t(canAdd ? 'miren.plot.emptyHint' : 'miren.plot.empty')}</Text> : null}
       {species.map((s, i) => {
         const status = getRegionStatus(region.id, { taxonId: s.taxon_id, verbatim: s.verbatim_identification })?.status ?? 'unknown';
-        const open = openId === s.id && editable(s) && measures.mode === 'cover-abundance';
+        // A tap opens an editable row: its classes and its 移除 (a long press was the only way: code review L19).
+        const open = openId === s.id && editable(s);
         const lockedRow = !editable(s);
         return (
           <Card key={s.id} className={`p-3 ${incomplete.has(s.id) ? 'border-amber-500' : ''}`}>
             <Pressable
-              onPress={() => (measures.mode === 'cover-abundance' && editable(s) ? setOpenId(open ? null : s.id) : undefined)}
-              onLongPress={() => void speciesMenu(s)}
+              onPress={() => (editable(s) ? setOpenId(open ? null : s.id) : undefined)}
               accessibilityRole="button"
+              accessibilityState={{ expanded: open }}
               className="flex-row items-center gap-2"
             >
               <Text className="w-6 text-xs text-gray-400">{i + 1}</Text>
@@ -273,12 +293,19 @@ export default function MirenPlotScreen() {
               )}
               {lockedRow ? <Ionicons name="lock-closed" size={14} color={tc.ink3} /> : null}
             </Pressable>
-            {open && measures.mode === 'cover-abundance' ? (
+            {open ? (
               <View className="gap-2 pt-3">
-                <Text className="text-xs text-gray-500">{t(isRoad ? 'miren.plot.coverRoad' : 'miren.plot.coverTrail')}</Text>
-                <ClassChips scale={measures.cover} value={s.cover_class} unit="%" onChange={(v) => setValue(s, 'cover_class', v)} disabled={false} />
-                <Text className="text-xs text-gray-500">{t('miren.plot.abundance')}</Text>
-                <ClassChips scale={measures.abundance} value={s.abundance_class} unit="" onChange={(v) => setValue(s, 'abundance_class', v)} disabled={false} />
+                {measures.mode === 'cover-abundance' ? (
+                  <>
+                    <Text className="text-xs text-gray-500">{t(isRoad ? 'miren.plot.coverRoad' : 'miren.plot.coverTrail')}</Text>
+                    <ClassChips scale={measures.cover} value={s.cover_class} unit="%" onChange={(v) => setValue(s, 'cover_class', v)} disabled={false} />
+                    <Text className="text-xs text-gray-500">{t('miren.plot.abundance')}</Text>
+                    <ClassChips scale={measures.abundance} value={s.abundance_class} unit="" onChange={(v) => setValue(s, 'abundance_class', v)} disabled={false} />
+                  </>
+                ) : null}
+                <View className="items-start">
+                  <Button label={t('common.remove')} icon="trash-outline" variant="danger" onPress={() => void speciesMenu(s)} />
+                </View>
               </View>
             ) : null}
           </Card>
@@ -434,7 +461,7 @@ export default function MirenPlotScreen() {
       className="flex-1 bg-gray-50 dark:bg-gray-950"
     >
       <Stack.Screen options={{ title: code }} />
-      <ScrollView contentContainerClassName="gap-3 p-4" keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
+      <KeyboardAwareScrollView contentContainerClassName="gap-3 p-4" keyboardShouldPersistTaps="handled" bottomOffset={dockH + 12}>
         <Banner tone={state === 'done' ? 'ok' : state === 'recheck' ? 'warn' : 'info'}>
           <BannerText tone={state === 'done' ? 'ok' : state === 'recheck' ? 'warn' : 'info'}>{t(`miren.plot.banner_${state}`)}</BannerText>
         </Banner>
@@ -459,10 +486,10 @@ export default function MirenPlotScreen() {
             {finished ? <Btn label={t('miren.plot.unfinish')} onPress={() => (unfinishPlot(plot.id), reload())} /> : null}
           </View>
         ) : null}
-      </ScrollView>
+      </KeyboardAwareScrollView>
       {canAdd && tab === 'species' ? (
         <KeyboardStickyView offset={{ opened: insets.bottom }}>
-          <View>
+          <View onLayout={(e) => setDockH(e.nativeEvent.layout.height)}>
             {sealed ? (
               <Text className="border-t border-amber-200 bg-amber-50 px-4 py-1.5 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300">
                 {t('miren.plot.addingAfterBlind')}
@@ -471,8 +498,10 @@ export default function MirenPlotScreen() {
             <SearchBox
               scopeGroups={GLORIA_SEARCH_GROUPS}
               topLimit={rootTop}
-              onSelect={(r) => {
+              onSelect={async (r, adopted) => {
                 if (!r.taxon_id) return;
+                // MIREN keeps the accepted name: a name chosen in the search is confirmed away (code review V4).
+                if (!(await acceptedNameOnly({ accepted: r.name, rank: r.rank, kingdom: r.kingdom }, adopted))) return;
                 void addTaxon(r.taxon_id, r.rank, r.name);
               }}
             />

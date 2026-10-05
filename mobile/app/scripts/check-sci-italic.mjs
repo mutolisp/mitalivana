@@ -12,6 +12,8 @@
  *
  * Run: npm run check:sciitalic
  */
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { scientificNameMd, scientificNameSegments } from '../src/lib/scientificNameSegments.ts';
 import { formatScientificNameMarkdown } from '../src/lib/scientificNameMarkdown.ts';
 
@@ -47,6 +49,18 @@ eq('export: lone word without rank stays upright', ex('Aves', 'Animalia', ''), '
 eq('export: family stays upright', ex('Lauraceae Juss.', 'Plantae', 'Family'), 'Lauraceae Juss.');
 eq('export: species unchanged', ex('Litsea cubeba (Lour.) Pers.', 'Plantae', 'Species'), '*Litsea cubeba* (Lour.) Pers.');
 eq('export: infraspecific unchanged', ex('Litsea acuminata var. glabra Hayata', 'Plantae', 'Variety'), '*Litsea acuminata* var. *glabra* Hayata');
+
+// ── screens: the italic Latin face only through ScientificName (code review L24) ──
+// A Text with font-latin set whole made "var.", "subsp." and family names italic.
+{
+  const walk = (dir) =>
+    readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(join(dir, e.name)) : /\.tsx?$/.test(e.name) ? [join(dir, e.name)] : []));
+  const OWN = new Set(['src/components/ScientificName.tsx']);
+  const bare = [...walk('src'), ...walk('app')]
+    .filter((f) => !OWN.has(f))
+    .flatMap((f) => readFileSync(f, 'utf8').split('\n').flatMap((l, i) => (/\bfont-latin(?![-\w])/.test(l) ? [`${f}:${i + 1}`] : [])));
+  eq('screens: no font-latin outside ScientificName', bare, []);
+}
 
 if (failures > 0) {
   console.error(`✗ sci-italic: ${failures} failure(s)`);

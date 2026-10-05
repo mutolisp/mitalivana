@@ -28,6 +28,7 @@ import { closeDbs, getUserDb, initDb, parseEnvPhotos, searchByTaxonId, type Sear
 import type { TaskReporter } from '~/stores/taskProgress';
 import { LATEST_SCHEMA_VERSION } from '~/db/migrations';
 import { BACKUP_NAME_PREFIX } from './googleDevice';
+import { guardFormula } from './csvFormula';
 import {
   base64ToBytes,
   ensurePhotosReadAccess,
@@ -432,7 +433,8 @@ function collectPhotoSources(): PhotoSource[] {
   return out;
 }
 
-const csvEscape = (s: string): string => `"${s.replace(/"/g, '""')}"`;
+// photos.csv is Excel-bound: formula-like values get a leading apostrophe (code review L17).
+const csvEscape = (s: string): string => `"${guardFormula(s).replace(/"/g, '""')}"`;
 
 function uniqueName(entries: BuiltZipEntry[], folder: string, name: string): string {
   const taken = (n: string) => entries.some((e) => e.name === `${folder}/${n}`);

@@ -621,8 +621,11 @@ export function PlotSpeciesTab({
         // Only fills a missing coordinate; a measured one is never replaced.
         const gained =
           fix.kind === 'found' && (record.lat === null || record.lng === null) ? fix.fix : null;
+        // The photo's altitude too only fills a missing one: a typed-in
+        // elevation stays, as when adding (code review M26).
+        const altitude = gained && record.elevation_m == null ? gained.altitudeM : null;
         if (gained) {
-          updatePlotSpeciesLocation(record.id, gained.lat, gained.lng, gained.accuracyM, gained.altitudeM);
+          updatePlotSpeciesLocation(record.id, gained.lat, gained.lng, gained.accuracyM, altitude);
         }
         // Re-seed modal so PhotoGrid reflects the new entry without closing.
         setModal({
@@ -635,7 +638,7 @@ export function PlotSpeciesTab({
                   lat: gained.lat,
                   lng: gained.lng,
                   accuracy: gained.accuracyM,
-                  ...(gained.altitudeM != null ? { elevation_m: gained.altitudeM, elevation_source: 'gnss' } : null),
+                  ...(altitude != null ? { elevation_m: altitude, elevation_source: 'gnss' } : null),
                 }
               : null),
           },

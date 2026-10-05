@@ -23,7 +23,9 @@
     "next": "Suivant",
     "selectedCount_one": "{{count}} sélectionné",
     "selectedCount_many": "{{count}} sélectionnés",
-    "selectedCount_other": "{{count}} sélectionnés"
+    "selectedCount_other": "{{count}} sélectionnés",
+    "labelValue": "{{label}} : {{value}}",
+    "withParen": "{{main}} ({{extra}})"
   },
   "actionSheet": {
     "close": "Fermer",
@@ -367,6 +369,15 @@
       "projectEmpty": "« {{name}} » ne contient aucun enregistrement à exporter",
       "noneSelected": "Aucun enregistrement sélectionné",
       "tooManyReleves": "Le nombre de relevés ({{n}}) dépasse la limite de JUICE ({{max}})"
+    },
+    "formula": {
+      "title": "Certaines valeurs pourraient être exécutées comme formules",
+      "guarded_one": "{{count}} valeur des tableaux destinés à Excel commence par = + - @ ou similaire ; elle a été écrite précédée d’une apostrophe (') pour ne pas être exécutée comme formule.",
+      "guarded_other": "{{count}} valeurs des tableaux destinés à Excel commencent par = + - @ ou similaire ; elles ont été écrites précédées d’une apostrophe (') pour ne pas être exécutées comme formules.",
+      "guarded_many": "{{count}} valeurs des tableaux destinés à Excel commencent par = + - @ ou similaire ; elles ont été écrites précédées d’une apostrophe (') pour ne pas être exécutées comme formules.",
+      "raw_one": "{{count}} valeur des fichiers pour R et GBIF (matrices vegan, DwC-A) commence par = + - @ ou similaire et a été laissée telle quelle ; ouverte dans Excel, elle peut être exécutée comme formule.",
+      "raw_other": "{{count}} valeurs des fichiers pour R et GBIF (matrices vegan, DwC-A) commencent par = + - @ ou similaire et ont été laissées telles quelles ; ouvertes dans Excel, elles peuvent être exécutées comme formules.",
+      "raw_many": "{{count}} valeurs des fichiers pour R et GBIF (matrices vegan, DwC-A) commencent par = + - @ ou similaire et ont été laissées telles quelles ; ouvertes dans Excel, elles peuvent être exécutées comme formules."
     }
   },
   "nav": {
@@ -390,7 +401,8 @@
     "gloria": "enquête GLORIA",
     "privacy": "Politique de confidentialité",
     "miren": "Relevé MIREN",
-    "survey": "Inventaire des arbres"
+    "survey": "Inventaire des arbres",
+    "addRecords": "Ajouter des enregistrements"
   },
   "tab": {
     "menu": "Réglages",
@@ -1112,7 +1124,7 @@
     "statsCollections": "Collectes {{n}}",
     "statsGloria": "GLORIA {{n}}",
     "statsMiren": "MIREN {{n}}",
-    "deleteOthers": "{{n}} autres enregistrements de collecte, GLORIA ou MIREN reviennent aussi dans « Non classé »."
+    "deleteOthers": "{{n}} enregistrements d’autres types reviennent aussi dans « Non classé »."
   },
   "sites": {
     "typePoint": "Point",
@@ -1955,6 +1967,7 @@
   "recordImport": {
     "unsupportedBundle": "Ceci est une archive regroupant plusieurs enregistrements ; décompressez-la et importez chaque enregistrement séparément.",
     "unknownKind": "Impossible de déterminer le type d'enregistrement contenu dans ce fichier.",
+    "newerFormat": "Ce fichier utilise un format plus récent que celui que lit cette app. Mettez l’app à jour, puis importez-le à nouveau.",
     "sessionExistsTitle": "La liste d'espèces existe déjà",
     "sessionExistsMsg": "« {{name}} » est déjà présente sur cet appareil. L'écraser, ou enregistrer une nouvelle copie ?",
     "photoConflictTitle": "Cet enregistrement contient déjà des photos",
@@ -3334,7 +3347,8 @@
       "cellEmpty": "(vide)",
       "cellHas": "✓ {{name}} dans cette cellule (toucher pour retirer)",
       "cellAdd": "Ajouter {{name}} à cette cellule",
-      "redo": "Rétablir"
+      "redo": "Rétablir",
+      "skipped": "Ce quadrat est marqué « Arbustes : ni fréquence ni point-framing » ; les données ici sont en lecture seule. Décochez la case sur le quadrat pour les modifier."
     },
     "walk": {
       "titleQuadrat": "{{code}} · point-frame",
@@ -4144,7 +4158,9 @@
         "queued": "En attente",
         "fail": "Échec"
       },
-      "files": "{{n}} fichiers",
+      "files_one": "{{count}} fichier",
+      "files_many": "{{count}} fichiers",
+      "files_other": "{{count}} fichiers",
       "skip": {
         "block_size": "Taille de bloc non décidée (synchroniser depuis l’inventaire)",
         "unreadable": "Illisible (peut-être une app plus récente)",
@@ -4367,7 +4383,8 @@
       "relocateMsg": "Si l’ancien site ne peut être revisité, un nouveau site proche devient {{code}}. Les relevés antérieurs gardent l’ancien ; signalez-le aux gestionnaires de données.",
       "relocateExists": "Ce site a déjà été déplacé.",
       "deleteTitle": "Supprimer le site",
-      "deleteUsed": "Un relevé utilise ce site ; il ne peut pas être supprimé."
+      "deleteUsed": "Un relevé utilise ce site ; il ne peut pas être supprimé.",
+      "deleteMsg": "Le site sera supprimé. Cette action est irréversible."
     },
     "survey": {
       "active": "En cours",
@@ -4449,6 +4466,7 @@
       "toRecheck": "Revérifier avec le relevé précédent",
       "reopenBlindTitle": "Annuler la fin du relevé à l’aveugle",
       "reopenBlindRefused": "La revérification a commencé : impossible de rouvrir le relevé à l’aveugle.",
+      "reopenBlindSeen": "Les espèces du relevé précédent ont déjà été affichées pour cette placette. Après l’annulation, la liste à l’aveugle reste modifiable, mais toute espèce ajoutée désormais est notée comme trouvée à la revérification (Found after recheck).",
       "finished": "Placette terminée.",
       "unfinish": "Rouvrir la placette",
       "sampled": "Relevée",
@@ -4999,7 +5017,9 @@
       "blockSizeOption": "{{k}} × {{k}} quadrats de {{m}} m · {{blocks}} blocs · environ {{size}} chacun",
       "recommended": "recommandé",
       "tooLarge": "risque de dépasser la limite",
-      "sentBlocks": "{{count}} blocs envoyés",
+      "sentBlocks_one": "{{count}} bloc envoyé",
+      "sentBlocks_many": "{{count}} blocs envoyés",
+      "sentBlocks_other": "{{count}} blocs envoyés",
       "blocks": "Blocs et attributions",
       "blocksUndecided": "La taille des blocs est décidée à la première synchronisation d’équipe. Les blocs apparaissent ensuite ici et peuvent être pris en charge.",
       "claimsHint": "Touchez un bloc pour l’attribuer au groupe de cet appareil ; touchez de nouveau pour le libérer. Cela indique seulement à l’équipe qui travaille où et part avec la prochaine synchronisation. Ajouter ou modifier un arbre dans un bloc attribué à un autre groupe demande confirmation.",
@@ -5032,7 +5052,9 @@
       "versionsNote": "Avant l’application, une version de chaque quadrat de ce bloc est conservée ; on peut la restaurer depuis les versions du quadrat.",
       "someone": "un membre",
       "templateDiffersTitle": "Autre modèle ; non fusionné",
-      "templateDiffersMsg": "{{names}} a saisi cet inventaire avec un autre modèle ; ses données n’ont pas été fusionnées. Utilisez tous le même modèle ; s’il s’agit d’un autre relevé, la personne doit supprimer cet inventaire et choisir « Nouvelle série » au démarrage."
+      "templateDiffersMsg": "{{names}} a saisi cet inventaire avec un autre modèle ; ses données n’ont pas été fusionnées. Utilisez tous le même modèle ; s’il s’agit d’un autre relevé, la personne doit supprimer cet inventaire et choisir « Nouvelle série » au démarrage.",
+      "tooLargeTitle": "Certains blocs étaient trop volumineux pour être envoyés",
+      "tooLargeMsg": "{{blocks}} dépassait la limite par enregistrement du serveur ({{limit}}) et n’a pas été envoyé cette fois ; les autres blocs ont été synchronisés normalement, et la prochaine synchronisation réessaiera. Si la limite est toujours dépassée, demandez à l’administrateur du serveur de l’augmenter (MAX_OBJECT_BYTES)."
     },
     "import": {
       "existsTitle": "Certains inventaires sont déjà là",
@@ -5388,6 +5410,8 @@
     },
     "err": {
       "unitTaken": "Le code {{code}} est déjà utilisé",
+      "unitCodeChar": "Un code ne peut pas contenir | ni /",
+      "seriesCodeTaken": "Cette placette permanente a déjà une série de code {{code}} ; choisissez un autre code",
       "frameUnitLocked": "Un relevé a utilisé cette unité ; son code et sa position ne peuvent plus changer",
       "blindSealed": "Le relevé à l’aveugle est terminé ; ses données ne peuvent plus changer",
       "recheckBegun": "La revérification a commencé (réponses ou espèces trouvées) ; le relevé à l’aveugle ne peut plus être rouvert",
@@ -5879,7 +5903,8 @@
       "pct": "Ouverture du ciel (%)",
       "grades": "Classes personnalisées",
       "list": "Liste des classes"
-    }
+    },
+    "previewNoAssign": "Un aperçu ne peut pas être rattaché à un projet ou à un site, ni créer de site (rien d’un aperçu n’est conservé)."
   },
   "fieldLib": {
     "title": "Bibliothèque de champs",
@@ -5993,5 +6018,13 @@
     "photosSkipped_one": "{{count}} photo n’a pas pu être enregistrée dans la photothèque et n’a pas été importée",
     "photosSkipped_other": "{{count}} photos n’ont pas pu être enregistrées dans la photothèque et n’ont pas été importées",
     "photosSkipped_many": "{{count}} photos n’ont pas pu être enregistrées dans la photothèque et n’ont pas été importées"
+  },
+  "synonymAdd": {
+    "title": "Cette espèce est déjà là",
+    "message": "{{here}} est déjà là, le même taxon que {{picked}}, le nom choisi (un synonyme). L’ajouter à l’enregistrement existant, ou garder volontairement un second enregistrement ?",
+    "merge": "Ajouter à {{here}} (fusionner)",
+    "separate": "Un second enregistrement sous {{picked}}",
+    "acceptedOnlyTitle": "Noms acceptés uniquement ici",
+    "acceptedOnly": "Les enregistrements ici ne gardent que le nom accepté : {{typed}}, le nom choisi, est enregistré comme {{accepted}}."
   }
 }

@@ -30,6 +30,7 @@ import { parseQuadratConfig, QuadratError, setPlotSpeciesFreq, switchPlotFreqMod
 import type { AdoptionInput } from '~/db/taxonLookup';
 import type { SearchResult } from '~/db/types';
 import { kindForType } from '~/lib/dwcAbundanceCore';
+import { synonymAlreadyHere } from '~/lib/synonymAdd';
 import { useSettledCall } from '~/lib/useSettledCall';
 import { useToast } from '~/stores/toast';
 import type { FrequencyGridHandle } from './FrequencyGrid';
@@ -136,9 +137,16 @@ export function PlotFreqTab({
       if (i < 0) return null;
       subplot = subs[i].id;
     }
-    // Already on the list there: paint that record instead of a second one.
-    const same = records.find((x) => x.taxon_id === r.taxon_id && x.layer === code && (x.subplot_id ?? null) === subplot);
-    if (same) return `r${same.id}`;
+    // Already on the list there: paint that record instead of a second one;
+    // under another of its names, the recorder says which (code review V4).
+    const here = records.filter((x) => x.taxon_id === r.taxon_id && x.layer === code && (x.subplot_id ?? null) === subplot);
+    const exact = here.find((x) => (x.used_scientific_name || null) === (adopted?.scientific_name || null));
+    if (exact) return `r${exact.id}`;
+    if (here[0]) {
+      const ans = await synonymAlreadyHere({ accepted: r.name, rank: r.rank, kingdom: r.kingdom }, here[0].used_scientific_name, adopted);
+      if (ans === null) return null;
+      if (ans !== 'separate') return `r${here[0].id}`;
+    }
     let id = 0;
     const layerCode = code;
     if (!write(() => void (id = addPlotSpecies({ plot_survey_id: plot.id, taxon_id: r.taxon_id, layer: layerCode, subplot_id: subplot, adopted })))) return null;

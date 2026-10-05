@@ -6,7 +6,8 @@
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Keyboard, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Keyboard, Pressable, Text, TextInput, View } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { SwipeNavArea, SwipeNavPager, usePagerNav, type SwipeNavPagerState } from '~/components/SwipeNavigator';
 import { bySpeciesOrder } from '~/modules/gloria/model/speciesOrder';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -111,7 +112,7 @@ export default function GloriaSpeciesScreen() {
       <SwipeNavPager state={pager} />
       <SwipeNavArea nav={nav}>
       {/* Keyed by species: the note field's defaultValue must reset per species. */}
-      <ScrollView key={usid} contentContainerClassName="gap-3 p-4" keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
+      <KeyboardAwareScrollView key={usid} contentContainerClassName="gap-3 p-4" keyboardShouldPersistTaps="handled" bottomOffset={24}>
         <View>
           <Text className="text-lg font-bold text-gray-900 dark:text-gray-100">{displayName(s)}</Text>
           <Text className="text-sm text-gray-600 dark:text-gray-300">
@@ -225,7 +226,7 @@ export default function GloriaSpeciesScreen() {
             }}
           />
         </View>
-      </ScrollView>
+      </KeyboardAwareScrollView>
       </SwipeNavArea>
       <NumAccessory />
     </SafeAreaView>

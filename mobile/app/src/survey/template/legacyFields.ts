@@ -19,7 +19,7 @@
  */
 import type { TraitDef } from '../registry';
 import { codeListUsers, labelParts, nextKey } from './edit';
-import { FIELD_KEY, fieldDefOf, libraryFit, MAX_VALUE, suggestKey, type AllowedValue, type LibraryWrite, type ObsFieldDef } from './obsField';
+import { FIELD_KEY, fieldDefOf, libraryFit, MAX_NAME, MAX_VALUE, suggestKey, type AllowedValue, type LibraryWrite, type ObsFieldDef } from './obsField';
 import type { ComponentInstance, SurveyTemplate } from './types';
 
 /** Allowed values from a code list's items: their names (the code when nameless or a repeat), single-line, no |. */
@@ -42,6 +42,9 @@ const keyFrom = (en: string, fallback: string) => {
   return FIELD_KEY.test(k) && k !== 'field' ? k : fallback;
 };
 
+/** A field's name fits the library's limit: a longer one was refused there and the builder threw on opening (code review L5). */
+const fitName = (s: string) => s.slice(0, MAX_NAME).trim();
+
 function choiceDef(t: SurveyTemplate, c: ComponentInstance): ObsFieldDef {
   const list = t.codelists.find((l) => l.id === c.params.list);
   const own = labelParts(c.label);
@@ -50,7 +53,7 @@ function choiceDef(t: SurveyTemplate, c: ComponentInstance): ObsFieldDef {
   const en = own.en || ln.en;
   return {
     key: keyFrom(en, c.key),
-    name: own.text || ln.text || c.key,
+    name: fitName(own.text || ln.text || c.key),
     ...(en ? { name_en: en } : {}),
     datatype: 'text',
     // A list of fewer than two names cannot restrict (iNaturalist's rule): free text.
@@ -64,7 +67,7 @@ function traitDefs(c: ComponentInstance): ObsFieldDef[] {
     const parts = labelParts(tr.label as never);
     return {
       key: tr.id,
-      name: parts.text || tr.id,
+      name: fitName(parts.text || tr.id),
       ...(parts.en ? { name_en: parts.en } : {}),
       datatype: 'numeric',
       numeric_kind: tr.integer ? 'integer' : 'float',

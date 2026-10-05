@@ -18,7 +18,7 @@
  */
 import { migratedDb } from './schema-columns.mjs';
 import { readFileSync } from 'node:fs';
-import { CASCADE_EXEMPT, CASCADE_ORPHANS, NULL_DANGLING, PROJECT_FK_TABLES, SITE_REF_TABLES, SYNC_RECORD_EXEMPT, SYNC_RECORD_TABLES, TEAM_TABLES } from '../src/db/integrityRules.ts';
+import { ADOPTION_TABLES, CASCADE_EXEMPT, CASCADE_ORPHANS, NULL_DANGLING, PROJECT_FK_TABLES, SITE_REF_TABLES, SYNC_RECORD_EXEMPT, SYNC_RECORD_TABLES, TEAM_TABLES } from '../src/db/integrityRules.ts';
 
 const db = await migratedDb();
 const tables = db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'`).all().map((r) => r.name);
@@ -100,6 +100,25 @@ for (const [i, [t, w]] of CASCADE_ORPHANS.entries()) {
   const retry = src('lib/mediaSync.ts').match(/export async function retryPendingMedia[\s\S]*?\n\}/)?.[0] ?? '';
   for (const k of ['session', 'plot', 'gloria', 'modular']) if (!retry.includes(`'${k}'`)) errors.push(`retryPendingMedia skips the files of a ${k}`);
   for (const f of ['lib/teamSync.ts', '../app/settings/team/[id].tsx']) if (!src(f).includes('retryCensusMedia(teamId)')) errors.push(`${f} does not retry a census's files (retryCensusMedia)`);
+}
+// ── The sites list counts a site as bound by every record that holds one (code review L31) ──
+{
+  const sitesScreen = readFileSync(new URL('../app/sites.tsx', import.meta.url), 'utf8');
+  if (!/buildGeoRows\([^\n]*referencedSiteIds\(\)\)/.test(sitesScreen)) errors.push('app/sites.tsx does not pass referencedSiteIds() (every SITE_REF_TABLES table) to buildGeoRows');
+  const sitesDb = readFileSync(new URL('../src/db/sites.ts', import.meta.url), 'utf8').match(/export function referencedSiteIds[\s\S]*?\n\}/)?.[0] ?? '';
+  if (!sitesDb.includes('SITE_REF_TABLES.map')) errors.push('referencedSiteIds does not read every SITE_REF_TABLES table');
+}
+
+// ── Every table with an adopted name is in the integrity report (code review L9) ──
+for (const t of tables) if (cols(t).includes('used_name_id') && !ADOPTION_TABLES.includes(t)) errors.push(`${t} holds an adopted name but is not in ADOPTION_TABLES`);
+for (const t of ADOPTION_TABLES) if (!['taxon_id', 'used_name_id', 'used_scientific_name'].every((c) => cols(t).includes(c))) errors.push(`ADOPTION_TABLES has ${t}, which has no adopted name`);
+
+// ── Project stats count every kind of record in a project (code review L8) ──
+{
+  const counts = readFileSync(new URL('../src/db/projects.ts', import.meta.url), 'utf8').match(/export function listProjectsWithCounts[\s\S]*?\n\}/)?.[0] ?? '';
+  // sites are places, fw_frames the permanent plots the surveys and censuses (counted) sit on.
+  const NOT_RECORDS = new Set(['sites', 'fw_frames']);
+  for (const t of PROJECT_FK_TABLES) if (!NOT_RECORDS.has(t) && !new RegExp(`FROM ${t}\\b`).test(counts)) errors.push(`listProjectsWithCounts does not count ${t}`);
 }
 db.close();
 

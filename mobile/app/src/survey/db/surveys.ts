@@ -53,6 +53,13 @@ export const saveField = (def: ObsFieldDef, prevKey?: string) => withTransaction
 export const setFieldDeprecated = (key: string, deprecated: boolean) => fld.setFieldDeprecated(ctx(), key, deprecated);
 export const deleteField = (key: string) => fld.deleteField(ctx(), key);
 export const storeLibraryWrites = (writes: readonly LibraryWrite[]) => withTransaction(() => fld.storeLibraryWrites(ctx(), writes));
+/** A template file's fields and the template as one change: a template that
+ *  fails to save leaves the library as it was (code review V14). */
+export const importTemplateWithFields = (t: SurveyTemplate, writes: readonly LibraryWrite[]) =>
+  withTransaction(() => {
+    fld.storeLibraryWrites(ctx(), writes);
+    return tpl.saveTemplate(ctx(), t);
+  });
 export const upgradableSurveys = (t: SurveyTemplate) => tpl.upgradableSurveys(ctx(), t);
 /** Move these surveys to `to` (each an additive change); returns how many moved. */
 export const upgradeSurveys = (ids: readonly number[], to: SurveyTemplate) => withTransaction(() => ids.filter((id) => tpl.upgradeSurvey(ctx(), id, to)).length);
@@ -70,8 +77,18 @@ export const finishSurvey = (id: number, stopTs?: number | null) => core.finishS
 export const reopenSurvey = (id: number) => tx(id, () => core.reopenSurvey(ctx(id), id));
 /** Snapshot first, so a checklist / plot-style survey can be recovered for 30 days (record versions; lazy: they import this module's neighbours). */
 export const deleteSurvey = (id: number) => {
+  // Refused before a version is kept: only the last survey of a series goes (M17).
+  core.assertDeletableSurveys(ctx(id), [id]);
   (require('~/db/recordVersions') as typeof import('~/db/recordVersions')).saveVersion('modular', id, 'before_delete');
   tx(id, () => core.deleteSurvey(ctx(id), id));
+};
+/** Throws not_latest_census unless these can go together (the last surveys of each series). A preview goes alone. */
+export const assertDeletableSurveys = (ids: readonly number[]) => (ids.length ? core.assertDeletableSurveys(ctx(ids[0]), ids) : undefined);
+/** Several at once, newest first so a series' last ones can go together. */
+export const deleteSurveys = (ids: readonly number[]) => {
+  if (!ids.length) return;
+  assertDeletableSurveys(ids);
+  for (const id of core.newestFirst(ctx(ids[0]), ids)) deleteSurvey(id);
 };
 
 // a frame's layout

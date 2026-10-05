@@ -21,7 +21,9 @@
     "exitSelect": "結束選取",
     "previous": "上一筆",
     "next": "下一筆",
-    "selectedCount_other": "已選 {{count}} 項"
+    "selectedCount_other": "已選 {{count}} 項",
+    "labelValue": "{{label}}：{{value}}",
+    "withParen": "{{main}}（{{extra}}）"
   },
   "actionSheet": {
     "close": "關閉",
@@ -303,6 +305,11 @@
       "projectEmpty": "「{{name}}」內沒有任何記錄，無法匯出",
       "noneSelected": "沒有選擇任何記錄",
       "tooManyReleves": "樣方數 {{n}} 超過 JUICE 上限 {{max}}"
+    },
+    "formula": {
+      "title": "有些值可能被試算表當成公式",
+      "guarded_other": "給 Excel 開啟的表格中有 {{count}} 個值以 = + - @ 等字元開頭，已在前面加上單引號（'），避免被當成公式執行。",
+      "raw_other": "給 R 與 GBIF 的檔案（vegan 矩陣、DwC-A）中有 {{count}} 個值以 = + - @ 等字元開頭，內容保留原樣；用 Excel 開啟這些檔案時，它們可能被當成公式。"
     }
   },
   "nav": {
@@ -326,7 +333,8 @@
     "gloria": "GLORIA 山峰調查",
     "privacy": "隱私權政策",
     "miren": "MIREN 調查",
-    "survey": "每木調查"
+    "survey": "每木調查",
+    "addRecords": "新增記錄"
   },
   "tab": {
     "menu": "設定",
@@ -1002,7 +1010,7 @@
     "statsCollections": "採集 {{n}}",
     "statsGloria": "GLORIA {{n}}",
     "statsMiren": "MIREN {{n}}",
-    "deleteOthers": "另有 {{n}} 筆採集、GLORIA 或 MIREN 記錄也會回到「未分類」。"
+    "deleteOthers": "另有 {{n}} 筆其他種類的記錄也會回到「未分類」。"
   },
   "sites": {
     "typePoint": "點位",
@@ -1721,6 +1729,7 @@
   "recordImport": {
     "unsupportedBundle": "這是多筆記錄的打包檔，請先解壓縮後逐一匯入。",
     "unknownKind": "無法辨識這個檔案的記錄類型。",
+    "newerFormat": "這個檔案的格式比這個 app 新，請先更新 app 再匯入。",
     "sessionExistsTitle": "名錄已存在",
     "sessionExistsMsg": "「{{name}}」已在裝置中。要覆蓋更新，還是另存成新副本？",
     "photoConflictTitle": "這筆記錄已有照片",
@@ -2996,7 +3005,8 @@
       "cellEmpty": "（空）",
       "cellHas": "✓ 此格有 {{name}}（點一下移除）",
       "cellAdd": "此格加入 {{name}}",
-      "redo": "重做"
+      "redo": "重做",
+      "skipped": "此樣方勾選了「灌叢，不做頻度與頻度點擊法」，這裡的資料只能檢視；回到樣方取消勾選後才能編輯。"
     },
     "walk": {
       "titleQuadrat": "{{code}} · 頻度點擊法",
@@ -3766,7 +3776,7 @@
         "queued": "待送",
         "fail": "失敗"
       },
-      "files": "檔案 {{n}} 個",
+      "files_other": "檔案 {{count}} 個",
       "skip": {
         "block_size": "尚未決定區塊大小（請在回合畫面同步）",
         "unreadable": "無法讀取（可能來自較新版 app）",
@@ -3983,7 +3993,8 @@
       "relocateMsg": "舊樣點無法重複調查時，在附近設新樣點，編為 {{code}}。之前的調查仍屬舊樣點；送資料時請告知資料管理者這是新樣點。",
       "relocateExists": "這個樣點已經改設過。",
       "deleteTitle": "刪除樣點",
-      "deleteUsed": "已有調查使用這個樣點，無法刪除。"
+      "deleteUsed": "已有調查使用這個樣點，無法刪除。",
+      "deleteMsg": "會刪除這個樣點，無法復原。"
     },
     "survey": {
       "active": "進行中",
@@ -4065,6 +4076,7 @@
       "toRecheck": "與前次調查複查",
       "reopenBlindTitle": "取消結束盲記",
       "reopenBlindRefused": "複查已開始，無法回到盲記。",
+      "reopenBlindSeen": "這個樣區已顯示過前次調查的物種。取消結束盲記後，盲記已有的物種仍可修改，但之後新增的物種一律記為複查時發現（Found after recheck）。",
       "finished": "樣區已完成。",
       "unfinish": "重新開啟樣區",
       "sampled": "已調查",
@@ -4597,7 +4609,7 @@
       "blockSizeOption": "{{k}} × {{k}} 個樣方 · {{blocks}} 塊 · 每塊約 {{size}}",
       "recommended": "建議",
       "tooLarge": "可能超過上限",
-      "sentBlocks": "已送出 {{count}} 個區塊",
+      "sentBlocks_other": "已送出 {{count}} 個區塊",
       "blocks": "區塊與認領",
       "blocksUndecided": "第一次隊伍同步時才會決定區塊大小。同步後這裡會列出各區塊，可以認領。",
       "claimsHint": "點區塊認領給這台手機的小組，再點一次取消。認領只是告訴隊友這塊由誰負責，下次同步時送出；在別組認領的區塊新增或修改個體時會提醒。",
@@ -4630,7 +4642,9 @@
       "versionsNote": "套用前會先存這個區塊各樣方的版本，可以從樣方的版本還原。",
       "someone": "一位隊友",
       "templateDiffersTitle": "模板不同，沒有合併",
-      "templateDiffersMsg": "{{names}} 這個回合用的每木模板和這台不同，他們的資料沒有合併進來。請大家用同一份模板；若是另一套調查，請對方刪掉這個回合，開始時改選「另開系列」。"
+      "templateDiffersMsg": "{{names}} 這個回合用的每木模板和這台不同，他們的資料沒有合併進來。請大家用同一份模板；若是另一套調查，請對方刪掉這個回合，開始時改選「另開系列」。",
+      "tooLargeTitle": "有區塊太大，沒有送出",
+      "tooLargeMsg": "{{blocks}} 的資料超過伺服器的單筆上限（{{limit}}），這次沒有送出；其他區塊已照常同步，下次同步會再試一次。若一直超過，請伺服器管理者調高單筆上限（MAX_OBJECT_BYTES）。"
     },
     "import": {
       "existsTitle": "手機上已有這些回合",
@@ -4960,6 +4974,8 @@
     },
     "err": {
       "unitTaken": "代號 {{code}} 已在使用",
+      "unitCodeChar": "代號不能含有「|」或「/」",
+      "seriesCodeTaken": "這個永久樣區已有代號「{{code}}」的系列，請換一個代號",
       "frameUnitLocked": "這個單位已在調查中使用，代號與位置不能再改",
       "blindSealed": "盲測已結束，盲測期間的記錄不能再改",
       "recheckBegun": "已開始複查（已有複查結果或補記），不能重新開啟盲測",
@@ -5409,7 +5425,8 @@
       "pct": "天空開闊度（%）",
       "grades": "自訂等級",
       "list": "等級清單"
-    }
+    },
+    "previewNoAssign": "預覽不能指派專案或地理樣區，也不能新建地理樣區（預覽的資料不會留下）。"
   },
   "fieldLib": {
     "title": "自訂欄位庫",
@@ -5507,5 +5524,13 @@
     "overwrittenTitle": "已覆蓋",
     "overwrittenMsg_other": "「{{name}}」已改成檔案的內容（{{count}} 列變動）。原本的內容存成版本，可在「版本」還原。",
     "photosSkipped_other": "{{count}} 張照片無法寫入相簿，沒有匯入"
+  },
+  "synonymAdd": {
+    "title": "同一物種已在這裡",
+    "message": "這裡已有 {{here}}，和你選的 {{picked}} 是同一分類群（同物異名）。要記在既有那筆，還是刻意另記一筆？",
+    "merge": "記在既有的 {{here}}（合併）",
+    "separate": "另記一筆 {{picked}}",
+    "acceptedOnlyTitle": "這裡只用接受名",
+    "acceptedOnly": "這裡的記錄只能用接受名：你選的 {{typed}} 會記成 {{accepted}}。"
   }
 }

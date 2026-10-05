@@ -130,6 +130,16 @@ export function deleteSite(id: number): void {
  * 樣區 leaves two plots on the same site row, and overwriting its geometry
  * would silently redraw the other one's boundary too.
  */
+/**
+ * Every site id a record holds (SITE_REF_TABLES): the sites list's 已綁定.
+ * Names, plots and trips only were passed, so a site of a GLORIA, MIREN or
+ * modular survey, or of a permanent plot, showed as unbound (code review L31).
+ */
+export function referencedSiteIds(): { site_id: number }[] {
+  const res = getUserDb().executeSync(SITE_REF_TABLES.map((t) => `SELECT site_id FROM ${t} WHERE site_id IS NOT NULL`).join(' UNION '));
+  return (res.rows ?? []) as unknown as { site_id: number }[];
+}
+
 export function countSiteReferences(id: number): number {
   const db = getUserDb();
   // Every table that can hold a site_id must be counted: a missing one lets

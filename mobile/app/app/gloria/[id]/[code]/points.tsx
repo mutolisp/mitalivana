@@ -40,6 +40,7 @@ import { PointMap } from '~/modules/gloria/components/PointMap';
 import { saveVersionSoon } from '~/db/recordVersions';
 import { useVersionOnLeave } from '~/lib/useVersionOnLeave';
 import { speciesParts } from '~/lib/nameParts';
+import { acceptedNameOnly } from '~/lib/synonymAdd';
 
 type PointStep = { seq: number; surface: string; hits: Record<number, boolean> };
 
@@ -117,9 +118,13 @@ export default function PointsScreen() {
   const visited = [...surface].filter((c) => c !== SURFACE_UNVISITED).length;
   const done = visited === size && seq >= size;
 
+  // A shrub quadrat (manual §5.1.2) has no point-framing either: what is
+  // stored stays as it is (code review V10).
+  const skipped = !isSquare && unit.freq_skipped === 1;
   const refuseLocked = () => {
-    if (locked) toast(t('gloria.walk.lockedToast'));
-    return !!locked;
+    if (skipped) toast(t('gloria.freq.skipped'));
+    else if (locked) toast(t('gloria.walk.lockedToast'));
+    return skipped || !!locked;
   };
   const pointAt = (k: number): PointStep => {
     const i = order[k];
@@ -283,19 +288,22 @@ export default function PointsScreen() {
           headerLeft: BackHeaderLeft,
           headerRight: () => (
             <View className="flex-row items-center gap-3">
-              {!locked ? <HeaderIconButton icon="arrow-undo-outline" label={t('gloria.freq.undo')} onPress={doUndo} disabled={undoCount === 0} /> : null}
-              {!locked ? <HeaderIconButton icon="arrow-redo-outline" label={t('gloria.freq.redo')} onPress={doRedo} disabled={redoCount === 0} /> : null}
+              {!locked && !skipped ? <HeaderIconButton icon="arrow-undo-outline" label={t('gloria.freq.undo')} onPress={doUndo} disabled={undoCount === 0} /> : null}
+              {!locked && !skipped ? <HeaderIconButton icon="arrow-redo-outline" label={t('gloria.freq.redo')} onPress={doRedo} disabled={redoCount === 0} /> : null}
               <HeaderIconButton icon="grid-outline" label={t('gloria.overview')} onPress={() => setPanel(true)} />
-              <HeaderIconButton
-                icon={locked ? 'lock-closed' : 'checkmark-done-outline'}
-                label={locked ? t('gloria.freq.unlock') : t('gloria.freq.done')}
-                onPress={() => void toggleLock()}
-              />
+              {skipped ? null : (
+                <HeaderIconButton
+                  icon={locked ? 'lock-closed' : 'checkmark-done-outline'}
+                  label={locked ? t('gloria.freq.unlock') : t('gloria.freq.done')}
+                  onPress={() => void toggleLock()}
+                />
+              )}
             </View>
           ),
         }}
       />
       <ScrollView ref={scrollRef} className="flex-1" contentContainerClassName="gap-3 p-4" keyboardShouldPersistTaps="handled" scrollEnabled={scrollOn}>
+        {skipped ? <Text className="text-xs text-gray-500 dark:text-gray-400">{t('gloria.freq.skipped')}</Text> : null}
         {/* Title, progress and direction beside the walk sketch: compact, so the species card stays near the top. */}
         <View className="flex-row items-center gap-3">
           {isSquare && unit.walk_option != null && !done ? <WalkDiagram option={unit.walk_option} size={64} line={line} /> : null}
@@ -371,8 +379,10 @@ export default function PointsScreen() {
           </View>
           <SearchBox
             scopeGroups={GLORIA_SEARCH_GROUPS}
-            onSelect={async (r) => {
+            onSelect={async (r, adopted) => {
               if (!r.taxon_id) return;
+              // GLORIA keeps the accepted name: a name chosen in the search is confirmed away (code review V4).
+              if (!(await acceptedNameOnly({ accepted: r.name, rank: r.rank, kingdom: r.kingdom }, adopted))) return;
               const label = await pickMorphoLabel(t, unit.survey_id, r.taxon_id, r.rank, speciesParts(r.cname, r.name, r.rank, r.kingdom));
               if (label === undefined) return;
               if (unit.point_surface == null) startPoints(unit.id, size);

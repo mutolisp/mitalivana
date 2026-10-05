@@ -6,9 +6,15 @@
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, Pressable, Text, View } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { chooseEndTime } from '~/lib/endTimeChoice';
 import { confirmReopenOver } from '~/lib/recordCreate';
+import { pauseIfNot } from '~/lib/trackRecorder';
+import { useActiveGloria } from '~/modules/gloria/store';
+import { useActivePlot } from '~/stores/activePlot';
+import { useActiveSession } from '~/stores/activeSession';
+import { useActiveSurvey } from '~/survey/form/activeSurvey';
 import {
   deleteMirenSurvey,
   endMirenSurvey,
@@ -47,7 +53,12 @@ export default function MirenSurveyScreen() {
   useFocusEffect(reload);
 
   if (!ctx) {
-    return <Text className="p-4 text-gray-500">{t('miren.notFound')}</Text>;
+    // A background in both themes, as the screen's own (code review L30).
+    return (
+      <View className="flex-1 bg-gray-50 dark:bg-gray-950">
+        <Text className="p-4 text-gray-500 dark:text-gray-400">{t('miren.notFound')}</Text>
+      </View>
+    );
   }
   const { survey, route, regionCode } = ctx;
   const bySite = new Map<number, MirenPlotWithSite[]>();
@@ -68,6 +79,14 @@ export default function MirenSurveyScreen() {
       // Reopening ends any open record: ask first (code review N2).
       if (!(await confirmReopenOver())) return;
       reopenMirenSurvey(survey.id);
+      // It ends every other open record in the database: each store reads
+      // again, and a track recording for one of them stops (MIREN records
+      // none; code review M18, as GLORIA and the plot screen do).
+      pauseIfNot(null);
+      useActiveSession.getState().refresh();
+      useActivePlot.getState().refresh();
+      useActiveGloria.getState().refresh();
+      useActiveSurvey.getState().refresh();
     }
     reload();
   };
@@ -88,7 +107,7 @@ export default function MirenSurveyScreen() {
   return (
     <>
       <Stack.Screen options={{ title: `${regionCode}.${route.code} · ${survey.year}` }} />
-      <ScrollView className="flex-1 bg-gray-50 dark:bg-gray-950" contentContainerClassName="gap-3 p-4" keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
+      <KeyboardAwareScrollView className="flex-1 bg-gray-50 dark:bg-gray-950" contentContainerClassName="gap-3 p-4" keyboardShouldPersistTaps="handled" bottomOffset={24}>
         <View className="flex-row items-center justify-between">
           <Text className="text-sm text-gray-700 dark:text-gray-300">{t('miren.survey.progress', { done, total: sampled })}</Text>
           <Text className={`text-xs font-semibold ${active ? 'text-emerald-600' : 'text-gray-500'}`}>{t(active ? 'miren.survey.active' : 'miren.survey.done')}</Text>
@@ -177,7 +196,7 @@ export default function MirenSurveyScreen() {
 
         <Btn label={t(active ? 'miren.survey.end' : 'miren.survey.reopen')} onPress={() => void toggleStatus()} />
         <Btn label={t('miren.survey.deleteTitle')} onPress={remove} />
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </>
   );
 }

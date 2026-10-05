@@ -45,6 +45,16 @@ export function recheckComplete(candidates: readonly TaxonKey[], answers: readon
   });
 }
 
+/**
+ * The phase of a species added to a plot now: blind until blind recording is
+ * closed — and not after it was reopened once the previous survey's list had
+ * been shown (`blind_reopened_at`): a species seen there is not a blind find
+ * (code review M19, 2026-10-05; the user chose this over refusing the reopen).
+ */
+export function newSpeciesPhase(plot: { blind_closed_at: number | null; blind_reopened_at?: number | null }): 'blind' | 'recheck' {
+  return plot.blind_closed_at == null && plot.blind_reopened_at == null ? 'blind' : 'recheck';
+}
+
 /** `Found after recheck`: 1 for a species added in the recheck phase. */
 export function foundAfterRecheck(phase: 'blind' | 'recheck'): 0 | 1 {
   return phase === 'recheck' ? 1 : 0;

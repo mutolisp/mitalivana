@@ -35,10 +35,13 @@ import {
   logSync,
   markSeen,
   putSealed,
+  putSealedBody,
   rememberMember,
   REUPLOAD_MS,
   seenEtag,
+  sealForRelay,
   serverOf,
+  teamUsage,
   TeamSyncError,
   type Item,
   type SyncOutcome,
@@ -47,7 +50,7 @@ import {
 import { useSyncProgress, withSyncProgress } from '~/stores/syncProgress';
 import { prepareMediaItems, receiveMedia, sendRecordMedia, serverTakesFiles, type PreparedMedia } from '~/lib/mediaSync';
 import type { FileItem, MediaEntry, MediaMeta, MediaRef } from '~/lib/mediaRefsCore';
-import { BASE64_FACTOR, bytesPerStemFor, chooseSyncBlock, DEFAULT_STEMS_PER_HA, EDGE_CANDIDATES } from './stemmap/syncBlocks';
+import { BASE64_FACTOR, bytesPerStemFor, chooseSyncBlock, DEFAULT_STEMS_PER_HA, EDGE_CANDIDATES, SYNC_LIMITS } from './stemmap/syncBlocks';
 import { fgQuadratCounts } from './stemmap/coords';
 import * as core from './db/censusSyncCore';
 import type { CensusSlice } from './db/sliceCore';
@@ -94,8 +97,8 @@ const putSetting = (key: string, value: string | null) =>
 
 export type BlockClaims = {
   mine: string[];
-  /** Teammates' claims by device, from their headers. */
-  others: Record<string, { name: string | null; blocks: string[]; at: number }>;
+  /** Teammates' claims by device, from their headers, with the block size each header named (k). */
+  others: Record<string, { name: string | null; blocks: string[]; at: number; k?: number }>;
 };
 
 const claimsKey = (censusUuid: string) => `fw_claims:${censusUuid}`;
@@ -195,7 +198,7 @@ export function claimedByOthers(surveyId: number, quadratCode: string): string[]
 export type BlockSizeOption = { edge: number; blocks: number; estimatedBytes: number; estimatedObjects: number; recommended: boolean; tooLarge: boolean };
 
 /** The choices offered at the first team sync: each block edge, with its estimates; the recommended one first in importance. */
-export function blockSizeOptions(surveyId: number): BlockSizeOption[] {
+export function blockSizeOptions(surveyId: number, limits: RelayLimits = SYNC_LIMITS): BlockSizeOption[] {
   const c = ctx();
   const s = getSurvey(c, surveyId)!;
   const frame = getFrame(c, s.frame_id)!;
@@ -212,14 +215,53 @@ export function blockSizeOptions(surveyId: number): BlockSizeOption[] {
   const density = Math.max(DEFAULT_STEMS_PER_HA, ...[...perBlock.values()].map((n) => n / haOf5));
   // With AMS each stem carries its AMS values too (BYTES_PER_STEM_AMS).
   const bytesPerStem = bytesPerStemFor(censusCodesets(c, surveyId));
-  const pick = chooseSyncBlock({ quadratsX: cols, quadratsY: rr, quadratM: g.quadratM, stemsPerHa: density, bytesPerStem });
+  const pick = chooseSyncBlock({ quadratsX: cols, quadratsY: rr, quadratM: g.quadratM, stemsPerHa: density, bytesPerStem, limits });
   const edges = [...new Set([Math.max(cols, rr), ...EDGE_CANDIDATES.filter((k) => k < Math.max(cols, rr))])];
   return edges.map((edge) => {
     const blocks = Math.ceil(cols / edge) * Math.ceil(rr / edge);
     const ha = (Math.min(edge, cols) * g.quadratM * Math.min(edge, rr) * g.quadratM) / 10000;
     const estimatedBytes = density * ha * bytesPerStem * BASE64_FACTOR;
-    return { edge, blocks, estimatedBytes, estimatedObjects: blocks * 1.5, recommended: edge === pick.edgeQuadrats, tooLarge: estimatedBytes > 5 * 1024 * 1024 * 0.4 };
+    return { edge, blocks, estimatedBytes, estimatedObjects: blocks * 1.5, recommended: edge === pick.edgeQuadrats, tooLarge: estimatedBytes > limits.maxObjectBytes * 0.4 };
   });
+}
+
+/**
+ * Two phones chose block sizes apart before either saw the other's header
+ * (code review M1): the smaller is the team's, and this phone takes it. Its
+ * claims move onto the new blocks; every block is marked unsent so all of
+ * them go again at the new size; the teammates' blocks at that size are read
+ * again (they were set aside while the sizes differed). What this phone sent
+ * at the old size is passed over by the others until the relay expires it.
+ */
+function switchBlockSize(teamId: string, keys: TeamKeys, surveyId: number, ident: string, fromK: number, toK: number): void {
+  const c = ctx();
+  const s = getSurvey(c, surveyId)!;
+  const { cols, rows: rr } = fgQuadratCounts(frameGeometry(getFrame(c, s.frame_id)!));
+  const prefix = `${s.uuid}#`;
+  const recs = core.allBlocks(cols, rr, toK).map((b) => blockRec(keys, ident, b));
+  withTransaction(() => {
+    core.changeBlockSize(c, surveyId, toK);
+    getUserDb().executeSync(`DELETE FROM sync_links WHERE record_kind = 'survey_block' AND substr(record_uuid, 1, ?) = ?`, [prefix.length, prefix]);
+    for (const rec of recs) getUserDb().executeSync(`DELETE FROM sync_seen WHERE team_id = ? AND rec_key = ?`, [teamId, rec]);
+  });
+  const claims = getClaims(surveyId);
+  putClaims(surveyId, { ...claims, mine: core.regroupBlocks(claims.mine, cols, rr, fromK, toK) });
+}
+
+type RelayLimits = { maxObjectBytes: number; maxTeamObjects: number };
+
+/**
+ * The relay's limits for this team, asked once per sync (code review V6): a
+ * self-hosted server or a team override may differ from the public server's
+ * 5 MiB per record. The public defaults when the server does not answer.
+ */
+async function relayLimits(teamId: string): Promise<RelayLimits> {
+  try {
+    const l = (await teamUsage(teamId)).limits;
+    return { maxObjectBytes: Number(l.maxObjectBytes) || SYNC_LIMITS.maxObjectBytes, maxTeamObjects: Number(l.maxTeamObjects) || SYNC_LIMITS.maxTeamObjects };
+  } catch {
+    return SYNC_LIMITS;
+  }
 }
 
 // ── photos (self-hosted servers that take files, Media_sync.md) ─────────────
@@ -305,6 +347,8 @@ export type CensusSyncOutcome = SyncOutcome & {
   needsBlockSize?: boolean;
   /** Teammates whose census here uses another template: their blocks were not merged (names, '' when unknown). */
   templateDiffers?: string[];
+  /** Blocks over the relay's size limit: not sent, the others were (code review V6). */
+  tooLarge?: { blocks: string[]; limit: number };
 };
 
 export type CensusSyncOptions = {
@@ -351,9 +395,9 @@ async function syncCensusNow(teamId: string, surveyId: number, opts: CensusSyncO
   const out: CensusSyncOutcome = { merged: 0, mergedFrom: [], changes: [], review: false, queued: false, uploaded: false, blocksSent: 0 };
   try {
     const items = await listTeamItems(team, keys);
+    const limits = await relayLimits(teamId);
 
-    // 1. Teammates' headers: their claims, and the block size if this phone has none yet.
-    let teamK: number | null = null;
+    // 1. Teammates' headers: their claims and block size.
     const needK = getSurvey(c, surveyId)!.sync_block_quadrats == null;
     // Teammates on another template: their header stays unseen (asked again next time), their blocks are not merged.
     const otherTemplate = new Map<string, string>();
@@ -370,19 +414,22 @@ async function syncCensusNow(teamId: string, surveyId: number, opts: CensusSyncO
         logSync(teamId, 'skip', logRec, { server, detail: 'template_differs' });
         continue;
       }
+      // The round's own fields: investigators, times, notes (code review V12).
+      withTransaction(() => core.mergeCensusHeader(c, surveyId, doc.survey));
       markSeen(teamId, hRec, it.dev, it.etag);
       rememberMember(teamId, it.dev, doc.author, it.uploaded);
       const claims = getClaims(surveyId);
-      putClaims(surveyId, { ...claims, others: { ...claims.others, [it.dev]: { name: doc.author ?? null, blocks: doc.claims, at: it.uploaded } } });
-      teamK ??= doc.block_quadrats;
+      putClaims(surveyId, { ...claims, others: { ...claims.others, [it.dev]: { name: doc.author ?? null, blocks: doc.claims, at: it.uploaded, k: doc.block_quadrats } } });
     }
 
-    // 2. The block size: the team's, or chosen here at the first sync.
+    // 2. The block size: the team's, or chosen here at the first sync. The
+    // team's is the smallest any teammate's header named, read or not this time.
+    const teamK = core.teamBlockSize(null, Object.values(getClaims(surveyId).others).map((o) => o.k));
     let k = getSurvey(c, surveyId)!.sync_block_quadrats;
     if (k == null) {
       if (teamK != null) k = teamK;
       else if (opts.chooseBlockSize) {
-        const chosen = await opts.chooseBlockSize(blockSizeOptions(surveyId));
+        const chosen = await opts.chooseBlockSize(blockSizeOptions(surveyId, limits));
         if (chosen == null) return null;
         k = chosen;
       } else {
@@ -391,9 +438,11 @@ async function syncCensusNow(teamId: string, surveyId: number, opts: CensusSyncO
       }
       const kk = k;
       withTransaction(() => core.setBlockSize(c, surveyId, kk));
-    } else if (teamK != null && teamK !== k) {
-      throw new core.CensusSyncError('block_size_differs');
+    } else if (teamK != null && teamK < k) {
+      switchBlockSize(teamId, keys, surveyId, ident, k, teamK);
+      k = teamK;
     }
+    // A teammate on a larger size switches when it reads this phone's header.
     link(teamId, 'survey', censusUuid, hRec, null);
 
     // 3. This phone's header (claims, name), when it changed or is due again.
@@ -422,6 +471,9 @@ async function syncCensusNow(teamId: string, surveyId: number, opts: CensusSyncO
     // review M6). Sending changes no base; merging does, so step 6 reads again.
     let censusBase = getSyncBase('survey', censusUuid);
     const putBlock = async (block: string, force: boolean) => {
+      // Synced as of the copy, not of the upload: an edit made while its
+      // photos were hashed was stamped before "now" and never went (code review L32).
+      const builtAt = Date.now();
       const doc = core.buildBlockDoc(c, surveyId, block);
       const base = core.baseForSlice(censusBase, doc.slice);
       const prepared: PreparedMedia | null = takesFiles ? await prepareMediaItems(keys, blockMedia(surveyId, block)) : null;
@@ -434,22 +486,39 @@ async function syncCensusNow(teamId: string, surveyId: number, opts: CensusSyncO
       const lk = blockLink(teamId, censusUuid, block);
       const now = Date.now();
       if (!force && lk?.uploaded_hash === hash && (lk.uploaded_at ?? 0) > now - REUPLOAD_MS) {
-        getUserDb().executeSync(`UPDATE sync_links SET last_synced_at = ? WHERE team_id = ? AND record_kind = 'survey_block' AND record_uuid = ?`, [now, teamId, linkUuid]);
+        getUserDb().executeSync(`UPDATE sync_links SET last_synced_at = ? WHERE team_id = ? AND record_kind = 'survey_block' AND record_uuid = ?`, [builtAt, teamId, linkUuid]);
         return;
       }
-      if (prepared) await sendRecordMedia(server, keys, prepared, bRec, dev);
       const upload: CensusBlockUpload = {
         ...doc,
         sync: { exported_at: now, base, ...(team.member_name ? { author: team.member_name } : {}), ...(prepared?.entries.length ? { media: prepared.entries } : {}) },
       };
-      const bytes = await putSealed(team, keys, bRec, dev, JSON.stringify(upload));
+      const body = sealForRelay(keys, bRec, dev, JSON.stringify(upload));
+      // Measured before anything goes: the relay would refuse it, after its photos (code review V6).
+      if (body.length > limits.maxObjectBytes) throw new TeamSyncError('objectTooLarge', limits.maxObjectBytes);
+      if (prepared) await sendRecordMedia(server, keys, prepared, bRec, dev);
+      const bytes = await putSealedBody(team, keys, bRec, dev, body);
       getUserDb().executeSync(
         `UPDATE sync_links SET uploaded_hash = ?, uploaded_at = ?, last_synced_at = ? WHERE team_id = ? AND record_kind = 'survey_block' AND record_uuid = ?`,
-        [hash, now, now, teamId, linkUuid],
+        [hash, now, builtAt, teamId, linkUuid],
       );
       out.blocksSent += 1;
       out.uploaded = true;
       logSync(teamId, 'upload', logRec, { server, bytes, detail: blockLabel(surveyId, block) });
+    };
+    // A block over the size limit stays unsent and the others still go (the relay refuses
+    // one record at a time; code review V6). It is tried again at the next sync.
+    const sendBlock = async (block: string, force: boolean) => {
+      try {
+        await putBlock(block, force);
+      } catch (e) {
+        const err = asSyncError(e);
+        if (err.code !== 'objectTooLarge') throw e;
+        const label = blockLabel(surveyId, block);
+        const limit = err.limit ?? limits.maxObjectBytes;
+        out.tooLarge = { blocks: [...(out.tooLarge?.blocks ?? []), label], limit };
+        logSync(teamId, 'fail', logRec, { server, detail: `objectTooLarge ${label}` });
+      }
     };
     const outgoing = [...core.blockStamps(c, surveyId, k)].filter(([block, stamp]) => {
       const lk = blockLink(teamId, censusUuid, block);
@@ -461,7 +530,7 @@ async function syncCensusNow(teamId: string, surveyId: number, opts: CensusSyncO
     // The strip counts blocks: a whole 25 ha census is tens of them (1E).
     for (const [i, [block]] of outgoing.entries()) {
       useSyncProgress.getState().update({ blockStage: 'up', blockIndex: i + 1, blockCount: outgoing.length });
-      await putBlock(block, false);
+      await sendBlock(block, false);
     }
 
     // 5. Teammates' changed blocks.
@@ -477,13 +546,19 @@ async function syncCensusNow(teamId: string, surveyId: number, opts: CensusSyncO
       const block = recBlock.get(it.rec!)!;
       useSyncProgress.getState().update({ blockStage: 'down', blockIndex: i + 1, blockCount: incoming.length });
       const doc = readCensusDoc(await downloadText(team, keys, it.rec!, it.dev));
-      if (!doc || doc.record_type !== 'census_block' || doc.ident !== ident || doc.block !== block || doc.block_quadrats !== k) {
+      // At another block size: not marked seen, so it is read again once the sizes agree (M1).
+      if (doc?.record_type === 'census_block' && doc.ident === ident && doc.block_quadrats !== k) continue;
+      if (!doc || doc.record_type !== 'census_block' || doc.ident !== ident || doc.block !== block) {
         markSeen(teamId, it.rec!, it.dev, it.etag);
         continue;
       }
       const from = doc.sync?.author ?? null;
       rememberMember(teamId, it.dev, from, it.uploaded);
       const res = mergeBlockQuietly(surveyId, doc, team.member_name);
+      // Synced as of the merge, not of the files after it: an edit made while
+      // they downloaded would count as sent (code review L32). The merge's own
+      // writes are before this, so a block only received is not sent back.
+      const mergedAt = Date.now();
       if (res.kind === 'review') {
         useCensusMerge.getState().set({
           teamId,
@@ -507,7 +582,7 @@ async function syncCensusNow(teamId: string, surveyId: number, opts: CensusSyncO
       // Their files, after their rows (a photo needs its tree here).
       await receiveCensusMedia(teamId, surveyId, censusUuid, doc.sync?.media);
       markSeen(teamId, it.rec!, it.dev, it.etag);
-      link(teamId, 'survey_block', blockLinkUuid(censusUuid, block), it.rec!, Date.now());
+      link(teamId, 'survey_block', blockLinkUuid(censusUuid, block), it.rec!, mergedAt);
       if (res.kind === 'merged') {
         merged.add(block);
         out.merged += 1;
@@ -522,7 +597,7 @@ async function syncCensusNow(teamId: string, surveyId: number, opts: CensusSyncO
     if (again.length) censusBase = getSyncBase('survey', censusUuid);
     for (const [i, block] of again.entries()) {
       useSyncProgress.getState().update({ blockStage: 'up', blockIndex: i + 1, blockCount: again.length });
-      await putBlock(block, true);
+      await sendBlock(block, true);
     }
     if (out.merged > 0) logSync(teamId, 'merge', logRec, { server, detail: [...new Set(out.mergedFrom)].join('、') || String(out.merged) });
     const now = Date.now();
@@ -753,7 +828,7 @@ export function receiveCensusHeader(
     const s = getSurvey(c, got.surveyId)!;
     link(teamId, 'survey', s.uuid, rec, null);
     const claims = getClaims(got.surveyId);
-    putClaims(got.surveyId, { ...claims, others: { ...claims.others, [it.dev]: { name: doc.author ?? null, blocks: doc.claims, at: it.uploaded } } });
+    putClaims(got.surveyId, { ...claims, others: { ...claims.others, [it.dev]: { name: doc.author ?? null, blocks: doc.claims, at: it.uploaded, k: doc.block_quadrats } } });
     logSync(teamId, got.created ? 'import' : 'link', { kind: 'survey', uuid: s.uuid, label: censusLabel(got.surveyId) }, { server, detail: doc.author ?? null });
     const { cols, rows: rr } = fgQuadratCounts(frameGeometry(getFrame(c, s.frame_id)!));
     return {

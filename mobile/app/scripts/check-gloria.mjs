@@ -735,6 +735,17 @@ eq('SAS abundance codes (sheet 33_)', SAS_ABUNDANCE_CODE, { d: 1, c: 2, s: 3, r:
     ['mocy4_TW-SAC-JIA_0_summit-overview_20260804', 'mocy4_TW-SAC-JIA_2_1x1_20260804', 'mocy4_TW-SAC-JIA_3_SAS_20260804', '']);
 }
 
+// A shrub quadrat (freq_skipped) has no frequency or point-framing: both
+// screens refuse edits and drop the lock / undo (code review V10).
+{
+  const { readFileSync } = await import('node:fs');
+  for (const f of ['frequency.tsx', 'points.tsx']) {
+    const src = readFileSync(new URL(`../app/gloria/[id]/[code]/${f}`, import.meta.url), 'utf8');
+    const guarded = /const skipped = [^;\n]*freq_skipped === 1/.test(src) && /return (locked \|\| skipped|skipped \|\| !!locked);/.test(src);
+    if (!guarded) { failures++; console.error(`  ✗ ${f}: a shrub quadrat's data must be refused for edits (V10)`); }
+  }
+}
+
 if (failures) {
   console.error(`check:gloria — ${failures} failure(s)`);
   process.exit(1);

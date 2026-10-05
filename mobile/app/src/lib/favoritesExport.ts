@@ -12,6 +12,7 @@
  */
 import { convertToDwc } from './dwcMapper';
 import { DOC_FORMATS } from './docFormat';
+import { excelCell } from './csvFormula';
 import { generateMarkdown, type ConservationField } from './markdown';
 import { checklistT, mapAlienToSource, taxonToMarkdownItem } from './bundleExport';
 import { resolveTaxa, EMPTY_TAXON_FIELDS, type FavoriteItem, type TaxonFields } from '~/db';
@@ -118,9 +119,6 @@ export function buildFavoritesCsv(items: FavoriteItem[]): string {
   const keys: string[] = [];
   for (const row of rows) for (const k of Object.keys(row)) if (!keys.includes(k)) keys.push(k);
 
-  const esc = (v: unknown): string => {
-    const s = v == null ? '' : String(v);
-    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-  };
-  return '﻿' + [keys.join(','), ...rows.map((r) => keys.map((k) => esc(r[k])).join(','))].join('\n');
+  // Excel-bound: formula-like values get a leading apostrophe (code review L17).
+  return '﻿' + [keys.join(','), ...rows.map((r) => keys.map((k) => excelCell(r[k])).join(','))].join('\n');
 }

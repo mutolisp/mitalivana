@@ -14,7 +14,7 @@
  * top edge and column c from the left looking at that edge — the same ground
  * frame as the grid on screen.
  */
-import { csvEscape } from './bundleYaml';
+import { excelCell } from './csvFormula';
 import { getBit } from './grid';
 import type { QuadratDocInput } from './quadratYaml';
 import { publishedTaxonId } from './taxonId';
@@ -47,7 +47,8 @@ export function quadratEventIds(plotid: string, quadratLabel: string, subplotLab
 }
 
 const withBom = (lines: string[]) => '﻿' + lines.map((l) => l).join('\n');
-const row = (cells: unknown[]) => cells.map(csvEscape).join(',');
+// Excel-bound (BOM): formula-like values get a leading apostrophe (code review L17).
+const row = (cells: unknown[]) => cells.map(excelCell).join(',');
 const pct = (v: number) => Math.round(v * 100) / 100;
 
 /** Cells occupied by a species, in either frequency mode. */

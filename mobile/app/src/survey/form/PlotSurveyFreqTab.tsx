@@ -23,6 +23,7 @@ import type { AdoptionInput } from '~/db/taxonLookup';
 import type { SearchResult } from '~/db/types';
 import { kindForType } from '~/lib/dwcAbundanceCore';
 import type { RecordEditing } from '~/lib/useRecordEditing';
+import { synonymAlreadyHere } from '~/lib/synonymAdd';
 import { useSettledCall } from '~/lib/useSettledCall';
 import { useToast } from '~/stores/toast';
 import { addOccurrence, writeComponent } from '~/survey/db/surveys';
@@ -123,9 +124,16 @@ export function PlotSurveyFreqTab({
         code = active[i];
       }
     }
-    // Already in this unit and layer: paint that one instead of a second.
-    const same = rows.find((x) => x.taxon_id === r.taxon_id && (x.layer ?? null) === code && !x.verbatim_identification);
-    if (same) return `o${same.id}`;
+    // Already in this unit and layer: paint that one instead of a second;
+    // under another of its names, the recorder says which (code review V4).
+    const here = rows.filter((x) => x.taxon_id === r.taxon_id && (x.layer ?? null) === code && !x.verbatim_identification);
+    const exact = here.find((x) => (x.used_scientific_name || null) === (adopted?.scientific_name || null));
+    if (exact) return `o${exact.id}`;
+    if (here[0]) {
+      const ans = await synonymAlreadyHere({ accepted: r.name, rank: r.rank, kingdom: r.kingdom }, here[0].used_scientific_name, adopted);
+      if (ans === null) return null;
+      if (ans !== 'separate') return `o${here[0].id}`;
+    }
     settled.flush();
     let id = 0;
     try {

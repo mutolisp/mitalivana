@@ -236,9 +236,14 @@ c.setFrameUnitRetired(ctx, FQ9, true);
 throwsCode(() => fu('S1', 'subplot'), 'unit_taken', 'frame units: code unique per level');
 ok(fu('S1', 'quadrat') > 0, 'frame units: the same code on another level is fine');
 throwsCode(() => c.addFrameUnit(ctx, F, { levelKey: 'quadrat', code: 'Q7', parentId: 9999 }), 'bad_unit', 'frame units: the parent is in the same frame');
+// The merge keys and unit paths are built with | and / (code review L4).
+throwsCode(() => fu('A|B', 'subplot'), 'unit_code_char', 'frame units: no | in a code');
+throwsCode(() => c.updateFrameUnit(ctx, FS2, { code: 'S/2' }), 'unit_code_char', 'frame units: no / in a new code either');
 throwsCode(() => c.createSurvey(ctx, { template: PL, frameId: F }), 'series_code_required', 'plot survey: a second series on a frame needs a code');
 ok(c.seriesCodeNeeded(ctx, F, PL.id) && !c.seriesCodeNeeded(ctx, F, STEMMAP_TEMPLATE.id), 'series: a new template on a used frame needs a code, the census series does not');
 const P1 = c.createSurvey(ctx, { template: PL, frameId: F, seriesCode: 'veg' });
+// A code this plot already has: said, not left to the UNIQUE constraint (code review L7).
+throwsCode(() => c.createSurvey(ctx, { template: tp.saveTemplate(ctx, bare('plot', { id: 'user:pl-dup', units: UNITS })), frameId: F, seriesCode: 'veg' }), 'series_code_taken', 'series: a code the plot already has is refused');
 const p1 = c.getFwSurvey(ctx, P1);
 ok(!c.seriesCodeNeeded(ctx, F, PL.id), 'series: once it exists, no code is asked');
 ok(p1.name === 'P1' && c.getActiveSurvey(ctx)?.id === P1, 'name: on a frame, the frame code; the open survey is it');
@@ -271,6 +276,7 @@ const Q2 = c.addUnit(ctx, P1, { levelKey: 'quadrat', code: 'Q2', parentId: unitB
 const fq2 = one(`SELECT * FROM fw_frame_units WHERE frame_id = ? AND code = 'Q2'`, F);
 ok(fq2 && fq2.parent_id === FS2 && fq2.shape === 'circle' && c.getUnit(ctx, Q2).frame_unit_id === fq2.id, 'units: a unit added on a frame joins its layout');
 throwsCode(() => c.addUnit(ctx, P1, { levelKey: 'quadrat', code: 'Q2' }), 'unit_taken', 'units: code unique per level in a survey');
+throwsCode(() => c.addUnit(ctx, P1, { levelKey: 'subplot', code: 'S|9' }), 'unit_code_char', 'units: no | in a code (L4)');
 throwsCode(() => c.addUnit(ctx, P1, { levelKey: 'quadrat', code: 'Q9' }), 'unit_taken', 'units: a retired frame code is not reused');
 throwsCode(() => c.addUnit(ctx, P1, { levelKey: 'transect', code: 'T1' }), 'bad_unit', 'units: only the template levels');
 throwsCode(() => c.addUnit(ctx, P1, { levelKey: 'subplot', code: 'S3', parentId: unitBy('Q1').id }), 'bad_unit', 'units: a parent sits on a higher level');
@@ -421,6 +427,19 @@ const frameUnitsBefore = count('fw_frame_units');
 c.setValue(ctx, { kind: 'unit', id: unitBy('Q1').id }, 'cover', 'rock_pct', { num: 30 });
 c.setValue(ctx, { kind: 'occurrence', id: oA }, 'traits', 'height_cm', { num: 12 });
 sqlite.prepare(`INSERT INTO fw_media (uuid, survey_id, component, kind, uri, created_at) VALUES ('m-s', ?, 'photos', 'photo', 'file:///photos/s.jpg', 1)`).run(P1);
+// Only the last survey of a series goes (code review M17): P2 follows P1 on this plot.
+throwsCode(() => c.deleteSurvey(ctx, P1), 'not_latest_census', 'delete survey: not one in the middle of its series (the next recheck would compare with an earlier one)');
+ok(c.getFwSurvey(ctx, P1) != null && c.previousSurveyId(ctx, P2) === P1, 'delete survey: refused before anything goes');
+let both = true;
+try {
+  c.assertDeletableSurveys(ctx, [P1, P2]);
+  c.assertDeletableSurveys(ctx, [K1]);
+} catch {
+  both = false;
+}
+ok(both && c.newestFirst(ctx, [P1, P2]).join() === [P2, P1].join(), 'delete survey: with the ones after it, newest first; a survey off a plot any time');
+// The children are checked on P1: numbered last of its series for that (the gap the older rule left stays tested below).
+sqlite.prepare('UPDATE fw_surveys SET census_no = 99 WHERE id = ?').run(P1);
 sqlite.exec('PRAGMA foreign_keys = OFF;');
 c.deleteSurvey(ctx, P1);
 ok(count('fw_media', 'survey_id = ?', P1) === 0 && count('fw_unit_values', 'unit_id NOT IN (SELECT id FROM fw_units)') === 0, 'delete survey: its photos and unit values go');
@@ -776,9 +795,18 @@ ok(all('PRAGMA foreign_key_check').length === 0, 'integrity: foreign_key_check c
   const onSeries = tp.saveTemplate(ctx, { ...del, id: 'user:series-only', name: { text: '系列' } });
   const frameId = one('SELECT id FROM fw_frames LIMIT 1')?.id;
   ok(frameId != null, 'delete: a frame for the series test');
-  sqlite.prepare(`INSERT INTO fw_frame_series (uuid, frame_id, template_id, series_code, created_at, updated_at) VALUES ('ser-del', ?, ?, 'ZZ', 1, 1)`).run(frameId, onSeries.id);
-  ok(tp.templateDeleteBlocker(ctx, onSeries.id) === 'in_use', 'delete: not while a permanent plot\'s series names it');
-  sqlite.prepare(`DELETE FROM fw_frame_series WHERE uuid = 'ser-del'`).run();
+  const serId = sqlite.prepare(`INSERT INTO fw_frame_series (uuid, frame_id, template_id, series_code, created_at, updated_at) VALUES ('ser-del', ?, ?, 'ZZ', 1, 1)`).run(frameId, 'user:checklist').lastInsertRowid;
+  const onSer = one('SELECT id, template_id FROM fw_surveys WHERE series_id IS NULL AND template_id = ? LIMIT 1', 'user:checklist');
+  ok(onSer != null, 'delete: a survey to put on the series');
+  // A survey of another template on this template's series keeps it.
+  sqlite.prepare(`UPDATE fw_frame_series SET template_id = ? WHERE id = ?`).run(onSeries.id, serId);
+  sqlite.prepare(`UPDATE fw_surveys SET frame_id = ?, series_id = ?, census_no = 1 WHERE id = ?`).run(frameId, serId, onSer.id);
+  ok(tp.templateDeleteBlocker(ctx, onSeries.id) === 'in_use', 'delete: not while a permanent plot\'s series has a census');
+  sqlite.prepare(`UPDATE fw_surveys SET frame_id = NULL, series_id = NULL, census_no = NULL WHERE id = ?`).run(onSer.id);
+  // Its censuses all deleted, the series alone does not (code review V15); it goes with the template.
+  ok(tp.templateDeleteBlocker(ctx, onSeries.id) === null, 'delete: a series whose censuses were all deleted does not keep it');
+  tp.deleteTemplate(ctx, onSeries.id);
+  ok(count('fw_frame_series', 'uuid = ?', 'ser-del') === 0 && tp.getTemplate(ctx, onSeries.id) == null, 'delete: the empty series goes with the template');
   ok(tp.templateDeleteBlocker(ctx, STEMMAP_TEMPLATE.id) === 'builtin' && tp.templateDeleteBlocker(ctx, 'sample:checklist') === 'builtin', 'delete: never a built-in or a sample');
   throwsCode(() => tp.deleteTemplate(ctx, STEMMAP_TEMPLATE.id), 'builtin_template', 'delete: a built-in is refused');
 }
@@ -792,7 +820,7 @@ ok(all('PRAGMA foreign_key_check').length === 0, 'integrity: foreign_key_check c
       id: 'user:env',
       units: UNITS,
       components: [
-        { key: 'env', type: 'environment', level: 'survey', required: false, params: { fields: ['slope_deg', 'aspect_deg'] } },
+        { key: 'env', type: 'environment', level: 'survey', required: false, params: { fields: ['slope_deg', 'aspect_deg', 'openness', 'elevation_m'] } },
         { key: 'uenv', type: 'environment', level: 'unit', unit: 'subplot', required: false, params: { fields: ['rock_cover_pct'] } },
       ],
       quick_add: false,
@@ -800,7 +828,7 @@ ok(all('PRAGMA foreign_key_check').length === 0, 'integrity: foreign_key_check c
   );
   const E1 = c.createSurvey(ctx, { template: ENV, frameId: FE });
   const s1 = c.addUnit(ctx, E1, { levelKey: 'subplot', code: 'S1' });
-  c.writeComponent(ctx, { kind: 'survey', id: E1 }, 'env', { slope_deg: 20, aspect_deg: 180 });
+  c.writeComponent(ctx, { kind: 'survey', id: E1 }, 'env', { slope_deg: 20, aspect_deg: 180, openness_pct: 35, elevation_m: 1520 });
   c.writeComponent(ctx, { kind: 'unit', id: s1 }, 'uenv', { rock_cover_pct: 30 });
   ok(Object.keys(c.environmentCarried(ctx, { kind: 'survey', id: E1 }).fields).length === 0, 'carry: nothing on a first survey');
   c.finishSurvey(ctx, E1);
@@ -808,9 +836,12 @@ ok(all('PRAGMA foreign_key_check').length === 0, 'integrity: foreign_key_check c
   const s2 = c.listUnits(ctx, E2).find((u) => u.code === 'S1').id;
   ok(c.readComponent(ctx, { kind: 'survey', id: E2 }, 'env').slope_deg === 20 && c.readComponent(ctx, { kind: 'unit', id: s2 }, 'uenv').rock_cover_pct === 30, 'carry: survey and unit environment values come with the recheck');
   const carried = c.environmentCarried(ctx, { kind: 'survey', id: E2 });
-  ok(carried.census === 1 && JSON.stringify(carried.fields.env?.sort()) === JSON.stringify(['aspect_deg', 'slope_deg']), `carry: said as the previous survey's (${JSON.stringify(carried)})`);
+  ok(carried.census === 1 && JSON.stringify(carried.fields.env?.sort()) === JSON.stringify(['aspect_deg', 'openness_pct', 'slope_deg']), `carry: said as the previous survey's (${JSON.stringify(carried)})`);
+  // 開闊度 under its stored name, the elevation on the survey row (code review L2).
+  const envE2 = c.readComponent(ctx, { kind: 'survey', id: E2 }, 'env');
+  ok(envE2.openness_pct === 35 && envE2.elevation_m === 1520, `carry: openness and the survey's elevation come too (${JSON.stringify(envE2)})`);
   c.writeComponent(ctx, { kind: 'survey', id: E2 }, 'env', { slope_deg: 25 });
-  ok(JSON.stringify(c.environmentCarried(ctx, { kind: 'survey', id: E2 }).fields.env) === JSON.stringify(['aspect_deg']), 'carry: a changed value is no longer the previous one');
+  ok(JSON.stringify(c.environmentCarried(ctx, { kind: 'survey', id: E2 }).fields.env?.sort()) === JSON.stringify(['aspect_deg', 'openness_pct']), 'carry: a changed value is no longer the previous one');
   ok(JSON.stringify(c.environmentCarried(ctx, { kind: 'unit', id: s2 }).fields.uenv) === JSON.stringify(['rock_cover_pct']), 'carry: on a unit too');
   ok(c.readComponent(ctx, { kind: 'survey', id: E1 }, 'env').slope_deg === 20, 'carry: the previous survey keeps its own');
   ok(count('fw_occurrences', 'survey_id = ?', E2) === 0, 'carry: no species come with it (the blind phase)');
@@ -1248,6 +1279,24 @@ ok(all('PRAGMA foreign_key_check').length === 0, 'integrity: foreign_key_check c
   for (const tbl of ['fw_surveys', 'fw_units', 'fw_occurrences', 'fw_interactions', 'fw_media', 'fw_rechecks'])
     ok(/AUTOINCREMENT/i.test(sq.prepare(`SELECT sql FROM sqlite_master WHERE name = ?`).get(tbl)?.sql ?? ''), `preview: ${tbl} ids come from sqlite_sequence`);
   ok(c.listSurveys(ctx).every((x) => !isPreviewId(x.id)), 'preview: user.db ids are never preview ids');
+  // A project of user.db does not exist in the scratch database (code review V5)…
+  let threw = false;
+  try {
+    c.updateSurvey(pctx, sv, { projectId: 424242 });
+  } catch {
+    threw = true;
+  }
+  ok(threw, 'preview V5: a project id of user.db does not fit the scratch database');
+  // …so the screens refuse to assign one in a preview, and a site with it: a new point site
+  // or a drawn boundary is made in user.db and would be left there.
+  const { readFileSync } = await import('node:fs');
+  const read = (f) => readFileSync(new URL(`../${f}`, import.meta.url), 'utf8');
+  const cl = read('src/survey/form/ChecklistSurveyScreen.tsx');
+  ok(/onAssignSite: \(\) => \(preview \? refusePreview\(\) :/.test(cl) && /preview \? refusePreview\(\) : setProjectSheetOpen\(true\)/.test(cl) && /handleCreatePointSiteFromGps = async \(\) => \{\s*if \(preview\) return refusePreview\(\);/.test(cl) && /spaceMods\.site && !preview \? setSiteSheetOpen/.test(cl),
+    'preview V5: the checklist screen refuses a project, a site and a new point site');
+  ok(/isPreviewId\(id\) \? toast\(t\('builder\.previewNoAssign'\)\) : setProjectOpen\(true\)/.test(read('src/survey/form/PlotSurveyEnvTab.tsx')), 'preview V5: the plot screen refuses a project');
+  const gv = read('src/survey/form/SurveyGroupViews.tsx');
+  ok(/preview \? refusePreview\(\) : setSiteOpen\(true\)/.test(gv) && /onDrawBoundary=\{\(\) => \(preview \? refusePreview\(\) :/.test(gv), 'preview V5: the spatial group refuses a site and a boundary');
 }
 
 if (failed > 0) {

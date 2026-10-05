@@ -21,6 +21,7 @@ import { HeaderIconButton } from '~/components/HeaderIconButton';
 import { SurveyorAssignSheet } from '~/components/SurveyorAssignSheet';
 import { promptText } from '~/components/TextPromptModal';
 import { Button } from '~/components/ui/Button';
+import { ScientificName } from '~/components/ScientificName';
 import { BackHeaderLeft } from '~/lib/goBack';
 import { useToast } from '~/stores/toast';
 import { chipText } from '~/survey/components/labels';
@@ -274,6 +275,13 @@ export default function CensusScreen() {
         const names = r.templateDiffers.map((n) => n || t('survey.sync.someone')).join('、');
         Alert.alert(t('survey.sync.templateDiffersTitle'), t('survey.sync.templateDiffersMsg', { names }));
       }
+      // Blocks over the relay's size limit: not sent, the rest were (code review V6).
+      if (r.tooLarge) {
+        Alert.alert(
+          t('survey.sync.tooLargeTitle'),
+          t('survey.sync.tooLargeMsg', { blocks: r.tooLarge.blocks.join('、'), limit: formatBytes(r.tooLarge.limit) }),
+        );
+      }
       reload();
     } catch (e) {
       useToast.getState().dismiss();
@@ -473,9 +481,7 @@ export default function CensusScreen() {
               <Text className="w-14 font-mono text-[15px] font-bold text-ink dark:text-gray-100">{r.view.individual.tag}</Text>
               <View className="min-w-0 flex-1">
                 {r.cname ? <Text className="text-[15px] text-ink dark:text-gray-100" numberOfLines={1}>{r.cname}</Text> : null}
-                <Text className="font-latin text-sm text-ink-2 dark:text-gray-300" numberOfLines={1}>
-                  {r.sci}
-                </Text>
+                <ScientificName name={r.sci} rank={r.rank} kingdom={r.kingdom} className="text-sm text-ink-2 dark:text-gray-300" numberOfLines={1} />
               </View>
               <View className="items-end gap-1">
                 <Text style={{ fontVariant: ['tabular-nums'] }} className="text-xs text-ink dark:text-gray-100">{dbhLine(r, (n) => t('survey.census.stems', { count: n }))}</Text>
@@ -531,7 +537,7 @@ export default function CensusScreen() {
           <View className="flex-1">
             <Text className="text-[15px] text-ink dark:text-gray-100" numberOfLines={1}>
               {selectedRow.cname ? `${selectedRow.cname} ` : ''}
-              <Text className="font-latin text-sm text-ink-2 dark:text-gray-300">{selectedRow.sci}</Text>
+              <ScientificName name={selectedRow.sci} rank={selectedRow.rank} kingdom={selectedRow.kingdom} className="text-sm text-ink-2 dark:text-gray-300" />
             </Text>
             <Text style={{ fontVariant: ['tabular-nums'] }} className="text-xs text-ink-2 dark:text-gray-400">{dbhLine(selectedRow, (n) => t('survey.census.stems', { count: n }))}</Text>
           </View>

@@ -11,7 +11,8 @@
 import { useRouter, type Href } from 'expo-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Linking, Pressable, Text, TextInput, View } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { showActionSheet } from '~/components/ActionSheet';
 import { SettingsPage } from '~/components/settings/SettingsPage';
 import { promptText } from '~/components/TextPromptModal';
@@ -235,7 +236,7 @@ export default function TeamDeployScreen() {
   const stepIndex = step ? STEPS.indexOf(step) : -1;
   return (
     <SettingsPage title={t('teamDeploy.title')}>
-      <ScrollView contentContainerClassName="gap-4 p-4 pb-10" keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
+      <KeyboardAwareScrollView contentContainerClassName="gap-4 p-4 pb-10" keyboardShouldPersistTaps="handled" bottomOffset={24}>
         <Text className="text-sm leading-6 text-gray-700 dark:text-gray-300">{t('teamDeploy.intro')}</Text>
         <View className="gap-1 rounded-xl border border-gray-200 bg-card p-3 dark:border-gray-800 dark:bg-gray-900">
           <Text className="text-sm font-semibold text-gray-900 dark:text-gray-100">{t('teamDeploy.permsTitle')}</Text>
@@ -315,7 +316,7 @@ export default function TeamDeployScreen() {
         <Pressable onPress={() => void remove()} disabled={busy} accessibilityRole="button" className="items-center py-2">
           <Text className="text-sm text-red-600 dark:text-red-400">{t('teamDeploy.remove')}</Text>
         </Pressable>
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </SettingsPage>
   );
 }

@@ -8,6 +8,7 @@
  * kind is active prompts the user to finish / resume the active one first.
  */
 import { errText } from '~/lib/errText';
+import { formErrorText } from '~/survey/form/text';
 import { assertNever } from '~/lib/assertNever';
 import { router, type Href } from 'expo-router';
 import { Alert } from 'react-native';
@@ -344,8 +345,8 @@ export function openMiren(): void {
  * (asked for); on a plot, a second series asks for its short code (§7.4).
  */
 export async function startModularSurveyAndOpen(template: SurveyTemplate, frameId: number | null = null): Promise<void> {
-  const ok = await ensureNoConflictingActive('modular');
-  if (!ok) return;
+  // The name and series code first: asked after the open record had been
+  // ended, a cancel left nothing going (code review L29).
   let name: string | undefined;
   if (template.style === 'plot' && frameId == null) {
     const raw = await promptText({
@@ -370,12 +371,13 @@ export async function startModularSurveyAndOpen(template: SurveyTemplate, frameI
     seriesCode = raw?.trim();
     if (!seriesCode) return;
   }
+  const ok = await ensureNoConflictingActive('modular');
+  if (!ok) return;
   let id: number;
   try {
-    // add-guard: ensureNoConflictingActive() at the top of this function
     id = createSurvey({ template, frameId, seriesCode, name, investigators: defaultSurveyorString() });
   } catch (e) {
-    Alert.alert(i18n.t('surveyForm.startFailed'), errText(e));
+    Alert.alert(i18n.t('surveyForm.startFailed'), formErrorText(i18n.t, e));
     return;
   }
   useActiveSurvey.getState().refresh();
@@ -519,6 +521,7 @@ export function importErrorMessage(e: unknown): string {
       missingFields: 'plotImport.missingFields',
       unsupportedBundle: 'recordImport.unsupportedBundle',
       unknownKind: 'recordImport.unknownKind',
+      newerFormat: 'recordImport.newerFormat',
     };
     return i18n.t(key[e.code]);
   }

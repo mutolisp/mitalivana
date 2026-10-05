@@ -21,10 +21,14 @@ import { BAR_GAP, BAR_HEIGHT, FAB_SIZE, useTabBarMetrics } from '~/lib/tabBarLay
 
 function PlusButton() {
   const c = useThemeColors();
+  const { t } = useTranslation();
 
   return (
     <Pressable
       onPress={pressPlus}
+      // Read out by VoiceOver / TalkBack, which said nothing for it (code review L28).
+      accessibilityRole="button"
+      accessibilityLabel={t('nav.addRecords')}
       // With a default set, a tap skips the sheet; a long press is the way
       // back to it (and to changing that default, which the sheet carries).
       onLongPress={longPressPlus}

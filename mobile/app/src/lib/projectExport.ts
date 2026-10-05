@@ -53,7 +53,8 @@ import {
   type ExportFile,
   checklistIdentity,
 } from './bundleExport';
-import { csvEscape, localIso } from './bundleYaml';
+import { localIso } from './bundleYaml';
+import { excelCell } from './csvFormula';
 import { convertToDwc } from './dwcMapper';
 import { buildRecordsDwca } from './dwcRows';
 import { DOC_FORMATS } from './docFormat';
@@ -146,7 +147,9 @@ export async function bundleProject(
     opts.onProgress?.({ label: i18n.t('export.stage.records', { current: recordIdx, total: totalRecords }), done: recordIdx - 1, total: totalRecords });
     try {
       const { entries: built, folderName } = await build();
-      entries.push(...built.map((e) => ({ ...e, name: `records/${e.name}` })));
+      // One at a time: a spread of every photo of a large census can pass
+      // the engine's argument limit (code review V2).
+      for (const e of built) entries.push({ ...e, name: `records/${e.name}` });
       recordMeta.push({ kind, id, uuid, folder: `records/${folderName}` });
     } catch (e) {
       // A record that fails (e.g. empty session) is noted, not fatal.
@@ -506,6 +509,7 @@ function buildReadme(
     '- `species_index.csv` — 物種欄名 ↔ taxonID ↔ 學名/俗名/科；未鑑定到種的形態種（同屬 sp1、sp2）各自一欄，暫定名在 `verbatimIdentification`',
     '- `cover_scale.csv` — 本次匯出使用的 Braun-Blanquet 換算表（含出處）',
     '- 檔案為 UTF-8 **無 BOM**（R 友善）；Excel 開啟請用「資料 → 從文字/CSV」並選 UTF-8',
+    "- 這些檔案的值保留原樣；以 = + - @ 開頭的文字用 Excel 開啟時可能被當成公式。給 Excel 的 `checklist/checklist.csv`（有 BOM）已在這類值前加上單引號（'）",
     '- DBH 記錄之數值化 = 斷面積合計（cm²，多莖加總）；個體數跨層/跨筆合併採加總，覆蓋度採最大值',
     '',
     '## Braun-Blanquet 換算表',
@@ -573,6 +577,6 @@ function buildChecklistCsv(items: MarkdownItem[]): string {
   for (const row of rows) for (const k of Object.keys(row)) if (!keys.includes(k)) keys.push(k);
   return (
     '\ufeff' +
-    [keys.join(','), ...rows.map((r) => keys.map((k) => csvEscape(r[k])).join(','))].join('\n')
+    [keys.join(','), ...rows.map((r) => keys.map((k) => excelCell(r[k])).join(','))].join('\n')
   );
 }

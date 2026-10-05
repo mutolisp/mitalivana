@@ -27,7 +27,7 @@ import { CentreLocationCard, EnvAdvancedSection, EnvPhotoSectionView, SurveyorRo
 import { SiteAssignSheet } from '~/components/SiteAssignSheet';
 import { SurveyorAssignSheet } from '~/components/SurveyorAssignSheet';
 import { TrackControlView } from '~/components/TransectTrackControl';
-import { getSite, parseGeometry, parseTrackSegments, type GeoJSONGeometry } from '~/db';
+import { parseGeometry, parseTrackSegments, type GeoJSONGeometry } from '~/db';
 import { withTransaction } from '~/db/init';
 import { isoStamp } from '~/lib/datetime';
 import { errText } from '~/lib/errText';
@@ -35,6 +35,7 @@ import { captureFix } from '~/lib/gnssFix';
 import { trackLengthMeters } from '~/lib/track';
 import { pauseRecording, startRecording, useTrackRecorder } from '~/lib/trackRecorder';
 import type { RecordEditing } from '~/lib/useRecordEditing';
+import { isPreviewId } from '~/db/previewDb';
 import { useToast } from '~/stores/toast';
 import { useThemeColors } from '~/theme/colors';
 import { instanceProblems, requiredByAuthor } from '~/survey/componentRules';
@@ -119,7 +120,7 @@ export function SurveyGroupList({ data, onOpen }: { data: SurveyForm; onOpen: (g
       case 'time':
         return [`${t('surveyTime.start')} ${stamp(survey.start_ts)}`, survey.stop_ts != null ? `${t('surveyTime.end')} ${stamp(survey.stop_ts)}` : t('records.inProgress')].join(' · ');
       case 'space': {
-        const site = survey.site_id != null ? getSite(survey.site_id) : null;
+        const { site } = data;
         const segments = parseTrackSegments(survey.track_geojson);
         const km = segments.length ? Math.round(trackLengthMeters(segments) / 100) / 10 : null;
         return [
@@ -212,12 +213,16 @@ export function SurveyGroupBody({ data, edit, group, onChanged }: { data: Survey
   const owner: ComponentOwner = { kind: 'survey', id };
   const [surveyorOpen, setSurveyorOpen] = useState(false);
   const [siteOpen, setSiteOpen] = useState(false);
+  // A preview's scratch database has no sites of user.db; a boundary drawn would
+  // leave a new site in user.db (code review V5).
+  const preview = isPreviewId(id);
+  const refusePreview = () => toast(t('builder.previewNoAssign'));
   const [notesKey, setNotesKey] = useState<string | null>(null);
   const recordingTarget = useTrackRecorder((s) => s.recordingTarget);
   const livePoints = useTrackRecorder((s) => s.livePoints);
   const recording = recordingTarget?.kind === 'modular' && recordingTarget.id === id;
   const segments = useMemo(() => parseTrackSegments(survey.track_geojson), [survey.track_geojson]);
-  const site = useMemo(() => (survey.site_id !== null ? getSite(survey.site_id) : null), [survey.site_id]);
+  const { site } = data;
   const boundary = useMemo((): GeoJSONGeometry | null => {
     if (!site) return null;
     try {
@@ -406,7 +411,7 @@ export function SurveyGroupBody({ data, edit, group, onChanged }: { data: Survey
                       onCapture={() => void captureGps()}
                       // Hand-placed arrives as null; an undo restores the measured value that was there before.
                       onPlace={(lat, lng, accuracy) => write(() => updateSurvey(id, { lat, lng, accuracy }))}
-                      onDrawBoundary={() => router.push(`/(tabs)/map?draw=Polygon&survey=${id}` as Href)}
+                      onDrawBoundary={() => (preview ? refusePreview() : router.push(`/(tabs)/map?draw=Polygon&survey=${id}` as Href))}
                     />
                   </View>
                 );
@@ -414,7 +419,7 @@ export function SurveyGroupBody({ data, edit, group, onChanged }: { data: Survey
                 return (
                   <View key={c.key}>
                     {missingLine}
-                    <SiteRow name={site?.name ?? null} onPress={() => (edit.refuse() ? undefined : setSiteOpen(true))} />
+                    <SiteRow name={site?.name ?? null} onPress={() => (edit.refuse() ? undefined : preview ? refusePreview() : setSiteOpen(true))} />
                   </View>
                 );
               case 'track':

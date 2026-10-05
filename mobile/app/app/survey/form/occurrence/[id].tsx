@@ -101,10 +101,9 @@ export default function OccurrenceScreen() {
   const formComps = grid.length ? comps.filter((c) => !isGrid(c)) : comps;
   const shownTab: Tab = tab === 'freq' && grid.length ? 'freq' : 'data';
   const context = { kingdom: o.kingdom || null, className: o.class || null, layerCount: layerCountOf(template, data.surveyValues) };
-  const name = o.common_name_c || o.simple_name || o.taxon_id;
 
   const relabel = async () => {
-    const label = await labelForEdit(survey, { taxon_id: o.taxon_id, rank: o.rank, name }, o.verbatim_identification);
+    const label = await labelForEdit(survey, { taxon_id: o.taxon_id, rank: o.rank, kingdom: o.kingdom, cname: o.common_name_c, sci: o.simple_name }, o.verbatim_identification);
     if (label === undefined) return;
     try {
       updateOccurrence(o.id, { verbatim_identification: label });

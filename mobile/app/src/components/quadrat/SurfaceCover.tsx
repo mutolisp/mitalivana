@@ -51,10 +51,14 @@ export function SurfaceCover<K extends string>({
   // row's boxes (arrows, value field, icons) grow with it. Heights follow by
   // stretching every box to the tallest one, the item menu.
   const fs = FONT_SCALE_VALUE[useSettings((x) => x.font_scale)] * useWindowDimensions().fontScale;
-  const [i, setI] = useState(0);
-  // Current item for callbacks bound earlier (Next on the keyboard bar).
+  const [i, setIState] = useState(0);
+  // Current item for callbacks bound earlier (Next on the keyboard bar); set
+  // with the state, not while rendering (code review L23).
   const iRef = useRef(0);
-  iRef.current = i;
+  const setI = (n: number) => {
+    iRef.current = n;
+    setIState(n);
+  };
   const commitRef = useRef<(() => boolean) | null>(null);
   const go = (next: number) => {
     // Save a half-typed value to the item it was typed for, then move.
