@@ -91,6 +91,18 @@ export type ObservationPayload = {
   captive_flag?: boolean;
 };
 
+/**
+ * iNaturalist's taxon ids of the three kingdoms a pending observation is kept
+ * under — sent as its first identification, so it waits for identifiers in
+ * the right kingdom. Read from `GET https://api.inaturalist.org/v1/taxa?rank=kingdom`
+ * on 2026-10-06 (Animalia 1, Plantae 47126, Fungi 47170).
+ */
+export const INAT_KINGDOM_TAXON_ID: Record<string, number> = {
+  Animalia: 1,
+  Plantae: 47126,
+  Fungi: 47170,
+};
+
 /** External taxa minted from iNaturalist carry the iNat id in the local id
  *  (`gi` + id, see src/db/externalTaxa.ts). */
 export function inatIdFromLocalTaxonId(taxonId: string): number | null {

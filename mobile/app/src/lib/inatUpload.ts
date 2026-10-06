@@ -29,6 +29,7 @@ import {
   getSession,
   getSite,
   layerLabel,
+  listPending,
   listPlotSpecies,
   listSessionRecords,
   listSpecimens,
@@ -69,6 +70,7 @@ import { decodeJwtPayload } from './inatJwt';
 import { useSettings } from '~/stores/settings';
 import {
   AUDIO_MIME_TYPE,
+  INAT_KINGDOM_TAXON_ID,
   annotationsFor,
   buildObservationPayload,
   centreAndRadius,
@@ -97,6 +99,8 @@ export type EligibleRecord = {
   name: string;
   cname: string;
   kingdom: string;
+  /** Only where `name` is not a species-level name: a pending observation's kingdom. */
+  rank?: string;
   observedAtMs: number;
   notes: string | null;
   placeGuess: string | null;
@@ -297,7 +301,7 @@ function collectCandidates(unit: UploadUnit): { title: string; all: EligibleReco
       };
       all.push({ ...rec, status: statusOf(r.inat_observation_id, r.inat_uploaded_at) });
     }
-  } else {
+  } else if (unit.kind === 'collection') {
     const trip = getCollectionTrip(unit.id);
     if (!trip) return { title, all };
     title = trip.name;
@@ -328,6 +332,46 @@ function collectCandidates(unit: UploadUnit): { title: string; all: EligibleReco
       };
       all.push({ ...rec, status: statusOf(r.inat_observation_id, r.inat_uploaded_at) });
     }
+  } else {
+    // Pending observations (casual mode): every one is a unit member, id 0.
+    // Sent under the kingdom the user picked; once named, the record they
+    // become carries this upload state and a sync sends the species.
+    title = i18n.t('casual.pendingTitle');
+    for (const p of listPending()) {
+      const rec: Omit<EligibleRecord, 'status'> = {
+        kind: 'pending',
+        id: p.id,
+        occurrenceId: p.uuid,
+        localTaxonId: '',
+        name: p.kingdom,
+        cname: i18n.t('casual.pendingOf', { kingdom: i18n.t(`casual.kingdom.${p.kingdom}`) }),
+        kingdom: p.kingdom,
+        rank: 'Kingdom',
+        observedAtMs: p.observed_at,
+        notes: p.note,
+        placeGuess: null,
+        photos: parsePhotoUris(p.photo_paths),
+        audio: parseAudioPaths(p.audio_paths),
+        location: recordLocation(p.lat, p.lng, p.accuracy),
+        degreeOfEstablishment: p.degree_of_establishment,
+        attributes: [
+          ...commonAttributes({ ...p, sex: null, life_stage: null, leaf_phenology: null }),
+          quantityAttr(p.quantity, p.quantity != null ? 'individuals' : null),
+        ].filter((a): a is InatAttribute => a !== null),
+        annotations: recordAnnotations({
+          ...p,
+          class: '',
+          order: '',
+          sex: null,
+          life_stage: null,
+          leaf_phenology: null,
+        }),
+        observationId: p.inat_observation_id,
+        mediaDone: p.inat_media_done,
+        syncHash: p.inat_sync_hash,
+      };
+      all.push({ ...rec, status: statusOf(p.inat_observation_id, p.inat_uploaded_at) });
+    }
   }
   return { title, all };
 }
@@ -337,7 +381,7 @@ export function estimateBatch(records: EligibleRecord[]): { requests: number; ph
     records.map((r) => ({
       photos: r.photos.length,
       audio: r.audio.length,
-      needsTaxon: r.observationId === null && inatIdFromLocalTaxonId(r.localTaxonId) === null,
+      needsTaxon: r.observationId === null && r.kind !== 'pending' && inatIdFromLocalTaxonId(r.localTaxonId) === null,
       mediaDone: r.mediaDone,
       hasObservation: r.observationId !== null,
       annotations: r.annotations.length,
@@ -572,6 +616,8 @@ export function hasInatChanges(unit: UploadUnit, recordId: number): boolean {
 }
 
 async function resolveTaxon(rec: EligibleRecord, ctx: BatchContext): Promise<number | null> {
+  // A pending observation's identification is its kingdom; no lookup.
+  if (rec.kind === 'pending') return INAT_KINGDOM_TAXON_ID[rec.kingdom] ?? null;
   const direct = inatIdFromLocalTaxonId(rec.localTaxonId);
   if (direct !== null) return direct;
   const key = `${rec.kingdom}|${rec.name}`;

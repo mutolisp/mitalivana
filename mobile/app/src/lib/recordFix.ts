@@ -25,12 +25,12 @@ import { stampPlotSpeciesFix, stampRecordFix } from '~/db';
 import { useSettings } from '~/stores/settings';
 import { occurrencesLocated } from '~/survey/db/surveyCore';
 import { getFwSurvey, stampOccurrenceFix } from '~/survey/db/surveys';
-import { isRecordingTarget } from './trackRecorder';
+import { isRecordingTarget, useTrackRecorder } from './trackRecorder';
 
 /** 'modular': an occurrence of a checklist / plot-style survey (2G-b), under the setting of the record it matches. */
 export type RecordKind = 'session' | 'plot' | 'modular';
 
-type Fix = { lat: number; lng: number; accuracy: number | null; elevation_m: number | null };
+export type Fix = { lat: number; lng: number; accuracy: number | null; elevation_m: number | null };
 
 /** A track fix older than this is not "where the species was entered". */
 const TRACK_FIX_MAX_AGE_MS = 15_000;
@@ -59,6 +59,15 @@ function toFix(pos: Location.LocationObject): Fix {
     // Rounded to the metre, like the plot and specimen altitude.
     elevation_m: pos.coords.altitude != null ? Math.round(pos.coords.altitude) : null,
   };
+}
+
+/**
+ * The current position, without asking for permission (null when none, or
+ * after 15 s): a casual observation recorded without a photo to read one off.
+ * While a track is recording, the track's last point serves.
+ */
+export function takeFixNow(): Promise<Fix | null> {
+  return takeFix(useTrackRecorder.getState().recordingTarget != null).catch(() => null);
 }
 
 async function takeFix(tracking: boolean): Promise<Fix | null> {

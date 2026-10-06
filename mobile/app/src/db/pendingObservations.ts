@@ -11,8 +11,8 @@ import { defaultSurveyorString } from './surveyors';
 import type { AdoptionInput } from './taxonLookup';
 import { generateUuid } from './uuid';
 
-export type { PendingInput, PendingKingdom, PendingObservation, PendingPatch } from './pendingCore';
-export { PENDING_KINGDOMS, dayKey } from './pendingCore';
+export type { DailyRecord, PendingInput, PendingKingdom, PendingObservation, PendingPatch } from './pendingCore';
+export { PENDING_KINGDOMS, dayKey, groupByDay } from './pendingCore';
 
 const ctx = (): core.PendingCtx => ({ db: getUserDb(), now: Date.now, uuid: generateUuid });
 
@@ -50,6 +50,30 @@ export function deletePending(id: number): void {
 export function todaysDailySession(): number {
   const now = Date.now();
   return core.dailySessionFor(ctx(), now, { name: dailyChecklistName(now), recordedBy: defaultSurveyorString(), activate: true });
+}
+
+/**
+ * The daily checklist of the day `ts` falls on, for an observation from an
+ * earlier day (a library photo): created ended when there is none. Never
+ * takes the active slot.
+ */
+export function dailySessionOn(ts: number): number {
+  return core.dailySessionFor(ctx(), ts, { name: dailyChecklistName(ts), recordedBy: defaultSurveyorString() });
+}
+
+/** Today's daily checklist if there is one, without creating or opening it. */
+export function todaysDailySessionId(): number | null {
+  return core.readDailyMap(ctx())[core.dayKey(Date.now())] ?? null;
+}
+
+/** Every daily checklist's records, newest first (我的觀察, the map tab). */
+export function listDailyRecords(): core.DailyRecord[] {
+  return core.listDailyRecords(ctx());
+}
+
+/** The taxa recorded most recently (「最近記過」). */
+export function recentTaxa(limit = 8): string[] {
+  return core.recentTaxa(ctx(), limit);
 }
 
 /** End earlier days' daily checklists left open (app start). */

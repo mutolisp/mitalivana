@@ -9,6 +9,7 @@
  * is deleted when the preview closes.
  */
 import { open, type DB } from '@op-engineering/op-sqlite';
+import { uriToPath } from '~/lib/uriPath';
 import { File, Paths } from 'expo-file-system';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -34,7 +35,7 @@ type Scratch = { db: DB; ctx: Ctx; survey: core.ComponentOwner; units: Record<st
 async function openScratch(template: SurveyTemplate): Promise<Scratch> {
   const file = new File(Paths.document, PREVIEW_DB);
   if (file.exists) file.delete();
-  const db = open({ name: PREVIEW_DB, location: Paths.document.uri });
+  const db = open({ name: PREVIEW_DB, location: uriToPath(Paths.document.uri) });
   await runUserMigrations(db);
   db.executeSync('PRAGMA foreign_keys = ON;');
   const ctx: Ctx = { db, now: Date.now, uuid: generateUuid };

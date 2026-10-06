@@ -46,6 +46,7 @@ import {
   type BubbleArea,
   type BubbleSide,
 } from '~/lib/tabBubbleCore';
+import { useModeT, useShows } from '~/lib/useUsageMode';
 import { useSettings } from '~/stores/settings';
 import { syncRatio, useSyncProgress } from '~/stores/syncProgress';
 import { useTabChrome } from '~/stores/tabChrome';
@@ -106,6 +107,8 @@ function MenuRow({
 
 export function TabBubble({ state, descriptors, navigation, order }: BottomTabBarProps & { order: readonly string[] }) {
   const { t } = useTranslation();
+  const tm = useModeT();
+  const camera = useShows('casualObservations');
   const c = useThemeColors();
   const insets = useSafeAreaInsets();
   const focused = useIsFocused();
@@ -277,8 +280,8 @@ export function TabBubble({ state, descriptors, navigation, order }: BottomTabBa
                 return (
                   <MenuRow
                     key="plus"
-                    label={t('record.createChooserTitle')}
-                    icon={<Ionicons name="add" size={26} color={c.onAcorn} />}
+                    label={tm('record.createChooserTitle')}
+                    icon={<Ionicons name={camera ? 'camera' : 'add'} size={camera ? 24 : 26} color={c.onAcorn} />}
                     tone="plus"
                     right={side === 'right'}
                     onPress={() => {

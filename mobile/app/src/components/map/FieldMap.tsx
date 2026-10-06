@@ -13,7 +13,9 @@
  *   from the list moves the map to its pin.
  *
  * The basemap follows the map tab's choice, including the offline vector map —
- * in the field there is often no signal.
+ * in the field there is often no signal. With `basemapPicker` (casual mode) a
+ * round button at the top right opens into the basemaps, as the map tab's tools
+ * button does, and locate moves under it.
  */
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
@@ -23,14 +25,15 @@ import { Alert, Pressable, Text, View } from 'react-native';
 
 import { CtrlButton, centerOn, locateMe } from '~/components/MapControls';
 import type { Stretch } from '~/lib/alongTrack';
-import { basemapToMapType } from '~/lib/basemap';
+import { BASEMAP_OPTIONS, basemapLabelKey, basemapToMapType } from '~/lib/basemap';
 import type { TrackSegment } from '~/lib/track';
 import { VECTOR_STYLE_URL, vectorStyleUri } from '~/lib/vectormap';
 import { useVectorInstall } from '~/lib/vectormapInstall';
-import { useSettings } from '~/stores/settings';
+import { useSettings, type MapBasemap } from '~/stores/settings';
 import { useThemeColors } from '~/theme/colors';
 import { MAP_DATA } from '~/theme/mapColors';
 import { MapCanvas } from './MapCanvas';
+import { FabButton, FabRow } from './MapFab';
 import type { MapCamera, MapFeature, Region } from './types';
 
 export type FieldMapPoint = { id: number; lat: number; lng: number; glyph: string };
@@ -38,6 +41,10 @@ export type FieldMapPoint = { id: number; lat: number; lng: number; glyph: strin
 export type FieldMapStatus =
   | { kind: 'track'; recording: boolean; lengthM: number; onToggle?: () => void }
   | { kind: 'circle'; lat: number; lng: number; radiusM: number };
+
+const NO_INSETS = { top: 0, bottom: 0 };
+/** 「記在這裡」: its gap above the bottom (12) + height (44) + a little air, so the map's logo sits above it. */
+const RECORD_HERE_CLEAR = 60;
 
 const toRad = (d: number) => (d * Math.PI) / 180;
 function distanceM(lat1: number, lng1: number, lat2: number, lng2: number): number {
@@ -87,6 +94,8 @@ export function FieldMap({
   status,
   onRecordHere,
   recordHereOn = false,
+  basemapPicker = false,
+  insets = NO_INSETS,
 }: {
   track: TrackSegment[];
   stretches: Stretch[];
@@ -102,6 +111,10 @@ export function FieldMap({
   status: FieldMapStatus | null;
   onRecordHere?: () => void;
   recordHereOn?: boolean;
+  /** The round basemap button at the top right. */
+  basemapPicker?: boolean;
+  /** Room for the status bar above and the floating tab bar below, when the map runs full-bleed. */
+  insets?: { top: number; bottom: number };
 }) {
   const { t } = useTranslation();
   const c = useThemeColors();
@@ -115,6 +128,14 @@ export function FieldMap({
   const vectorStyleRev = useVectorInstall((s) => s.styleRev);
   const vectorOn = basemap === 'vector';
   const vectorStyle = vectorOn ? (vectorReady && vectorInstalled ? vectorStyleUri() : VECTOR_STYLE_URL) : undefined;
+  const [layersOpen, setLayersOpen] = useState(false);
+  const pickBasemap = (b: MapBasemap) => {
+    setLayersOpen(false);
+    const cur = useSettings.getState().map_view;
+    useSettings.getState().set('map_view', { ...cur, basemap: b });
+  };
+  // Width kept clear of the right-hand controls by the pill and the callout.
+  const rightClear = basemapPicker ? 60 : 52;
 
   const circle = status?.kind === 'circle' ? status : null;
   const coords = [
@@ -292,6 +313,8 @@ export function FieldMap({
     }),
   ];
 
+  const locate = () => void locateMe(mapRef, regionRef, () => Alert.alert(t('gnss.permTitle'), t('gnss.permMsg')));
+
   let pill: { dot: string; text: string; action?: { icon: 'pause' | 'play'; label: string; onPress: () => void } } | null = null;
   if (status?.kind === 'track') {
     pill = {
@@ -331,6 +354,7 @@ export function FieldMap({
         engine={vectorOn ? 'vector' : 'native'}
         vectorStyle={vectorStyle}
         mapType={basemapToMapType(basemap)}
+        attributionInset={insets.bottom + (onRecordHere ? RECORD_HERE_CLEAR : 0) || undefined}
         showsUserLocation
         showsMyLocationButton={false}
         toolbarEnabled={false}
@@ -338,13 +362,14 @@ export function FieldMap({
           regionRef.current = r;
         }}
         onPress={() => {
+          setLayersOpen(false);
           if (picked != null) onPick(null);
         }}
         features={features}
       />
 
       {pill ? (
-        <View className="absolute left-2 top-2 flex-row" style={{ right: 52 }} pointerEvents="box-none">
+        <View className="absolute left-2 flex-row" style={{ top: insets.top + 8, right: rightClear }} pointerEvents="box-none">
           <View
             className="flex-row items-center gap-1.5 rounded-full border border-line bg-card/95 py-1 pl-2.5 pr-1 dark:border-line-dark dark:bg-card-dark/95"
             // Shrinks with a narrow map instead of running under the locate button.
@@ -371,16 +396,18 @@ export function FieldMap({
         </View>
       ) : null}
 
-      <View className="absolute right-2 top-2">
-        <CtrlButton
-          icon="locate"
-          label={t('locMap.locateMe')}
-          onPress={() => void locateMe(mapRef, regionRef, () => Alert.alert(t('gnss.permTitle'), t('gnss.permMsg')))}
-        />
-      </View>
+      {basemapPicker ? null : (
+        <View className="absolute right-2" style={{ top: insets.top + 8 }}>
+          <CtrlButton icon="locate" label={t('locMap.locateMe')} onPress={locate} />
+        </View>
+      )}
 
       {callout ? (
-        <View className="absolute left-2 right-2 rounded-xl border border-line bg-card px-3 py-1.5 dark:border-line-dark dark:bg-card-dark" style={{ top: pill ? 50 : 8 }} pointerEvents="none">
+        <View
+          className="absolute left-2 rounded-xl border border-line bg-card px-3 py-1.5 dark:border-line-dark dark:bg-card-dark"
+          style={{ top: insets.top + (pill ? 50 : 8), right: basemapPicker ? rightClear : 8 }}
+          pointerEvents="none"
+        >
           <Text className="text-sm font-bold text-gray-900 dark:text-gray-100" numberOfLines={1}>
             {callout.title}
           </Text>
@@ -390,8 +417,33 @@ export function FieldMap({
         </View>
       ) : null}
 
+      {basemapPicker ? (
+        <View className="absolute right-2 items-end" style={{ top: insets.top + 8 }}>
+          <FabButton
+            icon={layersOpen ? 'close' : 'layers-outline'}
+            onPress={() => setLayersOpen((v) => !v)}
+            a11yLabel={t('map.pickBasemap')}
+          />
+          {layersOpen ? (
+            BASEMAP_OPTIONS.map((o) => (
+              <FabRow
+                key={o.value}
+                icon={o.icon}
+                label={t(basemapLabelKey(o, vectorReady))}
+                onPress={() => pickBasemap(o.value)}
+                accent={basemap === o.value}
+              />
+            ))
+          ) : (
+            <View className="mt-2">
+              <FabButton icon="locate" onPress={locate} a11yLabel={t('locMap.locateMe')} />
+            </View>
+          )}
+        </View>
+      ) : null}
+
       {onRecordHere ? (
-        <View className="absolute bottom-3 left-0 right-0 items-center" pointerEvents="box-none">
+        <View className="absolute left-0 right-0 items-center" style={{ bottom: insets.bottom + 12 }} pointerEvents="box-none">
           <Pressable
             onPress={onRecordHere}
             accessibilityRole="button"

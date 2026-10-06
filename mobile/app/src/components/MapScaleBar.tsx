@@ -59,6 +59,9 @@ export function formatScaleLabel(meters: number): string {
   return meters >= 1000 ? `${meters / 1000} km` : `${meters} m`;
 }
 
+/** The bar's height: py-1 (8) + label line (12) + mb-0.5 (2) + bar (6). Room for it under the map's attribution. */
+export const SCALE_BAR_HEIGHT = 28;
+
 export function MapScaleBar({
   region,
   screenWidth,

@@ -19,6 +19,7 @@
  * deleted on its own from the offline map settings screen.
  */
 import { open, type DB } from '@op-engineering/op-sqlite';
+import { uriToPath } from '~/lib/uriPath';
 
 import { poiLocation } from '~/lib/poi';
 
@@ -91,7 +92,7 @@ export function getPoiDb(): DB | null {
   const key = `${loc.location}/${loc.name}`;
   if (poiDb && openedFor === key) return poiDb;
   closePoiDb();
-  poiDb = open({ name: loc.name, location: loc.location });
+  poiDb = open({ name: loc.name, location: uriToPath(loc.location) });
   openedFor = key;
   return poiDb;
 }

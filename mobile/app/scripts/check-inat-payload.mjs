@@ -8,6 +8,7 @@ import {
   buildDescription,
   syncFingerprint,
   buildObservationPayload,
+  INAT_KINGDOM_TAXON_ID,
   centreAndRadius,
   estimateRequests,
   formatObservedOnString,
@@ -20,6 +21,7 @@ import {
   pickTaxonMatchDetailed,
 } from '../src/lib/inatPayload.ts';
 import { decodeJwtPayload, jwtExpiryMs, jwtUsable, parseTokenText } from '../src/lib/inatJwt.ts';
+import { PENDING_KINGDOMS } from '../src/db/pendingCore.ts';
 
 let failures = 0;
 const fail = (m) => {
@@ -358,6 +360,33 @@ const ok = (label, cond) => {
   eq('paste stale rejected', parseTokenText(`{"api_token":"${stale}"}`, now), null);
   eq('paste noise rejected', parseTokenText('hello world', now), null);
   eq('paste empty', parseTokenText('', now), null);
+}
+
+// ── pending observations (casual mode) ──────────────────────────────────────
+// Uploaded under their kingdom: every kingdom one can be saved under needs an
+// iNat taxon id, or it would go up with no identification at all.
+{
+  for (const k of PENDING_KINGDOMS) {
+    ok(`pending kingdom ${k} has an iNat taxon id`, Number.isInteger(INAT_KINGDOM_TAXON_ID[k]) && INAT_KINGDOM_TAXON_ID[k] > 0);
+  }
+  const ids = PENDING_KINGDOMS.map((k) => INAT_KINGDOM_TAXON_ID[k]);
+  eq('pending kingdom ids are distinct', new Set(ids).size, ids.length);
+  const p = buildObservationPayload(
+    {
+      occurrenceId: '0b7e4c55-5d3a-4c1e-9e1a-7c2f1a0d9b11',
+      scientificName: 'Fungi',
+      localTaxonId: '',
+      kingdom: 'Fungi',
+      observedAtMs: Date.UTC(2026, 9, 6, 2, 0),
+      tzOffsetMin: 480,
+      location: null,
+      notes: null,
+      attributes: [],
+    },
+    INAT_KINGDOM_TAXON_ID.Fungi,
+    { tags: [], geoprivacy: 'open' },
+  );
+  eq('pending payload: kingdom as the identification', [p.taxon_id, p.species_guess], [47170, 'Fungi']);
 }
 
 if (failures > 0) {

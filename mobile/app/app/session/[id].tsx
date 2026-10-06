@@ -17,6 +17,7 @@ import {
   ScrollView,
   Text,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import { KeyboardStickyView } from '~/components/KeyboardAvoidingView';
 import { HeaderIconButton } from '~/components/HeaderIconButton';
@@ -59,7 +60,7 @@ import {
   type SearchResult,
 } from '~/db';
 import { SearchBox } from '~/components/SearchBox';
-import { SpeciesCard } from '~/components/SpeciesCard';
+import { SpeciesCard, SpeciesTile } from '~/components/SpeciesCard';
 import { SpeciesDetailSheet } from '~/components/SpeciesDetailSheet';
 import { LookupResultSheet } from '~/components/LookupResultSheet';
 import { EndSessionModal } from '~/components/EndSessionModal';
@@ -105,6 +106,8 @@ import { Chip } from '~/components/ui/Chip';
 import { sentenceParts, slot, speciesParts } from '~/lib/nameParts';
 import { HIGH_LEVEL_GROUPS, sortRecords } from '~/lib/recordList';
 import { RecordSortControls } from '~/components/RecordSortControls';
+import { ListFilterButton, ListFilterField } from '~/components/ListFilter';
+import { normalizeRecordQuery, speciesMatches } from '~/lib/recordSearch';
 import { FieldMap } from '~/components/map/FieldMap';
 import { MapToggle, SplitMapView, SplitRecordList, useSplitMapOpen } from '~/components/map/SplitMapView';
 import { useFieldMapData, type MapRecord } from '~/components/map/useFieldMapData';
@@ -135,6 +138,9 @@ export default function SessionDetailScreen() {
   const [site, setSite] = useState<Site | null>(null);
   const [records, setRecords] = useState<RecordWithTaxon[]>([]);
   const [filterKey, setFilterKey] = useState<string | null>(null);
+  // Finding a species in this list (ListFilter): the field replaces the chips.
+  const [findOpen, setFindOpen] = useState(false);
+  const [findQuery, setFindQuery] = useState('');
   const [activeRecord, setActiveRecord] = useState<RecordWithTaxon | null>(null);
   const [endModalOpen, setEndModalOpen] = useState(false);
   const [projectSheetOpen, setProjectSheetOpen] = useState(false);
@@ -161,6 +167,10 @@ export default function SessionDetailScreen() {
   const trackCount = liveTrack.reduce((n, s) => n + s.length, 0);
   const sortOrder = useSettings((s) => s.last_record_sort);
   const sortDir = useSettings((s) => s.last_record_sort_dir);
+  // Rows or cards (the header ⋯, every usage mode).
+  const speciesLayout = useSettings((s) => s.species_layout);
+  const { width: windowWidth } = useWindowDimensions();
+  const tileWidth = (windowWidth - 16 * 2 - 12) / 2;
 
   // Lock + undo / redo (src/lib/useRecordEditing): an ended checklist is
   // read-only until unlocked here; every reload after an edit is one step.
@@ -226,8 +236,16 @@ export default function SessionDetailScreen() {
       const group = HIGH_LEVEL_GROUPS.find((g) => g.key === filterKey);
       if (group) result = records.filter((r) => r[group.field] === group.value);
     }
+    const nq = normalizeRecordQuery(findQuery);
+    if (nq) result = result.filter((r) => speciesMatches(r, nq));
     return sortRecords(result, sortOrder, sortDir);
-  }, [records, filterKey, sortOrder, sortDir]);
+  }, [records, filterKey, findQuery, sortOrder, sortDir]);
+  const emptyText =
+    records.length === 0
+      ? t('session.emptyHint')
+      : findQuery.trim()
+        ? t('speciesFilter.noMatch', { q: findQuery.trim() })
+        : t('session.emptyGroup');
 
   // Split map (18k): the map beside the list, its pins and stretches drawn
   // from the same filtered and sorted records.
@@ -870,6 +888,7 @@ export default function SessionDetailScreen() {
                 id={sessionId}
                 reportHref={`/report/session/${sessionId}` as Href}
                 onSynced={reload}
+                layout={{ value: speciesLayout, onChange: (v) => useSettings.getState().set('species_layout', v) }}
                 // Moved here from the filter row: two actions that only mean
                 // something while recording, taking width from the chips.
                 extra={
@@ -964,38 +983,59 @@ export default function SessionDetailScreen() {
           />
         ) : (
           <View className="flex-row items-center border-b border-gray-200 bg-card dark:border-gray-700 dark:bg-gray-900">
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              className="flex-1"
-              accessibilityRole="tablist"
-              contentContainerStyle={{
-                paddingHorizontal: 8,
-                paddingVertical: 8,
-                alignItems: 'center',
-                gap: 8,
-              }}
-            >
-              <Chip
-                label={t('records.filterAll')}
-                count={records.length}
-                selected={filterKey === null}
-                onPress={() => setFilterKey(null)}
+            {findOpen ? (
+              <ListFilterField
+                value={findQuery}
+                onChangeText={setFindQuery}
+                onClose={() => {
+                  setFindQuery('');
+                  setFindOpen(false);
+                }}
               />
-              {HIGH_LEVEL_GROUPS.map((g) => {
-                const count = groupCounts.get(g.key) ?? 0;
-                if (count === 0) return null;
-                return (
+            ) : (
+              <>
+                <ListFilterButton
+                  onPress={() => {
+                    // The whole list: a group filter hidden behind the field would
+                    // make a species look missing.
+                    setFilterKey(null);
+                    setFindOpen(true);
+                  }}
+                />
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  className="flex-1"
+                  accessibilityRole="tablist"
+                  contentContainerStyle={{
+                    paddingHorizontal: 8,
+                    paddingVertical: 8,
+                    alignItems: 'center',
+                    gap: 8,
+                  }}
+                >
                   <Chip
-                    key={g.key}
-                    label={t('group.' + g.key)}
-                    count={count}
-                    selected={filterKey === g.key}
-                    onPress={() => setFilterKey(g.key)}
+                    label={t('records.filterAll')}
+                    count={records.length}
+                    selected={filterKey === null}
+                    onPress={() => setFilterKey(null)}
                   />
-                );
-              })}
-            </ScrollView>
+                  {HIGH_LEVEL_GROUPS.map((g) => {
+                    const count = groupCounts.get(g.key) ?? 0;
+                    if (count === 0) return null;
+                    return (
+                      <Chip
+                        key={g.key}
+                        label={t('group.' + g.key)}
+                        count={count}
+                        selected={filterKey === g.key}
+                        onPress={() => setFilterKey(g.key)}
+                      />
+                    );
+                  })}
+                </ScrollView>
+              </>
+            )}
             {/* Sort and its direction. Batch and photo import moved to the header's ⋯. */}
             <RecordSortControls />
             {mapAllowed ? (
@@ -1047,7 +1087,7 @@ export default function SessionDetailScreen() {
                   const rec = filtered.find((r) => r.id === id);
                   if (rec) setActiveRecord(rec);
                 }}
-                empty={records.length === 0 ? t('session.emptyHint') : t('session.emptyGroup')}
+                empty={emptyText}
               />
             }
           />
@@ -1055,33 +1095,23 @@ export default function SessionDetailScreen() {
           <View className="flex-1 items-center justify-center px-6">
             <Ionicons name="search-outline" size={56} color={c.ink3} />
             <Text className="mt-3 text-base text-gray-700 dark:text-gray-300">
-              {records.length === 0 ? t('session.emptyHint') : t('session.emptyGroup')}
+              {emptyText}
             </Text>
           </View>
         ) : (
           <FlatList
+            // numColumns cannot change on a mounted list.
+            key={speciesLayout}
             data={filtered}
             keyExtractor={(r) => `${r.id}`}
-            renderItem={({ item }) => (
-              <SwipeRowActions
-                disabled={selection.selectMode}
-                actions={[
-                  {
-                    label: t('records.uploadInat'),
-                    icon: 'cloud-upload-outline',
-                    color: 'inat',
-                    onPress: () => handleUploadInat(item),
-                  },
-                  {
-                    label: t('common.remove'),
-                    icon: 'trash',
-                    color: 'red',
-                    onPress: () => handleSwipeRemove(item),
-                  },
-                ]}
-              >
-                <SpeciesCard
+            numColumns={speciesLayout === 'card' ? 2 : 1}
+            columnWrapperStyle={speciesLayout === 'card' ? { gap: 12, paddingHorizontal: 16 } : undefined}
+            contentContainerStyle={speciesLayout === 'card' ? { gap: 12, paddingVertical: 12 } : undefined}
+            renderItem={({ item }) =>
+              speciesLayout === 'card' ? (
+                <SpeciesTile
                   record={item}
+                  width={tileWidth}
                   onPress={() =>
                     selection.selectMode ? selection.toggle(item.id) : setActiveRecord(item)
                   }
@@ -1091,7 +1121,36 @@ export default function SessionDetailScreen() {
                   flash={item.id === flashId}
                   onCountChange={edit.locked ? undefined : (next) => handleRowCount(item, next)}
                 />
-              </SwipeRowActions>
+              ) : (
+                <SwipeRowActions
+                  disabled={selection.selectMode}
+                  actions={[
+                    {
+                      label: t('records.uploadInat'),
+                      icon: 'cloud-upload-outline',
+                      color: 'inat',
+                      onPress: () => handleUploadInat(item),
+                    },
+                    {
+                      label: t('common.remove'),
+                      icon: 'trash',
+                      color: 'red',
+                      onPress: () => handleSwipeRemove(item),
+                    },
+                  ]}
+                >
+                  <SpeciesCard
+                    record={item}
+                    onPress={() =>
+                      selection.selectMode ? selection.toggle(item.id) : setActiveRecord(item)
+                    }
+                    onLongPress={() => selection.enter(item.id)}
+                    selectMode={selection.selectMode}
+                    picked={selection.picked.has(item.id)}
+                    flash={item.id === flashId}
+                    onCountChange={edit.locked ? undefined : (next) => handleRowCount(item, next)}
+                  />
+                </SwipeRowActions>
             )}
           />
         )}

@@ -7,6 +7,7 @@
  * user.db uses the same file).
  */
 import { open, type DB } from '@op-engineering/op-sqlite';
+import { uriToPath } from '~/lib/uriPath';
 import { File, Paths } from 'expo-file-system';
 import { runUserMigrations } from '~/db/migrations';
 import { raisePreviewIds, setPreviewDb } from '~/db/previewDb';
@@ -49,7 +50,7 @@ export async function openPreviewSurvey(template: SurveyTemplate): Promise<{ id:
   // A preview closed a moment ago goes first: one scratch file at a time.
   pendingClose?.();
   removeFiles();
-  const db = open({ name: PREVIEW_FILE, location: Paths.document.uri });
+  const db = open({ name: PREVIEW_FILE, location: uriToPath(Paths.document.uri) });
   try {
     await runUserMigrations(db);
     db.executeSync('PRAGMA foreign_keys = ON;');

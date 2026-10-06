@@ -13,6 +13,7 @@ import {
   matchingProjectIds,
   normalizeRecordQuery,
   recordMatches,
+  speciesMatches,
 } from '../src/lib/recordSearch.ts';
 
 let failures = 0;
@@ -54,8 +55,31 @@ eq('no match drops every group', run('zzz'), []);
 eq('group objects keep their own fields', filterRecordGroups(groups, 'ttk', new Set())[0].projectId, 1);
 eq('recordMatches with an empty query', recordMatches(item('a', 'b', 9), '', new Set()), true);
 
+// A species in its own checklist's or plot's list.
+const sp = {
+  common_name_c: '臺灣二葉松',
+  alternative_name_c: '松仔',
+  simple_name: 'Pinus taiwanensis',
+  family: 'Pinaceae',
+  family_c: '松科',
+  genus_c: '松屬',
+  notes: '稜線上 3 株',
+};
+const sm = (q) => speciesMatches(sp, normalizeRecordQuery(q));
+eq('species: common name, 台 matches 臺', sm('台灣二葉'), true);
+eq('species: other name', sm('松仔'), true);
+eq('species: scientific name, case-insensitive', sm('PINUS'), true);
+eq('species: family (Latin)', sm('pinaceae'), true);
+eq('species: family (Chinese)', sm('松科'), true);
+eq('species: genus (Chinese)', sm('松屬'), true);
+eq('species: note', sm('稜線'), true);
+eq('species: no match', sm('樟'), false);
+eq('species: empty query keeps it', sm('  '), true);
+eq('species: missing fields are skipped', speciesMatches({ simple_name: 'Ficus' }, 'ficus'), true);
+eq('species: null fields are skipped', speciesMatches({ common_name_c: null, simple_name: 'x' }, 'y'), false);
+
 if (failures > 0) {
   console.error(`✗ record-search: ${failures} failure(s)`);
   process.exit(1);
 }
-console.log('✓ record-search: project fields keep whole groups, records match by title/subtitle, 台＝臺');
+console.log('✓ record-search: project fields keep whole groups, records match by title/subtitle, species by names/family/genus/note, 台＝臺');

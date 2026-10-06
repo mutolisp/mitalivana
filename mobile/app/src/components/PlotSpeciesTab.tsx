@@ -76,6 +76,8 @@ import { useFavorites } from '~/stores/favorites';
 import { firstPhotoFix, rememberPickedPhotos, type PhotoFix } from '~/lib/photoMeta';
 import { toastFavoriteAdded } from '~/lib/favoritesToast';
 import { useToast } from '~/stores/toast';
+import { normalizeRecordQuery, speciesMatches } from '~/lib/recordSearch';
+import { ListFilterButton, ListFilterField } from './ListFilter';
 import { showActionSheet } from './ActionSheet';
 import { SwipeBlockedArea } from './SwipeNavigator';
 import {
@@ -139,6 +141,11 @@ export function PlotSpeciesTab({
     ? 'T'
     : ((activeLayers.includes('E2' as FixedLayer) ? 'E2' : activeLayers[0]) ?? 'E1');
   const [layer, setLayer] = useState<Layer>(defaultLayer);
+  // Finding a species in this list (ListFilter): the field replaces the
+  // subplot / layer chips until ✕. Layer headers stay, counts stay whole.
+  const [findOpen, setFindOpen] = useState(false);
+  const [findQuery, setFindQuery] = useState('');
+  const findNq = normalizeRecordQuery(findQuery);
   // Sync layer state with activeLayers: if the user lowers layer_count in the
   // env tab below the currently-selected layer (e.g. selected 'E5' then drops
   // count to 3), state would otherwise hold a layer that no chip can switch
@@ -286,7 +293,7 @@ export function PlotSpeciesTab({
       (stratified ? activeLayers : (['T'] as Layer[])).flatMap<
         { kind: 'header'; layer: Layer } | { kind: 'row'; record: PlotSpeciesRecordWithTaxon }
       >((l) => {
-        const list = grouped[l];
+        const list = findNq ? grouped[l].filter((r) => speciesMatches(r, findNq)) : grouped[l];
         if (list.length === 0) return [];
         // Non-stratified modes (transect / point count) show no header (a single 'T',
       // already stated in the chips row).
@@ -295,7 +302,7 @@ export function PlotSpeciesTab({
           ...list.map((r) => ({ kind: 'row', record: r }) as const),
         ];
       }),
-    [stratified, activeLayers, grouped],
+    [stratified, activeLayers, grouped, findNq],
   );
 
   const visibleRecords = useMemo(
@@ -1070,7 +1077,19 @@ export function PlotSpeciesTab({
         />
       ) : (
         <View className="flex-row items-center border-b border-gray-100 bg-card dark:border-gray-800 dark:bg-gray-900">
-          {!stratified ? (
+          {findOpen ? (
+            <ListFilterField
+              value={findQuery}
+              onChangeText={setFindQuery}
+              onClose={() => {
+                setFindQuery('');
+                setFindOpen(false);
+              }}
+            />
+          ) : (
+            <ListFilterButton onPress={() => setFindOpen(true)} />
+          )}
+          {findOpen ? null : !stratified ? (
             <Text
               className="flex-1 px-4 py-3 text-[11px] text-gray-500 dark:text-gray-400"
               numberOfLines={1}
@@ -1213,7 +1232,7 @@ export function PlotSpeciesTab({
                   const rec = visibleRecords.find((r) => r.id === id);
                   if (rec) setModal({ mode: 'edit', record: rec });
                 }}
-                empty={tr('plotSpecies.emptyHint')}
+                empty={findNq ? tr('speciesFilter.noMatch', { q: findQuery.trim() }) : tr('plotSpecies.emptyHint')}
               />
             }
           />
@@ -1313,7 +1332,11 @@ export function PlotSpeciesTab({
           <View className="items-center px-8 py-12">
             <Ionicons name="leaf-outline" size={40} color="#cbd5e1" />
             <Text className="mt-2 text-center text-sm text-gray-500 dark:text-gray-400">
-              {!stratified ? tr('plotSpecies.emptyHint') : tr('plotSpecies.emptyHintStratified')}
+              {findNq
+                ? tr('speciesFilter.noMatch', { q: findQuery.trim() })
+                : !stratified
+                  ? tr('plotSpecies.emptyHint')
+                  : tr('plotSpecies.emptyHintStratified')}
             </Text>
           </View>
         }

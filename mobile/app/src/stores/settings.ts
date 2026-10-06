@@ -245,6 +245,8 @@ type SettingsValues = {
   /** List / card view. Persisted (unlike the byProject⇄timeline axis, which is
    *  a way of reading the data; this one is how the user likes it drawn). */
   records_layout: RecordsLayout;
+  /** The species list inside a 快速名錄: rows or cards. */
+  species_layout: RecordsLayout;
   collection_layout: CollectionLayout;
   font_scale: FontScale;
   map_view: MapViewState;
@@ -379,6 +381,7 @@ const DEFAULTS: SettingsValues = {
   sites_collapsed: [],
   records_swipe_hint_shown: false,
   records_layout: 'list',
+  species_layout: 'list',
   collection_layout: 'list',
   font_scale: 'normal',
   map_view: DEFAULT_MAP_VIEW,
@@ -537,6 +540,7 @@ function readAll(): SettingsValues {
     sites_collapsed: parseNumberArray(map.get('sites_collapsed')),
     records_swipe_hint_shown: map.get('records_swipe_hint_shown') === 'true',
     records_layout: map.get('records_layout') === 'card' ? 'card' : DEFAULTS.records_layout,
+    species_layout: map.get('species_layout') === 'card' ? 'card' : DEFAULTS.species_layout,
     collection_layout: map.get('collection_layout') === 'grid' ? 'grid' : DEFAULTS.collection_layout,
     font_scale: (map.get('font_scale') as FontScale) ?? DEFAULTS.font_scale,
     map_view: mapView,

@@ -13,6 +13,7 @@ import { DARK, LIGHT, useThemeColors } from '~/theme/colors';
 import { useSettings, type FabSide } from '~/stores/settings';
 import { useToast } from '~/stores/toast';
 import { longPressPlus, pressPlus } from '~/components/plusAction';
+import { useModeT, useShows } from '~/lib/useUsageMode';
 import { TabBubble } from '~/components/TabBubble';
 import { perf } from '~/lib/perf';
 import { useHasDatasetUpdate } from '~/lib/datasetUpdateCheck';
@@ -21,14 +22,16 @@ import { BAR_GAP, BAR_HEIGHT, FAB_SIZE, useTabBarMetrics } from '~/lib/tabBarLay
 
 function PlusButton() {
   const c = useThemeColors();
-  const { t } = useTranslation();
+  const tm = useModeT();
+  // Casual mode: ＋ is a camera (記一筆觀察).
+  const camera = useShows('casualObservations');
 
   return (
     <Pressable
       onPress={pressPlus}
       // Read out by VoiceOver / TalkBack, which said nothing for it (code review L28).
       accessibilityRole="button"
-      accessibilityLabel={t('nav.addRecords')}
+      accessibilityLabel={tm('nav.addRecords')}
       // With a default set, a tap skips the sheet; a long press is the way
       // back to it (and to changing that default, which the sheet carries).
       onLongPress={longPressPlus}
@@ -42,7 +45,7 @@ function PlusButton() {
       className="items-center justify-center rounded-full bg-acorn active:bg-acorn-pressed"
       style={{ width: FAB_SIZE, height: FAB_SIZE, borderRadius: FAB_SIZE / 2 }}
     >
-      <Ionicons name="add" size={26} color={c.onAcorn} />
+      <Ionicons name={camera ? 'camera' : 'add'} size={camera ? 24 : 26} color={c.onAcorn} />
     </Pressable>
   );
 }
@@ -171,6 +174,8 @@ export default function TabLayout() {
   const colorScheme = useColorScheme();
   const fg = TAB_FG[colorScheme === 'dark' ? 'dark' : 'light'];
   const { t } = useTranslation();
+  const tm = useModeT();
+  const camera = useShows('casualObservations');
 
   // ActiveSessionBar + status-bar + safe-area spacer + StaleWatchers were
   // lifted to app/_layout.tsx so they persist across stack screens (檢索表
@@ -293,8 +298,8 @@ export default function TabLayout() {
               key="index"
               name="index"
               options={{
-                title: t('tab.records'),
-                tabBarIcon: ({ color }) => <Ionicons name="list" size={22} color={color} />,
+                title: tm('tab.records'),
+                tabBarIcon: ({ color }) => <Ionicons name={camera ? 'images-outline' : 'list'} size={22} color={color} />,
               }}
             />
           ) : (

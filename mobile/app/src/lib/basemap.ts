@@ -1,9 +1,11 @@
 /**
- * Shared basemap helpers. The main map screen (`app/(tabs)/map.tsx`) keeps its
- * own copy with a `terrain` option + icons; this lightweight version is for the
- * inline record-location editor, whose basemap toggle cycles only
- * standard → satellite → hybrid (terrain rarely useful for a single point).
+ * Shared basemap helpers: the basemap menu (`BASEMAP_OPTIONS`, with terrain
+ * and icons) and the lighter cycle of the inline record-location editor,
+ * whose toggle steps only standard → satellite → hybrid (terrain is rarely
+ * useful for a single point).
  */
+import type { Ionicons } from '@expo/vector-icons';
+
 import type { BaseMapType } from '~/components/map/types';
 import type { MapBasemap } from '~/stores/settings';
 
@@ -59,4 +61,36 @@ export const BASEMAP_LABEL_KEY: Record<MapBasemap, string> = {
  */
 export function basemapIsDark(b: MapBasemap): boolean {
   return b === 'satellite' || b === 'hybrid';
+}
+
+/**
+ * Basemap menu: the map tab, and casual mode's map. **No mapType here** —
+ * that mapping lives once in `basemapToMapType()` above; a second copy used
+ * to live in the menu and was a source of duplication.
+ */
+export const BASEMAP_OPTIONS: {
+  value: MapBasemap;
+  labelKey: string;
+  icon: keyof typeof Ionicons.glyphMap;
+}[] = [
+  { value: 'standard', labelKey: 'map.basemapStandard', icon: 'map-outline' },
+  { value: 'satellite', labelKey: 'map.basemapSatellite', icon: 'globe-outline' },
+  { value: 'hybrid', labelKey: 'map.basemapHybrid', icon: 'layers-outline' },
+  { value: 'terrain', labelKey: 'map.basemapTerrain', icon: 'trail-sign-outline' },
+  // The vector RudyMap. Always available online (reading the remote pmtiles
+  // directly); once the offline package is installed it reads one local file.
+  // The label tracks offline state, see basemapLabelKey().
+  { value: 'vector', labelKey: 'map.basemapRudyVector', icon: 'triangle-outline' },
+];
+
+/**
+ * Display label for a basemap.
+ *
+ * Only the vector one is dynamic: "RudyMap" online, "RudyMap (offline)" once the
+ * offline package is installed — what the user cares about is whether this map
+ * needs the network right now, not how it is rendered.
+ */
+export function basemapLabelKey(o: (typeof BASEMAP_OPTIONS)[number], vectorReady: boolean): string {
+  if (o.value === 'vector' && vectorReady) return 'map.basemapRudyVectorOffline';
+  return o.labelKey;
 }

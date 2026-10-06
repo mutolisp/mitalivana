@@ -215,7 +215,7 @@ export function SpeciesDetailPanel({
               </Text>
             </Pressable>
           ) : null}
-          {result.taxon_id ? (
+          {result.taxon_id && shows(mode, 'favorites') ? (
             <Pressable
               onPress={() => (favorited ? removeFav(result.taxon_id) : addFav(result))}
               hitSlop={6}

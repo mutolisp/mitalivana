@@ -20,6 +20,7 @@
  * the same identity.
  */
 import { open, type DB } from '@op-engineering/op-sqlite';
+import { uriToPath } from '~/lib/uriPath';
 import { Paths } from 'expo-file-system';
 import { getUserDb } from './init';
 import { groupFilterClause } from './search';
@@ -38,7 +39,7 @@ function escapeLike(s: string): string {
 
 export function getPacksDb(): DB {
   if (packsDb) return packsDb;
-  packsDb = open({ name: PACKS_DB_NAME, location: Paths.document.uri });
+  packsDb = open({ name: PACKS_DB_NAME, location: uriToPath(Paths.document.uri) });
   migratePacksDb(packsDb);
   return packsDb;
 }

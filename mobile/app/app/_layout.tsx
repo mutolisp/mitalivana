@@ -9,6 +9,9 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { PortalHost } from '@rn-primitives/portal';
 import { basemapIsDark } from '~/lib/basemap';
 import { unlockOrientationOnTablets } from '~/lib/orientation';
+import { BackHeaderLeft } from '~/lib/goBack';
+import { layoutFor } from '~/lib/splitMap';
+import { useShows } from '~/lib/useUsageMode';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import 'react-native-reanimated';
@@ -16,6 +19,7 @@ import '../global.css';
 
 import { ActionSheetLayer } from '~/components/ActionSheet';
 import { CreateSheetHost } from '~/components/CreateRecordSheet';
+import { CaptureSheetHost } from '~/components/casual/CaptureSheet';
 import { ChoiceSheetHost } from '~/components/ChoiceSheet';
 import { MenuHost } from '~/components/OverflowMenu';
 import { ActiveSessionBar } from '~/components/ActiveSessionBar';
@@ -127,7 +131,10 @@ function ThemedShell() {
   const gloria = useActiveGloria((s) => s.survey);
   const miren = useActiveMiren((s) => s.survey);
   const fwSurvey = useActiveSurvey((s) => s.survey);
-  const hasActive = Boolean(session || plot || gloria || miren || fwSurvey);
+  // Casual mode keeps the day's checklist open without saying so (activeBar);
+  // any other open record, left from another mode, still shows.
+  const sessionBar = useShows('activeBar');
+  const hasActive = Boolean((sessionBar && session) || plot || gloria || miren || fwSurvey);
   // Starting any other record ends an active MIREN survey or checklist /
   // plot-style survey in the DB (closeActiveRecords), but most of those paths
   // refresh only their own store. Re-reading them whenever another active
@@ -146,6 +153,12 @@ function ThemedShell() {
   // Full-bleed puts the system clock straight onto the tiles, so the icon
   // colour has to follow what is actually underneath rather than the app theme.
   const mapBasemap = useSettings((s) => s.map_view.basemap);
+  // Except casual mode's map with its list open: the right-hand icons sit on
+  // the list, and the map's strip gets a translucent band (SplitMapView), so
+  // the icons follow the theme there.
+  const casualMap = useShows('casualObservations');
+  const casualListOpen = useSettings((s) => !layoutFor(s.split_map, 'casual').collapsed);
+  const iconsOnTiles = fullBleedTop && !(casualMap && casualListOpen);
 
   return (
     <ThemeProvider value={isDark ? NAV_DARK : NAV_LIGHT}>
@@ -164,11 +177,13 @@ function ThemedShell() {
               session left unattended in the key runner still gets nagged. */}
           <StaleSessionWatcher />
           <StalePlotWatcher />
-          {/* `minimal` shows the chevron alone. The word cost most of the header's
-                width in the longer languages and repeated what the glyph
-                already says; screens with a custom `headerLeft` carry the
-                label on the button's accessibility label instead. */}
-          <Stack screenOptions={{ headerBackButtonDisplayMode: 'minimal' }}>
+          {/* Every screen's back is the app's own (`BackHeaderLeft`): the
+                native one did nothing on a real iPhone the second time a screen
+                was opened (casual 觀察, 2026-10-06; favorites before), and it is
+                a no-op with no history (deep links). Screens with their own
+                `headerLeft` (select mode, folders, 加入觀察's ✕) override it.
+                `minimal` stays for any screen that turns this off. */}
+          <Stack screenOptions={{ headerBackButtonDisplayMode: 'minimal', headerLeft: BackHeaderLeft }}>
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen name="session/[id]" options={{ title: t('nav.session') }} />
             <Stack.Screen name="plot/[id]/index" options={{ title: t('nav.plot') }} />
@@ -245,6 +260,7 @@ function ThemedShell() {
             <Stack.Screen name="merge-log" options={{ title: t('mergeLog.title') }} />
             <Stack.Screen name="record-versions" options={{ title: t('versions.title') }} />
             <Stack.Screen name="deleted-records" options={{ title: t('versions.deletedTitle') }} />
+            <Stack.Screen name="observe" options={{ title: t('casual.observeTitle') }} />
           </Stack>
         </View>
         {/* Select popovers render here, NOT via React.createPortal: the portal
@@ -270,6 +286,7 @@ function ThemedShell() {
         <InatTokenHost />
         <GoogleDeviceCodeHost />
         <CreateSheetHost />
+        <CaptureSheetHost />
         <ChoiceSheetHost />
       </FontScaleProvider>
       {/* Active record → green ActiveSessionBar covers status bar → need
@@ -284,7 +301,7 @@ function ThemedShell() {
         style={
           hasActive
             ? 'light'
-            : fullBleedTop && basemapIsDark(mapBasemap)
+            : iconsOnTiles && basemapIsDark(mapBasemap)
               ? 'light'
               : isDark
                 ? 'light'

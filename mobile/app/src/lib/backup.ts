@@ -45,13 +45,9 @@ import { closePacksDb, getPacksDb, listPacks, PACKS_DB_NAME } from '~/db/regionp
 import { parseOverviewPhotos } from '~/modules/gloria/model/overview';
 import { parseFiles } from '~/modules/gloria/model/loggers';
 import { isoDate } from '~/lib/datetime';
+import { uriToPath } from '~/lib/uriPath';
 
 const USER_DB_NAME = 'user.db';
-
-/** SQLite VACUUM INTO needs a plain filesystem path, not a file:// URI. */
-function uriToPath(uri: string): string {
-  return decodeURIComponent(uri.replace(/^file:\/\//, ''));
-}
 
 function timestamp(): string {
   return new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);

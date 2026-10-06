@@ -74,3 +74,32 @@ export function filterRecordGroups<T extends SearchableItem, G extends { items: 
   }
   return out;
 }
+
+/** What a recorded species is found by in its own checklist's or plot's list. */
+export type SearchableSpecies = {
+  common_name_c?: string | null;
+  alternative_name_c?: string | null;
+  simple_name?: string | null;
+  family?: string | null;
+  family_c?: string | null;
+  genus_c?: string | null;
+  notes?: string | null;
+};
+
+/**
+ * Does a recorded species match the (normalised) query? Its common and other
+ * names, scientific name, family (Latin or Chinese), genus in Chinese, or note.
+ * The same folding as the records tab: case and 台/臺 do not matter.
+ */
+export function speciesMatches(rec: SearchableSpecies, nq: string): boolean {
+  if (!nq) return true;
+  return [
+    rec.common_name_c,
+    rec.alternative_name_c,
+    rec.simple_name,
+    rec.family,
+    rec.family_c,
+    rec.genus_c,
+    rec.notes,
+  ].some((v) => !!v && fold(v).includes(nq));
+}

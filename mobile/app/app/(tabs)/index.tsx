@@ -85,7 +85,8 @@ import {
 } from '~/lib/recordSearch';
 import { modeSections } from '~/lib/modeMenu';
 import { shows, vis } from '~/lib/usageMode';
-import { useModeT, useUsageMode } from '~/lib/useUsageMode';
+import { useModeT, useShows, useUsageMode } from '~/lib/useUsageMode';
+import { CasualHome } from '~/components/casual/CasualHome';
 import { duplicateRecordAndOpen, importRecordPromptAndOpen } from '~/lib/recordCreate';
 import { showCreateSheet } from '~/components/CreateRecordSheet';
 import { nextRecordName } from '~/lib/recordName';
@@ -397,7 +398,12 @@ function buildFlatRows(
   return rows;
 }
 
-export default function RecordsListScreen() {
+/** Casual mode's records tab is 我的觀察 (casualObservations). */
+export default function RecordsTab() {
+  return useShows('casualObservations') ? <CasualHome /> : <RecordsListScreen />;
+}
+
+function RecordsListScreen() {
   const c = useThemeColors();
   const router = useRouter();
   const tabBarInset = useTabBarInset();
@@ -750,7 +756,8 @@ export default function RecordsListScreen() {
         noun: nounOf(item.kind),
         // plotid is an identifier, not prose.
         autoCapitalize: item.kind === 'plot' ? 'none' : 'sentences',
-        // 採集號屬於實體標本，不能預先配發 —— 見 duplicateCollectionTrip。
+        // A collection number belongs to a physical specimen and cannot be
+        // issued in advance — see duplicateCollectionTrip.
         speciesDisabled: item.kind === 'collection',
       },
     });
@@ -1381,6 +1388,8 @@ export default function RecordsListScreen() {
           onResume={() => router.navigate(activeSummary.targetPath as Href)}
         />
       ) : null}
+      {/* Starter tasks go here in volunteer mode, under the open record's card
+          (Q7, docs/planned/UI_modes.md); their content is not designed yet. */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}

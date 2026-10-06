@@ -31,6 +31,8 @@ import { SubplotLayerInputsView } from '~/components/PlotSpeciesTab';
 import { runOverModal } from '~/components/GbifLookupHost';
 import { PlotSpeciesValueModal, type PlotValueDraft } from '~/components/PlotSpeciesValueModal';
 import { RecordSortControls } from '~/components/RecordSortControls';
+import { ListFilterButton, ListFilterField } from '~/components/ListFilter';
+import { normalizeRecordQuery, speciesMatches } from '~/lib/recordSearch';
 import { SearchBox } from '~/components/SearchBox';
 import { SelectionDock, SelectionToolbar } from '~/components/SelectionToolbar';
 import { SwipeBlockedArea } from '~/components/SwipeNavigator';
@@ -114,6 +116,10 @@ export function PlotSurveySpeciesTab({
     if (stratified && activeLayers.length && !activeLayers.includes(layer as FixedLayer)) setLayer(activeLayers[0]);
   }, [stratified, activeLayers, layer]);
   const [showInter, setShowInter] = useState(false);
+  // Finding a species in this list (ListFilter): the field replaces the scope and layer strip.
+  const [findOpen, setFindOpen] = useState(false);
+  const [findQuery, setFindQuery] = useState('');
+  const findNq = normalizeRecordQuery(findQuery);
   // The value sheet stepping aside for a root-hosted question (runOverModal): its record stays.
   const [sheetAside, setSheetAside] = useState(false);
   const [modal, setModal] = useState<SheetState | null>(null);
@@ -145,7 +151,7 @@ export function PlotSurveySpeciesTab({
 
   /** The rows exactly as the list shows them, layer headers included, so the sheet steps in screen order. */
   const listData = useMemo(() => {
-    const recs = sortRecords(scoped.map(occurrenceRecord), sortOrder, sortDir);
+    const recs = sortRecords(scoped.map(occurrenceRecord), sortOrder, sortDir).filter((r) => speciesMatches(r, findNq));
     // Those made only as an interaction's other side come last (2F).
     const ordered = [...recs.filter((r) => !byId.get(r.id)?.via_interaction), ...recs.filter((r) => byId.get(r.id)?.via_interaction)];
     if (!stratified) return ordered.map((r) => ({ kind: 'row' as const, record: r }));
@@ -154,7 +160,7 @@ export function PlotSurveySpeciesTab({
       const list = ordered.filter((r) => (byId.get(r.id)?.layer ?? 'T') === l || (l === 'T' && !activeLayers.includes(byId.get(r.id)?.layer as FixedLayer) && byId.get(r.id)?.layer !== 'T'));
       return list.length ? [{ kind: 'header' as const, layer: l, count: list.length }, ...list.map((r) => ({ kind: 'row' as const, record: r }))] : [];
     });
-  }, [scoped, sortOrder, sortDir, stratified, activeLayers, byId]);
+  }, [scoped, sortOrder, sortDir, stratified, activeLayers, byId, findNq]);
   const visible = useMemo(() => listData.flatMap((i) => (i.kind === 'row' ? [i.record] : [])), [listData]);
 
   const editOcc = modal?.mode === 'edit' ? (byId.get(modal.id) ?? null) : null;
@@ -585,37 +591,56 @@ export function PlotSurveySpeciesTab({
         />
       ) : (
         <View className="flex-row items-center border-b border-gray-100 bg-card dark:border-gray-800 dark:bg-gray-900">
-          {units.length > 0 ? <UnitScopeButton data={data} scope={scope} onScope={onScope} /> : null}
+          {findOpen ? (
+            <ListFilterField
+              value={findQuery}
+              onChangeText={setFindQuery}
+              onClose={() => {
+                setFindQuery('');
+                setFindOpen(false);
+              }}
+            />
+          ) : (
+            <ListFilterButton
+              onPress={() => {
+                setShowInter(false);
+                setFindOpen(true);
+              }}
+            />
+          )}
+          {!findOpen && units.length > 0 ? <UnitScopeButton data={data} scope={scope} onScope={onScope} /> : null}
           {/* The 環境↔物種 swipe would swallow this strip's drag. */}
-          <SwipeBlockedArea style={{ flex: 1 }}>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 8, paddingVertical: 8, alignItems: 'center', gap: 4 }}>
-              {stratified ? <Ionicons name="layers-outline" size={13} color={c.ink3} style={{ marginRight: 2 }} /> : null}
-              {activeLayers.map((l) => (
-                <LayerChip
-                  key={l}
-                  label={l}
-                  a11yLabel={`${t('plotSpecies.layer')} ${layerLabel(l)}`}
-                  active={!showInter && layer === l}
-                  onPress={() => {
-                    setLayer(l);
-                    setShowInter(false);
-                  }}
-                  onLongPress={() => toast(layerLabel(l))}
-                />
-              ))}
-              {mods.interaction ? (
-                <>
-                  {stratified ? <View className="mx-1 h-5 w-px bg-gray-300 dark:bg-gray-600" /> : null}
+          {findOpen ? null : (
+            <SwipeBlockedArea style={{ flex: 1 }}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 8, paddingVertical: 8, alignItems: 'center', gap: 4 }}>
+                {stratified ? <Ionicons name="layers-outline" size={13} color={c.ink3} style={{ marginRight: 2 }} /> : null}
+                {activeLayers.map((l) => (
                   <LayerChip
-                    label={`${componentLabel(t, i18n.language, mods.interaction)} ${data.interactions ?? 0}`}
-                    a11yLabel={componentLabel(t, i18n.language, mods.interaction)}
-                    active={showInter}
-                    onPress={() => setShowInter((x) => !x)}
+                    key={l}
+                    label={l}
+                    a11yLabel={`${t('plotSpecies.layer')} ${layerLabel(l)}`}
+                    active={!showInter && layer === l}
+                    onPress={() => {
+                      setLayer(l);
+                      setShowInter(false);
+                    }}
+                    onLongPress={() => toast(layerLabel(l))}
                   />
-                </>
-              ) : null}
-            </ScrollView>
-          </SwipeBlockedArea>
+                ))}
+                {mods.interaction ? (
+                  <>
+                    {stratified ? <View className="mx-1 h-5 w-px bg-gray-300 dark:bg-gray-600" /> : null}
+                    <LayerChip
+                      label={`${componentLabel(t, i18n.language, mods.interaction)} ${data.interactions ?? 0}`}
+                      a11yLabel={componentLabel(t, i18n.language, mods.interaction)}
+                      active={showInter}
+                      onPress={() => setShowInter((x) => !x)}
+                    />
+                  </>
+                ) : null}
+              </ScrollView>
+            </SwipeBlockedArea>
+          )}
           {showInter ? null : <RecordSortControls />}
         </View>
       )}
@@ -679,7 +704,7 @@ export function PlotSurveySpeciesTab({
             <View className="items-center px-8 py-12">
               <Ionicons name="leaf-outline" size={40} color={c.ink3} />
               <Text className="mt-2 text-center text-sm text-gray-500 dark:text-gray-400">
-                {stratified ? t('plotSpecies.emptyHintStratified') : t('plotSpecies.emptyHint')}
+                {findNq ? t('speciesFilter.noMatch', { q: findQuery.trim() }) : stratified ? t('plotSpecies.emptyHintStratified') : t('plotSpecies.emptyHint')}
               </Text>
             </View>
           }

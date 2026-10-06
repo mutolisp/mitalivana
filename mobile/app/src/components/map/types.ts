@@ -141,6 +141,13 @@ export type MapCanvasProps = {
    * draws in place of the platform compass.
    */
   compassInset?: { bottom: number; right: number };
+  /**
+   * How far above the map's bottom edge the provider's logo and attribution
+   * sit, in points, for UI drawn over the bottom of the map (the floating tab
+   * bar, the scale bar, a bottom button), so they are not covered. Omitted:
+   * the provider's own placement.
+   */
+  attributionInset?: number;
   /** iOS Apple Maps only, and only briefly during a zoom gesture; unsupported on
    *  Android. The permanent scale bar is drawn by `MapScaleBar` itself. */
   showsScale?: boolean;

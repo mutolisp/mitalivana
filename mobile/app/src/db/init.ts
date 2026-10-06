@@ -3,6 +3,7 @@ import { migrateFromRasterPack } from '~/lib/poi';
 import { repairLocalStyle } from '~/lib/vectormapInstall';
 import { File, Paths } from 'expo-file-system';
 import { open, type DB } from '@op-engineering/op-sqlite';
+import { uriToPath } from '~/lib/uriPath';
 import { adoptLegacyBundle, closeAllDatasetDbs, loadDatasetManifest } from './datasets';
 import { purgeLegacyAssetCache, retireLegacyBundle } from './legacyBundle';
 import { runUserMigrations } from './migrations';
@@ -27,7 +28,7 @@ export async function initDb(onProgress?: InitProgressFn): Promise<{ user: DB }>
   // backfill reads from.
   loadDatasetManifest();
   adoptLegacyBundle();
-  userDb = open({ name: USER_DB_NAME, location: Paths.document.uri });
+  userDb = open({ name: USER_DB_NAME, location: uriToPath(Paths.document.uri) });
 
   // Migrations and the repair passes run with FK enforcement OFF, then it is
   // switched on for the rest of the session. Order matters both ways:

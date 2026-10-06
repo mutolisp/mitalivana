@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useShows, useVis } from '~/lib/useUsageMode';
 import { useTabBarInset, useTabDock } from '~/lib/tabBarLayout';
 import { useFocusEffect } from 'expo-router';
 import { useIsFocused } from '@react-navigation/native';
@@ -178,7 +179,7 @@ export default function TaxonomyScreen() {
     [twRequested, datasetInstalls],
   );
   useEffect(() => {
-    if (!twOn && segment === 'key') setSegment('tree');
+    if (!twOn && segment === 'key') setSegment(treeFolded ? 'search' : 'tree');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [twOn]);
 
@@ -252,7 +253,16 @@ export default function TaxonomyScreen() {
   const tabBarInset = useTabBarInset();
   const { lift: dockLift } = useTabDock();
 
-  const [segment, setSegment] = useState<'tree' | 'key' | 'search'>('tree');
+  // Casual mode: search and keys first, the tree behind 進階 (taxonomyTree).
+  const treeFolded = useVis('taxonomyTree') === 'adv';
+  const bulkAdd = useShows('bulkAddTaxa');
+  const [segment, setSegment] = useState<'tree' | 'key' | 'search'>(treeFolded ? 'search' : 'tree');
+  const [treeOpen, setTreeOpen] = useState(false);
+  // The mode is known only once settings have loaded (this tab mounts early).
+  useEffect(() => {
+    if (treeFolded && !treeOpen) setSegment((s) => (s === 'tree' ? 'search' : s));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [treeFolded]);
 
   // Segment switch needs to clear the KeyboardStickyView's stale offset.
   // Empirically (per user report after multiple fixes) just calling
@@ -878,7 +888,7 @@ export default function TaxonomyScreen() {
     if (segment !== 'tree') exitSelection();
   }, [segment, exitSelection]);
   const pickEnter = (key: string, p: TreePick) => {
-    if (selection.selectMode) return;
+    if (!bulkAdd || selection.selectMode) return;
     pickedPayload.current = new Map([[key, p]]);
     selection.enter(key);
   };
@@ -1001,11 +1011,17 @@ export default function TaxonomyScreen() {
         </View>
         <View className="mt-3 flex-row gap-2">
           {(
-            [
-              { value: 'tree', label: t('taxonomy.tree') },
-              ...(twOn ? [{ value: 'key', label: t('nav.key') } as const] : []),
-              { value: 'search', label: t('taxonomy.search') },
-            ] as { value: 'tree' | 'key' | 'search'; label: string }[]
+            (treeFolded
+              ? [
+                  { value: 'search', label: t('taxonomy.search') },
+                  ...(twOn ? [{ value: 'key', label: t('nav.key') } as const] : []),
+                  ...(treeOpen ? [{ value: 'tree', label: t('taxonomy.tree') } as const] : []),
+                ]
+              : [
+                  { value: 'tree', label: t('taxonomy.tree') },
+                  ...(twOn ? [{ value: 'key', label: t('nav.key') } as const] : []),
+                  { value: 'search', label: t('taxonomy.search') },
+                ]) as { value: 'tree' | 'key' | 'search'; label: string }[]
           ).map((opt) => {
             const on = segment === opt.value;
             return (
@@ -1021,6 +1037,22 @@ export default function TaxonomyScreen() {
             );
           })}
         </View>
+        {treeFolded && !treeOpen ? (
+          <Pressable
+            onPress={() => {
+              setTreeOpen(true);
+              void handleSwitchSegment('tree');
+            }}
+            accessibilityRole="button"
+            className="mt-2 flex-row items-center justify-center rounded-xl border border-dashed border-gray-300 px-4 active:bg-gray-100 dark:border-gray-600 dark:active:bg-gray-800"
+            style={{ minHeight: 40 }}
+          >
+            <Text className="text-sm text-gray-700 dark:text-gray-300" numberOfLines={1}>
+              {t('mode.advancedWith', { summary: t('taxonomy.tree') })}
+            </Text>
+            <Ionicons name="chevron-down" size={14} color={c.ink2} style={{ marginLeft: 6 }} />
+          </Pressable>
+        ) : null}
       </View>
 
       {segment === 'tree' ? (

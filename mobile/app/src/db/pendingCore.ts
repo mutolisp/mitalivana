@@ -401,3 +401,57 @@ export function identifyPending<A>(
     throw e;
   }
 }
+
+// ── 我的觀察 (the records tab in casual mode) ──────────────────────────────
+
+/** A named observation as 我的觀察 and the map tab list it: a daily checklist's record. */
+export type DailyRecord = {
+  id: number;
+  session_id: number;
+  taxon_id: string;
+  observed_at: number;
+  notes: string | null;
+  photo_paths: string | null;
+  audio_paths: string | null;
+  lat: number | null;
+  lng: number | null;
+  organism_quantity: string | null;
+  inat_uploaded_at: number | null;
+};
+
+/** Every daily checklist's records, newest first. */
+export function listDailyRecords(ctx: PendingCtx): DailyRecord[] {
+  const ids = Object.values(readDailyMap(ctx));
+  if (ids.length === 0) return [];
+  return rowsOf<DailyRecord>(
+    ctx.db.executeSync(
+      `SELECT id, session_id, taxon_id, observed_at, notes, photo_paths, audio_paths, lat, lng,
+              organism_quantity, inat_uploaded_at
+         FROM checklist_records WHERE session_id IN (SELECT value FROM json_each(?))
+        ORDER BY observed_at DESC, id DESC`,
+      [JSON.stringify(ids)],
+    ),
+  );
+}
+
+/** The taxa recorded most recently, in any checklist (「最近記過」). */
+export function recentTaxa(ctx: PendingCtx, limit: number): string[] {
+  return rowsOf<{ taxon_id: string }>(
+    ctx.db.executeSync(
+      `SELECT taxon_id FROM checklist_records GROUP BY taxon_id ORDER BY MAX(observed_at) DESC, MAX(id) DESC LIMIT ?`,
+      [limit],
+    ),
+  ).map((r) => r.taxon_id);
+}
+
+/** Items by the local day they were observed: newest day first, newest first within a day. */
+export function groupByDay<T extends { observed_at: number }>(items: T[]): { day: string; items: T[] }[] {
+  const out: { day: string; items: T[] }[] = [];
+  for (const it of [...items].sort((a, b) => b.observed_at - a.observed_at)) {
+    const day = dayKey(it.observed_at);
+    const last = out[out.length - 1];
+    if (last?.day === day) last.items.push(it);
+    else out.push({ day, items: [it] });
+  }
+  return out;
+}

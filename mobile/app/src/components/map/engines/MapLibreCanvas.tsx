@@ -83,6 +83,7 @@ export const MapLibreCanvas = forwardRef<MapCamera, MapCanvasProps>(function Map
     showsUserLocation,
     showsCompass,
     compassInset,
+    attributionInset,
     onMapReady,
     onRegionChangeComplete,
     onPress,
@@ -241,6 +242,7 @@ export const MapLibreCanvas = forwardRef<MapCamera, MapCanvasProps>(function Map
       touchRotate={gestures}
       touchPitch={gestures}
       attribution
+      attributionPosition={attributionInset ? { bottom: attributionInset + 6, left: 8 } : undefined}
       logo={false}
       onDidFinishLoadingMap={onMapReady}
       onRegionDidChange={(e) => {

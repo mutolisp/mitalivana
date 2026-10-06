@@ -79,7 +79,9 @@ import {
   type PointCluster,
 } from '~/lib/mapCluster';
 import { SITE_TYPE_LABEL } from '~/lib/siteLabels';
-import { basemapToMapType } from '~/lib/basemap';
+import { BASEMAP_OPTIONS, basemapLabelKey, basemapToMapType } from '~/lib/basemap';
+import { CasualMap } from '~/components/casual/CasualMap';
+import { FabButton, FabRow } from '~/components/map/MapFab';
 import { MapCanvas } from '~/components/map/MapCanvas';
 import {
   MAPLIBRE_COMPASS_SIZE,
@@ -89,7 +91,7 @@ import {
   type MapFeature,
   type Region,
 } from '~/components/map/types';
-import { MapScaleBar } from '~/components/MapScaleBar';
+import { MapScaleBar, SCALE_BAR_HEIGHT } from '~/components/MapScaleBar';
 import { PoiGroupSheet } from '~/components/PoiGroupSheet';
 import {
   getPoiDb,
@@ -110,33 +112,13 @@ import { IconDisc } from '~/components/ui/IconDisc';
 import { getFwSurvey, updateSurvey } from '~/survey/db/surveys';
 import type { FwSurveyRow } from '~/survey/db/surveyCore';
 import { vis } from '~/lib/usageMode';
-import { useUsageMode } from '~/lib/useUsageMode';
+import { useShows, useUsageMode } from '~/lib/useUsageMode';
 
 /** What a cluster member stands for, so a bubble can list its records. */
 type ClusterFeature =
   | { kind: 'plot'; plot: PlotSurveyWithMeta }
   | { kind: 'session'; session: SessionWithStats }
   | { kind: 'site'; site: SiteWithProject };
-
-/**
- * Basemap menu. **No mapType here** — that mapping lives once in
- * `basemapToMapType()` in `src/lib/basemap.ts`; a second copy used to live here
- * and was a source of duplication.
- */
-const BASEMAP_OPTIONS: {
-  value: MapBasemap;
-  labelKey: string;
-  icon: keyof typeof Ionicons.glyphMap;
-}[] = [
-  { value: 'standard', labelKey: 'map.basemapStandard', icon: 'map-outline' },
-  { value: 'satellite', labelKey: 'map.basemapSatellite', icon: 'globe-outline' },
-  { value: 'hybrid', labelKey: 'map.basemapHybrid', icon: 'layers-outline' },
-  { value: 'terrain', labelKey: 'map.basemapTerrain', icon: 'trail-sign-outline' },
-  // The vector RudyMap. Always available online (reading the remote pmtiles
-  // directly); once the offline package is installed it reads one local file.
-  // The label tracks offline state, see basemapLabelKey().
-  { value: 'vector', labelKey: 'map.basemapRudyVector', icon: 'triangle-outline' },
-];
 
 /** Landmarks are only queried when close enough. The `LIKE` tag filter does not
  *  use an index, so a wide viewport explodes the candidate set (measured: 3.6 s
@@ -327,24 +309,17 @@ function basemapMeta(b: MapBasemap): (typeof BASEMAP_OPTIONS)[number] {
   return BASEMAP_OPTIONS.find((o) => o.value === b) ?? BASEMAP_OPTIONS[0];
 }
 
-/**
- * Display label for a basemap.
- *
- * Only the vector one is dynamic: "RudyMap" online, "RudyMap (offline)" once the
- * offline package is installed — what the user cares about is whether this map
- * needs the network right now, not how it is rendered.
- */
-function basemapLabelKey(o: (typeof BASEMAP_OPTIONS)[number], vectorReady: boolean): string {
-  if (o.value === 'vector' && vectorReady) return 'map.basemapRudyVectorOffline';
-  return o.labelKey;
-}
-
 /** Length of a measured polyline in metres — the app's one haversine (lib/track). */
 function measuredMeters(points: LatLng[]): number {
   return trackLengthMeters([points.map((p) => [p.longitude, p.latitude] as [number, number])]);
 }
 
-export default function MapScreen() {
+/** Casual mode's map tab is the day's observations (casualObservations). */
+export default function MapTab() {
+  return useShows('casualObservations') ? <CasualMap /> : <MapScreen />;
+}
+
+function MapScreen() {
   const tc = useThemeColors();
   const { t } = useTranslation();
   const { overlayIcon, accent: overlayAccent, ink3: muted } = useThemeColors();
@@ -2040,6 +2015,9 @@ export default function MapScreen() {
         // right, scale bar bottom left); it sits above the folded tab bar's
         // button when that is in this corner.
         compassInset={{ bottom: corner.right + 12, right: 12 }}
+        // The logo and attribution go above the scale bar, which sits on the
+        // floating tab bar's bottom-left clearance.
+        attributionInset={corner.left + 6 + SCALE_BAR_HEIGHT + 4}
         showsScale
         showsUserLocation={isFocused}
         showsMyLocationButton={false}
@@ -2516,58 +2494,5 @@ function ClusterBubble({ count }: { count: number }) {
     >
       <Text className="text-xs font-bold text-white">{count}</Text>
     </View>
-  );
-}
-
-function FabButton({
-  icon,
-  onPress,
-  accent = false,
-  a11yLabel,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  onPress: () => void;
-  accent?: boolean;
-  /** Required in practice for the icon-only buttons: a glyph alone tells a
-   *  screen reader nothing. */
-  a11yLabel?: string;
-}) {
-  const { overlayIcon, accent: overlayAccent } = useThemeColors();
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={a11yLabel}
-      className="h-11 w-11 items-center justify-center rounded-full bg-card shadow-md active:bg-gray-100 dark:bg-gray-900/95 dark:active:bg-gray-700"
-    >
-      <Ionicons name={icon} size={20} color={accent ? overlayAccent : overlayIcon} />
-    </Pressable>
-  );
-}
-
-function FabRow({
-  icon,
-  label,
-  onPress,
-  accent = false,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  onPress: () => void;
-  accent?: boolean;
-}) {
-  const { overlayIcon, accent: overlayAccent } = useThemeColors();
-  return (
-    <Pressable
-      onPress={onPress}
-      className="mt-2 flex-row items-center rounded-full bg-card px-3 py-2 shadow-md active:bg-gray-100 dark:bg-gray-900/95 dark:active:bg-gray-700"
-    >
-      <Text
-        className={`mr-2 text-xs font-medium ${accent ? 'text-accent-700 dark:text-accent-300' : 'text-gray-700 dark:text-gray-300'}`}
-      >
-        {label}
-      </Text>
-      <Ionicons name={icon} size={18} color={accent ? overlayAccent : overlayIcon} />
-    </Pressable>
   );
 }

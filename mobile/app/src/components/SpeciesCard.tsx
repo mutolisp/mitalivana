@@ -15,6 +15,11 @@ import { familyChineseFirst } from '~/lib/familyLabel';
 import { useThemeColors } from '~/theme/colors';
 import { CountStepper } from './ui/CountStepper';
 import { SelectMark } from '~/components/ui/SelectMark';
+import { KINGDOM_ICON } from '~/components/casual/kingdomIcon';
+import type { PendingKingdom } from '~/db';
+
+/** A row's photo: the full row height, this wide. */
+const ROW_PHOTO_WIDTH = 84;
 
 type Props = {
   record: RecordWithTaxon;
@@ -67,16 +72,22 @@ export function SpeciesCard({ record, onPress, onLongPress, selectMode, picked, 
         className="absolute inset-0 bg-accent-50 dark:bg-accent-950"
         style={glowStyle}
       />
-      {selectMode ? (
+      {selectMode && photos.length === 0 ? (
         <View style={{ marginRight: 10, alignSelf: 'center' }}><SelectMark state={picked ? 'on' : 'off'} /></View>
       ) : null}
       {/* No photo, no placeholder: an empty square cost every row 56 pt of
-          width for nothing. */}
+          width for nothing. A photo runs the row's full height from its left
+          edge (the negative margins undo the row's padding); in select mode the
+          mark sits on it, in the same column as on rows without one. */}
       {photos.length > 0 ? (
-        <View className="mr-3 h-12 w-12 overflow-hidden rounded-[10px] bg-gray-100 dark:bg-gray-800">
+        <View
+          className="-my-3 -ml-4 mr-3 overflow-hidden bg-gray-100 dark:bg-gray-800"
+          style={{ width: ROW_PHOTO_WIDTH, alignSelf: 'stretch' }}
+        >
           <Image
             source={{ uri: rebaseAppFileUri(photos[0]) }}
-            style={{ width: '100%', height: '100%' }}
+            // Absolute: the text sets the row's height, not the picture's own size.
+            style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 }}
             contentFit="cover"
           />
           {photos.length > 1 ? (
@@ -84,6 +95,11 @@ export function SpeciesCard({ record, onPress, onLongPress, selectMode, picked, 
               className="absolute bottom-0 right-0 flex-row items-center rounded-tl-md bg-black/60 px-1 py-0.5"
             >
               <Text className="text-[10px] font-semibold text-white">×{photos.length}</Text>
+            </View>
+          ) : null}
+          {selectMode ? (
+            <View className="absolute inset-0 justify-center bg-black/20 pl-4">
+              <SelectMark state={picked ? 'on' : 'off'} />
             </View>
           ) : null}
         </View>
@@ -152,6 +168,126 @@ export function SpeciesCard({ record, onPress, onLongPress, selectMode, picked, 
           <Ionicons name="lock-closed" size={14} color={c.ink3} accessibilityLabel={t('surveyForm.err.blindSealed')} />
         </View>
       ) : null}
+    </Pressable>
+  );
+}
+
+/** The count stepper's value, or null when there is none to show. */
+const countOf = (record: RecordWithTaxon) =>
+  Number.isFinite(Number(record.organism_quantity)) && record.organism_quantity ? Number(record.organism_quantity) : null;
+const countsIndividuals = (record: RecordWithTaxon) =>
+  record.organism_quantity_type == null || record.organism_quantity_type === 'individuals';
+
+/**
+ * Card view of the same record (species_layout = card): a square photo — or
+ * the kingdom's icon — then the names, family and count. Tags, select mark,
+ * flash and a survey's marks (meta, sealed, alert) as on the row; the swipe
+ * actions stay with the row view.
+ */
+export function SpeciesTile({
+  record,
+  onPress,
+  onLongPress,
+  selectMode,
+  picked,
+  flash,
+  onCountChange,
+  meta,
+  sealed,
+  alert,
+  width,
+}: Props & { width: number }) {
+  const c = useThemeColors();
+  const { t } = useTranslation();
+  const isEndemic = record.is_endemic === 'true';
+  const ab = alienBadge(record.alien_type, record.kingdom);
+  const photos = parsePhotoPaths(record.photo_paths);
+  const uploaded = record.inat_uploaded_at != null;
+  const stepper = onCountChange && !selectMode && countsIndividuals(record);
+
+  const glow = useSharedValue(0);
+  useEffect(() => {
+    if (!flash) return;
+    glow.value = 1;
+    glow.value = withTiming(0, { duration: 1000 });
+  }, [flash, glow]);
+  const glowStyle = useAnimatedStyle(() => ({ opacity: glow.value }));
+
+  return (
+    <Pressable
+      onPress={onPress}
+      onLongPress={onLongPress}
+      delayLongPress={350}
+      style={{ width }}
+      className={`overflow-hidden rounded-card border border-line dark:border-line-dark ${uploaded ? 'bg-accent-50 active:bg-accent-100 dark:bg-accent-950 dark:active:bg-accent-900' : 'bg-card active:bg-gray-100 dark:bg-card-dark dark:active:bg-gray-800'}`}
+    >
+      {/* Behind the content, as on the row: lights the name area when just added. */}
+      <Animated.View pointerEvents="none" className="absolute inset-0 bg-accent-50 dark:bg-accent-950" style={glowStyle} />
+      <View
+        className="items-center justify-center bg-accent-tint dark:bg-accent-950/40"
+        style={{ width: '100%', aspectRatio: 1 }}
+      >
+        {photos.length > 0 ? (
+          <Image source={{ uri: rebaseAppFileUri(photos[0]) }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
+        ) : (
+          <Ionicons name={KINGDOM_ICON[record.kingdom as PendingKingdom] ?? 'leaf-outline'} size={40} color={c.accent} />
+        )}
+        {photos.length > 1 ? (
+          <View className="absolute bottom-0 right-0 rounded-tl-md bg-black/60 px-1.5 py-0.5">
+            <Text className="text-[11px] font-semibold text-white">×{photos.length}</Text>
+          </View>
+        ) : null}
+        {selectMode ? (
+          <View className="absolute left-2 top-2">
+            <SelectMark state={picked ? 'on' : 'off'} />
+          </View>
+        ) : null}
+        {sealed ? (
+          <View className="absolute bottom-2 left-2 h-7 w-7 items-center justify-center rounded-full bg-card dark:bg-card-dark">
+            <Ionicons name="lock-closed" size={14} color={c.ink3} accessibilityLabel={t('surveyForm.err.blindSealed')} />
+          </View>
+        ) : null}
+        {!stepper && record.organism_quantity ? (
+          <View className="absolute right-2 top-2 rounded-full bg-card px-2 py-0.5 dark:bg-card-dark">
+            <Text className="text-sm font-bold tabular-nums text-gray-900 dark:text-gray-100">
+              {formatQuantityBadge(record.organism_quantity, record.organism_quantity_type)}
+            </Text>
+          </View>
+        ) : null}
+      </View>
+      <View className="px-2.5 pb-2.5 pt-2">
+        <Text className="text-[15px] font-medium text-gray-900 dark:text-gray-100" numberOfLines={1}>
+          {record.common_name_c || t('species.noChineseName')}
+        </Text>
+        <ScientificName
+          name={record.simple_name}
+          rank={record.rank}
+          kingdom={record.kingdom}
+          className="text-xs text-gray-800 dark:text-gray-200"
+          numberOfLines={1}
+        />
+        <Text className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400" numberOfLines={1}>
+          {[familyChineseFirst(record.family, record.family_c), meta].filter(Boolean).join(' · ')}
+        </Text>
+        {isEndemic || ab || record.protected || record.redlist || alert ? (
+          <View className="mt-1 flex-row flex-wrap" style={{ columnGap: 4, rowGap: 2 }}>
+            {isEndemic ? <Tag kind="endemic" label={t('species.endemicShort')} /> : null}
+            {ab ? <Tag kind={ab.kind} label={ab.shortLabel} /> : null}
+            {record.protected ? <Tag kind="protected" label={record.protected} /> : null}
+            {record.redlist ? <Tag kind="iucn" iucnCode={record.redlist} /> : null}
+            {alert ? <Tag kind="alert" label={alert} /> : null}
+          </View>
+        ) : null}
+        {stepper ? (
+          <View className="mt-2 items-center">
+            <CountStepper
+              value={countOf(record)}
+              onChange={onCountChange}
+              accessibilityName={record.common_name_c || record.simple_name}
+            />
+          </View>
+        ) : null}
+      </View>
     </Pressable>
   );
 }

@@ -34,6 +34,7 @@
  */
 import type { DB } from '@op-engineering/op-sqlite';
 import type { RegionCode } from '~/stores/settings';
+import { uriToPath } from '~/lib/uriPath';
 
 export type DatasetId = 'tw-taicol' | 'jp-ylist' | 'tw-keys';
 
@@ -171,7 +172,8 @@ function nativeOpen(name: string, location: string): DB {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     opener = (require('@op-engineering/op-sqlite') as { open: Opener }).open;
   }
-  return opener({ name, location });
+  // op-sqlite takes a directory path; `location` stays a URI for the File checks.
+  return opener({ name, location: uriToPath(location) });
 }
 
 type FsModule = typeof import('expo-file-system');

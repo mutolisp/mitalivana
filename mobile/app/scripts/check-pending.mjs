@@ -211,8 +211,33 @@ ok(!('2026-09-30' in p.readDailyMap(ctx)), 'map: a deleted checklist drops out')
 eq(p.parseDailyMap('{oops'), {}, 'map: corrupt reads empty');
 eq(p.parseDailyMap(JSON.stringify({ '2026-10-01': 3, bad: 4, '2026-10-02': 'x', '2026-10-03': 0 })), { '2026-10-01': 3 }, 'map: bad entries dropped');
 
+// ── 我的觀察 ───────────────────────────────────────────────────────────────
+{
+  const daily = new Set(Object.values(p.readDailyMap(ctx)));
+  const feed = p.listDailyRecords(ctx);
+  ok(feed.length > 0 && feed.every((r) => daily.has(r.session_id)), "feed: only the daily checklists' records");
+  ok(feed.every((r, i) => i === 0 || feed[i - 1].observed_at >= r.observed_at), 'feed: newest first');
+  // A checklist that is not a daily one stays out of the feed but counts as recent.
+  const other = db.executeSync(`INSERT INTO sessions (uuid, name, type, project_id, started_at, status) VALUES ('o1', 'other', 'checklist', 0, ?, 'done')`, [clock]).insertId;
+  insertRecord({ session_id: other, taxon_id: 't-other', observed_at: at(2030, 1, 7, 8, 0) });
+  ok(!p.listDailyRecords(ctx).some((r) => r.session_id === other), 'feed: another checklist left out');
+  insertRecord({ session_id: other, taxon_id: 't42', observed_at: at(2030, 1, 7, 9, 0) });
+  eq(p.recentTaxa(ctx, 2), ['t42', 't-other'], 'recent: by latest record, each taxon once');
+  const g = p.groupByDay([
+    { observed_at: at(2026, 10, 5, 23, 59), k: 'a' },
+    { observed_at: at(2026, 10, 6, 0, 1), k: 'b' },
+    { observed_at: at(2026, 10, 6, 14, 0), k: 'c' },
+    { observed_at: at(2026, 10, 4, 9, 0), k: 'd' },
+  ]);
+  eq(
+    g.map((d) => [d.day, d.items.map((i) => i.k).join('')]),
+    [['2026-10-06', 'cb'], ['2026-10-05', 'a'], ['2026-10-04', 'd']],
+    'days: newest day first, split at midnight, newest first within a day',
+  );
+}
+
 if (failed) {
   console.error(`\n✗ pending: ${failed} problem(s)`);
   process.exit(1);
 }
-console.log('✓ pending: table, days across midnight and time zones, daily checklists, identifying, all or nothing');
+console.log('✓ pending: table, days across midnight and time zones, daily checklists, identifying, all or nothing, feed and recent');

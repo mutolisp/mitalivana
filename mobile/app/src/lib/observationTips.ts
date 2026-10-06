@@ -13,7 +13,7 @@
  * cannot do for keys read out of a table.
  */
 
-export type TipGroup = 'plant' | 'bird' | 'insect' | 'animal' | 'other';
+export type TipGroup = 'plant' | 'bird' | 'insect' | 'animal' | 'fungi' | 'other';
 
 export type TipSet = {
   /** The group's name in 「依『植物』提示」. */
@@ -32,6 +32,7 @@ export function tipGroupOf(kingdom: string | null | undefined, className: string
     if (className === 'Insecta') return 'insect';
     return 'animal';
   }
+  if (kingdom === 'Fungi') return 'fungi';
   return 'other';
 }
 
@@ -62,6 +63,12 @@ export const TIP_SETS: Record<TipGroup, TipSet> = {
     placeholder: 'obsTips.animal.placeholder',
     tips: tips('animal', ['behaviour', 'size', 'where', 'signs']),
     shot: { text: 'obsTips.animal.shot', button: 'obsTips.animal.shotButton' },
+  },
+  fungi: {
+    name: 'obsTips.fungi.name',
+    placeholder: 'obsTips.fungi.placeholder',
+    tips: tips('fungi', ['substrate', 'underside', 'look', 'count']),
+    shot: { text: 'obsTips.fungi.shot', button: 'obsTips.fungi.shotButton' },
   },
   other: {
     name: 'obsTips.other.name',

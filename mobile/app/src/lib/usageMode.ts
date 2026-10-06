@@ -30,11 +30,12 @@ export type Vis = 'show' | 'adv' | 'hide';
 export type ModeVis = Record<UsageMode, Vis>;
 
 /**
- * Whether the mode choice is offered at all. Off in release builds until the
- * volunteer and casual screens exist (M2–M5): until then a release build
- * stays in pro mode and never shows the first-launch choice.
+ * Whether the mode choice is offered at all. On in release builds since
+ * 2026-10-06 (M1–M6 done): a new install picks a mode on first launch, an
+ * existing install is set to pro (settings.ts). False turns the choice off
+ * everywhere and keeps every install in pro mode.
  */
-export const USAGE_MODES_OFFERED: boolean = typeof __DEV__ !== 'undefined' && __DEV__;
+export const USAGE_MODES_OFFERED: boolean = true;
 
 export function parseUsageMode(raw: string | null | undefined): UsageMode | null {
   return raw === 'pro' || raw === 'vol' || raw === 'casual' ? raw : null;
@@ -94,7 +95,12 @@ export type Cap =
   | 'splitMapSession'
   | 'splitMapPlot'
   | 'mapSiteTools'
-  | 'areaSpecies';
+  | 'areaSpecies'
+  | 'casualObservations'
+  | 'activeBar'
+  | 'favorites'
+  | 'taxonomyTree'
+  | 'bulkAddTaxa';
 
 export const CAPS: Record<Cap, ModeVis> = {
   // What ＋ does without asking (settings 「按下 ＋ 時」, the create sheet's
@@ -197,6 +203,20 @@ export const CAPS: Record<Cap, ModeVis> = {
   mapSiteTools: { pro: 'show', vol: 'adv', casual: 'hide' },
   // The species distribution sheet's 範圍物種 (area species → favourites list).
   areaSpecies: { pro: 'show', vol: 'adv', casual: 'hide' },
+
+  // Casual mode (M5, 18c–18e, 18i): the records tab is 「我的觀察」 (daily
+  // checklists and pending observations, not records), ＋ is the camera that
+  // opens 記一筆觀察, the map tab shows the day's observations.
+  casualObservations: { pro: 'hide', vol: 'hide', casual: 'show' },
+  // The bar at the top of every screen while a record is open. Casual mode's
+  // open record is the day's checklist, which it never shows as such.
+  activeBar: { pro: 'show', vol: 'show', casual: 'hide' },
+  // 常用名錄: 「最近記過」 takes its place in casual mode.
+  favorites: { pro: 'show', vol: 'show', casual: 'hide' },
+  // The species tab's taxonomy tree: search and keys come first in casual mode.
+  taxonomyTree: { pro: 'show', vol: 'show', casual: 'adv' },
+  // Adding a genus or family with everything below it, from the tree.
+  bulkAddTaxa: { pro: 'show', vol: 'show', casual: 'hide' },
 };
 
 /** Capabilities only the simpler modes have: allowed to be hidden in pro. */
@@ -208,6 +228,7 @@ export const SIMPLE_ONLY: ReadonlySet<Cap> = new Set<Cap>([
   'detectionOnRow',
   'observationNotes',
   'splitMapPlot',
+  'casualObservations',
 ]);
 
 export function vis(mode: UsageMode, cap: Cap): Vis {

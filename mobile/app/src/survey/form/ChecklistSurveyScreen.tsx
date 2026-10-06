@@ -36,6 +36,8 @@ import { ProjectAssignSheet } from '~/components/ProjectAssignSheet';
 import { RecordEditButtons } from '~/components/RecordEditButtons';
 import { RecordMenuButton } from '~/components/RecordMenuButton';
 import { RecordSortControls } from '~/components/RecordSortControls';
+import { ListFilterButton, ListFilterField } from '~/components/ListFilter';
+import { normalizeRecordQuery, speciesMatches } from '~/lib/recordSearch';
 import { RecordStatusLine } from '~/components/RecordStatusLine';
 import { SearchBox } from '~/components/SearchBox';
 import { SelectionDock, SelectionToolbar } from '~/components/SelectionToolbar';
@@ -177,6 +179,9 @@ export function ChecklistSurveyScreen({ id, openId }: { id: number; openId?: num
   useEffect(() => onVersionRestored((kind, rid) => kind === 'modular' && rid === id && load()), [id, load]);
 
   const [filterKey, setFilterKey] = useState<Filter>(null);
+  // Finding a species in this list (ListFilter): the field replaces the chips.
+  const [findOpen, setFindOpen] = useState(false);
+  const [findQuery, setFindQuery] = useState('');
   const [activeId, setActiveId] = useState<number | null>(openId ?? null);
   const [projectSheetOpen, setProjectSheetOpen] = useState(false);
   const [siteSheetOpen, setSiteSheetOpen] = useState(false);
@@ -217,10 +222,12 @@ export function ChecklistSurveyScreen({ id, openId }: { id: number; openId?: num
     let result = records;
     const group = HIGH_LEVEL_GROUPS.find((g) => g.key === filterKey);
     if (group) result = records.filter((r) => r[group.field] === group.value);
+    const nq = normalizeRecordQuery(findQuery);
+    if (nq) result = result.filter((r) => speciesMatches(r, nq));
     const sorted = sortRecords(result, sortOrder, sortDir);
     // Those made only as an interaction's other side come last (2F).
     return [...sorted.filter((r) => !byId.get(r.id)?.via_interaction), ...sorted.filter((r) => byId.get(r.id)?.via_interaction)];
-  }, [records, filterKey, sortOrder, sortDir, byId]);
+  }, [records, filterKey, findQuery, sortOrder, sortDir, byId]);
   // Counts leave out those made only as an interaction's other side (2F).
   const counted = useMemo(() => records.filter((r) => !byId.get(r.id)?.via_interaction), [records, byId]);
   const groupCounts = useMemo(() => {
@@ -887,31 +894,51 @@ export function ChecklistSurveyScreen({ id, openId }: { id: number; openId?: num
           />
         ) : (
           <View className="flex-row items-center border-b border-gray-200 bg-card dark:border-gray-700 dark:bg-gray-900">
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              className="flex-1"
-              accessibilityRole="tablist"
-              contentContainerStyle={{ paddingHorizontal: 8, paddingVertical: 8, alignItems: 'center', gap: 8 }}
-            >
-              <Chip label={t('records.filterAll')} count={counted.length} selected={filterKey === null} onPress={() => setFilterKey(null)} />
-              {HIGH_LEVEL_GROUPS.map((g) => {
-                const count = groupCounts.get(g.key) ?? 0;
-                if (count === 0) return null;
-                return <Chip key={g.key} label={t('group.' + g.key)} count={count} selected={filterKey === g.key} onPress={() => setFilterKey(g.key)} />;
-              })}
-              {mods.interaction ? (
-                <>
-                  <View className="h-6 w-px bg-gray-300 dark:bg-gray-600" />
-                  <Chip
-                    label={componentLabel(t, i18n.language, mods.interaction)}
-                    count={data.interactions ?? 0}
-                    selected={showInteractions}
-                    onPress={() => setFilterKey(INTERACTIONS)}
-                  />
-                </>
-              ) : null}
-            </ScrollView>
+            {findOpen ? (
+              <ListFilterField
+                value={findQuery}
+                onChangeText={setFindQuery}
+                onClose={() => {
+                  setFindQuery('');
+                  setFindOpen(false);
+                }}
+              />
+            ) : (
+              <ListFilterButton
+                onPress={() => {
+                  // The whole list (not the interactions summary): a filter hidden behind the field would make a species look missing.
+                  setFilterKey(null);
+                  setFindOpen(true);
+                }}
+              />
+            )}
+            {findOpen ? null : (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                className="flex-1"
+                accessibilityRole="tablist"
+                contentContainerStyle={{ paddingHorizontal: 8, paddingVertical: 8, alignItems: 'center', gap: 8 }}
+              >
+                <Chip label={t('records.filterAll')} count={counted.length} selected={filterKey === null} onPress={() => setFilterKey(null)} />
+                {HIGH_LEVEL_GROUPS.map((g) => {
+                  const count = groupCounts.get(g.key) ?? 0;
+                  if (count === 0) return null;
+                  return <Chip key={g.key} label={t('group.' + g.key)} count={count} selected={filterKey === g.key} onPress={() => setFilterKey(g.key)} />;
+                })}
+                {mods.interaction ? (
+                  <>
+                    <View className="h-6 w-px bg-gray-300 dark:bg-gray-600" />
+                    <Chip
+                      label={componentLabel(t, i18n.language, mods.interaction)}
+                      count={data.interactions ?? 0}
+                      selected={showInteractions}
+                      onPress={() => setFilterKey(INTERACTIONS)}
+                    />
+                  </>
+                ) : null}
+              </ScrollView>
+            )}
             {showInteractions ? null : <RecordSortControls />}
           </View>
         )}
@@ -920,7 +947,9 @@ export function ChecklistSurveyScreen({ id, openId }: { id: number; openId?: num
         ) : filtered.length === 0 ? (
           <View className="flex-1 items-center justify-center px-6">
             <Ionicons name="search-outline" size={56} color={c.ink3} />
-            <Text className="mt-3 text-base text-gray-700 dark:text-gray-300">{records.length === 0 ? t('session.emptyHint') : t('session.emptyGroup')}</Text>
+            <Text className="mt-3 text-base text-gray-700 dark:text-gray-300">
+              {records.length === 0 ? t('session.emptyHint') : findQuery.trim() ? t('speciesFilter.noMatch', { q: findQuery.trim() }) : t('session.emptyGroup')}
+            </Text>
           </View>
         ) : (
           <FlatList

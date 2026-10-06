@@ -1,6 +1,6 @@
 /**
  * Uploading to iNaturalist — one record unit (a session / plot survey /
- * collection trip) at a time.
+ * collection trip, or casual mode's pending observations) at a time.
  *
  * A stack route rather than a bottom sheet: it has a TextInput (tags), and the
  * project rule is that anything with an input is full-screen; it also has to
@@ -47,7 +47,7 @@ import { SelectMark } from '~/components/ui/SelectMark';
 const PHOTO_BYTES = 3 * 1024 * 1024;
 const AUDIO_BYTES = 1 * 1024 * 1024;
 
-const KINDS: InatKind[] = ['session', 'plot', 'collection'];
+const KINDS: InatKind[] = ['session', 'plot', 'collection', 'pending'];
 
 export default function InatUploadScreen() {
   // Free-text tags: under 進階 in the simpler modes (an event code, when asked for).
@@ -161,7 +161,7 @@ export default function InatUploadScreen() {
         <View className="ml-3 flex-1">
           <Text className="text-base text-gray-900 dark:text-gray-100" numberOfLines={1}>
             {r.cname ? `${r.cname} ` : ''}
-            <ScientificName name={r.name} kingdom={r.kingdom} className="text-sm text-gray-600 dark:text-gray-400" />
+            <ScientificName name={r.name} kingdom={r.kingdom} rank={r.rank} className="text-sm text-gray-600 dark:text-gray-400" />
           </Text>
           <View className="mt-0.5 flex-row flex-wrap items-center">
             {r.photos.length > 0 ? (

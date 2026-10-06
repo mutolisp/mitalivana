@@ -13,6 +13,7 @@ import { useCallback, useLayoutEffect, useRef, useState, type RefObject } from '
 import { useTranslation } from 'react-i18next';
 import { Alert, type View } from 'react-native';
 import { MenuButton, showMenu, type MenuIcon, type MenuSection } from '~/components/OverflowMenu';
+import type { RecordsLayout } from '~/stores/settings';
 import type { RecordEditing } from '~/lib/useRecordEditing';
 import type { MergeKind } from '~/lib/mergeDocs';
 import { hasMergeLog } from '~/db/mergeLog';
@@ -35,6 +36,7 @@ export function RecordMenuButton({
   last = [],
   edit,
   onEdited,
+  layout,
 }: {
   kind: MergeKind;
   id: number;
@@ -51,6 +53,8 @@ export function RecordMenuButton({
   edit?: RecordEditing;
   /** Reload after an undo / redo from the menu. */
   onEdited?: () => void;
+  /** Given: a 版面 row switching the species list between rows and cards (in every mode). */
+  layout?: { value: RecordsLayout; onChange: (v: RecordsLayout) => void };
 }) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -119,13 +123,13 @@ export function RecordMenuButton({
   // The menu rebuilds itself after undo / redo (it stays open), so it reads
   // the latest props through a ref rather than this render's closure.
   // After each render, not during it (code review L23).
-  const latest = useRef({ edit, extra, last, hasLog, hasTeam, busy });
+  const latest = useRef({ edit, extra, last, hasLog, hasTeam, busy, layout });
   useLayoutEffect(() => {
-    latest.current = { edit, extra, last, hasLog, hasTeam, busy };
+    latest.current = { edit, extra, last, hasLog, hasTeam, busy, layout };
   });
 
   const sections = (): MenuSection[] => {
-    const { edit: e, extra: x, last: z, hasLog: log, hasTeam: team, busy: syncing } = latest.current;
+    const { edit: e, extra: x, last: z, hasLog: log, hasTeam: team, busy: syncing, layout: lay } = latest.current;
     const out: MenuSection[] = [];
     if (e && !e.locked) {
       out.push({
@@ -151,6 +155,24 @@ export function RecordMenuButton({
                 onEdited?.();
               },
             },
+          },
+        ],
+      });
+    }
+    // How the species list is drawn: switches in place, the menu stays open.
+    if (lay) {
+      out.push({
+        items: [
+          {
+            kind: 'segmented',
+            id: 'layout',
+            label: t('menu.layout'),
+            value: lay.value,
+            options: [
+              { value: 'list', icon: 'list', label: t('records.layoutToList') },
+              { value: 'card', icon: 'grid-outline', label: t('records.layoutToCard') },
+            ],
+            onChange: (v) => lay.onChange(v as RecordsLayout),
           },
         ],
       });

@@ -49,6 +49,7 @@ import {
 } from '~/components/PlotSpeciesValueModal';
 import type { PlotType } from '~/db';
 import { stampNewRecord } from './recordFix';
+import { draftNow, startObserve } from './observeDraft';
 import { speciesParts } from '~/lib/nameParts';
 import { shows } from '~/lib/usageMode';
 import { currentUsageMode } from '~/lib/useUsageMode';
@@ -111,7 +112,9 @@ export function useAddToActiveRecord(): {
   const startSession = useActiveSession((s) => s.start);
   const [plotTarget, setPlotTarget] = useState<PlotTarget | null>(null);
 
-  const targetLabel = gloria
+  const targetLabel = shows(currentUsageMode(), 'casualObservations')
+    ? t('casual.observeTitle')
+    : gloria
     ? t('addToRecord.toGloria')
     : fwSurvey
       ? t('addToRecord.toSurvey')
@@ -121,6 +124,12 @@ export function useAddToActiveRecord(): {
   const addSpecies = (sp: SearchResult, adopted?: AdoptionInput | null) => {
     if (!sp.taxon_id) {
       toast(t('addToRecord.noTaxonId'));
+      return;
+    }
+    // Casual mode: 這是什麼？ with the species chosen, to add photos, a count
+    // and notes before it goes into the day's checklist.
+    if (shows(currentUsageMode(), 'casualObservations')) {
+      startObserve([draftNow({ pick: { sp, adopted } })]);
       return;
     }
     if (addToGloria([sp])) return;
