@@ -22,7 +22,7 @@ import * as Location from 'expo-location';
 import { Stack, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, FlatList, Keyboard, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, FlatList, Keyboard, Platform, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { showActionSheet } from '~/components/ActionSheet';
 import { EndRecordButton } from '~/components/EndRecordButton';
@@ -43,7 +43,7 @@ import { SearchBox } from '~/components/SearchBox';
 import { SelectionDock, SelectionToolbar } from '~/components/SelectionToolbar';
 import { SiteAssignSheet } from '~/components/SiteAssignSheet';
 import type { SpeciesAttributesDraft } from '~/components/SpeciesAttributesBlock';
-import { SpeciesCard } from '~/components/SpeciesCard';
+import { SpeciesCard, SpeciesTile } from '~/components/SpeciesCard';
 import { SpeciesDetailSheet } from '~/components/SpeciesDetailSheet';
 import { SurveyorAssignSheet } from '~/components/SurveyorAssignSheet';
 import { SurveyTimesModal } from '~/components/SurveyTimeFields';
@@ -194,6 +194,10 @@ export function ChecklistSurveyScreen({ id, openId }: { id: number; openId?: num
   const selection = useListSelection<number>();
   const sortOrder = useSettings((s) => s.last_record_sort);
   const sortDir = useSettings((s) => s.last_record_sort_dir);
+  // Rows or cards, the same setting as 快速名錄 (the header ⋯, every usage mode).
+  const speciesLayout = useSettings((s) => s.species_layout);
+  const { width: windowWidth } = useWindowDimensions();
+  const tileWidth = (windowWidth - 16 * 2 - 12) / 2;
 
   // Track recording lives in the module-level recorder, as on 快速名錄.
   const recordingTarget = useTrackRecorder((s) => s.recordingTarget);
@@ -813,6 +817,7 @@ export function ChecklistSurveyScreen({ id, openId }: { id: number; openId?: num
                 kind="modular"
                 id={id}
                 extra={menuExtra}
+                layout={{ value: speciesLayout, onChange: (v) => useSettings.getState().set('species_layout', v) }}
                 last={[{ label: t('surveyForm.deleteTitle'), icon: 'trash-outline', destructive: true, onPress: remove }]}
                 edit={edit}
                 onEdited={reload}
@@ -953,8 +958,13 @@ export function ChecklistSurveyScreen({ id, openId }: { id: number; openId?: num
           </View>
         ) : (
           <FlatList
+            // numColumns cannot change on a mounted list.
+            key={speciesLayout}
             data={filtered}
             keyExtractor={(r) => `${r.id}`}
+            numColumns={speciesLayout === 'card' ? 2 : 1}
+            columnWrapperStyle={speciesLayout === 'card' ? { gap: 12, paddingHorizontal: 16 } : undefined}
+            contentContainerStyle={speciesLayout === 'card' ? { gap: 12, paddingVertical: 12 } : undefined}
             renderItem={({ item }) => {
               const o = byId.get(item.id);
               const meta = [
@@ -963,6 +973,25 @@ export function ChecklistSurveyScreen({ id, openId }: { id: number; openId?: num
               ]
                 .filter(Boolean)
                 .join(' · ');
+              const marks = {
+                onCountChange: mods.counts && !edit.locked && !o?.sealed ? (next: number | null) => handleRowCount(item, next) : undefined,
+                meta: meta || undefined,
+                sealed: o?.sealed,
+                alert: o && data.errorIds.has(o.id) ? t('survey.editor.problem.requiredMissing') : undefined,
+              };
+              if (speciesLayout === 'card')
+                return (
+                  <SpeciesTile
+                    record={item}
+                    width={tileWidth}
+                    onPress={() => (selection.selectMode ? selection.toggle(item.id) : setActiveId(item.id))}
+                    onLongPress={() => selection.enter(item.id)}
+                    selectMode={selection.selectMode}
+                    picked={selection.picked.has(item.id)}
+                    flash={item.id === flashId}
+                    {...marks}
+                  />
+                );
               return (
                 <SwipeRowActions
                   disabled={selection.selectMode || !!o?.sealed}
@@ -975,10 +1004,7 @@ export function ChecklistSurveyScreen({ id, openId }: { id: number; openId?: num
                     selectMode={selection.selectMode}
                     picked={selection.picked.has(item.id)}
                     flash={item.id === flashId}
-                    onCountChange={mods.counts && !edit.locked && !o?.sealed ? (next) => handleRowCount(item, next) : undefined}
-                    meta={meta || undefined}
-                    sealed={o?.sealed}
-                    alert={o && data.errorIds.has(o.id) ? t('survey.editor.problem.requiredMissing') : undefined}
+                    {...marks}
                   />
                 </SwipeRowActions>
               );

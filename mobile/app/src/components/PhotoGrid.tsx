@@ -8,13 +8,17 @@
  * "choose from album" link under the grid (`onPickLibrary`) — one layout for
  * every place a photo can be added, no chooser sheet in between.
  * Tap → onView(idx); long-press → confirm-remove.
- * `PhotoViewerModal` is a horizontally pagable full-bleed image viewer.
+ * `PhotoViewerModal` is a horizontally pagable full-bleed image viewer; each
+ * page zooms (ZoomableImage: pinch, double tap, pan), and paging stops while
+ * the page in view is zoomed.
  */
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Dimensions, FlatList, Modal, Pressable, Text, View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { ZoomableImage } from '~/components/ZoomableImage';
 import { rebaseAppFileUri } from '~/lib/appFiles';
 import { useThemeColors } from '~/theme/colors';
 import { ActionSheetLayer, sheetBack } from '~/components/ActionSheet';
@@ -89,6 +93,8 @@ export function PhotoViewerModal({
 }) {
   const listRef = useRef<FlatList<string>>(null);
   const [current, setCurrent] = useState(index ?? 0);
+  // The page in view is zoomed: the pager holds still so a drag pans the picture.
+  const [zoomed, setZoomed] = useState(false);
   const { width, height } = Dimensions.get('window');
 
   useEffect(() => {
@@ -99,42 +105,51 @@ export function PhotoViewerModal({
 
   return (
     <Modal visible animationType="fade" transparent onRequestClose={sheetBack(onClose)}>
-      <View className="flex-1 bg-black">
-        <FlatList
-          ref={listRef}
-          data={photos}
-          keyExtractor={(uri) => uri}
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          initialScrollIndex={index}
-          getItemLayout={(_, i) => ({ length: width, offset: width * i, index: i })}
-          onMomentumScrollEnd={(e) => {
-            const idx = Math.round(e.nativeEvent.contentOffset.x / width);
-            setCurrent(idx);
-          }}
-          renderItem={({ item }) => (
-            <Pressable
-              onPress={onClose}
-              style={{ width, height, alignItems: 'center', justifyContent: 'center' }}
-            >
-              <Image source={{ uri: rebaseAppFileUri(item) }} style={{ width, height: height * 0.85 }} contentFit="contain" />
-            </Pressable>
-          )}
-        />
-        <Pressable onPress={onClose} hitSlop={12} style={{ position: 'absolute', top: 56, right: 20 }}>
-          <Ionicons name="close" size={32} color="#fff" />
-        </Pressable>
-        {photos.length > 1 ? (
-          <View style={{ position: 'absolute', bottom: 40, left: 0, right: 0 }} className="items-center">
-            <View className="rounded-full bg-black/60 px-3 py-1">
-              <Text className="text-sm text-white">
-                {current + 1} / {photos.length}
-              </Text>
+      {/* A Modal's content is outside the app's gesture root: the zoom needs its own. */}
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <View className="flex-1 bg-black">
+          <FlatList
+            ref={listRef}
+            data={photos}
+            keyExtractor={(uri) => uri}
+            horizontal
+            pagingEnabled
+            scrollEnabled={!zoomed}
+            showsHorizontalScrollIndicator={false}
+            initialScrollIndex={index}
+            getItemLayout={(_, i) => ({ length: width, offset: width * i, index: i })}
+            onMomentumScrollEnd={(e) => {
+              const idx = Math.round(e.nativeEvent.contentOffset.x / width);
+              setCurrent(idx);
+              setZoomed(false);
+            }}
+            renderItem={({ item, index: i }) => (
+              <ZoomableImage
+                uri={rebaseAppFileUri(item)}
+                width={width}
+                height={height}
+                active={i === current}
+                onZoomChange={(z) => {
+                  if (i === current) setZoomed(z);
+                }}
+                onTap={onClose}
+              />
+            )}
+          />
+          <Pressable onPress={onClose} hitSlop={12} style={{ position: 'absolute', top: 56, right: 20 }}>
+            <Ionicons name="close" size={32} color="#fff" />
+          </Pressable>
+          {photos.length > 1 ? (
+            <View style={{ position: 'absolute', bottom: 40, left: 0, right: 0 }} className="items-center">
+              <View className="rounded-full bg-black/60 px-3 py-1">
+                <Text className="text-sm text-white">
+                  {current + 1} / {photos.length}
+                </Text>
+              </View>
             </View>
-          </View>
-        ) : null}
-      </View>
+          ) : null}
+        </View>
+      </GestureHandlerRootView>
       <ActionSheetLayer />
     </Modal>
   );

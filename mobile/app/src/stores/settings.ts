@@ -245,7 +245,7 @@ type SettingsValues = {
   /** List / card view. Persisted (unlike the byProject⇄timeline axis, which is
    *  a way of reading the data; this one is how the user likes it drawn). */
   records_layout: RecordsLayout;
-  /** The species list inside a 快速名錄: rows or cards. */
+  /** The species list inside a 快速名錄 or a checklist-type survey (名錄型調查): rows or cards. */
   species_layout: RecordsLayout;
   collection_layout: CollectionLayout;
   font_scale: FontScale;
