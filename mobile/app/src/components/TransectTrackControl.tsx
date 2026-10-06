@@ -37,11 +37,38 @@ import { TrackMiniMap } from './TrackMiniMap';
 import { useTranslation } from 'react-i18next';
 import { shows } from '~/lib/usageMode';
 import { useUsageMode } from '~/lib/useUsageMode';
+import i18n from '~/i18n';
+import { withLiveSegment } from '~/lib/track';
 
 type Props = {
   plot: PlotSurvey;
   onUpdated: () => void;
 };
+
+/**
+ * Start or resume a transect's track. Shared by the 基本資料 control below and
+ * the split map's track pill (FieldMap).
+ */
+export async function startTransectTrack(plot: PlotSurvey, onUpdated: () => void): Promise<void> {
+  if (plot.status === 'done') return;
+  // Block double-recording if some other record is already capturing.
+  const recordingTarget = useTrackRecorder.getState().recordingTarget;
+  if (recordingTarget && !(recordingTarget.kind === 'plot' && recordingTarget.id === plot.id)) {
+    Alert.alert(i18n.t('transect.busyTitle'), i18n.t('transect.busyMsg'));
+    return;
+  }
+  try {
+    // Restarting a stopped track: reopen it first; the recorder then appends
+    // a new segment after the saved ones.
+    if (plot.track_finalized === 1) unfinalizePlotTrack(plot.id);
+    await startRecording({ kind: 'plot', id: plot.id });
+    // Refresh upstream so plot.start_ts (just stamped by startRecording)
+    // reaches plotCanAcceptSpecies and unblocks the species tab.
+    onUpdated();
+  } catch (e) {
+    Alert.alert(i18n.t('transect.startFail'), errText(e));
+  }
+}
 
 export function TransectTrackControl({ plot, onUpdated }: Props) {
   const { t } = useTranslation();
@@ -54,25 +81,7 @@ export function TransectTrackControl({ plot, onUpdated }: Props) {
   const livePoints = useTrackRecorder((s) => s.livePoints);
   const recording = recordingTarget?.kind === 'plot' && recordingTarget.id === plot.id;
 
-  const handleStart = async () => {
-    if (plotDone) return;
-    // Block double-recording if some other record is already capturing.
-    if (recordingTarget && !(recordingTarget.kind === 'plot' && recordingTarget.id === plot.id)) {
-      Alert.alert(t('transect.busyTitle'), t('transect.busyMsg'));
-      return;
-    }
-    try {
-      // Restarting a stopped track: reopen it first; the recorder then appends
-      // a new segment after the saved ones.
-      if (finalized) unfinalizePlotTrack(plot.id);
-      await startRecording({ kind: 'plot', id: plot.id });
-      // Refresh upstream so plot.start_ts (just stamped by startRecording)
-      // reaches plotCanAcceptSpecies and unblocks the species tab.
-      onUpdated();
-    } catch (e) {
-      Alert.alert(t('transect.startFail'), errText(e));
-    }
-  };
+  const handleStart = () => startTransectTrack(plot, onUpdated);
 
   const handlePause = () => {
     pauseRecording();
@@ -139,13 +148,11 @@ export function TrackControlView({
 }) {
   const { t } = useTranslation();
   const persistedSegments = segments;
-  // Visual state
-  const persistedPointCount = persistedSegments.reduce((n, s) => n + s.length, 0);
-  const totalPoints = persistedPointCount + (recording ? livePoints.length : 0);
-  const totalSegments = persistedSegments.length + (recording && livePoints.length > 0 ? 1 : 0);
-  const previewSegments = recording && livePoints.length > 0
-    ? [...persistedSegments, livePoints]
-    : persistedSegments;
+  // Visual state. The saved track may already hold an earlier copy of the
+  // live segment (withLiveSegment).
+  const previewSegments = recording ? withLiveSegment(persistedSegments, livePoints) : persistedSegments;
+  const totalPoints = previewSegments.reduce((n, s) => n + s.length, 0);
+  const totalSegments = previewSegments.length;
   const lengthM = trackLengthMeters(previewSegments);
   const lengthStr = lengthM > 1000 ? `${(lengthM / 1000).toFixed(2)} km` : `${lengthM.toFixed(0)} m`;
 

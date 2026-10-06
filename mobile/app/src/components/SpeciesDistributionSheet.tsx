@@ -63,6 +63,9 @@ import { runOverModal } from './GbifLookupHost';
 import { SearchBox } from './SearchBox';
 import { useThemeColors } from '~/theme/colors';
 import { ActionSheetLayer, sheetBack } from '~/components/ActionSheet';
+import { AdvancedFold } from './AdvancedFold';
+import { vis } from '~/lib/usageMode';
+import { useUsageMode } from '~/lib/useUsageMode';
 
 /** A taxon resolved all the way to something the map can draw. */
 export type InatGridSelection = {
@@ -145,6 +148,9 @@ export function SpeciesDistributionSheet({
 }: Props) {
   const c = useThemeColors();
   const { t } = useTranslation();
+  // 範圍物種 (save an area's species as a favourites list): its own tab in pro
+  // mode, under 進階 below the distribution search for volunteers.
+  const areaVis = vis(useUsageMode(), 'areaSpecies');
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
 
@@ -329,6 +335,15 @@ export function SpeciesDistributionSheet({
 
   const showEmptyHint = !busy && !confirm && !notice && !inatHits;
 
+  const areaChoices = (
+    <>
+      <Text className="mb-3 text-xs text-gray-500 dark:text-gray-400">{t('speciesDist.areaHint')}</Text>
+      <AreaChoice icon="scan-outline" label={t('areaSpecies.sourceVisible')} onPress={onPickVisibleArea} />
+      <AreaChoice icon="create-outline" label={t('areaSpecies.sourceDraw')} onPress={onDrawArea} />
+      <Text className="mt-3 text-[10px] text-gray-400 dark:text-gray-500">{t('areaSpecies.attribution')}</Text>
+    </>
+  );
+
   return (
     <Modal visible={visible && !steppedAside} transparent animationType="fade" onRequestClose={sheetBack(close)}>
       <Pressable
@@ -358,7 +373,7 @@ export function SpeciesDistributionSheet({
           </View>
 
           <View className="flex-row border-b border-gray-100 px-3 pt-2 dark:border-gray-800">
-            {(['taxon', 'area'] as const).map((k) => {
+            {(areaVis === 'show' ? (['taxon', 'area'] as const) : (['taxon'] as const)).map((k) => {
               const active = tab === k;
               return (
                 <Pressable
@@ -382,26 +397,7 @@ export function SpeciesDistributionSheet({
             })}
           </View>
 
-          {tab === 'area' ? (
-            <View className="px-3 py-3">
-              <Text className="mb-3 text-xs text-gray-500 dark:text-gray-400">
-                {t('speciesDist.areaHint')}
-              </Text>
-              <AreaChoice
-                icon="scan-outline"
-                label={t('areaSpecies.sourceVisible')}
-                onPress={onPickVisibleArea}
-              />
-              <AreaChoice
-                icon="create-outline"
-                label={t('areaSpecies.sourceDraw')}
-                onPress={onDrawArea}
-              />
-              <Text className="mt-3 text-[10px] text-gray-400 dark:text-gray-500">
-                {t('areaSpecies.attribution')}
-              </Text>
-            </View>
-          ) : null}
+          {tab === 'area' && areaVis === 'show' ? <View className="px-3 py-3">{areaChoices}</View> : null}
 
           {tab === 'taxon' && current ? (
             <View className="flex-row items-center border-b border-gray-100 bg-orange-50 px-3 py-1.5 dark:border-gray-800 dark:bg-orange-950/30">
@@ -623,6 +619,11 @@ export function SpeciesDistributionSheet({
                 </Text>
               </View>
             </>
+          ) : null}
+          {areaVis === 'adv' ? (
+            <AdvancedFold className="mx-3 my-2" summary={t('speciesDist.tabArea')}>
+              {areaChoices}
+            </AdvancedFold>
           ) : null}
         </View>
       </View>

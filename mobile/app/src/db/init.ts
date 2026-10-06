@@ -6,7 +6,7 @@ import { open, type DB } from '@op-engineering/op-sqlite';
 import { adoptLegacyBundle, closeAllDatasetDbs, loadDatasetManifest } from './datasets';
 import { purgeLegacyAssetCache, retireLegacyBundle } from './legacyBundle';
 import { runUserMigrations } from './migrations';
-import { enforceSingleActiveOnStartup, purgeOrphanRows } from './cleanup';
+import { endStaleDailySessions, enforceSingleActiveOnStartup, purgeOrphanRows } from './cleanup';
 
 let userDb: DB | null = null;
 
@@ -63,6 +63,7 @@ export async function initDb(onProgress?: InitProgressFn): Promise<{ user: DB }>
     );
   }
 
+  endStaleDailySessions();
   // Idempotent: mops up any leftover multi-active records from older builds.
   enforceSingleActiveOnStartup();
   purgeOrphanRows();
@@ -132,8 +133,8 @@ export function withTransaction<T>(fn: () => T): T {
 }
 
 export function closeDbs(): void {
-  // 名錄 handle 由 registry 持有（過渡期可能有多個模組共用同一個檔），
-  // 所以關閉的責任也在那裡。
+  // The checklist handles belong to the registry (during the transition several
+  // modules may share one file), so closing them is its job.
   closeAllDatasetDbs();
   userDb?.close();
   userDb = null;

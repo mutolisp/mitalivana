@@ -120,6 +120,9 @@ export function vectorFontsDir(): Directory {
  * which produces the hard-to-diagnose state "every file is present, yet the map
  * is blank". Recomputing each time avoids it.
  */
+/** Online vector style, used until the offline package is installed. */
+export const VECTOR_STYLE_URL = 'https://map.mitalivana.org/vector/latest/style.json';
+
 export function vectorStyleUri(): string {
   return vectorStyleFile().uri;
 }

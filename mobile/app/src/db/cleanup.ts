@@ -11,6 +11,8 @@ import { File, Paths } from 'expo-file-system';
 import { getDatasetDb } from './datasets';
 import { getUserDb } from './init';
 import { endActiveRecord, type ActiveKind } from './activeRecords';
+import { closeStaleDailySessions } from './pendingCore';
+import { generateUuid } from './uuid';
 import { ADOPTION_TABLES, CASCADE_ORPHANS, NULL_DANGLING, PROJECT_FK_TABLES, SYNC_RECORD_TABLES } from './integrityRules';
 import { DELETED_KEEP_MS } from '~/lib/recordVersionsCore';
 import type { MergeKind } from '~/lib/mergeDocs';
@@ -26,6 +28,15 @@ import type { MergeKind } from '~/lib/mergeDocs';
  *
  * Run idempotently — second invocation on the same data ends nothing.
  */
+/**
+ * Casual mode's daily checklists of earlier days still open (the app was not
+ * used since): end each at its last record's time. Before
+ * enforceSingleActiveOnStartup, which would end extras at now.
+ */
+export function endStaleDailySessions(): void {
+  closeStaleDailySessions({ db: getUserDb(), now: Date.now, uuid: generateUuid });
+}
+
 export function enforceSingleActiveOnStartup(): void {
   const db = getUserDb();
   const now = Date.now();
@@ -359,8 +370,9 @@ function countStaleAdoptions(table: string): number {
   }>;
   if (rows.length === 0) return 0;
 
-  // 臺灣名錄模組不在時回 0 而不是 rows.length：模組還沒下載 / 被刪掉時，把每一
-  // 筆採用名都報成 stale 是假警報，使用者會以為資料壞了。
+  // 0, not rows.length, when the Taiwan checklist module is absent: before it
+  // is downloaded, or after it is removed, reporting every adopted name as
+  // stale is a false alarm that makes the user think their data is broken.
   const namesDb = getDatasetDb('tw-taicol');
   if (!namesDb) return 0;
 

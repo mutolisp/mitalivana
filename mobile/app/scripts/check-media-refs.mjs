@@ -23,8 +23,9 @@ const eq = (msg, got, want) => {
 
 // Collections are not team-synced; MIREN is not a sync kind yet. A
 // permanent plot's morphospecies photos (fw_frame_labels) travel with its
-// checklist / plot-style surveys (Phase 2C-b).
-const NOT_SYNCED = ['collection_specimens', 'photo_fix', 'miren_plots'];
+// checklist / plot-style surveys (Phase 2C-b). Pending observations (v92)
+// stay on the device until named; their files then travel with the record.
+const NOT_SYNCED = ['collection_specimens', 'photo_fix', 'miren_plots', 'pending_observations'];
 const missing = MEDIA_COLUMNS.filter(([t, c]) => !NOT_SYNCED.includes(t) && !(`${t}.${c}` in MEDIA_COLUMN_KINDS)).map(([t, c]) => `${t}.${c}`);
 eq('every media column of a synced record kind is carried', missing, []);
 

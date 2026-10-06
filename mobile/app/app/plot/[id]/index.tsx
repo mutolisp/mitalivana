@@ -84,6 +84,7 @@ import {
 import { listQuadrats, parseQuadratConfig } from '~/db/quadrats';
 import { plotFreqIssueLines } from '~/components/quadrat/plotFreqIssueLines';
 import { AdvancedFold } from '~/components/AdvancedFold';
+import { MapToggle, useSplitMapOpen } from '~/components/map/SplitMapView';
 import { shows, vis } from '~/lib/usageMode';
 import { currentUsageMode, useModeT, useUsageMode } from '~/lib/useUsageMode';
 
@@ -173,6 +174,10 @@ export default function PlotDetailScreen() {
   // Volunteer mode on a transect or point count: 物種 first, 基本資料 second,
   // the title's second line names the kind, diversity is under ⋯ › 進階.
   const simple = !!plot && plot.plot_type !== 'fixed' && vis(mode, 'plotEnvExtra') === 'adv';
+  // Split map (18j / 18m): a 「地圖」 toggle at the right of the tab row.
+  const mapAllowed = simple && shows(mode, 'splitMapPlot');
+  const [mapPref, setMapOpen] = useSplitMapOpen('plot');
+  const showMap = mapAllowed && mapPref;
   // The 小樣方 tab exists only on a fixed plot with the module switched on.
   const qcfg = parseQuadratConfig(plot?.quadrat_config);
   const quadratsOn = plot?.plot_type === 'fixed' && qcfg.enabled;
@@ -355,6 +360,18 @@ export default function PlotDetailScreen() {
           disabled={!ready}
         />
         {simple ? <TabBtn label={tm('plot.tabEnv')} active={shownTab === 'env'} onPress={() => selectTab('env')} /> : null}
+        {mapAllowed ? (
+          <View className="justify-center px-2">
+            <MapToggle
+              on={showMap}
+              onPress={() => {
+                setMapOpen(!showMap);
+                // The map sits beside the species list.
+                if (!showMap && ready) selectTab('species');
+              }}
+            />
+          </View>
+        ) : null}
         {freqOn ? (
           <TabBtn
             label={`${t('plot.tabFreq')} ${freqTally.done}/${freqTally.total}`}
@@ -402,6 +419,7 @@ export default function PlotDetailScreen() {
               <PlotSpeciesTab
                 key={rev}
                 plot={plot}
+                showMap={showMap}
                 onChanged={reload}
                 lock={{
                   locked: edit.locked,

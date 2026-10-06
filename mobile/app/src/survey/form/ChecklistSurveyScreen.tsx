@@ -109,6 +109,7 @@ import { blankOccurrenceHasErrors } from './occurrenceForm';
 import { occurrenceRecord } from './occurrenceRecord';
 import { formErrorText } from './text';
 import { useSurveyForm, type OccurrenceView } from './useSurveyForm';
+import { withLiveSegment } from '~/lib/track';
 
 const refreshStores = () => {
   useActiveSurvey.getState().refresh();
@@ -194,7 +195,8 @@ export function ChecklistSurveyScreen({ id, openId }: { id: number; openId?: num
   const livePoints = useTrackRecorder((s) => s.livePoints);
   const tracking = recordingTarget?.kind === 'modular' && recordingTarget.id === id;
   const persistedSegs = useMemo(() => parseTrackSegments(survey?.track_geojson ?? null), [survey?.track_geojson]);
-  const trackCount = persistedSegs.reduce((n, s) => n + s.length, 0) + (tracking ? livePoints.length : 0);
+  // The saved track may already hold an earlier copy of the live segment.
+  const trackCount = (tracking ? withLiveSegment(persistedSegs, livePoints) : persistedSegs).reduce((n, s) => n + s.length, 0);
 
   const template = data?.template ?? null;
   const mods = useMemo(() => (template ? occurrenceModules(template) : null), [template]);

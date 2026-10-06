@@ -86,6 +86,8 @@
     "check:controls": "node ./scripts/check-controls.mjs",
     "check:settings-index": "node --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-settings-index.mjs",
     "check:modes": "node --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-modes.mjs",
+    "check:along-track": "node --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-along-track.mjs",
+    "check:pending": "node --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-pending.mjs",
     "check:media-uri": "node --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-resolve-register.mjs ./scripts/check-media-uri.mjs",
     "check:backup-rules": "node ./scripts/check-backup-rules.mjs",
     "privacy": "node ./scripts/gen-privacy.mjs",

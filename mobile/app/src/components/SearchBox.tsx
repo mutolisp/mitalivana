@@ -125,6 +125,12 @@ type Props = {
    * and puts the keyboard away.
    */
   trailing?: ReactNode;
+  /** Dock only: replaces the default placeholder (the split map's 「記在這裡」). */
+  placeholder?: string;
+  /** Dock only: a stronger outline while the box means something special. */
+  highlight?: boolean;
+  /** Focuses the input whenever it changes (not on mount). */
+  focusKey?: number;
 };
 
 /**
@@ -216,6 +222,9 @@ export function SearchBox({
   markedTaxa,
   markLabel,
   trailing,
+  placeholder,
+  highlight = false,
+  focusKey,
 }: Props) {
   const c = useThemeColors();
   const { t } = useTranslation();
@@ -229,6 +238,20 @@ export function SearchBox({
   const [results, setResults] = useState<SearchResult[]>([]);
   const [focused, setFocused] = useState(false);
   const inputRef = useRef<TextInput>(null);
+  const firstFocusKey = useRef(focusKey);
+  useEffect(() => {
+    if (focusKey === undefined || focusKey === firstFocusKey.current) return;
+    const input = inputRef.current;
+    if (!input) return;
+    // Android's back key hides the keyboard but leaves the input focused, and
+    // focusing a focused input brings no keyboard: let go of it first.
+    if (input.isFocused()) {
+      input.blur();
+      requestAnimationFrame(() => inputRef.current?.focus());
+    } else {
+      input.focus();
+    }
+  }, [focusKey]);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const trimmedQuery = query.trim();
   // Only offer the network once the local search has actually run and come
@@ -450,7 +473,9 @@ export function SearchBox({
         className={`flex-1 flex-row items-center rounded-full px-3 ${
           dropdown
             ? 'bg-gray-100 py-2 dark:bg-gray-800'
-            : 'border-[1.5px] border-gray-300 bg-paper dark:border-gray-600 dark:bg-paper-dark'
+            : highlight
+              ? 'border-2 border-accent-600 bg-paper dark:border-accent-500 dark:bg-paper-dark'
+              : 'border-[1.5px] border-gray-300 bg-paper dark:border-gray-600 dark:bg-paper-dark'
         }`}
         style={dropdown ? undefined : { minHeight: 48 }}
       >
@@ -458,7 +483,7 @@ export function SearchBox({
         <TextInput
           ref={inputRef}
           className="ml-2 flex-1 py-2 text-base text-gray-900 dark:text-gray-100"
-          placeholder={t('search.placeholder')}
+          placeholder={placeholder ?? t('search.placeholder')}
           placeholderTextColor={c.ink3}
           value={query}
           onChangeText={setQuery}

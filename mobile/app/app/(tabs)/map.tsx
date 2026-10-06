@@ -98,7 +98,7 @@ import {
   queryPoisInBounds,
   type RudyPoi,
 } from '~/db/rudypoi';
-import { describeVectorInstall, vectorStyleUri } from '~/lib/vectormap';
+import { describeVectorInstall, VECTOR_STYLE_URL, vectorStyleUri } from '~/lib/vectormap';
 import { useVectorInstall } from '~/lib/vectormapInstall';
 import { useTabBarCorners } from '~/lib/tabBarLayout';
 import { useThemeColors } from '~/theme/colors';
@@ -109,6 +109,8 @@ import { ACTION_FILL } from '~/lib/colors';
 import { IconDisc } from '~/components/ui/IconDisc';
 import { getFwSurvey, updateSurvey } from '~/survey/db/surveys';
 import type { FwSurveyRow } from '~/survey/db/surveyCore';
+import { vis } from '~/lib/usageMode';
+import { useUsageMode } from '~/lib/useUsageMode';
 
 /** What a cluster member stands for, so a bubble can list its records. */
 type ClusterFeature =
@@ -143,10 +145,6 @@ const POI_MAX_DELTA = 0.15;
 /** Per-query cap. A single z14 viewport over Taipei already holds 40,000 raw
  *  POIs. */
 const POI_LIMIT = 300;
-
-/** Online vector style. Swapped for a local file:// path once the offline
- *  package is installed. */
-const VECTOR_STYLE_URL = 'https://map.mitalivana.org/vector/latest/style.json';
 
 const SINICA_TILE_URL =
   'https://gis.sinica.edu.tw/tileserver/file-exists.php?img={LAYER}-png-{z}-{x}-{y}';
@@ -401,6 +399,13 @@ export default function MapScreen() {
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
+  // Volunteers: drawing and importing 地理樣區 sit behind a 進階 row of the tools.
+  const siteTools = vis(useUsageMode(), 'mapSiteTools');
+  const [toolsAdvOpen, setToolsAdvOpen] = useState(false);
+  useEffect(() => {
+    if (!toolsOpen) setToolsAdvOpen(false);
+  }, [toolsOpen]);
+  const siteSection = siteTools === 'adv' ? t('mode.advanced') : undefined;
   const [layersSheetOpen, setLayersSheetOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchBusy, setSearchBusy] = useState(false);
@@ -1270,10 +1275,13 @@ export default function MapScreen() {
           // here would leave the plot silently without one.
           [
             { label: t('map.jumpToPlot') },
-            { label: t('map.jumpToSite') },
-            { label: t('map.redrawRange') },
+            { label: t('map.jumpToSite'), section: siteSection },
+            { label: t('map.redrawRange'), section: siteSection },
           ]
-        : [{ label: t('map.jumpToSite') }, { label: t('common.delete'), destructive: true }],
+        : [
+            { label: t('map.jumpToSite'), section: siteSection },
+            { label: t('common.delete'), destructive: true, section: siteSection },
+          ],
     });
     if (owner) {
       if (idx === 0) {
@@ -1464,7 +1472,7 @@ export default function MapScreen() {
       options: [
         { label: t('map.jumpBack') },
         { label: t('map.jumpToLoc') },
-        { label: t('map.editLoc') },
+        ...(siteTools === 'hide' ? [] : [{ label: t('map.editLoc'), section: siteSection }]),
       ],
     });
     if (idx === 0) {
@@ -1999,6 +2007,18 @@ export default function MapScreen() {
       )
     : null;
 
+  const drawSiteRow = <FabRow icon="create-outline" label={t('map.drawSite')} onPress={handlePickDrawMode} />;
+  const importRow = (
+    <FabRow
+      icon="cloud-upload-outline"
+      label={t('map.import')}
+      onPress={() => {
+        setToolsOpen(false);
+        setImportOpen(true);
+      }}
+    />
+  );
+
   return (
     <View className="flex-1 bg-gray-100 dark:bg-gray-800">
       <MapCanvas
@@ -2175,11 +2195,7 @@ export default function MapScreen() {
                   accent={pois.length > 0}
                 />
               ) : null}
-              <FabRow
-                icon="create-outline"
-                label={t('map.drawSite')}
-                onPress={handlePickDrawMode}
-              />
+              {siteTools === 'show' ? drawSiteRow : null}
               <FabRow
                 icon="resize-outline"
                 label={t('map.measure')}
@@ -2197,14 +2213,18 @@ export default function MapScreen() {
                 }}
                 accent={!!inatGrid}
               />
-              <FabRow
-                icon="cloud-upload-outline"
-                label={t('map.import')}
-                onPress={() => {
-                  setToolsOpen(false);
-                  setImportOpen(true);
-                }}
-              />
+              {siteTools === 'show' ? importRow : null}
+              {siteTools === 'adv' ? (
+                <>
+                  <FabRow
+                    icon={toolsAdvOpen ? 'chevron-up' : 'ellipsis-horizontal'}
+                    label={toolsAdvOpen ? t('mode.advancedHide') : t('mode.advanced')}
+                    onPress={() => setToolsAdvOpen((v) => !v)}
+                  />
+                  {toolsAdvOpen ? drawSiteRow : null}
+                  {toolsAdvOpen ? importRow : null}
+                </>
+              ) : null}
             </View>
           ) : null}
         </View>

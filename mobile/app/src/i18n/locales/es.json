@@ -6150,5 +6150,31 @@
       "shot": "Toma varias fotos desde distintos ángulos",
       "shotButton": "Foto"
     }
+  },
+  "splitMap": {
+    "toggle": "Mapa",
+    "divider": "Arrastra para repartir el mapa y la lista; toca para cambiar el ancho",
+    "foldList": "Plegar la lista",
+    "openList_one": "Abrir la lista ({{count}} registro)",
+    "openList_many": "Abrir la lista ({{count}} registros)",
+    "openList_other": "Abrir la lista ({{count}} registros)",
+    "trackOn": "Traza {{length}}",
+    "trackOff": "En pausa {{length}}",
+    "radius": "Radio {{radius}} m",
+    "inside": "Dentro ±{{accuracy}} m",
+    "outside": "A {{distance}} m del círculo",
+    "circleNoFix": "Aún sin posición",
+    "recordHere": "Anotar aquí",
+    "hereHint": "Añadir en tu posición: nombre común o científico",
+    "alongKm": "a {{km}}",
+    "listAll_one": "Todos · {{count}} registro",
+    "listAll_many": "Todos · {{count}} registros",
+    "listAll_other": "Todos · {{count}} registros",
+    "listStretch_one": "Este tramo · {{count}} registro",
+    "listStretch_many": "Este tramo · {{count}} registros",
+    "listStretch_other": "Este tramo · {{count}} registros"
+  },
+  "casual": {
+    "dailyName": "Observaciones del {{date}}"
   }
 }

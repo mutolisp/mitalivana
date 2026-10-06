@@ -63,6 +63,7 @@ eq('empty', mediaNamesIn(''), []);
     'checklist_records.audio_paths': 'recordings are left out of the photo backup by design',
     'plot_species_records.audio_paths': 'recordings are left out of the photo backup by design',
     'collection_specimens.audio_paths': 'recordings are left out of the photo backup by design',
+    'pending_observations.audio_paths': 'recordings are left out of the photo backup by design',
     'photo_fix.uri': 'a cache of where library photos were taken, not a file of the app',
   };
   for (const [t, c] of MEDIA_COLUMNS) {

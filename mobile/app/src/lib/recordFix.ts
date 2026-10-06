@@ -86,8 +86,10 @@ export function stampNewRecord(
   recordId: number,
   parentId: number,
   onStamped?: () => void,
+  /** Stamp even where the settings say not to: the split map's 「記在這裡」. */
+  force = false,
 ): void {
-  if (!recordId || !wantsRecordFix(kind, parentId)) return;
+  if (!recordId || (!force && !wantsRecordFix(kind, parentId))) return;
   const tracking = isRecordingTarget({ kind, id: parentId });
   void (async () => {
     try {

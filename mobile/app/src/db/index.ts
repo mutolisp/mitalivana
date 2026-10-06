@@ -29,3 +29,4 @@ export * from './intermediateTaxa';
 export * from './inatTaxonMap';
 export * from './inatSync';
 export * from './merge';
+export * from './pendingObservations';

@@ -62,6 +62,12 @@ import { useListSelection } from '~/lib/useListSelection';
 import { router, type Href } from 'expo-router';
 import { LayerChip, PlotSpeciesRow } from './plot/PlotSpeciesRow';
 import { shows } from '~/lib/usageMode';
+import { FieldMap, type FieldMapStatus } from './map/FieldMap';
+import { SplitMapView, SplitRecordList } from './map/SplitMapView';
+import { useFieldMapData, type MapRecord } from './map/useFieldMapData';
+import { pauseRecording, useTrackRecorder } from '~/lib/trackRecorder';
+import { parseTrackSegments, withLiveSegment } from '~/lib/track';
+import { startTransectTrack } from './TransectTrackControl';
 import { useUsageMode } from '~/lib/useUsageMode';
 import { PlotSpeciesValueModal, type PlotValueDraft } from './PlotSpeciesValueModal';
 import { parseMultiAttribute, serializeMultiAttribute } from '~/lib/dwcAttributes';
@@ -101,10 +107,13 @@ export function PlotSpeciesTab({
   plot,
   onChanged,
   lock,
+  showMap = false,
 }: {
   plot: PlotSurvey;
   onChanged: () => void;
   lock: PlotSpeciesLock;
+  /** The split map beside the list (volunteer mode, transect / point count; 18j / 18m). */
+  showMap?: boolean;
 }) {
   const c = useThemeColors();
   const { t: tr } = useTranslation();
@@ -294,6 +303,60 @@ export function PlotSpeciesTab({
     [listData],
   );
 
+  // Split map: the track (a transect's), the counting circle (a point count's)
+  // and the records on screen, in the same order.
+  const recordingTarget = useTrackRecorder((s) => s.recordingTarget);
+  const livePoints = useTrackRecorder((s) => s.livePoints);
+  const trackRecording = recordingTarget?.kind === 'plot' && recordingTarget.id === plot.id;
+  const savedTrack = useMemo(() => parseTrackSegments(plot.track_geojson), [plot.track_geojson]);
+  const mapTrack = useMemo(
+    () =>
+      plot.plot_type !== 'transect'
+        ? []
+        : trackRecording
+          ? withLiveSegment(savedTrack, livePoints)
+          : savedTrack,
+    [plot.plot_type, trackRecording, livePoints, savedTrack],
+  );
+  const mapRecords = useMemo<MapRecord[]>(
+    () =>
+      visibleRecords.map((r) => ({
+        id: r.id,
+        lat: r.lat,
+        lng: r.lng,
+        title: r.common_name_c || r.simple_name,
+        quantity: r.organism_quantity,
+        quantityType: r.organism_quantity_type,
+        detection: r.detection_type,
+        observedAt: r.observed_at,
+      })),
+    [visibleRecords],
+  );
+  const mapOn = showMap && !stratified;
+  const fieldMap = useFieldMapData(mapRecords, mapOn ? mapTrack : []);
+  // 「記在這裡」 (transects): the next species added gets the position where it was added.
+  const [hereMode, setHereMode] = useState(false);
+  const [focusKey, setFocusKey] = useState(0);
+  const mapStatus: FieldMapStatus | null =
+    plot.plot_type === 'transect'
+      ? {
+          kind: 'track',
+          recording: trackRecording,
+          lengthM: fieldMap.lengthM,
+          onToggle:
+            plot.status === 'done'
+              ? undefined
+              : trackRecording
+                ? () => {
+                    pauseRecording();
+                    onChanged();
+                  }
+                : () => void startTransectTrack(plot, onChanged),
+        }
+      : plot.decimal_latitude != null && plot.decimal_longitude != null && plot.point_radius_m
+        ? { kind: 'circle', lat: plot.decimal_latitude, lng: plot.decimal_longitude, radiusM: plot.point_radius_m }
+        : null;
+
   const modalPager = useMemo(() => {
     if (!modal || modal.mode !== 'edit') return undefined;
     const index = visibleRecords.findIndex((r) => r.id === modal.record.id);
@@ -419,10 +482,17 @@ export function PlotSpeciesTab({
         updatePlotSpeciesPhotos(newId, pendingPhotos);
       }
       // Its own fix, unless the photos above already gave it one.
-      stampNewRecord('plot', newId, plot.id, () => {
-        reload();
-        lock.onChangedQuiet();
-      });
+      stampNewRecord(
+        'plot',
+        newId,
+        plot.id,
+        () => {
+          reload();
+          lock.onChangedQuiet();
+        },
+        hereMode,
+      );
+      if (hereMode) setHereMode(false);
       if (newId > 0 && pendingAudio.length > 0) {
         updatePlotSpeciesAudio(newId, pendingAudio);
       }
@@ -1103,7 +1173,52 @@ export function PlotSpeciesTab({
         </View>
       )}
 
-      {/* Records grouped by layer */}
+      {mapOn ? (
+        // The map pans sideways: keep that from switching tabs.
+        <SwipeBlockedArea style={{ flex: 1 }}>
+          <SplitMapView
+            title={fieldMap.title}
+            count={visibleRecords.length}
+            onShowAll={fieldMap.pickedStretch != null ? () => fieldMap.setStretch(null) : undefined}
+            map={
+              <FieldMap
+                track={mapTrack}
+                stretches={fieldMap.stretches}
+                pickedStretch={fieldMap.pickedStretch}
+                onPickStretch={fieldMap.setStretch}
+                points={fieldMap.points}
+                dimmed={fieldMap.dimmed}
+                picked={fieldMap.picked}
+                onPick={fieldMap.setPicked}
+                callout={fieldMap.callout}
+                status={mapStatus}
+                // Not on a point count: its records are all made at the point (18m).
+                onRecordHere={
+                  plot.plot_type === 'transect' && plot.status !== 'done' && !lock.locked
+                    ? () => {
+                        setHereMode((on) => !on);
+                        if (!hereMode) setFocusKey((k) => k + 1);
+                      }
+                    : undefined
+                }
+                recordHereOn={hereMode}
+              />
+            }
+            list={
+              <SplitRecordList
+                rows={fieldMap.rows}
+                picked={fieldMap.picked}
+                onPick={fieldMap.setPicked}
+                onOpen={(id) => {
+                  const rec = visibleRecords.find((r) => r.id === id);
+                  if (rec) setModal({ mode: 'edit', record: rec });
+                }}
+                empty={tr('plotSpecies.emptyHint')}
+              />
+            }
+          />
+        </SwipeBlockedArea>
+      ) : (
       <FlatList
         data={listData}
         keyExtractor={(item, idx) =>
@@ -1203,6 +1318,7 @@ export function PlotSpeciesTab({
           </View>
         }
       />
+      )}
 
       {replaceTarget ? (
         <View className="flex-row items-center border-t border-amber-200 bg-amber-50 px-4 py-2 dark:border-amber-900 dark:bg-amber-950/40">
@@ -1241,7 +1357,12 @@ export function PlotSpeciesTab({
       {/* SearchBox sticks above the keyboard, follows accessory-bar changes */}
       {lock.locked || selection.selectMode ? null : (
         <KeyboardStickyView offset={{ opened: insets.bottom }}>
-          <SearchBox onSelect={handleSelect} />
+          <SearchBox
+            onSelect={handleSelect}
+            placeholder={hereMode ? tr('splitMap.hereHint') : undefined}
+            highlight={hereMode}
+            focusKey={focusKey}
+          />
         </KeyboardStickyView>
       )}
 

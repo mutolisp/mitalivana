@@ -57,6 +57,24 @@ export function trackLengthMeters(segments: TrackSegment[]): number {
   return total;
 }
 
+/**
+ * The track as it stands while recording: the saved segments plus the live
+ * points of the segment being recorded.
+ *
+ * The recorder writes the segment in progress to the record every minute
+ * (trackRecorder.ts `flushSegment`), so once it has, the saved track already
+ * ends with an earlier copy of the live segment. Appending the live points
+ * then counted that stretch twice — twice the length, twice the points. The
+ * saved copy is recognised by starting at the same point as the live one and
+ * being no longer, and is replaced.
+ */
+export function withLiveSegment(saved: TrackSegment[], live: TrackSegment): TrackSegment[] {
+  if (live.length === 0) return saved;
+  const last = saved[saved.length - 1];
+  const sameStart = !!last && last.length > 0 && last[0][0] === live[0][0] && last[0][1] === live[0][1];
+  return sameStart && last.length <= live.length ? [...saved.slice(0, -1), live] : [...saved, live];
+}
+
 /** Segment union without repeats, so merging the same file twice adds nothing. */
 export function trackUnion(a: unknown, b: unknown): string | null {
   const seen = new Set<string>();

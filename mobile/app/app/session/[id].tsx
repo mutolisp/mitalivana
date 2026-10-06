@@ -105,6 +105,12 @@ import { Chip } from '~/components/ui/Chip';
 import { sentenceParts, slot, speciesParts } from '~/lib/nameParts';
 import { HIGH_LEVEL_GROUPS, sortRecords } from '~/lib/recordList';
 import { RecordSortControls } from '~/components/RecordSortControls';
+import { FieldMap } from '~/components/map/FieldMap';
+import { MapToggle, SplitMapView, SplitRecordList, useSplitMapOpen } from '~/components/map/SplitMapView';
+import { useFieldMapData, type MapRecord } from '~/components/map/useFieldMapData';
+import { shows } from '~/lib/usageMode';
+import { useUsageMode } from '~/lib/useUsageMode';
+import { withLiveSegment } from '~/lib/track';
 
 
 export default function SessionDetailScreen() {
@@ -147,8 +153,12 @@ export default function SessionDetailScreen() {
     () => parseTrackSegments(session?.track_geojson ?? null),
     [session?.track_geojson],
   );
-  const trackCount =
-    persistedSegs.reduce((n, s) => n + s.length, 0) + (tracking ? livePoints.length : 0);
+  // The saved track may already hold an earlier copy of the live segment.
+  const liveTrack = useMemo(
+    () => (tracking ? withLiveSegment(persistedSegs, livePoints) : persistedSegs),
+    [tracking, livePoints, persistedSegs],
+  );
+  const trackCount = liveTrack.reduce((n, s) => n + s.length, 0);
   const sortOrder = useSettings((s) => s.last_record_sort);
   const sortDir = useSettings((s) => s.last_record_sort_dir);
 
@@ -218,6 +228,30 @@ export default function SessionDetailScreen() {
     }
     return sortRecords(result, sortOrder, sortDir);
   }, [records, filterKey, sortOrder, sortDir]);
+
+  // Split map (18k): the map beside the list, its pins and stretches drawn
+  // from the same filtered and sorted records.
+  const mapAllowed = shows(useUsageMode(), 'splitMapSession');
+  const [mapPref, setMapOpen] = useSplitMapOpen('session');
+  const showMap = mapAllowed && mapPref;
+  const mapTrack = liveTrack;
+  const mapRecords = useMemo<MapRecord[]>(
+    () =>
+      filtered.map((r) => ({
+        id: r.id,
+        lat: r.lat,
+        lng: r.lng,
+        title: r.common_name_c || r.simple_name,
+        quantity: r.organism_quantity,
+        quantityType: r.organism_quantity_type,
+        observedAt: r.observed_at,
+      })),
+    [filtered],
+  );
+  const fieldMap = useFieldMapData(mapRecords, showMap ? mapTrack : []);
+  // 「記在這裡」: the next species added gets the position where it was added.
+  const [hereMode, setHereMode] = useState(false);
+  const [focusKey, setFocusKey] = useState(0);
 
   /** Step the detail sheet through `filtered` — i.e. exactly the order and the
    *  subset the user is looking at, filter chips and sort included. */
@@ -384,7 +418,8 @@ export default function SessionDetailScreen() {
       }
     }
     const recordId = addRecord({ session_id: sessionId, taxon_id: result.taxon_id, adopted });
-    stampNewRecord('session', recordId, sessionId, reloadQuiet);
+    stampNewRecord('session', recordId, sessionId, reloadQuiet, hereMode);
+    if (hereMode) setHereMode(false);
     setFlashId(recordId);
     reload();
     toast(t('session.added', { name: result.cname || result.name }), {
@@ -963,9 +998,60 @@ export default function SessionDetailScreen() {
             </ScrollView>
             {/* Sort and its direction. Batch and photo import moved to the header's ⋯. */}
             <RecordSortControls />
+            {mapAllowed ? (
+              <View className="pr-2">
+                <MapToggle on={showMap} onPress={() => setMapOpen(!showMap)} />
+              </View>
+            ) : null}
           </View>
         )}
-        {filtered.length === 0 ? (
+        {showMap ? (
+          <SplitMapView
+            title={fieldMap.title}
+            count={filtered.length}
+            onShowAll={fieldMap.pickedStretch != null ? () => fieldMap.setStretch(null) : undefined}
+            map={
+              <FieldMap
+                track={mapTrack}
+                stretches={fieldMap.stretches}
+                pickedStretch={fieldMap.pickedStretch}
+                onPickStretch={fieldMap.setStretch}
+                points={fieldMap.points}
+                dimmed={fieldMap.dimmed}
+                picked={fieldMap.picked}
+                onPick={fieldMap.setPicked}
+                callout={fieldMap.callout}
+                status={{
+                  kind: 'track',
+                  recording: tracking,
+                  lengthM: fieldMap.lengthM,
+                  onToggle: isActive ? (tracking ? handleStopTrack : () => void handleStartTrack()) : undefined,
+                }}
+                onRecordHere={
+                  isActive
+                    ? () => {
+                        setHereMode((on) => !on);
+                        if (!hereMode) setFocusKey((k) => k + 1);
+                      }
+                    : undefined
+                }
+                recordHereOn={hereMode}
+              />
+            }
+            list={
+              <SplitRecordList
+                rows={fieldMap.rows}
+                picked={fieldMap.picked}
+                onPick={fieldMap.setPicked}
+                onOpen={(id) => {
+                  const rec = filtered.find((r) => r.id === id);
+                  if (rec) setActiveRecord(rec);
+                }}
+                empty={records.length === 0 ? t('session.emptyHint') : t('session.emptyGroup')}
+              />
+            }
+          />
+        ) : filtered.length === 0 ? (
           <View className="flex-1 items-center justify-center px-6">
             <Ionicons name="search-outline" size={56} color={c.ink3} />
             <Text className="mt-3 text-base text-gray-700 dark:text-gray-300">
@@ -1048,6 +1134,9 @@ export default function SessionDetailScreen() {
         <KeyboardStickyView offset={{ opened: insets.bottom }}>
           <SearchBox
             onSelect={handleAdd}
+            placeholder={hereMode ? t('splitMap.hereHint') : undefined}
+            highlight={hereMode}
+            focusKey={focusKey}
             markedTaxa={takenTaxa}
             markLabel={t('session.inList')}
             trailing={

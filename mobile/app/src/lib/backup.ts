@@ -44,6 +44,7 @@ import {
 import { closePacksDb, getPacksDb, listPacks, PACKS_DB_NAME } from '~/db/regionpacks';
 import { parseOverviewPhotos } from '~/modules/gloria/model/overview';
 import { parseFiles } from '~/modules/gloria/model/loggers';
+import { isoDate } from '~/lib/datetime';
 
 const USER_DB_NAME = 'user.db';
 
@@ -428,6 +429,15 @@ function collectPhotoSources(): PhotoSource[] {
   for (const r of (miren.rows ?? []) as Array<Record<string, unknown>>) {
     const uris = parsePhotoUris(r.photo_paths as string);
     if (uris.length) out.push({ folder: `miren_${r.owner_id}/plot_${r.plot_id}_${r.plot_no}_v${r.visit}`, taxonId: null, uris });
+  }
+  // Casual mode's observations awaiting a name (v92): one folder per day.
+  const pending = db.executeSync(
+    `SELECT p.observed_at AS observed_at, p.kingdom AS kingdom, p.photo_paths AS photo_paths
+       FROM pending_observations p WHERE p.photo_paths IS NOT NULL AND p.photo_paths != ''`,
+  );
+  for (const r of (pending.rows ?? []) as Array<Record<string, unknown>>) {
+    const uris = parsePhotoUris(r.photo_paths as string);
+    if (uris.length) out.push({ folder: `pending_${isoDate(Number(r.observed_at))}_${sanitizeFilename(String(r.kingdom ?? ''))}`, taxonId: null, uris });
   }
 
   return out;

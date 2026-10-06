@@ -90,7 +90,11 @@ export type Cap =
   | 'exportAnalysis'
   | 'backupSafety'
   | 'inatManualToken'
-  | 'inatTags';
+  | 'inatTags'
+  | 'splitMapSession'
+  | 'splitMapPlot'
+  | 'mapSiteTools'
+  | 'areaSpecies';
 
 export const CAPS: Record<Cap, ModeVis> = {
   // What ＋ does without asking (settings 「按下 ＋ 時」, the create sheet's
@@ -181,6 +185,18 @@ export const CAPS: Record<Cap, ModeVis> = {
   backupSafety: { pro: 'show', vol: 'adv', casual: 'adv' },
   inatManualToken: { pro: 'show', vol: 'adv', casual: 'adv' },
   inatTags: { pro: 'show', vol: 'adv', casual: 'adv' },
+
+  // Split map (M3, 18j / 18k / 18m): the 「地圖」 toggle that puts a map beside
+  // the list. The quick checklist has it in pro and volunteer mode; transect and
+  // point count only for volunteers (pro plots are unchanged). Casual mode gets
+  // its own map tab (M5).
+  splitMapSession: { pro: 'show', vol: 'show', casual: 'hide' },
+  splitMapPlot: { pro: 'hide', vol: 'show', casual: 'hide' },
+  // Map tab (MP): drawing and importing 地理樣區, editing a record's position,
+  // a site's own actions. Kept for the GPX a project hands out.
+  mapSiteTools: { pro: 'show', vol: 'adv', casual: 'hide' },
+  // The species distribution sheet's 範圍物種 (area species → favourites list).
+  areaSpecies: { pro: 'show', vol: 'adv', casual: 'hide' },
 };
 
 /** Capabilities only the simpler modes have: allowed to be hidden in pro. */
@@ -191,6 +207,7 @@ export const SIMPLE_ONLY: ReadonlySet<Cap> = new Set<Cap>([
   'importPlanButton',
   'detectionOnRow',
   'observationNotes',
+  'splitMapPlot',
 ]);
 
 export function vis(mode: UsageMode, cap: Cap): Vis {

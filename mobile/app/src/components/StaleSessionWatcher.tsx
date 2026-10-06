@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert } from 'react-native';
 import { useRouter } from 'expo-router';
-import { endSession, latestSessionActivityAt } from '~/db';
+import { endSession, isDailySession, latestSessionActivityAt } from '~/db';
 import { useActiveSession } from '~/stores/activeSession';
 import { isRecordingTarget, pauseRecording } from '~/lib/trackRecorder';
 
@@ -16,6 +16,9 @@ const STALE_THRESHOLD_MS = 12 * 60 * 60 * 1000; // 12 hours
  * Baseline = MAX(started_at, resumed_at, latest_record_observed_at). Without
  * the resumed_at + activity floors, reopening a 3-day-old session to add one
  * taxon would immediately re-fire "open for 72 hours" — annoying noise.
+ *
+ * Casual mode's daily checklists are never asked about: they end on their
+ * own the next day (src/db/pendingCore.ts).
  */
 export function StaleSessionWatcher() {
   const { t } = useTranslation();
@@ -27,6 +30,7 @@ export function StaleSessionWatcher() {
   useEffect(() => {
     if (!session) return;
     if (promptedFor.current === session.id) return;
+    if (isDailySession(session.id)) return;
     const lastActivity = latestSessionActivityAt(session.id);
     const baseline = Math.max(
       session.started_at,

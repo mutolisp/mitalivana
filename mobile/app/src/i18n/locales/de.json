@@ -5903,5 +5903,28 @@
       "shot": "Mach ein paar Fotos aus verschiedenen Winkeln",
       "shotButton": "Foto"
     }
+  },
+  "splitMap": {
+    "toggle": "Karte",
+    "divider": "Ziehen, um Karte und Liste zu verteilen; tippen, um die Breite zu wechseln",
+    "foldList": "Liste einklappen",
+    "openList_one": "Liste öffnen ({{count}} Eintrag)",
+    "openList_other": "Liste öffnen ({{count}} Einträge)",
+    "trackOn": "Track {{length}}",
+    "trackOff": "Pausiert {{length}}",
+    "radius": "Radius {{radius}} m",
+    "inside": "Im Kreis ±{{accuracy}} m",
+    "outside": "{{distance}} m außerhalb",
+    "circleNoFix": "Noch keine Position",
+    "recordHere": "Hier erfassen",
+    "hereHint": "An deiner Position hinzufügen: deutscher oder wissenschaftlicher Name",
+    "alongKm": "bei {{km}}",
+    "listAll_one": "Alle · {{count}} Eintrag",
+    "listAll_other": "Alle · {{count}} Einträge",
+    "listStretch_one": "Dieser Abschnitt · {{count}} Eintrag",
+    "listStretch_other": "Dieser Abschnitt · {{count}} Einträge"
+  },
+  "casual": {
+    "dailyName": "Beobachtungen {{date}}"
   }
 }

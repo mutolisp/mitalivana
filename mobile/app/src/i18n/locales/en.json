@@ -5903,5 +5903,28 @@
       "shot": "Take a few photos from different angles",
       "shotButton": "Photo"
     }
+  },
+  "splitMap": {
+    "toggle": "Map",
+    "divider": "Drag to resize the map and the list; tap to switch widths",
+    "foldList": "Fold the list",
+    "openList_one": "Open the list ({{count}} record)",
+    "openList_other": "Open the list ({{count}} records)",
+    "trackOn": "Track {{length}}",
+    "trackOff": "Paused {{length}}",
+    "radius": "Radius {{radius}} m",
+    "inside": "Inside ±{{accuracy}} m",
+    "outside": "{{distance}} m outside",
+    "circleNoFix": "No position yet",
+    "recordHere": "Record here",
+    "hereHint": "Add at your position: common or scientific name",
+    "alongKm": "{{km}} along",
+    "listAll_one": "All · {{count}} record",
+    "listAll_other": "All · {{count}} records",
+    "listStretch_one": "This stretch · {{count}} record",
+    "listStretch_other": "This stretch · {{count}} records"
+  },
+  "casual": {
+    "dailyName": "Observations {{date}}"
   }
 }

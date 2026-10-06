@@ -5656,5 +5656,25 @@
       "shot": "여러 각도에서 찍어 두세요",
       "shotButton": "사진 찍기"
     }
+  },
+  "splitMap": {
+    "toggle": "지도",
+    "divider": "끌어서 지도와 목록 너비 조정, 탭하면 너비 전환",
+    "foldList": "목록 접기",
+    "openList_other": "목록 열기 ({{count}}건)",
+    "trackOn": "이동경로 {{length}}",
+    "trackOff": "일시 정지 {{length}}",
+    "radius": "반경 {{radius}} m",
+    "inside": "원 안 ±{{accuracy}} m",
+    "outside": "원 밖 {{distance}} m",
+    "circleNoFix": "위치 없음",
+    "recordHere": "여기에 기록",
+    "hereHint": "현재 위치에 추가: 국명, 학명",
+    "alongKm": "경로 {{km}}",
+    "listAll_other": "전체 {{count}}건",
+    "listStretch_other": "이 구간 {{count}}건"
+  },
+  "casual": {
+    "dailyName": "{{month}}월 {{day}}일 관찰"
   }
 }

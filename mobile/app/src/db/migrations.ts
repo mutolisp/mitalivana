@@ -3322,6 +3322,46 @@ export const MIGRATIONS: Migration[] = [
       addColumnIfMissing(db, `ALTER TABLE miren_plots ADD COLUMN blind_reopened_at INTEGER;`);
     },
   },
+  {
+    // 待鑑定 (casual mode, docs/planned/UI_modes_impl.md M4; src/db/pendingCore.ts):
+    // an observation saved before it has a name — photos, recordings, time,
+    // place and a note, under the broad group the user picked (Animalia,
+    // Plantae or Fungi, Latin as in taicol `kingdom`). Identifying it writes a
+    // checklist record into that day's daily checklist and deletes the row,
+    // so nothing here is exported or team-synced. `uuid` becomes the record's
+    // occurrenceID, which keeps an iNaturalist upload made before the
+    // identification (inat_*, as checklist_records v30–v31) on the same
+    // observation.
+    version: 92,
+    up: (db) => {
+      db.executeSync(`
+        CREATE TABLE IF NOT EXISTS pending_observations (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          uuid TEXT NOT NULL UNIQUE,
+          kingdom TEXT NOT NULL CHECK (kingdom IN ('Animalia', 'Plantae', 'Fungi')),
+          observed_at INTEGER NOT NULL,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          lat REAL,
+          lng REAL,
+          accuracy REAL,
+          elevation_m REAL,
+          elevation_source TEXT,
+          photo_paths TEXT,
+          audio_paths TEXT,
+          note TEXT,
+          quantity TEXT,
+          reproductive_condition TEXT,
+          degree_of_establishment TEXT,
+          inat_observation_id INTEGER,
+          inat_media_done INTEGER NOT NULL DEFAULT 0,
+          inat_uploaded_at INTEGER,
+          inat_sync_hash TEXT
+        );
+      `);
+      db.executeSync(`CREATE INDEX IF NOT EXISTS idx_pending_observed ON pending_observations(observed_at);`);
+    },
+  },
 ];
 
 /** Highest schema version this build knows how to produce. Backup/restore uses

@@ -5656,5 +5656,25 @@
       "shot": "從幾個角度多拍幾張",
       "shotButton": "拍照"
     }
+  },
+  "splitMap": {
+    "toggle": "地圖",
+    "divider": "拖曳調整地圖與清單的寬度；點一下切換寬度",
+    "foldList": "收起清單",
+    "openList_other": "打開清單（{{count}} 筆）",
+    "trackOn": "軌跡 {{length}}",
+    "trackOff": "暫停 {{length}}",
+    "radius": "半徑 {{radius}} m",
+    "inside": "圈內 ±{{accuracy}} m",
+    "outside": "圈外 {{distance}} m",
+    "circleNoFix": "尚未定位",
+    "recordHere": "記在這裡",
+    "hereHint": "加在目前位置：俗名、學名",
+    "alongKm": "沿線 {{km}}",
+    "listAll_other": "全部 {{count}} 筆",
+    "listStretch_other": "這一段 {{count}} 筆"
+  },
+  "casual": {
+    "dailyName": "{{month}}月{{day}}日 觀察"
   }
 }

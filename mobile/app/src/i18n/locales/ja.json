@@ -5656,5 +5656,25 @@
       "shot": "いくつかの角度から撮っておきましょう",
       "shotButton": "撮影"
     }
+  },
+  "splitMap": {
+    "toggle": "地図",
+    "divider": "ドラッグで地図とリストの幅を調整、タップで幅を切り替え",
+    "foldList": "リストを閉じる",
+    "openList_other": "リストを開く（{{count}} 件）",
+    "trackOn": "軌跡 {{length}}",
+    "trackOff": "一時停止 {{length}}",
+    "radius": "半径 {{radius}} m",
+    "inside": "円内 ±{{accuracy}} m",
+    "outside": "円外 {{distance}} m",
+    "circleNoFix": "未測位",
+    "recordHere": "ここで記録",
+    "hereHint": "現在地で追加：和名・学名",
+    "alongKm": "沿線 {{km}}",
+    "listAll_other": "すべて {{count}} 件",
+    "listStretch_other": "この区間 {{count}} 件"
+  },
+  "casual": {
+    "dailyName": "{{month}}月{{day}}日の観察"
   }
 }

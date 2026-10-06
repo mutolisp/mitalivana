@@ -62,6 +62,9 @@ export const MEDIA_COLUMNS: ReadonlyArray<readonly [table: string, column: strin
   ['gloria_surveys', 'form6s_files'],
   // MIREN (v68): plot photos.
   ['miren_plots', 'photo_paths'],
+  // Casual mode's observations awaiting a name (v92); they move to the record when named.
+  ['pending_observations', 'photo_paths'],
+  ['pending_observations', 'audio_paths'],
 ];
 
 /** Media-looking column names that hold no file reference, and why. */
@@ -69,6 +72,7 @@ export const NOT_MEDIA: Readonly<Record<string, string>> = {
   'checklist_records.inat_media_done': 'iNat upload progress counter',
   'plot_species_records.inat_media_done': 'iNat upload progress counter',
   'collection_specimens.inat_media_done': 'iNat upload progress counter',
+  'pending_observations.inat_media_done': 'iNat upload progress counter',
   'gloria_loggers.photo_open': 'Form 4 photo check tick (1 / null); the photo is photo_open_uri',
   'gloria_loggers.photo_closed': 'Form 4 photo check tick (1 / null); the photo is photo_closed_uri',
   'miren_sites.photo_point': 'where the repeat photo is taken from (coordinates), not a photo',

@@ -7,6 +7,7 @@ import type { ConservationField } from '~/lib/markdown';
 import type { MatrixValueMode } from '~/lib/vegMatrix';
 import { parsePlace, type TabBubblePlace } from '~/lib/tabBubbleCore';
 import { parseUsageMode, type UsageMode } from '~/lib/usageMode';
+import { parseSplitMap, type SplitMapSetting } from '~/lib/splitMap';
 
 export type { MatrixValueMode };
 
@@ -257,6 +258,8 @@ type SettingsValues = {
   /** null until chosen: only a fresh install sees the first-launch choice
    *  (ModeSetupGate); `load()` sets an existing install to 'pro'. */
   usage_mode: UsageMode | null;
+  /** The split map's width, folded list and open screens, per usage mode (src/lib/splitMap.ts). */
+  split_map: SplitMapSetting;
   /** Where the folded tab bar's button was put. */
   tab_bubble: TabBubblePlace;
   /** Collection number (DwC recordNumber) prefix, e.g. 'CTL-'. '' for none. */
@@ -384,6 +387,7 @@ const DEFAULTS: SettingsValues = {
   fab_side: 'right',
   tab_bar_mode: 'bar',
   usage_mode: null,
+  split_map: {},
   tab_bubble: { side: null, bottom: null },
   collection_number_prefix: '',
   collection_number_start: 1,
@@ -542,6 +546,7 @@ function readAll(): SettingsValues {
     fab_side: (map.get('fab_side') as FabSide) ?? DEFAULTS.fab_side,
     tab_bar_mode: map.get('tab_bar_mode') === 'bubble' ? 'bubble' : DEFAULTS.tab_bar_mode,
     usage_mode: parseUsageMode(map.get('usage_mode')),
+    split_map: parseSplitMap(map.get('split_map')),
     tab_bubble: parsePlace(map.get('tab_bubble')),
     collection_number_prefix:
       map.get('collection_number_prefix') ?? DEFAULTS.collection_number_prefix,
