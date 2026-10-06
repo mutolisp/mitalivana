@@ -12,7 +12,9 @@
  * Usage: npm run check:along-track   (exit 1 on violation)
  */
 const { alongTrackSegments, stretchLengthFor } = await import('../src/lib/alongTrack.ts');
-const { SPLIT_PRESETS, clampRatio, layoutFor, nextPreset, parseSplitMap } = await import('../src/lib/splitMap.ts');
+const { SPLIT_PRESETS, SPLIT_PRESETS_V, clampRatio, layoutFor, nextPreset, parseSplitMap } = await import(
+  '../src/lib/splitMap.ts'
+);
 const { withLiveSegment } = await import('../src/lib/track.ts');
 
 const errors = [];
@@ -110,13 +112,39 @@ eq('parse corrupt', parseSplitMap('{oops'), {});
 eq(
   'parse partial',
   parseSplitMap(JSON.stringify({ vol: { ratio: 0.9, open: { plot: true, map: true } }, pro: 'x' })),
-  { vol: { ratio: 0.67, collapsed: false, open: { plot: true } } },
+  { vol: { axis: 'row', ratio: 0.67, ratioV: SPLIT_PRESETS_V[0], collapsed: false, open: { plot: true } } },
 );
-eq('layout default', layoutFor({}, 'pro'), { ratio: SPLIT_PRESETS[0], collapsed: false, open: {} });
+eq('layout default', layoutFor({}, 'pro'), {
+  axis: 'row',
+  ratio: SPLIT_PRESETS[0],
+  ratioV: SPLIT_PRESETS_V[0],
+  collapsed: false,
+  open: {},
+});
+// Map above the list: its own bounds and presets, and its own remembered height.
+eq('clamp column low', clampRatio(0.1, 'column'), 0.34);
+eq('clamp column high', clampRatio(0.9, 'column'), 0.7);
+eq('clamp column NaN', clampRatio(Number.NaN, 'column'), SPLIT_PRESETS_V[0]);
+eq('column preset cycle', nextPreset(SPLIT_PRESETS_V[0], 'column'), SPLIT_PRESETS_V[1]);
+eq('column preset cycle wraps', nextPreset(SPLIT_PRESETS_V[2], 'column'), SPLIT_PRESETS_V[0]);
+eq(
+  'parse column',
+  parseSplitMap(JSON.stringify({ casual: { axis: 'column', ratio: 0.4, ratioV: 0.2, collapsed: true } })),
+  { casual: { axis: 'column', ratio: 0.4, ratioV: 0.34, collapsed: true, open: {} } },
+);
+eq('parse unknown axis', parseSplitMap(JSON.stringify({ pro: { axis: 'diagonal' } })).pro.axis, 'row');
+// A value saved before the column layout existed reads as side by side.
+eq('layout from an older save', layoutFor({ pro: { ratio: 0.4, collapsed: true, open: {} } }, 'pro'), {
+  axis: 'row',
+  ratio: 0.4,
+  ratioV: SPLIT_PRESETS_V[0],
+  collapsed: true,
+  open: {},
+});
 
 if (errors.length) {
   console.error(`✗ along-track: ${errors.length} problem(s)`);
   for (const e of errors) console.error(`  ${e}`);
   process.exit(1);
 }
-console.log('✓ along-track: stretches, record placement, pauses, defaults; split layout parsing');
+console.log('✓ along-track: stretches, record placement, pauses, defaults; split layout parsing (side by side, map above)');

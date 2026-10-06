@@ -207,7 +207,10 @@
     "projectUnset": "Kein Projekt",
     "surveyorUnset": "Keine Erfasser",
     "inList": "In der Liste",
-    "cameraAdd": "Per Foto hinzufügen"
+    "cameraAdd": "Per Foto hinzufügen",
+    "photoByCamera": "Foto aufnehmen",
+    "photoFromLibrary": "Aus der Mediathek wählen",
+    "photoModeHint": "Lange drücken, um zwischen Kamera und Mediathek zu wechseln"
   },
   "records": {
     "recording": "Erfassung läuft",
@@ -5939,7 +5942,10 @@
     "listAll_one": "Alle · {{count}} Eintrag",
     "listAll_other": "Alle · {{count}} Einträge",
     "listStretch_one": "Dieser Abschnitt · {{count}} Eintrag",
-    "listStretch_other": "Dieser Abschnitt · {{count}} Einträge"
+    "listStretch_other": "Dieser Abschnitt · {{count}} Einträge",
+    "dividerV": "Ziehen, um Karte und Liste zu verteilen; tippen, um die Höhe zu wechseln",
+    "toColumn": "Karte über der Liste",
+    "toRow": "Karte neben der Liste"
   },
   "casual": {
     "dailyName": "Beobachtungen {{date}}",

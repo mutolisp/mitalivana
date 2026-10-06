@@ -1,8 +1,9 @@
 /**
- * The split map's remembered layout (SplitMapView): how wide the map is, whether
- * the list is folded away, and which screens have the map open. Kept per usage
- * mode in the setting `split_map` (docs/planned/UI_modes_impl.md M3), so a
- * volunteer's wide map does not follow a pro user's narrow one.
+ * The split map's remembered layout (SplitMapView): map beside the list or
+ * above it, how much of the screen the map takes either way, whether the list
+ * is folded away, and which screens have the map open. Kept per usage mode in
+ * the setting `split_map` (docs/planned/UI_modes_impl.md M3), so a volunteer's
+ * wide map does not follow a pro user's narrow one.
  *
  * Pure, for scripts/check-along-track.mjs.
  */
@@ -11,10 +12,18 @@ import type { UsageMode } from './usageMode';
 /** Where the map can be switched on: the quick checklist, a transect or point count. */
 export type SplitScreen = 'session' | 'plot';
 
+/** 'row': map on the left, list on the right; 'column': map above the list. */
+export type SplitAxis = 'row' | 'column';
+
 export type SplitLayout = {
-  /** Map width as a share of the screen. */
+  axis: SplitAxis;
+  /** Map width as a share of the screen ('row'). */
   ratio: number;
-  /** The list folded to the right-edge tab. */
+  /** Map height as a share of the view ('column'). Kept apart from `ratio`, so
+   *  switching back and forth returns each to where it was. */
+  ratioV: number;
+  /** The list folded away: to a tab on the right edge ('row'), or down to its
+   *  heading ('column'). */
   collapsed: boolean;
   /** The map is switched on, per screen. */
   open: Partial<Record<SplitScreen, boolean>>;
@@ -27,26 +36,52 @@ export const SPLIT_PRESETS = [0.55, 0.38, 0.67] as const;
 export const SPLIT_MIN = 0.36;
 export const SPLIT_MAX = 0.67;
 
-export const DEFAULT_LAYOUT: SplitLayout = { ratio: SPLIT_PRESETS[0], collapsed: false, open: {} };
+/** The same for the map's height above the list. The low end still leaves
+ *  room for the map's own buttons (the basemap and locate column, 記在這裡). */
+export const SPLIT_PRESETS_V = [0.5, 0.36, 0.65] as const;
+export const SPLIT_MIN_V = 0.34;
+export const SPLIT_MAX_V = 0.7;
 
-export function clampRatio(r: number): number {
-  if (!Number.isFinite(r)) return DEFAULT_LAYOUT.ratio;
-  return Math.max(SPLIT_MIN, Math.min(SPLIT_MAX, r));
+export const DEFAULT_LAYOUT: SplitLayout = {
+  axis: 'row',
+  ratio: SPLIT_PRESETS[0],
+  ratioV: SPLIT_PRESETS_V[0],
+  collapsed: false,
+  open: {},
+};
+
+export function splitBounds(axis: SplitAxis): { min: number; max: number; presets: readonly number[] } {
+  return axis === 'column'
+    ? { min: SPLIT_MIN_V, max: SPLIT_MAX_V, presets: SPLIT_PRESETS_V }
+    : { min: SPLIT_MIN, max: SPLIT_MAX, presets: SPLIT_PRESETS };
 }
 
-/** The next preset after `r`; from a dragged width, the one after the nearest. */
-export function nextPreset(r: number): number {
+export function clampRatio(r: number, axis: SplitAxis = 'row'): number {
+  const { min, max, presets } = splitBounds(axis);
+  if (!Number.isFinite(r)) return presets[0];
+  return Math.max(min, Math.min(max, r));
+}
+
+/** The next preset after `r`; from a dragged size, the one after the nearest. */
+export function nextPreset(r: number, axis: SplitAxis = 'row'): number {
+  const { presets } = splitBounds(axis);
   let near = 0;
-  for (let i = 1; i < SPLIT_PRESETS.length; i++) {
-    if (Math.abs(SPLIT_PRESETS[i] - r) < Math.abs(SPLIT_PRESETS[near] - r)) near = i;
+  for (let i = 1; i < presets.length; i++) {
+    if (Math.abs(presets[i] - r) < Math.abs(presets[near] - r)) near = i;
   }
-  return SPLIT_PRESETS[(near + 1) % SPLIT_PRESETS.length];
+  return presets[(near + 1) % presets.length];
 }
 
 export function layoutFor(setting: SplitMapSetting, mode: UsageMode): SplitLayout {
   const l = setting[mode];
   if (!l) return DEFAULT_LAYOUT;
-  return { ratio: clampRatio(l.ratio), collapsed: !!l.collapsed, open: l.open ?? {} };
+  return {
+    axis: l.axis === 'column' ? 'column' : 'row',
+    ratio: clampRatio(l.ratio),
+    ratioV: clampRatio(l.ratioV, 'column'),
+    collapsed: !!l.collapsed,
+    open: l.open ?? {},
+  };
 }
 
 /** Read the stored setting, dropping anything malformed. */
@@ -64,7 +99,9 @@ export function parseSplitMap(raw: string | null | undefined): SplitMapSetting {
         for (const s of ['session', 'plot'] as const) if (typeof l.open[s] === 'boolean') open[s] = l.open[s];
       }
       out[mode] = {
+        axis: l.axis === 'column' ? 'column' : 'row',
         ratio: clampRatio(typeof l.ratio === 'number' ? l.ratio : DEFAULT_LAYOUT.ratio),
+        ratioV: clampRatio(typeof l.ratioV === 'number' ? l.ratioV : DEFAULT_LAYOUT.ratioV, 'column'),
         collapsed: l.collapsed === true,
         open,
       };

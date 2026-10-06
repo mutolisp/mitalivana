@@ -20,6 +20,7 @@ export type IntermediateRanksMode = 'below_order' | 'all';
 export type RecordsLayout = 'list' | 'card';
 /** The specimen list: rows, or the photo-card grid (04-collection-listrow.md). */
 export type CollectionLayout = 'list' | 'grid';
+export type DockPhotoMode = 'camera' | 'library';
 
 /** UI language. 'system' follows the device locale; others force that language.
  *  All four ship a locale file (see `~/i18n`), kept structurally identical to
@@ -247,6 +248,8 @@ type SettingsValues = {
   records_layout: RecordsLayout;
   /** The species list inside a 快速名錄 or a checklist-type survey (名錄型調查): rows or cards. */
   species_layout: RecordsLayout;
+  /** The 快速名錄 dock's photo key: the camera or the photo library, switched by a long press. */
+  dock_photo_mode: DockPhotoMode;
   collection_layout: CollectionLayout;
   font_scale: FontScale;
   map_view: MapViewState;
@@ -382,6 +385,7 @@ const DEFAULTS: SettingsValues = {
   records_swipe_hint_shown: false,
   records_layout: 'list',
   species_layout: 'list',
+  dock_photo_mode: 'camera',
   collection_layout: 'list',
   font_scale: 'normal',
   map_view: DEFAULT_MAP_VIEW,
@@ -541,6 +545,7 @@ function readAll(): SettingsValues {
     records_swipe_hint_shown: map.get('records_swipe_hint_shown') === 'true',
     records_layout: map.get('records_layout') === 'card' ? 'card' : DEFAULTS.records_layout,
     species_layout: map.get('species_layout') === 'card' ? 'card' : DEFAULTS.species_layout,
+    dock_photo_mode: map.get('dock_photo_mode') === 'library' ? 'library' : DEFAULTS.dock_photo_mode,
     collection_layout: map.get('collection_layout') === 'grid' ? 'grid' : DEFAULTS.collection_layout,
     font_scale: (map.get('font_scale') as FontScale) ?? DEFAULTS.font_scale,
     map_view: mapView,

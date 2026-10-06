@@ -169,6 +169,7 @@ export default function SessionDetailScreen() {
   const sortDir = useSettings((s) => s.last_record_sort_dir);
   // Rows or cards (the header ⋯, every usage mode).
   const speciesLayout = useSettings((s) => s.species_layout);
+  const photoMode = useSettings((s) => s.dock_photo_mode);
   const { width: windowWidth } = useWindowDimensions();
   const tileWidth = (windowWidth - 16 * 2 - 12) / 2;
 
@@ -369,6 +370,26 @@ export default function SessionDetailScreen() {
     } catch (e) {
       Alert.alert(t('gnss.posFailTitle'), errText(e));
     }
+  };
+
+  /** The dock's photo key does whichever was chosen last; a long press chooses
+   *  (and does it), and the choice is kept for next time. */
+  const handleDockPhoto = (mode: 'camera' | 'library') =>
+    void (mode === 'camera' ? handleTakePhotoToImport() : handlePickPhotosToImport());
+  const handleDockPhotoMenu = async () => {
+    // The sheet comes up from the bottom edge, under an open keyboard.
+    Keyboard.dismiss();
+    const i = await showActionSheet({
+      options: [
+        { label: t('session.photoByCamera'), icon: 'camera-outline', selected: photoMode === 'camera' },
+        { label: t('session.photoFromLibrary'), icon: 'images-outline', selected: photoMode === 'library' },
+      ],
+      cancelLabel: t('common.cancel'),
+    });
+    if (i < 0) return;
+    const mode = i === 0 ? 'camera' : 'library';
+    useSettings.getState().set('dock_photo_mode', mode);
+    handleDockPhoto(mode);
   };
 
   const handleAdd = async (result: SearchResult, adopted?: AdoptionInput | null) => {
@@ -1201,12 +1222,15 @@ export default function SessionDetailScreen() {
             trailing={
               isActive ? (
                 <Pressable
-                  onPress={() => void handleTakePhotoToImport()}
+                  onPress={() => handleDockPhoto(photoMode)}
+                  onLongPress={() => void handleDockPhotoMenu()}
+                  delayLongPress={400}
                   accessibilityRole="button"
-                  accessibilityLabel={t('session.cameraAdd')}
+                  accessibilityLabel={t(photoMode === 'camera' ? 'session.cameraAdd' : 'photoImport.entry')}
+                  accessibilityHint={t('session.photoModeHint')}
                   className="h-12 w-12 items-center justify-center rounded-full border border-line bg-card active:bg-gray-100 dark:border-line-dark dark:bg-card-dark dark:active:bg-gray-800"
                 >
-                  <Ionicons name="camera-outline" size={22} color={c.ink2} />
+                  <Ionicons name={photoMode === 'camera' ? 'camera-outline' : 'images-outline'} size={22} color={c.ink2} />
                 </Pressable>
               ) : undefined
             }

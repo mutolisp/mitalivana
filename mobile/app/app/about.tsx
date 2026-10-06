@@ -24,7 +24,7 @@ export default function AboutScreen() {
     Platform.select({
       ios: Constants.expoConfig?.ios?.buildNumber,
       android: Constants.expoConfig?.android?.versionCode?.toString(),
-    }) ?? '35';
+    }) ?? '36';
 
   return (
     <SafeAreaView edges={['bottom']} className="flex-1 bg-gray-50 dark:bg-gray-950">

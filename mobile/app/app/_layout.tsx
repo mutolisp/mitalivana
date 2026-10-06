@@ -153,12 +153,16 @@ function ThemedShell() {
   // Full-bleed puts the system clock straight onto the tiles, so the icon
   // colour has to follow what is actually underneath rather than the app theme.
   const mapBasemap = useSettings((s) => s.map_view.basemap);
-  // Except casual mode's map with its list open: the right-hand icons sit on
-  // the list, and the map's strip gets a translucent band (SplitMapView), so
-  // the icons follow the theme there.
+  // Except casual mode's map with its list open beside it: the right-hand icons
+  // sit on the list, and the map's strip gets a translucent band
+  // (SplitMapView), so the icons follow the theme there. With the map above
+  // the list the whole strip is map again.
   const casualMap = useShows('casualObservations');
-  const casualListOpen = useSettings((s) => !layoutFor(s.split_map, 'casual').collapsed);
-  const iconsOnTiles = fullBleedTop && !(casualMap && casualListOpen);
+  const casualListBeside = useSettings((s) => {
+    const l = layoutFor(s.split_map, 'casual');
+    return l.axis === 'row' && !l.collapsed;
+  });
+  const iconsOnTiles = fullBleedTop && !(casualMap && casualListBeside);
 
   return (
     <ThemeProvider value={isDark ? NAV_DARK : NAV_LIGHT}>

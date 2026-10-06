@@ -207,7 +207,10 @@
     "projectUnset": "No project",
     "surveyorUnset": "No surveyor",
     "inList": "In list",
-    "cameraAdd": "Add by photo"
+    "cameraAdd": "Add by photo",
+    "photoByCamera": "Take photo",
+    "photoFromLibrary": "Pick from library",
+    "photoModeHint": "Long press to switch between the camera and the library"
   },
   "records": {
     "recording": "Recording",
@@ -5939,7 +5942,10 @@
     "listAll_one": "All · {{count}} record",
     "listAll_other": "All · {{count}} records",
     "listStretch_one": "This stretch · {{count}} record",
-    "listStretch_other": "This stretch · {{count}} records"
+    "listStretch_other": "This stretch · {{count}} records",
+    "dividerV": "Drag to resize the map and the list; tap to switch heights",
+    "toColumn": "Map above the list",
+    "toRow": "Map beside the list"
   },
   "casual": {
     "dailyName": "Observations {{date}}",

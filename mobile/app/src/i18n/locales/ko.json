@@ -185,7 +185,10 @@
     "projectUnset": "프로젝트 미지정",
     "surveyorUnset": "조사자 미입력",
     "inList": "목록에 있음",
-    "cameraAdd": "촬영해서 추가"
+    "cameraAdd": "촬영해서 추가",
+    "photoByCamera": "사진 찍기",
+    "photoFromLibrary": "앨범에서 선택",
+    "photoModeHint": "길게 눌러 촬영과 앨범 전환"
   },
   "records": {
     "recording": "기록 중",
@@ -5689,7 +5692,10 @@
     "hereHint": "현재 위치에 추가: 국명, 학명",
     "alongKm": "경로 {{km}}",
     "listAll_other": "전체 {{count}}건",
-    "listStretch_other": "이 구간 {{count}}건"
+    "listStretch_other": "이 구간 {{count}}건",
+    "dividerV": "끌어서 지도와 목록 높이 조정, 탭하면 높이 전환",
+    "toColumn": "위아래로 나누기",
+    "toRow": "좌우로 나누기"
   },
   "casual": {
     "dailyName": "{{month}}월 {{day}}일 관찰",

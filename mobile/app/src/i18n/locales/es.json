@@ -229,7 +229,10 @@
     "projectUnset": "Sin proyecto",
     "surveyorUnset": "Sin observador",
     "inList": "Ya en la lista",
-    "cameraAdd": "Añadir con foto"
+    "cameraAdd": "Añadir con foto",
+    "photoByCamera": "Tomar foto",
+    "photoFromLibrary": "Elegir del álbum",
+    "photoModeHint": "Mantén pulsado para alternar entre la cámara y el álbum"
   },
   "records": {
     "recording": "Registrando",
@@ -6189,7 +6192,10 @@
     "listAll_other": "Todos · {{count}} registros",
     "listStretch_one": "Este tramo · {{count}} registro",
     "listStretch_many": "Este tramo · {{count}} registros",
-    "listStretch_other": "Este tramo · {{count}} registros"
+    "listStretch_other": "Este tramo · {{count}} registros",
+    "dividerV": "Arrastra para repartir el mapa y la lista; toca para cambiar la altura",
+    "toColumn": "Mapa encima de la lista",
+    "toRow": "Mapa junto a la lista"
   },
   "casual": {
     "dailyName": "Observaciones del {{date}}",

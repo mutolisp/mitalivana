@@ -185,7 +185,10 @@
     "projectUnset": "未指定專案",
     "surveyorUnset": "調查者未填",
     "inList": "已在名錄",
-    "cameraAdd": "拍照加入"
+    "cameraAdd": "拍照加入",
+    "photoByCamera": "拍照",
+    "photoFromLibrary": "從相簿選擇",
+    "photoModeHint": "長按可切換拍照或從相簿選擇"
   },
   "records": {
     "recording": "記錄中",
@@ -5689,7 +5692,10 @@
     "hereHint": "加在目前位置：俗名、學名",
     "alongKm": "沿線 {{km}}",
     "listAll_other": "全部 {{count}} 筆",
-    "listStretch_other": "這一段 {{count}} 筆"
+    "listStretch_other": "這一段 {{count}} 筆",
+    "dividerV": "拖曳調整地圖與清單的高度；點一下切換高度",
+    "toColumn": "改成上下分割",
+    "toRow": "改成左右分割"
   },
   "casual": {
     "dailyName": "{{month}}月{{day}}日 觀察",

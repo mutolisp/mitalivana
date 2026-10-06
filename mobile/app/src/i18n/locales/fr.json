@@ -229,7 +229,10 @@
     "projectUnset": "Aucun projet",
     "surveyorUnset": "Aucun observateur",
     "inList": "Déjà listé",
-    "cameraAdd": "Ajouter par photo"
+    "cameraAdd": "Ajouter par photo",
+    "photoByCamera": "Prendre une photo",
+    "photoFromLibrary": "Choisir dans la photothèque",
+    "photoModeHint": "Appui long pour passer de l’appareil photo à la photothèque"
   },
   "records": {
     "recording": "Enregistrement en cours",
@@ -6189,7 +6192,10 @@
     "listAll_other": "Tous · {{count}} relevés",
     "listStretch_one": "Ce tronçon · {{count}} relevé",
     "listStretch_many": "Ce tronçon · {{count}} relevés",
-    "listStretch_other": "Ce tronçon · {{count}} relevés"
+    "listStretch_other": "Ce tronçon · {{count}} relevés",
+    "dividerV": "Faites glisser pour répartir la carte et la liste ; touchez pour changer de hauteur",
+    "toColumn": "Carte au-dessus de la liste",
+    "toRow": "Carte à côté de la liste"
   },
   "casual": {
     "dailyName": "Observations du {{date}}",

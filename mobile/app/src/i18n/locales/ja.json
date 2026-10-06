@@ -185,7 +185,10 @@
     "projectUnset": "プロジェクト未指定",
     "surveyorUnset": "調査者未入力",
     "inList": "リストにあり",
-    "cameraAdd": "撮影して追加"
+    "cameraAdd": "撮影して追加",
+    "photoByCamera": "撮影",
+    "photoFromLibrary": "アルバムから選択",
+    "photoModeHint": "長押しで撮影とアルバムを切り替え"
   },
   "records": {
     "recording": "記録中",
@@ -5689,7 +5692,10 @@
     "hereHint": "現在地で追加：和名・学名",
     "alongKm": "沿線 {{km}}",
     "listAll_other": "すべて {{count}} 件",
-    "listStretch_other": "この区間 {{count}} 件"
+    "listStretch_other": "この区間 {{count}} 件",
+    "dividerV": "ドラッグで地図とリストの高さを調整、タップで高さを切り替え",
+    "toColumn": "上下に分割",
+    "toRow": "左右に分割"
   },
   "casual": {
     "dailyName": "{{month}}月{{day}}日の観察",

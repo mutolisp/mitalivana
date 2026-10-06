@@ -15,7 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { showActionSheet } from '~/components/ActionSheet';
 import { FieldMap } from '~/components/map/FieldMap';
-import { SplitMapView, SplitRecordList } from '~/components/map/SplitMapView';
+import { SplitMapView, SplitRecordList, useSplitAxis } from '~/components/map/SplitMapView';
 import { useFieldMapData, type MapRecord } from '~/components/map/useFieldMapData';
 import {
   dayKey,
@@ -61,6 +61,9 @@ export function CasualMap() {
   // Nothing above the screen (no status-bar spacer, no recording bar): the map
   // reaches the top edge and its controls clear the status bar themselves.
   const topInset = useTopChrome((s) => s.height) === 0 ? safeTop : 0;
+  // Side by side the map runs down to the tab bar; with the map above the list
+  // its bottom edge is the divider (or the folded list's heading).
+  const mapReachesTabBar = useSplitAxis() === 'row';
   const [data, setData] = useState<Data>(load);
   const [allDays, setAllDays] = useState(false);
   const reload = useCallback(() => setData(load()), []);
@@ -167,6 +170,7 @@ export function CasualMap() {
         onShowAll={fieldMap.pickedStretch != null ? () => fieldMap.setStretch(null) : undefined}
         onTitlePress={() => void pickDays()}
         topInset={topInset}
+        bottomInset={tabBarInset}
         map={
           <FieldMap
             track={track}
@@ -186,7 +190,7 @@ export function CasualMap() {
             }}
             onRecordHere={showCaptureSheet}
             basemapPicker
-            insets={{ top: topInset, bottom: tabBarInset }}
+            insets={{ top: topInset, bottom: mapReachesTabBar ? tabBarInset : 0 }}
           />
         }
         list={
