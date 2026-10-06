@@ -5,7 +5,7 @@
  * (the sheet is also where that default is changed).
  */
 import { showCreateSheet } from '~/components/CreateRecordSheet';
-import { createPlotPromptAndOpen, startCollectionAndOpen, startSessionAndOpen } from '~/lib/recordCreate';
+import { createPlotOfType, createPlotPromptAndOpen, startCollectionAndOpen, startSessionAndOpen } from '~/lib/recordCreate';
 import { useSettings } from '~/stores/settings';
 
 export function pressPlus(): void {
@@ -13,6 +13,7 @@ export function pressPlus(): void {
   if (d === 'session') startSessionAndOpen();
   else if (d === 'plot') createPlotPromptAndOpen();
   else if (d === 'collection') startCollectionAndOpen();
+  else if (d === 'transect' || d === 'point_count') void createPlotOfType(d);
   else void showCreateSheet();
 }
 

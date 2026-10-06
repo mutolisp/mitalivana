@@ -43,11 +43,18 @@ import { pendingMediaCount, retryPendingMedia } from '~/lib/mediaSync';
 import { retryCensusMedia } from '~/survey/censusSync';
 import { syncFailuresText, teamSyncErrorText } from '~/lib/teamSyncText';
 import { useToast } from '~/stores/toast';
+import { AdvancedFold } from '~/components/AdvancedFold';
+import { shows, vis } from '~/lib/usageMode';
+import { useUsageMode } from '~/lib/useUsageMode';
 
 const when = (ms: number | null | undefined) => (ms ? isoStamp(ms).slice(0, 16) : null);
 
 export default function TeamScreen() {
   const { t } = useTranslation();
+  // Inviting, moving, limits and deleting the cloud copy are the
+  // coordinator's, in pro mode; volunteers sync and leave (Q6).
+  const mode = useUsageMode();
+  const admin = shows(mode, 'teamAdmin');
   const router = useRouter();
   const toast = useToast((s) => s.show);
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -238,6 +245,10 @@ export default function TeamScreen() {
       },
     ]);
 
+  const logRow = (
+    <LinkRow label={t('teamSync.log.title')} description={t('teamSync.log.desc')} onPress={() => router.push(`/settings/team-log?team=${teamId}` as Href)} />
+  );
+
   return (
     <SettingsPage title={team.name}>
       <ScrollView
@@ -285,7 +296,9 @@ export default function TeamScreen() {
           {team.last_sync_at ? (
             <LinkRow label={t('teamSync.lastSyncLabel')} value={when(team.last_sync_at) ?? ''} chevron={false} onPress={() => undefined} />
           ) : null}
-          <LinkRow label={t('teamSync.showInvite')} onPress={() => router.push(`/settings/team-invite?team=${teamId}` as Href)} />
+          {admin ? (
+            <LinkRow label={t('teamSync.showInvite')} onPress={() => router.push(`/settings/team-invite?team=${teamId}` as Href)} />
+          ) : null}
         </Section>
 
         <Section title={t('teamSync.members')}>
@@ -327,7 +340,7 @@ export default function TeamScreen() {
             chevron={false}
             onPress={() => void loadUsage()}
           />
-          <LinkRow label={t('teamSync.log.title')} description={t('teamSync.log.desc')} onPress={() => router.push(`/settings/team-log?team=${teamId}` as Href)} />
+          {vis(mode, 'teamLog') === 'show' ? logRow : null}
           {pendingFiles ? (
             <LinkRow
               label={t('teamSync.pendingFiles', { n: pendingFiles })}
@@ -342,7 +355,7 @@ export default function TeamScreen() {
               }
             />
           ) : null}
-          {isAdmin ? <LinkRow label={t('teamSync.limitsTitle')} onPress={() => void adjustLimits()} /> : null}
+          {isAdmin && admin ? <LinkRow label={t('teamSync.limitsTitle')} onPress={() => void adjustLimits()} /> : null}
           {/* Media_sync.md phase 0 test tool, development builds only. */}
           {__DEV__ ? (
             <LinkRow label={t('teamSync.mediaTest.title')} onPress={() => router.push(`/settings/team-media-test?id=${teamId}` as Href)} />
@@ -350,10 +363,18 @@ export default function TeamScreen() {
         </Section>
 
         <Section title={t('teamSync.sectionManage')}>
-          {team.is_owner && hasKey ? <LinkRow label={t('teamSync.moveTitle')} description={t('teamSync.moveDesc')} onPress={() => void move()} /> : null}
+          {team.is_owner && hasKey && admin ? <LinkRow label={t('teamSync.moveTitle')} description={t('teamSync.moveDesc')} onPress={() => void move()} /> : null}
           <LinkRow label={t('teamSync.leave')} destructive chevron={false} onPress={leave} />
-          {team.is_owner ? <LinkRow label={t('teamSync.deleteCloud')} destructive chevron={false} onPress={deleteCloud} /> : null}
+          {team.is_owner && admin ? <LinkRow label={t('teamSync.deleteCloud')} destructive chevron={false} onPress={deleteCloud} /> : null}
         </Section>
+        {vis(mode, 'teamLog') === 'adv' ? (
+          <AdvancedFold className="mx-4 mt-6">
+            {/* Section carries its own px-4 and top margin. */}
+            <View className="-mx-4 -mt-6">
+              <Section>{logRow}</Section>
+            </View>
+          </AdvancedFold>
+        ) : null}
       </ScrollView>
     </SettingsPage>
   );

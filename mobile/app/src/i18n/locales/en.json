@@ -368,7 +368,8 @@
     "privacy": "Privacy policy",
     "miren": "MIREN survey",
     "survey": "Tree census",
-    "addRecords": "Add records"
+    "addRecords": "Add records",
+    "plot_vol": "Transects / point counts"
   },
   "tab": {
     "menu": "Settings",
@@ -405,7 +406,8 @@
     "kindGloria": "GLORIA summit survey",
     "moreActions": "More actions",
     "kindMiren": "MIREN road / trail survey",
-    "kindModular": "Checklist / plot-style survey"
+    "kindModular": "Checklist / plot-style survey",
+    "kindPlot_vol": "Transects / point counts"
   },
   "rank": {
     "kingdom": "Kingdom",
@@ -840,7 +842,11 @@
     "numMin": "Value must be at least {{min}}",
     "numMax": "Value must be at most {{max}}",
     "numAbove": "Value must be greater than {{min}}",
-    "numAboveMax": "Value must be greater than {{min}} and at most {{max}}"
+    "numAboveMax": "Value must be greater than {{min}} and at most {{max}}",
+    "tabEnv_vol": "Basic info",
+    "plotidLabel": "Plotid",
+    "plotidLabel_vol": "ID",
+    "placeAndNotes": "Place and notes"
   },
   "settings": {
     "sectionAppearance": "Appearance & interaction",
@@ -968,7 +974,12 @@
     "searchCount_one": "{{count}} match",
     "searchCount_other": "{{count}} matches",
     "moduleSurvey": "Tree census",
-    "moduleSurveyDesc": "Stem mapping and recensus of forest dynamics plots (in development)"
+    "moduleSurveyDesc": "Stem mapping and recensus of forest dynamics plots (in development)",
+    "advancedGroup": "Advanced settings",
+    "searchPlaceholder_vol": "Search settings, e.g. GPS, backup, dark",
+    "searchPlaceholder_casual": "Search settings, e.g. backup, iNaturalist, dark",
+    "gpsPerSpeciesPlot_vol": "Transects / point counts: locate each species",
+    "exportPrefDesc_vol": "Geo formats, photos, document format, ranks and conservation fields"
   },
   "taxonomy": {
     "loadingTree": "Loading taxonomy tree...",
@@ -1598,7 +1609,8 @@
     "plotRecording": "Plot recording: {{id}}",
     "gloriaRecording": "GLORIA survey in progress · mocy {{mocy}}",
     "mirenRecording": "MIREN survey in progress · {{year}}",
-    "surveyRecording": "Surveying: {{name}}"
+    "surveyRecording": "Surveying: {{name}}",
+    "plotRecording_vol": "Surveying: {{id}}"
   },
   "speciesSearch": {
     "hint": "Search species by common / scientific / family name below,{{br}}then view details here after selecting."
@@ -2136,7 +2148,8 @@
     "selectedPlots_one": "Using the {{count}} selected plot as sampling units",
     "selectedPlots_other": "Using the {{count}} selected plots as sampling units",
     "effective": "≈ {{n}} effective spp.",
-    "hillInf": "≈ {{n}} effective dominants"
+    "hillInf": "≈ {{n}} effective dominants",
+    "hideCard": "Hide diversity statistics"
   },
   "report": {
     "navTitle": "Analysis report",
@@ -4005,7 +4018,8 @@
       "bubble": "Syncing",
       "bubblePct": "Syncing, {{pct}}%",
       "bubbleHint": "Tap to show the sync progress; drag to move it"
-    }
+    },
+    "advSummary": "sync log, servers"
   },
   "teamDeploy": {
     "title": "Use my own Cloudflare",
@@ -4433,6 +4447,7 @@
     "isDefault": "Default",
     "ask": "Ask",
     "importFile": "Import file",
+    "importPlanFile": "Import a file from your project",
     "plotPageSubtitle": "Choose a plot type",
     "plotFixedDesc": "Layered vegetation: cover and height per layer",
     "plotTransectDesc": "Survey along a line, with a GPS track",
@@ -4499,7 +4514,8 @@
     "tabBarMode": "tab bar tabs fold collapse round button floating navigation",
     "undoDuration": "undo seconds toast",
     "storage": "storage space cache clean",
-    "moduleSurvey": "tree census stem mapping forest dynamics ForestGEO DBH recensus tag"
+    "moduleSurvey": "tree census stem mapping forest dynamics ForestGEO DBH recensus tag",
+    "usageMode": "mode professional volunteer casual simple"
   },
   "quadrat": {
     "cover": {
@@ -5779,5 +5795,113 @@
     "separate": "A second record as {{picked}}",
     "acceptedOnlyTitle": "Accepted names only here",
     "acceptedOnly": "Records here keep the accepted name only: {{typed}}, the name you picked, is recorded as {{accepted}}."
+  },
+  "mode": {
+    "title": "Usage mode",
+    "titleDesc": "Professional survey, volunteer survey or casual",
+    "change": "Change",
+    "switchNote": "Switching only changes what you see. Every record stays, and records of other kinds still open.",
+    "switched": "Switched to \"{{mode}}\"",
+    "pro": "Professional survey",
+    "proDesc": "Everything: layered fixed plots, frequency, specimen collecting and survey modules",
+    "proGet1": "Every screen and field there is today",
+    "proGet2": "Braun-Blanquet, % cover, DBH and other abundance measures",
+    "proGet3": "GLORIA, MIREN, tree census and other modules can be turned on in Settings",
+    "vol": "Volunteer survey",
+    "volDesc": "For organised surveys: quick checklists, transects and point counts",
+    "volGet1": "Only these three record types, with fewer fields",
+    "volGet2": "Counts are numbers of individuals",
+    "volGet3": "Tracks, observers and projects are kept and can be exported for the project",
+    "casual": "Casual",
+    "casualDesc": "Take a photo or record a sound now, find out the species later",
+    "casualGet1": "＋ opens the camera or recorder straight away",
+    "casualGet2": "Not sure what it is yet? Save it as \"to identify\"",
+    "casualGet3": "Sorted by day under \"My observations\", ready for iNaturalist",
+    "gateTitle": "How will you mainly use it?",
+    "gateIntro": "Pick one to start. You can change it any time under Settings › Usage mode; your records stay.",
+    "gateStart": "Start with \"{{mode}}\"",
+    "gateNext": "Next: download the species checklist",
+    "importBlockedTitle": "This file needs professional mode",
+    "importBlockedMsg": "Volunteer mode imports quick checklists, transects and point counts only. Switch to professional survey under Settings › Usage mode, then import it.",
+    "advanced": "Advanced",
+    "advancedHide": "Hide advanced",
+    "advancedWith": "Advanced: {{summary}}",
+    "advSpecies": "other attributes, identifiers",
+    "advPlot": "method, terrain, ground cover…"
+  },
+  "obsNotes": {
+    "title": "Observation notes",
+    "subtitle": "Optional · tips for {{group}}",
+    "reproQuestion": "Any flowers, fruit or spores?",
+    "tipsHeading": "Things to note (tap to start a line)"
+  },
+  "obsTips": {
+    "plant": {
+      "name": "plants",
+      "placeholder": "e.g. pink flowers, mostly along the top of the shrubs by the trail",
+      "leaf": "Leaves opposite or alternate? Toothed edges?",
+      "leafStart": "Leaves: ",
+      "habitat": "Where it grows: roadside, under trees, by water",
+      "habitatStart": "Habitat: ",
+      "height": "Roughly how tall",
+      "heightStart": "Height about ",
+      "smell": "Any scent or sap",
+      "smellStart": "Scent or sap: ",
+      "shot": "Take close-ups of flowers, fruit or seeds; they make it easier to identify later",
+      "shotButton": "Close-up"
+    },
+    "bird": {
+      "name": "birds",
+      "placeholder": "e.g. singing in the canopy, another answering further off",
+      "behaviour": "What it is doing: feeding, singing, nesting",
+      "behaviourStart": "Behaviour: ",
+      "flock": "How many, in a flock or not",
+      "flockStart": "Number and grouping: ",
+      "call": "What the call sounds like",
+      "callStart": "Call: ",
+      "perch": "Where it is perched",
+      "perchStart": "Position: ",
+      "shot": "If you hear it, record a clip; calls are often easier to identify than looks"
+    },
+    "insect": {
+      "name": "insects",
+      "placeholder": "e.g. feeding on Hydrangea flowers, wingspan about 12 cm",
+      "host": "What plant it is on",
+      "hostStart": "On: ",
+      "behaviour": "What it is doing: feeding, egg-laying, mating",
+      "behaviourStart": "Behaviour: ",
+      "size": "Roughly how big",
+      "sizeStart": "Size about ",
+      "count": "How many",
+      "countStart": "Number: ",
+      "shot": "Photograph both sides of the wings; the pattern is the best clue",
+      "shotButton": "Other side"
+    },
+    "animal": {
+      "name": "animals",
+      "placeholder": "e.g. basking on a rock by the stream",
+      "behaviour": "What it is doing: feeding, resting, moving",
+      "behaviourStart": "Behaviour: ",
+      "size": "Roughly how big",
+      "sizeStart": "Size about ",
+      "where": "Where you found it: ground, tree, water",
+      "whereStart": "Position: ",
+      "signs": "Any signs: tracks, droppings, calls",
+      "signsStart": "Signs: ",
+      "shot": "Photograph the whole animal and its side if you can; a sound recording helps when you cannot see it well",
+      "shotButton": "Photo"
+    },
+    "other": {
+      "name": "this observation",
+      "placeholder": "e.g. growing on a fallen log, in a cluster",
+      "substrate": "What it grows or sits on",
+      "substrateStart": "On: ",
+      "look": "Roughly how big, what colour",
+      "lookStart": "Size and colour: ",
+      "count": "Single or in a group",
+      "countStart": "Number: ",
+      "shot": "Take a few photos from different angles",
+      "shotButton": "Photo"
+    }
   }
 }

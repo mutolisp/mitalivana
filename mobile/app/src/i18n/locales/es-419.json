@@ -9,7 +9,9 @@
     "backupDesc": "Respaldo y restauración de datos y fotos"
   },
   "settings": {
-    "clearAllConfirmMsg": "Se eliminarán todos los registros, proyectos y configuraciones. Los datos de especies de TaiCOL se conservan."
+    "clearAllConfirmMsg": "Se eliminarán todos los registros, proyectos y configuraciones. Los datos de especies de TaiCOL se conservan.",
+    "searchPlaceholder_vol": "Buscar, p. ej. GPS, respaldo, oscuro",
+    "searchPlaceholder_casual": "Buscar, p. ej. respaldo, iNaturalist, oscuro"
   },
   "backup": {
     "backupFailed": "Error en el respaldo",

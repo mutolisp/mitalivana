@@ -334,7 +334,8 @@
     "privacy": "개인정보 처리방침",
     "miren": "MIREN 조사",
     "survey": "매목조사",
-    "addRecords": "기록 추가"
+    "addRecords": "기록 추가",
+    "plot_vol": "트랜섹트／정점 조사"
   },
   "tab": {
     "menu": "설정",
@@ -371,7 +372,8 @@
     "kindGloria": "GLORIA 정상 조사",
     "moreActions": "추가 작업",
     "kindMiren": "MIREN 도로/탐방로 조사",
-    "kindModular": "목록형／조사구형 조사"
+    "kindModular": "목록형／조사구형 조사",
+    "kindPlot_vol": "트랜섹트／정점 조사"
   },
   "rank": {
     "kingdom": "계",
@@ -797,7 +799,11 @@
     "numMin": "값은 {{min}} 이상이어야 합니다",
     "numMax": "값은 {{max}} 이하여야 합니다",
     "numAbove": "값은 {{min}}보다 커야 합니다",
-    "numAboveMax": "값은 {{min}}보다 크고 {{max}} 이하여야 합니다"
+    "numAboveMax": "값은 {{min}}보다 크고 {{max}} 이하여야 합니다",
+    "tabEnv_vol": "기본 정보",
+    "plotidLabel": "Plotid",
+    "plotidLabel_vol": "번호",
+    "placeAndNotes": "장소와 비고"
   },
   "settings": {
     "sectionAppearance": "외관과 조작",
@@ -918,7 +924,12 @@
     "updateTag": "업데이트",
     "searchCount_other": "{{count}}개 일치",
     "moduleSurvey": "매목조사",
-    "moduleSurveyDesc": "산림 동태 조사구의 매목 위치와 재조사(개발 중)"
+    "moduleSurveyDesc": "산림 동태 조사구의 매목 위치와 재조사(개발 중)",
+    "advancedGroup": "고급 설정",
+    "searchPlaceholder_vol": "설정 검색 (예: 위치, 백업, 다크)",
+    "searchPlaceholder_casual": "설정 검색 (예: 백업, iNaturalist, 다크)",
+    "gpsPerSpeciesPlot_vol": "트랜섹트／정점 조사: 종마다 자동 위치 기록",
+    "exportPrefDesc_vol": "지리 형식, 사진, 문서 형식, 계급과 보전 상태"
   },
   "taxonomy": {
     "loadingTree": "분류 트리 불러오는 중...",
@@ -1499,7 +1510,8 @@
     "plotRecording": "조사구 기록 중: {{id}}",
     "gloriaRecording": "GLORIA 조사 중 · mocy {{mocy}}",
     "mirenRecording": "MIREN 조사 중 · {{year}}",
-    "surveyRecording": "조사 중: {{name}}"
+    "surveyRecording": "조사 중: {{name}}",
+    "plotRecording_vol": "조사 중: {{id}}"
   },
   "speciesSearch": {
     "hint": "아래에서 일반명 / 학명 / 과명으로 종을 검색하고,{{br}}결과를 선택하면 여기에 상세 정보가 표시됩니다."
@@ -2005,7 +2017,8 @@
     "crossResult_other": "조사구 {{count}}개 · 기록된 {{sObs}}종 · 추정 종 풀 ≥ {{est}}종",
     "selectedPlots_other": "선택한 조사구 {{count}}개를 표본 단위로 사용",
     "effective": "≈ 유효 종수 {{n}}",
-    "hillInf": "≈ 유효 우점종 {{n}}"
+    "hillInf": "≈ 유효 우점종 {{n}}",
+    "hideCard": "다양성 통계 접기"
   },
   "report": {
     "navTitle": "분석 보고서",
@@ -3813,7 +3826,8 @@
       "bubble": "동기화 중",
       "bubblePct": "동기화 중 {{pct}}%",
       "bubbleHint": "탭하면 동기화 진행 상황을 펼치고, 끌어서 옮길 수 있습니다"
-    }
+    },
+    "advSummary": "동기화 기록, 서버"
   },
   "teamDeploy": {
     "title": "내 Cloudflare 사용",
@@ -4238,6 +4252,7 @@
     "isDefault": "기본",
     "ask": "매번 묻기",
     "importFile": "파일 가져오기",
+    "importPlanFile": "프로젝트에서 받은 파일 가져오기",
     "plotPageSubtitle": "조사구 유형 선택",
     "plotFixedDesc": "층별 식생: 층마다 피도와 높이 기록",
     "plotTransectDesc": "선을 따라 조사, GPS 궤적 기록",
@@ -4304,7 +4319,8 @@
     "tabBarMode": "탭 바 탭 접기 둥근 버튼 플로팅 내비게이션",
     "undoDuration": "되돌리기 초 알림",
     "storage": "저장 공간 용량 캐시 정리",
-    "moduleSurvey": "매목 조사구 산림동태 ForestGEO 흉고직경 DBH 재조사 번호표"
+    "moduleSurvey": "매목 조사구 산림동태 ForestGEO 흉고직경 DBH 재조사 번호표",
+    "usageMode": "모드 전문 자원봉사 간편"
   },
   "quadrat": {
     "cover": {
@@ -5532,5 +5548,113 @@
     "separate": "{{picked}}(으)로 따로 기록",
     "acceptedOnlyTitle": "여기서는 정명만 사용",
     "acceptedOnly": "여기 기록은 정명만 저장할 수 있습니다. 선택한 {{typed}}은(는) {{accepted}}(으)로 기록됩니다."
+  },
+  "mode": {
+    "title": "사용 모드",
+    "titleDesc": "전문 조사, 자원봉사 조사 또는 간편 기록",
+    "change": "변경",
+    "switchNote": "전환하면 보이는 기능만 바뀝니다. 기록은 모두 남고, 다른 종류의 기록도 열 수 있습니다.",
+    "switched": "{{mode}} 모드로 전환했습니다",
+    "pro": "전문 조사",
+    "proDesc": "전체 기능: 고정 조사구 층위, 빈도, 표본 채집, 조사 모듈",
+    "proGet1": "현재의 모든 화면과 항목",
+    "proGet2": "Braun-Blanquet, 피도, 흉고직경 등 풍부도",
+    "proGet3": "GLORIA, MIREN, 매목조사 등 모듈은 설정에서 켜기",
+    "vol": "자원봉사 조사",
+    "volDesc": "조사 활동용: 빠른 종 목록, 트랜섹트, 정점 조사",
+    "volGet1": "이 세 가지 기록만, 항목은 간결",
+    "volGet2": "수량은 개체 수로 기록",
+    "volGet3": "궤적·조사자·프로젝트도 기록하고 계획에 내보낼 수 있음",
+    "casual": "간편 기록",
+    "casualDesc": "보면 사진이나 소리를 남기고, 종은 나중에 찾기",
+    "casualGet1": "＋ 로 카메라나 녹음을 바로 열기",
+    "casualGet2": "이름을 몰라도 ‘동정 대기’로 저장",
+    "casualGet3": "날짜별 ‘내 관찰’로 정리되고 iNaturalist에 올릴 수 있음",
+    "gateTitle": "주로 어떻게 쓰시나요?",
+    "gateIntro": "하나를 골라 시작하세요. 나중에 설정 › 사용 모드에서 언제든 바꿀 수 있고, 기록은 사라지지 않습니다.",
+    "gateStart": "{{mode}} 모드로 시작",
+    "gateNext": "다음: 종 목록 내려받기",
+    "importBlockedTitle": "이 파일은 전문 조사 모드에서 가져와야 합니다",
+    "importBlockedMsg": "자원봉사 모드에서는 빠른 종 목록, 트랜섹트, 정점 조사만 가져올 수 있습니다. 「설정 › 사용 모드」에서 전문 조사로 바꾼 뒤 가져오세요.",
+    "advanced": "고급",
+    "advancedHide": "고급 접기",
+    "advancedWith": "고급: {{summary}}",
+    "advSpecies": "기타 속성, 식별자",
+    "advPlot": "조사 방법, 지형, 지표 피도…"
+  },
+  "obsNotes": {
+    "title": "관찰 메모",
+    "subtitle": "선택 · 「{{group}}」 관찰 팁",
+    "reproQuestion": "꽃, 열매 또는 포자낭이 있나요?",
+    "tipsHeading": "적어 둘 만한 것 (누르면 첫머리가 들어갑니다)"
+  },
+  "obsTips": {
+    "plant": {
+      "name": "식물",
+      "placeholder": "예: 꽃은 분홍색, 탐방로 옆 관목 윗부분에 많음",
+      "leaf": "잎은 마주나기인가 어긋나기인가? 가장자리에 톱니가 있나요?",
+      "leafStart": "잎: ",
+      "habitat": "자라는 곳: 길가, 숲속, 물가",
+      "habitatStart": "생육 환경: ",
+      "height": "대략 높이",
+      "heightStart": "높이 약 ",
+      "smell": "향이나 즙이 있나요",
+      "smellStart": "향 또는 즙: ",
+      "shot": "꽃, 열매, 씨앗을 가까이 찍어 두면 나중에 동정하기 쉽습니다",
+      "shotButton": "근접 촬영"
+    },
+    "bird": {
+      "name": "조류",
+      "placeholder": "예: 수관층에서 지저귀고, 멀리서 다른 한 마리가 응답함",
+      "behaviour": "무엇을 하고 있나: 먹이 찾기, 지저귐, 육추",
+      "behaviourStart": "행동: ",
+      "flock": "몇 마리인지, 무리를 지었는지",
+      "flockStart": "개체 수와 무리: ",
+      "call": "울음소리는 어떤가",
+      "callStart": "울음소리: ",
+      "perch": "어디에 앉아 있나",
+      "perchStart": "위치: ",
+      "shot": "소리가 들리면 녹음해 두세요. 생김새보다 소리로 알아보기 쉬운 경우가 많습니다"
+    },
+    "insect": {
+      "name": "곤충",
+      "placeholder": "예: 수국류 꽃에서 흡밀, 날개 편 길이 약 12 cm",
+      "host": "어떤 식물에 앉아 있나",
+      "hostStart": "앉은 식물: ",
+      "behaviour": "무엇을 하고 있나: 흡밀, 산란, 짝짓기",
+      "behaviourStart": "행동: ",
+      "size": "대략 크기",
+      "sizeStart": "크기 약 ",
+      "count": "몇 마리인가",
+      "countStart": "개체 수: ",
+      "shot": "날개 앞면과 뒷면을 모두 찍으면 무늬로 알아보기 쉽습니다",
+      "shotButton": "반대쪽 촬영"
+    },
+    "animal": {
+      "name": "동물",
+      "placeholder": "예: 계곡 옆 바위 위에서 햇볕을 쬐고 있었음",
+      "behaviour": "무엇을 하고 있나: 먹이 찾기, 휴식, 이동",
+      "behaviourStart": "행동: ",
+      "size": "대략 크기",
+      "sizeStart": "크기 약 ",
+      "where": "발견한 곳: 땅, 나무 위, 물속",
+      "whereStart": "위치: ",
+      "signs": "흔적이 있나: 발자국, 배설물, 울음소리",
+      "signsStart": "흔적: ",
+      "shot": "가능하면 전신과 옆모습을 찍으세요. 잘 보이지 않을 때는 녹음도 도움이 됩니다",
+      "shotButton": "사진 찍기"
+    },
+    "other": {
+      "name": "기타",
+      "placeholder": "예: 쓰러진 나무 위에 무리 지어 자람",
+      "substrate": "무엇 위에 자라거나 붙어 있나",
+      "substrateStart": "기질: ",
+      "look": "대략 크기와 색",
+      "lookStart": "크기와 색: ",
+      "count": "하나인지 무리인지",
+      "countStart": "수: ",
+      "shot": "여러 각도에서 찍어 두세요",
+      "shotButton": "사진 찍기"
+    }
   }
 }

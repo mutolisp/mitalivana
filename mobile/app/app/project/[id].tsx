@@ -38,6 +38,10 @@ import { useSettings } from '~/stores/settings';
 import { listMirenSurveysOfProject } from '~/modules/miren/db';
 import { useThemeColors } from '~/theme/colors';
 import { LinkChevron } from '~/components/ui/Chevron';
+import { MenuButton, showMenu } from '~/components/OverflowMenu';
+import { modeSections } from '~/lib/modeMenu';
+import { shows, vis } from '~/lib/usageMode';
+import { useUsageMode } from '~/lib/useUsageMode';
 
 export default function ProjectDetailScreen() {
   const tc = useThemeColors();
@@ -45,6 +49,7 @@ export default function ProjectDetailScreen() {
   const projectId = Number(id);
   const router = useRouter();
   const { t } = useTranslation();
+  const mode = useUsageMode();
 
   const [project, setProject] = useState<Project | null>(null);
   const [records, setRecords] = useState<RecordItem[]>([]);
@@ -151,6 +156,33 @@ export default function ProjectDetailScreen() {
     else router.push(`/plot/${item.id}` as Href);
   };
 
+  // Report and export: two header icons in pro mode; volunteers find them
+  // under ⋯ › 進階 (the header's right side holds only ⋯ in new layouts).
+  const reportVis = vis(mode, 'analysisReport');
+  const exportVis = vis(mode, 'projectExport');
+  const headerActions =
+    reportVis === 'show' && exportVis === 'show' ? 'icons' : reportVis === 'hide' && exportVis === 'hide' ? 'none' : 'menu';
+  const openAdvancedMenu = async (anchor: Parameters<typeof showMenu>[0]) => {
+    const choice = await showMenu(
+      anchor,
+      modeSections(
+        mode,
+        [
+          {
+            items: [
+              { kind: 'action', id: 'report', label: t('report.navTitle'), icon: 'document-text-outline' },
+              { kind: 'action', id: 'export', label: t('common.export'), icon: 'share-outline' },
+            ],
+          },
+        ],
+        { report: 'analysisReport', export: 'projectExport' },
+        t('mode.advanced'),
+      ),
+    );
+    if (choice === 'report') router.push(`/report/project/${projectId}` as Href);
+    else if (choice === 'export' && !busy) setSheetOpen(true);
+  };
+
   if (!project) {
     return (
       <SafeAreaView edges={['bottom']} className="flex-1 bg-gray-50 dark:bg-gray-950">
@@ -201,17 +233,23 @@ export default function ProjectDetailScreen() {
                 onPress={() => setSetting('records_layout', layout === 'card' ? 'list' : 'card')}
                 label={t(layout === 'card' ? 'records.layoutToList' : 'records.layoutToCard')}
               />
-              <HeaderIconButton
-                icon="document-text-outline"
-                onPress={() => router.push(`/report/project/${projectId}` as Href)}
-                label={t('report.navTitle')}
-              />
-              <HeaderIconButton
-                icon="share-outline"
-                onPress={() => setSheetOpen(true)}
-                disabled={busy}
-                label={t('common.export')}
-              />
+              {headerActions === 'icons' ? (
+                <>
+                  <HeaderIconButton
+                    icon="document-text-outline"
+                    onPress={() => router.push(`/report/project/${projectId}` as Href)}
+                    label={t('report.navTitle')}
+                  />
+                  <HeaderIconButton
+                    icon="share-outline"
+                    onPress={() => setSheetOpen(true)}
+                    disabled={busy}
+                    label={t('common.export')}
+                  />
+                </>
+              ) : headerActions === 'menu' ? (
+                <MenuButton onOpen={openAdvancedMenu} />
+              ) : null}
             </View>
           ),
         }}
@@ -245,11 +283,13 @@ export default function ProjectDetailScreen() {
                 ) : null}
               </View>
             ) : null}
-            <CrossPlotChao2Card
-              plots={records
-                .filter((r) => r.kind === 'plot')
-                .map((r) => ({ id: r.id, title: r.title }))}
-            />
+            {shows(mode, 'crossPlotStats') ? (
+              <CrossPlotChao2Card
+                plots={records
+                  .filter((r) => r.kind === 'plot')
+                  .map((r) => ({ id: r.id, title: r.title }))}
+              />
+            ) : null}
             <View className="px-4 py-2">
               <Text className="text-xs text-gray-500 dark:text-gray-400">
                 {t('projectDetail.stats', {
@@ -268,7 +308,7 @@ export default function ProjectDetailScreen() {
                 {counts.perm_survey > 0 ? ` · ${t('survey.census.projectCount', { count: counts.perm_survey })}` : ''}
                 {counts.modular > 0 ? ` · ${t('surveyForm.projectCount', { count: counts.modular })}` : ''}
               </Text>
-              {counts.gloria > 0 ? (
+              {counts.gloria > 0 && shows(mode, 'recordKindsAll') ? (
                 <Pressable
                   onPress={() => router.push(`/report/gloriaProject/${projectId}` as Href)}
                   accessibilityRole="button"
@@ -282,7 +322,7 @@ export default function ProjectDetailScreen() {
           </View>
         }
         ListFooterComponent={
-          mirens.length > 0 ? (
+          mirens.length > 0 && shows(mode, 'recordKindsAll') ? (
             <View className="mx-3 mt-2 gap-2">
               <Text className="px-1 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{t('projectDetail.mirenTitle')}</Text>
               {mirens.map((m) => (

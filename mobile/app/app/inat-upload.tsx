@@ -37,6 +37,9 @@ import {
 import { useExportShare } from '~/lib/useExportShare';
 import { useSettings } from '~/stores/settings';
 import { useThemeColors } from '~/theme/colors';
+import { AdvancedFold } from '~/components/AdvancedFold';
+import { vis } from '~/lib/usageMode';
+import { useUsageMode } from '~/lib/useUsageMode';
 import { SelectMark } from '~/components/ui/SelectMark';
 
 /** Rough transfer size for the confirm-if-large prompt; originals go up
@@ -47,6 +50,8 @@ const AUDIO_BYTES = 1 * 1024 * 1024;
 const KINDS: InatKind[] = ['session', 'plot', 'collection'];
 
 export default function InatUploadScreen() {
+  // Free-text tags: under 進階 in the simpler modes (an event code, when asked for).
+  const tagsVis = vis(useUsageMode(), 'inatTags');
   const c = useThemeColors();
   const params = useLocalSearchParams<{ kind?: string; id?: string; record?: string }>();
   const kind = (KINDS as string[]).includes(params.kind ?? '') ? (params.kind as InatKind) : 'session';
@@ -198,6 +203,21 @@ export default function InatUploadScreen() {
     );
   };
 
+  const tagsField = (
+    <>
+      <Text className="mt-3 mb-1 text-xs font-medium text-gray-600 dark:text-gray-400">{t('inat.tags')}</Text>
+      <TextInput
+        value={tagsText}
+        onChangeText={setTagsText}
+        editable={!running}
+        placeholder={t('inat.tagsPlaceholder')}
+        placeholderTextColor={c.ink3}
+        autoCapitalize="none"
+        className="rounded-lg border border-gray-300 dark:border-gray-600 bg-card dark:bg-gray-900 px-3 py-2 text-base text-gray-900 dark:text-gray-100"
+      />
+    </>
+  );
+
   return (
     <SafeAreaView edges={['bottom']} className="flex-1 bg-gray-50 dark:bg-gray-950">
       <Stack.Screen options={{ title: list.title ? `${t('nav.inatUpload')} · ${list.title}` : t('nav.inatUpload') }} />
@@ -223,16 +243,7 @@ export default function InatUploadScreen() {
               {list.skippedNoMedia > 0 ? ` · ${t('inat.skippedNoMedia', { count: list.skippedNoMedia })}` : ''}
             </Text>
 
-            <Text className="mt-3 mb-1 text-xs font-medium text-gray-600 dark:text-gray-400">{t('inat.tags')}</Text>
-            <TextInput
-              value={tagsText}
-              onChangeText={setTagsText}
-              editable={!running}
-              placeholder={t('inat.tagsPlaceholder')}
-              placeholderTextColor={c.ink3}
-              autoCapitalize="none"
-              className="rounded-lg border border-gray-300 dark:border-gray-600 bg-card dark:bg-gray-900 px-3 py-2 text-base text-gray-900 dark:text-gray-100"
-            />
+            {tagsVis === 'show' ? tagsField : null}
 
             <View className="mt-3">
               <SelectRow
@@ -244,6 +255,7 @@ export default function InatUploadScreen() {
                 disabled={running}
               />
             </View>
+            {tagsVis === 'adv' ? <AdvancedFold className="mt-3">{tagsField}</AdvancedFold> : null}
             <View className="mt-3 flex-row items-center justify-between">
               <Text className="text-xs font-medium text-gray-600 dark:text-gray-400">{t('inat.recordsHeader')}</Text>
               {!running ? (

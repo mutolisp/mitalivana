@@ -36,11 +36,17 @@ import {
 import { duplicateNames } from '~/lib/teamPick';
 import { teamSyncErrorText } from '~/lib/teamSyncText';
 import { isHttpsUrl } from '~/lib/teamCrypto';
+import { AdvancedFold } from '~/components/AdvancedFold';
+import { shows, vis } from '~/lib/usageMode';
+import { useUsageMode } from '~/lib/useUsageMode';
 
 type Row = Team & { hasKey: boolean; queued: number };
 
 export default function TeamSyncScreen() {
   const { t } = useTranslation();
+  // Volunteers join, sync and leave; creating a team, inviting and running a
+  // server is the coordinator's, in pro mode. Servers and the log fold away.
+  const mode = useUsageMode();
   const router = useRouter();
   const [teams, setTeams] = useState<Row[]>([]);
   const [servers, setServers] = useState<{ def: string; known: KnownServer[] }>({ def: DEFAULT_SERVER, known: [] });
@@ -128,6 +134,39 @@ export default function TeamSyncScreen() {
 
   const dupNames = duplicateNames(teams);
 
+  const logRow = (
+    <LinkRow label={t('teamSync.log.titleAll')} description={t('teamSync.log.desc')} onPress={() => router.push('/settings/team-log' as Href)} />
+  );
+  // Every server once: its short name (v71) and address, what it is; tap for name / default / forget.
+  const serversSection = (
+    <Section title={t('teamSync.sectionServers')}>
+      {[DEFAULT_SERVER, ...servers.known.map((x) => x.url)].map((u) => {
+        const named = serverLabel(u) !== hostOf(u);
+        const tags = [
+          u === DEFAULT_SERVER ? t('teamSync.aliasBuiltin') : null,
+          servers.known.find((x) => x.url === u)?.is_own ? t('teamSync.aliasOwn') : null,
+          u === servers.def ? t('teamSync.aliasDefault') : null,
+        ].filter(Boolean);
+        return (
+          <LinkRow
+            key={u}
+            label={serverLabel(u)}
+            description={[named ? hostOf(u) : null, ...tags].filter(Boolean).join(' · ')}
+            onPress={() => void serverMenu(u)}
+          />
+        );
+      })}
+      <LinkRow label={t('teamSync.addServer')} description={t('teamSync.addServerDesc')} onPress={() => void addServer()} />
+      {shows(mode, 'teamAdmin') ? (
+        <LinkRow
+          label={t('teamSync.selfHost')}
+          description={t('teamSync.selfHostDesc')}
+          onPress={() => router.push('/settings/team-deploy' as Href)}
+        />
+      ) : null}
+    </Section>
+  );
+
   return (
     <SettingsPage>
       <ScrollView contentContainerClassName="pb-8">
@@ -163,35 +202,20 @@ export default function TeamSyncScreen() {
           )}
         </Section>
         <Section title={t('teamSync.actions')}>
-          <LinkRow label={t('teamSync.create')} onPress={() => void create()} />
+          {shows(mode, 'teamAdmin') ? <LinkRow label={t('teamSync.create')} onPress={() => void create()} /> : null}
           <LinkRow label={t('teamSync.join')} description={t('teamSync.joinDesc')} onPress={() => void join()} />
-          <LinkRow label={t('teamSync.log.titleAll')} description={t('teamSync.log.desc')} onPress={() => router.push('/settings/team-log' as Href)} />
+          {vis(mode, 'teamLog') === 'show' ? logRow : null}
         </Section>
-        {/* Every server once: its short name (v71) and address, what it is; tap for name / default / forget. */}
-        <Section title={t('teamSync.sectionServers')}>
-          {[DEFAULT_SERVER, ...servers.known.map((x) => x.url)].map((u) => {
-            const named = serverLabel(u) !== hostOf(u);
-            const tags = [
-              u === DEFAULT_SERVER ? t('teamSync.aliasBuiltin') : null,
-              servers.known.find((x) => x.url === u)?.is_own ? t('teamSync.aliasOwn') : null,
-              u === servers.def ? t('teamSync.aliasDefault') : null,
-            ].filter(Boolean);
-            return (
-              <LinkRow
-                key={u}
-                label={serverLabel(u)}
-                description={[named ? hostOf(u) : null, ...tags].filter(Boolean).join(' · ')}
-                onPress={() => void serverMenu(u)}
-              />
-            );
-          })}
-          <LinkRow label={t('teamSync.addServer')} description={t('teamSync.addServerDesc')} onPress={() => void addServer()} />
-          <LinkRow
-            label={t('teamSync.selfHost')}
-            description={t('teamSync.selfHostDesc')}
-            onPress={() => router.push('/settings/team-deploy' as Href)}
-          />
-        </Section>
+        {vis(mode, 'teamServers') === 'show' ? serversSection : null}
+        {vis(mode, 'teamLog') === 'adv' || vis(mode, 'teamServers') === 'adv' ? (
+          <AdvancedFold className="mx-4 mt-6" summary={t('teamSync.advSummary')}>
+            {/* The sections carry their own px-4 and top margin. */}
+            <View className="-mx-4 -mt-6">
+              {vis(mode, 'teamLog') === 'adv' ? <Section>{logRow}</Section> : null}
+              {vis(mode, 'teamServers') === 'adv' ? serversSection : null}
+            </View>
+          </AdvancedFold>
+        ) : null}
         <Text className="px-4 pt-3 text-xs leading-5 text-gray-500 dark:text-gray-400">
           {t('teamSync.privacy', { server: DEFAULT_SERVER.replace(/^https:\/\//, '') })}
         </Text>

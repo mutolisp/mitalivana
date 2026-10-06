@@ -1,5 +1,6 @@
 import i18n from '~/i18n';
 import { kindForType, parseDbhArray, type QuantityKind } from './dwcAbundanceCore';
+import { shows, type UsageMode } from './usageMode';
 
 // Pure helpers live in dwcAbundanceCore (Node-runnable, no ~/i18n) and are
 // re-exported here so existing call sites keep their import path.
@@ -55,8 +56,12 @@ export function findQuantityType(stored: string | null | undefined): QuantityTyp
 
 // ────────── Default suggested type per kingdom ──────────
 
-/** Sensible default quantity_type for a freshly-added taxon based on kingdom. */
-export function defaultQuantityTypeFor(kingdom: string | null | undefined): string {
+/** Sensible default quantity_type for a freshly-added taxon based on kingdom.
+ *  Volunteers count individuals of everything (`abundanceUnit`, usageMode.ts):
+ *  callers pass the mode only where the unit picker follows it (a transect or
+ *  point count's layer T), so a fixed plot keeps its vegetation default. */
+export function defaultQuantityTypeFor(kingdom: string | null | undefined, mode: UsageMode = 'pro'): string {
+  if (!shows(mode, 'abundanceUnit')) return 'individuals';
   if (!kingdom) return 'individuals';
   const k = kingdom.toLowerCase();
   if (k === 'animalia') return 'individuals';

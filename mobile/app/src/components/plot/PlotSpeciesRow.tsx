@@ -9,6 +9,7 @@ import { Pressable, Text, View } from 'react-native';
 import type { PlotSpeciesRecordWithTaxon } from '~/db';
 import { alienBadge } from '~/lib/conservationColors';
 import { formatQuantityBadge, kindForType, parseDbhArray } from '~/lib/dwcAbundance';
+import { detectionOptions } from '~/lib/dwcAttributes';
 import { ScientificName } from '~/components/ScientificName';
 import { TaxonomyJumpChip } from '~/components/TaxonomyJumpChip';
 import { SelectMark } from '~/components/ui/SelectMark';
@@ -44,6 +45,7 @@ export function PlotSpeciesRow({
   selectMode,
   picked,
   alert,
+  detection,
 }: {
   record: PlotRowRecord;
   onPress: () => void;
@@ -53,6 +55,9 @@ export function PlotSpeciesRow({
   picked: boolean;
   /** Something to fix, in the alert colour after the name (a survey occurrence's 必填未填, 2G-e). */
   alert?: string;
+  /** 目視／鳴叫／飛過 on the row itself (volunteer mode, 18j / 18m); pro mode
+   *  sets it in the value sheet. Tapping the chosen one clears it. */
+  detection?: { value: string | null; onChange: (next: string | null) => void };
 }) {
   const { t: tr } = useTranslation();
   const ab = alienBadge(record.alien_type, record.kingdom);
@@ -131,6 +136,32 @@ export function PlotSpeciesRow({
           >
             {record.notes}
           </Text>
+        ) : null}
+        {detection ? (
+          <View className="mt-1.5 flex-row flex-wrap" style={{ gap: 6 }}>
+            {detectionOptions().map((o) => {
+              const on = detection.value === o.value;
+              return (
+                <Pressable
+                  key={o.value}
+                  onPress={() => detection.onChange(on ? null : o.value)}
+                  hitSlop={4}
+                  accessibilityRole="radio"
+                  accessibilityState={{ checked: on }}
+                  className={`justify-center rounded-full border px-3 ${
+                    on
+                      ? 'border-accent-600 bg-accent-600 dark:border-accent-500 dark:bg-accent-500'
+                      : 'border-line bg-paper active:bg-gray-100 dark:border-line-dark dark:bg-paper-dark dark:active:bg-gray-800'
+                  }`}
+                  style={{ minHeight: 32 }}
+                >
+                  <Text className={`text-[13px] font-medium ${on ? 'text-white' : 'text-gray-700 dark:text-gray-300'}`}>
+                    {o.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
         ) : null}
       </View>
       <View className="ml-3 items-end">

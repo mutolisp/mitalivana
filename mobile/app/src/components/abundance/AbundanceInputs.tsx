@@ -16,6 +16,7 @@ import { basalArea } from '~/lib/dwcAbundance';
 import { ACTION_FILL } from '~/lib/colors';
 import { parseNum } from '~/lib/parseNum';
 import { useThemeColors } from '~/theme/colors';
+import { useModeT } from '~/lib/useUsageMode';
 
 const BB_OPTIONS = ['+', 'r', '1', '2', '3', '4', '5'] as const;
 
@@ -145,11 +146,12 @@ export function CountInput({
 }) {
   const c = useThemeColors();
   const { t } = useTranslation();
+  const tm = useModeT();
   return (
     <View>
       {compact ? null : (
         <Text className="mb-2 text-xs font-medium text-gray-600 dark:text-gray-400">
-          {t('plotValue.quantity')}
+          {tm('plotValue.quantity')}
         </Text>
       )}
       <View
@@ -274,6 +276,7 @@ export function CustomInput({
 }) {
   const c = useThemeColors();
   const { t } = useTranslation();
+  const tm = useModeT();
   return (
     <View className="gap-3">
       <View>
@@ -291,7 +294,7 @@ export function CustomInput({
       </View>
       <View>
         <Text className="mb-1 text-xs font-medium text-gray-600 dark:text-gray-400">
-          {t('plotValue.quantity')}
+          {tm('plotValue.quantity')}
         </Text>
         <TextInput
           value={quantityValue}

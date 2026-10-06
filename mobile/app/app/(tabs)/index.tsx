@@ -83,6 +83,9 @@ import {
   recordMatches,
   type SearchableProject,
 } from '~/lib/recordSearch';
+import { modeSections } from '~/lib/modeMenu';
+import { shows, vis } from '~/lib/usageMode';
+import { useModeT, useUsageMode } from '~/lib/useUsageMode';
 import { duplicateRecordAndOpen, importRecordPromptAndOpen } from '~/lib/recordCreate';
 import { showCreateSheet } from '~/components/CreateRecordSheet';
 import { nextRecordName } from '~/lib/recordName';
@@ -208,6 +211,7 @@ function ProjectHeader({
 }) {
   const c = useThemeColors();
   const { t } = useTranslation();
+  const mode = useUsageMode();
   const countOf = (k: RecordKind) => group.items.filter((x) => x.kind === k).length;
   const parts = (
     [
@@ -261,13 +265,14 @@ function ProjectHeader({
         <Text className="ml-2 flex-1 text-xs text-gray-500 dark:text-gray-400" numberOfLines={1}>
           {parts.join(' · ')}
         </Text>
-        {!selectMode ? (
+        {!selectMode && shows(mode, 'crossPlotStats') ? (
           <ProjectChao2Chip
             projectId={group.projectId}
             plotIds={group.items.filter((x) => x.kind === 'plot').map((x) => x.id)}
           />
         ) : null}
-        {onExport ? (
+        {/* Volunteers export a project from its page's 進階 (projects screen). */}
+        {onExport && vis(mode, 'projectExport') === 'show' ? (
           <Pressable
             onPress={onExport}
             hitSlop={8}
@@ -397,11 +402,13 @@ export default function RecordsListScreen() {
   const router = useRouter();
   const tabBarInset = useTabBarInset();
   const { t } = useTranslation();
+  const tm = useModeT();
   const sheetInsets = useSafeAreaInsets();
   const filterLabel: Record<Filter, string> = {
     all: t('records.filterAll'),
     session: t('nav.session'),
-    plot: t('nav.plot'),
+    // Volunteers' plots are transects and point counts: named so (Q5).
+    plot: tm('nav.plot'),
     collection: t('nav.collection'),
     gloria: t('nav.gloria'),
     perm_survey: t('nav.survey'),
@@ -411,6 +418,12 @@ export default function RecordsListScreen() {
   const refreshActivePlot = useActivePlot((s) => s.refresh);
   const toast = useToast((s) => s.show);
   const [filter, setFilter] = useState<Filter>('all');
+  const mode = useUsageMode();
+  const allKinds = shows(mode, 'recordKindsAll');
+  // Switching to a mode without this kind's chip: back to 全部.
+  useEffect(() => {
+    if (!allKinds && filter !== 'all' && filter !== 'session' && filter !== 'plot') setFilter('all');
+  }, [allKinds, filter]);
   // Grouped by project by default (asked for 2026-09-07); switching back to the timeline is not persisted.
   const [viewMode, setViewMode] = useState<ViewMode>('byProject');
   // Collapsed project ids (byProject view), persisted in settings (like taxonomy_expanded).
@@ -975,7 +988,7 @@ export default function RecordsListScreen() {
       toast(t('records.noneSelected'));
       return;
     }
-    const choice = await showMenu(anchor, [
+    const choice = await showMenu(anchor, modeSections(mode, [
       {
         items: [
           { kind: 'action', id: 'pin', label: t('records.star'), icon: 'star-outline' },
@@ -991,7 +1004,7 @@ export default function RecordsListScreen() {
       },
       // Destructive last and on its own, in red.
       { items: [{ kind: 'action', id: 'delete', label: t('common.delete'), icon: 'trash-outline', destructive: true }] },
-    ]);
+    ], { stats: 'crossPlotStats', merge: 'mergeRecords' }, t('mode.advanced')));
     if (!choice) return;
     if (choice === 'pin' || choice === 'unpin') {
       for (const it of selectedItems) setRecordStarred(it.kind, it.id, choice === 'pin');
@@ -1350,10 +1363,10 @@ export default function RecordsListScreen() {
     'all',
     'session',
     'plot',
-    'collection',
-    ...(moduleGloria || counts.gloria > 0 ? (['gloria'] as Filter[]) : []),
-    ...(moduleSurvey || counts.perm_survey > 0 ? (['perm_survey'] as Filter[]) : []),
-    ...(counts.modular > 0 ? (['modular'] as Filter[]) : []),
+    ...(allKinds ? (['collection'] as Filter[]) : []),
+    ...(allKinds && (moduleGloria || counts.gloria > 0) ? (['gloria'] as Filter[]) : []),
+    ...(allKinds && (moduleSurvey || counts.perm_survey > 0) ? (['perm_survey'] as Filter[]) : []),
+    ...(allKinds && counts.modular > 0 ? (['modular'] as Filter[]) : []),
   ];
   const chipLabel: Record<Filter, string> = { ...filterLabel, gloria: 'GLORIA' };
   const topBlock = selectMode ? null : (

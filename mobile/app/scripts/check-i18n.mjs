@@ -55,9 +55,9 @@ const OVERRIDE_LOCALES = [
   { file: 'src/i18n/locales/es-419.json', base: 'src/i18n/locales/es.json' },
 ];
 
-/** Matches t('a.b'), tr("a.b"), i18n.t('a.b') — single/double quotes only, so
- *  a backtick template literal is skipped rather than half-parsed. */
-const KEY_RE = /\b(?:i18n\.)?tr?\(\s*(['"])([A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)+)\1/g;
+/** Matches t('a.b'), tr("a.b"), tm('a.b') (useModeT), i18n.t('a.b') — single/double
+ *  quotes only, so a backtick template literal is skipped rather than half-parsed. */
+const KEY_RE = /\b(?:i18n\.)?t[rm]?\(\s*(['"])([A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)+)\1/g;
 
 /** t(...) whose first argument is NOT a plain quoted literal: an identifier, a
  *  member access, or a template literal. These cannot be checked statically.
@@ -67,7 +67,7 @@ const KEY_RE = /\b(?:i18n\.)?tr?\(\s*(['"])([A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)+)\1
  *  t(foo(x)) — the regex just backtracks one character and matches "fo", which
  *  reports a name that does not exist in the source. */
 const DYNAMIC_RE =
-  /\b(?:i18n\.)?tr?\(\s*(?!['"])(`[^`]*`|[A-Za-z_$][\w$]*(?:\([^()]*\))?(?:\.[\w$]+|\[[^\]]*\])*)\s*(?=[,)])/g;
+  /\b(?:i18n\.)?t[rm]?\(\s*(?!['"])(`[^`]*`|[A-Za-z_$][\w$]*(?:\([^()]*\))?(?:\.[\w$]+|\[[^\]]*\])*)\s*(?=[,)])/g;
 
 /** A t(...) argument containing a quoted literal is not a runtime-built key:
  *  it is either a ternary over two literal keys, or an inner t('literal') whose

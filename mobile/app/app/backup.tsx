@@ -37,6 +37,9 @@ import { runTask } from '~/stores/taskProgress';
 import { useToast } from '~/stores/toast';
 import { useThemeColors } from '~/theme/colors';
 import { Button } from '~/components/ui/Button';
+import { AdvancedFold } from '~/components/AdvancedFold';
+import { vis } from '~/lib/usageMode';
+import { useUsageMode } from '~/lib/useUsageMode';
 
 type Busy = null | 'backup' | 'photos' | 'restore' | 'drive' | 'cloudList' | 'cloudRestore';
 
@@ -48,6 +51,7 @@ function cloudLabel(f: DriveFile): string {
 }
 
 export default function BackupScreen() {
+  const safetyVis = vis(useUsageMode(), 'backupSafety');
   const c = useThemeColors();
   const { t } = useTranslation();
   const toast = useToast((s) => s.show);
@@ -391,7 +395,8 @@ export default function BackupScreen() {
           })}
         </Section>
 
-        {safety.length > 0 ? (
+        {safety.length > 0 && safetyVis !== 'hide' ? (
+          <SafetyFold folded={safetyVis === 'adv'}>
           <Section
             icon="shield-checkmark-outline"
             title={t('backup.safetyTitle')}
@@ -431,10 +436,16 @@ export default function BackupScreen() {
               </View>
             ))}
           </Section>
+          </SafetyFold>
         ) : null}
       </ScrollView>
     </SafeAreaView>
   );
+}
+
+/** 自動安全備份: in place in pro mode, under 進階 in the simpler ones. */
+function SafetyFold({ folded, children }: { folded: boolean; children: React.ReactNode }) {
+  return folded ? <AdvancedFold className="mx-4 mt-4">{children}</AdvancedFold> : <>{children}</>;
 }
 
 function Section({

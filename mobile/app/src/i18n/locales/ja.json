@@ -334,7 +334,8 @@
     "privacy": "プライバシーポリシー",
     "miren": "MIREN 調査",
     "survey": "毎木調査",
-    "addRecords": "記録を追加"
+    "addRecords": "記録を追加",
+    "plot_vol": "トランセクト／ポイントセンサス"
   },
   "tab": {
     "menu": "設定",
@@ -371,7 +372,8 @@
     "kindGloria": "GLORIA 山頂調査",
     "moreActions": "その他の操作",
     "kindMiren": "MIREN 道路・登山道調査",
-    "kindModular": "リスト型／プロット型調査"
+    "kindModular": "リスト型／プロット型調査",
+    "kindPlot_vol": "トランセクト／ポイントセンサス"
   },
   "rank": {
     "kingdom": "界",
@@ -797,7 +799,11 @@
     "numMin": "値は {{min}} 以上で入力してください",
     "numMax": "値は {{max}} 以下で入力してください",
     "numAbove": "値は {{min}} より大きくしてください",
-    "numAboveMax": "値は {{min}} より大きく {{max}} 以下で入力してください"
+    "numAboveMax": "値は {{min}} より大きく {{max}} 以下で入力してください",
+    "tabEnv_vol": "基本情報",
+    "plotidLabel": "Plotid",
+    "plotidLabel_vol": "番号",
+    "placeAndNotes": "場所と備考"
   },
   "settings": {
     "sectionAppearance": "外観と操作",
@@ -918,7 +924,12 @@
     "updateTag": "更新",
     "searchCount_other": "{{count}} 件一致",
     "moduleSurvey": "毎木調査",
-    "moduleSurveyDesc": "森林動態プロットの毎木位置と再調査（開発中）"
+    "moduleSurveyDesc": "森林動態プロットの毎木位置と再調査（開発中）",
+    "advancedGroup": "詳細設定",
+    "searchPlaceholder_vol": "設定を検索（例：位置、バックアップ、ダーク）",
+    "searchPlaceholder_casual": "設定を検索（例：バックアップ、iNaturalist、ダーク）",
+    "gpsPerSpeciesPlot_vol": "トランセクト／ポイントセンサス：種ごとに自動測位",
+    "exportPrefDesc_vol": "地理形式・写真・文書形式・階級と保全状況"
   },
   "taxonomy": {
     "loadingTree": "分類ツリーを読み込み中...",
@@ -1499,7 +1510,8 @@
     "plotRecording": "調査区を記録中：{{id}}",
     "gloriaRecording": "GLORIA 調査中 · mocy {{mocy}}",
     "mirenRecording": "MIREN 調査中 · {{year}}",
-    "surveyRecording": "調査中：{{name}}"
+    "surveyRecording": "調査中：{{name}}",
+    "plotRecording_vol": "調査中：{{id}}"
   },
   "speciesSearch": {
     "hint": "下の欄に一般名 / 学名 / 科名を入力して種を検索し、{{br}}選択するとここに詳細が表示されます。"
@@ -2005,7 +2017,8 @@
     "crossResult_other": "{{count}} 調査区・記録済み {{sObs}} 種・推定種プール ≥ {{est}} 種",
     "selectedPlots_other": "選択した {{count}} 個の調査区をサンプリング単位とします",
     "effective": "≈ 有効種数 {{n}}",
-    "hillInf": "≈ 有効優占種 {{n}}"
+    "hillInf": "≈ 有効優占種 {{n}}",
+    "hideCard": "多様性統計を閉じる"
   },
   "report": {
     "navTitle": "分析レポート",
@@ -3813,7 +3826,8 @@
       "bubble": "同期中",
       "bubblePct": "同期中 {{pct}}%",
       "bubbleHint": "タップで同期の進行状況を表示、ドラッグで移動"
-    }
+    },
+    "advSummary": "同期ログ・サーバー"
   },
   "teamDeploy": {
     "title": "自分の Cloudflare を使う",
@@ -4238,6 +4252,7 @@
     "isDefault": "既定",
     "ask": "毎回選ぶ",
     "importFile": "ファイルを読み込む",
+    "importPlanFile": "プロジェクトのファイルを読み込む",
     "plotPageSubtitle": "調査区の種類を選ぶ",
     "plotFixedDesc": "階層別の植生：層ごとに被度と高さを記録",
     "plotTransectDesc": "ライン沿いの調査、GPS 軌跡を記録",
@@ -4304,7 +4319,8 @@
     "tabBarMode": "タブバー タブ 折りたたみ 丸いボタン フローティング ナビゲーション",
     "undoDuration": "元に戻す 秒 通知",
     "storage": "ストレージ 容量 キャッシュ 削除",
-    "moduleSurvey": "毎木 プロット 森林動態 ForestGEO 胸高直径 DBH 再調査 番号"
+    "moduleSurvey": "毎木 プロット 森林動態 ForestGEO 胸高直径 DBH 再調査 番号",
+    "usageMode": "モード 専門 ボランティア 気軽 簡単"
   },
   "quadrat": {
     "cover": {
@@ -5532,5 +5548,113 @@
     "separate": "{{picked}} として別に記録",
     "acceptedOnlyTitle": "ここでは受理名のみ",
     "acceptedOnly": "ここの記録は受理名のみ保存できます。選んだ {{typed}} は {{accepted}} として記録されます。"
+  },
+  "mode": {
+    "title": "利用モード",
+    "titleDesc": "専門調査、ボランティア調査、または気軽に記録",
+    "change": "変更",
+    "switchNote": "切り替えで変わるのは表示される機能だけです。記録はすべて残り、ほかの種類の記録も開けます。",
+    "switched": "「{{mode}}」に切り替えました",
+    "pro": "専門調査",
+    "proDesc": "全機能：固定調査区の階層、頻度、標本採集、調査モジュール",
+    "proGet1": "現在のすべての画面と項目",
+    "proGet2": "Braun-Blanquet、被度、胸高直径などの量",
+    "proGet3": "GLORIA、MIREN、毎木調査などのモジュールは設定で有効化",
+    "vol": "ボランティア調査",
+    "volDesc": "調査活動向け：クイック種リスト、トランセクト、ポイントセンサス",
+    "volGet1": "この3種類の記録だけ、項目は簡潔",
+    "volGet2": "数は個体数で記録",
+    "volGet3": "軌跡・調査者・プロジェクトも記録し、計画へ書き出せる",
+    "casual": "気軽に記録",
+    "casualDesc": "見つけたら撮影・録音して、種は後で調べる",
+    "casualGet1": "＋ でカメラか録音をすぐ開く",
+    "casualGet2": "名前が分からなくても「同定待ち」で保存できる",
+    "casualGet3": "日付ごとの「私の観察」にまとまり、iNaturalist に投稿できる",
+    "gateTitle": "主にどう使いますか？",
+    "gateIntro": "まず一つ選んでください。あとで「設定 › 利用モード」でいつでも変えられ、記録は消えません。",
+    "gateStart": "「{{mode}}」で始める",
+    "gateNext": "次へ：種チェックリストをダウンロード",
+    "importBlockedTitle": "このファイルは専門調査モードで読み込みます",
+    "importBlockedMsg": "ボランティアモードで読み込めるのはクイック種リスト、トランセクト、ポイントセンサスだけです。「設定 › 利用モード」で専門調査に切り替えてから読み込んでください。",
+    "advanced": "詳細",
+    "advancedHide": "詳細を閉じる",
+    "advancedWith": "詳細：{{summary}}",
+    "advSpecies": "その他の属性・識別子",
+    "advPlot": "調査方法・地形・地表被度…"
+  },
+  "obsNotes": {
+    "title": "観察メモ",
+    "subtitle": "任意 · 「{{group}}」のヒント",
+    "reproQuestion": "花・果実・胞子嚢はありますか？",
+    "tipsHeading": "書いておけること（タップで書き出し）"
+  },
+  "obsTips": {
+    "plant": {
+      "name": "植物",
+      "placeholder": "例：花はピンク色、遊歩道沿いの低木の上のほうに多い",
+      "leaf": "葉は対生か互生か、縁に鋸歯はあるか",
+      "leafStart": "葉：",
+      "habitat": "生えている場所：道端、林床、水辺",
+      "habitatStart": "生育環境：",
+      "height": "だいたいの高さ",
+      "heightStart": "高さ約 ",
+      "smell": "香りや汁はあるか",
+      "smellStart": "香り・汁：",
+      "shot": "花・果実・種子のアップも撮っておくと、あとで同定しやすくなります",
+      "shotButton": "アップを撮る"
+    },
+    "bird": {
+      "name": "鳥類",
+      "placeholder": "例：樹冠でさえずり、遠くでもう 1 羽が応えていた",
+      "behaviour": "何をしているか：採食、さえずり、育雛",
+      "behaviourStart": "行動：",
+      "flock": "何羽か、群れているか",
+      "flockStart": "個体数・群れ：",
+      "call": "鳴き声はどんな感じか",
+      "callStart": "鳴き声：",
+      "perch": "どこにとまっているか",
+      "perchStart": "位置：",
+      "shot": "声が聞こえたら録音しておきましょう。姿より声のほうが同定しやすいことがよくあります"
+    },
+    "insect": {
+      "name": "昆虫",
+      "placeholder": "例：アジサイの仲間の花で吸蜜、開張約 12 cm",
+      "host": "どの植物にとまっているか",
+      "hostStart": "とまっていた植物：",
+      "behaviour": "何をしているか：吸蜜、産卵、交尾",
+      "behaviourStart": "行動：",
+      "size": "だいたいの大きさ",
+      "sizeStart": "大きさ約 ",
+      "count": "何匹いるか",
+      "countStart": "個体数：",
+      "shot": "翅の表と裏の両方を撮ると、模様で見分けやすくなります",
+      "shotButton": "反対側を撮る"
+    },
+    "animal": {
+      "name": "動物",
+      "placeholder": "例：渓流沿いの岩の上で日光浴をしていた",
+      "behaviour": "何をしているか：採食、休息、移動",
+      "behaviourStart": "行動：",
+      "size": "だいたいの大きさ",
+      "sizeStart": "大きさ約 ",
+      "where": "見つけた場所：地面、樹上、水中",
+      "whereStart": "位置：",
+      "signs": "痕跡はあるか：足跡、糞、鳴き声",
+      "signsStart": "痕跡：",
+      "shot": "できれば全身と横からの写真を。よく見えないときは録音も役に立ちます",
+      "shotButton": "撮影"
+    },
+    "other": {
+      "name": "その他",
+      "placeholder": "例：倒木の上に群生していた",
+      "substrate": "何の上に生えている・いるか",
+      "substrateStart": "基物：",
+      "look": "だいたいの大きさと色",
+      "lookStart": "大きさ・色：",
+      "count": "単独か群生か",
+      "countStart": "数：",
+      "shot": "いくつかの角度から撮っておきましょう",
+      "shotButton": "撮影"
+    }
   }
 }

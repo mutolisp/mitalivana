@@ -35,6 +35,8 @@ import {
 } from '~/lib/trackRecorder';
 import { TrackMiniMap } from './TrackMiniMap';
 import { useTranslation } from 'react-i18next';
+import { shows } from '~/lib/usageMode';
+import { useUsageMode } from '~/lib/useUsageMode';
 
 type Props = {
   plot: PlotSurvey;
@@ -43,6 +45,7 @@ type Props = {
 
 export function TransectTrackControl({ plot, onUpdated }: Props) {
   const { t } = useTranslation();
+  const mode = useUsageMode();
   const persistedSegments = parseTrackSegments(plot.track_geojson);
   const finalized = plot.track_finalized === 1;
   const plotDone = plot.status === 'done';
@@ -94,7 +97,8 @@ export function TransectTrackControl({ plot, onUpdated }: Props) {
       disabled={plotDone}
       onStart={() => void handleStart()}
       onPause={handlePause}
-      onStop={handleStop}
+      // Volunteers pause only: ending the transect stops the track anyway.
+      onStop={shows(mode, 'trackStop') ? handleStop : undefined}
     />
   );
 }

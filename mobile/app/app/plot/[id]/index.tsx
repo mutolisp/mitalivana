@@ -83,6 +83,9 @@ import {
 } from '~/components/plot/EnvSections';
 import { listQuadrats, parseQuadratConfig } from '~/db/quadrats';
 import { plotFreqIssueLines } from '~/components/quadrat/plotFreqIssueLines';
+import { AdvancedFold } from '~/components/AdvancedFold';
+import { shows, vis } from '~/lib/usageMode';
+import { currentUsageMode, useModeT, useUsageMode } from '~/lib/useUsageMode';
 
 export default function PlotDetailScreen() {
   const { t } = useTranslation();
@@ -104,7 +107,13 @@ export default function PlotDetailScreen() {
    */
   const [tab, setTab] = useState<PlotTab>(() => {
     const last = useSettings.getState().plot_last_tab;
-    return last.plotId === plotId ? last.tab : 'env';
+    if (last.plotId === plotId) return last.tab;
+    // Volunteers live on 物種 (18j / 18m): it opens first once the plot can take species.
+    if (vis(currentUsageMode(), 'plotEnvExtra') === 'adv') {
+      const p = getPlotSurvey(plotId);
+      if (p && p.plot_type !== 'fixed' && plotCanAcceptSpecies(p)) return 'species';
+    }
+    return 'env';
   });
 
   const selectTab = (next: PlotTab) => {
@@ -159,6 +168,11 @@ export default function PlotDetailScreen() {
   );
 
   const ready = plot ? plotCanAcceptSpecies(plot) : false;
+  const mode = useUsageMode();
+  const tm = useModeT();
+  // Volunteer mode on a transect or point count: 物種 first, 基本資料 second,
+  // the title's second line names the kind, diversity is under ⋯ › 進階.
+  const simple = !!plot && plot.plot_type !== 'fixed' && vis(mode, 'plotEnvExtra') === 'adv';
   // The 小樣方 tab exists only on a fixed plot with the module switched on.
   const qcfg = parseQuadratConfig(plot?.quadrat_config);
   const quadratsOn = plot?.plot_type === 'fixed' && qcfg.enabled;
@@ -194,7 +208,7 @@ export default function PlotDetailScreen() {
    *  exactly — Species and 頻度 stay shut until the survey can accept species.
    *  Only Environment and Species were reachable (code review L20). Declared
    *  before the not-found early return so the hook order is stable. */
-  const tabOrder = (['env', 'species', ...(freqOn ? ['freq'] : []), ...(quadratsOn ? ['quadrats'] : [])] as PlotTab[]).filter(
+  const tabOrder = ((simple ? ['species', 'env'] : ['env', 'species']).concat(freqOn ? ['freq'] : [], quadratsOn ? ['quadrats'] : []) as PlotTab[]).filter(
     (x) => x === 'env' || x === 'quadrats' || ready,
   );
   const tabAt = tabOrder.indexOf(shownTab);
@@ -221,14 +235,24 @@ export default function PlotDetailScreen() {
       <Stack.Screen
         options={{
           headerTitle: () => (
-            <PlotHeaderTitle
-              plotid={plot.plotid || t('nav.plot')}
-              // Only on the Species tab: on Environment the numbers would be
-              // answering a question nobody asked.
-              stats={tab === 'species' ? statsLine : null}
-              expanded={statsExpanded}
-              onToggle={() => setSetting('plot_stats_expanded', !statsExpanded)}
-            />
+            simple ? (
+              <PlotHeaderTitle
+                plotid={plot.plotid || t('nav.plot')}
+                stats={`${t(plot.plot_type === 'transect' ? 'map.plotTransect' : 'map.plotPointCount')} · ${t('plotStats.sppCount', {
+                  count: new Set(records.map((r) => r.taxon_id)).size,
+                })}`}
+                expanded={statsExpanded}
+              />
+            ) : (
+              <PlotHeaderTitle
+                plotid={plot.plotid || t('nav.plot')}
+                // Only on the Species tab: on Environment the numbers would be
+                // answering a question nobody asked.
+                stats={tab === 'species' ? statsLine : null}
+                expanded={statsExpanded}
+                onToggle={() => setSetting('plot_stats_expanded', !statsExpanded)}
+              />
+            )
           ),
           headerLeft: BackHeaderLeft,
           headerRight: () => (
@@ -237,6 +261,21 @@ export default function PlotDetailScreen() {
                 kind="plot"
                 id={plot.id}
                 reportHref={`/report/plot/${plot.id}` as Href}
+                extra={
+                  simple && vis(mode, 'plotDiversity') === 'adv'
+                    ? [
+                        {
+                          label: statsExpanded ? t('plotStats.hideCard') : t('plotStats.title'),
+                          icon: 'stats-chart-outline',
+                          cap: 'plotDiversity',
+                          onPress: () => {
+                            setSetting('plot_stats_expanded', !statsExpanded);
+                            if (!statsExpanded) selectTab('species');
+                          },
+                        },
+                      ]
+                    : []
+                }
                 onSynced={() => {
                   setRev((n) => n + 1);
                   reload();
@@ -308,13 +347,14 @@ export default function PlotDetailScreen() {
         }}
       />
       <View className="flex-row border-b border-gray-200 bg-card dark:border-gray-700 dark:bg-gray-900">
-        <TabBtn label={t('plot.tabEnv')} active={shownTab === 'env'} onPress={() => selectTab('env')} />
+        {simple ? null : <TabBtn label={t('plot.tabEnv')} active={shownTab === 'env'} onPress={() => selectTab('env')} />}
         <TabBtn
           label={`${t('plot.tabSpecies')} ${records.length > 0 ? records.length : ''}`}
           active={shownTab === 'species'}
           onPress={() => selectTab('species')}
           disabled={!ready}
         />
+        {simple ? <TabBtn label={tm('plot.tabEnv')} active={shownTab === 'env'} onPress={() => selectTab('env')} /> : null}
         {freqOn ? (
           <TabBtn
             label={`${t('plot.tabFreq')} ${freqTally.done}/${freqTally.total}`}
@@ -401,6 +441,12 @@ function EnvTab({
     [plot],
   );
   const { t } = useTranslation();
+  const tm = useModeT();
+  const mode = useUsageMode();
+  // Volunteer mode on a transect or point count (18j / 18m): what a volunteer
+  // fills stays in view, method, size and terrain fold into one 進階. A fixed
+  // plot keeps its full layout in every mode.
+  const simple = plot.plot_type !== 'fixed' && vis(mode, 'plotEnvExtra') === 'adv';
 
   const [projectSheetOpen, setProjectSheetOpen] = useState(false);
   const [surveyorSheetOpen, setSurveyorSheetOpen] = useState(false);
@@ -433,6 +479,82 @@ function EnvTab({
     }
   };
 
+  // A transect needs no plot size / unit: its track length gives its extent.
+  const sizeFields =
+    plot.plot_type !== 'transect' ? (
+      <>
+        <LabeledNumField
+          label={tm('plot.sampleSizeValue')}
+          value={plot.sample_size_value}
+          placeholder={t('plot.egSampleSize')}
+          onSave={(n) => patch({ sample_size_value: n })}
+        />
+        <LabeledField
+          label={tm('plot.sampleSizeUnit')}
+          value={plot.sample_size_unit ?? ''}
+          placeholder={t('plot.egSampleUnit')}
+          onSave={(v) => patch({ sample_size_unit: v || null })}
+        />
+      </>
+    ) : null;
+  const protocolField = (
+    <LabeledField
+      label={tm('plot.samplingProtocol')}
+      value={plot.sampling_protocol ?? ''}
+      placeholder={t('plot.egProtocol')}
+      onSave={(v) => patch({ sampling_protocol: v || null })}
+    />
+  );
+  // Total vegetation cover belongs to vegetation plots; volunteers count.
+  const totalCoverField = shows(mode, 'plotTotalCover') ? (
+    <>
+      <LabeledNumField
+        label={t('plot.totalCover')}
+        value={plot.total_cover_pct}
+        suffix="%"
+        min={0}
+        max={100}
+        onSave={(n) => patch({ total_cover_pct: n })}
+      />
+      {/* Same place and shape as the ground-cover sum hint above. Only ever a
+          note: a survey in progress legitimately has fewer species recorded
+          than the total cover implies. */}
+      {coverCheck.kind === 'total-exceeds-species' ? (
+        <Text className="mb-3 -mt-1 text-xs text-amber-700 dark:text-amber-400">
+          {t('plot.coverExceedsSpecies', {
+            total: coverCheck.total,
+            sum: coverCheck.speciesSum,
+          })}
+        </Text>
+      ) : null}
+    </>
+  ) : null;
+  const placeAndNotes = (
+    <>
+      <LabeledField
+        label={tm('plot.locality')}
+        value={plot.locality ?? ''}
+        placeholder={t('plot.egLocality')}
+        onSave={(v) => patch({ locality: v || null })}
+        multiline
+      />
+      <LabeledField
+        label={tm('plot.fieldNote')}
+        value={plot.field_note ?? ''}
+        onSave={(v) => patch({ field_note: v || null })}
+        multiline
+      />
+    </>
+  );
+  const envAdvanced = (open: boolean) => (
+    <EnvAdvancedSection
+      values={plot}
+      defaultExpanded={open || undefined}
+      // A typed elevation is a manual one (GNSS fixes set their own source).
+      onPatch={(p) => patch('elevation_m' in p ? { ...p, elevation_source: p.elevation_m != null ? 'manual' : null } : p)}
+    />
+  );
+
   return (
     <KeyboardAwareScrollView
       className="flex-1"
@@ -442,7 +564,7 @@ function EnvTab({
       {locked ? <LockedBanner /> : null}
       <View pointerEvents={locked ? 'none' : 'auto'}>
       <Section title={t('plot.required')} required>
-        <LabeledField label="Plotid" value={plot.plotid} onSave={(v) => patch({ plotid: v })} required />
+        <LabeledField label={tm('plot.plotidLabel')} value={plot.plotid} onSave={(v) => patch({ plotid: v })} required />
 
         <ProjectRow project={project} onPress={() => setProjectSheetOpen(true)} />
 
@@ -465,14 +587,19 @@ function EnvTab({
                 coord_uncertainty_m: accuracy,
               })
             }
-            onDrawBoundary={() => router.push(`/(tabs)/map?draw=Polygon&plot=${plot.id}` as Href)}
+            // A point count's extent is its radius; volunteers are not offered a boundary.
+            onDrawBoundary={
+              shows(mode, 'plotRange') && !(simple && plot.plot_type === 'point_count')
+                ? () => router.push(`/(tabs)/map?draw=Polygon&plot=${plot.id}` as Href)
+                : undefined
+            }
           />
         )}
 
         {plot.plot_type === 'point_count' ? (
           <>
             <LabeledNumField
-              label={t('plot.radius')}
+              label={tm('plot.radius')}
               value={plot.point_radius_m}
               placeholder={t('plot.egRadius')}
               suffix="m"
@@ -495,65 +622,18 @@ function EnvTab({
 
       {/* A transect has no centre-point map to carry the boundary, so it keeps
           the boundary in its own section. */}
-      {plot.plot_type === 'transect' ? <PlotBoundarySection plot={plot} /> : null}
+      {plot.plot_type === 'transect' && !simple ? <PlotBoundarySection plot={plot} /> : null}
 
-      <CollapsibleSection title={t('plot.basicInfo')}>
-        {/* A transect needs no plot size / unit: its track length gives its extent. */}
-        {plot.plot_type !== 'transect' ? (
-          <>
-            <LabeledNumField
-              label={t('plot.sampleSizeValue')}
-              value={plot.sample_size_value}
-              placeholder={t('plot.egSampleSize')}
-              onSave={(n) => patch({ sample_size_value: n })}
-            />
-            <LabeledField
-              label={t('plot.sampleSizeUnit')}
-              value={plot.sample_size_unit ?? ''}
-              placeholder={t('plot.egSampleUnit')}
-              onSave={(v) => patch({ sample_size_unit: v || null })}
-            />
-          </>
-        ) : null}
-        <LabeledField
-          label={t('plot.samplingProtocol')}
-          value={plot.sampling_protocol ?? ''}
-          placeholder={t('plot.egProtocol')}
-          onSave={(v) => patch({ sampling_protocol: v || null })}
-        />
-        <LabeledNumField
-          label={t('plot.totalCover')}
-          value={plot.total_cover_pct}
-          suffix="%"
-          min={0}
-          max={100}
-          onSave={(n) => patch({ total_cover_pct: n })}
-        />
-        {/* Same place and shape as the ground-cover sum hint above. Only ever a
-            note: a survey in progress legitimately has fewer species recorded
-            than the total cover implies. */}
-        {coverCheck.kind === 'total-exceeds-species' ? (
-          <Text className="mb-3 -mt-1 text-xs text-amber-700 dark:text-amber-400">
-            {t('plot.coverExceedsSpecies', {
-              total: coverCheck.total,
-              sum: coverCheck.speciesSum,
-            })}
-          </Text>
-        ) : null}
-        <LabeledField
-          label={t('plot.locality')}
-          value={plot.locality ?? ''}
-          placeholder={t('plot.egLocality')}
-          onSave={(v) => patch({ locality: v || null })}
-          multiline
-        />
-        <LabeledField
-          label={t('plot.fieldNote')}
-          value={plot.field_note ?? ''}
-          onSave={(v) => patch({ field_note: v || null })}
-          multiline
-        />
-      </CollapsibleSection>
+      {simple ? (
+        <Section title={t('plot.placeAndNotes')}>{placeAndNotes}</Section>
+      ) : (
+        <CollapsibleSection title={t('plot.basicInfo')}>
+          {sizeFields}
+          {protocolField}
+          {totalCoverField}
+          {placeAndNotes}
+        </CollapsibleSection>
+      )}
 
       {plot.plot_type === 'fixed' ? <LayerSection plot={plot} onUpdated={onUpdated} /> : null}
 
@@ -570,13 +650,23 @@ function EnvTab({
         </CollapsibleSection>
       ) : null}
 
-      <EnvAdvancedSection
-        values={plot}
-        // A typed elevation is a manual one (GNSS fixes set their own source).
-        onPatch={(p) => patch('elevation_m' in p ? { ...p, elevation_source: p.elevation_m != null ? 'manual' : null } : p)}
-      />
+      {simple ? null : envAdvanced(false)}
 
       <EnvPhotoSection plot={plot} onUpdated={onUpdated} />
+
+      {simple ? (
+        <AdvancedFold className="mx-4 mt-4" summary={t('mode.advPlot')}>
+          {/* The sections carry their own px-4. */}
+          <View className="-mx-4">
+            <Section title={t('plot.basicInfo')}>
+              {protocolField}
+              {sizeFields}
+            </Section>
+            {envAdvanced(true)}
+            {plot.plot_type === 'transect' && vis(mode, 'plotRange') === 'adv' ? <PlotBoundarySection plot={plot} /> : null}
+          </View>
+        </AdvancedFold>
+      ) : null}
 
       <View className="h-12" />
 

@@ -29,8 +29,12 @@ import { useToast } from '~/stores/toast';
 
 import { useThemeColors } from '~/theme/colors';
 import { Button } from '~/components/ui/Button';
+import { AdvancedFold } from '~/components/AdvancedFold';
+import { vis } from '~/lib/usageMode';
+import { useUsageMode } from '~/lib/useUsageMode';
 
 export default function InaturalistScreen() {
+  const manualVis = vis(useUsageMode(), 'inatManualToken');
   const c = useThemeColors();
   const { t } = useTranslation();
   const toast = useToast((s) => s.show);
@@ -147,33 +151,38 @@ export default function InaturalistScreen() {
           )}
         </View>
 
-        <Text className="mb-1 mt-6 px-1 text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">
-          {t('inat.fallbackTitle')}
-        </Text>
-        <View className="rounded-xl bg-card dark:bg-gray-900">
-          <Text className="px-4 pt-3 text-xs text-gray-500 dark:text-gray-400">
-            {t('inat.fallbackHint')}
+        {/* 其他方式 (a token by hand): under 進階 in the simpler modes. */}
+        {manualVis !== 'hide' ? (
+          <ManualTokenFold folded={manualVis === 'adv'}>
+          <Text className="mb-1 mt-6 px-1 text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">
+            {t('inat.fallbackTitle')}
           </Text>
-          <Pressable
-            onPress={() => void Linking.openURL(INAT_API_TOKEN_URL)}
-            className="flex-row items-center border-b border-gray-100 px-4 py-3 active:bg-gray-50 dark:border-gray-800 dark:active:bg-gray-800"
-          >
-            <Ionicons name="open-outline" size={18} color={c.accent} />
-            <Text className="ml-2 text-base text-accent-600 dark:text-accent-400">
-              {t('inat.openTokenPage')}
+          <View className="rounded-xl bg-card dark:bg-gray-900">
+            <Text className="px-4 pt-3 text-xs text-gray-500 dark:text-gray-400">
+              {t('inat.fallbackHint')}
             </Text>
-          </Pressable>
-          <Pressable
-            onPress={handlePaste}
-            disabled={busy}
-            className="flex-row items-center px-4 py-3 active:bg-gray-50 dark:active:bg-gray-800"
-          >
-            <Ionicons name="clipboard-outline" size={18} color={c.accent} />
-            <Text className="ml-2 text-base text-accent-600 dark:text-accent-400">
-              {t('inat.pasteToken')}
-            </Text>
-          </Pressable>
-        </View>
+            <Pressable
+              onPress={() => void Linking.openURL(INAT_API_TOKEN_URL)}
+              className="flex-row items-center border-b border-gray-100 px-4 py-3 active:bg-gray-50 dark:border-gray-800 dark:active:bg-gray-800"
+            >
+              <Ionicons name="open-outline" size={18} color={c.accent} />
+              <Text className="ml-2 text-base text-accent-600 dark:text-accent-400">
+                {t('inat.openTokenPage')}
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={handlePaste}
+              disabled={busy}
+              className="flex-row items-center px-4 py-3 active:bg-gray-50 dark:active:bg-gray-800"
+            >
+              <Ionicons name="clipboard-outline" size={18} color={c.accent} />
+              <Text className="ml-2 text-base text-accent-600 dark:text-accent-400">
+                {t('inat.pasteToken')}
+              </Text>
+            </Pressable>
+          </View>
+          </ManualTokenFold>
+        ) : null}
 
         {/* No uppercase section header here: the row labels itself, the way
             主題 / 卡片密度 do on the 偏好設定 root. The 其他方式 card above
@@ -193,4 +202,8 @@ export default function InaturalistScreen() {
       </ScrollView>
     </SettingsPage>
   );
+}
+
+function ManualTokenFold({ folded, children }: { folded: boolean; children: React.ReactNode }) {
+  return folded ? <AdvancedFold className="mt-6">{children}</AdvancedFold> : <>{children}</>;
 }

@@ -61,6 +61,8 @@ import { SelectionDock, SelectionToolbar } from './SelectionToolbar';
 import { useListSelection } from '~/lib/useListSelection';
 import { router, type Href } from 'expo-router';
 import { LayerChip, PlotSpeciesRow } from './plot/PlotSpeciesRow';
+import { shows } from '~/lib/usageMode';
+import { useUsageMode } from '~/lib/useUsageMode';
 import { PlotSpeciesValueModal, type PlotValueDraft } from './PlotSpeciesValueModal';
 import { parseMultiAttribute, serializeMultiAttribute } from '~/lib/dwcAttributes';
 import { useSettings, type RecordSort, type SortDirection } from '~/stores/settings';
@@ -106,6 +108,7 @@ export function PlotSpeciesTab({
 }) {
   const c = useThemeColors();
   const { t: tr } = useTranslation();
+  const usageMode = useUsageMode();
   // `stratified` = fixed plot only (has E1..E6 layers). transect + point_count
   // are non-stratified: a single 'T' bucket, no layer chips/headers. Keep the
   // transect / point-count distinction only for the user-facing copy.
@@ -696,6 +699,9 @@ export function PlotSpeciesTab({
 
   // Quick +/- adjust for individuals (count) records straight from the list,
   // without opening the value modal. Clamps to a minimum of 1.
+  // Volunteers set how a record was found on the row (transect / point count).
+  const detectionOnRow = plot.plot_type !== 'fixed' && shows(usageMode, 'detectionOnRow');
+
   const handleAdjustQuantity = (r: PlotSpeciesRecordWithTaxon, delta: number) => {
     const cur = Number(r.organism_quantity);
     const base = Number.isFinite(cur) ? cur : 0;
@@ -1169,6 +1175,21 @@ export function PlotSpeciesTab({
                 }
                 selectMode={selection.selectMode}
                 picked={selection.picked.has(item.record.id)}
+                detection={
+                  detectionOnRow &&
+                  !selection.selectMode &&
+                  !lock.locked &&
+                  (plot.plot_type === 'point_count' || item.record.kingdom === 'Animalia')
+                    ? {
+                        value: item.record.detection_type ?? null,
+                        onChange: (next) => {
+                          updatePlotSpeciesValue(item.record.id, { detection_type: next });
+                          reload();
+                          onChanged();
+                        },
+                      }
+                    : undefined
+                }
               />
             </SwipeRowActions>
           );

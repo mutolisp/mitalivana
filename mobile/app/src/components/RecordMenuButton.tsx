@@ -22,6 +22,9 @@ import { hasSecret, linkedTeams, listTeams, recordUuid, syncRecord, teamServerLa
 import { pickSyncTeam } from '~/lib/teamPickPrompt';
 import { teamSyncErrorText } from '~/lib/teamSyncText';
 import { useToast } from '~/stores/toast';
+import { modeSections } from '~/lib/modeMenu';
+import type { Cap } from '~/lib/usageMode';
+import { useUsageMode } from '~/lib/useUsageMode';
 
 export function RecordMenuButton({
   kind,
@@ -40,7 +43,7 @@ export function RecordMenuButton({
   onSynced?: () => void;
   /** Screen-specific actions, listed after undo / redo and grouped by
    *  `section` (the checklist's 加入物種: batch and photo import). */
-  extra?: { label: string; onPress: () => void; icon?: MenuIcon; section?: string; destructive?: boolean }[];
+  extra?: { label: string; onPress: () => void; icon?: MenuIcon; section?: string; destructive?: boolean; cap?: Cap }[];
   /** After everything else, in a section of their own (deleting the record). */
   last?: { label: string; onPress: () => void; icon?: MenuIcon; destructive?: boolean }[];
   /** Given (and the record unlocked): undo / redo head the menu, and the
@@ -52,6 +55,7 @@ export function RecordMenuButton({
   const { t } = useTranslation();
   const router = useRouter();
   const toast = useToast((s) => s.show);
+  const mode = useUsageMode();
   const [hasTeam, setHasTeam] = useState(false);
   const [busy, setBusy] = useState(false);
   const [hasLog, setHasLog] = useState(false);
@@ -174,7 +178,11 @@ export function RecordMenuButton({
       ],
     });
     if (z.length) out.push({ items: z.map((a, i) => ({ kind: 'action' as const, id: `last-${i}`, label: a.label, icon: a.icon, destructive: a.destructive })) });
-    return out;
+    const caps: Partial<Record<string, Cap>> = { report: 'analysisReport', versions: 'recordVersions', mergeLog: 'mergeLog' };
+    x.forEach((a, i) => {
+      if (a.cap) caps[`extra-${i}`] = a.cap;
+    });
+    return modeSections(mode, out, caps, t('mode.advanced'));
   };
 
   const open = async (anchor: RefObject<View | null>) => {

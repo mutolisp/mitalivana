@@ -25,6 +25,8 @@ import { listPlotSpecies, listSessionRecords, type RecordItem, type RecordKind }
 import { listOccurrences } from '~/survey/db/surveys';
 import { isoDateTime } from '~/lib/datetime';
 import { computeDiversity } from '~/lib/diversity';
+import { shows } from '~/lib/usageMode';
+import { useUsageMode } from '~/lib/useUsageMode';
 import { useSettings } from '~/stores/settings';
 import { useThemeColors } from '~/theme/colors';
 import { SelectMark } from './ui/SelectMark';
@@ -302,6 +304,7 @@ export function RecordListRow({
   pinned = false,
 }: CommonProps) {
   const compact = useSettings((s) => s.card_density) === 'compact';
+  const diversity = shows(useUsageMode(), 'diversityInLists');
   // An auto-named session IS its own start time; printing both is just the
   // same string twice.
   const titleIsTime = Boolean(
@@ -345,7 +348,7 @@ export function RecordListRow({
         >
           {showProject ? item.subtitlePlain : item.subtitle}
         </Text>
-        <RowDiversityLine kind={item.kind} id={item.id} />
+        {diversity ? <RowDiversityLine kind={item.kind} id={item.id} /> : null}
         {item.startedAt > 0 && !titleIsTime && !compact ? (
           <Text className="mt-0.5 text-[11px] text-gray-400 dark:text-gray-500">
             {isoDateTime(item.startedAt)}

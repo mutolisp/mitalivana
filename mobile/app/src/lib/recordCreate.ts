@@ -11,7 +11,7 @@ import { errText } from '~/lib/errText';
 import { formErrorText } from '~/survey/form/text';
 import { assertNever } from '~/lib/assertNever';
 import { router, type Href } from 'expo-router';
-import { Alert } from 'react-native';
+import { Alert, Keyboard } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import {
   createCollectionTrip,
@@ -46,6 +46,8 @@ import { importPhotosToLibrary } from '~/lib/photoCapture';
 import { importAudioClips } from '~/lib/audioCapture';
 import { ImportError, type ImportErrorCode } from '~/lib/importError';
 import { runTask } from '~/stores/taskProgress';
+import { shows } from '~/lib/usageMode';
+import { currentUsageMode } from '~/lib/useUsageMode';
 import { readRecordImport, type ReadRecordImport } from '~/lib/recordImport';
 import { useToast } from '~/stores/toast';
 import { useActivePlot } from '~/stores/activePlot';
@@ -161,8 +163,11 @@ function nounOf(k: NewRecordKind): string {
   switch (k) {
     case 'session':
       return i18n.t('nav.session');
-    case 'plot':
-      return i18n.t('nav.plot');
+    case 'plot': {
+      // Volunteers' plots are transects and point counts (nav.plot_vol, Q5).
+      const mode = currentUsageMode();
+      return i18n.t('nav.plot', { context: mode === 'pro' ? undefined : mode });
+    }
     case 'gloria':
       return i18n.t('nav.gloria');
     case 'miren':
@@ -295,7 +300,26 @@ async function promptPlotid(plotType: PlotType): Promise<void> {
     sampling_protocol: meta.protocol,
   });
   useActivePlot.getState().refresh();
+  // The plotid field's keyboard is still going down: a docked search box
+  // mounted now starts at its height and stays there (the plot can open on
+  // 物種, volunteer mode). Push once it is down.
+  await keyboardGone();
   router.push(`/plot/${id}` as Href);
+}
+
+/** Resolves once the keyboard is down, or after `ms` whatever happened. */
+function keyboardGone(ms = 600): Promise<void> {
+  if (!Keyboard.isVisible()) return Promise.resolve();
+  return new Promise((resolve) => {
+    const done = () => {
+      sub.remove();
+      clearTimeout(timer);
+      resolve();
+    };
+    const sub = Keyboard.addListener('keyboardDidHide', done);
+    const timer = setTimeout(done, ms);
+    Keyboard.dismiss();
+  });
 }
 
 /**
@@ -482,6 +506,13 @@ export async function importRecordPromptAndOpen(): Promise<void> {
     return;
   }
 
+  // Volunteer mode imports what it can open: a quick checklist, a transect or
+  // a point count. Anything else would land as a record its screens hide.
+  if (!shows(currentUsageMode(), 'importAnyKind') && !importableInSimpleMode(payload)) {
+    Alert.alert(i18n.t('mode.importBlockedTitle'), i18n.t('mode.importBlockedMsg'));
+    return;
+  }
+
   try {
     switch (payload.kind) {
       case 'gloria':
@@ -510,6 +541,10 @@ export async function importRecordPromptAndOpen(): Promise<void> {
   }
 }
 
+
+function importableInSimpleMode(p: ReadRecordImport): boolean {
+  return p.kind === 'session' || (p.kind === 'plot' && p.plot.plot_type !== 'fixed');
+}
 
 /** ImportError code → localized message. Exported so every import entry
  *  (including the batch species importer) reports the same way. */

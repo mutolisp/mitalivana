@@ -402,7 +402,8 @@
     "privacy": "Política de privacidad",
     "miren": "Muestreo MIREN",
     "survey": "Censo de árboles",
-    "addRecords": "Añadir registros"
+    "addRecords": "Añadir registros",
+    "plot_vol": "Transectos / conteos por puntos"
   },
   "tab": {
     "menu": "Ajustes",
@@ -439,7 +440,8 @@
     "kindGloria": "Prospección GLORIA",
     "moreActions": "Más acciones",
     "kindMiren": "Muestreo MIREN de carretera / sendero",
-    "kindModular": "Muestreo tipo lista / parcela"
+    "kindModular": "Muestreo tipo lista / parcela",
+    "kindPlot_vol": "Transectos / conteos por puntos"
   },
   "rank": {
     "kingdom": "Reino",
@@ -883,7 +885,11 @@
     "numMin": "El valor debe ser al menos {{min}}",
     "numMax": "El valor debe ser como máximo {{max}}",
     "numAbove": "El valor debe ser mayor que {{min}}",
-    "numAboveMax": "El valor debe ser mayor que {{min}} y como máximo {{max}}"
+    "numAboveMax": "El valor debe ser mayor que {{min}} y como máximo {{max}}",
+    "tabEnv_vol": "Datos básicos",
+    "plotidLabel": "Plotid",
+    "plotidLabel_vol": "Código",
+    "placeAndNotes": "Lugar y observaciones"
   },
   "settings": {
     "sectionAppearance": "Apariencia e interacción",
@@ -1018,7 +1024,12 @@
     "searchCount_many": "{{count}} resultados",
     "searchCount_other": "{{count}} resultados",
     "moduleSurvey": "Censo de árboles",
-    "moduleSurveyDesc": "Mapeo y recenso de parcelas de dinámica forestal (en desarrollo)"
+    "moduleSurveyDesc": "Mapeo y recenso de parcelas de dinámica forestal (en desarrollo)",
+    "advancedGroup": "Ajustes avanzados",
+    "searchPlaceholder_vol": "Buscar, p. ej. GPS, copia de seguridad, oscuro",
+    "searchPlaceholder_casual": "Buscar, p. ej. copia de seguridad, iNaturalist, oscuro",
+    "gpsPerSpeciesPlot_vol": "Transectos / conteos por puntos: ubicar cada especie",
+    "exportPrefDesc_vol": "Formatos geo, fotos, formato de documento, categorías y estado de conservación"
   },
   "taxonomy": {
     "loadingTree": "Cargando el árbol taxonómico...",
@@ -1697,7 +1708,8 @@
     "plotRecording": "Registrando la parcela: {{id}}",
     "gloriaRecording": "Muestreo GLORIA en curso · mocy {{mocy}}",
     "mirenRecording": "Muestreo MIREN en curso · {{year}}",
-    "surveyRecording": "Muestreo en curso: {{name}}"
+    "surveyRecording": "Muestreo en curso: {{name}}",
+    "plotRecording_vol": "Muestreo en curso: {{id}}"
   },
   "speciesSearch": {
     "hint": "Busque especies abajo por nombre común / científico / de familia{{br}}y consulte aquí los detalles del resultado elegido."
@@ -2267,7 +2279,8 @@
     "selectedPlots_many": "Se usan como unidades de muestreo las {{count}} parcelas marcadas",
     "selectedPlots_other": "Se usan como unidades de muestreo las {{count}} parcelas marcadas",
     "effective": "≈ {{n}} especies efectivas",
-    "hillInf": "≈ {{n}} dominantes efectivas"
+    "hillInf": "≈ {{n}} dominantes efectivas",
+    "hideCard": "Ocultar estadísticas de diversidad"
   },
   "report": {
     "navTitle": "Informe de análisis",
@@ -4197,7 +4210,8 @@
       "bubble": "Sincronizando",
       "bubblePct": "Sincronizando: {{pct}} %",
       "bubbleHint": "Toque para ver el progreso; arrastre para moverlo"
-    }
+    },
+    "advSummary": "registro de sincronización, servidores"
   },
   "teamDeploy": {
     "title": "Usar mi propio Cloudflare",
@@ -4628,6 +4642,7 @@
     "isDefault": "Predeterminado",
     "ask": "Preguntar siempre",
     "importFile": "Importar archivo",
+    "importPlanFile": "Importar un archivo del proyecto",
     "plotPageSubtitle": "Elige el tipo de parcela",
     "plotFixedDesc": "Vegetación por estratos: cobertura y altura por estrato",
     "plotTransectDesc": "Muestreo a lo largo de una línea, con traza GPS",
@@ -4694,7 +4709,8 @@
     "tabBarMode": "barra de pestañas pestañas plegar botón redondo flotante navegación",
     "undoDuration": "deshacer segundos aviso",
     "storage": "almacenamiento espacio caché",
-    "moduleSurvey": "árbol mapeo dinámica forestal ForestGEO DAP DBH recenso placa"
+    "moduleSurvey": "árbol mapeo dinámica forestal ForestGEO DAP DBH recenso placa",
+    "usageMode": "modo profesional voluntario casual sencillo"
   },
   "quadrat": {
     "cover": {
@@ -6026,5 +6042,113 @@
     "separate": "Un segundo registro como {{picked}}",
     "acceptedOnlyTitle": "Aquí solo nombres aceptados",
     "acceptedOnly": "Los registros aquí solo guardan el nombre aceptado: {{typed}}, el nombre elegido, se registra como {{accepted}}."
+  },
+  "mode": {
+    "title": "Modo de uso",
+    "titleDesc": "Muestreo profesional, muestreo voluntario o registro casual",
+    "change": "Cambiar",
+    "switchNote": "Cambiar de modo solo cambia lo que se ve. Todos los registros se conservan y los de otros tipos se siguen abriendo.",
+    "switched": "Cambiado a «{{mode}}»",
+    "pro": "Muestreo profesional",
+    "proDesc": "Todas las funciones: parcelas fijas por estratos, frecuencia, recolección de ejemplares y módulos de muestreo",
+    "proGet1": "Todas las pantallas y campos actuales",
+    "proGet2": "Braun-Blanquet, cobertura, DAP y otras medidas de abundancia",
+    "proGet3": "GLORIA, MIREN, censo de árboles y otros módulos se activan en Ajustes",
+    "vol": "Muestreo voluntario",
+    "volDesc": "Para muestreos organizados: listas rápidas, transectos y conteos por puntos",
+    "volGet1": "Solo estos tres tipos de registro, con menos campos",
+    "volGet2": "Las cantidades se anotan como número de individuos",
+    "volGet3": "Recorridos, observadores y proyectos se guardan y se pueden exportar para el proyecto",
+    "casual": "Registro casual",
+    "casualDesc": "Toma una foto o graba un sonido ahora y averigua la especie después",
+    "casualGet1": "＋ abre directamente la cámara o la grabadora",
+    "casualGet2": "¿Aún no sabes qué es? Guárdalo «por identificar»",
+    "casualGet3": "Ordenadas por día en «Mis observaciones», listas para iNaturalist",
+    "gateTitle": "¿Cómo la vas a usar principalmente?",
+    "gateIntro": "Elige uno para empezar. Puedes cambiarlo cuando quieras en Ajustes › Modo de uso; tus registros se conservan.",
+    "gateStart": "Empezar con «{{mode}}»",
+    "gateNext": "Después: descargar la lista de especies",
+    "importBlockedTitle": "Este archivo requiere el modo profesional",
+    "importBlockedMsg": "El modo voluntario solo importa listas rápidas, transectos y conteos por puntos. Cambia a muestreo profesional en Ajustes › Modo de uso y vuelve a importarlo.",
+    "advanced": "Avanzado",
+    "advancedHide": "Ocultar avanzado",
+    "advancedWith": "Avanzado: {{summary}}",
+    "advSpecies": "otros atributos, identificadores",
+    "advPlot": "método, relieve, cobertura del suelo…"
+  },
+  "obsNotes": {
+    "title": "Notas de observación",
+    "subtitle": "Opcional · consejos para {{group}}",
+    "reproQuestion": "¿Tiene flores, frutos o esporangios?",
+    "tipsHeading": "Qué anotar (toca para empezar una línea)"
+  },
+  "obsTips": {
+    "plant": {
+      "name": "plantas",
+      "placeholder": "p. ej. flores rosadas, sobre todo en lo alto de los arbustos junto al sendero",
+      "leaf": "¿Hojas opuestas o alternas? ¿Borde dentado?",
+      "leafStart": "Hojas: ",
+      "habitat": "Dónde crece: borde de camino, bajo los árboles, junto al agua",
+      "habitatStart": "Hábitat: ",
+      "height": "Altura aproximada",
+      "heightStart": "Altura de unos ",
+      "smell": "Olor o savia",
+      "smellStart": "Olor o savia: ",
+      "shot": "Fotografía de cerca las flores, los frutos o las semillas; así será más fácil identificarla después",
+      "shotButton": "Primer plano"
+    },
+    "bird": {
+      "name": "aves",
+      "placeholder": "p. ej. canta en el dosel y otra responde a lo lejos",
+      "behaviour": "Qué hace: se alimenta, canta, cría",
+      "behaviourStart": "Comportamiento: ",
+      "flock": "Cuántas, en bandada o no",
+      "flockStart": "Número y bandada: ",
+      "call": "Cómo suena el canto",
+      "callStart": "Canto: ",
+      "perch": "Dónde está posada",
+      "perchStart": "Posición: ",
+      "shot": "Si la oyes, graba un fragmento; el canto suele ser más fácil de identificar que el aspecto"
+    },
+    "insect": {
+      "name": "insectos",
+      "placeholder": "p. ej. liba en flores de hortensia, envergadura de unos 12 cm",
+      "host": "En qué planta está posado",
+      "hostStart": "En: ",
+      "behaviour": "Qué hace: liba, pone huevos, se aparea",
+      "behaviourStart": "Comportamiento: ",
+      "size": "Tamaño aproximado",
+      "sizeStart": "Tamaño de unos ",
+      "count": "Cuántos hay",
+      "countStart": "Número: ",
+      "shot": "Fotografía el anverso y el reverso de las alas; el dibujo es la mejor pista",
+      "shotButton": "Otra cara"
+    },
+    "animal": {
+      "name": "animales",
+      "placeholder": "p. ej. tomando el sol sobre una roca junto al arroyo",
+      "behaviour": "Qué hace: se alimenta, descansa, se desplaza",
+      "behaviourStart": "Comportamiento: ",
+      "size": "Tamaño aproximado",
+      "sizeStart": "Tamaño de unos ",
+      "where": "Dónde lo encontraste: suelo, árbol, agua",
+      "whereStart": "Posición: ",
+      "signs": "Rastros: huellas, excrementos, sonidos",
+      "signsStart": "Rastros: ",
+      "shot": "Si puedes, fotografía el animal entero y de lado; una grabación de sonido ayuda cuando no se ve bien",
+      "shotButton": "Foto"
+    },
+    "other": {
+      "name": "esta observación",
+      "placeholder": "p. ej. crece en grupo sobre un tronco caído",
+      "substrate": "Sobre qué crece o está",
+      "substrateStart": "Sobre: ",
+      "look": "Tamaño y color aproximados",
+      "lookStart": "Tamaño y color: ",
+      "count": "Solo o en grupo",
+      "countStart": "Número: ",
+      "shot": "Toma varias fotos desde distintos ángulos",
+      "shotButton": "Foto"
+    }
   }
 }

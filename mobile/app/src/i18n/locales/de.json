@@ -368,7 +368,8 @@
     "privacy": "Datenschutzerklärung",
     "miren": "MIREN-Erhebung",
     "survey": "Baumerhebung",
-    "addRecords": "Datensätze hinzufügen"
+    "addRecords": "Datensätze hinzufügen",
+    "plot_vol": "Transekte / Punktzählungen"
   },
   "tab": {
     "menu": "Einstellungen",
@@ -405,7 +406,8 @@
     "kindGloria": "GLORIA-Gipfelaufnahme",
     "moreActions": "Weitere Aktionen",
     "kindMiren": "MIREN-Straßen- / Wegerhebung",
-    "kindModular": "Listen- / Flächenaufnahme"
+    "kindModular": "Listen- / Flächenaufnahme",
+    "kindPlot_vol": "Transekte / Punktzählungen"
   },
   "rank": {
     "kingdom": "Reich",
@@ -840,7 +842,11 @@
     "numMin": "Der Wert muss mindestens {{min}} betragen",
     "numMax": "Der Wert darf höchstens {{max}} betragen",
     "numAbove": "Der Wert muss größer als {{min}} sein",
-    "numAboveMax": "Der Wert muss größer als {{min}} und höchstens {{max}} sein"
+    "numAboveMax": "Der Wert muss größer als {{min}} und höchstens {{max}} sein",
+    "tabEnv_vol": "Grunddaten",
+    "plotidLabel": "Plotid",
+    "plotidLabel_vol": "Kennung",
+    "placeAndNotes": "Ort und Bemerkungen"
   },
   "settings": {
     "sectionAppearance": "Darstellung & Bedienung",
@@ -968,7 +974,12 @@
     "searchCount_one": "{{count}} Treffer",
     "searchCount_other": "{{count}} Treffer",
     "moduleSurvey": "Baumerhebung",
-    "moduleSurveyDesc": "Stammkartierung und Wiederholungsaufnahme von Walddynamikflächen (in Entwicklung)"
+    "moduleSurveyDesc": "Stammkartierung und Wiederholungsaufnahme von Walddynamikflächen (in Entwicklung)",
+    "advancedGroup": "Erweiterte Einstellungen",
+    "searchPlaceholder_vol": "Einstellungen suchen, z. B. GPS, Sicherung, dunkel",
+    "searchPlaceholder_casual": "Einstellungen suchen, z. B. Sicherung, iNaturalist, dunkel",
+    "gpsPerSpeciesPlot_vol": "Transekte / Punktzählungen: jede Art verorten",
+    "exportPrefDesc_vol": "Geoformate, Fotos, Dokumentformat, Ränge und Schutzstatus"
   },
   "taxonomy": {
     "loadingTree": "Taxonomiebaum wird geladen...",
@@ -1598,7 +1609,8 @@
     "plotRecording": "Probeflächenerfassung: {{id}}",
     "gloriaRecording": "GLORIA-Aufnahme läuft · mocy {{mocy}}",
     "mirenRecording": "MIREN-Erhebung läuft · {{year}}",
-    "surveyRecording": "Aufnahme läuft: {{name}}"
+    "surveyRecording": "Aufnahme läuft: {{name}}",
+    "plotRecording_vol": "Erhebung läuft: {{id}}"
   },
   "speciesSearch": {
     "hint": "Unten Arten nach Trivial-, wissenschaftlichem oder Familiennamen suchen,{{br}}nach der Auswahl erscheinen hier die Details."
@@ -2136,7 +2148,8 @@
     "selectedPlots_one": "Die {{count}} gewählte Probefläche dient als Stichprobeneinheiten",
     "selectedPlots_other": "Die {{count}} gewählten Probeflächen dienen als Stichprobeneinheiten",
     "effective": "≈ {{n}} effektive Arten",
-    "hillInf": "≈ {{n}} effektive dominante Arten"
+    "hillInf": "≈ {{n}} effektive dominante Arten",
+    "hideCard": "Diversitätsstatistik ausblenden"
   },
   "report": {
     "navTitle": "Auswertungsbericht",
@@ -4005,7 +4018,8 @@
       "bubble": "Synchronisierung läuft",
       "bubblePct": "Synchronisierung: {{pct}} %",
       "bubbleHint": "Tippen zeigt den Fortschritt, Ziehen verschiebt die Schaltfläche"
-    }
+    },
+    "advSummary": "Sync-Protokoll, Server"
   },
   "teamDeploy": {
     "title": "Eigenes Cloudflare verwenden",
@@ -4433,6 +4447,7 @@
     "isDefault": "Standard",
     "ask": "Jedes Mal fragen",
     "importFile": "Datei importieren",
+    "importPlanFile": "Datei aus dem Projekt importieren",
     "plotPageSubtitle": "Flächentyp wählen",
     "plotFixedDesc": "Geschichtete Vegetation: Deckung und Höhe je Schicht",
     "plotTransectDesc": "Erhebung entlang einer Linie, mit GPS-Track",
@@ -4499,7 +4514,8 @@
     "tabBarMode": "Reiterleiste Reiter Tabs einklappen runde Taste schwebend Navigation",
     "undoDuration": "rückgängig Sekunden Hinweis",
     "storage": "Speicher Platz Cache",
-    "moduleSurvey": "Baum Stammkartierung Walddynamik ForestGEO BHD DBH Wiederholung Nummer"
+    "moduleSurvey": "Baum Stammkartierung Walddynamik ForestGEO BHD DBH Wiederholung Nummer",
+    "usageMode": "Modus fachlich ehrenamtlich einfach"
   },
   "quadrat": {
     "cover": {
@@ -5779,5 +5795,113 @@
     "separate": "Zweiter Eintrag als {{picked}}",
     "acceptedOnlyTitle": "Hier nur akzeptierte Namen",
     "acceptedOnly": "Einträge hier behalten nur den akzeptierten Namen: {{typed}}, der gewählte Name, wird als {{accepted}} erfasst."
+  },
+  "mode": {
+    "title": "Nutzungsmodus",
+    "titleDesc": "Fachliche Erhebung, ehrenamtliche Erhebung oder einfach notieren",
+    "change": "Ändern",
+    "switchNote": "Der Wechsel ändert nur, was angezeigt wird. Alle Aufnahmen bleiben erhalten, auch andere Arten lassen sich weiter öffnen.",
+    "switched": "Zu „{{mode}}“ gewechselt",
+    "pro": "Fachliche Erhebung",
+    "proDesc": "Alle Funktionen: geschichtete Dauerflächen, Frequenz, Belegsammlung und Erhebungsmodule",
+    "proGet1": "Alle Bildschirme und Felder wie bisher",
+    "proGet2": "Braun-Blanquet, Deckung, BHD und weitere Mengenangaben",
+    "proGet3": "GLORIA, MIREN, Baumerhebung und weitere Module lassen sich in den Einstellungen einschalten",
+    "vol": "Ehrenamtliche Erhebung",
+    "volDesc": "Für organisierte Erhebungen: schnelle Artenlisten, Transekte, Punktzählungen",
+    "volGet1": "Nur diese drei Aufnahmearten, mit weniger Feldern",
+    "volGet2": "Mengen als Anzahl der Individuen",
+    "volGet3": "Tracks, Beobachter und Projekte werden erfasst und lassen sich für das Projekt exportieren",
+    "casual": "Einfach notieren",
+    "casualDesc": "Sofort fotografieren oder aufnehmen, die Art später bestimmen",
+    "casualGet1": "＋ öffnet direkt Kamera oder Tonaufnahme",
+    "casualGet2": "Noch unbekannt? Als „zu bestimmen“ speichern",
+    "casualGet3": "Nach Tagen geordnet unter „Meine Beobachtungen“, bereit für iNaturalist",
+    "gateTitle": "Wie möchten Sie die App hauptsächlich nutzen?",
+    "gateIntro": "Wählen Sie einen Modus. Sie können ihn jederzeit unter Einstellungen › Nutzungsmodus ändern; Ihre Aufnahmen bleiben erhalten.",
+    "gateStart": "Mit „{{mode}}“ beginnen",
+    "gateNext": "Als Nächstes: Artenliste herunterladen",
+    "importBlockedTitle": "Diese Datei braucht den Fachmodus",
+    "importBlockedMsg": "Im Ehrenamtsmodus lassen sich nur schnelle Artenlisten, Transekte und Punktzählungen importieren. Wechsle unter Einstellungen › Nutzungsmodus zur fachlichen Erhebung und importiere die Datei dann.",
+    "advanced": "Erweitert",
+    "advancedHide": "Erweitert ausblenden",
+    "advancedWith": "Erweitert: {{summary}}",
+    "advSpecies": "weitere Merkmale, Kennungen",
+    "advPlot": "Methode, Gelände, Bodenbedeckung…"
+  },
+  "obsNotes": {
+    "title": "Beobachtungsnotizen",
+    "subtitle": "Optional · Hinweise für {{group}}",
+    "reproQuestion": "Blüten, Früchte oder Sporangien?",
+    "tipsHeading": "Was du notieren kannst (tippen, um eine Zeile zu beginnen)"
+  },
+  "obsTips": {
+    "plant": {
+      "name": "Pflanzen",
+      "placeholder": "z. B. rosa Blüten, meist oben in den Sträuchern am Weg",
+      "leaf": "Blätter gegen- oder wechselständig? Gezähnter Rand?",
+      "leafStart": "Blätter: ",
+      "habitat": "Wo sie wächst: Wegrand, unter Bäumen, am Wasser",
+      "habitatStart": "Standort: ",
+      "height": "Ungefähre Höhe",
+      "heightStart": "Höhe etwa ",
+      "smell": "Duft oder Saft",
+      "smellStart": "Duft oder Saft: ",
+      "shot": "Fotografiere Blüten, Früchte oder Samen aus der Nähe; das erleichtert die Bestimmung später",
+      "shotButton": "Nahaufnahme"
+    },
+    "bird": {
+      "name": "Vögel",
+      "placeholder": "z. B. singt im Kronendach, ein zweiter antwortet weiter weg",
+      "behaviour": "Was er tut: Nahrungssuche, Gesang, Brutpflege",
+      "behaviourStart": "Verhalten: ",
+      "flock": "Wie viele, im Trupp oder nicht",
+      "flockStart": "Anzahl und Trupp: ",
+      "call": "Wie der Ruf klingt",
+      "callStart": "Ruf: ",
+      "perch": "Wo er sitzt",
+      "perchStart": "Position: ",
+      "shot": "Wenn du ihn hörst, nimm einen Ausschnitt auf; Rufe sind oft leichter zu bestimmen als das Aussehen"
+    },
+    "insect": {
+      "name": "Insekten",
+      "placeholder": "z. B. saugt Nektar an Hortensienblüten, Spannweite etwa 12 cm",
+      "host": "Auf welcher Pflanze es sitzt",
+      "hostStart": "Auf: ",
+      "behaviour": "Was es tut: Nektar saugen, Eiablage, Paarung",
+      "behaviourStart": "Verhalten: ",
+      "size": "Ungefähre Größe",
+      "sizeStart": "Größe etwa ",
+      "count": "Wie viele",
+      "countStart": "Anzahl: ",
+      "shot": "Fotografiere Flügeloberseite und -unterseite; das Muster ist das beste Merkmal",
+      "shotButton": "Andere Seite"
+    },
+    "animal": {
+      "name": "Tiere",
+      "placeholder": "z. B. sonnt sich auf einem Stein am Bach",
+      "behaviour": "Was es tut: Nahrungssuche, Ruhe, Bewegung",
+      "behaviourStart": "Verhalten: ",
+      "size": "Ungefähre Größe",
+      "sizeStart": "Größe etwa ",
+      "where": "Wo gefunden: Boden, Baum, Wasser",
+      "whereStart": "Position: ",
+      "signs": "Spuren: Fährten, Kot, Rufe",
+      "signsStart": "Spuren: ",
+      "shot": "Fotografiere wenn möglich das ganze Tier und von der Seite; eine Tonaufnahme hilft, wenn es schlecht zu sehen ist",
+      "shotButton": "Foto"
+    },
+    "other": {
+      "name": "diese Beobachtung",
+      "placeholder": "z. B. wächst in Gruppen auf einem liegenden Stamm",
+      "substrate": "Worauf es wächst oder sitzt",
+      "substrateStart": "Auf: ",
+      "look": "Ungefähre Größe und Farbe",
+      "lookStart": "Größe und Farbe: ",
+      "count": "Einzeln oder in Gruppen",
+      "countStart": "Anzahl: ",
+      "shot": "Mach ein paar Fotos aus verschiedenen Winkeln",
+      "shotButton": "Foto"
+    }
   }
 }

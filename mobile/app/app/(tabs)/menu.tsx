@@ -16,12 +16,14 @@ import { useNavigation, useRouter, type Href } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { ModeCard, chooseUsageMode } from '~/components/settings/ModeCard';
 import { LinkRow, Section, SelectRow, SwitchRow } from '~/components/settings/rows';
 import { LANGUAGE_CATALOGUE } from '~/i18n';
 import {
   SECTION_ORDER,
   SECTION_TITLE,
   SETTINGS_INDEX,
+  modeVis,
   parentOf,
   searchSettings,
   toneOf,
@@ -48,6 +50,8 @@ import { useActiveMiren } from '~/modules/miren/store';
 import { useActiveSurvey } from '~/survey/form/activeSurvey';
 import { useActiveSession } from '~/stores/activeSession';
 import { useTabBarInset } from '~/lib/tabBarLayout';
+import { USAGE_MODES_OFFERED, allowedRecordTypeDefaults } from '~/lib/usageMode';
+import { useModeT, useUsageMode } from '~/lib/useUsageMode';
 import { useThemeColors } from '~/theme/colors';
 
 export default function MenuScreen() {
@@ -90,6 +94,9 @@ export default function MenuScreen() {
   }, [loadDriveState]);
   const setSetting = useSettings((s) => s.set);
   const reloadSettings = useSettings((s) => s.load);
+  const mode = useUsageMode();
+  const tm = useModeT();
+  const [advOpen, setAdvOpen] = useState(false);
 
   const themeOptions: Array<{ value: Theme; label: string }> = [
     { value: 'auto', label: t('settings.themeAuto') },
@@ -112,11 +119,13 @@ export default function MenuScreen() {
     { value: 'xlarge', label: t('settings.fontXLarge') },
   ];
   const recordTypeOptions: Array<{ value: RecordTypeDefault; label: string }> = [
-    { value: 'ask', label: t('settings.createAsk') },
-    { value: 'session', label: t('record.kindSession') },
-    { value: 'plot', label: t('record.kindPlot') },
-    { value: 'collection', label: t('record.kindCollection') },
-  ];
+    { value: 'ask' as const, label: t('settings.createAsk') },
+    { value: 'session' as const, label: t('record.kindSession') },
+    { value: 'plot' as const, label: t('record.kindPlot') },
+    { value: 'collection' as const, label: t('record.kindCollection') },
+    { value: 'transect' as const, label: t('map.plotTransect') },
+    { value: 'point_count' as const, label: t('map.plotPointCount') },
+  ].filter((o) => allowedRecordTypeDefaults(mode).includes(o.value));
 
   // Endonym, matching how the language screen lists them.
   const languageLabel =
@@ -234,8 +243,11 @@ export default function MenuScreen() {
     scrollRef.current?.scrollTo({ y: 0, animated: false });
   }, [searching]);
 
-  const visible = (e: SettingsEntry) =>
+  const moduleOn = (e: SettingsEntry) =>
     e.visibleWhen === 'module_gloria' ? moduleGloria : e.visibleWhen === 'module_miren' ? moduleMiren : e.visibleWhen === 'module_survey' ? moduleSurvey : true;
+  // The one filter for the grouped page and search alike: off modules and
+  // entries the usage mode hides drop out; 進階 ones stay searchable.
+  const visible = (e: SettingsEntry) => moduleOn(e) && modeVis(e, mode) !== 'hide';
 
   // A key missing in this locale must not match: t() would return the key
   // itself, and `settingsSearch.theme` contains "theme".
@@ -279,6 +291,7 @@ export default function MenuScreen() {
     },
   };
   const actions: Record<string, () => void> = {
+    usageMode: () => void chooseUsageMode(t),
     integrity: handleCheckIntegrity,
     clearHistory: handleClearHistory,
     clearAll: handleClearAll,
@@ -292,15 +305,17 @@ export default function MenuScreen() {
     moduleSurvey: { value: moduleSurvey, onChange: (v) => setSetting('module_survey', v) },
   };
 
-  const renderEntry = (e: SettingsEntry, search: boolean) => {
+  /** `withCrumb`: in search results and in 「進階設定」, where rows from
+   *  different groups sit together. */
+  const renderEntry = (e: SettingsEntry, search: boolean, withCrumb = search) => {
     const decor = {
       icon: e.icon,
       tone: toneOf(e),
-      crumb: search ? crumbOf(e) : undefined,
+      crumb: withCrumb ? crumbOf(e) : undefined,
       highlight: search ? query : undefined,
     };
-    const label = t(e.labelKey);
-    const description = e.descKey ? t(e.descKey) : undefined;
+    const label = tm(e.labelKey);
+    const description = e.descKey ? tm(e.descKey) : undefined;
 
     if (e.kind === 'switch') {
       const sw = switches[e.id];
@@ -450,7 +465,7 @@ export default function MenuScreen() {
         <TextInput
           value={query}
           onChangeText={setQuery}
-          placeholder={t('settings.searchPlaceholder')}
+          placeholder={tm('settings.searchPlaceholder')}
           placeholderTextColor={c.ink3}
           autoCapitalize="none"
           autoCorrect={false}
@@ -492,8 +507,13 @@ export default function MenuScreen() {
           )
         ) : (
           <>
+            {USAGE_MODES_OFFERED ? <ModeCard /> : null}
             {SECTION_ORDER.map((sec) => {
-              const rows = SETTINGS_INDEX.filter((e) => e.section === sec && !e.focus && visible(e));
+              const rows = SETTINGS_INDEX.filter(
+                (e) => e.section === sec && !e.focus && e.id !== 'usageMode' && moduleOn(e) && modeVis(e, mode) === 'show',
+              );
+              // A group the mode empties goes away whole, caption and card.
+              if (rows.length === 0) return null;
               const title = SECTION_TITLE[sec];
               return (
                 <Section key={sec} title={title ? t(title) : undefined}>
@@ -501,6 +521,27 @@ export default function MenuScreen() {
                 </Section>
               );
             })}
+            {(() => {
+              const adv = SETTINGS_INDEX.filter((e) => !e.focus && moduleOn(e) && modeVis(e, mode) === 'adv');
+              if (adv.length === 0) return null;
+              return (
+                <>
+                  <Pressable
+                    onPress={() => setAdvOpen((v) => !v)}
+                    accessibilityRole="button"
+                    accessibilityState={{ expanded: advOpen }}
+                    className="mx-4 mt-6 flex-row items-center justify-center rounded-card border border-dashed border-line px-4 active:bg-gray-100 dark:border-line-dark dark:active:bg-gray-800"
+                    style={{ minHeight: 48 }}
+                  >
+                    <Text className="text-base font-medium text-gray-600 dark:text-gray-300">
+                      {t('settings.advancedGroup')} · {adv.length}
+                    </Text>
+                    <Ionicons name={advOpen ? 'chevron-up' : 'chevron-down'} size={16} color={c.ink2} style={{ marginLeft: 6 }} />
+                  </Pressable>
+                  {advOpen ? <Section>{adv.map((e) => renderEntry(e, false, true))}</Section> : null}
+                </>
+              );
+            })()}
             {version ? (
               <Text className="mt-4 text-center text-xs text-gray-500 dark:text-gray-400">v{version}</Text>
             ) : null}

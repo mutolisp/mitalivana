@@ -14,6 +14,8 @@ import { AnalysisExportOptions, exportContentItems } from './AnalysisExportOptio
 import { useThemeColors } from '~/theme/colors';
 import { Button } from '~/components/ui/Button';
 import { ActionSheetLayer, sheetBack } from '~/components/ActionSheet';
+import { shows } from '~/lib/usageMode';
+import { useUsageMode } from '~/lib/useUsageMode';
 
 type Props = {
   visible: boolean;
@@ -25,6 +27,8 @@ type Props = {
 export function ProjectExportSheet({ visible, onClose, onExport }: Props) {
   const c = useThemeColors();
   const { t } = useTranslation();
+  // vegan / JUICE / DwC-A choices: pro mode only (Q6).
+  const analysis = shows(useUsageMode(), 'exportAnalysis');
   const insets = useSafeAreaInsets();
   // Bottom sheet must never reach the Dynamic Island / status bar: cap its
   // height at window height minus the top inset (85% guesses wrong on short
@@ -86,7 +90,7 @@ export function ProjectExportSheet({ visible, onClose, onExport }: Props) {
             </View>
 
             <ScrollView className="px-4" style={{ flexShrink: 1 }} bounces={false}>
-              <AnalysisExportOptions />
+              {analysis ? <AnalysisExportOptions /> : null}
 
               <Text className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
                 {t('projectExport.listTitle')}

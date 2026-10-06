@@ -77,6 +77,10 @@ import {
   PercentQuickValues,
 } from './abundance/AbundanceInputs';
 import { ActionSheetLayer, sheetBack } from '~/components/ActionSheet';
+import { AdvancedFold } from './AdvancedFold';
+import { ObservationNotes } from './ObservationNotes';
+import { shows, vis } from '~/lib/usageMode';
+import { useModeT, useUsageMode } from '~/lib/useUsageMode';
 
 /** Name of the <PortalHost> this modal renders inside, for its own popovers. */
 const VALUE_MODAL_PORTAL = 'plot-species-value-modal';
@@ -246,6 +250,14 @@ type Props = {
   showVerbatim?: boolean;
 };
 
+const ALL_ATTRIBUTE_FIELDS: readonly (keyof SpeciesAttributesDraft)[] = [
+  'sex',
+  'life_stage',
+  'reproductive_condition',
+  'leaf_phenology',
+  'degree_of_establishment',
+];
+
 export function PlotSpeciesValueModal({
   visible,
   layer,
@@ -290,8 +302,17 @@ export function PlotSpeciesValueModal({
 }: Props) {
   const c = useThemeColors();
   const { t } = useTranslation();
+  const usageMode = useUsageMode();
+  const tm = useModeT();
+  // The simpler modes on a transect / point count (layer T): count only, no
+  // unit picker; notes with tips; the rest in one 進階 at the end (18l). A
+  // fixed plot's layers keep everything in every mode.
+  const quantityMode = layer === 'T' ? usageMode : 'pro';
+  const unitPicker = shows(quantityMode, 'abundanceUnit');
+  const obsNotes = layer === 'T' && showNotes && shows(usageMode, 'observationNotes');
+  const foldMode = layer === 'T' ? usageMode : 'pro';
   const resolvedDefaultType =
-    initial?.organism_quantity_type ?? defaultType ?? defaultQuantityTypeFor(kingdom);
+    initial?.organism_quantity_type ?? defaultType ?? defaultQuantityTypeFor(kingdom, quantityMode);
 
   const [qtyType, setQtyType] = useState<string>(resolvedDefaultType);
   const [bb, setBb] = useState<string | null>(null);
@@ -350,7 +371,7 @@ export function PlotSpeciesValueModal({
   useEffect(() => {
     if (!visible) return;
     const startType =
-      initial?.organism_quantity_type ?? defaultType ?? defaultQuantityTypeFor(kingdom);
+      initial?.organism_quantity_type ?? defaultType ?? defaultQuantityTypeFor(kingdom, quantityMode);
     setQtyType(startType);
     setNotes(initial?.notes ?? '');
     setDetection(initial?.detection_type ?? null);
@@ -371,7 +392,7 @@ export function PlotSpeciesValueModal({
     setStemDraft('');
     setCustomValue(k === 'custom' ? qty : '');
     setCustomType(k === 'custom' ? startType : '');
-  }, [visible, initial, defaultType, kingdom]);
+  }, [visible, initial, defaultType, kingdom, quantityMode]);
 
   const currentKind = useMemo(() => kindForType(qtyType), [qtyType]);
   /** Percent and count are a single field, so they sit beside the unit. */
@@ -509,6 +530,96 @@ export function PlotSpeciesValueModal({
 
   const insets = useSafeAreaInsets();
 
+  const verbatimField =
+    header && showVerbatim ? (
+      <VerbatimLabelField
+        key={`${occurrenceId ?? ''}|${header.taxonId}`}
+        rank={header.rank}
+        value={verbatim}
+        onCommit={setVerbatim}
+      />
+    ) : null;
+  const keyChips = parentKeys.map((k) => (
+    <Pressable
+      key={k.id}
+      onPress={() => {
+        onCancel();
+        requestAnimationFrame(() => router.push(`/key/${k.id}`));
+      }}
+      className={`flex-row items-center rounded-full px-2.5 py-1 active:opacity-80 ${
+        k.mode === 'multi_access'
+          ? 'bg-accent-100 dark:bg-accent-900/60'
+          : 'bg-emerald-100 dark:bg-emerald-900/60'
+      }`}
+      hitSlop={4}
+    >
+      <Ionicons
+        name="key"
+        size={12}
+        color={k.mode === 'multi_access' ? c.accent : c.accent}
+      />
+      <Text
+        className={`ml-1 text-xs font-medium ${
+          k.mode === 'multi_access'
+            ? 'text-accent-700 dark:text-accent-300'
+            : 'text-emerald-700 dark:text-emerald-300'
+        }`}
+      >
+        {t('nav.key')} ({k.scope_name})
+      </Text>
+    </Pressable>
+  ));
+  // With observation notes, a plant's flowering state is asked there.
+  const reproInNotes =
+    obsNotes &&
+    kingdom === 'Plantae' &&
+    showAttributes &&
+    (!attributeFields || attributeFields.includes('reproductive_condition'));
+  const attrFields = reproInNotes
+    ? (attributeFields ?? ALL_ATTRIBUTE_FIELDS).filter((f) => f !== 'reproductive_condition')
+    : attributeFields;
+  const attributesBlock = (open?: boolean) =>
+    showAttributes ? (
+      <View className="mt-4">
+        <SpeciesAttributesBlock
+          kingdom={kingdom ?? null}
+          className={className ?? null}
+          value={attrs}
+          onChange={setAttrs}
+          fields={attrFields}
+          defaultOpen={open}
+        />
+      </View>
+    ) : null;
+  const elevationField = onSaveElevation ? (
+    <View className="mt-2">
+      <Text className="mb-1 text-xs font-medium text-gray-600 dark:text-gray-400">
+        {t('collection.elevation')}
+      </Text>
+      <ElevationField
+        value={elevation}
+        onCommit={(m) => onSaveElevation(m, 'manual')}
+        inputClassName="rounded-lg border border-gray-200 bg-card px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+      />
+    </View>
+  ) : null;
+  const metaFooter = (
+    <RecordMetaFooter
+      occurrenceId={occurrenceId ?? null}
+      updatedAt={updatedAt ?? null}
+      inatObservationId={inatUploadedAt != null ? inatObservationId : null}
+    />
+  );
+  const folded = {
+    verbatim: vis(foldMode, 'verbatimLabel') === 'adv' ? verbatimField : null,
+    keys: vis(foldMode, 'keyChip') === 'adv' && keyChips.length > 0 ? keyChips : null,
+    // Elevation sits with the coordinate, which only some callers offer.
+    elevation: vis(foldMode, 'recordElevation') === 'adv' && onSaveLocation ? elevationField : null,
+    attributes: vis(foldMode, 'speciesAttributes') === 'adv' ? attributesBlock(true) : null,
+    meta: vis(foldMode, 'recordMeta') === 'adv' ? metaFooter : null,
+  };
+  const hasFolded = Object.values(folded).some((x) => x !== null);
+
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={sheetBack(onCancel)}>
       {/* gesture-handler needs its own root inside a Modal's view hierarchy. */}
@@ -592,14 +703,7 @@ export function PlotSpeciesValueModal({
                     ) : null}
                     {/* Folded into the draft, not written on the spot: this
                         modal persists everything through its own Save. */}
-                    {header && showVerbatim ? (
-                      <VerbatimLabelField
-                        key={`${occurrenceId ?? ''}|${header.taxonId}`}
-                        rank={header.rank}
-                        value={verbatim}
-                        onCommit={setVerbatim}
-                      />
-                    ) : null}
+                    {vis(foldMode, 'verbatimLabel') === 'show' ? verbatimField : null}
                     {/* Classification path (each rank tappable → taxonomy tree) +
                     identification-key chips. Shown for ALL plot types so fixed
                     plots also get the jump links; fixed plots additionally show
@@ -634,36 +738,7 @@ export function PlotSpeciesValueModal({
                               beforeJump={onCancel}
                             />
                           ))}
-                        {parentKeys.map((k) => (
-                          <Pressable
-                            key={k.id}
-                            onPress={() => {
-                              onCancel();
-                              requestAnimationFrame(() => router.push(`/key/${k.id}`));
-                            }}
-                            className={`flex-row items-center rounded-full px-2.5 py-1 active:opacity-80 ${
-                              k.mode === 'multi_access'
-                                ? 'bg-accent-100 dark:bg-accent-900/60'
-                                : 'bg-emerald-100 dark:bg-emerald-900/60'
-                            }`}
-                            hitSlop={4}
-                          >
-                            <Ionicons
-                              name="key"
-                              size={12}
-                              color={k.mode === 'multi_access' ? c.accent : c.accent}
-                            />
-                            <Text
-                              className={`ml-1 text-xs font-medium ${
-                                k.mode === 'multi_access'
-                                  ? 'text-accent-700 dark:text-accent-300'
-                                  : 'text-emerald-700 dark:text-emerald-300'
-                              }`}
-                            >
-                              {t('nav.key')} ({k.scope_name})
-                            </Text>
-                          </Pressable>
-                        ))}
+                        {vis(foldMode, 'keyChip') === 'show' ? keyChips : null}
                       </View>
                     ) : null}
                     {layer !== 'T' ? (
@@ -680,6 +755,7 @@ export function PlotSpeciesValueModal({
                       length. Same SelectRow as 偏好設定, popped into the host
                       below rather than the root one the Modal covers. */}
                   <View className="flex-row items-start" style={{ gap: 8 }}>
+                    {unitPicker ? (
                     <View className="flex-1">
                       <SelectRow
                         variant="inline"
@@ -694,6 +770,7 @@ export function PlotSpeciesValueModal({
                         triggerClassName={FIELD_HEIGHT}
                       />
                     </View>
+                    ) : null}
                     {inlineValue ? (
                       <View className="flex-1">
                         {/* Matches SelectRow's inline caption so the two fields
@@ -702,7 +779,7 @@ export function PlotSpeciesValueModal({
                         <Text className="mb-1 text-xs font-medium text-gray-600 dark:text-gray-400">
                           {currentKind === 'percent'
                             ? t('plotValue.coverPct')
-                            : t('plotValue.quantity')}
+                            : tm('plotValue.quantity')}
                         </Text>
                         {currentKind === 'percent' ? (
                           <PercentInput value={numericValue} onChange={setNumericValue} compact />
@@ -748,7 +825,7 @@ export function PlotSpeciesValueModal({
 </>
 ) : null}
 
-                  {showNotes ? (
+                  {showNotes && !obsNotes ? (
                   <View className="mt-4">
                     <Text className="mb-1 text-xs font-medium text-gray-600 dark:text-gray-400">
                       {t('endSession.notesOptional')}
@@ -764,17 +841,7 @@ export function PlotSpeciesValueModal({
                   </View>
                   ) : null}
 
-                  {showAttributes ? (
-                    <View className="mt-4">
-                      <SpeciesAttributesBlock
-                        kingdom={kingdom ?? null}
-                        className={className ?? null}
-                        value={attrs}
-                        onChange={setAttrs}
-                        fields={attributeFields}
-                      />
-                    </View>
-                  ) : null}
+                  {vis(foldMode, 'speciesAttributes') === 'show' ? attributesBlock() : null}
 
                   {showDetection ? (
                     <View className="mt-4">
@@ -928,18 +995,7 @@ export function PlotSpeciesValueModal({
                           </View>
                         </GestureDetector>
                       ) : null}
-                      {onSaveElevation ? (
-                        <View className="mt-2">
-                          <Text className="mb-1 text-xs font-medium text-gray-600 dark:text-gray-400">
-                            {t('collection.elevation')}
-                          </Text>
-                          <ElevationField
-                            value={elevation}
-                            onCommit={(m) => onSaveElevation(m, 'manual')}
-                            inputClassName="rounded-lg border border-gray-200 bg-card px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
-                          />
-                        </View>
-                      ) : null}
+                      {vis(foldMode, 'recordElevation') === 'show' ? elevationField : null}
                     </View>
                   ) : null}
 
@@ -984,14 +1040,33 @@ export function PlotSpeciesValueModal({
                       ) : null}
                     </View>
                   ) : null}
+                  {obsNotes ? (
+                    <ObservationNotes
+                      key={`notes|${occurrenceId ?? ''}|${header?.taxonId ?? ''}`}
+                      kingdom={kingdom}
+                      className={className}
+                      note={notes}
+                      // A draft like every field here: written by 儲存.
+                      onCommitNote={setNotes}
+                      commitOnChange
+                      repro={reproInNotes ? attrs.reproductive_condition : undefined}
+                      onChangeRepro={reproInNotes ? (next) => setAttrs({ ...attrs, reproductive_condition: next }) : undefined}
+                      onTakePhoto={onAddPhoto ? () => onAddPhoto('camera') : undefined}
+                    />
+                  ) : null}
                   {typeof extra === 'function' ? extra(saveFirst) : extra}
                   {inat ? <InatSyncButton state={inat} /> : null}
 
-                  <RecordMetaFooter
-                    occurrenceId={occurrenceId ?? null}
-                    updatedAt={updatedAt ?? null}
-                    inatObservationId={inatUploadedAt != null ? inatObservationId : null}
-                  />
+                  {vis(foldMode, 'recordMeta') === 'show' ? metaFooter : null}
+                  {hasFolded ? (
+                    <AdvancedFold className="mt-4" summary={t('mode.advSpecies')}>
+                      {folded.verbatim}
+                      {folded.keys ? <View className="mt-2 flex-row flex-wrap items-center" style={{ gap: 6 }}>{folded.keys}</View> : null}
+                      {folded.elevation}
+                      {folded.attributes}
+                      {folded.meta}
+                    </AdvancedFold>
+                  ) : null}
 
                   {recordActions ? (
                     <Pressable

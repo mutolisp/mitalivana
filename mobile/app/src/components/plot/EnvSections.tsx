@@ -23,6 +23,7 @@ import { layerIndexOf, layerLabel, type AbundanceMethod, type FixedLayer, type G
 import { errText } from '~/lib/errText';
 import { captureEnvPhoto, pickPhotos } from '~/lib/photoCapture';
 import { useThemeColors } from '~/theme/colors';
+import { useModeT } from '~/lib/useUsageMode';
 
 /** The project the record is filed under; italic when uncategorised (id 0). */
 export function ProjectRow({ project, onPress }: { project: { id: number; name: string } | null; onPress: () => void }) {
@@ -166,9 +167,10 @@ export function SurveyTimeBox({
 export function SurveyorRow({ value, onPress }: { value: string | null; onPress: () => void }) {
   const c = useThemeColors();
   const { t } = useTranslation();
+  const tm = useModeT();
   return (
     <View className="mb-3">
-      <Text className="mb-1 text-xs font-medium text-gray-600 dark:text-gray-400">{t('plot.recordedBy')}</Text>
+      <Text className="mb-1 text-xs font-medium text-gray-600 dark:text-gray-400">{tm('plot.recordedBy')}</Text>
       <Pressable
         onPress={onPress}
         className="flex-row items-center justify-between rounded-lg border border-gray-200 bg-card px-3 py-2.5 active:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:active:bg-gray-800"
@@ -250,6 +252,7 @@ export function EnvAdvancedSection({
   alert?: string;
 }) {
   const { t } = useTranslation();
+  const tm = useModeT();
   const shown = new Set(fields);
   const covers = COVER_KEYS.filter((k) => shown.has(k));
 
@@ -287,13 +290,13 @@ export function EnvAdvancedSection({
     <CollapsibleSection title={title ?? t('plot.advanced')} defaultExpanded={defaultExpanded}>
       {alert ? <Text className="pb-2 text-xs font-semibold text-alert dark:text-alert-dark">{alert}</Text> : null}
       {shown.has('elevation_m') ? (
-        <LabeledNumField label={t('plot.elevation')} suffix="m" value={num(values.elevation_m)} onSave={(n) => onPatch({ elevation_m: n })} />
+        <LabeledNumField label={tm('plot.elevation')} suffix="m" value={num(values.elevation_m)} onSave={(n) => onPatch({ elevation_m: n })} />
       ) : null}
       {shown.has('slope_deg') ? (
-        <LabeledNumField label={t('plot.slope')} suffix="°" value={num(values.slope_deg)} min={0} max={90} onSave={(n) => onPatch({ slope_deg: n })} />
+        <LabeledNumField label={tm('plot.slope')} suffix="°" value={num(values.slope_deg)} min={0} max={90} onSave={(n) => onPatch({ slope_deg: n })} />
       ) : null}
       {shown.has('aspect_deg') ? (
-        <LabeledNumField label={t('plot.aspect')} suffix="°" value={num(values.aspect_deg)} min={0} max={359} onSave={(n) => onPatch({ aspect_deg: n })} />
+        <LabeledNumField label={tm('plot.aspect')} suffix="°" value={num(values.aspect_deg)} min={0} max={359} onSave={(n) => onPatch({ aspect_deg: n })} />
       ) : null}
       {openness ? (
         openness.grades ? (
@@ -311,7 +314,7 @@ export function EnvAdvancedSection({
       ) : null}
       {shown.has('terrain_position') ? (
         <LabeledField
-          label={t('plot.terrainPosition')}
+          label={tm('plot.terrainPosition')}
           value={typeof values.terrain_position === 'string' ? values.terrain_position : ''}
           placeholder="ridge / upper / mid / lower / valley / plain"
           onSave={(v) => onPatch({ terrain_position: v || null })}

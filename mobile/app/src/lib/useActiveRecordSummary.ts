@@ -16,6 +16,7 @@ import { useActiveMiren } from '~/modules/miren/store';
 import { useActiveSurvey } from '~/survey/form/activeSurvey';
 import { useActivePlot } from '~/stores/activePlot';
 import { useActiveSession } from '~/stores/activeSession';
+import { useModeT } from '~/lib/useUsageMode';
 
 export type ActiveRecordKind = 'session' | 'plot' | 'gloria' | 'miren' | 'modular';
 
@@ -31,6 +32,7 @@ export type ActiveRecordSummary = {
 
 export function useActiveRecordSummary(): ActiveRecordSummary | null {
   const { t } = useTranslation();
+  const tm = useModeT();
   const session = useActiveSession((s) => s.session);
   const plot = useActivePlot((s) => s.plot);
   const gloria = useActiveGloria((s) => s.survey);
@@ -77,7 +79,7 @@ export function useActiveRecordSummary(): ActiveRecordSummary | null {
     return {
       kind: 'plot',
       id: plot.id,
-      barLabel: t('activeBar.plotRecording', { id: plot.plotid }),
+      barLabel: tm('activeBar.plotRecording', { id: plot.plotid }),
       startedAt: plotTs,
       targetPath: `/plot/${plot.id}`,
     };

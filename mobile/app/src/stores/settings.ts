@@ -6,6 +6,7 @@ import type { TaxonGroup } from '~/db/types';
 import type { ConservationField } from '~/lib/markdown';
 import type { MatrixValueMode } from '~/lib/vegMatrix';
 import { parsePlace, type TabBubblePlace } from '~/lib/tabBubbleCore';
+import { parseUsageMode, type UsageMode } from '~/lib/usageMode';
 
 export type { MatrixValueMode };
 
@@ -82,7 +83,8 @@ export type PlotTab = 'env' | 'species' | 'freq' | 'quadrats';
  *  Environment tab, because that is the data it has none of yet. `plotId: 0` =
  *  nothing stored. */
 export type PlotTabState = { plotId: number; tab: PlotTab };
-export type RecordTypeDefault = 'session' | 'plot' | 'collection' | 'ask';
+/** `transect` / `point_count` only in volunteer mode, which has no plot-type page (src/lib/usageMode.ts). */
+export type RecordTypeDefault = 'session' | 'plot' | 'collection' | 'transect' | 'point_count' | 'ask';
 
 /** Which side of the floating tab bar the ＋ button sits on. Left-handed users
  *  reach the left edge with their thumb; the tab order mirrors with it so the
@@ -252,6 +254,9 @@ type SettingsValues = {
   fab_side: FabSide;
   /** Long-press a tab to fold the bar, long-press the button to unfold it; also a settings row. */
   tab_bar_mode: TabBarMode;
+  /** null until chosen: only a fresh install sees the first-launch choice
+   *  (ModeSetupGate); `load()` sets an existing install to 'pro'. */
+  usage_mode: UsageMode | null;
   /** Where the folded tab bar's button was put. */
   tab_bubble: TabBubblePlace;
   /** Collection number (DwC recordNumber) prefix, e.g. 'CTL-'. '' for none. */
@@ -378,6 +383,7 @@ const DEFAULTS: SettingsValues = {
   record_type_default: 'ask',
   fab_side: 'right',
   tab_bar_mode: 'bar',
+  usage_mode: null,
   tab_bubble: { side: null, bottom: null },
   collection_number_prefix: '',
   collection_number_start: 1,
@@ -535,6 +541,7 @@ function readAll(): SettingsValues {
       (map.get('record_type_default') as RecordTypeDefault) ?? DEFAULTS.record_type_default,
     fab_side: (map.get('fab_side') as FabSide) ?? DEFAULTS.fab_side,
     tab_bar_mode: map.get('tab_bar_mode') === 'bubble' ? 'bubble' : DEFAULTS.tab_bar_mode,
+    usage_mode: parseUsageMode(map.get('usage_mode')),
     tab_bubble: parsePlace(map.get('tab_bubble')),
     collection_number_prefix:
       map.get('collection_number_prefix') ?? DEFAULTS.collection_number_prefix,
@@ -794,6 +801,20 @@ export function setKeyRunnerState(keyId: number, runner: KeyRunnerStateLite): vo
   state.set('key_runner_states', next);
 }
 
+/**
+ * Anything already on this phone: a setting, or a record of any kind. Only a
+ * fresh install (or one just cleared) has none, and only that one chooses a
+ * usage mode at first launch; an upgrade keeps the pro UI its user knows.
+ */
+function isExistingInstall(): boolean {
+  const res = getUserDb().executeSync(
+    `SELECT EXISTS(SELECT 1 FROM settings) OR EXISTS(SELECT 1 FROM sessions)
+        OR EXISTS(SELECT 1 FROM plot_surveys) OR EXISTS(SELECT 1 FROM collection_trips)
+        OR EXISTS(SELECT 1 FROM gloria_surveys) OR EXISTS(SELECT 1 FROM miren_surveys) AS found`,
+  );
+  return Number((res.rows?.[0] as { found?: number } | undefined)?.found ?? 0) === 1;
+}
+
 function writeOne<K extends keyof SettingsValues>(key: K, value: SettingsValues[K]): void {
   const db = getUserDb();
   const serialized =
@@ -808,6 +829,10 @@ export const useSettings = create<SettingsState>((set) => ({
   loaded: false,
   load: () => {
     const values = readAll();
+    if (values.usage_mode === null && isExistingInstall()) {
+      writeOne('usage_mode', 'pro');
+      values.usage_mode = 'pro';
+    }
     set({ ...values, loaded: true });
   },
   set: (key, value) => {

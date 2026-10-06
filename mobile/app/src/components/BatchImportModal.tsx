@@ -39,6 +39,8 @@ import { useThemeColors } from '~/theme/colors';
 import { SelectMark } from '~/components/ui/SelectMark';
 import { Radio } from '~/components/ui/Radio';
 import { ActionSheetLayer, sheetBack } from '~/components/ActionSheet';
+import { shows } from '~/lib/usageMode';
+import { useUsageMode } from '~/lib/useUsageMode';
 
 /** Where matched taxa land. The modal owns the dedupe + insert for each kind
  *  so callers don't reimplement it; adding a third target means one more case
@@ -80,6 +82,7 @@ type InputMode = 'paste' | 'voice';
 export function BatchImportModal({ visible, target, onClose, onCommitted }: Props) {
   const c = useThemeColors();
   const { t } = useTranslation();
+  const fileInput = shows(useUsageMode(), 'batchImportFile');
   const insets = useSafeAreaInsets();
   const [step, setStep] = useState<Step>('input');
   const [inputMode, setInputMode] = useState<InputMode>('paste');
@@ -317,13 +320,15 @@ export function BatchImportModal({ visible, target, onClose, onCommitted }: Prop
                   <Text className="text-xs text-gray-600 dark:text-gray-400">
                     {t('batchImport.inputHint')}
                   </Text>
-                  <Pressable
-                    onPress={handlePickFile}
-                    className="mt-2 flex-row items-center self-start rounded-full bg-card dark:bg-gray-900 px-3 py-1.5 active:bg-accent-50 dark:active:bg-accent-900/40"
-                  >
-                    <Ionicons name="folder-open-outline" size={14} color={c.accent} />
-                    <Text className="ml-1 text-xs font-medium text-accent-700 dark:text-accent-300">{t('batchImport.readFromFile')}</Text>
-                  </Pressable>
+                  {fileInput ? (
+                    <Pressable
+                      onPress={handlePickFile}
+                      className="mt-2 flex-row items-center self-start rounded-full bg-card dark:bg-gray-900 px-3 py-1.5 active:bg-accent-50 dark:active:bg-accent-900/40"
+                    >
+                      <Ionicons name="folder-open-outline" size={14} color={c.accent} />
+                      <Text className="ml-1 text-xs font-medium text-accent-700 dark:text-accent-300">{t('batchImport.readFromFile')}</Text>
+                    </Pressable>
+                  ) : null}
                 </>
               ) : (
                 <Text className="text-xs text-gray-600 dark:text-gray-400">

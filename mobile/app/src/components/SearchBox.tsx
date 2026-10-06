@@ -20,6 +20,9 @@ import { applyChoice, chooseNameUsage } from '~/lib/adoptName';
 import { alienBadge } from '~/lib/conservationColors';
 import { familyChineseFirst } from '~/lib/familyLabel';
 import { lookupGbifName, manualTaxonEntry, type GbifLookupOutcome, type LookupRunner } from './GbifLookupHost';
+import { AdvancedFold } from './AdvancedFold';
+import { vis } from '~/lib/usageMode';
+import { useUsageMode } from '~/lib/useUsageMode';
 import { TaxonGroupPicker } from './TaxonGroupPicker';
 import { ScientificName } from './ScientificName';
 import { useSettings } from '~/stores/settings';
@@ -216,6 +219,7 @@ export function SearchBox({
 }: Props) {
   const c = useThemeColors();
   const { t } = useTranslation();
+  const mode = useUsageMode();
   const lastGroups = useSettings((s) => s.last_search_groups);
   const usageRank = useSettings((s) => s.search_usage_rank);
   const setSetting = useSettings((s) => s.set);
@@ -356,6 +360,20 @@ export function SearchBox({
       ? Math.max(96, windowHeight - (topLimit ?? topChrome + NAV_BAR_NOMINAL) - keyboardHeight - chromeHeight - 8)
       : undefined;
 
+  const createOwnChip = (
+    <Pressable
+      onPress={async () => {
+        Keyboard.dismiss();
+        applyPicked(await runLookup(() => manualTaxonEntry(trimmedQuery)));
+      }}
+      className="flex-row items-center rounded-full bg-amber-50 px-3 py-1.5 active:bg-amber-100 dark:bg-amber-950/40 dark:active:bg-amber-900/60"
+    >
+      <Ionicons name="create-outline" size={14} color="#b45309" />
+      <Text className="ml-1 text-xs font-medium text-amber-700 dark:text-amber-300">
+        {t('manualTaxon.createOwn')}
+      </Text>
+    </Pressable>
+  );
   const suggestions =
     results.length > 0 ? (
       <View
@@ -407,19 +425,14 @@ export function SearchBox({
               {t('search.lookupGbif')}
             </Text>
           </Pressable>
-          <Pressable
-            onPress={async () => {
-              Keyboard.dismiss();
-              applyPicked(await runLookup(() => manualTaxonEntry(trimmedQuery)));
-            }}
-            className="flex-row items-center rounded-full bg-amber-50 px-3 py-1.5 active:bg-amber-100 dark:bg-amber-950/40 dark:active:bg-amber-900/60"
-          >
-            <Ionicons name="create-outline" size={14} color="#b45309" />
-            <Text className="ml-1 text-xs font-medium text-amber-700 dark:text-amber-300">
-              {t('manualTaxon.createOwn')}
-            </Text>
-          </Pressable>
+          {vis(mode, 'customTaxon') === 'show' ? createOwnChip : null}
         </View>
+        {/* Self-made taxa go into exports and iNat; volunteers reach them under 進階. */}
+        {vis(mode, 'customTaxon') === 'adv' ? (
+          <AdvancedFold className="mt-3 self-stretch">
+            <View className="items-center">{createOwnChip}</View>
+          </AdvancedFold>
+        ) : null}
       </View>
     ) : null;
 
@@ -528,6 +541,7 @@ const AutocompleteRow = memo(function AutocompleteRow({
   onAdopt: () => void;
 }) {
   const { t } = useTranslation();
+  const mode = useUsageMode();
   const isSynonym = !!result.matched_as;
   const isFuzzy = !!result.fuzzy_match;
   const isEndemic = result.endemic === 1;
@@ -592,7 +606,10 @@ const AutocompleteRow = memo(function AutocompleteRow({
         // so it needs its own generous hit area and a visible affordance —
         // this is used one-handed in the field.
         <Pressable
-          onPress={onAdopt}
+          // Choosing to keep the non-accepted name is folded away for
+          // volunteers: the line still says what matched, but does nothing.
+          onPress={vis(mode, 'nameUsagePick') === 'show' ? onAdopt : undefined}
+          disabled={vis(mode, 'nameUsagePick') !== 'show'}
           hitSlop={{ top: 6, bottom: 6, left: 8, right: 8 }}
           className="mt-0.5 flex-row items-center"
         >
@@ -606,7 +623,7 @@ const AutocompleteRow = memo(function AutocompleteRow({
             />
             （{result.matched_as.status}）
           </Text>
-          <Ionicons name="chevron-forward" size={12} color="#c2410c" />
+          {vis(mode, 'nameUsagePick') === 'show' ? <Ionicons name="chevron-forward" size={12} color="#c2410c" /> : null}
         </Pressable>
       ) : null}
       {result.family_cname || result.family ? (

@@ -22,6 +22,7 @@ import { ActiveSessionBar } from '~/components/ActiveSessionBar';
 import { useTopChrome } from '~/stores/topChrome';
 import { DBProvider } from '~/components/DBProvider';
 import { DatasetSetupGate } from '~/components/DatasetSetupGate';
+import { ModeSetupGate } from '~/components/ModeSetupGate';
 import { FontScaleProvider } from '~/components/FontScaleProvider';
 import { StalePlotWatcher } from '~/components/StalePlotWatcher';
 import { StaleSessionWatcher } from '~/components/StaleSessionWatcher';
@@ -94,9 +95,13 @@ export default function RootLayout() {
                 stand in front and guide the download. Once installed (or the
                 user chooses later) it steps aside and takes no further part in
                 render. */}
-            <DatasetSetupGate>
-              <ThemedShell />
-            </DatasetSetupGate>
+            {/* A fresh install chooses its usage mode first (and only then
+                downloads a checklist); everyone else passes straight through. */}
+            <ModeSetupGate>
+              <DatasetSetupGate>
+                <ThemedShell />
+              </DatasetSetupGate>
+            </ModeSetupGate>
           </DBProvider>
         </SafeAreaProvider>
       </KeyboardProvider>

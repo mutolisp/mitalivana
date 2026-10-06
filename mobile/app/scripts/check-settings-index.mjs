@@ -14,14 +14,20 @@
  *      subpage itself has a registry row (the breadcrumb's parent);
  *   4. every switch / select / action id is wired in app/(tabs)/menu.tsx —
  *      an unwired one crashes (switch) or silently renders nothing (select);
- *   5. ids are unique.
+ *   5. ids are unique;
+ *   6. each entry's `modes` names only vol / casual, with show / adv / hide.
+ *
+ * Entries offered only in development builds (the usage-mode row) are checked
+ * too: `__DEV__` is set before the registry is imported.
  *
  * Usage: npm run check:settings-index   (exit 1 on violation)
  */
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { SECTION_TITLE, SETTINGS_INDEX } from '../src/lib/settingsIndex.ts';
+// Dynamic, after __DEV__: a static import would run before this line.
+globalThis.__DEV__ = true;
+const { SECTION_TITLE, SETTINGS_INDEX } = await import('../src/lib/settingsIndex.ts');
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const LOCALES = ['zh-TW', 'en', 'ja', 'ko', 'de', 'fr', 'es'];
@@ -113,6 +119,14 @@ const seen = new Set();
 for (const e of SETTINGS_INDEX) {
   if (seen.has(e.id)) errors.push(`${e.id}: duplicate id`);
   seen.add(e.id);
+}
+
+// ---- 6. usage-mode visibility --------------------------------------------
+for (const e of SETTINGS_INDEX) {
+  for (const [m, v] of Object.entries(e.modes ?? {})) {
+    if (m !== 'vol' && m !== 'casual') errors.push(`${e.id}: modes.${m} is not a simplified mode (pro always shows)`);
+    if (!['show', 'adv', 'hide'].includes(v)) errors.push(`${e.id}: modes.${m} = ${JSON.stringify(v)}`);
+  }
 }
 
 if (errors.length) {

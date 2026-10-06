@@ -37,6 +37,8 @@ import { TaxonomyJumpChip } from './TaxonomyJumpChip';
 import { useThemeColors } from '~/theme/colors';
 import { Button } from '~/components/ui/Button';
 import { speciesParts } from '~/lib/nameParts';
+import { shows, vis } from '~/lib/usageMode';
+import { useUsageMode } from '~/lib/useUsageMode';
 
 type Props = {
   result: SearchResult;
@@ -110,6 +112,7 @@ export function SpeciesDetailPanel({
   const [result, setResult] = useState(resultProp);
   useEffect(() => setResult(resultProp), [resultProp]);
   const { t } = useTranslation();
+  const mode = useUsageMode();
   const [synonyms, setSynonyms] = useState<Synonym[]>([]);
   const [infraspecies, setInfraspecies] = useState<TaxonSpecies[]>([]);
   const scrollRef = useRef<ScrollView>(null);
@@ -306,8 +309,8 @@ export function SpeciesDetailPanel({
           </Section>
         ) : null}
 
-        {result.alien_status_note ? (
-          <Section title={t('species.sourceLit')}>
+        {result.alien_status_note && vis(mode, 'speciesSourceLit') !== 'hide' ? (
+          <SourceLitSection title={t('species.sourceLit')} folded={vis(mode, 'speciesSourceLit') === 'adv'}>
             <View>
               {parseAlienStatusNote(result.alien_status_note).map((entry, idx) => (
                 <View
@@ -323,7 +326,7 @@ export function SpeciesDetailPanel({
                 </View>
               ))}
             </View>
-          </Section>
+          </SourceLitSection>
         ) : null}
 
         {(() => {
@@ -447,7 +450,7 @@ export function SpeciesDetailPanel({
               size="lg"
               fullWidth
             />
-            {onAddLongPress ? (
+            {onAddLongPress && shows(mode, 'addToCollection') ? (
               <Text className="mt-1.5 text-center text-[11px] text-gray-400 dark:text-gray-500">
                 {t('addToRecord.longPressHint')}
               </Text>
@@ -469,6 +472,17 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       </Text>
       {children}
     </View>
+  );
+}
+
+/** 來源文獻: an open section, or folded where the usage mode folds it. */
+function SourceLitSection({ title, folded, children }: { title: string; folded: boolean; children: React.ReactNode }) {
+  return folded ? (
+    <CollapsibleSection title={title} defaultOpen={false}>
+      {children}
+    </CollapsibleSection>
+  ) : (
+    <Section title={title}>{children}</Section>
   );
 }
 

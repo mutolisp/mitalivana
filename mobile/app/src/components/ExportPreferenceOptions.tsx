@@ -18,6 +18,8 @@ import { DOC_FORMATS, reportFormatLabels } from '~/lib/docFormat';
 import { useSettings, type DocFormat, type ReportFormat } from '~/stores/settings';
 import { AnalysisExportOptions } from './AnalysisExportOptions';
 import { FocusAnchor } from './settings/FocusScroll';
+import { shows } from '~/lib/usageMode';
+import { useUsageMode } from '~/lib/useUsageMode';
 import type { ConservationField } from '~/lib/markdown';
 
 type GeoFormat = 'geojson' | 'gpx' | 'kml';
@@ -51,6 +53,8 @@ const CONSERVATION_OPTIONS: Array<{ value: ConservationField; label: string }> =
 
 export function ExportPreferenceOptions() {
   const { t } = useTranslation();
+  // vegan / JUICE / DwC-A and the matrix values: pro mode only (Q6).
+  const analysis = shows(useUsageMode(), 'exportAnalysis');
   const formats = useSettings((s) => s.export_geo_formats);
   const includePhotos = useSettings((s) => s.export_include_photos);
   const mergeDuplicates = useSettings((s) => s.export_merge_duplicate_taxa);
@@ -277,14 +281,16 @@ export function ExportPreferenceOptions() {
         </View>
       </FocusAnchor>
 
-      <FocusAnchor id="analysis">
-        <View className="mb-3 border-t border-gray-200 dark:border-gray-700 pt-3">
-          <Text className="mb-2 text-sm font-semibold text-gray-900 dark:text-gray-100">
-            {t('projectExport.prefSection')}
-          </Text>
-          <AnalysisExportOptions />
-        </View>
-      </FocusAnchor>
+      {analysis ? (
+        <FocusAnchor id="analysis">
+          <View className="mb-3 border-t border-gray-200 dark:border-gray-700 pt-3">
+            <Text className="mb-2 text-sm font-semibold text-gray-900 dark:text-gray-100">
+              {t('projectExport.prefSection')}
+            </Text>
+            <AnalysisExportOptions />
+          </View>
+        </FocusAnchor>
+      ) : null}
     </>
   );
 }

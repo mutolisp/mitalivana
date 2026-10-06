@@ -16,6 +16,7 @@
 import type { Ionicons } from '@expo/vector-icons';
 import type { ComponentProps } from 'react';
 import { SURVEY_FORMS_OFFERED } from '../survey/templates/samples';
+import { USAGE_MODES_OFFERED, type UsageMode, type Vis } from './usageMode';
 
 export type SettingsSection =
   | 'records'
@@ -46,6 +47,10 @@ export interface SettingsEntry {
   icon: ComponentProps<typeof Ionicons>['name'];
   /** Shown only while this boolean setting is on. */
   visibleWhen?: 'module_gloria' | 'module_miren' | 'module_survey';
+  /** How the simpler usage modes show it (docs/planned/ui-modes-inventory.json,
+   *  ST rows); omitted = shown. Pro mode always shows every entry. `adv` moves
+   *  it to 「進階設定」 at the foot of the page. */
+  modes?: { vol?: Vis; casual?: Vis };
   tone?: SettingsTone;
 }
 
@@ -87,79 +92,89 @@ const kw = (id: string) => `settingsSearch.${id}`;
 
 export const SETTINGS_INDEX: SettingsEntry[] = [
   // Records
-  { id: 'projects', section: 'records', labelKey: 'nav.projects', descKey: 'menu.projectsDesc', keywordsKey: kw('projects'), kind: 'nav', route: '/projects', icon: 'folder-outline' },
-  { id: 'sites', section: 'records', labelKey: 'menu.sites', descKey: 'menu.sitesDesc', keywordsKey: kw('sites'), kind: 'nav', route: '/sites', icon: 'location-outline' },
-  { id: 'favorites', section: 'records', labelKey: 'nav.favorites', descKey: 'menu.favoritesDesc', kind: 'nav', route: '/favorites', icon: 'heart-outline' },
-  { id: 'surveyors', section: 'records', labelKey: 'settings.surveyors', descKey: 'settings.surveyorsDesc', keywordsKey: kw('surveyors'), kind: 'nav', route: '/surveyors', icon: 'people-outline' },
+  { id: 'projects', section: 'records', labelKey: 'nav.projects', descKey: 'menu.projectsDesc', keywordsKey: kw('projects'), kind: 'nav', route: '/projects', modes: { casual: 'hide' }, icon: 'folder-outline' },
+  { id: 'sites', section: 'records', labelKey: 'menu.sites', descKey: 'menu.sitesDesc', keywordsKey: kw('sites'), kind: 'nav', route: '/sites', modes: { vol: 'adv', casual: 'hide' }, icon: 'location-outline' },
+  { id: 'favorites', section: 'records', labelKey: 'nav.favorites', descKey: 'menu.favoritesDesc', kind: 'nav', route: '/favorites', modes: { casual: 'hide' }, icon: 'heart-outline' },
+  { id: 'surveyors', section: 'records', labelKey: 'settings.surveyors', descKey: 'settings.surveyorsDesc', keywordsKey: kw('surveyors'), kind: 'nav', route: '/surveyors', modes: { casual: 'hide' }, icon: 'people-outline' },
 
   // Survey
-  { id: 'defaultCreate', section: 'survey', labelKey: 'create.plusDefault', keywordsKey: kw('defaultCreate'), kind: 'select', icon: 'add-circle-outline' },
+  { id: 'defaultCreate', section: 'survey', labelKey: 'create.plusDefault', keywordsKey: kw('defaultCreate'), kind: 'select', modes: { casual: 'hide' }, icon: 'add-circle-outline' },
   { id: 'gpsSession', section: 'survey', labelKey: 'settings.gpsPerSpeciesSession', descKey: 'settings.gpsPerSpeciesSessionDesc', keywordsKey: kw('gpsSession'), kind: 'switch', icon: 'navigate-outline' },
-  { id: 'gpsPlot', section: 'survey', labelKey: 'settings.gpsPerSpeciesPlot', descKey: 'settings.gpsPerSpeciesPlotDesc', keywordsKey: kw('gpsPlot'), kind: 'switch', icon: 'locate-outline' },
-  { id: 'trackAccuracy', section: 'survey', labelKey: 'settings.trackAccuracy', descKey: 'settings.trackAccuracyDesc', keywordsKey: kw('trackAccuracy'), kind: 'select', icon: 'analytics-outline' },
-  { id: 'usageRank', section: 'survey', labelKey: 'settings.searchUsageRank', descKey: 'settings.searchUsageRankDesc', keywordsKey: kw('usageRank'), kind: 'switch', icon: 'trending-up-outline' },
-  { id: 'collection', section: 'survey', labelKey: 'settings.sectionCollection', descKey: 'settings.collectionDesc', keywordsKey: kw('collection'), kind: 'nav', route: '/settings/collection', icon: 'pricetag-outline' },
-  { id: 'collectionCollector', section: 'survey', labelKey: 'settings.defaultCollector', descKey: 'settings.defaultCollectorDesc', kind: 'nav', route: '/settings/collection', focus: 'collector', icon: 'person-outline' },
-  { id: 'collectionDeterminer', section: 'survey', labelKey: 'settings.defaultDeterminer', descKey: 'settings.defaultDeterminerDesc', kind: 'nav', route: '/settings/collection', focus: 'determiner', icon: 'person-outline' },
-  { id: 'collectionPrefix', section: 'survey', labelKey: 'collection.numberPrefix', keywordsKey: kw('collectionNumber'), kind: 'nav', route: '/settings/collection', focus: 'number', icon: 'pricetag-outline' },
-  { id: 'collectionStart', section: 'survey', labelKey: 'collection.numberStart', keywordsKey: kw('collectionNumber'), kind: 'nav', route: '/settings/collection', focus: 'number', icon: 'pricetag-outline' },
-  { id: 'collectionPad', section: 'survey', labelKey: 'collection.numberPad', keywordsKey: kw('collectionNumber'), kind: 'nav', route: '/settings/collection', focus: 'pad', icon: 'pricetag-outline' },
+  { id: 'gpsPlot', section: 'survey', labelKey: 'settings.gpsPerSpeciesPlot', descKey: 'settings.gpsPerSpeciesPlotDesc', keywordsKey: kw('gpsPlot'), kind: 'switch', modes: { casual: 'hide' }, icon: 'locate-outline' },
+  { id: 'trackAccuracy', section: 'survey', labelKey: 'settings.trackAccuracy', descKey: 'settings.trackAccuracyDesc', keywordsKey: kw('trackAccuracy'), kind: 'select', modes: { vol: 'adv', casual: 'adv' }, icon: 'analytics-outline' },
+  { id: 'usageRank', section: 'survey', labelKey: 'settings.searchUsageRank', descKey: 'settings.searchUsageRankDesc', keywordsKey: kw('usageRank'), kind: 'switch', modes: { vol: 'adv', casual: 'hide' }, icon: 'trending-up-outline' },
+  { id: 'collection', section: 'survey', labelKey: 'settings.sectionCollection', descKey: 'settings.collectionDesc', keywordsKey: kw('collection'), kind: 'nav', route: '/settings/collection', modes: { vol: 'hide', casual: 'hide' }, icon: 'pricetag-outline' },
+  { id: 'collectionCollector', section: 'survey', labelKey: 'settings.defaultCollector', descKey: 'settings.defaultCollectorDesc', kind: 'nav', route: '/settings/collection', focus: 'collector', modes: { vol: 'hide', casual: 'hide' }, icon: 'person-outline' },
+  { id: 'collectionDeterminer', section: 'survey', labelKey: 'settings.defaultDeterminer', descKey: 'settings.defaultDeterminerDesc', kind: 'nav', route: '/settings/collection', focus: 'determiner', modes: { vol: 'hide', casual: 'hide' }, icon: 'person-outline' },
+  { id: 'collectionPrefix', section: 'survey', labelKey: 'collection.numberPrefix', keywordsKey: kw('collectionNumber'), kind: 'nav', route: '/settings/collection', focus: 'number', modes: { vol: 'hide', casual: 'hide' }, icon: 'pricetag-outline' },
+  { id: 'collectionStart', section: 'survey', labelKey: 'collection.numberStart', keywordsKey: kw('collectionNumber'), kind: 'nav', route: '/settings/collection', focus: 'number', modes: { vol: 'hide', casual: 'hide' }, icon: 'pricetag-outline' },
+  { id: 'collectionPad', section: 'survey', labelKey: 'collection.numberPad', keywordsKey: kw('collectionNumber'), kind: 'nav', route: '/settings/collection', focus: 'pad', modes: { vol: 'hide', casual: 'hide' }, icon: 'pricetag-outline' },
 
   // Survey modules
-  { id: 'moduleGloria', section: 'modules', labelKey: 'settings.moduleGloria', descKey: 'settings.moduleGloriaDesc', keywordsKey: kw('moduleGloria'), kind: 'switch', icon: 'triangle-outline' },
-  { id: 'gloriaSummits', section: 'modules', labelKey: 'gloria.summitImport.listTitle', descKey: 'gloria.summitImport.listDesc', kind: 'nav', route: '/gloria/summits', icon: 'flag-outline', visibleWhen: 'module_gloria' },
-  { id: 'moduleMiren', section: 'modules', labelKey: 'settings.moduleMiren', descKey: 'settings.moduleMirenDesc', keywordsKey: kw('moduleMiren'), kind: 'switch', icon: 'trail-sign-outline' },
-  { id: 'mirenRegions', section: 'modules', labelKey: 'miren.regions.title', descKey: 'miren.regions.desc', kind: 'nav', route: '/miren', icon: 'git-branch-outline', visibleWhen: 'module_miren' },
-  { id: 'moduleSurvey', section: 'modules', labelKey: 'settings.moduleSurvey', descKey: 'settings.moduleSurveyDesc', keywordsKey: kw('moduleSurvey'), kind: 'switch', icon: 'apps-outline' },
-  { id: 'surveyFrames', section: 'modules', labelKey: 'survey.frames.title', descKey: 'survey.frames.desc', kind: 'nav', route: '/survey', icon: 'map-outline', visibleWhen: 'module_survey' },
+  { id: 'moduleGloria', section: 'modules', labelKey: 'settings.moduleGloria', descKey: 'settings.moduleGloriaDesc', keywordsKey: kw('moduleGloria'), kind: 'switch', modes: { vol: 'hide', casual: 'hide' }, icon: 'triangle-outline' },
+  { id: 'gloriaSummits', section: 'modules', labelKey: 'gloria.summitImport.listTitle', descKey: 'gloria.summitImport.listDesc', kind: 'nav', route: '/gloria/summits', modes: { vol: 'hide', casual: 'hide' }, icon: 'flag-outline', visibleWhen: 'module_gloria' },
+  { id: 'moduleMiren', section: 'modules', labelKey: 'settings.moduleMiren', descKey: 'settings.moduleMirenDesc', keywordsKey: kw('moduleMiren'), kind: 'switch', modes: { vol: 'hide', casual: 'hide' }, icon: 'trail-sign-outline' },
+  { id: 'mirenRegions', section: 'modules', labelKey: 'miren.regions.title', descKey: 'miren.regions.desc', kind: 'nav', route: '/miren', modes: { vol: 'hide', casual: 'hide' }, icon: 'git-branch-outline', visibleWhen: 'module_miren' },
+  { id: 'moduleSurvey', section: 'modules', labelKey: 'settings.moduleSurvey', descKey: 'settings.moduleSurveyDesc', keywordsKey: kw('moduleSurvey'), kind: 'switch', modes: { vol: 'hide', casual: 'hide' }, icon: 'apps-outline' },
+  { id: 'surveyFrames', section: 'modules', labelKey: 'survey.frames.title', descKey: 'survey.frames.desc', kind: 'nav', route: '/survey', modes: { vol: 'hide', casual: 'hide' }, icon: 'map-outline', visibleWhen: 'module_survey' },
   // The builder (2D-a), offered with the checklist / plot-style surveys.
   ...(SURVEY_FORMS_OFFERED
     ? [
-        { id: 'surveyTemplates', section: 'modules', labelKey: 'builder.title', descKey: 'builder.desc', kind: 'nav', route: '/survey/templates', icon: 'construct-outline', visibleWhen: 'module_survey' } as const,
+        { id: 'surveyTemplates', section: 'modules', labelKey: 'builder.title', descKey: 'builder.desc', kind: 'nav', route: '/survey/templates', modes: { vol: 'hide', casual: 'hide' }, icon: 'construct-outline', visibleWhen: 'module_survey' } as const,
         // 調查資料 as group pages or one page; also switched from the survey screen's ⋯ (2026-10-04).
-        { id: 'surveyDataLayout', section: 'modules', labelKey: 'settings.surveyDataLayout', descKey: 'settings.surveyDataLayoutDesc', keywordsKey: kw('surveyDataLayout'), kind: 'select', icon: 'reader-outline', visibleWhen: 'module_survey' } as const,
+        { id: 'surveyDataLayout', section: 'modules', labelKey: 'settings.surveyDataLayout', descKey: 'settings.surveyDataLayoutDesc', keywordsKey: kw('surveyDataLayout'), kind: 'select', modes: { vol: 'hide', casual: 'hide' }, icon: 'reader-outline', visibleWhen: 'module_survey' } as const,
       ]
     : []),
 
   // Lists and maps
   { id: 'regionPacks', section: 'lists', labelKey: 'settings.regionPacks', descKey: 'settings.regionPacksDesc', keywordsKey: kw('regionPacks'), kind: 'nav', route: '/regionpacks', icon: 'library-outline' },
   { id: 'offlineMap', section: 'lists', labelKey: 'offlinemap.title', keywordsKey: kw('offlineMap'), kind: 'nav', route: '/settings/offlinemap', icon: 'map-outline' },
-  { id: 'vernacular', section: 'lists', labelKey: 'vernacular.title', keywordsKey: kw('vernacular'), kind: 'nav', route: '/settings/vernacular', icon: 'chatbubble-ellipses-outline' },
-  { id: 'intermediateRanks', section: 'lists', labelKey: 'settings.intermediateRanks', keywordsKey: kw('intermediateRanks'), kind: 'select', icon: 'git-network-outline' },
+  { id: 'vernacular', section: 'lists', labelKey: 'vernacular.title', keywordsKey: kw('vernacular'), kind: 'nav', route: '/settings/vernacular', modes: { vol: 'adv', casual: 'adv' }, icon: 'chatbubble-ellipses-outline' },
+  { id: 'intermediateRanks', section: 'lists', labelKey: 'settings.intermediateRanks', keywordsKey: kw('intermediateRanks'), kind: 'select', modes: { vol: 'adv', casual: 'hide' }, icon: 'git-network-outline' },
 
   // Sync and export
   { id: 'backup', section: 'sync', labelKey: 'nav.backup', descKey: 'menu.backupDesc', keywordsKey: kw('backup'), kind: 'nav', route: '/backup', icon: 'save-outline' },
   { id: 'gdrive', section: 'sync', labelKey: 'settings.gdrive', descKey: 'settings.gdriveDesc', keywordsKey: kw('gdrive'), kind: 'nav', route: '/gdrive', icon: 'cloud-outline' },
   { id: 'inaturalist', section: 'sync', labelKey: 'settings.inaturalist', descKey: 'settings.inaturalistDesc', keywordsKey: kw('inaturalist'), kind: 'nav', route: '/inaturalist', icon: 'leaf-outline' },
-  { id: 'teamSync', section: 'sync', labelKey: 'teamSync.title', descKey: 'teamSync.menuDesc', keywordsKey: kw('teamSync'), kind: 'nav', route: '/settings/team-sync', icon: 'sync-outline' },
-  { id: 'export', section: 'sync', labelKey: 'exportPref.title', descKey: 'settings.exportPrefDesc', keywordsKey: kw('export'), kind: 'nav', route: '/settings/export', icon: 'share-outline' },
-  { id: 'exportGeo', section: 'sync', labelKey: 'exportPref.geoFormats', descKey: 'exportPref.geoFormatsHint', keywordsKey: kw('exportGeo'), kind: 'nav', route: '/settings/export', focus: 'geo', icon: 'share-outline' },
-  { id: 'exportPhoto', section: 'sync', labelKey: 'exportPref.photo', descKey: 'exportPref.includePhotosHint', kind: 'nav', route: '/settings/export', focus: 'photo', icon: 'share-outline' },
-  { id: 'exportDoc', section: 'sync', labelKey: 'exportPref.docFormat', descKey: 'exportPref.docFileFormatHint', keywordsKey: kw('exportDoc'), kind: 'nav', route: '/settings/export', focus: 'doc', icon: 'share-outline' },
-  { id: 'exportLevels', section: 'sync', labelKey: 'exportPref.levels', kind: 'nav', route: '/settings/export', focus: 'levels', icon: 'share-outline' },
-  { id: 'exportCons', section: 'sync', labelKey: 'exportPref.consFields', keywordsKey: kw('exportCons'), kind: 'nav', route: '/settings/export', focus: 'levels', icon: 'share-outline' },
-  { id: 'exportAnalysis', section: 'sync', labelKey: 'projectExport.prefSection', keywordsKey: kw('exportAnalysis'), kind: 'nav', route: '/settings/export', focus: 'analysis', icon: 'share-outline' },
-  { id: 'provenance', section: 'sync', labelKey: 'settings.provenance', descKey: 'settings.provenanceDesc', keywordsKey: kw('provenance'), kind: 'nav', route: '/settings/provenance', icon: 'finger-print-outline' },
+  { id: 'teamSync', section: 'sync', labelKey: 'teamSync.title', descKey: 'teamSync.menuDesc', keywordsKey: kw('teamSync'), kind: 'nav', route: '/settings/team-sync', modes: { casual: 'hide' }, icon: 'sync-outline' },
+  { id: 'export', section: 'sync', labelKey: 'exportPref.title', descKey: 'settings.exportPrefDesc', keywordsKey: kw('export'), kind: 'nav', route: '/settings/export', modes: { vol: 'adv', casual: 'hide' }, icon: 'share-outline' },
+  { id: 'exportGeo', section: 'sync', labelKey: 'exportPref.geoFormats', descKey: 'exportPref.geoFormatsHint', keywordsKey: kw('exportGeo'), kind: 'nav', route: '/settings/export', focus: 'geo', modes: { vol: 'adv', casual: 'hide' }, icon: 'share-outline' },
+  { id: 'exportPhoto', section: 'sync', labelKey: 'exportPref.photo', descKey: 'exportPref.includePhotosHint', kind: 'nav', route: '/settings/export', focus: 'photo', modes: { vol: 'adv', casual: 'hide' }, icon: 'share-outline' },
+  { id: 'exportDoc', section: 'sync', labelKey: 'exportPref.docFormat', descKey: 'exportPref.docFileFormatHint', keywordsKey: kw('exportDoc'), kind: 'nav', route: '/settings/export', focus: 'doc', modes: { vol: 'adv', casual: 'hide' }, icon: 'share-outline' },
+  { id: 'exportLevels', section: 'sync', labelKey: 'exportPref.levels', kind: 'nav', route: '/settings/export', focus: 'levels', modes: { vol: 'adv', casual: 'hide' }, icon: 'share-outline' },
+  { id: 'exportCons', section: 'sync', labelKey: 'exportPref.consFields', keywordsKey: kw('exportCons'), kind: 'nav', route: '/settings/export', focus: 'levels', modes: { vol: 'adv', casual: 'hide' }, icon: 'share-outline' },
+  { id: 'exportAnalysis', section: 'sync', labelKey: 'projectExport.prefSection', keywordsKey: kw('exportAnalysis'), kind: 'nav', route: '/settings/export', focus: 'analysis', modes: { vol: 'hide', casual: 'hide' }, icon: 'share-outline' },
+  { id: 'provenance', section: 'sync', labelKey: 'settings.provenance', descKey: 'settings.provenanceDesc', keywordsKey: kw('provenance'), kind: 'nav', route: '/settings/provenance', modes: { vol: 'hide', casual: 'hide' }, icon: 'finger-print-outline' },
 
   // Appearance and controls
+  // The mode itself: the grouped page shows it as the card at the top, so this
+  // entry is only for search (menu.tsx skips it in the groups).
+  ...(USAGE_MODES_OFFERED
+    ? [{ id: 'usageMode', section: 'appearance', labelKey: 'mode.title', descKey: 'mode.titleDesc', keywordsKey: kw('usageMode'), kind: 'action', icon: 'options-outline' } as const]
+    : []),
   { id: 'language', section: 'appearance', labelKey: 'settings.language', keywordsKey: kw('language'), kind: 'nav', route: '/settings/language', icon: 'language-outline' },
   { id: 'theme', section: 'appearance', labelKey: 'settings.theme', keywordsKey: kw('theme'), kind: 'select', icon: 'contrast-outline' },
   { id: 'fontSize', section: 'appearance', labelKey: 'settings.fontSize', keywordsKey: kw('fontSize'), kind: 'select', icon: 'text-outline' },
-  { id: 'cardDensity', section: 'appearance', labelKey: 'settings.cardDensity', keywordsKey: kw('cardDensity'), kind: 'select', icon: 'reorder-four-outline' },
+  { id: 'cardDensity', section: 'appearance', labelKey: 'settings.cardDensity', keywordsKey: kw('cardDensity'), kind: 'select', modes: { casual: 'adv' }, icon: 'reorder-four-outline' },
   { id: 'fabSide', section: 'appearance', labelKey: 'settings.fabSide', descKey: 'settings.fabSideDesc', keywordsKey: kw('fabSide'), kind: 'select', icon: 'hand-left-outline' },
-  { id: 'tabBarMode', section: 'appearance', labelKey: 'settings.tabBarMode', descKey: 'settings.tabBarModeDesc', keywordsKey: kw('tabBarMode'), kind: 'select', icon: 'contract-outline' },
-  { id: 'undoDuration', section: 'appearance', labelKey: 'settings.undoDuration', keywordsKey: kw('undoDuration'), kind: 'select', icon: 'arrow-undo-outline' },
+  { id: 'tabBarMode', section: 'appearance', labelKey: 'settings.tabBarMode', descKey: 'settings.tabBarModeDesc', keywordsKey: kw('tabBarMode'), kind: 'select', modes: { casual: 'adv' }, icon: 'contract-outline' },
+  { id: 'undoDuration', section: 'appearance', labelKey: 'settings.undoDuration', keywordsKey: kw('undoDuration'), kind: 'select', modes: { vol: 'adv', casual: 'adv' }, icon: 'arrow-undo-outline' },
 
   // Data
-  { id: 'storage', section: 'data', labelKey: 'storage.title', descKey: 'storage.menuDesc', keywordsKey: kw('storage'), kind: 'nav', route: '/settings/storage', icon: 'pie-chart-outline' },
-  { id: 'integrity', section: 'data', labelKey: 'settings.integrityCheck', descKey: 'settings.integrityDesc', kind: 'action', icon: 'shield-checkmark-outline' },
-  { id: 'clearHistory', section: 'data', labelKey: 'settings.clearHistory', kind: 'action', icon: 'time-outline' },
-  { id: 'clearAll', section: 'data', labelKey: 'settings.clearAll', descKey: 'settings.clearAllDesc', kind: 'action', icon: 'trash-outline', tone: 'alert' },
+  { id: 'storage', section: 'data', labelKey: 'storage.title', descKey: 'storage.menuDesc', keywordsKey: kw('storage'), kind: 'nav', route: '/settings/storage', modes: { vol: 'adv', casual: 'adv' }, icon: 'pie-chart-outline' },
+  { id: 'integrity', section: 'data', labelKey: 'settings.integrityCheck', descKey: 'settings.integrityDesc', kind: 'action', modes: { vol: 'adv', casual: 'hide' }, icon: 'shield-checkmark-outline' },
+  { id: 'clearHistory', section: 'data', labelKey: 'settings.clearHistory', kind: 'action', modes: { vol: 'adv', casual: 'adv' }, icon: 'time-outline' },
+  { id: 'clearAll', section: 'data', labelKey: 'settings.clearAll', descKey: 'settings.clearAllDesc', kind: 'action', modes: { vol: 'adv', casual: 'adv' }, icon: 'trash-outline', tone: 'alert' },
 
   // (no caption)
   { id: 'about', section: 'about', labelKey: 'nav.about', kind: 'nav', route: '/about', icon: 'information-circle-outline' },
   { id: 'privacy', section: 'about', labelKey: 'nav.privacy', kind: 'nav', route: '/privacy', icon: 'lock-closed-outline' },
 ];
+
+/** How `mode` shows the entry. */
+export function modeVis(e: SettingsEntry, mode: UsageMode): Vis {
+  return mode === 'pro' ? 'show' : (e.modes?.[mode] ?? 'show');
+}
 
 export function toneOf(e: SettingsEntry): SettingsTone {
   return e.tone ?? SECTION_TONE[e.section];

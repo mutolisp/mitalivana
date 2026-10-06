@@ -12,6 +12,8 @@
 import i18n from '~/i18n';
 import { showActionSheet } from '~/components/ActionSheet';
 import { isoStamp } from '~/lib/datetime';
+import { shows } from '~/lib/usageMode';
+import { currentUsageMode } from '~/lib/useUsageMode';
 
 /** `undefined` = the user cancelled (do not finish); `null` = leave blank. */
 export async function chooseEndTime(
@@ -23,9 +25,17 @@ export async function chooseEndTime(
     /** Called from an Alert button: iOS drops a sheet presented while the
      *  Alert is still animating out, so wait for it first. */
     afterDialog?: boolean;
+    /** The caller confirms the finish itself afterwards (the checklist's end
+     *  sheet), so this question is not the only chance to back out. */
+    confirmsAfter?: boolean;
   } = {},
 ): Promise<number | null | undefined> {
   const t = i18n.t.bind(i18n);
+  // 先不記錄 is for typing in paper sheets later, which the simpler modes do
+  // not do. Without it the one answer left needs no question — unless this
+  // question is also the confirmation, or carries a warning.
+  const later = shows(currentUsageMode(), 'endTimeLater');
+  if (existing == null && !later && opts.confirmsAfter && !opts.note) return Date.now();
   if (opts.afterDialog) await new Promise((r) => setTimeout(r, 450));
   const question =
     existing != null ? t('endTime.hasTime', { time: isoStamp(existing) }) : t('endTime.noTime');
@@ -38,7 +48,7 @@ export async function chooseEndTime(
             { label: t('endTime.useNow') },
             { label: t('endTime.keep', { time: isoStamp(existing).slice(0, 16) }) },
           ]
-        : [{ label: t('endTime.recordNow') }, { label: t('endTime.leaveBlank') }],
+        : [{ label: t('endTime.recordNow') }, ...(later ? [{ label: t('endTime.leaveBlank') }] : [])],
     cancelLabel: t('common.cancel'),
   });
   if (idx < 0) return undefined;

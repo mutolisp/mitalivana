@@ -402,7 +402,8 @@
     "privacy": "Politique de confidentialité",
     "miren": "Relevé MIREN",
     "survey": "Inventaire des arbres",
-    "addRecords": "Ajouter des enregistrements"
+    "addRecords": "Ajouter des enregistrements",
+    "plot_vol": "Transects / comptages par points"
   },
   "tab": {
     "menu": "Réglages",
@@ -439,7 +440,8 @@
     "kindGloria": "Enquête GLORIA",
     "moreActions": "Autres actions",
     "kindMiren": "Relevé MIREN route / sentier",
-    "kindModular": "Relevé de type liste / placette"
+    "kindModular": "Relevé de type liste / placette",
+    "kindPlot_vol": "Transects / comptages par points"
   },
   "rank": {
     "kingdom": "Règne",
@@ -883,7 +885,11 @@
     "numMin": "La valeur doit être au moins {{min}}",
     "numMax": "La valeur doit être au plus {{max}}",
     "numAbove": "La valeur doit être supérieure à {{min}}",
-    "numAboveMax": "La valeur doit être supérieure à {{min}} et au plus {{max}}"
+    "numAboveMax": "La valeur doit être supérieure à {{min}} et au plus {{max}}",
+    "tabEnv_vol": "Informations de base",
+    "plotidLabel": "Plotid",
+    "plotidLabel_vol": "Code",
+    "placeAndNotes": "Lieu et remarques"
   },
   "settings": {
     "sectionAppearance": "Apparence et interaction",
@@ -1018,7 +1024,12 @@
     "searchCount_many": "{{count}} résultats",
     "searchCount_other": "{{count}} résultats",
     "moduleSurvey": "Inventaire des arbres",
-    "moduleSurveyDesc": "Cartographie et réinventaire des placettes de dynamique forestière (en développement)"
+    "moduleSurveyDesc": "Cartographie et réinventaire des placettes de dynamique forestière (en développement)",
+    "advancedGroup": "Réglages avancés",
+    "searchPlaceholder_vol": "Rechercher, p. ex. GPS, sauvegarde, sombre",
+    "searchPlaceholder_casual": "Rechercher, p. ex. sauvegarde, iNaturalist, sombre",
+    "gpsPerSpeciesPlot_vol": "Transects / comptages par points : localiser chaque espèce",
+    "exportPrefDesc_vol": "Formats géo, photos, format de document, rangs et statuts de conservation"
   },
   "taxonomy": {
     "loadingTree": "Chargement de l'arbre taxonomique...",
@@ -1697,7 +1708,8 @@
     "plotRecording": "Placette en cours : {{id}}",
     "gloriaRecording": "Relevé GLORIA en cours · mocy {{mocy}}",
     "mirenRecording": "Relevé MIREN en cours · {{year}}",
-    "surveyRecording": "Relevé en cours : {{name}}"
+    "surveyRecording": "Relevé en cours : {{name}}",
+    "plotRecording_vol": "Inventaire en cours : {{id}}"
   },
   "speciesSearch": {
     "hint": "Recherchez une espèce par nom vernaculaire / scientifique / de famille ci-dessous,{{br}}puis consultez ici les détails après sélection."
@@ -2267,7 +2279,8 @@
     "selectedPlots_many": "Les {{count}} placettes cochées servent d'unités d'échantillonnage",
     "selectedPlots_other": "Les {{count}} placettes cochées servent d'unités d'échantillonnage",
     "effective": "≈ {{n}} espèces effectives",
-    "hillInf": "≈ {{n}} espèces dominantes effectives"
+    "hillInf": "≈ {{n}} espèces dominantes effectives",
+    "hideCard": "Masquer les statistiques de diversité"
   },
   "report": {
     "navTitle": "Rapport d'analyse",
@@ -4197,7 +4210,8 @@
       "bubble": "Synchronisation en cours",
       "bubblePct": "Synchronisation : {{pct}} %",
       "bubbleHint": "Touchez pour afficher la progression ; faites glisser pour la déplacer"
-    }
+    },
+    "advSummary": "journal de synchronisation, serveurs"
   },
   "teamDeploy": {
     "title": "Utiliser mon propre Cloudflare",
@@ -4628,6 +4642,7 @@
     "isDefault": "Par défaut",
     "ask": "Toujours demander",
     "importFile": "Importer un fichier",
+    "importPlanFile": "Importer un fichier du projet",
     "plotPageSubtitle": "Choisir le type de placette",
     "plotFixedDesc": "Végétation stratifiée : recouvrement et hauteur par strate",
     "plotTransectDesc": "Relevé le long d’une ligne, avec trace GPS",
@@ -4694,7 +4709,8 @@
     "tabBarMode": "barre d'onglets onglets replier bouton rond flottant navigation",
     "undoDuration": "annuler secondes",
     "storage": "stockage espace cache",
-    "moduleSurvey": "arbre cartographie dynamique forestière ForestGEO DHP DBH réinventaire étiquette"
+    "moduleSurvey": "arbre cartographie dynamique forestière ForestGEO DHP DBH réinventaire étiquette",
+    "usageMode": "mode professionnel bénévole simple notes"
   },
   "quadrat": {
     "cover": {
@@ -6026,5 +6042,113 @@
     "separate": "Un second enregistrement sous {{picked}}",
     "acceptedOnlyTitle": "Noms acceptés uniquement ici",
     "acceptedOnly": "Les enregistrements ici ne gardent que le nom accepté : {{typed}}, le nom choisi, est enregistré comme {{accepted}}."
+  },
+  "mode": {
+    "title": "Mode d'utilisation",
+    "titleDesc": "Inventaire professionnel, inventaire bénévole ou notes libres",
+    "change": "Modifier",
+    "switchNote": "Changer de mode ne modifie que ce qui est affiché. Tous les relevés restent, et ceux d'autres types s'ouvrent toujours.",
+    "switched": "Passé en mode « {{mode}} »",
+    "pro": "Inventaire professionnel",
+    "proDesc": "Toutes les fonctions : placettes permanentes stratifiées, fréquence, récolte de spécimens et modules d'inventaire",
+    "proGet1": "Tous les écrans et champs actuels",
+    "proGet2": "Braun-Blanquet, recouvrement, DHP et autres mesures d'abondance",
+    "proGet3": "GLORIA, MIREN, inventaire des arbres et autres modules activables dans les réglages",
+    "vol": "Inventaire bénévole",
+    "volDesc": "Pour les inventaires organisés : listes rapides, transects et comptages par points",
+    "volGet1": "Seulement ces trois types de relevé, avec moins de champs",
+    "volGet2": "Les effectifs se notent en nombre d'individus",
+    "volGet3": "Traces, observateurs et projets sont conservés et exportables pour le projet",
+    "casual": "Notes libres",
+    "casualDesc": "Photographiez ou enregistrez sur le moment, identifiez l'espèce plus tard",
+    "casualGet1": "＋ ouvre directement l'appareil photo ou l'enregistreur",
+    "casualGet2": "Pas encore identifié ? Enregistrez-le « à identifier »",
+    "casualGet3": "Classées par jour dans « Mes observations », prêtes pour iNaturalist",
+    "gateTitle": "Comment allez-vous surtout l’utiliser ?",
+    "gateIntro": "Choisissez un mode pour commencer. Vous pourrez le changer à tout moment dans Réglages › Mode d'utilisation ; vos relevés restent.",
+    "gateStart": "Commencer en mode « {{mode}} »",
+    "gateNext": "Ensuite : télécharger le référentiel d'espèces",
+    "importBlockedTitle": "Ce fichier demande le mode professionnel",
+    "importBlockedMsg": "Le mode bénévole importe seulement les listes d’espèces rapides, les transects et les comptages par points. Passez à l’inventaire professionnel dans Réglages › Mode d’utilisation, puis importez-le.",
+    "advanced": "Avancé",
+    "advancedHide": "Masquer les options avancées",
+    "advancedWith": "Avancé : {{summary}}",
+    "advSpecies": "autres attributs, identifiants",
+    "advPlot": "méthode, terrain, couverture du sol…"
+  },
+  "obsNotes": {
+    "title": "Notes d’observation",
+    "subtitle": "Facultatif · conseils pour {{group}}",
+    "reproQuestion": "Des fleurs, des fruits ou des sporanges ?",
+    "tipsHeading": "À noter (touchez pour commencer une ligne)"
+  },
+  "obsTips": {
+    "plant": {
+      "name": "les plantes",
+      "placeholder": "ex. fleurs roses, surtout en haut des arbustes le long du sentier",
+      "leaf": "Feuilles opposées ou alternes ? Bord denté ?",
+      "leafStart": "Feuilles : ",
+      "habitat": "Où elle pousse : bord de route, sous-bois, bord de l’eau",
+      "habitatStart": "Milieu : ",
+      "height": "Hauteur approximative",
+      "heightStart": "Hauteur environ ",
+      "smell": "Odeur ou sève",
+      "smellStart": "Odeur ou sève : ",
+      "shot": "Photographiez de près les fleurs, les fruits ou les graines : l’identification sera plus facile ensuite",
+      "shotButton": "Gros plan"
+    },
+    "bird": {
+      "name": "les oiseaux",
+      "placeholder": "ex. chante dans la canopée, un autre répond plus loin",
+      "behaviour": "Ce qu’il fait : se nourrit, chante, nourrit ses petits",
+      "behaviourStart": "Comportement : ",
+      "flock": "Combien, en groupe ou non",
+      "flockStart": "Nombre et groupe : ",
+      "call": "À quoi ressemble le cri",
+      "callStart": "Cri : ",
+      "perch": "Où il est posé",
+      "perchStart": "Position : ",
+      "shot": "Si vous l’entendez, enregistrez un extrait : le chant est souvent plus facile à identifier que l’aspect"
+    },
+    "insect": {
+      "name": "les insectes",
+      "placeholder": "ex. butine des fleurs d’hortensia, envergure environ 12 cm",
+      "host": "Sur quelle plante il est posé",
+      "hostStart": "Sur : ",
+      "behaviour": "Ce qu’il fait : butine, pond, s’accouple",
+      "behaviourStart": "Comportement : ",
+      "size": "Taille approximative",
+      "sizeStart": "Taille environ ",
+      "count": "Combien",
+      "countStart": "Nombre : ",
+      "shot": "Photographiez le dessus et le dessous des ailes : le motif est le meilleur indice",
+      "shotButton": "Autre face"
+    },
+    "animal": {
+      "name": "les animaux",
+      "placeholder": "ex. se chauffe sur un rocher au bord du ruisseau",
+      "behaviour": "Ce qu’il fait : se nourrit, se repose, se déplace",
+      "behaviourStart": "Comportement : ",
+      "size": "Taille approximative",
+      "sizeStart": "Taille environ ",
+      "where": "Où vous l’avez trouvé : sol, arbre, eau",
+      "whereStart": "Position : ",
+      "signs": "Des indices : traces, crottes, cris",
+      "signsStart": "Indices : ",
+      "shot": "Photographiez l’animal entier et de profil si possible ; un enregistrement sonore aide quand on le voit mal",
+      "shotButton": "Photo"
+    },
+    "other": {
+      "name": "cette observation",
+      "placeholder": "ex. pousse en groupe sur un tronc tombé",
+      "substrate": "Sur quoi il pousse ou se trouve",
+      "substrateStart": "Sur : ",
+      "look": "Taille et couleur approximatives",
+      "lookStart": "Taille et couleur : ",
+      "count": "Seul ou en groupe",
+      "countStart": "Nombre : ",
+      "shot": "Prenez quelques photos sous plusieurs angles",
+      "shotButton": "Photo"
+    }
   }
 }

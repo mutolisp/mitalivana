@@ -47,6 +47,8 @@ import { startCensusWithTemplate } from '~/survey/builder/start';
 import { styleName } from '~/survey/builder/words';
 import { labelText } from '~/survey/components/editors/shared';
 import { router } from 'expo-router';
+import { allowedRecordTypeDefaults, shows, type Cap } from '~/lib/usageMode';
+import { useUsageMode } from '~/lib/useUsageMode';
 import { useSettings, type RecordTypeDefault } from '~/stores/settings';
 import { useThemeColors, type ThemeColors } from '~/theme/colors';
 import { PointCountIcon, TransectIcon } from './PlotTypeIcons';
@@ -57,17 +59,20 @@ export { showCreateSheet } from '~/lib/createSheet';
 /** Page-to-page slide. */
 const PAGE_MS = 220;
 
-type Kind = 'session' | 'plot' | 'collection';
+type Kind = 'session' | 'plot' | 'collection' | 'transect' | 'point_count';
 
 const MAIN: {
   kind: Kind;
-  icon: keyof typeof Ionicons.glyphMap;
+  /** 'transect' / 'pointCount' are drawn (PlotTypeIcons); the rest are Ionicons. */
+  icon: keyof typeof Ionicons.glyphMap | 'transect' | 'pointCount';
   label: string;
   desc: string;
   tile: string;
   tint: keyof ThemeColors;
   /** Creates the record — except 樣區調查, which opens the next page. */
   run?: () => unknown;
+  /** Shown only where the usage mode offers it (src/lib/usageMode.ts). */
+  cap?: Cap;
 }[] = [
   {
     kind: 'session',
@@ -85,6 +90,29 @@ const MAIN: {
     desc: 'create.descPlot',
     tile: 'bg-acorn-tint dark:bg-gray-800',
     tint: 'acornDeep',
+    cap: 'createPlotTypes',
+  },
+  // Volunteer mode (18f): the two plot types it has, straight from the first
+  // page, since the plot-type page also offers 固定樣區.
+  {
+    kind: 'transect',
+    icon: 'transect',
+    label: 'map.plotTransect',
+    desc: 'create.plotTransectDesc',
+    tile: 'bg-acorn-tint dark:bg-gray-800',
+    tint: 'acornDeep',
+    run: () => createPlotOfType('transect'),
+    cap: 'createTransectPoint',
+  },
+  {
+    kind: 'point_count',
+    icon: 'pointCount',
+    label: 'map.plotPointCount',
+    desc: 'create.plotPointDesc',
+    tile: 'bg-acorn-tint dark:bg-gray-800',
+    tint: 'acornDeep',
+    run: () => createPlotOfType('point_count'),
+    cap: 'createTransectPoint',
   },
   {
     kind: 'collection',
@@ -94,6 +122,7 @@ const MAIN: {
     tile: 'bg-gray-100 dark:bg-gray-800',
     tint: 'cupule',
     run: startCollectionAndOpen,
+    cap: 'createCollection',
   },
 ];
 
@@ -133,6 +162,8 @@ const DEFAULTS: { value: RecordTypeDefault; label: string }[] = [
   { value: 'session', label: 'record.kindSession' },
   { value: 'plot', label: 'nav.plot' },
   { value: 'collection', label: 'nav.collection' },
+  { value: 'transect', label: 'map.plotTransect' },
+  { value: 'point_count', label: 'map.plotPointCount' },
 ];
 
 export function CreateSheetHost() {
@@ -191,19 +222,27 @@ function MainPage({
   const gloria = useSettings((s) => s.module_gloria);
   const miren = useSettings((s) => s.module_miren);
   const survey = useSettings((s) => s.module_survey);
+  const mode = useUsageMode();
+  // The ＋ defaults the usage mode offers (casual mode has none).
+  const allowedDefaults = allowedRecordTypeDefaults(mode);
+  const defaults = DEFAULTS.filter((d) => allowedDefaults.includes(d.value));
+  const cards = MAIN.filter((m) => !m.cap || shows(mode, m.cap));
+  const modules = shows(mode, 'createModules');
 
   // `page`: opens a page of the sheet instead of creating at once.
   const others: { key: string; icon: keyof typeof Ionicons.glyphMap; label: string; run: () => unknown; page?: boolean }[] = [
-    ...(gloria ? [{ key: 'gloria', icon: 'triangle-outline' as const, label: 'GLORIA', run: openNewGloria }] : []),
-    ...(miren ? [{ key: 'miren', icon: 'trail-sign-outline' as const, label: 'MIREN', run: openMiren }] : []),
-    ...(survey
+    ...(modules && gloria ? [{ key: 'gloria', icon: 'triangle-outline' as const, label: 'GLORIA', run: openNewGloria }] : []),
+    ...(modules && miren ? [{ key: 'miren', icon: 'trail-sign-outline' as const, label: 'MIREN', run: openMiren }] : []),
+    ...(modules && survey
       ? [
           SURVEY_FORMS_OFFERED
             ? { key: 'survey', icon: 'albums-outline' as const, label: t('create.surveyTile'), run: onSurvey, page: true }
             : { key: 'survey', icon: 'apps-outline' as const, label: t('survey.create'), run: openSurveyFrames },
         ]
       : []),
-    { key: 'import', icon: 'download-outline', label: t('create.importFile'), run: importRecordPromptAndOpen },
+    ...(shows(mode, 'importTile')
+      ? [{ key: 'import', icon: 'download-outline' as const, label: t('create.importFile'), run: importRecordPromptAndOpen }]
+      : []),
   ];
 
   return (
@@ -211,7 +250,7 @@ function MainPage({
       <SheetHeader title={t('record.createChooserTitle')} onClose={onClose} />
 
       <View className="gap-2">
-        {MAIN.map((m) => {
+        {cards.map((m) => {
           const isDefault = recordTypeDefault === m.kind;
           const run = m.run;
           return (
@@ -233,7 +272,13 @@ function MainPage({
                   isDefault ? 'bg-accent-600 dark:bg-accent-400' : m.tile
                 }`}
               >
-                <Ionicons name={m.icon} size={24} color={isDefault ? c.onAccent : c[m.tint]} />
+                {m.icon === 'transect' ? (
+                  <TransectIcon size={24} color={isDefault ? c.onAccent : c[m.tint]} />
+                ) : m.icon === 'pointCount' ? (
+                  <PointCountIcon size={24} color={isDefault ? c.onAccent : c[m.tint]} />
+                ) : (
+                  <Ionicons name={m.icon} size={24} color={isDefault ? c.onAccent : c[m.tint]} />
+                )}
               </View>
               <View className="flex-1 py-3">
                 <Text className="text-lg font-bold text-gray-900 dark:text-gray-100">{t(m.label)}</Text>
@@ -253,70 +298,91 @@ function MainPage({
         })}
       </View>
 
-      <Text className="mb-2 mt-4 text-sm font-medium text-gray-600 dark:text-gray-400">{t('create.others')}</Text>
-      <View className="flex-row gap-2">
-        {others.map((o) => (
-          <Pressable
-            key={o.key}
-            onPress={() => (o.page ? o.run() : choose(o.run))}
-            accessibilityRole="button"
-            accessibilityLabel={o.label}
-            className="flex-1 items-center justify-center rounded-card border border-line bg-paper active:bg-gray-100 dark:border-line-dark dark:bg-paper-dark dark:active:bg-gray-800"
-            style={{ minHeight: 64 }}
-          >
-            <Ionicons name={o.icon} size={20} color={c.ink2} />
-            <Text className="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-100" numberOfLines={1}>
-              {o.label}
-            </Text>
-          </Pressable>
-        ))}
-        {/* Keep tiles a third wide however many modules are on. */}
-        {others.length < 3
-          ? Array.from({ length: 3 - others.length }, (_, i) => <View key={`pad-${i}`} className="flex-1" />)
-          : null}
-      </View>
+      {shows(mode, 'importPlanButton') ? (
+        <Pressable
+          onPress={() => choose(importRecordPromptAndOpen)}
+          accessibilityRole="button"
+          className="mt-3 flex-row items-center justify-center rounded-card border border-line bg-paper active:bg-gray-100 dark:border-line-dark dark:bg-paper-dark dark:active:bg-gray-800"
+          style={{ minHeight: 52 }}
+        >
+          <Ionicons name="download-outline" size={18} color={c.ink2} />
+          <Text className="ml-2 text-sm font-semibold text-gray-900 dark:text-gray-100">{t('create.importPlanFile')}</Text>
+          <Text className="ml-1 text-sm text-gray-500 dark:text-gray-400">· .yml / .zip</Text>
+        </Pressable>
+      ) : null}
 
-      <View className="mt-4 h-px bg-line dark:bg-line-dark" />
-      <Text className="mb-2 mt-4 text-sm font-medium text-gray-600 dark:text-gray-400">
-        {t('create.plusDefault')}
-      </Text>
-      <View accessibilityRole="radiogroup" className="flex-row rounded-2xl bg-gray-100 p-1 dark:bg-gray-800">
-        {DEFAULTS.map((d) => {
-          const selected = recordTypeDefault === d.value;
-          return (
-            <Pressable
-              key={d.value}
-              onPress={() => setSetting('record_type_default', d.value)}
-              accessibilityRole="radio"
-              accessibilityState={{ selected }}
-              className={`flex-1 items-center justify-center rounded-xl px-1 ${
-                selected ? 'bg-card dark:bg-card-dark' : ''
-              }`}
-              style={
-                selected
-                  ? {
-                      minHeight: 44,
-                      elevation: 2,
-                      shadowColor: 'black',
-                      shadowOpacity: 0.08,
-                      shadowRadius: 3,
-                      shadowOffset: { width: 0, height: 1 },
-                    }
-                  : { minHeight: 44 }
-              }
-            >
-              <Text
-                numberOfLines={1}
-                className={`text-sm ${
-                  selected ? 'font-bold text-gray-900 dark:text-gray-100' : 'font-medium text-gray-600 dark:text-gray-300'
-                }`}
+      {others.length > 0 ? (
+        <>
+          <Text className="mb-2 mt-4 text-sm font-medium text-gray-600 dark:text-gray-400">{t('create.others')}</Text>
+          <View className="flex-row gap-2">
+            {others.map((o) => (
+              <Pressable
+                key={o.key}
+                onPress={() => (o.page ? o.run() : choose(o.run))}
+                accessibilityRole="button"
+                accessibilityLabel={o.label}
+                className="flex-1 items-center justify-center rounded-card border border-line bg-paper active:bg-gray-100 dark:border-line-dark dark:bg-paper-dark dark:active:bg-gray-800"
+                style={{ minHeight: 64 }}
               >
-                {t(d.label)}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
+                <Ionicons name={o.icon} size={20} color={c.ink2} />
+                <Text className="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-100" numberOfLines={1}>
+                  {o.label}
+                </Text>
+              </Pressable>
+            ))}
+            {/* Keep tiles a third wide however many modules are on. */}
+            {others.length < 3
+              ? Array.from({ length: 3 - others.length }, (_, i) => <View key={`pad-${i}`} className="flex-1" />)
+              : null}
+          </View>
+        </>
+      ) : null}
+
+      {defaults.length > 0 ? (
+        <>
+          <View className="mt-4 h-px bg-line dark:bg-line-dark" />
+          <Text className="mb-2 mt-4 text-sm font-medium text-gray-600 dark:text-gray-400">
+            {t('create.plusDefault')}
+          </Text>
+          <View accessibilityRole="radiogroup" className="flex-row rounded-2xl bg-gray-100 p-1 dark:bg-gray-800">
+            {defaults.map((d) => {
+              const selected = recordTypeDefault === d.value;
+              return (
+                <Pressable
+                  key={d.value}
+                  onPress={() => setSetting('record_type_default', d.value)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected }}
+                  className={`flex-1 items-center justify-center rounded-xl px-1 ${
+                    selected ? 'bg-card dark:bg-card-dark' : ''
+                  }`}
+                  style={
+                    selected
+                      ? {
+                          minHeight: 44,
+                          elevation: 2,
+                          shadowColor: 'black',
+                          shadowOpacity: 0.08,
+                          shadowRadius: 3,
+                          shadowOffset: { width: 0, height: 1 },
+                        }
+                      : { minHeight: 44 }
+                  }
+                >
+                  <Text
+                    numberOfLines={1}
+                    className={`text-sm ${
+                      selected ? 'font-bold text-gray-900 dark:text-gray-100' : 'font-medium text-gray-600 dark:text-gray-300'
+                    }`}
+                  >
+                    {t(d.label)}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </>
+      ) : null}
     </ScrollView>
   );
 }

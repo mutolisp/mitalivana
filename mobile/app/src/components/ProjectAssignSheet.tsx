@@ -7,6 +7,9 @@ import { createProject, listProjects, type Project } from '~/db';
 import { promptText } from './TextPromptModal';
 import { useThemeColors } from '~/theme/colors';
 import { ActionSheetLayer, sheetBack } from '~/components/ActionSheet';
+import { AdvancedFold } from '~/components/AdvancedFold';
+import { vis } from '~/lib/usageMode';
+import { useUsageMode } from '~/lib/useUsageMode';
 
 type Props = {
   visible: boolean;
@@ -31,6 +34,8 @@ export function ProjectAssignSheet({
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [projects, setProjects] = useState<Project[]>([]);
+  // Volunteers usually join the project they were given: 新建專案 is under 進階.
+  const newProjectVis = vis(useUsageMode(), 'newProjectInSheet');
 
   useEffect(() => {
     if (visible) setProjects(listProjects());
@@ -63,6 +68,21 @@ export function ProjectAssignSheet({
     onAssign(id);
   };
 
+  const newProjectRow = (
+    <Pressable
+      onPress={handleCreateInline}
+      className="flex-row items-center border-b border-gray-100 dark:border-gray-800 bg-accent-50 dark:bg-accent-950/40 px-4 py-3 active:bg-accent-100 dark:active:bg-accent-900/60"
+    >
+      <View className="mr-3 h-8 w-8 items-center justify-center rounded-full bg-accent-500">
+        <Ionicons name="add" size={20} color="white" />
+      </View>
+      <View className="flex-1">
+        <Text className="text-base font-semibold text-accent-700 dark:text-accent-300">{t('sheets.newProject')}</Text>
+        <Text className="text-xs text-accent-600 dark:text-accent-400">{newProjectDescription ?? t('sheets.newProjectDesc')}</Text>
+      </View>
+    </Pressable>
+  );
+
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={sheetBack(onCancel)}>
       <View className="flex-1">
@@ -80,18 +100,7 @@ export function ProjectAssignSheet({
               {description ?? t('sheets.assignProjectDesc')}
             </Text>
           </View>
-          <Pressable
-            onPress={handleCreateInline}
-            className="flex-row items-center border-b border-gray-100 dark:border-gray-800 bg-accent-50 dark:bg-accent-950/40 px-4 py-3 active:bg-accent-100 dark:active:bg-accent-900/60"
-          >
-            <View className="mr-3 h-8 w-8 items-center justify-center rounded-full bg-accent-500">
-              <Ionicons name="add" size={20} color="white" />
-            </View>
-            <View className="flex-1">
-              <Text className="text-base font-semibold text-accent-700 dark:text-accent-300">{t('sheets.newProject')}</Text>
-              <Text className="text-xs text-accent-600 dark:text-accent-400">{newProjectDescription ?? t('sheets.newProjectDesc')}</Text>
-            </View>
-          </Pressable>
+          {newProjectVis === 'show' ? newProjectRow : null}
           <ScrollView className="max-h-96">
             {projects.map((p) => {
               const active = p.id === currentProjectId;
@@ -124,6 +133,7 @@ export function ProjectAssignSheet({
               );
             })}
           </ScrollView>
+          {newProjectVis === 'adv' ? <AdvancedFold className="mx-4 mt-3">{newProjectRow}</AdvancedFold> : null}
         </View>
       </View>
       <ActionSheetLayer visible={visible} />

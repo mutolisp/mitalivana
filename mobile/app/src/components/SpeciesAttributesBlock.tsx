@@ -28,6 +28,7 @@ import {
   lifeStageOptions,
   toggleMultiValue,
 } from '~/lib/dwcAttributes';
+import { useModeT } from '~/lib/useUsageMode';
 
 /** Attribute values are kept in their normalized in-memory form:
  *    - sex / life_stage  : single value
@@ -68,6 +69,7 @@ export function SpeciesAttributesBlock({
   fields,
 }: Props) {
   const { t } = useTranslation();
+  const tm = useModeT();
   const initial = defaultOpen ?? hasAttributes(value);
   const [open, setOpen] = useState(initial);
 
@@ -112,7 +114,7 @@ export function SpeciesAttributesBlock({
       {open ? (
         <View className="mt-2 gap-3">
           {shown('degree_of_establishment') ? (
-            <FieldRow label={t('attr.establishmentLabel')}>
+            <FieldRow label={tm('attr.establishmentLabel')}>
               <SingleChipGroup
                 options={establishmentOptions()}
                 value={value.degree_of_establishment}
@@ -122,7 +124,7 @@ export function SpeciesAttributesBlock({
           ) : null}
 
           {shown('sex') ? (
-            <FieldRow label={t('attr.sexLabel')}>
+            <FieldRow label={tm('attr.sexLabel')}>
               <SingleChipGroup
                 options={sexOptions()}
                 value={value.sex}
@@ -132,7 +134,7 @@ export function SpeciesAttributesBlock({
           ) : null}
 
           {isAnimal && shown('life_stage') ? (
-            <FieldRow label={t('attr.lifeStageLabel')}>
+            <FieldRow label={tm('attr.lifeStageLabel')}>
               <SingleChipGroup
                 options={lifeStageOptions(className)}
                 value={value.life_stage}
@@ -144,7 +146,7 @@ export function SpeciesAttributesBlock({
           {isPlant ? (
             <>
               {shown('reproductive_condition') ? (
-                <FieldRow label={t('attr.reproLabel')}>
+                <FieldRow label={tm('attr.reproLabel')}>
                   <MultiChipGroup
                     options={reproductiveOptions()}
                     value={value.reproductive_condition}
@@ -153,7 +155,7 @@ export function SpeciesAttributesBlock({
                 </FieldRow>
               ) : null}
               {shown('leaf_phenology') ? (
-                <FieldRow label={t('attr.leafLabel')}>
+                <FieldRow label={tm('attr.leafLabel')}>
                   <MultiChipGroup
                     options={leafPhenologyOptions()}
                     value={value.leaf_phenology}

@@ -29,6 +29,8 @@ import { bundleItemsOf, listRecords } from '~/db';
 import { HeaderIconButton } from '~/components/HeaderIconButton';
 import { BackHeaderLeft } from '~/lib/goBack';
 import { useThemeColors } from '~/theme/colors';
+import { vis } from '~/lib/usageMode';
+import { useUsageMode } from '~/lib/useUsageMode';
 
 /** Below this the list is short enough to scan; a search box would just eat a
  *  row's worth of screen. */
@@ -37,6 +39,7 @@ const SEARCH_THRESHOLD = 10;
 export default function ProjectsScreen() {
   const c = useThemeColors();
   const { t } = useTranslation();
+  const exportInline = vis(useUsageMode(), 'projectExport') === 'show';
   const router = useRouter();
   const [projects, setProjects] = useState<ProjectWithCounts[]>([]);
   const [editing, setEditing] = useState<ProjectEditTarget>(null);
@@ -337,13 +340,18 @@ export default function ProjectsScreen() {
                 </View>
               </Pressable>
             );
+            // Volunteers export a project from its page's ⋯ › 進階.
             const actions = [
-              {
-                label: t('common.export'),
-                icon: 'share-outline' as const,
-                color: 'export' as const,
-                onPress: () => handleExport(item),
-              },
+              ...(exportInline
+                ? [
+                    {
+                      label: t('common.export'),
+                      icon: 'share-outline' as const,
+                      color: 'export' as const,
+                      onPress: () => handleExport(item),
+                    },
+                  ]
+                : []),
               ...(item.id !== 0
                 ? [
                     {

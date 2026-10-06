@@ -50,6 +50,8 @@ import {
 import type { PlotType } from '~/db';
 import { stampNewRecord } from './recordFix';
 import { speciesParts } from '~/lib/nameParts';
+import { shows } from '~/lib/usageMode';
+import { currentUsageMode } from '~/lib/useUsageMode';
 
 type PlotTarget = {
   sp: SearchResult;
@@ -244,6 +246,11 @@ export function useAddToActiveRecord(): {
   };
 
   const promptAddDestination = async (sp: SearchResult): Promise<boolean> => {
+    // No collections in the simpler modes: the long press adds, like a tap.
+    if (!shows(currentUsageMode(), 'addToCollection')) {
+      addSpecies(sp);
+      return true;
+    }
     // Resolved here rather than during render: this is a synchronous SQLite
     // read, and the hook is mounted by the taxonomy tree, which re-renders on
     // every scroll and expand.
@@ -306,7 +313,7 @@ export function useAddToActiveRecord(): {
       header={headerOf(plotTarget.sp)}
       kingdom={plotTarget.sp.kingdom ?? null}
       className={plotTarget.sp.class_name ?? null}
-      defaultType={defaultQuantityTypeFor(plotTarget.sp.kingdom)}
+      defaultType={defaultQuantityTypeFor(plotTarget.sp.kingdom, plotTarget.layer === 'T' ? currentUsageMode() : 'pro')}
       showDetection={plotTarget.plotType === 'point_count' || plotTarget.sp.kingdom === 'Animalia'}
       onCancel={() => setPlotTarget(null)}
       onSave={handlePlotSave}

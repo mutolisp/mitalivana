@@ -7,6 +7,8 @@
  */
 import { showActionSheet } from '~/components/ActionSheet';
 import i18n from '~/i18n';
+import { vis } from '~/lib/usageMode';
+import { currentUsageMode } from '~/lib/useUsageMode';
 
 export async function showSpatialMenu(o: {
   /** The assigned site's name; null when none is. */
@@ -31,26 +33,34 @@ export async function showSpatialMenu(o: {
   const t = i18n.t.bind(i18n);
   const m = o.modules ?? { site: true, centre: true, track: true };
   const hasSite = o.siteName !== null;
-  const options: Array<{ label: string; action: () => void; destructive?: boolean }> = [
-    ...(m.site
+  // 地理樣區 entries: first in pro mode; volunteers find them under 進階, after
+  // the start point and the track (they matter when a project hands out a GPX).
+  const siteVis = vis(currentUsageMode(), 'geoSites');
+  const siteSection = siteVis === 'adv' ? t('mode.advanced') : undefined;
+  const siteOptions: Array<{ label: string; action: () => void; section?: string }> =
+    m.site && siteVis !== 'hide'
       ? [
           {
             label: hasSite ? t('session.assignSiteCurrent', { name: o.siteName }) : t('session.assignOrCreateSite'),
             action: o.onAssignSite,
+            section: siteSection,
           },
-          { label: t('session.createPointSiteFromGnss'), action: o.onCreatePointSite },
+          { label: t('session.createPointSiteFromGnss'), action: o.onCreatePointSite, section: siteSection },
         ]
-      : []),
+      : [];
+  const options: Array<{ label: string; action: () => void; destructive?: boolean; section?: string }> = [
+    ...(siteVis === 'show' ? siteOptions : []),
     ...(m.centre ? [{ label: o.hasPoint ? t('session.relocateStart') : t('session.locateNoSite'), action: o.onDropPoint }] : []),
     ...(m.track && o.tracking ? [{ label: t('session.stopTrack', { count: o.trackCount }), action: o.onStopTrack }] : []),
     ...(m.track && !o.tracking && o.canTrack !== false
       ? [{ label: o.trackHasData ? t('session.resumeTrack') : t('session.startTrack'), action: o.onStartTrack }]
       : []),
+    ...(siteVis === 'adv' ? siteOptions : []),
   ];
   if (o.hasPoint || hasSite || o.trackHasData) options.push({ label: t('session.clearSpatial'), action: o.onClear, destructive: true });
   const idx = await showActionSheet({
     title: t('session.spatialMenuTitle'),
-    options: options.map((x) => ({ label: x.label, destructive: x.destructive })),
+    options: options.map((x) => ({ label: x.label, destructive: x.destructive, section: x.section })),
   });
   if (idx >= 0 && idx < options.length) options[idx].action();
 }

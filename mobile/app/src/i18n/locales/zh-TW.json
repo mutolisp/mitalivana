@@ -334,7 +334,8 @@
     "privacy": "隱私權政策",
     "miren": "MIREN 調查",
     "survey": "每木調查",
-    "addRecords": "新增記錄"
+    "addRecords": "新增記錄",
+    "plot_vol": "穿越線／定點計數"
   },
   "tab": {
     "menu": "設定",
@@ -371,7 +372,8 @@
     "kindGloria": "GLORIA 山峰調查",
     "moreActions": "更多動作",
     "kindMiren": "MIREN 道路／步道調查",
-    "kindModular": "名錄型／樣區型調查"
+    "kindModular": "名錄型／樣區型調查",
+    "kindPlot_vol": "穿越線／定點計數"
   },
   "rank": {
     "kingdom": "界",
@@ -797,7 +799,11 @@
     "numMin": "數值須大於或等於 {{min}}",
     "numMax": "數值須小於或等於 {{max}}",
     "numAbove": "數值須大於 {{min}}",
-    "numAboveMax": "數值須大於 {{min}}，且小於或等於 {{max}}"
+    "numAboveMax": "數值須大於 {{min}}，且小於或等於 {{max}}",
+    "tabEnv_vol": "基本資料",
+    "plotidLabel": "Plotid",
+    "plotidLabel_vol": "編號",
+    "placeAndNotes": "地點與備註"
   },
   "settings": {
     "sectionAppearance": "外觀與操作",
@@ -918,7 +924,12 @@
     "updateTag": "更新",
     "searchCount_other": "{{count}} 項符合",
     "moduleSurvey": "每木調查",
-    "moduleSurveyDesc": "森林動態樣區的每木位置與複查（開發中）"
+    "moduleSurveyDesc": "森林動態樣區的每木位置與複查（開發中）",
+    "advancedGroup": "進階設定",
+    "searchPlaceholder_vol": "搜尋設定，例如：定位、備份、深色",
+    "searchPlaceholder_casual": "搜尋設定，例如：備份、iNaturalist、深色",
+    "gpsPerSpeciesPlot_vol": "穿越線／定點計數：每筆物種自動定位",
+    "exportPrefDesc_vol": "地理格式、照片、文書檔格式、階層與保育欄位"
   },
   "taxonomy": {
     "loadingTree": "載入分類樹...",
@@ -1499,7 +1510,8 @@
     "plotRecording": "樣區記錄中：{{id}}",
     "gloriaRecording": "GLORIA 調查中 · mocy {{mocy}}",
     "mirenRecording": "MIREN 調查中 · {{year}}",
-    "surveyRecording": "調查中：{{name}}"
+    "surveyRecording": "調查中：{{name}}",
+    "plotRecording_vol": "調查中：{{id}}"
   },
   "speciesSearch": {
     "hint": "下方輸入俗名 / 學名 / 科名搜尋物種，{{br}}選擇結果後在此檢視詳細資訊。"
@@ -2005,7 +2017,8 @@
     "crossResult_other": "{{count}} 個樣區・已記錄 {{sObs}} 種・估計物種庫 ≥ {{est}} 種",
     "selectedPlots_other": "以勾選的 {{count}} 個樣區為取樣單位",
     "effective": "≈ {{n}} 有效種",
-    "hillInf": "≈ {{n}} 有效優勢種"
+    "hillInf": "≈ {{n}} 有效優勢種",
+    "hideCard": "收起多樣性統計"
   },
   "report": {
     "navTitle": "分析報表",
@@ -3813,7 +3826,8 @@
       "bubble": "同步中",
       "bubblePct": "同步中，{{pct}}%",
       "bubbleHint": "點一下展開同步進度，拖曳可移動位置"
-    }
+    },
+    "advSummary": "同步紀錄、伺服器"
   },
   "teamDeploy": {
     "title": "用我自己的 Cloudflare",
@@ -4238,6 +4252,7 @@
     "isDefault": "預設",
     "ask": "每次詢問",
     "importFile": "匯入檔案",
+    "importPlanFile": "匯入計畫給的檔案",
     "plotPageSubtitle": "選擇樣區類型",
     "plotFixedDesc": "分層植群，逐層記錄覆蓋度與高度",
     "plotTransectDesc": "沿線調查，記錄 GPS 軌跡",
@@ -4304,7 +4319,8 @@
     "tabBarMode": "導覽列 分頁 收合 圓鈕 浮動 按鈕",
     "undoDuration": "undo 復原 還原 秒數 提示",
     "storage": "儲存 空間 容量 清理 快取",
-    "moduleSurvey": "每木 樣區 森林動態 ForestGEO 胸高直徑 DBH 複查 樹號"
+    "moduleSurvey": "每木 樣區 森林動態 ForestGEO 胸高直徑 DBH 複查 樹號",
+    "usageMode": "模式 專業 志工 隨手記 簡化"
   },
   "quadrat": {
     "cover": {
@@ -5532,5 +5548,113 @@
     "separate": "另記一筆 {{picked}}",
     "acceptedOnlyTitle": "這裡只用接受名",
     "acceptedOnly": "這裡的記錄只能用接受名：你選的 {{typed}} 會記成 {{accepted}}。"
+  },
+  "mode": {
+    "title": "使用模式",
+    "titleDesc": "專業調查、志工調查或隨手記",
+    "change": "變更",
+    "switchNote": "切換只改變看得到的功能。所有記錄都還在，其他類型的記錄仍可打開來看。",
+    "switched": "已切換到「{{mode}}」",
+    "pro": "專業調查",
+    "proDesc": "完整功能：固定樣區分層、頻度、採集標本與調查模組",
+    "proGet1": "目前所有畫面與欄位",
+    "proGet2": "Braun-Blanquet、覆蓋度、胸徑等豐度",
+    "proGet3": "GLORIA、MIREN、每木調查等模組可在設定開啟",
+    "vol": "志工調查",
+    "volDesc": "參加調查活動：快速名錄、穿越線、定點計數",
+    "volGet1": "只有這三種記錄，欄位精簡",
+    "volGet2": "數量用隻數、株數記",
+    "volGet3": "軌跡、調查者、專案照常記錄，可匯出交給計畫",
+    "casual": "隨手記",
+    "casualDesc": "看到就拍照或錄音，之後再查是什麼物種",
+    "casualGet1": "＋ 直接開相機或錄音",
+    "casualGet2": "還不知道名字也能先存，標成「待鑑定」",
+    "casualGet3": "依日期整理成「我的觀察」，可上傳 iNaturalist",
+    "gateTitle": "你主要想怎麼用？",
+    "gateIntro": "選一種開始。之後可以在「設定 › 使用模式」隨時改，記錄不會因此消失。",
+    "gateStart": "以「{{mode}}」開始",
+    "gateNext": "下一步：下載物種名錄",
+    "importBlockedTitle": "這個檔案要用專業調查匯入",
+    "importBlockedMsg": "志工模式只能匯入快速名錄、穿越線和定點計數。到「設定 › 使用模式」切換成專業調查後再匯入。",
+    "advanced": "進階",
+    "advancedHide": "收起進階",
+    "advancedWith": "進階：{{summary}}",
+    "advSpecies": "其他屬性、識別碼",
+    "advPlot": "調查方法、地形、地表覆蓋…"
+  },
+  "obsNotes": {
+    "title": "觀察筆記",
+    "subtitle": "選填 · 依「{{group}}」提示",
+    "reproQuestion": "有沒有花、果實或孢子囊？",
+    "tipsHeading": "可以記下（點一下帶入）"
+  },
+  "obsTips": {
+    "plant": {
+      "name": "植物",
+      "placeholder": "例如：花粉紅色，多在步道旁的灌叢上緣",
+      "leaf": "葉子對生或互生？邊緣有鋸齒嗎？",
+      "leafStart": "葉子：",
+      "habitat": "長在哪裡：路邊、林下、水邊",
+      "habitatStart": "生長環境：",
+      "height": "大概多高",
+      "heightStart": "高度約 ",
+      "smell": "有沒有香味、汁液",
+      "smellStart": "氣味或汁液：",
+      "shot": "順手拍花、果實或種子的特寫，之後比較好認",
+      "shotButton": "拍特寫"
+    },
+    "bird": {
+      "name": "鳥類",
+      "placeholder": "例如：在樹冠層鳴唱，另一隻在遠處回應",
+      "behaviour": "在做什麼：覓食、鳴唱、育雛",
+      "behaviourStart": "行為：",
+      "flock": "幾隻、有沒有成群",
+      "flockStart": "數量與群聚：",
+      "call": "叫聲像什麼",
+      "callStart": "叫聲：",
+      "perch": "停在哪裡",
+      "perchStart": "位置：",
+      "shot": "聽到叫聲就錄一段，鳴聲常比外形好認"
+    },
+    "insect": {
+      "name": "昆蟲",
+      "placeholder": "例如：停在華八仙上吸蜜，翅展約 12 cm",
+      "host": "停在什麼植物上",
+      "hostStart": "停在：",
+      "behaviour": "在做什麼：吸蜜、產卵、交尾",
+      "behaviourStart": "行為：",
+      "size": "大概多大",
+      "sizeStart": "大小約 ",
+      "count": "有幾隻",
+      "countStart": "數量：",
+      "shot": "翅膀正面和背面都拍，花紋最好認",
+      "shotButton": "拍另一面"
+    },
+    "animal": {
+      "name": "動物",
+      "placeholder": "例如：在溪邊石頭上曬太陽",
+      "behaviour": "在做什麼：覓食、休息、移動",
+      "behaviourStart": "行為：",
+      "size": "大概多大",
+      "sizeStart": "大小約 ",
+      "where": "在哪裡發現：地面、樹上、水裡",
+      "whereStart": "位置：",
+      "signs": "有沒有留下痕跡：足跡、排遺、叫聲",
+      "signsStart": "痕跡：",
+      "shot": "能拍就拍全身和側面；看不清楚時，錄下聲音也有幫助",
+      "shotButton": "拍照"
+    },
+    "other": {
+      "name": "其他",
+      "placeholder": "例如：長在倒木上，成群出現",
+      "substrate": "長在或停在什麼上",
+      "substrateStart": "長在：",
+      "look": "大概多大、什麼顏色",
+      "lookStart": "大小與顏色：",
+      "count": "單獨或成群",
+      "countStart": "數量：",
+      "shot": "從幾個角度多拍幾張",
+      "shotButton": "拍照"
+    }
   }
 }

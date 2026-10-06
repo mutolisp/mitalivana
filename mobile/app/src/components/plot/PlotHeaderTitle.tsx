@@ -24,7 +24,9 @@ export function PlotHeaderTitle({
   plotid: string;
   stats: string | null;
   expanded: boolean;
-  onToggle: () => void;
+  /** Without it the second line is plain text: volunteers' kind and species
+   *  count (diversity is under ⋯ › 進階 in that mode). */
+  onToggle?: () => void;
 }) {
   const c = useThemeColors();
   const { t } = useTranslation();
@@ -38,6 +40,27 @@ export function PlotHeaderTitle({
       >
         {plotid}
       </Text>
+    );
+  }
+
+  if (!onToggle) {
+    return (
+      <View className="items-center">
+        <Text
+          className="font-semibold text-gray-900 dark:text-gray-100"
+          style={{ fontSize: 15, lineHeight: 18, maxWidth: 200 }}
+          numberOfLines={1}
+        >
+          {plotid}
+        </Text>
+        <Text
+          className="text-gray-500 dark:text-gray-400"
+          style={{ fontSize: 11, lineHeight: 14, maxWidth: 200 }}
+          numberOfLines={1}
+        >
+          {stats}
+        </Text>
+      </View>
     );
   }
 

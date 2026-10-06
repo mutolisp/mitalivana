@@ -53,6 +53,10 @@ import { RecordLocationMap } from './RecordLocationMap';
 import { firstPhotoFix } from '~/lib/photoMeta';
 import { VerbatimLabelField } from './VerbatimLabelField';
 import { SpeciesAttributesBlock, type SpeciesAttributesDraft } from './SpeciesAttributesBlock';
+import { AdvancedFold } from './AdvancedFold';
+import { ObservationNotes } from './ObservationNotes';
+import { shows, vis } from '~/lib/usageMode';
+import { useUsageMode } from '~/lib/useUsageMode';
 import { parseMultiAttribute } from '~/lib/dwcAttributes';
 import { ToastHost } from './ToastHost';
 import { ElevationField } from './ElevationField';
@@ -125,6 +129,14 @@ function parsePhotoPaths(s: string | null): string[] {
   return [];
 }
 
+const ALL_ATTRIBUTE_FIELDS: readonly (keyof SpeciesAttributesDraft)[] = [
+  'sex',
+  'life_stage',
+  'reproductive_condition',
+  'leaf_phenology',
+  'degree_of_establishment',
+];
+
 export function SpeciesDetailSheet({
   record,
   onClose,
@@ -151,6 +163,7 @@ export function SpeciesDetailSheet({
   const router = useRouter();
   const nav = usePagerNav(pager);
   const scrollRef = useRef<ScrollView>(null);
+  const mode = useUsageMode();
   const { t } = useTranslation();
   const [notesModalOpen, setNotesModalOpen] = useState(false);
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
@@ -199,6 +212,89 @@ export function SpeciesDetailSheet({
   const isEndemic = record.is_endemic === 'true';
   const ab = alienBadge(record.alien_type, record.kingdom);
   const observedStr = isoDateTime(record.observed_at);
+
+  // Usage modes: what pro mode shows in place, the simpler modes fold into
+  // one 進階 at the end (design 18l), and the notes tile becomes 觀察筆記.
+  const verbatimField = onSaveVerbatim ? (
+    <VerbatimLabelField
+      key={record.id}
+      rank={record.rank}
+      value={record.verbatim_identification}
+      onCommit={onSaveVerbatim}
+    />
+  ) : null;
+  const keyChips = parentKeys.map((k) => (
+    <Pressable
+      key={k.id}
+      onPress={() => {
+        onClose();
+        requestAnimationFrame(() => router.push(`/key/${k.id}`));
+      }}
+      className="flex-row items-center rounded-full bg-accent-100 px-2.5 py-1 active:bg-accent-200 dark:bg-accent-900/60 dark:active:bg-accent-800"
+      hitSlop={4}
+    >
+      <Ionicons name="key" size={12} color={c.accent} />
+      <Text className="ml-1 text-xs font-medium text-accent-700 dark:text-accent-300">
+        {t('nav.key')} ({k.scope_name})
+      </Text>
+    </Pressable>
+  ));
+  const attrs: SpeciesAttributesDraft = {
+    sex: record.sex ?? null,
+    life_stage: record.life_stage ?? null,
+    reproductive_condition: parseMultiAttribute(record.reproductive_condition),
+    leaf_phenology: parseMultiAttribute(record.leaf_phenology),
+    degree_of_establishment: record.degree_of_establishment ?? null,
+  };
+  const obsNotes = Boolean(onSaveNotes) && shows(mode, 'observationNotes');
+  const reproInNotes =
+    obsNotes &&
+    record.kingdom === 'Plantae' &&
+    onSaveAttributes !== undefined &&
+    (!attributeFields || attributeFields.includes('reproductive_condition'));
+  const attrFields = reproInNotes
+    ? (attributeFields ?? ALL_ATTRIBUTE_FIELDS).filter((f) => f !== 'reproductive_condition')
+    : attributeFields;
+  const elevationField = onSaveElevation ? (
+    <View className="mt-2">
+      <Text className="mb-1 text-xs font-medium text-gray-600 dark:text-gray-400">
+        {t('collection.elevation')}
+      </Text>
+      <ElevationField
+        value={record.elevation_m}
+        onCommit={(m) => onSaveElevation(m, 'manual')}
+        inputClassName="rounded-lg border border-gray-200 bg-card px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+      />
+    </View>
+  ) : null;
+  const attributesBlock = (open?: boolean) =>
+    onSaveAttributes ? (
+      <View className="mt-3">
+        <SpeciesAttributesBlock
+          kingdom={record.kingdom}
+          className={record.class}
+          value={attrs}
+          onChange={onSaveAttributes}
+          fields={attrFields}
+          defaultOpen={open}
+        />
+      </View>
+    ) : null;
+  const metaFooter = (
+    <RecordMetaFooter
+      occurrenceId={record.occurrence_id}
+      updatedAt={record.updated_at}
+      inatObservationId={record.inat_uploaded_at != null ? record.inat_observation_id : null}
+    />
+  );
+  const folded = {
+    verbatim: vis(mode, 'verbatimLabel') === 'adv' ? verbatimField : null,
+    keys: vis(mode, 'keyChip') === 'adv' && keyChips.length > 0 ? keyChips : null,
+    elevation: vis(mode, 'recordElevation') === 'adv' ? elevationField : null,
+    attributes: vis(mode, 'speciesAttributes') === 'adv' ? attributesBlock(true) : null,
+    meta: vis(mode, 'recordMeta') === 'adv' ? metaFooter : null,
+  };
+  const hasFolded = Object.values(folded).some((x) => x !== null);
 
   return (
     <Modal visible animationType="slide" transparent onRequestClose={sheetBack(onClose)}>
@@ -257,34 +353,12 @@ export function SpeciesDetailSheet({
                         <Tag kind="protected" size="md" label={`${t('species.protected')} ${record.protected}`} />
                       ) : null}
                     </View>
-                    {onSaveVerbatim ? (
-                      <VerbatimLabelField
-                        key={record.id}
-                        rank={record.rank}
-                        value={record.verbatim_identification}
-                        onCommit={onSaveVerbatim}
-                      />
-                    ) : null}
+                    {onSaveVerbatim && vis(mode, 'verbatimLabel') === 'show' ? verbatimField : null}
                     <View className="mt-1 flex-row flex-wrap items-center gap-2">
                       {record.taxon_id ? <FavoriteToggle taxonId={record.taxon_id} /> : null}
                       {/* Identification keys for the genus / family: a field
                           tool, so they stay here rather than behind 分類資訊. */}
-                      {parentKeys.map((k) => (
-                        <Pressable
-                          key={k.id}
-                          onPress={() => {
-                            onClose();
-                            requestAnimationFrame(() => router.push(`/key/${k.id}`));
-                          }}
-                          className="flex-row items-center rounded-full bg-accent-100 px-2.5 py-1 active:bg-accent-200 dark:bg-accent-900/60 dark:active:bg-accent-800"
-                          hitSlop={4}
-                        >
-                          <Ionicons name="key" size={12} color={c.accent} />
-                          <Text className="ml-1 text-xs font-medium text-accent-700 dark:text-accent-300">
-                            {t('nav.key')} ({k.scope_name})
-                          </Text>
-                        </Pressable>
-                      ))}
+                      {vis(mode, 'keyChip') === 'show' ? keyChips : null}
                     </View>
                   </View>
                   <Pressable
@@ -418,7 +492,7 @@ export function SpeciesDetailSheet({
                           </Pressable>
                         ) : null}
                         {onAddAudio ? <AudioRecordTile onAdd={onAddAudio} /> : null}
-                        {onSaveNotes ? (
+                        {onSaveNotes && !obsNotes ? (
                         <Pressable
                           onPress={() => setNotesModalOpen(true)}
                           accessibilityRole="button"
@@ -439,6 +513,22 @@ export function SpeciesDetailSheet({
                         <AudioClipRows
                           clips={parsePhotoPaths(record.audio_paths)}
                           onRemove={onRemoveAudio ?? (() => {})}
+                        />
+                      ) : null}
+                      {obsNotes && onSaveNotes ? (
+                        <ObservationNotes
+                          key={`notes-${record.id}`}
+                          kingdom={record.kingdom}
+                          className={record.class}
+                          note={record.notes}
+                          onCommitNote={onSaveNotes}
+                          repro={reproInNotes ? attrs.reproductive_condition : undefined}
+                          onChangeRepro={
+                            reproInNotes && onSaveAttributes
+                              ? (next) => onSaveAttributes({ ...attrs, reproductive_condition: next })
+                              : undefined
+                          }
+                          onTakePhoto={onAddPhoto ? () => onAddPhoto('camera') : undefined}
                         />
                       ) : null}
 
@@ -499,37 +589,8 @@ export function SpeciesDetailSheet({
                           </View>
                         </GestureDetector>
                       ) : null}
-                      {onSaveElevation ? (
-                        <View className="mt-2">
-                          <Text className="mb-1 text-xs font-medium text-gray-600 dark:text-gray-400">
-                            {t('collection.elevation')}
-                          </Text>
-                          <ElevationField
-                            value={record.elevation_m}
-                            onCommit={(m) => onSaveElevation(m, 'manual')}
-                            inputClassName="rounded-lg border border-gray-200 bg-card px-3 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
-                          />
-                        </View>
-                      ) : null}
-                      {onSaveAttributes ? (
-                        <View className="mt-3">
-                          <SpeciesAttributesBlock
-                            kingdom={record.kingdom}
-                            className={record.class}
-                            value={{
-                              sex: record.sex ?? null,
-                              life_stage: record.life_stage ?? null,
-                              reproductive_condition: parseMultiAttribute(
-                                record.reproductive_condition,
-                              ),
-                              leaf_phenology: parseMultiAttribute(record.leaf_phenology),
-                              degree_of_establishment: record.degree_of_establishment ?? null,
-                            }}
-                            onChange={onSaveAttributes}
-                            fields={attributeFields}
-                          />
-                        </View>
-                      ) : null}
+                      {vis(mode, 'recordElevation') === 'show' ? elevationField : null}
+                      {vis(mode, 'speciesAttributes') === 'show' ? attributesBlock() : null}
                       {extra}
                       {inat ? <InatSyncButton state={inat} /> : null}
                       {/* This record's iNaturalist observation: a record-level
@@ -570,13 +631,16 @@ export function SpeciesDetailSheet({
                       ) : null}
                     </View>
 
-                    <RecordMetaFooter
-                      occurrenceId={record.occurrence_id}
-                      updatedAt={record.updated_at}
-                      inatObservationId={
-                        record.inat_uploaded_at != null ? record.inat_observation_id : null
-                      }
-                    />
+                    {vis(mode, 'recordMeta') === 'show' ? metaFooter : null}
+                    {hasFolded ? (
+                      <AdvancedFold className="mx-4 mt-4" summary={t('mode.advSpecies')}>
+                        {folded.verbatim}
+                        {folded.keys ? <View className="mt-2 flex-row flex-wrap items-center gap-2">{folded.keys}</View> : null}
+                        {folded.elevation}
+                        {folded.attributes}
+                        {folded.meta}
+                      </AdvancedFold>
+                    ) : null}
 
                     <View className="flex-row gap-2 px-4 pb-6 pt-4">
                       {onReplaceTaxon ? (

@@ -460,7 +460,7 @@ export default function SessionDetailScreen() {
   const [endTs, setEndTs] = useState<number | null>(null);
   const handleEnd = async () => {
     if (!session) return;
-    const chosen = await chooseEndTime(session.ended_at);
+    const chosen = await chooseEndTime(session.ended_at, { confirmsAfter: true });
     if (chosen === undefined) return;
     setEndTs(chosen);
     setEndModalOpen(true);
@@ -845,6 +845,7 @@ export default function SessionDetailScreen() {
                           icon: 'list-outline',
                           section: t('menu.addSpecies'),
                           onPress: () => setBatchImportOpen(true),
+                          cap: 'batchImport',
                         },
                         {
                           label: t('photoImport.entry'),
