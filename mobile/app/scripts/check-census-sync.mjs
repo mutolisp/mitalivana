@@ -142,6 +142,8 @@ B.tx(() => cs.changeBlockSize(B.ctx, CB, 5));
 {
   const app = (await import('node:fs')).readFileSync(new URL('../src/survey/censusSync.ts', import.meta.url), 'utf8');
   ok(/else if \(teamK != null && teamK < k\) \{\s*switchBlockSize\(/.test(app) && !/block_size_differs/.test(app), 'header M1: the sync takes a smaller team size instead of failing');
+  // A seen header whose block size was never stored (before 0.6) is read again (code review M43).
+  ok(/if \(!needK && knownK\[it\.dev\]\?\.k != null && seenEtag\(/.test(app), 'header M43: a seen header is skipped only when its block size is known');
   ok(/if \(doc\?\.record_type === 'census_block' && doc\.ident === ident && doc\.block_quadrats !== k\) continue;/.test(app), 'header M1: a teammate block at another size is not marked seen');
   ok(/DELETE FROM sync_links WHERE record_kind = 'survey_block'/.test(app) && /DELETE FROM sync_seen WHERE team_id = \? AND rec_key = \?/.test(app), 'header M1: a switch resends every block and reads the teammates\' again');
 }
@@ -157,17 +159,30 @@ ok(cs.templateDiffers('builtin:stemmap', { template_id: 'user:x' }) && !cs.templ
   const theirs = { ...header.survey, investigators: '甲,丙', start_ts: b0.start_ts - 1000, stop_ts: b0.start_ts + 5000, notes: '北側陡坡\n樣樁 3 號遺失' };
   ok(B.tx(() => cs.mergeCensusHeader(B.ctx, CB, theirs)), 'header V12: a teammate\'s round fields change the census here');
   const after = sv(CB);
-  ok(after.investigators === '乙,甲,丙', `header V12: investigators pooled (${after.investigators})`);
+  // Sorted once a teammate adds any, so both phones hold the same text (code review L67).
+  ok(after.investigators === '丙,乙,甲', `header V12: investigators pooled (${after.investigators})`);
   ok(after.start_ts === b0.start_ts - 1000, 'header V12: the earlier start');
   ok(after.stop_ts == null, 'header V12: still open here stays open');
-  ok(after.notes === '北側陡坡\n草本層稀疏\n樣樁 3 號遺失', `header V12: the teammate's note lines added once, these kept (${JSON.stringify(after.notes)})`);
+  ok(after.notes === '北側陡坡\n樣樁 3 號遺失\n草本層稀疏', `header V12: the teammate's note lines added once, these kept (${JSON.stringify(after.notes)})`);
   ok(!B.tx(() => cs.mergeCensusHeader(B.ctx, CB, theirs)), 'header V12: the same header again changes nothing');
   B.sqlite.prepare(`UPDATE fw_surveys SET stop_ts = ? WHERE id = ?`).run(b0.start_ts + 100, CB);
   B.tx(() => cs.mergeCensusHeader(B.ctx, CB, theirs));
   ok(sv(CB).stop_ts === b0.start_ts + 5000, 'header V12: ended here too: the later end');
   B.sqlite.prepare(`UPDATE fw_surveys SET investigators = '乙' WHERE id = ?`).run(CB);
   B.tx(() => cs.ensureCensus(B.ctx, { ...header, survey: theirs }));
-  ok(sv(CB).investigators === '乙,甲,丙', 'header V12: ensureCensus merges the header of a census already here');
+  ok(sv(CB).investigators === '丙,乙,甲', 'header V12: ensureCensus merges the header of a census already here');
+  // Two phones, each with a line the other lacks: after each takes the other's, the same text (code review L67).
+  B.sqlite.prepare(`UPDATE fw_surveys SET investigators = '乙', notes = 'y' WHERE id = ?`).run(CB);
+  const onA = { ...header.survey, investigators: '甲', notes: 'x' };
+  const bBefore = { ...header.survey, investigators: '乙', notes: 'y' };
+  B.tx(() => cs.mergeCensusHeader(B.ctx, CB, onA));
+  const bAfter = sv(CB);
+  const aBefore = A.one('SELECT investigators, notes FROM fw_surveys WHERE id = ?', CA);
+  A.sqlite.prepare(`UPDATE fw_surveys SET investigators = '甲', notes = 'x' WHERE id = ?`).run(CA);
+  A.tx(() => cs.mergeCensusHeader(A.ctx, CA, bBefore));
+  const aAfter = A.one('SELECT investigators, notes FROM fw_surveys WHERE id = ?', CA);
+  ok(aAfter.notes === bAfter.notes && aAfter.investigators === bAfter.investigators, `header L67: both phones end with the same notes and investigators (${JSON.stringify([aAfter, bAfter.notes, bAfter.investigators])})`);
+  A.sqlite.prepare(`UPDATE fw_surveys SET investigators = ?, notes = ? WHERE id = ?`).run(aBefore.investigators, aBefore.notes, CA);
   B.sqlite.prepare(`UPDATE fw_surveys SET investigators = ?, start_ts = ?, stop_ts = ?, notes = ? WHERE id = ?`).run(b0.investigators, b0.start_ts, b0.stop_ts, b0.notes, CB);
   // The sync itself reads every teammate's header through it (src/survey/censusSync.ts runs on the device).
   const app = (await import('node:fs')).readFileSync(new URL('../src/survey/censusSync.ts', import.meta.url), 'utf8');
@@ -410,6 +425,10 @@ ok(dbhOf(B, CB, a1u, 1) == null && tree(B, a1u) != null, 'removed: taken → the
   A.tx(() => s.addStem(A.ctx, t9, CA));
   B.tx(() => s.addStem(B.ctx, tree(B, t9u).id, CB));
   ok(stemsOf(A) !== stemsOf(B), '(both phones added stem 2, each its own)');
+  // B's own stem 2 sorts after A's, so the join renames it here; a version
+  // taken before the join still holds the old uuid (code review M44).
+  B.sqlite.prepare(`UPDATE fw_stems SET uuid = 'zz-' || uuid WHERE stem_no = 2 AND individual_id = ?`).run(tree(B, t9u).id);
+  const beforeJoin = sl.buildSlice(B.ctx, CB, [], [t9u]);
   let threw = null;
   let r9 = null;
   try {
@@ -418,6 +437,9 @@ ok(dbhOf(B, CB, a1u, 1) == null && tree(B, a1u) != null, 'removed: taken → the
     threw = e;
   }
   ok(!threw && r9.opened.stemsJoined === 1, `same stem number: their stem 2 is the same stem as ours, no error (${threw?.message ?? r9.opened.stemsJoined})`);
+  const joined = stemsOf(B);
+  B.tx(() => sl.restoreSlice(B.ctx, CB, beforeJoin));
+  ok(stemsOf(B) === joined, `restore: a version from before a stem join gives that stem back, not a third (${joined} → ${stemsOf(B)})`);
   receive(A, CA, send(B, CB, 'b0_0'));
   ok(stemsOf(A) === stemsOf(B) && stemsOf(A).split(',').length === 2, `same stem number: one stem 2 on both phones, under one uuid (${stemsOf(A)} / ${stemsOf(B)})`);
   // A census made from a file (fillSlice) follows the same rule.
@@ -439,6 +461,12 @@ ok(dbhOf(B, CB, a1u, 1) == null && tree(B, a1u) != null, 'removed: taken → the
   ];
   const kept = cs.withParents(A.ctx, ops);
   ok(kept.length === 1 && kept[0].op === 'update', `merge: rows without their tree or stem are left out (${kept.map((o) => `${o.op} ${o.tbl}`)})`);
+  // A value whose measurement is not in this census, nor coming in, stays out too (code review L64).
+  const stemHere = A.one('SELECT uuid FROM fw_stems LIMIT 1').uuid;
+  const val = { op: 'insert', tbl: 'sval', row: { key: `${stemHere}|c|f|0`, data: { stem_uuid: stemHere } } };
+  ok(cs.withParents(A.ctx, [val], 999999).length === 0, 'merge: a value without its measurement in this census is left out');
+  const withMeasure = cs.withParents(A.ctx, [{ op: 'insert', tbl: 'measure', row: { key: stemHere, data: {} } }, val], 999999);
+  ok(withMeasure.length === 2, 'merge: with its measurement coming in, the value comes too');
 }
 
 // ── this phone's roll of tags ────────────────────────────────────────────

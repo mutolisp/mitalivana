@@ -664,6 +664,33 @@ export function switchPlotFreqMode(db: QuadratDb, plotId: number, mode: FreqMode
   );
 }
 
+/**
+ * After a merge: plot-grid counts made on a grid the plot no longer has are
+ * frequency not done — 20 of 5 × 5 is not 20 of 10 × 10 (code review M45, as
+ * normalizeGrid does for a local change). `fromRemote`: occurrence ids whose
+ * frequency the other copy supplied (inserted or overwritten), counted on
+ * `remoteGridN`; every other row was counted here, on `localGridN`.
+ */
+export function dropCrossGridCounts(
+  db: QuadratDb,
+  plotId: number,
+  localGridN: number,
+  remoteGridN: number | null,
+  fromRemote: readonly string[],
+): void {
+  const n = getQuadratConfig(db, plotId).freqGridN;
+  const list = fromRemote.length ? `occurrence_id IN (${fromRemote.map(() => '?').join(', ')})` : '0';
+  if (localGridN !== n) {
+    db.executeSync(
+      `UPDATE plot_species_records SET freq_count = NULL WHERE plot_survey_id = ? AND freq_count IS NOT NULL AND NOT (${list})`,
+      [plotId, ...fromRemote],
+    );
+  }
+  if (remoteGridN != null && remoteGridN !== n && fromRemote.length) {
+    db.executeSync(`UPDATE plot_species_records SET freq_count = NULL WHERE plot_survey_id = ? AND ${list}`, [plotId, ...fromRemote]);
+  }
+}
+
 /** After an import or a merge: masks that do not fit the plot grid are frequency not done; counts capped. */
 export function normalizePlotFreq(db: QuadratDb, plotId: number): void {
   const n = getQuadratConfig(db, plotId).freqGridN;

@@ -148,6 +148,13 @@ export type MapCanvasProps = {
    * the provider's own placement.
    */
   attributionInset?: number;
+  /**
+   * Android: pad the map for `attributionInset` at the bottom only. The main
+   * map pads the top as much, so the region it saves is the one on screen
+   * (padding only below moved it each launch); a map that never saves its
+   * region keeps all of its height for fitting a stretch (code review L43).
+   */
+  attributionBottomOnly?: boolean;
   /** iOS Apple Maps only, and only briefly during a zoom gesture; unsupported on
    *  Android. The permanent scale bar is drawn by `MapScaleBar` itself. */
   showsScale?: boolean;

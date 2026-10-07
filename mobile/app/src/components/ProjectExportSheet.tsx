@@ -15,7 +15,7 @@ import { useThemeColors } from '~/theme/colors';
 import { Button } from '~/components/ui/Button';
 import { ActionSheetLayer, sheetBack } from '~/components/ActionSheet';
 import { shows } from '~/lib/usageMode';
-import { useUsageMode } from '~/lib/useUsageMode';
+import { useAnalysisFormats, useUsageMode } from '~/lib/useUsageMode';
 
 type Props = {
   visible: boolean;
@@ -35,7 +35,7 @@ export function ProjectExportSheet({ visible, onClose, onExport }: Props) {
   // screens with tall content).
   const { height: winHeight } = useWindowDimensions();
   const sheetMaxHeight = winHeight - insets.top - 12;
-  const analysisFormats = useSettings((s) => s.export_analysis_formats);
+  const analysisFormats = useAnalysisFormats();
   const matrixValue = useSettings((s) => s.export_matrix_value);
   const matrixByLayer = useSettings((s) => s.export_matrix_by_layer);
   const includePhotos = useSettings((s) => s.export_include_photos);

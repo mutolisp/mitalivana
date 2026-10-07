@@ -67,6 +67,8 @@ import { useToast } from '~/stores/toast';
 import { ACTION_FILL } from '~/lib/colors';
 import { useInstalledDatasets } from '~/lib/datasetInstall';
 import { stampNewRecord } from '~/lib/recordFix';
+import { draftNow, startObserve } from '~/lib/observeDraft';
+import { useShows } from '~/lib/useUsageMode';
 import { familyChineseFirst } from '~/lib/familyLabel';
 import { useThemeColors } from '~/theme/colors';
 import { Button } from '~/components/ui/Button';
@@ -226,6 +228,9 @@ function buildLeadPreview(
   return { kind: 'unresolved', rawText: i18n.t('keys.unresolved') };
 }
 
+
+/** Where the terminal's add button sends the taxon. */
+type AddTarget = 'observe' | 'plot' | 'session' | 'new-session';
 export default function KeyRunnerScreen() {
   const tc = useThemeColors();
   const { t: tr } = useTranslation();
@@ -311,6 +316,8 @@ export default function KeyRunnerScreen() {
   const activePlot = useActivePlot((s) => s.plot);
   const refreshActivePlot = useActivePlot((s) => s.refresh);
   const toast = useToast((s) => s.show);
+  // Casual mode adds through 加入觀察, as from search and the tree (code review M40).
+  const casual = useShows('casualObservations');
   // Hydrate persisted runner state once couplets are loaded. If the saved
   // path references couplet numbers that no longer exist (e.g. after a key
   // re-import that renumbered couplets), fall back to a fresh start.
@@ -457,6 +464,17 @@ export default function KeyRunnerScreen() {
         toast(tr('keys.taxonNotFound'));
         return;
       }
+      // Casual mode: 加入觀察 with the species chosen. A checklist of its own
+      // would never show in 我的觀察 or on the casual map.
+      if (casual) {
+        const sp = searchByTaxonId(taxonId);
+        if (!sp) {
+          toast(tr('keys.taxonNotFound'));
+          return;
+        }
+        startObserve([draftNow({ pick: { sp } })]);
+        return;
+      }
       if (activePlot) {
         // Non-stratified plots (transect / point count) store every row under
         // layer 'T'; fixed plots default to E2 (草本層) — most common entry
@@ -499,7 +517,7 @@ export default function KeyRunnerScreen() {
         },
       });
     },
-    [activePlot, activeSession, startActiveSession, refreshActiveSession, router, toast],
+    [casual, activePlot, activeSession, startActiveSession, refreshActiveSession, router, toast],
   );
 
   const handlePlotValueSave = useCallback(
@@ -615,7 +633,9 @@ export default function KeyRunnerScreen() {
       const subs = subkeyCache.get(state.terminal.taxonId) ?? [];
       // Label for the active-record add button. Active plot wins; otherwise
       // we either join the current session (if any) or auto-create a new one.
-      const addTarget: 'plot' | 'session' | 'new-session' = activePlot
+      const addTarget: AddTarget = casual
+        ? 'observe'
+        : activePlot
         ? 'plot'
         : activeSession
           ? 'session'
@@ -966,7 +986,7 @@ function TerminalTaxon({
   marker: string | null;
   status: string | null;
   subkeys: IdentificationKey[];
-  addTarget: 'plot' | 'session' | 'new-session';
+  addTarget: AddTarget;
   onAddToActive: () => void;
   onOpenDetail: () => void;
   onOpenSubkey: (subId: number) => void;
@@ -1169,20 +1189,24 @@ function AddToActiveRecordButton({
   target,
   onPress,
 }: {
-  target: 'plot' | 'session' | 'new-session';
+  target: AddTarget;
   onPress: () => void;
 }) {
   const { t: tr } = useTranslation();
   // 文案依目標調整：plot 要再輸豐度故說「填入豐度」；session 已存在就直接加；
   // 沒任何 active 時誠實告知會幫他建一筆新名錄。
   const label =
-    target === 'plot'
+    target === 'observe'
+      ? tr('casual.observeTitle')
+      : target === 'plot'
       ? tr('keys.addToPlot')
       : target === 'session'
         ? tr('addToRecord.toSession')
         : tr('addToRecord.newSession');
   const sub =
-    target === 'plot'
+    target === 'observe'
+      ? tr('keys.addObserveDesc')
+      : target === 'plot'
       ? tr('keys.addToPlotDesc')
       : target === 'session'
         ? tr('keys.addToOpenSession')

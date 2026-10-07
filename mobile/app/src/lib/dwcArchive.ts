@@ -379,19 +379,23 @@ export type DwcArchiveInput = {
 /** Assemble the archive zip bytes (event.txt + occurrence.txt + humboldt.txt
  *  + measurementorfact.txt + resourcerelationship.txt + meta.xml + eml.xml). The caller stores these bytes into the outer bundle
  *  with { level: 0 } — no point re-deflating a deflate stream. */
-export function buildDwcArchive(input: DwcArchiveInput): Uint8Array {
-  return zipSync(
-    {
-      'meta.xml': strToU8(buildMetaXml()),
-      'eml.xml': strToU8(buildEmlXml(input.meta)),
-      'event.txt': strToU8(txtFile(EVENT_COLS, input.events, false)),
-      'occurrence.txt': strToU8(txtFile(OCCURRENCE_COLS, input.occurrences, true)),
-      'humboldt.txt': strToU8(txtFile(HUMBOLDT_COLS, input.humboldt, true)),
-      'measurementorfact.txt': strToU8(txtFile(MEASUREMENT_COLS, input.measurements, true)),
-      'resourcerelationship.txt': strToU8(txtFile(RELATIONSHIP_COLS, input.relationships ?? [], true)),
-    },
-    { level: 6 },
-  );
+export function buildDwcArchive(
+  input: DwcArchiveInput,
+  /** The text files as written, before they are zipped: the export counts
+   *  formula-like values in them without unzipping again (code review L50). */
+  onFiles?: (files: { name: string; text: string }[]) => void,
+): Uint8Array {
+  const files = [
+    { name: 'meta.xml', text: buildMetaXml() },
+    { name: 'eml.xml', text: buildEmlXml(input.meta) },
+    { name: 'event.txt', text: txtFile(EVENT_COLS, input.events, false) },
+    { name: 'occurrence.txt', text: txtFile(OCCURRENCE_COLS, input.occurrences, true) },
+    { name: 'humboldt.txt', text: txtFile(HUMBOLDT_COLS, input.humboldt, true) },
+    { name: 'measurementorfact.txt', text: txtFile(MEASUREMENT_COLS, input.measurements, true) },
+    { name: 'resourcerelationship.txt', text: txtFile(RELATIONSHIP_COLS, input.relationships ?? [], true) },
+  ];
+  onFiles?.(files);
+  return zipSync(Object.fromEntries(files.map((f) => [f.name, strToU8(f.text)])), { level: 6 });
 }
 
 function buildTaxonMetaXml(): string {

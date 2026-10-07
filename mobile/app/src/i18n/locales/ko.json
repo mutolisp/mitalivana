@@ -188,7 +188,14 @@
     "cameraAdd": "촬영해서 추가",
     "photoByCamera": "사진 찍기",
     "photoFromLibrary": "앨범에서 선택",
-    "photoModeHint": "길게 눌러 촬영과 앨범 전환"
+    "photoModeHint": "길게 눌러 촬영과 앨범 전환",
+    "placeLabel": "장소/궤적",
+    "placeUnset": "미설정",
+    "sortNewFirst": "최신순",
+    "sortOldFirst": "오래된순",
+    "sortAsc": "오름차순",
+    "sortDesc": "내림차순",
+    "sortFlipHint": "현재 {{dir}} (다시 누르면 반대로)"
   },
   "records": {
     "recording": "기록 중",
@@ -271,7 +278,11 @@
     "monthGroup": "{{year}}년 {{month}}월",
     "pinNamed": "“{{name}}” 고정",
     "unpinNamed": "“{{name}}” 고정 해제",
-    "deleteFailed": "삭제하지 못했습니다"
+    "deleteFailed": "삭제하지 못했습니다",
+    "pendingTitle": "미동정",
+    "pendingBanner_other": "미동정 {{count}}건",
+    "pendingBannerBody": "아직 종명이 없는 관찰",
+    "pendingEmpty": "미동정 관찰이 없습니다"
   },
   "export": {
     "preparing": "준비 중…",
@@ -307,7 +318,8 @@
       "projectNotFound": "프로젝트 {{id}}을(를) 찾을 수 없습니다",
       "projectEmpty": "“{{name}}”에 기록이 없어 내보낼 수 없습니다",
       "noneSelected": "선택한 기록이 없습니다",
-      "tooManyReleves": "조사구 수 {{n}}이(가) JUICE 상한 {{max}}을(를) 초과합니다"
+      "tooManyReleves": "조사구 수 {{n}}이(가) JUICE 상한 {{max}}을(를) 초과합니다",
+      "duplicateName": "서로 다른 두 파일이 같은 이름으로 저장됩니다: {{name}}"
     },
     "formula": {
       "title": "스프레드시트에서 수식으로 처리될 수 있는 값이 있습니다",
@@ -365,7 +377,9 @@
     "layout": "보기 형식",
     "selectMany": "여러 개 선택",
     "days30": "30일",
-    "addSpecies": "종 추가"
+    "addSpecies": "종 추가",
+    "recordInfo": "기록 정보",
+    "hasMissing": "입력하지 않은 항목이 있습니다"
   },
   "record": {
     "kindSession": "빠른 종 목록",
@@ -1225,7 +1239,8 @@
     "needTaiwanRegion": "검색표는 대만(TaiCOL) 콘텐츠입니다. 「설정 → 지역 종 목록」에서 대만을 켠 뒤 사용하세요.",
     "statesSummary_other": "{{state}} 등 {{count}}개 항목",
     "remainingSpecies_other": "{{count}}종 남음",
-    "selectedConditions_other": "조건 {{count}}개 선택됨"
+    "selectedConditions_other": "조건 {{count}}개 선택됨",
+    "addObserveDesc": "‘관찰 추가’를 열어 사진, 개체 수, 메모를 더할 수 있습니다"
   },
   "conservation": {
     "invasiveShort": "침",
@@ -1338,7 +1353,7 @@
     "btnLine": "선",
     "btnPolygon": "폴리곤",
     "removeAssign": "지정 해제",
-    "emptySites": "사이트가 없습니다. 위의 「사이트 새로 만들기」를 눌러 그리기를 시작하세요.",
+    "emptySites": "사이트가 없습니다. 아래의 「사이트 새로 만들기」를 눌러 그리기를 시작하세요.",
     "assignProject": "프로젝트 지정",
     "assignProjectDesc": "기존 프로젝트를 고르거나 새로 만들어 이번 기록에 적용합니다",
     "newProject": "프로젝트 새로 만들기",
@@ -1365,7 +1380,11 @@
     "assignIdentifierDesc": "다중 선택 가능; ☰ 를 길게 눌러 순서 변경(환경설정과 동기화)",
     "identifierNamePlaceholder": "동정자 이름",
     "addIdentifier": "추가",
-    "emptyIdentifiers": "동정자가 없습니다. 위의 “동정자 추가”를 누르세요."
+    "emptyIdentifiers": "동정자가 없습니다. 위의 “동정자 추가”를 누르세요.",
+    "multiPick": "여러 개 선택",
+    "mergeHint": "같은 종류(점·선·면)의 사이트를 골라 하나로 합쳐 이 기록에 지정합니다. 원래 사이트는 남습니다.",
+    "assignMerged_other": "{{count}}개 합쳐서 지정",
+    "pickTwo": "두 개 이상 선택하세요"
   },
   "exportPref": {
     "title": "내보내기 설정",
@@ -3567,6 +3586,7 @@
       "occurrence": "대응 기록",
       "identified_by": "동정자",
       "elevation_source": "고도 출처",
+      "along_m": "경로상 거리(m)",
       "surveyUnit": "단위",
       "measureUnit": "측정 단위",
       "viaInteraction": "상호작용 상대",
@@ -3695,7 +3715,8 @@
       "block_size_differs": "팀원이 이 회차에 다른 동기화 블록 크기를 쓰고 있어 병합할 수 없습니다.",
       "unreadable": "읽을 수 없는 데이터를 받았습니다(새 버전 앱에서 왔을 수 있음). 건너뛰었습니다.",
       "undecided": "아직 정하지 않은 중복 번호가 있습니다.",
-      "template_differs": "팀원이 이 회차에 다른 매목조사 템플릿을 사용해 병합하지 않았습니다."
+      "template_differs": "팀원이 이 회차에 다른 매목조사 템플릿을 사용해 병합하지 않았습니다.",
+      "series_code_taken": "이 기기의 같은 영구 조사구에 같은 코드의 다른 시리즈가 있어 팀원의 시리즈를 만들 수 없습니다."
     },
     "mergedFromToast": "{{names}}의 데이터를 병합했습니다",
     "members": "팀원",
@@ -4922,7 +4943,8 @@
       "matrix": "행렬",
       "matrixDesc": "{{type}}: 행은 A(행하는 쪽), 열은 B, 칸은 횟수 합계입니다.",
       "searchBelow": "여기에 없는 종은 아래 검색으로 추가하세요."
-    }
+    },
+    "seriesCodeTaken": "이 영구 조사구에는 같은 코드의 다른 시리즈(다른 템플릿)가 이미 있어 이 회차를 추가할 수 없습니다."
   },
   "task": {
     "working": "처리 중…",

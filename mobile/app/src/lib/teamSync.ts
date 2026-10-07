@@ -806,6 +806,8 @@ export type SyncOutcome = {
   queued: boolean;
   /** This device's copy was sent (false: unchanged, skipped by onlyIfChanged). */
   uploaded: boolean;
+  /** A tree census's blocks over the relay's size limit, not sent (censusSync.ts). */
+  tooLarge?: { blocks: string[]; limit: number };
 };
 
 /** An unchanged record is still re-sent after this long, well inside the relay's 90-day expiry. */
@@ -1127,6 +1129,11 @@ async function syncTeamNow(teamId: string, opts: { pull?: boolean } = {}): Promi
       continue;
     }
     if (!r) continue; // deleted here; cleanup.ts drops the link
+    // Blocks over the relay's size limit were never sent: say so here too,
+    // not only when the census screen syncs (code review L62).
+    if (r.tooLarge) {
+      out.failed.push({ kind: l.record_kind, uuid: l.record_uuid, error: new TeamSyncError('objectTooLarge', r.tooLarge.limit, r.tooLarge.blocks.join(', ')) });
+    }
     if (r.queued) return { ...out, queued: true };
     if (r.uploaded) out.sent += 1;
     out.merged += r.merged;

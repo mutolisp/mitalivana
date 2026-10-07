@@ -15,7 +15,7 @@ import { censusExportSizeInput } from '~/survey/db/stemmap';
 import { getUserDb } from '~/db/init';
 import { File } from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
-import { listPlotSpecies, listSessionRecords, listSpecimens } from '~/db';
+import { listPending, listPlotSpecies, listSessionRecords, listSpecimens } from '~/db';
 import { mediaAssetTarget, type BundleItem } from './bundleExport';
 import { rebaseAppFileUri } from './appFiles';
 
@@ -83,7 +83,8 @@ export type SizeEstimate = {
 
 export async function estimateBundleSize(
   items: BundleItem[],
-  opts: { includePhotos: boolean },
+  /** withPending: the unassigned project's export carries pending observations (code review L59). */
+  opts: { includePhotos: boolean; withPending?: boolean },
 ): Promise<SizeEstimate> {
   let totalPhotoBytes = 0;
   let photoCount = 0;
@@ -118,6 +119,12 @@ export async function estimateBundleSize(
     recordCount += records.length;
     photoCount += records.flatMap((r) => parsePhotoUris(r.photo_paths)).length;
     if (opts.includePhotos) totalPhotoBytes += await recordsPhotoBytes(records);
+  }
+  if (opts.withPending) {
+    const pending = listPending();
+    recordCount += pending.length;
+    photoCount += pending.flatMap((r) => parsePhotoUris(r.photo_paths)).length;
+    if (opts.includePhotos) totalPhotoBytes += await recordsPhotoBytes(pending);
   }
 
   const textBytes = recordCount * TEXT_BYTES_PER_RECORD;

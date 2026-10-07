@@ -210,7 +210,14 @@
     "cameraAdd": "Per Foto hinzufügen",
     "photoByCamera": "Foto aufnehmen",
     "photoFromLibrary": "Aus der Mediathek wählen",
-    "photoModeHint": "Lange drücken, um zwischen Kamera und Mediathek zu wechseln"
+    "photoModeHint": "Lange drücken, um zwischen Kamera und Mediathek zu wechseln",
+    "placeLabel": "Ort / Track",
+    "placeUnset": "Nicht festgelegt",
+    "sortNewFirst": "Neueste zuerst",
+    "sortOldFirst": "Älteste zuerst",
+    "sortAsc": "Aufsteigend",
+    "sortDesc": "Absteigend",
+    "sortFlipHint": "{{dir}} – erneut tippen zum Umkehren"
   },
   "records": {
     "recording": "Erfassung läuft",
@@ -303,7 +310,12 @@
     "monthGroup": "{{year}}-{{month2}}",
     "pinNamed": "„{{name}}“ anheften",
     "unpinNamed": "„{{name}}“ lösen",
-    "deleteFailed": "Löschen fehlgeschlagen"
+    "deleteFailed": "Löschen fehlgeschlagen",
+    "pendingTitle": "Unbestimmt",
+    "pendingBanner_one": "{{count}} unbestimmte Beobachtung",
+    "pendingBanner_other": "{{count}} unbestimmte Beobachtungen",
+    "pendingBannerBody": "Ohne Artnamen erfasst",
+    "pendingEmpty": "Keine unbestimmten Beobachtungen"
   },
   "export": {
     "preparing": "Wird vorbereitet…",
@@ -339,7 +351,8 @@
       "projectNotFound": "Projekt {{id}} nicht gefunden",
       "projectEmpty": "„{{name}}“ enthält keine Aufnahmen zum Exportieren",
       "noneSelected": "Keine Aufnahmen ausgewählt",
-      "tooManyReleves": "{{n}} Vegetationsaufnahmen überschreiten das JUICE-Limit von {{max}}"
+      "tooManyReleves": "{{n}} Vegetationsaufnahmen überschreiten das JUICE-Limit von {{max}}",
+      "duplicateName": "Zwei verschiedene Dateien würden als {{name}} geschrieben"
     },
     "formula": {
       "title": "Manche Werte könnten als Tabellenformeln ausgeführt werden",
@@ -399,7 +412,9 @@
     "layout": "Ansicht",
     "selectMany": "Mehrere auswählen",
     "days30": "30 Tage",
-    "addSpecies": "Arten hinzufügen"
+    "addSpecies": "Arten hinzufügen",
+    "recordInfo": "Angaben zum Datensatz",
+    "hasMissing": "Einige Angaben fehlen"
   },
   "record": {
     "kindSession": "Schnelle Artenliste",
@@ -1300,7 +1315,8 @@
     "remainingSpecies_one": "Noch {{count}} Art",
     "remainingSpecies_other": "Noch {{count}} Arten",
     "selectedConditions_one": "{{count}} Bedingung gewählt",
-    "selectedConditions_other": "{{count}} Bedingungen gewählt"
+    "selectedConditions_other": "{{count}} Bedingungen gewählt",
+    "addObserveDesc": "Öffnet „Beobachtung hinzufügen“ für Fotos, Anzahl und Notizen"
   },
   "conservation": {
     "invasiveShort": "I",
@@ -1418,7 +1434,7 @@
     "btnLine": "Linie",
     "btnPolygon": "Fläche",
     "removeAssign": "Zuweisung entfernen",
-    "emptySites": "Noch keine geografischen Standorte. Tippen Sie oben auf „Neuer geografischer Standort“, um mit dem Zeichnen zu beginnen.",
+    "emptySites": "Noch keine geografischen Standorte. Tippen Sie unten auf „Neuer geografischer Standort“, um mit dem Zeichnen zu beginnen.",
     "assignProject": "Projekt zuweisen",
     "assignProjectDesc": "Vorhandenes Projekt wählen oder ein neues für diesen Datensatz anlegen",
     "newProject": "Neues Projekt",
@@ -1446,7 +1462,12 @@
     "assignIdentifierDesc": "Mehrfachauswahl möglich; ☰ lange drücken zum Umsortieren (wird in den Einstellungen übernommen)",
     "identifierNamePlaceholder": "Name der bestimmenden Person",
     "addIdentifier": "Hinzufügen",
-    "emptyIdentifiers": "Noch keine Einträge — oben „Bestimmende Person hinzufügen“ antippen."
+    "emptyIdentifiers": "Noch keine Einträge — oben „Bestimmende Person hinzufügen“ antippen.",
+    "multiPick": "Mehrere wählen",
+    "mergeHint": "Standorte einer Art (Punkte, Linien oder Flächen) wählen, um sie zu einem für diesen Datensatz zusammenzuführen; die Originale bleiben.",
+    "assignMerged_one": "{{count}} zusammenführen und zuweisen",
+    "assignMerged_other": "{{count}} zusammenführen und zuweisen",
+    "pickTwo": "Mindestens zwei wählen"
   },
   "exportPref": {
     "title": "Exporteinstellungen",
@@ -3748,6 +3769,7 @@
       "occurrence": "Fund",
       "identified_by": "Bestimmt von",
       "elevation_source": "Höhenquelle",
+      "along_m": "Strecke entlang des Tracks (m)",
       "surveyUnit": "Einheit",
       "measureUnit": "Maßeinheit",
       "viaInteraction": "Interaktionspartner",
@@ -3883,7 +3905,8 @@
       "block_size_differs": "Das Team nutzt für diese Erhebung eine andere Blockgröße; sie kann nicht zusammengeführt werden.",
       "unreadable": "Daten erhalten, die diese App nicht lesen kann (vielleicht aus einer neueren Version); übersprungen.",
       "undecided": "Für einige doppelte Nummern fehlt noch eine Entscheidung.",
-      "template_differs": "Teammitglieder verwenden für diese Aufnahme eine andere Vorlage; nicht zusammengeführt."
+      "template_differs": "Teammitglieder verwenden für diese Aufnahme eine andere Vorlage; nicht zusammengeführt.",
+      "series_code_taken": "Diese Fläche auf diesem Gerät hat schon eine andere Serie mit demselben Kürzel; die Serie aus dem Team kann nicht angelegt werden."
     },
     "mergedFromToast": "Daten von {{names}} zusammengeführt",
     "members": "Mitglieder",
@@ -5134,7 +5157,8 @@
       "matrix": "Matrix",
       "matrixDesc": "{{type}}: Zeilen sind A (wer es tut), Spalten B; Zellen summieren die Anzahl.",
       "searchBelow": "Für eine hier nicht erfasste Art die Suche unten verwenden."
-    }
+    },
+    "seriesCodeTaken": "Diese Dauerfläche hat schon eine andere Serie mit demselben Kürzel (aus einer anderen Vorlage); diese Aufnahme kann nicht hinzugefügt werden."
   },
   "task": {
     "working": "Wird bearbeitet…",

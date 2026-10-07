@@ -33,7 +33,7 @@ import { getSession, type ImportedSession } from './sessions';
 import { ensureTaxonSelfSufficient } from './taxonCache';
 import { generateUuid } from './uuid';
 import { quadratsForDoc } from './quadrats';
-import { normalizeGrid, normalizePlotFreq, parseQuadratConfig } from './quadratsCore';
+import { dropCrossGridCounts, getQuadratConfig, normalizeGrid, normalizePlotFreq, parseQuadratConfig } from './quadratsCore';
 
 type Scalar = string | number | null;
 
@@ -155,10 +155,19 @@ export function applySessionMerge(sessionId: number, ops: MergeOp[], media: Merg
   });
 }
 
-export function applyPlotMerge(plotId: number, ops: MergeOp[], media: MergeMedia): void {
+export function applyPlotMerge(
+  plotId: number,
+  ops: MergeOp[],
+  media: MergeMedia,
+  /** The other copy's plot frequency grid, when it differs (remoteFreqGridN in mergeDocs). */
+  remoteFreqGridN: number | null = null,
+): void {
   withTransaction(() => {
     const db = getUserDb();
     const now = Date.now();
+    // Which grid each plot-frequency count was made on, for after the ops (code review M45).
+    const localFreqGridN = getQuadratConfig(db, plotId).freqGridN;
+    const freqFromRemote: string[] = [];
     for (const op of byTable(ops, 'record')) {
       if (op.op === 'update') writeUpdate('plot_surveys', { ...op.data, ...op.extra }, 'id = ?', [plotId], true);
     }
@@ -226,16 +235,19 @@ export function applyPlotMerge(plotId: number, ops: MergeOp[], media: MergeMedia
       if (op.op === 'delete') {
         db.executeSync(`DELETE FROM plot_species_records WHERE plot_survey_id = ? AND occurrence_id = ?`, [plotId, op.key]);
       } else if (op.op === 'update') {
+        if ('freq_count' in op.data) freqFromRemote.push(op.key);
         writeUpdate('plot_species_records', species(op.data), 'plot_survey_id = ? AND occurrence_id = ?', [plotId, op.key], true);
       } else {
         const r = op.row;
+        const occurrenceId = occurrenceIdOf(r.key);
+        if (r.data.freq_count != null) freqFromRemote.push(occurrenceId);
         const taxonId = String(r.data.taxon_id ?? '');
         if (taxonId) ensureTaxonSelfSufficient(taxonId);
         writeInsert('plot_species_records', {
           ...species(r.data),
           layer: layerOf(r.data.layer),
           plot_survey_id: plotId,
-          occurrence_id: occurrenceIdOf(r.key),
+          occurrence_id: occurrenceId,
           observed_at: r.data.observed_at ?? now,
           photo_paths: mediaJson(r.extra?.photo_files, media.photoUriByName),
           audio_paths: mediaJson(r.extra?.audio_files, media.audioUriByName),
@@ -245,7 +257,8 @@ export function applyPlotMerge(plotId: number, ops: MergeOp[], media: MergeMedia
       }
     }
     applyQuadratOps(plotId, ops, media, subplotByLabel, now);
-    // Plot-grid frequency (v78): masks from a copy on another grid are dropped.
+    // Plot-grid frequency (v78): counts and masks from a copy on another grid are dropped.
+    dropCrossGridCounts(db, plotId, localFreqGridN, remoteFreqGridN, freqFromRemote);
     normalizePlotFreq(db, plotId);
   });
 }

@@ -14,6 +14,7 @@ import { Pressable, Text, View } from 'react-native';
 import type { ActiveRecordKind } from '~/lib/useActiveRecordSummary';
 import { useElapsed } from '~/lib/useElapsed';
 import { useModeT } from '~/lib/useUsageMode';
+import { useActivePlot } from '~/stores/activePlot';
 import { useThemeColors } from '~/theme/colors';
 
 const KIND_LABEL: Record<ActiveRecordKind, string> = {
@@ -43,6 +44,9 @@ export function ActiveRecordCard({
 }) {
   const { t } = useTranslation();
   const tm = useModeT();
+  // A fixed plot (started in pro mode) is a plot, not 穿越線／定點計數 (code review L58).
+  const fixedPlot = useActivePlot((s) => s.plot?.plot_type === 'fixed');
+  const kindLabel = kind === 'plot' && fixedPlot ? t(KIND_LABEL.plot) : tm(KIND_LABEL[kind]);
   const c = useThemeColors();
   const elapsed = useElapsed(startedAt);
   return (
@@ -50,7 +54,7 @@ export function ActiveRecordCard({
       <View className="flex-row items-center">
         <View className="mr-2 h-2 w-2 rounded-full bg-acorn" />
         <Text className="text-xs font-bold tracking-wider text-white" numberOfLines={1}>
-          {`${t('records.recording')} · ${tm(KIND_LABEL[kind])}`}
+          {`${t('records.recording')} · ${kindLabel}`}
         </Text>
       </View>
       <View>

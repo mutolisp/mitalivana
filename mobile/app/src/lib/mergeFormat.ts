@@ -53,6 +53,8 @@ const LABELLED = new Set([
   // Checklist / plot-style surveys (v83–v84)
   'parent', 'geometry_geojson', 'shape', 'width_m', 'length_m', 'radius_m', 'retired_at', 'phase', 'outcome', 'occurrence',
   'identified_by', 'elevation_source',
+  // Distance along the record's track (v93)
+  'along_m',
 ]);
 /** GLORIA 完成 locks and other 1 / null flags. */
 const LOCKS = new Set(['done_locked', 'freq_locked', 'pf_locked', 'locked', 'photo_open', 'photo_closed', 'no_researchers', 'mutual', 'via_interaction']);

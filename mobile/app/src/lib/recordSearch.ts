@@ -84,11 +84,15 @@ export type SearchableSpecies = {
   family_c?: string | null;
   genus_c?: string | null;
   notes?: string | null;
+  /** The field determination (sp1, cf. …) and the name it was filed under (code review L38). */
+  verbatim_identification?: string | null;
+  used_scientific_name?: string | null;
 };
 
 /**
  * Does a recorded species match the (normalised) query? Its common and other
- * names, scientific name, family (Latin or Chinese), genus in Chinese, or note.
+ * names, scientific name, family (Latin or Chinese), genus in Chinese, note,
+ * field determination, or the name it was filed under.
  * The same folding as the records tab: case and 台/臺 do not matter.
  */
 export function speciesMatches(rec: SearchableSpecies, nq: string): boolean {
@@ -101,5 +105,7 @@ export function speciesMatches(rec: SearchableSpecies, nq: string): boolean {
     rec.family_c,
     rec.genus_c,
     rec.notes,
+    rec.verbatim_identification,
+    rec.used_scientific_name,
   ].some((v) => !!v && fold(v).includes(nq));
 }

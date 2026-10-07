@@ -32,6 +32,8 @@ export function RecordMenuButton({
   id,
   reportHref,
   onSynced,
+  info = [],
+  badge = false,
   extra = [],
   last = [],
   edit,
@@ -43,6 +45,12 @@ export function RecordMenuButton({
   /** The record's research report; a kind without one (a checklist / plot-style survey, until Phase 2E) leaves it out. */
   reportHref?: Href;
   onSynced?: () => void;
+  /** 記錄資訊 at the head of the menu: what the record is about (project,
+   *  place, time, surveyors), each with its value; a tap edits it. They were a
+   *  row of chips above the list, which cost a line of screen (asked 2026-10-07). */
+  info?: { label: string; detail: string; onPress: () => void; icon?: MenuIcon; attention?: boolean }[];
+  /** A dot on ⋯: one of the `info` rows still needs filling in. */
+  badge?: boolean;
   /** Screen-specific actions, listed after undo / redo and grouped by
    *  `section` (the checklist's 加入物種: batch and photo import). */
   extra?: { label: string; onPress: () => void; icon?: MenuIcon; section?: string; destructive?: boolean; cap?: Cap }[];
@@ -123,14 +131,20 @@ export function RecordMenuButton({
   // The menu rebuilds itself after undo / redo (it stays open), so it reads
   // the latest props through a ref rather than this render's closure.
   // After each render, not during it (code review L23).
-  const latest = useRef({ edit, extra, last, hasLog, hasTeam, busy, layout });
+  const latest = useRef({ info, edit, extra, last, hasLog, hasTeam, busy, layout });
   useLayoutEffect(() => {
-    latest.current = { edit, extra, last, hasLog, hasTeam, busy, layout };
+    latest.current = { info, edit, extra, last, hasLog, hasTeam, busy, layout };
   });
 
   const sections = (): MenuSection[] => {
-    const { edit: e, extra: x, last: z, hasLog: log, hasTeam: team, busy: syncing, layout: lay } = latest.current;
+    const { info: inf, edit: e, extra: x, last: z, hasLog: log, hasTeam: team, busy: syncing, layout: lay } = latest.current;
     const out: MenuSection[] = [];
+    if (inf.length) {
+      out.push({
+        title: t('menu.recordInfo'),
+        items: inf.map((a, i) => ({ kind: 'action' as const, id: `info-${i}`, label: a.label, icon: a.icon, detail: a.detail, attention: a.attention })),
+      });
+    }
     if (e && !e.locked) {
       out.push({
         items: [
@@ -210,7 +224,8 @@ export function RecordMenuButton({
   const open = async (anchor: RefObject<View | null>) => {
     const choice = await showMenu(anchor, sections);
     if (!choice) return;
-    if (choice.startsWith('extra-')) latest.current.extra[Number(choice.slice('extra-'.length))]?.onPress();
+    if (choice.startsWith('info-')) latest.current.info[Number(choice.slice('info-'.length))]?.onPress();
+    else if (choice.startsWith('extra-')) latest.current.extra[Number(choice.slice('extra-'.length))]?.onPress();
     else if (choice.startsWith('last-')) latest.current.last[Number(choice.slice('last-'.length))]?.onPress();
     else if (choice === 'report' && reportHref) router.push(reportHref);
     else if (choice === 'versions')
@@ -219,5 +234,5 @@ export function RecordMenuButton({
     else if (choice === 'sync') void sync();
   };
 
-  return <MenuButton onOpen={open} />;
+  return <MenuButton onOpen={open} badge={badge} />;
 }

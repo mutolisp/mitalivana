@@ -308,6 +308,26 @@ ok(quadratProgress({ ...blank, freq_mode: 'count' }, [{ name: 'A', cover_pct: 3,
   sqlite.prepare(`UPDATE plot_species_records SET freq_cells = ?, freq_count = 20 WHERE id = ?`).run('1'.repeat(16), r1);
   q.normalizePlotFreq(db, pf);
   ok(got(r1).freq_cells === null && got(r1).freq_count === 9, 'plot freq: after import / merge, a mask for another grid is dropped, a count capped');
+  // A merge across grids (code review M45): a count is a share of the grid it was made on.
+  const pm = newPlot('M');
+  q.setQuadratConfig(db, pm, { freqEnabled: true, freqMode: 'count', freqGridN: 5 }, 1);
+  const recM = (taxon, occ, count) =>
+    Number(sqlite.prepare(`INSERT INTO plot_species_records (plot_survey_id, taxon_id, layer, occurrence_id, freq_count, observed_at, created_at) VALUES (?, ?, 'E2', ?, ?, 1, 1)`).run(pm, taxon, occ, count).lastInsertRowid);
+  const mine = recM('t1', 'occ-mine', 20); // 20 of 5 × 5 = 80 %
+  const theirs = recM('t2', 'occ-theirs', 60); // came with their 10 × 10
+  // Their grid taken: our count was made on 5 × 5, theirs on 10 × 10.
+  q.setQuadratConfig(db, pm, { freqGridN: 10 }, 2);
+  q.dropCrossGridCounts(db, pm, 5, 10, ['occ-theirs']);
+  ok(got(mine).freq_count === null && got(theirs).freq_count === 60, 'plot freq merge: their grid taken → our counts dropped, theirs kept');
+  // Ours kept: their counts were made on their grid.
+  sqlite.prepare(`UPDATE plot_species_records SET freq_count = 20 WHERE id = ?`).run(mine);
+  q.setQuadratConfig(db, pm, { freqGridN: 5 }, 3);
+  q.dropCrossGridCounts(db, pm, 5, 10, ['occ-theirs']);
+  ok(got(mine).freq_count === 20 && got(theirs).freq_count === null, 'plot freq merge: our grid kept → their counts dropped, ours kept');
+  // One grid on both: nothing changes.
+  sqlite.prepare(`UPDATE plot_species_records SET freq_count = 12 WHERE id = ?`).run(theirs);
+  q.dropCrossGridCounts(db, pm, 5, null, ['occ-theirs']);
+  ok(got(mine).freq_count === 20 && got(theirs).freq_count === 12, 'plot freq merge: the same grid on both → counts kept');
 }
 
 // ── the yml parser coerces instead of throwing (lib/quadratYaml) ────────
@@ -432,6 +452,16 @@ ok(quadratProgress({ ...blank, freq_mode: 'count' }, [{ name: 'A', cover_pct: 3,
   const { readFileSync } = await import('node:fs');
   const src = readFileSync(new URL('../src/components/quadrat/SpeciesPager.tsx', import.meta.url), 'utf8');
   ok(/stepRef\.current = step;/.test(src) && /stepRef\.current\(1\)/.test(src) && !/exhaustive-deps/.test(src), 'V7: the pager swipe reads the step of the latest render');
+}
+
+// A plot merge clears counts made on the other grid before capping (code review M45);
+// both callers say which grid the other copy had.
+{
+  const { readFileSync } = await import('node:fs');
+  const read = (f) => readFileSync(new URL(`../${f}`, import.meta.url), 'utf8');
+  const tm = read('src/db/teamMerge.ts');
+  ok(/dropCrossGridCounts\(db, plotId, localFreqGridN, remoteFreqGridN, freqFromRemote\);\s*normalizePlotFreq\(db, plotId\)/.test(tm), 'M45: applyPlotMerge clears cross-grid counts, then caps');
+  ok(read('src/lib/teamMergeFlow.ts').includes('remoteFreqGridN(p.items)') && read('src/db/recordVersions.ts').includes('remoteFreqGridN(items)'), 'M45: team merge and version restore pass the other grid');
 }
 
 sqlite.close();

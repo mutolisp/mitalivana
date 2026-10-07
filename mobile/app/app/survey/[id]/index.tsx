@@ -262,7 +262,7 @@ export default function CensusScreen() {
       if (r.queued) toast(t('teamSync.queuedToast') + where);
       else if (!r.review) {
         const who = r.mergedFrom.length
-          ? t('teamSync.mergedFromToast', { names: [...new Set(r.mergedFrom)].join('、') })
+          ? t('teamSync.mergedFromToast', { names: [...new Set(r.mergedFrom)].join(t('builder.listSep')) })
           : r.merged
             ? t('teamSync.mergedToast', { count: r.merged })
             : null;
@@ -272,14 +272,14 @@ export default function CensusScreen() {
       }
       // Teammates on another template: said so, to be read (decided 2026-10-03).
       if (r.templateDiffers?.length) {
-        const names = r.templateDiffers.map((n) => n || t('survey.sync.someone')).join('、');
+        const names = r.templateDiffers.map((n) => n || t('survey.sync.someone')).join(t('builder.listSep'));
         Alert.alert(t('survey.sync.templateDiffersTitle'), t('survey.sync.templateDiffersMsg', { names }));
       }
       // Blocks over the relay's size limit: not sent, the rest were (code review V6).
       if (r.tooLarge) {
         Alert.alert(
           t('survey.sync.tooLargeTitle'),
-          t('survey.sync.tooLargeMsg', { blocks: r.tooLarge.blocks.join('、'), limit: formatBytes(r.tooLarge.limit) }),
+          t('survey.sync.tooLargeMsg', { blocks: r.tooLarge.blocks.join(t('builder.listSep')), limit: formatBytes(r.tooLarge.limit) }),
         );
       }
       reload();

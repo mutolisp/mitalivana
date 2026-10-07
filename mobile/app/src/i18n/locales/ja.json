@@ -188,7 +188,14 @@
     "cameraAdd": "撮影して追加",
     "photoByCamera": "撮影",
     "photoFromLibrary": "アルバムから選択",
-    "photoModeHint": "長押しで撮影とアルバムを切り替え"
+    "photoModeHint": "長押しで撮影とアルバムを切り替え",
+    "placeLabel": "場所／軌跡",
+    "placeUnset": "未設定",
+    "sortNewFirst": "新しい順",
+    "sortOldFirst": "古い順",
+    "sortAsc": "昇順",
+    "sortDesc": "降順",
+    "sortFlipHint": "現在：{{dir}}（もう一度タップで反転）"
   },
   "records": {
     "recording": "記録中",
@@ -271,7 +278,11 @@
     "monthGroup": "{{year}}年{{month}}月",
     "pinNamed": "「{{name}}」をピン留め",
     "unpinNamed": "「{{name}}」のピン留めを外す",
-    "deleteFailed": "削除できませんでした"
+    "deleteFailed": "削除できませんでした",
+    "pendingTitle": "未同定",
+    "pendingBanner_other": "未同定 {{count}} 件",
+    "pendingBannerBody": "種名がまだない観察",
+    "pendingEmpty": "未同定の観察はありません"
   },
   "export": {
     "preparing": "準備中…",
@@ -307,7 +318,8 @@
       "projectNotFound": "プロジェクト {{id}} が見つかりません",
       "projectEmpty": "「{{name}}」に記録がないため書き出せません",
       "noneSelected": "記録が選択されていません",
-      "tooManyReleves": "調査区数 {{n}} が JUICE の上限 {{max}} を超えています"
+      "tooManyReleves": "調査区数 {{n}} が JUICE の上限 {{max}} を超えています",
+      "duplicateName": "異なる2つのファイルが同じ名前になります：{{name}}"
     },
     "formula": {
       "title": "表計算ソフトで数式として扱われる値があります",
@@ -365,7 +377,9 @@
     "layout": "表示形式",
     "selectMany": "複数選択",
     "days30": "30 日",
-    "addSpecies": "種を追加"
+    "addSpecies": "種を追加",
+    "recordInfo": "記録情報",
+    "hasMissing": "未入力の項目があります"
   },
   "record": {
     "kindSession": "クイック種リスト",
@@ -1225,7 +1239,8 @@
     "needTaiwanRegion": "検索表は台湾（TaiCOL）のコンテンツです。「設定 → 地域種リスト」で台湾を有効にしてからご利用ください。",
     "statesSummary_other": "{{state}} など {{count}} 項目",
     "remainingSpecies_other": "残り {{count}} 種",
-    "selectedConditions_other": "{{count}} 条件を選択中"
+    "selectedConditions_other": "{{count}} 条件を選択中",
+    "addObserveDesc": "「観察を追加」を開き、写真・数・メモを追加できます"
   },
   "conservation": {
     "invasiveShort": "侵",
@@ -1338,7 +1353,7 @@
     "btnLine": "ライン",
     "btnPolygon": "ポリゴン",
     "removeAssign": "割り当てを解除",
-    "emptySites": "サイトがまだありません。上の「サイトを新規作成」から描画を始めてください。",
+    "emptySites": "サイトがまだありません。下の「サイトを新規作成」から描画を始めてください。",
     "assignProject": "プロジェクトを割り当て",
     "assignProjectDesc": "既存のプロジェクトを選ぶか、新規作成して今回の記録に適用します",
     "newProject": "プロジェクトを新規作成",
@@ -1365,7 +1380,11 @@
     "assignIdentifierDesc": "複数選択可；☰ を長押しで並べ替え（設定に同期）",
     "identifierNamePlaceholder": "同定者の氏名",
     "addIdentifier": "追加",
-    "emptyIdentifiers": "同定者がまだありません。上の「同定者を追加」から作成してください。"
+    "emptyIdentifiers": "同定者がまだありません。上の「同定者を追加」から作成してください。",
+    "multiPick": "複数選択",
+    "mergeHint": "同じ種類（ポイント・ライン・ポリゴン）のサイトを選ぶと、1 つにまとめてこの記録に割り当てます。元のサイトは残ります。",
+    "assignMerged_other": "{{count}} 件をまとめて割り当て",
+    "pickTwo": "2 つ以上選んでください"
   },
   "exportPref": {
     "title": "エクスポート設定",
@@ -3567,6 +3586,7 @@
       "occurrence": "対応する記録",
       "identified_by": "同定者",
       "elevation_source": "標高の取得元",
+      "along_m": "ルート上の距離（m）",
       "surveyUnit": "ユニット",
       "measureUnit": "単位",
       "viaInteraction": "相互作用の相手",
@@ -3695,7 +3715,8 @@
       "block_size_differs": "仲間はこの調査回で別の同期ブロックの大きさを使っているため、統合できません。",
       "unreadable": "読み取れないデータを受信しました（新しいバージョンのアプリからかもしれません）。スキップしました。",
       "undecided": "重複した番号にまだ決めていないものがあります。",
-      "template_differs": "メンバーはこの調査回で別の毎木テンプレートを使っています。統合しませんでした。"
+      "template_differs": "メンバーはこの調査回で別の毎木テンプレートを使っています。統合しませんでした。",
+      "series_code_taken": "この端末の同じ永久プロットに同じコードの別のシリーズがあるため、仲間のシリーズを作成できません。"
     },
     "mergedFromToast": "{{names}} のデータを統合しました",
     "members": "メンバー",
@@ -4922,7 +4943,8 @@
       "matrix": "行列",
       "matrixDesc": "{{type}}：行は A（行う側）、列は B、セルは回数の合計。",
       "searchBelow": "ここにない種は、下の検索で追加します。"
-    }
+    },
+    "seriesCodeTaken": "この固定プロットには同じコードの別のシリーズ（別のテンプレート）が既にあるため、この回を追加できません。"
   },
   "task": {
     "working": "処理中…",

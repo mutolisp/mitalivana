@@ -96,12 +96,19 @@ export function SplitMapView({
   const ratio = useSharedValue(saved);
   const start = useSharedValue(saved);
 
-  // Another screen, or a mode switch, changed the saved size.
+  // Another screen, or a mode switch, changed the saved size. Not what this
+  // view just saved itself: setting the value would cut short the animation
+  // that is carrying it there (code review L48).
+  const wrote = useRef<number | null>(null);
   useEffect(() => {
+    if (wrote.current === saved) return;
     ratio.value = saved;
   }, [saved, ratio]);
 
-  const saveRatio = (r: number) => save(column ? { ratioV: r } : { ratio: r });
+  const saveRatio = (r: number) => {
+    wrote.current = r;
+    save(column ? { ratioV: r } : { ratio: r });
+  };
   const stepSize = () => {
     const next = nextPreset(ratio.value, layout.axis);
     ratio.value = withTiming(next, { duration: 180 });
@@ -133,21 +140,35 @@ export function SplitMapView({
   });
   const divider = Gesture.Exclusive(pan, tap);
 
-  // Both dimensions every time: an animated style that stops returning a key
-  // leaves its last value on the view, so a width from side by side would
-  // otherwise stay on the map once it moved above the list.
+  // The same keys in every state, and the style never taken off the map: an
+  // animated style that stops returning a key — or is swapped out for a plain
+  // one — leaves its last value on the view (Reanimated keeps it until the view
+  // is removed). Folded used to swap in { flex: 1 }, and a height from the
+  // map-above layout then stayed on a side-by-side map (code review M35).
+  const collapsed = layout.collapsed;
   const mapStyle = useAnimatedStyle(() => {
+    if (collapsed) {
+      // Side by side the list folds to an overlaid tab; above, to its heading
+      // under the map, which takes what the heading leaves.
+      return column
+        ? { width: '100%', height: 'auto', flexGrow: 1, flexShrink: 1 }
+        : { width: '100%', height: '100%', flexGrow: 0, flexShrink: 0 };
+    }
     if (column) {
       return {
         width: '100%',
         height: height.value > 0 ? ratio.value * height.value : `${Math.round(ratio.value * 100)}%`,
+        flexGrow: 0,
+        flexShrink: 0,
       };
     }
     return {
       width: width.value > 0 ? ratio.value * width.value : `${Math.round(ratio.value * 100)}%`,
       height: '100%',
+      flexGrow: 0,
+      flexShrink: 0,
     };
-  }, [column]);
+  }, [column, collapsed]);
 
   const onLayout = (e: LayoutChangeEvent) => {
     width.value = e.nativeEvent.layout.width;
@@ -166,7 +187,7 @@ export function SplitMapView({
       // crashed the casual map tab now and then ("Unable to find viewState").
       collapsable={false}
     >
-      <Animated.View style={[{ overflow: 'hidden' }, layout.collapsed ? { flex: 1 } : mapStyle]}>
+      <Animated.View style={[{ overflow: 'hidden' }, mapStyle]}>
         {map}
         {topInset > 0 && !layout.collapsed && !column ? (
           <View

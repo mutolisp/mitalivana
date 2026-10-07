@@ -21,7 +21,8 @@ import { getFwSurvey } from '~/survey/db/surveys';
 import * as MediaLibrary from 'expo-media-library';
 import yaml from 'js-yaml';
 import { strFromU8, strToU8, type ZipOptions } from 'fflate';
-import { excelCell, formulaTally, type FormulaTally } from './csvFormula';
+import { excelCell, formulaTallyYielding, type FormulaTally } from './csvFormula';
+import { decodeUtf8 } from './utf8';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
 import { yieldToUi } from '~/stores/taskProgress';
@@ -43,6 +44,7 @@ import {
   parseEnvPhotos,
   getCollectionTrip,
   listSpecimens,
+  listPending,
   type FixedLayer,
   type PlotType,
   type PlotSurvey,
@@ -72,8 +74,10 @@ import {
   buildPlotEnvRows,
   buildPlotYamlDoc,
   buildSessionYamlDoc,
+  audioField,
   localIso,
   multiToPipe,
+  photoField,
   recordToYamlItem,
   specimenToYamlItem,
   type PhotoNames,
@@ -110,6 +114,7 @@ import { quadratsForDoc } from '~/db/quadrats';
 import { buildPlotFrequencyCsv, buildQuadratsCsv, buildQuadratSurfaceCsv } from './quadratCsv';
 import { parseQuadratConfig } from '~/db/quadrats';
 import { isoStamp } from './datetime';
+import { createFolderNamer, moveUnder } from './zipEntryNames';
 
 
 export type GeoFormat = 'geojson' | 'gpx' | 'kml';
@@ -406,7 +411,7 @@ const README_RULES: Array<{ match: (name: string) => boolean; desc: string }> = 
   { match: (n) => n.endsWith('.yml'), desc: '本 app 的完整格式（可從「匯入記錄」原樣讀回，含照片檔名對應）' },
   {
     match: (n) => n.endsWith('_occurrence_dwc.csv'),
-    desc: 'Darwin Core occurrence 表：一列一筆物種記錄，欄名為 DwC 詞彙（basisOfRecord / eventID / taxonID / scientificName…），可直接給 Excel、R、GBIF 對照',
+    desc: 'Darwin Core occurrence 表：一列一筆物種記錄，欄名為 DwC 詞彙（basisOfRecord / eventID / taxonID / scientificName…），給 Excel 開啟：以 = + - @ 開頭的文字前加了單引號（避免被當成公式）；給 R 或 GBIF 請用 Darwin Core Archive（dwca/）',
   },
   { match: (n) => n.endsWith('_env.csv'), desc: '事件層（Event）中繼資料與環境值，tall 格式（term,value）' },
   { match: (n) => n.endsWith('_subplots.csv'), desc: '小區尺寸與各層覆蓋度／高度' },
@@ -659,7 +664,14 @@ function buildPlotPoints(records: PlotSpeciesRecordWithTaxon[]): { type: 'Featur
 
 // ---- Public API -----------------------------------------------------------
 
-export type BuiltZipEntry = { name: string; bytes: Uint8Array; zipOpts?: ZipOptions };
+export type BuiltZipEntry = {
+  name: string;
+  bytes: Uint8Array;
+  zipOpts?: ZipOptions;
+  /** Formula-like values inside this entry, counted when it was built: a
+   *  nested DwC-A, which the tally of the outer tables cannot see (code review L50). */
+  formulaRaw?: number;
+};
 
 /**
  * Darwin Core Archive of a single record.
@@ -687,6 +699,7 @@ function addDwcaEntry(
     name: `${base}/dwca/${base}_dwca.zip`,
     bytes: dwca.records,
     zipOpts: { level: 0 },
+    formulaRaw: dwca.formulaRaw,
   });
   // Conservation status belongs to the taxon, not the observation, and a DwC
   // archive has one core — so it ships as its own Taxon-core archive beside
@@ -1607,6 +1620,64 @@ export async function buildCollectionEntries(
   return { entries, folderName: base };
 }
 
+/**
+ * Pending observations (M4): seen but not yet named. They belong to no
+ * project, so they ride along with the unassigned project's export only
+ * (code review L59, decided 2026-10-07). Kingdom is the only taxon there is;
+ * `inaturalistObservation` is not a DwC term — `references` is meant for the
+ * definitive source and `otherCatalogNumbers` for material entities.
+ */
+export async function buildPendingEntries(opts: BundleOptions, progressCtx: ProgressCtx): Promise<BuiltZipEntry[]> {
+  const pending = listPending().sort((a, b) => a.observed_at - b.observed_at || a.id - b.id);
+  if (pending.length === 0) return [];
+  const folder = 'pending';
+  const entries: BuiltZipEntry[] = [];
+  // The photo / audio collectors key filenames by taxon; a pending row has its kingdom only.
+  const bearing = pending.map((p) => ({
+    photo_paths: p.photo_paths,
+    audio_paths: p.audio_paths,
+    taxon_id: 'pending',
+    common_name_c: '',
+    simple_name: p.kingdom,
+    occurrence_id: p.uuid,
+  }));
+  let photoNames: PhotoNames = new Map();
+  let audioNames: PhotoNames = new Map();
+  if (opts.includePhotos) {
+    const photos = await collectPhotos(bearing, createPhotoNamer(folder), progressCtx);
+    for (const e of photos.entries) entries.push(e);
+    photoNames = photos.names;
+    const audio = await collectAudio(bearing, createPhotoNamer(folder, 'audio'));
+    for (const e of audio.entries) entries.push(e);
+    audioNames = audio.names;
+  }
+  const rows = pending.map((p) => {
+    const loc = locationTerms(p.lat, p.elevation_m, p.elevation_source);
+    return {
+      occurrenceID: p.uuid,
+      basisOfRecord: 'HumanObservation',
+      kingdom: p.kingdom,
+      eventDate: localIso(p.observed_at),
+      decimalLatitude: p.lat ?? '',
+      decimalLongitude: p.lng ?? '',
+      coordinateUncertaintyInMeters: p.accuracy ?? '',
+      geodeticDatum: loc.geodeticDatum,
+      minimumElevationInMeters: p.elevation_m ?? '',
+      maximumElevationInMeters: p.elevation_m ?? '',
+      verticalDatum: loc.verticalDatum,
+      organismQuantity: p.quantity ?? '',
+      organismQuantityType: p.quantity ? 'individuals' : '',
+      reproductiveCondition: multiToPipe(p.reproductive_condition),
+      degreeOfEstablishment: establishmentDwcValue(p.degree_of_establishment),
+      occurrenceRemarks: p.note ?? '',
+      associatedMedia: [photoField(photoNames, p.uuid), audioField(audioNames, p.uuid)].filter(Boolean).join('|'),
+      inaturalistObservation: p.inat_observation_id != null ? `https://www.inaturalist.org/observations/${p.inat_observation_id}` : '',
+    };
+  });
+  entries.push({ name: `${folder}/pending_observations.csv`, bytes: strToU8(buildOccurrenceCsv(rows)) });
+  return entries;
+}
+
 function addGeoEntries(
   out: BuiltZipEntry[],
   folder: string,
@@ -1810,6 +1881,8 @@ function toDwcCsvRow(item: Record<string, unknown>): Record<string, unknown> {
   if ('degreeOfEstablishment' in row) {
     row.degreeOfEstablishment = establishmentDwcValue(row.degreeOfEstablishment as string | null);
   }
+  // Distance along the session's own track (v93): the yml carries it back in, the deliverable has no term for it.
+  delete row.along_m;
   return row;
 }
 
@@ -2104,6 +2177,17 @@ export async function bundleMany(items: BundleItem[], opts: BundleOptions): Prom
   // long can pass the engine's argument limit (code review V2).
   const allEntries: BuiltZipEntry[] = [];
   const itemMeta: Array<Record<string, unknown>> = [];
+  // Two records can be named alike (a plot's resurveys keep its plotid, two
+  // checklists share a name): the later one goes under name_2, name_3… so
+  // finalizeZip does not refuse the whole export (code review H8).
+  const claimFolder = createFolderNamer();
+  const place = (built: { entries: BuiltZipEntry[]; folderName: string }): string => {
+    const folder = claimFolder(built.folderName);
+    for (const e of built.entries) {
+      allEntries.push(folder === built.folderName ? e : { ...e, name: moveUnder(e.name, built.folderName, folder) });
+    }
+    return folder;
+  };
   for (let i = 0; i < items.length; i++) {
     const it = items[i];
     // Per-record progress so the user sees movement across a multi-record batch
@@ -2112,45 +2196,39 @@ export async function bundleMany(items: BundleItem[], opts: BundleOptions): Prom
     try {
       switch (it.kind) {
         case 'session': {
-          const { entries, folderName } = await buildSessionEntries(it.id, opts, ctx);
-          for (const e of entries) allEntries.push(e);
-          itemMeta.push({ kind: 'session', id: it.id, folder: folderName });
+          const folder = place(await buildSessionEntries(it.id, opts, ctx));
+          itemMeta.push({ kind: 'session', id: it.id, folder });
           break;
         }
         case 'collection': {
-          const { entries, folderName } = await buildCollectionEntries(it.id, opts, ctx);
-          for (const e of entries) allEntries.push(e);
+          const folder = place(await buildCollectionEntries(it.id, opts, ctx));
           itemMeta.push({
             kind: 'collection',
             id: it.id,
             uuid: getCollectionTrip(it.id)?.uuid,
-            folder: folderName,
+            folder,
           });
           break;
         }
         case 'gloria': {
-          const { entries, folderName } = await buildGloriaEntries(it.id, opts);
-          for (const e of entries) allEntries.push(e);
-          itemMeta.push({ kind: 'gloria', id: it.id, folder: folderName });
+          const folder = place(await buildGloriaEntries(it.id, opts));
+          itemMeta.push({ kind: 'gloria', id: it.id, folder });
           break;
         }
         case 'plot': {
-          const { entries, folderName } = await buildPlotEntries(it.id, opts, ctx);
-          for (const e of entries) allEntries.push(e);
-          itemMeta.push({ kind: 'plot', id: it.id, uuid: getPlotSurvey(it.id)?.uuid, folder: folderName });
+          const folder = place(await buildPlotEntries(it.id, opts, ctx));
+          itemMeta.push({ kind: 'plot', id: it.id, uuid: getPlotSurvey(it.id)?.uuid, folder });
           break;
         }
         case 'perm_survey': {
-          const { entries, folderName } = await buildCensusBundleEntries(it.id, opts);
-          for (const e of entries) allEntries.push(e);
+          const folder = place(await buildCensusBundleEntries(it.id, opts));
           // The file format's word for a census.
-          itemMeta.push({ kind: 'survey', id: it.id, folder: folderName });
+          itemMeta.push({ kind: 'survey', id: it.id, folder });
           break;
         }
         case 'modular': {
-          const { entries, folderName } = await buildModularBundleEntries(it.id, opts);
-          for (const e of entries) allEntries.push(e);
-          itemMeta.push({ kind: 'modular', id: it.id, folder: folderName });
+          const folder = place(await buildModularBundleEntries(it.id, opts));
+          itemMeta.push({ kind: 'modular', id: it.id, folder });
           break;
         }
         default:
@@ -2284,14 +2362,21 @@ export async function finalizeZip(
   for (const e of entries) {
     const had = byName[e.name];
     if (had && had.bytes !== e.bytes && (had.bytes.length !== e.bytes.length || had.bytes.some((b, i) => b !== e.bytes[i]))) {
-      throw new Error(`two different files would be written as ${e.name}`);
+      throw new Error(i18n.t('export.err.duplicateName', { name: e.name }));
     }
     byName[e.name] = e;
   }
   const files = Object.values(byName).map((e) => ({ name: e.name, bytes: e.bytes, level: e.zipOpts?.level }));
   // Formula-like values in the tables (code review L17), counted from the
   // bytes that ship so every table is covered whichever writer made it.
-  const formulaCells = formulaTally(files.map((f) => ({ name: f.name, text: () => strFromU8(f.bytes) })));
+  // decodeUtf8, not the TextDecoder polyfill (7 of 9 s reading a census back,
+  // utf8.ts), and a breath between tables (code review M38).
+  const formulaCells = await formulaTallyYielding(
+    files.map((f) => ({ name: f.name, text: () => decodeUtf8(f.bytes) ?? strFromU8(f.bytes) })),
+    yieldToUi,
+  );
+  // A nested DwC-A was counted as it was built (code review L50).
+  for (const e of Object.values(byName)) if (e.formulaRaw) formulaCells.raw += e.formulaRaw;
   const zipped = await zipInPieces(files, { level: 6 }, bytesProgress(onProgress, i18n.t('export.stage.compressing')));
   onProgress?.({ label: i18n.t('export.stage.writing') });
   await yieldToUi();

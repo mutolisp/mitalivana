@@ -141,19 +141,19 @@
     "photoFailTitle": "無法加入照片",
     "photoRemoved": "已移除照片",
     "projectUpdated": "已更新專案",
-    "pointSiteCreated": "已建立 Point 樣區並指派",
-    "assignSiteCurrent": "指定樣區（目前：{{name}}）",
-    "assignOrCreateSite": "指定 / 新建樣區",
-    "createPointSiteFromGnss": "從當前位置建立 Point 樣區",
+    "pointSiteCreated": "已建立地理樣區（點）並指定",
+    "assignSiteCurrent": "指定地理樣區（目前：{{name}}）",
+    "assignOrCreateSite": "指定或新建地理樣區",
+    "createPointSiteFromGnss": "以目前位置建立地理樣區（點）",
     "relocateStart": "重新定位起點",
-    "locateNoSite": "定位當前位置（不建樣區）",
+    "locateNoSite": "定位當前位置（不建地理樣區）",
     "stopTrack": "停止軌跡錄製（{{count}} 點）",
     "resumeTrack": "繼續軌跡錄製",
     "startTrack": "開始軌跡錄製",
     "clearSpatial": "清除空間資料",
-    "spatialMenuTitle": "空間資料（樣區/起點/軌跡）",
-    "siteUnassigned": "已移除樣區指派",
-    "siteAssigned": "已指定樣區",
+    "spatialMenuTitle": "空間資料（地理樣區／起點／軌跡）",
+    "siteUnassigned": "已移除地理樣區指定",
+    "siteAssigned": "已指定地理樣區",
     "reopened": "已重新啟用",
     "otherActiveTitle": "已有另一筆記錄正在進行",
     "otherActiveMsg": "「{{name}}」目前進行中。要先結束它再啟用此記錄嗎？",
@@ -188,7 +188,14 @@
     "cameraAdd": "拍照加入",
     "photoByCamera": "拍照",
     "photoFromLibrary": "從相簿選擇",
-    "photoModeHint": "長按可切換拍照或從相簿選擇"
+    "photoModeHint": "長按可切換拍照或從相簿選擇",
+    "placeLabel": "地點／軌跡",
+    "placeUnset": "未設定",
+    "sortNewFirst": "新→舊",
+    "sortOldFirst": "舊→新",
+    "sortAsc": "遞增",
+    "sortDesc": "遞減",
+    "sortFlipHint": "目前{{dir}}；再點一次翻轉"
   },
   "records": {
     "recording": "記錄中",
@@ -271,7 +278,11 @@
     "monthGroup": "{{year}} 年 {{month}} 月",
     "pinNamed": "釘選「{{name}}」",
     "unpinNamed": "取消釘選「{{name}}」",
-    "deleteFailed": "刪除失敗"
+    "deleteFailed": "刪除失敗",
+    "pendingTitle": "待鑑定",
+    "pendingBanner_other": "待鑑定 {{count}} 筆",
+    "pendingBannerBody": "還沒有物種名的觀察",
+    "pendingEmpty": "沒有待鑑定的觀察"
   },
   "export": {
     "preparing": "準備中…",
@@ -307,7 +318,8 @@
       "projectNotFound": "專案 {{id}} 不存在",
       "projectEmpty": "「{{name}}」內沒有任何記錄，無法匯出",
       "noneSelected": "沒有選擇任何記錄",
-      "tooManyReleves": "樣方數 {{n}} 超過 JUICE 上限 {{max}}"
+      "tooManyReleves": "樣方數 {{n}} 超過 JUICE 上限 {{max}}",
+      "duplicateName": "兩個不同的檔案會寫成同一個名稱：{{name}}"
     },
     "formula": {
       "title": "有些值可能被試算表當成公式",
@@ -365,7 +377,9 @@
     "layout": "版面",
     "selectMany": "選取多筆",
     "days30": "30 天",
-    "addSpecies": "加入物種"
+    "addSpecies": "加入物種",
+    "recordInfo": "記錄資訊",
+    "hasMissing": "有未填的項目"
   },
   "record": {
     "kindSession": "快速名錄",
@@ -1225,7 +1239,8 @@
     "needTaiwanRegion": "檢索表為臺灣（TaiCOL）內容。請到「設定 → 區域名錄與檢索表」開啟臺灣後再使用。",
     "statesSummary_other": "{{state}} 等 {{count}} 項",
     "remainingSpecies_other": "剩 {{count}} 種",
-    "selectedConditions_other": "已選 {{count}} 條件"
+    "selectedConditions_other": "已選 {{count}} 條件",
+    "addObserveDesc": "開啟「加入觀察」，可再加照片、數量與筆記"
   },
   "conservation": {
     "invasiveShort": "侵",
@@ -1338,7 +1353,7 @@
     "btnLine": "線",
     "btnPolygon": "範圍",
     "removeAssign": "移除指派",
-    "emptySites": "尚無地理樣區。點上方「新建地理樣區」開始繪製。",
+    "emptySites": "尚無地理樣區。點下方「新建地理樣區」開始繪製。",
     "assignProject": "指派專案",
     "assignProjectDesc": "選擇現有專案，或新建一個專案套用到本次記錄",
     "newProject": "新建專案",
@@ -1365,7 +1380,11 @@
     "assignIdentifierDesc": "可多選；長按 ☰ 拖曳調整順序（同步偏好設定）",
     "identifierNamePlaceholder": "鑑定者姓名",
     "addIdentifier": "加入",
-    "emptyIdentifiers": "尚無鑑定者，點上方「新增鑑定者」建立。"
+    "emptyIdentifiers": "尚無鑑定者，點上方「新增鑑定者」建立。",
+    "multiPick": "多選",
+    "mergeHint": "選同一類（點、線或範圍）的地理樣區，合併成一個指定給這筆記錄；原本的保留。",
+    "assignMerged_other": "合併 {{count}} 個並指定",
+    "pickTwo": "選兩個以上"
   },
   "exportPref": {
     "title": "匯出設定",
@@ -3567,6 +3586,7 @@
       "occurrence": "對應記錄",
       "identified_by": "鑑定者",
       "elevation_source": "海拔來源",
+      "along_m": "沿線距離（m）",
       "surveyUnit": "單位",
       "measureUnit": "量測單位",
       "viaInteraction": "交互作用對象",
@@ -3695,7 +3715,8 @@
       "block_size_differs": "隊友這個回合用的同步區塊大小和這台不同，無法合併。",
       "unreadable": "收到無法讀取的資料（可能來自較新版的 app），已略過。",
       "undecided": "還有重複的樹號沒有決定。",
-      "template_differs": "隊友這個回合用的每木模板和這台不同，沒有合併。"
+      "template_differs": "隊友這個回合用的每木模板和這台不同，沒有合併。",
+      "series_code_taken": "這台手機的同一個永久樣區已有代號相同的另一個系列，無法建立隊友的系列。"
     },
     "mergedFromToast": "已合併 {{names}} 的資料",
     "members": "隊員",
@@ -4922,7 +4943,8 @@
       "matrix": "矩陣",
       "matrixDesc": "{{type}}：列是 A（做這件事的一方），欄是 B，格內是次數合計。",
       "searchBelow": "不在這裡的物種，用下方的搜尋加入。"
-    }
+    },
+    "seriesCodeTaken": "這個永久樣區已有代號相同的另一個系列（屬於另一個模板），無法加入這一回合。"
   },
   "task": {
     "working": "處理中…",

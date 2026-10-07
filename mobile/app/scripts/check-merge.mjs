@@ -27,7 +27,7 @@ import {
   rowHash,
   summarizeItems,
 } from '../src/lib/mergeEngine.ts';
-import { askQuadratGeometry, COMBINERS, gloriaSide, plotSide, sessionSide, tieQuadratGeometry, trackUnion } from '../src/lib/mergeDocs.ts';
+import { askQuadratGeometry, COMBINERS, gloriaSide, plotSide, remoteFreqGridN, sessionSide, tieQuadratGeometry, trackUnion } from '../src/lib/mergeDocs.ts';
 
 let failed = 0;
 const eq = (msg, got, want) => {
@@ -307,6 +307,26 @@ eq('blank and missing hash alike', rowHash({ a: 1, b: '' }) === rowHash({ a: 1 }
   const spMasks = (d) => planOps(p2, d).filter((o) => o.tbl === 'sp' && o.data.freq_cells != null).map((o) => o.data.freq_cells);
   eq('plot frequency grid: theirs chosen → their masks come with it', spMasks(tieQuadratGeometry(p2, new Map([[f2.id, { pick: 'remote' }]]))), ['1'.repeat(16)]);
   eq('plot frequency grid: ours kept → ours stay', spMasks(tieQuadratGeometry(p2, new Map())), []);
+  eq('plot frequency grid: their grid, for the counts made on it (code review M45)', remoteFreqGridN(p2), 4);
+  eq('plot frequency grid: none when the two agree', remoteFreqGridN(diffSides(pLocal, pLocal, baseOf(pBase))), null);
+  // The top edge the masks are drawn against: theirs alone while masks are here is asked (code review M46).
+  // (A phone with masks cannot turn its edge: the screen locks it, so theirs has none.)
+  // (Configs are stored whole by setQuadratConfig, so both copies name an edge.)
+  const eBase = plotSide(pplot([psp({})], cfg({ freqGridN: 5, freqTopEdge: 'N' })));
+  const eLocal = plotSide(pplot([psp({ freq_cells: M5 })], cfg({ freqGridN: 5, freqTopEdge: 'N' })));
+  const pEdge = askQuadratGeometry(diffSides(eLocal, plotSide(pplot([psp({})], cfg({ freqGridN: 5, freqTopEdge: 'E' }))), baseOf(eBase)), eLocal);
+  eq('plot frequency top edge: theirs while masks are painted here → asked', pEdge.find((x) => x.key === 'freqTopEdge')?.kind, 'conflict');
+  // A quadrat that differs only in its way: its species follow the side picked (code review M47).
+  const wBase = plotSide(plot([quad(1, {}, [sp('t1')])]));
+  const wLocal = plotSide(plot([quad(1, {}, [sp('t1', { freq_cells: M5 })])]));
+  const wRemote = plotSide(plot([quad(1, { freq_mode: 'count' }, [sp('t1', { freq_count: 7 }), sp('t3', { freq_count: 4 })])]));
+  const wi = askQuadratGeometry(diffSides(wLocal, wRemote, baseOf(wBase)), wLocal);
+  const wq = wi.find((x) => x.tbl === 'quadrat');
+  eq('quadrat way: theirs while cells are painted here → asked', wq?.kind, 'conflict');
+  const wTheirs = tieQuadratGeometry(wi, new Map([[wq.id, { pick: 'remote' }]]));
+  eq('quadrat way: theirs chosen → every species of the quadrat takes theirs', wi.map((x) => `${x.key}:${wTheirs.get(x.id)?.pick}`), ['1:remote', '1:t1:remote', '1:t3:remote']);
+  const wOurs = tieQuadratGeometry(wi, new Map());
+  eq('quadrat way: ours kept → their counts are not added', wi.map((x) => `${x.key}:${wOurs.get(x.id)?.pick}`), ['1:local', '1:t1:local', '1:t3:local']);
 }
 
 // ── review titles: scientific names as parts the review italicises (rank looked up by taxon) ──

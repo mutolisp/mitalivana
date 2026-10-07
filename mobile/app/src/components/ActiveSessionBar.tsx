@@ -11,12 +11,16 @@ import { usePathname, useRouter, type Href } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useActiveRecordSummary } from '~/lib/useActiveRecordSummary';
+import { useShows } from '~/lib/useUsageMode';
 
 export function ActiveSessionBar() {
   const router = useRouter();
   const pathname = usePathname();
   const active = useActiveRecordSummary();
   const insets = useSafeAreaInsets();
+  // Casual mode's records tab is 我的觀察, which has no ActiveRecordCard: a
+  // record left open from another mode needs the full bar there (code review M41).
+  const recordsTabHasCard = !useShows('casualObservations');
 
   if (!active) return null;
   const { kind: shown, barLabel: label, targetPath } = active;
@@ -42,7 +46,7 @@ export function ActiveSessionBar() {
   //
   // The records tab ('/') gets the hairline too: its ActiveRecordCard already
   // says what is recording, with more room to say it.
-  if (pathname === targetPath || pathname === '/') {
+  if (pathname === targetPath || (pathname === '/' && recordsTabHasCard)) {
     return (
       <View className="bg-accent-600" style={{ paddingTop: insets.top }}>
         <View className="h-1" />

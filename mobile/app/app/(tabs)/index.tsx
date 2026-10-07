@@ -38,6 +38,7 @@ import {
   getProject,
   listPlotSpecies,
   listProjects,
+  listPending,
   listRecordsSummary,
   setRecordStarred,
   mergePlotSurveys,
@@ -85,7 +86,7 @@ import {
 } from '~/lib/recordSearch';
 import { modeSections } from '~/lib/modeMenu';
 import { shows, vis } from '~/lib/usageMode';
-import { useModeT, useShows, useUsageMode } from '~/lib/useUsageMode';
+import { useAnalysisFormats, useModeT, useShows, useUsageMode } from '~/lib/useUsageMode';
 import { CasualHome } from '~/components/casual/CasualHome';
 import { duplicateRecordAndOpen, importRecordPromptAndOpen } from '~/lib/recordCreate';
 import { showCreateSheet } from '~/components/CreateRecordSheet';
@@ -410,11 +411,15 @@ function RecordsListScreen() {
   const { t } = useTranslation();
   const tm = useModeT();
   const sheetInsets = useSafeAreaInsets();
+  const [hasFixedPlot, setHasFixedPlot] = useState(false);
+  // Pending observations (made in casual mode) are listed at /pending (code review L59).
+  const [pendingCount, setPendingCount] = useState(0);
   const filterLabel: Record<Filter, string> = {
     all: t('records.filterAll'),
     session: t('nav.session'),
-    // Volunteers' plots are transects and point counts: named so (Q5).
-    plot: tm('nav.plot'),
+    // Volunteers' plots are transects and point counts: named so (Q5) —
+    // unless a fixed plot is among them.
+    plot: hasFixedPlot ? t('nav.plot') : tm('nav.plot'),
     collection: t('nav.collection'),
     gloria: t('nav.gloria'),
     perm_survey: t('nav.survey'),
@@ -504,7 +509,7 @@ function RecordsListScreen() {
   const conservationFields = useSettings((s) => s.export_conservation_fields);
   const conservationHideLowConcern = useSettings((s) => s.export_conservation_hide_lc);
   const matrixValue = useSettings((s) => s.export_matrix_value);
-  const analysisFormats = useSettings((s) => s.export_analysis_formats);
+  const analysisFormats = useAnalysisFormats();
   const matrixByLayer = useSettings((s) => s.export_matrix_by_layer);
   const includeReport = useSettings((s) => s.export_include_report);
   const reportFormat = useSettings((s) => s.export_report_format);
@@ -523,9 +528,11 @@ function RecordsListScreen() {
     setCounts(summary.counts);
     setItems(summary.items);
     setGroups(summary.groups);
-    setActiveItems(
-      (filter === 'all' ? summary.items : listRecordsSummary('all').items).filter((it) => it.active),
-    );
+    const all = filter === 'all' ? summary.items : listRecordsSummary('all').items;
+    setActiveItems(all.filter((it) => it.active));
+    // A fixed plot (started in pro mode): plots are not all 穿越線／定點計數 then (code review L58).
+    setHasFixedPlot(all.some((it) => it.kind === 'plot' && it.plot?.plot_type === 'fixed'));
+    setPendingCount(listPending().length);
     setLoaded(true);
     setProjects(listProjects());
     refreshActive();
@@ -1387,6 +1394,26 @@ function RecordsListScreen() {
           startedAt={activeSummary.startedAt}
           onResume={() => router.navigate(activeSummary.targetPath as Href)}
         />
+      ) : null}
+      {pendingCount > 0 ? (
+        <Pressable
+          onPress={() => router.push('/pending' as Href)}
+          accessibilityRole="button"
+          className="mx-3 mb-3 flex-row items-center gap-3 rounded-card bg-acorn-tint px-3.5 py-3 active:opacity-80 dark:bg-gray-800"
+        >
+          <View className="h-10 w-10 items-center justify-center rounded-full bg-card dark:bg-card-dark">
+            <Text className="text-xl font-bold text-acorn-deep dark:text-acorn">?</Text>
+          </View>
+          <View className="flex-1">
+            <Text className="text-[15px] font-bold text-gray-900 dark:text-gray-100">
+              {t('records.pendingBanner', { count: pendingCount })}
+            </Text>
+            <Text className="text-[13px] text-gray-600 dark:text-gray-400">
+              {t('records.pendingBannerBody')}
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={c.cupule} />
+        </Pressable>
       ) : null}
       {/* Starter tasks go here in volunteer mode, under the open record's card
           (Q7, docs/planned/UI_modes.md); their content is not designed yet. */}

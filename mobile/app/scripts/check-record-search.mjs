@@ -77,6 +77,10 @@ eq('species: no match', sm('樟'), false);
 eq('species: empty query keeps it', sm('  '), true);
 eq('species: missing fields are skipped', speciesMatches({ simple_name: 'Ficus' }, 'ficus'), true);
 eq('species: null fields are skipped', speciesMatches({ common_name_c: null, simple_name: 'x' }, 'y'), false);
+// A morphospecies label and the name a record was filed under (code review L38).
+const orchid = { common_name_c: '蘭科', simple_name: 'Orchidaceae', verbatim_identification: 'sp2', used_scientific_name: 'Rubus croceacanthus var. croceacanthus' };
+eq('species: field determination', speciesMatches(orchid, normalizeRecordQuery('SP2')), true);
+eq('species: the name it was filed under', speciesMatches(orchid, normalizeRecordQuery('croceacanthus')), true);
 
 if (failures > 0) {
   console.error(`✗ record-search: ${failures} failure(s)`);

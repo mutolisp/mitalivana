@@ -127,6 +127,8 @@ export function recordToYamlItem(
   if (r.lng !== null) item.lng = r.lng;
   if (r.accuracy !== null) item.accuracy = r.accuracy;
   Object.assign(item, datumKeys(r.lat, r.elevation_m, r.elevation_source));
+  // Not DwC: for the split map on the way back in (v93); the CSV leaves it out.
+  if (r.along_m != null) item.along_m = r.along_m;
   if (r.organism_quantity !== null) item.organism_quantity = r.organism_quantity;
   if (r.organism_quantity_type !== null) item.organism_quantity_type = r.organism_quantity_type;
   // DwC species attributes + notes (these were previously dropped from the
@@ -390,6 +392,7 @@ export function buildPlotYamlDoc(input: PlotYamlInput): Record<string, unknown> 
     if (r.accuracy !== null) item.accuracy = r.accuracy;
     if (r.elevation_m != null) item.elevation_m = r.elevation_m;
     if (r.elevation_source) item.elevation_source = r.elevation_source;
+    if (r.along_m != null) item.along_m = r.along_m;
     item.observed_at = r.observed_at;
     const audio = audioField(input.audioNames, r.occurrence_id);
     if (audio) item.audio_files = audio;

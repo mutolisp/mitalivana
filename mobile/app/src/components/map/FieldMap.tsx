@@ -18,6 +18,7 @@
  * button does, and locate moves under it.
  */
 import { Ionicons } from '@expo/vector-icons';
+import { useIsFocused } from '@react-navigation/native';
 import * as Location from 'expo-location';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -129,8 +130,12 @@ export function FieldMap({
   const vectorOn = basemap === 'vector';
   const vectorStyle = vectorOn ? (vectorReady && vectorInstalled ? vectorStyleUri() : VECTOR_STYLE_URL) : undefined;
   const [layersOpen, setLayersOpen] = useState(false);
+  // Switching RudyMap ⇄ a native basemap mounts a new canvas: it opens where
+  // the map was, not at the first frame's fit (code review L44).
+  const [startRegion, setStartRegion] = useState<Region | null>(null);
   const pickBasemap = (b: MapBasemap) => {
     setLayersOpen(false);
+    setStartRegion(regionRef.current);
     const cur = useSettings.getState().map_view;
     useSettings.getState().set('map_view', { ...cur, basemap: b });
   };
@@ -207,8 +212,12 @@ export function FieldMap({
   // Point count: where you stand against the circle. Only while this map is
   // shown, and never asking for permission (the plot's own locate does that).
   const [here, setHere] = useState<{ lat: number; lng: number; accuracy: number | null } | null>(null);
+  // A tab screen stays mounted after its first visit and a pushed screen
+  // leaves the one under it mounted: GNSS only while this map is in view, as
+  // on the main map (code review M36).
+  const isFocused = useIsFocused();
   useEffect(() => {
-    if (!circle) return;
+    if (!circle || !isFocused) return;
     let sub: Location.LocationSubscription | null = null;
     let gone = false;
     void (async () => {
@@ -224,7 +233,7 @@ export function FieldMap({
       gone = true;
       sub?.remove();
     };
-  }, [circle?.lat, circle?.lng]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [circle?.lat, circle?.lng, isFocused]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const features: MapFeature[] = [
     ...(circle
@@ -350,12 +359,13 @@ export function FieldMap({
         key={`split-${vectorOn ? vectorStyleRev : 'native'}`}
         ref={mapRef}
         style={{ flex: 1 }}
-        initialRegion={initialRegion}
+        initialRegion={startRegion ?? initialRegion}
         engine={vectorOn ? 'vector' : 'native'}
         vectorStyle={vectorStyle}
         mapType={basemapToMapType(basemap)}
         attributionInset={insets.bottom + (onRecordHere ? RECORD_HERE_CLEAR : 0) || undefined}
-        showsUserLocation
+        attributionBottomOnly
+        showsUserLocation={isFocused}
         showsMyLocationButton={false}
         toolbarEnabled={false}
         onRegionChangeComplete={(r) => {

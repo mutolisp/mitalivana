@@ -20,6 +20,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useShows } from '~/lib/useUsageMode';
 import { Alert, FlatList, Keyboard, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { showActionSheet } from '~/components/ActionSheet';
@@ -118,6 +119,8 @@ export function PlotSurveySpeciesTab({
   const [showInter, setShowInter] = useState(false);
   // Finding a species in this list (ListFilter): the field replaces the scope and layer strip.
   const [findOpen, setFindOpen] = useState(false);
+  // The filter has the keyboard: the add-species dock steps aside (code review L37).
+  const [findTyping, setFindTyping] = useState(false);
   const [findQuery, setFindQuery] = useState('');
   const findNq = normalizeRecordQuery(findQuery);
   // The value sheet stepping aside for a root-hosted question (runOverModal): its record stays.
@@ -128,6 +131,7 @@ export function PlotSurveySpeciesTab({
   /** The last value per layer, carried to the next species there (the fixed plot's batch entry). */
   const [lastValue, setLastValue] = useState<Partial<Record<Layer, PlotValueDraft>>>({});
   const selection = useListSelection<number>();
+  const showsFavorites = useShows('favorites');
   const sortOrder = useSettings((s) => s.last_record_sort);
   const sortDir = useSettings((s) => s.last_record_sort_dir);
 
@@ -325,7 +329,8 @@ export function PlotSurveySpeciesTab({
                 lat: fix.fix.lat,
                 lng: fix.fix.lng,
                 accuracy: fix.fix.accuracyM,
-                ...(fix.fix.altitudeM != null ? { elevation_m: fix.fix.altitudeM, elevation_source: 'gnss' } : {}),
+                // A typed-in elevation stays (code review M33, as M26 on plots).
+                ...(fix.fix.altitudeM != null && editOcc.elevation_m == null ? { elevation_m: fix.fix.altitudeM, elevation_source: 'gnss' } : {}),
               });
           }),
         );
@@ -593,6 +598,7 @@ export function PlotSurveySpeciesTab({
         <View className="flex-row items-center border-b border-gray-100 bg-card dark:border-gray-800 dark:bg-gray-900">
           {findOpen ? (
             <ListFilterField
+                onFocusChange={setFindTyping}
               value={findQuery}
               onChangeText={setFindQuery}
               onClose={() => {
@@ -725,12 +731,13 @@ export function PlotSurveySpeciesTab({
         <SelectionDock
           count={selection.picked.size}
           actions={[
-            { label: t('favorites.add'), onPress: handleBulkFavorite },
+            // Casual mode has no 常用名錄 (code review L41).
+            ...(showsFavorites ? [{ label: t('favorites.add'), onPress: handleBulkFavorite }] : []),
             { label: t('common.delete'), onPress: handleBulkDelete, destructive: true },
           ]}
         />
       ) : null}
-      {(edit.locked && !replaceTarget) || selection.selectMode ? null : (
+      {(edit.locked && !replaceTarget) || selection.selectMode || findTyping ? null : (
         <KeyboardStickyView offset={{ opened: insets.bottom }}>
           <View>
             {units.length > 0 || survey.blind_closed_at != null ? (

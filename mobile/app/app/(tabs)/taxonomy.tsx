@@ -846,6 +846,7 @@ export default function TaxonomyScreen() {
   // picked species stays picked when its parent is collapsed and its row
   // leaves `flatItems`.
   const selection = useListSelection<string>();
+  const showsFavorites = useShows('favorites');
   const pickedPayload = useRef(new Map<string, TreePick>());
   const [infoNode, setInfoNode] = useState<TaxonNodeData | null>(null);
   const [editorReq, setEditorReq] = useState<EditorRequest | null>(null);
@@ -1192,7 +1193,8 @@ export default function TaxonomyScreen() {
                 bottomInset={tabBarInset}
                 actions={[
                   { label: t('taxonomy.bulkAddToRecord'), onPress: () => void handleBulkAddToRecord() },
-                  { label: t('favorites.add'), onPress: () => void handleBulkFavorite() },
+                  // Casual mode has no 常用名錄 (code review L41).
+                  ...(showsFavorites ? [{ label: t('favorites.add'), onPress: () => void handleBulkFavorite() }] : []),
                 ]}
               />
             ) : (

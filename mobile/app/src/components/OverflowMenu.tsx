@@ -42,7 +42,17 @@ export type MenuIcon = keyof typeof Ionicons.glyphMap;
 type StepperKey = { label: string; icon: MenuIcon; count: number; onPress: () => void };
 
 export type MenuItem =
-  | { kind: 'action'; id: string; label: string; icon?: MenuIcon; detail?: string; destructive?: boolean }
+  | {
+      kind: 'action';
+      id: string;
+      label: string;
+      icon?: MenuIcon;
+      /** A value shown at the right, cut to one line (a record's project, its surveyors). */
+      detail?: string;
+      /** The detail asks for attention: still unset, or required and missing. */
+      attention?: boolean;
+      destructive?: boolean;
+    }
   | { kind: 'radio'; id: string; group: string; label: string; icon?: MenuIcon; checked: boolean; onSelect: () => void }
   | {
       kind: 'segmented';
@@ -234,7 +244,7 @@ export function MenuHost() {
                       >
                         {item.icon ? <Ionicons name={item.icon} size={20} color={tint} /> : null}
                         <Text
-                          className={`flex-1 text-base ${item.icon ? 'ml-3' : ''} ${
+                          className={`${item.detail ? 'shrink-0' : 'flex-1'} text-base ${item.icon ? 'ml-3' : ''} ${
                             item.destructive ? 'text-alert dark:text-alert-dark' : 'text-ink dark:text-gray-100'
                           }`}
                           numberOfLines={1}
@@ -242,7 +252,15 @@ export function MenuHost() {
                           {item.label}
                         </Text>
                         {item.detail ? (
-                          <Text className="ml-2 text-sm text-gray-500 dark:text-gray-400">{item.detail}</Text>
+                          // The value gives way, not the label: a long project name or surveyor list is cut.
+                          <Text
+                            numberOfLines={1}
+                            className={`ml-3 flex-1 text-right text-sm ${
+                              item.attention ? 'text-alert dark:text-alert-dark' : 'text-gray-500 dark:text-gray-400'
+                            }`}
+                          >
+                            {item.detail}
+                          </Text>
                         ) : null}
                       </Pressable>
                     );
@@ -362,10 +380,13 @@ export function MenuHost() {
 export function MenuButton({
   onOpen,
   variant = 'disc',
+  badge = false,
 }: {
   /** Open the menu against the given anchor; resolve when it has closed. */
   onOpen: (anchor: RefObject<View | null>) => Promise<unknown>;
   variant?: 'disc' | 'pill' | 'plain';
+  /** A dot on the button: something inside the menu still needs filling in. */
+  badge?: boolean;
 }) {
   const { t } = useTranslation();
   const c = useThemeColors();
@@ -395,11 +416,15 @@ export function MenuButton({
       onPress={() => void press()}
       accessibilityRole="button"
       accessibilityLabel={t('record.moreActions')}
+      accessibilityHint={badge ? t('menu.hasMissing') : undefined}
       accessibilityState={{ expanded }}
       className="h-11 w-11 items-center justify-center"
     >
       <View ref={anchor} collapsable={false} className={`items-center justify-center ${box}`}>
         <Ionicons name="ellipsis-horizontal" size={variant === 'plain' ? 20 : 22} color={glyph} />
+        {badge ? (
+          <View className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border border-card bg-alert dark:border-gray-900 dark:bg-alert-dark" />
+        ) : null}
       </View>
     </Pressable>
   );

@@ -238,7 +238,11 @@ export function ensureCensus(ctx: Ctx, h: CensusTeamHeader): { surveyId: number;
   return { surveyId, created: true };
 }
 
-/** Lines of `theirs` that `here` does not have yet, added after it (trimmed comparison). */
+/**
+ * Lines of `theirs` that `here` does not have yet (trimmed comparison). When
+ * any are added, the lines go in one order on both phones — sorted — or each
+ * phone kept its own first and the copies never matched (code review L67).
+ */
 function unionLines(here: string | null, theirs: string | null): string | null {
   if (!theirs?.trim()) return here;
   if (!here?.trim()) return theirs;
@@ -249,7 +253,15 @@ function unionLines(here: string | null, theirs: string | null): string | null {
     have.add(k);
     return true;
   });
-  return added.length ? `${here}\n${added.join('\n')}` : here;
+  return added.length ? sortedLines([...here.split('\n'), ...added], '\n') : here;
+}
+
+/** The parts of a combined list in one order, whichever phone combined it. */
+function sortedLines(parts: string[], sep: string): string {
+  return parts
+    .filter((p) => p.trim())
+    .sort((a, b) => (a.trim() < b.trim() ? -1 : a.trim() > b.trim() ? 1 : 0))
+    .join(sep);
 }
 
 /**
@@ -260,6 +272,12 @@ function unionLines(here: string | null, theirs: string | null): string | null {
  * ones here (a line deleted on one phone comes back from the other). The
  * status stays this phone's own. Returns whether anything changed.
  */
+/** Investigators pooled; sorted when the teammate added any, so both phones list them alike (L67). */
+function sortedUnion(here: string | null, theirs: string | null): string | null {
+  const pooled = unionSurveyors([here, theirs]);
+  return pooled != null && pooled !== unionSurveyors([here]) ? sortedLines(pooled.split(','), ',') : pooled;
+}
+
 export function mergeCensusHeader(ctx: Ctx, surveyId: number, theirs: Row): boolean {
   const s = getSurvey(ctx, surveyId);
   if (!s) return false;
@@ -267,7 +285,7 @@ export function mergeCensusHeader(ctx: Ctx, surveyId: number, theirs: Row): bool
   const starts = nums(s.start_ts, theirs.start_ts);
   const stops = nums(s.stop_ts, theirs.stop_ts);
   const next: Record<'investigators' | 'start_ts' | 'stop_ts' | 'notes', Scalar> = {
-    investigators: unionSurveyors([s.investigators, (theirs.investigators as string | null) ?? null]),
+    investigators: sortedUnion(s.investigators, (theirs.investigators as string | null) ?? null),
     start_ts: starts.length ? Math.min(...starts) : null,
     stop_ts: s.stop_ts == null ? null : Math.max(...stops),
     notes: unionLines(s.notes, (theirs.notes as string | null) ?? null),
@@ -495,6 +513,22 @@ export function quadratsTheirFoldsTake(ctx: { db: SurveyDb }, sent: CensusSlice)
     out.add(loser.quadrat_code);
     const winner = localTree(ctx, f.winner);
     if (winner) out.add(winner.quadrat_code);
+  }
+  return [...out];
+}
+
+/**
+ * The quadrats of this device's trees that same-tag folds found here
+ * (openBlock's sameTree) take: one may stand outside the block, so its
+ * quadrat is not among the block's (code review L65).
+ */
+export function quadratsOfFolds(ctx: { db: SurveyDb }, folds: readonly Fold[]): string[] {
+  const out = new Set<string>();
+  for (const f of folds) {
+    for (const uuid of [f.loser, f.winner]) {
+      const t = localTree(ctx, uuid);
+      if (t) out.add(t.quadrat_code);
+    }
   }
   return [...out];
 }
@@ -849,16 +883,19 @@ export function localizeOps(ops: readonly MergeOp[], censusUuid: string): MergeO
  * their block. Returns the quadrats touched. In a transaction.
  */
 export function applyBlockItems(ctx: Ctx, surveyId: number, items: MergeItem[], decisions: Map<string, Decision>, remote: CensusSlice): string[] {
-  const ops = withParents(ctx, localizeOps(planOps(items, decisions), censusUuidOf(ctx, surveyId)));
+  const ops = withParents(ctx, localizeOps(planOps(items, decisions), censusUuidOf(ctx, surveyId)), surveyId);
   return applySliceOps(ctx, surveyId, ops, { mayDelete: deletableIn(ctx, surveyId, remote) });
 }
 
 /**
  * Their rows whose tree or stem neither is here nor comes in with this merge
  * (a decision kept it out) stay out with it: inserted, they failed the whole
- * merge (code review M9, 2026-10-04).
+ * merge (code review M9, 2026-10-04). With `surveyId`, a stem value likewise
+ * needs its measurement in this census, here or coming in: keeping our
+ * deletion of a measurement while taking their changed value failed the
+ * block (code review L64).
  */
-export function withParents(ctx: { db: SurveyDb }, ops: readonly MergeOp[]): MergeOp[] {
+export function withParents(ctx: { db: SurveyDb }, ops: readonly MergeOp[], surveyId?: number): MergeOp[] {
   const inserted = (tbl: string, list: readonly MergeOp[]) => new Set(list.flatMap((o) => (o.op === 'insert' && o.tbl === tbl ? [o.row.key] : [])));
   const here = (table: 'fw_individuals' | 'fw_stems', uuid: unknown) => typeof uuid === 'string' && !!one(ctx, `SELECT id FROM ${table} WHERE uuid = ?`, [uuid]);
   const trees = inserted('tree', ops);
@@ -866,5 +903,14 @@ export function withParents(ctx: { db: SurveyDb }, ops: readonly MergeOp[]): Mer
   const withTrees = ops.filter((o) => !(o.op === 'insert' && (o.tbl === 'stem' || o.tbl === 'ival') && !hasTree(o.row.data.tree_uuid)));
   const stems = inserted('stem', withTrees);
   const hasStem = (u: unknown) => stems.has(u as string) || here('fw_stems', u);
-  return withTrees.filter((o) => !(o.op === 'insert' && ((o.tbl === 'measure' && !hasStem(o.row.key)) || (o.tbl === 'sval' && !hasStem(o.row.data.stem_uuid)))));
+  const withStems = withTrees.filter((o) => !(o.op === 'insert' && ((o.tbl === 'measure' && !hasStem(o.row.key)) || (o.tbl === 'sval' && !hasStem(o.row.data.stem_uuid)))));
+  if (surveyId == null) return withStems;
+  const measuresIn = inserted('measure', withStems);
+  const measuresOut = new Set(withStems.flatMap((o) => (o.op === 'delete' && o.tbl === 'measure' ? [o.key] : [])));
+  const hasMeasure = (stem: unknown) =>
+    typeof stem === 'string' &&
+    (measuresIn.has(stem) ||
+      (!measuresOut.has(stem) &&
+        !!one(ctx, `SELECT m.id FROM fw_stem_measures m JOIN fw_stems st ON st.id = m.stem_id WHERE m.survey_id = ? AND st.uuid = ?`, [surveyId, stem])));
+  return withStems.filter((o) => !(o.op === 'insert' && o.tbl === 'sval' && !hasMeasure(o.row.data.stem_uuid)));
 }

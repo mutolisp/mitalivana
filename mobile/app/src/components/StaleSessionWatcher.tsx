@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert } from 'react-native';
 import { useRouter } from 'expo-router';
-import { endSession, isDailySession, latestSessionActivityAt } from '~/db';
+import { dailySessionDay, dayKey, endSession, latestSessionActivityAt } from '~/db';
 import { useActiveSession } from '~/stores/activeSession';
 import { isRecordingTarget, pauseRecording } from '~/lib/trackRecorder';
 
@@ -17,8 +17,8 @@ const STALE_THRESHOLD_MS = 12 * 60 * 60 * 1000; // 12 hours
  * the resumed_at + activity floors, reopening a 3-day-old session to add one
  * taxon would immediately re-fire "open for 72 hours" — annoying noise.
  *
- * Casual mode's daily checklists are never asked about: they end on their
- * own the next day (src/db/pendingCore.ts).
+ * Casual mode's daily checklists are not asked about: they end on their own
+ * the next day (src/db/pendingCore.ts) — except one reopened on a later day.
  */
 export function StaleSessionWatcher() {
   const { t } = useTranslation();
@@ -30,7 +30,11 @@ export function StaleSessionWatcher() {
   useEffect(() => {
     if (!session) return;
     if (promptedFor.current === session.id) return;
-    if (isDailySession(session.id)) return;
+    // A daily checklist ends on its own the next day — unless it was reopened
+    // on a later day, which the sweep leaves open: that one is asked about
+    // like any other (code review L33).
+    const day = dailySessionDay(session.id);
+    if (day && (session.resumed_at == null || dayKey(session.resumed_at) === day)) return;
     const lastActivity = latestSessionActivityAt(session.id);
     const baseline = Math.max(
       session.started_at,

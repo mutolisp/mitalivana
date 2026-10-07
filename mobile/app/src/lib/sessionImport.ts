@@ -60,6 +60,7 @@ export function sessionFromDoc(doc: Record<string, unknown> | null): ImportedSes
       accuracy: num(r.coordinateUncertaintyInMeters),
       elevation_m: num(r.minimumElevationInMeters),
       elevation_source: sourceFromVerticalDatum(r.verticalDatum, num(r.minimumElevationInMeters)),
+      along_m: num(r.along_m),
       organism_quantity: str(r.organismQuantity),
       organism_quantity_type: str(r.organismQuantityType),
       sex: str(r.sex),

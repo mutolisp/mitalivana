@@ -1,7 +1,7 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack, usePathname } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { View } from 'react-native';
 import { SystemBars } from 'react-native-edge-to-edge';
@@ -23,6 +23,7 @@ import { CaptureSheetHost } from '~/components/casual/CaptureSheet';
 import { ChoiceSheetHost } from '~/components/ChoiceSheet';
 import { MenuHost } from '~/components/OverflowMenu';
 import { ActiveSessionBar } from '~/components/ActiveSessionBar';
+import { isDailySession } from '~/db';
 import { useTopChrome } from '~/stores/topChrome';
 import { DBProvider } from '~/components/DBProvider';
 import { DatasetSetupGate } from '~/components/DatasetSetupGate';
@@ -132,9 +133,13 @@ function ThemedShell() {
   const miren = useActiveMiren((s) => s.survey);
   const fwSurvey = useActiveSurvey((s) => s.survey);
   // Casual mode keeps the day's checklist open without saying so (activeBar);
-  // any other open record, left from another mode, still shows.
+  // any other open record, left from another mode, still shows: a pro
+  // checklist recording a track would otherwise be out of reach (code review
+  // M41). Keyed by id: a checklist is a daily one from its creation on.
   const sessionBar = useShows('activeBar');
-  const hasActive = Boolean((sessionBar && session) || plot || gloria || miren || fwSurvey);
+  const sessionId = session?.id ?? null;
+  const dailyOpen = useMemo(() => sessionId != null && isDailySession(sessionId), [sessionId]);
+  const hasActive = Boolean((session && (sessionBar || !dailyOpen)) || plot || gloria || miren || fwSurvey);
   // Starting any other record ends an active MIREN survey or checklist /
   // plot-style survey in the DB (closeActiveRecords), but most of those paths
   // refresh only their own store. Re-reading them whenever another active
@@ -265,6 +270,7 @@ function ThemedShell() {
             <Stack.Screen name="record-versions" options={{ title: t('versions.title') }} />
             <Stack.Screen name="deleted-records" options={{ title: t('versions.deletedTitle') }} />
             <Stack.Screen name="observe" options={{ title: t('casual.observeTitle') }} />
+            <Stack.Screen name="pending" options={{ title: t('records.pendingTitle') }} />
           </Stack>
         </View>
         {/* Select popovers render here, NOT via React.createPortal: the portal

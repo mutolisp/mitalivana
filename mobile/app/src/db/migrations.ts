@@ -3362,6 +3362,19 @@ export const MIGRATIONS: Migration[] = [
       db.executeSync(`CREATE INDEX IF NOT EXISTS idx_pending_observed ON pending_observations(observed_at);`);
     },
   },
+  {
+    // Metres walked along the record's own track when it was entered, stamped
+    // with its fix while that track was recording (src/lib/recordFix.ts). The
+    // split map puts the record in a stretch by it instead of by the nearest
+    // point: on a trail walked out and back the nearest point is often on the
+    // way back (code review L47, decided 2026-10-07). NULL: entered while not
+    // recording, or before v93 — the nearest point is used as before.
+    version: 93,
+    up: (db) => {
+      addColumnIfMissing(db, `ALTER TABLE checklist_records ADD COLUMN along_m REAL;`);
+      addColumnIfMissing(db, `ALTER TABLE plot_species_records ADD COLUMN along_m REAL;`);
+    },
+  },
 ];
 
 /** Highest schema version this build knows how to produce. Backup/restore uses

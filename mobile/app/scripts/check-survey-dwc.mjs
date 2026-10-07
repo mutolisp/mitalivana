@@ -373,7 +373,13 @@ ok(censusDwcRows(doc, { eventIds: censusEventIds(doc), uniqueEventId: unique(), 
   };
   linkMeasurements(all.occurrences, all.measurements);
   ok(all.measurements.every((m) => m.coreEventID), 'archive: every measurement has its core event');
-  const files = unzipSync(buildDwcArchive({ meta: { title: 't', abstract: '', creator: '', pubDate: '2026-10-03', packageId: 'p' }, ...all }));
+  // The files as written, handed over before zipping (code review L50): the same text as in the zip.
+  let handed = null;
+  const files = unzipSync(buildDwcArchive({ meta: { title: 't', abstract: '', creator: '', pubDate: '2026-10-03', packageId: 'p' }, ...all }, (f) => (handed = f)));
+  ok(
+    handed?.length === Object.keys(files).length && handed.every((f) => strFromU8(files[f.name]) === f.text),
+    'archive: the files handed over before zipping are the ones in the zip',
+  );
   const header = (name) => strFromU8(files[name]).split('\n')[0].split('\t');
   ok(header('event.txt').join() === EVENT_COLS.map((x) => x.key).join(), 'archive: event.txt has the declared columns');
   ok(header('occurrence.txt').join() === ['coreEventID', ...OCCURRENCE_COLS.map((x) => x.key)].join(), 'archive: occurrence.txt has the declared columns');

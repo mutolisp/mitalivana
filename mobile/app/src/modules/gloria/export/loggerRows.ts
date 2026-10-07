@@ -8,6 +8,7 @@
  * visit; later visits number 2, 3 … and name their own scans.
  */
 import { form4Id, loggerCode, parseFiles, parseFlags, type FileRef, type LoggerRole } from '../model/loggers';
+import { createEntryNamer } from '../../../lib/zipEntryNames';
 
 export const H04_TEMPERATURE_LOGGERS = [
   'id', 'mocy', 'visitDate', 'country', 'targetRegion', 'summit', 'loggerCode', 'role', 'quadratCode', 'label',
@@ -79,20 +80,25 @@ export type FilePlan = Array<{ uri: string; name: string; kind: 'data' | 'form4'
 
 export function planLoggerFiles(mocy: number, s: Summit, visits: ReadonlyArray<ExportVisit>): FilePlan {
   const out: FilePlan = [];
+  // The same logger read out twice in a cycle can bring a file of the same
+  // name both times: the second is name-2, never refused (code review L54).
+  const names = createEntryNamer();
   for (const v of orderedVisits(mocy, s, visits)) {
     parseFiles(v.form4_files).forEach((f: FileRef, i) => {
       const ext = /\.([A-Za-z0-9]{1,8})$/.exec(f.name)?.[1]?.toLowerCase() ?? 'jpg';
-      out.push({ uri: f.uri, name: `${v.form4}${i ? `-${i + 1}` : ''}.${ext}`, kind: 'form4' });
+      out.push({ uri: f.uri, name: names.claim(`${v.form4}${i ? `-${i + 1}` : ''}.${ext}`), kind: 'form4' });
     });
     for (const l of v.loggers)
       for (const f of parseFiles(l.data_files))
-        out.push({ uri: f.uri, name: safe(`${codeOf(s, l, v.visit_ts)}_${l.serial ?? 'no-serial'}_${f.name}`), kind: 'data' });
+        out.push({ uri: f.uri, name: names.claim(safe(`${codeOf(s, l, v.visit_ts)}_${l.serial ?? 'no-serial'}_${f.name}`)), kind: 'data' });
   }
   return out;
 }
 
 export function loggerRows(mocy: number, s: Summit, visits: ReadonlyArray<ExportVisit>): string[][] {
   const rows: string[][] = [];
+  // The names the files are written under (planLoggerFiles), so the table and the zip agree.
+  const fileName = new Map(planLoggerFiles(mocy, s, visits).filter((f) => f.kind === 'data').map((f) => [f.uri, f.name]));
   orderedVisits(mocy, s, visits).forEach((v, vi) => {
     for (const l of v.loggers) {
       const code = codeOf(s, l, v.visit_ts);
@@ -122,7 +128,7 @@ export function loggerRows(mocy: number, s: Summit, visits: ReadonlyArray<Export
         l.researcher ?? v.researchers ?? '',
         parseFlags(l.flags).join(';'),
         l.comments ?? '',
-        parseFiles(l.data_files).map((f) => safe(`${code}_${l.serial ?? 'no-serial'}_${f.name}`)).join('; '),
+        parseFiles(l.data_files).map((f) => fileName.get(f.uri) ?? safe(`${code}_${l.serial ?? 'no-serial'}_${f.name}`)).join('; '),
         v.form4,
         l.uuid,
       ]);

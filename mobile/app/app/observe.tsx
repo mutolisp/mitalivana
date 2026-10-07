@@ -48,6 +48,7 @@ import {
   updatePending,
   updateRecordAttributes,
   updateRecordAudio,
+  updateRecordLocation,
   updateRecordNotes,
   updateRecordPhotos,
   updateRecordQuantity,
@@ -66,10 +67,10 @@ import { openTodaysChecklist } from '~/lib/casualDaily';
 import { whenShort } from '~/lib/casualFormat';
 import { parseMultiAttribute, serializeMultiAttribute } from '~/lib/dwcAttributes';
 import { errText } from '~/lib/errText';
-import { hasInatChanges, syncRecord, useInatSync, type UploadUnit } from '~/lib/inatUpload';
+import { hasInatChanges, syncRecord, useInatSync, useInatUpload, type UploadUnit } from '~/lib/inatUpload';
 import { nextDraft, useObserveDraft, type ObserveDraft } from '~/lib/observeDraft';
 import { pickPhotosWithExif, takePhotoWithExif, type PickedPhoto } from '~/lib/photoCapture';
-import { rememberPickedPhotos } from '~/lib/photoMeta';
+import { firstPhotoFix, rememberPickedPhotos } from '~/lib/photoMeta';
 import { stampNewRecord, takeFixNow, type Fix } from '~/lib/recordFix';
 import { useActiveSession } from '~/stores/activeSession';
 import { useToast } from '~/stores/toast';
@@ -351,6 +352,31 @@ function ObserveForm({ source }: { source: Source }) {
     if (!f || photos.length === 0) return;
     rememberPickedPhotos(photos);
     write({ photos: [...f.photos, ...photos.map((p) => p.uri)] });
+    void fillPlaceFrom(photos);
+  };
+  // A photo carries the position the observation never got (no signal when it
+  // was saved): applied only where there is none, as on 快速名錄 (code review
+  // M30). A draft takes its place when it is added.
+  const fillPlaceFrom = async (photos: PickedPhoto[]) => {
+    if (source.kind === 'draft') return;
+    const cur = source.kind === 'pending' ? getPending(source.id) : getRecord(source.session, source.id);
+    if (!cur || !(cur.lat == null || cur.lng == null)) return;
+    const out = await firstPhotoFix(photos);
+    if (out.kind !== 'found') return;
+    const { lat, lng, accuracyM, altitudeM } = out.fix;
+    // A typed-in elevation stays (code review N3).
+    const altitude = cur.elevation_m == null ? altitudeM : null;
+    if (source.kind === 'pending') {
+      updatePending(source.id, {
+        lat,
+        lng,
+        accuracy: accuracyM,
+        ...(altitude != null ? { elevation_m: altitude, elevation_source: 'gnss' as const } : {}),
+      });
+    } else {
+      updateRecordLocation(source.id, lat, lng, accuracyM, altitude);
+    }
+    setForm((g) => (g ? { ...g, fix: { lat, lng, accuracy: accuracyM, elevation_m: altitude ?? cur.elevation_m ?? null } } : g));
   };
   const takePhoto = async () => addPhotos(await takePhotoWithExif());
   const pickLibrary = async () => {
@@ -383,6 +409,8 @@ function ObserveForm({ source }: { source: Source }) {
         // observation, and a sync sends the species (the owner's new ID).
         const onInat = getPending(source.id)?.inat_observation_id != null;
         const named = identifyPending(source.id, pick.taxonId, pick.adopted);
+        // It may have opened today's checklist, or ended yesterday's (code review L35).
+        useActiveSession.getState().refresh();
         const name = pick.cname || pick.name;
         if (onInat) {
           toast(t('casual.addedOnInat', { name }), {
@@ -404,7 +432,7 @@ function ObserveForm({ source }: { source: Source }) {
       // checklist, as a pending one does when it is named; today's is opened.
       const sessionId =
         dayKey(f.observedAt) === dayKey(Date.now())
-          ? await openTodaysChecklist()
+          ? await openTodaysChecklist(f.observedAt)
           : dailySessionOn(f.observedAt);
       if (sessionId == null) return;
       const live = useObserveDraft.getState().queue.find((d) => d.id === source.draft.id);
@@ -486,6 +514,13 @@ function ObserveForm({ source }: { source: Source }) {
 
   const remove = () => {
     if (source.kind === 'draft') return;
+    // The one on its way to iNaturalist right now: deleting it here would
+    // leave the observation there with nothing on the phone (code review M27).
+    const up = useInatUpload.getState();
+    if (source.kind === 'pending' && up.unit?.kind === 'pending' && up.progress?.currentId === source.id) {
+      Alert.alert(t('inat.busy'));
+      return;
+    }
     Alert.alert(t('casual.deleteTitle'), undefined, [
       { text: t('common.cancel'), style: 'cancel' },
       {

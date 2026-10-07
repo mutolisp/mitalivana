@@ -29,6 +29,7 @@ import type { TaskReporter } from '~/stores/taskProgress';
 import { LATEST_SCHEMA_VERSION } from '~/db/migrations';
 import { BACKUP_NAME_PREFIX } from './googleDevice';
 import { guardFormula } from './csvFormula';
+import { createEntryNamer } from './zipEntryNames';
 import {
   base64ToBytes,
   ensurePhotosReadAccess,
@@ -442,14 +443,6 @@ function collectPhotoSources(): PhotoSource[] {
 // photos.csv is Excel-bound: formula-like values get a leading apostrophe (code review L17).
 const csvEscape = (s: string): string => `"${guardFormula(s).replace(/"/g, '""')}"`;
 
-function uniqueName(entries: BuiltZipEntry[], folder: string, name: string): string {
-  const taken = (n: string) => entries.some((e) => e.name === `${folder}/${n}`);
-  if (!taken(name)) return name;
-  const dot = name.lastIndexOf('.');
-  const [stem, ext] = dot > 0 ? [name.slice(0, dot), name.slice(dot)] : [name, ''];
-  for (let k = 2; ; k++) if (!taken(`${stem}-${k}${ext}`)) return `${stem}-${k}${ext}`;
-}
-
 /**
  * Export every record photo into a zip + photos.csv mapping. Returns null if
  * there are no photos to back up.
@@ -471,6 +464,10 @@ export async function createPhotoBackup(
   };
 
   const entries: BuiltZipEntry[] = [];
+  // Many sources share a folder (one fw_media row per photo, a day's pending
+  // observations, GLORIA points under 'env'): numbering per source gave them
+  // the same name, and finalizeZip refuses that (code review H7).
+  const names = createEntryNamer();
   const csv: string[] = ['filename,taxon_id,scientific_name,common_name,source'];
   let done = 0;
 
@@ -487,7 +484,7 @@ export async function createPhotoBackup(
         const ext = guessExt(fileUri);
         const own = src.names?.[i];
         // Two attachments of one name (Form2_scan.pdf twice) must not overwrite each other.
-        const name = own ? `${src.folder}/${uniqueName(entries, src.folder, sanitizeFilename(own))}` : `${src.folder}/${label}_${i + 1}.${ext}`;
+        const name = own ? names.claim(`${src.folder}/${sanitizeFilename(own)}`) : names.numbered(src.folder, label, ext);
         entries.push({ name, bytes: base64ToBytes(b64) });
         csv.push(
           [

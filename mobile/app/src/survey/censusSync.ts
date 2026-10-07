@@ -401,9 +401,14 @@ async function syncCensusNow(teamId: string, surveyId: number, opts: CensusSyncO
     const needK = getSurvey(c, surveyId)!.sync_block_quadrats == null;
     // Teammates on another template: their header stays unseen (asked again next time), their blocks are not merged.
     const otherTemplate = new Map<string, string>();
+    // A teammate whose block size is not known yet is read again although
+    // seen: versions before 0.6 marked headers seen without storing it, and a
+    // team that had met a different block size then never learnt the other's,
+    // so it could not settle on one (code review M43).
+    const knownK = getClaims(surveyId).others;
     for (const it of items) {
       if (it.rec !== hRec || it.dev === dev) continue;
-      if (!needK && seenEtag(teamId, hRec, it.dev) === it.etag) continue;
+      if (!needK && knownK[it.dev]?.k != null && seenEtag(teamId, hRec, it.dev) === it.etag) continue;
       const doc = readCensusDoc(await downloadText(team, keys, hRec, it.dev));
       if (!doc || doc.record_type !== 'census_team_header' || doc.ident !== ident) {
         markSeen(teamId, hRec, it.dev, it.etag);
@@ -669,9 +674,17 @@ export function mergeBlockQuietly(surveyId: number, doc: CensusBlockUpload, by: 
   // Their folds (openBlock) write first: the quadrats they take are read before.
   const takes = core.quadratsTheirFoldsTake(c, doc.slice);
   let before: QuadratDocs | null = takes.length ? quadratDocs(surveyId, [...blockCodes(surveyId, doc.block), ...takes]) : null;
-  const keepBefore = () => keepBeforeMerge((before ??= quadratDocs(surveyId, blockCodes(surveyId, doc.block))));
   const out = withTransaction(() => {
     const opened = core.openBlock(c, surveyId, doc.slice);
+    // Our trees a same-tag fold takes, wherever they stand: read before
+    // settleCollisions writes the fold (code review L65).
+    const sameCodes = core.quadratsOfFolds(c, opened.sameTree);
+    const keepBefore = () => {
+      before ??= quadratDocs(surveyId, blockCodes(surveyId, doc.block));
+      const have = new Set(before.map(([id]) => id));
+      before = [...before, ...quadratDocs(surveyId, sameCodes).filter(([id]) => !have.has(id))];
+      keepBeforeMerge(before);
+    };
     // A stem renamed here (two phones, one number: M9) is a change here too: undo steps name it.
     changedHere = opened.folded > 0 || opened.sameTree.length > 0 || opened.stemsJoined > 0;
     // Before the folds found here (settleCollisions) are written too.
@@ -759,7 +772,11 @@ export function settleCensusMerge(p: PendingCensusMerge, decisions: Map<string, 
     });
     const opening = beforeOpened.get(p) ?? quadratDocs(p.surveyId, blockCodes(p.surveyId, p.doc.block));
     const have = new Set(opening.map(([id]) => id));
-    keepBeforeMerge([...opening, ...quadratDocs(p.surveyId, ours.map((col) => col.local.quadrat)).filter(([id]) => !have.has(id))]);
+    // Our trees a same-tag fold takes count too: one may stand outside the block (code review L65).
+    keepBeforeMerge([
+      ...opening,
+      ...quadratDocs(p.surveyId, [...ours.map((col) => col.local.quadrat), ...core.quadratsOfFolds(c, opened.sameTree)]).filter(([id]) => !have.has(id)),
+    ]);
     const remote = core.settleCollisions(c, p.surveyId, opened, decisions, by);
     const items = core.blockItems(c, p.surveyId, p.doc.block, remote, p.doc.sync?.base ?? null, getSyncBase('survey', p.censusUuid));
     return { items, remote, correctsTheirs: core.decisionsCorrectTheirs(opened, decisions) };

@@ -31,6 +31,7 @@ import {
   threatStatusDwcValue,
 } from './dwcMultiValue';
 import { buildDwcArchive, buildTaxonArchive, linkMeasurements, type DwcRow } from './dwcArchive';
+import { formulaTally } from './csvFormula';
 import { locationTerms } from './dwcLocation';
 import { listQuadrats, listQuadratSpeciesWithTaxon, parseQuadratConfig, SURFACE_COLUMNS, type QuadratSpeciesWithTaxon } from '../db/quadrats';
 import { applyAdoptedName, resolveAdoptedNames, resolveTaxa } from '../db/taxonLookup';
@@ -218,7 +219,12 @@ export type DwcaInput = {
 /** Two archives: the Event-core records, and the Taxon core that carries what
  *  is true of the taxa rather than of the observations. `taxa` is null when no
  *  taxon has a conservation status or establishment means. */
-export type RecordsDwca = { records: Uint8Array; taxa: Uint8Array | null };
+export type RecordsDwca = {
+  records: Uint8Array;
+  taxa: Uint8Array | null;
+  /** Formula-like values in the records archive's tables (code review L50). */
+  formulaRaw: number;
+};
 
 /**
  * Every record kind → Darwin Core Archives.
@@ -671,8 +677,14 @@ export function buildRecordsDwca({
     pubDate: now.toISOString().slice(0, 10),
     packageId,
   };
+  // Formula-like values in the archive's tables, for the export's notice (code review L50).
+  let formulaRaw = 0;
+  const records = buildDwcArchive({ meta, events, occurrences, humboldt, measurements, relationships }, (files) => {
+    formulaRaw = formulaTally(files.map((f) => ({ name: f.name, text: () => f.text }))).raw;
+  });
   return {
-    records: buildDwcArchive({ meta, events, occurrences, humboldt, measurements, relationships }),
+    records,
+    formulaRaw,
     // Null when nothing has a conservation status or an establishment means —
     // a taxon archive carrying only headers is noise in the bundle.
     taxa: buildTaxonArchive({

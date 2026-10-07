@@ -24,18 +24,33 @@ export type MapRecord = {
   quantityType: string | null;
   detection?: string | null;
   observedAt: number;
+  /** Metres along the track when it was entered (v93); see alongTrack.ts. */
+  alongM?: number | null;
 };
 
 const kmText = (m: number) => `${(m / 1000).toFixed(2)} km`;
 
-export function useFieldMapData(records: MapRecord[], track: TrackSegment[]) {
+export function useFieldMapData(
+  records: MapRecord[],
+  track: TrackSegment[],
+  /** Which records were made on this track (the rest get no stretch and no
+   *  distance along it): casual mode's 「所有日子」 shows earlier days' records
+   *  beside today's track (code review L46). Default: all. */
+  onTrack?: (r: MapRecord) => boolean,
+) {
   const { t } = useTranslation();
   const [picked, setPicked] = useState<number | null>(null);
-  const [stretch, setStretch] = useState<number | null>(null);
+  // A picked stretch keeps the length it was picked at: the default length
+  // grows with the track (400 m, 800 m …), and the same index would then be
+  // another part of the walk (code review L45).
+  const [stretch, setStretch] = useState<{ index: number; lengthM: number } | null>(null);
 
-  const along = useMemo(() => alongTrackSegments(track, records), [track, records]);
+  const along = useMemo(
+    () => alongTrackSegments(track, onTrack ? records.filter(onTrack) : records, stretch?.lengthM),
+    [track, records, onTrack, stretch?.lengthM],
+  );
   // A stretch index from a longer track may no longer exist.
-  const pickedStretch = stretch != null && stretch < along.stretches.length ? stretch : null;
+  const pickedStretch = stretch != null && stretch.index < along.stretches.length ? stretch.index : null;
 
   const countOf = (r: MapRecord) =>
     r.quantity && kindForType(r.quantityType ?? 'individuals') === 'count' ? r.quantity : null;
@@ -73,7 +88,7 @@ export function useFieldMapData(records: MapRecord[], track: TrackSegment[]) {
     lengthM: along.totalM,
     pickedStretch,
     setStretch: (i: number | null) => {
-      setStretch(i);
+      setStretch(i == null ? null : { index: i, lengthM: along.stretchM });
       setPicked(null);
     },
     rows,

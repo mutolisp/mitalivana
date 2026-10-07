@@ -33,6 +33,9 @@ export type ChecklistRecord = {
   elevation_m: number | null;
   /** 'gnss' | 'manual' | null (v46) → DwC verticalDatum; see dwcLocation.ts. */
   elevation_source: string | null;
+  /** Metres along the record's own track when it was entered, stamped with
+   *  its fix while recording (v93); the split map's stretch. NULL = not known. */
+  along_m: number | null;
   /** DwC degreeOfEstablishment (v33): 'wild' | 'captive' | 'cultivated'.
    *  NULL = not recorded, which is a different statement from an explicit
    *  'wild'. Per-INDIVIDUAL — not to be confused with the taxon-level
@@ -235,6 +238,12 @@ export function stampRecordFix(
   return (res.rowsAffected ?? 0) > 0;
 }
 
+/** Metres along the session's track when the record was entered, while it was
+ *  recording (v93, src/lib/recordFix.ts). Only onto a record that has none. */
+export function stampRecordAlong(id: number, alongM: number): void {
+  getUserDb().executeSync(`UPDATE checklist_records SET along_m = ? WHERE id = ? AND along_m IS NULL`, [alongM, id]);
+}
+
 export type RecordAttributePatch = Partial<{
   sex: string | null;
   life_stage: string | null;
@@ -310,7 +319,7 @@ export function listSessionRecords(sessionId: number): RecordWithTaxon[] {
 
   const recordsRes = userDb.executeSync(
     `SELECT id, session_id, taxon_id, occurrence_id, observed_at, notes, photo_paths, lat, lng, accuracy,
-            elevation_m, elevation_source, sex, life_stage, reproductive_condition, leaf_phenology, degree_of_establishment,
+            elevation_m, elevation_source, along_m, sex, life_stage, reproductive_condition, leaf_phenology, degree_of_establishment,
             verbatim_identification,
             organism_quantity, organism_quantity_type,
             used_name_id, used_scientific_name,

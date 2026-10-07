@@ -1001,8 +1001,12 @@ export function recheckState(plotId: number): { year: number; candidates: PrevSp
  *   reidentified  the plant was recorded under another name this time;
  *                 `newRosterId` is that roster entry (already on the plot or
  *                 added by the caller)
- * Answering again replaces the earlier answer; a 'found' row added before is
- * removed when the answer changes.
+ * Answering again replaces the earlier answer. When a 'found' changes, the
+ * row it added goes only if it is the answer's own: added by it (within a
+ * second of the answer, not entered by hand before, e.g. after the blind list
+ * was reopened) and not edited since. Any other stays on the plot (code review
+ * M39, as H6 for surveys: changing an answer deleted a row entered by hand,
+ * cover and abundance with it).
  */
 export function answerRecheck(
   plotId: number,
@@ -1021,12 +1025,24 @@ export function answerRecheck(
         [plotId, prev.taxonId, tag ?? ''],
       ),
     )[0];
-    // The recheck row added for an earlier 'found' goes when the answer changes.
+    const rosterIds = `(SELECT id FROM miren_taxa WHERE survey_id = ? AND taxon_id = ? AND IFNULL(verbatim_identification, '') = ?)`;
+    // 'found' again: the same row, and the answer keeps its time (the test below reads it).
+    if (old?.outcome === 'found' && outcome === 'found') {
+      const row = rows<{ id: number }>(
+        db.executeSync(`SELECT id FROM miren_plot_species WHERE plot_id = ? AND miren_taxon_id IN ${rosterIds}`, [
+          plotId,
+          plot.survey_id,
+          prev.taxonId,
+          tag ?? '',
+        ]),
+      )[0];
+      if (row) return { plotSpeciesId: row.id };
+    }
     if (old?.outcome === 'found' && outcome !== 'found') {
       db.executeSync(
-        `DELETE FROM miren_plot_species WHERE plot_id = ? AND phase = 'recheck' AND miren_taxon_id IN
-           (SELECT id FROM miren_taxa WHERE survey_id = ? AND taxon_id = ? AND IFNULL(verbatim_identification, '') = ?)`,
-        [plotId, plot.survey_id, prev.taxonId, tag ?? ''],
+        `DELETE FROM miren_plot_species WHERE plot_id = ? AND phase = 'recheck'
+           AND created_at >= ? AND updated_at = created_at AND miren_taxon_id IN ${rosterIds}`,
+        [plotId, old.checked_at - 1000, plot.survey_id, prev.taxonId, tag ?? ''],
       );
     }
     let plotSpeciesId: number | null = null;

@@ -217,6 +217,8 @@ export type ImportedSessionRecord = {
   accuracy?: number | null;
   elevation_m?: number | null;
   elevation_source?: string | null;
+  /** Metres along the record's own track when entered (v93). */
+  along_m?: number | null;
   organism_quantity?: string | null;
   organism_quantity_type?: string | null;
   sex?: string | null;
@@ -346,8 +348,8 @@ function importSessionTx(
          audio_paths, lat, lng, accuracy, elevation_m, elevation_source, sex, life_stage,
          reproductive_condition, leaf_phenology, degree_of_establishment, verbatim_identification,
          organism_quantity, organism_quantity_type, used_name_id, used_scientific_name,
-         updated_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         updated_at, along_m
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         sessionId,
         r.taxon_id,
@@ -375,6 +377,7 @@ function importSessionTx(
         r.used_name_id ?? null,
         r.used_scientific_name ?? null,
         Date.now(),
+        r.along_m ?? null,
       ],
     );
   }

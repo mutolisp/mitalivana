@@ -639,8 +639,9 @@ export function sliceForRestore(ctx: Ctx, surveyId: number, target: CensusSlice)
  * they are now). Returns how many operations ran. The caller runs it in a
  * transaction.
  */
-export function restoreSlice(ctx: Ctx, surveyId: number, target: CensusSlice): number {
-  const current = sliceForRestore(ctx, surveyId, target);
+export function restoreSlice(ctx: Ctx, surveyId: number, version: CensusSlice): number {
+  const current = sliceForRestore(ctx, surveyId, version);
+  const target = withJoinedStems(current, version);
   const currentSide = censusSide(current);
   const items = diffSides(currentSide, censusSide(target), baseOf(currentSide), takeVersion(CENSUS_COMBINERS));
   const ops = planOps(items, restoreDecisions(items));
@@ -672,6 +673,28 @@ export function restoreSlice(ctx: Ctx, surveyId: number, target: CensusSlice): n
     },
   });
   return ops.length;
+}
+
+/**
+ * A version's stems under the uuids they have now. joinStems keeps the smaller
+ * uuid of two stems that are one, so a stem of this phone can have taken the
+ * other phone's uuid since the version was saved; matched by uuid alone, the
+ * version's copy would come back as a third stem (code review M44). A stem
+ * whose uuid is gone, standing on the same tree under the same number as a
+ * current stem the version does not hold, is that stem.
+ */
+function withJoinedStems(current: CensusSlice, version: CensusSlice): CensusSlice {
+  const now = new Set(current.stems.map((st) => st.uuid as string));
+  const inVersion = new Set(version.stems.map((st) => st.uuid as string));
+  const byNumber = new Map(current.stems.map((st) => [`${st.tree_uuid}|${st.stem_no}`, st.uuid as string]));
+  const to = new Map<string, string>();
+  for (const st of version.stems) {
+    const uuid = st.uuid as string;
+    if (now.has(uuid)) continue;
+    const same = byNumber.get(`${st.tree_uuid}|${st.stem_no}`);
+    if (same && !inVersion.has(same)) to.set(uuid, same);
+  }
+  return to.size ? renameStems(version, to) : version;
 }
 
 /** A slice with some stems under other uuids (`to`: old → new), their measurements, values and photos with them. */
@@ -785,7 +808,7 @@ export function headerSide(h: CensusHeaderDoc): MergeSide {
   };
 }
 
-export type RecoverError = 'census_no_taken' | 'frame_code_taken';
+export type RecoverError = 'census_no_taken' | 'frame_code_taken' | 'series_code_taken';
 
 export class RecoverCensusError extends Error {
   code: RecoverError;
@@ -831,6 +854,12 @@ export function insertCensusFromDoc(
   }
   let seriesId = one<{ id: number }>(ctx, `SELECT id FROM fw_frame_series WHERE uuid = ?`, [header.series.uuid as string])?.id;
   if (seriesId == null) {
+    // Its code taken meanwhile by another template's series on the plot (the
+    // template deleted, another census started there): said so, not a raw
+    // UNIQUE failure (code review L63).
+    if (one(ctx, `SELECT id FROM fw_frame_series WHERE frame_id = ? AND series_code = ?`, [frameId, header.series.series_code as string])) {
+      throw new RecoverCensusError('series_code_taken');
+    }
     seriesId = Number(
       run(ctx, `INSERT INTO fw_frame_series (uuid, frame_id, template_id, series_code, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`, [
         header.series.uuid as string,

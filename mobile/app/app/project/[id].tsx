@@ -41,7 +41,7 @@ import { LinkChevron } from '~/components/ui/Chevron';
 import { MenuButton, showMenu } from '~/components/OverflowMenu';
 import { modeSections } from '~/lib/modeMenu';
 import { shows, vis } from '~/lib/usageMode';
-import { useUsageMode } from '~/lib/useUsageMode';
+import { useAnalysisFormats, useUsageMode } from '~/lib/useUsageMode';
 
 export default function ProjectDetailScreen() {
   const tc = useThemeColors();
@@ -69,7 +69,7 @@ export default function ProjectDetailScreen() {
   const conservationFields = useSettings((s) => s.export_conservation_fields);
   const conservationHideLowConcern = useSettings((s) => s.export_conservation_hide_lc);
   const matrixValue = useSettings((s) => s.export_matrix_value);
-  const analysisFormats = useSettings((s) => s.export_analysis_formats);
+  const analysisFormats = useAnalysisFormats();
   const matrixByLayer = useSettings((s) => s.export_matrix_by_layer);
   const includeReport = useSettings((s) => s.export_include_report);
   const reportFormat = useSettings((s) => s.export_report_format);
@@ -121,7 +121,7 @@ export default function ProjectDetailScreen() {
     // Let the sheet finish dismissing before any Alert / progress Modal —
     // iOS silently drops a present() over a dismissing Modal.
     await new Promise((r) => setTimeout(r, 450));
-    const est = await estimateBundleSize(bundleItemsOf(records), { includePhotos });
+    const est = await estimateBundleSize(bundleItemsOf(records), { includePhotos, withPending: projectId === 0 });
     if (!(await confirmIfLarge(est.totalBytes))) return;
     const lang = await pickExportLanguage(t, 'export.language');
     if (!lang) return;

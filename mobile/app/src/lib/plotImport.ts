@@ -97,6 +97,7 @@ export function plotFromDoc(doc: Record<string, unknown> | null): ImportedPlot {
       accuracy: num(s.accuracy),
       elevation_m: num(s.elevation_m),
       elevation_source: str(s.elevation_source),
+      along_m: num(s.along_m),
       observed_at: num(s.observed_at),
       photo_files: pipeToList(s.photo_files),
       audio_files: pipeToList(s.audio_files),

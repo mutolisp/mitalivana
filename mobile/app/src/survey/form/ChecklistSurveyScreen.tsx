@@ -22,9 +22,11 @@ import * as Location from 'expo-location';
 import { Stack, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useShows } from '~/lib/useUsageMode';
 import { Alert, FlatList, Keyboard, Platform, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { showActionSheet } from '~/components/ActionSheet';
+import { synonymAlreadyHere } from '~/lib/synonymAdd';
 import { EndRecordButton } from '~/components/EndRecordButton';
 import { NumAccessory } from '~/components/form/NumField';
 import { HeaderIconButton } from '~/components/HeaderIconButton';
@@ -51,7 +53,6 @@ import { SwipeRowActions } from '~/components/SwipeRowActions';
 import { promptText } from '~/components/TextPromptModal';
 import { Button } from '~/components/ui/Button';
 import { Chip } from '~/components/ui/Chip';
-import { ContextChip, ContextStrip } from '~/components/ui/ContextChip';
 import { parseTrackSegments, type AdoptionInput, type RecordWithTaxon, type SearchResult } from '~/db';
 import { withTransaction } from '~/db/init';
 import { onVersionRestored, saveVersionSoon } from '~/db/recordVersions';
@@ -181,6 +182,8 @@ export function ChecklistSurveyScreen({ id, openId }: { id: number; openId?: num
   const [filterKey, setFilterKey] = useState<Filter>(null);
   // Finding a species in this list (ListFilter): the field replaces the chips.
   const [findOpen, setFindOpen] = useState(false);
+  // The filter has the keyboard: the add-species dock steps aside (code review L37).
+  const [findTyping, setFindTyping] = useState(false);
   const [findQuery, setFindQuery] = useState('');
   const [activeId, setActiveId] = useState<number | null>(openId ?? null);
   const [projectSheetOpen, setProjectSheetOpen] = useState(false);
@@ -192,6 +195,7 @@ export function ChecklistSurveyScreen({ id, openId }: { id: number; openId?: num
   const [pickedPhotos, setPickedPhotos] = useState<PickedPhoto[] | null>(null);
   const [flashId, setFlashId] = useState<number | null>(null);
   const selection = useListSelection<number>();
+  const showsFavorites = useShows('favorites');
   const sortOrder = useSettings((s) => s.last_record_sort);
   const sortDir = useSettings((s) => s.last_record_sort_dir);
   // Rows or cards, the same setting as 快速名錄 (the header ⋯, every usage mode).
@@ -367,11 +371,25 @@ export function ChecklistSurveyScreen({ id, openId }: { id: number; openId?: num
     if (edit.refuse()) return;
     // A second row for the same taxon is asked about, as on 快速名錄: two rows can be two morphospecies.
     const same = counted.filter((r) => r.taxon_id === result.taxon_id);
-    if (same.length) {
+    // Filed here under another of its names than the one just picked: say
+    // both, rather than a "+1" that drops the name (code review L42).
+    const naming = same.length
+      ? await synonymAlreadyHere(
+          { accepted: result.name, rank: result.rank ?? null, kingdom: result.kingdom ?? null },
+          [...same].sort((a, b) => b.observed_at - a.observed_at)[0]?.used_scientific_name,
+          adopted,
+        )
+      : 'same';
+    if (naming === null) return;
+    if (same.length && naming !== 'separate') {
       const countable = mods.counts
         ? same.filter((r) => isIndividuals(r.organism_quantity_type) && !byId.get(r.id)?.sealed).sort((a, b) => b.observed_at - a.observed_at)[0]
         : undefined;
-      const choice = await showActionSheet({
+      if (naming === 'merge' && !countable) {
+        toast(t('session.alreadyExists', { name }));
+        return;
+      }
+      const choice = naming === 'merge' ? 0 : await showActionSheet({
         titleParts: sentenceParts(t('session.alreadyExists', { name: slot('name') }), {
           name: speciesParts(result.cname, result.name, result.rank, result.kingdom),
         }),
@@ -480,7 +498,8 @@ export function ChecklistSurveyScreen({ id, openId }: { id: number; openId?: num
               lat: out.fix.lat,
               lng: out.fix.lng,
               accuracy: out.fix.accuracyM,
-              ...(out.fix.altitudeM != null ? { elevation_m: out.fix.altitudeM, elevation_source: 'gnss' } : {}),
+              // A typed-in elevation stays (code review M33, as N3 on 快速名錄).
+              ...(out.fix.altitudeM != null && active.elevation_m == null ? { elevation_m: out.fix.altitudeM, elevation_source: 'gnss' } : {}),
             }),
           );
         }
@@ -797,6 +816,62 @@ export function ChecklistSurveyScreen({ id, openId }: { id: number; openId?: num
 
   const dataStatus = surveyDataStatus(template, data.surveyValues, survey);
 
+  // 記錄資訊 in ⋯, as 快速名錄 (asked 2026-10-07): project · place · time ·
+  // investigators · 調查資料. Unset or missing ones are red and dot the ⋯.
+  const projectSet = !!project && project.id !== 0;
+  const hasPlace = spaceMods.site || spaceMods.centre || spaceMods.track;
+  const recordInfo = [
+    {
+      label: t('plot.project'),
+      icon: 'folder-outline' as const,
+      detail: projectSet ? project.name : t('session.placeUnset'),
+      attention: !projectSet,
+      onPress: guard(() => (preview ? refusePreview() : setProjectSheetOpen(true))),
+    },
+    ...(hasPlace
+      ? [
+          {
+            label: t('session.placeLabel'),
+            icon: tracking ? ('radio' as const) : site ? ('pin' as const) : ('location-outline' as const),
+            detail: tracking
+              ? t('session.trackBadge', { count: trackCount })
+              : site
+                ? site.name
+                : survey.lat !== null
+                  ? t('session.located')
+                  : t('session.placeUnset'),
+            onPress: isActive
+              ? () => void handleSpatialMenu()
+              : guard(() => (spaceMods.site && !preview ? setSiteSheetOpen(true) : void handleSpatialMenu())),
+          },
+        ]
+      : []),
+    {
+      label: t('surveyTime.title'),
+      icon: 'time-outline' as const,
+      detail: survey.stop_ts ? `${isoTime(survey.start_ts)}–${isoTime(survey.stop_ts)}` : isoTime(survey.start_ts),
+      onPress: () => setTimesOpen(true),
+    },
+    {
+      label: t('session.surveyor'),
+      icon: 'people-outline' as const,
+      detail: survey.investigators || t('session.placeUnset'),
+      attention: !survey.investigators,
+      onPress: guard(() => setSurveyorSheetOpen(true)),
+    },
+    // Every survey has time, place and surveyors: the four groups are always there (2G-f).
+    {
+      label: t('surveyForm.surveyData'),
+      icon: 'clipboard-outline' as const,
+      detail:
+        dataStatus.missing > 0
+          ? t('surveyForm.group.missing', { count: dataStatus.missing })
+          : `${dataStatus.filled}/${dataStatus.total}`,
+      attention: dataStatus.missing > 0,
+      onPress: () => router.push(`/survey/form/${id}/data${unlockedQuery}` as Href),
+    },
+  ];
+
   const showInteractions = filterKey === INTERACTIONS && !!mods.interaction;
 
   return (
@@ -807,7 +882,15 @@ export function ChecklistSurveyScreen({ id, openId }: { id: number; openId?: num
           headerTitle: () => (
             <HeaderTitleText
               text={survey.name ?? ''}
-              subtitle={<RecordStatusLine active={isActive} startedAt={survey.start_ts} endedAt={survey.stop_ts} species={richness} />}
+              subtitle={
+                <RecordStatusLine
+                  track={tracking ? t('session.trackBadge', { count: trackCount }) : null}
+                  active={isActive}
+                  startedAt={survey.start_ts}
+                  endedAt={survey.stop_ts}
+                  species={richness}
+                />
+              }
             />
           ),
           headerLeft: BackHeaderLeft,
@@ -816,6 +899,8 @@ export function ChecklistSurveyScreen({ id, openId }: { id: number; openId?: num
               <RecordMenuButton
                 kind="modular"
                 id={id}
+                info={recordInfo}
+                badge={!projectSet || !survey.investigators || dataStatus.missing > 0}
                 extra={menuExtra}
                 layout={{ value: speciesLayout, onChange: (v) => useSettings.getState().set('species_layout', v) }}
                 last={[{ label: t('surveyForm.deleteTitle'), icon: 'trash-outline', destructive: true, onPress: remove }]}
@@ -834,44 +919,6 @@ export function ChecklistSurveyScreen({ id, openId }: { id: number; openId?: num
         }}
       />
       <View className="flex-1">
-        <ContextStrip>
-          <ContextChip
-            icon="folder-outline"
-            label={project && project.id !== 0 ? project.name : t('session.projectUnset')}
-            set={!!project && project.id !== 0}
-            onPress={guard(() => (preview ? refusePreview() : setProjectSheetOpen(true)))}
-          />
-          {spaceMods.site || spaceMods.centre || spaceMods.track ? (
-            <ContextChip
-              icon={site ? 'pin' : 'location-outline'}
-              label={tracking ? t('session.trackBadge', { count: trackCount }) : site ? site.name : survey.lat !== null ? t('session.located') : t('session.spatial')}
-              set={tracking || !!site || survey.lat !== null}
-              tone={tracking ? 'live' : 'default'}
-              onPress={isActive ? () => void handleSpatialMenu() : guard(() => (spaceMods.site && !preview ? setSiteSheetOpen(true) : void handleSpatialMenu()))}
-            />
-          ) : null}
-          <ContextChip
-            icon="time-outline"
-            label={survey.stop_ts ? `${isoTime(survey.start_ts)}–${isoTime(survey.stop_ts)}` : isoTime(survey.start_ts)}
-            set
-            onPress={() => setTimesOpen(true)}
-          />
-          <ContextChip
-            icon="people-outline"
-            label={survey.investigators || t('session.surveyorUnset')}
-            set={!!survey.investigators}
-            onPress={guard(() => setSurveyorSheetOpen(true))}
-          />
-          {/* Every survey has time, place and surveyors: the four groups are always there (2G-f). */}
-          <ContextChip
-            icon="clipboard-outline"
-            label={`${t('surveyForm.surveyData')} ${dataStatus.filled}/${dataStatus.total}`}
-            set={dataStatus.filled > 0}
-            missing={dataStatus.missing > 0}
-            missingLabel={t('surveyForm.group.missing', { count: dataStatus.missing })}
-            onPress={() => router.push(`/survey/form/${id}/data${unlockedQuery}` as Href)}
-          />
-        </ContextStrip>
         {data.upgradeTo && !edit.locked ? (
           <View className="mx-4 mt-3 flex-row items-center gap-3 rounded-lg border border-line bg-card px-3 py-2 dark:border-line-dark dark:bg-card-dark">
             <Text className="flex-1 text-xs text-ink-2 dark:text-gray-300">{t('surveyForm.upgrade.banner', { n: data.upgradeTo.version })}</Text>
@@ -901,6 +948,7 @@ export function ChecklistSurveyScreen({ id, openId }: { id: number; openId?: num
           <View className="flex-row items-center border-b border-gray-200 bg-card dark:border-gray-700 dark:bg-gray-900">
             {findOpen ? (
               <ListFilterField
+                onFocusChange={setFindTyping}
                 value={findQuery}
                 onChangeText={setFindQuery}
                 onClose={() => {
@@ -961,6 +1009,8 @@ export function ChecklistSurveyScreen({ id, openId }: { id: number; openId?: num
             // numColumns cannot change on a mounted list.
             key={speciesLayout}
             data={filtered}
+            // A tap on a row while the filter has the keyboard opens the row (code review L37).
+            keyboardShouldPersistTaps="handled"
             keyExtractor={(r) => `${r.id}`}
             numColumns={speciesLayout === 'card' ? 2 : 1}
             columnWrapperStyle={speciesLayout === 'card' ? { gap: 12, paddingHorizontal: 16 } : undefined}
@@ -1027,12 +1077,13 @@ export function ChecklistSurveyScreen({ id, openId }: { id: number; openId?: num
         <SelectionDock
           count={selection.picked.size}
           actions={[
-            { label: t('favorites.add'), onPress: handleBulkFavorite },
+            // Casual mode has no 常用名錄 (code review L41).
+            ...(showsFavorites ? [{ label: t('favorites.add'), onPress: handleBulkFavorite }] : []),
             { label: t('common.delete'), onPress: handleBulkDelete, destructive: true },
           ]}
         />
       ) : null}
-      {!selection.selectMode && ((isActive && !edit.locked) || replaceTarget) ? (
+      {!selection.selectMode && !findTyping && ((isActive && !edit.locked) || replaceTarget) ? (
         <KeyboardStickyView offset={{ opened: insets.bottom }}>
           <View>
             {survey.blind_closed_at != null ? (

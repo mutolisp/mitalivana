@@ -66,9 +66,9 @@ import { FieldMap, type FieldMapStatus } from './map/FieldMap';
 import { SplitMapView, SplitRecordList } from './map/SplitMapView';
 import { useFieldMapData, type MapRecord } from './map/useFieldMapData';
 import { pauseRecording, useTrackRecorder } from '~/lib/trackRecorder';
-import { parseTrackSegments, withLiveSegment } from '~/lib/track';
+import { parseTrackSegments, withLiveSegment, type TrackSegment } from '~/lib/track';
 import { startTransectTrack } from './TransectTrackControl';
-import { useUsageMode } from '~/lib/useUsageMode';
+import { useShows, useUsageMode } from '~/lib/useUsageMode';
 import { PlotSpeciesValueModal, type PlotValueDraft } from './PlotSpeciesValueModal';
 import { parseMultiAttribute, serializeMultiAttribute } from '~/lib/dwcAttributes';
 import { useSettings, type RecordSort, type SortDirection } from '~/stores/settings';
@@ -90,6 +90,10 @@ import { DropdownChevron } from '~/components/ui/Chevron';
 import { parseQuadratConfig } from '~/db/quadrats';
 import { BannerText, FoldBanner } from '~/modules/gloria/components/ui';
 import { plotFreqIssueLines } from './quadrat/plotFreqIssueLines';
+
+/** Stable empties: a fresh [] each render reran the map's data (code review L49). */
+const NO_POINTS: TrackSegment = [];
+const NO_TRACK: TrackSegment[] = [];
 
 type ValueModalState =
   | { mode: 'create'; taxon: SearchResult; layer: Layer; adopted?: AdoptionInput | null }
@@ -144,6 +148,8 @@ export function PlotSpeciesTab({
   // Finding a species in this list (ListFilter): the field replaces the
   // subplot / layer chips until ✕. Layer headers stay, counts stay whole.
   const [findOpen, setFindOpen] = useState(false);
+  // The filter has the keyboard: the add-species dock steps aside (code review L37).
+  const [findTyping, setFindTyping] = useState(false);
   const [findQuery, setFindQuery] = useState('');
   const findNq = normalizeRecordQuery(findQuery);
   // Sync layer state with activeLayers: if the user lowers layer_count in the
@@ -313,7 +319,9 @@ export function PlotSpeciesTab({
   // Split map: the track (a transect's), the counting circle (a point count's)
   // and the records on screen, in the same order.
   const recordingTarget = useTrackRecorder((s) => s.recordingTarget);
-  const livePoints = useTrackRecorder((s) => s.livePoints);
+  // Only while the map is shown: otherwise every GPS fix of a transect redrew
+  // the whole species tab, pro mode included, where there is no map (code review L49).
+  const livePoints = useTrackRecorder((s) => (showMap && !stratified ? s.livePoints : NO_POINTS));
   const trackRecording = recordingTarget?.kind === 'plot' && recordingTarget.id === plot.id;
   const savedTrack = useMemo(() => parseTrackSegments(plot.track_geojson), [plot.track_geojson]);
   const mapTrack = useMemo(
@@ -336,13 +344,18 @@ export function PlotSpeciesTab({
         quantityType: r.organism_quantity_type,
         detection: r.detection_type,
         observedAt: r.observed_at,
+        alongM: r.along_m,
       })),
     [visibleRecords],
   );
   const mapOn = showMap && !stratified;
-  const fieldMap = useFieldMapData(mapRecords, mapOn ? mapTrack : []);
+  const fieldMap = useFieldMapData(mapRecords, mapOn ? mapTrack : NO_TRACK);
   // 「記在這裡」 (transects): the next species added gets the position where it was added.
   const [hereMode, setHereMode] = useState(false);
+  // 記在這裡 belongs to the map: closing the map turns it off (code review L39).
+  useEffect(() => {
+    if (!mapOn) setHereMode(false);
+  }, [mapOn]);
   const [focusKey, setFocusKey] = useState(0);
   const mapStatus: FieldMapStatus | null =
     plot.plot_type === 'transect'
@@ -876,6 +889,13 @@ export function PlotSpeciesTab({
   // Long-press multi-select. The old long-press menu's edit / change taxon /
   // change layer / favourite / delete now live in the value modal.
   const selection = useListSelection<number>();
+  const showsFavorites = useShows('favorites');
+  // The map's narrow list shows no marks: opening or closing it leaves select
+  // mode, so 全選＋刪除 never acts on rows the screen does not mark (code review L36).
+  const exitSelection = selection.exit;
+  useEffect(() => {
+    exitSelection();
+  }, [mapOn, exitSelection]);
 
   const handleBulkFavorite = () => {
     const rows = visibleRecords.filter((r) => selection.picked.has(r.id));
@@ -1079,6 +1099,7 @@ export function PlotSpeciesTab({
         <View className="flex-row items-center border-b border-gray-100 bg-card dark:border-gray-800 dark:bg-gray-900">
           {findOpen ? (
             <ListFilterField
+                onFocusChange={setFindTyping}
               value={findQuery}
               onChangeText={setFindQuery}
               onClose={() => {
@@ -1371,14 +1392,15 @@ export function PlotSpeciesTab({
         <SelectionDock
           count={selection.picked.size}
           actions={[
-            { label: tr('favorites.add'), onPress: handleBulkFavorite },
+            // Casual mode has no 常用名錄 (code review L41).
+            ...(showsFavorites ? [{ label: tr('favorites.add'), onPress: handleBulkFavorite }] : []),
             { label: tr('common.delete'), onPress: handleBulkDelete, destructive: true },
           ]}
         />
       ) : null}
 
       {/* SearchBox sticks above the keyboard, follows accessory-bar changes */}
-      {lock.locked || selection.selectMode ? null : (
+      {lock.locked || selection.selectMode || findTyping ? null : (
         <KeyboardStickyView offset={{ opened: insets.bottom }}>
           <SearchBox
             onSelect={handleSelect}

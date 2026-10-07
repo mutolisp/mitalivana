@@ -32,6 +32,9 @@ import { fileURLToPath } from 'node:url';
 const GUARDED = [
   { file: '../app/session/[id].tsx', what: '名錄記錄', handler: 'const handleAddPhoto', write: 'updateRecordLocation' },
   { file: '../app/collection/[id].tsx', what: '採集標本', handler: 'const handleAddPhoto', write: 'updateSpecimenLocation' },
+  // 加入觀察 on a pending observation or a record of 我的觀察 (code review M30):
+  // the handler reads the pending row or the record, then writes either.
+  { file: '../app/observe.tsx', what: '觀察頁', handler: 'const addPhotos', write: 'updateRecordLocation' },
   {
     file: '../src/components/PlotSpeciesTab.tsx',
     what: '樣區物種',

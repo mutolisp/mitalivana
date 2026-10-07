@@ -19,5 +19,7 @@ export function occurrenceRecord(o: OccurrenceView): RecordWithTaxon {
     inat_media_done: 0,
     inat_uploaded_at: null,
     inat_sync_hash: null,
+    // Surveys have no split map, so no stretch to stamp (v93 is checklist / plot records only).
+    along_m: null,
   };
 }

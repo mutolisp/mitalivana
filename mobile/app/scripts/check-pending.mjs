@@ -22,10 +22,18 @@
  *   - identifying today while a plot is open does not end the plot;
  *   - a failure part-way leaves everything as it was, inside a caller's
  *     transaction too;
- *   - a deleted daily checklist drops out of the map; a corrupt map reads empty.
+ *   - a daily checklist starts no later than its earliest record (an EXIF time,
+ *     a pending one named later) and the sweep never ends it before its start
+ *     (code review M29);
+ *   - a deleted daily checklist drops out of the map; a corrupt map reads empty;
+ *   - the pro and volunteer records tab lists pending observations at /pending,
+ *     and the unassigned project's export (only that one) carries them as
+ *     pending/pending_observations.csv with their photos and recordings
+ *     (code review L59; source guards).
  *
  * Run: npm run check:pending
  */
+import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { runUserMigrations } from '../src/db/migrations.ts';
 import * as p from '../src/db/pendingCore.ts';
@@ -178,6 +186,28 @@ ok(status(r3.sessionId) === 'done', "identify today: today's checklist made with
 eq(p.dailySessionFor(ctx, clock, opts(clock)), r3.sessionId, "capture today: the same day's checklist");
 ok(status(r3.sessionId) === 'active' && one('SELECT status FROM plot_surveys WHERE id = ?', plotB).status === 'done', 'capture today: active, the plot ended');
 
+// ── a checklist never ends before it starts (code review M29) ─────────────
+// Shot at 09:00, added at 09:01:30: the checklist starts at the shot.
+clock = at(2026, 10, 9, 9, 1) + 30_000;
+const d9 = p.dailySessionFor(ctx, at(2026, 10, 9, 9, 0), opts(clock));
+ok(one('SELECT started_at FROM sessions WHERE id = ?', d9).started_at === at(2026, 10, 9, 9, 0), 'start: a new checklist starts at its first observation, not at the tap');
+insertRecord({ session_id: d9, taxon_id: 't50', observed_at: at(2026, 10, 9, 9, 0) });
+// A pending one from earlier this morning named while it is open: the open checklist starts earlier.
+const early = p.createPending(ctx, { kingdom: 'Plantae', observed_at: at(2026, 10, 9, 8, 15) });
+const r9 = p.identifyPending(ctx, early, 't51', deps);
+const s9 = one('SELECT status, started_at, ended_at FROM sessions WHERE id = ?', d9);
+ok(r9.sessionId === d9 && s9.status === 'active' && s9.started_at === at(2026, 10, 9, 8, 15) && s9.ended_at === null, 'start: an open checklist starts no later than a record named into it, and stays open');
+// One left from before this fix (started after its only record): the sweep ends it at its start.
+const legacy = db.executeSync(`INSERT INTO sessions (uuid, name, type, project_id, started_at, status) VALUES ('lg', 'old', 'checklist', 0, ?, 'active')`, [at(2026, 10, 9, 10, 0)]).insertId;
+insertRecord({ session_id: legacy, taxon_id: 't52', observed_at: at(2026, 10, 9, 9, 30) });
+db.executeSync(`INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)`, [p.DAILY_SETTING, JSON.stringify({ ...p.readDailyMap(ctx), '2026-10-01': legacy })]);
+clock = at(2026, 10, 10, 7, 0);
+p.closeStaleDailySessions(ctx);
+const sl = one('SELECT status, started_at, ended_at FROM sessions WHERE id = ?', legacy);
+ok(sl.status === 'done' && sl.ended_at >= sl.started_at, `sweep: never ends before the start (ended ${sl.ended_at}, started ${sl.started_at})`);
+const s9b = one('SELECT status, ended_at FROM sessions WHERE id = ?', d9);
+ok(s9b.status === 'done' && s9b.ended_at === at(2026, 10, 9, 9, 0), "sweep: yesterday's ended at its last record");
+
 // ── all or nothing ─────────────────────────────────────────────────────────
 const fail = p.createPending(ctx, { kingdom: 'Plantae', observed_at: at(2026, 9, 30, 10, 0) });
 const before = { sessions: count('sessions'), records: count('checklist_records'), map: JSON.stringify(p.readDailyMap(ctx)) };
@@ -209,7 +239,26 @@ db.executeSync(`DELETE FROM checklist_records WHERE session_id = ?`, [r4.session
 db.executeSync(`DELETE FROM sessions WHERE id = ?`, [r4.sessionId]);
 ok(!('2026-09-30' in p.readDailyMap(ctx)), 'map: a deleted checklist drops out');
 eq(p.parseDailyMap('{oops'), {}, 'map: corrupt reads empty');
-eq(p.parseDailyMap(JSON.stringify({ '2026-10-01': 3, bad: 4, '2026-10-02': 'x', '2026-10-03': 0 })), { '2026-10-01': 3 }, 'map: bad entries dropped');
+eq(p.parseDailyMap(JSON.stringify({ '2026-10-01': 3, bad: 4, '2026-10-02': 'u-x', '2026-10-03': 0, '2026-10-04': '' })), { '2026-10-01': 3, '2026-10-02': 'u-x' }, 'map: bad entries dropped, ids (earlier versions) and uuids kept');
+// Stored by uuid: a checklist inserted again under a new id (recovered from
+// 最近刪除, overwritten from a file) is still that day's (code review L34).
+{
+  const day = '2026-10-11';
+  const sid = p.dailySessionFor(ctx, at(2026, 10, 11, 9, 0), { name: 'x', recordedBy: null });
+  const stored = JSON.parse(one('SELECT value FROM settings WHERE key = ?', p.DAILY_SETTING).value);
+  const uuid = one('SELECT uuid FROM sessions WHERE id = ?', sid).uuid;
+  ok(stored[day] === uuid, 'map: stored by uuid');
+  const row = one('SELECT * FROM sessions WHERE id = ?', sid);
+  db.executeSync('DELETE FROM sessions WHERE id = ?', [sid]);
+  const again = db.executeSync(`INSERT INTO sessions (uuid, name, type, project_id, started_at, status) VALUES (?, ?, 'checklist', 0, ?, 'done')`, [row.uuid, row.name, row.started_at]).insertId;
+  ok(again !== sid && p.readDailyMap(ctx)[day] === again, 'map: the same checklist under a new id stays that day\'s');
+  eq(p.dailySessionFor(ctx, at(2026, 10, 11, 10, 0), { name: 'x', recordedBy: null }), again, 'map: no second checklist for that day');
+  ok(p.dailySessionDay(ctx, again) === day && p.dailySessionDay(ctx, 999999) === null, 'dailySessionDay: the day, or null');
+  // A map written by an earlier version (ids) still reads.
+  const legacy = { ...JSON.parse(one('SELECT value FROM settings WHERE key = ?', p.DAILY_SETTING).value), [day]: again };
+  db.executeSync('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', [p.DAILY_SETTING, JSON.stringify(legacy)]);
+  ok(p.readDailyMap(ctx)[day] === again, 'map: an id stored by an earlier version still reads');
+}
 
 // ── 我的觀察 ───────────────────────────────────────────────────────────────
 {
@@ -234,6 +283,24 @@ eq(p.parseDailyMap(JSON.stringify({ '2026-10-01': 3, bad: 4, '2026-10-02': 'x', 
     [['2026-10-06', 'cb'], ['2026-10-05', 'a'], ['2026-10-04', 'd']],
     'days: newest day first, split at midnight, newest first within a day',
   );
+}
+
+// ── Seen and exported outside casual mode (code review L59) ─────────────────
+{
+  const src = (f) => readFileSync(new URL(`../${f}`, import.meta.url), 'utf8');
+  const tab = src('app/(tabs)/index.tsx');
+  ok(/setPendingCount\(listPending\(\)\.length\)/.test(tab) && tab.includes("router.push('/pending' as Href)"), 'list: the records tab counts pending ones and opens /pending');
+  ok(/<CasualHome pendingOnly \/>/.test(src('app/pending.tsx')), 'list: /pending is the casual list, pending only');
+  const home = src('src/components/casual/CasualHome.tsx');
+  ok(/pendingOnly \? \[\] : listDailyRecords\(\)/.test(home), 'list: pendingOnly leaves the named records out');
+  const proj = src('src/lib/projectExport.ts');
+  ok(/const pending = projectId === 0 \? listPending\(\) : \[\];/.test(proj), 'export: pending only with the unassigned project');
+  ok(/if \(pending\.length > 0\) \{\s*for \(const e of await buildPendingEntries\(opts, ctx\)\) entries\.push\(e\);/.test(proj), 'export: pending entries go into the bundle');
+  ok(/totalPhotos \+= countPhotosSession\(pending\)/.test(proj), 'export: their photos count toward the progress');
+  const bundle = src('src/lib/bundleExport.ts');
+  const fn = bundle.slice(bundle.indexOf('export async function buildPendingEntries'), bundle.indexOf('function addGeoEntries('));
+  ok(fn.includes('`${folder}/pending_observations.csv`') && /if \(opts\.includePhotos\) \{\s*const photos = await collectPhotos/.test(fn) && fn.includes('collectAudio('), 'export: csv, and photos and recordings only when photos are on');
+  ok(/withPending: projectId === 0/.test(src('app/project/[id].tsx')), 'export: the size estimate includes them for the unassigned project');
 }
 
 if (failed) {

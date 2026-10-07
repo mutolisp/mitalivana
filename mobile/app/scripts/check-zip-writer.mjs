@@ -9,17 +9,21 @@
  *     the deflate stream and so the compressed sizes and offsets differ;
  *   - every file reads back intact with fflate, `unzip -t` and Python's
  *     zipfile;
- *   - progress counts the input bytes up to the total.
+ *   - progress counts the input bytes up to the total;
+ *   - names handed out for one zip never repeat (src/lib/zipEntryNames.ts):
+ *     many sources in one folder, a hand-set name meeting a numbered one,
+ *     two records with the same folder name (code review H7, H8).
  *
  * Usage: npm run check:zip-writer   (exit 1 on violation)
  */
 import { spawnSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { strToU8, unzipSync, zipSync } from 'fflate';
 import { zipInPieces } from '../src/lib/zipWriter.ts';
+import { createEntryNamer, createFolderNamer, moveUnder, withSuffix } from '../src/lib/zipEntryNames.ts';
 
 let failed = 0;
 const ok = (cond, label, detail = '') => {
@@ -144,6 +148,33 @@ const theirs = zipSync(Object.fromEntries(files.map((f) => [f.name, f.level === 
   ok(seen[seen.length - 1][0] === total, 'progress: ends at the total');
   const empty = await zipInPieces([], { level: 6, mtime: MTIME });
   ok(same(empty, zipSync({}, { level: 6, mtime: MTIME })), 'an empty archive is the same as zipSync');
+}
+
+{
+  // One zip's names (code review H7, H8).
+  const n = createEntryNamer();
+  const day = 'pending_2026-10-06_Plantae';
+  // Two pending observations of one day, one photo each: two sources, one folder.
+  const a = n.numbered(day, 'env', 'jpg');
+  const b = n.numbered(day, 'env', 'jpg');
+  ok(a === `${day}/env_1.jpg` && b === `${day}/env_2.jpg`, 'names: numbering runs across sources sharing a folder', `${a} ${b}`);
+  ok(n.numbered('other', 'env', 'jpg') === 'other/env_1.jpg', 'names: another folder counts from 1');
+  ok(n.claim(`${day}/env_1.jpg`) === `${day}/env_1-2.jpg`, 'names: a hand-set name meeting a numbered one gets -2 before the extension');
+  ok(n.claim('f/Form2_scan.pdf') === 'f/Form2_scan.pdf' && n.claim('f/Form2_scan.pdf') === 'f/Form2_scan-2.pdf', 'names: the same attachment name twice');
+  ok(withSuffix('TW.01/readme', '-2') === 'TW.01/readme-2' && withSuffix('a/b.tar.gz', '-2') === 'a/b.tar-2.gz', 'names: suffix goes before the last segment\'s extension only');
+  const f = createFolderNamer();
+  const first = f('P01_Proj');
+  const second = f('P01_Proj');
+  ok(first === 'P01_Proj' && second === 'P01_Proj_2' && f('P01_Proj') === 'P01_Proj_3', 'folders: a resurvey with the same plotid gets _2, _3');
+  ok(moveUnder('P01_Proj/P01_Proj.yml', 'P01_Proj', 'P01_Proj_2') === 'P01_Proj_2/P01_Proj.yml', 'folders: entries move under the new folder');
+  ok(moveUnder('P01_Proj_x/a.yml', 'P01_Proj', 'P01_Proj_2') === 'P01_Proj_x/a.yml', 'folders: a folder that only starts with the name is left alone');
+  // The zips built from many sources take their names from the namer (text check).
+  const src = (f) => readFileSync(new URL(`../src/lib/${f}`, import.meta.url), 'utf8');
+  const backup = src('backup.ts');
+  ok(backup.includes('names.numbered(') && !/_\$\{i \+ 1\}/.test(backup), 'photo backup: numbered by the shared namer, not per source');
+  const many = src('bundleExport.ts');
+  ok(/const folder = place\(await build\w+Entries\(/.test(many) && !/for \(const e of entries\) allEntries\.push\(e\)/.test(many), 'multi-record export: every record folder goes through place()');
+  ok(src('projectExport.ts').includes('claimFolder(folderName)'), 'project export: record folders go through the folder namer');
 }
 
 if (failed > 0) {

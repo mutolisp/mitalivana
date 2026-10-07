@@ -153,7 +153,9 @@ export const CAPS: Record<Cap, ModeVis> = {
   // 地理樣區: kept for the GPX a project hands out, but out of the way.
   geoSites: { pro: 'show', vol: 'adv', casual: 'hide' },
   customTaxon: { pro: 'show', vol: 'adv', casual: 'hide' },
-  nameUsagePick: { pro: 'show', vol: 'adv', casual: 'hide' },
+  // Filing a record under the synonym typed: open to volunteers too (user's
+  // decision on code review L40). A search row has no 進階 fold to put it in.
+  nameUsagePick: { pro: 'show', vol: 'show', casual: 'hide' },
   // The species page's 來源文獻 (alien-status citations): folded, not open.
   speciesSourceLit: { pro: 'show', vol: 'adv', casual: 'hide' },
   verbatimLabel: { pro: 'show', vol: 'adv', casual: 'hide' },
@@ -274,5 +276,7 @@ export function fieldLabel(label: string, mode: UsageMode): string {
   if (mode === 'pro') return label;
   return label
     .replace(/\s*[(（][a-z][A-Za-z]{2,}[)）]\s*$/, '')
-    .replace(/([(（])[a-z][A-Za-z]{2,}\s*[，、,]\s*/, '$1');
+    // Only a camelCase term opens a note: a plain word does not — 「(listes,
+    // placettes …)」 in a French description lost its first item (code review L56).
+    .replace(/([(（])[a-z]+[A-Z][A-Za-z]*\s*[，、,]\s*/, '$1');
 }

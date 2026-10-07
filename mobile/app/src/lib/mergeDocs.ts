@@ -222,8 +222,16 @@ export function askQuadratGeometry(items: MergeItem[], local: MergeSide): MergeI
   });
 }
 
-/** The quadrat config settings the plot species' frequencies (v78) are read by. */
-const PLOT_FREQ_KEYS = ['freqGridN', 'freqMode'];
+/** The quadrat config settings the plot species' frequencies (v78) are read by
+ *  (their top edge too: the masks are drawn against it; code review M46). */
+const PLOT_FREQ_KEYS = ['freqGridN', 'freqMode', 'freqTopEdge'];
+
+/** The other copy's plot frequency grid when the two differ, for applyPlotMerge (code review M45). */
+export function remoteFreqGridN(items: readonly MergeItem[]): number | null {
+  const it = items.find((x) => x.tbl === 'qconfig' && x.key === 'freqGridN' && x.remote);
+  const v = Number(it?.remote?.data.value);
+  return Number.isFinite(v) && v > 0 ? v : null;
+}
 
 /**
  * A quadrat whose geometry the two copies disagree on is taken whole from one
@@ -257,7 +265,9 @@ export function tieQuadratGeometry(items: readonly MergeItem[], decisions: Reado
   }
   for (const it of items) {
     if (it.tbl !== 'quadrat' || !it.local || !it.remote) continue;
-    const geo = QUADRAT_GEOMETRY.filter((f) => it.fields.includes(f));
+    // The way (cells or counts) too: a quadrat's species follow the side it
+    // is taken from, or masks stay in a count quadrat (code review M47).
+    const geo = [...QUADRAT_GEOMETRY, 'freq_mode'].filter((f) => it.fields.includes(f));
     if (!geo.length) continue;
     const side = gridSide && geo.includes('grid_n') ? gridSide : sideOf(it, geo);
     out.set(it.id, { pick: side });

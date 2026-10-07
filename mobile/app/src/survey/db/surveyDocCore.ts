@@ -211,8 +211,9 @@ const nums = (a: unknown, b: unknown) => [a, b].filter((v): v is number => typeo
  * The newer template of the two (an additive upgrade on either phone).
  * Version numbers count on each phone, so the same version can be two
  * different edits of one template (code review V13): the copy that holds the
- * other as an additive change wins, then the higher version, then the larger
- * content hash, so both phones settle on the same copy.
+ * other as an additive change (and not the other way round) wins, then the
+ * higher version, then the larger content hash, so both phones settle on the
+ * same copy.
  */
 export const newerTemplate = (a: unknown, b: unknown) => {
   const ra = a as Row | null;
@@ -222,8 +223,13 @@ export const newerTemplate = (a: unknown, b: unknown) => {
   try {
     const ta = snapshotOf({ template_snapshot: String(ra.template_snapshot) });
     const tb = snapshotOf({ template_snapshot: String(rb.template_snapshot) });
-    if (classifyChange(ta, tb) === 'additive') return b;
-    if (classifyChange(tb, ta) === 'additive') return a;
+    // Only a strict containment decides: an edit that changes labels, names
+    // or order alone reads as additive both ways, and taking `b` then made
+    // each phone take the other's copy (code review M42).
+    const ab = classifyChange(ta, tb) === 'additive';
+    const ba = classifyChange(tb, ta) === 'additive';
+    if (ab && !ba) return b;
+    if (ba && !ab) return a;
   } catch {
     // An unreadable snapshot: the version and the hash decide.
   }
@@ -443,7 +449,9 @@ export function applySurveyDocOps(ctx: Ctx, surveyId: number, ops: readonly Merg
         case 'funit': {
           if (s.frame_id == null) break;
           const { level, code } = splitUnitKey(key);
-          const cols: Row = { ...clean('fw_frame_units', data, ['parent_id']), parent_id: data.parent === undefined ? undefined : frameUnitId(data.parent as string | null) };
+          // The key names the unit (level and code): a document cannot rename it
+          // or insert it under another code, as for sunit (code review L66).
+          const cols: Row = { ...clean('fw_frame_units', data, ['parent_id', 'level_key', 'code']), parent_id: data.parent === undefined ? undefined : frameUnitId(data.parent as string | null) };
           if (cols.parent_id === undefined) delete cols.parent_id;
           const id = frameUnitId(key);
           if (id != null) set('fw_frame_units', id, cols);
@@ -677,7 +685,7 @@ export function fillOps(side: MergeSide): MergeOp[] {
   return ORDER.flatMap((tbl) => (side[tbl] ?? []).map((row: MergeRow): MergeOp => (tbl === 'survey' ? { op: 'update', tbl, key: row.key, data: row.data, extra: row.extra } : { op: 'insert', tbl, row })));
 }
 
-export type InsertError = 'frame_code_taken' | 'number_taken';
+export type InsertError = 'frame_code_taken' | 'number_taken' | 'series_code_taken';
 
 export class InsertSurveyError extends Error {
   code: InsertError;
@@ -711,6 +719,10 @@ export function insertSurveyFromDoc(ctx: Ctx, doc: SurveyDoc, opts: { status: 'a
       one<{ id: number }>(ctx, `SELECT id FROM fw_frame_series WHERE uuid = ?`, [doc.series.uuid as string])?.id ??
       one<{ id: number }>(ctx, `SELECT id FROM fw_frame_series WHERE frame_id = ? AND template_id = ?`, [frameId, doc.series.template_id as string])?.id ??
       null;
+    // The code taken by another template's series on the plot (code review L63).
+    if (seriesId == null && one(ctx, `SELECT id FROM fw_frame_series WHERE frame_id = ? AND series_code = ?`, [frameId, doc.series.series_code as string])) {
+      throw new InsertSurveyError('series_code_taken');
+    }
     if (seriesId == null)
       seriesId = Number(
         run(ctx, `INSERT INTO fw_frame_series (uuid, frame_id, template_id, series_code, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`, [

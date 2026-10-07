@@ -1,15 +1,22 @@
 /**
- * 快速名錄's sort controls at the end of the filter row: the order (a sheet;
- * picking the active one again flips it) and its direction, each a real 44 pt
- * target. Kept in settings, so a checklist-style survey drawn with the same
- * screen (2G-c) sorts the same way.
+ * 快速名錄's sort at the end of the filter row: one 44 pt ⇅ button (asked
+ * 2026-10-07: the order's name and a separate direction button took a third
+ * of the row). It opens a sheet of the orders, each with its direction; the
+ * current one is ticked and picking it again flips it. The icon turns accent
+ * while the order is not the default (加入順序, newest first). Kept in
+ * settings, so a checklist-style survey drawn with the same screen (2G-c)
+ * sorts the same way.
  */
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable } from 'react-native';
 import { showActionSheet } from '~/components/ActionSheet';
-import { useSettings, type RecordSort } from '~/stores/settings';
+import { useSettings, type RecordSort, type SortDirection } from '~/stores/settings';
 import { useThemeColors } from '~/theme/colors';
+
+const ORDERS: RecordSort[] = ['observed', 'cname', 'name', 'family'];
+/** Where an order starts when picked: observed newest first, names A→Z. */
+const defaultDir = (o: RecordSort): SortDirection => (o === 'observed' ? 'desc' : 'asc');
 
 export function RecordSortControls() {
   const c = useThemeColors();
@@ -23,59 +30,41 @@ export function RecordSortControls() {
     name: t('session.sortName'),
     family: t('session.sortFamily'),
   };
+  const dirLabel = (o: RecordSort, d: SortDirection) =>
+    o === 'observed'
+      ? t(d === 'desc' ? 'session.sortNewFirst' : 'session.sortOldFirst')
+      : t(d === 'asc' ? 'session.sortAsc' : 'session.sortDesc');
 
   const handlePickSort = async () => {
-    const orders: RecordSort[] = ['observed', 'cname', 'name', 'family'];
     const idx = await showActionSheet({
       title: t('session.sortTitle'),
-      options: orders.map((o) => ({
-        label:
-          o === sortOrder ? t('session.sortActiveHint', { label: sortLabel[o] }) : sortLabel[o],
+      options: ORDERS.map((o) => ({
+        label: sortLabel[o],
+        description:
+          o === sortOrder ? t('session.sortFlipHint', { dir: dirLabel(o, sortDir) }) : dirLabel(o, defaultDir(o)),
+        selected: o === sortOrder,
       })),
     });
-    if (idx < 0 || idx >= orders.length) return;
-    const picked = orders[idx];
+    if (idx < 0 || idx >= ORDERS.length) return;
+    const picked = ORDERS[idx];
     if (picked === sortOrder) {
-      // Tap the active sort again → flip direction.
+      // The current order again → flip direction.
       setSetting('last_record_sort_dir', sortDir === 'asc' ? 'desc' : 'asc');
     } else {
       setSetting('last_record_sort', picked);
-      // Reset direction to that sort's natural default — observed goes
-      // newest-first; everything else goes A→Z.
-      setSetting('last_record_sort_dir', picked === 'observed' ? 'desc' : 'asc');
+      setSetting('last_record_sort_dir', defaultDir(picked));
     }
   };
 
-  const handleToggleSortDir = () => {
-    setSetting('last_record_sort_dir', sortDir === 'asc' ? 'desc' : 'asc');
-  };
-
+  const isDefault = sortOrder === 'observed' && sortDir === 'desc';
   return (
-    <View className="flex-row items-center pr-1">
-      <Pressable
-        onPress={handlePickSort}
-        accessibilityRole="button"
-        accessibilityLabel={`${t('session.sortTitle')}: ${sortLabel[sortOrder]}`}
-        className="flex-row items-center rounded-full px-2 active:bg-gray-100 dark:active:bg-gray-800"
-        style={{ minHeight: 44 }}
-      >
-        <Ionicons name="swap-vertical" size={18} color={c.ink2} />
-        <Text className="ml-0.5 text-xs text-gray-600 dark:text-gray-400">
-          {sortLabel[sortOrder]}
-        </Text>
-      </Pressable>
-      <Pressable
-        onPress={handleToggleSortDir}
-        accessibilityRole="button"
-        accessibilityLabel={t('session.sortActiveHint', { label: sortLabel[sortOrder] })}
-        className="h-11 w-11 items-center justify-center rounded-full active:bg-gray-100 dark:active:bg-gray-800"
-      >
-        <Ionicons
-          name={sortDir === 'desc' ? 'arrow-down' : 'arrow-up'}
-          size={16}
-          color={c.ink2}
-        />
-      </Pressable>
-    </View>
+    <Pressable
+      onPress={handlePickSort}
+      accessibilityRole="button"
+      accessibilityLabel={`${t('session.sortTitle')}: ${sortLabel[sortOrder]}, ${dirLabel(sortOrder, sortDir)}`}
+      className="h-11 w-11 items-center justify-center rounded-full active:bg-gray-100 dark:active:bg-gray-800"
+    >
+      <Ionicons name="swap-vertical" size={20} color={isDefault ? c.ink2 : c.accent} />
+    </Pressable>
   );
 }

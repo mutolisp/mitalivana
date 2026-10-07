@@ -505,9 +505,13 @@ async function runBatch(unit: UploadUnit, records: EligibleRecord[], batch: Batc
       result.stopped = 'cancelled';
       break;
     }
-    setProgress({ phase: 'uploading', current: rec.cname || rec.name, currentId: rec.id });
+    // Read again: the list is from the start of the batch, and a pending
+    // observation named meanwhile is no longer here (code review M27).
+    const fresh = getCandidate(unit, rec.id);
+    if (!fresh) continue;
+    setProgress({ phase: 'uploading', current: fresh.cname || fresh.name, currentId: fresh.id });
     try {
-      const unresolved = await uploadOne(rec, batch, ctx);
+      const unresolved = await uploadOne(fresh, batch, ctx);
       if (unresolved) result.unresolvedTaxa += 1;
       result.ok += 1;
     } catch (e) {
@@ -650,7 +654,7 @@ async function uploadMedia(rec: EligibleRecord, ctx: BatchContext, from: number)
       const sound = safeAppFileUri(item.uri);
       if (sound) await ctx.call((jwt) => uploadSound(jwt, rec.occurrenceId, sound, AUDIO_MIME_TYPE));
     }
-    markInatMediaDone(rec.kind, rec.id, k + 1);
+    markInatMediaDone(rec.kind, rec.id, k + 1, rec.occurrenceId);
     sent += 1;
   }
   return sent;
@@ -685,7 +689,7 @@ async function uploadOne(rec: EligibleRecord, batch: BatchOptions, ctx: BatchCon
     const created = await ctx.call((jwt) => createObservation(jwt, buildObservationPayload(recordInput(rec), taxonId, batch)));
     observationId = created.id;
     mediaDone = 0;
-    markInatObservation(rec.kind, rec.id, observationId);
+    markInatObservation(rec.kind, rec.id, observationId, rec.occurrenceId);
     /**
      * Everything downstream addresses the observation by OUR uuid, never by the
      * numeric id: `uploadPhoto`/`uploadSound`/`createAnnotation` below, and
@@ -712,7 +716,7 @@ async function uploadOne(rec: EligibleRecord, batch: BatchOptions, ctx: BatchCon
   for (const a of rec.annotations) await postAnnotationSafe(ctx, rec, a);
 
   // D. done — with the fingerprint of what was just sent.
-  markInatUploaded(rec.kind, rec.id, fingerprintFor(rec));
+  markInatUploaded(rec.kind, rec.id, fingerprintFor(rec), rec.occurrenceId);
   return unresolved;
 }
 
@@ -792,7 +796,7 @@ export async function syncRecord(unit: UploadUnit, recordId: number): Promise<Sy
       // 3. media added since the last upload
       const mediaSent = await uploadMedia(rec, ctx, rec.mediaDone);
 
-      markInatUploaded(rec.kind, rec.id, fingerprint);
+      markInatUploaded(rec.kind, rec.id, fingerprint, rec.occurrenceId);
       return { noop: false, annotationsAdded: added, annotationsRemoved: removed, mediaSent };
     } catch (e) {
       if (e instanceof StopBatch) {

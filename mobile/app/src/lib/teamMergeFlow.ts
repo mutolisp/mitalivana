@@ -26,7 +26,7 @@ import { addSurveyFileMedia } from '~/survey/surveyFileMedia';
 import { useActiveSurvey } from '~/survey/form/activeSurvey';
 import { importAudioClips } from './audioCapture';
 import { bundleGloria, bundlePlot, bundleSession, type BundleOptions } from './bundleExport';
-import { tieQuadratGeometry, type MergeKind } from './mergeDocs';
+import { remoteFreqGridN, tieQuadratGeometry, type MergeKind } from './mergeDocs';
 import { baseOf, describeMerge, planOps, type Decision, type MergeChange, type MergeItem, type MergeOp, type MergeSide } from './mergeEngine';
 import { importPhotosToLibrary } from './photoCapture';
 import type { ImportedPhotoBlob } from './recordImportZip';
@@ -164,7 +164,7 @@ export async function applyPendingMerge(
       applySessionMerge(p.localId, ops, { photoUriByName, audioUriByName });
       break;
     case 'plot':
-      applyPlotMerge(p.localId, ops, { photoUriByName, audioUriByName });
+      applyPlotMerge(p.localId, ops, { photoUriByName, audioUriByName }, remoteFreqGridN(p.items));
       break;
     case 'gloria':
       applyGloriaMerge(p.localId, ops);

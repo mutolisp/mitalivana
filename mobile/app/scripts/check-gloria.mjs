@@ -701,6 +701,11 @@ eq('SAS abundance codes (sheet 33_)', SAS_ABUNDANCE_CODE, { d: 1, c: 2, s: 3, r:
   eq('zip files: Form 4 scans under the form identifier (numbered), data under code_serial_name',
     planLoggerFiles(4, sm, [v2, v1]).map((f) => [f.kind, f.name]),
     [['form4', 'mocy4_TW-SAC-JIA_1_temperature-logger_20260805.pdf'], ['form4', 'mocy4_TW-SAC-JIA_1_temperature-logger_20260805-2.jpg'], ['data', 'TW_SAC_JIA_E22c_2026_22237134_E22c_2028.csv']]);
+  // The same logger read out again in the cycle with a file of the same name (code review L54).
+  const v3 = { ...v2, uuid: 'v3', visit_ts: d(2029, 7, 1), loggers: [lg({ uuid: 'r2', role: 'readout', stop_ts: d(2029, 7, 1, 10), data_files: JSON.stringify([{ uri: 'file:///x/files/b.csv', name: 'E22c 2028.csv', size: 10 }]) })] };
+  const dup = planLoggerFiles(4, sm, [v2, v3]).filter((f) => f.kind === 'data').map((f) => f.name);
+  eq('zip files: a second file of the same name gets -2, never refused', dup, ['TW_SAC_JIA_E22c_2026_22237134_E22c_2028.csv', 'TW_SAC_JIA_E22c_2026_22237134_E22c_2028-2.csv']);
+  eq('04_: the table names the files as the zip does', loggerRows(4, sm, [v2, v3]).map((r) => col(r, 'dataFiles')), dup);
   const named = planPhotoNames({ mocy: 4, country: 'TW', region: 'SAC', summit: 'JIA', date: '20260804', p5m: {}, points: [], units: [], loggers: [{ uri: 'u1', item: 'LOG-E22c', note: 'open', date: '20280712' }] });
   eq('logger photo: Annex III name with LOG- item, visit date and open/closed', named[0].name, '04_TW_SAC_JIA_LOG-E22c_20280712_00001_open.jpg');
 }

@@ -7,7 +7,6 @@ import { BackHeaderLeft, goBackOrHome } from '~/lib/goBack';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { isoDateTime, isoTime } from '~/lib/datetime';
-import { ContextChip, ContextStrip } from '~/components/ui/ContextChip';
 import {
   Alert,
   FlatList,
@@ -25,6 +24,7 @@ import { RecordMenuButton } from '~/components/RecordMenuButton';
 import { HeaderTitleText } from '~/components/HeaderTitleText';
 import { RecordStatusLine } from '~/components/RecordStatusLine';
 import { showActionSheet } from '~/components/ActionSheet';
+import { synonymAlreadyHere } from '~/lib/synonymAdd';
 import { hasInatChanges, syncRecord, useInatSync } from '~/lib/inatUpload';
 import { inatTokenAvailableQuietly } from '~/lib/inatAuth';
 import { apiErrorMessage } from '~/lib/apiErrorMessage';
@@ -112,8 +112,11 @@ import { FieldMap } from '~/components/map/FieldMap';
 import { MapToggle, SplitMapView, SplitRecordList, useSplitMapOpen } from '~/components/map/SplitMapView';
 import { useFieldMapData, type MapRecord } from '~/components/map/useFieldMapData';
 import { shows } from '~/lib/usageMode';
-import { useUsageMode } from '~/lib/useUsageMode';
-import { withLiveSegment } from '~/lib/track';
+import { useShows, useUsageMode } from '~/lib/useUsageMode';
+import { withLiveSegment, type TrackSegment } from '~/lib/track';
+
+/** A stable empty track while the map is hidden (code review L49). */
+const NO_TRACK: TrackSegment[] = [];
 
 
 export default function SessionDetailScreen() {
@@ -140,6 +143,8 @@ export default function SessionDetailScreen() {
   const [filterKey, setFilterKey] = useState<string | null>(null);
   // Finding a species in this list (ListFilter): the field replaces the chips.
   const [findOpen, setFindOpen] = useState(false);
+  // The filter has the keyboard: the add-species dock steps aside (code review L37).
+  const [findTyping, setFindTyping] = useState(false);
   const [findQuery, setFindQuery] = useState('');
   const [activeRecord, setActiveRecord] = useState<RecordWithTaxon | null>(null);
   const [endModalOpen, setEndModalOpen] = useState(false);
@@ -253,6 +258,10 @@ export default function SessionDetailScreen() {
   const mapAllowed = shows(useUsageMode(), 'splitMapSession');
   const [mapPref, setMapOpen] = useSplitMapOpen('session');
   const showMap = mapAllowed && mapPref;
+  // 記在這裡 belongs to the map: closing the map turns it off (code review L39).
+  useEffect(() => {
+    if (!showMap) setHereMode(false);
+  }, [showMap]);
   const mapTrack = liveTrack;
   const mapRecords = useMemo<MapRecord[]>(
     () =>
@@ -264,10 +273,11 @@ export default function SessionDetailScreen() {
         quantity: r.organism_quantity,
         quantityType: r.organism_quantity_type,
         observedAt: r.observed_at,
+        alongM: r.along_m,
       })),
     [filtered],
   );
-  const fieldMap = useFieldMapData(mapRecords, showMap ? mapTrack : []);
+  const fieldMap = useFieldMapData(mapRecords, showMap ? mapTrack : NO_TRACK);
   // 「記在這裡」: the next species added gets the position where it was added.
   const [hereMode, setHereMode] = useState(false);
   const [focusKey, setFocusKey] = useState(0);
@@ -349,6 +359,7 @@ export default function SessionDetailScreen() {
   const [pickedPhotos, setPickedPhotos] = useState<PickedPhoto[] | null>(null);
 
   const handlePickPhotosToImport = async () => {
+    setHereMode(false); // the photos carry their own places (code review L39)
     try {
       const picked = await pickPhotosWithExif();
       // Remember before the sheet opens: records created here start out
@@ -363,6 +374,7 @@ export default function SessionDetailScreen() {
 
   /** The dock's camera key: one photo, then the same import sheet as picking. */
   const handleTakePhotoToImport = async () => {
+    setHereMode(false);
     try {
       const taken = await takePhotoWithExif();
       rememberPickedPhotos(taken);
@@ -414,6 +426,7 @@ export default function SessionDetailScreen() {
         return; // replaceTarget stays: they are still replacing, just picked wrong
       }
       setReplaceTarget(null);
+      setHereMode(false);
       Keyboard.dismiss();
       updateRecordTaxon(target.id, result.taxon_id, adopted);
       reload();
@@ -425,7 +438,22 @@ export default function SessionDetailScreen() {
     // `Orchidaceae sp1` and `sp2` the same taxon_id although they are different
     // morphospecies, and that is ordinary field work. A double tap is still the
     // commoner case, so it stays one tap away from being undone.
+    let separate = false;
+    let mergeHere = false;
     if (isTaxonInSession(sessionId, result.taxon_id)) {
+      // Filed here under another of its names than the one just picked: say
+      // both, rather than a "+1" that drops the name (code review L42).
+      const here = records.filter((r) => r.taxon_id === result.taxon_id).sort((a, b) => b.observed_at - a.observed_at)[0];
+      const naming = await synonymAlreadyHere(
+        { accepted: result.name, rank: result.rank ?? null, kingdom: result.kingdom ?? null },
+        here?.used_scientific_name,
+        adopted,
+      );
+      if (naming === null) return;
+      separate = naming === 'separate';
+      mergeHere = naming === 'merge';
+    }
+    if (!separate && isTaxonInSession(sessionId, result.taxon_id)) {
       // "+1" only where a count means individuals — the row the ± would step.
       // The newest such row, when a morphospecies split left several.
       const countable = records
@@ -435,11 +463,17 @@ export default function SessionDetailScreen() {
             (r.organism_quantity_type == null || r.organism_quantity_type === 'individuals'),
         )
         .sort((a, b) => b.observed_at - a.observed_at)[0];
+      // The recorder already said it is the record here: +1 where a count
+      // means individuals, nothing more otherwise.
+      if (mergeHere && !(countable && !edit.locked)) {
+        toast(t('session.alreadyExists', { name: result.cname || result.name }));
+        return;
+      }
       const options = [
         ...(countable && !edit.locked ? [{ label: t('count.plusOne') }] : []),
         { label: t('session.addAnyway') },
       ];
-      const choice = await showActionSheet({
+      const choice = mergeHere ? 0 : await showActionSheet({
         titleParts: sentenceParts(t('session.alreadyExists', { name: slot('name') }), {
           name: speciesParts(result.cname, result.name, result.rank, result.kingdom),
         }),
@@ -450,6 +484,7 @@ export default function SessionDetailScreen() {
       if (choice < 0) return;
       if (countable && !edit.locked && choice === 0) {
         const n = Number(countable.organism_quantity);
+        setHereMode(false);
         handleRowCount(countable, Number.isFinite(n) && n > 0 ? n + 1 : 1);
         setFlashId(countable.id);
         toast(t('count.plusOneDone', { name: result.cname || result.name }));
@@ -458,7 +493,7 @@ export default function SessionDetailScreen() {
     }
     const recordId = addRecord({ session_id: sessionId, taxon_id: result.taxon_id, adopted });
     stampNewRecord('session', recordId, sessionId, reloadQuiet, hereMode);
-    if (hereMode) setHereMode(false);
+    setHereMode(false);
     setFlashId(recordId);
     reload();
     toast(t('session.added', { name: result.cname || result.name }), {
@@ -478,6 +513,7 @@ export default function SessionDetailScreen() {
   // Long-press multi-select. What the old long-press menu offered (notes,
   // change taxon, favourites, remove) now lives in the detail sheet.
   const selection = useListSelection<number>();
+  const showsFavorites = useShows('favorites');
 
   const handleBulkFavorite = () => {
     const rows = filtered.filter((r) => selection.picked.has(r.id));
@@ -552,8 +588,13 @@ export default function SessionDetailScreen() {
 
   const handleSaveActiveNotes = (newNotes: string) => {
     if (!activeRecord) return;
-    updateRecordNotes(activeRecord.id, newNotes || null);
-    setActiveRecord({ ...activeRecord, notes: newNotes || null });
+    const id = activeRecord.id;
+    updateRecordNotes(id, newNotes || null);
+    // By id and as an update: ObservationNotes also saves while it unmounts
+    // (the sheet closing, or paging on), through this handler as it was
+    // rendered — setting the record it captured would reopen the sheet or
+    // page back (code review M31).
+    setActiveRecord((p) => (p?.id === id ? { ...p, notes: newNotes || null } : p));
     reload();
   };
 
@@ -879,6 +920,46 @@ export default function SessionDetailScreen() {
   }
 
   const isActive = session.status === 'active';
+  const projectSet = !!project && project.id !== 0;
+  // 記錄資訊 in ⋯ — project · place · survey time · surveyor. They were a row
+  // of chips above the list (asked 2026-10-07: too much room); unset ones are
+  // red there and put a dot on ⋯, so what is missing before ending still shows.
+  const recordInfo = [
+    {
+      label: t('plot.project'),
+      icon: 'folder-outline' as const,
+      detail: projectSet ? project.name : t('session.placeUnset'),
+      attention: !projectSet,
+      onPress: guard(() => setProjectSheetOpen(true)),
+    },
+    {
+      label: t('session.placeLabel'),
+      // Priority: tracking > site assigned > start point > empty
+      icon: tracking ? ('radio' as const) : site ? ('pin' as const) : ('location-outline' as const),
+      detail: tracking
+        ? t('session.trackBadge', { count: trackCount })
+        : site
+          ? site.name
+          : session.start_lat !== null
+            ? t('session.located')
+            : t('session.placeUnset'),
+      onPress: isActive ? () => void handleSpatialMenu() : guard(() => setSiteSheetOpen(true)),
+    },
+    {
+      // Survey start / end — typed by hand for old field sheets.
+      label: t('surveyTime.title'),
+      icon: 'time-outline' as const,
+      detail: session.ended_at ? `${isoTime(session.started_at)}–${isoTime(session.ended_at)}` : isoTime(session.started_at),
+      onPress: () => setTimesOpen(true),
+    },
+    {
+      label: t('session.surveyor'),
+      icon: 'people-outline' as const,
+      detail: session.recorded_by || t('session.placeUnset'),
+      attention: !session.recorded_by,
+      onPress: guard(() => setSurveyorSheetOpen(true)),
+    },
+  ];
 
   return (
     <SafeAreaView edges={['bottom']} className="flex-1 bg-gray-50 dark:bg-gray-950">
@@ -891,6 +972,7 @@ export default function SessionDetailScreen() {
               text={session.name}
               subtitle={
                 <RecordStatusLine
+                  track={tracking ? t('session.trackBadge', { count: trackCount }) : null}
                   active={isActive}
                   startedAt={session.started_at}
                   endedAt={session.ended_at}
@@ -907,6 +989,8 @@ export default function SessionDetailScreen() {
               <RecordMenuButton
                 kind="session"
                 id={sessionId}
+                info={recordInfo}
+                badge={!projectSet || !session.recorded_by}
                 reportHref={`/report/session/${sessionId}` as Href}
                 onSynced={reload}
                 layout={{ value: speciesLayout, onChange: (v) => useSettings.getState().set('species_layout', v) }}
@@ -949,50 +1033,6 @@ export default function SessionDetailScreen() {
         }}
       />
       <View className="flex-1">
-        {/* Context strip — project · place · survey time · surveyor. Every
-            chip keeps the tap it had as a bare icon; unset ones are dashed so
-            what is still missing before ending shows at a glance. */}
-        <ContextStrip>
-          <ContextChip
-            icon="folder-outline"
-            label={project && project.id !== 0 ? project.name : t('session.projectUnset')}
-            set={!!project && project.id !== 0}
-            onPress={guard(() => setProjectSheetOpen(true))}
-          />
-          {/* Priority: tracking > site assigned > start point > empty */}
-          <ContextChip
-            icon={site ? 'pin' : 'location-outline'}
-            label={
-              tracking
-                ? t('session.trackBadge', { count: trackCount })
-                : site
-                  ? site.name
-                  : session.start_lat !== null
-                    ? t('session.located')
-                    : t('session.spatial')
-            }
-            set={tracking || !!site || session.start_lat !== null}
-            tone={tracking ? 'live' : 'default'}
-            onPress={isActive ? handleSpatialMenu : guard(() => setSiteSheetOpen(true))}
-          />
-          {/* Survey start / end — typed by hand for old field sheets. */}
-          <ContextChip
-            icon="time-outline"
-            label={
-              session.ended_at
-                ? `${isoTime(session.started_at)}–${isoTime(session.ended_at)}`
-                : isoTime(session.started_at)
-            }
-            set
-            onPress={() => setTimesOpen(true)}
-          />
-          <ContextChip
-            icon="people-outline"
-            label={session.recorded_by || t('session.surveyorUnset')}
-            set={!!session.recorded_by}
-            onPress={guard(() => setSurveyorSheetOpen(true))}
-          />
-        </ContextStrip>
         {/* Row 2 — filter chips (scrollable) + sort + batch import. While
             selecting, the selection bar takes its place (row 1 stays). */}
         {selection.selectMode ? (
@@ -1006,6 +1046,7 @@ export default function SessionDetailScreen() {
           <View className="flex-row items-center border-b border-gray-200 bg-card dark:border-gray-700 dark:bg-gray-900">
             {findOpen ? (
               <ListFilterField
+                onFocusChange={setFindTyping}
                 value={findQuery}
                 onChangeText={setFindQuery}
                 onClose={() => {
@@ -1124,6 +1165,8 @@ export default function SessionDetailScreen() {
             // numColumns cannot change on a mounted list.
             key={speciesLayout}
             data={filtered}
+            // A tap on a row while the filter has the keyboard opens the row (code review L37).
+            keyboardShouldPersistTaps="handled"
             keyExtractor={(r) => `${r.id}`}
             numColumns={speciesLayout === 'card' ? 2 : 1}
             columnWrapperStyle={speciesLayout === 'card' ? { gap: 12, paddingHorizontal: 16 } : undefined}
@@ -1199,14 +1242,15 @@ export default function SessionDetailScreen() {
         <SelectionDock
           count={selection.picked.size}
           actions={[
-            { label: t('favorites.add'), onPress: handleBulkFavorite },
+            // Casual mode has no 常用名錄 (code review L41).
+            ...(showsFavorites ? [{ label: t('favorites.add'), onPress: handleBulkFavorite }] : []),
             { label: t('common.delete'), onPress: handleBulkDelete, destructive: true },
           ]}
         />
       ) : null}
       {/* `|| replaceTarget`: a finished checklist still needs the box to fix a
           wrong determination, without reopening the whole record. */}
-      {!selection.selectMode && (isActive || replaceTarget) ? (
+      {!selection.selectMode && !findTyping && (isActive || replaceTarget) ? (
         // Sticks above the keyboard regardless of accessory-bar height
         // changes (e.g. iOS predictive suggestions). Sibling to the content
         // View, not a child, so kbd-driven translation doesn't push the

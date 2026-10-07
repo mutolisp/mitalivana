@@ -550,6 +550,15 @@ throwsCode(() => d.insertSurveyFromDoc(B.ctx, twin, { status: 'done', projectId:
   ok(d.newerTemplate(aRow, bothRow) === bothRow && d.newerTemplate(bothRow, aRow) === bothRow, 'V13: the copy holding the other wins over a higher number');
   const v1Row = { template_id: PL.id, template_version: 1, template_snapshot: JSON.stringify(PLn), template_hash: templateHash(PLn) };
   ok(d.newerTemplate(v1Row, aRow) === aRow && d.newerTemplate(aRow, v1Row) === aRow, 'V13: one line of edits: the newer wins as before');
+  // Only labels changed (code review M42): that reads as additive both ways, so
+  // the content cannot decide — the newer version wins on both phones, and two
+  // such edits settle on one copy whichever phone merges first.
+  const relabel = (tpl, version, label) => withRequired({ ...tpl, version, components: tpl.components.map((x, i) => (i === 0 ? { ...x, label } : x)) });
+  const rowOf = (tpl) => ({ template_id: PL.id, template_version: tpl.version, template_snapshot: JSON.stringify(tpl), template_hash: templateHash(tpl) });
+  const lab2 = rowOf(relabel(PLn, 2, 'Renamed on A'));
+  ok(d.newerTemplate(v1Row, lab2) === lab2 && d.newerTemplate(lab2, v1Row) === lab2, 'M42: a label-only edit is kept on the phone that made it and taken by the other');
+  const labB = rowOf(relabel(PLn, 2, 'Renamed on B'));
+  ok(d.newerTemplate(lab2, labB) === d.newerTemplate(labB, lab2), 'M42: two label-only edits of one version: both phones take the same copy');
   // Restoring an older version keeps the template the survey has now.
   const S2 = c.createSurvey(T1.ctx, { template: PL, investigators: '甲' });
   const before = side(T1, S2);

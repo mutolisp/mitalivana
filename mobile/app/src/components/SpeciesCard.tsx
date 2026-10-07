@@ -256,16 +256,25 @@ export function SpeciesTile({
         ) : null}
       </View>
       <View className="px-2.5 pb-2.5 pt-2">
-        <Text className="text-[15px] font-medium text-gray-900 dark:text-gray-100" numberOfLines={1}>
+        {/* Two lines when there is a label: a long name would cut it off. */}
+        <Text className="text-[15px] font-medium text-gray-900 dark:text-gray-100" numberOfLines={record.verbatim_identification ? 2 : 1}>
           {record.common_name_c || t('species.noChineseName')}
+          {/* As on the row: the field determination is what tells two
+              morphospecies of one taxon apart (code review M34). */}
+          {record.verbatim_identification ? (
+            <Text className="font-normal text-gray-500 dark:text-gray-400">{` · ${record.verbatim_identification}`}</Text>
+          ) : null}
         </Text>
-        <ScientificName
-          name={record.simple_name}
-          rank={record.rank}
-          kingdom={record.kingdom}
-          className="text-xs text-gray-800 dark:text-gray-200"
-          numberOfLines={1}
-        />
+        <View className="flex-row items-center">
+          <ScientificName
+            name={record.simple_name}
+            rank={record.rank}
+            kingdom={record.kingdom}
+            className="flex-shrink text-xs text-gray-800 dark:text-gray-200"
+            numberOfLines={1}
+          />
+          {record.used_status && record.used_status !== 'accepted' ? <SynonymStatusBadge status={record.used_status} /> : null}
+        </View>
         <Text className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400" numberOfLines={1}>
           {[familyChineseFirst(record.family, record.family_c), meta].filter(Boolean).join(' · ')}
         </Text>

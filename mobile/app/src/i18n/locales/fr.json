@@ -232,7 +232,14 @@
     "cameraAdd": "Ajouter par photo",
     "photoByCamera": "Prendre une photo",
     "photoFromLibrary": "Choisir dans la photothèque",
-    "photoModeHint": "Appui long pour passer de l’appareil photo à la photothèque"
+    "photoModeHint": "Appui long pour passer de l’appareil photo à la photothèque",
+    "placeLabel": "Lieu / trace",
+    "placeUnset": "Non défini",
+    "sortNewFirst": "Plus récents d'abord",
+    "sortOldFirst": "Plus anciens d'abord",
+    "sortAsc": "Croissant",
+    "sortDesc": "Décroissant",
+    "sortFlipHint": "{{dir}} — touchez à nouveau pour inverser"
   },
   "records": {
     "recording": "Enregistrement en cours",
@@ -335,7 +342,13 @@
     "monthGroup": "{{year}}-{{month2}}",
     "pinNamed": "Épingler « {{name}} »",
     "unpinNamed": "Désépingler « {{name}} »",
-    "deleteFailed": "Échec de la suppression"
+    "deleteFailed": "Échec de la suppression",
+    "pendingTitle": "Non identifiées",
+    "pendingBanner_one": "{{count}} observation non identifiée",
+    "pendingBanner_many": "{{count}} observations non identifiées",
+    "pendingBanner_other": "{{count}} observations non identifiées",
+    "pendingBannerBody": "Notées sans nom d'espèce",
+    "pendingEmpty": "Aucune observation non identifiée"
   },
   "export": {
     "preparing": "Préparation…",
@@ -371,7 +384,8 @@
       "projectNotFound": "Projet {{id}} introuvable",
       "projectEmpty": "« {{name}} » ne contient aucun enregistrement à exporter",
       "noneSelected": "Aucun enregistrement sélectionné",
-      "tooManyReleves": "Le nombre de relevés ({{n}}) dépasse la limite de JUICE ({{max}})"
+      "tooManyReleves": "Le nombre de relevés ({{n}}) dépasse la limite de JUICE ({{max}})",
+      "duplicateName": "Deux fichiers différents seraient écrits sous le nom {{name}}"
     },
     "formula": {
       "title": "Certaines valeurs pourraient être exécutées comme formules",
@@ -433,7 +447,9 @@
     "layout": "Affichage",
     "selectMany": "Sélection multiple",
     "days30": "30 jours",
-    "addSpecies": "Ajouter des espèces"
+    "addSpecies": "Ajouter des espèces",
+    "recordInfo": "Infos du relevé",
+    "hasMissing": "Des informations manquent"
   },
   "record": {
     "kindSession": "Liste d'espèces rapide",
@@ -1375,7 +1391,8 @@
     "remainingSpecies_other": "{{count}} espèces restantes",
     "selectedConditions_one": "{{count}} critère sélectionné",
     "selectedConditions_many": "{{count}} critères sélectionnés",
-    "selectedConditions_other": "{{count}} critères sélectionnés"
+    "selectedConditions_other": "{{count}} critères sélectionnés",
+    "addObserveDesc": "Ouvre « Ajouter l'observation » pour y ajouter photos, effectif et notes"
   },
   "conservation": {
     "invasiveShort": "I",
@@ -1498,7 +1515,7 @@
     "btnLine": "Ligne",
     "btnPolygon": "Polygone",
     "removeAssign": "Retirer l'affectation",
-    "emptySites": "Aucun site géographique. Touchez « Nouveau site géographique » ci-dessus pour commencer à dessiner.",
+    "emptySites": "Aucun site géographique. Touchez « Nouveau site géographique » ci-dessous pour commencer à dessiner.",
     "assignProject": "Affecter un projet",
     "assignProjectDesc": "Choisissez un projet existant, ou créez-en un à appliquer à cet enregistrement",
     "newProject": "Nouveau projet",
@@ -1527,7 +1544,13 @@
     "assignIdentifierDesc": "Choix multiple ; appui long sur ☰ pour réordonner (synchronisé avec les préférences)",
     "identifierNamePlaceholder": "Nom du déterminateur",
     "addIdentifier": "Ajouter",
-    "emptyIdentifiers": "Aucun déterminateur — appuyez sur « Ajouter un déterminateur » ci-dessus."
+    "emptyIdentifiers": "Aucun déterminateur — appuyez sur « Ajouter un déterminateur » ci-dessus.",
+    "multiPick": "Sélection multiple",
+    "mergeHint": "Choisissez des sites d'un même type (points, lignes ou polygones) à fusionner en un seul pour ce relevé ; les originaux sont conservés.",
+    "assignMerged_one": "Fusionner {{count}} et attribuer",
+    "assignMerged_many": "Fusionner {{count}} et attribuer",
+    "assignMerged_other": "Fusionner {{count}} et attribuer",
+    "pickTwo": "Choisissez-en au moins deux"
   },
   "exportPref": {
     "title": "Réglages d'export",
@@ -3929,6 +3952,7 @@
       "occurrence": "Occurrence",
       "identified_by": "Identifié par",
       "elevation_source": "Source de l’altitude",
+      "along_m": "Distance le long de la trace (m)",
       "surveyUnit": "Unité",
       "measureUnit": "Unité de mesure",
       "viaInteraction": "Partenaire d’interaction",
@@ -4071,7 +4095,8 @@
       "block_size_differs": "L’équipe utilise une autre taille de bloc pour cet inventaire ; impossible de fusionner.",
       "unreadable": "Données illisibles reçues (peut-être d’une version plus récente) ; ignorées.",
       "undecided": "Certains numéros en double n’ont pas encore de décision.",
-      "template_differs": "L’équipe utilise un autre modèle pour cet inventaire ; il n’a pas été fusionné."
+      "template_differs": "L’équipe utilise un autre modèle pour cet inventaire ; il n’a pas été fusionné.",
+      "series_code_taken": "Cette placette de cet appareil a déjà une autre série avec le même code ; la série de l’équipe ne peut pas être créée."
     },
     "mergedFromToast": "Données de {{names}} fusionnées",
     "members": "Membres",
@@ -5346,7 +5371,8 @@
       "matrix": "Matrice",
       "matrixDesc": "{{type}} : lignes = A (celui qui agit), colonnes = B ; les cases additionnent le nombre de fois.",
       "searchBelow": "Pour une espèce non notée ici, utilisez la recherche ci-dessous."
-    }
+    },
+    "seriesCodeTaken": "Cette placette permanente a déjà une autre série avec le même code (d’un autre modèle) ; ce relevé ne peut pas être ajouté."
   },
   "task": {
     "working": "Traitement…",

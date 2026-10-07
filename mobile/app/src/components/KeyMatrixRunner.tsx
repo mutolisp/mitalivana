@@ -49,6 +49,8 @@ import {
 import { useActiveSession } from '~/stores/activeSession';
 import { useActivePlot } from '~/stores/activePlot';
 import { useAddToActiveRecord } from '~/lib/useAddToActiveRecord';
+import { currentUsageMode } from '~/lib/useUsageMode';
+import { shows } from '~/lib/usageMode';
 import { useActiveGloria } from '~/modules/gloria/store';
 import { blockIfMirenActive } from '~/lib/mirenGuard';
 import { getActiveSurvey } from '~/survey/db/surveys';
@@ -241,6 +243,16 @@ export function KeyMatrixRunner({ keyId, keyData }: Props) {
   const handleAddToSession = async () => {
     if (!activeDetail?.taxon_id) {
       Alert.alert(t('addToRecord.noTaxonId'));
+      return;
+    }
+    // Casual mode: 加入觀察 with the species chosen (the shared router), once
+    // this sheet has slid out. A checklist of its own would never show in
+    // 我的觀察 or on the casual map (code review M40).
+    if (shows(currentUsageMode(), 'casualObservations')) {
+      const picked = activeDetail;
+      setActiveDetail(null);
+      await new Promise((r) => setTimeout(r, 450));
+      addSpecies(picked);
       return;
     }
     // An active plot takes the species, not a checklist: starting a session

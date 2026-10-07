@@ -12,8 +12,8 @@
 import { errText } from '~/lib/errText';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
-import { useNavigation, useRouter, type Href } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useFocusEffect, useNavigation, useRouter, type Href } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { ModeCard, chooseUsageMode } from '~/components/settings/ModeCard';
@@ -53,6 +53,7 @@ import { useTabBarInset } from '~/lib/tabBarLayout';
 import { USAGE_MODES_OFFERED, allowedRecordTypeDefaults } from '~/lib/usageMode';
 import { useModeT, useUsageMode } from '~/lib/useUsageMode';
 import { useThemeColors } from '~/theme/colors';
+import { listTeams } from '~/lib/teamSync';
 
 export default function MenuScreen() {
   const { t, i18n } = useTranslation();
@@ -97,6 +98,15 @@ export default function MenuScreen() {
   const mode = useUsageMode();
   const tm = useModeT();
   const [advOpen, setAdvOpen] = useState(false);
+  // Casual mode hides team sync, but an invite link joins a team in any mode:
+  // whoever is in one can still reach it, to see it or leave (code review L60).
+  const [inTeam, setInTeam] = useState(false);
+  useFocusEffect(
+    useCallback(() => {
+      setInTeam(listTeams().length > 0);
+    }, []),
+  );
+  const visOf = (e: SettingsEntry) => (e.id === 'teamSync' && inTeam ? 'show' : modeVis(e, mode));
 
   const themeOptions: Array<{ value: Theme; label: string }> = [
     { value: 'auto', label: t('settings.themeAuto') },
@@ -247,11 +257,13 @@ export default function MenuScreen() {
     e.visibleWhen === 'module_gloria' ? moduleGloria : e.visibleWhen === 'module_miren' ? moduleMiren : e.visibleWhen === 'module_survey' ? moduleSurvey : true;
   // The one filter for the grouped page and search alike: off modules and
   // entries the usage mode hides drop out; 進階 ones stay searchable.
-  const visible = (e: SettingsEntry) => moduleOn(e) && modeVis(e, mode) !== 'hide';
+  const visible = (e: SettingsEntry) => moduleOn(e) && visOf(e) !== 'hide';
 
   // A key missing in this locale must not match: t() would return the key
   // itself, and `settingsSearch.theme` contains "theme".
-  const translate = (key: string) => (i18n.exists(key) ? t(key) : '');
+  // In the mode's own wording, as the rows show it (code review L57: in
+  // volunteer mode 「穿越線」 found nothing, the row's _vol text was not searched).
+  const translate = (key: string) => (i18n.exists(key) ? String(t(key, mode === 'pro' ? undefined : { context: mode })) : '');
   const hits = searching ? searchSettings(query, translate, visible) : [];
 
   const sectionTitle = (e: SettingsEntry) => {
@@ -510,7 +522,7 @@ export default function MenuScreen() {
             {USAGE_MODES_OFFERED ? <ModeCard /> : null}
             {SECTION_ORDER.map((sec) => {
               const rows = SETTINGS_INDEX.filter(
-                (e) => e.section === sec && !e.focus && e.id !== 'usageMode' && moduleOn(e) && modeVis(e, mode) === 'show',
+                (e) => e.section === sec && !e.focus && e.id !== 'usageMode' && moduleOn(e) && visOf(e) === 'show',
               );
               // A group the mode empties goes away whole, caption and card.
               if (rows.length === 0) return null;
@@ -522,7 +534,7 @@ export default function MenuScreen() {
               );
             })}
             {(() => {
-              const adv = SETTINGS_INDEX.filter((e) => !e.focus && moduleOn(e) && modeVis(e, mode) === 'adv');
+              const adv = SETTINGS_INDEX.filter((e) => !e.focus && moduleOn(e) && visOf(e) === 'adv');
               if (adv.length === 0) return null;
               return (
                 <>

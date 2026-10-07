@@ -198,6 +198,7 @@ export const RNMapsCanvas = forwardRef<MapCamera, MapCanvasProps>(function RNMap
     showsCompass,
     compassInset,
     attributionInset,
+    attributionBottomOnly,
     showsScale,
     showsMyLocationButton,
     toolbarEnabled,
@@ -268,7 +269,7 @@ export const RNMapsCanvas = forwardRef<MapCamera, MapCanvasProps>(function RNMap
       legalLabelInsets={attributionInset ? { top: 0, right: 0, bottom: attributionInset + ATTRIBUTION_GAP, left: 0 } : undefined}
       mapPadding={
         attributionInset && Platform.OS === 'android'
-          ? { top: attributionInset, right: 0, bottom: attributionInset, left: 0 }
+          ? { top: attributionBottomOnly ? 0 : attributionInset, right: 0, bottom: attributionInset, left: 0 }
           : undefined
       }
       // The platform compass is replaced by NorthArrow, never shown alongside

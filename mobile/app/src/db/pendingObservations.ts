@@ -45,11 +45,11 @@ export function deletePending(id: number): void {
 /**
  * Today's daily checklist as the active record, for recording a new
  * observation. The caller asks first when another record is open
- * (ensureNoConflictingActive), as for any new checklist.
+ * (ensureNoConflictingActive), as for any new checklist. `observedAt` (today)
+ * is the observation's time: the checklist starts no later than it.
  */
-export function todaysDailySession(): number {
-  const now = Date.now();
-  return core.dailySessionFor(ctx(), now, { name: dailyChecklistName(now), recordedBy: defaultSurveyorString(), activate: true });
+export function todaysDailySession(observedAt: number = Date.now()): number {
+  return core.dailySessionFor(ctx(), observedAt, { name: dailyChecklistName(observedAt), recordedBy: defaultSurveyorString(), activate: true });
 }
 
 /**
@@ -84,6 +84,11 @@ export function closeStaleDailySessions(): number[] {
 /** Whether `sessionId` is one of casual mode's daily checklists (the stale prompt skips them). */
 export function isDailySession(sessionId: number): boolean {
   return core.isDailySession(ctx(), sessionId);
+}
+
+/** The day `sessionId` is the daily checklist of, or null. */
+export function dailySessionDay(sessionId: number): string | null {
+  return core.dailySessionDay(ctx(), sessionId);
 }
 
 /**

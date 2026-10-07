@@ -21,11 +21,12 @@
  * are not observations made where the phone is now.
  */
 import * as Location from 'expo-location';
-import { stampPlotSpeciesFix, stampRecordFix } from '~/db';
+import { stampPlotSpeciesAlong, stampPlotSpeciesFix, stampRecordAlong, stampRecordFix } from '~/db';
 import { useSettings } from '~/stores/settings';
 import { occurrencesLocated } from '~/survey/db/surveyCore';
 import { getFwSurvey, stampOccurrenceFix } from '~/survey/db/surveys';
-import { isRecordingTarget, useTrackRecorder } from './trackRecorder';
+import { trackLengthM } from './alongTrack';
+import { isRecordingTarget, liveTrack, useTrackRecorder } from './trackRecorder';
 
 /** 'modular': an occurrence of a checklist / plot-style survey (2G-b), under the setting of the record it matches. */
 export type RecordKind = 'session' | 'plot' | 'modular';
@@ -100,6 +101,14 @@ export function stampNewRecord(
 ): void {
   if (!recordId || (!force && !wantsRecordFix(kind, parentId))) return;
   const tracking = isRecordingTarget({ kind, id: parentId });
+  // How far along the track it was entered, taken now rather than when the fix
+  // arrives (code review L47). Surveys have no split map to use it.
+  const track = tracking && kind !== 'modular' ? liveTrack({ kind, id: parentId }) : null;
+  if (track) {
+    const m = trackLengthM(track);
+    if (kind === 'session') stampRecordAlong(recordId, m);
+    else stampPlotSpeciesAlong(recordId, m);
+  }
   void (async () => {
     try {
       const fix = await takeFix(tracking);

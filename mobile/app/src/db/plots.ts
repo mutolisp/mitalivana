@@ -213,6 +213,9 @@ export type PlotSpeciesRecord = {
   elevation_m: number | null;
   /** 'gnss' | 'manual' | null (v46) → DwC verticalDatum; see dwcLocation.ts. */
   elevation_source: string | null;
+  /** Metres along the record's own track when it was entered, stamped with
+   *  its fix while recording (v93); the split map's stretch. NULL = not known. */
+  along_m: number | null;
   // Detection method (v13): 'seen' | 'heard' | 'flying'. Point count / animal
   // records; null for plant/unspecified.
   detection_type: string | null;
@@ -1058,6 +1061,11 @@ export function stampPlotSpeciesFix(
   return (res.rowsAffected ?? 0) > 0;
 }
 
+/** Same as `records.ts::stampRecordAlong`, for a plot species record. */
+export function stampPlotSpeciesAlong(id: number, alongM: number): void {
+  getUserDb().executeSync(`UPDATE plot_species_records SET along_m = ? WHERE id = ? AND along_m IS NULL`, [alongM, id]);
+}
+
 /** Persist the list of photo URIs (`ph://` or `file://`) for a plot species
  *  record. Pass an empty array to clear. Stored as JSON in `photo_paths`. */
 export function updatePlotSpeciesPhotos(id: number, paths: string[]): void {
@@ -1168,6 +1176,8 @@ export type ImportedPlotSpecies = {
   accuracy?: number | null;
   elevation_m?: number | null;
   elevation_source?: string | null;
+  /** Metres along the record's own track when entered (v93). */
+  along_m?: number | null;
   observed_at?: number | null;
   /** Photo filenames inside the zip's `photos/` belonging to this record. */
   photo_files?: string[];
@@ -1411,8 +1421,8 @@ function importPlotSurveyTx(
          reproductive_condition, leaf_phenology, degree_of_establishment,
          verbatim_identification, lat, lng, accuracy, elevation_m, elevation_source, detection_type,
          photo_paths, audio_paths, used_name_id, used_scientific_name,
-         observed_at, created_at, updated_at, freq_cells, freq_count
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         observed_at, created_at, updated_at, freq_cells, freq_count, along_m
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         plotId,
         sp.taxon_id,
@@ -1448,6 +1458,7 @@ function importPlotSurveyTx(
         now,
         sp.freq_cells ?? null,
         sp.freq_count ?? null,
+        sp.along_m ?? null,
       ],
     );
   }

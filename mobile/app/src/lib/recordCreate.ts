@@ -83,6 +83,8 @@ type NewRecordKind = 'session' | 'plot' | 'gloria' | 'miren' | 'modular';
 
 type ActiveConflict = {
   kind: NewRecordKind;
+  /** A fixed plot: named plainly, not 穿越線／定點計數 (code review L58). */
+  fixedPlot?: boolean;
   label: string;
   href: Href;
   end: () => void;
@@ -134,6 +136,7 @@ function findActiveConflict(): ActiveConflict | null {
   if (plot) {
     return {
       kind: 'plot',
+      fixedPlot: plot.plot_type === 'fixed',
       label: plot.plotid || i18n.t('nav.plot'),
       href: `/plot/${plot.id}` as Href,
       end: () => {
@@ -159,14 +162,15 @@ function findActiveConflict(): ActiveConflict | null {
   return null;
 }
 
-function nounOf(k: NewRecordKind): string {
+function nounOf(k: NewRecordKind, fixedPlot = false): string {
   switch (k) {
     case 'session':
       return i18n.t('nav.session');
     case 'plot': {
-      // Volunteers' plots are transects and point counts (nav.plot_vol, Q5).
+      // Volunteers' plots are transects and point counts (nav.plot_vol, Q5);
+      // a fixed one left from pro mode is a plot.
       const mode = currentUsageMode();
-      return i18n.t('nav.plot', { context: mode === 'pro' ? undefined : mode });
+      return i18n.t('nav.plot', { context: mode === 'pro' || fixedPlot ? undefined : mode });
     }
     case 'gloria':
       return i18n.t('nav.gloria');
@@ -186,11 +190,11 @@ function nounOf(k: NewRecordKind): string {
  */
 async function showConflictAlert(conflict: ActiveConflict, wanted: NewRecordKind): Promise<boolean> {
   const idx = await showActionSheet({
-    title: i18n.t('recordCreate.conflictTitle', { noun: nounOf(conflict.kind) }),
+    title: i18n.t('recordCreate.conflictTitle', { noun: nounOf(conflict.kind, conflict.fixedPlot) }),
     message: i18n.t('recordCreate.conflictMsg', { label: conflict.label, noun: nounOf(wanted) }),
     cancelLabel: i18n.t('common.cancel'),
     options: [
-      { label: i18n.t('recordCreate.goTo', { noun: nounOf(conflict.kind) }) },
+      { label: i18n.t('recordCreate.goTo', { noun: nounOf(conflict.kind, conflict.fixedPlot) }) },
       { label: i18n.t('recordCreate.endAndStart', { noun: nounOf(wanted) }), destructive: true },
     ],
   });

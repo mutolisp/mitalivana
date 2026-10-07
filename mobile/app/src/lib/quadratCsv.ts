@@ -18,6 +18,7 @@ import { excelCell } from './csvFormula';
 import { getBit } from './grid';
 import type { QuadratDocInput } from './quadratYaml';
 import { publishedTaxonId } from './taxonId';
+import { locationTerms } from './dwcLocation';
 
 export const SURFACE_KEYS = [
   'cov_vascular',
@@ -104,7 +105,8 @@ export function buildQuadratSurfaceCsv(
   const lines = [
     [
       'plotid', 'quadrat', 'eventID', 'parentEventID', 'position', 'subplot', 'size_m', 'grid_n', 'top_edge',
-      'decimalLatitude', 'decimalLongitude', 'coordinateUncertaintyInMeters',
+      // The datum from locationTerms(), as every coordinate the app writes (code review L52).
+      'decimalLatitude', 'decimalLongitude', 'coordinateUncertaintyInMeters', 'geodeticDatum',
       ...SURFACE_KEYS, 'cov_sum', 'freq_mode', 'species', 'locked', 'started_at', 'ended_at', 'notes',
     ].join(','),
   ];
@@ -116,7 +118,7 @@ export function buildQuadratSurfaceCsv(
     lines.push(
       row([
         plotid, q.label, ids.eventID, ids.parentEventID, q.position, subplot, q.size_m, q.grid_n, q.top_edge,
-        q.lat, q.lng, q.accuracy,
+        q.lat, q.lng, q.accuracy, locationTerms(q.lat, null, null).geodeticDatum,
         ...values, sum, q.freq_mode, q.species.length, q.locked ? 1 : 0,
         q.started_at != null ? isoTime(q.started_at) : null, q.ended_at != null ? isoTime(q.ended_at) : null, q.notes,
       ]),

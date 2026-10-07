@@ -52,7 +52,7 @@ import { stampNewRecord } from './recordFix';
 import { draftNow, startObserve } from './observeDraft';
 import { speciesParts } from '~/lib/nameParts';
 import { shows } from '~/lib/usageMode';
-import { currentUsageMode } from '~/lib/useUsageMode';
+import { currentUsageMode, useUsageMode } from '~/lib/useUsageMode';
 
 type PlotTarget = {
   sp: SearchResult;
@@ -112,7 +112,10 @@ export function useAddToActiveRecord(): {
   const startSession = useActiveSession((s) => s.start);
   const [plotTarget, setPlotTarget] = useState<PlotTarget | null>(null);
 
-  const targetLabel = shows(currentUsageMode(), 'casualObservations')
+  // Subscribed, not read: the taxonomy tab keeps this hook mounted across a
+  // mode switch, and the label stayed the old mode's (code review L55).
+  const mode = useUsageMode();
+  const targetLabel = shows(mode, 'casualObservations')
     ? t('casual.observeTitle')
     : gloria
     ? t('addToRecord.toGloria')

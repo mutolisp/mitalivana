@@ -6,7 +6,7 @@ import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { USAGE_MODES_OFFERED, fieldLabel, settleRecordTypeDefault, vis, type Cap, type UsageMode, type Vis } from '~/lib/usageMode';
-import { useSettings } from '~/stores/settings';
+import { useSettings, type AnalysisFormat } from '~/stores/settings';
 
 const effective = (mode: UsageMode | null): UsageMode => (USAGE_MODES_OFFERED ? (mode ?? 'pro') : 'pro');
 
@@ -55,4 +55,17 @@ export function useModeT(): (key: string, options?: Record<string, unknown>) => 
       mode === 'pro' ? String(t(key, options)) : fieldLabel(String(t(key, { ...options, context: mode })), mode),
     [t, mode],
   );
+}
+
+const NO_FORMATS: AnalysisFormat[] = [];
+
+/**
+ * The analysis exports (vegan, JUICE, DwC-A) chosen in the settings, or none
+ * where the mode hides that choice: a volunteer could not turn off what was
+ * picked in pro mode, yet got the files (code review L61).
+ */
+export function useAnalysisFormats(): AnalysisFormat[] {
+  const formats = useSettings((s) => s.export_analysis_formats);
+  const showsChoice = vis(useUsageMode(), 'exportAnalysis') === 'show';
+  return showsChoice ? formats : NO_FORMATS;
 }

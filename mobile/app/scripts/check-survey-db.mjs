@@ -742,6 +742,9 @@ ok(count('fw_individuals', 'frame_id = ?', R) === before.trees && count('fw_stem
 ok(one('SELECT first_survey_id AS f FROM fw_individuals WHERE uuid = ?', recruitUuid)?.f === back, 'recover: the recruit is back (same uuid), first seen in this census');
 ok(one(`SELECT status FROM fw_survey_quadrats WHERE survey_id = ? AND quadrat_code = '0100'`, back).status === 'done', 'recover: quadrat status kept');
 ok(one(`SELECT uuid FROM fw_survey_quadrats WHERE survey_id = ? AND quadrat_code = '0000'`, back).uuid === header.quadrats[0].uuid, 'recover: quadrats keep their uuids (their versions match again)');
+// Its series gone (the template deleted) and its code since given to another series on the plot (code review L63).
+const ghost = { ...header, series: { ...header.series, uuid: 'series-gone' }, survey: { ...header.survey, uuid: 'census-ghost' } };
+throwsCodeOf(() => tx(() => sl.recoverCensus(ctx, ghost, [])), sl.RecoverCensusError, 'series_code_taken', 'recover: refused, said so, when another series holds its code');
 
 // ── deleting a census ────────────────────────────────────────────────────
 throwsCode(() => s.deleteCensus(ctx, C1), 'not_latest_census', 'delete: only the latest census of a series');

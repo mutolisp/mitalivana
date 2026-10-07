@@ -210,7 +210,14 @@
     "cameraAdd": "Add by photo",
     "photoByCamera": "Take photo",
     "photoFromLibrary": "Pick from library",
-    "photoModeHint": "Long press to switch between the camera and the library"
+    "photoModeHint": "Long press to switch between the camera and the library",
+    "placeLabel": "Place / track",
+    "placeUnset": "Not set",
+    "sortNewFirst": "Newest first",
+    "sortOldFirst": "Oldest first",
+    "sortAsc": "Ascending",
+    "sortDesc": "Descending",
+    "sortFlipHint": "{{dir}}; tap again to reverse"
   },
   "records": {
     "recording": "Recording",
@@ -303,7 +310,12 @@
     "monthGroup": "{{year}}-{{month2}}",
     "pinNamed": "Pin “{{name}}”",
     "unpinNamed": "Unpin “{{name}}”",
-    "deleteFailed": "Could not delete"
+    "deleteFailed": "Could not delete",
+    "pendingTitle": "Unidentified",
+    "pendingBanner_one": "{{count}} unidentified observation",
+    "pendingBanner_other": "{{count}} unidentified observations",
+    "pendingBannerBody": "Recorded without a species name",
+    "pendingEmpty": "No unidentified observations"
   },
   "export": {
     "preparing": "Preparing…",
@@ -339,7 +351,8 @@
       "projectNotFound": "Project {{id}} not found",
       "projectEmpty": "“{{name}}” has no records to export",
       "noneSelected": "No records selected",
-      "tooManyReleves": "{{n}} relevés exceed the JUICE limit of {{max}}"
+      "tooManyReleves": "{{n}} relevés exceed the JUICE limit of {{max}}",
+      "duplicateName": "Two different files would be written as {{name}}"
     },
     "formula": {
       "title": "Some values could run as spreadsheet formulas",
@@ -399,7 +412,9 @@
     "layout": "Layout",
     "selectMany": "Select several",
     "days30": "30 days",
-    "addSpecies": "Add species"
+    "addSpecies": "Add species",
+    "recordInfo": "Record info",
+    "hasMissing": "Some details are not filled in"
   },
   "record": {
     "kindSession": "Quick checklist",
@@ -1300,7 +1315,8 @@
     "remainingSpecies_one": "{{count}} species left",
     "remainingSpecies_other": "{{count}} species left",
     "selectedConditions_one": "{{count}} condition selected",
-    "selectedConditions_other": "{{count}} conditions selected"
+    "selectedConditions_other": "{{count}} conditions selected",
+    "addObserveDesc": "Opens “Add observation”, where you can add photos, a count and notes"
   },
   "conservation": {
     "invasiveShort": "I",
@@ -1418,7 +1434,7 @@
     "btnLine": "Line",
     "btnPolygon": "Polygon",
     "removeAssign": "Remove assignment",
-    "emptySites": "No geographic sites. Tap \"New geographic site\" above to start drawing.",
+    "emptySites": "No geographic sites. Tap \"New geographic site\" below to start drawing.",
     "assignProject": "Assign project",
     "assignProjectDesc": "Pick an existing project, or create one to apply to this record",
     "newProject": "New project",
@@ -1446,7 +1462,12 @@
     "assignIdentifierDesc": "Multiple allowed; long-press ☰ to reorder (syncs to preferences)",
     "identifierNamePlaceholder": "Identifier name",
     "addIdentifier": "Add",
-    "emptyIdentifiers": "No identifiers yet — tap “Add identifier” above."
+    "emptyIdentifiers": "No identifiers yet — tap “Add identifier” above.",
+    "multiPick": "Select several",
+    "mergeHint": "Pick sites of one kind (points, lines or polygons) to merge into one for this record; the originals stay.",
+    "assignMerged_one": "Merge {{count}} and assign",
+    "assignMerged_other": "Merge {{count}} and assign",
+    "pickTwo": "Pick two or more"
   },
   "exportPref": {
     "title": "Export settings",
@@ -3748,6 +3769,7 @@
       "occurrence": "Occurrence",
       "identified_by": "Identified by",
       "elevation_source": "Elevation source",
+      "along_m": "Distance along track (m)",
       "surveyUnit": "Unit",
       "measureUnit": "Unit of measure",
       "viaInteraction": "Interaction partner",
@@ -3883,7 +3905,8 @@
       "block_size_differs": "Teammates use another sync block size for this census; it cannot be merged.",
       "unreadable": "Received data this app cannot read (perhaps from a newer version); skipped.",
       "undecided": "Some repeated tags have no decision yet.",
-      "template_differs": "Teammates use another census template for this census; it was not merged."
+      "template_differs": "Teammates use another census template for this census; it was not merged.",
+      "series_code_taken": "This plot on this phone already has another series with the same code, so the teammate's series cannot be created."
     },
     "mergedFromToast": "Merged data from {{names}}",
     "members": "Members",
@@ -5134,7 +5157,8 @@
       "matrix": "Matrix",
       "matrixDesc": "{{type}}: rows are A (the one doing it), columns B; cells add up the times.",
       "searchBelow": "For a species not recorded here, use the search below."
-    }
+    },
+    "seriesCodeTaken": "This permanent plot already has another series with the same code (from another template), so this census cannot be added."
   },
   "task": {
     "working": "Working…",

@@ -108,6 +108,9 @@ eq('label keeps a two-letter unit', fieldLabel('高度 (cm)', 'vol'), '高度 (c
 eq('label keeps percent', fieldLabel('覆蓋度 (%)', 'vol'), '覆蓋度 (%)');
 eq('label keeps an abbreviation', fieldLabel('隊伍總容量（MB）', 'vol'), '隊伍總容量（MB）');
 eq('label without parentheses', fieldLabel('數量', 'vol'), '數量');
+// A plain word opening a list is not a term (code review L56): tm() runs over descriptions too.
+eq('label keeps a list in a description, fr', fieldLabel('Toutes les fiches (listes, placettes, collectes et GLORIA réunis)', 'vol'), 'Toutes les fiches (listes, placettes, collectes et GLORIA réunis)');
+eq('label keeps a list in a description, es', fieldLabel('Todos los registros (listas, parcelas, colectas y GLORIA)', 'vol'), 'Todos los registros (listas, parcelas, colectas y GLORIA)');
 
 // Observation tips (src/lib/observationTips.ts) are read out of a table, so
 // check:i18n cannot see their keys: every one must exist in every locale.

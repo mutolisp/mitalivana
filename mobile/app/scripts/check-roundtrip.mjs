@@ -47,7 +47,7 @@ import {
   readRecordYamlTextFromBytes,
   safeMediaBasename,
 } from '../src/lib/recordImportZip.ts';
-import { excelCell, formulaLike, formulaTally, guardFormula, unguardFormula } from '../src/lib/csvFormula.ts';
+import { excelCell, formulaLike, formulaTally, formulaTallyYielding, guardFormula, unguardFormula } from '../src/lib/csvFormula.ts';
 import { toCsv } from '../src/modules/gloria/export/sheetRows.ts';
 import { parseCsv } from '../src/modules/gloria/model/summitImport.ts';
 
@@ -353,6 +353,7 @@ const plotSpecies = [
     sex: 'unknown', life_stage: 'adult', reproductive_condition: '["flowering","fruiting"]',
     leaf_phenology: '["evergreen"]', organism_quantity: '3', organism_quantity_type: 'individuals',
     lat: 24.71, lng: 121.51, accuracy: 4, elevation_m: 1350, elevation_source: 'gnss', detection_type: 'seen',
+    along_m: 412.5,
     degree_of_establishment: 'cultivated',
     verbatim_identification: 'Lauraceae sp2',
     used_name_id: 165943, used_scientific_name: 'Lycopodium tamariscinum',
@@ -372,6 +373,7 @@ const plotSpecies = [
     degree_of_establishment: null,
     organism_quantity: '2', organism_quantity_type: 'individuals',
     lat: null, lng: null, accuracy: null, elevation_m: null, elevation_source: null, detection_type: null,
+    along_m: null,
     used_name_id: null, used_scientific_name: null,
     used_status: '', used_stale: false, used_accepted_name: '',
     simple_name: 'Lithocarpus konishii', name_author: 'Hayata', common_name_c: '小西氏石櫟',
@@ -479,6 +481,9 @@ console.log('check:roundtrip');
   eq('species[0].gnss', [s0.lat, s0.lng, s0.accuracy], [24.71, 121.51, 4]);
   eq('species[0].elevation_m', s0.elevation_m, 1350);
   eq('species[0].elevation_source', s0.elevation_source, 'gnss');
+  // Distance along the track (v93): the split map's stretch on the way back in.
+  eq('species[0].along_m', s0.along_m, 412.5);
+  eq('species[1] has no along_m', back.species[1].along_m, null);
   eq('species[0].observed_at', s0.observed_at, 1756500100000);
   eq('species[0].photo_files', s0.photo_files, ['t0301_小西氏石櫟_1.jpg', 't0301_小西氏石櫟_2.jpg']);
   eq('species[0].name', s0.name, 'Lycopodium tamariscinum');
@@ -513,6 +518,7 @@ console.log('check:roundtrip');
       id: 1, session_id: 4, taxon_id: 't0455', occurrence_id: 'socc-1',
       observed_at: 1756500300000, notes: '路邊', photo_paths: '["ph://x"]',
       lat: 24.72, lng: 121.52, accuracy: 8, elevation_m: 88.5, elevation_source: 'gnss', sex: 'female', life_stage: 'adult',
+      along_m: 1234.5,
       reproductive_condition: '["flowering"]', leaf_phenology: '["deciduous"]',
       degree_of_establishment: 'wild',
       verbatim_identification: 'Orchidaceae sp1',
@@ -561,6 +567,7 @@ console.log('check:roundtrip');
   eq('record.elevation_m', r0.elevation_m, 88.5);
   // Restored from verticalDatum (EPSG:7030 ⇒ gnss), not from a key of its own.
   eq('record.elevation_source', r0.elevation_source, 'gnss');
+  eq('record.along_m', r0.along_m, 1234.5);
   eq('record.quantity', [r0.organism_quantity, r0.organism_quantity_type], ['5', 'individuals']);
   eq('record.sex', r0.sex, 'female');
   eq('record.life_stage', r0.life_stage, 'adult');
@@ -971,6 +978,10 @@ checklist:
     { name: 'R/README.txt', text: '=not a table\n' },
   ].map((f) => ({ name: f.name, text: () => f.text }));
   eq('formulaTally', formulaTally(files), { guarded: 2, raw: 3 });
+  // The export's form lets the UI draw after each table (code review M38): the same count, one pause per table.
+  let pauses = 0;
+  eq('formulaTallyYielding', await formulaTallyYielding(files, async () => void pauses++), { guarded: 2, raw: 3 });
+  eq('formulaTallyYielding: a pause after each of the three tables', pauses, 3);
   // A table with a UTF-8 BOM is one meant for Excel, so it must be written
   // with excelCell, not the plain csvEscape the R / GBIF tables use.
   const walk = (dir) => readdirSync(dir, { withFileTypes: true }).flatMap((e) =>

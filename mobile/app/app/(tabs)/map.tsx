@@ -298,6 +298,10 @@ const SESSION_FILL = 'rgba(8, 145, 178, 0.15)'; // a 名錄's boundary polygon
 
 /** Soft cap above which editing a track segment warns about map jank. */
 const TRACK_EDIT_WARN_POINTS = 200;
+/** How long the 「記錄都沒有座標」 note stays up on its own. */
+const NO_COORDS_NOTE_MS = 6000;
+/** 名錄 whose 「記錄都沒有座標」 note was already shown this run: said once, not on every visit. */
+const noCoordsNoted = new Set<number>();
 
 const PLOT_TYPE_LABEL: Record<string, string> = {
   fixed: 'map.plotFixed',
@@ -781,6 +785,22 @@ function MapScreen() {
     // pluralisation, and the number adds nothing the record list doesn't show.
     return { name: sessions.find((s) => s.id === shownSessionId)?.name ?? '' };
   }, [shownSessionId, activeRecords, sessions]);
+  // Said once per 名錄: it closes itself after a few seconds or on a tap, and
+  // does not come back for that 名錄 while the app runs.
+  const [noCoordsClosed, setNoCoordsClosed] = useState<number | null>(null);
+  const noCoordsSessionId = shownSessionNoCoords ? shownSessionId : null;
+  const closeNoCoords = useCallback(() => {
+    if (noCoordsSessionId == null) return;
+    noCoordsNoted.add(noCoordsSessionId);
+    setNoCoordsClosed(noCoordsSessionId);
+  }, [noCoordsSessionId]);
+  useEffect(() => {
+    if (noCoordsSessionId == null || noCoordsNoted.has(noCoordsSessionId)) return undefined;
+    const timer = setTimeout(closeNoCoords, NO_COORDS_NOTE_MS);
+    return () => clearTimeout(timer);
+  }, [noCoordsSessionId, closeNoCoords]);
+  const showNoCoords =
+    noCoordsSessionId != null && noCoordsClosed !== noCoordsSessionId && !noCoordsNoted.has(noCoordsSessionId);
 
   const plotRenderItems = useMemo(
     () =>
@@ -2371,13 +2391,22 @@ function MapScreen() {
 
       {/* "This 名錄 has records, they just have no coordinates." Same slot as the
           two toolbars above, so it is gated on them not being up. */}
-      {shownSessionNoCoords && !drawMode && !editMode && !info ? (
-        <View className="absolute left-3 right-3" style={{ top: insets.top + 60 }} pointerEvents="none">
-          <View className="flex-row items-center rounded-full bg-card px-3 py-2 shadow-md dark:bg-gray-900/95">
+      {shownSessionNoCoords && showNoCoords && !drawMode && !editMode && !info ? (
+        <View className="absolute left-3 right-3" style={{ top: insets.top + 60 }} pointerEvents="box-none">
+          <View className="flex-row items-center rounded-full bg-card py-2 pl-3 pr-2 shadow-md dark:bg-gray-900/95">
             <Ionicons name="information-circle-outline" size={16} color={overlayIcon} />
             <Text className="ml-2 flex-1 text-xs text-gray-700 dark:text-gray-300">
               {t('map.sessionNoCoords', shownSessionNoCoords)}
             </Text>
+            <Pressable
+              onPress={closeNoCoords}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel={t('common.close')}
+              className="ml-1 active:opacity-60"
+            >
+              <Ionicons name="close" size={16} color={overlayIcon} />
+            </Pressable>
           </View>
         </View>
       ) : null}

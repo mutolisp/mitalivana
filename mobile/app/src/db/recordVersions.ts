@@ -24,7 +24,7 @@ import { importSession, getSession, getSessionByUuid, type ImportedSession } fro
 import { applyGloriaMerge, localGloriaDoc } from '~/modules/gloria/merge';
 import { getGloriaSurvey, getSummit, importGloriaDoc } from '~/modules/gloria/db';
 import type { GloriaDoc } from '~/modules/gloria/export/yaml';
-import { COMBINERS, gloriaSide, plotSide, sessionSide, type MergeKind } from '~/lib/mergeDocs';
+import { COMBINERS, gloriaSide, plotSide, remoteFreqGridN, sessionSide, type MergeKind } from '~/lib/mergeDocs';
 import { baseOf, describeMerge, diffSides, planOps, type MergeChange, type MergeSide } from '~/lib/mergeEngine';
 import { addRecordMedia, listRecordMedia } from '~/lib/mediaRefs';
 import type { FileItem, MediaRef } from '~/lib/mediaRefsCore';
@@ -293,7 +293,7 @@ export function restoreVersion(kind: VersionKind, id: number, versionId: number)
         applySessionMerge(id, ops, {});
         break;
       case 'plot':
-        applyPlotMerge(id, ops, {});
+        applyPlotMerge(id, ops, {}, remoteFreqGridN(items));
         break;
       case 'gloria':
         applyGloriaMerge(id, ops);

@@ -5,6 +5,9 @@
  * the pending ones one by one. A row opens 這是什麼？ (app/observe.tsx).
  * The ⋯ switches between rows and two-column photo cards (`records_layout`,
  * shared with the pro records tab: it is the same tab).
+ *
+ * `pendingOnly`: the pending ones alone, under a stack header — how the pro
+ * and volunteer modes reach observations made in casual mode (code review L59).
  */
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
@@ -12,6 +15,7 @@ import { router, useFocusEffect, type Href } from 'expo-router';
 import { useCallback, useMemo, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, SectionList, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { MenuButton, showMenu } from '~/components/OverflowMenu';
 import { ScientificName } from '~/components/ScientificName';
@@ -48,8 +52,8 @@ type Filter = 'all' | 'pending' | 'notUploaded';
 /** One list row, or one row of up to two cards. */
 type Cell = { key: string; items: Item[] };
 
-function loadItems(): Item[] {
-  const records = listDailyRecords();
+function loadItems(pendingOnly: boolean): Item[] {
+  const records = pendingOnly ? [] : listDailyRecords();
   const taxa = resolveTaxa([...new Set(records.map((r) => r.taxon_id))]);
   const named: Item[] = records.map((r) => {
     const tx = taxa.get(r.taxon_id);
@@ -89,10 +93,11 @@ const uploadable = (it: Item) =>
 const keep = (it: Item, f: Filter) =>
   f === 'all' || (f === 'pending' ? it.kind === 'pending' : uploadable(it));
 
-export function CasualHome() {
+export function CasualHome({ pendingOnly = false }: { pendingOnly?: boolean }) {
   const { t } = useTranslation();
   const c = useThemeColors();
   const tabBarInset = useTabBarInset();
+  const insets = useSafeAreaInsets();
   const [items, setItems] = useState<Item[]>([]);
   const [filter, setFilter] = useState<Filter>('all');
   const [query, setQuery] = useState('');
@@ -100,8 +105,8 @@ export function CasualHome() {
 
   useFocusEffect(
     useCallback(() => {
-      setItems(loadItems());
-    }, []),
+      setItems(loadItems(pendingOnly));
+    }, [pendingOnly]),
   );
 
   const counts = useMemo(
@@ -191,64 +196,66 @@ export function CasualHome() {
 
   return (
     <View className="flex-1 bg-paper dark:bg-paper-dark">
-      <View className="bg-card px-4 pb-3 pt-4 dark:bg-gray-900">
-        <View className="flex-row items-center gap-2">
-          <Text
-            accessibilityRole="header"
-            numberOfLines={1}
-            className="flex-1 text-3xl font-bold text-gray-900 dark:text-gray-100"
-          >
-            {t('casual.homeTitle')}
-          </Text>
-          <MenuButton onOpen={openMore} />
-        </View>
-        <View
-          className="mt-3 flex-row items-center rounded-full border border-line bg-card px-4 dark:border-line-dark dark:bg-card-dark"
-          style={{ minHeight: 44 }}
-        >
-          <Ionicons name="search" size={18} color={c.ink3} />
-          <TextInput
-            value={query}
-            onChangeText={setQuery}
-            placeholder={t('casual.searchMine')}
-            placeholderTextColor={c.ink3}
-            autoCapitalize="none"
-            autoCorrect={false}
-            returnKeyType="search"
-            accessibilityLabel={t('casual.searchMine')}
-            className="ml-2 flex-1 py-2 text-base text-gray-900 dark:text-gray-100"
-          />
-          {query ? (
-            <Pressable
-              onPress={() => setQuery('')}
-              hitSlop={12}
-              accessibilityLabel={t('common.clear')}
+      {pendingOnly ? null : (
+        <View className="bg-card px-4 pb-3 pt-4 dark:bg-gray-900">
+          <View className="flex-row items-center gap-2">
+            <Text
+              accessibilityRole="header"
+              numberOfLines={1}
+              className="flex-1 text-3xl font-bold text-gray-900 dark:text-gray-100"
             >
-              <Ionicons name="close-circle" size={18} color={c.ink3} />
-            </Pressable>
-          ) : null}
+              {t('casual.homeTitle')}
+            </Text>
+            <MenuButton onOpen={openMore} />
+          </View>
+          <View
+            className="mt-3 flex-row items-center rounded-full border border-line bg-card px-4 dark:border-line-dark dark:bg-card-dark"
+            style={{ minHeight: 44 }}
+          >
+            <Ionicons name="search" size={18} color={c.ink3} />
+            <TextInput
+              value={query}
+              onChangeText={setQuery}
+              placeholder={t('casual.searchMine')}
+              placeholderTextColor={c.ink3}
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="search"
+              accessibilityLabel={t('casual.searchMine')}
+              className="ml-2 flex-1 py-2 text-base text-gray-900 dark:text-gray-100"
+            />
+            {query ? (
+              <Pressable
+                onPress={() => setQuery('')}
+                hitSlop={12}
+                accessibilityLabel={t('common.clear')}
+              >
+                <Ionicons name="close-circle" size={18} color={c.ink3} />
+              </Pressable>
+            ) : null}
+          </View>
+          <View accessibilityRole="tablist" className="mt-3 flex-row gap-2">
+            <Chip
+              label={t('casual.filterAll')}
+              count={counts.all}
+              selected={filter === 'all'}
+              onPress={() => setFilter('all')}
+            />
+            <Chip
+              label={t('casual.filterPending')}
+              count={counts.pending}
+              selected={filter === 'pending'}
+              onPress={() => setFilter('pending')}
+            />
+            <Chip
+              label={t('casual.filterNotUploaded')}
+              count={counts.notUploaded}
+              selected={filter === 'notUploaded'}
+              onPress={() => setFilter('notUploaded')}
+            />
+          </View>
         </View>
-        <View accessibilityRole="tablist" className="mt-3 flex-row gap-2">
-          <Chip
-            label={t('casual.filterAll')}
-            count={counts.all}
-            selected={filter === 'all'}
-            onPress={() => setFilter('all')}
-          />
-          <Chip
-            label={t('casual.filterPending')}
-            count={counts.pending}
-            selected={filter === 'pending'}
-            onPress={() => setFilter('pending')}
-          />
-          <Chip
-            label={t('casual.filterNotUploaded')}
-            count={counts.notUploaded}
-            selected={filter === 'notUploaded'}
-            onPress={() => setFilter('notUploaded')}
-          />
-        </View>
-      </View>
+      )}
 
       <SectionList
         sections={sections}
@@ -258,7 +265,8 @@ export function CasualHome() {
         contentContainerStyle={{
           paddingHorizontal: 16,
           paddingTop: 12,
-          paddingBottom: tabBarInset + 16,
+          // A stack screen has no tab bar under it.
+          paddingBottom: (pendingOnly ? insets.bottom : tabBarInset) + 16,
         }}
         renderSectionHeader={({ section }) => (
           <View className="flex-row items-baseline gap-2 px-0.5 pb-1.5 pt-2">
@@ -291,7 +299,11 @@ export function CasualHome() {
           <View className="items-center px-6 pt-16">
             <Ionicons name="camera-outline" size={48} color={c.ink3} />
             <Text className="mt-3 text-center text-base text-gray-600 dark:text-gray-400">
-              {items.length === 0 ? t('casual.empty') : t('casual.emptyFiltered')}
+              {pendingOnly
+                ? t('records.pendingEmpty')
+                : items.length === 0
+                  ? t('casual.empty')
+                  : t('casual.emptyFiltered')}
             </Text>
           </View>
         }

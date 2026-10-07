@@ -166,7 +166,14 @@ export function deletePending(ctx: PendingCtx, id: number): void {
 // ── Daily checklists ───────────────────────────────────────────────────────
 
 export const DAILY_SETTING = 'casual_daily';
+/** Day (YYYY-MM-DD) → the session id of that day's checklist. */
 export type DailyMap = Record<string, number>;
+/**
+ * As stored: day → the session's uuid. A uuid survives what changes the id —
+ * a checklist recovered from 最近刪除 or overwritten from a file is inserted
+ * again (code review L34). A number is the id an earlier version stored.
+ */
+export type StoredDailyMap = Record<string, number | string>;
 
 const pad = (n: number) => String(n).padStart(2, '0');
 /** The local date of `ts`, YYYY-MM-DD: which day's checklist it belongs to. */
@@ -175,14 +182,16 @@ export function dayKey(ts: number): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-export function parseDailyMap(raw: string | null | undefined): DailyMap {
+export function parseDailyMap(raw: string | null | undefined): StoredDailyMap {
   if (!raw) return {};
   try {
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
-    const out: DailyMap = {};
+    const out: StoredDailyMap = {};
     for (const [k, v] of Object.entries(parsed)) {
-      if (/^\d{4}-\d{2}-\d{2}$/.test(k) && typeof v === 'number' && Number.isInteger(v) && v > 0) out[k] = v;
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(k)) continue;
+      if (typeof v === 'number' && Number.isInteger(v) && v > 0) out[k] = v;
+      else if (typeof v === 'string' && v.length > 0 && v.length <= 64) out[k] = v;
     }
     return out;
   } catch {
@@ -190,27 +199,52 @@ export function parseDailyMap(raw: string | null | undefined): DailyMap {
   }
 }
 
-/** The map, without days whose session no longer exists. */
+/** The map as session ids, without days whose session no longer exists. */
 export function readDailyMap(ctx: PendingCtx): DailyMap {
   const raw = (rowsOf<{ value: string | null }>(ctx.db.executeSync(`SELECT value FROM settings WHERE key = ?`, [DAILY_SETTING]))[0]
     ?.value ?? null) as string | null;
-  const map = parseDailyMap(raw);
-  const ids = Object.values(map);
-  if (ids.length === 0) return map;
-  const alive = new Set(
-    rowsOf<{ id: number }>(ctx.db.executeSync(`SELECT id FROM sessions WHERE id IN (${ids.map(() => '?').join(', ')})`, ids)).map((r) => r.id),
-  );
+  const stored = parseDailyMap(raw);
+  const ids = Object.values(stored).filter((v): v is number => typeof v === 'number');
+  const uuids = Object.values(stored).filter((v): v is string => typeof v === 'string');
+  const alive = new Set<number>();
+  const idOfUuid = new Map<string, number>();
+  if (ids.length) {
+    for (const r of rowsOf<{ id: number }>(ctx.db.executeSync(`SELECT id FROM sessions WHERE id IN (${ids.map(() => '?').join(', ')})`, ids))) alive.add(r.id);
+  }
+  if (uuids.length) {
+    for (const r of rowsOf<{ id: number; uuid: string }>(
+      ctx.db.executeSync(`SELECT id, uuid FROM sessions WHERE uuid IN (${uuids.map(() => '?').join(', ')})`, uuids),
+    ))
+      idOfUuid.set(r.uuid, r.id);
+  }
   const kept: DailyMap = {};
-  for (const [k, v] of Object.entries(map)) if (alive.has(v)) kept[k] = v;
+  for (const [k, v] of Object.entries(stored)) {
+    const id = typeof v === 'number' ? (alive.has(v) ? v : null) : (idOfUuid.get(v) ?? null);
+    if (id != null) kept[k] = id;
+  }
   return kept;
 }
 
 function writeDailyMap(ctx: PendingCtx, map: DailyMap): void {
-  ctx.db.executeSync(`INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)`, [DAILY_SETTING, JSON.stringify(map)]);
+  const ids = Object.values(map);
+  const uuidOf = new Map<number, string>();
+  if (ids.length) {
+    for (const r of rowsOf<{ id: number; uuid: string }>(ctx.db.executeSync(`SELECT id, uuid FROM sessions WHERE id IN (${ids.map(() => '?').join(', ')})`, ids)))
+      uuidOf.set(r.id, r.uuid);
+  }
+  const stored: StoredDailyMap = {};
+  for (const [k, id] of Object.entries(map)) stored[k] = uuidOf.get(id) ?? id;
+  ctx.db.executeSync(`INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)`, [DAILY_SETTING, JSON.stringify(stored)]);
 }
 
 export function isDailySession(ctx: PendingCtx, sessionId: number): boolean {
   return Object.values(readDailyMap(ctx)).includes(sessionId);
+}
+
+/** The day `sessionId` is the daily checklist of, or null when it is not one. */
+export function dailySessionDay(ctx: PendingCtx, sessionId: number): string | null {
+  for (const [day, id] of Object.entries(readDailyMap(ctx))) if (id === sessionId) return day;
+  return null;
 }
 
 /**
@@ -231,7 +265,9 @@ export function closeStaleDailySessions(ctx: PendingCtx): number[] {
     const last = rowsOf<{ ts: number | null }>(
       ctx.db.executeSync(`SELECT MAX(observed_at) AS ts FROM checklist_records WHERE session_id = ?`, [id]),
     )[0]?.ts;
-    ctx.db.executeSync(`UPDATE sessions SET status = 'done', ended_at = ? WHERE id = ?`, [last ?? s.started_at, id]);
+    // Never before its start (code review M29): a record can be older than
+    // the moment its checklist was opened.
+    ctx.db.executeSync(`UPDATE sessions SET status = 'done', ended_at = ? WHERE id = ?`, [Math.max(last ?? s.started_at, s.started_at), id]);
     ended.push(id);
   }
   return ended;
@@ -268,7 +304,10 @@ function anyActive(ctx: PendingCtx): boolean {
 
 /**
  * The daily checklist of the day `ts` falls on, created if there is none.
- * An earlier day's is never active; today's, see `activate`.
+ * An earlier day's is never active; today's, see `activate`. `ts` is the time
+ * of the observation going in: the checklist starts no later than it (an EXIF
+ * time or a pending observation is often older than the moment it is added;
+ * code review M29).
  */
 export function dailySessionFor(ctx: PendingCtx, ts: number, opts: DailyOptions): number {
   const now = ctx.now();
@@ -285,6 +324,7 @@ export function dailySessionFor(ctx: PendingCtx, ts: number, opts: DailyOptions)
         closeActiveRecords(ctx.db, now, { kind: 'session', id: existing });
         ctx.db.executeSync(`UPDATE sessions SET status = 'active', resumed_at = ? WHERE id = ?`, [now, existing]);
       }
+      ctx.db.executeSync(`UPDATE sessions SET started_at = MIN(started_at, ?) WHERE id = ?`, [ts, existing]);
       return existing;
     }
     if (opts.activate || !anyActive(ctx)) {
@@ -292,18 +332,20 @@ export function dailySessionFor(ctx: PendingCtx, ts: number, opts: DailyOptions)
       const id =
         ctx.db.executeSync(
           `INSERT INTO sessions (uuid, name, type, project_id, started_at, recorded_by, status) VALUES (?, ?, 'checklist', 0, ?, ?, 'active')`,
-          [ctx.uuid(), opts.name, now, opts.recordedBy],
+          [ctx.uuid(), opts.name, Math.min(now, ts), opts.recordedBy],
         ).insertId ?? 0;
       writeDailyMap(ctx, { ...map, [day]: id });
       return id;
     }
   }
   // Another day, or today while something else is open: an ended checklist
-  // spanning what it holds. An open one (today's) keeps its times.
+  // spanning what it holds. An open one (today's) keeps its end, but starts
+  // no later than what goes in.
   if (existing != null) {
     ctx.db.executeSync(
-      `UPDATE sessions SET started_at = MIN(started_at, ?), ended_at = MAX(COALESCE(ended_at, ?), ?)
-        WHERE id = ? AND status = 'done'`,
+      `UPDATE sessions SET started_at = MIN(started_at, ?),
+              ended_at = CASE WHEN status = 'done' THEN MAX(COALESCE(ended_at, ?), ?) ELSE ended_at END
+        WHERE id = ?`,
       [ts, ts, ts, existing],
     );
     return existing;

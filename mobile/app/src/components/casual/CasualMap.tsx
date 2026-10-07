@@ -114,7 +114,9 @@ export function CasualMap() {
       }));
     return [...named, ...pending].sort((a, b) => b.observedAt - a.observedAt);
   }, [data, taxa, allDays, today, t]);
-  const fieldMap = useFieldMapData(mapRecords, track);
+  // Today's track says nothing about where along it an earlier day's record was (code review L46).
+  const onTodaysTrack = useCallback((r: MapRecord) => dayKey(r.observedAt) === today, [today]);
+  const fieldMap = useFieldMapData(mapRecords, track, onTodaysTrack);
 
   const open = (id: number) => {
     if (id < 0) {

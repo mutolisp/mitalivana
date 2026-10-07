@@ -97,8 +97,12 @@ export function PhotoViewerModal({
   const [zoomed, setZoomed] = useState(false);
   const { width, height } = Dimensions.get('window');
 
+  // Opened (or closed: this stays mounted with a null index), a page starts at
+  // 1×, so the pager must not stay held from a close made while zoomed (code
+  // review M32).
   useEffect(() => {
     if (index !== null) setCurrent(index);
+    setZoomed(false);
   }, [index]);
 
   if (index === null || photos.length === 0) return null;

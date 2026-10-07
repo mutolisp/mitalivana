@@ -134,6 +134,7 @@ ok(live.previous && live.previous.occurrences.length === 1, 'file: the survey be
 // ── the file: named media, through the real importer ─────────────────────
 // The app's own photo rule (bundleExport passes it): anything it does not know is named .jpg (code review H3).
 const extOf = guessExt;
+ok(guessExt('file:///p/a.HEIF') === 'heif' && guessExt('file:///p/a.heic') === 'heic' && guessExt('ph://x') === 'jpg', 'photo extension: heif kept, as the importer accepts it (code review L53)');
 const { doc: fileDoc, files } = x.docForFile(live, { names, extOf });
 ok(files.length === 4 && fileDoc.media.every((m) => m.uri === undefined && typeof m.file === 'string'), `file: media named by file, no device paths (${files.map((f) => f.file)})`);
 ok(fileDoc.frame_labels[0].photo_file && fileDoc.frame_labels[0].photo_uri === undefined, 'file: the morphospecies photo named by file');

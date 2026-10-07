@@ -93,7 +93,14 @@ async function importNew(payload: ModularImport): Promise<void> {
     });
   } catch (e) {
     if (e instanceof core.InsertSurveyError) {
-      Alert.alert(t('recordCreate.importFailTitle'), e.code === 'frame_code_taken' ? t('teamSync.err.frame_code_taken') : t('surveyImport.numberTaken', { name: labelOf(local) }));
+      Alert.alert(
+        t('recordCreate.importFailTitle'),
+        e.code === 'frame_code_taken'
+          ? t('teamSync.err.frame_code_taken')
+          : e.code === 'series_code_taken'
+            ? t('survey.seriesCodeTaken')
+            : t('surveyImport.numberTaken', { name: labelOf(local) }),
+      );
       return;
     }
     throw e;

@@ -1,14 +1,14 @@
 /**
  * One fact about the record in progress — project, place, time, surveyor —
- * as a tappable chip in the checklist's context strip (02-components.md).
+ * as a tappable chip (02-components.md): 採集 and a new GLORIA survey. The
+ * checklist screens moved theirs into ⋯ (記錄資訊, 2026-10-07).
  *
  * Unset is drawn dashed and grey, so what is still missing before the survey
  * ends is visible at a glance. `live` is track recording: red, like the
  * recorder's own badge.
  */
 import { Ionicons } from '@expo/vector-icons';
-import type { ReactNode } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
 import { useThemeColors } from '~/theme/colors';
 
@@ -62,23 +62,5 @@ export function ContextChip({
       </Text>
       {missing ? <View className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-alert dark:bg-alert-dark" /> : null}
     </Pressable>
-  );
-}
-
-/**
- * The strip the chips sit in, under a record's header: one scrolling row
- * (project · place · time · surveyors on 快速名錄 and the checklist-style
- * survey that matches it, 2G).
- */
-export function ContextStrip({ children }: { children: ReactNode }) {
-  return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      className="grow-0 border-b border-gray-200 bg-card dark:border-gray-700 dark:bg-gray-900"
-      contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 8, gap: 8 }}
-    >
-      {children}
-    </ScrollView>
   );
 }

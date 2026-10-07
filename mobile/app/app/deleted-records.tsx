@@ -57,7 +57,9 @@ export default function DeletedRecordsScreen() {
             router.push(hrefOf(r.kind, id));
           } catch (e) {
             const why =
-              e instanceof RecoverCensusError
+              (e instanceof RecoverCensusError || e instanceof InsertSurveyError) && e.code === 'series_code_taken'
+                ? t('survey.seriesCodeTaken')
+                : e instanceof RecoverCensusError
                 ? e.code === 'census_no_taken'
                   ? t('survey.census.recoverNumberTaken')
                   : t('survey.census.recoverCodeTaken')

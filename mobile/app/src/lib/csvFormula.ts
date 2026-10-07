@@ -92,11 +92,31 @@ function tallyTsv(text: string, t: FormulaTally): void {
  */
 export function formulaTally(files: { name: string; text: () => string }[]): FormulaTally {
   const t: FormulaTally = { guarded: 0, raw: 0 };
+  for (const _ of tallyEach(files, t));
+  return t;
+}
+
+/**
+ * The same, letting the UI draw after each table: a large census export has
+ * tens of megabytes of them, which held the screen still for seconds after
+ * the hashing bar reached 100% (code review M38).
+ */
+export async function formulaTallyYielding(
+  files: { name: string; text: () => string }[],
+  pause: () => Promise<void>,
+): Promise<FormulaTally> {
+  const t: FormulaTally = { guarded: 0, raw: 0 };
+  for (const _ of tallyEach(files, t)) await pause();
+  return t;
+}
+
+function* tallyEach(files: { name: string; text: () => string }[], t: FormulaTally): Generator<void> {
   const folder = (n: string) => n.slice(0, n.lastIndexOf('/') + 1);
   const dwcaFolders = new Set(files.filter((f) => /(^|\/)meta\.xml$/.test(f.name)).map((f) => folder(f.name)));
   for (const f of files) {
     if (/\.csv$/i.test(f.name)) tallyCsv(f.text(), t);
     else if (/\.txt$/i.test(f.name) && dwcaFolders.has(folder(f.name))) tallyTsv(f.text(), t);
+    else continue;
+    yield;
   }
-  return t;
 }

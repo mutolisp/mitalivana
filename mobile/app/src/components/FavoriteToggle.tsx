@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { Pressable, Text } from 'react-native';
+import { useShows } from '~/lib/useUsageMode';
 import { useFavorites } from '~/stores/favorites';
 import { useThemeColors } from '~/theme/colors';
 
@@ -13,6 +14,8 @@ export function FavoriteToggle({ taxonId }: { taxonId: string }) {
   const c = useThemeColors();
   const { t } = useTranslation();
   const favorited = useFavorites((s) => s.ids.has(taxonId));
+  // Casual mode has 最近記過 instead (code review L41).
+  if (!useShows('favorites')) return null;
   return (
     <Pressable
       onPress={() =>

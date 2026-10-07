@@ -27,6 +27,7 @@ import {
   listPlotSurveys,
   listSessionRecords,
   listSessions,
+  listPending,
   listSitesByProject,
   listSpecimens,
   listSubplots,
@@ -36,6 +37,7 @@ import {
   buildCensusBundleEntries,
   buildModularBundleEntries,
   buildCollectionEntries,
+  buildPendingEntries,
   buildPlotEntries,
   buildSessionEntries,
   checklistT,
@@ -83,6 +85,7 @@ import { buildProjectReport, type Translate } from './reportModel';
 import { buildReportHtml } from './reportHtml';
 import i18n from '~/i18n';
 import { sitesToGeoJSON, sitesToGPX, sitesToKML } from './geoExporters';
+import { createFolderNamer, moveUnder } from './zipEntryNames';
 import type { AnalysisFormat, ReportFormat } from '~/stores/settings';
 
 export type ProjectExportOptions = BundleOptions & {
@@ -118,7 +121,9 @@ export async function bundleProject(
     uuid: string;
   }[];
   const sites = listSitesByProject(projectId);
-  if (sessions.length + plots.length + trips.length + censuses.length + modulars.length + sites.length === 0) {
+  // Pending observations have no project; the unassigned one carries them (code review L59).
+  const pending = projectId === 0 ? listPending() : [];
+  if (sessions.length + plots.length + trips.length + censuses.length + modulars.length + sites.length + pending.length === 0) {
     throw new Error(i18n.t('export.err.projectEmpty', { name: project.name }));
   }
 
@@ -128,6 +133,7 @@ export async function bundleProject(
     for (const s of sessions) totalPhotos += countPhotosSession(listSessionRecords(s.id));
     for (const p of plots) totalPhotos += countPhotosPlotWithEnv(p.id);
     for (const c of trips) totalPhotos += countPhotosSession(listSpecimens(c.id));
+    totalPhotos += countPhotosSession(pending);
   }
   const ctx = { done: 0, total: totalPhotos, onProgress: opts.onProgress };
   opts.onProgress?.({ label: i18n.t('export.preparing') });
@@ -136,6 +142,9 @@ export async function bundleProject(
   const recordMeta: Array<Record<string, unknown>> = [];
   const totalRecords = sessions.length + plots.length + trips.length + censuses.length + modulars.length;
   let recordIdx = 0;
+  // Records named alike (a plot's resurveys keep its plotid) get folder_2,
+  // folder_3… rather than one folder that finalizeZip refuses (code review H8).
+  const claimFolder = createFolderNamer();
 
   const addRecord = async (
     kind: 'session' | 'plot' | 'collection' | 'survey' | 'modular',
@@ -147,10 +156,11 @@ export async function bundleProject(
     opts.onProgress?.({ label: i18n.t('export.stage.records', { current: recordIdx, total: totalRecords }), done: recordIdx - 1, total: totalRecords });
     try {
       const { entries: built, folderName } = await build();
+      const folder = claimFolder(folderName);
       // One at a time: a spread of every photo of a large census can pass
       // the engine's argument limit (code review V2).
-      for (const e of built) entries.push({ ...e, name: `records/${e.name}` });
-      recordMeta.push({ kind, id, uuid, folder: `records/${folderName}` });
+      for (const e of built) entries.push({ ...e, name: `records/${moveUnder(e.name, folderName, folder)}` });
+      recordMeta.push({ kind, id, uuid, folder: `records/${folder}` });
     } catch (e) {
       // A record that fails (e.g. empty session) is noted, not fatal.
       recordMeta.push({ kind, id, uuid, error: errText(e) });
@@ -173,6 +183,9 @@ export async function bundleProject(
     });
   }
   for (const m of modulars) await addRecord('modular', m.id, m.uuid, () => buildModularBundleEntries(m.id, recordOpts));
+  if (pending.length > 0) {
+    for (const e of await buildPendingEntries(opts, ctx)) entries.push(e);
+  }
 
   // ── Merged checklist across every record in the project ─────────────────
   // records/ already carries one checklist per record; this is their union,
@@ -338,6 +351,7 @@ export async function bundleProject(
       bytes: dwca.records,
       // Already a deflate stream — store, don't re-compress.
       zipOpts: { level: 0 },
+      formulaRaw: dwca.formulaRaw,
     });
     // Taxon core: conservation status is a property of the taxon, and one
     // archive can only have one core. Absent when nothing has a status.
@@ -369,6 +383,7 @@ export async function bundleProject(
     sites: sites.length,
     releves: releves.length,
     taxa: cols.length,
+    ...(projectId === 0 ? { pending: pending.length } : {}),
   };
   const projectYml = {
     app: 'mitalivana',
@@ -471,7 +486,7 @@ function buildReadme(
   const lines = [
     `# ${projectName} — 專案匯出`,
     '',
-    `統計：名錄 ${stats.sessions}、樣區 ${stats.plots}（樣方 ${stats.releves}）、採集 ${stats.collections}、名錄型／樣區型調查 ${stats.surveys}、地理樣區 ${stats.sites}、物種欄 ${stats.taxa}`,
+    `統計：名錄 ${stats.sessions}、樣區 ${stats.plots}（樣方 ${stats.releves}）、採集 ${stats.collections}、名錄型／樣區型調查 ${stats.surveys}、地理樣區 ${stats.sites}${stats.pending != null ? `、待鑑定 ${stats.pending}` : ''}、物種欄 ${stats.taxa}`,
     '',
     '## 內容結構',
     '',
@@ -485,6 +500,13 @@ function buildReadme(
     '- `juice/` — JUICE 匯入檔（分號分隔）',
     '- `dwca/` — Darwin Core Archive（Event core + Occurrence + Humboldt + MeasurementOrFact + ResourceRelationship extension，GBIF 發布用）',
     '- `sites/` — 專案的地理樣區幾何',
+    ...(stats.pending
+      ? [
+          '- `pending/` — 待鑑定的觀察（還沒有物種名，只有界）：`pending_observations.csv` 一列一筆，欄名為 DwC 詞彙，'
+            + '`inaturalistObservation` 不是 DwC 詞彙，是已上傳 iNaturalist 的觀察網址；照片與錄音在 `photos/`、`audio/`。'
+            + '待鑑定不屬於任何專案，只隨「未分類」匯出，不進 `checklist/`、`analysis/` 與 `dwca/`',
+        ]
+      : []),
     '',
     '## analysis/（R vegan）',
     '',

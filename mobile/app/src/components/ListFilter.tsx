@@ -7,6 +7,7 @@
  * `speciesMatches()` in src/lib/recordSearch.ts.
  */
 import { Ionicons } from '@expo/vector-icons';
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, TextInput, View } from 'react-native';
 
@@ -32,14 +33,20 @@ export function ListFilterField({
   value,
   onChangeText,
   onClose,
+  onFocusChange,
 }: {
   value: string;
   onChangeText: (q: string) => void;
   /** Clears the query and closes the field. */
   onClose: () => void;
+  /** While the field has the keyboard, the screen hides its add-species dock,
+   *  which would otherwise ride up on the same keyboard (code review L37). */
+  onFocusChange?: (focused: boolean) => void;
 }) {
   const { t } = useTranslation();
   const c = useThemeColors();
+  // Gone while focused (select mode takes the row): no blur comes, so say it here.
+  useEffect(() => () => onFocusChange?.(false), [onFocusChange]);
   return (
     <View
       className="mx-2 my-1.5 flex-1 flex-row items-center rounded-full bg-gray-100 pl-3 pr-1 dark:bg-gray-800"
@@ -49,7 +56,11 @@ export function ListFilterField({
       <TextInput
         value={value}
         onChangeText={onChangeText}
-        autoFocus
+        // On opening only: the field comes back after select mode with the
+        // query still in it, and should not raise the keyboard again.
+        autoFocus={value === ''}
+        onFocus={() => onFocusChange?.(true)}
+        onBlur={() => onFocusChange?.(false)}
         placeholder={t('speciesFilter.placeholder')}
         placeholderTextColor={c.ink3}
         autoCapitalize="none"

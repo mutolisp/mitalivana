@@ -280,6 +280,13 @@ export function isRecording(): boolean {
   return watchSub != null;
 }
 
+/** The track of `t` as walked up to now — written and not yet written alike —
+ *  or null when `t` is not the one recording. */
+export function liveTrack(t: RecordTarget): TrackSegment[] | null {
+  if (!isRecordingTarget(t)) return null;
+  return currentSegment.length > 0 ? [...priorSegmentsSnapshot, currentSegment] : priorSegmentsSnapshot;
+}
+
 /** Whether the recorder is recording into this exact target. */
 export function isRecordingTarget(t: RecordTarget): boolean {
   const rt = useTrackRecorder.getState().recordingTarget;
