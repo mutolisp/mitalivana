@@ -1117,7 +1117,7 @@ export type TaxonSearchHit = {
   path: Array<{ rank: Rank; value: string }>;
   /** Set when the user's query matched a synonym that resolved to this
    *  accepted name (mirrors SearchResult.matched_as in the main search). */
-  matched_as?: { name: string; fullname: string; status: string };
+  matched_as?: { name: string; fullname: string; status: string; vernacular?: boolean };
   /** Set when this hit came from the fuzzy (Levenshtein) fallback. */
   fuzzy_match?: { query: string; matched: string; score: number };
   /** Intermediate-rank hit (subfamily …): its ref. `path` then ends at the

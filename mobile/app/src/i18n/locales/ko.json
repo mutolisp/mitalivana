@@ -195,7 +195,8 @@
     "sortOldFirst": "오래된순",
     "sortAsc": "오름차순",
     "sortDesc": "내림차순",
-    "sortFlipHint": "현재 {{dir}} (다시 누르면 반대로)"
+    "sortFlipHint": "현재 {{dir}} (다시 누르면 반대로)",
+    "siteCentreFilled": "사이트를 지정하고 중심점을 그 가운데로 정했습니다(GNSS나 지도로 수정할 수 있습니다)"
   },
   "records": {
     "recording": "기록 중",
@@ -458,7 +459,7 @@
     "selectedGroups_other": "분류군 {{count}}개"
   },
   "species": {
-    "noChineseName": "(중국명 없음)",
+    "noChineseName": "(국명 없음)",
     "otherNames": "다른 일반명",
     "status": "종 상태",
     "hybrid": "잡종",
@@ -693,7 +694,7 @@
     "rangeTitle": "조사구 범위",
     "drawRange": "조사구 범위 그리기",
     "editRange": "범위 다시 그리기",
-    "rangeHint": "지도에서 조사구 경계를 그립니다. 이 범위는 기록과 내보내기용이며 조사구 크기 항목을 대체하지 않습니다.",
+    "rangeHint": "기존 사이트를 고르거나(여러 개를 고르면 하나로 합칩니다) 지도에서 조사구 경계를 그립니다. 이 범위는 기록과 내보내기용이며 조사구 크기 항목을 대체하지 않습니다.",
     "tabQuadrats": "소방형구",
     "quadrats": {
       "title": "1 × 1 m 소방형구",
@@ -823,7 +824,12 @@
     "tabEnv_vol": "기본 정보",
     "plotidLabel": "Plotid",
     "plotidLabel_vol": "번호",
-    "placeAndNotes": "장소와 비고"
+    "placeAndNotes": "장소와 비고",
+    "setRange": "조사구 범위 설정",
+    "changeRange": "범위 변경 또는 다시 그리기",
+    "removeRange": "범위 해제",
+    "rangeRemoved": "범위를 해제했습니다",
+    "rangeCentreFilled": "범위를 연결하고 중심점을 범위 가운데로 정했습니다(GNSS나 지도로 수정할 수 있습니다)"
   },
   "settings": {
     "sectionAppearance": "외관과 조작",
@@ -1173,7 +1179,24 @@
     "measureResult": "총 거리: {{d}}",
     "measureRecord": "{{d}}, {{m}} m 이상. 조사 지점에 기록할까요?",
     "measureRecordShort": "{{d}}, {{m}} m 미만입니다. 그래도 조사 지점에 기록할까요?",
-    "measureSave": "조사 지점에 기록"
+    "measureSave": "조사 지점에 기록",
+    "editShape": "모양 편집",
+    "editSiteInfo": "이름·프로젝트·메모 편집",
+    "editShapeHint": "꼭짓점을 끌어 옮기고, 눌러서 삭제하고, 변 가운데의 작은 원을 눌러 꼭짓점을 추가합니다",
+    "editShapeBar": "모양 편집 · 끌기 / 꼭짓점 눌러 삭제 / 원 눌러 추가",
+    "pickPartTitle": "어느 부분을 편집할까요?",
+    "partN": "{{n}}번째",
+    "vertexCount_other": "꼭짓점 {{count}}개",
+    "removePart": "부분 하나 삭제…",
+    "removePartTitle": "어느 부분을 삭제할까요?",
+    "removePartMsg": "「{{name}}」에서 「{{part}}」을(를) 삭제할까요?",
+    "partRemoved": "부분을 삭제했습니다",
+    "saveShapeTitle": "모양 변경을 저장할까요?",
+    "saveShapeMsg": "「{{name}}」을(를) 지금 지도에 보이는 모양으로 바꿉니다.",
+    "saveShapeShared_other": "「{{name}}」은(는) 기록 {{count}}건에서 쓰고 있어 이 기록들의 장소도 함께 바뀝니다.",
+    "shapeUpdated": "모양을 업데이트했습니다",
+    "minVertices_other": "꼭짓점이 {{count}}개 이상 필요합니다",
+    "siteInfoUpdated": "사이트를 업데이트했습니다"
   },
   "keys": {
     "modeDichotomous": "이분법",
@@ -1384,7 +1407,10 @@
     "multiPick": "여러 개 선택",
     "mergeHint": "같은 종류(점·선·면)의 사이트를 골라 하나로 합쳐 이 기록에 지정합니다. 원래 사이트는 남습니다.",
     "assignMerged_other": "{{count}}개 합쳐서 지정",
-    "pickTwo": "두 개 이상 선택하세요"
+    "pickTwo": "두 개 이상 선택하세요",
+    "boundaryDesc": "폴리곤 사이트를 하나 고르거나 「여러 개 선택」으로 여러 개를 한 범위로 합칩니다",
+    "emptyAreas": "폴리곤 사이트가 아직 없습니다. 아래에서 지도에 그리거나, 먼저 지도에서 KML／GeoJSON을 가져오세요.",
+    "boundaryMergeHint": "합칠 폴리곤을 고르면 하나로 합쳐 이 기록의 범위로 정합니다. 원래 사이트는 남습니다."
   },
   "exportPref": {
     "title": "내보내기 설정",
@@ -1792,7 +1818,7 @@
     "synonymOf": "이명, 정명: {{name}}",
     "add": "추가",
     "willAdd": "이 종을 추가합니다",
-    "cname": "중국명",
+    "cname": "국명",
     "cnamePlaceholder": "선택 입력",
     "cnameFromGbif": "GBIF에서 가져온 이름입니다. 원하면 수정하세요.",
     "cnameMissing": "GBIF에 이 분류군의 일반명이 없습니다. 직접 입력하거나 비워 두세요.",
@@ -1954,7 +1980,7 @@
     "createOwn": "직접 만들기",
     "intro": "여기서 만든 종은 이 기기에만 저장됩니다(직접 만든 목록). 기록에 추가하고 내보낼 수 있으며, 만든 뒤에는 언제든 종 상세 화면에서 수정할 수 있습니다.",
     "sciName": "학명",
-    "cname": "중국명",
+    "cname": "국명",
     "cnamePlaceholder": "선택 입력",
     "kingdom": "계",
     "kingdoms": {
@@ -2082,7 +2108,7 @@
     "colHeight": "높이",
     "colMethod": "기록 방식",
     "colScientific": "학명",
-    "colCommon": "중국명",
+    "colCommon": "국명",
     "colAbundance": "다도",
     "colMarks": "표시",
     "colSpecies": "종",

@@ -9,12 +9,17 @@
  *      keep project · place · time · surveyors in ⋯ (記錄資訊), not in a chip
  *      row; the sort control is one button; zh-TW menus say 地理樣區, never a
  *      bare 樣區 (a plot), for a site.
+ *   3. A plot's boundary (樣區範圍) is picked from the area sites — one, or
+ *      several merged — or drawn; a plot (or survey with a centre point) with
+ *      no centre takes the boundary's (boundaryCentre). Fixed, point-count and
+ *      transect plots and the survey centre card all go through the sheet; the
+ *      map's draw path binds through the same helpers.
  *
  * Usage: npm run check:site-merge   (exit 1 on violation)
  */
 import { readFileSync } from 'node:fs';
 
-const { dimensionOf, mergeGeometries } = await import('../src/lib/siteMerge.ts');
+const { boundaryCentre, dimensionOf, mergeGeometries } = await import('../src/lib/siteMerge.ts');
 
 const errors = [];
 const eq = (label, got, want) => {
@@ -103,6 +108,18 @@ const poly = (x, y) => ({ type: 'Polygon', coordinates: sq(x, y) });
   ]);
 }
 
+// ── 1b. a boundary's centre ─────────────────────────────────────────────────
+{
+  const four = mergeGeometries([poly(0, 0), poly(2, 0), poly(0, 2), poly(2, 2)]);
+  eq('four subplots: centre of the whole block', boundaryCentre(four), { lat: 1.5, lng: 1.5 });
+  eq('one square', boundaryCentre(poly(10, 20)), { lat: 20.5, lng: 10.5 });
+  eq('a point is its own centre', boundaryCentre({ type: 'Point', coordinates: [121.5, 24.1] }), {
+    lat: 24.1,
+    lng: 121.5,
+  });
+  eq('an empty shape has none', boundaryCentre({ type: 'MultiPolygon', coordinates: [] }), null);
+}
+
 // ── 2. source guards ────────────────────────────────────────────────────────
 {
   const src = (f) => readFileSync(new URL(`../${f}`, import.meta.url), 'utf8');
@@ -135,6 +152,48 @@ const poly = (x, y) => ({ type: 'Polygon', coordinates: sq(x, y) });
       `${f}: a recording track shows under the title`,
     );
   }
+  // 3. the boundary
+  ok(
+    /boundary \? listSites\(\)\.filter\(\(x\) => dimensionOf\(x\.geometry_type\) === 'area'\)/.test(sheet),
+    'boundary sheet: only area sites are offered',
+  );
+  const plot = src('app/plot/[id]/index.tsx');
+  ok(
+    /<SiteAssignSheet\s+boundary[\s\S]*?setPlotBoundary\(plot\.id, siteId\)/.test(plot),
+    'plot: the boundary sheet binds through setPlotBoundary',
+  );
+  ok(
+    /onDrawBoundary=\{[^}]*openBoundary/.test(plot) &&
+      (plot.match(/<PlotBoundarySection plot=\{plot\} onEdit=\{openBoundary\} \/>/g) ?? []).length === 2,
+    'plot: the centre card and the transect boundary both open the sheet',
+  );
+  ok(
+    (plot.match(/map\?draw=Polygon&plot=/g) ?? []).length === 1,
+    'plot: drawing is reached only through drawBoundary',
+  );
+  const group = src('src/survey/form/SurveyGroupViews.tsx');
+  ok(
+    /onDrawBoundary=\{openBoundary\}/.test(group) &&
+      /<SiteAssignSheet\s+boundary[\s\S]*?setSurveyBoundary\(id, siteId\)/.test(group),
+    'survey centre card: the boundary sheet binds through setSurveyBoundary',
+  );
+  const map = src('app/(tabs)/map.tsx');
+  ok(
+    /setPlotBoundary\(plot\.id, siteId\)/.test(map) &&
+      /setSurveyBoundary\(survey\.id, siteId\)/.test(map) &&
+      !/updatePlotSurvey\(plot\.id, \{ site_id/.test(map),
+    'map: a drawn boundary binds through the same helpers',
+  );
+  const plotsDb = src('src/db/plots.ts');
+  ok(
+    /export function setPlotBoundary[\s\S]*?requiresStaticGps\(plot\)[\s\S]*?coord_uncertainty_m: null/.test(plotsDb),
+    'setPlotBoundary: only a plot that needs a centre takes one, hand-placed',
+  );
+  const surveysDb = src('src/survey/db/surveys.ts');
+  ok(
+    /export const setSurveyBoundary[\s\S]*?c\.type === 'centre'[\s\S]*?accuracy: null/.test(surveysDb),
+    'setSurveyBoundary: only a template with a centre point takes one, hand-placed',
+  );
   const sort = src('src/components/RecordSortControls.tsx');
   ok((sort.match(/<Pressable/g) ?? []).length === 1, 'sort: one button');
   const zh = JSON.parse(src('src/i18n/locales/zh-TW.json'));
@@ -158,5 +217,5 @@ if (errors.length) {
   process.exit(1);
 }
 console.log(
-  '✓ site-merge: sites of one kind merge into one; site sheet lists first; checklist header info in ⋯; one sort button',
+  '✓ site-merge: sites of one kind merge into one; site sheet lists first; plot boundary picked or drawn, empty centre filled; checklist header info in ⋯; one sort button',
 );

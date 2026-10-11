@@ -9,6 +9,8 @@ import { withTransaction } from '~/db/init';
 import { dbFor, isPreviewId, transactionFor as tx } from '~/db/previewDb';
 import { ensureTaxonSelfSufficient } from '~/db/taxonCache';
 import { generateUuid } from '~/db/uuid';
+import { getSite, parseGeometry } from '~/db/sites';
+import { boundaryCentre } from '~/lib/siteMerge';
 import type { Sighting, RecheckOutcome } from '../form/recheck';
 import type { ComponentValues } from '../registry';
 import type { SurveyTemplate } from '../template/types';
@@ -71,6 +73,27 @@ export const seriesCodeNeeded = (frameId: number, templateId: string) => core.se
 export const listSurveys = (opts?: { frameId?: number }) => core.listSurveys(ctx(), opts);
 export const createSurvey = (input: core.SurveyInput) => withTransaction(() => core.createSurvey(ctx(), input));
 export const updateSurvey = (id: number, patch: core.SurveyPatch) => core.updateSurvey(ctx(id), id, patch);
+/**
+ * Set (or clear) the survey's place. A template with a centre point whose
+ * centre is still empty takes the place's centre, hand-placed (no accuracy),
+ * as setPlotBoundary does for a fixed plot; a centre already there is kept.
+ * Returns whether the centre was filled.
+ */
+export const setSurveyBoundary = (id: number, siteId: number | null): boolean => {
+  const s = core.getFwSurvey(ctx(id), id);
+  let centre: { lat: number; lng: number } | null = null;
+  if (s && siteId !== null && (s.lat == null || s.lng == null) && core.snapshotOf(s).components.some((c) => c.type === 'centre')) {
+    const site = getSite(siteId);
+    try {
+      centre = site ? boundaryCentre(parseGeometry(site)) : null;
+    } catch {
+      // A corrupt geometry leaves the centre to the user rather than failing the bind.
+      centre = null;
+    }
+  }
+  core.updateSurvey(ctx(id), id, { siteId, ...(centre ? { lat: centre.lat, lng: centre.lng, accuracy: null } : null) });
+  return centre !== null;
+};
 export const noteTrackAltitude = (id: number, altitude: number) => core.noteTrackAltitude(ctx(id), id, altitude);
 export const stampOccurrenceFix = (id: number, fix: Parameters<typeof core.stampOccurrenceFix>[2]) => core.stampOccurrenceFix(ctx(id), id, fix);
 export const finishSurvey = (id: number, stopTs?: number | null) => core.finishSurvey(ctx(id), id, stopTs);

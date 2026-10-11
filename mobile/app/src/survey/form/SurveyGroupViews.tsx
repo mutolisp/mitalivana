@@ -27,11 +27,12 @@ import { CentreLocationCard, EnvAdvancedSection, EnvPhotoSectionView, SurveyorRo
 import { SiteAssignSheet } from '~/components/SiteAssignSheet';
 import { SurveyorAssignSheet } from '~/components/SurveyorAssignSheet';
 import { TrackControlView } from '~/components/TransectTrackControl';
-import { parseGeometry, parseTrackSegments, type GeoJSONGeometry } from '~/db';
+import { listSites, parseGeometry, parseTrackSegments, type GeoJSONGeometry } from '~/db';
 import { withTransaction } from '~/db/init';
 import { isoStamp } from '~/lib/datetime';
 import { errText } from '~/lib/errText';
 import { captureFix } from '~/lib/gnssFix';
+import { dimensionOf } from '~/lib/siteMerge';
 import { trackLengthMeters } from '~/lib/track';
 import { pauseRecording, startRecording, useTrackRecorder } from '~/lib/trackRecorder';
 import type { RecordEditing } from '~/lib/useRecordEditing';
@@ -43,7 +44,7 @@ import { choiceList, codeLabel } from '~/survey/components/editors/ChoiceEditor'
 import { ComponentEditor, componentLabel, componentSummary } from '~/survey/components/editors/ComponentEditor';
 import { isRequiredMissing, RequiredMissingLine } from '~/survey/components/editors/shared';
 import type { ComponentOwner } from '~/survey/db/surveyCore';
-import { addMedia, removeMedia, updateSurvey, writeComponent } from '~/survey/db/surveys';
+import { addMedia, removeMedia, setSurveyBoundary, updateSurvey, writeComponent } from '~/survey/db/surveys';
 import type { FieldValue } from '~/survey/registry';
 import type { ComponentInstance } from '~/survey/template/types';
 import { PlotLayerSection, PlotSubplotSection } from './PlotMethodSections';
@@ -217,6 +218,16 @@ export function SurveyGroupBody({ data, edit, group, onChanged }: { data: Survey
   // leave a new site in user.db (code review V5).
   const preview = isPreviewId(id);
   const refusePreview = () => toast(t('builder.previewNoAssign'));
+  // The boundary, as on the fixed plot: existing area sites first, drawing
+  // after; with none to offer and none to remove, straight to drawing.
+  const [boundaryOpen, setBoundaryOpen] = useState(false);
+  const drawBoundary = () => router.push(`/(tabs)/map?draw=Polygon&survey=${id}` as Href);
+  const openBoundary = () => {
+    if (edit.refuse()) return;
+    if (preview) return refusePreview();
+    if (survey.site_id === null && !listSites().some((x) => dimensionOf(x.geometry_type) === 'area')) drawBoundary();
+    else setBoundaryOpen(true);
+  };
   const [notesKey, setNotesKey] = useState<string | null>(null);
   const recordingTarget = useTrackRecorder((s) => s.recordingTarget);
   const livePoints = useTrackRecorder((s) => s.livePoints);
@@ -411,7 +422,7 @@ export function SurveyGroupBody({ data, edit, group, onChanged }: { data: Survey
                       onCapture={() => void captureGps()}
                       // Hand-placed arrives as null; an undo restores the measured value that was there before.
                       onPlace={(lat, lng, accuracy) => write(() => updateSurvey(id, { lat, lng, accuracy }))}
-                      onDrawBoundary={() => (preview ? refusePreview() : router.push(`/(tabs)/map?draw=Polygon&survey=${id}` as Href))}
+                      onDrawBoundary={openBoundary}
                     />
                   </View>
                 );
@@ -475,12 +486,33 @@ export function SurveyGroupBody({ data, edit, group, onChanged }: { data: Survey
         onCancel={() => setSiteOpen(false)}
         onAssign={(siteId) => {
           setSiteOpen(false);
-          write(() => updateSurvey(id, { siteId }));
-          toast(siteId === null ? t('session.siteUnassigned') : t('session.siteAssigned'));
+          // A template with a centre point and none yet takes the site's.
+          write(() => {
+            const filled = setSurveyBoundary(id, siteId);
+            toast(siteId === null ? t('session.siteUnassigned') : filled ? t('session.siteCentreFilled') : t('session.siteAssigned'));
+          });
         }}
         onCreateNew={(drawType) => {
           setSiteOpen(false);
           router.push(`/(tabs)/map?draw=${drawType}&survey=${id}` as Href);
+        }}
+      />
+      <SiteAssignSheet
+        boundary
+        visible={boundaryOpen}
+        currentSiteId={survey.site_id}
+        preferredProjectId={survey.project_id}
+        onCancel={() => setBoundaryOpen(false)}
+        onAssign={(siteId) => {
+          setBoundaryOpen(false);
+          write(() => {
+            const filled = setSurveyBoundary(id, siteId);
+            toast(siteId === null ? t('plot.rangeRemoved') : filled ? t('plot.rangeCentreFilled') : t('map.boundPlotSite'));
+          });
+        }}
+        onCreateNew={() => {
+          setBoundaryOpen(false);
+          drawBoundary();
         }}
       />
       <NotesEditModal

@@ -42,6 +42,7 @@ import {
   createSite,
   deleteSite,
   countSiteReferences,
+  countSiteRecords,
   geometryBounds,
   getPlotSurvey,
   getSite,
@@ -53,6 +54,7 @@ import {
   parseGeometry,
   parseTrackSegments,
   updatePlotSurvey,
+  setPlotBoundary,
   updateSite,
   setFavoriteFolderArea,
   updateSession,
@@ -61,10 +63,13 @@ import {
   type PlotSurvey,
   type PlotSurveyWithMeta,
   type RecordWithTaxon,
+  type GeoJSONGeometry,
   type Site,
   type SessionWithStats,
   type SiteWithProject,
 } from '~/db';
+import { edgeMidpoints, editableParts, MIN_VERTICES, partNames, removePart, replacePart } from '~/lib/siteEdit';
+import type { SiteDimension } from '~/lib/siteMerge';
 import { useActiveSession } from '~/stores/activeSession';
 import { isRecordingTarget } from '~/lib/trackRecorder';
 import { trackLengthMeters } from '~/lib/track';
@@ -109,7 +114,7 @@ import { useSettings, type MapBasemap } from '~/stores/settings';
 import { useToast } from '~/stores/toast';
 import { ACTION_FILL } from '~/lib/colors';
 import { IconDisc } from '~/components/ui/IconDisc';
-import { getFwSurvey, updateSurvey } from '~/survey/db/surveys';
+import { getFwSurvey, setSurveyBoundary } from '~/survey/db/surveys';
 import type { FwSurveyRow } from '~/survey/db/surveyCore';
 import { vis } from '~/lib/usageMode';
 import { useShows, useUsageMode } from '~/lib/useUsageMode';
@@ -479,7 +484,11 @@ function MapScreen() {
   // Editing an existing plot's geometry. 'point' = moving a fixed / point_count
   // marker; 'track' = dragging/deleting vertices of one transect segment.
   const [editPlot, setEditPlot] = useState<PlotSurveyWithMeta | null>(null);
-  const [editMode, setEditMode] = useState<'point' | 'track' | null>(null);
+  const [editMode, setEditMode] = useState<'point' | 'track' | 'site' | null>(null);
+  /** 'site': which 地理樣區, which part of it (Multi* parts in draw order), and its kind. */
+  const [editSite, setEditSite] = useState<{ site: SiteWithProject; part: number; kind: SiteDimension } | null>(null);
+  /** 編輯名稱、專案、備註 of a 地理樣區 (the save sheet, prefilled). */
+  const [infoEditSite, setInfoEditSite] = useState<{ site: SiteWithProject; vertices: number } | null>(null);
   /** Which MultiLineString segment is being edited in 'track' mode. */
   const [editSegmentIndex, setEditSegmentIndex] = useState(0);
   const [mapReady, setMapReady] = useState(false);
@@ -1202,12 +1211,13 @@ function MapScreen() {
         // 名錄", and it is a FK into sessions.
         siteId = createSite({ ...data, geometry, session_id: null });
       }
-      updatePlotSurvey(plot.id, { site_id: siteId });
+      // A plot with no centre yet takes the boundary's.
+      const filled = setPlotBoundary(plot.id, siteId);
       cancelDraw();
       setSaveSiteOpen(false);
       reloadSites();
       reloadPlots();
-      toast(t('map.boundPlotSite'));
+      toast(filled ? t('plot.rangeCentreFilled') : t('map.boundPlotSite'));
       router.replace(`/plot/${plot.id}` as Href);
       return;
     }
@@ -1225,11 +1235,11 @@ function MapScreen() {
       } else {
         siteId = createSite({ ...data, geometry, session_id: null });
       }
-      updateSurvey(survey.id, { siteId });
+      const filled = setSurveyBoundary(survey.id, siteId);
       cancelDraw();
       setSaveSiteOpen(false);
       reloadSites();
-      toast(t(survey.style === 'plot' ? 'map.boundPlotSite' : 'map.boundSite'));
+      toast(t(survey.style === 'plot' ? (filled ? 'plot.rangeCentreFilled' : 'map.boundPlotSite') : filled ? 'session.siteCentreFilled' : 'map.boundSite'));
       router.replace(`/survey/form/${survey.id}` as Href);
       return;
     }
@@ -1257,6 +1267,61 @@ function MapScreen() {
 
   const siteActions = async (site: SiteWithProject) => {
     const owner = plotBySiteId.get(site.id) ?? null;
+    const jump = {
+      label: t('map.jumpToSite'),
+      section: siteSection,
+      run: () => mapRef.current?.animateToRegion(geometryBounds(parseGeometry(site)), 400),
+    };
+    // Shape and details are edited here (asked 2026-10-07); hidden where the
+    // usage mode hides the site tools, as 編輯位置 is for a plot.
+    const edits =
+      siteTools === 'hide'
+        ? []
+        : [
+            { label: t('map.editShape'), section: siteSection, run: () => void enterSiteEdit(site) },
+            { label: t('map.editSiteInfo'), section: siteSection, run: () => openSiteInfoEdit(site) },
+          ];
+    const actions: { label: string; section?: string; destructive?: boolean; run: () => void }[] = owner
+      ? // A plot boundary is deleted from the plot, not from under it: doing it
+        // here would leave the plot silently without one.
+        [
+          { label: t('map.jumpToPlot'), run: () => router.push(`/plot/${owner.id}` as Href) },
+          jump,
+          ...edits,
+          {
+            label: t('map.redrawRange'),
+            section: siteSection,
+            run: () => {
+              setPlotHandoff({ plot: owner, site });
+              setDrawPurpose('site');
+              setDrawMode('Polygon');
+              setDrawPoints([]);
+            },
+          },
+        ]
+      : [
+          jump,
+          ...edits,
+          {
+            label: t('common.delete'),
+            destructive: true,
+            section: siteSection,
+            run: () =>
+              // 2-button confirm — Alert.alert is fine here.
+              Alert.alert(t('sites.deleteTitle'), t('sites.deleteMsg', { name: site.name }), [
+                { text: t('common.cancel'), style: 'cancel' },
+                {
+                  text: t('common.delete'),
+                  style: 'destructive',
+                  onPress: () => {
+                    deleteSite(site.id);
+                    reloadSites();
+                    toast(t('sites.deleted'));
+                  },
+                },
+              ]),
+          },
+        ];
     const idx = await showActionSheet({
       title: site.name,
       message:
@@ -1265,50 +1330,155 @@ function MapScreen() {
           : t(SITE_TYPE_LABEL[site.geometry_type])) +
         ` · ${site.project_name}${site.notes ? `\n\n${site.notes}` : ''}`,
       cancelLabel: t('common.close'),
-      options: owner
-        ? // A plot boundary is deleted from the plot, not from under it: doing it
-          // here would leave the plot silently without one.
-          [
-            { label: t('map.jumpToPlot') },
-            { label: t('map.jumpToSite'), section: siteSection },
-            { label: t('map.redrawRange'), section: siteSection },
-          ]
-        : [
-            { label: t('map.jumpToSite'), section: siteSection },
-            { label: t('common.delete'), destructive: true, section: siteSection },
-          ],
+      options: actions.map(({ label, section, destructive }) => ({ label, section, destructive })),
     });
-    if (owner) {
-      if (idx === 0) {
-        router.push(`/plot/${owner.id}` as Href);
-      } else if (idx === 1) {
-        mapRef.current?.animateToRegion(geometryBounds(parseGeometry(site)), 400);
-      } else if (idx === 2) {
-        setPlotHandoff({ plot: owner, site });
-        setDrawPurpose('site');
-        setDrawMode('Polygon');
-        setDrawPoints([]);
-      }
+    actions[idx]?.run();
+  };
+
+  const openSiteInfoEdit = (site: SiteWithProject) => {
+    let vertices = 0;
+    try {
+      // Rings counted open, as the drawing sheet counts them.
+      vertices = editableParts(parseGeometry(site)).reduce((n, p) => n + p.vertices.length, 0);
+    } catch {
+      // A corrupt geometry still has a name to fix.
+    }
+    setInfoEditSite({ site, vertices });
+  };
+
+  /**
+   * 編輯形狀: drag, delete and insert vertices of one part of the site. A
+   * merged site (several parts) asks which part first, or which to delete.
+   */
+  const enterSiteEdit = async (site: SiteWithProject) => {
+    let g: GeoJSONGeometry;
+    try {
+      g = parseGeometry(site);
+    } catch (e) {
+      Alert.alert(t('map.editShape'), errText(e));
       return;
     }
-    if (idx === 0) {
-      const region = geometryBounds(parseGeometry(site));
-      mapRef.current?.animateToRegion(region, 400);
-    } else if (idx === 1) {
-      // 2-button confirm — Alert.alert is fine here.
-      Alert.alert(t('sites.deleteTitle'), t('sites.deleteMsg', { name: site.name }), [
+    const parts = editableParts(g);
+    if (parts.length === 0) return;
+    mapRef.current?.animateToRegion(geometryBounds(g), 400);
+    let part = 0;
+    if (parts.length > 1) {
+      const sep = t('builder.listSep');
+      // A merged site is named after its parts, in part order (siteMerge).
+      const names = partNames(site.name, sep, parts.length);
+      const partLabel = (i: number) => names?.[i] ?? t('map.partN', { n: i + 1 });
+      const vertexNote = (i: number) => t('map.vertexCount', { count: parts[i].vertices.length });
+      const pick = await showActionSheet({
+        title: t('map.pickPartTitle'),
+        cancelLabel: t('common.cancel'),
+        options: [
+          ...parts.map((_, i) => ({ label: partLabel(i), description: vertexNote(i) })),
+          { label: t('map.removePart'), destructive: true },
+        ],
+      });
+      if (pick < 0 || pick > parts.length) return;
+      if (pick === parts.length) {
+        const which = await showActionSheet({
+          title: t('map.removePartTitle'),
+          cancelLabel: t('common.cancel'),
+          options: parts.map((_, i) => ({ label: partLabel(i), description: vertexNote(i), destructive: true })),
+        });
+        const next = which >= 0 ? removePart(g, which) : null;
+        if (!next) return;
+        const records = countSiteRecords(site.id);
+        Alert.alert(
+          t('map.removePartMsg', { part: partLabel(which), name: site.name }),
+          records >= 2 ? t('map.saveShapeShared', { name: site.name, count: records }) : undefined,
+          [
+            { text: t('common.cancel'), style: 'cancel' },
+            {
+              text: t('common.delete'),
+              style: 'destructive',
+              onPress: () => {
+                updateSite(site.id, {
+                  geometry_type: next.type,
+                  geometry_geojson: JSON.stringify(next),
+                  // The name keeps naming what is left.
+                  ...(names ? { name: names.filter((_, i) => i !== which).join(sep) } : null),
+                });
+                reloadSites();
+                reloadPlots();
+                toast(t('map.partRemoved'));
+              },
+            },
+          ],
+        );
+        return;
+      }
+      part = pick;
+    }
+    const { kind, vertices } = parts[part];
+    if (vertices.length > TRACK_EDIT_WARN_POINTS) {
+      const proceed = await new Promise<boolean>((resolve) => {
+        Alert.alert(t('map.manyPointsTitle'), t('map.manyPointsMsg', { count: vertices.length }), [
+          { text: t('common.cancel'), style: 'cancel', onPress: () => resolve(false) },
+          { text: t('common.continue'), onPress: () => resolve(true) },
+        ]);
+      });
+      if (!proceed) return;
+    }
+    if (parts.length > 1) mapRef.current?.animateToRegion(geometryBounds({ type: 'MultiPoint', coordinates: vertices }), 400);
+    setEditSite({ site, part, kind });
+    setEditMode('site');
+    setDrawPoints(vertices.map(([lng, lat]) => ({ latitude: lat, longitude: lng })));
+    toast(t(kind === 'point' ? 'map.dragMarkerHint' : 'map.editShapeHint'));
+  };
+
+  const cancelSiteEdit = () => {
+    setEditSite(null);
+    setEditMode(null);
+    setDrawPoints([]);
+  };
+
+  const saveSiteEdit = () => {
+    if (!editSite) return;
+    const min = MIN_VERTICES[editSite.kind];
+    if (drawPoints.length < min) {
+      toast(t('map.minVertices', { count: min }));
+      return;
+    }
+    const { site, part } = editSite;
+    // Every record holding the site moves with it, so say how many first.
+    const records = countSiteRecords(editSite.site.id);
+    Alert.alert(
+      t('map.saveShapeTitle'),
+      records >= 2 ? t('map.saveShapeShared', { name: site.name, count: records }) : t('map.saveShapeMsg', { name: site.name }),
+      [
         { text: t('common.cancel'), style: 'cancel' },
         {
-          text: t('common.delete'),
-          style: 'destructive',
+          text: t('common.save'),
           onPress: () => {
-            deleteSite(site.id);
+            // Re-read: only this part is replaced, the rest stays as stored.
+            const fresh = getSite(site.id);
+            if (!fresh) {
+              cancelSiteEdit();
+              reloadSites();
+              return;
+            }
+            try {
+              const next = replacePart(
+                parseGeometry(fresh),
+                part,
+                drawPoints.map((p) => [p.longitude, p.latitude]),
+              );
+              updateSite(fresh.id, { geometry_type: next.type, geometry_geojson: JSON.stringify(next) });
+            } catch (e) {
+              Alert.alert(t('map.saveShapeTitle'), errText(e));
+              return;
+            }
+            cancelSiteEdit();
             reloadSites();
-            toast(t('sites.deleted'));
+            reloadPlots();
+            toast(t('map.shapeUpdated'));
           },
         },
-      ]);
-    }
+      ],
+    );
   };
 
   /** Region that fits a plot's geometry, or null if it has no coordinates. */
@@ -1772,6 +1942,11 @@ function MapScreen() {
           : SITE_COLOR;
       const fill = owner ? PLOT_FILL : sessionOwner ? SESSION_FILL : SITE_FILL;
       return primitives.map((prim, i): MapFeature => {
+        // The part being edited is drawn by its vertex handles instead. It
+        // stays mounted, only invisible: unmounting the middle part of a
+        // Multi* site left its polygon on the Android map (seen 2026-10-07).
+        const editing = !!editSite && s.id === editSite.site.id && i === editSite.part;
+        const onPress = editing ? undefined : () => openSiteInfo(s);
         const id = `s-${s.id}-${i}`;
         if (prim.kind === 'point') {
           return {
@@ -1782,7 +1957,8 @@ function MapScreen() {
             title: s.name,
             description: s.project_name,
             color: stroke,
-            onPress: () => openSiteInfo(s),
+            opacity: editing ? 0 : undefined,
+            onPress,
           };
         }
         if (prim.kind === 'line') {
@@ -1790,19 +1966,19 @@ function MapScreen() {
             kind: 'line',
             id,
             coords: prim.coords,
-            color: stroke,
+            color: editing ? 'transparent' : stroke,
             width: 3,
-            onPress: () => openSiteInfo(s),
+            onPress,
           };
         }
         return {
           kind: 'polygon',
           id,
           coords: prim.coords,
-          stroke,
-          fill,
+          stroke: editing ? 'transparent' : stroke,
+          fill: editing ? 'transparent' : fill,
           width: 2,
-          onPress: () => openSiteInfo(s),
+          onPress,
         };
       });
     }),
@@ -1917,7 +2093,11 @@ function MapScreen() {
             },
             onPress: () => {
               // A plot's single point being edited: drag only, no delete.
-              if (editMode === 'point') return;
+              if (editMode === 'point' || editSite?.kind === 'point') return;
+              if (editSite && drawPoints.length <= MIN_VERTICES[editSite.kind]) {
+                toast(t('map.minVertices', { count: MIN_VERTICES[editSite.kind] }));
+                return;
+              }
               Alert.alert(t('map.editPointTitle'), t('map.pointN', { n: i + 1 }), [
                 { text: t('common.cancel'), style: 'cancel' },
                 {
@@ -1931,7 +2111,45 @@ function MapScreen() {
         )
       : []),
 
-    ...((drawMode === 'LineString' || editMode === 'track') && drawPoints.length >= 2
+    // Editing a site's shape: a tap on the dot in the middle of an edge puts a
+    // vertex there (works on both engines, where dragging does not).
+    ...(editSite && editSite.kind !== 'point'
+      ? edgeMidpoints(
+          drawPoints.map((p): [number, number] => [p.longitude, p.latitude]),
+          editSite.kind === 'area',
+        ).map(
+          ({ insertAt, at: [lng, lat] }): MapFeature => ({
+            kind: 'marker',
+            id: `mid-${insertAt}`,
+            lat,
+            lng,
+            anchor: { x: 0.5, y: 0.5 },
+            renderKey: `${lng},${lat}`,
+            render: () => (
+              <View style={{ width: 28, height: 28, alignItems: 'center', justifyContent: 'center' }}>
+                <View
+                  style={{
+                    width: 14,
+                    height: 14,
+                    borderRadius: 7,
+                    borderWidth: 2,
+                    borderColor: DRAW_COLOR,
+                    backgroundColor: DRAW_FILL,
+                  }}
+                />
+              </View>
+            ),
+            onPress: () =>
+              setDrawPoints((prev) => [
+                ...prev.slice(0, insertAt),
+                { latitude: lat, longitude: lng },
+                ...prev.slice(insertAt),
+              ]),
+          }),
+        )
+      : []),
+
+    ...((drawMode === 'LineString' || editMode === 'track' || editSite?.kind === 'line') && drawPoints.length >= 2
       ? [
           {
             kind: 'line' as const,
@@ -1943,7 +2161,7 @@ function MapScreen() {
         ]
       : []),
 
-    ...(drawMode === 'Polygon' && drawPurpose === 'site' && drawPoints.length >= 3
+    ...(((drawMode === 'Polygon' && drawPurpose === 'site') || editSite?.kind === 'area') && drawPoints.length >= 3
       ? [
           {
             kind: 'polygon' as const,
@@ -2370,16 +2588,20 @@ function MapScreen() {
       {editMode ? (
         <View className="absolute left-3 right-3" style={{ top: insets.top + 60 }}>
           <View className="flex-row items-center rounded-full bg-card px-3 py-2 shadow-md dark:bg-gray-900/95">
-            <Pressable onPress={cancelPlotEdit} hitSlop={8} className="px-2">
+            <Pressable onPress={editMode === 'site' ? cancelSiteEdit : cancelPlotEdit} hitSlop={8} className="px-2">
               <Text className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 {t('common.cancel')}
               </Text>
             </Pressable>
             <Text className="flex-1 text-center text-xs text-gray-700 dark:text-gray-300">
-              {editMode === 'track' ? t('map.editTrackHint') : t('map.editPosHint')}
+              {editMode === 'track'
+                ? t('map.editTrackHint')
+                : editSite && editSite.kind !== 'point'
+                  ? t('map.editShapeBar')
+                  : t('map.editPosHint')}
             </Text>
             <Pressable
-              onPress={savePlotEdit}
+              onPress={editMode === 'site' ? saveSiteEdit : savePlotEdit}
               hitSlop={8}
               className={`ml-1 rounded-full px-3 py-1 ${ACTION_FILL}`}
             >
@@ -2465,6 +2687,25 @@ function MapScreen() {
           onConfirm={handleSaveSite}
         />
       ) : null}
+
+      {/* 編輯名稱、專案、備註 of an existing 地理樣區 (the shape is not touched). */}
+      <SaveSiteModal
+        visible={infoEditSite !== null}
+        geometryType={infoEditSite?.site.geometry_type ?? 'Point'}
+        vertexCount={infoEditSite?.vertices ?? 0}
+        title={t('map.editSiteInfo')}
+        defaultName={infoEditSite?.site.name ?? ''}
+        defaultProjectId={infoEditSite?.site.project_id ?? 0}
+        defaultNotes={infoEditSite?.site.notes ?? ''}
+        onCancel={() => setInfoEditSite(null)}
+        onConfirm={(data) => {
+          if (infoEditSite) updateSite(infoEditSite.site.id, data);
+          setInfoEditSite(null);
+          reloadSites();
+          reloadPlots();
+          toast(t('map.siteInfoUpdated'));
+        }}
+      />
 
       <AreaSpeciesModal
         visible={areaOpen}

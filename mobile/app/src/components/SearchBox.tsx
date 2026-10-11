@@ -568,6 +568,7 @@ const AutocompleteRow = memo(function AutocompleteRow({
   const { t } = useTranslation();
   const mode = useUsageMode();
   const isSynonym = !!result.matched_as;
+  const canAdopt = vis(mode, 'nameUsagePick') === 'show' && !result.matched_as?.vernacular;
   const isFuzzy = !!result.fuzzy_match;
   const isEndemic = result.endemic === 1;
   const ab = alienBadge(result.alien_type, result.kingdom);
@@ -633,22 +634,27 @@ const AutocompleteRow = memo(function AutocompleteRow({
         <Pressable
           // Choosing to keep the non-accepted name is folded away for
           // volunteers: the line still says what matched, but does nothing.
-          onPress={vis(mode, 'nameUsagePick') === 'show' ? onAdopt : undefined}
-          disabled={vis(mode, 'nameUsagePick') !== 'show'}
+          // A wamei alias is a vernacular name: nothing to adopt as the scientific name.
+          onPress={canAdopt ? onAdopt : undefined}
+          disabled={!canAdopt}
           hitSlop={{ top: 6, bottom: 6, left: 8, right: 8 }}
           className="mt-0.5 flex-row items-center"
         >
           <Text className="flex-1 text-xs text-orange-700 dark:text-orange-300" numberOfLines={1}>
             {t('search.youEntered')}
-            <ScientificName
-              name={result.matched_as.name}
-              rank={result.rank}
-              kingdom={result.kingdom}
-              nomenclature={result.nomenclature_name}
-            />
+            {result.matched_as.vernacular ? (
+              result.matched_as.name
+            ) : (
+              <ScientificName
+                name={result.matched_as.name}
+                rank={result.rank}
+                kingdom={result.kingdom}
+                nomenclature={result.nomenclature_name}
+              />
+            )}
             （{result.matched_as.status}）
           </Text>
-          {vis(mode, 'nameUsagePick') === 'show' ? <Ionicons name="chevron-forward" size={12} color="#c2410c" /> : null}
+          {canAdopt ? <Ionicons name="chevron-forward" size={12} color="#c2410c" /> : null}
         </Pressable>
       ) : null}
       {result.family_cname || result.family ? (

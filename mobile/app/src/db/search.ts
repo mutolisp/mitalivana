@@ -601,26 +601,34 @@ function stripSensuSuffix(cname: string): string {
  * a hit: plain search uses `includes`, fuzzy search uses equality with the index
  * term. Returns the alias that hit, so ranking can move exact aliases forward.
  *
- * Wamei are katakana, so `ScientificName`'s leading `^[A-Z][a-z-]+` match never
- * hits and the whole string renders non-italic — so reusing the existing
- * matched_as rendering never italicizes a wamei by mistake.
+ * The alias is a wamei, not a scientific name: it is flagged `vernacular`, so the
+ * UI shows it as plain text and `chooseNameUsage` never files it as the record's
+ * scientific name.
  */
 export function markJpAlias(
   result: SearchResult,
+  acceptedCname: unknown,
   aliasField: unknown,
   acceptedHit: boolean,
   pick: (alias: string) => boolean,
 ): string | null {
   if (acceptedHit) return null;
+  // A taxon with two accepted wamei stores them as 「A/B」 in common_name_c and
+  // repeats both in alternative_name_c, so B is not a synonym of itself.
+  const accepted = new Set(
+    String(acceptedCname ?? '')
+      .split('/')
+      .flatMap((n) => [n.trim(), stripSensuSuffix(n.trim())]),
+  );
   const alias = String(aliasField ?? '')
     .split(',')
     .map((a) => a.trim())
-    .filter(Boolean)
+    .filter((a) => a && !accepted.has(a))
     .find(pick);
   if (!alias) return null;
   // status reuses TaiCOL's 'synonym' vocabulary, so the UI shows it exactly like a
-  // Taiwan-side synonym.
-  result.matched_as = { name: alias, fullname: alias, status: 'synonym' };
+  // Taiwan-side synonym; `vernacular` keeps it out of the scientific-name slot.
+  result.matched_as = { name: alias, fullname: alias, status: 'synonym', vernacular: true };
   return alias;
 }
 
@@ -702,7 +710,7 @@ export function searchSpeciesJp({ q, groups, advanced = {}, limit = 30 }: Search
     if (seen.has(key)) continue;
     seen.add(key);
     const result = rowToResult(row);
-    markJpAlias(result, row.alternative_name_c, (row.common_name_c ?? '').includes(trimmed), (a) =>
+    markJpAlias(result, row.common_name_c, row.alternative_name_c, (row.common_name_c ?? '').includes(trimmed), (a) =>
       a.includes(trimmed),
     );
     results.push(result);

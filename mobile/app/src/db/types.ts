@@ -98,6 +98,9 @@ export type SearchResult = {
      *  synthesises `matched_as` from a comma-split field with no row of its
      *  own — those can still be adopted, by string only. */
     name_id?: number;
+    /** A Japanese wamei alias (markJpAlias): a vernacular name, never shown in
+     *  the scientific-name slot or adopted as the record's scientific name. */
+    vernacular?: boolean;
   };
   fuzzy_match?: { query: string; matched: string; score: number };
 };

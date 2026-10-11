@@ -318,7 +318,7 @@ export function fuzzySearchJp({ q, groups, excludeIds, limit = 10 }: FuzzyOption
     if (!info) continue;
     const result = buildFuzzyResult(row, q, info);
     // 索引同時收接受和名與別名，命中的若不是接受和名就是別名 → 補 ≡ 標記。
-    markJpAlias(result, row.alternative_name_c, info.matched === row.common_name_c, (a) => a === info.matched);
+    markJpAlias(result, row.common_name_c, row.alternative_name_c, info.matched === row.common_name_c, (a) => a === info.matched);
     results.push(result);
   }
   results.sort((a, b) => (a.fuzzy_match?.score ?? 99) - (b.fuzzy_match?.score ?? 99));

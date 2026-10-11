@@ -290,6 +290,40 @@ export function purgeOrphanRows(): void {
   }
 
   repairDanglingProjectIds(db);
+  repairVernacularAdoptions(db);
+}
+
+/**
+ * An adopted "scientific name" with no Latin letter in it is a Japanese wamei:
+ * fuzzy search used to offer the second of two accepted wamei (「A/B」) as a
+ * synonym, and adopting it stored the wamei as the record's scientific name
+ * (fixed in markJpAlias / chooseNameUsage). Clearing the field puts the
+ * accepted name back. Every real scientific name has a Latin letter, so the
+ * test cannot catch one. Same gate and snapshot as repairDanglingProjectIds.
+ */
+const VERNACULAR_ADOPTION_WHERE =
+  `used_name_id IS NULL AND used_scientific_name IS NOT NULL AND used_scientific_name <> '' ` +
+  `AND used_scientific_name NOT GLOB '*[A-Za-z]*'`;
+
+function repairVernacularAdoptions(db: ReturnType<typeof getUserDb>): void {
+  const counts = ADOPTION_TABLES.map((t) => {
+    const res = db.executeSync(`SELECT COUNT(*) AS n FROM ${t} WHERE ${VERNACULAR_ADOPTION_WHERE};`);
+    return { table: t, n: Number((res.rows?.[0] as { n?: number })?.n ?? 0) };
+  }).filter((c) => c.n > 0);
+
+  if (counts.length === 0) return;
+
+  const snapshot = createSafetySnapshot();
+  if (__DEV__) {
+    console.warn(
+      `[cleanup] clearing wamei stored as adopted scientific name: ` +
+        counts.map((c) => `${c.table}=${c.n}`).join(', ') +
+        ` (snapshot: ${snapshot ?? 'FAILED'})`,
+    );
+  }
+  for (const { table } of counts) {
+    db.executeSync(`UPDATE ${table} SET used_scientific_name = NULL WHERE ${VERNACULAR_ADOPTION_WHERE};`);
+  }
 }
 
 /**

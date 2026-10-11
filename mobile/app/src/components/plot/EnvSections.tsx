@@ -76,7 +76,7 @@ export function CentreLocationCard({
   onCapture: () => void;
   /** Placed on the map: accuracy null (hand-placed), or what an undo restores. */
   onPlace: (lat: number, lng: number, accuracy: number | null) => void;
-  /** Absent: no boundary link (a survey with no boundary of its own). */
+  /** Pick or draw the boundary. Absent: no boundary link (a survey with no boundary of its own). */
   onDrawBoundary?: () => void;
   /** The small map as a still preview that opens full screen (inside a scrolling page). */
   mapPreview?: boolean;
@@ -120,15 +120,16 @@ export function CentreLocationCard({
       </SwipeBlockedArea>
       {onDrawBoundary ? (
         <>
-          {/* Drawing stays on the map screen — the only place with vertex
-              handles — and comes back via router.replace. */}
+          {/* Opens the boundary sheet: existing 地理樣區 (one, or several
+              merged), or drawing on the map screen — the only place with
+              vertex handles — which comes back via router.replace. */}
           <Pressable
             onPress={onDrawBoundary}
             className="mt-2 flex-row items-center rounded-lg border border-gray-200 px-3 py-2 active:bg-gray-50 dark:border-gray-700 dark:active:bg-gray-800"
           >
             <Ionicons name="shapes-outline" size={18} color={boundary ? c.accent : c.ink2} />
             <Text className="ml-2 flex-1 text-sm text-gray-700 dark:text-gray-300">
-              {boundary ? t('plot.editRange') : t('plot.drawRange')}
+              {boundary ? t('plot.changeRange') : t('plot.setRange')}
             </Text>
             <Ionicons name="chevron-forward" size={16} color={c.ink3} />
           </Pressable>

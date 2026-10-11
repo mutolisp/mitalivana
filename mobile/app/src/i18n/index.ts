@@ -65,19 +65,23 @@ export const LANGUAGE_CATALOGUE: Array<{
  *  optional native module to be missing (unlike expo-localization), and unlike
  *  Hermes `Intl.resolvedOptions().locale` which returns a fixed 'en-US' on some
  *  Hermes builds. Probes both modules rather than branching on Platform.OS:
- *  Android exposes I18nManager.localeIdentifier, iOS exposes SettingsManager. */
+ *  iOS exposes SettingsManager (AppleLanguages = the preferred UI language, so
+ *  it goes first), both expose I18nManager.localeIdentifier.
+ *
+ *  Under the New Architecture these are TurboModules whose constants come only
+ *  from getConstants(): reading `.localeIdentifier` straight off the module is
+ *  undefined, which sent every Android install to zh-TW (2026-10-11). */
 function deviceLocaleTag(): string {
+  type Settings = { settings?: { AppleLocale?: string; AppleLanguages?: string[] } };
+  type I18n = { localeIdentifier?: string };
+  const constants = <T,>(m: unknown): T | undefined => {
+    const mod = m as (T & { getConstants?: () => T }) | undefined;
+    return mod?.getConstants?.() ?? mod;
+  };
   try {
-    const { SettingsManager, I18nManager } = NativeModules as {
-      SettingsManager?: { settings?: { AppleLocale?: string; AppleLanguages?: string[] } };
-      I18nManager?: { localeIdentifier?: string };
-    };
-    return (
-      I18nManager?.localeIdentifier ||
-      SettingsManager?.settings?.AppleLocale ||
-      SettingsManager?.settings?.AppleLanguages?.[0] ||
-      ''
-    );
+    const settings = constants<Settings>(NativeModules.SettingsManager)?.settings;
+    const i18nManager = constants<I18n>(NativeModules.I18nManager);
+    return settings?.AppleLanguages?.[0] || i18nManager?.localeIdentifier || settings?.AppleLocale || '';
   } catch {
     return '';
   }

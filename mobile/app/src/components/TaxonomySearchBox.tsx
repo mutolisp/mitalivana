@@ -125,7 +125,7 @@ const HitRow = memo(function HitRow({ hit, onPress }: { hit: TaxonSearchHit; onP
       {hit.matched_as ? (
         <Text className="mt-0.5 text-[11px] text-orange-700 dark:text-orange-300" numberOfLines={1}>
           {t('search.youEntered')}
-          <ScientificName name={hit.matched_as.name} rank={hit.rank} />
+          {hit.matched_as.vernacular ? hit.matched_as.name : <ScientificName name={hit.matched_as.name} rank={hit.rank} />}
           {t('search.synonymStatus', { status: hit.matched_as.status })}
         </Text>
       ) : null}

@@ -12,10 +12,10 @@ import {
 } from 'react-native';
 import { KeyboardAvoidingView } from './KeyboardAvoidingView';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { createProject, listProjects, type Project } from '~/db';
+import { createProject, listProjects, type Project, type SiteGeometryType } from '~/db';
 import { promptText } from './TextPromptModal';
 import { runOverModal } from './GbifLookupHost';
-import { SITE_TYPE_LABEL, type DrawType } from '~/lib/siteLabels';
+import { SITE_TYPE_LABEL } from '~/lib/siteLabels';
 import { useThemeColors } from '~/theme/colors';
 import { DropdownChevron } from '~/components/ui/Chevron';
 import { ActionSheetLayer, sheetBack } from '~/components/ActionSheet';
@@ -25,7 +25,8 @@ type Props = {
   defaultName?: string;
   defaultProjectId?: number;
   defaultNotes?: string;
-  geometryType: DrawType;
+  /** A drawn shape's type, or an existing site's when its details are edited (Multi* too). */
+  geometryType: SiteGeometryType;
   vertexCount: number;
   title?: string;
   onCancel: () => void;

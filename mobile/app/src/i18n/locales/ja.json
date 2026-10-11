@@ -195,7 +195,8 @@
     "sortOldFirst": "古い順",
     "sortAsc": "昇順",
     "sortDesc": "降順",
-    "sortFlipHint": "現在：{{dir}}（もう一度タップで反転）"
+    "sortFlipHint": "現在：{{dir}}（もう一度タップで反転）",
+    "siteCentreFilled": "サイトを割り当て、中心点をその中央にしました（GNSS や地図で修正できます）"
   },
   "records": {
     "recording": "記録中",
@@ -693,7 +694,7 @@
     "rangeTitle": "調査区の範囲",
     "drawRange": "調査区の範囲を描く",
     "editRange": "範囲を描き直す",
-    "rangeHint": "地図上で調査区の境界を囲みます。この範囲は記録と書き出しのためのもので、調査区の大きさの欄を置き換えるものではありません。",
+    "rangeHint": "既存のサイトを選ぶ（複数選ぶと 1 つにまとめます）か、地図上で調査区の境界を囲みます。この範囲は記録と書き出しのためのもので、調査区の大きさの欄を置き換えるものではありません。",
     "tabQuadrats": "小方形区",
     "quadrats": {
       "title": "1 × 1 m 小方形区",
@@ -823,7 +824,12 @@
     "tabEnv_vol": "基本情報",
     "plotidLabel": "Plotid",
     "plotidLabel_vol": "番号",
-    "placeAndNotes": "場所と備考"
+    "placeAndNotes": "場所と備考",
+    "setRange": "調査区の範囲を設定",
+    "changeRange": "範囲を変更・描き直す",
+    "removeRange": "範囲を解除",
+    "rangeRemoved": "範囲を解除しました",
+    "rangeCentreFilled": "範囲を紐付け、中心点を範囲の中央にしました（GNSS や地図で修正できます）"
   },
   "settings": {
     "sectionAppearance": "外観と操作",
@@ -1173,7 +1179,24 @@
     "measureResult": "合計距離：{{d}}",
     "measureRecord": "{{d}}、{{m}} m 以上。調査地点に記録しますか？",
     "measureRecordShort": "{{d}}、{{m}} m 未満です。それでも調査地点に記録しますか？",
-    "measureSave": "調査地点に記録"
+    "measureSave": "調査地点に記録",
+    "editShape": "形状を編集",
+    "editSiteInfo": "名前・プロジェクト・備考を編集",
+    "editShapeHint": "頂点はドラッグで移動、タップで削除。辺の中央の小さな丸をタップすると頂点を追加します",
+    "editShapeBar": "形状を編集 · ドラッグ／頂点タップで削除／丸タップで追加",
+    "pickPartTitle": "どの部分を編集しますか？",
+    "partN": "{{n}} 番目",
+    "vertexCount_other": "頂点 {{count}} 個",
+    "removePart": "部分を 1 つ削除…",
+    "removePartTitle": "どの部分を削除しますか？",
+    "removePartMsg": "「{{name}}」から「{{part}}」を削除しますか？",
+    "partRemoved": "部分を削除しました",
+    "saveShapeTitle": "形状の変更を保存しますか？",
+    "saveShapeMsg": "「{{name}}」を地図上の現在の形状にします。",
+    "saveShapeShared_other": "「{{name}}」は {{count}} 件の記録で使われています。これらの記録の場所も一緒に変わります。",
+    "shapeUpdated": "形状を更新しました",
+    "minVertices_other": "頂点は {{count}} 個以上必要です",
+    "siteInfoUpdated": "サイトを更新しました"
   },
   "keys": {
     "modeDichotomous": "二分岐",
@@ -1384,7 +1407,10 @@
     "multiPick": "複数選択",
     "mergeHint": "同じ種類（ポイント・ライン・ポリゴン）のサイトを選ぶと、1 つにまとめてこの記録に割り当てます。元のサイトは残ります。",
     "assignMerged_other": "{{count}} 件をまとめて割り当て",
-    "pickTwo": "2 つ以上選んでください"
+    "pickTwo": "2 つ以上選んでください",
+    "boundaryDesc": "ポリゴンのサイトを 1 つ選ぶか、「複数選択」で複数を 1 つの範囲にまとめます",
+    "emptyAreas": "ポリゴンのサイトがまだありません。下から地図上で描くか、先に地図で KML／GeoJSON を読み込んでください。",
+    "boundaryMergeHint": "まとめるポリゴンを選ぶと、1 つにしてこの記録の範囲にします。元のサイトは残ります。"
   },
   "exportPref": {
     "title": "エクスポート設定",
@@ -1792,7 +1818,7 @@
     "synonymOf": "シノニム、正名：{{name}}",
     "add": "追加",
     "willAdd": "この種を追加します",
-    "cname": "中国語名",
+    "cname": "和名",
     "cnamePlaceholder": "任意",
     "cnameFromGbif": "GBIF から取得した名前です。自由に編集できます。",
     "cnameMissing": "GBIF にこの分類群の一般名がありません。自分で入力するか、空欄のままにしてください。",
@@ -1954,7 +1980,7 @@
     "createOwn": "自分で種を作成",
     "intro": "ここで作成した種はこの端末にのみ存在します（自作リスト）。記録に追加してエクスポートでき、作成後はいつでも種の詳細ページで編集できます。",
     "sciName": "学名",
-    "cname": "中国語名",
+    "cname": "和名",
     "cnamePlaceholder": "任意",
     "kingdom": "界",
     "kingdoms": {
@@ -2082,7 +2108,7 @@
     "colHeight": "高さ",
     "colMethod": "記録方法",
     "colScientific": "学名",
-    "colCommon": "中国語名",
+    "colCommon": "和名",
     "colAbundance": "多度",
     "colMarks": "記号",
     "colSpecies": "種",
@@ -3391,7 +3417,7 @@
     "rank": "階級",
     "name": "学名",
     "author": "命名者",
-    "cname": "和名・俗名",
+    "cname": "和名",
     "under": "{{parent}} の下",
     "pickMembers": "「{{name}}」に入れる分類群を選択",
     "pickMembersHint": "後から各分類群の ⓘ で所属を変更することもできます。",

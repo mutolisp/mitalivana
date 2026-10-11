@@ -256,12 +256,16 @@ export function SpeciesDetailPanel({
         <View className="border-b border-gray-100 bg-orange-50 px-4 py-2 dark:border-gray-800 dark:bg-orange-950/40">
           <Text selectable className="text-xs text-orange-900 dark:text-orange-200">
             {t('species.matchedSynonymPre')}
-            <ScientificName
-              name={result.matched_as.name}
-              rank={result.rank}
-              kingdom={result.kingdom}
-              nomenclature={result.nomenclature_name}
-            />
+            {result.matched_as.vernacular ? (
+              result.matched_as.name
+            ) : (
+              <ScientificName
+                name={result.matched_as.name}
+                rank={result.rank}
+                kingdom={result.kingdom}
+                nomenclature={result.nomenclature_name}
+              />
+            )}
             {t('species.matchedSynonymPost', { status: result.matched_as.status })}
           </Text>
         </View>

@@ -154,6 +154,19 @@ export function countSiteReferences(id: number): number {
 }
 
 /**
+ * How many records hold this site — the ones whose place moves when its shape
+ * is edited on the map. Unlike countSiteReferences, a 名錄 that drew the site
+ * and holds it counts once.
+ */
+export function countSiteRecords(id: number): number {
+  const res = getUserDb().executeSync(
+    `SELECT ${SITE_REF_TABLES.map((t) => `(SELECT COUNT(*) FROM ${t} WHERE site_id = ?)`).join(' + ')} AS refs`,
+    SITE_REF_TABLES.map(() => id),
+  );
+  return Number((res.rows?.[0] as { refs?: number } | undefined)?.refs ?? 0);
+}
+
+/**
  * Drop a site only when nothing points at it any more.
  *
  * Used by record import: re-importing the same record over itself creates a

@@ -3,6 +3,8 @@
  * after (a user with imported polygons took the draw buttons on top for the
  * only way, 2026-10-07). 多選 merges several of one kind — points, lines or
  * areas — into a new site and assigns that; the originals stay (siteMerge.ts).
+ * `boundary`: a plot's 樣區範圍 — only areas are offered, and drawing is one
+ * polygon button (asked 2026-10-07).
  */
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
@@ -34,6 +36,8 @@ type Props = {
    *  EXISTING site, but drawing one needs a map scope the trip does not have
    *  yet (the map's draw mode is scoped by `?session=`). */
   onCreateNew?: (drawType: DrawType) => void;
+  /** Picking a plot's or plot-style survey's boundary rather than a place. */
+  boundary?: boolean;
 };
 
 export function SiteAssignSheet({
@@ -43,6 +47,7 @@ export function SiteAssignSheet({
   onCancel,
   onAssign,
   onCreateNew,
+  boundary = false,
 }: Props) {
   const c = useThemeColors();
   const { t } = useTranslation();
@@ -53,10 +58,10 @@ export function SiteAssignSheet({
 
   useEffect(() => {
     if (visible) {
-      setSites(listSites());
+      setSites(boundary ? listSites().filter((x) => dimensionOf(x.geometry_type) === 'area') : listSites());
       setPicked(null);
     }
-  }, [visible]);
+  }, [visible, boundary]);
 
   const pickedSites = picked ? sites.filter((x) => picked.includes(x.id)) : [];
   // Only one kind merges: once a site is picked, the other kinds are greyed out.
@@ -117,10 +122,10 @@ export function SiteAssignSheet({
           <View className="flex-row items-center border-b border-gray-200 px-4 py-3 dark:border-gray-700">
             <View className="flex-1">
               <Text className="text-base font-semibold text-gray-900 dark:text-gray-100">
-                {t('sheets.assignSite')}
+                {boundary ? t('plot.rangeTitle') : t('sheets.assignSite')}
               </Text>
               <Text className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                {picked ? t('sheets.mergeHint') : t('sheets.assignSiteDesc')}
+                {t(picked ? (boundary ? 'sheets.boundaryMergeHint' : 'sheets.mergeHint') : boundary ? 'sheets.boundaryDesc' : 'sheets.assignSiteDesc')}
               </Text>
             </View>
             {sites.length >= 2 ? (
@@ -141,7 +146,7 @@ export function SiteAssignSheet({
             {sortedSites.length === 0 ? (
               <View className="px-4 py-6">
                 <Text className="text-center text-sm text-gray-500 dark:text-gray-400">
-                  {t('sheets.emptySites')}
+                  {boundary ? t('sheets.emptyAreas') : t('sheets.emptySites')}
                 </Text>
               </View>
             ) : (
@@ -213,11 +218,19 @@ export function SiteAssignSheet({
                     style={{ marginRight: 12 }}
                   />
                   <Text className="flex-1 text-base text-gray-700 dark:text-gray-300">
-                    {t('sheets.removeAssign')}
+                    {boundary ? t('plot.removeRange') : t('sheets.removeAssign')}
                   </Text>
                 </Pressable>
               ) : null}
-              {onCreateNew ? (
+              {onCreateNew && boundary ? (
+                <View className="px-4 pt-3">
+                  <Button
+                    label={currentSiteId !== null ? t('plot.editRange') : t('plot.drawRange')}
+                    icon="shapes-outline"
+                    onPress={() => onCreateNew('Polygon')}
+                  />
+                </View>
+              ) : onCreateNew ? (
               <View className="bg-accent-50 dark:bg-accent-950/40">
                 <View className="px-4 pb-2 pt-3">
                   <Text className="text-xs font-medium uppercase tracking-wide text-accent-700 dark:text-accent-300">

@@ -239,7 +239,8 @@
     "sortOldFirst": "Más antiguos primero",
     "sortAsc": "Ascendente",
     "sortDesc": "Descendente",
-    "sortFlipHint": "{{dir}}; toque de nuevo para invertir"
+    "sortFlipHint": "{{dir}}; toque de nuevo para invertir",
+    "siteCentreFilled": "Sitio asignado; el centro se fijó en su punto medio (corríjalo con GNSS o en el mapa)"
   },
   "records": {
     "recording": "Registrando",
@@ -781,7 +782,7 @@
     "rangeTitle": "Límite de la parcela",
     "drawRange": "Dibujar el límite",
     "editRange": "Volver a dibujar el límite",
-    "rangeHint": "Dibuja el contorno de la parcela en el mapa. Este límite es solo para los registros y las exportaciones; no sustituye al campo de tamaño.",
+    "rangeHint": "Elija sitios geográficos existentes (varios se unen en uno) o dibuje el contorno de la parcela en el mapa. Este límite es solo para los registros y las exportaciones; no sustituye al campo de tamaño.",
     "tabQuadrats": "Cuadrantes",
     "quadrats": {
       "title": "Cuadrantes de 1 × 1 m",
@@ -911,7 +912,12 @@
     "tabEnv_vol": "Datos básicos",
     "plotidLabel": "Plotid",
     "plotidLabel_vol": "Código",
-    "placeAndNotes": "Lugar y observaciones"
+    "placeAndNotes": "Lugar y observaciones",
+    "setRange": "Definir el límite",
+    "changeRange": "Cambiar o volver a dibujar el límite",
+    "removeRange": "Quitar el límite",
+    "rangeRemoved": "Límite quitado",
+    "rangeCentreFilled": "Límite vinculado; el centro se fijó en su punto medio (corríjalo con GNSS o en el mapa)"
   },
   "settings": {
     "sectionAppearance": "Apariencia e interacción",
@@ -1319,7 +1325,30 @@
     "measureResult": "Distancia total: {{d}}",
     "measureRecord": "{{d}}, al menos {{m}} m. ¿Registrarlo en el sitio?",
     "measureRecordShort": "{{d}}, menos de {{m}} m. ¿Registrarlo igualmente en el sitio?",
-    "measureSave": "Registrar en el sitio"
+    "measureSave": "Registrar en el sitio",
+    "editShape": "Editar la forma",
+    "editSiteInfo": "Editar nombre, proyecto y notas",
+    "editShapeHint": "Arrastre un vértice para moverlo, tóquelo para eliminarlo y toque el punto en medio de un lado para añadir uno",
+    "editShapeBar": "Editar la forma · arrastre / toque un vértice para eliminarlo / toque un punto para añadir",
+    "pickPartTitle": "¿Qué parte quiere editar?",
+    "partN": "Parte {{n}}",
+    "vertexCount_one": "{{count}} vértice",
+    "vertexCount_many": "{{count}} vértices",
+    "vertexCount_other": "{{count}} vértices",
+    "removePart": "Eliminar una parte…",
+    "removePartTitle": "¿Qué parte quiere eliminar?",
+    "removePartMsg": "¿Eliminar «{{part}}» de «{{name}}»?",
+    "partRemoved": "Parte eliminada",
+    "saveShapeTitle": "¿Guardar la nueva forma?",
+    "saveShapeMsg": "«{{name}}» tomará la forma que se ve ahora en el mapa.",
+    "saveShapeShared_one": "«{{name}}» lo usa {{count}} registro; su lugar cambiará con él.",
+    "saveShapeShared_many": "«{{name}}» lo usan {{count}} registros; su lugar cambiará con él.",
+    "saveShapeShared_other": "«{{name}}» lo usan {{count}} registros; su lugar cambiará con él.",
+    "shapeUpdated": "Forma actualizada",
+    "minVertices_one": "Se necesita al menos {{count}} vértice",
+    "minVertices_many": "Se necesitan al menos {{count}} vértices",
+    "minVertices_other": "Se necesitan al menos {{count}} vértices",
+    "siteInfoUpdated": "Sitio actualizado"
   },
   "keys": {
     "modeDichotomous": "Dicotómica",
@@ -1550,7 +1579,10 @@
     "assignMerged_one": "Unir {{count}} y asignar",
     "assignMerged_many": "Unir {{count}} y asignar",
     "assignMerged_other": "Unir {{count}} y asignar",
-    "pickTwo": "Elija dos o más"
+    "pickTwo": "Elija dos o más",
+    "boundaryDesc": "Elija un sitio de polígono, o toque «Seleccionar varios» para unir varios en un límite",
+    "emptyAreas": "Aún no hay sitios de polígono. Dibuje uno en el mapa abajo, o importe primero KML / GeoJSON en el mapa.",
+    "boundaryMergeHint": "Marque los polígonos que se unirán en un solo límite para este registro; los originales se conservan."
   },
   "exportPref": {
     "title": "Ajustes de exportación",
@@ -2042,7 +2074,7 @@
     "synonymOf": "Sinónimo; nombre aceptado: {{name}}",
     "add": "Añadir",
     "willAdd": "Se añadirá esta especie",
-    "cname": "Nombre común chino",
+    "cname": "Nombre común",
     "cnamePlaceholder": "Se puede dejar en blanco",
     "cnameFromGbif": "Tomado de GBIF; puede modificarlo.",
     "cnameMissing": "GBIF no ofrece ningún nombre común para este taxón: escriba uno o déjelo en blanco.",
@@ -2214,7 +2246,7 @@
     "createOwn": "Crear una especie propia",
     "intro": "Un taxón creado aquí existe solo en su dispositivo (su lista propia). Se puede añadir a los registros y exportar, y editar en cualquier momento desde su página de detalle.",
     "sciName": "Nombre científico",
-    "cname": "Nombre chino",
+    "cname": "Nombre común",
     "cnamePlaceholder": "opcional",
     "kingdom": "Reino",
     "kingdoms": {
@@ -2348,7 +2380,7 @@
     "colHeight": "Altura",
     "colMethod": "Modo de registro",
     "colScientific": "Nombre científico",
-    "colCommon": "Nombre chino",
+    "colCommon": "Nombre común",
     "colAbundance": "Abundancia",
     "colMarks": "Marcas",
     "colSpecies": "Especie",

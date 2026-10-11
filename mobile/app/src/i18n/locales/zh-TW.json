@@ -195,7 +195,8 @@
     "sortOldFirst": "舊→新",
     "sortAsc": "遞增",
     "sortDesc": "遞減",
-    "sortFlipHint": "目前{{dir}}；再點一次翻轉"
+    "sortFlipHint": "目前{{dir}}；再點一次翻轉",
+    "siteCentreFilled": "已指定地理樣區，中心點取其中央（可再用 GNSS 或地圖修正）"
   },
   "records": {
     "recording": "記錄中",
@@ -458,7 +459,7 @@
     "selectedGroups_other": "{{count}} 個分類群"
   },
   "species": {
-    "noChineseName": "(無中文名)",
+    "noChineseName": "(無俗名)",
     "otherNames": "其他俗名",
     "status": "物種狀態",
     "hybrid": "雜交",
@@ -693,7 +694,7 @@
     "rangeTitle": "樣區範圍",
     "drawRange": "繪製樣區範圍",
     "editRange": "重新繪製範圍",
-    "rangeHint": "在地圖上框出樣區邊界。此範圍僅供記錄與匯出，不會取代樣區大小欄位。",
+    "rangeHint": "選取既有的地理樣區（可多選合併），或在地圖上框出樣區邊界。此範圍僅供記錄與匯出，不會取代樣區大小欄位。",
     "tabQuadrats": "小樣方",
     "quadrats": {
       "title": "1 × 1 m 小樣方",
@@ -823,7 +824,12 @@
     "tabEnv_vol": "基本資料",
     "plotidLabel": "Plotid",
     "plotidLabel_vol": "編號",
-    "placeAndNotes": "地點與備註"
+    "placeAndNotes": "地點與備註",
+    "setRange": "設定樣區範圍",
+    "changeRange": "更換或重畫範圍",
+    "removeRange": "移除範圍",
+    "rangeRemoved": "已移除範圍",
+    "rangeCentreFilled": "已綁定範圍，中心點取範圍中央（可再用 GNSS 或地圖修正）"
   },
   "settings": {
     "sectionAppearance": "外觀與操作",
@@ -1173,7 +1179,24 @@
     "measureResult": "總距離：{{d}}",
     "measureRecord": "{{d}}，達 {{m}} m。記到樣點？",
     "measureRecordShort": "{{d}}，不足 {{m}} m。仍要記到樣點？",
-    "measureSave": "記到樣點"
+    "measureSave": "記到樣點",
+    "editShape": "編輯形狀",
+    "editSiteInfo": "編輯名稱、專案、備註",
+    "editShapeHint": "拖動頂點調整位置，點頂點刪除，點邊上的小圓點新增頂點",
+    "editShapeBar": "編輯形狀 · 拖動／點頂點刪除／點小圓點新增",
+    "pickPartTitle": "要修改哪一塊？",
+    "partN": "第 {{n}} 塊",
+    "vertexCount_other": "{{count}} 個頂點",
+    "removePart": "刪除其中一塊…",
+    "removePartTitle": "刪除哪一塊？",
+    "removePartMsg": "從「{{name}}」刪除「{{part}}」？",
+    "partRemoved": "已刪除一塊",
+    "saveShapeTitle": "儲存形狀修改？",
+    "saveShapeMsg": "「{{name}}」會改成地圖上目前的形狀。",
+    "saveShapeShared_other": "「{{name}}」有 {{count}} 筆記錄在用，這些記錄的地點會一起變動。",
+    "shapeUpdated": "已更新形狀",
+    "minVertices_other": "至少要 {{count}} 個頂點",
+    "siteInfoUpdated": "已更新地理樣區"
   },
   "keys": {
     "modeDichotomous": "對偶",
@@ -1384,7 +1407,10 @@
     "multiPick": "多選",
     "mergeHint": "選同一類（點、線或範圍）的地理樣區，合併成一個指定給這筆記錄；原本的保留。",
     "assignMerged_other": "合併 {{count}} 個並指定",
-    "pickTwo": "選兩個以上"
+    "pickTwo": "選兩個以上",
+    "boundaryDesc": "選一個範圍類的地理樣區，或按「多選」把幾個合併成一個範圍",
+    "emptyAreas": "尚無範圍類的地理樣區。可在下方到地圖上繪製，或先在地圖匯入 KML／GeoJSON。",
+    "boundaryMergeHint": "勾選要合併的範圍，合併成一個當作這筆記錄的範圍；原本的保留。"
   },
   "exportPref": {
     "title": "匯出設定",
@@ -1792,7 +1818,7 @@
     "synonymOf": "異名，接受名：{{name}}",
     "add": "加入",
     "willAdd": "將加入這個物種",
-    "cname": "中文俗名",
+    "cname": "俗名",
     "cnamePlaceholder": "可留空",
     "cnameFromGbif": "取自 GBIF 的俗名，可自行修改。",
     "cnameMissing": "GBIF 沒有提供俗名，可自行輸入或留空。",
@@ -1954,7 +1980,7 @@
     "createOwn": "自行建立物種",
     "intro": "這裡建立的物種只存在你的裝置上（自建名錄），可加入記錄與匯出；建立後可隨時回到物種詳細頁編輯。",
     "sciName": "學名",
-    "cname": "中文名",
+    "cname": "俗名",
     "cnamePlaceholder": "選填",
     "kingdom": "界",
     "kingdoms": {
@@ -2082,7 +2108,7 @@
     "colHeight": "高度",
     "colMethod": "記錄方式",
     "colScientific": "學名",
-    "colCommon": "中文名",
+    "colCommon": "俗名",
     "colAbundance": "豐度",
     "colMarks": "標記",
     "colSpecies": "物種",
@@ -3391,7 +3417,7 @@
     "rank": "階層",
     "name": "學名",
     "author": "命名者",
-    "cname": "中文俗名",
+    "cname": "俗名",
     "under": "位於 {{parent}} 之下",
     "pickMembers": "選擇要歸入「{{name}}」的分類群",
     "pickMembersHint": "之後也可以從各分類群的 ⓘ 變更歸屬。",

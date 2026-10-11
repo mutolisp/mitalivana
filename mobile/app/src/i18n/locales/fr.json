@@ -239,7 +239,8 @@
     "sortOldFirst": "Plus anciens d'abord",
     "sortAsc": "Croissant",
     "sortDesc": "Décroissant",
-    "sortFlipHint": "{{dir}} — touchez à nouveau pour inverser"
+    "sortFlipHint": "{{dir}} — touchez à nouveau pour inverser",
+    "siteCentreFilled": "Site affecté ; le centre est placé en son milieu (corrigez-le par GNSS ou sur la carte)"
   },
   "records": {
     "recording": "Enregistrement en cours",
@@ -530,7 +531,7 @@
     "selectedGroups_other": "{{count}} groupes"
   },
   "species": {
-    "noChineseName": "(sans nom chinois)",
+    "noChineseName": "(sans nom vernaculaire)",
     "otherNames": "Autres noms vernaculaires",
     "status": "Statut de l'espèce",
     "hybrid": "Hybride",
@@ -781,7 +782,7 @@
     "rangeTitle": "Limite de la placette",
     "drawRange": "Tracer la limite",
     "editRange": "Retracer la limite",
-    "rangeHint": "Tracez le contour de la placette sur la carte. Cette limite sert uniquement aux enregistrements et aux exports ; elle ne remplace pas le champ de taille.",
+    "rangeHint": "Choisissez des sites géographiques existants (plusieurs sont fusionnés) ou tracez le contour de la placette sur la carte. Cette limite sert uniquement aux enregistrements et aux exports ; elle ne remplace pas le champ de taille.",
     "tabQuadrats": "Quadrats",
     "quadrats": {
       "title": "Quadrats de 1 × 1 m",
@@ -911,7 +912,12 @@
     "tabEnv_vol": "Informations de base",
     "plotidLabel": "Plotid",
     "plotidLabel_vol": "Code",
-    "placeAndNotes": "Lieu et remarques"
+    "placeAndNotes": "Lieu et remarques",
+    "setRange": "Définir la limite",
+    "changeRange": "Changer ou retracer la limite",
+    "removeRange": "Retirer la limite",
+    "rangeRemoved": "Limite retirée",
+    "rangeCentreFilled": "Limite associée ; le centre est placé en son milieu (corrigez-le par GNSS ou sur la carte)"
   },
   "settings": {
     "sectionAppearance": "Apparence et interaction",
@@ -1319,7 +1325,30 @@
     "measureResult": "Distance totale : {{d}}",
     "measureRecord": "{{d}}, au moins {{m}} m. L’enregistrer sur le site ?",
     "measureRecordShort": "{{d}}, moins de {{m}} m. L’enregistrer quand même sur le site ?",
-    "measureSave": "Enregistrer sur le site"
+    "measureSave": "Enregistrer sur le site",
+    "editShape": "Modifier la forme",
+    "editSiteInfo": "Modifier le nom, le projet et les notes",
+    "editShapeHint": "Faites glisser un sommet pour le déplacer, touchez-le pour le supprimer, touchez le point au milieu d'un côté pour en ajouter un",
+    "editShapeBar": "Modifier la forme · glisser / toucher un sommet pour le supprimer / toucher un point pour ajouter",
+    "pickPartTitle": "Quelle partie modifier ?",
+    "partN": "Partie {{n}}",
+    "vertexCount_one": "{{count}} sommet",
+    "vertexCount_many": "{{count}} sommets",
+    "vertexCount_other": "{{count}} sommets",
+    "removePart": "Supprimer une partie…",
+    "removePartTitle": "Quelle partie supprimer ?",
+    "removePartMsg": "Supprimer « {{part}} » de « {{name}} » ?",
+    "partRemoved": "Partie supprimée",
+    "saveShapeTitle": "Enregistrer la nouvelle forme ?",
+    "saveShapeMsg": "« {{name}} » prendra la forme affichée sur la carte.",
+    "saveShapeShared_one": "« {{name}} » est utilisé par {{count}} relevé ; son lieu change avec lui.",
+    "saveShapeShared_many": "« {{name}} » est utilisé par {{count}} relevés ; leur lieu change avec lui.",
+    "saveShapeShared_other": "« {{name}} » est utilisé par {{count}} relevés ; leur lieu change avec lui.",
+    "shapeUpdated": "Forme mise à jour",
+    "minVertices_one": "Il faut au moins {{count}} sommet",
+    "minVertices_many": "Il faut au moins {{count}} sommets",
+    "minVertices_other": "Il faut au moins {{count}} sommets",
+    "siteInfoUpdated": "Site mis à jour"
   },
   "keys": {
     "modeDichotomous": "Dichotomique",
@@ -1550,7 +1579,10 @@
     "assignMerged_one": "Fusionner {{count}} et attribuer",
     "assignMerged_many": "Fusionner {{count}} et attribuer",
     "assignMerged_other": "Fusionner {{count}} et attribuer",
-    "pickTwo": "Choisissez-en au moins deux"
+    "pickTwo": "Choisissez-en au moins deux",
+    "boundaryDesc": "Choisissez un site polygone, ou touchez « Sélection multiple » pour en fusionner plusieurs en une limite",
+    "emptyAreas": "Aucun site polygone pour l'instant. Tracez-en un sur la carte ci-dessous, ou importez d'abord un KML / GeoJSON sur la carte.",
+    "boundaryMergeHint": "Cochez les polygones à fusionner en une seule limite pour ce relevé ; les originaux sont conservés."
   },
   "exportPref": {
     "title": "Réglages d'export",
@@ -2042,7 +2074,7 @@
     "synonymOf": "Synonyme ; nom accepté : {{name}}",
     "add": "Ajouter",
     "willAdd": "Cette espèce sera ajoutée",
-    "cname": "Nom vernaculaire chinois",
+    "cname": "Nom vernaculaire",
     "cnamePlaceholder": "Facultatif",
     "cnameFromGbif": "Repris de GBIF ; vous pouvez le modifier.",
     "cnameMissing": "GBIF ne fournit aucun nom vernaculaire pour ce taxon — saisissez-en un ou laissez vide.",
@@ -2214,7 +2246,7 @@
     "createOwn": "Créer votre propre taxon",
     "intro": "Un taxon créé ici n'existe que sur votre appareil (votre liste personnelle). Il peut être ajouté à des enregistrements et exporté, et reste modifiable à tout moment depuis sa page de détail.",
     "sciName": "Nom scientifique",
-    "cname": "Nom chinois",
+    "cname": "Nom vernaculaire",
     "cnamePlaceholder": "facultatif",
     "kingdom": "Règne",
     "kingdoms": {
@@ -2348,7 +2380,7 @@
     "colHeight": "Hauteur",
     "colMethod": "Mode d'enregistrement",
     "colScientific": "Nom scientifique",
-    "colCommon": "Nom chinois",
+    "colCommon": "Nom vernaculaire",
     "colAbundance": "Abondance",
     "colMarks": "Mentions",
     "colSpecies": "Espèce",

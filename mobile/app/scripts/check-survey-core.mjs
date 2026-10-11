@@ -1296,7 +1296,7 @@ ok(all('PRAGMA foreign_key_check').length === 0, 'integrity: foreign_key_check c
     'preview V5: the checklist screen refuses a project, a site and a new point site');
   ok(/isPreviewId\(id\) \? toast\(t\('builder\.previewNoAssign'\)\) : setProjectOpen\(true\)/.test(read('src/survey/form/PlotSurveyEnvTab.tsx')), 'preview V5: the plot screen refuses a project');
   const gv = read('src/survey/form/SurveyGroupViews.tsx');
-  ok(/preview \? refusePreview\(\) : setSiteOpen\(true\)/.test(gv) && /onDrawBoundary=\{\(\) => \(preview \? refusePreview\(\) :/.test(gv), 'preview V5: the spatial group refuses a site and a boundary');
+  ok(/preview \? refusePreview\(\) : setSiteOpen\(true\)/.test(gv) && /onDrawBoundary=\{openBoundary\}/.test(gv) && /const openBoundary = \(\) => \{[^}]*if \(preview\) return refusePreview\(\);/.test(gv), 'preview V5: the spatial group refuses a site and a boundary');
 }
 
 if (failed > 0) {

@@ -63,7 +63,8 @@ export async function chooseNameUsage(
   runLookup: LookupRunner = (run) => run(),
 ): Promise<AdoptionChoice | null> {
   const m = result.matched_as;
-  if (!m) return { kind: 'accepted' };
+  // A wamei alias is a vernacular name, not a competing scientific name.
+  if (!m || m.vernacular) return { kind: 'accepted' };
 
   const others = m.name_id ? otherConceptsFor(m.name_id, result.taxon_id) : [];
   const misapplied = m.status === 'misapplied';

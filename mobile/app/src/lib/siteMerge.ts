@@ -51,3 +51,29 @@ export function mergeGeometries(geoms: GeoJSONGeometry[]): GeoJSONGeometry | nul
     ),
   };
 }
+
+/**
+ * The middle of the shape's bounding box, or null when it holds no point.
+ * Where a record with no centre of its own is placed when it takes this shape
+ * as its boundary (asked 2026-10-07): picking a plot's subplots should not
+ * leave the plot shut out of species entry for want of a centre. Hand-placed,
+ * so the caller stores no accuracy with it.
+ */
+export function boundaryCentre(g: GeoJSONGeometry): { lat: number; lng: number } | null {
+  const points: [number, number][] =
+    g.type === 'Point'
+      ? [g.coordinates]
+      : g.type === 'MultiPoint' || g.type === 'LineString'
+        ? g.coordinates
+        : g.type === 'MultiLineString' || g.type === 'Polygon'
+          ? g.coordinates.flat()
+          : g.coordinates.flat(2);
+  const ok = points.filter(([lng, lat]) => Number.isFinite(lng) && Number.isFinite(lat));
+  if (!ok.length) return null;
+  const lngs = ok.map((p) => p[0]);
+  const lats = ok.map((p) => p[1]);
+  return {
+    lat: (Math.min(...lats) + Math.max(...lats)) / 2,
+    lng: (Math.min(...lngs) + Math.max(...lngs)) / 2,
+  };
+}

@@ -18,7 +18,8 @@ import { closeActiveRecords } from './activeRecords';
 import { ensureTaxonSelfSufficient } from './taxonCache';
 import { retaxonRecord } from './retaxon';
 import { existingProjectId, resolveProjectIdByName } from './projects';
-import { createSite, deleteSiteIfUnreferenced, type ImportedSite } from './sites';
+import { createSite, deleteSiteIfUnreferenced, getSite, parseGeometry, type ImportedSite } from './sites';
+import { boundaryCentre } from '~/lib/siteMerge';
 import type { DuplicateRecordOptions } from './duplicate';
 import { latest, mergeOrder, unionSurveyors, unionTracks, type MergeRecordOptions } from './merge';
 import { defaultSurveyorString } from './surveyors';
@@ -702,6 +703,33 @@ export function updatePlotSurvey(id: number, patch: UpdatePlotPatch): void {
   args.push(Date.now());
   args.push(id);
   db.executeSync(`UPDATE plot_surveys SET ${sets.join(', ')} WHERE id = ?`, args);
+}
+
+/**
+ * Set (or clear) the plot's boundary — a site picked from 地理樣區, merged
+ * from several, or drawn on the map. A plot that needs a centre and has none
+ * yet takes the boundary's centre, hand-placed (no accuracy), so it can take
+ * species straight away (asked 2026-10-07); a centre already there is kept.
+ * Returns whether the centre was filled.
+ */
+export function setPlotBoundary(id: number, siteId: number | null): boolean {
+  const plot = getPlotSurvey(id);
+  if (!plot) return false;
+  let centre: { lat: number; lng: number } | null = null;
+  if (siteId !== null && requiresStaticGps(plot) && (plot.decimal_latitude === null || plot.decimal_longitude === null)) {
+    const site = getSite(siteId);
+    try {
+      centre = site ? boundaryCentre(parseGeometry(site)) : null;
+    } catch {
+      // A corrupt geometry leaves the centre to the user rather than failing the bind.
+      centre = null;
+    }
+  }
+  updatePlotSurvey(id, {
+    site_id: siteId,
+    ...(centre ? { decimal_latitude: centre.lat, decimal_longitude: centre.lng, coord_uncertainty_m: null } : null),
+  });
+  return centre !== null;
 }
 
 // ─────────────────────────────────────────────────────────────────────

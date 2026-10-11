@@ -98,6 +98,7 @@ import {
   removeMedia,
   reopenBlindPhase,
   reopenSurvey,
+  setSurveyBoundary,
   updateOccurrence,
   updateSurvey,
   upgradeSurvey,
@@ -1248,10 +1249,11 @@ export function ChecklistSurveyScreen({ id, openId }: { id: number; openId?: num
         preferredProjectId={survey.project_id}
         onCancel={() => setSiteSheetOpen(false)}
         onAssign={(siteId) => {
-          updateSurvey(id, { siteId });
+          // A template with a centre point and none yet takes the site's.
+          const filled = setSurveyBoundary(id, siteId);
           setSiteSheetOpen(false);
           reload();
-          toast(siteId === null ? t('session.siteUnassigned') : t('session.siteAssigned'));
+          toast(siteId === null ? t('session.siteUnassigned') : filled ? t('session.siteCentreFilled') : t('session.siteAssigned'));
         }}
         onCreateNew={(drawType) => {
           setSiteSheetOpen(false);

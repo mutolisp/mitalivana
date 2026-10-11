@@ -217,7 +217,8 @@
     "sortOldFirst": "Oldest first",
     "sortAsc": "Ascending",
     "sortDesc": "Descending",
-    "sortFlipHint": "{{dir}}; tap again to reverse"
+    "sortFlipHint": "{{dir}}; tap again to reverse",
+    "siteCentreFilled": "Site assigned; the centre is set to its middle (correct it with GNSS or on the map)"
   },
   "records": {
     "recording": "Recording",
@@ -494,7 +495,7 @@
     "selectedGroups_other": "{{count}} groups"
   },
   "species": {
-    "noChineseName": "(no common name)",
+    "noChineseName": "(no vernacular name)",
     "otherNames": "Other common names",
     "status": "Species status",
     "hybrid": "Hybrid",
@@ -737,7 +738,7 @@
     "rangeTitle": "Plot boundary",
     "drawRange": "Draw plot boundary",
     "editRange": "Redraw boundary",
-    "rangeHint": "Outline the plot on the map. The boundary is for records and exports only; it does not replace the plot size field.",
+    "rangeHint": "Pick existing geographic sites (several merge into one) or outline the plot on the map. The boundary is for records and exports only; it does not replace the plot size field.",
     "tabQuadrats": "Quadrats",
     "quadrats": {
       "title": "1 × 1 m quadrats",
@@ -867,7 +868,12 @@
     "tabEnv_vol": "Basic info",
     "plotidLabel": "Plotid",
     "plotidLabel_vol": "ID",
-    "placeAndNotes": "Place and notes"
+    "placeAndNotes": "Place and notes",
+    "setRange": "Set plot boundary",
+    "changeRange": "Change or redraw boundary",
+    "removeRange": "Remove boundary",
+    "rangeRemoved": "Boundary removed",
+    "rangeCentreFilled": "Boundary linked; the centre is set to its middle (correct it with GNSS or on the map)"
   },
   "settings": {
     "sectionAppearance": "Appearance & interaction",
@@ -1246,7 +1252,27 @@
     "measureResult": "Total distance: {{d}}",
     "measureRecord": "{{d}}, at least {{m}} m. Record it on the site?",
     "measureRecordShort": "{{d}}, less than {{m}} m. Record it on the site anyway?",
-    "measureSave": "Record on site"
+    "measureSave": "Record on site",
+    "editShape": "Edit shape",
+    "editSiteInfo": "Edit name, project and notes",
+    "editShapeHint": "Drag a vertex to move it, tap it to delete it, tap the dot on an edge to add one",
+    "editShapeBar": "Edit shape · drag / tap vertex to delete / tap dot to add",
+    "pickPartTitle": "Which part to edit?",
+    "partN": "Part {{n}}",
+    "vertexCount_one": "{{count}} vertex",
+    "vertexCount_other": "{{count}} vertices",
+    "removePart": "Delete a part…",
+    "removePartTitle": "Delete which part?",
+    "removePartMsg": "Delete \"{{part}}\" from \"{{name}}\"?",
+    "partRemoved": "Part deleted",
+    "saveShapeTitle": "Save the new shape?",
+    "saveShapeMsg": "\"{{name}}\" takes the shape now shown on the map.",
+    "saveShapeShared_one": "\"{{name}}\" is used by {{count}} record; its place changes with it.",
+    "saveShapeShared_other": "\"{{name}}\" is used by {{count}} records; their place changes with it.",
+    "shapeUpdated": "Shape updated",
+    "minVertices_one": "At least {{count}} vertex is needed",
+    "minVertices_other": "At least {{count}} vertices are needed",
+    "siteInfoUpdated": "Site updated"
   },
   "keys": {
     "modeDichotomous": "Dichotomous",
@@ -1467,7 +1493,10 @@
     "mergeHint": "Pick sites of one kind (points, lines or polygons) to merge into one for this record; the originals stay.",
     "assignMerged_one": "Merge {{count}} and assign",
     "assignMerged_other": "Merge {{count}} and assign",
-    "pickTwo": "Pick two or more"
+    "pickTwo": "Pick two or more",
+    "boundaryDesc": "Pick a polygon site, or tap \"Select several\" to merge a few into one boundary",
+    "emptyAreas": "No polygon sites yet. Draw one on the map below, or import KML / GeoJSON on the map first.",
+    "boundaryMergeHint": "Tick the polygons to merge into one boundary for this record; the originals stay."
   },
   "exportPref": {
     "title": "Export settings",
@@ -1917,7 +1946,7 @@
     "synonymOf": "Synonym; accepted name: {{name}}",
     "add": "Add",
     "willAdd": "This species will be added",
-    "cname": "Chinese common name",
+    "cname": "Vernacular name",
     "cnamePlaceholder": "Optional",
     "cnameFromGbif": "Taken from GBIF; edit it if you like.",
     "cnameMissing": "GBIF has no vernacular name for this taxon — type one or leave it blank.",
@@ -2084,7 +2113,7 @@
     "createOwn": "Create your own",
     "intro": "A taxon created here lives only on this device (your own list). It can be added to records and exported, and edited any time from its detail page.",
     "sciName": "Scientific name",
-    "cname": "Chinese name",
+    "cname": "Vernacular name",
     "cnamePlaceholder": "optional",
     "kingdom": "Kingdom",
     "kingdoms": {
@@ -2215,7 +2244,7 @@
     "colHeight": "Height",
     "colMethod": "Method",
     "colScientific": "Scientific name",
-    "colCommon": "Common name",
+    "colCommon": "Vernacular name",
     "colAbundance": "Abundance",
     "colMarks": "Marks",
     "colSpecies": "Species",
@@ -3570,7 +3599,7 @@
     "rank": "Rank",
     "name": "Scientific name",
     "author": "Author",
-    "cname": "Common name",
+    "cname": "Vernacular name",
     "under": "Under {{parent}}",
     "pickMembers": "Choose the taxa to place in “{{name}}”",
     "pickMembersHint": "You can also change a taxon’s parent later from its ⓘ.",

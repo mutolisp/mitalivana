@@ -28,7 +28,9 @@ import {
   getPlotSurvey,
   getProject,
   getSite,
+  listSites,
   parseGeometry,
+  setPlotBoundary,
   type GeoJSONGeometry,
   layerKeyForIndex,
   listPlotSpecies,
@@ -55,6 +57,9 @@ import { plotStatsSummary } from '~/components/PlotDiversityCard';
 import { checkPlotCover } from '~/lib/plotCoverCheck';
 import { ProjectAssignSheet } from '~/components/ProjectAssignSheet';
 import { SurveyorAssignSheet } from '~/components/SurveyorAssignSheet';
+import { SiteAssignSheet } from '~/components/SiteAssignSheet';
+import { dimensionOf } from '~/lib/siteMerge';
+import { useToast } from '~/stores/toast';
 import { TransectTrackControl } from '~/components/TransectTrackControl';
 import { isRecordingTarget, pauseIfNot, pauseRecording } from '~/lib/trackRecorder';
 import { useSettings, type PlotTab } from '~/stores/settings';
@@ -468,7 +473,9 @@ function EnvTab({
 
   const [projectSheetOpen, setProjectSheetOpen] = useState(false);
   const [surveyorSheetOpen, setSurveyorSheetOpen] = useState(false);
+  const [boundarySheetOpen, setBoundarySheetOpen] = useState(false);
   const [project, setProject] = useState<Project | null>(null);
+  const toast = useToast((s) => s.show);
 
   useEffect(() => {
     setProject(getProject(plot.project_id));
@@ -477,6 +484,15 @@ function EnvTab({
   const patch = (p: Parameters<typeof updatePlotSurvey>[1]) => {
     updatePlotSurvey(plot.id, p);
     onUpdated();
+  };
+
+  // 樣區範圍: imported or drawn 地理樣區 first, drawing after (asked 2026-10-07).
+  // With no area site to offer and no boundary to remove, the sheet would hold
+  // one button, so go straight to drawing.
+  const drawBoundary = () => router.push(`/(tabs)/map?draw=Polygon&plot=${plot.id}` as Href);
+  const openBoundary = () => {
+    if (plot.site_id === null && !listSites().some((x) => dimensionOf(x.geometry_type) === 'area')) drawBoundary();
+    else setBoundarySheetOpen(true);
   };
 
   const captureGps = async () => {
@@ -606,11 +622,7 @@ function EnvTab({
               })
             }
             // A point count's extent is its radius; volunteers are not offered a boundary.
-            onDrawBoundary={
-              shows(mode, 'plotRange') && !(simple && plot.plot_type === 'point_count')
-                ? () => router.push(`/(tabs)/map?draw=Polygon&plot=${plot.id}` as Href)
-                : undefined
-            }
+            onDrawBoundary={shows(mode, 'plotRange') && !(simple && plot.plot_type === 'point_count') ? openBoundary : undefined}
           />
         )}
 
@@ -640,7 +652,7 @@ function EnvTab({
 
       {/* A transect has no centre-point map to carry the boundary, so it keeps
           the boundary in its own section. */}
-      {plot.plot_type === 'transect' && !simple ? <PlotBoundarySection plot={plot} /> : null}
+      {plot.plot_type === 'transect' && !simple ? <PlotBoundarySection plot={plot} onEdit={openBoundary} /> : null}
 
       {simple ? (
         <Section title={t('plot.placeAndNotes')}>{placeAndNotes}</Section>
@@ -681,7 +693,7 @@ function EnvTab({
               {sizeFields}
             </Section>
             {envAdvanced(true)}
-            {plot.plot_type === 'transect' && vis(mode, 'plotRange') === 'adv' ? <PlotBoundarySection plot={plot} /> : null}
+            {plot.plot_type === 'transect' && vis(mode, 'plotRange') === 'adv' ? <PlotBoundarySection plot={plot} onEdit={openBoundary} /> : null}
           </View>
         </AdvancedFold>
       ) : null}
@@ -704,6 +716,23 @@ function EnvTab({
         onAssign={(v) => {
           patch({ recorded_by: v || null });
           setSurveyorSheetOpen(false);
+        }}
+      />
+      <SiteAssignSheet
+        boundary
+        visible={boundarySheetOpen}
+        currentSiteId={plot.site_id}
+        preferredProjectId={plot.project_id}
+        onCancel={() => setBoundarySheetOpen(false)}
+        onAssign={(siteId) => {
+          setBoundarySheetOpen(false);
+          const filled = setPlotBoundary(plot.id, siteId);
+          onUpdated();
+          toast(siteId === null ? t('plot.rangeRemoved') : filled ? t('plot.rangeCentreFilled') : t('map.boundPlotSite'));
+        }}
+        onCreateNew={() => {
+          setBoundarySheetOpen(false);
+          drawBoundary();
         }}
       />
       </View>
@@ -739,8 +768,9 @@ function usePlotBoundary(siteId: number | null): GeoJSONGeometry | null {
 /**
  * 樣區範圍 — the plot's boundary, stored as a linked `sites` row (that table is
  * the app's one geometry container, and `plot_surveys.site_id` already existed
- * for it). Read-only here: drawing hands over to the map screen, the only place
- * with vertex handles, and comes back via `router.replace`.
+ * for it). Read-only here: `onEdit` opens the boundary sheet — existing sites,
+ * or drawing on the map screen, the only place with vertex handles, which
+ * comes back via `router.replace`.
  *
  * Transects only: fixed and point-count plots draw the boundary on the
  * centre-point map in the GNSS card instead (two native maps on one screen is
@@ -748,9 +778,8 @@ function usePlotBoundary(siteId: number | null): GeoJSONGeometry | null {
  * default when there is no boundary — `CollapsibleSection` renders nothing
  * while closed, so the MapView is not mounted.
  */
-function PlotBoundarySection({ plot }: { plot: PlotSurvey }) {
+function PlotBoundarySection({ plot, onEdit }: { plot: PlotSurvey; onEdit: () => void }) {
   const { t } = useTranslation();
-  const router = useRouter();
   const [site, setSite] = useState<Site | null>(null);
 
   useEffect(() => {
@@ -765,10 +794,10 @@ function PlotBoundarySection({ plot }: { plot: PlotSurvey }) {
         <SwipeBlockedArea>
           <FolderAreaMap
             areaGeoJson={site?.geometry_geojson ?? ''}
-            onEdit={() => router.push(`/(tabs)/map?draw=Polygon&plot=${plot.id}` as Href)}
+            onEdit={onEdit}
             title={t('plot.rangeTitle')}
-            emptyLabel={t('plot.drawRange')}
-            editLabel={t('plot.editRange')}
+            emptyLabel={t('plot.setRange')}
+            editLabel={t('plot.changeRange')}
           />
         </SwipeBlockedArea>
       </View>
