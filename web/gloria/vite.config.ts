@@ -33,7 +33,7 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,wasm,png,svg,ico,json,webmanifest}'],
+        globPatterns: ['**/*.{js,css,html,wasm,png,svg,ico,json,webmanifest,woff2}'],
         // The species database is stored in IndexedDB by the app itself and
         // its manifest must always come from the network.
         globIgnores: ['data/**'],

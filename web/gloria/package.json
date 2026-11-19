@@ -11,6 +11,7 @@
     "test": "node scripts/gen-icons.mjs --check && vitest run"
   },
   "dependencies": {
+    "@fontsource/source-serif-4": "5.3.1",
     "@noble/hashes": "2.4.0",
     "@sqlite.org/sqlite-wasm": "3.54.1-build1",
     "@xmldom/xmldom": "0.9.12",

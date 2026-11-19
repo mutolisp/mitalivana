@@ -12,6 +12,7 @@ on:
       - 'web/gloria/**'
       - 'mobile/app/src/**'
       - 'mobile/app/app/gloria/**'
+      - 'mobile/app/app/report/**'
       - 'mobile/app/theme.tokens.js'
       - 'backend/scripts/datasets/build_web_species.py'
       - '.github/workflows/gloria-web.yml'

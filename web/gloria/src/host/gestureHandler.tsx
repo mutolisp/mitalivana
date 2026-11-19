@@ -136,6 +136,15 @@ export function GestureDetector({ gesture, children }: { gesture: GestureLike; c
     };
   };
   const fire = (g: GestureBuilder, name: string, e: Record<string, number>) => g.cbs[name]?.(e);
+  // Pointer capture only once a drag has taken over: capturing on press would
+  // send the click to this wrapper instead of the Pressable inside it.
+  const capture = (pointerId: number) => {
+    try {
+      ref.current?.setPointerCapture?.(pointerId);
+    } catch {
+      // the pointer is already gone
+    }
+  };
 
   const finish = (success: boolean) => {
     const s = st.current;
@@ -154,7 +163,6 @@ export function GestureDetector({ gesture, children }: { gesture: GestureLike; c
   const onDown = (ev: React.PointerEvent) => {
     if (ev.pointerType === 'mouse' && ev.button !== 0) return;
     pts.current.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
-    (ev.currentTarget as HTMLElement).setPointerCapture?.(ev.pointerId);
     const s = st.current;
     // Restart the reference point whenever the finger count changes.
     s.start = centroid();
@@ -171,6 +179,7 @@ export function GestureDetector({ gesture, children }: { gesture: GestureLike; c
         fire(g, 'onBegin', e);
         if (g.kind === 'pan' && Number(g.cfg.minDistance) === 0 && pts.current.size >= Number(g.cfg.minPointers)) {
           s.active.add(g);
+          capture(ev.pointerId);
           fire(g, 'onStart', e);
         }
         if (g.kind === 'longPress') {
@@ -183,9 +192,29 @@ export function GestureDetector({ gesture, children }: { gesture: GestureLike; c
     }
   };
 
+  /**
+   * Every point the finger passed: the events the browser coalesced, and for
+   * a one-finger move, steps of at most 8 px in between — a quick stroke over
+   * a frequency grid must not skip cells.
+   */
   const onMove = (ev: React.PointerEvent) => {
-    if (!pts.current.has(ev.pointerId)) return;
-    pts.current.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+    const prev = pts.current.get(ev.pointerId);
+    if (!prev) return;
+    const native = ev.nativeEvent as PointerEvent;
+    const raw = native.getCoalescedEvents?.().map((e) => ({ x: e.clientX, y: e.clientY })) ?? [];
+    const targets = raw.length ? raw : [{ x: ev.clientX, y: ev.clientY }];
+    let from = prev;
+    for (const to of targets) {
+      const steps = pts.current.size === 1 ? Math.max(1, Math.ceil(Math.hypot(to.x - from.x, to.y - from.y) / 8)) : 1;
+      for (let i = 1; i <= steps; i++) {
+        moveTo(ev.pointerId, { x: from.x + ((to.x - from.x) * i) / steps, y: from.y + ((to.y - from.y) * i) / steps });
+      }
+      from = to;
+    }
+  };
+
+  const moveTo = (pointerId: number, p: Pt) => {
+    pts.current.set(pointerId, p);
     const s = st.current;
     const c = centroid();
     const now = performance.now();
@@ -213,6 +242,7 @@ export function GestureDetector({ gesture, children }: { gesture: GestureLike; c
           const go = ax || ay ? outside(dx, ax) || outside(dy, ay) : Math.hypot(dx, dy) >= Number(g.cfg.minDistance);
           if (!go) continue;
           s.active.add(g);
+          capture(pointerId);
           fire(g, 'onStart', base);
         }
         fire(g, 'onUpdate', base);
