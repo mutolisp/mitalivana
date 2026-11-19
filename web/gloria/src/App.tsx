@@ -100,9 +100,12 @@ export function App() {
   return (
     // The shared screens are laid out for a phone: they keep a phone-width
     // column; on a wide screen a survey's pages get the unit sidebar beside it.
-    <div className="flex min-h-full w-full justify-center">
+    // The column is exactly the viewport's height, as a phone screen is: a
+    // screen scrolls inside itself (its ScrollView), its bottom bar stays at
+    // the bottom, and an overlay over the screen covers what is in view.
+    <div className="flex h-full w-full justify-center overflow-hidden">
       {wide && survey ? <SurveySidebar surveyId={survey.id} current={survey.code} /> : null}
-    <div className="flex min-h-full w-full max-w-2xl flex-col bg-paper dark:bg-paper-dark" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+    <div className="flex h-full min-h-0 w-full max-w-2xl flex-col bg-paper dark:bg-paper-dark" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
       <Navigator
         routes={ROUTES}
         notFound={() => <Message>404</Message>}

@@ -75,6 +75,18 @@ export function toCss(style: StyleProp<StyleValue>): CSSProperties | undefined {
       case 'borderStyle':
         out.borderStyle = v;
         break;
+      case 'flex': {
+        // RN's `flex` is not CSS's: 0 = sized by content, neither grows nor
+        // shrinks (CSS `flex: 0` is basis 0, which collapses the view);
+        // n > 0 = grow n from a zero basis; -1 = shrink only. Explicit
+        // flexGrow / flexShrink / flexBasis in the same style still win.
+        const n = Number(v);
+        const [grow, shrink, basis] = n > 0 ? [n, 1, '0%'] : n === 0 ? [0, 0, 'auto'] : [0, 1, 'auto'];
+        if (s.flexGrow == null) out.flexGrow = grow;
+        if (s.flexShrink == null) out.flexShrink = shrink;
+        if (s.flexBasis == null) out.flexBasis = basis;
+        break;
+      }
       default:
         out[k] = v;
     }

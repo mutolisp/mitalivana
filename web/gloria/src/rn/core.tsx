@@ -383,7 +383,7 @@ export const ScrollView = forwardRef<ScrollViewHandle, ScrollViewProps>(function
   return (
     <div
       ref={(d) => setRefs(d, el, lref)}
-      className={cx('rn-view rn-scroll', p.horizontal ? 'overflow-x-auto overflow-y-hidden' : 'overflow-y-auto', p.scrollEnabled === false && 'overflow-hidden', p.className)}
+      className={cx('rn-view rn-scroll', p.horizontal ? 'rn-scroll-h overflow-x-auto overflow-y-hidden' : 'overflow-y-auto', p.scrollEnabled === false && 'overflow-hidden', p.className)}
       style={toCss(p.style)}
       onScroll={p.onScroll ? (e) => p.onScroll?.({ nativeEvent: { contentOffset: { x: e.currentTarget.scrollLeft, y: e.currentTarget.scrollTop } } }) : undefined}
       {...a11yProps(p)}

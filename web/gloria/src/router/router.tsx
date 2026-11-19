@@ -259,11 +259,6 @@ export function Navigator({
   useLayoutEffect(() => {
     setScreenOptions(null);
   }, [loc]);
-  // Braces matter: window.scrollTo returns a Promise in current Chrome, and an
-  // effect that returns one breaks React's cleanup ("destroy is not a function").
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, [path]);
 
   if (!match) {
     const NotFound = notFound;
@@ -274,11 +269,16 @@ export function Navigator({
     <RouteCtx.Provider value={match}>
       <>
         <HeaderSlot render={(o) => renderHeader(o, router.canGoBack(), match.route.def.pattern)} />
-        <ErrorBoundary resetKey={loc}>
-          <Suspense fallback={null}>
-            <Comp key={loc} />
-          </Suspense>
-        </ErrorBoundary>
+        {/* The screen fills the rest of the column (a screen root is flex-1, as
+            on mobile); one that is simply taller scrolls here. Keyed, so a new
+            screen starts at the top. */}
+        <div key={loc} className="rn-view min-h-0 flex-1 overflow-y-auto">
+          <ErrorBoundary resetKey={loc}>
+            <Suspense fallback={null}>
+              <Comp />
+            </Suspense>
+          </ErrorBoundary>
+        </div>
       </>
     </RouteCtx.Provider>
   );

@@ -11,6 +11,10 @@
     min-width: 0; min-height: 0; box-sizing: border-box; border: 0 solid;
   }
   .rn-scroll { flex-grow: 1; flex-shrink: 1; -webkit-overflow-scrolling: touch; }
+  /* A horizontal scroller is as tall as its content (Yoga sizes it so). With
+     shrink on, a screen of fixed height squeezes it beside a long vertical
+     scroller and cuts its row in half. Utility classes still override. */
+  .rn-scroll-h { flex-grow: 0; flex-shrink: 0; }
   .rn-text { display: block; white-space: pre-wrap; overflow-wrap: anywhere; min-width: 0; }
   .rn-text-nested { display: inline; white-space: inherit; }
   .rn-box-none { pointer-events: none; }

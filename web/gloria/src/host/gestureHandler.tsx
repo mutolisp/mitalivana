@@ -12,7 +12,7 @@
  * translationX/Y, changeX/Y, velocityX/Y, numberOfPointers; pinch adds
  * scale, focalX/Y, velocity.
  */
-import { Children, cloneElement, isValidElement, useEffect, useRef, type ReactElement, type ReactNode } from 'react';
+import { Children, cloneElement, isValidElement, useEffect, useLayoutEffect, useRef, type ReactElement, type ReactNode } from 'react';
 import { FlatList as RNFlatList, Pressable, ScrollView as RNScrollView, View, type ViewProps } from '../rn/core';
 
 type Cb = (e: Record<string, number>) => void;
@@ -106,8 +106,11 @@ export function GestureDetector({ gesture, children }: { gesture: GestureLike; c
     down: false,
   });
 
+  // The detector adds no box of its own (display: contents), as on mobile:
+  // the child it wraps is what is measured, captured and given touch-action.
+  const box = (): HTMLElement | null => (ref.current?.firstElementChild as HTMLElement | null) ?? ref.current;
   const rel = (p: Pt) => {
-    const r = ref.current?.getBoundingClientRect();
+    const r = box()?.getBoundingClientRect();
     return { x: p.x - (r?.left ?? 0), y: p.y - (r?.top ?? 0) };
   };
   const centroid = (): Pt => {
@@ -140,7 +143,7 @@ export function GestureDetector({ gesture, children }: { gesture: GestureLike; c
   // send the click to this wrapper instead of the Pressable inside it.
   const capture = (pointerId: number) => {
     try {
-      ref.current?.setPointerCapture?.(pointerId);
+      box()?.setPointerCapture?.(pointerId);
     } catch {
       // the pointer is already gone
     }
@@ -328,12 +331,16 @@ export function GestureDetector({ gesture, children }: { gesture: GestureLike; c
           ? 'pan-x pan-y'
           : 'none';
 
+  useLayoutEffect(() => {
+    const el = box();
+    if (el && el !== ref.current) el.style.touchAction = touchAction ?? '';
+  });
+
   const child = Children.only(children);
   return (
     <div
       ref={ref}
-      className="rn-view"
-      style={{ touchAction }}
+      style={{ display: 'contents' }}
       onPointerDown={onDown}
       onPointerMove={onMove}
       onPointerUp={(e) => onUp(e)}
