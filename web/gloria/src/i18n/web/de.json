@@ -1,1 +1,30 @@
-{ "web": {} }
+{
+  "web": {
+    "home": {
+      "title": "GLORIA-Gipfelmonitoring",
+      "newSurvey": "Neue Aufnahme",
+      "summits": "Gipfel",
+      "importFile": "Aufnahmedatei importieren",
+      "surveys": "Aufnahmen",
+      "empty": "Noch keine Aufnahmen. Fügen Sie einen Gipfel hinzu oder importieren Sie eine aus Mitalivana exportierte GLORIA-Datei.",
+      "diagnostics": "Gerätediagnose",
+      "speciesMissing": "Die Gefäßpflanzen-Checkliste (ca. 7 MB) ist noch nicht heruntergeladen; laden Sie sie vor der Artsuche herunter.",
+      "speciesDownload": "Checkliste herunterladen",
+      "speciesProgress": "Wird heruntergeladen {{done}} / {{total}}",
+      "speciesFailed": "Download der Checkliste fehlgeschlagen: {{msg}}",
+      "surveyLine": "Zyklus {{mocy}} · {{species}} Taxa · {{started}}/28 Einheiten",
+      "active": "Laufend",
+      "done": "Abgeschlossen",
+      "otherTab": "Diese App ist in einem anderen Tab oder Fenster geöffnet. Schließen Sie es und laden Sie neu.",
+      "newerSchema": "Die Daten wurden von einer neueren App-Version gespeichert. Neu laden, um zu aktualisieren.",
+      "corrupt": "Der Datenbank-Schnappschuss kann nicht gelesen werden. Websitedaten nicht löschen; bitte den Entwickler kontaktieren.",
+      "recovered": "Daten wurden aus dem vorherigen Schnappschuss wiederhergestellt.",
+      "back": "Zurück",
+      "error": "Ein Fehler ist aufgetreten"
+    },
+    "export": {
+      "withPhotos": "Mit Fotos",
+      "withoutPhotos": "Ohne Fotos"
+    }
+  }
+}

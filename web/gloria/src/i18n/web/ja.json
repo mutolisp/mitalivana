@@ -1,1 +1,30 @@
-{ "web": {} }
+{
+  "web": {
+    "home": {
+      "title": "GLORIA 山頂モニタリング",
+      "newSurvey": "新しい調査",
+      "summits": "山頂",
+      "importFile": "調査ファイルを読み込む",
+      "surveys": "調査",
+      "empty": "調査はまだありません。山頂を追加するか、Mitalivana から書き出した GLORIA ファイルを読み込んでください。",
+      "diagnostics": "端末診断",
+      "speciesMissing": "維管束植物の名録（約 7 MB）がまだダウンロードされていません。種を検索する前にダウンロードしてください。",
+      "speciesDownload": "名録をダウンロード",
+      "speciesProgress": "ダウンロード中 {{done}} / {{total}}",
+      "speciesFailed": "名録のダウンロードに失敗しました：{{msg}}",
+      "surveyLine": "第 {{mocy}} 周期 · {{species}} 種 · {{started}}/28 単位",
+      "active": "調査中",
+      "done": "完了",
+      "otherTab": "このアプリは別のタブまたはウィンドウで開かれています。閉じてから再読み込みしてください。",
+      "newerSchema": "データは新しいバージョンのアプリで保存されています。再読み込みして更新してください。",
+      "corrupt": "データベースのスナップショットを読み込めません。サイトデータを消去せず、開発者に連絡してください。",
+      "recovered": "前のスナップショットからデータを復元しました。",
+      "back": "戻る",
+      "error": "エラーが発生しました"
+    },
+    "export": {
+      "withPhotos": "写真を含める",
+      "withoutPhotos": "写真を含めない"
+    }
+  }
+}

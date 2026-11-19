@@ -17,7 +17,7 @@ import { buildManifest, buildRecordReadme, parsePhotoUris, sanitizeFilename, typ
 import { guessExt } from '../../../lib/photoExt';
 import { buildPointHitRows, buildSheetTables, POINT_HITS_HEADER, toCsv, type GloriaExportData } from './sheetRows';
 import { planPhotoNames, yyyymmdd } from './photoNames';
-import { planLoggerFiles } from './loggerRows';
+import { H04_TEMPERATURE_LOGGERS, loggerRows, planLoggerFiles, type ExportVisit } from './loggerRows';
 import { CHECKLIST_HEADER, checklistRows, checklistState } from '../model/photoChecks';
 import { parseOverviewPhotos } from '../model/overview';
 import { planFormScans } from '../model/formScans';
@@ -167,4 +167,64 @@ export async function assembleGloriaEntries(
     bytes: strToU8(buildRecordReadme(base, entries) + (photoCount ? PHOTO_NOTE : '')),
   });
   return { entries, folderName: base, photoCount };
+}
+
+/**
+ * The temperature loggers of one summit alone (the summit page): every visit
+ * under the cycle its date falls in, for visits between two surveys. 04_
+ * table, loggers/ (data files and Form 4 scans, always) and photos/ (position
+ * photos, with the photos switch), then the README.
+ */
+export async function assembleLoggerEntries(
+  input: {
+    summit: { full_code: string; country: string; target_region: string; summit: string };
+    /** Visits with their loggers, keyed by monitoring cycle (cycleOf). */
+    byCycle: Map<number, ExportVisit[]>;
+    includePhotos: boolean;
+  },
+  io: Pick<GloriaBundleIO, 'readMedia' | 'beforeLibraryRead'> & { onFileProgress?(done: number, total: number): void },
+): Promise<{ entries: BuiltZipEntry[]; folderName: string }> {
+  const { summit, byCycle } = input;
+  const base = sanitizeFilename(`GLORIA_${summit.full_code}_temperature-loggers`);
+  const entries: BuiltZipEntry[] = [];
+  const cycles = [...byCycle.entries()].sort((a, b) => a[0] - b[0]);
+  const rows = cycles.flatMap(([m, vs]) => loggerRows(m, summit, vs));
+  entries.push({ name: `${base}/${base}_04_temperature_loggers.csv`, bytes: strToU8(toCsv(H04_TEMPERATURE_LOGGERS, rows)) });
+  const files = [...byCycle.entries()].flatMap(([m, vs]) => planLoggerFiles(m, summit, vs));
+  const photos = input.includePhotos
+    ? [...byCycle.entries()].flatMap(([m, vs]) =>
+        planPhotoNames({
+          mocy: m,
+          country: summit.country,
+          region: summit.target_region,
+          summit: summit.summit,
+          date: '',
+          p5m: {},
+          points: [],
+          units: [],
+          loggers: vs.flatMap((v) =>
+            v.loggers.flatMap((l) =>
+              (['open', 'closed'] as const).flatMap((w) => {
+                const uri = w === 'open' ? l.photo_open_uri : l.photo_closed_uri;
+                return uri ? [{ uri, item: loggerPhotoItem(l.quadrat, l.label), note: w, date: yyyymmdd(v.visit_ts) }] : [];
+              }),
+            ),
+          ),
+          extOf: (uri) => guessExt(uri),
+        }),
+      )
+    : [];
+  if (photos.length || files.some((f) => !f.uri.startsWith('file:'))) await io.beforeLibraryRead?.();
+  const todo = [
+    ...files.map((f) => ({ uri: f.uri, name: `${base}/loggers/${f.name}` })),
+    ...photos.map((p) => ({ uri: p.uri, name: `${base}/photos/${p.name}` })),
+  ];
+  for (let i = 0; i < todo.length; i++) {
+    io.onFileProgress?.(i, todo.length);
+    // Gone from the device: the 04_ table still names it.
+    const bytes = await io.readMedia(todo[i].uri);
+    if (bytes) entries.push({ name: todo[i].name, bytes });
+  }
+  entries.push({ name: `${base}/README.md`, bytes: strToU8(buildRecordReadme(base, entries)) });
+  return { entries, folderName: base };
 }

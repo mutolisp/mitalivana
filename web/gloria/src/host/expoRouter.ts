@@ -1,23 +1,12 @@
-/**
- * The only expo-router API reused mobile modules call is `useFocusEffect`
- * (modules/gloria/useSurvey.ts). On the web a screen is "focused" while it is
- * mounted; it is re-run when the page becomes visible again, so a survey
- * edited in another window is reloaded on return.
- */
-import { useEffect } from 'react';
-
-export function useFocusEffect(effect: () => void | (() => void)): void {
-  useEffect(() => {
-    let cleanup = effect();
-    const onVisible = () => {
-      if (document.visibilityState !== 'visible') return;
-      if (typeof cleanup === 'function') cleanup();
-      cleanup = effect();
-    };
-    document.addEventListener('visibilitychange', onVisible);
-    return () => {
-      document.removeEventListener('visibilitychange', onVisible);
-      if (typeof cleanup === 'function') cleanup();
-    };
-  }, [effect]);
-}
+/** `expo-router` for shared mobile code: the web hash router (src/router/router.tsx). */
+export {
+  router,
+  useRouter,
+  useLocalSearchParams,
+  useGlobalSearchParams,
+  usePathname,
+  useFocusEffect,
+  useIsFocused,
+  Stack,
+  type Href,
+} from '../router/router';

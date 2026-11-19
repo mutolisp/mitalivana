@@ -1,1 +1,30 @@
-{ "web": {} }
+{
+  "web": {
+    "home": {
+      "title": "GLORIA 산정상 모니터링",
+      "newSurvey": "새 조사",
+      "summits": "산정상",
+      "importFile": "조사 파일 가져오기",
+      "surveys": "조사",
+      "empty": "아직 조사가 없습니다. 산정상을 추가하거나 Mitalivana에서 내보낸 GLORIA 파일을 가져오세요.",
+      "diagnostics": "기기 진단",
+      "speciesMissing": "관속식물 목록(약 7 MB)이 아직 다운로드되지 않았습니다. 종을 검색하기 전에 다운로드하세요.",
+      "speciesDownload": "목록 다운로드",
+      "speciesProgress": "다운로드 중 {{done}} / {{total}}",
+      "speciesFailed": "목록 다운로드 실패: {{msg}}",
+      "surveyLine": "{{mocy}}차 주기 · {{species}}종 · {{started}}/28 단위",
+      "active": "조사 중",
+      "done": "완료",
+      "otherTab": "이 앱이 다른 탭이나 창에서 열려 있습니다. 닫은 뒤 새로 고침하세요.",
+      "newerSchema": "더 새로운 버전의 앱이 저장한 데이터입니다. 새로 고침하여 업데이트하세요.",
+      "corrupt": "데이터베이스 스냅숏을 읽을 수 없습니다. 사이트 데이터를 지우지 말고 개발자에게 문의하세요.",
+      "recovered": "이전 스냅숏에서 데이터를 복원했습니다.",
+      "back": "뒤로",
+      "error": "오류가 발생했습니다"
+    },
+    "export": {
+      "withPhotos": "사진 포함",
+      "withoutPhotos": "사진 제외"
+    }
+  }
+}

@@ -5,9 +5,10 @@
  */
 import { useEffect } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
-import type { Flusher } from './host/persist';
+import { useBoot } from './shell/bootStore';
 
-export function UpdatePrompt({ flusher }: { flusher: Flusher }) {
+export function UpdatePrompt() {
+  const flusher = useBoot()?.flusher;
   const {
     needRefresh: [needRefresh, setNeedRefresh],
     offlineReady: [offlineReady, setOfflineReady],
@@ -30,7 +31,7 @@ export function UpdatePrompt({ flusher }: { flusher: Flusher }) {
           <button
             className="rounded bg-white px-3 py-1 text-stone-900"
             onClick={async () => {
-              await flusher.flushNow();
+              await flusher?.flushNow();
               await updateServiceWorker(true);
             }}
           >

@@ -1,1 +1,30 @@
-{ "web": {} }
+{
+  "web": {
+    "home": {
+      "title": "Monitoreo de cumbres GLORIA",
+      "newSurvey": "Nuevo muestreo",
+      "summits": "Cumbres",
+      "importFile": "Importar archivo de muestreo",
+      "surveys": "Muestreos",
+      "empty": "Aún no hay muestreos. Añada una cumbre o importe un archivo GLORIA exportado desde Mitalivana.",
+      "diagnostics": "Diagnóstico del dispositivo",
+      "speciesMissing": "La lista de plantas vasculares (unos 7 MB) aún no se ha descargado; descárguela antes de buscar especies.",
+      "speciesDownload": "Descargar lista",
+      "speciesProgress": "Descargando {{done}} / {{total}}",
+      "speciesFailed": "Error al descargar la lista: {{msg}}",
+      "surveyLine": "Ciclo {{mocy}} · {{species}} taxones · {{started}}/28 unidades",
+      "active": "En curso",
+      "done": "Terminado",
+      "otherTab": "Esta aplicación está abierta en otra pestaña o ventana. Ciérrela y recargue.",
+      "newerSchema": "Los datos se guardaron con una versión más reciente de la aplicación. Recargue para actualizar.",
+      "corrupt": "No se puede leer la instantánea de la base de datos. No borre los datos del sitio; contacte al desarrollador.",
+      "recovered": "Los datos se restauraron desde la instantánea anterior.",
+      "back": "Volver",
+      "error": "Se produjo un error"
+    },
+    "export": {
+      "withPhotos": "Con fotos",
+      "withoutPhotos": "Sin fotos"
+    }
+  }
+}

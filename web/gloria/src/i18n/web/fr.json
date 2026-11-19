@@ -1,1 +1,30 @@
-{ "web": {} }
+{
+  "web": {
+    "home": {
+      "title": "Suivi des sommets GLORIA",
+      "newSurvey": "Nouveau relevé",
+      "summits": "Sommets",
+      "importFile": "Importer un fichier de relevé",
+      "surveys": "Relevés",
+      "empty": "Aucun relevé pour l’instant. Ajoutez un sommet ou importez un fichier GLORIA exporté depuis Mitalivana.",
+      "diagnostics": "Diagnostic de l’appareil",
+      "speciesMissing": "La liste des plantes vasculaires (environ 7 Mo) n’est pas encore téléchargée ; téléchargez-la avant de rechercher des espèces.",
+      "speciesDownload": "Télécharger la liste",
+      "speciesProgress": "Téléchargement {{done}} / {{total}}",
+      "speciesFailed": "Échec du téléchargement de la liste : {{msg}}",
+      "surveyLine": "Cycle {{mocy}} · {{species}} taxons · {{started}}/28 unités",
+      "active": "En cours",
+      "done": "Terminé",
+      "otherTab": "Cette application est ouverte dans un autre onglet ou une autre fenêtre. Fermez-le puis rechargez.",
+      "newerSchema": "Les données ont été enregistrées par une version plus récente de l’application. Rechargez pour mettre à jour.",
+      "corrupt": "L’instantané de la base de données est illisible. N’effacez pas les données du site ; contactez le développeur.",
+      "recovered": "Les données ont été restaurées depuis l’instantané précédent.",
+      "back": "Retour",
+      "error": "Une erreur est survenue"
+    },
+    "export": {
+      "withPhotos": "Avec photos",
+      "withoutPhotos": "Sans photos"
+    }
+  }
+}

@@ -13,13 +13,15 @@
  *   - loggers/ and forms/ always, whatever the photo switch;
  *   - a photo-library reference asks for access once, a file:// never;
  *   - manifest kind/uuid/name/record_count; README lists what is there and
- *     carries the Annex III note only when photos are in.
+ *     carries the Annex III note only when photos are in;
+ *   - the summit's logger zip: 04_ table first, loggers/ always, position
+ *     photos only with the switch, unreadable files skipped, README last.
  *
  * Run: npm run check:gloria-bundle
  */
 import yaml from 'js-yaml';
 import { strFromU8 } from 'fflate';
-import { assembleGloriaEntries, gloriaFolderName } from '../src/modules/gloria/export/bundle.ts';
+import { assembleGloriaEntries, assembleLoggerEntries, gloriaFolderName } from '../src/modules/gloria/export/bundle.ts';
 
 let failures = 0;
 const eq = (label, got, want) => {
@@ -68,7 +70,11 @@ const visits = [{
     uuid: 'l1', role: 'readout', quadrat: 'E22', label: null, serial: 'SN1', logger_type: null, start_ts: null, stop_ts: null,
     utc_diff_h: null, dist11_m: null, dist31_m: null, photo_open: null, photo_closed: null,
     photo_open_uri: 'file:///doc/photos/lo.jpg', photo_closed_uri: null, flags: null, researcher: null, comments: null,
-    data_files: JSON.stringify([{ uri: 'file:///doc/files/data.csv', name: 'data.csv', size: 3 }]),
+    // gone.csv is not readable: both zips must skip it (the 04_ table still names it).
+    data_files: JSON.stringify([
+      { uri: 'file:///doc/files/data.csv', name: 'data.csv', size: 3 },
+      { uri: 'file:///doc/files/gone.csv', name: 'gone.csv', size: 3 },
+    ]),
   }],
 }];
 const data = {
@@ -186,6 +192,33 @@ eq('folder name', gloriaFolderName(data), base);
   eq('file:// only → never asked', r.asked, 0);
   ok('no checklist entries without a roster', !r.names.some((n) => n.endsWith('_checklist.md')));
   ok('photo checklist always', r.names.includes(`${base}_photo_checklist.csv`));
+}
+
+// ── temperature loggers of one summit (summit page) ─────────────────────
+{
+  const runLoggers = async (includePhotos) => {
+    let asked = 0;
+    const r = await assembleLoggerEntries(
+      { summit, byCycle: new Map([[4, visits]]), includePhotos },
+      {
+        readMedia: async (uri) => (readable.has(uri) ? new Uint8Array([7]) : null),
+        beforeLibraryRead: async () => {
+          asked += 1;
+        },
+      },
+    );
+    return { ...r, asked, names: r.entries.map((e) => e.name.slice(e.name.indexOf('/') + 1)) };
+  };
+  const lb = 'GLORIA_TW-SAC-JIA_temperature-loggers';
+  const a = await runLoggers(false);
+  eq('loggers folder', a.folderName, lb);
+  eq('loggers: 04_ first', a.names[0], `${lb}_04_temperature_loggers.csv`);
+  eq('loggers: README last', a.names.at(-1), 'README.md');
+  eq('loggers/: form 4 scan and data file, no photos without the switch', a.names.filter((n) => n.startsWith('loggers/')).length, 2);
+  ok('no photos/ without the switch', !a.names.some((n) => n.startsWith('photos/')));
+  eq('file:// only, no photos → never asked', a.asked, 0);
+  const b = await runLoggers(true);
+  eq('position photo with the switch', b.names.filter((n) => n.startsWith('photos/')), ['photos/04_TW_SAC_JIA_LOG-E22__20260814_00001_open.jpg']);
 }
 
 if (failures) {

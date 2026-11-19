@@ -1,92 +1,114 @@
 /**
- * Shell for the foundations phase: boots the database (tab lock, snapshot,
- * migrations), mounts the stored species database, and offers the phase-0
- * device diagnostics at #/diag. Field screens arrive in phase 2.
+ * App shell: boot the database (tab lock, snapshot, migrations), mount the
+ * stored species database, load settings, then the router with the shared
+ * GLORIA screens. Hosts the overlays the mobile root layout hosts too
+ * (action sheets, toasts) plus RN Alert dialogs and the update prompt.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { bootDatabase, type BootResult } from './host/boot';
 import { mountStoredSpecies } from './host/speciesInstall';
 import { initDatasetsEmpty } from './host/datasetsHost';
 import { requestPersistence } from './host/persist';
-import { listSummits } from '~/modules/gloria/db';
-import { Diagnostics, type BootTimings } from './diag/Diagnostics';
+import i18n, { resolveLanguage, setLanguage } from './host/i18n';
+import { useSettings } from '~/stores/settings';
+import { useActiveGloria } from '~/modules/gloria/store';
+import { ActionSheetLayer } from '~/components/ActionSheet';
+import { ToastHost } from '~/components/ToastHost';
+import { MenuHost } from '~/components/OverflowMenu';
+import { AlertHost } from './rn/AlertHost';
+import { Navigator } from './router/router';
+import { ROUTES } from './routes';
+import { Header } from './shell/Header';
+import { setBoot } from './shell/bootStore';
 import { UpdatePrompt } from './UpdatePrompt';
-// Phase 2 screens call these; imported here so the build guard covers them now.
-export { buildSurveyZip } from './export/exportSurvey';
-export { readGloriaImport, applyGloriaImport } from './import/importZip';
 
-type Boot = { result: BootResult; timings: BootTimings; speciesVersion: string | null };
+type Failure = Extract<BootResult, { ok: false }>;
 
-function useHash(): string {
-  const [hash, setHash] = useState(() => window.location.hash);
-  useEffect(() => {
-    const on = () => setHash(window.location.hash);
-    window.addEventListener('hashchange', on);
-    return () => window.removeEventListener('hashchange', on);
-  }, []);
-  return hash;
+/**
+ * Start-up runs once per page, whatever React does with effects (StrictMode
+ * runs them twice in development; a second run would find its own tab lock
+ * taken and report "open in another tab").
+ */
+let booting: Promise<{ failure: Failure } | { ok: true }> | null = null;
+function bootOnce() {
+  booting ??= (async () => {
+    const t0 = performance.now();
+    initDatasetsEmpty();
+    const result = await bootDatabase();
+    const t1 = performance.now();
+    if (!result.ok) return { failure: result };
+    const speciesVersion = await mountStoredSpecies();
+    const t2 = performance.now();
+    useSettings.getState().load();
+    useActiveGloria.getState().refresh();
+    const lang = useSettings.getState().language;
+    if (lang && lang !== 'system') await setLanguage(resolveLanguage(lang));
+    void requestPersistence();
+    setBoot({
+      flusher: result.flusher,
+      timings: { bootMs: t1 - t0, speciesMountMs: t2 - t1 },
+      speciesVersion,
+      recoveredFromPrev: result.recoveredFromPrev,
+    });
+    return { ok: true as const };
+  })();
+  return booting;
 }
 
 export function App() {
-  const [boot, setBoot] = useState<Boot | null>(null);
+  const [ready, setReady] = useState(false);
+  const [failure, setFailure] = useState<Failure | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const hash = useHash();
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      const t0 = performance.now();
-      initDatasetsEmpty();
-      const result = await bootDatabase();
-      const t1 = performance.now();
-      let speciesVersion: string | null = null;
-      if (result.ok) speciesVersion = await mountStoredSpecies();
-      const t2 = performance.now();
-      if (result.ok) void requestPersistence();
-      if (!cancelled) setBoot({ result, speciesVersion, timings: { bootMs: t1 - t0, speciesMountMs: t2 - t1 } });
-    })().catch((e: unknown) => !cancelled && setError(String(e)));
+    bootOnce().then(
+      (r) => {
+        if (cancelled) return;
+        if ('failure' in r) setFailure(r.failure);
+        else setReady(true);
+      },
+      (e: unknown) => !cancelled && setError(String(e)),
+    );
     return () => {
       cancelled = true;
     };
   }, []);
 
-  if (error) return <Shell>啟動失敗（Start-up failed）：{error}</Shell>;
-  if (!boot) return <Shell>開啟資料庫中…</Shell>;
-  if (!boot.result.ok) {
-    const msg = {
-      'other-tab': '這個 app 已在另一個分頁或視窗開啟。請關閉其他分頁後重新整理。',
-      'newer-schema': '資料是由較新版本的 app 存的，請重新整理以更新 app。',
-      corrupt: '資料庫快照無法讀取。請不要清除網站資料，並與開發者聯絡。',
-    }[boot.result.reason];
+  const titles = useMemo(() => new Map(ROUTES.map((r) => [r.pattern, r.title])), []);
+
+  if (error) return <Message>Start-up failed: {error}</Message>;
+  if (failure) {
+    const key = { 'other-tab': 'otherTab', 'newer-schema': 'newerSchema', corrupt: 'corrupt' }[failure.reason];
     return (
-      <Shell>
-        {msg}
-        {boot.result.detail ? <pre className="mt-2 text-xs">{boot.result.detail}</pre> : null}
-      </Shell>
+      <Message>
+        {i18n.t(`web.home.${key}`)}
+        {failure.detail ? <pre className="mt-2 text-xs">{failure.detail}</pre> : null}
+      </Message>
     );
   }
+  if (!ready) return null;
 
   return (
-    <>
-      <UpdatePrompt flusher={boot.result.flusher} />
-      {hash.startsWith('#/diag') ? (
-        <Diagnostics flusher={boot.result.flusher} timings={boot.timings} speciesVersion={boot.speciesVersion} />
-      ) : (
-        <Shell>
-          <h1 className="text-xl font-semibold">GLORIA 山峰監測（網頁版）</h1>
-          <p className="mt-2">山峰數：{listSummits().length}</p>
-          {boot.result.recoveredFromPrev ? <p className="mt-2 text-amber-700">已從前一份快照復原資料。</p> : null}
-          <p className="mt-4">
-            <a className="text-blue-700 underline" href="#/diag">
-              實機診斷（Phase 0）
-            </a>
-          </p>
-        </Shell>
-      )}
-    </>
+    // The shared screens are laid out for a phone: on a wide screen they keep a
+    // phone-width column, centred, until the desktop layout (phase 4).
+    <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col bg-paper dark:bg-paper-dark" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+      <Navigator
+        routes={ROUTES}
+        notFound={() => <Message>404</Message>}
+        renderHeader={(options, _canGoBack, pattern) => (
+          <Header options={options} defaultTitle={titles.get(pattern)?.()} isRoot={pattern === '/'} />
+        )}
+      />
+      <MenuHost />
+      <ActionSheetLayer />
+      <ToastHost />
+      <AlertHost />
+      <UpdatePrompt />
+    </div>
   );
 }
 
-function Shell({ children }: { children: React.ReactNode }) {
-  return <main className="mx-auto max-w-2xl p-4 font-sans">{children}</main>;
+function Message({ children }: { children: React.ReactNode }) {
+  return <main className="mx-auto max-w-2xl p-6 text-ink dark:text-gray-100">{children}</main>;
 }

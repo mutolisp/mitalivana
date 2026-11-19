@@ -1,1 +1,30 @@
-{ "web": {} }
+{
+  "web": {
+    "home": {
+      "title": "GLORIA 山峰監測",
+      "newSurvey": "新調查",
+      "summits": "山峰",
+      "importFile": "匯入調查檔",
+      "surveys": "調查",
+      "empty": "還沒有調查。先新增山峰，或匯入 Mitalivana 匯出的 GLORIA 檔案。",
+      "diagnostics": "實機診斷",
+      "speciesMissing": "尚未下載維管束植物名錄（約 7 MB），搜尋物種前請先下載。",
+      "speciesDownload": "下載名錄",
+      "speciesProgress": "下載中 {{done}} / {{total}}",
+      "speciesFailed": "名錄下載失敗：{{msg}}",
+      "surveyLine": "第 {{mocy}} 週期 · {{species}} 種 · {{started}}/28 單位",
+      "active": "調查中",
+      "done": "已完成",
+      "otherTab": "這個 app 已在另一個分頁或視窗開啟。請關閉其他分頁後重新整理。",
+      "newerSchema": "資料是由較新版本的 app 存的，請重新整理以更新 app。",
+      "corrupt": "資料庫快照無法讀取。請不要清除網站資料，並與開發者聯絡。",
+      "recovered": "已從前一份快照復原資料。",
+      "back": "返回",
+      "error": "發生錯誤"
+    },
+    "export": {
+      "withPhotos": "含照片",
+      "withoutPhotos": "不含照片"
+    }
+  }
+}

@@ -7,7 +7,6 @@
  * is not set up). Photos are stored without compression, as JPEGs gain
  * nothing from deflate and it keeps memory down on phones.
  */
-import { zipSync, type Zippable } from 'fflate';
 import {
   getGloriaSurvey, listPhotoChecks, listPoints, listSurveySpecies, listUnits, loadExportData, loadGloriaDoc, p5mOf,
 } from '~/modules/gloria/db';
@@ -18,6 +17,7 @@ import type { Translate } from '~/lib/reportTypes';
 import { syncBlockFor } from '~/db/syncBase';
 import i18n, { fixedT } from '../host/i18n';
 import { readMediaBytes } from '../host/mediaStore';
+import { zipEntries } from './zip';
 
 export type ExportOptions = { includePhotos: boolean; lang?: string; onPhotoProgress?: (done: number, total: number) => void };
 
@@ -58,10 +58,5 @@ export async function buildSurveyZip(surveyId: number, opts: ExportOptions): Pro
     { readMedia: readMediaBytes, onPhotoProgress: opts.onPhotoProgress },
   );
 
-  const files: Zippable = {};
-  for (const e of entries) {
-    const store = /\/(photos|forms|loggers)\//.test(e.name) && /\.(jpe?g|png|heic|heif|pdf|zip)$/i.test(e.name);
-    files[e.name] = [e.bytes, store ? { level: 0 } : (e.zipOpts ?? {})];
-  }
-  return { bytes: zipSync(files), filename: `${folderName}.zip`, photoCount };
+  return { bytes: zipEntries(entries), filename: `${folderName}.zip`, photoCount };
 }

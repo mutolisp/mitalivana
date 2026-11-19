@@ -8,7 +8,7 @@
     "build": "node scripts/typecheck.mjs && vite build",
     "preview": "vite preview",
     "typecheck": "node scripts/typecheck.mjs",
-    "test": "vitest run"
+    "test": "node scripts/gen-icons.mjs --check && vitest run"
   },
   "dependencies": {
     "@noble/hashes": "2.4.0",
@@ -31,6 +31,7 @@
     "@vitejs/plugin-react": "6.3.0",
     "autoprefixer": "10.6.2",
     "fake-indexeddb": "6.2.8",
+    "ionicons": "8.1.0",
     "postcss": "8.5.33",
     "tailwindcss": "3.4.19",
     "typescript": "5.9.3",

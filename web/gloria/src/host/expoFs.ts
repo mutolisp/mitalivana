@@ -7,6 +7,10 @@
  * held by datasetsHost.ts / persist.ts. Nothing here touches a real disk.
  */
 
+import { pickedFile } from './documentPicker';
+import { readMediaBytes } from './mediaStore';
+import { isWebMediaUri } from './appFiles';
+
 const ROOT = 'webfs:///Documents/';
 const files = new Map<string, Uint8Array | string>();
 const dirs = new Set<string>([ROOT]);
@@ -36,7 +40,21 @@ export class File {
     this.uri = join(base, name).replace(/\/$/, '');
   }
   get exists(): boolean {
-    return files.has(this.uri);
+    return files.has(this.uri) || pickedFile(this.uri) != null;
+  }
+  get name(): string {
+    return decodeURIComponent(this.uri.split('/').pop() ?? '');
+  }
+  create(_opts?: { overwrite?: boolean; intermediates?: boolean }): void {
+    if (!files.has(this.uri)) files.set(this.uri, new Uint8Array(0));
+  }
+  async bytes(): Promise<Uint8Array> {
+    const b = await readUriBytes(this.uri);
+    if (!b) throw new Error(`no such file: ${this.uri}`);
+    return b;
+  }
+  async base64(): Promise<string> {
+    return toBase64(await this.bytes());
   }
   get size(): number {
     const v = files.get(this.uri);
@@ -49,7 +67,7 @@ export class File {
     return typeof v === 'string' ? v : new TextDecoder().decode(v);
   }
   async text(): Promise<string> {
-    return this.textSync();
+    return new TextDecoder().decode(await this.bytes());
   }
   bytesSync(): Uint8Array {
     const v = files.get(this.uri);
@@ -94,3 +112,27 @@ export const webFs = {
     files.delete(uri);
   },
 };
+
+/** Bytes behind any URI the web app hands around: picked files, IndexedDB media, the in-memory FS. */
+export async function readUriBytes(uri: string): Promise<Uint8Array | null> {
+  const p = pickedFile(uri);
+  if (p) return new Uint8Array(await p.arrayBuffer());
+  if (isWebMediaUri(uri)) return readMediaBytes(uri);
+  const v = files.get(uri);
+  if (v !== undefined) return typeof v === 'string' ? new TextEncoder().encode(v) : v;
+  if (uri.startsWith('blob:') || uri.startsWith('data:')) return new Uint8Array(await (await fetch(uri)).arrayBuffer());
+  return null;
+}
+
+export function toBase64(b: Uint8Array): string {
+  let s = '';
+  for (let i = 0; i < b.length; i += 0x8000) s += String.fromCharCode(...b.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+
+export function fromBase64(s: string): Uint8Array {
+  const bin = atob(s.replace(/\s+/g, ''));
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}

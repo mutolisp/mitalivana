@@ -110,12 +110,10 @@ import {
   listSurveySpecies as listGloriaSpecies,
   p5mOf,
 } from '~/modules/gloria/db';
-import { planPhotoNames, yyyymmdd } from '~/modules/gloria/export/photoNames';
-import { toCsv } from '~/modules/gloria/export/sheetRows';
-import { H04_TEMPERATURE_LOGGERS, loggerRows, planLoggerFiles, type ExportVisit } from '~/modules/gloria/export/loggerRows';
-import { assembleGloriaEntries, type GloriaBundleInput } from '~/modules/gloria/export/bundle';
+import type { ExportVisit } from '~/modules/gloria/export/loggerRows';
+import { assembleGloriaEntries, assembleLoggerEntries, type GloriaBundleInput } from '~/modules/gloria/export/bundle';
 import { listLoggers, listVisits, summitCycles } from '~/modules/gloria/loggerDb';
-import { cycleOf, loggerPhotoItem } from '~/modules/gloria/model/loggers';
+import { cycleOf } from '~/modules/gloria/model/loggers';
 import { quadratsForDoc } from '~/db/quadrats';
 import { buildPlotFrequencyCsv, buildQuadratsCsv, buildQuadratSurfaceCsv } from './quadratCsv';
 import { parseQuadratConfig } from '~/db/quadrats';
@@ -998,6 +996,18 @@ export async function buildPlotEntries(
   return { entries, folderName: base };
 }
 
+/** A stored photo / file as bytes for the GLORIA bundles; null when it is gone from the device. */
+async function readMediaBytes(uri: string): Promise<Uint8Array | null> {
+  const fileUri = await resolveAssetUri(uri);
+  if (!fileUri) return null;
+  try {
+    return base64ToBytes(await readAsStringAsync(fileUri, { encoding: 'base64' }));
+  } catch {
+    // unreadable (deleted from the library / device): skipped
+    return null;
+  }
+}
+
 /**
  * A GLORIA survey: the round-trip yml, one CSV per tab of the Taiwan sheet
  * (12_ and 13_ merged), the per-point long table, and the survey's species
@@ -1052,16 +1062,7 @@ export async function buildGloriaEntries(
     {
       beforeLibraryRead: ensurePhotosReadAccess,
       onPhotoProgress: (done, total) => opts?.onProgress?.({ label: i18n.t('export.stage.photos'), done, total }),
-      readMedia: async (uri) => {
-        const fileUri = await resolveAssetUri(uri);
-        if (!fileUri) return null;
-        try {
-          return base64ToBytes(await readAsStringAsync(fileUri, { encoding: 'base64' }));
-        } catch {
-          // unreadable (deleted from the library / device): skipped, as before
-          return null;
-        }
-      },
+      readMedia: readMediaBytes,
     },
   );
   return { entries, folderName };
@@ -1082,51 +1083,15 @@ export async function bundleLoggers(summitId: number, opts: Pick<BundleOptions, 
     const m = cycleOf(v.visit_ts, cycles) ?? 0;
     byCycle.set(m, [...(byCycle.get(m) ?? []), { ...v, loggers: listLoggers(v.id) }]);
   }
-  const base = sanitizeFilename(`GLORIA_${summit.full_code}_temperature-loggers`);
-  const entries: BuiltZipEntry[] = [];
-  const rows = [...byCycle.entries()].sort((a, b) => a[0] - b[0]).flatMap(([m, vs]) => loggerRows(m, summit, vs));
-  entries.push({ name: `${base}/${base}_04_temperature_loggers.csv`, bytes: strToU8(toCsv(H04_TEMPERATURE_LOGGERS, rows)) });
-  const files = [...byCycle.entries()].flatMap(([m, vs]) => planLoggerFiles(m, summit, vs));
-  const photos = opts.includePhotos
-    ? [...byCycle.entries()].flatMap(([m, vs]) =>
-        planPhotoNames({
-          mocy: m,
-          country: summit.country,
-          region: summit.target_region,
-          summit: summit.summit,
-          date: '',
-          p5m: {},
-          points: [],
-          units: [],
-          loggers: vs.flatMap((v) =>
-            v.loggers.flatMap((l) =>
-              (['open', 'closed'] as const).flatMap((w) => {
-                const uri = w === 'open' ? l.photo_open_uri : l.photo_closed_uri;
-                return uri ? [{ uri, item: loggerPhotoItem(l.quadrat, l.label), note: w, date: yyyymmdd(v.visit_ts) }] : [];
-              }),
-            ),
-          ),
-          extOf: (uri) => guessExt(uri),
-        }),
-      )
-    : [];
-  if (photos.length || files.some((f) => !f.uri.startsWith('file:'))) await ensurePhotosReadAccess();
-  const todo = [
-    ...files.map((f) => ({ uri: f.uri, name: `${base}/loggers/${f.name}` })),
-    ...photos.map((p) => ({ uri: p.uri, name: `${base}/photos/${p.name}` })),
-  ];
-  for (let i = 0; i < todo.length; i++) {
-    opts.onProgress?.({ label: i18n.t('export.stage.files'), done: i, total: todo.length });
-    const fileUri = await resolveAssetUri(todo[i].uri);
-    if (!fileUri) continue;
-    try {
-      entries.push({ name: todo[i].name, bytes: base64ToBytes(await readAsStringAsync(fileUri, { encoding: 'base64' })) });
-    } catch {
-      // gone from the device: the 04_ table still names it
-    }
-  }
-  entries.push({ name: `${base}/README.md`, bytes: strToU8(buildRecordReadme(base, entries)) });
-  return await finalizeZip(entries, base, opts.onProgress);
+  const { entries, folderName } = await assembleLoggerEntries(
+    { summit, byCycle, includePhotos: opts.includePhotos },
+    {
+      beforeLibraryRead: ensurePhotosReadAccess,
+      onFileProgress: (done, total) => opts.onProgress?.({ label: i18n.t('export.stage.files'), done, total }),
+      readMedia: readMediaBytes,
+    },
+  );
+  return await finalizeZip(entries, folderName, opts.onProgress);
 }
 
 /**

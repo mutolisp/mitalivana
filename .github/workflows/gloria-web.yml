@@ -1,4 +1,4 @@
-# GLORIA web app (web/gloria) → GitHub Pages.
+# GLORIA web app (web/gloria) → GitHub Pages, at /<repo>/gloria/.
 #
 # Builds the PWA, tests it, builds the Tracheophyta species subset from the
 # published tw-taicol module (no Git LFS, no backend venv), and deploys.
@@ -11,6 +11,8 @@ on:
     paths:
       - 'web/gloria/**'
       - 'mobile/app/src/**'
+      - 'mobile/app/app/gloria/**'
+      - 'mobile/app/theme.tokens.js'
       - 'backend/scripts/datasets/build_web_species.py'
       - '.github/workflows/gloria-web.yml'
   workflow_dispatch:
@@ -70,14 +72,20 @@ jobs:
       - name: Test
         run: npm test
 
+      # Served at https://<owner>.github.io/<repo>/gloria/ : the site root of
+      # the Pages artifact holds the app in its gloria/ folder.
       - name: Build
         env:
-          GLORIA_BASE: /${{ github.event.repository.name }}/
-        run: npx vite build
+          GLORIA_BASE: /${{ github.event.repository.name }}/gloria/
+        run: |
+          npx vite build
+          rm -rf "$RUNNER_TEMP/site"
+          mkdir -p "$RUNNER_TEMP/site/gloria"
+          cp -R dist/. "$RUNNER_TEMP/site/gloria/"
 
       - uses: actions/upload-pages-artifact@v5
         with:
-          path: web/gloria/dist
+          path: ${{ runner.temp }}/site
 
   deploy:
     needs: build

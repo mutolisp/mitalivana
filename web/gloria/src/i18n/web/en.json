@@ -1,1 +1,30 @@
-{ "web": {} }
+{
+  "web": {
+    "home": {
+      "title": "GLORIA summit monitoring",
+      "newSurvey": "New survey",
+      "summits": "Summits",
+      "importFile": "Import survey file",
+      "surveys": "Surveys",
+      "empty": "No surveys yet. Add a summit, or import a GLORIA file exported from Mitalivana.",
+      "diagnostics": "Device diagnostics",
+      "speciesMissing": "The vascular plant checklist (about 7 MB) is not downloaded yet; download it before searching species.",
+      "speciesDownload": "Download checklist",
+      "speciesProgress": "Downloading {{done}} / {{total}}",
+      "speciesFailed": "Checklist download failed: {{msg}}",
+      "surveyLine": "Cycle {{mocy}} · {{species}} taxa · {{started}}/28 units",
+      "active": "In progress",
+      "done": "Done",
+      "otherTab": "This app is open in another tab or window. Close it and reload.",
+      "newerSchema": "The data was saved by a newer version of the app. Reload to update.",
+      "corrupt": "The database snapshot cannot be read. Do not clear site data; contact the developer.",
+      "recovered": "Data was restored from the previous snapshot.",
+      "back": "Back",
+      "error": "Something went wrong"
+    },
+    "export": {
+      "withPhotos": "With photos",
+      "withoutPhotos": "Without photos"
+    }
+  }
+}

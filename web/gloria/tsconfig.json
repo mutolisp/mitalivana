@@ -1,7 +1,12 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": ["ES2023", "DOM", "DOM.Iterable", "WebWorker"],
+    "lib": [
+      "ES2023",
+      "DOM",
+      "DOM.Iterable",
+      "WebWorker"
+    ],
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "jsx": "react-jsx",
@@ -12,16 +17,88 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "esModuleInterop": true,
-    "types": ["vite/client", "node"],
+    "types": [
+      "vite/client",
+      "node"
+    ],
     "baseUrl": ".",
     "paths": {
-      "~/*": ["../../mobile/app/src/*"],
-      "@web/*": ["./src/*"],
-      "@op-engineering/op-sqlite": ["./src/host/opSqlite.ts"],
-      "expo-file-system": ["./src/host/expoFs.ts"],
-      "expo-router": ["./src/host/expoRouter.ts"],
-      "nativewind": ["./src/host/nativewind.ts"]
+      "~/*": [
+        "../../mobile/app/src/*"
+      ],
+      "@web/*": [
+        "./src/*"
+      ],
+      "@op-engineering/op-sqlite": [
+        "./src/host/opSqlite.ts"
+      ],
+      "expo-file-system": [
+        "./src/host/expoFs.ts"
+      ],
+      "expo-router": [
+        "./src/host/expoRouter.ts"
+      ],
+      "nativewind": [
+        "./src/host/nativewind.ts"
+      ],
+      "pinyin-pro": [
+        "./src/host/pinyinPro.ts"
+      ],
+      "react-native": [
+        "./src/rn/index.ts"
+      ],
+      "@expo/vector-icons": [
+        "./src/rn/vectorIcons.ts"
+      ],
+      "react-native-safe-area-context": [
+        "./src/host/safeArea.tsx"
+      ],
+      "react-native-keyboard-controller": [
+        "./src/host/keyboardController.tsx"
+      ],
+      "expo-haptics": [
+        "./src/host/haptics.ts"
+      ],
+      "expo-location": [
+        "./src/host/location.ts"
+      ],
+      "react-native-svg": [
+        "./src/host/svg.tsx"
+      ],
+      "expo-image": [
+        "./src/host/expoImage.tsx"
+      ],
+      "react-native-reanimated": [
+        "./src/host/reanimated.tsx"
+      ],
+      "react-native-gesture-handler": [
+        "./src/host/gestureHandler.tsx"
+      ],
+      "react-native-gesture-handler/Swipeable": [
+        "./src/host/swipeable.tsx"
+      ],
+      "react-native-draggable-flatlist": [
+        "./src/host/draggableFlatList.tsx"
+      ],
+      "@rn-primitives/select": [
+        "./src/host/rnPrimitivesSelect.tsx"
+      ],
+      "expo-document-picker": [
+        "./src/host/documentPicker.ts"
+      ],
+      "expo-sharing": [
+        "./src/host/sharing.ts"
+      ],
+      "expo-file-system/legacy": [
+        "./src/host/expoFsLegacy.ts"
+      ]
     }
   },
-  "include": ["src", "test", "vite", "vite.config.ts", "src/globals.d.ts"]
+  "include": [
+    "src",
+    "test",
+    "vite",
+    "vite.config.ts",
+    "src/globals.d.ts"
+  ]
 }
