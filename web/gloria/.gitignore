@@ -1,0 +1,7 @@
+node_modules/
+dist/
+dev-dist/
+src/i18n/generated/
+public/data/
+test-results/
+playwright-report/

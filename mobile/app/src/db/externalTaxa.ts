@@ -442,7 +442,7 @@ export function searchExternalTaxa(q: string, limit = 10, groupSql = '', groupPa
   const like = `%${escapeLike(trimmed)}%`;
   const res = getUserDb().executeSync(
     `SELECT * FROM external_taxa
-      WHERE (simple_name LIKE ? ESCAPE "\\" OR common_name_c LIKE ? ESCAPE "\\")${groupSql}
+      WHERE (simple_name LIKE ? ESCAPE '\\' OR common_name_c LIKE ? ESCAPE '\\')${groupSql}
       ORDER BY simple_name LIMIT ?;`,
     [like, like, ...groupParams, limit],
   );

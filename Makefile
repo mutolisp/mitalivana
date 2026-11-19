@@ -14,7 +14,7 @@ UNAME_S := $(shell uname -s)
 all: backend frontend
 
 .PHONY: all backend frontend run dev pkg pkg-dmg pkg-win test taicol icon clean help \
-	datasets datasets-verify datasets-upload taicol-tree \
+	datasets datasets-verify datasets-upload taicol-tree web-species \
 	rudymap-config rudymap-serve rudymap-render rudymap-qa rudymap-optimize rudymap-pack rudymap-verify rudymap-verify-published rudymap-upload \
 	vector-dump vector-tags vector-sprite vector-style vector-tiles vector-glyphs vector-hillshade vector-all vector-compare vector-upload \
 	build_verb_num check-version
@@ -132,6 +132,12 @@ datasets: backend
 # 檢索表 taxon 解析 / 跨區俗名）。名錄更新後一定要跑。
 datasets-verify: backend
 	$(BACKEND_VENV)/bin/python -m backend.scripts.datasets.verify_datasets --out $(DATASETS_OUT)
+
+# Species subset (Tracheophyta) for the GLORIA web app, from the tw-taicol module.
+# Standard library only, so it also runs in CI without the backend venv.
+web-species:
+	python3 -m backend.scripts.datasets.build_web_species \
+		--module $(DATASETS_OUT)/tw-taicol.db --out web/gloria/public/data --verify
 
 # 上傳到 R2。版本目錄不覆寫、latest/manifest.json 最後才傳（半套版本不會被 app 看到）。
 # 需要 ~/.mitalivana-r2.env 的 S3 憑證，或 wrangler 已登入。

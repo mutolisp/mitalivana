@@ -384,11 +384,11 @@ export function searchSpecies({ q, groups, advanced = {}, limit = 30 }: SearchOp
   for (const v of variants) {
     const pattern = `%${escapeLike(v)}%`;
     likePatterns.push(
-      'common_name_c LIKE ? ESCAPE "\\"',
-      'alternative_name_c LIKE ? ESCAPE "\\"',
-      'simple_name LIKE ? ESCAPE "\\"',
-      'family LIKE ? ESCAPE "\\"',
-      'family_c LIKE ? ESCAPE "\\"',
+      "common_name_c LIKE ? ESCAPE '\\'",
+      "alternative_name_c LIKE ? ESCAPE '\\'",
+      "simple_name LIKE ? ESCAPE '\\'",
+      "family LIKE ? ESCAPE '\\'",
+      "family_c LIKE ? ESCAPE '\\'",
     );
     params.push(pattern, pattern, pattern, pattern, pattern);
   }
@@ -651,11 +651,11 @@ export function searchSpeciesJp({ q, groups, advanced = {}, limit = 30 }: Search
 
   let sql =
     `SELECT ${SEARCH_COLUMNS} FROM jp_names WHERE (` +
-    'common_name_c LIKE ? ESCAPE "\\" OR ' +
-    'alternative_name_c LIKE ? ESCAPE "\\" OR ' +
-    'simple_name LIKE ? ESCAPE "\\" OR ' +
-    'family LIKE ? ESCAPE "\\" OR ' +
-    'family_c LIKE ? ESCAPE "\\")';
+    "common_name_c LIKE ? ESCAPE '\\' OR " +
+    "alternative_name_c LIKE ? ESCAPE '\\' OR " +
+    "simple_name LIKE ? ESCAPE '\\' OR " +
+    "family LIKE ? ESCAPE '\\' OR " +
+    "family_c LIKE ? ESCAPE '\\')";
 
   const filterParams: (string | number)[] = [];
   let filterSql = groupFilterClause(groups, filterParams);

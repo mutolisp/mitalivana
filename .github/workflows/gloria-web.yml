@@ -1,0 +1,90 @@
+# GLORIA web app (web/gloria) → GitHub Pages.
+#
+# Builds the PWA, tests it, builds the Tracheophyta species subset from the
+# published tw-taicol module (no Git LFS, no backend venv), and deploys.
+# Repository settings → Pages → Source must be "GitHub Actions".
+name: gloria-web
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'web/gloria/**'
+      - 'mobile/app/src/**'
+      - 'backend/scripts/datasets/build_web_species.py'
+      - '.github/workflows/gloria-web.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: gloria-web-pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web/gloria
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          lfs: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/gloria/package-lock.json
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - name: Install
+        run: npm ci
+
+      - name: Species subset from the published tw-taicol module
+        run: |
+          set -euo pipefail
+          tmp="$RUNNER_TEMP/taicol"
+          mkdir -p "$tmp"
+          ua="gloria-web-ci"
+          curl -fsSL --retry 3 -A "$ua" https://data.mitalivana.org/checklists/latest/manifest.json -o "$tmp/manifest.json"
+          url=$(python3 -c "import json,sys;d=json.load(open(sys.argv[1]));print(next(x['url'] for x in d['datasets'] if x['id']=='tw-taicol'))" "$tmp/manifest.json")
+          md5=$(python3 -c "import json,sys;d=json.load(open(sys.argv[1]));print(next(x['md5'] for x in d['datasets'] if x['id']=='tw-taicol'))" "$tmp/manifest.json")
+          curl -fsSL --retry 3 -A "$ua" "$url" -o "$tmp/tw-taicol.db.zip"
+          echo "$md5  $tmp/tw-taicol.db.zip" | md5sum -c -
+          unzip -o -q "$tmp/tw-taicol.db.zip" -d "$tmp"
+          cd "$GITHUB_WORKSPACE"
+          python3 -m backend.scripts.datasets.build_web_species \
+            --module "$tmp/tw-taicol.db" --out web/gloria/public/data --verify
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        env:
+          GLORIA_BASE: /${{ github.event.repository.name }}/
+        run: npx vite build
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: web/gloria/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5
