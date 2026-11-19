@@ -8,10 +8,6 @@
  */
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
-import zhTW from '~/i18n/locales/zh-TW.json';
-import en from '~/i18n/locales/en.json';
-import webZhTW from '../i18n/web/zh-TW.json';
-import webEn from '../i18n/web/en.json';
 
 export const SUPPORTED_LANGUAGES = ['en', 'zh-TW', 'ja', 'ko', 'de', 'fr', 'es', 'es-419'] as const;
 export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number];
@@ -57,7 +53,12 @@ export function resolveLanguage(setting: string): SupportedLanguage {
   return deviceLanguage() ?? 'zh-TW';
 }
 
+// Every language is its own chunk (≈300 KB each), loaded before first render
+// for the chosen language plus zh-TW, the fallback; the service worker
+// precaches them all, so switching languages works offline.
 const lazy: Record<string, () => Promise<{ default: Record<string, unknown> }>> = {
+  'zh-TW': () => import('~/i18n/locales/zh-TW.json'),
+  en: () => import('~/i18n/locales/en.json'),
   ja: () => import('~/i18n/locales/ja.json'),
   ko: () => import('~/i18n/locales/ko.json'),
   de: () => import('~/i18n/locales/de.json'),
@@ -65,16 +66,10 @@ const lazy: Record<string, () => Promise<{ default: Record<string, unknown> }>> 
   es: () => import('~/i18n/locales/es.json'),
   'es-419': () => import('~/i18n/locales/es-419.json'),
 };
-// zh-TW and en overlays are bundled above; only the other languages load lazily.
-const webLazy = import.meta.glob<{ default: Record<string, unknown> }>([
-  '../i18n/web/*.json',
-  '!../i18n/web/zh-TW.json',
-  '!../i18n/web/en.json',
-]);
+const webLazy = import.meta.glob<{ default: Record<string, unknown> }>('../i18n/web/*.json');
 
-/** Make sure a language's strings are loaded, then switch to it. */
-export async function setLanguage(lang: SupportedLanguage): Promise<void> {
-  const chain = lang === 'es-419' ? ['es', 'es-419'] : [lang];
+async function ensureBundles(lang: SupportedLanguage): Promise<void> {
+  const chain = lang === 'es-419' ? ['zh-TW', 'es', 'es-419'] : ['zh-TW', lang];
   for (const l of chain) {
     if (!i18n.hasResourceBundle(l, 'translation') && lazy[l]) {
       const base = (await lazy[l]()).default;
@@ -83,16 +78,31 @@ export async function setLanguage(lang: SupportedLanguage): Promise<void> {
       i18n.addResourceBundle(l, 'translation', { ...base, ...web }, true, true);
     }
   }
+}
+
+/** Make sure a language's strings (and the zh-TW fallback) are loaded, then switch to it. */
+export async function setLanguage(lang: SupportedLanguage): Promise<void> {
+  await ensureBundles(lang);
   await i18n.changeLanguage(lang);
   if (typeof document !== 'undefined') document.documentElement.lang = lang;
 }
 
+/** Strings for a fixed language (exports render in a chosen language). */
+export async function fixedT(lang: string) {
+  const l = resolveLanguage(lang);
+  await ensureBundles(l);
+  return i18n.getFixedT(l);
+}
+
+/** Load the start-up language; call (and await) before the first render. */
+export async function initI18n(setting = 'system'): Promise<void> {
+  await setLanguage(resolveLanguage(setting));
+}
+
 i18n.use(initReactI18next).init({
-  resources: {
-    'zh-TW': { translation: { ...zhTW, ...webZhTW } },
-    en: { translation: { ...en, ...webEn } },
-  },
-  lng: deviceLanguage() === 'en' ? 'en' : 'zh-TW',
+  resources: {},
+  partialBundledLanguages: true,
+  lng: 'zh-TW',
   fallbackLng: { 'es-419': ['es', 'zh-TW'], default: ['zh-TW'] },
   interpolation: { escapeValue: false },
   returnNull: false,

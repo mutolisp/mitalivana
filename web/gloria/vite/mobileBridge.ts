@@ -29,6 +29,8 @@ const REPLACE: Record<string, string> = {
   [path.join(MOBILE_SRC, 'i18n/index.ts')]: path.join(HOST, 'i18n.ts'),
   // Pulls every record kind and team crypto into the bundle; no-op on the web for now.
   [path.join(MOBILE_SRC, 'db/recordVersions.ts')]: path.join(HOST, 'recordVersions.ts'),
+  // KML/GPX/WKT parsing for checklist and plot imports; GLORIA imports never reach it.
+  [path.join(MOBILE_SRC, 'lib/geoConverters.ts')]: path.join(HOST, 'geoConverters.ts'),
   // Lazily require()d by datasets.ts; a native module (expo-modules-core).
   [path.resolve(MOBILE_SRC, '../modules/backup-exclusion/index.ts')]: path.join(HOST, 'backupExclusion.ts'),
 };
@@ -39,6 +41,8 @@ const SHIMS: Record<string, string> = {
   'expo-file-system': path.join(HOST, 'expoFs.ts'),
   'expo-router': path.join(HOST, 'expoRouter.ts'),
   nativewind: path.join(HOST, 'nativewind.ts'),
+  // Voice-input phonetic search only (fuzzy.ts catches the throw).
+  'pinyin-pro': path.join(HOST, 'pinyinPro.ts'),
 };
 
 const FORBIDDEN = /^(react-native($|[-/])|expo($|[-/])|@expo\/|@op-engineering\/|@react-native)/;
@@ -101,6 +105,5 @@ export const DEDUPE = [
   'js-yaml',
   '@noble/hashes',
   'fastest-levenshtein',
-  'pinyin-pro',
   '@xmldom/xmldom',
 ];

@@ -11,6 +11,9 @@ import { requestPersistence } from './host/persist';
 import { listSummits } from '~/modules/gloria/db';
 import { Diagnostics, type BootTimings } from './diag/Diagnostics';
 import { UpdatePrompt } from './UpdatePrompt';
+// Phase 2 screens call these; imported here so the build guard covers them now.
+export { buildSurveyZip } from './export/exportSurvey';
+export { readGloriaImport, applyGloriaImport } from './import/importZip';
 
 type Boot = { result: BootResult; timings: BootTimings; speciesVersion: string | null };
 
