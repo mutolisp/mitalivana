@@ -40,8 +40,9 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          # npm 11, as used locally: npm 10 rejects lock files written by npm 11
-          # (optional wasm deps of rolldown left out, "Missing … from lock file").
+          # npm ci checks every optional dependency is in the lock file. npm
+          # 11.6 drops rolldown's wasm-fallback deps (@emnapi/*) when it writes
+          # the lock ("Missing … from lock file" here); write it with npm ≥ 11.19.
           node-version: 24
           cache: npm
           cache-dependency-path: web/gloria/package-lock.json
