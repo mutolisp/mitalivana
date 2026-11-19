@@ -161,7 +161,7 @@ export default function Home() {
 function LanguageButton() {
   const { t } = useTranslation();
   const c = useThemeColors();
-  const setting = useSettings((s) => s.language);
+  const setting = useSettings((s: { language: Language }) => s.language);
   const current = LANGUAGE_CATALOGUE.find((l) => l.value === setting);
   const choose = async () => {
     const values: Language[] = ['system', ...LANGUAGE_CATALOGUE.map((l) => l.value as Language)];
