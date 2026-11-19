@@ -67,6 +67,12 @@
       "passwordNotSaved": "パスワードはこの申請だけに使い、この端末には保存しません。",
       "notifyHint": "任意。完了時に GBIF からこのアドレスにメールが届きます。",
       "register": "GBIF アカウントがない場合は gbif.org で無料登録"
+    },
+    "update": {
+      "available": "新しいバージョンがあります。",
+      "update": "更新",
+      "later": "後で",
+      "offlineReady": "オフラインで使えるようになりました。"
     }
   }
 }

@@ -67,6 +67,12 @@
       "passwordNotSaved": "密碼只用於這次申請，不會儲存在這台裝置。",
       "notifyHint": "選填。GBIF 完成時會寄信到這個信箱。",
       "register": "還沒有 GBIF 帳號？到 gbif.org 免費註冊"
+    },
+    "update": {
+      "available": "有新版本。",
+      "update": "更新",
+      "later": "稍後",
+      "offlineReady": "已可離線使用。"
     }
   }
 }

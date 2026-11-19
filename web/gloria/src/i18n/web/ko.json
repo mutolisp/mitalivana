@@ -67,6 +67,12 @@
       "passwordNotSaved": "비밀번호는 이번 요청에만 쓰이며 이 기기에 저장되지 않습니다.",
       "notifyHint": "선택 사항. 완료되면 GBIF가 이 주소로 메일을 보냅니다.",
       "register": "GBIF 계정이 없나요? gbif.org에서 무료로 가입하세요"
+    },
+    "update": {
+      "available": "새 버전이 있습니다.",
+      "update": "업데이트",
+      "later": "나중에",
+      "offlineReady": "오프라인에서 사용할 수 있습니다."
     }
   }
 }

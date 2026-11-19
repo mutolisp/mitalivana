@@ -75,6 +75,12 @@
       "passwordNotSaved": "The password is used for this request only and is not saved on this device.",
       "notifyHint": "Optional. GBIF emails this address when the file is ready.",
       "register": "No GBIF account yet? Register for free at gbif.org"
+    },
+    "update": {
+      "available": "A new version is available.",
+      "update": "Update",
+      "later": "Later",
+      "offlineReady": "Ready to work offline."
     }
   }
 }

@@ -75,6 +75,12 @@
       "passwordNotSaved": "Le mot de passe sert à cette demande seulement et n’est pas enregistré sur l’appareil.",
       "notifyHint": "Facultatif. GBIF écrit à cette adresse quand le fichier est prêt.",
       "register": "Pas encore de compte GBIF ? Inscription gratuite sur gbif.org"
+    },
+    "update": {
+      "available": "Une nouvelle version est disponible.",
+      "update": "Mettre à jour",
+      "later": "Plus tard",
+      "offlineReady": "Prêt pour une utilisation hors ligne."
     }
   }
 }

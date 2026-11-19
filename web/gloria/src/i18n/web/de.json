@@ -75,6 +75,12 @@
       "passwordNotSaved": "Das Passwort dient nur dieser Anfrage und wird nicht auf dem Gerät gespeichert.",
       "notifyHint": "Optional. GBIF schreibt an diese Adresse, wenn die Datei fertig ist.",
       "register": "Noch kein GBIF-Konto? Kostenlos auf gbif.org registrieren"
+    },
+    "update": {
+      "available": "Eine neue Version ist verfügbar.",
+      "update": "Aktualisieren",
+      "later": "Später",
+      "offlineReady": "Jetzt auch offline nutzbar."
     }
   }
 }
