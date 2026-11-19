@@ -22,6 +22,8 @@ import { formatBytes } from '../host/exportSize';
 import { deliver } from '../host/sharing';
 import { buildBatchZip } from '../export/exportSurvey';
 import { setSpeciesVersion, useBoot } from '../shell/bootStore';
+import { LANGUAGE_CATALOGUE, resolveLanguage, setLanguage } from '../host/i18n';
+import { useSettings, type Language } from '~/stores/settings';
 
 /** With or without photos; null when cancelled. */
 async function askPhotos(t: (k: string) => string): Promise<boolean | null> {
@@ -146,10 +148,42 @@ export default function Home() {
         </View>
       ) : null}
 
+      <LanguageButton />
+
       <Pressable onPress={() => router.push('/diag')} className="self-start py-2">
         <Text className="text-xs text-ink-3 underline dark:text-gray-400">{t('web.home.diagnostics')}</Text>
       </Pressable>
     </ScrollView>
+  );
+}
+
+/** UI language: follow the browser, or one of the app's languages (mobile settings.language). */
+function LanguageButton() {
+  const { t } = useTranslation();
+  const c = useThemeColors();
+  const setting = useSettings((s) => s.language);
+  const current = LANGUAGE_CATALOGUE.find((l) => l.value === setting);
+  const choose = async () => {
+    const values: Language[] = ['system', ...LANGUAGE_CATALOGUE.map((l) => l.value as Language)];
+    const idx = await showActionSheet({
+      title: t('settings.language'),
+      cancelLabel: t('common.cancel'),
+      options: values.map((v) => {
+        const l = LANGUAGE_CATALOGUE.find((x) => x.value === v);
+        return { label: l ? l.native : t('settings.languageSystem'), description: l && l.native !== l.english ? l.english : undefined, selected: v === setting };
+      }),
+    });
+    if (idx < 0) return;
+    useSettings.getState().set('language', values[idx]);
+    await setLanguage(resolveLanguage(values[idx]));
+  };
+  return (
+    <Pressable onPress={() => void choose()} className="flex-row items-center gap-2 self-start py-2" accessibilityRole="button">
+      <Ionicons name="language-outline" size={16} color={c.ink2} />
+      <Text className="text-sm text-ink-2 dark:text-gray-300">
+        {t('settings.language')} · {current ? current.native : t('settings.languageSystem')}
+      </Text>
+    </Pressable>
   );
 }
 
