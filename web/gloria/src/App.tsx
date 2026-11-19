@@ -41,7 +41,7 @@ function bootOnce() {
     const t1 = performance.now();
     if (!result.ok) return { failure: result };
     flushOnHide([await bootPacks()]);
-    const speciesVersion = await mountStoredSpecies();
+    const species = await mountStoredSpecies();
     const t2 = performance.now();
     useSettings.getState().load();
     useActiveGloria.getState().refresh();
@@ -51,7 +51,7 @@ function bootOnce() {
     setBoot({
       flusher: result.flusher,
       timings: { bootMs: t1 - t0, speciesMountMs: t2 - t1 },
-      speciesVersion,
+      species,
       recoveredFromPrev: result.recoveredFromPrev,
     });
     return { ok: true as const };

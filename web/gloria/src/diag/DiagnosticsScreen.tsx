@@ -9,7 +9,7 @@ export default function DiagnosticsScreen() {
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
-      <Diagnostics flusher={boot.flusher} timings={boot.timings} speciesVersion={boot.speciesVersion} />
+      <Diagnostics flusher={boot.flusher} timings={boot.timings} speciesVersion={boot.species['tw-taicol'] ?? null} />
     </>
   );
 }

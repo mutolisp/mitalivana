@@ -1,18 +1,26 @@
 /**
- * Species database lifecycle in the browser:
- *   - `species-manifest.json` is fetched network-first (never from a stale cache);
+ * Species database lifecycle in the browser, one per checklist module
+ * (TaiCOL for Taiwan, YList for Japan; vascular plants only):
+ *   - the module's manifest is fetched network-first (never from a stale cache);
  *   - the content-hashed `.db.gz` is downloaded with progress, gunzipped, its
  *     sha256 checked against the manifest, and stored in IndexedDB;
- *   - on start-up the stored copy is mounted (datasetsHost.ts) without any
- *     network, so the app works offline once the database was downloaded once.
+ *   - on start-up every stored copy is mounted (datasetsHost.ts) without any
+ *     network, so the app works offline once a database was downloaded once.
+ *
+ * Search only uses the regions the user asked for (settings.enabled_regions,
+ * read by db/regions.ts), so installing a module also turns its region on.
  */
 import { gunzipSync } from 'fflate';
+import { useSettings, type RegionCode } from '~/stores/settings';
 import { idbGet, idbPut } from './persist';
-import { mountSpeciesDb } from './datasetsHost';
+import { DATASET_REGION, mountSpeciesDb, WEB_DATASETS, type WebDatasetId } from './datasetsHost';
+
+export type { WebDatasetId } from './datasetsHost';
+export { WEB_DATASETS as WEB_DATASETS_LIST } from './datasetsHost';
 
 export type SpeciesManifest = {
   schema: number;
-  id: 'tw-taicol';
+  id: WebDatasetId;
   subset: string;
   version: string;
   sourceVersion: string;
@@ -27,26 +35,37 @@ export type SpeciesManifest = {
 
 type Stored = { version: string; sha256: string; bytes: Uint8Array; installedAt: number; manifest: SpeciesManifest };
 
-const KEY = 'tw-taicol';
+// Written by backend/scripts/datasets/build_web_species.py (DATASETS[id].manifest).
+const MANIFEST: Record<WebDatasetId, string> = {
+  'tw-taicol': 'species-manifest.json',
+  'jp-ylist': 'species-manifest.jp-ylist.json',
+};
 const dataUrl = (name: string) => `${import.meta.env.BASE_URL}data/${name}`;
 
-export async function installedSpecies(): Promise<Omit<Stored, 'bytes'> | null> {
-  const s = await idbGet<Stored>('species', KEY);
+/** Versions of the installed modules (id → version). */
+export type InstalledSpecies = Partial<Record<WebDatasetId, string>>;
+
+export async function installedSpecies(id: WebDatasetId = 'tw-taicol'): Promise<Omit<Stored, 'bytes'> | null> {
+  const s = await idbGet<Stored>('species', id);
   if (!s) return null;
   const { bytes: _b, ...rest } = s;
   return rest;
 }
 
-/** Mount the stored database. Returns its version, or null when none is stored. */
-export async function mountStoredSpecies(): Promise<string | null> {
-  const s = await idbGet<Stored>('species', KEY);
-  if (!s) return null;
-  mountSpeciesDb(s.bytes, s.version);
-  return s.version;
+/** Mount every stored database. */
+export async function mountStoredSpecies(): Promise<InstalledSpecies> {
+  const out: InstalledSpecies = {};
+  for (const id of WEB_DATASETS) {
+    const s = await idbGet<Stored>('species', id);
+    if (!s) continue;
+    mountSpeciesDb(id, s.bytes, s.version);
+    out[id] = s.version;
+  }
+  return out;
 }
 
-export async function fetchSpeciesManifest(): Promise<SpeciesManifest> {
-  const res = await fetch(dataUrl('species-manifest.json'), { cache: 'no-cache' });
+export async function fetchSpeciesManifest(id: WebDatasetId = 'tw-taicol'): Promise<SpeciesManifest> {
+  const res = await fetch(dataUrl(MANIFEST[id]), { cache: 'no-cache' });
   if (!res.ok) throw new Error(`manifest HTTP ${res.status}`);
   return (await res.json()) as SpeciesManifest;
 }
@@ -77,14 +96,21 @@ async function readWithProgress(res: Response, total: number, onProgress?: (done
   return out;
 }
 
+/** Turn a region on in the search (the setting mobile's region page writes). */
+export function enableRegion(region: RegionCode): void {
+  const s = useSettings.getState();
+  if (!s.enabled_regions.includes(region)) s.set('enabled_regions', [...s.enabled_regions, region]);
+}
+
 /**
- * Download, verify, store and mount the database named by `m`.
- * Throws on any mismatch; the previously stored copy stays untouched.
+ * Download, verify, store and mount the database named by `m`, and turn its
+ * region on. Throws on any mismatch; the previously stored copy stays untouched.
  */
 export async function downloadSpecies(
   m: SpeciesManifest,
   onProgress?: (done: number, total: number) => void,
 ): Promise<void> {
+  const id = m.id ?? 'tw-taicol';
   const res = await fetch(dataUrl(m.file), { cache: 'no-cache' });
   if (!res.ok) throw new Error(`download HTTP ${res.status}`);
   const body = await readWithProgress(res, m.bytes, onProgress);
@@ -92,14 +118,15 @@ export async function downloadSpecies(
   const raw = body[0] === 0x1f && body[1] === 0x8b ? gunzipSync(body) : body;
   const sha = await sha256Hex(raw);
   if (sha !== m.sha256) throw new Error(`sha256 mismatch (${sha.slice(0, 8)} ≠ ${m.sha256.slice(0, 8)})`);
-  await idbPut('species', KEY, { version: m.version, sha256: sha, bytes: raw, installedAt: Date.now(), manifest: m } satisfies Stored);
-  mountSpeciesDb(raw, m.version);
+  await idbPut('species', id, { version: m.version, sha256: sha, bytes: raw, installedAt: Date.now(), manifest: m } satisfies Stored);
+  mountSpeciesDb(id, raw, m.version);
+  enableRegion(DATASET_REGION[id]);
 }
 
 /** Whether the server has a different database than the stored one (null: offline / unknown). */
-export async function speciesUpdateAvailable(): Promise<SpeciesManifest | null> {
+export async function speciesUpdateAvailable(id: WebDatasetId = 'tw-taicol'): Promise<SpeciesManifest | null> {
   try {
-    const [m, cur] = await Promise.all([fetchSpeciesManifest(), installedSpecies()]);
+    const [m, cur] = await Promise.all([fetchSpeciesManifest(id), installedSpecies(id)]);
     return !cur || cur.sha256 !== m.sha256 ? m : null;
   } catch {
     return null;

@@ -8,7 +8,6 @@
       "surveys": "조사",
       "empty": "아직 조사가 없습니다. 산정상을 추가하거나 Mitalivana에서 내보낸 GLORIA 파일을 가져오세요.",
       "diagnostics": "기기 진단",
-      "speciesMissing": "관속식물 목록(약 7 MB)이 아직 다운로드되지 않았습니다. 종을 검색하기 전에 다운로드하세요.",
       "speciesDownload": "목록 다운로드",
       "speciesProgress": "다운로드 중 {{done}} / {{total}}",
       "speciesFailed": "목록 다운로드 실패: {{msg}}",
@@ -21,7 +20,7 @@
       "recovered": "이전 스냅숏에서 데이터를 복원했습니다.",
       "back": "뒤로",
       "error": "오류가 발생했습니다",
-      "packs": "국가 목록"
+      "packs": "종 목록"
     },
     "export": {
       "withPhotos": "사진 포함",
@@ -48,8 +47,8 @@
       "summary": "수정할 항목 {{count}}개"
     },
     "packs": {
-      "title": "국가 목록",
-      "intro": "대만 밖의 산정: 해당 국가의 GBIF 종 목록을 내려받으면 종 검색에서 오프라인으로도 현지 식물을 찾을 수 있습니다.",
+      "title": "종 목록",
+      "intro": "대만과 일본 밖의 산정: 해당 국가의 GBIF 종 목록을 내려받으면 종 검색에서 오프라인으로도 현지 식물을 찾을 수 있습니다.",
       "scope": "웹 버전은 GBIF에 식물계만 요청합니다(GLORIA는 관속식물을 기록). 파일이 작아집니다.",
       "request": "GBIF 계정으로 요청",
       "requestHint": "GBIF가 파일을 준비하는 데 몇 분에서 몇 시간이 걸립니다. 완료되면 이 페이지에서 내려받아 가져오세요.",
@@ -66,13 +65,40 @@
       "usernamePh": "사용자 이름(이메일 아님)",
       "passwordNotSaved": "비밀번호는 이번 요청에만 쓰이며 이 기기에 저장되지 않습니다.",
       "notifyHint": "선택 사항. 완료되면 GBIF가 이 주소로 메일을 보냅니다.",
-      "register": "GBIF 계정이 없나요? gbif.org에서 무료로 가입하세요"
+      "register": "GBIF 계정이 없나요? gbif.org에서 무료로 가입하세요",
+      "builtinTitle": "내장 목록",
+      "packsTitle": "GBIF 국가 목록",
+      "builtinUse": "{{country}}에는 내장 목록이 있습니다. 이 페이지 위쪽 \"내장 목록\"에서 내려받으세요.",
+      "installed": "설치됨 {{version}}",
+      "notInstalled": "내려받지 않음",
+      "update": "업데이트"
     },
     "update": {
       "available": "새 버전이 있습니다.",
       "update": "업데이트",
       "later": "나중에",
       "offlineReady": "오프라인에서 사용할 수 있습니다."
+    },
+    "start": {
+      "title": "먼저 종 목록을 내려받으세요",
+      "detected": "기기 시간대로 보아 {{country}}에 있습니다.",
+      "unknown": "기기 시간대로는 국가를 알 수 없습니다.",
+      "change": "변경",
+      "changeTitle": "어디에서 조사하나요?",
+      "otherCountry": "다른 국가",
+      "gbifFor": "{{country}}에는 내장 목록이 없습니다. GBIF 국가 목록을 만들 수 있습니다(GBIF 계정 필요, 또는 gbif.org에서 내려받은 파일 가져오기).",
+      "gbifAny": "대만과 일본 외 지역은 GBIF 국가 목록을 만들 수 있습니다(GBIF 계정 필요, 또는 gbif.org에서 내려받은 파일 가져오기).",
+      "gbifButton": "{{country}} 목록 만들기",
+      "gbifButtonAny": "국가를 골라 목록 만들기",
+      "alsoBuiltin": "다른 내장 목록:",
+      "orBuiltin": "또는 내장 목록 내려받기:",
+      "gbifLink": "대만과 일본 외 지역: GBIF 국가 목록 만들기",
+      "ds": {
+        "tw-taicol": "대만 관속식물(TaiCOL)",
+        "jp-ylist": "일본 관속식물(YList)"
+      },
+      "chosenOther": "대만과 일본 외의 국가를 골랐습니다.",
+      "picked": "조사 국가: {{country}}."
     }
   }
 }

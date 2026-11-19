@@ -14,13 +14,13 @@ import { searchWithFuzzyFallback } from '~/db/fuzzy';
 import { GLORIA_SEARCH_GROUPS } from '~/modules/gloria/useSurvey';
 
 const dataDir = path.resolve(__dirname, '../public/data');
-const gz = readdirSync(dataDir).find((f) => f.endsWith('.db.gz'));
+const gz = readdirSync(dataDir).find((f) => f.startsWith('tw-taicol-') && f.endsWith('.db.gz'));
 
 describe.skipIf(!gz)('species search on the web subset', () => {
   beforeAll(async () => {
     closeDbs();
     await initDb();
-    mountSpeciesDb(new Uint8Array(gunzipSync(readFileSync(path.join(dataDir, gz!)))), 'test');
+    mountSpeciesDb('tw-taicol', new Uint8Array(gunzipSync(readFileSync(path.join(dataDir, gz!)))), 'test');
   });
 
   const search = (q: string) => searchWithFuzzyFallback({ q, groups: GLORIA_SEARCH_GROUPS });

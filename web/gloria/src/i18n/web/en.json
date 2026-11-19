@@ -8,7 +8,6 @@
       "surveys": "Surveys",
       "empty": "No surveys yet. Add a summit, or import a GLORIA file exported from Mitalivana.",
       "diagnostics": "Device diagnostics",
-      "speciesMissing": "The vascular plant checklist (about 7 MB) is not downloaded yet; download it before searching species.",
       "speciesDownload": "Download checklist",
       "speciesProgress": "Downloading {{done}} / {{total}}",
       "speciesFailed": "Checklist download failed: {{msg}}",
@@ -21,7 +20,7 @@
       "recovered": "Data was restored from the previous snapshot.",
       "back": "Back",
       "error": "Something went wrong",
-      "packs": "Country checklists"
+      "packs": "Checklists"
     },
     "export": {
       "withPhotos": "With photos",
@@ -55,8 +54,8 @@
       "summary_other": "{{count}} items to fix"
     },
     "packs": {
-      "title": "Country checklists",
-      "intro": "For summits outside Taiwan: download the country’s GBIF species list and the species search finds its plants offline.",
+      "title": "Checklists",
+      "intro": "For summits outside Taiwan and Japan: download the country’s GBIF species list and the species search finds its plants offline.",
       "scope": "The web app asks GBIF for the plant kingdom only (GLORIA records vascular plants), which keeps the file small.",
       "request": "Request with a GBIF account",
       "requestHint": "GBIF takes minutes to hours to prepare the file; when it is done, download it here and import it.",
@@ -74,13 +73,40 @@
       "usernamePh": "Username (not your email)",
       "passwordNotSaved": "The password is used for this request only and is not saved on this device.",
       "notifyHint": "Optional. GBIF emails this address when the file is ready.",
-      "register": "No GBIF account yet? Register for free at gbif.org"
+      "register": "No GBIF account yet? Register for free at gbif.org",
+      "builtinTitle": "Built-in checklists",
+      "packsTitle": "GBIF country checklists",
+      "builtinUse": "{{country}} has a built-in checklist: download it under “Built-in checklists” at the top of this page.",
+      "installed": "Installed {{version}}",
+      "notInstalled": "Not downloaded",
+      "update": "Update"
     },
     "update": {
       "available": "A new version is available.",
       "update": "Update",
       "later": "Later",
       "offlineReady": "Ready to work offline."
+    },
+    "start": {
+      "title": "Download a species checklist first",
+      "detected": "From this device’s time zone, you are in {{country}}.",
+      "unknown": "The device’s time zone does not tell which country you are in.",
+      "change": "Change",
+      "changeTitle": "Where are you surveying?",
+      "otherCountry": "Another country",
+      "gbifFor": "{{country}} has no built-in checklist. You can create a GBIF country checklist (needs a GBIF account, or import a file downloaded on gbif.org).",
+      "gbifAny": "Outside Taiwan and Japan, you can create a GBIF country checklist (needs a GBIF account, or import a file downloaded on gbif.org).",
+      "gbifButton": "Create the checklist for {{country}}",
+      "gbifButtonAny": "Choose a country for its checklist",
+      "alsoBuiltin": "Other built-in checklists:",
+      "orBuiltin": "Or download a built-in checklist:",
+      "gbifLink": "Outside Taiwan and Japan: create a GBIF country checklist",
+      "ds": {
+        "tw-taicol": "Taiwan vascular plants (TaiCOL)",
+        "jp-ylist": "Japan vascular plants (YList)"
+      },
+      "chosenOther": "You chose a country other than Taiwan and Japan.",
+      "picked": "Survey country: {{country}}."
     }
   }
 }

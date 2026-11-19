@@ -133,11 +133,13 @@ datasets: backend
 datasets-verify: backend
 	$(BACKEND_VENV)/bin/python -m backend.scripts.datasets.verify_datasets --out $(DATASETS_OUT)
 
-# Species subset (Tracheophyta) for the GLORIA web app, from the tw-taicol module.
+# Species subsets (Tracheophyta) for the GLORIA web app, from the tw-taicol and jp-ylist modules.
 # Standard library only, so it also runs in CI without the backend venv.
 web-species:
 	python3 -m backend.scripts.datasets.build_web_species \
 		--module $(DATASETS_OUT)/tw-taicol.db --out web/gloria/public/data --verify
+	python3 -m backend.scripts.datasets.build_web_species --dataset jp-ylist \
+		--module $(DATASETS_OUT)/jp-ylist.db --out web/gloria/public/data --verify
 
 # 上傳到 R2。版本目錄不覆寫、latest/manifest.json 最後才傳（半套版本不會被 app 看到）。
 # 需要 ~/.mitalivana-r2.env 的 S3 憑證，或 wrangler 已登入。

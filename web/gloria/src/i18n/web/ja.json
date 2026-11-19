@@ -8,7 +8,6 @@
       "surveys": "調査",
       "empty": "調査はまだありません。山頂を追加するか、Mitalivana から書き出した GLORIA ファイルを読み込んでください。",
       "diagnostics": "端末診断",
-      "speciesMissing": "維管束植物の名録（約 7 MB）がまだダウンロードされていません。種を検索する前にダウンロードしてください。",
       "speciesDownload": "名録をダウンロード",
       "speciesProgress": "ダウンロード中 {{done}} / {{total}}",
       "speciesFailed": "名録のダウンロードに失敗しました：{{msg}}",
@@ -21,7 +20,7 @@
       "recovered": "前のスナップショットからデータを復元しました。",
       "back": "戻る",
       "error": "エラーが発生しました",
-      "packs": "国別リスト"
+      "packs": "種リスト"
     },
     "export": {
       "withPhotos": "写真を含める",
@@ -48,8 +47,8 @@
       "summary": "要修正 {{count}} 項目"
     },
     "packs": {
-      "title": "国別リスト",
-      "intro": "台湾以外の山頂向け：その国の GBIF 種リストをダウンロードすると、種の検索でオフラインでも現地の植物が見つかります。",
+      "title": "種リスト",
+      "intro": "台湾と日本以外の山頂向け：その国の GBIF 種リストをダウンロードすると、種の検索でオフラインでも現地の植物が見つかります。",
       "scope": "ウェブ版は GBIF に植物界だけを申請します（GLORIA は維管束植物を記録）。ファイルが小さくなります。",
       "request": "GBIF アカウントで申請",
       "requestHint": "GBIF のファイル作成には数分から数時間かかります。完了したらこのページでダウンロードし、読み込んでください。",
@@ -66,13 +65,40 @@
       "usernamePh": "ユーザー名（メールアドレスではなく）",
       "passwordNotSaved": "パスワードはこの申請だけに使い、この端末には保存しません。",
       "notifyHint": "任意。完了時に GBIF からこのアドレスにメールが届きます。",
-      "register": "GBIF アカウントがない場合は gbif.org で無料登録"
+      "register": "GBIF アカウントがない場合は gbif.org で無料登録",
+      "builtinTitle": "内蔵リスト",
+      "packsTitle": "GBIF 国別リスト",
+      "builtinUse": "{{country}}には内蔵リストがあります。このページ上部の「内蔵リスト」からダウンロードしてください。",
+      "installed": "インストール済み {{version}}",
+      "notInstalled": "未ダウンロード",
+      "update": "更新"
     },
     "update": {
       "available": "新しいバージョンがあります。",
       "update": "更新",
       "later": "後で",
       "offlineReady": "オフラインで使えるようになりました。"
+    },
+    "start": {
+      "title": "まず種リストをダウンロード",
+      "detected": "端末のタイムゾーンから、{{country}}にいると判断しました。",
+      "unknown": "端末のタイムゾーンから国を判断できませんでした。",
+      "change": "変更",
+      "changeTitle": "どこで調査しますか？",
+      "otherCountry": "その他の国",
+      "gbifFor": "{{country}}には内蔵リストがありません。GBIF の国別リストを作成できます（GBIF アカウントが必要。または gbif.org でダウンロードしたファイルを読み込む）。",
+      "gbifAny": "台湾と日本以外では、GBIF の国別リストを作成できます（GBIF アカウントが必要。または gbif.org でダウンロードしたファイルを読み込む）。",
+      "gbifButton": "{{country}}のリストを作成",
+      "gbifButtonAny": "国を選んでリストを作成",
+      "alsoBuiltin": "ほかの内蔵リスト：",
+      "orBuiltin": "または内蔵リストをダウンロード：",
+      "gbifLink": "台湾と日本以外：GBIF の国別リストを作成",
+      "ds": {
+        "tw-taicol": "台湾の維管束植物（TaiCOL）",
+        "jp-ylist": "日本の維管束植物（YList）"
+      },
+      "chosenOther": "台湾と日本以外の国を選びました。",
+      "picked": "調査地：{{country}}。"
     }
   }
 }

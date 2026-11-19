@@ -17,11 +17,11 @@ import { useThemeColors } from '~/theme/colors';
 import { useToast } from '~/stores/toast';
 import { errText } from '~/lib/errText';
 import { importRecordPromptAndOpen, openNewGloria } from '../host/recordCreate';
-import { downloadSpecies, fetchSpeciesManifest } from '../host/speciesInstall';
-import { formatBytes } from '../host/exportSize';
 import { deliver } from '../host/sharing';
 import { buildBatchZip } from '../export/exportSurvey';
-import { setSpeciesVersion, useBoot } from '../shell/bootStore';
+import { hasSpecies, useBoot } from '../shell/bootStore';
+import { StartPrompt } from './StartPrompt';
+import { listPacks } from '~/db/regionpacks';
 import { LANGUAGE_CATALOGUE, resolveLanguage, setLanguage } from '../host/i18n';
 import { useSettings, type Language } from '~/stores/settings';
 
@@ -48,6 +48,8 @@ export default function Home() {
   // An import finishes on this screen: pick it up when it is saved.
   useEffect(() => boot?.flusher.subscribe((s) => s === 'saved' && reload()), [boot, reload]);
   const [selected, setSelected] = useState<Set<number> | null>(null);
+  const [hasPacks, setHasPacks] = useState(() => listPacks().length > 0);
+  useFocusEffect(useCallback(() => setHasPacks(listPacks().length > 0), []));
 
   const exportSurveys = async (ids: number[]) => {
     const photos = await askPhotos(t);
@@ -87,7 +89,8 @@ export default function Home() {
   return (
     <ScrollView contentContainerClassName="gap-4 p-4 pb-24">
       <Stack.Screen options={{ title: t('web.home.title') }} />
-      {boot && !boot.speciesVersion ? <SpeciesPrompt /> : null}
+      {/* Until a checklist is installed or a country pack started. */}
+      {boot && !hasSpecies(boot) && !hasPacks ? <StartPrompt /> : null}
       {boot?.recoveredFromPrev ? <Text className="text-sm text-acorn-deep">{t('web.home.recovered')}</Text> : null}
 
       <View className="flex-row flex-wrap gap-2">
@@ -187,29 +190,3 @@ function LanguageButton() {
   );
 }
 
-function SpeciesPrompt() {
-  const { t } = useTranslation();
-  const [state, setState] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const go = async () => {
-    setBusy(true);
-    try {
-      const m = await fetchSpeciesManifest();
-      await downloadSpecies(m, (done, total) => setState(t('web.home.speciesProgress', { done: formatBytes(done), total: formatBytes(total) })));
-      setSpeciesVersion(m.version);
-    } catch (e) {
-      setState(t('web.home.speciesFailed', { msg: e instanceof Error ? e.message : String(e) }));
-    } finally {
-      setBusy(false);
-    }
-  };
-  return (
-    <View className="gap-2 rounded-card border border-acorn-edge bg-acorn-wash p-4 dark:border-line-dark dark:bg-card-dark">
-      <Text className="text-sm text-ink dark:text-gray-100">{t('web.home.speciesMissing')}</Text>
-      <View className="flex-row items-center gap-3">
-        <Button variant="primary" label={t('web.home.speciesDownload')} onPress={() => void go()} disabled={busy} />
-        {state ? <Text className="flex-1 text-xs text-ink-2 dark:text-gray-300">{state}</Text> : null}
-      </View>
-    </View>
-  );
-}

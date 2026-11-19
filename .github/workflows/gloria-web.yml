@@ -1,7 +1,7 @@
 # GLORIA web app (web/gloria) → GitHub Pages, at /<repo>/gloria/.
 #
-# Builds the PWA, tests it, builds the Tracheophyta species subset from the
-# published tw-taicol module (no Git LFS, no backend venv), and deploys.
+# Builds the PWA, tests it, builds the Tracheophyta species subsets from the
+# published tw-taicol and jp-ylist modules (no Git LFS, no backend venv), and deploys.
 # Repository settings → Pages → Source must be "GitHub Actions".
 name: gloria-web
 
@@ -54,21 +54,24 @@ jobs:
       - name: Install
         run: npm ci
 
-      - name: Species subset from the published tw-taicol module
+      - name: Species subsets from the published tw-taicol and jp-ylist modules
         run: |
           set -euo pipefail
-          tmp="$RUNNER_TEMP/taicol"
+          tmp="$RUNNER_TEMP/modules"
           mkdir -p "$tmp"
           ua="gloria-web-ci"
           curl -fsSL --retry 3 -A "$ua" https://data.mitalivana.org/checklists/latest/manifest.json -o "$tmp/manifest.json"
-          url=$(python3 -c "import json,sys;d=json.load(open(sys.argv[1]));print(next(x['url'] for x in d['datasets'] if x['id']=='tw-taicol'))" "$tmp/manifest.json")
-          md5=$(python3 -c "import json,sys;d=json.load(open(sys.argv[1]));print(next(x['md5'] for x in d['datasets'] if x['id']=='tw-taicol'))" "$tmp/manifest.json")
-          curl -fsSL --retry 3 -A "$ua" "$url" -o "$tmp/tw-taicol.db.zip"
-          echo "$md5  $tmp/tw-taicol.db.zip" | md5sum -c -
-          unzip -o -q "$tmp/tw-taicol.db.zip" -d "$tmp"
+          field() { python3 -c "import json,sys;d=json.load(open(sys.argv[1]));print(next(x[sys.argv[3]] for x in d['datasets'] if x['id']==sys.argv[2]))" "$tmp/manifest.json" "$1" "$2"; }
+          for id in tw-taicol jp-ylist; do
+            curl -fsSL --retry 3 -A "$ua" "$(field "$id" url)" -o "$tmp/$id.db.zip"
+            echo "$(field "$id" md5)  $tmp/$id.db.zip" | md5sum -c -
+            unzip -o -q "$tmp/$id.db.zip" -d "$tmp"
+          done
           cd "$GITHUB_WORKSPACE"
           python3 -m backend.scripts.datasets.build_web_species \
             --module "$tmp/tw-taicol.db" --out web/gloria/public/data --verify
+          python3 -m backend.scripts.datasets.build_web_species --dataset jp-ylist \
+            --module "$tmp/jp-ylist.db" --out web/gloria/public/data --verify
 
       - name: Typecheck
         run: npm run typecheck

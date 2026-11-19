@@ -8,7 +8,6 @@
       "surveys": "Muestreos",
       "empty": "Aún no hay muestreos. Añada una cumbre o importe un archivo GLORIA exportado desde Mitalivana.",
       "diagnostics": "Diagnóstico del dispositivo",
-      "speciesMissing": "La lista de plantas vasculares (unos 7 MB) aún no se ha descargado; descárguela antes de buscar especies.",
       "speciesDownload": "Descargar lista",
       "speciesProgress": "Descargando {{done}} / {{total}}",
       "speciesFailed": "Error al descargar la lista: {{msg}}",
@@ -21,7 +20,7 @@
       "recovered": "Los datos se restauraron desde la instantánea anterior.",
       "back": "Volver",
       "error": "Se produjo un error",
-      "packs": "Listas por país"
+      "packs": "Listas de especies"
     },
     "export": {
       "withPhotos": "Con fotos",
@@ -55,8 +54,8 @@
       "summary_other": "{{count}} puntos por corregir"
     },
     "packs": {
-      "title": "Listas por país",
-      "intro": "Para cimas fuera de Taiwán: descargue la lista de especies de GBIF del país y la búsqueda de especies encontrará sus plantas sin conexión.",
+      "title": "Listas de especies",
+      "intro": "Para cimas fuera de Taiwán y Japón: descargue la lista de especies de GBIF del país y la búsqueda de especies encontrará sus plantas sin conexión.",
       "scope": "La aplicación web solo pide a GBIF el reino vegetal (GLORIA registra plantas vasculares), así el archivo es pequeño.",
       "request": "Solicitar con una cuenta de GBIF",
       "requestHint": "GBIF tarda de minutos a horas en preparar el archivo; cuando termine, descárguelo aquí e impórtelo.",
@@ -74,13 +73,40 @@
       "usernamePh": "Nombre de usuario (no el correo)",
       "passwordNotSaved": "La contraseña solo se usa para esta solicitud y no se guarda en el dispositivo.",
       "notifyHint": "Opcional. GBIF escribe a esta dirección cuando el archivo está listo.",
-      "register": "¿Sin cuenta de GBIF? Regístrese gratis en gbif.org"
+      "register": "¿Sin cuenta de GBIF? Regístrese gratis en gbif.org",
+      "builtinTitle": "Listas integradas",
+      "packsTitle": "Listas de GBIF por país",
+      "builtinUse": "{{country}} tiene una lista integrada: descárguela en «Listas integradas», arriba en esta página.",
+      "installed": "Instalada {{version}}",
+      "notInstalled": "No descargada",
+      "update": "Actualizar"
     },
     "update": {
       "available": "Hay una versión nueva.",
       "update": "Actualizar",
       "later": "Más tarde",
       "offlineReady": "Lista para usar sin conexión."
+    },
+    "start": {
+      "title": "Primero descargue una lista de especies",
+      "detected": "Según la zona horaria del dispositivo, está en {{country}}.",
+      "unknown": "La zona horaria del dispositivo no indica el país.",
+      "change": "Cambiar",
+      "changeTitle": "¿Dónde hace el muestreo?",
+      "otherCountry": "Otro país",
+      "gbifFor": "{{country}} no tiene lista integrada. Puede crear una lista de GBIF del país (requiere cuenta de GBIF, o importar un archivo descargado en gbif.org).",
+      "gbifAny": "Fuera de Taiwán y Japón, puede crear una lista de GBIF del país (requiere cuenta de GBIF, o importar un archivo descargado en gbif.org).",
+      "gbifButton": "Crear la lista de {{country}}",
+      "gbifButtonAny": "Elegir un país para su lista",
+      "alsoBuiltin": "Otras listas integradas:",
+      "orBuiltin": "O descargue una lista integrada:",
+      "gbifLink": "Fuera de Taiwán y Japón: crear una lista de GBIF del país",
+      "ds": {
+        "tw-taicol": "Plantas vasculares de Taiwán (TaiCOL)",
+        "jp-ylist": "Plantas vasculares de Japón (YList)"
+      },
+      "chosenOther": "Eligió un país distinto de Taiwán y Japón.",
+      "picked": "País del muestreo: {{country}}."
     }
   }
 }

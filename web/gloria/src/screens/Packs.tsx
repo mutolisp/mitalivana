@@ -1,6 +1,7 @@
 /**
- * Country checklist packs: GBIF species lists that make a country's plants
- * searchable offline, for summits outside Taiwan. Two ways in: request the
+ * Checklists: the built-in Taiwan and Japan vascular plant checklists
+ * (download / update), then country packs — GBIF species lists that make a
+ * country's plants searchable offline elsewhere. Two ways in: request the
  * list from GBIF with the user's GBIF account (then download the finished
  * file and import it, see gbif/packs.ts), or import a species list already
  * downloaded from gbif.org. Strings are mobile's regionPacks.* where the
@@ -9,7 +10,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Linking, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
-import { Stack, useFocusEffect } from '../router/router';
+import { Stack, useFocusEffect, useLocalSearchParams } from '../router/router';
 import { Button } from '~/components/ui/Button';
 import { COUNTRIES, countryName, type Country } from '~/lib/countries';
 import { createPack, deletePack, invalidatePackCache, listPacks, updatePack, type RegionPack } from '~/db/regionpacks';
@@ -19,6 +20,9 @@ import { chooseFiles } from '../host/pickFiles';
 import {
   drivePack, GbifError, importPackFile, isPolling, packFileUrl, packPageUrl, requestPackDownload, usePackLive, type PackLive,
 } from '../gbif/packs';
+import { speciesUpdateAvailable, WEB_DATASETS_LIST, type WebDatasetId } from '../host/speciesInstall';
+import { useBoot } from '../shell/bootStore';
+import { useDatasetDownload } from '../shell/useDatasetDownload';
 
 const FILE_TYPES = '.zip,.csv,.tsv,.txt,application/zip,text/plain,text/csv,text/tab-separated-values';
 
@@ -36,7 +40,10 @@ export default function Packs() {
   useEffect(() => {
     for (const p of listPacks()) if (p.gbif_download_key && (p.status === 'requested' || p.status === 'running')) drivePack(p.id);
   }, []);
-  const [adding, setAdding] = useState(false);
+  // From the first-run prompt: /packs?country=AT opens the add form for it.
+  const { country: preset } = useLocalSearchParams<{ country?: string }>();
+  const presetCountry = COUNTRIES.find((c) => c.code === preset) ?? null;
+  const [adding, setAdding] = useState(!!presetCountry);
   const [retrying, setRetrying] = useState<RegionPack | null>(null);
 
   const importInto = async (pack: RegionPack, isNew: boolean) => {
@@ -73,6 +80,14 @@ export default function Packs() {
   return (
     <ScrollView contentContainerClassName="gap-4 p-4 pb-24">
       <Stack.Screen options={{ title: t('web.packs.title') }} />
+      <Text className="text-xs font-semibold uppercase tracking-wide text-ink-3 dark:text-gray-400">{t('web.packs.builtinTitle')}</Text>
+      <View className="overflow-hidden rounded-card border border-line bg-card dark:border-line-dark dark:bg-card-dark">
+        {WEB_DATASETS_LIST.map((id, i) => (
+          <BuiltinRow key={id} id={id} first={i === 0} />
+        ))}
+      </View>
+
+      <Text className="mt-2 text-xs font-semibold uppercase tracking-wide text-ink-3 dark:text-gray-400">{t('web.packs.packsTitle')}</Text>
       <Text className="text-sm text-ink-2 dark:text-gray-300">{t('web.packs.intro')}</Text>
       <Text className="text-xs text-ink-3 dark:text-gray-400">{t('regionPacks.qualityNote')}</Text>
 
@@ -93,6 +108,7 @@ export default function Packs() {
         />
       ) : adding ? (
         <AddPack
+          initial={presetCountry}
           onCancel={() => setAdding(false)}
           onImportFile={(c) => {
             setAdding(false);
@@ -107,6 +123,43 @@ export default function Packs() {
         <Button variant="primary" label={t('regionPacks.add')} onPress={() => setAdding(true)} />
       )}
     </ScrollView>
+  );
+}
+
+/** A built-in checklist: installed version, download or update. */
+function BuiltinRow({ id, first }: { id: WebDatasetId; first: boolean }) {
+  const { t } = useTranslation();
+  const version = useBoot()?.species[id];
+  const { go, busy, status } = useDatasetDownload(id);
+  const [update, setUpdate] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    if (version) void speciesUpdateAvailable(id).then((m) => alive && setUpdate(!!m));
+    return () => {
+      alive = false;
+    };
+  }, [id, version]);
+  return (
+    <View className={`gap-1 px-4 py-3 ${first ? '' : 'border-t border-line dark:border-line-dark'}`}>
+      <View className="flex-row items-center gap-3">
+        <View className="flex-1">
+          <Text className="text-sm font-semibold text-ink dark:text-gray-100">{t(`web.start.ds.${id}`)}</Text>
+          <Text className="text-xs text-ink-3 dark:text-gray-400">
+            {version ? t('web.packs.installed', { version: version.split('+')[0] }) : t('web.packs.notInstalled')}
+          </Text>
+        </View>
+        {!version || update ? (
+          <Button
+            variant={version ? 'secondary' : 'primary'}
+            icon="download-outline"
+            label={version ? t('web.packs.update') : t('web.home.speciesDownload')}
+            onPress={() => void go().then((ok) => ok && setUpdate(false))}
+            disabled={busy}
+          />
+        ) : null}
+      </View>
+      {status ? <Text className="text-xs text-ink-2 dark:text-gray-300">{status}</Text> : null}
+    </View>
   );
 }
 
@@ -158,10 +211,12 @@ function PackCard({
   );
 }
 
-function AddPack({ onCancel, onImportFile, onRequested }: { onCancel: () => void; onImportFile: (c: Country) => void; onRequested: () => void }) {
+function AddPack({
+  initial, onCancel, onImportFile, onRequested,
+}: { initial?: Country | null; onCancel: () => void; onImportFile: (c: Country) => void; onRequested: () => void }) {
   const { t, i18n } = useTranslation();
   const [q, setQ] = useState('');
-  const [country, setCountry] = useState<Country | null>(null);
+  const [country, setCountry] = useState<Country | null>(initial ?? null);
   const [requesting, setRequesting] = useState(false);
   const matches = useMemo(() => {
     const s = q.trim().toLowerCase();
@@ -193,7 +248,12 @@ function AddPack({ onCancel, onImportFile, onRequested }: { onCancel: () => void
         {matches.map((c) => (
           <Pressable
             key={c.code}
-            onPress={() => (c.code === 'TW' ? Alert.alert(t('regionPacks.builtinTitle'), t('regionPacks.builtinTaiwan')) : setCountry(c))}
+            onPress={() =>
+              // Taiwan and Japan have built-in checklists (top of this page), as on mobile.
+              c.code === 'TW' || c.code === 'JP'
+                ? Alert.alert(t('regionPacks.builtinTitle'), t('web.packs.builtinUse', { country: countryName(c.code, i18n.language) }))
+                : setCountry(c)
+            }
             className="flex-row gap-3 border-t border-line px-1 py-2 active:bg-disc dark:border-line-dark"
           >
             <Text className="w-8 font-mono text-xs text-ink-3 dark:text-gray-400">{c.code}</Text>

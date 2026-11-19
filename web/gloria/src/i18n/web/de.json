@@ -8,7 +8,6 @@
       "surveys": "Aufnahmen",
       "empty": "Noch keine Aufnahmen. Fügen Sie einen Gipfel hinzu oder importieren Sie eine aus Mitalivana exportierte GLORIA-Datei.",
       "diagnostics": "Gerätediagnose",
-      "speciesMissing": "Die Gefäßpflanzen-Checkliste (ca. 7 MB) ist noch nicht heruntergeladen; laden Sie sie vor der Artsuche herunter.",
       "speciesDownload": "Checkliste herunterladen",
       "speciesProgress": "Wird heruntergeladen {{done}} / {{total}}",
       "speciesFailed": "Download der Checkliste fehlgeschlagen: {{msg}}",
@@ -21,7 +20,7 @@
       "recovered": "Daten wurden aus dem vorherigen Schnappschuss wiederhergestellt.",
       "back": "Zurück",
       "error": "Ein Fehler ist aufgetreten",
-      "packs": "Länderlisten"
+      "packs": "Artenlisten"
     },
     "export": {
       "withPhotos": "Mit Fotos",
@@ -55,8 +54,8 @@
       "summary_other": "{{count}} offene Punkte"
     },
     "packs": {
-      "title": "Länderlisten",
-      "intro": "Für Gipfel außerhalb Taiwans: Laden Sie die GBIF-Artenliste des Landes herunter, dann findet die Artsuche dessen Pflanzen auch offline.",
+      "title": "Artenlisten",
+      "intro": "Für Gipfel außerhalb Taiwans und Japans: Laden Sie die GBIF-Artenliste des Landes herunter, dann findet die Artsuche dessen Pflanzen auch offline.",
       "scope": "Die Web-App fordert bei GBIF nur das Pflanzenreich an (GLORIA erfasst Gefäßpflanzen); die Datei bleibt so klein.",
       "request": "Mit GBIF-Konto anfordern",
       "requestHint": "GBIF braucht Minuten bis Stunden für die Datei; danach hier herunterladen und importieren.",
@@ -74,13 +73,40 @@
       "usernamePh": "Benutzername (nicht die E-Mail)",
       "passwordNotSaved": "Das Passwort dient nur dieser Anfrage und wird nicht auf dem Gerät gespeichert.",
       "notifyHint": "Optional. GBIF schreibt an diese Adresse, wenn die Datei fertig ist.",
-      "register": "Noch kein GBIF-Konto? Kostenlos auf gbif.org registrieren"
+      "register": "Noch kein GBIF-Konto? Kostenlos auf gbif.org registrieren",
+      "builtinTitle": "Eingebaute Listen",
+      "packsTitle": "GBIF-Länderlisten",
+      "builtinUse": "Für {{country}} gibt es eine eingebaute Liste: oben auf dieser Seite unter „Eingebaute Listen“ herunterladen.",
+      "installed": "Installiert {{version}}",
+      "notInstalled": "Nicht heruntergeladen",
+      "update": "Aktualisieren"
     },
     "update": {
       "available": "Eine neue Version ist verfügbar.",
       "update": "Aktualisieren",
       "later": "Später",
       "offlineReady": "Jetzt auch offline nutzbar."
+    },
+    "start": {
+      "title": "Zuerst eine Artenliste herunterladen",
+      "detected": "Laut Zeitzone des Geräts sind Sie in {{country}}.",
+      "unknown": "Aus der Zeitzone des Geräts lässt sich kein Land ableiten.",
+      "change": "Ändern",
+      "changeTitle": "Wo erheben Sie?",
+      "otherCountry": "Anderes Land",
+      "gbifFor": "Für {{country}} gibt es keine eingebaute Liste. Sie können eine GBIF-Länderliste anlegen (GBIF-Konto nötig, oder eine auf gbif.org heruntergeladene Datei importieren).",
+      "gbifAny": "Außerhalb Taiwans und Japans können Sie eine GBIF-Länderliste anlegen (GBIF-Konto nötig, oder eine auf gbif.org heruntergeladene Datei importieren).",
+      "gbifButton": "Liste für {{country}} anlegen",
+      "gbifButtonAny": "Land für die Liste wählen",
+      "alsoBuiltin": "Weitere eingebaute Listen:",
+      "orBuiltin": "Oder eine eingebaute Liste herunterladen:",
+      "gbifLink": "Außerhalb Taiwans und Japans: GBIF-Länderliste anlegen",
+      "ds": {
+        "tw-taicol": "Gefäßpflanzen Taiwans (TaiCOL)",
+        "jp-ylist": "Gefäßpflanzen Japans (YList)"
+      },
+      "chosenOther": "Sie haben ein Land außer Taiwan und Japan gewählt.",
+      "picked": "Erhebungsland: {{country}}."
     }
   }
 }

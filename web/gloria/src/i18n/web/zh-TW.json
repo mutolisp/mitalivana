@@ -8,7 +8,6 @@
       "surveys": "調查",
       "empty": "還沒有調查。先新增山峰，或匯入 Mitalivana 匯出的 GLORIA 檔案。",
       "diagnostics": "實機診斷",
-      "speciesMissing": "尚未下載維管束植物名錄（約 7 MB），搜尋物種前請先下載。",
       "speciesDownload": "下載名錄",
       "speciesProgress": "下載中 {{done}} / {{total}}",
       "speciesFailed": "名錄下載失敗：{{msg}}",
@@ -21,7 +20,7 @@
       "recovered": "已從前一份快照復原資料。",
       "back": "返回",
       "error": "發生錯誤",
-      "packs": "國家名錄"
+      "packs": "名錄"
     },
     "export": {
       "withPhotos": "含照片",
@@ -48,8 +47,8 @@
       "summary": "共 {{count}} 項待修正"
     },
     "packs": {
-      "title": "國家名錄",
-      "intro": "臺灣以外的山峰：下載該國的 GBIF 物種名錄後，物種搜尋就能離線找到當地的植物。",
+      "title": "名錄",
+      "intro": "臺灣與日本以外的山峰：下載該國的 GBIF 物種名錄後，物種搜尋就能離線找到當地的植物。",
       "scope": "網頁版只向 GBIF 申請植物界（GLORIA 記錄維管束植物），檔案較小。",
       "request": "用 GBIF 帳號申請",
       "requestHint": "GBIF 準備檔案需要幾分鐘到數小時；完成後回到這頁下載檔案，再匯入。",
@@ -66,13 +65,40 @@
       "usernamePh": "使用者名稱（不是 email）",
       "passwordNotSaved": "密碼只用於這次申請，不會儲存在這台裝置。",
       "notifyHint": "選填。GBIF 完成時會寄信到這個信箱。",
-      "register": "還沒有 GBIF 帳號？到 gbif.org 免費註冊"
+      "register": "還沒有 GBIF 帳號？到 gbif.org 免費註冊",
+      "builtinTitle": "內建名錄",
+      "packsTitle": "GBIF 國家名錄",
+      "builtinUse": "{{country}}已有內建名錄，請在本頁上方「內建名錄」下載。",
+      "installed": "已安裝 {{version}}",
+      "notInstalled": "尚未下載",
+      "update": "更新"
     },
     "update": {
       "available": "有新版本。",
       "update": "更新",
       "later": "稍後",
       "offlineReady": "已可離線使用。"
+    },
+    "start": {
+      "title": "先下載物種名錄",
+      "detected": "依裝置時區判斷，你在{{country}}。",
+      "unknown": "無法從裝置時區判斷你在哪個國家。",
+      "change": "更改",
+      "changeTitle": "你在哪裡調查？",
+      "otherCountry": "其他國家",
+      "gbifFor": "{{country}}沒有內建名錄，可以建立 GBIF 國家名錄（需要 GBIF 帳號，或匯入在 gbif.org 下載的檔案）。",
+      "gbifAny": "臺灣與日本以外的地區，可以建立 GBIF 國家名錄（需要 GBIF 帳號，或匯入在 gbif.org 下載的檔案）。",
+      "gbifButton": "建立{{country}}的國家名錄",
+      "gbifButtonAny": "選擇國家，建立國家名錄",
+      "alsoBuiltin": "也可以下載其他內建名錄：",
+      "orBuiltin": "或下載內建名錄：",
+      "gbifLink": "臺灣與日本以外的地區：建立 GBIF 國家名錄",
+      "ds": {
+        "tw-taicol": "臺灣維管束植物名錄（TaiCOL）",
+        "jp-ylist": "日本維管束植物名錄（YList）"
+      },
+      "chosenOther": "你選擇了臺灣與日本以外的國家。",
+      "picked": "調查地點：{{country}}。"
     }
   }
 }
