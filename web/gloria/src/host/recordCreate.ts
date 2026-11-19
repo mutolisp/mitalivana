@@ -140,7 +140,7 @@ export async function importRecordPromptAndOpen(): Promise<void> {
       continue;
     }
     try {
-      done.push({ id: applyGloriaImport(c.doc), name });
+      done.push({ id: await applyGloriaImport(c.doc, c.attached), name });
       lines.push(`✓ ${name}`);
     } catch (e) {
       lines.push(`✕ ${name}: ${importErrorMessage(e)}`);

@@ -60,7 +60,7 @@ describe('web export / import', () => {
     const check = readGloriaImport(bytes);
     expect(check.ok && !check.exists).toBe(true);
     if (!check.ok) return;
-    const id = applyGloriaImport(check.doc);
+    const id = await applyGloriaImport(check.doc);
     const back = loadGloriaDoc(id)!;
     expect(stable(back)).toEqual(stable(original));
     // The photo reference survives (the bytes stay in this browser's media store).

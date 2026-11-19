@@ -86,8 +86,20 @@ export const Dimensions = {
   get(_which: 'window' | 'screen' = 'window'): Dim {
     return readDim();
   },
+  /**
+   * 'change' as React Native means it: the window turned or was resized
+   * sideways. A phone browser also fires `resize` when its address bar
+   * slides or the keyboard opens and closes (height only); passing those on
+   * closed the overflow menu right after it opened (a tap that blurred a
+   * field hides the keyboard), so they are not reported.
+   */
   addEventListener(_t: 'change', fn: (e: { window: Dim }) => void) {
-    const h = () => fn({ window: readDim() });
+    let width = window.innerWidth;
+    const h = () => {
+      if (window.innerWidth === width) return;
+      width = window.innerWidth;
+      fn({ window: readDim() });
+    };
     window.addEventListener('resize', h);
     return { remove: () => window.removeEventListener('resize', h) };
   },

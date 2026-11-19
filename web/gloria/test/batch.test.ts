@@ -49,7 +49,8 @@ describe('batch export / import', () => {
     await fresh();
     const checks = readGloriaImports(zip.bytes, 'b.zip');
     expect(checks.map((c) => c.ok && !c.exists && !c.otherCopy)).toEqual([true, true]);
-    const back = checks.map((c) => (c.ok ? loadGloriaDoc(applyGloriaImport(c.doc)) : null));
+    const back = [];
+    for (const c of checks) back.push(c.ok ? loadGloriaDoc(await applyGloriaImport(c.doc, c.attached)) : null);
     expect(back.map(stable)).toEqual(docs.map(stable));
   });
 
