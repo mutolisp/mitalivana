@@ -97,3 +97,9 @@ app-example
 # CocoaPods are regenerated on CI by mobile/app/ios/ci_scripts/ci_post_clone.sh.
 # /mobile/app/ios
 /mobile/app/android
+
+# Local logs and per-machine databases (keep out of the public repo)
+*.log
+backend/checklists.db
+backend/user_profile.db
+backend/twnamelist[0-9]*.db
