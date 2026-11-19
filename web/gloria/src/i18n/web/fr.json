@@ -25,6 +25,33 @@
     "export": {
       "withPhotos": "Avec photos",
       "withoutPhotos": "Sans photos"
+    },
+    "desktop": {
+      "keys": "Clavier : / chercher une espèce · Alt+← / → unité précédente / suivante · Alt+↑ / ↓ déplacer une espèce · grille de fréquence : chiffres, ligne puis colonne (0 = 10e), Échap efface"
+    },
+    "batch": {
+      "existingMsg_one": "{{count}} d’entre eux est déjà sur cet appareil : {{names}}. L’écraser le remplace par le contenu du fichier.",
+      "existingMsg_other": "{{count}} d’entre eux sont déjà sur cet appareil : {{names}}. Les écraser les remplace par le contenu des fichiers.",
+      "overwriteAll_one": "L’écraser",
+      "overwriteAll_other": "Écraser ces {{count}}",
+      "skipExisting": "Ignorer les existants",
+      "skipped": "déjà présent, ignoré",
+      "summaryTitle_one": "{{count}} importé sur {{total}}",
+      "summaryTitle_other": "{{count}} importés sur {{total}}",
+      "exportAll_one": "Tous les relevés ({{count}})",
+      "exportAll_other": "Tous les relevés ({{count}})",
+      "choose": "Choisir des relevés…",
+      "exportSelected_one": "Exporter {{count}}",
+      "exportSelected_other": "Exporter {{count}}"
+    },
+    "review": {
+      "allClear": "Rien à corriger dans aucun relevé",
+      "noIssues": "Rien à corriger",
+      "photosMissing_one": "{{count}} photo obligatoire manquante",
+      "photosMissing_other": "{{count}} photos obligatoires manquantes",
+      "title": "Vérification",
+      "summary_one": "{{count}} point à corriger",
+      "summary_other": "{{count}} points à corriger"
     }
   }
 }

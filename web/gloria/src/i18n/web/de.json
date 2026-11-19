@@ -25,6 +25,33 @@
     "export": {
       "withPhotos": "Mit Fotos",
       "withoutPhotos": "Ohne Fotos"
+    },
+    "desktop": {
+      "keys": "Tastatur: / Art suchen · Alt+← / → vorherige / nächste Einheit · Alt+↑ / ↓ Art verschieben · Frequenzraster: Ziffern, erst Zeile, dann Spalte (0 = 10.), Esc löscht"
+    },
+    "batch": {
+      "existingMsg_one": "{{count}} davon ist bereits auf diesem Gerät: {{names}}. Überschreiben ersetzt sie durch den Inhalt der Datei.",
+      "existingMsg_other": "{{count}} davon sind bereits auf diesem Gerät: {{names}}. Überschreiben ersetzt sie durch den Inhalt der Dateien.",
+      "overwriteAll_one": "Überschreiben",
+      "overwriteAll_other": "Diese {{count}} überschreiben",
+      "skipExisting": "Vorhandene überspringen",
+      "skipped": "bereits vorhanden, übersprungen",
+      "summaryTitle_one": "{{count}} von {{total}} importiert",
+      "summaryTitle_other": "{{count}} von {{total}} importiert",
+      "exportAll_one": "Alle Aufnahmen ({{count}})",
+      "exportAll_other": "Alle Aufnahmen ({{count}})",
+      "choose": "Aufnahmen auswählen…",
+      "exportSelected_one": "{{count}} exportieren",
+      "exportSelected_other": "{{count}} exportieren"
+    },
+    "review": {
+      "allClear": "In keiner Aufnahme ist etwas zu beheben",
+      "noIssues": "Nichts zu beheben",
+      "photosMissing_one": "{{count}} Pflichtfoto fehlt noch",
+      "photosMissing_other": "{{count}} Pflichtfotos fehlen noch",
+      "title": "Prüfen",
+      "summary_one": "{{count}} offener Punkt",
+      "summary_other": "{{count}} offene Punkte"
     }
   }
 }

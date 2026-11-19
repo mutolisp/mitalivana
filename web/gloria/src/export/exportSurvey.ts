@@ -11,17 +11,20 @@ import {
   getGloriaSurvey, listPhotoChecks, listPoints, listSurveySpecies, listUnits, loadExportData, loadGloriaDoc, p5mOf,
 } from '~/modules/gloria/db';
 import { assembleGloriaEntries, type GloriaBundleInput } from '~/modules/gloria/export/bundle';
-import { taxonToMarkdownItem } from '~/lib/bundleParts';
+import { taxonToMarkdownItem, type BuiltZipEntry } from '~/lib/bundleParts';
 import { generateMarkdown } from '~/lib/markdown';
 import type { Translate } from '~/lib/reportTypes';
 import { syncBlockFor } from '~/db/syncBase';
 import i18n, { fixedT } from '../host/i18n';
 import { readMediaBytes } from '../host/mediaStore';
 import { zipEntries } from './zip';
+import { strToU8 } from 'fflate';
+import { createFolderNamer, moveUnder } from '~/lib/zipEntryNames';
 
 export type ExportOptions = { includePhotos: boolean; lang?: string; onPhotoProgress?: (done: number, total: number) => void };
 
-export async function buildSurveyZip(surveyId: number, opts: ExportOptions): Promise<{ bytes: Uint8Array; filename: string; photoCount: number }> {
+/** One survey's zip entries, under its own folder (as on mobile). */
+export async function buildSurveyEntries(surveyId: number, opts: ExportOptions) {
   const data = loadExportData(surveyId);
   const doc = loadGloriaDoc(surveyId);
   const survey = getGloriaSurvey(surveyId);
@@ -58,5 +61,50 @@ export async function buildSurveyZip(surveyId: number, opts: ExportOptions): Pro
     { readMedia: readMediaBytes, onPhotoProgress: opts.onPhotoProgress },
   );
 
+  return { entries, folderName, photoCount };
+}
+
+export async function buildSurveyZip(surveyId: number, opts: ExportOptions): Promise<{ bytes: Uint8Array; filename: string; photoCount: number }> {
+  const { entries, folderName, photoCount } = await buildSurveyEntries(surveyId, opts);
   return { bytes: zipEntries(entries), filename: `${folderName}.zip`, photoCount };
+}
+
+/**
+ * Several surveys in one zip, in the mobile app's bundle layout
+ * (bundleExport.ts bundleMany): one folder per survey at the root and a
+ * bundle_manifest.json listing them; a survey that fails is listed with its
+ * error instead of stopping the batch.
+ */
+export async function buildBatchZip(
+  surveyIds: number[],
+  opts: ExportOptions & { onSurvey?: (done: number, total: number) => void },
+): Promise<{ bytes: Uint8Array; filename: string; exported: number }> {
+  const all: BuiltZipEntry[] = [];
+  const items: Array<Record<string, unknown>> = [];
+  const claim = createFolderNamer();
+  let exported = 0;
+  for (let i = 0; i < surveyIds.length; i++) {
+    opts.onSurvey?.(i, surveyIds.length);
+    const id = surveyIds[i];
+    try {
+      const built = await buildSurveyEntries(id, opts);
+      const folder = claim(built.folderName);
+      for (const e of built.entries) all.push(folder === built.folderName ? e : { ...e, name: moveUnder(e.name, built.folderName, folder) });
+      items.push({ kind: 'gloria', id, folder });
+      exported += 1;
+    } catch (e) {
+      items.push({ kind: 'gloria', id, error: e instanceof Error ? e.message : String(e) });
+    }
+  }
+  const manifest = {
+    app: 'mitalivana',
+    schema_version: 1,
+    created_at: new Date().toISOString(),
+    item_count: surveyIds.length,
+    items,
+    includePhotos: opts.includePhotos,
+  };
+  all.push({ name: 'bundle_manifest.json', bytes: strToU8(JSON.stringify(manifest, null, 2)) });
+  const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  return { bytes: zipEntries(all), filename: `GLORIA_bundle_${ts}.zip`, exported };
 }

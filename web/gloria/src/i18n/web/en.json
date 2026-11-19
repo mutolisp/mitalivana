@@ -25,6 +25,33 @@
     "export": {
       "withPhotos": "With photos",
       "withoutPhotos": "Without photos"
+    },
+    "desktop": {
+      "keys": "Keyboard: / search species · Alt+← / → previous / next unit · Alt+↑ / ↓ move a species · frequency grid: digits, row then column (0 = 10th), Esc clears"
+    },
+    "batch": {
+      "existingMsg_one": "{{count}} of them is already on this device: {{names}}. Overwriting replaces it with the file’s content.",
+      "existingMsg_other": "{{count}} of them are already on this device: {{names}}. Overwriting replaces them with the files’ content.",
+      "overwriteAll_one": "Overwrite it",
+      "overwriteAll_other": "Overwrite these {{count}}",
+      "skipExisting": "Skip the existing ones",
+      "skipped": "already here, skipped",
+      "summaryTitle_one": "Imported {{count}} of {{total}}",
+      "summaryTitle_other": "Imported {{count}} of {{total}}",
+      "exportAll_one": "All surveys ({{count}})",
+      "exportAll_other": "All surveys ({{count}})",
+      "choose": "Choose surveys…",
+      "exportSelected_one": "Export {{count}}",
+      "exportSelected_other": "Export {{count}}"
+    },
+    "review": {
+      "allClear": "Nothing to fix in any survey",
+      "noIssues": "Nothing to fix",
+      "photosMissing_one": "{{count}} obligatory photo still missing",
+      "photosMissing_other": "{{count}} obligatory photos still missing",
+      "title": "Review",
+      "summary_one": "{{count}} item to fix",
+      "summary_other": "{{count}} items to fix"
     }
   }
 }

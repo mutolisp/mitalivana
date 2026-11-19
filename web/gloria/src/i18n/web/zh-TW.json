@@ -25,6 +25,26 @@
     "export": {
       "withPhotos": "含照片",
       "withoutPhotos": "不含照片"
+    },
+    "desktop": {
+      "keys": "鍵盤：/ 搜尋物種 · Alt+←／→ 上／下一個單位 · Alt+↑／↓ 移動物種 · 頻度格：數字鍵先列後欄（0＝第 10），Esc 清除"
+    },
+    "batch": {
+      "existingMsg": "其中 {{count}} 筆已在這台裝置上：{{names}}。覆蓋會以匯入檔的內容取代現有資料。",
+      "overwriteAll": "覆蓋這 {{count}} 筆",
+      "skipExisting": "略過已存在的",
+      "skipped": "已存在，略過",
+      "summaryTitle": "已匯入 {{count}} / {{total}} 筆",
+      "exportAll": "全部調查（{{count}} 筆）",
+      "choose": "選擇調查…",
+      "exportSelected": "匯出 {{count}} 筆"
+    },
+    "review": {
+      "allClear": "所有調查都沒有待修正的項目",
+      "noIssues": "沒有待修正的項目",
+      "photosMissing": "必拍照片還缺 {{count}} 張",
+      "title": "檢查",
+      "summary": "共 {{count}} 項待修正"
     }
   }
 }

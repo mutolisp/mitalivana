@@ -21,6 +21,8 @@ import { ROUTES } from './routes';
 import { Header } from './shell/Header';
 import { setBoot } from './shell/bootStore';
 import { UpdatePrompt } from './UpdatePrompt';
+import { SurveySidebar, surveyRoute, useDesktopKeys, useWide } from './shell/Desktop';
+import { useCurrentPath } from './router/router';
 
 type Failure = Extract<BootResult, { ok: false }>;
 
@@ -76,6 +78,9 @@ export function App() {
   }, []);
 
   const titles = useMemo(() => new Map(ROUTES.map((r) => [r.pattern, r.title])), []);
+  const wide = useWide();
+  const path = useCurrentPath();
+  useDesktopKeys();
 
   if (error) return <Message>Start-up failed: {error}</Message>;
   if (failure) {
@@ -88,11 +93,14 @@ export function App() {
     );
   }
   if (!ready) return null;
+  const survey = surveyRoute(path);
 
   return (
-    // The shared screens are laid out for a phone: on a wide screen they keep a
-    // phone-width column, centred, until the desktop layout (phase 4).
-    <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col bg-paper dark:bg-paper-dark" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+    // The shared screens are laid out for a phone: they keep a phone-width
+    // column; on a wide screen a survey's pages get the unit sidebar beside it.
+    <div className="flex min-h-full w-full justify-center">
+      {wide && survey ? <SurveySidebar surveyId={survey.id} current={survey.code} /> : null}
+    <div className="flex min-h-full w-full max-w-2xl flex-col bg-paper dark:bg-paper-dark" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
       <Navigator
         routes={ROUTES}
         notFound={() => <Message>404</Message>}
@@ -105,6 +113,7 @@ export function App() {
       <ToastHost />
       <AlertHost />
       <UpdatePrompt />
+    </div>
     </div>
   );
 }

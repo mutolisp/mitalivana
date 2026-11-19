@@ -148,6 +148,11 @@ export function useLocalSearchParams<T extends Record<string, string | undefined
 }
 export const useGlobalSearchParams = useLocalSearchParams;
 
+/** The current path, anywhere (also outside the Navigator); re-renders on navigation. */
+export function useCurrentPath(): string {
+  return splitLocation(useLocation()).path;
+}
+
 export function usePathname(): string {
   return useContext(RouteCtx)?.path ?? splitLocation(currentHash()).path;
 }

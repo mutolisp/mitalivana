@@ -13,8 +13,7 @@ import { showActionSheet } from '~/components/ActionSheet';
 import { createGloriaSurvey, endGloriaSurvey } from '~/modules/gloria/db';
 import { useActiveGloria } from '~/modules/gloria/store';
 import * as DocumentPicker from 'expo-document-picker';
-import { applyGloriaImport, readGloriaImport } from '../import/importZip';
-import { getUserDb } from '~/db/init';
+import { applyGloriaImport, readGloriaImports, type ImportCheck } from '../import/importZip';
 import { useToast } from '~/stores/toast';
 import type { GloriaDoc } from '~/modules/gloria/export/yaml';
 import { pickedFile } from './documentPicker';
@@ -94,53 +93,65 @@ export function importErrorMessage(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
 }
 
-/** The survey of the same summit and cycle here, if any (mobile merge.ts findGloriaSurveyFor). */
-function surveyFor(doc: GloriaDoc): { id: number; uuid: string } | null {
-  const r = getUserDb().executeSync(
-    `SELECT v.id, v.uuid FROM gloria_surveys v JOIN gloria_summits s ON s.id = v.summit_id WHERE s.full_code = ? AND v.mocy = ?`,
-    [doc.summit.full_code, doc.survey.mocy],
-  ).rows[0] as { id: number; uuid: string } | undefined;
-  return r ?? null;
-}
-
 /**
- * Import a GLORIA export (zip or yml), as mobile finishGloriaImport does
- * minus team merge: the same survey here can be overwritten; another copy of
- * the same summit and cycle (other uuid) can only be merged, which the web
- * app does not do yet, so it is refused with mobile's explanation.
+ * Import GLORIA files — one or several, each a single survey or a bundle —
+ * as mobile finishGloriaImport does, minus team merge. Everything is read
+ * first; surveys already here are asked about once (overwrite / skip);
+ * another copy of the same summit and cycle can only be merged, so it is
+ * skipped with mobile's explanation. One clean survey opens straight away,
+ * as before; otherwise a summary says what happened to each.
  */
 export async function importRecordPromptAndOpen(): Promise<void> {
-  const r = await DocumentPicker.getDocumentAsync({ type: '*/*' });
-  if (r.canceled || !r.assets?.[0]) return;
-  const file = pickedFile(r.assets[0].uri);
-  if (!file) return;
-  const check = readGloriaImport(new Uint8Array(await file.arrayBuffer()));
-  if (!check.ok) {
-    Alert.alert(i18n.t('recordCreate.importFailTitle'), check.reason === 'not-gloria' ? i18n.t('recordImport.unknownKind') : (check.detail ?? ''));
-    return;
+  const r = await DocumentPicker.getDocumentAsync({ type: '*/*', multiple: true });
+  if (r.canceled || !r.assets?.length) return;
+  const checks: ImportCheck[] = [];
+  for (const a of r.assets) {
+    const file = pickedFile(a.uri);
+    if (file) checks.push(...readGloriaImports(new Uint8Array(await file.arrayBuffer()), file.name));
   }
-  const doc = check.doc;
-  const name = `${doc.summit.full_code} mocy ${doc.survey.mocy}`;
-  const here = surveyFor(doc);
-  if (here && here.uuid !== doc.survey.uuid) {
-    Alert.alert(i18n.t('recordImport.gloriaExistsTitle'), i18n.t('teamMerge.gloriaOtherCopy', { name }));
-    return;
-  }
-  if (here || check.exists) {
+  const nameOf = (d: GloriaDoc) => `${d.summit.full_code} mocy ${d.survey.mocy}`;
+  const good = checks.filter((c): c is Extract<ImportCheck, { ok: true }> => c.ok && !c.otherCopy);
+  const existing = good.filter((c) => c.exists);
+  let overwrite = true;
+  if (existing.length) {
     const idx = await showActionSheet({
       title: i18n.t('recordImport.gloriaExistsTitle'),
-      message: i18n.t('recordImport.gloriaExistsMsg', { name }),
+      message: i18n.t('web.batch.existingMsg', { count: existing.length, names: existing.map((c) => nameOf(c.doc)).join('、') }),
       cancelLabel: i18n.t('common.cancel'),
-      options: [{ label: i18n.t('recordCreate.overwrite'), destructive: true }],
+      options: [{ label: i18n.t('web.batch.overwriteAll', { count: existing.length }), destructive: true }, { label: i18n.t('web.batch.skipExisting') }],
     });
-    if (idx !== 0) return;
+    if (idx < 0) return;
+    overwrite = idx === 0;
   }
-  try {
-    const id = applyGloriaImport(doc);
-    useActiveGloria.getState().refresh();
-    useToast.getState().show(i18n.t('recordImport.gloriaImported', { name }));
-    router.push(`/gloria/${id}`);
-  } catch (e) {
-    Alert.alert(i18n.t('recordCreate.importFailTitle'), importErrorMessage(e));
+  const done: Array<{ id: number; name: string }> = [];
+  const lines: string[] = [];
+  for (const c of checks) {
+    if (!c.ok) {
+      lines.push(`✕ ${c.source}: ${c.reason === 'not-gloria' ? i18n.t('recordImport.unknownKind') : (c.detail ?? '')}`);
+      continue;
+    }
+    const name = nameOf(c.doc);
+    if (c.otherCopy) {
+      lines.push(`✕ ${name}: ${i18n.t('teamMerge.gloriaOtherCopy', { name })}`);
+      continue;
+    }
+    if (c.exists && !overwrite) {
+      lines.push(`– ${name}: ${i18n.t('web.batch.skipped')}`);
+      continue;
+    }
+    try {
+      done.push({ id: applyGloriaImport(c.doc), name });
+      lines.push(`✓ ${name}`);
+    } catch (e) {
+      lines.push(`✕ ${name}: ${importErrorMessage(e)}`);
+    }
   }
+  useActiveGloria.getState().refresh();
+  if (done.length === 1 && checks.length === 1) {
+    useToast.getState().show(i18n.t('recordImport.gloriaImported', { name: done[0].name }));
+    router.push(`/gloria/${done[0].id}`);
+    return;
+  }
+  Alert.alert(i18n.t('web.batch.summaryTitle', { count: done.length, total: checks.length }), lines.join('\n'));
+  if (done.length) router.replace('/');
 }

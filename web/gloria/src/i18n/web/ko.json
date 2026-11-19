@@ -25,6 +25,26 @@
     "export": {
       "withPhotos": "사진 포함",
       "withoutPhotos": "사진 제외"
+    },
+    "desktop": {
+      "keys": "키보드: / 종 검색 · Alt+← / → 이전/다음 단위 · Alt+↑ / ↓ 종 이동 · 빈도 격자: 숫자 키로 행→열(0 = 10번째), Esc로 해제"
+    },
+    "batch": {
+      "existingMsg": "그중 {{count}}건은 이미 이 기기에 있습니다: {{names}}. 덮어쓰면 파일 내용으로 바뀝니다.",
+      "overwriteAll": "이 {{count}}건 덮어쓰기",
+      "skipExisting": "기존 항목 건너뛰기",
+      "skipped": "이미 있어 건너뜀",
+      "summaryTitle": "{{total}}건 중 {{count}}건 가져옴",
+      "exportAll": "모든 조사({{count}}건)",
+      "choose": "조사 선택…",
+      "exportSelected": "{{count}}건 내보내기"
+    },
+    "review": {
+      "allClear": "모든 조사에 수정할 항목이 없습니다",
+      "noIssues": "수정할 항목 없음",
+      "photosMissing": "필수 사진 {{count}}장 남음",
+      "title": "점검",
+      "summary": "수정할 항목 {{count}}개"
     }
   }
 }

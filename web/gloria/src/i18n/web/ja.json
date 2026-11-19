@@ -25,6 +25,26 @@
     "export": {
       "withPhotos": "写真を含める",
       "withoutPhotos": "写真を含めない"
+    },
+    "desktop": {
+      "keys": "キーボード：/ 種を検索 · Alt+← / → 前／次の単位 · Alt+↑ / ↓ 種を移動 · 頻度グリッド：数字キーで行→列（0＝10番目）、Esc で解除"
+    },
+    "batch": {
+      "existingMsg": "うち {{count}} 件はこの端末にすでにあります：{{names}}。上書きするとファイルの内容に置き換わります。",
+      "overwriteAll": "この {{count}} 件を上書き",
+      "skipExisting": "既存のものはスキップ",
+      "skipped": "既存のためスキップ",
+      "summaryTitle": "{{total}} 件中 {{count}} 件を読み込みました",
+      "exportAll": "すべての調査（{{count}} 件）",
+      "choose": "調査を選択…",
+      "exportSelected": "{{count}} 件を書き出す"
+    },
+    "review": {
+      "allClear": "すべての調査で修正の必要はありません",
+      "noIssues": "修正の必要なし",
+      "photosMissing": "必須写真があと {{count}} 枚",
+      "title": "チェック",
+      "summary": "要修正 {{count}} 項目"
     }
   }
 }

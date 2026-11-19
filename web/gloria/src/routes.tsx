@@ -11,6 +11,7 @@ export type AppRoute = RouteDef & { title?: () => string };
 export const ROUTES: AppRoute[] = [
   { pattern: '/', load: () => import('./screens/Home') },
   { pattern: '/diag', load: () => import('./diag/DiagnosticsScreen') },
+  { pattern: '/review', load: () => import('./screens/Review') },
   { pattern: '/gloria/new', load: () => import('../../../mobile/app/app/gloria/new'), title: () => i18n.t('gloria.new.title') },
   { pattern: '/gloria/summit-new', load: () => import('../../../mobile/app/app/gloria/summit-new'), title: () => i18n.t('gloria.new.addSummit') },
   { pattern: '/gloria/summits', load: () => import('../../../mobile/app/app/gloria/summits'), title: () => i18n.t('gloria.summitImport.listTitle') },
