@@ -8,6 +8,10 @@ const base = process.env.GLORIA_BASE ?? '/';
 
 export default defineConfig({
   base,
+  // One tsconfig for every file. Without it each file gets its nearest one,
+  // and mobile/app/tsconfig.json extends expo/tsconfig.base, which only
+  // exists where mobile's node_modules are installed (not in CI).
+  tsconfig: './tsconfig.json',
   plugins: [
     mobileBridge(),
     react(),

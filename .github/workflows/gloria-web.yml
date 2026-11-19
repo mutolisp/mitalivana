@@ -40,7 +40,9 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          # npm 11, as used locally: npm 10 rejects lock files written by npm 11
+          # (optional wasm deps of rolldown left out, "Missing … from lock file").
+          node-version: 24
           cache: npm
           cache-dependency-path: web/gloria/package-lock.json
 
