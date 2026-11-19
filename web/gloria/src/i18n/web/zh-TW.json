@@ -20,7 +20,8 @@
       "corrupt": "資料庫快照無法讀取。請不要清除網站資料，並與開發者聯絡。",
       "recovered": "已從前一份快照復原資料。",
       "back": "返回",
-      "error": "發生錯誤"
+      "error": "發生錯誤",
+      "packs": "國家名錄"
     },
     "export": {
       "withPhotos": "含照片",
@@ -45,6 +46,27 @@
       "photosMissing": "必拍照片還缺 {{count}} 張",
       "title": "檢查",
       "summary": "共 {{count}} 項待修正"
+    },
+    "packs": {
+      "title": "國家名錄",
+      "intro": "臺灣以外的山峰：下載該國的 GBIF 物種名錄後，物種搜尋就能離線找到當地的植物。",
+      "scope": "網頁版只向 GBIF 申請植物界（GLORIA 記錄維管束植物），檔案較小。",
+      "request": "用 GBIF 帳號申請",
+      "requestHint": "GBIF 準備檔案需要幾分鐘到數小時；完成後回到這頁下載檔案，再匯入。",
+      "importFile": "匯入已下載的檔案",
+      "importHint": "在 gbif.org 下載的物種名錄（Species list 格式的 zip）也可以直接匯入。",
+      "waiting": "GBIF 處理中（{{status}}），已等候 {{elapsed}}。這個頁面開著時會自動檢查。",
+      "pending": "等候 GBIF 中。點「繼續」重新檢查進度。",
+      "fileReady": "GBIF 已準備好檔案",
+      "fileReadyHint": "先按「下載檔案」存到裝置，再按「匯入已下載的檔案」選那個 zip。",
+      "downloadFile": "下載檔案",
+      "imported": "已匯入 {{name}} 的 {{count}} 筆物種名",
+      "importFailed": "匯入失敗",
+      "notSpeciesList": "這不是 GBIF 的物種名錄檔（Species list）：{{msg}}",
+      "usernamePh": "使用者名稱（不是 email）",
+      "passwordNotSaved": "密碼只用於這次申請，不會儲存在這台裝置。",
+      "notifyHint": "選填。GBIF 完成時會寄信到這個信箱。",
+      "register": "還沒有 GBIF 帳號？到 gbif.org 免費註冊"
     }
   }
 }

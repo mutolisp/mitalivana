@@ -20,7 +20,8 @@
       "corrupt": "The database snapshot cannot be read. Do not clear site data; contact the developer.",
       "recovered": "Data was restored from the previous snapshot.",
       "back": "Back",
-      "error": "Something went wrong"
+      "error": "Something went wrong",
+      "packs": "Country checklists"
     },
     "export": {
       "withPhotos": "With photos",
@@ -52,6 +53,28 @@
       "title": "Review",
       "summary_one": "{{count}} item to fix",
       "summary_other": "{{count}} items to fix"
+    },
+    "packs": {
+      "title": "Country checklists",
+      "intro": "For summits outside Taiwan: download the country’s GBIF species list and the species search finds its plants offline.",
+      "scope": "The web app asks GBIF for the plant kingdom only (GLORIA records vascular plants), which keeps the file small.",
+      "request": "Request with a GBIF account",
+      "requestHint": "GBIF takes minutes to hours to prepare the file; when it is done, download it here and import it.",
+      "importFile": "Import a downloaded file",
+      "importHint": "A species list downloaded on gbif.org (Species list format, zip) can be imported directly.",
+      "waiting": "GBIF is working ({{status}}), waiting {{elapsed}}. Checked automatically while this page is open.",
+      "pending": "Waiting for GBIF. Tap “Resume” to check again.",
+      "fileReady": "GBIF has the file ready",
+      "fileReadyHint": "Tap “Download file” to save it to this device, then “Import a downloaded file” and pick that zip.",
+      "downloadFile": "Download file",
+      "imported_one": "Imported {{count}} name for {{name}}",
+      "imported_other": "Imported {{count}} names for {{name}}",
+      "importFailed": "Import failed",
+      "notSpeciesList": "This is not a GBIF species list file: {{msg}}",
+      "usernamePh": "Username (not your email)",
+      "passwordNotSaved": "The password is used for this request only and is not saved on this device.",
+      "notifyHint": "Optional. GBIF emails this address when the file is ready.",
+      "register": "No GBIF account yet? Register for free at gbif.org"
     }
   }
 }

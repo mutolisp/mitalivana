@@ -20,7 +20,8 @@
       "corrupt": "L’instantané de la base de données est illisible. N’effacez pas les données du site ; contactez le développeur.",
       "recovered": "Les données ont été restaurées depuis l’instantané précédent.",
       "back": "Retour",
-      "error": "Une erreur est survenue"
+      "error": "Une erreur est survenue",
+      "packs": "Listes par pays"
     },
     "export": {
       "withPhotos": "Avec photos",
@@ -52,6 +53,28 @@
       "title": "Vérification",
       "summary_one": "{{count}} point à corriger",
       "summary_other": "{{count}} points à corriger"
+    },
+    "packs": {
+      "title": "Listes par pays",
+      "intro": "Pour les sommets hors de Taïwan : téléchargez la liste d’espèces GBIF du pays et la recherche d’espèces trouve ses plantes hors ligne.",
+      "scope": "L’application web ne demande à GBIF que le règne végétal (GLORIA relève les plantes vasculaires) ; le fichier reste petit.",
+      "request": "Demander avec un compte GBIF",
+      "requestHint": "GBIF met de quelques minutes à quelques heures à préparer le fichier ; ensuite, téléchargez-le ici et importez-le.",
+      "importFile": "Importer un fichier téléchargé",
+      "importHint": "Une liste d’espèces téléchargée sur gbif.org (format Species list, zip) s’importe directement.",
+      "waiting": "GBIF travaille ({{status}}), attente {{elapsed}}. Vérifié automatiquement tant que cette page est ouverte.",
+      "pending": "En attente de GBIF. Touchez « Reprendre » pour vérifier à nouveau.",
+      "fileReady": "Le fichier GBIF est prêt",
+      "fileReadyHint": "Touchez « Télécharger le fichier » pour l’enregistrer sur l’appareil, puis « Importer un fichier téléchargé » et choisissez ce zip.",
+      "downloadFile": "Télécharger le fichier",
+      "imported_one": "{{count}} nom importé pour {{name}}",
+      "imported_other": "{{count}} noms importés pour {{name}}",
+      "importFailed": "Échec de l’import",
+      "notSpeciesList": "Ce n’est pas une liste d’espèces GBIF (Species list) : {{msg}}",
+      "usernamePh": "Nom d’utilisateur (pas l’e-mail)",
+      "passwordNotSaved": "Le mot de passe sert à cette demande seulement et n’est pas enregistré sur l’appareil.",
+      "notifyHint": "Facultatif. GBIF écrit à cette adresse quand le fichier est prêt.",
+      "register": "Pas encore de compte GBIF ? Inscription gratuite sur gbif.org"
     }
   }
 }

@@ -92,6 +92,7 @@ export default function Home() {
         <Button variant="primary" icon="add" label={t('web.home.newSurvey')} onPress={openNewGloria} />
         <Button variant="secondary" icon="flag-outline" label={t('web.home.summits')} onPress={() => router.push('/gloria/summits')} />
         <Button variant="secondary" icon="download-outline" label={t('web.home.importFile')} onPress={() => void importRecordPromptAndOpen()} />
+        <Button variant="secondary" icon="globe-outline" label={t('web.home.packs')} onPress={() => router.push('/packs')} />
         {surveys.length ? (
           <>
             <Button variant="secondary" icon="share-outline" label={t('common.export')} onPress={() => void startExport()} />

@@ -20,7 +20,8 @@
       "corrupt": "Der Datenbank-Schnappschuss kann nicht gelesen werden. Websitedaten nicht löschen; bitte den Entwickler kontaktieren.",
       "recovered": "Daten wurden aus dem vorherigen Schnappschuss wiederhergestellt.",
       "back": "Zurück",
-      "error": "Ein Fehler ist aufgetreten"
+      "error": "Ein Fehler ist aufgetreten",
+      "packs": "Länderlisten"
     },
     "export": {
       "withPhotos": "Mit Fotos",
@@ -52,6 +53,28 @@
       "title": "Prüfen",
       "summary_one": "{{count}} offener Punkt",
       "summary_other": "{{count}} offene Punkte"
+    },
+    "packs": {
+      "title": "Länderlisten",
+      "intro": "Für Gipfel außerhalb Taiwans: Laden Sie die GBIF-Artenliste des Landes herunter, dann findet die Artsuche dessen Pflanzen auch offline.",
+      "scope": "Die Web-App fordert bei GBIF nur das Pflanzenreich an (GLORIA erfasst Gefäßpflanzen); die Datei bleibt so klein.",
+      "request": "Mit GBIF-Konto anfordern",
+      "requestHint": "GBIF braucht Minuten bis Stunden für die Datei; danach hier herunterladen und importieren.",
+      "importFile": "Heruntergeladene Datei importieren",
+      "importHint": "Eine auf gbif.org heruntergeladene Artenliste (Format Species list, zip) lässt sich direkt importieren.",
+      "waiting": "GBIF arbeitet ({{status}}), wartet seit {{elapsed}}. Wird geprüft, solange diese Seite offen ist.",
+      "pending": "Warten auf GBIF. „Fortsetzen“ prüft erneut.",
+      "fileReady": "Die Datei bei GBIF ist fertig",
+      "fileReadyHint": "Mit „Datei herunterladen“ auf dem Gerät speichern, dann „Heruntergeladene Datei importieren“ und diese zip wählen.",
+      "downloadFile": "Datei herunterladen",
+      "imported_one": "{{count}} Name für {{name}} importiert",
+      "imported_other": "{{count}} Namen für {{name}} importiert",
+      "importFailed": "Import fehlgeschlagen",
+      "notSpeciesList": "Keine GBIF-Artenliste (Species list): {{msg}}",
+      "usernamePh": "Benutzername (nicht die E-Mail)",
+      "passwordNotSaved": "Das Passwort dient nur dieser Anfrage und wird nicht auf dem Gerät gespeichert.",
+      "notifyHint": "Optional. GBIF schreibt an diese Adresse, wenn die Datei fertig ist.",
+      "register": "Noch kein GBIF-Konto? Kostenlos auf gbif.org registrieren"
     }
   }
 }

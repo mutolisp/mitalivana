@@ -6,9 +6,10 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import { bootDatabase, type BootResult } from './host/boot';
+import { bootPacks } from './host/packsHost';
 import { mountStoredSpecies } from './host/speciesInstall';
 import { initDatasetsEmpty } from './host/datasetsHost';
-import { requestPersistence } from './host/persist';
+import { flushOnHide, requestPersistence } from './host/persist';
 import i18n, { resolveLanguage, setLanguage } from './host/i18n';
 import { useSettings } from '~/stores/settings';
 import { useActiveGloria } from '~/modules/gloria/store';
@@ -39,6 +40,7 @@ function bootOnce() {
     const result = await bootDatabase();
     const t1 = performance.now();
     if (!result.ok) return { failure: result };
+    flushOnHide([await bootPacks()]);
     const speciesVersion = await mountStoredSpecies();
     const t2 = performance.now();
     useSettings.getState().load();

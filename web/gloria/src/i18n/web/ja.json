@@ -20,7 +20,8 @@
       "corrupt": "データベースのスナップショットを読み込めません。サイトデータを消去せず、開発者に連絡してください。",
       "recovered": "前のスナップショットからデータを復元しました。",
       "back": "戻る",
-      "error": "エラーが発生しました"
+      "error": "エラーが発生しました",
+      "packs": "国別リスト"
     },
     "export": {
       "withPhotos": "写真を含める",
@@ -45,6 +46,27 @@
       "photosMissing": "必須写真があと {{count}} 枚",
       "title": "チェック",
       "summary": "要修正 {{count}} 項目"
+    },
+    "packs": {
+      "title": "国別リスト",
+      "intro": "台湾以外の山頂向け：その国の GBIF 種リストをダウンロードすると、種の検索でオフラインでも現地の植物が見つかります。",
+      "scope": "ウェブ版は GBIF に植物界だけを申請します（GLORIA は維管束植物を記録）。ファイルが小さくなります。",
+      "request": "GBIF アカウントで申請",
+      "requestHint": "GBIF のファイル作成には数分から数時間かかります。完了したらこのページでダウンロードし、読み込んでください。",
+      "importFile": "ダウンロードしたファイルを読み込む",
+      "importHint": "gbif.org でダウンロードした種リスト（Species list 形式の zip）もそのまま読み込めます。",
+      "waiting": "GBIF 処理中（{{status}}）、{{elapsed}} 経過。このページを開いている間は自動で確認します。",
+      "pending": "GBIF を待っています。「再開」で進捗を再確認します。",
+      "fileReady": "GBIF のファイルが準備できました",
+      "fileReadyHint": "「ファイルをダウンロード」で端末に保存してから、「ダウンロードしたファイルを読み込む」でその zip を選んでください。",
+      "downloadFile": "ファイルをダウンロード",
+      "imported": "{{name}} の種名 {{count}} 件を読み込みました",
+      "importFailed": "読み込みに失敗しました",
+      "notSpeciesList": "GBIF の種リストファイル（Species list）ではありません：{{msg}}",
+      "usernamePh": "ユーザー名（メールアドレスではなく）",
+      "passwordNotSaved": "パスワードはこの申請だけに使い、この端末には保存しません。",
+      "notifyHint": "任意。完了時に GBIF からこのアドレスにメールが届きます。",
+      "register": "GBIF アカウントがない場合は gbif.org で無料登録"
     }
   }
 }
